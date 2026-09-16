@@ -425,7 +425,6 @@ import {
 } from "@/lib/logIntentReveal";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
-import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   isCurrentMapResumeRefresh,
@@ -569,6 +568,7 @@ import { homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
 import {
   filtersForCuratedCrawl,
   buildMapSeed,
+  builtStopsNeedingHydration,
   detailStatusFor,
   mapSelectionNotice,
   mapSelectionNoticeFromSearch,
@@ -2714,14 +2714,12 @@ export default function PubMap({
   // Only a transient failure is released for a later attempt.
   const builtRouteHydrationAskedRef = useRef(new Set<string>());
   useEffect(() => {
-    const requestedIds = builtIds
-      .slice(0, WALK_ROUTE_MAX_STOPS)
-      .filter(
-        (id) =>
-          Boolean(id) &&
-          !venueById.has(id) &&
-          !builtRouteHydrationAskedRef.current.has(id),
-      );
+    const requestedIds = builtStopsNeedingHydration({
+      venueDataReady: loaded && loadedCityId === cityId,
+      builtIds,
+      venueById,
+      askedIds: builtRouteHydrationAskedRef.current,
+    });
     if (requestedIds.length === 0) return;
     requestedIds.forEach((id) => builtRouteHydrationAskedRef.current.add(id));
     void Promise.all(
@@ -2756,7 +2754,7 @@ export default function PubMap({
         return changed ? next : current;
       });
     });
-  }, [builtIds, setBuiltIds, venueById]);
+  }, [builtIds, cityId, loaded, loadedCityId, setBuiltIds, venueById]);
   // Zone pint index (nearest-station fare zone medians) for the zone picker.
   // Computed off the full venue set so the strip's numbers don't shift as the
   // user filters — it's a stable "here's the lay of the land" reference.
