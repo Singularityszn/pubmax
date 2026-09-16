@@ -73,3 +73,19 @@ export function cameraIntentForFocusSource(
 ): CameraIntentKind {
   return CAMERA_INTENT_BY_FOCUS_SOURCE[source];
 }
+
+/**
+ * The next deliberate area move. Every pick mints a new identity, even for the
+ * place the last pick named: the reader may have panned away since.
+ */
+export function nextAreaCameraFocus(
+  prev: MapCameraFocus | null,
+  camera: { center: [number, number]; zoom: number },
+): MapCameraFocus {
+  return {
+    center: camera.center,
+    zoom: camera.zoom,
+    source: "area",
+    token: (prev?.token ?? 0) + 1,
+  };
+}

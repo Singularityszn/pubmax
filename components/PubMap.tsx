@@ -518,7 +518,10 @@ import {
   subscribeMapChosenArea,
   writeMapChosenArea,
 } from "@/lib/mapChosenArea";
-import type { MapCameraFocus } from "@/lib/mapCameraFocus";
+import {
+  nextAreaCameraFocus,
+  type MapCameraFocus,
+} from "@/lib/mapCameraFocus";
 import {
   dismissMapFirstVisitArrivalOnMapUse,
   shouldShowMapFirstVisitArrival,
@@ -4353,21 +4356,7 @@ export default function PubMap({
       setMapCameraTouched(true);
       cancelOpeningLocation();
       setOpeningLocationFocus(null);
-      setAreaFocus((prev) => {
-        if (
-          prev?.center[0] === camera.center[0] &&
-          prev.center[1] === camera.center[1] &&
-          prev.zoom === camera.zoom
-        ) {
-          return prev;
-        }
-        return {
-          center: camera.center,
-          zoom: camera.zoom,
-          source: "area",
-          token: (prev?.token ?? 0) + 1,
-        };
-      });
+      setAreaFocus((prev) => nextAreaCameraFocus(prev, camera));
     },
     [cancelOpeningLocation],
   );
