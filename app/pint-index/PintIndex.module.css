@@ -1,5 +1,5 @@
 /* The London Pint Index (Wave S3.3). Self-contained: depends only on the
-   globally-loaded design tokens (--brass, --ink, --line, --panel…), so both the
+   globally-loaded design tokens (--brass, --ink, --line, --panel...), so both the
    light and dark themes track automatically. Mobile-first, comfortable at 390px;
    the league table scrolls horizontally inside its own container rather than
    pushing the page body sideways. Mirrors the borough/discover aesthetic. */
@@ -81,8 +81,10 @@
 }
 
 /* --- league table --------------------------------------------------------- */
+/* These selectors are :global because child components
+   (PintIndexLeagueTable, PintIndexEditions) use bare string classNames. */
 
-.pintIndexTableWrap {
+:global(.pintIndexTableWrap) {
   overflow-x: auto;
   touch-action: pan-y;
   border: 1px solid var(--line);
@@ -90,14 +92,14 @@
   background: var(--panel);
 }
 
-.pintIndexTable {
+:global(.pintIndexTable) {
   width: 100%;
   min-width: 560px;
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
 }
 
-.pintIndexTable thead th {
+:global(.pintIndexTable) thead th {
   text-align: left;
   padding: 12px 14px;
   font-size: 11px;
@@ -109,42 +111,42 @@
   white-space: nowrap;
 }
 
-.pintIndexTable th.pintIndexNum,
-.pintIndexTable td.pintIndexNum {
+:global(.pintIndexTable) th:global(.pintIndexNum),
+:global(.pintIndexTable) td:global(.pintIndexNum) {
   text-align: right;
   white-space: nowrap;
 }
 
-.pintIndexTable tbody tr {
+:global(.pintIndexTable) tbody tr {
   border-bottom: 1px solid var(--line);
 }
 
-.pintIndexTable tbody tr:last-child {
+:global(.pintIndexTable) tbody tr:last-child {
   border-bottom: 0;
 }
 
-.pintIndexTable td,
-.pintIndexTable th[scope="row"] {
+:global(.pintIndexTable) td,
+:global(.pintIndexTable) th[scope="row"] {
   padding: 12px 14px;
   vertical-align: middle;
   font-weight: 400;
   color: var(--ink);
 }
 
-.pintIndexRank {
+:global(.pintIndexRank) {
   width: 44px;
   text-align: center;
   color: var(--brass);
   font-weight: 700;
 }
 
-.pintIndexBoroughLink {
+:global(.pintIndexBoroughLink) {
   font-weight: 600;
   color: var(--ink);
   text-decoration: none;
 }
 
-.pintIndexBoroughLink:hover {
+:global(.pintIndexBoroughLink):hover {
   color: var(--brass);
   text-decoration: underline;
 }
@@ -157,11 +159,11 @@
    Weight rather than the page's brass on purpose: --brass is the coral
    (#ff5a5f), which lands near 2.5:1 against the light table surface. Bold ink
    marks the ranked column in both themes without spending contrast to do it. */
-.pintIndexTable td.pintIndexRanked {
+:global(.pintIndexTable) td:global(.pintIndexRanked) {
   font-weight: 700;
 }
 
-.pintIndexNoPrice {
+:global(.pintIndexNoPrice) {
   color: var(--ink-soft);
   font-size: 13px;
 }
@@ -224,7 +226,7 @@
 
 /* --- borough index links -------------------------------------------------- */
 
-.pintIndexBoroughLinks {
+:global(.pintIndexBoroughLinks) {
   list-style: none;
   margin: 16px 0 0;
   padding: 0;
@@ -233,7 +235,7 @@
   gap: 8px;
 }
 
-.pintIndexBoroughLinks a {
+:global(.pintIndexBoroughLinks) a {
   display: inline-flex;
   align-items: center;
   /* The tap floor: these were 38px. */
@@ -248,18 +250,18 @@
   text-decoration: none;
 }
 
-.pintIndexBoroughLinks a:hover {
+:global(.pintIndexBoroughLinks) a:hover {
   border-color: var(--brass);
   color: var(--color-accent-ink);
 }
 
-.pintIndexBoroughLinks a:focus-visible {
+:global(.pintIndexBoroughLinks) a:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
 
 /* The edition you are already reading: same shape as its siblings, no link. */
-.pintIndexEditionCurrent {
+:global(.pintIndexEditionCurrent) {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -291,7 +293,7 @@
 }
 
 /* Screen-reader-only utility (table caption). */
-.pintIndexPage .srOnly {
+.pintIndexPage :global(.srOnly) {
   position: absolute;
   width: 1px;
   height: 1px;

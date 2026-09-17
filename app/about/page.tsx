@@ -11,7 +11,7 @@ import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
 import { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
 import { CONTACT_EMAIL } from "@/lib/siteContact";
 
-import "./about.css";
+import styles from "./About.module.css";
 
 // /about — the founder story surface (PRD_SEARCH_GROWTH S4.5; Wave S1 of
 // docs/plans/FIRST_PRINCIPLES_OUTINGS.md). One page that triples as: (1) the
@@ -150,7 +150,7 @@ export default async function AboutPage() {
   const dearest = fmtGbp(stats.dearestPint);
 
   return (
-    <main id="main" className="aboutPage">
+    <main id="main" className={styles.aboutPage}>
       {/* JSON-LD is inert data, not executable script. It goes through the ONE
           hardened injector (components/seo/JsonLd), which escapes every
           HTML-significant character before the body is inlined, so a future
@@ -164,7 +164,7 @@ export default async function AboutPage() {
           line, one lede and ONE primary. The story sections ride under it. */}
       <Screen
         as="section"
-        className="aboutHero"
+        className={styles.aboutHero}
         kicker="Our story"
         title={
           <>
@@ -188,15 +188,15 @@ export default async function AboutPage() {
         secondary={<a href={`mailto:${CONTACT_EMAIL}`}>Contact</a>}
       >
 
-      <section className="aboutSection" aria-labelledby="why">
-        <h2 id="why" className="aboutH2">Why we built it</h2>
-        <p className="aboutBody">
+      <section className={styles.aboutSection} aria-labelledby="why">
+        <h2 id="why" className={styles.aboutH2}>Why we built it</h2>
+        <p className={styles.aboutBody}>
           Planning a night out had quietly turned into admin. The cheap pint is
           on one app. The walk is on another. Whether the place is any good is
           on a third. And the price, the thing that actually decides where you
           go, is nowhere at all.
         </p>
-        <p className="aboutBody">
+        <p className={styles.aboutBody}>
           So most nights you don&rsquo;t plan. You give up and end up where you
           always end up. Same for a daytime Spoons with a laptop, a soft-drink
           round, or a catch-up that never needed a lager. A seat shouldn&rsquo;t
@@ -205,31 +205,31 @@ export default async function AboutPage() {
         </p>
       </section>
 
-      <section className="aboutSection" aria-labelledby="did">
-        <h2 id="did" className="aboutH2">What we did about it</h2>
-        <p className="aboutBody">
+      <section className={styles.aboutSection} aria-labelledby="did">
+        <h2 id="did" className={styles.aboutH2}>What we did about it</h2>
+        <p className={styles.aboutBody}>
           We put real prices on the map, starting in London. When a price record
           names a publisher, we name and link it. When no publisher is recorded,
           the price says so. The ones logged by drinkers carry the day they were
           seen. Tap a pub and you see what a drink costs before you set off, not
           after you&rsquo;ve handed over a note.
         </p>
-        <p className="aboutBody">
+        <p className={styles.aboutBody}>
           A first report can mark a pin straight away. Pin colour, list rows,
           and cheapest buckets wait for a second independent drinker. Speed is
           nice. A figure that survives a challenge is the product.
         </p>
-        <p className="aboutBody">
+        <p className={styles.aboutBody}>
           We kept the stories too. Most of these pubs have been pouring for a
           century or two, and the good ones earned their walk. So we cite the
           heritage, and we never make it up.
         </p>
-        <p className="aboutBody">
+        <p className={styles.aboutBody}>
           And we made it one link for the crew. You plan the outing, you send
           it, everyone lands in the same place walking the same route. No
           group-chat archaeology at half six.
         </p>
-        <p className="aboutBody">
+        <p className={styles.aboutBody}>
           Nobody pays to rank. Not ever. There&rsquo;s a wall in the code
           between anyone&rsquo;s money and the prices you see. A sponsored thing
           says so and sits in its own slot. The order of pubs on your map is
@@ -237,9 +237,9 @@ export default async function AboutPage() {
         </p>
       </section>
 
-      <section className="aboutSection" aria-labelledby="fights">
-        <h2 id="fights" className="aboutH2">What we refused to ship</h2>
-        <ul className="aboutEthos">
+      <section className={styles.aboutSection} aria-labelledby="fights">
+        <h2 id="fights" className={styles.aboutH2}>What we refused to ship</h2>
+        <ul className={styles.aboutEthos}>
           <li>
             <strong>Every report as map truth.</strong> An uncorroborated price
             can show on the pub&rsquo;s own sheet. It does not paint the pin
@@ -263,15 +263,15 @@ export default async function AboutPage() {
         </ul>
       </section>
 
-      <section className="aboutSection" aria-labelledby="who">
-        <h2 id="who" className="aboutH2">Who it&rsquo;s for</h2>
-        <p className="aboutBody">
+      <section className={styles.aboutSection} aria-labelledby="who">
+        <h2 id="who" className={styles.aboutH2}>Who it&rsquo;s for</h2>
+        <p className={styles.aboutBody}>
           Everyone who actually goes out. The after-work crowd who want a cheap
           round before the last train. The quiet-pint person who just wants a
           good one and a seat by the window. The birthday mob who need somewhere
           that&rsquo;ll take twelve of them on a Friday.
         </p>
-        <p className="aboutBody">
+        <p className={styles.aboutBody}>
           Also the daytime jobs: coffee and a laptop at a Spoons, food then a
           soft drink, an alcohol-free hang, a chill afternoon that never needed
           a crawl. Soft drink and alcohol-free prices share the same trust
@@ -279,21 +279,21 @@ export default async function AboutPage() {
           anchors stay honest about their source and never masquerade as a pint
           on the pin.
         </p>
-        <p className="aboutBody">
+        <p className={styles.aboutBody}>
           We&rsquo;re building this for people who notice an eight-quid lager,
           and for people who open a pub when they are not drinking at all.
         </p>
       </section>
 
-      <section className="aboutSection" aria-labelledby="team">
-        <h2 id="team" className="aboutH2">Who builds it</h2>
-        <p className="aboutBody">
+      <section className={styles.aboutSection} aria-labelledby="team">
+        <h2 id="team" className={styles.aboutH2}>Who builds it</h2>
+        <p className={styles.aboutBody}>
           PUBMAXX is founder-led by{" "}
           <a
             href="https://x.com/karansznx"
             target="_blank"
             rel="noreferrer"
-            className="aboutLink"
+            className={styles.aboutLink}
           >
             Karan Manoharan
           </a>
@@ -306,31 +306,31 @@ export default async function AboutPage() {
             anywhere: the note carries no dates, schools, jobs, or any personal
             fact this site cannot stand behind - only the why, the mission, and
             the honesty rule the rest of the page already proves. */}
-        <figure className="aboutFounderNote">
-          <blockquote className="aboutFounderQuote">
-            <p className="aboutBody">
+        <figure className={styles.aboutFounderNote}>
+          <blockquote className={styles.aboutFounderQuote}>
+            <p className={styles.aboutBody}>
               I built PUBMAXX because pint prices became hard to know.
             </p>
-            <p className="aboutBody">
+            <p className={styles.aboutBody}>
               If PUBMAXX shows you a figure, it tells you its source status: a
               named publisher where one is recorded, an honest note when a
               publisher is not recorded, or a drinker who logged it on a stated
               day. If nobody has logged a figure, it says so.
             </p>
-            <p className="aboutBody">
+            <p className={styles.aboutBody}>
               I want PUBMAXX to be the best way in the world to decide which pub
               to walk into.
             </p>
           </blockquote>
-          <figcaption className="aboutFounderSig">
+          <figcaption className={styles.aboutFounderSig}>
             Karan Manoharan, founder of PUBMAXX
           </figcaption>
         </figure>
       </section>
 
-      <section className="aboutSection" aria-labelledby="ethos">
-        <h2 id="ethos" className="aboutH2">What we stand for</h2>
-        <ul className="aboutEthos">
+      <section className={styles.aboutSection} aria-labelledby="ethos">
+        <h2 id="ethos" className={styles.aboutH2}>What we stand for</h2>
+        <ul className={styles.aboutEthos}>
           <li>
             <strong>Prices with honest source status.</strong> Listed prices
             name and link their publisher when recorded, and say when no
@@ -354,43 +354,43 @@ export default async function AboutPage() {
       </section>
 
       {/* ── Traction / numbers (real, computed at build) ───────── */}
-      <section className="aboutSection aboutTraction" aria-labelledby="traction">
-        <h2 id="traction" className="aboutH2">By the numbers</h2>
-        <p className="aboutBody aboutTractionIntro">
+      <section className={`${styles.aboutSection} aboutTraction`} aria-labelledby="traction">
+        <h2 id="traction" className={styles.aboutH2}>By the numbers</h2>
+        <p className={`${styles.aboutBody} ${styles.aboutTractionIntro}`}>
           Every number here is counted from the same public data the app runs
           on. No vanity metrics, no invented users. If it&rsquo;s on this page,
           it&rsquo;s real.
         </p>
-        <dl className="aboutStatGrid">
+        <dl className={styles.aboutStatGrid}>
           {tractionStats(stats).map((stat) => (
-            <div key={stat.label} className="aboutStat">
-              <dt className="aboutStatValue">{stat.value}</dt>
-              <dd className="aboutStatBody">
-                <span className="aboutStatLabel">{stat.label}</span>
-                <span className="aboutStatNote">{stat.note}</span>
+            <div key={stat.label} className={styles.aboutStat}>
+              <dt className={styles.aboutStatValue}>{stat.value}</dt>
+              <dd className={styles.aboutStatBody}>
+                <span className={styles.aboutStatLabel}>{stat.label}</span>
+                <span className={styles.aboutStatNote}>{stat.note}</span>
               </dd>
             </div>
           ))}
         </dl>
-        <p className="aboutPriceLine">
+        <p className={styles.aboutPriceLine}>
           Across <strong>{fmtInt(stats.boroughsCovered)}</strong> London
           boroughs and neighbourhoods, the cheapest pint we&rsquo;ve logged is{" "}
-          <span className="aboutPriceStamp">{cheapest}</span>. The dearest is{" "}
-          <span className="aboutPriceStamp">{dearest}</span>, and someone is
+          <span className={styles.aboutPriceStamp}>{cheapest}</span>. The dearest is{" "}
+          <span className={styles.aboutPriceStamp}>{dearest}</span>, and someone is
           paying it. The average sits at{" "}
-          <span className="aboutPriceStamp">{average}</span>.
+          <span className={styles.aboutPriceStamp}>{average}</span>.
         </p>
       </section>
 
       {/* ── Press kit ──────────────────────────────────────────── */}
-      <section className="aboutSection aboutPress" aria-labelledby="press">
-        <h2 id="press" className="aboutH2">Press kit</h2>
-        <dl className="aboutPressGrid">
-          <div className="aboutPressRow">
+      <section className={`${styles.aboutSection} ${styles.aboutPress}`} aria-labelledby="press">
+        <h2 id="press" className={styles.aboutH2}>Press kit</h2>
+        <dl className={styles.aboutPressGrid}>
+          <div className={styles.aboutPressRow}>
             <dt>Name</dt>
             <dd>PUBMAXX. The app is PUBMAXXING.</dd>
           </div>
-          <div className="aboutPressRow">
+          <div className={styles.aboutPressRow}>
             <dt>One line</dt>
             <dd>
               Listed prices with explicit source status, one map for nights out
@@ -398,7 +398,7 @@ export default async function AboutPage() {
               to rank.
             </dd>
           </div>
-          <div className="aboutPressRow">
+          <div className={styles.aboutPressRow}>
             <dt>Positioning</dt>
             <dd>
               London runs on its pubs. This is the app that helps you decide
@@ -406,15 +406,15 @@ export default async function AboutPage() {
               what it costs, and who you&rsquo;re meeting.
             </dd>
           </div>
-          <div className="aboutPressRow">
+          <div className={styles.aboutPressRow}>
             <dt>Contact</dt>
             <dd>
-              <a href={`mailto:${CONTACT_EMAIL}`} className="aboutLink">
+              <a href={`mailto:${CONTACT_EMAIL}`} className={styles.aboutLink}>
                 {CONTACT_EMAIL}
               </a>
             </dd>
           </div>
-          <div className="aboutPressRow">
+          <div className={styles.aboutPressRow}>
             <dt>Founder</dt>
             <dd>
               Karan Manoharan
@@ -423,32 +423,32 @@ export default async function AboutPage() {
                 href="https://x.com/karansznx"
                 target="_blank"
                 rel="noreferrer"
-                className="aboutLink"
+                className={styles.aboutLink}
               >
                 X
               </a>
             </dd>
           </div>
-          <div className="aboutPressRow">
+          <div className={styles.aboutPressRow}>
             <dt>Also see</dt>
             <dd>
-              <Link href="/pint-index" className="aboutLink">
+              <Link href="/pint-index" className={styles.aboutLink}>
                 The Pint Index
               </Link>
               {" · "}
-              <Link href="/historic" className="aboutLink">
+              <Link href="/historic" className={styles.aboutLink}>
                 Historic pubs
               </Link>
             </dd>
           </div>
-          <div className="aboutPressRow">
+          <div className={styles.aboutPressRow}>
             <dt>Logo</dt>
-            <dd className="aboutLogoLinks">
-              <a href="/icon-512.png" download className="aboutLink">
+            <dd className={styles.aboutLogoLinks}>
+              <a href="/icon-512.png" download className={styles.aboutLink}>
                 PNG (512px)
               </a>
               {" · "}
-              <a href="/favicon.svg" download className="aboutLink">
+              <a href="/favicon.svg" download className={styles.aboutLink}>
                 SVG mark
               </a>
             </dd>
@@ -457,15 +457,15 @@ export default async function AboutPage() {
       </section>
 
       {/* ── Story hooks (press angle) ──────────────────────────── */}
-      <section className="aboutSection aboutPress" aria-labelledby="press-hooks">
-        <h2 id="press-hooks" className="aboutH2">Story hooks</h2>
-        <p className="aboutBody">
+      <section className={`${styles.aboutSection} ${styles.aboutPress}`} aria-labelledby="press-hooks">
+        <h2 id="press-hooks" className={styles.aboutH2}>Story hooks</h2>
+        <p className={styles.aboutBody}>
           London runs on its pubs. This is the app that helps you decide where
           to go. If you&rsquo;re writing about the cost of a night out, the Pint
           Index is your angle. If you&rsquo;re writing about daytime pubs,
           coffee, food, or alcohol-free rounds, the same honesty rules apply.
         </p>
-        <ul className="aboutEthos">
+        <ul className={styles.aboutEthos}>
           {pintIndexRows.length > 0 && pintIndexSnapshot ? (
             <>
               <li>
@@ -491,8 +491,8 @@ export default async function AboutPage() {
             </li>
           )}
         </ul>
-        <p className="aboutBody">
-          <Link href="/pint-index" className="aboutLink">
+        <p className={styles.aboutBody}>
+          <Link href="/pint-index" className={styles.aboutLink}>
             {pintIndexRows.length > 0
               ? "See the league table"
               : "See the Index status"}
@@ -500,28 +500,28 @@ export default async function AboutPage() {
         </p>
       </section>
 
-      <section className="aboutSection aboutCta" aria-labelledby="cta">
-        <h2 id="cta" className="aboutH2">Come pubmaxxing</h2>
-        <p className="aboutBody">
+      <section className={`${styles.aboutSection} ${styles.aboutCta}`} aria-labelledby="cta">
+        <h2 id="cta" className={styles.aboutH2}>Come pubmaxxing</h2>
+        <p className={styles.aboutBody}>
           Press, investors, and anyone who just wants a cheaper pint or a
           quieter afternoon: you&rsquo;re all welcome. Start on the map, or say
           hello.
         </p>
         {/* The head owns the one filled control, so the closing row is two
             text links, never a second button pair. */}
-        <p className="aboutBody aboutCtaRow">
-          <Link prefetch={false} href="/map" className="aboutLink">
+        <p className={`${styles.aboutBody} ${styles.aboutCtaRow}`}>
+          <Link prefetch={false} href="/map" className={styles.aboutLink}>
             Open the map
           </Link>
           {" · "}
-          <a href={`mailto:${CONTACT_EMAIL}`} className="aboutLink">
+          <a href={`mailto:${CONTACT_EMAIL}`} className={styles.aboutLink}>
             Get in touch
           </a>
         </p>
       </section>
 
-      <section className="aboutSection aboutCredits" aria-labelledby="credits">
-        <h2 id="credits" className="aboutH2">Data &amp; sources</h2>
+      <section className={`${styles.aboutSection} aboutCredits`} aria-labelledby="credits">
+        <h2 id="credits" className={styles.aboutH2}>Data &amp; sources</h2>
         <ul className="aboutSourceList">
           <li>
             Listed-building status comes from Historic England&apos;s National

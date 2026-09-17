@@ -5,7 +5,7 @@ import { PLACES_PATH, parsePlacesCityParam } from "@/lib/places";
 
 import PlacesClient from "./PlacesClient";
 
-import "./places.css";
+import "./Places.module.css";
 
 const PAGE_TITLE = "Places";
 const PAGE_DESCRIPTION =

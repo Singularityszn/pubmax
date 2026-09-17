@@ -1,4 +1,4 @@
-/* /about — founder story + press kit + investor surface.
+/* /about -- founder story + press kit + investor surface.
    Shares the app's visual language via globally-loaded tokens only (paper,
    panel/panel-raised, ink, ink-soft, muted, line, brass/coral, radius + shadow
    scales from globals.css + theme.css). No hardcoded hex, so it tracks both
@@ -14,7 +14,7 @@
   margin: 0 auto;
   padding: 20px var(--page-gutter) calc(96px + env(safe-area-inset-bottom, 0px));
   color: var(--ink);
-  /* Soft paper atmosphere for the reading column — tokens only, no collage. */
+  /* Soft paper atmosphere for the reading column -- tokens only, no collage. */
   background:
     radial-gradient(
       120% 70% at 8% -12%,
@@ -29,7 +29,7 @@
     var(--paper);
 }
 
-/* ── Head ───────────────────────────────────────────────────── */
+/* -- Head --------------------------------------------------------- */
 /* The head is the shared Screen primitive (components/ui/screen.css). The
    page already pays the reading column and its gutters, so the head drops
    its own. The story lede is long on purpose, so it takes the column. */
@@ -38,15 +38,15 @@
   padding-inline: 0;
 }
 
-.aboutPage .aboutHero .screenHead {
+.aboutPage .aboutHero :global(.screenHead) {
   max-width: none;
 }
 
-.aboutPage .aboutHero .screenLede {
+.aboutPage .aboutHero :global(.screenLede) {
   max-width: 56ch;
 }
 
-/* ── Sections ───────────────────────────────────────────────── */
+/* -- Sections ----------------------------------------------------- */
 .aboutSection {
   margin: 28px 0;
 }
@@ -74,7 +74,7 @@
   font-weight: 600;
 }
 
-/* ── Ethos list ─────────────────────────────────────────────── */
+/* -- Ethos list --------------------------------------------------- */
 .aboutEthos {
   list-style: none;
   margin: 0;
@@ -100,7 +100,7 @@
   font-weight: 600;
 }
 
-/* ── Founder note ───────────────────────────────────────────── */
+/* -- Founder note ------------------------------------------------- */
 /* First-person block inside "Who builds it". Same panel + brass-edge idiom as
    the ethos list, sized up to read as one settled note rather than a bullet. */
 .aboutFounderNote {
@@ -129,7 +129,7 @@
   color: var(--muted);
 }
 
-/* ── Traction band ──────────────────────────────────────────── */
+/* -- Traction band ------------------------------------------------ */
 /* No band around the tiles: a heading with a grid under it is already a
    section, and a bordered card holding bordered cards is on the
    template-pattern ban list (docs/VOICE.md). */
@@ -209,7 +209,7 @@
   transform: rotate(var(--ink-stamp-tilt, -1.5deg));
 }
 
-/* ── Press kit ──────────────────────────────────────────────── */
+/* -- Press kit ---------------------------------------------------- */
 .aboutPress {
   padding: 22px 18px;
   border: 1px solid var(--line);
@@ -271,7 +271,7 @@
   border-bottom-color: currentcolor;
 }
 
-/* ── Closing row ────────────────────────────────────────────── */
+/* -- Closing row -------------------------------------------------- */
 /* Two text links. The head owns the one filled control on this page. */
 .aboutCta {
   padding: 8px 0 0;

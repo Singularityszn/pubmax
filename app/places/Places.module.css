@@ -44,7 +44,7 @@
   border-radius: var(--radius-sm);
 }
 
-/* ── Search ───────────────────────────────────────────────────────────────── */
+/* -- Search ---------------------------------------------------------------- */
 
 .placesSearch {
   display: grid;
@@ -91,7 +91,7 @@
   outline: none;
 }
 
-/* ── The city list ────────────────────────────────────────────────────────── */
+/* -- The city list --------------------------------------------------------- */
 
 /* The town fallback paints the SAME SHAPE as the city list: same target size,
    same mark, same two lines. SHAPE ONLY. The two kinds of row deliberately
@@ -227,7 +227,7 @@
   color: var(--state-active-ink);
 }
 
-/* ── The city panel ───────────────────────────────────────────────────────── */
+/* -- The city panel -------------------------------------------------------- */
 
 .placesConfirm {
   max-width: var(--content-max);
