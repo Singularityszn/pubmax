@@ -3,10 +3,8 @@
 
 import {
   ASK_PLAN_DRAFT_STORAGE_KEY,
-  type AskCard as AskApiCard,
   type AskPlanDraft,
   type AskProposal,
-  type AskResponseBody,
   type AskTurn,
 } from "@/lib/ask/types";
 

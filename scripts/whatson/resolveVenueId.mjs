@@ -32,15 +32,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  normaliseVenueKeyPart,
   venueGroupingKey,
   stableVenueIdFromKey,
   normalizeVenueIdentityName,
   postcodeOutward,
   haversineMeters,
 } from "../lib/venueCanonicalization.mjs";
-
-;
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const CANONICAL_DATASET_PATH = join(ROOT, "public", "data", "pint_prices_app_dataset.json");
