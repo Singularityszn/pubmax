@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { planOccasionHref } from "@/lib/planOccasion";
+import styles from "./outTonightBeacon.module.css";
 
 type Props = {
   /** Own beacon on You vs a crew mate's profile line. */
@@ -16,8 +17,8 @@ export default function OutTonightPlanCta({ variant }: Props) {
   const label = variant === "self" ? "Plan with your lot" : "Start a soft plan";
 
   return (
-    <p className="beaconPlanCta">
-      <Link className="beaconPlanCtaLink" href={href}>
+    <p className={styles.beaconPlanCta}>
+      <Link className={styles.beaconPlanCtaLink} href={href}>
         {label}
       </Link>
     </p>
