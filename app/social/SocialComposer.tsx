@@ -1,6 +1,6 @@
 "use client";
 
-import "@/components/map/composer/photoComposer.css";
+import "@/components/map/composer/PhotoComposer.module.css";
 
 import { type RefObject, useEffect, useId, useRef, useState } from "react";
 
