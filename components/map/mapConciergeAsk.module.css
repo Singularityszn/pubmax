@@ -25,7 +25,7 @@
 
 /* Only the expanded Tonight sheet needs to clear the bottom concierge pill;
    its collapsed chip now lives under the map toolbar. */
-.mapConciergeAsk--collapsed ~ .tonightLane--open {
+.mapConciergeAsk--collapsed ~ .tonightLaneOpen {
   bottom: calc(84px + env(safe-area-inset-bottom, 0px) + 52px);
 }
 
