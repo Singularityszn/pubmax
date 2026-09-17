@@ -263,7 +263,7 @@ function resolveSpendContributor(
   observed: ReturnType<typeof firstPartyPriceItems>,
   hasBearer: boolean,
   contributor: ContributionIdentityResolution | null,
-:
+):
   | { ok: true; promotionOwner: string | null; contributor: ResolvedContributor | null }
   | { ok: false; response: Response } {
   if (
