@@ -206,7 +206,7 @@
 
 /* One locate action, one shape. The landing answer card already offers
    "Near me" as a plain hairline pill with the locate glyph in --river
-   (landing.css .lpNearMe); this control used to be a coral-tinted pill with
+   (landing.module.css .lpNearMe); this control used to be a coral-tinted pill with
    coral text, so the same action wore two families on one page. */
 .cityChooserSection .cityChooserLocate {
   color: var(--color-text);
