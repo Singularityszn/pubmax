@@ -130,11 +130,20 @@ export type PlanRouteRevision = string | number;
 
 export function completionTelemetryFromBody(value: unknown): {
   ending: CrawlEnding;
+  /**
+   * Exactly the props the receipt was signed over, assembled here rather than
+   * at the call site: the ending, plus the SERVER's own crew answer
+   * (`eventProps` on the completion response) where it gave one. A receipt
+   * minted before the crew boolean shipped carries the ending alone and is
+   * still a countable completion, so the key is ABSENT rather than false, and
+   * nothing here derives the answer from the plan on screen.
+   */
+  planCompletedProps: { ending: CrawlEnding; crewNight?: boolean };
   planCompletedToken: string;
   meaningfulCoreActionToken: string;
 } | null {
   if (!value || typeof value !== "object") return null;
-  const row = value as { completion?: unknown; eventTokens?: unknown };
+  const row = value as { completion?: unknown; eventTokens?: unknown; eventProps?: unknown };
   if (
     !row.completion ||
     typeof row.completion !== "object" ||
@@ -162,8 +171,13 @@ export function completionTelemetryFromBody(value: unknown): {
     tokens.meaningfulCoreAction.length > 2_000
   )
     return null;
+  const crewNight = (row.eventProps as { crewNight?: unknown } | undefined)?.crewNight;
   return {
     ending: ending as CrawlEnding,
+    planCompletedProps: {
+      ending: ending as CrawlEnding,
+      ...(typeof crewNight === "boolean" ? { crewNight } : {}),
+    },
     planCompletedToken: tokens.planCompleted,
     meaningfulCoreActionToken: tokens.meaningfulCoreAction,
   };
@@ -809,7 +823,7 @@ function NightModeSheet({
         if (completionTelemetry) {
           trackEvent(
             "plan_completed",
-            { ending: completionTelemetry.ending },
+            completionTelemetry.planCompletedProps,
             { deliveryToken: completionTelemetry.planCompletedToken },
           );
           trackMeaningfulCoreAction(

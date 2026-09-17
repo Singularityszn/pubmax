@@ -11,12 +11,7 @@
 // honest and PII-free even as new events are added.
 
 import { CONTRIBUTION_GATE_STATUSES } from "@/lib/contributionGateStatus";
-import {
-  COVERAGE_STATUSES,
-  NIGHT_AREA_SLUGS,
-  ROUTE_READY_GATE_CODES,
-  ROUTE_READY_GATE_VERSION,
-} from "@/lib/nightAreas";
+import { NIGHT_AREA_SLUGS } from "@/lib/nightAreas";
 import { boroughCode, LONDON_BOROUGH_NAMES } from "@/lib/pintIndex";
 import { RSVP_STATUSES } from "@/lib/planInvite";
 import { REACTION_KEYS } from "@/lib/reactions";
@@ -24,7 +19,21 @@ import { ROUTE_PATTERNS, ROUTE_PATTERN_OTHER } from "@/lib/routePattern";
 import { VITAL_METRICS, VITAL_RATINGS, sanitizeVitalTarget } from "@/lib/webVitals";
 import type { DrinkCategory } from "@/lib/drinks";
 
-/** Allowed prop keys per event. An empty list means the event carries no props. */
+/**
+ * Allowed prop keys per event. An empty list means the event carries no props.
+ *
+ * EVERY NAME IN HERE HAS AN EMITTER, AND `__tests__/analyticsEmitterFence.ts`
+ * is what says so. Eighteen did not: `cmdk_open`, `drop_logged`, the five
+ * district names, the three open-plan names, both `claim_*` steps and the
+ * rest, all registered and sent by nothing. The defence for keeping them was
+ * that the sanitizer must know an event's shape before its first event
+ * arrives, which is a promise about a surface that is COMING; for a surface
+ * that was cancelled, was never built, or lost its emitter, the registry row
+ * is a tile that reads zero for ever and a reader who cannot tell that zero
+ * from a real one. They are deleted, and the fence means a name and its
+ * emitter now land in the same commit - the rule the six loop moments already
+ * followed.
+ */
 export const ANALYTICS_EVENTS = {
   // R3 cycle metrics rail (carried over from the original Vercel-backed
   // trackEvent; ported onto this self-owned registry so the same closed set
@@ -32,9 +41,7 @@ export const ANALYTICS_EVENTS = {
   badge_tap: [],
   lane_card_tap: [],
   lane_to_plan: ["source", "stops"],
-  cmdk_open: [],
   night_mode_active: [],
-  drop_logged: [],
   booking_click: ["tier"],
   whats_on_filter: [],
   // Wave F · F3 — concierge-as-map-home
@@ -43,11 +50,8 @@ export const ANALYTICS_EVENTS = {
   tour_complete: ["completed"],
   plan_created: ["count"],
   night_description_submitted: ["area", "daypart"],
-  planned_night_status_changed: ["status"],
   planned_night_action: ["type"],
-  pub_pal_adopted: ["pal"],
   pub_pal_summoned: ["surface"],
-  pub_pal_memory_changed: ["action", "category"],
   discovery_viewed: ["surface", "daypart"],
   plan_invite_sent: ["channel"],
   plan_invite_opened: ["source"],
@@ -59,16 +63,7 @@ export const ANALYTICS_EVENTS = {
   desk_answer_served: ["outcome"],
   venue_accepted: ["source", "hasArea", "hasDate", "hasProvenance"],
   planning_handoff_opened: ["from", "to"],
-  planning_handoff_preserved: [
-    "from",
-    "to",
-    "venuePreserved",
-    "areaPreserved",
-    "datePreserved",
-    "provenancePreserved",
-  ],
   map_search_no_results: [],
-  map_search_ran: ["intent", "nationalHits", "nationalStatus"],
   map_area_switched: [],
   map_search_jump: [],
   tonight_result_opened: ["kind", "localityBasis"],
@@ -96,7 +91,6 @@ export const ANALYTICS_EVENTS = {
   next_night_committed: ["windowDays", "source"],
   draft_recovered: ["kind", "surface"],
   web_vital: ["metric", "value", "rating", "route", "target"],
-  guest_plan_participated: ["action"],
   // Wave A
   tonight_screen_view: [],
   tonight_filter_select: ["kind"],
@@ -115,12 +109,6 @@ export const ANALYTICS_EVENTS = {
   // PLG Wave 2 physical QR: a drinker landed on /near from /?src=poster.
   // No props — the closed name is the whole signal (no free text, no UTM).
   poster_landing: [],
-  // London Capture — reviewed catalogue identifiers and gate codes only.
-  district_catalogue_viewed: [],
-  district_viewed: ["district", "coverageStatus", "demandWave"],
-  district_route_blocked: ["district", "coverageStatus", "demandWave", "reason"],
-  district_route_ready_selected: ["district", "coverageStatus", "demandWave"],
-  route_ready_gate_failed: ["district", "coverageStatus", "demandWave", "reason", "gateVersion"],
   // Metrics funnel (Wave M) — nights planned/week reuses plan_created (create)
   // and crew_committed (join, source: "shared-plan") from R3/Wave F above; see
   // docs/METRICS_FUNNEL.md for the full computation. The events below are new.
@@ -154,9 +142,24 @@ export const ANALYTICS_EVENTS = {
   plan_draft_saved: ["stops", "grounded", "anchored", "routeReady", "source"],
   plan_accepted: ["stops", "grounded", "anchored", "routeReady", "source"],
   plan_saved: ["stops", "grounded"],
-  claim_started: ["source"],
-  claim_completed: ["source"],
-  plan_completed: ["ending"],
+  // The night ended, how it ended, and whether it was a CREW night.
+  //
+  // `crewNight` closes the one gap docs/analytics/METRICS.md named (§2.2):
+  // without it a solo night that reaches its last stop reports exactly what a
+  // night of six reports, so "crew nights completed" could not be stated as a
+  // number at all. It is the smallest close there is - one low-cardinality
+  // boolean, no plan id and no per-plan key, because either of those would
+  // link two devices to one night, which is the identity join ADR 0009 rules
+  // out. The value is minted SERVER-side on the completion receipt
+  // (`completionLoopEventTokens`), where the roster is a fact rather than a
+  // claim a browser makes, and it reads the same
+  // `CREW_NIGHT_MIN_PARTICIPANTS` threshold `crew_committed` is minted on, so
+  // the two halves of the ratio cannot mean different things.
+  //
+  // It is OPTIONAL rather than required on purpose: a completion receipt
+  // minted before this shipped carries `ending` alone, and rejecting those
+  // would turn a rollout into a hole in the series.
+  plan_completed: ["ending", "crewNight"],
   memory_reviewed: ["source"],
   story_published: ["visibility", "contributors", "moments"],
   // Community-price contribution funnel. The whole point is the ratio
@@ -259,11 +262,6 @@ export const ANALYTICS_EVENTS = {
   // handle, or coordinate. `state` is the derived now-read, not a stored trust.
   occupancy_reported: ["level", "surface"],
   occupancy_read: ["state"],
-  // Open plans (Out L3). placeKind is venue|place. decision is accept|decline.
-  // Never a crew id, handle, venue id, or coordinate.
-  open_plan_posted: ["placeKind"],
-  open_plan_join_requested: [],
-  open_plan_join_decided: ["decision"],
   // Out listing card. Closed source enum only - never an event id, venue id,
   // or coordinate.
   out_card_opened: ["source"],
@@ -370,20 +368,7 @@ export type TrustedHandoffAnalyticsPropsByEvent = {
     hasProvenance: boolean;
   };
   planning_handoff_opened: { from: HandoffSource; to: "map" | "plan" };
-  planning_handoff_preserved: {
-    from: HandoffSource;
-    to: "map" | "plan";
-    venuePreserved: boolean;
-    areaPreserved: boolean;
-    datePreserved: boolean;
-    provenancePreserved: boolean;
-  };
   map_search_no_results: Record<never, never>;
-  map_search_ran: {
-    intent: "borough" | "city" | "area" | "uk_place" | "venue" | "unknown";
-    nationalHits: number;
-    nationalStatus: "ready" | "degraded" | "skipped";
-  };
   tonight_result_opened: {
     kind: "sport" | "quiz" | "deal" | "music" | "gig" | "event" | "other";
     localityBasis: TonightLocalityBasis;
@@ -516,7 +501,7 @@ export const PINT_INDEX_AREA_CODES = LONDON_BOROUGH_NAMES.map(boroughCode);
 
 /**
  * The four loop moments #252 named, as the six registry entries they became
- * (section 5.11 of docs/analytics/TRACKING_PLAN.md). Written down HERE rather
+ * (section 5.10 of docs/analytics/TRACKING_PLAN.md). Written down HERE rather
  * than restated per surface, because the rule below is about the whole set.
  */
 export const LOOP_MOMENT_EVENTS = [
@@ -628,26 +613,10 @@ const SAFE_STRING_VALUES = new Set([
   ...PINT_INDEX_VISITS,
   ...PINT_INDEX_AREA_CODES,
   ...NIGHT_AREA_SLUGS,
-  ...COVERAGE_STATUSES,
-  ...ROUTE_READY_GATE_CODES,
   // Invite loop vocabulary: RSVP status and the closed reaction set.
   ...RSVP_STATUSES,
   ...REACTION_KEYS,
 ]);
-
-const DISTRICT_EVENT_PROP_VALUES = {
-  district: NIGHT_AREA_SLUGS,
-  coverageStatus: COVERAGE_STATUSES,
-  demandWave: [0, 1, 2, 3],
-  reason: ROUTE_READY_GATE_CODES,
-  gateVersion: [ROUTE_READY_GATE_VERSION],
-} as const;
-
-function isAllowedDistrictEventProp(name: AnalyticsEventName, key: string, value: string | number | boolean): boolean {
-  if (!name.startsWith("district_") && name !== "route_ready_gate_failed") return true;
-  const allowed = DISTRICT_EVENT_PROP_VALUES[key as keyof typeof DISTRICT_EVENT_PROP_VALUES];
-  return !allowed || (allowed as readonly (string | number | boolean)[]).includes(value);
-}
 
 const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   near_answer_ready: ["source", "resultBand"],
@@ -656,21 +625,11 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   desk_answer_served: ["outcome"],
   venue_accepted: ["source", "hasArea", "hasDate", "hasProvenance"],
   planning_handoff_opened: ["from", "to"],
-  planning_handoff_preserved: [
-    "from",
-    "to",
-    "venuePreserved",
-    "areaPreserved",
-    "datePreserved",
-    "provenancePreserved",
-  ],
   tonight_result_opened: ["kind", "localityBasis"],
   plan_draft_saved: ["stops", "grounded", "anchored", "routeReady", "source"],
   plan_accepted: ["stops", "grounded", "anchored", "routeReady", "source"],
   crew_committed: ["source", "participants", "routeReady"],
   message_attach_selected: ["kind"],
-  open_plan_posted: ["placeKind"],
-  open_plan_join_decided: ["decision"],
   meaningful_core_action: ["action"],
   // The funnel is a ratio, so a step with no drink category would be an
   // uncountable event rather than a partial one - fail closed like the rest.
@@ -772,11 +731,6 @@ function isAllowedTrustedHandoffEventProp(
       return key === "from"
         ? includesValue(HANDOFF_SOURCES, value)
         : key === "to" && includesValue(["map", "plan"], value);
-    case "planning_handoff_preserved":
-      if (key === "from") return includesValue(HANDOFF_SOURCES, value);
-      if (key === "to") return includesValue(["map", "plan"], value);
-      return ["venuePreserved", "areaPreserved", "datePreserved", "provenancePreserved"].includes(key)
-        && typeof value === "boolean";
     case "tonight_result_opened":
       return key === "kind"
         ? includesValue(["sport", "quiz", "deal", "music", "gig", "event", "other"], value)
@@ -791,9 +745,11 @@ function isAllowedLoopEventProp(name: AnalyticsEventName, key: string, value: st
     if (key === "stops") return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 10;
     if (key === "grounded") return typeof value === "boolean";
   }
-  if ((name === "claim_started" || name === "claim_completed") && key === "source") return value === "auth";
-  if (name === "plan_completed" && key === "ending") {
-    return typeof value === "string" && ["food", "get_home", "keep_going"].includes(value);
+  if (name === "plan_completed") {
+    if (key === "ending") {
+      return typeof value === "string" && ["food", "get_home", "keep_going"].includes(value);
+    }
+    if (key === "crewNight") return typeof value === "boolean";
   }
   if (name === "memory_reviewed" && key === "source") {
     return typeof value === "string" && ["inline_recap", "full_recap"].includes(value);
@@ -861,9 +817,12 @@ function isAllowedLandingCtaProp(
 }
 
 /**
- * Community-price funnel strictness. `category` shares its key name with
- * pub_pal_memory_changed, whose vocabulary is a different closed set, so the
- * check is scoped to these three events rather than to the key.
+ * Community-price funnel strictness. `category` used to share its key name
+ * with `pub_pal_memory_changed`, whose vocabulary was a different closed set,
+ * which is why the check is scoped to these three events rather than to the
+ * key. That event is gone for want of an emitter and the scoping stays: a
+ * check keyed on the KEY would quietly widen the next event to borrow the
+ * name, which is the mistake this shape exists to prevent.
  */
 function isAllowedPriceFunnelProp(
   name: AnalyticsEventName,
@@ -988,20 +947,6 @@ function isAllowedLoopMomentProp(
   return true;
 }
 
-function isAllowedOpenPlanProp(
-  name: AnalyticsEventName,
-  key: string,
-  value: string | number | boolean,
-): boolean {
-  if (name === "open_plan_posted" && key === "placeKind") {
-    return includesValue(["venue", "place"], value);
-  }
-  if (name === "open_plan_join_decided" && key === "decision") {
-    return includesValue(["accept", "decline"], value);
-  }
-  return true;
-}
-
 export function isKnownEvent(name: string): name is AnalyticsEventName {
   return Object.prototype.hasOwnProperty.call(ANALYTICS_EVENTS, name);
 }
@@ -1056,7 +1001,6 @@ export function sanitizeEvent(
           : customValidator
             ? customValidator(value)
             : isSafeValue(value)
-              && isAllowedDistrictEventProp(name, key, value)
               && isAllowedLoopEventProp(name, key, value)
               && isAllowedTrustedHandoffEventProp(name, key, value)
               && isAllowedVitalProp(name, key, value)
@@ -1068,8 +1012,7 @@ export function sanitizeEvent(
               && isAllowedMessageAttachProp(name, key, value)
               && isAllowedLandingCtaProp(name, key, value)
               && isAllowedVenueSheetProp(name, key, value)
-              && isAllowedLoopMomentProp(name, key, value)
-              && isAllowedOpenPlanProp(name, key, value);
+              && isAllowedLoopMomentProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }
   }

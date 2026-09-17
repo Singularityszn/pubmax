@@ -139,6 +139,22 @@ describe("the tracking plan document", () => {
       .toEqual([]);
   });
 
+  it("catalogues no event the registry has dropped", () => {
+    // The other direction, and it is the one that let the plan carry rows for
+    // 18 names nothing sent. Only the section 5 CATALOGUE is read: section 6
+    // names the deleted eighteen on purpose, in prose, so a reader knows what
+    // went and why.
+    const catalogue = TRACKING_PLAN.slice(
+      TRACKING_PLAN.indexOf("## 5. The event catalogue"),
+      TRACKING_PLAN.indexOf("## 6."),
+    );
+    const listed = [...catalogue.matchAll(/^\| `([a-z0-9_]+)` \|/gm)].map((match) => match[1]);
+    expect(listed.length).toBeGreaterThan(50);
+    const unknown = listed.filter((name) => !(name in ANALYTICS_EVENTS));
+    expect(unknown, `catalogued events the registry does not hold: ${unknown.join(", ")}`)
+      .toEqual([]);
+  });
+
   it("defines the release metric on the captain's two events and a 60 second window", () => {
     expect(TRACKING_PLAN).toContain("landing_cta_clicked");
     expect(TRACKING_PLAN).toContain("price_submitted");

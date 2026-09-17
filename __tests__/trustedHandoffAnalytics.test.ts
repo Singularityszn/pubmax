@@ -1,7 +1,12 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { sanitizeEvent } from "@/lib/analyticsEvents";
+import { CREW_NIGHT_MIN_PARTICIPANTS, joinCommitsCrewNight } from "@/lib/crew";
 import {
+  completionLoopEventTokens,
   crewCommittedEventToken,
   planAcceptedEventTokens,
   planDraftSavedEventToken,
@@ -19,15 +24,11 @@ const validEvents = {
     hasDate: false,
     hasProvenance: true,
   },
+  // `planning_handoff_preserved` sat beside `planning_handoff_opened` here and
+  // no surface ever sent one, so what survived a handoff was never measured
+  // and the six booleans describing it were a shape with nothing to hold. The
+  // name is deleted; the OPENED half, which really emits, is untouched.
   planning_handoff_opened: { from: "near", to: "map" },
-  planning_handoff_preserved: {
-    from: "mobile-route-preview",
-    to: "plan",
-    venuePreserved: true,
-    areaPreserved: true,
-    datePreserved: false,
-    provenancePreserved: true,
-  },
   tonight_result_opened: { kind: "quiz", localityBasis: "remembered-patch" },
   plan_draft_saved: {
     stops: 1,
@@ -171,6 +172,48 @@ describe("trusted handoff verified outcome tokens", () => {
       ...event,
       props: { ...event.props, routeReady: false },
     }, now)).toBeNull();
+  });
+
+  it("signs the crew answer into the completion receipt, so the browser cannot claim it", () => {
+    // The one gap docs/analytics/METRICS.md §2.2 named. The roster is a fact
+    // the server holds, so the boolean is minted here and the browser may
+    // only send back what the receipt was signed over: a device that flipped
+    // the answer gets a token that no longer verifies, and the event is
+    // discarded rather than counted as a crew night nobody had.
+    const token = completionLoopEventTokens({
+      completionId: "completion-one",
+      completedAt: occurredAt,
+      ending: "food",
+      crewNight: true,
+    }).planCompleted;
+    const event = { name: "plan_completed" as const, props: { ending: "food", crewNight: true } };
+
+    expect(verifyAnalyticsDeliveryToken(token, event, now)).toMatchObject(event);
+    expect(verifyAnalyticsDeliveryToken(token, {
+      ...event,
+      props: { ending: "food", crewNight: false },
+    }, now)).toBeNull();
+    expect(verifyAnalyticsDeliveryToken(token, {
+      ...event,
+      props: { ending: "food" },
+    }, now)).toBeNull();
+  });
+
+  it("keeps the crew answer on the same threshold crew_committed is minted on", () => {
+    // Two halves of one ratio. If the completion receipt and the commitment
+    // receipt ever came to mean different sizes of night, the ratio would be
+    // comparing two different products.
+    expect(CREW_NIGHT_MIN_PARTICIPANTS).toBe(2);
+    expect(joinCommitsCrewNight(CREW_NIGHT_MIN_PARTICIPANTS)).toBe(true);
+    expect(joinCommitsCrewNight(CREW_NIGHT_MIN_PARTICIPANTS - 1)).toBe(false);
+
+    const source = readFileSync(
+      join(__dirname, "..", "app", "api", "plans", "[id]", "complete", "route.ts"),
+      "utf8",
+    );
+    expect(source).toContain("CREW_NIGHT_MIN_PARTICIPANTS");
+    // Never a roster count and never a plan id on the wire (ADR 0009).
+    expect(source).toMatch(/crewNight: plan\.crew\.length >= CREW_NIGHT_MIN_PARTICIPANTS/);
   });
 
   it("expires at the exact signed boundary", () => {

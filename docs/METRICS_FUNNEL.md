@@ -572,13 +572,21 @@ user content.
 | `plan_generated` | A non-empty grounded route returns from `/api/plans/generate` | `stops`, `grounded` |
 | `plan_accepted` | First server-verified transition to a grounded, Route-ready three-Stop Plan; original and replay responses return the same signed delivery token, while ingest records/forwards it once | `stops` (`3`), `grounded` (`true`), `anchored`, `routeReady` (`true`), `source` |
 | `plan_saved` | The created Plan and its route metadata finish saving | `stops`, `grounded` |
-| `plan_completed` | The completion response is checked against canonical completed Plan state | `ending` |
+| `plan_completed` | The completion response is checked against canonical completed Plan state | `ending`, `crewNight` |
 | `memory_reviewed` | The completed Plan's inline editor or full private recap is explicitly opened | `source` (`inline_recap` or `full_recap`) |
 | `story_published` | The separate Story publication confirmation succeeds | `visibility`, `contributors`, `moments` |
 
-`claim_started` and `claim_completed` remain accepted only for historical
-schema compatibility. Account onboarding replaced `/api/identity/claim`, so no
-current surface emits either event.
+`claim_started` and `claim_completed` are **deleted from the registry**.
+Account onboarding replaced `/api/identity/claim` and no surface has emitted
+either since, so "accepted for historical schema compatibility" was keeping a
+shape for events that will never arrive. The sanitizer now answers them the
+same null it answers any other invented name
+(`__tests__/analyticsEmitterFence.test.ts`).
+
+`crewNight` on `plan_completed` is the server's own answer to whether the
+completed night's roster reached `CREW_NIGHT_MIN_PARTICIPANTS`, minted on the
+completion receipt beside the ending. It is a boolean and never a roster count
+or a plan id, because either would link two devices to one night.
 
 Activation is the elapsed time from `plan_generated` to the first verified
 `plan_accepted` with `stops = 3`, `grounded = true`, `routeReady = true` for the

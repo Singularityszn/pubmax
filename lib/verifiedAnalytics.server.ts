@@ -214,14 +214,26 @@ export function crewCommittedEventToken(input: {
   );
 }
 
+/**
+ * The completion receipt, and the one place the crew answer is decided.
+ *
+ * `crewNight` closes the gap docs/analytics/METRICS.md §2.2 named: a solo
+ * night that reaches its last stop used to report exactly what a night of six
+ * reported, so "crew nights completed" could not be stated at all. It is
+ * minted HERE rather than claimed by the browser because the roster is a fact
+ * the server already holds, and it is a boolean rather than a count or a plan
+ * id because either of those would link two devices to one night, which is
+ * the identity join ADR 0009 rules out.
+ */
 export function completionLoopEventTokens(input: {
   completionId: string;
   completedAt: string;
   ending: "food" | "get_home" | "keep_going";
+  crewNight: boolean;
 }): { planCompleted: string; meaningfulCoreAction: string } {
   return {
     planCompleted: mintVerifiedAnalyticsToken(
-      { name: "plan_completed", props: { ending: input.ending } },
+      { name: "plan_completed", props: { ending: input.ending, crewNight: input.crewNight } },
       `completion:${input.completionId}`,
       input.completedAt,
     ),
