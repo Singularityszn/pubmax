@@ -18,7 +18,7 @@ import {
 import type { PoiCategory } from "@/lib/pois";
 import type { StoryBand } from "@/lib/storyBands";
 
-import "./mapLayersControl.css";
+import styles from "./mapLayersControl.module.css";
 
 /** City-aware Layers chrome — transit framing without Tube-first copy elsewhere. */
 function mapLayersCopy(cityId: CityId = DEFAULT_CITY_ID): {
@@ -180,7 +180,7 @@ export default function MapLayersControl({
       {!embedded ? <button
         type="button"
         className={
-          open || storiesActive ? "mapLayersFab isActive" : "mapLayersFab"
+          open || storiesActive ? `${styles.mapLayersFab} isActive` : styles.mapLayersFab
         }
         aria-expanded={open}
         aria-controls={panelId}
@@ -199,11 +199,11 @@ export default function MapLayersControl({
           role={embedded ? "group" : "dialog"}
           aria-label="Map layers"
         >
-          <div className="mapLayersPanelHead">
+          <div className={styles.mapLayersPanelHead}>
             <strong>Map layers</strong>
             {!embedded ? <button
               type="button"
-              className="mapLayersClose"
+              className={styles.mapLayersClose}
               aria-label="Close layers"
               onClick={closePanel}
             >
@@ -211,21 +211,21 @@ export default function MapLayersControl({
             </button> : null}
           </div>
 
-          <p className="mapLayersHint">{layersCopy.hint}</p>
+          <p className={styles.mapLayersHint}>{layersCopy.hint}</p>
 
           {cameraActions || conditions ? (
-            <div className="mapLayersView" role="group" aria-label="Map position and conditions">
+            <div className={styles.mapLayersView} role="group" aria-label="Map position and conditions">
               {cameraActions}
               {conditions}
             </div>
           ) : null}
 
           {readerKey || readerPriceFilter || onListOpenChange ? (
-            <div className="mapLayersReader">
+            <div className={styles.mapLayersReader}>
               {onListOpenChange ? (
                 <button
                   type="button"
-                  className={listOpen ? "mapLayersReaderAction isOn" : "mapLayersReaderAction"}
+                  className={listOpen ? `${styles.mapLayersReaderAction} isOn` : styles.mapLayersReaderAction}
                   aria-pressed={listOpen}
                   onClick={() => {
                     const next = !listOpen;
@@ -236,29 +236,29 @@ export default function MapLayersControl({
                   <List size={16} aria-hidden="true" />
                   <span>{listOpen ? "Hide venue list" : "List view"}</span>
                   {listCount > 0 ? (
-                    <span className="mapLayersReaderCount">{listCount}</span>
+                    <span className={styles.mapLayersReaderCount}>{listCount}</span>
                   ) : null}
                 </button>
               ) : null}
               {readerKey ? (
-                <div className="mapLayersReaderKey">{readerKey}</div>
+                <div className={styles.mapLayersReaderKey}>{readerKey}</div>
               ) : null}
               {readerPriceFilter?.(closePanel)}
             </div>
           ) : null}
 
-          <div className="mapLayersGroup" role="group" aria-label="Points of interest">
+          <div className={styles.mapLayersGroup} role="group" aria-label="Points of interest">
             {POI_TOGGLE_GROUPS.map((group) => {
               const on = isPoiGroupOn(poiHidden, group);
               return (
                 <button
                   key={group.id}
                   type="button"
-                  className={on ? "mapLayersChip isOn" : "mapLayersChip"}
+                  className={on ? `${styles.mapLayersChip} isOn` : styles.mapLayersChip}
                   aria-pressed={on}
                   onClick={() => toggleGroup(group)}
                 >
-                  <span className="mapLayersSwatch" style={{ background: group.color }} />
+                  <span className={styles.mapLayersSwatch} style={{ background: group.color }} />
                   {group.label}
                 </button>
               );
@@ -267,15 +267,15 @@ export default function MapLayersControl({
 
           {onBandChange ? (
             <div className="mapLayersStories" role="group" aria-label="Place stories">
-              <p className="mapLayersSectionLabel">Place stories</p>
-              <div className="mapLayersBandRow">
+              <p className={styles.mapLayersSectionLabel}>Place stories</p>
+              <div className={styles.mapLayersBandRow}>
                 {storyBands.map((band) => {
                   const on = activeBandId === band.id;
                   return (
                     <button
                       key={band.id}
                       type="button"
-                      className={on ? "mapLayersChip isOn" : "mapLayersChip"}
+                      className={on ? `${styles.mapLayersChip} isOn` : styles.mapLayersChip}
                       aria-pressed={on}
                       title={band.copy}
                       onClick={() => {

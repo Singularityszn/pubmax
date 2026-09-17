@@ -20,7 +20,7 @@ import type { MapSheetDetent, MapSheetKind } from "@/lib/mobileShell";
 // `position: static; z-index: auto`, unstyled in document flow, and a browser
 // test read its stacking as NaN (#1490). Next dedupes a global stylesheet by
 // module, so the shell's own import of the same file costs nothing twice.
-import "@/components/mobile/mobileMapShell.css";
+import shellStyles from "@/components/mobile/mobileMapShell.module.css";
 
 /**
  * The mobile bottom sheet, rebuilt as a bottom-anchored flex column:
@@ -222,14 +222,14 @@ export default function MobileSharedSheet({
 
   return createPortal(
     <div
-      className="mobileSheetPortal"
+      className={shellStyles.mobileSheetPortal}
       data-sheet-kind={kind}
       /* How deep the reader is. Present so a browser test can assert the trail
          rather than infer it from which glyph happens to be drawn. */
       data-surface-back={backLabel ?? ""}
     >
       <button
-        className="mobileSheetScrim"
+        className={shellStyles.mobileSheetScrim}
         type="button"
         tabIndex={-1}
         onClick={requestClose}
@@ -237,7 +237,7 @@ export default function MobileSharedSheet({
       />
       <section
         ref={sheetRef}
-        className={`mapDrawer mobileSharedSheet ${kind === "venue" ? "right" : kind === "planner" ? "left" : "contextual"} open sheet-${sheetSnap}${dragging ? " sheet-dragging" : ""}${settling ? " sheet-settling" : ""}${entering ? " sheet-entering" : ""}`}
+        className={`mapDrawer ${shellStyles.mobileSharedSheet} ${kind === "venue" ? "right" : kind === "planner" ? "left" : "contextual"} open sheet-${sheetSnap}${dragging ? " sheet-dragging" : ""}${settling ? " sheet-settling" : ""}${entering ? " sheet-entering" : ""}`}
         role={sheetModal ? "dialog" : undefined}
         aria-modal={sheetModal ? "true" : undefined}
         aria-labelledby={titleId}
@@ -246,7 +246,7 @@ export default function MobileSharedSheet({
         onScrollCapture={interruptAndSettle}
       >
         <header
-          className="mobileSharedSheetHeader sheetDragHandle"
+          className={`${shellStyles.mobileSharedSheetHeader} sheetDragHandle`}
           onPointerDown={(event) => {
             onInterruptRevealRef.current?.();
             onSheetDragStart(event);
@@ -257,7 +257,7 @@ export default function MobileSharedSheet({
         >
           <button
             type="button"
-            className="mobileSharedSheetDetent"
+            className={shellStyles.mobileSharedSheetDetent}
             aria-label={sheetSnap === "full" ? "Collapse sheet" : "Expand sheet"}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={() => setSheetSnap(sheetSnap === "full" ? "half" : "full")}
@@ -266,7 +266,7 @@ export default function MobileSharedSheet({
               if (event.key === "ArrowDown") setSheetSnap(sheetSnap === "peek" ? "peek" : "half");
             }}
           >
-            <span className="mobileSharedSheetGrab" aria-hidden="true" />
+            <span className={shellStyles.mobileSharedSheetGrab} aria-hidden="true" />
           </button>
           {/* The header grid is `44px 1fr 44px`, and the leading cell used to
               sit empty while the trailing one held the only way out. SurfaceNav
@@ -280,14 +280,14 @@ export default function MobileSharedSheet({
               the way out the instant a sheet opened. */}
           <SurfaceNav backLabel={backLabel} onBack={onBack} homeLabel={closeButtonLabel} onHome={requestClose} />
         </header>
-        <div className="mobileSharedSheetBody">
+        <div className={shellStyles.mobileSharedSheetBody}>
           <SheetFooterContext.Provider value={footerEl}>{children}</SheetFooterContext.Provider>
         </div>
         {/* Footer slot: the venue command bar portals in here (SheetFooterContext)
             so it is a real flex child BELOW the scroll body — always visible, in
             flow with the sheet during drag/snap. Empty (and CSS-collapsed) for
             contextual + planner sheets. */}
-        <div className="mobileSharedSheetFooter" ref={setFooterEl} />
+        <div className={shellStyles.mobileSharedSheetFooter} ref={setFooterEl} />
       </section>
     </div>,
     document.body,

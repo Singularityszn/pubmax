@@ -13,7 +13,7 @@ import { MAP_SHEET_TITLES, type MapOverlay, type MapSheetKind } from "@/lib/mobi
 import { planActivationPill } from "@/lib/planActivationPill";
 import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 
-import "./mobileMapShell.css";
+import styles from "./mobileMapShell.module.css";
 
 import type { MapSearchSuggestProps } from "@/components/map/MapSearchSuggest";
 
@@ -58,14 +58,14 @@ function MapEdgeControls({
 }) {
   return (
     <div className="mobileMapUtilityCorner" aria-label="Map utilities">
-      <IconButton className="mobileMapTflButton" aria-label={tfl.ariaLabel} aria-expanded={tflOpen} onClick={onOpenTfl}>
+      <IconButton className={styles.mobileMapTflButton} aria-label={tfl.ariaLabel} aria-expanded={tflOpen} onClick={onOpenTfl}>
         <TrainFront size={19} />
-        {tfl.statusSuffix ? <span className="mobileMapCornerSuffix" aria-hidden="true">{tfl.statusSuffix}</span> : null}
-        {tfl.badge ? <span className="mobileMapCornerBadge">{tfl.badge}</span> : null}
+        {tfl.statusSuffix ? <span className={styles.mobileMapCornerSuffix} aria-hidden="true">{tfl.statusSuffix}</span> : null}
+        {tfl.badge ? <span className={styles.mobileMapCornerBadge}>{tfl.badge}</span> : null}
       </IconButton>
       <button
         type="button"
-        className="mobileMapLocateFab"
+        className={styles.mobileMapLocateFab}
         aria-label={nearMe.label}
         aria-pressed={nearMe.pressed}
         disabled={nearMe.disabled}
@@ -73,7 +73,7 @@ function MapEdgeControls({
       >
         <LocateFixed size={20} aria-hidden="true" />
         {nearMe.pressed && nearbyCount ? (
-          <span className="mobileMapCornerBadge" aria-hidden="true">{nearbyCount}</span>
+          <span className={styles.mobileMapCornerBadge} aria-hidden="true">{nearbyCount}</span>
         ) : null}
       </button>
     </div>
@@ -146,13 +146,13 @@ function MapChipRow({
   const drinkOpen = overlay === "drink";
   const tonightOpen = overlay === "tonight";
   return (
-    <div className="mobileMapChipRow">
+    <div className={styles.mobileMapChipRow}>
       <button
         type="button"
         className={
           drinkOpen || drinkLaneSelected
-            ? "mobileMapDrinkChip isActive"
-            : "mobileMapDrinkChip"
+            ? `${styles.mobileMapDrinkChip} ${styles.isActive}`
+            : styles.mobileMapDrinkChip
         }
         aria-label={`Drink shown on the map: ${drinkLaneLabel}. Choose another drink`}
         aria-expanded={drinkOpen}
@@ -160,13 +160,13 @@ function MapChipRow({
         onClick={() => onOpen("drink")}
       >
         <GlassWater size={15} aria-hidden="true" />
-        <span className="mobileMapDrinkChipLabel">{drinkLaneLabel}</span>
+        <span className={styles.mobileMapDrinkChipLabel}>{drinkLaneLabel}</span>
       </button>
       {tonightChip ? (
         <button
           type="button"
           className={
-            tonightOpen ? "mobileMapTonightChip isActive" : "mobileMapTonightChip"
+            tonightOpen ? `${styles.mobileMapTonightChip} ${styles.isActive}` : styles.mobileMapTonightChip
           }
           aria-label={tonightChip.ariaLabel}
           aria-expanded={tonightOpen}
@@ -174,8 +174,8 @@ function MapChipRow({
           onClick={() => onOpen("tonight")}
         >
           <MoonStar size={15} aria-hidden="true" />
-          <span className="mobileMapTonightChipLabel">{tonightChip.label}</span>
-          <span className="mobileMapTonightChipCount" aria-hidden="true">
+          <span className={styles.mobileMapTonightChipLabel}>{tonightChip.label}</span>
+          <span className={styles.mobileMapTonightChipCount} aria-hidden="true">
             {tonightChip.count}
           </span>
         </button>
@@ -194,10 +194,10 @@ function MapChipRow({
  * row's own bottom at 215, so "Pints" read through the strip. The toolbar
  * already publishes its own height this way (components/map/MapToolbar.tsx).
  */
-function usePublishedChromeHeight(): void {
+function usePublishedChromeHeight(mobileMapChromeClass: string): void {
   useEffect(() => {
     if (typeof ResizeObserver === "undefined") return;
-    const chrome = document.querySelector<HTMLElement>(".mobileMapChrome");
+    const chrome = document.querySelector<HTMLElement>(`.${mobileMapChromeClass}`);
     const shell = chrome?.closest<HTMLElement>(".appShell");
     if (!chrome || !shell) return;
     const publish = () => {
@@ -215,7 +215,7 @@ function usePublishedChromeHeight(): void {
       observer.disconnect();
       shell.style.removeProperty("--mobile-map-chrome-measured-h");
     };
-  }, []);
+  }, [mobileMapChromeClass]);
 }
 
 export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, sheetsEnabled = true }: {
@@ -308,7 +308,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
    */
   sheetsEnabled?: boolean;
 }) {
-  usePublishedChromeHeight();
+  usePublishedChromeHeight(styles.mobileMapChrome);
   // The glyph is half the claim. LocateFixed is this map's "you are here" mark
   // (the Near me chip wears it), so it may appear only when a granted location
   // sits inside the named area. Otherwise the chip wears the map itself.
@@ -319,17 +319,17 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
 
     return (
       <div
-        className="mobileMapChrome"
+        className={styles.mobileMapChrome}
         aria-label="Map controls"
       >
-        <header className="mobileMapTopbar mobileMapTopbarLimited">
-          <Link href="/" className="mobileMapBrand" aria-label="Open PUBMAXX landing page">
+        <header className={`${styles.mobileMapTopbar} ${styles.mobileMapTopbarLimited}`}>
+          <Link href="/" className={styles.mobileMapBrand} aria-label="Open PUBMAXX landing page">
             <PubmaxxWordmark />
           </Link>
           <CitySwitcher
             cityId={cityId}
             triggerLabel={cityLabel}
-            className="citySwitcher--mobile"
+            className={styles.citySwitcherMobile}
             onUseMyLocation={onNearMe}
           />
           <IconButton
@@ -341,7 +341,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           </IconButton>
         </header>
         {overlay === "search" ? (
-          <div className="mobileMapSearchRow">
+          <div className={styles.mobileMapSearchRow}>
             {searchProps ? (
               <Suspense fallback={null}>
                 <MapSearchSuggest {...searchProps} />
@@ -388,7 +388,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
 
   return (
     <>
-      <div className="mobileMapChrome"
+      <div className={styles.mobileMapChrome}
         aria-label="Map controls"
       >
         {/* ONE top bar (design judgement 2026-08-01, finding 2.3). The old
@@ -400,18 +400,18 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             opens overlay "tonight" in one tap; More → Events and the tab bar
             stay as homes. Six slots is what 320px holds at the 44px tap floor,
             so the bar cannot grow again in silence. */}
-        <header className="mobileMapTopbar">
-          <Link href="/" className="mobileMapBrand" aria-label="Open PUBMAXX landing page"><PubmaxxWordmark /></Link>
+        <header className={styles.mobileMapTopbar}>
+          <Link href="/" className={styles.mobileMapBrand} aria-label="Open PUBMAXX landing page"><PubmaxxWordmark /></Link>
           <CitySwitcher
             cityId={cityId}
             triggerLabel={cityLabel}
-            className="citySwitcher--mobile"
+            className={styles.citySwitcherMobile}
             onUseMyLocation={onNearMe}
             onOpenArea={() => set("choose-area")}
           />
           <IconButton aria-label="Search the map" aria-expanded={overlay === "search"} onClick={() => set("search")}><Search size={19} /></IconButton>
           <IconButton
-            className="mobileMapFiltersButton"
+            className={styles.mobileMapFiltersButton}
             aria-label={filtersChip.ariaLabel}
             aria-expanded={overlay === "filters"}
             onClick={() => set("filters")}
@@ -420,14 +420,14 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             {/* The badge counts refinements. The accessible name already names
                 them, so the glyph is decorative. */}
             {filtersChip.refinements ? (
-              <span className="mobileMapTopbarBadge" aria-hidden="true">{filtersChip.refinements}</span>
+              <span className={styles.mobileMapTopbarBadge} aria-hidden="true">{filtersChip.refinements}</span>
             ) : null}
           </IconButton>
           <IconButton aria-label="More map controls" aria-expanded={overlay === "layers"} onClick={() => set("layers")}><Ellipsis size={20} /></IconButton>
         </header>
 
         {overlay === "search" ? (
-          <div className="mobileMapSearchRow">
+          <div className={styles.mobileMapSearchRow}>
             {searchProps ? (
               <Suspense fallback={null}>
                 <MapSearchSuggest {...searchProps} />
@@ -440,16 +440,16 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             dismissible chip so the filter is never invisible. Tapping it clears
             the query and restores every pin. */}
         {overlay !== "search" && activeQuery ? (
-          <div className="mobileMapQueryRow">
+          <div className={styles.mobileMapQueryRow}>
             <button
               type="button"
-              className="mobileMapQueryChip"
+              className={styles.mobileMapQueryChip}
               onClick={onClearQuery}
               aria-label={`Clear pub search: ${activeQuery}`}
             >
               <Search size={15} aria-hidden="true" />
-              <span className="mobileMapQueryChipText">{activeQuery}</span>
-              <X size={16} aria-hidden="true" className="mobileMapQueryChipDismiss" />
+              <span className={styles.mobileMapQueryChipText}>{activeQuery}</span>
+              <X size={16} aria-hidden="true" className={styles.mobileMapQueryChipDismiss} />
             </button>
           </div>
         ) : null}
@@ -468,12 +468,12 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           bar, with the area picker one tap away. role="alert" announces it,
           the same as the desktop rail does. */}
       {overlay !== "search" && nearMeError ? (
-        <div className="mobileMapNearMeAlert" role="alert">
+        <div className={styles.mobileMapNearMeAlert} role="alert">
           <LocateOff size={17} aria-hidden="true" />
-          <p className="mobileMapNearMeAlertText">{nearMeError}</p>
+          <p className={styles.mobileMapNearMeAlertText}>{nearMeError}</p>
           <button
             type="button"
-            className="mobileMapNearMeAlertDismiss"
+            className={styles.mobileMapNearMeAlertDismiss}
             aria-label="Dismiss the Near me message"
             onClick={onDismissNearMeError}
           >
@@ -481,7 +481,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           </button>
           <button
             type="button"
-            className="mobileMapNearMeAlertArea"
+            className={styles.mobileMapNearMeAlertArea}
             onClick={() => {
               onDismissNearMeError();
               onOverlayChange("choose-area");

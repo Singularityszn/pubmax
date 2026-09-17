@@ -272,7 +272,7 @@ describe("NightMemoryStudio first-run callout", () => {
 
   it("NightMemoryStudio CSS file exists with first-run tokens", () => {
     const css = readFileSync(
-      join(process.cwd(), "components/profile/NightMemoryStudio.css"),
+      join(process.cwd(), "components/profile/NightMemoryStudio.module.css"),
       "utf8",
     );
     expect(css).toContain(".memoryStudioFirstRun");

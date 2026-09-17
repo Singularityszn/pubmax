@@ -15,13 +15,13 @@
    field and the panel take the host's width and never their content's: a row
    of long pub names would otherwise size the panel to max-content and push the
    whole stack, distance column first, past the right edge of the screen. */
-.mapSearchSuggest--overlay {
+.mapSearchSuggestOverlay {
   width: 100%;
   min-width: 0;
   max-width: 100%;
 }
 
-.mapSearchSuggest--overlay .mapSearchSuggestPanel {
+.mapSearchSuggestOverlay .mapSearchSuggestPanel {
   max-width: 100%;
 }
 
@@ -31,23 +31,23 @@
    ellipsed to nothing. Give the name its own line and let the figures share
    the next. Nothing is abbreviated away: a row is read on its own, so the
    distance keeps the words that say what it is measured from. */
-.mapSearchSuggest--overlay .mapSearchSuggestRow {
+.mapSearchSuggestOverlay .mapSearchSuggestRow {
   flex-wrap: wrap;
   row-gap: 2px;
   padding-block: 8px;
 }
 
-.mapSearchSuggest--overlay .mapSearchSuggestRowMain {
+.mapSearchSuggestOverlay .mapSearchSuggestRowMain {
   flex: 1 1 100%;
 }
 
-.mapSearchSuggest--overlay .mapSearchSuggestMeta {
+.mapSearchSuggestOverlay .mapSearchSuggestMeta {
   flex: 1 1 100%;
   justify-content: flex-start;
   gap: 8px;
 }
 
-.mapSearchSuggest--overlay .mapSearchSuggestPrice {
+.mapSearchSuggestOverlay .mapSearchSuggestPrice {
   flex-direction: row;
   align-items: baseline;
   gap: 6px;
@@ -59,14 +59,14 @@
    joins: a flex item cannot shrink past its own min-width, so the input
    overflowed its cell and its text ran under the control beside it. 176px still
    reads a London venue name and lets the row lay itself out honestly. */
-.mapSearchSuggest--toolbar {
+:global(.mapSearchSuggestToolbar) {
   width: min(388px, 34vw);
   min-width: 176px;
   max-width: 100%;
   gap: 0;
 }
 
-.mapSearchSuggest--toolbar > label {
+:global(.mapSearchSuggestToolbar) > label {
   min-height: 44px;
   border: 0;
   border-radius: 10px;
@@ -74,14 +74,14 @@
   padding-inline: 10px;
 }
 
-.mapSearchSuggest--toolbar input {
+:global(.mapSearchSuggestToolbar) input {
   width: 100%;
   min-width: 0;
   min-height: 44px;
   font-size: 0.85rem;
 }
 
-.mapSearchSuggest--toolbar .mapSearchSuggestPanel {
+:global(.mapSearchSuggestToolbar) .mapSearchSuggestPanel {
   position: absolute;
   top: calc(100% + 14px);
   left: 0;
@@ -153,7 +153,7 @@
   transition: background-color 120ms ease;
 }
 
-.mapSearchSuggestRow.isActive,
+.mapSearchSuggestRow:global(.isActive),
 .mapSearchSuggestRow:hover {
   background: var(--state-active-surface, color-mix(in srgb, var(--color-accent, var(--brass)) 12%, transparent));
 }

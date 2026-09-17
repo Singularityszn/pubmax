@@ -13,20 +13,20 @@
 }
 
 /* Tone selection. `auto` follows the theme; `ink` / `coral` force a tone. */
-.nightSeal--auto {
+.nightSealAuto {
   color: var(--ink-deep, #060607);
 }
-html[data-theme="dark"] .nightSeal--auto {
+:global(html[data-theme="dark"]) .nightSealAuto {
   color: var(--brass, #ff5a5f);
 }
-.nightSeal--ink {
+.nightSealInk {
   color: var(--ink-deep, #060607);
 }
-.nightSeal--coral {
+.nightSealCoral {
   color: var(--brass, #ff5a5f);
 }
 
-.nightSeal__ring {
+.nightSealRing {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -35,7 +35,7 @@ html[data-theme="dark"] .nightSeal--auto {
 }
 
 /* The X mark, centred at 0.72 of the stamp. */
-.nightSeal__mark {
+.nightSealMark {
   position: absolute;
   top: 50%;
   left: 50%;

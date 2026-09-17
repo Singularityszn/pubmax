@@ -7,6 +7,7 @@ import { HandCoins } from "lucide-react";
 import PriceBadge from "@/components/PriceBadge";
 import { formatGbp } from "@/lib/formatGbp";
 import inspectorStyles from '@/components/map/venueInspectorBits.module.css';
+import styles from "./landing.module.css";
 
 // Live community Pint Drops strip for the landing page. Fetches the PUBLIC
 // GET /api/pint-drops (no venueId → all visible drops), takes the newest few,
@@ -145,24 +146,24 @@ export default function PintDropStrip() {
 
   return (
     <div className="dropStrip" aria-labelledby="dropStrip-title">
-      <div className="dropStripHead">
+      <div className={styles.dropStripHead}>
         <p className="eyebrow" id="dropStrip-title">
           <HandCoins size={15} strokeWidth={1.5} aria-hidden="true" />
           Fresh from the taps
         </p>
-        <span className="dropStripHint" aria-hidden="true">
+        <span className={styles.dropStripHint} aria-hidden="true">
           Newest community drops →
         </span>
       </div>
 
       {status === "loading" && (
-        <div className="dropStripRail dropStripRailStatic" aria-hidden="true">
+        <div className={`${styles.dropStripRail} ${styles.dropStripRailStatic}`} aria-hidden="true">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div className="dropStripCard dropStripCardSkeleton" key={i}>
-              <span className="skelLine skelLineTop" />
-              <span className="skelLine" />
-              <span className="skelLine" />
-              <span className="skelLine skelLineShort" />
+            <div className={`${styles.dropStripCard} ${styles.dropStripCardSkeleton}`} key={i}>
+              <span className={`${styles.skelLine} ${styles.skelLineTop}`} />
+              <span className={styles.skelLine} />
+              <span className={styles.skelLine} />
+              <span className={`${styles.skelLine} ${styles.skelLineShort}`} />
             </div>
           ))}
         </div>
@@ -175,28 +176,28 @@ export default function PintDropStrip() {
           own role, and the label says what the arrows will move. */}
       {status === "ready" && (
         <ul
-          className="dropStripRail"
+          className={styles.dropStripRail}
           aria-label="Latest community Pint Drops"
           tabIndex={0}
         >
           {drops.map((d) => (
-            <li className="dropStripCard" key={d.id}>
-              <div className="dropStripTop">
-                <span className="dropStripWho">{d.handle}</span>
+            <li className={styles.dropStripCard} key={d.id}>
+              <div className={styles.dropStripTop}>
+                <span className={styles.dropStripWho}>{d.handle}</span>
                 <PriceBadge
                   variant="current"
-                  className="dropStripPrice"
+                  className={styles.dropStripPrice}
                   band={priceBand(d.priceGbp, priceBandAreaForVenue(d.venueId))}
                 >
                   {formatPrice(d.priceGbp)}
                 </PriceBadge>
               </div>
-              <p className="dropStripNote">{excerpt(d.passedDownNote)}</p>
-              <div className="dropStripMeta">
+              <p className={styles.dropStripNote}>{excerpt(d.passedDownNote)}</p>
+              <div className={styles.dropStripMeta}>
                 {d.era ? (
-                  <span className="dropStripEra">{d.era}</span>
+                  <span className={styles.dropStripEra}>{d.era}</span>
                 ) : (
-                  <span className="dropStripEra dropStripEraMuted">
+                  <span className={`${styles.dropStripEra} dropStripEraMuted`}>
                     Pint Drop
                   </span>
                 )}

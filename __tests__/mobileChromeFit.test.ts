@@ -19,15 +19,15 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 
 const mobileMapCss = read("components/mobile/mobileMapShell.css");
 const mobileMapChromeSpec = read("e2e/mobile-map-chrome-fit.spec.ts");
-const arcChipsCss = read("components/map/tonightArcChips.css");
+const arcChipsCss = read("components/map/tonightArcChips.module.css");
 const arcChipsTsx = read("components/map/TonightArcChips.tsx");
-const landingCss = read("components/landing/landing.css");
+const landingCss = read("components/landing/landing.module.css");
 const hygieneCss = read("components/map/venueHygiene.module.css");
 const saveToListCss = read("components/savedpubs/saveToList.module.css");
 const buzzCss = read("components/map/venueBuzz.module.css");
 const pintArrivalCss = read("components/pintindex/pintIndexArrival.module.css");
-const venueListCss = read("components/map/mapVenueList.css");
-const venuePriceSubmitCss = read("components/map/venuePriceSubmit.css");
+const venueListCss = read("components/map/mapVenueList.module.css");
+const venuePriceSubmitCss = read("components/map/venuePriceSubmit.module.css");
 const globalCss = read("app/globals.css");
 const pubMapCanvasCss = read("components/PubMapCanvas.module.css");
 const analyticsConsentCss = read("components/AnalyticsConsent.module.css");
@@ -379,7 +379,7 @@ describe("mobile chrome fit at 390px", () => {
     // The answer sits between the heading and the tap (#1357), so on a phone
     // the heading drops a step and the card its outer padding; the rendered
     // fold is measured in e2e/landing-find-my-pint.spec.ts.
-    const phone = landingCss.match(/@media \(max-width: 700px\) {[\s\S]*?\.lpHero \.screenTitle\s*{([^}]*)}/)?.[1] ?? "";
+    const phone = landingCss.match(/@media \(max-width: 700px\) {[\s\S]*?\.lpHero :global\(\.screenTitle\)\s*{([^}]*)}/)?.[1] ?? "";
     expect(phone, "phone override for the hero heading").toMatch(/font-size:\s*clamp\(2\.125rem/);
     expect(landingCss).toMatch(/@media \(max-width: 700px\) {[\s\S]*?\.lpHero \.lpAnswerCard\s*{[^}]*padding:\s*var\(--space-4\)/);
   });

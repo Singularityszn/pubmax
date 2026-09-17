@@ -5,6 +5,7 @@ import {
   LONDON_MAP_PUB_DOTS,
   LONDON_MAP_VIEWBOX,
 } from "./londonMapGeometry";
+import styles from "./landing.module.css";
 
 // The picture at the top of the front door: London, the historic pubs on it,
 // and a few of them named.
@@ -24,24 +25,24 @@ import {
 export default function LondonMapSnapshot({ className }: { className?: string }) {
   return (
     <svg
-      className={["lpMapSnapshot", className].filter(Boolean).join(" ")}
+      className={[styles.lpMapSnapshot, className].filter(Boolean).join(" ")}
       viewBox={LONDON_MAP_VIEWBOX}
       role="img"
       aria-label={`A map of London with ${LONDON_MAP_PUB_COUNT} historic pubs marked, ${LONDON_MAP_PINS.length} of them named.`}
       focusable="false"
     >
-      <path className="lpMapOutline" d={LONDON_MAP_OUTLINES} />
+      <path className={styles.lpMapOutline} d={LONDON_MAP_OUTLINES} />
       {/* Every pub dot in ONE path. One element each cost 293 layout objects
           on a phone the landing is trying to paint in under a second. */}
-      <path className="lpMapDots" d={LONDON_MAP_PUB_DOTS} />
+      <path className={styles.lpMapDots} d={LONDON_MAP_PUB_DOTS} />
       <g className="lpMapPins">
         {LONDON_MAP_PINS.map((pin) => (
           <g key={pin.slug} transform={`translate(${pin.x} ${pin.y})`}>
-            <circle className="lpMapPinDot" r="8" />
+            <circle className={styles.lpMapPinDot} r="8" />
             {/* The generator sets the writing clear of every named pin. A plain
                 dot may sit under it; the label's halo keeps it legible. */}
             <text
-              className="lpMapPinName"
+              className={styles.lpMapPinName}
               x={pin.anchor === "end" ? -pin.dx : pin.dx}
               y={pin.dy - 2}
               textAnchor={pin.anchor}
@@ -49,7 +50,7 @@ export default function LondonMapSnapshot({ className }: { className?: string })
               {pin.name}
             </text>
             <text
-              className="lpMapPinLabel"
+              className={styles.lpMapPinLabel}
               x={pin.anchor === "end" ? -pin.dx : pin.dx}
               y={pin.dy + 24}
               textAnchor={pin.anchor}

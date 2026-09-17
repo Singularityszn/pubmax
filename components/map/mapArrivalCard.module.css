@@ -7,7 +7,7 @@
    The height is capped rather than left to the copy, so the pin field below it
    is a fact rather than a hope. Two short lines and a 44px action row fit
    inside it at 320px. */
-.mapArrivalCard {
+:global(.mapArrivalCard) {
   --map-arrival-strip-max-h: 132px;
   position: fixed;
   z-index: calc(var(--z-tabbar, 30) + 2);
@@ -38,7 +38,7 @@
    is a programmatic focus on a container, not a reader tabbing to a control,
    and the browser's ring around the whole strip read as a coral outline round
    the card. The buttons inside it keep their own rings. */
-.mapArrivalCard:focus {
+:global(.mapArrivalCard):focus {
   outline: none;
 }
 
@@ -69,7 +69,7 @@
 }
 
 /* The pair is the Button primitive's primary and secondary
-   (components/ui/button.css), so this sheet only lays them out. They wore
+   (components/ui/button.module.css), so this sheet only lays them out. They wore
    --radius-sm at weight 600 beside every other control's 14px at 700 (site
    audit 13 Sep 2026, D7), and before that an --ink primary, the only black
    one on the site (report.md B1). */
@@ -122,7 +122,7 @@
    control) is untouched by it, which is why the berths this file used to
    publish for them are gone. */
 @media (min-width: 641px) {
-  .mapArrivalCard {
+  :global(.mapArrivalCard) {
     --map-arrival-strip-max-h: 76px;
     /* Under the toolbar's own lane: a panel the reader OPENS from the toolbar
        must paint over the ask, never under it. */
@@ -158,12 +158,12 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .mapArrivalCard {
-    animation: map-arrival-card-arrive 160ms var(--ease-out, ease-out);
+  :global(.mapArrivalCard) {
+    animation: mapArrivalCardArrive 160ms var(--ease-out, ease-out);
   }
 }
 
-@keyframes map-arrival-card-arrive {
+@keyframes mapArrivalCardArrive {
   from {
     opacity: 0;
     transform: translateY(-8px);
@@ -177,12 +177,12 @@
 /* The desktop strip is centred, so its arrival must not fight its own
    transform. */
 @media (min-width: 641px) and (prefers-reduced-motion: no-preference) {
-  .mapArrivalCard {
-    animation-name: map-arrival-strip-arrive;
+  :global(.mapArrivalCard) {
+    animation-name: mapArrivalStripArrive;
   }
 }
 
-@keyframes map-arrival-strip-arrive {
+@keyframes mapArrivalStripArrive {
   from {
     opacity: 0;
     transform: translate(-50%, -8px);
@@ -199,7 +199,7 @@
    the strip read as a card cut in three. Hiding it is right rather than tidy:
    a reader who has opened Filters has moved past the location question, and
    the strip is back the moment the panel closes. */
-body:has(.mapToolbar [aria-expanded="true"]) .mapArrivalCard {
+body:has(:global(.mapToolbar) [aria-expanded="true"]) :global(.mapArrivalCard) {
   display: none;
 }
 
@@ -208,7 +208,7 @@ body:has(.mapToolbar [aria-expanded="true"]) .mapArrivalCard {
    location`, so a first-time reader met two primaries side by side on the map's
    first screen. The Plan control keeps its place and its accessible name; it
    just stops competing for the eye until the ask is answered. */
-body:has(.mapArrivalCard) .mapToolbar .planBtn:not(.active) {
+body:has(:global(.mapArrivalCard)) :global(.mapToolbar) :global(.planBtn):not(:global(.active)) {
   border: 1px solid var(--hairline, var(--line));
   background: var(--panel-raised);
   color: var(--ink);

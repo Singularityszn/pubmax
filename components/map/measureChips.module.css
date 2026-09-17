@@ -5,7 +5,7 @@
    in one composer are one control system.
 
    IT OWNS ITS OWN STYLESHEET, on the MobileSharedSheet law in AGENTS.md. These
-   rules used to live in spillComposer.css, which only the map imports, and the
+   rules used to live in spillComposer.module.css, which only the map imports, and the
    same control now also mounts on the venue sheet's one-tap price door and on
    /near through PriceEvidenceMissionSlot. A control whose classes load with a
    different surface's sheet stands unstyled wherever that sheet is absent. */
@@ -15,7 +15,7 @@
   gap: 6px;
 }
 
-/* The row's own label. Deliberately not spillComposer.css's .spillFieldLabel:
+/* The row's own label. Deliberately not spillComposer.module.css's .spillFieldLabel:
    that sheet does not load on every surface this control mounts on, and the two
    declarations are identical, so this one carries it. */
 .measureFieldLabel {

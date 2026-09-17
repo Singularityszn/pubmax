@@ -147,7 +147,7 @@ export default function StarRating({
 
   return (
     <span
-      className={`${classes} starRating--interactive`}
+      className={`${classes} ${styles.starRatingInteractive}`}
       role="slider"
       tabIndex={0}
       aria-label={label}

@@ -54,7 +54,7 @@ import VenueAskSection from "./inspector/VenueAskTab";
 import VenueGettingHomeSection from "./inspector/VenueGettingHomeTab";
 import VenueStickyBar from "./inspector/VenueStickyBar";
 
-import "./venueSheet.css";
+import sheetStyles from "./venueSheet.module.css";
 import "./accessibilityFilters.module.css";
 import "./inspector/VenueInspectorChrome.module.css";
 
@@ -428,7 +428,7 @@ export default function VenueInspector({
   return (
     <section
       ref={revealRootRef}
-      className={`venueInspector ${currentRevealRootClasses}${revealRecord ? " venueRevealRecords" : ""}`.trim()}
+      className={`${sheetStyles.venueInspector} ${currentRevealRootClasses}${revealRecord ? " venueRevealRecords" : ""}`.trim()}
       data-reveal={revealVenueId ?? undefined}
       style={revealStyle}
     >

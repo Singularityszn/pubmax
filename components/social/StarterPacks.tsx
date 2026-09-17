@@ -43,7 +43,7 @@ import {
 } from "@/lib/starterPacks";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
-import "./starterPacks.css";
+import styles from "./starterPacks.module.css";
 
 type PackView = StarterPack & {
   members: StarterPackMember[];
@@ -227,28 +227,28 @@ export default function StarterPacks({
 
   return (
     <section
-      className={compact ? "starterPacks starterPacks--compact" : "starterPacks"}
+      className={compact ? `${styles.starterPacks} ${styles.starterPacksCompact}` : styles.starterPacks}
       aria-labelledby="starter-packs-title"
     >
-      <h2 id="starter-packs-title" className="starterPacks__title">
+      <h2 id="starter-packs-title" className={styles.starterPacksTitle}>
         {STARTER_PACKS_TITLE}
       </h2>
 
-      <ul className="starterPacks__grid">
+      <ul className={styles.starterPacksGrid}>
         {packs.map((pack) => {
           const state = packState[pack.slug] ?? { status: "idle" };
           const descriptionId = `starter-pack-desc-${pack.slug}`;
           const faces = pack.members.slice(0, STARTER_PACK_PREVIEW_FACES);
           return (
-            <li key={pack.slug} className="starterPacks__card">
-              <h3 className="starterPacks__packTitle">{pack.title}</h3>
+            <li key={pack.slug} className={styles.starterPacksCard}>
+              <h3 className={styles.starterPacksPackTitle}>{pack.title}</h3>
               <p id={descriptionId} className="srOnly">
                 {pack.description}
               </p>
 
-              <ul className="starterPacks__faces" aria-hidden="true">
+              <ul className={styles.starterPacksFaces} aria-hidden="true">
                 {faces.map((member) => (
-                  <li key={member.handle} className="starterPacks__face">
+                  <li key={member.handle} className={styles.starterPacksFace}>
                     {member.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- owned avatar path
                       <img src={member.avatarUrl} alt="" loading="lazy" decoding="async" />
@@ -259,14 +259,14 @@ export default function StarterPacks({
                 ))}
               </ul>
 
-              <p className="starterPacks__count">
+              <p className={styles.starterPacksCount}>
                 {starterPackMemberCountLabel(pack.memberCount)}
               </p>
 
               {readOnly ? null : (
                 <button
                   type="button"
-                  className="starterPacks__follow"
+                  className={styles.starterPacksFollow}
                   aria-label={starterPackFollowAccessibleLabel(pack)}
                   aria-describedby={descriptionId}
                   disabled={state.status === "working" || state.status === "done"}
@@ -281,23 +281,23 @@ export default function StarterPacks({
               )}
 
               {state.status === "done" && state.summary ? (
-                <p className="starterPacks__summary" role="status">
+                <p className={styles.starterPacksSummary} role="status">
                   {state.summary}
                 </p>
               ) : null}
 
               {state.status === "done" && state.results ? (
-                <ul className="starterPacks__results">
+                <ul className={styles.starterPacksResults}>
                   {state.results.map((result) => (
-                    <li key={result.handle} className="starterPacks__result">
+                    <li key={result.handle} className={styles.starterPacksResult}>
                       <Link href={`/u/${encodeURIComponent(result.handle)}`}>
                         {displayHandle(result.handle)}
                       </Link>
                       <span
                         className={
                           starterPackOutcomeChip(result.outcome).problem
-                            ? "starterPacks__outcome starterPacks__outcome--problem"
-                            : "starterPacks__outcome"
+                            ? `${styles.starterPacksOutcome} ${styles.starterPacksOutcomeProblem}`
+                            : styles.starterPacksOutcome
                         }
                       >
                         {starterPackOutcomeChip(result.outcome).label}
@@ -308,7 +308,7 @@ export default function StarterPacks({
               ) : null}
 
               {state.status === "error" ? (
-                <p className="starterPacks__problem" role="alert">
+                <p className={styles.starterPacksProblem} role="alert">
                   {state.problem}
                 </p>
               ) : null}

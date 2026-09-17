@@ -30,7 +30,7 @@
 }
 
 /* -- Head --------------------------------------------------------- */
-/* The head is the shared Screen primitive (components/ui/screen.css). The
+/* The head is the shared Screen primitive (components/ui/screen.module.css). The
    page already pays the reading column and its gutters, so the head drops
    its own. The story lede is long on purpose, so it takes the column. */
 .aboutPage .aboutHero {

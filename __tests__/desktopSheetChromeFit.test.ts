@@ -17,7 +17,7 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 
 const toolbarCss = read("components/map/mapToolbar.css");
 const toolbarSource = read("components/map/MapToolbar.tsx");
-const sheetCss = read("components/map/venueSheet.css");
+const sheetCss = read("components/map/venueSheet.module.css");
 const bannerCss = read("components/map/mapBannerStaging.css");
 const searchCss = read("components/map/mapSearchSuggest.css");
 
@@ -26,7 +26,7 @@ describe("desktop venue sheet chrome fit", () => {
     expect(sheetCss).toMatch(/--desktop-venue-drawer-width:\s*min\(640px,\s*46vw\)/);
     expect(sheetCss).toMatch(/--desktop-venue-drawer-half-width:\s*min\(320px,\s*23vw\)/);
     expect(sheetCss).toMatch(
-      /\.mapDrawer\.right\.open\s*{[^}]*width:\s*var\(--desktop-venue-drawer-width\)/,
+      /:global\(\.mapDrawer\.right\.open\)\s*{[^}]*width:\s*var\(--desktop-venue-drawer-width\)/,
     );
   });
 

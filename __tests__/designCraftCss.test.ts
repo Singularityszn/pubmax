@@ -9,8 +9,8 @@ const globalCss = read("app/globals.css");
 const themeCss = read("app/theme.css");
 const mobileCss = read("components/mobile/mobileMapShell.css");
 const createFabCss = read("components/nav/createFab.css");
-const landingCss = read("components/landing/landing.css");
-const venueCss = read("components/map/venueSheet.css");
+const landingCss = read("components/landing/landing.module.css");
+const venueCss = read("components/map/venueSheet.module.css");
 const pubMapSource = read("components/PubMap.tsx");
 const springDrawerSource = read("components/map/SpringDrawer.tsx");
 const legacyDragSource = read("components/map/useSheetDrag.ts");
@@ -35,7 +35,7 @@ describe("sheet material", () => {
       /html\[data-theme="dark"\]\s*{[\s\S]*?--sheet-material:\s*color-mix\([^;]+transparent\)/,
     );
     expect(venueCss).toMatch(
-      /\.mapDrawer\s*{[^}]*background:\s*var\(--sheet-material\);[^}]*backdrop-filter:\s*blur\(20px\) saturate\(1\.08\)/,
+      /:global\(\.mapDrawer\)\s*{[^}]*background:\s*var\(--sheet-material\);[^}]*backdrop-filter:\s*blur\(20px\) saturate\(1\.08\)/,
     );
     expect(mobileCss).toMatch(
       /\.mobileSharedSheet\.mapDrawer\s*{[^}]*background:\s*var\(--sheet-material\);[^}]*backdrop-filter:\s*blur\(20px\) saturate\(1\.08\);[^}]*contain:\s*layout paint/,
@@ -44,7 +44,7 @@ describe("sheet material", () => {
 
   it("falls back to an opaque material for transparency and contrast preferences", () => {
     expect(venueCss).toMatch(
-      /@media \(prefers-reduced-transparency: reduce\), \(prefers-contrast: more\)\s*{[\s\S]*?\.mapDrawer\s*{[^}]*background:\s*var\(--sheet-material-solid\);[^}]*backdrop-filter:\s*none/,
+      /@media \(prefers-reduced-transparency: reduce\), \(prefers-contrast: more\)\s*{[\s\S]*?:global\(\.mapDrawer\)\s*{[^}]*background:\s*var\(--sheet-material-solid\);[^}]*backdrop-filter:\s*none/,
     );
     expect(mobileCss).toMatch(
       /@media \(max-width: 640px\) and \(prefers-reduced-transparency: reduce\)\s*{[\s\S]*?\.mobileSharedSheet\.mapDrawer\s*{[^}]*background:\s*var\(--sheet-material-solid\);[^}]*backdrop-filter:\s*none/,
@@ -71,7 +71,7 @@ describe("responsive spring ownership", () => {
       "const SHEET_GESTURE_MAX_WIDTH = 768",
     );
     expect(venueCss).toMatch(
-      /\.mapDrawer\.springDrawer\.left\.open\.sheet-half\[data-spring-axis="vertical"\][\s\S]*?transform:\s*var\(--drawer-spring-transform\)\s*!important/,
+      /:global\(\.mapDrawer\.springDrawer\.left\.open\.sheet-half\[data-spring-axis="vertical"\][\s\S]*?transform:\s*var\(--drawer-spring-transform\)\s*!important/,
     );
   });
 
@@ -97,10 +97,10 @@ describe("responsive spring ownership", () => {
       "window.getComputedStyle(drawerRef.current).bottom",
     );
     expect(venueCss).toMatch(
-      /\.mapDrawer\.springDrawer\.left\.open\[data-spring-axis="vertical"\][^{]*{[^}]*z-index:\s*var\(--z-nav\)/,
+      /:global\(\.mapDrawer\.springDrawer\.left\.open\[data-spring-axis="vertical"\]\)[^{]*{[^}]*z-index:\s*var\(--z-nav\)/,
     );
     expect(venueCss).toMatch(
-      /\.mapDrawer\.springDrawer\.right\.open\[data-spring-axis="vertical"\][^{]*{[^}]*z-index:\s*calc\(var\(--z-nav\) \+ 1\)/,
+      /:global\(\.mapDrawer\.springDrawer\.right\.open\[data-spring-axis="vertical"\]\)[^{]*{[^}]*z-index:\s*calc\(var\(--z-nav\) \+ 1\)/,
     );
   });
 });
@@ -143,7 +143,7 @@ describe("surface and type hierarchy", () => {
       /\.mobileVenuePeekSummary\s*{[^}]*border-inline:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent/,
     );
     expect(venueCss).toMatch(
-      /\.venueTabPanel \.contributorPrice\s*{[^}]*border-inline:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none/,
+      /\.venueTabPanel :global\(\.contributorPrice\)\s*{[^}]*border-inline:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none/,
     );
   });
 });

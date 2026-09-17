@@ -8,6 +8,7 @@ import { venueKindLabel, venueKindNoun } from "@/lib/venueKindFilters";
 import VenueTonightChips from "@/components/map/VenueTonightChips";
 import VenueImage from "@/components/media/VenueImage";
 import venueImageStyles from "@/components/media/venueImage.module.css";
+import sheetStyles from "../venueSheet.module.css";
 
 type TabDef = { key: TabKey; label: string; shortLabel: string };
 
@@ -54,13 +55,13 @@ export default function VenueInspectorHeader({
           thumb. Pointer handlers are optional props; when absent (e.g. any
           future non-map usage of this component) it's simply not draggable. */}
       <div
-        className="venueSheetGrabZone"
+        className={sheetStyles.venueSheetGrabZone}
         onPointerDown={onGrabDragStart}
         onPointerMove={onGrabDragMove}
         onPointerUp={onGrabDragEnd}
         onPointerCancel={onGrabDragEnd}
       >
-        <span className="venueSheetGrab" aria-hidden="true" />
+        <span className={sheetStyles.venueSheetGrab} aria-hidden="true" />
       </div>
       {/* The kicker is brand: where the pub is and what it is, never a label
           for the panel itself (site audit 13 Sep 2026, D21). */}
@@ -74,7 +75,7 @@ export default function VenueInspectorHeader({
           placeholder for photo-less venues. Additive/self-contained so it does
           not touch the tab strip or grab-zone layout N3 owns below. */}
       <VenueImage
-        className={`${venueImageStyles.venueImageHeader} venueBaselinePhoto${revealBloom ? " venueRevealBloom" : ""}`}
+        className={`${venueImageStyles.venueImageHeader} ${sheetStyles.venueBaselinePhoto}${revealBloom ? " venueRevealBloom" : ""}`}
         sources={[
           { url: venue.imageUrl, provenance: "chain" },
           { url: communityPhotoUrl, provenance: "community" },
@@ -100,7 +101,7 @@ export default function VenueInspectorHeader({
           is how this product draws a control a reader may not use. */}
       <div
         ref={tabStripRef}
-        className="venueTabs"
+        className={sheetStyles.venueTabs}
         onScroll={onTabStripScroll}
         data-trailing-fade={faded ? "on" : "off"}
         role="tablist"
@@ -118,15 +119,15 @@ export default function VenueInspectorHeader({
               aria-label={label}
               aria-selected={active}
               tabIndex={active ? 0 : -1}
-              className={active ? "venueTab active" : "venueTab"}
+              className={active ? `${sheetStyles.venueTab} ${sheetStyles.active}` : sheetStyles.venueTab}
               ref={(el) => {
                 tabRefs.current[key] = el;
               }}
               onClick={() => selectTab(key)}
               onKeyDown={(event) => onTabKeyDown(event, key)}
             >
-              <span className="venueTabFull">{label}</span>
-              <span className="venueTabShort" aria-hidden="true">
+              <span className={sheetStyles.venueTabFull}>{label}</span>
+              <span className={sheetStyles.venueTabShort} aria-hidden="true">
                 {shortLabel}
               </span>
             </button>

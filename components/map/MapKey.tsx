@@ -14,7 +14,15 @@ import type {
 } from "@/lib/mapPriceLegend";
 import { mapPriceTrustBeats } from "@/lib/mapPriceTrust";
 
-import "./mapKey.css";
+import styles from "./mapKey.module.css";
+
+/** Convert a kebab-case id like "pint-drop" to PascalCase "PintDrop". */
+function kebabToPascal(s: string): string {
+  return s
+    .split("-")
+    .map((seg) => seg.charAt(0).toUpperCase() + seg.slice(1))
+    .join("");
+}
 
 function ShapeIcon({ id }: { id: string }) {
   if (id === "pub-drink") return <Beer size={19} aria-hidden="true" />;
@@ -32,33 +40,40 @@ function EntryList({
   entries: MapKeyEntry[];
   markerKind: "shape" | "mark" | "route";
 }) {
+  const kindClass =
+    styles[`mapKeyMarker${kebabToPascal(markerKind)}`] ?? "";
+
   return (
-    <ul className="mapKeyList">
-      {entries.map((entry) => (
-        <li key={entry.id} className="mapKeyItem">
-          <span
-            className={`mapKeyMarker mapKeyMarker--${markerKind} mapKeyMarker--${entry.id}`}
-            style={
-              entry.colour
-                ? ({
-                    "--map-key-marker-colour": entry.colour,
-                  } as CSSProperties)
-                : undefined
-            }
-            aria-hidden="true"
-          >
-            {markerKind === "shape" ? (
-              <ShapeIcon id={entry.id} />
-            ) : markerKind === "route" && entry.id === "crawl-stop" ? (
-              <span className="mapKeyRouteStopNumber">1</span>
-            ) : null}
-          </span>
-          <span>
-            <strong>{entry.label}</strong>
-            <small>{entry.detail}</small>
-          </span>
-        </li>
-      ))}
+    <ul className={styles.mapKeyList}>
+      {entries.map((entry) => {
+        const idClass =
+          styles[`mapKeyMarker${kebabToPascal(entry.id)}`] ?? "";
+        return (
+          <li key={entry.id} className={styles.mapKeyItem}>
+            <span
+              className={`${styles.mapKeyMarker} ${kindClass} ${idClass}`}
+              style={
+                entry.colour
+                  ? ({
+                      "--map-key-marker-colour": entry.colour,
+                    } as CSSProperties)
+                  : undefined
+              }
+              aria-hidden="true"
+            >
+              {markerKind === "shape" ? (
+                <ShapeIcon id={entry.id} />
+              ) : markerKind === "route" && entry.id === "crawl-stop" ? (
+                <span className={styles.mapKeyRouteStopNumber}>1</span>
+              ) : null}
+            </span>
+            <span>
+              <strong>{entry.label}</strong>
+              <small>{entry.detail}</small>
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -69,25 +84,31 @@ export default function MapKey({
   legend: MapPriceLegendModel;
 }) {
   return (
-    <div className="mapKey" aria-label="Map key">
-      <section className="mapKeySection" aria-labelledby="mapKeyPriceHeading">
+    <div className={styles.mapKey} aria-label="Map key">
+      <section className={styles.mapKeySection} aria-labelledby="mapKeyPriceHeading">
         <h3 id="mapKeyPriceHeading">{legend.title}</h3>
         <p>{legend.hint}</p>
-        <ul className="mapKeyPriceRows">
-          {legend.rows.map((row) => (
-            <li key={row.label}>
-              <i
-                className={`mapKeyPriceSwatch mapKeyPriceSwatch--${row.tone}`}
-                aria-hidden="true"
-              />
-              <span className="mapKeyPriceCode">{row.symbol}</span>
-              <span>{row.label}</span>
-            </li>
-          ))}
+        <ul className={styles.mapKeyPriceRows}>
+          {legend.rows.map((row) => {
+            const toneClass =
+              styles[
+                `mapKeyPriceSwatch${row.tone.charAt(0).toUpperCase()}${row.tone.slice(1)}`
+              ] ?? "";
+            return (
+              <li key={row.label}>
+                <i
+                  className={`${styles.mapKeyPriceSwatch} ${toneClass}`}
+                  aria-hidden="true"
+                />
+                <span className={styles.mapKeyPriceCode}>{row.symbol}</span>
+                <span>{row.label}</span>
+              </li>
+            );
+          })}
         </ul>
-        <details className="mapKeyDetails mapKeyDetails--trust">
+        <details className={styles.mapKeyDetails}>
           <summary>Why this colour?</summary>
-          <ul className="mapKeyTrustList">
+          <ul className={styles.mapKeyTrustList}>
             {mapPriceTrustBeats().map((beat) => (
               <li key={beat.id}>
                 <strong>{beat.title}</strong>
@@ -99,10 +120,10 @@ export default function MapKey({
       </section>
 
       {legend.clusterNote ? (
-        <section className="mapKeySection" aria-labelledby="mapKeyClusterHeading">
+        <section className={styles.mapKeySection} aria-labelledby="mapKeyClusterHeading">
           <h3 id="mapKeyClusterHeading">Clusters</h3>
-          <div className="mapKeyClusterRow">
-            <span className="mapKeyClusterSample" aria-hidden="true">
+          <div className={styles.mapKeyClusterRow}>
+            <span className={styles.mapKeyClusterSample} aria-hidden="true">
               #
             </span>
             <p>{legend.clusterNote}</p>
@@ -111,24 +132,24 @@ export default function MapKey({
       ) : null}
 
       {legend.shapes.length > 0 ? (
-        <details className="mapKeyDetails">
+        <details className={styles.mapKeyDetails}>
           <summary>Pin shapes</summary>
           <EntryList entries={legend.shapes} markerKind="shape" />
           {legend.noAlcoholNote ? (
-            <p className="mapKeyNote">{legend.noAlcoholNote}</p>
+            <p className={styles.mapKeyNote}>{legend.noAlcoholNote}</p>
           ) : null}
         </details>
       ) : null}
 
       {legend.marks.length > 0 ? (
-        <details className="mapKeyDetails">
+        <details className={styles.mapKeyDetails}>
           <summary>Dots and rings</summary>
           <EntryList entries={legend.marks} markerKind="mark" />
         </details>
       ) : null}
 
       {legend.routeMarks.length > 0 ? (
-        <details className="mapKeyDetails">
+        <details className={styles.mapKeyDetails}>
           <summary>Routes</summary>
           <EntryList entries={legend.routeMarks} markerKind="route" />
         </details>

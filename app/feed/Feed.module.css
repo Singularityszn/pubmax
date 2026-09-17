@@ -45,7 +45,7 @@
 }
 
 /* ── Header ───────────────────────────────────────────────────────────── */
-/* The launch head is the shared Screen primitive (components/ui/screen.css).
+/* The launch head is the shared Screen primitive (components/ui/screen.module.css).
    The shell already pays the page gutters, so the head drops its own and
    takes the stream's column; the desktop grid below widens it to match. */
 .feedScreen {

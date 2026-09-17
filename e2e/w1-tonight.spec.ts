@@ -132,7 +132,7 @@ for (const viewport of VIEWPORTS) {
         await overlayToggle.click();
         await expect(overlayToggle).toHaveAttribute("aria-pressed", "true");
         if (viewport.width <= 640) {
-          const tonightBox = await page.locator(".tonightLane--collapsed").boundingBox();
+          const tonightBox = await page.locator(".stateCollapsed").boundingBox();
           const askBox = await page.locator(".mapConciergeAskPill").boundingBox();
           expect(tonightBox).not.toBeNull();
           expect(askBox).not.toBeNull();

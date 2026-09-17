@@ -20,6 +20,7 @@ import {
   isPubVenueKind,
   venueKindNoun,
 } from "@/lib/venueKindFilters";
+import sheetStyles from "../venueSheet.module.css";
 import storyStyles from './VenueStoryTab.module.css';
 
 export default function VenueStoryTab({
@@ -111,7 +112,7 @@ export default function VenueStoryTab({
       role="tabpanel"
       id="venuePanel-story"
       aria-labelledby="venueTab-story"
-      className="venueTabPanel"
+      className={sheetStyles.venueTabPanel}
       hidden={tab !== "story"}
     >
       <VisitReportPanel

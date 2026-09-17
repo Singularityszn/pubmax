@@ -2,7 +2,7 @@
    Replaces desktop mid-map .poiToggle / .placeStoriesControl strip.
    Structure matches #63; do not rebuild Outer London / security. */
 
-.mapLayersControl {
+:global(.mapLayersControl) {
   display: block;
   position: absolute;
   right: 14px;
@@ -14,12 +14,12 @@
 
 /* Keep an open panel above the live Tonight lane so every layer chip remains
    tappable when the two bottom map surfaces overlap on a phone. */
-.mapLayersControl.isOpen {
+:global(.mapLayersControl):global(.isOpen) {
   z-index: var(--z-map-toolbar);
 }
 
 .mapLayersFab,
-.mapLayersPanel {
+:global(.mapLayersPanel) {
   pointer-events: auto;
 }
 
@@ -55,7 +55,7 @@
   --shared-press-scale: 1;
 }
 
-.mapLayersFab.isActive {
+.mapLayersFab:global(.isActive) {
   background: var(--color-accent);
   color: var(--color-on-accent-strong);
   border-color: transparent;
@@ -66,7 +66,7 @@
   outline-offset: 2px;
 }
 
-.mapLayersPanel {
+:global(.mapLayersPanel) {
   position: absolute;
   right: 0;
   bottom: calc(100% + 10px);
@@ -83,7 +83,7 @@
   animation: mapLayersPanelIn var(--duration-base) var(--ease-out) both;
 }
 
-@keyframes mapLayersPanelIn {
+@keyframes :global(mapLayersPanelIn) {
   from {
     opacity: 0;
     transform: translateY(6px) scale(0.97);
@@ -162,7 +162,7 @@
   transform: scale(0.97);
 }
 
-.mapLayersReaderAction.isOn {
+.mapLayersReaderAction:global(.isOn) {
   box-shadow:
     0 8px 18px color-mix(in srgb, var(--ink-deep) 12%, transparent),
     0 0 0 1px color-mix(in srgb, var(--brass) 42%, transparent);
@@ -178,19 +178,19 @@
   min-width: 0;
 }
 
-.mapLayersPriceBlock {
+:global(.mapLayersPriceBlock) {
   display: grid;
   gap: 7px;
   min-width: 0;
 }
 
-.mapLayersPriceOptions {
+:global(.mapLayersPriceOptions) {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.mapLayersPriceChip {
+:global(.mapLayersPriceChip) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -211,33 +211,33 @@
     transform var(--duration-fast) var(--ease-out);
 }
 
-.mapLayersPriceChip:active {
+:global(.mapLayersPriceChip):active {
   transform: scale(0.97);
   --shared-press-scale: 1;
 }
 
-.mapLayersPriceChip.isOn {
+:global(.mapLayersPriceChip):global(.isOn) {
   border-color: var(--pint);
   background: color-mix(in srgb, var(--pint) 16%, var(--panel-raised));
   color: var(--ink);
 }
 
-.mapLayersPriceDot {
+:global(.mapLayersPriceDot) {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.mapLayersPriceDot.green {
+:global(.mapLayersPriceDot):global(.green) {
   background: var(--pint);
 }
 
-.mapLayersPriceDot.amber {
+:global(.mapLayersPriceDot):global(.amber) {
   background: var(--amber);
 }
 
-.mapLayersPriceDot.any {
+:global(.mapLayersPriceDot):global(.any) {
   background: color-mix(in srgb, var(--muted) 55%, transparent);
 }
 
@@ -283,7 +283,7 @@
   --shared-press-scale: 1;
 }
 
-.mapLayersChip.isOn {
+.mapLayersChip:global(.isOn) {
   border-color: var(--brass);
   background: linear-gradient(135deg, var(--brass), var(--brass-bright));
   color: var(--color-on-accent);
@@ -302,23 +302,23 @@
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-raised) 70%, transparent);
 }
 
-.mapLayersChip.isOn .mapLayersSwatch {
+.mapLayersChip:global(.isOn) .mapLayersSwatch {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-on-accent) 40%, transparent);
 }
 
-.appShell.sheet-full .mapLayersControl,
-.appShell.detail-open .mapLayersControl {
+:global(.appShell.sheet-full .mapLayersControl),
+:global(.appShell.detail-open .mapLayersControl) {
   opacity: 0;
   pointer-events: none;
 }
 
 @media (max-width: 640px) {
-  .mapLayersControl {
+  :global(.mapLayersControl) {
     right: 10px;
     bottom: var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance, 72px) + 18px));
   }
 
-  .mapLayersPanel {
+  :global(.mapLayersPanel) {
     /* Phone key lives in the More sheet, so this panel can originate from
        the Layers control instead of floating above a removed bottom stack. */
     bottom: calc(100% + 10px);
@@ -333,8 +333,8 @@
   .mapLayersFab,
   .mapLayersChip,
   .mapLayersReaderAction,
-  .mapLayersPriceChip,
-  .mapLayersPanel {
+  :global(.mapLayersPriceChip),
+  :global(.mapLayersPanel) {
     transition: none;
     animation: none;
   }
@@ -360,20 +360,20 @@
 /* Both actions sit in a row here rather than in the map-edge column, so their
    own stylesheet's stacking geometry does not apply. The 44px tap floor they
    held on the map edge still does. */
-.mapLayersView .mapFitLondonBtn,
-.mapLayersView .mapCompassBtn {
+.mapLayersView :global(.mapFitLondonBtn),
+.mapLayersView :global(.mapCompassBtn) {
   position: static;
   width: auto;
   min-height: 44px;
   flex: 0 0 auto;
 }
 
-.mapLayersView .mapCompassBtn .mapCompassBtnLabel {
+.mapLayersView :global(.mapCompassBtn) :global(.mapCompassBtnLabel) {
   display: inline;
 }
 
 /* The verdict is a reading, not a control, so it takes the whole row under
    the two actions rather than competing with them for the first one. */
-.mapLayersView .conditionsChip {
+.mapLayersView :global(.conditionsChip) {
   flex: 1 0 100%;
 }

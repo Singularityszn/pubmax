@@ -6,6 +6,7 @@ import { formatRouteTotal, type RouteLegsSummary, type RoutePace } from "@/lib/r
 import { type CrawlMode } from "@/components/map/ControlRail";
 import type { Venue } from "@/lib/venues";
 import RoundStarter from "@/components/round/RoundStarter";
+import roundStarterStyles from "@/components/round/roundStarter.module.css";
 import btnStyles from '../addStopBtn.module.css';
 import routeStyles from './route.module.css';
 import rpStyles from '@/components/map/routePanel.module.css';
@@ -122,7 +123,7 @@ export default function RouteActions({
 
       {route.length >= 2 ? (
         <div className={rpStyles.planRoundBridge} data-testid="plan-round-bridge">
-          <p className="roundStarterHelper">
+          <p className={roundStarterStyles.roundStarterHelper}>
             Invite friends to walk this plan as a Round.
           </p>
           <RoundStarter

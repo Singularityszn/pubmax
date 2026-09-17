@@ -406,7 +406,7 @@
 
   /* — Spill (always-dark) palette: the "spilling right now" / spill-composer
        surfaces stay dark in BOTH themes by design. One shared token set so
-       feed.css + spillComposer.css can't drift (was hardcoded #0c0b08 in both). */
+       feed.css + spillComposer.module.css can't drift (was hardcoded #0c0b08 in both). */
   --spill-surface: #0c0b08;
   --spill-veil: rgba(12, 11, 8, 0.72);
   --spill-veil-strong: rgba(12, 11, 8, 0.78);

@@ -8,6 +8,7 @@ import type { CrawlMode } from "@/components/map/ControlRail";
 import type { ShareFeedback } from "@/lib/venueShare";
 import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
 import { isPubVenue } from "@/lib/venueKindFilters";
+import sheetStyles from "../venueSheet.module.css";
 
 export default function VenueStickyBar({
   venue,
@@ -41,11 +42,11 @@ export default function VenueStickyBar({
   // rides here as a ghost beside Crawl and Share. "Add price" used to sit here
   // as a second painted price door and is folded into the Overview's one.
   const bar = (
-    <div className="venueSheetStickyBar" role="toolbar" aria-label="Venue actions">
+    <div className={sheetStyles.venueSheetStickyBar} role="toolbar" aria-label="Venue actions">
       {pubVenue && onAcceptStop1 ? (
         <button
           type="button"
-          className="venueSheetStickyGhost"
+          className={sheetStyles.venueSheetStickyGhost}
           onClick={onAcceptStop1}
           aria-label={`Make ${venue.name} Stop 1`}
         >
@@ -56,7 +57,7 @@ export default function VenueStickyBar({
       {pubVenue && mode === "build" ? (
         <button
           type="button"
-          className="venueSheetStickyGhost"
+          className={sheetStyles.venueSheetStickyGhost}
           aria-pressed={inCrawl}
           onClick={() => onToggleStop(venue.id)}
         >
@@ -66,7 +67,7 @@ export default function VenueStickyBar({
       ) : null}
       <button
         type="button"
-        className="venueSheetStickyGhost"
+        className={sheetStyles.venueSheetStickyGhost}
         onClick={() => {
           void shareVenue();
         }}
@@ -80,13 +81,13 @@ export default function VenueStickyBar({
       {currentShareFeedback ? (
         <span
           role={currentShareFeedback.tone === "error" ? "alert" : "status"}
-          className={`venueSheetShareFeedback ${currentShareFeedback.tone}`}
+          className={`${sheetStyles.venueSheetShareFeedback} ${currentShareFeedback.tone === "error" ? sheetStyles.error : sheetStyles.ok}`}
         >
           {currentShareFeedback.text}
         </span>
       ) : null}
       {acceptanceError ? (
-        <span role="alert" className="venueSheetShareFeedback error">
+        <span role="alert" className={`${sheetStyles.venueSheetShareFeedback} ${sheetStyles.error}`}>
           {acceptanceError}
         </span>
       ) : null}

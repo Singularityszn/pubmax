@@ -60,7 +60,7 @@
   text-decoration: none;
 }
 
-.lpWordmark .pubmaxxWordmark { max-width: 100%; }
+.lpWordmark :global(.pubmaxxWordmark) { max-width: 100%; }
 
 .lpPrimaryNav { display: flex; justify-content: center; align-items: center; gap: 2px; }
 .lpPrimaryNav a {
@@ -96,21 +96,21 @@
   gap: var(--space-5);
 }
 
-.lpHero .screenHead {
+.lpHero :global(.screenHead) {
   max-width: none;
   padding-block: 0;
   gap: var(--space-3);
 }
 
 /* 56px to 64px on a desktop (e2e/design-taste-wave-1.spec.ts), two lines. */
-.lpHero .screenTitle {
+.lpHero :global(.screenTitle) {
   max-width: 18ch;
   font-size: clamp(2.75rem, 4.45vw, 4rem);
   line-height: .96;
   letter-spacing: -.04em;
 }
 
-.lpHero .screenAnswer { min-width: 0; margin-top: var(--space-2); }
+.lpHero :global(.screenAnswer) { min-width: 0; margin-top: var(--space-2); }
 
 /* On a desktop the copy and the answer share the first screen from the top:
    the grid starts under the nav rather than floating at the vertical centre.
@@ -130,7 +130,7 @@
     align-items: start;
     padding-top: clamp(128px, 17vh, 168px);
   }
-  .lpHero .screenHead {
+  .lpHero :global(.screenHead) {
     grid-area: head;
     grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
     grid-template-areas:
@@ -142,11 +142,11 @@
     column-gap: clamp(28px, 4vw, 56px);
     align-items: start;
   }
-  .lpHero .screenHead > .kicker { grid-area: kicker; }
-  .lpHero .screenTitle { grid-area: title; }
-  .lpHero .screenLede { grid-area: lede; max-width: 34ch; }
-  .lpHero .screenActions { grid-area: actions; align-self: start; }
-  .lpHero .screenAnswer { grid-area: answer; margin-top: 0; }
+  .lpHero :global(.screenHead) > :global(.kicker) { grid-area: kicker; }
+  .lpHero :global(.screenTitle) { grid-area: title; }
+  .lpHero :global(.screenLede) { grid-area: lede; max-width: 34ch; }
+  .lpHero :global(.screenActions) { grid-area: actions; align-self: start; }
+  .lpHero :global(.screenAnswer) { grid-area: answer; margin-top: 0; }
   .lpHero .lpAnswerCard { grid-area: card; }
   .lpHero .lpRail { grid-area: rail; }
 }
@@ -163,7 +163,7 @@
   box-shadow: var(--shadow);
 }
 
-.lpPubCard .kicker { margin-bottom: 0; }
+.lpPubCard :global(.kicker) { margin-bottom: 0; }
 
 /* ── The card on a photograph (captain 6 Sep 2026) ───────────────────────── */
 /* The picture is the card's BACKDROP, not a band above it: the landing's own
@@ -180,7 +180,7 @@
    The price stamp is deliberately untouched: a figure wears its BAND and no
    other colour (lib/priceBand.ts), and the band paints its own surface, so it
    is readable over any photograph by its own rule. */
-.lpPubCard--photo {
+.lpPubCardPhoto {
   position: relative;
   isolation: isolate;
   background: var(--ink-deep, #0c0a09);
@@ -188,57 +188,57 @@
 
 /* The credit the licence requires, as the card's own last line rather than a
    box floated over the line above it. */
-.lpPubCard--photo .lpPhotoCredit {
+.lpPubCardPhoto .lpPhotoCredit {
   margin-top: var(--space-2);
 }
 
 /* The photograph is positioned, so every static sibling would paint UNDER it.
    Lift the card's own content into the layer above it. */
-.lpPubCard--photo > *:not(.landingPhoto) {
+.lpPubCardPhoto > *:not([data-photo-scope]) {
   position: relative;
   z-index: 1;
 }
 
-.lpPubCard--photo,
-.lpPubCard--photo .lpPubThen {
+.lpPubCardPhoto,
+.lpPubCardPhoto .lpPubThen {
   color: var(--landing-photo-ink);
 }
 
-.lpPubCard--photo .kicker,
-.lpPubCard--photo .lpAnswerWalk,
-.lpPubCard--photo .lpPubPint,
-.lpPubCard--photo .lpPubSource,
-.lpPubCard--photo .lpPubThenSource,
-.lpPubCard--photo .lpNearLine {
+.lpPubCardPhoto :global(.kicker),
+.lpPubCardPhoto .lpAnswerWalk,
+.lpPubCardPhoto .lpPubPint,
+.lpPubCardPhoto .lpPubSource,
+.lpPubCardPhoto .lpPubThenSource,
+.lpPubCardPhoto .lpNearLine {
   color: var(--landing-photo-ink-soft);
 }
 
-.lpPubCard--photo .lpPubName a { color: var(--landing-photo-ink); }
-.lpPubCard--photo .lpPubName a:hover { color: var(--landing-photo-ink); }
-.lpPubCard--photo a.lpPubPint:hover,
-.lpPubCard--photo .lpPubSource a:hover,
-.lpPubCard--photo .lpPubThenSource a:hover { color: var(--landing-photo-ink); }
+.lpPubCardPhoto .lpPubName a { color: var(--landing-photo-ink); }
+.lpPubCardPhoto .lpPubName a:hover { color: var(--landing-photo-ink); }
+.lpPubCardPhoto a.lpPubPint:hover,
+.lpPubCardPhoto .lpPubSource a:hover,
+.lpPubCardPhoto .lpPubThenSource a:hover { color: var(--landing-photo-ink); }
 
-.lpPubCard--photo .lpPubThen { border-top-color: rgb(251 249 246 / 0.22); }
+.lpPubCardPhoto .lpPubThen { border-top-color: rgb(251 249 246 / 0.22); }
 
 /* The standing chip and the location control carry their own surfaces so they
    read against the photograph rather than against the page they came from. */
-.lpPubCard--photo .lpStanding {
+.lpPubCardPhoto .lpStanding {
   background: rgb(251 249 246 / 0.14);
   color: var(--landing-photo-ink);
 }
-.lpPubCard--photo .lpStandingDot { background: var(--landing-photo-ink-soft); }
+.lpPubCardPhoto .lpStandingDot { background: var(--landing-photo-ink-soft); }
 
-.lpPubCard--photo .lpNearMe {
+.lpPubCardPhoto .lpNearMe {
   border-color: rgb(251 249 246 / 0.4);
   color: var(--landing-photo-ink);
 }
-.lpPubCard--photo .lpNearMe:hover {
+.lpPubCardPhoto .lpNearMe:hover {
   border-color: var(--landing-photo-ink);
   background: rgb(251 249 246 / 0.12);
 }
-.lpPubCard--photo .lpNearMe:disabled { color: var(--landing-photo-ink-soft); }
-.lpPubCard--photo .lpNearMe svg { color: var(--landing-photo-ink); }
+.lpPubCardPhoto .lpNearMe:disabled { color: var(--landing-photo-ink-soft); }
+.lpPubCardPhoto .lpNearMe svg { color: var(--landing-photo-ink); }
 
 
 .lpPubName {
@@ -259,7 +259,7 @@
 }
 /* The stamp is the signature element; the landing sets it larger than a list
    row because it is the one figure on the first screen. */
-.lpPubPrice .priceBadge { font-size: var(--text-lg); min-block-size: 2.4rem; padding-inline: .7rem; }
+.lpPubPrice :global(.priceBadge) { font-size: var(--text-lg); min-block-size: 2.4rem; padding-inline: .7rem; }
 .lpPubPint { color: var(--ink-soft); font-size: var(--text-base); }
 a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 a.lpPubPint:hover { color: var(--ink); }
@@ -361,7 +361,7 @@ a.lpPubPint:hover { color: var(--ink); }
   padding: clamp(24px, 4vw, 56px) 0;
 }
 .dropStripHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-.dropStripHead .eyebrow { margin: 0; display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 13px; font-weight: 700; }
+.dropStripHead :global(.eyebrow) { margin: 0; display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 13px; font-weight: 700; }
 .dropStripHint { color: var(--ink-soft); font: 550 10px/1 var(--font-data); }
 .dropStripRail { margin: 0; padding: 0 0 10px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 12px; overflow-x: auto; touch-action: pan-y; overscroll-behavior-x: contain; list-style: none; scroll-snap-type: x proximity; scrollbar-width: thin; }
 /* The skeleton is decoration behind aria-hidden, so it must not be a scroll
@@ -437,7 +437,7 @@ a.lpPubPint:hover { color: var(--ink); }
    the /near list already takes, and holds it whenever the control is in the
    document rather than only while it is painted. */
 @media (max-width: 640px) {
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .lp .cityChooserLink {
+  :global(body:has(.createFabRoot):not(:has(.pageHidesCreateFab))) .lp :global(.cityChooserLink) {
     padding-right: max(
       var(--space-4),
       calc(var(--create-fab-lane) - var(--page-gutter))
@@ -446,7 +446,7 @@ a.lpPubPint:hover { color: var(--ink); }
 
   /* The answer card has its own right-aligned Near me control. Keep it out of
      the same published compose lane the rail rows already reserve. */
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .lpAnswerHead {
+  :global(body:has(.createFabRoot):not(:has(.pageHidesCreateFab))) .lpAnswerHead {
     padding-right: max(
       var(--space-4),
       calc(var(--create-fab-lane) - var(--page-gutter))
@@ -482,7 +482,7 @@ a.lpPubPint:hover { color: var(--ink); }
 }
 
 @media (max-width: 350px) {
-  .lpNavActions .authUserNav { display: none; }
+  .lpNavActions :global(.authUserNav) { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -509,7 +509,7 @@ a.lpPubPint:hover { color: var(--ink); }
   gap: var(--space-3);
   min-width: 0;
 }
-.lpAnswerHead .kicker { min-width: 0; overflow-wrap: anywhere; }
+.lpAnswerHead :global(.kicker) { min-width: 0; overflow-wrap: anywhere; }
 .lpAnswerWalk { color: var(--muted); font-weight: 600; }
 
 /* The one quiet control that asks for a location. A text control with a
@@ -570,7 +570,7 @@ a.lpPubPint:hover { color: var(--ink); }
 .lpRailName { font-family: var(--font-display); font-size: var(--text-base); font-weight: 700; letter-spacing: var(--tracking-tight); }
 .lpRailMeta { color: var(--ink-soft); font-size: var(--text-sm); }
 .lpRailPrice { flex: none; }
-.lpRailPrice .priceBadge { font-size: var(--text-sm); }
+.lpRailPrice :global(.priceBadge) { font-size: var(--text-sm); }
 
 @media (max-width: 700px) {
   .lpAnswerCard { width: 100%; }
@@ -581,13 +581,13 @@ a.lpPubPint:hover { color: var(--ink); }
    screen still reads kicker, claim, answer, action inside 844px. */
 @media (max-width: 700px) {
   .lpHero { padding-top: 80px; gap: var(--space-5); }
-  .lpHero .screenTitle { font-size: clamp(2.125rem, 10vw, 2.75rem); line-height: .94; }
+  .lpHero :global(.screenTitle) { font-size: clamp(2.125rem, 10vw, 2.75rem); line-height: .94; }
   .lpHero .lpAnswerCard { gap: var(--space-1); padding: var(--space-4); }
   .lpHero .lpPubName { font-size: var(--text-lg); }
-  .lpHero .lpPubPrice .priceBadge { font-size: var(--text-base); min-block-size: 2.1rem; }
+  .lpHero .lpPubPrice :global(.priceBadge) { font-size: var(--text-base); min-block-size: 2.1rem; }
   .lpHero .lpPubThen { margin-top: var(--space-1); padding-top: var(--space-2); font-size: var(--text-sm); }
   .lpHero .lpRailLink { min-height: 52px; }
-  .lpHero .screenActions { margin-top: 0; }
+  .lpHero :global(.screenActions) { margin-top: 0; }
 }
 
 

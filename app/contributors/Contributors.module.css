@@ -9,7 +9,7 @@
     );
 }
 
-/* The head is the shared Screen primitive (components/ui/screen.css). The
+/* The head is the shared Screen primitive (components/ui/screen.module.css). The
    main column already pays the gutters, so the record drops its own. No card
    around the head: a heading with a list under it is already a section. */
 .contributorMain {

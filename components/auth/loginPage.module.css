@@ -27,7 +27,7 @@
   width: min(26rem, 100%);
 }
 
-/* The head is the shared Screen primitive (components/ui/screen.css). The
+/* The head is the shared Screen primitive (components/ui/screen.module.css). The
    inner column already sets the measure, so the head drops the Screen's page
    gutters and its top padding. */
 .loginPageInner .loginPageHead {

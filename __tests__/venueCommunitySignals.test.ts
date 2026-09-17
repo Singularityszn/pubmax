@@ -8,6 +8,7 @@ import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { COMMUNITY_PRICE_MAX_AGE_MS } from "@/lib/communityPrice";
 import type { CommunityVenueSignal } from "@/lib/communityVenueSignals";
 import type { Venue } from "@/lib/venues";
+import priceSubmitStyles from "@/components/map/venuePriceSubmit.module.css";
 
 const NOW = Date.now();
 const noop = () => {};
@@ -36,7 +37,8 @@ describe("VenueCommunitySignals", () => {
     expect(html).toContain("<details");
     expect(html).toContain("What drinkers noticed");
     expect(html).toContain("Access unknown");
-    expect((html.match(/class=\"venueCommunitySignals\"/g) ?? [])).toHaveLength(1);
+    const signalsCls = priceSubmitStyles.venueCommunitySignals;
+    expect((html.match(new RegExp(`class="${signalsCls}"`, "g")) ?? [])).toHaveLength(1);
   });
 
   it("distinguishes entrance access from toilet access", () => {
@@ -337,8 +339,9 @@ describe("VenueOverviewTab community signals", () => {
     const firstBlock = html.slice(signalsAt, priceStoryAt);
     expect(firstBlock).not.toContain("Add what you noticed");
     expect(firstBlock).not.toContain("Sign in to add what you noticed.");
+    const signalsCls = priceSubmitStyles.venueCommunitySignals;
     expect(
-      html.match(/class=\"venueCommunitySignals\"/g) ?? [],
+      html.match(new RegExp(`class="${signalsCls}"`, "g")) ?? [],
       "Overview must not double-mount VenueCommunitySignals",
     ).toHaveLength(1);
     expect(

@@ -15,7 +15,7 @@ import {
 import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
 
 import styles from "@/app/messages/Messages.module.css";
-import "@/components/mobile/mobileMapShell.css";
+import "@/components/mobile/mobileMapShell.module.css";
 
 export type MessageAttachKind = "photos" | "camera" | "document";
 

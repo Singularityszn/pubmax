@@ -22,7 +22,7 @@
 
 .palExperience *, .palExperience *::before, .palExperience *::after { box-sizing: border-box; }
 /* Family and size only. The `font` shorthand also resets weight, and this
-   rule loads after components/ui/screen.css, so it stripped the 700 off the
+   rule loads after components/ui/screen.module.css, so it stripped the 700 off the
    meeting screen's one primary and "Meet your Pub Pal" was the one regular-
    weight primary in the app. */
 .palExperience button, .palExperience a, .palExperience input { font-family: inherit; font-size: inherit; line-height: inherit; }

@@ -12,11 +12,11 @@
 // scrollable strip at rest and at most two once the user has committed to a
 // family — the refinement can never crowd the resting toolbar.
 
-// The chip styles live in mapToolbar.css, but this component also renders in
-// the mobile filter sheet where MapToolbar (a desktop-only dynamic chunk) never
-// mounts — so the stylesheet must ship with the component itself, or the mobile
-// chips fall back to unstyled browser buttons with no selected state.
-import "./mapToolbar.css";
+// The chip styles live in mapToolbar.module.css, but this component also renders
+// in the mobile filter sheet where MapToolbar (a desktop-only dynamic chunk)
+// never mounts — so the stylesheet must ship with the component itself, or the
+// mobile chips fall back to unstyled browser buttons with no selected state.
+import "./mapToolbar.module.css";
 
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import {

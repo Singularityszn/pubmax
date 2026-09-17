@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { MapPin, PlusCircle } from "lucide-react";
 
 import overviewStyles from "./VenueOverviewTab.module.css";
+import sheetStyles from "../venueSheet.module.css";
 import Disclosure from "@/components/Disclosure";
 import PriceBadge from "@/components/PriceBadge";
 import TrustPill from "@/components/ui/trust-pill";
@@ -947,10 +948,10 @@ export default function VenueOverviewTab({
       role="tabpanel"
       id="venuePanel-overview"
       aria-labelledby="venueTab-overview"
-      className="venueTabPanel"
+      className={sheetStyles.venueTabPanel}
       hidden={tab !== "overview"}
     >
-      <p className="venueAddress">{venue.address}</p>
+      <p className={sheetStyles.venueAddress}>{venue.address}</p>
       <VenueActionStrip venue={venue} />
       <VenueOccupancyRow
         venueId={venue.id}
@@ -976,7 +977,7 @@ export default function VenueOverviewTab({
         address={venue.address}
       />
       <Disclosure
-        className="venueOverviewMore"
+        className={sheetStyles.venueOverviewMore}
         bodyClassName="venueOverviewMoreBody"
         summary="Details and practical info"
       >

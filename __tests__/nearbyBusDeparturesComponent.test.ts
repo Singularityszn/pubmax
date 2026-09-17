@@ -329,7 +329,7 @@ describe("NearbyBusDepartures", () => {
 
   it("keeps the retry control thumb-sized, and refuses without taking focus", () => {
     const css = readFileSync(
-      join(process.cwd(), "components/map/nearbyBusDepartures.css"),
+      join(process.cwd(), "components/map/nearbyBusDepartures.module.css"),
       "utf8",
     );
     const retryRule = css.match(/\.nearbyBusRetry\s*{([^}]*)}/)?.[1] ?? "";
@@ -353,7 +353,7 @@ describe("NearbyBusDepartures", () => {
 
   it("keeps the summary thumb-sized and adds no motion", () => {
     const css = readFileSync(
-      join(process.cwd(), "components/map/nearbyBusDepartures.css"),
+      join(process.cwd(), "components/map/nearbyBusDepartures.module.css"),
       "utf8",
     );
     const summaryRule =

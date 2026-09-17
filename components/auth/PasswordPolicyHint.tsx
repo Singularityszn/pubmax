@@ -30,17 +30,17 @@ export default function PasswordPolicyHint({
       {value.length === 0 ? (
         <p>{PASSWORD_HINT}</p>
       ) : (
-        <ul className="passwordPolicyRules">
+        <ul className={styles.passwordPolicyRules}>
           {rules.map((rule) => (
             <li
               key={rule.id}
-              className={rule.met ? "isMet" : undefined}
+              className={rule.met ? styles.isMet : undefined}
               data-rule={rule.id}
               data-met={rule.met ? "yes" : "no"}
             >
               <span aria-hidden="true">{rule.met ? "✓" : "•"}</span>
               <span>{rule.label}</span>
-              <span className="srOnly">{rule.met ? " done" : " not yet"}</span>
+              <span className={styles.srOnly}>{rule.met ? " done" : " not yet"}</span>
             </li>
           ))}
         </ul>

@@ -15,7 +15,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import { useAuth } from "@/components/auth/AuthProvider";
 
-import "./referralFollowBack.css";
+import styles from "./referralFollowBack.module.css";
 
 export default function ReferralFollowBack({
   myHandle,
@@ -57,18 +57,18 @@ export default function ReferralFollowBack({
   if (!socialFriendsLaunchEnabled || !inviterHandle) return null;
 
   return (
-    <section className="referralFollowBack" aria-label="Follow your inviter">
-      <p className="referralFollowBack__eyebrow">Your invite</p>
-      <h2 className="referralFollowBack__title">
+    <section className={styles.referralFollowBack} aria-label="Follow your inviter">
+      <p className={styles.referralFollowBackEyebrow}>Your invite</p>
+      <h2 className={styles.referralFollowBackTitle}>
         Follow {displayHandle(inviterHandle)}?
       </h2>
-      <p className="referralFollowBack__body">
+      <p className={styles.referralFollowBackBody}>
         They invited you. Follow them, and once they follow back you share a
         lot.
       </p>
-      <div className="referralFollowBack__actions">
+      <div className={styles.referralFollowBackActions}>
         <Link
-          className="referralFollowBack__primary"
+          className={styles.referralFollowBackPrimary}
           href={`/add/${encodeURIComponent(inviterHandle)}`}
           onClick={() => clearReferralFollowHandle()}
         >
@@ -76,7 +76,7 @@ export default function ReferralFollowBack({
         </Link>
         <button
           type="button"
-          className="referralFollowBack__ghost"
+          className={styles.referralFollowBackGhost}
           onClick={() => {
             clearReferralFollowHandle();
             setInviterHandle(null);

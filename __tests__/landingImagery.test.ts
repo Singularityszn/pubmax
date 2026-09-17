@@ -224,16 +224,16 @@ describe("text over a photograph clears WCAG AA against the worst pixel", () => 
   });
 
   it("ships the alpha it proves, and never a weaker one under text", () => {
-    const css = read("components/landing/landingPhoto.css");
+    const css = read("components/landing/landingPhoto.module.css");
     const alphas = [...css.matchAll(/rgb\(12 10 9 \/ ([0-9.]+)\)/g)].map((m) => Number(m[1]));
     expect(alphas.length).toBeGreaterThan(0);
     // Every alpha that sits under a line of text is the proved one or deeper.
-    const scrim = css.slice(css.indexOf(".landingPhoto__scrim"), css.indexOf(".landingPhotoCredit"));
+    const scrim = css.slice(css.indexOf(".landingPhotoScrim"), css.indexOf(".landingPhotoCredit"));
     const scrimAlphas = [...scrim.matchAll(/rgb\(12 10 9 \/ ([0-9.]+)\)/g)].map((m) => Number(m[1]));
     for (const alpha of scrimAlphas) {
       expect(alpha, "card scrim alpha").toBeGreaterThanOrEqual(LANDING_SCRIM_ALPHA);
     }
     // The band's own credit brings the same alpha as its own surface.
-    expect(css).toMatch(/\.landingPhoto--band \.landingPhotoCredit \{[^}]*rgb\(12 10 9 \/ 0\.72\)/);
+    expect(css).toMatch(/\.landingPhotoBand \.landingPhotoCredit \{[^}]*rgb\(12 10 9 \/ 0\.72\)/);
   });
 });

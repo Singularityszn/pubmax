@@ -18,6 +18,7 @@
 import { useState } from "react";
 
 import StarRating from "./StarRating";
+import styles from "./starRating.module.css";
 import type { DrinkRatingState } from "./useDrinkRating";
 
 export type DrinkRatingActionProps = {
@@ -61,13 +62,13 @@ export default function DrinkRatingAction({
         onRate={(value) => rating.rate(value)}
       />
       {rating.myRating !== null ? (
-        <span className="ratingNote">
+        <span className={styles.ratingNote}>
           Your rating: {rating.myRating.toFixed(1)}
         </span>
       ) : null}
       {rating.needsHandle ? (
         <input
-          className="ratingHandleInput"
+          className={styles.ratingHandleInput}
           type="text"
           value={rating.handle}
           onChange={(event) => rating.setHandle(event.target.value)}
@@ -76,7 +77,7 @@ export default function DrinkRatingAction({
         />
       ) : null}
       {rating.error ? (
-        <span className="ratingError" role="status">
+        <span className={styles.ratingError} role="status">
           {rating.error}
         </span>
       ) : null}

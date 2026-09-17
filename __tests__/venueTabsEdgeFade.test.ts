@@ -23,7 +23,7 @@ import {
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
-const sheetCss = read("components/map/venueSheet.css");
+const sheetCss = read("components/map/venueSheet.module.css");
 
 describe("B1 - the venue tab strip fades only what is really hidden", () => {
   it("never fades at the end of the scroll", () => {

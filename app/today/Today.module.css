@@ -23,7 +23,7 @@
 }
 
 /* ── The greeting ─────────────────────────────────────────────────────────
-   The head is the Screen primitive (components/ui/screen.css): kicker,
+   The head is the Screen primitive (components/ui/screen.module.css): kicker,
    weather-aware headline, the personal line, one primary. The page shell
    already keeps the gutter, so the screen does not pad it a second time, and
    the Now segment above it already sets the head off from the nav, so the
@@ -222,7 +222,7 @@
 }
 
 /* The quiet text action is the Button primitive's ghost
-   (components/ui/button.css), so this sheet only places it. It painted a look
+   (components/ui/button.module.css), so this sheet only places it. It painted a look
    of its own at r0 and 0.78rem, and in the get-there column it stretched to
    the card's width with its label at the left edge (site audit 13 Sep 2026,
    D7). It hugs its label, and one that starts a line pulls its padding back so

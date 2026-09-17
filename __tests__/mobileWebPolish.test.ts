@@ -40,9 +40,9 @@ describe("mobile web polish source contracts", () => {
       "app/pint-index/PintIndex.module.css",
       "app/pal/Pal.module.css",
       "components/drinks/categoryShowcase.module.css",
-      "components/landing/landing.css",
+      "components/landing/landing.module.css",
       "components/map/mapToolbar.css",
-      "components/map/tonightLane.css",
+      "components/map/tonightLane.module.css",
       "components/mobile/mobileMapShell.css",
       "components/pubs/pubsGallery.css",
     ];
@@ -63,12 +63,12 @@ describe("mobile web polish source contracts", () => {
       // The crop frame owns a drag, so it suppresses selection. It moved out of
       // the profile page's stylesheet when the cropper got one of its own.
       "components/profile/profileImageCropper.css",
-      "components/map/venueSheet.css",
+      "components/map/venueSheet.module.css",
     ]));
     expect(new Set(declarations)).toEqual(new Set([
       "app/globals.css",
       "app/messages/Messages.module.css",
-      "components/map/venueSheet.css",
+      "components/map/venueSheet.module.css",
       "components/profile/profileImageCropper.css",
     ]));
   });

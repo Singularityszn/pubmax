@@ -100,7 +100,7 @@ for (const theme of ["light", "dark"] as const) {
     await sheet.getByRole("tab", { name: "Events" }).click();
 
     // Lane renders in-flow, not the absolutely-floated map-edge card.
-    const lane = sheet.locator(".tonightLane--sheet");
+    const lane = sheet.locator(".tonightLaneSheet");
     await expect(lane).toBeVisible();
     await expect(lane).toHaveCSS("position", "static");
 

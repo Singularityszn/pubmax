@@ -18,8 +18,8 @@ import {
 } from "@/components/nav/navigationModel";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
 
-import "./siteNav.css";
-import "./siteNavMoment.css";
+import styles from "./siteNav.module.css";
+import momentStyles from "./siteNavMoment.module.css";
 
 // Shared app-wide top navigation. One bar, used on every APP page (map, feed,
 // discover, crawls, profile, borough, admin) so navigation never duplicates or
@@ -118,24 +118,24 @@ export default function SiteNav({
 
   return (
     <nav
-      className={isMap ? "siteNavBar siteNavBarFloating" : "siteNavBar"}
+      className={isMap ? `${styles.siteNavBar} siteNavBarFloating` : styles.siteNavBar}
       role="navigation"
       aria-label="Site navigation"
     >
       {/* Wordmark: the compact-mobile anchor + the desktop home affordance. */}
-      <Link prefetch={false} href="/" className="siteNavBrand" aria-label="Open PUBMAXX landing page">
+      <Link prefetch={false} href="/" className={styles.siteNavBrand} aria-label="Open PUBMAXX landing page">
         <PubmaxxWordmark />
       </Link>
 
       {/* Full link list — hidden on mobile (the bottom tab bar covers it). */}
-      <ul className="siteNavLinks">
+      <ul className={styles.siteNavLinks}>
         {links.map((link) => {
           const isActive = link.key === activeKey;
           return (
-            <li key={link.key} className="siteNavItem">
+            <li key={link.key} className={styles.siteNavItem}>
               <Link prefetch={false}
                 href={link.href}
-                className={isActive ? "siteNavLink isActive" : "siteNavLink"}
+                className={isActive ? `${styles.siteNavLink} ${styles.isActive}` : styles.siteNavLink}
                 aria-current={isActive ? "page" : undefined}
                 aria-label={link.label}
                 title={link.label}
@@ -147,7 +147,7 @@ export default function SiteNav({
         })}
       </ul>
 
-      <div className="siteNavActions">
+      <div className={styles.siteNavActions}>
         {/* D2.2: secondary destinations (Near/Historic/Pal/Social), with Social
             named for the launch state. Desktop only — siteNav.css hides
             .siteNavMore at ≤640 so mobile is unchanged. */}
@@ -159,7 +159,7 @@ export default function SiteNav({
             ≤640px in siteNavMoment.css — the FAB covers mobile. */}
         <Link prefetch={false}
           href={momentHref(pathname)}
-          className="siteNavMoment"
+          className={momentStyles.siteNavMoment}
           aria-label="Share a Moment"
           title="Share a Moment"
         >
@@ -171,12 +171,12 @@ export default function SiteNav({
             same palette via Ctrl+K. */}
         <button
           type="button"
-          className="siteNavCmdk"
+          className={styles.siteNavCmdk}
           onClick={openCommandPalette}
           aria-label="Open command palette"
           title="Search & jump to a page (⌘K / Ctrl+K)"
         >
-          <kbd className="siteNavCmdkKbd" aria-hidden="true">
+          <kbd className={styles.siteNavCmdkKbd} aria-hidden="true">
             ⌘K
           </kbd>
         </button>

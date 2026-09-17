@@ -42,7 +42,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 
-import "./peopleDirectory.css";
+import styles from "./peopleDirectory.module.css";
 
 type Person = {
   id: string;
@@ -304,54 +304,54 @@ export default function PeopleDirectory({
     status === "ready" && people.length === 0 && visibleAlreadyFollowing > 0;
 
   return (
-    <section className="peopleDir" aria-labelledby="people-dir-title">
-      <h2 id="people-dir-title" className="peopleDir__title">
+    <section className={styles.peopleDir} aria-labelledby="people-dir-title">
+      <h2 id="people-dir-title" className={styles.peopleDirTitle}>
         People on PUBMAXX
       </h2>
       {allFollowed ? null : (
-        <p className="peopleDir__body">
+        <p className={styles.peopleDirBody}>
           Everyone here chose a public handle. Follow a few; a lot forms when
           they follow you back.
         </p>
       )}
 
       {status === "loading" ? (
-        <div className="peopleDir__skeletons" aria-hidden="true">
+        <div className={styles.peopleDirSkeletons} aria-hidden="true">
           <span />
           <span />
           <span />
         </div>
       ) : status === "error" ? (
-        <div className="peopleDir__notice" role="alert">
+        <div className={styles.peopleDirNotice} role="alert">
           <p>Could not load the directory. That is us, not you.</p>
           <button
             type="button"
-            className="peopleDir__button"
+            className={styles.peopleDirButton}
             onClick={() => setAttempt((value) => value + 1)}
           >
             Try again
           </button>
         </div>
       ) : people.length === 0 ? (
-        <p className="peopleDir__body" role="status">
+        <p className={styles.peopleDirBody} role="status">
           {directoryEmptyLine({
             alreadyFollowing: visibleAlreadyFollowing,
             moreToLoad: cursor !== null,
           })}
         </p>
       ) : (
-        <ul className="peopleDir__grid">
+        <ul className={styles.peopleDirGrid}>
           {people.map((person) => {
             const clean = normalizeHandle(person.handle);
             const isSelf = Boolean(viewer) && clean === viewer;
             const relation = relationFor(person.handle);
             return (
-              <li key={person.id} className="peopleDir__card">
+              <li key={person.id} className={styles.peopleDirCard}>
                 <Link
-                  className="peopleDir__identity"
+                  className={styles.peopleDirIdentity}
                   href={`/u/${encodeURIComponent(person.handle)}`}
                 >
-                  <span className="peopleDir__avatar" aria-hidden="true">
+                  <span className={styles.peopleDirAvatar} aria-hidden="true">
                     {person.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- owned avatar path
                       <img src={person.avatarUrl} alt="" loading="lazy" decoding="async" />
@@ -359,20 +359,20 @@ export default function PeopleDirectory({
                       initial(person.handle)
                     )}
                   </span>
-                  <span className="peopleDir__names">
-                    <span className="peopleDir__handle">
+                  <span className={styles.peopleDirNames}>
+                    <span className={styles.peopleDirHandle}>
                       {displayHandle(person.handle)}
                     </span>
                     {person.displayName ? (
-                      <span className="peopleDir__display">{person.displayName}</span>
+                      <span className={styles.peopleDirDisplay}>{person.displayName}</span>
                     ) : null}
                   </span>
                 </Link>
                 {isSelf ? (
-                  <span className="peopleDir__self">You</span>
+                  <span className={styles.peopleDirSelf}>You</span>
                 ) : !viewer ? (
                   <Link
-                    className="peopleDir__button"
+                    className={styles.peopleDirButton}
                     href={viewerSession.signedIn ? "/u/you" : "/login"}
                   >
                     {viewerSession.signedIn
@@ -382,7 +382,7 @@ export default function PeopleDirectory({
                 ) : (
                   <button
                     type="button"
-                    className="peopleDir__button"
+                    className={styles.peopleDirButton}
                     aria-label={followActionDescription(relation, clean)}
                     disabled={!viewer || working === clean}
                     onClick={() => void follow(person.handle)}
@@ -399,7 +399,7 @@ export default function PeopleDirectory({
       )}
 
       {problem ? (
-        <p className="peopleDir__problem" role="alert">
+        <p className={styles.peopleDirProblem} role="alert">
           {problem}
         </p>
       ) : null}
@@ -407,7 +407,7 @@ export default function PeopleDirectory({
       {status === "ready" && cursor ? (
         <button
           type="button"
-          className="peopleDir__button peopleDir__more"
+          className={`${styles.peopleDirButton} ${styles.peopleDirMore}`}
           disabled={loadingMore}
           onClick={() => void loadMore()}
         >

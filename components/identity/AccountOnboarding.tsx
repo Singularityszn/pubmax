@@ -118,7 +118,7 @@ export function AccountOnboardingForm({
   const canSubmit =
     availability === "available" && handle.trim().length > 0 && !busy;
   return (
-    <div className={styles.accountOnboardingBackdrop} role="presentation">
+    <div className={styles.accountOnboardingBackdrop} role="presentation" data-identity-gate>
       <section
         ref={dialogRef}
         className={styles.accountOnboarding}

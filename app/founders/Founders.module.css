@@ -13,7 +13,7 @@
     );
 }
 
-/* The head is the shared Screen primitive (components/ui/screen.css): kicker,
+/* The head is the shared Screen primitive (components/ui/screen.module.css): kicker,
    heading, lede, one primary. No card around it: a heading with a list under
    it is already a section. */
 .foundersPage .foundersMain {

@@ -14,14 +14,14 @@
 /* Icon and count alone measure 37px wide once the word is dropped, and a
    control a thumb has to hit is 44px in BOTH directions. The row's family
    gives the height; this gives the width. */
-.mapVenueKindFilterBtn {
+:global(.mapVenueKindFilterBtn) {
   min-width: 44px;
 }
 
 /* The button itself wears the toolbar row's own family
-   (components/map/mapToolbar.css): one button system, so this file adds only
+   (components/map/mapToolbar.module.css): one button system, so this file adds only
    what is this control's alone - the focus ring, the count, and the panel. */
-.mapVenueKindFilterBtn:focus-visible {
+:global(.mapVenueKindFilterBtn):focus-visible {
   outline: 2px solid var(--brass-bright);
   outline-offset: 2px;
 }
@@ -110,7 +110,7 @@
      y 219, and a cap that subtracted the toolbar's HEIGHT alone left 744px on
      a 900px screen. The panel ran to y 910 with the fare-zone footnote cut
      mid-sentence. The room is what is left below the toolbar's own bottom
-     edge, which is the clearance plus the height (mapArrivalCard.css docks to
+     edge, which is the clearance plus the height (mapArrivalCard.module.css docks to
      the same pair), less a margin. */
   max-height: calc(
     100dvh - var(--map-top-clearance, 0px) -
@@ -125,8 +125,8 @@
   box-shadow: var(--shadow-float);
 }
 
-.mapVenueKindFilterPanel > .mapExperienceLens,
-.mapVenueKindFilterPanel > .zonePicker {
+.mapVenueKindFilterPanel > :global(.mapExperienceLens),
+.mapVenueKindFilterPanel > :global(.zonePicker) {
   padding-top: 12px;
   border-top: 1px solid var(--hairline, var(--line));
 }

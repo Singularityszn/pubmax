@@ -91,7 +91,7 @@
 /* 3. An open venue drawer owns the right edge from 1024px up. These banners are
    centred on the whole stage, so their right half read as a ghost strip through
    the sheet. Re-centre them on the map lane that is left, the same way the
-   toolbar above them does (mapToolbar.css). */
+   toolbar above them does (mapToolbar.module.css). */
 @media (min-width: 1024px) {
   :global(.appShell.detail-open) :global(.cityStatusStack),
   :global(.appShell.detail-open) :global(.citySuggestBanner) {

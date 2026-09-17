@@ -112,7 +112,7 @@ describe("the venue sheet's two Save controls wear the same row", () => {
   });
 
   it("Save for a night reads the control tokens and is a secondary on the Overview", () => {
-    const rule = wanted.match(/\.wantedSaveBtn,\s*\n\.wantedCandidate,\s*\n\.wantedRow__map\s*{([^}]*)}/)?.[1] ?? "";
+    const rule = wanted.match(/\.wantedSaveBtn,\s*\n\.wantedCandidate,\s*\n\.wantedRowMap\s*{([^}]*)}/)?.[1] ?? "";
     expect(rule).toMatch(/border-radius:\s*var\(--control-radius/);
     expect(rule).toMatch(/font-size:\s*var\(--control-font-size/);
     expect(rule).toMatch(/font-weight:\s*var\(--control-font-weight/);
@@ -170,7 +170,7 @@ describe("the profile editor wears the one family", () => {
     // stylesheet has to read the --control-* tokens rather than restate a
     // radius, a weight or a height. The keep shelf's own pair is the standing
     // example: it is scoped CSS, and it reads the row.
-    const sheets = ["app/u/[handle]/Profile.module.css", "components/profile/NightMemoryStudio.css"];
+    const sheets = ["app/u/[handle]/Profile.module.css", "components/profile/NightMemoryStudio.module.css"];
     const offenders: string[] = [];
     for (const sheet of sheets) {
       const css = read(sheet);

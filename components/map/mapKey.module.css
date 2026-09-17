@@ -51,19 +51,19 @@
   border-radius: 50%;
 }
 
-.mapKeyPriceSwatch--green {
+.mapKeyPriceSwatchGreen {
   background: var(--pint);
 }
 
-.mapKeyPriceSwatch--amber {
+.mapKeyPriceSwatchAmber {
   background: var(--amber);
 }
 
-.mapKeyPriceSwatch--red {
+.mapKeyPriceSwatchRed {
   background: var(--brick);
 }
 
-.mapKeyPriceSwatch--grey {
+.mapKeyPriceSwatchGrey {
   background: color-mix(in srgb, var(--muted) 84%, transparent);
 }
 
@@ -183,25 +183,25 @@
   color: var(--brass);
 }
 
-.mapKeyMarker--shape {
+.mapKeyMarkerShape {
   border: 1px solid color-mix(in srgb, var(--line) 74%, var(--brass));
   border-radius: 8px;
   background: color-mix(in srgb, var(--panel) 76%, var(--panel-raised));
 }
 
-.mapKeyMarker--base-pub {
+.mapKeyMarkerBasePub {
   border-style: dashed;
   border-radius: 50%;
 }
 
-.mapKeyMarker--mark::before,
-.mapKeyMarker--mark::after {
+.mapKeyMarkerMark::before,
+.mapKeyMarkerMark::after {
   position: absolute;
   content: "";
   border-radius: 50%;
 }
 
-.mapKeyMarker--provisional::before {
+.mapKeyMarkerProvisional::before {
   width: 9px;
   height: 9px;
   right: 2px;
@@ -210,7 +210,7 @@
   box-shadow: 0 0 0 1.5px var(--panel-raised);
 }
 
-.mapKeyMarker--your-location::before {
+.mapKeyMarkerYourLocation::before {
   width: 12px;
   height: 12px;
   border: 2px solid var(--paper);
@@ -218,72 +218,72 @@
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 22%, transparent);
 }
 
-.mapKeyMarker--tonight-opportunity::before {
+.mapKeyMarkerTonightOpportunity::before {
   width: 10px;
   height: 10px;
   background: var(--amber);
   box-shadow: 0 0 0 5px color-mix(in srgb, var(--river-bright) 35%, transparent);
 }
 
-.mapKeyMarker--pint-drop::before,
-.mapKeyMarker--quiz::before,
-.mapKeyMarker--sport::before,
-.mapKeyMarker--deal::before,
-.mapKeyMarker--music::before,
-.mapKeyMarker--public-listing::before,
-.mapKeyMarker--selected::before,
-.mapKeyMarker--story-band::before {
+.mapKeyMarkerPintDrop::before,
+.mapKeyMarkerQuiz::before,
+.mapKeyMarkerSport::before,
+.mapKeyMarkerDeal::before,
+.mapKeyMarkerMusic::before,
+.mapKeyMarkerPublicListing::before,
+.mapKeyMarkerSelected::before,
+.mapKeyMarkerStoryBand::before {
   width: 15px;
   height: 15px;
   border: 2px solid var(--river-bright);
 }
 
-.mapKeyMarker--quiz::before {
+.mapKeyMarkerQuiz::before {
   border-color: var(--amber);
 }
 
-.mapKeyMarker--sport::before {
+.mapKeyMarkerSport::before {
   border-color: var(--river-bright);
 }
 
-.mapKeyMarker--deal::before {
+.mapKeyMarkerDeal::before {
   border-color: var(--brass-bright);
 }
 
-.mapKeyMarker--music::before {
+.mapKeyMarkerMusic::before {
   border-color: var(--river);
 }
 
-.mapKeyMarker--public-listing::before {
+.mapKeyMarkerPublicListing::before {
   border-width: 1px;
   border-color: var(--brass);
 }
 
-.mapKeyMarker--base-selected::before {
+.mapKeyMarkerBaseSelected::before {
   width: 19px;
   height: 19px;
   border: 2px solid var(--brass);
 }
 
-.mapKeyMarker--selected::before {
+.mapKeyMarkerSelected::before {
   border-color: var(--brass-bright);
 }
 
-.mapKeyMarker--selected::after {
+.mapKeyMarkerSelected::after {
   width: 21px;
   height: 21px;
   border: 2px solid var(--brass);
 }
 
-.mapKeyMarker--story-band::before {
+.mapKeyMarkerStoryBand::before {
   border-color: var(--map-key-marker-colour);
 }
 
-.mapKeyMarker--route {
+.mapKeyMarkerRoute {
   color: var(--brass-bright);
 }
 
-.mapKeyMarker--walking-route::before {
+.mapKeyMarkerWalkingRoute::before {
   width: 24px;
   height: 3px;
   border-radius: 999px;
@@ -292,14 +292,14 @@
   content: "";
 }
 
-.mapKeyMarker--straight-route::before {
+.mapKeyMarkerStraightRoute::before {
   width: 24px;
   height: 0;
   border-top: 3px dashed var(--map-key-marker-colour);
   content: "";
 }
 
-.mapKeyMarker--story-corridor::before {
+.mapKeyMarkerStoryCorridor::before {
   width: 24px;
   height: 12px;
   border-radius: 999px;
@@ -309,11 +309,11 @@
   opacity: 0.38;
 }
 
-html[data-theme="dark"] .mapKeyPriceSwatch--grey {
+:global(html[data-theme="dark"]) .mapKeyPriceSwatchGrey {
   background: color-mix(in srgb, var(--muted) 78%, transparent);
 }
 
-.mapKeyMarker--crawl-stop {
+.mapKeyMarkerCrawlStop {
   border: 2px solid var(--brass-bright);
   border-radius: 50%;
   background: var(--ink-deep);
@@ -356,7 +356,7 @@ html[data-theme="dark"] .mapKeyPriceSwatch--grey {
 /* ── Phone responsive (migrated from globals.css) ── */
 
 @media (max-width: 1050px) {
-  .mapLegend {
+  :global(.mapLegend) {
     left: 10px;
     right: 10px;
     bottom: 10px;
@@ -365,7 +365,7 @@ html[data-theme="dark"] .mapKeyPriceSwatch--grey {
 }
 
 @media (max-width: 640px) {
-  .mapLegend {
+  :global(.mapLegend) {
     left: 10px;
     right: auto;
     bottom: var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance) + 18px));
@@ -378,7 +378,7 @@ html[data-theme="dark"] .mapKeyPriceSwatch--grey {
 
 @media (max-width: 480px) {
   /* Legend wraps to two rows on the narrowest phones without clipping. */
-  .mapLegend {
+  :global(.mapLegend) {
     bottom: calc(var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance));
     gap: 8px 12px;
     padding: 8px 10px;

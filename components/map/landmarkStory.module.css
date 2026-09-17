@@ -189,8 +189,8 @@
 
 /* ── The desktop and tablet frame: the left drawer ─────────────────────────
    The story takes the planner's frame (.mapDrawer.left) so the toolbar and
-   the ambient banners already know to leave its lane (mapToolbar.css and
-   mapBannerStaging.css read `.appShell.story-open` beside `.planning-open`).
+   the ambient banners already know to leave its lane (mapToolbar.module.css and
+   mapBannerStaging.module.css read `.appShell.story-open` beside `.planning-open`).
    Its head puts the glyph, the name, the chapter link and the way out on one
    row, one baseline, in the 44px cells every other surface head uses. */
 :global(.storyDrawerHead) {

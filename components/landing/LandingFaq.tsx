@@ -13,6 +13,8 @@
 // (AGENTS.md anti-goals), so the front door names no price a drinker would pay
 // and collects no address for one.
 
+import styles from "./landing.module.css";
+
 type Question = { id: string; question: string; answer: string };
 
 export const LANDING_FAQ: readonly Question[] = [
@@ -56,15 +58,15 @@ export const LANDING_FAQ: readonly Question[] = [
 
 export default function LandingFaq() {
   return (
-    <section className="lpFaq" id="faq" aria-labelledby="lp-faq-title">
-      <h2 className="lpFaqTitle" id="lp-faq-title">
+    <section className={styles.lpFaq} id="faq" aria-labelledby="lp-faq-title">
+      <h2 className={styles.lpFaqTitle} id="lp-faq-title">
         Questions people ask
       </h2>
-      <dl className="lpFaqList">
+      <dl className={styles.lpFaqList}>
         {LANDING_FAQ.map((entry) => (
-          <div key={entry.id} className="lpFaqRow">
-            <dt className="lpFaqQuestion">{entry.question}</dt>
-            <dd className="lpFaqAnswer">{entry.answer}</dd>
+          <div key={entry.id} className={styles.lpFaqRow}>
+            <dt className={styles.lpFaqQuestion}>{entry.question}</dt>
+            <dd className={styles.lpFaqAnswer}>{entry.answer}</dd>
           </div>
         ))}
       </dl>

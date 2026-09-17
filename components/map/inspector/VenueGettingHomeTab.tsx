@@ -13,6 +13,7 @@ import type { CityId } from "@/lib/cities";
 import { gettingHomeLabel } from "@/lib/venueInspectorTabs";
 
 import disclosureStyles from "@/components/disclosure.module.css";
+import sheetStyles from "../venueSheet.module.css";
 
 /**
  * Getting home, as a fold on the Overview. It used to be the seventh tab, and
@@ -55,13 +56,13 @@ export default function VenueGettingHomeSection({
     <details
       ref={foldRef}
       id="venueSection-getting-home"
-      className={`${disclosureStyles.contentDisclosure} ${disclosureStyles.venueGettingHome}`}
+      className={`${disclosureStyles.contentDisclosure} ${disclosureStyles.venueGettingHome} ${sheetStyles.venueGettingHome}`}
       open={open}
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary>{gettingHomeLabel(cityId)}</summary>
       {open ? (
-        <div className={`contentDisclosureBody ${disclosureStyles.venueGettingHomeBody}`}>
+        <div className={`contentDisclosureBody ${disclosureStyles.venueGettingHomeBody} ${sheetStyles.venueGettingHomeBody}`}>
           <LastTrainCard
             key={`${cityId}:${venue.id}:${venue.latitude}:${venue.longitude}:${venue.name}`}
             lat={venue.latitude}

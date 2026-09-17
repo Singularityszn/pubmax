@@ -2,6 +2,7 @@
 
 import { trackEvent } from "@/lib/analytics";
 import type { CommunityPriceAttribution } from "@/lib/communityPrice";
+import styles from "./venuePriceSubmit.module.css";
 
 type Props = {
   attribution: CommunityPriceAttribution;
@@ -11,8 +12,8 @@ export default function PriceContributionImpact({ attribution }: Props) {
   if (attribution.status !== "credited") return null;
 
   return (
-    <div className="vpsubImpactRow">
-      <p className="vpsubStampHint">
+    <div className={styles.vpsubImpactRow}>
+      <p className={styles.vpsubStampHint}>
         Counted under <strong>@{attribution.handle}</strong> on the contributor
         record.
       </p>
@@ -33,7 +34,7 @@ export default function PriceContributionImpact({ attribution }: Props) {
           A document load costs the map; a lost anchor costs the destination.
           The destination wins, because the reader chose to leave. */}
       <a
-        className="vpsubImpactLink"
+        className={styles.vpsubImpactLink}
         href={`/u/${encodeURIComponent(attribution.handle)}#contribution-impact`}
         onClick={() => trackEvent("price_impact_opened")}
       >

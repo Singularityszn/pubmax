@@ -9,7 +9,7 @@
   overflow: visible;
 }
 
-.loadingEmber__node {
+.loadingEmberNode {
   animation: loadingEmberBreathe 900ms ease-in-out infinite alternate;
 }
 
@@ -23,7 +23,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .loadingEmber__node {
+  .loadingEmberNode {
     animation: none;
     opacity: 1;
   }

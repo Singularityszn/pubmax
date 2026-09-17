@@ -1,5 +1,5 @@
 /* ── Base drawer chrome (migrated from globals.css) ── */
-.mapDrawer {
+:global(.mapDrawer) {
   position: absolute;
   top: var(--map-top-clearance);
   bottom: 0;
@@ -26,20 +26,20 @@
   will-change: auto;
 }
 
-.mapDrawer.left {
+:global(.mapDrawer.left) {
   left: 0;
   border-right: 1px solid var(--sheet-material-border);
   transform: translateX(-100%);
 }
 
-.mapDrawer.right {
+:global(.mapDrawer.right) {
   right: 0;
   border-left: 1px solid var(--sheet-material-border);
   transform: translateX(100%);
 }
 
-.mapDrawer.left.open,
-.mapDrawer.right.open {
+:global(.mapDrawer.left.open),
+:global(.mapDrawer.right.open) {
   transform: translateX(0);
   will-change: transform;
 }
@@ -48,7 +48,7 @@
    map chips beside it read the width from here; from 1024px venueSheet.css
    widens the drawer and publishes its own value. */
 @media (min-width: 769px) and (max-width: 1023px) {
-  .appShell {
+  :global(.appShell) {
     --desktop-venue-drawer-width: 376px;
   }
 }
@@ -57,11 +57,11 @@
    drawer's rendered width is 376px at this breakpoint; toolbar and banners
    consume this variable so their free-lane geometry cannot drift from it. */
 @media (min-width: 1024px) {
-  .appShell {
+  :global(.appShell) {
     --desktop-planner-rail-width: 376px;
   }
 
-  .mapDrawer.left {
+  :global(.mapDrawer.left) {
     width: var(--desktop-planner-rail-width);
   }
 }
@@ -69,12 +69,12 @@
 /* React owns spring presentation through this variable. The tablet sheet rules
    below use !important for their legacy dvh snaps, so the variable is repeated
    in that band with equal authority. */
-.mapDrawer.springDrawer {
+:global(.mapDrawer.springDrawer) {
   transform: var(--drawer-spring-transform);
   transition: none;
 }
 
-.mapDrawer[aria-hidden="true"] {
+:global(.mapDrawer[aria-hidden="true"]) {
   pointer-events: none;
 }
 
@@ -83,8 +83,8 @@
 }
 
 /* Panels lose their own chrome inside a drawer — the drawer carries it. */
-.mapDrawer .controlRail,
-.mapDrawer .routePanel {
+:global(.mapDrawer) :global(.controlRail),
+:global(.mapDrawer) :global(.routePanel) {
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -127,26 +127,26 @@
    after ours, so a bare `.maplibregl-ctrl-group` loses `background` and
    `border-radius` back to the white box while keeping the properties MapLibre
    does not set - a half-themed control, which is worse than none. */
-.appShell .mapStage .maplibregl-ctrl-group {
+:global(.appShell) :global(.mapStage) :global(.maplibregl-ctrl-group) {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
   box-shadow: var(--map-overlay-shadow-tight);
 }
 
-.appShell .mapStage .maplibregl-ctrl-group button {
+:global(.appShell) :global(.mapStage) :global(.maplibregl-ctrl-group) button {
   width: 44px;
   height: 44px;
   background: transparent;
   color: var(--ink-soft);
 }
 
-.appShell .mapStage .maplibregl-ctrl-group button + button {
+:global(.appShell) :global(.mapStage) :global(.maplibregl-ctrl-group) button + button {
   border-top: 1px solid var(--line);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .appShell .mapStage .maplibregl-ctrl-group button:hover {
+  :global(.appShell) :global(.mapStage) :global(.maplibregl-ctrl-group) button:hover {
     background: var(--panel);
     color: var(--ink);
   }
@@ -155,18 +155,18 @@
 /* The glyphs are background images drawn dark for a white control, so on the
    dark surface they are inverted rather than re-drawn. Light is the default
    theme here (`html:not([data-theme="dark"])`), so only dark opts in. */
-html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+:global(html[data-theme="dark"]) :global(.appShell) :global(.mapStage) :global(.maplibregl-ctrl-group) button :global(.maplibregl-ctrl-icon) {
   filter: invert(1) brightness(1.6);
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .mapDrawer {
+  :global(.mapDrawer) {
     background: var(--sheet-material-solid);
   }
 }
 
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  .mapDrawer {
+  :global(.mapDrawer) {
     background: var(--sheet-material-solid);
     /* Same order rule as the base above: the LAST of the pair is the one that
        survives the build, and this opt-out only means anything if the standard
@@ -445,7 +445,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 /* A pub with no photo gets a ROW, not a picture-sized box. The 16:9 frame drew
    a 220px "No photo yet" panel on a 390px phone, the largest thing on the sheet
    of a pub with nothing to show (site audit 13 Sep 2026, D10). */
-.venueBaselinePhoto.venueImage--empty {
+.venueBaselinePhoto:global(.venueImage--empty) {
   aspect-ratio: auto;
   height: 56px;
   min-height: 0;
@@ -455,7 +455,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   box-shadow: none;
 }
 
-.venueBaselinePhoto.venueImage--empty::after {
+.venueBaselinePhoto:global(.venueImage--empty)::after {
   display: none;
 }
 
@@ -502,33 +502,33 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
      innerHeight-derived fractions). vh lines stay as the older-browser
      fallback. These transforms belong only to the legacy inline drawer; the
      portal `.mobileSharedSheet` owns its height and position in mobileMapShell.css. */
-  .mapDrawer.left.open.sheet-full:not(.mobileSharedSheet),
-  .mapDrawer.right.open.sheet-full:not(.mobileSharedSheet) {
+  :global(.mapDrawer.left.open.sheet-full:not(.mobileSharedSheet)),
+  :global(.mapDrawer.right.open.sheet-full:not(.mobileSharedSheet)) {
     transform: translateY(8vh);
     transform: translateY(8dvh);
   }
 
-  .mapDrawer.left.open.sheet-half:not(.mobileSharedSheet),
-  .mapDrawer.right.open.sheet-half:not(.mobileSharedSheet) {
+  :global(.mapDrawer.left.open.sheet-half:not(.mobileSharedSheet)),
+  :global(.mapDrawer.right.open.sheet-half:not(.mobileSharedSheet)) {
     /* Reveal ~55dvh of sheet content above the fixed mobile tab bar. */
     transform: translateY(45vh);
     transform: translateY(45dvh);
   }
 
-  .mapDrawer.left.open.sheet-peek:not(.mobileSharedSheet),
-  .mapDrawer.right.open.sheet-peek:not(.mobileSharedSheet) {
+  :global(.mapDrawer.left.open.sheet-peek:not(.mobileSharedSheet)),
+  :global(.mapDrawer.right.open.sheet-peek:not(.mobileSharedSheet)) {
     /* Reveal ~22dvh — grabber plus the useful venue summary and action. */
     transform: translateY(78vh);
     transform: translateY(78dvh);
   }
 
   /* Viewport-tall so translateY(dvh) reveals exactly SHEET_SNAP_FRACTIONS. */
-  .mapDrawer.left.open.sheet-full:not(.mobileSharedSheet),
-  .mapDrawer.left.open.sheet-half:not(.mobileSharedSheet),
-  .mapDrawer.left.open.sheet-peek:not(.mobileSharedSheet),
-  .mapDrawer.right.open.sheet-full:not(.mobileSharedSheet),
-  .mapDrawer.right.open.sheet-half:not(.mobileSharedSheet),
-  .mapDrawer.right.open.sheet-peek:not(.mobileSharedSheet) {
+  :global(.mapDrawer.left.open.sheet-full:not(.mobileSharedSheet)),
+  :global(.mapDrawer.left.open.sheet-half:not(.mobileSharedSheet)),
+  :global(.mapDrawer.left.open.sheet-peek:not(.mobileSharedSheet)),
+  :global(.mapDrawer.right.open.sheet-full:not(.mobileSharedSheet)),
+  :global(.mapDrawer.right.open.sheet-half:not(.mobileSharedSheet)),
+  :global(.mapDrawer.right.open.sheet-peek:not(.mobileSharedSheet)) {
     height: 100dvh;
     max-height: none;
   }
@@ -538,8 +538,8 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
      a marker for disabling ancillary motion (nothing currently needs it,
      but it keeps the "no transition mid-drag" contract visible in one place
      for future rules) and for disabling text selection while dragging. */
-  .mapDrawer.left.sheet-dragging,
-  .mapDrawer.right.sheet-dragging {
+  :global(.mapDrawer.left.sheet-dragging),
+  :global(.mapDrawer.right.sheet-dragging) {
     user-select: none;
     -webkit-user-select: none;
     /* Promote to its own compositor layer for the duration of the drag so the
@@ -549,13 +549,13 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 
   /* The header (grabber + close button) is a drag surface too, not just the
      grabber itself — a slightly bigger, more forgiving target. */
-  .sheetDragHandle {
+  :global(.sheetDragHandle) {
     touch-action: none;
     cursor: grab;
   }
 
-  .mapDrawer.left.sheet-dragging .sheetDragHandle,
-  .mapDrawer.right.sheet-dragging .sheetDragHandle {
+  :global(.mapDrawer.left.sheet-dragging) :global(.sheetDragHandle),
+  :global(.mapDrawer.right.sheet-dragging) :global(.sheetDragHandle) {
     cursor: grabbing;
   }
 
@@ -573,8 +573,8 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   /* Snap without an animated transition for reduced-motion users — the sheet
      still moves between snaps, just instantly rather than eased. */
   @media (prefers-reduced-motion: reduce) {
-    .mapDrawer.left,
-    .mapDrawer.right {
+    :global(.mapDrawer.left),
+    :global(.mapDrawer.right) {
       transition: none;
     }
   }
@@ -599,8 +599,8 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
    unscoped .inspectorTitle + <h3> stay the single source of the name. Scoped to
    direct children of .venueInspector so the tab panels' own .inspectorTitle
    headings ("On record", "Place stories", …) are untouched. */
-.mobileSharedSheet .venueInspector > .inspectorTitle,
-.mobileSharedSheet .venueInspector > h3 {
+:global(.mobileSharedSheet) .venueInspector > .inspectorTitle,
+:global(.mobileSharedSheet) .venueInspector > h3 {
   display: none;
 }
 
@@ -616,7 +616,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
    above and below and a 1px rule, plus the safe-area inset the ≤768 band adds
    under it. The ≤640 portal sheet portals the bar OUT of the scroll body and
    needs neither term. */
-.mapDrawer.right.open:not(.mobileSharedSheet) {
+:global(.mapDrawer.right.open:not(.mobileSharedSheet)) {
   --venue-command-bar-h: calc(65px + env(safe-area-inset-bottom, 0px));
   scroll-padding-bottom: calc(
     var(--sheet-hidden-below, 0px) + var(--venue-command-bar-h)
@@ -762,7 +762,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 
   /* U6b — tighten the grab zone's clearance above the title; the zone keeps
      its 28px touch target, it just stops adding extra empty margin. */
-  .mapDrawer.right .venueSheetGrabZone {
+  :global(.mapDrawer.right) .venueSheetGrabZone {
     margin: -10px 0 0;
   }
 
@@ -783,7 +783,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
      sized to the visible height, so any offset would float the bar mid-content
      over the copy (the owner's Black Friar screenshot); there the base
      `bottom: 0` is correct. */
-  .mapDrawer.right.open:not(.mobileSharedSheet) .venueSheetStickyBar {
+  :global(.mapDrawer.right.open:not(.mobileSharedSheet)) .venueSheetStickyBar {
     bottom: var(--sheet-hidden-below, 0px);
   }
 }
@@ -801,7 +801,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
    band. The legacy 641–768 inline drawer keeps the sticky bar rules above
    (`:not(.mobileSharedSheet)`); this only touches the ≤640 portal footer. */
 @media (max-width: 640px) {
-  .mobileSharedSheetFooter .venueSheetStickyBar {
+  :global(.mobileSharedSheetFooter) .venueSheetStickyBar {
     position: static;
     margin: 0;
     padding: 12px 16px calc(env(safe-area-inset-bottom, 0px));
@@ -816,7 +816,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
      would push a gap between the last content and the footer. Drop it to a plain
      gutter so short content hugs tight and tall content ends flush above the
      footer bar. */
-  .mobileSharedSheet .venueInspector {
+  :global(.mobileSharedSheet) .venueInspector {
     padding-bottom: 8px;
   }
 
@@ -826,7 +826,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
      photo — two bars promising two different drags, only one of which worked
      (design judgement 2026-08-01, finding 2.16). Hidden here, not deleted: the
      641–1023 inline drawer still drags by this one. */
-  .mobileSharedSheet .venueSheetGrabZone {
+  :global(.mobileSharedSheet) .venueSheetGrabZone {
     display: none;
   }
 }
@@ -898,7 +898,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 
 /* The base rust is too dark to read on the dark sheet — lift it to a warmer,
    lighter rust that keeps the "past the leave-by clock" warning tone legible. */
-html[data-theme="dark"] .trainBadge[data-tone="risk"] {
+:global(html[data-theme="dark"]) .trainBadge[data-tone="risk"] {
   --rust: #e0885c;
 }
 
@@ -913,7 +913,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 }
 
 .venueSheetGrabZone:active .venueSheetGrab,
-.mapDrawer.sheet-dragging .venueSheetGrab {
+:global(.mapDrawer.sheet-dragging) .venueSheetGrab {
   background: color-mix(in srgb, var(--brass) 68%, var(--line));
 }
 
@@ -925,7 +925,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   }
 
   .venueSheetGrabZone:active .venueSheetGrab,
-  .mapDrawer.sheet-dragging .venueSheetGrab {
+  :global(.mapDrawer.sheet-dragging) .venueSheetGrab {
     transform: scaleX(0.78);
   }
 }
@@ -1012,12 +1012,12 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   color: var(--ink-soft);
 }
 
-.venueTabPanel .amenity,
-.venueTabPanel .accessibilityChip {
+.venueTabPanel :global(.amenity),
+.venueTabPanel :global(.accessibilityChip) {
   background: var(--panel-raised);
 }
 
-.venueTabPanel .contributorPrice {
+.venueTabPanel :global(.contributorPrice) {
   padding-inline: 0;
   border-inline: 0;
   border-radius: 0;
@@ -1027,17 +1027,17 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   box-shadow: none;
 }
 
-.venueTabPanel .priceList {
+.venueTabPanel :global(.priceList) {
   border-inline: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
 }
 
-.venueTabPanel .addStopBtn,
-.venueTabPanel .logDropBtn,
-.venueTabPanel .saveToListCreate,
-.venueTabPanel .dropComposer button[type="submit"] {
+.venueTabPanel :global(.addStopBtn),
+.venueTabPanel :global(.logDropBtn),
+.venueTabPanel :global(.saveToListCreate),
+.venueTabPanel :global(.dropComposer) button[type="submit"] {
   border-color: var(--brass);
   background: linear-gradient(135deg, var(--brass), var(--brass-bright));
   color: var(--color-on-accent);
@@ -1051,32 +1051,32 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
    serves both. axe reported this as a serious contrast violation on
    /map?sel= at 1440 light (e2e/a11y-core-journeys.spec.ts). The tint, the
    border and the hover are untouched. */
-.venueTabPanel .saveToListToggle,
-.venueTabPanel .composerToggle {
+.venueTabPanel :global(.saveToListToggle),
+.venueTabPanel :global(.composerToggle) {
   border-color: color-mix(in srgb, var(--brass) 34%, var(--line));
   background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
   color: var(--brass-ink);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 82%, transparent);
 }
 
-.venueTabPanel .saveToListToggle:hover,
-.venueTabPanel .composerToggle:hover {
+.venueTabPanel :global(.saveToListToggle:hover),
+.venueTabPanel :global(.composerToggle:hover) {
   border-color: var(--brass);
   background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
 }
 
-.venueTabPanel .dropList {
+.venueTabPanel :global(.dropList) {
   gap: 12px;
 }
 
-.venueTabPanel .dropCard,
-.venueTabPanel .saveToList,
-.venueTabPanel .claimCard {
+.venueTabPanel :global(.dropCard),
+.venueTabPanel :global(.saveToList),
+.venueTabPanel :global(.claimCard) {
   border-color: color-mix(in srgb, var(--line) 74%, var(--panel-raised));
 }
 
-.venueTabPanel .dropCard,
-.venueTabPanel .claimCard {
+.venueTabPanel :global(.dropCard),
+.venueTabPanel :global(.claimCard) {
   border-inline: 0;
   border-top: 0;
   border-radius: 0;
@@ -1084,45 +1084,45 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   box-shadow: none;
 }
 
-.venueTabPanel .dropCard:hover,
-.venueTabPanel .claimCard:hover {
+.venueTabPanel :global(.dropCard:hover),
+.venueTabPanel :global(.claimCard:hover) {
   border-color: color-mix(in srgb, var(--brass) 42%, var(--line));
   background: color-mix(in srgb, var(--brass) 5%, transparent);
   box-shadow: none;
 }
 
-.venueTabPanel .instaFrame {
+.venueTabPanel :global(.instaFrame) {
   gap: 3px;
   border-color: color-mix(in srgb, var(--river) 20%, var(--line));
   background: color-mix(in srgb, var(--river) 18%, var(--line));
 }
 
-.venueTabPanel .instaShot figcaption {
+.venueTabPanel :global(.instaShot) figcaption {
   background: color-mix(in srgb, var(--ink-deep) 72%, transparent);
   backdrop-filter: blur(6px);
 }
 
-.venueTabPanel .dropCard .dropPrice {
+.venueTabPanel :global(.dropCard) :global(.dropPrice) {
   color: var(--pint);
 }
 
-.venueTabPanel .cuisineRow {
+.venueTabPanel :global(.cuisineRow) {
   margin: 0 0 12px;
 }
 
-.venueTabPanel .cuisineServes {
+.venueTabPanel :global(.cuisineServes) {
   margin: 0 0 6px;
   font-size: 0.86rem;
   color: var(--ink-soft);
 }
 
-.venueTabPanel .cuisineTags {
+.venueTabPanel :global(.cuisineTags) {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.venueTabPanel .cuisineChip {
+.venueTabPanel :global(.cuisineChip) {
   display: inline-flex;
   align-items: center;
   padding: 3px 8px;
@@ -1135,50 +1135,50 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   text-transform: lowercase;
 }
 
-.venueTabPanel .placeStories {
+.venueTabPanel :global(.placeStories) {
   margin: 16px 0 12px;
 }
 
-.venueTabPanel .placeStoriesLead {
+.venueTabPanel :global(.placeStoriesLead) {
   margin: 0 0 10px;
   font-size: 0.9rem;
   font-weight: 700;
   color: var(--ink);
 }
 
-.venueTabPanel .placeStoryList {
+.venueTabPanel :global(.placeStoryList) {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.venueTabPanel .placeStoryCard {
+.venueTabPanel :global(.placeStoryCard) {
   padding: 12px 14px;
   border: 1px solid color-mix(in srgb, var(--line) 74%, var(--panel-raised));
   border-radius: 14px;
   background: var(--panel-raised);
 }
 
-.venueTabPanel .placeStoryTitle {
+.venueTabPanel :global(.placeStoryTitle) {
   margin: 0 0 6px;
   font-size: 0.95rem;
 }
 
-.venueTabPanel .placeStoryCopy {
+.venueTabPanel :global(.placeStoryCopy) {
   margin: 0 0 8px;
   font-size: 0.84rem;
   line-height: 1.45;
   color: var(--ink-soft);
 }
 
-.venueTabPanel .placeStoryActions {
+.venueTabPanel :global(.placeStoryActions) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px 14px;
 }
 
-.venueTabPanel .placeStoryWalk {
+.venueTabPanel :global(.placeStoryWalk) {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -1192,11 +1192,11 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   background: color-mix(in srgb, var(--brass) 10%, var(--panel));
 }
 
-.venueTabPanel .placeStoryWalk:hover {
+.venueTabPanel :global(.placeStoryWalk:hover) {
   background: color-mix(in srgb, var(--brass) 16%, var(--panel));
 }
 
-.venueTabPanel .placeStoryCrawl {
+.venueTabPanel :global(.placeStoryCrawl) {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -1206,11 +1206,11 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   text-decoration: none;
 }
 
-.venueTabPanel .placeStoryCrawl:hover {
+.venueTabPanel :global(.placeStoryCrawl:hover) {
   text-decoration: underline;
 }
 
-.venueTabPanel .placeStorySource {
+.venueTabPanel :global(.placeStorySource) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -1221,22 +1221,22 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   text-decoration: none;
 }
 
-.venueTabPanel .placeStorySource:hover {
+.venueTabPanel :global(.placeStorySource:hover) {
   text-decoration: underline;
 }
 
-.venueTabPanel .aroundHere {
+.venueTabPanel :global(.aroundHere) {
   margin-top: 12px;
 }
 
-.venueTabPanel .aroundHereLabel {
+.venueTabPanel :global(.aroundHereLabel) {
   margin: 0 0 6px;
   font-size: 0.82rem;
   font-weight: 800;
   color: var(--ink);
 }
 
-.venueTabPanel .aroundHereList {
+.venueTabPanel :global(.aroundHereList) {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1245,7 +1245,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   gap: 4px;
 }
 
-.venueTabPanel .aroundHereList li {
+.venueTabPanel :global(.aroundHereList) li {
   display: flex;
   justify-content: space-between;
   gap: 10px;
@@ -1253,7 +1253,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   color: var(--ink-soft);
 }
 
-.venueTabPanel .aroundHereList small {
+.venueTabPanel :global(.aroundHereList) small {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1433,15 +1433,15 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
    only: no gesture/tab logic changes, and nothing below 1024px is affected. */
 @media (min-width: 1024px) {
   /* How much of the screen the open drawer owns. Published as a variable
-     because the map toolbar has to stay OUT of that lane (mapToolbar.css):
+     because the map toolbar has to stay OUT of that lane (mapToolbar.module.css):
      a bar centred on the whole viewport ran its right half under the sheet
      and printed a ghost row through it. One source, so the two agree. */
-  .appShell {
+  :global(.appShell) {
     --desktop-venue-drawer-width: min(640px, 46vw);
     --desktop-venue-drawer-half-width: min(320px, 23vw);
   }
 
-  .mapDrawer.right.open {
+  :global(.mapDrawer.right.open) {
     /* Wide enough for the two-column Pints layout below without feeling like
        a full takeover — still clearly a docked side panel, not the map. */
     width: var(--desktop-venue-drawer-width);
@@ -1488,13 +1488,13 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
      vertical rhythm, which keeps the address exactly where it was. The
      head's own top band is trimmed to match: a 20px margin plus an 18px
      padding above the kicker was a 38px empty strip under the close button. */
-  .mapDrawer.right .venueInspector {
+  :global(.mapDrawer.right) .venueInspector {
     margin-top: 0;
     padding: 6px 18px 0;
     border-top: 0;
   }
 
-  .mapDrawer.right .mapDrawerHead {
+  :global(.mapDrawer.right) .mapDrawerHead {
     padding-inline: 18px;
   }
 
@@ -1511,7 +1511,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     align-items: start;
   }
 
-  .venuePintsCols .pintDrops {
+  .venuePintsCols :global(.pintDrops) {
     /* Reset the stacked-section rule (globals.css) — as a grid column it no
        longer needs the dashed divider that used to separate it from the
        Golden Thread above. */
@@ -1528,11 +1528,11 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
    OpenStreetMap / "On record" for our own seed) plus a citation link when the
    record has one. Matches the sheet's card idiom + the /historic source chips;
    tokens only, so it reads cleanly in both themes. */
-.venueTabPanel .heritageOnRecord {
+.venueTabPanel :global(.heritageOnRecord) {
   margin: 0 0 14px;
 }
 
-.venueTabPanel .heritageFactList {
+.venueTabPanel :global(.heritageFactList) {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1541,7 +1541,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   list-style: none;
 }
 
-.venueTabPanel .heritageFact {
+.venueTabPanel :global(.heritageFact) {
   padding: 12px 14px;
   border: 1px solid color-mix(in srgb, var(--line) 74%, var(--panel-raised));
   border-radius: var(--radius-lg);
@@ -1553,13 +1553,13 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
    so it wears the amber/brass plaque idiom (per #328 --price-plaque-* tokens)
    rather than the plain panel — engraved metal, not an alert. The plaque metal
    lives ONLY on the priced/heritage surfaces; this is one of them. */
-.venueTabPanel .heritageFact[data-source="nhle"] {
+.venueTabPanel :global(.heritageFact[data-source="nhle"]) {
   background: var(--price-plaque-surface);
   border-color: var(--price-plaque-border);
   box-shadow: var(--price-plaque-shine), var(--shadow-sm);
 }
 
-.venueTabPanel .heritageFact[data-source="nhle"] .heritageFactText {
+.venueTabPanel :global(.heritageFact[data-source="nhle"]) :global(.heritageFactText) {
   color: var(--accent-price-ink);
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -1567,27 +1567,27 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 
 /* The Historic England chip reads as an engraved brass tab, matching the plaque
    it sits on rather than the quieter external-source pill. */
-.venueTabPanel .heritageSourceChip[data-source="nhle"] {
+.venueTabPanel :global(.heritageSourceChip[data-source="nhle"]) {
   border-color: var(--price-plaque-border);
   background: color-mix(in srgb, var(--amber) 20%, var(--panel-raised));
   color: var(--accent-price-ink);
 }
 
-.venueTabPanel .heritageFactText {
+.venueTabPanel :global(.heritageFactText) {
   margin: 0 0 8px;
   font-size: 0.86rem;
   line-height: 1.45;
   color: var(--ink);
 }
 
-.venueTabPanel .heritageFactMeta {
+.venueTabPanel :global(.heritageFactMeta) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 12px;
 }
 
-.venueTabPanel .heritageSourceChip {
+.venueTabPanel :global(.heritageSourceChip) {
   display: inline-flex;
   align-items: center;
   padding: 2px 9px;
@@ -1602,13 +1602,13 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 
 /* Seed facts are our own curation ("on record") — a quieter, river-tinted chip
    distinguishes them from named external sources without inventing authority. */
-.venueTabPanel .heritageSourceChip[data-source="seed"] {
+.venueTabPanel :global(.heritageSourceChip[data-source="seed"]) {
   border-color: color-mix(in srgb, var(--river) 30%, var(--line));
   background: color-mix(in srgb, var(--river) 12%, var(--panel-raised));
   color: var(--river);
 }
 
-.venueTabPanel .heritageFactCite {
+.venueTabPanel :global(.heritageFactCite) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -1619,17 +1619,17 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   text-decoration: none;
 }
 
-.venueTabPanel .heritageFactCite:hover {
+.venueTabPanel :global(.heritageFactCite:hover) {
   text-decoration: underline;
 }
 
-.venueTabPanel .heritageFactCite:focus-visible {
+.venueTabPanel :global(.heritageFactCite:focus-visible) {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
 
-.venueTabPanel .heritageFollowUp {
+.venueTabPanel :global(.heritageFollowUp) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1647,12 +1647,12 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 82%, transparent);
 }
 
-.venueTabPanel .heritageFollowUp:hover {
+.venueTabPanel :global(.heritageFollowUp:hover) {
   border-color: var(--brass);
   background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
 }
 
-.venueTabPanel .heritageFollowUp:focus-visible {
+.venueTabPanel :global(.heritageFollowUp:focus-visible) {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
@@ -1717,53 +1717,53 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     }
   }
 
-  .venueReveal--full .venueRevealBloom {
+  :global(.venueReveal--full) :global(.venueRevealBloom) {
     animation: venue-reveal-bloom 280ms var(--ease-out-strong)
       calc(80ms - var(--venue-reveal-elapsed, 0ms)) forwards;
   }
 
-  .venueReveal--short .venueRevealBloom {
+  :global(.venueReveal--short) :global(.venueRevealBloom) {
     animation: venue-reveal-bloom-short 160ms var(--ease-out-strong)
       calc(0ms - var(--venue-reveal-elapsed, 0ms)) forwards;
   }
 
-  .venueRevealRecords .venueRevealRecord {
+  :global(.venueRevealRecords) :global(.venueRevealRecord) {
     animation: venue-reveal-record 160ms var(--ease-out-strong) forwards;
   }
 
-  .venueReveal--full .venueRevealPriceChrome--drop {
+  :global(.venueReveal--full) :global(.venueRevealPriceChrome--drop) {
     animation: venue-reveal-beermat-drop 180ms var(--ease-spring)
       calc(240ms - var(--venue-reveal-elapsed, 0ms)) forwards;
   }
 
-  .venueReveal--full .venueRevealPriceChrome--slide {
+  :global(.venueReveal--full) :global(.venueRevealPriceChrome--slide) {
     animation: venue-reveal-price-slide 180ms var(--ease-out-strong)
       calc(240ms - var(--venue-reveal-elapsed, 0ms)) forwards;
   }
 
-  .venueReveal--full .venueRevealRecord {
+  :global(.venueReveal--full) :global(.venueRevealRecord) {
     animation: venue-reveal-record 160ms var(--ease-out-strong) forwards;
   }
 
-  .venueReveal--full .venueRevealRecord[data-reveal-delay="0"] {
+  :global(.venueReveal--full) :global(.venueRevealRecord[data-reveal-delay="0"]) {
     animation-delay: calc(200ms - var(--venue-reveal-elapsed, 0ms));
   }
 
-  .venueReveal--full .venueRevealRecord[data-reveal-delay="1"] {
+  :global(.venueReveal--full) :global(.venueRevealRecord[data-reveal-delay="1"]) {
     animation-delay: calc(240ms - var(--venue-reveal-elapsed, 0ms));
   }
 
-  .venueReveal--full .venueRevealRecord[data-reveal-delay="2"] {
+  :global(.venueReveal--full) :global(.venueRevealRecord[data-reveal-delay="2"]) {
     animation-delay: calc(280ms - var(--venue-reveal-elapsed, 0ms));
   }
 
-  .venueReveal--full .venueRevealRecord[data-reveal-delay="3"] {
+  :global(.venueReveal--full) :global(.venueRevealRecord[data-reveal-delay="3"]) {
     animation-delay: calc(320ms - var(--venue-reveal-elapsed, 0ms));
   }
-  .venueReveal--interrupted .venueRevealBloom,
-  .venueReveal--interrupted .venueRevealPriceChrome--drop,
-  .venueReveal--interrupted .venueRevealPriceChrome--slide,
-  .venueReveal--interrupted .venueRevealRecord {
+  :global(.venueReveal--interrupted) :global(.venueRevealBloom),
+  :global(.venueReveal--interrupted) :global(.venueRevealPriceChrome--drop),
+  :global(.venueReveal--interrupted) :global(.venueRevealPriceChrome--slide),
+  :global(.venueReveal--interrupted) :global(.venueRevealRecord) {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
@@ -1799,7 +1799,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 @media (max-width: 768px) {
   /* Map stays full-bleed; drawers slide UP as bottom sheets instead of in from
      the sides, so they're thumb-reachable and never crowd a narrow screen. */
-  .mapDrawer {
+  :global(.mapDrawer) {
     top: auto;
     bottom: var(--mobile-tab-clearance);
     left: 0;
@@ -1813,25 +1813,25 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     transform: translateY(calc(100% + var(--mobile-tab-clearance)));
   }
 
-  .mapDrawer.springDrawer {
+  :global(.mapDrawer.springDrawer) {
     transform: var(--drawer-spring-transform) !important;
     transition: none;
   }
 
-  .mapDrawer.left:not(.open):not(.sheet-dragging),
-  .mapDrawer.right:not(.open):not(.sheet-dragging) {
+  :global(.mapDrawer.left:not(.open):not(.sheet-dragging)),
+  :global(.mapDrawer.right:not(.open):not(.sheet-dragging)) {
     /* Production CSS bundling can place the desktop side-drawer transform after
        this mobile block. Keep the phone drawer on the vertical sheet axis. */
     transform: translateY(calc(100% + var(--mobile-tab-clearance))) !important;
   }
 
-  .mapDrawer.left.open,
-  .mapDrawer.right.open {
+  :global(.mapDrawer.left.open),
+  :global(.mapDrawer.right.open) {
     transform: translateY(0);
   }
 
-  .mapDrawer.left.open:not(.sheet-dragging):not(.mobileSharedSheet),
-  .mapDrawer.right.open:not(.sheet-dragging):not(.mobileSharedSheet) {
+  :global(.mapDrawer.left.open:not(.sheet-dragging):not(.mobileSharedSheet)),
+  :global(.mapDrawer.right.open:not(.sheet-dragging):not(.mobileSharedSheet)) {
     transform: translateY(0) !important;
   }
 
@@ -1842,33 +1842,33 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
      height flex box (mobileMapShell.css) — a viewport-tall translateY panel would
      reintroduce the void the rebuild removed, and these !important rules would
      otherwise win over the portal's own geometry. */
-  .mapDrawer.left.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet),
-  .mapDrawer.right.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet) {
+  :global(.mapDrawer.left.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet)),
+  :global(.mapDrawer.right.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet)) {
     --drawer-sheet-offset: 45dvh;
     transform: translateY(45vh) !important;
     transform: translateY(45dvh) !important;
   }
 
-  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet),
-  .mapDrawer.right.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet) {
+  :global(.mapDrawer.left.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet)),
+  :global(.mapDrawer.right.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet)) {
     --drawer-sheet-offset: 78dvh;
     transform: translateY(78vh) !important;
     transform: translateY(78dvh) !important;
   }
 
-  .mapDrawer.left.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet),
-  .mapDrawer.right.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet) {
+  :global(.mapDrawer.left.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet)),
+  :global(.mapDrawer.right.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet)) {
     --drawer-sheet-offset: 8dvh;
     transform: translateY(8vh) !important;
     transform: translateY(8dvh) !important;
   }
 
-  .mapDrawer.left.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet),
-  .mapDrawer.left.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet),
-  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet),
-  .mapDrawer.right.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet),
-  .mapDrawer.right.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet),
-  .mapDrawer.right.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet) {
+  :global(.mapDrawer.left.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet)),
+  :global(.mapDrawer.left.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet)),
+  :global(.mapDrawer.left.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet)),
+  :global(.mapDrawer.right.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet)),
+  :global(.mapDrawer.right.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet)),
+  :global(.mapDrawer.right.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet)) {
     height: 100dvh;
     max-height: none;
   }
@@ -1895,16 +1895,16 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
      `bottom: 0` sticky child 100px up), and the same rule would then read two
      ways in two engines. The ≤640 portal sheet (.mobileSharedSheet) is
      content-height and needs none of this. */
-  .mapDrawer.left.open:not(.mobileSharedSheet),
-  .mapDrawer.right.open:not(.mobileSharedSheet) {
+  :global(.mapDrawer.left.open:not(.mobileSharedSheet)),
+  :global(.mapDrawer.right.open:not(.mobileSharedSheet)) {
     --sheet-hidden-below: max(
       0px,
       calc(var(--drawer-sheet-offset, 0px) - var(--mobile-tab-clearance))
     );
   }
 
-  .mapDrawer.left.open:not(.mobileSharedSheet)::after,
-  .mapDrawer.right.open:not(.mobileSharedSheet)::after {
+  :global(.mapDrawer.left.open:not(.mobileSharedSheet)::after),
+  :global(.mapDrawer.right.open:not(.mobileSharedSheet)::after) {
     content: "";
     display: block;
     height: var(--sheet-hidden-below);
@@ -1913,22 +1913,22 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   /* SpringDrawer must outrank the legacy snap declarations above, including
      their !important fence. The extra spring class and axis attribute make
      ownership explicit without weakening the legacy fallback. */
-  .mapDrawer.springDrawer.left.open.sheet-full[data-spring-axis="vertical"]:not(.mobileSharedSheet),
-  .mapDrawer.springDrawer.left.open.sheet-half[data-spring-axis="vertical"]:not(.mobileSharedSheet),
-  .mapDrawer.springDrawer.left.open.sheet-peek[data-spring-axis="vertical"]:not(.mobileSharedSheet),
-  .mapDrawer.springDrawer.right.open.sheet-full[data-spring-axis="vertical"]:not(.mobileSharedSheet),
-  .mapDrawer.springDrawer.right.open.sheet-half[data-spring-axis="vertical"]:not(.mobileSharedSheet),
-  .mapDrawer.springDrawer.right.open.sheet-peek[data-spring-axis="vertical"]:not(.mobileSharedSheet),
-  .mapDrawer.springDrawer.left[data-spring-axis="vertical"]:not(.open),
-  .mapDrawer.springDrawer.right[data-spring-axis="vertical"]:not(.open) {
+  :global(.mapDrawer.springDrawer.left.open.sheet-full[data-spring-axis="vertical"]:not(.mobileSharedSheet)),
+  :global(.mapDrawer.springDrawer.left.open.sheet-half[data-spring-axis="vertical"]:not(.mobileSharedSheet)),
+  :global(.mapDrawer.springDrawer.left.open.sheet-peek[data-spring-axis="vertical"]:not(.mobileSharedSheet)),
+  :global(.mapDrawer.springDrawer.right.open.sheet-full[data-spring-axis="vertical"]:not(.mobileSharedSheet)),
+  :global(.mapDrawer.springDrawer.right.open.sheet-half[data-spring-axis="vertical"]:not(.mobileSharedSheet)),
+  :global(.mapDrawer.springDrawer.right.open.sheet-peek[data-spring-axis="vertical"]:not(.mobileSharedSheet)),
+  :global(.mapDrawer.springDrawer.left[data-spring-axis="vertical"]:not(.open)),
+  :global(.mapDrawer.springDrawer.right[data-spring-axis="vertical"]:not(.open)) {
     transform: var(--drawer-spring-transform) !important;
   }
 
-  .mapDrawer.springDrawer.left.open[data-spring-axis="vertical"] {
+  :global(.mapDrawer.springDrawer.left.open[data-spring-axis="vertical"]) {
     z-index: var(--z-nav);
   }
 
-  .mapDrawer.springDrawer.right.open[data-spring-axis="vertical"] {
+  :global(.mapDrawer.springDrawer.right.open[data-spring-axis="vertical"]) {
     z-index: calc(var(--z-nav) + 1);
   }
 

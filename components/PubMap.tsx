@@ -17,7 +17,7 @@ import "@/components/map/MapStageChrome.module.css";
 import "@/components/map/MapChromeMicro.module.css";
 import "@/components/map/pubmap/MappedRouteChip.module.css";
 import "@/components/map/pubmap/BandOnboardingChip.module.css";
-import "@/components/map/venueSheet.css";
+import sheetStyles from "@/components/map/venueSheet.module.css";
 import "@/components/map/mapBannerStaging.module.css";
 // The selection notice below renders `.ukPlaceArrival` MARKUP directly, and
 // that stylesheet used to arrive only with UkPlaceArrivalBanner or
@@ -26,11 +26,11 @@ import "@/components/map/mapBannerStaging.module.css";
 // the viewport, one clipped line over the phone top bar. The shell that
 // renders the markup owns the stylesheet.
 import "@/components/map/ukPlaceArrivalBanner.module.css";
-import "@/components/map/mapToolbar.css";
+import "@/components/map/mapToolbar.module.css";
 import "@/components/map/citySuggestBanner.module.css";
 import "@/components/map/cityStatusBanner.module.css";
-import "@/components/map/mapConciergeAsk.css";
-import "@/components/map/mapDesktopRail.css";
+import "@/components/map/mapConciergeAsk.module.css";
+import "@/components/map/mapDesktopRail.module.css";
 import searchEmptyStyles from './map/mapSearchEmpty.module.css';
 import btnStyles from './map/addStopBtn.module.css';
 const UkPlaceArrivalBanner = dynamic(
@@ -762,7 +762,7 @@ function desktopRailViewportSnapshot(): boolean {
 
 // From 769px the venue drawer is a side panel and the map chips take the lane
 // beside it; from 641px to 768px it is a full-width sheet and the chips leave
-// the layout (components/map/mapBannerStaging.css).
+// the layout (components/map/mapBannerStaging.module.css).
 const DRAWER_SIDE_LANE_MEDIA_QUERY = "(min-width: 769px)";
 
 function subscribeDrawerSideLaneViewport(onChange: () => void): () => void {
@@ -5037,7 +5037,7 @@ export default function PubMap({
   const onboardingCrawls = cityCuratedCrawls.slice(0, 4);
 
   function renderPlannerMapButton() {
-    return !mobileViewport ? <button type="button" className="plannerMapButton" onClick={closePlanning}>
+    return !mobileViewport ? <button type="button" className={sheetStyles.plannerMapButton} onClick={closePlanning}>
       <MapPinned size={16} aria-hidden="true" />
       View {mapDisplayName} map
     </button> : null;
@@ -5048,7 +5048,7 @@ export default function PubMap({
     if (!loaded || filteredPubVenueCount !== 0) return null;
     if (savedOnly && !hasSavedPub) {
       return (
-        <section className="venueInspector" style={{ textAlign: "center" }}>
+        <section className={sheetStyles.venueInspector} style={{ textAlign: "center" }}>
           <p className="description" style={{ marginTop: 0 }}>
             {SAVED_ONLY_EMPTY_NOTE}
           </p>
@@ -5059,7 +5059,7 @@ export default function PubMap({
       );
     }
     return (
-      <section className="venueInspector" style={{ textAlign: "center" }}>
+      <section className={sheetStyles.venueInspector} style={{ textAlign: "center" }}>
         <p className="description" style={{ marginTop: 0 }}>
           No pubs match these filters. Try widening your price or clearing your story filters.
         </p>
@@ -5299,7 +5299,7 @@ export default function PubMap({
     return (
       <>
         {showsAcceptedArrivalReceipt ? (
-          <p className="venueAcceptanceReceipt" role="status">
+          <p className={sheetStyles.venueAcceptanceReceipt} role="status">
             Kept for tonight. Make it Stop 1 when you are ready.
           </p>
         ) : null}
@@ -6187,7 +6187,7 @@ export default function PubMap({
       {/* D3.1/D3.2 desktop right-rail: always-on Conditions + Area news at the
           map's top-right. Mounted only at >=1024 and only while the RIGHT venue
           drawer is closed — the drawer owns that edge, so the rail steps aside
-          and the toolbar chip carries Conditions instead (mapDesktopRail.css).
+          and the toolbar chip carries Conditions instead (mapDesktopRail.module.css).
           The area is the Night Area under the current view (search-area first,
           else nearest to centre); AreaNewsRail fail-soft hides when it has none. */}
       {railViewport && !detailOpen && !showMapArrivalCard ? (
@@ -6370,7 +6370,7 @@ export default function PubMap({
         role="dialog"
         aria-label={`${activeLandmark.name} story`}
       >
-        <div className="mapDrawerHead storyDrawerHead">
+        <div className={`${sheetStyles.mapDrawerHead} storyDrawerHead`}>
           <LandmarkStoryHead landmark={activeLandmark} />
           <SurfaceNav
             backLabel={mapSurfaceTrail.backLabel}
@@ -6404,14 +6404,14 @@ export default function PubMap({
           aria-label={planningOpen && plannerSheetSnap === "full" ? "Crawl planner" : undefined}
         >
           <div
-            className="mapDrawerHead sheetDragHandle plannerSheetHead"
+            className={`${sheetStyles.mapDrawerHead} sheetDragHandle ${sheetStyles.plannerSheetHead}`}
             onPointerDown={onPlannerSheetDragStart}
             onPointerMove={onPlannerSheetDragMove}
             onPointerUp={onPlannerSheetDragEnd}
             onPointerCancel={onPlannerSheetDragEnd}
           >
-            <span className="venueSheetGrabZone" aria-hidden="true">
-              <span className="venueSheetGrab" />
+            <span className={sheetStyles.venueSheetGrabZone} aria-hidden="true">
+              <span className={sheetStyles.venueSheetGrab} />
             </span>
             {/* The planner used to have no way out of its own head at all: the
                 reader had to find "View the map" inside the body. Same pair, same
@@ -6453,7 +6453,7 @@ export default function PubMap({
           aria-label={detailOpen ? selectedVenueLabels.detailLabel : undefined}
         >
           <div
-            className="mapDrawerHead sheetDragHandle"
+            className={`${sheetStyles.mapDrawerHead} sheetDragHandle`}
             onPointerDown={onVenueSheetDragStart}
             onPointerMove={onVenueSheetDragMove}
             onPointerUp={onVenueSheetDragEnd}
@@ -6481,7 +6481,7 @@ export default function PubMap({
 
   return (
     <main id="main"
-      // The `sheet-full` marker only ever matters ≤640px (mapToolbar.css
+      // The `sheet-full` marker only ever matters ≤640px (mapToolbar.module.css
       // gates every rule that reads it behind that same breakpoint) — it
       // lets the map's floating controls (toolbar/legend) get out of the
       // way while the mobile sheet is at its most-expanded snap, per the

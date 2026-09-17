@@ -7,10 +7,10 @@
    into MapLayersControl). Pin-by-category paint stays documented below — not
    applied until Venue carries an honest dominantCategory. */
 
-/* ── Layers swatch rings live in mapLayersControl.css ───────────────────────
+/* ── Layers swatch rings live in mapLayersControl.module.css ───────────────────────
    Do NOT redeclare `.mapLayersChip(.isOn) .mapLayersSwatch` here — a prior
    `--paper` active ring fought the correct `--color-on-accent` rule (near-black
-   on dark). mapLayersControl.css owns default + isOn rings. */
+   on dark). mapLayersControl.module.css owns default + isOn rings. */
 
 /* Tapped-POI label card still uses .poiSwatch — hairline ring on the frost. */
 :global(.poiLabelCard) :global(.poiSwatch) {

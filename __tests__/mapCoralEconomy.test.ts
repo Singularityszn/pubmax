@@ -14,7 +14,7 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
 const globalsCss = read("app/globals.css");
 const themeCss = read("app/theme.css");
-const arcCss = read("components/map/tonightArcChips.css");
+const arcCss = read("components/map/tonightArcChips.module.css");
 const shellCss = read("components/mobile/mobileMapShell.css");
 const navCss = read("components/nav/mobileNav.css");
 const mapIconsSrc = read("lib/mapIcons.ts");

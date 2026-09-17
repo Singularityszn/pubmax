@@ -1,12 +1,12 @@
 @media (min-width: 641px) {
   .mobileMapChrome,
-  .mobileMapUtilityCorner,
-  .mobilePlanActivation,
+  :global(.mobileMapUtilityCorner),
+  :global(.mobilePlanActivation),
   .mobileSheetPortal { display: none; }
 }
 
 @media (max-width: 640px) {
-  :root {
+  :global(:root) {
     /* Top offset for the mobile map chrome. Adopts the shared --topbar-inset
        (env(safe-area) + 10px) so the map's top bar sits at the SAME top offset
        as the standard + landing bars (was +8px, which sat 2px higher than the
@@ -67,34 +67,34 @@
      gate is `ambientBannerLane` in components/PubMap.tsx: it is false on a
      mobile viewport, so neither banner ever mounts. This display: none rule
      is only a backstop for that JS gate. */
-  .appShell > .siteNavBarFloating,
-  .appShell .mapStage > .mapToolbar,
-  .appShell .mapStage > .citySuggestBanner,
-  .appShell .mapStage > .cityStatusStack,
-  .appShell .mapStage > .cityStatusBanner,
-  .appShell .mapStage > .cityStatusSignalSheet,
-  .appShell .mapStage > .mapConciergeAsk,
-  .appShell .mapStage > .tonightLane,
-  .appShell .mapStage .mapLayersControl,
+  :global(.appShell > .siteNavBarFloating),
+  :global(.appShell .mapStage > .mapToolbar),
+  :global(.appShell .mapStage > .citySuggestBanner),
+  :global(.appShell .mapStage > .cityStatusStack),
+  :global(.appShell .mapStage > .cityStatusBanner),
+  :global(.appShell .mapStage > .cityStatusSignalSheet),
+  :global(.appShell .mapStage > .mapConciergeAsk),
+  :global(.appShell .mapStage > .tonightLane),
+  :global(.appShell .mapStage .mapLayersControl),
   /* The camera stack's city-fit + recenter chips are re-homed into the mobile
      top bar, so hide those two — but NOT the whole stack: the compass is the
      only recovery once the map is rotated or tilted (#367), and the
      coordinator provides no replacement for it. */
-  .appShell .mapStage .mapCameraControls .mapFitLondonBtn,
-  .appShell .mapStage .mapCameraControls .mapRecenterBtn {
+  :global(.appShell .mapStage .mapCameraControls .mapFitLondonBtn),
+  :global(.appShell .mapStage .mapCameraControls .mapRecenterBtn) {
     display: none !important;
   }
 
   /* Keep one compass. The app compass IS the compass now (lib/mapCompass.ts):
      it resets bearing AND pitch to the attitude the city opens on, which
      MapLibre's own reset could not do. Native zoom stays hidden on phone. */
-  .appShell .mapStage .mapCameraControls {
+  :global(.appShell .mapStage .mapCameraControls) {
     display: grid;
     top: calc(var(--mobile-map-chrome-h) + 66px);
     right: 10px;
   }
 
-  .appShell .mapStage .mapCameraControls .mapCompassBtn {
+  :global(.appShell .mapStage .mapCameraControls .mapCompassBtn) {
     justify-content: center;
     width: 44px;
     height: 44px;
@@ -105,18 +105,18 @@
 
   /* A word cannot fit a 44px circle: it wrapped out of the button and off the
      right edge of the screen. The accessible name still says what this does. */
-  .appShell .mapStage .mapCameraControls .mapCompassBtn .mapCompassBtnLabel {
+  :global(.appShell .mapStage .mapCameraControls .mapCompassBtn .mapCompassBtnLabel) {
     display: none;
   }
 
   /* Nothing left in that group on a phone: its compass is gone from MapLibre
      entirely and its zoom buttons are hidden here, so the group itself would
      paint as an empty round box in the map-edge lane. */
-  .appShell .mapStage .maplibregl-ctrl-top-right {
+  :global(.appShell .mapStage .maplibregl-ctrl-top-right) {
     display: none;
   }
 
-  .appShell .mapStage .maplibregl-ctrl-bottom-right {
+  :global(.appShell .mapStage .maplibregl-ctrl-bottom-right) {
     /* MapLibre's compact info control sits above the 48px plan action, on the
        LEFT edge of that band. The right edge is the Near me FAB's berth
        (--map-corner-bottom), and the FAB painted over the credit and took every
@@ -127,7 +127,7 @@
     bottom: calc(var(--mobile-map-dock-clearance) + 68px);
   }
 
-  .appShell .mapStage .maplibregl-ctrl-bottom-right .maplibregl-ctrl {
+  :global(.appShell .mapStage .maplibregl-ctrl-bottom-right .maplibregl-ctrl) {
     float: left;
     margin: 10px 0;
   }
@@ -136,11 +136,11 @@
      it, so the credit steps down into the plan action's own berth under the
      chip rather than hide behind it. Ordered before the consent rule at equal
      specificity, so the consent card's lifted berth still wins. */
-  body:has(.bandOnboardingChip) .appShell .mapStage .maplibregl-ctrl-bottom-right {
+  :global(body:has(.bandOnboardingChip) .appShell .mapStage .maplibregl-ctrl-bottom-right) {
     bottom: var(--mobile-map-dock-clearance);
   }
 
-  body:has(.analyticsConsentPrompt) .appShell .mapStage .maplibregl-ctrl-bottom-right {
+  :global(body:has(.analyticsConsentPrompt) .appShell .mapStage .maplibregl-ctrl-bottom-right) {
     /* The expandable OSM credit keeps its own berth over the disclosure docked
        on the tab bar, and steps up only when larger text grows the card past it.
        e2e/ui-consistency-layout.spec.ts owns the rendered collision proof. */
@@ -158,12 +158,12 @@
      canvas, 3 runs of 3 (docs/proof/astra-live-walk/report.md B1). A reader
      meets the whole map with the ask above it. */
 
-  .appShell .mapStage .maplibregl-ctrl-attrib.maplibregl-compact {
+  :global(.appShell .mapStage .maplibregl-ctrl-attrib.maplibregl-compact) {
     box-sizing: border-box;
     max-width: calc(100vw - 24px);
   }
 
-  .appShell .mapStage .maplibregl-ctrl-attrib-inner {
+  :global(.appShell .mapStage .maplibregl-ctrl-attrib-inner) {
     max-width: 100%;
     overflow-wrap: normal;
     text-overflow: clip;
@@ -174,8 +174,8 @@
      a 44px circle on the raised surface, exactly like the compass below it.
      MapLibre ships it as a 24x20 white sliver, so a button raised to the tap
      floor overflowed its own container and read as a white blob. */
-  .appShell .mapStage
-    .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show) {
+  :global(.appShell .mapStage
+    .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show)) {
     display: grid;
     place-items: center;
     width: 44px;
@@ -188,7 +188,7 @@
     box-shadow: var(--map-overlay-shadow-tight);
   }
 
-  .appShell .mapStage .maplibregl-ctrl-attrib-button {
+  :global(.appShell .mapStage .maplibregl-ctrl-attrib-button) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -210,7 +210,7 @@
 
   /* Portal sheets sit outside .appShell. Hide map-owned controls while one is
      open so the compass cannot paint over or intercept sheet content. */
-  body:has(.mobileSheetPortal) .appShell .mapStage .mapCameraControls {
+  :global(body):has(.mobileSheetPortal) :global(.appShell .mapStage .mapCameraControls) {
     visibility: hidden;
     pointer-events: none;
   }
@@ -279,14 +279,14 @@
     .mobileMapTopbar.mobileMapTopbarLimited { grid-template-columns: minmax(0, 1fr) 44px; }
     .mobileMapBrand { display: none; }
   }
-  .mobileMapBrand .pubmaxxWordmark { max-width: 100%; font-size: inherit; }
-  .citySwitcher--mobile { width: 100%; min-width: 0; }
-  .citySwitcher--mobile .citySwitcherTrigger { display: flex; width: 100%; min-width: 0; max-width: 100%; border: 0; background: transparent; color: var(--color-text-soft); padding-inline: 6px; }
-  .citySwitcher--mobile .citySwitcherTrigger:hover,
-  .citySwitcher--mobile .citySwitcherTrigger:focus-visible,
-  .citySwitcher--mobile.isOpen .citySwitcherTrigger { border: 0; background: var(--state-active-surface); color: var(--color-text); }
-  .citySwitcher--mobile .citySwitcherLabelFull { display: inline; min-width: 0; max-width: 100%; font-size: .72rem; }
-  .citySwitcher--mobile .citySwitcherLabelShort { display: none; }
+  .mobileMapBrand :global(.pubmaxxWordmark) { max-width: 100%; font-size: inherit; }
+  .citySwitcherMobile { width: 100%; min-width: 0; }
+  .citySwitcherMobile :global(.citySwitcherTrigger) { display: flex; width: 100%; min-width: 0; max-width: 100%; border: 0; background: transparent; color: var(--color-text-soft); padding-inline: 6px; }
+  .citySwitcherMobile :global(.citySwitcherTrigger):hover,
+  .citySwitcherMobile :global(.citySwitcherTrigger):focus-visible,
+  .citySwitcherMobile:global(.isOpen) :global(.citySwitcherTrigger) { border: 0; background: var(--state-active-surface); color: var(--color-text); }
+  .citySwitcherMobile :global(.citySwitcherLabelFull) { display: inline; min-width: 0; max-width: 100%; font-size: .72rem; }
+  .citySwitcherMobile :global(.citySwitcherLabelShort) { display: none; }
   .mobileMapTopbar > button { border: 0; background: transparent; }
   .mobileMapPalButton { color: var(--color-accent); }
   .mobilePalAvatar { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--color-accent) 58%, var(--color-border)); border-radius: 50%; background: radial-gradient(circle at 38% 30%, color-mix(in srgb, white 20%, transparent), transparent 34%), color-mix(in srgb, var(--color-accent) 13%, var(--color-surface)); overflow: hidden; }
@@ -457,7 +457,7 @@
   /* The map edge owns the two controls the bar cannot hold: TfL at the top,
      Near me at the thumb. Both keep clear of the chrome, the plan pill, and
      the right map edge, in the one published corner lane. */
-  .mobileMapUtilityCorner {
+  :global(.mobileMapUtilityCorner) {
     position: fixed;
     right: var(--mobile-map-corner-inset);
     top: calc(var(--mobile-map-chrome-h) + 12px);
@@ -498,12 +498,12 @@
      the column keeps one gap above the card's lane
      (components/nav/mobileNav.css) rather than putting a 52px FAB on top of a
      consent choice. */
-  body:has(.analyticsConsentPrompt) .mobileMapUtilityCorner {
+  :global(body:has(.analyticsConsentPrompt) .mobileMapUtilityCorner) {
     bottom: var(--map-corner-bottom-consent);
   }
   /* When the Pub Pal pill is on screen it parks above the plan pill; lift the
      map-edge column so Near me never paints underneath it. */
-  body:has(.palSummon) .mobileMapUtilityCorner {
+  :global(body:has(.palSummon) .mobileMapUtilityCorner) {
     bottom: calc(var(--float-stack-top-pal) + var(--float-stack-gap));
   }
 
@@ -511,7 +511,7 @@
   .mobileMapLocateFab:disabled { cursor: wait; opacity: .72; }
   .mobileMapLocateFab:active { transform: scale(.97); --shared-press-scale: 1; }
   .mobileMapLocateFab:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
-  .mobileMapUtilityCorner > button {
+  :global(.mobileMapUtilityCorner) > button {
     position: relative;
     min-width: var(--mobile-map-corner-btn);
     min-height: 44px;
@@ -520,7 +520,7 @@
   }
   /* The status suffix ("OK", "?") rides inside the pill rather than spilling
      past its edge: the icon size is a floor here, not a fixed width. */
-  .mobileMapUtilityCorner > .mobileMapTflButton {
+  :global(.mobileMapUtilityCorner) > .mobileMapTflButton {
     width: auto;
     padding-inline: 7px;
   }
@@ -611,7 +611,7 @@
     outline-offset: 2px;
   }
 
-  .mobilePlanActivation {
+  :global(.mobilePlanActivation) {
     position: fixed;
     left: var(--mobile-map-stack-left);
     right: var(--mobile-map-stack-right);
@@ -638,19 +638,19 @@
     font: inherit;
     transform: none;
   }
-  .mobilePlanActivation:active { transform: scale(.98); --shared-press-scale: 1; }
-  .mobilePlanActivation > span { display: grid; text-align: left; line-height: 1.05; }
-  .mobilePlanActivation strong { font-size: var(--text-sm); font-weight: 800; white-space: nowrap; }
-  .mobilePlanActivation small { margin-top: 3px; font-size: .66rem; font-weight: 700; opacity: .78; }
-  .mobilePlanActivation.isActive { background: var(--color-surface-raised); color: var(--color-accent); }
-  .mobilePlanActivation:disabled { cursor: wait; opacity: .72; }
+  :global(.mobilePlanActivation):active { transform: scale(.98); --shared-press-scale: 1; }
+  :global(.mobilePlanActivation) > span { display: grid; text-align: left; line-height: 1.05; }
+  :global(.mobilePlanActivation) strong { font-size: var(--text-sm); font-weight: 800; white-space: nowrap; }
+  :global(.mobilePlanActivation) small { margin-top: 3px; font-size: .66rem; font-weight: 700; opacity: .78; }
+  :global(.mobilePlanActivation.isActive) { background: var(--color-surface-raised); color: var(--color-accent); }
+  :global(.mobilePlanActivation):disabled { cursor: wait; opacity: .72; }
 
   /* ONE ELEMENT AT THE FOOT. Site audit 13 Sep 2026 (D3): the analytics card
      used to ride above this pill, and with the top chrome and the dock the map
      was 38 percent chrome. The card now takes the pill's slot on the dock once
      the reader has taken a first action, and the pill steps down until Allow
      or No thanks is tapped. */
-  body:has(.analyticsConsentPrompt) .mobilePlanActivation { display: none; }
+  :global(body:has(.analyticsConsentPrompt) .mobilePlanActivation) { display: none; }
 
   /* Stop above the primary tab bar so bottom-nav taps are never swallowed by
      the scrim or sheet body (QA H02). --z-tabbar still lifts the bar when a
@@ -666,8 +666,8 @@
   /* A venue or the planner hides the tab bar (mobileNav.css), so there is no
      bar to stop above. Held at the bar's berth, the sheet floated 64px up over
      a strip of live map. */
-  body:has(.appShell.detail-open) .mobileSheetPortal,
-  body:has(.appShell.planning-open) .mobileSheetPortal {
+  :global(body:has(.appShell.detail-open)) .mobileSheetPortal,
+  :global(body:has(.appShell.planning-open)) .mobileSheetPortal {
     bottom: 0;
   }
   .mobileSheetScrim { position: absolute; inset: 0; width: 100%; border: 0; background: color-mix(in srgb, var(--ink-deep) 32%, transparent); }
@@ -687,12 +687,12 @@
   /* The sheet takes focus on open so assistive technology lands inside it, but
      it is a container, not a control, so it never draws a focus ring of its
      own. The controls inside keep theirs. */
-  .mobileSharedSheet.mapDrawer:focus,
-  .mobileSharedSheet.mapDrawer:focus-visible {
+  .mobileSharedSheet:global(.mapDrawer):focus,
+  .mobileSharedSheet:global(.mapDrawer):focus-visible {
     outline: none;
   }
 
-  .mobileSharedSheet.mapDrawer {
+  .mobileSharedSheet:global(.mapDrawer) {
     --sheet-cap: 55dvh;
     display: flex;
     flex-direction: column;
@@ -726,13 +726,13 @@
     transform: none;
     will-change: auto;
   }
-  .mobileSharedSheet.open.sheet-peek:not(.sheet-dragging) { --sheet-cap: 22dvh; }
-  .mobileSharedSheet.open.sheet-half:not(.sheet-dragging) { --sheet-cap: 55dvh; }
-  .mobileSharedSheet.open.sheet-full:not(.sheet-dragging) { --sheet-cap: 92dvh; }
+  .mobileSharedSheet:global(.open.sheet-peek:not(.sheet-dragging)) { --sheet-cap: 22dvh; }
+  .mobileSharedSheet:global(.open.sheet-half:not(.sheet-dragging)) { --sheet-cap: 55dvh; }
+  .mobileSharedSheet:global(.open.sheet-full:not(.sheet-dragging)) { --sheet-cap: 92dvh; }
   /* JS owns both 1:1 tracking and spring travel. No CSS transition competes
      with an interrupted gesture. Promote only while presentation value moves. */
-  .mobileSharedSheet.sheet-dragging,
-  .mobileSharedSheet.sheet-settling { will-change: max-height; }
+  .mobileSharedSheet:global(.sheet-dragging),
+  .mobileSharedSheet:global(.sheet-settling) { will-change: max-height; }
 
   /* THE ENTRANCE IS A TRANSFORM. The box is laid out at its resting snap on the
      first painted frame (useSheetHeightDrag.openAtSnap jumps the height rather
@@ -746,12 +746,12 @@
     from { transform: translateY(100%); }
     to { transform: translateY(0); }
   }
-  .mobileSharedSheet.mapDrawer.sheet-entering {
+  .mobileSharedSheet:global(.mapDrawer.sheet-entering) {
     animation: mobileSheetRise 340ms var(--ease-drawer) both;
     will-change: transform;
   }
   @media (prefers-reduced-motion: reduce) {
-    .mobileSharedSheet.mapDrawer.sheet-entering { animation: none; }
+    .mobileSharedSheet:global(.mapDrawer.sheet-entering) { animation: none; }
   }
   .mobileSharedSheetHeader { position: relative; flex: 0 0 auto; min-height: 64px; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; padding: 10px 12px 4px; touch-action: none; }
   .mobileSharedSheetHeader h2 {
@@ -770,9 +770,9 @@
   .mobileSharedSheetDetent:active { --shared-press-scale: 1; }
   .mobileSharedSheetGrab { position: absolute; top: 7px; left: 50%; width: 44px; height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--color-text-muted) 55%, transparent); transform: translateX(-50%); }
   .mobileSharedSheetDetent:active .mobileSharedSheetGrab,
-  .mobileSharedSheet.sheet-dragging .mobileSharedSheetGrab { background: color-mix(in srgb, var(--color-accent) 68%, var(--color-border)); }
+  .mobileSharedSheet:global(.sheet-dragging) .mobileSharedSheetGrab { background: color-mix(in srgb, var(--color-accent) 68%, var(--color-border)); }
   .mobileSharedSheetDetent:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -6px; border-radius: var(--radius); }
-  /* The sheet's way out is SurfaceNav now (components/ui/surfaceNav.css), which
+  /* The sheet's way out is SurfaceNav now (components/ui/surfaceNav.module.css), which
      places itself in this grid and owns its own quiet resting state and focus
      ring. The bespoke close button that used to sit here is gone. */
   .mobileSharedSheetBody {
@@ -790,7 +790,7 @@
   /* Venue (right): the footer owns the bottom edge + safe-area, so the body only
      needs a small gutter separating its content from the command bar (this gutter
      is between content and footer, not the sheet's bottom edge). */
-  .mobileSharedSheet.right .mobileSharedSheetBody {
+  .mobileSharedSheet:global(.right) .mobileSharedSheetBody {
     padding-bottom: 8px;
   }
   /* THE LOADING PANEL FILLS THE SHEET. This box is content-driven under
@@ -800,13 +800,13 @@
      Chrome scored as a 0.24 layout shift on a `/map?sel=` arrival. The skeleton
      asks for more than the largest snap so the sheet sits at its cap from the
      first frame; `--sheet-cap` still clamps it, so peek stays peek. */
-  .mobileSharedSheet .venueSheetSkeleton {
+  .mobileSharedSheet :global(.venueSheetSkeleton) {
     min-height: 92dvh;
   }
   /* Two waits can overlap — the venue read and the panel chunk each own a
      skeleton — and two shimmer blocks in one sheet is two answers to one
      question, announced twice. The reservation is already made by the first. */
-  .mobileSharedSheet .venueSheetSkeleton + .venueSheetSkeleton {
+  .mobileSharedSheet :global(.venueSheetSkeleton + .venueSheetSkeleton) {
     display: none;
   }
   /* Footer slot — a real flex child OUTSIDE the scroll body. The venue command
@@ -858,21 +858,21 @@
   .mobilePlannerEndings strong { color: var(--color-text); font-size: var(--text-xs); }
   .mobilePlannerEndings small { color: var(--color-accent); font-size: 0.625rem; font-weight: 800; }
   .mobilePlannerEndings p { margin: 5px 0 0; color: var(--color-text-soft); font-size: 0.625rem; line-height: 1.3; overflow-wrap: anywhere; }
-  .mobileMapFilters .drinkShapeChips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .mobileMapFilters .drinkShapeChip { min-height: 52px; width: 100%; justify-content: center; }
+  .mobileMapFilters :global(.drinkShapeChips) { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .mobileMapFilters :global(.drinkShapeChip) { min-height: 52px; width: 100%; justify-content: center; }
   /* Refinement chips stay a wrapping strip in the sheet — a second 3-col grid
      would read as a peer of the category choice rather than a child of it. */
-  .mobileMapFilters .drinkSubtypeChips { flex-wrap: wrap; overflow-x: visible; }
-  .mobileMapFilters .drinkSubtypeChip { min-height: 44px; }
+  .mobileMapFilters :global(.drinkSubtypeChips) { flex-wrap: wrap; overflow-x: visible; }
+  .mobileMapFilters :global(.drinkSubtypeChip) { min-height: 44px; }
   /* These two keep their edge on purpose: each wraps a <select>, and under the
      de-box rule a border is what an INPUT gets (finding 2.4). They are the only
      two borders the sheet is meant to have. */
-  .mobileMapFilters .favoritePintPicker { display: grid !important; grid-template-columns: 1fr; }
-  .mobileMapFilters .favoritePintControl { min-height: 44px; width: 100%; justify-content: space-between; }
+  .mobileMapFilters :global(.favoritePintPicker) { display: grid !important; grid-template-columns: 1fr; }
+  .mobileMapFilters :global(.favoritePintControl) { min-height: 44px; width: 100%; justify-content: space-between; }
   /* De-box: a trigger that opens a picker is not an input, so no box. */
-  .mobileMapFilters .personaLensTrigger { min-height: 44px; width: 100%; justify-content: flex-start; border: 0; border-radius: var(--radius); background: transparent; color: var(--color-text-soft); }
-  .mobileMapFilters .personaLensTrigger:hover { border: 0; background: color-mix(in srgb, var(--color-accent) 9%, transparent); color: var(--color-text); }
-  .mobileMapFilters .personaLensTrigger.isActive { border: 0; background: var(--color-surface-raised); color: var(--color-text); font-weight: 800; }
+  .mobileMapFilters :global(.personaLensTrigger) { min-height: 44px; width: 100%; justify-content: flex-start; border: 0; border-radius: var(--radius); background: transparent; color: var(--color-text-soft); }
+  .mobileMapFilters :global(.personaLensTrigger):hover { border: 0; background: color-mix(in srgb, var(--color-accent) 9%, transparent); color: var(--color-text); }
+  .mobileMapFilters :global(.personaLensTrigger.isActive) { border: 0; background: var(--color-surface-raised); color: var(--color-text); font-weight: 800; }
   /* De-box (design judgement 2026-08-01, finding 2.4): four price caps are ONE
      choice, so they are one segmented control - a single edge round the group,
      interior hairlines, and the fill carries the selection. */
@@ -883,9 +883,9 @@
   .mobilePriceChoices button:first-of-type { border-inline-start: 0; }
   .mobilePriceChoices button.isActive { background: var(--color-surface-raised); color: var(--color-text); font-weight: 800; }
 
-  .mobileSheetPortal .tonightLane,
-  .mobileSheetPortal .mapLayersControl,
-  .mobileSheetPortal .mapLayersPanel {
+  .mobileSheetPortal :global(.tonightLane),
+  .mobileSheetPortal :global(.mapLayersControl),
+  .mobileSheetPortal :global(.mapLayersPanel) {
     position: static;
     display: block;
     width: 100%;
@@ -893,9 +893,9 @@
     margin: 0;
     transform: none;
   }
-  .mobileSheetPortal .tonightLane { inset: auto; box-shadow: none; }
-  .mobileSheetPortal .mapLayersPanel { border: 0; padding: 0; background: transparent; box-shadow: none; }
-  .mobileSheetPortal .logIntentFallback { position: static; inset: auto; width: 100%; max-width: none; margin: 0; box-shadow: none; }
+  .mobileSheetPortal :global(.tonightLane) { inset: auto; box-shadow: none; }
+  .mobileSheetPortal :global(.mapLayersPanel) { border: 0; padding: 0; background: transparent; box-shadow: none; }
+  .mobileSheetPortal :global(.logIntentFallback) { position: static; inset: auto; width: 100%; max-width: none; margin: 0; box-shadow: none; }
   .mobileLayersPanel { display: grid; gap: 16px; }
   .mobileMapControlTabs > [role="tab"] {
     flex: 1;
@@ -908,7 +908,7 @@
   .mobileLayersTheme { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); }
   .mobileLayersTheme > div { min-width: 0; display: grid; gap: 3px; }
   .mobileLayersTheme small { color: var(--color-text-muted); line-height: 1.35; }
-  .mobileLayersTheme .themeToggle { flex: 0 0 44px; width: 44px; height: 44px; }
+  .mobileLayersTheme :global(.themeToggle) { flex: 0 0 44px; width: 44px; height: 44px; }
 
   .mobileTflGroups { display: grid; gap: 16px; }
   .mobileTflGroups section { min-width: 0; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); }
@@ -945,7 +945,7 @@
      shoved to the right end. The tilt that made a wide plate overhang its own
      row is gone (captain 6 Sep 2026), but the hug is the fix at the layout
      primitive either way: the price is the size of the price. */
-  .mobileVenuePeekSummary > span > .priceBadge { justify-self: start; }
+  .mobileVenuePeekSummary > span > :global(.priceBadge) { justify-self: start; }
   .mobileVenuePeekSummary strong { white-space: nowrap; font-family: var(--font-data); font-size: var(--text-md); }
   /* "Near me" is one phrase. A narrow peek column must not break it mid-word. */
   .mobileVenuePeekSummary .mobileVenuePeekNearMe { white-space: nowrap; }
@@ -994,18 +994,18 @@
       background-color var(--duration-press) var(--ease-out);
   }
   .mobileSharedSheetDetent:active .mobileSharedSheetGrab,
-  .mobileSharedSheet.sheet-dragging .mobileSharedSheetGrab {
+  .mobileSharedSheet:global(.sheet-dragging) .mobileSharedSheetGrab {
     transform: translateX(-50%) scaleX(.78);
   }
 }
 
 @media (max-width: 640px) and (prefers-reduced-transparency: reduce) {
-  .mobileMapTopbar, .mobilePlanActivation.isActive {
+  .mobileMapTopbar, :global(.mobilePlanActivation.isActive) {
     background: var(--panel-raised);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
-  .mobileSharedSheet.mapDrawer {
+  .mobileSharedSheet:global(.mapDrawer) {
     background: var(--sheet-material-solid);
     /* Prefix first, standard last: the opt-out only reaches the browser if the
        standard property is the survivor. */
@@ -1015,8 +1015,8 @@
 }
 
 @media (max-width: 640px) and (prefers-contrast: more) {
-  .mobileMapTopbar, .mobileMapLocateFab, .mobileMapNearMeAlert, .mobileSharedSheet.mapDrawer { border-width: 2px; }
-  .mobileSharedSheet.mapDrawer {
+  .mobileMapTopbar, .mobileMapLocateFab, .mobileMapNearMeAlert, .mobileSharedSheet:global(.mapDrawer) { border-width: 2px; }
+  .mobileSharedSheet:global(.mapDrawer) {
     background: var(--sheet-material-solid);
     /* Prefix first, standard last: the opt-out only reaches the browser if the
        standard property is the survivor. */
@@ -1026,7 +1026,7 @@
 }
 
 @media (max-width: 640px) and (prefers-reduced-motion: reduce) {
-  .mobilePlanActivation:active, .mobileMapLocateFab:active { transform: none; }
+  :global(.mobilePlanActivation):active, .mobileMapLocateFab:active { transform: none; }
 }
 
 .mobileMapFilterToggle {

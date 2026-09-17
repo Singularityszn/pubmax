@@ -1,4 +1,4 @@
-/* /plan/[id]: the head is the shared Screen primitive (components/ui/screen.css).
+/* /plan/[id]: the head is the shared Screen primitive (components/ui/screen.module.css).
    The page already pays its gutters (app/plan/Plan.module.css), so the head drops its
    own and keeps the grid's measure. */
 .planDetailScreen {

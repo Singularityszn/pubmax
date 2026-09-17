@@ -42,7 +42,7 @@ const landingTsx = readFileSync(
   "utf8",
 );
 const landingCss = readFileSync(
-  join(process.cwd(), "components/landing/landing.css"),
+  join(process.cwd(), "components/landing/landing.module.css"),
   "utf8",
 );
 const pageTsx = readFileSync(join(process.cwd(), "app/page.tsx"), "utf8");

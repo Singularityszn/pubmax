@@ -1,6 +1,7 @@
 import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
 import type { Venue } from "@/lib/venues";
 import type { TabKey } from "@/lib/venueInspectorTabs";
+import sheetStyles from "../venueSheet.module.css";
 
 // The wall's mount inside the venue sheet. Every panel here renders and the
 // inactive ones are hidden, so `active` is what stops a wall fetching a page of
@@ -11,7 +12,7 @@ export default function VenuePhotosTab({ venue, tab }: { venue: Venue; tab: TabK
       role="tabpanel"
       id="venuePanel-photos"
       aria-labelledby="venueTab-photos"
-      className="venueTabPanel"
+      className={sheetStyles.venueTabPanel}
       hidden={tab !== "photos"}
     >
       <VenuePhotoWall venueId={venue.id} venueName={venue.name} active={tab === "photos"} />

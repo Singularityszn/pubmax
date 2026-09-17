@@ -110,7 +110,7 @@ describe("Wanted saves crossing auth settlement", () => {
       paste.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
-    const findButton = container.querySelector<HTMLButtonElement>("button.wantedCapture__submit");
+    const findButton = container.querySelector<HTMLButtonElement>("button.wantedCaptureSubmit");
     expect(findButton?.disabled).toBe(false);
     await act(async () => {
       findButton?.click();

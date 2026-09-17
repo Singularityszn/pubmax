@@ -10,7 +10,7 @@ import {
 import { buttonVariants } from "@/components/ui/button";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
-import "./mapArrivalCard.css";
+import styles from './mapArrivalCard.module.css';
 
 /**
  * The first-visit ask, as a strip under the phone's own top bar.
@@ -69,15 +69,15 @@ export default function MapArrivalCard({
       aria-label="First visit"
       tabIndex={-1}
     >
-      <div className="mapArrivalCardSay">
-        <h2 className="mapArrivalCardTitle">Cheapest pints near you?</h2>
+      <div className={styles.mapArrivalCardSay}>
+        <h2 className={styles.mapArrivalCardTitle}>Cheapest pints near you?</h2>
         {/* The visible half of a pair with the iOS purpose string. See
             docs/proof/mobile-app-design/STORE_READINESS.md. */}
-        <p className="mapArrivalCardLead">
+        <p className={styles.mapArrivalCardLead}>
           Location is used only while the map is open.
         </p>
       </div>
-      <div className="mapArrivalCardActions">
+      <div className={styles.mapArrivalCardActions}>
         <button
           type="button"
           className={buttonVariants({ variant: "primary" })}
@@ -102,7 +102,7 @@ export default function MapArrivalCard({
       </div>
       <button
         type="button"
-        className="mapArrivalCardClose"
+        className={styles.mapArrivalCardClose}
         aria-label="Close"
         onClick={dismiss}
       >

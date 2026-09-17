@@ -63,7 +63,7 @@ describe("hydration-gated static copy is in the server HTML", () => {
       createElement(ProfilePageClient, { params: settledParams({ handle: "you" }) }),
     );
 
-    expect(html).toContain('class="wantedPanel__lede"');
+    expect(html).toContain("wantedPanelLede");
     expect(html).toContain(WANTED_LEDE);
     expect(html).toContain("profileIdentityLoadingSurface");
     expect(html).not.toContain("Make the night yours.");

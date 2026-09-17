@@ -5,31 +5,31 @@
   border-top: 1px solid var(--line);
 }
 
-.findLot--compact {
+.findLotCompact {
   margin-top: var(--space-3);
   padding-top: var(--space-3);
 }
 
 /* The label above the title is the shared Kicker primitive (components/ui). */
-.findLot__title {
+.findLotTitle {
   margin: 0;
   font-size: var(--text-lg, 1.15rem);
   font-weight: 750;
 }
 
-.findLot__body,
-.findLot__muted {
+.findLotBody,
+.findLotMuted {
   margin: var(--space-2) 0 0;
   font-size: var(--text-sm);
   color: var(--muted, var(--ink-soft));
 }
 
-.findLot__field {
+.findLotField {
   display: block;
   margin-top: var(--space-3);
 }
 
-.findLot__field input {
+.findLotField input {
   width: 100%;
   min-height: 44px;
   padding: 0.65rem 0.85rem;
@@ -40,7 +40,7 @@
   font: inherit;
 }
 
-.findLot__list {
+.findLotList {
   list-style: none;
   margin: var(--space-3) 0 0;
   padding: 0;
@@ -48,7 +48,7 @@
   gap: var(--space-2);
 }
 
-.findLot__row {
+.findLotRow {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: var(--space-2);
@@ -56,7 +56,7 @@
   min-height: 44px;
 }
 
-.findLot__identity {
+.findLotIdentity {
   display: grid;
   grid-template-columns: 36px 1fr;
   gap: var(--space-2);
@@ -66,7 +66,7 @@
   color: inherit;
 }
 
-.findLot__avatar {
+.findLotAvatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -78,23 +78,23 @@
   overflow: hidden;
 }
 
-.findLot__avatar img {
+.findLotAvatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.findLot__names {
+.findLotNames {
   display: grid;
   min-width: 0;
 }
 
-.findLot__handle {
+.findLotHandle {
   font-weight: 700;
   overflow-wrap: anywhere;
 }
 
-.findLot__display {
+.findLotDisplay {
   font-size: var(--text-xs);
   color: var(--muted, var(--ink-soft));
   overflow-wrap: anywhere;
@@ -104,7 +104,7 @@
    else, so the box has to hold both: an anchor keeps its underline and sits at
    the top-left of a 44px tall box, which read as a second text field under the
    handle input rather than the way in. */
-.findLot__follow {
+.findLotFollow {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -123,23 +123,23 @@
   cursor: pointer;
 }
 
-.findLot__follow:disabled {
+.findLotFollow:disabled {
   opacity: 0.65;
   cursor: default;
 }
 
-.findLot__self {
+.findLotSelf {
   font-size: var(--text-xs);
   color: var(--muted, var(--ink-soft));
 }
 
-.findLot__invite {
+.findLotInvite {
   margin-top: var(--space-3);
   display: grid;
   gap: var(--space-2);
 }
 
-.findLot__inviteUrl {
+.findLotInviteUrl {
   display: block;
   padding: 0.55rem 0.75rem;
   border-radius: var(--radius-md, 10px);
@@ -149,12 +149,12 @@
   overflow-wrap: anywhere;
 }
 
-.findLot__ghost {
+.findLotGhost {
   color: var(--ink-soft);
   font-size: var(--text-sm);
 }
 
-.findLot__error {
+.findLotError {
   margin: var(--space-2) 0 0;
   font-size: var(--text-sm);
   color: var(--danger, #a33);
@@ -166,7 +166,7 @@
    The base rule also exists in app/social/social.css; collapse that older
    duplication later, but keep this floor with its component owner. */
 @media (pointer: coarse) {
-  .findLot__ghost {
+  .findLotGhost {
     display: inline-flex;
     align-items: center;
     min-height: 44px;

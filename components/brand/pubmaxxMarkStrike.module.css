@@ -18,7 +18,7 @@
 
 /* The mask beams: thick round strokes retracted to a single dash so the offset
    sweep paints them in. pathLength=1 normalises the dash maths across sizes. */
-.markStrike__beam {
+.markStrikeBeam {
   fill: none;
   stroke: #fff; /* white = reveal, inside the <mask> luminance space */
   stroke-width: 22; /* wide enough to cover the ascending double-stroke band */
@@ -27,15 +27,15 @@
 }
 
 /* ── Playing (first reveal / mount) ──────────────────────────────────────── */
-.markStrike--play .markStrike__beam--a {
+.markStrikePlay .markStrikeBeamA {
   stroke-dashoffset: 1;
   animation: markStrikeDraw 180ms cubic-bezier(0.2, 0.8, 0.2, 1) 0ms both;
 }
-.markStrike--play .markStrike__beam--b {
+.markStrikePlay .markStrikeBeamB {
   stroke-dashoffset: 1;
   animation: markStrikeDraw 140ms cubic-bezier(0.2, 0.8, 0.2, 1) 120ms both;
 }
-.markStrike--play .markStrike__ember {
+.markStrikePlay .markStrikeEmber {
   transform-box: fill-box;
   transform-origin: center;
   transform: scale(0);
@@ -68,10 +68,10 @@
 }
 
 /* ── Still (frozen final state, no replay) ───────────────────────────────── */
-.markStrike--still .markStrike__beam {
+.markStrikeStill .markStrikeBeam {
   stroke-dashoffset: 0;
 }
-.markStrike--still .markStrike__ember {
+.markStrikeStill .markStrikeEmber {
   transform-box: fill-box;
   transform-origin: center;
   transform: scale(1);
@@ -80,16 +80,16 @@
 
 /* ── Reduced motion: no draw, no pop — a single 120ms fade, ember static ──── */
 @media (prefers-reduced-motion: reduce) {
-  .markStrike__beam {
+  .markStrikeBeam {
     stroke-dashoffset: 0;
     animation: none;
   }
-  .markStrike__ember {
+  .markStrikeEmber {
     transform: none;
     opacity: 1;
     animation: none;
   }
-  .markStrike--play {
+  .markStrikePlay {
     animation: markStrikeFade 120ms ease both;
   }
 }

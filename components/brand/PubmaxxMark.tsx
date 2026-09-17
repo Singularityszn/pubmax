@@ -7,7 +7,7 @@ import {
   MARK_VIEWBOX,
 } from "@/lib/brandMark.mjs";
 
-import "./pubmaxxMark.css";
+import styles from "./pubmaxxMark.module.css";
 
 // ── PUBMAXX mark: "The Crossing X" ────────────────────────────────────────────
 // A blackboard-bold / double-struck X, built on the X Corp construction: one
@@ -98,7 +98,7 @@ export default function PubmaxxMark({
 
   return (
     <svg
-      className={`pubmaxxMark ${className}`.trim()}
+      className={`${styles.pubmaxxMark} ${className}`.trim()}
       width={size}
       height={size}
       viewBox={g.viewBox}

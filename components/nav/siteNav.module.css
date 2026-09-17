@@ -735,12 +735,12 @@ button.siteNavMoreItem {
     min-height: 44px;
   }
 
-  .siteNavBar .themeToggle {
+  .siteNavBar :global(.themeToggle) {
     width: 44px;
     height: 44px;
   }
 
-  .siteNavBar .authUser {
+  .siteNavBar :global(.authUser) {
     display: none;
   }
 
@@ -870,19 +870,19 @@ button.siteNavMoreItem {
   view-transition-name: site-nav-bar;
 }
 
-::view-transition-group(site-nav-bar) {
+:global(::view-transition-group(site-nav-bar)) {
   animation: none;
 }
 
-::view-transition-old(site-nav-bar),
-::view-transition-new(site-nav-bar) {
+:global(::view-transition-old(site-nav-bar)),
+:global(::view-transition-new(site-nav-bar)) {
   animation: none;
   mix-blend-mode: normal;
 }
 
 /* ── Legacy .siteNav pill (migrated from globals.css) ────────────────────── */
 
-.siteNav {
+:global(.siteNav) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -894,7 +894,7 @@ button.siteNavMoreItem {
   box-shadow: 0 14px 34px rgba(44, 30, 62, 0.14), 0 5px 18px rgba(255, 90, 95, 0.08);
 }
 
-.siteNav a {
+:global(.siteNav) a {
   display: inline-flex;
   align-items: center;
   min-height: 30px;
@@ -906,24 +906,24 @@ button.siteNavMoreItem {
   text-decoration: none;
 }
 
-.siteNav a:hover {
+:global(.siteNav) a:hover {
   background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
   color: var(--ink);
 }
 
-.siteNav a[aria-current="page"] {
+:global(.siteNav) a[aria-current="page"] {
   background: linear-gradient(135deg, var(--brass), var(--brass-bright));
   color: var(--color-on-accent);
   box-shadow: 0 8px 20px color-mix(in srgb, var(--brass) 28%, transparent);
 }
 
 @media (max-width: 640px) {
-  .siteNav {
+  :global(.siteNav) {
     gap: 2px;
     padding: 4px;
   }
 
-  .siteNav a {
+  :global(.siteNav) a {
     min-height: 28px;
     padding: 0 8px;
     font-size: 0.74rem;
@@ -936,19 +936,19 @@ button.siteNavMoreItem {
    remains the landing-page affordance. Keep the utility cluster tight so the
    390px demo viewport never overflows. */
 @media (max-width: 640px) {
-  .siteNavBarFloating .siteNavActions {
+  :global(.siteNavBarFloating) .siteNavActions {
     gap: 6px;
   }
 
-  .siteNavBarFloating .authSignIn {
+  :global(.siteNavBarFloating .authSignIn) {
     width: 32px;
     height: 32px;
     justify-content: center;
     padding: 0;
   }
 
-  .siteNavBarFloating .authSignInLabelFull,
-  .siteNavBarFloating .authSignInLabelShort {
+  :global(.siteNavBarFloating .authSignInLabelFull),
+  :global(.siteNavBarFloating .authSignInLabelShort) {
     display: none;
   }
 }

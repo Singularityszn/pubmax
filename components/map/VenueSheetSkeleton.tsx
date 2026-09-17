@@ -5,6 +5,7 @@
 import { useLayoutEffect, useRef, type CSSProperties } from "react";
 
 import type { VenueRevealForm } from "@/lib/venueReveal";
+import sheetStyles from "./venueSheet.module.css";
 
 export default function VenueSheetSkeleton({
   loadingLabel = "Loading full venue details…",
@@ -41,29 +42,29 @@ export default function VenueSheetSkeleton({
   return (
     <div
       ref={skeletonRef}
-      className={`venueSheetSkeleton${revealClasses}`}
+      className={`${sheetStyles.venueSheetSkeleton}${revealClasses}`}
       style={revealStyle}
       role="status"
       aria-live="polite"
       aria-busy="true"
     >
-      <span className="venueSheetSkeletonLabel">{loadingLabel}</span>
+      <span className={sheetStyles.venueSheetSkeletonLabel}>{loadingLabel}</span>
       <div
-        className={`venueSheetSkeletonTitle${revealForm ? " venueRevealBloom" : ""}`}
+        className={`${sheetStyles.venueSheetSkeletonTitle}${revealForm ? " venueRevealBloom" : ""}`}
         aria-hidden="true"
       />
-      <div className="venueSheetSkeletonMeta" aria-hidden="true">
+      <div className={sheetStyles.venueSheetSkeletonMeta} aria-hidden="true">
         <span />
         <span />
       </div>
-      <div className="venueSheetSkeletonTabs" aria-hidden="true">
+      <div className={sheetStyles.venueSheetSkeletonTabs} aria-hidden="true">
         <span />
         <span />
         <span />
         <span />
       </div>
-      <div className="venueSheetSkeletonStamp" aria-hidden="true" />
-      <div className="venueSheetSkeletonBody" aria-hidden="true">
+      <div className={sheetStyles.venueSheetSkeletonStamp} aria-hidden="true" />
+      <div className={sheetStyles.venueSheetSkeletonBody} aria-hidden="true">
         <span />
         <span />
         <span />

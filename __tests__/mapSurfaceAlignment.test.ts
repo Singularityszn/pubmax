@@ -9,7 +9,7 @@ const read = (path: string) =>
 const toolbarCss = read("components/map/mapToolbar.css");
 const siteNavCss = read("components/nav/siteNav.css");
 const mobileCss = read("components/mobile/mobileMapShell.css");
-const tonightArcCss = read("components/map/tonightArcChips.css");
+const tonightArcCss = read("components/map/tonightArcChips.module.css");
 
 describe("map surface alignment", () => {
   it("gives desktop navigation and toolbar one centred boundary", () => {

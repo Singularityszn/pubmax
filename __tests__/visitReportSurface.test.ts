@@ -185,7 +185,7 @@ describe("Visit Report venue surface", () => {
       }),
     );
 
-    expect(html).toContain("visitReportPanel--peek");
+    expect(html).toContain("visitReportPanelPeek");
     expect(html).toContain("Open Lore");
     expect(html).not.toContain("Sign in to contribute");
     expect(html).not.toContain("Write yours");

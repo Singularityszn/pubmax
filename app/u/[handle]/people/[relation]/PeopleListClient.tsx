@@ -25,7 +25,7 @@ import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import { SocialAccessBoundary } from "@/app/social/SocialPageClient";
 
-import "@/components/social/peopleDirectory.css";
+import styles from "@/components/social/peopleDirectory.module.css";
 
 export type PeopleRelation = "followers" | "following";
 
@@ -126,39 +126,39 @@ export default function PeopleListClient({
   }
 
   return (
-    <section className="peopleDir" aria-labelledby="people-list-title">
-      <h1 id="people-list-title" className="peopleDir__title">
+    <section className={styles.peopleDir} aria-labelledby="people-list-title">
+      <h1 id="people-list-title" className={styles.peopleDirTitle}>
         {TITLE[relation]}
       </h1>
-      <p className="peopleDir__body">
-        <Link className="peopleDir__handle" href={`/u/${encodeURIComponent(handle)}`}>
+      <p className={styles.peopleDirBody}>
+        <Link className={styles.peopleDirHandle} href={`/u/${encodeURIComponent(handle)}`}>
           {displayHandle(handle)}
         </Link>
       </p>
 
       {status === "loading" ? (
-        <div className="peopleDir__skeletons" aria-hidden="true">
+        <div className={styles.peopleDirSkeletons} aria-hidden="true">
           <span />
           <span />
           <span />
         </div>
       ) : status === "error" ? (
-        <div className="peopleDir__notice" role="alert">
+        <div className={styles.peopleDirNotice} role="alert">
           <p>{offline ? OFFLINE_ERROR : "Could not load this list. That is us, not you."}</p>
           <button
             type="button"
-            className="peopleDir__button"
+            className={styles.peopleDirButton}
             onClick={retry}
           >
             Try again
           </button>
         </div>
       ) : people.length === 0 ? (
-        <p className="peopleDir__body" role="status">
+        <p className={styles.peopleDirBody} role="status">
           {EMPTY[relation]}
         </p>
       ) : (
-        <ul className="peopleDir__grid">
+        <ul className={styles.peopleDirGrid}>
           {people.map((entry) => {
             const clean = entry.handle;
             // Seen from THIS profile: a row in Followers already follows it, a
@@ -171,12 +171,12 @@ export default function PeopleListClient({
             });
             const hint = followRelationHint(rowRelation);
             return (
-              <li key={clean} className="peopleDir__card">
+              <li key={clean} className={styles.peopleDirCard}>
                 <Link
-                  className="peopleDir__identity"
+                  className={styles.peopleDirIdentity}
                   href={`/u/${encodeURIComponent(clean)}`}
                 >
-                  <span className="peopleDir__avatar" aria-hidden="true">
+                  <span className={styles.peopleDirAvatar} aria-hidden="true">
                     {entry.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- owned avatar path
                       <img src={entry.avatarUrl} alt="" loading="lazy" decoding="async" />
@@ -184,17 +184,17 @@ export default function PeopleListClient({
                       initial(clean)
                     )}
                   </span>
-                  <span className="peopleDir__names">
-                    <span className="peopleDir__handle">{displayHandle(clean)}</span>
+                  <span className={styles.peopleDirNames}>
+                    <span className={styles.peopleDirHandle}>{displayHandle(clean)}</span>
                     {entry.displayName ? (
-                      <span className="peopleDir__display">{entry.displayName}</span>
+                      <span className={styles.peopleDirDisplay}>{entry.displayName}</span>
                     ) : hint ? (
-                      <span className="peopleDir__display">{hint}</span>
+                      <span className={styles.peopleDirDisplay}>{hint}</span>
                     ) : null}
                   </span>
                 </Link>
                 {mutuals.has(clean) ? (
-                  <span className="peopleDir__self">Mates</span>
+                  <span className={styles.peopleDirSelf}>Mates</span>
                 ) : null}
               </li>
             );

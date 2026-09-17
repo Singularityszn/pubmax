@@ -19,7 +19,7 @@ import {
 } from "@/lib/roundRequest";
 import { startRoundWithStops, type SeedStop } from "@/lib/startRoundWithStops";
 
-import "./roundStarter.css";
+import styles from "./roundStarter.module.css";
 
 function localStorageSafe(): Storage | null {
   try {
@@ -167,32 +167,32 @@ export default function RoundStarter({
     router.push(`/rounds/${result.code}`);
   }
 
-  const formClass = ["roundStarter", compact ? "compact" : null, className]
+  const formClass = [styles.roundStarter, compact ? styles.compact : null, className]
     .filter(Boolean)
     .join(" ");
 
   if (startedCode) {
     return (
-      <div className={`${formClass} roundStarterSuccess`} role="status" aria-live="polite">
-        <span className="roundStarterBadge">
+      <div className={`${formClass} ${styles.roundStarterSuccess}`} role="status" aria-live="polite">
+        <span className={styles.roundStarterBadge}>
           <Users size={14} aria-hidden="true" /> Round is live
         </span>
-        <h2 className="roundStarterTitle">Share the code</h2>
-        <p className="roundStarterBlurb">
+        <h2 className={styles.roundStarterTitle}>Share the code</h2>
+        <p className={styles.roundStarterBlurb}>
           Friends join with this code. You stay on the map. Open the Round board anytime.
         </p>
-        <p className="roundStarterCode" data-testid="round-starter-code">
+        <p className={styles.roundStarterCode} data-testid="round-starter-code">
           {startedCode}
         </p>
-        <div className="roundStarterRow">
+        <div className={styles.roundStarterRow}>
           <button
             type="button"
-            className="crawlPrimaryBtn"
+            className={styles.crawlPrimaryBtn}
             onClick={() => void copyCode(startedCode)}
           >
             <Copy size={16} aria-hidden="true" /> {copied ? "Copied" : "Copy"}
           </button>
-          <Link href={`/rounds/${startedCode}`} className="crawlPrimaryBtn roundStarterBoardLink">
+          <Link href={`/rounds/${startedCode}`} className={`${styles.crawlPrimaryBtn} ${styles.roundStarterBoardLink}`}>
             Open Round board
           </Link>
         </div>
@@ -203,18 +203,18 @@ export default function RoundStarter({
 
   return (
     <form className={formClass} onSubmit={start}>
-      <span className="roundStarterBadge">
+      <span className={styles.roundStarterBadge}>
         <Users size={14} aria-hidden="true" /> The Round · group crawl
       </span>
-      <h2 className="roundStarterTitle">
+      <h2 className={styles.roundStarterTitle}>
         {hasSeeds ? "Invite friends to this plan" : "Start a Round"}
       </h2>
-      <p className="roundStarterBlurb">
+      <p className={styles.roundStarterBlurb}>
         {hasSeeds
           ? "Turn this plan into a Round. Friends join by a short code; stops are already queued."
           : "A group crawl that builds itself. Friends join by a short code; as everyone drops pints, the route grows itself, stop by stop."}
       </p>
-      <div className="roundStarterRow">
+      <div className={styles.roundStarterRow}>
         <input
           type="text"
           value={handle}
@@ -230,7 +230,7 @@ export default function RoundStarter({
         />
         <button
           type="submit"
-          className="crawlPrimaryBtn"
+          className={styles.crawlPrimaryBtn}
           disabled={busy || authLoading}
         >
           <Users size={16} aria-hidden="true" />{" "}
@@ -238,7 +238,7 @@ export default function RoundStarter({
         </button>
       </div>
       {error ? (
-        <p className="roundStarterError" role="alert">
+        <p className={styles.roundStarterError} role="alert">
           {error}
         </p>
       ) : null}

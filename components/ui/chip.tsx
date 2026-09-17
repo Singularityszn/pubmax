@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 import styles from "./chip.module.css";
 
-// The look lives in chip.css, outside every cascade layer, for the reason the
+// The look lives in chip.module.css, outside every cascade layer, for the reason the
 // Button primitive states: a layered utility loses to app/globals.css's
 // unlayered `button { font: inherit }`. The variants here only compose class
 // names. `number` is the square a reader taps a figure on, and it is ONE

@@ -40,6 +40,7 @@ import {
 import { checkedLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 import type { VenueRef } from "@/lib/tonight";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import sheetStyles from "./venueSheet.module.css";
 
 // `asOf` is deliberately NOT read here. It is the freshest thing the whole
 // answer can show, and this line covers only the kinds at this one venue.
@@ -116,13 +117,13 @@ export default function VenueTonightChips(
   const revealDatedCheckLate = revealDatedCheck && revealCheckedLate;
 
   return (
-    <div className="venueTonightChips" aria-label="On tonight at this venue">
+    <div className={sheetStyles.venueTonightChips} aria-label="On tonight at this venue">
       {kinds.map((kind) => {
         const Icon = KIND_ICON[kind];
         return (
           <span
             key={kind}
-            className={revealDatedCheck ? "venueTonightChip venueRevealRecord" : "venueTonightChip"}
+            className={revealDatedCheck ? `${sheetStyles.venueTonightChip} venueRevealRecord` : sheetStyles.venueTonightChip}
             data-kind={kind}
             data-reveal-delay={revealDatedCheck && !revealDatedCheckLate ? "2" : undefined}
           >
@@ -132,7 +133,7 @@ export default function VenueTonightChips(
         );
       })}
       <span
-        className={revealDatedCheck ? "venueTonightChecked venueRevealRecord" : "venueTonightChecked"}
+        className={revealDatedCheck ? `${sheetStyles.venueTonightChecked} venueRevealRecord` : sheetStyles.venueTonightChecked}
         data-reveal-delay={revealDatedCheck && !revealDatedCheckLate ? "2" : undefined}
       >
         {checkedLabel(asOf).toLowerCase()}

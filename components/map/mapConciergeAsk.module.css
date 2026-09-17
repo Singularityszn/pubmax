@@ -1,7 +1,7 @@
 /* F3 concierge-as-map-home. Bottom-anchored below W2's top Tonight chip. When
    either panel opens, the other surface yields so they never fight. Hidden
    entirely while a venue sheet or planner is open. */
-.mapConciergeAsk {
+:global(.mapConciergeAsk) {
   position: absolute;
   left: 0;
   right: 0;
@@ -14,27 +14,27 @@
 }
 
 @media (max-width: 640px) {
-  .mapConciergeAsk {
+  :global(.mapConciergeAsk) {
     bottom: calc(var(--mobile-tab-clearance, 72px) + 28px);
   }
 }
 
-.mapConciergeAsk > * {
+:global(.mapConciergeAsk) > * {
   pointer-events: auto;
 }
 
 /* Only the expanded Tonight sheet needs to clear the bottom concierge pill;
    its collapsed chip now lives under the map toolbar. */
-.mapConciergeAsk--collapsed ~ .tonightLaneOpen {
+:global(.mapConciergeAskCollapsed) ~ :global(.tonightLane--open) {
   bottom: calc(84px + env(safe-area-inset-bottom, 0px) + 52px);
 }
 
-.mapConciergeAsk--open ~ .tonightLane {
+:global(.mapConciergeAskOpen) ~ :global(.tonightLane) {
   display: none;
 }
 
-.appShell.detail-open .mapConciergeAsk,
-.appShell.planning-open .mapConciergeAsk {
+:global(.appShell.detail-open .mapConciergeAsk),
+:global(.appShell.planning-open .mapConciergeAsk) {
   display: none;
 }
 
@@ -74,7 +74,7 @@
 }
 
 /* ── Open panel ───────────────────────────────────────────────────────────*/
-.mapConciergeAsk--open {
+:global(.mapConciergeAskOpen) {
   justify-content: center;
 }
 
@@ -197,7 +197,7 @@
   color: var(--muted);
 }
 
-.mapConciergeAskMsg--error {
+.mapConciergeAskMsgError {
   color: color-mix(in srgb, var(--danger, #c0392b) 80%, var(--ink));
 }
 
@@ -236,7 +236,7 @@
   text-align: left;
 }
 
-.mapConciergeAskCardTap--static {
+.mapConciergeAskCardTapStatic {
   cursor: default;
 }
 
@@ -287,7 +287,7 @@
   color: color-mix(in srgb, var(--river, #2f80ed) 60%, var(--ink));
 }
 
-.mapConciergeAskMsg--degraded {
+.mapConciergeAskMsgDegraded {
   opacity: 0.82;
   font-size: 0.8rem;
 }

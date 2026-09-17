@@ -21,6 +21,7 @@
 import type { RatingSummary } from "@/lib/ratings";
 
 import StarRating from "./StarRating";
+import styles from "./starRating.module.css";
 
 export type DrinkRatingRowProps = {
   drinkName: string;
@@ -41,14 +42,14 @@ export default function DrinkRatingRow({
   if (shownAverage === null || summary === null) return null;
 
   return (
-    <span className="drinkRatingRow">
+    <span className={styles.drinkRatingRow}>
       <StarRating
         value={shownAverage}
         label={`${drinkName} rating`}
         size="sm"
         accent={accent}
       />
-      <span className="ratingCount">
+      <span className={styles.ratingCount}>
         {shownAverage.toFixed(1)} · {summary.count}
       </span>
     </span>
