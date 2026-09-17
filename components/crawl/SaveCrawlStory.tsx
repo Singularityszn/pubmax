@@ -8,6 +8,7 @@ import { useState } from "react";
 import { discardBody } from "@/lib/responseBody";
 import { encodeCrawlStory, VIBE_TAGS, type VibeTag } from "@/lib/crawlStory";
 import { authedActionFetch } from "@/lib/authedFetch";
+import btnStyles from '../map/addStopBtn.module.css';
 
 // A self-contained "Save as story" control. Decoupled from the Venue type on
 // purpose: it accepts the minimal stop shape so it can be dropped anywhere a
@@ -145,7 +146,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
     return (
       <button
         type="button"
-        className="addStopBtn"
+        className={btnStyles.addStopBtn}
         style={{ marginTop: 0, marginBottom: "12px" }}
         onClick={() => setOpen(true)}
       >
@@ -246,7 +247,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
       </div>
 
       <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-        <button type="button" className="addStopBtn" style={{ marginTop: 0 }} onClick={copyStoryLink}>
+        <button type="button" className={btnStyles.addStopBtn} style={{ marginTop: 0 }} onClick={copyStoryLink}>
           {copied ? (
             <Check size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
           ) : (
@@ -258,7 +259,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
             link. The anonymous copy button above still works either way. */}
         <button
           type="button"
-          className="addStopBtn"
+          className={btnStyles.addStopBtn}
           style={{ marginTop: 0 }}
           onClick={savePermanentLink}
           disabled={saving}

@@ -7,6 +7,7 @@ import {
   MAP_LOADING_SLOW_LINE,
   mapLoadingPrimaryLine,
 } from "@/lib/mapLoadingCopy";
+import styles from "./MapLoadingFrame.module.css";
 
 // The map's own held frame, mounted only while the map is still loading. It
 // owns the slow line so the threshold is testable without the MapLibre canvas
@@ -29,7 +30,7 @@ export default function MapLoadingFrame({
 
   return (
     <div
-      className="mapLoading"
+      className={`${styles.mapLoading} mapLoading`}
       role="status"
       aria-busy="true"
       aria-live="polite"
@@ -37,31 +38,31 @@ export default function MapLoadingFrame({
       // carries the dry aside, the announced one states the fact.
       aria-label={`Loading the ${mapDisplayName} pub map.`}
     >
-      <div className="mapLoadingScene" aria-hidden="true">
-        <span className="mapLoadingStreet mapLoadingStreet--one" />
-        <span className="mapLoadingStreet mapLoadingStreet--two" />
-        <span className="mapLoadingRiver" />
-        <span className="mapLoadingPin mapLoadingPin--pint mapLoadingPin--one" />
-        <span className="mapLoadingPin mapLoadingPin--amber mapLoadingPin--two" />
-        <span className="mapLoadingPin mapLoadingPin--brick mapLoadingPin--three" />
-        <span className="mapLoadingPin mapLoadingPin--pint mapLoadingPin--four" />
+      <div className={styles.mapLoadingScene} aria-hidden="true">
+        <span className={`${styles.mapLoadingStreet} ${styles['mapLoadingStreet--one']}`} />
+        <span className={`${styles.mapLoadingStreet} ${styles['mapLoadingStreet--two']}`} />
+        <span className={styles.mapLoadingRiver} />
+        <span className={`${styles.mapLoadingPin} ${styles['mapLoadingPin--pint']} ${styles['mapLoadingPin--one']}`} />
+        <span className={`${styles.mapLoadingPin} ${styles['mapLoadingPin--amber']} ${styles['mapLoadingPin--two']}`} />
+        <span className={`${styles.mapLoadingPin} ${styles['mapLoadingPin--brick']} ${styles['mapLoadingPin--three']}`} />
+        <span className={`${styles.mapLoadingPin} ${styles['mapLoadingPin--pint']} ${styles['mapLoadingPin--four']}`} />
       </div>
-      <div className="mapLoadingCopy">
-        <div className="mapLoadingLines">
-          <span className="mapLoadingEyebrow">{mapDisplayName} pub map</span>
+      <div className={styles.mapLoadingCopy}>
+        <div className={styles.mapLoadingLines}>
+          <span className={styles.mapLoadingEyebrow}>{mapDisplayName} pub map</span>
           <span>
             {openingLocationPromptActive
               ? "Using your location to find nearby pints."
               : mapLoadingPrimaryLine(mapDisplayName)}
           </span>
-          {slow ? <span className="mapLoadingSlow">{MAP_LOADING_SLOW_LINE}</span> : null}
+          {slow ? <span className={styles.mapLoadingSlow}>{MAP_LOADING_SLOW_LINE}</span> : null}
         </div>
       </div>
       {/* Decorative: this sits inside a polite live region, and a stepping
           aria-valuenow would announce the same load four more times over the
           container's own label and the slow line. */}
-      <div className="mapLoadingProgress" aria-hidden="true" data-progress={progress}>
-        <span className="mapLoadingProgressBar" style={{ width: `${progress}%` }} />
+      <div className={styles.mapLoadingProgress} aria-hidden="true" data-progress={progress}>
+        <span className={styles.mapLoadingProgressBar} style={{ width: `${progress}%` }} />
       </div>
     </div>
   );

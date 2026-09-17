@@ -6,6 +6,7 @@ import { HandCoins } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
 import { formatGbp } from "@/lib/formatGbp";
+import inspectorStyles from '@/components/map/venueInspectorBits.module.css';
 
 // Live community Pint Drops strip for the landing page. Fetches the PUBLIC
 // GET /api/pint-drops (no venueId → all visible drops), takes the newest few,
@@ -199,7 +200,7 @@ export default function PintDropStrip() {
                     Pint Drop
                   </span>
                 )}
-                <span className={`provChip provChip-${d.provenance}`}>
+                <span className={`${inspectorStyles.provChip} provChip-${d.provenance}`}>
                   {PROVENANCE_LABEL[d.provenance]}
                 </span>
               </div>

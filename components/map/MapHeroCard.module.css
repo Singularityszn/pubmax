@@ -1,0 +1,100 @@
+/* MapHeroCard – extracted from globals.css (lines 2947-3044)
+   Sit above the price colour key + Prices FAB so the two never collide. */
+.mapHeroCard {
+  position: absolute;
+  bottom: calc(18px + var(--map-price-chrome-height, 96px));
+  left: 18px;
+  z-index: var(--z-map-base);
+  max-width: 300px;
+  padding: 13px 15px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--brass) 9%, var(--panel-raised)), var(--panel-raised) 60%),
+    var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mapHeroCard {
+    animation: heroCardIn 0.45s ease-out;
+  }
+
+  @keyframes heroCardIn {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+.mapHeroCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.mapHeroCardHead span {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--brass);
+}
+
+.mapHeroCardHead button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.mapHeroCardHead button:hover {
+  color: var(--ink);
+  border-color: var(--brass);
+}
+
+.mapHeroCard strong {
+  display: block;
+  font-family: var(--serif);
+  font-weight: 600;
+  font-variation-settings: "SOFT" 0;
+  font-size: 1.02rem;
+  line-height: 1.25;
+}
+
+.mapHeroCopy {
+  margin: 6px 0 9px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  overflow-wrap: break-word;
+}
+
+.mapHeroVisit {
+  padding: 6px 14px;
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--brass);
+  cursor: pointer;
+}
+
+.mapHeroVisit:hover {
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
+}

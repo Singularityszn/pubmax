@@ -1,0 +1,176 @@
+/* WebGL-failure fallback — a calm notice where the canvas would be. */
+.mapFallback {
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 32px;
+  text-align: center;
+  background: var(--color-surface-inverse);
+  color: var(--color-on-inverse);
+  /* The static venue list can outgrow a short viewport — scroll inside the
+     card rather than clipping the Retry button off-screen. */
+  overflow-y: auto;
+}
+
+@media (max-width: 640px) {
+  /* Clear the WHOLE phone chrome, bar plus docked chip row, from the token
+     mobileMapShell.css publishes for it. This used to read a
+     --mobile-map-rail-h that nothing defines, which made the calc() invalid
+     and dropped the padding entirely, so the card's heading and its one
+     sentence sat behind the top bar on every phone that ever reached it. */
+  .mapFallback {
+    place-content: start center;
+    padding-top: calc(var(--mobile-map-chrome-full-h, 118px) + 18px);
+  }
+}
+
+.mapFallback strong {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-variation-settings: "SOFT" 0;
+  font-size: 1.15rem;
+}
+
+.mapFallback p {
+  margin: 0 auto;
+  max-width: 340px;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--color-on-inverse);
+}
+
+/* The technical diagnostic now lives behind a collapsed disclosure — never
+   shown by default, still one tap away for a bug report. A plain controlled
+   button (not native <details>/<summary>): this fallback's mount effect
+   leaves its RAF loop running even after the error settles, and that
+   continuous background rendering raced native <details> click-activation
+   often enough in headless/automated clicks to occasionally miss the tap
+   entirely. A React-controlled toggle has no such race. */
+.mapFallbackDisclosure {
+  margin: 2px auto 0;
+  max-width: 340px;
+  text-align: center;
+}
+
+.mapFallbackDisclosureToggle {
+  max-width: 340px;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.72rem;
+  color: var(--brass);
+  opacity: 0.85;
+  cursor: pointer;
+}
+
+.mapFallbackDisclosureToggle:hover,
+.mapFallbackDisclosureToggle:focus-visible {
+  opacity: 1;
+}
+
+.mapFallbackDisclosureToggle:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* The technical diagnostic — a printer's-mark footnote: monospaced, dim, so it
+   reads as a stamp rather than prose. Wraps so long statusMessages don't clip. */
+.mapFallbackDetail {
+  display: block;
+  max-width: 340px;
+  margin: 6px auto 0;
+  font-family: var(--mono, ui-monospace, "SFMono-Regular", Menlo, monospace);
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  color: var(--color-on-inverse);
+  opacity: 0.75;
+  overflow-wrap: anywhere;
+}
+
+/* Retry — a brass-rimmed field-guide button, matching the candle-lit accents
+   used for guidebook actions elsewhere; lifts on hover like the map's cards. */
+.mapFallbackRetry {
+  margin-top: 14px;
+  min-height: 44px;
+  padding: 7px 20px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-on-inverse);
+  font-family: var(--serif, inherit);
+  font-weight: 600;
+  font-variation-settings: "SOFT" 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.mapFallbackRetry:hover {
+  background: var(--brass);
+  color: var(--ink-deep);
+}
+
+.mapFallbackRetry:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* Static venue alternative inside the fallback — the venue content stays
+   reachable without a single WebGL frame. Rows open the DOM venue sheet. */
+.mapFallbackVenues {
+  display: grid;
+  gap: 6px;
+  margin: 14px auto 0;
+  padding: 0;
+  width: min(340px, 100%);
+  list-style: none;
+}
+
+.mapFallbackVenue {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-on-inverse) 18%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-on-inverse) 6%, transparent);
+  color: var(--color-on-inverse);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.mapFallbackVenue:hover,
+.mapFallbackVenue:focus-visible {
+  background: color-mix(in srgb, var(--color-on-inverse) 12%, transparent);
+}
+
+.mapFallbackVenueName {
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.mapFallbackVenueMeta {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--color-on-inverse);
+}
+
+.mapFallbackBrowse {
+  display: inline-block;
+  margin-top: 10px;
+  color: var(--brass);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

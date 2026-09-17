@@ -1,0 +1,36 @@
+/* First-drop nudge (Cycle-8 item 3) — the honest empty-price invitation shown
+   in the overview price slot when a venue has no price on any source. Sits in
+   the same footprint as .contributorPrice so an unpriced pub reads as "one to
+   claim", not a gap. One line + one CTA — deliberately not a banner. Tokens
+   only, so it themes with the rest of the sheet in light and dark. */
+.firstDropNudge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin: 10px 0;
+  padding: 10px 11px;
+  border: 1px dashed color-mix(in srgb, var(--brass) 40%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--brass) 6%, var(--panel-raised));
+}
+
+.firstDropNudgeLine {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+
+.firstDropNudgeTrust {
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}

@@ -13,6 +13,7 @@ import {
 } from "@/lib/thenVsNow";
 
 import "./venuePriceStory.css";
+import inspectorStyles from './venueInspectorBits.module.css';
 
 // The Golden Thread on the venue surface: a pub's own price story — the baseline
 // price on record, the freshest community-logged price, the delta between them,
@@ -27,7 +28,7 @@ import "./venuePriceStory.css";
 // empty state renders instead of an empty frame.
 
 function ProvChip({ provenance }: { provenance: Provenance }) {
-  return <span className={`provChip ${provenance}`}>{PROVENANCE_LABEL[provenance]}</span>;
+  return <span className={`${inspectorStyles.provChip} ${provenance}`}>{PROVENANCE_LABEL[provenance]}</span>;
 }
 
 function direction(deltaGbp: number): "up" | "down" | "flat" {

@@ -20,6 +20,7 @@ import {
   isPubVenueKind,
   venueKindNoun,
 } from "@/lib/venueKindFilters";
+import storyStyles from './VenueStoryTab.module.css';
 
 export default function VenueStoryTab({
   venue,
@@ -183,11 +184,11 @@ export default function VenueStoryTab({
         </p>
       ) : null}
       {claims.length > 0 ? (
-        <div className="claimList">
+        <div className={storyStyles.claimList}>
           {claims.map((claim, index) => (
-            <div key={`${claim.kind}-${index}`} className="claimCard">
-              <div className="claimHead">
-                <span className="claimEra">{claim.era ?? claim.label}</span>
+            <div key={`${claim.kind}-${index}`} className={storyStyles.claimCard}>
+              <div className={storyStyles.claimHead}>
+                <span className={storyStyles.claimEra}>{claim.era ?? claim.label}</span>
                 <ClaimBadge kind={claim.kind} />
               </div>
               <p>{claim.content}</p>

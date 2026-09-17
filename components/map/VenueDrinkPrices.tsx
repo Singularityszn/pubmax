@@ -3,6 +3,7 @@
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
 import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
 import { ClaimBadge } from "@/components/map/venueInspectorBits";
+import overviewStyles from "@/components/map/inspector/VenueOverviewTab.module.css";
 import PriceBadge from "@/components/PriceBadge";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import {
@@ -128,7 +129,7 @@ export default function VenueDrinkPrices({
       aria-label={`Drink prices logged at ${venueName}`}
     >
       {lead ? (
-        <div className="contributorPrice communityPriceRow">
+        <div className={`${overviewStyles.contributorPrice} communityPriceRow`}>
           <span className={priceRevealMotionClass || undefined}>
             <ClaimBadge kind="contributor" /> Logged by a PUBMAXXER
           </span>

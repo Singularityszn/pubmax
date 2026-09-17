@@ -6,6 +6,7 @@ import { formatRouteTotal, type RouteLegsSummary, type RoutePace } from "@/lib/r
 import { type CrawlMode } from "@/components/map/ControlRail";
 import type { Venue } from "@/lib/venues";
 import RoundStarter from "@/components/round/RoundStarter";
+import btnStyles from '../addStopBtn.module.css';
 
 type RouteActionsProps = {
   mode: CrawlMode;
@@ -45,7 +46,7 @@ export default function RouteActions({
   return (
     <>
       {route.length === 0 ? (
-        <p className="emptyRoute">
+        <p className={btnStyles.emptyRoute}>
           {mode === "build"
             ? "No stops yet. Tap pubs on the map or use the Add stops list below."
             : "No suggested route matches these filters. Reset filters or widen the route window."}
@@ -55,7 +56,7 @@ export default function RouteActions({
       {mode === "build" && route.length >= 2 && onReverseRoute ? (
         <button
           type="button"
-          className="addStopBtn"
+          className={btnStyles.addStopBtn}
           style={{ marginTop: 0, marginBottom: "12px" }}
           onClick={onReverseRoute}
         >
@@ -134,7 +135,7 @@ export default function RouteActions({
       {route.length >= 1 ? (
         <button
           type="button"
-          className="addStopBtn calendarBtn"
+          className={`${btnStyles.addStopBtn} calendarBtn`}
           onClick={addToCalendar}
           data-testid="add-to-calendar"
         >
@@ -146,7 +147,7 @@ export default function RouteActions({
       {route.length >= 2 && onCheckLastTrain ? (
         <button
           type="button"
-          className="addStopBtn trainRouteBtn"
+          className={`${btnStyles.addStopBtn} trainRouteBtn`}
           onClick={onCheckLastTrain}
           data-testid="check-last-train"
         >

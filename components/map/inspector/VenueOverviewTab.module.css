@@ -1,0 +1,175 @@
+/* ── Price row & price-door classes extracted from globals.css ────────
+   CSS Module for VenueOverviewTab price-related styles.
+   Classes here are composed into the overview tab and the two companion
+   components (UnverifiedPubSheet, VenueDrinkPrices) that share the
+   contributorPrice row. ───────────────────────────────────────────── */
+
+.contributorPrice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin: 10px 0;
+  padding: 10px 11px;
+  border: 1px solid rgba(47, 143, 91, 0.3);
+  border-radius: var(--radius-sm);
+  background: rgba(47, 143, 91, 0.08);
+}
+
+/* The trust pill and its own spans are excluded: the pill's colour is the
+   price BAND of its figure (lib/priceBand.ts), and this muted rule used to
+   win over it by specificity and grey out the figure. */
+.contributorPrice span:not(:global(.priceBadge), :global(.trustPill), :global(.trustPill) *) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.contributorPrice strong {
+  /* The figure's colour is its band (lib/priceBand.ts), never a standing green. */
+  color: var(--price-band-ink, var(--ink));
+  font-variant-numeric: tabular-nums;
+}
+
+.contributorPrice small {
+  flex: 1 1 100%;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.contributorPrice :global(.communityPriceNote) {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* The publisher behind a sourced price is the one link that proves the
+   product's central claim, and it shipped with no rule at all: the browser's
+   own rgb(0,0,238) inside an --ink-soft provenance line. Same defect and the
+   same answer as `.profileFloor a` and `.lpFooterLegal a` - inherit the
+   sentence's colour, keep an underline so it still reads as a link. Keyed on
+   the CONTAINER as well as the class, so the next anchor dropped into a price
+   row cannot repeat it. */
+.contributorPrice a,
+.priceSourceLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  vertical-align: middle;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.contributorPrice a:hover,
+.priceSourceLink:hover {
+  color: var(--ink);
+}
+
+/* THE ONE PRICE DOOR (lib/pintTrust.ts, `overviewPriceDoor`): the log door on
+   an unpriced, listed, baseline, modelled or confirmed pub, and the second
+   drinker's "Still £4.50?" on a logged-once or aged report. One class, because
+   it is one button: the same flat accent the sheet's own primary and every
+   launch primary wear (components/ui/screen.css), no gradient and no glow, so a
+   door is a door on every screen. It wears the ACTION accent and never a
+   price band, because a door is not a price. */
+.priceDoor {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--control-height, 44px);
+  padding: 0 16px;
+  border: 1px solid var(--accent-action);
+  border-radius: var(--control-radius, 14px);
+  background: var(--accent-action);
+  color: var(--color-on-accent-strong);
+  font: inherit;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  /* Colour transitions only; the press-scale (0.97, <=250ms) comes from the
+     global button:active rule so motion stays consistent sheet-wide. */
+  transition:
+    background var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out);
+}
+
+.priceDoor:hover {
+  background: var(--accent-action-strong);
+  border-color: var(--accent-action-strong);
+  color: var(--color-on-accent-strong);
+}
+
+.priceDoor:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* THE SPLIT'S DOOR asks a question and then offers the answers, so it is a
+   column where the other two doors are one button: the ask on its own line,
+   the recorded figures under it. Each figure keeps the `.priceDoor` treatment,
+   because each is the same door with a different answer written on it. */
+.priceDoorChoice {
+  display: flex;
+  flex: 1 1 100%;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.priceDoorAsk {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.priceDoorOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contributorPrice .priceDoorOptions .priceDoor,
+.priceDoorOptions .priceDoor {
+  /* The row of answers starts at the thumb side and stays there. The
+     `margin-left: auto` below is for the ONE door that shares a row with the
+     line above it, and it would push the first figure away from the second. */
+  margin-left: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The line and the door share one row where the row can hold both, the way
+   the eyebrow and the plaque share the block's first row: the claim on the
+   left, the thing to do about it on the right. The standing line ("Logged
+   once, needs a second drinker") and the provenance note ("Dataset price
+   from...") both take this seat. Where the row cannot hold both (a 390 phone)
+   the door wraps under the line and keeps the left edge, the thumb side every
+   other action on this sheet starts from. */
+.contributorPrice :global(.communityPriceStanding):has(+ .priceDoor),
+.contributorPrice :global(.communityPriceNote):has(+ .priceDoor) {
+  flex: 1 1 auto;
+}
+
+.contributorPrice .priceDoor,
+:global(.firstDropNudge) .priceDoor {
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .contributorPrice .priceDoor,
+  :global(.firstDropNudge) .priceDoor {
+    margin-left: 0;
+  }
+}

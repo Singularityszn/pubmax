@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { firstDropNudgeCopy } from "@/lib/firstDropNudge";
 import { UNPRICED_VENUE_TRUST_LINE } from "@/lib/mapPriceTrust";
+import nudgeStyles from './FirstDropNudge.module.css';
 
 /**
  * Unpriced-pub nudge: the honest empty-price line and its trust line. The ONE
@@ -20,9 +21,9 @@ export default function FirstDropNudge({
   const copy = firstDropNudgeCopy(venueId);
 
   return (
-    <div className="firstDropNudge" role="note">
-      <p className="firstDropNudgeLine">{copy.line}</p>
-      <p className="firstDropNudgeTrust">{UNPRICED_VENUE_TRUST_LINE}</p>
+    <div className={nudgeStyles.firstDropNudge} role="note">
+      <p className={nudgeStyles.firstDropNudgeLine}>{copy.line}</p>
+      <p className={nudgeStyles.firstDropNudgeTrust}>{UNPRICED_VENUE_TRUST_LINE}</p>
       {children}
     </div>
   );

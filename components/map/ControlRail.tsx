@@ -74,6 +74,7 @@ function citySearchPlaceholder(cityId: CityId, displayName: string): string {
   }
 }
 
+import railStyles from "./ControlRail.module.css";
 import "./accessibilityFilters.css";
 // Map-scoped colour polish (D3): POI-toggle swatch rings + the documented,
 // unwired pin-by-category paint patch. Imported here (map chrome, non-hot) so
@@ -182,7 +183,7 @@ export default function ControlRail({
         </div>
       </div>
 
-      <div className="modeToggle" role="group" aria-label="Crawl mode">
+      <div className={railStyles.modeToggle} role="group" aria-label="Crawl mode">
         <button
           className={mode === "suggest" ? "selected" : ""}
           aria-pressed={mode === "suggest"}
@@ -201,7 +202,7 @@ export default function ControlRail({
 
       <button
         type="button"
-        className="nearbyBtn"
+        className={railStyles.nearbyBtn}
         aria-label="Build a crawl from the pubs nearest to me"
         onClick={onNearbyCrawl}
         disabled={nearbyLoading}
@@ -210,17 +211,17 @@ export default function ControlRail({
         {nearbyLoading ? "Finding your location…" : "Pubs near me"}
       </button>
       {nearbyError ? (
-        <p className="nearbyError" role="alert">
+        <p className={railStyles.nearbyError} role="alert">
           {nearbyError}
         </p>
       ) : null}
 
       {mode === "build" ? (
-        <p className="buildHint">
+        <p className={railStyles.buildHint}>
           Tap pubs on the map or use the Add stops list in the route panel.{" "}
           {builtCount} stop{builtCount === 1 ? "" : "s"} picked.
           {builtCount > 0 ? (
-            <button className="clearBtn" onClick={onClearBuilt}>
+            <button className={railStyles.clearBtn} onClick={onClearBuilt}>
               <Trash2 size={13} /> Clear
             </button>
           ) : null}
@@ -348,7 +349,7 @@ export default function ControlRail({
           <Landmark size={16} />
           <span>Story Filters</span>
           {filtersDirty ? (
-            <button className="resetBtn" style={{ marginLeft: "auto" }} onClick={resetFilters}>
+            <button className={railStyles.resetBtn} style={{ marginLeft: "auto" }} onClick={resetFilters}>
               <Trash2 size={12} /> Reset
             </button>
           ) : null}
@@ -548,8 +549,8 @@ export default function ControlRail({
       ) : null}
 
       {showWriterCard ? (
-        <section className="writerCard">
-          <div className="writerHeader">
+        <section className={railStyles.writerCard}>
+          <div className={railStyles.writerHeader}>
             <Camera size={18} />
             <div>
               <p className="eyebrow">{writerProfile.handle}</p>
@@ -557,7 +558,7 @@ export default function ControlRail({
             </div>
           </div>
           <p>{writerProfile.summary}</p>
-          <div className="writerFacts">
+          <div className={railStyles.writerFacts}>
             <span>
               <BookOpen size={15} />
               {writerProfile.bookTitle}
@@ -572,7 +573,7 @@ export default function ControlRail({
               <li key={point}>{point}</li>
             ))}
           </ul>
-          <div className="sourceLinks">
+          <div className={railStyles.sourceLinks}>
             {pubSources.map((source) => (
               <a key={source.url} href={source.url} target="_blank" rel="noreferrer">
                 {source.title}

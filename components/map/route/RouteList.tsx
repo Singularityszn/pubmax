@@ -7,6 +7,7 @@ import { formatLeg, type OnTheWayPoi, type RouteLegsSummary } from "@/lib/routeL
 import { journeyAddsTransit } from "@/lib/formatJourney";
 import { routeStopPlaceLabels } from "@/lib/routeStops";
 import type { CrawlJourneyLegSummary } from "@/components/map/useCrawlJourneys";
+import inspectorStyles from '@/components/map/venueInspectorBits.module.css';
 
 type VenueSignals = Map<
   string,
@@ -74,7 +75,7 @@ export default function RouteList({
                 {venue.name}
                 {dropCount > 0 ? (
                   <span
-                    className="provChip contributor"
+                    className={`${inspectorStyles.provChip} contributor`}
                     style={{ marginLeft: "6px", verticalAlign: "middle" }}
                     title={`${dropCount} Pint Drop${dropCount === 1 ? "" : "s"} logged here`}
                   >

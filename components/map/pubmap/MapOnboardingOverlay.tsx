@@ -3,6 +3,8 @@ import { X } from "lucide-react";
 import { type CuratedCrawl } from "@/lib/curatedCrawls";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
+import styles from "./MapOnboardingOverlay.module.css";
+
 // §4.5 onboarding overlay: a dismissible "Start with a story" card that offers
 // curated crawls on a clean first paint. It's the mobile onboarding (control
 // rail is hidden on small screens) and never blocks the map — the backdrop and
@@ -23,21 +25,21 @@ export function MapOnboardingOverlay({
   useDismissOnEscape(true, onDismiss);
   return (
     <div
-      className="mapOnboarding"
+      className={`${styles.mapOnboarding} mapOnboarding`}
       role="dialog"
       aria-modal="false"
       aria-labelledby="onboardingTitle"
     >
       <button
         type="button"
-        className="mapOnboardingScrim"
+        className={styles.mapOnboardingScrim}
         aria-label="Dismiss and explore the map"
         onClick={onDismiss}
       />
-      <div className="mapOnboardingCard">
+      <div className={styles.mapOnboardingCard}>
         <button
           type="button"
-          className="mapOnboardingClose"
+          className={styles.mapOnboardingClose}
           onClick={onDismiss}
           aria-label="Close"
         >
@@ -45,32 +47,32 @@ export function MapOnboardingOverlay({
         </button>
         <p className="eyebrow">New here?</p>
         <h2 id="onboardingTitle">Start with a story</h2>
-        <p className="mapOnboardingLead">
+        <p className={styles.mapOnboardingLead}>
           Hand-picked crawls. One generation&rsquo;s pubs, handed to the next. Pick one to drop it
           on the map, or explore on your own.
         </p>
-        <div className="mapOnboardingList">
+        <div className={styles.mapOnboardingList}>
           {crawls.map((crawl) => (
             <button
               key={crawl.id}
               type="button"
-              className="mapOnboardingCrawl"
+              className={styles.mapOnboardingCrawl}
               aria-label={`Load the ${crawl.name} crawl, ${crawl.venueIds.length} stops`}
               onClick={() => onLoadCrawl(crawl)}
             >
-              <span className="mapOnboardingCrawlHead">
+              <span className={styles.mapOnboardingCrawlHead}>
                 <strong>{crawl.name}</strong>
-                <span className="mapOnboardingCount">
+                <span className={styles.mapOnboardingCount}>
                   {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
                 </span>
               </span>
-              <span className="mapOnboardingBlurb">{crawl.blurb}</span>
+              <span className={styles.mapOnboardingBlurb}>{crawl.blurb}</span>
             </button>
           ))}
         </div>
         <button
           type="button"
-          className="mapOnboardingDismiss"
+          className={`${styles.mapOnboardingDismiss} mapOnboardingDismiss`}
           onClick={onDismiss}
         >
           Dismiss / explore the map

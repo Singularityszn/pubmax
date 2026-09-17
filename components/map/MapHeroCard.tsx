@@ -2,6 +2,7 @@ import { X } from "lucide-react";
 
 import { ProseDisclosure } from "@/components/Disclosure";
 import type { Venue } from "@/lib/venues";
+import styles from "./MapHeroCard.module.css";
 
 export default function MapHeroCard({
   venue,
@@ -16,8 +17,8 @@ export default function MapHeroCard({
   if (!heritageNote) return null;
 
   return (
-    <aside className="mapHeroCard" aria-label="Featured story pub">
-      <div className="mapHeroCardHead">
+    <aside className={styles.mapHeroCard} aria-label="Featured story pub">
+      <div className={styles.mapHeroCardHead}>
         <span>
           {venue.curation.heritageEra ?? "Story pub"}
           {venue.curation.sourceLabel
@@ -33,12 +34,12 @@ export default function MapHeroCard({
         </button>
       </div>
       <strong>{venue.name}</strong>
-      <div className="mapHeroCopy">
+      <div className={styles.mapHeroCopy}>
         <ProseDisclosure text={heritageNote} />
       </div>
       <button
         type="button"
-        className="mapHeroVisit"
+        className={styles.mapHeroVisit}
         onClick={() => onVisit(venue.id)}
       >
         Visit

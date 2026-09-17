@@ -15,6 +15,7 @@ import {
   type CommunityPricesState,
 } from "@/components/map/useCommunityPrices";
 import { ClaimBadge } from "@/components/map/venueInspectorBits";
+import overviewStyles from "@/components/map/inspector/VenueOverviewTab.module.css";
 import {
   communityStampLabel,
   communityTrustNote,
@@ -192,7 +193,7 @@ export default function UnverifiedPubSheet({
             We know this {placeNoun} from OpenStreetMap. Here is what the
             community last logged.
           </p>
-          <div className="contributorPrice communityPriceRow">
+          <div className={`${overviewStyles.contributorPrice} communityPriceRow`}>
             <span>
               <ClaimBadge kind="contributor" /> Logged by a PUBMAXXER
             </span>

@@ -1,0 +1,177 @@
+.mapSkeleton {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: clamp(18px, 4vw, 44px);
+  background: var(--paper);
+  background-image:
+    linear-gradient(90deg, rgba(47, 111, 143, 0.08), transparent 30% 70%, rgba(181, 73, 58, 0.08)),
+    radial-gradient(rgba(154, 106, 36, 0.13) 1px, transparent 1px);
+  background-size: auto, 22px 22px;
+}
+
+:global([data-theme="dark"]) .mapSkeleton {
+  background: var(--ink-deep);
+  background-image:
+    linear-gradient(90deg, rgba(47, 111, 143, 0.2), transparent 30% 70%, rgba(181, 73, 58, 0.14)),
+    radial-gradient(rgba(211, 164, 74, 0.12) 1px, transparent 1px);
+  background-size: auto, 22px 22px;
+}
+
+.mapSkeletonInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: min(86vw, 560px);
+}
+
+.mapSkeletonMap {
+  width: 100%;
+  aspect-ratio: 19 / 12;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
+  border-radius: var(--radius-sm);
+  /* Wave J2 — warmer paper wash so skeleton ↔ first pins share one atmosphere. */
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--paper) 82%, var(--river) 18%) 1px, transparent 1px),
+    linear-gradient(0deg, color-mix(in srgb, var(--paper) 86%, var(--pint) 14%) 1px, transparent 1px),
+    color-mix(in srgb, var(--paper) 92%, var(--amber) 8%);
+  background-size: 42px 42px, 42px 42px, auto;
+  box-shadow: 0 24px 58px color-mix(in srgb, var(--ink-deep) 18%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--panel-raised) 70%, transparent);
+  animation: mapSkeletonEnter var(--duration-slow) var(--ease-out) both;
+}
+
+@keyframes mapSkeletonEnter {
+  from {
+    opacity: 0.72;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.mapSkeletonStreet {
+  stroke: var(--brass);
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  opacity: 0.2;
+}
+
+.mapSkeletonStreet--minor {
+  stroke-width: 0.9;
+  opacity: 0.15;
+}
+
+.mapSkeletonRiver {
+  stroke: var(--river);
+  stroke-width: 12;
+  stroke-linecap: round;
+  opacity: 0.42;
+}
+
+.mapSkeletonPin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mapSkeletonPulse 1.6s ease-in-out infinite;
+}
+
+.mapSkeletonDotHalo {
+  fill: rgba(211, 164, 74, 0.18);
+}
+
+.mapSkeletonDot {
+  stroke: rgba(255, 255, 255, 0.78);
+  stroke-width: 1.8;
+  filter: drop-shadow(0 3px 5px rgba(24, 34, 26, 0.18));
+}
+
+@keyframes mapSkeletonPulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.82);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+
+.mapSkeletonCopy {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  max-width: min(86vw, 420px);
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--brass) 24%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink-soft);
+}
+
+.mapSkeletonCopy h1 {
+  margin: 0 0 2px;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: clamp(1rem, 2vw, 1.22rem);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.15;
+}
+
+/* The route skeleton and PubMap's own .mapLoading print the SAME sentence, one
+   after the other, and the handover is meant to read as one held frame. It did
+   not: this line was 0.84rem/650 and .mapLoadingCopy's is 0.88rem/700, so the
+   swap repainted one sentence 19% larger about 700 ms in. That is a new largest
+   contentful paint for a reader who has been shown nothing new, and it carried
+   the frame's own layout shift with it. The type is the live frame's, so the
+   first paint is already the final one. */
+.mapSkeletonCopy p {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.mapSkeletonSpinnerDot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brass);
+  box-shadow: 0 0 0 5px rgba(154, 106, 36, 0.14);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@media (max-width: 640px) {
+  .mapSkeletonInner {
+    width: min(92vw, 560px);
+  }
+
+  .mapSkeletonCopy {
+    width: 100%;
+  }
+}
+
+/* Reduced motion: the field stays legible but still; status pulses stop. */
+@media (prefers-reduced-motion: reduce) {
+  .mapSkeletonPin {
+    animation: none;
+    opacity: 0.9;
+  }
+  .mapSkeletonSpinnerDot {
+    animation: none;
+    opacity: 0.9;
+  }
+  .mapSkeletonMap {
+    animation: none;
+  }
+}
