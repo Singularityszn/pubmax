@@ -930,35 +930,6 @@ button:disabled {
     font-size: 1.34rem;
   }
 
-  /* Landlord ask row: stack input above the send button so both stay ≥44px. */
-  .landlordForm {
-    flex-wrap: wrap;
-  }
-
-  .landlordForm input {
-    min-height: 44px;
-  }
-
-  .landlordForm button {
-    width: 100%;
-    min-height: 44px;
-  }
-
-  .routeMapPrompt {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .routeMapPrompt button {
-    justify-content: center;
-    width: 100%;
-  }
-
-  /* Route rows: keep the number + text comfortable, no overflow. */
-  .routeList li > button {
-    grid-template-columns: 28px 1fr;
-    gap: 9px;
-  }
 }
 
 /* ────────────────────────────────────────────────────────────────────────
