@@ -19,7 +19,7 @@ import { buildMapSearchSuggestions } from "@/lib/mapSearchSuggest";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
-const suggestCss = read("components/map/mapSearchSuggest.css");
+const suggestCss = read("components/map/mapSearchSuggest.module.css");
 const suggest = read("components/map/MapSearchSuggest.tsx");
 
 // Anchored to a line start on purpose. Unanchored, the FIRST match for

@@ -102,7 +102,7 @@ describe("the You card counts what you mapped, never days running", () => {
     // person cannot put the block back without reading this test.
     for (const file of [
       "components/profile/YourContributionsCard.tsx",
-      "components/profile/yourContributionsCard.css",
+      "components/profile/yourContributionsCard.module.css",
     ]) {
       const source = readFileSync(join(ROOT, file), "utf8");
       // The word survives only in the comments that say why it is gone, so

@@ -12,7 +12,7 @@ const citySuggestBannerCss = readFileSync(
   "utf8",
 );
 const mobileMapShellCss = readFileSync(
-  join(process.cwd(), "components/mobile/mobileMapShell.css"),
+  join(process.cwd(), "components/mobile/mobileMapShell.module.css"),
   "utf8",
 );
 const profileCss = readFileSync(
@@ -44,7 +44,7 @@ describe("activation chrome CSS", () => {
   });
 
   // The plan pill's height and its clearance above the bottom dock moved into
-  // the floating stack's published tokens (components/nav/mobileNav.css), so
+  // the floating stack's published tokens (components/nav/mobileNav.module.css), so
   // there is no literal left here to match. Both are measured against the
   // RENDERED boxes at 320/390/430 by e2e/mobile-map-chrome-fit.spec.ts.
 

@@ -6,9 +6,9 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) =>
   readFileSync(join(process.cwd(), path), "utf8");
 
-const toolbarCss = read("components/map/mapToolbar.css");
-const siteNavCss = read("components/nav/siteNav.css");
-const mobileCss = read("components/mobile/mobileMapShell.css");
+const toolbarCss = read("components/map/mapToolbar.module.css");
+const siteNavCss = read("components/nav/siteNav.module.css");
+const mobileCss = read("components/mobile/mobileMapShell.module.css");
 const tonightArcCss = read("components/map/tonightArcChips.module.css");
 
 describe("map surface alignment", () => {
@@ -27,7 +27,7 @@ describe("map surface alignment", () => {
     // own button rather than to the map's centred boundary (PlanAstra item 9).
     expect(tonightArcCss).not.toMatch(/--desktop-map-surface-width/);
     expect(
-      read("components/map/mapVenueKindFilter.css"),
+      read("components/map/mapVenueKindFilter.module.css"),
       "the panel is anchored to its button",
     ).toMatch(/\.mapVenueKindFilterPanel\s*{[\s\S]*?position:\s*absolute/);
   });

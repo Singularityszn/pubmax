@@ -17,7 +17,7 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 const cardSource = read("components/map/MapArrivalCard.tsx");
-const cardCss = read("components/map/mapArrivalCard.css");
+const cardCss = read("components/map/mapArrivalCard.module.css");
 const pubMapSource = read("components/PubMap.tsx");
 const canvasSource = read("components/PubMapCanvas.tsx");
 const shellSource = read("components/mobile/MobileMapShell.tsx");
@@ -113,7 +113,7 @@ describe("the first-visit card is a strip at the top on a phone", () => {
 });
 
 describe("the phone chrome no longer steps around a card at the foot", () => {
-  const shellCss = read("components/mobile/mobileMapShell.css");
+  const shellCss = read("components/mobile/mobileMapShell.module.css");
 
   it("stops hiding the chip row, the plan pill and the map-edge column", () => {
     expect(shellCss).not.toMatch(

@@ -7,8 +7,8 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 
 const globalCss = read("app/globals.css");
 const themeCss = read("app/theme.css");
-const mobileCss = read("components/mobile/mobileMapShell.css");
-const createFabCss = read("components/nav/createFab.css");
+const mobileCss = read("components/mobile/mobileMapShell.module.css");
+const createFabCss = read("components/nav/createFab.module.css");
 const landingCss = read("components/landing/landing.module.css");
 const venueCss = read("components/map/venueSheet.module.css");
 const pubMapSource = read("components/PubMap.tsx");

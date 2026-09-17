@@ -35,7 +35,7 @@ const ROOT = path.join(__dirname, "..");
 const read = (relative: string): string =>
   readFileSync(path.join(ROOT, relative), "utf8");
 
-const shellCss = read("components/mobile/mobileMapShell.css");
+const shellCss = read("components/mobile/mobileMapShell.module.css");
 const dragHook = read("components/mobile/useSheetHeightDrag.ts");
 const pubMap = read("components/PubMap.tsx");
 

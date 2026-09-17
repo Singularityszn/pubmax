@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 // THE TOP SAFE AREA IS PAID ONCE, AND THE BAR PAYS IT.
 //
-// components/nav/siteNav.css gives the standard bar
+// components/nav/siteNav.module.css gives the standard bar
 // `margin-top: env(safe-area-inset-top)`, so on a notched phone the bar clears
 // the clock by itself. A page shell that mounts SiteNav as its first child and
 // ALSO adds the inset to its own top padding pays it twice: /out and /today
@@ -42,7 +42,7 @@ function shellBlocks(stylesheet: string, shellClass: string): string[] {
 
 describe("a page shell under the standard bar does not add the top inset the bar already adds", () => {
   it("is measuring the bar that really carries the inset", () => {
-    const nav = readFileSync(join(ROOT, "components/nav/siteNav.css"), "utf8");
+    const nav = readFileSync(join(ROOT, "components/nav/siteNav.module.css"), "utf8");
     expect(nav).toContain("margin-top: env(safe-area-inset-top, 0px);");
   });
 

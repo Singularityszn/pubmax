@@ -66,7 +66,7 @@ const FIXTURE_ONLY_CAPTION_CASES: CaptionCase[] = [
   },
   {
     name: "search recovery status",
-    cssPath: "components/map/mapToolbar.css",
+    cssPath: "components/map/mapToolbar.module.css",
     selector: ".mapToolbarSearchStatusCopy",
     expected: "Search is unavailable right now. Existing pubs remain on the map while it reconnects.",
     markup: `
@@ -80,7 +80,7 @@ const FIXTURE_ONLY_CAPTION_CASES: CaptionCase[] = [
   },
   {
     name: "search price provenance",
-    cssPath: "components/map/mapSearchSuggest.css",
+    cssPath: "components/map/mapSearchSuggest.module.css",
     selector: ".mapSearchSuggestPriceProvenance",
     expected: "Observed 30 July · Community report",
     markup: `

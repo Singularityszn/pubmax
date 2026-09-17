@@ -52,7 +52,7 @@ test("a town typed at the picker still opens its own arrival", async ({ page }) 
 // printed its tail under the floating create action, so "ODbL." and the full
 // stop were painted beneath the button. A licence line is the one line that may
 // never be partly hidden. The remedies are the control's own published lane
-// (`.createFabLane`, components/nav/createFab.css) and a credit whose tap floor
+// (`.createFabLane`, components/nav/createFab.module.css) and a credit whose tap floor
 // no longer grows its line box into the tab bar's band. Rendered geometry is
 // what proves it, never the stylesheet's text.
 test("the town answer's licence credit is clear of the floating chrome", async ({ page }) => {

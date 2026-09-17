@@ -142,7 +142,7 @@ function declarationsOf(body: string): Array<{ prop: string; value: string }> {
     });
 }
 
-const siteNavCss = read("components/nav/siteNav.css");
+const siteNavCss = read("components/nav/siteNav.module.css");
 const globalsCss = read("app/globals.css");
 
 /* Every shell that renders the in-flow (non-floating) SiteNav as a direct

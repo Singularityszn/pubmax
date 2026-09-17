@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const css = readFileSync(join(process.cwd(), "components/plan/nightCrawl.module.css"), "utf8");
 const tsx = readFileSync(join(process.cwd(), "components/plan/NightCrawlMode.tsx"), "utf8");
-const navCss = readFileSync(join(process.cwd(), "components/nav/mobileNav.css"), "utf8");
+const navCss = readFileSync(join(process.cwd(), "components/nav/mobileNav.module.css"), "utf8");
 const consentCss = readFileSync(join(process.cwd(), "components/AnalyticsConsent.module.css"), "utf8");
 
 describe("Night-crawl surface conformance (U7)", () => {

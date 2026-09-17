@@ -5,8 +5,8 @@ import { describe, expect, it } from "vitest";
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
-const toolbarCss = read("components/map/mapToolbar.css");
-const layersCss = read("components/map/mapLayersControl.css");
+const toolbarCss = read("components/map/mapToolbar.module.css");
+const layersCss = read("components/map/mapLayersControl.module.css");
 
 function ruleBody(css: string, selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

@@ -14,15 +14,15 @@ const sheetTitles = readFileSync(
   "utf8",
 );
 const mobileCss = readFileSync(
-  join(process.cwd(), "components/mobile/mobileMapShell.css"),
+  join(process.cwd(), "components/mobile/mobileMapShell.module.css"),
   "utf8",
 );
 const keyCss = readFileSync(
-  join(process.cwd(), "components/map/mapKey.css"),
+  join(process.cwd(), "components/map/mapKey.module.css"),
   "utf8",
 );
 const conciergeCss = readFileSync(
-  join(process.cwd(), "components/map/mapConciergeAsk.css"),
+  join(process.cwd(), "components/map/mapConciergeAsk.module.css"),
   "utf8",
 );
 

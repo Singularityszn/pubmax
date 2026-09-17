@@ -69,7 +69,7 @@ describe("MapKey", () => {
 
   it("draws routed, estimated, and story lines as different marks", () => {
     const css = readFileSync(
-      join(process.cwd(), "components/map/mapKey.css"),
+      join(process.cwd(), "components/map/mapKey.module.css"),
       "utf8",
     );
 

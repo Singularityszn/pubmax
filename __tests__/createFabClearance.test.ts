@@ -25,8 +25,8 @@ function read(relative: string): string {
   return readFileSync(join(REPO_ROOT, relative), "utf8");
 }
 
-const mobileNavCss = read("components/nav/mobileNav.css");
-const createFabCss = read("components/nav/createFab.css");
+const mobileNavCss = read("components/nav/mobileNav.module.css");
+const createFabCss = read("components/nav/createFab.module.css");
 const nearMeNowCss = read("components/nearme/nearMeNow.module.css");
 
 describe("the body reserves the control's own lane", () => {

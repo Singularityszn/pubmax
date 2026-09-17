@@ -128,7 +128,7 @@ describe("the control the desktop map opens", () => {
       'aria-label="Filters: venue types, view and zone, 2 filters on"',
     );
     const css = readFileSync(
-      join(process.cwd(), "components/map/mapVenueKindFilter.css"),
+      join(process.cwd(), "components/map/mapVenueKindFilter.module.css"),
       "utf8",
     );
     expect(css).toMatch(
@@ -144,7 +144,7 @@ describe("the control the desktop map opens", () => {
     // room is what is left below the toolbar's own bottom edge, which is the
     // clearance plus the height.
     const css = readFileSync(
-      join(process.cwd(), "components/map/mapVenueKindFilter.css"),
+      join(process.cwd(), "components/map/mapVenueKindFilter.module.css"),
       "utf8",
     );
     const cap = css.match(/\.mapVenueKindFilterPanel\s*\{[\s\S]*?max-height:[^;]+;/)?.[0] ?? "";

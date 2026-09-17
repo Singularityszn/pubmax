@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { pubsCountLabel } from "@/components/pubs/PubsGallery";
 
 const source = readFileSync(join(process.cwd(), "components/pubs/PubsGallery.tsx"), "utf8");
-const css = readFileSync(join(process.cwd(), "components/pubs/pubsGallery.css"), "utf8");
+const css = readFileSync(join(process.cwd(), "components/pubs/pubsGallery.module.css"), "utf8");
 
 describe("pubs gallery secondary surface", () => {
   it("does not present an incomplete venue read as an authoritative count", () => {

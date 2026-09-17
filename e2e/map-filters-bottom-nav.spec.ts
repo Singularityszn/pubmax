@@ -30,7 +30,7 @@ test.describe("map filters sheet and bottom navigation", () => {
   });
 
   // Once the reader has been answered, the consent card takes the outing pill's
-  // slot on the phone map (components/mobile/mobileMapShell.css), and an open
+  // slot on the phone map (components/mobile/mobileMapShell.module.css), and an open
   // filters sheet still covers it. e2e/first-run-chrome-share.spec.ts owns the
   // stranger's first paint and the pill coming back.
   test("analytics consent takes the pill's slot and hides behind an open filters sheet", async ({ page }) => {

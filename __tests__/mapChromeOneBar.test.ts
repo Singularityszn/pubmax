@@ -23,7 +23,7 @@ import { describe, expect, it } from "vitest";
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
 const shell = read("components/mobile/MobileMapShell.tsx");
-const shellCss = read("components/mobile/mobileMapShell.css");
+const shellCss = read("components/mobile/mobileMapShell.module.css");
 const pubMap = read("components/PubMap.tsx");
 const toolbar = read("components/map/MapToolbar.tsx");
 
@@ -181,7 +181,7 @@ describe("finding 2.15 — SHOW ME opens only from a control the reader presses"
 
 describe("finding 2.15 — the banners dock under the bar and step off the map", () => {
   it("docks them against the toolbar's measured height, not a constant", () => {
-    const toolbarCss = read("components/map/mapToolbar.css");
+    const toolbarCss = read("components/map/mapToolbar.module.css");
     expect(toolbar, "the toolbar publishes its own height").toMatch(
       /setProperty\(\s*"--map-toolbar-resting-height"/,
     );

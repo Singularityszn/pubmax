@@ -27,7 +27,7 @@ describe("MapExperienceLens", () => {
 
   it("ships 44px targets and wraps safely at 390px", () => {
     const css = readFileSync(
-      join(process.cwd(), "components/map/mapExperienceLens.css"),
+      join(process.cwd(), "components/map/mapExperienceLens.module.css"),
       "utf8",
     );
     expect(css).toMatch(/\.mapExperienceLensOption\s*{[^}]*min-height:\s*44px/);

@@ -18,7 +18,7 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 
 const pubMap = read("components/PubMap.tsx");
 const mobileShell = read("components/mobile/MobileMapShell.tsx");
-const mobileCss = read("components/mobile/mobileMapShell.css");
+const mobileCss = read("components/mobile/mobileMapShell.module.css");
 
 describe("nearMeLocationFailure", () => {
   it("reads each browser error code as its own reason", () => {

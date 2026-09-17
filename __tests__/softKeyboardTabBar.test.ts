@@ -42,7 +42,7 @@ vi.mock("@/components/auth/useViewerHandle", () => ({
 }));
 
 const mobileNavCss = readFileSync(
-  join(process.cwd(), "components/nav/mobileNav.css"),
+  join(process.cwd(), "components/nav/mobileNav.module.css"),
   "utf8",
 );
 

@@ -15,9 +15,9 @@ import { describe, expect, it } from "vitest";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
-const mobileMapCss = read("components/mobile/mobileMapShell.css");
-const mapKeyCss = read("components/map/mapKey.css");
-const cameraControlsCss = read("components/map/mapCameraControls.css");
+const mobileMapCss = read("components/mobile/mobileMapShell.module.css");
+const mapKeyCss = read("components/map/mapKey.module.css");
+const cameraControlsCss = read("components/map/mapCameraControls.module.css");
 const canvasSource = read("components/PubMapCanvas.tsx");
 
 /**

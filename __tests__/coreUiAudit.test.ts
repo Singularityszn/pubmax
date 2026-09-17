@@ -133,7 +133,7 @@ const tour = readFileSync(join(root, "components/onboarding/firstRunTour.module.
 const planEntry = readFileSync(join(root, "components/plan/PlanDescribeFirst.tsx"), "utf8");
 const planCss = readFileSync(join(root, "app/plan/Plan.module.css"), "utf8");
 const mobileMapCss = readFileSync(
-  join(root, "components/mobile/mobileMapShell.css"),
+  join(root, "components/mobile/mobileMapShell.module.css"),
   "utf8",
 );
 const nextConfig = readFileSync(join(root, "next.config.mjs"), "utf8");

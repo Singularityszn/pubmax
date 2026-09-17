@@ -15,11 +15,11 @@ import { describe, expect, it } from "vitest";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
-const toolbarCss = read("components/map/mapToolbar.css");
+const toolbarCss = read("components/map/mapToolbar.module.css");
 const toolbarSource = read("components/map/MapToolbar.tsx");
 const sheetCss = read("components/map/venueSheet.module.css");
-const bannerCss = read("components/map/mapBannerStaging.css");
-const searchCss = read("components/map/mapSearchSuggest.css");
+const bannerCss = read("components/map/mapBannerStaging.module.css");
+const searchCss = read("components/map/mapSearchSuggest.module.css");
 
 describe("desktop venue sheet chrome fit", () => {
   it("publishes the drawer width the toolbar has to stay clear of", () => {

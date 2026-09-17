@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 // render is a presentation concern). This locks its policy from source, the same
 // idiom as activationChromeCss.test.ts. Behaviour is additionally proven by the
 // fresh-profile + post-dismissal Playwright screenshots.
-const css = readFileSync(join(process.cwd(), "components/map/mapBannerStaging.css"), "utf8");
+const css = readFileSync(join(process.cwd(), "components/map/mapBannerStaging.module.css"), "utf8");
 
 describe("map banner staging CSS", () => {
   it("keeps location independent while onboarding suppresses ambient status and Tonight", () => {

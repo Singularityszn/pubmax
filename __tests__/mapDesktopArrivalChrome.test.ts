@@ -15,7 +15,7 @@ const toolbarSource = read("components/map/MapToolbar.tsx");
 const kindFilterSource = read("components/map/MapVenueKindFilter.tsx");
 const layersSource = read("components/map/MapLayersControl.tsx");
 const canvasSource = read("components/PubMapCanvas.tsx");
-const bannerStagingCss = read("components/map/mapBannerStaging.css");
+const bannerStagingCss = read("components/map/mapBannerStaging.module.css");
 const chipsSource = read("components/map/TonightArcChips.tsx");
 
 describe("the toolbar row carries the arrival set only", () => {

@@ -17,7 +17,7 @@ import { describe, expect, it } from "vitest";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
-const mobileMapCss = read("components/mobile/mobileMapShell.css");
+const mobileMapCss = read("components/mobile/mobileMapShell.module.css");
 const mobileMapChromeSpec = read("e2e/mobile-map-chrome-fit.spec.ts");
 const arcChipsCss = read("components/map/tonightArcChips.module.css");
 const arcChipsTsx = read("components/map/TonightArcChips.tsx");
@@ -486,7 +486,7 @@ describe("mobile tap-target floors", () => {
     // bar: measured at 390 with tiles refused, the Retry button's own centre
     // point was owned by BUTTON.mobilePlanActivation, so the control the copy
     // tells a reader to tap was not tappable. It reads that stack member's own
-    // published berth and height (components/nav/mobileNav.css) rather than
+    // published berth and height (components/nav/mobileNav.module.css) rather than
     // restating a number, and e2e/map-blocked-fallback.spec.ts measures the
     // rendered ownership.
     expect(pubMapCanvasCss).toMatch(

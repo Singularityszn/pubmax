@@ -235,7 +235,7 @@ describe("drink chip styling ships with the component", () => {
     "utf8",
   );
   const css = readFileSync(
-    join(process.cwd(), "components/map/mapToolbar.css"),
+    join(process.cwd(), "components/map/mapToolbar.module.css"),
     "utf8",
   );
 

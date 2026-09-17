@@ -294,7 +294,7 @@ for (const viewport of VIEWPORTS) {
       sheet.locator(".mobileVenuePeekSummary .priceBadge"),
     );
 
-    // Selection is the fill (#700, components/map/venueSheet.css): the active
+    // Selection is the fill (#700, components/map/venueSheet.module.css): the active
     // tab is flat `--panel-raised` with ink text and a 2px coral underline. The
     // coral gradient it replaced is gone, so its contrast is read off the fill.
     const activeTab = sheet.locator(".venueTab.active");

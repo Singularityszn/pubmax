@@ -18,11 +18,11 @@ describe("QA high findings — mobile sheet and consent layering", () => {
   const globalCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
   const consentCss = readFileSync(join(process.cwd(), "components/AnalyticsConsent.module.css"), "utf8");
   const mobileMapShellCss = readFileSync(
-    join(process.cwd(), "components/mobile/mobileMapShell.css"),
+    join(process.cwd(), "components/mobile/mobileMapShell.module.css"),
     "utf8",
   );
   const mobileNavCss = readFileSync(
-    join(process.cwd(), "components/nav/mobileNav.css"),
+    join(process.cwd(), "components/nav/mobileNav.module.css"),
     "utf8",
   );
   const mobileTabBar = readFileSync(
