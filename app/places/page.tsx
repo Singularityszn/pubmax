@@ -5,8 +5,6 @@ import { PLACES_PATH, parsePlacesCityParam } from "@/lib/places";
 
 import PlacesClient from "./PlacesClient";
 
-import "./Places.module.css";
-
 const PAGE_TITLE = "Places";
 const PAGE_DESCRIPTION =
   "Pick the city PUBMAXXING opens on. Listed pint prices where we have them, the patches inside each city, and the same choice for the map, Out and Near.";

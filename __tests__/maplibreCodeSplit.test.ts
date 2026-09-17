@@ -10,7 +10,6 @@ import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 
 const pubMap = readFileSync(join(process.cwd(), "components/PubMap.tsx"), "utf8");
 const canvas = readFileSync(join(process.cwd(), "components/PubMapCanvas.tsx"), "utf8");
-const globalsCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
 const stageChromeCss = readFileSync(join(process.cwd(), "components/map/MapStageChrome.module.css"), "utf8");
 const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"));
 const workerCopy = readFileSync(

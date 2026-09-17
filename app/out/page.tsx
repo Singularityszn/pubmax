@@ -5,8 +5,6 @@ import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 
 import OutClient from "./OutClient";
 
-import "./Out.module.css";
-
 const PAGE_TITLE = "Out";
 const PAGE_DESCRIPTION =
   "What's on in London. Live music, quiz nights, and events from sourced listings. Open a plan when you have one.";

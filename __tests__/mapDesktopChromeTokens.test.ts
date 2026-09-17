@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
-const globalsCss = read("app/globals.css");
 const toolbarCss = read("components/map/mapToolbar.css");
 const layersCss = read("components/map/mapLayersControl.css");
 

@@ -18,7 +18,6 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 
 const mobileMapCss = read("components/mobile/mobileMapShell.css");
 const suggestCss = read("components/map/mapSearchSuggest.css");
-const globalCss = read("app/globals.css");
 const controlRailCss = read("components/map/ControlRailChrome.module.css");
 const searchFieldTsx = read("components/ui/search-field.tsx");
 const pubMapTsx = read("components/PubMap.tsx");
