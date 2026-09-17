@@ -34,7 +34,7 @@ import {
 } from "@/lib/venueKindFilters";
 import { parseZoneParam, type ZonePintIndex } from "@/lib/zones";
 
-import "./mapVenueKindFilter.css";
+import styles from "./mapVenueKindFilter.module.css";
 
 /* The chips ride the reader's own tap, never the map's cold start: the closed
    control is one button, and its panel is what costs a chunk. */
@@ -112,7 +112,7 @@ export default function MapVenueKindFilter({
 
   return (
     <div
-      className={open ? "mapVenueKindFilter isOpen" : "mapVenueKindFilter"}
+      className={open ? `${styles.mapVenueKindFilter} isOpen` : styles.mapVenueKindFilter}
       ref={rootRef}
     >
       <button
@@ -133,16 +133,16 @@ export default function MapVenueKindFilter({
             search field is what pays for a longer label (the top bar drops its
             own "More" label in the same band). The count stays, and the
             accessible name carries the whole sentence at every width. */}
-        <span className="mapVenueKindFilterWord">{VENUE_KIND_FILTER_WORD}</span>
+        <span className={styles.mapVenueKindFilterWord}>{VENUE_KIND_FILTER_WORD}</span>
         {refinements > 0 ? (
-          <span className="mapVenueKindFilterCount">{refinements}</span>
+          <span className={styles.mapVenueKindFilterCount}>{refinements}</span>
         ) : null}
       </button>
 
       {open ? (
         <div
           id={panelId}
-          className="mapVenueKindFilterPanel"
+          className={styles.mapVenueKindFilterPanel}
           role="dialog"
           aria-label="Filters"
         >
@@ -171,7 +171,7 @@ export default function MapVenueKindFilter({
           {hidden > 0 ? (
             <button
               type="button"
-              className="mapVenueKindFilterReset"
+              className={styles.mapVenueKindFilterReset}
               onClick={() => onChange(showAllVenueKinds(visibility, experienceLens))}
             >
               Show all types

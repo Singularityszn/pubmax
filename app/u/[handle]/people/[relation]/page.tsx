@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import SiteNav from "@/components/nav/SiteNav";
 import { normalizeHandle } from "@/lib/profiles";
 
+import styles from "@/components/social/peopleDirectory.module.css";
 import PeopleListClient, { type PeopleRelation } from "./PeopleListClient";
 
 const RELATIONS: readonly PeopleRelation[] = ["followers", "following"];
@@ -40,7 +41,7 @@ export default async function ProfilePeoplePage({
     <>
       <SiteNav />
       <main className="container profileMain" id="main-content">
-        <Link className="peopleDir__handle" href={`/u/${encodeURIComponent(clean)}`}>
+        <Link className={styles.peopleDirHandle} href={`/u/${encodeURIComponent(clean)}`}>
           Back to the profile
         </Link>
         <PeopleListClient handle={clean} relation={relation} />

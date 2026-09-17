@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Check, Eye, LockKeyhole, UserPlus } from "lucide-react";
 
-import "./NightMemoryStudio.css";
+import styles from "./NightMemoryStudio.module.css";
 
 import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { authedActionFetch } from "@/lib/authedFetch";
@@ -542,14 +542,14 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
       </div>
 
       {studioLoaded && memories.length === 0 && stories.length === 0 ? (
-        <div className="memoryStudioFirstRun" role="status">
-          <p className="memoryStudioFirstRunTitle">Your Memory studio is empty.</p>
-          <p className="memoryStudioFirstRunBody">
+        <div className={styles.memoryStudioFirstRun} role="status">
+          <p className={styles.memoryStudioFirstRunTitle}>Your Memory studio is empty.</p>
+          <p className={styles.memoryStudioFirstRunBody}>
             A Memory is a private night out in your words. Add the Moments worth keeping, then shape a Story you decide whether to share. Start below, or save tonight from the map.
           </p>
-          <div className="memoryStudioFirstRunActions">
-            <Link href="/moment" className="memoryStudioFirstRunPrimary">Save a Moment now</Link>
-            <Link href="/map?log=1" className="memoryStudioFirstRunSecondary">Log a pint first</Link>
+          <div className={styles.memoryStudioFirstRunActions}>
+            <Link href="/moment" className={styles.memoryStudioFirstRunPrimary}>Save a Moment now</Link>
+            <Link href="/map?log=1" className={styles.memoryStudioFirstRunSecondary}>Log a pint first</Link>
           </div>
         </div>
       ) : null}
@@ -587,18 +587,18 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
         <div><strong>{stories.length}</strong><span>Stories</span></div>
       </div>
       {memories.length ? (
-        <section className="memoryKeepShelf" aria-labelledby="memory-keep-title">
+        <section className={styles.memoryKeepShelf} aria-labelledby="memory-keep-title">
           <h4 id="memory-keep-title">What you are keeping</h4>
-          <ul className="memoryKeepList" aria-label="Your private Memories">
+          <ul className={styles.memoryKeepList} aria-label="Your private Memories">
             {memories.map((memory) => {
               const held = memory.id === draft.selectedMemoryId;
               const armed = pendingRemoval?.kind === "memory" && pendingRemoval.id === memory.id;
               return (
                 <li key={memory.id} data-active={held ? "" : undefined}>
-                  <div className="memoryKeepRow">
+                  <div className={styles.memoryKeepRow}>
                     <button
                       type="button"
-                      className="memoryKeepRow__select"
+                      className={styles.memoryKeepRowSelect}
                       aria-pressed={held}
                       onClick={() => { setPendingRemoval(null); update({ selectedMemoryId: memory.id }); }}
                     >
@@ -608,7 +608,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
                     {armed ? null : (
                       <button
                         type="button"
-                        className="memoryKeepRemove"
+                        className={styles.memoryKeepRemove}
                         disabled={saving}
                         onClick={() => setPendingRemoval({ kind: "memory", id: memory.id })}
                       >
@@ -617,14 +617,14 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
                     )}
                   </div>
                   {armed ? (
-                    <div className="memoryKeepConfirm" role="group" aria-label={`Remove ${memory.title}`}>
+                    <div className={styles.memoryKeepConfirm} role="group" aria-label={`Remove ${memory.title}`}>
                       <p>Remove this Memory and every Moment in it?</p>
                       <button type="button" disabled={saving} onClick={() => void removeMemory(memory.id)}>
                         Remove for good
                       </button>
                       <button
                         type="button"
-                        className="memoryKeepConfirm__keep"
+                        className={styles.memoryKeepConfirmKeep}
                         disabled={saving}
                         onClick={() => setPendingRemoval(null)}
                       >
@@ -637,21 +637,21 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
             })}
           </ul>
           {moments.length ? (
-            <ul className="memoryKeepList memoryKeepList--moments" aria-label="Moments in this Memory">
+            <ul className={`${styles.memoryKeepList} ${styles.memoryKeepListMoments}`} aria-label="Moments in this Memory">
               {moments.map((moment) => {
                 const armed = pendingRemoval?.kind === "moment" && pendingRemoval.id === moment.id;
                 const title = moment.caption || moment.venueId || MOMENT_KIND_LABELS[moment.kind];
                 return (
                   <li key={moment.id}>
-                    <div className="memoryKeepRow">
-                      <span className="memoryKeepRow__moment">
+                    <div className={styles.memoryKeepRow}>
+                      <span className={styles.memoryKeepRowMoment}>
                         <strong>{title}</strong>
                         <small>{MOMENT_KIND_LABELS[moment.kind]}</small>
                       </span>
                       {armed ? null : (
                         <button
                           type="button"
-                          className="memoryKeepRemove"
+                          className={styles.memoryKeepRemove}
                           disabled={saving}
                           onClick={() => setPendingRemoval({ kind: "moment", id: moment.id })}
                         >
@@ -660,14 +660,14 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
                       )}
                     </div>
                     {armed ? (
-                      <div className="memoryKeepConfirm" role="group" aria-label={`Remove ${title}`}>
+                      <div className={styles.memoryKeepConfirm} role="group" aria-label={`Remove ${title}`}>
                         <p>Remove this Moment, and its photo with it?</p>
                         <button type="button" disabled={saving} onClick={() => void removeMoment(moment.id)}>
                           Remove for good
                         </button>
                         <button
                           type="button"
-                          className="memoryKeepConfirm__keep"
+                          className={styles.memoryKeepConfirmKeep}
                           disabled={saving}
                           onClick={() => setPendingRemoval(null)}
                         >

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import "./socialViewerState.css";
+import styles from "./socialViewerState.module.css";
 
 export type SocialViewerPhase = "unresolved" | "signed-out" | "resolved";
 
@@ -22,7 +22,7 @@ export function SocialViewerState({
   if (phase === "unresolved") {
     return (
       <div
-        className="socialIdentitySkeletons"
+        className={styles.socialIdentitySkeletons}
         role="status"
         aria-busy="true"
         aria-label={loadingLabel}
@@ -35,7 +35,7 @@ export function SocialViewerState({
 
   if (phase === "signed-out") {
     return (
-      <p className="socialIdentityInvite">
+      <p className={styles.socialIdentityInvite}>
         {inviteMessage} <Link href={SOCIAL_SIGN_IN_HREF}>Sign in</Link>
       </p>
     );

@@ -9,7 +9,7 @@ import {
 import type { LeagueRow } from "@/lib/pintIndex";
 import type { ZonePintIndex } from "@/lib/zones";
 
-import "./venueAreaPriceCompare.css";
+import styles from "./venueAreaPriceCompare.module.css";
 
 type LoadedLeague = { rows: LeagueRow[] };
 
@@ -61,7 +61,7 @@ export default function VenueAreaPriceCompare({
   if (!line) return null;
 
   return (
-    <p className="venueAreaPriceCompare" role="status">
+    <p className={styles.venueAreaPriceCompare} role="status">
       {line}
     </p>
   );

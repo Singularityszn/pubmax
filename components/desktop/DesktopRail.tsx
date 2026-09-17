@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import "./desktopRail.css";
+import "./desktopRail.module.css";
 
 // Shared desktop right-rail host (Wave D2.1). A layout-only container that docks
 // the always-on desktop rail blocks — Conditions, Area news, Night arc — into a

@@ -1,0 +1,512 @@
+/* PUBMAXX mobile tab bar.
+   Colour comes from the shared tokens (globals.css / theme.css) so it flips
+   light/dark for free and reads correctly over both the paper landing and the
+   dark map shell. Fixed to the bottom on phones only; display:none above 640px
+   so the desktop navs are entirely unaffected.
+   640px is the shared mobile breakpoint — CSS can't import it, so this file
+   mirrors MOBILE_MAX_WIDTH in lib/breakpoints.ts by hand; keep them in sync. */
+
+/* Single source of truth for the tab-bar's reserved height. The body's
+   bottom clearance (below) must always match the bar so map/feed content never
+   hides behind it; hoisting the magic number here keeps the two in lockstep. */
+:global(:root) {
+  --tabbar-h: 64px;
+
+  /* ── The right-edge floating stack ────────────────────────────────────────
+     Every fixed control that parks above the tab bar is a MEMBER, and every
+     member publishes its own bottom offset and its own height here. That is
+     what makes the stack derivable: a member's TOP edge is bottom + height, and
+     the create action takes the berth one gap above the topmost member that is
+     actually on screen (this file reads them through body:has()).
+
+     Owning the numbers here rather than at each member's own rule is the point.
+     The create action first shipped assuming only the tab bar was below it, then
+     assuming only the Pub Pal pill was, and each time it landed on a control
+     whose offset it had never read - the map's planning pill, then the Near me
+     FAB. A member that stops declaring its geometry through these cannot be
+     stacked, and the rendered overlap proof in e2e/mobile-map-chrome-fit.spec.ts
+     is what catches that. */
+  --float-stack-gap: 12px;
+  /* The band every member measures from: the reserved tab-bar lane plus a gap.
+     mobileMapShell.css's --mobile-map-dock-clearance IS this. */
+  --float-stack-base: calc(
+    var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + var(--float-stack-gap)
+  );
+
+  /* Member: the Pub Pal summon pill (/, /map, /map/*, /plan, /plan/*). One
+     gap above the phone map planning pill so the full-width Describe control
+     never paints over it (e2e/mobile-map-tile-paint.spec.ts). */
+  --pal-summon-h: 52px;
+  --pal-summon-bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+
+  /* Member: the Night Mode pill, the way back into a plan that is on tonight.
+     It parks on the base band on every in-app route but /map and /, and it was
+     the one member that published its geometry in its OWN stylesheet instead of
+     here, so the create action never read it and landed straight on top of it,
+     swallowing its taps at 320px. Both numbers now live here, with the pill's
+     rule and its own published clearance reading them back
+     (components/night/nightMode.module.css). */
+  --night-pill-h: 44px;
+  --night-pill-bottom: var(--float-stack-base);
+
+  /* Member: the phone map's planning pill. */
+  --plan-activation-h: 48px;
+  --plan-activation-bottom: calc(var(--float-stack-base) + 10px);
+
+  /* Member: the map-edge corner column. Its box spans most of the viewport, but
+     what sits in this band is the Near me FAB parked at the column's own bottom
+     (justify-content: space-between). The consent variant keeps the column one
+     gap above the analytics card docked on the tab bar: its own berth while the
+     card is the 56px row, higher only when larger text grows the card's rem
+     lane. The create action does not stack above that card at all,
+     it stands down (createFab.css). */
+  --map-corner-locate-size: 52px;
+  --map-corner-bottom: calc(var(--float-stack-base) + 72px);
+  --map-corner-bottom-consent: max(
+    var(--map-corner-bottom),
+    calc(var(--float-stack-base) + var(--analytics-consent-mobile-clearance, 56px))
+  );
+
+  /* The map's first-visit ask is NOT a member of this stack. It was, as a
+     256px panel at the foot of the phone, and every member above it read a
+     published berth to step clear. It is a strip under the top bar now
+     (components/map/mapArrivalCard.module.css), so it takes no band down here and
+     nothing steps around it.
+
+  /* Member: the create action itself. It publishes its geometry here like every
+     member below it, because the BODY has to reserve its lane: the bottom
+     clearance reserved the tab bar alone, so the last 68px of every scrollable
+     page sat under the compose control at rest. The founders wall lost the
+     right of its final row and /today lost the title of its third card. */
+  --create-fab-h: 56px;
+  --create-fab-bottom: var(--float-stack-base);
+  /* The control's own inset from the right edge, published here rather than
+     restated at createFab.css, because a surface that has to keep content out
+     from under it needs the same number this control parks on. */
+  --create-fab-right: calc(12px + env(safe-area-inset-right, 0px));
+  /* The horizontal band the control owns, measured from the viewport's right
+     edge: its inset, its width and one gap. A scrolling list reserves this the
+     way the map chrome reserves --mobile-map-corner-lane, minus its own gutter,
+     because every row of a list passes under this control while it scrolls and
+     the row's right cell is where /near prints the price. */
+  --create-fab-lane: calc(
+    var(--create-fab-right) + var(--create-fab-h) + var(--float-stack-gap)
+  );
+
+  /* Each member's top edge, which is the only thing a control above it needs. */
+  --float-stack-top-create: calc(var(--create-fab-bottom) + var(--create-fab-h));
+  --float-stack-top-pal: calc(var(--pal-summon-bottom) + var(--pal-summon-h));
+  --float-stack-top-night-pill: calc(
+    var(--night-pill-bottom) + var(--night-pill-h)
+  );
+  --float-stack-top-plan: calc(
+    var(--plan-activation-bottom) + var(--plan-activation-h)
+  );
+  --float-stack-top-map-corner: calc(
+    var(--map-corner-bottom) + var(--map-corner-locate-size)
+  );
+}
+
+:global(body) {
+  --float-stack-top-create: calc(var(--create-fab-bottom) + var(--create-fab-h));
+}
+
+:global(body:has(.mapStage)) {
+  --pal-summon-bottom: calc(var(--float-stack-top-plan) + var(--float-stack-gap));
+  --float-stack-top-pal: calc(var(--pal-summon-bottom) + var(--pal-summon-h));
+}
+
+/* When a member lifts the map-edge column, its published top edge must move
+   with it or the create action reads a stale berth and lands on Near me. */
+:global(body:has(.mapStage):has(.palSummon)) {
+  --float-stack-top-map-corner: calc(
+    var(--float-stack-top-pal) + var(--float-stack-gap) + var(--map-corner-locate-size)
+  );
+}
+:global(body:has(.mapStage):has(.analyticsConsentPrompt)) {
+  --pal-summon-bottom: max(
+    calc(var(--float-stack-top-plan) + var(--float-stack-gap)),
+    calc(var(--float-stack-base) + var(--analytics-consent-mobile-clearance, 56px))
+  );
+  --float-stack-top-map-corner: calc(
+    var(--map-corner-bottom-consent) + var(--map-corner-locate-size)
+  );
+}
+
+/* First of the four, because source order is what settles a tie and every
+   member below it parks higher: the Night pill never shares a screen with the
+   two map members (NightModeCard stands down on /map), and where it does share
+   one with the Pub Pal pill, on /plan, that pill's top edge is the higher of
+   the two and must win. */
+:global(body:has(.nightPill)) {
+  --create-fab-bottom: calc(
+    var(--float-stack-top-night-pill) + var(--float-stack-gap)
+  );
+}
+:global(body:has(.mobilePlanActivation)) {
+  --create-fab-bottom: calc(var(--float-stack-top-plan) + var(--float-stack-gap));
+}
+:global(body:has(.palSummon)) {
+  --create-fab-bottom: calc(var(--float-stack-top-pal) + var(--float-stack-gap));
+}
+:global(body:has(.mobileMapUtilityCorner)) {
+  --create-fab-bottom: calc(var(--float-stack-top-map-corner) + var(--float-stack-gap));
+}
+
+/* Instant primary-tab loading shell (App Router loading.tsx). Paper/ink only —
+   no brand animation beyond a quiet pulse; reduced-motion freezes it. */
+.routeLoadingShell {
+  min-height: 100dvh;
+  min-height: 100svh;
+  box-sizing: border-box;
+  /* The same top padding as the loaded page (app/tonight/tonight.css). The nav
+     bar adds the top safe-area inset itself (components/nav/siteNav.css), so
+     adding it here too drew the nav 38px lower than the page it stood in for. */
+  padding: 16px 20px
+    calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 24px);
+  background: var(--paper);
+  color: var(--ink);
+}
+@media (max-width: 640px) {
+  .routeLoadingShell {
+    padding-top: 10px;
+  }
+}
+.routeLoadingShellInner {
+  width: min(100%, 28rem);
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+}
+.routeLoadingShellBar,
+.routeLoadingShellCard {
+  display: block;
+  border-radius: var(--radius-sm, 10px);
+  background: color-mix(in srgb, var(--ink) 8%, var(--panel-raised, var(--paper)));
+  animation: routeLoadingPulse 1.4s ease-in-out infinite;
+}
+.routeLoadingShellBar {
+  height: 1.1rem;
+  width: 42%;
+}
+.routeLoadingShellBarShort {
+  width: 28%;
+  height: 0.85rem;
+  opacity: 0.85;
+  animation-delay: 0.12s;
+}
+.routeLoadingShellCard {
+  height: 5.5rem;
+  width: 100%;
+  animation-delay: 0.2s;
+}
+.routeLoadingShellCard + .routeLoadingShellCard {
+  animation-delay: 0.32s;
+  height: 4.25rem;
+  opacity: 0.9;
+}
+.routeLoadingShellLabel {
+  margin: 6px 0 0;
+  font: 600 0.78rem/1.3 var(--font-body, system-ui);
+  color: var(--ink-soft, var(--muted));
+  letter-spacing: 0.02em;
+}
+@keyframes routeLoadingPulse {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .routeLoadingShellBar,
+  .routeLoadingShellCard {
+    animation: none;
+  }
+}
+
+.mobileTabBar,
+.mobileTabBarClearance {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  :global(body):has(.mobileTabBar, .mobileTabBarClearance) {
+    padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* The create action floats one gap ABOVE that reserved lane, so a page whose
+     content simply ends there had its last row occluded at rest with no way to
+     scroll clear. The lane it owns is its own published top edge, never a
+     number restated here, and it is reserved from the BASE berth: the pages
+     that push the control higher (the map, the planner) do not scroll their
+     body at all. A page that hides the control keeps the bar's clearance and
+     nothing more. */
+  :global(body:has(.createFabRoot):not(:has(.pageHidesCreateFab)):not(:has(.analyticsConsentPrompt)):not(:has(.planComposer__lock)):not(:has(.mapArrivalCard)):not(:has(.appShell.detail-open)):not(:has(.appShell.planning-open)):not(:has(.createFabRoot.isKeyboardHidden))) {
+    padding-bottom: var(--float-stack-top-create);
+  }
+
+  .mobileTabBar {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* Above map sheets; below modal/dialog layers. */
+    z-index: var(--z-tabbar);
+    /* THE STRIP UNDER THE PILL IS THE DOCK'S OWN. Site audit 13 Sep 2026
+       (D19): in the iOS shell the dock sat 34px up on the home-indicator inset
+       over an 88 percent gradient, and page content showed through the strip
+       beneath it. The paper is solid from the bottom edge to the pill's middle
+       (6px + the inset + half the 50px pill) and fades above that, so the
+       pill's top half still floats and nothing of the page reads under it. */
+    background: linear-gradient(
+      to top,
+      var(--paper) 0,
+      var(--paper) calc(31px + env(safe-area-inset-bottom, 0px)),
+      transparent
+    );
+    /* 6px base clearance + the home-indicator inset, so the pill never reads
+       as flush with the indicator on notched/home-indicator phones. */
+    padding: 0 12px calc(6px + env(safe-area-inset-bottom, 0px));
+    pointer-events: none;
+    transition:
+      opacity var(--duration-base) var(--ease-out),
+      transform var(--duration-base) var(--ease-out);
+  }
+
+  :global(body:has(.appShell.detail-open)) .mobileTabBar,
+  :global(body:has(.appShell.planning-open)) .mobileTabBar,
+  /* Night mode (components/plan/NightCrawlMode.tsx) is a fixed, full-screen
+     surface with its own way out; the bar under it owned the centre of its
+     lowest button, "Get me home", at 320x568 (verify-preview-4 RED 2). */
+  :global(body:has(.nightCrawl)) .mobileTabBar {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(110%);
+  }
+
+  /* The on-screen keyboard. The bar is fixed to the LAYOUT viewport, which no
+     phone browser shrinks for the keyboard, so it otherwise floats on top of
+     the field being typed into - the captain's screenshot was the six tabs
+     sitting over the password form. MobileTabBar writes this class from
+     lib/softKeyboard.ts, which needs a focused text field AND a shrunken visual
+     viewport before it says yes.
+     Deliberately the same three declarations as the open-sheet rule above:
+     transform only, so the body's reserved bottom clearance never moves and the
+     page cannot reflow under the caret while somebody is typing. */
+  .mobileTabBar.isKeyboardHidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(110%);
+  }
+
+  .mobileTabList {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 0;
+    /* Count-driven layout model. --tab-count is written by MobileTabBar from
+       the live tab array; --tab-inset is the pill's inner padding. Every
+       equal-rhythm rule below (column width, highlight geometry) derives from
+       these two, so adding or removing a tab can never desync the CSS. */
+    --tab-count: 6;
+    --tab-inset: 2px;
+    max-width: 420px;
+    margin: 0 auto;
+    padding: var(--tab-inset);
+    list-style: none;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--panel-raised);
+    box-shadow:
+      0 -3px 12px color-mix(in srgb, var(--ink-deep) 10%, transparent),
+      0 4px 12px color-mix(in srgb, var(--ink-deep) 8%, transparent);
+    pointer-events: auto;
+  }
+
+  /* Gliding active-tab highlight (still solid — Flat-Chrome-On-Map Rule; this
+     is a tint of the panel's own accent, not glass). Sized to one of the
+     --tab-count equal flex columns and translated by --active-index * 100% of
+     its OWN width, so it only ever animates `transform` (+ opacity to hide
+     when no tab matches the route). A decorative first child, painted behind
+     the tab items by DOM order. */
+  .mobileTabHighlight {
+    position: absolute;
+    top: var(--tab-inset);
+    bottom: var(--tab-inset);
+    left: var(--tab-inset);
+    width: calc((100% - 2 * var(--tab-inset)) / var(--tab-count));
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--ink) 9%, transparent);
+    transform: translateX(calc(var(--active-index, -1) * 100%));
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .mobileTabHighlight {
+      transition:
+        transform var(--duration-base) var(--ease-out-strong),
+        opacity var(--duration-fast) var(--ease-out-strong);
+    }
+  }
+
+  .mobileTabItem {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+  }
+
+  .mobileTab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    /* Keep ≥44px hit area for thumbs (WCAG 2.5.5 minimum). */
+    min-height: 44px;
+    padding: 4px 2px;
+    border-radius: 12px;
+    color: var(--muted, var(--ink-soft));
+    text-decoration: none;
+    /* iOS-convention tab labels — floored at 11px (the one sub-12px exception),
+       ellipsis preserved by .mobileTabLabel. */
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1.05;
+    transition:
+      color var(--duration-base) var(--ease-out),
+      background var(--duration-base) var(--ease-out),
+      transform var(--duration-press) var(--ease-out-strong);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobileTabIcon {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    color: currentcolor;
+    transition:
+      color var(--duration-base) var(--ease-out),
+      transform var(--duration-press) var(--ease-out-strong),
+      background var(--duration-base) var(--ease-out);
+  }
+
+  .mobileTabLabel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  /* AT A LARGE OS TEXT SIZE THE BAR KEEPS ITS SHAPE AND DROPS ITS WORDS.
+     The Android WebView zooms every text node by the OS font scale and the
+     iOS shell asks WebKit for the same (lib/nativeTextScale.ts), so at 2.0x
+     six 11px labels become six 22px labels in a 64px bar: measured on the
+     Pixel 7, "Places" ran into "Out" and the bar grew over the consent card
+     (docs/proof/mobile-app-design/android-emu-pixel7/textscale/). A native
+     tab bar answers the same setting by showing its icons alone, and the
+     accessible name stays on the link, so this is what the shell does from
+     the scale lib/nativeTextScale.ts publishes on <html>. */
+  :global(html[data-text-scale="large"]) .mobileTabLabel {
+    display: none;
+  }
+
+  /* Ellipsis needs a block-level text box: it does nothing on the flex
+     container above, so the word carries its own. */
+  .mobileTabLabelText {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mobileTabPreviewDot {
+    flex: 0 0 auto;
+    width: 0.35rem;
+    height: 0.35rem;
+    border-radius: 50%;
+    background: var(--brass, currentcolor);
+  }
+
+  /* Idle tabs share one quiet ink — no rainbow per-slot hues that fight dark mode. */
+  .mobileTab:not(.isActive) .mobileTabIcon {
+    color: var(--ink-soft);
+  }
+
+  .mobileTab:focus-visible {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--brass) 8%, transparent);
+    outline: 2px solid var(--brass);
+    outline-offset: -2px;
+  }
+}
+
+/* Real-hover-only affordances, split out from the tap states above so touch
+   devices never get a stuck :hover fill after a tap. */
+@media (max-width: 640px) and (hover: hover) and (pointer: fine) {
+  .mobileTab:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 8%, transparent);
+  }
+}
+
+@media (max-width: 640px) {
+  /* Active = coral GLYPH + ink label. The glyph is the one coral mark the tab
+     bar keeps (finding 2.1's three-place accent budget), and the ink label is
+     what closes the 2.91:1 light-theme failure (finding 2.2). The gliding
+     highlight behind it carries the fill, so the tab itself stays clean. */
+  .mobileTab.isActive {
+    color: var(--ink);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .mobileTab.isActive .mobileTabIcon {
+    color: var(--brass);
+  }
+}
+
+@media (max-width: 390px) {
+  .mobileTabBar {
+    padding-inline: 10px;
+  }
+}
+
+@media (max-width: 360px) {
+  .mobileTabList {
+    /* One knob: the highlight geometry above derives from --tab-inset, so the
+       smallest step only needs to shrink the inset and everything stays flush. */
+    --tab-inset: 1px;
+    max-width: 340px;
+  }
+
+  .mobileTab {
+    /* Hold the 44px WCAG tap target even on the smallest phones; label stays at
+       the 11px floor (iOS-convention exception) to fit six tabs across ~340px. */
+    font-size: 0.6875rem;
+    padding: 2px 0;
+    min-height: 44px;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobileTab,
+  .mobileTabIcon,
+  .mobileTabBar {
+    transition: none;
+  }
+}

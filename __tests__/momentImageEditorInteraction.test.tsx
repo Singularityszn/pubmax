@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MomentImageEditor from "@/components/moment/MomentImageEditor";
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import { profileImageCropTarget } from "@/lib/profileImagePicker";
+import cropStyles from "@/components/profile/profileImageCropper.module.css";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
@@ -46,9 +47,9 @@ async function finishMount(): Promise<{
 }> {
   await settle();
 
-  const frame = container.querySelector<HTMLDivElement>(".profileCropFrame");
-  const image = container.querySelector<HTMLImageElement>(".profileCropImage");
-  const confirm = container.querySelector<HTMLButtonElement>(".profileCropConfirm");
+  const frame = container.querySelector<HTMLDivElement>(`.${cropStyles.profileCropFrame}`);
+  const image = container.querySelector<HTMLImageElement>(`.${cropStyles.profileCropImage}`);
+  const confirm = container.querySelector<HTMLButtonElement>(`.${cropStyles.profileCropConfirm}`);
   const range = container.querySelector<HTMLInputElement>('input[type="range"]');
   expect(frame).not.toBeNull();
   expect(image).not.toBeNull();

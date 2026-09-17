@@ -1,0 +1,193 @@
+/* Venue Menu hub — 2-column visual tiles (alcohol-first). */
+
+.menuHub {
+  display: grid;
+  gap: 12px;
+}
+
+.menuHubHead {
+  display: grid;
+  gap: 4px;
+}
+
+.menuHubTitle {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.2rem;
+  font-weight: 650;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.menuHubLede {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--ink-soft, var(--muted));
+}
+
+.menuHubGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.menuHubItem { }
+
+.menuHubItemFood { }
+
+.menuHubItemPrimary {
+  grid-column: 1 / -1;
+}
+
+.menuHubTile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  min-height: 132px;
+  padding: 0;
+  border: 1px solid var(--line-soft, var(--line));
+  border-radius: var(--radius, 12px);
+  background: var(--panel-raised, var(--panel));
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    border-color var(--duration-base, 180ms) ease-out,
+    transform var(--duration-base, 180ms) ease-out;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .menuHubTile:hover {
+    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .menuHubTile:hover {
+      transform: translateY(-2px);
+    }
+  }
+}
+
+.menuHubItemPrimary .menuHubTile {
+  min-height: 148px;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  padding-right: 14px;
+}
+
+.menuHubMedia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88px;
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, currentcolor 16%, transparent) 0%,
+      color-mix(in srgb, var(--panel) 70%, transparent) 70%
+    );
+}
+
+.menuHubItemPrimary .menuHubMedia {
+  width: 96px;
+  min-height: 148px;
+  flex: 0 0 auto;
+}
+
+.menuHubMediaDrinks {
+  color: var(--cat-beer);
+}
+
+.menuHubMediaFood {
+  color: var(--brass);
+  min-height: 88px;
+}
+
+.menuHubMediaPhoto {
+  padding: 0;
+  background: var(--panel-sunken, var(--panel));
+}
+
+.menuHubPhoto {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 88px;
+  object-fit: cover;
+}
+
+.menuHubMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 12px;
+  min-width: 0;
+}
+
+.menuHubItemPrimary .menuHubMeta {
+  padding: 12px 0;
+  flex: 1;
+}
+
+.menuHubLabel {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.menuHubHint {
+  font-size: 0.78rem;
+  color: var(--ink-soft, var(--muted));
+}
+
+.menuHubExt {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  opacity: 0.55;
+  color: var(--ink-soft, var(--muted));
+}
+
+.menuHubEmpty {
+  padding: 16px 4px 8px;
+}
+
+.menuHubEmptyTitle {
+  margin: 0 0 6px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.menuHubEmptyAction {
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 9px 16px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-pill, 999px);
+  background: var(--brass);
+  color: var(--color-on-accent-strong);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.menuHubEmptyAction:active {
+  transform: scale(0.98);
+  --shared-press-scale: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menuHubTile {
+    transition: none;
+  }
+}

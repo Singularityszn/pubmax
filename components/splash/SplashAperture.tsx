@@ -1,4 +1,4 @@
-import "./splashAperture.css";
+import styles from "./splashAperture.module.css";
 
 /**
  * Aperture splash (PIECE 3 of feat(landing): hero scroll cinema with
@@ -18,7 +18,7 @@ export default function SplashAperture() {
   return (
     <div id="pubmax-splash" aria-hidden="true">
       <svg
-        className="pubmaxSplashMark"
+        className={styles.pubmaxSplashMark}
         viewBox="0 0 64 64"
         xmlns="http://www.w3.org/2000/svg"
         focusable="false"

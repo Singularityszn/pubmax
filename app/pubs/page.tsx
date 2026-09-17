@@ -13,7 +13,7 @@ import { readScrapedPubsForPage } from "@/lib/scrapedPubs.server";
 import { paginateIndexRows, parsePubsFilterQuery } from "@/lib/pageFilters";
 import { venueMatchesZone, ZONE_IDS } from "@/lib/zones";
 
-import "@/components/pubs/pubsGallery.css";
+import styles from "@/components/pubs/pubsGallery.module.css";
 
 const CHAINS_DESCRIPTION =
   "Chain pub menus we have checked: Young's, Nicholson's, and Greene King. Each card links to the map pin.";
@@ -68,9 +68,9 @@ export default async function PubsPage({
   const pageResult = paginateIndexRows(matchingPubs, filters.page);
 
   return (
-    <main id="main" className="pubsShell">
+    <main id="main" className={styles.pubsShell}>
       <SiteNav active="pubs" />
-      <div className="pubsPage">
+      <div className={styles.pubsPage}>
         {/* The route's head is the launch Screen (docs/design/LAUNCH_SCREENS.md).
             The heading stays the Chains count the page title prints, because
             this page lists the chain pubs we have checked, not every pub. The

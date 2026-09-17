@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import "./readLedgerButton.css";
+import styles from "./readLedgerButton.module.css";
 
 // The Ledger's voice affordance (issue #25): "Read this page" for the
 // Boomer/Gen-X reading surface, using the Web Speech API's speechSynthesis —
@@ -72,7 +72,7 @@ export default function ReadLedgerButton({ text }: ReadLedgerButtonProps) {
     <>
       <button
         type="button"
-        className="ledgerReadButton"
+        className={styles.ledgerReadButton}
         onClick={speaking ? handleStop : handleRead}
         aria-pressed={speaking}
       >

@@ -45,7 +45,7 @@
 }
 
 /* ── Header ───────────────────────────────────────────────────────────── */
-/* The launch head is the shared Screen primitive (components/ui/screen.css).
+/* The launch head is the shared Screen primitive (components/ui/screen.module.css).
    The shell already pays the page gutters, so the head drops its own and
    takes the stream's column; the desktop grid below widens it to match. */
 .feedScreen {
@@ -1833,7 +1833,7 @@
 }
 
 /* ── A4: primary one-tap Cheers placement ─────────────────────────────────
-   The CheersButton owns its own look (components/feed/cheersButton.css); these
+   The CheersButton owns its own look (components/feed/cheersButton.module.css); these
    wrappers just position it. On the text-only card it sits above the chip row
    with a little breathing space; on the Spill scrim it sits below the note,
    above the bar-tab link. */

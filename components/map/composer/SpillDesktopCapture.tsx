@@ -3,6 +3,7 @@ import "./PhotoComposer.module.css";
 import { ImagePlus, SmilePlus, X } from "lucide-react";
 
 import type { PintDropsState } from "@/components/map/usePintDrops";
+import spillStyles from "@/components/map/spillComposer.module.css";
 
 type SpillDesktopCaptureProps = {
   pintPhoto: PintDropsState["pintPhoto"];
@@ -24,9 +25,9 @@ export function SpillDesktopCapture({
   removePhoto,
 }: SpillDesktopCaptureProps) {
   return (
-    <div className="photoRow instaPintRow spillDesktopCapture">
-      <div className="spillCaptureIntro">
-        <span className="spillFieldLabel">Photos</span>
+    <div className={`photoRow instaPintRow ${spillStyles.spillDesktopCapture}`}>
+      <div className={spillStyles.spillCaptureIntro}>
+        <span className={spillStyles.spillFieldLabel}>Photos</span>
         <span>Shot first, story second</span>
       </div>
       <div className="photoField">

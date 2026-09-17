@@ -19,7 +19,7 @@ import {
 import { DrinkGlyph } from "./DrinkGlyph";
 import DrinkRowMain from "./DrinkRowMain";
 
-import "./drinkMenu.css";
+import styles from "./drinkMenu.module.css";
 
 
 const OBSERVATION_DAY = new Intl.DateTimeFormat("en-GB", {
@@ -103,7 +103,7 @@ function isUnattributedPrice(prov: DrinkProvenance): boolean {
 function ProvChip({ prov }: { prov: DrinkProvenance }) {
   const label = provenanceLabel(prov);
   const kind = isDemoDrinkProvenance(prov) ? "demo" : "sourced";
-  const className = `drinkProvChip ${kind}`;
+  const className = `${styles.drinkProvChip} ${styles[kind]}`;
   const title = `${label} · ${prov.licence}`;
   const sourceUrl = firstHttp(prov.sourceUrl);
   return sourceUrl ? (
@@ -147,22 +147,22 @@ function DrinkRow({ drink, venueId }: { drink: Drink; venueId?: string }) {
         drinkMenuObservationBudgetDays(drink.provenance),
       );
   return (
-    <li className="drinkRow">
+    <li className={styles.drinkRow}>
       {/* The drink itself, its community score and the detail a drinker opens
           by tapping it (E3). Stateful, so it is the menu's one client island
           and this file stays server-composable. */}
       <DrinkRowMain drink={drink} meta={meta} venueId={venueId} />
-      <div className="drinkRowSide">
+      <div className={styles.drinkRowSide}>
         <PriceBadge
           variant="neutral"
-          className="drinkPrice"
+          className={styles.drinkPrice}
           band={drink.category === "beer" ? priceBand(drink.priceGbp, priceBandAreaForVenue(venueId)) : null}
         >
           {formatPrice(drink.priceGbp)}
         </PriceBadge>
         <ProvChip prov={drink.provenance} />
         {observation ? (
-          <span className="drinkObservationAge">
+          <span className={styles.drinkObservationAge}>
             {observation.label}{" "}
             <time dateTime={drink.provenance.observedAt}>
               {observation.formattedDate}
@@ -192,20 +192,20 @@ function CategorySection({
   const accent = categoryColor(category);
   return (
     <section
-      className="drinkCategory"
+      className={styles.drinkCategory}
       style={{ ["--cat-accent" as string]: accent }}
       aria-labelledby={`drink-cat-${category}`}
     >
-      <h4 className="drinkCategoryTitle" id={`drink-cat-${category}`}>
+      <h4 className={styles.drinkCategoryTitle} id={`drink-cat-${category}`}>
         {/* Colour-driven category glyph — the family's mark leading its section,
             richer than the bare dot. Decorative: the visible label carries the
             meaning (never colour/icon alone). */}
-        <span className="drinkCategoryGlyph" aria-hidden="true">
+        <span className={styles.drinkCategoryGlyph} aria-hidden="true">
           <DrinkGlyph category={category} size={20} inheritColor />
         </span>
         {label}
       </h4>
-      <ul className="drinkList">
+      <ul className={styles.drinkList}>
         {drinks.map((drink) => (
           <DrinkRow key={drink.id} drink={drink} venueId={venueId} />
         ))}
@@ -245,14 +245,14 @@ export default function DrinkMenu({
 
   if (groups.length === 0) {
     return (
-      <div className="drinkMenu drinkMenuEmpty" role="status">
+      <div className={`${styles.drinkMenu} ${styles.drinkMenuEmpty}`} role="status">
         {onBack ? (
-          <button type="button" className="drinkMenuBack" onClick={onBack}>
+          <button type="button" className={styles.drinkMenuBack} onClick={onBack}>
             ← {backLabel}
           </button>
         ) : null}
-        <p className="drinkMenuEmptyTitle">No menu on record yet</p>
-        <p className="drinkMenuEmptyBody">
+        <p className={styles.drinkMenuEmptyTitle}>No menu on record yet</p>
+        <p className={styles.drinkMenuEmptyBody}>
           {venueName ? `${venueName} hasn't` : "This pub hasn't"} logged any
           drinks beyond the pint list. Prices you see are community-updated,
           not a live feed.
@@ -262,9 +262,9 @@ export default function DrinkMenu({
   }
 
   return (
-    <div className="drinkMenu">
+    <div className={styles.drinkMenu}>
       {onBack ? (
-        <button type="button" className="drinkMenuBack" onClick={onBack}>
+        <button type="button" className={styles.drinkMenuBack} onClick={onBack}>
           ← {backLabel}
         </button>
       ) : null}
@@ -282,7 +282,7 @@ export default function DrinkMenu({
           about seeded examples (#1427); demo rows are opt-in now
           (demoDrinksEnabled, lib/demoContent.ts) and each one still carries its
           own Demo chip, which is where that claim belongs. */}
-      <p className="drinkMenuFootnote">
+      <p className={styles.drinkMenuFootnote}>
         {hasUnattributedPrice
           ? "“Publisher not recorded” means the price is on record but its publisher was not captured."
           : "Publisher links open where the price record names one."}

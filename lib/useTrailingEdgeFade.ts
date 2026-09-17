@@ -21,7 +21,7 @@ import { useEffect, useState } from "react";
  *    dim content the reader can already see, whatever the scroll position.
  *
  * The width below must stay in step with the mask in
- * components/map/venueSheet.css; __tests__/venueTabsEdgeFade.test.ts reads the
+ * components/map/venueSheet.module.css; __tests__/venueTabsEdgeFade.test.ts reads the
  * shipped CSS and fails when they drift.
  */
 export const TRAILING_EDGE_FADE_PX = 28;

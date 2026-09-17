@@ -10,6 +10,8 @@ import {
 } from "@/lib/pricedLanding";
 import { formatPrice } from "@/lib/venues";
 
+import styles from "./drinkBrandDirectory.module.css";
+
 export function formatPricedLandingCollectedDate(iso: string): string {
   return formatObservedDate(new Date(iso));
 }
@@ -68,38 +70,38 @@ export default function PricedLandingRows({
   rowAction?: (row: PricedLandingRow) => { href: string; label: string };
 }) {
   return (
-    <ol className="drinkBrandDirectory__list" role="list">
+    <ol className={styles.drinkBrandDirectoryList} role="list">
       {rows.map((row) => {
         const action = rowAction?.(row);
         return (
-          <li className="drinkBrandDirectory__row" key={row.venueId}>
-            <span className="drinkBrandDirectory__rank" aria-hidden="true">
+          <li className={styles.drinkBrandDirectoryRow} key={row.venueId}>
+            <span className={styles.drinkBrandDirectoryRank} aria-hidden="true">
               {row.rank}
             </span>
             <div
               className={
                 action
-                  ? "drinkBrandDirectory__details drinkBrandDirectory__details--withAction"
-                  : "drinkBrandDirectory__details"
+                  ? `${styles.drinkBrandDirectoryDetails} ${styles.drinkBrandDirectoryDetailsWithAction}`
+                  : styles.drinkBrandDirectoryDetails
               }
             >
               <Link
-                className="drinkBrandDirectory__venue"
+                className={styles.drinkBrandDirectoryVenue}
                 href={`/ledger/${encodeURIComponent(row.venueId)}`}
               >
                 {row.venueName}
               </Link>
-              <span className="drinkBrandDirectory__borough">{row.borough}</span>
-              <span className="drinkBrandDirectory__pint">
+              <span className={styles.drinkBrandDirectoryBorough}>{row.borough}</span>
+              <span className={styles.drinkBrandDirectoryPint}>
                 {formatPricedLandingPintName(row.pintName)}
               </span>
               <PricedLandingPublisher
-                className="drinkBrandDirectory__publisher"
+                className={styles.drinkBrandDirectoryPublisher}
                 row={row}
               />
               {action ? (
                 <Link
-                  className="drinkBrandDirectory__contribution"
+                  className={styles.drinkBrandDirectoryContribution}
                   href={action.href}
                 >
                   {action.label}
@@ -108,7 +110,7 @@ export default function PricedLandingRows({
             </div>
             <PriceBadge
               variant="current"
-              className="drinkBrandDirectory__price"
+              className={styles.drinkBrandDirectoryPrice}
               band={priceBand(row.priceGbp, priceBandAreaForVenue(row.venueId))}
             >
               {formatPrice(row.priceGbp)}

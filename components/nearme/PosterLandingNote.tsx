@@ -10,6 +10,7 @@ import {
   readPosterLandingSession,
   rememberPosterLandingSession,
 } from "@/lib/posterLanding";
+import styles from "./nearPage.module.css";
 
 /**
  * One orientation line + closed poster_landing beacon when /near was reached
@@ -51,5 +52,5 @@ export default function PosterLandingNote({ src }: { src: string | null }) {
 
   if (!fromQuery && !fromSession) return null;
 
-  return <p className="nmnPosterNote">{posterLandingOrientation()}</p>;
+  return <p className={styles.nmnPosterNote}>{posterLandingOrientation()}</p>;
 }

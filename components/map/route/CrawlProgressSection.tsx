@@ -8,6 +8,7 @@ import { useState } from "react";
 
 import type { CrawlProgressEntry } from "@/lib/crawlCompletion";
 import btnStyles from '../addStopBtn.module.css';
+import rpStyles from '@/components/map/routePanel.module.css';
 
 type CrawlProgressSectionProps = {
   crawlProgress: CrawlProgressEntry | null;
@@ -55,19 +56,19 @@ export default function CrawlProgressSection({
   }
 
   return (
-    <div className="crawlProgressRow" data-testid="crawl-progress">
+    <div className={rpStyles.crawlProgressRow} data-testid="crawl-progress">
       {!crawlProgress ? (
         <button type="button" className={btnStyles.addStopBtn} onClick={handleStartCrawl}>
           <Footprints size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
           Start this crawl
         </button>
       ) : crawlDone ? (
-        <p className="crawlProgressDone" role="status">
+        <p className={rpStyles.crawlProgressDone} role="status">
           Crawl complete: {crawlProgress.visited.length}/{crawlProgress.stopIds.length} stops
         </p>
       ) : (
         <>
-          <p className="crawlProgressStatus" role="status">
+          <p className={rpStyles.crawlProgressStatus} role="status">
             {paceLabel} · {crawlProgress.visited.length}/{crawlProgress.stopIds.length} stops
           </p>
           <button type="button" className={btnStyles.addStopBtn} onClick={handleMarkComplete}>
@@ -78,23 +79,23 @@ export default function CrawlProgressSection({
       )}
       {showCelebration ? (
         <div
-          className="crawlCelebration"
+          className={rpStyles.crawlCelebration}
           role="status"
           data-testid="crawl-celebration"
         >
-          <p className="crawlCelebrationTitle">You walked it</p>
-          <p className="crawlCelebrationCopy">
+          <p className={rpStyles.crawlCelebrationTitle}>You walked it</p>
+          <p className={rpStyles.crawlCelebrationCopy}>
             {placeStoryBandId
               ? "Place story complete. Drop a memory, share the route, or stamp your passport."
               : "Crawl complete. Drop a memory, share the route, or stamp your passport."}
           </p>
-          <div className="crawlCelebrationActions">
-            <Link className="crawlCelebrationLink" href={dropHref}>
+          <div className={rpStyles.crawlCelebrationActions}>
+            <Link className={rpStyles.crawlCelebrationLink} href={dropHref}>
               Drop a pint
             </Link>
             <button
               type="button"
-              className="crawlCelebrationLink crawlCelebrationCopyBtn"
+              className={`${rpStyles.crawlCelebrationLink} ${rpStyles.crawlCelebrationCopyBtn}`}
               onClick={() => void copyShareLink()}
               data-testid="crawl-share-copy"
             >
@@ -102,19 +103,19 @@ export default function CrawlProgressSection({
             </button>
             {shareCopyError ? <p role="status">{shareCopyError}</p> : null}
             <Link
-              className="crawlCelebrationLink"
+              className={rpStyles.crawlCelebrationLink}
               href={shareMapHref}
               data-testid="crawl-share-open"
             >
               Open shared crawl
             </Link>
-            <Link className="crawlCelebrationLink" href="/u/you">
+            <Link className={rpStyles.crawlCelebrationLink} href="/u/you">
               View passport
             </Link>
           </div>
           <button
             type="button"
-            className="crawlCelebrationDismiss"
+            className={rpStyles.crawlCelebrationDismiss}
             onClick={() => setShowCelebration(false)}
           >
             Not now

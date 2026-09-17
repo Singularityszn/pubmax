@@ -20,7 +20,7 @@ import { coarsenViewerPoint } from "@/lib/geo";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import type { PatchDisruption } from "@/lib/tflDisruption";
 
-import "./disruptionLine.css";
+import styles from "./disruptionLine.module.css";
 
 type Props = { lat: number; lng: number };
 
@@ -46,11 +46,11 @@ export default function DisruptionLine({ lat, lng }: Props) {
   if (!disruption) return null;
 
   return (
-    <p className="transportDisruption" data-testid="tfl-disruption">
-      <AlertTriangle size={14} aria-hidden="true" className="transportDisruptionIcon" />
-      <span className="transportDisruptionCopy">
+    <p className={styles.transportDisruption} data-testid="tfl-disruption">
+      <AlertTriangle size={14} aria-hidden="true" className={styles.transportDisruptionIcon} />
+      <span className={styles.transportDisruptionCopy}>
         {disruption.line}.{" "}
-        <span className="transportDisruptionProv">via TfL</span>
+        <span className={styles.transportDisruptionProv}>via TfL</span>
       </span>
     </p>
   );

@@ -36,7 +36,7 @@ import {
   type VenuePhotoDTO,
 } from "@/lib/venuePhotos";
 
-import "./venuePhotoWall.css";
+import styles from "./venuePhotoWall.module.css";
 
 type VenuePhotoComposerProps = {
   venueId: string;
@@ -124,13 +124,13 @@ export default function VenuePhotoComposer({
   }
 
   return (
-    <div className="venuePhotoComposer">
+    <div className={styles.venuePhotoComposer}>
       <input
         ref={inputRef}
         id="venue-photo-file"
         type="file"
         accept={PROFILE_IMAGE_PICKER_ACCEPT}
-        className="venuePhotoComposerFile"
+        className={styles.venuePhotoComposerFile}
         aria-label={`Choose a photo of ${venueName}`}
         onChange={(event) => {
           const file = event.target.files?.[0] ?? null;
@@ -152,21 +152,21 @@ export default function VenuePhotoComposer({
       ) : (
         <button
           type="button"
-          className="venuePhotoWallButton"
+          className={styles.venuePhotoWallButton}
           onClick={() => void choosePhoto()}
         >
           Choose a photo
         </button>
       )}
 
-      <fieldset className="venuePhotoComposerField">
-        <legend className="venuePhotoComposerLegend">Drink</legend>
-        <div className="venuePhotoComposerTags">
+      <fieldset className={styles.venuePhotoComposerField}>
+        <legend className={styles.venuePhotoComposerLegend}>Drink</legend>
+        <div className={styles.venuePhotoComposerTags}>
           {SUBMITTABLE_DRINK_CATEGORIES.map((category) => (
             <button
               key={category}
               type="button"
-              className="venuePhotoComposerTag"
+              className={styles.venuePhotoComposerTag}
               aria-pressed={drinkCategory === category}
               onClick={() =>
                 setDrinkCategory((current) => (current === category ? null : category))
@@ -178,11 +178,11 @@ export default function VenuePhotoComposer({
         </div>
       </fieldset>
 
-      <div className="venuePhotoComposerField">
+      <div className={styles.venuePhotoComposerField}>
         <label htmlFor="venue-photo-caption">Caption</label>
         <textarea
           id="venue-photo-caption"
-          className="venuePhotoComposerCaption"
+          className={styles.venuePhotoComposerCaption}
           maxLength={VENUE_PHOTO_CAPTION_MAX}
           rows={2}
           value={caption}
@@ -190,7 +190,7 @@ export default function VenuePhotoComposer({
         />
       </div>
 
-      <label className="venuePhotoComposerShare">
+      <label className={styles.venuePhotoComposerShare}>
         <input
           type="checkbox"
           checked={shareToFeed}
@@ -200,15 +200,15 @@ export default function VenuePhotoComposer({
       </label>
 
       {error ? (
-        <p className="venuePhotoWallStatus venuePhotoWallStatusErr" role="status">
+        <p className={`${styles.venuePhotoWallStatus} ${styles.venuePhotoWallStatusErr}`} role="status">
           {error}
         </p>
       ) : null}
 
-      <div className="venuePhotoComposerActions">
+      <div className={styles.venuePhotoComposerActions}>
         <button
           type="button"
-          className="venuePhotoWallButton"
+          className={styles.venuePhotoWallButton}
           onClick={onCancel}
           disabled={busy}
         >

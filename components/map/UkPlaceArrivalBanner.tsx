@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import type { UkPlaceMapArrival } from "@/lib/ukPlaceSearch";
 
-import "./ukPlaceArrivalBanner.css";
+import "./ukPlaceArrivalBanner.module.css";
 
 export default function UkPlaceArrivalBanner({
   arrival,

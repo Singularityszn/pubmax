@@ -49,7 +49,7 @@ import {
   type SocialViewerPhase,
 } from "@/components/social/SocialViewerState";
 
-import "./crews.css";
+import styles from "./crews.module.css";
 
 type ListState = "loading" | "ready" | "error";
 type StartState = "idle" | "naming" | "working";
@@ -257,10 +257,10 @@ export default function CrewsPanel({
   if (viewerPhase !== "resolved") {
     return (
       <section
-        className={compact ? "crews crews--compact" : "crews"}
+        className={compact ? `${styles.crews} ${styles.crewsCompact}` : styles.crews}
         aria-labelledby="crews-title"
       >
-        <h2 id="crews-title" className="crews__title">
+        <h2 id="crews-title" className={styles.crewsTitle}>
           Your crews
         </h2>
         <SocialViewerState
@@ -279,43 +279,43 @@ export default function CrewsPanel({
 
   return (
     <section
-      className={compact ? "crews crews--compact" : "crews"}
+      className={compact ? `${styles.crews} ${styles.crewsCompact}` : styles.crews}
       aria-labelledby="crews-title"
     >
-      <h2 id="crews-title" className="crews__title">
+      <h2 id="crews-title" className={styles.crewsTitle}>
         Your crews
       </h2>
 
       {status === "loading" ? (
-        <div className="crews__skeletons" aria-hidden="true">
+        <div className={styles.crewsSkeletons} aria-hidden="true">
           <span />
           <span />
         </div>
       ) : status === "error" ? (
-        <div className="crews__notice" role="alert">
+        <div className={styles.crewsNotice} role="alert">
           <p>{CREW_LIST_UNAVAILABLE_COPY}</p>
           <button
             type="button"
-            className="crews__button"
+            className={styles.crewsButton}
             onClick={() => setAttempt((value) => value + 1)}
           >
             Try again
           </button>
         </div>
       ) : crews.length === 0 ? (
-        <p className="crews__empty" role="status">
+        <p className={styles.crewsEmpty} role="status">
           {CREW_EMPTY_COPY}
         </p>
       ) : (
-        <ul className="crews__list">
+        <ul className={styles.crewsList}>
           {crews.map((crew) => {
             const starts = crewStartsCaption(crew.startsAt);
             return (
-              <li key={crew.crewId} className="crews__row">
-                <Link className="crews__rowLink" href={crewPath(crew.crewId)}>
-                  <span className="crews__rowName">{crew.title}</span>
-                  <span className="crews__rowMeta">
-                    <span className={`crews__phase crews__phase--${crew.phase}`}>
+              <li key={crew.crewId} className={styles.crewsRow}>
+                <Link className={styles.crewsRowLink} href={crewPath(crew.crewId)}>
+                  <span className={styles.crewsRowName}>{crew.title}</span>
+                  <span className={styles.crewsRowMeta}>
+                    <span className={`${styles.crewsPhase}${crew.phase === "live" ? ` ${styles.crewsPhaseLive}` : ""}`}>
                       {CREW_PHASE_LABEL[crew.phase]}
                     </span>
                     {crew.nightArea ? <span>{crew.nightArea}</span> : null}
@@ -324,7 +324,7 @@ export default function CrewsPanel({
                     ) : null}
                   </span>
                 </Link>
-                <span className="crews__role">{CREW_ROLE_LABEL[crew.viewer.role]}</span>
+                <span className={styles.crewsRole}>{CREW_ROLE_LABEL[crew.viewer.role]}</span>
               </li>
             );
           })}
@@ -332,25 +332,25 @@ export default function CrewsPanel({
       )}
 
       {start === "idle" ? (
-        <div className="crews__startBlock">
+        <div className={styles.crewsStartBlock}>
           <button
             type="button"
-            className="crews__button crews__button--primary"
+            className={`${styles.crewsButton} ${styles.crewsButtonPrimary}`}
             onClick={() => setStart("naming")}
           >
             Start a crew
           </button>
-          <p className="crews__note">{CREW_WHAT_IT_IS}</p>
+          <p className={styles.crewsNote}>{CREW_WHAT_IT_IS}</p>
         </div>
       ) : (
         <form
-          className="crews__form"
+          className={styles.crewsForm}
           onSubmit={(event) => {
             event.preventDefault();
             void startCrew();
           }}
         >
-          <label className="crews__field">
+          <label className={styles.crewsField}>
             <span>Name the night</span>
             <input
               type="text"
@@ -360,12 +360,12 @@ export default function CrewsPanel({
               onChange={(event) => setName(event.target.value)}
               placeholder="Friday in Soho"
             />
-            <span className="crews__count" aria-live="polite">
+            <span className={styles.crewsCount} aria-live="polite">
               {cleanName.length}/{CREW_NAME_MAX}
             </span>
           </label>
 
-          <label className="crews__field">
+          <label className={styles.crewsField}>
             <span>Starts</span>
             <input
               type="datetime-local"
@@ -374,7 +374,7 @@ export default function CrewsPanel({
             />
           </label>
 
-          <label className="crews__field">
+          <label className={styles.crewsField}>
             <span>First pub</span>
             <input
               type="search"
@@ -390,12 +390,12 @@ export default function CrewsPanel({
           </label>
 
           {!venue && venues.length > 0 ? (
-            <ul className="crews__venueList">
+            <ul className={styles.crewsVenueList}>
               {venues.map((match) => (
                 <li key={match.id}>
                   <button
                     type="button"
-                    className="crews__venueOption"
+                    className={styles.crewsVenueOption}
                     onClick={() => {
                       setVenue(match);
                       setVenues([]);
@@ -409,11 +409,11 @@ export default function CrewsPanel({
             </ul>
           ) : null}
 
-          <fieldset className="crews__visibility">
+          <fieldset className={styles.crewsVisibility}>
             <legend>Who can join?</legend>
-            <div className="crews__visibilityOptions">
+            <div className={styles.crewsVisibilityOptions}>
               {SOCIAL_CREW_VISIBILITIES.map((option) => (
-                <label className="crews__visibilityOption" key={option}>
+                <label className={styles.crewsVisibilityOption} key={option}>
                   <input
                     type="radio"
                     name="visibility"
@@ -428,22 +428,22 @@ export default function CrewsPanel({
           </fieldset>
 
           {problem ? (
-            <p className="crews__problem" role="alert">
+            <p className={styles.crewsProblem} role="alert">
               {problem}
             </p>
           ) : null}
 
-          <div className="crews__formActions">
+          <div className={styles.crewsFormActions}>
             <button
               type="submit"
-              className="crews__button crews__button--primary"
+              className={`${styles.crewsButton} ${styles.crewsButtonPrimary}`}
               disabled={start === "working"}
             >
               {start === "working" ? "Starting…" : "Start the crew"}
             </button>
             <button
               type="button"
-              className="crews__button"
+              className={styles.crewsButton}
               disabled={start === "working"}
               onClick={() => {
                 setStart("idle");

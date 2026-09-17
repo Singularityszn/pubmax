@@ -62,7 +62,7 @@ describe("sheetClosedTranslateY", () => {
 // the snap cap, and `sheetEntranceStartHeight` set that sliver. This sheet is
 // bottom-anchored, so that travel moved every pixel inside it and Chrome scored
 // the lot: a `/map?sel=` arrival measured CLS 0.31 on the audit's phone rig. The
-// entrance is a transform now (components/mobile/mobileMapShell.css,
+// entrance is a transform now (components/mobile/mobileMapShell.module.css,
 // `.sheet-entering`), the height is set at once, and the helper is retired.
 describe("SHEET_ENTRANCE_MS", () => {
   it("is the one duration the entrance class and its keyframes share", () => {

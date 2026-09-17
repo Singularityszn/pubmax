@@ -75,14 +75,14 @@ describe("Pint Drop sheet refresh", () => {
       );
     });
 
-    const quickPrice = container.querySelector<HTMLButtonElement>(".vpsubQuickChip");
+    const quickPrice = container.querySelector<HTMLButtonElement>('[class*="vpsubQuickChip"]');
     if (!quickPrice) throw new Error("quick price button did not render");
     await act(async () => {
       quickPrice.click();
     });
 
     await attachBill(container);
-    const logButton = container.querySelector<HTMLButtonElement>(".vpsubLog");
+    const logButton = container.querySelector<HTMLButtonElement>('[class*="vpsubLog"]');
     if (!logButton) throw new Error("Log it button did not render");
     await act(async () => {
       logButton.click();

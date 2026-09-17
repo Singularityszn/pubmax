@@ -2,7 +2,7 @@
 
 import { ChevronLeft, X } from "lucide-react";
 
-import "./surfaceNav.css";
+import styles from "./surfaceNav.module.css";
 
 /**
  * The one way out of any surface in this product.

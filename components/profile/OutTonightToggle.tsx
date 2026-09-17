@@ -20,7 +20,7 @@ import { tryGetNightArea, nightAreasByCity, type NightAreaSlug } from "@/lib/nig
 import { getCity } from "@/lib/cities";
 import { normalizeHandle } from "@/lib/profiles";
 import OutTonightPlanCta from "@/components/profile/OutTonightPlanCta";
-import "./outTonightBeacon.css";
+import styles from "./outTonightBeacon.module.css";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
@@ -131,18 +131,18 @@ export default function OutTonightToggle({ handle }: Props) {
 
   if (state.kind === "loading") {
     return (
-      <section className="beaconCard" aria-labelledby="beacon-title" aria-busy="true">
-        <p className="beaconKicker" id="beacon-title">Out tonight</p>
-        <p className="beaconMuted">Checking whether you&rsquo;re out tonight&hellip;</p>
+      <section className={styles.beaconCard} aria-labelledby="beacon-title" aria-busy="true">
+        <p className={styles.beaconKicker} id="beacon-title">Out tonight</p>
+        <p className={styles.beaconMuted}>Checking whether you&rsquo;re out tonight&hellip;</p>
       </section>
     );
   }
 
   if (state.kind === "error") {
     return (
-      <section className="beaconCard" aria-labelledby="beacon-title">
-        <p className="beaconKicker" id="beacon-title">Out tonight</p>
-        <p className="beaconMuted">Couldn&rsquo;t load your out tonight status right now.</p>
+      <section className={styles.beaconCard} aria-labelledby="beacon-title">
+        <p className={styles.beaconKicker} id="beacon-title">Out tonight</p>
+        <p className={styles.beaconMuted}>Couldn&rsquo;t load your out tonight status right now.</p>
       </section>
     );
   }
@@ -150,19 +150,19 @@ export default function OutTonightToggle({ handle }: Props) {
   if (state.kind === "on") {
     const areaName = tryGetNightArea(state.areaSlug)?.name ?? null;
     return (
-      <section className="beaconCard" aria-labelledby="beacon-title">
-        <p className="beaconKicker" id="beacon-title">Out tonight</p>
-        <p className="beaconOnLine">
+      <section className={styles.beaconCard} aria-labelledby="beacon-title">
+        <p className={styles.beaconKicker} id="beacon-title">Out tonight</p>
+        <p className={styles.beaconOnLine}>
           {areaName ? `You’re out tonight in ${areaName}.` : "You’re out tonight."}
         </p>
-        <p className="beaconPrivacy">
+        <p className={styles.beaconPrivacy}>
           Only your crew can see this. It switches off on its own in twelve hours.
         </p>
         <OutTonightPlanCta variant="self" />
         {writeError ? (
-          <p className="beaconError" role="alert">{writeError}</p>
+          <p className={styles.beaconError} role="alert">{writeError}</p>
         ) : null}
-        <button type="button" className="beaconButton beaconButtonOff" disabled={busy} onClick={turnOff}>
+        <button type="button" className={`${styles.beaconButton} ${styles.beaconButtonOff}`} disabled={busy} onClick={turnOff}>
           {busy ? "Turning off…" : "Turn off"}
         </button>
       </section>
@@ -170,14 +170,14 @@ export default function OutTonightToggle({ handle }: Props) {
   }
 
   return (
-    <section className="beaconCard" aria-labelledby="beacon-title">
-      <p className="beaconKicker" id="beacon-title">Out tonight</p>
-      <label className="beaconField">
-        <span className="beaconLabel">
-          Area <span className="beaconOptional">(optional)</span>
+    <section className={styles.beaconCard} aria-labelledby="beacon-title">
+      <p className={styles.beaconKicker} id="beacon-title">Out tonight</p>
+      <label className={styles.beaconField}>
+        <span className={styles.beaconLabel}>
+          Area <span className={styles.beaconOptional}>(optional)</span>
         </span>
         <select
-          className="beaconSelect"
+          className={styles.beaconSelect}
           value={areaChoice}
           onChange={(e) => setAreaChoice(e.target.value)}
         >
@@ -191,13 +191,13 @@ export default function OutTonightToggle({ handle }: Props) {
           ))}
         </select>
       </label>
-      <p className="beaconPrivacy">
+      <p className={styles.beaconPrivacy}>
         Only your crew can see this. No exact location. It switches off on its own in twelve hours.
       </p>
       {writeError ? (
-        <p className="beaconError" role="alert">{writeError}</p>
+        <p className={styles.beaconError} role="alert">{writeError}</p>
       ) : null}
-      <button type="button" className="beaconButton" disabled={busy} onClick={turnOn}>
+      <button type="button" className={styles.beaconButton} disabled={busy} onClick={turnOn}>
         {busy ? "Turning on…" : "Turn on out tonight"}
       </button>
     </section>

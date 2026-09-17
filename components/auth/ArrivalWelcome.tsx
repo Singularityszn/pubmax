@@ -31,7 +31,7 @@ import {
   markFoundersWelcomeShown,
 } from "@/lib/foundingMembers";
 
-import "./arrivalWelcome.css";
+import styles from "./arrivalWelcome.module.css";
 
 function tabStorage(): Storage | null {
   try {
@@ -64,17 +64,17 @@ export function ArrivalWelcomeLine({
 }): React.JSX.Element {
   return (
     <div
-      className="arrivalWelcome"
+      className={styles.arrivalWelcome}
       data-leaving={leaving ? "" : undefined}
       data-founding={door ? "" : undefined}
     >
-      <p className="arrivalWelcomeLine" role="status" aria-live="polite">
+      <p className={styles.arrivalWelcomeLine} role="status" aria-live="polite">
         {line}
       </p>
-      {door ? <div className="arrivalWelcomeDoor">{door}</div> : null}
+      {door ? <div className={styles.arrivalWelcomeDoor}>{door}</div> : null}
       <button
         type="button"
-        className="arrivalWelcomeDismiss"
+        className={styles.arrivalWelcomeDismiss}
         onClick={onDismiss}
         aria-label="Dismiss"
       >

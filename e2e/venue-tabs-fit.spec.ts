@@ -6,7 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 // hid Lore, Ask and Train. The wrap that fixed it drew two rows (site audit 13
 // Sep 2026, D10), so the sheet has five tabs now, in one row at default text
 // size, and large text wraps the strip rather than clipping a label
-// (components/map/venueSheet.css). This reads the RENDERED boxes: no overflow,
+// (components/map/venueSheet.module.css). This reads the RENDERED boxes: no overflow,
 // one row, every tab inside the viewport, every tab owning the point at its own
 // centre; and at 200% text, a wrapped strip with every label inside its own tab
 // and no two tabs overlapping.

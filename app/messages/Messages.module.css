@@ -84,7 +84,7 @@
   letter-spacing: 0.01em;
 }
 
-/* The inbox head is the shared Screen primitive (components/ui/screen.css).
+/* The inbox head is the shared Screen primitive (components/ui/screen.module.css).
    .messagesMain already pays the page gutters, so the head drops its own. */
 .messagesScreen {
   width: 100%;

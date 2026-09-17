@@ -39,7 +39,7 @@ import {
 } from "@/lib/venuePhotos";
 
 import VenuePhotoComposer from "./VenuePhotoComposer";
-import "./venuePhotoWall.css";
+import styles from "./venuePhotoWall.module.css";
 
 type VenuePhotoWallProps = {
   venueId: string;
@@ -138,24 +138,24 @@ export default function VenuePhotoWall({
   const empty = loaded && wall.photos.length === 0;
 
   return (
-    <section className="venuePhotoWall" aria-label={`Photos of ${venueName}`}>
-      <div className="venuePhotoWallHead">
-        <h3 className="venuePhotoWallTitle">Photo wall</h3>
+    <section className={styles.venuePhotoWall} aria-label={`Photos of ${venueName}`}>
+      <div className={styles.venuePhotoWallHead}>
+        <h3 className={styles.venuePhotoWallTitle}>Photo wall</h3>
         {wall.photos.length > 0 ? (
-          <span className="venuePhotoWallCount">
+          <span className={styles.venuePhotoWallCount}>
             {wall.photos.length} {wall.photos.length === 1 ? "photo" : "photos"}
           </span>
         ) : null}
       </div>
 
       {empty ? (
-        <p className="venuePhotoWallEmpty">{venuePhotoWallEmptyLine(wall.status)}</p>
+        <p className={styles.venuePhotoWallEmpty}>{venuePhotoWallEmptyLine(wall.status)}</p>
       ) : null}
 
       {wall.photos.length > 0 ? (
-        <div className="venuePhotoGrid">
+        <div className={styles.venuePhotoGrid}>
           {wall.photos.map((photo) => (
-            <figure key={photo.id} className="venuePhotoTile">
+            <figure key={photo.id} className={styles.venuePhotoTile}>
               <Image
                 src={photo.url}
                 alt={venuePhotoAltText(photo)}
@@ -166,12 +166,12 @@ export default function VenuePhotoWall({
                 unoptimized
               />
               {photo.drinkCategory ? (
-                <span className="venuePhotoTag">{categoryLabel(photo.drinkCategory)}</span>
+                <span className={styles.venuePhotoTag}>{categoryLabel(photo.drinkCategory)}</span>
               ) : null}
-              <figcaption className="venuePhotoByline">
+              <figcaption className={styles.venuePhotoByline}>
                 {photo.author.avatarUrl ? (
                   <Image
-                    className="venuePhotoBylineAvatar"
+                    className={styles.venuePhotoBylineAvatar}
                     src={photo.author.avatarUrl}
                     alt=""
                     width={20}
@@ -179,11 +179,11 @@ export default function VenuePhotoWall({
                     unoptimized
                   />
                 ) : null}
-                <span className="venuePhotoBylineHandle">@{photo.author.handle}</span>
+                <span className={styles.venuePhotoBylineHandle}>@{photo.author.handle}</span>
                 {photo.author.foundingMemberNumber !== undefined ? (
                   <FoundingMemberMark
                     number={photo.author.foundingMemberNumber}
-                    className="venuePhotoBylineFounding"
+                    className={styles.venuePhotoBylineFounding}
                   />
                 ) : null}
               </figcaption>
@@ -195,7 +195,7 @@ export default function VenuePhotoWall({
       {wall.nextCursor ? (
         <button
           type="button"
-          className="venuePhotoWallButton venuePhotoWallMore"
+          className={`${styles.venuePhotoWallButton} ${styles.venuePhotoWallMore}`}
           disabled={loading}
           onClick={() => loadMore(wall.nextCursor!)}
         >
@@ -204,7 +204,7 @@ export default function VenuePhotoWall({
       ) : null}
 
       {note ? (
-        <p className="venuePhotoWallStatus" role="status">
+        <p className={styles.venuePhotoWallStatus} role="status">
           {note}
         </p>
       ) : null}
@@ -221,18 +221,18 @@ export default function VenuePhotoWall({
           }}
         />
       ) : (
-        <div className="venuePhotoWallActions">
+        <div className={styles.venuePhotoWallActions}>
           {canPost ? (
             <button
               type="button"
-              className="venuePhotoWallButton"
+              className={styles.venuePhotoWallButton}
               onClick={() => setComposerOpen(true)}
             >
               Add a photo
             </button>
           ) : (
             <Link
-              className="venuePhotoWallButton venuePhotoWallSignIn"
+              className={`${styles.venuePhotoWallButton} ${styles.venuePhotoWallSignIn}`}
               href={venuePhotoSignInHref(pathname)}
             >
               {VENUE_PHOTO_SIGN_IN_LINE}

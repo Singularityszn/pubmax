@@ -29,8 +29,9 @@ describe("PubmaxxMarkStrike — the draw-in", () => {
   it("drives the draw with two masked beams (a=thick descending, b=ascending double)", () => {
     const svg = strike();
     expect((svg.match(/<mask/g) ?? []).length).toBe(2);
-    expect(svg).toContain("markStrike__beam markStrike__beam--a");
-    expect(svg).toContain("markStrike__beam markStrike__beam--b");
+    expect(svg).toContain("markStrikeBeam");
+    expect(svg).toContain("markStrikeBeamA");
+    expect(svg).toContain("markStrikeBeamB");
     // All three stroke polygons are revealed through a mask (beam A the thick
     // descending stroke, beam B both thin ascending strokes).
     expect((svg.match(/mask="url\(#strikeBeam/g) ?? []).length).toBe(3);
@@ -39,29 +40,29 @@ describe("PubmaxxMarkStrike — the draw-in", () => {
   });
 
   it("plays on mount by default and can be frozen still", () => {
-    expect(strike()).toContain("markStrike--play");
-    expect(strike()).not.toContain("markStrike--still");
+    expect(strike()).toContain("markStrikePlay");
+    expect(strike()).not.toContain("markStrikeStill");
     const frozen = strike({ still: true });
-    expect(frozen).toContain("markStrike--still");
-    expect(frozen).not.toContain("markStrike--play");
+    expect(frozen).toContain("markStrikeStill");
+    expect(frozen).not.toContain("markStrikePlay");
   });
 
   it("defaults to the duo X: coral strokes + a lit bright ember", () => {
     const svg = strike();
     expect((svg.match(/var\(--brass, #ff5a5f\)/g) ?? []).length).toBe(3);
     expect(svg).toContain("var(--brass-bright, #ff7a55)");
-    expect(svg).toContain('class="markStrike__ember"');
+    expect(svg).toMatch(/class="[^"]*markStrikeEmber[^"]*"/);
   });
 
   it("mono is ember-less by default but pops a monochrome ember when asked", () => {
     const mono = strike({ variant: "mono" });
     expect(mono).toContain("currentColor");
-    expect(mono).not.toContain("markStrike__ember");
+    expect(mono).not.toContain("markStrikeEmber");
     const monoSeal = strike({ variant: "mono", monoEmber: true });
-    expect(monoSeal).toContain("markStrike__ember");
+    expect(monoSeal).toContain("markStrikeEmber");
     // The ember inherits the single stamp tone, not the bright token.
     expect(monoSeal).not.toContain("var(--brass-bright");
-    expect(monoSeal).toMatch(/markStrike__ember"[^>]*fill="currentColor"/);
+    expect(monoSeal).toMatch(/markStrikeEmber[^"]*"[^>]*fill="currentColor"/);
   });
 
   it("is decorative by default and labelled when titled", () => {
@@ -92,14 +93,14 @@ describe("PubmaxxNightSeal — the completed-night stamp", () => {
     // 0.72 * 100 = 72 — the mark inside the stamp.
     expect(svg).toContain('width="72"');
     expect(svg).toContain("markStrike");
-    expect(svg).toContain("nightSeal__mark");
-    expect(svg).toContain("markStrike__ember"); // monoEmber on
+    expect(svg).toContain("nightSealMark");
+    expect(svg).toContain("markStrikeEmber"); // monoEmber on
   });
 
   it("selects tone by variant (auto theme-driven by default)", () => {
-    expect(seal()).toContain("nightSeal--auto");
-    expect(seal({ variant: "ink" })).toContain("nightSeal--ink");
-    expect(seal({ variant: "coral" })).toContain("nightSeal--coral");
+    expect(seal()).toContain("nightSealAuto");
+    expect(seal({ variant: "ink" })).toContain("nightSealInk");
+    expect(seal({ variant: "coral" })).toContain("nightSealCoral");
   });
 
   it("is decorative unless titled", () => {
@@ -111,7 +112,7 @@ describe("PubmaxxNightSeal — the completed-night stamp", () => {
 describe("PubmaxxLoadingEmber — the breathing node", () => {
   it("renders the ember alone (the mark unstruck) in the bright token", () => {
     const svg = ember();
-    expect(svg).toContain('class="loadingEmber__node"');
+    expect(svg).toMatch(/class="[^"]*loadingEmberNode[^"]*"/);
     expect(svg).toContain("var(--brass-bright, #ff7a55)");
     expect(svg).not.toContain("<polygon"); // no arms — just the ember
     expect(svg).toContain(`r="${MARK_GEOMETRY.node.r}"`);

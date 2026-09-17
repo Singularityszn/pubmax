@@ -51,7 +51,7 @@ describe("MapKey", () => {
   });
 
   it("keeps decorative colour and shape samples out of the accessibility tree", () => {
-    expect(html).toContain('class="mapKeyPriceSwatch');
+    expect(html).toMatch(/class="[^"]*mapKeyPriceSwatch/);
     expect(html).toContain('aria-hidden="true"');
     expect(html).toContain("A recent pint report");
     expect(html).toContain("This pub has a visible Pint Drop");
@@ -69,27 +69,27 @@ describe("MapKey", () => {
 
   it("draws routed, estimated, and story lines as different marks", () => {
     const css = readFileSync(
-      join(process.cwd(), "components/map/mapKey.css"),
+      join(process.cwd(), "components/map/mapKey.module.css"),
       "utf8",
     );
 
     expect(css).toMatch(
-      /\.mapKeyMarker--walking-route::before\s*{[^}]*height:\s*3px/,
+      /\.mapKeyMarkerWalkingRoute::before\s*{[^}]*height:\s*3px/,
     );
     expect(css).toMatch(
-      /\.mapKeyMarker--straight-route::before\s*{[^}]*border-top:\s*3px dashed/,
+      /\.mapKeyMarkerStraightRoute::before\s*{[^}]*border-top:\s*3px dashed/,
     );
     expect(css).toMatch(
-      /\.mapKeyMarker--story-corridor::before\s*{[^}]*height:\s*12px[^}]*filter:\s*blur\(2px\)/,
+      /\.mapKeyMarkerStoryCorridor::before\s*{[^}]*height:\s*12px[^}]*filter:\s*blur\(2px\)/,
     );
     expect(storyHtml.match(/--map-key-marker-colour:var\(--route-line\)/g)).toHaveLength(
       2,
     );
-    expect(storyHtml).toContain(
-      'mapKeyMarker--story-corridor" style="--map-key-marker-colour:#d99f45',
+    expect(storyHtml).toMatch(
+      /mapKeyMarkerStoryCorridor[^"]*" style="--map-key-marker-colour:#d99f45/,
     );
     expect(css).toMatch(
-      /\.mapKeyMarker--story-corridor::before\s*{[^}]*background:\s*var\(--map-key-marker-colour\)/,
+      /\.mapKeyMarkerStoryCorridor::before\s*{[^}]*background:\s*var\(--map-key-marker-colour\)/,
     );
   });
 

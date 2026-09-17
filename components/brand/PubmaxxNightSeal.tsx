@@ -1,4 +1,4 @@
-import "./pubmaxxNightSeal.css";
+import styles from "./pubmaxxNightSeal.module.css";
 import PubmaxxMarkStrike from "./PubmaxxMarkStrike";
 
 // ── The night seal ────────────────────────────────────────────────────────────
@@ -46,7 +46,8 @@ export default function PubmaxxNightSeal({
 }: PubmaxxNightSealProps) {
   const labelled = Boolean(title);
   const markSize = Math.round(size * 0.72);
-  const rootClass = ["nightSeal", `nightSeal--${variant}`, className].filter(Boolean).join(" ");
+  const variantClass = variant === "auto" ? styles.nightSealAuto : variant === "ink" ? styles.nightSealInk : styles.nightSealCoral;
+  const rootClass = [styles.nightSeal, variantClass, className].filter(Boolean).join(" ");
 
   return (
     <span
@@ -56,7 +57,7 @@ export default function PubmaxxNightSeal({
       aria-label={labelled ? title : undefined}
       aria-hidden={labelled ? undefined : true}
     >
-      <svg className="nightSeal__ring" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+      <svg className={styles.nightSealRing} viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
         <circle
           cx="32"
           cy="32"
@@ -67,7 +68,7 @@ export default function PubmaxxNightSeal({
           transform="rotate(41 32 32)"
         />
       </svg>
-      <PubmaxxMarkStrike className="nightSeal__mark" variant="mono" monoEmber size={markSize} still={still} />
+      <PubmaxxMarkStrike className={styles.nightSealMark} variant="mono" monoEmber size={markSize} still={still} />
     </span>
   );
 }

@@ -8,7 +8,7 @@ import {
   identityHandleForOwner,
 } from "@/lib/identityClient";
 
-import "./claimMomentWelcome.css";
+import styles from "./claimMomentWelcome.module.css";
 
 // Shows once, right after a visitor claims or renames their handle in THIS
 // session — never a modal, just a warm line above the first-actions row.
@@ -48,7 +48,7 @@ export default function ClaimMomentWelcome() {
   if (!justClaimed) return null;
 
   return (
-    <p className="claimWelcome" role="status">
+    <p className={styles.claimWelcome} role="status">
       Your @handle is yours. Everything below is now saved to it, starting with these:
     </p>
   );

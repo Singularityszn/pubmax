@@ -145,12 +145,12 @@ describe("VenueMenuTab draws its venue's own price updates", () => {
 
     await openDrinks(element);
 
-    const row = Array.from(element.querySelectorAll(".drinkRow")).find((candidate) =>
+    const row = Array.from(element.querySelectorAll('[class*="drinkRow"]')).find((candidate) =>
       candidate.textContent?.includes("Hazy Test IPA"),
     );
     expect(row, "the sourced drink row").toBeDefined();
     expect(row?.textContent).toContain("£6.75");
-    const chip = row?.querySelector<HTMLAnchorElement>("a.drinkProvChip");
+    const chip = row?.querySelector<HTMLAnchorElement>('a[class*="drinkProvChip"]');
     expect(chip?.textContent).toBe("Test Arms menu");
     expect(chip?.getAttribute("href")).toBe("https://example.com/test-arms/menu");
     expect(packReads()).toEqual([]);

@@ -7,10 +7,10 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 
 const globalCss = read("app/globals.css");
 const themeCss = read("app/theme.css");
-const mobileCss = read("components/mobile/mobileMapShell.css");
-const createFabCss = read("components/nav/createFab.css");
-const landingCss = read("components/landing/landing.css");
-const venueCss = read("components/map/venueSheet.css");
+const mobileCss = read("components/mobile/mobileMapShell.module.css");
+const createFabCss = read("components/nav/createFab.module.css");
+const landingCss = read("components/landing/landing.module.css");
+const venueCss = read("components/map/venueSheet.module.css");
 const pubMapSource = read("components/PubMap.tsx");
 const springDrawerSource = read("components/map/SpringDrawer.tsx");
 const legacyDragSource = read("components/map/useSheetDrag.ts");
@@ -35,19 +35,19 @@ describe("sheet material", () => {
       /html\[data-theme="dark"\]\s*{[\s\S]*?--sheet-material:\s*color-mix\([^;]+transparent\)/,
     );
     expect(venueCss).toMatch(
-      /\.mapDrawer\s*{[^}]*background:\s*var\(--sheet-material\);[^}]*backdrop-filter:\s*blur\(20px\) saturate\(1\.08\)/,
+      /:global\(\.mapDrawer\)\s*{[^}]*background:\s*var\(--sheet-material\);[^}]*backdrop-filter:\s*blur\(20px\) saturate\(1\.08\)/,
     );
     expect(mobileCss).toMatch(
-      /\.mobileSharedSheet\.mapDrawer\s*{[^}]*background:\s*var\(--sheet-material\);[^}]*backdrop-filter:\s*blur\(20px\) saturate\(1\.08\);[^}]*contain:\s*layout paint/,
+      /\.mobileSharedSheet:global\(\.mapDrawer\)\s*{[^}]*background:\s*var\(--sheet-material\);[^}]*backdrop-filter:\s*blur\(20px\) saturate\(1\.08\);[^}]*contain:\s*layout paint/,
     );
   });
 
   it("falls back to an opaque material for transparency and contrast preferences", () => {
     expect(venueCss).toMatch(
-      /@media \(prefers-reduced-transparency: reduce\), \(prefers-contrast: more\)\s*{[\s\S]*?\.mapDrawer\s*{[^}]*background:\s*var\(--sheet-material-solid\);[^}]*backdrop-filter:\s*none/,
+      /@media \(prefers-reduced-transparency: reduce\), \(prefers-contrast: more\)\s*{[\s\S]*?:global\(\.mapDrawer\)\s*{[^}]*background:\s*var\(--sheet-material-solid\);[^}]*backdrop-filter:\s*none/,
     );
     expect(mobileCss).toMatch(
-      /@media \(max-width: 640px\) and \(prefers-reduced-transparency: reduce\)\s*{[\s\S]*?\.mobileSharedSheet\.mapDrawer\s*{[^}]*background:\s*var\(--sheet-material-solid\);[^}]*backdrop-filter:\s*none/,
+      /@media \(max-width: 640px\) and \(prefers-reduced-transparency: reduce\)\s*{[\s\S]*?\.mobileSharedSheet:global\(\.mapDrawer\)\s*{[^}]*background:\s*var\(--sheet-material-solid\);[^}]*backdrop-filter:\s*none/,
     );
   });
 });
@@ -71,7 +71,7 @@ describe("responsive spring ownership", () => {
       "const SHEET_GESTURE_MAX_WIDTH = 768",
     );
     expect(venueCss).toMatch(
-      /\.mapDrawer\.springDrawer\.left\.open\.sheet-half\[data-spring-axis="vertical"\][\s\S]*?transform:\s*var\(--drawer-spring-transform\)\s*!important/,
+      /:global\(\.mapDrawer\.springDrawer\.left\.open\.sheet-half\[data-spring-axis="vertical"\][\s\S]*?transform:\s*var\(--drawer-spring-transform\)\s*!important/,
     );
   });
 
@@ -97,17 +97,17 @@ describe("responsive spring ownership", () => {
       "window.getComputedStyle(drawerRef.current).bottom",
     );
     expect(venueCss).toMatch(
-      /\.mapDrawer\.springDrawer\.left\.open\[data-spring-axis="vertical"\][^{]*{[^}]*z-index:\s*var\(--z-nav\)/,
+      /:global\(\.mapDrawer\.springDrawer\.left\.open\[data-spring-axis="vertical"\]\)[^{]*{[^}]*z-index:\s*var\(--z-nav\)/,
     );
     expect(venueCss).toMatch(
-      /\.mapDrawer\.springDrawer\.right\.open\[data-spring-axis="vertical"\][^{]*{[^}]*z-index:\s*calc\(var\(--z-nav\) \+ 1\)/,
+      /:global\(\.mapDrawer\.springDrawer\.right\.open\[data-spring-axis="vertical"\]\)[^{]*{[^}]*z-index:\s*calc\(var\(--z-nav\) \+ 1\)/,
     );
   });
 });
 
 describe("area picker surface tokens", () => {
   it("keeps the desktop picker on the sheet radius and shadow vocabulary", () => {
-    const chooseAreaCss = read("components/map/chooseAreaSheet.css");
+    const chooseAreaCss = read("components/map/chooseAreaSheet.module.css");
     const dialog = chooseAreaCss.match(/\.chooseAreaDesktop\s*\{([^}]*)\}/)?.[1] ?? "";
 
     expect(dialog).toMatch(/border-radius:\s*var\(--radius-lg\)/);
@@ -120,7 +120,7 @@ describe("area picker surface tokens", () => {
 describe("surface and type hierarchy", () => {
   it("gives the landing one primary through the Screen primitive and no second button family", () => {
     // The relaunch landing (issue #1354) paints its one primary through
-    // components/ui/screen.css. The old landing button family, the signal
+    // components/ui/screen.module.css. The old landing button family, the signal
     // grid and the glass nav are gone and must not creep back.
     expect(landingCss).not.toMatch(/\.lpButton(Primary|Quiet)?\s*{/);
     expect(landingCss).not.toMatch(/\.lpSignalGrid/);
@@ -140,10 +140,10 @@ describe("surface and type hierarchy", () => {
       /\.mobileSharedSheetHeader h2\s*{[^}]*font-size:\s*clamp\([^;]+;[^}]*font-weight:\s*720/,
     );
     expect(mobileCss).toMatch(
-      /\.mobileVenuePeekSummary\s*{[^}]*border-inline:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent/,
+      /:global\(\.mobileVenuePeekSummary\)\s*{[^}]*border-inline:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent/,
     );
     expect(venueCss).toMatch(
-      /\.venueTabPanel \.contributorPrice\s*{[^}]*border-inline:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none/,
+      /\.venueTabPanel :global\(\.contributorPrice\)\s*{[^}]*border-inline:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none/,
     );
   });
 });
@@ -178,10 +178,10 @@ describe("pointer-down feedback", () => {
       /button,[\s\S]*?a\[data-pressable\],[\s\S]*?\.pressable\s*{[^}]*touch-action:\s*manipulation/,
     );
     expect(venueCss).toMatch(
-      /\.venueSheetGrabZone:active \.venueSheetGrab,[\s\S]*?\.sheet-dragging \.venueSheetGrab\s*{[^}]*background:/,
+      /\.venueSheetGrabZone:active \.venueSheetGrab,[\s\S]*?\.sheet-dragging\) \.venueSheetGrab\s*{[^}]*background:/,
     );
     expect(mobileCss).toMatch(
-      /\.mobileSharedSheetDetent:active \.mobileSharedSheetGrab,[\s\S]*?\.sheet-dragging \.mobileSharedSheetGrab\s*{[^}]*background:/,
+      /\.mobileSharedSheetDetent:active \.mobileSharedSheetGrab,[\s\S]*?\.sheet-dragging\) \.mobileSharedSheetGrab\s*{[^}]*background:/,
     );
   });
 

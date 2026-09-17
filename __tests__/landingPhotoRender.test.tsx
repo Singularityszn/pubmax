@@ -110,7 +110,7 @@ describe("a borough chapter carries its own photograph", () => {
         photo: landingPhotoFor({ boroughSlug: "camden" }),
       }),
     );
-    expect(html).toContain("landingPhoto--band");
+    expect(html).toMatch(/_landingPhotoBand_/);
     expect(html).toContain("/landing/london/camden-lock-640.avif 640w");
     expect(html).toContain(LANDING_PHOTOS["camden-lock"].credit.author);
     expect(html).not.toContain("No photo yet");

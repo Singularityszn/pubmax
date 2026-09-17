@@ -45,8 +45,8 @@ function links(host: HTMLElement, selector: string): HTMLAnchorElement[] {
   return Array.from(host.querySelectorAll<HTMLAnchorElement>(selector));
 }
 
-const landingNav = () => links(render(LandingPage), ".lpPrimaryNav a");
-const appNav = () => links(render(SiteNav), ".siteNavLinks a");
+const landingNav = () => links(render(LandingPage), "[class*='lpPrimaryNav'] a");
+const appNav = () => links(render(SiteNav), "[class*='siteNavLinks'] a");
 
 describe("one navigation vocabulary", () => {
   it("names the landing bar with the app's primary destinations, in order", () => {

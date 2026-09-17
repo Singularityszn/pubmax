@@ -45,7 +45,7 @@ import {
   parseCrewRead,
 } from "@/lib/socialCrewsUi";
 
-import "@/components/social/crews.css";
+import styles from "@/components/social/crews.module.css";
 
 type LoadState = "loading" | "ready" | "missing" | "error";
 type JoinRequestLoadState = "idle" | "loading" | "ready" | "error";
@@ -500,7 +500,7 @@ export default function CrewDetailClient({
   const body = (() => {
     if (!identityResolved || loadedIdentityKey !== identityKey) {
       return (
-        <div className="crews__skeletons" aria-label="Loading crew">
+        <div className={styles.crewsSkeletons} aria-label="Loading crew">
           <span />
           <span />
         </div>
@@ -508,7 +508,7 @@ export default function CrewDetailClient({
     }
     if (status === "loading") {
       return (
-        <div className="crews__skeletons" aria-hidden="true">
+        <div className={styles.crewsSkeletons} aria-hidden="true">
           <span />
           <span />
         </div>
@@ -516,13 +516,13 @@ export default function CrewDetailClient({
     }
     if (status === "missing") {
       return (
-        <section className="crews__notice" role="status">
+        <section className={styles.crewsNotice} role="status">
           <h1>This crew is not open to you.</h1>
-          <p className="crews__muted">
+          <p className={styles.crewsMuted}>
             A crew is visible to the people on the night and to mates of the
             host. Ask them for a link.
           </p>
-          <Link className="crews__button" href="/social">
+          <Link className={styles.crewsButton} href="/social">
             Back to Social
           </Link>
         </section>
@@ -530,11 +530,11 @@ export default function CrewDetailClient({
     }
     if (status === "error" || !crew) {
       return (
-        <section className="crews__notice" role="alert">
+        <section className={styles.crewsNotice} role="alert">
           <h1>Could not load this crew.</h1>
           <button
             type="button"
-            className="crews__button"
+            className={styles.crewsButton}
             onClick={() => setAttempt((value) => value + 1)}
           >
             Try again
@@ -548,21 +548,21 @@ export default function CrewDetailClient({
     if (crew.kind === "preview") {
       return (
         <>
-          <header className="crewPage__head">
+          <header className={styles.crewPageHead}>
             <h1>{crew.title}</h1>
-            <p className="crewPage__meta">
+            <p className={styles.crewPageMeta}>
               <span>{CREW_PHASE_LABEL[crew.phase]}</span>
               {crew.nightArea ? <span>{crew.nightArea}</span> : null}
               {starts ? <time dateTime={crew.startsAt}>{starts}</time> : null}
             </p>
           </header>
           {invitationId ? (
-            <section className="crews__notice">
+            <section className={styles.crewsNotice}>
               <p>You were invited to this night.</p>
-              <div className="crews__formActions">
+              <div className={styles.crewsFormActions}>
                 <button
                   type="button"
-                  className="crews__button crews__button--primary"
+                  className={`${styles.crewsButton} ${styles.crewsButtonPrimary}`}
                   disabled={busy}
                   onClick={() => void decideInvitation("accept")}
                 >
@@ -570,7 +570,7 @@ export default function CrewDetailClient({
                 </button>
                 <button
                   type="button"
-                  className="crews__button"
+                  className={styles.crewsButton}
                   disabled={busy}
                   onClick={() => void decideInvitation("decline")}
                 >
@@ -579,11 +579,11 @@ export default function CrewDetailClient({
               </div>
             </section>
           ) : crew.joinRequestState === "pending" ? (
-            <section className="crews__notice" role="status">
+            <section className={styles.crewsNotice} role="status">
               <p>You have asked to join. The host decides.</p>
               <button
                 type="button"
-                className="crews__button"
+                className={styles.crewsButton}
                 disabled={busy}
                 onClick={() => void changeJoinRequest("cancel")}
               >
@@ -591,14 +591,14 @@ export default function CrewDetailClient({
               </button>
             </section>
           ) : crew.joinRequestState === "declined" ? (
-            <p className="crews__muted" role="status">
+            <p className={styles.crewsMuted} role="status">
               The host said no to this one.
             </p>
           ) : (
-            <section className="crews__notice">
+            <section className={styles.crewsNotice}>
               <button
                 type="button"
-                className="crews__button crews__button--primary"
+                className={`${styles.crewsButton} ${styles.crewsButtonPrimary}`}
                 disabled={busy}
                 onClick={() => void changeJoinRequest("request")}
               >
@@ -614,9 +614,9 @@ export default function CrewDetailClient({
     const managesOpenCrew = manages && crew.visibility === "open";
     return (
       <>
-        <header className="crewPage__head">
+        <header className={styles.crewPageHead}>
           <h1>{crew.title}</h1>
-          <p className="crewPage__meta">
+          <p className={styles.crewPageMeta}>
             <span>{CREW_PHASE_LABEL[crew.phase]}</span>
             <span>{CREW_ROLE_LABEL[crew.viewer.role]}</span>
             {crew.nightArea ? <span>{crew.nightArea}</span> : null}
@@ -626,19 +626,19 @@ export default function CrewDetailClient({
         </header>
 
         <section aria-labelledby="crew-members-title">
-          <h2 id="crew-members-title" className="crews__title">
+          <h2 id="crew-members-title" className={styles.crewsTitle}>
             Who is in
           </h2>
-          <ul className="crews__members">
+          <ul className={styles.crewsMembers}>
             {crew.members.map((member) => (
-              <li key={member.memberId} className="crews__member">
+              <li key={member.memberId} className={styles.crewsMember}>
                 <Link
-                  className="crews__memberHandle"
+                  className={styles.crewsMemberHandle}
                   href={`/u/${encodeURIComponent(member.handle)}`}
                 >
                   {displayHandle(member.handle)}
                 </Link>
-                <span className="crews__memberRole">
+                <span className={styles.crewsMemberRole}>
                   {member.role === "owner"
                     ? "Host"
                     : member.role === "cohost"
@@ -655,26 +655,26 @@ export default function CrewDetailClient({
             <section aria-labelledby="crew-join-requests-title">
               <h2
                 id="crew-join-requests-title"
-                className="crews__title"
+                className={styles.crewsTitle}
                 ref={joinRequestHeading}
                 tabIndex={-1}
               >
                 Requests to join
               </h2>
               {joinRequests.length > 0 ? (
-                <ul className="crews__list">
+                <ul className={styles.crewsList}>
                   {joinRequests.map((request) => (
-                    <li key={request.requestId} className="crews__member">
+                    <li key={request.requestId} className={styles.crewsMember}>
                       <Link
-                        className="crews__memberHandle"
+                        className={styles.crewsMemberHandle}
                         href={`/u/${encodeURIComponent(request.requesterHandle)}`}
                       >
                         {displayHandle(request.requesterHandle)}
                       </Link>
-                      <div className="crews__formActions">
+                      <div className={styles.crewsFormActions}>
                         <button
                           type="button"
-                          className="crews__button crews__button--primary"
+                          className={`${styles.crewsButton} ${styles.crewsButtonPrimary}`}
                           disabled={busy}
                           aria-label={`Accept ${displayHandle(request.requesterHandle)}`}
                           onClick={() => void decideJoinRequest(request, "accept")}
@@ -683,7 +683,7 @@ export default function CrewDetailClient({
                         </button>
                         <button
                           type="button"
-                          className="crews__button"
+                          className={styles.crewsButton}
                           disabled={busy}
                           aria-label={`Decline ${displayHandle(request.requesterHandle)}`}
                           onClick={() => void decideJoinRequest(request, "decline")}
@@ -695,33 +695,33 @@ export default function CrewDetailClient({
                   ))}
                 </ul>
               ) : (
-                <p className="crews__muted">No one has asked to join.</p>
+                <p className={styles.crewsMuted}>No one has asked to join.</p>
               )}
               {joinRequestsHaveMore ? (
-                <p className="crews__note">More requests are waiting.</p>
+                <p className={styles.crewsNote}>More requests are waiting.</p>
               ) : null}
             </section>
           ) : joinRequestStatus === "loading" ? (
             <section aria-labelledby="crew-join-requests-loading">
-              <h2 id="crew-join-requests-loading" className="crews__title">
+              <h2 id="crew-join-requests-loading" className={styles.crewsTitle}>
                 Requests to join
               </h2>
-              <div className="crews__skeletons" aria-label="Loading join requests">
+              <div className={styles.crewsSkeletons} aria-label="Loading join requests">
                 <span />
               </div>
             </section>
           ) : joinRequestStatus === "error" ? (
             <section
-              className="crews__notice"
+              className={styles.crewsNotice}
               aria-labelledby="crew-join-requests-error"
               role="alert"
             >
-              <h2 id="crew-join-requests-error" className="crews__title">
+              <h2 id="crew-join-requests-error" className={styles.crewsTitle}>
                 Could not load join requests.
               </h2>
               <button
                 type="button"
-                className="crews__button"
+                className={styles.crewsButton}
                 onClick={() => setJoinRequestAttempt((value) => value + 1)}
               >
                 Try again
@@ -732,13 +732,13 @@ export default function CrewDetailClient({
 
         {manages ? (
           <section aria-labelledby="crew-invite-title">
-            <h2 id="crew-invite-title" className="crews__title">
+            <h2 id="crew-invite-title" className={styles.crewsTitle}>
               Bring your lot
             </h2>
-            <p className="crews__note">{CREW_MUTUALS_ONLY_NOTE}</p>
+            <p className={styles.crewsNote}>{CREW_MUTUALS_ONLY_NOTE}</p>
 
             {lot.length > 0 ? (
-              <ul className="crews__list">
+              <ul className={styles.crewsList}>
                 {lot
                   .filter(
                     (handle) =>
@@ -746,13 +746,13 @@ export default function CrewDetailClient({
                   )
                   .slice(0, 8)
                   .map((handle) => (
-                    <li key={handle} className="crews__member">
-                      <span className="crews__memberHandle">
+                    <li key={handle} className={styles.crewsMember}>
+                      <span className={styles.crewsMemberHandle}>
                         {displayHandle(handle)}
                       </span>
                       <button
                         type="button"
-                        className="crews__button"
+                        className={styles.crewsButton}
                         disabled={busy}
                         onClick={() => void inviteHandle(handle)}
                       >
@@ -763,7 +763,7 @@ export default function CrewDetailClient({
               </ul>
             ) : null}
 
-            <label className="crews__field">
+            <label className={styles.crewsField}>
               <span>Search a handle</span>
               <input
                 type="search"
@@ -777,17 +777,17 @@ export default function CrewDetailClient({
             </label>
 
             {matches.length > 0 ? (
-              <ul className="crews__list">
+              <ul className={styles.crewsList}>
                 {matches
                   .filter((match) => normalizeHandle(match.handle) !== viewerHandle)
                   .map((match) => (
-                    <li key={match.id} className="crews__member">
-                      <span className="crews__memberHandle">
+                    <li key={match.id} className={styles.crewsMember}>
+                      <span className={styles.crewsMemberHandle}>
                         {displayHandle(match.handle)}
                       </span>
                       <button
                         type="button"
-                        className="crews__button"
+                        className={styles.crewsButton}
                         disabled={busy}
                         onClick={() => void invite(match.id, match.handle)}
                       >
@@ -799,12 +799,12 @@ export default function CrewDetailClient({
             ) : null}
 
             {inviteLink ? (
-              <div className="crews__startBlock">
-                <p className="crews__note">{CREW_INVITE_LINK_NOTE}</p>
-                <code className="crews__inviteUrl">{inviteLink}</code>
+              <div className={styles.crewsStartBlock}>
+                <p className={styles.crewsNote}>{CREW_INVITE_LINK_NOTE}</p>
+                <code className={styles.crewsInviteUrl}>{inviteLink}</code>
                 <button
                   type="button"
-                  className="crews__button"
+                  className={styles.crewsButton}
                   onClick={() => void copyInvite()}
                 >
                   {copied ? "Copied" : "Copy the link"}
@@ -815,20 +815,20 @@ export default function CrewDetailClient({
         ) : null}
 
         <section aria-labelledby="crew-leave-title">
-          <h2 id="crew-leave-title" className="crews__title">
+          <h2 id="crew-leave-title" className={styles.crewsTitle}>
             Leaving
           </h2>
           {canLeaveCrew(crew.viewer.role) ? (
             <button
               type="button"
-              className="crews__button crews__button--danger"
+              className={`${styles.crewsButton} ${styles.crewsButtonDanger}`}
               disabled={busy}
               onClick={() => void leave()}
             >
               {busy ? "Working…" : "Leave this crew"}
             </button>
           ) : (
-            <p className="crews__muted">{CREW_OWNER_LEAVE_NOTE}</p>
+            <p className={styles.crewsMuted}>{CREW_OWNER_LEAVE_NOTE}</p>
           )}
         </section>
       </>
@@ -838,15 +838,15 @@ export default function CrewDetailClient({
   return (
     <>
       <SiteNav active="social" />
-      <main className="crewPage" id="main-content">
-        <Link className="crewPage__back" href="/social">
+      <main className={styles.crewPage} id="main-content">
+        <Link className={styles.crewPageBack} href="/social">
           Back to Social
         </Link>
         {identityResolved &&
         status === "ready" &&
         loadedIdentityKey === identityKey &&
         notice?.identityKey === identityKey ? (
-          <p className="crews__note" role="status" aria-live="polite">
+          <p className={styles.crewsNote} role="status" aria-live="polite">
             {notice.text}
           </p>
         ) : null}
@@ -854,7 +854,7 @@ export default function CrewDetailClient({
         status === "ready" &&
         loadedIdentityKey === identityKey &&
         problem?.identityKey === identityKey ? (
-          <p className="crews__problem" role="alert">
+          <p className={styles.crewsProblem} role="alert">
             {problem.text}
           </p>
         ) : null}

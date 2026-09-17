@@ -13,7 +13,7 @@ import {
   foundingMemberMarkDetail,
 } from "@/lib/foundingMembers";
 
-import "./foundingMemberMark.css";
+import styles from "./foundingMemberMark.module.css";
 
 export default function FoundingMemberMark({
   number,
@@ -30,11 +30,11 @@ export default function FoundingMemberMark({
   // markup that browsers repair by moving it out of the thing it describes.
   return (
     <span
-      className={className ? `foundingMark ${className}` : "foundingMark"}
+      className={className ? `${styles.foundingMark} ${className}` : styles.foundingMark}
       {...(detail ? { title: detail } : {})}
     >
-      <span aria-hidden="true" className="foundingMarkDot" />
-      <span className="foundingMarkLabel">{mark}</span>
+      <span aria-hidden="true" className={styles.foundingMarkDot} />
+      <span className={styles.foundingMarkLabel}>{mark}</span>
     </span>
   );
 }

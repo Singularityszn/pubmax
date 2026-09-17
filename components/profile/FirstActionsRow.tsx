@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
 
-import "./firstActionsRow.css";
+import styles from "./firstActionsRow.module.css";
 
 // The genuine missing piece on a fresh owner's own profile: real, plain links
 // to the actions the page otherwise makes them go hunting for. No surface-nav
@@ -16,19 +16,19 @@ import "./firstActionsRow.css";
 export default function FirstActionsRow() {
   const socialLabel = useSocialSurfaceName();
   return (
-    <section className="firstActionsRow" aria-labelledby="first-actions-title">
-      <p className="firstActionsKicker" id="first-actions-title">Where to start</p>
-      <div className="firstActionsLinks">
-        <Link className="firstActionsLink" href="/map">
+    <section className={styles.firstActionsRow} aria-labelledby="first-actions-title">
+      <p className={styles.firstActionsKicker} id="first-actions-title">Where to start</p>
+      <div className={styles.firstActionsLinks}>
+        <Link className={styles.firstActionsLink} href="/map">
           Open the map
         </Link>
-        <Link className="firstActionsLink" href="/map?log=1">
+        <Link className={styles.firstActionsLink} href="/map?log=1">
           Log your first pint
         </Link>
-        <Link className="firstActionsLink" href="/plan">
+        <Link className={styles.firstActionsLink} href="/plan">
           Start a plan
         </Link>
-        <Link className="firstActionsLink" href="/social">
+        <Link className={styles.firstActionsLink} href="/social">
           {socialLabel}
         </Link>
       </div>

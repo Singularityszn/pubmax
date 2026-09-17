@@ -8,7 +8,7 @@ import {
   UK_OUTSIDE_CITY_COPY,
 } from "@/lib/ukNationalBrowse";
 
-import "./ukPlaceArrivalBanner.css";
+import "./ukPlaceArrivalBanner.module.css";
 
 type UkNationalBrowseBannerProps = {
   /** `national` is `/map?uk=1`; `outside` is camera past the active city box. */

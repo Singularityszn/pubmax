@@ -5,6 +5,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import loginStyles from "@/components/auth/loginPage.module.css";
+
 // A live region announces a CHANGE. Text already present when the region
 // mounted is never spoken, so the skeleton's screen-reader line has to arrive
 // AFTER the first paint. Only a real mount can show that, which is why this
@@ -74,7 +76,7 @@ afterEach(() => {
 });
 
 function statusRegion(): HTMLElement | null {
-  return host.querySelector<HTMLElement>(".loginPageSrOnly");
+  return host.querySelector<HTMLElement>(`.${loginStyles.loginPageSrOnly}`);
 }
 
 describe("the sign-in skeleton's screen-reader line", () => {
@@ -88,7 +90,7 @@ describe("the sign-in skeleton's screen-reader line", () => {
         const target = record.target;
         const element =
           target instanceof HTMLElement ? target : target.parentElement;
-        if (element?.classList.contains("loginPageSrOnly")) {
+        if (element?.classList.contains(loginStyles.loginPageSrOnly)) {
           withinRegion.push(element.textContent ?? "");
         }
       }
@@ -135,9 +137,9 @@ describe("the sign-in skeleton's screen-reader line", () => {
 
     // The shape it stands beside is still the thing that is busy.
     expect(
-      host.querySelector(".loginPageSkeleton")?.getAttribute("aria-busy"),
+      host.querySelector(`.${loginStyles.loginPageSkeleton}`)?.getAttribute("aria-busy"),
     ).toBe("true");
-    expect(host.querySelector("main.loginPage")?.hasAttribute("aria-busy")).toBe(
+    expect(host.querySelector(`main.${loginStyles.loginPage}`)?.hasAttribute("aria-busy")).toBe(
       false,
     );
   });

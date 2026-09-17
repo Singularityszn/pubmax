@@ -7,7 +7,7 @@ import {
 } from "@/lib/venueExternalActions";
 import type { Venue } from "@/lib/venues";
 
-import "./venueActionStrip.css";
+import styles from "./venueActionStrip.module.css";
 
 function ActionIcon({ kind }: { kind: VenueExternalAction["kind"] }) {
   if (kind === "book") return <CalendarDays size={15} aria-hidden="true" />;
@@ -43,33 +43,40 @@ export default function VenueActionStrip({ venue, className, omitKinds }: VenueA
 
   return (
     <div
-      className={`venueActionStrip${className ? ` ${className}` : ""}`}
+      className={`${styles.venueActionStrip}${className ? ` ${className}` : ""}`}
       role="group"
       aria-label={actions.map((a) => a.label).join(", ")}
     >
-      {actions.map((action) => (
-        <a
-          key={action.kind}
-          className={`venueActionStrip__btn venueActionStrip__btn--${action.kind}`}
-          href={action.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          data-tier={action.tier}
-          onClick={
-            action.kind === "book"
-              ? () =>
-                  trackEvent("booking_click", {
-                    venueId: venue.id,
-                    tier: action.tier ?? "search",
-                  })
-              : undefined
-          }
-        >
-          <ActionIcon kind={action.kind} />
-          <span>{action.label}</span>
-          <ExternalLink size={12} className="venueActionStrip__ext" aria-hidden="true" />
-        </a>
-      ))}
+      {actions.map((action) => {
+        const kindStyle: Record<string, string | undefined> = {
+          book: styles.venueActionStripBtnBook,
+          menu: styles.venueActionStripBtnMenu,
+        };
+        const mod = kindStyle[action.kind];
+        return (
+          <a
+            key={action.kind}
+            className={`${styles.venueActionStripBtn}${mod ? ` ${mod}` : ""}`}
+            href={action.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-tier={action.tier}
+            onClick={
+              action.kind === "book"
+                ? () =>
+                    trackEvent("booking_click", {
+                      venueId: venue.id,
+                      tier: action.tier ?? "search",
+                    })
+                : undefined
+            }
+          >
+            <ActionIcon kind={action.kind} />
+            <span>{action.label}</span>
+            <ExternalLink size={12} className={styles.venueActionStripExt} aria-hidden="true" />
+          </a>
+        );
+      })}
     </div>
   );
 }

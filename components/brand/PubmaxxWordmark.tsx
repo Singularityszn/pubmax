@@ -1,4 +1,4 @@
-import "./pubmaxxWordmark.css";
+import styles from "./pubmaxxWordmark.module.css";
 import { BRAND_NAME } from "@/lib/brandNaming";
 import PubmaxxMark, { type PubmaxxMarkVariant } from "./PubmaxxMark";
 
@@ -25,14 +25,14 @@ export default function PubmaxxWordmark({
 }: PubmaxxWordmarkProps) {
   const word = (
     <span
-      className={`pubmaxxWordmark ${withMark ? "" : className}`.trim()}
+      className={`${styles.pubmaxxWordmark} ${withMark ? "" : className}`.trim()}
       role="img"
       aria-label={BRAND_NAME}
     >
-      <span className="pubmaxxWordmarkSr">{BRAND_NAME}</span>
-      <span className="pubmaxxWordmarkLetters" aria-hidden="true">
+      <span className={styles.pubmaxxWordmarkSr}>{BRAND_NAME}</span>
+      <span className={styles.pubmaxxWordmarkLetters} aria-hidden="true">
         <span>PUBMAX</span>
-        <span className="pubmaxxWordmarkAccent">X</span>
+        <span className={styles.pubmaxxWordmarkAccent}>X</span>
       </span>
     </span>
   );
@@ -40,7 +40,7 @@ export default function PubmaxxWordmark({
   if (!withMark) return word;
 
   return (
-    <span className={`pubmaxxLockup ${className}`.trim()}>
+    <span className={`${styles.pubmaxxLockup} ${className}`.trim()}>
       <PubmaxxMark variant={markVariant} size={markSize} />
       {word}
     </span>

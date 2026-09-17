@@ -129,11 +129,11 @@ import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 const root = process.cwd();
 const wordmark = readFileSync(join(root, "components/brand/PubmaxxWordmark.tsx"), "utf8");
 const consent = readFileSync(join(root, "components/AnalyticsConsent.module.css"), "utf8");
-const tour = readFileSync(join(root, "components/onboarding/firstRunTour.css"), "utf8");
+const tour = readFileSync(join(root, "components/onboarding/firstRunTour.module.css"), "utf8");
 const planEntry = readFileSync(join(root, "components/plan/PlanDescribeFirst.tsx"), "utf8");
 const planCss = readFileSync(join(root, "app/plan/Plan.module.css"), "utf8");
 const mobileMapCss = readFileSync(
-  join(root, "components/mobile/mobileMapShell.css"),
+  join(root, "components/mobile/mobileMapShell.module.css"),
   "utf8",
 );
 const nextConfig = readFileSync(join(root, "next.config.mjs"), "utf8");
@@ -144,7 +144,7 @@ describe("core UI audit fixes", () => {
     // No card behind the document here, so the quiet receipt door is the plain
     // one; __tests__/landingFindMyPintHierarchy.test.ts pins the card case.
     const rendered = renderToStaticMarkup(createElement(LandingPage));
-    const hero = rendered.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0];
+    const hero = rendered.match(/<section class="screen [^"]*lpHero[^"]*"[\s\S]*?<\/section>/)?.[0];
     expect(hero, "landing hero present").toBeTruthy();
     expect(hero).toMatch(
       /data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/,
@@ -154,7 +154,7 @@ describe("core UI audit fixes", () => {
   });
 
   it("publishes the complete PUBMAXX brand to assistive technology", () => {
-    expect(wordmark).toMatch(/className=\{`pubmaxxWordmark[\s\S]*?role="img"/);
+    expect(wordmark).toMatch(/className=\{`\$\{styles\.pubmaxxWordmark\}[\s\S]*?role="img"/);
     expect(wordmark).toMatch(/aria-label=\{BRAND_NAME\}/);
   });
 
@@ -164,9 +164,9 @@ describe("core UI audit fixes", () => {
   });
 
   it("uses a distinct neutral tone for the dearest first-visit price band", () => {
-    expect(tour).toMatch(/\.tourLegendRow \.mapPriceDot\.red\s*\{[\s\S]*?background:\s*color-mix\(/);
-    expect(tour).not.toMatch(/\.tourLegendRow \.mapPriceDot\.red\s*\{[\s\S]*?background:\s*var\(--amber\)/);
-    expect(tour).not.toMatch(/\.tourLegendRow \.mapPriceDot\.red\s*\{[\s\S]*?var\(--brick\)/);
+    expect(tour).toMatch(/\.tourLegendRow :global\(\.mapPriceDot\.red\)\s*\{[\s\S]*?background:\s*color-mix\(/);
+    expect(tour).not.toMatch(/\.tourLegendRow :global\(\.mapPriceDot\.red\)\s*\{[\s\S]*?background:\s*var\(--amber\)/);
+    expect(tour).not.toMatch(/\.tourLegendRow :global\(\.mapPriceDot\.red\)\s*\{[\s\S]*?var\(--brick\)/);
   });
 
   it("keeps the plan entry placeholder readable on a phone", () => {

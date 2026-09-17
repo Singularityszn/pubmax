@@ -1,0 +1,174 @@
+/* Loaded with FindYourLot so empty-state mounts outside /social still style. */
+.findLot {
+  margin-top: var(--space-4);
+  padding: var(--space-4) 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.findLotCompact {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+}
+
+/* The label above the title is the shared Kicker primitive (components/ui). */
+.findLotTitle {
+  margin: 0;
+  font-size: var(--text-lg, 1.15rem);
+  font-weight: 750;
+}
+
+.findLotBody,
+.findLotMuted {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted, var(--ink-soft));
+}
+
+.findLotField {
+  display: block;
+  margin-top: var(--space-3);
+}
+
+.findLotField input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 10px);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+}
+
+.findLotList {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.findLotRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 44px;
+}
+
+.findLotIdentity {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.findLotAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.findLotAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.findLotNames {
+  display: grid;
+  min-width: 0;
+}
+
+.findLotHandle {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.findLotDisplay {
+  font-size: var(--text-xs);
+  color: var(--muted, var(--ink-soft));
+  overflow-wrap: anywhere;
+}
+
+/* This control is a <button> for a signed-in drinker and a <Link> for everyone
+   else, so the box has to hold both: an anchor keeps its underline and sits at
+   the top-left of a 44px tall box, which read as a second text field under the
+   handle input rather than the way in. */
+.findLotFollow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
+  min-height: var(--control-height, 44px);
+  min-width: 44px;
+  padding: 0 var(--control-pad-x, 16px);
+  border: 1px solid var(--control-secondary-border, var(--line));
+  border-radius: var(--control-radius, 14px);
+  background: var(--control-secondary-surface, var(--panel-raised));
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
+  cursor: pointer;
+}
+
+.findLotFollow:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.findLotSelf {
+  font-size: var(--text-xs);
+  color: var(--muted, var(--ink-soft));
+}
+
+.findLotInvite {
+  margin-top: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.findLotInviteUrl {
+  display: block;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-md, 10px);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.findLotGhost {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.findLotError {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--danger, #a33);
+}
+
+/* Touch target floor (see app/discover/discover.css). This is the second
+   action in the invite row, beside a real button, so it is a control rather
+   than a link in a sentence, and it painted 16px tall. Coarse pointers only.
+   The base rule also exists in app/social/social.css; collapse that older
+   duplication later, but keep this floor with its component owner. */
+@media (pointer: coarse) {
+  .findLotGhost {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

@@ -457,7 +457,7 @@ for (const viewport of VIEWPORTS) {
     ).toBeLessThanOrEqual(viewport.width);
 
     // Below 361px the wordmark leaves the bar on purpose, so the place name
-    // keeps a readable column (components/mobile/mobileMapShell.css). It is the
+    // keeps a readable column (components/mobile/mobileMapShell.module.css). It is the
     // one control the bar drops, and it must be dropped OUTRIGHT: a hidden
     // element reports a zero box at 0,0, which is indistinguishable from a
     // control shoved off the bar's left edge unless the spec says which it is.
@@ -1126,7 +1126,7 @@ for (const viewport of VIEWPORTS) {
     // element is a full-bleed padded container holding the pill, so its top
     // edge sits above the lane the body reserves and measuring against it
     // would call a flush card 10px adrift. --tabbar-h is the one number both
-    // the bar and the body's clearance read (components/nav/mobileNav.css).
+    // the bar and the body's clearance read (components/nav/mobileNav.module.css).
     const promptBox = await prompt.boundingBox();
     expect(promptBox, "the consent card has a box").not.toBeNull();
     expect(promptBox!.x, "the card is full bleed").toBeLessThanOrEqual(1);

@@ -7,7 +7,7 @@ import { useCallback, useRef, useState } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
 
-import "./share.css";
+import styles from "./share.module.css";
 
 // A reusable share row — a little pressed-brass stamp strip that sits under a
 // pint memory card or a crawl poster (cc_plan2 §11). Every pint and crawl gets
@@ -136,14 +136,14 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
 
   return (
     <div
-      className={`shareBar${compact ? " shareBar--compact" : ""}`}
+      className={`${styles.shareBar}${compact ? ` ${styles.shareBarCompact}` : ""}`}
       role="group"
       aria-label="Share this"
     >
       {compact ? (
         <button
           type="button"
-          className="shareBar__btn shareBar__toggle"
+          className={`${styles.shareBarBtn} ${styles.shareBarToggle}`}
           aria-expanded={expanded}
           aria-label={expanded ? "Hide share options" : "Share this"}
           title={expanded ? "Hide share options" : "Share"}
@@ -152,7 +152,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
           <ShareMark />
         </button>
       ) : (
-        <span className="shareBar__label" aria-hidden="true">
+        <span className={styles.shareBarLabel} aria-hidden="true">
           Share
         </span>
       )}
@@ -163,7 +163,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
           {canNativeShare ? (
             <button
               type="button"
-              className="shareBar__btn"
+              className={styles.shareBarBtn}
               onClick={handleNativeShare}
               aria-label="Share to another app"
               title="Share to another app"
@@ -174,7 +174,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
 
           {/* WhatsApp — same progressive-enhancement shape. */}
           <a
-            className="shareBar__btn"
+            className={styles.shareBarBtn}
             href={whatsappHref(url)}
             onClick={(event) => {
               event.preventDefault();
@@ -191,7 +191,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
           {/* X / Twitter — server-rendered as a real anchor so it works without JS;
               onClick upgrades it to build the absolute url at click time. */}
           <a
-            className="shareBar__btn"
+            className={styles.shareBarBtn}
             href={tweetHref(url)}
             onClick={(event) => {
               event.preventDefault();
@@ -208,7 +208,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
           {/* Copy link — confirms with "Copied" for a beat, then quietly resets. */}
           <button
             type="button"
-            className="shareBar__btn"
+            className={styles.shareBarBtn}
             onClick={handleCopy}
             aria-label={copied ? "Link copied" : "Copy link"}
             title={copied ? "Copied" : "Copy link"}
@@ -219,7 +219,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
       ) : null}
 
       {/* Polite live confirmation for screen readers when a link is copied. */}
-      <span className="shareBar__confirm" role="status" aria-live="polite">
+      <span className={styles.shareBarConfirm} role="status" aria-live="polite">
         {copied ? "Copied" : shareError}
       </span>
     </div>

@@ -7,6 +7,8 @@ import {
   type PintFactStats,
 } from "@/lib/pintFacts";
 
+import styles from "./factLayer.module.css";
+
 // Server-rendered fact block (Wave S3.1): extractable prose + a small stat table
 // derived entirely from the area's tracked pint prices. Renders NOTHING when the
 // area has no priced pub (honest — no invented figures). All numbers come from
@@ -32,21 +34,21 @@ export default function FactBlock({
   const stampIndex = sentences.length - 1;
 
   return (
-    <section className="factBlock" aria-labelledby={headingId}>
-      <h2 id={headingId} className="factBlockTitle">
+    <section className={styles.factBlock} aria-labelledby={headingId}>
+      <h2 id={headingId} className={styles.factBlockTitle}>
         {title}
       </h2>
-      <div className="factBlockProse">
+      <div className={styles.factBlockProse}>
         {sentences.map((sentence, index) => (
           <p
             key={sentence}
-            className={index === stampIndex ? "factBlockStamp" : undefined}
+            className={index === stampIndex ? styles.factBlockStamp : undefined}
           >
             {sentence}
           </p>
         ))}
       </div>
-      <table className="factStatTable">
+      <table className={styles.factStatTable}>
         <caption>Tracked pint prices in {stats.name}</caption>
         <tbody>
           <tr>

@@ -11,6 +11,7 @@ import PintDropComposer from "@/components/map/PintDropComposer";
 import VenuePriceStory from "@/components/map/VenuePriceStory";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import PintDropsList from "./PintDropsList";
+import sheetStyles from "../venueSheet.module.css";
 
 export default function VenuePintsTab({
   venue,
@@ -34,7 +35,7 @@ export default function VenuePintsTab({
       role="tabpanel"
       id="venuePanel-pints"
       aria-labelledby="venueTab-pints"
-      className="venueTabPanel"
+      className={sheetStyles.venueTabPanel}
       hidden={tab !== "pints"}
     >
       {/* Desktop docked panel (N3): Golden Thread / composer sits beside the
@@ -42,7 +43,7 @@ export default function VenuePintsTab({
           wrapper is a no-op on mobile (venueSheet.css only grids it ≥1024px);
           on mobile the two children still stack in document order exactly as
           before. */}
-      <div className="venuePintsCols">
+      <div className={sheetStyles.venuePintsCols}>
         {composerOpen ? (
           <PintDropComposer
             venueId={venue.id}
@@ -66,7 +67,7 @@ export default function VenuePintsTab({
             <span>Pint Drops</span>
           </div>
           {hasDemoDrops ? (
-            <div className="demoDataNote">
+            <div className={sheetStyles.demoDataNote}>
               <span>Demo data</span>
               Example Pint Drops are seeded for the walkthrough. Live contributions use the same
               flow.

@@ -192,9 +192,9 @@ describe("the shell wiring", () => {
 
   it("owns the stylesheet for the selection notice markup it renders itself", () => {
     // The note for a bad `?sel=` used to arrive unstyled, because
-    // ukPlaceArrivalBanner.css shipped only with two dynamically imported
+    // ukPlaceArrivalBanner.module.css shipped only with two dynamically imported
     // banners that a bad id never mounts.
-    expect(shell).toContain('import "@/components/map/ukPlaceArrivalBanner.css"');
+    expect(shell).toContain('import "@/components/map/ukPlaceArrivalBanner.module.css"');
     expect(shell).toContain('className="ukPlaceArrival"');
   });
 

@@ -30,7 +30,7 @@ import type { UkPlace } from "@/lib/ukPlaceSearch";
 import type { Venue } from "@/lib/venues";
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 
-import "./mapSearchSuggest.css";
+import styles from './mapSearchSuggest.module.css';
 
 // The map's as-you-type search: the house SearchField plus a suggestions popup
 // beneath it, listing matching AREAS (the modelled areas + boroughs) and PUBS,
@@ -413,7 +413,7 @@ export default function MapSearchSuggest({
     showEmptyLine && announcedQuery === deferredTrimmed.toLocaleLowerCase() ? NO_RESULTS_MESSAGE : "";
 
   return (
-    <div className={`mapSearchSuggest mapSearchSuggest--${mode}`}>
+    <div className={`${styles.mapSearchSuggest} ${mode === "toolbar" ? "mapSearchSuggestToolbar" : styles.mapSearchSuggestOverlay}`}>
       <SearchField
         id={id}
         role="combobox"
@@ -438,11 +438,11 @@ export default function MapSearchSuggest({
       />
 
       {showPanel ? (
-        <div className="mapSearchSuggestPanel">
-          <div id={listboxId} role="listbox" aria-label="Search suggestions" className="mapSearchSuggestScroll">
+        <div className={styles.mapSearchSuggestPanel}>
+          <div id={listboxId} role="listbox" aria-label="Search suggestions" className={styles.mapSearchSuggestScroll}>
             {indexedCities.length > 0 ? (
-              <div role="group" aria-label="Cities" className="mapSearchSuggestGroup">
-                <p className="mapSearchSuggestGroupHead">
+              <div role="group" aria-label="Cities" className={styles.mapSearchSuggestGroup}>
+                <p className={styles.mapSearchSuggestGroupHead}>
                   <span>Cities</span>
                 </p>
                 {indexedCities.map((city, offset) => {
@@ -453,15 +453,15 @@ export default function MapSearchSuggest({
                       id={optionId(index)}
                       role="option"
                       aria-selected={safeActive === index}
-                      className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+                      className={`${styles.mapSearchSuggestRow}${safeActive === index ? " isActive" : ""}`}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => activate({ type: "city", item: city })}
                       onPointerEnter={() => chooseActiveIndex(index)}
                     >
-                      <span className="mapSearchSuggestRowMain">
-                        <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
-                        <span className="mapSearchSuggestRowName">{city.name}</span>
-                        <span className="mapSearchSuggestBorough">City map</span>
+                      <span className={styles.mapSearchSuggestRowMain}>
+                        <MapPin size={15} aria-hidden="true" className={styles.mapSearchSuggestRowIcon} />
+                        <span className={styles.mapSearchSuggestRowName}>{city.name}</span>
+                        <span className={styles.mapSearchSuggestBorough}>City map</span>
                       </span>
                     </div>
                   );
@@ -470,10 +470,10 @@ export default function MapSearchSuggest({
             ) : null}
 
             {suggestions.areas.length > 0 ? (
-              <div role="group" aria-label="Areas" className="mapSearchSuggestGroup">
-                <p className="mapSearchSuggestGroupHead">
+              <div role="group" aria-label="Areas" className={styles.mapSearchSuggestGroup}>
+                <p className={styles.mapSearchSuggestGroupHead}>
                   <span>Areas</span>
-                  <span className="mapSearchSuggestOrigin">{originNote}</span>
+                  <span className={styles.mapSearchSuggestOrigin}>{originNote}</span>
                 </p>
                 {suggestions.areas.map((area, index) => (
                   <div
@@ -481,16 +481,16 @@ export default function MapSearchSuggest({
                     id={optionId(areaStartIndex + index)}
                     role="option"
                     aria-selected={safeActive === areaStartIndex + index}
-                    className={`mapSearchSuggestRow${safeActive === areaStartIndex + index ? " isActive" : ""}`}
+                    className={`${styles.mapSearchSuggestRow}${safeActive === areaStartIndex + index ? " isActive" : ""}`}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => activate({ type: "area", item: area })}
                     onPointerEnter={() => chooseActiveIndex(areaStartIndex + index)}
                   >
-                    <span className="mapSearchSuggestRowMain">
-                      <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
-                      <span className="mapSearchSuggestRowName">{area.name}</span>
+                    <span className={styles.mapSearchSuggestRowMain}>
+                      <MapPin size={15} aria-hidden="true" className={styles.mapSearchSuggestRowIcon} />
+                      <span className={styles.mapSearchSuggestRowName}>{area.name}</span>
                       {area.contextLabel ? (
-                        <span className="mapSearchSuggestBorough">{area.contextLabel}</span>
+                        <span className={styles.mapSearchSuggestBorough}>{area.contextLabel}</span>
                       ) : null}
                       {/* No coverage chip here. A suggestion row is a place to
                           fly to, and the chip read "Plan with warnings" beside
@@ -500,7 +500,7 @@ export default function MapSearchSuggest({
                           sheet says it there, where planning is the question. */}
                     </span>
                     {area.distanceLabel ? (
-                      <span className="mapSearchSuggestDistance">{area.distanceLabel}</span>
+                      <span className={styles.mapSearchSuggestDistance}>{area.distanceLabel}</span>
                     ) : null}
                   </div>
                 ))}
@@ -508,8 +508,8 @@ export default function MapSearchSuggest({
             ) : null}
 
             {indexedVenues.length > 0 ? (
-              <div role="group" aria-label="Venues across city maps" className="mapSearchSuggestGroup">
-                <p className="mapSearchSuggestGroupHead">
+              <div role="group" aria-label="Venues across city maps" className={styles.mapSearchSuggestGroup}>
+                <p className={styles.mapSearchSuggestGroupHead}>
                   <span>Venues across city maps</span>
                 </p>
                 {indexedVenues.map((venue, offset) => {
@@ -525,14 +525,14 @@ export default function MapSearchSuggest({
                       role="option"
                       data-venue-id={venue.id}
                       aria-selected={safeActive === index}
-                      className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+                      className={`${styles.mapSearchSuggestRow}${safeActive === index ? " isActive" : ""}`}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => activate({ type: "indexedVenue", item: venue })}
                       onPointerEnter={() => chooseActiveIndex(index)}
                     >
-                      <span className="mapSearchSuggestRowMain">
-                        <span className="mapSearchSuggestRowName">{venue.name}</span>
-                        {locationLabel ? <span className="mapSearchSuggestBorough">{locationLabel}</span> : null}
+                      <span className={styles.mapSearchSuggestRowMain}>
+                        <span className={styles.mapSearchSuggestRowName}>{venue.name}</span>
+                        {locationLabel ? <span className={styles.mapSearchSuggestBorough}>{locationLabel}</span> : null}
                       </span>
                     </div>
                   );
@@ -541,8 +541,8 @@ export default function MapSearchSuggest({
             ) : null}
 
             {suggestions.pubs.length > 0 ? (
-              <div role="group" aria-label="Venues" className="mapSearchSuggestGroup">
-                <p className="mapSearchSuggestGroupHead">
+              <div role="group" aria-label="Venues" className={styles.mapSearchSuggestGroup}>
+                <p className={styles.mapSearchSuggestGroupHead}>
                   <span>Venues</span>
                 </p>
                 {suggestions.pubs.map((pub, offset) => {
@@ -554,29 +554,29 @@ export default function MapSearchSuggest({
                       role="option"
                       data-venue-id={pub.id}
                       aria-selected={safeActive === index}
-                      className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+                      className={`${styles.mapSearchSuggestRow}${safeActive === index ? " isActive" : ""}`}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => activate({ type: "pub", item: pub })}
                       onPointerEnter={() => chooseActiveIndex(index)}
                     >
-                      <span className="mapSearchSuggestRowMain">
-                        <span className="mapSearchSuggestRowName">{pub.name}</span>
-                        <span className="mapSearchSuggestBorough">{pub.typeLabel}</span>
+                      <span className={styles.mapSearchSuggestRowMain}>
+                        <span className={styles.mapSearchSuggestRowName}>{pub.name}</span>
+                        <span className={styles.mapSearchSuggestBorough}>{pub.typeLabel}</span>
                         {pub.boroughLabel ? (
-                          <span className="mapSearchSuggestBorough">{pub.boroughLabel}</span>
+                          <span className={styles.mapSearchSuggestBorough}>{pub.boroughLabel}</span>
                         ) : null}
                       </span>
-                      <span className="mapSearchSuggestMeta">
+                      <span className={styles.mapSearchSuggestMeta}>
                         {pub.priceLabel ? (
                           <CompactVenuePrice
                             priceLabel={pub.priceLabel}
                             anchor={pub.anchor}
-                            className="mapSearchSuggestPrice"
-                            provenanceClassName="mapSearchSuggestPriceProvenance"
+                            className={styles.mapSearchSuggestPrice}
+                            provenanceClassName={styles.mapSearchSuggestPriceProvenance}
                           />
                         ) : null}
                         {pub.distanceLabel ? (
-                          <span className="mapSearchSuggestDistance">{pub.distanceLabel}</span>
+                          <span className={styles.mapSearchSuggestDistance}>{pub.distanceLabel}</span>
                         ) : null}
                       </span>
                     </div>
@@ -589,9 +589,9 @@ export default function MapSearchSuggest({
               <div
                 role="group"
                 aria-label={UK_PLACE_SEARCH_GROUP_LABEL}
-                className="mapSearchSuggestGroup"
+                className={styles.mapSearchSuggestGroup}
               >
-                <p className="mapSearchSuggestGroupHead">
+                <p className={styles.mapSearchSuggestGroupHead}>
                   <span>{UK_PLACE_SEARCH_GROUP_LABEL}</span>
                 </p>
                 {suggestions.places.map((place, offset) => {
@@ -602,24 +602,24 @@ export default function MapSearchSuggest({
                       id={optionId(index)}
                       role="option"
                       aria-selected={safeActive === index}
-                      className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+                      className={`${styles.mapSearchSuggestRow}${safeActive === index ? " isActive" : ""}`}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => activate({ type: "place", item: place })}
                       onPointerEnter={() => chooseActiveIndex(index)}
                     >
-                      <span className="mapSearchSuggestRowMain">
-                        <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
-                        <span className="mapSearchSuggestRowName">{place.name}</span>
+                      <span className={styles.mapSearchSuggestRowMain}>
+                        <MapPin size={15} aria-hidden="true" className={styles.mapSearchSuggestRowIcon} />
+                        <span className={styles.mapSearchSuggestRowName}>{place.name}</span>
                         {place.contextLabel ? (
-                          <span className="mapSearchSuggestBorough">{place.contextLabel}</span>
+                          <span className={styles.mapSearchSuggestBorough}>{place.contextLabel}</span>
                         ) : null}
                         {place.description ? (
-                          <span className="mapSearchSuggestBorough">{place.description}</span>
+                          <span className={styles.mapSearchSuggestBorough}>{place.description}</span>
                         ) : null}
                       </span>
-                      <span className="mapSearchSuggestMeta">
+                      <span className={styles.mapSearchSuggestMeta}>
                         {place.distanceLabel ? (
-                          <span className="mapSearchSuggestDistance">{place.distanceLabel}</span>
+                          <span className={styles.mapSearchSuggestDistance}>{place.distanceLabel}</span>
                         ) : null}
                       </span>
                     </div>
@@ -632,9 +632,9 @@ export default function MapSearchSuggest({
               <div
                 role="group"
                 aria-label={UK_BASE_SEARCH_GROUP_LABEL}
-                className="mapSearchSuggestGroup"
+                className={styles.mapSearchSuggestGroup}
               >
-                <p className="mapSearchSuggestGroupHead">
+                <p className={styles.mapSearchSuggestGroupHead}>
                   <span>{UK_BASE_SEARCH_GROUP_LABEL}</span>
                 </p>
                 {mergedUkBasePubs.map((pub, offset) => {
@@ -646,21 +646,21 @@ export default function MapSearchSuggest({
                       role="option"
                       data-venue-id={pub.id}
                       aria-selected={safeActive === index}
-                      className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+                      className={`${styles.mapSearchSuggestRow}${safeActive === index ? " isActive" : ""}`}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => activate({ type: "ukBase", item: pub })}
                       onPointerEnter={() => chooseActiveIndex(index)}
                     >
-                      <span className="mapSearchSuggestRowMain">
-                        <span className="mapSearchSuggestRowName">{pub.name}</span>
-                        <span className="mapSearchSuggestBorough">No listed price</span>
+                      <span className={styles.mapSearchSuggestRowMain}>
+                        <span className={styles.mapSearchSuggestRowName}>{pub.name}</span>
+                        <span className={styles.mapSearchSuggestBorough}>No listed price</span>
                         {pub.address ? (
-                          <span className="mapSearchSuggestBorough">{pub.address}</span>
+                          <span className={styles.mapSearchSuggestBorough}>{pub.address}</span>
                         ) : null}
                       </span>
-                      <span className="mapSearchSuggestMeta">
+                      <span className={styles.mapSearchSuggestMeta}>
                         {pub.distanceLabel ? (
-                          <span className="mapSearchSuggestDistance">{pub.distanceLabel}</span>
+                          <span className={styles.mapSearchSuggestDistance}>{pub.distanceLabel}</span>
                         ) : null}
                       </span>
                     </div>
@@ -674,12 +674,12 @@ export default function MapSearchSuggest({
             {showEmptyLine ? (
               <div
                 id={emptyStateId}
-                className="mapSearchSuggestEmpty"
+                className={styles.mapSearchSuggestEmpty}
                 data-testid="map-search-no-results"
                 role="presentation"
               >
-                <p className="mapSearchSuggestEmptyTitle">{NO_RESULTS_MESSAGE}</p>
-                <p className="mapSearchSuggestEmptyHint">
+                <p className={styles.mapSearchSuggestEmptyTitle}>{NO_RESULTS_MESSAGE}</p>
+                <p className={styles.mapSearchSuggestEmptyHint}>
                   Try Soho, Willesden, or The Crown. Clear search to see every venue.
                 </p>
               </div>

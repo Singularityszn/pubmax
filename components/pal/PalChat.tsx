@@ -70,7 +70,7 @@ import { VibeChipButton, VibeChips } from "@/components/vibe/VibeChips";
 import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 
-import "./palChat.css";
+import styles from "./palChat.module.css";
 
 type Entry =
   | { kind: "user"; id: string; text: string }
@@ -99,14 +99,14 @@ function VenueLink({
   // A card is only tappable when it deep-links to a real venue on the map. The
   // static variant still renders every fact and its provenance.
   if (!card.venueId) {
-    return <div className="palChatCardMain">{children}</div>;
+    return <div className={styles.palChatCardMain}>{children}</div>;
   }
   const target = resolvePalVenueOpenTarget(card.venueId, knownVenueIds);
   const href = target.href;
   return (
     <Link
       prefetch={false}
-      className="palChatCardMain palChatCardBody--link"
+      className={`${styles.palChatCardMain} ${styles.palChatCardBodyLink}`}
       href={href}
       onClick={(event) => {
         if (
@@ -136,7 +136,7 @@ function ProvChip({ card }: { card: PalCard }) {
   if (provenance.url) {
     return (
       <a
-        className="palChatProv palChatProv--link"
+        className={`${styles.palChatProv} ${styles.palChatProvLink}`}
         href={provenance.url}
         target="_blank"
         rel="noreferrer noopener"
@@ -146,7 +146,7 @@ function ProvChip({ card }: { card: PalCard }) {
       </a>
     );
   }
-  return <span className="palChatProv">{label}</span>;
+  return <span className={styles.palChatProv}>{label}</span>;
 }
 
 // Explicit Pub Pal acceptance (§4.8: Pal owns its own "Use this Venue", distinct
@@ -181,40 +181,40 @@ export function AnswerCard({
 }) {
   const when = card.when ? formatPalWhen(card.when) : "";
   return (
-    <li className="palChatCard">
-      <div className="palChatCardBody">
+    <li className={styles.palChatCard}>
+      <div className={styles.palChatCardBody}>
         <VenueLink card={card} onOpen={onOpen} knownVenueIds={knownVenueIds}>
-          <div className="palChatCardTop">
-            <p className="palChatCardTitle">{card.title}</p>
+          <div className={styles.palChatCardTop}>
+            <p className={styles.palChatCardTitle}>{card.title}</p>
             {typeof card.price === "number" ? (
-              <span className="palChatCardPrice">£{card.price.toFixed(2)}</span>
+              <span className={styles.palChatCardPrice}>£{card.price.toFixed(2)}</span>
             ) : null}
           </div>
           {card.place ? (
-            <p className="palChatCardPlace">
+            <p className={styles.palChatCardPlace}>
               <MapPin size={12} aria-hidden="true" />
               <span>{card.place}</span>
             </p>
           ) : null}
-          {when ? <p className="palChatCardWhen">{when}</p> : null}
-          {card.note ? <p className="palChatCardNote">{card.note}</p> : null}
+          {when ? <p className={styles.palChatCardWhen}>{when}</p> : null}
+          {card.note ? <p className={styles.palChatCardNote}>{card.note}</p> : null}
           {card.venueId ? (
-            <span className="palChatCardCta" aria-hidden="true">
+            <span className={styles.palChatCardCta} aria-hidden="true">
               Show on map
             </span>
           ) : null}
         </VenueLink>
-        <div className="palChatCardMeta">
+        <div className={styles.palChatCardMeta}>
           <ProvChip card={card} />
           {card.confidence ? (
-            <span className="palChatConfidence">{card.confidence}</span>
+            <span className={styles.palChatConfidence}>{card.confidence}</span>
           ) : null}
         </div>
       </div>
       {card.venueId ? (
         <Link
           prefetch={false}
-          className="palChatCardAccept pressable"
+          className={`${styles.palChatCardAccept} pressable`}
           href={venueAcceptUrl(card.venueId, "pal")}
           onClick={() => acceptPalVenue(card, locality)}
         >
@@ -283,7 +283,7 @@ export default function PalChat() {
   );
 
   // Keep the newest turn in view as the transcript grows. The transcript ends
-  // where its content ends (palChat.css), so the PAGE is the scroller and the
+  // where its content ends (palChat.module.css), so the PAGE is the scroller and the
   // composer is pinned over its foot; the region's own scrollTop is set too
   // for the one case where it is the scroller (a bounded host).
   useEffect(() => {
@@ -504,7 +504,7 @@ export default function PalChat() {
       <Screen
         as="main"
         id="main"
-        className="palChat pageHidesCreateFab"
+        className={`${styles.palChat} pageHidesCreateFab`}
         kicker={
           <>
             <PubPalMascot size={18} circular />
@@ -517,21 +517,21 @@ export default function PalChat() {
         secondary={<Link prefetch={false} href="/pal">Back to your Pub Pal</Link>}
       >
 
-      <div className="palChatScroll" ref={scrollRef}>
-        <div className="palChatTranscript" aria-live="polite">
+      <div className={styles.palChatScroll} ref={scrollRef}>
+        <div className={styles.palChatTranscript} aria-live="polite">
           {entries.map((entry) => {
             if (entry.kind === "user") {
               return (
-                <div key={entry.id} className="palChatRow palChatRow--user">
-                  <p className="palChatBubble palChatBubble--user">{entry.text}</p>
+                <div key={entry.id} className={`${styles.palChatRow} ${styles.palChatRowUser}`}>
+                  <p className={`${styles.palChatBubble} ${styles.palChatBubbleUser}`}>{entry.text}</p>
                 </div>
               );
             }
             if (entry.kind === "error") {
               return (
-                <div key={entry.id} className="palChatRow palChatRow--pal">
+                <div key={entry.id} className={`${styles.palChatRow} ${styles.palChatRowPal}`}>
                   <p
-                    className="palChatBubble palChatBubble--error"
+                    className={`${styles.palChatBubble} ${styles.palChatBubbleError}`}
                     role="alert"
                   >
                     {entry.message}
@@ -541,31 +541,31 @@ export default function PalChat() {
             }
             const { answer, locality, proposals, recall } = entry;
             return (
-              <div key={entry.id} className="palChatRow palChatRow--pal">
+              <div key={entry.id} className={`${styles.palChatRow} ${styles.palChatRowPal}`}>
                 <p
-                  className={`palChatBubble${
-                    answer.status === "empty" ? " palChatBubble--empty" : ""
+                  className={`${styles.palChatBubble}${
+                    answer.status === "empty" ? ` ${styles.palChatBubbleEmpty}` : ""
                   }`}
                 >
                   {answer.message}
                 </p>
                 {recall ? (
-                  <p className="palChatRecall" role="note">
+                  <p className={styles.palChatRecall} role="note">
                     {recall.line}
                   </p>
                 ) : null}
                 {locality ? (
-                  <p className="palChatLocality" role="note">
+                  <p className={styles.palChatLocality} role="note">
                     {palLocalityLine(locality)}
                   </p>
                 ) : null}
                 {proposals.length > 0 ? (
-                  <ul className="palChatProposals" aria-label="Suggested actions">
+                  <ul className={styles.palChatProposals} aria-label="Suggested actions">
                     {proposals.map((proposal) => (
-                      <li key={proposal.id} className="palChatProposal">
+                      <li key={proposal.id} className={styles.palChatProposal}>
                         {proposal.kind === "draft_plan" ? (
                           <IntentLink
-                            className="palChatPlanHandoff pressable"
+                            className={`${styles.palChatPlanHandoff} pressable`}
                             href={planPalRouteHandoffHref(proposal.query)}
                             onClick={() => {
                               trackEvent("concierge_result_tap");
@@ -582,7 +582,7 @@ export default function PalChat() {
                         ) : (
                           <button
                             type="button"
-                            className="palChatProposalConfirm pressable"
+                            className={`${styles.palChatProposalConfirm} pressable`}
                             onClick={() => confirmProposal(proposal, entry.id)}
                           >
                             {proposal.label}
@@ -590,7 +590,7 @@ export default function PalChat() {
                         )}
                         <button
                           type="button"
-                          className="palChatProposalDismiss pressable"
+                          className={`${styles.palChatProposalDismiss} pressable`}
                           onClick={() => dismissProposal(entry.id, proposal.id)}
                         >
                           Dismiss
@@ -600,7 +600,7 @@ export default function PalChat() {
                   </ul>
                 ) : null}
                 {answer.cards.length > 0 ? (
-                  <ul className="palChatCards">
+                  <ul className={styles.palChatCards}>
                     {answer.cards.map((card) => (
                       <AnswerCard
                         key={card.key}
@@ -617,14 +617,14 @@ export default function PalChat() {
           })}
 
           {pending ? (
-            <div className="palChatRow palChatRow--pal">
-              <p className="palChatBubble palChatBubble--pending">
-                <span className="palChatDots" aria-hidden="true">
+            <div className={`${styles.palChatRow} ${styles.palChatRowPal}`}>
+              <p className={`${styles.palChatBubble} ${styles.palChatBubblePending}`}>
+                <span className={styles.palChatDots} aria-hidden="true">
                   <i />
                   <i />
                   <i />
                 </span>
-                <span className="palChatSr">Checking what is on record</span>
+                <span className={styles.palChatSr}>Checking what is on record</span>
               </p>
             </div>
           ) : null}
@@ -634,7 +634,7 @@ export default function PalChat() {
           /* Vibe quick-asks (docs/VIBE_LAYER_SPEC_2026-07-19.md): the chip
              label is the user's voice; the press fires the chip's parser-tuned
              preset through the same deterministic ask path as typed text. */
-          <VibeChips shellClassName="palChatExamples" groupLabel="Pick a vibe">
+          <VibeChips shellClassName={styles.palChatExamples} groupLabel="Pick a vibe">
             {VIBE_CHIPS.map((chip) => (
               <VibeChipButton
                 key={chip.id}
@@ -654,21 +654,21 @@ export default function PalChat() {
             ask; an outage renders nothing (the glance never apologises — the
             ask path owns error honesty when the user actually asks). */}
         {empty && glance.status === "ready" && glanceLine ? (
-          <div className="palGlance" role="note" aria-label="Tonight at a glance">
-            <span className="palGlanceLabel">
+          <div className={styles.palGlance} role="note" aria-label="Tonight at a glance">
+            <span className={styles.palGlanceLabel}>
               <Sparkles size={13} aria-hidden="true" /> Tonight
             </span>
-            <p className="palGlanceLine">{glanceLine}</p>
+            <p className={styles.palGlanceLine}>{glanceLine}</p>
           </div>
         ) : null}
         {empty && glance.status === "empty" ? (
-          <div className="palGlance" role="note" aria-label="Tonight at a glance">
-            <span className="palGlanceLabel">
+          <div className={styles.palGlance} role="note" aria-label="Tonight at a glance">
+            <span className={styles.palGlanceLabel}>
               <Sparkles size={13} aria-hidden="true" /> Tonight
             </span>
-            <p className="palGlanceLine">
+            <p className={styles.palGlanceLine}>
               {GLANCE_QUIET_LINE}{" "}
-              <Link prefetch={false} className="palGlanceExit" href={`/map/${DEFAULT_CITY_ID}`}>
+              <Link prefetch={false} className={styles.palGlanceExit} href={`/map/${DEFAULT_CITY_ID}`}>
                 {GLANCE_QUIET_EXIT}
               </Link>
             </p>
@@ -678,13 +678,13 @@ export default function PalChat() {
         {/* Cheapest-pint row (judge-w2 polish item 1): same rankNearMe answer
             Near me serves, from the remembered patch. Absent = renders nothing. */}
         {empty && cheapestLine ? (
-          <div className="palGlance" role="note" aria-label="Cheapest pint nearby">
-            <span className="palGlanceLabel">
+          <div className={styles.palGlance} role="note" aria-label="Cheapest pint nearby">
+            <span className={styles.palGlanceLabel}>
               <MapPin size={13} aria-hidden="true" /> Cheapest
             </span>
-            <p className="palGlanceLine">
+            <p className={styles.palGlanceLine}>
               {cheapestLine}{" "}
-              <Link prefetch={false} className="palGlanceExit" href="/near">
+              <Link prefetch={false} className={styles.palGlanceExit} href="/near">
                 See the list.
               </Link>
             </p>
@@ -693,18 +693,18 @@ export default function PalChat() {
       </div>
 
       <form
-        className="palChatComposer"
+        className={styles.palChatComposer}
         onSubmit={onSubmit}
         data-keyboard-open={keyboardOpen ? "" : undefined}
         style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
       >
-        <label className="palChatSr" htmlFor={inputId}>
+        <label className={styles.palChatSr} htmlFor={inputId}>
           Describe the outing
         </label>
         <input
           id={inputId}
           ref={composerInput}
-          className="palChatInput"
+          className={styles.palChatInput}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Quiet-ish near Bank, not pricey"
@@ -714,7 +714,7 @@ export default function PalChat() {
         />
         <button
           type="submit"
-          className="palChatSend pressable"
+          className={`${styles.palChatSend} pressable`}
           data-primary-action=""
           disabled={pending || !query.trim()}
           aria-label="Ask"

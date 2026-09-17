@@ -156,7 +156,7 @@ describe("the arrival line", () => {
 
   it("floats below the modal layer and takes no pointer events of its own", () => {
     const css = readFileSync(
-      join(process.cwd(), "components/auth/arrivalWelcome.css"),
+      join(process.cwd(), "components/auth/arrivalWelcome.module.css"),
       "utf8",
     );
     expect(css).toMatch(

@@ -23,7 +23,7 @@ import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import Kicker from "@/components/ui/kicker";
 
-import "./findYourLot.css";
+import styles from "./findYourLot.module.css";
 
 type SearchMatch = {
   id: string;
@@ -226,19 +226,19 @@ export default function FindYourLot({
 
   return (
     <section
-      className={compact ? "findLot findLot--compact" : "findLot"}
+      className={compact ? `${styles.findLot} ${styles.findLotCompact}` : styles.findLot}
       aria-labelledby="find-lot-title"
     >
       <Kicker tone="muted">Your lot</Kicker>
-      <h2 id="find-lot-title" className="findLot__title">
+      <h2 id="find-lot-title" className={styles.findLotTitle}>
         Find your lot
       </h2>
-      <p className="findLot__body">
+      <p className={styles.findLotBody}>
         Search a mate&rsquo;s handle, or send an invite link. A lot is mutual:
         they follow back, and you share nights.
       </p>
 
-      <label className="findLot__field">
+      <label className={styles.findLotField}>
         <span className="srOnly">Search handles</span>
         <input
           type="search"
@@ -253,33 +253,33 @@ export default function FindYourLot({
       </label>
 
       {status === "loading" ? (
-        <p className="findLot__muted" role="status">
+        <p className={styles.findLotMuted} role="status">
           Looking&hellip;
         </p>
       ) : null}
       {status === "error" ? (
-        <p className="findLot__error" role="alert">
+        <p className={styles.findLotError} role="alert">
           Couldn&rsquo;t search right now.
         </p>
       ) : null}
       {status === "ready" && matches.length === 0 ? (
-        <p className="findLot__muted" role="status">
+        <p className={styles.findLotMuted} role="status">
           No claimed handles match that.
         </p>
       ) : null}
 
       {matches.length > 0 ? (
-        <ul className="findLot__list">
+        <ul className={styles.findLotList}>
           {matches.map((match) => {
             const followState = visibleFollowByHandle[match.handle] ?? "idle";
             const isSelf = viewer && match.handle === viewer;
             return (
-              <li key={match.id} className="findLot__row">
+              <li key={match.id} className={styles.findLotRow}>
                 <Link
-                  className="findLot__identity"
+                  className={styles.findLotIdentity}
                   href={`/u/${encodeURIComponent(match.handle)}`}
                 >
-                  <span className="findLot__avatar" aria-hidden="true">
+                  <span className={styles.findLotAvatar} aria-hidden="true">
                     {match.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- owned avatar path
                       <img src={match.avatarUrl} alt="" loading="lazy" decoding="async" />
@@ -287,21 +287,21 @@ export default function FindYourLot({
                       avatarInitial(match.handle)
                     )}
                   </span>
-                  <span className="findLot__names">
-                    <span className="findLot__handle">
+                  <span className={styles.findLotNames}>
+                    <span className={styles.findLotHandle}>
                       {displayHandle(match.handle)}
                     </span>
                     {match.displayName ? (
-                      <span className="findLot__display">{match.displayName}</span>
+                      <span className={styles.findLotDisplay}>{match.displayName}</span>
                     ) : null}
                   </span>
                 </Link>
                 {isSelf ? (
-                  <span className="findLot__self">You</span>
+                  <span className={styles.findLotSelf}>You</span>
                 ) : !viewer ? (
                   viewerSession.unresolved ? null : (
                     <Link
-                      className="findLot__ghost"
+                      className={styles.findLotGhost}
                       href={viewerSession.signedIn ? "/u/you" : "/login"}
                     >
                       {viewerSession.signedIn
@@ -312,7 +312,7 @@ export default function FindYourLot({
                 ) : (
                   <button
                     type="button"
-                    className="findLot__follow"
+                    className={styles.findLotFollow}
                     disabled={followState === "working" || followState === "done"}
                     onClick={() => void follow(match.handle)}
                   >
@@ -329,18 +329,18 @@ export default function FindYourLot({
         </ul>
       ) : null}
 
-      <div className="findLot__invite">
+      <div className={styles.findLotInvite}>
         {visibleInviteUrl ? (
           <>
-            <code className="findLot__inviteUrl">{visibleInviteUrl}</code>
-            <button type="button" className="findLot__follow" onClick={() => void copyInvite()}>
+            <code className={styles.findLotInviteUrl}>{visibleInviteUrl}</code>
+            <button type="button" className={styles.findLotFollow} onClick={() => void copyInvite()}>
               {copied ? "Copied" : "Copy invite link"}
             </button>
           </>
         ) : viewer ? (
           <button
             type="button"
-            className="findLot__follow"
+            className={styles.findLotFollow}
             disabled={inviteBusy}
             onClick={() => void mintInviteLink()}
           >
@@ -348,7 +348,7 @@ export default function FindYourLot({
           </button>
         ) : viewerSession.unresolved ? null : (
           <Link
-            className="findLot__follow"
+            className={styles.findLotFollow}
             href={viewerSession.signedIn ? "/u/you" : "/login"}
           >
             {viewerSession.signedIn
@@ -357,14 +357,14 @@ export default function FindYourLot({
           </Link>
         )}
         {shareSelf ? (
-          <Link className="findLot__ghost" href={`/add/${encodeURIComponent(viewer)}`}>
+          <Link className={styles.findLotGhost} href={`/add/${encodeURIComponent(viewer)}`}>
             Share your add link
           </Link>
         ) : null}
       </div>
 
       {notice ? (
-        <p className="findLot__error" role="alert">
+        <p className={styles.findLotError} role="alert">
           {notice}
         </p>
       ) : null}

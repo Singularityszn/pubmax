@@ -21,7 +21,7 @@
   color: var(--ink);
 }
 
-/* The head is the Screen primitive (components/ui/screen.css): kicker,
+/* The head is the Screen primitive (components/ui/screen.module.css): kicker,
    heading, one primary. The page shell already keeps the gutter, so the
    screen does not pad it a second time. */
 .outPage > .outScreen {

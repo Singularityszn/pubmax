@@ -10,6 +10,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
+import navStyles from "@/components/nav/siteNav.module.css";
 
 const HANDLE_KEY = "pubmax_handle";
 const POLL_MS = 60_000;
@@ -91,7 +92,7 @@ export default function MessagesLink(): React.JSX.Element {
       // a dynamic route prefetched on sight is a server render queued in front
       // of the page the reader is waiting for (components/nav/IntentLink.tsx).
       prefetch={false}
-      className="siteNavBell"
+      className={navStyles.siteNavBell}
       aria-label={label}
       title={label}
       onPointerDown={() => {
@@ -107,7 +108,7 @@ export default function MessagesLink(): React.JSX.Element {
         // key={unread} remounts the badge whenever the count changes, so the
         // CSS pop-in (siteNav.css .siteNavBellBadge) replays as a bump —
         // no separate "did it change" animation state to track.
-        <span key={unread} className="siteNavBellBadge" aria-hidden="true">
+        <span key={unread} className={navStyles.siteNavBellBadge} aria-hidden="true">
           {unread > 99 ? "99+" : unread}
         </span>
       ) : null}

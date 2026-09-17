@@ -279,7 +279,7 @@ describe("morning re-entry usual lot", () => {
       (element) => element.tagName === "A" && element.getAttribute("href") === "/plan",
     );
     expect(planLink).not.toBeNull();
-    expect(planLink?.getAttribute("class")).toContain("morningCard__link--secondary");
+    expect(planLink?.getAttribute("class")).toContain("morningCardLinkSecondary");
     expect(planLink?.getAttribute("href")).toBe("/plan");
 
     await commitReactWork(() => mountedClick(planLink as TestElement));

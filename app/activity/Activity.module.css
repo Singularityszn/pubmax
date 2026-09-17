@@ -9,7 +9,7 @@
   padding: 20px 16px 96px;
 }
 
-/* The head is the shared Screen primitive (components/ui/screen.css). The
+/* The head is the shared Screen primitive (components/ui/screen.module.css). The
    shell above already pays the page gutters, so the column drops its own. */
 .activity {
   width: 100%;
@@ -193,7 +193,7 @@
   gap: 8px;
 }
 
-/* The kind filters are the Chip primitive (components/ui/chip.css): the
+/* The kind filters are the Chip primitive (components/ui/chip.module.css): the
    control row's 44px, type and chosen tint. They were 36px pills at 600. */
 
 /* The signed-out empty state hands its one way onward to the sign-in form, and

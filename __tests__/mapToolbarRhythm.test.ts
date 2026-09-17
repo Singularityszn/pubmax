@@ -12,17 +12,17 @@ function ruleBody(css: string, selector: string): string {
 }
 
 const globalsCss = read("app/globals.css");
-const toolbarCss = read("components/map/mapToolbar.css");
-const citySwitcherCss = read("components/map/citySwitcher.css");
-const zonePickerCss = read("components/map/zonePicker.css");
-const conditionsCss = read("components/desktop/conditionsChip.css");
-const searchCss = read("components/map/mapSearchSuggest.css");
+const toolbarCss = read("components/map/mapToolbar.module.css");
+const citySwitcherCss = read("components/map/citySwitcher.module.css");
+const zonePickerCss = read("components/map/zonePicker.module.css");
+const conditionsCss = read("components/desktop/conditionsChip.module.css");
+const searchCss = read("components/map/mapSearchSuggest.module.css");
 
 describe("desktop map toolbar rhythm", () => {
   it.each([
-    ["Drinks", toolbarCss, ".mapToolbarDrinksBtn"],
-    ["Search", searchCss, ".mapSearchSuggest--toolbar > label"],
-    ["Drink", toolbarCss, ".mapToolbarDesktopExtras .favoritePintControl"],
+    ["Drinks", toolbarCss, ":global(.mapToolbarDrinksBtn)"],
+    ["Search", searchCss, ":global(.mapSearchSuggestToolbar) > label"],
+    ["Drink", toolbarCss, ":global(.mapToolbarDesktopExtras) :global(.favoritePintControl)"],
     ["Zone", zonePickerCss, ".zonePickerBtn"],
     ["Plan an outing", globalsCss, ".planBtn"],
     ["City", citySwitcherCss, ".citySwitcherTrigger"],
@@ -33,7 +33,7 @@ describe("desktop map toolbar rhythm", () => {
 
   it("keeps desktop drink selectors on one shared row", () => {
     expect(
-      ruleBody(toolbarCss, ".mapToolbarDesktopExtras .favoritePintPicker"),
+      ruleBody(toolbarCss, ":global(.mapToolbarDesktopExtras) :global(.favoritePintPicker)"),
     ).toMatch(/flex-wrap:\s*nowrap\s*!important/);
   });
 
@@ -44,7 +44,7 @@ describe("desktop map toolbar rhythm", () => {
   });
 
   it("reserves the measured 155px desktop toolbar height", () => {
-    expect(ruleBody(toolbarCss, ".appShell")).toMatch(
+    expect(ruleBody(toolbarCss, ":global(.appShell)")).toMatch(
       /--map-toolbar-resting-height:\s*155px/,
     );
   });

@@ -231,7 +231,7 @@ describe("account onboarding surface", () => {
 
   it("ships a one-column phone sheet with full tap targets", () => {
     const css = readFileSync(
-      join(process.cwd(), "components/identity/accountOnboarding.css"),
+      join(process.cwd(), "components/identity/accountOnboarding.module.css"),
       "utf8",
     );
     expect(css).toMatch(/@media \(max-width: 520px\)/);
@@ -247,11 +247,11 @@ describe("account onboarding surface", () => {
 
   it("keeps identity gates above an open mobile venue sheet", () => {
     const onboardingCss = readFileSync(
-      join(process.cwd(), "components/identity/accountOnboarding.css"),
+      join(process.cwd(), "components/identity/accountOnboarding.module.css"),
       "utf8",
     );
     const contributionGateCss = readFileSync(
-      join(process.cwd(), "components/identity/contributionGate.css"),
+      join(process.cwd(), "components/identity/contributionGate.module.css"),
       "utf8",
     );
     expect(onboardingCss).toMatch(

@@ -14,7 +14,7 @@ import {
   type NearbyBusDeparturesResult,
 } from "@/lib/nearbyBusDepartures";
 
-import "./nearbyBusDepartures.css";
+import styles from "./nearbyBusDepartures.module.css";
 
 type LoadState =
   | { status: "idle" }
@@ -125,7 +125,7 @@ export function NearbyBusDeparturesView({
 }) {
   if (result.status === "unavailable") {
     return (
-      <p className="nearbyBusDeparturesNote">
+      <p className={styles.nearbyBusDeparturesNote}>
         {BUS_DEPARTURES_UNAVAILABLE_COPY} Check TfL or the stop display before
         you set off.
       </p>
@@ -138,18 +138,18 @@ export function NearbyBusDeparturesView({
   return (
     <>
       {freshness.state === "ageing" ? (
-        <p className="nearbyBusDeparturesNote nearbyBusFreshness">
+        <p className={`${styles.nearbyBusDeparturesNote} ${styles.nearbyBusFreshness}`}>
           {checkedAgo(freshness.ageMinutes)}
         </p>
       ) : null}
       {outOfDate ? (
-        <p className="nearbyBusDeparturesNote nearbyBusFreshness">
+        <p className={`${styles.nearbyBusDeparturesNote} ${styles.nearbyBusFreshness}`}>
           These times are out of date. {checkedAgo(freshness.ageMinutes)} They
           are what was predicted then, so check the stop display before you set
           off.
         </p>
       ) : null}
-      <ol className="nearbyBusStopList">
+      <ol className={styles.nearbyBusStopList}>
         {result.stops.map((stop) => {
           const stopDirection = [
             stop.indicator,
@@ -158,33 +158,33 @@ export function NearbyBusDeparturesView({
             .filter(Boolean)
             .join(" · ");
           return (
-            <li className="nearbyBusStop" key={stop.id}>
-              <div className="nearbyBusStopHeader">
-                <span className="nearbyBusStopIdentity">
+            <li className={styles.nearbyBusStop} key={stop.id}>
+              <div className={styles.nearbyBusStopHeader}>
+                <span className={styles.nearbyBusStopIdentity}>
                   <strong>{stop.name}</strong>
                   {stopDirection ? <span>{stopDirection}</span> : null}
                 </span>
-                <span className="nearbyBusDistance">
+                <span className={styles.nearbyBusDistance}>
                   {stop.distanceM} m from here, straight line
                 </span>
               </div>
-              <ol className="nearbyBusDepartureList">
+              <ol className={styles.nearbyBusDepartureList}>
                 {stop.departures.map((departure) => (
                   <li
-                    className="nearbyBusDeparture"
+                    className={styles.nearbyBusDeparture}
                     key={`${departure.lineName}:${departure.expectedArrival}:${departure.destinationName}`}
                   >
-                    <strong className="nearbyBusLine">
+                    <strong className={styles.nearbyBusLine}>
                       {departure.lineName}
                     </strong>
-                    <span className="nearbyBusDestination">
+                    <span className={styles.nearbyBusDestination}>
                       {directedDestination(
                         departure.direction,
                         departure.destinationName,
                       )}
                     </span>
                     <time
-                      className="nearbyBusDue"
+                      className={styles.nearbyBusDue}
                       dateTime={departure.expectedArrival}
                     >
                       {outOfDate
@@ -341,28 +341,28 @@ export default function NearbyBusDepartures({
 
   return (
     <details
-      className="nearbyBusDepartures"
+      className={styles.nearbyBusDepartures}
       onToggle={(event) => {
         const nowOpen = event.currentTarget.open;
         if (nowOpen) setNowMs(Date.now());
         setOpen(nowOpen);
       }}
     >
-      <summary className="nearbyBusDeparturesSummary">
+      <summary className={styles.nearbyBusDeparturesSummary}>
         <span>
           <strong>Buses nearby</strong>
           <small>Live TfL departures from stops near here</small>
         </span>
       </summary>
-      <div className="nearbyBusDeparturesBody">
-        <p className="nearbyBusAnnouncement" role="status">
+      <div className={styles.nearbyBusDeparturesBody}>
+        <p className={styles.nearbyBusAnnouncement} role="status">
           {announcement}
         </p>
         {showChecking ? (
-          <p className="nearbyBusDeparturesNote">Checking live departures…</p>
+          <p className={styles.nearbyBusDeparturesNote}>Checking live departures…</p>
         ) : null}
         {!retryPending && waitingForFirst && waitedTooLong ? (
-          <p className="nearbyBusDeparturesNote">
+          <p className={styles.nearbyBusDeparturesNote}>
             {BUS_DEPARTURES_UNAVAILABLE_COPY} The check is still running, so
             this may fill in on its own.
           </p>
@@ -373,7 +373,7 @@ export default function NearbyBusDepartures({
         {offerRetry ? (
           <button
             type="button"
-            className="nearbyBusRetry"
+            className={styles.nearbyBusRetry}
             onClick={retry}
             aria-disabled={retryPending}
           >

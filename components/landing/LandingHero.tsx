@@ -50,6 +50,7 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import LandingPhoto, { LandingPhotoCredit, LandingPhotoPreload } from "./LandingPhoto";
 import LondonMapSnapshot from "./LondonMapSnapshot";
 import { LONDON_MAP_PUB_COUNT } from "./londonMapGeometry";
+import styles from "./landing.module.css";
 
 // The landing hero (issue #1357, rebuilt on the captain's 7 Sep 2026 ask):
 // kicker, the claim, one line under it, the PICTURE, then the one filled action,
@@ -347,15 +348,15 @@ export default function LandingHero({
         <LandingPhotoPreload resolved={anchorPhoto} sizes={ANSWER_PHOTO_SIZES} />
       ) : null}
     <Screen
-      className="lpHero"
+      className={styles.lpHero}
       kicker="PUBMAXX"
       title="What a pint costs, pub by pub."
       titleId="hero-title"
       lede={`London on one map, with ${LONDON_MAP_PUB_COUNT} historic pubs marked and a listed price wherever we hold one.`}
       answer={
-        <figure className="lpMapFigure">
+        <figure className={styles.lpMapFigure}>
           <LondonMapSnapshot />
-          <figcaption className="lpMapCaption">
+          <figcaption className={styles.lpMapCaption}>
             The London boroughs, and every old pub we hold a history for.
           </figcaption>
         </figure>
@@ -372,7 +373,7 @@ export default function LandingHero({
               key={door.href}
               prefetch={false}
               href={door.href}
-              className={door.className}
+              className={door.className ? (styles as Record<string, string>)[door.className] : undefined}
               onClick={() => trackLandingCta(door.cta)}
             >
               {door.label}
@@ -413,19 +414,19 @@ function AnswerCard({
   const standing = typeof evidence === "object" ? evidence.standing : null;
   return (
     <article
-      className="lpPubCard lpAnswerCard lpPubCard--photo"
+      className={`${styles.lpPubCard} ${styles.lpAnswerCard} ${styles.lpPubCardPhoto}`}
       aria-labelledby="lp-answer-name"
     >
       <LandingPhoto resolved={photo} sizes={ANSWER_PHOTO_SIZES} priority />
-      <div className="lpAnswerHead">
+      <div className={styles.lpAnswerHead}>
         <Kicker tone="muted">
           {kicker}
-          {walk ? <span className="lpAnswerWalk"> · {walk}</span> : null}
+          {walk ? <span className={styles.lpAnswerWalk}> · {walk}</span> : null}
         </Kicker>
         {showControl ? (
           <button
             type="button"
-            className="lpNearMe"
+            className={styles.lpNearMe}
             onClick={onLocate}
             disabled={near.kind === "requesting"}
             aria-busy={near.kind === "requesting" || undefined}
@@ -435,25 +436,25 @@ function AnswerCard({
           </button>
         ) : null}
       </div>
-      <h2 className="lpPubName" id="lp-answer-name">
+      <h2 className={styles.lpPubName} id="lp-answer-name">
         <Link prefetch={false} href={venueMapUrl(answer.id)}>
           {answer.name}
         </Link>
       </h2>
-      <p className="lpPubPrice">
+      <p className={styles.lpPubPrice}>
         {/* The figure wears its BAND (lib/priceBand.ts) and nothing else. */}
         <PriceBadge variant="current" band={priceBand(answer.priceGbp, priceBandAreaForVenue(answer.id))}>
           {formatPrice(answer.priceGbp)}
         </PriceBadge>
         {answer.drinkHref ? (
-          <Link prefetch={false} href={answer.drinkHref} className="lpPubPint">
+          <Link prefetch={false} href={answer.drinkHref} className={styles.lpPubPint}>
             {answer.pintName}
           </Link>
         ) : (
-          <span className="lpPubPint">{answer.pintName ?? "cheapest pint"}</span>
+          <span className={styles.lpPubPint}>{answer.pintName ?? "cheapest pint"}</span>
         )}
       </p>
-      <p className="lpPubSource">
+      <p className={styles.lpPubSource}>
         {publisher ? (
           <>
             Listed by{" "}
@@ -467,21 +468,21 @@ function AnswerCard({
         , collected {collectedDay(answer.collectedOn)}.
       </p>
       {standing ? (
-        <span className="lpStanding" data-standing={standing} title={priceStandingNote(standing)}>
-          <span className="lpStandingDot" aria-hidden="true" />
+        <span className={styles.lpStanding} data-standing={standing} title={priceStandingNote(standing)}>
+          <span className={styles.lpStandingDot} aria-hidden="true" />
           {priceStandingLabel(standing)}
         </span>
       ) : null}
       {answer.then ? (
         <>
-          <p className="lpPubThen">
+          <p className={styles.lpPubThen}>
             <strong>{formatPrice(answer.then.priceGbp)}</strong> in {answer.then.observedMonth}.{" "}
             {priceMovementLine(
               Math.round((answer.priceGbp - answer.then.priceGbp) * 100) / 100,
               answer.then.years,
             )}
           </p>
-          <p className="lpPubThenSource">
+          <p className={styles.lpPubThenSource}>
             <a href={answer.then.source.url} target="_blank" rel="noopener noreferrer">
               {answer.then.source.label}
             </a>
@@ -489,36 +490,36 @@ function AnswerCard({
           </p>
         </>
       ) : null}
-      <p className="lpNearLine" role="status" aria-live="polite">
+      <p className={styles.lpNearLine} role="status" aria-live="polite">
         {near.kind === "failed" ? near.line : ""}
       </p>
-      <LandingPhotoCredit resolved={photo} className="lpPhotoCredit" />
+      <LandingPhotoCredit resolved={photo} className={styles.lpPhotoCredit} />
     </article>
   );
 }
 
 function AnswerRail({ answer }: { answer: Answer }) {
   return (
-    <section className="lpRail" aria-labelledby="lp-rail-title">
-      <h2 className="lpRailTitle" id="lp-rail-title">
+    <section className={styles.lpRail} aria-labelledby="lp-rail-title">
+      <h2 className={styles.lpRailTitle} id="lp-rail-title">
         {railHeading(answer.scope, answer.area)}
       </h2>
-      <ol className="lpRailList">
+      <ol className={styles.lpRailList}>
         {answer.rail.map((row) => (
-          <li key={row.id} className="lpRailRow">
+          <li key={row.id} className={styles.lpRailRow}>
             {/* The compose action floats over this row's right cell on a phone,
                 and that cell is the price. It takes the control's own lane
                 (createFab.css). */}
-            <Link prefetch={false} href={pintDropDoorHref(row.id, row.priceGbp)} className="lpRailLink createFabLane">
-              <span className="lpRailMain">
-                <span className="lpRailName">{row.name}</span>
+            <Link prefetch={false} href={pintDropDoorHref(row.id, row.priceGbp)} className={`${styles.lpRailLink} createFabLane`}>
+              <span className={styles.lpRailMain}>
+                <span className={styles.lpRailName}>{row.name}</span>
                 {row.walkMinutes != null ? (
-                  <span className="lpRailMeta">{row.walkMinutes} min walk</span>
+                  <span className={styles.lpRailMeta}>{row.walkMinutes} min walk</span>
                 ) : row.area !== answer.area ? (
-                  <span className="lpRailMeta">{row.area}</span>
+                  <span className={styles.lpRailMeta}>{row.area}</span>
                 ) : null}
               </span>
-              <span className="lpRailPrice">
+              <span className={styles.lpRailPrice}>
                 <PriceBadge variant="neutral" band={priceBand(row.priceGbp, priceBandAreaForVenue(row.id))}>
                   {formatPrice(row.priceGbp)}
                 </PriceBadge>

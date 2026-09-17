@@ -122,8 +122,8 @@ describe("the surfaces that change shape", () => {
   it("is wired from the shell's document marker and drops the tab words at the large bucket", () => {
     const chrome = readFileSync(join(ROOT, "components/native/NativeShellChrome.tsx"), "utf8");
     expect(chrome).toContain("followNativeTextScale()");
-    const css = readFileSync(join(ROOT, "components/nav/mobileNav.css"), "utf8");
-    expect(css).toContain('html[data-text-scale="large"] .mobileTabLabel');
+    const css = readFileSync(join(ROOT, "components/nav/mobileNav.module.css"), "utf8");
+    expect(css).toContain(':global(html[data-text-scale="large"]) .mobileTabLabel');
     // The accessible name lives on the link, so hiding the word costs a screen
     // reader nothing.
     const bar = readFileSync(join(ROOT, "components/nav/MobileTabBar.tsx"), "utf8");

@@ -23,7 +23,7 @@ import {
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 import discoverStyles from "@/app/discover/Discover.module.css";
-import "./gardenTonightCard.css";
+import styles from "./gardenTonightCard.module.css";
 
 type StatusResponse = {
   weather?: GardenWeatherInput | null;
@@ -168,38 +168,38 @@ export default function GardenTonightCard() {
       className={discoverStyles.discoverSection}
       aria-labelledby="gardenTonight-title"
     >
-      <div className="gardenTonightCard">
-        <p className="gardenTonightKicker">
+      <div className={styles.gardenTonightCard}>
+        <p className={styles.gardenTonightKicker}>
           <Sun size={13} aria-hidden="true" />
           <span>Garden weather</span>
         </p>
-        <h2 id="gardenTonight-title" className="gardenTonightHeadline">
+        <h2 id="gardenTonight-title" className={styles.gardenTonightHeadline}>
           {headline}
         </h2>
-        <p className="gardenTonightDek">
+        <p className={styles.gardenTonightDek}>
           Open beer-garden pubs in London right now, via CityMCP London.
         </p>
-        <ul className="gardenTonightList">
+        <ul className={styles.gardenTonightList}>
           {pubs.map((pub) => {
             const href = mapHref(pub);
             return (
-              <li key={pub.id} className="gardenTonightPub">
-                <div className="gardenTonightPubBody">
-                  <span className="gardenTonightPubName">{pub.name}</span>
-                  <span className="gardenTonightPubMeta">
+              <li key={pub.id} className={styles.gardenTonightPub}>
+                <div className={styles.gardenTonightPubBody}>
+                  <span className={styles.gardenTonightPubName}>{pub.name}</span>
+                  <span className={styles.gardenTonightPubMeta}>
                     {pub.area ? (
-                      <span className="gardenTonightPubArea">
+                      <span className={styles.gardenTonightPubArea}>
                         <MapPin size={11} aria-hidden="true" />
                         {pub.area}
                       </span>
                     ) : null}
                     {typeof pub.rating === "number" ? (
-                      <span className="gardenTonightPubRating">
+                      <span className={styles.gardenTonightPubRating}>
                         ★ {pub.rating.toFixed(1)}
                       </span>
                     ) : null}
                     {pub.priceBand ? (
-                      <span className="gardenTonightPubPrice">
+                      <span className={styles.gardenTonightPubPrice}>
                         {pub.priceBand}
                       </span>
                     ) : null}
@@ -207,7 +207,7 @@ export default function GardenTonightCard() {
                 </div>
                 {href ? (
                   <Link
-                    className="gardenTonightPubLink pressable"
+                    className={`${styles.gardenTonightPubLink} pressable`}
                     href={href}
                     prefetch={false}
                   >

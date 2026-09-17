@@ -1,0 +1,93 @@
+/* Trust pill (components/ui/trust-pill.tsx). The WORD says how far to trust
+   the figure; the COLOUR says what the figure costs (lib/priceBand.ts): red
+   expensive, yellow average, green cheap, ink when there is no figure. The
+   pill used to wear a tone per standing (green confirmed, amber listed, blue
+   modelled) and a reader saw a green "Confirmed" over a dear pint; captain's
+   law 2026-09-05 moved every price colour onto the band. Launch tokens only.
+   A pill is a stamp, so it keeps a fill; the fill is a tint of the band hue
+   on the raised surface so the ink stays readable in both themes.
+
+   All classes are :global() because the class names are referenced by tests and
+   compound selectors with global priceBand-* classes from app/globals.css. */
+
+:global(.trustPill) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--badge-surface);
+  color: var(--badge-ink);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+:global(.trustPillDot) {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+}
+
+/* A banded pill reads the band's own hue and ink off the class family in
+   app/globals.css; the dot echoes the hue for a reader who cannot read the
+   tint. Unbanded (no figure) stays the neutral badge above. */
+:global(.trustPill.priceBand-cheap),
+:global(.trustPill.priceBand-average),
+:global(.trustPill.priceBand-expensive) {
+  background: var(--price-band-surface);
+  color: var(--price-band-ink);
+}
+
+:global(.trustPill.priceBand-cheap .trustPillDot),
+:global(.trustPill.priceBand-average .trustPillDot),
+:global(.trustPill.priceBand-expensive .trustPillDot) {
+  background: var(--price-band-hue);
+}
+
+/* The figure the standing is worth. A price caption never ellipses: the meaning
+   the whole trust argument rests on is the figure itself, so it wraps its row
+   or the cell widens. */
+:global(.trustPillFigure) {
+  white-space: normal;
+}
+
+/* The method link and the basis note sit OUTSIDE the pill, because they are a
+   way onward rather than part of the claim. */
+:global(.trustPillRow) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+:global(.trustPillMethodLink) {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--space-6);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+  text-decoration: underline;
+}
+
+:global(.trustPillMethodLink):hover {
+  color: var(--color-text);
+}
+
+:global(.trustPillBasis) {
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+}
+
+@media (prefers-contrast: more) {
+  :global(.trustPill) {
+    border: 1px solid currentColor;
+  }
+}

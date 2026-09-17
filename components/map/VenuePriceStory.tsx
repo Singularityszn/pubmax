@@ -12,7 +12,7 @@ import {
   type VenuePriceStoryDrop,
 } from "@/lib/thenVsNow";
 
-import "./venuePriceStory.css";
+import styles from "./venuePriceStory.module.css";
 import inspectorStyles from './venueInspectorBits.module.css';
 
 // The Golden Thread on the venue surface: a pub's own price story — the baseline
@@ -45,20 +45,20 @@ function StoryBars({ baseline, now }: { baseline: VenuePriceStamp; now: VenuePri
   const thenPct = Math.max(6, Math.round((baseline.gbp / max) * 100));
   const nowPct = Math.max(6, Math.round((now.gbp / max) * 100));
   return (
-    <div className="vpsBars" aria-hidden="true">
-      <div className="vpsBarRow">
-        <span className="vpsBarLabel">Baseline</span>
-        <span className="vpsBarTrack">
-          <span className="vpsBarFill vpsBarFillThen" style={{ width: `${thenPct}%` }} />
+    <div className={styles.vpsBars} aria-hidden="true">
+      <div className={styles.vpsBarRow}>
+        <span className={styles.vpsBarLabel}>Baseline</span>
+        <span className={styles.vpsBarTrack}>
+          <span className={`${styles.vpsBarFill} ${styles.vpsBarFillThen}`} style={{ width: `${thenPct}%` }} />
         </span>
-        <span className="vpsBarValue">{formatPrice(baseline.gbp)}</span>
+        <span className={styles.vpsBarValue}>{formatPrice(baseline.gbp)}</span>
       </div>
-      <div className="vpsBarRow">
-        <span className="vpsBarLabel">Now</span>
-        <span className="vpsBarTrack">
-          <span className="vpsBarFill vpsBarFillNow" style={{ width: `${nowPct}%` }} />
+      <div className={styles.vpsBarRow}>
+        <span className={styles.vpsBarLabel}>Now</span>
+        <span className={styles.vpsBarTrack}>
+          <span className={`${styles.vpsBarFill} ${styles.vpsBarFillNow}`} style={{ width: `${nowPct}%` }} />
         </span>
-        <span className="vpsBarValue">{formatPrice(now.gbp)}</span>
+        <span className={styles.vpsBarValue}>{formatPrice(now.gbp)}</span>
       </div>
     </div>
   );
@@ -77,10 +77,10 @@ function StoryBars({ baseline, now }: { baseline: VenuePriceStamp; now: VenuePri
  */
 function PriceChangedDoor({ onPriceChanged }: { onPriceChanged: () => void }) {
   return (
-    <div className="vpsConfirm">
+    <div className={styles.vpsConfirm}>
       <button
         type="button"
-        className="vpsChangedBtn"
+        className={styles.vpsChangedBtn}
         onClick={onPriceChanged}
         aria-label="The price has changed. Log the new price for this pub"
       >
@@ -102,7 +102,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
 
   if (story.isEmpty) {
     return (
-      <section className="venuePriceStory" aria-labelledby="vpsTitle">
+      <section className={styles.venuePriceStory} aria-labelledby="vpsTitle">
         <div className="inspectorTitle">
           <TrendingUp size={16} />
           <span id="vpsTitle">The Golden Thread</span>
@@ -124,7 +124,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
   const DirIcon = dir === "up" ? ArrowUpRight : dir === "down" ? ArrowDownRight : Minus;
 
   return (
-    <section className="venuePriceStory" aria-labelledby="vpsTitle">
+    <section className={styles.venuePriceStory} aria-labelledby="vpsTitle">
       <div className="inspectorTitle">
         <TrendingUp size={16} />
         <span id="vpsTitle">The Golden Thread</span>
@@ -133,27 +133,27 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
       {/* Then vs Now: the baseline on record against the freshest community
           price. Data prices use stable badges; provenance keeps its own chip. */}
       {baseline || now ? (
-        <div className="vpsPricePair">
+        <div className={styles.vpsPricePair}>
           {baseline ? (
-            <div className="vpsPriceGroup">
-              <span className="vpsPriceLabel">{baseline.label}</span>
-              <PriceBadge variant="baseline" className="vpsPriceValue vpsPriceThen">
+            <div className={styles.vpsPriceGroup}>
+              <span className={styles.vpsPriceLabel}>{baseline.label}</span>
+              <PriceBadge variant="baseline" className={`${styles.vpsPriceValue} ${styles.vpsPriceThen}`}>
                 {formatPrice(baseline.gbp)}
               </PriceBadge>
               <ProvChip provenance={baseline.provenance} />
             </div>
           ) : null}
           {baseline && now ? (
-            <span className="vpsArrow" aria-hidden="true">
+            <span className={styles.vpsArrow} aria-hidden="true">
               →
             </span>
           ) : null}
           {now ? (
-            <div className="vpsPriceGroup">
-              <span className="vpsPriceLabel">{now.label}</span>
+            <div className={styles.vpsPriceGroup}>
+              <span className={styles.vpsPriceLabel}>{now.label}</span>
               <PriceBadge
                 variant={dir === "up" ? "increase" : "current"}
-                className="vpsPriceValue vpsPriceNow"
+                className={`${styles.vpsPriceValue} ${styles.vpsPriceNow}`}
               >
                 {formatPrice(now.gbp)}
               </PriceBadge>
@@ -166,7 +166,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
       {baseline && now ? <StoryBars baseline={baseline} now={now} /> : null}
 
       {deltaGbp !== null && pct !== null ? (
-        <p className={`vpsDelta vpsDelta-${dir}`}>
+        <p className={`${styles.vpsDelta} ${dir === "up" ? styles.vpsDeltaUp : dir === "down" ? styles.vpsDeltaDown : styles.vpsDeltaFlat}`}>
           <DirIcon size={15} aria-hidden="true" />
           <span aria-hidden="true">
             {dir === "flat"
@@ -175,7 +175,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
                   pct,
                 ).toFixed(0)}%) vs earlier price`}
           </span>
-          <span className="srOnly">
+          <span className={styles.srOnly}>
             {dir === "flat"
               ? `The community price matches the earlier ${formatPrice(baseline!.gbp)} price on record.`
               : `${dir === "up" ? "Up" : "Down"} ${formatPrice(Math.abs(deltaGbp))} (${Math.abs(
@@ -194,21 +194,21 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
       {/* The inflation line — a dated, priced memory revalued into today's
           money. Provenance-badged: an anecdote is never mistaken for a fact. */}
       {inflation ? (
-        <div className="vpsInflation">
-          <p className="vpsInflationLine">
+        <div className={styles.vpsInflation}>
+          <p className={styles.vpsInflationLine}>
             A pint here was <strong>{formatPrice(inflation.thenGbp)}</strong> in{" "}
             <strong>{inflation.year}</strong>. That&rsquo;s{" "}
-            <strong className="vpsToday">{formatPrice(inflation.todayGbp)}</strong> in{" "}
+            <strong className={styles.vpsToday}>{formatPrice(inflation.todayGbp)}</strong> in{" "}
             {inflation.todayYear}&rsquo;s money.
           </p>
-          <div className="vpsInflationMeta">
+          <div className={styles.vpsInflationMeta}>
             <ProvChip provenance={inflation.provenance} />
-            <span className="vpsInflationBy">passed down by {inflation.handle}</span>
+            <span className={styles.vpsInflationBy}>passed down by {inflation.handle}</span>
           </div>
         </div>
       ) : null}
 
-      <p className="vpsFootnote">
+      <p className={styles.vpsFootnote}>
         Baseline = dataset price on record · Now = community-reported · inflation revalued via UK CPI
       </p>
     </section>

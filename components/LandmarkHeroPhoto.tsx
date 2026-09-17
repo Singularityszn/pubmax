@@ -6,7 +6,7 @@ import { Landmark as LandmarkIcon } from "lucide-react";
 import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
 import type { LandmarkImage } from "@/lib/landmarks";
 
-import "./landmarkHeroPhoto.css";
+import styles from "./landmarkHeroPhoto.module.css";
 
 /**
  * The photo at the top of a landmark story, on the map sheet and on the
@@ -38,7 +38,7 @@ export default function LandmarkHeroPhoto({
   const [failed, setFailed] = useState(false);
   if (!image || failed) {
     return (
-      <div className={`${className} landmarkHeroFallback`} aria-hidden="true">
+      <div className={`${className} ${styles.landmarkHeroFallback}`} aria-hidden="true">
         <LandmarkIcon size={40} strokeWidth={1.5} />
       </div>
     );

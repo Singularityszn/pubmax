@@ -64,7 +64,7 @@ function compactHeader(overrides: Record<string, unknown> = {}): string {
 function landingNav(overrides: Record<string, unknown> = {}): string {
   authState.current = { ...session, ...overrides };
   const html = renderToStaticMarkup(createElement(LandingPage));
-  const nav = html.match(/<header class="lpNav"[\s\S]*?<\/header>/)?.[0];
+  const nav = html.match(/<header class="_lpNav_[^"]*"[\s\S]*?<\/header>/)?.[0];
   expect(nav, "landing header present").toBeTruthy();
   return nav ?? "";
 }

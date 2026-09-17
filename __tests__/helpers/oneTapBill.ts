@@ -23,7 +23,7 @@ function billFile(): File {
  * it renders after it.
  */
 export async function attachBill(container: HTMLElement): Promise<void> {
-  const input = container.querySelector<HTMLInputElement>("input.vpsubPhotoInput");
+  const input = container.querySelector<HTMLInputElement>('input[class*="vpsubPhotoInput"]');
   if (!input) throw new Error("the bill picker did not render");
   Object.defineProperty(input, "files", { value: [billFile()], configurable: true });
   await act(async () => {

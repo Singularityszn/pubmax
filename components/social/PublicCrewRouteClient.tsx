@@ -22,7 +22,7 @@ import type {
   SocialCrewReadDTO,
 } from "@/lib/socialCrew";
 
-import "@/components/social/crews.css";
+import styles from "@/components/social/crews.module.css";
 
 type LoadState = "idle" | "loading" | "ready" | "missing" | "error";
 
@@ -38,8 +38,8 @@ function Shell({ children }: { children: ReactNode }) {
   return (
     <>
       <SiteNav active="social" />
-      <main className="crewPage" id="main-content">
-        <Link className="crewPage__back" href="/social">
+      <main className={styles.crewPage} id="main-content">
+        <Link className={styles.crewPageBack} href="/social">
           Back to Social
         </Link>
         {children}
@@ -51,7 +51,7 @@ function Shell({ children }: { children: ReactNode }) {
 function RollbackPreview() {
   return (
     <Shell>
-      <section className="crews__notice" role="status">
+      <section className={styles.crewsNotice} role="status">
         <h1>{socialBoundaryCopy("preview", false)}</h1>
       </section>
     </Shell>
@@ -364,7 +364,7 @@ export default function PublicCrewRouteClient({
   ) {
     return (
       <Shell>
-        <div className="crews__skeletons" aria-hidden="true">
+        <div className={styles.crewsSkeletons} aria-hidden="true">
           <span />
           <span />
         </div>
@@ -379,9 +379,9 @@ export default function PublicCrewRouteClient({
   ) {
     return (
       <Shell>
-        <section className="crews__notice" role="status">
+        <section className={styles.crewsNotice} role="status">
           <h1>This crew is not open to you.</h1>
-          <Link className="crews__button" href="/social">
+          <Link className={styles.crewsButton} href="/social">
             Back to Social
           </Link>
         </section>
@@ -391,11 +391,11 @@ export default function PublicCrewRouteClient({
 
   return (
     <Shell>
-      <section className="crews__notice" role="alert">
+      <section className={styles.crewsNotice} role="alert">
         <h1>Could not load this crew.</h1>
         <button
           type="button"
-          className="crews__button"
+          className={styles.crewsButton}
           onClick={() => window.location.reload()}
         >
           Try again

@@ -126,7 +126,7 @@ function pressEscape(): KeyboardEvent {
 describe("the phone sheet lane belongs to the phone", () => {
   it("mounts the sheet and answers Escape when the shell owns the lane", () => {
     const props = mount({ sheetsEnabled: true, onBack: vi.fn() });
-    expect(document.body.querySelector(".mobileSheetPortal")).not.toBeNull();
+    expect(document.body.querySelector('[class*="mobileSheetPortal"]')).not.toBeNull();
     const event = pressEscape();
     expect(props.onBack).toHaveBeenCalledTimes(1);
     // It claims the key, which is what tells every other Escape handler in the
@@ -138,7 +138,7 @@ describe("the phone sheet lane belongs to the phone", () => {
     const props = mount({ sheetsEnabled: false, onBack: vi.fn() });
     // Not merely hidden: absent, because a mounted sheet claims Escape on
     // `window` and captures focus, and neither is something CSS can withhold.
-    expect(document.body.querySelector(".mobileSheetPortal")).toBeNull();
+    expect(document.body.querySelector('[class*="mobileSheetPortal"]')).toBeNull();
     const event = pressEscape();
     expect(props.onBack).not.toHaveBeenCalled();
     // So the desktop dialog's own dismissal is the only one for that press.
@@ -151,7 +151,7 @@ describe("the phone sheet lane belongs to the phone", () => {
       overlay: "filters",
       onBack: vi.fn(),
     });
-    expect(document.body.querySelector(".mobileSheetPortal")).not.toBeNull();
+    expect(document.body.querySelector('[class*="mobileSheetPortal"]')).not.toBeNull();
     pressEscape();
     expect(props.onBack).toHaveBeenCalledTimes(1);
   });

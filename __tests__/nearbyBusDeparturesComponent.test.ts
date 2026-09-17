@@ -274,7 +274,7 @@ describe("NearbyBusDepartures", () => {
       createElement(NearbyBusDepartures, { lat: 51.512, lng: -0.104 }),
     );
 
-    expect(card).toContain('class="nearbyBusAnnouncement" role="status"');
+    expect(card).toMatch(/class="[^"]*nearbyBusAnnouncement[^"]*" role="status"/);
     expect(render("2026-07-28T22:41:10.000Z")).not.toContain('role="status"');
     expect(render("2026-07-28T22:43:30.000Z")).not.toContain('role="status"');
     expect(render("2026-07-28T22:40:00.000Z", unavailable)).not.toContain(
@@ -329,7 +329,7 @@ describe("NearbyBusDepartures", () => {
 
   it("keeps the retry control thumb-sized, and refuses without taking focus", () => {
     const css = readFileSync(
-      join(process.cwd(), "components/map/nearbyBusDepartures.css"),
+      join(process.cwd(), "components/map/nearbyBusDepartures.module.css"),
       "utf8",
     );
     const retryRule = css.match(/\.nearbyBusRetry\s*{([^}]*)}/)?.[1] ?? "";
@@ -353,7 +353,7 @@ describe("NearbyBusDepartures", () => {
 
   it("keeps the summary thumb-sized and adds no motion", () => {
     const css = readFileSync(
-      join(process.cwd(), "components/map/nearbyBusDepartures.css"),
+      join(process.cwd(), "components/map/nearbyBusDepartures.module.css"),
       "utf8",
     );
     const summaryRule =

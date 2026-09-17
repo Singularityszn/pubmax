@@ -12,12 +12,12 @@ describe("PUBMAXX wordmark", () => {
   it("renders the canonical visible brand as readable PUBMAXX text", () => {
     const html = render();
     const letters = html.match(
-      /<span class="pubmaxxWordmarkLetters"[\s\S]*?<\/span><\/span><\/span>/,
+      /<span class="[^"]*pubmaxxWordmarkLetters[^"]*"[\s\S]*?<\/span><\/span><\/span>/,
     )?.[0] ?? "";
 
     expect(letters, "visible letter lockup is present").not.toBe("");
     expect(letters).toContain(">PUBMAX</span>");
-    expect(letters).toContain('class="pubmaxxWordmarkAccent">X</span>');
+    expect(letters).toMatch(/class="[^"]*pubmaxxWordmarkAccent[^"]*">X<\/span>/);
     expect(letters).not.toContain("ING");
     expect(letters).not.toContain("<svg");
   });
@@ -27,16 +27,16 @@ describe("PUBMAXX wordmark", () => {
 
     expect(html).toContain('role="img"');
     expect(html).toContain('aria-label="PUBMAXX"');
-    expect(html).toContain('class="pubmaxxWordmarkSr">PUBMAXX</span>');
+    expect(html).toMatch(/class="[^"]*pubmaxxWordmarkSr[^"]*">PUBMAXX<\/span>/);
     expect(html).not.toContain("PUBMAXXING");
   });
 
   it("keeps the mark lockup API intact", () => {
     const html = render({ withMark: true, markVariant: "duo", markSize: 22 });
 
-    expect(html).toContain('class="pubmaxxLockup"');
-    expect(html).toContain('class="pubmaxxMark"');
+    expect(html).toMatch(/class="[^"]*pubmaxxLockup[^"]*"/);
+    expect(html).toMatch(/class="[^"]*pubmaxxMark_[^"]*"/);
     expect(html).toContain('width="22"');
-    expect(html).toContain('class="pubmaxxWordmark"');
+    expect(html).toMatch(/class="[^"]*pubmaxxWordmark_[^"]*"/);
   });
 });

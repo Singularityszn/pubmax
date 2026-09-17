@@ -639,7 +639,7 @@
 .planStopCount { margin: var(--space-2) 0 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
 .planStopCount__label { color: var(--muted); font-size: 0.78rem; font-weight: 800; }
 /* Layout only. Each count is the shared number square, painted by
-   components/ui/chip.css from the --control-* row, so the planner and the
+   components/ui/chip.module.css from the --control-* row, so the planner and the
    /pubs fare-zone picker are one family rather than a 10px square beside a
    6px one (the 6 Sep 2026 design review). */
 .planStopCount__choices { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -719,7 +719,7 @@
 /* The floating create action owns a lane at the right edge, and Continue sits
    in it: MEASURED at 390px, the button spanned x 199-368 while the control
    held x 322-378, so its right 46px was not tappable. The row reserves that
-   lane the way a scrolling answer list does (components/nearme/nearMeNow.css),
+   lane the way a scrolling answer list does (components/nearme/nearMeNow.module.css),
    reading the control's OWN published berth rather than a second copy of it. */
 @media (max-width: 640px) {
   :global(body:has(.createFabRoot):not(:has(.pageHidesCreateFab))) .planIntake > footer {

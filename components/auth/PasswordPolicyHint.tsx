@@ -2,7 +2,7 @@
 
 import { PASSWORD_HINT, passwordRuleResults } from "@/lib/passwordPolicy";
 
-import "./passwordPolicyHint.css";
+import styles from "./passwordPolicyHint.module.css";
 
 type PasswordPolicyHintProps = {
   /** What the person has typed so far. */
@@ -26,21 +26,21 @@ export default function PasswordPolicyHint({
   const rules = passwordRuleResults(value);
 
   return (
-    <div className="passwordPolicyHint" id={id}>
+    <div className={styles.passwordPolicyHint} id={id}>
       {value.length === 0 ? (
         <p>{PASSWORD_HINT}</p>
       ) : (
-        <ul className="passwordPolicyRules">
+        <ul className={styles.passwordPolicyRules}>
           {rules.map((rule) => (
             <li
               key={rule.id}
-              className={rule.met ? "isMet" : undefined}
+              className={rule.met ? styles.isMet : undefined}
               data-rule={rule.id}
               data-met={rule.met ? "yes" : "no"}
             >
               <span aria-hidden="true">{rule.met ? "✓" : "•"}</span>
               <span>{rule.label}</span>
-              <span className="srOnly">{rule.met ? " done" : " not yet"}</span>
+              <span className={styles.srOnly}>{rule.met ? " done" : " not yet"}</span>
             </li>
           ))}
         </ul>

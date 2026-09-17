@@ -62,7 +62,7 @@ async function palToLockedPlan(page: Page) {
 
 // Inside the plan's active window (ACTIVE_PLAN_PRE_MS, three hours before the
 // first pint) Night mode IS the plan page on a phone: `components/plan/
-// nightCrawl.css` paints `.nightCrawl` `position: fixed; inset: 0`, so it covers
+// nightCrawl.module.css` paints `.nightCrawl` `position: fixed; inset: 0`, so it covers
 // the share row by design rather than by accident. This journey's own first pint
 // is exactly three hours out, so a locked phone plan lands in that window on
 // purpose. The host reaches the invite the way the surface offers: through its

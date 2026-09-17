@@ -27,7 +27,7 @@ import {
   serverStrictModalFocusTrap,
   subscribeStrictModalFocusTrap,
 } from "@/lib/useFocusTrap";
-import "./mobileNav.css";
+import styles from "./mobileNav.module.css";
 
 // Mobile-first bottom tab bar. Mounted on every route and visible only ≤640px
 // (see mobileNav.css). On desktop it is display:none, leaving existing desktop
@@ -94,7 +94,7 @@ export function shouldShowMobileTabBar(pathname: string): boolean {
 export function MobileTabBarClearanceFallback() {
   const pathname = usePathname() ?? "";
   if (!shouldShowMobileTabBar(pathname)) return null;
-  return <div className="mobileTabBarClearance" aria-hidden="true" />;
+  return <div className={styles.mobileTabBarClearance} aria-hidden="true" />;
 }
 
 export default function MobileTabBar() {
@@ -153,7 +153,8 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
 
   return (
     <nav
-      className={"mobileTabBar" + (keyboardOpen ? " isKeyboardHidden" : "")}
+      className={styles.mobileTabBar + (keyboardOpen ? ` ${styles.isKeyboardHidden}` : "")}
+      data-mobile-tab-bar
       role="navigation"
       aria-label="Primary"
       // Hidden from the reader means hidden from a screen reader too: a bar
@@ -166,7 +167,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
           column width and highlight geometry all derive from it (and from
           --tab-inset), so the CSS never assumes a tab total. */}
       <ul
-        className="mobileTabList"
+        className={styles.mobileTabList}
         style={{ "--tab-count": tabs.length } as CSSProperties}
       >
         {/* Gliding active-tab highlight. A decorative li (not a nav item) so it
@@ -175,7 +176,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
             (translateX by 100% of its own one-column width), so it only ever
             needs a transform to glide — no layout thrash. */}
         <li
-          className="mobileTabHighlight"
+          className={styles.mobileTabHighlight}
           aria-hidden="true"
           style={
             {
@@ -188,7 +189,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
           const active = isActive(pathname, tab);
           const { Icon } = tab;
           return (
-            <li key={tab.label} className="mobileTabItem">
+            <li key={tab.label} className={styles.mobileTabItem}>
               <Link
                 href={tab.href}
                 // The bar sits in the viewport on every page, so Next's
@@ -198,7 +199,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                 // top downloads unrelated route code before the current page is
                 // useful.
                 prefetch={false}
-                className={"mobileTab pressable" + (active ? " isActive" : "")}
+                className={`${styles.mobileTab} pressable${active ? ` ${styles.isActive}` : ""}`}
                 aria-label={tab.ariaLabel}
                 aria-current={active ? "page" : undefined}
                 onPointerDown={() => warmTab(tab.href)}
@@ -207,15 +208,15 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                 onFocus={() => warmTab(tab.href)}
                 onTouchStart={() => warmTab(tab.href)}
               >
-                <span className="mobileTabIcon" aria-hidden="true">
+                <span className={styles.mobileTabIcon} aria-hidden="true">
                   <Icon
                     size={15}
                     strokeWidth={active ? 2.25 : 1.75}
                     fill="none"
                   />
                 </span>
-                <span className="mobileTabLabel">
-                  <span className="mobileTabLabelText">{tab.label}</span>
+                <span className={styles.mobileTabLabel}>
+                  <span className={styles.mobileTabLabelText}>{tab.label}</span>
                 </span>
               </Link>
             </li>

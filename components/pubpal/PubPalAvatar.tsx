@@ -1,7 +1,16 @@
 import type { PubPalAppearance, PubPalSpecies, SignalFamily } from "@/lib/pubPal";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import { pubPalMascotSlugFor } from "@/lib/pubPalMascot";
-import "./pubPal.css";
+import styles from "./pubPal.module.css";
+
+const palAccentClass: Record<string, string> = {
+  beer: styles.palBeer,
+  gin: styles.palGin,
+  rum: styles.palRum,
+  whisky: styles.palWhisky,
+  brandy: styles.palBrandy,
+  vodka: styles.palVodka,
+};
 
 // A stored legacy species with no master draws its old silhouette. Every
 // onboarding species ships a master (and `hound` stands in for the greyhound),
@@ -17,9 +26,9 @@ const legacySilhouettes: Partial<Record<PubPalSpecies, string>> = {
 
 export function PubPalAvatar({ appearance, name, compact = false }: { appearance: PubPalAppearance; name: string; compact?: boolean }) {
   return (
-    <div className={`palAvatar pal-${appearance.species} pal-${appearance.signalAffinity} ${compact ? "isCompact" : ""}`} role="img" aria-label={`${name}, a ${appearance.signalAffinity} hologram cyber ${appearance.species}`}>
-      <span className="palHalo" aria-hidden="true" />
-      <span className="palBody" aria-hidden="true">
+    <div className={`${styles.palAvatar} ${palAccentClass[appearance.species] ?? ""} ${palAccentClass[appearance.signalAffinity] ?? ""} ${compact ? styles.isCompact : ""}`} role="img" aria-label={`${name}, a ${appearance.signalAffinity} hologram cyber ${appearance.species}`}>
+      <span className={styles.palHalo} aria-hidden="true" />
+      <span className={styles.palBody} aria-hidden="true">
         {pubPalMascotSlugFor(appearance.species) ? (
           <PubPalMascot species={appearance.species} size={compact ? 28 : 40} circular decorative className="palAvatarMascot" />
         ) : (
@@ -27,7 +36,7 @@ export function PubPalAvatar({ appearance, name, compact = false }: { appearance
         )}
         <b />
       </span>
-      <span className="palParticles" aria-hidden="true">{Array.from({ length: 9 }, (_, index) => <i key={index} style={{ "--p": index } as React.CSSProperties} />)}</span>
+      <span className={styles.palParticles} aria-hidden="true">{Array.from({ length: 9 }, (_, index) => <i key={index} style={{ "--p": index } as React.CSSProperties} />)}</span>
     </div>
   );
 }

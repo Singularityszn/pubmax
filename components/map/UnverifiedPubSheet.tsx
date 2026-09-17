@@ -34,7 +34,7 @@ import {
   type MapExperienceLens,
 } from "@/lib/mapExperienceLens";
 
-import "./unverifiedPubSheet.css";
+import styles from "./unverifiedPubSheet.module.css";
 
 // The sheet behind a UK base pin - a pub OpenStreetMap knows about but the
 // curated venue index does not. It shows existing community reports or invites
@@ -57,9 +57,9 @@ export function HarvestOverlayFields({ overlay }: { overlay: PublicHarvestOverla
   const hasLinks = Boolean(overlay.website || overlay.menuUrl);
   if (!hasLinks && !overlay.lore) return null;
   return (
-    <div className="unverifiedPubOverlay">
+    <div className={styles.unverifiedPubOverlay}>
       {hasLinks ? (
-        <div className="unverifiedPubActions">
+        <div className={styles.unverifiedPubActions}>
           {overlay.website ? (
             <a href={overlay.website} target="_blank" rel="noopener noreferrer">
               Pub website
@@ -75,9 +75,9 @@ export function HarvestOverlayFields({ overlay }: { overlay: PublicHarvestOverla
         </div>
       ) : null}
       {overlay.lore ? (
-        <div className="unverifiedPubLore">
+        <div className={styles.unverifiedPubLore}>
           <p>{overlay.lore.fact}</p>
-          <div className="unverifiedPubLoreMeta">
+          <div className={styles.unverifiedPubLoreMeta}>
             <span>Web</span>
             <a href={overlay.lore.sourceRef} target="_blank" rel="noopener noreferrer">
               Source
@@ -166,9 +166,9 @@ export default function UnverifiedPubSheet({
   const placeNoun = pub.kind === "bar" ? "bar" : "pub";
 
   return (
-    <div className="unverifiedPub">
-      <div className="unverifiedPubHead">
-        <span className="unverifiedPubTag">
+    <div className={styles.unverifiedPub}>
+      <div className={styles.unverifiedPubHead}>
+        <span className={styles.unverifiedPubTag}>
           <Sparkles size={12} aria-hidden="true" />
           {communityPrice
             ? "Community price"
@@ -178,9 +178,9 @@ export default function UnverifiedPubSheet({
                 ? "Prices unread"
                 : "Checking community prices"}
         </span>
-        <h2 className="unverifiedPubName">{pub.name}</h2>
+        <h2 className={styles.unverifiedPubName}>{pub.name}</h2>
         {pub.address ? (
-          <p className="unverifiedPubAddress">
+          <p className={styles.unverifiedPubAddress}>
             <MapPin size={13} aria-hidden="true" />
             {pub.address}
           </p>
@@ -189,7 +189,7 @@ export default function UnverifiedPubSheet({
 
       {communityPrice ? (
         <>
-          <p className="unverifiedPubLead">
+          <p className={styles.unverifiedPubLead}>
             We know this {placeNoun} from OpenStreetMap. Here is what the
             community last logged.
           </p>
@@ -223,24 +223,24 @@ export default function UnverifiedPubSheet({
           </div>
         </>
       ) : pricesKnown && experienceLens === "no-alcohol" ? (
-        <p className="unverifiedPubLead">
+        <p className={styles.unverifiedPubLead}>
           {drinkLensEmptyVenueNote(NO_ALCOHOL_LENS_PRICE_NOUN, "ready")}
         </p>
       ) : drinkLensNoun ? (
-        <p className="unverifiedPubLead">
+        <p className={styles.unverifiedPubLead}>
           {drinkLensEmptyVenueNote(drinkLensNoun, readStatus)}
         </p>
       ) : pricesKnown && experienceLens === "food" ? (
-        <p className="unverifiedPubLead">
+        <p className={styles.unverifiedPubLead}>
           No sourced food price recorded here.
         </p>
       ) : pricesKnown ? (
-        <p className="unverifiedPubLead">
+        <p className={styles.unverifiedPubLead}>
           We know this {placeNoun} is here, and that is all we know. Nobody has
           logged what a drink costs - <strong>be the first</strong>.
         </p>
       ) : readFailed ? (
-        <p className="unverifiedPubLead">
+        <p className={styles.unverifiedPubLead}>
           We could not read what has been logged here just now. You can still add
           tonight&rsquo;s price below.
         </p>
@@ -270,7 +270,7 @@ export default function UnverifiedPubSheet({
       {/* ODbL requires attribution wherever these pins are publicly displayed
           (data/osm/uk/README.md), and it is also the honest provenance line:
           the pub's existence is sourced, its price is not. */}
-      <p className="unverifiedPubSource">
+      <p className={styles.unverifiedPubSource}>
         {placeNoun === "bar" ? "Bar" : "Pub"} location from{" "}
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
           OpenStreetMap contributors

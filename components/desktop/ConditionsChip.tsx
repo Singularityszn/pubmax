@@ -17,7 +17,7 @@ import type { TonightConditionsSummary } from "@/lib/tonightConditions";
 import { shortDrinkVerdict } from "@/lib/conditionsFormat";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
-import "./conditionsChip.css";
+import styles from "./conditionsChip.module.css";
 
 type ConditionsResponse = { summary: TonightConditionsSummary | null };
 
@@ -45,10 +45,10 @@ export default function ConditionsChip() {
   const full = `${summary.dateLabel}, ${summary.weatherLabel}. ${summary.drinkLine}`;
 
   return (
-    <span className="conditionsChip" title={full} aria-label={full}>
+    <span className={styles.conditionsChip} title={full} aria-label={full}>
       <CloudSun size={14} aria-hidden="true" />
-      <span className="conditionsChipWeather">{summary.weatherLabel}.</span>
-      {verdict ? <span className="conditionsChipVerdict">{verdict}</span> : null}
+      <span className={styles.conditionsChipWeather}>{summary.weatherLabel}.</span>
+      {verdict ? <span className={styles.conditionsChipVerdict}>{verdict}</span> : null}
     </span>
   );
 }

@@ -25,7 +25,7 @@ const HOME_CHROME_CEILING = 0.2;
 const MAP_CHROME_CEILING = 0.3;
 const CONSENT_ROW_HEIGHT = 56;
 const HOME_INDICATOR_INSET = 34;
-/** The dock's own base clearance under the pill (components/nav/mobileNav.css). */
+/** The dock's own base clearance under the pill (components/nav/mobileNav.module.css). */
 const DOCK_BASE_CLEARANCE = 6;
 /** A seed pub, opened by id so the first action needs no canvas pin tap. */
 const ARNOS_ARMS_ID = "venue-xjf3n0";
@@ -211,7 +211,7 @@ test("the phone map with its sheet closed spends under 30 percent on chrome @390
 
 // On the phone map the card never greets a stranger, and once the reader has
 // taken a first action it takes the outing pill's slot on the dock rather than
-// stacking above it (components/mobile/mobileMapShell.css).
+// stacking above it (components/mobile/mobileMapShell.module.css).
 test("on the phone map the consent card waits for a first action, then takes the outing pill's slot @390x844", async ({ page }) => {
   test.setTimeout(180_000);
   await prepareStranger(page);

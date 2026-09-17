@@ -5,12 +5,18 @@ import { describe, expect, it } from "vitest";
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
-const toolbarCss = read("components/map/mapToolbar.css");
-const layersCss = read("components/map/mapLayersControl.css");
+const toolbarCss = read("components/map/mapToolbar.module.css");
+const layersCss = read("components/map/mapLayersControl.module.css");
 
 function ruleBody(css: string, selector: string): string {
-  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return css.match(new RegExp(`${escaped}\\s*{([^}]*)}`))?.[1] ?? "";
+  // Each .className segment may appear bare or wrapped in :global() after
+  // the CSS-module migration, e.g. ".mapToolbar" → ":global(.mapToolbar)"
+  // and ".mapLayersFab.isActive" → ".mapLayersFab:global(.isActive)".
+  const pattern = selector.replace(/\.([a-zA-Z_][\w-]*)/g, (_, cls) => {
+    const esc = cls.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return `(?::global\\(\\.${esc}\\)|\\.${esc})`;
+  });
+  return css.match(new RegExp(`${pattern}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
 }
 
 describe("desktop map passive chrome", () => {

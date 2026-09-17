@@ -1,4 +1,5 @@
 import { HandCoins } from "lucide-react";
+import styles from "./landing.module.css";
 
 // Skeleton shown while the real PintDropStrip lazy-loads. It mirrors the loaded
 // strip's outer shape exactly — the same .dropStripHead (eyebrow + hint) and a
@@ -7,19 +8,19 @@ import { HandCoins } from "lucide-react";
 export default function PintDropStripLoading() {
   return (
     <div className="dropStrip" aria-hidden="true">
-      <div className="dropStripHead">
+      <div className={styles.dropStripHead}>
         <p className="eyebrow">
           <HandCoins size={15} strokeWidth={1.5} aria-hidden="true" />
           Fresh from the taps
         </p>
-        <span className="dropStripHint">Newest community drops →</span>
+        <span className={styles.dropStripHint}>Newest community drops →</span>
       </div>
-      <div className="dropStripRail">
+      <div className={styles.dropStripRail}>
         {Array.from({ length: 4 }, (_, index) => (
-          <div className="dropStripCard dropStripCardSkeleton" key={index}>
-            <span className="skelLine skelLineTop" />
-            <span className="skelLine" />
-            <span className="skelLine skelLineShort" />
+          <div className={`${styles.dropStripCard} ${styles.dropStripCardSkeleton}`} key={index}>
+            <span className={`${styles.skelLine} ${styles.skelLineTop}`} />
+            <span className={styles.skelLine} />
+            <span className={`${styles.skelLine} ${styles.skelLineShort}`} />
           </div>
         ))}
       </div>

@@ -71,10 +71,10 @@ export const LAUNCH_TOKENS = [
 
 /** The four primitives PR "design tokens and primitives" ships (issue #1354). */
 const PRIMITIVE_STYLESHEETS = [
-  "components/ui/kicker.css",
-  "components/ui/trustPill.css",
-  "components/ui/emptyState.css",
-  "components/ui/screen.css",
+  "components/ui/kicker.module.css",
+  "components/ui/trustPill.module.css",
+  "components/ui/emptyState.module.css",
+  "components/ui/screen.module.css",
 ] as const;
 
 const read = (file: string): string => readFileSync(join(ROOT, file), "utf8");

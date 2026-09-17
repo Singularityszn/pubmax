@@ -47,6 +47,7 @@ import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { recordKeptAction } from "@/lib/nativeReviewPrompt";
 import MeasureChips from "@/components/map/composer/MeasureChips";
 import PriceContributionImpact from "@/components/map/PriceContributionImpact";
+import styles from "./venuePriceSubmit.module.css";
 import type { MissionSurface } from "@/lib/analyticsEvents";
 import {
   effectiveSubmitCategory,
@@ -180,8 +181,8 @@ function NonPintReceipt({
 }) {
   return (
     <>
-      <strong className="vpsubStampPrice">{formatPrice(priceGbp)}</strong>
-      <span className="vpsubStampMeta">
+      <strong className={styles.vpsubStampPrice}>{formatPrice(priceGbp)}</strong>
+      <span className={styles.vpsubStampMeta}>
         {measureName} · On this pub&rsquo;s page
       </span>
     </>
@@ -564,34 +565,34 @@ export default function VenuePriceSubmit({
     if (!logged.missionReceipt && !logged.nonPint && !stamped && !logged.outcomeLine) return null;
     return (
       <div className="vpsubStampBlock">
-        <p className="vpsubStamp" role="status">
-          <Check size={14} aria-hidden="true" className="vpsubStampTick" />
+        <p className={styles.vpsubStamp} role="status">
+          <Check size={14} aria-hidden="true" className={styles.vpsubStampTick} />
           {logged.missionReceipt ? (
-            <strong className="vpsubStampPrice">{logged.missionReceipt.line}</strong>
+            <strong className={styles.vpsubStampPrice}>{logged.missionReceipt.line}</strong>
           ) : logged.nonPint ? (
             <NonPintReceipt {...logged.nonPint} />
           ) : stamped ? (
             <>
-              <strong className="vpsubStampPrice">{formatPrice(stamped.priceGbp)}</strong>
-              <span className="vpsubStampMeta">
+              <strong className={styles.vpsubStampPrice}>{formatPrice(stamped.priceGbp)}</strong>
+              <span className={styles.vpsubStampMeta}>
                 {stampStanding} · {formatPriceDay(stamped.submittedAt)}
               </span>
             </>
           ) : null}
         </p>
         {logged.outcomeLine ? (
-          <p className="vpsubStampHint">{logged.outcomeLine}</p>
+          <p className={styles.vpsubStampHint}>{logged.outcomeLine}</p>
         ) : null}
         <PriceContributionImpact attribution={logged.attribution} />
         {/* Close the loop in-session: the mark the map just gained, named and
             coloured exactly as the map draws it, so the submitter can look up
             and find their own dot rather than take our word for it. */}
         {logged.nonPint ? (
-          <p className="vpsubStampHint">{NON_PINT_PRICE_REACH_LINE}</p>
+          <p className={styles.vpsubStampHint}>{NON_PINT_PRICE_REACH_LINE}</p>
         ) : null}
         {!logged.missionReceipt && !logged.nonPint && markedProvisionally ? (
-          <p className="vpsubStampHint">
-            <i className="vpsubStampDot" aria-hidden="true" />
+          <p className={styles.vpsubStampHint}>
+            <i className={styles.vpsubStampDot} aria-hidden="true" />
             Its pin now carries this dot.{" "}
             {mapReach === "paint"
               ? "A second independent drinker reporting a similar price can set the pin’s colour."
@@ -609,16 +610,16 @@ export default function VenuePriceSubmit({
     return (
         missionLocksCategory ? (
           <>
-            <p className="vpsubLockedDrink">{submitCategoryLabel(category)}</p>
+            <p className={styles.vpsubLockedDrink}>{submitCategoryLabel(category)}</p>
             {missionAsksAnother ? (
-              <p className="vpsubHeldDrink">
+              <p className={styles.vpsubHeldDrink}>
                 {`Clear the price to log ${drinkLaneNoun(missionCategory)} instead.`}
               </p>
             ) : null}
           </>
         ) : (
           <div
-            className="vpsubCats"
+            className={styles.vpsubCats}
             role="radiogroup"
             aria-label={`What are you drinking at ${venueName}?`}
           >
@@ -628,7 +629,7 @@ export default function VenuePriceSubmit({
                 type="button"
                 role="radio"
                 aria-checked={category === option}
-                className={category === option ? "vpsubCat vpsubCatOn" : "vpsubCat"}
+                className={category === option ? `${styles.vpsubCat} ${styles.vpsubCatOn}` : styles.vpsubCat}
                 onClick={() => {
                   // The receipt belongs to the drink it was logged for, so
                   // switching categories shows that category's own record.
@@ -655,9 +656,9 @@ export default function VenuePriceSubmit({
       className="venuePriceSubmit"
       aria-labelledby={titleId}
     >
-      <div className="vpsubHead">
+      <div className={styles.vpsubHead}>
         <Tag size={15} aria-hidden="true" />
-        <h3 id={titleId} className="vpsubTitle">
+        <h3 id={titleId} className={styles.vpsubTitle}>
           What&rsquo;s it tonight?
         </h3>
       </div>
@@ -682,9 +683,9 @@ export default function VenuePriceSubmit({
         />
       ) : null}
 
-      <div className="vpsubEntry">
-        <div className="vpsubField">
-          <span className="vpsubCurrency" aria-hidden="true">
+      <div className={styles.vpsubEntry}>
+        <div className={styles.vpsubField}>
+          <span className={styles.vpsubCurrency} aria-hidden="true">
             £
           </span>
           {/* The field's accessible name takes the SENTENCE noun, not the chip
@@ -692,7 +693,7 @@ export default function VenuePriceSubmit({
               out as "price of a cocktails". The lane table owns the singular. */}
           <input
             ref={priceInputRef}
-            className="vpsubInput"
+            className={styles.vpsubInput}
             type="text"
             inputMode="decimal"
             enterKeyHint="done"
@@ -718,7 +719,7 @@ export default function VenuePriceSubmit({
         </div>
         <button
           type="button"
-          className="vpsubLog"
+          className={styles.vpsubLog}
           onClick={() => void logPrice()}
           disabled={submitting || missionPending || !priceValidation.ok || !receiptPhoto}
         >
@@ -727,12 +728,12 @@ export default function VenuePriceSubmit({
       </div>
 
       {missionLocksCategory ? null : (
-        <div className="vpsubQuick" aria-label="Common prices">
+        <div className={styles.vpsubQuick} aria-label="Common prices">
           {quickPrices.map((value) => (
             <button
               key={value}
               type="button"
-              className="vpsubQuickChip"
+              className={styles.vpsubQuickChip}
               onClick={() => {
                 enterPrice(formatPriceGbp(value));
               }}
@@ -746,10 +747,10 @@ export default function VenuePriceSubmit({
       {/* THE BILL, THEN THE PINT. The bill is the condition of logging a price
           and says why in one line; the pint photo is offered right after it,
           for fun, and is never a condition of anything (captain 7 Sept 2026). */}
-      <div className="vpsubPhotoRow">
+      <div className={styles.vpsubPhotoRow}>
         <input
           ref={receiptPhotoInputRef}
-          className="vpsubPhotoInput"
+          className={styles.vpsubPhotoInput}
           type="file"
           accept={PHOTO_ACCEPT}
           aria-label={`Photo of the bill at ${venueName}`}
@@ -759,7 +760,7 @@ export default function VenuePriceSubmit({
         />
         <button
           type="button"
-          className="vpsubPhotoBtn"
+          className={styles.vpsubPhotoBtn}
           data-testid="receipt-photo-btn"
           onClick={() => void chooseReceiptPhoto()}
           disabled={submitting || missionPending}
@@ -770,7 +771,7 @@ export default function VenuePriceSubmit({
         {receiptPhoto ? (
           <button
             type="button"
-            className="vpsubPhotoClear"
+            className={styles.vpsubPhotoClear}
             onClick={clearReceiptPhoto}
             disabled={submitting || missionPending}
           >
@@ -779,16 +780,16 @@ export default function VenuePriceSubmit({
         ) : null}
       </div>
       {receiptPhoto ? null : (
-        <p className="vpsubPhotoWhy">{RECEIPT_REQUIRED_LINE}</p>
+        <p className={styles.vpsubPhotoWhy}>{RECEIPT_REQUIRED_LINE}</p>
       )}
 
       {receiptPhoto ? (
         <>
-          <p className="vpsubPhotoWhy">{PINT_PHOTO_FUN_LINE}</p>
-          <div className="vpsubPhotoRow">
+          <p className={styles.vpsubPhotoWhy}>{PINT_PHOTO_FUN_LINE}</p>
+          <div className={styles.vpsubPhotoRow}>
             <input
               ref={pintPhotoInputRef}
-              className="vpsubPhotoInput"
+              className={styles.vpsubPhotoInput}
               type="file"
               accept={PHOTO_ACCEPT}
               aria-label={`Optional pint photo for ${venueName}`}
@@ -798,7 +799,7 @@ export default function VenuePriceSubmit({
             />
             <button
               type="button"
-              className="vpsubPhotoBtn"
+              className={styles.vpsubPhotoBtn}
               data-testid="pint-photo-btn"
               onClick={() => void choosePintPhoto()}
               disabled={submitting || missionPending}
@@ -809,7 +810,7 @@ export default function VenuePriceSubmit({
             {pintPhoto ? (
               <button
                 type="button"
-                className="vpsubPhotoClear"
+                className={styles.vpsubPhotoClear}
                 onClick={clearPintPhoto}
                 disabled={submitting || missionPending}
               >
@@ -821,13 +822,13 @@ export default function VenuePriceSubmit({
       ) : null}
 
       {visibleError ? (
-        <p id="vpsubError" className="vpsubError" role="alert">
+        <p id="vpsubError" className={styles.vpsubError} role="alert">
           {visibleError}
         </p>
       ) : null}
 
       {stampBlock() ?? (
-        <p className="vpsubNote">
+        <p className={styles.vpsubNote}>
           Your price shows on this pub&rsquo;s page straight away, dated and
           badged as community. It never replaces the price on record.{" "}
           {reachNote}{" "}

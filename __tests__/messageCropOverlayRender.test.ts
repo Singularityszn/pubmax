@@ -48,6 +48,7 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => ({
 
 import MessageThread from "@/components/messages/MessageThread";
 import msgStyles from "@/app/messages/Messages.module.css";
+import cropStyles from "@/components/profile/profileImageCropper.module.css";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
@@ -142,7 +143,7 @@ describe("choosing a DM photo opens a bounded modal card, not an in-flow step", 
 
     // It is the MESSAGE photo's crop step, at the message target's own shape.
     expect(card.querySelector(".profileCropStep-message-photo")).not.toBeNull();
-    expect(card.querySelector(".profileCropActions")).not.toBeNull();
+    expect(card.querySelector(`.${cropStyles.profileCropActions}`)).not.toBeNull();
   });
 
   it("moves focus into the card rather than leaving it on the thread behind", async () => {
@@ -173,7 +174,7 @@ describe("choosing a DM photo opens a bounded modal card, not an in-flow step", 
     await mountThread();
     await choosePhoto();
     const cancel = container.querySelector<HTMLButtonElement>(
-      `.${msgStyles.messageCropCard} .profileCropCancel`,
+      `.${msgStyles.messageCropCard} .${cropStyles.profileCropCancel}`,
     );
     expect(cancel).not.toBeNull();
 

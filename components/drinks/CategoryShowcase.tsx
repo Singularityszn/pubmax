@@ -29,7 +29,7 @@ import {
 } from "@/lib/drinks";
 import type { DrinkCategory } from "@/lib/drinks";
 import { DrinkGlyph } from "./DrinkGlyph";
-import "./categoryShowcase.css";
+import styles from "./categoryShowcase.module.css";
 
 type CategoryShowcaseExtraItem = ReactElement<LiHTMLAttributes<HTMLLIElement>, "li">;
 
@@ -130,7 +130,7 @@ export function CategoryShowcase({
   }, []);
 
   const grid = (
-    <ul className="catShowcase__grid" ref={gridRef}>
+    <ul className={styles["catShowcase__grid"]} ref={gridRef}>
       {extraItemsPosition === "start" ? extraItems : null}
       {cardCategories.map((category) => {
         const label = CATEGORY_META[category].label;
@@ -138,15 +138,15 @@ export function CategoryShowcase({
         const inner = (
           <>
             <span
-              className="catShowcase__swatch"
+              className={styles["catShowcase__swatch"]}
               style={{ color: `var(--cat-${category})` }}
             >
               <DrinkGlyph category={category} size={size} inheritColor />
             </span>
-            <span className="catShowcase__labelWrap">
-              <span className="catShowcase__label">{label}</span>
+            <span className={styles["catShowcase__labelWrap"]}>
+              <span className={styles["catShowcase__label"]}>{label}</span>
               {explore && cardHint ? (
-                <span className="catShowcase__hint">{cardHint}</span>
+                <span className={styles["catShowcase__hint"]}>{cardHint}</span>
               ) : null}
             </span>
           </>
@@ -155,7 +155,7 @@ export function CategoryShowcase({
         return (
           <li
             key={category}
-            className={`catShowcase__item${isActive ? " catShowcase__item--active" : ""}`}
+            className={`${styles["catShowcase__item"]}${isActive ? ` ${styles["catShowcase__item--active"]}` : ""}`}
             // The category token drives the card's tint/border in explore mode
             // (CSS reads --cat via currentColor on the swatch; here we also
             // expose it to the card frame).
@@ -168,7 +168,7 @@ export function CategoryShowcase({
             {onCategoryActivate ? (
               <button
                 type="button"
-                className="catShowcase__link"
+                className={styles["catShowcase__link"]}
                 aria-label={`Choose ${label}`}
                 aria-pressed={isActive}
                 onClick={() => onCategoryActivate(category)}
@@ -178,7 +178,7 @@ export function CategoryShowcase({
             ) : explore && hrefFor ? (
               <Link
                 prefetch={false}
-                className="catShowcase__link pressable"
+                className={`${styles["catShowcase__link"]} pressable`}
                 href={hrefFor(category)}
                 aria-label={`Explore ${label}`}
               >
@@ -196,17 +196,17 @@ export function CategoryShowcase({
 
   return (
     <section
-      className={`catShowcase textured-panel${explore ? " catShowcase--explore" : ""}${
+      className={`${styles.catShowcase} textured-panel${explore ? ` ${styles["catShowcase--explore"]}` : ""}${
         className ? ` ${className}` : ""
       }`}
       aria-label={explore ? "Explore drinks by category" : "Drink category colours"}
     >
-      {title ? <h3 className="catShowcase__title">{title}</h3> : null}
+      {title ? <h3 className={styles["catShowcase__title"]}>{title}</h3> : null}
       {explore ? (
-        <div className="catShowcase__rail">
+        <div className={styles["catShowcase__rail"]}>
           <button
             type="button"
-            className="catShowcase__arrow catShowcase__arrow--prev"
+            className={`${styles["catShowcase__arrow"]} ${styles["catShowcase__arrow--prev"]}`}
             aria-label="Scroll drink categories left"
             onClick={() => scrollRail(-1)}
             disabled={!canScrollPrev}
@@ -225,7 +225,7 @@ export function CategoryShowcase({
           {grid}
           <button
             type="button"
-            className="catShowcase__arrow catShowcase__arrow--next"
+            className={`${styles["catShowcase__arrow"]} ${styles["catShowcase__arrow--next"]}`}
             aria-label="Scroll drink categories right"
             onClick={() => scrollRail(1)}
             disabled={!canScrollNext}

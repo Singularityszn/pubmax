@@ -23,12 +23,13 @@ import { describe, expect, it } from "vitest";
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
 const shell = read("components/mobile/MobileMapShell.tsx");
-const shellCss = read("components/mobile/mobileMapShell.css");
+const shellCss = read("components/mobile/mobileMapShell.module.css");
 const pubMap = read("components/PubMap.tsx");
 const toolbar = read("components/map/MapToolbar.tsx");
 
 function mapChromeMarkup(): string {
-  const start = shell.lastIndexOf('<div className="mobileMapChrome"');
+  const marker = shell.lastIndexOf("styles.mobileMapChrome");
+  const start = shell.lastIndexOf("<div", marker);
   const end = shell.indexOf("\n      </div>", start);
   expect(start, "the map chrome container").toBeGreaterThan(-1);
   expect(end, "its closing tag").toBeGreaterThan(start);
@@ -38,7 +39,7 @@ function mapChromeMarkup(): string {
 describe("finding 2.3 — the phone map chrome is one bar", () => {
   it("renders exactly one bar inside the chrome", () => {
     const chrome = mapChromeMarkup();
-    expect((chrome.match(/className="mobileMapTopbar["\s]/g) ?? []).length).toBe(1);
+    expect((chrome.match(/styles\.mobileMapTopbar\b/g) ?? []).length).toBe(1);
     // The rail was the second container. Nothing may bring it back.
     expect(chrome, "no control rail").not.toContain("mobileMapRail");
     expect(shellCss, "and no rail styling survives").not.toContain(".mobileMapRail");
@@ -48,9 +49,9 @@ describe("finding 2.3 — the phone map chrome is one bar", () => {
     // a second chip can never grow into a second control rail.
     expect(chrome).toMatch(/overlay === "search" \? \([\s\S]*?mobileMapSearchRow/);
     expect(chrome).toMatch(/overlay === "search" \? null : \([\s\S]*?<MapChipRow/);
-    expect((shell.match(/className="mobileMapChipRow"/g) ?? []).length).toBe(1);
+    expect((shell.match(/className=\{styles\.mobileMapChipRow\}/g) ?? []).length).toBe(1);
     expect(shell).toMatch(
-      /mobileMapChipRow"[\s\S]*?mobileMapDrinkChip[\s\S]*?tonightChip \? \([\s\S]*?mobileMapTonightChip/,
+      /mobileMapChipRow[}"'][\s\S]*?mobileMapDrinkChip[\s\S]*?tonightChip \? \([\s\S]*?mobileMapTonightChip/,
     );
     expect(chrome, "no control rail").not.toContain("mobileMapRail");
   });
@@ -58,7 +59,7 @@ describe("finding 2.3 — the phone map chrome is one bar", () => {
   it("puts Near me on the map edge as a round control, not in the bar", () => {
     const chrome = mapChromeMarkup();
     expect(chrome, "Near me left the bar").not.toContain("mobileMapLocateFab");
-    expect(shell).toContain('className="mobileMapLocateFab"');
+    expect(shell).toContain('className={styles.mobileMapLocateFab}');
     expect(shell, "the FAB carries the Near me action").toMatch(
       /mobileMapLocateFab[\s\S]{0,320}onClick=\{onNearMe\}/,
     );
@@ -103,7 +104,7 @@ describe("finding 2.3 — the category toggles have exactly one home per viewpor
     expect(pubMap, "no floating desktop band").not.toContain(
       "renderDesktopVenueKindChips",
     );
-    const arcCss = read("components/map/tonightArcChips.css");
+    const arcCss = read("components/map/tonightArcChips.module.css");
     // The group is plain content in whatever surface holds it. Its own
     // container may not position itself over the map (the one absolute rule
     // left is the unavailable-kind tooltip, which is anchored to its chip).
@@ -134,7 +135,7 @@ describe("finding 2.3 — the category toggles have exactly one home per viewpor
     // the experience lens and the fare-zone picker moved in beside them
     // (7 Sep 2026, walk finding B9), and a badge counting one of three would
     // say the map is unfiltered while two filters are on.
-    expect(filter).toMatch(/mapVenueKindFilterCount"?>\{refinements\}/);
+    expect(filter).toMatch(/mapVenueKindFilterCount[}"']?>\{refinements\}/);
     expect(filter).toContain("mapFilterRefinementCount");
     expect(filter).toMatch(/venueKindFilterAriaLabel\(refinements\)/);
     // The chips are the reader's own tap, never the map's cold start.
@@ -144,7 +145,7 @@ describe("finding 2.3 — the category toggles have exactly one home per viewpor
   });
 
   it("gives the sheet copy sheet geometry rather than map geometry", () => {
-    const arcCss = read("components/map/tonightArcChips.css");
+    const arcCss = read("components/map/tonightArcChips.module.css");
     const sheet = arcCss.match(/\.tonightArcChipsSheet\s*{([^}]*)}/)?.[1] ?? "";
     expect(sheet, ".tonightArcChipsSheet rule present").not.toBe("");
     expect(sheet).toMatch(/position:\s*static/);
@@ -181,7 +182,7 @@ describe("finding 2.15 — SHOW ME opens only from a control the reader presses"
 
 describe("finding 2.15 — the banners dock under the bar and step off the map", () => {
   it("docks them against the toolbar's measured height, not a constant", () => {
-    const toolbarCss = read("components/map/mapToolbar.css");
+    const toolbarCss = read("components/map/mapToolbar.module.css");
     expect(toolbar, "the toolbar publishes its own height").toMatch(
       /setProperty\(\s*"--map-toolbar-resting-height"/,
     );
@@ -189,8 +190,8 @@ describe("finding 2.15 — the banners dock under the bar and step off the map",
     // The constant survives only as the pre-measure fallback.
     expect(toolbarCss).toMatch(/--map-toolbar-resting-height:\s*155px/);
     for (const file of [
-      "components/map/citySuggestBanner.css",
-      "components/map/cityStatusBanner.css",
+      "components/map/citySuggestBanner.module.css",
+      "components/map/cityStatusBanner.module.css",
     ]) {
       expect(read(file), `${file} docks under the bar`).toMatch(
         /var\(--map-toolbar-resting-height/,

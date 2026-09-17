@@ -6,6 +6,7 @@ import {
   RECEIPT_PHOTO_ACTION,
   RECEIPT_REQUIRED_LINE,
 } from "@/lib/pintDropReceipt";
+import styles from "@/components/map/spillComposer.module.css";
 
 type SpillReceiptStepProps = {
   receiptPhoto: PintDropsState["receiptPhoto"];
@@ -40,8 +41,8 @@ export function SpillReceiptStep({
 }: SpillReceiptStepProps) {
   if (receiptPhoto) {
     return (
-      <div className="spillReceiptStep" data-testid="spill-receipt-step">
-        <div className="spillReceiptReady">
+      <div className={styles.spillReceiptStep} data-testid="spill-receipt-step">
+        <div className={styles.spillReceiptReady}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={receiptPhoto.previewUrl}
@@ -55,10 +56,10 @@ export function SpillReceiptStep({
               bill", so the row that answers it says bill too. "Receipt" is
               what the DROP's own row prints later, where it names a photo
               beside the pint and the bar shots. */}
-          <span className="spillReceiptReadyName">Bill ready</span>
+          <span className={styles.spillReceiptReadyName}>Bill ready</span>
           <button
             type="button"
-            className="spillReceiptRetake"
+            className={styles.spillReceiptRetake}
             onClick={() => removePhoto("receipt")}
             aria-label="Retake the bill photo"
           >
@@ -69,8 +70,8 @@ export function SpillReceiptStep({
     );
   }
   return (
-    <div className="spillReceiptStep" data-testid="spill-receipt-step">
-      <label className="spillCameraBtn primary">
+    <div className={styles.spillReceiptStep} data-testid="spill-receipt-step">
+      <label className={`${styles.spillCameraBtn} ${styles.primary}`}>
         <Receipt size={20} />
         <span>{RECEIPT_PHOTO_ACTION}</span>
         {/* `capture` names the rear camera where there is one and is ignored on
@@ -84,7 +85,7 @@ export function SpillReceiptStep({
           onChange={(event) => pickPhoto("receipt", event.target.files?.[0], event.target)}
         />
       </label>
-      <p className="spillCaptureWhy">{RECEIPT_REQUIRED_LINE}</p>
+      <p className={styles.spillCaptureWhy}>{RECEIPT_REQUIRED_LINE}</p>
     </div>
   );
 }

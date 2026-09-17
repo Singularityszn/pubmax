@@ -112,7 +112,7 @@ describe("governed drink brand by Night Area landing page", () => {
     expect(html.match(/<ol\b[^>]*\brole="list"/g)).toHaveLength(1);
     expect(
       html.match(
-        /class="[^"]*\bdrinkBrandDirectory__row\b[^"]*"/g,
+        /class="[^"]*drinkBrandDirectoryRow[^"]*"/g,
       ),
     ).toHaveLength(landing!.rows.length);
     expect(html).not.toContain('aria-label="Rank');
@@ -172,14 +172,14 @@ describe("governed drink brand by Night Area landing page", () => {
     // Once in the hero, and once beside each row's own figure: every price
     // states what its own record supports (docs/VOICE.md), rank 1 included.
     expect(html.match(/Publisher not recorded/g)).toHaveLength(3);
-    expect(html.match(/drinkBrandDirectory__fromPublisher/g)).toHaveLength(1);
-    expect(html.match(/drinkBrandDirectory__publisher\b/g)).toHaveLength(2);
+    expect(html.match(/drinkBrandDirectoryFromPublisher/g)).toHaveLength(1);
+    expect(html.match(/_drinkBrandDirectoryPublisher_/g)).toHaveLength(2);
     // The area photograph's credit is the ONE thing on this page that links
     // out, and it is a claim about the picture (lib/landingImagery.ts) rather
     // than about a price. Strip it, then hold the whole of the rest of the
     // document to naming no source at all.
     const withoutPhotoCredit = html.replace(
-      /<p class="landingPhotoCredit">[\s\S]*?<\/p>/,
+      /<p class="[^"]*landingPhotoCredit[^"]*">[\s\S]*?<\/p>/,
       "",
     );
     expect(withoutPhotoCredit).not.toContain('target="_blank"');

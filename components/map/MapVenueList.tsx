@@ -15,7 +15,7 @@ import SurfaceNav from "@/components/ui/surface-nav";
 import { homeActionLabel } from "@/lib/surfaceStack";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
-import "./mapVenueList.css";
+import styles from "./mapVenueList.module.css";
 
 // Accessibility contract (WCAG 2.1.1): keyboard/screen-reader parallel to
 // canvas pins. A DOM list of the filtered venues projected inside the current
@@ -113,12 +113,12 @@ export default function MapVenueList({
     && (ukBaseStatus === "loading" || !loaded);
 
   return (
-    <section ref={listRef} className="mapVenueList mapVenueList--open" aria-label={`${cityName} venue list`}>
-        <div className="mapVenueListPanel" id={panelId} role="group" aria-label={`${cityName} venues on the map`}>
-          <header className="mapVenueListHead">
-            <div className="mapVenueListHeadMeta">
-              <h2 className="mapVenueListTitle">Venues on the map</h2>
-              <span className="mapVenueListCount" role="status" aria-live="polite">
+    <section ref={listRef} className={`${styles.mapVenueList} ${styles.mapVenueListOpen}`} aria-label={`${cityName} venue list`}>
+        <div className={styles.mapVenueListPanel} id={panelId} role="group" aria-label={`${cityName} venues on the map`}>
+          <header className={styles.mapVenueListHead}>
+            <div className={styles.mapVenueListHeadMeta}>
+              <h2 className={styles.mapVenueListTitle}>Venues on the map</h2>
+              <span className={styles.mapVenueListCount} role="status" aria-live="polite">
                 {ukBaseStatus === "unavailable" && total === 0
                   ? "Unlisted pubs unavailable"
                   : awaitingRows
@@ -140,10 +140,10 @@ export default function MapVenueList({
           </header>
 
           {onSortModeChange && total > 0 ? (
-            <div className="mapVenueListSort" role="group" aria-label="Sort venues on the map">
+            <div className={styles.mapVenueListSort} role="group" aria-label="Sort venues on the map">
               <button
                 type="button"
-                className="mapVenueListSortChip"
+                className={styles.mapVenueListSortChip}
                 aria-pressed={sortMode === "nearest"}
                 onClick={() => onSortModeChange("nearest")}
               >
@@ -151,7 +151,7 @@ export default function MapVenueList({
               </button>
               <button
                 type="button"
-                className="mapVenueListSortChip"
+                className={styles.mapVenueListSortChip}
                 aria-pressed={sortMode === "cheapest"}
                 onClick={() => onSortModeChange("cheapest")}
               >
@@ -161,18 +161,18 @@ export default function MapVenueList({
           ) : null}
 
           {model.coverageNote ? (
-            <p className="mapVenueListCoverage" role="status">
+            <p className={styles.mapVenueListCoverage} role="status">
               {model.coverageNote}
             </p>
           ) : null}
           {ukBaseStatus === "unavailable" && total > 0 ? (
-            <p className="mapVenueListCoverage" role="status">
+            <p className={styles.mapVenueListCoverage} role="status">
               Some unlisted pubs could not load.
             </p>
           ) : null}
 
           {total === 0 ? (
-            awaitingRows ? null : <p className="mapVenueListEmpty">
+            awaitingRows ? null : <p className={styles.mapVenueListEmpty}>
               {ukBaseStatus === "unavailable"
                 ? "Unlisted pubs could not load. Try the map again."
                 : loaded
@@ -180,18 +180,18 @@ export default function MapVenueList({
                 : "Counting them up…"}
             </p>
           ) : (
-            <div className="mapVenueListGroups">
+            <div className={styles.mapVenueListGroups}>
               {model.rows.length > 0 ? (
-                <section className="mapVenueListGroup" aria-label="Listed pubs and venues">
-                  <h3 className="mapVenueListGroupTitle">Listed pubs and venues</h3>
-                  <ul className="mapVenueListItems" aria-label="Listed pubs and venues">
+                <section className={styles.mapVenueListGroup} aria-label="Listed pubs and venues">
+                  <h3 className={styles.mapVenueListGroupTitle}>Listed pubs and venues</h3>
+                  <ul className={styles.mapVenueListItems} aria-label="Listed pubs and venues">
                     {model.rows.map((row) => (
                       <li key={row.id}>
                         <button
                           ref={row.id === firstCuratedId ? firstVenueRef : undefined}
                           id={`map-venue-list-item-${row.id}`}
                           type="button"
-                          className="mapVenueListItem"
+                          className={styles.mapVenueListItem}
                           data-venue-id={row.id}
                           onClick={() => {
                             onSelectVenue(row.id);
@@ -199,21 +199,21 @@ export default function MapVenueList({
                           onPointerEnter={() => onPrefetchVenue(row.id)}
                           onFocus={() => onPrefetchVenue(row.id)}
                         >
-                          <span className="mapVenueListItemName">
+                          <span className={styles.mapVenueListItemName}>
                             <MapPin size={14} aria-hidden="true" />
                             {row.name}
                           </span>
-                          <span className="mapVenueListItemMeta">
+                          <span className={styles.mapVenueListItemMeta}>
                             <span>{row.typeLabel}</span>
                             {typeof row.distanceKm === "number" ? (
-                              <span className="mapVenueListItemDist">{formatLogNearbyDistance(row.distanceKm)}</span>
+                              <span className={styles.mapVenueListItemDist}>{formatLogNearbyDistance(row.distanceKm)}</span>
                             ) : null}
                             <CompactVenuePrice
                               priceLabel={row.priceLabel}
                               anchor={row.anchor}
                               band={row.priceBand ?? null}
-                              className="mapVenueListCompactPrice"
-                              provenanceClassName="mapVenueListPriceProvenance"
+                              className={styles.mapVenueListCompactPrice}
+                              provenanceClassName={styles.mapVenueListPriceProvenance}
                             />
                           </span>
                         </button>
@@ -223,28 +223,28 @@ export default function MapVenueList({
                 </section>
               ) : null}
               {ukBaseModel.rows.length > 0 ? (
-                <section className="mapVenueListGroup mapVenueListGroup--unverified" aria-label="Other pubs and bars with no listed price">
-                  <h3 className="mapVenueListGroupTitle">Other pubs and bars · no listed price</h3>
-                  <ul className="mapVenueListItems" aria-label="Other pubs and bars with no listed price">
+                <section className={`${styles.mapVenueListGroup} ${styles.mapVenueListGroupUnverified}`} aria-label="Other pubs and bars with no listed price">
+                  <h3 className={styles.mapVenueListGroupTitle}>Other pubs and bars · no listed price</h3>
+                  <ul className={styles.mapVenueListItems} aria-label="Other pubs and bars with no listed price">
                     {ukBaseModel.rows.map((row) => (
                       <li key={row.id}>
                         <button
                           ref={row.id === firstBaseId ? firstVenueRef : undefined}
                           id={`map-venue-list-item-${row.id}`}
                           type="button"
-                          className="mapVenueListItem"
+                          className={styles.mapVenueListItem}
                           data-venue-id={row.id}
                           onClick={() => {
                             onSelectUkBasePub(row.pub);
                           }}
                         >
-                          <span className="mapVenueListItemName">
+                          <span className={styles.mapVenueListItemName}>
                             <MapPin size={14} aria-hidden="true" />
                             {row.name}
                           </span>
-                          <span className="mapVenueListItemMeta">
+                          <span className={styles.mapVenueListItemMeta}>
                             {typeof row.distanceKm === "number" ? (
-                              <span className="mapVenueListItemDist">{formatLogNearbyDistance(row.distanceKm)}</span>
+                              <span className={styles.mapVenueListItemDist}>{formatLogNearbyDistance(row.distanceKm)}</span>
                             ) : null}
                             <span>{row.priceLabel}</span>
                           </span>

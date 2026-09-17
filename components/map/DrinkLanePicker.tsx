@@ -9,7 +9,7 @@ import {
   type CategoryPriceIndexStatus,
 } from "@/lib/mapExperienceLens";
 
-import "./drinkLanePicker.css";
+import styles from "./drinkLanePicker.module.css";
 
 /**
  * The drink the map is under, as a control the reader can see.
@@ -46,8 +46,8 @@ export default function DrinkLanePicker({
     <section
       className={
         variant === "sheet"
-          ? "drinkLanePicker drinkLanePicker--sheet"
-          : "drinkLanePicker"
+          ? `${styles.drinkLanePicker} ${styles.drinkLanePickerSheet}`
+          : styles.drinkLanePicker
       }
       aria-label="Drink lane"
     >
@@ -55,13 +55,13 @@ export default function DrinkLanePicker({
           gets (MAP_SHEET_TITLES), so the panel copy carries it only where there
           is no chrome above it. */}
       {variant === "sheet" ? null : (
-        <div className="drinkLanePickerHead">
+        <div className={styles.drinkLanePickerHead}>
           <GlassWater size={15} aria-hidden="true" />
           <span>What are you drinking?</span>
         </div>
       )}
       <div
-        className="drinkLanePickerOptions"
+        className={styles.drinkLanePickerOptions}
         role="group"
         aria-label="Drink prices shown on the map"
       >
@@ -73,8 +73,8 @@ export default function DrinkLanePicker({
               type="button"
               className={
                 selected
-                  ? "drinkLanePickerOption isSelected"
-                  : "drinkLanePickerOption"
+                  ? `${styles.drinkLanePickerOption} ${styles.isSelected}`
+                  : styles.drinkLanePickerOption
               }
               aria-pressed={selected}
               onClick={() => onChange(option.category)}
@@ -88,13 +88,13 @@ export default function DrinkLanePicker({
           always had; every other lane colours pins only where drinkers have
           logged and confirmed that drink, so its silence is honest rather than
           a claim that a pub sells none. */}
-      <p className="drinkLanePickerNote">
+      <p className={styles.drinkLanePickerNote}>
         {active?.isDefault
           ? "Pin colours follow the cheapest pint on record."
           : `Pin colours follow confirmed ${active?.noun ?? "drink"} prices that drinkers logged. Pubs without one stay unknown.`}
       </p>
       {note ? (
-        <p className="drinkLanePickerStatus" role="status" aria-live="polite">
+        <p className={styles.drinkLanePickerStatus} role="status" aria-live="polite">
           {note}
         </p>
       ) : null}

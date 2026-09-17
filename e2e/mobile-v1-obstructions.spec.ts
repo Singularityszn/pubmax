@@ -63,7 +63,7 @@ test.describe("Today mobile block geometry", () => {
         const tabBar = document.querySelector<HTMLElement>(".mobileTabBar")!;
         const rootStyle = getComputedStyle(document.documentElement);
         // The body's one reserve is the create action's published top edge
-        // (components/nav/mobileNav.css): the tab bar, the home indicator and
+        // (components/nav/mobileNav.module.css): the tab bar, the home indicator and
         // the lane the floating create action owns above the bar.
         const lane = document.createElement("div");
         lane.style.paddingBottom = "var(--float-stack-top-create)";

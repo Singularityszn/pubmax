@@ -18,7 +18,7 @@ function ruleBody(css: string, selector: string): string {
 const palCss = read("app/pal/Pal.module.css");
 const profileCss = read("app/u/[handle]/Profile.module.css");
 const authCss = read("app/auth/Auth.module.css");
-const momentCss = read("components/moment/moment.css");
+const momentCss = read("components/moment/moment.module.css");
 const messages = read("app/messages/MessagesInboxClient.tsx");
 
 describe("Lane M3 taste P1 fixes", () => {

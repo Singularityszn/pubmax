@@ -22,7 +22,7 @@ import { mergePriceChips } from "@/lib/spillPreview";
 // in lib/priceChipLadder.ts, and the CSS reads the same numbers.
 
 const ROOT = process.cwd();
-const composerCss = readFileSync(join(ROOT, "components/map/spillComposer.css"), "utf8");
+const composerCss = readFileSync(join(ROOT, "components/map/spillComposer.module.css"), "utf8");
 
 describe("the quick-price chip ladder", () => {
   it("stands four across, at every width", () => {
@@ -81,6 +81,6 @@ describe("the quick-price chip ladder", () => {
   });
 
   it("gives the chip that carries a word beside its figure two columns", () => {
-    expect(composerCss).toMatch(/\.priceChip--tagged\s*{[^}]*grid-column:\s*span 2/);
+    expect(composerCss).toMatch(/\.priceChipTagged\s*{[^}]*grid-column:\s*span 2/);
   });
 });

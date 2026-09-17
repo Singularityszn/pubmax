@@ -195,7 +195,7 @@ describe("Phone Tonight cold-start chip", () => {
 describe("Phone map area switcher", () => {
   it("labels the current map area and exposes city switching", () => {
     const html = renderShell();
-    expect(html).toContain('class="citySwitcherTrigger"');
+    expect(html).toMatch(/class="[^"]*citySwitcherTrigger[^"]*"/);
     expect(html).toContain('aria-label="Map area: Camden. Change city"');
   });
 

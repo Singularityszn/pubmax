@@ -28,7 +28,7 @@ import {
 } from "@/lib/promptBudget";
 
 const PUSH_SURFACE = "native-push";
-import "./nativePushPrompt.css";
+import styles from "./nativePushPrompt.module.css";
 
 export default function NativePushPrompt(): React.JSX.Element | null {
   const [enabling, setEnabling] = useState(false);
@@ -67,27 +67,27 @@ export default function NativePushPrompt(): React.JSX.Element | null {
   }
 
   return (
-    <div className="nativePushPrompt">
+    <div className={styles.nativePushPrompt}>
       <div
-        className="nativePushPrompt__card"
+        className={styles.nativePushPromptCard}
         role="dialog"
         aria-modal="false"
         aria-labelledby="native-push-prompt-title"
         aria-describedby="native-push-prompt-body"
       >
-        <p id="native-push-prompt-title" className="nativePushPrompt__title">
+        <p id="native-push-prompt-title" className={styles.nativePushPromptTitle}>
           {NATIVE_PUSH_PROMPT_COPY.title}
         </p>
-        <p id="native-push-prompt-body" className="nativePushPrompt__body">
+        <p id="native-push-prompt-body" className={styles.nativePushPromptBody}>
           {NATIVE_PUSH_PROMPT_COPY.body}
         </p>
-        <div className="nativePushPrompt__actions">
-          <button type="button" className="nativePushPrompt__later pressable" onClick={handleLater}>
+        <div className={styles.nativePushPromptActions}>
+          <button type="button" className={`${styles.nativePushPromptLater} pressable`} onClick={handleLater}>
             {NATIVE_PUSH_PROMPT_COPY.later}
           </button>
           <button
             type="button"
-            className="nativePushPrompt__enable pressable"
+            className={`${styles.nativePushPromptEnable} pressable`}
             onClick={() => void handleEnable()}
             disabled={enabling}
             aria-busy={enabling}

@@ -20,7 +20,7 @@ import { commands } from "./commands";
 import { filterCommands } from "./commandFilter";
 import type { Command, CommandContext, CommandGroup } from "./types";
 
-import "./commandPalette.css";
+import styles from "./commandPalette.module.css";
 
 // Flip light ↔ dark exactly the way ThemeToggle does (attribute on <html> +
 // persisted choice), so the palette's "Toggle theme" stays in sync with the nav
@@ -167,19 +167,19 @@ export default function CommandPalette({
   );
 
   return (
-    <div className="cmdkBackdrop" role="presentation" onMouseDown={onBackdropMouseDown}>
+    <div className={styles.cmdkBackdrop} role="presentation" onMouseDown={onBackdropMouseDown}>
       <div
         ref={panelRef}
-        className="cmdkPanel"
+        className={styles.cmdkPanel}
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
         onKeyDown={onKeyDown}
       >
-        <div className="cmdkInputRow">
+        <div className={styles.cmdkInputRow}>
           <input
             ref={inputRef}
-            className="cmdkInput"
+            className={styles.cmdkInput}
             type="text"
             role="combobox"
             aria-expanded="true"
@@ -197,23 +197,23 @@ export default function CommandPalette({
               setActiveIndex(0);
             }}
           />
-          <kbd className="cmdkEscHint" aria-hidden="true">
+          <kbd className={styles.cmdkEscHint} aria-hidden="true">
             Esc
           </kbd>
         </div>
 
-        <ul className="cmdkList" id={listId} role="listbox" aria-label="Commands">
+        <ul className={styles.cmdkList} id={listId} role="listbox" aria-label="Commands">
           {rows.length === 0 ? (
-            <li className="cmdkEmpty" role="presentation">
+            <li className={styles.cmdkEmpty} role="presentation">
               No matches
             </li>
           ) : (
             rows.map(({ command, header }, index) => {
               const isActive = index === activeSafe;
               return (
-                <li className="cmdkGroupChunk" key={command.id} role="presentation">
+                <li className={styles.cmdkGroupChunk} key={command.id} role="presentation">
                   {header ? (
-                    <div className="cmdkGroupHeader" role="presentation">
+                    <div className={styles.cmdkGroupHeader} role="presentation">
                       {header}
                     </div>
                   ) : null}
@@ -224,14 +224,14 @@ export default function CommandPalette({
                     id={`${listId}-${command.id}`}
                     role="option"
                     aria-selected={isActive}
-                    className={isActive ? "cmdkRow isActive" : "cmdkRow"}
+                    className={isActive ? `${styles.cmdkRow} ${styles.isActive}` : styles.cmdkRow}
                     // Keep focus on the input when a row is clicked/hovered.
                     onMouseDown={(event) => event.preventDefault()}
                     onMouseMove={() => setActiveIndex(index)}
                     onClick={() => runCommand(command)}
                   >
-                    <span className="cmdkRowLabel">{command.label}</span>
-                    {command.hint ? <span className="cmdkRowHint">{command.hint}</span> : null}
+                    <span className={styles.cmdkRowLabel}>{command.label}</span>
+                    {command.hint ? <span className={styles.cmdkRowHint}>{command.hint}</span> : null}
                   </div>
                 </li>
               );

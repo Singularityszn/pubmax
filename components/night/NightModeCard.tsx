@@ -117,7 +117,7 @@ import {
   type LastTrainSlim,
   type VenueCoord,
 } from "@/components/night/nightModeSheetModel";
-import "./nightMode.css";
+import styles from "./nightMode.module.css";
 
 const SWIPE_DISMISS_PX = 72;
 
@@ -950,7 +950,7 @@ function NightModeSheet({
 
   return (
     <section
-      className="nightCard"
+      className={styles.nightCard}
       aria-label="Tonight's plan"
       role="dialog"
       aria-modal="false"
@@ -961,25 +961,25 @@ function NightModeSheet({
       }
     >
       <div
-        className="nightCard__grab"
+        className={styles.nightCardGrab}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
         aria-hidden="true"
       >
-        <span className="nightCard__grabber" />
+        <span className={styles.nightCardGrabber} />
       </div>
 
-      <div className="nightCard__head">
-        <p className="nightCard__eyebrow">
+      <div className={styles.nightCardHead}>
+        <p className={styles.nightCardEyebrow}>
           {activeEnding ? "Night complete" : "On tonight"}
           {plan?.plan.title ? ` · ${plan.plan.title}` : ""}
         </p>
         <button
           ref={closeRef}
           type="button"
-          className="nightCard__close"
+          className={styles.nightCardClose}
           onClick={onCollapse}
           aria-label="Hide tonight's plan"
         >
@@ -988,22 +988,22 @@ function NightModeSheet({
       </div>
 
       {currentStop ? (
-        <div className="nightCard__stop">
-          <span className="nightCard__marker">{cursor + 1}</span>
-          <div className="nightCard__stopBody">
-            <strong className="nightCard__now">{currentStop.venueName}</strong>
+        <div className={styles.nightCardStop}>
+          <span className={styles.nightCardMarker}>{cursor + 1}</span>
+          <div className={styles.nightCardStopBody}>
+            <strong className={styles.nightCardNow}>{currentStop.venueName}</strong>
             <NightStopSignal signal={currentSignal} />
           </div>
           <Link
             href={`/map?venue=${encodeURIComponent(currentStop.venueId)}`}
-            className="nightCard__logBtn"
+            className={styles.nightCardLogBtn}
           >
             <PlusCircle size={16} aria-hidden="true" />
             Log this pint
           </Link>
         </div>
       ) : (
-        <p className="nightCard__loading">Loading tonight&rsquo;s route…</p>
+        <p className={styles.nightCardLoading}>Loading tonight&rsquo;s route…</p>
       )}
 
       {lastTrainLeaveBy ? (
@@ -1016,7 +1016,7 @@ function NightModeSheet({
       {nextStop ? (
         <button
           type="button"
-          className="nightCard__next"
+          className={styles.nightCardNext}
           onClick={advance}
           aria-label={`Next, ${nextStop.venueName}${
             nextStopWalkMinutes !== null
@@ -1024,22 +1024,22 @@ function NightModeSheet({
               : ""
           }. Mark here now.`}
         >
-          <span className="nightCard__nextLabel">Next</span>
-          <strong className="nightCard__nextName">{nextStop.venueName}</strong>
+          <span className={styles.nightCardNextLabel}>Next</span>
+          <strong className={styles.nightCardNextName}>{nextStop.venueName}</strong>
           {nextStopWalkMinutes !== null ? (
-            <span className="nightCard__nextWalk">
+            <span className={styles.nightCardNextWalk}>
               <Footprints size={18} aria-hidden="true" />
               {nextStopWalkDescription(nextStopWalkMinutes)}
             </span>
           ) : null}
-          <span className="nightCard__nextAction">
+          <span className={styles.nightCardNextAction}>
             Here now <ChevronRight size={18} aria-hidden="true" />
           </span>
         </button>
       ) : currentStop ? (
-        <div className="nightCard__ending">
+        <div className={styles.nightCardEnding}>
           <RouteEndingCard
-            className="nightCard__endingChoices"
+            className={styles.nightCardEndingChoices}
             title="Last stop. What next?"
             description="Choose an ending to review. PUBMAXX changes nothing until you confirm."
             options={endingOptions}
@@ -1047,12 +1047,12 @@ function NightModeSheet({
             onChoose={chooseEnding}
           />
           {endingSaving ? (
-            <p className="nightCard__endingStatus" role="status">
+            <p className={styles.nightCardEndingStatus} role="status">
               Saving the ending…
             </p>
           ) : null}
           {endingError ? (
-            <p className="nightCard__endingError" role="alert">
+            <p className={styles.nightCardEndingError} role="alert">
               {endingError}
             </p>
           ) : null}
@@ -1120,15 +1120,15 @@ function NightModeSheet({
                 nightArea={plan?.context?.nightArea ?? null}
               />
               {recap ? (
-                <div className="nightCard__recapInvite">
-                  <p className="nightCard__recapLede">
+                <div className={styles.nightCardRecapInvite}>
+                  <p className={styles.nightCardRecapLede}>
                     That&rsquo;s the night. Keep it as a private Memory. The
                     route and any words you add, nothing posted.
                   </p>
-                  <div className="nightCard__recapActions">
+                  <div className={styles.nightCardRecapActions}>
                     <button
                       type="button"
-                      className="nightCard__endingLink"
+                      className={styles.nightCardEndingLink}
                       onClick={() => {
                         const opening = !recapOpen;
                         setRecapOpen(opening);
@@ -1147,7 +1147,7 @@ function NightModeSheet({
                     </button>
                     <button
                       type="button"
-                      className="nightCard__quietButton"
+                      className={styles.nightCardQuietButton}
                       onClick={() => {
                         resolvePendingPlanRecap(recap, "discarded");
                         setRecap(null);
@@ -1159,7 +1159,7 @@ function NightModeSheet({
                     </button>
                     {/* The crafted morning-after recap page — the full memory, laid out. */}
                     <Link
-                      className="nightCard__endingLink"
+                      className={styles.nightCardEndingLink}
                       href={`/plan/${id}/recap`}
                     >
                       <BookOpen size={16} aria-hidden="true" /> See the full
@@ -1168,7 +1168,7 @@ function NightModeSheet({
                   </div>
                 </div>
               ) : recapSeeding ? (
-                <p className="nightCard__endingStatus" role="status">
+                <p className={styles.nightCardEndingStatus} role="status">
                   Pulling your private recap together…
                 </p>
               ) : null}
@@ -1184,7 +1184,7 @@ function NightModeSheet({
                 />
               ) : null}
               {recapMessage ? (
-                <p className="nightCard__endingStatus" role="status">
+                <p className={styles.nightCardEndingStatus} role="status">
                   {recapMessage}{" "}
                   {recapMessage.startsWith("Private Memory saved") ? (
                     <Link href="/u/you#night-memories">Open Memories</Link>
@@ -1202,24 +1202,24 @@ function NightModeSheet({
         <>
           <button
             type="button"
-            className="nightCard__awake"
+            className={styles.nightCardAwake}
             role="switch"
             aria-checked={keepAwake}
             onClick={() => setKeepAwake((value) => !value)}
           >
-            <span className="nightCard__awakeLabel">
+            <span className={styles.nightCardAwakeLabel}>
               <MonitorSmartphone size={15} aria-hidden="true" />
               Keep screen awake
             </span>
             <span
-              className="nightCard__awakeState"
+              className={styles.nightCardAwakeState}
               data-on={keepAwake ? "" : undefined}
             >
               {keepAwake ? "On" : "Off"}
             </span>
           </button>
           {wakeLock.error ? (
-            <p className="nightCard__endingStatus" role="status">
+            <p className={styles.nightCardEndingStatus} role="status">
               {wakeLock.error}
             </p>
           ) : null}
@@ -1227,11 +1227,11 @@ function NightModeSheet({
       ) : null}
 
       {arrived.length > 0 ? (
-        <div className="nightCard__crew">
-          <span className="nightCard__crewCount">
+        <div className={styles.nightCardCrew}>
+          <span className={styles.nightCardCrewCount}>
             {arrived.length} arriving
           </span>
-          <ul className="nightCard__crewList">
+          <ul className={styles.nightCardCrewList}>
             {arrived.map((m) => (
               <li key={m.id} data-status={m.status}>
                 {m.name}
@@ -1275,10 +1275,10 @@ function FoodEndingPicker({
         <p className="nightCard__endingHint">
           No late food worth pointing you to round here yet.
         </p>
-        <Link className="nightCard__endingLink" href={mapHref}>
+        <Link className={styles.nightCardEndingLink} href={mapHref}>
           See late food near the last stop
         </Link>
-        <p className="nightCard__endingFineprint">
+        <p className={styles.nightCardEndingFineprint}>
           Opens the map on food places near your last pub. Hours are not checked
           on that view.
         </p>
@@ -1293,7 +1293,7 @@ function FoodEndingPicker({
           <li key={terminal.id}>
             <button
               type="button"
-              className="nightCard__endingLink"
+              className={styles.nightCardEndingLink}
               style={{
                 width: "100%",
                 justifyContent: "space-between",
@@ -1329,10 +1329,10 @@ function FoodEndingPicker({
           </li>
         ))}
       </ul>
-      <Link className="nightCard__endingLink" href={mapHref}>
+      <Link className={styles.nightCardEndingLink} href={mapHref}>
         See late food near the last stop
       </Link>
-      <p className="nightCard__endingFineprint">
+      <p className={styles.nightCardEndingFineprint}>
         Opens the map on food places near your last pub. Check tonight&apos;s
         hours before you leave.
       </p>
@@ -1381,14 +1381,14 @@ function GetHomeEndingConfirmation({
       ) : null}
       <button
         type="button"
-        className="nightCard__endingLink"
+        className={styles.nightCardEndingLink}
         disabled={saving}
         onClick={onConfirm}
       >
         That&apos;s my way home
       </button>
       <a
-        className="nightCard__endingLink"
+        className={styles.nightCardEndingLink}
         href="https://tfl.gov.uk/plan-a-journey/"
         target="_blank"
         rel="noreferrer"
@@ -1426,7 +1426,7 @@ function KeepGoingPicker({
           <li key={extension.id}>
             <button
               type="button"
-              className="nightCard__endingLink"
+              className={styles.nightCardEndingLink}
               disabled={saving}
               onClick={() => onChoose(extension)}
             >
@@ -1467,7 +1467,7 @@ function PlanRecapEditor({
   };
   return (
     <form
-      className="nightCard__recap"
+      className={styles.nightCardRecap}
       onSubmit={(event) => {
         event.preventDefault();
         onSave();
@@ -1510,7 +1510,7 @@ function PlanRecapEditor({
       </ol>
       <button
         type="submit"
-        className="nightCard__endingLink"
+        className={styles.nightCardEndingLink}
         disabled={saving || !recap.title.trim()}
       >
         {saving ? "Saving privately…" : "Save private Memory"}
@@ -1539,10 +1539,10 @@ function NightEndingResult({
   if (ending === "food") {
     const mapHref = lateFoodNearMapUrl(currentStop.venueId);
     return (
-      <div className="nightCard__endingResult" data-ending="food">
+      <div className={styles.nightCardEndingResult} data-ending="food">
         <strong>Food nearby</strong>
         {lateFood.length > 0 ? (
-          <ul className="nightCard__foodList">
+          <ul className={styles.nightCardFoodList}>
             {lateFood.slice(0, 3).map((terminal) => (
               <li key={terminal.id}>
                 <span>{terminal.name}</span>
@@ -1573,10 +1573,10 @@ function NightEndingResult({
             No late food flagged round here yet. Check the map before you walk.
           </p>
         )}
-        <Link className="nightCard__endingLink" href={mapHref}>
+        <Link className={styles.nightCardEndingLink} href={mapHref}>
           See late food near the last stop
         </Link>
-        <p className="nightCard__endingFineprint">
+        <p className={styles.nightCardEndingFineprint}>
           Opens the map on food places near your last pub. Kitchens can shut
           early. Check tonight&apos;s hours before you leave the last pub.
         </p>
@@ -1586,7 +1586,7 @@ function NightEndingResult({
 
   if (ending === "keep_going") {
     return (
-      <div className="nightCard__endingResult" data-ending="keep_going">
+      <div className={styles.nightCardEndingResult} data-ending="keep_going">
         <strong>Keep it sensible</strong>
         <p>
           {keepGoingExtension
@@ -1595,7 +1595,7 @@ function NightEndingResult({
           We won&apos;t push you to drink more. This is just what&apos;s nearby.
         </p>
         <Link
-          className="nightCard__endingLink"
+          className={styles.nightCardEndingLink}
           href={`/map?venue=${encodeURIComponent(keepGoingExtension?.id ?? currentStop.venueId)}`}
         >
           {keepGoingExtension
@@ -1607,7 +1607,7 @@ function NightEndingResult({
   }
 
   return (
-    <div className="nightCard__endingResult" data-ending="get_home">
+    <div className={styles.nightCardEndingResult} data-ending="get_home">
       <strong>Get home safe</strong>
       <p>
         {leaveByIso
@@ -1624,9 +1624,9 @@ function NightStopSignal({ signal }: { signal: PlanGetInStopDTO | null }) {
   if (!signal?.busyness) return null;
   const closed = signal.busyness.isOpen === false;
   return (
-    <span className="nightCard__busy">
+    <span className={styles.nightCardBusy}>
       <span
-        className="nightCard__dot"
+        className={styles.nightCardDot}
         data-level={signal.busyness.level}
         aria-hidden="true"
       />
@@ -1662,7 +1662,7 @@ function LastTrainLine({
 
   const urgent = minsLeft <= 20;
   return (
-    <div className="nightCard__train" data-urgent={urgent ? "" : undefined}>
+    <div className={styles.nightCardTrain} data-urgent={urgent ? "" : undefined}>
       <TrainFront size={15} aria-hidden="true" />
       <span>
         {minsLeft > 0 ? (
@@ -1673,7 +1673,7 @@ function LastTrainLine({
           <>Last train window has passed. Check TfL</>
         )}
         {stationName ? (
-          <span className="nightCard__station"> · {stationName}</span>
+          <span className={styles.nightCardStation}> · {stationName}</span>
         ) : null}
       </span>
     </div>

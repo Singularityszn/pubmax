@@ -4,7 +4,7 @@
 
 import SiteNav from "@/components/nav/SiteNav";
 
-import "./mobileNav.css";
+import styles from "./mobileNav.module.css";
 
 type RouteLoadingShellProps = {
   /** Short status label for AT + quiet on-screen copy (e.g. "Tonight"). */
@@ -14,18 +14,18 @@ type RouteLoadingShellProps = {
 export default function RouteLoadingShell({ label }: RouteLoadingShellProps) {
   return (
     <main id="main"
-      className="routeLoadingShell"
+      className={styles.routeLoadingShell}
       aria-busy="true"
       aria-live="polite"
       aria-label={`Loading ${label}`}
     >
       <SiteNav />
-      <div className="routeLoadingShellInner">
-        <span className="routeLoadingShellBar" aria-hidden="true" />
-        <span className="routeLoadingShellBar routeLoadingShellBar--short" aria-hidden="true" />
-        <span className="routeLoadingShellCard" aria-hidden="true" />
-        <span className="routeLoadingShellCard" aria-hidden="true" />
-        <p className="routeLoadingShellLabel">{label}</p>
+      <div className={styles.routeLoadingShellInner}>
+        <span className={styles.routeLoadingShellBar} aria-hidden="true" />
+        <span className={`${styles.routeLoadingShellBar} ${styles.routeLoadingShellBarShort}`} aria-hidden="true" />
+        <span className={styles.routeLoadingShellCard} aria-hidden="true" />
+        <span className={styles.routeLoadingShellCard} aria-hidden="true" />
+        <p className={styles.routeLoadingShellLabel}>{label}</p>
       </div>
     </main>
   );

@@ -8,7 +8,7 @@ import {
 import { priceBand, priceBandClass, type PriceBandArea } from "@/lib/priceBand";
 import { confirmedAtMsOf, trustPillLabel } from "@/lib/trustPill";
 
-import "./trustPill.css";
+import styles from "./trustPill.module.css";
 
 /**
  * How far to trust the price beside it, in WORDS, and what it costs, in

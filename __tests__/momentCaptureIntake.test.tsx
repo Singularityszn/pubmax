@@ -72,6 +72,7 @@ vi.mock("@/lib/authedFetch", () => ({
 }));
 
 import MomentCapture from "@/components/moment/MomentCapture";
+import momentStyles from "@/components/moment/moment.module.css";
 
 const JPEG_HEAD = [0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01];
 
@@ -126,15 +127,15 @@ async function choose(...files: File[]): Promise<void> {
 }
 
 function status(): string {
-  return container.querySelector(".momentStatus span")?.textContent ?? "";
+  return container.querySelector(`.${momentStyles.momentStatus} span`)?.textContent ?? "";
 }
 
 function previews(): number {
-  return container.querySelectorAll("figure.momentMedia").length;
+  return container.querySelectorAll(`figure.${momentStyles.momentMedia}`).length;
 }
 
 async function save(): Promise<void> {
-  const form = container.querySelector<HTMLFormElement>("form.momentComposer");
+  const form = container.querySelector<HTMLFormElement>(`form.${momentStyles.momentComposer}`);
   if (!form) throw new Error("composer form missing");
   await act(async () => {
     form.requestSubmit();

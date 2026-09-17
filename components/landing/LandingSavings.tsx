@@ -10,6 +10,7 @@ import {
   strangerSavingLine,
   type PintPriceAverages,
 } from "@/lib/pintSavings";
+import styles from "./landing.module.css";
 
 // The one line that says what this is worth in pounds.
 //
@@ -58,7 +59,7 @@ export default function LandingSavings({ averages }: { averages: PintPriceAverag
   const line = mine ?? strangerSavingLine(averages);
   if (!line) return null;
   return (
-    <p className="lpSaved" data-mine={mine ? "" : undefined}>
+    <p className={styles.lpSaved} data-mine={mine ? "" : undefined}>
       {line}
     </p>
   );

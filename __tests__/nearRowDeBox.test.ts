@@ -60,7 +60,7 @@ describe("/near rows: the caption belongs to the list, not the row", () => {
   it("heads the list with the caption rather than repeating it beside each price", () => {
     const markup = renderList();
 
-    expect(markup).toContain(`class="nmnListCaption">${NEAR_ME_PRICE_CAPTION}<`);
+    expect(markup).toMatch(new RegExp(`class="[^"]*nmnListCaption[^"]*">${NEAR_ME_PRICE_CAPTION}<`));
     expect(markup).not.toContain("nmnCardPriceLabel");
   });
 });

@@ -3,7 +3,7 @@
 // Renderless native-shell document marker.
 //
 // One attribute on <html>, set only inside the Capacitor wrap, is what scopes
-// components/native/nativeShell.css. It is written from an effect rather than
+// components/native/nativeShell.module.css. It is written from an effect rather than
 // server-rendered on purpose: the shell loads the SAME production HTML the web
 // serves (capacitor.config.ts is remote-URL mode), and "/", "/map", "/tonight",
 // "/today" and "/near" are the documents the CDN hands to every stranger
@@ -22,9 +22,9 @@ import { isNativeApp, nativePlatform } from "@/lib/nativePlatform";
 import { releaseNativeSplashOnFirstPaint } from "@/lib/nativeSplash";
 import { followNativeTextScale } from "@/lib/nativeTextScale";
 import { installNativeWebShareBridge } from "@/lib/nativeWebShareBridge";
-import "./nativeShell.css";
+import "./nativeShell.module.css";
 
-/** The attribute components/native/nativeShell.css scopes every rule to. */
+/** The attribute components/native/nativeShell.module.css scopes every rule to. */
 export const NATIVE_SHELL_ATTRIBUTE = "data-native-shell";
 
 export default function NativeShellChrome(): null {

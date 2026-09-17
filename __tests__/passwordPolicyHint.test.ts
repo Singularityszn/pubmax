@@ -62,7 +62,7 @@ describe("the surfaces that use it", () => {
 
   it("styles a met rule with more than colour", () => {
     const css = readFileSync(
-      join(process.cwd(), "components/auth/passwordPolicyHint.css"),
+      join(process.cwd(), "components/auth/passwordPolicyHint.module.css"),
       "utf8",
     );
     expect(css).toMatch(/\.passwordPolicyRules li\.isMet\s*\{[^}]*font-weight/);

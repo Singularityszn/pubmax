@@ -45,6 +45,6 @@ describe("RouteLoadingShell", () => {
     expect(main.props["aria-busy"]).toBe("true");
     expect(main.props["aria-live"]).toBe("polite");
     expect(main.props["aria-label"]).toBe("Loading Tonight");
-    expect(main.props.className).toBe("routeLoadingShell");
+    expect(main.props.className).toContain("routeLoadingShell");
   });
 });

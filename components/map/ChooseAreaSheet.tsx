@@ -15,7 +15,7 @@ import {
 } from "@/lib/mapAreaPicker";
 import type { Venue } from "@/lib/venues";
 
-import "./chooseAreaSheet.css";
+import styles from "./chooseAreaSheet.module.css";
 
 export type ChooseAreaPick =
   | { kind: "near-me" }
@@ -59,8 +59,8 @@ export default function ChooseAreaSheet({
   const cities = useMemo(() => otherCityRows(cityId), [cityId]);
 
   return (
-    <div className="chooseAreaSheet">
-      <div className="chooseAreaSearch">
+    <div className={styles.chooseAreaSheet}>
+      <div className={styles.chooseAreaSearch}>
         <label htmlFor="choose-area-search">Search areas and postcodes</label>
         <input
           id="choose-area-search"
@@ -71,20 +71,20 @@ export default function ChooseAreaSheet({
           autoComplete="off"
         />
       </div>
-      {locationNote ? <p className="chooseAreaNote">{locationNote}</p> : null}
+      {locationNote ? <p className={styles.chooseAreaNote}>{locationNote}</p> : null}
       <section aria-labelledby="choose-area-london">
-        <h3 id="choose-area-london" className="chooseAreaSectionTitle">
+        <h3 id="choose-area-london" className={styles.chooseAreaSectionTitle}>
           London
         </h3>
-        <ul className="chooseAreaList">
+        <ul className={styles.chooseAreaList}>
           <li>
             <button
               type="button"
-              className="chooseAreaRow"
+              className={styles.chooseAreaRow}
               disabled={locationBusy}
               onClick={() => onPick({ kind: "near-me" })}
             >
-              <span className="chooseAreaRowName">
+              <span className={styles.chooseAreaRowName}>
                 <LocateFixed size={16} aria-hidden="true" />{" "}
                 {locationBusy ? "Locating" : "Near me"}
               </span>
@@ -94,12 +94,12 @@ export default function ChooseAreaSheet({
             <li key={row.slug}>
               <button
                 type="button"
-                className="chooseAreaRow"
+                className={styles.chooseAreaRow}
                 onClick={() => onPick({ kind: "night-area", row })}
               >
-                <span className="chooseAreaRowName">{row.name}</span>
+                <span className={styles.chooseAreaRowName}>{row.name}</span>
                 {row.pubCount !== null && row.pubCount > 0 ? (
-                  <span className="chooseAreaRowMeta">{pubCountLabel(row.pubCount)}</span>
+                  <span className={styles.chooseAreaRowMeta}>{pubCountLabel(row.pubCount)}</span>
                 ) : null}
               </button>
             </li>
@@ -108,20 +108,20 @@ export default function ChooseAreaSheet({
       </section>
       {cities.length > 0 ? (
         <section aria-labelledby="choose-area-cities">
-          <h3 id="choose-area-cities" className="chooseAreaSectionTitle">
+          <h3 id="choose-area-cities" className={styles.chooseAreaSectionTitle}>
             Other cities
           </h3>
-          <ul className="chooseAreaList">
+          <ul className={styles.chooseAreaList}>
             {cities.map((city) => (
               <li key={city.cityId}>
                 <button
                   type="button"
-                  className="chooseAreaRow"
+                  className={styles.chooseAreaRow}
                   onClick={() =>
                     onPick({ kind: "city", cityId: city.cityId, name: city.name })
                   }
                 >
-                  <span className="chooseAreaRowName">{city.name}</span>
+                  <span className={styles.chooseAreaRowName}>{city.name}</span>
                 </button>
               </li>
             ))}
@@ -200,29 +200,29 @@ export function ChooseAreaDesktopDialog({
     <>
       <button
         type="button"
-        className="chooseAreaDesktopScrim"
+        className={styles.chooseAreaDesktopScrim}
         aria-label="Close choose area"
         onClick={onClose}
       />
       <div
         ref={dialogRef}
-        className="chooseAreaDesktop"
+        className={styles.chooseAreaDesktop}
         role="dialog"
         aria-modal="true"
         aria-labelledby="choose-area-desktop-title"
         tabIndex={-1}
         onKeyDown={cycleTab}
       >
-        <div className="chooseAreaDesktopHead">
+        <div className={styles.chooseAreaDesktopHead}>
           <h2
             id="choose-area-desktop-title"
-            className="chooseAreaSectionTitle chooseAreaDesktopTitle"
+            className={`${styles.chooseAreaSectionTitle} ${styles.chooseAreaDesktopTitle}`}
           >
             Choose an area
           </h2>
           <button
             type="button"
-            className="chooseAreaDesktopClose"
+            className={styles.chooseAreaDesktopClose}
             aria-label="Close"
             onClick={onClose}
           >

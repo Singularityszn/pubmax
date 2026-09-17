@@ -142,7 +142,7 @@ function declarationsOf(body: string): Array<{ prop: string; value: string }> {
     });
 }
 
-const siteNavCss = read("components/nav/siteNav.css");
+const siteNavCss = read("components/nav/siteNav.module.css");
 const globalsCss = read("app/globals.css");
 
 /* Every shell that renders the in-flow (non-floating) SiteNav as a direct
@@ -161,7 +161,7 @@ const HOSTS: Array<{
   { route: "/tonight", file: "app/tonight/Tonight.module.css", className: "tonightPage", centering: "margin-auto" },
   { route: "/activity", file: "app/activity/Activity.module.css", className: "activityShell", centering: "margin-auto" },
   { route: "/messages", file: "app/messages/Messages.module.css", className: "messagesPage", centering: "full-bleed" },
-  { route: "/moment", file: "components/moment/moment.css", className: "momentPage", centering: "full-bleed" },
+  { route: "/moment", file: "components/moment/moment.module.css", className: "momentPage", centering: "full-bleed" },
   { route: "/u/[handle]", file: "app/u/[handle]/Profile.module.css", className: "profilePage", centering: "full-bleed" },
 ];
 
@@ -171,7 +171,7 @@ describe("nav breakout fence (D6): the formula", () => {
     // align-self: stretch defeats flex-centred hosts shrink-wrapping it.
     // All three declarations are one mechanism; assert them as a block.
     expect(siteNavCss).toMatch(
-      /\.siteNavBar:not\(\.siteNavBarFloating\)\s*\{\s*width:\s*auto;\s*align-self:\s*stretch;\s*margin-inline:\s*calc\(var\(--topbar-side,\s*10px\)\s*-\s*\(100vw\s*-\s*100%\)\s*\/\s*2\);\s*\}/,
+      /\.siteNavBar:not\(:global\(\.siteNavBarFloating\)\)\s*\{\s*width:\s*auto;\s*align-self:\s*stretch;\s*margin-inline:\s*calc\(var\(--topbar-side,\s*10px\)\s*-\s*\(100vw\s*-\s*100%\)\s*\/\s*2\);\s*\}/,
     );
   });
 

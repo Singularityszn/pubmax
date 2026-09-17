@@ -2,6 +2,8 @@ import type { ReactElement } from "react";
 
 import type { FaqItem } from "@/lib/pintFacts";
 
+import styles from "./factLayer.module.css";
+
 // Server-rendered FAQ block (Wave S3.2): a visible, no-JS <details>/<summary>
 // list of data-answerable questions. Renders NOTHING when there are no items
 // (a borough with no priced data yields no questions). The matching FAQPage
@@ -20,16 +22,16 @@ export default function FaqBlock({
   if (items.length === 0) return null;
 
   return (
-    <section className="faqBlock" aria-labelledby={headingId}>
-      <h2 id={headingId} className="faqBlockTitle">
+    <section className={styles.faqBlock} aria-labelledby={headingId}>
+      <h2 id={headingId} className={styles.faqBlockTitle}>
         {title}
       </h2>
-      <ul className="faqList">
+      <ul className={styles.faqList}>
         {items.map((item) => (
-          <li key={item.question} className="faqItem">
+          <li key={item.question} className={styles.faqItem}>
             <details>
               <summary>{item.question}</summary>
-              <p className="faqAnswer">{item.answer}</p>
+              <p className={styles.faqAnswer}>{item.answer}</p>
             </details>
           </li>
         ))}

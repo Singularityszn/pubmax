@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 // browser QA pass nobody runs.
 
 const landingCss = readFileSync(
-  join(process.cwd(), "components/landing/landing.css"),
+  join(process.cwd(), "components/landing/landing.module.css"),
   "utf8",
 );
 

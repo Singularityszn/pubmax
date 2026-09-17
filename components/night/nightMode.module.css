@@ -1,0 +1,699 @@
+/* Night Mode bottom card (Wave E2). Folds into the app's existing surface
+   language: paper/ink tokens, both themes for free, safe-area aware, 44px
+   touch targets, tuned for 390x844 first. Sits above the mobile tab bar but
+   below full-screen overlays/modals. No map-canvas coupling. */
+
+/* ── Overlay clearance stack ──────────────────────────────────────────────────
+   One coordinated bottom stack so the app's fixed overlays never cover each
+   other or a page's own bottom CTAs. Bottom-up on phones:
+       env(safe-area-inset-bottom)   home indicator
+       var(--tabbar-h)               mobile tab bar (owned by nav; consumed here)
+       the re-open "Tonight" pill     this lane's only floating chrome
+       page bottom CTAs               /pal primary, landing footer/final CTA
+   The pill PUBLISHES its own footprint as --night-pill-clearance, which is 0px
+   until the pill is actually mounted (html:has(.nightPill)). Surfaces add that
+   var to their existing bottom clearance, so they reserve room for the pill ONLY
+   when one is really floating: no dead whitespace on a night with no live plan,
+   and nothing to guess: the number is derived from the tokens the floating
+   stack publishes for this member (components/nav/mobileNav.css), which is the
+   same pair the create action reads to park one gap above this pill. */
+:global(:root) {
+  --night-pill-clearance: 0px;
+}
+
+:global(html:has(.nightPill)) {
+  /* Pill footprint + a small breathing gap, so a CTA docked above it is clear,
+     not kissing its top edge. */
+  --night-pill-clearance: calc(
+    var(--float-stack-gap) + var(--night-pill-h) + 8px
+  );
+}
+
+.nightCard {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%) translateY(var(--night-drag-y, 0px));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  width: min(440px, calc(100vw - 20px));
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  z-index: var(--z-night-card); /* under tab bar (700) + modals (1200); above page content — house z ledger */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 14px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  font-size: 14px;
+  line-height: 1.4;
+  animation: night-card-rise 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* On phones the app's bottom tab bar (<=640px, 64px tall) owns the very bottom —
+   lift the card clear of it so both stay tappable. */
+@media (max-width: 640px) {
+  .nightCard {
+    left: 10px;
+    right: 10px;
+    width: auto;
+    transform: translateY(var(--night-drag-y, 0px));
+    bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 8px);
+    max-height: calc(100dvh - var(--tabbar-h, 64px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 20px);
+  }
+}
+
+@keyframes night-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) translateX(-50%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateX(-50%);
+  }
+}
+
+@media (max-width: 640px) {
+  @keyframes night-card-rise {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nightCard {
+    animation: none;
+  }
+  /* The press dip is motion too — hold still for reduced-motion users. */
+  .nightCardLogBtn:active,
+  .nightCardNext:active {
+    transform: none;
+  }
+}
+
+.nightCardGrab {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 2px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.nightCardGrabber {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.nightCardHead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0;
+  background: var(--panel-raised);
+}
+
+.nightCardEyebrow {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  font-weight: 600;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nightCardClose {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  min-height: 56px;
+  margin: -14px -14px -14px 0;
+  border: none;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.nightCardClose:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.nightCardStop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nightCardMarker {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--brass);
+  color: var(--color-on-accent-strong);
+  font-weight: 700;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.nightCardStopBody {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.nightCardNow {
+  font-size: 19px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nightCardBusy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.nightCardDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+}
+.nightCardDot[data-level="quiet"] { background: var(--color-positive, #18a76d); }
+.nightCardDot[data-level="steady"] { background: var(--brass); }
+.nightCardDot[data-level="busy"] { background: var(--amber); }
+.nightCardDot[data-level="rammed"] { background: var(--color-negative, #ff5a5f); }
+
+.nightCardLogBtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--brass);
+  color: var(--color-on-accent-strong);
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nightCardLogBtn:active {
+  transform: translateY(1px);
+}
+
+.nightCardLoading,
+.nightCardLast {
+  margin: 2px 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.nightCardEnding {
+  display: grid;
+  gap: 8px;
+}
+
+/* De-box rule (docs/DESIGN_SYSTEM.md): the ending choices are a section of
+   the night card, not a second card inside it. No edge, no fill, no lift. */
+.nightCardEndingChoices {
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.nightCardEndingChoices :global(.routeEndingCardEyebrow) {
+  display: none;
+}
+
+.nightCardEndingChoices :global(.routeEndingCardTitle) {
+  font-size: 16px;
+}
+
+.nightCardEndingChoices :global(.routeEndingCardDescription) {
+  font-size: 12px;
+}
+
+.nightCardEndingChoices :global(.routeEndingCardChoices) {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.nightCardEndingChoices :global(.routeEndingCardChoice) {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  min-height: 58px;
+  padding: 10px 12px;
+}
+
+.nightCardEndingChoices :global(.routeEndingCardChoiceTop) {
+  grid-column: 1 / -1;
+}
+
+.nightCardEndingChoices :global(.routeEndingCardChoiceDescription) {
+  grid-column: 1;
+}
+
+.nightCardEndingChoices :global(.routeEndingCardAction) {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: end;
+  text-align: right;
+}
+
+.nightCardEndingStatus,
+.nightCardEndingError,
+.nightCardEndingResult p,
+.nightCardEndingFineprint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.nightCardEndingError {
+  color: var(--color-negative, #ff5a5f);
+}
+
+.nightCardEndingResult {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+}
+
+.nightCardEndingResult strong {
+  font-size: 13px;
+}
+
+/* One quiet area-context line. Deliberately calm: soft ink, a small neutral dot,
+   never an alarm colour. Even the least-calm band stays reassuring.
+   :global because NightCalmLine.tsx uses these without importing this module. */
+:global(.nightCardCalm) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+:global(.nightCardCalmDot) {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--color-positive, #18a76d);
+}
+
+:global(.nightCardCalmDot)[data-band="steady"] { background: var(--brass); }
+:global(.nightCardCalmDot)[data-band="aware"] { background: var(--ink-soft); }
+
+.nightCardFoodList {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nightCardFoodList li {
+  display: grid;
+  gap: 2px;
+}
+
+.nightCardFoodList span {
+  font-weight: 700;
+}
+
+.nightCardFoodList small {
+  color: var(--ink-soft);
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.nightCardEndingLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  width: fit-content;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--brass);
+  color: var(--color-on-accent-strong);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.nightCardRecapInvite {
+  display: grid;
+  gap: 8px;
+}
+
+.nightCardRecapLede {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.nightCardRecapActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nightCardRecapActions .nightCardEndingLink {
+  gap: 7px;
+  border: 0;
+  cursor: pointer;
+}
+
+.nightCardQuietButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nightCardRecap {
+  display: grid;
+  gap: 10px;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+}
+
+.nightCardRecap p,
+.nightCardRecap ol {
+  margin: 0;
+}
+
+.nightCardRecap p {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.nightCardRecap label,
+.nightCardRecap li {
+  display: grid;
+  gap: 5px;
+}
+
+.nightCardRecap label > span,
+.nightCardRecap li > strong {
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.nightCardRecap input,
+.nightCardRecap textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+}
+
+.nightCardRecap textarea {
+  resize: vertical;
+}
+
+.nightCardRecap ol {
+  display: grid;
+  gap: 9px;
+  padding-left: 22px;
+}
+
+@media (max-width: 360px) {
+  .nightCardRecapActions > * {
+    width: 100%;
+  }
+}
+
+.nightCardTrain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.nightCardTrain[data-urgent] {
+  color: var(--color-negative, #ff5a5f);
+  background: color-mix(in srgb, var(--color-negative, #ff5a5f) 10%, transparent);
+}
+
+.nightCardStation {
+  color: var(--ink-soft);
+}
+
+/* Pavement glance: the single most important tap on the card. Giant floor
+   (68px, well over the 44px minimum) because this is read and hit at 40%
+   screen brightness while walking. Column layout puts the next-stop name
+   and its walk time on their own lines so both are legible at a glance,
+   with the advance action as a full-width high-contrast band underneath. */
+.nightCardNext {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
+  min-height: 68px;
+  padding: 12px 14px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 14px);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.nightCardNext:active {
+  transform: translateY(1px);
+}
+
+.nightCardNextLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--brass);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.nightCardNextName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.nightCardNextWalk {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.nightCardNextAction {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 44px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--brass);
+  color: var(--color-on-accent-strong);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.nightCardCrew {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nightCardCrewCount {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.nightCardCrewList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nightCardCrewList li {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  font-size: 12px;
+}
+
+.nightCardCrewList li[data-status="here"] {
+  background: color-mix(in srgb, var(--color-positive, #18a76d) 16%, transparent);
+  color: var(--color-positive, #18a76d);
+}
+
+/* Re-open pill (shown after dismissal).
+   :global because mobileNav.css targets body:has(.nightPill) for the
+   floating stack layout. */
+:global(.nightPill) {
+  position: fixed;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  z-index: 640;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm, 0 6px 18px rgba(0, 0, 0, 0.18));
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* The phone berth is published by the floating stack (components/nav/
+   mobileNav.css), not restated here: the create action reads that same token to
+   park one gap above this pill, and a number stated twice is how a fixed
+   control lands on another one. */
+@media (max-width: 640px) {
+  :global(.nightPill) {
+    bottom: var(--night-pill-bottom);
+  }
+}
+
+/* ── Night survival kit (U19 wake lock + U21a safe strip) ─────────────────────
+   Appended as a self-contained block so it stays separable from any concurrent
+   line-level tap-target / font-floor polish elsewhere in this file. Uses the
+   same paper/ink tokens, 44px targets and 12px+ type as the rest of the card. */
+
+/* U19 — keep-screen-awake toggle. A quiet utility row, not a shouty switch. */
+.nightCardAwake {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.nightCardAwakeLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.nightCardAwakeState {
+  flex: 0 0 auto;
+  min-width: 34px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.nightCardAwakeState[data-on] {
+  background: color-mix(in srgb, var(--color-positive, #18a76d) 18%, transparent);
+  color: var(--color-positive, #18a76d);
+}
+
+/* U21a / U5 — safe night strip styles live in safeNightStrip.module.css and load
+   from SafeNightStrip itself so Getting Home can mount them without Night Mode. */

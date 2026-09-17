@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ComposerFields } from "@/components/map/composer/ComposerFields";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
+import composerStyles from "@/components/map/spillComposer.module.css";
 
 const composerFieldsProps = {
   dropForm: {
@@ -139,7 +140,7 @@ describe("venue-sheet Pint Drop author", () => {
     // Query the control by its stable field label, not by sample values: a
     // future handle input under any name or value must still fail this.
     const fieldLabels = Array.from(
-      document.querySelectorAll(".spillFieldLabel"),
+      document.querySelectorAll(`.${composerStyles.spillFieldLabel}`),
     ).map((label) => label.textContent?.trim());
     expect(fieldLabels).toContain("Story");
     expect(fieldLabels).toContain("With");

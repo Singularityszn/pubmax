@@ -122,10 +122,10 @@ describe("VenueSheetSkeleton", () => {
     const html = renderToStaticMarkup(
       createElement(VenueSheetSkeleton, { revealForm: "full", revealElapsedMs: 300 }),
     );
-    expect(html).toContain(
-      'class="venueSheetSkeleton venueReveal venueReveal--full"',
+    expect(html).toMatch(
+      /class="[^"]*venueSheetSkeleton[^"]* venueReveal venueReveal--full"/,
     );
     expect(html).toContain('style="--venue-reveal-elapsed:300ms"');
-    expect(html).toContain('class="venueSheetSkeletonTitle venueRevealBloom"');
+    expect(html).toMatch(/class="[^"]*venueSheetSkeletonTitle[^"]* venueRevealBloom"/);
   });
 });

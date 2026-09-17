@@ -15,25 +15,25 @@ import { describe, expect, it } from "vitest";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
-const toolbarCss = read("components/map/mapToolbar.css");
+const toolbarCss = read("components/map/mapToolbar.module.css");
 const toolbarSource = read("components/map/MapToolbar.tsx");
-const sheetCss = read("components/map/venueSheet.css");
-const bannerCss = read("components/map/mapBannerStaging.css");
-const searchCss = read("components/map/mapSearchSuggest.css");
+const sheetCss = read("components/map/venueSheet.module.css");
+const bannerCss = read("components/map/mapBannerStaging.module.css");
+const searchCss = read("components/map/mapSearchSuggest.module.css");
 
 describe("desktop venue sheet chrome fit", () => {
   it("publishes the drawer width the toolbar has to stay clear of", () => {
     expect(sheetCss).toMatch(/--desktop-venue-drawer-width:\s*min\(640px,\s*46vw\)/);
     expect(sheetCss).toMatch(/--desktop-venue-drawer-half-width:\s*min\(320px,\s*23vw\)/);
     expect(sheetCss).toMatch(
-      /\.mapDrawer\.right\.open\s*{[^}]*width:\s*var\(--desktop-venue-drawer-width\)/,
+      /:global\(\.mapDrawer\.right\.open\)\s*{[^}]*width:\s*var\(--desktop-venue-drawer-width\)/,
     );
   });
 
   it("keeps the toolbar inside the free map lane while the sheet is open", () => {
     const rule =
       toolbarCss.match(
-        /\.appShell\.detail-open \.mapToolbar\s*{([^}]*)}/,
+        /:global\(\.appShell\.detail-open\) :global\(\.mapToolbar\)\s*{([^}]*)}/,
       )?.[1] ?? "";
     expect(rule).toMatch(/width:\s*fit-content/);
     expect(rule).toMatch(
@@ -51,7 +51,7 @@ describe("desktop venue sheet chrome fit", () => {
 
   it("drops the accessory controls that no longer fit in that lane", () => {
     expect(toolbarCss).toMatch(
-      /\.appShell\.detail-open \.mapToolbar \.mapToolbarDesktopExtras,\s*\.appShell\.detail-open \.mapToolbar \.conditionsChip,\s*\.appShell\.detail-open \.mapToolbar \.zonePicker\s*{\s*display:\s*none;/,
+      /:global\(\.appShell\.detail-open\) :global\(\.mapToolbar\) :global\(\.mapToolbarDesktopExtras\),\s*:global\(\.appShell\.detail-open\) :global\(\.mapToolbar\) :global\(\.conditionsChip\),\s*:global\(\.appShell\.detail-open\) :global\(\.mapToolbar\) :global\(\.zonePicker\)\s*{\s*display:\s*none;/,
     );
   });
 
@@ -62,18 +62,18 @@ describe("desktop venue sheet chrome fit", () => {
     // flex item cannot shrink past its own min-width, so the input overflowed
     // by 26px and its text ran under the control beside it. 176px still reads a
     // London venue name.
-    expect(searchCss).toMatch(/\.mapSearchSuggest--toolbar\s*{[^}]*min-width:\s*176px/);
+    expect(searchCss).toMatch(/:global\(\.mapSearchSuggestToolbar\)\s*{[^}]*min-width:\s*176px/);
 
     const suggest =
       toolbarCss.match(
-        /\.appShell\.detail-open \.mapToolbarSearch \.mapSearchSuggest--toolbar\s*{([^}]*)}/,
+        /:global\(\.appShell\.detail-open\) :global\(\.mapToolbarSearch\) :global\(\.mapSearchSuggestToolbar\)\s*{([^}]*)}/,
       )?.[1] ?? "";
     expect(suggest).toMatch(/min-width:\s*0/);
     expect(suggest).toMatch(/max-width:\s*100%/);
 
     const input =
       toolbarCss.match(
-        /\.appShell\.detail-open \.mapToolbarSearch input\s*{([^}]*)}/,
+        /:global\(\.appShell\.detail-open\) :global\(\.mapToolbarSearch\) input\s*{([^}]*)}/,
       )?.[1] ?? "";
     expect(input).toMatch(/min-width:\s*0/);
   });
@@ -81,7 +81,7 @@ describe("desktop venue sheet chrome fit", () => {
   it("re-centres the ambient banners on the same lane", () => {
     const rule =
       bannerCss.match(
-        /\.appShell\.detail-open \.cityStatusStack,\s*\.appShell\.detail-open \.citySuggestBanner\s*{([^}]*)}/,
+        /:global\(\.appShell\.detail-open\) :global\(\.cityStatusStack\),\s*:global\(\.appShell\.detail-open\) :global\(\.citySuggestBanner\)\s*{([^}]*)}/,
       )?.[1] ?? "";
     expect(rule).toMatch(
       /left:\s*calc\(\(100% - var\(--desktop-venue-drawer-width\)\) \/ 2\)/,

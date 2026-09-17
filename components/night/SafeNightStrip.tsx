@@ -21,7 +21,7 @@ import type { CityId } from "@/lib/cities";
 import { isPlanId } from "@/lib/plan";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
-import "./safeNightStrip.css";
+import styles from "./safeNightStrip.module.css";
 
 export const SAFE_NIGHT_DISMISS_PREFIX = "pubmax:safe-night-dismissed:v1:";
 /** Session scope for the plan-less Getting Home mount. */
@@ -170,43 +170,43 @@ export function SafeNightStrip({ planId, venue, cityId }: SafeNightStripProps) {
   const londonTransport = cityId === "london" || (!cityId && !isPlanShare);
 
   return (
-    <section className="nightSafe" aria-label="Look after each other">
+    <section className={styles.nightSafe} aria-label="Look after each other">
       <button
         type="button"
-        className="nightSafe__head"
+        className={styles.nightSafeHead}
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-controls={bodyId}
       >
-        <span className="nightSafe__title">
+        <span className={styles.nightSafeTitle}>
           <LifeBuoy size={15} aria-hidden="true" />
           Look after each other
         </span>
-        <ChevronDown className="nightSafe__chevron" size={16} aria-hidden="true" data-open={open ? "" : undefined} />
+        <ChevronDown className={styles.nightSafeChevron} size={16} aria-hidden="true" data-open={open ? "" : undefined} />
       </button>
 
       {open ? (
-        <div className="nightSafe__body" id={bodyId}>
-          <p className="nightSafe__line">
+        <div className={styles.nightSafeBody} id={bodyId}>
+          <p className={styles.nightSafeLine}>
             Keep an eye on your drink. If you feel suddenly off, tell your mates and the bar staff.
           </p>
-          <p className="nightSafe__line">
-            <a className="nightSafe__tel" href="tel:999">
+          <p className={styles.nightSafeLine}>
+            <a className={styles.nightSafeTel} href="tel:999">
               <Phone size={13} aria-hidden="true" /> 999
             </a>{" "}
             for emergencies.{" "}
-            <a className="nightSafe__tel" href="tel:116123">
+            <a className={styles.nightSafeTel} href="tel:116123">
               <Phone size={13} aria-hidden="true" /> 116 123
             </a>{" "}
             for Samaritans, any time.
           </p>
           {!isPlanShare ? (
-            <p className="nightSafe__line">
+            <p className={styles.nightSafeLine}>
               {londonTransport ? (
                 <>
                   Live trains and buses for this pin sit above.{" "}
                   <a
-                    className="nightSafe__link"
+                    className={styles.nightSafeLink}
                     href={TFL_JOURNEY_PLANNER}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -220,17 +220,17 @@ export function SafeNightStrip({ planId, venue, cityId }: SafeNightStripProps) {
               )}
             </p>
           ) : null}
-          <p className="nightSafe__line">
+          <p className={styles.nightSafeLine}>
             {isPlanShare
               ? "Share your live plan link with someone who is not out tonight."
               : "Share this pin with someone who is not out tonight."}
           </p>
 
-          <div className="nightSafe__actions">
+          <div className={styles.nightSafeActions}>
             {showShare ? (
               <button
                 type="button"
-                className="nightSafe__share"
+                className={styles.nightSafeShare}
                 onClick={() => void (isPlanShare ? sharePlan() : shareVenue())}
               >
                 <Share2 size={15} aria-hidden="true" />
@@ -239,7 +239,7 @@ export function SafeNightStrip({ planId, venue, cityId }: SafeNightStripProps) {
             ) : null}
             <button
               type="button"
-              className="nightSafe__hide"
+              className={styles.nightSafeHide}
               onClick={() => {
                 writeSafeNightDismissed(scope);
                 setDismissed(true);
@@ -249,7 +249,7 @@ export function SafeNightStrip({ planId, venue, cityId }: SafeNightStripProps) {
             </button>
           </div>
           {shareNote ? (
-            <p className="nightSafe__note" role="status">
+            <p className={styles.nightSafeNote} role="status">
               {shareNote}
             </p>
           ) : null}

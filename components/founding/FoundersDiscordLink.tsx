@@ -17,7 +17,7 @@ import {
   foundersDiscordInviteUrl,
 } from "@/lib/foundingMembers";
 
-import "./foundersDiscordLink.css";
+import styles from "./foundersDiscordLink.module.css";
 
 export default function FoundersDiscordLink({
   className,
@@ -30,7 +30,7 @@ export default function FoundersDiscordLink({
   if (!invite) return null;
   return (
     <a
-      className={className ? `foundersDiscordLink ${className}` : "foundersDiscordLink"}
+      className={className ? `${styles.foundersDiscordLink} ${className}` : styles.foundersDiscordLink}
       data-pressable
       href={invite}
       target="_blank"

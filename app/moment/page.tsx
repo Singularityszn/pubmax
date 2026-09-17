@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import MomentCapture from "@/components/moment/MomentCapture";
-import "@/components/moment/moment.css";
+import styles from "@/components/moment/moment.module.css";
 
 export const metadata: Metadata = {
   title: "Save a Moment",
@@ -13,13 +13,13 @@ export default function MomentPage(): React.JSX.Element {
   return (
     <Suspense
       fallback={
-        <main id="main" className="momentPage" aria-busy="true" aria-label="Loading Moment composer">
-          <div className="momentMain">
-            <div className="momentSkeleton" aria-hidden="true">
-              <span className="momentSkeletonEyebrow" />
-              <span className="momentSkeletonTitle" />
-              <span className="momentSkeletonCanvas" />
-              <span className="momentSkeletonRow" />
+        <main id="main" className={styles.momentPage} aria-busy="true" aria-label="Loading Moment composer">
+          <div className={styles.momentMain}>
+            <div className={styles.momentSkeleton} aria-hidden="true">
+              <span className={styles.momentSkeletonEyebrow} />
+              <span className={styles.momentSkeletonTitle} />
+              <span className={styles.momentSkeletonCanvas} />
+              <span className={styles.momentSkeletonRow} />
             </div>
           </div>
         </main>

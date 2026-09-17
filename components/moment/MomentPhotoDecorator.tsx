@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import styles from "./moment.module.css";
+
 import {
   MOMENT_PHOTO_FILTERS,
   claimMomentDrawPointer,
@@ -187,10 +189,10 @@ export default function MomentPhotoDecorator({
   }
 
   return (
-    <div className="momentDecorator">
+    <div className={styles.momentDecorator}>
       <canvas
         ref={canvasRef}
-        className={drawing ? "momentDecoratorPreview momentDecoratorPreviewDraw" : "momentDecoratorPreview"}
+        className={drawing ? `${styles.momentDecoratorPreview} ${styles.momentDecoratorPreviewDraw}` : styles.momentDecoratorPreview}
         role="img"
         aria-label="Edited photo preview"
         onPointerDown={beginOrPreviewStroke}
@@ -199,7 +201,7 @@ export default function MomentPhotoDecorator({
         onPointerCancel={finishStroke}
       />
 
-      <fieldset className="momentDecoratorFilters">
+      <fieldset className={styles.momentDecoratorFilters}>
         <legend>Filter</legend>
         <div>
           {MOMENT_PHOTO_FILTERS.map((filter) => (
@@ -216,7 +218,7 @@ export default function MomentPhotoDecorator({
         </div>
       </fieldset>
 
-      <label className="momentDecoratorText">
+      <label className={styles.momentDecoratorText}>
         <span>Text</span>
         <input
           disabled={saving}
@@ -226,7 +228,7 @@ export default function MomentPhotoDecorator({
         />
       </label>
 
-      <div className="momentDecoratorDraw">
+      <div className={styles.momentDecoratorDraw}>
         <button type="button" disabled={saving} aria-pressed={drawing} onClick={() => setDrawing((current) => !current)}>
           Draw
         </button>
@@ -235,7 +237,7 @@ export default function MomentPhotoDecorator({
         </button>
       </div>
 
-      <div className="momentDecoratorActions">
+      <div className={styles.momentDecoratorActions}>
         <button type="button" disabled={!ready || saving} onClick={() => void save()}>
           {saving ? "Saving..." : "Use photo"}
         </button>

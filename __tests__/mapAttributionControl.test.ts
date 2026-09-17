@@ -22,7 +22,7 @@ import { OSM_ATTRIBUTION } from "@/components/map/canvas/tokens";
 
 const REPO_ROOT = join(__dirname, "..");
 const shellCss = readFileSync(
-  join(REPO_ROOT, "components/mobile/mobileMapShell.css"),
+  join(REPO_ROOT, "components/mobile/mobileMapShell.module.css"),
   "utf8",
 );
 const canvasTsx = readFileSync(

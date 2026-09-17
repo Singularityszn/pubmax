@@ -19,7 +19,7 @@
  *
  * The numbers live here rather than in the stylesheet so one module answers
  * "how many across?" for the composer, the fence and any future surface;
- * `__tests__/priceChipLadder.test.ts` holds components/map/spillComposer.css to
+ * `__tests__/priceChipLadder.test.ts` holds components/map/spillComposer.module.css to
  * this table so the CSS and the policy cannot drift apart.
  */
 

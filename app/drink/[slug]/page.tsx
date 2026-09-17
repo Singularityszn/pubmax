@@ -18,7 +18,7 @@ import {
 } from "@/lib/pricedLanding";
 import { formatPrice } from "@/lib/venues";
 
-import "@/components/drinks/drinkBrandDirectory.css";
+import styles from "@/components/drinks/drinkBrandDirectory.module.css";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
@@ -80,7 +80,7 @@ export default async function DrinkBrandLandingPage({ params }: PageProps) {
   ]);
 
   return (
-    <main id="main" className="drinkBrandLanding">
+    <main id="main" className={styles.drinkBrandLanding}>
       <JsonLd data={drinkBrandLandingJsonLd(landing)} nonce={nonce} />
       <SiteNav />
       <DrinkBrandLandingContent

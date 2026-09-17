@@ -45,8 +45,8 @@ export function NightCalmLine({ area }: { area: NightAreaSlug | null }): React.J
   if (!area || !state || state.area !== area) return null;
 
   return (
-    <span className="nightCard__calm" data-band={state.band}>
-      <span className="nightCard__calmDot" data-band={state.band} aria-hidden="true" />
+    <span className="nightCardCalm" data-band={state.band}>
+      <span className="nightCardCalmDot" data-band={state.band} aria-hidden="true" />
       {state.label}
     </span>
   );

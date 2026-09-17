@@ -7,7 +7,7 @@ import {
 } from "@/lib/venueKindFilters";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 
-import "./tonightArcChips.css";
+import styles from "./tonightArcChips.module.css";
 
 // The kinds the map's own filter offers, and no more. A "Clubs" chip stood
 // here permanently disabled, explained by a `title` attribute no phone shows
@@ -56,8 +56,8 @@ export default function TonightArcChips({
     <div
       className={
         variant === "sheet"
-          ? "tonightArcChips tonightArcChipsSheet"
-          : "tonightArcChips tonightArcChipsPopover"
+          ? `${styles.tonightArcChips} ${styles.tonightArcChipsSheet}`
+          : `${styles.tonightArcChips} ${styles.tonightArcChipsPopover}`
       }
       role="group"
       /* Reader words, not the component's name. "Tonight arc" is what this file
@@ -69,25 +69,25 @@ export default function TonightArcChips({
          __tests__/voiceComplianceAudit.test.ts was amended to expect it. */
       aria-label="Venue types"
     >
-      <div className="tonightArcRow">
+      <div className={styles.tonightArcRow}>
         {chips.map((chip) => {
           const on = visibility[chip.kind];
           return (
             <button
               key={chip.kind}
               type="button"
-              className={on ? "tonightArcChip isOn" : "tonightArcChip"}
+              className={on ? `${styles.tonightArcChip} ${styles.isOn}` : styles.tonightArcChip}
               aria-pressed={on}
               onClick={() => onChange(toggleVenueKind(visibility, chip.kind))}
             >
               {/* The tick, not a colour, marks selection (aria-pressed already
                   names it for readers, so the glyph stays decorative). */}
               {on ? (
-                <span className="tonightArcChipTick" aria-hidden="true">
+                <span className={styles.tonightArcChipTick} aria-hidden="true">
                   ✓
                 </span>
               ) : null}
-              <span className="tonightArcChipLabel">
+              <span className={styles.tonightArcChipLabel}>
                 {experienceLens === "no-alcohol" && chip.kind === "pub"
                   ? "Pubs"
                   : chip.label}

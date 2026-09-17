@@ -110,9 +110,9 @@ describe("governed drink brand landing page", () => {
     // one value rather than every page test that prints the date.
     const collectedLine = `Collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}.`;
     expect(html.split(collectedLine)).toHaveLength(2);
-    expect(html.match(/<ol class="drinkBrandDirectory__list" role="list"/g)).toHaveLength(1);
+    expect(html.match(/<ol class="[^"]*drinkBrandDirectoryList[^"]*" role="list"/g)).toHaveLength(1);
     expect(
-      html.match(/<li class="[^"]*\bdrinkBrandDirectory__row\b[^"]*"/g),
+      html.match(/<li class="[^"]*drinkBrandDirectoryRow[^"]*"/g),
     ).toHaveLength(20);
     // The count discloses the cap rather than implying twenty is everything.
     const landing = await loadDrinkBrandLanding("guinness");
@@ -123,7 +123,7 @@ describe("governed drink brand landing page", () => {
     // Rank is presentational: the ordered list already carries position, and a
     // name on a bare span is prohibited so an aria-label there is dropped.
     expect(html).not.toContain('aria-label="Rank');
-    expect(html).toMatch(/class="drinkBrandDirectory__rank" aria-hidden="true"/);
+    expect(html).toMatch(/class="[^"]*drinkBrandDirectoryRank[^"]*" aria-hidden="true"/);
     expect(html).toContain("J.J. Moon's - JD Wetherspoon");
     expect(html).toContain("Pint Prices");
     expect(html).toContain("href=\"https://www.pint-prices.com/pub/");
@@ -204,15 +204,15 @@ describe("governed drink brand landing page", () => {
 
     expect(html).toContain("From £3.09");
     expect(html).toMatch(
-      /class="[^"]*\bdrinkBrandDirectory__fromPublisher\b[^"]*"/,
+      /class="[^"]*drinkBrandDirectoryFromPublisher[^"]*"/,
     );
     expect(html).toContain(
       '>Publisher: Exact Publisher</a>',
     );
     // The hero states it for the "From" figure, the row states it for its own.
     expect(html.match(/href="https:\/\/publisher\.example\/price-1"/g)).toHaveLength(2);
-    expect(html.match(/drinkBrandDirectory__fromPublisher/g)).toHaveLength(1);
-    expect(html.match(/drinkBrandDirectory__publisher\b/g)).toHaveLength(1);
+    expect(html.match(/drinkBrandDirectoryFromPublisher/g)).toHaveLength(1);
+    expect(html.match(/_drinkBrandDirectoryPublisher_/g)).toHaveLength(1);
   });
 
   it("states every rank's own publisher beside its own figure", () => {
@@ -269,10 +269,10 @@ describe("governed drink brand landing page", () => {
     // own row states it again beside the figure a scrolled reader is looking
     // at: the list is where the cheapest price is read (docs/VOICE.md).
     expect(html.match(/href="https:\/\/publisher\.example\/price-1"/g)).toHaveLength(2);
-    expect(html.match(/drinkBrandDirectory__fromPublisher/g)).toHaveLength(1);
+    expect(html.match(/drinkBrandDirectoryFromPublisher/g)).toHaveLength(1);
     // Every rank states its own record: a named publisher, and the plain
     // refusal when the record names none.
-    expect(html.match(/drinkBrandDirectory__publisher\b/g)).toHaveLength(3);
+    expect(html.match(/_drinkBrandDirectoryPublisher_/g)).toHaveLength(3);
     expect(html).toContain('>Second Publisher</a>');
     expect(html.match(/href="https:\/\/publisher\.example\/price-2"/g)).toHaveLength(1);
     expect(html.match(/Publisher not recorded/g)).toHaveLength(1);

@@ -15,7 +15,7 @@ import Kicker from "@/components/ui/kicker";
 // Shared nav atoms (bell/messages island) carry their styling in siteNav.css.
 // The landing bar isn't the SiteNav component, but it flies the same wordmark
 // and action cluster, so it pulls in those shared styles directly.
-import "@/components/nav/siteNav.css";
+import "@/components/nav/siteNav.module.css";
 import type { LandingAnswers } from "@/lib/landingAnswers";
 import type { LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
@@ -37,7 +37,7 @@ import LandingFaq from "./LandingFaq";
 import LandingHero from "./LandingHero";
 import LandingSavings from "./LandingSavings";
 import PintDropStripLoading from "./PintDropStripLoading";
-import "./landing.css";
+import styles from "./landing.module.css";
 
 function trackLandingCta(target: LandingCtaTarget) {
   trackEvent("landing_cta_clicked", { target });
@@ -96,16 +96,16 @@ export default function LandingPage({
   }, []);
 
   return (
-    <div className="lp">
-      <header className="lpNav">
-        <Link prefetch={false} href="/" className="lpWordmark" aria-label="PUBMAXXING home">
+    <div className={styles.lp}>
+      <header className={styles.lpNav}>
+        <Link prefetch={false} href="/" className={styles.lpWordmark} aria-label="PUBMAXXING home">
           <PubmaxxWordmark />
         </Link>
 
         {/* The app's own primary destinations (PRIMARY_NAV_ITEMS), so the
             front door and every app page name the product the same way. Social
             and Moment are not front doors and are not in that list. */}
-        <nav className="lpPrimaryNav" aria-label="Landing navigation">
+        <nav className={styles.lpPrimaryNav} aria-label="Landing navigation">
           {PRIMARY_NAV_ITEMS.map((item) =>
             item.key === "map" ? (
               <Link key={item.key} prefetch={false} href={mapCtaHref} {...warmProps}>
@@ -119,7 +119,7 @@ export default function LandingPage({
           )}
         </nav>
 
-        <div className="lpNavActions">
+        <div className={styles.lpNavActions}>
           {/* Canonical action island, same order and shape as SiteNav so the
               front door and the app read as one product. Bell and Messages are
               anon-safe (plain icon links, badge only when signed-in + unread). */}
@@ -141,14 +141,14 @@ export default function LandingPage({
 
         {answers ? <LandingAnswerCards answers={answers} /> : null}
 
-        <section className="lpWorth" aria-labelledby="worth-title">
+        <section className={styles.lpWorth} aria-labelledby="worth-title">
           <Kicker>What it saves you</Kicker>
           <h2 id="worth-title">The cheapest listed pint near you, on one map.</h2>
           <LandingSavings averages={averages} />
           <Link
             prefetch={false}
             href={mapCtaHref}
-            className="lpTextLink"
+            className={styles.lpTextLink}
             {...warmProps}
             onClick={() => trackLandingCta("map")}
           >
@@ -156,32 +156,32 @@ export default function LandingPage({
           </Link>
         </section>
 
-        <div className="lpDrops">
+        <div className={styles.lpDrops}>
           <PintDropStrip />
         </div>
 
         <LandingFaq />
 
-        <div id="cities" className="lpCityChooser">
+        <div id="cities" className={styles.lpCityChooser}>
           <CityChooser />
         </div>
       </main>
 
-      <footer className="lpFooter">
-        <div className="lpFooterInner">
-          <div className="lpFooterBrand">
-            <Link prefetch={false} href="/" className="lpWordmark" aria-label="PUBMAXXING home">
+      <footer className={styles.lpFooter}>
+        <div className={styles.lpFooterInner}>
+          <div className={styles.lpFooterBrand}>
+            <Link prefetch={false} href="/" className={styles.lpWordmark} aria-label="PUBMAXXING home">
               <PubmaxxWordmark />
             </Link>
-            <p className="lpFooterProvenance">
+            <p className={styles.lpFooterProvenance}>
               When a price record names a publisher, we name and link it. When no
               publisher is recorded, the price says so. The ones drinkers log come
               with the day they were seen, and no pub can pay to rank higher.
             </p>
           </div>
 
-          <nav className="lpFooterNav" aria-label="Footer">
-            <div className="lpFooterCol">
+          <nav className={styles.lpFooterNav} aria-label="Footer">
+            <div className={styles.lpFooterCol}>
               <h2>Get out tonight</h2>
               <Link prefetch={false} href={mapCtaHref} {...warmProps}>The map</Link>
               {/* Bare /near: a footer directory tap is browsing, so it must not
@@ -191,7 +191,7 @@ export default function LandingPage({
               <Link prefetch={false} href="/tonight">Tonight</Link>
               <Link prefetch={false} href="/plan">Plan a night</Link>
             </div>
-            <div className="lpFooterCol">
+            <div className={styles.lpFooterCol}>
               <h2>The good stuff</h2>
               <Link prefetch={false} href="/social">{socialLabel}</Link>
               <Link prefetch={false} href="/pal">Pub Pal</Link>
@@ -201,17 +201,17 @@ export default function LandingPage({
           </nav>
         </div>
 
-        <div className="lpFooterBase">
+        <div className={styles.lpFooterBase}>
           {/* Small print rail: the two pages a reader is entitled to find from
               any page of the site, plus a contact address that actually works.
               Sits with the over-18 line because that is where legal copy lives. */}
-          <nav className="lpFooterSmallPrint" aria-label="Small print">
+          <nav className={styles.lpFooterSmallPrint} aria-label="Small print">
             <Link prefetch={false} href="/privacy">Privacy</Link>
             <Link prefetch={false} href="/terms">Terms of use</Link>
             <a href={CONTACT_MAILTO}>Contact</a>
           </nav>
-          <p className="lpFooterCredit">© 2026 PUBMAXX / Karan Manoharan</p>
-          <p className="lpFooterLegal">
+          <p className={styles.lpFooterCredit}>© 2026 PUBMAXX / Karan Manoharan</p>
+          <p className={styles.lpFooterLegal}>
             PUBMAXX is for over-18s. Know your limits, and know the facts at{" "}
             <a href="https://www.drinkaware.co.uk" rel="noreferrer">
               drinkaware.co.uk

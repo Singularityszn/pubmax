@@ -34,7 +34,7 @@ import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
 import { accountClaimReturnToFromUrl } from "@/lib/accountClaimReturnTo";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 
-import "./accountOnboarding.css";
+import styles from "./accountOnboarding.module.css";
 
 type Availability =
   | "idle"
@@ -65,6 +65,13 @@ export function canSubmitCheckedHandle(
 ): boolean {
   return availability === "available" && handle === checkedHandle;
 }
+
+const statusModifier: Partial<Record<Availability, string>> = {
+  available: styles.isAvailable,
+  taken: styles.isTaken,
+  reserved: styles.isReserved,
+  invalid: styles.isInvalid,
+};
 
 function availabilityCopy(availability: Availability): string | null {
   if (availability === "checking") return "Checking availability…";
@@ -111,18 +118,18 @@ export function AccountOnboardingForm({
   const canSubmit =
     availability === "available" && handle.trim().length > 0 && !busy;
   return (
-    <div className="accountOnboardingBackdrop" role="presentation">
+    <div className={styles.accountOnboardingBackdrop} role="presentation" data-identity-gate>
       <section
         ref={dialogRef}
-        className="accountOnboarding"
+        className={styles.accountOnboarding}
         role="dialog"
         tabIndex={-1}
         aria-modal="true"
         aria-labelledby="account-onboarding-title"
         aria-describedby="account-onboarding-lead account-onboarding-privacy"
       >
-        <header className="accountOnboardingHead">
-          <p className="accountOnboardingEyebrow">Welcome to PUBMAXX</p>
+        <header className={styles.accountOnboardingHead}>
+          <p className={styles.accountOnboardingEyebrow}>Welcome to PUBMAXX</p>
           <h2 id="account-onboarding-title">Let&apos;s get you in</h2>
           <p id="account-onboarding-lead">
             Pick the name people see.{" "}
@@ -130,10 +137,10 @@ export function AccountOnboardingForm({
           </p>
         </header>
 
-        <div className="accountOnboardingStep">
-          <label className="accountOnboardingField accountOnboardingHandle">
+        <div className={styles.accountOnboardingStep}>
+          <label className={styles.accountOnboardingField}>
             <span>Your handle</span>
-            <span className="accountOnboardingInputWrap">
+            <span className={styles.accountOnboardingInputWrap}>
               <i aria-hidden="true">@</i>
               <input
                 value={handle}
@@ -148,14 +155,14 @@ export function AccountOnboardingForm({
           </label>
           <p
             id="account-onboarding-handle-status"
-            className={`accountOnboardingStatus is-${availability}`}
+            className={[styles.accountOnboardingStatus, statusModifier[availability]].filter(Boolean).join(" ")}
             role={availability === "taken" || availability === "reserved" ? "alert" : "status"}
           >
             {status ?? "Letters, numbers and underscores."}
           </p>
 
-          <div className="accountOnboardingPair">
-            <label className="accountOnboardingField">
+          <div className={styles.accountOnboardingPair}>
+            <label className={styles.accountOnboardingField}>
               <span>
                 Name <small>Optional</small>
               </span>
@@ -166,7 +173,7 @@ export function AccountOnboardingForm({
                 maxLength={100}
               />
             </label>
-            <label className="accountOnboardingField">
+            <label className={styles.accountOnboardingField}>
               <span>
                 Date of birth <small>Optional</small>
               </span>
@@ -182,20 +189,20 @@ export function AccountOnboardingForm({
           </div>
         </div>
 
-        <p id="account-onboarding-privacy" className="accountOnboardingPrivacy">
+        <p id="account-onboarding-privacy" className={styles.accountOnboardingPrivacy}>
           Only your handle is public. Date of birth and name stay private. We
           use a date of birth you give to check your age, and both for product
           analytics and social features.
         </p>
         {error ? (
-          <p className="accountOnboardingError" role="alert">
+          <p className={styles.accountOnboardingError} role="alert">
             {error}
           </p>
         ) : null}
-        <div className="accountOnboardingActions">
+        <div className={styles.accountOnboardingActions}>
           <button
             type="button"
-            className="accountOnboardingPrimary"
+            className={styles.accountOnboardingPrimary}
             disabled={!canSubmit}
             onClick={onSubmit}
           >
@@ -218,19 +225,19 @@ export function AccountOnboardingLoadError({
 }): React.JSX.Element {
   return (
     <section
-      className="accountOnboardingLoadError"
+      className={styles.accountOnboardingLoadError}
       aria-labelledby="account-onboarding-error-title"
     >
-      <header className="accountOnboardingHead">
-        <p className="accountOnboardingEyebrow">Your PUBMAXX identity</p>
+      <header className={styles.accountOnboardingHead}>
+        <p className={styles.accountOnboardingEyebrow}>Your PUBMAXX identity</p>
         <h2 id="account-onboarding-error-title">Account setup paused</h2>
-        <p className="accountOnboardingError" role="alert">
+        <p className={styles.accountOnboardingError} role="alert">
           {offline ? "You look offline. We will retry when you are back." : error}
         </p>
       </header>
       <button
         type="button"
-        className="accountOnboardingPrimary accountOnboardingRetry"
+        className={`${styles.accountOnboardingPrimary} ${styles.accountOnboardingRetry}`}
         onClick={onRetry}
       >
         Try again

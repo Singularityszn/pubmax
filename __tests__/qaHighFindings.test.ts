@@ -18,11 +18,11 @@ describe("QA high findings — mobile sheet and consent layering", () => {
   const globalCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
   const consentCss = readFileSync(join(process.cwd(), "components/AnalyticsConsent.module.css"), "utf8");
   const mobileMapShellCss = readFileSync(
-    join(process.cwd(), "components/mobile/mobileMapShell.css"),
+    join(process.cwd(), "components/mobile/mobileMapShell.module.css"),
     "utf8",
   );
   const mobileNavCss = readFileSync(
-    join(process.cwd(), "components/nav/mobileNav.css"),
+    join(process.cwd(), "components/nav/mobileNav.module.css"),
     "utf8",
   );
   const mobileTabBar = readFileSync(
@@ -39,7 +39,7 @@ describe("QA high findings — mobile sheet and consent layering", () => {
       /\.mobileSheetPortal\s*{[^}]*bottom:\s*calc\(var\(--tabbar-h\) \+ env\(safe-area-inset-bottom,\s*0px\)\)/,
     );
     expect(mobileMapShellCss).toMatch(
-      /\.mobileSharedSheet\.mapDrawer\s*{[^}]*position:\s*absolute/,
+      /\.mobileSharedSheet:global\(\.mapDrawer\)\s*{[^}]*position:\s*absolute/,
     );
   });
 
@@ -57,7 +57,7 @@ describe("QA high findings — mobile sheet and consent layering", () => {
     expect(pubMap).toContain("closeEverySurface");
     const focusTrap = readFileSync(join(process.cwd(), "lib/useFocusTrap.ts"), "utf8");
     expect(focusTrap).toMatch(/shouldInertOutsideSibling/);
-    expect(focusTrap).toMatch(/mobileTabBar/);
+    expect(focusTrap).toMatch(/data-mobile-tab-bar/);
   });
 
   it("publishes a dismiss event constant from the mobile shell seam", () => {

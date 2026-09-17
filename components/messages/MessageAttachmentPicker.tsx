@@ -15,7 +15,7 @@ import {
 import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
 
 import styles from "@/app/messages/Messages.module.css";
-import "@/components/mobile/mobileMapShell.css";
+import shellStyles from "@/components/mobile/mobileMapShell.module.css";
 
 export type MessageAttachKind = "photos" | "camera" | "document";
 
@@ -161,16 +161,16 @@ const MessageAttachmentPicker = forwardRef<
       />
 
       {open ? (
-        <div className={`mobileSheetPortal ${styles.messageAttachSheetPortal}`}>
+        <div className={`${shellStyles.mobileSheetPortal} ${styles.messageAttachSheetPortal}`}>
           <button
-            className="mobileSheetScrim"
+            className={shellStyles.mobileSheetScrim}
             type="button"
             tabIndex={-1}
             onClick={close}
             aria-label="Dismiss attachment chooser"
           />
           <section
-            className={`mapDrawer mobileSharedSheet contextual open sheet-half ${styles.messageAttachSheet}`}
+            className={`mapDrawer ${shellStyles.mobileSharedSheet} contextual open sheet-half ${styles.messageAttachSheet}`}
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
@@ -180,13 +180,13 @@ const MessageAttachmentPicker = forwardRef<
             }}
           >
             <header
-              className={`mobileSharedSheetHeader sheetDragHandle ${styles.messageAttachSheetHeader}`}
+              className={`${shellStyles.mobileSharedSheetHeader} sheetDragHandle ${styles.messageAttachSheetHeader}`}
               onPointerDown={onDragStart}
               onPointerMove={onDragMove}
               onPointerUp={onDragEnd}
               onPointerCancel={onDragEnd}
             >
-              <span className="mobileSharedSheetGrab" aria-hidden="true" />
+              <span className={shellStyles.mobileSharedSheetGrab} aria-hidden="true" />
               <h2 id={titleId}>Add to message</h2>
               <button
                 type="button"
@@ -198,7 +198,7 @@ const MessageAttachmentPicker = forwardRef<
                 <X size={20} aria-hidden="true" />
               </button>
             </header>
-            <div className={`mobileSharedSheetBody ${styles.messageAttachSheetBody}`}>
+            <div className={`${shellStyles.mobileSharedSheetBody} ${styles.messageAttachSheetBody}`}>
               <div className={styles.messageAttachGrid}>
                 {TARGETS.map(({ kind, label, Icon }) => (
                   <button

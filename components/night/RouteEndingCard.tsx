@@ -11,8 +11,8 @@ import {
 import type { CrawlEnding } from "@/lib/plan";
 import type { LastPintDecisionKind } from "@/lib/tfl";
 
-import "./getHomeHandoff.css";
-import "./routeEndingCard.css";
+import getHomeStyles from "./getHomeHandoff.module.css";
+import styles from "./routeEndingCard.module.css";
 
 export type RouteEndingId = CrawlEnding;
 
@@ -80,13 +80,13 @@ export function GetHomeHandoffRow({
   const heading = getHomeHandoffHeading(venue);
 
   return (
-    <section className="getHomeHandoff" aria-label={heading}>
-      <p className="getHomeHandoff__heading">{heading}</p>
-      <div className="getHomeHandoff__actions">
+    <section className={getHomeStyles.getHomeHandoff} aria-label={heading}>
+      <p className={getHomeStyles.getHomeHandoffHeading}>{heading}</p>
+      <div className={getHomeStyles.getHomeHandoffActions}>
         {links.map((link) => (
           <a
             key={link.kind}
-            className="getHomeHandoff__link"
+            className={getHomeStyles.getHomeHandoffLink}
             href={link.href}
             target="_blank"
             rel="noopener noreferrer"
@@ -124,17 +124,17 @@ export function RouteEndingCard({
   className,
 }: RouteEndingCardProps): React.JSX.Element {
   const recommendedIdForCard = recommendedEndingId(options, recommendedId);
-  const rootClassName = ["routeEndingCard", className].filter(Boolean).join(" ");
+  const rootClassName = [styles.routeEndingCard, className].filter(Boolean).join(" ");
 
   return (
     <section className={rootClassName} aria-label="Crawl ending">
-      <header className="routeEndingCard__header">
-        <p className="routeEndingCard__eyebrow">Crawl ending</p>
-        <h2 className="routeEndingCard__title">{title}</h2>
-        <p className="routeEndingCard__description">{description}</p>
+      <header className={styles.routeEndingCardHeader}>
+        <p className="routeEndingCardEyebrow">Crawl ending</p>
+        <h2 className="routeEndingCardTitle">{title}</h2>
+        <p className="routeEndingCardDescription">{description}</p>
       </header>
 
-      <div className="routeEndingCard__choices" role="group" aria-label="Choose how to finish">
+      <div className="routeEndingCardChoices" role="group" aria-label="Choose how to finish">
         {options.map((option) => {
           const isRecommended = option.id === recommendedIdForCard;
 
@@ -142,20 +142,20 @@ export function RouteEndingCard({
             <button
               key={option.id}
               type="button"
-              className="routeEndingCard__choice"
+              className="routeEndingCardChoice"
               data-ending={option.id}
               data-recommended={isRecommended ? "true" : undefined}
               aria-label={optionAriaLabel(option, isRecommended)}
               onClick={() => onChoose(option.id)}
             >
-              <span className="routeEndingCard__choiceTop">
-                <span className="routeEndingCard__choiceTitle">{option.title}</span>
+              <span className="routeEndingCardChoiceTop">
+                <span className={styles.routeEndingCardChoiceTitle}>{option.title}</span>
                 {isRecommended ? (
-                  <span className="routeEndingCard__recommendation">Recommended</span>
+                  <span className={styles.routeEndingCardRecommendation}>Recommended</span>
                 ) : null}
               </span>
-              <span className="routeEndingCard__choiceDescription">{option.description}</span>
-              <span className="routeEndingCard__action">{option.actionLabel}</span>
+              <span className="routeEndingCardChoiceDescription">{option.description}</span>
+              <span className="routeEndingCardAction">{option.actionLabel}</span>
             </button>
           );
         })}

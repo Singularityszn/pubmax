@@ -18,7 +18,7 @@ import type { EditorialSnapshot } from "@/lib/editorial";
 const OUT_CLIENT = readFileSync(join(process.cwd(), "app/out/OutClient.tsx"), "utf8");
 const TONIGHT = readFileSync(join(process.cwd(), "app/tonight/TonightClient.tsx"), "utf8");
 const MAP = readFileSync(join(process.cwd(), "components/PubMap.tsx"), "utf8");
-const RAIL_CSS = readFileSync(join(process.cwd(), "components/out/editorialRail.css"), "utf8");
+const RAIL_CSS = readFileSync(join(process.cwd(), "components/out/editorialRail.module.css"), "utf8");
 
 const readyItems: EditorialSnapshot = {
   version: 1,

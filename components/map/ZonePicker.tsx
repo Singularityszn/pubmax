@@ -13,7 +13,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import ZonePintIndexStrip from "@/components/zones/ZonePintIndexStrip";
 import { ZONE_IDS, parseZoneParam, type ZonePintIndex } from "@/lib/zones";
 
-import "./zonePicker.css";
+import styles from "./zonePicker.module.css";
 
 type ZonePickerProps = {
   /** filters.zone — "" / "all" means every zone. */
@@ -37,10 +37,10 @@ function ZoneChips({
   onPick: (zone: string) => void;
 }) {
   return (
-    <div className="zoneChips" role="group" aria-label="Filter by fare zone">
+    <div className={styles.zoneChips} role="group" aria-label="Filter by fare zone">
       <button
         type="button"
-        className={active === null ? "zoneChip isOn" : "zoneChip"}
+        className={active === null ? `${styles.zoneChip} ${styles.isOn}` : styles.zoneChip}
         aria-pressed={active === null}
         onClick={() => onPick("")}
       >
@@ -52,7 +52,7 @@ function ZoneChips({
           <button
             key={zoneId}
             type="button"
-            className={on ? "zoneChip isOn" : "zoneChip"}
+            className={on ? `${styles.zoneChip} ${styles.isOn}` : styles.zoneChip}
             aria-pressed={on}
             aria-label={`Zone ${zoneId}${on ? " (selected)" : ""}`}
             onClick={() => onPick(String(zoneId))}
@@ -114,18 +114,18 @@ export default function ZonePicker({
 
   if (variant === "inline") {
     return (
-      <div className="zonePicker isInline">
-        <p className="zonePickerInlineLabel">Fare zone</p>
+      <div className={`${styles.zonePicker} ${styles.isInline}`}>
+        <p className={styles.zonePickerInlineLabel}>Fare zone</p>
         {body}
       </div>
     );
   }
 
   return (
-    <div className="zonePicker" ref={rootRef}>
+    <div className={styles.zonePicker} ref={rootRef}>
       <button
         type="button"
-        className={open || active !== null ? "zonePickerBtn isActive" : "zonePickerBtn"}
+        className={open || active !== null ? `${styles.zonePickerBtn} ${styles.isActive}` : styles.zonePickerBtn}
         aria-pressed={active !== null}
         aria-expanded={open}
         aria-controls={panelId}
@@ -135,7 +135,7 @@ export default function ZonePicker({
         <span>{active === null ? "Zone" : `Zone ${active}`}</span>
       </button>
       {open ? (
-        <div className="zonePickerPanel" id={panelId} role="group" aria-label="Fare zone lens">
+        <div className={styles.zonePickerPanel} id={panelId} role="group" aria-label="Fare zone lens">
           {body}
         </div>
       ) : null}

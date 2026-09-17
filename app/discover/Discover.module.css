@@ -1,6 +1,6 @@
 /* Discover page — cheap-pint leaderboard + editorial lanes. Self-contained:
    depends only on the globally-loaded design tokens (--brass, --ink, etc. from
-   theme.css/globals.css) and .siteNav, never on landing.css (which is scoped to
+   theme.css/globals.css) and .siteNav, never on landing.module.css (which is scoped to
    the "/" route and not loaded here). */
 
 .discoverPage {
@@ -870,7 +870,7 @@
 }
 
 /* Hover-capable pointers only — the lane's own glyph/link hover already lives
-   in categoryShowcase.css; this covers the editorial CTA. */
+   in categoryShowcase.module.css; this covers the editorial CTA. */
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .editorialLink:hover {
     transform: translateY(-2px);
@@ -882,7 +882,7 @@
     padding: 12px;
   }
 
-  /* The lane's scroll-snap/mask setup lives in categoryShowcase.css (all
+  /* The lane's scroll-snap/mask setup lives in categoryShowcase.module.css (all
      viewports); mobile just narrows the gap and card width. */
   .discoverExplore :global(.catShowcase__grid) {
     gap: 8px;

@@ -33,7 +33,7 @@ import {
   subscribePasswordPrompt,
 } from "@/lib/passwordPrompt";
 import { discardBody } from "@/lib/responseBody";
-import "@/components/native/nativePushPrompt.css";
+import styles from "@/components/native/nativePushPrompt.module.css";
 
 /**
  * The ask that was missing. An account signing in by email link was never told
@@ -182,24 +182,24 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
   if (!canShow) return null;
 
   return (
-    <div className="nativePushPrompt">
+    <div className={styles.nativePushPrompt}>
       <div
-        className="nativePushPrompt__card"
+        className={styles.nativePushPromptCard}
         role="dialog"
         aria-modal="false"
         aria-labelledby="create-password-prompt-title"
         aria-describedby="create-password-prompt-body"
       >
-        <p id="create-password-prompt-title" className="nativePushPrompt__title">
+        <p id="create-password-prompt-title" className={styles.nativePushPromptTitle}>
           {PASSWORD_PROMPT_TITLE}
         </p>
-        <p id="create-password-prompt-body" className="nativePushPrompt__body">
+        <p id="create-password-prompt-body" className={styles.nativePushPromptBody}>
           {PASSWORD_PROMPT_BODY}
         </p>
-        <div className="nativePushPrompt__actions">
+        <div className={styles.nativePushPromptActions}>
           <button
             type="button"
-            className="nativePushPrompt__later pressable"
+            className={`${styles.nativePushPromptLater} pressable`}
             onClick={() => {
               setAnsweredLocallyFor(accountId);
               markPasswordPromptAnswered(accountId);
@@ -210,7 +210,7 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
           <Link
             prefetch={false}
             href={PASSWORD_PROMPT_DESTINATION}
-            className="nativePushPrompt__enable pressable"
+            className={`${styles.nativePushPromptEnable} pressable`}
             onClick={() => {
               setAnsweredLocallyFor(accountId);
               markPasswordPromptAnswered(accountId);

@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { handleSegmentLinkKeyDown } from "@/lib/segmentLinkKeys";
 
-import "./nowSegment.css";
+import styles from "./nowSegment.module.css";
 
 type NowBeat = "day" | "tonight";
 
@@ -20,10 +20,10 @@ type NowBeat = "day" | "tonight";
  */
 export default function NowSegment({ current }: { current: NowBeat }) {
   return (
-    <nav className="nowSegment" aria-label="Now">
+    <nav className={styles.nowSegment} aria-label="Now">
       <Link prefetch={false}
         href="/today"
-        className="nowSegmentOpt"
+        className={styles.nowSegmentOpt}
         aria-current={current === "day" ? "page" : undefined}
         onKeyDown={handleSegmentLinkKeyDown}
       >
@@ -31,7 +31,7 @@ export default function NowSegment({ current }: { current: NowBeat }) {
       </Link>
       <Link prefetch={false}
         href="/tonight"
-        className="nowSegmentOpt"
+        className={styles.nowSegmentOpt}
         aria-current={current === "tonight" ? "page" : undefined}
         onKeyDown={handleSegmentLinkKeyDown}
       >

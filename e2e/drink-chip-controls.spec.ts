@@ -205,7 +205,7 @@ test("390px fare-zone rows agree through selection and reset", async ({ page }) 
   // The two lists agree in paint as well as in state. Since #700 the map
   // picker's zones are one segmented control and the price rows are borderless,
   // so neither paints a selection border: selection is the fill
-  // (components/map/zonePicker.css, components/zones/zonePintIndex.css). A
+  // (components/map/zonePicker.module.css, components/zones/zonePintIndex.module.css). A
   // border read on a 0px edge only returns currentColor, so the check compares
   // the fill, once selected and once at rest, after the fill transition ends.
   const backgroundOf = (control: Locator) =>
@@ -349,7 +349,7 @@ for (const width of [390, 320]) {
     await expect(arc.locator('.tonightArcChip[aria-disabled="true"]')).toHaveCount(0);
 
     // Measured 7 Sep 2026: `getComputedStyle(chip, "::before")` answers
-    // `content: none`, because no rule in components/map/tonightArcChips.css
+    // `content: none`, because no rule in components/map/tonightArcChips.module.css
     // gives these chips a `::before` at all. So the old assertion compared
     // "0px" with "0px" and could not tell a selected chip from an unselected
     // one whatever the styles did. What actually marks selection here is the

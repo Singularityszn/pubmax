@@ -26,7 +26,7 @@ import { describe, expect, it } from "vitest";
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
 const globalCss = read("app/globals.css");
-const venueCss = read("components/map/venueSheet.css");
+const venueCss = read("components/map/venueSheet.module.css");
 const springDrawerSource = read("components/map/SpringDrawer.tsx");
 
 function block(css: string, selector: RegExp): string {
@@ -57,7 +57,7 @@ describe("the 641-768 sheet publishes how much of itself is below the viewport",
       const rule = block(
         tabletBand,
         new RegExp(
-          `\\.mapDrawer\\.right\\.open\\.sheet-${snap}:not\\(\\.sheet-dragging\\):not\\(\\.mobileSharedSheet\\)`,
+          `:global\\(\\.mapDrawer\\.right\\.open\\.sheet-${snap}:not\\(\\.sheet-dragging\\):not\\(\\.mobileSharedSheet\\)\\)`,
         ),
       );
       expect(rule, snap).toMatch(new RegExp(`--drawer-sheet-offset:\\s*${offset};`));
@@ -68,7 +68,7 @@ describe("the 641-768 sheet publishes how much of itself is below the viewport",
   it("derives one hidden-below value from the offset less the lane the sheet sits above", () => {
     const rule = block(
       tabletBand,
-      /\.mapDrawer\.left\.open:not\(\.mobileSharedSheet\),\s*\.mapDrawer\.right\.open:not\(\.mobileSharedSheet\)/,
+      /:global\(\.mapDrawer\.left\.open:not\(\.mobileSharedSheet\)\),\s*:global\(\.mapDrawer\.right\.open:not\(\.mobileSharedSheet\)\)/,
     );
     expect(rule.replace(/\s+/g, " ")).toContain(
       "--sheet-hidden-below: max( 0px, calc(var(--drawer-sheet-offset, 0px) - var(--mobile-tab-clearance)) );",
@@ -78,7 +78,7 @@ describe("the 641-768 sheet publishes how much of itself is below the viewport",
     expect(rule).not.toMatch(/padding-bottom/);
     const spacer = block(
       tabletBand,
-      /\.mapDrawer\.left\.open:not\(\.mobileSharedSheet\)::after,\s*\.mapDrawer\.right\.open:not\(\.mobileSharedSheet\)::after/,
+      /:global\(\.mapDrawer\.left\.open:not\(\.mobileSharedSheet\)::after\),\s*:global\(\.mapDrawer\.right\.open:not\(\.mobileSharedSheet\)::after\)/,
     );
     expect(spacer).toMatch(/content:\s*"";/);
     expect(spacer).toMatch(/height:\s*var\(--sheet-hidden-below\);/);
@@ -95,12 +95,12 @@ describe("the 641-768 sheet publishes how much of itself is below the viewport",
 describe("the venue command bar reads the sheet's offset and restates nothing", () => {
   it("takes its inset from --sheet-hidden-below", () => {
     expect(venueCss).toMatch(
-      /\.mapDrawer\.right\.open:not\(\.mobileSharedSheet\) \.venueSheetStickyBar\s*{[^}]*bottom:\s*var\(--sheet-hidden-below, 0px\);/,
+      /:global\(\.mapDrawer\.right\.open:not\(\.mobileSharedSheet\)\) \.venueSheetStickyBar\s*{[^}]*bottom:\s*var\(--sheet-hidden-below, 0px\);/,
     );
   });
 
   it("declares the drawer's viewing region as the hidden part plus the bar", () => {
-    const rule = block(venueCss, /\n\.mapDrawer\.right\.open:not\(\.mobileSharedSheet\)/);
+    const rule = block(venueCss, /\n:global\(\.mapDrawer\.right\.open:not\(\.mobileSharedSheet\)\)/);
     expect(rule).toMatch(/--venue-command-bar-h:\s*calc\(65px \+ env\(safe-area-inset-bottom, 0px\)\);/);
     expect(rule.replace(/\s+/g, " ")).toContain(
       "scroll-padding-bottom: calc( var(--sheet-hidden-below, 0px) + var(--venue-command-bar-h) );",

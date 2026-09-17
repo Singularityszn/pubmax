@@ -33,7 +33,7 @@ import {
 } from "@/lib/useFocusTrap";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
-import "./createFab.css";
+import styles from "./createFab.module.css";
 
 // The compose affordance. A Moment carries the route it was composed from,
 // including its query, and the router's own reading is the SSR-safe fallback
@@ -123,11 +123,11 @@ function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
         // Three ordinary links behind a disclosure, NOT an ARIA menu: role="menu"
         // promises arrow-key roving and a focus move on open, and a promise the
         // keyboard does not keep is worse than the plain shape.
-        <div className="createFabMenu" id={menuId} aria-label="Create">
+        <div className={styles.createFabMenu} id={menuId} aria-label="Create">
           {CREATE_FAB_ACTIONS.map((item) => (
             <Link
               key={item.action}
-              className="createFabRow"
+              className={styles.createFabRow}
               href={item.hrefFor(returnTo)}
               onClick={() => {
                 trackEvent("create_fab_action", { action: item.action });
@@ -143,7 +143,7 @@ function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
       ) : null}
       <button
         type="button"
-        className="createFab"
+        className={styles.createFab}
         data-testid="create-fab"
         aria-label="Create"
         aria-expanded={menuOpen}

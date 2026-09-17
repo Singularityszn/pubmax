@@ -17,17 +17,17 @@ import { describe, expect, it } from "vitest";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
-const mobileMapCss = read("components/mobile/mobileMapShell.css");
+const mobileMapCss = read("components/mobile/mobileMapShell.module.css");
 const mobileMapChromeSpec = read("e2e/mobile-map-chrome-fit.spec.ts");
-const arcChipsCss = read("components/map/tonightArcChips.css");
+const arcChipsCss = read("components/map/tonightArcChips.module.css");
 const arcChipsTsx = read("components/map/TonightArcChips.tsx");
-const landingCss = read("components/landing/landing.css");
-const hygieneCss = read("components/map/venueHygiene.css");
-const saveToListCss = read("components/savedpubs/saveToList.css");
-const buzzCss = read("components/map/venueBuzz.css");
-const pintArrivalCss = read("components/pintindex/pintIndexArrival.css");
-const venueListCss = read("components/map/mapVenueList.css");
-const venuePriceSubmitCss = read("components/map/venuePriceSubmit.css");
+const landingCss = read("components/landing/landing.module.css");
+const hygieneCss = read("components/map/venueHygiene.module.css");
+const saveToListCss = read("components/savedpubs/saveToList.module.css");
+const buzzCss = read("components/map/venueBuzz.module.css");
+const pintArrivalCss = read("components/pintindex/pintIndexArrival.module.css");
+const venueListCss = read("components/map/mapVenueList.module.css");
+const venuePriceSubmitCss = read("components/map/venuePriceSubmit.module.css");
 const globalCss = read("app/globals.css");
 const pubMapCanvasCss = read("components/PubMapCanvas.module.css");
 const analyticsConsentCss = read("components/AnalyticsConsent.module.css");
@@ -214,9 +214,9 @@ describe("mobile chrome fit at 390px", () => {
     const topbar = declarationsFor(".mobileMapTopbar");
     const limitedTopbar = declarationsFor(".mobileMapTopbar.mobileMapTopbarLimited");
     const chipRow = declarationsFor(".mobileMapChipRow");
-    const areaRoot = declarationsFor(".citySwitcher--mobile");
-    const areaTrigger = declarationsFor(".citySwitcher--mobile .citySwitcherTrigger");
-    const areaLabel = declarationsFor(".citySwitcher--mobile .citySwitcherLabelFull");
+    const areaRoot = declarationsFor(".citySwitcherMobile");
+    const areaTrigger = declarationsFor(".citySwitcherMobile :global(.citySwitcherTrigger)");
+    const areaLabel = declarationsFor(".citySwitcherMobile :global(.citySwitcherLabelFull)");
     const tonightLabel = declarationsFor(".mobileMapTonightChipLabel");
 
     expect(topbar.get("width"), "topbar fills its bounded shell").toBe("100%");
@@ -260,12 +260,12 @@ describe("mobile chrome fit at 390px", () => {
   });
 
   it("never truncates the venue price caption", () => {
-    const rule = mobileMapCss.match(/\.mobileVenuePeekSummary small\s*{([^}]*)}/)?.[1] ?? "";
+    const rule = mobileMapCss.match(/:global\(\.mobileVenuePeekSummary\) small\s*{([^}]*)}/)?.[1] ?? "";
     expect(rule, ".mobileVenuePeekSummary small rule present").not.toBe("");
     expect(rule).toMatch(/white-space:\s*normal/);
     expect(rule).not.toMatch(/text-overflow:\s*ellipsis/);
     expect(mobileMapCss).toMatch(
-      /\.mobileVenuePeekSummary \.mobileVenuePeekDrop strong\s*{[^}]*white-space:\s*normal/,
+      /:global\(\.mobileVenuePeekSummary \.mobileVenuePeekDrop\) strong\s*{[^}]*white-space:\s*normal/,
     );
   });
 
@@ -294,14 +294,14 @@ describe("mobile chrome fit at 390px", () => {
     // The lane only describes the controls if the controls are laid out from
     // the same two numbers.
     expect(mobileMapCss).toMatch(
-      /\.mobileMapUtilityCorner\s*{[^}]*right:\s*var\(--mobile-map-corner-inset\)/,
+      /:global\(\.mobileMapUtilityCorner\)\s*{[^}]*right:\s*var\(--mobile-map-corner-inset\)/,
     );
     expect(mobileMapCss).toMatch(
-      /\.mobileMapUtilityCorner > button\s*{[^}]*min-width:\s*var\(--mobile-map-corner-btn\)/,
+      /:global\(\.mobileMapUtilityCorner\) > button\s*{[^}]*min-width:\s*var\(--mobile-map-corner-btn\)/,
     );
     // TfL at the top, Near me at the bottom of that one lane.
     expect(mobileMapCss).toMatch(
-      /\.mobileMapUtilityCorner\s*{[^}]*justify-content:\s*space-between/,
+      /:global\(\.mobileMapUtilityCorner\)\s*{[^}]*justify-content:\s*space-between/,
     );
     const fab = mobileMapCss.match(/\.mobileMapLocateFab\s*{([^}]*)}/)?.[1] ?? "";
     expect(fab, ".mobileMapLocateFab rule present").not.toBe("");
@@ -379,7 +379,7 @@ describe("mobile chrome fit at 390px", () => {
     // The answer sits between the heading and the tap (#1357), so on a phone
     // the heading drops a step and the card its outer padding; the rendered
     // fold is measured in e2e/landing-find-my-pint.spec.ts.
-    const phone = landingCss.match(/@media \(max-width: 700px\) {[\s\S]*?\.lpHero \.screenTitle\s*{([^}]*)}/)?.[1] ?? "";
+    const phone = landingCss.match(/@media \(max-width: 700px\) {[\s\S]*?\.lpHero :global\(\.screenTitle\)\s*{([^}]*)}/)?.[1] ?? "";
     expect(phone, "phone override for the hero heading").toMatch(/font-size:\s*clamp\(2\.125rem/);
     expect(landingCss).toMatch(/@media \(max-width: 700px\) {[\s\S]*?\.lpHero \.lpAnswerCard\s*{[^}]*padding:\s*var\(--space-4\)/);
   });
@@ -486,7 +486,7 @@ describe("mobile tap-target floors", () => {
     // bar: measured at 390 with tiles refused, the Retry button's own centre
     // point was owned by BUTTON.mobilePlanActivation, so the control the copy
     // tells a reader to tap was not tappable. It reads that stack member's own
-    // published berth and height (components/nav/mobileNav.css) rather than
+    // published berth and height (components/nav/mobileNav.module.css) rather than
     // restating a number, and e2e/map-blocked-fallback.spec.ts measures the
     // rendered ownership.
     expect(pubMapCanvasCss).toMatch(

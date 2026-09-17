@@ -322,7 +322,7 @@ const UNIFIED_CONTROLS = [
   { route: "/tonight", selector: ".tonightShare, .tonightRetry, .tonightLocationButton" },
   { route: "/near?patch=soho", selector: ".nmnAccept" },
   { route: "/u/you", selector: ".youIdentityActions a" },
-  { route: "/map?sel=venue-nyowgc", selector: ".venueSheetStickyBar button, .venueActionStrip__btn" },
+  { route: "/map?sel=venue-nyowgc", selector: ".venueSheetStickyBar button, [class*='venueActionStripBtn']" },
 ] as const;
 
 for (const surface of UNIFIED_CONTROLS) {

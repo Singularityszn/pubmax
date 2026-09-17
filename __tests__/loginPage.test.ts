@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import loginStyles from "@/components/auth/loginPage.module.css";
+
 const authActions = vi.hoisted(() => ({
   google: vi.fn(async () => ({ error: null })),
   apple: vi.fn(async () => ({ error: null })),
@@ -165,18 +167,18 @@ describe("login page", () => {
   it("stands the sign-in card's shape up while the session resolves", () => {
     authState.current.loading = true;
     const html = renderToStaticMarkup(createElement(LoginPage));
-    expect(html).toContain('class="loginPageSkeleton" aria-busy="true"');
+    expect(html).toContain(`class="${loginStyles.loginPageSkeleton}" aria-busy="true"`);
     // The spoken line stands BESIDE the busy shape, never inside it.
     expect(html).toMatch(
-      /<p class="loginPageSrOnly" role="status">\s*<\/p><div class="loginPageSkeleton"/,
+      new RegExp(`<p class="${loginStyles.loginPageSrOnly}" role="status">\\s*</p><div class="${loginStyles.loginPageSkeleton}"`),
     );
-    expect(html).toContain('class="loginPageSrOnly" role="status"');
+    expect(html).toContain(`class="${loginStyles.loginPageSrOnly}" role="status"`);
     expect(html).not.toContain(">Loading<");
     expect(html).not.toContain("email form");
     expect(html).not.toContain("social");
     // The page as a whole is not busy: aria-busy there withholds updates from
     // everything it wraps, including the line meant to be announced.
-    expect(html).not.toContain('<main class="loginPage" aria-busy');
+    expect(html).not.toContain(`<main class="${loginStyles.loginPage}" aria-busy`);
   });
 
   // A keyless build has no form to arrive: the skeleton would promise a card
@@ -185,18 +187,18 @@ describe("login page", () => {
     authState.current.configured = false;
     authState.current.loading = true;
     const busy = renderToStaticMarkup(createElement(LoginPage));
-    expect(busy).not.toContain("loginPageSkeleton");
+    expect(busy).not.toContain(loginStyles.loginPageSkeleton);
 
     authState.current.loading = false;
     const settled = renderToStaticMarkup(createElement(LoginPage));
-    expect(settled).not.toContain("loginPageSkeleton");
+    expect(settled).not.toContain(loginStyles.loginPageSkeleton);
     expect(settled).toContain("Sign-in is not configured on this build");
     expect(settled).not.toContain("email form");
   });
 
   it("drops the skeleton once the session has answered", () => {
     const html = renderToStaticMarkup(createElement(LoginPage));
-    expect(html).not.toContain("loginPageSkeleton");
+    expect(html).not.toContain(loginStyles.loginPageSkeleton);
     expect(html).toContain("email form");
   });
 
@@ -269,7 +271,7 @@ describe("login page", () => {
 
   it("styles the page as a full dvh composition with 44px+ taps", () => {
     const css = readFileSync(
-      join(process.cwd(), "components/auth/loginPage.css"),
+      join(process.cwd(), "components/auth/loginPage.module.css"),
       "utf8",
     );
     expect(css).toMatch(/min-height:\s*100dvh/);
@@ -283,7 +285,7 @@ describe("login page", () => {
   it("gives the email link the primary treatment and the second door a secondary shape", () => {
     const authCss = readFileSync(join(process.cwd(), "app/auth/Auth.module.css"), "utf8");
     const loginCss = readFileSync(
-      join(process.cwd(), "components/auth/loginPage.css"),
+      join(process.cwd(), "components/auth/loginPage.module.css"),
       "utf8",
     );
 
@@ -360,7 +362,7 @@ describe("login page", () => {
     expect(ratio(onPhoto!, brassAccessible!)).toBeGreaterThanOrEqual(4.5);
 
     // The /login head's own primary is painted by the Screen primitive
-    // (components/ui/screen.css), so the coral hover mix under test is the
+    // (components/ui/screen.module.css), so the coral hover mix under test is the
     // shared email button's alone.
     const hoverRule =
       /color-mix\(in srgb, var\(--brass-accessible\) (\d+)%, var\(--([a-z-]+)\) (\d+)%\)/;

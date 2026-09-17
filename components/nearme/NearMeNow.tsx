@@ -60,7 +60,7 @@ import {
 import NearPriceEvidenceMission from "@/components/nearme/NearPriceEvidenceMission";
 import Screen from "@/components/ui/screen";
 
-import "./nearMeNow.css";
+import styles from "./nearMeNow.module.css";
 
 type LocateState = "idle" | "requesting" | "ready" | "denied" | "unavailable";
 
@@ -124,7 +124,7 @@ function AnswerHeadline({
   titledByHost: boolean;
 }) {
   return titledByHost ? (
-    <p className="nmnHeadline">{text}</p>
+    <p className={styles.nmnHeadline}>{text}</p>
   ) : (
     <h2>{text}</h2>
   );
@@ -175,7 +175,7 @@ function AnswerCards({
   return (
     <>
       {accept && receipt && cards.length > 0 ? (
-        <p className="nmnAcceptReceipt">{receipt}</p>
+        <p className={styles.nmnAcceptReceipt}>{receipt}</p>
       ) : null}
       {accept && cards.length > 0 ? (
         <NearPriceEvidenceMission cards={cards} enabled />
@@ -634,7 +634,7 @@ export default function NearMeNow({
   const patchLimited = patchCoverageIsLimited(patch, patchProfile);
 
   return (
-    <section className="nmn" aria-label="Find nearby cheap pints">
+    <section className={`nmn ${styles.nmn}`} aria-label="Find nearby cheap pints">
       {state === "idle" ? (
         <NearMeIdleIntro
           onLocate={locate}
@@ -716,17 +716,17 @@ function NearMeIdleIntro({
   titledByHost: boolean;
 }) {
   const hint = (
-    <p className="nmnHint">We only use your location to rank pubs nearby. Nothing is stored.</p>
+    <p className={styles.nmnHint}>We only use your location to rank pubs nearby. Nothing is stored.</p>
   );
   const patches = (
-    <div className="nmnQuickPatches">
-      <p className="nmnQuickPatchesLabel">Or pick a patch</p>
-      <ul className="nmnAreaChips" aria-label="Pick an area">
+    <div className={styles.nmnQuickPatches}>
+      <p className={styles.nmnQuickPatchesLabel}>Or pick a patch</p>
+      <ul className={styles.nmnAreaChips} aria-label="Pick an area">
         {NIGHT_PATCHES.map((entry) => (
           <li key={entry.id}>
             <button
               type="button"
-              className="nmnBoroughChip"
+              className={styles.nmnBoroughChip}
               onClick={() => onPickPatch(entry)}
             >
               {entry.label}
@@ -741,11 +741,11 @@ function NearMeIdleIntro({
   // the intro keeps its own compact head and button.
   if (titledByHost) {
     return (
-      <div className="nmnIntro">
-        <h1 className="nmnLede">{nearIntroLede()}</h1>
+      <div className={styles.nmnIntro}>
+        <h1 className={styles.nmnLede}>{nearIntroLede()}</h1>
         <button
           type="button"
-          className="nmnLocate"
+          className={styles.nmnLocate}
           data-primary-action=""
           onClick={onLocate}
         >
@@ -763,7 +763,7 @@ function NearMeIdleIntro({
   return (
     <Screen
       as="div"
-      className="nmnScreen"
+      className={styles.nmnScreen}
       kicker="Near you"
       title={nearIntroLede()}
       titleId="near-title"
@@ -781,8 +781,8 @@ function NearMeIdleIntro({
 
 function NearMeRequestingStatus({ patch }: { patch: NightPatch | null }) {
   return (
-    <div className="nmnStatus" role="status">
-      <span className="nmnSpinner" aria-hidden="true" />
+    <div className={styles.nmnStatus} role="status">
+      <span className={styles.nmnSpinner} aria-hidden="true" />
       {patch
         ? `Checking listed pint prices around ${patch.label}…`
         : "Checking listed pint prices near you…"}
@@ -806,9 +806,9 @@ export function NearMeReadUnavailable({
   onRetry: () => void;
 }) {
   return (
-    <div className="nmnStatus nmnStatusFail" role="status">
+    <div className={`${styles.nmnStatus} ${styles.nmnStatusFail}`} role="status">
       <p>We could not read the pub list for {areaLabel} just now.</p>
-      <button type="button" className="nmnRetry nmnRetryGhost" onClick={onRetry}>
+      <button type="button" className={`${styles.nmnRetry} ${styles.nmnRetryGhost}`} onClick={onRetry}>
         <RotateCw size={15} aria-hidden="true" /> Try again
       </button>
     </div>
@@ -817,8 +817,8 @@ export function NearMeReadUnavailable({
 
 function NearMeFallbackStatus() {
   return (
-    <div className="nmnStatus" role="status">
-      <span className="nmnSpinner" aria-hidden="true" />
+    <div className={styles.nmnStatus} role="status">
+      <span className={styles.nmnSpinner} aria-hidden="true" />
       Checking listed pint prices in town…
     </div>
   );
@@ -834,14 +834,14 @@ function NearMeOutsideCoverage({
   onLocate: () => void;
 }) {
   return (
-    <div className="nmnOutside">
+    <div className={styles.nmnOutside}>
       <UnsupportedAreaPreview
         nearest={outsideCoverage}
         source="near-empty"
         onPickPatch={onPickPatch}
       />
-      <footer className="nmnFoot nmnFootArea">
-        <button type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
+      <footer className={`${styles.nmnFoot} ${styles.nmnFootArea}`}>
+        <button type="button" className={`${styles.nmnRetry} ${styles.nmnRetryGhost}`} onClick={onLocate}>
           <LocateFixed size={15} aria-hidden="true" /> Try my location again
         </button>
       </footer>
@@ -876,15 +876,15 @@ function NearMeLocatedAnswer({
 }) {
   return (
     <>
-      <header className="nmnHead">
+      <header className={styles.nmnHead}>
         <AnswerHeadline
           text={nearMeAnswerHeadline({ scope })}
           titledByHost={titledByHost}
         />
         {scope === "widened" ? (
-          <p className="nmnWiden">Not many priced pubs on your doorstep. These are the nearest, a bit further out.</p>
+          <p className={styles.nmnWiden}>Not many priced pubs on your doorstep. These are the nearest, a bit further out.</p>
         ) : (
-          <p className="nmnSub">Within about a 12-minute walk.</p>
+          <p className={styles.nmnSub}>Within about a 12-minute walk.</p>
         )}
       </header>
       <AnswerCards
@@ -895,12 +895,12 @@ function NearMeLocatedAnswer({
         receipt={acceptReceipt}
         priceTrust={priceTrust}
       />
-      {acceptanceError ? <p className="nmnAcceptError" role="alert">{acceptanceError}</p> : null}
-      <footer className="nmnFoot">
-        <a className="nmnRetry" href={resolvedMapHref}>
+      {acceptanceError ? <p className={styles.nmnAcceptError} role="alert">{acceptanceError}</p> : null}
+      <footer className={styles.nmnFoot}>
+        <a className={styles.nmnRetry} href={resolvedMapHref}>
           <MapPin size={16} aria-hidden="true" /> Open the full map
         </a>
-        <button type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
+        <button type="button" className={`${styles.nmnRetry} ${styles.nmnRetryGhost}`} onClick={onLocate}>
           <RotateCw size={15} aria-hidden="true" /> Update location
         </button>
       </footer>
@@ -957,7 +957,7 @@ function NearMeAreaAnswer({
 }) {
   return (
     <>
-      <header className="nmnHead">
+      <header className={styles.nmnHead}>
         <AnswerHeadline
           text={nearMeAnswerHeadline({
             scope,
@@ -966,8 +966,8 @@ function NearMeAreaAnswer({
           })}
           titledByHost={titledByHost}
         />
-        {patchMessage ? <p className="nmnSub">{patchMessage}</p> : null}
-        {patchEvidenceNote ? <p className="nmnPatchTier">{patchEvidenceNote}</p> : null}
+        {patchMessage ? <p className={styles.nmnSub}>{patchMessage}</p> : null}
+        {patchEvidenceNote ? <p className={styles.nmnPatchTier}>{patchEvidenceNote}</p> : null}
       </header>
       <AnswerCards
         cards={cards}
@@ -977,11 +977,11 @@ function NearMeAreaAnswer({
         receipt={acceptReceipt}
         priceTrust={priceTrust}
       />
-      {acceptanceError ? <p className="nmnAcceptError" role="alert">{acceptanceError}</p> : null}
+      {acceptanceError ? <p className={styles.nmnAcceptError} role="alert">{acceptanceError}</p> : null}
       {cards.length === 0 && slimRead === "unavailable" ? (
         <NearMeReadUnavailable areaLabel={areaLabel} onRetry={onRetrySlim} />
       ) : cards.length === 0 ? (
-        <div className="nmnOutside">
+        <div className={styles.nmnOutside}>
           <UnsupportedAreaPreview
             area={areaLabel}
             source="area-picker"
@@ -991,7 +991,7 @@ function NearMeAreaAnswer({
       ) : patchLimited ? (
         // Covered but thin: pints shown above, now capture demand for MORE
         // here (the #474 seam wired to LIMITED patches, not just unsupported).
-        <div className="nmnOutside">
+        <div className={styles.nmnOutside}>
           <UnsupportedAreaPreview
             area={areaLabel}
             variant="limited"
@@ -1001,14 +1001,14 @@ function NearMeAreaAnswer({
           />
         </div>
       ) : null}
-      <footer className="nmnFoot nmnFootArea">
+      <footer className={`${styles.nmnFoot} ${styles.nmnFootArea}`}>
         <AreaPicker
           activeLabel={areaLabel}
           loadSlim={loadSlim}
           onPickPatch={onPickPatch}
           onPickBorough={onPickBorough}
         />
-        <button type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
+        <button type="button" className={`${styles.nmnRetry} ${styles.nmnRetryGhost}`} onClick={onLocate}>
           <LocateFixed size={15} aria-hidden="true" /> Try my location again
         </button>
       </footer>
@@ -1048,26 +1048,26 @@ function NearMeCardBody({
   const distance = formatNearDistance(card.distanceKm);
   return (
     <>
-      <span className="nmnCardMain">
-        <span className="nmnCardName">{card.name}</span>
-        <span className="nmnCardMeta">
-          <span className="nmnCardBorough">{card.borough}</span>
+      <span className={styles.nmnCardMain}>
+        <span className={styles.nmnCardName}>{card.name}</span>
+        <span className={styles.nmnCardMeta}>
+          <span className={styles.nmnCardBorough}>{card.borough}</span>
           {card.walkMinutes != null ? (
-            <span className="nmnCardWalk">
+            <span className={styles.nmnCardWalk}>
               <Footprints size={13} aria-hidden="true" />
               {card.walkMinutes} min
               {distance ? ` · ${distance}` : null}
             </span>
           ) : null}
         </span>
-        {trustLabel ? <span className="nmnCardTrust">{trustLabel}</span> : null}
+        {trustLabel ? <span className={styles.nmnCardTrust}>{trustLabel}</span> : null}
       </span>
-      <span className="nmnCardPrice">
+      <span className={styles.nmnCardPrice}>
         {/* The figure is a plaque wearing its price BAND (lib/priceBand.ts):
             red expensive, yellow average, green cheap. It used to be green
             text on every row, which told a reader every pint here was cheap. */}
         <PriceBadge
-          className="nmnCardPriceValue"
+          className={styles.nmnCardPriceValue}
           band={priceBand(card.cheapestPrice, priceBandAreaForVenue(card.id))}
         >
           {formatPrice(card.cheapestPrice)}
@@ -1108,17 +1108,17 @@ export function NearMeCardList({
       : null;
   return (
     <>
-    <p className="nmnListCaption">{NEAR_ME_PRICE_CAPTION}</p>
-    <ul className="nmnList">
+    <p className={styles.nmnListCaption}>{NEAR_ME_PRICE_CAPTION}</p>
+    <ul className={styles.nmnList}>
       {cards.map((card) =>
         onAccept ? (
-          <li key={card.id} className="nmnCardRow">
-            <button type="button" className="nmnCard nmnCardBrowse" onClick={() => onOpen(card.id)}>
+          <li key={card.id} className={styles.nmnCardRow}>
+            <button type="button" className={`${styles.nmnCard} ${styles.nmnCardBrowse}`} onClick={() => onOpen(card.id)}>
               <NearMeCardBody card={card} trustLabel={trustLabelForCard(card, priceTrust)} />
             </button>
             <button
               type="button"
-              className="nmnAccept"
+              className={styles.nmnAccept}
               aria-label={`Keep ${card.name} for tonight`}
               onClick={() => onAccept(card.id)}
             >
@@ -1127,14 +1127,14 @@ export function NearMeCardList({
           </li>
         ) : (
           <li key={card.id}>
-            <button type="button" className="nmnCard" onClick={() => onOpen(card.id)}>
+            <button type="button" className={styles.nmnCard} onClick={() => onOpen(card.id)}>
               <NearMeCardBody card={card} trustLabel={trustLabelForCard(card, priceTrust)} />
             </button>
           </li>
         ),
       )}
     </ul>
-    {collectedLabel ? <p className="nmnPriceCollected">{collectedLabel}</p> : null}
+    {collectedLabel ? <p className={styles.nmnPriceCollected}>{collectedLabel}</p> : null}
     </>
   );
 }
@@ -1201,18 +1201,18 @@ function AreaPicker({
   };
 
   return (
-    <div className="nmnArea">
+    <div className={styles.nmnArea}>
       <button
         type="button"
-        className="nmnRetry"
+        className={styles.nmnRetry}
         aria-expanded={open}
         onClick={() => (open ? close() : setOpen(true))}
       >
         <MapPin size={15} aria-hidden="true" /> Change area
-        <ChevronDown size={14} aria-hidden="true" className={open ? "nmnAreaCaretOpen" : undefined} />
+        <ChevronDown size={14} aria-hidden="true" className={open ? styles.nmnAreaCaretOpen : undefined} />
       </button>
-      <div className={`nmnAreaPanel${open ? " nmnAreaPanelOpen" : ""}`} aria-hidden={!open}>
-        <ul className="nmnAreaChips" aria-label="Pick an area">
+      <div className={`${styles.nmnAreaPanel}${open ? ` ${styles.nmnAreaPanelOpen}` : ""}`} aria-hidden={!open}>
+        <ul className={styles.nmnAreaChips} aria-label="Pick an area">
           {NIGHT_PATCHES.map((entry) => {
             const profile = patchProfiles?.[entry.id];
             const lightly = profile ? patchIsLimited(profile) : false;
@@ -1220,7 +1220,7 @@ function AreaPicker({
               <li key={entry.id}>
                 <button
                   type="button"
-                  className="nmnBoroughChip"
+                  className={styles.nmnBoroughChip}
                   data-active={entry.label === activeLabel || undefined}
                   data-lightly={lightly || undefined}
                   tabIndex={open ? undefined : -1}
@@ -1231,19 +1231,19 @@ function AreaPicker({
                   }}
                 >
                   {entry.label}
-                  {lightly ? <span className="nmnChipTier">Lightly covered</span> : null}
+                  {lightly ? <span className={styles.nmnChipTier}>Lightly covered</span> : null}
                 </button>
               </li>
             );
           })}
         </ul>
         {showBoroughs ? (
-          <ul className="nmnAreaChips nmnAreaBoroughs" aria-label="All London boroughs">
+          <ul className={`${styles.nmnAreaChips} ${styles.nmnAreaBoroughs}`} aria-label="All London boroughs">
             {boroughs.map((name) => (
               <li key={name}>
                 <button
                   type="button"
-                  className="nmnBoroughChip"
+                  className={styles.nmnBoroughChip}
                   data-active={name === activeLabel || undefined}
                   tabIndex={open ? undefined : -1}
                   onClick={() => {
@@ -1259,7 +1259,7 @@ function AreaPicker({
         ) : (
           <button
             type="button"
-            className="nmnAreaMore"
+            className={styles.nmnAreaMore}
             tabIndex={open ? undefined : -1}
             onClick={() => setShowBoroughs(true)}
           >

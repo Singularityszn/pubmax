@@ -15,6 +15,7 @@ import {
   type CommunityVenueSignalKey,
   type CommunityVenueSignalValue,
 } from "@/lib/communityVenueSignals";
+import styles from "./venuePriceSubmit.module.css";
 
 type AuthorQuestion =
   | "character"
@@ -215,29 +216,29 @@ export default function VenueCommunitySignals({
   }
 
   return (
-    <details className="venueCommunitySignals">
-      <summary className="vpsigSummary">
-        <span className="vpsigSummaryTitle">
+    <details className={styles.venueCommunitySignals}>
+      <summary className={styles.vpsigSummary}>
+        <span className={styles.vpsigSummaryTitle}>
           <MessagesSquare size={15} aria-hidden="true" />
           What drinkers noticed
         </span>
-        <span className="vpsigAccessSummary">
+        <span className={styles.vpsigAccessSummary}>
           {accessSummary(readStatus, signals, observationNow)}
         </span>
         <ChevronDown
-          className="vpsigSummaryChevron"
+          className={styles.vpsigSummaryChevron}
           size={16}
           aria-hidden="true"
         />
       </summary>
 
-      <div className="vpsigBody">
-        <p className="vpsigIntro">
+      <div className={styles.vpsigBody}>
+        <p className={styles.vpsigIntro}>
           These are what drinkers said they saw, not venue facts.
         </p>
-        <dl className="vpsigReadout">
+        <dl className={styles.vpsigReadout}>
           {readerRows.map(({ key, text }) => (
-            <div className="vpsigReadoutRow" key={key}>
+            <div className={styles.vpsigReadoutRow} key={key}>
               <dt>{COMMUNITY_VENUE_SIGNAL_LABELS[key]}</dt>
               <dd>
                 <span>{text.primary}</span>
@@ -248,14 +249,14 @@ export default function VenueCommunitySignals({
         </dl>
 
         {readOnly ? null : canSubmit ? (
-          <form className="vpsigForm" onSubmit={(event) => void submit(event)}>
-            <p className="vpsigFormTitle">Add what you noticed</p>
+          <form className={styles.vpsigForm} onSubmit={(event) => void submit(event)}>
+            <p className={styles.vpsigFormTitle}>Add what you noticed</p>
             <fieldset
-              className="vpsigQuestions"
+              className={styles.vpsigQuestions}
               aria-label="What did you notice?"
             >
               {AUTHOR_QUESTIONS.map((item) => (
-                <label className="vpsigQuestion" key={item.value}>
+                <label className={styles.vpsigQuestion} key={item.value}>
                   <input
                     type="radio"
                     name={`signal-question-${venueId}`}
@@ -269,13 +270,13 @@ export default function VenueCommunitySignals({
             </fieldset>
 
             <fieldset
-              className="vpsigAccessTargets"
+              className={styles.vpsigAccessTargets}
               aria-label="Which access did you check?"
               hidden={question !== "access"}
             >
               {(["step-free-venue", "step-free-toilets"] as const).map(
                 (key) => (
-                  <label className="vpsigQuestion" key={key}>
+                  <label className={styles.vpsigQuestion} key={key}>
                     <input
                       type="radio"
                       name={`signal-access-${venueId}`}
@@ -292,11 +293,11 @@ export default function VenueCommunitySignals({
             </fieldset>
 
             <fieldset
-              className="vpsigOptions"
+              className={styles.vpsigOptions}
               aria-label={`What did you notice about ${COMMUNITY_VENUE_SIGNAL_LABELS[signalKey].toLowerCase()} at ${venueName}?`}
             >
               {options.map((option) => (
-                <label className="vpsigOption" key={option.value}>
+                <label className={styles.vpsigOption} key={option.value}>
                   <input
                     type="radio"
                     name={`signal-value-${venueId}`}
@@ -314,27 +315,27 @@ export default function VenueCommunitySignals({
             </fieldset>
 
             {question === "character" ? (
-              <p className="vpsigCharacterNote">
+              <p className={styles.vpsigCharacterNote}>
                 Neither character answer is a score. It is your judgement.
               </p>
             ) : null}
 
-            <button className="vpsigSubmit" type="submit" disabled={submitting}>
+            <button className={styles.vpsigSubmit} type="submit" disabled={submitting}>
               {submitting ? "Logging…" : "Log what you saw"}
             </button>
             {error ? (
-              <p className="vpsigError" role="alert">
+              <p className={styles.vpsigError} role="alert">
                 {error}
               </p>
             ) : null}
             {saved ? (
-              <p className="vpsigSaved" role="status">
+              <p className={styles.vpsigSaved} role="status">
                 Logged as your report. A second drinker can confirm it.
               </p>
             ) : null}
           </form>
         ) : (
-          <p className="vpsigSignIn">Sign in to add what you noticed.</p>
+          <p className={styles.vpsigSignIn}>Sign in to add what you noticed.</p>
         )}
         {readOnly ? null : contributionGateDialog}
       </div>

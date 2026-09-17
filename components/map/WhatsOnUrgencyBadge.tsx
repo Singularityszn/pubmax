@@ -1,7 +1,7 @@
 import { listingUrgency, type ListingUrgency } from "@/lib/whatsOnBadges";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
-import "./whatsOnUrgencyBadge.css";
+import styles from "./whatsOnUrgencyBadge.module.css";
 
 export function WhatsOnUrgencyBadge({
   row,
@@ -13,7 +13,7 @@ export function WhatsOnUrgencyBadge({
   const urgency: ListingUrgency | null = listingUrgency(row, now);
   if (!urgency) return null;
   return (
-    <span className="whatsOnUrgencyBadge" data-tier={urgency.tier}>
+    <span className={styles.whatsOnUrgencyBadge} data-tier={urgency.tier}>
       {urgency.label}
     </span>
   );

@@ -11,6 +11,7 @@ import { formatPrice, type Venue } from "@/lib/venues";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
 import type { LastPintDecision } from "@/lib/tfl";
 import type { DropWithPhotos, PintDropsState } from "@/components/map/usePintDrops";
+import sheetStyles from "../venueSheet.module.css";
 
 /**
  * The measure a row NAMES, or "" when it is the ordinary pint.
@@ -132,7 +133,7 @@ export default function PintDropsList({
                   .filter(Boolean)
                   .join(" · ") || "Visit report"}
                 {trainBadge ? (
-                  <span className="trainBadge" data-tone={trainBadge.tone}>
+                  <span className={sheetStyles.trainBadge} data-tone={trainBadge.tone}>
                     {trainBadge.label}
                   </span>
                 ) : null}

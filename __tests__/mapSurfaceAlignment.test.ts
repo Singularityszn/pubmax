@@ -6,10 +6,10 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) =>
   readFileSync(join(process.cwd(), path), "utf8");
 
-const toolbarCss = read("components/map/mapToolbar.css");
-const siteNavCss = read("components/nav/siteNav.css");
-const mobileCss = read("components/mobile/mobileMapShell.css");
-const tonightArcCss = read("components/map/tonightArcChips.css");
+const toolbarCss = read("components/map/mapToolbar.module.css");
+const siteNavCss = read("components/nav/siteNav.module.css");
+const mobileCss = read("components/mobile/mobileMapShell.module.css");
+const tonightArcCss = read("components/map/tonightArcChips.module.css");
 
 describe("map surface alignment", () => {
   it("gives desktop navigation and toolbar one centred boundary", () => {
@@ -17,17 +17,17 @@ describe("map surface alignment", () => {
       /--desktop-map-surface-width:\s*min\(1240px,\s*calc\(100vw - 32px\)\)/,
     );
     expect(toolbarCss).toMatch(
-      /\.mapToolbar\s*{[\s\S]*?width:\s*var\(--desktop-map-surface-width\)/,
+      /:global\(\.mapToolbar\)\s*{[\s\S]*?width:\s*var\(--desktop-map-surface-width\)/,
     );
     expect(siteNavCss).toMatch(
-      /\.siteNavBarFloating\s*{[\s\S]*?width:\s*var\(--desktop-map-surface-width\)/,
+      /:global\(\.siteNavBarFloating\)\s*{[\s\S]*?width:\s*var\(--desktop-map-surface-width\)/,
     );
     // The venue-type chips no longer claim a surface of their own: they are
     // content inside the toolbar's Filters popover, which is anchored to its
     // own button rather than to the map's centred boundary (PlanAstra item 9).
     expect(tonightArcCss).not.toMatch(/--desktop-map-surface-width/);
     expect(
-      read("components/map/mapVenueKindFilter.css"),
+      read("components/map/mapVenueKindFilter.module.css"),
       "the panel is anchored to its button",
     ).toMatch(/\.mapVenueKindFilterPanel\s*{[\s\S]*?position:\s*absolute/);
   });
@@ -39,7 +39,7 @@ describe("map surface alignment", () => {
       /\.mobileMapChrome\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left\)[\s\S]*?right:\s*var\(--mobile-map-stack-right\)/,
     );
     expect(mobileCss).toMatch(
-      /\.mobilePlanActivation\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left\)[\s\S]*?right:\s*var\(--mobile-map-stack-right\)/,
+      /:global\(\.mobilePlanActivation\)\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left\)[\s\S]*?right:\s*var\(--mobile-map-stack-right\)/,
     );
     expect(mobileCss).toMatch(
       /\.mobileMapNearMeAlert\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left\)[\s\S]*?right:\s*var\(--mobile-map-stack-right\)/,
@@ -63,7 +63,7 @@ describe("map surface alignment", () => {
 
   it("does not leak mobile-only controls into desktop layout", () => {
     expect(mobileCss).toMatch(
-      /@media \(min-width: 641px\)\s*{[\s\S]*?\.mobileMapUtilityCorner,[\s\S]*?\.mobilePlanActivation[\s\S]*?display:\s*none/,
+      /@media \(min-width: 641px\)\s*{[\s\S]*?:global\(\.mobileMapUtilityCorner\),[\s\S]*?:global\(\.mobilePlanActivation\)[\s\S]*?display:\s*none/,
     );
   });
 });

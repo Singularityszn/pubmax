@@ -65,20 +65,20 @@ describe("the desktop map area chip", () => {
   });
 
   it("offers the city's three-letter code only for the city itself", () => {
-    // citySwitcher.css swaps the full label for this code between 641 and
+    // citySwitcher.module.css swaps the full label for this code between 641 and
     // 900px, which is a desktop width. PubMap hands a label down on EVERY
     // render and it falls back to the city's own name, so this is the shape the
     // plain city really arrives in - not an absent prop.
     const html = renderToolbar({ cityLabel: getCity("london").displayName });
     expect(html).toContain("citySwitcherLabelShort");
     expect(html).toContain(">LON<");
-    expect(html).not.toContain("citySwitcher--named");
+    expect(html).not.toContain("citySwitcherNamed");
   });
 
   it("keeps that code when no label is supplied at all", () => {
     const html = renderToolbar();
     expect(html).toContain("citySwitcherLabelShort");
-    expect(html).not.toContain("citySwitcher--named");
+    expect(html).not.toContain("citySwitcherNamed");
   });
 
   it("names the remembered area once one is chosen", () => {
@@ -98,7 +98,7 @@ describe("the desktop map area chip", () => {
     expect(html).not.toContain(">LON<");
     // And the chip marks itself as naming an area, which is what lets the
     // stylesheet keep the full label at that width.
-    expect(html).toContain("citySwitcher--named");
+    expect(html).toContain("citySwitcherNamed");
   });
 
   it("carries a Near me answer's own label the same way", () => {
@@ -111,7 +111,7 @@ describe("the desktop map area chip", () => {
     const html = renderToolbar({ cityLabel: "   " });
     expect(html).toContain(`Map area: ${getCity("london").displayName}. Change city`);
     expect(html).toContain("citySwitcherLabelShort");
-    expect(html).not.toContain("citySwitcher--named");
+    expect(html).not.toContain("citySwitcherNamed");
   });
 
   it("treats the city's own name as no area either, however it arrives", () => {
@@ -120,6 +120,6 @@ describe("the desktop map area chip", () => {
     // render and the chip widened in a row built to keep it at 5rem.
     const html = renderToolbar({ cityLabel: `  ${getCity("london").displayName}  ` });
     expect(html).toContain("citySwitcherLabelShort");
-    expect(html).not.toContain("citySwitcher--named");
+    expect(html).not.toContain("citySwitcherNamed");
   });
 });

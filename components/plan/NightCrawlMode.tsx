@@ -64,7 +64,7 @@ import {
   readPlanCapabilitySnapshot,
   restorePlanCapability,
 } from "@/lib/planSessionCapability";
-import "./nightCrawl.css";
+import styles from "./nightCrawl.module.css";
 
 const TFL_JOURNEY_PLANNER = "https://tfl.gov.uk/plan-a-journey/";
 
@@ -425,12 +425,12 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
 
   if (!showSurface) {
     return (
-      <div className="nightCrawl__enter" role="region" aria-label="Night mode">
-        <div className="nightCrawl__enterText">
-          <p className="nightCrawl__enterKicker">It&rsquo;s on tonight</p>
-          <p className="nightCrawl__enterLede">Big buttons, one thumb. Track the crawl and check in as you go.</p>
+      <div className={styles.nightCrawlEnter} role="region" aria-label="Night mode">
+        <div className={styles.nightCrawlEnterText}>
+          <p className={styles.nightCrawlEnterKicker}>It&rsquo;s on tonight</p>
+          <p className={styles.nightCrawlEnterLede}>Big buttons, one thumb. Track the crawl and check in as you go.</p>
         </div>
-        <button type="button" className="nightCrawl__enterBtn" onClick={engage}>
+        <button type="button" className={styles.nightCrawlEnterBtn} onClick={engage}>
           Night mode
         </button>
       </div>
@@ -444,80 +444,80 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
   };
 
   return (
-    <section className="nightCrawl" aria-label="Night mode" role="dialog" aria-modal="false">
-      <div className="nightCrawl__head">
-        <div className="nightCrawl__headText">
-          <p className="nightCrawl__kicker">{plan.plan.title}</p>
-          <p className="nightCrawl__count">
+    <section className={`nightCrawl ${styles.nightCrawl}`} aria-label="Night mode" role="dialog" aria-modal="false">
+      <div className={styles.nightCrawlHead}>
+        <div className={styles.nightCrawlHeadText}>
+          <p className={styles.nightCrawlKicker}>{plan.plan.title}</p>
+          <p className={styles.nightCrawlCount}>
             {stops.length > 0 ? `Stop ${heroPosition + 1} of ${stops.length}` : "No stops yet"}
           </p>
           {stops.length > 0 ? (
-            <div className="nightCrawl__progress" aria-hidden="true">
+            <div className={styles.nightCrawlProgress} aria-hidden="true">
               {stack.map((view) => (
                 <span
                   key={`pip-${view.stop.venueId}-${view.index}`}
-                  className="nightCrawl__pip"
+                  className={styles.nightCrawlPip}
                   data-state={view.slot === "done" ? "done" : view.slot === "current" ? "now" : "todo"}
                 />
               ))}
             </div>
           ) : null}
         </div>
-        <button type="button" className="nightCrawl__exit" onClick={collapse}>
+        <button type="button" className={styles.nightCrawlExit} onClick={collapse}>
           View full plan
         </button>
       </div>
 
-      <div className="nightCrawl__stack">
+      <div className={styles.nightCrawlStack}>
         {stack.map((view) => {
           if (view.slot === "done") {
             const disposition = view.disposition ?? "none";
             const mark = disposition === "arrived" ? "✓" : disposition === "skipped" ? "→" : String(view.index + 1);
             return (
-              <div key={`done-${view.stop.venueId}`} className="nightCrawl__done" data-disposition={disposition}>
-                <span className="nightCrawl__mark" aria-hidden="true">{mark}</span>
-                <div className="nightCrawl__doneBody">
-                  <div className="nightCrawl__doneName">{view.stop.venueName}</div>
-                  <div className="nightCrawl__doneMeta">{doneMeta[disposition]}</div>
+              <div key={`done-${view.stop.venueId}`} className={styles.nightCrawlDone} data-disposition={disposition}>
+                <span className={styles.nightCrawlMark} aria-hidden="true">{mark}</span>
+                <div className={styles.nightCrawlDoneBody}>
+                  <div className={styles.nightCrawlDoneName}>{view.stop.venueName}</div>
+                  <div className={styles.nightCrawlDoneMeta}>{doneMeta[disposition]}</div>
                 </div>
-                <span className="nightCrawl__idx">{String(view.index + 1).padStart(2, "0")}</span>
+                <span className={styles.nightCrawlIdx}>{String(view.index + 1).padStart(2, "0")}</span>
               </div>
             );
           }
 
           if (view.slot === "current") {
             return (
-              <div key={`hero-${view.stop.venueId}`} className="nightCrawl__hero">
-                <div className="nightCrawl__glance" aria-label="Tonight at a glance">
-                  <p className="nightCrawl__glanceNow">{glance.currentLine}</p>
-                  {glance.nextLine ? <p className="nightCrawl__glanceNext">{glance.nextLine}</p> : null}
-                  <a className="nightCrawl__glanceHome" href={TFL_JOURNEY_PLANNER} target="_blank" rel="noreferrer">
+              <div key={`hero-${view.stop.venueId}`} className={styles.nightCrawlHero}>
+                <div className={styles.nightCrawlGlance} aria-label="Tonight at a glance">
+                  <p className={styles.nightCrawlGlanceNow}>{glance.currentLine}</p>
+                  {glance.nextLine ? <p className={styles.nightCrawlGlanceNext}>{glance.nextLine}</p> : null}
+                  <a className={styles.nightCrawlGlanceHome} href={TFL_JOURNEY_PLANNER} target="_blank" rel="noreferrer">
                     {glance.homeLine}
                   </a>
                 </div>
-                <p className="nightCrawl__eyebrow">{finalStop ? "Last stop · head here" : "Next up · head here"}</p>
-                <h2 className="nightCrawl__heroName">{view.stop.venueName}</h2>
+                <p className={styles.nightCrawlEyebrow}>{finalStop ? "Last stop · head here" : "Next up · head here"}</p>
+                <h2 className={styles.nightCrawlHeroName}>{view.stop.venueName}</h2>
 
                 {crewChips.length > 0 ? (
-                  <div className="nightCrawl__crew">
-                    <p className="nightCrawl__crewLabel">Who is where</p>
-                    <div className="nightCrawl__crewRow">
+                  <div className={styles.nightCrawlCrew}>
+                    <p className={styles.nightCrawlCrewLabel}>Who is where</p>
+                    <div className={styles.nightCrawlCrewRow}>
                       {crewChips.map(({ member, chip }) => (
-                        <span key={member.id} className="nightCrawl__who" data-tone={chip.tone}>
-                          <span className="nightCrawl__ava" aria-hidden="true">{initial(member.name)}</span>
-                          {member.name} <span className="nightCrawl__whoState">{chip.label}</span>
+                        <span key={member.id} className={styles.nightCrawlWho} data-tone={chip.tone}>
+                          <span className={styles.nightCrawlAva} aria-hidden="true">{initial(member.name)}</span>
+                          {member.name} <span className={styles.nightCrawlWhoState}>{chip.label}</span>
                         </span>
                       ))}
                     </div>
                   </div>
                 ) : null}
 
-                <div className="nightCrawl__spacer" />
+                <div className={styles.nightCrawlSpacer} />
 
-                <div className="nightCrawl__actions">
+                <div className={styles.nightCrawlActions}>
                   <button
                     type="button"
-                    className="nightCrawl__arrive"
+                    className={styles.nightCrawlArrive}
                     onClick={() => void runAction("arrived")}
                     disabled={busy !== null}
                   >
@@ -526,7 +526,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
                   </button>
                   <button
                     type="button"
-                    className="nightCrawl__skip"
+                    className={styles.nightCrawlSkip}
                     onClick={() => void runAction("skipped")}
                     disabled={busy !== null}
                   >
@@ -536,7 +536,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
                 </div>
 
                 {note ? (
-                  <p className="nightCrawl__note" data-tone={note.tone} role="status" aria-live="polite">
+                  <p className={styles.nightCrawlNote} data-tone={note.tone} role="status" aria-live="polite">
                     {note.text}
                   </p>
                 ) : null}
@@ -545,19 +545,19 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
           }
 
           return (
-            <div key={`up-${view.stop.venueId}`} className="nightCrawl__upcoming">
-              <span className="nightCrawl__mark" aria-hidden="true">{view.index + 1}</span>
-              <div className="nightCrawl__upcomingName">{view.stop.venueName}</div>
+            <div key={`up-${view.stop.venueId}`} className={styles.nightCrawlUpcoming}>
+              <span className={styles.nightCrawlMark} aria-hidden="true">{view.index + 1}</span>
+              <div className={styles.nightCrawlUpcomingName}>{view.stop.venueName}</div>
             </div>
           );
         })}
 
         {stops.length === 0 ? (
-          <p className="nightCrawl__final">This plan has no stops yet. Open the full plan to build the route.</p>
+          <p className={styles.nightCrawlFinal}>This plan has no stops yet. Open the full plan to build the route.</p>
         ) : null}
       </div>
 
-      <a className="nightCrawl__escape" href={TFL_JOURNEY_PLANNER} target="_blank" rel="noreferrer">
+      <a className={styles.nightCrawlEscape} href={TFL_JOURNEY_PLANNER} target="_blank" rel="noreferrer">
         <span aria-hidden="true">&#9166;</span> Get me home
         <small>last train + cab</small>
       </a>

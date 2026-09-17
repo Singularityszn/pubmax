@@ -13,7 +13,7 @@ import { checkedLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 import { preferredCityMapHref } from "@/lib/cityPreference";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
-import "./dealsTonightLane.css";
+import styles from "./dealsTonightLane.module.css";
 
 type MusicState = { rows: WhatsOnRow[]; asOf: string | null };
 
@@ -83,19 +83,19 @@ export default function MusicTonightLane({ rows: providedRows, asOf: providedAsO
   const thin = rows.length <= THIN_COVERAGE_MAX;
 
   return (
-    <section className="dealsTonight" aria-labelledby="music-tonight-title" data-coverage={thin ? "thin" : "ok"}>
-      <div className="dealsTonightHead">
+    <section className={styles.dealsTonight} aria-labelledby="music-tonight-title" data-coverage={thin ? "thin" : "ok"}>
+      <div className={styles.dealsTonightHead}>
         <h2 id="music-tonight-title">
           <Music2 size={18} aria-hidden="true" /> Live music tonight
         </h2>
-        <span className="dealsTonightChecked">{checkedLabel(asOf)}</span>
+        <span className={styles.dealsTonightChecked}>{checkedLabel(asOf)}</span>
       </div>
-      <p className="dealsTonightLead">
+      <p className={styles.dealsTonightLead}>
         {thin
           ? `Thin coverage tonight: ${rows.length} sourced listing${rows.length === 1 ? "" : "s"} only. Not a full gig guide.`
           : `${meta.badgeLabel} from sourced listings. Times and line-ups vary; check the source.`}
       </p>
-      <ul className="dealsTonightList">
+      <ul className={styles.dealsTonightList}>
         {rows.map((row) => {
           const mapHref = row.venueId
             ? `/map?sel=${encodeURIComponent(row.venueId)}`
@@ -104,13 +104,13 @@ export default function MusicTonightLane({ rows: providedRows, asOf: providedAsO
             <li key={row.id}>
               <Link prefetch={false}
                 href={mapHref}
-                className="dealsTonightCard"
+                className={styles.dealsTonightCard}
                 onClick={() => trackEvent("lane_card_tap")}
               >
                 <strong>{row.title}</strong>
-                <span className="dealsTonightPlace">{row.placeName}</span>
-                {row.detail ? <span className="dealsTonightDetail">{row.detail}</span> : null}
-                <span className="dealsTonightSource">
+                <span className={styles.dealsTonightPlace}>{row.placeName}</span>
+                {row.detail ? <span className={styles.dealsTonightDetail}>{row.detail}</span> : null}
+                <span className={styles.dealsTonightSource}>
                   {row.source.label}
                   {row.source.url ? " · sourced" : ""}
                 </span>
@@ -120,7 +120,7 @@ export default function MusicTonightLane({ rows: providedRows, asOf: providedAsO
         })}
       </ul>
       <Link prefetch={false}
-        className="dealsTonightMap"
+        className={styles.dealsTonightMap}
         href="/map?src=whats-on-music"
         onClick={() => trackEvent("whats_on_filter")}
       >

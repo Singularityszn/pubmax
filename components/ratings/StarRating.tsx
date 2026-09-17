@@ -26,7 +26,7 @@ import {
   type RatingValue,
 } from "@/lib/ratings";
 
-import "./starRating.css";
+import styles from "./starRating.module.css";
 
 const STAR_COUNT = 5;
 
@@ -44,9 +44,9 @@ function Stars({ value, accent }: { value: number | null; accent?: string }) {
     ? ({ "--rating-accent": accent } as CSSProperties)
     : undefined;
   return (
-    <span className="starRatingGlyphs" style={style} aria-hidden="true">
-      <span className="starRatingRow starRatingRow--empty">★★★★★</span>
-      <span className="starRatingRow starRatingRow--fill" style={{ width: `${percent}%` }}>
+    <span className={styles.starRatingGlyphs} style={style} aria-hidden="true">
+      <span className={`${styles.starRatingRow} ${styles.starRatingRowEmpty}`}>★★★★★</span>
+      <span className={`${styles.starRatingRow} ${styles.starRatingRowFill}`} style={{ width: `${percent}%` }}>
         ★★★★★
       </span>
     </span>
@@ -82,7 +82,8 @@ export default function StarRating({
   // The keyboard-adjusted, not-yet-committed value (interactive mode only).
   const [draft, setDraft] = useState<RatingValue | null>(null);
 
-  const classes = ["starRating", `starRating--${size}`, className]
+  const sizeClass: Record<string, string | undefined> = { sm: styles.starRatingSm };
+  const classes = [styles.starRating, sizeClass[size], className]
     .filter(Boolean)
     .join(" ");
 
@@ -146,7 +147,7 @@ export default function StarRating({
 
   return (
     <span
-      className={`${classes} starRating--interactive`}
+      className={`${classes} ${styles.starRatingInteractive}`}
       role="slider"
       tabIndex={0}
       aria-label={label}

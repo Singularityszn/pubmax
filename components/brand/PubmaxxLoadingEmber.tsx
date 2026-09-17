@@ -1,4 +1,4 @@
-import "./pubmaxxLoadingEmber.css";
+import styles from "./pubmaxxLoadingEmber.module.css";
 import { MARK_COLORS, MARK_GEOMETRY } from "./PubmaxxMark";
 
 // ── The loading ember ─────────────────────────────────────────────────────────
@@ -22,7 +22,7 @@ export default function PubmaxxLoadingEmber({ size = 16, label, className = "" }
   const labelled = Boolean(label);
   return (
     <svg
-      className={`loadingEmber ${className}`.trim()}
+      className={`${styles.loadingEmber} ${className}`.trim()}
       width={size}
       height={size}
       viewBox="0 0 64 64"
@@ -33,7 +33,7 @@ export default function PubmaxxLoadingEmber({ size = 16, label, className = "" }
       focusable="false"
     >
       {label ? <title>{label}</title> : null}
-      <circle className="loadingEmber__node" cx={node.cx} cy={node.cy} r={node.r} fill={MARK_COLORS.bright} />
+      <circle className={styles.loadingEmberNode} cx={node.cx} cy={node.cy} r={node.r} fill={MARK_COLORS.bright} />
     </svg>
   );
 }

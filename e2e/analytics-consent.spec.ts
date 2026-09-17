@@ -199,7 +199,7 @@ test("desktop map shows the one-line row", async ({ page }) => {
 });
 
 // ON THE PHONE MAP THE CARD TAKES THE OUTING PILL'S SLOT
-// (components/mobile/mobileMapShell.css): one element at the foot, never a
+// (components/mobile/mobileMapShell.module.css): one element at the foot, never a
 // stack, and the planning control comes back the moment the choice is made.
 test("the phone map card takes the outing pill's slot until the choice is made", async ({ page }) => {
   test.setTimeout(60_000);

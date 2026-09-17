@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const css = readFileSync(
-  join(process.cwd(), "components/feed/feedSightings.css"),
+  join(process.cwd(), "components/feed/feedSightings.module.css"),
   "utf8",
 );
 

@@ -3,9 +3,9 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-import "./button.css";
+import styles from "./button.module.css";
 
-// The look lives in button.css, outside every cascade layer, because a layered
+// The look lives in button.module.css, outside every cascade layer, because a layered
 // utility loses to app/globals.css's unlayered `button { font: inherit }`. The
 // variants here only compose class names.
 const buttonVariants = cva("uiButton", {

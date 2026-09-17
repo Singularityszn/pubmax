@@ -16,8 +16,8 @@ import { describe, expect, it } from "vitest";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
-const mobileMapCss = read("components/mobile/mobileMapShell.css");
-const suggestCss = read("components/map/mapSearchSuggest.css");
+const mobileMapCss = read("components/mobile/mobileMapShell.module.css");
+const suggestCss = read("components/map/mapSearchSuggest.module.css");
 const controlRailCss = read("components/map/ControlRailChrome.module.css");
 const searchFieldTsx = read("components/ui/search-field.tsx");
 const pubMapTsx = read("components/PubMap.tsx");
@@ -44,10 +44,10 @@ describe("the phone search overlay is bounded by the screen", () => {
   });
 
   it("caps the overlay field and its panel at the host width", () => {
-    const overlay = rule(suggestCss, ".mapSearchSuggest--overlay {");
+    const overlay = rule(suggestCss, ".mapSearchSuggestOverlay {");
     expect(overlay).toMatch(/max-width:\s*100%/);
     expect(overlay).toMatch(/min-width:\s*0/);
-    expect(rule(suggestCss, ".mapSearchSuggest--overlay .mapSearchSuggestPanel {")).toMatch(
+    expect(rule(suggestCss, ".mapSearchSuggestOverlay .mapSearchSuggestPanel {")).toMatch(
       /max-width:\s*100%/,
     );
   });
@@ -55,13 +55,13 @@ describe("the phone search overlay is bounded by the screen", () => {
   it("stacks a suggestion row so no figure is starved or overlapped", () => {
     // Bounding the panel made the never-shrinking distance crush the price to
     // four pixels, which then drew on top of the borough.
-    expect(rule(suggestCss, ".mapSearchSuggest--overlay .mapSearchSuggestRow {")).toMatch(
+    expect(rule(suggestCss, ".mapSearchSuggestOverlay .mapSearchSuggestRow {")).toMatch(
       /flex-wrap:\s*wrap/,
     );
-    expect(rule(suggestCss, ".mapSearchSuggest--overlay .mapSearchSuggestRowMain {")).toMatch(
+    expect(rule(suggestCss, ".mapSearchSuggestOverlay .mapSearchSuggestRowMain {")).toMatch(
       /flex:\s*1 1 100%/,
     );
-    expect(rule(suggestCss, ".mapSearchSuggest--overlay .mapSearchSuggestMeta {")).toMatch(
+    expect(rule(suggestCss, ".mapSearchSuggestOverlay .mapSearchSuggestMeta {")).toMatch(
       /flex:\s*1 1 100%/,
     );
   });

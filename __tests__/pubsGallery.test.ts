@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { pubsCountLabel } from "@/components/pubs/PubsGallery";
 
 const source = readFileSync(join(process.cwd(), "components/pubs/PubsGallery.tsx"), "utf8");
-const css = readFileSync(join(process.cwd(), "components/pubs/pubsGallery.css"), "utf8");
+const css = readFileSync(join(process.cwd(), "components/pubs/pubsGallery.module.css"), "utf8");
 
 describe("pubs gallery secondary surface", () => {
   it("does not present an incomplete venue read as an authoritative count", () => {
@@ -23,7 +23,7 @@ describe("pubs gallery secondary surface", () => {
 
   it("does not mount a gradient art tile when a pub has no photo", () => {
     expect(source).toContain("const hasPhoto = Boolean(pub.photoUrl);");
-    expect(source).toContain('pubsCard--no-art');
+    expect(source).toContain('pubsCardNoArt');
     expect(source).toContain("hasPhoto ? (");
   });
 
@@ -35,6 +35,6 @@ describe("pubs gallery secondary surface", () => {
   });
 
   it("lets no-art cards use their content height", () => {
-    expect(css).toMatch(/\.pubsCard--no-art\s*\{[^}]*grid-template-rows:\s*auto/);
+    expect(css).toMatch(/\.pubsCardNoArt\s*\{[^}]*grid-template-rows:\s*auto/);
   });
 });

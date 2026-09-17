@@ -32,7 +32,7 @@ import { searchCityPlacesByName } from "@/lib/cityPlaceSearch";
 import { haversineKm } from "@/lib/haversine";
 import { firstHttp } from "@/lib/httpUrl";
 
-import "./cityPlaceStrip.css";
+import styles from "./cityPlaceStrip.module.css";
 
 type CityPlaceEnrichment = {
   id: string;
@@ -227,18 +227,18 @@ export default function CityPlaceStrip({
 
   return (
     <section
-      className="cityPlaceStrip"
+      className={styles.cityPlaceStrip}
       aria-label="Around now: CityMCP London context"
     >
-      <div className="cityPlaceStripHead">
-        <span className="cityPlaceStripEyebrow">Around now</span>
-        <span className="cityPlaceStripSource" title="Sourced from CityMCP London">
+      <div className={styles.cityPlaceStripHead}>
+        <span className={styles.cityPlaceStripEyebrow}>Around now</span>
+        <span className={styles.cityPlaceStripSource} title="Sourced from CityMCP London">
           CityMCP
         </span>
       </div>
-      <div className="cityPlaceStripChips">
+      <div className={styles.cityPlaceStripChips}>
         {typeof rating === "number" ? (
-          <span className="cityPlaceStripChip" data-kind="rating">
+          <span className={styles.cityPlaceStripChip} data-kind="rating">
             <Star size={12} aria-hidden="true" />
             <span>
               {rating.toFixed(1)}
@@ -250,7 +250,7 @@ export default function CityPlaceStrip({
         ) : null}
         {typeof openNow === "boolean" ? (
           <span
-            className="cityPlaceStripChip"
+            className={styles.cityPlaceStripChip}
             data-kind={openNow ? "open" : "closed"}
             aria-label={openNow ? "Open now" : "Closed now"}
           >
@@ -259,7 +259,7 @@ export default function CityPlaceStrip({
           </span>
         ) : null}
         {hygiene ? (
-          <span className="cityPlaceStripChip" data-kind="hygiene">
+          <span className={styles.cityPlaceStripChip} data-kind="hygiene">
             <UtensilsCrossed size={12} aria-hidden="true" />
             {hygieneSourceHref ? (
               <a
@@ -275,14 +275,14 @@ export default function CityPlaceStrip({
           </span>
         ) : null}
         {transitLines.length > 0 ? (
-          <span className="cityPlaceStripChip" data-kind="transit">
+          <span className={styles.cityPlaceStripChip} data-kind="transit">
             <TrainFront size={12} aria-hidden="true" />
             <span title={transitSource ? `Source: ${transitSource}` : undefined}>
               {transitLines.join("  ·  ")}
             </span>
             {transitSource && firstHttp(transitSource) ? (
               <a
-                className="cityPlaceStripSrc"
+                className={styles.cityPlaceStripSrc}
                 href={firstHttp(transitSource) || undefined}
                 target="_blank"
                 rel="noreferrer noopener"

@@ -58,7 +58,7 @@ describe("MomentImageEditor privacy boundary", () => {
 
   it("keeps the phone editor clear of the bottom safe area", () => {
     const css = readFileSync(
-      resolve(process.cwd(), "components/moment/moment.css"),
+      resolve(process.cwd(), "components/moment/moment.module.css"),
       "utf8",
     );
 

@@ -7,7 +7,7 @@ import { authedFetch } from "@/lib/authedFetch";
 import type { WantedDTO } from "@/lib/wanted";
 import { discardBody } from "@/lib/responseBody";
 
-import "./wanted.css";
+import styles from "./wanted.module.css";
 
 /** Open Wanteds as plan describe-first chips so saved places become tonight options. */
 export default function WantedPlanChips({
@@ -54,15 +54,15 @@ export default function WantedPlanChips({
   if (open.length === 0) return null;
 
   return (
-    <div className="wantedPlanChips" role="group" aria-label="Your Wanted list">
-      <p className="wantedPlanChips__label">Your Wanted list</p>
+    <div className={styles.wantedPlanChips} role="group" aria-label="Your Wanted list">
+      <p className={styles.wantedPlanChipsLabel}>Your Wanted list</p>
       {open.slice(0, 6).map((wanted) => {
         const chip = `a night at ${wanted.venueName}`;
         return (
           <button
             key={wanted.id}
             type="button"
-            className="wantedPlanChip"
+            className={styles.wantedPlanChip}
             onClick={() => onPick(chip)}
           >
             {wanted.venueName}

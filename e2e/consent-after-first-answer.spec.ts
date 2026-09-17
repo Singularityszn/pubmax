@@ -164,7 +164,7 @@ for (const viewport of WIDTHS) {
     // element is a full-bleed padded container holding the pill, so its top
     // edge sits above the lane the body reserves and measuring against it
     // would call a flush card 10px adrift. --tabbar-h is the one number both
-    // the bar and the body's clearance read (components/nav/mobileNav.css).
+    // the bar and the body's clearance read (components/nav/mobileNav.module.css).
     const lane = await page.evaluate(() => {
       if (document.querySelector(".mobileTabBar, .mobileTabBarClearance") === null) return 0;
       const raw = getComputedStyle(document.documentElement)

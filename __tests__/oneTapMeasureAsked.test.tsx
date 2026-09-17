@@ -63,7 +63,7 @@ let container: HTMLDivElement;
 let root: Root;
 
 function measureChips(): HTMLButtonElement[] {
-  return Array.from(container.querySelectorAll<HTMLButtonElement>(".measureChip"));
+  return Array.from(container.querySelectorAll<HTMLButtonElement>('button[class*="measureChip"]'));
 }
 
 async function renderDoor(props: Record<string, unknown> = {}) {
@@ -80,13 +80,13 @@ async function renderDoor(props: Record<string, unknown> = {}) {
 }
 
 async function logPrice() {
-  const quickPrice = container.querySelector<HTMLButtonElement>(".vpsubQuickChip");
+  const quickPrice = container.querySelector<HTMLButtonElement>('[class*="vpsubQuickChip"]');
   if (!quickPrice) throw new Error("quick price button did not render");
   await act(async () => {
     quickPrice.click();
   });
   await attachBill(container);
-  const logButton = container.querySelector<HTMLButtonElement>(".vpsubLog");
+  const logButton = container.querySelector<HTMLButtonElement>('[class*="vpsubLog"]');
   if (!logButton) throw new Error("Log it button did not render");
   await act(async () => {
     logButton.click();
@@ -124,8 +124,8 @@ describe("the one-tap price door asks the measure", () => {
     ]);
     // The closed question stands ABOVE the figure, so the answer is never
     // inferred from what somebody typed afterwards.
-    const chipRow = container.querySelector(".measureChips");
-    const priceField = container.querySelector(".vpsubEntry");
+    const chipRow = container.querySelector('[class*="measureChips"]');
+    const priceField = container.querySelector('[class*="vpsubEntry"]');
     expect(chipRow).toBeTruthy();
     expect(priceField).toBeTruthy();
     expect(
@@ -171,7 +171,7 @@ describe("the one-tap price door asks the measure", () => {
       measureChips()[1].click();
     });
     const cocktail = Array.from(
-      container.querySelectorAll<HTMLButtonElement>(".vpsubCat"),
+      container.querySelectorAll<HTMLButtonElement>('button[class*="vpsubCat"]'),
     ).find((chip) => chip.textContent?.toLowerCase().includes("cocktail"));
     if (!cocktail) throw new Error("cocktail chip did not render");
     await act(async () => {
@@ -188,7 +188,7 @@ describe("the one-tap price door asks the measure", () => {
 
   it("stops promising the map the moment a half is picked", async () => {
     await renderDoor();
-    const note = () => container.querySelector(".vpsubNote")?.textContent ?? "";
+    const note = () => container.querySelector('[class*="vpsubNote"]')?.textContent ?? "";
     expect(note()).toMatch(/moves the map/i);
 
     await act(async () => {

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import "./kicker.css";
+import styles from "./kicker.module.css";
 
 /**
  * The small line above a heading.

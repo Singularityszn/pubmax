@@ -12,7 +12,7 @@ import {
 import { priceMovementLine } from "@/lib/priceMovementLine";
 import { formatPrice } from "@/lib/venues";
 
-import "./venuePriceThen.css";
+import styles from "./venuePriceThen.module.css";
 
 // What a pint here used to cost.
 //
@@ -65,37 +65,37 @@ export default function VenuePriceThen({
 
   const { then, nowGbp, deltaGbp, years } = arc;
   return (
-    <section className="venuePriceThen" aria-labelledby={`vptTitle-${venueId}`}>
-      <h4 className="vptTitle" id={`vptTitle-${venueId}`}>
+    <section className={styles.venuePriceThen} aria-labelledby={`vptTitle-${venueId}`}>
+      <h4 className={styles.vptTitle} id={`vptTitle-${venueId}`}>
         What it used to cost
       </h4>
       {/* Two sentences, each unbreakable, so a narrow sheet breaks BETWEEN them
           and never orphans "now." on a line of its own. */}
-      <p className="vptLine">
-        <span className="vptClause">
-          <strong className="vptThen">{formatPrice(then.priceGbp)}</strong> in{" "}
+      <p className={styles.vptLine}>
+        <span className={styles.vptClause}>
+          <strong className={styles.vptThen}>{formatPrice(then.priceGbp)}</strong> in{" "}
           {formatObservedMonth(then.observedOn)}.
         </span>
         {nowGbp !== null ? (
           <>
             {" "}
-            <span className="vptClause">
-              <strong className="vptNow">{formatPrice(nowGbp)}</strong> now.
+            <span className={styles.vptClause}>
+              <strong className={styles.vptNow}>{formatPrice(nowGbp)}</strong> now.
             </span>
           </>
         ) : null}
       </p>
       {deltaGbp !== null ? (
-        <p className="vptMovement">{priceMovementLine(deltaGbp, years)}</p>
+        <p className={styles.vptMovement}>{priceMovementLine(deltaGbp, years)}</p>
       ) : null}
-      <p className="vptSource">
+      <p className={styles.vptSource}>
         <a href={then.source.url} target="_blank" rel="noopener noreferrer">
           {then.source.label}
         </a>
         , {formatObservedDay(then.observedOn)}
       </p>
       {nowGbp !== null ? (
-        <p className="vptNote">
+        <p className={styles.vptNote}>
           A pint someone paid for then, against the price this pub has on record now.
         </p>
       ) : null}

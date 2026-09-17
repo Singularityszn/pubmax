@@ -37,7 +37,7 @@ import { entriesForBorough, freshAreaNews, NEW_ROUND_HERE_CAP } from "@/lib/area
 import { loadAreaNews } from "@/lib/areaNews.server";
 
 import styles from "./Borough.module.css";
-import "@/components/seo/factLayer.css";
+import factStyles from "@/components/seo/factLayer.module.css";
 
 // Borough discovery / "night-out chapter" page: /borough/[slug]. A SERVER
 // component (cc_plan2 §14/§25, story 28) — it reads the bundled dataset through
@@ -494,11 +494,11 @@ export default async function BoroughPage({ params }: PageProps) {
         {/* Internal cross-links (Wave S3.5): let crawlers walk borough → map →
             Pint Index → historic via plain hrefs. Individual /ledger permalinks
             already sit in the pubs table above. */}
-        <nav className="factLinks" aria-labelledby="boroughLinksHeading">
-          <p className="factLinksTitle" id="boroughLinksHeading">
+        <nav className={factStyles.factLinks} aria-labelledby="boroughLinksHeading">
+          <p className={factStyles.factLinksTitle} id="boroughLinksHeading">
             Explore more
           </p>
-          <ul className="factLinksList">
+          <ul className={factStyles.factLinksList}>
             <li>
               <Link prefetch={false} href={boroughBrowseMapUrl(name)}>{name} on the map</Link>
             </li>

@@ -435,7 +435,7 @@ describe("VOICE.md compliance audit", () => {
 describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
   it("keeps the Tonight arc chips without their component name", () => {
     const chips = read("components/map/TonightArcChips.tsx");
-    const chipsCss = read("components/map/tonightArcChips.css");
+    const chipsCss = read("components/map/tonightArcChips.module.css");
 
     // Neither the visible title nor the accessible name may carry it: a screen
     // reader user is a reader too.
@@ -519,18 +519,18 @@ describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
     ]],
     // Tonight's kicker is the shared Kicker primitive inside its Screen head.
     ["app/tonight/Tonight.module.css", [".tonightRowKind"]],
-    ["components/vibe/vibeChips.css", [".vibeChipsLede"]],
+    ["components/vibe/vibeChips.module.css", [".vibeChipsLede"]],
     ["app/pal/Pal.module.css", [".palEyebrow", ".palMemoryList__meta span"]],
     // Pub Pal chat's kicker is the shared Kicker primitive inside its Screen head.
-    ["components/pal/palChat.css", [".palGlanceLabel"]],
+    ["components/pal/palChat.module.css", [".palGlanceLabel"]],
     ["app/messages/Messages.module.css", [".messagesThreadEyebrow"]],
-    // The landing's labels are the shared Kicker primitive (components/ui/kicker.css).
-    ["components/ui/kicker.css", [".kicker"]],
-    ["components/plan/nightCrawl.css", [
-      ".nightCrawl__kicker",
-      ".nightCrawl__eyebrow",
-      ".nightCrawl__crewLabel",
-      ".nightCrawl__enterKicker",
+    // The landing's labels are the shared Kicker primitive (components/ui/kicker.module.css).
+    ["components/ui/kicker.module.css", [":global(.kicker)"]],
+    ["components/plan/nightCrawl.module.css", [
+      ".nightCrawlKicker",
+      ".nightCrawlEyebrow",
+      ".nightCrawlCrewLabel",
+      ".nightCrawlEnterKicker",
     ]],
   ];
 

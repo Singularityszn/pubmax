@@ -13,7 +13,7 @@ import {
   type AreaNewsEntry,
 } from "@/lib/areaNews";
 
-import "./areaNews.css";
+import styles from "./areaNews.module.css";
 
 export default function AreaNewsList({
   areaLabel,
@@ -32,42 +32,42 @@ export default function AreaNewsList({
   const shown = entries.slice(0, cap);
 
   return (
-    <section className="areaNews" aria-labelledby={headingId}>
-      <p className="areaNewsEyebrow">New round here</p>
-      <h2 id={headingId} className="areaNewsHeading">
+    <section className={styles.areaNews} aria-labelledby={headingId}>
+      <p className={styles.areaNewsEyebrow}>New round here</p>
+      <h2 id={headingId} className={styles.areaNewsHeading}>
         {areaLabel}, lately
       </h2>
       {status === "unavailable" ? (
-        <p className="areaNewsUnavailable" role="status">
+        <p className={styles.areaNewsUnavailable} role="status">
           Area updates are unavailable right now.
         </p>
       ) : shown.length === 0 ? (
-        <p className="areaNewsEmpty">No current updates here.</p>
+        <p className={styles.areaNewsEmpty}>No current updates here.</p>
       ) : (
-        <ul className="areaNewsList">
+        <ul className={styles.areaNewsList}>
           {shown.map((entry) => (
-            <li key={entry.id} className="areaNewsItem" data-kind={entry.kind}>
-              <div className="areaNewsMeta">
-                <span className="areaNewsChip" data-kind={entry.kind}>
+            <li key={entry.id} className={styles.areaNewsItem} data-kind={entry.kind}>
+              <div className={styles.areaNewsMeta}>
+                <span className={styles.areaNewsChip} data-kind={entry.kind}>
                   {KIND_LABEL[entry.kind]}
                 </span>
-                <time className="areaNewsDate" dateTime={entry.observedAt}>
+                <time className={styles.areaNewsDate} dateTime={entry.observedAt}>
                   {formatAreaNewsDate(entry.observedAt)}
                 </time>
               </div>
-              <p className="areaNewsTitle">{entry.title}</p>
-              <p className="areaNewsDetail">{entry.detail}</p>
-              <p className="areaNewsSource">
+              <p className={styles.areaNewsTitle}>{entry.title}</p>
+              <p className={styles.areaNewsDetail}>{entry.detail}</p>
+              <p className={styles.areaNewsSource}>
                 <a
                   href={entry.sourceUrl}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="areaNewsSourceLink"
+                  className={styles.areaNewsSourceLink}
                 >
                   {entry.sourceName}
                 </a>
                 {entry.confidence === "social" ? (
-                  <span className="areaNewsSocial" title="Self-reported sighting, not a checked price">
+                  <span className={styles.areaNewsSocial} title="Self-reported sighting, not a checked price">
                     spotted
                   </span>
                 ) : null}

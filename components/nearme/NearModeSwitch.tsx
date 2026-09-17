@@ -2,7 +2,7 @@
 
 import { NEAR_MODES, type NearMode } from "@/lib/nearDesk";
 
-import "./nearModeSwitch.css";
+import styles from "./nearModeSwitch.module.css";
 
 const LABELS: Record<NearMode, string> = {
   pint: "Pint",
@@ -17,13 +17,13 @@ export default function NearModeSwitch({
   onChange: (mode: NearMode) => void;
 }) {
   return (
-    <div className="nearModeSwitch">
+    <div className={`nearModeSwitch ${styles.nearModeSwitch}`}>
       {/* A radiogroup, not a tablist: a tab owes an associated tabpanel, and
           the answer below is rendered by NearMeNow, which this wave may not
           edit. Two exclusive choices with roving focus is what a radiogroup
           already means. */}
       <div
-        className="nearModeSwitchList"
+        className={styles.nearModeSwitchList}
         role="radiogroup"
         aria-label="Near mode"
         onKeyDown={(event) => {
@@ -48,7 +48,7 @@ export default function NearModeSwitch({
               key={mode}
               type="button"
               role="radio"
-              className="nearModeSwitchTab"
+              className={styles.nearModeSwitchTab}
               aria-checked={selected}
               tabIndex={selected ? 0 : -1}
               onClick={() => onChange(mode)}

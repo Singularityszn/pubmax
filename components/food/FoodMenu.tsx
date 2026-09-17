@@ -8,7 +8,7 @@ import {
   type FoodProvenance,
 } from "@/lib/food";
 
-import "@/components/drinks/drinkMenu.css";
+import styles from "@/components/drinks/drinkMenu.module.css";
 
 function provenanceLabel(prov: FoodProvenance): string {
   if (prov.source === "seed" || prov.source.toLowerCase().includes("demo")) return "Demo";
@@ -23,7 +23,7 @@ function ProvChip({ prov }: { prov: FoodProvenance }) {
   const label = provenanceLabel(prov);
   const kind = isDemoProvenance(prov) ? "demo" : "sourced";
   return (
-    <span className={`drinkProvChip ${kind}`} title={`${prov.source} · ${prov.licence}`}>
+    <span className={`${styles.drinkProvChip} ${styles[kind]}`} title={`${prov.source} · ${prov.licence}`}>
       {label}
     </span>
   );
@@ -35,14 +35,14 @@ function FoodRow({ item }: { item: FoodItem }) {
       ? item.dietary.map((d) => d.replace("-", " ")).join(" · ")
       : "";
   return (
-    <li className="drinkRow">
-      <div className="drinkRowMain">
-        <span className="drinkName">{item.name}</span>
-        {item.description ? <span className="drinkMeta">{item.description}</span> : null}
-        {dietary ? <span className="drinkServing">{dietary}</span> : null}
+    <li className={styles.drinkRow}>
+      <div className={styles.drinkRowMain}>
+        <span className={styles.drinkName}>{item.name}</span>
+        {item.description ? <span className={styles.drinkMeta}>{item.description}</span> : null}
+        {dietary ? <span className={styles.drinkServing}>{dietary}</span> : null}
       </div>
-      <div className="drinkRowSide">
-        <PriceBadge variant="neutral" className="drinkPrice">
+      <div className={styles.drinkRowSide}>
+        <PriceBadge variant="neutral" className={styles.drinkPrice}>
           {formatPrice(item.priceGbp)}
         </PriceBadge>
         <ProvChip prov={item.provenance} />
@@ -63,15 +63,15 @@ function CategorySection({
   const accent = foodCategoryColor(category);
   return (
     <section
-      className="drinkCategory"
+      className={styles.drinkCategory}
       style={{ ["--cat-accent" as string]: accent }}
       aria-labelledby={`food-cat-${category}`}
     >
-      <h4 className="drinkCategoryTitle" id={`food-cat-${category}`}>
-        <span className="drinkCategoryDot" aria-hidden="true" />
+      <h4 className={styles.drinkCategoryTitle} id={`food-cat-${category}`}>
+        <span className={styles.drinkCategoryDot} aria-hidden="true" />
         {label}
       </h4>
-      <ul className="drinkList">
+      <ul className={styles.drinkList}>
         {items.map((item) => (
           <FoodRow key={item.id} item={item} />
         ))}
@@ -93,8 +93,8 @@ export default function FoodMenu({ items, venueName }: FoodMenuProps) {
   }
 
   return (
-    <div className="drinkMenu" aria-label={venueName ? `Food at ${venueName}` : "Food menu"}>
-      <h3 className="drinkCategoryTitle" style={{ marginBottom: 4 }}>
+    <div className={styles.drinkMenu} aria-label={venueName ? `Food at ${venueName}` : "Food menu"}>
+      <h3 className={styles.drinkCategoryTitle} style={{ marginBottom: 4 }}>
         Food
       </h3>
       {groups.map((group) => (
@@ -105,7 +105,7 @@ export default function FoodMenu({ items, venueName }: FoodMenuProps) {
           items={group.items}
         />
       ))}
-      <p className="drinkMenuFootnote">
+      <p className={styles.drinkMenuFootnote}>
         Every dish carries its source · Prices from first-party menus, not a live till feed.
       </p>
     </div>

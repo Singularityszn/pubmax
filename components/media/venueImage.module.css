@@ -1,0 +1,111 @@
+.venueImage {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel-raised) 80%, var(--ink-deep) 8%);
+}
+
+.venueImageImg {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.venueImageEmpty {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  padding: 1rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  /* Honest placeholder for photo-less pubs, never a stock photo. A flat
+     surface with a hairline: the earlier warm gradient band read as an image
+     that had failed to load rather than as a pub with no photo yet. */
+  border: 1px solid var(--line-soft, var(--line));
+  background: var(--panel, var(--paper));
+}
+
+.venueImageEmpty > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.venueImageCaption {
+  margin: 0;
+  padding: 0.35rem 0.55rem 0.45rem;
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.venueImageProvenance {
+  position: absolute;
+  left: 0.5rem;
+  bottom: 0.5rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-deep) 70%, transparent);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+/* R4 — the sheet header's "No photo yet" fallback used to inherit the same
+   16:9 aspect ratio (and, on desktop, the 180-220px min/max height) as a
+   real photo, so on photo-less pubs it alone ate most of the first
+   viewport and pushed the Golden Thread price block below the fold.
+   Collapse it to a slim fixed-height banner at every width; the real-photo
+   path (.venueImageImg) is untouched. Specificity (0,2,0) beats
+   .venueBaselinePhoto's aspect-ratio (0,1,0) in venueSheet.css regardless
+   of stylesheet load order. */
+.venueImageHeader.venueImageEmpty {
+  aspect-ratio: auto;
+  min-height: 0;
+  height: 56px;
+  padding: 0 1rem;
+}
+
+/* N3 desktop inspector photo header — taller, edge-to-edge under title.
+   Real-photo path only; the empty fallback stays slim (rule above).
+   ≥1024px matches venueSheet.css / globals "real desktop" cut. */
+@media (min-width: 1024px) {
+  /* The inspector now carries its own 18px inset (venueSheet.css), so the
+     header photo is a framed picture inside that column rather than an
+     edge-to-edge band, and its corners follow. */
+  :global(.venueInspector) .venueImageHeader {
+    border-radius: 12px;
+    margin: 0 0 0.75rem;
+  }
+
+  /* The CAP is on the frame, never on the picture inside it. Capping the
+     <img> alone left a 16:9 frame 339px tall holding a 220px picture, so
+     the drawer at 1440 printed a photograph over a grey band with the
+     credit pinned to the band (measured 6 Sep 2026). The frame takes the
+     height ceiling and the picture fills whatever frame it is given. */
+  /* The empty fallback is excluded by name: at equal specificity this later
+     rule beat the slim row above and drew a 220px "No photo yet" box at 1440
+     (site audit 13 Sep 2026, D10). */
+  :global(.venueInspector) .venueImageHeader:not(.venueImageEmpty) {
+    /* A fixed height rather than a ceiling on the 16:9 ratio: Chromium
+       transfers a max-height through aspect-ratio into the WIDTH, so the
+       capped frame shrank to 391px inside a 603px column and sat left of
+       the tab strip under it. The frame spans the column; the photo covers. */
+    aspect-ratio: auto;
+    height: 220px;
+  }
+
+  :global(.venueInspector) .venueImageHeader .venueImageImg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}

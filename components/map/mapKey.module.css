@@ -1,0 +1,387 @@
+.mapKey {
+  display: grid;
+  gap: 12px;
+  color: var(--ink);
+}
+
+.mapKeySection {
+  display: grid;
+  gap: 6px;
+}
+
+.mapKeySection h3,
+.mapKeyDetails summary {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.mapKeySection p,
+.mapKeyNote {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.mapKeyPriceRows,
+.mapKeyList {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mapKeyPriceRows li {
+  display: grid;
+  grid-template-columns: 12px 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+}
+
+.mapKeyPriceSwatch {
+  width: 10px;
+  height: 10px;
+  border: 1px solid color-mix(in srgb, var(--panel-raised) 65%, var(--ink));
+  border-radius: 50%;
+}
+
+.mapKeyPriceSwatchGreen {
+  background: var(--pint);
+}
+
+.mapKeyPriceSwatchAmber {
+  background: var(--amber);
+}
+
+.mapKeyPriceSwatchRed {
+  background: var(--brick);
+}
+
+.mapKeyPriceSwatchGrey {
+  background: color-mix(in srgb, var(--muted) 84%, transparent);
+}
+
+.mapKeyPriceCode {
+  color: var(--ink);
+  font-weight: 850;
+  letter-spacing: -0.08em;
+}
+
+.mapKeyClusterRow {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+}
+
+.mapKeyClusterSample {
+  display: grid;
+  place-items: center;
+  width: 29px;
+  height: 29px;
+  border: 4px solid transparent;
+  border-radius: 50%;
+  background:
+    linear-gradient(var(--panel-raised), var(--panel-raised)) padding-box,
+    conic-gradient(
+      var(--pint) 0 35%,
+      var(--amber) 35% 62%,
+      var(--brick) 62% 78%,
+      #9a7a72 78% 100%
+    ) border-box;
+  color: var(--ink);
+  font-size: 0.64rem;
+  font-weight: 850;
+}
+
+.mapKeyDetails {
+  border-top: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  padding-top: 9px;
+}
+
+/* These rows are the only closed things in the key. `display: flex` drops the
+   browser's own disclosure triangle, so all three read as dead headings over
+   empty space: "Pin shapes", "Dots and rings", "Routes" and nothing under them
+   (design judgement 2026-08-01, finding 2.10). The chevron is the affordance,
+   and it turns to face the state it is in. */
+.mapKeyDetails summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.mapKeyDetails summary::-webkit-details-marker {
+  display: none;
+}
+
+.mapKeyDetails summary::after {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin-right: 3px;
+  border-right: 2px solid var(--ink-soft);
+  border-bottom: 2px solid var(--ink-soft);
+  content: "";
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.mapKeyDetails[open] summary::after {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mapKeyDetails summary::after {
+    transition: transform 140ms ease;
+  }
+}
+
+.mapKeyList {
+  padding: 5px 0 4px;
+}
+
+.mapKeyItem {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mapKeyItem > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.mapKeyItem strong {
+  color: var(--ink);
+  font-size: 0.72rem;
+}
+
+.mapKeyItem small {
+  color: var(--ink-soft);
+  font-size: 0.67rem;
+  line-height: 1.3;
+}
+
+.mapKeyMarker {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  color: var(--brass);
+}
+
+.mapKeyMarkerShape {
+  border: 1px solid color-mix(in srgb, var(--line) 74%, var(--brass));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 76%, var(--panel-raised));
+}
+
+.mapKeyMarkerBasePub {
+  border-style: dashed;
+  border-radius: 50%;
+}
+
+.mapKeyMarkerMark::before,
+.mapKeyMarkerMark::after {
+  position: absolute;
+  content: "";
+  border-radius: 50%;
+}
+
+.mapKeyMarkerProvisional::before {
+  width: 9px;
+  height: 9px;
+  right: 2px;
+  bottom: 3px;
+  background: var(--river-bright);
+  box-shadow: 0 0 0 1.5px var(--panel-raised);
+}
+
+.mapKeyMarkerYourLocation::before {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--paper);
+  background: var(--color-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
+.mapKeyMarkerTonightOpportunity::before {
+  width: 10px;
+  height: 10px;
+  background: var(--amber);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--river-bright) 35%, transparent);
+}
+
+.mapKeyMarkerPintDrop::before,
+.mapKeyMarkerQuiz::before,
+.mapKeyMarkerSport::before,
+.mapKeyMarkerDeal::before,
+.mapKeyMarkerMusic::before,
+.mapKeyMarkerPublicListing::before,
+.mapKeyMarkerSelected::before,
+.mapKeyMarkerStoryBand::before {
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--river-bright);
+}
+
+.mapKeyMarkerQuiz::before {
+  border-color: var(--amber);
+}
+
+.mapKeyMarkerSport::before {
+  border-color: var(--river-bright);
+}
+
+.mapKeyMarkerDeal::before {
+  border-color: var(--brass-bright);
+}
+
+.mapKeyMarkerMusic::before {
+  border-color: var(--river);
+}
+
+.mapKeyMarkerPublicListing::before {
+  border-width: 1px;
+  border-color: var(--brass);
+}
+
+.mapKeyMarkerBaseSelected::before {
+  width: 19px;
+  height: 19px;
+  border: 2px solid var(--brass);
+}
+
+.mapKeyMarkerSelected::before {
+  border-color: var(--brass-bright);
+}
+
+.mapKeyMarkerSelected::after {
+  width: 21px;
+  height: 21px;
+  border: 2px solid var(--brass);
+}
+
+.mapKeyMarkerStoryBand::before {
+  border-color: var(--map-key-marker-colour);
+}
+
+.mapKeyMarkerRoute {
+  color: var(--brass-bright);
+}
+
+.mapKeyMarkerWalkingRoute::before {
+  width: 24px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--map-key-marker-colour);
+  box-shadow: 0 0 0 1px var(--panel-raised);
+  content: "";
+}
+
+.mapKeyMarkerStraightRoute::before {
+  width: 24px;
+  height: 0;
+  border-top: 3px dashed var(--map-key-marker-colour);
+  content: "";
+}
+
+.mapKeyMarkerStoryCorridor::before {
+  width: 24px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--map-key-marker-colour);
+  content: "";
+  filter: blur(2px);
+  opacity: 0.38;
+}
+
+:global(html[data-theme="dark"]) .mapKeyPriceSwatchGrey {
+  background: color-mix(in srgb, var(--muted) 78%, transparent);
+}
+
+.mapKeyMarkerCrawlStop {
+  border: 2px solid var(--brass-bright);
+  border-radius: 50%;
+  background: var(--ink-deep);
+}
+
+.mapKeyRouteStopNumber {
+  color: var(--paper);
+  font-size: 0.64rem;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.mapKeyNote {
+  padding: 5px 0 2px 36px;
+}
+
+.mapKeyTrustList {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.mapKeyTrustList li {
+  display: grid;
+  gap: 2px;
+}
+
+.mapKeyTrustList strong {
+  font-size: 0.78rem;
+}
+
+.mapKeyTrustList small {
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+/* ── Phone responsive (migrated from globals.css) ── */
+
+@media (max-width: 1050px) {
+  :global(.mapLegend) {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  :global(.mapLegend) {
+    left: 10px;
+    right: auto;
+    bottom: var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance) + 18px));
+    max-width: min(220px, calc(100vw - 120px));
+    gap: 8px;
+    padding: 8px 10px;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Legend wraps to two rows on the narrowest phones without clipping. */
+  :global(.mapLegend) {
+    bottom: calc(var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance));
+    gap: 8px 12px;
+    padding: 8px 10px;
+    font-size: 0.74rem;
+  }
+}

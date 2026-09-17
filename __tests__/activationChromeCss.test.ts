@@ -4,15 +4,15 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const firstRunTourCss = readFileSync(
-  join(process.cwd(), "components/onboarding/firstRunTour.css"),
+  join(process.cwd(), "components/onboarding/firstRunTour.module.css"),
   "utf8",
 );
 const citySuggestBannerCss = readFileSync(
-  join(process.cwd(), "components/map/citySuggestBanner.css"),
+  join(process.cwd(), "components/map/citySuggestBanner.module.css"),
   "utf8",
 );
 const mobileMapShellCss = readFileSync(
-  join(process.cwd(), "components/mobile/mobileMapShell.css"),
+  join(process.cwd(), "components/mobile/mobileMapShell.module.css"),
   "utf8",
 );
 const profileCss = readFileSync(
@@ -27,14 +27,14 @@ describe("activation chrome CSS", () => {
   });
 
   it("keeps map city suggestion actions thumb-sized", () => {
-    expect(citySuggestBannerCss).toMatch(/\.citySuggestBannerSwitch\s*{[\s\S]*?min-height:\s*44px;/);
+    expect(citySuggestBannerCss).toMatch(/:global\(\.citySuggestBannerSwitch\)\s*{[\s\S]*?min-height:\s*44px;/);
     expect(citySuggestBannerCss).toMatch(
-      /\.citySuggestBannerDismiss\s*{[\s\S]*?min-height:\s*44px;[\s\S]*?min-width:\s*44px;/,
+      /:global\(\.citySuggestBannerDismiss\)\s*{[\s\S]*?min-height:\s*44px;[\s\S]*?min-width:\s*44px;/,
     );
   });
 
   it("uses readable role tokens for profile and map actions", () => {
-    const citySwitch = citySuggestBannerCss.match(/\.citySuggestBannerSwitch\s*{[\s\S]*?}/)?.[0];
+    const citySwitch = citySuggestBannerCss.match(/:global\(\.citySuggestBannerSwitch\)\s*{[\s\S]*?}/)?.[0];
     const followButton = profileCss.match(/\.profilePage :global\(\.followBtn\)\s*{[\s\S]*?}/)?.[0];
 
     expect(citySwitch).toMatch(/background:\s*var\(--state-active-surface\);/);
@@ -44,7 +44,7 @@ describe("activation chrome CSS", () => {
   });
 
   // The plan pill's height and its clearance above the bottom dock moved into
-  // the floating stack's published tokens (components/nav/mobileNav.css), so
+  // the floating stack's published tokens (components/nav/mobileNav.module.css), so
   // there is no literal left here to match. Both are measured against the
   // RENDERED boxes at 320/390/430 by e2e/mobile-map-chrome-fit.spec.ts.
 
@@ -52,7 +52,7 @@ describe("activation chrome CSS", () => {
     // The pill's resting state must NOT be a filled accent — "Near me" is the
     // single loud action on the map. It uses the same border/surface/ink idiom
     // as the Tonight/Filters chips.
-    const block = mobileMapShellCss.match(/\.mobilePlanActivation\s*{[\s\S]*?}/);
+    const block = mobileMapShellCss.match(/:global\(\.mobilePlanActivation\)\s*{[\s\S]*?}/);
     expect(block).not.toBeNull();
     expect(block?.[0]).toMatch(/background:\s*var\(--color-surface-raised\);/);
     expect(block?.[0]).not.toMatch(/background:\s*var\(--color-accent\);/);
@@ -73,14 +73,14 @@ describe("activation chrome CSS", () => {
     // and a flex-1 scrolling body, so `height:auto; max-height:cap` hugs short
     // content and caps + scrolls tall content — no dock band in either case.
     expect(mobileMapShellCss).toMatch(
-      /\.mobileSharedSheet\.mapDrawer\s*{[\s\S]*?bottom:\s*0;[\s\S]*?max-height:\s*var\(--sheet-cap\);/,
+      /\.mobileSharedSheet:global\(\.mapDrawer\)\s*{[\s\S]*?bottom:\s*0;[\s\S]*?max-height:\s*var\(--sheet-cap\);/,
     );
     expect(mobileMapShellCss).toMatch(
       /\.mobileSharedSheetBody\s*{[\s\S]*?flex:\s*1 1 auto;[\s\S]*?min-height:\s*0;[\s\S]*?overflow-y:\s*auto;/,
     );
     // The snap caps are the snap fractions of the viewport — no dock subtraction.
-    expect(mobileMapShellCss).toMatch(/\.mobileSharedSheet\.open\.sheet-half[^}]*--sheet-cap:\s*55dvh;/);
-    expect(mobileMapShellCss).toMatch(/\.mobileSharedSheet\.open\.sheet-full[^}]*--sheet-cap:\s*92dvh;/);
+    expect(mobileMapShellCss).toMatch(/\.mobileSharedSheet:global\(\.open\.sheet-half[^)]*\)[^}]*--sheet-cap:\s*55dvh;/);
+    expect(mobileMapShellCss).toMatch(/\.mobileSharedSheet:global\(\.open\.sheet-full[^)]*\)[^}]*--sheet-cap:\s*92dvh;/);
     // The dock band is gone from the sheet's height math entirely.
     expect(mobileMapShellCss).not.toMatch(/\.mobileSharedSheetBody\s*{[\s\S]*?--mobile-map-dock-clearance/);
   });

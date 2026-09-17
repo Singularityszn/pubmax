@@ -13,6 +13,7 @@ import type { DrinkCategory } from "@/lib/drinks";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PintDrop } from "@/lib/pintDropShared";
 import { pintDropDrinksForMenu } from "@/lib/pintDropDrinks";
+import sheetStyles from "../venueSheet.module.css";
 
 /** The Drinks tab prints menu and website links, never a booking CTA. */
 const BOOKING_ONLY_ON_OVERVIEW = ["book"] as const;
@@ -76,7 +77,7 @@ export default function VenueMenuTab({
       role="tabpanel"
       id="venuePanel-menu"
       aria-labelledby="venueTab-menu"
-      className="venueTabPanel"
+      className={sheetStyles.venueTabPanel}
       hidden={tab !== "menu"}
     >
       {menuView.mode === "hub" ? (

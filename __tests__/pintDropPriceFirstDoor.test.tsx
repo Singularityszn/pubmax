@@ -146,7 +146,7 @@ describe("price-first Pint Drop door", () => {
     // (battle test D04): a half that cannot be said is a half that ends up in
     // the pint lane. Asserted by name here rather than by role, because the
     // control below is also a radiogroup and the two mean opposite things.
-    expect(container.querySelector(".measureChips")).toBeTruthy();
+    expect(container.querySelector('[class*="measureChips"]')).toBeTruthy();
 
     // Nothing optional renders before the first tap — no camera step, no
     // story, no vibes, no visibility control.

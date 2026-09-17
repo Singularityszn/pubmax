@@ -13,6 +13,9 @@ import {
 } from "@/lib/passwordPolicy";
 import { trackEvent } from "@/lib/analytics";
 
+import authStyles from "@/app/auth/Auth.module.css";
+import styles from "./loginPage.module.css";
+
 type HandlePasswordSignInProps = {
   disabled?: boolean;
   /**
@@ -138,7 +141,7 @@ export default function HandlePasswordSignIn({
     return (
       <button
         type="button"
-        className="loginPageQuietLink loginPageHandlePasswordToggle"
+        className={`${styles.loginPageQuietLink} ${styles.loginPageHandlePasswordToggle}`}
         data-testid="e2e-login-toggle"
         disabled={disabled || busy}
         onClick={() => setOpen(true)}
@@ -150,14 +153,14 @@ export default function HandlePasswordSignIn({
 
   return (
     <form
-      className="loginPageHandlePassword"
+      className={styles.loginPageHandlePassword}
       method="post"
       autoComplete="on"
       onSubmit={onSubmit}
       aria-label="Sign in with handle and password"
     >
-      <h2 className="loginPageHandlePasswordTitle">Sign in with handle and password</h2>
-      <label className="loginPageHandlePasswordField">
+      <h2 className={styles.loginPageHandlePasswordTitle}>Sign in with handle and password</h2>
+      <label className={styles.loginPageHandlePasswordField}>
         Handle
         <input
           type="text"
@@ -174,7 +177,7 @@ export default function HandlePasswordSignIn({
           onChange={(event) => setHandle(event.target.value)}
         />
       </label>
-      <label className="loginPageHandlePasswordField">
+      <label className={styles.loginPageHandlePasswordField}>
         Password
         <input
           type="password"
@@ -188,10 +191,10 @@ export default function HandlePasswordSignIn({
           onChange={(event) => setPassword(event.target.value)}
         />
       </label>
-      <div className="loginPageHandlePasswordActions">
+      <div className={styles.loginPageHandlePasswordActions}>
         <button
           type="submit"
-          className="loginPagePrimary"
+          className={styles.loginPagePrimary}
           data-testid="e2e-login-submit"
           disabled={busy || disabled}
         >
@@ -199,7 +202,7 @@ export default function HandlePasswordSignIn({
         </button>
         <button
           type="button"
-          className="loginPageQuietLink"
+          className={styles.loginPageQuietLink}
           disabled={busy}
           onClick={() => {
             setOpen(false);
@@ -212,10 +215,10 @@ export default function HandlePasswordSignIn({
       </div>
       {error ? (
         <>
-          <p className="authError loginPageError" role="alert">
+          <p className={`${authStyles.authError} ${styles.loginPageError}`} role="alert">
             {error}
           </p>
-          <p className="loginPageHandlePasswordGuidance">{NO_PASSWORD_GUIDANCE}</p>
+          <p className={styles.loginPageHandlePasswordGuidance}>{NO_PASSWORD_GUIDANCE}</p>
         </>
       ) : null}
     </form>

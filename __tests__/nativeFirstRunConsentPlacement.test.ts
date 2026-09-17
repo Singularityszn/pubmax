@@ -396,7 +396,7 @@ describe("the first-run surface stands the compose control down", () => {
     // (docs/proof/mobile-shells-refresh/).
     //
     // It was invisible until now only because the analytics consent card was
-    // standing compose down for it (components/nav/createFab.css) — two defects
+    // standing compose down for it (components/nav/createFab.module.css) — two defects
     // masking each other, so removing the card from the first screen uncovered
     // this one. The surface has to say for itself that it has no use for
     // compose, which is the marker that file documents.
@@ -415,9 +415,9 @@ describe("the first-run surface stands the compose control down", () => {
     }
   });
 
-  it("is the same marker components/nav/createFab.css acts on", () => {
+  it("is the same marker components/nav/createFab.module.css acts on", () => {
     // A marker only one side knows about is a class name, not a contract.
-    expect(read("components/nav/createFab.css")).toContain(
+    expect(read("components/nav/createFab.module.css")).toContain(
       "body:has(.pageHidesCreateFab) .createFabRoot",
     );
   });

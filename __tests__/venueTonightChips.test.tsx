@@ -49,6 +49,7 @@ vi.mock("@/lib/surfaceDataCache", () => ({
 }));
 
 import VenueTonightChips from "@/components/map/VenueTonightChips";
+import sheetStyles from "@/components/map/venueSheet.module.css";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
@@ -78,12 +79,12 @@ describe("VenueTonightChips reveal", () => {
       await Promise.resolve();
     });
 
-    const chips = [...container.querySelectorAll(".venueTonightChip")];
+    const chips = [...container.querySelectorAll(`.${sheetStyles.venueTonightChip}`)];
     expect(chips).toHaveLength(2);
     expect(chips.every((chip) => chip.classList.contains("venueRevealRecord"))).toBe(true);
     expect(chips.every((chip) => chip.getAttribute("data-reveal-delay") === "2")).toBe(true);
     expect(
-      container.querySelector(".venueTonightChecked")?.classList.contains("venueRevealRecord"),
+      container.querySelector(`.${sheetStyles.venueTonightChecked}`)?.classList.contains("venueRevealRecord"),
     ).toBe(true);
   });
 
@@ -106,10 +107,10 @@ describe("VenueTonightChips reveal", () => {
       await Promise.resolve();
     });
 
-    const chips = [...container.querySelectorAll(".venueTonightChip")];
+    const chips = [...container.querySelectorAll(`.${sheetStyles.venueTonightChip}`)];
     expect(chips).toHaveLength(2);
     expect(chips.every((chip) => chip.classList.contains("venueRevealRecord"))).toBe(true);
     expect(chips.every((chip) => chip.getAttribute("data-reveal-delay") === null)).toBe(true);
-    expect(container.querySelector(".venueTonightChecked")?.getAttribute("data-reveal-delay")).toBeNull();
+    expect(container.querySelector(`.${sheetStyles.venueTonightChecked}`)?.getAttribute("data-reveal-delay")).toBeNull();
   });
 });

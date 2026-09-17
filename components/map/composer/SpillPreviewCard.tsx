@@ -4,6 +4,7 @@ import type { Visibility } from "@/lib/spill";
 import type { SpillPreviewModel } from "@/lib/spillPreview";
 import { VISIBILITY_COPY } from "@/lib/pintDropComposerConfig";
 import type { PintDropsState } from "@/components/map/usePintDrops";
+import styles from "@/components/map/spillComposer.module.css";
 
 type SpillPreviewCardProps = {
   preview: SpillPreviewModel;
@@ -18,41 +19,41 @@ type SpillPreviewCardProps = {
 //   server derives it, never flattened.
 export function SpillPreviewCard({ preview, pintPhoto, visibility }: SpillPreviewCardProps) {
   return (
-    <div className="spillPreviewWrap" aria-hidden="true">
-      <span className="spillPreviewEyebrow">Live preview</span>
-      <div className={`spillPreviewCard${preview.hasPhoto ? " hasPhoto" : ""}`}>
+    <div className={styles.spillPreviewWrap} aria-hidden="true">
+      <span className={styles.spillPreviewEyebrow}>Live preview</span>
+      <div className={`${styles.spillPreviewCard}${preview.hasPhoto ? " hasPhoto" : ""}`}>
         {preview.hasPhoto && pintPhoto ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            className="spillPreviewPhoto"
+            className={styles.spillPreviewPhoto}
             src={pintPhoto.previewUrl}
             alt=""
             decoding="async"
           />
         ) : (
-          <div className="spillPreviewPlaceholder">
+          <div className={styles.spillPreviewPlaceholder}>
             <Camera size={26} />
             <span>Your shot lands here</span>
           </div>
         )}
-        <div className="spillPreviewStamps">
-          <span className={`spillPreviewProv feedProv-${preview.provenance}`}>
+        <div className={styles.spillPreviewStamps}>
+          <span className={`${styles.spillPreviewProv} feedProv-${preview.provenance}`}>
             {preview.provenanceLabel}
           </span>
-          <span className="spillPreviewVisibility">{VISIBILITY_COPY[visibility].label}</span>
+          <span className={styles.spillPreviewVisibility}>{VISIBILITY_COPY[visibility].label}</span>
         </div>
         {preview.priceLabel ? (
-          <span className="spillPreviewPrice">{preview.priceLabel}</span>
+          <span className={styles.spillPreviewPrice}>{preview.priceLabel}</span>
         ) : null}
-        <div className="spillPreviewScrim">
-          <div className="spillPreviewWho">
-            <span className="spillPreviewAvatar">{preview.initial}</span>
-            <div className="spillPreviewWhoText">
-              <span className="spillPreviewHandle">{preview.shownHandle}</span>
-              <span className="spillPreviewMeta">{preview.venueName}</span>
+        <div className={styles.spillPreviewScrim}>
+          <div className={styles.spillPreviewWho}>
+            <span className={styles.spillPreviewAvatar}>{preview.initial}</span>
+            <div className={styles.spillPreviewWhoText}>
+              <span className={styles.spillPreviewHandle}>{preview.shownHandle}</span>
+              <span className={styles.spillPreviewMeta}>{preview.venueName}</span>
             </div>
           </div>
-          {preview.note ? <p className="spillPreviewNote">{preview.note}</p> : null}
+          {preview.note ? <p className={styles.spillPreviewNote}>{preview.note}</p> : null}
         </div>
       </div>
     </div>

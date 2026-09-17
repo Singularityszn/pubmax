@@ -66,11 +66,11 @@ describe("landing answer card copy", () => {
     // The chip carries the standing as a WORD. Colour on this card belongs to
     // the price band alone (captain's law 2026-09-05), so the chip's class
     // list is exactly `lpStanding` and the figure's badge wears the band.
-    expect(html).toMatch(/<span class="lpStanding" data-standing="listed" title="[^"]+"><span class="lpStandingDot" aria-hidden="true"><\/span>Listed<\/span>/);
-    expect(html).not.toMatch(/lpStanding-(green|amber|grey|modelled)/);
+    expect(html).toMatch(/<span class="_lpStanding_[^"]*" data-standing="listed" title="[^"]+"><span class="_lpStandingDot_[^"]*" aria-hidden="true"><\/span>Listed<\/span>/);
+    expect(html).not.toMatch(/_lpStanding-(green|amber|grey|modelled)/);
     expect(html).not.toContain("Confirmed");
     const none = render({ standing: "none" });
-    expect(none).toMatch(/<span class="lpStanding" data-standing="none"[^>]*>[\s\S]*?No price yet<\/span>/);
+    expect(none).toMatch(/<span class="_lpStanding_[^"]*" data-standing="none"[^>]*>[\s\S]*?No price yet<\/span>/);
   });
 
   it("paints the figure with its price band, red for a £6.50 London pint", () => {
@@ -86,11 +86,11 @@ describe("landing answer card copy", () => {
 
   it("prints no then line when the archive index holds none for the pub", () => {
     const bare = render({}, {});
-    expect(bare).not.toContain("lpPubThen");
+    expect(bare).not.toMatch(/_lpPubThen_/);
   });
 
   it("claims nothing it cannot back", () => {
-    const hero = html.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? html;
+    const hero = html.match(/<section class="screen _lpHero_[^"]*"[\s\S]*?<\/section>/)?.[0] ?? html;
     expect(hero).not.toMatch(/data-band=/);
     // The visible words, not the markup: `aria-live` is a polite region, not a claim.
     const words = hero.replace(/<[^>]+>/g, " ");

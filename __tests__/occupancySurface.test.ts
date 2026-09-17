@@ -131,7 +131,7 @@ describe("occupancy venue surface", () => {
 
     const dated = render();
     expect(dated).toContain("Some seats · 12 min ago · 1 person");
-    expect(dated).not.toContain("venueOccupancyReading--empty");
+    expect(dated).not.toContain("venueOccupancyReadingEmpty");
     expect(dated).not.toContain("aria-pressed");
     expect(dated).toContain("Report this crowd reading");
 
@@ -146,7 +146,7 @@ describe("occupancy venue surface", () => {
 
     const aged = render();
     expect(aged).toContain("No fresh reading");
-    expect(aged).toContain("venueOccupancyReading--empty");
+    expect(aged).toContain("venueOccupancyReadingEmpty");
   });
 
   it("reveals only a dated live reading", () => {
@@ -161,7 +161,7 @@ describe("occupancy venue surface", () => {
     };
 
     const html = render({ revealRecord: true });
-    expect(html).toContain('class="venueOccupancyReading venueRevealRecord"');
+    expect(html).toMatch(/class="[^"]*venueOccupancyReading[^"]* venueRevealRecord"/);
     expect(html).toContain('data-reveal-delay="2"');
   });
 
@@ -177,7 +177,7 @@ describe("occupancy venue surface", () => {
     };
 
     const html = render({ revealRecord: true, revealRecordLate: true });
-    expect(html).toContain('class="venueOccupancyReading venueRevealRecord"');
+    expect(html).toMatch(/class="[^"]*venueOccupancyReading[^"]* venueRevealRecord"/);
     expect(html).not.toContain('data-reveal-delay="2"');
   });
 

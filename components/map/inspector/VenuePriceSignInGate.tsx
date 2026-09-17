@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 import SignInButton from "@/components/auth/SignInButton";
 import { trackEvent } from "@/lib/analytics";
+import sheetStyles from "../venueSheet.module.css";
 
 export default function VenuePriceSignInGate({
   venueName,
@@ -20,7 +21,7 @@ export default function VenuePriceSignInGate({
 
   return (
     <section
-      className="venuePriceSignInGate"
+      className={sheetStyles.venuePriceSignInGate}
       role="region"
       aria-labelledby="venuePriceSignInTitle"
     >

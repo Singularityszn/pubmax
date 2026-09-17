@@ -12,7 +12,7 @@ const profileTsx = readFileSync(
   "utf8",
 );
 const beaconCss = readFileSync(
-  join(process.cwd(), "components/profile/outTonightBeacon.css"),
+  join(process.cwd(), "components/profile/outTonightBeacon.module.css"),
   "utf8",
 );
 

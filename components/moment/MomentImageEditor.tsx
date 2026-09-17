@@ -9,6 +9,8 @@ import type { CropTarget } from "@/lib/profileImagePicker";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 
+import styles from "./moment.module.css";
+
 type MomentImageEditorProps = {
   file: File;
   openerRef: RefObject<HTMLElement | null>;
@@ -43,9 +45,9 @@ export default function MomentImageEditor({
   }, []);
 
   return (
-    <div className="momentEditorBackdrop">
+    <div className={styles.momentEditorBackdrop}>
       <section
-        className="momentEditorSheet"
+        className={styles.momentEditorSheet}
         role="dialog"
         aria-modal="true"
         aria-label="Edit photo"
@@ -53,19 +55,19 @@ export default function MomentImageEditor({
         ref={sheetRef}
         tabIndex={-1}
       >
-        <header className="momentEditorHeader">
+        <header className={styles.momentEditorHeader}>
           <h2 id="moment-editor-title">Edit photo</h2>
-          <button type="button" className="momentEditorClose" disabled={saving} onClick={onCancel} aria-label="Close editor">
+          <button type="button" className={styles.momentEditorClose} disabled={saving} onClick={onCancel} aria-label="Close editor">
             <X size={20} aria-hidden="true" />
           </button>
         </header>
-        <div className="momentEditorTools" aria-label="Photo editor tools">
+        <div className={styles.momentEditorTools} aria-label="Photo editor tools">
           <span aria-current={croppedFile ? undefined : "step"}>Crop</span>
           <span aria-current={croppedFile ? "step" : undefined}>Filter</span>
           <span>Text</span>
           <span>Draw</span>
         </div>
-        <div className="momentEditorCanvas">
+        <div className={styles.momentEditorCanvas}>
           {croppedFile ? (
             <MomentPhotoDecorator
               file={croppedFile}

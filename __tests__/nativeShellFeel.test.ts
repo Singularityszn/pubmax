@@ -130,7 +130,7 @@ describe("playHaptic never gates the action it accompanies", () => {
 
 describe("the native document stylesheet", () => {
   const css = readFileSync(
-    join(process.cwd(), "components", "native", "nativeShell.css"),
+    join(process.cwd(), "components", "native", "nativeShell.module.css"),
     "utf8",
   );
 

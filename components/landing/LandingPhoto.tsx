@@ -21,7 +21,7 @@ import {
   type ResolvedLandingPhoto,
 } from "@/lib/landingImagery";
 
-import "./landingPhoto.css";
+import styles from "./landingPhoto.module.css";
 
 const WIDEST = LANDING_PHOTO_WIDTHS[LANDING_PHOTO_WIDTHS.length - 1];
 
@@ -44,14 +44,14 @@ export default function LandingPhoto({
   const { photo } = resolved;
   return (
     <div
-      className={`landingPhoto landingPhoto--${variant} ${className}`.trim()}
+      className={`${styles.landingPhoto} ${variant === "band" ? styles.landingPhotoBand : ""} ${className}`.trim()}
       data-photo-scope={resolved.scope}
     >
       <picture>
         <source type="image/avif" srcSet={landingPhotoSrcSet(photo, "avif")} sizes={sizes} />
         <source type="image/webp" srcSet={landingPhotoSrcSet(photo, "webp")} sizes={sizes} />
         <img
-          className="landingPhoto__img"
+          className={styles.landingPhotoImg}
           src={landingPhotoSrc(photo, WIDEST, "webp")}
           width={photo.width}
           height={photo.height}
@@ -63,7 +63,7 @@ export default function LandingPhoto({
           style={{ backgroundImage: `url(${photo.blurDataUrl})` }}
         />
       </picture>
-      <span className="landingPhoto__scrim" aria-hidden="true" />
+      <span className={styles.landingPhotoScrim} aria-hidden="true" />
       {variant === "band" ? <LandingPhotoCredit resolved={resolved} /> : null}
     </div>
   );
@@ -90,7 +90,7 @@ export function LandingPhotoCredit({
 }) {
   const { photo } = resolved;
   return (
-    <p className={`landingPhotoCredit ${className}`.trim()}>
+    <p className={`${styles.landingPhotoCredit} ${className}`.trim()}>
       {landingPhotoCreditNamesPlace(resolved.scope) ? (
         <>
           <a href={photo.credit.sourceUrl} target="_blank" rel="noopener noreferrer">

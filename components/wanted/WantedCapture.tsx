@@ -16,7 +16,7 @@ import {
   type WantedSourcePlatform,
 } from "@/lib/wanted";
 
-import "./wanted.css";
+import styles from "./wanted.module.css";
 
 type Props = {
   onSaved?: (wanted: WantedDTO) => void;
@@ -276,15 +276,15 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
   }
 
   return (
-    <div className="wantedCapture">
-      <label className="wantedCapture__label" htmlFor="wanted-paste">
+    <div className={styles.wantedCapture}>
+      <label className={styles.wantedCaptureLabel} htmlFor="wanted-paste">
         Pub name or link
       </label>
-      <div className="wantedCapture__row">
+      <div className={styles.wantedCaptureRow}>
         <input
           id="wanted-paste"
           type="text"
-          className="wantedCapture__input"
+          className={styles.wantedCaptureInput}
           value={paste}
           onInput={(event) => setPaste(event.currentTarget.value)}
           placeholder="Pub name, or a link you saved"
@@ -293,20 +293,20 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
         />
         <button
           type="button"
-          className="wantedCapture__submit"
+          className={styles.wantedCaptureSubmit}
           onClick={() => void onResolve()}
           disabled={busy || !paste.trim()}
         >
           {busy ? "Working…" : "Find"}
         </button>
       </div>
-      <label className="wantedCapture__label" htmlFor="wanted-note">
+      <label className={styles.wantedCaptureLabel} htmlFor="wanted-note">
         Optional note
       </label>
       <input
         id="wanted-note"
         type="text"
-        className="wantedCapture__note"
+        className={styles.wantedCaptureNote}
         value={note}
         onInput={(event) => setNote(event.currentTarget.value)}
         placeholder="Optional note"
@@ -314,24 +314,24 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
         disabled={busy}
       />
       {status ? (
-        <p className="wantedCapture__status" role="status">
+        <p className={styles.wantedCaptureStatus} role="status">
           {status}
         </p>
       ) : null}
       {resolve && resolve.candidates.length > 0 ? (
-        <ul className="wantedCandidates" aria-label="Matching pubs">
+        <ul className={styles.wantedCandidates} aria-label="Matching pubs">
           {resolve.candidates.map((candidate) => (
             <li key={candidate.venueId}>
               <button
                 type="button"
-                className="wantedCandidate"
+                className={styles.wantedCandidate}
                 disabled={busy}
                 onClick={() =>
                   void saveConfirmed(candidate, resolve.sourceUrl, resolve.rawPaste)
                 }
               >
-                <span className="wantedCandidate__name">{candidate.venueName}</span>
-                <span className="wantedCandidate__meta">
+                <span className={styles.wantedCandidateName}>{candidate.venueName}</span>
+                <span className={styles.wantedCandidateMeta}>
                   {candidate.venueKind === "uk_base" ? "UK pub" : "On the map"}
                   {candidate.contextLabel ? ` · ${candidate.contextLabel}` : ""}
                 </span>
@@ -343,7 +343,7 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
       {resolve && resolve.candidates.length === 0 ? (
         <button
           type="button"
-          className="wantedCapture__secondary"
+          className={styles.wantedCaptureSecondary}
           disabled={busy}
           onClick={() => void savePending(resolve.rawPaste || paste, resolve.sourceUrl)}
         >

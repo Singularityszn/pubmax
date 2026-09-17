@@ -75,7 +75,7 @@ Run resolver and route tests together.
 
 **Files:**
 - Modify: `components/nearme/NearMeNow.tsx`
-- Modify: `components/nearme/nearMeNow.css`
+- Modify: `components/nearme/nearMeNow.module.css`
 - Modify: `components/nearme/NearPageClient.tsx`
 - Create: `components/nearme/useNearPriceTrust.ts`
 - Create: `__tests__/nearPriceTrustClient.test.ts`

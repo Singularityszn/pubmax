@@ -37,8 +37,8 @@ function staticPageFiles(): string[] {
 describe("static route page headings", () => {
   it("uses the /near lede as the page h1", () => {
     const nearMeNow = read("components/nearme/NearMeNow.tsx");
-    expect(nearMeNow).toContain("<h1 className=\"nmnLede\">");
-    expect(nearMeNow).not.toMatch(/<p className="nmnLede"/);
+    expect(nearMeNow).toContain("<h1 className={styles.nmnLede}>");
+    expect(nearMeNow).not.toMatch(/<p className=\{styles\.nmnLede\}/);
   });
 
   it("keeps at most one h1 per static route page source", () => {

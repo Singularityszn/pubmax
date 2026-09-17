@@ -4,6 +4,7 @@ import { Minus, Plus } from "lucide-react";
 import MeasureChips from "@/components/map/composer/MeasureChips";
 import { formatPriceChipGbp, stepPrice } from "@/lib/spill";
 import type { PintDropsState } from "@/components/map/usePintDrops";
+import styles from "@/components/map/spillComposer.module.css";
 
 type ComposerPriceStepProps = {
   dropForm: PintDropsState["dropForm"];
@@ -35,15 +36,15 @@ export function ComposerPriceStep({
   const drinkInputId = useId();
 
   return (
-    <div className="spillPriceStep" data-testid="spill-price-step">
-      <div className="priceField">
-        <label className="priceFieldLabel" htmlFor={priceInputId}>
+    <div className={styles.spillPriceStep} data-testid="spill-price-step">
+      <div className={styles.priceField}>
+        <label className={styles.priceFieldLabel} htmlFor={priceInputId}>
           What did it cost?
         </label>
-        <div className="priceStepper">
+        <div className={styles.priceStepper}>
           <button
             type="button"
-            className="priceStepBtn"
+            className={styles.priceStepBtn}
             aria-label="Decrease price by 10 pence"
             onClick={() => setDropForm({ ...dropForm, price: stepPrice(dropForm.price, -1) })}
           >
@@ -58,14 +59,14 @@ export function ComposerPriceStep({
           />
           <button
             type="button"
-            className="priceStepBtn"
+            className={styles.priceStepBtn}
             aria-label="Increase price by 10 pence"
             onClick={() => setDropForm({ ...dropForm, price: stepPrice(dropForm.price, 1) })}
           >
             <Plus size={15} />
           </button>
         </div>
-        <div className="priceQuickAdds" role="group" aria-label="Quick-add price">
+        <div className={styles.priceQuickAdds} role="group" aria-label="Quick-add price">
           {priceQuickAdds.map((price) => {
             const label = formatPriceChipGbp(price);
             const selected = dropForm.price === label;
@@ -76,11 +77,11 @@ export function ComposerPriceStep({
                 key={price}
                 type="button"
                 className={[
-                  "priceChip stampChip",
-                  selected ? "selected" : "",
+                  `${styles.priceChip} stampChip`,
+                  selected ? styles.selected : "",
                   // A tagged chip carries a word beside its figure, so the
                   // ladder gives it two columns (lib/priceChipLadder.ts).
-                  isLastKnown ? "priceChip--tagged" : "",
+                  isLastKnown ? styles.priceChipTagged : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
@@ -89,7 +90,7 @@ export function ComposerPriceStep({
                 aria-pressed={selected}
               >
                 £{label}
-                {isLastKnown ? <span className="priceChipTag">last</span> : null}
+                {isLastKnown ? <span className={styles.priceChipTag}>last</span> : null}
               </button>
             );
           })}
@@ -102,8 +103,8 @@ export function ComposerPriceStep({
         onChange={(next) => setDropForm({ ...dropForm, ...next })}
       />
 
-      <label className="spillTextField" htmlFor={drinkInputId}>
-        <span className="spillFieldLabel">Drink</span>
+      <label className={styles.spillTextField} htmlFor={drinkInputId}>
+        <span className={styles.spillFieldLabel}>Drink</span>
         <input
           id={drinkInputId}
           value={dropForm.drink}

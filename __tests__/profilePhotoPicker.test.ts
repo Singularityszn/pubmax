@@ -265,6 +265,6 @@ describe("the crop step a person sees", () => {
   it("will not confirm a photo it has not measured yet", () => {
     // Server render has no image and no frame, so the confirm cannot fire on a
     // transform that means nothing.
-    expect(cropper("avatar")).toMatch(/class="profileCropConfirm"[^>]*disabled/);
+    expect(cropper("avatar")).toMatch(/class="[^"]*profileCropConfirm[^"]*"[^>]*disabled/);
   });
 });

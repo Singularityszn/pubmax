@@ -33,7 +33,7 @@ import { useUkPlaceIndex } from "@/lib/useUkPlaceIndex";
 
 import PlaceIndexCredit from "./PlaceIndexCredit";
 
-import "./cityChooser.css";
+import styles from "./cityChooser.module.css";
 
 export type CityChooserProps = {
   onSelect?: (cityId: CityId) => void;
@@ -139,36 +139,36 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
 
   return (
     <section
-      className="cityChooser cityChooser--section"
+      className={`${styles.cityChooser} ${styles.cityChooserSection}`}
       aria-labelledby={listId + "-title"}
     >
-      <div className="cityChooserInner">
-        <header className="cityChooserHead">
-          <p className="cityChooserEyebrow">Cities</p>
+      <div className={styles.cityChooserInner}>
+        <header className={styles.cityChooserHead}>
+          <p className={styles.cityChooserEyebrow}>Cities</p>
           <h2
             id={listId + "-title"}
-            className="cityChooserTitle cityChooserSerif"
+            className={`${styles.cityChooserTitle} ${styles.cityChooserSerif}`}
           >
             Choose your city
           </h2>
-          <p className="cityChooserLede">
+          <p className={styles.cityChooserLede}>
             Open a price-aware pub map. Crawls and drink-shaped pins for the
             night you want.
           </p>
         </header>
 
-        <div className="cityChooserSearch">
+        <div className={styles.cityChooserSearch}>
           <label
             htmlFor={`${listId}-search`}
-            className="cityChooserSearchLabel"
+            className={styles.cityChooserSearchLabel}
           >
             Find your town
           </label>
-          <div className="cityChooserSearchField">
+          <div className={styles.cityChooserSearchField}>
             <Search size={18} strokeWidth={1.75} aria-hidden="true" />
             <input
               id={`${listId}-search`}
-              className="cityChooserSearchInput"
+              className={styles.cityChooserSearchInput}
               type="search"
               value={query}
               onChange={(event) => changeQuery(event.target.value)}
@@ -183,15 +183,15 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
               aria-describedby={`${listId}-search-help`}
             />
           </div>
-          <p id={`${listId}-search-help`} className="cityChooserSearchHelp">
+          <p id={`${listId}-search-help`} className={styles.cityChooserSearchHelp}>
             {cityGuidesCoverageLine(cities)}
           </p>
         </div>
 
-        <div className="cityChooserToolbar">
+        <div className={styles.cityChooserToolbar}>
           <button
             type="button"
-            className="cityChooserLocate"
+            className={styles.cityChooserLocate}
             onClick={useMyLocation}
             disabled={locateState === "pending"}
             aria-describedby={
@@ -204,7 +204,7 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
           {locateMessage ? (
             <p
               id={`${listId}-locate-status`}
-              className="cityChooserLocateStatus"
+              className={styles.cityChooserLocateStatus}
               data-tone={locateState === "error" ? "error" : "info"}
               role="status"
               aria-live="polite"
@@ -214,8 +214,8 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
           ) : null}
         </div>
 
-        <p className="cityChooserNational">
-          <Link href={UK_NATIONAL_MAP_HREF} className="cityChooserNationalLink">
+        <p className={styles.cityChooserNational}>
+          <Link href={UK_NATIONAL_MAP_HREF} className={styles.cityChooserNationalLink}>
             {UK_NATIONAL_ENTRY_LABEL}
           </Link>
         </p>
@@ -223,21 +223,21 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
         {normalizedQuery.length >= 2 ? (
           <section
             id={`${listId}-search-results`}
-            className="cityChooserSearchPanel"
+            className={styles.cityChooserSearchPanel}
             aria-label="Place search results"
             aria-live="polite"
           >
-            <p className="cityChooserResultsLabel">Matches</p>
+            <p className={styles.cityChooserResultsLabel}>Matches</p>
             {results.length > 0 ? (
-              <ul className="cityChooserResults">
+              <ul className={styles.cityChooserResults}>
                 {results.map((result) => (
                   <li
                     key={`${result.kind}-${result.name}-${result.href}`}
-                    className="cityChooserResult"
+                    className={styles.cityChooserResult}
                   >
                     <Link
                       href={result.href}
-                      className="cityChooserResultLink"
+                      className={styles.cityChooserResultLink}
                       onClick={
                         result.kind === "curated"
                           ? () => selectCity(result.cityId)
@@ -245,24 +245,24 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
                       }
                     >
                       <MapPin size={18} strokeWidth={1.65} aria-hidden="true" />
-                      <span className="cityChooserResultCopy">
-                        <span className="cityChooserResultTopline">
-                          <strong className="cityChooserResultName">
+                      <span className={styles.cityChooserResultCopy}>
+                        <span className={styles.cityChooserResultTopline}>
+                          <strong className={styles.cityChooserResultName}>
                             {result.name}
                           </strong>
                           {cityChooserResultContext(result) ? (
-                            <span className="cityChooserResultContext">
+                            <span className={styles.cityChooserResultContext}>
                               {cityChooserResultContext(result)}
                             </span>
                           ) : null}
                           <span
-                            className="cityChooserResultBadge"
+                            className={styles.cityChooserResultBadge}
                             data-kind={result.kind}
                           >
                             {cityChooserResultBadge(result.kind)}
                           </span>
                         </span>
-                        <span className="cityChooserResultDescription">
+                        <span className={styles.cityChooserResultDescription}>
                           {result.description}
                         </span>
                       </span>
@@ -271,26 +271,26 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
                 ))}
               </ul>
             ) : placeIndexStatus === "loading" ? (
-              <p className="cityChooserSearchStatus" role="status">
+              <p className={styles.cityChooserSearchStatus} role="status">
                 {PLACE_INDEX_PENDING_LINE}
               </p>
             ) : placeIndexStatus === "error" ? (
-              <p className="cityChooserSearchStatus" role="status">
+              <p className={styles.cityChooserSearchStatus} role="status">
                 {cityGuidesSearchUnavailableLine(cities.length)}
               </p>
             ) : (
-              <p className="cityChooserSearchStatus">
+              <p className={styles.cityChooserSearchStatus}>
                 Can’t find that name yet. Try a nearby town.
               </p>
             )}
             {placeIndexStatus === "ready" ? (
-              <PlaceIndexCredit className="cityChooserSearchSource" />
+              <PlaceIndexCredit className={styles.cityChooserSearchSource} />
             ) : null}
           </section>
         ) : null}
 
         <nav aria-label="City maps">
-          <ul id={listId} className="cityChooserList">
+          <ul id={listId} className={styles.cityChooserList}>
             {cities.map((city, i) => {
               const href = cityMapShareUrl(city.id);
               const profile = getCityCapabilityProfile(city.id);
@@ -298,24 +298,24 @@ export default function CityChooser({ onSelect }: CityChooserProps) {
               return (
                 <li
                   key={city.id}
-                  className="cityChooserItem"
+                  className={styles.cityChooserItem}
                   style={{ ["--cc-i" as string]: i }}
                 >
                   <Link
                     href={href}
-                    className="cityChooserLink"
+                    className={styles.cityChooserLink}
                     onClick={() => selectCity(city.id)}
                     aria-label={`${city.displayName}${isPreview ? ", Preview" : ""}: ${city.tagline}. Open map.`}
                   >
-                    <span className="cityChooserNameRow">
-                      <span className="cityChooserName">
+                    <span className={styles.cityChooserNameRow}>
+                      <span className={styles.cityChooserName}>
                         {city.displayName}
                       </span>
                       {isPreview ? (
-                        <span className="cityChooserReleaseBadge">Preview</span>
+                        <span className={styles.cityChooserReleaseBadge}>Preview</span>
                       ) : null}
                     </span>
-                    <p className="cityChooserTagline">{city.tagline}</p>
+                    <p className={styles.cityChooserTagline}>{city.tagline}</p>
                   </Link>
                 </li>
               );

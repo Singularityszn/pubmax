@@ -36,7 +36,7 @@ import {
   type CompletedNight,
 } from "@/lib/morningReentry";
 import { nightsKeptLabel, readNightsKept, recordNightKept } from "@/lib/nightsKept";
-import "./morningReentry.css";
+import styles from "./morningReentry.module.css";
 
 export default function MorningReentryCard() {
   // Captured once, at mount, from a PRIOR session's completion (this card is
@@ -64,39 +64,39 @@ export default function MorningReentryCard() {
   if (!night || dismissed) return null;
 
   return (
-    <section className="morningCard" role="dialog" aria-modal="false" aria-label="Last night's kept">
+    <section className={styles.morningCard} role="dialog" aria-modal="false" aria-label="Last night's kept">
       <button
         type="button"
-        className="morningCard__close"
+        className={styles.morningCardClose}
         onClick={() => setDismissed(true)}
         aria-label="Dismiss"
       >
         <X size={18} aria-hidden="true" />
       </button>
 
-      <div className="morningCard__head">
-        <span className="morningCard__badge" aria-hidden="true">
+      <div className={styles.morningCardHead}>
+        <span className={styles.morningCardBadge} aria-hidden="true">
           <Sunrise size={16} />
         </span>
         <div>
-          <p className="morningCard__eyebrow">Last night&rsquo;s kept</p>
-          <p className="morningCard__lede">
+          <p className={styles.morningCardEyebrow}>Last night&rsquo;s kept</p>
+          <p className={styles.morningCardLede}>
             Open it when you want to remember why.
           </p>
         </div>
       </div>
 
-      {night.title ? <p className="morningCard__title">{night.title}</p> : null}
-      {keptLabel ? <p className="morningCard__habit">{keptLabel}</p> : null}
+      {night.title ? <p className={styles.morningCardTitle}>{night.title}</p> : null}
+      {keptLabel ? <p className={styles.morningCardHabit}>{keptLabel}</p> : null}
 
-      <div className="morningCard__actions">
-        <Link className="morningCard__link" href={`/plan/${night.planId}/recap`} onClick={() => setDismissed(true)}>
+      <div className={styles.morningCardActions}>
+        <Link className={styles.morningCardLink} href={`/plan/${night.planId}/recap`} onClick={() => setDismissed(true)}>
           <BookOpen size={16} aria-hidden="true" />
           Open your recap
         </Link>
         {crew && crew.names.length >= 2 ? (
           <Link
-            className="morningCard__link morningCard__link--secondary"
+            className={`${styles.morningCardLink} ${styles.morningCardLinkSecondary}`}
             href="/plan"
             onClick={() => {
               trackEvent(

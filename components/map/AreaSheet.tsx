@@ -24,7 +24,7 @@ import {
 } from "@/lib/mapExperienceLens";
 import type { Venue } from "@/lib/venues";
 
-import "./areaSheet.css";
+import styles from "./areaSheet.module.css";
 
 /**
  * An ad-hoc place (a locality or borough a map search flew to) that is NOT one
@@ -253,16 +253,16 @@ export default function AreaSheet({
   );
 
   return (
-    <div className="areaSheet">
+    <div className={styles.areaSheet}>
       <section
-        className="areaSheetSection"
+        className={styles.areaSheetSection}
         aria-label={
           baseLed
             ? "Pubs in this area"
             : `Cheapest ${drinkPlural} in this area`
         }
       >
-        <h3 className="areaSheetHeading">
+        <h3 className={styles.areaSheetHeading}>
           {baseLed
             ? focusName
               ? `Pubs around ${focusName}`
@@ -272,45 +272,45 @@ export default function AreaSheet({
               : `Cheapest ${drinkPlural} here`}
         </h3>
         {coverageNote && !baseLed ? (
-          <p className="areaSheetEmpty areaSheetCoverage" role="status">
+          <p className={`${styles.areaSheetEmpty} ${styles.areaSheetCoverage}`} role="status">
             {coverageNote}
           </p>
         ) : null}
         {focusName && pubs.length > 0 && !baseLed ? (
-          <ul className="areaSheetList">
+          <ul className={styles.areaSheetList}>
             {leadPubs.map((pub) => (
               <li key={pub.id}>
                 <button
                   type="button"
-                  className="areaSheetPub"
+                  className={styles.areaSheetPub}
                   onClick={() => pickPub(pub.id)}
                 >
-                  <span className="areaSheetPubName">{pub.name}</span>
-                  <span className="areaSheetPubMeta">
+                  <span className={styles.areaSheetPubName}>{pub.name}</span>
+                  <span className={styles.areaSheetPubMeta}>
                     <span
                       className={
                         pub.price !== null
-                          ? "areaSheetPrice"
-                          : "areaSheetPrice isUnpriced"
+                          ? styles.areaSheetPrice
+                          : `${styles.areaSheetPrice} ${styles.isUnpriced}`
                       }
                     >
                       {pub.priceLabel}
                     </span>
                     {pub.distanceLabel ? (
-                      <span className="areaSheetDistance">{pub.distanceLabel}</span>
+                      <span className={styles.areaSheetDistance}>{pub.distanceLabel}</span>
                     ) : null}
                   </span>
                 </button>
               </li>
             ))}
             <li>
-              <button type="button" className="areaSheetSeeAll" onClick={onClose}>
+              <button type="button" className={styles.areaSheetSeeAll} onClick={onClose}>
                 {areaSheetOverflowLabel(pubs.length)}
               </button>
             </li>
           </ul>
         ) : (
-          <p className="areaSheetEmpty">
+          <p className={styles.areaSheetEmpty}>
             {areaSheetEmptyNote({
               baseLed,
               hasFocus: Boolean(placeFocus || area),
@@ -325,19 +325,19 @@ export default function AreaSheet({
             the way out of it is a drinker at a bar. One line, under the empty
             state it belongs to, and never beside a list that already answered. */}
         {!baseLed && pubs.length === 0 && (placeFocus || area) && logInvite ? (
-          <p className="areaSheetEmpty areaSheetInvite">{logInvite}</p>
+          <p className={`${styles.areaSheetEmpty} ${styles.areaSheetInvite}`}>{logInvite}</p>
         ) : null}
       </section>
 
-      <section className="areaSheetSection" aria-label="Go somewhere else">
-        <h3 className="areaSheetHeading">Go somewhere else</h3>
+      <section className={styles.areaSheetSection} aria-label="Go somewhere else">
+        <h3 className={styles.areaSheetHeading}>Go somewhere else</h3>
         {/* The reader's own spot is the first way out, above the twenty fixed
             choices: /plan and /near both offer it, and a reader whose Near me
             just failed arrives here looking for exactly this. */}
         {onUseMyLocation ? (
           <button
             type="button"
-            className="areaSheetLocate"
+            className={styles.areaSheetLocate}
             disabled={locationBusy}
             onClick={onUseMyLocation}
           >
@@ -346,29 +346,29 @@ export default function AreaSheet({
           </button>
         ) : null}
         {onUseMyLocation && locationNote ? (
-          <p className="areaSheetLocateNote">{locationNote}</p>
+          <p className={styles.areaSheetLocateNote}>{locationNote}</p>
         ) : null}
-        <h4 className="areaSheetSubheading">City maps</h4>
+        <h4 className={styles.areaSheetSubheading}>City maps</h4>
         <CitySwitcher
           cityId={cityId}
           variant="list"
           onClose={onClose}
         />
-        <ul className="areaSheetGrid">
+        <ul className={styles.areaSheetGrid}>
           {elsewhere.map((option) => {
             const isCurrent = option.slug === area?.slug;
             return (
               <li key={option.slug}>
                 <button
                   type="button"
-                  className={isCurrent ? "areaSheetChip isCurrent" : "areaSheetChip"}
+                  className={isCurrent ? `${styles.areaSheetChip} ${styles.isCurrent}` : styles.areaSheetChip}
                   aria-current={isCurrent ? "true" : undefined}
                   onClick={() => hopToArea(option)}
                 >
-                  <span className="areaSheetChipName">{option.name}</span>
+                  <span className={styles.areaSheetChipName}>{option.name}</span>
                   {option.coverage ? (
                     <span
-                      className="areaSheetChipCoverage"
+                      className={styles.areaSheetChipCoverage}
                       data-tone={option.coverage.tone}
                     >
                       {option.coverage.label}

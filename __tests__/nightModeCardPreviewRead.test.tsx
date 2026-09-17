@@ -138,9 +138,9 @@ describe("the Night Mode card and a revoked capability", () => {
     });
     await settle();
 
-    expect(container.querySelector(".nightCard__now")?.textContent).toBe("The George");
-    expect(container.querySelector(".nightCard__busy")?.textContent).toContain("Busy right now");
-    expect(container.querySelector(".nightCard__loading")).toBeNull();
+    expect(container.querySelector("[class*='nightCardNow']")?.textContent).toBe("The George");
+    expect(container.querySelector("[class*='nightCardBusy']")?.textContent).toContain("Busy right now");
+    expect(container.querySelector("[class*='nightCardLoading']")).toBeNull();
 
     // The capability is revoked, so the read that follows it answers preview.
     planBody = previewBody;
@@ -150,8 +150,8 @@ describe("the Night Mode card and a revoked capability", () => {
     });
     await settle();
 
-    expect(container.querySelector(".nightCard__now")).toBeNull();
-    expect(container.querySelector(".nightCard__busy")).toBeNull();
-    expect(container.querySelector(".nightCard__loading")).not.toBeNull();
+    expect(container.querySelector("[class*='nightCardNow']")).toBeNull();
+    expect(container.querySelector("[class*='nightCardBusy']")).toBeNull();
+    expect(container.querySelector("[class*='nightCardLoading']")).not.toBeNull();
   });
 });

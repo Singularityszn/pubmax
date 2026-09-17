@@ -21,7 +21,7 @@ import {
   type CropTransform,
 } from "@/lib/profileImagePicker";
 
-import "@/components/profile/profileImageCropper.css";
+import styles from "@/components/profile/profileImageCropper.module.css";
 
 // The step between choosing a photo and uploading it. It exists because the
 // slots have fixed shapes: a face is a square and a backdrop is a wide band, so
@@ -364,12 +364,12 @@ export default function ProfileImageCropper({
 
   if (unreadable) {
     return (
-      <div className={`profileCropStep profileCropStep-${target.id} profileCropStepFailed`}>
+      <div className={`${styles.profileCropStep} profileCropStep-${target.id} ${styles.profileCropStepFailed}`}>
         <span className="profileEditorHint profileEditorStatusErr" role="status">
           {error}
         </span>
-        <div className="profileCropActions">
-          <button type="button" className="profileCropCancel" onClick={onCancel}>
+        <div className={styles.profileCropActions}>
+          <button type="button" className={styles.profileCropCancel} onClick={onCancel}>
             Cancel
           </button>
         </div>
@@ -378,10 +378,10 @@ export default function ProfileImageCropper({
   }
 
   return (
-    <div className={`profileCropStep profileCropStep-${target.id}`}>
+    <div className={`${styles.profileCropStep} profileCropStep-${target.id}`}>
       <div
         ref={frameElementRef}
-        className="profileCropFrame"
+        className={styles.profileCropFrame}
         style={{ aspectRatio: `${target.aspectRatio}` }}
         role="group"
         tabIndex={0}
@@ -399,15 +399,15 @@ export default function ProfileImageCropper({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           ref={imageRef}
-          className="profileCropImage"
+          className={styles.profileCropImage}
           alt=""
           draggable={false}
           onLoad={handleLoad}
           onError={handleImageError}
         />
-        <div className="profileCropMask" aria-hidden="true" />
+        <div className={styles.profileCropMask} aria-hidden="true" />
       </div>
-      <div className="profileCropZoom">
+      <div className={styles.profileCropZoom}>
         <label htmlFor={`pe-${target.id}-zoom`}>Zoom</label>
         <input
           id={`pe-${target.id}-zoom`}
@@ -420,10 +420,10 @@ export default function ProfileImageCropper({
           onChange={handleZoom}
         />
       </div>
-      <div className="profileCropActions">
+      <div className={styles.profileCropActions}>
         <button
           type="button"
-          className="profileCropConfirm"
+          className={styles.profileCropConfirm}
           disabled={!ready || rendering || busy}
           onClick={() => void handleConfirm()}
         >
@@ -431,7 +431,7 @@ export default function ProfileImageCropper({
         </button>
         <button
           type="button"
-          className="profileCropCancel"
+          className={styles.profileCropCancel}
           disabled={rendering || busy}
           onClick={onCancel}
         >

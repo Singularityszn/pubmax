@@ -39,38 +39,39 @@ describe("shouldEngageFocusTrap", () => {
 });
 
 describe("shouldInertOutsideSibling", () => {
-  function el(className: string): HTMLElement {
+  function el(className: string, attrs: Record<string, string> = {}): HTMLElement {
     return {
       classList: { contains: (token: string) => className.split(/\s+/).includes(token) },
+      hasAttribute: (name: string) => name in attrs,
     } as HTMLElement;
   }
 
   it("keeps the primary tab bar interactive beside a map sheet", () => {
-    expect(shouldInertOutsideSibling(el("mobileTabBar"), "map-surface")).toBe(false);
+    expect(shouldInertOutsideSibling(el("", { "data-mobile-tab-bar": "" }), "map-surface")).toBe(false);
     expect(shouldInertOutsideSibling(el("appShell mapStage"), "map-surface")).toBe(true);
   });
 
   it("keeps account setup above an open map sheet interactive", () => {
     expect(
-      shouldInertOutsideSibling(el("accountOnboardingBackdrop"), "map-surface"),
+      shouldInertOutsideSibling(el("", { "data-identity-gate": "" }), "map-surface"),
     ).toBe(false);
   });
 
   it("keeps the non-modal Android install card tappable beside a map sheet", () => {
     expect(
-      shouldInertOutsideSibling(el("a2hsSheet a2hsSheet--android"), "map-surface"),
+      shouldInertOutsideSibling(el("", { "data-a2hs-android-card": "" }), "map-surface"),
     ).toBe(false);
     // The iOS instructions are their own modal over a scrim, not a card.
     expect(shouldInertOutsideSibling(el("a2hsScrim"), "map-surface")).toBe(true);
     expect(
-      shouldInertOutsideSibling(el("a2hsSheet a2hsSheet--android"), "strict-modal"),
+      shouldInertOutsideSibling(el("", { "data-a2hs-android-card": "" }), "strict-modal"),
     ).toBe(true);
   });
 
   it("inerts every outside sibling for a strict modal", () => {
-    expect(shouldInertOutsideSibling(el("mobileTabBar"), "strict-modal")).toBe(true);
+    expect(shouldInertOutsideSibling(el("", { "data-mobile-tab-bar": "" }), "strict-modal")).toBe(true);
     expect(
-      shouldInertOutsideSibling(el("accountOnboardingBackdrop"), "strict-modal"),
+      shouldInertOutsideSibling(el("", { "data-identity-gate": "" }), "strict-modal"),
     ).toBe(true);
   });
 });

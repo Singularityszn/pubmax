@@ -128,34 +128,34 @@ function linksContaining(text: string): HTMLAnchorElement[] {
 describe("landing and mobile Map navigation", () => {
   it("uses the same preferred-city destination in both navs", async () => {
     const server = serverNavigation();
-    expect(server.querySelector<HTMLAnchorElement>(".lpPrimaryNav a[href^='/map']")?.getAttribute("href")).toBe(
+    expect(server.querySelector<HTMLAnchorElement>("[class*='lpPrimaryNav'] a[href^='/map']")?.getAttribute("href")).toBe(
       "/map",
     );
     expect(
-      server.querySelector<HTMLAnchorElement>(".mobileTabBar a[href^='/map']")?.getAttribute("href"),
+      server.querySelector<HTMLAnchorElement>("[class*='mobileTabBar'] a[href^='/map']")?.getAttribute("href"),
     ).toBe("/map");
 
     preferredCityState.current = "glasgow";
     await renderNavigation();
 
-    expect(href(".lpPrimaryNav a[href^='/map']")).toBe("/map/glasgow");
-    expect(href(".mobileTabBar a[href^='/map']")).toBe("/map/glasgow");
-    expect(href(".lpFooterNav a")).toBe("/map/glasgow");
+    expect(href("[class*='lpPrimaryNav'] a[href^='/map']")).toBe("/map/glasgow");
+    expect(href("[class*='mobileTabBar'] a[href^='/map']")).toBe("/map/glasgow");
+    expect(href("[class*='lpFooterNav'] a")).toBe("/map/glasgow");
   });
 
   it("starts at root Map and updates both navs after the city resolves", async () => {
     await renderNavigation();
 
-    expect(href(".lpPrimaryNav a[href^='/map']")).toBe("/map");
-    expect(href(".mobileTabBar a[href^='/map']")).toBe("/map");
+    expect(href("[class*='lpPrimaryNav'] a[href^='/map']")).toBe("/map");
+    expect(href("[class*='mobileTabBar'] a[href^='/map']")).toBe("/map");
 
     preferredCityState.current = "glasgow";
     await act(async () => {
       for (const listener of [...preferredCityState.listeners]) listener();
     });
 
-    expect(href(".lpPrimaryNav a[href^='/map']")).toBe("/map/glasgow");
-    expect(href(".mobileTabBar a[href^='/map']")).toBe("/map/glasgow");
+    expect(href("[class*='lpPrimaryNav'] a[href^='/map']")).toBe("/map/glasgow");
+    expect(href("[class*='mobileTabBar'] a[href^='/map']")).toBe("/map/glasgow");
   });
 
   it("keeps city selection on arrival calls to action", async () => {

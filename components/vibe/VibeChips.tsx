@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 
 import IntentLink from "@/components/nav/IntentLink";
 
-import "./vibeChips.css";
+import styles from "./vibeChips.module.css";
 
 type VibeChipsProps = {
   groupLabel: string;
@@ -20,12 +20,12 @@ export function VibeChips({
 }: VibeChipsProps) {
   return (
     <div
-      className={shellClassName ?? "vibeChips"}
+      className={shellClassName ?? styles.vibeChips}
       role="group"
       aria-label={groupLabel}
     >
-      {lede ? <p className="vibeChipsLede">{lede}</p> : null}
-      <div className="vibeChipsRow">{children}</div>
+      {lede ? <p className={styles.vibeChipsLede}>{lede}</p> : null}
+      <div className={styles.vibeChipsRow}>{children}</div>
     </div>
   );
 }
@@ -40,7 +40,7 @@ export function VibeChipButton({
   type = "button",
   ...props
 }: VibeChipButtonProps) {
-  const classes = ["vibeChip", "pressable", className].filter(Boolean).join(" ");
+  const classes = [styles.vibeChip, "pressable", className].filter(Boolean).join(" ");
   return (
     <button
       type={type}
@@ -59,6 +59,6 @@ type VibeChipLinkProps = ComponentProps<typeof IntentLink>;
  * so it is warmed on intent rather than prefetched on sight — see IntentLink.
  */
 export function VibeChipLink({ className, ...props }: VibeChipLinkProps) {
-  const classes = ["vibeChip", "pressable", className].filter(Boolean).join(" ");
+  const classes = [styles.vibeChip, "pressable", className].filter(Boolean).join(" ");
   return <IntentLink className={classes} {...props} />;
 }
