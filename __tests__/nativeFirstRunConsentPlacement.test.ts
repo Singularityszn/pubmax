@@ -24,7 +24,7 @@ import { describe, expect, it } from "vitest";
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
 const globalCss = read("app/globals.css");
-const onboardingCss = read("app/onboarding/onboarding.css");
+const onboardingCss = read("app/onboarding/Onboarding.module.css");
 
 /** A phone the shell actually ships on, with iOS's home-indicator inset. */
 type Viewport = {
@@ -260,7 +260,7 @@ const bandsShareABoundingBox = (a: Band, b: Band): boolean =>
 
 const PHONE_MEDIA = "(max-width: 760px)";
 const CARD_MEDIA = "(max-width: 640px)";
-const SURFACE_RULE = "body:has(.analyticsConsentPrompt) .firstRunOnboarding";
+const SURFACE_RULE = ":global(body:has(.analyticsConsentPrompt)) .firstRunOnboarding";
 const CARD_RULE = "body:has(.firstRunOnboarding) .analyticsConsentPrompt";
 
 describe("native first-run consent placement", () => {
@@ -280,7 +280,7 @@ describe("native first-run consent placement", () => {
     // so the card's tab-bar berth would hold it 72px up over a bar nobody can
     // see, and the :not(:has()) rule beside it cannot tell.
     expect(onboardingCss).toMatch(
-      /body:has\(\.firstRunOnboarding\)\s*\.mobileTabBar\s*{[^}]*display:\s*none/,
+      /:global\(body\):has\(\.firstRunOnboarding\)\s*:global\(\.mobileTabBar\)\s*{[^}]*display:\s*none/,
     );
     // The card is DOCKED now (PlanAstra section 3), so it reaches the screen
     // edge rather than floating 12px off it. The home-indicator inset is
@@ -339,7 +339,7 @@ describe("native first-run consent placement", () => {
     expect(
       declarationsFor(
         onboardingCss,
-        "body:has(.firstRunOnboarding):has(.analyticsConsentPrompt)",
+        ":global(body):has(.firstRunOnboarding):has(:global(.analyticsConsentPrompt))",
         PHONE_MEDIA,
       ).get("padding-bottom"),
     ).toBe("0");
@@ -404,9 +404,13 @@ describe("the first-run surface stands the compose control down", () => {
       "components/onboarding/FirstRunOnboardingGate.tsx",
     ]) {
       const source = read(file);
-      const main = source.match(/className="firstRunOnboarding[^"]*"/);
-      expect(main, `${file} renders the first-run surface`).not.toBeNull();
-      expect(main![0], `${file} stands compose down`).toContain("pageHidesCreateFab");
+      // CSS Module migration: className is now a template literal referencing
+      // styles.firstRunOnboarding, so match both the module reference and the
+      // global pageHidesCreateFab marker on the same element.
+      const hasModuleClass = /styles\.firstRunOnboarding/.test(source);
+      expect(hasModuleClass, `${file} renders the first-run surface`).toBe(true);
+      const hasHidesFab = /pageHidesCreateFab/.test(source);
+      expect(hasHidesFab, `${file} stands compose down`).toBe(true);
     }
   });
 

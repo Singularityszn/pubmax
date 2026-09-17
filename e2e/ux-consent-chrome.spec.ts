@@ -436,7 +436,7 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
     // a 704px surface and no reviewer would ever have found it.
     await expect(primary).toBeInViewport({ ratio: 1 });
     // On a short phone the action row is sticky to the surface's foot and the
-    // rows scroll up behind it (app/onboarding/onboarding.css, the short
+    // rows scroll up behind it (app/onboarding/Onboarding.module.css, the short
     // phone), so a row is owed reachability by scroll and a box clear of the
     // card, never a place under the action at rest.
     for (const row of await rows.all()) {

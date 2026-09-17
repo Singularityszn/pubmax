@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, MapPinned, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import styles from "@/app/onboarding/Onboarding.module.css";
 import PalPortrait from "@/components/pal/PalPortrait";
 import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
@@ -94,34 +95,34 @@ export default function FirstRunOnboarding({
       // The one screen with no price to add: compose stands down here rather
       // than parking a round + over the reviewed-area list
       // (components/nav/createFab.css).
-      className="firstRunOnboarding pageHidesCreateFab"
+      className={`${styles.firstRunOnboarding} pageHidesCreateFab`}
       data-stage={stage}
     >
-      <header className="firstRunTopbar">
-        <div className="firstRunBrand" aria-label="PUBMAXXING">
+      <header className={styles.firstRunTopbar}>
+        <div className={styles.firstRunBrand} aria-label="PUBMAXXING">
           <Image src="/brand/icon.svg" alt="" width={30} height={30} priority />
           <span>PUBMAXXING</span>
         </div>
         <div
-          className="firstRunProgress"
+          className={styles.firstRunProgress}
           role="progressbar"
           aria-label="Onboarding progress"
           aria-valuemin={1}
           aria-valuemax={2}
           aria-valuenow={isCompanionStage ? 2 : 1}
         >
-          <span className={isCompanionStage ? "isComplete" : "isCurrent"} />
-          <span className={isCompanionStage ? "isCurrent" : ""} />
+          <span className={isCompanionStage ? styles.isComplete : styles.isCurrent} />
+          <span className={isCompanionStage ? styles.isCurrent : undefined} />
         </div>
-        <button type="button" className="firstRunSkip pressable" onClick={skipOnboarding}>
+        <button type="button" className={`${styles.firstRunSkip} pressable`} onClick={skipOnboarding}>
           Skip
         </button>
       </header>
 
-      <div className="firstRunStage" key={stage}>
-        <section className="firstRunVisual" aria-label={isCompanionStage ? "Companion preview" : "London preview"}>
+      <div className={styles.firstRunStage} key={stage}>
+        <section className={styles.firstRunVisual} aria-label={isCompanionStage ? "Companion preview" : "London preview"}>
           {isCompanionStage ? (
-            <div className="firstRunCompanionHero">
+            <div className={styles.firstRunCompanionHero}>
               <PalPortrait
                 appearance={appearance}
                 name={selectedCompanion?.label ?? "Companion preview"}
@@ -134,7 +135,7 @@ export default function FirstRunOnboarding({
               </p>
             </div>
           ) : (
-            <figure className="firstRunLondonPhoto">
+            <figure className={styles.firstRunLondonPhoto}>
               <Image
                 src="/landing/hero-thames.jpg"
                 alt="London and the Thames viewed from above"
@@ -147,24 +148,24 @@ export default function FirstRunOnboarding({
           )}
         </section>
 
-        <section className="firstRunPanel" aria-live="polite">
-          <div className="firstRunPanelInner">
+        <section className={styles.firstRunPanel} aria-live="polite">
+          <div className={styles.firstRunPanelInner}>
             {isCompanionStage ? (
               <>
-                <p className="firstRunEyebrow">Your companion</p>
+                <p className={styles.firstRunEyebrow}>Your companion</p>
                 <h1>Pick your Pub Pal.</h1>
-                <p className="firstRunLead">
+                <p className={styles.firstRunLead}>
                   Every Pal reads the same real prices and routes. Pick the one you want in your corner tonight.
                 </p>
 
-                <div className="firstRunCompanionGrid" role="group" aria-label="Choose your Pub Pal">
+                <div className={styles.firstRunCompanionGrid} role="group" aria-label="Choose your Pub Pal">
                   {FIRST_RUN_COMPANIONS.map((choice) => {
                     const selected = companion === choice.id;
                     return (
                       <button
                         key={choice.id}
                         type="button"
-                        className={`firstRunCompanionChoice pressable${selected ? " isSelected" : ""}`}
+                        className={`${styles.firstRunCompanionChoice} pressable${selected ? ` ${styles.isSelected}` : ""}`}
                         aria-pressed={selected}
                         onClick={() => chooseCompanion(choice.id)}
                       >
@@ -176,43 +177,43 @@ export default function FirstRunOnboarding({
                   })}
                 </div>
 
-                <p className="firstRunPrivacy">
+                <p className={styles.firstRunPrivacy}>
                   <ShieldCheck size={16} aria-hidden="true" />
                   You can name, tweak, or skip your Pal later.
                 </p>
 
-                <div className="firstRunActions">
-                  <button type="button" className="firstRunBack pressable" onClick={() => setStage("london")}>
+                <div className={styles.firstRunActions}>
+                  <button type="button" className={`${styles.firstRunBack} pressable`} onClick={() => setStage("london")}>
                     <ArrowLeft size={18} aria-hidden="true" /> Back
                   </button>
                   <button
                     type="button"
-                    className="firstRunPrimary pressable"
+                    className={`${styles.firstRunPrimary} pressable`}
                     disabled={!companion}
                     onClick={startPlan}
                   >
                     Plan my night <ArrowRight size={18} aria-hidden="true" />
                   </button>
                 </div>
-                <p className="firstRunPermissionNote">
+                <p className={styles.firstRunPermissionNote}>
                   We won&rsquo;t ask about notifications until your first night&rsquo;s sorted.
                 </p>
               </>
             ) : (
               <>
-                <p className="firstRunEyebrow">Your city</p>
+                <p className={styles.firstRunEyebrow}>Your city</p>
                 <h1>London is ready.</h1>
-                <p className="firstRunLead">
+                <p className={styles.firstRunLead}>
                   Start with checked routes, listed pint prices, and a clear way home.
                 </p>
 
-                <div className="firstRunAreaList" aria-label="Reviewed London route areas">
+                <div className={styles.firstRunAreaList} aria-label="Reviewed London route areas">
                   {reviewedAreas.map((area) => (
                     <article key={area.name}>
                       <MapPinned size={19} aria-hidden="true" />
                       {/* The stamp rides INSIDE the text block, so a short
                           phone can fold it onto the way-home line
-                          (app/onboarding/onboarding.css, the short phone). */}
+                          (app/onboarding/Onboarding.module.css, the short phone). */}
                       <div>
                         <strong>{area.name}</strong>
                         <span>Home via {area.transportAnchor}</span>
@@ -222,8 +223,8 @@ export default function FirstRunOnboarding({
                   ))}
                 </div>
 
-                <div className="firstRunActions firstRunActionsSingle">
-                  <button type="button" className="firstRunPrimary pressable" onClick={confirmLondon}>
+                <div className={`${styles.firstRunActions} ${styles.firstRunActionsSingle}`}>
+                  <button type="button" className={`${styles.firstRunPrimary} pressable`} onClick={confirmLondon}>
                     Use London <ArrowRight size={18} aria-hidden="true" />
                   </button>
                 </div>

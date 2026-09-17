@@ -177,7 +177,7 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
     padding-bottom: max(6px, env(safe-area-inset-bottom));
   }
 
-  /* The first-run surface hides the tab bar (app/onboarding/onboarding.css)
+  /* The first-run surface hides the tab bar (app/onboarding/Onboarding.module.css)
      without taking it out of the document, so the :not(:has()) rule above
      still sees a dock and parks the card 72px up over a bar nobody can see.
      On that surface the safe area IS the dock, and the surface reserves the

@@ -32,8 +32,8 @@ These figures come from computed paint composited through each rendered element'
 
 | File and selector | Breakpoint | Reason |
 | --- | --- | --- |
-| `app/onboarding/onboarding.css` `.firstRunAreaList small` | 360px | `PUBMAXX reviewed` is source status for each displayed route area. |
-| `app/onboarding/onboarding.css` `.firstRunCompanionChoice small` | 360px | Choice note explains the visible Pal label and affects the selection. |
+| `app/onboarding/Onboarding.module.css` `.firstRunAreaList small` | 360px | `PUBMAXX reviewed` is source status for each displayed route area. |
+| `app/onboarding/Onboarding.module.css` `.firstRunCompanionChoice small` | 360px | Choice note explains the visible Pal label and affects the selection. |
 | `app/pal/pal.css` `.palTopbar > :nth-child(2):not(:last-child)` | 760px | `N of 5` is setup progress status, so mobile keeps the three-column onboarding top bar. |
 | `app/globals.css` `.bandOnboardingChip span` | 640px | Longest shipped story keeps its closing conditions in the mounted phone map. |
 | `app/globals.css`, `components/mobile/mobileMapShell.css` `.maplibregl-ctrl-attrib` | 640px | Map-level OpenStreetMap credit remains readable above phone navigation. |
@@ -77,8 +77,8 @@ Unmounted phone surfaces are inventoried separately: desktop `.mapToolbarSearchS
 
 | File and selector | Breakpoint | Reason |
 | --- | --- | --- |
-| `app/onboarding/onboarding.css` `body:has(.firstRunOnboarding) .mobileTabBar` | 760px | Full-screen setup owns navigation until setup ends. |
-| `app/onboarding/onboarding.css` `.firstRunBrand span` | 760px | Wordmark remains; secondary brand lockup is decorative. |
+| `app/onboarding/Onboarding.module.css` `body:has(.firstRunOnboarding) .mobileTabBar` | 760px | Full-screen setup owns navigation until setup ends. |
+| `app/onboarding/Onboarding.module.css` `.firstRunBrand span` | 760px | Wordmark remains; secondary brand lockup is decorative. |
 | `app/globals.css` `.venueHoverCard` | coarse pointer or 700px | Touch selection opens the full venue sheet with same content. |
 | `app/globals.css` `.mapHeroCard` | 640px | Desktop teaser is duplicated by story destinations available from phone map controls. |
 | `app/globals.css` MapLibre bottom-left control group | 640px | App-owned phone controls replace zoom chrome; map-level attribution stays visible above phone navigation. |
