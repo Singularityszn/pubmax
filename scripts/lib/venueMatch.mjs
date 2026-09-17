@@ -53,7 +53,7 @@ export function buildVenueIndexes(dataset) {
   return { idToKey, nameToKeys, rowsByKey };
 }
 
-function menuUrlToVenueId(enrichment) {
+export function menuUrlToVenueId(enrichment) {
   const map = new Map();
   for (const [venueId, rec] of Object.entries(enrichment.venues ?? {})) {
     if (rec.menuUrl) map.set(rec.menuUrl.replace(/\/$/, ""), venueId);
@@ -62,7 +62,7 @@ function menuUrlToVenueId(enrichment) {
 }
 
 /** Greene King slug → search tokens (pub name fragments + area hints). */
-const GK_SLUG_HINTS = {
+export const GK_SLUG_HINTS = {
   "goat-tavern-mayfair": ["goat", "tavern", "stafford"],
   "grafton-arms": ["grafton", "strutton"],
   "leicester-arms": ["leicester", "glasshouse"],
@@ -83,7 +83,7 @@ const GK_SLUG_HINTS = {
   "new-explorer": ["explorer"],
 };
 
-function resolveVenueKeyFromHints(hints, indexes) {
+export function resolveVenueKeyFromHints(hints, indexes) {
   if (!hints?.length) return null;
   let best = null;
   let bestScore = 0;
@@ -110,7 +110,7 @@ export function resolveVenueKeyFromPubName(pubName, indexes) {
   return resolveVenueKeyFromHints(tokens, indexes);
 }
 
-function slugFromMbplcDrinksUrl(url) {
+export function slugFromMbplcDrinksUrl(url) {
   try {
     const parts = new URL(url).pathname.split("/").filter(Boolean);
     const drinksIdx = parts.lastIndexOf("drinks");
@@ -121,7 +121,7 @@ function slugFromMbplcDrinksUrl(url) {
   }
 }
 
-function mergeDrinkUpdates(existing, incoming) {
+export function mergeDrinkUpdates(existing, incoming) {
   const byKey = new Map();
   for (const row of existing) {
     const k = `${row.venueKey}|${row.drinkName}|${row.category}|${row.source?.url ?? ""}`;
