@@ -3,6 +3,7 @@ export type CameraIntentKind =
   | "city"
   | "cluster"
   | "nearby"
+  | "opening-location"
   | "query"
   | "route"
   | "venue"
