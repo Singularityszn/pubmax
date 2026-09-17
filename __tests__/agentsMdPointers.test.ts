@@ -65,6 +65,8 @@ const NOT_REPO_PATHS = new Set([
   "manifest.json",
   // ESM declaration suffix names a sidecar convention, not one concrete file.
   ".d.mts",
+  // Plain ESM suffix names the companion pattern, not one concrete file.
+  ".mjs",
   // Homepage card uses `/api/home-card`, not this absent Next file convention.
   "opengraph-image.tsx",
   // Next trace suffix names generated output, not a committed file.

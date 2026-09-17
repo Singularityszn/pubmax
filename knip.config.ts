@@ -30,6 +30,25 @@ const config: KnipConfig = {
 
     // Invoked via execFileSync in scripts/perf-ab.mjs, not imported.
     "scripts/print-e2e-server-env.ts",
+
+    // Scripts read by fence tests via readFileSync or execFileSync at test
+    // time, never imported by the app. Knip sees them as unreferenced files
+    // but removing them breaks the fence tests that pin source-level
+    // invariants (e.g. nativeSplashArt, storeAssets, brandIconAssets).
+    "scripts/gen-native-app-icons.mjs",
+    "scripts/gen-store-assets.mjs",
+    "scripts/ui-ux-battle-test.mjs",
+    "scripts/link-cursor-skills.mjs",
+    "scripts/enrich_heritage.mjs",
+    "scripts/resolve_postcode_coordinate_decisions.mjs",
+    "scripts/lib/postcodeCoordinateDecisions.mjs",
+    "scripts/lib/uiUxAxeAuditMetadata.mjs",
+    "scripts/firecrawl_greene_king_prices.mjs",
+    "scripts/firecrawl_mbplc_prices.mjs",
+    "scripts/whatson/quizRefresh.mjs",
+    "scripts/whatson/scrape_greene_king_sport.mjs",
+    "scripts/landing/build-landing-map.mjs",
+    "scripts/landing/build-landing-photos.mjs",
   ],
   rules: {
     files: "error",
