@@ -142,7 +142,7 @@ describe("no surface puts the raw coral back on a light word", () => {
   // The surfaces the audit found and fixed. Each is held to the INK rather
   // than to a hex, so a retune moves them together.
   const HOLD_TO_INK: ReadonlyArray<readonly [file: string, selector: string]> = [
-    ["components/ui/kicker.module.css", ".kicker {"],
+    ["components/ui/kicker.module.css", ":global(.kicker) {"],
     ["components/city/cityChooser.module.css", ".cityChooserSection .cityChooserLocate {"],
     [
       "components/city/cityChooser.module.css",

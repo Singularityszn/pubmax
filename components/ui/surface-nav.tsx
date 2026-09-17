@@ -60,7 +60,7 @@ export default function SurfaceNav({
       {backLabel && onBack ? (
         <button
           type="button"
-          className={`${styles.surfaceNavBack}${className ? ` ${className}` : ""}`}
+          className={`surfaceNavBack${className ? ` ${className}` : ""}`}
           aria-label={backLabel}
           onClick={onBack}
           onPointerDown={(event) => event.stopPropagation()}
@@ -71,7 +71,7 @@ export default function SurfaceNav({
       <button
         ref={closeRef}
         type="button"
-        className={`${styles.surfaceNavHome}${className ? ` ${className}` : ""}`}
+        className={`surfaceNavHome${className ? ` ${className}` : ""}`}
         aria-label={homeLabel}
         onClick={onHome}
         onPointerDown={(event) => event.stopPropagation()}

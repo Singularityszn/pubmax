@@ -34,7 +34,7 @@ export default function Kicker({
   id?: string;
   className?: string;
 }) {
-  const classes = [styles.kicker, tone === "muted" ? styles.kickerMuted : null, className]
+  const classes = ["kicker", tone === "muted" ? "kickerMuted" : null, className]
     .filter(Boolean)
     .join(" ");
   return (

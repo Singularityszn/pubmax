@@ -4,10 +4,13 @@
    Quiet by rule (design judgement 2026-08-01, findings 2.4 and 2.16): no
    border, no fill at rest. A bordered box with a coral hover ring made the way
    out of the venue sheet louder than the pub's name. The accent is spent on the
-   focus ring alone, where it does a job nothing else can do. */
+   focus ring alone, where it does a job nothing else can do.
 
-.surfaceNavBack,
-.surfaceNavHome {
+   All classes are :global() for consistency with other UI primitives in this
+   migration batch, which all keep stable unhashed class names. */
+
+:global(.surfaceNavBack),
+:global(.surfaceNavHome) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -29,51 +32,51 @@
    sparse auto-placement pushes a leading control that names only its COLUMN
    onto a second row: the pub's name sat alone on one line with Back and Home
    stranded under it. Naming the row keeps the head one row deep. */
-.surfaceNavBack {
+:global(.surfaceNavBack) {
   grid-column: 1;
   grid-row: 1;
   justify-self: start;
 }
 
-.surfaceNavHome {
+:global(.surfaceNavHome) {
   grid-column: 3;
   grid-row: 1;
   justify-self: end;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .surfaceNavBack:hover,
-  .surfaceNavHome:hover {
+  :global(.surfaceNavBack):hover,
+  :global(.surfaceNavHome):hover {
     color: var(--color-text, var(--ink));
     background: color-mix(in srgb, currentColor 10%, transparent);
   }
 }
 
-.surfaceNavBack:focus-visible,
-.surfaceNavHome:focus-visible {
+:global(.surfaceNavBack):focus-visible,
+:global(.surfaceNavHome):focus-visible {
   outline: 2px solid var(--color-accent, var(--brass));
   outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .surfaceNavBack,
-  .surfaceNavHome {
+  :global(.surfaceNavBack),
+  :global(.surfaceNavHome) {
     transition:
       color var(--duration-base) var(--ease-out),
       background-color var(--duration-base) var(--ease-out),
       transform var(--duration-press) var(--ease-out);
   }
   /* Press feedback lands on pointer-down, not on release. */
-  .surfaceNavBack:active,
-  .surfaceNavHome:active {
+  :global(.surfaceNavBack):active,
+  :global(.surfaceNavHome):active {
     transform: scale(0.97);
     --shared-press-scale: 1;
   }
 }
 
 @media (prefers-contrast: more) {
-  .surfaceNavBack,
-  .surfaceNavHome {
+  :global(.surfaceNavBack),
+  :global(.surfaceNavHome) {
     color: var(--color-text, var(--ink));
     border: 1px solid var(--color-border, var(--line));
   }

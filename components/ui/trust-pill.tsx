@@ -47,7 +47,7 @@ export default function TrustPill({
   const figure = priceStandingFigure(decision);
   const band = figure ? priceBand(decision.priceGbp, area) : null;
   const isEstimate = standing === "estimate";
-  const classes = [styles.trustPill, priceBandClass(band), className].filter(Boolean).join(" ");
+  const classes = ["trustPill", priceBandClass(band), className].filter(Boolean).join(" ");
 
   const pill = (
     <span
@@ -56,8 +56,8 @@ export default function TrustPill({
       data-price-band={band ?? undefined}
       title={priceStandingNote(standing)}
     >
-      <span className={styles.trustPillDot} aria-hidden="true" />
-      {figure ? <span className={styles.trustPillFigure}>{figure}</span> : null}
+      <span className="trustPillDot" aria-hidden="true" />
+      {figure ? <span className="trustPillFigure">{figure}</span> : null}
       {trustPillLabel(standing, confirmedAtMsOf(decision))}
     </span>
   );
@@ -69,12 +69,12 @@ export default function TrustPill({
   if (!isEstimate) return pill;
 
   return (
-    <span className={styles.trustPillRow}>
+    <span className="trustPillRow">
       {pill}
-      <a className={styles.trustPillMethodLink} href={HOW_WE_ESTIMATE_HREF}>
+      <a className="trustPillMethodLink" href={HOW_WE_ESTIMATE_HREF}>
         {HOW_WE_ESTIMATE_LABEL}
       </a>
-      {basisNote ? <span className={styles.trustPillBasis}>{basisNote}</span> : null}
+      {basisNote ? <span className="trustPillBasis">{basisNote}</span> : null}
     </span>
   );
 }

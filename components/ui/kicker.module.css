@@ -1,11 +1,14 @@
 /* Kicker: the line above a heading (components/ui/kicker.tsx).
    Launch tokens only (docs/DESIGN_SYSTEM.md "Launch tokens"). Sentence case by
-   construction: no text-transform here, ever. */
+   construction: no text-transform here, ever.
+
+   All classes are :global() because the class names are referenced by tests and
+   external selectors that expect stable, unhashed names. */
 
 /* The kicker is a WORD in the accent, never a fill, so it takes the accent's
    ink. --color-accent is 2.9:1 as text on the light ladder, and the audit
    found this one line failing on four surfaces at once. */
-.kicker {
+:global(.kicker) {
   margin: 0 0 var(--space-2);
   color: var(--color-accent-ink);
   font-family: var(--font-body);
@@ -16,11 +19,11 @@
   text-wrap: balance;
 }
 
-.kickerMuted {
+:global(.kickerMuted) {
   color: var(--color-text-muted);
 }
 
 /* An inline kicker (as="span") sits in a row and carries no bottom margin. */
-span.kicker {
+span:global(.kicker) {
   margin: 0;
 }

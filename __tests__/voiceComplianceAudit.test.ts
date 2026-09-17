@@ -525,7 +525,7 @@ describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
     ["components/pal/palChat.module.css", [".palGlanceLabel"]],
     ["app/messages/Messages.module.css", [".messagesThreadEyebrow"]],
     // The landing's labels are the shared Kicker primitive (components/ui/kicker.module.css).
-    ["components/ui/kicker.module.css", [".kicker"]],
+    ["components/ui/kicker.module.css", [":global(.kicker)"]],
     ["components/plan/nightCrawl.module.css", [
       ".nightCrawlKicker",
       ".nightCrawlEyebrow",

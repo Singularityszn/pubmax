@@ -5,9 +5,12 @@
    modelled) and a reader saw a green "Confirmed" over a dear pint; captain's
    law 2026-09-05 moved every price colour onto the band. Launch tokens only.
    A pill is a stamp, so it keeps a fill; the fill is a tint of the band hue
-   on the raised surface so the ink stays readable in both themes. */
+   on the raised surface so the ink stays readable in both themes.
 
-.trustPill {
+   All classes are :global() because the class names are referenced by tests and
+   compound selectors with global priceBand-* classes from app/globals.css. */
+
+:global(.trustPill) {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -23,7 +26,7 @@
   white-space: nowrap;
 }
 
-.trustPillDot {
+:global(.trustPillDot) {
   width: 8px;
   height: 8px;
   flex: none;
@@ -33,38 +36,37 @@
 
 /* A banded pill reads the band's own hue and ink off the class family in
    app/globals.css; the dot echoes the hue for a reader who cannot read the
-   tint. Unbanded (no figure) stays the neutral badge above.
-   The priceBand-* classes are global (defined in app/globals.css). */
-.trustPill:global(.priceBand-cheap),
-.trustPill:global(.priceBand-average),
-.trustPill:global(.priceBand-expensive) {
+   tint. Unbanded (no figure) stays the neutral badge above. */
+:global(.trustPill.priceBand-cheap),
+:global(.trustPill.priceBand-average),
+:global(.trustPill.priceBand-expensive) {
   background: var(--price-band-surface);
   color: var(--price-band-ink);
 }
 
-.trustPill:global(.priceBand-cheap) .trustPillDot,
-.trustPill:global(.priceBand-average) .trustPillDot,
-.trustPill:global(.priceBand-expensive) .trustPillDot {
+:global(.trustPill.priceBand-cheap .trustPillDot),
+:global(.trustPill.priceBand-average .trustPillDot),
+:global(.trustPill.priceBand-expensive .trustPillDot) {
   background: var(--price-band-hue);
 }
 
 /* The figure the standing is worth. A price caption never ellipses: the meaning
    the whole trust argument rests on is the figure itself, so it wraps its row
    or the cell widens. */
-.trustPillFigure {
+:global(.trustPillFigure) {
   white-space: normal;
 }
 
 /* The method link and the basis note sit OUTSIDE the pill, because they are a
    way onward rather than part of the claim. */
-.trustPillRow {
+:global(.trustPillRow) {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
 }
 
-.trustPillMethodLink {
+:global(.trustPillMethodLink) {
   display: inline-flex;
   align-items: center;
   min-height: var(--space-6);
@@ -74,18 +76,18 @@
   text-decoration: underline;
 }
 
-.trustPillMethodLink:hover {
+:global(.trustPillMethodLink):hover {
   color: var(--color-text);
 }
 
-.trustPillBasis {
+:global(.trustPillBasis) {
   font-family: var(--font-body);
   font-size: var(--text-2xs);
   color: var(--color-text-muted);
 }
 
 @media (prefers-contrast: more) {
-  .trustPill {
+  :global(.trustPill) {
     border: 1px solid currentColor;
   }
 }
