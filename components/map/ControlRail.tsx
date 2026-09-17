@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 
-import "./controlRailChrome.css";
+import "./ControlRailChrome.module.css";
 import { pubSources, writerProfile } from "@/lib/curation";
 import { curatedCrawls as londonCuratedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import type { CityId } from "@/lib/cities";

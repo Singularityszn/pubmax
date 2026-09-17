@@ -1,6 +1,6 @@
 "use client";
 
-import "./analyticsConsent.css";
+import "./AnalyticsConsent.module.css";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";

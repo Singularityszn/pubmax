@@ -1,4 +1,4 @@
-import "./photoComposer.css";
+import "./PhotoComposer.module.css";
 
 import { ImagePlus, SmilePlus, X } from "lucide-react";
 

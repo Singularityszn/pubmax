@@ -6,15 +6,19 @@
 
    NOTE: vibeChips.css (same directory) owns the "house stamp" skin with
    var(--font-display) and 44px floor. These base rules serve the composer
-   and drop-card contexts at lower specificity. */
+   and drop-card contexts at lower specificity.
 
-.vibeTagField {
+   All classes are :global() because .vibeChip is shared across multiple
+   components and also defined in vibeChips.css — hashing would break
+   cross-file agreement. */
+
+:global(.vibeTagField) {
   margin: 0;
   padding: 0;
   border: 0;
 }
 
-.vibeTagField legend {
+:global(.vibeTagField) legend {
   padding: 0;
   margin-bottom: 6px;
   color: var(--ink-soft);
@@ -22,13 +26,13 @@
   font-weight: 700;
 }
 
-.vibeTagRow {
+:global(.vibeTagRow) {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.vibeChip {
+:global(.vibeChip) {
   display: inline-flex;
   align-items: center;
   min-height: 32px;
@@ -43,36 +47,36 @@
   cursor: pointer;
 }
 
-.vibeChip:hover:not(:disabled) {
+:global(.vibeChip):hover:not(:disabled) {
   border-color: var(--brass);
   color: var(--brass);
 }
 
-.vibeChip.selected {
+:global(.vibeChip):global(.selected) {
   border-color: var(--brass);
   background: color-mix(in srgb, var(--brass) 14%, transparent);
   color: var(--brass);
 }
 
-.vibeChip:disabled {
+:global(.vibeChip):disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-.vibeChip:focus-visible {
+:global(.vibeChip):focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 1px;
 }
 
 /* Read-only chips shown on a drop card — smaller, non-interactive. */
-.dropVibeTags {
+:global(.dropVibeTags) {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
   margin: 8px 0 0;
 }
 
-.vibeChip.small {
+:global(.vibeChip):global(.small) {
   min-height: 0;
   padding: 2px 8px;
   border-color: color-mix(in srgb, var(--brass) 35%, transparent);

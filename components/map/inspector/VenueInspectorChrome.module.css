@@ -4,27 +4,27 @@
    VenuePintsTab.tsx and PubMap.tsx.
    Extracted from app/globals.css. */
 
-.venueInspector {
+:global(.venueInspector) {
   margin-top: 20px;
   padding-top: 18px;
   border-top: 1px solid var(--line-soft);
 }
 
-.venueInspector > p {
+:global(.venueInspector) > p {
   color: var(--muted);
 }
 
-.description {
+:global(.description) {
   margin-top: 10px;
   font-size: 0.9rem;
   line-height: 1.5;
 }
 
-.muted {
+:global(.muted) {
   color: var(--muted);
 }
 
-.priceList {
+:global(.priceList) {
   margin-top: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -32,7 +32,7 @@
   background: var(--panel-raised);
 }
 
-.priceList div {
+:global(.priceList) div {
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -41,11 +41,11 @@
   font-variant-numeric: tabular-nums;
 }
 
-.priceList div:first-child {
+:global(.priceList) div:first-child {
   border-top: 0;
 }
 
-.pintDrops {
+:global(.pintDrops) {
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px dashed var(--line);

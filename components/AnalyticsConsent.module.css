@@ -16,7 +16,7 @@
    115px, a four-line sentence beside two stacked buttons, and with the dock it
    took a fifth of the screen. It is one row now, the sentence and both choices
    side by side: a 1px hairline, 5px, the 44px controls and 6px make 56px. */
-.analyticsConsentPrompt {
+:global(.analyticsConsentPrompt) {
   position: fixed;
   z-index: 1000;
   right: 0;
@@ -43,7 +43,7 @@
   color: var(--ink);
 }
 
-.analyticsConsentPrompt p {
+:global(.analyticsConsentPrompt) p {
   min-width: 0;
   margin: 0;
   font-size: 0.78rem;
@@ -55,7 +55,7 @@
    rides its line of the sentence. The area reaches UP, over the plain words
    above it, rather than down: the link is on the sentence's last line, and a
    hit area hanging below that line would leave the 56px row. */
-.analyticsConsentPrompt a {
+:global(.analyticsConsentPrompt) a {
   display: inline-block;
   min-width: 44px;
   padding: 24px 4px 6px;
@@ -65,7 +65,7 @@
   text-underline-offset: 3px;
 }
 
-.analyticsConsentPromptActions {
+:global(.analyticsConsentPromptActions) {
   display: flex;
   flex: 0 0 auto;
   gap: 8px;
@@ -73,7 +73,7 @@
 
 /* The text-button row (--control-*), on the page's own surface so the pair
    reads against the raised strip. Equal weight: neither is the one to press. */
-.analyticsConsentPromptActions button {
+:global(.analyticsConsentPromptActions) button {
   min-width: 44px;
   min-height: 44px;
   padding: 0 var(--control-pad-x, 16px);
@@ -90,8 +90,8 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.analyticsConsentPromptActions button:hover,
-.analyticsConsentPromptActions button:focus-visible {
+:global(.analyticsConsentPromptActions) button:hover,
+:global(.analyticsConsentPromptActions) button:focus-visible {
   border-color: var(--brass);
 }
 
@@ -99,8 +99,8 @@
    bleed through semi-transparent scrims or sit above sheet chrome. The desktop
    choose-area picker is the second shape of that surface, and it dims the map
    with a scrim of its own rather than the phone sheet portal. */
-body:has(.mobileSheetPortal) .analyticsConsentPrompt,
-body:has(.chooseAreaDesktopScrim) .analyticsConsentPrompt {
+body:has(:global(.mobileSheetPortal)) :global(.analyticsConsentPrompt),
+body:has(:global(.chooseAreaDesktopScrim)) :global(.analyticsConsentPrompt) {
   visibility: hidden;
   pointer-events: none;
 }
@@ -110,7 +110,7 @@ body:has(.chooseAreaDesktopScrim) .analyticsConsentPrompt {
    the centre of "We are here" at 320x568 (verify-preview-4 RED 2). Its own
    rule rather than a third branch above, because that list is the map sheet's
    and __tests__/qaHighFindings.test.ts reads it as the two selectors it is. */
-body:has(.nightCrawl) .analyticsConsentPrompt {
+body:has(:global(.nightCrawl)) :global(.analyticsConsentPrompt) {
   visibility: hidden;
   pointer-events: none;
 }
@@ -123,14 +123,14 @@ body:has(.nightCrawl) .analyticsConsentPrompt {
    transform: translateZ(0), will-change: transform or opacity and
    backface-visibility: hidden each left the hole; opacity alone cleared it.
    Fence: e2e/map-consent-canvas-band.spec.ts. */
-body:has(.maplibregl-canvas) .analyticsConsentPrompt {
+body:has(:global(.maplibregl-canvas)) :global(.analyticsConsentPrompt) {
   opacity: 0.999;
 }
 
 /* Desktop: reserve foot clearance while the fixed consent bar is mounted so
    list cards and page footers are not half-covered. */
 @media (min-width: 641px) {
-  body:has(.analyticsConsentPrompt) {
+  body:has(:global(.analyticsConsentPrompt)) {
     padding-bottom: calc(
       var(--analytics-consent-clearance, 72px) + max(12px, env(safe-area-inset-bottom))
     );
@@ -140,13 +140,13 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
 @media (max-width: 640px) {
   /* Phone: the card is one 56px row on the tab bar's lane, so scroll surfaces
      reserve exactly that row and Today, Plan and /pubs actions end above it. */
-  body:has(.analyticsConsentPrompt):has(.mobileTabBar, .mobileTabBarClearance) {
+  body:has(:global(.analyticsConsentPrompt)):has(:global(.mobileTabBar), :global(.mobileTabBarClearance)) {
     padding-bottom: calc(
         var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--analytics-consent-mobile-clearance, 56px)
     );
   }
 
-  body:has(.analyticsConsentPrompt):not(:has(.mobileTabBar, .mobileTabBarClearance)) {
+  body:has(:global(.analyticsConsentPrompt)):not(:has(:global(.mobileTabBar), :global(.mobileTabBarClearance))) {
     padding-bottom: calc(
       var(--analytics-consent-mobile-clearance, 56px) + max(12px, env(safe-area-inset-bottom))
     );
@@ -159,7 +159,7 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
      beside both choices inside 56px at 320px. Nothing caps the height: larger
      text grows the card rather than spilling it onto the dock, and the lane
      is sized in rem so browser text zoom grows it with the row. */
-  .analyticsConsentPrompt {
+  :global(.analyticsConsentPrompt) {
     bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom));
     grid-template-columns: minmax(0, 1fr) auto;
     justify-content: stretch;
@@ -172,7 +172,7 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
      edge, because a docked strip that stops short of it is the floating panel
      again; the home-indicator inset is cleared by the card's OWN padding
      instead, so the two buttons never sit under the system gesture area. */
-  body:not(:has(.mobileTabBar, .mobileTabBarClearance)) .analyticsConsentPrompt {
+  body:not(:has(:global(.mobileTabBar), :global(.mobileTabBarClearance))) :global(.analyticsConsentPrompt) {
     bottom: 0;
     padding-bottom: max(6px, env(safe-area-inset-bottom));
   }
@@ -182,7 +182,7 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
      still sees a dock and parks the card 72px up over a bar nobody can see.
      On that surface the safe area IS the dock, and the surface reserves the
      lane the card then sits in. */
-  body:has(.firstRunOnboarding) .analyticsConsentPrompt {
+  body:has(:global(.firstRunOnboarding)) :global(.analyticsConsentPrompt) {
     bottom: 0;
     padding-bottom: max(6px, env(safe-area-inset-bottom));
   }
@@ -204,17 +204,17 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
     --analytics-consent-mobile-clearance: 11.5rem;
   }
 
-  html[data-text-scale="large"] .analyticsConsentPrompt {
+  html[data-text-scale="large"] :global(.analyticsConsentPrompt) {
     grid-template-columns: minmax(0, 1fr);
     max-height: none;
   }
 
-  html[data-text-scale="large"] .analyticsConsentPromptActions {
+  html[data-text-scale="large"] :global(.analyticsConsentPromptActions) {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .analyticsConsentPrompt p {
+  :global(.analyticsConsentPrompt) p {
     font-size: 0.72rem;
     line-height: 1.25;
   }
@@ -227,11 +227,11 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
      the COPY being short enough to wrap inside it beside both choices at
      every phone width, with the Privacy link riding the last line. */
 
-  .analyticsConsentPromptActions {
+  :global(.analyticsConsentPromptActions) {
     gap: 6px;
   }
 
-  .analyticsConsentPromptActions button {
+  :global(.analyticsConsentPromptActions) button {
     padding-inline: 10px;
     font-size: 0.78rem;
   }
@@ -243,7 +243,7 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .analyticsConsentPrompt {
+  :global(.analyticsConsentPrompt) {
     animation: analytics-consent-arrive 160ms var(--ease-out, ease-out);
   }
 }

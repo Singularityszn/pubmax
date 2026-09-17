@@ -30,7 +30,7 @@ const venueListCss = read("components/map/mapVenueList.css");
 const venuePriceSubmitCss = read("components/map/venuePriceSubmit.css");
 const globalCss = read("app/globals.css");
 const pubMapCanvasCss = read("components/PubMapCanvas.module.css");
-const analyticsConsentCss = read("components/analyticsConsent.css");
+const analyticsConsentCss = read("components/AnalyticsConsent.module.css");
 
 function declarationsFor(selector: string): Map<string, string> {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

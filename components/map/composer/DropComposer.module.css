@@ -3,7 +3,7 @@
    and links. Used by PintDropComposer.tsx and VenuePintsTab.tsx.
    Extracted from app/globals.css. */
 
-.dropComposer {
+:global(.dropComposer) {
   display: grid;
   gap: 9px;
   margin-top: 12px;
@@ -13,14 +13,14 @@
   background: color-mix(in srgb, var(--brass) 5%, transparent);
 }
 
-.dropComposer .composerRow {
+:global(.dropComposer) :global(.composerRow) {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
-.dropComposer input,
-.dropComposer textarea {
+:global(.dropComposer) input,
+:global(.dropComposer) textarea {
   width: 100%;
   padding: 9px 10px;
   border: 1px solid var(--line);
@@ -29,20 +29,20 @@
   color: var(--ink);
 }
 
-.dropComposer input:focus-visible,
-.dropComposer textarea:focus-visible {
+:global(.dropComposer) input:focus-visible,
+:global(.dropComposer) textarea:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 1px;
   border-color: var(--brass);
 }
 
-.dropComposer textarea {
+:global(.dropComposer) textarea {
   resize: vertical;
   min-height: 58px;
   line-height: 1.45;
 }
 
-.dropComposer .composerActions {
+:global(.dropComposer) :global(.composerActions) {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -50,8 +50,8 @@
 
 /* The composer's one painted control reads the --control-* row: it wore 6px
    corners beside the map's 14px-corner buttons and the sheet's own doors. */
-.dropComposer button[type="submit"],
-.dropComposer .spillSubmitLink {
+:global(.dropComposer) button[type="submit"],
+:global(.dropComposer) :global(.spillSubmitLink) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -68,17 +68,17 @@
   transition: filter 0.15s ease;
 }
 
-.dropComposer button[type="submit"]:hover,
-.dropComposer .spillSubmitLink:hover {
+:global(.dropComposer) button[type="submit"]:hover,
+:global(.dropComposer) :global(.spillSubmitLink):hover {
   filter: brightness(1.08);
 }
 
-.dropComposer button[type="submit"]:disabled {
+:global(.dropComposer) button[type="submit"]:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
-.composerToggle {
+:global(.composerToggle) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -94,31 +94,31 @@
   transition: background 0.15s ease;
 }
 
-.composerToggle:hover {
+:global(.composerToggle):hover {
   background: color-mix(in srgb, var(--brass) 12%, transparent);
 }
 
-.composerMsg {
+:global(.composerMsg) {
   font-size: 0.8rem;
   font-weight: 600;
 }
 
-.composerMsg.error {
+:global(.composerMsg):global(.error) {
   color: var(--brick);
 }
 
-.composerMsg.ok {
+:global(.composerMsg):global(.ok) {
   color: var(--pint);
 }
 
-.composerMsgLinks {
+:global(.composerMsgLinks) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 14px;
   margin-top: 6px;
 }
 
-.composerMsgLink {
+:global(.composerMsgLink) {
   color: var(--brass);
   font-weight: 700;
   text-decoration: none;
@@ -126,11 +126,11 @@
   transition: border-color 0.15s ease;
 }
 
-.composerMsgLink:hover {
+:global(.composerMsgLink):hover {
   border-bottom-color: var(--brass);
 }
 
-.composerMsgLink:focus-visible {
+:global(.composerMsgLink):focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
   border-radius: 2px;
@@ -140,8 +140,8 @@
 
 @media (max-width: 480px) {
   /* Grids that were two/three columns get cramped on a phone — go single. */
-  .photoRow,
-  .dropComposer .composerRow {
+  :global(.photoRow),
+  :global(.dropComposer) :global(.composerRow) {
     grid-template-columns: 1fr;
   }
 }

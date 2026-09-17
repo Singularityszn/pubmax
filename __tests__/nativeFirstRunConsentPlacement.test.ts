@@ -24,7 +24,7 @@ import { describe, expect, it } from "vitest";
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
 const globalCss = read("app/globals.css");
-const analyticsConsentCss = read("components/analyticsConsent.css");
+const analyticsConsentCss = read("components/AnalyticsConsent.module.css");
 const onboardingCss = read("app/onboarding/Onboarding.module.css");
 
 /** A phone the shell actually ships on, with iOS's home-indicator inset. */

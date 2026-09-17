@@ -4,7 +4,7 @@
  * Imported by PubMap.tsx which guards the chip's mount.
  */
 
-.mappedRouteChip {
+:global(.mappedRouteChip) {
   position: absolute;
   left: 50%;
   bottom: 82px;
@@ -23,27 +23,27 @@
   transform: translateX(-50%);
 }
 
-.mappedRouteChip > svg {
+:global(.mappedRouteChip) > svg {
   flex: 0 0 auto;
   color: var(--brass);
 }
 
-.mappedRouteChip div {
+:global(.mappedRouteChip) div {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.mappedRouteChip strong,
-.mappedRouteChip span {
+:global(.mappedRouteChip) strong,
+:global(.mappedRouteChip) span {
   white-space: nowrap;
 }
 
-.mappedRouteChip strong {
+:global(.mappedRouteChip) strong {
   font-size: 0.82rem;
 }
 
-.mappedRouteChip span {
+:global(.mappedRouteChip) span {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -52,7 +52,7 @@
   font-weight: 700;
 }
 
-.mappedRouteChip button {
+:global(.mappedRouteChip) button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -70,17 +70,17 @@
   cursor: pointer;
 }
 
-.mappedRouteChip button:hover {
+:global(.mappedRouteChip) button:hover {
   border-color: var(--brass);
   color: var(--brass);
 }
 
-/* ── Phone responsive (migrated from globals.css) ── */
+/* -- Phone responsive (migrated from globals.css) -- */
 
 @media (max-width: 640px) {
-  .mappedRouteChip,
-  .activeRoundChip,
-  .bandOnboardingChip {
+  :global(.mappedRouteChip),
+  :global(.activeRoundChip),
+  :global(.bandOnboardingChip) {
     left: 10px;
     right: 10px;
     bottom: var(--map-bottom-chip-row);
@@ -90,22 +90,22 @@
 }
 
 @media (max-width: 480px) {
-  .mappedRouteChip,
-  .activeRoundChip,
-  .bandOnboardingChip {
+  :global(.mappedRouteChip),
+  :global(.activeRoundChip),
+  :global(.bandOnboardingChip) {
     gap: 8px;
     padding: 8px;
   }
 
-  .mappedRouteChip strong,
-  .activeRoundChip strong,
-  .bandOnboardingChip strong {
+  :global(.mappedRouteChip) strong,
+  :global(.activeRoundChip) strong,
+  :global(.bandOnboardingChip) strong {
     font-size: 0.78rem;
   }
 
-  .mappedRouteChip span,
-  .activeRoundChip span,
-  .bandOnboardingChip span {
+  :global(.mappedRouteChip) span,
+  :global(.activeRoundChip) span,
+  :global(.bandOnboardingChip) span {
     font-size: 0.68rem;
   }
 }

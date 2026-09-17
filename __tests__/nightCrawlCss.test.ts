@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 const css = readFileSync(join(process.cwd(), "components/plan/nightCrawl.css"), "utf8");
 const tsx = readFileSync(join(process.cwd(), "components/plan/NightCrawlMode.tsx"), "utf8");
 const navCss = readFileSync(join(process.cwd(), "components/nav/mobileNav.css"), "utf8");
-const consentCss = readFileSync(join(process.cwd(), "components/analyticsConsent.css"), "utf8");
+const consentCss = readFileSync(join(process.cwd(), "components/AnalyticsConsent.module.css"), "utf8");
 
 describe("Night-crawl surface conformance (U7)", () => {
   it("is an OLED-dark surface (ink-dark paper), not the light paper token", () => {

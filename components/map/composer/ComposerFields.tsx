@@ -1,4 +1,4 @@
-import "@/components/vibe/vibeTags.css";
+import "@/components/vibe/VibeTags.module.css";
 
 import { useId } from "react";
 import { Mic, MicOff } from "lucide-react";

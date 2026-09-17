@@ -1,7 +1,7 @@
 "use client";
 
-import "./composer/dropComposer.css";
-import "./composer/photoComposer.css";
+import "./composer/DropComposer.module.css";
+import "./composer/PhotoComposer.module.css";
 
 import { useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";

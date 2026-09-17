@@ -1,5 +1,5 @@
-import "./pintDropsList.css";
-import "@/components/vibe/vibeTags.css";
+import "./PintDropsList.module.css";
+import "@/components/vibe/VibeTags.module.css";
 
 import VenueImage from "@/components/media/VenueImage";
 import { ProvenanceChip } from "@/components/map/venueInspectorBits";

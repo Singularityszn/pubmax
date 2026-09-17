@@ -4,7 +4,7 @@
  * Imported by PubMap.tsx which guards the chip's mount.
  */
 
-.bandOnboardingChip {
+:global(.bandOnboardingChip) {
   position: absolute;
   left: 50%;
   bottom: 82px;
@@ -26,23 +26,23 @@
   transform: translateX(-50%);
 }
 
-.bandOnboardingChip div {
+:global(.bandOnboardingChip) div {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.bandOnboardingChip strong {
+:global(.bandOnboardingChip) strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.bandOnboardingChip strong {
+:global(.bandOnboardingChip) strong {
   font-size: 0.82rem;
 }
 
-.bandOnboardingChip span {
+:global(.bandOnboardingChip) span {
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 700;
@@ -50,7 +50,7 @@
   white-space: normal;
 }
 
-.bandOnboardingChip button {
+:global(.bandOnboardingChip) button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -68,15 +68,15 @@
   cursor: pointer;
 }
 
-.bandOnboardingChip button:hover {
+:global(.bandOnboardingChip) button:hover {
   border-color: var(--brass);
   color: var(--brass);
 }
 
-/* ── Phone responsive (migrated from globals.css) ── */
+/* -- Phone responsive (migrated from globals.css) -- */
 
 @media (max-width: 640px) {
-  .bandOnboardingChip {
+  :global(.bandOnboardingChip) {
     /* Stops short of the map-edge column: Near me and the create action park
        in this band, and they painted over the chip's Dismiss button. */
     right: var(--mobile-map-corner-lane);
@@ -88,22 +88,22 @@
     border-radius: 18px;
   }
 
-  .bandOnboardingChip > div {
+  :global(.bandOnboardingChip) > div {
     grid-column: 1 / -1;
   }
 
-  .bandOnboardingChip > button:first-of-type {
+  :global(.bandOnboardingChip) > button:first-of-type {
     grid-column: 1;
     width: 100%;
   }
 
-  .bandOnboardingChip > button:last-child {
+  :global(.bandOnboardingChip) > button:last-child {
     grid-column: 2;
     min-width: 44px;
     padding-inline: 0;
   }
 
-  .bandOnboardingChip button {
+  :global(.bandOnboardingChip) button {
     min-height: 44px;
   }
 }

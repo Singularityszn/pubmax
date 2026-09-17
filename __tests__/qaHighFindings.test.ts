@@ -16,7 +16,7 @@ const PUBLISHABLE_KEY = "pk_test_cmFyZS10cm91dC0yOS5jbGVyay5hY2NvdW50cy5kZXYk";
 
 describe("QA high findings — mobile sheet and consent layering", () => {
   const globalCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
-  const consentCss = readFileSync(join(process.cwd(), "components/analyticsConsent.css"), "utf8");
+  const consentCss = readFileSync(join(process.cwd(), "components/AnalyticsConsent.module.css"), "utf8");
   const mobileMapShellCss = readFileSync(
     join(process.cwd(), "components/mobile/mobileMapShell.css"),
     "utf8",
