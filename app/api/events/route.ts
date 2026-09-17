@@ -25,7 +25,7 @@
 
 import { isIP } from "node:net";
 import { currentAnalyticsAttribution } from "@/lib/analyticsAttribution.mjs";
-import { sanitizeEvent } from "@/lib/analyticsEvents";
+import { sanitizeEvent, type AnalyticsEvent } from "@/lib/analyticsEvents";
 import { analyticsReferrerFromUrl } from "@/lib/analyticsPath";
 import { analyticsSurfaceFromPath } from "@/lib/analyticsSurface";
 import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
@@ -90,7 +90,7 @@ function safeClientIp(request: Request): string | undefined {
  * needed, or `null` when the event does not require verification.
  */
 async function handleVerifiedDelivery(
-  event: { name: string; props: Record<string, string | number | boolean> },
+  event: AnalyticsEvent,
   deliveryToken: unknown,
 ): Promise<{ delivery: ReturnType<typeof verifyAnalyticsDeliveryToken>; response?: undefined } | { response: Response; delivery?: undefined } | null> {
   const verified = requiresVerifiedDelivery(event.name, event.props);
@@ -122,7 +122,7 @@ async function handleVerifiedDelivery(
  * complete its receipt. Returns the appropriate 204 response.
  */
 async function forwardAndComplete(
-  event: { name: string; props: Record<string, string | number | boolean> },
+  event: AnalyticsEvent,
   delivery: NonNullable<ReturnType<typeof verifyAnalyticsDeliveryToken>> | null,
   forwardParams: {
     path: string | undefined;
@@ -231,7 +231,7 @@ export async function POST(req: Request): Promise<Response> {
     // runtimes. Ordinary events stay fire-and-forget; verified outcomes retain
     // their outbox item when the provider asks for a retry.
     return forwardAndComplete(event, delivery, {
-      path: safePath,
+      path: safePath ?? undefined,
       anonymousId,
       analyticsConsent,
       clientIp: safeClientIp(req),
