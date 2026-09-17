@@ -1,3 +1,4 @@
+import styles from "@/app/out/Out.module.css";
 import { outRowSourceCredit } from "@/lib/out/attribution";
 import type { WhatsOnSource } from "@/lib/whatsOn";
 
@@ -36,13 +37,13 @@ export function SourceCredit({ source }: SourceCreditProps) {
   const credit = outRowSourceCredit(source);
   if (!credit.href) {
     return (
-      <p className="outSourceCredit outSourceCredit--unlinked">
+      <p className={`${styles.outSourceCredit} ${styles["outSourceCredit--unlinked"]}`}>
         <span>{credit.label}</span>
       </p>
     );
   }
   return (
-    <a className="outSourceCredit" href={credit.href} rel="noopener noreferrer" target="_blank">
+    <a className={styles.outSourceCredit} href={credit.href} rel="noopener noreferrer" target="_blank">
       <span>{credit.label}</span>
     </a>
   );

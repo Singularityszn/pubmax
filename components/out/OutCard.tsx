@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { SourceCredit } from "@/components/out/SourceCredit";
+import styles from "@/app/out/Out.module.css";
 import { outListingKindLabel } from "@/lib/out/listingKind";
 import { outListingRoute } from "@/lib/out/listingRoute";
 import type { WhatsOnRow } from "@/lib/whatsOn";
@@ -67,21 +68,21 @@ export function OutCardBody({ row, onOpen, titleLevel = 2 }: OutCardBodyProps) {
   const content = (
     <>
       <TitleTag>{row.title}</TitleTag>
-      <p className="outCardMeta">
-        <span className="outCardKind">{outListingKindLabel(row)}</span>
+      <p className={styles.outCardMeta}>
+        <span className={styles.outCardKind}>{outListingKindLabel(row)}</span>
         {placeName ? <span className="outCardPlace">{placeName}</span> : null}
-        {when ? <span className="outCardWhen">{when}</span> : null}
+        {when ? <span className={styles.outCardWhen}>{when}</span> : null}
       </p>
-      {from ? <p className="outPrice">{from}</p> : null}
+      {from ? <p className={styles.outPrice}>{from}</p> : null}
     </>
   );
   return (
     <>
       {route === null ? (
-        <div className="outCard outCard--static">{content}</div>
+        <div className={`${styles.outCard} outCard--static`}>{content}</div>
       ) : route.external ? (
         <a
-          className="outCard"
+          className={styles.outCard}
           href={route.href}
           rel="noopener noreferrer"
           target="_blank"
@@ -95,7 +96,7 @@ export function OutCardBody({ row, onOpen, titleLevel = 2 }: OutCardBodyProps) {
         // queue 63 server renders in front of the answer the reader is waiting
         // for. The fence cannot see it through `route.href`, so the guard is
         // stated here rather than left to it.
-        <Link className="outCard" prefetch={false} href={route.href} onClick={onOpen}>
+        <Link className={styles.outCard} prefetch={false} href={route.href} onClick={onOpen}>
           {content}
         </Link>
       )}

@@ -39,7 +39,7 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
 
 const REPO_ROOT = join(__dirname, "..");
 const outClient = readFileSync(join(REPO_ROOT, "app/out/OutClient.tsx"), "utf8");
-const outCss = readFileSync(join(REPO_ROOT, "app/out/out.css"), "utf8");
+const outCss = readFileSync(join(REPO_ROOT, "app/out/Out.module.css"), "utf8");
 
 const matchedRow: WhatsOnRow = {
   id: "mark-render",
@@ -62,7 +62,7 @@ function renderedPubPair(): HTMLElement {
 
 describe("the listings come before the lines about them", () => {
   it("renders both footnotes after the listing surface", () => {
-    const surfaceAt = outClient.indexOf('className="outListingSurface"');
+    const surfaceAt = outClient.indexOf("styles.outListingSurface");
     const noticeAt = outClient.indexOf('data-testid="out-venue-match-notice"');
     const creditAt = outClient.indexOf('data-testid="out-listing-credit"');
     expect(surfaceAt).toBeGreaterThan(-1);
@@ -72,14 +72,14 @@ describe("the listings come before the lines about them", () => {
 
   it("keeps the read's own status lines above the listings", () => {
     const statusAt = outClient.indexOf("outStatusLines({ body, failed })");
-    const surfaceAt = outClient.indexOf('className="outListingSurface"');
+    const surfaceAt = outClient.indexOf("styles.outListingSurface");
     expect(statusAt).toBeGreaterThan(-1);
     expect(statusAt).toBeLessThan(surfaceAt);
   });
 
   it("keeps the footnotes inside the listings section they are about", () => {
     const section = outClient.slice(
-      outClient.indexOf('className="outListings"'),
+      outClient.indexOf("styles.outListings"),
       outClient.indexOf("<EditorialRail />"),
     );
     expect(section).toContain('data-testid="out-venue-match-notice"');

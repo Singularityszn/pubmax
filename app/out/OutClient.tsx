@@ -38,7 +38,7 @@ import {
 import { handleSegmentLinkKeyDown } from "@/lib/segmentLinkKeys";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
-import "./out.css";
+import styles from "./Out.module.css";
 
 const DAY_LABEL: Record<OutDayWindow, string> = {
   tonight: "Tonight",
@@ -111,20 +111,20 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
     return groups.map((group) => (
       <section
         key={`${idPrefix}${group.key}`}
-        className="outGroup"
+        className={styles.outGroup}
         {...(showGroupTitles
           ? { "aria-labelledby": `${idPrefix}${group.key}` }
           : { "aria-label": group.label })}
       >
         {showGroupTitles ? (
-          <GroupTitle id={`${idPrefix}${group.key}`} className="outGroupTitle">
+          <GroupTitle id={`${idPrefix}${group.key}`} className={styles.outGroupTitle}>
             {group.label}
           </GroupTitle>
         ) : null}
-        <ul className="outGroupList">
+        <ul className={styles.outGroupList}>
           {group.rows.map((row) => (
-            <li key={row.id} className="outListingRow" data-testid="out-listing-row">
-              <div className="outListingGig">
+            <li key={row.id} className={styles.outListingRow} data-testid="out-listing-row">
+              <div className={styles.outListingGig}>
                 <OutCardBody row={row} onOpen={() => onOpen(row)} titleLevel={rowTitleLevel} />
               </div>
               <OutListingPubPair row={row} />
@@ -136,7 +136,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
   }
 
   return (
-    <main id="main" className="outPage" data-testid="out-screen">
+    <main id="main" className={styles.outPage} data-testid="out-screen">
       <SiteNav active="out" />
 
       {/* The head is the Screen primitive (docs/design/LAUNCH_SCREENS.md). The
@@ -148,7 +148,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
           from its own card. */}
       <Screen
         as="div"
-        className="outScreen"
+        className={styles.outScreen}
         kicker={`Out in ${CITIES[cityId].displayName}`}
         title="What’s on, sourced."
         titleId="out-title"
@@ -163,7 +163,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
           </Link>
         }
       >
-      <nav className="outDayChips" aria-label="When">
+      <nav className={styles.outDayChips} aria-label="When">
         {OUT_DAY_WINDOWS.map((windowKey) => {
           const selected = windowKey === day;
           const href = windowKey === "tonight" ? "/out" : `/out?day=${windowKey}`;
@@ -171,7 +171,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
             <Link prefetch={false}
               key={windowKey}
               href={href}
-              className="outDayChip"
+              className={styles.outDayChip}
               aria-current={selected ? "page" : undefined}
               onKeyDown={handleSegmentLinkKeyDown}
               onClick={() => trackEvent("out_filter_select", { kind: windowKey })}
@@ -182,8 +182,8 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
         })}
       </nav>
 
-      <section className="outListings" aria-labelledby="out-listings-heading">
-        <h2 id="out-listings-heading" className="outSectionTitle">
+      <section className={styles.outListings} aria-labelledby="out-listings-heading">
+        <h2 id="out-listings-heading" className={styles.outSectionTitle}>
           {outListingsSectionTitle(day)}
         </h2>
         {pending ? <ListingsSkeleton /> : null}
@@ -206,14 +206,14 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
           </EmptyState>
         ) : (
           outStatusLines({ body, failed }).map((line) => (
-            <p className="outStatus" key={line}>
+            <p className={styles.outStatus} key={line}>
               {line}
             </p>
           ))
         )}
-        <div className="outListingSurface" data-testid="out-listing-surface">
+        <div className={styles.outListingSurface} data-testid="out-listing-surface">
           {lead.honestEmpty ? (
-            <div className="outHonestEmpty" data-testid="out-honest-empty">
+            <div className={styles.outHonestEmpty} data-testid="out-honest-empty">
               <EmptyState
                 title={lead.honestEmpty.line}
                 action={
@@ -230,8 +230,8 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
             <>
               {listingGroups(lead.matched, "out-group-", "h3")}
               {lead.unmatched.length > 0 ? (
-                <section className="outUnmatchedBlock" aria-labelledby="out-unmatched-heading">
-                  <h3 id="out-unmatched-heading" className="outUnmatchedTitle">
+                <section className={styles.outUnmatchedBlock} aria-labelledby="out-unmatched-heading">
+                  <h3 id="out-unmatched-heading" className={styles.outUnmatchedTitle}>
                     {OUT_NOT_ON_MAP_HEADING}
                   </h3>
                   {listingGroups(lead.unmatched, "out-group-unmatched-", "h4")}
@@ -253,7 +253,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
             It is a footer under the answer, not the heading of the page. */}
         {venueMatchNotice ? (
           <p
-            className="outStatus outListingUnmatchedLine"
+            className={`${styles.outStatus} ${styles.outListingUnmatchedLine}`}
             role="status"
             data-testid="out-venue-match-notice"
           >
@@ -261,7 +261,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
           </p>
         ) : null}
         {credits.length > 0 ? (
-          <p className="outListingUnmatchedCredit" data-testid="out-listing-credit">
+          <p className={styles.outListingUnmatchedCredit} data-testid="out-listing-credit">
             Listings from{" "}
             {credits.map((credit, index) => (
               <span key={credit.label}>
@@ -279,15 +279,15 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
       <EditorialRail />
 
       {openPlansPreview ? (
-        <section className="outPlans" aria-labelledby="out-plans-heading">
-          <h2 id="out-plans-heading" className="outSectionTitle outPlansSectionTitle">
+        <section className={styles.outPlans} aria-labelledby="out-plans-heading">
+          <h2 id="out-plans-heading" className={`${styles.outSectionTitle} ${styles.outPlansSectionTitle}`}>
             Open plans
           </h2>
-          <p className="outStatus" role="status">Open plans are in preview.</p>
+          <p className={styles.outStatus} role="status">Open plans are in preview.</p>
         </section>
       ) : openPlansDegraded ? (
-        <section className="outPlans" aria-labelledby="out-plans-heading">
-          <h2 id="out-plans-heading" className="outSectionTitle outPlansSectionTitle">
+        <section className={styles.outPlans} aria-labelledby="out-plans-heading">
+          <h2 id="out-plans-heading" className={`${styles.outSectionTitle} ${styles.outPlansSectionTitle}`}>
             Open plans
           </h2>
           <div role="alert">
@@ -302,17 +302,17 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
           </div>
         </section>
       ) : showOpenPlans ? (
-        <section className="outPlans" aria-labelledby="out-plans-heading">
-          <h2 id="out-plans-heading" className="outSectionTitle outPlansSectionTitle">
+        <section className={styles.outPlans} aria-labelledby="out-plans-heading">
+          <h2 id="out-plans-heading" className={`${styles.outSectionTitle} ${styles.outPlansSectionTitle}`}>
             Open plans
           </h2>
-          <ul className="outOpenPlanList">
+          <ul className={styles.outOpenPlanList}>
             {sendablePlans.map((plan) => (
               <OutOpenPlanCard key={plan.crewId} plan={plan} />
             ))}
           </ul>
-          <p className="outPlansFoot">
-            <Link prefetch={false} href="/plan" className="outPlansFootLink">
+          <p className={styles.outPlansFoot}>
+            <Link prefetch={false} href="/plan" className={styles.outPlansFootLink}>
               {OUT_OPEN_PLANS_WAY_LABEL}
             </Link>
           </p>

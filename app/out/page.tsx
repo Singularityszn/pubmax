@@ -5,7 +5,7 @@ import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 
 import OutClient from "./OutClient";
 
-import "./out.css";
+import "./Out.module.css";
 
 const PAGE_TITLE = "Out";
 const PAGE_DESCRIPTION =

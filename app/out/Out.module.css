@@ -128,7 +128,7 @@
    section title already sits above it, so the empty state gives up its top
    padding rather than opening a gap between the heading and its answer. Its
    one way onward stays the bordered secondary: the head owns the filled one. */
-.outHonestEmpty > .emptyState {
+.outHonestEmpty > :global(.emptyState) {
   padding-block: 0 var(--space-2);
 }
 

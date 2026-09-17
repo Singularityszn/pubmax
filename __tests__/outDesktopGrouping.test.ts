@@ -200,7 +200,7 @@ describe("out listing grouping", () => {
   });
 
   it("keeps desktop listing columns balanced", () => {
-    const css = readFileSync(join(process.cwd(), "app/out/out.css"), "utf8");
+    const css = readFileSync(join(process.cwd(), "app/out/Out.module.css"), "utf8");
     const desktop = css.match(/@media \(min-width: 1024px\) \{([\s\S]*)/)?.[1] ?? "";
     // The nights stack and the ROWS take the two columns: a two-column surface
     // left half the page empty whenever one chip held one night.
