@@ -56,6 +56,7 @@
   letter-spacing: .01em;
 }
 
+.palHome {}
 .palHomeHero {
   width: min(84rem, 100%);
   min-height: calc(100dvh - 10rem);

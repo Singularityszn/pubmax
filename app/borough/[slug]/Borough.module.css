@@ -111,6 +111,8 @@
   color: var(--ink);
 }
 
+.boroughNameHead {}
+
 .boroughRankHead,
 .boroughRank {
   width: 44px;

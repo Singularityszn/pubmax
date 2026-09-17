@@ -178,6 +178,7 @@
   flex-direction: column;
   gap: 3px;
 }
+.recapPint__venue {}
 .recapPint__drink {
   font-family: var(--font-display);
   font-weight: 600;
