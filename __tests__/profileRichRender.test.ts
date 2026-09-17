@@ -210,19 +210,19 @@ describe("shipped profile CSS", () => {
   const css = readFileSync(join(process.cwd(), "app/u/[handle]/Profile.module.css"), "utf8");
 
   it("keeps the cover behind a falloff so the name stays legible", () => {
-    expect(css).toContain(".profilePage .profileCover {");
-    expect(css).toContain(".profilePage .profileCoverFalloff {");
-    expect(css).toMatch(/profileCoverFalloff \{[^}]*linear-gradient/);
+    expect(css).toContain(".profilePage :global(.profileCover) {");
+    expect(css).toContain(".profilePage :global(.profileCoverFalloff) {");
+    expect(css).toMatch(/profileCoverFalloff\) \{[^}]*linear-gradient/);
   });
 
   it("gives the face its own edge over the band, and hangs it over the edge", () => {
     // The band is painted on every profile now, photograph or brass wash, so
     // the ring is unconditional rather than a with-cover special case.
     expect(css).toMatch(
-      /\.profilePage \.profileAvatar \{[^}]*border: 4px solid var\(--panel-raised\)/,
+      /\.profilePage :global\(\.profileAvatar\) \{[^}]*border: 4px solid var\(--panel-raised\)/,
     );
     expect(css).toMatch(
-      /\.profilePage \.profileIdentity \{[^}]*margin-top: calc\(-1 \* var\(--profile-avatar-overlap\)\)/,
+      /\.profilePage :global\(\.profileIdentity\) \{[^}]*margin-top: calc\(-1 \* var\(--profile-avatar-overlap\)\)/,
     );
   });
 
@@ -231,26 +231,24 @@ describe("shipped profile CSS", () => {
   // viewport, which is how a carefully framed photograph got cut mid-word.
   it("renders a cover at the cropper's own aspect ratio", () => {
     expect(css).toMatch(
-      /\.profilePage \.profileHeaderWithCover \.profileCover \{[^}]*aspect-ratio: 3 \/ 1/,
+      /\.profilePage :global\(\.profileHeaderWithCover\) :global\(\.profileCover\) \{[^}]*aspect-ratio: 3 \/ 1/,
     );
-    // The brass wash has no photograph to crop, so it takes a shorter band
-    // rather than four hundred pixels of gradient above the fold.
-    expect(css).toMatch(/\.profilePage \.profileCover \{[^}]*height: clamp\(116px/);
+    expect(css).toMatch(/\.profilePage :global\(\.profileCover\) \{[^}]*height: clamp\(116px/);
   });
 
   // The rotation crossfades only for a reader who did not ask for less motion;
   // the component refuses to run its timer under the same condition.
   it("gates the crossfade on prefers-reduced-motion", () => {
     const gated = css.slice(css.indexOf("@media (prefers-reduced-motion: no-preference)"));
-    expect(gated).toMatch(/\.profileCoverImage \{[^}]*transition: opacity/);
+    expect(gated).toMatch(/profileCoverImage\) \{[^}]*transition: opacity/);
     expect(css.slice(0, css.indexOf("@media (prefers-reduced-motion"))).not.toMatch(
-      /\.profileCoverImage \{[^}]*transition/,
+      /profileCoverImage\) \{[^}]*transition/,
     );
   });
 
   it("wraps a card fact rather than truncating what somebody wrote", () => {
-    expect(css).toMatch(/profileCardFact dd \{[^}]*overflow-wrap: anywhere/);
-    expect(css).not.toMatch(/profileCardFact dd \{[^}]*text-overflow: ellipsis/);
+    expect(css).toMatch(/profileCardFact\) dd \{[^}]*overflow-wrap: anywhere/);
+    expect(css).not.toMatch(/profileCardFact\) dd \{[^}]*text-overflow: ellipsis/);
   });
 
   it("leaves press feedback to the one owner in globals.css", () => {

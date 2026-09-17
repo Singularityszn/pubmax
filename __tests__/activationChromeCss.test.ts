@@ -35,7 +35,7 @@ describe("activation chrome CSS", () => {
 
   it("uses readable role tokens for profile and map actions", () => {
     const citySwitch = citySuggestBannerCss.match(/\.citySuggestBannerSwitch\s*{[\s\S]*?}/)?.[0];
-    const followButton = profileCss.match(/\.profilePage \.followBtn\s*{[\s\S]*?}/)?.[0];
+    const followButton = profileCss.match(/\.profilePage :global\(\.followBtn\)\s*{[\s\S]*?}/)?.[0];
 
     expect(citySwitch).toMatch(/background:\s*var\(--state-active-surface\);/);
     expect(citySwitch).toMatch(/color:\s*var\(--state-active-ink\);/);

@@ -262,7 +262,7 @@ const bandsShareABoundingBox = (a: Band, b: Band): boolean =>
 const PHONE_MEDIA = "(max-width: 760px)";
 const CARD_MEDIA = "(max-width: 640px)";
 const SURFACE_RULE = ":global(body:has(.analyticsConsentPrompt)) .firstRunOnboarding";
-const CARD_RULE = "body:has(:global(.firstRunOnboarding)) :global(.analyticsConsentPrompt)";
+const CARD_RULE = "body:has(.firstRunOnboarding) :global(.analyticsConsentPrompt)";
 
 describe("native first-run consent placement", () => {
   it("publishes the consent lane once so the surface does not restate it", () => {
@@ -287,7 +287,7 @@ describe("native first-run consent placement", () => {
     // edge rather than floating 12px off it. The home-indicator inset is
     // cleared by the card's own bottom padding, so the two buttons still never
     // sit under the system gesture area.
-    const card = declarationsFor(analyticsConsentCss, CARD_RULE, CARD_MEDIA);
+    const card = declarationsFor(onboardingCss, CARD_RULE, CARD_MEDIA);
     expect(card.get("bottom")).toBe("0");
     expect(card.get("padding-bottom")).toBe(
       "max(6px, env(safe-area-inset-bottom))",
@@ -299,7 +299,7 @@ describe("native first-run consent placement", () => {
     const surfaceHeight = declarationsFor(onboardingCss, SURFACE_RULE).get("height");
     expect(surfaceHeight, "the surface takes an explicit height").toBeDefined();
 
-    const cardBerth = declarationsFor(analyticsConsentCss, CARD_RULE, CARD_MEDIA).get("bottom")!;
+    const cardBerth = declarationsFor(onboardingCss, CARD_RULE, CARD_MEDIA).get("bottom")!;
     // The card grows with its text, so its height is bounded by the lane the
     // surface reserves for it, never by the row's 56px floor.
     const cardLane = "var(--first-run-consent-lane)";

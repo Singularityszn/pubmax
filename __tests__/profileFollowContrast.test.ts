@@ -55,10 +55,10 @@ describe("mutual-follow action", () => {
     const lightRoot = block(globalsCss, ":root");
     const lightBody = block(globalsCss, 'html:not([data-theme="dark"]) body');
     const darkRoot = block(themeCss, 'html[data-theme="dark"]');
-    const mateRule = block(profileCss, ".profilePage .followBtn.isMates");
+    const mateRule = block(profileCss, ".profilePage :global(.followBtn.isMates)");
     const mateHoverRule = block(
       profileCss,
-      ".profilePage .followBtn.isMates:hover:not(:disabled)",
+      ".profilePage :global(.followBtn.isMates):hover:not(:disabled)",
     );
     const inkMix = /color-mix\(in srgb, var\(--color-positive, var\(--pint\)\) (\d+)%, var\(--ink\)\)/
       .exec(mateRule)?.[1];
