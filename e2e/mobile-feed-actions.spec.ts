@@ -48,8 +48,11 @@ test.describe("mobile Social actions", () => {
     await expect(page.locator(".feedCard")).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
 
-    const signIn = page.locator("[data-primary-action]").getByRole("link", { name: "Sign in" });
-    await expectTappable(signIn, "Social Sign in");
+    const primary = page.locator("[data-primary-action]").getByRole("link", {
+      name: "Browse pubs and pints",
+    });
+    await expectTappable(primary, "Social Browse pubs and pints");
+    await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
     await expect(page.getByText("Sign in to use Social.")).toBeVisible();
 
     await expectNoHorizontalOverflow(page);

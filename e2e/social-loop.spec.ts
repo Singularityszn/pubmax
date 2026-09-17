@@ -41,8 +41,11 @@ test("legacy /feed opens signed-out Social, not the retired feed", async ({
   ).toBeVisible();
   await expect(page.getByText("Sign in to use Social.")).toBeVisible();
   await expect(
-    page.locator("[data-primary-action]").getByRole("link", { name: "Sign in" }),
+    page.locator("[data-primary-action]").getByRole("link", {
+      name: "Browse pubs and pints",
+    }),
   ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
   await expect(page.locator(".feedCard")).toHaveCount(0);
   await expect(page.locator(".feedEmpty")).toHaveCount(0);
   await expect(page.locator(".feedFilters")).toHaveCount(0);
@@ -50,13 +53,15 @@ test("legacy /feed opens signed-out Social, not the retired feed", async ({
   expect(errors).toEqual([]);
 });
 
-test("signed-out Social offers Sign in, not a Cheers chip", async ({ page }) => {
+test("signed-out Social offers Browse pubs, not a Cheers chip", async ({ page }) => {
   const errors = watchPageErrors(page);
 
   const response = await page.goto("/social");
   expect(response?.status()).toBe(200);
   await expect(
-    page.locator("[data-primary-action]").getByRole("link", { name: "Sign in" }),
+    page.locator("[data-primary-action]").getByRole("link", {
+      name: "Browse pubs and pints",
+    }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: /^Cheers/ })).toHaveCount(0);
 
@@ -430,8 +435,8 @@ for (const path of ["/", "/feed", "/discover", "/borough"]) {
 
 // ---------------------------------------------------------------------------
 // Signed-out Social on a phone: the retired feed cards and lane chips are gone.
-// The door is Sign in. Overflow and tap size stay the contract.
-test("mobile Social keeps the sign-in door thumb-sized without page overflow", async ({
+// The Screen primary is value-first; Sign in stays the boundary's quiet door.
+test("mobile Social keeps the launch primary thumb-sized without page overflow", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
@@ -446,10 +451,12 @@ test("mobile Social keeps the sign-in door thumb-sized without page overflow", a
   await expect(page.locator(".feedCard")).toHaveCount(0);
   await expect(page.locator(".feedFilters")).toHaveCount(0);
 
-  const signIn = page.locator("[data-primary-action]").getByRole("link", { name: "Sign in" });
-  await expect(signIn).toBeVisible();
-  const box = await signIn.boundingBox();
-  expect(box, "Sign in should have a layout box").not.toBeNull();
+  const primary = page.locator("[data-primary-action]").getByRole("link", {
+    name: "Browse pubs and pints",
+  });
+  await expect(primary).toBeVisible();
+  const box = await primary.boundingBox();
+  expect(box, "Browse pubs and pints should have a layout box").not.toBeNull();
   if (box) {
     expect(Math.round(box.height)).toBeGreaterThanOrEqual(44);
     expect(Math.round(box.width)).toBeGreaterThanOrEqual(44);
