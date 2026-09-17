@@ -54,26 +54,30 @@ function initialDraft(post?: SocialPostDTO): Draft {
   };
 }
 
+function draftFieldsDiffer(
+  draft: Draft,
+  post: SocialPostDTO | undefined,
+): boolean {
+  if (draft.body !== (post?.body ?? "")) return true;
+  if (draft.altText !== (post?.photo?.altText ?? "")) return true;
+  if (draft.area !== (post?.area ?? "")) return true;
+  if (draft.venueId !== (post?.venueId ?? null)) return true;
+  if (draft.venueName !== (post?.venueName ?? "")) return true;
+  if (draft.visibility !== (post?.visibility ?? "friends")) return true;
+  if (draft.commentPolicy !== (post?.commentPolicy ?? "open")) return true;
+  if (draft.kind !== (post?.kind ?? "standard")) return true;
+  if (draft.hashtags !== (post?.hashtags.join(" ") ?? "")) return true;
+  if (draft.tagHandles !== "") return true;
+  return false;
+}
+
 function draftHasChanges(
   draft: Draft,
   post: SocialPostDTO | undefined,
   photo: File | null,
   removePhoto: boolean,
 ): boolean {
-  return Boolean(
-    photo ||
-      removePhoto ||
-      draft.body !== (post?.body ?? "") ||
-      draft.altText !== (post?.photo?.altText ?? "") ||
-      draft.area !== (post?.area ?? "") ||
-      draft.venueId !== (post?.venueId ?? null) ||
-      draft.venueName !== (post?.venueName ?? "") ||
-      draft.visibility !== (post?.visibility ?? "friends") ||
-      draft.commentPolicy !== (post?.commentPolicy ?? "open") ||
-      draft.kind !== (post?.kind ?? "standard") ||
-      draft.hashtags !== (post?.hashtags.join(" ") ?? "") ||
-      draft.tagHandles !== ""
-  );
+  return Boolean(photo || removePhoto || draftFieldsDiffer(draft, post));
 }
 
 function PhotoEditor({

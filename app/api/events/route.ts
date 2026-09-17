@@ -25,7 +25,7 @@
 
 import { isIP } from "node:net";
 import { currentAnalyticsAttribution } from "@/lib/analyticsAttribution.mjs";
-import { sanitizeEvent } from "@/lib/analyticsEvents";
+import { sanitizeEvent, type AnalyticsEvent } from "@/lib/analyticsEvents";
 import { analyticsReferrerFromUrl } from "@/lib/analyticsPath";
 import { analyticsSurfaceFromPath } from "@/lib/analyticsSurface";
 import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
@@ -84,6 +84,76 @@ function safeClientIp(request: Request): string | undefined {
   return isIP(value) ? value : undefined;
 }
 
+/**
+ * Verify the delivery token for events that require verified delivery.
+ * Returns `{ delivery }` on success, `{ response }` when an early Response is
+ * needed, or `null` when the event does not require verification.
+ */
+async function handleVerifiedDelivery(
+  event: AnalyticsEvent,
+  deliveryToken: unknown,
+): Promise<{ delivery: ReturnType<typeof verifyAnalyticsDeliveryToken>; response?: undefined } | { response: Response; delivery?: undefined } | null> {
+  const verified = requiresVerifiedDelivery(event.name, event.props);
+  if (!verified) return null;
+
+  try {
+    trustedSigningKey();
+  } catch (error) {
+    if (isTrustedSigningKeyUnavailableError(error)) return { response: noContent("retry") };
+    throw error;
+  }
+
+  const delivery = verifyAnalyticsDeliveryToken(deliveryToken, event);
+  if (!delivery) return { response: noContent("discard") };
+
+  const claim = await analyticsReceiptStore().claim({
+    eventId: delivery.eventId,
+    tokenDigest: analyticsDeliveryTokenDigest(String(deliveryToken)),
+    eventName: event.name,
+  });
+  if (claim === "delivered") return { response: noContent("delivered") };
+  if (claim !== "claimed") return { response: noContent(claim === "conflict" ? "discard" : "retry") };
+
+  return { delivery };
+}
+
+/**
+ * Forward the event to PostHog and, when the event has a verified delivery,
+ * complete its receipt. Returns the appropriate 204 response.
+ */
+async function forwardAndComplete(
+  event: AnalyticsEvent,
+  delivery: NonNullable<ReturnType<typeof verifyAnalyticsDeliveryToken>> | null,
+  forwardParams: {
+    path: string | null;
+    anonymousId: unknown;
+    analyticsConsent: unknown;
+    clientIp: string | undefined;
+    userAgent: string | undefined;
+    referrer: string | undefined;
+    screenWidth: number | undefined;
+    screenHeight: number | undefined;
+    viewportWidth: number | undefined;
+    viewportHeight: number | undefined;
+  },
+): Promise<Response> {
+  const forwarded = await capturePosthogEvent({
+    event,
+    ...forwardParams,
+    ...(delivery ? { insertId: delivery.eventId } : {}),
+    ...(delivery ? { occurredAt: new Date(delivery.issuedAt).toISOString() } : {}),
+  });
+
+  if (delivery) {
+    const providerDisabled = !isPosthogConfigured();
+    if (!providerDisabled && !forwarded) return noContent("retry");
+    if (!await analyticsReceiptStore().complete(delivery.eventId)) return noContent("retry");
+    return noContent("delivered");
+  }
+
+  return noContent();
+}
+
 export async function POST(req: Request): Promise<Response> {
   try {
     // Server-side Do Not Track: the client beacon (lib/analytics.ts) already
@@ -138,28 +208,9 @@ export async function POST(req: Request): Promise<Response> {
     const browserContext = context && typeof context === "object"
       ? context as Record<string, unknown>
       : {};
-    const verified = requiresVerifiedDelivery(event.name, event.props);
-    if (verified) {
-      try {
-        trustedSigningKey();
-      } catch (error) {
-        // Configuration loss is retryable: do not tell the browser to discard
-        // a token that may be valid again once the same secret is restored.
-        if (isTrustedSigningKeyUnavailableError(error)) return noContent("retry");
-        throw error;
-      }
-    }
-    const delivery = verified ? verifyAnalyticsDeliveryToken(deliveryToken, event) : null;
-    if (verified && !delivery) return noContent("discard");
-    if (delivery) {
-      const claim = await analyticsReceiptStore().claim({
-        eventId: delivery.eventId,
-        tokenDigest: analyticsDeliveryTokenDigest(String(deliveryToken)),
-        eventName: event.name,
-      });
-      if (claim === "delivered") return noContent("delivered");
-      if (claim !== "claimed") return noContent(claim === "conflict" ? "discard" : "retry");
-    }
+    const verifiedResult = await handleVerifiedDelivery(event, deliveryToken);
+    if (verifiedResult?.response) return verifiedResult.response;
+    const delivery = verifiedResult?.delivery ?? null;
 
     // Structured, PII-free log line. Server owns the timestamp. It carries the
     // same lane and build the provider is sent, so a log read during a release
@@ -179,8 +230,7 @@ export async function POST(req: Request): Promise<Response> {
     // Awaiting a short, bounded request keeps delivery reliable in serverless
     // runtimes. Ordinary events stay fire-and-forget; verified outcomes retain
     // their outbox item when the provider asks for a retry.
-    const forwarded = await capturePosthogEvent({
-      event,
+    return await forwardAndComplete(event, delivery, {
       path: safePath,
       anonymousId,
       analyticsConsent,
@@ -191,18 +241,7 @@ export async function POST(req: Request): Promise<Response> {
       screenHeight: safeDimension(browserContext.screenHeight),
       viewportWidth: safeDimension(browserContext.viewportWidth),
       viewportHeight: safeDimension(browserContext.viewportHeight),
-      ...(delivery ? { insertId: delivery.eventId } : {}),
-      ...(delivery ? { occurredAt: new Date(delivery.issuedAt).toISOString() } : {}),
     });
-
-    if (delivery) {
-      const providerDisabled = !isPosthogConfigured();
-      if (!providerDisabled && !forwarded) return noContent("retry");
-      if (!await analyticsReceiptStore().complete(delivery.eventId)) return noContent("retry");
-      return noContent("delivered");
-    }
-
-    return noContent();
   } catch {
     return noContent();
   }

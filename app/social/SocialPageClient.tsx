@@ -405,7 +405,6 @@ export function SocialContextRail({
 
 // This existing controller intentionally keeps one owner for Social state.
 // Account changes remount it through the small boundary below.
-// eslint-disable-next-line complexity
 function SocialPageAccountState({
   initialState,
   rivalry,

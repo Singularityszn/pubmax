@@ -6,7 +6,8 @@ import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { isPlanId, type PlanActionDTO } from "@/lib/plan";
 import { planStore } from "@/lib/planStore";
 import { planMemberCapability } from "@/lib/planMemberCapability";
-import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMutationHttp";
+import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey, planWriteErrorToStatus } from "@/lib/planMutationHttp";
+import type { PlanWriteError } from "@/lib/planStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { fulfilWantedsAtVenue } from "@/lib/wantedFulfil.server";
 import { wantedFulfilledLine } from "@/lib/wanted";
@@ -14,6 +15,26 @@ import { wantedFulfilledLine } from "@/lib/wanted";
 assertServerEnv();
 type Context = { params: Promise<{ id: string }> };
 const ACTIONS: PlanActionDTO["type"][] = ["arrived", "skipped", "swapped"];
+
+function parseActionInput(body: Record<string, unknown>): { ok: true; type: PlanActionDTO["type"]; stopPosition: number; idempotencyKey?: never } | { ok: false; response: Response } {
+  const type = typeof body.type === "string" && ACTIONS.includes(body.type as PlanActionDTO["type"]) ? body.type as PlanActionDTO["type"] : null;
+  const stopPosition = typeof body.stopPosition === "number" && Number.isInteger(body.stopPosition) && body.stopPosition >= 0 && body.stopPosition < 8 ? body.stopPosition : undefined;
+  if (!type || stopPosition === undefined) return { ok: false, response: publicApiError("Add a valid stop action.", "PLAN_ACTION_INVALID", 400) };
+  return { ok: true, type, stopPosition };
+}
+
+const ACTION_ERROR_MAP: Record<string, { error: string; code: string }> = {
+  forbidden: { error: "That member token cannot update this Plan.", code: "PLAN_ACTION_FORBIDDEN" },
+  not_found: { error: "That Plan doesn't exist.", code: "PLAN_NOT_FOUND" },
+  error:     { error: "The Plan update is temporarily unavailable.", code: "PLAN_ACTION_UNAVAILABLE" },
+  conflict:  { error: "Could not record the action.", code: "PLAN_IDEMPOTENCY_CONFLICT" },
+};
+const ACTION_ERROR_FALLBACK = { error: "Could not record the action.", code: "PLAN_ACTION_INVALID" };
+
+function actionErrorResponse(resultError: string): Response {
+  const mapped = ACTION_ERROR_MAP[resultError] ?? ACTION_ERROR_FALLBACK;
+  return publicApiError(mapped.error, mapped.code, planWriteErrorToStatus(resultError as PlanWriteError), { retryable: resultError === "error" });
+}
 
 export async function POST(request: Request, context: Context): Promise<Response> {
   const limiterKey = `plan-actions:${hashIp(clientIp(request))}`;
@@ -25,24 +46,18 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch { return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400); }
-  const type = typeof body.type === "string" && ACTIONS.includes(body.type as PlanActionDTO["type"]) ? body.type as PlanActionDTO["type"] : null;
-  const stopPosition = typeof body.stopPosition === "number" && Number.isInteger(body.stopPosition) && body.stopPosition >= 0 && body.stopPosition < 8 ? body.stopPosition : undefined;
-  if (!type || stopPosition === undefined) return publicApiError("Add a valid stop action.", "PLAN_ACTION_INVALID", 400);
+  const parsed = parseActionInput(body);
+  if (!parsed.ok) return parsed.response;
   const idempotencyKey = planMutationIdempotencyKey(request, body);
   if (!idempotencyKey) return publicApiError(PLAN_IDEMPOTENCY_ERROR.error, PLAN_IDEMPOTENCY_ERROR.code, 400);
-  const result = await planStore().addAction(id, planMemberCapability(request, body.memberToken), { type, stopPosition, idempotencyKey });
-  if (!result.ok) {
-    const status = result.error === "forbidden" ? 403 : result.error === "not_found" ? 404 : result.error === "error" ? 503 : result.error === "conflict" ? 409 : 400;
-    const error = result.error === "forbidden" ? "That member token cannot update this Plan." : result.error === "not_found" ? "That Plan doesn't exist." : result.error === "error" ? "The Plan update is temporarily unavailable." : "Could not record the action.";
-    const code = result.error === "forbidden" ? "PLAN_ACTION_FORBIDDEN" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "error" ? "PLAN_ACTION_UNAVAILABLE" : result.error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT" : "PLAN_ACTION_INVALID";
-    return publicApiError(error, code, status, { retryable: result.error === "error" });
-  }
+  const result = await planStore().addAction(id, planMemberCapability(request, body.memberToken), { type: parsed.type, stopPosition: parsed.stopPosition, idempotencyKey });
+  if (!result.ok) return actionErrorResponse(result.error);
 
   // Quiet Wanted fulfilment when a signed-in owner arrives at a saved stop.
   let wantedNote: string | undefined;
   let wantedFulfilled = 0;
-  if (type === "arrived") {
-    const stop = result.plan.stops.find((row) => row.position === stopPosition);
+  if (parsed.type === "arrived") {
+    const stop = result.plan.stops.find((row) => row.position === parsed.stopPosition);
     if (stop?.venueId) {
       const contributor = await resolveContributionIdentity(request);
       if (contributor.ok) {

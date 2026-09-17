@@ -209,6 +209,85 @@ async function promoteReadyRoundPrices(input: {
   return roundStateResponse(input.request, state);
 }
 
+// ---------------------------------------------------------------------------
+// recordSpend helpers – extracted to keep cyclomatic complexity manageable.
+// ---------------------------------------------------------------------------
+
+/** Validate the requested venue and return its canonical id + name. */
+async function resolveSpendVenue(
+  requestedVenueId: string,
+): Promise<
+  | { ok: true; canonicalId: string; name: string }
+  | { ok: false; response: Response }
+> {
+  const venueLookup = await lookupCanonicalVenue(requestedVenueId);
+  if (venueLookup.status === "unavailable") {
+    return {
+      ok: false,
+      response: publicApiError(
+        "Venue list is unavailable right now, try again shortly.",
+        "UNAVAILABLE",
+        503,
+        { retryable: true },
+      ),
+    };
+  }
+  if (
+    venueLookup.status !== "found" ||
+    !isPubVenueKind(venueLookup.venue.kind)
+  ) {
+    return {
+      ok: false,
+      response: publicApiError(
+        "Pick a pub from this Round.",
+        "INVALID_REQUEST",
+        400,
+      ),
+    };
+  }
+  return {
+    ok: true,
+    canonicalId: venueLookup.canonicalId,
+    name: venueLookup.venue.name,
+  };
+}
+
+/**
+ * Resolve contributor identity and gate authorization for price-eligible spends.
+ *
+ * Returns `{ ok: true, promotionOwner }` when the caller may proceed, or
+ * `{ ok: false, response }` when an HTTP error should be sent back immediately.
+ */
+function resolveSpendContributor(
+  observed: ReturnType<typeof firstPartyPriceItems>,
+  hasBearer: boolean,
+  contributor: ContributionIdentityResolution | null,
+):
+  | { ok: true; promotionOwner: string | null }
+  | { ok: false; response: Response } {
+  if (
+    observed.length > 0 &&
+    hasBearer &&
+    contributor &&
+    !contributor.ok &&
+    (contributor.httpStatus === 401 || contributor.httpStatus === 503)
+  ) {
+    return {
+      ok: false,
+      response: jsonNoStore(contributor.body, {
+        status: contributor.httpStatus,
+      }),
+    };
+  }
+
+  const promotionOwner = contributor?.ok ? contributor.actor : null;
+
+  return {
+    ok: true,
+    promotionOwner,
+  };
+}
+
 // One immutable buying turn, plus the price submissions its drink lines earn.
 async function recordSpend(
   request: Request,
@@ -218,19 +297,15 @@ async function recordSpend(
 ): Promise<Response> {
   const store = roundsStore();
   const requestedVenueId = readString(body.venueId) ?? "";
-  const venueLookup = await lookupCanonicalVenue(requestedVenueId);
-  if (venueLookup.status === "unavailable") {
-    return publicApiError("Venue list is unavailable right now, try again shortly.", "UNAVAILABLE", 503, { retryable: true });
-  }
-  if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
-    return publicApiError("Pick a pub from this Round.", "INVALID_REQUEST", 400);
-  }
+  const venue = await resolveSpendVenue(requestedVenueId);
+  if (!venue.ok) return venue.response;
+
   const spendInput = {
     clientRef: body.clientRef,
     payerHandle: body.payerHandle,
     recordedByHandle: handle,
-    venueId: venueLookup.canonicalId,
-    venueName: venueLookup.venue.name,
+    venueId: venue.canonicalId,
+    venueName: venue.name,
     totalGbp: body.totalGbp,
     items: body.items,
   };
@@ -239,25 +314,23 @@ async function recordSpend(
 
   // A plain total is a diary figure, not one drink, so it stops here.
   const observed = firstPartyPriceItems(clean.items);
-  const contributor =
+  const rawContributor =
     observed.length > 0 ? await resolveContributionIdentity(request) : null;
-  if (contributor?.ok && observed.length > ROUND_SPEND_PRICE_LINE_MAX) {
+  if (rawContributor?.ok && observed.length > ROUND_SPEND_PRICE_LINE_MAX) {
     return publicApiError(`Log up to ${ROUND_SPEND_PRICE_LINE_MAX} drink prices in one round. Keep this one, then start another.`, "INVALID_REQUEST", 400);
   }
 
   const hasBearer = /^Bearer\s+\S+/i.test(
     request.headers.get("authorization") ?? "",
   );
-  if (
-    observed.length > 0 &&
-    hasBearer &&
-    contributor &&
-    !contributor.ok &&
-    (contributor.httpStatus === 401 || contributor.httpStatus === 503)
-  ) {
-    return jsonNoStore(contributor.body, { status: contributor.httpStatus });
-  }
-  const promotionOwner = contributor?.ok ? contributor.actor : null;
+  const resolved = resolveSpendContributor(
+    observed,
+    hasBearer,
+    rawContributor,
+  );
+  if (!resolved.ok) return resolved.response;
+  const { promotionOwner } = resolved;
+
   const result = await store.recordSpend(code, {
     ...spendInput,
     initialPromotionStatus:
@@ -266,12 +339,12 @@ async function recordSpend(
   });
   if (!result.ok) return errorResponse(result.error);
 
-  if (observed.length === 0 || (!hasBearer && !contributor?.ok)) {
+  if (observed.length === 0 || (!hasBearer && !rawContributor?.ok)) {
     return roundStateResponse(request, result.state);
   }
-  if (!contributor) return errorResponse("error");
-  if (!contributor.ok) {
-    return jsonNoStore(contributor.body, { status: contributor.httpStatus });
+  if (!rawContributor) return errorResponse("error");
+  if (!rawContributor.ok) {
+    return jsonNoStore(rawContributor.body, { status: rawContributor.httpStatus });
   }
   if (!promotionOwner) return errorResponse("error");
   const owner = await store.claimSpendPromotionOwner(
@@ -300,7 +373,7 @@ async function recordSpend(
     code,
     clientRef: clean.clientRef,
     state: reconciled.state,
-    contributor,
+    contributor: rawContributor,
     promotionOwner,
   });
   if (!prepared.ok) return prepared.response;
@@ -308,7 +381,7 @@ async function recordSpend(
     store,
     code,
     stored: prepared.stored,
-    contributor,
+    contributor: rawContributor,
     request,
   });
 }

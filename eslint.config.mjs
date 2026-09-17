@@ -52,11 +52,95 @@ const eslintConfig = [
     },
   },
   {
-    // Code-quality signal, not a build gate. Keeping complexity as a warning
-    // surfaces new sprawl without blocking existing code. Ratchet the threshold
-    // down as functions get refactored.
+    // Global gate: any file not matched by the per-directory overrides below
+    // must satisfy complexity 30. In flat-config, later blocks override
+    // earlier ones for matching files, so this block goes FIRST and the
+    // per-directory warn overrides come after.
     rules: {
-      complexity: ["warn", 35],
+      complexity: ["error", 30],
+    },
+  },
+  // Complexity ratchet overrides for functions that pre-date the error/30
+  // gate. Each group is annotated with the milestone that will bring the
+  // functions below 30 through decomposition; delete the block once that
+  // milestone lands so the global error/30 rule applies again.
+  {
+    // Scripts are offline data-pipeline tooling (never shipped to users).
+    // Complexity will be reduced organically in Milestone 9 (Data Pipeline
+    // Extraction). Keep as warn until then.
+    files: ["scripts/**/*.{mjs,ts,js}"],
+    rules: {
+      complexity: ["warn", 30],
+    },
+  },
+  {
+    // Large map and app-shell components scheduled for decomposition in
+    // Milestone 5 (Map Component Decomposition) and Milestone 6 (Plan/Night/
+    // Admin Component Decomposition). Also the two API POST handlers whose
+    // decomposition is deferred to the same waves.
+    files: [
+      "components/PubMap.tsx",
+      "components/PubMapCanvas.tsx",
+      "components/map/**/*.{ts,tsx}",
+      "components/night/**/*.{ts,tsx}",
+      "components/plan/**/*.{ts,tsx}",
+      "components/profile/**/*.{ts,tsx}",
+      "components/pal/**/*.{ts,tsx}",
+      "components/social/**/*.{ts,tsx}",
+      "components/visits/**/*.{ts,tsx}",
+      "components/wanted/**/*.{ts,tsx}",
+      "components/webmcp/**/*.{ts,tsx}",
+      "components/feed/**/*.{ts,tsx}",
+      "components/auth/**/*.{ts,tsx}",
+      "app/admin/**/*.{ts,tsx}",
+      "app/out/**/*.{ts,tsx}",
+      "app/social/**/*.{ts,tsx}",
+      "app/tonight/**/*.{ts,tsx}",
+      "app/api/price-submit/**/*.{ts,tsx}",
+      "app/api/social/**/*.{ts,tsx}",
+    ],
+    rules: {
+      complexity: ["warn", 30],
+    },
+  },
+  {
+    // lib/ functions with legacy complexity. Many will simplify when their
+    // callers are decomposed in Milestones 5/6. Track as warn until then.
+    files: [
+      "lib/analyticsEvents.ts",
+      "lib/areaNews.ts",
+      "lib/concierge/rank.ts",
+      "lib/concierge/venues.server.ts",
+      "lib/harvestFold.ts",
+      "lib/heritage.ts",
+      "lib/lastTrain.server.ts",
+      "lib/mapSearchSuggest.ts",
+      "lib/nightPlanning.ts",
+      "lib/nightSignalClaims.ts",
+      "lib/plan.ts",
+      "lib/planComposerHandoff.ts",
+      "lib/planDraft.ts",
+      "lib/planGenerationRequest.ts",
+      "lib/planGrounding.server.ts",
+      "lib/planningAnchor.server.ts",
+      "lib/slimShards.ts",
+      "lib/socialCrewsUi.ts",
+      "lib/socialPostStore.ts",
+      "lib/spoonsValue.ts",
+      "lib/venueIndex.ts",
+      "lib/weatherSnapshots.ts",
+      "lib/whatson/eventNormalise.mjs",
+    ],
+    rules: {
+      complexity: ["warn", 30],
+    },
+  },
+  {
+    // E2E helper with complex layout-check logic. Tracked for refactoring
+    // alongside future E2E suite improvements.
+    files: ["e2e/ui-consistency-layout.spec.ts"],
+    rules: {
+      complexity: ["warn", 30],
     },
   },
 ];

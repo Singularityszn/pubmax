@@ -70,6 +70,7 @@ import {
   venuePhotoCapLine,
   venuePhotoServePath,
   type VenuePhotoCrosspost,
+  type VenuePhotoSubmission,
 } from "@/lib/venuePhotos";
 import { venuePhotoRouteDeps } from "@/lib/venuePhotoRouteDeps.server";
 
@@ -130,90 +131,92 @@ function wallAgeRefusalLine(refusal: ContributionAdultRefusal): string {
   return `Photo walls are for over-18s. Confirm your age on ${surface}.`;
 }
 
-export async function POST(request: Request): Promise<Response> {
+/**
+ * Handle JSON-body actions: "report" (public) and "hide"/"restore" (moderator).
+ * Returns a Response when it handled the action, or null if the content type
+ * was not JSON (so the caller should fall through to the multipart path).
+ */
+async function handleJsonAction(request: Request): Promise<Response | null> {
   const contentType = (request.headers.get("Content-Type") ?? "").toLowerCase();
+  if (contentType.startsWith("multipart/form-data")) return null;
 
-  // ── Reader flag and moderator decisions (JSON) ─────────────────────────────
-  if (!contentType.startsWith("multipart/form-data")) {
-    const body = await parseJson(request);
-    if (!body) return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  const body = await parseJson(request);
+  if (!body) return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
 
-    if (body.action === "report") {
-      const id = readString(body.id);
-      if (!id) return publicApiError("Photo not found.", "NOT_FOUND", 404);
-      // Server-derived reporter, exactly like community prices and Visit
-      // Reports: a body token would let one origin mint many reporters.
-      const actorHash = hashActor(`venue-photo:${hashIp(clientIp(request))}`);
-      const flagKey = `venue-photo-report:${id}`;
-      const actorKey = `${flagKey}:${actorHash}`;
-      if (
-        (await isLimited(flagKey, flagKey)) ||
-        (await isLimited(actorKey, actorKey, REPORT_PER_ACTOR_LIMIT))
-      ) {
-        return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, {
-          retryable: true,
-        });
-      }
-      try {
-        const done = await venuePhotoStore().report(id, readString(body.reason), actorHash);
-        return done
-          ? jsonNoStore({ ok: true }, { status: 200 })
-          : publicApiError("Photo not found.", "NOT_FOUND", 404);
-      } catch (err) {
-        log("error", "venue_photo.report_failed", {
-          route: "POST /api/venue-photos",
-          error: err instanceof Error ? err.message : String(err),
-        });
-        return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
-          retryable: true,
-        });
-      }
+  if (body.action === "report") {
+    const id = readString(body.id);
+    if (!id) return publicApiError("Photo not found.", "NOT_FOUND", 404);
+    // Server-derived reporter, exactly like community prices and Visit
+    // Reports: a body token would let one origin mint many reporters.
+    const actorHash = hashActor(`venue-photo:${hashIp(clientIp(request))}`);
+    const flagKey = `venue-photo-report:${id}`;
+    const actorKey = `${flagKey}:${actorHash}`;
+    if (
+      (await isLimited(flagKey, flagKey)) ||
+      (await isLimited(actorKey, actorKey, REPORT_PER_ACTOR_LIMIT))
+    ) {
+      return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, {
+        retryable: true,
+      });
     }
-
-    if (body.action === "hide" || body.action === "restore") {
-      if (!isModerator(request)) return publicApiError("Not authorised.", "FORBIDDEN", 403);
-      const id = readString(body.id);
-      if (!id) return publicApiError("Photo not found.", "NOT_FOUND", 404);
-      try {
-        // Hiding never deletes: the row, its bytes and its report trail stay,
-        // so the decision is reversible from the surface that made it.
-        const done = await venuePhotoStore().moderate(
-          id,
-          body.action === "hide" ? "hidden" : "approved",
-          readString(body.note),
-        );
-        return done
-          ? jsonNoStore({ ok: true }, { status: 200 })
-          : publicApiError("Photo not found.", "NOT_FOUND", 404);
-      } catch (err) {
-        log("error", "venue_photo.moderate_failed", {
-          route: "POST /api/venue-photos",
-          error: err instanceof Error ? err.message : String(err),
-        });
-        return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
-          retryable: true,
-        });
-      }
+    try {
+      const done = await venuePhotoStore().report(id, readString(body.reason), actorHash);
+      return done
+        ? jsonNoStore({ ok: true }, { status: 200 })
+        : publicApiError("Photo not found.", "NOT_FOUND", 404);
+    } catch (err) {
+      log("error", "venue_photo.report_failed", {
+        route: "POST /api/venue-photos",
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
+        retryable: true,
+      });
     }
-
-    return publicApiError("Send the photo as multipart form data.", "INVALID_REQUEST", 400);
   }
 
-  // ── Post a photo to a wall ─────────────────────────────────────────────────
-  const contributor = await resolveContributionIdentity(request);
-  if (!contributor.ok) {
-    return jsonNoStore(contributor.body, { status: contributor.httpStatus });
+  if (body.action === "hide" || body.action === "restore") {
+    if (!isModerator(request)) return publicApiError("Not authorised.", "FORBIDDEN", 403);
+    const id = readString(body.id);
+    if (!id) return publicApiError("Photo not found.", "NOT_FOUND", 404);
+    try {
+      // Hiding never deletes: the row, its bytes and its report trail stay,
+      // so the decision is reversible from the surface that made it.
+      const done = await venuePhotoStore().moderate(
+        id,
+        body.action === "hide" ? "hidden" : "approved",
+        readString(body.note),
+      );
+      return done
+        ? jsonNoStore({ ok: true }, { status: 200 })
+        : publicApiError("Photo not found.", "NOT_FOUND", 404);
+    } catch (err) {
+      log("error", "venue_photo.moderate_failed", {
+        route: "POST /api/venue-photos",
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
+        retryable: true,
+      });
+    }
   }
 
-  // The bar's door, and it asks the SAME question Social asks, through the same
-  // gate: a stored adult date of birth, or the recorded one-tap assertion. The
-  // handle came from the session above; the age is re-checked here rather than
-  // trusted from any earlier surface.
+  return publicApiError("Send the photo as multipart form data.", "INVALID_REQUEST", 400);
+}
+
+/**
+ * The bar's door: checks the contributor's adult status through the same gate
+ * Social uses. Returns a Response if the check fails or is unavailable, or
+ * null if the contributor passes.
+ */
+async function checkAdultGate(
+  accountId: string,
+): Promise<Response | null> {
   let adultRefusal: ContributionAdultRefusal | null = null;
   try {
     const [identity, assertedAt] = await Promise.all([
-      privateIdentityStore().read(contributor.accountId),
-      adultSelfAssertionStore().read(contributor.accountId),
+      privateIdentityStore().read(accountId),
+      adultSelfAssertionStore().read(accountId),
     ]);
     // The SAME two questions the price door asks, chosen in the same place, so
     // one product cannot answer the alcohol-age question two ways and a reader
@@ -242,6 +245,126 @@ export async function POST(request: Request): Promise<Response> {
       { compatibilityFields: { status: adultRefusal.status } },
     );
   }
+  return null;
+}
+
+/**
+ * Stage, scan, promote and persist a venue photo, then optionally crosspost to
+ * the feed. Returns the 201 response on success or an error response on
+ * failure.
+ */
+async function processPhotoUpload(
+  request: Request,
+  photoFile: File,
+  submission: VenuePhotoSubmission,
+  contributor: { actor: string; handle: string },
+  profileId: string,
+): Promise<Response> {
+  const photoId = crypto.randomUUID();
+  const { storage, moderation, crosspost: crosspostToFeed } = venuePhotoRouteDeps();
+  const store = venuePhotoStore();
+  let staged: StagedVenuePhoto | null = null;
+  try {
+    const prepared = await prepareVenuePhoto(photoFile);
+    staged = await stagePreparedVenuePhoto(submission.venueId, photoId, prepared, storage);
+
+    const signedUrl = await signVenuePhotoObject(staged.stagingKey, storage);
+    const scan = await scanUploadedImage({
+      surface: "venue-photo",
+      signedUrl,
+      adapter: moderation,
+    });
+
+    if (scan.verdict === "refused") {
+      // Refused bytes never reach the serving key, so nothing public was ever
+      // one request away from existing.
+      await discardStagedVenuePhoto(staged, storage);
+      staged = null;
+      return publicApiError(VENUE_PHOTO_REFUSED_LINE, "PHOTO_REFUSED", 400);
+    }
+
+    const promoted = await promoteStagedVenuePhoto(staged, storage);
+    staged = null;
+
+    const created = await store.create({
+      id: photoId,
+      venueId: submission.venueId,
+      authorActor: contributor.actor,
+      authorProfileId: profileId,
+      objectKey: promoted.objectKey,
+      drinkCategory: submission.drinkCategory,
+      caption: submission.caption,
+      width: promoted.width,
+      height: promoted.height,
+    });
+
+    // The feed is a SECOND write behind its own gate, and it can never take the
+    // wall down with it. `off` is the honest answer when nobody asked.
+    let crosspost: VenuePhotoCrosspost = { state: "off" };
+    if (submission.shareToFeed) {
+      crosspost = await crosspostToFeed(request, {
+        caption: submission.caption,
+        venueId: submission.venueId,
+        photo: photoFile,
+        idempotencyKey: `venue-photo-${created.id}`,
+        authorProfileId: profileId,
+      });
+    }
+
+    return jsonNoStore(
+      {
+        photo: {
+          id: created.id,
+          venueId: created.venueId,
+          url: venuePhotoServePath(created.venueId, created.id),
+          drinkCategory: created.drinkCategory,
+          caption: created.caption,
+          width: created.width,
+          height: created.height,
+          createdAt: created.createdAt,
+          author: { handle: contributor.handle },
+          ownedByViewer: true,
+        },
+        crosspost,
+      },
+      { status: 201 },
+    );
+  } catch (error) {
+    if (staged) {
+      try {
+        await discardStagedVenuePhoto(staged, storage);
+      } catch {
+        // Swallow cleanup errors so the original failure is what is reported.
+      }
+    }
+    if (error instanceof VenuePhotoError) return photoError(error);
+    log("error", "venue_photo.create_failed", {
+      route: "POST /api/venue-photos",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return publicApiError("Storage is unavailable. Try again shortly.", "STORE_UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
+}
+
+export async function POST(request: Request): Promise<Response> {
+  // ── Reader flag and moderator decisions (JSON) ─────────────────────────────
+  const jsonResponse = await handleJsonAction(request);
+  if (jsonResponse) return jsonResponse;
+
+  // ── Post a photo to a wall ─────────────────────────────────────────────────
+  const contributor = await resolveContributionIdentity(request);
+  if (!contributor.ok) {
+    return jsonNoStore(contributor.body, { status: contributor.httpStatus });
+  }
+
+  // The bar's door, and it asks the SAME question Social asks, through the same
+  // gate: a stored adult date of birth, or the recorded one-tap assertion. The
+  // handle came from the session above; the age is re-checked here rather than
+  // trusted from any earlier surface.
+  const adultGateResponse = await checkAdultGate(contributor.accountId);
+  if (adultGateResponse) return adultGateResponse;
 
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
@@ -287,91 +410,7 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError(venuePhotoCapLine(), "PHOTO_CAP_REACHED", 409);
   }
 
-  const photoId = crypto.randomUUID();
-  const { storage, moderation, crosspost: crosspostToFeed } = venuePhotoRouteDeps();
-  let staged: StagedVenuePhoto | null = null;
-  try {
-    const prepared = await prepareVenuePhoto(submitted.photo);
-    staged = await stagePreparedVenuePhoto(submission.venueId, photoId, prepared, storage);
-
-    const signedUrl = await signVenuePhotoObject(staged.stagingKey, storage);
-    const scan = await scanUploadedImage({
-      surface: "venue-photo",
-      signedUrl,
-      adapter: moderation,
-    });
-
-    if (scan.verdict === "refused") {
-      // Refused bytes never reach the serving key, so nothing public was ever
-      // one request away from existing.
-      await discardStagedVenuePhoto(staged, storage);
-      staged = null;
-      return publicApiError(VENUE_PHOTO_REFUSED_LINE, "PHOTO_REFUSED", 400);
-    }
-
-    const promoted = await promoteStagedVenuePhoto(staged, storage);
-    staged = null;
-
-    const created = await store.create({
-      id: photoId,
-      venueId: submission.venueId,
-      authorActor: contributor.actor,
-      authorProfileId: profileId,
-      objectKey: promoted.objectKey,
-      drinkCategory: submission.drinkCategory,
-      caption: submission.caption,
-      width: promoted.width,
-      height: promoted.height,
-    });
-
-    // The feed is a SECOND write behind its own gate, and it can never take the
-    // wall down with it. `off` is the honest answer when nobody asked.
-    let crosspost: VenuePhotoCrosspost = { state: "off" };
-    if (submission.shareToFeed) {
-      crosspost = await crosspostToFeed(request, {
-        caption: submission.caption,
-        venueId: submission.venueId,
-        photo: submitted.photo,
-        idempotencyKey: `venue-photo-${created.id}`,
-        authorProfileId: profileId,
-      });
-    }
-
-    return jsonNoStore(
-      {
-        photo: {
-          id: created.id,
-          venueId: created.venueId,
-          url: venuePhotoServePath(created.venueId, created.id),
-          drinkCategory: created.drinkCategory,
-          caption: created.caption,
-          width: created.width,
-          height: created.height,
-          createdAt: created.createdAt,
-          author: { handle: contributor.handle },
-          ownedByViewer: true,
-        },
-        crosspost,
-      },
-      { status: 201 },
-    );
-  } catch (error) {
-    if (staged) {
-      try {
-        await discardStagedVenuePhoto(staged, storage);
-      } catch {
-        // Swallow cleanup errors so the original failure is what is reported.
-      }
-    }
-    if (error instanceof VenuePhotoError) return photoError(error);
-    log("error", "venue_photo.create_failed", {
-      route: "POST /api/venue-photos",
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return publicApiError("Storage is unavailable. Try again shortly.", "STORE_UNAVAILABLE", 503, {
-      retryable: true,
-    });
-  }
+  return processPhotoUpload(request, submitted.photo, submission, contributor, profileId);
 }
 
 export async function GET(request: Request): Promise<Response> {
