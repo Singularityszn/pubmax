@@ -259,12 +259,11 @@ async function resolveSpendVenue(
  * `{ ok: false, response }` when an HTTP error should be sent back immediately.
  */
 function resolveSpendContributor(
-  _request: Request,
   observed: ReturnType<typeof firstPartyPriceItems>,
   hasBearer: boolean,
   contributor: ContributionIdentityResolution | null,
 ):
-  | { ok: true; promotionOwner: string | null; contributor: ResolvedContributor | null }
+  | { ok: true; promotionOwner: string | null }
   | { ok: false; response: Response } {
   if (
     observed.length > 0 &&
@@ -286,7 +285,6 @@ function resolveSpendContributor(
   return {
     ok: true,
     promotionOwner,
-    contributor: contributor?.ok ? contributor : null,
   };
 }
 
@@ -325,8 +323,7 @@ async function recordSpend(
   const hasBearer = /^Bearer\s+\S+/i.test(
     request.headers.get("authorization") ?? "",
   );
-  const resolved = await resolveSpendContributor(
-    request,
+  const resolved = resolveSpendContributor(
     observed,
     hasBearer,
     rawContributor,
