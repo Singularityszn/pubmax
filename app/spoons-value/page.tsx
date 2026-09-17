@@ -22,7 +22,7 @@ import { readSpoonsValue } from "@/lib/spoonsValue.server";
 
 import SpoonsValueTable from "./SpoonsValueTable";
 
-import "./spoons-value.css";
+import styles from "./SpoonsValue.module.css";
 
 const SITE_URL = "https://pubmaxxing.com";
 
@@ -60,7 +60,7 @@ export default async function SpoonsValuePage() {
     return (
       <>
         <SiteNav />
-        <main className="spoonsPage" id="main">
+        <main className={styles.spoonsPage} id="main">
           <EmptyState title={SPOONS_VALUE_PAGE_TITLE}>
             {read.status === "unavailable"
               ? "The ranking would not load. Reload the page."
@@ -101,7 +101,7 @@ export default async function SpoonsValuePage() {
   return (
     <>
       <SiteNav />
-      <main className="spoonsPage" id="main">
+      <main className={styles.spoonsPage} id="main">
         <JsonLd data={jsonLd} nonce={nonce} />
         <Screen
           kicker="Wetherspoons, everywhere"
@@ -121,7 +121,7 @@ export default async function SpoonsValuePage() {
             </a>
           }
         >
-          <p className="spoonsLede">
+          <p className={styles.spoonsLede}>
             {spoonsValueLede(
               rows[rows.length - 1].milliunits,
               best.milliunits,
@@ -135,8 +135,8 @@ export default async function SpoonsValuePage() {
             modalMilliunits={modalMilliunits}
           />
 
-          <section className="spoonsCredit" aria-label="Where these figures come from">
-            <h2 className="spoonsCreditTitle">Where these figures come from</h2>
+          <section className={styles.spoonsCredit} aria-label="Where these figures come from">
+            <h2 className={styles.spoonsCreditTitle}>Where these figures come from</h2>
             <p>
               {`${SPOONS_VALUE_NOT_OUR_FIGURE_LINE} `}
               <a href={pack.provenance.sourceUrl} rel="noopener noreferrer" target="_blank">

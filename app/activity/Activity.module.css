@@ -200,7 +200,7 @@
    that form's column centres itself (app/auth/auth.css, `.authOptions`), which
    put the field 112px in from the heading it answers at 1440 (site audit 13
    Sep 2026, D14). An empty state reads down one left edge. */
-.activity .emptyStateAction .authOptions {
+.activity :global(.emptyStateAction) :global(.authOptions) {
   margin-inline: 0;
 }
 

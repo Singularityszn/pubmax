@@ -19,7 +19,7 @@ import { relativeTime } from "@/lib/relativeTime";
 import { socialBoundaryCopy } from "@/lib/socialLaunch";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
-import "./activity.css";
+import styles from "./Activity.module.css";
 
 // The kind filters offered in the desktop rail, in a stable order. Labels are
 // nouns for the event class (the list rows carry the verb copy). Kept in lockstep
@@ -202,13 +202,13 @@ export default function ActivityClient(): React.JSX.Element {
     // The nav lives OUTSIDE the 640px-capped <main id="main"> (same shape as the other
     // pages' full-width shells) — nesting it inside the narrow column wrapped
     // the link row into three overlapping lines on desktop.
-    <div className="activityShell">
+    <div className={styles.activityShell}>
       <SiteNav />
 
       <Screen
         as="main"
         id="main"
-        className="activity"
+        className={styles.activity}
         kicker="Activity"
         title="Activity"
         titleId="activity-title"
@@ -228,24 +228,24 @@ export default function ActivityClient(): React.JSX.Element {
           // the page's shape — a plain list on phones, rail + two-up timeline at
           // ≥1024 — instead of a jump from one line of text. Same block idiom as
           // the feed; the shimmer is gated behind prefers-reduced-motion in CSS.
-          <div className="activityGrid activitySkeleton" role="status" aria-label="Loading your activity">
-            <aside className="activityRail" aria-hidden="true">
-              <div className="activityFilters">
+          <div className={styles.activityGrid} role="status" aria-label="Loading your activity">
+            <aside className={styles.activityRail} aria-hidden="true">
+              <div className={styles.activityFilters}>
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <span key={i} className="activitySkelChip" />
+                  <span key={i} className={styles.activitySkelChip} />
                 ))}
               </div>
-              <div className="activitySkelSummary">
+              <div className={styles.activitySkelSummary}>
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <span key={i} className="activitySkelLine activitySkelLineShort" />
+                  <span key={i} className={`${styles.activitySkelLine} ${styles.activitySkelLineShort}`} />
                 ))}
               </div>
             </aside>
-            <ul className="activityList" aria-hidden="true">
+            <ul className={styles.activityList} aria-hidden="true">
               {Array.from({ length: 6 }).map((_, i) => (
-                <li key={i} className="activityItem activitySkelItem">
-                  <span className="activitySkelLine" />
-                  <span className="activitySkelLine activitySkelLineShort" />
+                <li key={i} className={`${styles.activityItem} ${styles.activitySkelItem}`}>
+                  <span className={styles.activitySkelLine} />
+                  <span className={`${styles.activitySkelLine} ${styles.activitySkelLineShort}`} />
                 </li>
               ))}
             </ul>
@@ -273,11 +273,11 @@ export default function ActivityClient(): React.JSX.Element {
             to.
           </EmptyState>
         ) : (
-          <div className="activityGrid">
+          <div className={styles.activityGrid}>
             {/* Desktop rail: kind filters + a quick tally. Hidden below 1024px,
                 so the phone layout stays the single list it always was. */}
-            <aside className="activityRail" aria-label="Filter activity">
-              <div className="activityFilters" role="group" aria-label="Filter by kind">
+            <aside className={styles.activityRail} aria-label="Filter activity">
+              <div className={styles.activityFilters} role="group" aria-label="Filter by kind">
                 <Chip
                   aria-pressed={kindFilter === "all"}
                   onClick={() => setKindFilter("all")}
@@ -294,33 +294,33 @@ export default function ActivityClient(): React.JSX.Element {
                   </Chip>
                 ))}
               </div>
-              <dl className="activitySummary">
-                <div className="activitySummaryRow">
+              <dl className={styles.activitySummary}>
+                <div className={styles.activitySummaryRow}>
                   <dt>Total</dt>
                   <dd>{items.length}</dd>
                 </div>
-                <div className="activitySummaryRow">
+                <div className={styles.activitySummaryRow}>
                   <dt>Unread</dt>
                   <dd>{unreadCount}</dd>
                 </div>
               </dl>
             </aside>
 
-            <ul className="activityList">
+            <ul className={styles.activityList}>
               {visibleItems.map((n) => {
                 const href = subjectHref(n);
                 return (
-                  <li key={n.id} className={n.read ? "activityItem" : "activityItem isUnread"}>
-                    <Link href={`/u/${encodeURIComponent(n.actorHandle)}`} className="activityActor">
+                  <li key={n.id} className={n.read ? styles.activityItem : `${styles.activityItem} ${styles.isUnread}`}>
+                    <Link href={`/u/${encodeURIComponent(n.actorHandle)}`} className={styles.activityActor}>
                       @{n.actorHandle}
                     </Link>{" "}
-                    <span className="activityVerb">{verb(n.kind)}</span>
+                    <span className={styles.activityVerb}>{verb(n.kind)}</span>
                     {n.subjectLabel ? (
-                      <span className="activitySubject">: {n.subjectLabel}</span>
+                      <span className={styles.activitySubject}>: {n.subjectLabel}</span>
                     ) : null}
-                    <span className="activityTime"> · {relativeTime(n.createdAt)}</span>
+                    <span className={styles.activityTime}> · {relativeTime(n.createdAt)}</span>
                     {href ? (
-                      <Link href={href} className="activityLink">
+                      <Link href={href} className={styles.activityLink}>
                         View
                       </Link>
                     ) : null}

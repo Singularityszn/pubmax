@@ -15,6 +15,8 @@ import {
   type SpoonsValueTableRow,
 } from "@/lib/spoonsValue";
 
+import styles from "./SpoonsValue.module.css";
+
 /**
  * The ranking itself.
  *
@@ -39,27 +41,27 @@ export default function SpoonsValueTable({
 
   return (
     <>
-      <div className="spoonsTableCuts" role="group" aria-label="Narrow the ranking">
+      <div className={styles.spoonsTableCuts} role="group" aria-label="Narrow the ranking">
         {cuts.map((option) => {
           const selected = option.id === cut;
           return (
             <button
               key={option.id}
               type="button"
-              className={selected ? "spoonsTableCut isSelected" : "spoonsTableCut"}
+              className={selected ? `${styles.spoonsTableCut} ${styles.isSelected}` : styles.spoonsTableCut}
               aria-pressed={selected}
               onClick={() => setCut(option.id)}
             >
               {option.label}
-              <span className="spoonsTableCutCount">{option.count}</span>
+              <span className={styles.spoonsTableCutCount}>{option.count}</span>
             </button>
           );
         })}
       </div>
 
-      <div className="spoonsTableScroll">
-        <table className="spoonsTable">
-          <caption className="spoonsTableCaption">
+      <div className={styles.spoonsTableScroll}>
+        <table className={styles.spoonsTable}>
+          <caption className={styles.spoonsTableCaption}>
             {`${shown.length} of ${rows.length} pubs. Rank is national, so it does not change when you narrow the list.`}
           </caption>
           <thead>
@@ -80,8 +82,8 @@ export default function SpoonsValueTable({
               const band = spoonsValueBand(row.milliunits, modalMilliunits);
               return (
                 <tr key={row.id}>
-                  <td className="spoonsTableRank">{row.rank}</td>
-                  <th scope="row" className="spoonsTablePub">
+                  <td className={styles.spoonsTableRank}>{row.rank}</td>
+                  <th scope="row" className={styles.spoonsTablePub}>
                     {href ? (
                       <Link href={href} prefetch={false}>
                         {row.name}
@@ -89,16 +91,16 @@ export default function SpoonsValueTable({
                     ) : (
                       <span>{row.name}</span>
                     )}
-                    <span className="spoonsTableWhere">
+                    <span className={styles.spoonsTableWhere}>
                       {[row.town, row.county].filter(Boolean).join(", ")}
                     </span>
-                    <span className="spoonsTableRound">
+                    <span className={styles.spoonsTableRound}>
                       {`${row.round}, `}
-                      <span className="spoonsTableCost">{formatBasketCost(row.pence)}</span>
+                      <span className={styles.spoonsTableCost}>{formatBasketCost(row.pence)}</span>
                     </span>
                   </th>
-                  <td className="spoonsTableUnits">
-                    <span className={`spoonsTableUnitsFigure ${spoonsValueBandClass(band)}`}>
+                  <td className={styles.spoonsTableUnits}>
+                    <span className={`${styles.spoonsTableUnitsFigure} ${spoonsValueBandClass(band)}`}>
                       {formatUnitsLabel(row.milliunits)}
                     </span>
                   </td>
