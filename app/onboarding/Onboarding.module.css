@@ -613,6 +613,11 @@
     padding: 10px 4px max(12px, env(safe-area-inset-bottom, 0px));
     background: var(--paper);
   }
+
+  body:has(.firstRunOnboarding) :global(.analyticsConsentPrompt) {
+    bottom: 0;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+  }
 }
 
 /* THE SHORT PHONE.

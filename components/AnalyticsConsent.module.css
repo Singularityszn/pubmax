@@ -177,16 +177,6 @@ body:has(:global(.maplibregl-canvas)) :global(.analyticsConsentPrompt) {
     padding-bottom: max(6px, env(safe-area-inset-bottom));
   }
 
-  /* The first-run surface hides the tab bar (app/onboarding/Onboarding.module.css)
-     without taking it out of the document, so the :not(:has()) rule above
-     still sees a dock and parks the card 72px up over a bar nobody can see.
-     On that surface the safe area IS the dock, and the surface reserves the
-     lane the card then sits in. */
-  body:has(:global(.firstRunOnboarding)) :global(.analyticsConsentPrompt) {
-    bottom: 0;
-    padding-bottom: max(6px, env(safe-area-inset-bottom));
-  }
-
   /* AT A LARGE OS TEXT SIZE THE CARD GROWS INSTEAD OF CLIPPING. The 56px
      row above holds because the copy fits it at every phone width at an
      ordinary size; at the 2.0x the native shells apply (lib/nativeTextScale.ts,
