@@ -27,6 +27,14 @@ Rules the table obeys:
   action, and the painted one was the far one.
 - Routes another track owns (Map canvas, nav) are listed so the table is
   complete; the design track sends those owners a note rather than editing.
+- A ROUTE THE ROUTER REDIRECTS IS NOT A SCREEN. `next.config.mjs` permanently
+  308s `/discover`, `/drinks` and `/feed` to `/social`, so they render no
+  document and have no primary action to count. They held full rows here until
+  17 September 2026, and the surface audit reported coverage for all three
+  because two launch-route tests rendered page components no reader can reach.
+  Where a redirected address used to land is recorded under the table rather
+  than as a row, and `__tests__/coreUiAudit.test.ts` fails on a row whose route
+  the router redirects.
 
 | Route | Kicker | Heading | Primary action | Secondary |
 |---|---|---|---|---|
@@ -36,7 +44,7 @@ Rules the table obeys:
 | `/today` | Today in London | What's on across London today. | Find my pint | Open the map |
 | `/tonight` | Tonight in London | What's on across London tonight. | Find my pint | Open the map |
 | `/out` | Out in London | What's on, sourced. | Open the map | Plan a night |
-| `/social` | Social | Crews and people who are already here. | Post | Find your lot |
+| `/social` | Social | Crews and people who are already here. | Post (a verified account); Browse pubs and pints (a stranger on the posts tab, to `?tab=discover`); Open the map (a stranger on `?tab=discover`) | Find your lot |
 | `/plan` | Sort the outing | Describe the outing. We'll put it in order. | Sort it (submit the ask) | Guide me instead |
 | `/plan/[id]` | Your plan | (the plan's own name) | Send to the crew | Open the map |
 | `/pal` | Your Pub Pal | A little signal that becomes yours. | Meet your Pub Pal | Back to the map |
@@ -44,19 +52,16 @@ Rules the table obeys:
 | `/u/you` and `/u/[handle]` | You (or the handle) | (the display name) | Edit profile (owner) or Follow (visitor) | Share |
 | `/login` | Sign in | Welcome back (or: Make an account) | the email form's own submit (Email me a sign-in link), beside the field; the head paints none while the form is on screen | Use a password |
 | `/places` | Places | Pick a city. | Open London | Browse pubs across the UK |
-| `/discover` | Discover | Pint prices, pub stories and routes worth walking. | Open the map | Find my pint |
 | `/pubs` | Pubs | Every pub on record. | Open the map | Find my pint |
 | `/borough` | London | London, by the area you drink in. | Open the map | Find my pint |
 | `/borough/[slug]` | (the borough) | Pubs in (the borough). | Open the map here | Find my pint |
 | `/crawls` | Crawls | Pub stories mapped into walks. | Start a crawl | Open the map |
 | `/crawls/[slug]` | Crawl | (the crawl's own name) | Start this crawl | Open the map |
-| `/drinks` | Drinks | What each drink costs, pub by pub. | Open the map | Find my pint |
 | `/drink/[slug]` | (the drink) | (the brand) prices across London. | Open the map | Find my pint |
 | `/historic` | Historic pubs | London's historic pubs. | Open the map | Start a crawl |
 | `/historic/[slug]` | Historic pub | (the pub's own name) | Open on the map | Plan a night here |
 | `/pint-index` | Pint Index | London pint prices, month by month. | Open the map | Download the CSV |
 | `/pint-index/[month]` | Pint Index | London pint prices, (month). | Open the map | Download the CSV |
-| `/feed` | Stories | Stories. | Drop a pint | Open the map |
 | `/rounds` | Rounds | Who bought the last round. | Start a round | Open a round code |
 | `/messages` | Messages | Messages. | New message | Find your lot |
 | `/activity` | Activity | Activity. | Open the map | Find your lot |
@@ -69,3 +74,16 @@ Rules the table obeys:
 Headings printed in parentheses are the route's own data and are not copy.
 Routes that already carry the right heading keep it; the audit changes the
 kicker, the action hierarchy and the decoration, not the sentence.
+
+## Retired addresses
+
+Three addresses the table used to hold rows for. The router answers each with a
+permanent redirect, so they are here rather than in the table: a reader who
+follows an old link still lands somewhere sensible, and nothing in this file
+claims a screen behind them.
+
+| Address | Where the router sends it | What answers instead |
+|---|---|---|
+| `/discover` | `/social?tab=discover` | the public Pubs and pints tab of `/social` |
+| `/drinks` | `/social?tab=discover` | the same tab |
+| `/feed` | `/social` | the posts tab of `/social` |
