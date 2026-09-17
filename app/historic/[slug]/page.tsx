@@ -37,11 +37,11 @@ function metaDescription(pub: HistoricPub): string {
   return base.length > 155 ? `${base.slice(0, 154).trimEnd()}…` : base;
 }
 
-// Pre-render every notable pub as its own static page (SEO surface).
-export async function generateStaticParams(): Promise<{ slug: string }[]> {
-  const pubs = await loadHistoricPubs();
-  return pubs.map((pub) => ({ slug: pub.slug }));
-}
+// Historic pages render dynamically: the root layout reads headers() for the
+// CSP nonce, which rules out static generation. generateStaticParams was
+// previously defined here but caused prerender failures during production
+// builds because the SSG worker lacks a request context for headers().
+// The pages are still SEO-indexed — they are server-rendered on demand.
 
 export async function generateMetadata({
   params,
