@@ -373,7 +373,7 @@ export default function LandingHero({
               key={door.href}
               prefetch={false}
               href={door.href}
-              className={(styles as Record<string, string>)[door.className]}
+              className={door.className ? (styles as Record<string, string>)[door.className] : undefined}
               onClick={() => trackLandingCta(door.cta)}
             >
               {door.label}
