@@ -41,7 +41,7 @@ function legacyIconFor(species: PubPalSpecies): { Icon: LucideIcon; description:
 }
 
 /**
- * The box `app/pal/pal.css` really draws the full portrait's mascot in.
+ * The box `app/pal/Pal.module.css` really draws the full portrait's mascot in.
  *
  * `.palPortrait` is `min(42rem, 74vw)` and `.palPortraitCore` is 58% of it, so
  * the mascot fills about 403 CSS px on a 1440 desktop; under the 760px
