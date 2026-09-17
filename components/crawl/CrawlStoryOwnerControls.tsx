@@ -14,13 +14,22 @@ import { discardBody } from "@/lib/responseBody";
 //
 // AUTHORSHIP note: matching on a self-asserted handle is a WEAK client gate (see
 // app/api/crawls/[slug]/route.ts). It hides the controls from non-owners; the API
-// is what actually enforces ownership until auth ownership merges.
+// is what actually enforces ownership, and since it began requiring a VERIFIED
+// ACTOR a signed-out viewer whose device remembers this handle is refused there
+// with a 401. That refusal gets its own line, because "Could not delete this
+// crawl." would read as an outage over a door the reader can still walk through.
 
 const HANDLE_KEY = "pubmax_handle";
 
 function readViewerHandle(): string {
   if (typeof window === "undefined") return "";
   return (window.localStorage.getItem(HANDLE_KEY) ?? "").trim().toLowerCase();
+}
+
+function refusalLine(status: number): string {
+  if (status === 401) return "Sign in as this handle's owner to delete this crawl.";
+  if (status === 403) return "You can only delete a crawl you authored.";
+  return "Could not delete this crawl.";
 }
 
 export default function CrawlStoryOwnerControls({
@@ -53,7 +62,7 @@ export default function CrawlStoryOwnerControls({
       }, { requiresIdentity: true });
       if (!res.ok) {
         discardBody(res);
-        setMessage(res.status === 403 ? "You can only delete a crawl you authored." : "Could not delete this crawl.");
+        setMessage(refusalLine(res.status));
         return;
       }
       // Gone — send the (former) author back to the crawls index.
