@@ -83,6 +83,15 @@ describe("map banner staging CSS", () => {
     ]);
   });
 
+  it("treats an expanded Tonight panel like the collapsed card in the cascade", () => {
+    // Macroscope 17 Sep 2026: suppressors keyed only on .tonightLaneCollapsed let
+    // .tonightLane--open paint beside status or the concierge ask.
+    expect(css).toMatch(
+      /\.mapStage:has\(\.cityStatusBanner\)\s+\.tonightLane--open/,
+    );
+    expect(css).toMatch(/body:has\(\.tonightLane--open\)\s+\.mapConciergeAsk/);
+  });
+
   it("scopes the staging to desktop so the mobile map shell is untouched", () => {
     expect(css).toMatch(/@media \(min-width:\s*641px\)/);
   });

@@ -25,7 +25,8 @@
   /* 1. Onboarding open — suppress ambient status and Tonight. */
   .appShell.onboarding-open .cityStatusStack,
   .appShell.onboarding-open .cityStatusBanner,
-  .appShell.onboarding-open .tonightLaneCollapsed {
+  .appShell.onboarding-open .tonightLaneCollapsed,
+  .appShell.onboarding-open .tonightLane--open {
     display: none;
   }
 
@@ -54,6 +55,7 @@
   body:has(.mapArrivalCard) .desktopRail,
   body:has(.mapArrivalCard) .palSummon,
   body:has(.mapArrivalCard) .tonightLaneCollapsed,
+  body:has(.mapArrivalCard) .tonightLane--open,
   body:has(.mapArrivalCard) .mapConciergeAsk {
     display: none;
   }
@@ -86,7 +88,9 @@
   }
 
   .mapStage:has(.cityStatusBanner) .tonightLaneCollapsed,
-  .mapStage:has(.citySuggestBanner) .tonightLaneCollapsed {
+  .mapStage:has(.cityStatusBanner) .tonightLane--open,
+  .mapStage:has(.citySuggestBanner) .tonightLaneCollapsed,
+  .mapStage:has(.citySuggestBanner) .tonightLane--open {
     display: none;
   }
 
@@ -95,7 +99,8 @@
      three are inside .mapStage and it is not. */
   body:has(.citySuggestBanner) .mapConciergeAsk,
   body:has(.cityStatusBanner) .mapConciergeAsk,
-  body:has(.tonightLaneCollapsed) .mapConciergeAsk {
+  body:has(.tonightLaneCollapsed) .mapConciergeAsk,
+  body:has(.tonightLane--open) .mapConciergeAsk {
     display: none;
   }
 
