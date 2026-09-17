@@ -22,13 +22,13 @@ const MIGRATION_HINT = "apply migration 0123";
 const STORE_TAG = "harvest-overlay";
 const UPSERT_BATCH = 500;
 
-export type HarvestOverlayWriteOutcome = {
+type HarvestOverlayWriteOutcome = {
   written: number;
   failed?: true;
   failure?: string;
 };
 
-export type HarvestOverlayRead =
+type HarvestOverlayRead =
   | { status: "ready"; overlay: HarvestOverlayRow | null }
   | { status: "degraded"; overlay: null };
 

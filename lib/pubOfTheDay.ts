@@ -118,7 +118,7 @@ export function pubOfTheDayMarkers(text: string): PubOfTheDayMarkerId[] {
 
 // ── What is refused ──────────────────────────────────────────────────────
 
-export type PubOfTheDayRefusalId =
+type PubOfTheDayRefusalId =
   | "unresolved-venue"
   | "venue-gone"
   | "no-sourced-fact"

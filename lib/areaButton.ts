@@ -451,7 +451,7 @@ export function cheapestDrinksNearPoint(
   );
 }
 
-export type AreaCoverageTone = "review" | "capture" | "discovery" | "paused";
+type AreaCoverageTone = "review" | "capture" | "discovery" | "paused";
 export type AreaCoverageLabel = { label: string; tone: AreaCoverageTone } | null;
 
 /**
@@ -538,7 +538,7 @@ export function buildAreaSheetModel(
  * area, coverage chip and all); a locality/borough carries the centroid + ring
  * the sheet derives its pubs from directly.
  */
-export type AreaSheetTarget =
+type AreaSheetTarget =
   | { kind: "area"; slug: string; name: string }
   | { kind: "place"; name: string; center: [number, number]; radiusKm: number };
 

@@ -2,12 +2,12 @@ import { getCity, parseCityId } from "@/lib/cities";
 import { cityMapShareUrl } from "@/lib/cityShare";
 import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
 
-export type MapWarmConnection = {
+type MapWarmConnection = {
   saveData?: boolean;
   effectiveType?: string;
 };
 
-export type MapWarmFetchInit = {
+type MapWarmFetchInit = {
   cache?: "force-cache";
 };
 

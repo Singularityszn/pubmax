@@ -325,7 +325,7 @@ const PLANNING_SOURCES = [
 export type PlanningSource = (typeof PLANNING_SOURCES)[number];
 
 const ACCEPTANCE_SOURCES = ["near", "map-search", "tonight", "pal"] as const;
-export type AcceptanceSource = (typeof ACCEPTANCE_SOURCES)[number];
+type AcceptanceSource = (typeof ACCEPTANCE_SOURCES)[number];
 
 const HANDOFF_SOURCES = [
   "near",
@@ -334,7 +334,7 @@ const HANDOFF_SOURCES = [
   "pal",
   "mobile-route-preview",
 ] as const;
-export type HandoffSource = (typeof HANDOFF_SOURCES)[number];
+type HandoffSource = (typeof HANDOFF_SOURCES)[number];
 
 const TONIGHT_LOCALITY_BASES = [
   "live-location",
@@ -352,7 +352,7 @@ const NEAR_ANSWER_SOURCES = [
 ] as const;
 export type NearAnswerSource = (typeof NEAR_ANSWER_SOURCES)[number];
 
-export type TrustedHandoffAnalyticsPropsByEvent = {
+type TrustedHandoffAnalyticsPropsByEvent = {
   near_answer_ready: {
     source: NearAnswerSource;
     resultBand: "0" | "1-3" | "4+";
@@ -441,10 +441,10 @@ const MISSION_SURFACES = ["near", "map", "profile"] as const;
 export type MissionSurface = (typeof MISSION_SURFACES)[number];
 
 const MISSION_REASONS = ["provisional", "stale", "missing"] as const;
-export type MissionReason = (typeof MISSION_REASONS)[number];
+type MissionReason = (typeof MISSION_REASONS)[number];
 
 export const MISSION_OUTCOMES = ["logged", "trusted", "needs_check"] as const;
-export type MissionOutcome = (typeof MISSION_OUTCOMES)[number];
+type MissionOutcome = (typeof MISSION_OUTCOMES)[number];
 
 /**
  * Which Pint Index page the arrival happened on: the live index, or one of its
@@ -509,7 +509,7 @@ export type RecapVisibility = (typeof RECAP_VISIBILITIES)[number];
 
 /** First time this browser has opened a Pint Index page, or a return. */
 const PINT_INDEX_VISITS = ["first", "repeat"] as const;
-export type PintIndexVisit = (typeof PINT_INDEX_VISITS)[number];
+type PintIndexVisit = (typeof PINT_INDEX_VISITS)[number];
 
 /** The closed set of area codes a Pint Index arrival tap may report. */
 const PINT_INDEX_AREA_CODES = LONDON_BOROUGH_NAMES.map(boroughCode);

@@ -20,21 +20,21 @@ import {
 } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
-export type FeedFreshnessStamp = {
+type FeedFreshnessStamp = {
   feed: string;
   observedAt: string;
   rowsServed: number | null;
   note: string | null;
 };
 
-export type StampFeedInput = {
+type StampFeedInput = {
   feed: string;
   observedAt: string;
   rowsServed?: number | null;
   note?: string | null;
 };
 
-export type StampOutcome = { status: "stamped"; failed?: true };
+type StampOutcome = { status: "stamped"; failed?: true };
 
 export type FeedFreshnessStore = {
   /** Record/replace the freshness stamp for a feed. NEVER throws. */

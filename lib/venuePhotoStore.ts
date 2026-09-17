@@ -62,7 +62,7 @@ const TABLE = "venue_photos";
 const MAX_AUTHOR_PHOTOS = 1_000;
 const MIGRATION_HINT = "apply migration 0098";
 
-export type VenuePhotoWallQuery = {
+type VenuePhotoWallQuery = {
   cursor?: string | null;
   limit?: number;
   /** The signed-in account, so a tile can say "yours". Never a body claim. */

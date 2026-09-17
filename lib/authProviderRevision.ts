@@ -1,4 +1,4 @@
-export type AuthProviderName = "clerk" | "supabase";
+type AuthProviderName = "clerk" | "supabase";
 export type ProviderAuthState =
   | "unresolved"
   | "authenticated"

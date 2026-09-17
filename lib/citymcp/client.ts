@@ -168,7 +168,7 @@ export class CityMcpError extends Error {
 
 // ---------- Structured content types (per probe notes) ----------
 
-export type CityStatusSeverity = "info" | "notable" | "major";
+type CityStatusSeverity = "info" | "notable" | "major";
 
 export type CityStatusSignal = {
   headline: string;
@@ -182,7 +182,7 @@ export type CityStatusSignal = {
   fetchedAt?: string;
 };
 
-export type CityStatusWeather = {
+type CityStatusWeather = {
   condition?: string;
   tempC?: number;
   feelsLikeC?: number;
@@ -521,7 +521,7 @@ export async function searchCityPlaces(
  * Every field is optional because the upstream may omit anything at any
  * time; the UI must render "nothing" rather than a fabricated fact.
  */
-export type CityTransitStop = {
+type CityTransitStop = {
   name: string;
   modes?: string[];
   distanceM?: number;
@@ -964,7 +964,7 @@ export async function fetchThingsToDo(
 
 // ---------- get_journey: TfL itineraries + short-TTL cache ----------
 
-export type CityJourneyLeg = {
+type CityJourneyLeg = {
   mode: string;
   summary?: string;
   durationMinutes?: number;

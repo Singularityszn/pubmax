@@ -30,16 +30,16 @@ export type SocialPostRelationships = {
   blockedProfileIds?: Set<string>;
 };
 
-export type SocialPostFeedLane = "discover" | "nearby" | "following";
+type SocialPostFeedLane = "discover" | "nearby" | "following";
 
-export type SocialPostFeedInput = {
+type SocialPostFeedInput = {
   lane: SocialPostFeedLane;
   area?: string;
   cursor?: string | null;
   limit?: number;
 };
 
-export type SocialPostFeedPage = {
+type SocialPostFeedPage = {
   posts: SocialPostDTO[];
   nextCursor: string | null;
 };
@@ -64,13 +64,13 @@ export type SocialPostModerationResult = {
 };
 
 /** Operator view of the moderation job queue (Social Launch WP4 alert lane). */
-export type SocialPostModerationBacklog = {
+type SocialPostModerationBacklog = {
   pending: number;
   strandedTerminal: number;
   oldestPendingAgeMs: number | null;
 };
 
-export type SocialPostWriteMedia = {
+type SocialPostWriteMedia = {
   mediaId: string;
   objectKey: string;
   sha256: string;
@@ -79,14 +79,14 @@ export type SocialPostWriteMedia = {
   byteSize: number;
 };
 
-export type SocialPostCreateOptions = {
+type SocialPostCreateOptions = {
   media?: SocialPostWriteMedia;
   tagHandles?: string[];
   idempotencyKey?: string;
   requestDigest?: string;
   replayExistingMedia?: boolean;
 };
-export type SocialPostEditOptions = SocialPostCreateOptions & { existingPhotoAltText?: string };
+type SocialPostEditOptions = SocialPostCreateOptions & { existingPhotoAltText?: string };
 
 export class SocialPostStoreError extends Error {
   constructor(

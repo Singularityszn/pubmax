@@ -17,7 +17,7 @@ export const PLAN_MUTATION_OUTBOX_KEY = "pubmaxx:plan-mutation-outbox:v1";
 const PLAN_MUTATION_OUTBOX_EVENT = "pubmaxx:plan-mutation-outbox";
 const MAX_ENTRIES = 50;
 
-export type PlanMutationOutboxStatus =
+type PlanMutationOutboxStatus =
   | "pending"
   | "conflict"
   | "forbidden"

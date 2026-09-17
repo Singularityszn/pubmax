@@ -47,7 +47,7 @@ export {
   
   postgresSkipReason,
   
-  type PostgresBinaryName,
+  
 };
 
 /* ------------------------------------------------------------------ */

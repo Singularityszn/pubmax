@@ -47,35 +47,35 @@ const CODE_MINT_ATTEMPTS = 6;
 //   ok → 200/201, not_found → 404, closed → 409, invalid → 400, forbidden → 403.
 export type RoundWriteError = "not_found" | "closed" | "invalid" | "forbidden" | "error";
 
-export type CreateResult =
+type CreateResult =
   | { ok: true; state: RoundState }
   | { ok: false; error: RoundWriteError };
 
-export type JoinResult =
+type JoinResult =
   | { ok: true; state: RoundState }
   | { ok: false; error: RoundWriteError };
 
-export type AddStopResult =
+type AddStopResult =
   | { ok: true; state: RoundState }
   | { ok: false; error: RoundWriteError };
 
-export type CloseResult =
+type CloseResult =
   | { ok: true; state: RoundState }
   | { ok: false; error: RoundWriteError };
 
-export type RecordSpendResult =
+type RecordSpendResult =
   | { ok: true; state: RoundState; created: boolean }
   | { ok: false; error: RoundWriteError };
 
-export type TransitionSpendPromotionsResult =
+type TransitionSpendPromotionsResult =
   | { ok: true; state: RoundState }
   | { ok: false; error: RoundWriteError };
 
-export type ClaimSpendPromotionOwnerResult =
+type ClaimSpendPromotionOwnerResult =
   | { ok: true }
   | { ok: false; error: "not_found" | "forbidden" | "error" };
 
-export type ReconcilePromotionKeysResult =
+type ReconcilePromotionKeysResult =
   | { ok: true; state: RoundState }
   | { ok: false; error: "not_found" | "forbidden" | "error" };
 

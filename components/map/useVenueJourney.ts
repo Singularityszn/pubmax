@@ -15,7 +15,7 @@ import {
   type VenueJourneyLeg,
 } from "@/lib/venueJourney";
 
-export type VenueJourneyStatus = "idle" | "loading" | "ready" | "empty" | "error";
+type VenueJourneyStatus = "idle" | "loading" | "ready" | "empty" | "error";
 
 export type VenueJourneyResult = {
   walkMinutes: number | null;

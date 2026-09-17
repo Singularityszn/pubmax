@@ -14,7 +14,7 @@
 import { discardBody } from "@/lib/responseBody";
 
 /** Attribution for a scraped fact — mirrors the repo's sourced-price shape. */
-export type WetherspoonsSource = {
+type WetherspoonsSource = {
   label: string;
   url: string;
   licence: string;

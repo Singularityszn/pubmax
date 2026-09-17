@@ -31,7 +31,7 @@ export type StepOutNudgePref = {
   cheapPintSentAt: string | null;
 };
 
-export type StepOutNudgePrefPut = {
+type StepOutNudgePrefPut = {
   enabled: boolean;
   subscriptionToken?: string | null;
 };

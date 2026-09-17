@@ -100,4 +100,4 @@ export {
   isRecordedAdultAssertion,
   needsAdultSelfAssertion,
 } from "@/lib/adultGate";
-export type { AccountAdultEvidence } from "@/lib/adultGate";
+;

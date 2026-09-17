@@ -63,16 +63,16 @@ export const ROUTE_READY_GATE_CODES = [
   "venue_density", "identity_conflict", "price_coverage", "amenity_coverage", "opening_hours",
   "transport_anchor", "route_feasibility", "terminal_get_home", "terminal_food", "stale_review", "unreviewed_source",
 ] as const;
-export type RouteReadyGateCode = (typeof ROUTE_READY_GATE_CODES)[number];
+type RouteReadyGateCode = (typeof ROUTE_READY_GATE_CODES)[number];
 
 export const ROUTE_READY_GATE_VERSION = 1;
 
-export type RecentSignal = {
+type RecentSignal = {
   id: string; sourceUrl: string; publisher: string; publishedAt: string; claim: string;
   confidence: number; reviewStatus: "reviewed"; expiresAt: string;
 };
 
-export type GateCheck = {
+type GateCheck = {
   code: RouteReadyGateCode;
   required: boolean;
   passed: boolean;
@@ -81,7 +81,7 @@ export type GateCheck = {
   evidenceRefs: string[];
 };
 
-export type NightAreaGate = { version: typeof ROUTE_READY_GATE_VERSION; passed: boolean; checks: GateCheck[] };
+type NightAreaGate = { version: typeof ROUTE_READY_GATE_VERSION; passed: boolean; checks: GateCheck[] };
 
 export type NightArea = {
   slug: NightAreaSlug;

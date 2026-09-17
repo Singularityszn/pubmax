@@ -8,7 +8,7 @@
  * writes a line is the only code that knows whether it is a refusal.
  */
 
-export type AdminNoticeTone = "alert" | "status";
+type AdminNoticeTone = "alert" | "status";
 
 export type AdminNotice = {
   text: string;

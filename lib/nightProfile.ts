@@ -8,7 +8,7 @@ import { cleanText } from "@/lib/textClean";
 
 export const NIGHT_PROFILE_VERSION = 1 as const;
 const NIGHT_PROFILE_VOICE_PREFERENCES = ["off", "tts", "ptt"] as const;
-export type NightProfileVoicePreference =
+type NightProfileVoicePreference =
   (typeof NIGHT_PROFILE_VOICE_PREFERENCES)[number];
 
 export type NightBriefingPreferences = {

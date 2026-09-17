@@ -189,7 +189,7 @@ export type MessageAttachmentWrite =
   | { kind: "venue"; venueId: string };
 
 /** The stored columns, as the store reads them back. */
-export type MessageAttachmentRecord = {
+type MessageAttachmentRecord = {
   kind: MessageAttachmentKind;
   objectKey: string | null;
   width: number | null;

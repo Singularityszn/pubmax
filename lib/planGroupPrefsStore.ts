@@ -18,7 +18,7 @@ import { requireSupabaseAdmin } from "@/lib/supabase";
 export type PlanGroupPrefsError = "invalid" | "not_found" | "forbidden" | "error";
 type Failure = { ok: false; error: PlanGroupPrefsError };
 
-export type PlanGroupPrefsList = {
+type PlanGroupPrefsList = {
   ok: true;
   memberId: string;
   role: "host" | "guest";

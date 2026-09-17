@@ -481,7 +481,7 @@ const PRODUCT_TIMINGS = [
   },
 ] as const;
 
-export type ProductTimingKey = (typeof PRODUCT_TIMINGS)[number]["key"];
+type ProductTimingKey = (typeof PRODUCT_TIMINGS)[number]["key"];
 
 /** How long a product timing may take before the harness gives up on it. */
 export const PRODUCT_TIMING_CEILING_MS = 180_000;

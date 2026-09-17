@@ -29,14 +29,14 @@ export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number];
 export const SOCIAL_OAUTH_PROVIDERS = ["x", "instagram", "tiktok"] as const;
 export type SocialOAuthProvider = (typeof SOCIAL_OAUTH_PROVIDERS)[number];
 
-export type SocialConnectionMode = "oauth" | "manual";
+type SocialConnectionMode = "oauth" | "manual";
 export type SocialAccountKind = "personal" | "professional";
-export type SocialRefreshStatus =
+type SocialRefreshStatus =
   | "not_applicable"
   | "current"
   | "refresh_due"
   | "refresh_failed";
-export type SocialRevocationState =
+type SocialRevocationState =
   | "not_applicable"
   | "active"
   | "unknown"

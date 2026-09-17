@@ -55,11 +55,11 @@ export type MapVenueListModel = {
  * The list is the DOM parallel to the unpriced pins, so it names what OSM
  * states: a bar reads as a bar. Neither kind carries a price.
  */
-export type UkBasePubListLabel =
+type UkBasePubListLabel =
   | "Other pub · no listed price"
   | "Other bar · no listed price";
 
-export type UkBasePubListRow = {
+type UkBasePubListRow = {
   id: string;
   name: string;
   priceLabel: UkBasePubListLabel;

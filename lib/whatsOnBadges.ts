@@ -223,7 +223,7 @@ export function laneCardsFromRows(
 // Minutes before start when a listing reads "soon" rather than a wall clock.
 const LISTING_URGENCY_SOON_MINUTES = 60;
 
-export type ListingUrgencyTier = "live" | "soon" | "later";
+type ListingUrgencyTier = "live" | "soon" | "later";
 
 export type ListingUrgency = {
   tier: ListingUrgencyTier;

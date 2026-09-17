@@ -558,7 +558,7 @@ export type AbRoutePair = {
  * measured some of it: absence of evidence convicts nobody and clears nobody,
  * and the next run measures again.
  */
-export type AbVerdict = "BRANCH SLOWER" | "NOT SLOWER THAN BASE" | "NOT COMPARED";
+type AbVerdict = "BRANCH SLOWER" | "NOT SLOWER THAN BASE" | "NOT COMPARED";
 
 export type AbComparison = {
   path: string;

@@ -54,7 +54,7 @@ export const INBOX_LAST_MESSAGE_WINDOW = 4;
  * What a send is worth to its caller: the stored row, and the pair the write
  * had to load anyway to prove the sender belongs in this conversation.
  */
-export type MessageSendResult = Readonly<{
+type MessageSendResult = Readonly<{
   message: MessageDTO;
   pair: HandlePair;
 }>;
@@ -68,7 +68,7 @@ export type MessageSendResult = Readonly<{
  * handed that one back. A caller that does not send one keeps the old
  * behaviour, which is what the memory backend and the legacy lanes rely on.
  */
-export type MessageSendOptions = Readonly<{
+type MessageSendOptions = Readonly<{
   clientMessageId?: string;
 }>;
 
@@ -81,7 +81,7 @@ export type MessageSendOptions = Readonly<{
  * refuses everywhere else (picksState, whatsOn readStatus), and the batched
  * inbox read had turned one statement timeout into an empty inbox served 200.
  */
-export type InboxReadStatus = "ready" | "degraded";
+type InboxReadStatus = "ready" | "degraded";
 
 export type InboxRead = Readonly<{
   conversations: ConversationDTO[];

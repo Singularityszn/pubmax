@@ -34,7 +34,7 @@ const TABLE = "venue_occupancy_reports";
 const MIGRATION_HINT = "apply migrations 0107 and 0109";
 const STORE_TAG = "venue-occupancy";
 
-export type OccupancyStoredReport = OccupancyReport & {
+type OccupancyStoredReport = OccupancyReport & {
   id: string;
   hiddenAt: string | null;
   reportCount: number;
@@ -42,7 +42,7 @@ export type OccupancyStoredReport = OccupancyReport & {
   reportReason?: string;
 };
 
-export type OccupancyWriteInput = {
+type OccupancyWriteInput = {
   venueId: string;
   level: OccupancyLevel;
   reporterUserId: string;

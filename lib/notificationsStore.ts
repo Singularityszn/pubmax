@@ -40,7 +40,7 @@ import { admin, selectStore } from "@/lib/storeBackend";
 // one busy handle can't return an unbounded list.
 const MAX_NOTIFICATIONS = 100;
 
-export type Inbox = { notifications: NotificationDTO[]; unread: number };
+type Inbox = { notifications: NotificationDTO[]; unread: number };
 
 export type NotificationsStore = {
   /** Best-effort emit. NEVER throws — a failure is logged + swallowed so the

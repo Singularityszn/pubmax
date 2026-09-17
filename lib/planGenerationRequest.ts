@@ -52,7 +52,7 @@ export type PlanGenerationAnchor = {
   startsAt: string | null;
 };
 
-export type PlanGenerationRequest = {
+type PlanGenerationRequest = {
   query: string;
   context: Partial<NightContext> | null;
   cityId: string | null;
@@ -62,7 +62,7 @@ export type PlanGenerationRequest = {
   anchor: PlanGenerationAnchor | null;
 };
 
-export type PlanGenerationRequestFailure = {
+type PlanGenerationRequestFailure = {
   ok: false;
   code: PlanIntakeParseFailure["code"] | "MALFORMED_REQUEST" | "REQUEST_TOO_LARGE";
   message: string;

@@ -401,7 +401,7 @@ const AMENITY_SOURCE_COLUMNS = {
   karaoke: "karaoke",
 } as const satisfies Partial<Record<VenueAmenityKey, keyof VenuePrice>>;
 
-export type VenueAmenityKey = keyof Venue["amenities"];
+type VenueAmenityKey = keyof Venue["amenities"];
 
 export type VenueAmenityStatus = Record<VenueAmenityKey, AmenityStatus>;
 

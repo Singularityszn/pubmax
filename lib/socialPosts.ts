@@ -7,11 +7,11 @@ const SOCIAL_POST_VISIBILITIES = ["public", "friends", "private"] as const;
 const SOCIAL_POST_STATUSES = ["visible", "hidden", "removed"] as const;
 const SOCIAL_POST_COMMENT_POLICIES = ["open", "friends", "locked"] as const;
 
-export type SocialPostKind = (typeof SOCIAL_POST_KINDS)[number];
+type SocialPostKind = (typeof SOCIAL_POST_KINDS)[number];
 export type SocialPostVisibility = (typeof SOCIAL_POST_VISIBILITIES)[number];
-export type SocialPostStatus = (typeof SOCIAL_POST_STATUSES)[number];
+type SocialPostStatus = (typeof SOCIAL_POST_STATUSES)[number];
 export type SocialPostCommentPolicy = (typeof SOCIAL_POST_COMMENT_POLICIES)[number];
-export type SocialPostModerationState = "pending" | "approved" | "needs_review";
+type SocialPostModerationState = "pending" | "approved" | "needs_review";
 
 export type SocialPostPhoto = {
   mediaId: string;
@@ -30,7 +30,7 @@ export type SocialPostFields = {
   photo: SocialPostPhoto | null;
 };
 
-export type SocialPostFeatureRequest = {
+type SocialPostFeatureRequest = {
   status: "submitted" | "planned" | "shipped" | "declined";
   staffResponse: string | null;
 };

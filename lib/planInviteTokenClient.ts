@@ -18,7 +18,7 @@
 
 import { discardBody } from "@/lib/responseBody";
 
-export type PlanInviteTokenState = "unknown" | "ready" | "missing" | "unavailable";
+type PlanInviteTokenState = "unknown" | "ready" | "missing" | "unavailable";
 
 export type PlanInviteTokenSnapshot = {
   state: PlanInviteTokenState;

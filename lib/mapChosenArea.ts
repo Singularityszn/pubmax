@@ -6,8 +6,8 @@ import { safeLocalStorage } from "@/lib/safeStorage";
 export const MAP_CHOSEN_AREA_KEY = "pubmax:map-chosen-area:v1";
 const CHANGE_EVENT = "pubmax:map-chosen-area";
 
-export type MapChosenNamedPlaceKind = "night-area" | "locality" | "borough";
-export type MapChosenAreaKind = "near-me" | "city" | MapChosenNamedPlaceKind;
+type MapChosenNamedPlaceKind = "night-area" | "locality" | "borough";
+type MapChosenAreaKind = "near-me" | "city" | MapChosenNamedPlaceKind;
 
 type MapChosenAreaBase = {
   cityId: CityId;
@@ -37,7 +37,7 @@ export type MapChosenArea =
   | MapChosenNamedPlace;
 
 /** A remembered curated Night Area. */
-export type MapChosenNightArea = Extract<MapChosenArea, { kind: "night-area" }>;
+type MapChosenNightArea = Extract<MapChosenArea, { kind: "night-area" }>;
 
 /**
  * The public, named centre a search result may make the remembered map area.

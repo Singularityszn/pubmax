@@ -91,18 +91,18 @@ function summarizeRsvpRows(rows: RsvpRow[]): PlanInviteRsvpSummary {
   return { counts, guests: guests.slice(0, GUEST_LIST_DISPLAY_CAP) };
 }
 
-export type PlanInviteMembershipCapability = {
+type PlanInviteMembershipCapability = {
   memberToken: string;
   role: "host" | "guest";
   collaborationAuthorized: boolean;
 };
 
-export type ExistingPlanInviteMembership = {
+type ExistingPlanInviteMembership = {
   memberToken: string;
   identity: PlanMemberIdentity;
 };
 
-export type PlanInviteRsvpUpsertResult = {
+type PlanInviteRsvpUpsertResult = {
   summary: PlanInviteRsvpSummary;
   isUpdate: boolean;
   membership: PlanInviteMembershipCapability | null;

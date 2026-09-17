@@ -35,7 +35,7 @@ export type StoredPlanDraft = {
   };
 };
 
-export type PlanDraftEnvelopeV2 = {
+type PlanDraftEnvelopeV2 = {
   storageVersion: typeof PLAN_DRAFT_STORAGE_VERSION;
   savedAt: string;
   expiresAt: string;

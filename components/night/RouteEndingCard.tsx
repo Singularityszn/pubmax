@@ -16,7 +16,7 @@ import "./routeEndingCard.css";
 
 export type RouteEndingId = CrawlEnding;
 
-export type RouteEndingOption = {
+type RouteEndingOption = {
   id: RouteEndingId;
   title: string;
   description: string;

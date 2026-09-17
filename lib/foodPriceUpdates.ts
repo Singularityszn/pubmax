@@ -24,7 +24,7 @@ export type FoodPriceUpdate = {
 
 const FOOD_PRICE_UPDATE_PROVENANCE: Provenance = "sourced";
 
-export type FoodPriceProvenance = {
+type FoodPriceProvenance = {
   provenance: Provenance;
   sourceLabel: string;
   sourceUrl: string;

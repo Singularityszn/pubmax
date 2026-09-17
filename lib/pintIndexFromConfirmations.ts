@@ -75,7 +75,7 @@ export const PINT_INDEX_EXCLUSION_REASONS = [
   "venue_not_in_index",
   "venue_outside_london_boroughs",
 ] as const;
-export type PintIndexExclusionReason = (typeof PINT_INDEX_EXCLUSION_REASONS)[number];
+type PintIndexExclusionReason = (typeof PINT_INDEX_EXCLUSION_REASONS)[number];
 
 const EXCLUSION_NOTE: Record<PintIndexExclusionReason, string> = {
   confirmation_not_live:

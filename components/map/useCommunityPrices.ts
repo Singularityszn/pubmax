@@ -79,7 +79,7 @@ export type CommunitySubmissionFailure = {
   status?: ContributionGateStatus;
 };
 
-export type CommunityPriceSubmitResult =
+type CommunityPriceSubmitResult =
   | {
       ok: true;
       attribution: CommunityPriceAttribution;

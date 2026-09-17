@@ -14,7 +14,7 @@ const STEP_OUT_NUDGE_KINDS = [
   "soft_plan_open",
   "deal_ending",
 ] as const;
-export type StepOutNudgeKind = (typeof STEP_OUT_NUDGE_KINDS)[number];
+type StepOutNudgeKind = (typeof STEP_OUT_NUDGE_KINDS)[number];
 
 /** Priority for owed payloads: Wanted, then Soft Plan, then a sourced deal. */
 const STEP_OUT_NUDGE_KIND_PRIORITY: readonly StepOutNudgeKind[] = [

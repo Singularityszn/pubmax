@@ -50,7 +50,7 @@ import { loadCanonicalVenueIndex } from "../scripts/whatson/resolveVenueId.mjs";
 import rawWetherspoons from "../public/data/wetherspoons/pubs.json";
 import rawSportAttributes from "../public/data/whats_on/sport_attributes.json";
 
-export type OfficialWhatsOnProviderReport = {
+type OfficialWhatsOnProviderReport = {
   name: string;
   configured: boolean;
   rows: number;
@@ -78,7 +78,7 @@ export type RefreshOfficialWhatsOnListingsOpts = {
   loadVenueMatchIndex?: () => Promise<OutVenueMatchIndex | null>;
 };
 
-export type WhatsOnKindRefreshReport = {
+type WhatsOnKindRefreshReport = {
   name: string;
   kind: WhatsOnKind;
   rows: number;

@@ -19,7 +19,7 @@ export type StoryContributorRole = "host" | "editor" | "contributor";
 // redact their content + identity. It is additive: it never frees the host slot
 // (the host-uniqueness index keys off `status <> 'removed'`), and it is distinct
 // from "removed" (an invitation declined / a member kicked before publish).
-export type StoryContributorStatus = "invited" | "accepted" | "removed" | "withdrawn";
+type StoryContributorStatus = "invited" | "accepted" | "removed" | "withdrawn";
 export type MomentConsentStatus = "pending" | "approved" | "withdrawn";
 
 export type NightMomentDraft = {
@@ -53,7 +53,7 @@ export type NightMoment = NightMomentDraft & {
 /** Max length of an author-written photo description. */
 export const NIGHT_MOMENT_ALT_TEXT_MAX = 200;
 
-export type PintDropMoment = NightMoment & {
+type PintDropMoment = NightMoment & {
   kind: "pint_drop";
   pintDropId: string;
 };

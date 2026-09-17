@@ -61,7 +61,7 @@ export type OptimisticSpillState = {
 // A normalized feed item. `type` is a lane discriminant so the surface can grow
 // beyond raw pint drops (crawl stories, cheap-pint highlights) without the card
 // needing to know which lane produced it. Every lane resolves to this one shape.
-export type FeedItemType = "pint_drop" | "crawl_story" | "cheap_pint" | "check_in";
+type FeedItemType = "pint_drop" | "crawl_story" | "cheap_pint" | "check_in";
 
 export type FeedItem = {
   type: FeedItemType;

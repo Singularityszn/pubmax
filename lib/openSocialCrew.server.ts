@@ -16,7 +16,7 @@ import { lookupCanonicalVenue } from "@/lib/venueIndex";
  * A meeting point that cannot be resolved names no city at all rather than
  * falling back to London.
  */
-export type OpenMeetingPoint = OutOpenPlanMeetingPoint & { cityId: CityId };
+type OpenMeetingPoint = OutOpenPlanMeetingPoint & { cityId: CityId };
 
 export type OpenMeetingPointResolution =
   | { ok: true; meetingPoint: OpenMeetingPoint }
@@ -101,7 +101,7 @@ export async function resolveOpenPlanMeetingPoint(
   return resolveOpenMeetingFromStops(lookup.plan.stops);
 }
 
-export type AttachOpenPlanMeetingPoints = {
+type AttachOpenPlanMeetingPoints = {
   status: "ready" | "degraded";
   plans: OutOpenPlan[];
 };

@@ -65,7 +65,7 @@ const CHAIN_SISTER_BRANDS = [
   "All Bar One",
 ] as const;
 
-export type HarvestedDealDay = {
+type HarvestedDealDay = {
   /** Stable within a source: a slug of the title. */
   id: string;
   title: string;
@@ -82,9 +82,9 @@ export type HarvestedDealDay = {
   brand: string | null;
 };
 
-export type HarvestedDealDropReason = "no-stated-day" | "no-stated-window";
+type HarvestedDealDropReason = "no-stated-day" | "no-stated-window";
 
-export type HarvestedDealDrop = {
+type HarvestedDealDrop = {
   title: string;
   reason: HarvestedDealDropReason;
 };

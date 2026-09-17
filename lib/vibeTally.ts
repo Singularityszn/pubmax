@@ -12,7 +12,7 @@
 import type { VibeChipId } from "@/lib/vibeChips";
 import { VIBE_CHIP_IDS, vibeChipById } from "@/lib/vibeChips";
 
-export type VibeTallyEntry = { vibe: VibeChipId; count: number };
+type VibeTallyEntry = { vibe: VibeChipId; count: number };
 
 export type VibeTally = {
   /** Total votes cast across the crew (one per member). */

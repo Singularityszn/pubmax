@@ -29,7 +29,7 @@ export type CrawlProgressMap = {
 };
 
 /** Celebration-shown map: crawl id → ISO timestamp when the prompt was claimed. */
-export type CrawlCelebrationMap = {
+type CrawlCelebrationMap = {
   shown: Record<string, string>;
 };
 

@@ -25,19 +25,19 @@ export class HarvestFoldError extends Error {
   }
 }
 
-export type HarvestMatchedLore = {
+type HarvestMatchedLore = {
   text: string;
   citations: string[];
 };
 
-export type HarvestObservation = {
+type HarvestObservation = {
   kind: "website" | "history" | "social" | "menu" | "coverage";
   value: string;
   sourceUrl: string;
   fetchedAt: string;
 };
 
-export type HarvestObservationRecord = {
+type HarvestObservationRecord = {
   osmId: string;
   name: string;
   town: string | null;

@@ -5,7 +5,7 @@ import {
 } from "@/lib/cities";
 import { isoDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 
-export type CityReleaseTier = "flagship" | "core" | "preview";
+type CityReleaseTier = "flagship" | "core" | "preview";
 export type CapabilityAvailability = "available" | "limited" | "unavailable";
 
 export type CityCapabilityEvidence = Readonly<{

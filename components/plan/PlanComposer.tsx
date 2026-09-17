@@ -107,8 +107,8 @@ import {
   type PlanIntakeDraft,
 } from "@/lib/planIntake";
 
-export type RouteRevision = string | number;
-export type RouteAlternative = { venueId: string; venueName: string };
+type RouteRevision = string | number;
+type RouteAlternative = { venueId: string; venueName: string };
 export type DraftStop = {
   key: number;
   venueId: string;

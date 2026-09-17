@@ -24,7 +24,7 @@ export type Locality = {
 };
 
 /** The committed JSON shape: attribution header + the localities array. */
-export type LocalityGazetteer = {
+type LocalityGazetteer = {
   source: string;
   license: string;
   attribution: string;

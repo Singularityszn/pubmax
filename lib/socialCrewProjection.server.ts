@@ -36,7 +36,7 @@ import {
 } from "@/lib/socialCrew";
 import type { SocialPostActor } from "@/lib/socialPostStore";
 
-export type RawSocialCrewMember = {
+type RawSocialCrewMember = {
   memberId: string;
   accountId: string;
   profileId: string;
@@ -58,7 +58,7 @@ export type RawSocialCrew = {
   members: RawSocialCrewMember[];
 };
 
-export type RawSocialCrewListItem = {
+type RawSocialCrewListItem = {
   crewId: string;
   title: string;
   status: PlannedNightStatus;
@@ -93,7 +93,7 @@ export type SocialCrewProjectionViewer = {
   plan: PlanState;
 };
 
-export type RawSocialCrewReadSnapshot =
+type RawSocialCrewReadSnapshot =
   | {
       kind: "member";
       ownerRelationship: "self" | "mutual" | "not_mutual";

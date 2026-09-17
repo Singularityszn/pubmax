@@ -30,7 +30,7 @@ const HIGHLIGHT_HORIZON_HOURS = 72;
 
 // ── Normalised inputs (the script adapts real stores/JSON to these) ──────────
 
-export type DigestSource = { label: string; url: string };
+type DigestSource = { label: string; url: string };
 
 /** One attributed price observation, GBP, with an observed-at timestamp. Unifies
  *  Pint Index observations and community drops after the script normalises them. */
@@ -45,14 +45,14 @@ export type DigestPriceObservation = {
 };
 
 /** A logged pint-price drop, reduced to what the digest counts. */
-export type DigestDrop = {
+type DigestDrop = {
   venueId: string;
   borough: string | null;
   createdAt: string; // ISO-8601
 };
 
 /** A what's-on row reduced to what a highlight needs. */
-export type DigestWhatsOn = {
+type DigestWhatsOn = {
   title: string;
   placeName: string;
   borough: string | null;
@@ -85,7 +85,7 @@ export type WeeklyDigestInput = {
 
 // ── Structured output ────────────────────────────────────────────────────────
 
-export type CheapestLine = {
+type CheapestLine = {
   venueName: string;
   borough: string | null;
   priceGbp: number;
@@ -93,7 +93,7 @@ export type CheapestLine = {
   source?: DigestSource;
 };
 
-export type TonightHighlight = {
+type TonightHighlight = {
   title: string;
   placeName: string;
   borough: string | null;
@@ -102,7 +102,7 @@ export type TonightHighlight = {
   source: DigestSource;
 };
 
-export type WeeklyDigestSections = {
+type WeeklyDigestSections = {
   /** Cheapest fresh prices in-window, cheapest first. Absent when none. */
   cheapest?: CheapestLine[];
   /** Count of drops logged in-window (scoped). Absent when zero. */

@@ -19,11 +19,11 @@ import { londonServiceDayBounds, type WhatsOnRow } from "@/lib/whatsOn";
 const REQUEST_TIMEOUT_MS = 8_000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
-export type LiveProviderWindow = { startIso: string; endIso: string };
+type LiveProviderWindow = { startIso: string; endIso: string };
 
-export type LiveProviderGeo = { lat: number; lng: number; radiusMiles: number };
+type LiveProviderGeo = { lat: number; lng: number; radiusMiles: number };
 
-export type { EventDropCounts };
+;
 
 export type LiveProviderDescriptor = {
   /** Attribution / report name. Also the log tag. */

@@ -29,8 +29,8 @@ const LATE_FOOD_CATEGORIES = [
   "cafe",
   "restaurant",
 ] as const;
-export type LateFoodCategory = (typeof LATE_FOOD_CATEGORIES)[number];
-export type LateFoodDietary = "vegan" | "vegetarian" | "gluten-free";
+type LateFoodCategory = (typeof LATE_FOOD_CATEGORIES)[number];
+type LateFoodDietary = "vegan" | "vegetarian" | "gluten-free";
 export type LateFoodConfidence = "high" | "medium" | "low";
 export const MAX_LATE_FOOD_HANDOFFS = 3;
 
@@ -69,7 +69,7 @@ const WEEKDAYS = [
 ] as const;
 type Weekday = (typeof WEEKDAYS)[number];
 
-export type LateFoodServiceWindow = {
+type LateFoodServiceWindow = {
   open: string;
   close: string;
   closesNextDay: boolean;
@@ -80,7 +80,7 @@ export type LateFoodHours = {
   weekly: Record<Weekday, LateFoodServiceWindow[]>;
 };
 
-export type LateFoodProvenance = {
+type LateFoodProvenance = {
   kind: "official_operator";
   source: string;
   sourceUrl: string;
@@ -89,14 +89,14 @@ export type LateFoodProvenance = {
   expiresAt: string;
 };
 
-export type LateFoodAnchor = {
+type LateFoodAnchor = {
   label: string;
   price: number;
   sourceUrl: string;
   observedAt: string;
 };
 
-export type LateFoodWalkingDetour = {
+type LateFoodWalkingDetour = {
   minutes: number | null;
   distanceKm: number | null;
   basis: "straight-line-from-final-stop" | "unavailable";

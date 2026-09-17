@@ -146,7 +146,7 @@ export type PintDropPhotos = {
  * STATES the daily price cap opts in, because a drop paired with a community
  * price is written under a different rule entirely (see dailyCapDay).
  */
-export type PintDropCreateOptions = {
+type PintDropCreateOptions = {
   readonly underDailyPriceCap?: boolean;
 };
 

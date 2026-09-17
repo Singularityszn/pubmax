@@ -32,7 +32,7 @@ const MAX_PLAN_ROUTE_WALKING_KM = 3;
 const MAX_ROUTE_SEARCH_CANDIDATES = 14;
 const ROUTE_BEAM_WIDTH = 1_500;
 
-export type PlanVisitWindow = { startsAt: string; endsAt: string };
+type PlanVisitWindow = { startsAt: string; endsAt: string };
 export type PlanRouteTiming = {
   visitWindows: readonly PlanVisitWindow[];
   straightLineWalkingKm: number;
@@ -45,7 +45,7 @@ function planStopCount(value: unknown): number {
   return normalizePlanStopCount(value);
 }
 
-export type { PlanConstraintReport, PlanStopConstraintFlag } from "@/lib/planGenerationDto";
+export type { PlanConstraintReport,  } from "@/lib/planGenerationDto";
 
 export type GroundedPlanRouteCandidate<T> = {
   value: T;

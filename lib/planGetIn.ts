@@ -22,7 +22,7 @@ import type { GetInConfidence } from "@/lib/venueTruth";
 // Minimal shape this module needs from a venue record — deliberately narrower
 // than lib/venues.ts's full Venue type so callers (and tests) don't have to
 // construct an entire venue just to exercise the mapping.
-export type PlanGetInVenue = {
+type PlanGetInVenue = {
   bookingLink?: string | null;
 };
 

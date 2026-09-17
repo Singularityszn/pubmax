@@ -86,7 +86,7 @@ for (const [index, name] of WEEKDAY_NAMES.entries()) {
   WEEKDAY_LOOKUP.set(name.slice(0, 3).toLowerCase(), index);
 }
 
-export type ResolvedEventDate = {
+type ResolvedEventDate = {
   year: number;
   /** 1-12. */
   month: number;
@@ -178,9 +178,9 @@ export function resolveEventClock(line: string): string | null {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-export type VenueEventDropReason = "no-kind" | "no-date" | "ambiguous-date" | "no-time";
+type VenueEventDropReason = "no-kind" | "no-date" | "ambiguous-date" | "no-time";
 
-export type HarvestedVenueEvent = {
+type HarvestedVenueEvent = {
   title: string;
   kind: WhatsOnKind;
   date: ResolvedEventDate;

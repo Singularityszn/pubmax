@@ -4,7 +4,7 @@
 // malformed input returns null rather than throwing, so a garbage link degrades
 // to a friendly empty state instead of a crash.
 
-export type CrawlStop = {
+type CrawlStop = {
   venueId: string;
   name: string;
   priceGbp?: number | null;

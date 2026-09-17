@@ -79,7 +79,7 @@ export type UkPriceBundleRow = {
   sampleSize: number | null;
 };
 
-export type UkPriceBundleManifest = {
+type UkPriceBundleManifest = {
   version: number;
   generatedAt: string;
   rowsPath: string;

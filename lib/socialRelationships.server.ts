@@ -2,7 +2,7 @@ import "server-only";
 
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
-export type SocialRelationshipState =
+type SocialRelationshipState =
   | "self"
   | "mutual"
   | "not_mutual"

@@ -26,7 +26,7 @@ import type { EstimatedPriceInput } from "@/lib/priceTier";
 
 /** The two things an estimate may be modelled from. A third needs its own method. */
 export const ESTIMATE_BASES = ["chain_menu", "regional_baseline"] as const;
-export type EstimateBasis = (typeof ESTIMATE_BASES)[number];
+type EstimateBasis = (typeof ESTIMATE_BASES)[number];
 
 function isEstimateBasis(value: unknown): value is EstimateBasis {
   return typeof value === "string" && (ESTIMATE_BASES as readonly string[]).includes(value);
@@ -45,9 +45,9 @@ const ESTIMATE_MAX_GBP = 12;
 
 /** How a region row was keyed, because the two are not interchangeable. */
 const REGION_KINDS = ["london_borough", "postcode_area"] as const;
-export type RegionKind = (typeof REGION_KINDS)[number];
+type RegionKind = (typeof REGION_KINDS)[number];
 
-export type ChainBaseline = {
+type ChainBaseline = {
   /** Stable id, e.g. `greene-king`. */
   id: string;
   label: string;
@@ -61,7 +61,7 @@ export type ChainBaseline = {
   sourceUrls: readonly string[];
 };
 
-export type RegionBaseline = {
+type RegionBaseline = {
   kind: RegionKind;
   /** Borough code, or postcode-area letters. */
   code: string;

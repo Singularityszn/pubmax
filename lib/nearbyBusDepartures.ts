@@ -69,7 +69,7 @@ export type FreshBusPrediction = {
   expectedArrival: string;
 };
 
-export type NearbyBusDeparture = Omit<FreshBusPrediction, "naptanId">;
+type NearbyBusDeparture = Omit<FreshBusPrediction, "naptanId">;
 
 export type NearbyBusStop = {
   id: string;

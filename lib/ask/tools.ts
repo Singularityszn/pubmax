@@ -51,7 +51,7 @@ import type {
 } from "@/lib/ask/toolContract";
 
 export type {
-  AskProvenance,
+  
   AskToolArgs,
   AskToolContext,
   AskToolResult,

@@ -22,7 +22,7 @@ import { useAuth } from "@/components/auth/authContext";
 import { providerHasAnswered } from "@/lib/authProviderRevision";
 
 /** Three answers, never two. `unresolved` is "we have not been told". */
-export type ViewerSessionPhase = "unresolved" | "signed-in" | "signed-out";
+type ViewerSessionPhase = "unresolved" | "signed-in" | "signed-out";
 
 export type ViewerSession = {
   phase: ViewerSessionPhase;

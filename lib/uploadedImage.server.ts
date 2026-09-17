@@ -63,7 +63,7 @@ export type DownloadedUploadedImage = {
  * A reader that collapsed the two would make the write proof below either
  * blind to a mangled object or hostage to a momentary outage.
  */
-export type UploadedImageReadFailure =
+type UploadedImageReadFailure =
   | "storage_unconfigured"
   | "storage_error"
   | "magic_bytes_mismatch";
@@ -249,7 +249,7 @@ function unproven(objectKey: string, detail: string): UploadedImageWriteProof {
   return "unproven";
 }
 
-export type UploadedImageErrorCode =
+type UploadedImageErrorCode =
   | "INVALID_TYPE"
   | "TOO_LARGE"
   | "INVALID_DIMENSIONS"

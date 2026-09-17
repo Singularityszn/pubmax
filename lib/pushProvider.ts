@@ -161,7 +161,7 @@ export interface ApnsTransport {
 
 /** Opens a transport to `host`. The real one wraps node:http2; tests pass a
  *  fake. May throw synchronously (connection refused) → whole batch errors. */
-export type ApnsSessionFactory = (host: string) => ApnsTransport;
+type ApnsSessionFactory = (host: string) => ApnsTransport;
 
 /** Injectable seams — all default to production behaviour. */
 export type ApnsProviderDeps = {
@@ -416,13 +416,13 @@ export const apnsPushProvider: PushProvider = createApnsPushProvider();
 
 // ── Web Push / VAPID transport ──────────────────────────────────────────────
 
-export type VapidConfig = {
+type VapidConfig = {
   subject: string;
   publicKey: string;
   privateKey: string;
 };
 
-export type WebPushSend = (
+type WebPushSend = (
   subscription: WebPushSubscription,
   payload: string,
   config: VapidConfig,

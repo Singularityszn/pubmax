@@ -34,7 +34,7 @@ export type ContributionRecordReadResult = {
   records: ContributionRecord[];
 };
 
-export type ContributorLeaderboardEntry = {
+type ContributorLeaderboardEntry = {
   rank: number;
   handle: string;
   total: number;

@@ -54,7 +54,7 @@ export type MapBounds = {
   north: number;
 };
 
-export type SlimShardLoadResult = {
+type SlimShardLoadResult = {
   rows: SlimVenue[];
   status: "ready" | "unavailable";
 };

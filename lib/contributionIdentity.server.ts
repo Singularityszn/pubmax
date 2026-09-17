@@ -22,10 +22,7 @@ export {
   CONTRIBUTION_UNDER_18_REFUSAL,
   
 } from "@/lib/contributionGateStatus";
-export type {
-  ContributionAdultRefusal,
-  ContributionGateStatus,
-} from "@/lib/contributionGateStatus";
+;
 
 export type ContributionIdentityResolution =
   | {

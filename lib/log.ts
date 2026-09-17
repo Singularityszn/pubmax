@@ -70,7 +70,7 @@ function scrubSecrets(value: string): string {
 
 // A single log record. `ts` is injectable so tests are deterministic; it
 // defaults to Date.now() at call time.
-export type LogRecord = {
+type LogRecord = {
   level: LogLevel;
   event: string;
   ts: number;

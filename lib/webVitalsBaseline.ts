@@ -116,7 +116,7 @@ export type ProductTimingRecord = {
   debt?: string;
 };
 
-export type CwvBaselineMethod = {
+type CwvBaselineMethod = {
   recordedOn: string;
   commit: string;
   runs: number;
@@ -137,7 +137,7 @@ export type CwvBaselineMethod = {
   inpNote: string;
 };
 
-export type VitalsDeviceRig = {
+type VitalsDeviceRig = {
   viewport: { width: number; height: number };
   cpuThrottleRate: number;
   network: string;

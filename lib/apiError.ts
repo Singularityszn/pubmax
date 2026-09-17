@@ -95,7 +95,7 @@ export function publicApiErrorFromStatus(
   });
 }
 
-export interface ApiErrorBody {
+interface ApiErrorBody {
   error: {
     code: string;
     message: string;

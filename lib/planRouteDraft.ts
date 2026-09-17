@@ -27,15 +27,15 @@ const PLAN_ROUTE_DRAFT_OUTCOMES = [
 ] as const;
 
 export type PlanRouteDraftOrigin = (typeof PLAN_ROUTE_DRAFT_ORIGINS)[number];
-export type PlanRouteDraftOutcome = (typeof PLAN_ROUTE_DRAFT_OUTCOMES)[number];
-export type RouteRevision = string | number;
+type PlanRouteDraftOutcome = (typeof PLAN_ROUTE_DRAFT_OUTCOMES)[number];
+type RouteRevision = string | number;
 
-export type StoredRouteAlternative = {
+type StoredRouteAlternative = {
   venueId: string;
   venueName: string;
 };
 
-export type StoredRouteStop = {
+type StoredRouteStop = {
   key: number;
   venueId: string;
   venueName: string;
@@ -43,9 +43,9 @@ export type StoredRouteStop = {
   alternatives: StoredRouteAlternative[];
 };
 
-export type StoredRouteAlternatives = StoredRouteAlternative[];
+type StoredRouteAlternatives = StoredRouteAlternative[];
 
-export type PlanRouteDraftEnvelopeV2 = {
+type PlanRouteDraftEnvelopeV2 = {
   storageVersion: typeof PLAN_ROUTE_DRAFT_STORAGE_VERSION;
   savedAt: string;
   expiresAt: string;

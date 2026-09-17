@@ -17,13 +17,13 @@ export type SocialCrewVisibility = (typeof SOCIAL_CREW_VISIBILITIES)[number];
 export type SocialCrewPhase = "planning" | "live" | "ended";
 const SOCIAL_CREW_MEMBERSHIP_STATES = ["active", "left", "removed"] as const;
 export type SocialCrewMembershipState = (typeof SOCIAL_CREW_MEMBERSHIP_STATES)[number];
-export type SocialCrewInvitationState =
+type SocialCrewInvitationState =
   | "pending"
   | "accepted"
   | "declined"
   | "revoked"
   | "expired";
-export type SocialCrewJoinRequestState =
+type SocialCrewJoinRequestState =
   | "pending"
   | "accepted"
   | "declined"

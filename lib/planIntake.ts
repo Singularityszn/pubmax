@@ -69,7 +69,7 @@ export const PLAN_ACCESSIBILITY_NEEDS = [
 ] as const;
 export type PlanAccessibilityNeed = (typeof PLAN_ACCESSIBILITY_NEEDS)[number]["id"];
 
-export type PlanIntakeAnswers = {
+type PlanIntakeAnswers = {
   area: NightPatchId | null;
   timeWindow: PlanTimeWindowId | null;
   exactStartIso: string | null;

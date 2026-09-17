@@ -1,6 +1,6 @@
 import type { CityId } from "@/lib/cities";
 
-export type MapSearchCity = {
+type MapSearchCity = {
   id: CityId;
   name: string;
 };
@@ -10,7 +10,7 @@ export type MapSearchCityInput = {
   displayName: string;
 };
 
-export type MapSearchVenue = {
+type MapSearchVenue = {
   id: string;
   name: string;
   area: string;
@@ -26,7 +26,7 @@ export type MapSearchIndex = {
   venues: readonly MapSearchIndexVenue[];
 };
 
-export type MapSearchIndexVenue = MapSearchVenue & {
+type MapSearchIndexVenue = MapSearchVenue & {
   cityId: CityId;
 };
 
@@ -34,13 +34,13 @@ export type MapSearchIndexResult =
   | MapSearchCityResult
   | MapSearchVenueResult;
 
-export type MapSearchCityResult = {
+type MapSearchCityResult = {
   kind: "city";
   id: CityId;
   name: string;
 };
 
-export type MapSearchVenueResult = MapSearchIndexVenue & {
+type MapSearchVenueResult = MapSearchIndexVenue & {
   kind: "venue";
 };
 

@@ -1,10 +1,10 @@
 const NIGHT_SIGNAL_SNAPSHOT_VERSION = 1 as const;
 
 const NIGHT_SIGNAL_KINDS = ["event", "price", "access", "opening", "transport"] as const;
-export type NightSignalKind = (typeof NIGHT_SIGNAL_KINDS)[number];
+type NightSignalKind = (typeof NIGHT_SIGNAL_KINDS)[number];
 export type NightSignalReviewState = "pending" | "approved" | "rejected";
-export type NightSignalVerification = "single_source" | "corroborated" | "manual_review";
-export type NightSignalRouteEffect = "none" | "boost" | "avoid";
+type NightSignalVerification = "single_source" | "corroborated" | "manual_review";
+type NightSignalRouteEffect = "none" | "boost" | "avoid";
 export type NightSignalReviewAuthority = "operations" | "editorial" | "automated";
 
 export type NightSignalEntity = {
@@ -12,7 +12,7 @@ export type NightSignalEntity = {
   id: string;
 };
 
-export type NightSignalSource = {
+type NightSignalSource = {
   sourceUrl: string;
   publisher: string;
   publishedAt: string;

@@ -31,7 +31,7 @@ import { analyticsPageviewSurfaceFromPath } from "@/lib/analyticsPath";
 export type ClientErrorKind = "error" | "unhandledrejection";
 
 /** Which shell the browser was: the Capacitor app, or an ordinary browser. */
-export type ClientErrorShell = "native" | "web";
+type ClientErrorShell = "native" | "web";
 
 export type ClientErrorReport = {
   kind: ClientErrorKind;

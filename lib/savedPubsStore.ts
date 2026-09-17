@@ -76,7 +76,7 @@ export type SavedPubDTO = {
 // The write payload for a toggle. `handle` is the identity; `actorHash` is the
 // optional device-parity key (used only by the memory partition). `venueId` +
 // `listType` are the uniqueness key.
-export type SaveInput = {
+type SaveInput = {
   handle: string;
   actorHash?: string;
   venueId: string;
@@ -84,7 +84,7 @@ export type SaveInput = {
   note?: string;
 };
 
-export type EnsureSavedInput = {
+type EnsureSavedInput = {
   /** Verified profile UUID. Durable promotion must not trust a body handle. */
   profileId: string;
   /** Current canonical handle, used by the memory backend and DTO reads. */
@@ -93,7 +93,7 @@ export type EnsureSavedInput = {
   listType: ListType;
 };
 
-export type EnsureSavedResult = {
+type EnsureSavedResult = {
   outcome: "saved" | "already_saved" | "unavailable";
 };
 
@@ -571,12 +571,12 @@ export function __resetMemorySavedLists(): void {
 
 const LIST_FOLLOWS_TABLE = "saved_list_follows";
 
-export type SavedListFollowCounts = {
+type SavedListFollowCounts = {
   followers: number | null;
   savedPubs: number;
 };
 
-export type FollowedSavedListDTO = {
+type FollowedSavedListDTO = {
   ownerHandle: string;
   ownerProfileUrl: string;
   listType: ListType;

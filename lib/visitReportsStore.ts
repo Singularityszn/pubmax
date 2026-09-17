@@ -65,7 +65,7 @@ export type VisitReportReadResult = {
   reports: VisitReportDTO[];
 };
 
-export type VisitReportContributorCount = {
+type VisitReportContributorCount = {
   status: VisitReportReadStatus;
   count: number;
 };

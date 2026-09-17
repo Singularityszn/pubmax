@@ -50,7 +50,7 @@ function parseFreshnessKind(value: unknown): TonightFreshnessKind {
   return value === "provider-observed" || value === "dataset-generated" ? value : "unknown";
 }
 
-export type WhatsOnTonightStatus = "idle" | "ready" | "empty" | "error";
+type WhatsOnTonightStatus = "idle" | "ready" | "empty" | "error";
 
 export type WhatsOnTonight = {
   rows: WhatsOnRow[];

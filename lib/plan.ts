@@ -10,11 +10,11 @@ const PLAN_VENUE_NAME_MAX = 120;
 
 /** The two grounded generation outcomes a Plan can be anchored on (§3.3). */
 export const PLAN_OUTCOMES = ["route", "anchor-only"] as const;
-export type PlanOutcome = (typeof PLAN_OUTCOMES)[number];
+type PlanOutcome = (typeof PLAN_OUTCOMES)[number];
 
 /** Acceptance sources that can anchor a Plan (the four browse-to-accept surfaces). */
 export const PLAN_ANCHOR_SOURCES = ["near", "map-search", "tonight", "pal"] as const;
-export type PlanAnchorSource = (typeof PLAN_ANCHOR_SOURCES)[number];
+type PlanAnchorSource = (typeof PLAN_ANCHOR_SOURCES)[number];
 
 export type PlanAnchorMetadata = {
   venueId: string;
@@ -80,11 +80,11 @@ export type PlannedNightStatus = (typeof PLANNED_NIGHT_STATUSES)[number];
 export const CRAWL_ENDINGS = ["food", "get_home", "keep_going"] as const;
 export type CrawlEnding = (typeof CRAWL_ENDINGS)[number];
 export const PLAN_ACTION_TYPES = ["arrived", "skipped", "swapped", "ending"] as const;
-export type PlanActionType = (typeof PLAN_ACTION_TYPES)[number];
+type PlanActionType = (typeof PLAN_ACTION_TYPES)[number];
 export type PlanMemberRole = "host" | "guest";
 export type PlanActionDTO = { id: string; type: PlanActionType; stopPosition: number | null; ending: CrawlEnding | null; createdAt: string };
 
-export type EndingEvidenceSnapshot = {
+type EndingEvidenceSnapshot = {
   label: string;
   confidence: "high" | "medium" | "low" | "unknown";
   source?: string;
@@ -133,7 +133,7 @@ export type PlanState = {
 };
 
 /** A share-safe completed Planned Night record. Member identifiers stay server-only. */
-export type PlanQualifyingArrivalDTO = {
+type PlanQualifyingArrivalDTO = {
   actionId: string;
   stopPosition: number;
   arrivedAt: string;

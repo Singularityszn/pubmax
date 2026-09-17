@@ -73,7 +73,7 @@ export type CreateCrawlStoryInput = {
 // One stop as read back for rendering: the raw venue id PLUS the server-resolved
 // pub name and map link (venueIndex is server-only — the raw id must never be the
 // label the poster shows, PRD §9).
-export type DurableStop = {
+type DurableStop = {
   venueId: string;
   venueName: string;
   venueMapUrl: string;
@@ -544,7 +544,7 @@ export {
 /** One public crawl by a handle, in the shape a profile row needs. `stops` is
  *  TRI-STATE by way of null: a stop count we could not read is unknown, so the
  *  row still opens and simply prints no number. */
-export type AuthoredCrawlSummary = {
+type AuthoredCrawlSummary = {
   slug: string;
   title: string;
   stops: number | null;

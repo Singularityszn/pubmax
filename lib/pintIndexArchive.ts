@@ -43,7 +43,7 @@ const PINT_INDEX_MONTH_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])$/;
  */
 export const PINT_INDEX_PUBLIC_START_MONTH = "2026-06";
 
-export type PintIndexCorrection = {
+type PintIndexCorrection = {
   /** When the correction was published. */
   issuedAt: string;
   /** What was wrong and what changed, in one plain sentence. */
@@ -54,7 +54,7 @@ export type PintIndexCorrection = {
   previousObservationsSha256: string;
 };
 
-export type PintIndexArchiveMeta = {
+type PintIndexArchiveMeta = {
   month: string;
   /** 1 on first publication, then +1 per correction. */
   revision: number;

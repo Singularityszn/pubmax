@@ -26,7 +26,7 @@ import {
 
 export type UkPriceBundleReadStatus = "ready" | "empty" | "unavailable";
 
-export type UkPriceBundleRead = {
+type UkPriceBundleRead = {
   status: UkPriceBundleReadStatus;
   byVenue: Map<string, UkPriceBundleRow[]>;
 };

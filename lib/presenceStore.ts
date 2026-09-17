@@ -50,7 +50,7 @@ function clean(value: unknown, cap: number): string {
     .slice(0, cap);
 }
 
-export type PresenceStore = {
+type PresenceStore = {
   mark(input: PresenceInput, now?: number): Promise<void>;
   recent(venueId?: string, now?: number): Promise<PresenceDTO[]>;
 };

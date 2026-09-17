@@ -32,7 +32,7 @@ import {
   normalizeDrinkHaystack,
 } from "@/lib/drinkBrands";
 
-export type DrinkSubtypeId = `${DrinkCategory}-${string}`;
+type DrinkSubtypeId = `${DrinkCategory}-${string}`;
 
 export type DrinkSubtype = {
   /** Globally unique, URL-safe id. Always `${category}-${slug}`. */

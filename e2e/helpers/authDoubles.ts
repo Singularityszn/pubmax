@@ -18,7 +18,7 @@ export const ACCOUNTS = {
 } as const;
 
 export type AccountKey = keyof typeof ACCOUNTS;
-export type Account = (typeof ACCOUNTS)[AccountKey];
+type Account = (typeof ACCOUNTS)[AccountKey];
 
 export const AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
 export const DEVICE_ACCOUNTS_KEY = "pubmax_device_sessions_v1";

@@ -47,13 +47,13 @@ const guard = createFailSoftGuard({
   migrationHint: MIGRATION_HINT,
 });
 
-export type CheckpointClaim =
+type CheckpointClaim =
   | { status: "claimed"; checkpoint: CityEnrichmentCheckpoint; durable: boolean }
   | { status: "lease-held"; heldBy: string; expiresAt: string }
   /** A read we could not run. It costs a night of enrichment, never a wrong write. */
   | { status: "unavailable"; reason: string };
 
-export type CheckpointCommit =
+type CheckpointCommit =
   | { status: "committed"; durable: boolean }
   | { status: "lease-lost" }
   | { status: "unavailable"; reason: string };
@@ -66,7 +66,7 @@ export type CheckpointCommit =
  * asks it because "three venues owed a retry" means nothing if the row holding
  * them dies with the function instance.
  */
-export type CheckpointRead = {
+type CheckpointRead = {
   checkpoint: CityEnrichmentCheckpoint | null;
   durable: boolean;
 };

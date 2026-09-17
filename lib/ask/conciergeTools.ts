@@ -33,7 +33,7 @@ export {
   OCCUPANCY_LEVELS,
   parseOccupancyLevel,
 };
-export type { OccupancyLevel };
+;
 
 // ---------------------------------------------------------------------------
 // cheapest_pint_near

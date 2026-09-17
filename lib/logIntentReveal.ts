@@ -61,7 +61,7 @@ export function revealLogIntentPriceStep(
 
 /** Node answers a Timeout object where the browser answers a number, and the
  *  reveal never reads the value, so the id stays opaque to both. */
-export type LogIntentRevealTimerId = number | ReturnType<typeof setTimeout>;
+type LogIntentRevealTimerId = number | ReturnType<typeof setTimeout>;
 
 export type LogIntentRevealTimers = {
   setTimeout: (callback: () => void, ms: number) => LogIntentRevealTimerId;

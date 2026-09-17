@@ -1,5 +1,5 @@
 /** Head-start cache written by public/map-first-paint-init.js before React boots. */
-export type MapEarlyWarmWindow = {
+type MapEarlyWarmWindow = {
   json: Map<string, Promise<unknown>>;
 };
 

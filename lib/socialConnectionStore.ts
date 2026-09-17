@@ -21,7 +21,7 @@ export type OAuthConnectionInput = {
   tokenExpiresAt?: string;
 };
 
-export type ManualConnectionInput = {
+type ManualConnectionInput = {
   provider: SocialProvider;
   username: string;
   profileUrl: string;

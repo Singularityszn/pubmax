@@ -29,7 +29,7 @@ export const AREA_NEWS_KINDS = [
 ] as const;
 export type AreaNewsKind = (typeof AREA_NEWS_KINDS)[number];
 
-export type AreaNewsVenueMatch = {
+type AreaNewsVenueMatch = {
   venueId: string;
   confidence: "high" | "medium";
 };

@@ -15,7 +15,7 @@ const MAX_WANTED_SOURCE_URL = 2_000;
 const MAX_WANTED_VENUE_ID = 64;
 const MAX_WANTED_VENUE_NAME = 120;
 
-export type WantedVenueKind = "curated" | "uk_base" | "pending";
+type WantedVenueKind = "curated" | "uk_base" | "pending";
 
 export type WantedStatus = "open" | "fulfilled";
 

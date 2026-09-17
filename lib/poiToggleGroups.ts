@@ -4,7 +4,7 @@ import { POI_CATEGORIES, POI_CATEGORY_META } from "@/lib/pois";
 // UI toggle groups for the map Layers control. Tube and Rail stay separate
 // (plan: Tube, Rail, Bus, River, Parks, Gardens, …); map symbols stay distinct.
 
-export type PoiToggleGroupId =
+type PoiToggleGroupId =
   | "tube"
   | "rail"
   | "bus"

@@ -1,6 +1,6 @@
 // Minimal, feature-detected typings for the Web Speech API — not in lib.dom.d.ts.
-export type SpeechRecognitionResultLike = { 0: { transcript: string }; isFinal: boolean };
-export type SpeechRecognitionEventLike = {
+type SpeechRecognitionResultLike = { 0: { transcript: string }; isFinal: boolean };
+type SpeechRecognitionEventLike = {
   resultIndex: number;
   results: ArrayLike<SpeechRecognitionResultLike>;
 };

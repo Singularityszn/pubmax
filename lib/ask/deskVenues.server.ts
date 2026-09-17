@@ -23,7 +23,7 @@ import { rowsFromSlimPayload } from "@/lib/slimPayload";
 // lands them). This returns an empty list, `find_desk` says "no seat data yet",
 // and nothing changes for pubs when the rows arrive.
 
-export type DeskVenue = {
+type DeskVenue = {
   id: string;
   name: string;
   area: string;

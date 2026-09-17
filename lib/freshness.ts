@@ -79,7 +79,7 @@ export interface FreshnessRegistry {
  *                 it holds no observation of it at all. Never fresh, never
  *                 stale, and never a breach: only a probe could say.
  */
-export type FreshnessStatus =
+type FreshnessStatus =
   | "live"
   | "fresh"
   | "snapshot"

@@ -35,7 +35,7 @@ export type OutOpenPlan = {
  * service-day open through 05:00 the next morning. Tomorrow is the next
  * service day. Weekend is Fri 17:00 through Sun 05:00.
  */
-export type OutPlanWindow = { from: string; until: string };
+type OutPlanWindow = { from: string; until: string };
 
 type LondonClock = {
   year: number;

@@ -41,7 +41,7 @@ export type CommentDTO = {
 // client never supplies it. `parentId` (optional) makes this a reply — it must
 // reference a TOP-LEVEL comment on the SAME drop (validated in addComment); one
 // level of nesting only.
-export type NewComment = {
+type NewComment = {
   pintDropId: string;
   handle: string;
   body: string;
@@ -62,7 +62,7 @@ export class InvalidParentError extends Error {
 // The moderation view of a comment (admin only — story 37). Unlike CommentDTO
 // this carries the `status` + the drop it belongs to so the console can show the
 // review queue; it still NEVER carries actor_hash (that stays server-only).
-export type ModeratorCommentDTO = {
+type ModeratorCommentDTO = {
   id: string;
   pintDropId: string;
   handle: string;

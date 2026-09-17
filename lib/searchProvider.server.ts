@@ -7,9 +7,9 @@ export const SEARCH_GATEWAY_MODEL = "openai/gpt-5-nano";
 const DEFAULT_SEARCH_GATEWAY_MAX_CALLS = 25;
 const EXA_HIGHLIGHT_MAX_CHARACTERS = 1600;
 
-export type SearchProviderName = "exa" | "tavily";
+type SearchProviderName = "exa" | "tavily";
 
-export type SearchRequest = {
+type SearchRequest = {
   query: string;
   signal?: AbortSignal;
   timeoutMs?: number;
@@ -20,20 +20,20 @@ export type SearchRequest = {
   endPublishedDate?: string;
 };
 
-export type SearchResult = {
+type SearchResult = {
   title: string;
   url: string;
   content: string;
   publishedDate?: string;
 };
 
-export type SearchResponse = {
+type SearchResponse = {
   provider: SearchProviderName;
   results: SearchResult[];
   creditsSpent?: number;
 };
 
-export type SearchProviderStats = {
+type SearchProviderStats = {
   selectedProvider: SearchProviderName;
   gatewayCalls: number;
   gatewayMaxCalls: number;

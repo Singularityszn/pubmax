@@ -21,9 +21,9 @@ const EXA_ENDPOINT = "https://api.exa.ai/search";
 const LOOKBACK_DAYS = 30;
 const RESULTS_PER_QUERY = 15;
 
-export type { NightSignalCandidate };
+;
 
-export type NightSignalIngestResult =
+type NightSignalIngestResult =
   | { status: "skipped"; reason: "no-exa-key"; candidates: [] }
   | { status: "ingested"; candidates: NightSignalCandidate[] };
 

@@ -100,7 +100,7 @@ export type ProfileCoverPhotoDTO = {
   url: string;
 };
 
-export type ProfileCoverPhotoList = {
+type ProfileCoverPhotoList = {
   status: ProfileCoverReadStatus;
   covers: ProfileCoverPhotoDTO[];
 };

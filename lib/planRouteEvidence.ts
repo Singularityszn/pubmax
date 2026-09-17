@@ -22,8 +22,8 @@ export type PlanPriceEvidence = {
   confidenceState: PriceConfidenceState | "unknown";
 };
 
-export type ConfirmedFact = { confirmed: true; source: AccessEvidenceSource };
-export type WeeklyTimeRange = {
+type ConfirmedFact = { confirmed: true; source: AccessEvidenceSource };
+type WeeklyTimeRange = {
   weekday: string;
   startsAt: string;
   endsAt: string;
@@ -38,7 +38,7 @@ export type PlanAccessEvidence = {
   lowNoise?: { ranges: WeeklyTimeRange[]; source: AccessEvidenceSource };
 };
 
-export type WeeklyOpeningRange = WeeklyTimeRange;
+type WeeklyOpeningRange = WeeklyTimeRange;
 export type PlanOpeningSchedule = {
   ranges: WeeklyOpeningRange[];
   source: EvidenceSource;

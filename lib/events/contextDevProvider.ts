@@ -217,7 +217,7 @@ export function contextDevSourceLabels(): string[] {
   return Array.from(new Set(contextDevEventSources().map((source) => source.label)));
 }
 
-export type ContextDevLaneFailure = {
+type ContextDevLaneFailure = {
   sourceId: string;
   label: string;
   message: string;

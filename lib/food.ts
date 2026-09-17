@@ -40,7 +40,7 @@ export type FoodItem = {
   source?: string;
 };
 
-export type FoodCategoryMeta = {
+type FoodCategoryMeta = {
   label: string;
   order: number;
 };

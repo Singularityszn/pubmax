@@ -13,7 +13,7 @@ import type * as maplibregl from "maplibre-gl";
 const MAP_CAMERA_PROBE_KEY = "__pubmaxMapCamera";
 
 /** The camera as the map holds it right now. */
-export type MapCameraReading = {
+type MapCameraReading = {
   bearing: number;
   pitch: number;
   zoom: number;
@@ -28,7 +28,7 @@ export type MapCameraReading = {
  * uses, so a spec can hold a pin's painted position against the projection the
  * camera implies.
  */
-export type MapProjectedPoint = { x: number; y: number };
+type MapProjectedPoint = { x: number; y: number };
 
 type CameraProbe = {
   read: () => MapCameraReading;

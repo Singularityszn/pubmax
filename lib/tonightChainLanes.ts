@@ -24,7 +24,7 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
 
 export type TonightChainLaneKey = "wetherspoon" | "greene-king";
 
-export type TonightChainLane = {
+type TonightChainLane = {
   key: TonightChainLaneKey;
   /** The block heading a reader sees. */
   title: string;

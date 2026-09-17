@@ -25,7 +25,7 @@ export type SocialModerationBacklog = {
   oldestPendingAgeMs: number | null;
 };
 
-export type SocialModerationFinding = {
+type SocialModerationFinding = {
   kind: "pending_backlog" | "stranded_terminal" | "repeated_failures";
   detail: string;
   pending: number;

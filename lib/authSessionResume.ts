@@ -167,7 +167,7 @@ export function inheritedResumeEmail(
 }
 
 /** Outcome of a resume-cookie redeem, as returned to the browser. */
-export type AuthResumeRedeemOutcome =
+type AuthResumeRedeemOutcome =
   | {
       status: "restored";
       session: {

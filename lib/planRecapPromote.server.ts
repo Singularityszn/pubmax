@@ -10,7 +10,7 @@ import {
 } from "@/lib/planStore";
 import { pendingPlanRecapStore } from "@/lib/pendingPlanRecapStore";
 
-export type PromotePlanRecapError =
+type PromotePlanRecapError =
   | "invalid"
   | "member_forbidden"
   | "member_unavailable"

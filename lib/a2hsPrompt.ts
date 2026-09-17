@@ -46,7 +46,7 @@ const CHANGE_EVENT = "pubmax:a2hs";
 export type A2hsPlatform = "android" | "ios-safari" | "standalone" | "unsupported";
 
 /** Terminal user choices we persist so we stop asking. */
-export type A2hsOutcome = "none" | "installed" | "dismissed-forever";
+type A2hsOutcome = "none" | "installed" | "dismissed-forever";
 
 export type A2hsState = {
   /** First day bucket we ever recorded a visit for. */

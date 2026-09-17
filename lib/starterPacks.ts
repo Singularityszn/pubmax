@@ -47,7 +47,7 @@ export const STARTER_PACK_FOLLOW_FLOOR = 3;
 export const FOUNDING_STARTER_PACK_SLUG = "founding-hundred";
 
 const STARTER_PACK_KINDS = ["borough", "founding"] as const;
-export type StarterPackKind = (typeof STARTER_PACK_KINDS)[number];
+type StarterPackKind = (typeof STARTER_PACK_KINDS)[number];
 
 export type StarterPack = {
   slug: string;

@@ -55,7 +55,7 @@ export type LiveSignal = () => void;
 export type Unsubscribe = () => void;
 
 /** Where delivery is coming from right now. `live` means the socket answers. */
-export type MessagesLiveStatus = "connecting" | "live" | "polling";
+type MessagesLiveStatus = "connecting" | "live" | "polling";
 
 export type MessagesSubscribeOptions = Readonly<{
   /** Refetch on the fallback cadence when realtime is unavailable or broken. */

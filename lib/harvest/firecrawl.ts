@@ -86,7 +86,7 @@ export function createHarvestBudget(limit: number): HarvestBudget {
   };
 }
 
-export type FirecrawlPage = {
+type FirecrawlPage = {
   /** The URL asked for (provenance is the asked-for URL, not a redirect guess). */
   url: string;
   markdown: string;
@@ -96,14 +96,14 @@ export type FirecrawlPage = {
   cachedAt: string | null;
 };
 
-export type FirecrawlFailureReason =
+type FirecrawlFailureReason =
   | "budget-exhausted"
   | "http-error"
   | "empty-body"
   | "network"
   | "timeout";
 
-export type FirecrawlFailure = {
+type FirecrawlFailure = {
   url: string;
   reason: FirecrawlFailureReason;
   detail: string;
@@ -111,20 +111,20 @@ export type FirecrawlFailure = {
   attempts: number;
 };
 
-export type FirecrawlScrapeOutcome =
+type FirecrawlScrapeOutcome =
   | { ok: true; page: FirecrawlPage }
   | { ok: false; failure: FirecrawlFailure };
 
-export type FirecrawlScrapeOptions = {
+type FirecrawlScrapeOptions = {
   /** Reuse of a Firecrawl index copy no older than this. 0 forces a live read. */
   maxAgeMs?: number;
   /** Strip nav/chrome. On by default: harvest parsers read article-like copy. */
   onlyMainContent?: boolean;
 };
 
-export type FirecrawlSearchHit = { url: string; title?: string; description?: string };
+type FirecrawlSearchHit = { url: string; title?: string; description?: string };
 
-export type FirecrawlSearchOutcome =
+type FirecrawlSearchOutcome =
   | { ok: true; results: FirecrawlSearchHit[] }
   | { ok: false; failure: FirecrawlFailure };
 

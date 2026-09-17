@@ -34,7 +34,7 @@
 //     arithmetic and the test spends it, so a new photograph can never be the
 //     thing that breaks the contrast promise.
 
-export type LandingPhotoCredit = {
+type LandingPhotoCredit = {
   author: string;
   licence: string;
   licenceUrl: string;

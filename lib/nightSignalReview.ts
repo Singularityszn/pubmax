@@ -84,7 +84,7 @@ export const MAX_REVIEW_PAGE = 100;
 
 export type NightSignalQuery = { kind: string; query: string };
 
-export type DeferredQuery = {
+type DeferredQuery = {
   key: string;
   attempts: number;
   retryAfter: string;
@@ -92,7 +92,7 @@ export type DeferredQuery = {
   recordedAt: string;
 };
 
-export type TerminalQuery = {
+type TerminalQuery = {
   key: string;
   attempts: number;
   reason: string;

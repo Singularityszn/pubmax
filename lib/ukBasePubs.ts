@@ -62,7 +62,7 @@ export const MAX_PROVISIONAL_BASE_VENUE_IDS = 64;
  * is a lie a reader can check. Nothing else rides on this - neither kind
  * carries a price, and both draw the same unpriced pin.
  */
-export type UkBaseVenueKind = "pub" | "bar";
+type UkBaseVenueKind = "pub" | "bar";
 
 /** A pub on the base layer. No price field exists: OSM is not a price source. */
 export type UkBasePub = {
@@ -335,7 +335,7 @@ export type UkBaseLoader = {
   ): Promise<UkBasePub | null>;
 };
 
-export type UkBaseViewportRead = {
+type UkBaseViewportRead = {
   status: "ready" | "unavailable";
   pubs: UkBasePub[];
 };

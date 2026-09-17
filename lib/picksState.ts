@@ -153,7 +153,7 @@ export const PICKS_REFRESHING_LINE = "Checking again.";
  */
 export const PICKS_ALTERNATIVE_LABEL = "No event needed";
 
-export type PicksAlternativeKey = "pubs-near" | "plan";
+type PicksAlternativeKey = "pubs-near" | "plan";
 
 export type PicksAlternativeWay = {
   key: PicksAlternativeKey;

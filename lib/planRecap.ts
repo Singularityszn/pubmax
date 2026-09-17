@@ -5,7 +5,7 @@ const KEY_PREFIX = "pubmaxx.pending-plan-recap.v1:";
 const RESOLUTION_PREFIX = "pubmaxx.pending-plan-recap-resolution.v1:";
 const CHANGE_EVENT = "pubmaxx:pending-plan-recap";
 
-export type PendingPlanRecapStop = {
+type PendingPlanRecapStop = {
   venueId: string;
   venueName: string;
   position: number;
@@ -30,7 +30,7 @@ export type PendingPlanRecap = {
   savedAt: string;
 };
 
-export type PendingPlanRecapResolution = {
+type PendingPlanRecapResolution = {
   version: typeof PENDING_PLAN_RECAP_VERSION;
   completionId: string;
   status: "discarded" | "saved";

@@ -32,12 +32,12 @@ import {
   type WhatsOnRow,
 } from "@/lib/whatsOn";
 
-export type WhatsOnListingWriteOutcome = {
+type WhatsOnListingWriteOutcome = {
   written: number;
   failed?: true;
 };
 
-export type WhatsOnListingSnapshot = {
+type WhatsOnListingSnapshot = {
   rows: WhatsOnRow[];
   generatedAt: string | null;
   failed?: true;

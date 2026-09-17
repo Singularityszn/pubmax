@@ -43,7 +43,7 @@ export function lineDisplayLabel(name: string): string {
 //            overlaps tonight (17:00–02:00 London). A closure for next weekend is
 //            not tonight's problem and must stay silent.
 
-export type MaterialKind =
+type MaterialKind =
   | "closed"
   | "suspended"
   | "part_suspended"
@@ -211,7 +211,7 @@ export type LineStatusPeriod = {
   isNow?: boolean;
 };
 
-export type LineStatusDetail = {
+type LineStatusDetail = {
   statusSeverity?: number;
   statusSeverityDescription?: string;
   reason?: string;

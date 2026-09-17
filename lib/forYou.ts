@@ -20,12 +20,12 @@ import { normalizeHandle } from "@/lib/profiles";
 // reaction summaries client-side; the caller folds those counts to a single
 // number per drop and hands them in here. Absent id ⇒ 0 (a drop with no loaded
 // summary simply scores no reaction bonus — never a crash).
-export type ReactionCounts = Record<string, number>;
+type ReactionCounts = Record<string, number>;
 
 // Venue ids the viewer's dataset considers "story pubs" — curated/heritage
 // venues that carry a pub story. Membership is a small quality nudge, not a
 // gate. Optional so the lane still ranks with no curation signal at hand.
-export type StoryVenueSet = Set<string>;
+type StoryVenueSet = Set<string>;
 
 export type ForYouContext = {
   // Current wall-clock ms — ALWAYS injected (never read from Date.now() inside),

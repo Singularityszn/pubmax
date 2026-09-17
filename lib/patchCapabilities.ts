@@ -79,7 +79,7 @@ export type PatchEvidenceCounts = Readonly<{
  * clears the price floor, "preview" while it is thinner. There is no "flagship"
  * at patch level — that word stays reserved for the city.
  */
-export type PatchReleaseTier = "core" | "preview";
+type PatchReleaseTier = "core" | "preview";
 
 export type PatchCapabilityProfile = Readonly<{
   patchId: string;
@@ -105,7 +105,7 @@ export type PatchPricedInput = {
   filterHints?: { amenities?: { food?: boolean } };
 };
 
-export type PatchListingInput = { lat?: number; lng?: number };
+type PatchListingInput = { lat?: number; lng?: number };
 
 export type PatchEvidenceSources = {
   venues?: readonly PatchPricedInput[];

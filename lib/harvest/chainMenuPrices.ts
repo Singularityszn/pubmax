@@ -23,7 +23,7 @@ export const CHAIN_PRICE_DROP_REASONS = [
   "food-word-nearby",
   "no-price-on-page",
 ] as const;
-export type ChainPriceDropReason = (typeof CHAIN_PRICE_DROP_REASONS)[number];
+type ChainPriceDropReason = (typeof CHAIN_PRICE_DROP_REASONS)[number];
 
 /**
  * A pint's plausible band in the UK. Outside it the figure is a bottle, a
@@ -49,7 +49,7 @@ const FOOD_WORDS =
 
 const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{2})?)\b/g;
 
-export type ChainPriceCandidate = {
+type ChainPriceCandidate = {
   priceGbp: number;
   /** The exact substring the page carried, kept for the verbatim check. */
   verbatim: string;

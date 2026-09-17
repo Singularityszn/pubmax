@@ -21,12 +21,12 @@ import { requireSupabaseAdmin } from "@/lib/supabase";
 const MAX_MEMORY_CODES = 50_000;
 const MAX_MEMORY_EDGES = 100_000;
 
-export type ReferralContributionKind =
+type ReferralContributionKind =
   | "community_price"
   | "visit_report"
   | "recommendation";
 
-export type ReferralEarnedMilestone = ReferralMilestoneEvent & {
+type ReferralEarnedMilestone = ReferralMilestoneEvent & {
   earnedAt: string;
   qualifiedCount: number;
   /** The line the owner's profile prints for this milestone. */
@@ -42,7 +42,7 @@ export type ReferralPrivateStatus = {
   nextMilestone: ReferralMilestone | null;
 };
 
-export type RecordEdgeResult =
+type RecordEdgeResult =
   | {
       ok: true;
       status: "recorded" | "existing";
@@ -60,14 +60,14 @@ export type RecordEdgeResult =
         | "storage";
     };
 
-export type ClaimCodeResult =
+type ClaimCodeResult =
   | RecordEdgeResult
   | {
       ok: false;
       reason: "unknown" | "account_not_new";
     };
 
-export type QualifyReferralResult =
+type QualifyReferralResult =
   | { ok: true; status: "qualified" | "existing" }
   | { ok: false; reason: "no_edge" | "deleted_identity" | "storage" };
 

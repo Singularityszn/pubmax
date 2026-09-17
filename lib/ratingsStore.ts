@@ -37,9 +37,9 @@ import {
   selectStore,
 } from "@/lib/storeBackend";
 
-export { isRatingKind, type RatingKind } from "@/lib/ratings";
+export { isRatingKind,  } from "@/lib/ratings";
 
-export type RateInput = {
+type RateInput = {
   kind: RatingKind;
   /** The item key: a drink ref, or (kind "venue") the venue id itself. */
   ref: string;
