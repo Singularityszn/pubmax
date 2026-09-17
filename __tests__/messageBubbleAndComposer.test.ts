@@ -227,8 +227,8 @@ describe("mobile message attachment picker", () => {
       }),
     );
 
-    expect(markup).toMatch(/class="mobileSheetPortal [^"]*messageAttachSheetPortal[^"]*"/);
-    expect(markup).toContain('class="mobileSharedSheet');
+    expect(markup).toMatch(/class="[^"]*mobileSheetPortal[^"]*messageAttachSheetPortal[^"]*"/);
+    expect(markup).toMatch(/class="[^"]*mobileSharedSheet[^"]*"/);
     expect(markup).toContain(">Photos</span>");
     expect(markup).toContain(">Camera</span>");
     expect(markup).toContain(">Document</span>");

@@ -57,7 +57,7 @@ describe("QA high findings — mobile sheet and consent layering", () => {
     expect(pubMap).toContain("closeEverySurface");
     const focusTrap = readFileSync(join(process.cwd(), "lib/useFocusTrap.ts"), "utf8");
     expect(focusTrap).toMatch(/shouldInertOutsideSibling/);
-    expect(focusTrap).toMatch(/mobileTabBar/);
+    expect(focusTrap).toMatch(/data-mobile-tab-bar/);
   });
 
   it("publishes a dismiss event constant from the mobile shell seam", () => {
