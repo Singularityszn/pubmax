@@ -5,6 +5,7 @@ import { BookOpen, MessageCircle, Send, Sparkles } from "lucide-react";
 import { discardBody } from "@/lib/responseBody";
 import { venueKindNoun } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
+import styles from "./LandlordPanel.module.css";
 
 type Context = {
   era?: string;
@@ -78,14 +79,14 @@ export default function LandlordPanel(props: {
   );
 
   return (
-    <section className="landlord">
+    <section className={styles.landlord}>
       <div className="inspectorTitle">
         <MessageCircle size={14} /> Ask your venue guide
       </div>
 
       <button
         type="button"
-        className="landlordBtn"
+        className={styles.landlordBtn}
         disabled={loading}
         onClick={() => ask(defaultQuestion)}
       >
@@ -93,7 +94,7 @@ export default function LandlordPanel(props: {
       </button>
 
       <form
-        className="landlordForm"
+        className={styles.landlordForm}
         onSubmit={(e) => {
           e.preventDefault();
           ask(question);
@@ -110,7 +111,7 @@ export default function LandlordPanel(props: {
         </button>
       </form>
 
-      <div className="landlordSuggest">
+      <div className={styles.landlordSuggest}>
         {SUGGESTIONS.map((s) => (
           <button key={s} type="button" onClick={() => ask(s)}>
             {s}
@@ -121,27 +122,27 @@ export default function LandlordPanel(props: {
       {/* Live region stays mounted so screen readers announce the async answer
           (or error) as it arrives. aria-busy reflects the in-flight fetch. */}
       <div role="status" aria-live="polite" aria-busy={loading}>
-        {loading && <div className="landlordThinking">Pulling up the records…</div>}
+        {loading && <div className={styles.landlordThinking}>Pulling up the records…</div>}
 
         {error && !loading && (
-          <p className="landlordMsg">Couldn&apos;t reach your venue guide. Try again.</p>
+          <p className={styles.landlordMsg}>Couldn&apos;t reach your venue guide. Try again.</p>
         )}
 
         {answer && !loading && (
           <>
-            <div className="landlordAnswer">
+            <div className={styles.landlordAnswer}>
               <p>{answer.answer}</p>
               {answer.clarifyingQuestion && (
-                <p className="landlordClarify">{answer.clarifyingQuestion}</p>
+                <p className={styles.landlordClarify}>{answer.clarifyingQuestion}</p>
               )}
             </div>
             {answer.citations.length > 0 && (
-              <div className="landlordCitations">
+              <div className={styles.landlordCitations}>
                 {answer.citations.map((c, i) =>
                   c.ref ? (
                     <a
                       key={`${c.source}-${i}`}
-                      className="citationChip"
+                      className={styles.citationChip}
                       href={c.ref}
                       target="_blank"
                       rel="noreferrer"
@@ -150,7 +151,7 @@ export default function LandlordPanel(props: {
                       {c.source}
                     </a>
                   ) : (
-                    <span key={`${c.source}-${i}`} className="citationChip">
+                    <span key={`${c.source}-${i}`} className={styles.citationChip}>
                       <BookOpen size={11} />
                       {c.source}
                     </span>

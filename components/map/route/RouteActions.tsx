@@ -7,6 +7,7 @@ import { type CrawlMode } from "@/components/map/ControlRail";
 import type { Venue } from "@/lib/venues";
 import RoundStarter from "@/components/round/RoundStarter";
 import btnStyles from '../addStopBtn.module.css';
+import routeStyles from './route.module.css';
 
 type RouteActionsProps = {
   mode: CrawlMode;
@@ -66,10 +67,10 @@ export default function RouteActions({
       ) : null}
 
       {legSummary.legs.length > 0 ? (
-        <div className="routePace" role="group" aria-label="Walking or running pace">
+        <div className={routeStyles.routePace} role="group" aria-label="Walking or running pace">
           <button
             type="button"
-            className={pace === "walk" ? "routePaceBtn active" : "routePaceBtn"}
+            className={pace === "walk" ? routeStyles.routePaceBtnActive : routeStyles.routePaceBtn}
             aria-pressed={pace === "walk"}
             onClick={() => setPace("walk")}
           >
@@ -77,25 +78,25 @@ export default function RouteActions({
           </button>
           <button
             type="button"
-            className={pace === "run" ? "routePaceBtn active" : "routePaceBtn"}
+            className={pace === "run" ? routeStyles.routePaceBtnActive : routeStyles.routePaceBtn}
             aria-pressed={pace === "run"}
             onClick={() => setPace("run")}
           >
             Run
           </button>
-          <span className="routePaceTotal">{formatRouteTotal(legSummary)}</span>
+          <span className={routeStyles.routePaceTotal}>{formatRouteTotal(legSummary)}</span>
         </div>
       ) : null}
 
       {legSummary.legs.length > 0 && pace === "run" ? (
-        <p className="routeSafetyNote" role="note">
+        <p className={routeStyles.routeSafetyNote} role="note">
           Run pace is for getting between stops. Drink water, keep to well-lit routes, and
           never treat running as a reason to drink more.
         </p>
       ) : null}
 
       {route.length >= 2 ? (
-        <div className={routeMapped ? "routeMapPrompt active" : "routeMapPrompt"}>
+        <div className={routeMapped ? routeStyles.routeMapPromptActive : routeStyles.routeMapPrompt}>
           <div>
             <strong>{routeMapped ? `Mapped on ${cityDisplayName}` : "Map this plan?"}</strong>
             <span>

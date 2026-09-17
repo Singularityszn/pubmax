@@ -1,0 +1,261 @@
+/* Route panel styles — extracted from globals.css */
+
+.routeMetrics {
+  margin: 16px 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.routeMetrics div {
+  min-width: 0;
+}
+
+.routeMetrics div > svg {
+  color: var(--brass);
+}
+
+.routeMetrics span {
+  display: block;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  margin: 4px 0 2px;
+}
+
+.routeList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.routeList li {
+  border: 1px solid color-mix(in srgb, var(--line) 76%, var(--brass) 24%);
+  border-radius: 17px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--panel-raised) 94%, var(--surface-tint-lager) 6%), var(--panel-raised)),
+    var(--panel-raised);
+  transition: border-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+}
+
+/* Route rows are real buttons now (keyboard operable); li keeps the chrome. */
+.routeList li > button {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 11px;
+  padding: 11px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: inherit;
+  border-radius: inherit;
+}
+
+.routeList li:hover {
+  border-color: var(--brass);
+  transform: translateX(2px);
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--brass) 11%, transparent);
+}
+
+.routeList li.active {
+  border-color: var(--brass);
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--brass) 16%, transparent), inset 4px 0 0 var(--brass);
+}
+
+.stopNumber {
+  width: 28px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--brass), var(--river));
+  /* Cream for the same reason as .brandMark: the river end fails dark ink. */
+  color: var(--color-on-inverse);
+  border-radius: 999px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.routeList strong,
+.routeList p,
+.routeList small {
+  display: block;
+}
+
+.routeList strong {
+  font-size: 0.96rem;
+}
+
+.routeList p {
+  margin: 3px 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.routeList small {
+  color: var(--brass);
+  font-weight: 600;
+}
+
+/* Walk/run pace toggle + honest route-total line (story 25). */
+.routePace {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  flex-wrap: wrap;
+}
+
+.routePaceBtn {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.routePaceBtnActive {
+  composes: routePaceBtn;
+  border-color: var(--brass);
+  color: var(--color-on-accent);
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+}
+
+.routePaceTotal {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.routeSafetyNote {
+  margin: -4px 0 12px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.routeMapPrompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--river) 34%, var(--line));
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--river) 8%, var(--panel-raised)), var(--panel-raised)),
+    var(--panel-raised);
+}
+
+.routeMapPromptActive {
+  composes: routeMapPrompt;
+  border-color: color-mix(in srgb, var(--brass) 48%, var(--line));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brass) 10%, var(--panel-raised)), var(--panel-raised)),
+    var(--panel-raised);
+}
+
+.routeMapPrompt div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.routeMapPrompt strong {
+  color: var(--ink);
+  font-size: 0.86rem;
+}
+
+.routeMapPrompt span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.routeMapPrompt small {
+  color: var(--river);
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.routeMapPrompt button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 7px 11px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* Per-leg walk/run time + "on the way" POI line, rendered under each stop that
+   has a next stop (story 25/26). Honest straight-line label lives in the text
+   itself (see lib/routeLegs.formatLeg), not just a tooltip. */
+.routeLeg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 2px 0 0 41px;
+  padding: 4px 0 6px;
+  font-size: 0.76rem;
+  color: var(--muted);
+  border-bottom: 1px dashed var(--line);
+}
+
+.routeLeg svg {
+  color: var(--brass);
+  flex-shrink: 0;
+}
+
+.routeLegOnWay {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--ink-soft, var(--muted));
+}
+
+.routeLegTransit {
+  flex-basis: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--river) 12%, var(--panel-raised));
+  color: var(--river);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.routeStopDirections {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 2px 0 0 41px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--river) 30%);
+  color: var(--river);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.routeStopDirections:hover {
+  background: color-mix(in srgb, var(--river) 10%, transparent);
+}

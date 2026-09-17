@@ -3,6 +3,7 @@
 import { PlusCircle } from "lucide-react";
 
 import { formatPrice, type Venue } from "@/lib/venues";
+import pickerStyles from './VenuePicker.module.css';
 
 // ponytail: cap the keyboard picker render; search narrows the rest.
 const PICKER_LIMIT = 40;
@@ -21,7 +22,7 @@ export default function VenuePicker({
   onToggleStop,
 }: VenuePickerProps) {
   return (
-    <section className="venuePicker">
+    <section className={pickerStyles.venuePicker}>
       <div className="inspectorTitle">
         <PlusCircle size={16} />
         <span>Add stops</span>
@@ -30,7 +31,7 @@ export default function VenuePicker({
         Every filtered pub, keyboard-friendly. The map is optional. Use search and filters to
         narrow the list.
       </p>
-      <ul className="venuePickerList">
+      <ul className={pickerStyles.venuePickerList}>
         {filteredVenues.slice(0, PICKER_LIMIT).map((venue) => {
           const inCrawl = builtIds.includes(venue.id);
           return (
@@ -50,14 +51,14 @@ export default function VenuePicker({
                     {venue.primaryBorough || venue.visibleBoroughs[0] || "London"}
                   </small>
                 </span>
-                <span className="pickAction">{inCrawl ? "Remove" : "Add"}</span>
+                <span className={pickerStyles.pickAction}>{inCrawl ? "Remove" : "Add"}</span>
               </button>
             </li>
           );
         })}
       </ul>
       {filteredVenues.length > PICKER_LIMIT ? (
-        <small className="pickerNote">
+        <small className={pickerStyles.pickerNote}>
           Showing {PICKER_LIMIT} of {filteredVenues.length}. Narrow the search to see more.
         </small>
       ) : null}

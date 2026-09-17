@@ -859,8 +859,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 .venueTabPanel .addStopBtn,
 .venueTabPanel .logDropBtn,
 .venueTabPanel .saveToListCreate,
-.venueTabPanel .dropComposer button[type="submit"],
-.venueTabPanel .landlordForm button {
+.venueTabPanel .dropComposer button[type="submit"] {
   border-color: var(--brass);
   background: linear-gradient(135deg, var(--brass), var(--brass-bright));
   color: var(--color-on-accent);
@@ -1450,11 +1449,6 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
-}
-
-.venueTabPanel .landlordSuggest button,
-.venueTabPanel .citationChip {
-  min-height: 44px;
 }
 
 .venueTabPanel .heritageFollowUp {

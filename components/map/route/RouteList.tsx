@@ -8,6 +8,7 @@ import { journeyAddsTransit } from "@/lib/formatJourney";
 import { routeStopPlaceLabels } from "@/lib/routeStops";
 import type { CrawlJourneyLegSummary } from "@/components/map/useCrawlJourneys";
 import inspectorStyles from '@/components/map/venueInspectorBits.module.css';
+import routeStyles from './route.module.css';
 
 type VenueSignals = Map<
   string,
@@ -46,7 +47,7 @@ export default function RouteList({
   );
 
   return (
-    <ol className="routeList">
+    <ol className={routeStyles.routeList}>
       {route.map((venue, index) => {
         const signal = venueSignals.get(venue.id);
         const dropCount = signal?.dropCount ?? 0;
@@ -63,13 +64,13 @@ export default function RouteList({
         const journey = journeyByToIndex?.get(index + 1);
         const transitJourney = journey && journeyAddsTransit(journey.modes) ? journey : null;
         return (
-        <li key={venue.id} className={activeVenueId === venue.id ? "active" : ""}>
+        <li key={venue.id} className={activeVenueId === venue.id ? routeStyles.active : ""}>
           <button
             type="button"
             onClick={() => onSelectVenue(venue.id)}
             aria-current={activeVenueId === venue.id ? "true" : undefined}
           >
-            <span className="stopNumber">{index + 1}</span>
+            <span className={routeStyles.stopNumber}>{index + 1}</span>
             <div>
               <strong>
                 {venue.name}
@@ -92,7 +93,7 @@ export default function RouteList({
             </div>
           </button>
           <a
-            className="routeStopDirections"
+            className={routeStyles.routeStopDirections}
             href={`https://www.google.com/maps/dir/?api=1&destination=${venue.latitude},${venue.longitude}&travelmode=walking`}
             target="_blank"
             rel="noopener noreferrer"
@@ -101,16 +102,16 @@ export default function RouteList({
             <span>Directions</span>
           </a>
           {leg ? (
-            <div className="routeLeg" aria-label={`Leg to ${leg.to.name}`}>
+            <div className={routeStyles.routeLeg} aria-label={`Leg to ${leg.to.name}`}>
               <Footprints size={13} aria-hidden="true" />
               <span>{formatLeg(leg)}</span>
               {onTheWay.length > 0 ? (
-                <p className="routeLegOnWay">
+                <p className={routeStyles.routeLegOnWay}>
                   On the way: {onTheWay.map((m) => m.poi.name).join(", ")}
                 </p>
               ) : null}
               {transitJourney ? (
-                <p className="routeLegTransit" aria-label="TfL leg">
+                <p className={routeStyles.routeLegTransit} aria-label="TfL leg">
                   <TrainFront size={12} aria-hidden="true" />
                   <span>{transitJourney.summary}</span>
                 </p>
