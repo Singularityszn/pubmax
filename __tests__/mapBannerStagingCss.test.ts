@@ -18,27 +18,69 @@ describe("map banner staging CSS", () => {
     expect(css).not.toMatch(/\.appShell\.onboarding-open\s+\.citySuggestBanner/);
   });
 
-  it("keeps the location control available alongside closure/safety status", () => {
-    expect(css).not.toMatch(/\.mapStage:has\(\.cityStatusBanner\)\s+\.citySuggestBanner/);
+  // ONE AMBIENT SURFACE HOLDS THE MAP, AND THE ORDER IS FIXED. UI review 17 Sep
+  // 2026, finding 5: dismissing the arrival strip released THREE banners at once
+  // at 1440. The wait rule 1b enforces against the strip is now enforced among
+  // the banners too, in the strip's own order, so answering the one on screen
+  // releases exactly the next one down. The location ask stays first of them,
+  // because that ask IS what the strip is (components/AGENTS.md).
+  const CASCADE = [
+    ".citySuggestBanner",
+    ".cityStatusBanner",
+    ".tonightLaneCollapsed",
+    ".mapConciergeAsk",
+  ] as const;
+
+  const escape = (selector: string) => selector.replace(/\./g, "\\.");
+
+  it("yields every lower ambient surface to every higher one that is eligible", () => {
+    for (let higher = 0; higher < CASCADE.length - 1; higher += 1) {
+      for (let lower = higher + 1; lower < CASCADE.length; lower += 1) {
+        // Keyed on element PRESENCE, which is what makes the order total: a
+        // lower member yields to every eligible higher one rather than to the
+        // one currently painted, so no two can paint together however the
+        // reader dismisses them.
+        expect(
+          css,
+          `${CASCADE[lower]} yields to ${CASCADE[higher]}`,
+        ).toMatch(
+          new RegExp(
+            `:has\\(${escape(CASCADE[higher])}\\)\\s+${escape(CASCADE[lower])}`,
+          ),
+        );
+      }
+    }
   });
 
-  it("defers the tonight-nearby card to either status or location", () => {
-    expect(css).toMatch(/\.mapStage:has\(\.cityStatusBanner\)\s+\.tonightLaneCollapsed/);
-    expect(css).toMatch(/\.mapStage:has\(\.citySuggestBanner\)\s+\.tonightLaneCollapsed/);
+  it("lets no lower ambient surface suppress a higher one", () => {
+    for (let lower = 1; lower < CASCADE.length; lower += 1) {
+      for (let higher = 0; higher < lower; higher += 1) {
+        expect(
+          css,
+          `${CASCADE[higher]} does not yield to ${CASCADE[lower]}`,
+        ).not.toMatch(
+          new RegExp(
+            `:has\\(${escape(CASCADE[lower])}\\)\\s+${escape(CASCADE[higher])}`,
+          ),
+        );
+      }
+    }
   });
 
-  it("defers the closure band to the first-visit ask, and to nothing else", () => {
+  it("defers the closure band to the first-visit ask and to the location ask alone", () => {
     // The closure band was the top of the priority cascade and no :has() rule
-    // could touch it. ONE now can: while the first-visit strip is up the strip
-    // is the one banner (captain, 7 Sep 2026, over walk finding B9, which
-    // counted eighteen controls, a closure banner and the card at 1440 before
-    // a pin was tapped). Nothing is lost, because the strip clears on the
-    // reader's own first move on the map. Every OTHER banner still yields to
-    // the closure band rather than the other way round.
+    // could touch it. TWO now can: the first-visit strip (captain, 7 Sep 2026,
+    // over walk finding B9, which counted eighteen controls, a closure banner
+    // and the card at 1440 before a pin was tapped), and the location ask above
+    // it in the cascade. Nothing is lost either way, because both clear on an
+    // answer and the band arrives the moment they do.
     const suppressors = [
       ...css.matchAll(/([^\n{,]*:has\([^)]*\)[^\n{,]*)\s+\.cityStatusBanner/g),
     ].map((match) => match[1].trim());
-    expect(suppressors).toEqual(["body:has(.mapArrivalCard)"]);
+    expect(suppressors).toEqual([
+      "body:has(.mapArrivalCard)",
+      ".mapStage:has(.citySuggestBanner)",
+    ]);
   });
 
   it("scopes the staging to desktop so the mobile map shell is untouched", () => {

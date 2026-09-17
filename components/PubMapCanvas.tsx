@@ -2715,7 +2715,10 @@ export default function PubMapCanvas({
       queueMicrotask(() => {
         setSoftRetry({
           kind: "context-lost",
-          message: "The map lost its graphics. Tap Retry to reload the basemap.",
+          // No gesture in the words: the same rule the five notices in
+          // components/map/canvas/pinRevealCoordinator.ts carry, because this
+          // one is read at 1440 with a mouse too.
+          message: "The map lost its graphics. Try again to reload the basemap.",
         });
       });
     };

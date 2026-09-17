@@ -58,34 +58,47 @@
     display: none;
   }
 
-  /* 2. Keep the opt-in location control available while either prompt defers
-     the lower Tonight card. Keyed on element PRESENCE (eligibility), so
-     dismissing both higher siblings releases Tonight normally. */
+  /* 2. ONE AMBIENT SURFACE HOLDS THE MAP, AND THE ORDER IS FIXED.
+     UI review 17 Sep 2026, finding 5: dismissing the arrival strip released
+     THREE at once at 1440 (the location prompt at y 231-293, the closure and
+     area-news rail at y 301-359 and the concierge ask at y 772-816). Nothing
+     overlapped, so nothing was unreadable; the count was the defect, and
+     dismissing the ONE ask a reader is allowed to dismiss releasing three more
+     inverts what rule 1b is for.
+
+     The wait was enforced only against the strip. It is enforced among the
+     banners now, as one cascade in the strip's own order: the location ask is
+     what the strip IS, so it stays first of them (components/AGENTS.md, "ONE
+     BANNER AT A TIME and the strip is the first of them, so the closure banner,
+     the conditions-and-area-news rail, the concierge ask and the Pub Pal chip
+     all wait"), then the closure and area-news rail, then Tonight, then the
+     concierge ask. Nothing is lost: each surface still mounts only when it is
+     eligible and UNMOUNTS on dismissal, so answering the one on screen releases
+     exactly the next one down and never a stack.
+
+     Keyed on element PRESENCE rather than visibility, which is what makes the
+     order TOTAL: a lower member yields to every higher one that is eligible,
+     not merely to the one currently painted, so no two can ever paint at once
+     however they are dismissed. */
+  .mapStage:has(.citySuggestBanner) .cityStatusStack,
+  .mapStage:has(.citySuggestBanner) .cityStatusBanner {
+    display: none;
+  }
+
   .mapStage:has(.cityStatusBanner) .tonightLaneCollapsed,
   .mapStage:has(.citySuggestBanner) .tonightLaneCollapsed {
     display: none;
   }
 
-  /* Location owns first-run centre. The actionable status remains visible but
-     yields into Tonight's now-vacant left lane, so two eligible banners do not
-     form a stack across the map's focal point. */
-  .mapStage:has(.citySuggestBanner) .citySuggestBanner {
-    max-width: min(420px, calc(100vw - 384px));
+  /* The concierge ask sits in the bottom map-home lane rather than the banner
+     stack, so it is scoped from the body the way rule 1b scopes it: the higher
+     three are inside .mapStage and it is not. */
+  body:has(.citySuggestBanner) .mapConciergeAsk,
+  body:has(.cityStatusBanner) .mapConciergeAsk,
+  body:has(.tonightLaneCollapsed) .mapConciergeAsk {
+    display: none;
   }
 
-}
-
-/* The left lane exists from 1024px up. Below that the formula bottomed out
-   at its 160px floor (measured at 768px: a 58px text column, "dangerous"
-   broken mid-word beside the close), so between 641px and 1023px the status
-   banner keeps its default berth: centred, full width, under the prompt,
-   which the +82px top anchor already clears. */
-@media (min-width: 1024px) {
-  .mapStage:has(.citySuggestBanner) .cityStatusStack {
-    left: 16px;
-    width: min(460px, max(160px, calc(50vw - 242px)));
-    transform: none;
-  }
 }
 
 /* 3. An open venue drawer owns the right edge from 1024px up. These banners are
@@ -114,25 +127,10 @@
     transform: translateX(-50%);
   }
 
-  /* A drawer leaves too little horizontal room for both prompts. Keep the
-     location prompt in the drawer-aware centre and move status to the bottom
-     of that same free lane instead of rebuilding the first-load stack. */
-  .appShell.detail-open .mapStage:has(.citySuggestBanner) .cityStatusStack {
-    top: auto;
-    bottom: 16px;
-    left: 16px;
-    width: min(460px, calc(100% - var(--desktop-venue-drawer-width) - 32px));
-    transform: none;
-  }
-
-  .appShell.planning-open .mapStage:has(.citySuggestBanner) .cityStatusStack,
-  .appShell.story-open .mapStage:has(.citySuggestBanner) .cityStatusStack {
-    top: auto;
-    bottom: 16px;
-    left: calc(var(--desktop-planner-rail-width) + 16px);
-    width: min(460px, calc(100% - var(--desktop-planner-rail-width) - 32px));
-    transform: none;
-  }
+  /* The two-lane arrangement a drawer used to need is GONE with the cascade
+     above: the location prompt and the status rail can no longer be up
+     together, so neither has to be re-berthed around the other and the
+     drawer-aware centre each keeps is the whole of the geometry. */
 }
 
 /* 4. The bottom chips beside an open venue drawer. Only the route chip is an

@@ -261,9 +261,10 @@ describe("pin reveal coordinator", () => {
     expect(venueDataFailureNotice(false).kind).toBe(
       venueDataFailureNotice(true).kind,
     );
-    // Never a dead end: both keep the way on.
-    expect(venueDataFailureNotice(false).message).toMatch(/Retry/);
-    expect(venueDataFailureNotice(true).message).toMatch(/Retry/);
+    // Never a dead end: both keep the way on, as the bare imperative rather
+    // than an instruction about how to press the button beside them.
+    expect(venueDataFailureNotice(false).message).toMatch(/\bTry\b/);
+    expect(venueDataFailureNotice(true).message).toMatch(/\bTry\b/);
   });
 
   it("gives every ceiling notice its own words and its own lane", () => {
@@ -284,6 +285,24 @@ describe("pin reveal coordinator", () => {
     expect(VENUE_DATA_RETRY_NOTICE.message).not.toMatch(/background/i);
   });
 
+  // A NOTICE MAY NOT NAME THE READER'S HANDS. UI review 17 Sep 2026, finding 7:
+  // every one of these said "Tap Retry", and /map is served at 1440 with a
+  // mouse. The button beside the words is the affordance; the sentence hands
+  // over an action and says nothing about the gesture that reaches it.
+  it("names no gesture, because the same words are read with a mouse", () => {
+    for (const message of [
+      BASEMAP_RETRY_NOTICE.message,
+      PIN_PAINT_RETRY_NOTICE.message,
+      VENUE_DATA_RETRY_NOTICE.message,
+      PIN_PAINT_RETRY_PENDING_NOTICE.message,
+      VENUE_DATA_RETRY_PENDING_NOTICE.message,
+      PIN_PAINT_RETRY_SPENT_NOTICE.message,
+      VENUE_DATA_RETRY_SPENT_NOTICE.message,
+    ]) {
+      expect(message).not.toMatch(/\b(tap|click|press|swipe|pinch)\b/i);
+    }
+  });
+
   it("keeps a spent pin Retry in its own lane and says it is a second ask", () => {
     expect(pinRetrySpentNotice("pins")).toEqual(PIN_PAINT_RETRY_SPENT_NOTICE);
     expect(pinRetrySpentNotice("venues")).toEqual(VENUE_DATA_RETRY_SPENT_NOTICE);
@@ -299,8 +318,8 @@ describe("pin reveal coordinator", () => {
       VENUE_DATA_RETRY_NOTICE.message,
     );
     // Still a way on, never a dead end.
-    expect(pinRetrySpentNotice("pins").message).toMatch(/Retry/);
-    expect(pinRetrySpentNotice("venues").message).toMatch(/Retry/);
+    expect(pinRetrySpentNotice("pins").message).toMatch(/\bTry\b/);
+    expect(pinRetrySpentNotice("venues").message).toMatch(/\bTry\b/);
   });
 
   it("keeps pins gated until basemap tiles have painted", () => {

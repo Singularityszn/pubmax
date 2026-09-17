@@ -1,19 +1,33 @@
 export type PinRevealReason = "tiles" | "pins" | "idle" | "timeout";
 export type BasemapNoticeOwner = "none" | "timeout" | "errors";
 
+/**
+ * A NOTICE MAY NOT NAME THE READER'S HANDS. UI review 17 Sep 2026, finding 7:
+ * all six of these said "Tap Retry", and `/map` is served at 1440 with a mouse,
+ * where there is no tap. `docs/VOICE.md` rule 1 is to say it out loud, and the
+ * imperative `docs/AGENTS.md` blesses is available: "the bare imperative `Try
+ * again.` stays, because it hands the reader an action rather than a closed
+ * door." So the verb is the reader's own, the gesture is nobody's, and the
+ * control it points at is the `Retry` button beside these words
+ * (components/PubMapCanvas.tsx) rather than a sentence about how to press it.
+ *
+ * The spent notices still differ word for word from the first ask, which is the
+ * rule they were written under: a sentence that came back unchanged under the
+ * tap reads as a button that did nothing.
+ */
 export const BASEMAP_RETRY_NOTICE = {
   kind: "tiles",
-  message: "Map background couldn't load. Tap Retry to try again.",
+  message: "Map background couldn't load. Try again.",
 } as const;
 
 export const PIN_PAINT_RETRY_NOTICE = {
   kind: "pins",
-  message: "Pub pins are still drawing. Tap Retry to load them again.",
+  message: "Pub pins are still drawing. Try again.",
 } as const;
 
 export const VENUE_DATA_RETRY_NOTICE = {
   kind: "venues",
-  message: "The pub list hasn't loaded. Tap Retry to fetch it again.",
+  message: "The pub list hasn't loaded. Try again.",
 } as const;
 
 export const PIN_PAINT_RETRY_PENDING_NOTICE = {
@@ -28,12 +42,12 @@ export const VENUE_DATA_RETRY_PENDING_NOTICE = {
 
 export const PIN_PAINT_RETRY_SPENT_NOTICE = {
   kind: "pins",
-  message: "The pub pins still aren't drawing. Tap Retry to try once more.",
+  message: "The pub pins still aren't drawing. Try once more.",
 } as const;
 
 export const VENUE_DATA_RETRY_SPENT_NOTICE = {
   kind: "venues",
-  message: "The pub list still hasn't loaded. Tap Retry to try once more.",
+  message: "The pub list still hasn't loaded. Try once more.",
 } as const;
 
 export type RevealTimeoutNotice =

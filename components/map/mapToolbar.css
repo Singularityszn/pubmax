@@ -57,10 +57,37 @@
     --map-camera-stack-height: 94px;
   }
 
+  /* AND IT CLEARS THE TOOLBAR'S OWN PUBLISHED BERTH, NOT THE CAMERA STACK
+     ALONE. UI review 17 Sep 2026, finding 1: from 1024px to 1280px "Zoom in"
+     was painted, 44x44, and unclickable, because `elementFromPoint` at its own
+     centre answered `div.mapToolbarRow`. The camera stack is a ROW from 901px
+     (components/map/mapCameraControls.css), so one 44px chip ends at 152px and
+     the berth derived from it, 158px, lands one pixel INSIDE the toolbar block,
+     which starts at `--map-top-clearance` (159px) and runs 155px. "Zoom out"
+     was fine at every width only because it sits a row lower, below the bar's
+     bottom edge.
+
+     This is the third instance of one failure class, and both earlier fixes are
+     already written down: the basemap Retry whose centre answered the
+     plan-activation bar, and the mapped-route chip under the drawer's focus
+     trap (components/AGENTS.md). Each was fixed by making the floating member
+     read the occluder's OWN published berth rather than restating a number, so
+     the zoom column reads `--map-toolbar-resting-height`, which MapToolbar's
+     ResizeObserver publishes on .appShell and which the ambient banners under
+     the bar already read for the same reason: the block GROWS when the reader
+     opens the experience lens or the drink panel, and a control parked on a
+     stale constant would go back under it. `max()` keeps the camera stack's own
+     clearance for the widths where the stack is the taller occluder. */
   .appShell .mapStage .maplibregl-ctrl-top-right {
-    top: calc(
-      var(--map-overlay-top) + var(--map-camera-stack-height) +
-        var(--map-chrome-gap)
+    top: max(
+      calc(
+        var(--map-overlay-top) + var(--map-camera-stack-height) +
+          var(--map-chrome-gap)
+      ),
+      calc(
+        var(--map-top-clearance) + var(--map-toolbar-resting-height) +
+          var(--map-chrome-gap)
+      )
     );
   }
 }

@@ -604,8 +604,16 @@ test("1440px reduced motion swaps desktop drawer ownership immediately", async (
   expect(venueBox.x).toBeCloseTo(800, 0);
 });
 
+// ONE AMBIENT SURFACE HOLDS THE MAP. UI review 17 Sep 2026, finding 5: once the
+// arrival strip was dismissed, the location prompt, the closure and area-news
+// rail and the concierge ask all painted at 1440. Nothing overlapped, so nothing
+// was unreadable; the count was the defect. The wait rule 1b enforces against
+// the strip is enforced among the banners too now, in the strip's own order
+// (components/map/mapBannerStaging.css), so the location ask owns the surface
+// alone and the status rail arrives the moment that ask is answered. This test
+// used to measure the two-lane arrangement they needed to coexist.
 for (const width of FIRST_RUN_BANNER_WIDTHS) {
-  test(`${width}px first-run location prompt owns centre while status ${width < 1024 ? "sits under it" : "yields to its left"}`, async ({
+  test(`${width}px first-run location prompt owns the map alone and the status rail waits`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: DESKTOP.height });
@@ -642,40 +650,45 @@ for (const width of FIRST_RUN_BANNER_WIDTHS) {
     const locationPrompt = page.locator(".citySuggestBanner");
     const status = page.locator(".cityStatusStack");
     await expect(locationPrompt).toBeVisible({ timeout: 20_000 });
-    await expect(status).toBeVisible({ timeout: 20_000 });
 
-    const [locationBox, statusBox] = await Promise.all([
-      renderedBox(locationPrompt, "first-run location prompt"),
-      renderedBox(status, "city status"),
-    ]);
-    const locationCentre = locationBox.x + locationBox.width / 2;
-    const statusRight = statusBox.x + statusBox.width;
+    // The status rail is ELIGIBLE here: the stub answers a Central line with
+    // severe delays, so it mounts and the cascade is what keeps it off screen.
+    // Presence with no paint is the whole assertion, because a rail that never
+    // mounted would prove nothing about the order.
+    await expect(status).toHaveCount(1, { timeout: 20_000 });
+    await expect(status).toBeHidden();
 
-    expect(
-      Math.abs(locationCentre - width / 2),
-      "location prompt owns map centre",
-    ).toBeLessThanOrEqual(1);
-    if (width < 1024) {
-      // The left lane exists from 1024px up. Below that a 160px column broke
-      // the headline mid-word, so the status keeps its default berth: centred
-      // on the map, under the prompt (#1508, mapBannerStaging.css).
-      expect(
-        Math.abs(statusBox.x + statusBox.width / 2 - width / 2),
-        "status stays centred below the left lane's width",
-      ).toBeLessThanOrEqual(1);
-      expect(
-        statusBox.y,
-        "status sits under the location prompt",
-      ).toBeGreaterThanOrEqual(locationBox.y + locationBox.height);
-      return;
-    }
-    expect(statusBox.x, "status uses left map gutter").toBeCloseTo(
-      EDGE_GUTTER,
-      0,
+    const locationBox = await renderedBox(
+      locationPrompt,
+      "first-run location prompt",
     );
     expect(
-      statusRight + EDGE_GUTTER,
-      "status yields before location prompt's left edge",
-    ).toBeLessThanOrEqual(locationBox.x);
+      Math.abs(locationBox.x + locationBox.width / 2 - width / 2),
+      "location prompt owns map centre",
+    ).toBeLessThanOrEqual(1);
+    expect(
+      locationBox.x,
+      "location prompt stays inside the viewport",
+    ).toBeGreaterThanOrEqual(EDGE_GUTTER - SUBPIXEL_TOLERANCE);
+    expect(
+      locationBox.x + locationBox.width,
+      "location prompt stays inside the viewport",
+    ).toBeLessThanOrEqual(width - EDGE_GUTTER + SUBPIXEL_TOLERANCE);
+
+    // ONE ambient surface, counted rather than argued about.
+    const painted = await page.evaluate(() =>
+      [
+        ".citySuggestBanner",
+        ".cityStatusStack",
+        ".tonightLaneCollapsed",
+        ".mapConciergeAsk",
+      ].filter((selector) => {
+        const node = document.querySelector(selector);
+        if (!node) return false;
+        const box = node.getBoundingClientRect();
+        return box.width > 0 && box.height > 0;
+      }),
+    );
+    expect(painted).toEqual([".citySuggestBanner"]);
   });
 }

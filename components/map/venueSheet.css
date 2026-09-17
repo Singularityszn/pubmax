@@ -1163,22 +1163,29 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 /* A 320px phone gives the strip 248px, and five labels at 7px a side with 2px
    gaps asked 281px, so "Overview" ran 6px past its own pill. Measured again on
    a production build at 320x844 (17 Sep 2026), against the shipped Inter
-   metrics rather than an estimate: at 3px a side and no gap the row asked
-   256.1px, not the 242.4px recorded here before (Overview 66.55 with the
-   active tab's 800 weight, Photos 49.91, Drinks 45.91, Stories 49.73, and Lore
-   at its 44px floor), so Lore wrapped to a second 44px row and the strip stood
-   94px tall (e2e/venue-tabs-fit.spec.ts:31,
-   e2e/mobile-venue-sheet-tabs.spec.ts:362). Two px of pill padding and 0.72rem
-   take the row to 240.4px inside the 244px the 2px strip inset leaves, and the
-   44px floor then squares four of the five cells, so every tab keeps its tap
-   box and its label stays centred and uncut. The label's SIZE is what yields
-   here, and never the label itself: a tab nobody can read is the section lost
-   again, and the strip is the one row on the sheet whose words are all one
-   word long. Inter is bundled, so those widths are the same on every box. */
+   metrics rather than an estimate: at 3px a side, gap 0 and a 2px strip inset
+   the row asked 256.1px of a 244px line, so Lore wrapped to a second 44px row
+   and the strip stood 94px tall (e2e/venue-tabs-fit.spec.ts:31,
+   e2e/mobile-venue-sheet-tabs.spec.ts:362).
+
+   The room is bought twice over, and from two different places, because the
+   margin this row had was four pixels either way. 2px of pill padding and
+   0.72rem take the row to 240.4px (#1700); a 1px strip inset instead of 2px
+   gives the flex line 246px rather than 244px (#1701). Together the five tabs
+   ask 240.4px of 246px, so the row holds well below a 320px viewport rather
+   than turning on the last pixel of it.
+
+   The 44px floor is where most of the room goes: Drinks and Lore ask less than
+   44px whatever the inset, so a narrower inset only ever buys Overview, Photos
+   and Stories their own width back. The label's SIZE is what yields here, and
+   never the label itself: a tab nobody can read is the section lost again, and
+   the strip is the one row on the sheet whose words are all one word long.
+   Inter is bundled, so those widths are the same on every box. */
 @media (max-width: 360px) {
   .venueTabs {
     gap: 0;
-    padding: 2px;
+    padding: 1px;
+    scroll-padding-inline: 1px;
   }
 
   .venueTab {
