@@ -6,7 +6,7 @@
 // budget it has and still lose the night because the read behind it took a
 // second.
 //
-// The rules live in lib/apiBudgets.ts so they are testable without a network:
+// The rules live in lib/apiBudgets.mjs so they are testable without a network:
 // scripts/probe-api-budgets.mjs only measures.
 
 import { readFileSync } from "node:fs";
@@ -21,7 +21,7 @@ import {
   formatApiBreachTable,
   percentile,
   type ApiRouteMeasurement,
-} from "@/lib/apiBudgets";
+} from "@/lib/apiBudgets.mjs";
 
 const REPO_ROOT = join(__dirname, "..");
 
