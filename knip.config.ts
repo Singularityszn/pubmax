@@ -49,6 +49,18 @@ const config: KnipConfig = {
     "scripts/whatson/scrape_greene_king_sport.mjs",
     "scripts/landing/build-landing-map.mjs",
     "scripts/landing/build-landing-photos.mjs",
+
+    // Invoked by scripts/local-refresh/scheduler.mjs commandsForMode() at runtime;
+    // Knip cannot trace the command() string-argument reference across the process boundary.
+    "scripts/merge_london_chain_gazetteer.mjs",
+
+    // MCP server entry point referenced by .codex/config.toml and .cursor/mcp.json;
+    // loaded by the agent harness at runtime, not imported by the app's JS module graph.
+    "scripts/run-browser-mcp.mjs",
+
+    // Invoked via subprocess.run() in scripts/export_app_dataset_json.py;
+    // Python subprocess calls are invisible to Knip's JS import graph.
+    "scripts/classify_borough_points.mjs",
   ],
   rules: {
     files: "error",
