@@ -52,11 +52,8 @@ const eslintConfig = [
     },
   },
   {
-    // Code-quality signal, not a build gate. Keeping complexity as a warning
-    // surfaces new sprawl without blocking existing code. Ratchet the threshold
-    // down as functions get refactored.
     rules: {
-      complexity: ["warn", 35],
+      complexity: ["error", 30],
     },
   },
 ];
