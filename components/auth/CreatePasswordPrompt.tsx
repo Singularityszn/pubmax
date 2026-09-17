@@ -33,7 +33,7 @@ import {
   subscribePasswordPrompt,
 } from "@/lib/passwordPrompt";
 import { discardBody } from "@/lib/responseBody";
-import "@/components/native/nativePushPrompt.css";
+import styles from "@/components/native/nativePushPrompt.module.css";
 
 /**
  * The ask that was missing. An account signing in by email link was never told

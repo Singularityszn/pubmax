@@ -17,6 +17,8 @@ import {
 } from "@/lib/pricedLanding";
 import { formatPrice } from "@/lib/venues";
 
+import styles from "./drinkBrandDirectory.module.css";
+
 // The map opens on a PUB, never on `?q=<area name>`: `q` is a free-text venue
 // filter (lib/venues.ts matchesVenueQuery), so an area name matches whatever
 // pubs happen to carry it and "Piccadilly & Soho" matches none. A pub is named
@@ -50,9 +52,9 @@ export default function DrinkBrandAreaLandingContent({
   });
 
   return (
-    <div className="drinkBrandDirectory">
-      <header className="drinkBrandDirectory__head">
-        <p className="drinkBrandDirectory__eyebrow">
+    <div className={styles.drinkBrandDirectory}>
+      <header className={styles.drinkBrandDirectoryHead}>
+        <p className={styles.drinkBrandDirectoryEyebrow}>
           <Link prefetch={false} href="/map">London map</Link> <span aria-hidden="true">·</span>{" "}
           <Link href={`/drink/${encodeURIComponent(landing.brandSlug)}`}>
             {landing.brandLabel}
@@ -62,20 +64,20 @@ export default function DrinkBrandAreaLandingContent({
         <h1>
           Cheapest {landing.brandLabel} pints in {landing.areaName}
         </h1>
-        <p className="drinkBrandDirectory__from">
+        <p className={styles.drinkBrandDirectoryFrom}>
           <strong>From {formatPrice(firstRow.priceGbp)}</strong>
           <PricedLandingPublisher
-            className="drinkBrandDirectory__fromPublisher"
+            className={styles.drinkBrandDirectoryFromPublisher}
             row={firstRow}
             variant="hero"
           />
         </p>
-        <p className="drinkBrandDirectory__summary">
+        <p className={styles.drinkBrandDirectorySummary}>
           {landing.totalPricedVenues} pubs with listed {landing.brandLabel} pints. Collected{" "}
           {formatPricedLandingCollectedDate(landing.collectedAt)}.
         </p>
-        <div className="drinkBrandDirectory__actions">
-          <Link className="drinkBrandDirectory__primary" href={arrival.href}>
+        <div className={styles.drinkBrandDirectoryActions}>
+          <Link className={styles.drinkBrandDirectoryPrimary} href={arrival.href}>
             {arrival.label}
           </Link>
         </div>
@@ -84,17 +86,17 @@ export default function DrinkBrandAreaLandingContent({
           variant="band"
           sizes="(max-width: 1100px) 100vw, 1040px"
           priority
-          className="drinkBrandDirectory__photo"
+          className={styles.drinkBrandDirectoryPhoto}
         />
       </header>
 
       <section
-        className="drinkBrandDirectory__prices"
+        className={styles.drinkBrandDirectoryPrices}
         aria-labelledby="drink-brand-area-price-heading"
       >
-        <div className="drinkBrandDirectory__sectionHead">
+        <div className={styles.drinkBrandDirectorySectionHead}>
           <h2 id="drink-brand-area-price-heading">The pubs</h2>
-          <span className="drinkBrandDirectory__sectionCount">
+          <span className={styles.drinkBrandDirectorySectionCount}>
             {pricedLandingCountLabel(landing.totalPricedVenues, landing.rows.length)}
           </span>
         </div>

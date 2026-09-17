@@ -148,7 +148,7 @@ describe("no surface puts the raw coral back on a light word", () => {
       "components/city/cityChooser.css",
       ".cityChooser--section .cityChooserReleaseBadge {",
     ],
-    ["components/map/venueOccupancy.css", ".venueOccupancySignIn a {"],
+    ["components/map/venueOccupancy.module.css", ".venueOccupancySignIn a {"],
     ["components/plan/nightCrawl.css", ".nightCrawl__enterKicker {"],
   ];
 

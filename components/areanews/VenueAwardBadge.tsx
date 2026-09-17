@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { Award } from "lucide-react";
 
 import { formatAreaNewsDate, type AreaNewsEntry } from "@/lib/areaNews";
-import "./venueAwardBadge.css";
+import styles from "./venueAwardBadge.module.css";
 
 export default function VenueAwardBadge({
   venueId,
@@ -39,15 +39,15 @@ export default function VenueAwardBadge({
 
   return (
     <a
-      className="venueAwardPlaque"
+      className={styles.venueAwardPlaque}
       href={award.sourceUrl}
       target="_blank"
       rel="noreferrer noopener"
     >
-      <Award className="venueAwardIcon" size={16} aria-hidden="true" />
-      <span className="venueAwardText">
-        <span className="venueAwardTitle">{award.title}</span>
-        <span className="venueAwardSource">
+      <Award className={styles.venueAwardIcon} size={16} aria-hidden="true" />
+      <span className={styles.venueAwardText}>
+        <span className={styles.venueAwardTitle}>{award.title}</span>
+        <span className={styles.venueAwardSource}>
           {award.sourceName} · {formatAreaNewsDate(award.observedAt)}
         </span>
       </span>

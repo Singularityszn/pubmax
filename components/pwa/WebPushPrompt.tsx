@@ -13,7 +13,7 @@ import {
   markWebPushPromptEnabled,
   subscribeWebPushPrompt,
 } from "@/lib/webPushPrompt";
-import "@/components/native/nativePushPrompt.css";
+import styles from "@/components/native/nativePushPrompt.module.css";
 
 const WEB_PUSH_SURFACE = "web-push";
 
@@ -49,29 +49,29 @@ export default function WebPushPrompt(): React.JSX.Element | null {
   }
 
   return (
-    <div className="nativePushPrompt">
+    <div className={styles.nativePushPrompt}>
       <div
-        className="nativePushPrompt__card"
+        className={styles.nativePushPromptCard}
         role="dialog"
         aria-modal="false"
         aria-labelledby="web-push-prompt-title"
         aria-describedby="web-push-prompt-body"
       >
-        <p id="web-push-prompt-title" className="nativePushPrompt__title">
+        <p id="web-push-prompt-title" className={styles.nativePushPromptTitle}>
           Get the London brief
         </p>
-        <p id="web-push-prompt-body" className="nativePushPrompt__body">
+        <p id="web-push-prompt-body" className={styles.nativePushPromptBody}>
           Weather verdict and one sourced pick for tonight. No crew or personal alerts yet.
         </p>
         {error ? (
-          <p className="nativePushPrompt__error" role="status">
+          <p className={styles.nativePushPromptError} role="status">
             {error}
           </p>
         ) : null}
-        <div className="nativePushPrompt__actions">
+        <div className={styles.nativePushPromptActions}>
           <button
             type="button"
-            className="nativePushPrompt__later pressable"
+            className={`${styles.nativePushPromptLater} pressable`}
             onClick={markWebPushPromptDismissed}
             disabled={pending}
           >
@@ -79,7 +79,7 @@ export default function WebPushPrompt(): React.JSX.Element | null {
           </button>
           <button
             type="button"
-            className="nativePushPrompt__enable pressable"
+            className={`${styles.nativePushPromptEnable} pressable`}
             onClick={() => void handleEnable()}
             disabled={pending}
           >

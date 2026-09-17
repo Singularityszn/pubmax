@@ -15,7 +15,7 @@ const globalsCss = read("app/globals.css");
 const toolbarCss = read("components/map/mapToolbar.css");
 const citySwitcherCss = read("components/map/citySwitcher.css");
 const zonePickerCss = read("components/map/zonePicker.css");
-const conditionsCss = read("components/desktop/conditionsChip.css");
+const conditionsCss = read("components/desktop/conditionsChip.module.css");
 const searchCss = read("components/map/mapSearchSuggest.css");
 
 describe("desktop map toolbar rhythm", () => {

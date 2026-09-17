@@ -76,7 +76,7 @@ function citySearchPlaceholder(cityId: CityId, displayName: string): string {
 }
 
 import railStyles from "./ControlRail.module.css";
-import "./accessibilityFilters.css";
+import "./accessibilityFilters.module.css";
 // Map-scoped colour polish (D3): POI-toggle swatch rings + the documented,
 // unwired pin-by-category paint patch. Imported here (map chrome, non-hot) so
 // the rules load with the map without touching the codex-hot canvas.

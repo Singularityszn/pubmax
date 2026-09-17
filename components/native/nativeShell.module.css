@@ -1,0 +1,76 @@
+/* Native-shell document chrome.
+   ---------------------------------------------------------------------------
+   Every rule here hangs off [data-native-shell] on <html>, which
+   components/native/NativeShellChrome.tsx sets only after isNativeApp()
+   answers true. The web document never matches, so a browser visit renders
+   byte-identically to before this file existed. That is the whole containment
+   story: no media query, no user-agent sniff, one attribute.
+
+   What this fixes is the handful of WebView behaviours that read as "somebody
+   wrapped a website" the first time a thumb touches the glass. They are
+   document-level, which is why no component could own them.
+
+   1. RUBBER-BAND. iOS bounces the whole document past its own ends and shows
+      the WebView's backdrop behind the page. In Safari that reads as the
+      browser; in an app it reads as the app coming unstuck from its own
+      background. overscroll-behavior:none stops the document bouncing while
+      leaving every inner scroller (the venue sheet, the map list, the chat
+      thread) with its own scroll and its own `contain`.
+   2. PULL-TO-REFRESH. The same property takes Android's WebView refresh
+      spinner away. A remote-URL shell that reloads the origin on a downward
+      swipe loses the map camera, the open sheet and the half-typed price.
+   3. THE LONG-PRESS CALLOUT. Holding a heading or an icon in a WKWebView
+      raises the selection magnifier and a Copy/Look Up bar. On chrome and
+      controls that is never what the person meant, so the callout goes there
+      and stays everywhere a reader might genuinely want the words: prose,
+      figures, addresses and every field they type into.
+   4. THE TAP FLASH. Android paints a grey box over whatever was tapped,
+      including the tab bar and the map's own controls. The press states this
+      app already draws are the feedback.
+
+   Not here on purpose: safe-area insets. Those are shared with the installed
+   PWA and already live with the surfaces that own them (siteNav.css's
+   margin-top, mobileNav.css's --float-stack-base, mobileMapShell.css's corner
+   lane). Restating them under a native-only attribute would fork the geometry
+   that e2e/mobile-map-chrome-fit.spec.ts measures. */
+
+[data-native-shell] {
+  /* The document itself stops bouncing; inner scrollers keep theirs. */
+  overscroll-behavior: none;
+  /* iOS momentum inside the panes that do scroll. */
+  -webkit-overflow-scrolling: touch;
+}
+
+[data-native-shell] body {
+  overscroll-behavior: none;
+  /* A WebView has no browser chrome to fall back on, so a horizontal drag that
+     escapes a rail would leave the page visibly offset with no way to correct
+     it. The rails themselves keep their own overscroll-behavior-x: contain. */
+  overflow-x: hidden;
+}
+
+[data-native-shell] * {
+  /* Android's grey press box. Every control here draws its own press state. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The long-press CALLOUT goes from chrome and controls, which is where the
+   magnifier and the Copy/Look Up bar are always an accident.
+
+   Selection itself is deliberately NOT touched here. app/globals.css already
+   suppresses it on every control the whole site over, native included, and
+   __tests__/mobileWebPolish.test.ts holds that to a short deliberate list so a
+   new file cannot quietly make more of the page unselectable. The callout is
+   the part no web rule covers, so it is the only part this file adds. */
+[data-native-shell] :is(button, a, summary, label, [role="button"], [role="tab"], [role="switch"]),
+[data-native-shell] :global(:is(.mobileTabBar, .siteNavBar, .surfaceNav, .createFab)) {
+  -webkit-touch-callout: none;
+}
+
+/* A field is for typing in, and a figure, a date, an address or a pub name is
+   worth copying. Both get the callout back inside whatever control wrapper the
+   rule above matched around them. */
+[data-native-shell] :is(input, textarea, [contenteditable="true"]),
+[data-native-shell] :is(p, li, dd, address, blockquote, code, pre, [data-copyable]) {
+  -webkit-touch-callout: default;
+}

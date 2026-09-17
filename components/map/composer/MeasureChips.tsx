@@ -11,7 +11,7 @@ import {
   type DrinkMeasure,
 } from "@/lib/drinkMeasure";
 
-import "@/components/map/measureChips.css";
+import styles from "@/components/map/measureChips.module.css";
 
 type MeasureChipsProps = {
   measure: DrinkMeasure;
@@ -46,12 +46,12 @@ export default function MeasureChips({
   const labelInputId = `${groupId}-label`;
 
   return (
-    <div className="measureField">
-      <span className="measureFieldLabel" id={`${groupId}-measure`}>
+    <div className={styles.measureField}>
+      <span className={styles.measureFieldLabel} id={`${groupId}-measure`}>
         {fieldLabel}
       </span>
       <div
-        className="measureChips"
+        className={styles.measureChips}
         role="radiogroup"
         aria-labelledby={`${groupId}-measure`}
       >
@@ -63,7 +63,7 @@ export default function MeasureChips({
               type="button"
               role="radio"
               aria-checked={selected}
-              className={selected ? "measureChip selected" : "measureChip"}
+              className={selected ? `${styles.measureChip} ${styles.selected}` : styles.measureChip}
               disabled={disabled}
               onClick={() =>
                 onChange({
@@ -78,8 +78,8 @@ export default function MeasureChips({
         })}
       </div>
       {measure === "other" ? (
-        <label className="measureLabelField" htmlFor={labelInputId}>
-          <span className="srOnly">What measure was it?</span>
+        <label className={styles.measureLabelField} htmlFor={labelInputId}>
+          <span className={styles.srOnly}>What measure was it?</span>
           <input
             id={labelInputId}
             value={measureLabel}

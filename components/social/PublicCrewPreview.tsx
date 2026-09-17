@@ -3,6 +3,7 @@
 import type { SocialCrewPublicPreviewDTO } from "@/lib/socialCrew";
 import { displayHandle } from "@/lib/handleDisplay";
 import { crewStartsCaption } from "@/lib/socialCrewsUi";
+import styles from "./crews.module.css";
 
 export type PublicCrewJoinState = "none" | "pending" | "declined";
 
@@ -22,40 +23,40 @@ export default function PublicCrewPreview({
   const starts = crewStartsCaption(preview.startsAt);
   return (
     <>
-      <header className="crewPage__head">
+      <header className={styles.crewPageHead}>
         <h1>{preview.title}</h1>
-        <p className="crewPage__meta">
+        <p className={styles.crewPageMeta}>
           <span>{displayHandle(preview.hostHandle)}</span>
           {starts ? <time dateTime={preview.startsAt}>{starts}</time> : null}
         </p>
       </header>
 
       <section aria-labelledby="public-crew-meeting-point">
-        <h2 id="public-crew-meeting-point" className="crews__title">
+        <h2 id="public-crew-meeting-point" className={styles.crewsTitle}>
           Meet at
         </h2>
-        <p className="crews__note">{preview.meetingPoint.name}</p>
+        <p className={styles.crewsNote}>{preview.meetingPoint.name}</p>
       </section>
 
       {problem ? (
-        <p className="crews__problem" role="alert">
+        <p className={styles.crewsProblem} role="alert">
           {problem}
         </p>
       ) : null}
 
       {joinState === "pending" ? (
-        <p className="crews__muted" role="status">
+        <p className={styles.crewsMuted} role="status">
           Request sent. The host decides.
         </p>
       ) : joinState === "declined" ? (
-        <p className="crews__muted" role="status">
+        <p className={styles.crewsMuted} role="status">
           The host said no to this one.
         </p>
       ) : (
-        <section className="crews__notice">
+        <section className={styles.crewsNotice}>
           <button
             type="button"
-            className="crews__button crews__button--primary"
+            className={`${styles.crewsButton} ${styles.crewsButtonPrimary}`}
             disabled={busy}
             onClick={onAskToJoin}
           >

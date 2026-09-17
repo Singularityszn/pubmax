@@ -17,7 +17,7 @@ import {
   foundersDiscordInviteUrl,
 } from "@/lib/foundingMembers";
 
-import "./foundersDiscordLink.css";
+import styles from "./foundersDiscordLink.module.css";
 
 export default function FoundersDiscordLink({
   className,

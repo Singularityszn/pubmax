@@ -14,7 +14,7 @@ import {
   type SpoonsValueLensState,
 } from "@/lib/spoonsValue";
 
-import "./spoonsValueLens.css";
+import styles from "./spoonsValueLens.module.css";
 
 /**
  * The Spoons value lens, as a control the reader can see.
@@ -44,42 +44,42 @@ export default function SpoonsValueLensControl({
     <section
       className={
         variant === "sheet"
-          ? "spoonsValueLens spoonsValueLens--sheet"
-          : "spoonsValueLens"
+          ? `${styles.spoonsValueLens} ${styles.spoonsValueLensSheet}`
+          : styles.spoonsValueLens
       }
       aria-label={SPOONS_VALUE_LENS_LABEL}
     >
-      <div className="spoonsValueLensRow">
+      <div className={styles.spoonsValueLensRow}>
         <button
           type="button"
-          className={on ? "spoonsValueLensToggle isOn" : "spoonsValueLensToggle"}
+          className={on ? `${styles.spoonsValueLensToggle} ${styles.isOn}` : styles.spoonsValueLensToggle}
           aria-pressed={on}
           onClick={() => onChange(!on)}
         >
           {SPOONS_VALUE_LENS_LABEL}
         </button>
-        <Link className="spoonsValueLensLink" href={SPOONS_VALUE_ROUTE}>
+        <Link className={styles.spoonsValueLensLink} href={SPOONS_VALUE_ROUTE}>
           See the ranking
         </Link>
       </div>
 
       {on && state.status === "ready" && modal !== null ? (
         <>
-          <ul className="spoonsValueLensLegend">
+          <ul className={styles.spoonsValueLensLegend}>
             {SPOONS_VALUE_BANDS.map((band) => (
               <li key={band}>
                 <span
-                  className={`spoonsValueLensSwatch ${spoonsValueBandClass(band)}`}
+                  className={`${styles.spoonsValueLensSwatch} ${spoonsValueBandClass(band)}`}
                   aria-hidden="true"
                 />
-                <span className="spoonsValueLensBand">{spoonsValueBandLabel(band)}</span>
-                <span className="spoonsValueLensFigure">
+                <span className={styles.spoonsValueLensBand}>{spoonsValueBandLabel(band)}</span>
+                <span className={styles.spoonsValueLensFigure}>
                   {spoonsValueBandLegendLabel(band, modal)}
                 </span>
               </li>
             ))}
           </ul>
-          <p className="spoonsValueLensNote">
+          <p className={styles.spoonsValueLensNote}>
             {`Units the best £10 round holds. Most pubs pour ${formatUnits(modal)}. `}
             {SPOONS_VALUE_RESPONSIBLE_LINE}
           </p>
@@ -87,7 +87,7 @@ export default function SpoonsValueLensControl({
       ) : null}
 
       {on && state.status !== "ready" ? (
-        <p className="spoonsValueLensNote" role="status" aria-live="polite">
+        <p className={styles.spoonsValueLensNote} role="status" aria-live="polite">
           {state.status === "loading"
             ? "Reading the ranking."
             : state.status === "empty"

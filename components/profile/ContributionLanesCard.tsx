@@ -7,7 +7,7 @@ import { discardBody } from "@/lib/responseBody";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-import "./yourContributionsCard.css";
+import styles from "./yourContributionsCard.module.css";
 
 // The wider record on the You page: visit reports and recommendations beside
 // the price-trust measures, for a fresh owner who has only ever seen pint drops
@@ -70,12 +70,12 @@ export function ContributionLanesCardContent({ state, impact }: ContentProps) {
     return (
       <section
         id="contribution-impact"
-        className="contribCard"
+        className={styles.contribCard}
         aria-labelledby="contrib-lanes-title"
         aria-busy="true"
       >
-        <h2 className="contribKicker" id="contrib-lanes-title">Your contributor record</h2>
-        <p className="contribMuted">Counting the rest of your record…</p>
+        <h2 className={styles.contribKicker} id="contrib-lanes-title">Your contributor record</h2>
+        <p className={styles.contribMuted}>Counting the rest of your record…</p>
       </section>
     );
   }
@@ -84,11 +84,11 @@ export function ContributionLanesCardContent({ state, impact }: ContentProps) {
     return (
       <section
         id="contribution-impact"
-        className="contribCard"
+        className={styles.contribCard}
         aria-labelledby="contrib-lanes-title"
       >
-        <h2 className="contribKicker" id="contrib-lanes-title">Your contributor record</h2>
-        <p className="contribMuted">Couldn&apos;t load the rest of your record right now.</p>
+        <h2 className={styles.contribKicker} id="contrib-lanes-title">Your contributor record</h2>
+        <p className={styles.contribMuted}>Couldn&apos;t load the rest of your record right now.</p>
       </section>
     );
   }
@@ -102,27 +102,27 @@ export function ContributionLanesCardContent({ state, impact }: ContentProps) {
   return (
     <section
       id="contribution-impact"
-      className="contribCard"
+      className={styles.contribCard}
       aria-labelledby="contrib-lanes-title"
     >
-      <h2 className="contribKicker" id="contrib-lanes-title">Your contributor record</h2>
+      <h2 className={styles.contribKicker} id="contrib-lanes-title">Your contributor record</h2>
 
       {!hasContributed ? (
-        <p className="contribEmpty">
+        <p className={styles.contribEmpty}>
           No prices, visit reports, or recommendations yet. Write up a pub or
           point mates to a good one and it lands here too.
         </p>
       ) : (
-        <div className="contribTotals">
-          <div className="contribStat">
-            <span className="contribStatValue">{reviews}</span>
-            <span className="contribStatLabel">
+        <div className={styles.contribTotals}>
+          <div className={styles.contribStat}>
+            <span className={styles.contribStatValue}>{reviews}</span>
+            <span className={styles.contribStatLabel}>
               {reviews === 1 ? "visit report" : "visit reports"}
             </span>
           </div>
-          <div className="contribStat">
-            <span className="contribStatValue">{recommendations}</span>
-            <span className="contribStatLabel">
+          <div className={styles.contribStat}>
+            <span className={styles.contribStatValue}>{recommendations}</span>
+            <span className={styles.contribStatLabel}>
               {recommendations === 1 ? "recommendation" : "recommendations"}
             </span>
           </div>
@@ -130,10 +130,10 @@ export function ContributionLanesCardContent({ state, impact }: ContentProps) {
       )}
 
       {impact?.kind === "ready" && impact.stats.status === "ready" ? (
-        <div className="contribTotals" data-testid="price-trust-impact">
-          <div className="contribStat">
-            <span className="contribStatValue">{impact.stats.observationsLogged ?? 0}</span>
-            <span className="contribStatLabel">
+        <div className={styles.contribTotals} data-testid="price-trust-impact">
+          <div className={styles.contribStat}>
+            <span className={styles.contribStatValue}>{impact.stats.observationsLogged ?? 0}</span>
+            <span className={styles.contribStatLabel}>
               {measureLabel(
                 impact.stats.observationsLogged ?? 0,
                 "observation logged",
@@ -141,9 +141,9 @@ export function ContributionLanesCardContent({ state, impact }: ContentProps) {
               )}
             </span>
           </div>
-          <div className="contribStat">
-            <span className="contribStatValue">{impact.stats.pricesTrustedNow ?? 0}</span>
-            <span className="contribStatLabel">
+          <div className={styles.contribStat}>
+            <span className={styles.contribStatValue}>{impact.stats.pricesTrustedNow ?? 0}</span>
+            <span className={styles.contribStatLabel}>
               {measureLabel(
                 impact.stats.pricesTrustedNow ?? 0,
                 "price trusted now",
@@ -151,9 +151,9 @@ export function ContributionLanesCardContent({ state, impact }: ContentProps) {
               )}
             </span>
           </div>
-          <div className="contribStat">
-            <span className="contribStatValue">{impact.stats.lifetimeTrustUnlocks ?? 0}</span>
-            <span className="contribStatLabel">
+          <div className={styles.contribStat}>
+            <span className={styles.contribStatValue}>{impact.stats.lifetimeTrustUnlocks ?? 0}</span>
+            <span className={styles.contribStatLabel}>
               {measureLabel(
                 impact.stats.lifetimeTrustUnlocks ?? 0,
                 "lifetime trust unlock",
@@ -166,10 +166,10 @@ export function ContributionLanesCardContent({ state, impact }: ContentProps) {
 
       {impact?.kind === "degraded" ||
       (impact?.kind === "ready" && impact.stats.status === "degraded") ? (
-        <p className="contribMuted">Couldn&apos;t load your price trust record right now.</p>
+        <p className={styles.contribMuted}>Couldn&apos;t load your price trust record right now.</p>
       ) : null}
 
-      <Link className="contribRecordLink" href="/contributors">
+      <Link className={styles.contribRecordLink} href="/contributors">
         See the contributor record
       </Link>
     </section>

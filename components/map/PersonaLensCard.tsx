@@ -15,7 +15,7 @@ import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import { categoryLabel } from "@/lib/drinks";
 import { PERSONA_DISCLAIMER, type PersonaDrink } from "@/lib/personaDrinks";
 
-import "./personaLens.css";
+import styles from "./personaLens.module.css";
 
 type PersonaLensCardProps = {
   persona: PersonaDrink;
@@ -37,14 +37,14 @@ export default function PersonaLensCard({
   const hasIngredients = persona.ingredients.length > 0;
   return (
     <aside
-      className="personaLensCard"
+      className={styles.personaLensCard}
       aria-label={`Drink like ${persona.name}`}
     >
-      <div className="personaLensCardHead">
-        <span className="personaLensCardEyebrow">{framingLine(persona)}</span>
+      <div className={styles.personaLensCardHead}>
+        <span className={styles.personaLensCardEyebrow}>{framingLine(persona)}</span>
         <button
           type="button"
-          className="personaLensCardClose"
+          className={styles.personaLensCardClose}
           onClick={onClose}
           aria-label="Close persona lens"
         >
@@ -52,23 +52,23 @@ export default function PersonaLensCard({
         </button>
       </div>
 
-      <div className="personaLensCardTitle">
+      <div className={styles.personaLensCardTitle}>
         <DrinkGlyph category={persona.drinkCategory} size={30} />
         <div>
-          <h2 className="personaLensCardName">{persona.name}</h2>
-          <p className="personaLensCardKnownFor">{persona.knownFor}</p>
+          <h2 className={styles.personaLensCardName}>{persona.name}</h2>
+          <p className={styles.personaLensCardKnownFor}>{persona.knownFor}</p>
         </div>
       </div>
 
-      <div className="personaLensCardDrink">
-        <strong className="personaLensCardDrinkName">{persona.drink}</strong>
-        <span className="personaLensCardCategory">
+      <div className={styles.personaLensCardDrink}>
+        <strong className={styles.personaLensCardDrinkName}>{persona.drink}</strong>
+        <span className={styles.personaLensCardCategory}>
           {categoryLabel(persona.drinkCategory)}
         </span>
       </div>
 
       {typeof matchCount === "number" ? (
-        <p className="personaLensCardPubTie">
+        <p className={styles.personaLensCardPubTie}>
           {matchCount === 0
             ? "No pubs on the map match this drink right now."
             : matchCount === 1
@@ -78,24 +78,24 @@ export default function PersonaLensCard({
       ) : null}
 
       {hasIngredients ? (
-        <ul className="personaLensCardIngredients" aria-label="Ingredients">
+        <ul className={styles.personaLensCardIngredients} aria-label="Ingredients">
           {persona.ingredients.map((ingredient) => (
-            <li key={ingredient} className="personaLensCardIngredient">
+            <li key={ingredient} className={styles.personaLensCardIngredient}>
               {ingredient}
             </li>
           ))}
         </ul>
       ) : null}
 
-      <p className="personaLensCardOrder">
-        <span className="personaLensCardOrderLabel">How to order</span>
+      <p className={styles.personaLensCardOrder}>
+        <span className={styles.personaLensCardOrderLabel}>How to order</span>
         {persona.howToOrder}
       </p>
 
-      <p className="personaLensCardWhy">{persona.why}</p>
+      <p className={styles.personaLensCardWhy}>{persona.why}</p>
 
       <a
-        className="personaLensCardSource"
+        className={styles.personaLensCardSource}
         href={persona.sourceUrl}
         target="_blank"
         rel="noopener noreferrer"
@@ -104,7 +104,7 @@ export default function PersonaLensCard({
         <ExternalLink size={13} aria-hidden="true" />
       </a>
 
-      <p className="personaLensCardDisclaimer">{PERSONA_DISCLAIMER}</p>
+      <p className={styles.personaLensCardDisclaimer}>{PERSONA_DISCLAIMER}</p>
     </aside>
   );
 }

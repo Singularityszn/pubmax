@@ -7,7 +7,7 @@ import { type ContributionSummary } from "@/lib/pintContributions";
 import { nightsKeptLabel, readNightsKept } from "@/lib/nightsKept";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
-import "./yourContributionsCard.css";
+import styles from "./yourContributionsCard.module.css";
 
 // The "your impact" card on the You page (feat/price-drops-v2). Fetches the
 // contributor's own stats from GET /api/pint-drops/stats and renders the honest
@@ -48,7 +48,7 @@ const MAX_BOROUGH_CHIPS = 6;
 
 function ContributorRecordLink() {
   return (
-    <Link className="contribRecordLink" href="/contributors">
+    <Link className={styles.contribRecordLink} href="/contributors">
       See the contributor record
     </Link>
   );
@@ -91,9 +91,9 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
 
   if (state.kind === "loading") {
     return (
-      <section className="contribCard" aria-labelledby="contrib-title" aria-busy="true">
-        <p className="contribKicker" id="contrib-title">Your contributions</p>
-        <p className="contribMuted">Counting your pints…</p>
+      <section className={styles.contribCard} aria-labelledby="contrib-title" aria-busy="true">
+        <p className={styles.contribKicker} id="contrib-title">Your contributions</p>
+        <p className={styles.contribMuted}>Counting your pints…</p>
         <ContributorRecordLink />
       </section>
     );
@@ -101,9 +101,9 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
 
   if (state.kind === "error") {
     return (
-      <section className="contribCard" aria-labelledby="contrib-title">
-        <p className="contribKicker" id="contrib-title">Your contributions</p>
-        <p className="contribMuted">Couldn&apos;t load your stats right now.</p>
+      <section className={styles.contribCard} aria-labelledby="contrib-title">
+        <p className={styles.contribKicker} id="contrib-title">Your contributions</p>
+        <p className={styles.contribMuted}>Couldn&apos;t load your stats right now.</p>
         <ContributorRecordLink />
       </section>
     );
@@ -115,37 +115,37 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
   const hasContributed = pintsMapped > 0 || streak.activeDays > 0;
 
   return (
-    <section className="contribCard" aria-labelledby="contrib-title">
-      <p className="contribKicker" id="contrib-title">Your contributions</p>
+    <section className={styles.contribCard} aria-labelledby="contrib-title">
+      <p className={styles.contribKicker} id="contrib-title">Your contributions</p>
 
-      {nightsLabel ? <p className="contribNightsKept">{nightsLabel}</p> : null}
+      {nightsLabel ? <p className={styles.contribNightsKept}>{nightsLabel}</p> : null}
 
       {!hasContributed ? (
-        <p className="contribEmpty">
+        <p className={styles.contribEmpty}>
           Log a price at a pub and your first drop lands here. That&apos;s a real
           data point on the London map, not a point in a game.
         </p>
       ) : (
         <>
-          <div className="contribTotals">
-            <div className="contribStat">
-              <span className="contribStatValue">{pintsMapped}</span>
-              <span className="contribStatLabel">
+          <div className={styles.contribTotals}>
+            <div className={styles.contribStat}>
+              <span className={styles.contribStatValue}>{pintsMapped}</span>
+              <span className={styles.contribStatLabel}>
                 {pintsMapped === 1 ? "pint mapped" : "pints mapped"}
               </span>
             </div>
-            <div className="contribStat">
-              <span className="contribStatValue">{byBorough.length}</span>
-              <span className="contribStatLabel">
+            <div className={styles.contribStat}>
+              <span className={styles.contribStatValue}>{byBorough.length}</span>
+              <span className={styles.contribStatLabel}>
                 {byBorough.length === 1 ? "borough" : "boroughs"}
               </span>
             </div>
           </div>
 
           {topBoroughs.length ? (
-            <div className="contribBoroughs">
+            <div className={styles.contribBoroughs}>
               {topBoroughs.map((tally) => (
-                <span className="contribBoroughChip" key={tally.borough}>
+                <span className={styles.contribBoroughChip} key={tally.borough}>
                   {tally.borough} <b>{tally.count}</b>
                 </span>
               ))}
@@ -155,7 +155,7 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
       )}
 
       {claimNudge ? (
-        <a className="contribNudge" href="#account-settings">
+        <a className={styles.contribNudge} href="#account-settings">
           Keep your drops. Claim your @handle
         </a>
       ) : null}

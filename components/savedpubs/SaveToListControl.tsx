@@ -10,7 +10,7 @@ import {
 } from "@/lib/savedListPolicy";
 import type { VenueKind } from "@/lib/venues";
 
-import "./saveToList.css";
+import styles from "./saveToList.module.css";
 import { authedActionFetch } from "@/lib/authedFetch";
 
 // Save-a-venue-to-a-list control with CUSTOM LIST support (story 33). A small,
@@ -120,7 +120,7 @@ export default function SaveToListControl({
 
   if (!open) {
     return (
-      <button type="button" className="saveToListToggle" onClick={() => setOpen(true)}>
+      <button type="button" className={styles.saveToListToggle} onClick={() => setOpen(true)}>
         Save{venueName ? ` ${venueName}` : ""} to a list
       </button>
     );
@@ -129,13 +129,13 @@ export default function SaveToListControl({
   const allLists = [...eligibleBuiltInListTypes(venueKind), ...customLists];
 
   return (
-    <section className="saveToList" aria-label="Save this venue to a list">
-      <div className="saveToListChips">
+    <section className={styles.saveToList} aria-label="Save this venue to a list">
+      <div className={styles.saveToListChips}>
         {allLists.map((name) => (
           <button
             key={name}
             type="button"
-            className="saveToListChip"
+            className={styles.saveToListChip}
             onClick={() => void save(name)}
             disabled={busy}
           >
@@ -144,7 +144,7 @@ export default function SaveToListControl({
         ))}
       </div>
 
-      <div className="saveToListNew">
+      <div className={styles.saveToListNew}>
         <input
           type="text"
           value={newName}
@@ -155,7 +155,7 @@ export default function SaveToListControl({
         />
         <button
           type="button"
-          className="saveToListCreate"
+          className={styles.saveToListCreate}
           onClick={() => void createAndSave()}
           disabled={busy || !newName.trim()}
         >
@@ -164,12 +164,12 @@ export default function SaveToListControl({
       </div>
 
       {toast ? (
-        <p className="saveToListToast" role="status">
+        <p className={styles.saveToListToast} role="status">
           {toast}
         </p>
       ) : null}
 
-      <button type="button" className="saveToListClose" onClick={() => setOpen(false)}>
+      <button type="button" className={styles.saveToListClose} onClick={() => setOpen(false)}>
         Close
       </button>
     </section>

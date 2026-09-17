@@ -1,0 +1,329 @@
+/* Crews. Loaded with the panel so the crew detail route styles without /social. */
+.crews {
+  margin-top: var(--space-4);
+  padding: var(--space-4) 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.crewsCompact {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+}
+
+.crewsTitle {
+  margin: 0;
+  font-size: var(--text-lg, 1.15rem);
+  font-weight: 750;
+}
+
+.crewsNote,
+.crewsEmpty,
+.crewsMuted {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted, var(--ink-soft));
+}
+
+.crewsList,
+.crewsVenueList,
+.crewsMembers {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.crewsRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 10px);
+  background: var(--panel-raised);
+}
+
+.crewsRowLink {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.crewsRowName {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.crewsRowMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--muted, var(--ink-soft));
+}
+
+.crewsPhase {
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.crewsPhaseLive {
+  color: var(--color-positive, var(--pint));
+}
+
+.crewsRole {
+  font-size: var(--text-xs);
+  color: var(--muted, var(--ink-soft));
+  white-space: nowrap;
+}
+
+.crewsStartBlock {
+  margin-top: var(--space-3);
+}
+
+.crewsForm {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-soft, var(--line));
+  display: grid;
+  gap: var(--space-3);
+}
+
+.crewsField {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+/* A field that follows a list of people needs its own air, or its label reads
+   as the last row's caption. */
+.crewsList + .crewsField,
+.crewsMembers + .crewsField {
+  margin-top: var(--space-3);
+}
+
+.crewsField > span:first-child {
+  font-weight: 650;
+}
+
+.crewsField input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 10px);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+}
+
+.crewsVisibility {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.crewsVisibility legend {
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+.crewsVisibilityOptions {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.crewsVisibilityOption {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 10px);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.crewsVisibilityOption input {
+  flex: 0 0 auto;
+  width: 1rem;
+  min-height: 1rem;
+  margin: 0.15rem 0 0;
+  accent-color: var(--color-accent, var(--brass));
+}
+
+.crewsVisibilityOption span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.crewsCount {
+  justify-self: end;
+  font-size: var(--text-xs);
+  color: var(--muted, var(--ink-soft));
+  font-variant-numeric: tabular-nums;
+}
+
+.crewsVenueOption {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 10px);
+  background: var(--panel-raised);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crewsVenueOption small {
+  color: var(--muted, var(--ink-soft));
+}
+
+.crewsFormActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.crewsButton {
+  min-height: 44px;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 10px);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.crewsButtonPrimary {
+  border-color: transparent;
+  background: var(--color-accent, var(--brass));
+  color: var(--paper);
+}
+
+.crewsButtonDanger {
+  color: var(--color-negative, var(--brick));
+}
+
+.crewsButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Press feedback is the one shared owner in globals.css
+   (button:not([data-no-press]):not(:disabled):active). A second scale here
+   would compound with it. */
+
+.crewsProblem {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-negative, var(--brick));
+}
+
+.crewsNotice {
+  margin-top: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  font-size: var(--text-sm);
+}
+
+.crewsNotice p {
+  margin: 0;
+}
+
+.crewsSkeletons {
+  margin-top: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.crewsSkeletons span {
+  display: block;
+  height: 56px;
+  border-radius: var(--radius-md, 10px);
+  background: var(--panel);
+}
+
+/* Crew detail */
+.crewPageBack {
+  justify-self: start;
+  font-size: var(--text-sm);
+  font-weight: 650;
+  color: var(--ink-soft);
+}
+
+.crewPage {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: var(--space-4);
+}
+
+.crewPageHead h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 4vw, 1.9rem);
+  overflow-wrap: anywhere;
+}
+
+.crewPageMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted, var(--ink-soft));
+}
+
+.crewsMember {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 10px);
+  background: var(--panel-raised);
+  font-size: var(--text-sm);
+}
+
+.crewsMemberHandle {
+  font-weight: 650;
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.crewsMemberRole {
+  font-size: var(--text-xs);
+  color: var(--muted, var(--ink-soft));
+  white-space: nowrap;
+}
+
+.crewsInviteUrl {
+  display: block;
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 10px);
+  background: var(--panel);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}

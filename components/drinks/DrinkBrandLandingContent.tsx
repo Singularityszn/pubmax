@@ -16,6 +16,8 @@ import {
 } from "@/lib/pricedLanding";
 import { formatPrice } from "@/lib/venues";
 
+import styles from "./drinkBrandDirectory.module.css";
+
 export default function DrinkBrandLandingContent({
   landing,
   mapSelectableVenueIds,
@@ -49,18 +51,18 @@ export default function DrinkBrandLandingContent({
   // the people drinking there. The immediate answer (the lowest listed figure
   // and who published it) is the lede, so it sits above the actions.
   return (
-    <div className="drinkBrandDirectory">
+    <div className={styles.drinkBrandDirectory}>
       <Screen
         as="section"
-        className="drinkBrandDirectory__screen"
+        className={styles.drinkBrandDirectoryScreen}
         kicker={landing.brandLabel}
         title={`Cheapest ${landing.brandLabel} pints in London`}
         titleId="drink-brand-heading"
         lede={
-          <span className="drinkBrandDirectory__from">
+          <span className={styles.drinkBrandDirectoryFrom}>
             <strong>From {lowestPrice}</strong>
             <PricedLandingPublisher
-              className="drinkBrandDirectory__fromPublisher"
+              className={styles.drinkBrandDirectoryFromPublisher}
               row={firstRow}
               variant="hero"
             />
@@ -69,18 +71,18 @@ export default function DrinkBrandLandingContent({
         primary={<Link prefetch={false} href={mapHref}>Open the map</Link>}
         secondary={<Link href={contribution.href}>{contribution.label}</Link>}
       >
-        <p className="drinkBrandDirectory__summary">
+        <p className={styles.drinkBrandDirectorySummary}>
           {landing.totalPricedVenues} pubs with listed {landing.brandLabel} pints. Collected{" "}
           {formatPricedLandingCollectedDate(landing.collectedAt)}.
         </p>
 
         <section
-          className="drinkBrandDirectory__prices"
+          className={styles.drinkBrandDirectoryPrices}
           aria-labelledby="drink-brand-price-heading"
         >
-          <div className="drinkBrandDirectory__sectionHead">
+          <div className={styles.drinkBrandDirectorySectionHead}>
             <h2 id="drink-brand-price-heading">The pubs</h2>
-            <span className="drinkBrandDirectory__sectionCount">
+            <span className={styles.drinkBrandDirectorySectionCount}>
               {pricedLandingCountLabel(landing.totalPricedVenues, landing.rows.length)}
             </span>
           </div>
@@ -89,7 +91,7 @@ export default function DrinkBrandLandingContent({
 
         {areaPages.length > 0 ? (
           <nav
-            className="drinkBrandDirectory__areas"
+            className={styles.drinkBrandDirectoryAreas}
             aria-label={`${landing.brandLabel} in other areas`}
           >
             <h2>By area</h2>

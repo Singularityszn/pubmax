@@ -40,7 +40,7 @@ import {
   type VisitReportVenueRead,
 } from "./visitReportsClient";
 
-import "./visitReports.css";
+import styles from "./visitReports.module.css";
 
 /** Newest accounts shown on the Overview peek before Lore owns the full lane. */
 export const VISIT_REPORT_PEEK_LIMIT = 2;
@@ -176,17 +176,17 @@ function VisitReportRow({
 }) {
   const details = reportDetails(report);
   return (
-    <article className="visitReportRow">
-      <p className="visitReportByline">
+    <article className={styles.visitReportRow}>
+      <p className={styles.visitReportByline}>
         <strong>@{report.handle}</strong>
         <span aria-hidden="true"> · </span>
         <time dateTime={report.visitedAt}>
           Visited {visitDayLabel(report.visitedAt)}
         </time>
       </p>
-      {report.note ? <p className="visitReportAccount">{report.note}</p> : null}
+      {report.note ? <p className={styles.visitReportAccount}>{report.note}</p> : null}
       {details.length > 0 ? (
-        <ul className="visitReportFacts" aria-label="What they found">
+        <ul className={styles.visitReportFacts} aria-label="What they found">
           {details.map((detail) => (
             <li key={detail}>{detail}</li>
           ))}
@@ -195,7 +195,7 @@ function VisitReportRow({
       {readOnly ? null : (
         <button
           type="button"
-          className="visitReportFlag"
+          className={styles.visitReportFlag}
           disabled={flagged || flagging}
           onClick={() => onFlag(report.id)}
           aria-label={`Report ${report.handle}'s visit account`}
@@ -221,14 +221,14 @@ function ChoiceGroup<T extends string>({
   onSelect: (value: T | null) => void;
 }) {
   return (
-    <fieldset className="visitReportChoiceGroup">
+    <fieldset className={styles.visitReportChoiceGroup}>
       <legend>{label}</legend>
-      <div className="visitReportChips">
+      <div className={styles.visitReportChips}>
         {values.map((value) => (
           <button
             key={value}
             type="button"
-            className={selected === value ? "visitChip active" : "visitChip"}
+            className={selected === value ? `${styles.visitChip} ${styles.active}` : styles.visitChip}
             aria-pressed={selected === value}
             onClick={() => onSelect(selected === value ? null : value)}
           >
@@ -430,13 +430,13 @@ function VenueVisitReports({
 
   return (
     <section
-      className={peek ? "visitReportPanel visitReportPanel--peek" : "visitReportPanel"}
+      className={peek ? `${styles.visitReportPanel} ${styles.visitReportPanelPeek}` : styles.visitReportPanel}
       aria-labelledby={headingId}
     >
-      <div className="visitReportHead">
+      <div className={styles.visitReportHead}>
         <div>
-          <span className="visitReportLabel">On the night</span>
-          <h3 id={headingId} className="visitReportTitle">
+          <span className={styles.visitReportLabel}>On the night</span>
+          <h3 id={headingId} className={styles.visitReportTitle}>
             Visits, written up
           </h3>
         </div>
@@ -444,7 +444,7 @@ function VenueVisitReports({
           onOpenFull ? (
             <button
               type="button"
-              className="visitReportOpen"
+              className={styles.visitReportOpen}
               onClick={onOpenFull}
             >
               {visitReportPeekAffordanceLabel(read)}
@@ -453,7 +453,7 @@ function VenueVisitReports({
         ) : composerMode !== "open" ? (
           <button
             type="button"
-            className="visitReportOpen"
+            className={styles.visitReportOpen}
             onClick={() => {
               void requestContribution((auth) => {
                 if (!sameAccountAuth(auth, composerAuth)) {
@@ -471,11 +471,11 @@ function VenueVisitReports({
       </div>
 
       {read === null ? (
-        <p className="visitReportEmpty" role="status">
+        <p className={styles.visitReportEmpty} role="status">
           Checking visit notes.
         </p>
       ) : visibleReports.length > 0 ? (
-        <div className="visitReportList">
+        <div className={styles.visitReportList}>
           {visibleReports.map((report) => (
             <VisitReportRow
               key={report.id}
@@ -488,21 +488,21 @@ function VenueVisitReports({
           ))}
         </div>
       ) : (
-        <p className="visitReportEmpty">{visitReportEmptyCopy(read.status)}</p>
+        <p className={styles.visitReportEmpty}>{visitReportEmptyCopy(read.status)}</p>
       )}
 
       {!peek && composerMode === "open" ? (
-        <div className="visitReportCard">
-          <div className="visitReportCardHead">
+        <div className={styles.visitReportCard}>
+          <div className={styles.visitReportCardHead}>
             <div>
-              <span className="visitReportCardTitle">
+              <span className={styles.visitReportCardTitle}>
                 What was {venueName} like?
               </span>
               <p>Pick what you saw. Add one short line if it helps.</p>
             </div>
             <button
               type="button"
-              className="visitReportDismiss"
+              className={styles.visitReportDismiss}
               aria-label="Close visit report"
               onClick={() => setOpenAuth(null)}
             >
@@ -510,7 +510,7 @@ function VenueVisitReports({
             </button>
           </div>
 
-          <label className="visitReportDate">
+          <label className={styles.visitReportDate}>
             <span>When were you there?</span>
             <input
               type="date"
@@ -564,10 +564,10 @@ function VenueVisitReports({
             }
           />
 
-          <label className="visitReportNoteWrap">
+          <label className={styles.visitReportNoteWrap}>
             <span>One short account</span>
             <textarea
-              className="visitReportNote"
+              className={styles.visitReportNote}
               value={note}
               onChange={(event) =>
                 setDraft((current) => ({

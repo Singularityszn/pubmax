@@ -14,7 +14,7 @@ import { ShieldCheck } from "lucide-react";
 
 import { discardBody } from "@/lib/responseBody";
 
-import "./venueHygiene.css";
+import styles from "./venueHygiene.module.css";
 
 type HygieneRating = {
   fhrsid: number;
@@ -101,7 +101,7 @@ export default function VenueHygiene({ venueId, venueName, address }: Props) {
 
   return (
     <a
-      className="venueHygiene"
+      className={styles.venueHygiene}
       href={`https://ratings.food.gov.uk/business/${rating.fhrsid}`}
       target="_blank"
       rel="noreferrer noopener"
@@ -109,9 +109,9 @@ export default function VenueHygiene({ venueId, venueName, address }: Props) {
       aria-label={title}
     >
       <ShieldCheck size={14} aria-hidden="true" />
-      <span className="venueHygieneLabel">Food hygiene</span>
-      <span className="venueHygieneScore">{rating.ratingValue}</span>
-      <span className="venueHygieneSource">FSA</span>
+      <span className={styles.venueHygieneLabel}>Food hygiene</span>
+      <span className={styles.venueHygieneScore}>{rating.ratingValue}</span>
+      <span className={styles.venueHygieneSource}>FSA</span>
     </a>
   );
 }

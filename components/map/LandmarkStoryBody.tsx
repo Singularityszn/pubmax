@@ -14,7 +14,7 @@ import {
 } from "@/lib/landmarkVenueProximity";
 import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
 
-import "./landmarkStory.css";
+import styles from "./landmarkStory.module.css";
 
 /**
  * A landmark's story, the same body on every frame.
@@ -39,12 +39,12 @@ export function LandmarkStoryHead({
   className?: string;
 }) {
   return (
-    <div className={`landmarkStoryHead${className ? ` ${className}` : ""}`}>
-      <span className="landmarkStoryGlyph" aria-hidden="true">
+    <div className={`${styles.landmarkStoryHead}${className ? ` ${className}` : ""}`}>
+      <span className={styles.landmarkStoryGlyph} aria-hidden="true">
         <LandmarkIcon size={18} strokeWidth={1.75} />
       </span>
-      <h2 className="landmarkStoryTitle">{landmark.name}</h2>
-      <Link className="landmarkStoryChapter" href={`/landmark/${encodeURIComponent(landmark.id)}`}>
+      <h2 className={styles.landmarkStoryTitle}>{landmark.name}</h2>
+      <Link className={styles.landmarkStoryChapter} href={`/landmark/${encodeURIComponent(landmark.id)}`}>
         Open chapter
       </Link>
     </div>
@@ -72,15 +72,15 @@ export default function LandmarkStoryBody({
 }) {
   const nearbyIds = nearby.map((row) => row.venue.id);
   return (
-    <div className="landmarkStory">
+    <div className={styles.landmarkStory}>
       <LandmarkHeroPhoto
         key={landmark.id}
         image={landmark.image}
         name={landmark.name}
-        className="landmarkStoryHero"
+        className={styles.landmarkStoryHero}
       />
       {areaLine || showChapterLink ? (
-        <div className="landmarkStoryWhere">
+        <div className={styles.landmarkStoryWhere}>
           {areaLine ? (
             <Kicker tone="muted" as="span">
               {areaLine}
@@ -90,7 +90,7 @@ export default function LandmarkStoryBody({
           )}
           {showChapterLink ? (
             <Link
-              className="landmarkStoryChapter"
+              className={styles.landmarkStoryChapter}
               href={`/landmark/${encodeURIComponent(landmark.id)}`}
             >
               Open chapter
@@ -98,9 +98,9 @@ export default function LandmarkStoryBody({
           ) : null}
         </div>
       ) : null}
-      <p className="landmarkStoryHistory">{landmark.history}</p>
+      <p className={styles.landmarkStoryHistory}>{landmark.history}</p>
       <a
-        className="landmarkStorySource"
+        className={styles.landmarkStorySource}
         href={landmark.source.url}
         target="_blank"
         rel="noreferrer"
@@ -109,7 +109,7 @@ export default function LandmarkStoryBody({
         <ExternalLink size={13} aria-hidden="true" />
       </a>
       {nearby.length > 0 && (onStartCrawl || onAskPubmaxxer) ? (
-        <div className="landmarkStoryActions">
+        <div className={styles.landmarkStoryActions}>
           {onStartCrawl ? (
             <Button
               type="button"
@@ -132,15 +132,15 @@ export default function LandmarkStoryBody({
         </div>
       ) : null}
       {nearby.length > 0 ? (
-        <section className="landmarkStoryNearby" aria-labelledby="landmarkStoryNearbyHeading">
+        <section className={styles.landmarkStoryNearby} aria-labelledby="landmarkStoryNearbyHeading">
           <h3 id="landmarkStoryNearbyHeading">{STORY_PUBS_NEARBY_HEADING}</h3>
-          <p className="landmarkStoryCaveat">{STORY_PUBS_DISTANCE_CAVEAT}</p>
-          <ul className="landmarkStoryPubs">
+          <p className={styles.landmarkStoryCaveat}>{STORY_PUBS_DISTANCE_CAVEAT}</p>
+          <ul className={styles.landmarkStoryPubs}>
             {nearby.map(({ venue, km }) => (
               <li key={venue.id}>
                 <button type="button" onClick={() => onOpenVenue(venue.id)}>
-                  <span className="landmarkStoryPubName">{venue.name}</span>
-                  <span className="landmarkStoryPubDistance">{formatLogNearbyDistance(km)}</span>
+                  <span className={styles.landmarkStoryPubName}>{venue.name}</span>
+                  <span className={styles.landmarkStoryPubDistance}>{formatLogNearbyDistance(km)}</span>
                 </button>
               </li>
             ))}

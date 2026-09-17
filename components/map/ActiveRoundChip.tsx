@@ -13,7 +13,7 @@ import {
 } from "@/lib/activeRound";
 import { discardBody } from "@/lib/responseBody";
 
-import "./activeRoundChip.css";
+import "./activeRoundChip.module.css";
 
 const POLL_MS = 15_000;
 

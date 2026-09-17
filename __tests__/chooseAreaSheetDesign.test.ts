@@ -6,12 +6,12 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
 const component = read("components/map/ChooseAreaSheet.tsx");
-const styles = read("components/map/chooseAreaSheet.css");
+const styles = read("components/map/chooseAreaSheet.module.css");
 
 describe("choose area sheet headings", () => {
   it("gives the desktop dialog its own heading role", () => {
     expect(component).toContain(
-      'className="chooseAreaSectionTitle chooseAreaDesktopTitle"',
+      "className={`${styles.chooseAreaSectionTitle} ${styles.chooseAreaDesktopTitle}`}",
     );
   });
 

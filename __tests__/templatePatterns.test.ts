@@ -66,7 +66,7 @@ const FUNCTIONAL_TRANSLUCENCY = [
   // or a control that floats over content, never on a section of the page.
   "components/auth/arrivalWelcome.css", // polite live region floating over the page
   "components/command/commandPalette.css", // palette backdrop
-  "components/feed/cheersButton.css", // a control on a photo scrim
+  "components/feed/cheersButton.module.css", // a control on a photo scrim
   "components/identity/accountOnboarding.css", // dialog backdrop
   "components/identity/contributionGate.css", // dialog backdrop
   "components/pal/palChat.css", // floating composer bar

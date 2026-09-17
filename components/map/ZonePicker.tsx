@@ -13,7 +13,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import ZonePintIndexStrip from "@/components/zones/ZonePintIndexStrip";
 import { ZONE_IDS, parseZoneParam, type ZonePintIndex } from "@/lib/zones";
 
-import "./zonePicker.css";
+import styles from "./zonePicker.module.css";
 
 type ZonePickerProps = {
   /** filters.zone — "" / "all" means every zone. */

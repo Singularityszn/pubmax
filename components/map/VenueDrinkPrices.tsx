@@ -24,7 +24,7 @@ import {
 import { COMMUNITY_PRICE_NOTE } from "@/lib/venues";
 import { formatPrice } from "@/lib/venues";
 
-import "./venueDrinkPrices.css";
+import styles from "./venueDrinkPrices.module.css";
 
 /**
  * What drinkers have logged at ONE pub, one row per drink, the map's lane first.
@@ -125,7 +125,7 @@ export default function VenueDrinkPrices({
 
   return (
     <section
-      className="venueDrinkPrices"
+      className={styles.venueDrinkPrices}
       aria-label={`Drink prices logged at ${venueName}`}
     >
       {lead ? (
@@ -180,22 +180,22 @@ export default function VenueDrinkPrices({
       {/* The pub's other drinks. Each is its own observation with its own tag,
           never a second reading of the figure above. */}
       {rest.length > 0 ? (
-        <ul className="venueDrinkPricesList">
+        <ul className={styles.venueDrinkPricesList}>
           {rest.map((row) => {
             const standing = communityTrustNote(row.price);
             return (
-              <li key={`${venueId}-${row.category}`} className="venueDrinkPriceRow">
-                <span className="venueDrinkPriceTag">{row.label}</span>
+              <li key={`${venueId}-${row.category}`} className={styles.venueDrinkPriceRow}>
+                <span className={styles.venueDrinkPriceTag}>{row.label}</span>
                 <span
-                  className={`venueDrinkPriceFigure ${priceBandClass(beerBand(row.category, row.price.priceGbp))}`.trim()}
+                  className={`${styles.venueDrinkPriceFigure} ${priceBandClass(beerBand(row.category, row.price.priceGbp))}`.trim()}
                 >
                   {formatPrice(row.price.priceGbp)}
                 </span>
-                <span className="venueDrinkPriceStamp">
+                <span className={styles.venueDrinkPriceStamp}>
                   {communityStampLabel(row.price.submittedAt)}
                 </span>
                 {standing ? (
-                  <span className="venueDrinkPriceStanding">{standing}</span>
+                  <span className={styles.venueDrinkPriceStanding}>{standing}</span>
                 ) : null}
                 <CommunityPriceReport
                   price={row.price}
@@ -209,16 +209,16 @@ export default function VenueDrinkPrices({
       ) : null}
 
       {laneEmptyNote ? (
-        <div className="venueDrinkPricesEmpty">
-          <p className="venueDrinkPricesEmptyNote" role="status">
+        <div className={styles.venueDrinkPricesEmpty}>
+          <p className={styles.venueDrinkPricesEmptyNote} role="status">
             {laneEmptyNote}
           </p>
           {invite ? (
             <>
-              <p className="venueDrinkPricesInvite">{invite}</p>
+              <p className={styles.venueDrinkPricesInvite}>{invite}</p>
               <button
                 type="button"
-                className="venueDrinkPricesLog"
+                className={styles.venueDrinkPricesLog}
                 onClick={onLogPrice}
               >
                 {drinkLaneLogActionLabel(laneNoun)}

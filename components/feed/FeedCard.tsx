@@ -28,7 +28,7 @@ import { formatGbp } from "@/lib/formatGbp";
 
 // For .cheersGatePrompt — the claim-a-handle failure prompt style (U2), now
 // rendered beside the reaction row.
-import "./cheersButton.css";
+import cheersStyles from "./cheersButton.module.css";
 // The card's own chrome (.feedCard, .feedSpill, reaction row, provenance…) lives
 // in Feed.module.css. Co-locate the import here so a FeedCard renders styled
 // wherever it mounts — /feed and /we-are-out import Feed.module.css too, but the
@@ -538,7 +538,7 @@ export default function FeedCard({
         {/* U2 — honest failure feedback for a signed-out / gated reaction tap:
             the toggle rolled back, so say why instead of silently un-ticking. */}
         {gatePrompt ? (
-          <p className="cheersGatePrompt" role="status">
+          <p className={cheersStyles.cheersGatePrompt} role="status">
             {gatePrompt}
           </p>
         ) : null}

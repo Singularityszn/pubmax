@@ -13,7 +13,7 @@ import {
 } from "@/lib/areaDemand";
 import { NIGHT_PATCHES, type NightPatch } from "@/lib/nightPatches";
 
-import "./unsupportedAreaPreview.css";
+import styles from "./unsupportedAreaPreview.module.css";
 
 export type UnsupportedAreaPreviewProps = {
   /** The area as the user named or picked it, when known. Null when we only know
@@ -113,12 +113,12 @@ export default function UnsupportedAreaPreview({
   }, [effectiveArea, email, nearest, source, state]);
 
   return (
-    <section className="uap" aria-label="Area not covered yet">
+    <section className={styles.uap} aria-label="Area not covered yet">
       {/* ── Value first: the honest fact + the live alternative ─────────────── */}
-      <p className="uapFact">{factLine}</p>
+      <p className={styles.uapFact}>{factLine}</p>
 
       {/* Honest, real-count coverage note from the derived patch tier. */}
-      {evidenceNote ? <p className="uapEvidence">{evidenceNote}</p> : null}
+      {evidenceNote ? <p className={styles.uapEvidence}>{evidenceNote}</p> : null}
 
       {/* The nearest live alternative + the patch chips are the out-of-coverage
           rescue. A "limited" patch is already covered (its pints render above in
@@ -126,20 +126,20 @@ export default function UnsupportedAreaPreview({
       {!limited ? (
         <>
           {nearest ? (
-            <div className="uapNearest">
-              <p className="uapNearestCopy">
+            <div className={styles.uapNearest}>
+              <p className={styles.uapNearestCopy}>
                 Nearest we cover well is {nearest.patch.label}, {formatApproxKm(nearest.distanceKm)} away.
               </p>
               <button
                 type="button"
-                className="uapPrimary"
+                className={styles.uapPrimary}
                 onClick={() => onPickPatch(nearest.patch)}
               >
                 <MapPin size={15} aria-hidden="true" /> Show {nearest.patch.label}
               </button>
             </div>
           ) : (
-            <p className="uapNearestCopy">Here&rsquo;s where we have the pints mapped:</p>
+            <p className={styles.uapNearestCopy}>Here&rsquo;s where we have the pints mapped:</p>
           )}
 
           <ul className="uapPatches" aria-label="Areas we cover">

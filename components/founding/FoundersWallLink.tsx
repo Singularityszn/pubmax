@@ -18,7 +18,7 @@ import {
   FOUNDERS_WALL_LINK_LABEL,
 } from "@/lib/foundingMembers";
 
-import "./foundersWallLink.css";
+import styles from "./foundersWallLink.module.css";
 
 export default function FoundersWallLink({
   className,
@@ -27,7 +27,7 @@ export default function FoundersWallLink({
 }): React.JSX.Element {
   return (
     <Link
-      className={["foundersWallLink", className].filter(Boolean).join(" ")}
+      className={[styles.foundersWallLink, className].filter(Boolean).join(" ")}
       href={FOUNDERS_WALL_HREF}
     >
       {FOUNDERS_WALL_LINK_LABEL}

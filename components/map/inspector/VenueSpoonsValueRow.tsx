@@ -18,7 +18,7 @@ import {
   type SpoonsValueHeld,
 } from "@/lib/spoonsValue";
 
-import "./venueSpoonsValueRow.css";
+import styles from "./venueSpoonsValueRow.module.css";
 
 /**
  * What a tenner buys at this pub, on the pub's own sheet.
@@ -85,20 +85,20 @@ export default function VenueSpoonsValueRow({
 
   const band = spoonsValueBand(held.row.milliunits, held.modalMilliunits);
   return (
-    <section className="venueSpoonsValue" aria-label={BEST_VALUE_ROUND_LABEL}>
-      <div className="venueSpoonsValueHead">
-        <h4 className="venueSpoonsValueTitle">{BEST_VALUE_ROUND_LABEL}</h4>
-        <span className={`venueSpoonsValueUnits ${spoonsValueBandClass(band)}`}>
+    <section className={styles.venueSpoonsValue} aria-label={BEST_VALUE_ROUND_LABEL}>
+      <div className={styles.venueSpoonsValueHead}>
+        <h4 className={styles.venueSpoonsValueTitle}>{BEST_VALUE_ROUND_LABEL}</h4>
+        <span className={`${styles.venueSpoonsValueUnits} ${spoonsValueBandClass(band)}`}>
           {formatUnitsLabel(held.row.milliunits)}
         </span>
       </div>
-      <p className="venueSpoonsValueLine">{bestValueRoundLine(held.row)}</p>
-      <p className="venueSpoonsValueMeta">
-        <span className="venueSpoonsValueStanding">Listed</span>
-        {band ? <span className="venueSpoonsValueBand">{spoonsValueBandLabel(band)}</span> : null}
+      <p className={styles.venueSpoonsValueLine}>{bestValueRoundLine(held.row)}</p>
+      <p className={styles.venueSpoonsValueMeta}>
+        <span className={styles.venueSpoonsValueStanding}>Listed</span>
+        {band ? <span className={styles.venueSpoonsValueBand}>{spoonsValueBandLabel(band)}</span> : null}
         <span>{`Ranked ${held.row.rankNumber} of ${held.rankedCount}`}</span>
       </p>
-      <p className="venueSpoonsValueCredit">
+      <p className={styles.venueSpoonsValueCredit}>
         {`${SPOONS_VALUE_NOT_OUR_FIGURE_LINE} `}
         <a href={held.credit.sourceUrl} rel="noopener noreferrer" target="_blank">
           {spoonsValueCreditLine(held.credit)}

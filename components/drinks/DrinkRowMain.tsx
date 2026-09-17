@@ -22,6 +22,7 @@ import DrinkRatingAction from "@/components/ratings/DrinkRatingAction";
 import DrinkRatingRow from "@/components/ratings/DrinkRatingRow";
 import { useDrinkRating } from "@/components/ratings/useDrinkRating";
 import type { Drink } from "@/lib/drinks";
+import styles from "./drinkMenu.module.css";
 
 export type DrinkRowMainProps = {
   drink: Drink;
@@ -38,21 +39,21 @@ export default function DrinkRowMain({ drink, meta, venueId }: DrinkRowMainProps
   const detailId = `drink-detail-${drink.id}`;
 
   return (
-    <div className="drinkRowMain">
+    <div className={styles.drinkRowMain}>
       <button
         type="button"
-        className="drinkDisclosure"
+        className={styles.drinkDisclosure}
         aria-expanded={open}
         aria-controls={detailId}
         onClick={() => setOpen((wasOpen) => !wasOpen)}
       >
-        <span className="drinkName">{drink.name}</span>
-        {meta ? <span className="drinkMeta">{meta}</span> : null}
+        <span className={styles.drinkName}>{drink.name}</span>
+        {meta ? <span className={styles.drinkMeta}>{meta}</span> : null}
         {drink.servingSize ? (
-          <span className="drinkServing">{drink.servingSize}</span>
+          <span className={styles.drinkServing}>{drink.servingSize}</span>
         ) : null}
         {drink.alcoholType === "low-no" ? (
-          <span className="drinkLowNoChip">Low/no</span>
+          <span className={styles.drinkLowNoChip}>Low/no</span>
         ) : null}
       </button>
       {/* The community score, keyed by the stable drink id (see migration
@@ -67,7 +68,7 @@ export default function DrinkRowMain({ drink, meta, venueId }: DrinkRowMainProps
       {/* The region always exists so `aria-controls` names something real, but
           its contents do not: a closed detail holds no action and no stars, so
           nothing unopened is announced or reachable by tab. */}
-      <div className="drinkRowDetail" id={detailId} hidden={!open}>
+      <div className={styles.drinkRowDetail} id={detailId} hidden={!open}>
         {open ? (
           <DrinkRatingAction
             drinkName={drink.name}

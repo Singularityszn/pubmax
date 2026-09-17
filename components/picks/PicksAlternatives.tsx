@@ -13,7 +13,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-import "./picksAlternatives.css";
+import styles from "./picksAlternatives.module.css";
 
 import {
   PICKS_ALTERNATIVE_LABEL,
@@ -32,17 +32,17 @@ export default function PicksAlternatives({
   const ways = picksAlternativeWays(context ?? {});
   return (
     <div
-      className={className ? `picksAlternatives ${className}` : "picksAlternatives"}
+      className={className ? `${styles.picksAlternatives} ${className}` : styles.picksAlternatives}
       data-testid="picks-alternatives"
     >
-      <p className="picksAlternativesLabel">{PICKS_ALTERNATIVE_LABEL}</p>
-      <ul className="picksAlternativesList">
+      <p className={styles.picksAlternativesLabel}>{PICKS_ALTERNATIVE_LABEL}</p>
+      <ul className={styles.picksAlternativesList}>
         {ways.map((way) => (
           <li key={way.key}>
             <Link
               prefetch={false}
               href={way.href}
-              className="picksAlternativesLink pressable"
+              className={`${styles.picksAlternativesLink} pressable`}
               data-picks-way={way.key}
             >
               <span>{way.label}</span>

@@ -14,7 +14,7 @@ import { tryGetNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import { relativeTime } from "@/lib/relativeTime";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
-import "./outTonightBeacon.css";
+import styles from "./outTonightBeacon.module.css";
 
 type Props = {
   /** Signed-in viewer handle. Empty when signed out — the board stays hidden. */
@@ -106,32 +106,32 @@ export default function OutTonightBoard({ viewerHandle }: Props) {
 
   if (state.kind === "loading") {
     return (
-      <section className="beaconCard beaconBoard" aria-labelledby="beacon-board-title" aria-busy="true">
-        <p className="beaconKicker" id="beacon-board-title">Your lot tonight</p>
-        <p className="beaconMuted">Checking who&rsquo;s out&hellip;</p>
+      <section className={`${styles.beaconCard} beaconBoard`} aria-labelledby="beacon-board-title" aria-busy="true">
+        <p className={styles.beaconKicker} id="beacon-board-title">Your lot tonight</p>
+        <p className={styles.beaconMuted}>Checking who&rsquo;s out&hellip;</p>
       </section>
     );
   }
 
   if (state.kind === "error") {
     return (
-      <section className="beaconCard beaconBoard" aria-labelledby="beacon-board-title">
-        <p className="beaconKicker" id="beacon-board-title">Your lot tonight</p>
-        <p className="beaconMuted">Couldn&rsquo;t load who&rsquo;s out right now.</p>
+      <section className={`${styles.beaconCard} beaconBoard`} aria-labelledby="beacon-board-title">
+        <p className={styles.beaconKicker} id="beacon-board-title">Your lot tonight</p>
+        <p className={styles.beaconMuted}>Couldn&rsquo;t load who&rsquo;s out right now.</p>
       </section>
     );
   }
 
   if (state.kind === "empty") {
     return (
-      <section className="beaconCard beaconBoard" aria-labelledby="beacon-board-title">
-        <p className="beaconKicker" id="beacon-board-title">Your lot tonight</p>
-        <p className="beaconMuted">Nobody in your lot is out tonight yet.</p>
-        <p className="beaconPrivacy">
+      <section className={`${styles.beaconCard} beaconBoard`} aria-labelledby="beacon-board-title">
+        <p className={styles.beaconKicker} id="beacon-board-title">Your lot tonight</p>
+        <p className={styles.beaconMuted}>Nobody in your lot is out tonight yet.</p>
+        <p className={styles.beaconPrivacy}>
           Mutual follows only. Turn on out tonight above when you head out.
         </p>
-        <p className="beaconPrivacy">
-          <Link className="beaconBoardFindLot" href="/social">
+        <p className={styles.beaconPrivacy}>
+          <Link className={styles.beaconBoardFindLot} href="/social">
             Find your lot
           </Link>
           {" "}
@@ -142,30 +142,30 @@ export default function OutTonightBoard({ viewerHandle }: Props) {
   }
 
   return (
-    <section className="beaconCard beaconBoard" aria-labelledby="beacon-board-title">
-      <p className="beaconKicker" id="beacon-board-title">Your lot tonight</p>
-      <ul className="beaconBoardList">
+    <section className={`${styles.beaconCard} beaconBoard`} aria-labelledby="beacon-board-title">
+      <p className={styles.beaconKicker} id="beacon-board-title">Your lot tonight</p>
+      <ul className={styles.beaconBoardList}>
         {state.rows.map((row) => (
-          <li key={row.handle} className="beaconBoardRow">
-            <Link className="beaconBoardLink" href={`/u/${encodeURIComponent(row.handle)}`}>
+          <li key={row.handle} className={styles.beaconBoardRow}>
+            <Link className={styles.beaconBoardLink} href={`/u/${encodeURIComponent(row.handle)}`}>
               <HandleAvatar
                 handle={row.handle}
                 avatarUrl={row.avatarUrl}
-                className="beaconBoardAvatar"
-                imageClassName="beaconBoardAvatar"
+                className={styles.beaconBoardAvatar}
+                imageClassName={styles.beaconBoardAvatar}
                 size={36}
               />
-              <span className="beaconBoardCopy">
-                <span className="beaconBoardLine">
-                  <span className="beaconBoardHandle">{displayHandle(row.handle)}</span>
-                  <span className="beaconBoardVerb"> is out</span>
+              <span className={styles.beaconBoardCopy}>
+                <span className={styles.beaconBoardLine}>
+                  <span className={styles.beaconBoardHandle}>{displayHandle(row.handle)}</span>
+                  <span className={styles.beaconBoardVerb}> is out</span>
                   {row.areaName ? (
-                    <span className="beaconBoardWhere"> in {row.areaName}</span>
+                    <span className={styles.beaconBoardWhere}> in {row.areaName}</span>
                   ) : null}
                 </span>
-                {row.note ? <span className="beaconBoardNote">{row.note}</span> : null}
+                {row.note ? <span className={styles.beaconBoardNote}>{row.note}</span> : null}
                 {row.ago ? (
-                  <time className="beaconBoardMeta" dateTime={row.createdAt}>
+                  <time className={styles.beaconBoardMeta} dateTime={row.createdAt}>
                     {row.ago}
                   </time>
                 ) : null}
@@ -174,7 +174,7 @@ export default function OutTonightBoard({ viewerHandle }: Props) {
           </li>
         ))}
       </ul>
-      <p className="beaconPrivacy">Mutual follows only. Clears on its own in twelve hours.</p>
+      <p className={styles.beaconPrivacy}>Mutual follows only. Clears on its own in twelve hours.</p>
     </section>
   );
 }

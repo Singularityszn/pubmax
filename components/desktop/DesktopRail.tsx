@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import "./desktopRail.css";
+import styles from "./desktopRail.module.css";
 
 // Shared desktop right-rail host (Wave D2.1). A layout-only container that docks
 // the always-on desktop rail blocks — Conditions, Area news, Night arc — into a
@@ -44,7 +44,7 @@ export default function DesktopRail({
   // slots never leaves an empty complementary landmark in the tree.
   if (!conditions && !areaNews && !nightArc && !children) return null;
 
-  const classes = className ? `desktopRail ${className}` : "desktopRail";
+  const classes = className ? `${styles.desktopRail} ${className}` : styles.desktopRail;
 
   return (
     <aside className={classes} aria-label={ariaLabel}>

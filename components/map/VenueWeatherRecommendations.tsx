@@ -30,7 +30,7 @@ import {
 import { discardBody } from "@/lib/responseBody";
 import { readContributionGateStatus } from "@/lib/contributionGateStatus";
 
-import "./venueWeatherRecommendations.css";
+import styles from "./venueWeatherRecommendations.module.css";
 
 type RecommendationFormError = {
   message: string;
@@ -166,7 +166,7 @@ export function WeatherRecommendationList({
       aria-label={`Recommendations for ${venueName}`}
     >
       {weatherStatus === "unavailable" ? (
-        <p className="weatherRecAvailability" role="note">
+        <p className={styles.weatherRecAvailability} role="note">
           We couldn&rsquo;t check the weather here just now.
           {empty ? null : (
             <>
@@ -178,12 +178,12 @@ export function WeatherRecommendationList({
         </p>
       ) : null}
       {degraded ? (
-        <p className="weatherRecAvailability" role="note">
+        <p className={styles.weatherRecAvailability} role="note">
           We couldn&rsquo;t read every recommendation here just now.
         </p>
       ) : null}
       {empty && !degraded ? (
-        <p className="weatherRecEmpty">
+        <p className={styles.weatherRecEmpty}>
           {weatherStatus === "unavailable"
             ? "Nobody has recommended this pub yet. Be the first."
             : outsideVocabulary
@@ -193,15 +193,15 @@ export function WeatherRecommendationList({
       ) : null}
       {recommendations.length > 0 ? (
         <>
-          <h4 className="weatherRecListTitle">
+          <h4 className={styles.weatherRecListTitle}>
             {weatherStatus === "available"
               ? "Fits tonight"
               : "PUBMAXXERS recommend"}
           </h4>
-          <div className="weatherRecList">
+          <div className={styles.weatherRecList}>
             {recommendations.map((recommendation) => (
-              <article className="weatherRecOpinion" key={recommendation.id}>
-                <p className="weatherRecAttribution">
+              <article className={styles.weatherRecOpinion} key={recommendation.id}>
+                <p className={styles.weatherRecAttribution}>
                   <Link
                     href={`/u/${encodeURIComponent(recommendation.contributorHandle)}`}
                   >
@@ -216,7 +216,7 @@ export function WeatherRecommendationList({
                 <blockquote>
                   <p>{recommendation.reason}</p>
                 </blockquote>
-                <p className="weatherRecDate">
+                <p className={styles.weatherRecDate}>
                   Recommended {recommendationDay(recommendation.submittedAt)}
                 </p>
               </article>
@@ -225,7 +225,7 @@ export function WeatherRecommendationList({
         </>
       ) : null}
       {truncated ? (
-        <p className="weatherRecAvailability" role="note">
+        <p className={styles.weatherRecAvailability} role="note">
           More recommendations stay on record.
         </p>
       ) : null}
@@ -396,10 +396,10 @@ export default function VenueWeatherRecommendations({
 
   return (
     <section
-      className="venueWeatherRecommendations"
+      className={styles.venueWeatherRecommendations}
       aria-labelledby={`weatherRecTitle-${venueId}`}
     >
-      <div className="weatherRecHead">
+      <div className={styles.weatherRecHead}>
         <CloudSun size={17} aria-hidden="true" />
         <h3 id={`weatherRecTitle-${venueId}`}>Recommend it for the weather</h3>
       </div>
@@ -414,13 +414,13 @@ export default function VenueWeatherRecommendations({
           truncated={load.truncated}
         />
       ) : loadFailed ? null : (
-        <p className="weatherRecLoading" aria-live="polite">
+        <p className={styles.weatherRecLoading} aria-live="polite">
           Checking PUBMAXXERS&rsquo; recommendations for tonight.
         </p>
       )}
 
       {loadFailed ? (
-        <p className="weatherRecAvailability" role="note">
+        <p className={styles.weatherRecAvailability} role="note">
           {load
             ? "We couldn’t refresh recommendations here just now, so these may be out of date."
             : "We couldn’t read recommendations here just now."}
@@ -428,12 +428,12 @@ export default function VenueWeatherRecommendations({
       ) : null}
 
       {composerAuth ? (
-        <form className="weatherRecForm" onSubmit={submit}>
-          <p className="weatherRecPrompt">
+        <form className={styles.weatherRecForm} onSubmit={submit}>
+          <p className={styles.weatherRecPrompt}>
             Pick the weather, then say why you&rsquo;d choose this place.
           </p>
           <div
-            className="weatherRecConditions"
+            className={styles.weatherRecConditions}
             role="radiogroup"
             aria-label={`When does ${venueName} suit?`}
           >
@@ -442,8 +442,8 @@ export default function VenueWeatherRecommendations({
                 key={option}
                 className={
                   condition === option
-                    ? "weatherRecCondition weatherRecConditionOn"
-                    : "weatherRecCondition"
+                    ? `${styles.weatherRecCondition} ${styles.weatherRecConditionOn}`
+                    : styles.weatherRecCondition
                 }
               >
                 <input
@@ -465,7 +465,7 @@ export default function VenueWeatherRecommendations({
             ))}
           </div>
 
-          <label className="weatherRecField">
+          <label className={styles.weatherRecField}>
             <span>
               Why it suits{" "}
               {weatherRecommendationConditionLabel(condition).toLowerCase()}
@@ -496,7 +496,7 @@ export default function VenueWeatherRecommendations({
 
           <button
             type="submit"
-            className="weatherRecSubmit"
+            className={styles.weatherRecSubmit}
             disabled={submitting || reason.trim() === ""}
           >
             {submitting ? "Saving…" : "Recommend it"}
@@ -504,7 +504,7 @@ export default function VenueWeatherRecommendations({
 
           {error ? (
             <p
-              className="weatherRecError"
+              className={styles.weatherRecError}
               id={`weatherRecError-${venueId}`}
               role="alert"
             >
@@ -513,7 +513,7 @@ export default function VenueWeatherRecommendations({
           ) : null}
 
           {saved ? (
-            <p className="weatherRecSaved" role="status">
+            <p className={styles.weatherRecSaved} role="status">
               <Check size={15} aria-hidden="true" />
               Saved under @{saved.contributorHandle} for{" "}
               {weatherRecommendationConditionLabel(
@@ -523,16 +523,16 @@ export default function VenueWeatherRecommendations({
             </p>
           ) : null}
 
-          <p className="weatherRecHonesty">
+          <p className={styles.weatherRecHonesty}>
             This is your opinion, shown under your handle. Weather only decides
             when it appears as a match.
           </p>
         </form>
       ) : (
-        <div className="weatherRecForm">
+        <div className={styles.weatherRecForm}>
           <button
             type="button"
-            className="weatherRecSubmit"
+            className={styles.weatherRecSubmit}
             onClick={() => {
               void requestContribution((auth) =>
                 sameAccountAuth(auth, composerAuth)

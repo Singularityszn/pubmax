@@ -7,7 +7,7 @@ import type { DrinkCategory } from "@/lib/drinks";
 import { isPubVenueKind, venueKindNoun } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
 
-import "./menuCategoryGrid.css";
+import styles from "./menuCategoryGrid.module.css";
 
 export type MenuCategoryGridProps = {
   tiles: MenuHubTile[];
@@ -25,12 +25,12 @@ export default function MenuCategoryGrid({
   const venueNoun = venueKindNoun(venueKind);
   const hasDrinkTiles = tiles.some((tile) => tile.kind !== "food-external");
   const unavailableDrinks = (
-    <div className="menuHubEmpty">
-      <p className="menuHubEmptyTitle" role="status">
+    <div className={styles.menuHubEmpty}>
+      <p className={styles.menuHubEmptyTitle} role="status">
         We don&rsquo;t have this {venueNoun}&rsquo;s drinks yet.
       </p>
       {onAddDrink ? (
-        <button type="button" className="menuHubEmptyAction" onClick={onAddDrink}>
+        <button type="button" className={styles.menuHubEmptyAction} onClick={onAddDrink}>
           Add what you’re drinking
         </button>
       ) : null}
@@ -44,10 +44,10 @@ export default function MenuCategoryGrid({
   return (
     <>
       {isPubVenueKind(venueKind) && !hasDrinkTiles ? unavailableDrinks : null}
-      <section className="menuHub" aria-label="Menus">
-        <header className="menuHub__head">
-          <h3 className="menuHub__title">Menus</h3>
-          <p className="menuHub__lede">
+      <section className={styles.menuHub} aria-label="Menus">
+        <header className={styles.menuHubHead}>
+          <h3 className={styles.menuHubTitle}>Menus</h3>
+          <p className={styles.menuHubLede}>
             {hasDrinkTiles ? (
               <>
                 Drinks first. Tap a tile. Food opens the {venueNoun}&apos;s own menu
@@ -58,7 +58,7 @@ export default function MenuCategoryGrid({
             )}
           </p>
         </header>
-        <ul className="menuHub__grid">
+        <ul className={styles.menuHubGrid}>
           {tiles.map((tile) => {
             if (tile.kind === "food-external" && !tile.href) {
               return null;
@@ -66,21 +66,21 @@ export default function MenuCategoryGrid({
 
             if (tile.kind === "food-external" && tile.href) {
               return (
-                <li key={tile.id} className="menuHub__item menuHub__item--food">
+                <li key={tile.id} className={`${styles.menuHubItem} ${styles.menuHubItemFood}`}>
                   <a
-                    className="menuHub__tile pressable"
+                    className={`${styles.menuHubTile} pressable`}
                     href={tile.href}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
                     <span
-                      className={`menuHub__media menuHub__media--food${tile.imageUrl ? " menuHub__media--photo" : ""}`}
+                      className={`${styles.menuHubMedia} ${styles.menuHubMediaFood}${tile.imageUrl ? ` ${styles.menuHubMediaPhoto}` : ""}`}
                       aria-hidden="true"
                     >
                       {tile.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element -- curated external menu tile photos
                         <img
-                          className="menuHub__photo"
+                          className={styles.menuHubPhoto}
                           src={tile.imageUrl}
                           alt=""
                           loading="lazy"
@@ -90,11 +90,11 @@ export default function MenuCategoryGrid({
                         <UtensilsCrossed size={28} />
                       )}
                     </span>
-                    <span className="menuHub__meta">
-                      <span className="menuHub__label">{tile.label}</span>
-                      {tile.hint ? <span className="menuHub__hint">{tile.hint}</span> : null}
+                    <span className={styles.menuHubMeta}>
+                      <span className={styles.menuHubLabel}>{tile.label}</span>
+                      {tile.hint ? <span className={styles.menuHubHint}>{tile.hint}</span> : null}
                     </span>
-                    <ExternalLink size={13} className="menuHub__ext" aria-hidden="true" />
+                    <ExternalLink size={13} className={styles.menuHubExt} aria-hidden="true" />
                   </a>
                 </li>
               );
@@ -105,11 +105,11 @@ export default function MenuCategoryGrid({
             return (
               <li
                 key={tile.id}
-                className={`menuHub__item${isPrimary ? " menuHub__item--primary" : ""}`}
+                className={`${styles.menuHubItem}${isPrimary ? ` ${styles.menuHubItemPrimary}` : ""}`}
               >
                 <button
                   type="button"
-                  className="menuHub__tile"
+                  className={styles.menuHubTile}
                   onClick={() => onOpenDrinks(category)}
                   style={
                     category
@@ -118,7 +118,7 @@ export default function MenuCategoryGrid({
                   }
                 >
                   <span
-                    className={`menuHub__media${isPrimary ? " menuHub__media--drinks" : ""}`}
+                    className={`${styles.menuHubMedia}${isPrimary ? ` ${styles.menuHubMediaDrinks}` : ""}`}
                     style={
                       !category && isPrimary
                         ? ({ color: "var(--cat-beer)" } as CSSProperties)
@@ -130,9 +130,9 @@ export default function MenuCategoryGrid({
                   >
                     <DrinkGlyph category={category ?? "beer"} size={isPrimary ? 36 : 30} inheritColor />
                   </span>
-                  <span className="menuHub__meta">
-                    <span className="menuHub__label">{tile.label}</span>
-                    {tile.hint ? <span className="menuHub__hint">{tile.hint}</span> : null}
+                  <span className={styles.menuHubMeta}>
+                    <span className={styles.menuHubLabel}>{tile.label}</span>
+                    {tile.hint ? <span className={styles.menuHubHint}>{tile.hint}</span> : null}
                   </span>
                 </button>
               </li>

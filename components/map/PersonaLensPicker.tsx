@@ -25,7 +25,7 @@ import {
   type PersonaDrink,
 } from "@/lib/personaDrinks";
 
-import "./personaLens.css";
+import styles from "./personaLens.module.css";
 
 type PersonaLensPickerProps = {
   /** The active persona id, or null when the lens is off. */
@@ -59,7 +59,7 @@ function PersonaLensOption({
       type="button"
       role="option"
       aria-selected={selected}
-      className={highlighted ? `${className} isHighlighted` : className}
+      className={highlighted ? `${className} ${styles.isHighlighted}` : className}
       onMouseEnter={onHover}
       onClick={onPick}
     >
@@ -201,25 +201,25 @@ export default function PersonaLensPicker({
   );
 
   return (
-    <div className="personaLensPicker" ref={rootRef}>
+    <div className={styles.personaLensPicker} ref={rootRef}>
       <button
         ref={triggerRef}
         type="button"
-        className={active ? "personaLensTrigger isActive" : "personaLensTrigger"}
+        className={active ? `${styles.personaLensTrigger} ${styles.isActive}` : styles.personaLensTrigger}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
         onClick={() => setOpen((value) => !value)}
       >
         <GlassWater size={15} aria-hidden="true" />
-        <span className="personaLensTriggerLabel">
+        <span className={styles.personaLensTriggerLabel}>
           {active ? active.name : "Drink like..."}
         </span>
       </button>
       {active ? (
         <button
           type="button"
-          className="personaLensClear"
+          className={styles.personaLensClear}
           aria-label="Clear persona lens"
           onClick={() => choose(null)}
         >
@@ -228,8 +228,8 @@ export default function PersonaLensPicker({
       ) : null}
 
       {open ? (
-        <div className="personaLensPanel">
-          <div className="personaLensSearch">
+        <div className={styles.personaLensPanel}>
+          <div className={styles.personaLensSearch}>
             <Search size={14} aria-hidden="true" />
             <input
               type="search"

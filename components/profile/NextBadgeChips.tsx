@@ -17,7 +17,7 @@ import {
 } from "@/lib/profiles";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
-import "./nextBadgeChips.css";
+import styles from "./nextBadgeChips.module.css";
 
 // Quest chips (IDEAS B2-lite): forward-looking "next badge" progress for the
 // viewer's self-asserted handle. Self-contained on purpose — it resolves the
@@ -108,11 +108,11 @@ export default function NextBadgeChips({
   if (quests.length === 0 && !hasWalkedChip) return null;
 
   return (
-    <div className="questChips" aria-label="Next badge progress">
-      {quests.length > 0 ? <span className="questChipsKicker">Next badge</span> : null}
+    <div className={styles.questChips} aria-label="Next badge progress">
+      {quests.length > 0 ? <span className={styles.questChipsKicker}>Next badge</span> : null}
       {quests.slice(0, MAX_CHIPS).map((quest) => (
-        <span key={quest.badge.id} className="questChip">
-          <span className="questChipCount">
+        <span key={quest.badge.id} className={styles.questChip}>
+          <span className={styles.questChipCount}>
             {quest.current}/{quest.target}
           </span>
           {quest.label}
@@ -120,21 +120,21 @@ export default function NextBadgeChips({
       ))}
       {showCrawlsWalked
         ? eventQuests.map((chip) => (
-            <span key={chip.id} className="questChip questChipEvent">
-              <span className="questChipCount">
+            <span key={chip.id} className={`${styles.questChip} ${styles.questChipEvent}`}>
+              <span className={styles.questChipCount}>
                 {chip.current}/{chip.target}
               </span>
               {chip.label}
               {chip.windowLabel ? (
-                <span className="questChipWindow"> · {chip.windowLabel}</span>
+                <span className={styles.questChipWindow}> · {chip.windowLabel}</span>
               ) : null}
             </span>
           ))
         : null}
       {showCrawlsWalked
         ? crawlQuests.map((chip) => (
-            <span key={chip.id} className="questChip questChipWalked">
-              <span className="questChipCount">
+            <span key={chip.id} className={`${styles.questChip} ${styles.questChipWalked}`}>
+              <span className={styles.questChipCount}>
                 {chip.current}/{chip.target}
               </span>
               {chip.label}
@@ -142,8 +142,8 @@ export default function NextBadgeChips({
           ))
         : null}
       {showCrawlsWalked && crawlsWalked > 0 && crawlQuests.length === 0 ? (
-        <span className="questChip questChipWalked">
-          <span className="questChipCount">{crawlsWalked}</span>
+        <span className={`${styles.questChip} ${styles.questChipWalked}`}>
+          <span className={styles.questChipCount}>{crawlsWalked}</span>
           Crawls walked
         </span>
       ) : null}

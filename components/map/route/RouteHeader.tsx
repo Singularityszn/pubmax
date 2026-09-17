@@ -13,6 +13,7 @@ import {
   type AltCrawlStyle,
 } from "@/lib/crawlUrl";
 import btnStyles from '../addStopBtn.module.css';
+import rpStyles from '@/components/map/routePanel.module.css';
 
 type RouteHeaderProps = {
   mode: CrawlMode;
@@ -76,7 +77,7 @@ export default function RouteHeader({
       </div>
 
       <div
-        className="altStylePicker"
+        className={rpStyles.altStylePicker}
         role="radiogroup"
         aria-label="Crawl style"
         data-testid="alt-style-picker"
@@ -87,7 +88,7 @@ export default function RouteHeader({
             type="button"
             role="radio"
             aria-checked={altStyle === style}
-            className={altStyle === style ? "altStyleBtn active" : "altStyleBtn"}
+            className={altStyle === style ? `${rpStyles.altStyleBtn} ${rpStyles.active}` : rpStyles.altStyleBtn}
             onClick={() => onAltStyleChange(style)}
           >
             {altStyleLabels[style]}

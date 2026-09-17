@@ -26,7 +26,7 @@ import { discardBody } from "@/lib/responseBody";
 import { searchCityPlacesByName } from "@/lib/cityPlaceSearch";
 import { haversineKm } from "@/lib/haversine";
 
-import "./venueBuzz.css";
+import styles from "./venueBuzz.module.css";
 
 type CityBuzzMention = { label: string; url: string };
 type CityBuzz = { summary?: string; mentions: CityBuzzMention[] };
@@ -88,7 +88,7 @@ export function renderBuzzSummary(
     const mention = mentions[n - 1];
     if (mention && isHttps(mention.url)) {
       nodes.push(
-        <sup key={`cite-${key++}`} className="venueBuzzCite">
+        <sup key={`cite-${key++}`} className={styles.venueBuzzCite}>
           <a
             href={mention.url}
             target="_blank"
@@ -101,7 +101,7 @@ export function renderBuzzSummary(
       );
     } else {
       nodes.push(
-        <sup key={`cite-${key++}`} className="venueBuzzCite">
+        <sup key={`cite-${key++}`} className={styles.venueBuzzCite}>
           {n}
         </sup>,
       );
@@ -180,30 +180,30 @@ export default function VenueBuzz({
 
   return (
     <section
-      className="venueBuzz"
+      className={styles.venueBuzz}
       aria-label="Around the web: AI summary of press and reviews, via CityMCP"
     >
-      <div className="venueBuzzHead">
-        <span className="venueBuzzEyebrow">
+      <div className={styles.venueBuzzHead}>
+        <span className={styles.venueBuzzEyebrow}>
           <Newspaper size={12} aria-hidden="true" />
           Around the web: AI summary of press &amp; reviews
         </span>
         <span
-          className="venueBuzzSource"
+          className={styles.venueBuzzSource}
           title="AI-synthesised digest sourced from CityMCP London"
         >
           CityMCP
         </span>
       </div>
       {buzz.summary ? (
-        <p className="venueBuzzSummary">
+        <p className={styles.venueBuzzSummary}>
           {renderBuzzSummary(buzz.summary, buzz.mentions)}
         </p>
       ) : null}
       {mentions.length > 0 ? (
-        <ul className="venueBuzzMentions" aria-label="Press mentions">
+        <ul className={styles.venueBuzzMentions} aria-label="Press mentions">
           {mentions.map((m) => (
-            <li key={m.url} className="venueBuzzMention">
+            <li key={m.url} className={styles.venueBuzzMention}>
               <a href={m.url} target="_blank" rel="noreferrer noopener">
                 <ExternalLink size={10} aria-hidden="true" />
                 {m.label}
@@ -212,7 +212,7 @@ export default function VenueBuzz({
           ))}
         </ul>
       ) : null}
-      <small className="venueBuzzNote">
+      <small className={styles.venueBuzzNote}>
         AI-synthesised from third-party press and reviews via CityMCP London.
         Not community reports or PUBMAXXING editorial.
       </small>

@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from "react";
 
-import "./areaNewsRail.css";
+import styles from "./areaNewsRail.module.css";
 
 // Minimal response shape (mirrors data/area_news.json entries; the API caps at 3).
 type AreaNewsEntry = {
@@ -77,9 +77,9 @@ export default function AreaNewsRail({ area }: { area: string | null }) {
 
   if (status === "unavailable") {
     return (
-      <section className="areaNewsRail" aria-label="New round here">
-        <h2 className="areaNewsRailTitle">New round here</h2>
-        <p className="areaNewsRailEmpty">Area updates are unavailable right now.</p>
+      <section className={styles.areaNewsRail} aria-label="New round here">
+        <h2 className={styles.areaNewsRailTitle}>New round here</h2>
+        <p className={styles.areaNewsRailEmpty}>Area updates are unavailable right now.</p>
       </section>
     );
   }
@@ -93,15 +93,15 @@ export default function AreaNewsRail({ area }: { area: string | null }) {
   if (entries.length === 0) return null;
 
   return (
-    <section className="areaNewsRail" aria-label="New round here">
-      <h2 className="areaNewsRailTitle">New round here</h2>
-      <ul className="areaNewsRailList">
+    <section className={styles.areaNewsRail} aria-label="New round here">
+      <h2 className={styles.areaNewsRailTitle}>New round here</h2>
+      <ul className={styles.areaNewsRailList}>
         {entries.map((entry) => {
           const date = shortDate(entry.observedAt);
           return (
-            <li key={entry.id} className="areaNewsRailItem">
-              <p className="areaNewsRailItemTitle">{entry.title}</p>
-              <p className="areaNewsRailItemMeta">
+            <li key={entry.id} className={styles.areaNewsRailItem}>
+              <p className={styles.areaNewsRailItemTitle}>{entry.title}</p>
+              <p className={styles.areaNewsRailItemMeta}>
                 <a href={entry.sourceUrl} target="_blank" rel="noreferrer noopener">
                   {entry.sourceName}
                 </a>

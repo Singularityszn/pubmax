@@ -16,7 +16,7 @@ import {
   syncCheapPintPingPromptFromServer,
 } from "@/lib/cheapPintPingPrompt";
 import { registerWebPush } from "@/lib/webPush";
-import "@/components/native/nativePushPrompt.css";
+import styles from "@/components/native/nativePushPrompt.module.css";
 
 export default function CheapPintPingPrompt(): React.JSX.Element | null {
   const { user } = useAuth();
@@ -98,29 +98,29 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
   }
 
   return (
-    <div className="nativePushPrompt">
+    <div className={styles.nativePushPrompt}>
       <div
-        className="nativePushPrompt__card"
+        className={styles.nativePushPromptCard}
         role="dialog"
         aria-modal="false"
         aria-labelledby="cheap-pint-ping-title"
         aria-describedby="cheap-pint-ping-body"
       >
-        <p id="cheap-pint-ping-title" className="nativePushPrompt__title">
+        <p id="cheap-pint-ping-title" className={styles.nativePushPromptTitle}>
           Weekday cheap-pint ping?
         </p>
-        <p id="cheap-pint-ping-body" className="nativePushPrompt__body">
+        <p id="cheap-pint-ping-body" className={styles.nativePushPromptBody}>
           One push at 5pm on a weekday with a listed cheap pint near where your night starts. Ask once. No follow-ups.
         </p>
         {error ? (
-          <p className="nativePushPrompt__error" role="status">
+          <p className={styles.nativePushPromptError} role="status">
             {error}
           </p>
         ) : null}
-        <div className="nativePushPrompt__actions">
+        <div className={styles.nativePushPromptActions}>
           <button
             type="button"
-            className="nativePushPrompt__later pressable"
+            className={`${styles.nativePushPromptLater} pressable`}
             onClick={() => void handleDecline()}
             disabled={pending}
           >
@@ -128,7 +128,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
           </button>
           <button
             type="button"
-            className="nativePushPrompt__enable pressable"
+            className={`${styles.nativePushPromptEnable} pressable`}
             onClick={() => void handleEnable()}
             disabled={pending}
           >

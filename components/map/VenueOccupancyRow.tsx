@@ -26,7 +26,7 @@ import {
   useVenueOccupancy,
 } from "@/components/map/useVenueOccupancy";
 
-import "./venueOccupancy.css";
+import styles from "./venueOccupancy.module.css";
 
 export type VenueOccupancyRowProps = {
   venueId: string;
@@ -105,12 +105,12 @@ export default function VenueOccupancyRow({
     revealRecord && !receiptLine && reading?.now != null && reading.ageMinutes != null;
 
   return (
-    <section className="venueOccupancy" aria-label="How busy it is right now">
-      <h3 className="venueOccupancyQuestion">How busy is it right now?</h3>
+    <section className={styles.venueOccupancy} aria-label="How busy it is right now">
+      <h3 className={styles.venueOccupancyQuestion}>How busy is it right now?</h3>
       <p
         className={
           [
-            empty ? "venueOccupancyReading venueOccupancyReading--empty" : "venueOccupancyReading",
+            empty ? `${styles.venueOccupancyReading} ${styles.venueOccupancyReadingEmpty}` : styles.venueOccupancyReading,
             revealDatedReading ? "venueRevealRecord" : "",
           ]
             .filter(Boolean)
@@ -120,16 +120,16 @@ export default function VenueOccupancyRow({
       >
         {shown}
       </p>
-      <p className="venueOccupancy__srOnly" role="status">
+      <p className={styles.venueOccupancySrOnly} role="status">
         {receiptLine ?? ""}
       </p>
       {auth ? (
-        <div className="venueOccupancyTaps" role="group" aria-label="Report how busy it is">
+        <div className={styles.venueOccupancyTaps} role="group" aria-label="Report how busy it is">
           {OCCUPANCY_LEVELS.map((level) => (
             <button
               key={level}
               type="button"
-              className="venueOccupancyTap pressable"
+              className={`${styles.venueOccupancyTap} pressable`}
               disabled={reporting}
               onClick={() => void onTap(level)}
             >
@@ -138,17 +138,17 @@ export default function VenueOccupancyRow({
           ))}
         </div>
       ) : viewerSession.signedOut ? (
-        <p className="venueOccupancySignIn">
+        <p className={styles.venueOccupancySignIn}>
           <Link href={occupancySignInHref(venueId)}>Sign in to report</Link>
         </p>
       ) : null}
       {reading?.id && reading.now ? (
         flaggedIds.has(reading.id) ? (
-          <p className="venueOccupancyFlagged" role="status">
+          <p className={styles.venueOccupancyFlagged} role="status">
             Reported. We&rsquo;ll take a look.
           </p>
         ) : (
-          <p className="venueOccupancyFlag">
+          <p className={styles.venueOccupancyFlag}>
             <button
               type="button"
               className="reportBtn"
@@ -163,7 +163,7 @@ export default function VenueOccupancyRow({
         )
       ) : null}
       {error ? (
-        <p className="venueOccupancyError" role="status">
+        <p className={styles.venueOccupancyError} role="status">
           {error}
         </p>
       ) : null}

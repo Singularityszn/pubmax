@@ -100,7 +100,7 @@ describe("the Button primitive", () => {
 });
 
 describe("the venue sheet's two Save controls wear the same row", () => {
-  const saveToList = read("components/savedpubs/saveToList.css");
+  const saveToList = read("components/savedpubs/saveToList.module.css");
   const wanted = read("components/wanted/wanted.css");
 
   it("Save to a list reads the control tokens instead of an 8px box at 13px/600", () => {

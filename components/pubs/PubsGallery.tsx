@@ -20,7 +20,7 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import { resolveBookingAction } from "@/lib/venueExternalActions";
 import type { ZoneSelection } from "@/lib/zones";
 
-import "./pubsGallery.css";
+import styles from "./pubsGallery.module.css";
 import "@/components/map/zonePicker.css";
 
 export function pubsCountLabel({
@@ -60,7 +60,7 @@ function DrinkArt({
 }) {
   return (
     <div
-      className="pubsCardArt"
+      className={styles.pubsCardArt}
       data-drink={accent}
       style={{ ["--drink" as string]: `var(--cat-${accent})` }}
     >

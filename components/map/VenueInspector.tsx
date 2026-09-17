@@ -55,7 +55,7 @@ import VenueGettingHomeSection from "./inspector/VenueGettingHomeTab";
 import VenueStickyBar from "./inspector/VenueStickyBar";
 
 import "./venueSheet.css";
-import "./accessibilityFilters.css";
+import "./accessibilityFilters.module.css";
 import "./inspector/VenueInspectorChrome.module.css";
 
 // TabKey is imported by other modules from this file — keep it re-exported here.

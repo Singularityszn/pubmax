@@ -12,7 +12,7 @@ import DesktopRail from "@/components/desktop/DesktopRail";
 // asserted from source (the same idiom as activationChromeCss.test.ts).
 
 const desktopRailCss = readFileSync(
-  join(process.cwd(), "components/desktop/desktopRail.css"),
+  join(process.cwd(), "components/desktop/desktopRail.module.css"),
   "utf8",
 );
 

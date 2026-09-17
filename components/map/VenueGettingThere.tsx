@@ -13,7 +13,7 @@ import {
   type JourneyPoint,
 } from "@/lib/venueJourney";
 
-import "./venueGettingThere.css";
+import styles from "./venueGettingThere.module.css";
 
 export type LocationRequestStatus = "idle" | "requesting" | "unavailable";
 
@@ -49,18 +49,18 @@ export default function VenueGettingThere({
           ? "Location unavailable. You can try sharing it again."
           : "";
     return (
-      <section className="venueGettingThere" aria-label="Getting there">
-        <span className="venueGettingThere__eyebrow">From you</span>
-        <span className="venueGettingThere__srOnly" role="status" aria-live="polite">
+      <section className={styles.venueGettingThere} aria-label="Getting there">
+        <span className={styles.venueGettingThereEyebrow}>From you</span>
+        <span className={styles.venueGettingThereSrOnly} role="status" aria-live="polite">
           {locationStatusMessage}
         </span>
-        <p className="venueGettingThere__privacy">
+        <p className={styles.venueGettingTherePrivacy}>
           PUBMAXX won&rsquo;t save it. An approximate point is sent to CityMCP for
           routes. You can open the venue in Maps without sharing your location.
         </p>
         <button
           type="button"
-          className="venueGettingThere__location"
+          className={styles.venueGettingThereLocation}
           onClick={onRequestLocation}
           disabled={locationRequestStatus === "requesting"}
         >
@@ -72,7 +72,7 @@ export default function VenueGettingThere({
               : "Share location for travel times"}
         </button>
         <a
-          className="venueGettingThere__venueMaps"
+          className={styles.venueGettingThereVenueMaps}
           href={venueOnlyDirectionsHref}
           target="_blank"
           rel="noopener noreferrer"
@@ -93,12 +93,12 @@ export default function VenueGettingThere({
       journey.status === "error");
 
   return (
-    <section className="venueGettingThere" aria-label="Getting there">
-      <div className="venueGettingThere__head">
-        <span className="venueGettingThere__eyebrow">From you</span>
-        <div className="venueGettingThere__actions">
+    <section className={styles.venueGettingThere} aria-label="Getting there">
+      <div className={styles.venueGettingThereHead}>
+        <span className={styles.venueGettingThereEyebrow}>From you</span>
+        <div className={styles.venueGettingThereActions}>
           <a
-            className="venueGettingThere__maps"
+            className={styles.venueGettingThereMaps}
             href={directionsHref}
             target="_blank"
             rel="noopener noreferrer"
@@ -109,16 +109,16 @@ export default function VenueGettingThere({
           </a>
           <button
             type="button"
-            className="venueGettingThere__forget"
+            className={styles.venueGettingThereForget}
             onClick={onClearLocation}
           >
             Forget
           </button>
         </div>
       </div>
-      <div className="venueGettingThere__routes" aria-live="polite">
+      <div className={styles.venueGettingThereRoutes} aria-live="polite">
         {journey.walkMinutes !== null ? (
-          <span className="venueGettingThere__route">
+          <span className={styles.venueGettingThereRoute}>
             <Footprints size={15} aria-hidden="true" />
             <strong>Walk</strong>
             <span aria-hidden="true">·</span>
@@ -126,7 +126,7 @@ export default function VenueGettingThere({
           </span>
         ) : null}
         {londonTransit ? (
-          <span className="venueGettingThere__route venueGettingThere__route--tfl">
+          <span className={`${styles.venueGettingThereRoute} ${styles.venueGettingThereRouteTfl}`}>
             <TrainFront size={15} aria-hidden="true" />
             <strong>TfL</strong>
             <span aria-hidden="true">·</span>
@@ -142,13 +142,13 @@ export default function VenueGettingThere({
       {journey.status === "error" ? (
         <button
           type="button"
-          className="venueGettingThere__retry"
+          className={styles.venueGettingThereRetry}
           onClick={journey.retry}
         >
           Retry routes
         </button>
       ) : null}
-      <p className="venueGettingThere__privacy">
+      <p className={styles.venueGettingTherePrivacy}>
         PUBMAXX doesn&rsquo;t save this location. CityMCP receives an approximate
         point for each route. Forget clears it from this page, but cannot undo
         an already sent request or browser permission. Maps shares it with Google
