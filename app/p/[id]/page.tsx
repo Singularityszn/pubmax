@@ -14,7 +14,7 @@ import { type ViewerContext } from "@/lib/pintDrops";
 import { formatGbp } from "@/lib/formatGbp";
 import { inlineOfflineOrMessageJs } from "@/lib/apiErrorMessage";
 
-import "./permalink.css";
+import s from "./Permalink.module.css";
 
 // Standalone Pint Drop permalink (PRD §8): share ONE pint as a real collectible
 // memory. A server component so it can read the drop directly, emit rich OG /
@@ -106,17 +106,17 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 // ── Empty / not-found state ──────────────────────────────────────────────────
 function NotOnTheWall() {
   return (
-    <main id="main" className="permalink permalink--empty">
-      <div className="permalink__emptyCard">
-        <Link className="permalink__home" href="/">
+    <main id="main" className={`${s.permalink} ${s.permalinkEmpty}`}>
+      <div className={s.permalinkEmptyCard}>
+        <Link className={s.permalinkHome} href="/">
           PUBMAXXING
         </Link>
-        <p className="permalink__eyebrow">Pint Drop</p>
-        <h1 className="permalink__emptyTitle">This pint isn&rsquo;t on the wall</h1>
-        <p className="permalink__emptyBody">
+        <p className={s.permalinkEyebrow}>Pint Drop</p>
+        <h1 className={s.permalinkEmptyTitle}>This pint isn&rsquo;t on the wall</h1>
+        <p className={s.permalinkEmptyBody}>
           It may have been taken down, or the link is wrong.
         </p>
-        <Link className="permalink__primary" href="/social?tab=discover">
+        <Link className={s.permalinkPrimary} href="/social?tab=discover">
           Browse pubs &amp; pints
         </Link>
       </div>
@@ -151,21 +151,21 @@ function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?:
   });
 
   return (
-    <main id="main" className="permalink">
-      <div className="permalink__mat">
+    <main id="main" className={s.permalink}>
+      <div className={s.permalinkMat}>
         {/* Kicker: brand + edition line */}
-        <div className="permalink__kicker">
-          <Link className="permalink__brand" href="/">
+        <div className={s.permalinkKicker}>
+          <Link className={s.permalinkBrand} href="/">
             PUBMAXXING
           </Link>
-          <span className="permalink__edition">A Pint Drop</span>
+          <span className={s.permalinkEdition}>A Pint Drop</span>
         </div>
 
         {/* The pub snapshot, framed like a pub photo. Price stamp pressed over it. */}
         {hasPhoto ? (
-          <figure className="permalink__frame">
+          <figure className={s.permalinkFrame}>
             <Image
-              className="permalink__photo"
+              className={s.permalinkPhoto}
               src={(drop.pintPhotoUrl || drop.venuePhotoUrl) as string}
               alt={`A pint at ${drop.venueName}`}
               width={720}
@@ -176,23 +176,23 @@ function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?:
             {price ? <PriceStamp price={price} /> : null}
           </figure>
         ) : price ? (
-          <div className="permalink__stampRow">
+          <div className={s.permalinkStampRow}>
             <PriceStamp price={price} />
           </div>
         ) : null}
 
         {/* The pint itself */}
-        <p className="permalink__eyebrow">{drop.venueName}</p>
-        <h1 className="permalink__pint">{headline}</h1>
+        <p className={s.permalinkEyebrow}>{drop.venueName}</p>
+        <h1 className={s.permalinkPint}>{headline}</h1>
 
         {/* The note, as a serif caption — the passed-down memory */}
-        {drop.note ? <p className="permalink__note">&ldquo;{drop.note}&rdquo;</p> : null}
+        {drop.note ? <p className={s.permalinkNote}>&ldquo;{drop.note}&rdquo;</p> : null}
 
         {/* Vibe tags as little pressed stamps */}
         {drop.vibeTags.length ? (
-          <ul className="permalink__tags" aria-label="Vibe tags">
+          <ul className={s.permalinkTags} aria-label="Vibe tags">
             {drop.vibeTags.map((tag) => (
-              <li className="permalink__tag" key={tag}>
+              <li className={s.permalinkTag} key={tag}>
                 {tag}
               </li>
             ))}
@@ -200,22 +200,22 @@ function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?:
         ) : null}
 
         {/* Signature line: handle · era · date */}
-        <div className="permalink__signature">
+        <div className={s.permalinkSignature}>
           <HandleAvatar
             handle={drop.handle}
             avatarUrl={drop.avatarUrl}
-            className="permalink__avatar"
-            imageClassName="permalink__avatar"
+            className={s.permalinkAvatar}
+            imageClassName={s.permalinkAvatar}
             size={32}
           />
-          <span className="permalink__handle">{displayHandle(drop.handle)}</span>
-          {drop.era ? <span className="permalink__meta">· {drop.era}</span> : null}
-          {date ? <span className="permalink__meta">· {date}</span> : null}
+          <span className={s.permalinkHandle}>{displayHandle(drop.handle)}</span>
+          {drop.era ? <span className={s.permalinkMeta}>· {drop.era}</span> : null}
+          {date ? <span className={s.permalinkMeta}>· {date}</span> : null}
         </div>
 
         {/* Actions: copy link + open on the map */}
-        <div className="permalink__actions">
-          <button type="button" className="permalink__primary" data-copy-link>
+        <div className={s.permalinkActions}>
+          <button type="button" className={s.permalinkPrimary} data-copy-link>
             <span data-copy-idle>Copy link</span>
             <span data-copy-done hidden>
               Copied
@@ -224,22 +224,22 @@ function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?:
               Could not copy link. Try again.
             </span>
           </button>
-          <Link className="permalink__ghost" href={drop.venueMapUrl}>
+          <Link className={s.permalinkGhost} href={drop.venueMapUrl}>
             Open the pub on the map
           </Link>
-          <Link className="permalink__ghost" href={`/ledger/${drop.venueId}`}>
+          <Link className={s.permalinkGhost} href={`/ledger/${drop.venueId}`}>
             Open the Ledger
           </Link>
         </div>
 
         {/* Share strip — the pint spreads across X, WhatsApp, and group chats. */}
-        <div className="permalink__share">
+        <div className={s.permalinkShare}>
           <ShareBar url={`/p/${id}`} title={shareTitle} text={shareText} />
         </div>
       </div>
 
       {/* Comments (delivered by a sibling agent at components/pintdrop/CommentThread) */}
-      <section className="permalink__comments" aria-label="Comments">
+      <section className={s.permalinkComments} aria-label="Comments">
         <CommentThread dropId={id} />
       </section>
 
@@ -259,10 +259,10 @@ function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?:
 // The pressed brass price stamp — the one bold signature element (rotated badge).
 function PriceStamp({ price }: { price: string }) {
   return (
-    <div className="permalink__stamp" aria-label={`Paid ${price} a pint`}>
-      <span className="permalink__stampLabel">Paid</span>
-      <span className="permalink__stampPrice">{price}</span>
-      <span className="permalink__stampUnit">a pint</span>
+    <div className={s.permalinkStamp} aria-label={`Paid ${price} a pint`}>
+      <span className={s.permalinkStampLabel}>Paid</span>
+      <span className={s.permalinkStampPrice}>{price}</span>
+      <span className={s.permalinkStampUnit}>a pint</span>
     </div>
   );
 }

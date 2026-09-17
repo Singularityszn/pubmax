@@ -36,7 +36,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { SocialAccessBoundary } from "@/app/social/SocialPageClient";
 
 import AddPageShell from "./AddPageShell";
-import "./add.css";
+import styles from "./Add.module.css";
 
 export const metadata: Metadata = {
   title: "Add to your lot · PUBMAXX",
@@ -65,7 +65,7 @@ export default async function AddHandlePage({
   );
   if (!socialEnabled) {
     return (
-      <main id="main" className="addShell">
+      <main id="main" className={styles.addShell}>
         <SiteNav active="feed" />
         <AddPageShell>
           <SocialAccessBoundary state="preview" friendsLaunchEnabled={false} />
@@ -88,7 +88,7 @@ export default async function AddHandlePage({
     profile && profileMayWearAvatar(profile) ? publicOwnedImageUrl(profile, "avatar") ?? undefined : undefined;
   const auto = parseAddLinkAuto(first((await searchParams)[ADD_LINK_AUTO_PARAM]));
   return (
-    <main id="main" className="addShell">
+    <main id="main" className={styles.addShell}>
       <SiteNav active="feed" />
       <AddPageShell>
         <ConfirmFollow

@@ -9,7 +9,7 @@
 }
 
 /* ── Main scaffolding ────────────────────────────────────────────────── */
-.profilePage .profileMain {
+.profilePage :global(.profileMain) {
   width: 100%;
   box-sizing: border-box;
   padding-block: clamp(32px, 6vw, 64px);
@@ -31,18 +31,18 @@
    display:contents below the breakpoint, so every child stays a direct grid item
    of .profileMain there and the phone layout is byte-for-byte unchanged.
    Signed-out /u/you never renders this — it keeps its single-column invite. */
-.profilePage .profileLayout,
-.profilePage .profileIdentityPane,
-.profilePage .profileContentPane {
+.profilePage :global(.profileLayout),
+.profilePage :global(.profileIdentityPane),
+.profilePage :global(.profileContentPane) {
   display: contents;
 }
 
-.profilePage .profileOwnerUtilities {
+.profilePage :global(.profileOwnerUtilities) {
   display: none;
 }
 
 @media (min-width: 641px) {
-  .profilePage .profileOwnerUtilities {
+  .profilePage :global(.profileOwnerUtilities) {
     display: flex;
     min-height: 44px;
     align-items: center;
@@ -51,13 +51,13 @@
 }
 
 @media (min-width: 1024px) {
-  .profilePage .profileLayout {
+  .profilePage :global(.profileLayout) {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     row-gap: clamp(28px, 4vw, 44px);
   }
 
-  .profilePage .profileOwnerUtilities {
+  .profilePage :global(.profileOwnerUtilities) {
     grid-column: 1;
   }
 
@@ -65,13 +65,13 @@
      was a 340px sticky column, and a 3:1 cover, a name, a bio and six stat
      tiles do not fit in 340px: everything wrapped, so the passport sat beside a
      squeezed identity card instead of below a hero. */
-  .profilePage .profileIdentityPane {
+  .profilePage :global(.profileIdentityPane) {
     display: block;
     grid-column: 1;
     min-width: 0;
   }
 
-  .profilePage .profileContentPane {
+  .profilePage :global(.profileContentPane) {
     display: grid;
     grid-column: 1;
     gap: clamp(28px, 4vw, 44px);
@@ -79,8 +79,8 @@
   }
 }
 
-.profilePage .profileSectionHeading,
-.profilePage .savedHeading {
+.profilePage :global(.profileSectionHeading),
+.profilePage :global(.savedHeading) {
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: clamp(1.4rem, 3vw, 1.9rem);
   letter-spacing: -0.015em;
@@ -88,8 +88,8 @@
 }
 
 /* Wave I1/I3 — Memory Timeline reuses feed card styles */
-.profilePage .profileTimeline,
-.profilePage .profileTimelineSkel {
+.profilePage :global(.profileTimeline),
+.profilePage :global(.profileTimelineSkel) {
   display: grid;
   gap: 18px;
   max-width: 560px;
@@ -97,14 +97,14 @@
 
 /* Error state reuses the header, then a quiet inline notice below it. Keep the
    two stacked with the same rhythm as the grid so it never looks broken. */
-.profilePage .profileErrorState {
+.profilePage :global(.profileErrorState) {
   display: grid;
   gap: clamp(24px, 4vw, 40px);
 }
 
 /* The owner route behaves like a social profile: identity first, a stable
    content switcher second, and account machinery below the content. */
-.profilePage .youIdentityIntro {
+.profilePage :global(.youIdentityIntro) {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -116,7 +116,7 @@
   box-shadow: var(--shadow);
 }
 
-.profilePage .youIdentityAvatar {
+.profilePage :global(.youIdentityAvatar) {
   width: 92px;
   aspect-ratio: 1;
   display: grid;
@@ -130,12 +130,12 @@
   letter-spacing: .08em;
 }
 
-.profilePage .youIdentityIntro h1 { margin: .25rem 0 .45rem; font: 700 clamp(1.8rem, 4vw, 3rem)/1 var(--font-display); }
-.profilePage .youIdentityIntro p { margin: 0; color: var(--ink-soft); line-height: 1.5; }
-.profilePage .youMemoriesInvite { margin-top: .65rem; color: var(--ink); }
-.profilePage .youIdentityActions { display: grid; gap: 8px; }
-.profilePage .youIdentityActions a,
-.profilePage .profilePalLink {
+.profilePage :global(.youIdentityIntro) h1 { margin: .25rem 0 .45rem; font: 700 clamp(1.8rem, 4vw, 3rem)/1 var(--font-display); }
+.profilePage :global(.youIdentityIntro) p { margin: 0; color: var(--ink-soft); line-height: 1.5; }
+.profilePage :global(.youMemoriesInvite) { margin-top: .65rem; color: var(--ink); }
+.profilePage :global(.youIdentityActions) { display: grid; gap: 8px; }
+.profilePage :global(.youIdentityActions) a,
+.profilePage :global(.profilePalLink) {
   min-height: var(--control-height, 44px);
   padding: 10px var(--control-pad-x, 16px);
   display: inline-flex;
@@ -148,15 +148,15 @@
   font-weight: var(--control-font-weight, 700);
   text-decoration: none;
 }
-.profilePage .youIdentityActions a:first-child { border-color: var(--brass); background: var(--brass); color: var(--color-on-accent); }
+.profilePage :global(.youIdentityActions) a:first-child { border-color: var(--brass); background: var(--brass); color: var(--color-on-accent); }
 /* "Claim your @handle" is the primary here (brass, above); "Meet your Pub Pal"
    steps back to a quiet secondary so the two don't compete at equal weight. */
-.profilePage .youIdentityActions a:last-child { border-color: transparent; background: transparent; color: var(--ink-soft); }
-.profilePage .youIdentityActions a:last-child:hover { color: var(--ink); }
+.profilePage :global(.youIdentityActions) a:last-child { border-color: transparent; background: transparent; color: var(--ink-soft); }
+.profilePage :global(.youIdentityActions) a:last-child:hover { color: var(--ink); }
 
 /* Invite-your-lot is the crew loop's primary action, so it wears the brass fill
    the pub-pal / edit pills leave quiet. Shares the pill geometry above. */
-.profilePage .profileInviteLink {
+.profilePage :global(.profileInviteLink) {
   min-height: var(--control-height, 44px);
   padding: 10px var(--control-pad-x, 16px);
   display: inline-flex;
@@ -171,12 +171,12 @@
   text-decoration: none;
 }
 
-.profilePage .youProfileTabs {
+.profilePage :global(.youProfileTabs) {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   border-block: 1px solid var(--line);
 }
-.profilePage .youProfileTabs a {
+.profilePage :global(.youProfileTabs) a {
   min-height: 48px;
   display: grid;
   place-items: center;
@@ -185,10 +185,10 @@
   font-weight: 750;
   text-decoration: none;
 }
-.profilePage .youProfileTabs a:first-child { color: var(--ink); box-shadow: inset 0 -2px var(--ink); }
+.profilePage :global(.youProfileTabs) a:first-child { color: var(--ink); box-shadow: inset 0 -2px var(--ink); }
 
 /* Follow/edit action slot rides at the far end of the identity row. */
-.profilePage .profileActions {
+.profilePage :global(.profileActions) {
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
@@ -199,7 +199,7 @@
   flex: 0 0 auto;
 }
 
-.profilePage .profileEmpty {
+.profilePage :global(.profileEmpty) {
   margin: 0;
   padding: 20px 22px;
   border: 1px dashed var(--line);
@@ -211,7 +211,7 @@
 }
 
 /* Reserved handle after auth deletion: honest gone, not a live empty profile. */
-.profilePage .profileGoneState {
+.profilePage :global(.profileGoneState) {
   display: grid;
   gap: 0.75rem;
   max-width: 36rem;
@@ -223,12 +223,12 @@
   box-shadow: var(--shadow);
 }
 
-.profilePage .profileGoneState h1 {
+.profilePage :global(.profileGoneState) h1 {
   margin: 0;
   font-size: clamp(1.35rem, 3vw, 1.75rem);
 }
 
-.profilePage .profileGoneState .profileEmpty {
+.profilePage :global(.profileGoneState) :global(.profileEmpty) {
   padding: 0;
   border: 0;
   background: transparent;
@@ -236,7 +236,7 @@
 }
 
 /* ── Header ──────────────────────────────────────────────────────────── */
-.profilePage .profileHeader {
+.profilePage :global(.profileHeader) {
   /* The face overlaps the band, so the avatar's size and how far it hangs
      below the cover are ONE pair of numbers the whole hero reads. */
   --profile-avatar-size: clamp(88px, 11vw, 156px);
@@ -259,7 +259,7 @@
    painted whether or not an image loaded, and it takes a SHORTER band: there
    is no photograph up there to crop, so four hundred pixels of gradient would
    only be four hundred pixels of nothing above the fold. */
-.profilePage .profileCover {
+.profilePage :global(.profileCover) {
   position: relative;
   height: clamp(116px, 15vw, 190px);
   overflow: hidden;
@@ -277,18 +277,18 @@
    every viewport, which is how a photograph somebody framed carefully came to
    be cut through the middle of a word. Because the ratio holds at every width,
    a phone sees the same rectangle a desktop does, only smaller. */
-.profilePage .profileHeaderWithCover .profileCover {
+.profilePage :global(.profileHeaderWithCover) :global(.profileCover) {
   height: auto;
   aspect-ratio: 3 / 1;
 }
 
 /* Every cover in the rotation is stacked in the same box; one is opaque. */
-.profilePage .profileCoverFrames {
+.profilePage :global(.profileCoverFrames) {
   position: absolute;
   inset: 0;
 }
 
-.profilePage .profileCoverImage {
+.profilePage :global(.profileCoverImage) {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -298,11 +298,11 @@
   opacity: 0;
 }
 
-.profilePage .profileCoverImageActive {
+.profilePage :global(.profileCoverImageActive) {
   opacity: 1;
 }
 
-.profilePage .profileCoverFalloff {
+.profilePage :global(.profileCoverFalloff) {
   position: absolute;
   inset: 0;
   background: linear-gradient(
@@ -315,47 +315,47 @@
 
 /* The viewer identity is unknown while auth restores. Keep the profile card's
    geometry, but replace every identity-bearing value with a quiet shape. */
-.profilePage .profileHeaderLoading .profileSkeleton {
+.profilePage :global(.profileHeaderLoading) :global(.profileSkeleton) {
   display: block;
   border-radius: 8px;
   background: var(--line-soft, var(--line));
 }
 
-.profilePage .profileHeaderLoading .profileCover {
+.profilePage :global(.profileHeaderLoading) :global(.profileCover) {
   background: var(--line-soft, var(--line));
 }
 
-.profilePage .profileHeaderLoading .profileAvatar {
+.profilePage :global(.profileHeaderLoading) :global(.profileAvatar) {
   background: var(--line-soft, var(--line));
 }
 
-.profilePage .profileHeaderLoading .profileNames {
+.profilePage :global(.profileHeaderLoading) :global(.profileNames) {
   display: grid;
   align-content: end;
   gap: 8px;
   width: min(100%, 260px);
 }
 
-.profilePage .profileHeaderLoading .profileSkeletonLine {
+.profilePage :global(.profileHeaderLoading) :global(.profileSkeletonLine) {
   height: 20px;
 }
 
-.profilePage .profileHeaderLoading .profileSkeletonName {
+.profilePage :global(.profileHeaderLoading) :global(.profileSkeletonName) {
   width: min(100%, 220px);
   height: 32px;
 }
 
-.profilePage .profileHeaderLoading .profileSkeletonHandle {
+.profilePage :global(.profileHeaderLoading) :global(.profileSkeletonHandle) {
   width: 112px;
   height: 14px;
 }
 
-.profilePage .profileHeaderLoading .profileSkeletonStat {
+.profilePage :global(.profileHeaderLoading) :global(.profileSkeletonStat) {
   width: 56px;
   height: 24px;
 }
 
-.profilePage .profileHeroBody {
+.profilePage :global(.profileHeroBody) {
   display: grid;
   gap: 18px;
   padding: 0 var(--profile-hero-pad) var(--profile-hero-pad);
@@ -365,7 +365,7 @@
    of the hero together. The band is painted whether or not a photograph loaded,
    so the overlap is unconditional and a brass-only profile gets the same
    composition rather than a second layout nobody designed. */
-.profilePage .profileIdentity {
+.profilePage :global(.profileIdentity) {
   position: relative;
   display: flex;
   align-items: flex-end;
@@ -376,7 +376,7 @@
 /* Over a photograph the face needs its own edge, or it dissolves into the
    backdrop the way a pin without a casing dissolves into a dark basemap. The
    ring is unconditional now, because the band behind it is always painted. */
-.profilePage .profileAvatar {
+.profilePage :global(.profileAvatar) {
   width: var(--profile-avatar-size);
   height: var(--profile-avatar-size);
   border-radius: 50%;
@@ -386,7 +386,7 @@
   flex: 0 0 auto;
 }
 
-.profilePage .profileAvatarFallback {
+.profilePage :global(.profileAvatarFallback) {
   display: grid;
   place-items: center;
   background: var(--ink-deep);
@@ -398,12 +398,12 @@
 
 /* The names sit BESIDE the face, on its bottom edge, so the two read as one
    introduction rather than as a photo with a caption under it. */
-.profilePage .profileNames {
+.profilePage :global(.profileNames) {
   min-width: 0;
   padding-bottom: 4px;
 }
 
-.profilePage .profileDisplayName {
+.profilePage :global(.profileDisplayName) {
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: clamp(1.7rem, 3.4vw, 2.9rem);
   line-height: 1.05;
@@ -411,14 +411,14 @@
   margin: 0;
 }
 
-.profilePage .profileHandle {
+.profilePage :global(.profileHandle) {
   margin: 5px 0 0;
   color: var(--state-active-ink);
   font-size: clamp(0.98rem, 1.2vw, 1.12rem);
   font-weight: 600;
 }
 
-.profilePage .profileHomeCity {
+.profilePage :global(.profileHomeCity) {
   margin: 6px 0 0;
   color: var(--ink-soft);
   font-size: 0.92rem;
@@ -427,7 +427,7 @@
 /* The opening line, directly under the identity and in reading type rather
    than in caption type: it is the first thing this person says about
    themselves, and it was set smaller than the card facts below it. */
-.profilePage .profileBio {
+.profilePage :global(.profileBio) {
   margin: 0;
   color: var(--ink);
   font-size: clamp(1.05rem, 1.35vw, 1.24rem);
@@ -439,14 +439,14 @@
    What they drink, what they are into, where they work. Each row prints only
    when its owner filled it in, so the block shrinks to nothing on a bare
    profile rather than showing three empty labels. */
-.profilePage .profileCardFacts {
+.profilePage :global(.profileCardFacts) {
   display: grid;
   gap: 10px 24px;
   margin: 0;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
-.profilePage .profileCardFact {
+.profilePage :global(.profileCardFact) {
   display: grid;
   gap: 2px;
   min-width: 0;
@@ -454,7 +454,7 @@
   border-left: 2px solid color-mix(in srgb, var(--brass) 46%, var(--line));
 }
 
-.profilePage .profileCardFact dt {
+.profilePage :global(.profileCardFact) dt {
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -462,7 +462,7 @@
   color: var(--muted);
 }
 
-.profilePage .profileCardFact dd {
+.profilePage :global(.profileCardFact) dd {
   margin: 0;
   color: var(--ink);
   font-size: 0.98rem;
@@ -472,7 +472,7 @@
 
 /* What they are into is a sentence, not a chip, so it takes the whole row
    rather than being squeezed into a third of it. */
-.profilePage .profileCardFact--into {
+.profilePage :global(.profileCardFact--into) {
   grid-column: 1 / -1;
 }
 
@@ -480,7 +480,7 @@
    Earned achievements as small brass "brass-plate" chips. Token-driven so
    they flip light/dark for free. Each chip carries a native title (label +
    description) for sighted users and a visually-hidden description for AT. */
-.profilePage .profileBadges {
+.profilePage :global(.profileBadges) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -489,7 +489,7 @@
   list-style: none;
 }
 
-.profilePage .profileBadge {
+.profilePage :global(.profileBadge) {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -506,7 +506,7 @@
   cursor: default;
 }
 
-.profilePage .profileBadgeDot {
+.profilePage :global(.profileBadgeDot) {
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -514,13 +514,13 @@
   flex: 0 0 auto;
 }
 
-.profilePage .profileBadgeLabel {
+.profilePage :global(.profileBadgeLabel) {
   white-space: nowrap;
 }
 
 /* Screen-reader-only description: announced but off-screen so the chip stays
    compact. The chip's title carries the same text for sighted users. */
-.profilePage .profileBadgeDesc {
+.profilePage :global(.profileBadgeDesc) {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -535,12 +535,12 @@
 /* Keyboard/hover affordance so the chips don't read as dead text. Focusable
    only if a future variant makes them links/buttons; for now, hover lifts the
    plate a touch and focus-visible gets the standard brass ring. */
-.profilePage .profileBadge:hover {
+.profilePage :global(.profileBadge):hover {
   background: color-mix(in srgb, var(--brass) 18%, var(--panel));
   border-color: var(--brass);
 }
 
-.profilePage .profileBadge:focus-visible {
+.profilePage :global(.profileBadge):focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
@@ -549,7 +549,7 @@
 /* The stat row is a BAND below the hero, spanning the whole card. Six figures
    wrapped inside a narrow identity column is what made them read as a receipt;
    given the full width they read as six doors, which is what they are. */
-.profilePage .profileStats {
+.profilePage :global(.profileStats) {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
   gap: 1px;
@@ -559,14 +559,14 @@
   background: var(--line);
 }
 
-.profilePage .profileStat {
+.profilePage :global(.profileStat) {
   border: 0;
   border-radius: 0;
   background: var(--panel);
 }
 
 /* The whole tile is the target, so the 44px floor is the tile, not the label. */
-.profilePage .profileStatLink {
+.profilePage :global(.profileStatLink) {
   display: block;
   min-height: 44px;
   padding: 12px 16px;
@@ -575,7 +575,7 @@
   text-decoration: none;
 }
 
-.profilePage .profileStatLabel {
+.profilePage :global(.profileStatLabel) {
   display: block;
   color: var(--muted);
   font-size: 0.76rem;
@@ -583,7 +583,7 @@
   letter-spacing: 0.01em;
 }
 
-.profilePage .profileStatValue {
+.profilePage :global(.profileStatValue) {
   display: block;
   margin: 4px 0 0;
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
@@ -593,7 +593,7 @@
 }
 
 /* ── Pint Drops grid ─────────────────────────────────────────────────── */
-.profilePage .profileDropsGrid {
+.profilePage :global(.profileDropsGrid) {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 16px;
@@ -602,7 +602,7 @@
   list-style: none;
 }
 
-.profilePage .profileDropCard {
+.profilePage :global(.profileDropCard) {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line);
@@ -612,38 +612,38 @@
   transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
-.profilePage .profileDropCard:hover {
+.profilePage :global(.profileDropCard):hover {
   border-color: var(--brass);
   box-shadow: 0 10px 24px rgba(154, 106, 36, 0.12);
 }
 
-.profilePage .profileDropPhoto {
+.profilePage :global(.profileDropPhoto) {
   aspect-ratio: 16 / 11;
   background: var(--panel-raised);
   overflow: hidden;
 }
 
-.profilePage .profileDropPhoto img {
+.profilePage :global(.profileDropPhoto) img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
-.profilePage .profileDropPhotoEmpty {
+.profilePage :global(.profileDropPhotoEmpty) {
   display: grid;
   place-items: center;
   font-size: 2rem;
   color: var(--muted);
 }
 
-.profilePage .profileDropBody {
+.profilePage :global(.profileDropBody) {
   padding: 14px 16px;
   display: grid;
   gap: 8px;
 }
 
-.profilePage .profileDropTop {
+.profilePage :global(.profileDropTop) {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -652,7 +652,7 @@
 
 /* The pub name — a link to the map (?sel). Never the raw venue id.
    Mirrors .feedVenueLink so the anchor reads as a name, not a raw browser link. */
-.profilePage .profileDropVenue {
+.profilePage :global(.profileDropVenue) {
   font-weight: 700;
   font-size: 0.9rem;
   overflow: hidden;
@@ -664,17 +664,17 @@
   transition: border-color 0.18s ease;
 }
 
-.profilePage .profileDropVenue:hover {
+.profilePage :global(.profileDropVenue):hover {
   border-bottom-color: var(--brass);
 }
 
-.profilePage .profileDropVenue:focus-visible {
+.profilePage :global(.profileDropVenue):focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
   border-radius: 2px;
 }
 
-.profilePage .profileDropPrice {
+.profilePage :global(.profileDropPrice) {
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-weight: 600;
   font-size: 1.1rem;
@@ -683,7 +683,7 @@
   white-space: nowrap;
 }
 
-.profilePage .profileDropNote {
+.profilePage :global(.profileDropNote) {
   margin: 0;
   color: var(--ink-soft);
   font-size: 0.9rem;
@@ -691,41 +691,41 @@
 }
 
 /* ── Saved venues ───────────────────────────────────────────────────── */
-.profilePage .savedLists {
+.profilePage :global(.savedLists) {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 18px;
 }
 
-.profilePage .savedList {
+.profilePage :global(.savedList) {
   padding: 18px 20px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel);
 }
 
-.profilePage .savedListName {
+.profilePage :global(.savedListName) {
   margin: 0 0 12px;
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 1.2rem;
 }
 
-.profilePage .savedListNameLink {
+.profilePage :global(.savedListNameLink) {
   color: inherit;
 }
 
-.profilePage .savedListNameLink:hover {
+.profilePage :global(.savedListNameLink):hover {
   color: var(--accent);
 }
 
-.profilePage .savedListCount {
+.profilePage :global(.savedListCount) {
   color: var(--muted);
   font-size: 0.8rem;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
-.profilePage .savedListItems {
+.profilePage :global(.savedListItems) {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -733,7 +733,7 @@
   gap: 8px;
 }
 
-.profilePage .savedItem {
+.profilePage :global(.savedItem) {
   display: grid;
   gap: 3px;
   padding: 8px 10px;
@@ -742,36 +742,36 @@
   background: var(--panel-raised);
 }
 
-.profilePage .savedItemVenue {
+.profilePage :global(.savedItemVenue) {
   font-weight: 600;
   font-size: 0.88rem;
 }
 
-.profilePage .savedItemNote {
+.profilePage :global(.savedItemNote) {
   color: var(--ink-soft);
   font-size: 0.82rem;
   line-height: 1.45;
 }
 
-.profilePage .savedEmpty {
+.profilePage :global(.savedEmpty) {
   margin: 0;
   color: var(--ink-soft);
   font-size: 0.96rem;
   line-height: 1.55;
 }
 
-.profilePage .followedListsSection {
+.profilePage :global(.followedListsSection) {
   display: grid;
   gap: 14px;
 }
 
-.profilePage .followedLists {
+.profilePage :global(.followedLists) {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 14px;
 }
 
-.profilePage .followedList {
+.profilePage :global(.followedList) {
   display: grid;
   gap: 10px;
   padding: 16px 18px;
@@ -780,26 +780,26 @@
   background: var(--panel);
 }
 
-.profilePage .followedListTop {
+.profilePage :global(.followedListTop) {
   display: grid;
   gap: 4px;
 }
 
-.profilePage .followedListName {
+.profilePage :global(.followedListName) {
   width: fit-content;
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 1.12rem;
   font-weight: 700;
 }
 
-.profilePage .followedListAuthor {
+.profilePage :global(.followedListAuthor) {
   width: fit-content;
   color: var(--brass);
   font-size: 0.84rem;
   font-weight: 700;
 }
 
-.profilePage .followedListCounts {
+.profilePage :global(.followedListCounts) {
   margin: 0;
   color: var(--ink-soft);
   font-size: 0.84rem;
@@ -807,7 +807,7 @@
 }
 
 /* ── Shareable saved-list detail ────────────────────────────────────── */
-.profilePage .listDetailHero {
+.profilePage :global(.listDetailHero) {
   display: grid;
   gap: 18px;
   padding: clamp(22px, 4vw, 32px);
@@ -817,12 +817,12 @@
   box-shadow: var(--shadow);
 }
 
-.profilePage .listDetailTitleBlock {
+.profilePage :global(.listDetailTitleBlock) {
   display: grid;
   gap: 8px;
 }
 
-.profilePage .listDetailEyebrow {
+.profilePage :global(.listDetailEyebrow) {
   margin: 0;
   color: var(--muted);
   font-size: 0.78rem;
@@ -830,20 +830,20 @@
   letter-spacing: 0.01em;
 }
 
-.profilePage .listDetailTitle {
+.profilePage :global(.listDetailTitle) {
   margin: 0;
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: clamp(2rem, 5vw, 3.2rem);
   line-height: 1.02;
 }
 
-.profilePage .listDetailAuthor {
+.profilePage :global(.listDetailAuthor) {
   width: fit-content;
   color: var(--brass);
   font-weight: 700;
 }
 
-.profilePage .listDetailMeta {
+.profilePage :global(.listDetailMeta) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -852,26 +852,26 @@
   font-variant-numeric: tabular-nums;
 }
 
-.profilePage .listDetailMeta span {
+.profilePage :global(.listDetailMeta) span {
   padding: 7px 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--panel);
 }
 
-.profilePage .listFollowControl {
+.profilePage :global(.listFollowControl) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
 
-.profilePage .listDetailShare {
+.profilePage :global(.listDetailShare) {
   display: flex;
   align-items: center;
 }
 
-.profilePage .listMapAction {
+.profilePage :global(.listMapAction) {
   display: inline-flex;
   width: fit-content;
   min-height: 44px;
@@ -885,13 +885,13 @@
   text-decoration: none;
 }
 
-.profilePage .listMapAction:hover {
+.profilePage :global(.listMapAction):hover {
   border-color: var(--accent-action-strong);
   background: var(--accent-action-strong);
   color: var(--color-on-accent-strong);
 }
 
-.profilePage .followBtn {
+.profilePage :global(.followBtn) {
   min-height: 44px;
   padding: 10px 16px;
   border: 1px solid var(--accent-action);
@@ -903,25 +903,25 @@
   cursor: pointer;
 }
 
-.profilePage .followBtn:hover:not(:disabled) {
+.profilePage :global(.followBtn):hover:not(:disabled) {
   border-color: var(--accent-action-strong);
   background: var(--accent-action-strong);
   color: var(--color-on-accent-strong);
 }
 
-.profilePage .followBtn.isFollowing {
+.profilePage :global(.followBtn.isFollowing) {
   border-color: var(--state-active-border);
   background: var(--state-active-surface);
   color: var(--state-active-ink);
 }
 
-.profilePage .followBtn.isFollowing:hover:not(:disabled) {
+.profilePage :global(.followBtn.isFollowing):hover:not(:disabled) {
   border-color: var(--state-active-ink);
   background: color-mix(in srgb, var(--state-active-surface) 82%, var(--ink) 18%);
   color: var(--ink);
 }
 
-.profilePage .followBtn:disabled {
+.profilePage :global(.followBtn):disabled {
   cursor: wait;
   opacity: 0.72;
 }
@@ -932,7 +932,7 @@
    it a bare underlined link 20px tall, which is the one control a stranger
    arriving from an add link is meant to press. The outline tone keeps it from
    reading as a Follow already pressed. */
-.profilePage .profileFollowSignIn {
+.profilePage :global(.profileFollowSignIn) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -947,18 +947,18 @@
   text-decoration: none;
 }
 
-.profilePage .profileFollowSignIn:hover {
+.profilePage :global(.profileFollowSignIn):hover {
   background: color-mix(in srgb, var(--accent-action) 12%, transparent);
 }
 
-.profilePage .profileFollowSignIn:focus-visible {
+.profilePage :global(.profileFollowSignIn):focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
 
 /* Button first, then whatever it could not say. Wrapping matters: the hint is
    a sentence, and inline beside a button it ran off the identity pane. */
-.profilePage .profileFollow {
+.profilePage :global(.profileFollow) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -966,36 +966,36 @@
   min-width: 0;
 }
 
-.profilePage .profileFollow > * {
+.profilePage :global(.profileFollow) > * {
   min-width: 0;
 }
 
-.profilePage .followError {
+.profilePage :global(.followError) {
   color: var(--danger, #b42318);
   font-size: 0.84rem;
   font-weight: 600;
 }
 
 /* The edge the button cannot say. Quiet, because the button is the action. */
-.profilePage .followHint {
+.profilePage :global(.followHint) {
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 600;
 }
 
-.profilePage .followBtn.isMates {
+.profilePage :global(.followBtn.isMates) {
   --follow-mates-ink: color-mix(in srgb, var(--color-positive, var(--pint)) 50%, var(--ink));
   border-color: var(--follow-mates-ink);
   color: var(--follow-mates-ink);
 }
 
-.profilePage .followBtn.isMates:hover:not(:disabled) {
+.profilePage :global(.followBtn.isMates):hover:not(:disabled) {
   border-color: var(--follow-mates-ink);
   color: var(--follow-mates-ink);
 }
 
 /* Published crawls: the destination behind the Crawls tile. */
-.profilePage .profileCrawlList {
+.profilePage :global(.profileCrawlList) {
   list-style: none;
   margin: 12px 0 0;
   padding: 0;
@@ -1003,7 +1003,7 @@
   gap: 8px;
 }
 
-.profilePage .profileCrawlRow {
+.profilePage :global(.profileCrawlRow) {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -1016,17 +1016,17 @@
   background: var(--panel);
 }
 
-.profilePage .profileCrawlStops {
+.profilePage :global(.profileCrawlStops) {
   color: var(--muted);
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
 }
 
-.profilePage .profileCrawlUnlisted {
+.profilePage :global(.profileCrawlUnlisted) {
   margin-top: 12px;
 }
 
-.profilePage .profileCrawlUnlisted > summary {
+.profilePage :global(.profileCrawlUnlisted) > summary {
   min-height: 44px;
   display: flex;
   align-items: center;
@@ -1036,11 +1036,11 @@
   font-size: 0.85rem;
 }
 
-.profilePage .profileCrawlUnlisted > summary:hover {
+.profilePage :global(.profileCrawlUnlisted) > summary:hover {
   color: var(--brass);
 }
 
-.profilePage .profileCrawlMore {
+.profilePage :global(.profileCrawlMore) {
   margin-top: 8px;
   min-height: 44px;
   padding: 10px 16px;
@@ -1053,11 +1053,11 @@
   cursor: pointer;
 }
 
-.profilePage .profileCrawlMore:hover {
+.profilePage :global(.profileCrawlMore):hover {
   border-color: var(--brass);
 }
 
-.profilePage .listDetailItems {
+.profilePage :global(.listDetailItems) {
   max-width: 760px;
 }
 
@@ -1066,9 +1066,9 @@
    6px corners at 0.9rem/600 beside the page's 14px-corner controls, and the
    outlined pair printed the raw coral as a WORD on the light ground (2.9:1),
    so the word takes the accent's ink and the fill keeps its coral. */
-.profilePage .profileEditToggle,
-.profilePage .profileClaimBtn,
-.profilePage .profilePalLink {
+.profilePage :global(.profileEditToggle),
+.profilePage :global(.profileClaimBtn),
+.profilePage :global(.profilePalLink) {
   min-height: var(--control-height, 44px);
   padding: 0 var(--control-pad-x, 16px);
   border-radius: var(--control-radius, 14px);
@@ -1081,32 +1081,32 @@
   transition: background 0.18s ease, color 0.18s ease;
 }
 
-.profilePage .profileClaimBtn {
+.profilePage :global(.profileClaimBtn) {
   background: var(--brass);
   color: var(--color-on-accent, var(--paper));
 }
 
-.profilePage .profileEditToggle:hover {
+.profilePage :global(.profileEditToggle):hover {
   background: color-mix(in srgb, var(--brass) 12%, transparent);
 }
 
-.profilePage .profileClaimBtn:hover {
+.profilePage :global(.profileClaimBtn):hover {
   background: color-mix(in srgb, var(--brass) 88%, var(--ink));
 }
 
-.profilePage .profileEditToggle:focus-visible,
-.profilePage .profileClaimBtn:focus-visible {
+.profilePage :global(.profileEditToggle):focus-visible,
+.profilePage :global(.profileClaimBtn):focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
 
 /* ── Edit mode: the editing state must be unmistakable ───────────────── */
-.profilePage .profileEditToggle[aria-expanded="true"] {
+.profilePage :global(.profileEditToggle[aria-expanded="true"]) {
   background: var(--brass);
   color: var(--color-on-accent, var(--paper));
 }
 
-.profilePage .profileEditingSurface {
+.profilePage :global(.profileEditingSurface) {
   display: grid;
   gap: 18px;
   padding: clamp(18px, 4vw, 26px);
@@ -1116,13 +1116,13 @@
   scroll-margin-top: 84px;
 }
 
-.profilePage .profileEditingSurface > h2 {
+.profilePage :global(.profileEditingSurface) > h2 {
   margin: 0;
   font-size: 1.2rem;
   color: var(--brass-bright, var(--brass));
 }
 
-.profilePage .profileSavedNotice {
+.profilePage :global(.profileSavedNotice) {
   margin: 0;
   padding: 10px 14px;
   border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--line));
@@ -1134,7 +1134,7 @@
 }
 
 /* ── Edit-profile inline form ────────────────────────────────────────── */
-.profilePage .profileEditor {
+.profilePage :global(.profileEditor) {
   display: grid;
   gap: 18px;
   padding: clamp(20px, 4vw, 28px);
@@ -1148,7 +1148,7 @@
    Three questions, in the order a person answers them: how the card looks,
    who they are, what they are like on a night out. Grouping is what keeps
    eight inputs from reading as a settings page. */
-.profilePage .profileEditorGroup {
+.profilePage :global(.profileEditorGroup) {
   display: grid;
   gap: 18px;
   margin: 0;
@@ -1159,7 +1159,7 @@
   min-width: 0;
 }
 
-.profilePage .profileEditorGroup > legend {
+.profilePage :global(.profileEditorGroup) > legend {
   padding: 0 8px;
   margin-left: -4px;
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
@@ -1168,25 +1168,25 @@
   color: var(--ink);
 }
 
-.profilePage .profileEditorGroup:disabled {
+.profilePage :global(.profileEditorGroup):disabled {
   opacity: 0.72;
 }
 
-.profilePage .profileEditorField {
+.profilePage :global(.profileEditorField) {
   display: grid;
   gap: 6px;
   position: relative;
 }
 
-.profilePage .profileEditorField label {
+.profilePage :global(.profileEditorField) label {
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--ink-soft);
   letter-spacing: 0.01em;
 }
 
-.profilePage .profileEditor input,
-.profilePage .profileEditor textarea {
+.profilePage :global(.profileEditor) input,
+.profilePage :global(.profileEditor) textarea {
   width: 100%;
   min-height: 44px;
   padding: 10px 12px;
@@ -1199,49 +1199,49 @@
   line-height: 1.5;
 }
 
-.profilePage .profileEditor textarea {
+.profilePage :global(.profileEditor) textarea {
   resize: vertical;
   min-height: 84px;
 }
 
-.profilePage .profileEditor input:focus-visible,
-.profilePage .profileEditor textarea:focus-visible {
+.profilePage :global(.profileEditor) input:focus-visible,
+.profilePage :global(.profileEditor) textarea:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 1px;
   border-color: var(--brass);
 }
 
-.profilePage .profileEditorCount {
+.profilePage :global(.profileEditorCount) {
   justify-self: end;
   font-size: 0.74rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
-.profilePage .profileEditorHint {
+.profilePage :global(.profileEditorHint) {
   font-size: 0.8rem;
   color: var(--brick);
   line-height: 1.4;
 }
 
-.profilePage .profileEditorAvatarField {
+.profilePage :global(.profileEditorAvatarField) {
   gap: 10px;
 }
 
-.profilePage .profileEditorAvatarLabel {
+.profilePage :global(.profileEditorAvatarLabel) {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--ink);
 }
 
-.profilePage .profileEditorAvatarRow {
+.profilePage :global(.profileEditorAvatarRow) {
   display: flex;
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
 }
 
-.profilePage .profileEditorAvatarPreview {
+.profilePage :global(.profileEditorAvatarPreview) {
   width: 72px;
   height: 72px;
   border-radius: 50%;
@@ -1249,7 +1249,7 @@
   border: 1px solid var(--line);
 }
 
-.profilePage .profileEditorAvatarFallback {
+.profilePage :global(.profileEditorAvatarFallback) {
   display: grid;
   place-items: center;
   font-size: 1.5rem;
@@ -1258,7 +1258,7 @@
   color: var(--ink);
 }
 
-.profilePage .profileEditorAvatarActions {
+.profilePage :global(.profileEditorAvatarActions) {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1268,11 +1268,11 @@
 /* ── Cover slot ──────────────────────────────────────────────────────────
    The preview is the shape the header will actually paint, so the owner can
    see what a wide crop does to their photo before they leave the editor. */
-.profilePage .profileEditorCoverField {
+.profilePage :global(.profileEditorCoverField) {
   gap: 10px;
 }
 
-.profilePage .profileEditorCoverStage {
+.profilePage :global(.profileEditorCoverStage) {
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 1;
@@ -1281,7 +1281,7 @@
   border: 1px solid var(--line);
 }
 
-.profilePage .profileEditorCoverPreview {
+.profilePage :global(.profileEditorCoverPreview) {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -1290,7 +1290,7 @@
 
 /* The rotation, in the owner's order. A numbered list, because the number IS
    the thing being edited: "Cover 2" is where in the cycle it appears. */
-.profilePage .profileEditorCoverList {
+.profilePage :global(.profileEditorCoverList) {
   display: grid;
   gap: 12px;
   margin: 0;
@@ -1298,19 +1298,19 @@
   list-style: none;
 }
 
-.profilePage .profileEditorCoverItem {
+.profilePage :global(.profileEditorCoverItem) {
   display: grid;
   gap: 8px;
 }
 
-.profilePage .profileEditorCoverItemActions {
+.profilePage :global(.profileEditorCoverItemActions) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
 
-.profilePage .profileEditorCoverPosition {
+.profilePage :global(.profileEditorCoverPosition) {
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -1319,18 +1319,18 @@
   margin-right: auto;
 }
 
-.profilePage .profileEditorCoverNote,
-.profilePage .profileEditorCoverEmpty {
+.profilePage :global(.profileEditorCoverNote),
+.profilePage :global(.profileEditorCoverEmpty) {
   color: var(--ink-soft);
 }
 
-.profilePage .profileEditorAvatarUpload:disabled,
-.profilePage .profileEditorAvatarRemove:disabled {
+.profilePage :global(.profileEditorAvatarUpload):disabled,
+.profilePage :global(.profileEditorAvatarRemove):disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.profilePage .profileEditorCoverActions {
+.profilePage :global(.profileEditorCoverActions) {
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
@@ -1340,14 +1340,14 @@
    The step itself is styled once, in components/profile/profileImageCropper.css,
    which the component imports. What stays here is the profile page's own share:
    the face's square, its round mask, and one specificity override. */
-.profilePage .profileCropStep-avatar {
+.profilePage :global(.profileCropStep-avatar) {
   max-width: 320px;
 }
 
 /* A face is served round, so the frame dims outside the round part of the
    square. A rectangular slot has nothing to dim, which is why the shared mask
    carries no shadow. */
-.profilePage .profileCropStep-avatar .profileCropMask {
+.profilePage :global(.profileCropStep-avatar) :global(.profileCropMask) {
   border-radius: 50%;
   box-shadow: 0 0 0 9999px color-mix(in srgb, var(--paper) 62%, transparent);
 }
@@ -1355,7 +1355,7 @@
 /* One attribute selector more specific than `.profilePage .profileEditor
    input` above, which would otherwise give the slider that rule's border,
    padding and box treatment. The shared sheet's class-only rule cannot win it. */
-.profilePage .profileCropZoom input[type="range"] {
+.profilePage :global(.profileCropZoom) input[type="range"] {
   flex: 1 1 auto;
   min-width: 0;
   min-height: 44px;
@@ -1370,7 +1370,7 @@
    specific, so a class-only rule here lost its width and height to it and left
    an invisible 264px control overflowing the phone page by 23px. Match that
    selector's shape rather than restating the width. */
-.profilePage .profileEditor input.profileEditorAvatarFile {
+.profilePage :global(.profileEditor) :global(input.profileEditorAvatarFile) {
   position: absolute;
   width: 1px;
   min-height: 0;
@@ -1380,8 +1380,8 @@
   pointer-events: none;
 }
 
-.profilePage .profileEditorAvatarUpload,
-.profilePage .profileEditorAvatarRemove {
+.profilePage :global(.profileEditorAvatarUpload),
+.profilePage :global(.profileEditorAvatarRemove) {
   min-height: 44px;
   padding: 8px 14px;
   border-radius: var(--radius-sm);
@@ -1393,20 +1393,20 @@
   color: var(--ink);
 }
 
-.profilePage .profileEditorAvatarRemove {
+.profilePage :global(.profileEditorAvatarRemove) {
   border-color: color-mix(in srgb, var(--brick) 40%, var(--line));
   color: var(--brick);
 }
 
-.profilePage .profileEditorActions {
+.profilePage :global(.profileEditorActions) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
 }
 
-.profilePage .profileEditorSave,
-.profilePage .profileEditorCancel {
+.profilePage :global(.profileEditorSave),
+.profilePage :global(.profileEditorCancel) {
   min-height: 44px;
   padding: 10px 18px;
   border-radius: var(--radius-sm);
@@ -1416,45 +1416,45 @@
   border: 1px solid var(--brass);
 }
 
-.profilePage .profileEditorSave {
+.profilePage :global(.profileEditorSave) {
   background: var(--brass);
   color: var(--paper);
 }
 
-.profilePage .profileEditorCancel {
+.profilePage :global(.profileEditorCancel) {
   background: transparent;
   color: var(--ink-soft);
   border-color: var(--line);
 }
 
-.profilePage .profileEditorSave:disabled,
-.profilePage .profileEditorCancel:disabled {
+.profilePage :global(.profileEditorSave):disabled,
+.profilePage :global(.profileEditorCancel):disabled {
   opacity: 0.6;
   cursor: default;
 }
 
-.profilePage .profileEditorSave:focus-visible,
-.profilePage .profileEditorCancel:focus-visible {
+.profilePage :global(.profileEditorSave):focus-visible,
+.profilePage :global(.profileEditorCancel):focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
 
-.profilePage .profileEditorStatus {
+.profilePage :global(.profileEditorStatus) {
   font-size: 0.85rem;
   font-weight: 500;
 }
 
-.profilePage .profileEditorStatusOk {
+.profilePage :global(.profileEditorStatusOk) {
   color: var(--brass);
 }
 
-.profilePage .profileEditorStatusErr {
+.profilePage :global(.profileEditorStatusErr) {
   color: var(--brick);
 }
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 560px) {
-  .profilePage .profileMain {
+  .profilePage :global(.profileMain) {
     /* Wave I3: align with mobile tab bar clearance token */
     padding-bottom: calc(var(--mobile-tab-clearance, 104px) + 16px + env(safe-area-inset-bottom, 0px));
   }
@@ -1462,38 +1462,38 @@
   /* On a phone the name goes UNDER the face rather than beside it: at 390px a
      name beside a 92px circle has about ten characters before it wraps. The
      overlap with the band stays, so the composition is the same one, stacked. */
-  .profilePage .profileIdentity { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .profilePage .profileNames { padding-bottom: 0; }
+  .profilePage :global(.profileIdentity) { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .profilePage :global(.profileNames) { padding-bottom: 0; }
 
-  .profilePage .profileHeader { --profile-avatar-size: 92px; }
+  .profilePage :global(.profileHeader) { --profile-avatar-size: 92px; }
 
-  .profilePage .profileDisplayName { font-size: 1.5rem; }
+  .profilePage :global(.profileDisplayName) { font-size: 1.5rem; }
 
   /* The owner's own header goes chrome-less on a phone (below), which would
      otherwise leave the face and the name flush against the screen edge. */
-  .profilePage .youProfileIdentity .profileHeroBody {
+  .profilePage :global(.youProfileIdentity) :global(.profileHeroBody) {
     padding-left: 14px;
     padding-right: 14px;
   }
-  .profilePage .profileCardFacts { grid-template-columns: minmax(0, 1fr); }
-  .profilePage .profileEditorGroup { padding: 14px; }
+  .profilePage :global(.profileCardFacts) { grid-template-columns: minmax(0, 1fr); }
+  .profilePage :global(.profileEditorGroup) { padding: 14px; }
 
   /* A phone stacks the card. Two columns put a 72px face beside a 29px
      display heading, so "Make the night yours." broke across the face and
      the lede wrapped in a 230px column; one column lets the heading, the
      lede and the two actions share the card's full width. */
-  .profilePage .youIdentityIntro { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 20px; }
-  .profilePage .youIdentityAvatar { width: 60px; font-size: .8rem; }
+  .profilePage :global(.youIdentityIntro) { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 20px; }
+  .profilePage :global(.youIdentityAvatar) { width: 60px; font-size: .8rem; }
   /* Two fixed columns cut each action to about 150px at 390px, and neither
      label fits: "Claim your @handle" and "Meet your Pub Pal" both wrapped
      mid-phrase and the pair stopped matching in height. The columns are asked
      for a width a label can live in instead, so a phone stacks them and a wider
      screen still seats both on one line. */
-  .profilePage .youIdentityActions { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); width: 100%; }
+  .profilePage :global(.youIdentityActions) { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); width: 100%; }
 
   /* In a stacked column, margin-left:auto would shove the actions to the far
      edge on their own line — reset it so they sit naturally under the name. */
-  .profilePage .profileActions { margin-left: 0; width: 100%; justify-content: flex-start; }
+  .profilePage :global(.profileActions) { margin-left: 0; width: 100%; justify-content: flex-start; }
   /* `flex-basis: 100%` was written for the ROW header, where it means "take a
      whole line". The rule above turns .profileIdentity into a COLUMN, and in a
      column the basis is the MAIN axis - the HEIGHT - so the action row stretched
@@ -1502,30 +1502,30 @@
      the bio and the card fields: an owner who opened the editor found "Meet
      your Pub Pal" sitting over their own DRINKS row. Content-sized, packed to
      the top; the width is already 100% from the rule above. */
-  .profilePage .youProfileIdentity .profileActions { flex-basis: auto; align-content: flex-start; }
-  .profilePage .youProfileIdentity .profileActions > * { flex: 1 1 140px; }
+  .profilePage :global(.youProfileIdentity) :global(.profileActions) { flex-basis: auto; align-content: flex-start; }
+  .profilePage :global(.youProfileIdentity) :global(.profileActions) > * { flex: 1 1 140px; }
 
   /* Two-up stat tiles read better than one long column on a phone. */
-  .profilePage .youProfileIdentity .profileHeader { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-  .profilePage .profileStats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .profilePage .youProfileIdentity .profileStats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; background: transparent; }
-  .profilePage .youProfileIdentity .profileStat { background: transparent; text-align: center; }
-  .profilePage .youProfileIdentity .profileStatLink { padding: 9px 6px; }
-  .profilePage .youProfileIdentity .profileStatLabel { font-size: 0.75rem; }
-  .profilePage .youProfileIdentity .profileStatValue { font-size: 1.12rem; }
+  .profilePage :global(.youProfileIdentity) :global(.profileHeader) { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  .profilePage :global(.profileStats) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profilePage :global(.youProfileIdentity) :global(.profileStats) { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; background: transparent; }
+  .profilePage :global(.youProfileIdentity) :global(.profileStat) { background: transparent; text-align: center; }
+  .profilePage :global(.youProfileIdentity) :global(.profileStatLink) { padding: 9px 6px; }
+  .profilePage :global(.youProfileIdentity) :global(.profileStatLabel) { font-size: 0.75rem; }
+  .profilePage :global(.youProfileIdentity) :global(.profileStatValue) { font-size: 1.12rem; }
 }
 
 @media (max-width: 380px) {
-  .profilePage .profileHeader { --profile-avatar-size: 78px; }
+  .profilePage :global(.profileHeader) { --profile-avatar-size: 78px; }
 
-  .profilePage .profileStats {
+  .profilePage :global(.profileStats) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
 /* ── Motion (gated) ──────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: no-preference) {
-  .profilePage .profileDropCard:hover {
+  .profilePage :global(.profileDropCard):hover {
     transform: translateY(-2px);
   }
 
@@ -1533,11 +1533,11 @@
      under reduced motion (`coverCarouselRotates`), so this gate is the second
      of two rather than the only one: a reader who asked for less motion gets
      one static photo, not a slower fade between five. */
-  .profilePage .profileCoverImage {
+  .profilePage :global(.profileCoverImage) {
     transition: opacity 900ms ease-in-out;
   }
 
-  .profilePage .profileHeaderLoading .profileSkeleton {
+  .profilePage :global(.profileHeaderLoading) :global(.profileSkeleton) {
     background: linear-gradient(
       100deg,
       var(--line-soft, var(--line)) 30%,
@@ -1563,7 +1563,7 @@
    cards, and one signature tilted seal. First-run and populated states share
    this block — zeros just read as an empty page to fill.
    All colour from tokens so it flips light/dark. Scoped under .profilePage. */
-.profilePage .pintPassport {
+.profilePage :global(.pintPassport) {
   margin: 0 0 28px;
   padding: 22px 22px 24px;
   border: 1px solid color-mix(in srgb, var(--brass) 44%, var(--line));
@@ -1575,7 +1575,7 @@
 
 /* Own-profile hero: passport is the first collectible signal above the fold.
    Zero top margin — .profileMain grid gap owns spacing to the header below. */
-.profilePage .pintPassport--hero {
+.profilePage :global(.pintPassport--hero) {
   margin-top: 0;
   margin-bottom: 0;
   padding: 26px 24px 28px;
@@ -1585,23 +1585,23 @@
     0 12px 28px color-mix(in srgb, var(--brass) 12%, transparent);
 }
 
-.profilePage .pintPassport--hero .passportHolder {
+.profilePage :global(.pintPassport--hero) :global(.passportHolder) {
   font-size: clamp(1.55rem, 4vw, 1.85rem);
 }
 
 /* When passport leads, the header is secondary identity + edit/follow — slightly
    tighter so the hero passport keeps visual priority without a second "hero". */
-.profilePage .pintPassport--hero + .profileHeader {
+.profilePage :global(.pintPassport--hero) + :global(.profileHeader) {
   padding: clamp(16px, 3vw, 24px);
 }
 
-.profilePage .passportShare {
+.profilePage :global(.passportShare) {
   margin-top: 18px;
   padding-top: 14px;
   border-top: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
 }
 
-.profilePage .passportHead {
+.profilePage :global(.passportHead) {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1609,7 +1609,7 @@
   margin-bottom: 18px;
 }
 
-.profilePage .passportKicker {
+.profilePage :global(.passportKicker) {
   margin: 0 0 2px;
   font-family: var(--font-data, monospace);
   font-size: 0.75rem;
@@ -1619,7 +1619,7 @@
   color: var(--brass);
 }
 
-.profilePage .passportHolder {
+.profilePage :global(.passportHolder) {
   margin: 0;
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 1.5rem;
@@ -1628,13 +1628,13 @@
   color: var(--ink);
 }
 
-.profilePage .passportHandle {
+.profilePage :global(.passportHandle) {
   margin: 2px 0 0;
   font-size: 0.9rem;
   color: var(--ink-soft);
 }
 
-.profilePage .passportSeal {
+.profilePage :global(.passportSeal) {
   flex: none;
   align-self: center;
   display: inline-flex;
@@ -1653,7 +1653,7 @@
 }
 
 /* First-run block (story 30) — honest empty state with a clear call to action. */
-.profilePage .passportFirstRun {
+.profilePage :global(.passportFirstRun) {
   margin: 0 0 18px;
   padding: 16px 18px;
   border: 1px dashed var(--line);
@@ -1661,7 +1661,7 @@
   background: color-mix(in srgb, var(--paper) 60%, transparent);
 }
 
-.profilePage .passportFirstRunLead {
+.profilePage :global(.passportFirstRunLead) {
   margin: 0 0 6px;
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 1.1rem;
@@ -1669,7 +1669,7 @@
   color: var(--ink);
 }
 
-.profilePage .passportFirstRunCopy {
+.profilePage :global(.passportFirstRunCopy) {
   margin: 0 0 14px;
   font-size: 0.94rem;
   line-height: 1.5;
@@ -1677,13 +1677,13 @@
   max-width: 46ch;
 }
 
-.profilePage .passportFirstRunActions {
+.profilePage :global(.passportFirstRunActions) {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.profilePage .passportCta {
+.profilePage :global(.passportCta) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1699,32 +1699,32 @@
   transition: background 0.18s ease, color 0.18s ease;
 }
 
-.profilePage .passportCta:hover {
+.profilePage :global(.passportCta):hover {
   background: color-mix(in srgb, var(--brass) 12%, transparent);
 }
 
-.profilePage .passportCtaPrimary {
+.profilePage :global(.passportCtaPrimary) {
   color: var(--color-on-accent, var(--paper));
   background: var(--brass);
 }
 
-.profilePage .passportCtaPrimary:hover {
+.profilePage :global(.passportCtaPrimary):hover {
   background: color-mix(in srgb, var(--brass) 88%, black);
 }
 
-.profilePage .passportCta:focus-visible {
+.profilePage :global(.passportCta):focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
 
 /* Stat grid — calm metric cards. Auto-fit so it reflows 4→3→2 across widths. */
-.profilePage .passportGrid {
+.profilePage :global(.passportGrid) {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
-.profilePage .passportStat {
+.profilePage :global(.passportStat) {
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -1735,7 +1735,7 @@
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 86%, transparent);
 }
 
-.profilePage .passportStatValue {
+.profilePage :global(.passportStatValue) {
   font-family: var(--font-data, var(--font-body));
   font-size: 1.35rem;
   font-weight: 800;
@@ -1744,7 +1744,7 @@
   color: var(--ink);
 }
 
-.profilePage .passportStatLabel {
+.profilePage :global(.passportStatLabel) {
   font-family: var(--font-body);
   font-weight: 600;
   font-size: 0.74rem;
@@ -1752,18 +1752,18 @@
   color: var(--ink-soft);
 }
 
-.profilePage .passportBoroughs {
+.profilePage :global(.passportBoroughs) {
   margin: 14px 0 0;
   font-size: 0.88rem;
   color: var(--ink-soft);
 }
 
-.profilePage .passportBoroughsLabel {
+.profilePage :global(.passportBoroughsLabel) {
   font-weight: 600;
   color: var(--ink);
 }
 
-.profilePage .passportQuestOptIn {
+.profilePage :global(.passportQuestOptIn) {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1775,7 +1775,7 @@
   background: color-mix(in srgb, var(--brass) 5%, var(--panel));
 }
 
-.profilePage .passportQuestOptInKicker {
+.profilePage :global(.passportQuestOptInKicker) {
   margin: 0 0 4px;
   font-family: var(--font-data, monospace);
   font-size: 0.75rem;
@@ -1785,7 +1785,7 @@
   color: var(--brass);
 }
 
-.profilePage .passportQuestOptInTitle {
+.profilePage :global(.passportQuestOptInTitle) {
   margin: 0;
   font-family: var(--font-garamond, var(--serif));
   font-size: 1.1rem;
@@ -1793,7 +1793,7 @@
   color: var(--ink);
 }
 
-.profilePage .passportQuestOptInCopy {
+.profilePage :global(.passportQuestOptInCopy) {
   margin: 5px 0 0;
   max-width: 54ch;
   font-size: 0.88rem;
@@ -1801,20 +1801,20 @@
   color: var(--ink-soft);
 }
 
-.profilePage .passportQuestOptInActions {
+.profilePage :global(.passportQuestOptInActions) {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
 }
 
-.profilePage .passportQuestList {
+.profilePage :global(.passportQuestList) {
   display: grid;
   gap: 10px;
   margin: 16px 0 0;
 }
 
-.profilePage .passportQuest {
+.profilePage :global(.passportQuest) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(150px, 0.45fr);
   gap: 16px;
@@ -1825,7 +1825,7 @@
   background: color-mix(in srgb, var(--brass) 6%, var(--paper));
 }
 
-.profilePage .passportQuestKicker {
+.profilePage :global(.passportQuestKicker) {
   margin: 0 0 4px;
   font-family: var(--font-data, monospace);
   font-size: 0.75rem;
@@ -1835,7 +1835,7 @@
   color: var(--brass);
 }
 
-.profilePage .passportQuestTitle {
+.profilePage :global(.passportQuestTitle) {
   margin: 0;
   font-family: var(--font-garamond, var(--serif));
   font-size: 1.08rem;
@@ -1843,19 +1843,19 @@
   color: var(--ink);
 }
 
-.profilePage .passportQuestDescription {
+.profilePage :global(.passportQuestDescription) {
   margin: 5px 0 0;
   font-size: 0.86rem;
   line-height: 1.4;
   color: var(--ink-soft);
 }
 
-.profilePage .passportQuestProgress {
+.profilePage :global(.passportQuestProgress) {
   display: grid;
   gap: 7px;
 }
 
-.profilePage .passportQuestProgressText {
+.profilePage :global(.passportQuestProgressText) {
   font-family: var(--font-data, monospace);
   font-size: 0.72rem;
   font-weight: 700;
@@ -1863,7 +1863,7 @@
   text-align: right;
 }
 
-.profilePage .passportQuestProgressBar {
+.profilePage :global(.passportQuestProgressBar) {
   position: relative;
   display: block;
   height: 8px;
@@ -1873,7 +1873,7 @@
   background: color-mix(in srgb, var(--paper) 75%, transparent);
 }
 
-.profilePage .passportQuestProgressBar::before {
+.profilePage :global(.passportQuestProgressBar)::before {
   position: absolute;
   inset: 0 auto 0 0;
   width: min(var(--quest-progress, 0%), 100%);
@@ -1881,7 +1881,7 @@
   background: var(--brass);
 }
 
-.profilePage .passportBadges {
+.profilePage :global(.passportBadges) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -1890,7 +1890,7 @@
   list-style: none;
 }
 
-.profilePage .passportBadge {
+.profilePage :global(.passportBadge) {
   padding: 6px 11px;
   border: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
   border-radius: 999px;
@@ -1901,7 +1901,7 @@
 }
 
 /* Loop 2: local crawl-completion one-liner under quest chips / passport. */
-.profileCrawlsWalked {
+:global(.profileCrawlsWalked) {
   margin: 10px 0 0;
   font-size: 0.88rem;
   font-weight: 600;
@@ -1909,53 +1909,53 @@
 }
 
 @media (max-width: 560px) {
-  .profilePage .passportGrid {
+  .profilePage :global(.passportGrid) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .profilePage .passportHead {
+  .profilePage :global(.passportHead) {
     flex-direction: column;
   }
-  .profilePage .passportQuest {
+  .profilePage :global(.passportQuest) {
     grid-template-columns: 1fr;
   }
-  .profilePage .passportQuestOptIn {
+  .profilePage :global(.passportQuestOptIn) {
     align-items: stretch;
     flex-direction: column;
   }
-  .profilePage .passportQuestOptInActions {
+  .profilePage :global(.passportQuestOptInActions) {
     justify-content: flex-start;
   }
-  .profilePage .passportQuestProgressText {
+  .profilePage :global(.passportQuestProgressText) {
     text-align: left;
   }
 }
-.accountHub {
+:global(.accountHub) {
   margin: 1rem 0 1.5rem;
   padding: clamp(1rem, 3vw, 1.5rem);
   border: 1px solid var(--line);
   border-radius: 24px;
   background: var(--panel);
 }
-.accountHub h2 { margin: .25rem 0 1rem; }
-.accountHubGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+:global(.accountHub) h2 { margin: .25rem 0 1rem; }
+:global(.accountHubGrid) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
 /* Signed out this grid holds ONE card since the duplicate consent pair left it
    (components/profile/PubmaxxAccountHub.tsx); a lone card takes the whole row
    rather than half of it beside an empty column. */
-.accountHubGrid:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
-.accountHubGrid > * { display: grid; align-content: start; gap: .65rem; padding: 1rem; border-radius: 18px; background: var(--panel-raised); }
-.accountHubGrid input, .accountHubGrid select { min-height: 44px; border-radius: 12px; }
-.accountHubGrid input, .accountHubGrid select { width: 100%; padding: .7rem .8rem; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+:global(.accountHubGrid):has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+:global(.accountHubGrid) > * { display: grid; align-content: start; gap: .65rem; padding: 1rem; border-radius: 18px; background: var(--panel-raised); }
+:global(.accountHubGrid) input, :global(.accountHubGrid) select { min-height: 44px; border-radius: 12px; }
+:global(.accountHubGrid) input, :global(.accountHubGrid) select { width: 100%; padding: .7rem .8rem; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
 /* NO BUTTON RULE HERE. Every control in this editor is the Button primitive
    (components/ui/button.tsx), which reads the one --control-* row, so the
    account surface cannot grow a 12px box at weight 750 of its own again (the
    6 Sep 2026 design review). Layout-only rules below still place them. */
-.accountHubReferral { min-width: 0; }
-.accountHubReferral h3, .accountHubReferral p { margin: 0; }
-.accountHubReferralProgress { color: var(--ink-muted); }
+:global(.accountHubReferral) { min-width: 0; }
+:global(.accountHubReferral) h3, :global(.accountHubReferral) p { margin: 0; }
+:global(.accountHubReferralProgress) { color: var(--ink-muted); }
 /* The referral mark. Same family as the founding mark, and quieter still: it is
    recognition, so it reads as a record rather than a prize, and nothing in the
    product is behind it. */
-.accountHubReferralMark {
+:global(.accountHubReferralMark) {
   align-self: start;
   padding: 3px 10px;
   border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
@@ -1966,53 +1966,53 @@
   font-weight: 600;
   line-height: 1.35;
 }
-.accountHubReferralLink { display: grid; min-width: 0; gap: .35rem; color: var(--ink-muted); font-size: .8rem; font-weight: 700; }
-.accountHubReferralLink input { min-width: 0; }
-.accountHubActions { display: flex; flex-wrap: wrap; gap: .4rem; }
-.accountHubConsentStatus { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
-.accountHubMessage { margin-top: .75rem; }
+:global(.accountHubReferralLink) { display: grid; min-width: 0; gap: .35rem; color: var(--ink-muted); font-size: .8rem; font-weight: 700; }
+:global(.accountHubReferralLink) input { min-width: 0; }
+:global(.accountHubActions) { display: flex; flex-wrap: wrap; gap: .4rem; }
+:global(.accountHubConsentStatus) { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+:global(.accountHubMessage) { margin-top: .75rem; }
 /* The founding card. The mark is the heading, so the heading carries no weight
    of its own and the card stays as quiet as the status is. */
-.accountHubFounding { justify-items: start; }
-.accountHubFounding h3 { margin: 0; font-size: inherit; font-weight: inherit; }
-.accountHubGrid .accountHubFounding .foundersDiscordLink { justify-self: start; }
+:global(.accountHubFounding) { justify-items: start; }
+:global(.accountHubFounding) h3 { margin: 0; font-size: inherit; font-weight: inherit; }
+:global(.accountHubGrid) :global(.accountHubFounding) :global(.foundersDiscordLink) { justify-self: start; }
 /* The public founders wall, beside the founding member's own card. */
-.accountHubFoundersWall { justify-items: start; }
-.accountHubFoundersWall h3 { margin: 0 0 8px; }
-.accountHubGrid .accountHubFoundersWall .foundersWallLink { justify-self: start; }
+:global(.accountHubFoundersWall) { justify-items: start; }
+:global(.accountHubFoundersWall) h3 { margin: 0 0 8px; }
+:global(.accountHubGrid) :global(.accountHubFoundersWall) :global(.foundersWallLink) { justify-self: start; }
 /* Create / change password. The card is ordinary until the read says the
    account HAS no password: then it takes the full row and an edge, so the one
    thing an email-link account is owed is the thing it lands on. Never a dialog
    (the arrival laws), and never prominent on a read that could not answer. */
-.accountHubPassword h3, .accountHubPassword p { margin: 0; }
-.accountHubPassword label { display: grid; gap: .35rem; color: var(--ink-muted); font-size: .8rem; font-weight: 700; }
-.accountHubGrid .accountHubPasswordOwed { grid-column: 1 / -1; border: 1px solid var(--brass); }
-.accountHubPasswordError { color: var(--brick); }
-.accountHubGrid .accountHubPasswordChange { display: block; padding: 0; background: transparent; }
-.accountHubPasswordChange > summary { display: flex; min-height: 44px; align-items: center; justify-content: space-between; padding: .65rem 1rem; border: 1px solid var(--line); border-radius: 14px; background: var(--panel-raised); color: var(--ink); cursor: pointer; font-weight: 700; list-style: none; }
-.accountHubPasswordChange > summary::-webkit-details-marker { display: none; }
-.accountHubPasswordChange > summary::after { content: "+"; color: var(--brass); font-family: var(--font-data); font-size: 1.1rem; }
-.accountHubPasswordChange[open] > summary { border-radius: 14px 14px 0 0; }
-.accountHubPasswordChange[open] > summary::after { content: "−"; }
-.accountHubPasswordChange > .accountHubPassword { margin-top: .5rem; border: 1px solid var(--line); border-radius: 14px; }
-.accountHubMerge { display: grid; gap: .65rem; margin: 0 0 .75rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
-.accountHubMerge h3, .accountHubMerge p, .accountHubNightProfile { margin: 0; }
-.accountHubNightProfile { margin-bottom: .75rem; color: var(--ink-muted); }
-.accountHubNightProfileEditor { display: grid; gap: 1rem; margin: 0 0 .75rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
-.accountHubNightProfileEditor h3, .accountHubNightProfileEditor p { margin: 0; }
-.accountHubNightProfileEditor > div:first-child { display: grid; gap: .25rem; }
-.accountHubNightProfileEditor > div:first-child > p:last-child { color: var(--ink-muted); }
-.accountHubNightProfileGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
-.accountHubNightProfileGrid label { display: grid; gap: .35rem; color: var(--ink-muted); font-size: .8rem; font-weight: 700; }
-.accountHubNightProfileGrid input, .accountHubNightProfileGrid select { width: 100%; min-height: 44px; padding: .65rem .75rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: inherit; }
-.accountHubNightProfileSave { justify-self: start; }
-.accountHubNightProfileSaved { color: var(--ink-muted); font-size: .85rem; }
-.accountHubSignIn { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .75rem; }
-.accountHubSignIn p { margin: 0; max-width: 42rem; }
-@media (max-width: 760px) { .accountHubGrid { grid-template-columns: 1fr; } }
-.accountHubSettings { display: grid; gap: .75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
-.accountHubSettings > h3 { margin: 0; font-size: 1.05rem; }
-.accountHubSettingsGrid { margin: 0; }
+:global(.accountHubPassword) h3, :global(.accountHubPassword) p { margin: 0; }
+:global(.accountHubPassword) label { display: grid; gap: .35rem; color: var(--ink-muted); font-size: .8rem; font-weight: 700; }
+:global(.accountHubGrid) :global(.accountHubPasswordOwed) { grid-column: 1 / -1; border: 1px solid var(--brass); }
+:global(.accountHubPasswordError) { color: var(--brick); }
+:global(.accountHubGrid) :global(.accountHubPasswordChange) { display: block; padding: 0; background: transparent; }
+:global(.accountHubPasswordChange) > summary { display: flex; min-height: 44px; align-items: center; justify-content: space-between; padding: .65rem 1rem; border: 1px solid var(--line); border-radius: 14px; background: var(--panel-raised); color: var(--ink); cursor: pointer; font-weight: 700; list-style: none; }
+:global(.accountHubPasswordChange) > summary::-webkit-details-marker { display: none; }
+:global(.accountHubPasswordChange) > summary::after { content: "+"; color: var(--brass); font-family: var(--font-data); font-size: 1.1rem; }
+:global(.accountHubPasswordChange[open]) > summary { border-radius: 14px 14px 0 0; }
+:global(.accountHubPasswordChange[open]) > summary::after { content: "−"; }
+:global(.accountHubPasswordChange) > :global(.accountHubPassword) { margin-top: .5rem; border: 1px solid var(--line); border-radius: 14px; }
+:global(.accountHubMerge) { display: grid; gap: .65rem; margin: 0 0 .75rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
+:global(.accountHubMerge) h3, :global(.accountHubMerge) p, :global(.accountHubNightProfile) { margin: 0; }
+:global(.accountHubNightProfile) { margin-bottom: .75rem; color: var(--ink-muted); }
+:global(.accountHubNightProfileEditor) { display: grid; gap: 1rem; margin: 0 0 .75rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
+:global(.accountHubNightProfileEditor) h3, :global(.accountHubNightProfileEditor) p { margin: 0; }
+:global(.accountHubNightProfileEditor) > div:first-child { display: grid; gap: .25rem; }
+:global(.accountHubNightProfileEditor) > div:first-child > p:last-child { color: var(--ink-muted); }
+:global(.accountHubNightProfileGrid) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+:global(.accountHubNightProfileGrid) label { display: grid; gap: .35rem; color: var(--ink-muted); font-size: .8rem; font-weight: 700; }
+:global(.accountHubNightProfileGrid) input, :global(.accountHubNightProfileGrid) select { width: 100%; min-height: 44px; padding: .65rem .75rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: inherit; }
+:global(.accountHubNightProfileSave) { justify-self: start; }
+:global(.accountHubNightProfileSaved) { color: var(--ink-muted); font-size: .85rem; }
+:global(.accountHubSignIn) { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .75rem; }
+:global(.accountHubSignIn) p { margin: 0; max-width: 42rem; }
+@media (max-width: 760px) { :global(.accountHubGrid) { grid-template-columns: 1fr; } }
+:global(.accountHubSettings) { display: grid; gap: .75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+:global(.accountHubSettings) > h3 { margin: 0; font-size: 1.05rem; }
+:global(.accountHubSettingsGrid) { margin: 0; }
 
 /* The account's own data doors: the portable copy beside the deletion door.
    Two panels of one idiom, side by side where there is room and stacked on a
@@ -2020,122 +2020,122 @@
    deletion panel is only ever loud once opened, and the download is one
    control with a status line under it. Every tap target keeps the 44px floor
    the phone chrome fence holds the rest of this surface to. */
-.accountHubDataDoors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; align-items: start; }
-@media (max-width: 760px) { .accountHubDataDoors { grid-template-columns: 1fr; } }
-.accountHubExport { display: grid; gap: .5rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
-.accountHubExport h3 { margin: 0; font-size: 1.05rem; }
-.accountHubExport > p { margin: 0; color: var(--ink-muted); }
-.accountHubExportButton { justify-self: start; }
-.accountHubExportNotice { margin: 0; color: var(--ink-muted); }
-.accountHubDelete { display: grid; gap: .5rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
-.accountHubDelete h3 { margin: 0; font-size: 1.05rem; }
-.accountHubDelete > p { margin: 0; color: var(--ink-muted); }
-.accountHubDeleteOpen { justify-self: start; }
-.accountHubDeleteConfirm { display: grid; gap: .5rem; margin-top: .25rem; padding-top: .75rem; border-top: 1px solid var(--line); }
-.accountHubDeleteConfirm h4 { margin: 0; font-size: .85rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted); }
-.accountHubDeleteConfirm ul { display: grid; gap: .35rem; margin: 0; padding-left: 1.1rem; }
-.accountHubDeleteConfirm li { line-height: 1.45; }
-.accountHubDeleteNotice { margin: 0; color: var(--ink-muted); }
+:global(.accountHubDataDoors) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; align-items: start; }
+@media (max-width: 760px) { :global(.accountHubDataDoors) { grid-template-columns: 1fr; } }
+:global(.accountHubExport) { display: grid; gap: .5rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
+:global(.accountHubExport) h3 { margin: 0; font-size: 1.05rem; }
+:global(.accountHubExport) > p { margin: 0; color: var(--ink-muted); }
+:global(.accountHubExportButton) { justify-self: start; }
+:global(.accountHubExportNotice) { margin: 0; color: var(--ink-muted); }
+:global(.accountHubDelete) { display: grid; gap: .5rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
+:global(.accountHubDelete) h3 { margin: 0; font-size: 1.05rem; }
+:global(.accountHubDelete) > p { margin: 0; color: var(--ink-muted); }
+:global(.accountHubDeleteOpen) { justify-self: start; }
+:global(.accountHubDeleteConfirm) { display: grid; gap: .5rem; margin-top: .25rem; padding-top: .75rem; border-top: 1px solid var(--line); }
+:global(.accountHubDeleteConfirm) h4 { margin: 0; font-size: .85rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted); }
+:global(.accountHubDeleteConfirm) ul { display: grid; gap: .35rem; margin: 0; padding-left: 1.1rem; }
+:global(.accountHubDeleteConfirm) li { line-height: 1.45; }
+:global(.accountHubDeleteNotice) { margin: 0; color: var(--ink-muted); }
 
 /* Privacy, terms and support. The native shell starts on /tonight and never has
    to open `/`, so this row is the only place inside the app these are reachable
    from. It stays a plain list on purpose: a reviewer scans it, they do not
    navigate it. */
-.accountLegalRow { display: grid; gap: .5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
-.accountLegalRow h3 { margin: 0; font-size: 1.05rem; }
-.accountLegalLinks { display: flex; flex-wrap: wrap; gap: .35rem 1rem; margin: 0; padding: 0; list-style: none; }
-.accountLegalLinks a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
-.accountLegalLinks a:hover { color: var(--brass); }
-.accountLegalNote { margin: 0; color: var(--ink-muted); font-size: .85rem; }
-@media (max-width: 520px) { .accountHubNightProfileGrid { grid-template-columns: 1fr; } .accountHubSignIn { align-items: stretch; flex-direction: column; } }
+:global(.accountLegalRow) { display: grid; gap: .5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+:global(.accountLegalRow) h3 { margin: 0; font-size: 1.05rem; }
+:global(.accountLegalLinks) { display: flex; flex-wrap: wrap; gap: .35rem 1rem; margin: 0; padding: 0; list-style: none; }
+:global(.accountLegalLinks) a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+:global(.accountLegalLinks) a:hover { color: var(--brass); }
+:global(.accountLegalNote) { margin: 0; color: var(--ink-muted); font-size: .85rem; }
+@media (max-width: 520px) { :global(.accountHubNightProfileGrid) { grid-template-columns: 1fr; } :global(.accountHubSignIn) { align-items: stretch; flex-direction: column; } }
 
-.memoryStudio {
+:global(.memoryStudio) {
   margin-top: 1rem;
   padding-top: 1.25rem;
   border-top: 1px solid var(--line);
 }
-.memoryStudioHeader { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
-.memoryStudioHeader h3 { margin: .2rem 0 0; font-size: clamp(1.2rem, 2vw, 1.6rem); }
-.memoryStudioHeader > p { max-width: 34rem; margin: 0; color: var(--muted); }
-.memoryCaptureLink { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; padding: .65rem .9rem; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); font-weight: 750; text-decoration: none; white-space: nowrap; }
-.memoryCaptureLink:hover { border-color: var(--brass); color: var(--brass); }
-.memoryStudioFlow { display: grid; grid-template-columns: .8fr 1.15fr 1fr; gap: .75rem; }
-.memoryStudioFlow form { position: relative; display: grid; align-content: start; gap: .7rem; padding: 1rem; border: 1px solid var(--line-soft); border-radius: 18px; background: var(--panel-raised); }
-.memoryStudioFlow h4 { margin: 0; padding-right: 2.5rem; font-size: 1rem; }
-.memoryStudioStep { position: absolute; top: .85rem; right: .9rem; display: grid; width: 2rem; height: 2rem; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--muted); font-family: var(--font-data); font-size: .75rem; }
-.memoryStudioFlow label { display: grid; gap: .35rem; color: var(--ink-soft); font-size: .82rem; font-weight: 700; }
-.memoryStudioFlow label small { color: var(--muted); font-weight: 500; }
-.memoryStudioFlow input, .memoryStudioFlow select, .memoryStudioFlow textarea { width: 100%; min-height: 44px; padding: .7rem .8rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: inherit; }
-.memoryStudioFlow textarea { resize: vertical; }
-.memoryStudioShelf { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .75rem; }
-.memoryStudioShelf > div { display: flex; align-items: baseline; gap: .4rem; padding: .55rem .75rem; border: 1px solid var(--line-soft); border-radius: 12px; }
-.memoryStudioShelf strong { font-family: var(--font-data); }
-.memoryStudioShelf span { color: var(--muted); font-size: .8rem; }
-.memoryStoryList { display: grid; gap: .35rem; margin: .75rem 0 0; padding: 0; list-style: none; }
-.memoryStoryList li { border-bottom: 1px solid var(--line-soft); }
-.memoryStoryList li[data-active] { border-color: var(--brass); }
-.memoryStoryList__select { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: space-between; gap: 1rem; padding: .65rem .25rem; border: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
-.memoryStoryList__select:disabled { cursor: default; opacity: .8; }
-.memoryStoryList__invite { display: flex; flex-wrap: wrap; gap: .45rem; padding: 0 0 .65rem; }
-.memoryStoryList__invite button { min-width: 88px; }
-.memoryStoryList small { color: var(--muted); }
-.memoryStoryReview { display: grid; gap: 1rem; margin-top: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
-.memoryStoryReview__header { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
-.memoryStoryReview__header h4 { margin: .15rem 0 0; font-size: 1.2rem; }
-.memoryStoryReview__privacy { display: inline-flex; min-height: 32px; align-items: center; gap: .35rem; padding: .35rem .6rem; border-radius: 999px; background: color-mix(in srgb, var(--brass) 12%, transparent); color: var(--ink-soft); font-size: .76rem; white-space: nowrap; }
-.memoryStoryReview__copy, .memoryStoryReview__contribution, .memoryStoryReview__controls, .memoryStoryReview__publish, .memoryStoryReview__controls form { display: grid; gap: .7rem; }
-.memoryStoryReview__contribution { padding: .8rem; border: 1px solid var(--line-soft); border-radius: 14px; background: color-mix(in srgb, var(--brass) 6%, var(--paper)); }
-.memoryStoryReview__contribution > div { display: grid; gap: .25rem; }
-.memoryStoryReview__contribution p { margin: 0; color: var(--muted); font-size: .8rem; }
-.memoryStoryReview label { display: grid; gap: .35rem; color: var(--ink-soft); font-size: .82rem; font-weight: 700; }
-.memoryStoryReview input, .memoryStoryReview textarea, .memoryStoryReview select { width: 100%; min-height: 44px; padding: .7rem .8rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: inherit; }
-.memoryStoryReview textarea { resize: vertical; }
-.memoryStoryReview__moments { display: grid; gap: .65rem; padding-top: .8rem; border-top: 1px solid var(--line-soft); }
-.memoryStoryReview__moments > div { display: flex; justify-content: space-between; gap: 1rem; }
-.memoryStoryReview__moments > div span, .memoryStoryReview__moments p { color: var(--muted); font-size: .8rem; }
-.memoryStoryReview__moments ul { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
-.memoryStoryReview__moments li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .65rem; padding: .65rem; border: 1px solid var(--line-soft); border-radius: 12px; }
-.memoryStoryReview__moments li label { display: flex; align-items: center; gap: .65rem; }
-.memoryStoryReview__moments li input { flex: 0 0 auto; width: 20px; min-height: 20px; }
-.memoryStoryReview__moments li label span { display: grid; min-width: 0; }
-.memoryStoryReview__moments li label small { color: var(--muted); font-weight: 500; }
-.memoryMomentAlt { grid-column: 1 / -1; display: grid; gap: .5rem; margin-top: .35rem; padding-top: .6rem; border-top: 1px dashed var(--line-soft); }
-.memoryMomentAlt label { display: grid; gap: .3rem; }
-.memoryMomentAlt label > span { font-size: .78rem; font-weight: 650; color: var(--ink-soft); }
-.memoryMomentAlt__ok { color: var(--brass); font-weight: 600; }
-.memoryMomentAlt__todo { color: var(--muted); font-weight: 600; }
-.memoryMomentAlt textarea { width: 100%; min-height: 44px; padding: .55rem .7rem; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); font: 500 15px/1.4 var(--font-body); resize: vertical; }
-.memoryMomentAlt textarea:focus-visible { outline: 2px solid color-mix(in srgb, var(--brass) 55%, transparent); outline-offset: 1px; border-color: var(--brass); }
-.memoryMomentAlt > button { justify-self: start; }
-.memoryStoryReview__controls { grid-template-columns: 1fr 1fr; padding-top: .8rem; border-top: 1px solid var(--line-soft); }
-.memoryStoryReview__controls label > span { display: inline-flex; align-items: center; gap: .35rem; }
-.memoryStoryReview__confirmation { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: .75rem; padding: .8rem; border: 1px solid var(--brass); border-radius: 14px; background: color-mix(in srgb, var(--brass) 10%, transparent); }
-.memoryStoryReview__confirmation p { margin: .2rem 0 0; color: var(--ink-soft); font-size: .8rem; }
-.memoryStoryReview__confirmation .memoryStoryReview__cancel { border: 1px solid var(--line); background: transparent; color: var(--ink); }
-@media (max-width: 900px) { .memoryStudioFlow { grid-template-columns: 1fr; } }
+:global(.memoryStudioHeader) { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+:global(.memoryStudioHeader) h3 { margin: .2rem 0 0; font-size: clamp(1.2rem, 2vw, 1.6rem); }
+:global(.memoryStudioHeader) > p { max-width: 34rem; margin: 0; color: var(--muted); }
+:global(.memoryCaptureLink) { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; padding: .65rem .9rem; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); font-weight: 750; text-decoration: none; white-space: nowrap; }
+:global(.memoryCaptureLink):hover { border-color: var(--brass); color: var(--brass); }
+:global(.memoryStudioFlow) { display: grid; grid-template-columns: .8fr 1.15fr 1fr; gap: .75rem; }
+:global(.memoryStudioFlow) form { position: relative; display: grid; align-content: start; gap: .7rem; padding: 1rem; border: 1px solid var(--line-soft); border-radius: 18px; background: var(--panel-raised); }
+:global(.memoryStudioFlow) h4 { margin: 0; padding-right: 2.5rem; font-size: 1rem; }
+:global(.memoryStudioStep) { position: absolute; top: .85rem; right: .9rem; display: grid; width: 2rem; height: 2rem; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--muted); font-family: var(--font-data); font-size: .75rem; }
+:global(.memoryStudioFlow) label { display: grid; gap: .35rem; color: var(--ink-soft); font-size: .82rem; font-weight: 700; }
+:global(.memoryStudioFlow) label small { color: var(--muted); font-weight: 500; }
+:global(.memoryStudioFlow) input, :global(.memoryStudioFlow) select, :global(.memoryStudioFlow) textarea { width: 100%; min-height: 44px; padding: .7rem .8rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: inherit; }
+:global(.memoryStudioFlow) textarea { resize: vertical; }
+:global(.memoryStudioShelf) { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .75rem; }
+:global(.memoryStudioShelf) > div { display: flex; align-items: baseline; gap: .4rem; padding: .55rem .75rem; border: 1px solid var(--line-soft); border-radius: 12px; }
+:global(.memoryStudioShelf) strong { font-family: var(--font-data); }
+:global(.memoryStudioShelf) span { color: var(--muted); font-size: .8rem; }
+:global(.memoryStoryList) { display: grid; gap: .35rem; margin: .75rem 0 0; padding: 0; list-style: none; }
+:global(.memoryStoryList) li { border-bottom: 1px solid var(--line-soft); }
+:global(.memoryStoryList) li[data-active] { border-color: var(--brass); }
+:global(.memoryStoryList__select) { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: space-between; gap: 1rem; padding: .65rem .25rem; border: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+:global(.memoryStoryList__select):disabled { cursor: default; opacity: .8; }
+:global(.memoryStoryList__invite) { display: flex; flex-wrap: wrap; gap: .45rem; padding: 0 0 .65rem; }
+:global(.memoryStoryList__invite) button { min-width: 88px; }
+:global(.memoryStoryList) small { color: var(--muted); }
+:global(.memoryStoryReview) { display: grid; gap: 1rem; margin-top: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
+:global(.memoryStoryReview__header) { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
+:global(.memoryStoryReview__header) h4 { margin: .15rem 0 0; font-size: 1.2rem; }
+:global(.memoryStoryReview__privacy) { display: inline-flex; min-height: 32px; align-items: center; gap: .35rem; padding: .35rem .6rem; border-radius: 999px; background: color-mix(in srgb, var(--brass) 12%, transparent); color: var(--ink-soft); font-size: .76rem; white-space: nowrap; }
+:global(.memoryStoryReview__copy), :global(.memoryStoryReview__contribution), :global(.memoryStoryReview__controls), :global(.memoryStoryReview__publish), :global(.memoryStoryReview__controls) form { display: grid; gap: .7rem; }
+:global(.memoryStoryReview__contribution) { padding: .8rem; border: 1px solid var(--line-soft); border-radius: 14px; background: color-mix(in srgb, var(--brass) 6%, var(--paper)); }
+:global(.memoryStoryReview__contribution) > div { display: grid; gap: .25rem; }
+:global(.memoryStoryReview__contribution) p { margin: 0; color: var(--muted); font-size: .8rem; }
+:global(.memoryStoryReview) label { display: grid; gap: .35rem; color: var(--ink-soft); font-size: .82rem; font-weight: 700; }
+:global(.memoryStoryReview) input, :global(.memoryStoryReview) textarea, :global(.memoryStoryReview) select { width: 100%; min-height: 44px; padding: .7rem .8rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: inherit; }
+:global(.memoryStoryReview) textarea { resize: vertical; }
+:global(.memoryStoryReview__moments) { display: grid; gap: .65rem; padding-top: .8rem; border-top: 1px solid var(--line-soft); }
+:global(.memoryStoryReview__moments) > div { display: flex; justify-content: space-between; gap: 1rem; }
+:global(.memoryStoryReview__moments) > div span, :global(.memoryStoryReview__moments) p { color: var(--muted); font-size: .8rem; }
+:global(.memoryStoryReview__moments) ul { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+:global(.memoryStoryReview__moments) li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .65rem; padding: .65rem; border: 1px solid var(--line-soft); border-radius: 12px; }
+:global(.memoryStoryReview__moments) li label { display: flex; align-items: center; gap: .65rem; }
+:global(.memoryStoryReview__moments) li input { flex: 0 0 auto; width: 20px; min-height: 20px; }
+:global(.memoryStoryReview__moments) li label span { display: grid; min-width: 0; }
+:global(.memoryStoryReview__moments) li label small { color: var(--muted); font-weight: 500; }
+:global(.memoryMomentAlt) { grid-column: 1 / -1; display: grid; gap: .5rem; margin-top: .35rem; padding-top: .6rem; border-top: 1px dashed var(--line-soft); }
+:global(.memoryMomentAlt) label { display: grid; gap: .3rem; }
+:global(.memoryMomentAlt) label > span { font-size: .78rem; font-weight: 650; color: var(--ink-soft); }
+:global(.memoryMomentAlt__ok) { color: var(--brass); font-weight: 600; }
+:global(.memoryMomentAlt__todo) { color: var(--muted); font-weight: 600; }
+:global(.memoryMomentAlt) textarea { width: 100%; min-height: 44px; padding: .55rem .7rem; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); font: 500 15px/1.4 var(--font-body); resize: vertical; }
+:global(.memoryMomentAlt) textarea:focus-visible { outline: 2px solid color-mix(in srgb, var(--brass) 55%, transparent); outline-offset: 1px; border-color: var(--brass); }
+:global(.memoryMomentAlt) > button { justify-self: start; }
+:global(.memoryStoryReview__controls) { grid-template-columns: 1fr 1fr; padding-top: .8rem; border-top: 1px solid var(--line-soft); }
+:global(.memoryStoryReview__controls) label > span { display: inline-flex; align-items: center; gap: .35rem; }
+:global(.memoryStoryReview__confirmation) { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: .75rem; padding: .8rem; border: 1px solid var(--brass); border-radius: 14px; background: color-mix(in srgb, var(--brass) 10%, transparent); }
+:global(.memoryStoryReview__confirmation) p { margin: .2rem 0 0; color: var(--ink-soft); font-size: .8rem; }
+:global(.memoryStoryReview__confirmation) :global(.memoryStoryReview__cancel) { border: 1px solid var(--line); background: transparent; color: var(--ink); }
+@media (max-width: 900px) { :global(.memoryStudioFlow) { grid-template-columns: 1fr; } }
 @media (max-width: 640px) {
-  .memoryStudioHeader { align-items: start; flex-direction: column; }
-  .memoryStudioFlow form { border-radius: 16px; }
-  .memoryStoryReview { padding: .8rem; border-radius: 16px; }
-  .memoryStoryReview__header { flex-direction: column; }
-  .memoryStoryReview__controls { grid-template-columns: 1fr; }
-  .memoryStoryReview__moments li { grid-template-columns: 1fr; }
-  .memoryStoryReview__confirmation { grid-template-columns: auto minmax(0, 1fr); }
-  .memoryStoryReview__confirmation button { grid-column: 1 / -1; width: 100%; }
+  :global(.memoryStudioHeader) { align-items: start; flex-direction: column; }
+  :global(.memoryStudioFlow) form { border-radius: 16px; }
+  :global(.memoryStoryReview) { padding: .8rem; border-radius: 16px; }
+  :global(.memoryStoryReview__header) { flex-direction: column; }
+  :global(.memoryStoryReview__controls) { grid-template-columns: 1fr; }
+  :global(.memoryStoryReview__moments) li { grid-template-columns: 1fr; }
+  :global(.memoryStoryReview__confirmation) { grid-template-columns: auto minmax(0, 1fr); }
+  :global(.memoryStoryReview__confirmation) button { grid-column: 1 / -1; width: 100%; }
 }
 
 /* CAP Code section 18 responsible floor (docs/CAP_COPY_AUDIT_2026-07-21.md,
    owner ruling #3). Same quiet, permanent over-18s + Drinkaware line the
    marketing page carries, at the base of the You surface. No banner, no nag. */
-.profilePage .profileFloor { margin-top: 32px; padding: 22px 4px 8px; border-top: 1px solid var(--line); text-align: center; }
-.profilePage .profileFloor p { margin: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.55; }
-.profilePage .profileFloor a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 2px; vertical-align: middle; }
+.profilePage :global(.profileFloor) { margin-top: 32px; padding: 22px 4px 8px; border-top: 1px solid var(--line); text-align: center; }
+.profilePage :global(.profileFloor) p { margin: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.55; }
+.profilePage :global(.profileFloor) a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 2px; vertical-align: middle; }
 
 /* ── Linked socials ───────────────────────────────────────────────────────
    The owner's own public handles, on their card and in their editor. One
    monogram system across every platform, so a service nobody drew an icon for
    still reads as a link rather than a gap. */
-.profilePage .profileSocials {
+.profilePage :global(.profileSocials) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -2144,7 +2144,7 @@
   list-style: none;
 }
 
-.profilePage .profileSocialLink {
+.profilePage :global(.profileSocialLink) {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -2158,17 +2158,17 @@
   transition: border-color 0.18s ease, background-color 0.18s ease;
 }
 
-.profilePage .profileSocialLink:hover {
+.profilePage :global(.profileSocialLink):hover {
   border-color: var(--brass);
   background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
 }
 
-.profilePage .profileSocialLink:focus-visible {
+.profilePage :global(.profileSocialLink):focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
 
-.profilePage .profileSocialMark {
+.profilePage :global(.profileSocialMark) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2182,7 +2182,7 @@
   letter-spacing: 0.02em;
 }
 
-.profilePage .profileSocialName {
+.profilePage :global(.profileSocialName) {
   display: grid;
   gap: 1px;
   min-width: 0;
@@ -2191,7 +2191,7 @@
   line-height: 1.25;
 }
 
-.profilePage .profileSocialHandle {
+.profilePage :global(.profileSocialHandle) {
   max-width: 18ch;
   overflow: hidden;
   color: var(--muted);
@@ -2201,7 +2201,7 @@
   white-space: nowrap;
 }
 
-.profilePage .socialLinks {
+.profilePage :global(.socialLinks) {
   display: grid;
   gap: 10px;
   margin-top: 18px;
@@ -2209,26 +2209,26 @@
   border-top: 1px solid var(--line);
 }
 
-.profilePage .socialLinksTitle {
+.profilePage :global(.socialLinksTitle) {
   margin: 0;
   font-size: 15px;
   font-weight: 800;
 }
 
-.profilePage .socialLinksLede {
+.profilePage :global(.socialLinksLede) {
   margin: -4px 0 0;
   color: var(--ink-soft);
   font-size: 13px;
   line-height: 1.5;
 }
 
-.profilePage .socialLinksOauth {
+.profilePage :global(.socialLinksOauth) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.profilePage .socialLinksList {
+.profilePage :global(.socialLinksList) {
   display: grid;
   gap: 6px;
   margin: 0;
@@ -2236,7 +2236,7 @@
   list-style: none;
 }
 
-.profilePage .socialLinksRow {
+.profilePage :global(.socialLinksRow) {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2247,7 +2247,7 @@
   background: var(--panel-raised);
 }
 
-.profilePage .socialLinksMark {
+.profilePage :global(.socialLinksMark) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2261,19 +2261,19 @@
   font-weight: 800;
 }
 
-.profilePage .socialLinksRowText {
+.profilePage :global(.socialLinksRowText) {
   display: grid;
   gap: 1px;
   flex: 1 1 auto;
   min-width: 0;
 }
 
-.profilePage .socialLinksRowLabel {
+.profilePage :global(.socialLinksRowLabel) {
   font-size: 12px;
   font-weight: 700;
 }
 
-.profilePage .socialLinksRowHandle {
+.profilePage :global(.socialLinksRowHandle) {
   max-width: 100%;
   overflow: hidden;
   color: var(--muted);
@@ -2282,7 +2282,7 @@
   white-space: nowrap;
 }
 
-.profilePage .socialLinksRemove {
+.profilePage :global(.socialLinksRemove) {
   flex: 0 0 auto;
   min-height: 36px;
   padding: 0 10px;
@@ -2296,37 +2296,37 @@
   cursor: pointer;
 }
 
-.profilePage .socialLinksRemove:hover:not(:disabled) {
+.profilePage :global(.socialLinksRemove):hover:not(:disabled) {
   border-color: var(--brick);
   color: var(--brick);
 }
 
-.profilePage .socialLinksForm {
+.profilePage :global(.socialLinksForm) {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 8px;
 }
 
-.profilePage .socialLinksField {
+.profilePage :global(.socialLinksField) {
   display: grid;
   gap: 4px;
   flex: 0 1 9rem;
   min-width: 0;
 }
 
-.profilePage .socialLinksFieldWide {
+.profilePage :global(.socialLinksFieldWide) {
   flex: 1 1 14rem;
 }
 
-.profilePage .socialLinksFieldLabel {
+.profilePage :global(.socialLinksFieldLabel) {
   color: var(--ink-soft);
   font-size: 11px;
   font-weight: 700;
 }
 
-.profilePage .socialLinksField select,
-.profilePage .socialLinksField input {
+.profilePage :global(.socialLinksField) select,
+.profilePage :global(.socialLinksField) input {
   width: 100%;
   min-height: 44px;
   padding: 0 10px;
@@ -2338,7 +2338,7 @@
   font-size: 13px;
 }
 
-.profilePage .socialLinksAdd {
+.profilePage :global(.socialLinksAdd) {
   flex: 0 0 auto;
   min-height: 44px;
   padding: 0 16px;
@@ -2352,12 +2352,12 @@
   cursor: pointer;
 }
 
-.profilePage .socialLinksAdd:disabled {
+.profilePage :global(.socialLinksAdd):disabled {
   opacity: 0.55;
   cursor: default;
 }
 
-.profilePage .socialLinksNote {
+.profilePage :global(.socialLinksNote) {
   margin: 0;
   color: var(--ink-soft);
   font-size: 12px;

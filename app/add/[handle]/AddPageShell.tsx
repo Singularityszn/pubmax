@@ -10,6 +10,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
+import styles from "./Add.module.css";
+
 export default function AddPageShell({ children }: { children: ReactNode }) {
   const router = useRouter();
 
@@ -35,9 +37,9 @@ export default function AddPageShell({ children }: { children: ReactNode }) {
   }, [router]);
 
   return (
-    <div className="addDialogHost">
-      <div className="addDialogPanel">{children}</div>
-      <p className="addDialogEscHint" aria-hidden="true">
+    <div className={styles.addDialogHost}>
+      <div className={styles.addDialogPanel}>{children}</div>
+      <p className={styles.addDialogEscHint} aria-hidden="true">
         Esc to dismiss
       </p>
     </div>

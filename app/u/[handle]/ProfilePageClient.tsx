@@ -74,7 +74,7 @@ import {
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { currentMode, modeEnablesLegacy } from "@/lib/viewMode";
 
-import "./profile.css";
+import styles from "./Profile.module.css";
 
 // Account settings, crews and the timeline are not the identity-loading
 // paint. Static imports pulled their CSS and JS into /u/you's first document
@@ -1512,7 +1512,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   }
 
   return (
-    <div className="lp profilePage">
+    <div className={`lp ${styles.profilePage}`}>
       <SiteNav active="profile" />
 
       <main id="main" className="container profileMain">

@@ -18,7 +18,7 @@ import { formatPrice } from "@/lib/venues";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { planAlcoholOptionalInviteLine } from "@/lib/planAlcoholOptional";
 
-import "./invite.css";
+import styles from "./Invite.module.css";
 
 // The public invite page (Task: plan-invite-page): the warm, Partiful-style
 // card a Plan's invite link opens on. A server component so the crawler gets
@@ -179,15 +179,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 // ── Empty states ─────────────────────────────────────────────────────────────
 function InviteNotFound() {
   return (
-    <main id="main" className="invite invite--empty">
-      <div className="invite__emptyCard">
-        <Link className="invite__home" href="/">
+    <main id="main" className={`${styles.invite} ${styles.inviteEmpty}`}>
+      <div className={styles.inviteEmptyCard}>
+        <Link className={styles.inviteHome} href="/">
           PUBMAXXING
         </Link>
-        <p className="invite__eyebrow">Invite</p>
-        <h1 className="invite__emptyTitle">This invite link isn&rsquo;t valid</h1>
-        <p className="invite__emptyBody">It may have been removed, or the link is wrong.</p>
-        <Link className="invite__primary" href="/">
+        <p className={styles.inviteEyebrow}>Invite</p>
+        <h1 className={styles.inviteEmptyTitle}>This invite link isn&rsquo;t valid</h1>
+        <p className={styles.inviteEmptyBody}>It may have been removed, or the link is wrong.</p>
+        <Link className={styles.invitePrimary} href="/">
           Go to PUBMAXX
         </Link>
       </div>
@@ -197,14 +197,14 @@ function InviteNotFound() {
 
 function InviteUnavailable() {
   return (
-    <main id="main" className="invite invite--empty">
-      <div className="invite__emptyCard">
-        <Link className="invite__home" href="/">
+    <main id="main" className={`${styles.invite} ${styles.inviteEmpty}`}>
+      <div className={styles.inviteEmptyCard}>
+        <Link className={styles.inviteHome} href="/">
           PUBMAXXING
         </Link>
-        <p className="invite__eyebrow">Invite</p>
-        <h1 className="invite__emptyTitle">This invite isn&rsquo;t available right now</h1>
-        <p className="invite__emptyBody">Try the link again shortly.</p>
+        <p className={styles.inviteEyebrow}>Invite</p>
+        <h1 className={styles.inviteEmptyTitle}>This invite isn&rsquo;t available right now</h1>
+        <p className={styles.inviteEmptyBody}>Try the link again shortly.</p>
       </div>
     </main>
   );
@@ -239,44 +239,44 @@ export default async function PlanInvitePage({ params }: PageProps) {
   const spendBand = inviteSpendBand(stops);
 
   return (
-    <main id="main" className="invite">
-      <div className="invite__mat">
-        <div className="invite__kicker">
-          <Link className="invite__brand" href="/">
+    <main id="main" className={styles.invite}>
+      <div className={styles.inviteMat}>
+        <div className={styles.inviteKicker}>
+          <Link className={styles.inviteBrand} href="/">
             PUBMAXXING
           </Link>
-          <span className="invite__edition">You&rsquo;re invited</span>
+          <span className={styles.inviteEdition}>You&rsquo;re invited</span>
         </div>
 
         {routePoints.length >= 2 ? (
-          <div className="invite__thumbFrame">
+          <div className={styles.inviteThumbFrame}>
             <RouteThumbnail
-              className="invite__thumb"
+              className={styles.inviteThumb}
               points={routePoints}
               label={`Route shape for ${state.plan.title}`}
             />
           </div>
         ) : null}
 
-        <p className="invite__eyebrow">Hosted by {hostHandle}</p>
-        <h1 className="invite__title">{state.plan.title}</h1>
-        <p className="invite__start">{startLabel}</p>
-        {spendBand ? <p className="invite__spend">{formatPlanInviteSpendBand(spendBand)}</p> : null}
+        <p className={styles.inviteEyebrow}>Hosted by {hostHandle}</p>
+        <h1 className={styles.inviteTitle}>{state.plan.title}</h1>
+        <p className={styles.inviteStart}>{startLabel}</p>
+        {spendBand ? <p className={styles.inviteSpend}>{formatPlanInviteSpendBand(spendBand)}</p> : null}
         {alcoholOptionalLine ? (
-          <p className="invite__softNote">{alcoholOptionalLine}</p>
+          <p className={styles.inviteSoftNote}>{alcoholOptionalLine}</p>
         ) : null}
 
-        <ol className="invite__stops">
+        <ol className={styles.inviteStops}>
           {stops.map((stop) => (
-            <li className="invite__stop" key={`${stop.position}-${stop.venueId}`}>
-              <span className="invite__stopPosition">{stop.position + 1}</span>
-              <span className="invite__stopName">{stop.venueName}</span>
-              {stop.price ? <span className="invite__stopPrice">{stop.price}</span> : null}
+            <li className={styles.inviteStop} key={`${stop.position}-${stop.venueId}`}>
+              <span className={styles.inviteStopPosition}>{stop.position + 1}</span>
+              <span className={styles.inviteStopName}>{stop.venueName}</span>
+              {stop.price ? <span className={styles.inviteStopPrice}>{stop.price}</span> : null}
             </li>
           ))}
         </ol>
 
-        <p className="invite__softNote">
+        <p className={styles.inviteSoftNote}>
           Joining the crew with a signed-in claimed handle connects you with
           the host in your lot.
         </p>

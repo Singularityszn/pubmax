@@ -17,7 +17,7 @@ import { lookupCanonicalVenueId } from "@/lib/venueAliases";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { groupVenuePrices, type Venue, type VenuePrice, formatGbp } from "@/lib/venues";
 
-import "./barTab.css";
+import styles from "./BarTab.module.css";
 
 // The Bar Tab (issue #36): a venue's recent Spills as an Instagram-style profile
 // grid, the "screenshot-worthy" venue surface, distinct from the Ledger (the
@@ -108,15 +108,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 function NotInTheTab() {
   return (
-    <main id="main" className="barTabPage barTabPage--empty">
+    <main id="main" className={`${styles.barTabPage} ${styles["barTabPage--empty"]}`}>
       <SiteNav active="feed" />
-      <div className="barTabEmptyCard">
-        <p className="barTabEyebrow">The Bar Tab</p>
-        <h1 className="barTabEmptyTitle">This pub isn&rsquo;t on the tab</h1>
-        <p className="barTabEmptyBody">
+      <div className={styles.barTabEmptyCard}>
+        <p className={styles.barTabEyebrow}>The Bar Tab</p>
+        <h1 className={styles.barTabEmptyTitle}>This pub isn&rsquo;t on the tab</h1>
+        <p className={styles.barTabEmptyBody}>
           It may have moved, or the link is wrong. Every mapped pub still has a home.
         </p>
-        <Link prefetch={false} className="barTabPrimaryLink" href="/map">
+        <Link prefetch={false} className={styles.barTabPrimaryLink} href="/map">
           Back to the map
         </Link>
       </div>
@@ -126,16 +126,16 @@ function NotInTheTab() {
 
 function TabReadUnavailable({ id }: { id: string }) {
   return (
-    <main id="main" className="barTabPage barTabPage--empty">
+    <main id="main" className={`${styles.barTabPage} ${styles["barTabPage--empty"]}`}>
       <SiteNav active="feed" />
-      <div className="barTabEmptyCard">
+      <div className={styles.barTabEmptyCard}>
         <VenueReadUnavailable
           eyebrow="The Bar Tab"
           classNames={{
-            eyebrow: "barTabEyebrow",
-            title: "barTabEmptyTitle",
-            body: "barTabEmptyBody",
-            action: "barTabPrimaryLink",
+            eyebrow: styles.barTabEyebrow,
+            title: styles.barTabEmptyTitle,
+            body: styles.barTabEmptyBody,
+            action: styles.barTabPrimaryLink,
           }}
           href={`/bar-tab/${encodeURIComponent(id)}`}
         />
@@ -174,34 +174,34 @@ export default async function BarTabPage({ params }: PageProps) {
   const shareUrl = `/bar-tab/${encodeURIComponent(canonicalId)}`;
 
   return (
-    <main id="main" className="barTabPage">
+    <main id="main" className={styles.barTabPage}>
       <SiteNav active="feed" />
 
-      <header className="barTabHead">
-        <p className="barTabEyebrow">The Bar Tab</p>
-        <h1 className="barTabTitle">{venue.name}</h1>
-        <p className="barTabAddress">
+      <header className={styles.barTabHead}>
+        <p className={styles.barTabEyebrow}>The Bar Tab</p>
+        <h1 className={styles.barTabTitle}>{venue.name}</h1>
+        <p className={styles.barTabAddress}>
           {venue.address ? `${venue.address} · ` : ""}
           {venue.primaryBorough || "London"}
         </p>
 
-        <div className="barTabHeadRow">
+        <div className={styles.barTabHeadRow}>
           {barTab.cheapestGbp !== null ? (
-            <span className="barTabCheapest" title="Cheapest pint on the tab">
-              <span className="barTabCheapestLabel">From</span>
-              <span className="barTabCheapestValue">{formatGbp(barTab.cheapestGbp)}</span>
+            <span className={styles.barTabCheapest} title="Cheapest pint on the tab">
+              <span className={styles.barTabCheapestLabel}>From</span>
+              <span className={styles.barTabCheapestValue}>{formatGbp(barTab.cheapestGbp)}</span>
             </span>
           ) : null}
-          <span className="barTabCount">
+          <span className={styles.barTabCount}>
             {barTab.tileCount} {barTab.tileCount === 1 ? "pint" : "pints"} on the tab
           </span>
         </div>
 
-        <div className="barTabHeadActions">
-          <Link prefetch={false} className="barTabMapLink" href={venueMapUrl(canonicalId)}>
+        <div className={styles.barTabHeadActions}>
+          <Link prefetch={false} className={styles.barTabMapLink} href={venueMapUrl(canonicalId)}>
             Open on the map
           </Link>
-          <Link className="barTabLedgerLink" href={`/ledger/${encodeURIComponent(canonicalId)}`}>
+          <Link className={styles.barTabLedgerLink} href={`/ledger/${encodeURIComponent(canonicalId)}`}>
             Read the ledger
           </Link>
           <ShareBar
@@ -219,16 +219,16 @@ export default async function BarTabPage({ params }: PageProps) {
 
       {barTab.tileCount === 0 ? (
         <EmptyState
-          className="barTabEmpty"
+          className={styles.barTabEmpty}
           title="No pints on the tab yet."
           action={<Link prefetch={false} href={`${venueMapUrl(canonicalId)}&log=1`}>Drop a pint here</Link>}
         >
           Be the first to drop one here. Snap your pint, log the price, pass down a story.
         </EmptyState>
       ) : (
-        <ul className="barTabGrid" aria-label={`Recent pints at ${venue.name}`}>
+        <ul className={styles.barTabGrid} aria-label={`Recent pints at ${venue.name}`}>
           {barTab.tiles.map((tile) => (
-            <li key={tile.id} className="barTabCell">
+            <li key={tile.id} className={styles.barTabCell}>
               <Tile tile={tile} venueName={venue.name} />
             </li>
           ))}
@@ -243,9 +243,9 @@ function Tile({ tile, venueName }: { tile: BarTabTile; venueName: string }) {
 
   if (tile.kind === "photo" && tile.photoUrl) {
     return (
-      <Link className="barTabTile barTabTile--photo" href={`/p/${tile.id}`}>
+      <Link className={`${styles.barTabTile} ${styles["barTabTile--photo"]}`} href={`/p/${tile.id}`}>
         <Image
-          className="barTabTilePhoto"
+          className={styles.barTabTilePhoto}
           src={tile.photoUrl}
           alt={`Pint at ${venueName}, shared by ${tile.handle}`}
           width={480}
@@ -253,18 +253,18 @@ function Tile({ tile, venueName }: { tile: BarTabTile; venueName: string }) {
           loading="lazy"
           unoptimized
         />
-        {price ? <span className="barTabTilePrice">{price}</span> : null}
+        {price ? <span className={styles.barTabTilePrice}>{price}</span> : null}
       </Link>
     );
   }
 
   // Text-only drop → a mini typographic receipt tile, so the grid is never a gap.
   return (
-    <Link className="barTabTile barTabTile--receipt" href={`/p/${tile.id}`}>
-      <span className="barTabTileEyebrow">Pint Drop</span>
-      <span className="barTabTileReceiptPrice">{price ?? "A memory"}</span>
-      {tile.drink ? <span className="barTabTileDrink">{tile.drink}</span> : null}
-      {tile.note ? <span className="barTabTileNote">{tile.note}</span> : null}
+    <Link className={`${styles.barTabTile} ${styles["barTabTile--receipt"]}`} href={`/p/${tile.id}`}>
+      <span className={styles.barTabTileEyebrow}>Pint Drop</span>
+      <span className={styles.barTabTileReceiptPrice}>{price ?? "A memory"}</span>
+      {tile.drink ? <span className={styles.barTabTileDrink}>{tile.drink}</span> : null}
+      {tile.note ? <span className={styles.barTabTileNote}>{tile.note}</span> : null}
     </Link>
   );
 }
