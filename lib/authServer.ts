@@ -32,7 +32,7 @@ import "server-only";
 
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-/** Extract a bearer token from an Authorization header, or null when absent. @public */
+/** Extract a bearer token from an Authorization header, or null when absent. @public — imported by __tests__/permissionMatrixEffective.test.ts via importOriginal. */
 export function bearerToken(request: Request): string | null {
   const header = request.headers.get("authorization") ?? request.headers.get("Authorization");
   if (!header) return null;
