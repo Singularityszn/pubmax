@@ -119,7 +119,7 @@ describe("crew visibility creation", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    const venueButton = container.querySelector<HTMLButtonElement>(".crews__venueOption");
+    const venueButton = container.querySelector<HTMLButtonElement>(".crewsVenueOption");
     expect(venueButton).toBeTruthy();
     await act(async () => venueButton?.click());
 
