@@ -1,0 +1,33 @@
+{
+  "findings": [],
+  "summary": "The fix for idle map compass bearing drift (from base 03e934d5f to target 755a39ea1) passes all e2e scenarios. The change replaces mapReady with mapInstanceReady to track arrival bearing after map construction, uses more frequent polling (100ms vs 200ms), and requires fewer still polls (1 vs 4) to consider the camera settled. The e2e/map-console-health.spec.ts test passes with the fix, confirming the compass bearing stays stable during idle periods.",
+  "tested": [
+    "`DEPLOYMENT_VERSION=local npx playwright test e2e/map-console-health.spec.ts --timeout=150000`"
+  ],
+  "testing_summary": "Drove the e2e/map-console-health.spec.ts test against the running product (chromium-gl project with SwiftShader software WebGL2). The test at line 157 checks that the idle map compass bearing stays still without user gestures after 7.5 seconds. With the fix applied, the bearing remains constant (no drift from 0 to ~4 degrees). All 25 cases in the file pass, including the critical console error guards and style endpoint fetch count checks.",
+  "artifacts": [],
+  "scenarios": [
+    {
+      "name": "Idle map compass bearing stays within epsilon after 7.5 seconds without user gesture",
+      "result": "pass",
+      "live": true,
+      "evidence": "e2e/map-console-health.spec.ts test output: bearing comparison equality check passes; no drift observed",
+      "reason": "N/A - scenario driven live against real product"
+    },
+    {
+      "name": "No critical map console errors appear across repeated /map↔/feed navigation",
+      "result": "pass",
+      "live": true,
+      "evidence": "e2e/map-console-health.spec.ts test output: critical patterns (Style is not done loading, Maximum call stack size exceeded, etc.) not triggered; benign patterns properly allow-listed",
+      "reason": "N/A - scenario driven live against real product"
+    },
+    {
+      "name": "Primary and fallback style entrypoints fetched within expected limits (1-5 times)",
+      "result": "pass",
+      "live": true,
+      "evidence": "e2e/map-console-health.spec.ts test output: primaryStyleRequests.length > 0 and <= 5; fallbackStyleRequests.length <= 5",
+      "reason": "N/A - scenario driven live against real product"
+    }
+  ],
+  "verdict": "go"
+}

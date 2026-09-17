@@ -1,0 +1,8 @@
+{
+  "findings": [],
+  "tested": [],
+  "testing_summary": "",
+  "risk_level": "low",
+  "risk_rationale": "The change correctly fixes the idle map compass bearing drift by starting arrival bearing detection at map construction (via mapInstanceReady) instead of waiting for mapReady. The polling constants are adjusted to be more sensitive (100ms polling, 1 still poll vs 200ms/4 polls). No bugs, risks, or unauthorized data exposure introduced. The fix is durable and directly addresses the user intent.",
+  "risk_scope": "source-or-external"
+}
