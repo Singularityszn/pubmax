@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import EmptyState from "@/components/ui/empty-state";
 
-import "./story.css";
+import styles from "./Story.module.css";
 
 // Branded not-found for /crawls/[slug] — rendered when the page calls
 // notFound() on an unknown OR draft slug (a draft is private, so it must look
@@ -17,8 +17,8 @@ export const metadata: Metadata = {
 
 export default function CrawlStoryNotFound(): React.JSX.Element {
   return (
-    <main id="main" className="storyShell">
-      <nav className="storyNav" aria-label="Site navigation">
+    <main id="main" className={styles.storyShell}>
+      <nav className={styles.storyNav} aria-label="Site navigation">
         <Link href="/">Home</Link>
         <Link prefetch={false} href="/map">
           Map
@@ -29,7 +29,7 @@ export default function CrawlStoryNotFound(): React.JSX.Element {
       </nav>
 
       <EmptyState
-        className="storyMissing"
+        className={styles.storyMissing}
         title="No crawl here"
         action={<Link href="/crawls">Back to crawls</Link>}
       >

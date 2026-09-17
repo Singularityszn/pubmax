@@ -3,7 +3,7 @@
    running down a single brass dashed spine, a receipt-style round total at the
    foot, and vibe tags as little brass stamps. All selectors are new + scoped to
    this route; every value leans on the existing design tokens so the poster
-   inherits the "printed guidebook" theme. Mirrors app/crawls/crawls.css on
+   inherits the "printed guidebook" theme. Mirrors app/crawls/Crawls.module.css on
    purpose (the anonymous poster) while adding the signature brass spine. */
 
 .storyShell {
@@ -53,7 +53,7 @@
   padding-inline: 0;
 }
 
-.storyHead > .screenHead {
+.storyHead > :global(.screenHead) {
   border-bottom: 2px solid var(--line);
   padding-bottom: 20px;
 }

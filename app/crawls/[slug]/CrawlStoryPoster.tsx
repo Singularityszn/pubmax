@@ -8,6 +8,7 @@ import { computeChaosScore } from "@/lib/chaosScore";
 import type { DurableStory } from "@/lib/crawlStoryStore";
 import { formatGbp } from "@/lib/formatGbp";
 import { buildCrawlShareText } from "@/lib/shareArtifacts";
+import styles from "./Story.module.css";
 
 // The durable Crawl Story poster, with the story already loaded. The page
 // (page.tsx) reads the store and hands the record here; this component knows
@@ -73,17 +74,17 @@ export default function CrawlStoryPoster({ story, slug }: { story: DurableStory;
   const chaosCard = chaosCardHref(story, chaos);
 
   return (
-    <article className="storyPoster">
+    <article className={styles.storyPoster}>
       <Screen
         as="section"
-        className="storyHead"
+        className={styles.storyHead}
         kicker={
           story.authorHandle ? (
             <>
               Crawl by{" "}
               <Link
                 href={`/u/${encodeURIComponent(story.authorHandle)}`}
-                className="storyAuthorLink"
+                className={styles.storyAuthorLink}
               >
                 @{story.authorHandle}
               </Link>
@@ -107,35 +108,35 @@ export default function CrawlStoryPoster({ story, slug }: { story: DurableStory;
         }
       >
         {story.vibeTags.length ? (
-          <ul className="storyTags" aria-label="Crawl vibe tags">
+          <ul className={styles.storyTags} aria-label="Crawl vibe tags">
             {story.vibeTags.map((tag) => (
-              <li key={tag} className="storyTag">
+              <li key={tag} className={styles.storyTag}>
                 {tag}
               </li>
             ))}
           </ul>
         ) : null}
 
-        <ol className="storyStops">
+        <ol className={styles.storyStops}>
           {story.stops.map((stop, index) => (
-            <li key={`${stop.venueId}-${index}`} className="storyStop">
-              <span className="storyStopNumber" aria-hidden="true">
+            <li key={`${stop.venueId}-${index}`} className={styles.storyStop}>
+              <span className={styles.storyStopNumber} aria-hidden="true">
                 {index + 1}
               </span>
-              <div className="storyStopBody">
-                <a className="storyStopName" href={stop.venueMapUrl}>
+              <div className={styles.storyStopBody}>
+                <a className={styles.storyStopName} href={stop.venueMapUrl}>
                   {stop.venueName}
                 </a>
-                {stop.note ? <p className="storyStopNote">{stop.note}</p> : null}
+                {stop.note ? <p className={styles.storyStopNote}>{stop.note}</p> : null}
               </div>
-              <span className="storyStopPrice">
+              <span className={styles.storyStopPrice}>
                 {typeof stop.priceGbp === "number" ? formatGbp(stop.priceGbp) : "–"}
               </span>
             </li>
           ))}
         </ol>
 
-        <div className="storyReceipt" role="group" aria-label="Crawl total">
+        <div className={styles.storyReceipt} role="group" aria-label="Crawl total">
           <span>
             Round total
             <small>
@@ -147,23 +148,23 @@ export default function CrawlStoryPoster({ story, slug }: { story: DurableStory;
 
         {/* Chaos Score (issue #30): optional and playful; a crawl with zero
             stops (should not happen, but never trust it) just shows "Quiet". */}
-        <div className="storyChaos" role="group" aria-label="Chaos Score">
-          <span className="storyChaosScore">
+        <div className={styles.storyChaos} role="group" aria-label="Chaos Score">
+          <span className={styles.storyChaosScore}>
             {chaos.score}
             <small>/100</small>
           </span>
-          <span className="storyChaosBody">
-            <strong className="storyChaosGrade">{chaos.grade}</strong>
-            <span className="storyChaosLine">{chaos.oneLiner}</span>
+          <span className={styles.storyChaosBody}>
+            <strong className={styles.storyChaosGrade}>{chaos.grade}</strong>
+            <span className={styles.storyChaosLine}>{chaos.oneLiner}</span>
           </span>
         </div>
 
-        <div className="storyActions">
+        <div className={styles.storyActions}>
           {/* Meme export (issue #30): a branded OG-style card of the score,
               opened in a new tab so it can be saved or shared directly. */}
           <a
             href={chaosCard}
-            className="storySecondaryBtn"
+            className={styles.storySecondaryBtn}
             target="_blank"
             rel="noreferrer"
           >
@@ -178,11 +179,11 @@ export default function CrawlStoryPoster({ story, slug }: { story: DurableStory;
         ) : null}
 
         {/* Share strip: the crawl spreads across X, WhatsApp, and group chats. */}
-        <div className="storyShare">
+        <div className={styles.storyShare}>
           <ShareBar url={`/crawls/${slug}`} title={story.title} text={shareText} />
         </div>
 
-        <p className="storyFootnote">Pubs, prices and the route between them.</p>
+        <p className={styles.storyFootnote}>Pubs, prices and the route between them.</p>
       </Screen>
     </article>
   );

@@ -109,7 +109,7 @@
   outline-offset: 2px;
 }
 
-.routePackChip.isActive {
+.isActive {
   border-color: var(--brass);
   background: color-mix(in srgb, var(--brass) 14%, transparent);
   color: var(--state-active-ink);
@@ -413,7 +413,7 @@
   padding-inline: 0;
 }
 
-.crawlPosterHead > .screenHead {
+.crawlPosterHead > :global(.screenHead) {
   border-bottom: 2px solid var(--line);
   padding-bottom: 20px;
 }
