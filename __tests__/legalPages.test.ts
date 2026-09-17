@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -300,6 +300,73 @@ describe("legal content pages", () => {
         recipient.host,
       );
     }
+  });
+
+  it("names every third party that receives PROMPT TEXT", () => {
+    // The block above locks the coordinate-recipient set, which is read off the
+    // location table and therefore says nothing about a processor that receives
+    // what a person TYPED. PR #1693 added model-call tracing to a US vendor and
+    // changed no legal page, and this fence was green throughout, because a
+    // prompt is not a viewer point. It is the same shape as the block above,
+    // one row per recipient of request or completion text.
+    const thirdPartySection =
+      privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
+
+    const promptTextRecipients = [
+      { name: "Arize", host: "otlp.arize.com", source: "lib/observability/arize.ts" },
+      { name: "OpenRouter", host: "openrouter.ai", source: "lib/ask/modelLoop.ts" },
+    ];
+    for (const recipient of promptTextRecipients) {
+      expect(thirdPartySection, `Missing recipient name ${recipient.name}`).toContain(
+        recipient.name,
+      );
+      expect(read(recipient.source), `${recipient.source} no longer contacts ${recipient.host}`)
+        .toContain(recipient.host);
+    }
+  });
+
+  it("names the host of every observability egress the code carries", () => {
+    // The WIDENING. The two blocks above are hand-written recipient tables, so
+    // they only ever catch a vendor somebody remembered to add. This one reads
+    // the code: any absolute endpoint an observability module ships must be
+    // named on the page, so the NEXT model-observability vendor cannot land the
+    // way Arize did. Scoped to lib/observability because that directory exists
+    // to hold telemetry that leaves the process.
+    const thirdPartySection =
+      privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
+    const directory = join(process.cwd(), "lib", "observability");
+    const modules = readdirSync(directory).filter((name) => name.endsWith(".ts"));
+    expect(modules.length, "lib/observability has no modules to sweep").toBeGreaterThan(0);
+
+    const hosts = new Set<string>();
+    for (const name of modules) {
+      const source = readFileSync(join(directory, name), "utf8");
+      for (const match of source.matchAll(/https:\/\/([A-Za-z0-9.-]+)/g)) {
+        hosts.add(match[1]);
+      }
+    }
+    expect(hosts, "expected the Arize endpoint host in the sweep").toContain("otlp.arize.com");
+    for (const host of hosts) {
+      expect(thirdPartySection, `Undisclosed observability egress host ${host}`).toContain(host);
+    }
+  });
+
+  it("describes the tracing masking scope without overclaiming it", () => {
+    // maskPersonalData applies exactly two patterns, for emails and @handles,
+    // so the notice may say those two and may not imply more. It must also say
+    // the transfer is to the United States, and that the lane is off unless
+    // both keys are configured.
+    expect(privacy).toMatch(/Arize AX \(United States\)/);
+    expect(privacy).toMatch(/otlp\.arize\.com/);
+    expect(privacy).toMatch(/Email addresses\s+and @handles are replaced/);
+    expect(privacy).toMatch(/nothing else in the text is/);
+    expect(privacy).toMatch(/unless both Arize keys are set/);
+    expect(privacy).not.toMatch(/no prompt[^]*leaves[^]*unmasked/i);
+    expect(privacy).not.toMatch(/personal data is removed/i);
+    const arize = read("lib/observability/arize.ts");
+    // The page's two named patterns are the two the module applies.
+    expect(arize).toContain("EMAIL_PATTERN");
+    expect(arize).toContain("HANDLE_PATTERN");
   });
 
   it("discloses push subscription storage and retention", () => {
