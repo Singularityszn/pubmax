@@ -34,8 +34,8 @@ import {
 } from "@/components/nearme/NearMeNow";
 
 import DeskDataCredit from "./DeskDataCredit";
-import "./nearMeNow.css";
-import "./nearDeskNow.css";
+import nmnStyles from "./nearMeNow.module.css";
+import styles from "./nearDeskNow.module.css";
 
 type LocateState = "idle" | "requesting" | "ready";
 type PatchReason = DeskPatchReason | null;
@@ -49,19 +49,19 @@ function deskIntroLede(): string {
 function DeskFacts({ card, hero }: { card: DeskCard; hero?: boolean }) {
   return (
     <>
-      <ul className="ndnFacts">
+      <ul className={styles.ndnFacts}>
         {card.amenityLines.map((line) => (
           <li key={line}>{line}</li>
         ))}
         <li>{card.hoursCaption}</li>
       </ul>
       {card.hoursRaw ? (
-        <details className="ndnHoursMore">
+        <details className={styles.ndnHoursMore}>
           <summary>Full hours</summary>
-          <p className="ndnHoursRaw">{card.hoursRaw}</p>
+          <p className={styles.ndnHoursRaw}>{card.hoursRaw}</p>
         </details>
       ) : null}
-      <p className={hero ? "ndnChecked" : "ndnCardFact"}>{card.checkedCaption}</p>
+      <p className={hero ? styles.ndnChecked : styles.ndnCardFact}>{card.checkedCaption}</p>
     </>
   );
 }
@@ -71,10 +71,10 @@ function DeskHero({ card }: { card: DeskCard }) {
     ? `${card.walkMinutes} min walk`
     : null;
   return (
-    <article className="ndnHero">
-      <p className="ndnKind">{card.kindLabel}</p>
-      <h3 className="ndnHeroName">{card.name}</h3>
-      {walk ? <p className="ndnCardFact">{walk}</p> : null}
+    <article className={styles.ndnHero}>
+      <p className={styles.ndnKind}>{card.kindLabel}</p>
+      <h3 className={styles.ndnHeroName}>{card.name}</h3>
+      {walk ? <p className={styles.ndnCardFact}>{walk}</p> : null}
       <DeskFacts card={card} hero />
     </article>
   );
@@ -84,14 +84,14 @@ function DeskCardList({ cards }: { cards: DeskCard[] }) {
   const rest = cards.slice(1);
   if (rest.length === 0) return null;
   return (
-    <ol className="nmnList" aria-label="More desks nearby">
+    <ol className={nmnStyles.nmnList} aria-label="More desks nearby">
       {rest.map((card) => (
         <li key={card.id}>
-          <article className="ndnCard">
-            <p className="ndnKind">{card.kindLabel}</p>
-            <p className="ndnCardName">{card.name}</p>
+          <article className={styles.ndnCard}>
+            <p className={styles.ndnKind}>{card.kindLabel}</p>
+            <p className={styles.ndnCardName}>{card.name}</p>
             {typeof card.walkMinutes === "number" ? (
-              <p className="ndnCardFact">{card.walkMinutes} min walk</p>
+              <p className={styles.ndnCardFact}>{card.walkMinutes} min walk</p>
             ) : null}
             <DeskFacts card={card} />
           </article>
@@ -272,7 +272,7 @@ export default function NearDeskNow({
 
   return (
     <section
-      className="nmn"
+      className={`nmn ${nmnStyles.nmn}`}
       aria-label="Find a desk nearby"
       {...deskCollapsedChainsAttributes(answer?.collapsedChains)}
     >
@@ -281,7 +281,7 @@ export default function NearDeskNow({
            (docs/design/LAUNCH_SCREENS.md), with Find a desk as its one primary. */
         <Screen
           as="div"
-          className="nmnScreen"
+          className={nmnStyles.nmnScreen}
           kicker="Near you"
           title={deskIntroLede()}
           titleId="near-title"
@@ -291,15 +291,15 @@ export default function NearDeskNow({
             </button>
           }
         >
-          <p className="nmnHint">We only use your location to rank desks nearby. Nothing is stored.</p>
-          <div className="nmnQuickPatches">
-            <p className="nmnQuickPatchesLabel">Or pick a patch</p>
-            <ul className="nmnAreaChips" aria-label="Pick an area">
+          <p className={nmnStyles.nmnHint}>We only use your location to rank desks nearby. Nothing is stored.</p>
+          <div className={nmnStyles.nmnQuickPatches}>
+            <p className={nmnStyles.nmnQuickPatchesLabel}>Or pick a patch</p>
+            <ul className={nmnStyles.nmnAreaChips} aria-label="Pick an area">
               {NIGHT_PATCHES.map((entry) => (
                 <li key={entry.id}>
                   <button
                     type="button"
-                    className="nmnBoroughChip"
+                    className={nmnStyles.nmnBoroughChip}
                     onClick={() => pickPatch(entry)}
                   >
                     {entry.label}
@@ -312,8 +312,8 @@ export default function NearDeskNow({
       ) : null}
 
       {state === "requesting" ? (
-        <div className="nmnStatus" role="status">
-          <span className="nmnSpinner" aria-hidden="true" />
+        <div className={nmnStyles.nmnStatus} role="status">
+          <span className={nmnStyles.nmnSpinner} aria-hidden="true" />
           {patch
             ? `Checking desks around ${patch.label}…`
             : "Checking desks near you…"}
@@ -321,20 +321,20 @@ export default function NearDeskNow({
       ) : null}
 
       {state === "ready" && packStatus === "failed" ? (
-        <p className="ndnEmpty" role="status">{deskLoadFailedLine()}</p>
+        <p className={styles.ndnEmpty} role="status">{deskLoadFailedLine()}</p>
       ) : null}
 
       {state === "ready" && packStatus === "ready" && answer && answer.cards.length === 0 ? (
-        <div className="nmnHead">
+        <div className={nmnStyles.nmnHead}>
           <h2>{deskEmptyLine()}</h2>
-          {patchMessage ? <p className="nmnSub">{patchMessage}</p> : null}
-          <div className="nmnQuickPatches">
-            <ul className="nmnAreaChips" aria-label="Pick an area">
+          {patchMessage ? <p className={nmnStyles.nmnSub}>{patchMessage}</p> : null}
+          <div className={nmnStyles.nmnQuickPatches}>
+            <ul className={nmnStyles.nmnAreaChips} aria-label="Pick an area">
               {NIGHT_PATCHES.map((entry) => (
                 <li key={entry.id}>
                   <button
                     type="button"
-                    className="nmnBoroughChip"
+                    className={nmnStyles.nmnBoroughChip}
                     data-active={patch?.id === entry.id ? "" : undefined}
                     onClick={() => pickPatch(entry)}
                   >
@@ -349,20 +349,20 @@ export default function NearDeskNow({
 
       {state === "ready" && packStatus === "ready" && answer && answer.hero ? (
         <>
-          <header className="nmnHead">
+          <header className={nmnStyles.nmnHead}>
             <h2>{headline}</h2>
-            {patchMessage ? <p className="nmnSub">{patchMessage}</p> : null}
+            {patchMessage ? <p className={nmnStyles.nmnSub}>{patchMessage}</p> : null}
             {answer.scope === "widened" ? (
-              <p className="nmnWiden">Not many desks on your doorstep. These are a bit further out.</p>
+              <p className={nmnStyles.nmnWiden}>Not many desks on your doorstep. These are a bit further out.</p>
             ) : (
-              <p className="nmnSub">Within about a 12-minute walk.</p>
+              <p className={nmnStyles.nmnSub}>Within about a 12-minute walk.</p>
             )}
           </header>
           <DeskHero card={answer.hero} />
           <DeskCardList cards={answer.cards} />
           <DeskDataCredit />
-          <footer className="nmnFoot">
-            <button type="button" className="nmnRetry nmnRetryGhost" onClick={locate}>
+          <footer className={nmnStyles.nmnFoot}>
+            <button type="button" className={`${nmnStyles.nmnRetry} ${nmnStyles.nmnRetryGhost}`} onClick={locate}>
               <RotateCw size={15} aria-hidden="true" /> Update location
             </button>
           </footer>

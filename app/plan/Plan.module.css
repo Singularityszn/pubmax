@@ -639,7 +639,7 @@
 .planStopCount { margin: var(--space-2) 0 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
 .planStopCount__label { color: var(--muted); font-size: 0.78rem; font-weight: 800; }
 /* Layout only. Each count is the shared number square, painted by
-   components/ui/chip.css from the --control-* row, so the planner and the
+   components/ui/chip.module.css from the --control-* row, so the planner and the
    /pubs fare-zone picker are one family rather than a 10px square beside a
    6px one (the 6 Sep 2026 design review). */
 .planStopCount__choices { display: flex; flex-wrap: wrap; gap: 6px; }

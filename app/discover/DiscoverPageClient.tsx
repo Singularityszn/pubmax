@@ -53,7 +53,6 @@ import {
 import { getRoutePack, routePackPrimaryCrawl } from "@/lib/routePacks";
 import NightAreaCoverage from "@/components/night/NightAreaCoverage";
 import styles from "./Discover.module.css";
-import "@/components/night/nightAreaCoverage.css";
 
 /** Discover Hungry chips → map with food filter + cuisine hint in the query. */
 function hungryCuisineHref(tag: string, cityId: CityId): string {

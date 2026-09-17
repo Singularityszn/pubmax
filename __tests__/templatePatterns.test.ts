@@ -70,8 +70,8 @@ const FUNCTIONAL_TRANSLUCENCY = [
   "components/identity/accountOnboarding.module.css", // dialog backdrop
   "components/identity/contributionGate.module.css", // dialog backdrop
   "components/pal/palChat.module.css", // floating composer bar
-  "components/pubpal/pubPal.css", // the Pal summon control floating over the map
-  "components/pubs/pubsGallery.css", // lightbox chrome over a photo
+  "components/pubpal/pubPal.module.css", // the Pal summon control floating over the map
+  "components/pubs/pubsGallery.module.css", // lightbox chrome over a photo
   "components/PubMapCanvas.module.css", // soft-retry chip floating over the map canvas
 ];
 
@@ -81,8 +81,8 @@ const FUNCTIONAL_TRANSLUCENCY = [
  * sentence each. Each file here was read; each row is one of those.
  */
 const THREE_COLUMN_CONTROLS = [
-  "components/map/mapExperienceLens.css", // lens option buttons
-  "components/mobile/mobileMapShell.css", // drink shape chips
+  "components/map/mapExperienceLens.module.css", // lens option buttons
+  "components/mobile/mobileMapShell.module.css", // drink shape chips
   "components/moment/moment.module.css", // decorator action buttons
   "components/night/routeEndingCard.module.css", // three ending choices
   "components/venue/venuePhotoWall.module.css", // photo grid

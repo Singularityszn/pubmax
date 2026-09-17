@@ -7,6 +7,7 @@ import {
   type NightArea,
 } from "@/lib/nightAreas";
 import { nightAreaCoverageDetail } from "@/lib/nightPresentation";
+import styles from "./nightAreaCoverage.module.css";
 
 type CoverageBucket = "route_ready" | CoverageStatus;
 type CoverageTone = "ready" | "captured" | "reviewed" | "discovered" | "paused";
@@ -101,23 +102,28 @@ function CoverageRow({ area, now }: { area: NightArea; now: Date }) {
   const state = stateForArea(area, now);
   const routeReady = state.bucket === "route_ready";
 
+  const toneStyles: Record<string, string | undefined> = {
+    ready: styles.nightAreaCoverageBadgeReady,
+    paused: styles.nightAreaCoverageBadgePaused,
+  };
+
   return (
     <li
-      className="nightAreaCoverage__row"
+      className={styles.nightAreaCoverageRow}
       data-coverage-status={area.coverageStatus}
       data-route-ready={routeReady ? "true" : "false"}
     >
-      <div className="nightAreaCoverage__rowCopy">
-        <div className="nightAreaCoverage__rowTitle">
+      <div className={styles.nightAreaCoverageRowCopy}>
+        <div className={styles.nightAreaCoverageRowTitle}>
           <strong>{area.name}</strong>
-          <span className={`nightAreaCoverage__badge nightAreaCoverage__badge--${state.tone}`}>
+          <span className={[styles.nightAreaCoverageBadge, toneStyles[state.tone]].filter(Boolean).join(" ")}>
             {state.label}
           </span>
         </div>
         <p>{state.detail}</p>
       </div>
       <Link
-        className={`nightAreaCoverage__action${routeReady ? " nightAreaCoverage__action--ready" : ""}`}
+        className={[styles.nightAreaCoverageAction, routeReady ? styles.nightAreaCoverageActionReady : ""].filter(Boolean).join(" ")}
         href={state.href}
         aria-label={areaMapLabel(area, state)}
       >
@@ -146,23 +152,23 @@ export default function NightAreaCoverage() {
   }));
 
   return (
-    <section className="nightAreaCoverage" aria-labelledby="night-area-coverage-title">
-      <header className="nightAreaCoverage__head">
+    <section className={styles.nightAreaCoverage} aria-labelledby="night-area-coverage-title">
+      <header className={styles.nightAreaCoverageHead}>
         <div>
-          <p className="nightAreaCoverage__eyebrow">Across London</p>
+          <p className={styles.nightAreaCoverageEyebrow}>Across London</p>
           <h2 id="night-area-coverage-title">Where you can plan a crawl tonight</h2>
         </div>
-        <Link prefetch={false} className="nightAreaCoverage__plannerLink" href="/plan">
+        <Link prefetch={false} className={styles.nightAreaCoveragePlannerLink} href="/plan">
           Open planner
         </Link>
       </header>
 
-      <p className="nightAreaCoverage__intro">
+      <p className={styles.nightAreaCoverageIntro}>
         We only call an area crawl-ready when its prices are fresh and checked. The rest
         are yours to browse.
       </p>
 
-      <ul className="nightAreaCoverage__counts" aria-label="Area coverage counts">
+      <ul className={styles.nightAreaCoverageCounts} aria-label="Area coverage counts">
         {counts.map((status) => (
           <li key={status.bucket}>
             <strong>{status.count}</strong>
@@ -171,23 +177,23 @@ export default function NightAreaCoverage() {
         ))}
       </ul>
 
-      <div className="nightAreaCoverage__quickRead">
-        <p className="nightAreaCoverage__sectionLabel">Quick read</p>
-        <ul className="nightAreaCoverage__list" aria-label="Representative area coverage">
+      <div className={styles.nightAreaCoverageQuickRead}>
+        <p className={styles.nightAreaCoverageSectionLabel}>Quick read</p>
+        <ul className={styles.nightAreaCoverageList} aria-label="Representative area coverage">
           {featured.map((area) => <CoverageRow key={area.slug} area={area} now={now} />)}
         </ul>
       </div>
 
-      <details className="nightAreaCoverage__details">
+      <details className={styles.nightAreaCoverageDetails}>
         <summary>
           <span>See every area</span>
-          <span className="nightAreaCoverage__detailsMeta">{areas.length} areas</span>
+          <span className={styles.nightAreaCoverageDetailsMeta}>{areas.length} areas</span>
         </summary>
-        <p className="nightAreaCoverage__detailsIntro">
+        <p className={styles.nightAreaCoverageDetailsIntro}>
           “See the pubs” just opens the map for a browse. It won’t turn an area into a
           planned crawl until its prices are fresh.
         </p>
-        <ul className="nightAreaCoverage__list" aria-label="All area coverage">
+        <ul className={styles.nightAreaCoverageList} aria-label="All area coverage">
           {areas.map((area) => <CoverageRow key={area.slug} area={area} now={now} />)}
         </ul>
       </details>

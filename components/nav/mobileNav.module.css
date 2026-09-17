@@ -9,7 +9,7 @@
 /* Single source of truth for the tab-bar's reserved height. The body's
    bottom clearance (below) must always match the bar so map/feed content never
    hides behind it; hoisting the magic number here keeps the two in lockstep. */
-:root {
+:global(:root) {
   --tabbar-h: 64px;
 
   /* ── The right-edge floating stack ────────────────────────────────────────
@@ -45,7 +45,7 @@
      here, so the create action never read it and landed straight on top of it,
      swallowing its taps at 320px. Both numbers now live here, with the pill's
      rule and its own published clearance reading them back
-     (components/night/nightMode.css). */
+     (components/night/nightMode.module.css). */
   --night-pill-h: 44px;
   --night-pill-bottom: var(--float-stack-base);
 
@@ -107,23 +107,23 @@
   );
 }
 
-body {
+:global(body) {
   --float-stack-top-create: calc(var(--create-fab-bottom) + var(--create-fab-h));
 }
 
-body:has(.mapStage) {
+:global(body:has(.mapStage)) {
   --pal-summon-bottom: calc(var(--float-stack-top-plan) + var(--float-stack-gap));
   --float-stack-top-pal: calc(var(--pal-summon-bottom) + var(--pal-summon-h));
 }
 
 /* When a member lifts the map-edge column, its published top edge must move
    with it or the create action reads a stale berth and lands on Near me. */
-body:has(.mapStage):has(.palSummon) {
+:global(body:has(.mapStage):has(.palSummon)) {
   --float-stack-top-map-corner: calc(
     var(--float-stack-top-pal) + var(--float-stack-gap) + var(--map-corner-locate-size)
   );
 }
-body:has(.mapStage):has(.analyticsConsentPrompt) {
+:global(body:has(.mapStage):has(.analyticsConsentPrompt)) {
   --pal-summon-bottom: max(
     calc(var(--float-stack-top-plan) + var(--float-stack-gap)),
     calc(var(--float-stack-base) + var(--analytics-consent-mobile-clearance, 56px))
@@ -138,18 +138,18 @@ body:has(.mapStage):has(.analyticsConsentPrompt) {
    two map members (NightModeCard stands down on /map), and where it does share
    one with the Pub Pal pill, on /plan, that pill's top edge is the higher of
    the two and must win. */
-body:has(.nightPill) {
+:global(body:has(.nightPill)) {
   --create-fab-bottom: calc(
     var(--float-stack-top-night-pill) + var(--float-stack-gap)
   );
 }
-body:has(.mobilePlanActivation) {
+:global(body:has(.mobilePlanActivation)) {
   --create-fab-bottom: calc(var(--float-stack-top-plan) + var(--float-stack-gap));
 }
-body:has(.palSummon) {
+:global(body:has(.palSummon)) {
   --create-fab-bottom: calc(var(--float-stack-top-pal) + var(--float-stack-gap));
 }
-body:has(.mobileMapUtilityCorner) {
+:global(body:has(.mobileMapUtilityCorner)) {
   --create-fab-bottom: calc(var(--float-stack-top-map-corner) + var(--float-stack-gap));
 }
 
@@ -189,7 +189,7 @@ body:has(.mobileMapUtilityCorner) {
   height: 1.1rem;
   width: 42%;
 }
-.routeLoadingShellBar--short {
+.routeLoadingShellBarShort {
   width: 28%;
   height: 0.85rem;
   opacity: 0.85;
@@ -233,7 +233,7 @@ body:has(.mobileMapUtilityCorner) {
 }
 
 @media (max-width: 640px) {
-  body:has(.mobileTabBar, .mobileTabBarClearance) {
+  :global(body):has(.mobileTabBar, .mobileTabBarClearance) {
     padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
   }
 
@@ -244,7 +244,7 @@ body:has(.mobileMapUtilityCorner) {
      that push the control higher (the map, the planner) do not scroll their
      body at all. A page that hides the control keeps the bar's clearance and
      nothing more. */
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)):not(:has(.analyticsConsentPrompt)):not(:has(.planComposer__lock)):not(:has(.mapArrivalCard)):not(:has(.appShell.detail-open)):not(:has(.appShell.planning-open)):not(:has(.createFabRoot.isKeyboardHidden)) {
+  :global(body:has(.createFabRoot):not(:has(.pageHidesCreateFab)):not(:has(.analyticsConsentPrompt)):not(:has(.planComposer__lock)):not(:has(.mapArrivalCard)):not(:has(.appShell.detail-open)):not(:has(.appShell.planning-open)):not(:has(.createFabRoot.isKeyboardHidden))) {
     padding-bottom: var(--float-stack-top-create);
   }
 
@@ -277,12 +277,12 @@ body:has(.mobileMapUtilityCorner) {
       transform var(--duration-base) var(--ease-out);
   }
 
-  body:has(.appShell.detail-open) .mobileTabBar,
-  body:has(.appShell.planning-open) .mobileTabBar,
+  :global(body:has(.appShell.detail-open)) .mobileTabBar,
+  :global(body:has(.appShell.planning-open)) .mobileTabBar,
   /* Night mode (components/plan/NightCrawlMode.tsx) is a fixed, full-screen
      surface with its own way out; the bar under it owned the centre of its
      lowest button, "Get me home", at 320x568 (verify-preview-4 RED 2). */
-  body:has(.nightCrawl) .mobileTabBar {
+  :global(body:has(.nightCrawl)) .mobileTabBar {
     opacity: 0;
     pointer-events: none;
     transform: translateY(110%);
@@ -421,7 +421,7 @@ body:has(.mobileMapUtilityCorner) {
      tab bar answers the same setting by showing its icons alone, and the
      accessible name stays on the link, so this is what the shell does from
      the scale lib/nativeTextScale.ts publishes on <html>. */
-  html[data-text-scale="large"] .mobileTabLabel {
+  :global(html[data-text-scale="large"]) .mobileTabLabel {
     display: none;
   }
 

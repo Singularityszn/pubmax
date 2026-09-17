@@ -49,7 +49,7 @@ type CaptionCase = {
 const FIXTURE_ONLY_CAPTION_CASES: CaptionCase[] = [
   {
     name: "deal conditions",
-    cssPath: "components/discovery/dealsTonightLane.css",
+    cssPath: "components/discovery/dealsTonightLane.module.css",
     selector: ".dealsTonightDetail",
     expected: DEAL_QUALIFIER,
     markup: `
@@ -95,7 +95,7 @@ const FIXTURE_ONLY_CAPTION_CASES: CaptionCase[] = [
   },
   {
     name: "list price provenance",
-    cssPath: "components/map/mapVenueList.css",
+    cssPath: "components/map/mapVenueList.module.css",
     selector: ".mapVenueListPriceProvenance",
     expected: "Observed 30 July · Community report",
     markup: `
@@ -114,7 +114,7 @@ const FIXTURE_ONLY_CAPTION_CASES: CaptionCase[] = [
   },
   {
     name: "tonight listing conditions",
-    cssPath: "components/map/tonightLane.css",
+    cssPath: "components/map/tonightLane.module.css",
     selector: ".tonightLaneCardTitle",
     expected: "Two pints for £12 before 7pm, except bank holidays and match nights.",
     markup: `
@@ -126,7 +126,7 @@ const FIXTURE_ONLY_CAPTION_CASES: CaptionCase[] = [
   },
   {
     name: "tonight source",
-    cssPath: "components/map/tonightLane.css",
+    cssPath: "components/map/tonightLane.module.css",
     selector: ".tonightLaneCardSource",
     expected: "via Venue listing checked 30 July",
     markup: `
@@ -138,7 +138,7 @@ const FIXTURE_ONLY_CAPTION_CASES: CaptionCase[] = [
   },
   {
     name: "tonight freshness",
-    cssPath: "components/map/tonightLane.css",
+    cssPath: "components/map/tonightLane.module.css",
     selector: ".tonightLaneCollapsedChecked",
     expected: "Checked 30 July from listed sources",
     markup: `
@@ -155,11 +155,11 @@ const FIXTURE_ONLY_CAPTION_CASES: CaptionCase[] = [
   },
   {
     name: "tonight expanded freshness",
-    cssPath: "components/map/tonightLane.css",
+    cssPath: "components/map/tonightLane.module.css",
     selector: ".tonightLaneChecked",
     expected: "Checked 30 July from listed sources",
     markup: `
-      <section class="tonightLane tonightLane--open tonightLane--sheet">
+      <section class="tonightLane tonightLaneOpen tonightLaneSheet">
         <div class="tonightLaneHead">
           <div class="tonightLaneTitleRow">
             <div class="tonightLaneTitleMeta">
@@ -519,7 +519,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     await expect(page.locator(".mapVenueListPanel")).toBeVisible();
     // The list owns the lane while it is open, and the story notice returns
     // when it closes, so the chip is hidden rather than unmounted
-    // (components/map/mapVenueList.css).
+    // (components/map/mapVenueList.module.css).
     await expect(chip).toBeHidden();
 
     expect(

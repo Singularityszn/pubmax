@@ -1220,7 +1220,7 @@ function AreaPicker({
               <li key={entry.id}>
                 <button
                   type="button"
-                  className="nmnBoroughChip"
+                  className={styles.nmnBoroughChip}
                   data-active={entry.label === activeLabel || undefined}
                   data-lightly={lightly || undefined}
                   tabIndex={open ? undefined : -1}
@@ -1231,19 +1231,19 @@ function AreaPicker({
                   }}
                 >
                   {entry.label}
-                  {lightly ? <span className="nmnChipTier">Lightly covered</span> : null}
+                  {lightly ? <span className={styles.nmnChipTier}>Lightly covered</span> : null}
                 </button>
               </li>
             );
           })}
         </ul>
         {showBoroughs ? (
-          <ul className="nmnAreaChips nmnAreaBoroughs" aria-label="All London boroughs">
+          <ul className={`${styles.nmnAreaChips} ${styles.nmnAreaBoroughs}`} aria-label="All London boroughs">
             {boroughs.map((name) => (
               <li key={name}>
                 <button
                   type="button"
-                  className="nmnBoroughChip"
+                  className={styles.nmnBoroughChip}
                   data-active={name === activeLabel || undefined}
                   tabIndex={open ? undefined : -1}
                   onClick={() => {
@@ -1259,7 +1259,7 @@ function AreaPicker({
         ) : (
           <button
             type="button"
-            className="nmnAreaMore"
+            className={styles.nmnAreaMore}
             tabIndex={open ? undefined : -1}
             onClick={() => setShowBoroughs(true)}
           >
