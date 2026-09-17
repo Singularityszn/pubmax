@@ -541,7 +541,7 @@ export function rollbackOptimisticPrice(
   return loadedIsKnown ? [] : undefined;
 }
 
-export function upsertVenueSignal(
+function upsertVenueSignal(
   rows: CommunityVenueSignal[],
   next: CommunityVenueSignal,
 ): CommunityVenueSignal[] {

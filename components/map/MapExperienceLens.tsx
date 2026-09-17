@@ -14,7 +14,7 @@ import "./mapExperienceLens.css";
  * finding 2.15): a lens nobody can see is a filtered map with no visible
  * cause. Both surfaces read this table so the two names cannot drift.
  */
-export const MAP_EXPERIENCE_LENS_OPTIONS = [
+const MAP_EXPERIENCE_LENS_OPTIONS = [
   { id: "all", label: "All", Icon: Map },
   { id: "no-alcohol", label: "No alcohol", Icon: GlassWater },
   { id: "food", label: "Food", Icon: Utensils },

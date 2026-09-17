@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-export const UI_UX_AUDIT_ROOT = "/tmp/pubmax-ui-ux-battle-test";
+const UI_UX_AUDIT_ROOT = "/tmp/pubmax-ui-ux-battle-test";
 
 export function resolveAuditOutputRoot(outputName = "before") {
   if (!/^[a-z0-9][a-z0-9_-]*$/i.test(outputName)) {
@@ -10,7 +10,7 @@ export function resolveAuditOutputRoot(outputName = "before") {
   return path.join(UI_UX_AUDIT_ROOT, outputName);
 }
 
-export async function prepareAuditOutputRoot(outputName) {
+async function prepareAuditOutputRoot(outputName) {
   await fs.mkdir(UI_UX_AUDIT_ROOT, { recursive: true });
   const root = await fs.lstat(UI_UX_AUDIT_ROOT);
   if (!root.isDirectory() || root.isSymbolicLink()) {

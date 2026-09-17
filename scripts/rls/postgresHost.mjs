@@ -34,7 +34,7 @@ import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
 /** Every migration in this tree is proved against PostgreSQL 16. */
-export const REQUIRED_POSTGRES_MAJOR = 16;
+const REQUIRED_POSTGRES_MAJOR = 16;
 
 const BINARY_DIRECTORIES = [
   "/opt/homebrew/opt/postgresql@16/bin",
@@ -137,7 +137,7 @@ const DEFAULT_MAX_CLUSTERS = 6;
 const SLOT_POLL_MS = 120;
 const SLOT_WAIT_CEILING_MS = 150_000;
 
-export function maxPostgresClusters() {
+function maxPostgresClusters() {
   const stated = Number.parseInt(process.env.PUBMAX_PG_MAX_CLUSTERS ?? "", 10);
   return Number.isFinite(stated) && stated > 0 ? stated : DEFAULT_MAX_CLUSTERS;
 }

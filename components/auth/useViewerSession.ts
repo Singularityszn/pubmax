@@ -39,7 +39,7 @@ export type ViewerSession = {
 };
 
 /** The viewer's session phase, from the one provider-neutral authority. */
-export function useViewerSessionPhase(): ViewerSessionPhase {
+function useViewerSessionPhase(): ViewerSessionPhase {
   const { user, providerAuthState } = useAuth();
   if (user) return "signed-in";
   if (!providerHasAnswered(providerAuthState)) {

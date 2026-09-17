@@ -10,7 +10,7 @@
 import type { TonightProvenanceCredits } from "@/lib/tonightOutListings";
 
 /** Said instead of a dated chain segment when a lane carries no date. */
-export const UNDATED_SOURCE_LINE = "We can’t date these listings yet.";
+const UNDATED_SOURCE_LINE = "We can’t date these listings yet.";
 
 export default function TonightProvenanceLines({
   provenance,

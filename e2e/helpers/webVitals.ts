@@ -32,7 +32,7 @@ import type { VitalsDevice } from "../../lib/webVitalsBaseline";
  */
 
 /** The shortest interaction the Event Timing API will report. */
-export const INP_FLOOR_MS = 16;
+const INP_FLOOR_MS = 16;
 
 export type VitalsReading = {
   lcpMs: number;
@@ -370,7 +370,7 @@ async function suppressNavigation(page: Page): Promise<void> {
 }
 
 /** How long a primary action gets to become actionable before it is a no-show. */
-export const PRIMARY_ACTION_TIMEOUT_MS = 20_000;
+const PRIMARY_ACTION_TIMEOUT_MS = 20_000;
 
 /**
  * Browser state one sample's own interaction leaves behind for the next one.
@@ -458,7 +458,7 @@ export async function exercisePrimaryAction(page: Page, routePath: string): Prom
  * has painted too. Every clock is the page's own, taken against the same time
  * origin every resource entry already uses.
  */
-export const PRODUCT_TIMINGS = [
+const PRODUCT_TIMINGS = [
   {
     key: "map-usable-venues",
     label: "usable venue results on /map (first painted pin)",

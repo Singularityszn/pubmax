@@ -40,7 +40,7 @@ import {
   haversineMeters,
 } from "../lib/venueCanonicalization.mjs";
 
-export { haversineMeters };
+;
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const CANONICAL_DATASET_PATH = join(ROOT, "public", "data", "pint_prices_app_dataset.json");
@@ -185,4 +185,4 @@ export function loadCanonicalVenueIndex(datasetPath = CANONICAL_DATASET_PATH) {
   return buildVenueResolverIndex(Array.isArray(rows) ? rows : []);
 }
 
-export { normaliseVenueKeyPart };
+;

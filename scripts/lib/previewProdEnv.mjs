@@ -28,13 +28,13 @@
 // a verifier has to know which half of the answer they are reading.
 
 /** Variable name prefixes the platform owns and a deploy may never restate. */
-export const PLATFORM_OWNED_PREFIXES = Object.freeze(["VERCEL_", "TURBO_", "NX_"]);
+const PLATFORM_OWNED_PREFIXES = Object.freeze(["VERCEL_", "TURBO_", "NX_"]);
 
 /** Exact platform-owned names that carry no prefix of their own. */
-export const PLATFORM_OWNED_NAMES = Object.freeze(["VERCEL", "CI"]);
+const PLATFORM_OWNED_NAMES = Object.freeze(["VERCEL", "CI"]);
 
 /** What `vercel pull` writes where a secret-typed value would be. */
-export const SENSITIVE_PLACEHOLDER = "[SENSITIVE]";
+const SENSITIVE_PLACEHOLDER = "[SENSITIVE]";
 
 /** Deploy flags this command refuses, with the reason each is refused. */
 export const REFUSED_DEPLOY_FLAGS = Object.freeze({

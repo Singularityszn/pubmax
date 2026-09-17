@@ -259,4 +259,3 @@ export function SafeNightStrip({ planId, venue, cityId }: SafeNightStripProps) {
   );
 }
 
-export default SafeNightStrip;

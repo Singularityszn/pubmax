@@ -10,7 +10,7 @@ import type * as maplibregl from "maplibre-gl";
 // Unconditional, like the painted-pin probe beside it, for the same reason:
 // the browser suite runs a production build, so a development-only hook would
 // not exist where the test needs it. It reads the live map and stores nothing.
-export const MAP_CAMERA_PROBE_KEY = "__pubmaxMapCamera";
+const MAP_CAMERA_PROBE_KEY = "__pubmaxMapCamera";
 
 /** The camera as the map holds it right now. */
 export type MapCameraReading = {
@@ -39,7 +39,7 @@ type CameraProbeWindow = Window & {
   [MAP_CAMERA_PROBE_KEY]?: CameraProbe;
 };
 
-export function readMapCamera(map: maplibregl.Map): MapCameraReading {
+function readMapCamera(map: maplibregl.Map): MapCameraReading {
   const center = map.getCenter();
   return {
     bearing: map.getBearing(),
@@ -50,7 +50,7 @@ export function readMapCamera(map: maplibregl.Map): MapCameraReading {
   };
 }
 
-export function projectOnMap(
+function projectOnMap(
   map: maplibregl.Map,
   lngLat: [number, number],
 ): MapProjectedPoint {

@@ -43,10 +43,10 @@ import {
 const execFileAsync = promisify(execFile);
 
 export {
-  findPostgresBinary,
-  missingPostgresReason,
+  
+  
   postgresSkipReason,
-  POSTGRES_SLOT_ROOT,
+  
   type PostgresBinaryName,
 };
 

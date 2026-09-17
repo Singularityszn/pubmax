@@ -66,7 +66,7 @@ export type WhatsOnTonight = {
 };
 
 /** Abort a hung /api/whats-on request after this long — then report "error". */
-export const FETCH_TIMEOUT_MS = 8_000;
+const FETCH_TIMEOUT_MS = 8_000;
 
 /**
  * How long a tonight answer may seed a return to the surface that read it.
@@ -77,10 +77,10 @@ export const FETCH_TIMEOUT_MS = 8_000;
  * hour later. Ten minutes is well inside tonight's window and well outside a
  * tab switch.
  */
-export const TONIGHT_SNAPSHOT_MAX_AGE_MS = 10 * 60_000;
+const TONIGHT_SNAPSHOT_MAX_AGE_MS = 10 * 60_000;
 
 /** The request this hook makes. Shared so the snapshot is keyed by the answer's own URL. */
-export function whatsOnTonightRequestUrl(
+function whatsOnTonightRequestUrl(
   near: { lat: number; lng: number } | null | undefined,
   pubOnly = false,
 ): string {

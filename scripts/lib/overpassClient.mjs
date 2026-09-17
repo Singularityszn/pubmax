@@ -36,7 +36,7 @@ export const OVERPASS_FALLBACK_ENDPOINTS = [
   "https://overpass.kumi.systems/api/interpreter",
 ];
 
-export const OVERPASS_ENDPOINTS = [
+const OVERPASS_ENDPOINTS = [
   ...OVERPASS_PRIMARY_ENDPOINTS,
   ...OVERPASS_FALLBACK_ENDPOINTS,
 ];
@@ -56,7 +56,7 @@ export function endpointForAttempt(attempt) {
 /** A hung mirror answers nothing and holds the socket open, so the request is
  * abandoned a little past the query's own [timeout:90]. Without this, one
  * unresponsive endpoint stalls a chunk for as long as it likes. */
-export const REQUEST_TIMEOUT_MS = 120_000;
+const REQUEST_TIMEOUT_MS = 120_000;
 
 export const INTER_CHUNK_DELAY_MS = 8_000;
 export const INTER_CHUNK_DELAY_STALE_MS = 3_000;
@@ -64,18 +64,18 @@ export const MAX_ATTEMPTS = 6;
 export const MAX_BACKOFF_MS = 180_000;
 export const QUERY_TIMEOUT_S = 90;
 export const MAX_SOURCE_AGE_MS = 48 * 60 * 60 * 1_000;
-export const MAX_FUTURE_CLOCK_SKEW_MS = 5 * 60 * 1_000;
+const MAX_FUTURE_CLOCK_SKEW_MS = 5 * 60 * 1_000;
 /** Guard from the wave brief: stop before committing a data drop this large. */
 export const COMMIT_SIZE_LIMIT_BYTES = 100 * 1024 * 1024;
 
-export const USER_AGENT =
+const USER_AGENT =
   "PubMaxing/0.1 (UK pub seed; contact: github.com/karanmrn/pubmax)";
 
 export function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function isRetryableStatus(status) {
+function isRetryableStatus(status) {
   return status === 429 || status === 502 || status === 503 || status === 504;
 }
 
@@ -87,7 +87,7 @@ export function backoffMs(attempt, retryAfterHeader) {
   return Math.min(MAX_BACKOFF_MS, 4_000 * 2 ** attempt);
 }
 
-export function isValidOverpassRaw(raw) {
+function isValidOverpassRaw(raw) {
   return (
     raw !== null &&
     typeof raw === "object" &&
@@ -182,7 +182,7 @@ export async function fetchOverpass(query, { allowStale = false } = {}) {
  * quadruple what the disk carries for zero readability gain on a
  * machine-generated dump.
  */
-export async function writeJsonAtomic(filePath, content) {
+async function writeJsonAtomic(filePath, content) {
   const temporaryPath = path.join(
     path.dirname(filePath),
     `.${path.basename(filePath)}.tmp`,

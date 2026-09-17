@@ -8,7 +8,7 @@ export const PROVIDER_POLICY = Object.freeze({
   "plain-page": Object.freeze({ provider: "tavily", key: "TAVILY_API_KEY" }),
 });
 
-export class RefreshProviderError extends Error {
+class RefreshProviderError extends Error {
   constructor(provider, message, { status } = {}) {
     super(message);
     this.name = "RefreshProviderError";
@@ -189,7 +189,7 @@ const RENDERED_PAGE_EXPRESSION = String.raw`(() => {
   return { markdown, links };
 })()`;
 
-export async function renderBrowserbasePage(connectUrl, url, WebSocketImpl = WebSocket) {
+async function renderBrowserbasePage(connectUrl, url, WebSocketImpl = WebSocket) {
   const cdp = cdpConnection(connectUrl, WebSocketImpl);
   try {
     const { targetInfos = [] } = await cdp.send("Target.getTargets");

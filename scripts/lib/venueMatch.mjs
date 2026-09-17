@@ -2,7 +2,7 @@
  * Shared venue-key resolution for Firecrawl price harvesters.
  */
 
-export function normaliseVenueKeyPart(value) {
+function normaliseVenueKeyPart(value) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
@@ -53,7 +53,7 @@ export function buildVenueIndexes(dataset) {
   return { idToKey, nameToKeys, rowsByKey };
 }
 
-export function menuUrlToVenueId(enrichment) {
+function menuUrlToVenueId(enrichment) {
   const map = new Map();
   for (const [venueId, rec] of Object.entries(enrichment.venues ?? {})) {
     if (rec.menuUrl) map.set(rec.menuUrl.replace(/\/$/, ""), venueId);
@@ -62,7 +62,7 @@ export function menuUrlToVenueId(enrichment) {
 }
 
 /** Greene King slug → search tokens (pub name fragments + area hints). */
-export const GK_SLUG_HINTS = {
+const GK_SLUG_HINTS = {
   "goat-tavern-mayfair": ["goat", "tavern", "stafford"],
   "grafton-arms": ["grafton", "strutton"],
   "leicester-arms": ["leicester", "glasshouse"],
@@ -83,7 +83,7 @@ export const GK_SLUG_HINTS = {
   "new-explorer": ["explorer"],
 };
 
-export function resolveVenueKeyFromHints(hints, indexes) {
+function resolveVenueKeyFromHints(hints, indexes) {
   if (!hints?.length) return null;
   let best = null;
   let bestScore = 0;
@@ -110,7 +110,7 @@ export function resolveVenueKeyFromPubName(pubName, indexes) {
   return resolveVenueKeyFromHints(tokens, indexes);
 }
 
-export function slugFromMbplcDrinksUrl(url) {
+function slugFromMbplcDrinksUrl(url) {
   try {
     const parts = new URL(url).pathname.split("/").filter(Boolean);
     const drinksIdx = parts.lastIndexOf("drinks");
@@ -121,7 +121,7 @@ export function slugFromMbplcDrinksUrl(url) {
   }
 }
 
-export function mergeDrinkUpdates(existing, incoming) {
+function mergeDrinkUpdates(existing, incoming) {
   const byKey = new Map();
   for (const row of existing) {
     const k = `${row.venueKey}|${row.drinkName}|${row.category}|${row.source?.url ?? ""}`;

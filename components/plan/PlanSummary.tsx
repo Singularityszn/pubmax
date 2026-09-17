@@ -14,7 +14,7 @@ import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/u
 import { setActivePlanRole } from "@/lib/activePlan";
 import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 
-export { isPlanPreviewProjection };
+;
 import type { InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
 import type { VibeTally } from "@/lib/vibeTally";
 import {
@@ -64,7 +64,7 @@ function cleanRevision(value: unknown): RouteRevision | null {
   return null;
 }
 
-export function routeRevisionFromPlanState(value: unknown): RouteRevision | null {
+function routeRevisionFromPlanState(value: unknown): RouteRevision | null {
   if (!value || typeof value !== "object") return null;
   const row = value as { routeRevision?: unknown; revision?: unknown; plan?: unknown };
   const direct = cleanRevision(row.routeRevision ?? row.revision);

@@ -53,10 +53,10 @@ export const CONTEXT_DEV_PRICE_LANE_FLAG = "PUBMAX_UK_PRICES_CONTEXT_DEV";
  * A price is a claim about tonight, so a week is the most a menu read may be
  * and still be worth writing down with today's `observedAt`.
  */
-export const CONTEXT_DEV_PRICE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
+const CONTEXT_DEV_PRICE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
 
 /** Pages one run of this lane may read, so a bounded trial stays bounded. */
-export const CONTEXT_DEV_PRICE_PAGE_BUDGET = 25;
+const CONTEXT_DEV_PRICE_PAGE_BUDGET = 25;
 
 /**
  * True when this lane may run: the flag is set AND a key is configured.
