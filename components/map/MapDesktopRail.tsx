@@ -3,7 +3,7 @@
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import DesktopRail from "@/components/desktop/DesktopRail";
 
-import styles from "./mapDesktopRail.module.css";
+import "./mapDesktopRail.module.css";
 
 // Desktop map right-rail (D3.1). Composes the shared DesktopRail host with the
 // map's Area-news slot. Mounted only at >=1024, with the venue drawer closed and
@@ -19,7 +19,7 @@ import styles from "./mapDesktopRail.module.css";
 export default function MapDesktopRail({ area }: { area: string | null }) {
   return (
     <DesktopRail
-      className={styles.mapRail}
+      className="mapRail"
       ariaLabel="Conditions and area news"
       areaNews={<AreaNewsRail area={area} />}
     />

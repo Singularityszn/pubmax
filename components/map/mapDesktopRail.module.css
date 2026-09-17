@@ -18,7 +18,7 @@
    camera-fit specs are untouched. The rail is only mounted at >=1024 (JS), so it
    needs no breakpoint of its own here. */
 
-:global(.desktopRail).mapRail {
+:global(.desktopRail.mapRail) {
   position: absolute;
   top: calc(var(--map-top-clearance) + 60px); /* clears the floating toolbar row */
   right: 16px;

@@ -74,7 +74,7 @@ describe("DesktopRail host — slot contract", () => {
 
 describe("DesktopRail host — CSS", () => {
   it("is a transparent flex stack (no border/surface of its own)", () => {
-    const block = desktopRailCss.match(/\.desktopRail\s*{[\s\S]*?}/)?.[0] ?? "";
+    const block = desktopRailCss.match(/:global\(\.desktopRail\)\s*{[\s\S]*?}/)?.[0] ?? "";
     expect(block).toMatch(/display:\s*flex;/);
     expect(block).toMatch(/flex-direction:\s*column;/);
     expect(block).toMatch(/gap:\s*16px;/);
@@ -85,7 +85,7 @@ describe("DesktopRail host — CSS", () => {
 
   it("becomes a sticky rail at the >=1024 breakpoint with an overridable offset", () => {
     expect(desktopRailCss).toMatch(
-      /@media\s*\(min-width:\s*1024px\)\s*{[\s\S]*?\.desktopRail\s*{[\s\S]*?position:\s*sticky;[\s\S]*?top:\s*var\(--desktop-rail-top,\s*96px\);/,
+      /@media\s*\(min-width:\s*1024px\)\s*{[\s\S]*?:global\(\.desktopRail\)\s*{[\s\S]*?position:\s*sticky;[\s\S]*?top:\s*var\(--desktop-rail-top,\s*96px\);/,
     );
   });
 });

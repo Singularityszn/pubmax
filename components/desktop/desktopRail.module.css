@@ -5,7 +5,7 @@
    tonight rails already on main (same 16px rhythm, same 96px offset). Unwired in
    D2 — no page mounts it yet. */
 
-.desktopRail {
+:global(.desktopRail) {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -13,7 +13,7 @@
 }
 
 @media (min-width: 1024px) {
-  .desktopRail {
+  :global(.desktopRail) {
     position: sticky;
     top: var(--desktop-rail-top, 96px); /* clears the floating SiteNav pill */
     align-self: start;
