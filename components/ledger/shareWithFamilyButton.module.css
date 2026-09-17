@@ -1,5 +1,5 @@
 /* "Share with family" — same large, calm tap-target language as the Ledger's
-   "Read this page" button (readLedgerButton.css), so the two controls read as
+   "Read this page" button (readLedgerButton.module.css), so the two controls read as
    one family of actions rather than two different button systems. */
 .familyShareButton {
   display: inline-flex;

@@ -737,7 +737,7 @@ export default function MomentCapture(): React.JSX.Element {
             </div>
           </div>
 
-          <div className="momentStatus" aria-live="polite">
+          <div className={styles.momentStatus} aria-live="polite">
             <Sparkles size={17} aria-hidden="true" />
             <span>{message}</span>
           </div>
@@ -746,11 +746,11 @@ export default function MomentCapture(): React.JSX.Element {
               bordered secondary beside the fields it saves, because a phone
               has the keyboard up and the head scrolled away by now. */}
           {user ? (
-            <button className="momentSave" type="submit" disabled={!canSave}>
+            <button className={styles.momentSave} type="submit" disabled={!canSave}>
               {saveState === "saving" ? "Saving privately..." : "Save private Moment"}
             </button>
           ) : viewerSession.unresolved ? null : (
-            <div className="momentSignIn">
+            <div className={styles.momentSignIn}>
               <p>Sign in when you are ready to keep this Moment across devices.</p>
               <SignInButton />
             </div>
@@ -774,7 +774,7 @@ export default function MomentCapture(): React.JSX.Element {
         ) : null}
 
         {savedMemoryId ? (
-          <section className="momentSaved" aria-labelledby="moment-saved-title">
+          <section className={styles.momentSaved} aria-labelledby="moment-saved-title">
             <h2 id="moment-saved-title">Saved. Still yours.</h2>
             <p>Add more Moments, choose which to include, and shape a Story when you are ready.</p>
             <div className="momentSavedActions">

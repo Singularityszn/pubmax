@@ -435,7 +435,7 @@ describe("VOICE.md compliance audit", () => {
 describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
   it("keeps the Tonight arc chips without their component name", () => {
     const chips = read("components/map/TonightArcChips.tsx");
-    const chipsCss = read("components/map/tonightArcChips.css");
+    const chipsCss = read("components/map/tonightArcChips.module.css");
 
     // Neither the visible title nor the accessible name may carry it: a screen
     // reader user is a reader too.

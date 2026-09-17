@@ -64,11 +64,11 @@ const FUNCTIONAL_TRANSLUCENCY = [
   "components/ui/surfaceNav",
   // Overlays and floating chrome, each inspected: the blur sits on a backdrop
   // or a control that floats over content, never on a section of the page.
-  "components/auth/arrivalWelcome.css", // polite live region floating over the page
+  "components/auth/arrivalWelcome.module.css", // polite live region floating over the page
   "components/command/commandPalette.module.css", // palette backdrop
   "components/feed/cheersButton.module.css", // a control on a photo scrim
-  "components/identity/accountOnboarding.css", // dialog backdrop
-  "components/identity/contributionGate.css", // dialog backdrop
+  "components/identity/accountOnboarding.module.css", // dialog backdrop
+  "components/identity/contributionGate.module.css", // dialog backdrop
   "components/pal/palChat.module.css", // floating composer bar
   "components/pubpal/pubPal.css", // the Pal summon control floating over the map
   "components/pubs/pubsGallery.css", // lightbox chrome over a photo
@@ -84,7 +84,7 @@ const THREE_COLUMN_CONTROLS = [
   "components/map/mapExperienceLens.css", // lens option buttons
   "components/mobile/mobileMapShell.css", // drink shape chips
   "components/moment/moment.module.css", // decorator action buttons
-  "components/night/routeEndingCard.css", // three ending choices
+  "components/night/routeEndingCard.module.css", // three ending choices
   "components/venue/venuePhotoWall.module.css", // photo grid
   "components/visits/visitReports.module.css", // observation chips
   "components/zones/zonePintIndex.module.css", // a stat row

@@ -42,7 +42,7 @@
   height: 48px;
 }
 
-/* The head is the shared Screen primitive (components/ui/screen.css) and the
+/* The head is the shared Screen primitive (components/ui/screen.module.css) and the
    main is the Screen itself. The column keeps its width and its top padding,
    so the head pays none of its own. */
 /* The column is inset by the shared page gutter at every width. The phone rule

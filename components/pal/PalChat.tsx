@@ -283,7 +283,7 @@ export default function PalChat() {
   );
 
   // Keep the newest turn in view as the transcript grows. The transcript ends
-  // where its content ends (palChat.css), so the PAGE is the scroller and the
+  // where its content ends (palChat.module.css), so the PAGE is the scroller and the
   // composer is pinned over its foot; the region's own scrollTop is set too
   // for the one case where it is the scroller (a bounded host).
   useEffect(() => {

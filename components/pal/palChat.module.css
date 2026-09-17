@@ -22,7 +22,7 @@
 }
 
 /* Family and size, never the shorthand: `font: inherit` resets weight too,
-   and this sheet loads after components/ui/screen.css, so it stripped the
+   and this sheet loads after components/ui/screen.module.css, so it stripped the
    700 off the head's Send (measured 6 Sep 2026 at 390 and 1440: 16px/400
    on the one painted control of the page). */
 .palChat button,
@@ -57,7 +57,7 @@
 }
 
 /* — Header — */
-/* The head is the shared Screen primitive (components/ui/screen.css). The
+/* The head is the shared Screen primitive (components/ui/screen.module.css). The
    main is the Screen itself so the flex column below it is unchanged: head,
    scroll region, composer. The transcript and the composer pay their own
    gutters, so the main pays none. */
@@ -492,7 +492,7 @@
 
 /* Clear the fixed mobile tab bar AND the floating re-open pill so the composer
    never hides behind either. --night-pill-clearance is 0px unless a pill is
-   actually mounted (see components/night/nightMode.css). */
+   actually mounted (see components/night/nightMode.module.css). */
 @media (max-width: 640px) {
   /* The body already reserves the tab bar's lane (mobileNav.css), so the page
      pays only for the floating re-open pill; paying the bar's lane twice put

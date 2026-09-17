@@ -43,7 +43,7 @@
   margin-bottom: var(--cc-gap);
 }
 
-/* The line above the heading is the product's Kicker (components/ui/kicker.css):
+/* The line above the heading is the product's Kicker (components/ui/kicker.module.css):
    the accent's INK, --text-xs at 700, sentence case, and nothing drawn beside
    it. It used to carry a coral dash and the raw --brass at 10.88px, which is
    2.5:1 as a word on the light ground and a decoration with no information;
