@@ -20,9 +20,19 @@ const config: KnipConfig = {
 
     // E2E fixtures read via fs at test time, not imported.
     "e2e/fixtures/**",
+
+    // Module resolution false positives: Knip resolves the bare specifier
+    // to the .mjs file, but app code imports the .ts wrapper via @/lib/*.
+    "lib/siteContact.ts",
+
+    // Referenced by GitHub Actions workflow, not by app imports.
+    "lib/productionDeploymentHosts.mjs",
+
+    // Invoked via execFileSync in scripts/perf-ab.mjs, not imported.
+    "scripts/print-e2e-server-env.ts",
   ],
   rules: {
-    files: "off",
+    files: "error",
     exports: "off",
     types: "off",
     nsExports: "off",
