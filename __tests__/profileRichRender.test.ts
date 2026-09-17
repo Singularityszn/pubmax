@@ -207,7 +207,7 @@ describe("profile composer", () => {
 });
 
 describe("shipped profile CSS", () => {
-  const css = readFileSync(join(process.cwd(), "app/u/[handle]/profile.css"), "utf8");
+  const css = readFileSync(join(process.cwd(), "app/u/[handle]/Profile.module.css"), "utf8");
 
   it("keeps the cover behind a falloff so the name stays legible", () => {
     expect(css).toContain(".profilePage .profileCover {");

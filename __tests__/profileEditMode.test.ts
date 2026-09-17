@@ -16,7 +16,7 @@ const editorSource = readFileSync(
   "utf8",
 );
 const css = readFileSync(
-  join(process.cwd(), "app/u/[handle]/profile.css"),
+  join(process.cwd(), "app/u/[handle]/Profile.module.css"),
   "utf8",
 );
 

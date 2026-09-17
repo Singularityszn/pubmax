@@ -129,7 +129,7 @@ describe("the venue sheet's two Save controls wear the same row", () => {
 // boxes, and the Memory studio two more. Every one of them is the primitive
 // now, and the surface's stylesheet paints none of them.
 describe("the profile editor wears the one family", () => {
-  const profileCss = read("app/u/[handle]/profile.css");
+  const profileCss = read("app/u/[handle]/Profile.module.css");
   const EDITOR_FILES = [
     "components/profile/PubmaxxAccountHub.tsx",
     "components/identity/PrivateIdentityEditor.tsx",
@@ -170,7 +170,7 @@ describe("the profile editor wears the one family", () => {
     // stylesheet has to read the --control-* tokens rather than restate a
     // radius, a weight or a height. The keep shelf's own pair is the standing
     // example: it is scoped CSS, and it reads the row.
-    const sheets = ["app/u/[handle]/profile.css", "components/profile/NightMemoryStudio.css"];
+    const sheets = ["app/u/[handle]/Profile.module.css", "components/profile/NightMemoryStudio.css"];
     const offenders: string[] = [];
     for (const sheet of sheets) {
       const css = read(sheet);

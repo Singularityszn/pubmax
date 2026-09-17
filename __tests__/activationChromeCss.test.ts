@@ -16,7 +16,7 @@ const mobileMapShellCss = readFileSync(
   "utf8",
 );
 const profileCss = readFileSync(
-  join(process.cwd(), "app/u/[handle]/profile.css"),
+  join(process.cwd(), "app/u/[handle]/Profile.module.css"),
   "utf8",
 );
 

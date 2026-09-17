@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const globalsCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
 const themeCss = readFileSync(join(process.cwd(), "app/theme.css"), "utf8");
-const profileCss = readFileSync(join(process.cwd(), "app/u/[handle]/profile.css"), "utf8");
+const profileCss = readFileSync(join(process.cwd(), "app/u/[handle]/Profile.module.css"), "utf8");
 
 function block(css: string, selector: string): string {
   const start = css.indexOf(`${selector} {`);
