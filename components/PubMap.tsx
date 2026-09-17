@@ -4296,6 +4296,15 @@ export default function PubMap({
   const moveMapCameraTo = useCallback(
     (camera: { center: [number, number]; zoom: number }) => {
       setNearbyMapResult(null);
+      // A deliberate move is the reader taking the camera, exactly as a
+      // gesture is (dismissAmbientBanners sets the same flag). The
+      // opening-location mint effect reads this ref; without it the cancel
+      // above is a no-op once the location already resolved, and a
+      // locationFirstMapView change re-mints an opening-location focus that
+      // yanks the camera off the reader's pick (MapLibre 6.10.0 readies the
+      // map early enough that the timing now surfaces it; map-gl.spec.ts:913).
+      mapCameraTouchedRef.current = true;
+      setMapCameraTouched(true);
       cancelOpeningLocation();
       setOpeningLocationFocus(null);
       setAreaFocus((prev) => ({

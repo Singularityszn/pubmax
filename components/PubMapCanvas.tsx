@@ -1195,7 +1195,13 @@ export default function PubMapCanvas({
     focusKeyRef.current = mapCameraFocusKey(focusPoint);
     cinematic(
       { center: focusPoint.center, zoom: focusPoint.zoom, duration: 900 },
-      "area",
+      // The emitted kind names the OWNER, not one shared lane. Both focus
+      // owners are deliberate moves and fly identically, but the opening
+      // location's answer is not an area pick: a reader searching an area
+      // counts exactly one area intent (map-gl.spec.ts:913), and an
+      // opening-location fly that lands first - MapLibre 6.10.0 readies the
+      // map earlier - must not inflate that count.
+      focusPoint.source === "area" ? "area" : "opening-location",
     );
   }, [mapReady, focusPoint, cinematic]);
 
