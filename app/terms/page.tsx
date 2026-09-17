@@ -5,7 +5,7 @@ import Kicker from "@/components/ui/kicker";
 import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/siteContact";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 
-import "../legal.css";
+import styles from "../Legal.module.css";
 
 // /terms — plain-language terms of use. Server component, zero client JS.
 // Sibling of /privacy: that page says what we do with data, this one says what
@@ -34,33 +34,33 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <main id="main" className="legalPage">
+    <main id="main" className={styles.legalPage}>
       {/* A legal page has no primary action (docs/design/LAUNCH_SCREENS.md),
           so the head is a kicker and the heading, never a Screen. */}
-      <header className="legalHead">
+      <header className={styles.legalHead}>
         <Kicker>Small print</Kicker>
-        <h1 className="legalTitle">The deal in plain English</h1>
-        <p className="legalLede">
+        <h1 className={styles.legalTitle}>The deal in plain English</h1>
+        <p className={styles.legalLede}>
           PUBMAXX is free, carries no ads, and nobody can pay to rank. In return
           we ask you to use it honestly and not to treat a price on the map as a
           promise from the pub. That&rsquo;s most of it. The rest is below.
         </p>
-        <p className="legalUpdated">Last updated {LAST_UPDATED}</p>
+        <p className={styles.legalUpdated}>Last updated {LAST_UPDATED}</p>
       </header>
 
-      <section className="legalSection" aria-labelledby="who">
-        <h2 id="who" className="legalH2">Who you&rsquo;re agreeing with</h2>
-        <p className="legalBody">
+      <section className={styles.legalSection} aria-labelledby="who">
+        <h2 id="who" className={styles.legalH2}>Who you&rsquo;re agreeing with</h2>
+        <p className={styles.legalBody}>
           These terms are between you and Karan Manoharan, an individual based in
           London, UK, who runs pubmaxxing.com. Using the site means you accept
           them. If you don&rsquo;t, don&rsquo;t use it. Questions go to{" "}
-          <a href={CONTACT_MAILTO} className="legalLink">{CONTACT_EMAIL}</a>.
+          <a href={CONTACT_MAILTO} className={styles.legalLink}>{CONTACT_EMAIL}</a>.
         </p>
       </section>
 
-      <section className="legalSection" aria-labelledby="what">
-        <h2 id="what" className="legalH2">What PUBMAXX is</h2>
-        <p className="legalBody">
+      <section className={styles.legalSection} aria-labelledby="what">
+        <h2 id="what" className={styles.legalH2}>What PUBMAXX is</h2>
+        <p className={styles.legalBody}>
           A map of pubs with prices on it, plus tools to plan a night with your
           mates. Prices come from three places: baseline records, prices logged
           by people standing in the pub, and old prices read out of dated,
@@ -73,9 +73,9 @@ export default function TermsPage() {
         </p>
       </section>
 
-      <section className="legalSection" aria-labelledby="age">
-        <h2 id="age" className="legalH2">Age and alcohol</h2>
-        <p className="legalBody">
+      <section className={styles.legalSection} aria-labelledby="age">
+        <h2 id="age" className={styles.legalH2}>Age and alcohol</h2>
+        <p className={styles.legalBody}>
           The map and existing contribution tools don&rsquo;t use age to block an
           account. Social is live by default and may return to preview during an
           emergency rollback. Full access needs a signed-in account, a claimed
@@ -88,7 +88,7 @@ export default function TermsPage() {
             href="https://www.drinkaware.co.uk"
             target="_blank"
             rel="noreferrer"
-            className="legalLink"
+            className={styles.legalLink}
           >
             drinkaware.co.uk
           </a>
@@ -97,9 +97,9 @@ export default function TermsPage() {
         </p>
       </section>
 
-      <section className="legalSection" aria-labelledby="account">
-        <h2 id="account" className="legalH2">Your account</h2>
-        <p className="legalBody">
+      <section className={styles.legalSection} aria-labelledby="account">
+        <h2 id="account" className={styles.legalH2}>Your account</h2>
+        <p className={styles.legalBody}>
           Browsing doesn&rsquo;t need an account or analytics. First visit asks
           you to tap Allow or No thanks for optional usage analytics. You
           get the same app either way. If you allow them, we use a persistent
@@ -133,13 +133,13 @@ export default function TermsPage() {
           else&rsquo;s identity, and don&rsquo;t hand the account to anyone
           else. You can stop using it whenever you like, and ask us to delete
           your account and its private profile data. See the{" "}
-          <Link href="/privacy" className="legalLink">privacy notice</Link>.
+          <Link href="/privacy" className={styles.legalLink}>privacy notice</Link>.
         </p>
       </section>
 
-      <section className="legalSection" aria-labelledby="crews">
-        <h2 id="crews" className="legalH2">Social Crews</h2>
-        <p className="legalBody">
+      <section className={styles.legalSection} aria-labelledby="crews">
+        <h2 id="crews" className={styles.legalH2}>Social Crews</h2>
+        <p className={styles.legalBody}>
           A Social Crew takes its name from the linked Planned Night title. Its
           owner chooses one visibility setting: private, friends-only, or open. While a
           plan is open, anyone can see its title, the pub or place it starts at,
@@ -150,14 +150,14 @@ export default function TermsPage() {
           Friends visibility gives the owner&rsquo;s current Mutuals a limited
           preview, not the roster or full Plan.
         </p>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           Owners and cohosts can invite eligible Mutuals and decide Join
           Requests. An invitation is for its named recipient and ends at its
           expiry. A request is for its requester. Blocks stop access in either
           direction. Do not invite people who do not want to join, share Crew
           details outside its visibility, or use another person&rsquo;s account.
         </p>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           The owner controls visibility and ownership changes. The owner can
           change roles. The owner or a cohost can remove a non-owner member
           within their authority. Members can leave, but an owner must transfer
@@ -168,9 +168,9 @@ export default function TermsPage() {
         </p>
       </section>
 
-      <section className="legalSection" aria-labelledby="posts">
-        <h2 id="posts" className="legalH2">What you post</h2>
-        <p className="legalBody">
+      <section className={styles.legalSection} aria-labelledby="posts">
+        <h2 id="posts" className={styles.legalH2}>What you post</h2>
+        <p className={styles.legalBody}>
           Social post text goes to OpenAI for omni moderation after we store
           it. The post stays held from feeds and direct reads until OpenAI
           returns a decision. If that check is unavailable or gives no usable
@@ -184,7 +184,7 @@ export default function TermsPage() {
           the stored file. Photo tags need the tagged person&rsquo;s approval
           and can be withdrawn. Signed photo delivery links are short lived.
         </p>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           Comments and quote posts also stay held until an OpenAI moderation
           decision. Post authors choose who may comment and can lock comments
           later. Saves are private. Reposts and quotes never make their source
@@ -193,7 +193,7 @@ export default function TermsPage() {
           stay chronological, not popularity-ranked, and no interaction can buy
           reach or change a pub or price ranking.
         </p>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           Prices, notes, photos, plans, stories: you keep ownership of all
           of it. By posting it you give us permission to store it, show it in the
           app, and use it as part of the price and heritage data the map is built
@@ -203,10 +203,10 @@ export default function TermsPage() {
           for anonymous aggregate figures already published and copies other
           people saved.
         </p>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           When you post, you&rsquo;re telling us that:
         </p>
-        <ul className="legalList">
+        <ul className={styles.legalList}>
           <li>It&rsquo;s yours to post, or you have permission to post it.</li>
           <li>
             The price is one you actually saw, at that pub, for that drink,
@@ -219,10 +219,10 @@ export default function TermsPage() {
         </ul>
       </section>
 
-      <section className="legalSection" aria-labelledby="use">
-        <h2 id="use" className="legalH2">Using it fairly</h2>
-        <p className="legalBody">Don&rsquo;t:</p>
-        <ul className="legalList">
+      <section className={styles.legalSection} aria-labelledby="use">
+        <h2 id="use" className={styles.legalH2}>Using it fairly</h2>
+        <p className={styles.legalBody}>Don&rsquo;t:</p>
+        <ul className={styles.legalList}>
           <li>
             Log prices you didn&rsquo;t see, or spray a figure across venues to
             move the map. Submissions are rate-limited and a price only reaches
@@ -242,7 +242,7 @@ export default function TermsPage() {
           </li>
           <li>Impersonate someone else, or pretend to be us.</li>
         </ul>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           We can hide or remove content, and suspend an account, when
           something&rsquo;s clearly broken these rules. If you think we&rsquo;ve
           got it wrong, email us and say so. We&rsquo;d rather fix it than
@@ -250,29 +250,29 @@ export default function TermsPage() {
         </p>
       </section>
 
-      <section className="legalSection" aria-labelledby="referrals">
-        <h2 id="referrals" className="legalH2">Invites and referral milestones</h2>
-        <p className="legalBody">
+      <section className={styles.legalSection} aria-labelledby="referrals">
+        <h2 id="referrals" className={styles.legalH2}>Invites and referral milestones</h2>
+        <p className={styles.legalBody}>
           You can share one account invite link. A referral counts only when
           someone follows it, signs up and makes a first accepted contribution.
           Self-referrals, second accounts made for yourself and circular
           referrals between two accounts don&rsquo;t count.
         </p>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           A referral milestone is a mark of honour. Reaching one puts a line on
           your own account page and does nothing else. It buys no feature, no
           tier and no discount, and nothing on PUBMAXX is held back from anyone
           who has invited nobody.
         </p>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           We record the private edge and the milestone. We do not record, and
           cannot grant, any paid feature from either.
         </p>
       </section>
 
-      <section className="legalSection" aria-labelledby="prices">
-        <h2 id="prices" className="legalH2">How to read prices</h2>
-        <p className="legalBody">
+      <section className={styles.legalSection} aria-labelledby="prices">
+        <h2 id="prices" className={styles.legalH2}>How to read prices</h2>
+        <p className={styles.legalBody}>
           A current price names and links its publisher when its record does.
           When no publisher is recorded for a price, we say so beside it.
           Prices logged by people carry the day they were seen. Other current
@@ -282,22 +282,22 @@ export default function TermsPage() {
           not a quote, and the pub is under no obligation to honour it.
           <strong> Check at the bar.</strong>
         </p>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           All of that is about the price a pub is charging now. Where we show
           what a pint used to cost, that figure is a dated record of the past,
           taken from a source we name and link. It says nothing about tonight,
           and we never let it stand in for the current price.
         </p>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           Opening hours, transport times, heritage facts and weather come from
           third-party sources. We cite them and we don&rsquo;t make them up, but
           we can&rsquo;t promise they&rsquo;re current or complete.
         </p>
       </section>
 
-      <section className="legalSection" aria-labelledby="asis">
-        <h2 id="asis" className="legalH2">The app comes as it is</h2>
-        <p className="legalBody">
+      <section className={styles.legalSection} aria-labelledby="asis">
+        <h2 id="asis" className={styles.legalH2}>The app comes as it is</h2>
+        <p className={styles.legalBody}>
           PUBMAXX is free and comes as it is. We work on it constantly, which
           means features change, move, or disappear, and the site will sometimes
           be down. We don&rsquo;t promise it will be available, uninterrupted,
@@ -306,16 +306,16 @@ export default function TermsPage() {
         </p>
       </section>
 
-      <section className="legalSection" aria-labelledby="liability">
-        <h2 id="liability" className="legalH2">Where our responsibility ends</h2>
-        <p className="legalBody">
+      <section className={styles.legalSection} aria-labelledby="liability">
+        <h2 id="liability" className={styles.legalH2}>Where our responsibility ends</h2>
+        <p className={styles.legalBody}>
           To the extent the law allows, we&rsquo;re not liable for what happens
           when you act on something you read here: a price that had changed, a
           pub that was shut, a route that took longer than you thought, or a
           night that went sideways. That includes lost money, lost time, and
           anything indirect.
         </p>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           Nothing in these terms limits liability for death or personal injury
           caused by our negligence, for fraud, or for anything else the law
           doesn&rsquo;t let us exclude. If you&rsquo;re a consumer, your
@@ -323,34 +323,34 @@ export default function TermsPage() {
         </p>
       </section>
 
-      <section className="legalSection" aria-labelledby="changes">
-        <h2 id="changes" className="legalH2">Changes and endings</h2>
-        <p className="legalBody">
+      <section className={styles.legalSection} aria-labelledby="changes">
+        <h2 id="changes" className={styles.legalH2}>Changes and endings</h2>
+        <p className={styles.legalBody}>
           We may update these terms as the app changes; the date at the top moves
           when we do, and carrying on using the site means you accept the update.
           You can stop using PUBMAXX at any time. We may suspend or end access
           where these terms are being broken, or if we stop running the service.
         </p>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           These terms are governed by the law of England and Wales, and the
           courts of England and Wales have jurisdiction.
         </p>
       </section>
 
-      <section className="legalSection legalContact" aria-labelledby="contact">
-        <h2 id="contact" className="legalH2">Get in touch</h2>
-        <p className="legalBody">
+      <section className={`${styles.legalSection} ${styles.legalContact}`} aria-labelledby="contact">
+        <h2 id="contact" className={styles.legalH2}>Get in touch</h2>
+        <p className={styles.legalBody}>
           Anything about these terms, a takedown, or a moderation decision:
         </p>
-        <p className="legalBody">
-          <a href={CONTACT_MAILTO} className="legalLink legalContactEmail">
+        <p className={styles.legalBody}>
+          <a href={CONTACT_MAILTO} className={`${styles.legalLink} ${styles.legalContactEmail}`}>
             {CONTACT_EMAIL}
           </a>
         </p>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           See also our{" "}
-          <Link href="/privacy" className="legalLink">privacy notice</Link> and{" "}
-          <Link href="/about" className="legalLink">our story</Link>.
+          <Link href="/privacy" className={styles.legalLink}>privacy notice</Link> and{" "}
+          <Link href="/about" className={styles.legalLink}>our story</Link>.
         </p>
       </section>
     </main>
