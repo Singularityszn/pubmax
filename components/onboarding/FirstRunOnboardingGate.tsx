@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import styles from "@/app/onboarding/Onboarding.module.css";
 import FirstRunOnboarding from "@/components/onboarding/FirstRunOnboarding";
 import { SHELL_START_PATH } from "@/lib/entryDecision";
 import { consumeNativeFirstRunHandoff } from "@/lib/nativeFirstRun";
@@ -58,7 +59,7 @@ export default function FirstRunOnboardingGate({
   if (!eligible) {
     return <main
         id="main"
-        className="firstRunOnboarding firstRunOnboardingGate pageHidesCreateFab"
+        className={`${styles.firstRunOnboarding} ${styles.firstRunOnboardingGate} pageHidesCreateFab`}
         aria-busy="true"
       />;
   }

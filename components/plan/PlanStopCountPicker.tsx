@@ -2,6 +2,7 @@
 
 import { Chip } from "@/components/ui/chip";
 import { PLAN_STOP_COUNTS, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
+import planStyles from "@/app/plan/Plan.module.css";
 
 /**
  * How many pubs the night visits. The visible label says PUB stops, not
@@ -22,9 +23,9 @@ export default function PlanStopCountPicker({
 }) {
   const selected = normalizePlanStopCount(value);
   return (
-    <div className="planStopCount" role="group" aria-label="Number of pub stops">
-      <span className="planStopCount__label">Pub stops</span>
-      <div className="planStopCount__choices">
+    <div className={planStyles.planStopCount} role="group" aria-label="Number of pub stops">
+      <span className={planStyles.planStopCount__label}>Pub stops</span>
+      <div className={planStyles.planStopCount__choices}>
         {PLAN_STOP_COUNTS.map((count) => (
           <Chip
             key={count}

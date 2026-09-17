@@ -9,6 +9,7 @@
 // reduced-motion holds the dots still (see the .mapSkeleton rules in globals).
 
 import { mapLoadingPrimaryLine } from "@/lib/mapLoadingCopy";
+import styles from './MapLoadingSkeleton.module.css';
 
 // Dot positions are hand-placed to read as a loose scatter of London pubs, each
 // tagged with a price bucket so the three price colours all appear. The stagger
@@ -56,35 +57,35 @@ export default function MapLoadingSkeleton({
 }: MapLoadingSkeletonProps) {
   return (
     <main id="main"
-      className="mapSkeleton"
+      className={styles.mapSkeleton}
       aria-busy="true"
       aria-describedby="mapSkeletonStatus"
       aria-live="polite"
     >
-      <div className="mapSkeletonInner">
+      <div className={styles.mapSkeletonInner}>
         <svg
-          className="mapSkeletonMap"
+          className={styles.mapSkeletonMap}
           viewBox="0 0 380 240"
           aria-hidden="true"
           focusable="false"
           preserveAspectRatio="xMidYMid slice"
         >
-          <path className="mapSkeletonStreet" d="M 36 30 L 348 210" />
-          <path className="mapSkeletonStreet" d="M 18 178 L 336 42" />
-          <path className="mapSkeletonStreet mapSkeletonStreet--minor" d="M 86 20 L 122 226" />
-          <path className="mapSkeletonStreet mapSkeletonStreet--minor" d="M 244 18 L 204 222" />
-          <path className="mapSkeletonStreet mapSkeletonStreet--minor" d="M 16 82 L 364 116" />
-          <path className="mapSkeletonStreet mapSkeletonStreet--minor" d="M 42 214 L 316 18" />
+          <path className={styles.mapSkeletonStreet} d="M 36 30 L 348 210" />
+          <path className={styles.mapSkeletonStreet} d="M 18 178 L 336 42" />
+          <path className={`${styles.mapSkeletonStreet} ${styles['mapSkeletonStreet--minor']}`} d="M 86 20 L 122 226" />
+          <path className={`${styles.mapSkeletonStreet} ${styles['mapSkeletonStreet--minor']}`} d="M 244 18 L 204 222" />
+          <path className={`${styles.mapSkeletonStreet} ${styles['mapSkeletonStreet--minor']}`} d="M 16 82 L 364 116" />
+          <path className={`${styles.mapSkeletonStreet} ${styles['mapSkeletonStreet--minor']}`} d="M 42 214 L 316 18" />
           <path
-            className="mapSkeletonRiver"
+            className={styles.mapSkeletonRiver}
             d="M -10 128 C 60 108, 100 150, 150 150 S 236 118, 286 132 S 360 150, 400 138"
             fill="none"
           />
           {SKELETON_DOTS.map((dot, index) => (
-            <g key={index} className="mapSkeletonPin" style={{ animationDelay: `${dot.delay}s` }}>
-              <circle className="mapSkeletonDotHalo" cx={dot.x} cy={dot.y} r={(dot.size ?? 5) + 6} />
+            <g key={index} className={styles.mapSkeletonPin} style={{ animationDelay: `${dot.delay}s` }}>
+              <circle className={styles.mapSkeletonDotHalo} cx={dot.x} cy={dot.y} r={(dot.size ?? 5) + 6} />
               <circle
-                className="mapSkeletonDot"
+                className={styles.mapSkeletonDot}
                 cx={dot.x}
                 cy={dot.y}
                 r={dot.size ?? 5}
@@ -93,8 +94,8 @@ export default function MapLoadingSkeleton({
             </g>
           ))}
         </svg>
-        <div className="mapSkeletonCopy" id="mapSkeletonStatus" role="status">
-          <span aria-hidden="true" className="mapSkeletonSpinnerDot" />
+        <div className={styles.mapSkeletonCopy} id="mapSkeletonStatus" role="status">
+          <span aria-hidden="true" className={styles.mapSkeletonSpinnerDot} />
           <div>
             <h1>UK venue map</h1>
             <p>{mapLoadingPrimaryLine(cityDisplayName)}</p>

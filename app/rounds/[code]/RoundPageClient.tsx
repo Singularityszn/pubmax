@@ -65,7 +65,7 @@ import { venueMenuForInspector } from "@/lib/venueMenu";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
 import { formatPrice, type Venue } from "@/lib/venues";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
-import "./round.css";
+import styles from "./Round.module.css";
 
 // How often the open Round refetches its state. Live-ness by polling — the repo
 // convention (the notifications bell polls; no websockets). The page also refetches
@@ -336,7 +336,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
   // Invalid code / not found → an honest empty state (never a crash).
   if (loaded && (!code || !isValidRoundCode(code) || state == null)) {
     return (
-      <main id="main" className="roundShell">
+      <main id="main" className={styles.roundShell}>
         <SiteNav active="crawls" />
         <EmptyState
           title="No Round here"
@@ -351,24 +351,24 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
 
   if (!loaded || state == null) {
     return (
-      <main id="main" className="roundShell">
+      <main id="main" className={styles.roundShell}>
         <SiteNav active="crawls" />
-        <p className="roundLoading">Finding the Round…</p>
+        <p className={styles.roundLoading}>Finding the Round…</p>
       </main>
     );
   }
 
   if (!roundIdentity) {
     return (
-      <main id="main" className="roundShell">
+      <main id="main" className={styles.roundShell}>
         <SiteNav active="crawls" />
-        <p className="roundLoading">Refreshing your sign-in…</p>
+        <p className={styles.roundLoading}>Refreshing your sign-in…</p>
       </main>
     );
   }
 
   return (
-    <main id="main" className="roundShell">
+    <main id="main" className={styles.roundShell}>
       <SiteNav active="crawls" />
       <RoundBoard
         key={roundRequestIdentityOwnerKey(roundIdentity) ?? "transitioning"}
@@ -443,19 +443,19 @@ function RoundBoard({
   }
 
   return (
-    <div className="roundBoard">
-      <header className="roundHead">
-        <p className="roundEyebrow">The Round · builds itself live</p>
-        <h1 className="roundTitle">{round.title}</h1>
+    <div className={styles.roundBoard}>
+      <header className={styles.roundHead}>
+        <p className={styles.roundEyebrow}>The Round · builds itself live</p>
+        <h1 className={styles.roundTitle}>{round.title}</h1>
         <RoundMoneyGlance
           currentHandle={rotation.currentHandle}
           latestSpend={spends.at(-1) ?? null}
         />
-        <div className="roundCodeRow">
-          <span className="roundCodeLabel">Tell your mates</span>
+        <div className={styles.roundCodeRow}>
+          <span className={styles.roundCodeLabel}>Tell your mates</span>
           <button
             type="button"
-            className="roundCode"
+            className={styles.roundCode}
             onClick={copyCode}
             aria-label={copied ? `Round code ${round.code} copied` : `Copy the Round code ${round.code}`}
           >
@@ -463,22 +463,22 @@ function RoundBoard({
             {copied ? <Check size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />}
           </button>
           {copied ? (
-            <span className="roundCopyFeedback" role="status">
+            <span className={styles.roundCopyFeedback} role="status">
               Code copied.
             </span>
           ) : null}
           {copyError ? (
-            <span className="roundCopyFeedback" role="status">
+            <span className={styles.roundCopyFeedback} role="status">
               {copyError}
             </span>
           ) : null}
         </div>
-        <p className="roundStatus" role="status">
+        <p className={styles.roundStatus} role="status">
           {closed ? "This Round has been called. It's closed." : `${members.length} out · still going`}
         </p>
         {crewLine ? (
-          <p className="roundCrewHere" role="status">
-            <span className="roundHereDot" aria-hidden="true" />
+          <p className={styles.roundCrewHere} role="status">
+            <span className={styles.roundHereDot} aria-hidden="true" />
             {crewLine}
           </p>
         ) : null}
@@ -501,20 +501,20 @@ function RoundBoard({
 
       <RoundSpendHistory spends={spends} />
 
-      <section className="roundMembers" aria-label="Who's in the Round">
-        <h2 className="roundSectionTitle">
+      <section aria-label="Who's in the Round">
+        <h2 className={styles.roundSectionTitle}>
           <Users size={16} aria-hidden="true" /> Who&apos;s out
         </h2>
-        <ul className="roundMemberList">
+        <ul className={styles.roundMemberList}>
           {members.map((m) => {
             const here = crewHere ? crewHere.presentHandles.has(normalizeHandle(m.handle)) : false;
             return (
-              <li key={m.handle} className={`roundMemberChip${here ? " roundMemberChipHere" : ""}`}>
+              <li key={m.handle} className={`${styles.roundMemberChip}${here ? ` ${styles.roundMemberChipHere}` : ""}`}>
                 {here ? (
-                  <span className="roundHereDot" title="Here now, self-shared, ephemeral" aria-label="here now" />
+                  <span className={styles.roundHereDot} title="Here now, self-shared, ephemeral" aria-label="here now" />
                 ) : null}
                 <Link href={`/u/${m.handle}`}>@{m.handle}</Link>
-                {m.handle === round.createdByHandle ? <span className="roundHostTag">host</span> : null}
+                {m.handle === round.createdByHandle ? <span className={styles.roundHostTag}>host</span> : null}
               </li>
             );
           })}
@@ -581,16 +581,16 @@ function RoundMoneyGlance({
 }): React.JSX.Element {
   return (
     <section
-      className="roundMoneyGlance"
+      className={styles.roundMoneyGlance}
       aria-label="Whose round and what it cost"
     >
-      <div className="roundMoneyCell roundMoneyTurn">
-        <span className="roundMoneyLabel">Up now</span>
+      <div className={`${styles.roundMoneyCell} ${styles.roundMoneyTurn}`}>
+        <span className={styles.roundMoneyLabel}>Up now</span>
         <strong>{currentHandle ? `@${currentHandle}` : "Nobody yet"}</strong>
         <small>{latestSpend ? "Next in the rotation" : "First round"}</small>
       </div>
-      <div className="roundMoneyCell roundMoneyLatest">
-        <span className="roundMoneyLabel">Last round</span>
+      <div className={`${styles.roundMoneyCell} ${styles.roundMoneyLatest}`}>
+        <span className={styles.roundMoneyLabel}>Last round</span>
         {latestSpend ? (
           <>
             <strong>{formatPrice(latestSpend.totalPence / 100)}</strong>
@@ -600,7 +600,7 @@ function RoundMoneyGlance({
           </>
         ) : (
           <>
-            <strong className="roundMoneyEmpty">No round logged yet</strong>
+            <strong className={styles.roundMoneyEmpty}>No round logged yet</strong>
             <small>Keep the first one when it lands</small>
           </>
         )}
@@ -903,7 +903,7 @@ function RoundSpendComposer({
     return (
       <button
         type="button"
-        className="roundPrimaryBtn roundRecordOpen"
+        className={`${styles.roundPrimaryBtn} ${styles.roundRecordOpen}`}
         onClick={openForm}
       >
         <ReceiptText size={17} aria-hidden="true" /> Put this round on the mat
@@ -912,18 +912,18 @@ function RoundSpendComposer({
   }
 
   return (
-    <section className="roundSpendPanel" aria-label="Record this round">
-      <form className="roundSpendForm" onSubmit={submit}>
-        <div className="roundSpendHead">
+    <section className={styles.roundSpendPanel} aria-label="Record this round">
+      <form className={styles.roundSpendForm} onSubmit={submit}>
+        <div className={styles.roundSpendHead}>
           <div>
-            <p className="roundSectionTitle">Keep this round</p>
-            <p className="roundSpendIntro">
+            <p className={styles.roundSectionTitle}>Keep this round</p>
+            <p className={styles.roundSpendIntro}>
               Record what was spent. No balances, bills or settling up.
             </p>
           </div>
           <button
             type="button"
-            className="roundIconBtn"
+            className={styles.roundIconBtn}
             onClick={() => setOpen(false)}
             aria-label="Close round cost form"
           >
@@ -931,8 +931,8 @@ function RoundSpendComposer({
           </button>
         </div>
 
-        <div className="roundSpendGrid">
-          <label className="roundField">
+        <div className={styles.roundSpendGrid}>
+          <label className={styles.roundField}>
             <span>Who got this one</span>
             <select
               value={payerHandle}
@@ -945,7 +945,7 @@ function RoundSpendComposer({
               ))}
             </select>
           </label>
-          <label className="roundField">
+          <label className={styles.roundField}>
             <span>Pub</span>
             <select value={venueId} onChange={(event) => setVenueId(event.target.value)}>
               {stops.map((stop) => (
@@ -957,10 +957,10 @@ function RoundSpendComposer({
           </label>
         </div>
 
-        <div className="roundSpendModes" aria-label="How to record the round">
+        <div className={styles.roundSpendModes} aria-label="How to record the round">
           <button
             type="button"
-            className={mode === "total" ? "isActive" : ""}
+            className={mode === "total" ? styles.isActive : ""}
             onClick={() => setMode("total")}
             aria-pressed={mode === "total"}
           >
@@ -968,7 +968,7 @@ function RoundSpendComposer({
           </button>
           <button
             type="button"
-            className={mode === "items" ? "isActive" : ""}
+            className={mode === "items" ? styles.isActive : ""}
             onClick={() => setMode("items")}
             aria-pressed={mode === "items"}
           >
@@ -977,9 +977,9 @@ function RoundSpendComposer({
         </div>
 
         {mode === "total" ? (
-          <label className="roundField roundTotalField">
+          <label className={`${styles.roundField} ${styles.roundTotalField}`}>
             <span>Round total</span>
-            <span className="roundMoneyInput">
+            <span className={styles.roundMoneyInput}>
               <span aria-hidden="true">£</span>
               <input
                 type="text"
@@ -993,9 +993,9 @@ function RoundSpendComposer({
             </span>
           </label>
         ) : (
-          <div className="roundItems">
-            <div className="roundKnownDrink">
-              <label className="roundField">
+          <div className={styles.roundItems}>
+            <div className={styles.roundKnownDrink}>
+              <label className={styles.roundField}>
                 <span>Known prices here</span>
                 <select
                   value={knownDrinkId}
@@ -1018,7 +1018,7 @@ function RoundSpendComposer({
               </label>
               <button
                 type="button"
-                className="roundSecondaryBtn"
+                className={styles.roundSecondaryBtn}
                 onClick={fillFromKnownDrink}
                 disabled={!knownDrinkId}
               >
@@ -1026,7 +1026,7 @@ function RoundSpendComposer({
               </button>
             </div>
 
-            <p className="roundKnownDrinkNote">
+            <p className={styles.roundKnownDrinkNote}>
               A known price only fills the line below. Check it against what you
               paid, then add it.
               {draftSource === "demo"
@@ -1034,8 +1034,8 @@ function RoundSpendComposer({
                 : ""}
             </p>
 
-            <div className="roundManualDrink">
-              <label className="roundField roundDrinkName">
+            <div className={styles.roundManualDrink}>
+              <label className={styles.roundField}>
                 <span>The drink</span>
                 <input
                   type="text"
@@ -1045,7 +1045,7 @@ function RoundSpendComposer({
                   maxLength={80}
                 />
               </label>
-              <label className="roundField">
+              <label className={styles.roundField}>
                 <span>Type</span>
                 <select
                   value={manualCategory}
@@ -1060,7 +1060,7 @@ function RoundSpendComposer({
                   ))}
                 </select>
               </label>
-              <label className="roundField roundDrinkPrice">
+              <label className={styles.roundField}>
                 <span>Price</span>
                 <input
                   type="text"
@@ -1073,7 +1073,7 @@ function RoundSpendComposer({
               </label>
               <button
                 type="button"
-                className="roundSecondaryBtn roundAddDrinkBtn"
+                className={`${styles.roundSecondaryBtn} ${styles.roundAddDrinkBtn}`}
                 onClick={addManualDrink}
               >
                 <Plus size={16} aria-hidden="true" /> Add drink
@@ -1081,7 +1081,7 @@ function RoundSpendComposer({
             </div>
 
             {items.length > 0 ? (
-              <ul className="roundDraftItems">
+              <ul className={styles.roundDraftItems}>
                 {items.map((item) => (
                   <li key={item.id}>
                     <span>
@@ -1091,11 +1091,11 @@ function RoundSpendComposer({
                         {item.priceSource === "demo" ? " · diary only" : ""}
                       </small>
                     </span>
-                    <span className="roundDraftItemPrice">
+                    <span className={styles.roundDraftItemPrice}>
                       {formatPrice(item.priceGbp)}
                       <button
                         type="button"
-                        className="roundIconBtn"
+                        className={styles.roundIconBtn}
                         onClick={() =>
                           setItems((held) =>
                             held.filter((candidate) => candidate.id !== item.id),
@@ -1111,7 +1111,7 @@ function RoundSpendComposer({
               </ul>
             ) : null}
 
-            <p className="roundPriceTrust">
+            <p className={styles.roundPriceTrust}>
               Drink lines you type are first-party price logs. One person&apos;s
               log stays off the price map until another drinker backs it. A line
               marked diary only is never logged as a price.
@@ -1120,14 +1120,14 @@ function RoundSpendComposer({
         )}
 
         {error ? (
-          <p className="roundError" role="alert">
+          <p className={styles.roundError} role="alert">
             {error}
           </p>
         ) : null}
 
         <button
           type="submit"
-          className="roundPrimaryBtn roundKeepBtn"
+          className={`${styles.roundPrimaryBtn} ${styles.roundKeepBtn}`}
           disabled={busy}
         >
           {busy ? "Keeping…" : keepLabel}
@@ -1167,8 +1167,8 @@ export function RoundSpendHistory({
 }): React.JSX.Element | null {
   if (spends.length === 0) return null;
   return (
-    <section className="roundSpendHistory" aria-label="Rounds kept tonight">
-      <h2 className="roundSectionTitle">
+    <section className={styles.roundSpendHistory} aria-label="Rounds kept tonight">
+      <h2 className={styles.roundSectionTitle}>
         <ReceiptText size={16} aria-hidden="true" /> Rounds kept tonight
       </h2>
       <ol>
@@ -1183,23 +1183,23 @@ export function RoundSpendHistory({
           const diaryOnly =
             spend.items.length - logged.length - legacyUnknown - superseded;
           return (
-            <li key={spend.id} className="roundSpendCard">
-              <div className="roundSpendSummary">
+            <li key={spend.id} className={styles.roundSpendCard}>
+              <div className={styles.roundSpendSummary}>
                 <div>
                   <strong>{spend.venueName}</strong>
                   <span>paid by @{spend.payerHandle}</span>
                 </div>
-                <strong className="roundSpendTotal">
+                <strong className={styles.roundSpendTotal}>
                   {formatPrice(spend.totalPence / 100)}
                 </strong>
               </div>
-              <p className="roundSpendStamp">
+              <p className={styles.roundSpendStamp}>
                 {roundDateLabel(spend.recordedAt)} · Logged in this Round by @
                 {spend.recordedByHandle}
               </p>
               {spend.items.length > 0 ? (
                 <>
-                  <ul className="roundSpendItems">
+                  <ul className={styles.roundSpendItems}>
                     {spend.items.map((item, index) => (
                       <li key={`${spend.id}-${index}`}>
                         <span>
@@ -1217,22 +1217,22 @@ export function RoundSpendHistory({
                     ))}
                   </ul>
                   {logged.length > 0 ? (
-                    <p className="roundPriceTrust">
+                    <p className={styles.roundPriceTrust}>
                       {provisionalPriceCaption(logged.length, spend.items.length)}
                     </p>
                   ) : null}
                   {diaryOnly > 0 ? (
-                    <p className="roundPriceTrust">{diaryOnlyCaption(diaryOnly)}</p>
+                    <p className={styles.roundPriceTrust}>{diaryOnlyCaption(diaryOnly)}</p>
                   ) : null}
                   {legacyUnknown > 0 ? (
-                    <p className="roundPriceTrust">
+                    <p className={styles.roundPriceTrust}>
                       {legacyUnknown === 1
                         ? "Sharing status for one older line is unknown."
                         : `Sharing status for ${legacyUnknown} older lines is unknown.`}
                     </p>
                   ) : null}
                   {superseded > 0 ? (
-                    <p className="roundPriceTrust">
+                    <p className={styles.roundPriceTrust}>
                       {supersededCaption(superseded)}
                     </p>
                   ) : null}
@@ -1281,19 +1281,19 @@ function RouteList({ stops }: { stops: RoundState["stops"] }): React.JSX.Element
   }
 
   return (
-    <section className="roundRoute" aria-label="The Round's route">
-      <h2 className="roundSectionTitle">
+    <section aria-label="The Round's route">
+      <h2 className={styles.roundSectionTitle}>
         <MapPin size={16} aria-hidden="true" /> The route so far
       </h2>
-      <ol className="roundStops">
+      <ol className={styles.roundStops}>
         {stops.map((stop, index) => (
-          <li key={stop.id} className="roundStop">
-            <span className="roundStopNumber" aria-hidden="true">
+          <li key={stop.id} className={styles.roundStop}>
+            <span className={styles.roundStopNumber} aria-hidden="true">
               {index + 1}
             </span>
-            <div className="roundStopBody">
+            <div className={styles.roundStopBody}>
               <strong>{stop.venueName}</strong>
-              <span className="roundStopBy">
+              <span className={styles.roundStopBy}>
                 added by <Link href={`/u/${stop.addedByHandle}`}>@{stop.addedByHandle}</Link>
               </span>
             </div>
@@ -1301,7 +1301,7 @@ function RouteList({ stops }: { stops: RoundState["stops"] }): React.JSX.Element
         ))}
       </ol>
       {summary.legs.length > 0 ? (
-        <div className="roundLegs">
+        <div className={styles.roundLegs}>
           <ul>
             {summary.legs.map((leg) => (
               <li key={leg.fromIndex}>
@@ -1309,7 +1309,7 @@ function RouteList({ stops }: { stops: RoundState["stops"] }): React.JSX.Element
               </li>
             ))}
           </ul>
-          <p className="roundLegTotal">{formatRouteTotal(summary)}</p>
+          <p className={styles.roundLegTotal}>{formatRouteTotal(summary)}</p>
         </div>
       ) : null}
     </section>
@@ -1389,9 +1389,9 @@ function JoinForm({
   }
 
   return (
-    <form className="roundForm" onSubmit={submit}>
-      <h2 className="roundSectionTitle">Join this Round</h2>
-      <label className="roundField">
+    <form className={styles.roundForm} onSubmit={submit}>
+      <h2 className={styles.roundSectionTitle}>Join this Round</h2>
+      <label className={styles.roundField}>
         <span>Your handle</span>
         <input
           type="text"
@@ -1407,11 +1407,11 @@ function JoinForm({
         />
       </label>
       {error ? (
-        <p className="roundError" role="alert">
+        <p className={styles.roundError} role="alert">
           {error}
         </p>
       ) : null}
-      <button type="submit" className="roundPrimaryBtn" disabled={busy}>
+      <button type="submit" className={styles.roundPrimaryBtn} disabled={busy}>
         {busy ? "Joining…" : "I'm out too. Join the Round"}
       </button>
     </form>
@@ -1521,12 +1521,12 @@ function AddStop({
   }
 
   return (
-    <section className="roundAdd" aria-label="Add a pub to the Round">
-      <h2 className="roundSectionTitle">Add this pub</h2>
-      <p className="roundAddHint">Where are you now? Add it and the route grows.</p>
+    <section className={styles.roundAdd} aria-label="Add a pub to the Round">
+      <h2 className={styles.roundSectionTitle}>Add this pub</h2>
+      <p className={styles.roundAddHint}>Where are you now? Add it and the route grows.</p>
       <input
         type="text"
-        className="roundSearch"
+        className={styles.roundSearch}
         value={query}
         onFocus={ensureLoaded}
         onChange={(e) => setQuery(e.target.value)}
@@ -1537,7 +1537,7 @@ function AddStop({
         disabled={busy}
       />
       {matches.length > 0 ? (
-        <ul className="roundSearchResults">
+        <ul className={styles.roundSearchResults}>
           {matches.map((v) => (
             <li key={v.id}>
               <button type="button" onClick={() => add(v)} disabled={busy}>
@@ -1550,18 +1550,18 @@ function AddStop({
       ) : hasQuery ? (
         // Never a silent blank: while the index loads it's "Finding pubs…"; once
         // loaded with no hit it's an honest miss that points to the map fallback.
-        <p className="roundSearchHint" role="status">
+        <p className={styles.roundSearchHint} role="status">
           {ready
             ? "No pub by that name on the map. Check the spelling, or log it on the map below."
             : "Finding pubs…"}
         </p>
       ) : null}
       {error ? (
-        <p className="roundError" role="alert">
+        <p className={styles.roundError} role="alert">
           {error}
         </p>
       ) : null}
-      <Link href="/map?log=1" className="roundSecondaryBtn">
+      <Link href="/map?log=1" className={styles.roundSecondaryBtn}>
         <MapPin size={16} aria-hidden="true" /> Log a pint on the map
       </Link>
     </section>
@@ -1648,32 +1648,32 @@ function CloseRound({
 
   if (confirming) {
     return (
-      <div className="roundCloseConfirm" role="group" aria-label="Confirm calling the Round">
-        <p className="roundCloseConfirmText">Call it for the whole crew? This closes the Round for good.</p>
-        <div className="roundCloseConfirmRow">
+      <div className={styles.roundCloseConfirm} role="group" aria-label="Confirm calling the Round">
+        <p className={styles.roundCloseConfirmText}>Call it for the whole crew? This closes the Round for good.</p>
+        <div className={styles.roundCloseConfirmRow}>
           <button
             type="button"
-            className="roundSecondaryBtn"
+            className={styles.roundSecondaryBtn}
             onClick={() => setConfirming(false)}
             disabled={busy}
           >
             Keep going
           </button>
-          <button type="button" className="roundCloseBtn roundCloseBtnArmed" onClick={close} disabled={busy}>
+          <button type="button" className={`${styles.roundCloseBtn} ${styles.roundCloseBtnArmed}`} onClick={close} disabled={busy}>
             <DoorClosed size={16} aria-hidden="true" /> {busy ? "Calling it…" : "Yes, call it"}
           </button>
         </div>
-        {error ? <p className="roundError" role="alert">{error}</p> : null}
+        {error ? <p className={styles.roundError} role="alert">{error}</p> : null}
       </div>
     );
   }
 
   return (
     <>
-      <button type="button" className="roundCloseBtn" onClick={arm} disabled={busy}>
+      <button type="button" className={styles.roundCloseBtn} onClick={arm} disabled={busy}>
         <DoorClosed size={16} aria-hidden="true" /> Call the Round (close it)
       </button>
-      {error ? <p className="roundError" role="alert">{error}</p> : null}
+      {error ? <p className={styles.roundError} role="alert">{error}</p> : null}
     </>
   );
 }

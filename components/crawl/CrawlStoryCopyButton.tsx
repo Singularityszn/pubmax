@@ -3,6 +3,7 @@
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
 import { useState } from "react";
+import styles from "@/app/crawls/[slug]/Story.module.css";
 
 export default function CrawlStoryCopyButton() {
   const [copied, setCopied] = useState(false);
@@ -23,7 +24,7 @@ export default function CrawlStoryCopyButton() {
 
   return (
     <>
-      <button type="button" className="storySecondaryBtn" onClick={copyLink}>
+      <button type="button" className={styles.storySecondaryBtn} onClick={copyLink}>
         {copied ? "Copied" : "Copy link"}
       </button>
       {error ? <p role="status">{error}</p> : null}

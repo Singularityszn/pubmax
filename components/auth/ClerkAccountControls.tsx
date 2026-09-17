@@ -27,6 +27,7 @@ import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
+import authStyles from "@/app/auth/Auth.module.css";
 
 export default function ClerkAccountControls({
   /**
@@ -44,34 +45,34 @@ export default function ClerkAccountControls({
   const { user, clerkIntegrationConfigured } = useAuth();
   if (!isClerkProductSessionAvailable(user, clerkIntegrationConfigured)) return null;
 
-  const classes = ["clerkAccount", className].filter(Boolean).join(" ");
+  const classes = [authStyles.clerkAccount, className].filter(Boolean).join(" ");
 
   return (
     <div className={classes}>
       <Show when="signed-out">
-        <div className="clerkAccountActions">
+        <div className={authStyles.clerkAccountActions}>
           {/* Create-account leads: it is the action the reader cannot already
               do, and sign-in is one tap away inside the same dialog. */}
           <SignUpButton mode="modal">
-            <button type="button" className="authSignIn clerkAccountPrimary">
+            <button type="button" className={`${authStyles.authSignIn} ${authStyles.clerkAccountPrimary}`}>
               Create Clerk account
             </button>
           </SignUpButton>
           <SignInButton mode="modal">
-            <button type="button" className="authSignIn">
+            <button type="button" className={authStyles.authSignIn}>
               Sign in to Clerk
             </button>
           </SignInButton>
         </div>
-        <p className="clerkAccountNote">
+        <p className={authStyles.clerkAccountNote}>
           A Clerk session is separate. It does not create or replace your
           PUBMAXX User ID or PUBMAXX Handle.
         </p>
       </Show>
       <Show when="signed-in">
-        <div className="clerkAccountActions clerkAccountSignedIn">
+        <div className={`${authStyles.clerkAccountActions} ${authStyles.clerkAccountSignedIn}`}>
           <UserButton />
-          <span className="clerkAccountNote clerkAccountNoteInline">
+          <span className={`${authStyles.clerkAccountNote} ${authStyles.clerkAccountNoteInline}`}>
             Clerk session active. Your PUBMAXX User ID and PUBMAXX Handle stay
             separate.
           </span>

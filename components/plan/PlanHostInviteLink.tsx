@@ -19,6 +19,7 @@ import {
   readPlanCapabilitySnapshot,
   restorePlanCapability,
 } from "@/lib/planSessionCapability";
+import planStyles from "@/app/plan/Plan.module.css";
 
 // Task: plan-invite-host-ui, deliverable 1. Copy-invite-link surface on the
 // Plan management page for any member holding a live capability (host or
@@ -92,8 +93,8 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
   if (!memberToken) {
     const sessionChecked = sessionCheckedPlanId === planId;
     return (
-      <div className="planHostInviteLink" aria-busy={!sessionChecked}>
-        <p className="planHostInviteLink__status" role="status">
+      <div className={planStyles.planHostInviteLink} aria-busy={!sessionChecked}>
+        <p className={planStyles.planHostInviteLink__status} role="status">
           {sessionChecked
             ? "Invite tools need a crew session. Join the plan, then try again."
             : "Restoring your invite tools…"}
@@ -104,8 +105,8 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
 
   if (inviteLoad === "unknown") {
     return (
-      <div className="planHostInviteLink" aria-busy="true">
-        <p className="planHostInviteLink__status" role="status">
+      <div className={planStyles.planHostInviteLink} aria-busy="true">
+        <p className={planStyles.planHostInviteLink__status} role="status">
           Fetching your invite link…
         </p>
       </div>
@@ -114,8 +115,8 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
 
   if (!inviteToken) {
     return (
-      <div className="planHostInviteLink">
-        <p className="planHostInviteLink__status" role="status">
+      <div className={planStyles.planHostInviteLink}>
+        <p className={planStyles.planHostInviteLink__status} role="status">
           {inviteLoad === "unavailable"
             ? INVITE_TOKEN_UNAVAILABLE_LINE
             : INVITE_TOKEN_MISSING_LINE}
@@ -179,15 +180,15 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
   }
 
   return (
-    <div className="planHostInviteLink">
-      <div className="planHostInviteLink__row">
-        <button type="button" className="planHostInviteLink__cta pressable" onClick={() => void copyLink()}>
+    <div className={planStyles.planHostInviteLink}>
+      <div className={planStyles.planHostInviteLink__row}>
+        <button type="button" className={`${planStyles.planHostInviteLink__cta} pressable`} onClick={() => void copyLink()}>
           Copy invite link
         </button>
         {isHost ? (
           <button
             type="button"
-            className="planHostInviteLink__rotate pressable"
+            className={`${planStyles.planHostInviteLink__rotate} pressable`}
             disabled={rotating}
             onClick={() => void rotateLink()}
           >
@@ -196,7 +197,7 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
         ) : null}
       </div>
       {status ? (
-        <p className="planHostInviteLink__status" role="status">
+        <p className={planStyles.planHostInviteLink__status} role="status">
           {status}
         </p>
       ) : null}

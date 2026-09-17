@@ -9,7 +9,7 @@ import {
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/siteContact";
 
-import "../../legal.css";
+import styles from "../../Legal.module.css";
 
 // /account/delete — the PUBLIC account-deletion page.
 //
@@ -44,22 +44,22 @@ export const metadata: Metadata = {
 
 export default function AccountDeletePage() {
   return (
-    <main id="main" className="legalPage">
+    <main id="main" className={styles.legalPage}>
       {/* A reference page has no primary action (docs/design/LAUNCH_SCREENS.md),
           so the head is a kicker and the heading, never a Screen. */}
-      <header className="legalHead">
+      <header className={styles.legalHead}>
         <Kicker>Your account</Kicker>
-        <h1 className="legalTitle">{PAGE_TITLE}</h1>
-        <p className="legalLede">
+        <h1 className={styles.legalTitle}>{PAGE_TITLE}</h1>
+        <p className={styles.legalLede}>
           You can delete your PUBMAXX account yourself, from inside the app or
           the site. It takes two taps and it cannot be undone.
         </p>
-        <p className="legalUpdated">Last updated {LAST_UPDATED}</p>
+        <p className={styles.legalUpdated}>Last updated {LAST_UPDATED}</p>
       </header>
 
-      <section className="legalSection" aria-labelledby="how">
-        <h2 id="how" className="legalH2">How to delete it</h2>
-        <ol className="legalList">
+      <section className={styles.legalSection} aria-labelledby="how">
+        <h2 id="how" className={styles.legalH2}>How to delete it</h2>
+        <ol className={styles.legalList}>
           <li>Sign in, then open the You tab.</li>
           <li>
             Go to Account settings and choose <strong>Delete account</strong>.
@@ -69,43 +69,43 @@ export default function AccountDeletePage() {
             <strong>Delete my account</strong>.
           </li>
         </ol>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           You are signed out of the device straight away. The deletion itself is
           immediate, not a queued request.
         </p>
       </section>
 
-      <section className="legalSection" aria-labelledby="leaves">
-        <h2 id="leaves" className="legalH2">What is deleted</h2>
-        <ul className="legalList">
+      <section className={styles.legalSection} aria-labelledby="leaves">
+        <h2 id="leaves" className={styles.legalH2}>What is deleted</h2>
+        <ul className={styles.legalList}>
           {ACCOUNT_DELETION_LEAVES.map((line) => (
             <li key={line}>{line}</li>
           ))}
         </ul>
       </section>
 
-      <section className="legalSection" aria-labelledby="stays">
-        <h2 id="stays" className="legalH2">What stays</h2>
-        <ul className="legalList">
+      <section className={styles.legalSection} aria-labelledby="stays">
+        <h2 id="stays" className={styles.legalH2}>What stays</h2>
+        <ul className={styles.legalList}>
           {ACCOUNT_DELETION_STAYS.map((line) => (
             <li key={line}>{line}</li>
           ))}
         </ul>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           A price is an observation other drinkers rely on, so it stays on the
           map under the handle that logged it. The handle itself is reserved for
           good, which is what stops the record naming somebody else later.
         </p>
       </section>
 
-      <section className="legalSection" aria-labelledby="help">
-        <h2 id="help" className="legalH2">If you cannot sign in</h2>
-        <p className="legalBody">
+      <section className={styles.legalSection} aria-labelledby="help">
+        <h2 id="help" className={styles.legalH2}>If you cannot sign in</h2>
+        <p className={styles.legalBody}>
           Email{" "}
-          <a href={CONTACT_MAILTO} className="legalLink">{CONTACT_EMAIL}</a> from
+          <a href={CONTACT_MAILTO} className={styles.legalLink}>{CONTACT_EMAIL}</a> from
           the address on the account and say you want it deleted. We reply within
           30 days, as the{" "}
-          <Link href="/privacy" className="legalLink">privacy notice</Link> says.
+          <Link href="/privacy" className={styles.legalLink}>privacy notice</Link> says.
         </p>
       </section>
     </main>

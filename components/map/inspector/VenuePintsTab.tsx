@@ -1,3 +1,6 @@
+import "./LogDropBar.module.css";
+import "@/components/map/composer/DropComposer.module.css";
+
 import Link from "next/link";
 import { PlusCircle, Quote } from "lucide-react";
 

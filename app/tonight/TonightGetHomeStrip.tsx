@@ -22,6 +22,8 @@ import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import { summariseGetHome, type GetHomeSummary } from "@/lib/tonightGetHome";
 import type { LastTrainResult } from "@/lib/tfl";
 
+import styles from "./Tonight.module.css";
+
 type Props = {
   origin: { lat: number; lng: number };
 };
@@ -62,10 +64,10 @@ export default function TonightGetHomeStrip({ origin }: Props) {
   return (
     <>
       {summary ? (
-        <div className="tonightGetHome" data-testid="tonight-get-home">
-          <TrainFront size={15} aria-hidden="true" className="tonightGetHomeIcon" />
-          <p className="tonightGetHomeCopy">
-            <span className="tonightGetHomeStatus">{summary.statusLine}</span>{" "}
+        <div className={styles.tonightGetHome} data-testid="tonight-get-home">
+          <TrainFront size={15} aria-hidden="true" className={styles.tonightGetHomeIcon} />
+          <p className={styles.tonightGetHomeCopy}>
+            <span className={styles.tonightGetHomeStatus}>{summary.statusLine}</span>{" "}
             <span>{summary.trainLine}</span>
           </p>
         </div>

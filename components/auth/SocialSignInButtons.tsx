@@ -1,10 +1,11 @@
 "use client";
 
 import type { SocialAuthProviderAvailability } from "@/lib/authProviderAvailability";
+import authStyles from "@/app/auth/Auth.module.css";
 
 function GoogleMark(): React.JSX.Element {
   return (
-    <svg className="authProviderMark" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+    <svg className={authStyles.authProviderMark} viewBox="0 0 48 48" aria-hidden="true" focusable="false">
       <path
         fill="#4285F4"
         d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"
@@ -27,7 +28,7 @@ function GoogleMark(): React.JSX.Element {
 
 function AppleMark(): React.JSX.Element {
   return (
-    <svg className="authProviderMark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <svg className={authStyles.authProviderMark} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path
         fill="currentColor"
         d="M17.05 12.54c-.03-3.08 2.51-4.58 2.62-4.65a5.63 5.63 0 0 0-4.43-2.4c-1.86-.2-3.67 1.12-4.62 1.12-.98 0-2.46-1.1-4.05-1.07a5.9 5.9 0 0 0-4.97 3.03c-2.14 3.7-.55 9.14 1.51 12.14 1.03 1.47 2.23 3.11 3.81 3.05 1.55-.06 2.13-.98 4-.98 1.84 0 2.39.98 4 .94 1.66-.03 2.7-1.47 3.69-2.95a12.1 12.1 0 0 0 1.68-3.42 5.26 5.26 0 0 1-3.24-4.81ZM14.02 3.52A5.35 5.35 0 0 0 15.25 0a5.47 5.47 0 0 0-3.54 1.68 5.08 5.08 0 0 0-1.27 3.38 4.52 4.52 0 0 0 3.58-1.54Z"
@@ -46,10 +47,10 @@ function ProviderLabel({
   if (fullLabels) return <>Continue with {name}</>;
   return (
     <>
-      <span className="authSignInLabelFull" aria-hidden="true">
+      <span className={authStyles.authSignInLabelFull} aria-hidden="true">
         Continue with {name}
       </span>
-      <span className="authSignInLabelShort" aria-hidden="true">
+      <span className={authStyles.authSignInLabelShort} aria-hidden="true">
         {name}
       </span>
     </>
@@ -73,13 +74,13 @@ export default function SocialSignInButtons({
 }): React.JSX.Element | null {
   if (!availability.google && !availability.apple) return null;
 
-  const classes = ["authProviders", className].filter(Boolean).join(" ");
+  const classes = [authStyles.authProviders, className].filter(Boolean).join(" ");
   return (
     <div className={classes}>
       {availability.google ? (
         <button
           type="button"
-          className="authSignIn"
+          className={authStyles.authSignIn}
           onClick={() => void onGoogle()}
           disabled={disabled}
           aria-label="Continue with Google"
@@ -91,7 +92,7 @@ export default function SocialSignInButtons({
       {availability.apple ? (
         <button
           type="button"
-          className="authSignIn"
+          className={authStyles.authSignIn}
           onClick={() => void onApple()}
           disabled={disabled}
           aria-label="Continue with Apple"

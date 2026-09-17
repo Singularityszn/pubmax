@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
+import styles from "@/app/crawls/[slug]/Story.module.css";
 
 // Owner-only edit/delete controls for a durable Crawl Story (story 35). The story
 // page is a server component and never knows who is viewing; this client island
@@ -66,10 +67,10 @@ export default function CrawlStoryOwnerControls({
   }
 
   return (
-    <div className="storyOwnerControls" role="group" aria-label="Author controls">
+    <div className={styles.storyOwnerControls} role="group" aria-label="Author controls">
       <button
         type="button"
-        className="storySecondaryBtn"
+        className={styles.storySecondaryBtn}
         onClick={handleDelete}
         disabled={busy}
         aria-busy={busy}

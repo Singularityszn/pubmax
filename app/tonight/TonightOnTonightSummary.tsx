@@ -12,6 +12,8 @@ import { tonightPrimaryRows } from "@/lib/tonightPrimary";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
 import type { WhatsOnKindFacet } from "@/lib/whatsOnBadges";
 
+import summaryStyles from "./TonightOnTonightSummary.module.css";
+
 export type TonightOnTonightSummaryProps = {
   facets: WhatsOnKindFacet[];
   /** Display rows in list order; only the first few titles are named. */
@@ -76,25 +78,25 @@ export default function TonightOnTonightSummary({
 
   return (
     <section
-      className="tonightOnTonightSummary"
+      className={summaryStyles.tonightOnTonightSummary}
       aria-labelledby="tonight-rail-summary-title"
       data-testid="tonight-rail-summary"
     >
-      <div className="tonightOnTonightSummaryHead">
+      <div className={summaryStyles.tonightOnTonightSummaryHead}>
         <h2 id="tonight-rail-summary-title">
           <CalendarClock size={18} aria-hidden="true" />
           On tonight
         </h2>
-        <span className="tonightOnTonightSummaryCount">
+        <span className={summaryStyles.tonightOnTonightSummaryCount}>
           {primaryTotalCount} listing{primaryTotalCount === 1 ? "" : "s"}
         </span>
       </div>
       {kindLines.length > 0 ? (
-        <p className="tonightOnTonightSummaryKinds">{kindLines.join(" · ")}</p>
+        <p className={summaryStyles.tonightOnTonightSummaryKinds}>{kindLines.join(" · ")}</p>
       ) : null}
       {endingSoon.length > 0 ? (
         <Link
-          className="tonightOnTonightSummaryEnding pressable"
+          className={`${summaryStyles.tonightOnTonightSummaryEnding} pressable`}
           href="#tonight-list"
           data-testid="tonight-deals-ending-soon"
         >
@@ -105,18 +107,18 @@ export default function TonightOnTonightSummary({
         </Link>
       ) : null}
       {topTitles.length > 0 ? (
-        <ul className="tonightOnTonightSummaryTitles" aria-label="Headline listings">
+        <ul className={summaryStyles.tonightOnTonightSummaryTitles} aria-label="Headline listings">
           {topTitles.map((row) => (
             <li key={row.id}>{row.title}</li>
           ))}
         </ul>
       ) : null}
       {facetKinds.has("music") || facetKinds.has("deal") ? (
-        <p className="tonightOnTonightSummaryNote">
+        <p className={summaryStyles.tonightOnTonightSummaryNote}>
           Full cards, dates and sources sit in the main list.
         </p>
       ) : null}
-      <Link className="tonightOnTonightSummaryLink pressable" href="#tonight-list">
+      <Link className={`${summaryStyles.tonightOnTonightSummaryLink} pressable`} href="#tonight-list">
         See tonight&apos;s listings
       </Link>
     </section>

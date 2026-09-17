@@ -13,7 +13,7 @@ import {
   type SavedPubDTO,
 } from "@/lib/savedPubsStore";
 
-import "../../profile.css";
+import styles from "../../Profile.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -130,7 +130,7 @@ export default async function SavedListPage({ params }: PageProps) {
   }
 
   return (
-    <div className="lp profilePage">
+    <div className={`lp ${styles.profilePage}`}>
       <SiteNav active="profile" />
       <main id="main" className="container profileMain">
         {!ownerHandle || !listType ? (

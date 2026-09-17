@@ -72,6 +72,7 @@ const FUNCTIONAL_TRANSLUCENCY = [
   "components/pal/palChat.css", // floating composer bar
   "components/pubpal/pubPal.css", // the Pal summon control floating over the map
   "components/pubs/pubsGallery.css", // lightbox chrome over a photo
+  "components/PubMapCanvas.module.css", // soft-retry chip floating over the map canvas
 ];
 
 /**
@@ -87,6 +88,7 @@ const THREE_COLUMN_CONTROLS = [
   "components/venue/venuePhotoWall.css", // photo grid
   "components/visits/visitReports.css", // observation chips
   "components/zones/zonePintIndex.css", // a stat row
+  "components/map/route/route.module.css", // route metrics stat row
 ];
 
 const HEDGE_PHRASES = [

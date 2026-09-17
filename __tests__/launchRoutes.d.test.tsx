@@ -332,7 +332,7 @@ describe("launch routes (group d) carry one primary action", () => {
     );
     expect(primaryCount(form)).toBe(1);
     expect(form).toMatch(
-      /<button type="submit" class="authSignIn authMagicLinkButton" data-primary-action=""[^>]*>.*Email me a sign-in link<\/button>/,
+      /<button type="submit" class="[^"]*authSignIn[^"]*authMagicLinkButton[^"]*" data-primary-action=""[^>]*>.*Email me a sign-in link<\/button>/,
     );
     // The head names nobody until the live session answers.
     expect(rendered).toContain("Sign in or create your account");

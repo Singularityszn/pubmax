@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
+import styles from "@/app/discover/Discover.module.css";
 
 import PriceBadge from "@/components/PriceBadge";
 import HandleAvatar from "@/components/profile/HandleAvatar";
@@ -32,7 +33,7 @@ export default function TonightBoard({
 }: TonightBoardProps) {
   if (entries.length === 0) {
     return (
-      <p className="discoverEmpty" role="status">
+      <p className={styles.discoverEmpty} role="status">
         No pints logged in the last 24h.{" "}
         <Link prefetch={false} href={cityAwareMapPath(DEFAULT_CITY_ID)}>Be the first tonight</Link>.
       </p>
@@ -40,27 +41,27 @@ export default function TonightBoard({
   }
 
   return (
-    <ol className="tonightBoard" aria-label={caption}>
+    <ol className={styles.tonightBoard} aria-label={caption}>
       {entries.map((entry) => {
         const ago = relativeTime(entry.createdAt);
         const href = venueMapUrl(entry.venueId);
         return (
-          <li key={entry.venueId} className="tonightRow" data-reveal>
-            <span className="tonightRank" aria-hidden="true">
+          <li key={entry.venueId} className={styles.tonightRow} data-reveal>
+            <span className={styles.tonightRank} aria-hidden="true">
               {entry.rank}
             </span>
-            <span className="srOnly">Rank {entry.rank}</span>
+            <span className={styles.srOnly}>Rank {entry.rank}</span>
 
-            <span className="tonightMain">
+            <span className={styles.tonightMain}>
               <Link prefetch={false}
                 href={href}
-                className="tonightPub"
+                className={styles.tonightPub}
                 onPointerEnter={() => prefetchVenue(entry.venueId)}
                 onTouchStart={() => prefetchVenue(entry.venueId)}
               >
                 {entry.venueName}
               </Link>
-              <span className="tonightMeta">
+              <span className={styles.tonightMeta}>
                 {entry.handle ? (
                   <span className="tonightHandleRow">
                     <HandleAvatar
@@ -70,17 +71,17 @@ export default function TonightBoard({
                       imageClassName="tonightAvatar"
                       size={24}
                     />
-                    <span className="tonightHandle">{displayHandle(entry.handle)}</span>
+                    <span className={styles.tonightHandle}>{displayHandle(entry.handle)}</span>
                   </span>
                 ) : (
-                  <span className="tonightHandle tonightHandleAnon">anon</span>
+                  <span className={`${styles.tonightHandle} ${styles.tonightHandleAnon}`}>anon</span>
                 )}
                 {ago ? (
                   <>
-                    <span className="tonightDot" aria-hidden="true">
+                    <span className={styles.tonightDot} aria-hidden="true">
                       ·
                     </span>
-                    <time className="tonightAgo" dateTime={entry.createdAt}>
+                    <time className={styles.tonightAgo} dateTime={entry.createdAt}>
                       {ago}
                     </time>
                   </>
@@ -90,7 +91,7 @@ export default function TonightBoard({
 
             <PriceBadge
               variant="cheap"
-              className="tonightPrice"
+              className={styles.tonightPrice}
               band={priceBand(entry.priceGbp, priceBandAreaForVenue(entry.venueId))}
             >
               {formatPrice(entry.priceGbp)}

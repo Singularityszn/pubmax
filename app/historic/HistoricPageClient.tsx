@@ -32,7 +32,7 @@ import {
 } from "@/lib/pageFilters";
 import HistoricFilters from "./HistoricFilters";
 
-import "./historic.css";
+import styles from "./Historic.module.css";
 
 export default function HistoricPageClient({
   pubs,
@@ -57,7 +57,7 @@ export default function HistoricPageClient({
   const lastShown = matchingPubs === 0 ? 0 : firstShown + pubs.length - 1;
 
   return (
-    <main id="main" className="historicPage">
+    <main id="main" className={styles.historicPage}>
       <SiteNav active="historic" />
 
       <Screen
@@ -84,7 +84,7 @@ export default function HistoricPageClient({
           <>
             <HistoricFilters boroughs={boroughs} filters={filters} />
 
-            <p className="historicCount" role="status" aria-live="polite">
+            <p className={styles.historicCount} role="status" aria-live="polite">
               {matchingPubs === totalPubs
                 ? `Showing ${firstShown}-${lastShown} of ${totalPubs} pubs`
                 : `Showing ${firstShown}-${lastShown} of ${matchingPubs} matches`}
@@ -100,7 +100,7 @@ export default function HistoricPageClient({
                 We only show pubs we can cite. Nothing is invented to fill the gap.
               </EmptyState>
             ) : (
-              <ul className="historicGrid">
+              <ul className={styles.historicGrid}>
                 {pubs.map((pub) => {
                   const href = citationHref(pub);
                   // The date chip states what the date is OF, never a bare
@@ -109,36 +109,36 @@ export default function HistoricPageClient({
                   const grade = listedBadge(pub.listed);
                   const status = venueStatusBadge(pub.venueStatus);
                   return (
-                    <li key={pub.slug} className="historicCard">
-                      <div className="historicCardMeta">
+                    <li key={pub.slug} className={styles.historicCard}>
+                      <div className={styles.historicCardMeta}>
                         {dateLabel ? (
-                          <span className="historicEra">{dateLabel}</span>
+                          <span className={styles.historicEra}>{dateLabel}</span>
                         ) : null}
                         {grade ? (
-                          <span className="historicGrade">{grade}</span>
+                          <span className={styles.historicGrade}>{grade}</span>
                         ) : null}
                         {status ? (
-                          <span className="historicGrade">{status}</span>
+                          <span className={styles.historicGrade}>{status}</span>
                         ) : null}
                       </div>
 
-                      <h2 className="historicCardName">{pub.name}</h2>
+                      <h2 className={styles.historicCardName}>{pub.name}</h2>
 
                       {pub.borough ? (
-                        <p className="historicBorough">{pub.borough}</p>
+                        <p className={styles.historicBorough}>{pub.borough}</p>
                       ) : null}
 
-                      <div className="historicHook">
+                      <div className={styles.historicHook}>
                         <ProseDisclosure text={pub.hook} />
                       </div>
 
-                      <div className="historicProvenance">
-                        <span className="historicFactCount">
+                      <div className={styles.historicProvenance}>
+                        <span className={styles.historicFactCount}>
                           {pub.facts.length} on record
                         </span>
                         {href ? (
                           <a
-                            className="historicCite"
+                            className={styles.historicCite}
                             href={href}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -149,9 +149,9 @@ export default function HistoricPageClient({
                         ) : null}
                       </div>
 
-                      <div className="historicActions">
+                      <div className={styles.historicActions}>
                         <Link
-                          className="historicMapLink pressable"
+                          className={`${styles.historicMapLink} pressable`}
                           href={`/historic/${pub.slug}`}
                         >
                           Read the story
@@ -159,7 +159,7 @@ export default function HistoricPageClient({
                         </Link>
                         {pub.venueId ? (
                           <Link prefetch={false}
-                            className="historicMapLink pressable"
+                            className={`${styles.historicMapLink} pressable`}
                             href={`/map?sel=${pub.venueId}`}
                           >
                             See on map
@@ -173,7 +173,7 @@ export default function HistoricPageClient({
               </ul>
             )}
             {totalPages > 1 ? (
-              <nav className="historicPagination" aria-label="Historic pub pages">
+              <nav className={styles.historicPagination} aria-label="Historic pub pages">
                 {page > 1 ? (
                   <Link href={historicIndexHref(filters, page - 1)}>Previous</Link>
                 ) : <span />}

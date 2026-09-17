@@ -24,7 +24,7 @@ import {
 } from "react";
 import type { Session } from "@supabase/supabase-js";
 
-import "@/app/auth/auth.css";
+import authStyles from "@/app/auth/Auth.module.css";
 import ArrivalWelcome from "@/components/auth/ArrivalWelcome";
 import AccountOnboarding from "@/components/identity/AccountOnboarding";
 import IdentityNudge from "@/components/identity/IdentityNudge";
@@ -1063,14 +1063,14 @@ export function AuthProvider({
     <AuthContext.Provider value={value}>
       {children}
       {authCallbackError ? (
-        <div className="authCallbackNotice" role="alert">
+        <div className={authStyles.authCallbackNotice} role="alert">
           <span>{authCallbackError}</span>
           <button type="button" onClick={() => setAuthCallbackError(null)}>
             Dismiss
           </button>
         </div>
       ) : authSignedInNotice ? (
-        <div className="authCallbackNotice authCallbackNotice--ok" role="status">
+        <div className={`${authStyles.authCallbackNotice} ${authStyles.authCallbackNoticeOk}`} role="status">
           <span>{authSignedInNotice}</span>
           <button type="button" onClick={() => setAuthSignedInNotice(null)}>
             Dismiss

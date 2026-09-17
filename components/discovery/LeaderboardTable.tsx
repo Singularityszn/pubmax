@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
+import styles from "@/app/discover/Discover.module.css";
 
 import PriceBadge from "@/components/PriceBadge";
 import prefetchVenue from "@/lib/prefetchVenue";
@@ -42,7 +43,7 @@ export default function LeaderboardTable({
 }: LeaderboardTableProps) {
   if (entries.length === 0) {
     return (
-      <p className="discoverEmpty" role="status">
+      <p className={styles.discoverEmpty} role="status">
         No priced pints to rank just yet. Check back once the taps report in.
       </p>
     );
@@ -50,18 +51,18 @@ export default function LeaderboardTable({
 
   return (
     <>
-      <table className="leaderboard">
-        <caption className="srOnly">{caption}</caption>
+      <table className={styles.leaderboard}>
+        <caption className={styles.srOnly}>{caption}</caption>
         <thead>
           <tr>
-            <th scope="col" className="leaderboardRank">
+            <th scope="col" className={styles.leaderboardRank}>
               #
             </th>
             <th scope="col">Pub</th>
-            <th scope="col" className="leaderboardArea">
+            <th scope="col" className={styles.leaderboardArea}>
               Area
             </th>
-            <th scope="col" className="leaderboardPriceHead">
+            <th scope="col" className={styles.leaderboardPriceHead}>
               Cheapest pint
             </th>
           </tr>
@@ -71,27 +72,27 @@ export default function LeaderboardTable({
             const href = venueMapUrl(entry.venue.id);
             return (
               <tr key={entry.venue.id} data-reveal>
-                <td className="leaderboardRank">
-                  <span className="leaderboardRankNum" aria-hidden="true">
+                <td className={styles.leaderboardRank}>
+                  <span className={styles.leaderboardRankNum} aria-hidden="true">
                     {entry.rank}
                   </span>
-                  <span className="srOnly">Rank {entry.rank}</span>
+                  <span className={styles.srOnly}>Rank {entry.rank}</span>
                 </td>
-                <th scope="row" className="leaderboardName">
+                <th scope="row" className={styles.leaderboardName}>
                   <Link prefetch={false}
                     href={href}
-                    className="leaderboardPub"
+                    className={styles.leaderboardPub}
                     onPointerEnter={() => prefetchVenue(entry.venue.id)}
                     onTouchStart={() => prefetchVenue(entry.venue.id)}
                   >
                     {entry.venue.name}
                   </Link>
                   {entry.venue.cheapestPint ? (
-                    <span className="leaderboardPint">{entry.venue.cheapestPint}</span>
+                    <span className={styles.leaderboardPint}>{entry.venue.cheapestPint}</span>
                   ) : null}
                 </th>
-                <td className="leaderboardArea">{entry.area}</td>
-                <td className="leaderboardPriceHead">
+                <td className={styles.leaderboardArea}>{entry.area}</td>
+                <td className={styles.leaderboardPriceHead}>
                   <PriceBadge
                     variant="cheap"
                     band={priceBand(entry.venue.cheapestPrice, priceBandAreaForVenue(entry.venue.id))}
@@ -99,7 +100,7 @@ export default function LeaderboardTable({
                     {formatPrice(entry.venue.cheapestPrice)}
                   </PriceBadge>
                   <span
-                    className="leaderboardStanding"
+                    className={styles.leaderboardStanding}
                     data-standing={entry.standing}
                     title={priceStandingNote(entry.standing)}
                   >
@@ -111,7 +112,7 @@ export default function LeaderboardTable({
           })}
         </tbody>
       </table>
-      <p className="leaderboardHonesty" role="note">
+      <p className={styles.leaderboardHonesty} role="note">
         {LEADERBOARD_HONESTY}
       </p>
     </>

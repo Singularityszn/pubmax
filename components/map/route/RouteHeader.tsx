@@ -12,6 +12,7 @@ import {
   altStyleLabels,
   type AltCrawlStyle,
 } from "@/lib/crawlUrl";
+import btnStyles from '../addStopBtn.module.css';
 
 type RouteHeaderProps = {
   mode: CrawlMode;
@@ -63,7 +64,7 @@ export default function RouteHeader({
         </div>
         <button
           type="button"
-          className="shareBtn"
+          className={btnStyles.shareBtn}
           onClick={copyLink}
           aria-label="Copy a shareable link to this crawl"
         >

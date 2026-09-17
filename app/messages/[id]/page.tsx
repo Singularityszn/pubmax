@@ -5,7 +5,7 @@ import SiteNav from "@/components/nav/SiteNav";
 
 import MessagesInboxClient from "../MessagesInboxClient";
 
-import "../messages.css";
+import styles from "../Messages.module.css";
 
 // A single conversation's thread (PRD E4). Thin SERVER shell: it owns the page
 // metadata and unwraps the route id, then hands it to the client MessageThread,
@@ -31,14 +31,14 @@ export default async function MessageThreadPage({
 }): Promise<React.JSX.Element> {
   const { id } = await params;
   return (
-    <div className="lp messagesPage">
+    <div className={`lp ${styles.messagesPage}`}>
       <SiteNav />
-      <main id="main" className="container messagesMain messagesMainThread">
-        <div className="messagesSplit">
-          <aside className="messagesInboxPane" aria-label="Inbox">
+      <main id="main" className={`container ${styles.messagesMain} ${styles.messagesMainThread}`}>
+        <div className={styles.messagesSplit}>
+          <aside className={styles.messagesInboxPane} aria-label="Inbox">
             <MessagesInboxClient activeConversationId={id} />
           </aside>
-          <section className="messagesThreadPane" aria-label="Conversation">
+          <section className={styles.messagesThreadPane} aria-label="Conversation">
             <MessageThread conversationId={id} />
           </section>
         </div>

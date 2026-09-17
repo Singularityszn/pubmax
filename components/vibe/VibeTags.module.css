@@ -1,0 +1,87 @@
+/* ── Vibe tags ────────────────────────────────────────────────────────────
+   Tappable multi-select chips in the composer, plus read-only chips on drop
+   cards. Mirrors the .amenity pill shape; selected state reuses the brass
+   accent so it reads as "chosen" without a new colour token.
+   Extracted from app/globals.css.
+
+   NOTE: vibeChips.css (same directory) owns the "house stamp" skin with
+   var(--font-display) and 44px floor. These base rules serve the composer
+   and drop-card contexts at lower specificity.
+
+   All classes are :global() because .vibeChip is shared across multiple
+   components and also defined in vibeChips.css — hashing would break
+   cross-file agreement. */
+
+:global(.vibeTagField) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+:global(.vibeTagField) legend {
+  padding: 0;
+  margin-bottom: 6px;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+:global(.vibeTagRow) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+:global(.vibeChip) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: lowercase;
+  cursor: pointer;
+}
+
+:global(.vibeChip):hover:not(:disabled) {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+:global(.vibeChip):global(.selected) {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 14%, transparent);
+  color: var(--brass);
+}
+
+:global(.vibeChip):disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+:global(.vibeChip):focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+
+/* Read-only chips shown on a drop card — smaller, non-interactive. */
+:global(.dropVibeTags) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 8px 0 0;
+}
+
+:global(.vibeChip):global(.small) {
+  min-height: 0;
+  padding: 2px 8px;
+  border-color: color-mix(in srgb, var(--brass) 35%, transparent);
+  background: rgba(176, 129, 58, 0.1);
+  color: var(--brass);
+  font-size: 0.7rem;
+  cursor: default;
+}

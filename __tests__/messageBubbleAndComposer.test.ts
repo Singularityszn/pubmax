@@ -56,7 +56,7 @@ import { MAX_MESSAGE_BODY } from "@/lib/messages";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
-const CSS = read("app/messages/messages.css");
+const CSS = read("app/messages/Messages.module.css");
 const THREAD = read("components/messages/MessageThread.tsx");
 const PICKER = read("components/messages/MessageAttachmentPicker.tsx");
 const PHOTO = read("components/messages/MessagePhoto.tsx");
@@ -64,7 +64,7 @@ const PHOTO = read("components/messages/MessagePhoto.tsx");
 /** One rule body out of the shipped stylesheet, by selector. */
 function rule(selector: string): string {
   const at = CSS.indexOf(`${selector} {`);
-  expect(at, `${selector} is missing from app/messages/messages.css`).toBeGreaterThan(-1);
+  expect(at, `${selector} is missing from app/messages/Messages.module.css`).toBeGreaterThan(-1);
   return CSS.slice(at, CSS.indexOf("}", at));
 }
 
@@ -92,7 +92,7 @@ function phoneRule(selector: string): string {
     const at = block.indexOf(`${selector} {`);
     if (at > -1) return block.slice(at, block.indexOf("}", at));
   }
-  throw new Error(`${selector} is missing from every 640px block in app/messages/messages.css`);
+  throw new Error(`${selector} is missing from every 640px block in app/messages/Messages.module.css`);
 }
 
 describe("a bubble's width is the row's business, never the bubble's own", () => {
@@ -121,10 +121,10 @@ describe("a bubble's width is the row's business, never the bubble's own", () =>
   });
 
   it("wraps every bubble in the line that carries the limit", () => {
-    expect(THREAD).toContain('<div className="messageLine">');
+    expect(THREAD).toContain('<div className={styles.messageLine}>');
     // One line per row, and the bubble is inside it.
-    const line = THREAD.indexOf('<div className="messageLine">');
-    const bubble = THREAD.indexOf("messageBubble messageBubbleMine");
+    const line = THREAD.indexOf('<div className={styles.messageLine}>');
+    const bubble = THREAD.indexOf("styles.messageBubbleMine");
     expect(bubble).toBeGreaterThan(line);
   });
 
@@ -227,7 +227,7 @@ describe("mobile message attachment picker", () => {
       }),
     );
 
-    expect(markup).toContain('class="mobileSheetPortal messageAttachSheetPortal"');
+    expect(markup).toMatch(/class="mobileSheetPortal [^"]*messageAttachSheetPortal[^"]*"/);
     expect(markup).toContain('class="mobileSharedSheet');
     expect(markup).toContain(">Photos</span>");
     expect(markup).toContain(">Camera</span>");
@@ -305,7 +305,7 @@ describe("a photo tile is measured against the screen, never the reader's font",
     );
     // Both states render the figure, or there is nothing for the width to sit on.
     expect(PHOTO).toContain(`[MESSAGE_PHOTO_ASPECT_PROPERTY]: messagePhotoAspect(width, height)`);
-    expect(PHOTO.match(/className="messagePhotoFigure" style=\{tile\}/g)).toHaveLength(2);
+    expect(PHOTO.match(/className=\{styles\.messagePhotoFigure\} style=\{tile\}/g)).toHaveLength(2);
   });
 
   it("falls back to the frame a message photo is cut to when a dimension is missing", () => {

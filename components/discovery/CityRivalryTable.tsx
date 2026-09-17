@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import styles from "@/app/discover/Discover.module.css";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityShare";
@@ -23,25 +24,25 @@ export default function CityRivalryTable({
 }: CityRivalryTableProps) {
   if (entries.length === 0) {
     return (
-      <p className="discoverEmpty" role="status">
+      <p className={styles.discoverEmpty} role="status">
         City energy ranks land once the packs ship.
       </p>
     );
   }
 
   return (
-    <table className="leaderboard cityRivalry">
-      <caption className="srOnly">{caption}</caption>
+    <table className={`${styles.leaderboard} ${styles.cityRivalry}`}>
+      <caption className={styles.srOnly}>{caption}</caption>
       <thead>
         <tr>
-          <th scope="col" className="leaderboardRank">
+          <th scope="col" className={styles.leaderboardRank}>
             #
           </th>
           <th scope="col">City</th>
-          <th scope="col" className="leaderboardArea cityRivalryDrops">
+          <th scope="col" className={`${styles.leaderboardArea} ${styles.cityRivalryDrops}`}>
             Drops
           </th>
-          <th scope="col" className="leaderboardPriceHead cityRivalryScore">
+          <th scope="col" className={styles.leaderboardPriceHead}>
             Energy
           </th>
         </tr>
@@ -49,25 +50,25 @@ export default function CityRivalryTable({
       <tbody>
         {entries.map((entry, index) => (
           <tr key={entry.cityId}>
-            <td className="leaderboardRank">
-              <span className="leaderboardRankNum" aria-hidden="true">
+            <td className={styles.leaderboardRank}>
+              <span className={styles.leaderboardRankNum} aria-hidden="true">
                 {index + 1}
               </span>
-              <span className="srOnly">Rank {index + 1}</span>
+              <span className={styles.srOnly}>Rank {index + 1}</span>
             </td>
-            <th scope="row" className="leaderboardName">
+            <th scope="row" className={styles.leaderboardName}>
               <Link
-                className="cityRivalryLink"
+                className={styles.cityRivalryLink}
                 href={cityMapShareUrl(entry.cityId)}
                 onClick={() => writePreferredCity(entry.cityId)}
               >
-                <span className="leaderboardPub">{entry.displayName}</span>
-                <span className="leaderboardPint">{entry.tagline}</span>
+                <span className={styles.leaderboardPub}>{entry.displayName}</span>
+                <span className={styles.leaderboardPint}>{entry.tagline}</span>
               </Link>
             </th>
-            <td className="leaderboardArea cityRivalryDrops">{entry.dropCount}</td>
-            <td className="leaderboardPriceHead cityRivalryScore">
-              <span className="cityRivalryScoreNum">{formatScore(entry.score)}</span>
+            <td className={`${styles.leaderboardArea} ${styles.cityRivalryDrops}`}>{entry.dropCount}</td>
+            <td className={styles.leaderboardPriceHead}>
+              <span className={styles.cityRivalryScoreNum}>{formatScore(entry.score)}</span>
             </td>
           </tr>
         ))}

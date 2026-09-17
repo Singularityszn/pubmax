@@ -1,0 +1,374 @@
+/* Moderator console. Uses the app's theme tokens (globals.css :root, swapped
+   per light/dark) so it inherits both palettes for free. */
+
+.admin {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+  color: var(--ink);
+}
+
+.adminNav {
+  margin-bottom: 1.25rem;
+}
+
+.admin h1 {
+  font-size: 1.35rem;
+  margin: 0 0 0.25rem;
+}
+
+.admin p.adminSub {
+  color: var(--muted);
+  margin: 0 0 1.5rem;
+}
+
+.adminSection {
+  margin: 2.5rem 0 0.25rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line, rgba(0, 0, 0, 0.1));
+  font-size: 1.4rem;
+}
+
+.adminMapCallout {
+  display: inline-flex;
+  margin: 0 0 1.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.adminBar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.adminBar input {
+  flex: 1 1 220px;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+}
+
+.adminBar input:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+  border-color: var(--brass);
+}
+
+.adminBtn {
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: var(--brass);
+  color: var(--color-on-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.adminBtn:hover {
+  filter: brightness(1.05);
+}
+
+.adminBtn:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.adminMsg {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  margin-bottom: 1.25rem;
+}
+.adminMsg[role="alert"] {
+  border-color: var(--brick);
+  color: var(--brick);
+}
+
+.adminEmpty {
+  display: grid;
+  gap: 0.4rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--muted);
+}
+
+.adminEmpty strong {
+  color: var(--ink);
+}
+
+/* The way onward from a queue that could not load. Outline, because the queue
+   it sits in is a refusal rather than an invitation. */
+.adminEmpty .adminRetry {
+  justify-self: start;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--brass);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.adminEmpty .adminRetry:hover {
+  background: color-mix(in srgb, var(--brass) 12%, transparent);
+}
+
+.adminEmpty .adminRetry:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.adminEmpty a {
+  color: var(--brass);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.adminList {
+  display: grid;
+  gap: 1rem;
+}
+
+.adminCard {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  padding: 1rem 1.1rem;
+}
+
+.adminCardHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.adminHandle {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.adminVenue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.adminVenueName {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.adminPrice {
+  color: var(--pint);
+  font-weight: 600;
+}
+
+.adminNote {
+  color: var(--ink-soft);
+  margin: 0.25rem 0 0.5rem;
+}
+
+.adminMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+}
+
+.adminReport {
+  color: var(--brick);
+  font-weight: 600;
+}
+
+.adminPhotos {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.adminPhotos img {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.adminActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.adminRestore {
+  border-color: var(--pint);
+  background: var(--pint);
+}
+
+.adminKeep {
+  border-color: var(--brick);
+  background: var(--brick);
+}
+
+.adminTabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0 0 1.25rem;
+}
+
+.adminTab {
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.adminTabActive {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  color: var(--ink);
+}
+
+.adminImportForm {
+  display: grid;
+  gap: 0.9rem;
+  max-width: 520px;
+}
+
+.adminField {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.adminField input,
+.adminField textarea,
+.adminField select {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+}
+
+.adminField textarea {
+  resize: vertical;
+  min-height: 110px;
+}
+
+.adminField input:focus-visible,
+.adminField textarea:focus-visible,
+.adminField select:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+  border-color: var(--brass);
+}
+
+.adminImportQueueHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.adminImportQueueActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.adminInlineCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.adminInlineCheck input {
+  width: auto;
+}
+
+.adminImportList {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.adminImportItem {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+}
+
+.adminImportMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.adminImportStatus {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.adminImportStatusQueued {
+  color: var(--brass);
+}
+
+.adminImportStatusDismissed {
+  color: var(--muted);
+}
+
+.adminImportBody {
+  margin: 0 0 0.4rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.adminImportVenue {
+  margin: 0 0 0.65rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}

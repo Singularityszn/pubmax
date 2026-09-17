@@ -1,0 +1,190 @@
+/* ── Pint drop list primitives ────────────────────────────────────────────
+   Shared inspector cards: .dropList, .dropCard, .dropHead, .dropHandle,
+   .dropPrice, .dropFoot, .dropPhotos, .dropPhoto and the InstaPint
+   photo-backed variant. Primary consumer: PintDropsList.tsx.
+   Extracted from app/globals.css. */
+
+:global(.dropList) {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+:global(.dropCard) {
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+}
+
+:global(.dropCard) :global(.dropHead) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+:global(.dropCard) :global(.dropHandle) {
+  font-weight: 800;
+  font-size: 0.84rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:global(.dropCard) :global(.dropPrice) {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--pint);
+}
+
+:global(.dropCard) p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+:global(.dropCard) small {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+:global(.dropCard) :global(.dropFoot) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+:global(.dropPhotos) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+:global(.dropPhotos):has(img:only-child) {
+  grid-template-columns: 1fr;
+}
+
+:global(.dropPhoto) {
+  width: 100%;
+  max-height: 150px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+}
+
+/* ── InstaPint: bigger, Instagram-ish photo pair on a drop card ─────────────
+   A photo-backed drop gets a taller, framed image pair — the pint and the
+   cheeky bar selfie side by side — with the note reading as the caption below.
+   One photo fills the frame (single column). Text-only drops never get here. */
+:global(.dropCard.instaPint) {
+  padding: 0;
+  overflow: hidden;
+}
+
+:global(.dropCard.instaPint) :global(.dropHead) {
+  padding: 11px 12px 8px;
+  margin-bottom: 0;
+}
+
+:global(.instaFrame) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  background: var(--line);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+/* A drop with a single photo fills the frame edge to edge. */
+:global(.instaFrame):has(figure:only-child) {
+  grid-template-columns: 1fr;
+}
+
+:global(.instaShot) {
+  position: relative;
+  margin: 0;
+  background: var(--panel);
+}
+
+:global(.instaShot) :global(.dropPhoto) {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: none;
+  object-fit: cover;
+  border: 0;
+  border-radius: 0;
+}
+
+:global(.instaShot) figcaption {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(20, 16, 12, 0.68);
+  color: var(--color-on-photo);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+
+/* Note + tags + footer sit inside the padded caption zone of a framed card. */
+:global(.dropCard.instaPint) :global(.dropCaption),
+:global(.dropCard.instaPint) :global(.dropVibeTags),
+:global(.dropCard.instaPint) :global(.dropFoot) {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+:global(.dropCard.instaPint) :global(.dropCaption) {
+  padding-top: 10px;
+}
+
+:global(.dropCard.instaPint) :global(.dropFoot) {
+  padding-bottom: 11px;
+}
+
+:global(.reportBtn) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+:global(.reportBtn):hover {
+  border-color: var(--brick);
+  color: var(--brick);
+}
+
+/* ── Phone responsive (migrated from globals.css) ── */
+
+@media (max-width: 480px) {
+  /* Grids that were two/three columns get cramped on a phone — go single. */
+  :global(.dropPhotos) {
+    grid-template-columns: 1fr;
+  }
+
+  /* The InstaPint pair stays two-up on a phone (square thumbs read fine) so the
+     pint and the bar selfie sit side by side, not stacked full-bleed. */
+  :global(.instaFrame) {
+    grid-template-columns: 1fr 1fr;
+  }
+}

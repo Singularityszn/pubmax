@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { formatPrice, type Venue } from "@/lib/venues";
+import styles from "./MapFallbackCard.module.css";
 
 /**
  * The one thing the map shows when there is no map.
@@ -45,33 +46,33 @@ export default function MapFallbackCard({
   const [detailOpen, setDetailOpen] = useState(false);
 
   return (
-    <div className="mapFallback" role="alert">
+    <div className={`${styles.mapFallback} mapFallback`} role="alert">
       <strong>{heading}</strong>
       <p>{message}</p>
       {detail ? (
-        <div className="mapFallbackDisclosure">
+        <div className={`${styles.mapFallbackDisclosure} mapFallbackDisclosure`}>
           <button
             type="button"
-            className="mapFallbackDisclosureToggle"
+            className={styles.mapFallbackDisclosureToggle}
             aria-expanded={detailOpen}
             onClick={() => setDetailOpen((open) => !open)}
           >
             Technical details
           </button>
-          {detailOpen ? <small className="mapFallbackDetail">{detail}</small> : null}
+          {detailOpen ? <small className={`${styles.mapFallbackDetail} mapFallbackDetail`}>{detail}</small> : null}
         </div>
       ) : null}
       {venues.length > 0 ? (
-        <ul className="mapFallbackVenues" aria-label="Pubs you can still browse">
+        <ul className={styles.mapFallbackVenues} aria-label="Pubs you can still browse">
           {venues.map((venue) => (
             <li key={venue.id}>
               <button
                 type="button"
-                className="mapFallbackVenue"
+                className={`${styles.mapFallbackVenue} mapFallbackVenue`}
                 onClick={() => onSelectVenue(venue.id)}
               >
-                <span className="mapFallbackVenueName">{venue.name}</span>
-                <span className="mapFallbackVenueMeta">
+                <span className={`${styles.mapFallbackVenueName} mapFallbackVenueName`}>{venue.name}</span>
+                <span className={styles.mapFallbackVenueMeta}>
                   {venue.primaryBorough}
                   {venue.cheapestPrice != null
                     ? ` · ${formatPrice(venue.cheapestPrice)}`
@@ -82,11 +83,11 @@ export default function MapFallbackCard({
           ))}
         </ul>
       ) : null}
-      <Link className="mapFallbackBrowse" href="/pubs">
+      <Link className={`${styles.mapFallbackBrowse} mapFallbackBrowse`} href="/pubs">
         Browse all pubs
       </Link>
       {onRetry ? (
-        <button type="button" className="mapFallbackRetry" onClick={onRetry}>
+        <button type="button" className={`${styles.mapFallbackRetry} mapFallbackRetry`} onClick={onRetry}>
           {retryLabel}
         </button>
       ) : null}

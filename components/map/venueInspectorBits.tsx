@@ -3,6 +3,7 @@
 
 import type { ClaimKind, Provenance } from "@/lib/curation";
 import type { AmenityStatus } from "@/lib/venueTruth";
+import styles from './venueInspectorBits.module.css';
 
 const PROVENANCE_LABEL: Record<Provenance, string> = {
   sourced: "Sourced",
@@ -20,12 +21,12 @@ const CLAIM_KIND_LABEL: Record<ClaimKind, string> = {
 };
 
 export function ProvenanceChip({ provenance }: { provenance: Provenance }) {
-  return <span className={`provChip ${provenance}`}>{PROVENANCE_LABEL[provenance]}</span>;
+  return <span className={`${styles.provChip} ${provenance}`}>{PROVENANCE_LABEL[provenance]}</span>;
 }
 
 /** Reuses .provChip; needs-source/baseline get their own colour classes in CSS. */
 export function ClaimBadge({ kind }: { kind: ClaimKind }) {
-  return <span className={`provChip ${kind}`}>{CLAIM_KIND_LABEL[kind]}</span>;
+  return <span className={`${styles.provChip} ${kind}`}>{CLAIM_KIND_LABEL[kind]}</span>;
 }
 
 /**
@@ -41,7 +42,7 @@ export function ClaimBadge({ kind }: { kind: ClaimKind }) {
 export function Amenity({ status, label }: { status: AmenityStatus; label: string }) {
   if (status === "unknown") return null;
   if (status === "known-false") {
-    return <span className="amenity amenity--absent">No {label.toLowerCase()}</span>;
+    return <span className={`${styles.amenity} ${styles['amenity--absent']}`}>No {label.toLowerCase()}</span>;
   }
-  return <span className="amenity">{label}</span>;
+  return <span className={styles.amenity}>{label}</span>;
 }

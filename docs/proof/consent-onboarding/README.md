@@ -1,6 +1,6 @@
 # The consent card and the first-run onboarding surface
 
-Evidence for the fix in `app/onboarding/onboarding.css` and the four cases added
+Evidence for the fix in `app/onboarding/Onboarding.module.css` and the four cases added
 to `e2e/ux-consent-chrome.spec.ts`.
 
 ## What was wrong

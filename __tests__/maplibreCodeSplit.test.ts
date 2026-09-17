@@ -10,7 +10,7 @@ import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 
 const pubMap = readFileSync(join(process.cwd(), "components/PubMap.tsx"), "utf8");
 const canvas = readFileSync(join(process.cwd(), "components/PubMapCanvas.tsx"), "utf8");
-const globalsCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
+const stageChromeCss = readFileSync(join(process.cwd(), "components/map/MapStageChrome.module.css"), "utf8");
 const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"));
 const workerCopy = readFileSync(
   join(process.cwd(), "scripts/copy_maplibre_worker.mjs"),
@@ -36,8 +36,8 @@ describe("maplibre cold-open code split", () => {
 
   it("keeps a full-bleed map-shaped skeleton so CLS stays 0 during the split", () => {
     expect(pubMap).toMatch(/mapCanvasSkeleton/);
-    expect(globalsCss).toMatch(/\.mapCanvasSkeleton\s*\{/);
-    expect(globalsCss).toMatch(/background:\s*var\(--ink-deep/);
+    expect(stageChromeCss).toMatch(/:global\(\.mapCanvasSkeleton\)\s*\{/);
+    expect(stageChromeCss).toMatch(/background:\s*var\(--ink-deep/);
   });
 
   it("defers tfl_lines transit GeoJSON past the first assembleScene", () => {

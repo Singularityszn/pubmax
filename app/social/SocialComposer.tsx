@@ -1,5 +1,7 @@
 "use client";
 
+import "@/components/map/composer/PhotoComposer.module.css";
+
 import { type RefObject, useEffect, useId, useRef, useState } from "react";
 
 import { nightAreasByCity } from "@/lib/nightAreas";
@@ -9,6 +11,8 @@ import { authedActionJson } from "@/lib/authedFetch";
 import { readSocialDraftPhoto, saveSocialDraftPhoto } from "@/lib/socialComposerDrafts";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+
+import styles from "./Social.module.css";
 
 type VenueChoice = { id: string; name: string; borough: string };
 type Draft = {
@@ -106,21 +110,21 @@ function PhotoEditor({
   const attachedPhoto = Boolean(photo || (post?.photo && !removePhoto));
   return (
     <>
-      <label className="socialPhotoPicker">
-        <span className="socialPhotoCue" aria-hidden="true">+</span>
+      <label className={styles.socialPhotoPicker}>
+        <span className={styles.socialPhotoCue} aria-hidden="true">+</span>
         <span>{photo ? photo.name : post?.photo && !removePhoto ? "Replace photo" : "Add photo"}</span>
         <input ref={fileInputRef} aria-label="Add photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => onPhoto(event.currentTarget.files?.[0] ?? null)} />
       </label>
       {previewSource ? (
-        <figure className="socialComposerPhotoPreview">
+        <figure className={styles.socialComposerPhotoPreview}>
           {/* eslint-disable-next-line @next/next/no-img-element -- local object URL or private signed delivery route. */}
           <img src={previewSource} alt={photo ? "Selected photo preview" : draft.altText} />
         </figure>
       ) : null}
       {photo ? (
-        <button type="button" className="socialRemovePhoto" onClick={onClearSelected}>Remove selected photo</button>
+        <button type="button" className={styles.socialRemovePhoto} onClick={onClearSelected}>Remove selected photo</button>
       ) : post?.photo ? (
-        <button type="button" className="socialRemovePhoto" onClick={onToggleExisting}>{removePhoto ? "Keep photo" : "Remove photo"}</button>
+        <button type="button" className={styles.socialRemovePhoto} onClick={onToggleExisting}>{removePhoto ? "Keep photo" : "Remove photo"}</button>
       ) : null}
       {attachedPhoto ? (
         <label>Photo description<input required maxLength={300} value={draft.altText} onChange={(event) => onDraft({ ...draft, altText: event.currentTarget.value })} /></label>
@@ -153,7 +157,7 @@ function VenueEditor({
   return (
     <>
       {draft.venueId ? (
-        <div className="socialSelectedVenue" aria-label="Selected Venue">
+        <div className={styles.socialSelectedVenue} aria-label="Selected Venue">
           <span>{draft.venueName}</span>
           <button type="button" onClick={() => onDraft({ ...draft, venueId: null, venueName: "" })}>Remove venue</button>
         </div>
@@ -185,7 +189,7 @@ function VenueEditor({
       )}
       <p className="srOnly" role="status" aria-live="polite">{announcement}</p>
       {results.length > 0 && !draft.venueId ? (
-        <ul id={listId} className="socialVenueResults" role="listbox" aria-label="Venue results">
+        <ul id={listId} className={styles.socialVenueResults} role="listbox" aria-label="Venue results">
           {results.map((venue, index) => (
             <li key={venue.id} role="presentation"><button id={`${listId}-option-${index}`} type="button" role="option" aria-selected={activeIndex === index} tabIndex={-1} onMouseDown={(event) => event.preventDefault()} onClick={() => onSelect(venue)}>{venue.name}, {venue.borough}</button></li>
           ))}
@@ -561,7 +565,7 @@ export default function SocialComposer({
           post, and the route may carry the mark once. */}
       <button
         ref={triggerRef}
-        className={editing ? "socialEditButton" : "socialButton socialComposeOpen"}
+        className={editing ? styles.socialEditButton : `${styles.socialButton} ${styles.socialComposeOpen}`}
         type="button"
         data-primary-action={editing ? undefined : ""}
         disabled={!draftReady}
@@ -571,7 +575,7 @@ export default function SocialComposer({
       </button>
       {open ? (
         <div
-          className="socialComposerBackdrop"
+          className={styles.socialComposerBackdrop}
           role="presentation"
           onMouseDown={(event) => {
             if (event.currentTarget === event.target) closeComposer();
@@ -579,7 +583,7 @@ export default function SocialComposer({
         >
           <section
             ref={dialogRef}
-            className="socialComposer"
+            className={styles.socialComposer}
             role="dialog"
             aria-modal="true"
             aria-labelledby={composerId}
@@ -605,7 +609,7 @@ export default function SocialComposer({
             {feedback ? (
               <div
                 ref={feedbackRef}
-                className="socialComposerFeedback"
+                className={styles.socialComposerFeedback}
                 role={feedbackIsStatus ? "status" : "alert"}
                 tabIndex={feedbackIsStatus ? undefined : -1}
               >
@@ -621,14 +625,14 @@ export default function SocialComposer({
             {hasDraftChanges ? (
               <button
                 type="button"
-                className="socialClearDraft"
+                className={styles.socialClearDraft}
                 onClick={() => void clearDraft()}
               >
                 Clear draft
               </button>
             ) : null}
 
-            <label className="socialComposerBody">
+            <label className={styles.socialComposerBody}>
               Write post
               <textarea
                 ref={bodyRef}
@@ -680,7 +684,7 @@ export default function SocialComposer({
             <PolicyFields draft={draft} hasPhoto={Boolean(photo)} onDraft={setDraft} />
 
             {concurrent ? (
-              <p className="socialComposerConcurrent" role="status">
+              <p className={styles.socialComposerConcurrent} role="status">
                 This draft is open in another tab.
               </p>
             ) : null}

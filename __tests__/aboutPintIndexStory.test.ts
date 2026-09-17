@@ -164,7 +164,7 @@ describe("About outings story (Wave S1)", () => {
 
     // The note lives inside the "Who builds it" section, after the intro line.
     const teamAt = html.indexOf('aria-labelledby="team"');
-    const noteAt = html.indexOf('class="aboutFounderNote"');
+    const noteAt = html.search(/class="[^"]*aboutFounderNote[^"]*"/);
     expect(teamAt).toBeGreaterThan(-1);
     expect(noteAt).toBeGreaterThan(teamAt);
 
@@ -208,7 +208,7 @@ describe("About outings story (Wave S1)", () => {
     const html = await renderAbout();
 
     expect(html).toContain('data-testid="site-nav"');
-    expect(html).toContain('class="screen aboutHero"');
+    expect(html).toMatch(/class="screen [^"]*aboutHero[^"]*"/);
     expect(html).not.toContain("aboutBrand");
     expect(html).not.toContain("aboutBrassRule");
     expect(html).toContain('class="screenLede"');

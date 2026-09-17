@@ -12,6 +12,7 @@ import {
 } from "@/lib/groupPrefs";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
+import planStyles from "@/app/plan/Plan.module.css";
 
 type Props = {
   planId: string;
@@ -185,26 +186,26 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
   const mustHaves = overlap.mustHaveLabels.join(", ");
 
   return (
-    <section className="matchGroupPrefs" aria-labelledby="match-group-prefs-title">
-      <div className="matchGroupPrefs__heading">
+    <section className={planStyles.matchGroupPrefs} aria-labelledby="match-group-prefs-title">
+      <div className={planStyles.matchGroupPrefs__heading}>
         <div>
-          <p className="matchGroupPrefs__eyebrow">Sort My Night P1</p>
+          <p className={planStyles.matchGroupPrefs__eyebrow}>Sort My Night P1</p>
           <h4 id="match-group-prefs-title">Match the group</h4>
         </div>
         <span>{shared ? "Shared with this plan" : "Not shared yet"}</span>
       </div>
-      <p className="matchGroupPrefs__intro">
+      <p className={planStyles.matchGroupPrefs__intro}>
         Pick a budget, a vibe and optional needs. Saved picks are shared with everyone on this plan.
       </p>
 
-      <div className="matchGroupPrefs__field">
+      <div className={planStyles.matchGroupPrefs__field}>
         <strong>Budget</strong>
-        <div className="matchGroupPrefs__chips" role="group" aria-label="Budget preference">
+        <div className={planStyles.matchGroupPrefs__chips} role="group" aria-label="Budget preference">
           {GROUP_PREF_BUDGET_BANDS.map((band) => (
             <button
               key={band.id}
               type="button"
-              className="matchGroupPrefs__chip"
+              className={planStyles.matchGroupPrefs__chip}
               aria-pressed={budgetBand === band.id}
               disabled={pending}
               onClick={() => void save({ budgetBand: band.id })}
@@ -215,14 +216,14 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         </div>
       </div>
 
-      <div className="matchGroupPrefs__field">
+      <div className={planStyles.matchGroupPrefs__field}>
         <strong>Vibe</strong>
-        <div className="matchGroupPrefs__chips" role="group" aria-label="Atmosphere preference">
+        <div className={planStyles.matchGroupPrefs__chips} role="group" aria-label="Atmosphere preference">
           {GROUP_PREF_ATMOSPHERE_CHIPS.map((chip) => (
             <button
               key={chip.id}
               type="button"
-              className="matchGroupPrefs__chip"
+              className={planStyles.matchGroupPrefs__chip}
               aria-pressed={atmosphereChip === chip.id}
               disabled={pending}
               onClick={() => void save({ atmosphereChip: chip.id })}
@@ -233,10 +234,10 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         </div>
       </div>
 
-      <div className="matchGroupPrefs__actions">
+      <div className={planStyles.matchGroupPrefs__actions}>
         <button
           type="button"
-          className="matchGroupPrefs__chip"
+          className={planStyles.matchGroupPrefs__chip}
           aria-pressed={zeroProof}
           disabled={pending}
           onClick={() => void save({ zeroProof: !zeroProof })}
@@ -245,7 +246,7 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         </button>
         <button
           type="button"
-          className="matchGroupPrefs__chip"
+          className={planStyles.matchGroupPrefs__chip}
           aria-pressed={accessibilityRequired}
           disabled={pending}
           onClick={() => void save({ accessibilityRequired: !accessibilityRequired })}
@@ -254,28 +255,28 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         </button>
         <button
           type="button"
-          className="matchGroupPrefs__chip"
+          className={planStyles.matchGroupPrefs__chip}
           aria-pressed={weatherShelterRequired}
           disabled={pending}
           onClick={() => void save({ weatherShelterRequired: !weatherShelterRequired })}
         >
           Covered shelter
         </button>
-        <button type="button" className="planCollab__quiet" onClick={() => void clearPrefs()} disabled={pending}>
+        <button type="button" className={planStyles.planCollab__quiet} onClick={() => void clearPrefs()} disabled={pending}>
           Clear my picks
         </button>
       </div>
 
       {isHost && mustHaves ? (
-        <output className="matchGroupPrefs__mustHaves" aria-live="polite">
+        <output className={planStyles.matchGroupPrefs__mustHaves} aria-live="polite">
           Must-haves for this plan: {mustHaves}. Shared with the crew for this night.
         </output>
       ) : null}
 
-      <output className="matchGroupPrefs__summary" aria-live="polite">
+      <output className={planStyles.matchGroupPrefs__summary} aria-live="polite">
         Crew overlap: {summary || "waiting on mate picks"}. {meta}
       </output>
-      {status ? <p className="matchGroupPrefs__status" role="status">{status}</p> : null}
+      {status ? <p className={planStyles.matchGroupPrefs__status} role="status">{status}</p> : null}
     </section>
   );
 }

@@ -16,7 +16,7 @@ const editorSource = readFileSync(
   "utf8",
 );
 const css = readFileSync(
-  join(process.cwd(), "app/u/[handle]/profile.css"),
+  join(process.cwd(), "app/u/[handle]/Profile.module.css"),
   "utf8",
 );
 
@@ -47,9 +47,9 @@ describe("profile edit mode is unmistakable", () => {
   });
 
   it("gives the editing surface a distinct treatment in the shipped CSS", () => {
-    expect(css).toContain(".profilePage .profileEditingSurface {");
-    expect(css).toMatch(/profileEditingSurface \{[^}]*border: 2px solid var\(--brass\)/);
-    expect(css).toContain('.profilePage .profileEditToggle[aria-expanded="true"]');
-    expect(css).toContain(".profilePage .profileSavedNotice {");
+    expect(css).toContain(".profilePage :global(.profileEditingSurface) {");
+    expect(css).toMatch(/profileEditingSurface\) \{[^}]*border: 2px solid var\(--brass\)/);
+    expect(css).toContain('.profilePage :global(.profileEditToggle[aria-expanded="true"])');
+    expect(css).toContain(".profilePage :global(.profileSavedNotice) {");
   });
 });

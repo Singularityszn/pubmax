@@ -19,6 +19,7 @@ import { subscribeToAuthFragmentRestored } from "@/lib/authRedirect";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
+import planStyles from "@/app/plan/Plan.module.css";
 
 function readInviteTokenFromHash(): string | null {
   if (typeof window === "undefined") return null;
@@ -332,27 +333,27 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
   }
 
   return (
-    <section className="planCrew" aria-labelledby="plan-crew-title">
-      <div className="planCrew__heading">
-        <div><p className="planPage__eyebrow">The crew</p><h2 id="plan-crew-title">Who&rsquo;s in</h2></div>
+    <section className={planStyles.planCrew} aria-labelledby="plan-crew-title">
+      <div className={planStyles.planCrew__heading}>
+        <div><p className={planStyles.planPage__eyebrow}>The crew</p><h2 id="plan-crew-title">Who&rsquo;s in</h2></div>
         <span>{crew.length || ""}</span>
       </div>
 
       {!sessionReady && !memberToken ? (
-        <p className="planCrew__empty" role="status">
+        <p className={planStyles.planCrew__empty} role="status">
           {sessionUnavailable ? "Your private crew session is temporarily unavailable." : "Restoring your private crew session…"}
           {sessionUnavailable ? <button type="button" onClick={() => { setSessionUnavailable(false); setSessionAttempt((value) => value + 1); }}>Retry</button> : null}
         </p>
       ) : !memberToken && inviteHashIsMalformed(hashInviteToken) ? (
-        <p className="planCrew__empty" role="status">
+        <p className={planStyles.planCrew__empty} role="status">
           {MALFORMED_INVITE_LINE}
         </p>
       ) : !memberToken && !hashInviteToken ? (
-        <p className="planCrew__empty" role="status">
+        <p className={planStyles.planCrew__empty} role="status">
           Open the invite link your host sent to join this crew.
         </p>
       ) : !memberToken ? (
-        <form className="planCrew__join" onSubmit={join}>
+        <form className={planStyles.planCrew__join} onSubmit={join}>
           <label htmlFor="join-name">Your name is enough.</label>
           <p className="planCrew__joinNote">
             If you&rsquo;re signed in with a claimed handle, joining connects you
@@ -361,7 +362,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
           <div><input id="join-name" type="text" autoComplete="name" maxLength={CREW_NAME_MAX} value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" required /><button type="submit" disabled={pending}>I&rsquo;m in</button></div>
         </form>
       ) : (
-        <div className="planCrew__presence" role="group" aria-label="Update your status">
+        <div className={planStyles.planCrew__presence} role="group" aria-label="Update your status">
           {(Object.keys(STATUS_LABELS) as CrewPresenceStatus[]).map((status) => (
             <button
               type="button"
@@ -378,7 +379,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       )}
 
       {crew.length ? (
-        <ul className="planCrew__list">
+        <ul className={planStyles.planCrew__list}>
           {crew.map((member, index) => (
             <li key={member.id} style={{ "--i": index } as CSSProperties}>
               <span>{member.name}</span>
@@ -390,14 +391,14 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
         // Preview: the host is the only name the server will name to a
         // non-member. The rest of the roster arrives once the fetch above
         // confirms a member capability.
-        <ul className="planCrew__list">
+        <ul className={planStyles.planCrew__list}>
           <li style={{ "--i": 0 } as CSSProperties}>
             <span>{hostName}</span>
             <small>Host</small>
           </li>
         </ul>
       )}
-      {error ? <p className="planComposer__error" role="alert">{error}</p> : null}
+      {error ? <p className={planStyles.planComposer__error} role="alert">{error}</p> : null}
     </section>
   );
 }

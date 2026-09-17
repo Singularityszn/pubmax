@@ -9,7 +9,7 @@ function read(rel: string): string {
 }
 
 describe("app-wide auth-wall width contract (post-766)", () => {
-  const authCss = read("app/auth/auth.css");
+  const authCss = read("app/auth/Auth.module.css");
 
   it("caps standalone .authOptions at 26rem and fills the host", () => {
     expect(authCss).toMatch(/\.authOptions\s*\{[\s\S]*?max-width:\s*26rem/);
@@ -27,7 +27,7 @@ describe("app-wide auth-wall width contract (post-766)", () => {
 
 describe("messages thread eyebrow uses type token", () => {
   it("reads --text-2xs instead of a raw rem size", () => {
-    const css = read("app/messages/messages.css");
+    const css = read("app/messages/Messages.module.css");
     const rule = /\.messagesThreadEyebrow\s*\{([\s\S]*?)\}/.exec(css);
     expect(rule, ".messagesThreadEyebrow missing").not.toBeNull();
     expect(rule![1]).toMatch(/font-size:\s*var\(--text-2xs,\s*0\.68rem\)/);

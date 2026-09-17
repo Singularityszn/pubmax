@@ -128,10 +128,10 @@ import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 
 const root = process.cwd();
 const wordmark = readFileSync(join(root, "components/brand/PubmaxxWordmark.tsx"), "utf8");
-const consent = readFileSync(join(root, "app/globals.css"), "utf8");
+const consent = readFileSync(join(root, "components/AnalyticsConsent.module.css"), "utf8");
 const tour = readFileSync(join(root, "components/onboarding/firstRunTour.css"), "utf8");
 const planEntry = readFileSync(join(root, "components/plan/PlanDescribeFirst.tsx"), "utf8");
-const planCss = readFileSync(join(root, "app/plan/plan.css"), "utf8");
+const planCss = readFileSync(join(root, "app/plan/Plan.module.css"), "utf8");
 const mobileMapCss = readFileSync(
   join(root, "components/mobile/mobileMapShell.css"),
   "utf8",

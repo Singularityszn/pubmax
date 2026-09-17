@@ -4,7 +4,7 @@ import PlanComposer from "@/components/plan/PlanComposer";
 import SiteNav from "@/components/nav/SiteNav";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 
-import "./plan.css";
+import planStyles from "./Plan.module.css";
 
 const PAGE_TITLE = "Sort the outing";
 const PAGE_DESCRIPTION =
@@ -69,7 +69,7 @@ export const metadata: Metadata = {
 
 export default function NewPlanPage() {
   return (
-    <main id="main" className="planPage planPage--composer">
+    <main id="main" className={`${planStyles.planPage} planPage--composer`}>
       {/* Standard site navigation: /plan is a shared-link surface and must
           never be a dead end. The route's head (kicker, h1, the one primary
           action) is the describe-first Screen inside PlanComposer, so nothing

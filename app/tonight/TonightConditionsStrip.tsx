@@ -22,7 +22,7 @@ import { coarsenViewerPoint } from "@/lib/geo";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import type { TonightConditionsSummary } from "@/lib/tonightConditions";
 
-import "./tonightConditions.css";
+import styles from "./TonightConditions.module.css";
 
 type Props = {
   origin?: { lat: number; lng: number } | null;
@@ -54,17 +54,17 @@ export default function TonightConditionsStrip({ origin }: Props) {
   if (!summary) return null;
 
   return (
-    <div className="tonightConditions" data-testid="tonight-conditions">
-      <CloudSun size={16} aria-hidden="true" className="tonightConditionsIcon" />
-      <p className="tonightConditionsCopy">
-        <span className="tonightConditionsLead">
+    <div className={styles.tonightConditions} data-testid="tonight-conditions">
+      <CloudSun size={16} aria-hidden="true" className={styles.tonightConditionsIcon} />
+      <p className={styles.tonightConditionsCopy}>
+        <span className={styles.tonightConditionsLead}>
           {summary.dateLabel}, {summary.weatherLabel}.
         </span>{" "}
         <span>{summary.drinkLine}</span>
         {summary.venueClaim ? (
           <>
             {" "}
-            <span className="tonightConditionsVenues">{summary.venueClaim}.</span>
+            <span className={styles.tonightConditionsVenues}>{summary.venueClaim}.</span>
           </>
         ) : null}
       </p>

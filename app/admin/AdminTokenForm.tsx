@@ -5,7 +5,7 @@ import Link from "next/link";
 import SiteNav from "@/components/nav/SiteNav";
 import AdminSessionEntry from "./AdminSessionEntry";
 
-import "./admin.css";
+import styles from "./Admin.module.css";
 
 /**
  * The only surface an anonymous GET /admin may show. It spends the existing
@@ -15,12 +15,12 @@ import "./admin.css";
  */
 export default function AdminTokenForm(): React.JSX.Element {
   return (
-    <main id="main" className="admin">
+    <main id="main" className={styles.admin}>
       <SiteNav />
 
       <h1>Moderator sign-in</h1>
-      <p className="admin-sub">Enter the admin token to open the console.</p>
-      <Link prefetch={false} className="adminMapCallout" href="/map">
+      <p className={styles.adminSub}>Enter the admin token to open the console.</p>
+      <Link prefetch={false} className={styles.adminMapCallout} href="/map">
         Back to the map
       </Link>
       <AdminSessionEntry onOpened={() => window.location.assign("/admin")} />

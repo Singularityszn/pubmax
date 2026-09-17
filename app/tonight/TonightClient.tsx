@@ -122,10 +122,8 @@ import {
   WHATS_ON_KIND_META,
 } from "@/lib/whatsOnBadges";
 
-import "./tonight.css";
-import "./tonightDedup.css";
-import "./tonightLede.css";
-import "./tonightOnTonightSummary.css";
+import styles from "./Tonight.module.css";
+import dedupStyles from "./TonightDedup.module.css";
 
 type Origin = { lat: number; lng: number };
 type LocationStatus = "idle" | "requesting" | "unavailable";
@@ -162,7 +160,7 @@ function areaNewsSlug(
 // (UI_UX_FIX_PRD #1), so the main column remains the only full listing spine.
 function mobileSecondaryLanes(lanes: ReactNode): ReactNode {
   return (
-    <div className="tonightSecondaryLanes tonightSecondaryLanes--mobile">{lanes}</div>
+    <div className={styles.tonightSecondaryLanesMobile}>{lanes}</div>
   );
 }
 
@@ -515,7 +513,7 @@ export default function TonightClient({
   return (
     <main
       id="main"
-      className="tonightPage"
+      className={styles.tonightPage}
       data-testid="tonight-screen"
       data-listings-status={listingsStatus}
       data-picks-state={listingsState.kind}
@@ -543,7 +541,7 @@ export default function TonightClient({
           Measured in docs/proof/tonight-first-row-fold/. */}
       <Screen
         as="div"
-        className="tonightDesktopGrid"
+        className={styles.tonightDesktopGrid}
         kicker="Tonight in London"
         title={tonightHeading(localityBasis)}
         titleId="tonight-title"
@@ -563,11 +561,11 @@ export default function TonightClient({
       {/* The weather line is one sentence about the night, so it reads before
           the lede at every width: it is the only thing between the head and
           the pubs. */}
-      <div className="tonightWeather">
+      <div className={styles.tonightWeather}>
         <TonightConditionsStrip origin={origin} />
       </div>
 
-      <div className="tonightPrimary" data-status={listingsStatus}>
+      <div className={styles.tonightPrimary} data-status={listingsStatus}>
       {/* THE LEDE REGION. What a reader meets first is the pubs people are
           talking about, then the independent listings, then the honest quiet
           sentence, and nothing else may stand inside it. The chain blocks and
@@ -589,27 +587,27 @@ export default function TonightClient({
         <>
           {facets.length > 1 ? (
             <div
-              className="tonightFilters"
+              className={styles.tonightFilters}
               role="group"
               aria-label="Filter tonight by kind"
             >
               <button
                 type="button"
-                className="tonightChip"
+                className={styles.tonightChip}
                 data-active={activeKind === null}
                 aria-pressed={activeKind === null}
                 onClick={() => setActiveKind(null)}
               >
                 All
                 {activeKind === null ? (
-                  <span className="tonightChipCount">{groupedAll.length}</span>
+                  <span className={styles.tonightChipCount}>{groupedAll.length}</span>
                 ) : null}
               </button>
               {facets.map((facet) => (
                 <button
                   key={facet.kind}
                   type="button"
-                  className="tonightChip"
+                  className={styles.tonightChip}
                   data-active={activeKind === facet.kind}
                   data-kind={facet.kind}
                   aria-pressed={activeKind === facet.kind}
@@ -620,7 +618,7 @@ export default function TonightClient({
                 >
                   {facet.label}
                   {activeKind === null || activeKind === facet.kind ? (
-                    <span className="tonightChipCount">
+                    <span className={styles.tonightChipCount}>
                       {activeKind === null ? facet.count : grouped.length}
                     </span>
                   ) : null}
@@ -629,7 +627,7 @@ export default function TonightClient({
             </div>
           ) : null}
 
-          <ul id="tonight-list" className="tonightList" data-testid="tonight-list">
+          <ul id="tonight-list" className={styles.tonightList} data-testid="tonight-list">
             {grouped.map((group) => {
               const row = group.row;
               const { primary: link, mapHref, sourceLabel } = tonightRowLinks(
@@ -652,40 +650,40 @@ export default function TonightClient({
                 row.kind === "deal" ? dealListingAgeCaption(row) : null;
               const RowInner = (
                 <>
-                  <div className="tonightRowMeta">
-                    <span className="tonightRowKind" data-kind={row.kind}>
+                  <div className={styles.tonightRowMeta}>
+                    <span className={styles.tonightRowKind} data-kind={row.kind}>
                       <KindIcon size={12} aria-hidden="true" />
                       {meta.label}
                     </span>
                     {barePrice !== null ? (
-                      <span className="tonightRowPrice">
+                      <span className={styles.tonightRowPrice}>
                         £{barePrice.toFixed(2)}
                       </span>
                     ) : null}
                   </div>
-                  <h2 className="tonightRowTitle">{row.title}</h2>
-                  <p className="tonightRowPlace">
+                  <h2 className={styles.tonightRowTitle}>{row.title}</h2>
+                  <p className={styles.tonightRowPlace}>
                     <MapPin size={13} aria-hidden="true" />
                     <span>{row.placeName}</span>
                   </p>
-                  <div className="tonightRowFacts">
+                  <div className={styles.tonightRowFacts}>
                     {when ? <span className="tonightRowWhen">{when}</span> : null}
                     {dealEnds ? (
-                      <span className="tonightRowEnds">{dealEnds}</span>
+                      <span className={styles.tonightRowEnds}>{dealEnds}</span>
                     ) : null}
                     {walk ? (
-                      <span className="tonightRowWalk">
+                      <span className={styles.tonightRowWalk}>
                         <Footprints size={12} aria-hidden="true" />
                         {walk}
                       </span>
                     ) : null}
-                    <span className="tonightRowSource">via {sourceLabel}</span>
+                    <span className={styles.tonightRowSource}>via {sourceLabel}</span>
                   </div>
                   {dealListingAge ? (
-                    <p className="tonightRowListingAge">{dealListingAge}</p>
+                    <p className={styles.tonightRowListingAge}>{dealListingAge}</p>
                   ) : null}
                   {link ? (
-                    <span className="tonightRowCta">
+                    <span className={styles.tonightRowCta}>
                       {link.external ? (
                         <>
                           {sourceLabel}
@@ -704,14 +702,14 @@ export default function TonightClient({
               return (
                 <li
                   key={row.id}
-                  className="tonightRow"
+                  className={styles.tonightRow}
                   data-kind={row.kind}
                   data-testid="tonight-row"
                 >
                   {link ? (
                     link.external ? (
                       <a
-                        className="tonightRowLink pressable"
+                        className={`${styles.tonightRowLink} pressable`}
                         href={link.href}
                         target="_blank"
                         rel="noreferrer noopener"
@@ -721,7 +719,7 @@ export default function TonightClient({
                       </a>
                     ) : (
                       <Link prefetch={false}
-                        className="tonightRowLink pressable"
+                        className={`${styles.tonightRowLink} pressable`}
                         href={link.href}
                         onClick={() => trackEvent("tonight_result_opened", { kind: row.kind, localityBasis })}
                       >
@@ -729,11 +727,11 @@ export default function TonightClient({
                       </Link>
                     )
                   ) : (
-                    <div className="tonightRowLink">{RowInner}</div>
+                    <div className={styles.tonightRowLink}>{RowInner}</div>
                   )}
                   {mapHref ? (
                     <Link prefetch={false}
-                      className="tonightRowMapLink pressable"
+                      className={`${styles.tonightRowMapLink} pressable`}
                       href={mapHref}
                       onClick={() => trackEvent("tonight_result_opened", { kind: row.kind, localityBasis })}
                     >
@@ -748,23 +746,23 @@ export default function TonightClient({
                       familyKey={tonightAcceptanceFamilyKey(row)}
                       evidence={rowEvidence(row)}
                       placeName={row.placeName}
-                      className="tonightRowAccept"
+                      className={styles.tonightRowAccept}
                       label="Keep this venue"
                       acceptanceError={acceptanceError}
                       onAccept={acceptVenue}
                     />
                   ) : null}
                   {group.venueCount > 1 ? (
-                    <details className="tonightRowMore">
-                      <summary className="tonightRowMoreToggle">
+                    <details className={dedupStyles.tonightRowMore}>
+                      <summary className={dedupStyles.tonightRowMoreToggle}>
                         <ChevronDown
                           size={14}
                           aria-hidden="true"
-                          className="tonightRowMoreChevron"
+                          className={dedupStyles.tonightRowMoreChevron}
                         />
                         {dealDigestNote(group.venueCount)}
                       </summary>
-                      <ul className="tonightRowMoreList">
+                      <ul className={dedupStyles.tonightRowMoreList}>
                         {group.alternates.map((alt) => {
                           const altLink = tonightRowLinks(alt, selectableVenueIds).primary;
                           const altVenueId = tonightAcceptedVenueId(alt, selectableVenueIds);
@@ -773,39 +771,39 @@ export default function TonightClient({
                               ? walkLabel(walkMinutes(origin, { lat: alt.lat, lng: alt.lng }))
                               : null;
                           const altPlace = (
-                            <span className="tonightRowMorePlace">
+                            <span className={dedupStyles.tonightRowMorePlace}>
                               <MapPin size={12} aria-hidden="true" />
                               {alt.placeName}
                             </span>
                           );
                           return (
-                            <li key={alt.id} className="tonightRowMoreItem">
+                            <li key={alt.id} className={dedupStyles.tonightRowMoreItem}>
                               {altLink ? (
                                 altLink.external ? (
                                   <a
-                                    className="tonightRowMoreLink pressable"
+                                    className={`${dedupStyles.tonightRowMoreLink} pressable`}
                                     href={altLink.href}
                                     target="_blank"
                                     rel="noreferrer noopener"
                                   >
                                     {altPlace}
                                     {altWalk ? (
-                                      <span className="tonightRowMoreWalk">{altWalk}</span>
+                                      <span className={dedupStyles.tonightRowMoreWalk}>{altWalk}</span>
                                     ) : null}
                                   </a>
                                 ) : (
-                                  <Link prefetch={false} className="tonightRowMoreLink pressable" href={altLink.href}>
+                                  <Link prefetch={false} className={`${dedupStyles.tonightRowMoreLink} pressable`} href={altLink.href}>
                                     {altPlace}
                                     {altWalk ? (
-                                      <span className="tonightRowMoreWalk">{altWalk}</span>
+                                      <span className={dedupStyles.tonightRowMoreWalk}>{altWalk}</span>
                                     ) : null}
                                   </Link>
                                 )
                               ) : (
-                                <span className="tonightRowMoreLink">
+                                <span className={dedupStyles.tonightRowMoreLink}>
                                   {altPlace}
                                   {altWalk ? (
-                                    <span className="tonightRowMoreWalk">{altWalk}</span>
+                                    <span className={dedupStyles.tonightRowMoreWalk}>{altWalk}</span>
                                   ) : null}
                                 </span>
                               )}
@@ -815,7 +813,7 @@ export default function TonightClient({
                                   familyKey={tonightAcceptanceFamilyKey(alt)}
                                   evidence={rowEvidence(alt)}
                                   placeName={alt.placeName}
-                                  className="tonightRowMoreAccept"
+                                  className={dedupStyles.tonightRowMoreAccept}
                                   label="Keep"
                                   acceptanceError={acceptanceError}
                                   onAccept={acceptVenue}
@@ -833,12 +831,12 @@ export default function TonightClient({
           </ul>
 
           {grouped.length === 0 ? (
-            <p className="tonightStatus" role="status">
+            <p className={styles.tonightStatus} role="status">
               No {activeKind ? WHATS_ON_KIND_META[activeKind].label.toLowerCase() : "matching"}{" "}
               listings tonight.{" "}
               <button
                 type="button"
-                className="tonightInlineReset"
+                className={styles.tonightInlineReset}
                 onClick={() => setActiveKind(null)}
               >
                 Show all
@@ -854,7 +852,7 @@ export default function TonightClient({
       {/* The freshness stamp and the share control sit UNDER the listings they
           are about. A stamp is a footnote on the data, and nobody shares a list
           they have not read yet. */}
-      <div className="tonightHeadCredits">
+      <div className={styles.tonightHeadCredits}>
         {ready || empty ? (
           <TonightProvenanceLines
             provenance={provenance}
@@ -872,7 +870,7 @@ export default function TonightClient({
           above holds the lede and nothing else, so no chain row can stand
           inside it. From 1100px the full lanes hide and the rail summary stands
           in for them. */}
-      <aside className="tonightContext" aria-label="Tonight at a glance">
+      <aside className={styles.tonightContext} aria-label="Tonight at a glance">
         {ready ? (
           <TonightOnTonightSummary
             facets={displayedFacets}
@@ -899,7 +897,7 @@ export default function TonightClient({
            not the brand's. Kind-backed chips appear only when their listing
            kind exists; ask-backed chips remain useful on an empty night. */
         <VibeChips
-          shellClassName="tonightVibes"
+          shellClassName={styles.tonightVibes}
           groupLabel="What’s the vibe tonight"
           lede={"What’s the vibe?"}
         >
@@ -951,7 +949,7 @@ export default function TonightClient({
 
       {mobileLanes}
 
-        <div className="tonightEditorial">
+        <div className={styles.tonightEditorial}>
           <EditorialRail />
         </div>
 
@@ -967,37 +965,37 @@ export default function TonightClient({
         </div>
       </aside>
 
-      <div className="tonightAfterPrimary">
+      <div className={styles.tonightAfterPrimary}>
 
       {/* Heritage quiet-pint module: same TodayQuietPintCard as /today. Lives
           after the listing spine so main-list-first stays intact, and only when
           the server quiet window allows (null renders nothing). Not the thin-
           night CTA strip below: that invents no pubs; this surfaces cited ones. */}
       {quietPint ? (
-        <div className="tonightQuietPint" id="tonight-quiet-pint">
+        <div className={styles.tonightQuietPint} id="tonight-quiet-pint">
           <TodayQuietPintCard module={quietPint} />
         </div>
       ) : null}
 
       {thinNight ? (
-        <section className="tonightQuiet" aria-label="While it's quiet">
-          <p className="tonightQuietLede">
+        <section className={styles.tonightQuiet} aria-label="While it's quiet">
+          <p className={styles.tonightQuietLede}>
             Quiet one tonight. Still worth a look:
           </p>
-          <ul className="tonightQuietList">
+          <ul className={styles.tonightQuietList}>
             {QUIET_ALTERNATIVES.map((alt) => {
               const Icon = alt.icon;
               return (
-                <li key={alt.title} className="tonightQuietRow">
-                  <Link prefetch={false} href={alt.href} className="tonightQuietLink pressable">
-                    <span className="tonightQuietIcon" aria-hidden="true">
+                <li key={alt.title} className={styles.tonightQuietRow}>
+                  <Link prefetch={false} href={alt.href} className={`${styles.tonightQuietLink} pressable`}>
+                    <span className={styles.tonightQuietIcon} aria-hidden="true">
                       <Icon size={17} />
                     </span>
-                    <span className="tonightQuietBody">
-                      <span className="tonightQuietTitle">{alt.title}</span>
-                      <span className="tonightQuietSub">{alt.sub}</span>
+                    <span className={styles.tonightQuietBody}>
+                      <span className={styles.tonightQuietTitle}>{alt.title}</span>
+                      <span className={styles.tonightQuietSub}>{alt.sub}</span>
                     </span>
-                    <ArrowRight size={15} aria-hidden="true" className="tonightQuietArrow" />
+                    <ArrowRight size={15} aria-hidden="true" className={styles.tonightQuietArrow} />
                   </Link>
                 </li>
               );
@@ -1008,42 +1006,42 @@ export default function TonightClient({
 
       {showLocation ? (
         <section
-          className="tonightLocation"
+          className={styles.tonightLocation}
           aria-label="Location for walk times and last train"
         >
           <Button
             type="button"
             variant="ghost"
-            className="tonightLocationToggle uiButton--start"
+            className={`${styles.tonightLocationToggle} uiButton--start`}
             aria-expanded={locationExpanded}
             onClick={() => setLocationOpen((open) => !open)}
           >
             <LocateFixed size={15} aria-hidden="true" />
-            <span className="tonightLocationToggleLabel">
+            <span className={styles.tonightLocationToggleLabel}>
               Walk times and last train
             </span>
             <ChevronDown
               size={16}
               aria-hidden="true"
-              className="tonightLocationChevron"
+              className={styles.tonightLocationChevron}
               data-open={locationExpanded}
             />
           </Button>
           {locationExpanded ? (
-            <div className="tonightLocationBody">
+            <div className={styles.tonightLocationBody}>
               {/* The disclosure is lib/locationDisclosure's, not this file's:
                   one owner for the words, so the prompt, /privacy and Today's
                   own ask cannot drift apart (Astra F01). */}
-              <p className="tonightLocationCopy">Sharing location is optional.</p>
+              <p className={styles.tonightLocationCopy}>Sharing location is optional.</p>
               {locationDisclosureLines(LOCATION_SURFACE).map((line) => (
-                <p className="tonightLocationCopy" key={line}>
+                <p className={styles.tonightLocationCopy} key={line}>
                   {line}
                 </p>
               ))}
               {origin ? (
                 <button
                   type="button"
-                  className="tonightLocationButton"
+                  className={styles.tonightLocationButton}
                   onClick={clearLocation}
                 >
                   <X size={15} aria-hidden="true" />
@@ -1052,7 +1050,7 @@ export default function TonightClient({
               ) : (
                 <button
                   type="button"
-                  className="tonightLocationButton"
+                  className={styles.tonightLocationButton}
                   onClick={requestLocation}
                   disabled={locationStatus === "requesting"}
                 >
@@ -1064,7 +1062,7 @@ export default function TonightClient({
                       : LOCATION_SHARE_LABEL[LOCATION_SURFACE]}
                 </button>
               )}
-              <span className="tonightSrOnly" role="status" aria-live="polite">
+              <span className={styles.tonightSrOnly} role="status" aria-live="polite">
                 {locationStatus === "requesting"
                   ? LOCATION_FINDING_STATUS
                   : locationStatus === "unavailable"

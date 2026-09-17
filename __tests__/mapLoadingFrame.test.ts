@@ -11,6 +11,9 @@ import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
 import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import { MAP_LOADING_SLOW_AFTER_MS } from "@/lib/mapLoadingCopy";
 
+import frameStyles from "@/components/map/MapLoadingFrame.module.css";
+import skeletonStyles from "@/components/map/MapLoadingSkeleton.module.css";
+
 let host: HTMLDivElement;
 let root: Root;
 
@@ -97,12 +100,12 @@ describe("the map's held loading frame", () => {
     act(() => {
       vi.advanceTimersByTime(MAP_LOADING_SLOW_AFTER_MS - 1);
     });
-    expect(host.querySelector(".mapLoadingSlow")).toBeNull();
+    expect(host.querySelector(`.${frameStyles.mapLoadingSlow}`)).toBeNull();
 
     act(() => {
       vi.advanceTimersByTime(1);
     });
-    expect(host.querySelector(".mapLoadingSlow")?.textContent).toBe(
+    expect(host.querySelector(`.${frameStyles.mapLoadingSlow}`)?.textContent).toBe(
       "Still loading pubs…",
     );
   });
@@ -122,8 +125,8 @@ describe("the map's held loading frame", () => {
       vi.advanceTimersByTime(MAP_LOADING_SLOW_AFTER_MS);
     });
 
-    const pill = host.querySelector<HTMLElement>(".mapLoadingCopy");
-    const stack = host.querySelector<HTMLElement>(".mapLoadingLines");
+    const pill = host.querySelector<HTMLElement>(`.${frameStyles.mapLoadingCopy}`);
+    const stack = host.querySelector<HTMLElement>(`.${frameStyles.mapLoadingLines}`);
     expect(Array.from(pill?.children ?? [])).toEqual([stack]);
     expect(
       Array.from(stack?.children ?? []).map((line) => line.textContent),
@@ -142,17 +145,17 @@ describe("the map's held loading frame", () => {
     expect(frame().getAttribute("aria-live")).toBe("polite");
     expect(host.querySelector('[role="progressbar"]')).toBeNull();
 
-    const bar = host.querySelector<HTMLElement>(".mapLoadingProgress");
+    const bar = host.querySelector<HTMLElement>(`.${frameStyles.mapLoadingProgress}`);
     expect(bar?.getAttribute("aria-hidden")).toBe("true");
     expect(
-      host.querySelector<HTMLElement>(".mapLoadingProgressBar")?.style.width,
+      host.querySelector<HTMLElement>(`.${frameStyles.mapLoadingProgressBar}`)?.style.width,
     ).toBe("55%");
   });
 });
 
 describe("the map's held skeleton", () => {
   function copy(): string {
-    return host.querySelector<HTMLElement>(".mapSkeletonCopy")?.textContent ?? "";
+    return host.querySelector<HTMLElement>(`.${skeletonStyles.mapSkeletonCopy}`)?.textContent ?? "";
   }
 
   // THE REGRESSION: the skeleton said "Loading London pubs…" over every city,

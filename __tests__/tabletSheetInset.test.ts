@@ -44,8 +44,8 @@ describe("the map shell cannot be scrolled by anything", () => {
 });
 
 describe("the 641-768 sheet publishes how much of itself is below the viewport", () => {
-  const tabletBand = globalCss.slice(
-    globalCss.indexOf("Keep in sync with lib/sheetSnap.ts SHEET_SNAP_FRACTIONS / venueSheet.css"),
+  const tabletBand = venueCss.slice(
+    venueCss.indexOf("Keep in sync with lib/sheetSnap.ts SHEET_SNAP_FRACTIONS / venueSheet.css"),
   );
 
   it("declares a per-snap fallback offset beside each snap transform", () => {

@@ -39,6 +39,7 @@ vi.mock("@/lib/planSessionCapability", () => ({
 }));
 
 import PlanCrew from "@/components/plan/PlanCrew";
+import planStyles from "@/app/plan/Plan.module.css";
 
 function crewCommittedCalls(): unknown[][] {
   return trackEvent.mock.calls.filter(([name]) => name === "crew_committed");
@@ -77,7 +78,7 @@ function joinAnswer(crewSize: number, crewCommitted?: string) {
 }
 
 async function submitJoin() {
-  const form = container.querySelector("form.planCrew__join");
+  const form = container.querySelector(`form.${planStyles.planCrew__join}`);
   const input = container.querySelector<HTMLInputElement>("#join-name");
   if (!form || !input) throw new Error("join form did not render");
   await act(async () => {

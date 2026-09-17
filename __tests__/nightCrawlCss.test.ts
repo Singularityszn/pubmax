@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 const css = readFileSync(join(process.cwd(), "components/plan/nightCrawl.css"), "utf8");
 const tsx = readFileSync(join(process.cwd(), "components/plan/NightCrawlMode.tsx"), "utf8");
 const navCss = readFileSync(join(process.cwd(), "components/nav/mobileNav.css"), "utf8");
-const globalCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
+const consentCss = readFileSync(join(process.cwd(), "components/AnalyticsConsent.module.css"), "utf8");
 
 describe("Night-crawl surface conformance (U7)", () => {
   it("is an OLED-dark surface (ink-dark paper), not the light paper token", () => {
@@ -60,7 +60,7 @@ describe("Night-crawl surface conformance (U7)", () => {
       ?? "";
     expect(barRule).toMatch(/pointer-events:\s*none/);
     expect(barRule).toMatch(/transform:\s*translateY\(110%\)/);
-    const cardRule = globalCss.match(/[^}]*body:has\(\.nightCrawl\) \.analyticsConsentPrompt[^{]*{([^}]*)}/)?.[1] ?? "";
+    const cardRule = consentCss.match(/[^}]*body:has\(:global\(\.nightCrawl\)\) :global\(\.analyticsConsentPrompt\)[^{]*{([^}]*)}/)?.[1] ?? "";
     expect(cardRule).toMatch(/visibility:\s*hidden/);
     expect(cardRule).toMatch(/pointer-events:\s*none/);
   });

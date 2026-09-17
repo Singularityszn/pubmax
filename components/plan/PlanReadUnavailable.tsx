@@ -1,5 +1,6 @@
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
+import planStyles from "@/app/plan/Plan.module.css";
 
 /**
  * A read we could not RUN, on every surface under /plan/[id] and on the public
@@ -34,9 +35,9 @@ export default function PlanReadUnavailable({
   title?: string;
 }): React.JSX.Element {
   return (
-    <main id="main" className="planPage planPage--composer pageHidesCreateFab">
+    <main id="main" className={`${planStyles.planPage} planPage--composer pageHidesCreateFab`}>
       <SiteNav />
-      <header className="planPage__masthead">
+      <header className={planStyles.planPage__masthead}>
         <span>Plan</span>
         <span>London · Tonight</span>
       </header>

@@ -107,6 +107,7 @@ import {
   type PlanIntakeDraft,
 } from "@/lib/planIntake";
 import type { RouteRevision } from "@/lib/planRouteEditor";
+import planStyles from "@/app/plan/Plan.module.css";
 type RouteAlternative = { venueId: string; venueName: string };
 export type DraftStop = {
   key: number;
@@ -937,9 +938,9 @@ export function AcceptedContextPanel({
   return (
     <>
       {handoff.showAcceptedSummary && (
-        <section className="planComposer__accepted" aria-label="Accepted plan context">
-          <span className="planPage__eyebrow">Carried over from what you accepted</span>
-          <dl className="planComposer__acceptedList">
+        <section className={planStyles.planComposer__accepted} aria-label="Accepted plan context">
+          <span className={planStyles.planPage__eyebrow}>Carried over from what you accepted</span>
+          <dl className={planStyles.planComposer__acceptedList}>
             {handoff.heldVenueId && (
               <div><dt>Venue</dt><dd>{venueName}</dd></div>
             )}
@@ -950,12 +951,12 @@ export function AcceptedContextPanel({
               <div><dt>When</dt><dd>{whenLabel}</dd></div>
             )}
           </dl>
-          <p className="planComposer__acceptedNote">
+          <p className={planStyles.planComposer__acceptedNote}>
             You can change the area and the date below. Stop 1 stays this pub until you release it. Releasing keeps every stop.
           </p>
           {onRelease && handoff.heldVenueId ? (
             <button
-              className="planComposer__acceptedRelease"
+              className={planStyles.planComposer__acceptedRelease}
               type="button"
               onClick={onRelease}
             >Release this pub</button>
@@ -963,7 +964,7 @@ export function AcceptedContextPanel({
         </section>
       )}
       {handoff.conflicts.length > 0 && (
-        <ul className="planComposer__conflicts" aria-label="Plan changes we kept safe">
+        <ul className={planStyles.planComposer__conflicts} aria-label="Plan changes we kept safe">
           {handoff.conflicts.map((conflict, index) => (
             <li key={`${conflict.code}-${index}`}>{conflict.message}</li>
           ))}
@@ -979,7 +980,7 @@ export function AcceptedContextPanel({
  * `message`; this is the exact element the form renders it in.
  */
 export function PlanComposerErrorNotice({ message }: { message: string }) {
-  return <p className="planComposer__error" role="alert">{message}</p>;
+  return <p className={planStyles.planComposer__error} role="alert">{message}</p>;
 }
 
 type ComposerDraftFields = {
@@ -1949,7 +1950,7 @@ function PlanComposerForm({
   }
 
   return (
-    <form id="plan-composer" className="planComposer" onSubmit={submit} noValidate>
+    <form id="plan-composer" className={planStyles.planComposer} onSubmit={submit} noValidate>
       {handoff && (
         <AcceptedContextPanel
           handoff={handoff}
@@ -1981,13 +1982,13 @@ function PlanComposerForm({
       ) : null}
       {composerVisible ? (
         <>
-      <section className="planComposer__concierge" aria-labelledby="plan-concierge-title" aria-busy={sorting}>
+      <section className={planStyles.planComposer__concierge} aria-labelledby="plan-concierge-title" aria-busy={sorting}>
         <div>
-          <span className="planPage__eyebrow">Describe your outing</span>
+          <span className={planStyles.planPage__eyebrow}>Describe your outing</span>
           <h2 id="plan-concierge-title">Say what you need. Get a route you can stand behind.</h2>
         </div>
-        <div className="planComposer__conciergeInput">
-          <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the outing</label>
+        <div className={planStyles.planComposer__conciergeInput}>
+          <label className={planStyles.planComposer__srOnly} htmlFor="plan-concierge-query">Describe the outing</label>
           <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
           {/* ONE PAINTED PRIMARY PER SCREEN. Once a route is on the page,
               `Lock it in` is the thing to do next, and two coral fills on one
@@ -1997,7 +1998,7 @@ function PlanComposerForm({
               above it has to stay answerable. */}
           <button
             type="button"
-            className={routeSorted ? "planComposer__resort" : undefined}
+            className={routeSorted ? planStyles.planComposer__resort : undefined}
             onClick={() => sortWithConcierge()}
             disabled={sorting || !canSortWithCurrentGenerator}
             aria-busy={sorting}
@@ -2005,18 +2006,18 @@ function PlanComposerForm({
             {sorting ? "Planning…" : routeSorted ? "Sort it again" : "Make a plan"}
           </button>
         </div>
-        <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
+        <p id="plan-concierge-status" className={planStyles.planComposer__conciergeStatus} role="status" aria-live="polite">
           {conciergeStatus}
         </p>
         {routeStale ? (
-          <div className="planComposer__routeStale" role="group" aria-labelledby="plan-route-stale-title">
+          <div className={planStyles.planComposer__routeStale} role="group" aria-labelledby="plan-route-stale-title">
             <div>
               <strong id="plan-route-stale-title">This route needs a refresh</strong>
               <span>You&rsquo;ve changed the night since we sorted it, so this preview may not fit any more.</span>
             </div>
             <button
               type="button"
-              className="planComposer__regenerate"
+              className={planStyles.planComposer__regenerate}
               onClick={() => sortWithConcierge()}
               disabled={sorting || !canSortWithCurrentGenerator}
               aria-busy={sorting}
@@ -2026,9 +2027,9 @@ function PlanComposerForm({
           </div>
         ) : null}
         {nightContext ? (
-          <fieldset className="planComposer__context">
+          <fieldset className={planStyles.planComposer__context}>
             <legend>What PUBMAXX understood. Edit anything.</legend>
-            <p id="plan-context-note" className="planComposer__contextNote">We only call an area crawl-ready when its prices are fresh and checked. An area that is not ready yet may not give a route.</p>
+            <p id="plan-context-note" className={planStyles.planComposer__contextNote}>We only call an area crawl-ready when its prices are fresh and checked. An area that is not ready yet may not give a route.</p>
             <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note plan-route-status" value={nightContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
               {areaGroups.map((group) => (
                 <optgroup key={group.label} label={group.label}>
@@ -2060,19 +2061,19 @@ function PlanComposerForm({
           </fieldset>
         ) : null}
       </section>
-      <section className="planComposer__templates" aria-labelledby="plan-templates-title">
+      <section className={planStyles.planComposer__templates} aria-labelledby="plan-templates-title">
         <h2 id="plan-templates-title">Need a starting point?</h2>
-        <p className="planComposer__templatesLead">
+        <p className={planStyles.planComposer__templatesLead}>
           Optional occasion prompts fill the description. Still editable.
         </p>
         {usualLot ? (
-          <div className="planComposer__usualLot" data-testid="plan-usual-lot">
+          <div className={planStyles.planComposer__usualLot} data-testid="plan-usual-lot">
             <p>
               Usual lot: <strong>{usualLot.names.join(", ")}</strong>
             </p>
             <button
               type="button"
-              className="planComposer__template"
+              className={planStyles.planComposer__template}
               onClick={() => {
                 setTitle("Usual lot · tonight");
                 setConciergeNote(`Re-invite ${usualLot.names.join(", ")} after you lock it in.`);
@@ -2082,12 +2083,12 @@ function PlanComposerForm({
             </button>
           </div>
         ) : null}
-        <div className="planComposer__templateRow">
+        <div className={planStyles.planComposer__templateRow}>
           {PLAN_TEMPLATES.map((template: PlanTemplate) => (
             <button
               key={template.id}
               type="button"
-              className="planComposer__template"
+              className={planStyles.planComposer__template}
               title={template.blurb}
               onClick={() => {
                 const merged = mergePlanTemplateFields({
@@ -2112,18 +2113,18 @@ function PlanComposerForm({
           ))}
         </div>
       </section>
-      <section className="planComposer__coverage" aria-labelledby="plan-coverage-title">
+      <section className={planStyles.planComposer__coverage} aria-labelledby="plan-coverage-title">
         <details>
           <summary>
             <span id="plan-coverage-title">Area coverage</span>
-            <span className="planComposer__coverageMeta">
+            <span className={planStyles.planComposer__coverageMeta}>
               {readyAreas.length} of {readyAreas.length + areasInProgress.length} crawl-ready
             </span>
           </summary>
-          <p className="planComposer__coverageIntro">
+          <p className={planStyles.planComposer__coverageIntro}>
             We only call an area crawl-ready when its prices are fresh and checked. The rest are yours to browse.
           </p>
-          <div className="planComposer__coverageGroups">
+          <div className={planStyles.planComposer__coverageGroups}>
             <section aria-labelledby="plan-coverage-ready">
               <h3 id="plan-coverage-ready">Crawl-ready</h3>
               <ul>
@@ -2134,11 +2135,11 @@ function PlanComposerForm({
                       <div>
                         <strong>{area.name}</strong>
                         <small>{summary.detail}</small>
-                        <small className="planComposer__coverageMetaLine">{nightAreaCoverageMeta(area)}</small>
+                        <small className={planStyles.planComposer__coverageMetaLine}>{nightAreaCoverageMeta(area)}</small>
                       </div>
-                      <div className="planComposer__coverageActions">
+                      <div className={planStyles.planComposer__coverageActions}>
                         <span>{summary.label}</span>
-                        <Link className="planComposer__coverageMapLink" href={nightAreaMapHref(area)} aria-label={`Explore ${area.name} pubs on the map`}>Explore map</Link>
+                        <Link className={planStyles.planComposer__coverageMapLink} href={nightAreaMapHref(area)} aria-label={`Explore ${area.name} pubs on the map`}>Explore map</Link>
                       </div>
                     </li>
                   );
@@ -2155,11 +2156,11 @@ function PlanComposerForm({
                       <div>
                         <strong>{area.name}</strong>
                         <small>{summary.detail}</small>
-                        <small className="planComposer__coverageMetaLine">{nightAreaCoverageMeta(area)}</small>
+                        <small className={planStyles.planComposer__coverageMetaLine}>{nightAreaCoverageMeta(area)}</small>
                       </div>
-                      <div className="planComposer__coverageActions">
+                      <div className={planStyles.planComposer__coverageActions}>
                         <span>{summary.label}</span>
-                        <Link className="planComposer__coverageMapLink" href={nightAreaMapHref(area)} aria-label={`Explore ${area.name} pubs on the map`}>Explore map</Link>
+                        <Link className={planStyles.planComposer__coverageMapLink} href={nightAreaMapHref(area)} aria-label={`Explore ${area.name} pubs on the map`}>Explore map</Link>
                       </div>
                     </li>
                   );
@@ -2169,36 +2170,36 @@ function PlanComposerForm({
           </div>
         </details>
       </section>
-      <div className="planComposer__field planComposer__field--wide">
+      <div className={`${planStyles.planComposer__field} ${planStyles["planComposer__field--wide"]}`}>
         <label htmlFor="plan-title">Name the night</label>
         <input id="plan-title" type="text" maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} />
       </div>
-      <div className="planComposer__field">
+      <div className={planStyles.planComposer__field}>
         <label htmlFor="plan-name">Your name</label>
         <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Karan" />
       </div>
-      <div className="planComposer__field">
+      <div className={planStyles.planComposer__field}>
         <label htmlFor="plan-time">First pint</label>
         <input id="plan-time" type="datetime-local" required value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
       </div>
 
-      <fieldset className="planComposer__stops">
-        <legend>The {planOutingNoun(stops.length)} <span className="planComposer__previewLabel">{routeRevision === null ? "Preview" : `Preview · revision ${routeRevision}`}</span></legend>
-        <p id="plan-route-status" className="planComposer__routeStatus" role="status" aria-live="polite" tabIndex={-1}>
+      <fieldset className={planStyles.planComposer__stops}>
+        <legend>The {planOutingNoun(stops.length)} <span className={planStyles.planComposer__previewLabel}>{routeRevision === null ? "Preview" : `Preview · revision ${routeRevision}`}</span></legend>
+        <p id="plan-route-status" className={planStyles.planComposer__routeStatus} role="status" aria-live="polite" tabIndex={-1}>
           {routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
         </p>
         <PlanCultureOpener opener={cultureOpener} />
         {stops.map((stop, index) => (
-          <div className="planComposer__stop" key={stop.key}>
-            <span className="planComposer__number" aria-hidden="true">{index + 1}</span>
+          <div className={planStyles.planComposer__stop} key={stop.key}>
+            <span className={planStyles.planComposer__number} aria-hidden="true">{index + 1}</span>
             <div>
               <label htmlFor={`venue-name-${stop.key}`}>Venue name</label>
               <input id={`venue-name-${stop.key}`} type="text" list="plan-venue-options" value={stop.venueName} onChange={(event) => chooseVenue(stop.key, event.target.value)} placeholder="Start typing a pub" />
-              {stop.reason ? <small className="planComposer__stopReason">{stop.reason}</small> : null}
+              {stop.reason ? <small className={planStyles.planComposer__stopReason}>{stop.reason}</small> : null}
             </div>
-            <div className="planComposer__stopActions">
+            <div className={planStyles.planComposer__stopActions}>
               <button
-                className="planComposer__swap"
+                className={planStyles.planComposer__swap}
                 type="button"
                 onClick={() => swapStop(stop.key)}
                 disabled={Boolean(
@@ -2215,7 +2216,7 @@ function PlanComposerForm({
               </button>
               {stops.length > 1 ? (
                 <button
-                  className="planComposer__remove"
+                  className={planStyles.planComposer__remove}
                   type="button"
                   onClick={() => applyStopIdentityMutation(
                     stops.filter((item) => item.key !== stop.key),
@@ -2234,7 +2235,7 @@ function PlanComposerForm({
           {venues.map((venue) => <option key={venue.id} value={venue.name}>{venue.address}</option>)}
         </datalist>
         <button
-          className="planComposer__add"
+          className={planStyles.planComposer__add}
           type="button"
           disabled={stops.length >= MAX_PLAN_STOP_COUNT}
           onClick={() => {
@@ -2255,9 +2256,9 @@ function PlanComposerForm({
           line that qualifies it, so the two can never separate. The create
           action stands down while it is up, on the same terms as the consent
           card (components/nav/createFab.css). */}
-      <div className="planComposer__lock">
-        <button className="planComposer__submit" type="submit" disabled={!canLockPlan}>{submitting ? "Locking it in…" : "Lock it in"}</button>
-        <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
+      <div className={planStyles.planComposer__lock}>
+        <button className={planStyles.planComposer__submit} type="submit" disabled={!canLockPlan}>{submitting ? "Locking it in…" : "Lock it in"}</button>
+        <p className={planStyles.planComposer__trust}>Anyone with the link can see the plan. Joining only asks for a name.</p>
       </div>
         </>
       ) : null}

@@ -22,7 +22,7 @@ import { formatPrice } from "@/lib/venues";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 import PintIndexScreen from "./PintIndexScreen";
 
-import "./pint-index.css";
+import styles from "./PintIndex.module.css";
 
 const SITE_URL = "https://pubmaxxing.com";
 
@@ -104,7 +104,7 @@ export default async function PintIndexPage() {
   const dearestPint = summary.dearestPint;
 
   return (
-    <main id="main" className="pintIndexPage">
+    <main id="main" className={styles.pintIndexPage}>
       {jsonLd ? <JsonLd data={jsonLd} nonce={nonce} /> : null}
       <SiteNav />
 
@@ -118,18 +118,18 @@ export default async function PintIndexPage() {
         csvHref="/pint-index/data.csv"
       >
         {summary.averageGbp !== null ? (
-          <dl className="pintIndexStats">
-            <div className="pintIndexStat"><dt>Average pint</dt><dd>{formatPrice(summary.averageGbp)}</dd></div>
-            <div className="pintIndexStat"><dt>Cheapest borough</dt><dd>{formatPrice(summary.cheapestBorough?.averageGbp ?? null)}<small>{summary.cheapestBorough?.name}</small></dd></div>
-            <div className="pintIndexStat"><dt>Dearest borough</dt><dd>{formatPrice(summary.dearestBorough?.averageGbp ?? null)}<small>{summary.dearestBorough?.name}</small></dd></div>
-            <div className="pintIndexStat"><dt>Eligible pubs</dt><dd>{summary.pubCount}<small>across {summary.boroughCount} boroughs</small></dd></div>
+          <dl className={styles.pintIndexStats}>
+            <div className={styles.pintIndexStat}><dt>Average pint</dt><dd>{formatPrice(summary.averageGbp)}</dd></div>
+            <div className={styles.pintIndexStat}><dt>Cheapest borough</dt><dd>{formatPrice(summary.cheapestBorough?.averageGbp ?? null)}<small>{summary.cheapestBorough?.name}</small></dd></div>
+            <div className={styles.pintIndexStat}><dt>Dearest borough</dt><dd>{formatPrice(summary.dearestBorough?.averageGbp ?? null)}<small>{summary.dearestBorough?.name}</small></dd></div>
+            <div className={styles.pintIndexStat}><dt>Eligible pubs</dt><dd>{summary.pubCount}<small>across {summary.boroughCount} boroughs</small></dd></div>
           </dl>
         ) : null}
 
         {national.length > 0 ? (
-          <section className="pintIndexSection" aria-labelledby="nationalHeading">
-            <h2 id="nationalHeading" className="pintIndexSectionTitle">What a pint costs nationally</h2>
-            <p className="pintIndexSectionDek">
+          <section className={styles.pintIndexSection} aria-labelledby="nationalHeading">
+            <h2 id="nationalHeading" className={styles.pintIndexSectionTitle}>What a pint costs nationally</h2>
+            <p className={styles.pintIndexSectionDek}>
               None of these figures are ours. They are here so the prices on this
               page have something to sit against, and each one names who counted
               it, when, and exactly what they counted. A national cask ale is not
@@ -139,9 +139,9 @@ export default async function PintIndexPage() {
           </section>
         ) : null}
 
-        <section className="pintIndexSection" aria-labelledby="zoneHeading">
-          <h2 id="zoneHeading" className="pintIndexSectionTitle">The Zone pint index</h2>
-          <p className="pintIndexNote">
+        <section className={styles.pintIndexSection} aria-labelledby="zoneHeading">
+          <h2 id="zoneHeading" className={styles.pintIndexSectionTitle}>The Zone pint index</h2>
+          <p className={styles.pintIndexNote}>
             A pint in Zone 1 costs more than Zone 3. Here is by how much. Each pub
             is placed in its <strong>nearest station&rsquo;s</strong>{" "}TfL fare zone
             (a documented approximation, not an area boundary), then we take the
@@ -157,8 +157,8 @@ export default async function PintIndexPage() {
 
         <BoroughCoverageStatus rows={seedBoroughCoverage} />
 
-        <section className="pintIndexSection" aria-labelledby="leagueHeading">
-          <h2 id="leagueHeading" className="pintIndexSectionTitle">Borough league table</h2>
+        <section className={styles.pintIndexSection} aria-labelledby="leagueHeading">
+          <h2 id="leagueHeading" className={styles.pintIndexSectionTitle}>Borough league table</h2>
           {rows.length === 0 ? (
             <EmptyState
               title="No borough league yet."
@@ -173,13 +173,13 @@ export default async function PintIndexPage() {
               caption="London boroughs ranked by average eligible pint price"
             />
           )}
-          <a className="pintIndexDownload" href="/pint-index/data.csv" download>Download current data (CSV) ↓</a>
+          <a className={styles.pintIndexDownload} href="/pint-index/data.csv" download>Download current data (CSV) ↓</a>
         </section>
 
         {dearestPint ? (
-          <section className="pintIndexSection" id="dearest" aria-labelledby="dearestHeading">
-            <h2 id="dearestHeading" className="pintIndexSectionTitle">The dearest end</h2>
-            <p className="pintIndexSectionDek">
+          <section className={styles.pintIndexSection} id="dearest" aria-labelledby="dearestHeading">
+            <h2 id="dearestHeading" className={styles.pintIndexSectionTitle}>The dearest end</h2>
+            <p className={styles.pintIndexSectionDek}>
               Cheapest first is the default above, because that is what you want
               on a Friday. This is the same table the other way up, ranked on the
               priciest pint each borough has on record. At the top of this dataset:{" "}
@@ -194,9 +194,9 @@ export default async function PintIndexPage() {
           </section>
         ) : null}
 
-        <section className="pintIndexSection" aria-labelledby="editionsHeading">
-          <h2 id="editionsHeading" className="pintIndexSectionTitle">Dated editions</h2>
-          <p className="pintIndexSectionDek">
+        <section className={styles.pintIndexSection} aria-labelledby="editionsHeading">
+          <h2 id="editionsHeading" className={styles.pintIndexSectionTitle}>Dated editions</h2>
+          <p className={styles.pintIndexSectionDek}>
             This page moves as prices land, which is no use to anyone quoting it.
             So every closed month also gets its own page, frozen the day it goes
             up. {pintIndexMonthLabel(openMonth)} closes on{" "}
@@ -206,10 +206,10 @@ export default async function PintIndexPage() {
           <PintIndexEditions editions={editions} />
         </section>
 
-        <section className="pintIndexSection" aria-labelledby="methodHeading">
-          <h2 id="methodHeading" className="pintIndexSectionTitle">Method and sources</h2>
-          <p className="pintIndexNote pintIndexMethodLede">Only prices with a public source and date are published. Older map-only prices stay out.</p>
-          <div className="pintIndexProse">
+        <section className={styles.pintIndexSection} aria-labelledby="methodHeading">
+          <h2 id="methodHeading" className={styles.pintIndexSectionTitle}>Method and sources</h2>
+          <p className={`${styles.pintIndexNote} pintIndexMethodLede`}>Only prices with a public source and date are published. Older map-only prices stay out.</p>
+          <div className={styles.pintIndexProse}>
             <p><strong>What counts.</strong> Community submissions, a pub or brewery&rsquo;s own published material, and properly licensed open data may enter the public Index only with a public source URL and price date.</p>
             <p><strong>Boroughs.</strong> We place coordinates inside versioned Greater London boundary shapes. A point outside every shape gets no borough; we never assign it to an arbitrary nearby one.</p>
             <p><strong>What stays out.</strong> The map may still use an older price baseline. Those rows stay out of this public Index, its CSV and its structured data.</p>
@@ -217,7 +217,7 @@ export default async function PintIndexPage() {
           </div>
         </section>
 
-        <p className="pintIndexFootnote"><Link href="/historic">Explore cited historic pubs →</Link> · <Link prefetch={false} href="/map">Open the map →</Link></p>
+        <p className={styles.pintIndexFootnote}><Link href="/historic">Explore cited historic pubs →</Link> · <Link prefetch={false} href="/map">Open the map →</Link></p>
       </PintIndexScreen>
     </main>
   );

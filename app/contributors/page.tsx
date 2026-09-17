@@ -7,7 +7,7 @@ import {
   readContributorLeaderboard,
 } from "@/lib/contributorLeaderboardStore";
 
-import "./contributors.css";
+import styles from "./Contributors.module.css";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -22,9 +22,9 @@ export const metadata: Metadata = {
 export default async function ContributorsPage() {
   const board = await enrichContributorBoard(await readContributorLeaderboard());
   return (
-    <div className="contributorPage">
+    <div className={styles.contributorPage}>
       <SiteNav active="profile" />
-      <main id="main" className="contributorMain">
+      <main id="main" className={styles.contributorMain}>
         <ContributorRecord board={board} />
       </main>
     </div>

@@ -12,7 +12,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
 import BoroughScreen from "./BoroughScreen";
 
-import "./[slug]/borough.css";
+import styles from "./[slug]/Borough.module.css";
 
 // Borough index: /borough. A SERVER component listing every London borough in
 // the dataset as a card (name, pub count, cheapest pint), each linking to its
@@ -44,7 +44,7 @@ export default async function BoroughIndexPage() {
   const heritageCounts = await getBoroughHeritageCounts();
 
   return (
-    <main id="main" className="boroughPage">
+    <main id="main" className={styles.boroughPage}>
       <SiteNav active="borough" />
 
       <BoroughScreen
@@ -63,27 +63,27 @@ export default async function BoroughIndexPage() {
       >
         {boroughs.length === 0 ? (
           <EmptyState
-            className="boroughEmpty"
+            className={styles.boroughEmpty}
             title="We couldn’t load the boroughs just now."
             action={<Link prefetch={false} href="/map">Open the map instead</Link>}
           />
         ) : (
-          <ul className="boroughGrid" aria-label="London boroughs">
+          <ul className={styles.boroughGrid} aria-label="London boroughs">
             {boroughs.map((borough) => (
               <li key={borough.slug}>
-                <Link className="boroughCard" href={`/borough/${borough.slug}`}>
-                  <span className="boroughCardName">{borough.name}</span>
-                  <span className="boroughCardMeta">
+                <Link className={styles.boroughCard} href={`/borough/${borough.slug}`}>
+                  <span className={styles.boroughCardName}>{borough.name}</span>
+                  <span className={styles.boroughCardMeta}>
                     {borough.pubCount} {borough.pubCount === 1 ? "pub" : "pubs"}
                   </span>
                   {heritageCounts.get(borough.slug) ? (
-                    <span className="boroughCardHistoric">
+                    <span className={styles.boroughCardHistoric}>
                       {heritageCounts.get(borough.slug)} historic
                     </span>
                   ) : null}
-                  <span className="boroughCardPrice">
+                  <span className={styles.boroughCardPrice}>
                     {borough.cheapestGbp === null ? (
-                      <span className="boroughNoPrice">No price yet</span>
+                      <span className={styles.boroughNoPrice}>No price yet</span>
                     ) : (
                       <>
                         from{" "}

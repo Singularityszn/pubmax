@@ -7,6 +7,7 @@ import { useCallback, useRef, useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
+import recapStyles from "@/app/plan/[id]/recap/Recap.module.css";
 
 // The recap share affordance — deliberately two-state and approval-gated.
 //
@@ -91,15 +92,15 @@ export default function RecapShareButton({ planId, shareText, shareUrl }: RecapS
   // ── Pre-approval: the gateway into the consent flow, never a public link. ───
   if (!shareUrl) {
     return (
-      <div className="recapShare recapShare--gated">
+      <div className={`${recapStyles.recapShare} ${recapStyles["recapShare--gated"]}`}>
         <Link
-          className="recapShare__cta"
+          className={recapStyles.recapShare__cta}
           href="/u/you#night-memories"
           onClick={() => trackEvent("recap_share_gate_opened", { planId })}
         >
           Turn this into a shareable night
         </Link>
-        <p className="recapShare__note type-meta">
+        <p className={`${recapStyles.recapShare__note} type-meta`}>
           Private to your crew for now. Everyone approves their own photos before a recap can be shared.
         </p>
       </div>
@@ -108,9 +109,9 @@ export default function RecapShareButton({ planId, shareText, shareUrl }: RecapS
 
   // ── Post-approval: the WhatsApp-native share of the approved public recap. ──
   return (
-    <div className="recapShare" role="group" aria-label="Share this recap">
+    <div className={recapStyles.recapShare} role="group" aria-label="Share this recap">
       <a
-        className="recapShare__cta"
+        className={recapStyles.recapShare__cta}
         href={whatsappShareHref(shareText, shareUrl)}
         onClick={(event) => {
           event.preventDefault();
@@ -140,14 +141,14 @@ export default function RecapShareButton({ planId, shareText, shareUrl }: RecapS
         Send on WhatsApp
       </a>
       {canNativeShare ? (
-        <button type="button" className="recapShare__btn" onClick={handleNativeShare}>
+        <button type="button" className={recapStyles.recapShare__btn} onClick={handleNativeShare}>
           Share&hellip;
         </button>
       ) : null}
-      <button type="button" className="recapShare__btn" onClick={handleCopy} aria-label={copied ? "Link copied" : "Copy link"}>
+      <button type="button" className={recapStyles.recapShare__btn} onClick={handleCopy} aria-label={copied ? "Link copied" : "Copy link"}>
         {copied ? "Copied" : "Copy link"}
       </button>
-      <span className="recapShare__confirm" role="status" aria-live="polite">
+      <span className={recapStyles.recapShare__confirm} role="status" aria-live="polite">
         {copied ? "Copied" : shareError}
       </span>
     </div>

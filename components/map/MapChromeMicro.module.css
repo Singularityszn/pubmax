@@ -1,0 +1,157 @@
+/* ── Chrome micro-interactions: hover warm-up, focus rings, disabled ──────
+   Color/focus/disabled states are unconditional (a11y). Transform-based
+   press/lift feedback lives in the no-preference block below so reduced-motion
+   users get instant, static states. Tokens only, both themes.
+   Extracted from app/globals.css.
+
+   NOTE: button:disabled and @media (prefers-reduced-motion: reduce) remain
+   in globals.css as truly global rules. */
+
+/* Consistent brass focus ring on interactive chrome that lacked one. */
+:global(.modeToggle) button:focus-visible,
+:global(.mapHeroVisit):focus-visible,
+:global(.clearBtn):focus-visible,
+:global(.resetBtn):focus-visible,
+:global(.reportBtn):focus-visible,
+:global(.composerToggle):focus-visible,
+:global(.landlordBtn):focus-visible,
+:global(.landlordSuggest) button:focus-visible,
+:global(.mapHeroCardHead) button:focus-visible,
+:global(.photoPick):focus-within,
+:global(.photoRemove):focus-visible,
+:global(.citationChip):focus-visible,
+:global(.sourceLinks) a:focus-visible,
+:global(.claimCard) a:focus-visible,
+:global(.bandBtn):focus-visible,
+:global(.bandActiveCard) a:focus-visible,
+:global(.venuePickerList) button:focus-visible,
+:global(.routeList) li > button:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* Hover warm-up (color/border only) for list-style controls. */
+:global(.landlordSuggest) button:hover,
+:global(.citationChip):hover {
+  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+}
+
+:global(.dropCard),
+:global(.claimCard) {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+:global(.dropCard):hover,
+:global(.claimCard):hover {
+  border-color: var(--brass);
+}
+
+:global(.venuePickerList) button {
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+:global(.venuePickerList) button:hover {
+  background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Short, scoped transitions so hover/focus states ease rather than snap. */
+  :global(.modeToggle) button,
+  :global(.mapHeroVisit),
+  :global(.clearBtn),
+  :global(.resetBtn),
+  :global(.reportBtn),
+  :global(.composerToggle),
+  :global(.landlordBtn),
+  :global(.landlordSuggest) button,
+  :global(.citationChip),
+  :global(.mapHeroCardHead) button,
+  :global(.photoPick),
+  :global(.photoRemove) {
+    transition:
+      background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+      transform 0.12s ease, box-shadow 0.15s ease;
+  }
+
+  /* Press feedback — buttons dip on tap so interactions feel responsive. */
+  :global(.segmented) button:active,
+  :global(.modeToggle) button:active,
+  :global(.nearbyBtn):active,
+  :global(.clearBtn):active,
+  :global(.resetBtn):active,
+  :global(.shareBtn):active,
+  :global(.reportBtn):active,
+  :global(.composerToggle):active,
+  :global(.landlordBtn):active,
+  :global(.landlordForm) button:active,
+  :global(.landlordSuggest) button:active,
+  :global(.dropComposer) button[type="submit"]:active,
+  :global(.mapHeroVisit):active,
+  :global(.photoPick):active,
+  :global(.venuePickerList) button:active,
+  :global(.featuredCrawl):active {
+    transform: translateY(1px);
+  }
+
+  /* Featured cards and drop/claim cards lift a hair on hover. */
+  :global(.featuredCrawl):hover,
+  :global(.dropCard):hover,
+  :global(.claimCard):hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* ── Phone responsive (migrated from globals.css) ── */
+
+@media (max-width: 640px), (hover: none), (pointer: coarse) {
+  :global(.mapFitLondonBtn),
+  :global(.mapRecenterBtn),
+  :global(.mappedRouteChip),
+  :global(.activeRoundChip),
+  :global(.bandOnboardingChip),
+  :global(.mapToolbar),
+  :global(.mapLoading),
+  :global(.poiToggle),
+  :global(.poiLabelCard),
+  :global(.bandPicker),
+  :global(.placeStoriesControl),
+  :global(.mapLegend),
+  :global(.mapHeroCard) {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  :global(.mapFitLondonBtn),
+  :global(.mapRecenterBtn),
+  :global(.poiToggle),
+  :global(.bandPicker),
+  :global(.placeStoriesControl),
+  :global(.mapLegend),
+  :global(.mapHeroCard) {
+    background: var(--panel-raised);
+    box-shadow: var(--map-overlay-shadow-tight);
+  }
+
+  :global(.mapToolbar),
+  :global(.mappedRouteChip),
+  :global(.activeRoundChip),
+  :global(.bandOnboardingChip) {
+    background:
+      linear-gradient(135deg, var(--panel-raised), color-mix(in srgb, var(--surface-tint-river) 36%, var(--panel-raised) 64%)),
+      var(--panel-raised);
+    box-shadow: var(--map-overlay-shadow);
+  }
+
+  :global(.mappedRouteChip),
+  :global(.activeRoundChip),
+  :global(.bandOnboardingChip) {
+    border-color: color-mix(in srgb, var(--brass) 34%, var(--line));
+  }
+
+  :global(.mapDrawer):global(.left):global(.open),
+  :global(.mapDrawer):global(.right):global(.open),
+  :global(.mapDrawer):global(.left):global(.sheet-dragging),
+  :global(.mapDrawer):global(.right):global(.sheet-dragging) {
+    will-change: transform;
+  }
+}

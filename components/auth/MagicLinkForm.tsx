@@ -5,6 +5,7 @@ import { Mail } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
 import type { MagicLinkResult } from "@/lib/passwordlessAuth";
+import authStyles from "@/app/auth/Auth.module.css";
 
 function looksLikeEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -63,14 +64,14 @@ export default function MagicLinkForm({
   }, [cancelAuthAttempt]);
 
   return (
-    <form className="authMagicLink" onSubmit={submit} noValidate>
-      <label className="authMagicLinkLabel" htmlFor={inputId}>
+    <form className={authStyles.authMagicLink} onSubmit={submit} noValidate>
+      <label className={authStyles.authMagicLinkLabel} htmlFor={inputId}>
         {label ?? (hasSocialProviders ? "Or continue with email" : "Continue with email")}
       </label>
-      <div className="authMagicLinkRow">
+      <div className={authStyles.authMagicLinkRow}>
         <input
           id={inputId}
-          className="authMagicLinkInput"
+          className={authStyles.authMagicLinkInput}
           type="email"
           inputMode="email"
           autoComplete="email"
@@ -89,7 +90,7 @@ export default function MagicLinkForm({
         />
         <button
           type="submit"
-          className="authSignIn authMagicLinkButton"
+          className={`${authStyles.authSignIn} ${authStyles.authMagicLinkButton}`}
           data-primary-action={primaryAction ? "" : undefined}
           disabled={!valid || disabled || status === "sending" || status === "sent"}
         >
@@ -103,7 +104,7 @@ export default function MagicLinkForm({
         {status === "sent" ? (
           <button
             type="button"
-            className="authMagicLinkCancel"
+            className={authStyles.authMagicLinkCancel}
             onClick={cancel}
           >
             Cancel sign-in
@@ -113,7 +114,7 @@ export default function MagicLinkForm({
       {message ? (
         <p
           id={messageId}
-          className={status === "sent" ? "authMagicLinkSuccess" : "authError"}
+          className={status === "sent" ? authStyles.authMagicLinkSuccess : authStyles.authError}
           role={status === "sent" ? "status" : "alert"}
           aria-live="polite"
         >

@@ -35,10 +35,10 @@ describe("mobile web polish source contracts", () => {
     expect(globals).toMatch(/:where\(button, \[role="button"\], \.pressable, a\[data-pressable\], \.planBtn\)\s*\{[\s\S]*?user-select:\s*none;[\s\S]*?-webkit-user-select:\s*none;/);
 
     const laneSources = [
-      "app/discover/discover.css",
-      "app/feed/feed.css",
-      "app/pint-index/pint-index.css",
-      "app/pal/pal.css",
+      "app/discover/Discover.module.css",
+      "app/feed/Feed.module.css",
+      "app/pint-index/PintIndex.module.css",
+      "app/pal/Pal.module.css",
       "components/drinks/categoryShowcase.css",
       "components/landing/landing.css",
       "components/map/mapToolbar.css",
@@ -67,7 +67,7 @@ describe("mobile web polish source contracts", () => {
     ]));
     expect(new Set(declarations)).toEqual(new Set([
       "app/globals.css",
-      "app/messages/messages.css",
+      "app/messages/Messages.module.css",
       "components/map/venueSheet.css",
       "components/profile/profileImageCropper.css",
     ]));

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import SiteNav from "@/components/nav/SiteNav";
 import WebMcpNightBoard from "@/components/webmcp/WebMcpNightBoard";
 
-import "./webmcp.css";
+import styles from "./Webmcp.module.css";
 
 // A challenge demo surface, not a crawlable family: nothing in the app links
 // here and it is absent from the sitemap, so leaving it indexable would put a
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 
 export default function WebMcpPage() {
   return (
-    <main id="main" className="webmcpPage">
+    <main id="main" className={styles.webmcpPage}>
       <SiteNav />
       <WebMcpNightBoard />
     </main>

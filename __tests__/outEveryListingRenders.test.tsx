@@ -37,6 +37,7 @@ vi.mock("next/link", () => ({
   },
 }));
 
+import outStyles from "@/app/out/Out.module.css";
 import OutClient from "@/app/out/OutClient";
 import type { OutResponse } from "@/lib/out/types";
 import type { WhatsOnRow } from "@/lib/whatsOn";
@@ -152,7 +153,7 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
     const rows = Array.from({ length: UNMATCHED_COUNT }, (_, index) => unmatchedRow(index));
     await renderOut(rows);
 
-    const absent = container.querySelectorAll(".outListingPubPair--absent");
+    const absent = container.querySelectorAll(`.${outStyles["outListingPubPair--absent"]}`);
     expect(absent.length).toBe(UNMATCHED_COUNT);
     expect(absent[0]?.textContent).toBe("Not on our map yet.");
     // The old page's whole answer. It may not stand over 148 rendered rows.
@@ -167,8 +168,8 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
     expect(row).not.toBeNull();
     expect(row?.querySelector("h4")?.textContent).toBe("Sourced listing 3");
     expect(row?.querySelector(".outCardPlace")?.textContent).toBe("The Unlisted Room 3");
-    expect(row?.querySelector(".outCardWhen")?.textContent).toMatch(/\d{2}:\d{2}/);
-    const credit = row?.querySelector<HTMLAnchorElement>("a.outSourceCredit");
+    expect(row?.querySelector(`.${outStyles.outCardWhen}`)?.textContent).toMatch(/\d{2}:\d{2}/);
+    const credit = row?.querySelector<HTMLAnchorElement>(`a.${outStyles.outSourceCredit}`);
     expect(credit?.textContent).toBe("Ticketmaster");
     expect(credit?.getAttribute("href")).toBe("https://www.ticketmaster.co.uk/event/3");
   });
@@ -217,8 +218,8 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
     // One night under a section heading that already names it needs no second
     // heading, so the night is on the section's accessible name instead.
     await renderOut([unmatchedRow(0)]);
-    expect(container.querySelector(".outGroupTitle")).toBeNull();
-    expect(container.querySelector(".outGroup")?.getAttribute("aria-label")).toBe("Tonight");
+    expect(container.querySelector(`.${outStyles.outGroupTitle}`)).toBeNull();
+    expect(container.querySelector(`.${outStyles.outGroup}`)?.getAttribute("aria-label")).toBe("Tonight");
 
     // Two nights under one chip DO need their headings.
     await act(async () => {
@@ -230,7 +231,7 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
       { ...unmatchedRow(1), startsAt: new Date(NOW + 24 * 60 * 60 * 1000).toISOString() },
     ]);
     expect(
-      [...container.querySelectorAll(".outGroupTitle")].map((node) => node.textContent),
+      [...container.querySelectorAll(`.${outStyles.outGroupTitle}`)].map((node) => node.textContent),
     ).toEqual(["Tonight", "Tomorrow"]);
   });
 
@@ -243,9 +244,9 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
       "weekend",
     );
 
-    const block = container.querySelector(".outUnmatchedBlock");
+    const block = container.querySelector(`.${outStyles.outUnmatchedBlock}`);
     expect(block?.querySelector("#out-unmatched-heading")?.tagName).toBe("H3");
-    const groupTitles = [...(block?.querySelectorAll(".outGroupTitle") ?? [])];
+    const groupTitles = [...(block?.querySelectorAll(`.${outStyles.outGroupTitle}`) ?? [])];
     expect(groupTitles).toHaveLength(2);
     expect(groupTitles.every((node) => node.tagName === "H4")).toBe(true);
     const rowTitles = [
@@ -276,7 +277,7 @@ describe("a matched listing keeps its pub link and its pin", () => {
     };
     await renderOut([matched]);
 
-    const pair = container.querySelector(".outListingPubPair--matched");
+    const pair = container.querySelector(`.${outStyles["outListingPubPair--matched"]}`);
     expect(pair?.textContent).toContain("The Lexington");
     expect(pair?.querySelector<HTMLAnchorElement>("a")?.getAttribute("href")).toBe(
       "/map?sel=venue-lexington",

@@ -13,7 +13,7 @@
 // The tile is capped by HEIGHT rather than width, because a thread is read by
 // scrolling and a portrait photograph filling the line would push the words
 // after it a screen away. The cap itself is the viewport's rather than the
-// reader's font (app/messages/messages.css says why). Tap opens the full frame
+// reader's font (app/messages/Messages.module.css says why). Tap opens the full frame
 // in a dialog, so the thread is still behind it and Escape is the way out on
 // every platform.
 //
@@ -23,6 +23,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import styles from "@/app/messages/Messages.module.css";
 import { authedActionFetch } from "@/lib/authedFetch";
 import {
   MESSAGE_PHOTO_ASPECT_PROPERTY,
@@ -110,7 +111,7 @@ export default function MessagePhoto({
   );
 
   if (failed) {
-    return <p className="messagePhotoFailed">{MESSAGE_PHOTO_UNREADABLE_LINE}</p>;
+    return <p className={styles.messagePhotoFailed}>{MESSAGE_PHOTO_UNREADABLE_LINE}</p>;
   }
 
   // The tile's own aspect, handed to the stylesheet once. The figure's width,
@@ -124,8 +125,8 @@ export default function MessagePhoto({
     // The box is reserved at the photo's own aspect, so the thread does not
     // jump under a reader's thumb when the bytes land.
     return (
-      <figure className="messagePhotoFigure" style={tile}>
-        <p className="messagePhotoPending">Loading photo</p>
+      <figure className={styles.messagePhotoFigure} style={tile}>
+        <p className={styles.messagePhotoPending}>Loading photo</p>
       </figure>
     );
   }
@@ -133,10 +134,10 @@ export default function MessagePhoto({
   const alt = messagePhotoAltText(senderHandle);
 
   return (
-    <figure className="messagePhotoFigure" style={tile}>
+    <figure className={styles.messagePhotoFigure} style={tile}>
       <button
         type="button"
-        className="messagePhotoButton"
+        className={styles.messagePhotoButton}
         onClick={() => {
           setDialogError("");
           setOpen(true);
@@ -144,7 +145,7 @@ export default function MessagePhoto({
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- gated bytes read as an object URL; no loader can fetch them */}
         <img
-          className="messagePhoto"
+          className={styles.messagePhoto}
           src={objectUrl}
           width={width}
           height={height}
@@ -155,13 +156,13 @@ export default function MessagePhoto({
       {dialogError ? <p role="status">{dialogError}</p> : null}
       <dialog
         ref={dialogRef}
-        className="messagePhotoViewer"
+        className={styles.messagePhotoViewer}
         onClose={close}
         onClick={onDialogClick}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- same object URL, full frame */}
-        <img className="messagePhotoViewerImage" src={objectUrl} alt={alt} />
-        <button type="button" className="messagePhotoViewerClose" onClick={close}>
+        <img className={styles.messagePhotoViewerImage} src={objectUrl} alt={alt} />
+        <button type="button" className={styles.messagePhotoViewerClose} onClick={close}>
           Close
         </button>
       </dialog>

@@ -15,6 +15,8 @@ import {
   type SocialViewerPhase,
 } from "@/components/social/SocialViewerState";
 
+import styles from "./Social.module.css";
+
 type Proposal = {
   id: string;
   postId: string;
@@ -175,7 +177,7 @@ export default function SocialTagInbox() {
   );
   if (viewerPhase !== "resolved") {
     return (
-      <section className="socialTagInbox" aria-labelledby="social-tags-title">
+      <section className={styles.socialTagInbox} aria-labelledby="social-tags-title">
         <h2 id="social-tags-title">Photo tags</h2>
         <SocialViewerState
           phase={viewerPhase}
@@ -187,7 +189,7 @@ export default function SocialTagInbox() {
   }
   if (!hasLaneContent && !error) return null;
   return (
-    <section className="socialTagInbox" aria-labelledby="social-tags-title">
+    <section className={styles.socialTagInbox} aria-labelledby="social-tags-title">
       <h2 id="social-tags-title">Photo tags</h2>
       {error ? <p role="alert">{error}</p> : null}
       {(["proposed", "approved"] as const).map((lane) => {
@@ -196,7 +198,7 @@ export default function SocialTagInbox() {
         return (
           <section
             key={lane}
-            className="socialTagLane"
+            className={styles.socialTagLane}
             aria-label={LANE_LABEL[lane]}
             aria-busy={state.loading}
           >
@@ -207,7 +209,7 @@ export default function SocialTagInbox() {
                 ? item.audienceAtApproval?.visibility ?? item.visibility
                 : item.visibility;
               return (
-                <article key={item.id} className="socialTagItem">
+                <article key={item.id} className={styles.socialTagItem}>
                   <strong>@{item.authorHandle}</strong>
                   {item.mediaId && item.photoAltText ? (
                     <figure>
@@ -252,7 +254,7 @@ export default function SocialTagInbox() {
             })}
             {state.error ? (
               <button
-                className="socialTagRetry"
+                className={styles.socialTagRetry}
                 type="button"
                 onClick={() => void loadLane(lane, state.retryCursor)}
               >
@@ -261,7 +263,7 @@ export default function SocialTagInbox() {
             ) : null}
             {state.nextCursor ? (
               <button
-                className="socialTagMore"
+                className={styles.socialTagMore}
                 type="button"
                 onClick={() => void loadLane(lane, state.nextCursor)}
               >

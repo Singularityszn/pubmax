@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./map/mapColor.css";
 import "./map/mapCameraControls.css";
+import styles from './PubMapCanvas.module.css';
 
 import * as maplibregl from "maplibre-gl";
 
@@ -3936,7 +3937,7 @@ export default function PubMapCanvas({
           event cannot take it. */}
       <div
         ref={containerRef}
-        className="maplibreMap"
+        className={`${styles.maplibreMap} maplibreMap`}
         onPointerDownCapture={onReaderTouchedMap}
       />
       {/* The reader's dot is painted on the canvas, which says nothing to a
@@ -3952,11 +3953,11 @@ export default function PubMapCanvas({
         />
       ) : null}
       {softRetry ? (
-        <div className="mapSoftRetry" role="status" data-kind={softRetry.kind}>
-          <span className="mapSoftRetryMessage">{softRetry.message}</span>
+        <div className={`${styles.mapSoftRetry} mapSoftRetry`} role="status" data-kind={softRetry.kind}>
+          <span className={styles.mapSoftRetryMessage}>{softRetry.message}</span>
           <button
             type="button"
-            className="mapSoftRetryBtn"
+            className={styles.mapSoftRetryBtn}
             onClick={() => {
               if (softRetry.kind === "pins" || softRetry.kind === "venues") {
                 // The background drew; only the pubs are missing. A full
@@ -4004,9 +4005,9 @@ export default function PubMapCanvas({
         </div>
       ) : null}
       {hoveredVenue ? (
-        <aside className="venueHoverCard" style={hoverCardStyle} aria-hidden="true">
+        <aside className={styles.venueHoverCard} style={hoverCardStyle} aria-hidden="true">
           {hoverImageUrl ? (
-            <figure className="venueHoverPhoto">
+            <figure className={styles.venueHoverPhoto}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={hoverImageUrl}
@@ -4021,12 +4022,12 @@ export default function PubMapCanvas({
               />
             </figure>
           ) : (
-            <div className="venueHoverPhotoFallback" aria-hidden="true">
+            <div className={styles.venueHoverPhotoFallback} aria-hidden="true">
               <span>{hoveredVenue.name.slice(0, 1).toUpperCase()}</span>
             </div>
           )}
-          <div className="venueHoverBody">
-            <span className="venueHoverEyebrow">
+          <div className={styles.venueHoverBody}>
+            <span className={styles.venueHoverEyebrow}>
               {hoverDetail === undefined
                 ? `Loading ${hoverCopy.venueTypeLabel.toLowerCase()} picture`
                 : hoverDetail
@@ -4034,7 +4035,7 @@ export default function PubMapCanvas({
                   : `Fast ${hoverCopy.venueTypeLabel.toLowerCase()} preview`}
             </span>
             <strong>{hoverDetail?.name ?? hoveredVenue.name}</strong>
-            <span className="venueHoverMeta">
+            <span className={styles.venueHoverMeta}>
               {hoverDetail?.primaryBorough ? `${hoverDetail.primaryBorough} · ` : ""}
               {hoverCopy.price !== null && hoverCopy.price !== undefined ? (
                 <>
@@ -4048,13 +4049,13 @@ export default function PubMapCanvas({
                 `Tap for full ${hoverCopy.detailLabel}`
               )}
             </span>
-            <span className="venueHoverProvenance">{hoverCopy.provenance}</span>
+            <span className={styles.venueHoverProvenance}>{hoverCopy.provenance}</span>
             {/* The badge on the pin, said in words. Its dot is the same colour
                 as the one the map is drawing, so the card explains a mark the
                 reader can see rather than introducing a new one. */}
             {hoverCopy.pendingNote ? (
-              <span className="venueHoverPending">
-                <i className="venueHoverPendingDot" />
+              <span className={styles.venueHoverPending}>
+                <i className={styles.venueHoverPendingDot} />
                 {hoverCopy.pendingNote}
               </span>
             ) : null}
@@ -4089,13 +4090,13 @@ export default function PubMapCanvas({
         />
       ) : null}
       {activePoi ? (
-        <div className="poiLabelCard" role="status">
+        <div className={styles.poiLabelCard} role="status">
           <span
-            className="poiSwatch"
+            className={styles.poiSwatch}
             style={{ background: POI_CATEGORY_META[activePoi.category].color }}
           />
           <strong>{activePoi.name}</strong>
-          <span className="poiKind">{POI_CATEGORY_META[activePoi.category].label}</span>
+          <span className={styles.poiKind}>{POI_CATEGORY_META[activePoi.category].label}</span>
           <button type="button" onClick={() => setActivePoi(null)} aria-label="Dismiss">
             <X size={12} />
           </button>

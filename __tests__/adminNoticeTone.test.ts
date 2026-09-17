@@ -33,6 +33,7 @@ vi.mock("@/app/admin/VenuePhotoModeration", () => ({
   default: () => null,
 }));
 
+import adminStyles from "@/app/admin/Admin.module.css";
 import AdminClient from "@/app/admin/AdminClient";
 
 let host: HTMLDivElement;
@@ -97,7 +98,7 @@ async function loadWithSessionAnswer(
       await Promise.resolve();
     });
   }
-  return [...host.querySelectorAll<HTMLElement>(".admin-msg")].at(-1) ?? null;
+  return [...host.querySelectorAll<HTMLElement>(`.${adminStyles.adminMsg}`)].at(-1) ?? null;
 }
 
 describe("a moderator notice carries its own tone", () => {

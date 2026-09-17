@@ -443,8 +443,8 @@ describe("every surface that words an absent price asks the same module", () => 
     expect(cellStart).toBeGreaterThan(-1);
     const cell = borough.slice(cellStart, borough.indexOf("\n}", cellStart));
     expect(cell).toContain("venuePriceLane(");
-    expect(borough.split('className="boroughNoPrice"').length - 1).toBe(1);
-    expect(cell).toContain('className="boroughNoPrice"');
+    expect(borough.split('className={styles.boroughNoPrice}').length - 1).toBe(1);
+    expect(cell).toContain('className={styles.boroughNoPrice}');
   });
 
   it("the unverified-pub sheet already shows an uncorroborated report, and keeps doing so", () => {

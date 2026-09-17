@@ -14,6 +14,7 @@ import {
   venueStatusBadge,
 } from "@/lib/historicFilter";
 import { buildHistoricPubShareText } from "@/lib/shareArtifacts";
+import styles from "./HistoricDetail.module.css";
 
 // One notable pub's cited heritage story, with the record already loaded. The
 // page (page.tsx) reads the dataset and hands the record here; this component
@@ -48,8 +49,8 @@ export default function HistoricPubDetail({ pub }: { pub: HistoricPub }) {
 
   return (
     <>
-      <p className="hdBack">
-        <Link href="/historic" className="hdBackLink">
+      <p className={styles.hdBack}>
+        <Link href="/historic" className={styles.hdBackLink}>
           &larr; All historic pubs
         </Link>
       </p>
@@ -75,14 +76,14 @@ export default function HistoricPubDetail({ pub }: { pub: HistoricPub }) {
         }
       >
         {dateLabel || grade || status || pub.borough ? (
-          <div className="hdMeta">
-            {dateLabel ? <span className="hdEra">{dateLabel}</span> : null}
-            {grade ? <span className="hdGrade">{grade}</span> : null}
-            {status ? <span className="hdGrade">{status}</span> : null}
+          <div className={styles.hdMeta}>
+            {dateLabel ? <span className={styles.hdEra}>{dateLabel}</span> : null}
+            {grade ? <span className={styles.hdGrade}>{grade}</span> : null}
+            {status ? <span className={styles.hdGrade}>{status}</span> : null}
             {pub.borough ? (
-              <span className="hdBorough">
+              <span className={styles.hdBorough}>
                 {boroughSlug ? (
-                  <Link href={`/borough/${boroughSlug}`} className="hdBoroughLink">
+                  <Link href={`/borough/${boroughSlug}`} className={styles.hdBoroughLink}>
                     {pub.borough}
                   </Link>
                 ) : (
@@ -93,8 +94,8 @@ export default function HistoricPubDetail({ pub }: { pub: HistoricPub }) {
           </div>
         ) : null}
 
-        <section className="hdStory" aria-labelledby="hdStoryHeading">
-          <h2 id="hdStoryHeading" className="hdStoryHeading">
+        <section className={styles.hdStory} aria-labelledby="hdStoryHeading">
+          <h2 id="hdStoryHeading" className={styles.hdStoryHeading}>
             The record
           </h2>
 
@@ -104,15 +105,15 @@ export default function HistoricPubDetail({ pub }: { pub: HistoricPub }) {
               gap.
             </EmptyState>
           ) : (
-            <ol className="hdFacts">
+            <ol className={styles.hdFacts}>
               {pub.facts.map((fact, i) => (
-                <li key={`${fact.source}-${i}`} className="hdFact">
-                  <p className="hdFactText">{fact.fact}</p>
-                  <div className="hdFactProvenance">
-                    <span className="hdSource">{heritageSourceLabel(fact.source)}</span>
+                <li key={`${fact.source}-${i}`} className={styles.hdFact}>
+                  <p className={styles.hdFactText}>{fact.fact}</p>
+                  <div className={styles.hdFactProvenance}>
+                    <span className={styles.hdSource}>{heritageSourceLabel(fact.source)}</span>
                     {fact.sourceRef ? (
                       <a
-                        className="hdCite"
+                        className={styles.hdCite}
                         href={fact.sourceRef}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -128,10 +129,10 @@ export default function HistoricPubDetail({ pub }: { pub: HistoricPub }) {
           )}
         </section>
 
-        <section className="hdActions" aria-label="Explore this pub">
+        <section className={styles.hdActions} aria-label="Explore this pub">
           {mapHref ? (
-            <div className="hdActionRow">
-              <Link prefetch={false} className="hdAction pressable" href={mapHref}>
+            <div className={styles.hdActionRow}>
+              <Link prefetch={false} className={`${styles.hdAction} pressable`} href={mapHref}>
                 <PubPalMascot size={14} circular lazy />
                 Ask your Pub Pal
               </Link>
@@ -141,7 +142,7 @@ export default function HistoricPubDetail({ pub }: { pub: HistoricPub }) {
           <ShareBar url={canonical} title={pub.name} text={shareText} />
         </section>
 
-        <footer className="hdProvenance">
+        <footer className={styles.hdProvenance}>
           Cited from Wikipedia and Wikidata. Never invented.
         </footer>
       </Screen>

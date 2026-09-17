@@ -43,12 +43,13 @@ import {
   AUTH_MENU_FOCUSABLE_SELECTOR,
   authMenuFocusBoundary,
 } from "@/lib/authFocus";
+import authStyles from "@/app/auth/Auth.module.css";
 
 const ClerkAccountControls = dynamic(
   () => import("@/components/auth/ClerkAccountControls"),
   {
     loading: () => (
-      <div className="clerkAccount clerkAccountLoading" hidden aria-hidden="true">
+      <div className={authStyles.clerkAccount} hidden aria-hidden="true">
         Clerk account controls
       </div>
     ),
@@ -350,9 +351,9 @@ export default function SignInButton({
     );
     const avatarControl = avatar ? (
       // eslint-disable-next-line @next/next/no-img-element -- remote IdP avatar; no next/image loader configured for it
-      <img className="authAvatar" src={avatar} alt="" width={28} height={28} />
+      <img className={authStyles.authAvatar} src={avatar} alt="" width={28} height={28} />
     ) : (
-      <span className="authAvatarFallback" aria-hidden="true">
+      <span className={authStyles.authAvatarFallback} aria-hidden="true">
         {authAvatarInitials(name)}
       </span>
     );
@@ -364,16 +365,16 @@ export default function SignInButton({
       // links point at /u/you, which is the claim surface itself.
       return (
         <div
-          className="authUser authUserNav"
+          className={`${authStyles.authUser} ${authStyles.authUserNav}`}
           ref={rootRef}
           data-auth-configured="true"
           data-auth-resolved={clientHydrated ? "true" : "false"}
         >
-          <div className="authCompact">
+          <div className={authStyles.authCompact}>
             <button
               type="button"
               ref={triggerRef}
-              className="authCompactTrigger"
+              className={authStyles.authCompactTrigger}
               onClick={() => setMenuOpen((open) => !open)}
               aria-expanded={menuOpen}
               aria-controls={menuId}
@@ -381,7 +382,7 @@ export default function SignInButton({
               aria-label={`Account options for ${name}`}
             >
               {avatarControl}
-              <span className="authCompactLabel" aria-hidden="true">
+              <span className={authStyles.authCompactLabel} aria-hidden="true">
                 Account
               </span>
             </button>
@@ -410,15 +411,15 @@ export default function SignInButton({
 
     return (
       <div
-        className="authUser"
+        className={authStyles.authUser}
         data-auth-configured="true"
         data-auth-resolved={clientHydrated ? "true" : "false"}
       >
         {avatarControl}
-        <span className="authName">{name}</span>
+        <span className={authStyles.authName}>{name}</span>
         <button
           type="button"
-          className="authSignOut"
+          className={authStyles.authSignOut}
           onClick={() => void onSignOut("account")}
           disabled={busy !== null}
         >
@@ -482,7 +483,7 @@ export default function SignInButton({
     socialOptions()
   );
   const options = (
-    <div className="authOptions">
+    <div className={authStyles.authOptions}>
       {supabaseOptions}
     </div>
   );
@@ -490,13 +491,13 @@ export default function SignInButton({
   if (!compact) {
     return (
       <div
-        className="authUser"
+        className={authStyles.authUser}
         data-auth-configured="true"
         data-auth-resolved={clientHydrated ? "true" : "false"}
       >
         {options}
         {error ? (
-          <span className="authError" role="alert">
+          <span className={authStyles.authError} role="alert">
             {error}
           </span>
         ) : null}
@@ -509,18 +510,18 @@ export default function SignInButton({
   if (phoneLogin) {
     return (
       <div
-        className="authUser authUserNav"
+        className={`${authStyles.authUser} ${authStyles.authUserNav}`}
         data-auth-configured="true"
         data-auth-resolved={clientHydrated ? "true" : "false"}
       >
-        <div className="authCompact">
+        <div className={authStyles.authCompact}>
           <Link
             href={signInHref}
-            className="authCompactTrigger"
+            className={authStyles.authCompactTrigger}
             aria-label="Sign in"
           >
             <LogIn size={16} strokeWidth={2} aria-hidden="true" />
-            <span className="authCompactLabel" aria-hidden="true">
+            <span className={authStyles.authCompactLabel} aria-hidden="true">
               Sign in
             </span>
           </Link>
@@ -531,16 +532,16 @@ export default function SignInButton({
 
   return (
     <div
-      className="authUser authUserNav"
+      className={`${authStyles.authUser} ${authStyles.authUserNav}`}
       ref={rootRef}
       data-auth-configured="true"
       data-auth-resolved={clientHydrated ? "true" : "false"}
     >
-      <div className="authCompact">
+      <div className={authStyles.authCompact}>
         <button
           type="button"
           ref={triggerRef}
-          className="authCompactTrigger"
+          className={authStyles.authCompactTrigger}
           onClick={() => {
             // Desktop fast path: popover. Also expose the full page as a link
             // inside the menu for anyone who wants the dedicated surface.
@@ -554,12 +555,12 @@ export default function SignInButton({
           <LogIn size={16} strokeWidth={2} aria-hidden="true" />
           {/* Visually hidden on the densest tablet band (auth.css ≤900px);
               the aria-label above keeps the accessible name either way. */}
-          <span className="authCompactLabel" aria-hidden="true">
+          <span className={authStyles.authCompactLabel} aria-hidden="true">
             Sign in
           </span>
         </button>
         {menuOpen ? (
-          <div className="authMenu" id={menuId} aria-label="Sign in options" ref={menuRef}>
+          <div className={authStyles.authMenu} id={menuId} aria-label="Sign in options" ref={menuRef}>
             {configured || clerkSessionAvailable ? (
               <>
                 {socialOptions(true)}
@@ -573,7 +574,7 @@ export default function SignInButton({
                 ) : null}
                 <Link
                   href={signInHref}
-                  className="authMagicLinkCancel"
+                  className={authStyles.authMagicLinkCancel}
                   onClick={() => setMenuOpen(false)}
                 >
                   Open full sign-in page
@@ -584,7 +585,7 @@ export default function SignInButton({
         ) : null}
       </div>
       {error ? (
-        <span className="authError" role="alert">
+        <span className={authStyles.authError} role="alert">
           {error}
         </span>
       ) : null}

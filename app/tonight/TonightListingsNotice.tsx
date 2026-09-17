@@ -38,6 +38,8 @@ import {
   type PicksState,
 } from "@/lib/picksState";
 
+import styles from "./Tonight.module.css";
+
 export default function TonightListingsNotice({
   state,
   note,
@@ -73,7 +75,7 @@ export default function TonightListingsNotice({
 
       {refreshing && !firstLoad ? (
         <p
-          className="tonightStatus tonightStatusNote"
+          className={`${styles.tonightStatus} ${styles.tonightStatusNote}`}
           role="status"
           data-tonight-listings-note="refreshing"
         >
@@ -83,10 +85,10 @@ export default function TonightListingsNotice({
       ) : null}
 
       {unavailable ? (
-        <div className="tonightStatus tonightStatusError">
+        <div className={`${styles.tonightStatus} ${styles.tonightStatusError}`}>
           <p role="status">{state.reason ?? PICKS_UNAVAILABLE_LINE}</p>
           {picksStateOffersRetry(state) ? (
-            <button type="button" className="tonightRetry" onClick={onRetry}>
+            <button type="button" className={styles.tonightRetry} onClick={onRetry}>
               <RefreshCw size={15} aria-hidden="true" />
               {PICKS_RETRY_LABEL}
             </button>
@@ -96,12 +98,12 @@ export default function TonightListingsNotice({
 
       {!unavailable && !refreshing && note ? (
         <div
-          className="tonightStatus tonightStatusNote"
+          className={`${styles.tonightStatus} ${styles.tonightStatusNote}`}
           data-tonight-listings-note="partial"
         >
           <p role="status">{note}</p>
           {noteOffersRetry ? (
-            <button type="button" className="tonightRetry" onClick={onRetry}>
+            <button type="button" className={styles.tonightRetry} onClick={onRetry}>
               <RefreshCw size={15} aria-hidden="true" />
               {PICKS_RETRY_LABEL}
             </button>
@@ -110,9 +112,9 @@ export default function TonightListingsNotice({
       ) : null}
 
       {empty ? (
-        <p className="tonightStatus" role="status">
+        <p className={styles.tonightStatus} role="status">
           {emptyLead}{" "}
-          <Link prefetch={false} href="/map" className="tonightStatusLink">
+          <Link prefetch={false} href="/map" className={styles.tonightStatusLink}>
             The map still knows where the cheap pints are
           </Link>
           .
@@ -120,7 +122,7 @@ export default function TonightListingsNotice({
       ) : null}
 
       {picksStateOffersAlternative(state) ? (
-        <PicksAlternatives context={context} className="tonightAlternatives" />
+        <PicksAlternatives context={context} className={styles.tonightAlternatives} />
       ) : null}
     </>
   );

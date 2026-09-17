@@ -24,6 +24,7 @@ import {
 } from "@/lib/deviceAccountSessions";
 import type { DeviceAccountSwitchOutcome } from "@/lib/deviceAccountSwitch";
 import { displayHandle } from "@/lib/handleDisplay";
+import authStyles from "@/app/auth/Auth.module.css";
 
 export default function AccountDeviceControls({
   handle,
@@ -33,7 +34,7 @@ export default function AccountDeviceControls({
   addAccountHref = "/login",
   onSignOut,
   signOutDisabled = false,
-  signOutClassName = "authSignOut",
+  signOutClassName = authStyles.authSignOut,
   onNavigate,
 }: {
   /** The active account's handle, so the way out names who is leaving. */
@@ -79,7 +80,7 @@ export default function AccountDeviceControls({
           </button>
           <button
             type="button"
-            className={`${signOutClassName} authSignOutDevice`}
+            className={`${signOutClassName} ${authStyles.authSignOutDevice}`}
             onClick={() => onSignOut("device")}
             disabled={signOutDisabled}
           >

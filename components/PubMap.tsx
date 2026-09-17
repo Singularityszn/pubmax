@@ -13,6 +13,10 @@ const PubPalMascot = dynamic(
 );
 const ThemeToggle = dynamic(() => import("@/components/ThemeToggle"), { ssr: false });
 import PriceBadge from "@/components/PriceBadge";
+import "@/components/map/MapStageChrome.module.css";
+import "@/components/map/MapChromeMicro.module.css";
+import "@/components/map/pubmap/MappedRouteChip.module.css";
+import "@/components/map/pubmap/BandOnboardingChip.module.css";
 import "@/components/map/venueSheet.css";
 import "@/components/map/spillComposer.css";
 import "@/components/map/logIntentFallback.css";
@@ -29,6 +33,8 @@ import "@/components/map/citySuggestBanner.css";
 import "@/components/map/cityStatusBanner.css";
 import "@/components/map/mapConciergeAsk.css";
 import "@/components/map/mapDesktopRail.css";
+import searchEmptyStyles from './map/mapSearchEmpty.module.css';
+import btnStyles from './map/addStopBtn.module.css';
 import "@/components/map/tonightLane.css";
 const UkPlaceArrivalBanner = dynamic(
   () => import("@/components/map/UkPlaceArrivalBanner"),
@@ -5049,7 +5055,7 @@ export default function PubMap({
           <p className="description" style={{ marginTop: 0 }}>
             {SAVED_ONLY_EMPTY_NOTE}
           </p>
-          <button type="button" className="addStopBtn" onClick={() => changeSavedOnly(false)}>
+          <button type="button" className={btnStyles.addStopBtn} onClick={() => changeSavedOnly(false)}>
             Show all pubs
           </button>
         </section>
@@ -5060,7 +5066,7 @@ export default function PubMap({
         <p className="description" style={{ marginTop: 0 }}>
           No pubs match these filters. Try widening your price or clearing your story filters.
         </p>
-        <button type="button" className="addStopBtn" onClick={() => setFilters(seedCrawlState("").filters)}>
+        <button type="button" className={btnStyles.addStopBtn} onClick={() => setFilters(seedCrawlState("").filters)}>
           Clear filters
         </button>
       </section>
@@ -5994,16 +6000,16 @@ export default function PubMap({
   function renderMapSearchEmptyState() {
     return mapSearchEmptyVisible ? (
       <aside
-        className="mapSearchEmpty"
+        className={searchEmptyStyles.mapSearchEmpty}
         role="status"
         data-testid="map-filter-empty"
       >
-        <span className="mapSearchEmptyMessage">
+        <span className={searchEmptyStyles.mapSearchEmptyMessage}>
           No pubs match &apos;{trimmedMapQuery}&apos; here
         </span>
         <button
           type="button"
-          className="mapSearchEmptyAction"
+          className={searchEmptyStyles.mapSearchEmptyAction}
           onClick={clearMapQuery}
         >
           Clear search

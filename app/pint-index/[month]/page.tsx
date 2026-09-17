@@ -21,7 +21,7 @@ import {
 import { formatPrice } from "@/lib/venues";
 import PintIndexScreen from "../PintIndexScreen";
 
-import "../pint-index.css";
+import styles from "../PintIndex.module.css";
 
 // One dated edition of the public London Pint Index: /pint-index/2026-06.
 //
@@ -100,7 +100,7 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
   const { corrections, revision, publishedAt } = edition.archive;
 
   return (
-    <main id="main" className="pintIndexPage">
+    <main id="main" className={styles.pintIndexPage}>
       <JsonLd data={jsonLd} nonce={nonce} />
       <SiteNav />
 
@@ -110,23 +110,23 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
         csvHref={`/pint-index/${month}/data.csv`}
       >
         {summary.averageGbp !== null ? (
-          <dl className="pintIndexStats">
-            <div className="pintIndexStat"><dt>Average pint</dt><dd>{formatPrice(summary.averageGbp)}</dd></div>
-            <div className="pintIndexStat"><dt>Cheapest borough</dt><dd>{formatPrice(summary.cheapestBorough?.averageGbp ?? null)}<small>{summary.cheapestBorough?.name}</small></dd></div>
-            <div className="pintIndexStat"><dt>Dearest borough</dt><dd>{formatPrice(summary.dearestBorough?.averageGbp ?? null)}<small>{summary.dearestBorough?.name}</small></dd></div>
-            <div className="pintIndexStat"><dt>Eligible pubs</dt><dd>{summary.pubCount}<small>across {summary.boroughCount} boroughs</small></dd></div>
+          <dl className={styles.pintIndexStats}>
+            <div className={styles.pintIndexStat}><dt>Average pint</dt><dd>{formatPrice(summary.averageGbp)}</dd></div>
+            <div className={styles.pintIndexStat}><dt>Cheapest borough</dt><dd>{formatPrice(summary.cheapestBorough?.averageGbp ?? null)}<small>{summary.cheapestBorough?.name}</small></dd></div>
+            <div className={styles.pintIndexStat}><dt>Dearest borough</dt><dd>{formatPrice(summary.dearestBorough?.averageGbp ?? null)}<small>{summary.dearestBorough?.name}</small></dd></div>
+            <div className={styles.pintIndexStat}><dt>Eligible pubs</dt><dd>{summary.pubCount}<small>across {summary.boroughCount} boroughs</small></dd></div>
           </dl>
         ) : null}
 
         {corrections.length > 0 ? (
-          <section className="pintIndexSection" aria-labelledby="correctionsHeading">
-            <h2 id="correctionsHeading" className="pintIndexSectionTitle">Corrections</h2>
-            <p className="pintIndexSectionDek">
+          <section className={styles.pintIndexSection} aria-labelledby="correctionsHeading">
+            <h2 id="correctionsHeading" className={styles.pintIndexSectionTitle}>Corrections</h2>
+            <p className={styles.pintIndexSectionDek}>
               This edition has been corrected {corrections.length === 1 ? "once" : `${corrections.length} times`}.
               You are reading revision {revision}. Nothing was quietly swapped: each
               change is dated and named here.
             </p>
-            <ol className="pintIndexProse">
+            <ol className={styles.pintIndexProse}>
               {corrections.map((correction) => (
                 <li key={correction.previousObservationsSha256}>
                   <p>
@@ -139,10 +139,10 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
           </section>
         ) : null}
 
-        <section className="pintIndexSection" aria-labelledby="leagueHeading">
-          <h2 id="leagueHeading" className="pintIndexSectionTitle">Borough league table</h2>
+        <section className={styles.pintIndexSection} aria-labelledby="leagueHeading">
+          <h2 id="leagueHeading" className={styles.pintIndexSectionTitle}>Borough league table</h2>
           {rows.length === 0 ? (
-            <p className="pintIndexNote">
+            <p className={styles.pintIndexNote}>
               <strong>No eligible prices in {label}.</strong> A price only
               gets into this league if it names a public source and the day it was
               seen. None did in this window, so this edition publishes none rather
@@ -156,7 +156,7 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
               caption={`London boroughs ranked by average published pint price, ${label}`}
             />
           )}
-          <a className="pintIndexDownload" href={`/pint-index/${month}/data.csv`} download>
+          <a className={styles.pintIndexDownload} href={`/pint-index/${month}/data.csv`} download>
             Download {label} (CSV) ↓
           </a>
         </section>
@@ -166,9 +166,9 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
             figures move, and an edition that promises its numbers stay put may
             not carry one that does not. */}
         {summary.dearestPint ? (
-          <section className="pintIndexSection" id="dearest" aria-labelledby="dearestHeading">
-            <h2 id="dearestHeading" className="pintIndexSectionTitle">The dearest end</h2>
-            <p className="pintIndexSectionDek">
+          <section className={styles.pintIndexSection} id="dearest" aria-labelledby="dearestHeading">
+            <h2 id="dearestHeading" className={styles.pintIndexSectionTitle}>The dearest end</h2>
+            <p className={styles.pintIndexSectionDek}>
               The same table the other way up, ranked on the priciest pint each
               borough had on record in {label}. Top of it:{" "}
               {formatPrice(summary.dearestPint.maxGbp)} at{" "}
@@ -182,16 +182,16 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
           </section>
         ) : null}
 
-        <section className="pintIndexSection" aria-labelledby="editionsHeading">
-          <h2 id="editionsHeading" className="pintIndexSectionTitle">Every dated edition</h2>
-          <p className="pintIndexSectionDek">
+        <section className={styles.pintIndexSection} aria-labelledby="editionsHeading">
+          <h2 id="editionsHeading" className={styles.pintIndexSectionTitle}>Every dated edition</h2>
+          <p className={styles.pintIndexSectionDek}>
             Each closed month keeps its own page. Cite one and it still says the
             same thing a year later.
           </p>
           <PintIndexEditions editions={editions} current={month} />
         </section>
 
-        <p className="pintIndexFootnote">
+        <p className={styles.pintIndexFootnote}>
           <Link href="/pint-index">See the live index →</Link> · <Link prefetch={false} href="/map">Open the map →</Link>
         </p>
       </PintIndexScreen>

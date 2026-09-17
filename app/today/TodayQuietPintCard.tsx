@@ -16,9 +16,9 @@ import { ArrowRight, ExternalLink, Wine } from "lucide-react";
 import { ProseDisclosure } from "@/components/Disclosure";
 import type { QuietPintModule } from "@/lib/quietPint";
 
-import { TODAY_TEXT_BUTTON_CLASS } from "./todayTextButton";
+import { todayTextButtonClass } from "./todayTextButton";
 
-import "./quietPintCard.css";
+import styles from "./QuietPintCard.module.css";
 
 type Props = { module: QuietPintModule | null };
 
@@ -27,48 +27,48 @@ export default function TodayQuietPintCard({ module }: Props) {
 
   return (
     <section
-      className="todayCard"
+      className={styles.todayCard}
       aria-labelledby="today-quiet-pint-title"
       data-testid="today-quiet-pint"
     >
-      <div className="todayCardHead">
-        <span className="todayCardIcon" aria-hidden="true">
+      <div className={styles.todayCardHead}>
+        <span className={styles.todayCardIcon} aria-hidden="true">
           <Wine size={18} />
         </span>
         <div>
-          <p className="todayCardEyebrow">For a quieter pint</p>
-          <h2 className="todayCardTitle" id="today-quiet-pint-title">
+          <p className={styles.todayCardEyebrow}>For a quieter pint</p>
+          <h2 className={styles.todayCardTitle} id="today-quiet-pint-title">
             A quiet pint, and a bit of history.
           </h2>
         </div>
       </div>
 
-      <ul className="quietPintList">
+      <ul className={styles.quietPintList}>
         {module.rows.map((row) => (
-          <li key={row.id} className="quietPintRow">
-            <Link className="quietPintLink pressable" href={row.mapHref}>
-              <span className="quietPintTop">
-                <span className="quietPintName">{row.name}</span>
+          <li key={row.id} className={styles.quietPintRow}>
+            <Link className={`${styles.quietPintLink} pressable`} href={row.mapHref}>
+              <span className={styles.quietPintTop}>
+                <span className={styles.quietPintName}>{row.name}</span>
                 {row.priceLabel ? (
-                  <span className="quietPintPrice">{row.priceLabel}</span>
+                  <span className={styles.quietPintPrice}>{row.priceLabel}</span>
                 ) : null}
               </span>
             </Link>
-            <div className="quietPintHeritage">
+            <div className={styles.quietPintHeritage}>
               <ProseDisclosure text={row.heritageLine} />
             </div>
-            <div className="quietPintFoot">
+            <div className={styles.quietPintFoot}>
               {row.gradeLabel ? (
-                <span className="quietPintGrade">{row.gradeLabel}</span>
+                <span className={styles.quietPintGrade}>{row.gradeLabel}</span>
               ) : null}
               {row.eraLabel ? (
-                <span className="quietPintEra">{row.eraLabel}</span>
+                <span className={styles.quietPintEra}>{row.eraLabel}</span>
               ) : null}
-              <span className="quietPintQuiet">{row.quietLabel}</span>
-              <span className="todayProvChip">{row.provenanceLabel}</span>
+              <span className={styles.quietPintQuiet}>{row.quietLabel}</span>
+              <span className={styles.todayProvChip}>{row.provenanceLabel}</span>
               {row.sourceRef ? (
                 <a
-                  className="quietPintSource"
+                  className={styles.quietPintSource}
                   href={row.sourceRef}
                   target="_blank"
                   rel="noreferrer noopener"
@@ -77,18 +77,18 @@ export default function TodayQuietPintCard({ module }: Props) {
                   <ExternalLink size={12} aria-hidden="true" />
                 </a>
               ) : (
-                <span className="quietPintSource">via {row.sourceLabel}</span>
+                <span className={styles.quietPintSource}>via {row.sourceLabel}</span>
               )}
             </div>
           </li>
         ))}
       </ul>
 
-      <p className="todayCardFootRow">
-        <span className="todayProvenance">
+      <p className={styles.todayCardFootRow}>
+        <span className={styles.todayProvenance}>
           Quiet reads the usual pattern for the hour, not the door.
         </span>
-        <Link href="/historic" className={TODAY_TEXT_BUTTON_CLASS}>
+        <Link href="/historic" className={todayTextButtonClass(styles.todayTextButton)}>
           More historic pubs
           <ArrowRight size={14} aria-hidden="true" />
         </Link>

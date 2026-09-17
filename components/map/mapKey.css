@@ -352,3 +352,36 @@ html[data-theme="dark"] .mapKeyPriceSwatch--grey {
   font-size: 0.72rem;
   line-height: 1.4;
 }
+
+/* ── Phone responsive (migrated from globals.css) ── */
+
+@media (max-width: 1050px) {
+  .mapLegend {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .mapLegend {
+    left: 10px;
+    right: auto;
+    bottom: var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance) + 18px));
+    max-width: min(220px, calc(100vw - 120px));
+    gap: 8px;
+    padding: 8px 10px;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Legend wraps to two rows on the narrowest phones without clipping. */
+  .mapLegend {
+    bottom: calc(var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance));
+    gap: 8px 12px;
+    padding: 8px 10px;
+    font-size: 0.74rem;
+  }
+}

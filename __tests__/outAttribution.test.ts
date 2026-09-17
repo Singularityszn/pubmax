@@ -13,10 +13,7 @@ import { trustedDrinkLensPrices } from "@/lib/mapExperienceLens";
 import { rankBoroughCheapest } from "@/lib/nearMeAnswer";
 import { createSkiddleProvider } from "@/lib/events/skiddle";
 import { OUT_CARD_SOURCES, outCardSource, outSourceAttribution } from "@/lib/out/attribution";
-import {
-  SKIDDLE_BRAND_ASSET_PRESENT,
-  skiddleLaneFenced,
-} from "@/lib/whatson/eventNormalise.mjs";
+import { skiddleLaneFenced } from "@/lib/whatson/eventNormalise.mjs";
 import type { Venue } from "@/lib/venues";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import { summariseWhatsOnByVenue } from "@/lib/whatsOnBadges";
@@ -112,9 +109,9 @@ describe("the out card", () => {
     const unmatched = renderToStaticMarkup(
       createElement(OutCard, { row: eventRow({ venueId: "   " }) }),
     );
-    expect(unmatched).toMatch(/<a[^>]*class="outCard"/);
+    expect(unmatched).toMatch(/<a[^>]*class="[^"]*outCard[^"]*"/);
     expect(unmatched).toContain('href="https://www.skiddle.com/whats-on/e/1"');
-    expect(unmatched).toContain('class="outSourceCredit"');
+    expect(unmatched).toMatch(/class="[^"]*outSourceCredit[^"]*"/);
   });
 
   it("falls back to the pub when the publisher published no event page", () => {
@@ -128,9 +125,9 @@ describe("the out card", () => {
     );
 
     expect(html).toContain('href="/map?sel=venue-warehouse"');
-    expect(html).toMatch(/<a[^>]*class="outCard"/);
+    expect(html).toMatch(/<a[^>]*class="[^"]*outCard[^"]*"/);
     // A front door is no event page, so the credit prints as text, not a link.
-    expect(html).toContain('class="outSourceCredit outSourceCredit--unlinked"');
+    expect(html).toMatch(/class="[^"]*outSourceCredit[^"]*outSourceCredit--unlinked[^"]*"/);
   });
 
   it("stays visibly static when neither a pub nor an event page exists", () => {
@@ -143,14 +140,14 @@ describe("the out card", () => {
       }),
     );
 
-    expect(html).toContain('class="outCard outCard--static"');
-    expect(html).not.toMatch(/<a[^>]*class="outCard(?:\s|")/);
+    expect(html).toMatch(/class="[^"]*outCard[^"]*outCard--static[^"]*"/);
+    expect(html).not.toMatch(/<a[^>]*class="[^"]*outCard[^"]*"/);
   });
 
   it("keeps the source credit its own link, after the card and never inside it", () => {
     const html = renderToStaticMarkup(createElement(OutCard, { row: eventRow() }));
-    const creditAnchorAt = html.indexOf('class="outSourceCredit"');
-    const cardAt = html.indexOf('class="outCard"');
+    const creditAnchorAt = html.search(/class="[^"]*outSourceCredit(?!--)/);
+    const cardAt = html.search(/class="[^"]*outCard(?!Place)/);
     expect(creditAnchorAt).toBeGreaterThan(-1);
     expect(cardAt).toBeGreaterThan(-1);
     expect(cardAt).toBeLessThan(creditAnchorAt);

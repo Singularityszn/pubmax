@@ -15,9 +15,9 @@ function ruleBody(css: string, selector: string): string {
   return css.match(new RegExp(`${escaped}\\s*{([^}]*)}`))?.[1] ?? "";
 }
 
-const palCss = read("app/pal/pal.css");
-const profileCss = read("app/u/[handle]/profile.css");
-const authCss = read("app/auth/auth.css");
+const palCss = read("app/pal/Pal.module.css");
+const profileCss = read("app/u/[handle]/Profile.module.css");
+const authCss = read("app/auth/Auth.module.css");
 const momentCss = read("components/moment/moment.css");
 const messages = read("app/messages/MessagesInboxClient.tsx");
 
@@ -39,7 +39,7 @@ describe("Lane M3 taste P1 fixes", () => {
   });
 
   it("#2 /u/you PXX avatar drops navy for ink/coral house tokens", () => {
-    const avatar = ruleBody(profileCss, ".profilePage .youIdentityAvatar");
+    const avatar = ruleBody(profileCss, ".profilePage :global(.youIdentityAvatar)");
     expect(avatar).not.toMatch(/var\(--river\)/);
     expect(avatar).toMatch(/var\(--ink-deep\)/);
     expect(avatar).toMatch(/var\(--brass\)/);
@@ -47,9 +47,9 @@ describe("Lane M3 taste P1 fixes", () => {
 
   it("#2 /u/you keeps Claim primary and steps Pub Pal back to quiet secondary", () => {
     expect(profileCss).toMatch(
-      /\.youIdentityActions a:first-child\s*{[^}]*background:\s*var\(--brass\)/,
+      /\.youIdentityActions\) a:first-child\s*{[^}]*background:\s*var\(--brass\)/,
     );
-    const secondary = ruleBody(profileCss, ".profilePage .youIdentityActions a:last-child");
+    const secondary = ruleBody(profileCss, ".profilePage :global(.youIdentityActions) a:last-child");
     expect(secondary).toMatch(/background:\s*transparent/);
     expect(secondary).toMatch(/border-color:\s*transparent/);
   });

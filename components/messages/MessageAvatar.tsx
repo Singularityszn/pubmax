@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { handleMonogram } from "@/lib/messageTimeline";
+import styles from "@/app/messages/Messages.module.css";
 
 /**
  * The face beside a handle on a messaging surface.
@@ -29,7 +30,7 @@ export default function MessageAvatar({
   const showPhoto = Boolean(avatarUrl) && failedUrl !== avatarUrl;
   return (
     <span
-      className="messageAvatar"
+      className={styles.messageAvatar}
       style={{ "--message-avatar-size": `${size}px` } as React.CSSProperties}
       aria-hidden="true"
     >

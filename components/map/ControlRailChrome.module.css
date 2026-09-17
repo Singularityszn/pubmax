@@ -1,0 +1,401 @@
+/* ControlRail / RoutePanel chrome — extracted from app/globals.css.
+ *
+ * These are global (non-module) classes applied via plain-string className in
+ * ControlRail.tsx, RoutePanel.tsx and their direct children.  The file is
+ * imported once by ControlRail.tsx; RoutePanel re-uses the same classes so the
+ * single import covers both panels.
+ *
+ * Shared typography classes that are referenced across many components
+ * (.eyebrow, .sectionTitle, .inspectorTitle) remain in globals.css.
+ *
+ * Every selector is :global() because these classes are consumed as plain
+ * strings across multiple components and from globals.css compound selectors.
+ */
+
+/* ── Panel shells ────────────────────────────────────────────────────────────*/
+
+:global(.controlRail),
+:global(.routePanel) {
+  z-index: var(--z-map-panel);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-tint-brass) 44%, var(--panel) 56%) 0%, var(--panel) 34%),
+    var(--panel);
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+:global(.controlRail) {
+  border-right: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  padding: 20px;
+  box-shadow: inset -4px 0 0 color-mix(in srgb, var(--brass) 22%, transparent);
+}
+
+:global(.routePanel) {
+  border-left: 1px solid color-mix(in srgb, var(--line) 70%, var(--river) 30%);
+  padding: 20px;
+  box-shadow: inset 4px 0 0 color-mix(in srgb, var(--river) 20%, transparent);
+}
+
+/* ── Brand block + route header layout ───────────────────────────────────────*/
+
+:global(.brandBlock),
+:global(.routeHeader) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+:global(.brandBlock) {
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+:global(.brandMark) {
+  width: 44px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--brass), var(--river));
+  /* Cream, not on-accent: the river end of this gradient is a mid blue that
+     dark ink fails against. On-inverse is the fixed cream for dark fills. */
+  color: var(--color-on-inverse);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+/* ── Search box ──────────────────────────────────────────────────────────────*/
+
+:global(.searchBox) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--river) 30%);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--panel-raised) 94%, var(--surface-tint-river) 6%);
+  color: var(--muted);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+:global(.searchBox):focus-within {
+  border-color: var(--brass);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brass) 18%, transparent);
+}
+
+/* The house search field (components/ui/search-field.tsx) is ONE control, so it
+   wears one focus ring: the label's. These two rules live here rather than as
+   utility classes on the input because each has to beat a rule it cannot
+   outrank from there — the global :focus-visible outline above, and the UA's
+   own cancel glyph. Both defects were visible: a focused field drew a ring
+   inside its own ring, and a second X sat beside the labelled Clear search. */
+:global(.houseSearchField) input[type="search"]:focus-visible {
+  outline: none;
+}
+
+:global(.houseSearchField) input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
+:global(.searchBox) input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  min-width: 0;
+}
+
+/* ── Panel sections ──────────────────────────────────────────────────────────*/
+
+:global(.panelSection) {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* ── Segmented toggle ────────────────────────────────────────────────────────*/
+
+:global(.segmented) {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+:global(.segmented) button {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-weight: 600;
+  transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+:global(.segmented) button:hover {
+  border-color: var(--brass);
+}
+
+:global(.segmented) button:global(.selected) {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--brass) 24%, transparent);
+}
+
+/* ── Featured crawls ─────────────────────────────────────────────────────────*/
+
+:global(.featuredHint) {
+  margin: -4px 0 12px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+:global(.featuredList) {
+  display: grid;
+  gap: 8px;
+}
+
+:global(.featuredCrawl) {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, var(--brass) 22%);
+  border-left: 4px solid var(--brass);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brass) 8%, var(--panel-raised)), var(--panel-raised) 58%),
+    var(--panel-raised);
+  color: var(--ink);
+  transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+:global(.featuredCrawl)[data-crawl-style="heritage"],
+:global(.featuredCrawl)[data-crawl-style="writerTrail"] {
+  border-color: color-mix(in srgb, var(--line) 72%, var(--river) 28%);
+  border-left-color: var(--river);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--river) 10%, var(--panel-raised)), var(--panel-raised) 62%),
+    var(--panel-raised);
+}
+
+:global(.featuredCrawl)[data-crawl-style="beerGarden"] {
+  border-color: color-mix(in srgb, var(--line) 72%, var(--pint) 28%);
+  border-left-color: var(--pint);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--pint) 10%, var(--panel-raised)), var(--panel-raised) 62%),
+    var(--panel-raised);
+}
+
+:global(.featuredCrawl)[data-crawl-style="heritage"] :global(.featuredCount),
+:global(.featuredCrawl)[data-crawl-style="writerTrail"] :global(.featuredCount) {
+  color: var(--river);
+}
+
+:global(.featuredCrawl)[data-crawl-style="beerGarden"] :global(.featuredCount) {
+  color: var(--pint);
+}
+
+:global(.featuredCrawl)[data-crawl-style="heritage"] :global(.featuredMapCta),
+:global(.featuredCrawl)[data-crawl-style="writerTrail"] :global(.featuredMapCta) {
+  background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
+  color: var(--river);
+}
+
+:global(.featuredCrawl)[data-crawl-style="beerGarden"] :global(.featuredMapCta) {
+  background: color-mix(in srgb, var(--pint) 14%, var(--panel-raised));
+  color: var(--pint);
+}
+
+:global(.featuredCrawl):hover {
+  border-color: var(--brass);
+  border-left-color: var(--brass-bright);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+:global(.featuredCrawl)[data-crawl-style="heritage"]:hover,
+:global(.featuredCrawl)[data-crawl-style="writerTrail"]:hover {
+  border-color: var(--river);
+  border-left-color: var(--river-bright);
+}
+
+:global(.featuredCrawl)[data-crawl-style="beerGarden"]:hover {
+  border-color: var(--pint);
+  border-left-color: color-mix(in srgb, var(--pint) 70%, white);
+}
+
+:global(.featuredCrawl):focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+:global(.featuredCrawlHead) {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+:global(.featuredCrawlHead) strong {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+:global(.featuredMapCta) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  min-height: 28px;
+  margin-top: 2px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--river) 12%, var(--panel-raised));
+  color: var(--river);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+:global(.featuredCount) {
+  flex: none;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--brass);
+}
+
+:global(.featuredBlurb) {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+/* ── Range slider ────────────────────────────────────────────────────────────*/
+
+:global(.rangeLine) {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: var(--muted);
+}
+
+:global(.rangeLine) strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Toggles ─────────────────────────────────────────────────────────────────*/
+
+:global(.toggles) {
+  display: grid;
+  gap: 4px;
+}
+
+:global(.toggles) label {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 7px 8px;
+  margin: 0 -8px;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: 0.92rem;
+  transition: background 0.12s ease;
+}
+
+:global(.toggles) label:hover {
+  background: color-mix(in srgb, var(--brass) 8%, transparent);
+}
+
+:global(.toggles) input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--pint);
+}
+
+/* ── Stats grid ──────────────────────────────────────────────────────────────*/
+
+:global(.statsGrid) {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+:global(.statsGrid) div {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+}
+
+:global(.statsGrid) span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+:global(.statsGrid) strong {
+  font-size: 1.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Phone responsive (migrated from globals.css) ── */
+
+@media (max-width: 768px) {
+  /* Comfortable touch targets on the primary controls. */
+  :global(.segmented) button,
+  :global(.modeToggle) button,
+  :global(.nearbyBtn),
+  :global(.addStopBtn),
+  :global(.landlordBtn),
+  :global(.composerToggle) {
+    min-height: 44px;
+  }
+
+  :global(.featuredCrawl) {
+    padding: 13px 14px;
+  }
+
+  /* Full-width, tappable share/clear/reset instead of tiny pills. */
+  :global(.clearBtn),
+  :global(.resetBtn) {
+    min-height: 34px;
+    padding: 6px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  :global(.controlRail),
+  :global(.routePanel) {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  :global(.brandBlock) {
+    margin-bottom: 16px;
+  }
+
+  /* Grids that were two/three columns get cramped on a phone — go single. */
+  :global(.statsGrid),
+  :global(.routeMetrics) {
+    grid-template-columns: 1fr;
+  }
+
+  /* Segmented + mode toggles stay two-up (short labels), just taller. */
+  :global(.segmented) button,
+  :global(.modeToggle) button {
+    font-size: 0.82rem;
+  }
+
+  :global(.statsGrid) strong {
+    font-size: 1.24rem;
+  }
+}

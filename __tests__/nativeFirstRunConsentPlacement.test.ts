@@ -24,7 +24,8 @@ import { describe, expect, it } from "vitest";
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
 const globalCss = read("app/globals.css");
-const onboardingCss = read("app/onboarding/onboarding.css");
+const analyticsConsentCss = read("components/AnalyticsConsent.module.css");
+const onboardingCss = read("app/onboarding/Onboarding.module.css");
 
 /** A phone the shell actually ships on, with iOS's home-indicator inset. */
 type Viewport = {
@@ -260,8 +261,8 @@ const bandsShareABoundingBox = (a: Band, b: Band): boolean =>
 
 const PHONE_MEDIA = "(max-width: 760px)";
 const CARD_MEDIA = "(max-width: 640px)";
-const SURFACE_RULE = "body:has(.analyticsConsentPrompt) .firstRunOnboarding";
-const CARD_RULE = "body:has(.firstRunOnboarding) .analyticsConsentPrompt";
+const SURFACE_RULE = ":global(body:has(.analyticsConsentPrompt)) .firstRunOnboarding";
+const CARD_RULE = "body:has(.firstRunOnboarding) :global(.analyticsConsentPrompt)";
 
 describe("native first-run consent placement", () => {
   it("publishes the consent lane once so the surface does not restate it", () => {
@@ -280,13 +281,13 @@ describe("native first-run consent placement", () => {
     // so the card's tab-bar berth would hold it 72px up over a bar nobody can
     // see, and the :not(:has()) rule beside it cannot tell.
     expect(onboardingCss).toMatch(
-      /body:has\(\.firstRunOnboarding\)\s*\.mobileTabBar\s*{[^}]*display:\s*none/,
+      /:global\(body\):has\(\.firstRunOnboarding\)\s*:global\(\.mobileTabBar\)\s*{[^}]*display:\s*none/,
     );
     // The card is DOCKED now (PlanAstra section 3), so it reaches the screen
     // edge rather than floating 12px off it. The home-indicator inset is
     // cleared by the card's own bottom padding, so the two buttons still never
     // sit under the system gesture area.
-    const card = declarationsFor(globalCss, CARD_RULE, CARD_MEDIA);
+    const card = declarationsFor(onboardingCss, CARD_RULE, CARD_MEDIA);
     expect(card.get("bottom")).toBe("0");
     expect(card.get("padding-bottom")).toBe(
       "max(6px, env(safe-area-inset-bottom))",
@@ -298,7 +299,7 @@ describe("native first-run consent placement", () => {
     const surfaceHeight = declarationsFor(onboardingCss, SURFACE_RULE).get("height");
     expect(surfaceHeight, "the surface takes an explicit height").toBeDefined();
 
-    const cardBerth = declarationsFor(globalCss, CARD_RULE, CARD_MEDIA).get("bottom")!;
+    const cardBerth = declarationsFor(onboardingCss, CARD_RULE, CARD_MEDIA).get("bottom")!;
     // The card grows with its text, so its height is bounded by the lane the
     // surface reserves for it, never by the row's 56px floor.
     const cardLane = "var(--first-run-consent-lane)";
@@ -339,7 +340,7 @@ describe("native first-run consent placement", () => {
     expect(
       declarationsFor(
         onboardingCss,
-        "body:has(.firstRunOnboarding):has(.analyticsConsentPrompt)",
+        ":global(body):has(.firstRunOnboarding):has(:global(.analyticsConsentPrompt))",
         PHONE_MEDIA,
       ).get("padding-bottom"),
     ).toBe("0");
@@ -404,9 +405,13 @@ describe("the first-run surface stands the compose control down", () => {
       "components/onboarding/FirstRunOnboardingGate.tsx",
     ]) {
       const source = read(file);
-      const main = source.match(/className="firstRunOnboarding[^"]*"/);
-      expect(main, `${file} renders the first-run surface`).not.toBeNull();
-      expect(main![0], `${file} stands compose down`).toContain("pageHidesCreateFab");
+      // CSS Module migration: className is now a template literal referencing
+      // styles.firstRunOnboarding, so match both the module reference and the
+      // global pageHidesCreateFab marker on the same element.
+      const hasModuleClass = /styles\.firstRunOnboarding/.test(source);
+      expect(hasModuleClass, `${file} renders the first-run surface`).toBe(true);
+      const hasHidesFab = /pageHidesCreateFab/.test(source);
+      expect(hasHidesFab, `${file} stands compose down`).toBe(true);
     }
   });
 

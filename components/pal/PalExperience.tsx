@@ -48,6 +48,8 @@ import Screen from "@/components/ui/screen";
 import { setActivePlanPalContext } from "@/lib/activePlan";
 import { readFirstRunCompanion } from "@/lib/firstRunTour";
 
+import styles from "@/app/pal/Pal.module.css";
+
 const STORAGE_KEY = "pubmax_pub_pal_v1";
 const PRIVACY_KEY = "pubmax_pub_pal_privacy_v1";
 
@@ -161,7 +163,7 @@ function ChoiceButton({
   return (
     <button
       type="button"
-      className={`palChoice ${selected ? "isSelected" : ""}`}
+      className={`${styles.palChoice}${selected ? ` ${styles.isSelected}` : ""}`}
       aria-pressed={selected}
       onClick={onClick}
     >
@@ -186,8 +188,8 @@ function RangeControl({
   onChange: (value: number) => void;
 }) {
   return (
-    <label className="palRange">
-      <span className="palRangeLabel">{label}</span>
+    <label className={styles.palRange}>
+      <span className={styles.palRangeLabel}>{label}</span>
       <input
         type="range"
         min="0"
@@ -195,7 +197,7 @@ function RangeControl({
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
       />
-      <span className="palRangeEnds"><small>{low}</small><small>{high}</small></span>
+      <span className={styles.palRangeEnds}><small>{low}</small><small>{high}</small></span>
     </label>
   );
 }
@@ -219,10 +221,10 @@ export function PalMeetingScreen({
   onMeet: () => void;
 }) {
   return (
-    <main id="main" className="palExperience palMeeting">
+    <main id="main" className={`${styles.palExperience} ${styles.palMeeting}`}>
       <Screen
         as="section"
-        className="palMeetingStage"
+        className={styles.palMeetingStage}
         kicker="Your Pub Pal"
         title="A little signal that becomes yours."
         titleId="pal-meeting-title"
@@ -234,11 +236,11 @@ export function PalMeetingScreen({
         }
         secondary={<Link href="/map">Back to the map</Link>}
       >
-        <div className="palMeetingPortrait">
+        <div className={styles.palMeetingPortrait}>
           {/* The meeting screen's LCP element on a desktop: measured at 403 CSS
               px square against a 288 px heading block. */}
           <PalPortrait appearance={appearance} name="Unclaimed Pub Pal" state="noticing" priority />
-          <p className="palSpeech" aria-live="polite">There you are. What kind of night are we making?</p>
+          <p className={styles.palSpeech} aria-live="polite">There you are. What kind of night are we making?</p>
         </div>
       </Screen>
     </main>
@@ -695,30 +697,30 @@ export default function PalExperience() {
     const visiblePalState: PalAnimationState = pal.muted ? "sleeping" : palAnimationState;
     const proposalPreferences = pal.proposalPreferences ?? { memories: false, routes: true };
     return (
-      <main id="main" className="palExperience palHome">
-        <div className="palTopbar">
+      <main id="main" className={`${styles.palExperience} ${styles.palHome}`}>
+        <div className={styles.palTopbar}>
           <Link href="/map"><ArrowLeft size={17} /> Map</Link>
         </div>
-        <section className="palHomeHero" aria-labelledby="pal-home-title">
-          <div className="palHomePortrait">
+        <section className={styles.palHomeHero} aria-labelledby="pal-home-title">
+          <div className={styles.palHomePortrait}>
             <PalPortrait appearance={pal.appearance} name={pal.name} state={visiblePalState} />
-            <p className="palSpeech">{palStateSpeech[visiblePalState]}</p>
+            <p className={styles.palSpeech}>{palStateSpeech[visiblePalState]}</p>
           </div>
-          <div className="palHomeCopy">
-            <p className="palEyebrow">Your Pub Pal</p>
+          <div className={styles.palHomeCopy}>
+            <p className={styles.palEyebrow}>Your Pub Pal</p>
             <h1 id="pal-home-title">{pal.name}</h1>
             <p>A {signalCopy[pal.appearance.signalAffinity].toLowerCase()} {pal.appearance.species} shaped around your night, with boundaries you control.</p>
-            <Link className="palPrimary" href="/plan">Plan with {pal.name}<ArrowRight size={18} /></Link>
+            <Link className={styles.palPrimary} href="/plan">Plan with {pal.name}<ArrowRight size={18} /></Link>
             <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} />
           </div>
         </section>
-        <section className="palControls" aria-labelledby="pal-controls-title">
+        <section className={styles.palControls} aria-labelledby="pal-controls-title">
           <div>
-            <p className="palEyebrow">Boundaries</p>
+            <p className={styles.palEyebrow}>Boundaries</p>
             <h2 id="pal-controls-title">You stay in control.</h2>
             <p>Your Pal speaks only when invited. Approved facts are the only memories it can keep.</p>
           </div>
-          <div className="palControlGrid">
+          <div className={styles.palControlGrid}>
             <button type="button" disabled={controlSaving || saving} onClick={() => void updateControl({ muted: !pal.muted })} aria-pressed={pal.muted}>
               {pal.muted ? <VolumeX /> : <Volume2 />}
               <span><strong>{pal.muted ? "Muted" : "Voice available"}</strong><small>{pal.muted ? "Tap to allow voice" : "Tap to mute everywhere"}</small></span>
@@ -735,43 +737,43 @@ export default function PalExperience() {
               <MapPinned />
               <span><strong>Route proposals {proposalPreferences.routes ? "on" : "off"}</strong><small>{proposalPreferences.routes ? "Suggestions only; you confirm every change" : "Pal will not propose route changes"}</small></span>
             </button>
-            <button className="palDanger" type="button" disabled={controlSaving || saving} onClick={() => void removePal()}>
+            <button className={styles.palDanger} type="button" disabled={controlSaving || saving} onClick={() => void removePal()}>
               <Trash2 />
               <span><strong>Delete {pal.name}</strong><small>Deletes the Pal and every confirmed memory</small></span>
             </button>
           </div>
         </section>
-        <section className="palMemoryControls" aria-labelledby="pal-memory-title">
-          <div className="palMemoryControls__header">
+        <section className={styles.palMemoryControls} aria-labelledby="pal-memory-title">
+          <div className={styles["palMemoryControls__header"]}>
             <div>
-              <p className="palEyebrow">Visible context</p>
+              <p className={styles.palEyebrow}>Visible context</p>
               <h2 id="pal-memory-title">What {pal.name} remembers.</h2>
               <p>Only these confirmed facts can shape suggestions. Correct or delete any item; conversations and voice content never appear here.</p>
             </div>
             <button type="button" onClick={() => void exportMemories()} disabled={saving}><Download size={17} /> Export my context</button>
           </div>
           {memories.length ? (
-            <ul className="palMemoryList">
+            <ul className={styles.palMemoryList}>
               {memories.map((memory) => (
                 <li key={memory.id}>
-                  <div className="palMemoryList__meta"><span>{memory.kind.replaceAll("_", " ")}</span><small>{memory.provenance.replaceAll("_", " ")}</small></div>
+                  <div className={styles["palMemoryList__meta"]}><span>{memory.kind.replaceAll("_", " ")}</span><small>{memory.provenance.replaceAll("_", " ")}</small></div>
                   {editingMemoryId === memory.id ? (
-                    <div className="palMemoryList__edit">
+                    <div className={styles["palMemoryList__edit"]}>
                       <label><span>Correct this memory</span><textarea value={editingMemoryValue} onChange={(event) => setEditingMemoryValue(event.target.value)} maxLength={500} rows={3} disabled={saving} /></label>
-                      <div><button type="button" disabled={saving || !editingMemoryValue.trim()} onClick={() => void saveMemoryCorrection(memory.id)}>Save correction</button><button type="button" className="palSecondary" disabled={saving} onClick={() => { setEditingMemoryId(""); setEditingMemoryValue(""); }}>Cancel</button></div>
+                      <div><button type="button" disabled={saving || !editingMemoryValue.trim()} onClick={() => void saveMemoryCorrection(memory.id)}>Save correction</button><button type="button" className={styles.palSecondary} disabled={saving} onClick={() => { setEditingMemoryId(""); setEditingMemoryValue(""); }}>Cancel</button></div>
                     </div>
                   ) : (
                     <p>{memory.value}</p>
                   )}
-                  <div className="palMemoryList__actions">
+                  <div className={styles["palMemoryList__actions"]}>
                     {editingMemoryId !== memory.id ? <button type="button" disabled={saving} onClick={() => beginMemoryCorrection(memory)}>Correct</button> : null}
-                    <button type="button" className="palDanger" disabled={saving} onClick={() => void removeMemory(memory)}><Trash2 size={16} /> Delete</button>
+                    <button type="button" className={styles.palDanger} disabled={saving} onClick={() => void removeMemory(memory)}><Trash2 size={16} /> Delete</button>
                   </div>
                 </li>
               ))}
             </ul>
-          ) : <div className="palMemoryEmpty"><ShieldCheck /><p>No confirmed context. {pal.name} can still help with the route in front of you.</p></div>}
-          {error ? <p className="palError" role="alert">{error}</p> : null}
+          ) : <div className={styles.palMemoryEmpty}><ShieldCheck /><p>No confirmed context. {pal.name} can still help with the route in front of you.</p></div>}
+          {error ? <p className={styles.palError} role="alert">{error}</p> : null}
         </section>
       </main>
     );
@@ -787,42 +789,42 @@ export default function PalExperience() {
   }
 
   return (
-    <main id="main" className="palExperience palOnboarding">
-      <div className="palTopbar">
+    <main id="main" className={`${styles.palExperience} ${styles.palOnboarding}`}>
+      <div className={styles.palTopbar}>
         <button type="button" onClick={() => step === 0 ? setMode("meeting") : setStep((current) => current - 1)}><ArrowLeft size={17} /> Back</button>
         <span>{step + 1} of 5</span>
         <Link href="/map">Skip Pal</Link>
       </div>
-      <div className="palProgress" aria-hidden="true"><span style={{ width: `${((step + 1) / 5) * 100}%` }} /></div>
-      <div className="palOnboardingLayout">
-        <div className="palOnboardingPreview">
+      <div className={styles.palProgress} aria-hidden="true"><span style={{ width: `${((step + 1) / 5) * 100}%` }} /></div>
+      <div className={styles.palOnboardingLayout}>
+        <div className={styles.palOnboardingPreview}>
           <PalPortrait
             appearance={draft.appearance}
             name={previewName}
             state={(["listening", "noticing", "celebrating", "speaking", "thinking"] as PalAnimationState[])[step] ?? "idle"}
           />
-          <p className="palSpeech" aria-live="polite">{previewSpeech(step, draft)}</p>
+          <p className={styles.palSpeech} aria-live="polite">{previewSpeech(step, draft)}</p>
         </div>
-        <section className="palOnboardingPanel" aria-live="polite">
+        <section className={styles.palOnboardingPanel} aria-live="polite">
           {step === 0 && (
-            <div className="palStep">
-              <p className="palEyebrow">Eligibility</p>
+            <div className={styles.palStep}>
+              <p className={styles.palEyebrow}>Eligibility</p>
               <h1>The grown-up bit first.</h1>
               <p>Pub Pal is designed for adults planning nights out.</p>
-              <label className="palToggleRow">
+              <label className={styles.palToggleRow}>
                 <input type="checkbox" checked={draft.adultConfirmed} onChange={(event) => setDraft((current) => ({ ...current, adultConfirmed: event.target.checked }))} />
                 <span><strong>I confirm I&rsquo;m 18 or over</strong><small>We save the confirmation time, never your date of birth.</small></span>
               </label>
             </div>
           )}
           {step === 1 && (
-            <div className="palStep">
-              <p className="palEyebrow">Form and name</p>
+            <div className={styles.palStep}>
+              <p className={styles.palEyebrow}>Form and name</p>
               <h1>Who finds you?</h1>
               <p>Each Pal has the same planning intelligence. Choose the presence you want beside you.</p>
-              <div className="palChoiceList palSpeciesGrid">{PAL_ONBOARDING_SPECIES.map((species) => <ChoiceButton key={species} selected={draft.appearance.species === species} title={speciesCopy[species].title} note={speciesCopy[species].note} onClick={() => updateAppearance({ species })} />)}</div>
-              <label className="palField"><span>Name</span><input value={draft.name} maxLength={32} autoComplete="off" placeholder="Anything feels right" onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} /><small>This is yours. Change it whenever you want.</small></label>
-              <div className="palNameIdeas" aria-label="Name inspiration">
+              <div className={`${styles.palChoiceList} ${styles.palSpeciesGrid}`}>{PAL_ONBOARDING_SPECIES.map((species) => <ChoiceButton key={species} selected={draft.appearance.species === species} title={speciesCopy[species].title} note={speciesCopy[species].note} onClick={() => updateAppearance({ species })} />)}</div>
+              <label className={styles.palField}><span>Name</span><input value={draft.name} maxLength={32} autoComplete="off" placeholder="Anything feels right" onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} /><small>This is yours. Change it whenever you want.</small></label>
+              <div className={styles.palNameIdeas} aria-label="Name inspiration">
                 {Object.entries(nameIdeas).map(([generation, names]) => (
                   <div key={generation}>
                     <span>{generation}</span>
@@ -833,55 +835,55 @@ export default function PalExperience() {
             </div>
           )}
           {step === 2 && (
-            <div className="palStep">
-              <p className="palEyebrow">Appearance</p>
+            <div className={styles.palStep}>
+              <p className={styles.palEyebrow}>Appearance</p>
               <h1>Tune the signal.</h1>
-              <fieldset><legend>Affinity</legend><div className="palChoiceGrid palChoiceGridThree">{SIGNAL_FAMILIES.map((signal) => <ChoiceButton key={signal} selected={draft.appearance.signalAffinity === signal} title={signalCopy[signal]} onClick={() => updateAppearance({ signalAffinity: signal })} />)}</div></fieldset>
-              <fieldset><legend>Material</legend><div className="palChoiceGrid">{(["hologram", "chrome", "glass"] as const).map((material) => <ChoiceButton key={material} selected={draft.appearance.material === material} title={materialCopy[material]} onClick={() => updateAppearance({ material })} />)}</div></fieldset>
-              <fieldset><legend>Accessory</legend><div className="palChoiceGrid">{(["none", "collar", "monocle", "signal-ring"] as const).map((accessory) => <ChoiceButton key={accessory} selected={draft.appearance.accessory === accessory} title={accessoryCopy[accessory]} onClick={() => updateAppearance({ accessory })} />)}</div></fieldset>
+              <fieldset><legend>Affinity</legend><div className={`${styles.palChoiceGrid} ${styles.palChoiceGridThree}`}>{SIGNAL_FAMILIES.map((signal) => <ChoiceButton key={signal} selected={draft.appearance.signalAffinity === signal} title={signalCopy[signal]} onClick={() => updateAppearance({ signalAffinity: signal })} />)}</div></fieldset>
+              <fieldset><legend>Material</legend><div className={styles.palChoiceGrid}>{(["hologram", "chrome", "glass"] as const).map((material) => <ChoiceButton key={material} selected={draft.appearance.material === material} title={materialCopy[material]} onClick={() => updateAppearance({ material })} />)}</div></fieldset>
+              <fieldset><legend>Accessory</legend><div className={styles.palChoiceGrid}>{(["none", "collar", "monocle", "signal-ring"] as const).map((accessory) => <ChoiceButton key={accessory} selected={draft.appearance.accessory === accessory} title={accessoryCopy[accessory]} onClick={() => updateAppearance({ accessory })} />)}</div></fieldset>
             </div>
           )}
           {step === 3 && (
-            <div className="palStep">
-              <p className="palEyebrow">Personality</p>
+            <div className={styles.palStep}>
+              <p className={styles.palEyebrow}>Personality</p>
               <h1>Set the chemistry.</h1>
-              <fieldset><legend>Relationship</legend><div className="palChoiceGrid">{(["guide", "sidekick", "confidant"] as const).map((relationship) => <ChoiceButton key={relationship} selected={draft.personality.relationship === relationship} title={relationshipCopy[relationship]} onClick={() => updatePersonality({ relationship })} />)}</div></fieldset>
+              <fieldset><legend>Relationship</legend><div className={styles.palChoiceGrid}>{(["guide", "sidekick", "confidant"] as const).map((relationship) => <ChoiceButton key={relationship} selected={draft.personality.relationship === relationship} title={relationshipCopy[relationship]} onClick={() => updatePersonality({ relationship })} />)}</div></fieldset>
               <RangeControl label="Temper" low="Dry" high="Playful" value={draft.personality.playfulness} onChange={(playfulness) => updatePersonality({ playfulness })} />
               <RangeControl label="Energy" low="Calm" high="Chaotic" value={draft.personality.energy} onChange={(energy) => updatePersonality({ energy })} />
               <RangeControl label="Conversation" low="Concise" high="Storytelling" value={draft.personality.storytelling} onChange={(storytelling) => updatePersonality({ storytelling })} />
               <fieldset><legend>Voice</legend>
-              <div className="palChoiceList">{PAL_VOICES.map((voice) => <ChoiceButton key={voice} selected={draft.voice.id === voice} title={voice[0].toUpperCase() + voice.slice(1)} note={voiceCopy[voice]} onClick={() => setDraft((current) => ({ ...current, voice: { ...current.voice, id: voice } }))} />)}</div>
+              <div className={styles.palChoiceList}>{PAL_VOICES.map((voice) => <ChoiceButton key={voice} selected={draft.voice.id === voice} title={voice[0].toUpperCase() + voice.slice(1)} note={voiceCopy[voice]} onClick={() => setDraft((current) => ({ ...current, voice: { ...current.voice, id: voice } }))} />)}</div>
               </fieldset>
             </div>
           )}
           {step === 4 && (
-            <div className="palStep">
-              <p className="palEyebrow">Privacy and review</p>
+            <div className={styles.palStep}>
+              <p className={styles.palEyebrow}>Privacy and review</p>
               <h1>You decide what stays.</h1>
               <p>Audio and transcripts are not memories. Pub Pal can only propose short, structured facts for your approval.</p>
-              <label className="palToggleRow">
+              <label className={styles.palToggleRow}>
                 <input type="checkbox" checked={privacy.proposeMemories} onChange={(event) => setPrivacy((current) => ({ ...current, proposeMemories: event.target.checked }))} />
                 <span><strong>Allow memory proposals</strong><small>{privacy.proposeMemories ? "Show each suggested fact for approval" : "Never suggest facts to remember"}</small></span>
               </label>
-              <div className="palPrivacyFacts"><ShieldCheck /><p>You can inspect, correct and delete every approved memory. Safety and factuality controls can&rsquo;t be disabled.</p></div>
-              <div className="palReview">
+              <div className={styles.palPrivacyFacts}><ShieldCheck /><p>You can inspect, correct and delete every approved memory. Safety and factuality controls can&rsquo;t be disabled.</p></div>
+              <div className={styles.palReview}>
                 <div><span>Name</span><strong>{draft.name.trim() || "Add a name"}</strong></div>
                 <div><span>Form</span><strong>{speciesCopy[draft.appearance.species].title}, {materialCopy[draft.appearance.material]}</strong></div>
                 <div><span>Voice</span><strong>{draft.voice.id}</strong></div>
                 <div><span>Relationship</span><strong>{relationshipCopy[draft.personality.relationship]}</strong></div>
               </div>
-              <label className="palToggleRow"><input type="checkbox" checked={privacy.visible} onChange={(event) => setPrivacy((current) => ({ ...current, visible: event.target.checked }))} /><span><strong>Show Pal shortcuts</strong><small>You can hide the Pal from Home, Plan and Map at any time.</small></span></label>
-              <label className="palToggleRow"><input type="checkbox" checked={!privacy.muted} onChange={(event) => setPrivacy((current) => ({ ...current, muted: !event.target.checked }))} /><span><strong>Allow voice controls</strong><small>Your Pal still speaks only after you ask.</small></span></label>
-              {showPalAccountGate && <div className="palAccountGate"><LockKeyhole /><div><strong>Sign in to make this Pal yours</strong><p>Your preview stays on this screen until you choose to sign in. Nothing is saved to an account yet.</p>{configured ? <SignInButton /> : <Link href="/map">Explore the map</Link>}</div></div>}
-              {error && <p className="palError" role="alert">{error}</p>}
+              <label className={styles.palToggleRow}><input type="checkbox" checked={privacy.visible} onChange={(event) => setPrivacy((current) => ({ ...current, visible: event.target.checked }))} /><span><strong>Show Pal shortcuts</strong><small>You can hide the Pal from Home, Plan and Map at any time.</small></span></label>
+              <label className={styles.palToggleRow}><input type="checkbox" checked={!privacy.muted} onChange={(event) => setPrivacy((current) => ({ ...current, muted: !event.target.checked }))} /><span><strong>Allow voice controls</strong><small>Your Pal still speaks only after you ask.</small></span></label>
+              {showPalAccountGate && <div className={styles.palAccountGate}><LockKeyhole /><div><strong>Sign in to make this Pal yours</strong><p>Your preview stays on this screen until you choose to sign in. Nothing is saved to an account yet.</p>{configured ? <SignInButton /> : <Link href="/map">Explore the map</Link>}</div></div>}
+              {error && <p className={styles.palError} role="alert">{error}</p>}
             </div>
           )}
-          <div className="palOnboardingActions">
+          <div className={styles.palOnboardingActions}>
             <button type="button" onClick={() => step === 0 ? setMode("meeting") : setStep((current) => current - 1)}>Back</button>
             {step < 4 ? (
-              <Button className="palPrimary" size="large" type="button" disabled={!canContinue || (step === 1 && !draft.name.trim())} onClick={() => setStep((current) => current + 1)}>Continue<ArrowRight size={18} /></Button>
+              <Button className={styles.palPrimary} size="large" type="button" disabled={!canContinue || (step === 1 && !draft.name.trim())} onClick={() => setStep((current) => current + 1)}>Continue<ArrowRight size={18} /></Button>
             ) : user ? (
-              <Button className="palPrimary" size="large" type="button" disabled={saving || !draft.name.trim()} onClick={() => void createPal()}>{saving ? "Creating your Pal" : "Create my Pal"}<Mic size={18} /></Button>
+              <Button className={styles.palPrimary} size="large" type="button" disabled={saving || !draft.name.trim()} onClick={() => void createPal()}>{saving ? "Creating your Pal" : "Create my Pal"}<Mic size={18} /></Button>
             ) : (
               <button type="button" onClick={() => setStep(0)}>Start over</button>
             )}

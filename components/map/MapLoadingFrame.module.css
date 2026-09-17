@@ -1,0 +1,240 @@
+.mapLoading {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 14px;
+  padding: clamp(18px, 4vw, 34px);
+  pointer-events: none;
+  /* Wave J2 — match route skeleton paper/grain so chunk→canvas handoff holds one frame. */
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--river) 10%, transparent), transparent 30% 70%, color-mix(in srgb, var(--brass) 10%, transparent)),
+    radial-gradient(color-mix(in srgb, var(--brass) 12%, transparent) 1px, transparent 1px),
+    color-mix(in srgb, var(--paper) 88%, var(--ink-deep) 12%);
+  background-size: auto, 22px 22px, auto;
+  color: var(--ink);
+}
+
+:global([data-theme="dark"]) .mapLoading {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--river) 18%, transparent), transparent 30% 70%, color-mix(in srgb, var(--brick) 12%, transparent)),
+    radial-gradient(color-mix(in srgb, var(--brass) 14%, transparent) 1px, transparent 1px),
+    var(--ink-deep);
+  background-size: auto, 22px 22px, auto;
+  color: var(--color-on-inverse);
+}
+
+.mapLoadingScene {
+  position: relative;
+  width: min(72vw, 390px);
+  /* Match .mapSkeletonMap (380×240 → 19:12) so route→canvas handoff doesn't jump. */
+  aspect-ratio: 19 / 12;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brass-bright) 46%, transparent);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--paper) 88%, var(--river) 12%) 1px, transparent 1px),
+    linear-gradient(0deg, color-mix(in srgb, var(--paper) 90%, var(--brass) 10%) 1px, transparent 1px),
+    color-mix(in srgb, var(--panel) 92%, var(--river) 8%);
+  background-size: 42px 42px, 42px 42px, auto;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+}
+
+.mapLoadingScene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    transparent 0 42%,
+    color-mix(in srgb, var(--brass) 10%, transparent) 42% 44%,
+    transparent 44%
+  );
+}
+
+.mapLoadingStreet,
+.mapLoadingRiver {
+  position: absolute;
+  left: -8%;
+  width: 116%;
+  border-radius: 999px;
+  transform-origin: center;
+}
+
+.mapLoadingStreet {
+  height: 2px;
+  background: rgba(154, 106, 36, 0.22);
+}
+
+.mapLoadingStreet--one {
+  top: 34%;
+  transform: rotate(-18deg);
+}
+
+.mapLoadingStreet--two {
+  top: 62%;
+  transform: rotate(28deg);
+}
+
+.mapLoadingRiver {
+  top: 52%;
+  height: 18px;
+  background: color-mix(in srgb, var(--river) 42%, transparent);
+  transform: rotate(-5deg);
+  opacity: 0.72;
+}
+
+.mapLoadingPin {
+  position: absolute;
+  width: 13px;
+  aspect-ratio: 1;
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  border-radius: 50%;
+  box-shadow: 0 0 0 7px color-mix(in srgb, currentcolor 18%, transparent);
+  color: var(--pint);
+  animation: mapSkeletonPulse 1.55s ease-in-out infinite;
+}
+
+.mapLoadingPin--pint {
+  background: var(--pint);
+  color: var(--pint);
+}
+
+.mapLoadingPin--amber {
+  background: var(--amber);
+  color: var(--amber);
+  animation-delay: 0.22s;
+}
+
+.mapLoadingPin--brick {
+  background: var(--brick);
+  color: var(--brick);
+  animation-delay: 0.44s;
+}
+
+.mapLoadingPin--one {
+  top: 26%;
+  left: 25%;
+}
+
+.mapLoadingPin--two {
+  top: 36%;
+  left: 56%;
+}
+
+.mapLoadingPin--three {
+  top: 62%;
+  left: 70%;
+}
+
+.mapLoadingPin--four {
+  top: 66%;
+  left: 36%;
+  animation-delay: 0.66s;
+}
+
+.mapLoadingCopy {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--ink-deep) 16%, transparent);
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+:global([data-theme="dark"]) .mapLoadingCopy {
+  border-color: color-mix(in srgb, var(--brass-bright) 42%, transparent);
+  background: color-mix(in srgb, var(--ink-deep) 84%, transparent);
+  color: var(--color-on-inverse);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
+}
+
+.mapLoadingCopy::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 9px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--brass-bright);
+  box-shadow: 0 0 0 5px rgba(211, 164, 74, 0.16);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* The pill is ONE row: the pulsing dot, then this stack. Every line the frame
+   prints is a row of the stack, so a line added later drops UNDER the one
+   above it rather than growing the pill a third column at 390px. */
+.mapLoadingLines {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.mapLoadingEyebrow {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--brass);
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mapLoadingSlow {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.mapLoadingProgress {
+  width: min(88vw, 390px);
+  max-width: 100%;
+  height: 4px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 70%, transparent);
+  overflow: hidden;
+}
+
+.mapLoadingProgressBar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brass-bright);
+  transition: width 0.35s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mapLoadingProgressBar {
+    transition: none;
+  }
+}
+
+:global([data-theme="dark"]) .mapLoadingEyebrow {
+  color: var(--brass-bright);
+}
+
+@media (max-width: 640px) {
+  .mapLoading {
+    padding: 16px;
+  }
+
+  .mapLoadingScene {
+    width: min(88vw, 390px);
+  }
+
+  .mapLoadingCopy {
+    max-width: min(88vw, 390px);
+  }
+}

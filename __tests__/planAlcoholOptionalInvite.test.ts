@@ -72,7 +72,7 @@ describe("invite page wiring", () => {
   it("calls planAlcoholOptionalInviteLine on the invite card", () => {
     const page = readFileSync(join(process.cwd(), "app/invite/[token]/page.tsx"), "utf8");
     expect(page).toContain("planAlcoholOptionalInviteLine");
-    expect(page).toContain("invite__softNote");
+    expect(page).toContain("inviteSoftNote");
     expect(page).toContain("state.context");
   });
 });

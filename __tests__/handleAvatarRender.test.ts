@@ -90,6 +90,6 @@ describe("the add-link card", () => {
       createElement(ConfirmFollow, { targetHandle: "karan" }),
     );
 
-    expect(html).toContain('<span class="confirmFollowAvatar" aria-hidden="true">K</span>');
+    expect(html).toMatch(/<span class="[^"]*confirmFollowAvatar[^"]*" aria-hidden="true">K<\/span>/);
   });
 });

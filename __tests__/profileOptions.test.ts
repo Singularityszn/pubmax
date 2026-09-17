@@ -7,7 +7,7 @@ const read = (path: string) =>
   readFileSync(join(process.cwd(), path), "utf8");
 
 const profileClient = read("app/u/[handle]/ProfilePageClient.tsx");
-const profileCss = read("app/u/[handle]/profile.css");
+const profileCss = read("app/u/[handle]/Profile.module.css");
 const accountHub = read("components/profile/PubmaxxAccountHub.tsx");
 const siteNavMore = read("components/nav/SiteNavMore.tsx");
 

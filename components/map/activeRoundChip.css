@@ -78,3 +78,11 @@
   border-color: var(--brass);
   color: var(--brass);
 }
+
+/* ── Phone responsive (migrated from globals.css) ── */
+
+@media (max-width: 640px) {
+  .activeRoundChip {
+    bottom: calc(var(--map-bottom-chip-row) + 52px);
+  }
+}

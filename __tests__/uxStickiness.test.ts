@@ -96,7 +96,7 @@ describe("Feed error vs empty state", () => {
 
 // ── 2. Feed end-of-feed CTA (dead-end fix) ────────────────────────────────
 
-const feedCss = readFileSync(join(process.cwd(), "app/feed/feed.css"), "utf8");
+const feedCss = readFileSync(join(process.cwd(), "app/feed/Feed.module.css"), "utf8");
 
 describe("Feed end-of-feed CTA CSS", () => {
   it("feedEndCta class exists and is min-height 44px (touch target)", () => {
@@ -194,7 +194,7 @@ describe("Feed empty-state CTA collapse", () => {
 
 // ── 4. Tonight filter chip active state ───────────────────────────────────
 
-const tonightCss = readFileSync(join(process.cwd(), "app/tonight/tonight.css"), "utf8");
+const tonightCss = readFileSync(join(process.cwd(), "app/tonight/Tonight.module.css"), "utf8");
 const vibeChipsCss = readFileSync(join(process.cwd(), "components/vibe/vibeChips.css"), "utf8");
 
 describe("Tonight filter chip active state", () => {

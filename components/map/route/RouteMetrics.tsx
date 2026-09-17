@@ -13,6 +13,7 @@ import {
 
 import { formatPrice } from "@/lib/venues";
 import type { RouteLegsSummary, RoutePace } from "@/lib/routeLegs";
+import routeStyles from './route.module.css';
 
 type RouteMetricsProps = {
   summaryTotal: number;
@@ -42,7 +43,7 @@ export default function RouteMetrics({
   routeWriterCount,
 }: RouteMetricsProps) {
   return (
-    <div className="routeMetrics">
+    <div className={routeStyles.routeMetrics}>
       <div>
         <BadgePoundSterling size={17} />
         <span>{formatPrice(summaryTotal)}</span>

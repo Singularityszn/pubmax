@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import type { CrawlProgressEntry } from "@/lib/crawlCompletion";
+import btnStyles from '../addStopBtn.module.css';
 
 type CrawlProgressSectionProps = {
   crawlProgress: CrawlProgressEntry | null;
@@ -56,7 +57,7 @@ export default function CrawlProgressSection({
   return (
     <div className="crawlProgressRow" data-testid="crawl-progress">
       {!crawlProgress ? (
-        <button type="button" className="addStopBtn" onClick={handleStartCrawl}>
+        <button type="button" className={btnStyles.addStopBtn} onClick={handleStartCrawl}>
           <Footprints size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
           Start this crawl
         </button>
@@ -69,7 +70,7 @@ export default function CrawlProgressSection({
           <p className="crawlProgressStatus" role="status">
             {paceLabel} · {crawlProgress.visited.length}/{crawlProgress.stopIds.length} stops
           </p>
-          <button type="button" className="addStopBtn" onClick={handleMarkComplete}>
+          <button type="button" className={btnStyles.addStopBtn} onClick={handleMarkComplete}>
             <Check size={14} style={{ verticalAlign: "-2px", marginRight: "6px" }} />
             Mark complete
           </button>

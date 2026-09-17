@@ -12,7 +12,7 @@ import {
 import { MIN_ESTIMATE_SAMPLE } from "@/lib/priceEstimate";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
 
-import "../legal.css";
+import styles from "../Legal.module.css";
 
 // /how-we-estimate - the destination every "est. £X" links to.
 //
@@ -46,20 +46,20 @@ export default function HowWeEstimatePage() {
   const regions = baselines?.regions ?? [];
 
   return (
-    <main id="main" className="legalPage">
-      <header className="legalHead">
-        <p className="legalEyebrow">Prices</p>
-        <h1 className="legalTitle">How we estimate</h1>
-        <p className="legalLede">
+    <main id="main" className={styles.legalPage}>
+      <header className={styles.legalHead}>
+        <p className={styles.legalEyebrow}>Prices</p>
+        <h1 className={styles.legalTitle}>How we estimate</h1>
+        <p className={styles.legalLede}>
           A price is only worth the evidence behind it. Every price here says
           which of four standings it holds, so you can tell a figure a drinker
           checked from one nobody has published at all.
         </p>
       </header>
 
-      <section className="legalSection" aria-labelledby="standings">
-        <h2 id="standings" className="legalH2">The four standings</h2>
-        <ul className="legalPanelList">
+      <section className={styles.legalSection} aria-labelledby="standings">
+        <h2 id="standings" className={styles.legalH2}>The four standings</h2>
+        <ul className={styles.legalPanelList}>
           {PRICE_STANDINGS.map((standing) => (
             <li key={standing}>
               <strong>{priceStandingLabel(standing)}.</strong>{" "}
@@ -67,7 +67,7 @@ export default function HowWeEstimatePage() {
             </li>
           ))}
         </ul>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           A confirmation lasts {CONFIRMED_MAX_AGE_DAYS} days, because a price a
           drinker checked last month is evidence about last month. A published
           menu price lasts {LISTED_MAX_AGE_DAYS} days, because a chain
@@ -77,19 +77,19 @@ export default function HowWeEstimatePage() {
         </p>
       </section>
 
-      <section className="legalSection" aria-labelledby="estimate">
-        <h2 id="estimate" className="legalH2">What an estimate is</h2>
-        <p className="legalBody">
+      <section className={styles.legalSection} aria-labelledby="estimate">
+        <h2 id="estimate" className={styles.legalH2}>What an estimate is</h2>
+        <p className={styles.legalBody}>
           An estimate is a figure we modelled. Nobody published it, no drinker
           reported it, and the pub has not agreed to it. That is why it always
           reads <strong>est. £X</strong> and never a plain price, and why it
           never reaches the Pint Index, the cheapest-pint lists, or anything else
           that quotes a price as fact.
         </p>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           We model from two bases and try the narrower one first.
         </p>
-        <ul className="legalPanelList">
+        <ul className={styles.legalPanelList}>
           <li>
             <strong>Chain menu prices.</strong>{" "}Where a chain runs the pub and
             publishes a menu we are permitted to read, we take the middle price
@@ -100,28 +100,28 @@ export default function HowWeEstimatePage() {
             for the pub&rsquo;s own area.
           </li>
         </ul>
-        <p className="legalBody">
+        <p className={styles.legalBody}>
           A basis needs at least {MIN_ESTIMATE_SAMPLE} published prices behind
           it. Below that we show no estimate at all, because a figure modelled
           from one or two pubs is a guess wearing a decimal point.
         </p>
       </section>
 
-      <section className="legalSection" aria-labelledby="today">
-        <h2 id="today" className="legalH2">What we are modelling from today</h2>
+      <section className={styles.legalSection} aria-labelledby="today">
+        <h2 id="today" className={styles.legalH2}>What we are modelling from today</h2>
         {baselines ? (
           <>
-            <p className="legalBody">
+            <p className={styles.legalBody}>
               {chains.length === 0
                 ? "No chain is modelled yet. No chain we are permitted to read has published a pint price, so every estimate today comes from the area basis instead."
                 : `${chains.length} ${chains.length === 1 ? "chain is" : "chains are"} modelled from their own published pints.`}
             </p>
-            <p className="legalBody">
+            <p className={styles.legalBody}>
               {regions.length === 0
                 ? "No area is modelled yet, so no pub carries an estimate."
                 : `${regions.length} ${regions.length === 1 ? "area is" : "areas are"} modelled. Every other pub in the country carries no estimate, and says so.`}
             </p>
-            <p className="legalUpdated">
+            <p className={styles.legalUpdated}>
               Basis last computed{" "}
               {new Date(baselines.computedAt).toLocaleDateString("en-GB", {
                 day: "numeric",
@@ -132,7 +132,7 @@ export default function HowWeEstimatePage() {
             </p>
           </>
         ) : (
-          <p className="legalBody">
+          <p className={styles.legalBody}>
             We could not read the estimate basis just now, so this page cannot
             tell you what it holds. That is a fault on our side, and not a
             statement that the basis is empty.
@@ -140,16 +140,16 @@ export default function HowWeEstimatePage() {
         )}
       </section>
 
-      <section className="legalSection" aria-labelledby="replaced">
-        <h2 id="replaced" className="legalH2">How an estimate gets replaced</h2>
-        <p className="legalBody">
+      <section className={styles.legalSection} aria-labelledby="replaced">
+        <h2 id="replaced" className={styles.legalH2}>How an estimate gets replaced</h2>
+        <p className={styles.legalBody}>
           By a real price. When a pub publishes its menu, or a drinker logs what
           they paid and somebody else confirms it, the estimate goes and the
           published or confirmed figure takes its place. Estimates fill the gap
           until then. They do not stand in for the work.
         </p>
-        <p className="legalBody">
-          <Link href="/pint-index" className="legalLink">The Pint Index</Link>{" "}
+        <p className={styles.legalBody}>
+          <Link href="/pint-index" className={styles.legalLink}>The Pint Index</Link>{" "}
           is the strict end of this. It publishes only prices with a named source
           and a date, and no estimate has ever entered it.
         </p>

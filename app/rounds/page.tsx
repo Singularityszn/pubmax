@@ -5,7 +5,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
 
-import "./[code]/round.css";
+import styles from "./[code]/Round.module.css";
 
 // Branded entry for /rounds (no code): previously a bare Next 404 dead-end. A
 // round is always JOINED from a share link/code (/rounds/<code>), so this
@@ -19,12 +19,12 @@ export const metadata: Metadata = {
 
 export default function RoundsIndex(): React.JSX.Element {
   return (
-    <main id="main" className="roundShell">
+    <main id="main" className={styles.roundShell}>
       <SiteNav />
 
       <Screen
         as="section"
-        className="roundsIndexScreen"
+        className={styles.roundsIndexScreen}
         kicker="Rounds"
         title="Who bought the last round."
         titleId="rounds-title"

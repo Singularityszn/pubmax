@@ -76,10 +76,10 @@ import TodayGetThereStrip from "./TodayGetThereStrip";
 import TodayPintsCard from "./TodayPintsCard";
 import TodayQuietPintCard from "./TodayQuietPintCard";
 import TodayTubeCard from "./TodayTubeCard";
-import { TODAY_TEXT_BUTTON_CLASS } from "./todayTextButton";
+import { todayTextButtonClass } from "./todayTextButton";
 import type { TodayPintsIndex } from "./todayPints";
 import type { QuietPintModule } from "@/lib/quietPint";
-import "./today.css";
+import styles from "./Today.module.css";
 
 type Props = {
   dateLabel: string;
@@ -122,14 +122,14 @@ const LENS_ICON = {
 function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
   const LensIcon = weather ? LENS_ICON[weather.venueLens] : CloudSun;
   return (
-    <section className="todayCard" aria-labelledby="today-weather-title" data-testid="today-weather">
-      <div className="todayCardHead">
-        <span className="todayCardIcon" aria-hidden="true">
+    <section className={styles.todayCard} aria-labelledby="today-weather-title" data-testid="today-weather">
+      <div className={styles.todayCardHead}>
+        <span className={styles.todayCardIcon} aria-hidden="true">
           <LensIcon size={18} />
         </span>
         <div>
-          <p className="todayCardEyebrow">Drink weather</p>
-          <h2 className="todayCardTitle" id="today-weather-title">
+          <p className={styles.todayCardEyebrow}>Drink weather</p>
+          <h2 className={styles.todayCardTitle} id="today-weather-title">
             {weather ? weather.verdictLine : "No weather verdict right now."}
           </h2>
         </div>
@@ -143,15 +143,15 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
       {weather ? (
         <>
           {weather.stale ? (
-            <p className="todayStale" role="status">
+            <p className={styles.todayStale} role="status">
               {weather.checkedLabel}. It may have moved on.
             </p>
           ) : null}
           {/* The day is printed ONCE: the stale line above already carries it,
               so a stale card's foot keeps the credit alone. Fresh, the foot
               is the one place the day and the publisher are said. */}
-          <div className="todayCardFootRow">
-            <span className="todayProvenance">
+          <div className={styles.todayCardFootRow}>
+            <span className={styles.todayProvenance}>
               {weather.stale ? null : (
                 <>
                   {weather.checkedLabel}
@@ -160,7 +160,7 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
               )}
               via{" "}
               <a
-                className="todayProvenanceLink"
+                className={styles.todayProvenanceLink}
                 href={weather.source.url}
                 target="_blank"
                 rel="noreferrer noopener"
@@ -171,7 +171,7 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
           </div>
         </>
       ) : (
-        <p className="todayCardEmpty">
+        <p className={styles.todayCardEmpty}>
           No fresh read on the sky just now. Have a look out the window for this one.
         </p>
       )}
@@ -224,19 +224,19 @@ function PicksCard({
   const checked = picksCheckedLabel(state.checkedAt);
   return (
     <section
-      className="todayCard"
+      className={styles.todayCard}
       aria-labelledby="today-picks-title"
       data-testid="today-picks"
       data-picks-status={picksCardStatus(picksStatus, picks.length, filteredPickCount)}
       data-picks-state={state.kind}
     >
-      <div className="todayCardHead">
-        <span className="todayCardIcon" aria-hidden="true">
+      <div className={styles.todayCardHead}>
+        <span className={styles.todayCardIcon} aria-hidden="true">
           <CalendarClock size={18} />
         </span>
         <div>
-          <p className="todayCardEyebrow">Tonight</p>
-          <h2 className="todayCardTitle" id="today-picks-title">
+          <p className={styles.todayCardEyebrow}>Tonight</p>
+          <h2 className={styles.todayCardTitle} id="today-picks-title">
             Top picks for tonight.
           </h2>
         </div>
@@ -244,62 +244,62 @@ function PicksCard({
 
       {picksStateShowsRows(state, picks.length) ? (
         <>
-          <ul className="todayPicks">
+          <ul className={styles.todayPicks}>
             {picks.map((pick) => {
               const inner = (
                 <>
-                  <div className="todayPickMeta">
-                    <span className="todayPickKind" data-kind={pick.kind}>
+                  <div className={styles.todayPickMeta}>
+                    <span className={styles.todayPickKind} data-kind={pick.kind}>
                       {pick.kindLabel}
                     </span>
                     {pick.priceGbp !== null ? (
-                      <span className="todayPickPrice">£{pick.priceGbp.toFixed(2)}</span>
+                      <span className={styles.todayPickPrice}>£{pick.priceGbp.toFixed(2)}</span>
                     ) : null}
                   </div>
-                  <h3 className="todayPickTitle">{pick.title}</h3>
-                  <p className="todayPickPlace">
+                  <h3 className={styles.todayPickTitle}>{pick.title}</h3>
+                  <p className={styles.todayPickPlace}>
                     <MapPin size={13} aria-hidden="true" />
                     <span>{pick.placeName}</span>
                   </p>
                   {pick.venueNote ? (
-                    <span className="todayPickDigest">{pick.venueNote}</span>
+                    <span className={styles.todayPickDigest}>{pick.venueNote}</span>
                   ) : null}
-                  <span className="todayPickSource">via {pick.sourceLabel}</span>
+                  <span className={styles.todayPickSource}>via {pick.sourceLabel}</span>
                 </>
               );
               return (
-                <li key={pick.id} className="todayPick" data-kind={pick.kind}>
+                <li key={pick.id} className={styles.todayPick} data-kind={pick.kind}>
                   {pick.href ? (
                     pick.external ? (
                       <a
-                        className="todayPickLink pressable"
+                        className={`${styles.todayPickLink} pressable`}
                         href={pick.href}
                         target="_blank"
                         rel="noreferrer noopener"
                       >
                         {inner}
-                        <ExternalLink size={13} aria-hidden="true" className="todayPickArrow" />
+                        <ExternalLink size={13} aria-hidden="true" className={styles.todayPickArrow} />
                       </a>
                     ) : (
-                      <Link prefetch={false} className="todayPickLink pressable" href={pick.href}>
+                      <Link prefetch={false} className={`${styles.todayPickLink} pressable`} href={pick.href}>
                         {inner}
-                        <ArrowRight size={14} aria-hidden="true" className="todayPickArrow" />
+                        <ArrowRight size={14} aria-hidden="true" className={styles.todayPickArrow} />
                       </Link>
                     )
                   ) : (
-                    <div className="todayPickLink">{inner}</div>
+                    <div className={styles.todayPickLink}>{inner}</div>
                   )}
                 </li>
               );
             })}
           </ul>
-          <p className="todayCardFootRow">
-            <Link prefetch={false} href="/tonight" className="todayCardFootLink">
+          <p className={styles.todayCardFootRow}>
+            <Link prefetch={false} href="/tonight" className={styles.todayCardFootLink}>
               See everything on tonight
               <ArrowRight size={14} aria-hidden="true" />
             </Link>
             {state.kind === "refreshing" ? (
-              <span className="todayPickChecked" data-testid="today-picks-checked">
+              <span className={styles.todayPickChecked} data-testid="today-picks-checked">
                 {PICKS_REFRESHING_LINE}
                 {checked ? ` ${checked}.` : ""}
               </span>
@@ -310,7 +310,7 @@ function PicksCard({
         <>
           {/* A read we could not run says what happened to US. It may never be
               swapped for the quiet-night line, because we did not look. */}
-          <p className="todayCardEmpty">
+          <p className={styles.todayCardEmpty}>
             {filteredPickCount > 0
               ? "Tonight has listings, but none match your current preferences."
               : (state.reason ?? picksListLine(picksStatus, slot))}
@@ -318,8 +318,8 @@ function PicksCard({
           {/* The compose action floats over this card's right cell on a phone,
               and this row's arrow lands in it, so the row takes the control's
               own lane (createFab.css). */}
-          <p className="todayCardFootRow createFabLane">
-            <Link prefetch={false} href="/map" className="todayCardFootLink">
+          <p className={`${styles.todayCardFootRow} createFabLane`}>
+            <Link prefetch={false} href="/map" className={styles.todayCardFootLink}>
               Meanwhile, the map knows the cheap pints
               <ArrowRight size={14} aria-hidden="true" />
             </Link>
@@ -351,14 +351,14 @@ function readPlanIntakeDraftReadonly() {
 // a magazine page (Astra F08).
 function FactCard({ fact }: { fact: PubOfTheDayCard | null }) {
   return (
-    <section className="todayCard" aria-labelledby="today-fact-title" data-testid="today-fact">
-      <div className="todayCardHead">
-        <span className="todayCardIcon" aria-hidden="true">
+    <section className={styles.todayCard} aria-labelledby="today-fact-title" data-testid="today-fact">
+      <div className={styles.todayCardHead}>
+        <span className={styles.todayCardIcon} aria-hidden="true">
           <Landmark size={18} />
         </span>
         <div>
-          <p className="todayCardEyebrow">Pub of the day</p>
-          <h2 className="todayCardTitle" id="today-fact-title">
+          <p className={styles.todayCardEyebrow}>Pub of the day</p>
+          <h2 className={styles.todayCardTitle} id="today-fact-title">
             {fact ? fact.pubName : "Still in the archive"}
           </h2>
         </div>
@@ -366,18 +366,18 @@ function FactCard({ fact }: { fact: PubOfTheDayCard | null }) {
 
       {fact ? (
         <>
-          <p className="todayCardBody">{fact.reason}</p>
-          <Link className="todayButton" href={fact.mapHref} prefetch={false}>
+          <p className={styles.todayCardBody}>{fact.reason}</p>
+          <Link className={styles.todayButton} href={fact.mapHref} prefetch={false}>
             <MapPin size={15} aria-hidden="true" />
             Open {fact.pubName} on the map
           </Link>
-          <div className="todayCardFootRow">
-            <span className="todayProvChip" data-provenance={fact.provenance}>
+          <div className={styles.todayCardFootRow}>
+            <span className={styles.todayProvChip} data-provenance={fact.provenance}>
               {fact.provenanceLabel}
             </span>
             {fact.sourceRef ? (
               <a
-                className={TODAY_TEXT_BUTTON_CLASS}
+                className={todayTextButtonClass(styles.todayTextButton)}
                 href={fact.sourceRef}
                 target="_blank"
                 rel="noreferrer noopener"
@@ -386,12 +386,12 @@ function FactCard({ fact }: { fact: PubOfTheDayCard | null }) {
                 <ExternalLink size={13} aria-hidden="true" />
               </a>
             ) : (
-              <span className="todayProvenance">via {fact.sourceLabel}</span>
+              <span className={styles.todayProvenance}>via {fact.sourceLabel}</span>
             )}
           </div>
         </>
       ) : (
-        <p className="todayCardEmpty">
+        <p className={styles.todayCardEmpty}>
           Every pub of the day comes with receipts, and today&apos;s are still in
           the archive. Back tomorrow.
         </p>
@@ -512,7 +512,7 @@ export default function TodayClient({
   }, [picks, weather, weatherByArea, pintsIndex]);
 
   return (
-    <main id="main" className="todayPage" data-testid="today-screen">
+    <main id="main" className={styles.todayPage} data-testid="today-screen">
       <SiteNav active="today" />
       <NowSegment current="day" />
 
@@ -523,7 +523,7 @@ export default function TodayClient({
           the quieter way onward. */}
       <Screen
         as="div"
-        className="todayScreen"
+        className={styles.todayScreen}
         kicker="Today in London"
         title={shownGreeting.headline}
         titleId="today-title"
@@ -543,8 +543,8 @@ export default function TodayClient({
           </Link>
         }
       >
-      <div className="todayStack">
-        <div className="todayBriefColumn">
+      <div className={styles.todayStack}>
+        <div className={styles.todayBriefColumn}>
           <WeatherCard weather={brief.weather} />
           <TodayTubeCard slot={shownGreeting.slot} />
           <PicksCard
@@ -559,23 +559,23 @@ export default function TodayClient({
           />
           <TodayGetThereStrip />
         </div>
-        <div className="todayExploreColumn">
+        <div className={styles.todayExploreColumn}>
           <TodayPintsCard index={pintsIndex} />
           <TodayQuietPintCard module={quietPint} />
           <FactCard fact={fact} />
         </div>
       </div>
 
-      <p className="todayFoot">
-        <Link prefetch={false} href="/tonight" className="todayCardFootLink">
+      <p className={styles.todayFoot}>
+        <Link prefetch={false} href="/tonight" className={styles.todayCardFootLink}>
           Jump to tonight
           <ArrowRight size={14} aria-hidden="true" />
         </Link>
-        <Link prefetch={false} href="/plan" className="todayCardFootLink">
+        <Link prefetch={false} href="/plan" className={styles.todayCardFootLink}>
           Plan an outing
           <ArrowRight size={14} aria-hidden="true" />
         </Link>
-        <Link prefetch={false} href="/map" className="todayCardFootLink">
+        <Link prefetch={false} href="/map" className={styles.todayCardFootLink}>
           <Beer size={14} aria-hidden="true" />
           Open the map
         </Link>

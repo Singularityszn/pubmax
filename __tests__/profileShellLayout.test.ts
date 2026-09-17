@@ -11,13 +11,13 @@ function ruleBody(css: string, selector: string): string {
   return css.match(new RegExp(`${escaped}\\s*{([^}]*)}`))?.[1] ?? "";
 }
 
-const profileCss = read("app/u/[handle]/profile.css");
+const profileCss = read("app/u/[handle]/Profile.module.css");
 const profilePage = read("app/u/[handle]/ProfilePageClient.tsx");
 const profileListPage = read("app/u/[handle]/lists/[listType]/page.tsx");
 
 describe("profile route shell", () => {
   it("centres the shared capped shell with balanced desktop gutters", () => {
-    const shell = ruleBody(profileCss, ".profilePage .profileMain");
+    const shell = ruleBody(profileCss, ".profilePage :global(.profileMain)");
 
     expect(shell).toMatch(/width:\s*100%/);
     expect(shell).toMatch(/max-width:\s*var\(--content-max-wide\)/);
@@ -26,7 +26,7 @@ describe("profile route shell", () => {
   });
 
   it("keeps the signed-out identity card on the shared surface radius", () => {
-    const card = ruleBody(profileCss, ".profilePage .youIdentityIntro");
+    const card = ruleBody(profileCss, ".profilePage :global(.youIdentityIntro)");
     expect(card).toContain("border-radius: var(--radius-lg)");
     expect(card).not.toContain("border-radius: 24px");
   });

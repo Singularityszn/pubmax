@@ -34,7 +34,7 @@ import {
   publicOwnedImageUrl,
 } from "@/lib/profileStore";
 
-import "./founders.css";
+import styles from "./Founders.module.css";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -90,14 +90,14 @@ export default async function FoundersPage(): Promise<React.JSX.Element> {
   const wall = await readWall();
 
   return (
-    <div className="foundersPage">
+    <div className={styles.foundersPage}>
       <SiteNav active="profile" />
       {/* The launch head (docs/design/LAUNCH_SCREENS.md). The one primary is
           the map, which is not a way onto the wall: the rule above holds. */}
       <Screen
         as="main"
         id="main"
-        className="foundersMain"
+        className={styles.foundersMain}
         kicker="Founding members"
         title={FOUNDERS_WALL_TITLE}
         titleId="founders-title"
@@ -106,7 +106,7 @@ export default async function FoundersPage(): Promise<React.JSX.Element> {
         secondary={<Link prefetch={false} href="/social">Find your lot</Link>}
       >
         {wall.status === "ready" && wall.members.length ? (
-          <p className="foundersCount">
+          <p className={styles.foundersCount}>
             {foundingSlotsRemainingLine(wall.members.length)}
           </p>
         ) : null}
@@ -118,36 +118,36 @@ export default async function FoundersPage(): Promise<React.JSX.Element> {
         ) : wall.members.length === 0 ? (
           <EmptyState title={FOUNDERS_WALL_EMPTY} />
         ) : (
-          <ol className="foundersList" aria-label="Founding members by number">
+          <ol className={styles.foundersList} aria-label="Founding members by number">
             {wall.members.map((member) => (
-              <li key={member.number} className="foundersRow">
-                <span className="foundersNumber" aria-hidden="true">
+              <li key={member.number} className={styles.foundersRow}>
+                <span className={styles.foundersNumber} aria-hidden="true">
                   {member.number}
                 </span>
                 <HandleAvatar
                   handle={member.handle}
                   avatarUrl={member.avatarUrl}
                   displayName={member.displayName}
-                  className="foundersAvatar"
-                  imageClassName="foundersAvatar foundersAvatarImage"
+                  className={styles.foundersAvatar}
+                  imageClassName={`${styles.foundersAvatar} ${styles.foundersAvatarImage}`}
                   size={44}
                 />
-                <span className="foundersWho">
+                <span className={styles.foundersWho}>
                   <Link
-                    className="foundersHandle"
+                    className={styles.foundersHandle}
                     href={`/u/${encodeURIComponent(member.handle)}`}
                   >
                     {member.displayName || displayHandle(member.handle)}
                   </Link>
                   {member.displayName ? (
-                    <span className="foundersSubHandle">
+                    <span className={styles.foundersSubHandle}>
                       {displayHandle(member.handle)}
                     </span>
                   ) : null}
                 </span>
                 <FoundingMemberMark
                   number={member.number}
-                  className="foundingMarkBare foundersRowMark"
+                  className={`foundingMarkBare ${styles.foundersRowMark}`}
                 />
               </li>
             ))}

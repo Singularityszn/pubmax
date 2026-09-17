@@ -10,6 +10,7 @@ import { planCrewSharePath } from "@/lib/planCrewInviteUrl";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot } from "@/lib/planSessionCapability";
 import { VIBE_CHIPS, VIBE_SLUGS, type VibeChip, type VibeChipId } from "@/lib/vibeChips";
 import { vibeTallyLine, type VibeTally } from "@/lib/vibeTally";
+import planStyles from "@/app/plan/Plan.module.css";
 
 // Plan-page vibe picker + share stamp wiring (docs/VIBE_LAYER_SPEC_2026-07-19
 // .md, surface 3; issue #438). The chips are the USER'S voice declaring the
@@ -137,18 +138,18 @@ export default function PlanVibe({ planId, initialTally }: { planId: string; ini
   if (!canVote && !line) return null;
 
   return (
-    <section className="planVibe" aria-labelledby="plan-vibe-title">
-      <p className="planPage__eyebrow">Crew vibe</p>
+    <section className={planStyles.planVibe} aria-labelledby="plan-vibe-title">
+      <p className={planStyles.planPage__eyebrow}>Crew vibe</p>
       <h2 id="plan-vibe-title">What&rsquo;s the vibe?</h2>
       {canVote ? (
         <>
-          <p className="planVibe__lede">One vote each. Tap another chip to change yours; the winner stamps the share card.</p>
-          <div className="planVibe__row" role="group" aria-label="Vote the night's vibe">
+          <p className={planStyles.planVibe__lede}>One vote each. Tap another chip to change yours; the winner stamps the share card.</p>
+          <div className={planStyles.planVibe__row} role="group" aria-label="Vote the night's vibe">
             {VIBE_CHIPS.map((chip) => (
               <button
                 key={chip.id}
                 type="button"
-                className="planVibe__chip pressable"
+                className={`${planStyles.planVibe__chip} pressable`}
                 aria-pressed={myVibe === chip.id}
                 data-active={myVibe === chip.id}
                 disabled={Boolean(pending)}
@@ -160,8 +161,8 @@ export default function PlanVibe({ planId, initialTally }: { planId: string; ini
           </div>
         </>
       ) : null}
-      {line ? <p className="planVibe__tally">{line}</p> : null}
-      {note ? <p className="planVibe__note" role="status">{note}</p> : null}
+      {line ? <p className={planStyles.planVibe__tally}>{line}</p> : null}
+      {note ? <p className={planStyles.planVibe__note} role="status">{note}</p> : null}
     </section>
   );
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { MapPin, PlusCircle } from "lucide-react";
 
+import overviewStyles from "./VenueOverviewTab.module.css";
 import Disclosure from "@/components/Disclosure";
 import PriceBadge from "@/components/PriceBadge";
 import TrustPill from "@/components/ui/trust-pill";
@@ -15,6 +16,7 @@ import {
 import { priceStandingFor, type ConfirmedPriceInput } from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue, type PriceBandArea } from "@/lib/priceBand";
 import { Amenity, ClaimBadge } from "@/components/map/venueInspectorBits";
+import inspectorStyles from '@/components/map/venueInspectorBits.module.css';
 import { derivedAmenityStatus, type AmenityStatus } from "@/lib/venueTruth";
 import { venueAmenityStatus, type VenueAmenityStatus } from "@/lib/venues";
 import {
@@ -62,6 +64,8 @@ import VenuePriceThen from "@/components/map/VenuePriceThen";
 import VenueAreaPriceCompare from "@/components/map/VenueAreaPriceCompare";
 import VenueWeatherRecommendations from "@/components/map/VenueWeatherRecommendations";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+import btnStyles from '../addStopBtn.module.css';
+import nudgeStyles from './FirstDropNudge.module.css';
 import VenueActionStrip from "@/components/map/VenueActionStrip";
 import CityPlaceStrip from "@/components/map/CityPlaceStrip";
 import VenueBuzz from "@/components/map/VenueBuzz";
@@ -222,14 +226,14 @@ function PriceDoor({
   if (!door || !isPubVenue(venue) || composerOpen) return null;
   if (door.kind === "choose" && onConfirmPrice) {
     return (
-      <div className="priceDoorChoice" data-price-door="choose">
-        <p className="priceDoorAsk">{door.label}</p>
-        <div className="priceDoorOptions">
+      <div className={overviewStyles.priceDoorChoice} data-price-door="choose">
+        <p className={overviewStyles.priceDoorAsk}>{door.label}</p>
+        <div className={overviewStyles.priceDoorOptions}>
           {door.prices.map((priceGbp) => (
             <button
               key={priceGbp}
               type="button"
-              className="priceDoor"
+              className={overviewStyles.priceDoor}
               data-testid="choose-pint-cta"
               data-price-gbp={priceGbp.toFixed(2)}
               aria-label={confirmPintActionName(priceGbp, venue.name)}
@@ -246,7 +250,7 @@ function PriceDoor({
     return (
       <button
         type="button"
-        className="priceDoor"
+        className={overviewStyles.priceDoor}
         data-price-door="confirm"
         data-testid="confirm-pint-cta"
         aria-label={confirmPintActionName(door.priceGbp, venue.name)}
@@ -259,7 +263,7 @@ function PriceDoor({
   return (
     <button
       type="button"
-      className="priceDoor"
+      className={overviewStyles.priceDoor}
       data-price-door="log"
       data-testid="log-price-cta"
       aria-label={`${LOG_PRICE_DOOR_LABEL} at ${venue.name}`}
@@ -312,7 +316,7 @@ function DrinkerLogBlock({
       ? AGED_PRICE_LINE
       : PROVISIONAL_PRICE_LINE;
   return (
-    <div className="contributorPrice" {...trustChipAttrs}>
+    <div className={overviewStyles.contributorPrice} {...trustChipAttrs}>
       <span className={chromeRevealClass}>
         <ClaimBadge kind="contributor" />{" "}
         {split ? "Logged by PUBMAXXERS" : "Logged by a PUBMAXXER"}
@@ -350,8 +354,8 @@ function UnpricedPubBlock({
     return <FirstDropNudge venueId={venue.id}>{door}</FirstDropNudge>;
   }
   return (
-    <div className="firstDropNudge" role="note">
-      <p className="firstDropNudgeLine">{DROP_READ_UNAVAILABLE_LINE}</p>
+    <div className={nudgeStyles.firstDropNudge} role="note">
+      <p className={nudgeStyles.firstDropNudgeLine}>{DROP_READ_UNAVAILABLE_LINE}</p>
       {door}
     </div>
   );
@@ -427,7 +431,7 @@ function VenuePriceSummary({
 
   if (lane?.lane === "anchor") {
     return (
-      <div className="contributorPrice">
+      <div className={overviewStyles.contributorPrice}>
         <span className={chromeRevealClass}>
           <ClaimBadge kind="sourced" /> {venue.anchorLabel}
         </span>
@@ -462,7 +466,7 @@ function VenuePriceSummary({
 
   if (lane?.lane === "contributor") {
     return (
-      <div className="contributorPrice" {...trustChipAttrs}>
+      <div className={overviewStyles.contributorPrice} {...trustChipAttrs}>
         <span className={chromeRevealClass}>
           <ClaimBadge kind="contributor" /> Latest Pint Drop price
         </span>
@@ -491,7 +495,7 @@ function VenuePriceSummary({
 
   if (lane?.lane === "sourced") {
     return (
-      <div className="contributorPrice">
+      <div className={overviewStyles.contributorPrice}>
         <span className={chromeRevealClass}>
           <ClaimBadge kind="sourced" /> Sourced price
         </span>
@@ -501,7 +505,7 @@ function VenuePriceSummary({
         <small className={chromeRevealClass}>
           {sourcedObserved ? `${sourcedObserved} · ` : ""}
           <a
-            className="priceSourceLink"
+            className={overviewStyles.priceSourceLink}
             href={lane.sourcedPrice.sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
@@ -516,7 +520,7 @@ function VenuePriceSummary({
 
   if (lane?.lane === "listed") {
     return (
-      <div className="contributorPrice">
+      <div className={overviewStyles.contributorPrice}>
         <span className={chromeRevealClass}>
           <ClaimBadge kind="sourced" /> Published price
         </span>
@@ -526,7 +530,7 @@ function VenuePriceSummary({
         <small className={chromeRevealClass}>
           {formatFreshness(lane.listed.observedAt)} ·{" "}
           <a
-            className="priceSourceLink"
+            className={overviewStyles.priceSourceLink}
             href={lane.listed.sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
@@ -558,7 +562,7 @@ function VenuePriceSummary({
 
   if (lane?.lane === "baseline") {
     return (
-      <div className="contributorPrice">
+      <div className={overviewStyles.contributorPrice}>
         <span className={chromeRevealClass}>
           {/* No "Baseline" chip. That word is ours, and it stood immediately
               before the reader's word for the same fact. The heading is now the
@@ -598,7 +602,7 @@ function VenuePriceSummary({
 
   if (lane?.lane === "estimate") {
     return (
-      <div className="contributorPrice">
+      <div className={overviewStyles.contributorPrice}>
         {/* NO CLAIM BADGE. Nobody published this figure, so nothing here may
             wear the mark that says somebody did. The pill prints "est. £X" and
             carries the method link beside it, and the basis line is left to
@@ -653,7 +657,7 @@ function amenityRow(
 ) {
   if (chips.length === 0) return null;
   return (
-    <div className="amenityRow">
+    <div className={inspectorStyles.amenityRow}>
       {chips.map(({ key, label, status }) => (
         <Amenity key={key} status={status} label={label} />
       ))}
@@ -1149,7 +1153,7 @@ export default function VenueOverviewTab({
       ) : null}
       {mode === "build" && isPubVenue(venue) ? (
         <button
-          className="addStopBtn"
+          className={btnStyles.addStopBtn}
           aria-pressed={inCrawl}
           onClick={() => onToggleStop(venue.id)}
         >
@@ -1183,7 +1187,7 @@ export default function VenueOverviewTab({
         ) : (
           <button
             type="button"
-            className="addStopBtn"
+            className={btnStyles.addStopBtn}
             onClick={markPresenceHere}
             disabled={presenceState === "sending"}
             aria-label={`Mark that you're at ${venue.name} tonight`}

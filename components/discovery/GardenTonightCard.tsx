@@ -22,6 +22,7 @@ import {
 } from "@/lib/gardenWeather";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
+import discoverStyles from "@/app/discover/Discover.module.css";
 import "./gardenTonightCard.css";
 
 type StatusResponse = {
@@ -164,7 +165,7 @@ export default function GardenTonightCard() {
 
   return (
     <section
-      className="discoverSection gardenTonightSection"
+      className={discoverStyles.discoverSection}
       aria-labelledby="gardenTonight-title"
     >
       <div className="gardenTonightCard">

@@ -1,0 +1,319 @@
+/* /about -- founder story + press kit + investor surface.
+   Shares the app's visual language via globally-loaded tokens only (paper,
+   panel/panel-raised, ink, ink-soft, muted, line, brass/coral, radius + shadow
+   scales from globals.css + theme.css). No hardcoded hex, so it tracks both
+   themes (Candle Coral light / Night Out dark) automatically.
+   Mobile-first (390px), 44px tap targets, reduced-motion safe. Bottom padding
+   clears the mobile tab bar + safe-area (cf. historic.css / tonight.css).
+
+   First viewport (Wave S4 taste): brand signal + one lede composition. Paper
+   atmosphere and a brass rule; no hero media overlays, no card soup. */
+
+.aboutPage {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px var(--page-gutter) calc(96px + env(safe-area-inset-bottom, 0px));
+  color: var(--ink);
+  /* Soft paper atmosphere for the reading column -- tokens only, no collage. */
+  background:
+    radial-gradient(
+      120% 70% at 8% -12%,
+      color-mix(in srgb, var(--brass) 11%, transparent) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      90% 55% at 100% 0%,
+      color-mix(in srgb, var(--surface-tint-river, var(--river)) 28%, transparent) 0%,
+      transparent 52%
+    ),
+    var(--paper);
+}
+
+/* -- Head --------------------------------------------------------- */
+/* The head is the shared Screen primitive (components/ui/screen.css). The
+   page already pays the reading column and its gutters, so the head drops
+   its own. The story lede is long on purpose, so it takes the column. */
+.aboutPage .aboutHero {
+  width: 100%;
+  padding-inline: 0;
+}
+
+.aboutPage .aboutHero :global(.screenHead) {
+  max-width: none;
+}
+
+.aboutPage .aboutHero :global(.screenLede) {
+  max-width: 56ch;
+}
+
+/* -- Sections ----------------------------------------------------- */
+.aboutSection {
+  margin: 28px 0;
+}
+
+.aboutH2 {
+  margin: 0 0 12px;
+  font-family: var(--font-display, var(--serif));
+  font-size: clamp(1.3rem, 4.5vw, 1.65rem);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.aboutBody {
+  margin: 0 0 12px;
+  max-width: 62ch;
+  font-size: 1rem;
+  line-height: 1.62;
+  color: var(--ink-soft);
+  text-wrap: pretty;
+}
+
+.aboutBody strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* -- Ethos list --------------------------------------------------- */
+.aboutEthos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.aboutEthos li {
+  position: relative;
+  padding: 14px 16px 14px 18px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brass);
+  border-radius: var(--radius, 10px);
+  background: var(--panel);
+  font-size: 0.97rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.aboutEthos li strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* -- Founder note ------------------------------------------------- */
+/* First-person block inside "Who builds it". Same panel + brass-edge idiom as
+   the ethos list, sized up to read as one settled note rather than a bullet. */
+.aboutFounderNote {
+  margin: 18px 0 0;
+  padding: 18px 18px 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brass);
+  border-radius: var(--radius-lg, 18px);
+  background: var(--panel);
+}
+
+.aboutFounderQuote {
+  margin: 0;
+}
+
+.aboutFounderQuote .aboutBody:last-child {
+  margin-bottom: 0;
+}
+
+.aboutFounderSig {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft, var(--line));
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* -- Traction band ------------------------------------------------ */
+/* No band around the tiles: a heading with a grid under it is already a
+   section, and a bordered card holding bordered cards is on the
+   template-pattern ban list (docs/VOICE.md). */
+
+.aboutTractionIntro {
+  margin-bottom: 18px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.aboutStatGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 20px;
+}
+
+.aboutStat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 12px;
+  border: 1px solid var(--line-soft, var(--line));
+  border-radius: var(--radius, 10px);
+  background: var(--panel);
+}
+
+.aboutStatValue {
+  margin: 0;
+  font-family: var(--font-data, monospace);
+  font-size: clamp(1.6rem, 7vw, 2.1rem);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--brass);
+  font-variant-numeric: tabular-nums;
+}
+
+.aboutStatBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+
+.aboutStatLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.aboutStatNote {
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.aboutPriceLine {
+  margin: 0;
+  font-size: 0.97rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.aboutPriceLine strong {
+  color: var(--ink);
+}
+
+.aboutPriceStamp {
+  display: inline-block;
+  padding: 1px 7px;
+  font-family: var(--font-data, monospace);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  border: var(--ink-stamp-border, 1.5px solid var(--brass));
+  border-radius: var(--ink-stamp-radius, 6px);
+  transform: rotate(var(--ink-stamp-tilt, -1.5deg));
+}
+
+/* -- Press kit ---------------------------------------------------- */
+.aboutPress {
+  padding: 22px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg, 18px);
+  background: var(--panel);
+}
+
+.aboutPressGrid {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+}
+
+.aboutPressRow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-soft, var(--line));
+}
+
+.aboutPressRow:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.aboutPressRow dt {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.aboutPressRow dd {
+  margin: 0;
+  font-size: 0.97rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.aboutLogoLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 2px;
+  align-items: center;
+}
+
+.aboutLink {
+  color: var(--brass);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.16s ease;
+}
+
+.aboutLink:hover,
+.aboutLink:focus-visible {
+  border-bottom-color: currentcolor;
+}
+
+/* -- Closing row -------------------------------------------------- */
+/* Two text links. The head owns the one filled control on this page. */
+.aboutCta {
+  padding: 8px 0 0;
+}
+
+.aboutCtaRow {
+  margin-top: 14px;
+}
+
+.aboutCtaRow .aboutLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* Wider viewports: give press-kit rows a label/value split. */
+@media (min-width: 560px) {
+  .aboutPressRow {
+    grid-template-columns: 130px 1fr;
+    gap: 12px;
+    align-items: baseline;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aboutLink {
+    transition: none;
+  }
+  .aboutPriceStamp {
+    transform: none;
+  }
+}
+
+/* Touch target floor. Every other link on this page flows inside a sentence
+   and is exempt by WCAG's inline exception, but the press-kit row lays its two
+   download links out as their own boxes, side by side, which makes them
+   controls: they painted 24px tall. Coarse pointers only, so the desktop row
+   keeps its measure. e2e/launch-phone-controls.spec.ts measures it. */
+@media (pointer: coarse) {
+  .aboutLogoLinks .aboutLink {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

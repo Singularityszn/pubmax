@@ -18,7 +18,7 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 
 const mobileMapCss = read("components/mobile/mobileMapShell.css");
 const suggestCss = read("components/map/mapSearchSuggest.css");
-const globalCss = read("app/globals.css");
+const controlRailCss = read("components/map/ControlRailChrome.module.css");
 const searchFieldTsx = read("components/ui/search-field.tsx");
 const pubMapTsx = read("components/PubMap.tsx");
 
@@ -77,15 +77,15 @@ describe("the house search field is one control", () => {
   it("wears one focus ring, and the inner outline is suppressed", () => {
     expect(searchFieldTsx).toMatch(/focus-within:ring-2/);
     expect(searchFieldTsx).toMatch(/focus-within:ring-\[var\(--brass\)\]/);
-    expect(rule(globalCss, '.houseSearchField input[type="search"]:focus-visible {')).toMatch(
+    expect(rule(controlRailCss, ':global(.houseSearchField) input[type="search"]:focus-visible {')).toMatch(
       /outline:\s*none/,
     );
   });
 
   it("shows one clear button, not the browser's as well", () => {
     const native = rule(
-      globalCss,
-      '.houseSearchField input[type="search"]::-webkit-search-cancel-button {',
+      controlRailCss,
+      ':global(.houseSearchField) input[type="search"]::-webkit-search-cancel-button {',
     );
     expect(native).toMatch(/appearance:\s*none/);
     expect(native).toMatch(/display:\s*none/);

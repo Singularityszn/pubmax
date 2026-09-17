@@ -14,6 +14,7 @@ import {
 
 import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
 
+import styles from "@/app/messages/Messages.module.css";
 import "@/components/mobile/mobileMapShell.css";
 
 export type MessageAttachKind = "photos" | "camera" | "document";
@@ -131,7 +132,7 @@ const MessageAttachmentPicker = forwardRef<
         id="message-photo-file"
         type="file"
         accept={PROFILE_IMAGE_PICKER_ACCEPT}
-        className="composerFileInput"
+        className={styles.composerFileInput}
         aria-label="Choose a photo from your library"
         onChange={onFileChange}
       />
@@ -143,7 +144,7 @@ const MessageAttachmentPicker = forwardRef<
         type="file"
         accept={PROFILE_IMAGE_PICKER_ACCEPT}
         capture="environment"
-        className="composerFileInput"
+        className={styles.composerFileInput}
         aria-label="Take a photo with the camera"
         onChange={onFileChange}
       />
@@ -154,13 +155,13 @@ const MessageAttachmentPicker = forwardRef<
         id="message-document-file"
         type="file"
         accept={PROFILE_IMAGE_PICKER_ACCEPT}
-        className="composerFileInput"
+        className={styles.composerFileInput}
         aria-label="Choose a photo file"
         onChange={onFileChange}
       />
 
       {open ? (
-        <div className="mobileSheetPortal messageAttachSheetPortal">
+        <div className={`mobileSheetPortal ${styles.messageAttachSheetPortal}`}>
           <button
             className="mobileSheetScrim"
             type="button"
@@ -169,7 +170,7 @@ const MessageAttachmentPicker = forwardRef<
             aria-label="Dismiss attachment chooser"
           />
           <section
-            className="mapDrawer mobileSharedSheet contextual open sheet-half messageAttachSheet"
+            className={`mapDrawer mobileSharedSheet contextual open sheet-half ${styles.messageAttachSheet}`}
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
@@ -179,7 +180,7 @@ const MessageAttachmentPicker = forwardRef<
             }}
           >
             <header
-              className="mobileSharedSheetHeader sheetDragHandle messageAttachSheetHeader"
+              className={`mobileSharedSheetHeader sheetDragHandle ${styles.messageAttachSheetHeader}`}
               onPointerDown={onDragStart}
               onPointerMove={onDragMove}
               onPointerUp={onDragEnd}
@@ -189,7 +190,7 @@ const MessageAttachmentPicker = forwardRef<
               <h2 id={titleId}>Add to message</h2>
               <button
                 type="button"
-                className="messageAttachSheetClose"
+                className={styles.messageAttachSheetClose}
                 aria-label="Close attachment chooser"
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={close}
@@ -197,20 +198,20 @@ const MessageAttachmentPicker = forwardRef<
                 <X size={20} aria-hidden="true" />
               </button>
             </header>
-            <div className="mobileSharedSheetBody messageAttachSheetBody">
-              <div className="messageAttachGrid">
+            <div className={`mobileSharedSheetBody ${styles.messageAttachSheetBody}`}>
+              <div className={styles.messageAttachGrid}>
                 {TARGETS.map(({ kind, label, Icon }) => (
                   <button
                     key={kind}
                     type="button"
-                    className="messageAttachTarget"
+                    className={styles.messageAttachTarget}
                     disabled={disabled}
                     onClick={() => select(kind)}
                   >
-                    <span className="messageAttachIcon" aria-hidden="true">
+                    <span className={styles.messageAttachIcon} aria-hidden="true">
                       <Icon size={30} strokeWidth={2.2} />
                     </span>
-                    <span className="messageAttachLabel">{label}</span>
+                    <span className={styles.messageAttachLabel}>{label}</span>
                   </button>
                 ))}
               </div>

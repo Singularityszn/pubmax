@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import { displayHandle } from "@/lib/handleDisplay";
 import { relativeTime } from "@/lib/relativeTime";
+import styles from "@/app/feed/Feed.module.css";
 
 type PresenceDTO = {
   handle: string;
@@ -58,37 +59,37 @@ export default function PresenceStrip({ spillingNow = 0 }: { spillingNow?: numbe
   if (presence.length === 0 && spillingNow <= 0) return null;
 
   return (
-    <section className="presenceStrip" aria-label="People out tonight">
-      <span className="presenceStripLabel">
-        <span className="presenceDot" aria-hidden="true" />
+    <section className={styles.presenceStrip} aria-label="People out tonight">
+      <span className={styles.presenceStripLabel}>
+        <span className={styles.presenceDot} aria-hidden="true" />
         Live tonight
       </span>
       {spillingNow > 0 ? (
-        <span className="presenceSpilling" aria-label={`${spillingNow} spilling right now`}>
+        <span className={styles.presenceSpilling} aria-label={`${spillingNow} spilling right now`}>
           {spillingNow} spilling right now
         </span>
       ) : null}
       {presence.length > 0 ? (
-      <ul className="presenceList">
+      <ul className={styles.presenceList}>
         {presence.map((p) => {
           const ago = relativeTime(p.at);
           return (
-            <li key={`${p.handle}-${p.venueId}`} className="presenceItem">
+            <li key={`${p.handle}-${p.venueId}`} className={styles.presenceItem}>
               <HandleAvatar
                 handle={p.handle}
                 avatarUrl={p.avatarUrl}
-                className="presenceAvatar"
-                imageClassName="presenceAvatar"
+                className={styles.presenceAvatar}
+                imageClassName={styles.presenceAvatar}
                 size={24}
               />
-              <span className="presenceHandle">{displayHandle(p.handle)}</span>
-              <span className="presenceAt">at</span>
-              <Link href={p.venueMapUrl} className="presenceVenue">
+              <span className={styles.presenceHandle}>{displayHandle(p.handle)}</span>
+              <span className={styles.presenceAt}>at</span>
+              <Link href={p.venueMapUrl} className={styles.presenceVenue}>
                 {p.venueName}
               </Link>
-              {ago ? <span className="presenceAgo">· {ago}</span> : null}
+              {ago ? <span className={styles.presenceAgo}>· {ago}</span> : null}
               {p.provenance === "demo" ? (
-                <span className="presenceDemoChip" title="Seeded example presence">
+                <span className={styles.presenceDemoChip} title="Seeded example presence">
                   Demo
                 </span>
               ) : null}

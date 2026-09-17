@@ -81,7 +81,7 @@ describe("the two number-square surfaces render ONE component", () => {
   });
 
   it("neither surface paints a square of its own any more", () => {
-    const planCss = read("app/plan/plan.css");
+    const planCss = read("app/plan/Plan.module.css");
     expect(planCss).not.toMatch(/\.planStopCount__choices button\s*{/);
     // Layout still belongs to the surface; only the paint moved.
     expect(planCss).toMatch(/\.planStopCount__choices\s*{[^}]*display: flex/);

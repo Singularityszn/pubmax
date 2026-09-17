@@ -22,8 +22,8 @@ import { buildPlanInviteShareText } from "@/lib/shareArtifacts";
 import { shareVibeSlug, VIBE_SLUGS } from "@/lib/vibeChips";
 import type { VibeTally } from "@/lib/vibeTally";
 
-import "../plan.css";
-import "./planDetail.css";
+import planStyles from "../Plan.module.css";
+import detailStyles from "./PlanDetail.module.css";
 
 /** A safe, non-leaking headline for anonymous surfaces — never the user title. */
 function safePlanTitle(preview: PlanPrivacyPreviewDTO): string {
@@ -165,7 +165,7 @@ export default async function PlanPage({ params }: Props) {
        page's business, and the last is a door back to a plan the reader has
        just finished making. The marker is the same one the message thread and
        the 404 carry (components/nav/createFab.css). */
-    <main id="main" className="planPage pageHidesCreateFab">
+    <main id="main" className={`${planStyles.planPage} pageHidesCreateFab`}>
       {/* Marks this plan as "on tonight" so the shell's Night Mode card can
           follow it across screens (client-only pointer, no backend). */}
       <ActivePlanMarker id={id} startTime={state.plan.startTime} />
@@ -179,7 +179,7 @@ export default async function PlanPage({ params }: Props) {
           primary while the night is ahead; the morning after, the recap is. */}
       <Screen
         as="section"
-        className="planDetailScreen"
+        className={detailStyles.planDetailScreen}
         kicker={completed ? "That was the night" : "Your plan"}
         title={safeTitle}
         titleId="plan-title"
@@ -211,12 +211,12 @@ export default async function PlanPage({ params }: Props) {
           otherwise. Client-only gating, no new route. */}
       {!completed ? <NightCrawlMode planId={id} initialState={redactedInitialState(state, safeTitle)} /> : null}
       {completed ? <CompletedPlanUsualLot /> : null}
-      <div className="planPage__grid">
+      <div className={planStyles.planPage__grid}>
         <PlanSummary planId={id} initialPreview={preview} vibeTally={vibeTally} />
-        <aside className="planPage__side">
+        <aside className={planStyles.planPage__side}>
           {!completed ? (
-            <section className="planShare" aria-labelledby="plan-share-title">
-              <p className="planPage__eyebrow">Send the invite</p>
+            <section className={planStyles.planShare} aria-labelledby="plan-share-title">
+              <p className={planStyles.planPage__eyebrow}>Send the invite</p>
               <h2 id="plan-share-title">Get everyone on the same page</h2>
               <p>WhatsApp the night link, or copy the invite. Mates tap “I’m in” with a name.</p>
               <PlanInviteNextStep

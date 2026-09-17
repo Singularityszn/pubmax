@@ -1,0 +1,65 @@
+/* Keyboard route-building path: filtered venue list with Add/Remove controls.
+   Extracted from globals.css. */
+
+.venuePicker {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+  display: grid;
+  gap: 8px;
+}
+
+.venuePickerList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.venuePickerList button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  text-align: left;
+  color: inherit;
+}
+
+.venuePickerList button:hover {
+  border-color: var(--brass);
+}
+
+.venuePickerList button[aria-pressed="true"] {
+  border-color: var(--ink-deep);
+  box-shadow: inset 3px 0 0 var(--brass);
+}
+
+.venuePickerList strong {
+  display: block;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.venuePickerList small {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.venuePickerList .pickAction {
+  color: var(--brass);
+  font-weight: 700;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.pickerNote {
+  color: var(--muted);
+}

@@ -51,6 +51,8 @@ import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { socialBoundaryCopy } from "@/lib/socialLaunch";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
+import styles from "./ConfirmFollow.module.css";
+
 // `gone` is a REFUSAL and `error` is a fault: the target is not there any more,
 // so the add button leaves with it rather than inviting a retry that cannot land.
 type FollowState = "idle" | "working" | "done" | "error" | "gone";
@@ -217,9 +219,9 @@ export default function ConfirmFollow({
 
   if (!target) {
     return (
-      <section className="confirmFollow">
-        <p className="confirmFollowError">That link is missing a handle.</p>
-        <Link className="confirmFollowGhost" href="/social">
+      <section className={styles.confirmFollow}>
+        <p className={styles.confirmFollowError}>That link is missing a handle.</p>
+        <Link className={styles.confirmFollowGhost} href="/social">
           Back to Social
         </Link>
       </section>
@@ -228,10 +230,10 @@ export default function ConfirmFollow({
 
   if (!socialFriendsLaunchEnabled) {
     return (
-      <section className="confirmFollow" role="status">
-        <p className="confirmFollowEyebrow">Social</p>
-        <h1 className="confirmFollowTitle">{socialBoundaryCopy("preview", false)}</h1>
-        <Link className="confirmFollowGhost" href="/social">
+      <section className={styles.confirmFollow} role="status">
+        <p className={styles.confirmFollowEyebrow}>Social</p>
+        <h1 className={styles.confirmFollowTitle}>{socialBoundaryCopy("preview", false)}</h1>
+        <Link className={styles.confirmFollowGhost} href="/social">
           Back to Social
         </Link>
       </section>
@@ -243,13 +245,13 @@ export default function ConfirmFollow({
       <HandleAvatar
         handle={target}
         avatarUrl={targetAvatarUrl}
-        className="confirmFollowAvatar"
-        imageClassName="confirmFollowAvatar"
+        className={styles.confirmFollowAvatar}
+        imageClassName={styles.confirmFollowAvatar}
         size={56}
       />
-      <p className="confirmFollowEyebrow">{ADD_LINK_COPY.eyebrow}</p>
-      <h1 className="confirmFollowTitle">Add {name || displayHandle(target)}?</h1>
-      {name ? <p className="confirmFollowMeta">{displayHandle(target)}</p> : null}
+      <p className={styles.confirmFollowEyebrow}>{ADD_LINK_COPY.eyebrow}</p>
+      <h1 className={styles.confirmFollowTitle}>Add {name || displayHandle(target)}?</h1>
+      {name ? <p className={styles.confirmFollowMeta}>{displayHandle(target)}</p> : null}
     </>
   );
 
@@ -258,9 +260,9 @@ export default function ConfirmFollow({
   // is already signed in.
   if (!identityResolved) {
     return (
-      <section className="confirmFollow" aria-label={`Add ${displayHandle(target)}`} aria-busy="true">
+      <section className={styles.confirmFollow} aria-label={`Add ${displayHandle(target)}`} aria-busy="true">
         {card}
-        <p className="confirmFollowBody">{ADD_LINK_COPY.checking}</p>
+        <p className={styles.confirmFollowBody}>{ADD_LINK_COPY.checking}</p>
       </section>
     );
   }
@@ -268,19 +270,19 @@ export default function ConfirmFollow({
   // Self link → the share surface.
   if (isSelf) {
     return (
-      <section className="confirmFollow" aria-label="Share your add link">
-        <p className="confirmFollowEyebrow">{ADD_LINK_COPY.eyebrow}</p>
-        <h1 className="confirmFollowTitle">Share your link</h1>
-        <p className="confirmFollowBody">
+      <section className={styles.confirmFollow} aria-label="Share your add link">
+        <p className={styles.confirmFollowEyebrow}>{ADD_LINK_COPY.eyebrow}</p>
+        <h1 className={styles.confirmFollowTitle}>Share your link</h1>
+        <p className={styles.confirmFollowBody}>
           This is your add link. Share it at the table. When a friend opens it and
           adds you, and you add them back, you&rsquo;re each other&rsquo;s lot.
         </p>
-        <code className="confirmFollowUrl">{shareUrl}</code>
-        <button type="button" className="confirmFollowPrimary" onClick={share}>
+        <code className={styles.confirmFollowUrl}>{shareUrl}</code>
+        <button type="button" className={styles.confirmFollowPrimary} onClick={share}>
           {copied ? "Link copied" : "Share your link"}
         </button>
-        {shareError ? <p className="confirmFollowError" role="status">{shareError}</p> : null}
-        <Link className="confirmFollowGhost" href="/social">
+        {shareError ? <p className={styles.confirmFollowError} role="status">{shareError}</p> : null}
+        <Link className={styles.confirmFollowGhost} href="/social">
           Back to Social
         </Link>
       </section>
@@ -289,15 +291,15 @@ export default function ConfirmFollow({
 
   if (state === "done") {
     return (
-      <section className="confirmFollow" role="status">
-        <p className="confirmFollowEyebrow">{ADD_LINK_COPY.eyebrow}</p>
-        <h1 className="confirmFollowTitle">{addLinkReceiptTitle(target, name)}</h1>
-        <p className="confirmFollowBody">{ADD_LINK_RECEIPT_BODY}</p>
-        <ul className="confirmFollowNext">
+      <section className={styles.confirmFollow} role="status">
+        <p className={styles.confirmFollowEyebrow}>{ADD_LINK_COPY.eyebrow}</p>
+        <h1 className={styles.confirmFollowTitle}>{addLinkReceiptTitle(target, name)}</h1>
+        <p className={styles.confirmFollowBody}>{ADD_LINK_RECEIPT_BODY}</p>
+        <ul className={styles.confirmFollowNext}>
           {addLinkNextSteps(target).map((step, index) => (
             <li key={step.href}>
               <Link
-                className={index === 0 ? "confirmFollowPrimary" : "confirmFollowSecondary"}
+                className={index === 0 ? styles.confirmFollowPrimary : styles.confirmFollowSecondary}
                 href={step.href}
               >
                 {step.label}
@@ -311,7 +313,7 @@ export default function ConfirmFollow({
 
   const errorLine =
     (state === "error" || state === "gone") && error ? (
-      <p className="confirmFollowError" role="alert">
+      <p className={styles.confirmFollowError} role="alert">
         {error}
       </p>
     ) : null;
@@ -320,11 +322,11 @@ export default function ConfirmFollow({
   // this add link, so the add lands by itself on the way back.
   if (!hasAccount && doors) {
     return (
-      <section className="confirmFollow" aria-label={`Add ${displayHandle(target)}`}>
+      <section className={styles.confirmFollow} aria-label={`Add ${displayHandle(target)}`}>
         {card}
-        <p className="confirmFollowBody">{ADD_LINK_COPY.accountNeeded}</p>
+        <p className={styles.confirmFollowBody}>{ADD_LINK_COPY.accountNeeded}</p>
         <Link
-          className="confirmFollowPrimary"
+          className={styles.confirmFollowPrimary}
           href={doors.createHref}
           onClick={() => {
             takeDoor();
@@ -337,7 +339,7 @@ export default function ConfirmFollow({
           {addLinkCreateCta(target, name)}
         </Link>
         <Link
-          className="confirmFollowSecondary"
+          className={styles.confirmFollowSecondary}
           href={doors.signInHref}
           onClick={() => {
             takeDoor();
@@ -349,7 +351,7 @@ export default function ConfirmFollow({
         >
           {ADD_LINK_COPY.secondaryCta}
         </Link>
-        <Link className="confirmFollowGhost" href="/social">
+        <Link className={styles.confirmFollowGhost} href="/social">
           Not now
         </Link>
       </section>
@@ -359,18 +361,18 @@ export default function ConfirmFollow({
   // An account with no handle yet. The claim surface carries the same return.
   if (!viewerHandle) {
     return (
-      <section className="confirmFollow" aria-label={`Add ${displayHandle(target)}`}>
+      <section className={styles.confirmFollow} aria-label={`Add ${displayHandle(target)}`}>
         {card}
-        <p className="confirmFollowBody">{ADD_LINK_COPY.handleNeeded}</p>
+        <p className={styles.confirmFollowBody}>{ADD_LINK_COPY.handleNeeded}</p>
         {errorLine}
         <Link
-          className="confirmFollowPrimary"
+          className={styles.confirmFollowPrimary}
           href={claimHref}
           onClick={takeDoor}
         >
           {ADD_LINK_COPY.handleCta}
         </Link>
-        <Link className="confirmFollowGhost" href="/social">
+        <Link className={styles.confirmFollowGhost} href="/social">
           Not now
         </Link>
       </section>
@@ -378,10 +380,10 @@ export default function ConfirmFollow({
   }
 
   return (
-    <section className="confirmFollow" aria-label={`Add ${displayHandle(target)}`}>
+    <section className={styles.confirmFollow} aria-label={`Add ${displayHandle(target)}`}>
       {card}
       {state === "gone" ? null : (
-        <p className="confirmFollowBody">
+        <p className={styles.confirmFollowBody}>
           {state === "working" ? ADD_LINK_COPY.adding : ADD_LINK_COPY.signedIn}
         </p>
       )}
@@ -389,14 +391,14 @@ export default function ConfirmFollow({
       {state === "gone" ? null : (
         <button
           type="button"
-          className="confirmFollowPrimary"
+          className={styles.confirmFollowPrimary}
           disabled={state === "working"}
           onClick={() => void addToLot(viewerHandle)}
         >
           {state === "working" ? "Adding." : `Add ${displayHandle(target)}`}
         </button>
       )}
-      <Link className="confirmFollowGhost" href="/social">
+      <Link className={styles.confirmFollowGhost} href="/social">
         Not now
       </Link>
     </section>

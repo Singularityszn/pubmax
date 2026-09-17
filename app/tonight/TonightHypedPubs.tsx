@@ -11,6 +11,8 @@ import {
 } from "@/lib/hypedPubs";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 
+import ledeStyles from "./TonightLede.module.css";
+
 /**
  * The pubs people are talking about, and the first thing Tonight says.
  *
@@ -33,22 +35,22 @@ export default function TonightHypedPubs({
   const rest = rows.slice(HYPED_PUBS_VISIBLE);
 
   return (
-    <section className="tonightHyped" aria-labelledby="tonight-hyped-title">
-      <h2 className="tonightHypedTitle" id="tonight-hyped-title">
+    <section className={ledeStyles.tonightHyped} aria-labelledby="tonight-hyped-title">
+      <h2 className={ledeStyles.tonightHypedTitle} id="tonight-hyped-title">
         {HYPED_PUBS_TITLE}
       </h2>
-      <ul className="tonightHypedList" data-testid="tonight-hyped-list">
+      <ul className={ledeStyles.tonightHypedList} data-testid="tonight-hyped-list">
         {lead.map((row) => (
           <HypedRow key={rowKey(row)} row={row} selectableVenueIds={selectableVenueIds} />
         ))}
       </ul>
       {rest.length > 0 ? (
-        <details className="tonightHypedMore">
-          <summary className="tonightHypedMoreToggle">
-            <ChevronDown size={14} aria-hidden="true" className="tonightHypedMoreChevron" />
+        <details className={ledeStyles.tonightHypedMore}>
+          <summary className={ledeStyles.tonightHypedMoreToggle}>
+            <ChevronDown size={14} aria-hidden="true" className={ledeStyles.tonightHypedMoreChevron} />
             {rest.length === 1 ? "One more pub" : `${rest.length} more pubs`}
           </summary>
-          <ul className="tonightHypedList">
+          <ul className={ledeStyles.tonightHypedList}>
             {rest.map((row) => (
               <HypedRow key={rowKey(row)} row={row} selectableVenueIds={selectableVenueIds} />
             ))}
@@ -73,17 +75,17 @@ function HypedRow({
   const mapHref = hypedPubMapHref(row, selectableVenueIds);
   const credit = hypedPubCredit(row);
   return (
-    <li className="tonightHypedRow" data-testid="tonight-hyped-row">
-      <h3 className="tonightHypedName">{row.name}</h3>
-      <p className="tonightHypedArea">
+    <li className={ledeStyles.tonightHypedRow} data-testid="tonight-hyped-row">
+      <h3 className={ledeStyles.tonightHypedName}>{row.name}</h3>
+      <p className={ledeStyles.tonightHypedArea}>
         <MapPin size={13} aria-hidden="true" />
         <span>{row.area}</span>
       </p>
-      <p className="tonightHypedWhy">{row.whyLine}</p>
+      <p className={ledeStyles.tonightHypedWhy}>{row.whyLine}</p>
       {credit ? (
-        <p className="tonightHypedCredit">
+        <p className={ledeStyles.tonightHypedCredit}>
           <a
-            className="tonightHypedSource"
+            className={ledeStyles.tonightHypedSource}
             href={credit.url}
             target="_blank"
             rel="noreferrer noopener"
@@ -95,12 +97,12 @@ function HypedRow({
         </p>
       ) : null}
       {mapHref ? (
-        <Link prefetch={false} className="tonightHypedMap pressable" href={mapHref}>
+        <Link prefetch={false} className={`${ledeStyles.tonightHypedMap} pressable`} href={mapHref}>
           Open on map
           <ArrowRight size={13} aria-hidden="true" />
         </Link>
       ) : (
-        <p className="tonightHypedUnmatched">{HYPED_PUB_UNMATCHED_LINE}</p>
+        <p className={ledeStyles.tonightHypedUnmatched}>{HYPED_PUB_UNMATCHED_LINE}</p>
       )}
     </li>
   );

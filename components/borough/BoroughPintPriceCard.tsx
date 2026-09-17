@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import styles from "@/app/borough/[slug]/Borough.module.css";
 
 type CityAreaResponse = {
   borough: string | null;
@@ -70,14 +71,14 @@ export default function BoroughPintPriceCard({
     ourCheapestPrice < area.averagePintGbp;
 
   return (
-    <p className="boroughPintChip" role="status">
-      <span className="boroughPintChipLabel">CityMCP</span>
+    <p className={styles.boroughPintChip} role="status">
+      <span className={styles.boroughPintChipLabel}>CityMCP</span>
       <span>
         Average pint in {boroughName}: £{area.averagePintGbp.toFixed(2)}
         {checked ? ` · checked ${checked}` : ""}
       </span>
       {showCompare ? (
-        <span className="boroughPintChipCompare">
+        <span className={styles.boroughPintChipCompare}>
           {" "}
           · our map&rsquo;s cheapest here is £{ourCheapestPrice!.toFixed(2)}
         </span>

@@ -11,7 +11,7 @@ import {
 } from "@/lib/historic";
 import HistoricPubDetail from "./HistoricPubDetail";
 
-import "./historic-detail.css";
+import styles from "./HistoricDetail.module.css";
 
 // Per-pub heritage DETAIL page: /historic/[slug]. The canonical, shareable,
 // SEO-first surface for one notable London pub — the FULL cited heritage story.
@@ -131,7 +131,7 @@ export default async function HistoricDetailPage({ params }: PageProps) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
-    <main id="main" className="hdPage">
+    <main id="main" className={styles.hdPage}>
       <JsonLd data={historicPubJsonLd(pub)} nonce={nonce} />
       <SiteNav active="historic" />
 

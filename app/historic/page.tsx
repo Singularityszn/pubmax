@@ -21,8 +21,6 @@ import HistoricBoroughLinks, {
 } from "@/components/seo/HistoricBoroughLinks";
 import HistoricPageClient from "./HistoricPageClient";
 
-import "./historic.css";
-
 // Flagship "Historic Pubs" discovery surface (not the map). A browsable,
 // provenance-honest index of London's notable pubs — every era, grade, and
 // hook on a card is lifted from a cited Wikipedia/Wikidata fact, never invented.

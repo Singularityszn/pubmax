@@ -879,3 +879,76 @@ button.siteNavMoreItem {
   animation: none;
   mix-blend-mode: normal;
 }
+
+/* ── Legacy .siteNav pill (migrated from globals.css) ────────────────────── */
+
+.siteNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  border-radius: var(--radius-pill);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--panel-raised) 92%, transparent), color-mix(in srgb, var(--surface-tint-river) 82%, transparent));
+  box-shadow: 0 14px 34px rgba(44, 30, 62, 0.14), 0 5px 18px rgba(255, 90, 95, 0.08);
+}
+
+.siteNav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.siteNav a:hover {
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  color: var(--ink);
+}
+
+.siteNav a[aria-current="page"] {
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--brass) 28%, transparent);
+}
+
+@media (max-width: 640px) {
+  .siteNav {
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .siteNav a {
+    min-height: 28px;
+    padding: 0 8px;
+    font-size: 0.74rem;
+  }
+}
+
+/* ── Map mobile nav guard (migrated from globals.css) ────────────────────── */
+/* Map mobile nav guard: /map renders the shared SiteNav over a full-bleed map.
+   The bottom tab bar owns primary nav at this width, while the compact PX mark
+   remains the landing-page affordance. Keep the utility cluster tight so the
+   390px demo viewport never overflows. */
+@media (max-width: 640px) {
+  .siteNavBarFloating .siteNavActions {
+    gap: 6px;
+  }
+
+  .siteNavBarFloating .authSignIn {
+    width: 32px;
+    height: 32px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .siteNavBarFloating .authSignInLabelFull,
+  .siteNavBarFloating .authSignInLabelShort {
+    display: none;
+  }
+}

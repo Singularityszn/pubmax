@@ -11,7 +11,7 @@
 // component is presentation + enabled sign-in actions + "not now". Browsing and
 // map reads are unaffected. Contribution writes own their separate required
 // identity gate. Reuses the shared auth-sheet styling and the SignInButton
-// provider-button idiom (app/auth/auth.css).
+// provider-button idiom (app/auth/Auth.module.css).
 //
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
@@ -34,7 +34,7 @@ import {
 import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
 
 const IDENTITY_SURFACE = "identity-nudge";
-import "@/app/auth/auth.css";
+import authStyles from "@/app/auth/Auth.module.css";
 import "./identityNudge.css";
 
 // Honest, trigger-specific value copy — no dark patterns, no fake urgency.
@@ -149,20 +149,20 @@ export default function IdentityNudge(): React.JSX.Element | null {
   }
 
   return (
-    <div className="claimNightBackdrop identityNudgeBackdrop" role="presentation">
+    <div className={`${authStyles.claimNightBackdrop} identityNudgeBackdrop`} role="presentation">
       <div
         ref={dialogRef}
-        className="claimNightDialog identityNudgeDialog"
+        className={`${authStyles.claimNightDialog} identityNudgeDialog`}
         role="dialog"
         tabIndex={-1}
         aria-modal="true"
         aria-labelledby="identity-nudge-title"
         aria-describedby="identity-nudge-body"
       >
-        <h2 id="identity-nudge-title" className="claimNightTitle">
+        <h2 id="identity-nudge-title" className={authStyles.claimNightTitle}>
           {copy.title}
         </h2>
-        <p id="identity-nudge-body" className="claimNightLead">
+        <p id="identity-nudge-body" className={authStyles.claimNightLead}>
           {copy.body}
         </p>
 
@@ -173,7 +173,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
           onApple={() => startSignIn(signInWithApple)}
           className="identityNudgeProviders"
         />
-        {authError ? <p className="authError" role="alert">{authError}</p> : null}
+        {authError ? <p className={authStyles.authError} role="alert">{authError}</p> : null}
         {configured ? (
           <MagicLinkForm
             disabled={authBusy}
@@ -183,8 +183,8 @@ export default function IdentityNudge(): React.JSX.Element | null {
           />
         ) : null}
 
-        <div className="claimNightActions identityNudgeActions">
-          <button type="button" className="claimNightSkip" onClick={dismissAuthNudge}>
+        <div className={`${authStyles.claimNightActions} identityNudgeActions`}>
+          <button type="button" className={authStyles.claimNightSkip} onClick={dismissAuthNudge}>
             Not now
           </button>
         </div>

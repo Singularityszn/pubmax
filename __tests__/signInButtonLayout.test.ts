@@ -32,13 +32,18 @@ vi.mock("@clerk/nextjs", () => ({
   SignUpButton: ({ children }: { children: ReactNode }) => children,
   UserButton: () => createElement("span", { className: "clerkUserButton" }),
 }));
+const authCss = await vi.hoisted(async () => {
+  const mod = await import("@/app/auth/Auth.module.css");
+  return mod.default;
+});
 vi.mock("@/components/auth/MagicLinkForm", () => ({
-  default: () => createElement("input", { className: "authMagicLinkInput" }),
+  default: () => createElement("input", { className: authCss.authMagicLinkInput }),
 }));
 vi.mock("@/components/auth/SocialSignInButtons", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
 import SignInButton from "@/components/auth/SignInButton";
+import authStyles from "@/app/auth/Auth.module.css";
 
 class TestNode {
   nodeType: number;
@@ -289,22 +294,22 @@ describe("signed-in auth layout with fully configured Clerk", () => {
   it("keeps compact headers to one disclosure and no stacked Clerk controls", async () => {
     await mount(true);
 
-    expect(findByClass(container, "authUserNav")).not.toBeNull();
-    expect(findByClass(container, "authCompactTrigger")).not.toBeNull();
-    expect(findByClass(container, "clerkAccount")).toBeNull();
-    expect(findByClass(container, "authSignOut")).toBeNull();
+    expect(findByClass(container, authStyles.authUserNav)).not.toBeNull();
+    expect(findByClass(container, authStyles.authCompactTrigger)).not.toBeNull();
+    expect(findByClass(container, authStyles.clerkAccount)).toBeNull();
+    expect(findByClass(container, authStyles.authSignOut)).toBeNull();
   });
 
   it("opens full account and Clerk controls only inside the compact popover", async () => {
     await mount(true);
-    const trigger = findByClass(container, "authCompactTrigger");
+    const trigger = findByClass(container, authStyles.authCompactTrigger);
     expect(trigger).not.toBeNull();
 
     await commitReactWork(() => mountedClick(trigger as TestElement));
 
-    const menu = findByClass(container, "authMenu");
-    const clerkControls = findByClass(container, "clerkAccount");
-    const signOut = findByClass(container, "authSignOut");
+    const menu = findByClass(container, authStyles.authMenu);
+    const clerkControls = findByClass(container, authStyles.clerkAccount);
+    const signOut = findByClass(container, authStyles.authSignOut);
     expect(menu).not.toBeNull();
     expect(clerkControls).not.toBeNull();
     expect(signOut).not.toBeNull();
@@ -315,9 +320,9 @@ describe("signed-in auth layout with fully configured Clerk", () => {
   it("keeps full controls visible in non-compact account surfaces", async () => {
     await mount(false);
 
-    expect(findByClass(container, "authUserNav")).toBeNull();
-    expect(findByClass(container, "authSignOut")).not.toBeNull();
-    expect(findByClass(container, "clerkAccount")).not.toBeNull();
+    expect(findByClass(container, authStyles.authUserNav)).toBeNull();
+    expect(findByClass(container, authStyles.authSignOut)).not.toBeNull();
+    expect(findByClass(container, authStyles.clerkAccount)).not.toBeNull();
   });
 });
 
@@ -326,11 +331,11 @@ describe("signed-out compact auth focus", () => {
     authState.current.user = null;
     authState.current.clerkIntegrationConfigured = false;
     await mount(true);
-    const trigger = findByClass(container, "authCompactTrigger");
+    const trigger = findByClass(container, authStyles.authCompactTrigger);
     expect(trigger).not.toBeNull();
 
     await commitReactWork(() => mountedClick(trigger as TestElement));
 
-    expect(document.activeElement).toBe(findByClass(container, "authMagicLinkInput"));
+    expect(document.activeElement).toBe(findByClass(container, authStyles.authMagicLinkInput));
   });
 });

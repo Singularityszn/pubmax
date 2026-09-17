@@ -281,7 +281,7 @@ describe("login page", () => {
   // of the segmented control above it, and the second door had no control
   // language at all. Both halves were CSS, so both are pinned in CSS.
   it("gives the email link the primary treatment and the second door a secondary shape", () => {
-    const authCss = readFileSync(join(process.cwd(), "app/auth/auth.css"), "utf8");
+    const authCss = readFileSync(join(process.cwd(), "app/auth/Auth.module.css"), "utf8");
     const loginCss = readFileSync(
       join(process.cwd(), "components/auth/loginPage.css"),
       "utf8",
@@ -365,7 +365,7 @@ describe("login page", () => {
     const hoverRule =
       /color-mix\(in srgb, var\(--brass-accessible\) (\d+)%, var\(--([a-z-]+)\) (\d+)%\)/;
     for (const [label, css] of [
-      ["app/auth/auth.css", readFileSync(join(process.cwd(), "app/auth/auth.css"), "utf8")],
+      ["app/auth/Auth.module.css", readFileSync(join(process.cwd(), "app/auth/Auth.module.css"), "utf8")],
     ] as const) {
       const hover = css.match(hoverRule);
       expect(hover, `${label} must state the primary hover fill as one mix`).toBeTruthy();

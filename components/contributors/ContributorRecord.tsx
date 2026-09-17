@@ -5,6 +5,8 @@ import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
 import type { ContributorLeaderboard } from "@/lib/contributorLeaderboard";
 
+import styles from "@/app/contributors/Contributors.module.css";
+
 function countLabel(total: number): string {
   return total === 1 ? "contribution" : "contributions";
 }
@@ -25,7 +27,7 @@ export default function ContributorRecord({
     // under it as the first line of the record itself.
     <Screen
       as="section"
-      className="contributorRecord"
+      className={styles.contributorRecord}
       kicker="Contributors"
       title="Contributor record"
       titleId="contributor-title"
@@ -41,7 +43,7 @@ export default function ContributorRecord({
       primary={<Link href="/map?log=1">Drop a pint</Link>}
       secondary={<Link href="/map">Open the map</Link>}
     >
-      <p className="contributorWindow">{board.window.label}</p>
+      <p className={styles.contributorWindow}>{board.window.label}</p>
 
       {board.status === "degraded" ? (
         <div role="status">
@@ -59,29 +61,27 @@ export default function ContributorRecord({
       ) : (
         <>
           {thin ? (
-            <p className="contributorThin">
+            <p className={styles.contributorThin}>
               Early record. Visible named posts without an existing public
               profile sit outside this count.
             </p>
           ) : null}
-          <ol className="contributorList">
+          <ol className={styles.contributorList}>
             {board.entries.map((entry) => (
-              <li className="contributorRow" key={entry.handle}>
-                <span className="contributorRank" aria-label={`Rank ${entry.rank}`}>
+              <li className={styles.contributorRow} key={entry.handle}>
+                <span className={styles.contributorRank} aria-label={`Rank ${entry.rank}`}>
                   {entry.rank}
                 </span>
-                <div className="contributorIdentity">
+                <div className={styles.contributorIdentity}>
                   <HandleAvatar
                     handle={entry.handle}
                     avatarUrl={entry.avatarUrl}
-                    className="contributorAvatar"
-                    imageClassName="contributorAvatar"
                     size={36}
                   />
                   <Link href={`/u/${encodeURIComponent(entry.handle)}`}>
                     @{entry.handle}
                   </Link>
-                  <dl className="contributorLanes">
+                  <dl className={styles.contributorLanes}>
                     <div>
                       <dt>Prices</dt>
                       <dd>{entry.prices}</dd>
@@ -96,7 +96,7 @@ export default function ContributorRecord({
                     </div>
                   </dl>
                 </div>
-                <p className="contributorTotal">
+                <p className={styles.contributorTotal}>
                   <strong>{entry.total}</strong>{" "}
                   <span>{countLabel(entry.total)}</span>
                 </p>

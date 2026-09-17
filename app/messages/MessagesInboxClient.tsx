@@ -23,7 +23,7 @@ import { inboxTimeLabel } from "@/lib/messageTimeline";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 
-import "./messages.css";
+import styles from "./Messages.module.css";
 
 // The messaging inbox (PRD E4 / Wave I2): conversations for the signed-in
 // linked actor. Bearer via authedActionFetch; unsigned viewers get a sign-in prompt.
@@ -77,7 +77,7 @@ export function MessagesThreadEmptyCopy(): React.JSX.Element | null {
   if (viewerSession.signedOut) {
     return (
       <div>
-        <p className="messagesThreadEyebrow">Messages</p>
+        <p className={styles.messagesThreadEyebrow}>Messages</p>
         <h2>Your conversations show here.</h2>
         <p>One thread for each person you go out with, kept to the two of you.</p>
       </div>
@@ -86,7 +86,7 @@ export function MessagesThreadEmptyCopy(): React.JSX.Element | null {
 
   return (
     <div>
-      <p className="messagesThreadEyebrow">Your conversations</p>
+      <p className={styles.messagesThreadEyebrow}>Your conversations</p>
       <h2>Pick a message</h2>
       <p>Choose someone from your inbox to read the thread and reply.</p>
     </div>
@@ -227,7 +227,7 @@ export default function MessagesInboxClient({
   const retryButton = (
     <button
       type="button"
-      className="threadRetryBtn"
+      className={styles.threadRetryBtn}
       onClick={retry}
       aria-busy={retrying || undefined}
     >
@@ -265,7 +265,7 @@ export default function MessagesInboxClient({
   return (
     <Screen
       as="section"
-      className="messagesScreen"
+      className={styles.messagesScreen}
       kicker="Messages"
       title="Messages"
       titleId="messages-title"
@@ -284,15 +284,15 @@ export default function MessagesInboxClient({
       {/* The one line about what messaging needs. Shown to somebody who is
           not signed in; a signed-in inbox is a list of people, not a notice. */}
       {viewerSession.signedOut ? (
-        <p className="messagesCourtesyNote">
+        <p className={styles.messagesCourtesyNote}>
           Messages need a signed-in account. Keep it low-key, and report anything off.
         </p>
       ) : null}
 
       {!accountDataReady ? (
-        <p className="conversationPreview">With you in a sec.</p>
+        <p className={styles.conversationPreview}>With you in a sec.</p>
       ) : viewerSession.unresolved ? (
-        <p className="conversationPreview">With you in a sec.</p>
+        <p className={styles.conversationPreview}>With you in a sec.</p>
       ) : viewerSession.signedOut && (needsSignIn || !user) ? (
         // The head's primary is the sign-in door, so the empty state carries
         // no second copy of it.
@@ -315,24 +315,24 @@ export default function MessagesInboxClient({
       ) : (
         <>
           {failed ? (
-            <p className="inboxStaleNotice" role="status">
+            <p className={styles.inboxStaleNotice} role="status">
               <span>Couldn&rsquo;t refresh this list. It shows what loaded last.</span>
               {retryButton}
             </p>
           ) : partial ? (
-            <p className="inboxStaleNotice" role="status">
+            <p className={styles.inboxStaleNotice} role="status">
               <span>Couldn&rsquo;t check for new messages. Your conversations are here.</span>
               {retryButton}
             </p>
           ) : null}
-          <ul className="conversationList">
+          <ul className={styles.conversationList}>
             {conversations.map((c) => {
               const active = c.id === activeConversationId;
               const unread = (c.unread ?? 0) > 0;
               const classes = [
-                "conversationItem",
-                active ? "conversationItemActive" : "",
-                unread ? "conversationItemUnread" : "",
+                styles.conversationItem,
+                active ? styles.conversationItemActive : "",
+                unread ? styles.conversationItemUnread : "",
               ]
                 .filter(Boolean)
                 .join(" ");
@@ -341,26 +341,26 @@ export default function MessagesInboxClient({
                 <li key={c.id} className={classes}>
                   <Link
                     href={`/messages/${encodeURIComponent(c.id)}`}
-                    className="conversationLink"
+                    className={styles.conversationLink}
                     aria-current={active ? "page" : undefined}
                   >
                     <MessageAvatar handle={c.otherHandle} avatarUrl={c.otherAvatarUrl} />
-                    <div className="conversationBody">
-                      <div className="conversationHandle">@{c.otherHandle}</div>
-                      <div className="conversationPreview">
+                    <div className={styles.conversationBody}>
+                      <div className={styles.conversationHandle}>@{c.otherHandle}</div>
+                      <div className={styles.conversationPreview}>
                         {c.lastBody
                           ? `${c.lastFromMe ? "You: " : ""}${c.lastBody}`
                           : "No messages yet"}
                       </div>
                     </div>
-                    <div className="conversationAside">
+                    <div className={styles.conversationAside}>
                       {when ? (
-                        <time className="conversationTime" dateTime={c.lastAt}>
+                        <time className={styles.conversationTime} dateTime={c.lastAt}>
                           {when}
                         </time>
                       ) : null}
                       {unread ? (
-                        <span className="conversationUnread" aria-label={`${c.unread ?? 0} unread`}>
+                        <span className={styles.conversationUnread} aria-label={`${c.unread ?? 0} unread`}>
                           {(c.unread ?? 0) > 99 ? "99+" : c.unread}
                         </span>
                       ) : null}

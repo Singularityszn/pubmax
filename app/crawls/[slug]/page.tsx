@@ -6,7 +6,7 @@ import { getCrawlStoryBySlug } from "@/lib/crawlStoryStore";
 import { formatGbp } from "@/lib/formatGbp";
 import CrawlStoryPoster from "./CrawlStoryPoster";
 
-import "./story.css";
+import styles from "./Story.module.css";
 
 // Durable Crawl Story permalink: /crawls/[slug]. A SERVER component — it reads
 // the story straight from the store (pub names resolved server-side, PRD §9),
@@ -71,8 +71,8 @@ export default async function CrawlStoryPage({ params }: PageProps) {
   if (!story) notFound();
 
   return (
-    <main id="main" className="storyShell">
-      <nav className="storyNav" aria-label="Site navigation">
+    <main id="main" className={styles.storyShell}>
+      <nav className={styles.storyNav} aria-label="Site navigation">
         <Link href="/">Home</Link>
         <Link prefetch={false} href="/map">
           Map

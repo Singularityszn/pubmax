@@ -27,7 +27,7 @@ import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
 import VenueReadUnavailable from "@/components/venue/VenueReadUnavailable";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
 
-import "./ledger.css";
+import styles from "./Ledger.module.css";
 
 // The Ledger (issue #25, PRD_FOR_FABLE.md § "The Spill"): a large-text,
 // high-contrast, voice-friendly rendering of a venue's story for the
@@ -202,17 +202,17 @@ function venueJsonLd(venue: Venue, listed: ListedBuilding | null) {
 
 function NotInTheLedger() {
   return (
-    <main id="main" className="ledgerPage ledgerPage--empty">
-      <div className="ledgerEmptyCard">
-        <Link className="ledgerHomeLink" href="/">
+    <main id="main" className={`${styles.ledgerPage} ${styles["ledgerPage--empty"]}`}>
+      <div className={styles.ledgerEmptyCard}>
+        <Link className={styles.ledgerHomeLink} href="/">
           PUBMAXXING
         </Link>
-        <p className="ledgerEyebrow">The Ledger</p>
-        <h1 className="ledgerEmptyTitle">This pub isn&rsquo;t in the ledger</h1>
-        <p className="ledgerEmptyBody">
+        <p className={styles.ledgerEyebrow}>The Ledger</p>
+        <h1 className={styles.ledgerEmptyTitle}>This pub isn&rsquo;t in the ledger</h1>
+        <p className={styles.ledgerEmptyBody}>
           It may have moved, or the link is wrong. Every mapped pub still has a home.
         </p>
-        <Link prefetch={false} className="ledgerPrimaryLink" href="/map">
+        <Link prefetch={false} className={styles.ledgerPrimaryLink} href="/map">
           Back to the map
         </Link>
       </div>
@@ -222,18 +222,18 @@ function NotInTheLedger() {
 
 function LedgerReadUnavailable({ id }: { id: string }) {
   return (
-    <main id="main" className="ledgerPage ledgerPage--empty">
-      <div className="ledgerEmptyCard">
-        <Link className="ledgerHomeLink" href="/">
+    <main id="main" className={`${styles.ledgerPage} ${styles["ledgerPage--empty"]}`}>
+      <div className={styles.ledgerEmptyCard}>
+        <Link className={styles.ledgerHomeLink} href="/">
           PUBMAXXING
         </Link>
         <VenueReadUnavailable
           eyebrow="The Ledger"
           classNames={{
-            eyebrow: "ledgerEyebrow",
-            title: "ledgerEmptyTitle",
-            body: "ledgerEmptyBody",
-            action: "ledgerPrimaryLink",
+            eyebrow: styles.ledgerEyebrow,
+            title: styles.ledgerEmptyTitle,
+            body: styles.ledgerEmptyBody,
+            action: styles.ledgerPrimaryLink,
           }}
           href={`/ledger/${encodeURIComponent(id)}`}
         />
@@ -338,15 +338,15 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   ].filter(Boolean);
 
   return (
-    <main id="main" className="ledgerPage">
+    <main id="main" className={styles.ledgerPage}>
       <JsonLd data={venueJsonLd(venue, listedBuilding)} nonce={nonce} />
-      <header className="ledgerHead">
-        <Link className="ledgerHomeLink" href="/">
+      <header className={styles.ledgerHead}>
+        <Link className={styles.ledgerHomeLink} href="/">
           PUBMAXXING
         </Link>
-        <p className="ledgerEyebrow">The Ledger</p>
-        <h1 className="ledgerTitle">{venue.name}</h1>
-        <p className="ledgerAddress">
+        <p className={styles.ledgerEyebrow}>The Ledger</p>
+        <h1 className={styles.ledgerTitle}>{venue.name}</h1>
+        <p className={styles.ledgerAddress}>
           {venue.address ? `${venue.address} · ` : ""}
           {venue.primaryBorough || "London"}
         </p>
@@ -356,21 +356,21 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
             attribution required by the Open Government Licence. */}
         {listedBuilding ? (
           <a
-            className="ledgerListedPlaque"
+            className={styles.ledgerListedPlaque}
             href={listedBuilding.url}
             target="_blank"
             rel="noopener noreferrer"
           >
-            <span className="ledgerListedFact">{listedBuilding.fact}</span>
-            <span className="ledgerListedSource">Historic England</span>
+            <span className={styles.ledgerListedFact}>{listedBuilding.fact}</span>
+            <span className={styles.ledgerListedSource}>Historic England</span>
           </a>
         ) : null}
 
-        <div className="ledgerHeadActions">
-          <Link prefetch={false} className="ledgerMapLink" href={venueMapUrl(canonicalId)}>
+        <div className={styles.ledgerHeadActions}>
+          <Link prefetch={false} className={styles.ledgerMapLink} href={venueMapUrl(canonicalId)}>
             Open on the map
           </Link>
-          <Link className="ledgerMapLink" href={`/bar-tab/${encodeURIComponent(canonicalId)}`}>
+          <Link className={styles.ledgerMapLink} href={`/bar-tab/${encodeURIComponent(canonicalId)}`}>
             See the bar tab
           </Link>
           <ReadLedgerButton text={speechParts.join(" ")} />
@@ -384,24 +384,24 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
         <VenuePhotoWall venueId={canonicalId} venueName={venue.name} />
       </header>
 
-      <p className="ledgerLaneNote">
+      <p className={styles.ledgerLaneNote}>
         Public notes appear in the logbook; Legacy notes are kept for the Family Table below.
       </p>
 
       {claims.length > 0 ? (
-        <section className="ledgerSection" aria-labelledby="ledgerClaimsHeading">
-          <h2 id="ledgerClaimsHeading" className="ledgerSectionTitle">
+        <section className={styles.ledgerSection} aria-labelledby="ledgerClaimsHeading">
+          <h2 id="ledgerClaimsHeading" className={styles.ledgerSectionTitle}>
             The pub&rsquo;s story
           </h2>
-          <ul className="ledgerClaimList">
+          <ul className={styles.ledgerClaimList}>
             {claims.map((claim, index) => (
-              <li className="ledgerClaim" key={`${claim.kind}-${index}`}>
-                <span className={`ledgerProvenance ledgerProvenance--${claim.kind}`}>
+              <li className={styles.ledgerClaim} key={`${claim.kind}-${index}`}>
+                <span className={`${styles.ledgerProvenance} ${styles[`ledgerProvenance--${claim.kind}`]}`}>
                   {claim.label}
                 </span>
-                <p className="ledgerClaimBody">
+                <p className={styles.ledgerClaimBody}>
                   {claim.content}
-                  {claim.era ? <span className="ledgerClaimEra"> · {claim.era}</span> : null}
+                  {claim.era ? <span className={styles.ledgerClaimEra}> · {claim.era}</span> : null}
                 </p>
               </li>
             ))}
@@ -409,38 +409,38 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
         </section>
       ) : null}
 
-      <section className="ledgerSection" aria-labelledby="ledgerEntriesHeading">
-        <h2 id="ledgerEntriesHeading" className="ledgerSectionTitle">
+      <section className={styles.ledgerSection} aria-labelledby="ledgerEntriesHeading">
+        <h2 id="ledgerEntriesHeading" className={styles.ledgerSectionTitle}>
           Logbook
         </h2>
         {entries.length === 0 ? (
-          <p className="ledgerEmptyEntries">
+          <p className={styles.ledgerEmptyEntries}>
             No entries logged yet. The first Pint Drop here will open the logbook.
           </p>
         ) : (
-          <ol className="ledgerEntries" aria-label={`Logbook entries for ${venue.name}`}>
+          <ol className={styles.ledgerEntries} aria-label={`Logbook entries for ${venue.name}`}>
             {entries.map((entry) => (
-              <li className="ledgerEntry" key={entry.id}>
+              <li className={styles.ledgerEntry} key={entry.id}>
                 <article aria-label={`Logbook entry, ${entry.dateLabel || "undated"}`}>
-                  <div className="ledgerEntryMeta">
+                  <div className={styles.ledgerEntryMeta}>
                     {entry.dateLabel ? (
-                      <time className="ledgerEntryDate" dateTime={entry.createdAt}>
+                      <time className={styles.ledgerEntryDate} dateTime={entry.createdAt}>
                         {entry.dateLabel}
                       </time>
                     ) : (
-                      <span className="ledgerEntryDate">Undated</span>
+                      <span className={styles.ledgerEntryDate}>Undated</span>
                     )}
                     <span
-                      className={`ledgerProvenance ledgerProvenance--${entry.provenance}`}
+                      className={`${styles.ledgerProvenance} ${styles[`ledgerProvenance--${entry.provenance}`]}`}
                     >
                       {entry.provenance === "demo" ? "Demo" : entry.handle}
                     </span>
                   </div>
-                  <p className="ledgerEntryNote">{entry.note}</p>
+                  <p className={styles.ledgerEntryNote}>{entry.note}</p>
                   {entry.priceLabel ? (
-                    <p className="ledgerEntryPrice">
-                      <span className="ledgerEntryPriceLabel">Paid</span>{" "}
-                      <span className="ledgerEntryPriceValue">{entry.priceLabel}</span>
+                    <p className={styles.ledgerEntryPrice}>
+                      <span className={styles.ledgerEntryPriceLabel}>Paid</span>{" "}
+                      <span className={styles.ledgerEntryPriceValue}>{entry.priceLabel}</span>
                     </p>
                   ) : null}
                 </article>
@@ -450,53 +450,53 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
         )}
       </section>
 
-      <section className="ledgerSection ledgerFamilySection" aria-labelledby="ledgerFamilyHeading">
-        <div className="ledgerFamilyHead">
-          <h2 id="ledgerFamilyHeading" className="ledgerSectionTitle">
+      <section className={`${styles.ledgerSection} ${styles.ledgerFamilySection}`} aria-labelledby="ledgerFamilyHeading">
+        <div className={styles.ledgerFamilyHead}>
+          <h2 id="ledgerFamilyHeading" className={styles.ledgerSectionTitle}>
             The Family Table
           </h2>
           <ShareWithFamilyButton venueName={venue.name} url={ledgerUrl} />
         </div>
-        <p className="ledgerFamilyIntro">
+        <p className={styles.ledgerFamilyIntro}>
           Some stories aren&rsquo;t for the feed. Kept here for whoever in the family reads them next.
         </p>
         {familyEntries.length === 0 ? (
-          <p className="ledgerFamilyEmpty">
+          <p className={styles.ledgerFamilyEmpty}>
             Some stories are kept for the family table. Log a pint and choose Legacy to leave one.
           </p>
         ) : (
           <ol
-            className="ledgerFamilyEntries"
+            className={styles.ledgerFamilyEntries}
             aria-label={`Family table entries for ${venue.name}`}
           >
             {familyEntries.map((entry) => (
-              <li className="ledgerFamilyEntry" key={entry.id}>
+              <li className={styles.ledgerFamilyEntry} key={entry.id}>
                 <article aria-label={`Family table entry, ${entry.dateLabel || "undated"}`}>
-                  <div className="ledgerFamilyEntryMeta">
+                  <div className={styles.ledgerFamilyEntryMeta}>
                     {entry.dateLabel ? (
-                      <time className="ledgerFamilyEntryDate" dateTime={entry.createdAt}>
+                      <time className={styles.ledgerFamilyEntryDate} dateTime={entry.createdAt}>
                         {entry.dateLabel}
                       </time>
                     ) : (
-                      <span className="ledgerFamilyEntryDate">Undated</span>
+                      <span className={styles.ledgerFamilyEntryDate}>Undated</span>
                     )}
-                    <span className="ledgerFamilyEntryHandle">
+                    <span className={styles.ledgerFamilyEntryHandle}>
                       {entry.handle}
-                      {entry.era ? <span className="ledgerClaimEra"> · {entry.era}</span> : null}
+                      {entry.era ? <span className={styles.ledgerClaimEra}> · {entry.era}</span> : null}
                     </span>
                   </div>
                   {isFullFamilyEntry(entry) ? (
                     <>
-                      <p className="ledgerFamilyEntryNote">{entry.note}</p>
+                      <p className={styles.ledgerFamilyEntryNote}>{entry.note}</p>
                       {entry.priceLabel ? (
-                        <p className="ledgerEntryPrice">
-                          <span className="ledgerEntryPriceLabel">Paid</span>{" "}
-                          <span className="ledgerEntryPriceValue">{entry.priceLabel}</span>
+                        <p className={styles.ledgerEntryPrice}>
+                          <span className={styles.ledgerEntryPriceLabel}>Paid</span>{" "}
+                          <span className={styles.ledgerEntryPriceValue}>{entry.priceLabel}</span>
                         </p>
                       ) : null}
                     </>
                   ) : (
-                    <p className="ledgerFamilyEntryNote">A story kept for the family table.</p>
+                    <p className={styles.ledgerFamilyEntryNote}>A story kept for the family table.</p>
                   )}
                 </article>
               </li>
@@ -511,7 +511,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
           the trusted notes above. */}
       <OperatorRailPanel venueId={canonicalId} venueName={venue.name} />
 
-      <p className="ledgerFootnote">
+      <p className={styles.ledgerFootnote}>
         Sources, reports and price history. <Link prefetch={false} href={venueMapUrl(canonicalId)}>See {venue.name} on the map →</Link>
       </p>
     </main>

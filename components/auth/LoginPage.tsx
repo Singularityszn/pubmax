@@ -37,7 +37,7 @@ import { addLinkAwareDestination } from "@/lib/addLink";
 import { loginPageHeadCopy, loginPageShowsSkeleton } from "@/lib/loginPageFraming";
 import { authAvatarInitials } from "@/lib/authAvatarInitials";
 
-import "@/app/auth/auth.css";
+import authStyles from "@/app/auth/Auth.module.css";
 import "./loginPage.css";
 
 /**
@@ -140,14 +140,14 @@ function SignedInCard({
         {avatar ? (
           // eslint-disable-next-line @next/next/no-img-element -- remote IdP avatar
           <img
-            className="authAvatar loginPageAvatar"
+            className={`${authStyles.authAvatar} loginPageAvatar`}
             src={avatar}
             alt=""
             width={48}
             height={48}
           />
         ) : (
-          <span className="authAvatarFallback loginPageAvatar" aria-hidden="true">
+          <span className={`${authStyles.authAvatarFallback} loginPageAvatar`} aria-hidden="true">
             {authAvatarInitials(displayName(user))}
           </span>
         )}
@@ -167,7 +167,7 @@ function SignedInCard({
           addAccountHref={addAccountHref}
           onSignOut={onSignOut}
           signOutDisabled={busy}
-          signOutClassName="authSignOut loginPageSignOut"
+          signOutClassName={`${authStyles.authSignOut} loginPageSignOut`}
         />
       </div>
     </section>
@@ -199,7 +199,7 @@ function WelcomeBackCard({
       {message ? (
         <p
           className={
-            status === "sent" ? "authMagicLinkSuccess" : "authError loginPageError"
+            status === "sent" ? authStyles.authMagicLinkSuccess : `${authStyles.authError} loginPageError`
           }
           role={status === "sent" ? "status" : "alert"}
           aria-live="polite"
@@ -597,7 +597,7 @@ export default function LoginPage({
         {showForm ? (
           <section ref={formRegion} className="loginPageForm" aria-label="Sign-in options">
             <DoorSwitch intent={intent} onChoose={chooseDoor} />
-            <div className="authOptions">
+            <div className={authStyles.authOptions}>
               {configured || clerkSessionAvailable ? (
                 <SocialSignInButtons
                   availability={socialProviders}
@@ -631,7 +631,7 @@ export default function LoginPage({
               ) : null}
             </div>
             {error ? (
-              <p className="authError loginPageError" role="alert">
+              <p className={`${authStyles.authError} loginPageError`} role="alert">
                 {error}
               </p>
             ) : null}

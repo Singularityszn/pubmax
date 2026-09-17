@@ -9,6 +9,8 @@ import {
 } from "@/lib/tonightCheapPints";
 import { formatPrice } from "@/lib/venues";
 
+import ledeStyles from "./TonightLede.module.css";
+
 /**
  * Real pubs on a quiet night, above the mood chips.
  *
@@ -27,21 +29,21 @@ export default function TonightCheapPints({
 }) {
   if (!show || rows.length === 0) return null;
   return (
-    <section className="tonightCheapPints" aria-labelledby="tonight-cheap-pints-title">
-      <h2 className="tonightCheapPintsTitle" id="tonight-cheap-pints-title">
+    <section className={ledeStyles.tonightCheapPints} aria-labelledby="tonight-cheap-pints-title">
+      <h2 className={ledeStyles.tonightCheapPintsTitle} id="tonight-cheap-pints-title">
         {TONIGHT_CHEAP_PINTS_TITLE}
       </h2>
-      <ul className="tonightCheapPintsList" data-testid="tonight-cheap-pints">
+      <ul className={ledeStyles.tonightCheapPintsList} data-testid="tonight-cheap-pints">
         {rows.map((row) => (
-          <li key={row.venueId} className="tonightCheapPintsRow">
+          <li key={row.venueId} className={ledeStyles.tonightCheapPintsRow}>
             <Link
               prefetch={false}
-              className="tonightCheapPintsLink pressable"
+              className={`${ledeStyles.tonightCheapPintsLink} pressable`}
               href={`/map?sel=${encodeURIComponent(row.venueId)}`}
             >
-              <span className="tonightCheapPintsBody">
-                <span className="tonightCheapPintsName">{row.name}</span>
-                <span className="tonightCheapPintsArea">
+              <span className={ledeStyles.tonightCheapPintsBody}>
+                <span className={ledeStyles.tonightCheapPintsName}>{row.name}</span>
+                <span className={ledeStyles.tonightCheapPintsArea}>
                   {row.borough}
                   {/* The chain is named on its one row, so a Wetherspoon price
                       never reads as a free house's. */}
@@ -53,13 +55,13 @@ export default function TonightCheapPints({
                   ) : null}
                 </span>
               </span>
-              <span className="tonightCheapPintsPrice">{formatPrice(row.priceGbp)}</span>
-              <ArrowRight size={15} aria-hidden="true" className="tonightCheapPintsArrow" />
+              <span className={ledeStyles.tonightCheapPintsPrice}>{formatPrice(row.priceGbp)}</span>
+              <ArrowRight size={15} aria-hidden="true" className={ledeStyles.tonightCheapPintsArrow} />
             </Link>
           </li>
         ))}
       </ul>
-      <p className="tonightCheapPintsCredit">{formatPintDatasetSnapshot()}</p>
+      <p className={ledeStyles.tonightCheapPintsCredit}>{formatPintDatasetSnapshot()}</p>
     </section>
   );
 }

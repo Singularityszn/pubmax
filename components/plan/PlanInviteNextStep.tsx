@@ -38,6 +38,7 @@ import {
 } from "@/lib/planSessionCapability";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
 import { siteOrigin } from "@/lib/siteUrl";
+import planStyles from "@/app/plan/Plan.module.css";
 
 type PlanInviteNextStepProps = {
   planId: string;
@@ -161,8 +162,8 @@ export default function PlanInviteNextStep({
   // second time (battle test L01).
   if (!memberToken && sessionCheckedPlanId === planId) {
     return (
-      <div className="planInviteNext" id="share">
-        <p className="planInviteNext__whatsapp planInviteNext__whatsapp--pending" role="status">
+      <div className={planStyles.planInviteNext} id="share">
+        <p className={`${planStyles.planInviteNext__whatsapp} ${planStyles["planInviteNext__whatsapp--pending"]}`} role="status">
           Invite tools need a crew session. Join the plan, then try again.
         </p>
       </div>
@@ -170,10 +171,10 @@ export default function PlanInviteNextStep({
   }
 
   return (
-    <div className="planInviteNext" id="share">
+    <div className={planStyles.planInviteNext} id="share">
       {inviteToken ? (
         <a
-          className="planInviteNext__whatsapp"
+          className={planStyles.planInviteNext__whatsapp}
           href={whatsappShareHref(text, toAbsoluteUrl(relativeUrl))}
           onClick={(event) => {
             event.preventDefault();
@@ -185,7 +186,7 @@ export default function PlanInviteNextStep({
           Send on WhatsApp
         </a>
       ) : (
-        <p className="planInviteNext__whatsapp planInviteNext__whatsapp--pending" role="status">
+        <p className={`${planStyles.planInviteNext__whatsapp} ${planStyles["planInviteNext__whatsapp--pending"]}`} role="status">
           {!memberToken
             ? "Restoring your invite tools…"
             : inviteState === "unavailable"
@@ -196,14 +197,14 @@ export default function PlanInviteNextStep({
         </p>
       )}
       {shareError ? (
-        <p className="planInviteNext__error" role="status">
+        <p className={planStyles.planInviteNext__error} role="status">
           {shareError}
         </p>
       ) : null}
       <PlanHostInviteLink planId={planId} />
       <button
         type="button"
-        className="planInviteNext__more"
+        className={planStyles.planInviteNext__more}
         aria-expanded={moreOpen}
         onClick={() => setMoreOpen((value) => !value)}
       >

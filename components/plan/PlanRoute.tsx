@@ -14,6 +14,7 @@ import { discardBody } from "@/lib/responseBody";
 import { isValidWhatsOnRow, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 import { stopEventChips, type StopEventChip } from "@/lib/planWhatsOn";
+import planStyles from "@/app/plan/Plan.module.css";
 
 type RouteStop = { venueId: string; venueName: string; position: number };
 
@@ -109,7 +110,7 @@ export default function PlanRoute({
   return (
     <div className="planRoute">
       {state === "ready" && groupSize > 0 ? (
-        <p className="planRoute__basis">
+        <p className={planStyles.planRoute__basis}>
           Get-in estimate for {groupSize === 1 ? "one" : groupSize} going. Never a guarantee of entry.
         </p>
       ) : null}
@@ -119,17 +120,17 @@ export default function PlanRoute({
           so the deep link below always stands on its own. */}
       {stops.length >= 2 ? <PlanRouteMiniMap stops={stops} /> : null}
       {walkRouteHref ? (
-        <Link className="planRoute__walk" href={walkRouteHref}>
+        <Link className={planStyles.planRoute__walk} href={walkRouteHref}>
           See the walking route
         </Link>
       ) : null}
-      <ol className="planSummary__stops">
+      <ol className={planStyles.planSummary__stops}>
         {stops.map((stop, index) => {
           const signal = signals.get(stop.venueId);
           return (
             <li key={`${stop.position}-${stop.venueId}`} style={{ "--i": index } as CSSProperties}>
-              <span className="planSummary__marker">{index + 1}</span>
-              <div className="planRoute__body">
+              <span className={planStyles.planSummary__marker}>{index + 1}</span>
+              <div className={planStyles.planRoute__body}>
                 <strong>{stop.venueName}</strong>
                 <StopEventBadge event={events.get(stop.venueId)} />
                 <Link href={`/map?venue=${encodeURIComponent(stop.venueId)}`}>Open on the map</Link>
@@ -148,11 +149,11 @@ function StopEventBadge({ event }: { event: StopEventChip | undefined }) {
   const Icon = KIND_ICON[event.kind];
   const provenance = `${CONFIDENCE_LABEL[event.confidence]} · ${event.sourceLabel} · ${checkedLabel(event.observedAt).toLowerCase()}`;
   return (
-    <span className="planRoute__event" data-kind={event.kind} title={provenance}>
+    <span className={planStyles.planRoute__event} data-kind={event.kind} title={provenance}>
       <Icon size={12} aria-hidden="true" />
       {event.label}
       <a
-        className="planRoute__eventSource"
+        className={planStyles.planRoute__eventSource}
         href={event.sourceUrl}
         target="_blank"
         rel="noreferrer noopener"
@@ -165,7 +166,7 @@ function StopEventBadge({ event }: { event: StopEventChip | undefined }) {
 
 function StopGetIn({ state, signal }: { state: FetchState; signal: StopSignal | undefined }) {
   if (state === "loading") {
-    return <span className="planRoute__signal planRoute__signal--loading" aria-hidden="true" />;
+    return <span className={`${planStyles.planRoute__signal} ${planStyles["planRoute__signal--loading"]}`} aria-hidden="true" />;
   }
   if (state === "unavailable" || !signal) return null;
 
@@ -173,19 +174,19 @@ function StopGetIn({ state, signal }: { state: FetchState; signal: StopSignal | 
   const closed = busyness?.isOpen === false;
 
   return (
-    <div className="planRoute__signal" data-fit={getIn.fit}>
+    <div className={planStyles.planRoute__signal} data-fit={getIn.fit}>
       {busyness ? (
-        <span className="planRoute__busy" title={busyness.explanation}>
-          <span className="planRoute__dot" data-level={busyness.level} aria-hidden="true" />
+        <span className={planStyles.planRoute__busy} title={busyness.explanation}>
+          <span className={planStyles.planRoute__dot} data-level={busyness.level} aria-hidden="true" />
           {closed ? "Likely closed now" : busyness.label}
         </span>
       ) : null}
-      <span className="planRoute__fit" title={getIn.reason}>
+      <span className={planStyles.planRoute__fit} title={getIn.reason}>
         {getIn.label}
       </span>
       {booking.available && booking.href ? (
         <a
-          className="planRoute__book"
+          className={planStyles.planRoute__book}
           href={booking.href}
           target="_blank"
           rel="noreferrer noopener"

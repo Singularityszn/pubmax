@@ -16,8 +16,7 @@ import type { PintDrop } from "@/lib/pintDropShared";
 import { getVenueDetail } from "@/lib/venueDetailIndex";
 import { buildRecapShareText, composeRecapFromPublishedStory } from "@/lib/recapView";
 
-import "../../plan/plan.css";
-import "../../plan/[id]/recap/recap.css";
+import recapStyles from "../../plan/[id]/recap/Recap.module.css";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -131,26 +130,26 @@ export default async function PublicRecapPage({ params }: Props) {
   const step = () => ({ ["--recap-step" as string]: String(section++) });
 
   return (
-    <main id="main" className="recapPage">
+    <main id="main" className={recapStyles.recapPage}>
       <RecapViewAnalytics visibility={recapVisibility} />
       <SiteNav />
 
-      <header className="recapHero" style={step()}>
+      <header className={recapStyles.recapHero} style={step()}>
         {/* A completed night mints its seal — struck on first reveal. */}
-        <PubmaxxNightSeal className="recapHero__seal" size={64} title="Night sealed" />
-        <p className="type-meta recapHero__eyebrow">A night out</p>
-        <h1 className="recapHero__title type-section-title">{view.title}</h1>
-        <div className="recapHero__stats" aria-label="Night at a glance">
-          <span className="recapStat">
+        <PubmaxxNightSeal className={recapStyles.recapHero__seal} size={64} title="Night sealed" />
+        <p className={`type-meta ${recapStyles.recapHero__eyebrow}`}>A night out</p>
+        <h1 className={`${recapStyles.recapHero__title} type-section-title`}>{view.title}</h1>
+        <div className={recapStyles.recapHero__stats} aria-label="Night at a glance">
+          <span className={recapStyles.recapStat}>
             <b>{view.stats.stopCount}</b> {view.stats.stopCount === 1 ? "stop" : "stops"}
           </span>
           {view.stats.pintCount > 0 ? (
-            <span className="recapStat">
+            <span className={recapStyles.recapStat}>
               <b>{view.stats.pintCount}</b> {view.stats.pintCount === 1 ? "pint" : "pints"}
             </span>
           ) : null}
           {view.stats.totalGbp !== null ? (
-            <PriceBadge variant="current" className="recapStat--price">
+            <PriceBadge variant="current" className={recapStyles["recapStat--price"]}>
               £{view.stats.totalGbp.toFixed(2)}
             </PriceBadge>
           ) : null}
@@ -158,19 +157,19 @@ export default async function PublicRecapPage({ params }: Props) {
       </header>
 
       {view.route.length > 0 ? (
-        <section className="recapSection" style={step()} aria-labelledby="recap-route-title">
-          <h2 id="recap-route-title" className="type-card-title recapSection__title">
+        <section className={recapStyles.recapSection} style={step()} aria-labelledby="recap-route-title">
+          <h2 id="recap-route-title" className={`type-card-title ${recapStyles.recapSection__title}`}>
             The route
           </h2>
-          <ol className="recapRoute">
+          <ol className={recapStyles.recapRoute}>
             {view.route.map((stop) => (
-              <li key={`${stop.venueId}-${stop.position}`} className="recapRoute__stop">
-                <span className="recapRoute__number" aria-hidden="true">
+              <li key={`${stop.venueId}-${stop.position}`} className={recapStyles.recapRoute__stop}>
+                <span className={recapStyles.recapRoute__number} aria-hidden="true">
                   {stop.position + 1}
                 </span>
-                <div className="recapRoute__body">
-                  <span className="recapRoute__name">{stop.venueName}</span>
-                  {stop.caption ? <p className="recapRoute__caption">{stop.caption}</p> : null}
+                <div className={recapStyles.recapRoute__body}>
+                  <span className={recapStyles.recapRoute__name}>{stop.venueName}</span>
+                  {stop.caption ? <p className={recapStyles.recapRoute__caption}>{stop.caption}</p> : null}
                 </div>
               </li>
             ))}
@@ -179,21 +178,21 @@ export default async function PublicRecapPage({ params }: Props) {
       ) : null}
 
       {view.photos.length > 0 ? (
-        <section className="recapSection" style={step()} aria-labelledby="recap-photos-title">
-          <h2 id="recap-photos-title" className="type-card-title recapSection__title">
+        <section className={recapStyles.recapSection} style={step()} aria-labelledby="recap-photos-title">
+          <h2 id="recap-photos-title" className={`type-card-title ${recapStyles.recapSection__title}`}>
             Moments the crew shared
           </h2>
-          <div className="recapPhotos">
+          <div className={recapStyles.recapPhotos}>
             {view.photos.map((photo) => {
               const url = photoUrls.get(photo.id);
               return (
-                <figure key={photo.id} className="recapPhoto">
+                <figure key={photo.id} className={recapStyles.recapPhoto}>
                   {/* Approved photos only — every one cleared the consent gate. */}
                   {url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img className="recapPhoto__img" src={url} alt={photo.caption ?? "A moment from the night"} loading="lazy" />
+                    <img className={recapStyles.recapPhoto__img} src={url} alt={photo.caption ?? "A moment from the night"} loading="lazy" />
                   ) : null}
-                  {photo.caption ? <figcaption className="recapPhoto__caption type-meta">{photo.caption}</figcaption> : null}
+                  {photo.caption ? <figcaption className={`${recapStyles.recapPhoto__caption} type-meta`}>{photo.caption}</figcaption> : null}
                 </figure>
               );
             })}
@@ -202,20 +201,20 @@ export default async function PublicRecapPage({ params }: Props) {
       ) : null}
 
       {view.pints.length > 0 ? (
-        <section className="recapSection" style={step()} aria-labelledby="recap-pints-title">
-          <h2 id="recap-pints-title" className="type-card-title recapSection__title">
+        <section className={recapStyles.recapSection} style={step()} aria-labelledby="recap-pints-title">
+          <h2 id="recap-pints-title" className={`type-card-title ${recapStyles.recapSection__title}`}>
             Pints logged
           </h2>
-          <ul className="recapPints">
+          <ul className={recapStyles.recapPints}>
             {view.pints.map((pint, index) => (
-              <li key={`${pint.venueId}-${index}`} className="recapPint">
-                <div className="recapPint__body">
-                  <span className="recapPint__drink">{pint.drink ?? "A pint"}</span>
-                  {pint.venueName ? <span className="recapPint__venue type-meta">{pint.venueName}</span> : null}
-                  {pint.note ? <p className="recapPint__note">{pint.note}</p> : null}
+              <li key={`${pint.venueId}-${index}`} className={recapStyles.recapPint}>
+                <div className={recapStyles.recapPint__body}>
+                  <span className={recapStyles.recapPint__drink}>{pint.drink ?? "A pint"}</span>
+                  {pint.venueName ? <span className={`${recapStyles.recapPint__venue} type-meta`}>{pint.venueName}</span> : null}
+                  {pint.note ? <p className={recapStyles.recapPint__note}>{pint.note}</p> : null}
                 </div>
                 {pint.priceLabel ? (
-                  <PriceBadge variant="current" className="recapPint__price">
+                  <PriceBadge variant="current" className={recapStyles.recapPint__price}>
                     {pint.priceLabel}
                   </PriceBadge>
                 ) : null}
@@ -225,11 +224,11 @@ export default async function PublicRecapPage({ params }: Props) {
         </section>
       ) : null}
 
-      <footer className="recapFooter" style={step()}>
-        <p className="recapClosing">{view.closingLine}</p>
-        <div className="recapFooter__actions">
+      <footer className={recapStyles.recapFooter} style={step()}>
+        <p className={recapStyles.recapClosing}>{view.closingLine}</p>
+        <div className={recapStyles.recapFooter__actions}>
           <RecapShareButton planId={storyId} shareText={shareText} shareUrl={`/recap/${storyId}`} />
-          <Link className="recapFooter__plan" href="/plan">
+          <Link className={recapStyles.recapFooter__plan} href="/plan">
             Plan your own night
           </Link>
         </div>

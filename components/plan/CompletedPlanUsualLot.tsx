@@ -13,19 +13,20 @@ import {
   readLastCrew,
   subscribeLastCrew,
 } from "@/lib/lastCrew";
+import planStyles from "@/app/plan/Plan.module.css";
 
 export default function CompletedPlanUsualLot() {
   const crew = useSyncExternalStore(subscribeLastCrew, readLastCrew, () => null);
   if (!crew || crew.names.length < 2) return null;
 
   return (
-    <section className="lastCrewInvite" aria-label="Plan another night with your lot">
-      <p className="lastCrewInvite__lede">
+    <section className={planStyles.lastCrewInvite} aria-label="Plan another night with your lot">
+      <p className={planStyles.lastCrewInvite__lede}>
         Same lot again: <strong>{crew.names.join(", ")}</strong>
       </p>
       <Link
         href="/plan"
-        className="lastCrewInvite__cta pressable"
+        className={`${planStyles.lastCrewInvite__cta} pressable`}
         onClick={() => {
           trackEvent("next_night_committed", nextNightCommittedProps("completed_plan", crew));
         }}

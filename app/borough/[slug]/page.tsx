@@ -36,7 +36,7 @@ import AreaNewsList from "@/components/areanews/AreaNewsList";
 import { entriesForBorough, freshAreaNews, NEW_ROUND_HERE_CAP } from "@/lib/areaNews";
 import { loadAreaNews } from "@/lib/areaNews.server";
 
-import "./borough.css";
+import styles from "./Borough.module.css";
 import "@/components/seo/factLayer.css";
 
 // Borough discovery / "night-out chapter" page: /borough/[slug]. A SERVER
@@ -167,7 +167,7 @@ function BoroughPubPrice({ pub }: { pub: Venue }) {
     venueSourcedPrice(pub),
     venueBundlePrices(pub),
   );
-  if (lane === null) return <span className="boroughNoPrice">No price</span>;
+  if (lane === null) return <span className={styles.boroughNoPrice}>No price</span>;
   // The figure comes off the lane that won, never off `cheapestPrice` again:
   // a lane whose figure lives somewhere else would otherwise print a blank
   // badge here the day it starts answering on this page.
@@ -268,7 +268,7 @@ export default async function BoroughPage({ params }: PageProps) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
-    <main id="main" className="boroughPage">
+    <main id="main" className={styles.boroughPage}>
       <JsonLd data={jsonLdGraph} nonce={nonce} />
       <SiteNav active="borough" />
 
@@ -290,14 +290,14 @@ export default async function BoroughPage({ params }: PageProps) {
       >
         <BoroughPintPriceCard boroughName={name} ourCheapestPrice={ourCheapestPrice} />
         {pubs.length > 0 && pubs.length < BOROUGH_COVERAGE_FLOOR ? (
-          <p className="boroughThinBanner" role="status">
+          <p className={styles.boroughThinBanner} role="status">
             Only {pubs.length} pubs mapped in {name} so far. Every pin&rsquo;s a real
             pub. We just haven&rsquo;t covered every street yet.
           </p>
         ) : null}
         {pubs.length > 0 ? (
-          <div className="boroughMapLinks">
-            <Link prefetch={false} className="boroughCrawlLink boroughCrawlLinkSecondary" href={boroughMapUrl(pubs)}>
+          <div className={styles.boroughMapLinks}>
+            <Link prefetch={false} className={`${styles.boroughCrawlLink} ${styles.boroughCrawlLinkSecondary}`} href={boroughMapUrl(pubs)}>
               Start a crawl from cheapest pubs →
             </Link>
           </div>
@@ -312,7 +312,7 @@ export default async function BoroughPage({ params }: PageProps) {
 
         {pubs.length === 0 ? (
           <EmptyState
-            className="boroughEmpty"
+            className={styles.boroughEmpty}
             title={`No pubs mapped in ${name} yet.`}
             action={<Link href="/borough">Browse other boroughs</Link>}
           >
@@ -323,20 +323,20 @@ export default async function BoroughPage({ params }: PageProps) {
           // A price table is wide content, so it scrolls inside its own box
           // rather than making the page scroll sideways: at 320 the pub column
           // alone put the document 25px past the viewport.
-          <div className="boroughTableScroll">
-            <table className="boroughTable">
-              <caption className="srOnly">
+          <div className={styles.boroughTableScroll}>
+            <table className={styles.boroughTable}>
+              <caption className={styles.srOnly}>
                 Pubs in {name}, ordered by cheapest pint price
               </caption>
               <thead>
                 <tr>
-                  <th scope="col" className="boroughRankHead">
+                  <th scope="col" className={styles.boroughRankHead}>
                     #
                   </th>
-                  <th scope="col" className="boroughNameHead">
+                  <th scope="col" className={styles.boroughNameHead}>
                     Pub
                   </th>
-                  <th scope="col" className="boroughPriceHead createFabLane">
+                  <th scope="col" className={`${styles.boroughPriceHead} createFabLane`}>
                     Cheapest pint
                   </th>
                 </tr>
@@ -344,21 +344,21 @@ export default async function BoroughPage({ params }: PageProps) {
               <tbody>
                 {pubs.map((pub, index) => (
                   <tr key={pub.id}>
-                    <th scope="row" className="boroughRank">
-                      <span className="boroughRankNum">{index + 1}</span>
+                    <th scope="row" className={styles.boroughRank}>
+                      <span className={styles.boroughRankNum}>{index + 1}</span>
                     </th>
-                    <td className="boroughName">
-                      <Link prefetch={false} href={venueMapUrl(pub.id)} className="boroughPub">
+                    <td className={styles.boroughName}>
+                      <Link prefetch={false} href={venueMapUrl(pub.id)} className={styles.boroughPub}>
                         {pub.name}
                       </Link>
                       {pub.cheapestPint ? (
-                        <span className="boroughPint">{pub.cheapestPint}</span>
+                        <span className={styles.boroughPint}>{pub.cheapestPint}</span>
                       ) : null}
-                      <Link href={`/ledger/${pub.id}`} className="boroughLedgerLink">
+                      <Link href={`/ledger/${pub.id}`} className={styles.boroughLedgerLink}>
                         Price history →
                       </Link>
                     </td>
-                    <td className="boroughPriceCell createFabLane">
+                    <td className={`${styles.boroughPriceCell} createFabLane`}>
                       <BoroughPubPrice pub={pub} />
                     </td>
                   </tr>
@@ -369,18 +369,18 @@ export default async function BoroughPage({ params }: PageProps) {
         )}
 
         {storyPubs.length > 0 ? (
-          <section className="boroughSection" aria-labelledby="boroughStoryHeading">
-            <h2 id="boroughStoryHeading" className="boroughSectionTitle">
+          <section className={styles.boroughSection} aria-labelledby="boroughStoryHeading">
+            <h2 id="boroughStoryHeading" className={styles.boroughSectionTitle}>
               Story pubs in {name}
             </h2>
-            <p className="boroughSectionDek">
+            <p className={styles.boroughSectionDek}>
               {storyPubs.length} {storyPubs.length === 1 ? "pub" : "pubs"} here carry a heritage
               note or a passed-down story. Each offers a reason to detour beyond price.
             </p>
-            <ul className="boroughChipList" aria-label={`Story pubs in ${name}`}>
+            <ul className={styles.boroughChipList} aria-label={`Story pubs in ${name}`}>
               {storyPubs.map((pub) => (
                 <li key={pub.id}>
-                  <Link prefetch={false} href={venueMapUrl(pub.id)} className="boroughChip">
+                  <Link prefetch={false} href={venueMapUrl(pub.id)} className={styles.boroughChip}>
                     {pub.name}
                   </Link>
                 </li>
@@ -390,23 +390,23 @@ export default async function BoroughPage({ params }: PageProps) {
         ) : null}
 
         {touchingCrawls.length > 0 ? (
-          <section className="boroughSection" aria-labelledby="boroughCrawlsHeading">
-            <h2 id="boroughCrawlsHeading" className="boroughSectionTitle">
+          <section className={styles.boroughSection} aria-labelledby="boroughCrawlsHeading">
+            <h2 id="boroughCrawlsHeading" className={styles.boroughSectionTitle}>
               Crawls through {name}
             </h2>
-            <p className="boroughSectionDek">
+            <p className={styles.boroughSectionDek}>
               A listed route with at least one stop here. Plan it from its first stop to its last.
             </p>
-            <ul className="boroughCrawlList" aria-label={`Crawls through ${name}`}>
+            <ul className={styles.boroughCrawlList} aria-label={`Crawls through ${name}`}>
               {touchingCrawls.map((crawl) => (
-                <li key={crawl.id} className="boroughCrawlCard">
+                <li key={crawl.id} className={styles.boroughCrawlCard}>
                   <div>
                     <strong>{crawl.name}</strong>
                     <p>{crawl.blurb}</p>
                   </div>
                   <Link prefetch={false}
                     href={curatedCrawlMapHref(crawl)}
-                    className="boroughCrawlPlanLink"
+                    className={styles.boroughCrawlPlanLink}
                     aria-label={`Plan the ${crawl.name} crawl on the map`}
                   >
                     Plan this crawl →
@@ -420,11 +420,11 @@ export default async function BoroughPage({ params }: PageProps) {
         <BoroughPassportSlice boroughName={name} venueIds={pubs.map((pub) => pub.id)} />
 
         {heritage ? (
-          <section className="boroughSection" aria-labelledby="boroughHeritageHeading">
-            <h2 id="boroughHeritageHeading" className="boroughSectionTitle">
+          <section className={styles.boroughSection} aria-labelledby="boroughHeritageHeading">
+            <h2 id="boroughHeritageHeading" className={styles.boroughSectionTitle}>
               Historic pubs in {name}
             </h2>
-            <p className="boroughSectionDek">
+            <p className={styles.boroughSectionDek}>
               {heritage.count} notable {heritage.count === 1 ? "pub" : "pubs"} on record
               {heritage.oldest ? (
                 <>
@@ -437,31 +437,31 @@ export default async function BoroughPage({ params }: PageProps) {
               ) : null}
               {heritage.listedCount > 0 ? <> &middot; {heritage.listedCount} listed</> : null}.
             </p>
-            <p className="boroughHeritageProvenance">Cited from Wikipedia.</p>
-            <ul className="boroughHeritageList" aria-label={`Historic pubs in ${name}`}>
+            <p className={styles.boroughHeritageProvenance}>Cited from Wikipedia.</p>
+            <ul className={styles.boroughHeritageList} aria-label={`Historic pubs in ${name}`}>
               {heritage.notable.slice(0, NOTABLE_CAP).map((pub) => (
-                <li key={pub.slug} className="boroughHeritageCard">
+                <li key={pub.slug} className={styles.boroughHeritageCard}>
                   {pub.dateLabel || pub.era || pub.listed ? (
-                    <div className="boroughHeritageMeta">
+                    <div className={styles.boroughHeritageMeta}>
                       {(pub.dateLabel ?? pub.era) ? (
-                        <span className="boroughHeritageEra">
+                        <span className={styles.boroughHeritageEra}>
                           {pub.dateLabel ?? pub.era}
                         </span>
                       ) : null}
                       {pub.listed ? (
-                        <span className="boroughHeritageGrade">Grade {pub.listed}</span>
+                        <span className={styles.boroughHeritageGrade}>Grade {pub.listed}</span>
                       ) : null}
                     </div>
                   ) : null}
-                  <h3 className="boroughHeritageName">{pub.name}</h3>
+                  <h3 className={styles.boroughHeritageName}>{pub.name}</h3>
                   {pub.hook ? (
-                    <div className="boroughHeritageHook">
+                    <div className={styles.boroughHeritageHook}>
                       <ProseDisclosure text={pub.hook} />
                     </div>
                   ) : null}
                   {pub.venueId ? (
                     <Link prefetch={false}
-                      className="boroughHeritageMapLink"
+                      className={styles.boroughHeritageMapLink}
                       href={`/map?sel=${pub.venueId}`}
                       aria-label={`See ${pub.name} on the map`}
                     >
@@ -471,7 +471,7 @@ export default async function BoroughPage({ params }: PageProps) {
                 </li>
               ))}
             </ul>
-            <p className="boroughHeritageFoot">
+            <p className={styles.boroughHeritageFoot}>
               <Link href="/historic">See all historic pubs &rarr;</Link>
             </p>
           </section>
@@ -516,7 +516,7 @@ export default async function BoroughPage({ params }: PageProps) {
           </ul>
         </nav>
 
-        <p className="boroughFootnote">
+        <p className={styles.boroughFootnote}>
           Pubs, prices and stories by area. <Link href="/borough">See every borough →</Link>
         </p>
       </BoroughScreen>

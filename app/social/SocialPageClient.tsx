@@ -50,7 +50,7 @@ import {
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
-import "./social.css";
+import styles from "./Social.module.css";
 import SocialComposer from "./SocialComposer";
 import SocialTagInbox from "./SocialTagInbox";
 import SocialOutbox from "./SocialOutbox";
@@ -220,7 +220,7 @@ export function SocialAccessBoundary({
     ) : undefined;
   return (
     <section
-      className="socialBoundary"
+      className={styles.socialBoundary}
       role={state === "unavailable" ? "alert" : "status"}
     >
       <EmptyState title={asking ? assertionLine : boundaryCopy} action={action}>
@@ -235,24 +235,24 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited }: 
   const exactVenueId = post.venueProjected ? post.venueId : null;
   const when = relativeTime(post.createdAt);
   return (
-    <article className="socialPostCard">
-      <header className="socialPostMeta">
+    <article className={styles.socialPostCard}>
+      <header className={styles.socialPostMeta}>
         <HandleAvatar
           handle={post.author.handle}
           avatarUrl={post.author.avatarUrl}
-          className="socialPostAvatar"
-          imageClassName="socialPostAvatar"
+          className={styles.socialPostAvatar}
+          imageClassName={styles.socialPostAvatar}
           size={32}
         />
         <strong>@{post.author.handle}</strong>
         {when ? <time dateTime={post.createdAt}>{when}</time> : null}
       </header>
       {post.kind === "feature_request" ? (
-        <p className="socialPostKind">Feature request</p>
+        <p className={styles.socialPostKind}>Feature request</p>
       ) : null}
-      <p className="socialPostBody">{post.body}</p>
+      <p className={styles.socialPostBody}>{post.body}</p>
       {post.photo ? (
-        <figure className="socialPostPhoto">
+        <figure className={styles.socialPostPhoto}>
           {/* eslint-disable-next-line @next/next/no-img-element -- private signed delivery route. */}
           <img
             src={`/api/social/media/${post.photo.mediaId}`}
@@ -266,7 +266,7 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited }: 
         </figure>
       ) : null}
       {area || exactVenueId ? (
-        <p className="socialPostPlace">
+        <p className={styles.socialPostPlace}>
           {area ? <span>{area.name}</span> : null}
           {exactVenueId ? (
             <Link prefetch={false} href={venueMapUrl(exactVenueId)}>Open venue</Link>
@@ -274,13 +274,13 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited }: 
         </p>
       ) : null}
       {post.hashtags.length > 0 ? (
-        <p className="socialPostTags">
+        <p className={styles.socialPostTags}>
           {post.hashtags.map((tag) => (
             <span key={tag}>#{tag}</span>
           ))}
         </p>
       ) : null}
-      {post.editedAt ? <p className="socialPostEdited">Edited</p> : null}
+      {post.editedAt ? <p className={styles.socialPostEdited}>Edited</p> : null}
       {canEdit && draftScope && onEdited ? <SocialComposer key={`${draftScope}:${post.id}`} post={post} draftScope={draftScope} onSaved={onEdited} /> : null}
     </article>
   );
@@ -295,7 +295,7 @@ function PostsControls({
   const areaValue = state.feed === "nearby" ? (state.area ?? "") : "";
   return (
     <>
-      <nav className="socialLaneNav" aria-label="Post lanes">
+      <nav className={styles.socialLaneNav} aria-label="Post lanes">
         <IntentLink
           href="/social"
           aria-current={state.feed === "following" ? "page" : undefined}
@@ -316,7 +316,7 @@ function PostsControls({
         </IntentLink>
       </nav>
       {state.feed === "nearby" ? (
-        <label className="socialAreaField">
+        <label className={styles.socialAreaField}>
           <span>Nearby area</span>
           <select
             name="area"
@@ -376,7 +376,7 @@ export function SocialContextRail({
 
   return (
     <aside
-      className="socialContextRail"
+      className={styles.socialContextRail}
       aria-labelledby="social-activity-title"
     >
       <h2 id="social-activity-title">Activity</h2>
@@ -740,7 +740,7 @@ function SocialPageAccountState({
 
   return (
     <>
-      <main className="socialPage" id="main-content">
+      <main className={styles.socialPage} id="main-content">
         <Screen
           as="section"
           kicker={surfaceName}
@@ -749,14 +749,14 @@ function SocialPageAccountState({
           primary={primary}
           secondary={secondary}
         >
-        <div className="socialLayout">
-          <aside className="socialControlRail" aria-label={`${surfaceName} views`}>
+        <div className={styles.socialLayout}>
+          <aside className={styles.socialControlRail} aria-label={`${surfaceName} views`}>
             {showViewerCards ? <SocialTagInbox /> : null}
             {showViewerCards ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={(updated) => {
               if (updated) setSubmittedPost(updated);
               setFeedAttempt((value) => value + 1);
             }} /> : null}
-            <nav className="socialSwitcher" aria-label={`${surfaceName} view`}>
+            <nav className={styles.socialSwitcher} aria-label={`${surfaceName} view`}>
               <IntentLink href="/social" aria-current={isPosts ? "page" : undefined}>
                 Posts
               </IntentLink>
@@ -789,7 +789,7 @@ function SocialPageAccountState({
                 count, and no branch on whether this reader holds a number:
                 that would make the number a capability, which
                 lib/foundingMembers.ts forbids. */}
-            {isPosts ? <FoundersWallLink className="socialFoundersLink" /> : null}
+            {isPosts ? <FoundersWallLink className={styles.socialFoundersLink} /> : null}
             {/* And ONE live copy of the search-and-invite surface, for the same
                 reason: the body used to mount a second one beside it, so an
                 unverified viewer met the same heading, the same field and the
@@ -805,7 +805,7 @@ function SocialPageAccountState({
               friendsLaunchEnabled={false}
             />
           ) : initialState.tab === "discover" ? (
-            <div className="socialDiscoverBody">
+            <div className={styles.socialDiscoverBody}>
               <CreatorListsLane />
               <DiscoverBody
                 rivalry={rivalry}
@@ -814,7 +814,7 @@ function SocialPageAccountState({
               />
             </div>
           ) : viewerPhase === "unresolved" ? (
-            <section className="socialBoundary" role="status" aria-busy="true">
+            <section className={styles.socialBoundary} role="status" aria-busy="true">
               <h2>{socialLoadingLabel(friendsLaunchEnabled)}</h2>
               <SocialViewerState
                 phase="unresolved"
@@ -837,7 +837,7 @@ function SocialPageAccountState({
               {packsBesideTheDoor ? <StarterPacks readOnly /> : null}
             </>
           ) : access === "checking" ? (
-            <section className="socialBoundary" role="status" aria-busy="true">
+            <section className={styles.socialBoundary} role="status" aria-busy="true">
               <h2>Checking {surfaceName} access…</h2>
             </section>
           ) : access !== "verified" ? (
@@ -855,7 +855,7 @@ function SocialPageAccountState({
                 assertBusy={assertBusy}
                 assertError={assertError}
               />
-              <section className="socialFeedEmpty" aria-label="People on PUBMAXX">
+              <section className={styles.socialFeedEmpty} aria-label="People on PUBMAXX">
                 {/* Browse rides with search wherever search rides: both form
                     the friend graph, and neither reads a gated surface. Search
                     itself lives in the rail above, once. */}
@@ -863,12 +863,12 @@ function SocialPageAccountState({
               </section>
             </>
           ) : !feedHref ? (
-            <section className="socialFeed" role="status">
+            <section className={styles.socialFeed} role="status">
               <EmptyState title="Choose a nearby area." />
             </section>
           ) : (
             <section
-              className="socialFeed"
+              className={styles.socialFeed}
               aria-label={`${surfaceName} posts`}
               aria-busy={feedStatus === "loading" || loadingMore}
             >
@@ -887,13 +887,13 @@ function SocialPageAccountState({
                       : `${posts.length} ${surfaceName} posts loaded.`}
               </p>
               {feedStatus === "loading" ? (
-                <div className="socialSkeletons" aria-hidden="true">
+                <div className={styles.socialSkeletons} aria-hidden="true">
                   <span />
                   <span />
                   <span />
                 </div>
               ) : feedStatus === "error" ? (
-                <div className="socialFeedError" role="alert">
+                <div className={styles.socialFeedError} role="alert">
                   <EmptyState
                     title={`${surfaceName} posts are unavailable right now.`}
                     action={
@@ -907,7 +907,7 @@ function SocialPageAccountState({
                   />
                 </div>
               ) : posts.length === 0 ? (
-                <div className="socialFeedEmpty" role="status">
+                <div className={styles.socialFeedEmpty} role="status">
                   <EmptyState title="No posts here yet.">
                     Find your lot: search a handle or send an invite. Nights from
                     mutuals land here.
@@ -916,7 +916,7 @@ function SocialPageAccountState({
                   <PeopleDirectory myHandle={viewerHandle} />
                 </div>
               ) : (
-                <div className="socialPostList">
+                <div className={styles.socialPostList}>
                   {posts.map((post) => (
                     <SocialPostCard key={post.id} post={post} canEdit={post.ownedByViewer} draftScope={draftScope}
                       onEdited={(updated) => updated
@@ -928,7 +928,7 @@ function SocialPageAccountState({
               {feedStatus === "ready" && nextCursor ? (
                 <button
                   type="button"
-                  className="socialButton socialLoadMore"
+                  className={`${styles.socialButton} ${styles.socialLoadMore}`}
                   disabled={loadingMore}
                   onClick={() => void loadMore()}
                 >

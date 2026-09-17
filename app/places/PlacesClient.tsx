@@ -63,7 +63,7 @@ import {
 } from "@/lib/places";
 import { useUkPlaceIndex } from "@/lib/useUkPlaceIndex";
 
-import "./places.css";
+import styles from "./Places.module.css";
 
 /**
  * The Places tab: pick a city, see what is inside it, and set the one city the
@@ -88,9 +88,9 @@ export default function PlacesClient({ cityId }: { cityId: CityId | null }) {
   );
 
   return (
-    <div className="placesPage">
+    <div className={styles.placesPage}>
       <SiteNav active="places" />
-      <main id="main" className="placesBody">
+      <main id="main" className={styles.placesBody}>
         {cityId ? (
           <CityPanel cityId={cityId} preferredCity={preferredCity} />
         ) : (
@@ -148,15 +148,15 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
         </Link>
       }
     >
-      <div className="placesSearch">
-        <label className="placesSearchLabel" htmlFor={searchId}>
+      <div className={styles.placesSearch}>
+        <label className={styles.placesSearchLabel} htmlFor={searchId}>
           {PLACES_SEARCH_LABEL}
         </label>
-        <div className="placesSearchField">
+        <div className={styles.placesSearchField}>
           <Search size={18} strokeWidth={1.75} aria-hidden="true" />
           <input
             id={searchId}
-            className="placesSearchInput"
+            className={styles.placesSearchInput}
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -174,33 +174,33 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
           every city on each character is noise rather than an answer. */}
       <div className="placesResults" aria-live="polite">
         {showTowns ? (
-          <ul className="placesTownList" aria-label="Places">
+          <ul className={styles.placesTownList} aria-label="Places">
             {towns.map((town) => (
               <li
                 key={`${town.kind}-${town.name}-${town.href}`}
-                className="placesCityItem"
+                className={styles.placesCityItem}
               >
                 <Link
                   prefetch={false}
                   href={town.href}
-                  className="placesCityLink"
+                  className={styles.placesCityLink}
                 >
-                  <span className="placesCityMark" aria-hidden="true">
+                  <span className={styles.placesCityMark} aria-hidden="true">
                     <MapPin size={18} strokeWidth={1.65} />
                   </span>
-                  <span className="placesCityCopy">
-                    <span className="placesCityNameRow">
-                      <span className="placesCityName">{town.name}</span>
+                  <span className={styles.placesCityCopy}>
+                    <span className={styles.placesCityNameRow}>
+                      <span className={styles.placesCityName}>{town.name}</span>
                       {cityChooserResultContext(town) ? (
-                        <span className="placesCityContext">
+                        <span className={styles.placesCityContext}>
                           {cityChooserResultContext(town)}
                         </span>
                       ) : null}
-                      <span className="placesPill">
+                      <span className={styles.placesPill}>
                         {cityChooserResultBadge(town.kind)}
                       </span>
                     </span>
-                    <span className="placesCityTagline">{town.description}</span>
+                    <span className={styles.placesCityTagline}>{town.description}</span>
                   </span>
                 </Link>
               </li>
@@ -230,32 +230,32 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
           one line that may never be painted under a floating button
           (components/nav/createFab.css). */}
       {showTowns ? (
-        <PlaceIndexCredit className="placesTownSource createFabLane" />
+        <PlaceIndexCredit className={`${styles.placesTownSource} createFabLane`} />
       ) : null}
 
       {shown.length > 0 ? (
-        <ul className="placesCityList" aria-label="Cities">
+        <ul className={styles.placesCityList} aria-label="Cities">
           {shown.map((row) => (
-            <li key={row.cityId} className="placesCityItem">
+            <li key={row.cityId} className={styles.placesCityItem}>
               <Link
                 prefetch={false}
                 href={placesCityHref(row.cityId)}
-                className="placesCityLink"
+                className={styles.placesCityLink}
               >
-                <span className="placesCityMark" aria-hidden="true">
+                <span className={styles.placesCityMark} aria-hidden="true">
                   <MapPin size={18} strokeWidth={1.65} />
                 </span>
-                <span className="placesCityCopy">
-                  <span className="placesCityNameRow">
-                    <span className="placesCityName">{row.name}</span>
+                <span className={styles.placesCityCopy}>
+                  <span className={styles.placesCityNameRow}>
+                    <span className={styles.placesCityName}>{row.name}</span>
                     {row.cityId === preferredCity ? (
-                      <span className="placesPill" data-tone="yours">
+                      <span className={styles.placesPill} data-tone="yours">
                         Your city
                       </span>
                     ) : null}
-                    <span className="placesPill">{placesPricesPill(row)}</span>
+                    <span className={styles.placesPill}>{placesPricesPill(row)}</span>
                   </span>
-                  <span className="placesCityTagline">{row.tagline}</span>
+                  <span className={styles.placesCityTagline}>{row.tagline}</span>
                 </span>
               </Link>
             </li>
@@ -294,8 +294,8 @@ function CityPanel({
 
   return (
     <>
-      <p className="placesBack">
-        <Link prefetch={false} href={PLACES_PATH} className="placesBackLink">
+      <p className={styles.placesBack}>
+        <Link prefetch={false} href={PLACES_PATH} className={styles.placesBackLink}>
           <ArrowLeft size={16} strokeWidth={1.9} aria-hidden="true" />
           {PLACES_BACK_LABEL}
         </Link>
@@ -328,8 +328,8 @@ function CityPanel({
         }
       >
         {isYours ? (
-          <p className="placesConfirm" role="status">
-            <span className="placesConfirmLabel">
+          <p className={styles.placesConfirm} role="status">
+            <span className={styles.placesConfirmLabel}>
               {PLACES_CURRENT_CITY_LABEL}
             </span>{" "}
             {placesCurrentCityLine(cityId)}
@@ -337,36 +337,36 @@ function CityPanel({
         ) : null}
 
         <section
-          className="placesSection"
+          className={styles.placesSection}
           aria-labelledby="places-prices-title"
         >
           <Kicker tone="muted">Prices</Kicker>
-          <h2 id="places-prices-title" className="placesSectionTitle">
+          <h2 id="places-prices-title" className={styles.placesSectionTitle}>
             {row.pricesListed
               ? "Listed pint prices"
               : "No pint prices here yet"}
           </h2>
-          <p className="placesSectionLine">{placesPricesLine(cityId)}</p>
+          <p className={styles.placesSectionLine}>{placesPricesLine(cityId)}</p>
         </section>
 
-        <section className="placesSection" aria-labelledby="places-areas-title">
+        <section className={styles.placesSection} aria-labelledby="places-areas-title">
           <Kicker tone="muted">{PLACES_AREAS_KICKER}</Kicker>
-          <div className="placesSectionHead">
-            <h2 id="places-areas-title" className="placesSectionTitle">
+          <div className={styles.placesSectionHead}>
+            <h2 id="places-areas-title" className={styles.placesSectionTitle}>
               {placesAreasTitle(cityId)}
             </h2>
             {areas.length === 0 ? (
-              <span className="placesPill">{PLACES_AREAS_COMING_PILL}</span>
+              <span className={styles.placesPill}>{PLACES_AREAS_COMING_PILL}</span>
             ) : null}
           </div>
           {areas.length === 0 ? (
-            <p className="placesSectionLine">{placesAreasEmptyLine(cityId)}</p>
+            <p className={styles.placesSectionLine}>{placesAreasEmptyLine(cityId)}</p>
           ) : (
-            <ul className="placesAreaList">
+            <ul className={styles.placesAreaList}>
               {areas.map((area) => (
                 <li key={area.slug} className="placesAreaItem">
-                  <p className="placesAreaName">{area.name}</p>
-                  <p className="placesAreaLine">{area.description}</p>
+                  <p className={styles.placesAreaName}>{area.name}</p>
+                  <p className={styles.placesAreaLine}>{area.description}</p>
                 </li>
               ))}
             </ul>

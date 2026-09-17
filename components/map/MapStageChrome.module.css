@@ -1,0 +1,50 @@
+/* Map stage / canvas chrome — extracted from app/globals.css.
+ *
+ * The map is the full-bleed base layer; drawers and toolbar sit above it.
+ * Imported once by PubMap.tsx, which renders the stage wrapper, the skeleton
+ * fallback and the resume-updating pill.
+ *
+ * All selectors are :global() so existing plain-string classNames in PubMap.tsx
+ * (including its class-component error boundary) keep working unchanged.
+ */
+
+:global(.mapStage) {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+:global(.mapResumeUpdating) {
+  position: absolute;
+  top: var(--map-overlay-top, 12px);
+  left: 50%;
+  z-index: 5;
+  transform: translateX(-50%);
+  padding: 5px 9px;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-raised) 88%, transparent);
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+}
+
+:global(.mapCanvasWrap) {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Dynamic PubMapCanvas loading plate — full-bleed, map-shaped, no text so the
+   parent .mapLoading chrome (pitched-London skeleton) remains the only status
+   UI. Dark basemap ink keeps CLS at 0 when the WebGL canvas mounts over it. */
+:global(.mapCanvasSkeleton) {
+  background: var(--ink-deep, #090806);
+  min-height: 100%;
+}
+[data-theme="light"] :global(.mapCanvasSkeleton) {
+  /* Liberty/Positron-adjacent paper so light theme handoff is continuous. */
+  background: color-mix(in srgb, var(--paper, #faf8f5) 88%, var(--river, #5a7a8c) 12%);
+}

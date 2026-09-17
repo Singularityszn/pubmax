@@ -14,7 +14,7 @@ import {
 import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 
-import "./landmark.css";
+import styles from "./Landmark.module.css";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -83,16 +83,16 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
   const mapHref = `/map?landmark=${encodeURIComponent(landmark.id)}`;
 
   return (
-    <main id="main" className="landmarkChapterPage">
+    <main id="main" className={styles.landmarkChapterPage}>
       <SiteNav active="discover" />
-      <header className="landmarkChapterHead">
+      <header className={styles.landmarkChapterHead}>
         {/* Deep-link to THIS landmark on the map (?landmark= is the existing
             shareable-URL param PubMap seeds from) — a bare /map dead-ends with
             nothing selected. */}
-        <Link prefetch={false} className="landmarkChapterEyebrow" href={mapHref}>
+        <Link prefetch={false} className={styles.landmarkChapterEyebrow} href={mapHref}>
           PUBMAXXING · London stories
         </Link>
-        <h1 className="landmarkChapterTitle">{landmark.name}</h1>
+        <h1 className={styles.landmarkChapterTitle}>{landmark.name}</h1>
       </header>
 
       {landmark.image ? (
@@ -100,14 +100,14 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
           key={landmark.id}
           image={landmark.image}
           name={landmark.name}
-          className="landmarkChapterPhoto"
+          className={styles.landmarkChapterPhoto}
           loading="eager"
         />
       ) : null}
 
-      <p className="landmarkChapterHistory">{landmark.history}</p>
+      <p className={styles.landmarkChapterHistory}>{landmark.history}</p>
       <a
-        className="landmarkChapterSource"
+        className={styles.landmarkChapterSource}
         href={landmark.source.url}
         target="_blank"
         rel="noreferrer"
@@ -116,12 +116,12 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
         <ExternalLink size={13} aria-hidden="true" />
       </a>
 
-      <div className="landmarkChapterActions">
-        <Link prefetch={false} className="landmarkChapterBtn" href={mapHref}>
+      <div className={styles.landmarkChapterActions}>
+        <Link prefetch={false} className={styles.landmarkChapterBtn} href={mapHref}>
           Open on the map
         </Link>
         {crawlIds.length > 0 ? (
-          <Link className="landmarkChapterBtn landmarkChapterBtnPrimary" href={startCrawlHref(crawlIds)}>
+          <Link className={`${styles.landmarkChapterBtn} ${styles.landmarkChapterBtnPrimary}`} href={startCrawlHref(crawlIds)}>
             Start a crawl here
           </Link>
         ) : null}
@@ -129,16 +129,16 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
 
       {nearby.length > 0 ? (
         <section aria-labelledby="landmarkNearbyHeading">
-          <h2 id="landmarkNearbyHeading" className="landmarkChapterSectionTitle">
+          <h2 id="landmarkNearbyHeading" className={styles.landmarkChapterSectionTitle}>
             {STORY_PUBS_NEARBY_HEADING}
           </h2>
-          <p className="landmarkChapterCaveat">{STORY_PUBS_DISTANCE_CAVEAT}</p>
-          <ul className="landmarkChapterPubList">
+          <p className={styles.landmarkChapterCaveat}>{STORY_PUBS_DISTANCE_CAVEAT}</p>
+          <ul className={styles.landmarkChapterPubList}>
             {nearby.map(({ venue, km }) => (
               <li key={venue.id}>
                 <Link prefetch={false} href={`/map?sel=${encodeURIComponent(venue.id)}`}>
                   <span>{venue.name}</span>
-                  <span className="landmarkChapterPubDist">{formatLogNearbyDistance(km)}</span>
+                  <span className={styles.landmarkChapterPubDist}>{formatLogNearbyDistance(km)}</span>
                 </Link>
               </li>
             ))}
@@ -146,7 +146,7 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
         </section>
       ) : null}
 
-      <p className="landmarkChapterFoot">
+      <p className={styles.landmarkChapterFoot}>
         Cited pub stories mapped into walks. <Link href="/crawls">Browse route packs →</Link>
       </p>
     </main>

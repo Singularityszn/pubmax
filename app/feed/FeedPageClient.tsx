@@ -51,7 +51,7 @@ import { currentMode, MODE_DEFAULT_LANE } from "@/lib/viewMode";
 import { countSpillingNow, subscribeToNewDrops } from "@/lib/realtime";
 import { type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 import { venueMapUrl } from "@/lib/venueMapUrl";
-import "./feed.css";
+import styles from "./Feed.module.css";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
@@ -765,7 +765,7 @@ export default function FeedPageClient({
   const showComposeActions = status === "ready" && !isEmpty && !lotEmpty;
 
   return (
-    <main id="main" className="feedShell">
+    <main id="main" className={styles.feedShell}>
       <SiteNav active="feed" />
 
       {/* The launch head (docs/design/LAUNCH_SCREENS.md): kicker, one heading,
@@ -775,7 +775,7 @@ export default function FeedPageClient({
           step. Keeping the header to one viewport is still the rule (spec #395). */}
       <Screen
         as="section"
-        className="feedScreen"
+        className={styles.feedScreen}
         kicker="Stories"
         title="Stories"
         titleId="feed-title"
@@ -783,9 +783,9 @@ export default function FeedPageClient({
         secondary={<Link href="/map">Open the map</Link>}
       >
         {showComposeActions ? (
-          <div className="feedComposeActions" aria-label="Create">
-            <Link href="/moment" className="feedMomentCta">Share a Moment</Link>
-            <Link href="/we-are-out" className="feedMomentCta">I&rsquo;m here</Link>
+          <div className={styles.feedComposeActions} aria-label="Create">
+            <Link href="/moment" className={styles.feedMomentCta}>Share a Moment</Link>
+            <Link href="/we-are-out" className={styles.feedMomentCta}>I&rsquo;m here</Link>
           </div>
         ) : null}
       </Screen>
@@ -794,12 +794,12 @@ export default function FeedPageClient({
           contribute ZERO box on mobile (byte-identical layout); at >=1024px
           they become the rail | stream grid (see feed.css). DOM order is
           unchanged. */}
-      <div className="feedGrid">
-        <div className="feedRail">
+      <div className={styles.feedGrid}>
+        <div className={styles.feedRail}>
           {/* Desktop-only (D1): the rail's parent is display:contents below
               1024px, so this wrapper carries its own hide rule to keep the
               mobile feed byte-identical. Conditions strip fails soft. */}
-          <div className="feedRailDesktopOnly">
+          <div className={styles.feedRailDesktopOnly}>
             <TonightConditionsStrip />
           </div>
 
@@ -816,11 +816,11 @@ export default function FeedPageClient({
           ) : null}
         </div>
 
-        <div className="feedMain">
+        <div className={styles.feedMain}>
       {/* Live "N new pints" pill (issue #37): reveals buffered new drops on tap
           rather than yanking the scroll. Hidden when nothing is buffered. */}
       {pendingItems.length > 0 ? (
-        <button type="button" className="feedNewPill" onClick={revealPending}>
+        <button type="button" className={styles.feedNewPill} onClick={revealPending}>
           {pendingItems.length === 1
             ? "1 new pint. Tap to show"
             : `${pendingItems.length} new pints. Tap to show`}
@@ -828,28 +828,28 @@ export default function FeedPageClient({
       ) : null}
 
       {status === "loading" ? (
-        <div className="feedList" aria-hidden="true">
+        <div className={styles.feedList} aria-hidden="true">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="feedCard feedCardSkeleton">
-              <div className="feedSkelHead">
-                <span className="feedSkelAvatar" />
-                <span className="feedSkelLine feedSkelLineShort" />
+            <div key={i} className={`${styles.feedCard} ${styles.feedCardSkeleton}`}>
+              <div className={styles.feedSkelHead}>
+                <span className={styles.feedSkelAvatar} />
+                <span className={`${styles.feedSkelLine} ${styles.feedSkelLineShort}`} />
               </div>
-              <div className="feedSkelPhoto" />
-              <div className="feedSkelLine" />
-              <div className="feedSkelLine feedSkelLineShort" />
+              <div className={styles.feedSkelPhoto} />
+              <div className={styles.feedSkelLine} />
+              <div className={`${styles.feedSkelLine} ${styles.feedSkelLineShort}`} />
             </div>
           ))}
         </div>
       ) : isError ? (
         <div role="alert">
           <EmptyState
-            className="feedEmpty"
+            className={styles.feedEmpty}
             title="Couldn't load Stories."
             action={
               <button
                 type="button"
-                className="feedRetryBtn"
+                className={styles.feedRetryBtn}
                 onClick={() => setFetchTick((n) => n + 1)}
               >
                 Try again
@@ -861,7 +861,7 @@ export default function FeedPageClient({
         </div>
       ) : lotEmpty ? (
         <EmptyState
-          className="feedEmpty"
+          className={styles.feedEmpty}
           title="Your lot is quiet."
           action={<Link href="/social">Find your lot</Link>}
         >
@@ -878,7 +878,7 @@ export default function FeedPageClient({
         // The head already carries the Pint Drop door as the one primary, so
         // the empty state offers the other way in and nothing filled.
         <EmptyState
-          className="feedEmpty"
+          className={styles.feedEmpty}
           title="No pints logged yet tonight."
           action={<Link href="/moment">Share a Moment instead</Link>}
         >
@@ -887,7 +887,7 @@ export default function FeedPageClient({
         </EmptyState>
       ) : (
         <>
-          <div className="feedList">
+          <div className={styles.feedList}>
             {visible.map((item) => (
               <FeedCard
                 key={item.id}
@@ -899,23 +899,23 @@ export default function FeedPageClient({
             ))}
           </div>
           {nextCursor ? (
-            <div className="feedLoadMore">
+            <div className={styles.feedLoadMore}>
               {/* Sentinel the mobile IntersectionObserver watches. Zero-height,
                   aria-hidden — invisible to AT and keyboard users, who rely on the
                   button below. On desktop it simply never trips (observer unarmed). */}
-              <div ref={sentinelRef} className="feedSentinel" aria-hidden="true" />
+              <div ref={sentinelRef} className={styles.feedSentinel} aria-hidden="true" />
               <button
                 type="button"
-                className="feedLoadMoreBtn"
+                className={styles.feedLoadMoreBtn}
                 onClick={() => setPagesLoaded((n) => n + 1)}
               >
                 Load more pints
               </button>
             </div>
           ) : (
-            <div className="feedEndWrap">
-              <p className="feedEnd">You&rsquo;ve reached the bottom of the barrel.</p>
-              <Link href="/map?log=1" className="feedEndCta">Log your pint</Link>
+            <div className={styles.feedEndWrap}>
+              <p className={styles.feedEnd}>You&rsquo;ve reached the bottom of the barrel.</p>
+              <Link href="/map?log=1" className={styles.feedEndCta}>Log your pint</Link>
             </div>
           )}
           {/* Real drinkers lead; ambient sightings sit BELOW them as a quiet,

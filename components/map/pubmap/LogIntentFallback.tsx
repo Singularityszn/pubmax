@@ -5,6 +5,7 @@ import {
   type LogNearbyCandidate,
   type LogNearbyOriginSource,
 } from "@/lib/mapLogIntent";
+import btnStyles from '../addStopBtn.module.css';
 
 // Log-drop fallback panel: shown when a ?log= arrival can't auto-pick a venue.
 // Offers the nearby-pub list, a search action, and a "show all pubs" escape
@@ -95,11 +96,11 @@ export function LogIntentFallback({
         </ul>
       ) : null}
       <div className="logIntentActions">
-        <button type="button" className="addStopBtn" onClick={onFocusSearch}>
+        <button type="button" className={btnStyles.addStopBtn} onClick={onFocusSearch}>
           Search pubs
         </button>
         {filteredPubVenueCount === 0 ? (
-          <button type="button" className="addStopBtn" onClick={onResetFilters}>
+          <button type="button" className={btnStyles.addStopBtn} onClick={onResetFilters}>
             Show all pubs
           </button>
         ) : null}

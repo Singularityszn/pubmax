@@ -51,7 +51,7 @@ import {
 } from "@/lib/curatedCrawls";
 import { getRoutePack, routePackPrimaryCrawl } from "@/lib/routePacks";
 import NightAreaCoverage from "@/components/night/NightAreaCoverage";
-import "./discover.css";
+import styles from "./Discover.module.css";
 import "@/components/night/nightAreaCoverage.css";
 
 /** Discover Hungry chips → map with food filter + cuisine hint in the query. */
@@ -337,7 +337,7 @@ export function DiscoverBody({
   }, []);
 
   // Scroll entrance for leaderboard / tonight / then-vs-now / editorial rows
-  // (see [data-reveal] in discover.css). Reduced-motion users never get the
+  // (see [data-reveal] in Discover.module.css). Reduced-motion users never get the
   // opacity:0 starting state (that rule is behind prefers-reduced-motion).
   //
   // Sibling reveal: when any row/card in a table body, list, or editorial grid
@@ -400,7 +400,7 @@ export function DiscoverBody({
     return () => observer.disconnect();
   }, [entries, tonight, thenVsNow, heritageCards.length]);
 
-  // Arm the [data-reveal] hidden-by-default CSS (discover.css) only once the
+  // Arm the [data-reveal] hidden-by-default CSS (Discover.module.css) only once the
   // page has genuinely scrolled. Gating opacity:0 on scroll (not mount) keeps
   // one-shot full-document captures honest until the user actually moves.
   useEffect(() => {
@@ -439,7 +439,7 @@ export function DiscoverBody({
   return (
     <Root
       id={embedded ? undefined : "main"}
-      className={embedded ? "discoverPage discoverPageEmbedded" : "discoverPage"}
+      className={embedded ? `${styles.discoverPage} ${styles.discoverPageEmbedded}` : styles.discoverPage}
       ref={setRevealRoot}
     >
       {!embedded ? <SiteNav active="discover" /> : null}
@@ -450,7 +450,7 @@ export function DiscoverBody({
       {!embedded ? (
         <Screen
           as="section"
-          className="discoverHead"
+          className={styles.discoverHead}
           kicker="Discover"
           title="Pint prices, pub stories and routes worth walking."
           titleId="discover-title"
@@ -461,14 +461,14 @@ export function DiscoverBody({
           {/* Hub rule (docs/MOBILE_FLOW_SPEC.md, section 1): Tonight, Feed and
               Crawls have no tab of their own on mobile, so this page is their
               hub: every surface reachable in two taps from a tab. */}
-          <nav className="discoverHubRow" aria-label="More stories">
-            <Link href="/tonight" className="discoverHubLink">
+          <nav className={styles.discoverHubRow} aria-label="More stories">
+            <Link href="/tonight" className={styles.discoverHubLink}>
               What&rsquo;s on tonight
             </Link>
-            <Link prefetch={false} href="/social" className="discoverHubLink">
+            <Link prefetch={false} href="/social" className={styles.discoverHubLink}>
               Social
             </Link>
-            <Link href="/crawls" className="discoverHubLink">
+            <Link href="/crawls" className={styles.discoverHubLink}>
               Crawl stories
             </Link>
           </nav>
@@ -477,11 +477,11 @@ export function DiscoverBody({
 
       <NightAreaCoverage />
 
-      <section className="discoverSection" aria-labelledby="explore-title">
-        <h2 id="explore-title" className="discoverSectionTitle">
+      <section className={styles.discoverSection} aria-labelledby="explore-title">
+        <h2 id="explore-title" className={styles.discoverSectionTitle}>
           Choose your drink
         </h2>
-        <p className="discoverSectionDek">
+        <p className={styles.discoverSectionDek}>
           Each drink family has a map colour. Pick the family you want in hand. A cheap
           pint, a house red, a gin and tonic, or the low/no option for one more
           stop before the last train.
@@ -490,7 +490,7 @@ export function DiscoverBody({
           title=""
           hrefFor={(category) => exploreHref(category, preferredCity)}
           cardHint="Open on map"
-          className="discoverExplore"
+          className={styles.discoverExplore}
           extraItemsPosition="start"
           extraItems={
             <li
@@ -520,25 +520,25 @@ export function DiscoverBody({
         />
 
         <div
-          className="discoverBrandPanel"
+          className={styles.discoverBrandPanel}
           aria-labelledby="discover-brand-title"
         >
-          <div className="discoverBrandHead">
-            <h3 id="discover-brand-title" className="discoverBrandTitle">
+          <div className={styles.discoverBrandHead}>
+            <h3 id="discover-brand-title" className={styles.discoverBrandTitle}>
               Jump by brand
             </h3>
           </div>
-          <p className="discoverBrandDek">
+          <p className={styles.discoverBrandDek}>
             Open a drink family on the map, or jump by brand. Beer and wine
             have the best coverage today.
           </p>
-          <ul className="discoverBrandChips">
+          <ul className={styles.discoverBrandChips}>
             {JUMP_BY_BRAND_CATEGORIES.flatMap((category) =>
               brandsForCategory(category).map((brand) => (
                 <li key={`${category}-${brand.id}`}>
                   <Link
                     prefetch={false}
-                    className="discoverBrandChip"
+                    className={styles.discoverBrandChip}
                     href={exploreHref(category, preferredCity, brand.id)}
                   >
                     {brand.label}
@@ -550,24 +550,24 @@ export function DiscoverBody({
         </div>
       </section>
 
-      <section className="discoverSection" aria-labelledby="hungry-title">
-        <h2 id="hungry-title" className="discoverSectionTitle">
+      <section className={styles.discoverSection} aria-labelledby="hungry-title">
+        <h2 id="hungry-title" className={styles.discoverSectionTitle}>
           Hungry?
         </h2>
-        <p className="discoverSectionDek">
+        <p className={styles.discoverSectionDek}>
           Pubs that serve food. Light cuisine tags only, not full menus. Open
           the map already filtered, or jump to a plate style.
         </p>
-        <div className="discoverHungryRow">
-          <Link prefetch={false} className="discoverHungryCta" href={hungryMapHref}>
+        <div className={styles.discoverHungryRow}>
+          <Link prefetch={false} className={styles.discoverHungryCta} href={hungryMapHref}>
             Show pubs that serve food
           </Link>
-          <ul className="discoverCuisineChips" aria-label="Cuisine filters">
+          <ul className={styles.discoverCuisineChips} aria-label="Cuisine filters">
             {DISCOVER_CUISINE_CHIPS.map((tag) => (
               <li key={tag}>
                 <Link
                   prefetch={false}
-                  className="discoverCuisineChip"
+                  className={styles.discoverCuisineChip}
                   href={hungryCuisineHref(tag, preferredCity)}
                 >
                   {tag}
@@ -580,18 +580,18 @@ export function DiscoverBody({
 
       <section
         ref={analysisRef}
-        className="discoverSection"
+        className={styles.discoverSection}
         aria-labelledby="rivalry-title"
       >
-        <h2 id="rivalry-title" className="discoverSectionTitle">
+        <h2 id="rivalry-title" className={styles.discoverSectionTitle}>
           UK city energy
         </h2>
-        <p className="discoverSectionDek">
+        <p className={styles.discoverSectionDek}>
           Cities ranked on Pint Drops, crawl packs, and how much ground we
           cover. Open a map and add to your
           city&rsquo;s tally.
         </p>
-        <p className="discoverSectionNote">
+        <p className={styles.discoverSectionNote}>
           Seeded only where we&rsquo;ve got demo data.
         </p>
         <CityRivalryTable entries={rivalry} />
@@ -603,36 +603,36 @@ export function DiscoverBody({
           Lazy-load target stays on UK city energy above (always mounted). */}
       {status === "error" || status === "idle" || status === "loading" || tonight.length > 0 ? (
         <section
-          className="discoverSection"
+          className={styles.discoverSection}
           aria-labelledby="tonight-title"
         >
-          <h2 id="tonight-title" className="discoverSectionTitle">
+          <h2 id="tonight-title" className={styles.discoverSectionTitle}>
             Recently logged cheap pints
           </h2>
-          <p className="discoverSectionDek">
+          <p className={styles.discoverSectionDek}>
             Community prices logged in the last 24 hours, cheapest first.
           </p>
           {status === "idle" ? (
-            <p className="discoverEmpty" role="status">
+            <p className={styles.discoverEmpty} role="status">
               Tonight&rsquo;s prices load as you reach the rankings.
             </p>
           ) : status === "loading" ? (
             <>
-              <span className="srOnly" role="status">
+              <span className={styles.srOnly} role="status">
                 Loading tonight&rsquo;s prices…
               </span>
-              <div className="discoverSkelList" aria-hidden="true">
+              <div className={styles.discoverSkelList} aria-hidden="true">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="discoverSkelRow">
-                    <span className="discoverSkelRank" />
-                    <span className="discoverSkelLine" />
-                    <span className="discoverSkelPrice" />
+                  <div key={i} className={styles.discoverSkelRow}>
+                    <span className={styles.discoverSkelRank} />
+                    <span className={styles.discoverSkelLine} />
+                    <span className={styles.discoverSkelPrice} />
                   </div>
                 ))}
               </div>
             </>
           ) : status === "error" ? (
-            <p className="discoverEmpty" role="status">
+            <p className={styles.discoverEmpty} role="status">
               Couldn&rsquo;t load tonight&rsquo;s prices just now.{" "}
               <Link prefetch={false} href={openMapHref}>Open the map</Link>{" "}
               instead.
@@ -655,24 +655,24 @@ export function DiscoverBody({
           section (no permanent "Counting…" / empty shell). Loading still shows
           a short status so the layout does not jump when data is on the way. */}
       {status === "error" || status === "idle" || status === "loading" || entries.length > 0 ? (
-        <section className="discoverSection" aria-labelledby="cheap-title">
-          <h2 id="cheap-title" className="discoverSectionTitle">
+        <section className={styles.discoverSection} aria-labelledby="cheap-title">
+          <h2 id="cheap-title" className={styles.discoverSectionTitle}>
             Cheap Pint Leaderboard
           </h2>
-          <p className="discoverSectionDek">
+          <p className={styles.discoverSectionDek}>
             Lowest listed pint prices, separate from the recently logged
             prices above. Open a pub to see how fresh its number is.
           </p>
           {status === "idle" ? (
-            <p className="discoverEmpty" role="status">
+            <p className={styles.discoverEmpty} role="status">
               The cheap pint table loads when you reach the rankings.
             </p>
           ) : status === "loading" ? (
-            <p className="discoverEmpty" role="status">
+            <p className={styles.discoverEmpty} role="status">
               Counting the cheapest pints…
             </p>
           ) : status === "error" ? (
-            <p className="discoverEmpty" role="status">
+            <p className={styles.discoverEmpty} role="status">
               Couldn&rsquo;t load the leaderboard just now.{" "}
               <Link prefetch={false} href={openMapHref}>Open the map</Link>{" "}
               instead.
@@ -684,33 +684,33 @@ export function DiscoverBody({
       ) : null}
 
       {status === "error" || status === "idle" || status === "loading" || thenVsNow.length > 0 ? (
-        <section className="discoverSection" aria-labelledby="thenVsNow-title">
-          <h2 id="thenVsNow-title" className="discoverSectionTitle">
+        <section className={styles.discoverSection} aria-labelledby="thenVsNow-title">
+          <h2 id="thenVsNow-title" className={styles.discoverSectionTitle}>
             Then vs Now
           </h2>
-          <p className="discoverSectionDek">
+          <p className={styles.discoverSectionDek}>
             Latest community-reported pint against the earlier price on
             record. The biggest movers first.
           </p>
-          <p className="discoverSectionNote">
+          <p className={styles.discoverSectionNote}>
             Then is the price on record. Now is the latest one someone logged.
           </p>
           {status === "idle" ? (
-            <p className="discoverEmpty" role="status">
+            <p className={styles.discoverEmpty} role="status">
               Price comparisons load when you reach the rankings.
             </p>
           ) : status === "loading" ? (
-            <p className="discoverEmpty" role="status">
+            <p className={styles.discoverEmpty} role="status">
               Comparing earlier prices…
             </p>
           ) : status === "error" ? (
-            <p className="discoverEmpty" role="status">
+            <p className={styles.discoverEmpty} role="status">
               Couldn&rsquo;t load price comparisons just now.{" "}
               <Link prefetch={false} href={openMapHref}>Open the map</Link>{" "}
               instead.
             </p>
           ) : (
-            <div className="tvnGrid">
+            <div className={styles.tvnGrid}>
               {thenVsNow.map((item) => (
                 <ThenVsNowCard key={item.venueId} item={item} />
               ))}
@@ -719,11 +719,11 @@ export function DiscoverBody({
         </section>
       ) : null}
 
-      <section className="discoverSection" aria-labelledby="editorial-title">
-        <h2 id="editorial-title" className="discoverSectionTitle">
+      <section className={styles.discoverSection} aria-labelledby="editorial-title">
+        <h2 id="editorial-title" className={styles.discoverSectionTitle}>
           Ways to drink through the city
         </h2>
-        <div className="editorialGrid">
+        <div className={styles.editorialGrid}>
           {editorial.map((card) => (
             <EditorialCard key={card.id} {...card} />
           ))}
@@ -731,18 +731,18 @@ export function DiscoverBody({
       </section>
 
       {heritageCards.length > 0 && (
-        <section className="discoverSection" aria-labelledby="heritage-title">
-          <h2 id="heritage-title" className="discoverSectionTitle">
+        <section className={styles.discoverSection} aria-labelledby="heritage-title">
+          <h2 id="heritage-title" className={styles.discoverSectionTitle}>
             Historic London
           </h2>
-          <p className="discoverSectionDek">
+          <p className={styles.discoverSectionDek}>
             Themed heritage routes built from the pubs&rsquo; cited histories.
             Oldest first, the riverside taverns, and the highly listed classics.
           </p>
-          <p className="discoverSectionNote">
+          <p className={styles.discoverSectionNote}>
             Cited from Wikipedia.
           </p>
-          <div className="editorialGrid">
+          <div className={styles.editorialGrid}>
             {heritageCards.map((card) => (
               <EditorialCard key={card.id} {...card} />
             ))}

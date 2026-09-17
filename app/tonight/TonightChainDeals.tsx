@@ -14,6 +14,9 @@ import {
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel, laneTimeLabel } from "@/lib/whatsOnBadges";
 
+import tonightStyles from "./Tonight.module.css";
+import ledeStyles from "./TonightLede.module.css";
+
 /**
  * The chain blocks, under the lede.
  *
@@ -37,7 +40,7 @@ export default function TonightChainDeals({
   const lanes = tonightChainLaneAnswers(rows);
   if (lanes.length === 0) return null;
   return (
-    <div className="tonightChains" data-testid="tonight-chain-lanes">
+    <div className={tonightStyles.tonightChains} data-testid="tonight-chain-lanes">
       {lanes.map((lane) => (
         <ChainLane key={lane.key} lane={lane} selectableVenueIds={selectableVenueIds} />
       ))}
@@ -57,15 +60,15 @@ function ChainLane({
   const lead = groups.slice(0, TONIGHT_CHAIN_LANE_VISIBLE);
   const rest = groups.slice(TONIGHT_CHAIN_LANE_VISIBLE);
   return (
-    <section className="tonightChain" aria-labelledby={titleId} data-lane={lane.key}>
-      <h2 className="tonightChainTitle" id={titleId}>
+    <section className={ledeStyles.tonightChain} aria-labelledby={titleId} data-lane={lane.key}>
+      <h2 className={ledeStyles.tonightChainTitle} id={titleId}>
         {lane.title}
       </h2>
-      <p className="tonightChainCredit">
+      <p className={ledeStyles.tonightChainCredit}>
         <span>{lane.sourceLabel}</span>
         <span className="tonightChainChecked">{checkedLabel(lane.observedAt)}</span>
       </p>
-      <ul className="tonightChainList">
+      <ul className={ledeStyles.tonightChainList}>
         {lead.map((group) => (
           <ChainRow
             key={group.row.id}
@@ -75,12 +78,12 @@ function ChainLane({
         ))}
       </ul>
       {rest.length > 0 ? (
-        <details className="tonightChainMore">
-          <summary className="tonightChainMoreToggle">
-            <ChevronDown size={14} aria-hidden="true" className="tonightChainMoreChevron" />
+        <details className={ledeStyles.tonightChainMore}>
+          <summary className={ledeStyles.tonightChainMoreToggle}>
+            <ChevronDown size={14} aria-hidden="true" className={ledeStyles.tonightChainMoreChevron} />
             {rest.length === 1 ? "One more offer" : `${rest.length} more offers`}
           </summary>
-          <ul className="tonightChainList">
+          <ul className={ledeStyles.tonightChainList}>
             {rest.map((group) => (
               <ChainRow
                 key={group.row.id}
@@ -110,15 +113,15 @@ function ChainRow({
       ? `/map?sel=${encodeURIComponent(row.venueId)}`
       : null;
   return (
-    <li className="tonightChainRow" data-testid="tonight-chain-row">
-      <p className="tonightChainRowTitle">{row.title}</p>
-      <p className="tonightChainRowPlace">
+    <li className={ledeStyles.tonightChainRow} data-testid="tonight-chain-row">
+      <p className={ledeStyles.tonightChainRowTitle}>{row.title}</p>
+      <p className={ledeStyles.tonightChainRowPlace}>
         <span>{row.placeName}</span>
         {when ? <span className="tonightChainRowWhen">{when}</span> : null}
       </p>
       {alsoAt ? <p className="tonightChainRowAlso">{alsoAt}</p> : null}
       {mapHref ? (
-        <Link prefetch={false} className="tonightChainRowMap pressable" href={mapHref}>
+        <Link prefetch={false} className={`${ledeStyles.tonightChainRowMap} pressable`} href={mapHref}>
           Open on map
           <ArrowRight size={13} aria-hidden="true" />
         </Link>

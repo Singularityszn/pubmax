@@ -134,9 +134,9 @@ describe("a profile photo input asks for a photo, never for a camera", () => {
 });
 
 describe("a hidden input is still one iOS will open", () => {
-  const css = read("app/u/[handle]/profile.css");
+  const css = read("app/u/[handle]/Profile.module.css");
   const rule = css.slice(
-    css.indexOf(".profilePage .profileEditor input.profileEditorAvatarFile {"),
+    css.indexOf(".profilePage :global(.profileEditor) :global(input.profileEditorAvatarFile) {"),
   ).split("}")[0];
 
   it("hides the input without taking it out of the layout", () => {

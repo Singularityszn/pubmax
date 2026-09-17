@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import LandingPhoto from "@/components/landing/LandingPhoto";
 import Screen from "@/components/ui/screen";
 import type { ResolvedLandingPhoto } from "@/lib/landingImagery";
+import styles from "./[slug]/Borough.module.css";
 
 // The head both borough surfaces share (docs/design/LAUNCH_SCREENS.md): the
 // map door is the one primary action and "Find my pint" is the quiet way
@@ -54,7 +55,7 @@ export default function BoroughScreen({
           variant="band"
           sizes="(max-width: 1100px) 100vw, 1040px"
           priority
-          className="boroughPhoto"
+          className={styles.boroughPhoto}
         />
       ) : null}
       {children}
