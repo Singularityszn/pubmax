@@ -227,13 +227,13 @@ describe("VenueAreaPriceCompare component", () => {
     await vi.waitFor(() => {
       expect(
         findElement(container, (element) =>
-          (element.getAttribute("class") ?? "").split(/\s+/).includes("venueAreaPriceCompare"),
+          (element.getAttribute("class") ?? "").includes("venueAreaPriceCompare"),
         ),
       ).not.toBeNull();
     });
 
     const line = findElement(container, (element) =>
-      (element.getAttribute("class") ?? "").split(/\s+/).includes("venueAreaPriceCompare"),
+      (element.getAttribute("class") ?? "").includes("venueAreaPriceCompare"),
     );
     expect(elementText(line!)).toBe("£5.40 here. Camden average £6.10.");
   });
@@ -257,7 +257,7 @@ describe("VenueAreaPriceCompare component", () => {
 
     expect(
       findElement(container, (element) =>
-        (element.getAttribute("class") ?? "").split(/\s+/).includes("venueAreaPriceCompare"),
+        (element.getAttribute("class") ?? "").includes("venueAreaPriceCompare"),
       ),
     ).toBeNull();
   });
@@ -297,7 +297,7 @@ describe("VenueAreaPriceCompare component", () => {
 
     expect(
       findElement(container, (element) =>
-        (element.getAttribute("class") ?? "").split(/\s+/).includes("venueAreaPriceCompare"),
+        (element.getAttribute("class") ?? "").includes("venueAreaPriceCompare"),
       ),
     ).toBeNull();
 
@@ -308,7 +308,7 @@ describe("VenueAreaPriceCompare component", () => {
     await vi.waitFor(() => {
       expect(
         findElement(container, (element) =>
-          (element.getAttribute("class") ?? "").split(/\s+/).includes("venueAreaPriceCompare"),
+          (element.getAttribute("class") ?? "").includes("venueAreaPriceCompare"),
         ),
       ).not.toBeNull();
     });

@@ -55,8 +55,8 @@ describe("Night-crawl surface conformance (U7)", () => {
     // "We are here". The surface is fixed and full-screen, so both step aside
     // for it the way they do for a venue sheet. e2e/night-mode-chrome.spec.ts
     // proves the rendered taps.
-    const barRule = navCss.match(/body:has\(\.nightCrawl\) \.mobileTabBar\s*{([^}]*)}/)?.[1]
-      ?? navCss.match(/[^}]*body:has\(\.nightCrawl\) \.mobileTabBar[^{]*{([^}]*)}/)?.[1]
+    const barRule = navCss.match(/:global\(body:has\(\.nightCrawl\)\) \.mobileTabBar\s*{([^}]*)}/)?.[1]
+      ?? navCss.match(/body:has\(\.nightCrawl\) \.mobileTabBar\s*{([^}]*)}/)?.[1]
       ?? "";
     expect(barRule).toMatch(/pointer-events:\s*none/);
     expect(barRule).toMatch(/transform:\s*translateY\(110%\)/);

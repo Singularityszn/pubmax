@@ -101,7 +101,7 @@ describe("the phone shows the near me failure", () => {
   });
 
   it("announces it, the same as the desktop rail does", () => {
-    expect(mobileShell).toContain('<div className="mobileMapNearMeAlert" role="alert">');
+    expect(mobileShell).toContain('className={styles.mobileMapNearMeAlert} role="alert"');
     expect(mobileShell).toContain("{nearMeError}");
     expect(read("components/map/ControlRail.tsx")).toContain('role="alert"');
   });
@@ -138,7 +138,7 @@ describe("the phone shows the near me failure", () => {
   it("stays out of the chrome grid, which the phone keeps at one bar", () => {
     // The chrome is ONE bar (design judgement 2026-08-01, finding 2.3), so a
     // row added inside it would put the reader back in front of a stack.
-    const start = mobileShell.lastIndexOf('<div className="mobileMapChrome"');
+    const start = mobileShell.lastIndexOf('<div className={styles.mobileMapChrome}');
     const end = mobileShell.indexOf("\n      </div>", start);
     expect(start, "the map chrome container").toBeGreaterThan(-1);
     expect(end, "its closing tag").toBeGreaterThan(start);

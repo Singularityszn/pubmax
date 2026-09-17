@@ -14,6 +14,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import LandmarkHeroPhoto from "@/components/LandmarkHeroPhoto";
+import heroStyles from "@/components/landmarkHeroPhoto.module.css";
 
 const IMAGE = {
   url: "https://commons.wikimedia.org/wiki/Special:FilePath/Example.jpg?width=800",
@@ -54,7 +55,7 @@ describe("LandmarkHeroPhoto", () => {
     expect(img?.getAttribute("src")).toBe(IMAGE.url);
     expect(img?.getAttribute("alt")).toBe("Covent Garden");
     expect(container.querySelector("figcaption")?.textContent).toContain("Somebody");
-    expect(container.querySelector(".landmarkHeroFallback")).toBeNull();
+    expect(container.querySelector(`.${heroStyles.landmarkHeroFallback}`)).toBeNull();
   });
 
   it("swaps a failed photo for the brand treatment and drops the credit", () => {
@@ -74,7 +75,7 @@ describe("LandmarkHeroPhoto", () => {
     });
     expect(container.querySelector("img")).toBeNull();
     expect(container.querySelector("figcaption")).toBeNull();
-    const fallback = container.querySelector(".landmarkHeroFallback");
+    const fallback = container.querySelector(`.${heroStyles.landmarkHeroFallback}`);
     expect(fallback).not.toBeNull();
     // The caller's geometry class survives, so the box does not jump.
     expect(fallback?.classList.contains("landmarkPhoto")).toBe(true);
@@ -92,6 +93,6 @@ describe("LandmarkHeroPhoto", () => {
       );
     });
     expect(container.querySelector("img")).toBeNull();
-    expect(container.querySelector(".landmarkHeroFallback")).not.toBeNull();
+    expect(container.querySelector(`.${heroStyles.landmarkHeroFallback}`)).not.toBeNull();
   });
 });

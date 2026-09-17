@@ -42,7 +42,7 @@ describe("ContributionLanesCard", () => {
       }),
     );
 
-    expect(html).toContain('class="contribStatLabel">visit reports</span>');
+    expect(html).toMatch(/class="[^"]*contribStatLabel[^"]*">visit reports<\/span>/);
     expect(html).not.toContain("No prices, visit reports, or recommendations yet");
   });
 

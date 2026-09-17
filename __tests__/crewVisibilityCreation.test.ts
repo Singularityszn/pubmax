@@ -19,6 +19,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch }));
 
 import CrewsPanel from "@/components/social/CrewsPanel";
+import styles from "@/components/social/crews.module.css";
 import { CREW_VISIBILITY_LABEL } from "@/lib/socialCrewsUi";
 import { SOCIAL_CREW_VISIBILITIES } from "@/lib/socialCrew";
 
@@ -119,7 +120,7 @@ describe("crew visibility creation", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    const venueButton = container.querySelector<HTMLButtonElement>(".crewsVenueOption");
+    const venueButton = container.querySelector<HTMLButtonElement>(`.${styles.crewsVenueOption}`);
     expect(venueButton).toBeTruthy();
     await act(async () => venueButton?.click());
 

@@ -144,7 +144,7 @@ describe("core UI audit fixes", () => {
     // No card behind the document here, so the quiet receipt door is the plain
     // one; __tests__/landingFindMyPintHierarchy.test.ts pins the card case.
     const rendered = renderToStaticMarkup(createElement(LandingPage));
-    const hero = rendered.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0];
+    const hero = rendered.match(/<section class="screen [^"]*lpHero[^"]*"[\s\S]*?<\/section>/)?.[0];
     expect(hero, "landing hero present").toBeTruthy();
     expect(hero).toMatch(
       /data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/,
@@ -154,7 +154,7 @@ describe("core UI audit fixes", () => {
   });
 
   it("publishes the complete PUBMAXX brand to assistive technology", () => {
-    expect(wordmark).toMatch(/className=\{`pubmaxxWordmark[\s\S]*?role="img"/);
+    expect(wordmark).toMatch(/className=\{`\$\{styles\.pubmaxxWordmark\}[\s\S]*?role="img"/);
     expect(wordmark).toMatch(/aria-label=\{BRAND_NAME\}/);
   });
 

@@ -179,9 +179,9 @@ describe("Social viewer surfaces", () => {
       "Sign in to use Social.",
     );
     expect(host.querySelectorAll('a[href*="/login"]')).toHaveLength(1);
-    expect(host.querySelectorAll(".starterPacksCard")).toHaveLength(1);
-    expect(host.querySelectorAll(".starterPacksFollow")).toHaveLength(0);
-    expect(host.querySelectorAll(".starterPacksCard button")).toHaveLength(0);
+    expect(host.querySelectorAll('[class*="starterPacksCard"]')).toHaveLength(1);
+    expect(host.querySelectorAll('[class*="starterPacksFollow"]')).toHaveLength(0);
+    expect(host.querySelectorAll('[class*="starterPacksCard"] button')).toHaveLength(0);
     expect(host.querySelectorAll("[data-viewer-card]")).toHaveLength(0);
     expect(transport.authedActionFetch).toHaveBeenCalledWith(
       "/api/starter-packs",

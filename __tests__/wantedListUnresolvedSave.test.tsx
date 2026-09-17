@@ -110,14 +110,14 @@ describe("Wanted saves crossing auth settlement", () => {
       paste.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
-    const findButton = container.querySelector<HTMLButtonElement>("button.wantedCaptureSubmit");
+    const findButton = container.querySelector<HTMLButtonElement>('button[class*="wantedCaptureSubmit"]');
     expect(findButton?.disabled).toBe(false);
     await act(async () => {
       findButton?.click();
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     });
 
-    const candidate = container.querySelector<HTMLButtonElement>(".wantedCandidate");
+    const candidate = container.querySelector<HTMLButtonElement>('[class*="wantedCandidate"]');
     expect(candidate).not.toBeNull();
     await act(async () => {
       candidate?.click();

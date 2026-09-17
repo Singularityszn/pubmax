@@ -57,7 +57,7 @@ function renderSheet(
 function rowsBeforePicker(html: string): number {
   const picker = html.indexOf("Go somewhere else");
   expect(picker).toBeGreaterThan(-1);
-  return html.slice(0, picker).split('class="areaSheetPub"').length - 1;
+  return html.slice(0, picker).split(/class="[^"]*?areaSheetPub[_"]/).length - 1;
 }
 
 describe("Area sheet: the picker is reachable", () => {
@@ -70,8 +70,8 @@ describe("Area sheet: the picker is reachable", () => {
 
   it("keeps the picker's first choice ahead of the whole price list", () => {
     const html = renderSheet();
-    const firstArea = html.indexOf('class="areaSheetChip');
-    const lastRow = html.lastIndexOf('class="areaSheetPub"');
+    const firstArea = html.search(/class="[^"]*areaSheetChip[_"]/);
+    const lastRow = [...html.matchAll(/class="[^"]*?areaSheetPub[_"]/g)].pop()?.index ?? -1;
     expect(firstArea).toBeGreaterThan(-1);
     expect(firstArea).toBeGreaterThan(lastRow);
     // ...and every one of the twenty choices is below one short lead, so the
@@ -108,7 +108,7 @@ describe("Area sheet: the location action", () => {
     const onUseMyLocation = vi.fn();
     const html = renderSheet({ onUseMyLocation });
     const locate = html.indexOf("Use my location");
-    const firstArea = html.indexOf('class="areaSheetChip');
+    const firstArea = html.search(/class="[^"]*areaSheetChip[_"]/);
     expect(locate).toBeGreaterThan(-1);
     expect(locate).toBeLessThan(firstArea);
   });
@@ -117,7 +117,7 @@ describe("Area sheet: the location action", () => {
     const html = renderSheet({ onUseMyLocation: vi.fn(), locationBusy: true });
     expect(html).toContain("Locating");
     expect(html).not.toContain("Use my location");
-    expect(html).toMatch(/class="areaSheetLocate"[^>]*disabled/);
+    expect(html).toMatch(/class="[^"]*areaSheetLocate[^"]*"[^>]*disabled/);
   });
 
   it("offers nothing when the host has no location path to hand it", () => {
@@ -132,7 +132,7 @@ describe("Area sheet: the location action", () => {
     expect(html).toContain(denied);
     // That sentence tells the reader to pick an area. The picker has to be the
     // next thing under it, or the advice points at nothing.
-    expect(html.indexOf(denied)).toBeLessThan(html.indexOf('class="areaSheetChip'));
+    expect(html.indexOf(denied)).toBeLessThan(html.search(/class="[^"]*areaSheetChip[_"]/));
   });
 
   it("keeps a stale reason off a sheet that cannot locate at all", () => {

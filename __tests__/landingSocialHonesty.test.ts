@@ -38,7 +38,7 @@ function socialLinks(html: string): string[] {
 }
 
 function landingNav(html: string): string {
-  return html.match(/<nav class="lpPrimaryNav"[^>]*>[\s\S]*?<\/nav>/)?.[0] ?? "";
+  return html.match(/<nav class="_lpPrimaryNav_[^"]*"[^>]*>[\s\S]*?<\/nav>/)?.[0] ?? "";
 }
 
 describe("landing social honesty", () => {

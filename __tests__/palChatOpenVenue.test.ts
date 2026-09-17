@@ -94,7 +94,7 @@ afterEach(async () => {
 
 describe("Pal venue card navigation", () => {
   it("routes a card press through the router and keeps tap analytics", async () => {
-    const input = container.querySelector<HTMLInputElement>('.palChatInput');
+    const input = container.querySelector<HTMLInputElement>('[class*="palChatInput"]');
     const form = container.querySelector<HTMLFormElement>("form");
     if (!input || !form) throw new Error("Pal chat form not found");
 
@@ -108,7 +108,7 @@ describe("Pal venue card navigation", () => {
       form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     });
 
-    const venueLink = container.querySelector<HTMLAnchorElement>(".palChatCardBody--link");
+    const venueLink = container.querySelector<HTMLAnchorElement>('[class*="palChatCardBodyLink"]');
     if (!venueLink) throw new Error("Pal venue card link not found");
     await act(async () => venueLink.click());
 
@@ -121,7 +121,7 @@ describe("Pal venue card navigation", () => {
       ...answer,
       cards: [{ ...answer.cards[0], key: "venue-unknown", venueId: "venue-unknown" }],
     };
-    const input = container.querySelector<HTMLInputElement>('.palChatInput');
+    const input = container.querySelector<HTMLInputElement>('[class*="palChatInput"]');
     const form = container.querySelector<HTMLFormElement>("form");
     if (!input || !form) throw new Error("Pal chat form not found");
 
@@ -135,7 +135,7 @@ describe("Pal venue card navigation", () => {
       form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     });
 
-    const venueLink = container.querySelector<HTMLAnchorElement>(".palChatCardBody--link");
+    const venueLink = container.querySelector<HTMLAnchorElement>('[class*="palChatCardBodyLink"]');
     if (!venueLink) throw new Error("Pal venue card link not found");
     expect(venueLink.getAttribute("href")).toBe("/map?mapNotice=unknown");
     await act(async () => {

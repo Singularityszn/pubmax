@@ -30,10 +30,10 @@ describe("FeedSightings", () => {
     expect(html).toContain("Hawk Ridge White IPA with a deliberately long name");
     expect(html).toContain("greeneking.co.uk");
 
-    const drink = html.indexOf('class="feedSightingDrink"');
-    const price = html.indexOf("feedSightingPrice");
-    const venue = html.indexOf('class="feedSightingVenue"');
-    const source = html.indexOf('class="feedSightingSource"');
+    const drink = html.search(/class="[^"]*feedSightingDrink[^"]*"/);
+    const price = html.search(/feedSightingPrice/);
+    const venue = html.search(/class="[^"]*feedSightingVenue[^"]*"/);
+    const source = html.search(/class="[^"]*feedSightingSource[^"]*"/);
     expect(drink).toBeGreaterThan(-1);
     expect(drink).toBeLessThan(price);
     expect(price).toBeLessThan(venue);
@@ -68,9 +68,9 @@ describe("FeedSightings", () => {
     );
 
     expect(primary).toContain("No pints logged here yet tonight");
-    expect(primary).toContain('class="feedSightingsLede"');
+    expect(primary).toMatch(/class="[^"]*feedSightingsLede[^"]*"/);
     // The strip sits below real drops, which already answer the question.
-    expect(strip).not.toContain('class="feedSightingsLede"');
+    expect(strip).not.toMatch(/feedSightingsLede/);
   });
 
   it("names the section with one id in both variants", () => {

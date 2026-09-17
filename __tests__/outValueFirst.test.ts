@@ -135,7 +135,7 @@ describe("an empty rail speaks to a drinker", () => {
 describe("the venue badge wears our own mark", () => {
   it("renders coral arms and a bright ember in the venue badge", () => {
     const host = renderedPubPair();
-    const mark = host.querySelector("svg.pubmaxxMark");
+    const mark = host.querySelector('svg[class*="pubmaxxMark"]');
     expect(mark).not.toBeNull();
     const fills = mark
       ? [...mark.querySelectorAll("polygon, circle")].map((shape) =>

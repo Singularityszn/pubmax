@@ -161,7 +161,7 @@ describe("occupancy venue surface", () => {
     };
 
     const html = render({ revealRecord: true });
-    expect(html).toContain('class="venueOccupancyReading venueRevealRecord"');
+    expect(html).toMatch(/class="[^"]*venueOccupancyReading[^"]* venueRevealRecord"/);
     expect(html).toContain('data-reveal-delay="2"');
   });
 
@@ -177,7 +177,7 @@ describe("occupancy venue surface", () => {
     };
 
     const html = render({ revealRecord: true, revealRecordLate: true });
-    expect(html).toContain('class="venueOccupancyReading venueRevealRecord"');
+    expect(html).toMatch(/class="[^"]*venueOccupancyReading[^"]* venueRevealRecord"/);
     expect(html).not.toContain('data-reveal-delay="2"');
   });
 

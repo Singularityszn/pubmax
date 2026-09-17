@@ -266,7 +266,7 @@ describe("DealsTonightLane", () => {
         now: NOW,
       }),
     );
-    expect(html).toContain('class="dealsTonightEnds">Ends 9:00 pm</span>');
+    expect(html).toMatch(/class="[^"]*dealsTonightEnds[^"]*">Ends 9:00 pm<\/span>/);
   });
 
   it("states a stale listing's age beside the card", () => {
@@ -336,7 +336,7 @@ describe("DealsTonightLane", () => {
       }),
     );
     expect(html).toContain("Doorstep deal");
-    expect(html.match(/class="dealsTonightCard"/g)).toHaveLength(8);
+    expect(html.match(/class="[^"]*dealsTonightCard_[^"]*"/g)).toHaveLength(8);
   });
 
   it("orders its cards nearest patch first, then closing soonest", () => {

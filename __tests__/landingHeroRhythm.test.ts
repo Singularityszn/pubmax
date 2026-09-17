@@ -85,37 +85,37 @@ describe("landing hero rhythm", () => {
       '<p class="kicker">PUBMAXX</p>',
       '<h1 class="screenTitle" id="hero-title">What a pint costs, pub by pub.</h1>',
       '<p class="screenLede">',
-      'class="lpMapFigure"',
+      'class="_lpMapFigure_',
       'data-primary-action=""',
       'class="screenSecondary"',
       // The card carries its photograph class too (lib/landingImagery.ts), so
       // the needle is the stable prefix rather than the whole attribute.
-      'class="lpPubCard lpAnswerCard',
-      'class="lpRail"',
+      'class="_lpPubCard_',
+      'class="_lpRail_',
     ]);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
   it("carries exactly one lede, and it describes the picture above it", () => {
-    const hero = html.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
+    const hero = html.match(/<section class="screen _lpHero_[^"]*"[\s\S]*?<\/section>/)?.[0] ?? "";
     expect(hero.match(/class="screenLede"/g)).toHaveLength(1);
     expect(hero).toMatch(/<p class="screenLede">London on one map, with \d+ historic pubs marked/);
     expect(hero.match(/<p class="kicker">/g)).toHaveLength(1);
   });
 
   it("prints every rail row as its own Pint Drop door, with a price stamp and no borough the heading already names", () => {
-    expect(html).toMatch(/<h2 class="lpRailTitle" id="lp-rail-title">Cheapest listed in City of London<\/h2>/);
-    expect(html.match(/class="lpRailRow"/g)).toHaveLength(3);
+    expect(html).toMatch(/<h2 class="_lpRailTitle_[^"]*" id="lp-rail-title">Cheapest listed in City of London<\/h2>/);
+    expect(html.match(/class="_lpRailRow_[^"]*"/g)).toHaveLength(3);
     expect(html).toContain('href="/map?sel=venue-1&amp;log=1&amp;price=2.99"');
-    expect(html).not.toMatch(/lpRailMeta">City of London/);
+    expect(html).not.toMatch(/_lpRailMeta_[^"]*">City of London/);
   });
 
   it("renders no card and no rail when the data cannot back them", () => {
     const bare = renderToStaticMarkup(createElement(LandingPage));
-    expect(bare).not.toContain("lpPubCard");
-    expect(bare).not.toContain("lpRail");
+    expect(bare).not.toMatch(/_lpPubCard_/);
+    expect(bare).not.toMatch(/_lpRail_/);
     // The picture is the document's own, so it stands with or without a pub.
-    expect(bare).toContain("lpMapFigure");
+    expect(bare).toMatch(/_lpMapFigure_/);
     expect(bare).toContain('<h1 class="screenTitle" id="hero-title">What a pint costs, pub by pub.</h1>');
   });
 });

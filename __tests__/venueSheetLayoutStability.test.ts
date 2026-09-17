@@ -45,13 +45,13 @@ describe("the entrance moves the sheet, never the layout", () => {
       /@keyframes mobileSheetRise\s*{\s*from\s*{\s*transform:\s*translateY\(100%\);\s*}\s*to\s*{\s*transform:\s*translateY\(0\);\s*}\s*}/,
     );
     expect(shellCss).toMatch(
-      /\.mobileSharedSheet\.mapDrawer\.sheet-entering\s*{[^}]*animation:\s*mobileSheetRise/,
+      /\.mobileSharedSheet:global\(\.mapDrawer\.sheet-entering\)\s*{[^}]*animation:\s*mobileSheetRise/,
     );
   });
 
   it("spends the one duration lib/sheetSnap.ts owns", () => {
     const rule = shellCss.match(
-      /\.mobileSharedSheet\.mapDrawer\.sheet-entering\s*{[^}]*}/,
+      /\.mobileSharedSheet:global\(\.mapDrawer\.sheet-entering\)\s*{[^}]*}/,
     )?.[0];
     expect(rule).toBeTruthy();
     expect(rule).toContain(`mobileSheetRise ${SHEET_ENTRANCE_MS}ms`);
@@ -59,7 +59,7 @@ describe("the entrance moves the sheet, never the layout", () => {
 
   it("stands the animation down under reduced motion", () => {
     expect(shellCss).toMatch(
-      /@media \(prefers-reduced-motion: reduce\)\s*{\s*\.mobileSharedSheet\.mapDrawer\.sheet-entering\s*{\s*animation:\s*none;\s*}\s*}/,
+      /@media \(prefers-reduced-motion: reduce\)\s*{\s*\.mobileSharedSheet:global\(\.mapDrawer\.sheet-entering\)\s*{\s*animation:\s*none;\s*}\s*}/,
     );
   });
 
@@ -91,13 +91,13 @@ describe("the loading panel reserves the sheet", () => {
 
   it("asks for more than the largest snap so the sheet sits at its cap", () => {
     expect(shellCss).toMatch(
-      /\.mobileSharedSheet \.venueSheetSkeleton\s*{\s*min-height:\s*92dvh;\s*}/,
+      /\.mobileSharedSheet :global\(\.venueSheetSkeleton\)\s*{\s*min-height:\s*92dvh;\s*}/,
     );
   });
 
   it("draws one skeleton when both waits overlap", () => {
     expect(shellCss).toMatch(
-      /\.mobileSharedSheet \.venueSheetSkeleton \+ \.venueSheetSkeleton\s*{\s*display:\s*none;\s*}/,
+      /\.mobileSharedSheet :global\(\.venueSheetSkeleton \+ \.venueSheetSkeleton\)\s*{\s*display:\s*none;\s*}/,
     );
   });
 });

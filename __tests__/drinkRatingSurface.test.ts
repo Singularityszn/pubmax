@@ -135,7 +135,7 @@ async function openDrinksMenu(
   });
   await settle();
 
-  expect(host.querySelector(".drinkMenu")).not.toBeNull();
+  expect(host.querySelector('[class*="drinkMenu"]')).not.toBeNull();
   return host;
 }
 
@@ -157,14 +157,14 @@ async function key(element: Element | null | undefined, name: string): Promise<v
 
 /** The drink's own disclosure: the control a drinker taps to open its detail. */
 function disclosure(host: HTMLElement): HTMLButtonElement {
-  const button = host.querySelector<HTMLButtonElement>(".drinkDisclosure");
+  const button = host.querySelector<HTMLButtonElement>('[class*="drinkDisclosure"]');
   expect(button).not.toBeNull();
   return button as HTMLButtonElement;
 }
 
 /** The detail region for the one drink this fixture renders. */
 function detail(host: HTMLElement): HTMLElement {
-  const region = host.querySelector<HTMLElement>(".drinkRowDetail");
+  const region = host.querySelector<HTMLElement>('[class*="drinkRowDetail"]');
   expect(region).not.toBeNull();
   return region as HTMLElement;
 }
@@ -178,9 +178,9 @@ describe("drink rating surface fence", () => {
   it("draws no star row under a drink nobody has rated", async () => {
     const host = await openDrinksMenu({});
 
-    expect(host.querySelector(".drinkRatingRow")).toBeNull();
+    expect(host.querySelector('[class*="drinkRatingRow"]')).toBeNull();
     expect(host.querySelector('[role="slider"]')).toBeNull();
-    expect(host.querySelector(".starRatingGlyphs")).toBeNull();
+    expect(host.querySelector('[class*="starRatingGlyphs"]')).toBeNull();
     expect(host.textContent).not.toContain("★");
     // The price and its provenance are untouched: this hides a rating, never a
     // figure.
@@ -201,7 +201,7 @@ describe("drink rating surface fence", () => {
     const trigger = disclosure(host);
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
     expect(detail(host).hasAttribute("hidden")).toBe(true);
-    expect(host.querySelectorAll(".drinkRateAction")).toHaveLength(0);
+    expect(host.querySelectorAll('[class*="drinkRateAction"]')).toHaveLength(0);
 
     await press(trigger);
 
@@ -210,7 +210,7 @@ describe("drink rating surface fence", () => {
     const open = detail(host);
     expect(open.hasAttribute("hidden")).toBe(false);
     // ONE action, and it lives in the detail, never on the price line.
-    const actions = host.querySelectorAll(".drinkRateAction");
+    const actions = host.querySelectorAll('[class*="drinkRateAction"]');
     expect(actions).toHaveLength(1);
     expect(open.contains(actions[0] as Node)).toBe(true);
     expect(actions[0]?.textContent).toBe("Rate this drink");
@@ -222,15 +222,15 @@ describe("drink rating surface fence", () => {
   it("opens the existing picker from that one action", async () => {
     const host = await openDrinksMenu({});
     await press(disclosure(host));
-    await press(host.querySelector(".drinkRateAction"));
+    await press(host.querySelector('[class*="drinkRateAction"]'));
 
     const picker = detail(host).querySelector('[role="slider"]');
     expect(picker).not.toBeNull();
     expect(picker?.getAttribute("aria-label")).toBe("Rate London Pride");
     // The action is spent: the detail still carries exactly one way to rate.
-    expect(host.querySelectorAll(".drinkRateAction")).toHaveLength(0);
+    expect(host.querySelectorAll('[class*="drinkRateAction"]')).toHaveLength(0);
     // Nothing about a picker reaches the price line.
-    expect(host.querySelector(".drinkRatingRow")).toBeNull();
+    expect(host.querySelector('[class*="drinkRatingRow"]')).toBeNull();
   });
 
   it("shows a cast vote in the detail, and the crowd's score on the price line", async () => {
@@ -242,7 +242,7 @@ describe("drink rating surface fence", () => {
       { shown: true, average: 4.5, count: MIN_VOTES_TO_SHOW, bayesian: 4.1 },
     );
     await press(disclosure(host));
-    await press(host.querySelector(".drinkRateAction"));
+    await press(host.querySelector('[class*="drinkRateAction"]'));
 
     const picker = detail(host).querySelector('[role="slider"]');
     // Keyboard commit: the row starts unrated, so ArrowRight lands on 3.5.
@@ -257,7 +257,7 @@ describe("drink rating surface fence", () => {
 
     // That write crossed the floor, so the crowd's score now appears on the
     // price line - read-only, and never the drinker's own figure.
-    const summaryLine = host.querySelector(".drinkRatingRow");
+    const summaryLine = host.querySelector('[class*="drinkRatingRow"]');
     expect(summaryLine).not.toBeNull();
     expect(summaryLine?.textContent).toContain("4.5");
     expect(summaryLine?.textContent).toContain(String(MIN_VOTES_TO_SHOW));
@@ -271,7 +271,7 @@ describe("drink rating surface fence", () => {
       "beer-price-1": { shown: true, average: 4.5, count: 12, bayesian: 4.1 },
     });
 
-    const ratingRow = host.querySelector(".drinkRatingRow");
+    const ratingRow = host.querySelector('[class*="drinkRatingRow"]');
     expect(ratingRow).not.toBeNull();
     expect(ratingRow?.textContent).toContain("4.5");
     expect(ratingRow?.textContent).toContain("12");
@@ -282,8 +282,8 @@ describe("drink rating surface fence", () => {
       "London Pride rating: 4.5 out of 5 stars",
     );
     expect(ratingRow?.querySelector('[role="slider"]')).toBeNull();
-    expect(host.querySelector(".venueRatingPanel")).toBeNull();
-    expect(host.querySelector(".topRatedList")).toBeNull();
+    expect(host.querySelector('[class*="venueRatingPanel"]')).toBeNull();
+    expect(host.querySelector('[class*="topRatedList"]')).toBeNull();
   });
 
   it("holds a below-floor score off the price line and still offers the action", async () => {
@@ -291,11 +291,11 @@ describe("drink rating surface fence", () => {
       "beer-price-1": { shown: false, average: 4.5, count: 3, bayesian: 3.7 },
     });
 
-    expect(host.querySelector(".drinkRatingRow")).toBeNull();
+    expect(host.querySelector('[class*="drinkRatingRow"]')).toBeNull();
     expect(host.textContent).not.toContain("4.5");
 
     await press(disclosure(host));
-    expect(host.querySelectorAll(".drinkRateAction")).toHaveLength(1);
+    expect(host.querySelectorAll('[class*="drinkRateAction"]')).toHaveLength(1);
   });
 
   it("does not expose the retired top-rated API response", async () => {

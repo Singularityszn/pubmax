@@ -64,7 +64,7 @@ describe("DealsTonightLane caption", () => {
       ),
     );
 
-    expect(html).toContain(`class="dealsTonightDetail">${DEAL_QUALIFIER}</span>`);
+    expect(html).toMatch(new RegExp(`class="[^"]*dealsTonightDetail[^"]*">${DEAL_QUALIFIER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}<\\/span>`));
   });
 
   it("derives the Tonight host-provided claim from the deal cards shown", () => {
@@ -95,7 +95,7 @@ describe("DealsTonightLane caption", () => {
       ),
     );
 
-    expect(html).toContain('class="dealsTonightChecked">1 listed deal</span>');
+    expect(html).toMatch(/class="[^"]*dealsTonightChecked[^"]*">1 listed deal<\/span>/);
     expect(html).not.toContain("No date on this yet");
   });
 
@@ -124,8 +124,8 @@ describe("DealsTonightLane caption", () => {
       createElement(DealsTonightLane, { rows: [...dealRows, musicRow] }),
     );
 
-    expect(html).toContain('class="dealsTonightChecked">8 listed deals</span>');
-    expect(html.match(/class="dealsTonightCard"/g)).toHaveLength(8);
+    expect(html).toMatch(/class="[^"]*dealsTonightChecked[^"]*">8 listed deals<\/span>/);
+    expect(html.match(/class="[^"]*dealsTonightCard_[^"]*"/g)).toHaveLength(8);
     expect(html).not.toContain("Live music");
   });
 
@@ -148,8 +148,8 @@ describe("DealsTonightLane caption", () => {
 
     const html = renderToStaticMarkup(createElement(DealsTonightLane, { rows }));
 
-    expect(html).toContain('class="dealsTonightChecked">1 listed deal</span>');
-    expect(html.match(/class="dealsTonightCard"/g)).toHaveLength(1);
+    expect(html).toMatch(/class="[^"]*dealsTonightChecked[^"]*">1 listed deal<\/span>/);
+    expect(html.match(/class="[^"]*dealsTonightCard_[^"]*"/g)).toHaveLength(1);
     expect(html).not.toContain("No date on this yet");
   });
 });

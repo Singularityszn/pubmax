@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import YourContributionsCard from "@/components/profile/YourContributionsCard";
 import type { ContributionSummary } from "@/lib/pintContributions";
+import styles from "@/components/profile/yourContributionsCard.module.css";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -75,8 +76,8 @@ describe("the You card counts what you mapped, never days running", () => {
     // What the reader saw on 6 Sep 2026, and may not see again.
     expect(host.textContent).not.toMatch(/streak/i);
     expect(host.textContent).not.toContain("1-day mapping");
-    expect(host.querySelector(".contribStreak")).toBeNull();
-    expect(host.querySelector(".contribStreakLabel")).toBeNull();
+    expect(host.querySelector(`.${styles.contribStreak}`)).toBeNull();
+    expect(host.querySelector(`.${styles.contribStreakLabel}`)).toBeNull();
   });
 
   it("keeps the counts the card is for", async () => {
@@ -86,13 +87,13 @@ describe("the You card counts what you mapped, never days running", () => {
     expect(host.textContent).toContain("pint mapped");
     expect(host.textContent).toContain("borough");
     expect(host.textContent).toContain("City of London");
-    expect(host.querySelector(".contribRecordLink")).not.toBeNull();
+    expect(host.querySelector(`.${styles.contribRecordLink}`)).not.toBeNull();
   });
 
   it("offers the account without naming a streak to keep", async () => {
     await mountCard(true);
 
-    const nudge = host.querySelector(".contribNudge");
+    const nudge = host.querySelector(`.${styles.contribNudge}`);
     expect(nudge?.textContent).toContain("Claim your @handle");
     expect(nudge?.textContent).not.toMatch(/streak/i);
   });

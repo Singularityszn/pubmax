@@ -161,7 +161,7 @@ describe("what the tab bar renders for each answer", () => {
 
   it("keeps the bar in place with no keyboard on screen", async () => {
     const markup = await renderBar(false);
-    expect(navTag(markup)).toContain('class="mobileTabBar"');
+    expect(navTag(markup)).toMatch(/class="[^"]*mobileTabBar[^"]*"/);
     expect(navTag(markup)).not.toContain("isKeyboardHidden");
     expect(navTag(markup)).not.toContain("aria-hidden");
     expect(navTag(markup)).not.toMatch(/\binert\b/);

@@ -116,7 +116,7 @@ describe("the surface asks the owner", () => {
 
 describe("a card gives way rather than crushing itself", () => {
   const CSS = read("components/social/peopleDirectory.module.css");
-  const cardRule = CSS.match(/\.peopleDir__card \{[^}]*\}/)?.[0] ?? "";
+  const cardRule = CSS.match(/\.peopleDirCard \{[^}]*\}/)?.[0] ?? "";
 
   it("wraps the control onto its own line instead of squeezing the identity", () => {
     // The two-up breakpoint is the WINDOW's, and this section can sit in a rail

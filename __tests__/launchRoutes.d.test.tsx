@@ -369,7 +369,7 @@ describe("launch routes (group d) carry one primary action", () => {
     const rendered = renderToStaticMarkup(createElement(PalChat));
     expect(primaryCount(rendered)).toBe(1);
     expect(rendered).toMatch(
-      /<button type="submit" class="palChatSend pressable" data-primary-action=""/,
+      /<button type="submit" class="[^"]*palChatSend[^"]*pressable" data-primary-action=""/,
     );
     expect(rendered).not.toMatch(/class="screenPrimary"/);
     expect(rendered).toMatch(/class="screenSecondary"><a[^>]*href="\/pal"[^>]*>Back to your Pub Pal<\/a>/);

@@ -36,7 +36,7 @@ describe("mobile map price chrome", () => {
     expect(mobileShell).toContain("MAP_SHEET_TITLES[sheetKind]");
     expect(pubMap).toContain('className="mobileMapControlTabs"');
     expect(mobileCss).toMatch(
-      /\.mobileMapControlTabs\s*>\s*\[role="tab"\]\s*{[\s\S]*?flex:\s*1[\s\S]*?min-width:\s*0[\s\S]*?min-height:\s*44px/,
+      /:global\(\.mobileMapControlTabs\)\s*>\s*\[role="tab"\]\s*{[\s\S]*?flex:\s*1[\s\S]*?min-width:\s*0[\s\S]*?min-height:\s*44px/,
     );
     expect(keyCss).toMatch(
       /\.mapKeyDetails summary\s*{[\s\S]*?min-height:\s*44px/,
@@ -44,7 +44,7 @@ describe("mobile map price chrome", () => {
     // The compass moved out of MapLibre's own control group and into the app's
     // camera stack, so that stack is what a sheet has to cover.
     expect(mobileCss).toMatch(
-      /body:has\(\.mobileSheetPortal\)[\s\S]*?\.mapCameraControls\s*{[\s\S]*?visibility:\s*hidden/,
+      /:global\(body\):has\(\.mobileSheetPortal\)\s+:global\(\.appShell \.mapStage \.mapCameraControls\)\s*{[\s\S]*?visibility:\s*hidden/,
     );
   });
 

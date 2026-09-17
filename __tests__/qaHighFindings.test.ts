@@ -39,7 +39,7 @@ describe("QA high findings — mobile sheet and consent layering", () => {
       /\.mobileSheetPortal\s*{[^}]*bottom:\s*calc\(var\(--tabbar-h\) \+ env\(safe-area-inset-bottom,\s*0px\)\)/,
     );
     expect(mobileMapShellCss).toMatch(
-      /\.mobileSharedSheet\.mapDrawer\s*{[^}]*position:\s*absolute/,
+      /\.mobileSharedSheet:global\(\.mapDrawer\)\s*{[^}]*position:\s*absolute/,
     );
   });
 

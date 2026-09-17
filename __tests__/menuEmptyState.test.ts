@@ -19,7 +19,7 @@ function findEmptyAction(node: ReactNode): ReactElement<ButtonProps> | undefined
   if (!isValidElement(node)) return undefined;
 
   const props = node.props as ButtonProps;
-  if (node.type === "button" && props.className === "menuHubEmptyAction") {
+  if (node.type === "button" && (props.className ?? "").includes("menuHubEmptyAction")) {
     return node as ReactElement<ButtonProps>;
   }
 

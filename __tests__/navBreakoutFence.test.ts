@@ -171,7 +171,7 @@ describe("nav breakout fence (D6): the formula", () => {
     // align-self: stretch defeats flex-centred hosts shrink-wrapping it.
     // All three declarations are one mechanism; assert them as a block.
     expect(siteNavCss).toMatch(
-      /\.siteNavBar:not\(\.siteNavBarFloating\)\s*\{\s*width:\s*auto;\s*align-self:\s*stretch;\s*margin-inline:\s*calc\(var\(--topbar-side,\s*10px\)\s*-\s*\(100vw\s*-\s*100%\)\s*\/\s*2\);\s*\}/,
+      /\.siteNavBar:not\(:global\(\.siteNavBarFloating\)\)\s*\{\s*width:\s*auto;\s*align-self:\s*stretch;\s*margin-inline:\s*calc\(var\(--topbar-side,\s*10px\)\s*-\s*\(100vw\s*-\s*100%\)\s*\/\s*2\);\s*\}/,
     );
   });
 

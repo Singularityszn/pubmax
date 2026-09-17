@@ -86,7 +86,7 @@ describe("useVenueReveal", () => {
       await Promise.resolve();
     });
 
-    const skeleton = container.querySelector<HTMLElement>(".venueSheetSkeleton");
+    const skeleton = container.querySelector<HTMLElement>('[class*="venueSheetSkeleton"]');
     const elapsed = Number.parseFloat(
       skeleton?.style.getPropertyValue("--venue-reveal-elapsed") ?? "NaN",
     );
