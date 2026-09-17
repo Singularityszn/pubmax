@@ -8,6 +8,7 @@ import {
   baseRefForRun,
   commandsForMode,
   captureRefreshSnapshot,
+  EVENTS_REFRESH_NODE_ARGS,
   keyReadinessError,
   laneReadiness,
   defaultMaxLoad,
@@ -267,6 +268,12 @@ describe("local refresh scraper sequence", () => {
     expect(commandsForMode("events", false)).toEqual([
       {
         executable: process.execPath,
+        // The events lane statically imports the TypeScript Context.dev
+        // provider, so it is spawned through tsx rather than relying on Node's
+        // unflagged type stripping (22.18+) under an engines floor of 22.12.
+        // The flags go before the script; args[0] stays the file being run,
+        // which the key-readiness reason and the lane lookups read.
+        nodeArgs: EVENTS_REFRESH_NODE_ARGS,
         args: ["scripts/whatson/eventsRefresh.mjs"],
         independent: true,
         requiresAnyKey: ["TICKETMASTER_API_KEY", "SKIDDLE_API_KEY", "CONTEXT_DEV_API_KEY"],
