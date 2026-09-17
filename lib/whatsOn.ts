@@ -305,10 +305,7 @@ export function parseWhatsOnRows(raw: unknown, now: number = Date.now()): WhatsO
   return dedupeRows(valid);
 }
 
-// Before this hour (London local) "tonight" still belongs to the PREVIOUS
-// calendar evening's window — the same rollback lib/tfl.ts uses so the small
-// hours resolve against the evening that is still running.
-const SERVICE_DAY_ROLLBACK_HOUR = 4;
+import { SERVICE_DAY_ROLLBACK_HOUR } from "@/lib/tfl";
 // The evening window opens at 16:00 and runs to 04:00 the next morning.
 const WINDOW_OPEN_HOUR = 16;
 

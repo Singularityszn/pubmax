@@ -77,7 +77,7 @@ export function dayTypeForDate(d: Date): DayType {
 // early-morning window before the last Night-Tube-ish service must resolve
 // against yesterday's day-type. 4am comfortably clears the latest service
 // (~02:57 Night Tube) with margin.
-const SERVICE_DAY_ROLLBACK_HOUR = 4;
+export const SERVICE_DAY_ROLLBACK_HOUR = 4;
 
 // The service DAY-TYPE for "now in London". Between midnight and
 // SERVICE_DAY_ROLLBACK_HOUR the still-running trains belong to the previous

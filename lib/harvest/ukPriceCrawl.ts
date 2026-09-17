@@ -105,8 +105,7 @@ export const CATEGORY_PRICE_BANDS: Readonly<
   coffee: { minGbp: 1, maxGbp: 7 },
 };
 
-/** How much page text either side of a figure is read for its drink word. */
-const PRICE_CONTEXT_CHARS = 80;
+import { PRICE_CONTEXT_CHARS } from "@/lib/harvest/chainMenuPrices";
 
 /**
  * The vocabulary that names a category, strongest signal first. The order is
