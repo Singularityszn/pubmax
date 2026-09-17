@@ -194,7 +194,7 @@ describe("Feed empty-state CTA collapse", () => {
 
 // ── 4. Tonight filter chip active state ───────────────────────────────────
 
-const tonightCss = readFileSync(join(process.cwd(), "app/tonight/tonight.css"), "utf8");
+const tonightCss = readFileSync(join(process.cwd(), "app/tonight/Tonight.module.css"), "utf8");
 const vibeChipsCss = readFileSync(join(process.cwd(), "components/vibe/vibeChips.css"), "utf8");
 
 describe("Tonight filter chip active state", () => {

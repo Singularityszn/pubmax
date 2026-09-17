@@ -25,7 +25,7 @@ const PAGE_SHELLS_UNDER_THE_STANDARD_BAR: ReadonlyArray<{
 }> = [
   { stylesheet: "app/out/out.css", shellClass: "outPage", mounts: "app/out/OutClient.tsx" },
   { stylesheet: "app/today/today.css", shellClass: "todayPage", mounts: "app/today/TodayClient.tsx" },
-  { stylesheet: "app/tonight/tonight.css", shellClass: "tonightPage", mounts: "app/tonight/TonightClient.tsx" },
+  { stylesheet: "app/tonight/Tonight.module.css", shellClass: "tonightPage", mounts: "app/tonight/TonightClient.tsx" },
   { stylesheet: "app/plan/plan.css", shellClass: "planPage", mounts: "app/plan/page.tsx" },
 ];
 
@@ -49,7 +49,7 @@ describe("a page shell under the standard bar does not add the top inset the bar
   for (const page of PAGE_SHELLS_UNDER_THE_STANDARD_BAR) {
     it(`${page.shellClass} mounts SiteNav first and pays the inset once`, () => {
       const tsx = readFileSync(join(ROOT, page.mounts), "utf8").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
-      expect(tsx).toMatch(new RegExp(`className="${page.shellClass}[^"]*"[^>]*>\\s*<SiteNav`));
+      expect(tsx).toMatch(new RegExp(`className=(?:"${page.shellClass}[^"]*"|\\{[^}]*\\b${page.shellClass}\\b[^}]*\\})[^>]*>\\s*<SiteNav`));
       const blocks = shellBlocks(readFileSync(join(ROOT, page.stylesheet), "utf8"), page.shellClass);
       const paddingTop = blocks.flatMap((block) => block.match(/padding(?:-top)?:\s*([^;]+);/g) ?? []);
       expect(paddingTop.length).toBeGreaterThan(0);

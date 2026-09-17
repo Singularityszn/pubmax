@@ -3,6 +3,8 @@ import { ArrowRight, Camera, Coffee, Landmark, Leaf, Moon, Store, Waves } from "
 
 import IntentLink from "@/components/nav/IntentLink";
 
+import styles from "./Tonight.module.css";
+
 import {
   CULTURE_CRAWL_CHIPS,
   CULTURE_CRAWL_MISSION,
@@ -39,60 +41,60 @@ type Props = {
 export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) {
   return (
     <section
-      className="tonightSoftPlans"
+      className={styles.tonightSoftPlans}
       aria-label="Soft plans tonight"
       data-testid="tonight-soft-plans"
     >
       {/* Each row's way-onward arrow sits in the lane the compose action floats
           in on a phone, so the row takes that lane (createFab.css). */}
-      <p className="tonightSoftPlansEyebrow">Soft plans tonight</p>
-      <ul className="tonightSoftPlansList">
+      <p className={styles.tonightSoftPlansEyebrow}>Soft plans tonight</p>
+      <ul className={styles.tonightSoftPlansList}>
         {TONIGHT_SOFT_PLAN_CHIPS.map((chip) => {
           const Icon = CHIP_ICONS[chip.id];
           return (
-            <li key={chip.id} className="tonightSoftPlansRow">
+            <li key={chip.id} className={styles.tonightSoftPlansRow}>
               <IntentLink
                 href={planOccasionHref(chip.id, { src: "tonight-soft" })}
-                className="tonightSoftPlansLink createFabLane pressable"
+                className={`${styles.tonightSoftPlansLink} createFabLane pressable`}
               >
-                <span className="tonightSoftPlansIcon" aria-hidden="true">
+                <span className={styles.tonightSoftPlansIcon} aria-hidden="true">
                   <Icon size={17} />
                 </span>
-                <span className="tonightSoftPlansLabel">{chip.label}</span>
-                <ArrowRight size={15} aria-hidden="true" className="tonightSoftPlansArrow" />
+                <span className={styles.tonightSoftPlansLabel}>{chip.label}</span>
+                <ArrowRight size={15} aria-hidden="true" className={styles.tonightSoftPlansArrow} />
               </IntentLink>
             </li>
           );
         })}
         {hasQuietPint ? (
-          <li className="tonightSoftPlansRow">
-            <Link href="#tonight-quiet-pint" className="tonightSoftPlansLink createFabLane pressable">
-              <span className="tonightSoftPlansIcon" aria-hidden="true">
+          <li className={styles.tonightSoftPlansRow}>
+            <Link href="#tonight-quiet-pint" className={`${styles.tonightSoftPlansLink} createFabLane pressable`}>
+              <span className={styles.tonightSoftPlansIcon} aria-hidden="true">
                 <Moon size={17} />
               </span>
-              <span className="tonightSoftPlansLabel">A quiet pint</span>
-              <ArrowRight size={15} aria-hidden="true" className="tonightSoftPlansArrow" />
+              <span className={styles.tonightSoftPlansLabel}>A quiet pint</span>
+              <ArrowRight size={15} aria-hidden="true" className={styles.tonightSoftPlansArrow} />
             </Link>
           </li>
         ) : null}
       </ul>
-      <p className="tonightSoftPlansEyebrow tonightSoftPlansCultureEyebrow">
+      <p className={`${styles.tonightSoftPlansEyebrow} ${styles.tonightSoftPlansCultureEyebrow}`}>
         {CULTURE_CRAWL_MISSION}
       </p>
-      <ul className="tonightSoftPlansList">
+      <ul className={styles.tonightSoftPlansList}>
         {CULTURE_CRAWL_CHIPS.map((chip) => {
           const Icon = CULTURE_ICONS[chip.id];
           return (
-            <li key={chip.id} className="tonightSoftPlansRow">
+            <li key={chip.id} className={styles.tonightSoftPlansRow}>
               <IntentLink
                 href={planOccasionHref(chip.id, { src: "tonight-culture" })}
-                className="tonightSoftPlansLink createFabLane pressable"
+                className={`${styles.tonightSoftPlansLink} createFabLane pressable`}
               >
-                <span className="tonightSoftPlansIcon" aria-hidden="true">
+                <span className={styles.tonightSoftPlansIcon} aria-hidden="true">
                   <Icon size={17} />
                 </span>
-                <span className="tonightSoftPlansLabel">{chip.label}</span>
-                <ArrowRight size={15} aria-hidden="true" className="tonightSoftPlansArrow" />
+                <span className={styles.tonightSoftPlansLabel}>{chip.label}</span>
+                <ArrowRight size={15} aria-hidden="true" className={styles.tonightSoftPlansArrow} />
               </IntentLink>
             </li>
           );

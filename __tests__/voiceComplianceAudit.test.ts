@@ -518,7 +518,7 @@ describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
       ".invitePreview__detail dt",
     ]],
     // Tonight's kicker is the shared Kicker primitive inside its Screen head.
-    ["app/tonight/tonight.css", [".tonightRowKind"]],
+    ["app/tonight/Tonight.module.css", [".tonightRowKind"]],
     ["components/vibe/vibeChips.css", [".vibeChipsLede"]],
     ["app/pal/pal.css", [".palEyebrow", ".palMemoryList__meta span"]],
     // Pub Pal chat's kicker is the shared Kicker primitive inside its Screen head.

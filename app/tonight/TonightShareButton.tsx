@@ -13,6 +13,8 @@ import { Check, Share2 } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
 
+import styles from "./Tonight.module.css";
+
 export default function TonightShareButton(): React.JSX.Element {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
@@ -52,11 +54,11 @@ export default function TonightShareButton(): React.JSX.Element {
   }
 
   return (
-    <div className="tonightShareControl">
-      <div className="tonightShareAction">
+    <div className={styles.tonightShareControl}>
+      <div className={styles.tonightShareAction}>
         <button
           type="button"
-          className="tonightShare pressable"
+          className={`${styles.tonightShare} pressable`}
           onClick={onShare}
           aria-label="Share tonight's listings"
         >
@@ -75,7 +77,7 @@ export default function TonightShareButton(): React.JSX.Element {
       </div>
       {error ? (
         <p
-          className="tonightShareStatus"
+          className={styles.tonightShareStatus}
           role="status"
           aria-live="polite"
           aria-atomic="true"

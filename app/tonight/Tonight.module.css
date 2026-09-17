@@ -38,7 +38,7 @@
   padding-inline: 0;
 }
 
-.tonightPage > .tonightDesktopGrid > .screenHead {
+.tonightPage > .tonightDesktopGrid > :global(.screenHead) {
   padding-top: var(--space-3);
 }
 
@@ -601,7 +601,7 @@
    the landing's city cards take, and holds it whenever the control is in
    the document rather than only while it is painted. */
 @media (max-width: 640px) {
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .tonightSoftPlansLink {
+  :global(body:has(.createFabRoot):not(:has(.pageHidesCreateFab))) .tonightSoftPlansLink {
     padding-right: max(
       14px,
       calc(var(--create-fab-lane) - var(--page-gutter))
@@ -781,8 +781,14 @@
    raised panel, brass weather icon, no card chrome beyond the panel. Lives
    above the listings so it reads first without shouting. Role tokens only, so
    light and dark themes both inherit correctly. */
-/* .tonightConditions* rules live in tonightConditions.css (component-owned,
+/* .tonightConditions* rules live in TonightConditions.module.css (component-owned,
    multi-host: Tonight page + desktop rails). */
+
+/* The tonightChains and tonightEditorial wrappers carry no visual rules of
+   their own; their class names are referenced in the rail's margin-zeroing
+   and display-contents selectors below. */
+.tonightChains {}
+.tonightEditorial {}
 
 .tonightDesktopGrid,
 .tonightWeather,
@@ -839,7 +845,7 @@
     align-items: start;
   }
 
-  .tonightDesktopGrid > .screenHead {
+  .tonightDesktopGrid > :global(.screenHead) {
     grid-column: 1;
     grid-row: 1;
   }
@@ -873,7 +879,7 @@
   /* The way-onward row ends the primary column, the same place it ends the
      phone. One composition at every width, so the tab order never disagrees
      with the paint order. */
-  .tonightDesktopGrid > .screenActions {
+  .tonightDesktopGrid > :global(.screenActions) {
     grid-column: 1;
     grid-row: 6;
   }
@@ -907,7 +913,7 @@
     margin-bottom: 0;
   }
 
-  .tonightSecondaryLanes--mobile {
+  .tonightSecondaryLanesMobile {
     display: none;
   }
 }

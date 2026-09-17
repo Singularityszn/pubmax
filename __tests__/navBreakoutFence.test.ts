@@ -158,7 +158,7 @@ const HOSTS: Array<{
   centering: "margin-auto" | "flex-center" | "full-bleed";
 }> = [
   { route: "/feed", file: "app/feed/feed.css", className: "feedShell", centering: "flex-center" },
-  { route: "/tonight", file: "app/tonight/tonight.css", className: "tonightPage", centering: "margin-auto" },
+  { route: "/tonight", file: "app/tonight/Tonight.module.css", className: "tonightPage", centering: "margin-auto" },
   { route: "/activity", file: "app/activity/activity.css", className: "activityShell", centering: "margin-auto" },
   { route: "/messages", file: "app/messages/messages.css", className: "messagesPage", centering: "full-bleed" },
   { route: "/moment", file: "components/moment/moment.css", className: "momentPage", centering: "full-bleed" },

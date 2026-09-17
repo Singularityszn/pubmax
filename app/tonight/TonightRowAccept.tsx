@@ -10,6 +10,8 @@ import {
   type TonightEvidenceKind,
 } from "@/lib/tonightAcceptance";
 
+import styles from "./Tonight.module.css";
+
 /** What this row was observed by, and when. The two travel together, because a
  *  date without the read it came from is what let a Ticketmaster listing be
  *  recorded as a what's-on observation. */
@@ -49,7 +51,7 @@ export function TonightRowAccept({
         {label}
       </button>
       {message ? (
-        <p className="tonightAcceptanceError" role="alert">{message}</p>
+        <p className={styles.tonightAcceptanceError} role="alert">{message}</p>
       ) : null}
     </>
   );
