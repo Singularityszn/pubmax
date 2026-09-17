@@ -77,7 +77,8 @@ import {
   keepGoingDistanceDescription,
   nextStopWalkDescription,
 } from "@/lib/nightPresentation";
-import RouteEndingCard, {
+import {
+  RouteEndingCard,
   GetHomeHandoffRow,
   type RouteEndingId,
   type RouteEndingOptions,

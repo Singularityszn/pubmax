@@ -163,5 +163,3 @@ export function RouteEndingCard({
     </section>
   );
 }
-
-export default RouteEndingCard;
