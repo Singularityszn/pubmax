@@ -230,7 +230,7 @@ export async function POST(req: Request): Promise<Response> {
     // Awaiting a short, bounded request keeps delivery reliable in serverless
     // runtimes. Ordinary events stay fire-and-forget; verified outcomes retain
     // their outbox item when the provider asks for a retry.
-    return forwardAndComplete(event, delivery, {
+    return await forwardAndComplete(event, delivery, {
       path: safePath,
       anonymousId,
       analyticsConsent,
