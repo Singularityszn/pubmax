@@ -5,6 +5,7 @@ import { MapPin, PlusCircle } from "lucide-react";
 import overviewStyles from "./VenueOverviewTab.module.css";
 import sheetStyles from "../venueSheet.module.css";
 import Disclosure from "@/components/Disclosure";
+import disclosureStyles from "@/components/disclosure.module.css";
 import PriceBadge from "@/components/PriceBadge";
 import TrustPill from "@/components/ui/trust-pill";
 import { pintPriceSplitLine } from "@/lib/pintDropAgreement";
@@ -977,8 +978,8 @@ export default function VenueOverviewTab({
         address={venue.address}
       />
       <Disclosure
-        className={sheetStyles.venueOverviewMore}
-        bodyClassName="venueOverviewMoreBody"
+        className={`${disclosureStyles.venueOverviewMore} ${sheetStyles.venueOverviewMore}`}
+        bodyClassName={disclosureStyles.venueOverviewMoreBody}
         summary="Details and practical info"
       >
       <VenueGettingThere
