@@ -103,7 +103,7 @@ describe("finding 2.3 — the category toggles have exactly one home per viewpor
     expect(pubMap, "no floating desktop band").not.toContain(
       "renderDesktopVenueKindChips",
     );
-    const arcCss = read("components/map/tonightArcChips.css");
+    const arcCss = read("components/map/tonightArcChips.module.css");
     // The group is plain content in whatever surface holds it. Its own
     // container may not position itself over the map (the one absolute rule
     // left is the unavailable-kind tooltip, which is anchored to its chip).
@@ -144,7 +144,7 @@ describe("finding 2.3 — the category toggles have exactly one home per viewpor
   });
 
   it("gives the sheet copy sheet geometry rather than map geometry", () => {
-    const arcCss = read("components/map/tonightArcChips.css");
+    const arcCss = read("components/map/tonightArcChips.module.css");
     const sheet = arcCss.match(/\.tonightArcChipsSheet\s*{([^}]*)}/)?.[1] ?? "";
     expect(sheet, ".tonightArcChipsSheet rule present").not.toBe("");
     expect(sheet).toMatch(/position:\s*static/);
