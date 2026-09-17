@@ -9,7 +9,7 @@ function read(rel: string): string {
 }
 
 describe("app-wide auth-wall width contract (post-766)", () => {
-  const authCss = read("app/auth/auth.css");
+  const authCss = read("app/auth/Auth.module.css");
 
   it("caps standalone .authOptions at 26rem and fills the host", () => {
     expect(authCss).toMatch(/\.authOptions\s*\{[\s\S]*?max-width:\s*26rem/);

@@ -30,6 +30,7 @@ import type { DeviceAccountRecord } from "@/lib/deviceAccountSessions";
 import { deviceAccountLabel } from "@/lib/deviceAccountSessions";
 import type { DeviceAccountSwitchOutcome } from "@/lib/deviceAccountSwitch";
 import { displayHandle } from "@/lib/handleDisplay";
+import authStyles from "@/app/auth/Auth.module.css";
 
 const SWITCH_FAILED =
   "We could not switch account just now. Try again in a moment.";
@@ -103,10 +104,10 @@ export default function AccountSwitcher({
   );
 
   return (
-    <div className="authSwitcher">
+    <div className={authStyles.authSwitcher}>
       <button
         type="button"
-        className="authSwitcherToggle"
+        className={authStyles.authSwitcherToggle}
         aria-expanded={open}
         onClick={onToggle}
       >
@@ -115,7 +116,7 @@ export default function AccountSwitcher({
             opens in place, and it is the same affordance the site's own More
             control uses. */}
         <ChevronDown
-          className="authSwitcherChevron"
+          className={authStyles.authSwitcherChevron}
           size={16}
           strokeWidth={2}
           aria-hidden="true"
@@ -123,13 +124,13 @@ export default function AccountSwitcher({
       </button>
       {open ? (
         <>
-          <ul className="authSwitcherList">
+          <ul className={authStyles.authSwitcherList}>
             {accounts.map((account) => (
               <li key={account.userId}>
                 {account.refreshToken ? (
                   <button
                     type="button"
-                    className="authSwitcherRow"
+                    className={authStyles.authSwitcherRow}
                     onClick={() => void switchTo(account.userId)}
                     disabled={disabled || busyUserId !== null}
                   >
@@ -138,20 +139,20 @@ export default function AccountSwitcher({
                       card={account.handle ? cards[account.handle] : undefined}
                     />
                     {busyUserId === account.userId ? (
-                      <span className="authSwitcherState">Switching</span>
+                      <span className={authStyles.authSwitcherState}>Switching</span>
                     ) : null}
                   </button>
                 ) : (
                   <Link
                     href={addAccountHref}
-                    className="authSwitcherRow"
+                    className={authStyles.authSwitcherRow}
                     onClick={onNavigate}
                   >
                     <AccountRowFace
                       account={account}
                       card={account.handle ? cards[account.handle] : undefined}
                     />
-                    <span className="authSwitcherState">Signed out</span>
+                    <span className={authStyles.authSwitcherState}>Signed out</span>
                   </Link>
                 )}
               </li>
@@ -159,13 +160,13 @@ export default function AccountSwitcher({
           </ul>
           <Link
             href={addAccountHref}
-            className="authSwitcherAdd"
+            className={authStyles.authSwitcherAdd}
             onClick={onNavigate}
           >
             Add account
           </Link>
           {error ? (
-            <p className="authError authSwitcherError" role="alert">
+            <p className={`${authStyles.authError} ${authStyles.authSwitcherError}`} role="alert">
               {error}
             </p>
           ) : null}
@@ -190,14 +191,14 @@ function AccountRowFace({
         handle={account.handle ?? ""}
         {...(card?.avatarUrl ? { avatarUrl: card.avatarUrl } : {})}
         displayName={name}
-        className="authSwitcherAvatar authAccountAvatarFallback"
-        imageClassName="authSwitcherAvatar"
+        className={`${authStyles.authSwitcherAvatar} ${authStyles.authAccountAvatarFallback}`}
+        imageClassName={authStyles.authSwitcherAvatar}
         size={32}
       />
-      <span className="authSwitcherRowText">
-        <span className="authSwitcherName">{name}</span>
+      <span className={authStyles.authSwitcherRowText}>
+        <span className={authStyles.authSwitcherName}>{name}</span>
         {account.handle ? (
-          <span className="authSwitcherHandle">{displayHandle(account.handle)}</span>
+          <span className={authStyles.authSwitcherHandle}>{displayHandle(account.handle)}</span>
         ) : null}
       </span>
     </>

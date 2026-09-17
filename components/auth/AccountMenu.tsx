@@ -9,6 +9,7 @@ import HandleAvatar from "@/components/profile/HandleAvatar";
 import type { DeviceAccountRecord } from "@/lib/deviceAccountSessions";
 import type { DeviceAccountSwitchOutcome } from "@/lib/deviceAccountSwitch";
 import { displayHandle, handleOnly } from "@/lib/handleDisplay";
+import authStyles from "@/app/auth/Auth.module.css";
 
 /**
  * The signed-in account card in the nav.
@@ -59,25 +60,25 @@ export default function AccountMenu({
 }): React.JSX.Element {
   const profilePath = handle ? `/u/${handleOnly(handle)}` : "/u/you";
   return (
-    <div className="authMenu authAccountMenu" id={id} aria-label="Account options" ref={menuRef}>
-      <div className="authAccountCard">
+    <div className={`${authStyles.authMenu} ${authStyles.authAccountMenu}`} id={id} aria-label="Account options" ref={menuRef}>
+      <div className={authStyles.authAccountCard}>
         <HandleAvatar
           handle={handle ?? ""}
           avatarUrl={avatarUrl}
           displayName={name}
-          className="authAccountAvatar authAccountAvatarFallback"
-          imageClassName="authAccountAvatar"
+          className={`${authStyles.authAccountAvatar} ${authStyles.authAccountAvatarFallback}`}
+          imageClassName={authStyles.authAccountAvatar}
           size={44}
         />
-        <span className="authAccountCardText">
-          <span className="authAccountName">{name}</span>
-          <span className="authAccountHandle">
+        <span className={authStyles.authAccountCardText}>
+          <span className={authStyles.authAccountName}>{name}</span>
+          <span className={authStyles.authAccountHandle}>
             {handle ? displayHandle(handle) : "Claim your @handle"}
           </span>
         </span>
       </div>
 
-      <nav className="authAccountLinks" aria-label="Your pages">
+      <nav className={authStyles.authAccountLinks} aria-label="Your pages">
         <Link href={profilePath} onClick={onNavigate}>
           Your profile
         </Link>
@@ -89,7 +90,7 @@ export default function AccountMenu({
         </Link>
       </nav>
 
-      {email ? <p className="authAccountEmail">{email}</p> : null}
+      {email ? <p className={authStyles.authAccountEmail}>{email}</p> : null}
 
       <AccountDeviceControls
         handle={handle}

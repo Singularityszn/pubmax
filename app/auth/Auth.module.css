@@ -180,7 +180,7 @@
 }
 
 /* Success path for attempt-less token sign-in confirmation (not an error). */
-.authCallbackNotice--ok {
+.authCallbackNoticeOk {
   border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
 }
 
