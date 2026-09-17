@@ -117,7 +117,7 @@ describe("Wanted saves crossing auth settlement", () => {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     });
 
-    const candidate = container.querySelector<HTMLButtonElement>('[class*="wantedCandidate"]');
+    const candidate = container.querySelector<HTMLButtonElement>('button[class*="wantedCandidate"]');
     expect(candidate).not.toBeNull();
     await act(async () => {
       candidate?.click();
