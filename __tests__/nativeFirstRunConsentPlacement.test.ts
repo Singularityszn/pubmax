@@ -262,7 +262,7 @@ const bandsShareABoundingBox = (a: Band, b: Band): boolean =>
 const PHONE_MEDIA = "(max-width: 760px)";
 const CARD_MEDIA = "(max-width: 640px)";
 const SURFACE_RULE = ":global(body:has(.analyticsConsentPrompt)) .firstRunOnboarding";
-const CARD_RULE = "body:has(.firstRunOnboarding) .analyticsConsentPrompt";
+const CARD_RULE = "body:has(:global(.firstRunOnboarding)) :global(.analyticsConsentPrompt)";
 
 describe("native first-run consent placement", () => {
   it("publishes the consent lane once so the surface does not restate it", () => {

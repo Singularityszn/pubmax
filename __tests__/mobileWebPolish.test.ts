@@ -68,6 +68,7 @@ describe("mobile web polish source contracts", () => {
     expect(new Set(declarations)).toEqual(new Set([
       "app/globals.css",
       "app/messages/Messages.module.css",
+      "app/messages/messages.css",
       "components/map/venueSheet.css",
       "components/profile/profileImageCropper.css",
     ]));

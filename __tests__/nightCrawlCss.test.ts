@@ -60,7 +60,7 @@ describe("Night-crawl surface conformance (U7)", () => {
       ?? "";
     expect(barRule).toMatch(/pointer-events:\s*none/);
     expect(barRule).toMatch(/transform:\s*translateY\(110%\)/);
-    const cardRule = consentCss.match(/[^}]*body:has\(\.nightCrawl\) \.analyticsConsentPrompt[^{]*{([^}]*)}/)?.[1] ?? "";
+    const cardRule = consentCss.match(/[^}]*body:has\(:global\(\.nightCrawl\)\) :global\(\.analyticsConsentPrompt\)[^{]*{([^}]*)}/)?.[1] ?? "";
     expect(cardRule).toMatch(/visibility:\s*hidden/);
     expect(cardRule).toMatch(/pointer-events:\s*none/);
   });

@@ -45,7 +45,7 @@ describe("QA high findings — mobile sheet and consent layering", () => {
 
   it("hides the analytics consent card while any map sheet is open", () => {
     const rule = consentCss.match(
-      /body:has\(\.mobileSheetPortal\) \.analyticsConsentPrompt,\s*body:has\(\.chooseAreaDesktopScrim\) \.analyticsConsentPrompt\s*{([^}]*)}/,
+      /body:has\(:global\(\.mobileSheetPortal\)\) :global\(\.analyticsConsentPrompt\),\s*body:has\(:global\(\.chooseAreaDesktopScrim\)\) :global\(\.analyticsConsentPrompt\)\s*{([^}]*)}/,
     )?.[1] ?? "";
     expect(rule).toMatch(/visibility:\s*hidden/);
     expect(rule).toMatch(/pointer-events:\s*none/);

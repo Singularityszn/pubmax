@@ -68,10 +68,10 @@ describe("mobile chrome fit at 390px", () => {
   });
 
   it("keeps first-visit analytics choices equal and clear of map activation", () => {
-    const buttons = analyticsConsentCss.match(/\.analyticsConsentPromptActions button\s*{([^}]*)}/)?.[1] ?? "";
+    const buttons = analyticsConsentCss.match(/:global\(\.analyticsConsentPromptActions\) button\s*{([^}]*)}/)?.[1] ?? "";
     expect(buttons).toMatch(/min-height:\s*44px/);
     expect(buttons).toMatch(/background:\s*var\(--panel\)/);
-    expect(analyticsConsentCss).not.toMatch(/\.analyticsConsentPromptActions button:first-child/);
+    expect(analyticsConsentCss).not.toMatch(/:global\(\.analyticsConsentPromptActions\) button:first-child/);
     // PR #1017 removed map-only consent action overrides. Map activation now
     // inherits the same full-size, equal choice controls as every mobile page.
     const allConsentCss = globalCss + analyticsConsentCss;
