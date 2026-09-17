@@ -10,7 +10,7 @@ export function resolveAuditOutputRoot(outputName = "before") {
   return path.join(UI_UX_AUDIT_ROOT, outputName);
 }
 
-async function prepareAuditOutputRoot(outputName) {
+export async function prepareAuditOutputRoot(outputName) {
   await fs.mkdir(UI_UX_AUDIT_ROOT, { recursive: true });
   const root = await fs.lstat(UI_UX_AUDIT_ROOT);
   if (!root.isDirectory() || root.isSymbolicLink()) {
