@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
 
 import type { HistoricFilterQuery } from "@/lib/pageFilters";
+import styles from "./Historic.module.css";
 
 const SORT_OPTIONS: { value: HistoricFilterQuery["sort"]; label: string }[] = [
   { value: "oldest", label: "Oldest first" },
@@ -40,18 +41,18 @@ export default function HistoricFilters({
 
   return (
     <section
-      className="historicFilters"
+      className={styles.historicFilters}
       aria-label="Filter and sort historic pubs"
       aria-busy={pending}
     >
-      <div className="historicField">
-        <label className="historicFieldLabel" htmlFor="historic-borough">
+      <div className={styles.historicField}>
+        <label className={styles.historicFieldLabel} htmlFor="historic-borough">
           Borough
         </label>
-        <div className="historicSelectWrap">
+        <div className={styles.historicSelectWrap}>
           <select
             id="historic-borough"
-            className="historicSelect"
+            className={styles.historicSelect}
             value={filters.borough ?? ""}
             onChange={(event) =>
               navigate({
@@ -70,14 +71,14 @@ export default function HistoricFilters({
         </div>
       </div>
 
-      <div className="historicField">
-        <label className="historicFieldLabel" htmlFor="historic-sort">
+      <div className={styles.historicField}>
+        <label className={styles.historicFieldLabel} htmlFor="historic-sort">
           Sort
         </label>
-        <div className="historicSelectWrap">
+        <div className={styles.historicSelectWrap}>
           <select
             id="historic-sort"
-            className="historicSelect"
+            className={styles.historicSelect}
             value={filters.sort}
             onChange={(event) =>
               navigate({
@@ -96,13 +97,13 @@ export default function HistoricFilters({
       </div>
 
       <div
-        className="historicToggles"
+        className={styles.historicToggles}
         role="group"
         aria-label="Narrow the list"
       >
         <button
           type="button"
-          className="historicToggle"
+          className={styles.historicToggle}
           data-active={filters.listedOnly}
           aria-pressed={filters.listedOnly}
           onClick={() => navigate({ ...filters, listedOnly: !filters.listedOnly })}
@@ -111,7 +112,7 @@ export default function HistoricFilters({
         </button>
         <button
           type="button"
-          className="historicToggle"
+          className={styles.historicToggle}
           data-active={filters.hasDate}
           aria-pressed={filters.hasDate}
           onClick={() => navigate({ ...filters, hasDate: !filters.hasDate })}

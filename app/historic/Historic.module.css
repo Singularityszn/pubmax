@@ -223,7 +223,7 @@
   color: var(--river);
 }
 
-html:not([data-theme="dark"]) .historicGrade {
+:global(html:not([data-theme="dark"])) .historicGrade {
   color: #2459c4;
 }
 
