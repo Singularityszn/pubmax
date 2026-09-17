@@ -41,7 +41,7 @@ describe("ContributorRecord", () => {
     expect(html).toContain(
       "All visible identity-backed contributions, all time",
     );
-    expect(html.match(/class="contributorRank"[^>]*>1</g)).toHaveLength(2);
+    expect(html.match(/class="[^"]*contributorRank[^"]*"[^>]*>1</g)).toHaveLength(2);
     expect(html).toContain('href="/u/alex"');
     expect(html).toContain("Prices");
     expect(html).toContain("Visit Reports");

@@ -24,6 +24,7 @@ import { describe, expect, it } from "vitest";
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
 const globalCss = read("app/globals.css");
+const analyticsConsentCss = read("components/analyticsConsent.css");
 const onboardingCss = read("app/onboarding/Onboarding.module.css");
 
 /** A phone the shell actually ships on, with iOS's home-indicator inset. */
@@ -286,7 +287,7 @@ describe("native first-run consent placement", () => {
     // edge rather than floating 12px off it. The home-indicator inset is
     // cleared by the card's own bottom padding, so the two buttons still never
     // sit under the system gesture area.
-    const card = declarationsFor(globalCss, CARD_RULE, CARD_MEDIA);
+    const card = declarationsFor(analyticsConsentCss, CARD_RULE, CARD_MEDIA);
     expect(card.get("bottom")).toBe("0");
     expect(card.get("padding-bottom")).toBe(
       "max(6px, env(safe-area-inset-bottom))",
@@ -298,7 +299,7 @@ describe("native first-run consent placement", () => {
     const surfaceHeight = declarationsFor(onboardingCss, SURFACE_RULE).get("height");
     expect(surfaceHeight, "the surface takes an explicit height").toBeDefined();
 
-    const cardBerth = declarationsFor(globalCss, CARD_RULE, CARD_MEDIA).get("bottom")!;
+    const cardBerth = declarationsFor(analyticsConsentCss, CARD_RULE, CARD_MEDIA).get("bottom")!;
     // The card grows with its text, so its height is bounded by the lane the
     // surface reserves for it, never by the row's 56px floor.
     const cardLane = "var(--first-run-consent-lane)";

@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import WebMcpNightBoard from "@/components/webmcp/WebMcpNightBoard";
+import webmcpStyles from "@/app/webmcp/Webmcp.module.css";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -68,9 +69,9 @@ describe("WebMCP Agent Night Board", () => {
       .toBe("Three pubs in Victoria");
     expect(container.querySelector<HTMLInputElement>("#webmcp-search")?.value).toBe("Victoria");
     expect(container.textContent).toContain("Manual board ready");
-    const draftButton = container.querySelector<HTMLButtonElement>(".webmcpDraft button");
+    const draftButton = container.querySelector<HTMLButtonElement>(`.${webmcpStyles.webmcpDraft} button`);
     expect(draftButton).not.toBeNull();
-    const draftForm = container.querySelector<HTMLFormElement>(".webmcpDraft");
+    const draftForm = container.querySelector<HTMLFormElement>(`.${webmcpStyles.webmcpDraft}`);
     expect(draftForm).not.toBeNull();
 
     await act(async () => {

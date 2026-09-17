@@ -71,6 +71,7 @@ vi.mock("@/lib/authedFetch", () => ({
 }));
 
 import MessageThread from "@/components/messages/MessageThread";
+import msgStyles from "@/app/messages/Messages.module.css";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -94,7 +95,7 @@ async function mount(): Promise<void> {
 }
 
 async function type(text: string): Promise<void> {
-  const field = container.querySelector<HTMLTextAreaElement>(".composerInput")!;
+  const field = container.querySelector<HTMLTextAreaElement>(`.${msgStyles.composerInput}`)!;
   await act(async () => {
     const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
     setter.call(field, text);
@@ -104,7 +105,7 @@ async function type(text: string): Promise<void> {
 
 async function typeAndSend(text: string): Promise<void> {
   await type(text);
-  const send = container.querySelector<HTMLButtonElement>(".composerSend")!;
+  const send = container.querySelector<HTMLButtonElement>(`.${msgStyles.composerSend}`)!;
   await act(async () => {
     send.click();
   });
@@ -115,7 +116,7 @@ function posts(): Array<{ url: string; method: string; body: string }> {
 }
 
 function composerValue(): string {
-  return container.querySelector<HTMLTextAreaElement>(".composerInput")!.value;
+  return container.querySelector<HTMLTextAreaElement>(`.${msgStyles.composerInput}`)!.value;
 }
 
 beforeEach(() => {
@@ -146,7 +147,7 @@ describe("message thread request budget", () => {
     const gets = fetchLog.calls.filter((c) => c.method === "GET");
     expect(gets).toHaveLength(1);
     expect(gets[0].url).toBe("/api/messages/c1?handle=ken");
-    expect(container.querySelectorAll(".messageRow")).toHaveLength(1);
+    expect(container.querySelectorAll(`.${msgStyles.messageRow}`)).toHaveLength(1);
   });
 
   it("draws the outbox bubble BEFORE the POST answers, and refetches nothing after it", async () => {
@@ -156,11 +157,11 @@ describe("message thread request budget", () => {
 
     // The bubble is up while the request is still in flight, and the composer
     // is already empty for the next one.
-    const rows = container.querySelectorAll(".messageRow");
+    const rows = container.querySelectorAll(`.${msgStyles.messageRow}`);
     expect(rows).toHaveLength(2);
     expect(rows[1].hasAttribute("data-sending")).toBe(true);
     expect(rows[1].textContent).toContain("Yo");
-    expect(container.querySelector<HTMLTextAreaElement>(".composerInput")!.value).toBe("");
+    expect(container.querySelector<HTMLTextAreaElement>(`.${msgStyles.composerInput}`)!.value).toBe("");
 
     await act(async () => {
       fetchLog.pendingPosts[0]!(
@@ -172,7 +173,7 @@ describe("message thread request budget", () => {
     });
     await flush();
 
-    const after = container.querySelectorAll(".messageRow");
+    const after = container.querySelectorAll(`.${msgStyles.messageRow}`);
     expect(after).toHaveLength(2);
     expect(after[1].hasAttribute("data-sending")).toBe(false);
     expect(after[1].textContent).toContain("Yo");
@@ -189,9 +190,9 @@ describe("message thread request budget", () => {
     });
     await flush();
 
-    expect(container.querySelectorAll(".messageRow")).toHaveLength(1);
-    expect(container.querySelector<HTMLTextAreaElement>(".composerInput")!.value).toBe("Yo");
-    expect(container.querySelector(".threadError")?.textContent).toContain("Storage is unavailable.");
+    expect(container.querySelectorAll(`.${msgStyles.messageRow}`)).toHaveLength(1);
+    expect(container.querySelector<HTMLTextAreaElement>(`.${msgStyles.composerInput}`)!.value).toBe("Yo");
+    expect(container.querySelector(`.${msgStyles.threadError}`)?.textContent).toContain("Storage is unavailable.");
     expect(fetchLog.calls.filter((c) => c.method === "GET")).toHaveLength(1);
   });
 });
@@ -205,7 +206,7 @@ describe("the send is latched and carries an idempotency key", () => {
     await mount();
     await type("Two taps");
 
-    const send = container.querySelector<HTMLButtonElement>(".composerSend")!;
+    const send = container.querySelector<HTMLButtonElement>(`.${msgStyles.composerSend}`)!;
     await act(async () => {
       // Both taps in ONE task: `sending` state is committed a microtask later,
       // so state alone let the second one through.
@@ -265,7 +266,7 @@ describe("a refused send never eats the message", () => {
     const value = composerValue();
     expect(value).toContain("the one that matters");
     expect(value).toContain("meanwhile");
-    expect(container.querySelectorAll(".messageRow")).toHaveLength(1);
+    expect(container.querySelectorAll(`.${msgStyles.messageRow}`)).toHaveLength(1);
   });
 
   it("keeps it on a thrown request too, not only a refused one", async () => {

@@ -159,7 +159,7 @@ const HOSTS: Array<{
 }> = [
   { route: "/feed", file: "app/feed/Feed.module.css", className: "feedShell", centering: "flex-center" },
   { route: "/tonight", file: "app/tonight/Tonight.module.css", className: "tonightPage", centering: "margin-auto" },
-  { route: "/activity", file: "app/activity/activity.css", className: "activityShell", centering: "margin-auto" },
+  { route: "/activity", file: "app/activity/Activity.module.css", className: "activityShell", centering: "margin-auto" },
   { route: "/messages", file: "app/messages/Messages.module.css", className: "messagesPage", centering: "full-bleed" },
   { route: "/moment", file: "components/moment/moment.css", className: "momentPage", centering: "full-bleed" },
   { route: "/u/[handle]", file: "app/u/[handle]/Profile.module.css", className: "profilePage", centering: "full-bleed" },

@@ -34,7 +34,7 @@ describe("sheet material", () => {
     expect(themeCss).toMatch(
       /html\[data-theme="dark"\]\s*{[\s\S]*?--sheet-material:\s*color-mix\([^;]+transparent\)/,
     );
-    expect(globalCss).toMatch(
+    expect(venueCss).toMatch(
       /\.mapDrawer\s*{[^}]*background:\s*var\(--sheet-material\);[^}]*backdrop-filter:\s*blur\(20px\) saturate\(1\.08\)/,
     );
     expect(mobileCss).toMatch(
@@ -43,7 +43,7 @@ describe("sheet material", () => {
   });
 
   it("falls back to an opaque material for transparency and contrast preferences", () => {
-    expect(globalCss).toMatch(
+    expect(venueCss).toMatch(
       /@media \(prefers-reduced-transparency: reduce\), \(prefers-contrast: more\)\s*{[\s\S]*?\.mapDrawer\s*{[^}]*background:\s*var\(--sheet-material-solid\);[^}]*backdrop-filter:\s*none/,
     );
     expect(mobileCss).toMatch(
@@ -70,7 +70,7 @@ describe("responsive spring ownership", () => {
     expect(legacyDragSource).toContain(
       "const SHEET_GESTURE_MAX_WIDTH = 768",
     );
-    expect(globalCss).toMatch(
+    expect(venueCss).toMatch(
       /\.mapDrawer\.springDrawer\.left\.open\.sheet-half\[data-spring-axis="vertical"\][\s\S]*?transform:\s*var\(--drawer-spring-transform\)\s*!important/,
     );
   });
@@ -96,10 +96,10 @@ describe("responsive spring ownership", () => {
     expect(springDrawerSource).toContain(
       "window.getComputedStyle(drawerRef.current).bottom",
     );
-    expect(globalCss).toMatch(
+    expect(venueCss).toMatch(
       /\.mapDrawer\.springDrawer\.left\.open\[data-spring-axis="vertical"\][^{]*{[^}]*z-index:\s*var\(--z-nav\)/,
     );
-    expect(globalCss).toMatch(
+    expect(venueCss).toMatch(
       /\.mapDrawer\.springDrawer\.right\.open\[data-spring-axis="vertical"\][^{]*{[^}]*z-index:\s*calc\(var\(--z-nav\) \+ 1\)/,
     );
   });

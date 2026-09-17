@@ -37,7 +37,7 @@ describe("mobile web polish source contracts", () => {
     const laneSources = [
       "app/discover/Discover.module.css",
       "app/feed/Feed.module.css",
-      "app/pint-index/pint-index.css",
+      "app/pint-index/PintIndex.module.css",
       "app/pal/Pal.module.css",
       "components/drinks/categoryShowcase.css",
       "components/landing/landing.css",

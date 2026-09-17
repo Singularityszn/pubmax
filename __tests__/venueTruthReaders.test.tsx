@@ -83,7 +83,7 @@ describe("the amenity chip", () => {
     // would encode nothing and would collide with the cheap price band, which
     // is the ONE thing green may mean on a venue sheet.
     expect(html).not.toContain("active");
-    expect(html).toContain('class="amenity"');
+    expect(html).toMatch(/class="[^"]*amenity[^"]*"/);
   });
 
   it("words a stated absence as one rather than as a greyed fact", () => {

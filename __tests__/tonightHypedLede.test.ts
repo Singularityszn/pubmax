@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { HypedPub } from "@/lib/hypedPubs";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+import ledeStyles from "@/app/tonight/TonightLede.module.css";
 
 /**
  * What a reader really meets, in a real DOM.
@@ -177,11 +178,11 @@ describe("the tonight lede, hydrated", () => {
     // pubs run that offer rather than repeating itself 24 times.
     expect(
       chains?.querySelectorAll(
-        '.tonightChainList:not(.tonightChainMore .tonightChainList) [data-testid="tonight-chain-row"]',
+        `.${ledeStyles.tonightChainList}:not(.${ledeStyles.tonightChainMore} .${ledeStyles.tonightChainList}) [data-testid="tonight-chain-row"]`,
       ).length,
     ).toBe(3);
     expect(chains?.textContent).toContain("Same deal at 24 pubs");
-    expect(chains?.querySelector(".tonightChainMoreToggle")?.textContent).toContain(
+    expect(chains?.querySelector(`.${ledeStyles.tonightChainMoreToggle}`)?.textContent).toContain(
       "One more offer",
     );
   });

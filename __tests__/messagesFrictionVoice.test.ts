@@ -40,6 +40,7 @@ vi.mock("@/lib/useDismissOnEscape", () => ({ useDismissOnEscape: vi.fn() }));
 vi.mock("@/lib/useFocusTrap", () => ({ useFocusTrap: vi.fn() }));
 vi.mock("@/components/profile/ProfileImageCropper", () => ({ default: () => null }));
 
+import messageStyles from "@/app/messages/Messages.module.css";
 import MessageThread from "@/components/messages/MessageThread";
 
 // Messages friction fence. Both message surfaces are behind sign-in, so a
@@ -96,7 +97,7 @@ const failureCopy = (): string => {
   const source = read(THREAD);
   const block = source.slice(
     source.indexOf('state === "unreachable"'),
-    source.indexOf('<div className="messageThread">'),
+    source.indexOf("styles.messageThread"),
   );
   return (block.match(/>[^<>{}]+</g) ?? [])
     .map((node) => node.slice(1, -1).trim())
@@ -118,7 +119,7 @@ describe("messages friction voice", () => {
       await Promise.resolve();
     });
 
-    expect(host.querySelector(".threadFailure")).not.toBeNull();
+    expect(host.querySelector(`.${messageStyles.threadFailure}`)).not.toBeNull();
     expect(host.textContent).toContain(
       "This conversation won’t open right now. Your messages are safe.",
     );
@@ -172,7 +173,7 @@ describe("messages friction voice", () => {
     expect(failureFrame).toContain("Couldn&rsquo;t load your conversations.");
     expect(failureFrame).toContain("retryButton");
     expect(failureFrame).not.toContain("Nobody in here yet.");
-    expect(source).toContain('className="threadRetryBtn"');
+    expect(source).toContain("styles.threadRetryBtn");
     expect(source).toContain("Try again");
 
     // The warm empty card only speaks for an inbox we know is empty.
@@ -187,7 +188,7 @@ describe("messages friction voice", () => {
     // The quiet notice sits above the list it describes, and only ever there:
     // it claims what loaded last, so it never renders where nothing loaded.
     const noticeAt = source.indexOf("{failed ? (");
-    const notice = source.slice(noticeAt, source.indexOf('<ul className="conversationList">'));
+    const notice = source.slice(noticeAt, source.indexOf("styles.conversationList"));
     const visible = (notice.match(/>[^<>{}]+</g) ?? [])
       .map((node) => node.slice(1, -1).trim())
       .filter(Boolean)

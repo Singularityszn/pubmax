@@ -29,6 +29,8 @@ const pintArrivalCss = read("components/pintindex/pintIndexArrival.css");
 const venueListCss = read("components/map/mapVenueList.css");
 const venuePriceSubmitCss = read("components/map/venuePriceSubmit.css");
 const globalCss = read("app/globals.css");
+const pubMapCanvasCss = read("components/PubMapCanvas.module.css");
+const analyticsConsentCss = read("components/analyticsConsent.css");
 
 function declarationsFor(selector: string): Map<string, string> {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -66,14 +68,15 @@ describe("mobile chrome fit at 390px", () => {
   });
 
   it("keeps first-visit analytics choices equal and clear of map activation", () => {
-    const buttons = globalCss.match(/\.analyticsConsentPromptActions button\s*{([^}]*)}/)?.[1] ?? "";
+    const buttons = analyticsConsentCss.match(/\.analyticsConsentPromptActions button\s*{([^}]*)}/)?.[1] ?? "";
     expect(buttons).toMatch(/min-height:\s*44px/);
     expect(buttons).toMatch(/background:\s*var\(--panel\)/);
-    expect(globalCss).not.toMatch(/\.analyticsConsentPromptActions button:first-child/);
+    expect(analyticsConsentCss).not.toMatch(/\.analyticsConsentPromptActions button:first-child/);
     // PR #1017 removed map-only consent action overrides. Map activation now
     // inherits the same full-size, equal choice controls as every mobile page.
-    expect(globalCss).not.toMatch(/body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt(?: p|Actions(?: button)?)\s*{/);
-    expect(globalCss).not.toMatch(
+    const allConsentCss = globalCss + analyticsConsentCss;
+    expect(allConsentCss).not.toMatch(/body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt(?: p|Actions(?: button)?)\s*{/);
+    expect(allConsentCss).not.toMatch(
       /body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt\s*{[^}]*(?:display:\s*none|opacity:\s*0)/,
     );
   });
@@ -476,7 +479,7 @@ describe("mobile tap-target floors", () => {
   });
 
   it("keeps basemap Retry thumb-sized and clear of phone navigation", () => {
-    expect(globalCss).toMatch(
+    expect(pubMapCanvasCss).toMatch(
       /\.mapSoftRetryBtn\s*{[^}]*min-width:\s*64px;[^}]*min-height:\s*44px/,
     );
     // Clearing the tab bar alone put this notice UNDER the plan-activation
@@ -486,7 +489,7 @@ describe("mobile tap-target floors", () => {
     // published berth and height (components/nav/mobileNav.css) rather than
     // restating a number, and e2e/map-blocked-fallback.spec.ts measures the
     // rendered ownership.
-    expect(globalCss).toMatch(
+    expect(pubMapCanvasCss).toMatch(
       /@media \(max-width: 640px\)[\s\S]*?\.mapSoftRetry\s*{[^}]*bottom:\s*calc\([\s\S]*?var\(--plan-activation-bottom\) \+ var\(--plan-activation-h\)/,
     );
   });

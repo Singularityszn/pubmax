@@ -59,10 +59,11 @@ function ruleBody(css: string, selector: string): string {
 describe("map retry notice contrast", () => {
   const globals = read("app/globals.css");
   const theme = read("app/theme.css");
+  const canvasCss = read("components/PubMapCanvas.module.css");
 
   it("uses semantic ink for the resting notice and inherits it for Retry", () => {
-    expect(ruleBody(globals, ".mapSoftRetry")).toMatch(/color:\s*var\(--ink\)\s*;/);
-    expect(ruleBody(globals, ".mapSoftRetryBtn")).toMatch(/color:\s*inherit\s*;/);
+    expect(ruleBody(canvasCss, ".mapSoftRetry")).toMatch(/color:\s*var\(--ink\)\s*;/);
+    expect(ruleBody(canvasCss, ".mapSoftRetryBtn")).toMatch(/color:\s*inherit\s*;/);
   });
 
   it("keeps resting and hover text above AA on the dark toast", () => {
@@ -91,8 +92,8 @@ describe("map retry notice contrast", () => {
   });
 
   it("keeps the light-theme override on semantic ink", () => {
-    const lightOverride = globals.match(
-      /\[data-theme="light"\] \.mapSoftRetry\s*\{([\s\S]*?)\}/,
+    const lightOverride = canvasCss.match(
+      /:global\(\[data-theme="light"\]\) \.mapSoftRetry\s*\{([\s\S]*?)\}/,
     );
     expect(lightOverride, "light map retry override exists").not.toBeNull();
     expect(lightOverride?.[1]).toMatch(/color:\s*var\(--ink/);

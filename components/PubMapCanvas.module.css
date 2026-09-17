@@ -61,6 +61,14 @@
   outline-offset: 2px;
 }
 
+@media (max-width: 640px) {
+  .mapSoftRetry {
+    bottom: calc(
+      var(--plan-activation-bottom) + var(--plan-activation-h) + 12px
+    );
+  }
+}
+
 /* ── POI swatch ───────────────────────────────────────────────── */
 
 .poiSwatch {

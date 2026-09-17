@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const globalCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
+const globalCss = readFileSync(join(process.cwd(), "components/analyticsConsent.css"), "utf8");
 
 describe("analytics consent clearance", () => {
   it("reserves body foot room while the fixed consent bar is mounted", () => {

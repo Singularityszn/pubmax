@@ -47,6 +47,7 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => ({
 }));
 
 import MessageThread from "@/components/messages/MessageThread";
+import msgStyles from "@/app/messages/Messages.module.css";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
@@ -79,7 +80,7 @@ async function choosePhoto(): Promise<void> {
 }
 
 function overlays(): HTMLElement[] {
-  return [...container.querySelectorAll<HTMLElement>(".messageCropOverlay")];
+  return [...container.querySelectorAll<HTMLElement>(`.${msgStyles.messageCropOverlay}`)];
 }
 
 beforeEach(() => {
@@ -137,7 +138,7 @@ describe("choosing a DM photo opens a bounded modal card, not an in-flow step", 
     const dialogs = overlay.querySelectorAll('[role="dialog"][aria-modal="true"]');
     expect(dialogs).toHaveLength(1);
     const card = dialogs[0] as HTMLElement;
-    expect(card.classList.contains("messageCropCard")).toBe(true);
+    expect(card.classList.contains(msgStyles.messageCropCard)).toBe(true);
 
     // It is the MESSAGE photo's crop step, at the message target's own shape.
     expect(card.querySelector(".profileCropStep-message-photo")).not.toBeNull();
@@ -148,7 +149,7 @@ describe("choosing a DM photo opens a bounded modal card, not an in-flow step", 
     await mountThread();
     await choosePhoto();
 
-    const card = container.querySelector<HTMLElement>(".messageCropCard");
+    const card = container.querySelector<HTMLElement>(`.${msgStyles.messageCropCard}`);
     expect(card).not.toBeNull();
     // A dialog that declares itself modal has to BE one: a keyboard reader was
     // left on the composer underneath with no way in and no way out.
@@ -172,7 +173,7 @@ describe("choosing a DM photo opens a bounded modal card, not an in-flow step", 
     await mountThread();
     await choosePhoto();
     const cancel = container.querySelector<HTMLButtonElement>(
-      ".messageCropCard .profileCropCancel",
+      `.${msgStyles.messageCropCard} .profileCropCancel`,
     );
     expect(cancel).not.toBeNull();
 

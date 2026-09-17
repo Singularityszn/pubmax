@@ -130,8 +130,8 @@ describe("the surfaces that change shape", () => {
     expect(bar).toContain("aria-label={tab.ariaLabel}");
     // The consent card grows past its phone ceiling rather than clipping the
     // disclosure and the way out.
-    const globals = readFileSync(join(ROOT, "app/globals.css"), "utf8");
-    expect(globals).toContain('html[data-text-scale="large"] .analyticsConsentPrompt {');
-    expect(globals).toMatch(/html\[data-text-scale="large"\] \.analyticsConsentPrompt \{[^}]*max-height: none;/);
+    const consentCss = readFileSync(join(ROOT, "components/analyticsConsent.css"), "utf8");
+    expect(consentCss).toContain('html[data-text-scale="large"] .analyticsConsentPrompt {');
+    expect(consentCss).toMatch(/html\[data-text-scale="large"\] \.analyticsConsentPrompt \{[^}]*max-height: none;/);
   });
 });

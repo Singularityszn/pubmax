@@ -16,6 +16,7 @@ const PUBLISHABLE_KEY = "pk_test_cmFyZS10cm91dC0yOS5jbGVyay5hY2NvdW50cy5kZXYk";
 
 describe("QA high findings — mobile sheet and consent layering", () => {
   const globalCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
+  const consentCss = readFileSync(join(process.cwd(), "components/analyticsConsent.css"), "utf8");
   const mobileMapShellCss = readFileSync(
     join(process.cwd(), "components/mobile/mobileMapShell.css"),
     "utf8",
@@ -43,7 +44,7 @@ describe("QA high findings — mobile sheet and consent layering", () => {
   });
 
   it("hides the analytics consent card while any map sheet is open", () => {
-    const rule = globalCss.match(
+    const rule = consentCss.match(
       /body:has\(\.mobileSheetPortal\) \.analyticsConsentPrompt,\s*body:has\(\.chooseAreaDesktopScrim\) \.analyticsConsentPrompt\s*{([^}]*)}/,
     )?.[1] ?? "";
     expect(rule).toMatch(/visibility:\s*hidden/);

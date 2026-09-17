@@ -27,6 +27,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it } from "vitest";
 
+import outStyles from "@/app/out/Out.module.css";
 import { MARK_COLORS } from "@/components/brand/PubmaxxMark";
 import { OutListingPubPair } from "@/components/out/OutListingPubPair";
 import { OUT_LISTING_VENUE_BADGE_LABEL } from "@/lib/outDesktopGrouping";
@@ -154,7 +155,7 @@ describe("the venue badge wears our own mark", () => {
     // guarding: rename the label and this test keeps passing against words no
     // reader sees any more.
     expect(
-      renderedPubPair().querySelector(".outListingPubPairLabel")?.textContent,
+      renderedPubPair().querySelector(`.${outStyles.outListingPubPairLabel}`)?.textContent,
     ).toBe(OUT_LISTING_VENUE_BADGE_LABEL);
   });
 });

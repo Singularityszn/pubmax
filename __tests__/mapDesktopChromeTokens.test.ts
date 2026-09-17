@@ -16,7 +16,7 @@ function ruleBody(css: string, selector: string): string {
 
 describe("desktop map passive chrome", () => {
   it("keeps the toolbar on a flat raised surface", () => {
-    expect(ruleBody(globalsCss, ".mapToolbar")).toContain(
+    expect(ruleBody(toolbarCss, ".mapToolbar")).toContain(
       "background: var(--color-surface-raised);",
     );
     expect(ruleBody(toolbarCss, ".mapToolbar")).toContain(

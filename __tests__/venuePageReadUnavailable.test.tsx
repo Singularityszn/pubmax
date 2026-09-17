@@ -114,7 +114,7 @@ describe.each([
     // One route family, one heading structure: the not-found card on these two
     // routes ships an h1, and this document must ship one too.
     expect(markup).toMatch(
-      new RegExp(`<h1 class="${titleClass}">We could not load this pub</h1>`),
+      new RegExp(`<h1 class="[^"]*${titleClass}[^"]*">We could not load this pub</h1>`),
     );
     expect(markup).toContain("could not answer just now");
     expect(markup).toContain(`href="${href}"`);

@@ -9,7 +9,7 @@ describe("/tonight desktop rail dedup (UI_UX_FIX_PRD #1)", () => {
     const source = readFileSync(TONIGHT_CLIENT, "utf8");
 
     const contextBlock = source.match(
-      /<aside className="tonightContext"[\s\S]*?<\/aside>/,
+      /<aside className=\{[^}]*tonightContext[^}]*\}[\s\S]*?<\/aside>/,
     )?.[0];
     expect(contextBlock).toBeTruthy();
     expect(contextBlock).not.toContain("DealsTonightLane");
@@ -21,7 +21,7 @@ describe("/tonight desktop rail dedup (UI_UX_FIX_PRD #1)", () => {
     const source = readFileSync(TONIGHT_CLIENT, "utf8");
 
     expect(source).toContain("function mobileSecondaryLanes(");
-    expect(source).toContain("tonightSecondaryLanes--mobile");
+    expect(source).toContain("tonightSecondaryLanesMobile");
     expect(source).not.toContain("function placeSecondaryLanes(");
     expect(source).not.toContain("lanePlacement.above");
     expect(source).not.toContain("lanePlacement.below");

@@ -41,6 +41,7 @@ vi.mock("@/lib/authedFetch", () => ({
 }));
 
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
+import palStyles from "@/app/pal/Pal.module.css";
 import {
   PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_START_ERROR,
@@ -155,7 +156,7 @@ describe("Pub Pal voice controls", () => {
     expect(getUserMedia).toHaveBeenCalledOnce();
     expect(startButton?.disabled).toBe(true);
     expect(startButton?.getAttribute("aria-busy")).toBe("true");
-    expect(container.querySelector(".palVoiceStatus")?.textContent).toBe(
+    expect(container.querySelector(`.${palStyles.palVoiceStatus}`)?.textContent).toBe(
       "Starting voice",
     );
 
