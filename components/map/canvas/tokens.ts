@@ -170,7 +170,7 @@ export type Tokens = {
   // pin-by-category paint tints a pin by a venue's dominant drink family from
   // the SAME light/dark/legacy source the venue-sheet swatches use. Not wired
   // into any live paint yet: the Venue model carries no honest dominant category
-  // (see the ready-to-apply patch in components/map/mapColor.css), and the
+  // (see the ready-to-apply patch in components/map/mapColor.module.css), and the
   // honesty rule is never to colour a pin by a guessed category.
   cat: Record<DrinkCategory, string>;
 };
