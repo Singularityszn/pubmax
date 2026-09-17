@@ -137,7 +137,7 @@ function validate(raw: string): URL | null {
 async function followRedirects(
   initial: URL,
   controller: AbortController,
-): Promise<{ upstream: Response } | { error: Response }> {
+): Promise<{ ok: true; upstream: Response } | { ok: false; response: Response }> {
   let target: URL = initial;
   let upstream: Response | null = null;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
@@ -158,15 +158,15 @@ async function followRedirects(
         }
       }
       if (!followed || hop === MAX_REDIRECTS) {
-        return { error: new Response("Image source redirected out of policy.", { status: 502 }) };
+        return { ok: false, response: new Response("Image source redirected out of policy.", { status: 502 }) };
       }
       target = followed;
       continue;
     }
     break;
   }
-  if (!upstream) return { error: new Response("Image source unavailable.", { status: 502 }) };
-  return { upstream };
+  if (!upstream) return { ok: false, response: new Response("Image source unavailable.", { status: 502 }) };
+  return { ok: true, upstream };
 }
 
 /**
@@ -177,12 +177,12 @@ async function followRedirects(
 async function readUpstreamImage(
   upstream: Response,
   controller: AbortController,
-): Promise<{ bytes: Uint8Array; type: string } | { error: Response }> {
+): Promise<{ ok: true; bytes: Uint8Array; type: string } | { ok: false; response: Response }> {
   if (!upstream.ok) {
     await cancelUpstreamBody(upstream);
     return upstream.status === 404 || upstream.status === 410
-      ? { error: cacheableImageMiss() }
-      : { error: new Response("Image source unavailable.", { status: 502 }) };
+      ? { ok: false, response: cacheableImageMiss() }
+      : { ok: false, response: new Response("Image source unavailable.", { status: 502 }) };
   }
   const type = (upstream.headers.get("content-type") ?? "").toLowerCase();
   // Raster images only. SVG is executable content — served same-origin it
@@ -190,22 +190,22 @@ async function readUpstreamImage(
   // outright rather than sandboxed.
   if (type.includes("svg")) {
     await cancelUpstreamBody(upstream);
-    return { error: new Response("Not an image.", { status: 502 }) };
+    return { ok: false, response: new Response("Not an image.", { status: 502 }) };
   }
   if (!type.startsWith("image/")) {
     await cancelUpstreamBody(upstream);
-    return { error: cacheableImageMiss() };
+    return { ok: false, response: cacheableImageMiss() };
   }
   const declared = Number(upstream.headers.get("content-length") ?? "0");
   if (declared > MAX_BYTES) {
     controller.abort();
     await cancelUpstreamBody(upstream);
-    return { error: new Response("Image too large.", { status: 502 }) };
+    return { ok: false, response: new Response("Image too large.", { status: 502 }) };
   }
   // Stream with a hard byte cap (cursor bot, PR #171): a chunked/mislabelled
   // response is aborted the moment it crosses the cap, never fully buffered.
   const reader = upstream.body?.getReader();
-  if (!reader) return { error: cacheableImageMiss() };
+  if (!reader) return { ok: false, response: cacheableImageMiss() };
   const chunks: Uint8Array[] = [];
   let received = 0;
   for (;;) {
@@ -214,18 +214,18 @@ async function readUpstreamImage(
     received += value.byteLength;
     if (received > MAX_BYTES) {
       controller.abort();
-      return { error: new Response("Image too large.", { status: 502 }) };
+      return { ok: false, response: new Response("Image too large.", { status: 502 }) };
     }
     chunks.push(value);
   }
-  if (received === 0) return { error: cacheableImageMiss() };
+  if (received === 0) return { ok: false, response: cacheableImageMiss() };
   const original = new Uint8Array(received);
   let offset = 0;
   for (const chunk of chunks) {
     original.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return { bytes: original, type };
+  return { ok: true, bytes: original, type };
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -244,11 +244,11 @@ export async function GET(request: Request): Promise<Response> {
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const redirectResult = await followRedirects(initial, controller);
-    if ("error" in redirectResult) return redirectResult.error;
+    if (!redirectResult.ok) return redirectResult.response;
     const { upstream } = redirectResult;
 
     const readResult = await readUpstreamImage(upstream, controller);
-    if ("error" in readResult) return readResult.error;
+    if (!readResult.ok) return readResult.response;
     const { bytes: original, type } = readResult;
 
     const answer = width ? await resized(original, width) : null;
