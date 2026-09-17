@@ -4,7 +4,7 @@ import Link from "next/link";
 import EmptyState from "@/components/ui/empty-state";
 import SiteNav from "@/components/nav/SiteNav";
 
-import "../plan.css";
+import planStyles from "../Plan.module.css";
 
 // Branded not-found for /plan/[id] — rendered when the page calls notFound() on
 // a plan that's unknown OR expired. This is a SHARED-LINK surface (someone was
@@ -19,12 +19,12 @@ export const metadata: Metadata = {
 
 export default function PlanNotFound(): React.JSX.Element {
   return (
-    <main id="main" className="planPage planPage--composer pageHidesCreateFab">
+    <main id="main" className={`${planStyles.planPage} planPage--composer pageHidesCreateFab`}>
       {/* Standard site navigation — a shared plan link is many people's first
           screen; it must route onward, not dead-end on a wordmark. SiteNav
           carries the brand, so the masthead keeps just the context line. */}
       <SiteNav />
-      <header className="planPage__masthead">
+      <header className={planStyles.planPage__masthead}>
         <span>Plan</span>
         <span>London · Tonight</span>
       </header>

@@ -9,8 +9,7 @@ import { isPlanId } from "@/lib/plan";
 import { buildPlanPrivacyPreview } from "@/lib/planPrivacy";
 import { planStore } from "@/lib/planStore";
 
-import "../../plan.css";
-import "./recap.css";
+import recapStyles from "./Recap.module.css";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -53,7 +52,7 @@ export default async function PlanRecapPage({ params }: Props) {
   if (read.status === "absent") notFound();
 
   return (
-    <main id="main" className="recapPage">
+    <main id="main" className={recapStyles.recapPage}>
       <MemoryReviewAnalytics />
       <SiteNav />
       <RecapDetail planId={id} />

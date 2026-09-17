@@ -455,7 +455,7 @@
 }
 
 .planShare > p:not(.planPage__eyebrow) { color: var(--ink-soft); line-height: 1.5; }
-.planShare .shareBar { margin-top: 20px; }
+.planShare :global(.shareBar) { margin-top: 20px; }
 
 /* Inevitable post-plan next step: WhatsApp first, Copy invite second. */
 .planInviteNext {
@@ -621,9 +621,9 @@
   min-width: 0;
   padding: var(--space-4) 0 0;
 }
-.planDescribeFirst > .screenHead { display: contents; }
-.planDescribeFirst > .screenHead > .kicker { order: -3; }
-.planDescribeFirst > .screenHead > .screenTitle { order: -2; max-width: 40rem; }
+.planDescribeFirst > :global(.screenHead) { display: contents; }
+.planDescribeFirst > :global(.screenHead) > :global(.kicker) { order: -3; }
+.planDescribeFirst > :global(.screenHead) > :global(.screenTitle) { order: -2; max-width: 40rem; }
 /* The stop-count picker decides what "Sort it" produces, so it is read BEFORE
    the tap, seated with the field rather than left below both actions where a
    reader met it only after committing. The Screen primitive paints its actions
@@ -631,7 +631,7 @@
    order alongside the kicker and the title. */
 .planDescribeFirst__form { order: -1; }
 .planDescribeFirst > .planStopCount { order: -1; }
-.planDescribeFirst > .screenHead > .screenActions { margin-top: var(--space-1); }
+.planDescribeFirst > :global(.screenHead) > :global(.screenActions) { margin-top: var(--space-1); }
 .planDescribeFirst__form { display: grid; max-width: 34rem; }
 .planDescribeFirst__form input { min-height: 48px; border: 1px solid var(--line); border-radius: 11px; padding: 0 16px; font: inherit; background: var(--panel-raised); color: var(--ink); }
 /* Six 44px targets plus the label do not fit one 390px line, so the row wraps
@@ -722,7 +722,7 @@
    lane the way a scrolling answer list does (components/nearme/nearMeNow.css),
    reading the control's OWN published berth rather than a second copy of it. */
 @media (max-width: 640px) {
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .planIntake > footer {
+  :global(body:has(.createFabRoot):not(:has(.pageHidesCreateFab))) .planIntake > footer {
     padding-right: max(0px, calc(var(--create-fab-lane) - var(--page-gutter, 0px)));
   }
 }
@@ -1078,7 +1078,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planSummary__rail { left: 43px; top: 105px; }
   .planSummary__heading { margin-left: 57px; }
   .planSummary__headingRow { align-items: flex-start; }
-  .planSummary > .roundStarter { width: calc(100% - 44px); margin-left: 44px; }
+  .planSummary > :global(.roundStarter) { width: calc(100% - 44px); margin-left: 44px; }
   .planSummary__editor { margin-left: 0; }
   /* Two full-width rows: the disabled label is wider than the row allows. */
   .planSummary__editorActions { display: grid; grid-template-columns: 1fr; }
