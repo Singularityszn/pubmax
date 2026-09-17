@@ -24,9 +24,24 @@ import "./historic-detail.css";
 // — it never references the OG asset.
 //
 // Next 15/16 dynamic route params are async: `params` is a Promise we await.
-// generateStaticParams pre-renders one static page per slug for clean SEO.
+// Every page here reads the per-request CSP nonce, so the document is dynamic
+// and a `revalidate` window would bound nothing. `dynamicParams` is the gate:
+// only a slug loadHistoricPubs() returns is served; unknown slugs get a 404.
+// See app/drink/[slug]/page.tsx for the same pattern.
 
 type PageProps = { params: Promise<{ slug: string }> };
+
+// `dynamicParams=false` means unknown slugs 404 at the edge; generateStaticParams
+// enumerates the valid set. The nonce read (headers() further below) makes these
+// pages dynamic per request — Next.js does not prerender static HTML for them —
+// so the SSG build step that previously failed with no request context never
+// runs.
+export const dynamicParams = false;
+
+export async function generateStaticParams(): Promise<{ slug: string }[]> {
+  const pubs = await loadHistoricPubs();
+  return pubs.map((pub) => ({ slug: pub.slug }));
+}
 
 // Trim + collapse the hook into a clean meta description, capped for SEO. Never
 // invents copy — an empty hook falls back to a neutral, honest sentence.
@@ -36,12 +51,6 @@ function metaDescription(pub: HistoricPub): string {
     hook || `${pub.name}, a notable London pub. Cited from Wikipedia and Wikidata.`;
   return base.length > 155 ? `${base.slice(0, 154).trimEnd()}…` : base;
 }
-
-// Historic pages render dynamically: the root layout reads headers() for the
-// CSP nonce, which rules out static generation. generateStaticParams was
-// previously defined here but caused prerender failures during production
-// builds because the SSG worker lacks a request context for headers().
-// The pages are still SEO-indexed — they are server-rendered on demand.
 
 export async function generateMetadata({
   params,
