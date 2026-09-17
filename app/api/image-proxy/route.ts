@@ -131,13 +131,13 @@ function validate(raw: string): URL | null {
 /**
  * Follow redirects manually, re-validating each hop through the same SSRF
  * and blocklist checks that the initial URL passed.  Returns the final
- * `upstream` response and the resolved `target` URL, or an early-exit error
+ * `upstream` response, or an early-exit error
  * `Response`.
  */
 async function followRedirects(
   initial: URL,
   controller: AbortController,
-): Promise<{ upstream: Response; target: URL } | { error: Response }> {
+): Promise<{ upstream: Response } | { error: Response }> {
   let target: URL = initial;
   let upstream: Response | null = null;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
@@ -166,7 +166,7 @@ async function followRedirects(
     break;
   }
   if (!upstream) return { error: new Response("Image source unavailable.", { status: 502 }) };
-  return { upstream, target };
+  return { upstream };
 }
 
 /**
