@@ -1,11 +1,15 @@
-// F12: the registry's own prose is part of the data path.
+// F12, and the honesty-lane retirement that followed it.
 //
 // `price_updates` described its envelope date as naming one fixed collection
 // day (2026-07-03) while the shipped envelope carried 2026-09-04. Nobody was
 // wrong about the RULE, which is that the empty envelope tracks the bundled
-// pint dataset's collection day; the prose named a day, and days move. This
-// holds the two to each other so the sentence cannot rot again, and it never
-// restamps anything: the envelope has no rows to restamp.
+// pint dataset's collection day; the prose named a day, and days move.
+//
+// The lane is now RETIRED, and so is `food_price_updates`: neither has a
+// producer in this tree, so `/api/freshness` reports both as `retired` rather
+// than as feeds anybody owes a run. This file holds three things to each
+// other so none of them can rot back: the registry declaration, the shipped
+// artifact, and the absence of the machinery that used to imply progress.
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -13,6 +17,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { evaluateFreshness } from "@/scripts/check_freshness.mjs";
+import { evaluateDataset, hasBreach } from "@/lib/freshness";
 
 const ROOT = path.resolve(__dirname, "..");
 
@@ -23,12 +28,17 @@ type Dataset = {
   refreshWorkflow: string;
   gate: string;
   stalenessBudgetHours: number | null;
-  stamp: { kind: string; value?: string } | null;
+  retired?: boolean;
+  stamp: { kind: string; value?: string; pointer?: string } | null;
 };
 
 const registry = JSON.parse(
   readFileSync(path.join(ROOT, "data", "freshness_registry.json"), "utf8"),
 ) as { version: number; datasets: Dataset[] };
+
+const packageJson = JSON.parse(
+  readFileSync(path.join(ROOT, "package.json"), "utf8"),
+) as { scripts: Record<string, string> };
 
 function dataset(id: string): Dataset {
   const found = registry.datasets.find((entry) => entry.id === id);
@@ -36,7 +46,65 @@ function dataset(id: string): Dataset {
   return found as Dataset;
 }
 
-describe("price_updates prose and envelope agree", () => {
+/** Every lane that declares itself closed. Both of them, today. */
+const retiredIds = registry.datasets
+  .filter((entry) => entry.retired === true)
+  .map((entry) => entry.id);
+
+describe("a retired lane says so in the registry and in the spine", () => {
+  it("is the two price lanes nothing writes, and no others", () => {
+    expect(retiredIds.sort()).toEqual(["food_price_updates", "price_updates"]);
+  });
+
+  it("carries no staleness budget, because nobody can be late for nothing", () => {
+    for (const id of retiredIds) {
+      expect(dataset(id).stalenessBudgetHours, id).toBeNull();
+    }
+  });
+
+  it("evaluates as retired against the shipped artifact, and never as a breach", async () => {
+    // Run through the real CLI checker with the artifacts on disk and a clock
+    // far past any budget either lane ever carried, so the proof is the
+    // classification rather than a sentence in the registry.
+    const { results, breached } = await evaluateFreshness({
+      now: new Date("2030-01-01T00:00:00Z"),
+      rootDir: ROOT,
+      registry: { ...registry, datasets: retiredIds.map(dataset) },
+    });
+    expect(results.map((row) => row.id).sort()).toEqual(retiredIds.sort());
+    for (const row of results) {
+      expect(row.status, row.id).toBe("retired");
+      expect(["fresh", "stale", "untracked", "snapshot"]).not.toContain(row.status);
+      // The date the artifact carries still rides along: a reader is owed it
+      // even when no refresh is.
+      expect(row.observedAt, row.id).not.toBeNull();
+    }
+    expect(breached).toBe(false);
+  });
+
+  it("keeps the artifact's own integrity: a stamp that stops resolving is still a breach", () => {
+    // Retiring a lane retires its REFRESH. `food_price_updates` is a 3 MB pack
+    // the venue Menu tab reads, so "the file that ships has gone missing" must
+    // stay the finding it always was.
+    const food = dataset("food_price_updates");
+    const missing = evaluateDataset(
+      food as never,
+      null,
+      new Date("2030-01-01T00:00:00Z"),
+      "Artifact public/data/food_price_updates/latest.json is not present at runtime, so its age cannot be measured.",
+    );
+    expect(missing.status).toBe("unknown");
+    expect(hasBreach([missing])).toBe(true);
+  });
+
+  it("names no fixed collection day, because a typed date rots", () => {
+    for (const id of retiredIds) {
+      expect(dataset(id).refreshWorkflow, id).not.toMatch(/\b20\d\d-\d\d-\d\d\b/);
+    }
+  });
+});
+
+describe("price_updates: the empty envelope and the deleted producer", () => {
   const priceUpdates = dataset("price_updates");
 
   it("still ships an EMPTY envelope, which is what makes its date an envelope date", () => {
@@ -45,11 +113,6 @@ describe("price_updates prose and envelope agree", () => {
     ) as { updates: unknown[]; generatedAt: string };
     expect(envelope.updates).toEqual([]);
     expect(Number.isFinite(Date.parse(envelope.generatedAt))).toBe(true);
-  });
-
-  it("names no fixed collection day, because the day it tracks moves", () => {
-    // A date typed into prose is a claim that ages out with nothing saying so.
-    expect(priceUpdates.refreshWorkflow).not.toMatch(/\b20\d\d-\d\d-\d\d\b/);
   });
 
   it("says what the envelope date actually means", () => {
@@ -70,38 +133,23 @@ describe("price_updates prose and envelope agree", () => {
       new Date(pintStamp?.value as string).toISOString().slice(0, 10),
     );
   });
-});
 
-describe("food_price_updates carries no budget nobody can keep", () => {
-  // The row promised a 1440h refresh while no script in the tree writes its
-  // artifact, so it reported stale for ageing exactly as designed and took the
-  // merge bar red with it (astra-review P0-1). The night_signals shape holds:
-  // a null budget, and the reason in the registry's own prose.
-  const food = dataset("food_price_updates");
-
-  it("declares a null budget, the night_signals shape", () => {
-    expect(food.class).toBe("episodic");
-    expect(food.stalenessBudgetHours).toBeNull();
+  it("has no producer left to imply progress with", () => {
+    // Deleted rather than switched off: the publish, the stub parser module
+    // behind it, and the package script that ran it. A `fetchFromSource` that
+    // returns [] by construction is a promise of a parser, and there is no
+    // permissible source for one to read.
+    expect(packageJson.scripts["refresh:prices"]).toBeUndefined();
+    for (const script of Object.values(packageJson.scripts)) {
+      expect(script).not.toContain("refresh_prices.mjs");
+      expect(script).not.toContain("price_source_fetchers.mjs");
+    }
   });
 
-  it("evaluates as untracked against the committed artifact: never fresh, never stale", async () => {
-    // The row is run through the real checker on its own, with the shipped
-    // artifact on disk and a clock far past the old 1440h budget, so the
-    // proof is the classification and not a sentence in the registry.
-    const { results, breached } = await evaluateFreshness({
-      now: new Date("2030-01-01T00:00:00Z"),
-      rootDir: ROOT,
-      registry: { ...registry, datasets: [food] },
-    });
-    expect(results).toHaveLength(1);
-    expect(results[0].id).toBe("food_price_updates");
-    expect(results[0].status).toBe("untracked");
-    expect(results[0].status).not.toBe("fresh");
-    expect(results[0].status).not.toBe("stale");
-    expect(breached).toBe(false);
-  });
-
-  it("names no fixed collection day", () => {
-    expect(food.refreshWorkflow).not.toMatch(/\b20\d\d-\d\d-\d\d\b/);
+  it("holds no placeholder in the source allowlist it used to read", () => {
+    const sources = JSON.parse(
+      readFileSync(path.join(ROOT, "data", "price_sources.json"), "utf8"),
+    ) as { sources: { id: string; url: string }[] };
+    expect(sources.sources).toEqual([]);
   });
 });

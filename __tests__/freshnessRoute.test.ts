@@ -51,6 +51,10 @@ describe("GET /api/freshness", () => {
       // A live lane this spine holds no observation of. Never fresh, never
       // stale, and never reported as healthy (finding F12).
       "unmeasured",
+      // A CLOSED lane: no producer for it exists in this tree, so no run is
+      // owed and none can be made. Never fresh, never stale, and never
+      // reported as progress somebody is behind on.
+      "retired",
     ]);
     for (const d of body.datasets) {
       expect(known.has(d.status)).toBe(true);
@@ -112,6 +116,31 @@ describe("GET /api/freshness", () => {
     expect(drink?.stalenessBudgetHours).toBeNull();
     expect(typeof drink?.observedAt).toBe("string");
     expect(Number.isFinite(Date.parse(drink?.observedAt ?? ""))).toBe(true);
+  });
+
+  it("reports a lane nobody writes as retired, which is not the same word", async () => {
+    // Two closed lanes and two different facts, so two different words. The
+    // per-drink lane above HAS a producer: a weekly retrieval-only workflow
+    // that runs and finds nothing, so its rows are dated and final and
+    // `snapshot` is the honest name. These two have no writer at all - the
+    // baseline publish and its stub parser are deleted, and nothing has ever
+    // written the food pack - so a word that describes a lane somebody might
+    // still refresh would leave a reader waiting. Neither is a breach.
+    const res = await GET();
+    const body = (await res.json()) as {
+      summary: Record<string, number>;
+      datasets: Array<{ id: string; status: string; observedAt: string | null }>;
+    };
+
+    for (const id of ["price_updates", "food_price_updates"]) {
+      const row = body.datasets.find((d) => d.id === id);
+      expect(row?.status, id).toBe("retired");
+      // The artifact's own date still rides along: a reader is owed it even
+      // when no refresh is.
+      expect(Number.isFinite(Date.parse(row?.observedAt ?? "")), id).toBe(true);
+    }
+    expect(body.summary.retired).toBe(2);
+    expect(body.summary.stale ?? 0).toBe(0);
   });
 
   it("never surfaces a broken bundled artifact as an unresolved stamp", async () => {

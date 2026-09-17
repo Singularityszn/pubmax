@@ -33,9 +33,9 @@ page, official API, open data) supports.
 | **What's-On — events** (Ticketmaster/Skiddle/Context.dev/Common) | Official discovery APIs, the Context.dev registered-source lane (see [`LONDON_HARVEST.md`](./LONDON_HARVEST.md)), plus the Common sitemap reader (facts + link out) | Vercel `/api/cron/refresh-whats-on` writes Ticketmaster / Skiddle rows to durable `whats_on_listings`; readers prefer non-expired durable rows, then bundled files. `events-refresh.yml` and local launchd remain recovery paths; `/api/out` also supplements the event lane live per request | Daily Vercel cron; recovery paths are separate | `TICKETMASTER_API_KEY`, `SKIDDLE_API_KEY` (Skiddle also stays fenced off until we hold its logo); Context.dev and Common remain in their separate harvest paths | Daily bounded refresh | 48 h |
 | **Area news** | Keenable `search_web_pages` + `fetch_page_content`; reviewed rows retain source URL and publication date | Manual `npm run refresh:area-news`, then review and merge the committed artifact; operational details and serverless limitation live in [`CRON_PLANE_RUNBOOK.md`](./CRON_PLANE_RUNBOOK.md) | Manual reviewed snapshot | `KEENABLE_API_KEY` is optional; keyless public endpoint remains available | Successful manual refresh | 21 d serving; 504 h registry budget |
 | **Pint prices (core dataset)** | Collected July 2026 snapshot | Manual `export:data → canonicalize:venues → build:slim` | Episodic (bundled static) | none | Re-collection cadence (manual) | 90 d |
-| **Price updates (cheapest pint)** | First-party / open sources allowlist | Manual reviewed publish to `price_updates/latest.json` | Episodic - parser stub keeps served envelope empty; `generatedAt` names bundled pint collection day until reviewed publish lands | needs a real per-source parser | Publish-bound serving once parsers ship | untracked |
+| **Price updates (cheapest pint)** | None. The `sources` allowlist is empty | **RETIRED** (`retired: true`). The hand-run publish and its stub parser are deleted; the served envelope stays empty and its `generatedAt` is an envelope date that names the bundled pint collection day and dates no observation | Closed lane | supply, not permission: the chains that permit reading publish no web pint price | Never (closed lane) | retired |
 | **Drink price updates** | Reviewed first-party observations, collected once | None. Captain ruling 2026-09-05: a **static snapshot**. The one permitted source (Wetherspoons) publishes no per-drink web prices, so no run can advance the file and a staleness budget was a promise nobody could keep | Snapshot - surfaces name it "Snapshot from &lt;collection date&gt;" and claim nothing about currency | adding a source is a separate captain decision, not a budget change | Never (closed lane) | untracked (`class: snapshot`, budget `null`) |
-| **Food price updates** | Menu harvest, by hand | None. No script in the tree writes `food_price_updates/latest.json`; the snapshot advances only on a hand harvest | Episodic snapshot; advances only on human publish | `FIRECRAWL_API_KEY` plus a generator that does not yet exist; **human harvest always** | Human-gated episodic | untracked (`class: episodic`, budget `null`) |
+| **Food price updates** | One 2026-07-11 import, never repeated | **RETIRED** (`retired: true`). No script in the tree writes `food_price_updates/latest.json` and nobody hand-harvests it; the 3 MB pack still ships and the venue Menu tab still reads it, every row carrying its own `observedAt` | Closed lane | no writer at all, which is a stronger fact than a missing key | Never (closed lane) | retired |
 | **Pint Index (borough medians)** | Confirmed Pint Drops + official-publisher / open-data | Recomputed as eligible observations arrive | **Event-sourced** (grows with the product) | none | User-cadence — **the growth loop IS the refresh** | untracked |
 | **Late-food evidence** | Hand-evidenced per Night Area | Manual curation | Episodic | none | Episodic | untracked |
 | **Venue presence (Wetherspoons/OSM)** | OSM Overpass + directory | `fetch:city-pubs` / `fetch:uk-pubs` / `fetch:uk-venues` / `fetch:wetherspoons-pubs` (manual); the venue packs and their London publish carry no registry entry yet, so the spine can call them neither fresh nor stale ([`VENUES.md`](../data/osm/uk/VENUES.md)) | Episodic | None (keyless); the directory read is gated by `lib/harvest/sourcePolicy.ts` | Episodic (OSM changes slowly) | untracked |
@@ -103,16 +103,20 @@ Honest accounting of what will **not** get fresher on its own:
    official-publisher/open-data observations. **The growth loop is the refresh
    mechanism.** More users confirming drops = fresher index. Registered as
    `user-cadence`, budget `null`.
-2. **Price / drink-price parsers are stubbed or dry.** Weekly price cron runs on
-   Vercel, but shared `fetchFromSource` returns `[]` (no parser yet), so it logs
-   a no-op and leaves freshness unchanged. Drink source (Wetherspoons) exposes
-   **no per-drink web prices**; prices live only in native Order-&-Pay backend.
-   Scheduled retrieval produces zero rows until a permissible parser lands.
-   **Gap: real first-party price parsers.** Because that gap is a permission
-   fact and not a backlog item, `drink_price_updates` is now a closed lane
-   (`class: snapshot`, budget `null`): it reports its collection day and owes no
-   refresh. A permitted per-drink source is a captain decision that re-opens the
-   lane and restores a budget in the same change.
+2. **Two price lanes are CLOSED, and a third is dry.** `price_updates` and
+   `food_price_updates` both declare `retired: true`: the first had a publish
+   whose only parser returned `[]` by construction (deleted, with the parser
+   module and the `refresh:prices` script), and the second never had a writer at
+   all. Both report `retired` rather than `untracked`, because "not budgeted"
+   reads as a lane somebody might still refresh. Beside them,
+   `drink_price_updates` is a closed lane of a DIFFERENT kind (`class:
+   snapshot`, budget `null`): its retrieval-only workflow still runs weekly and
+   finds nothing, because the one permitted source (Wetherspoons) exposes **no
+   per-drink web prices** outside its native Order-&-Pay backend. That
+   distinction is the whole point of the two words: a producer that runs and
+   comes back empty is not the same fact as no producer. **Gap: a permissible
+   first-party price source.** It is a captain SOURCE decision, and a revival
+   needs a producer beside it or the lane closes again the moment it lands.
 3. **What's-On has a reliable bounded refresh.** Vercel Cron refreshes quiz,
    deal, music, sport, and configured official event lanes into
    `whats_on_listings`; readers fall back to bundled files when a durable row is
@@ -212,11 +216,15 @@ or read `GET /api/freshness`. Two things to know when reading it:
   `lib/freshnessStoreOverlay.ts`, because a serverless cron cannot rewrite a
   committed artifact. An ingestion feed reports that a sweep RAN, never that
   anything shipped.
-- **A human-gated feed is `untracked`, not `stale`.** `night_signals` and the
-  served `price_updates` envelope advance only on an approved publish (or, while
-  parsers are stubbed, carry an honest collection-day stamp with no machine
-  budget), so neither reads as a broken weekly cron. Scheduled price retrieval
-  stays retired until a permissible parser can return a valid row.
+- **A human-gated feed is `untracked`, not `stale`.** `night_signals` advances
+  only on an approved publish, so it never reads as a broken weekly cron.
+- **A feed nobody writes is `retired`, not `untracked`.** `price_updates` and
+  `food_price_updates` have no producer at all, so no run is owed and none can
+  be made. Reporting them as merely unbudgeted left a reader waiting for a
+  refresh that was never coming. Retiring a lane retires its REFRESH and never
+  its artifact's integrity: a declared stamp that stops resolving is still an
+  `unknown` breach, which is what keeps the 3 MB food pack honest while it
+  ships.
 
 That is the feature working: the directive "always get live data" has a dial that
 says out loud when a cadence has slipped, and stays silent about cadences that

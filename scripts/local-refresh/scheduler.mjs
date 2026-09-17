@@ -275,7 +275,6 @@ export function commandsForMode(mode, dryRun) {
   if (dryRun) {
     return [
       command("scripts/refresh_drink_prices.mjs", "--limit", "1"),
-      command("scripts/refresh_prices.mjs"),
       command("scripts/firecrawl_greene_king_prices.mjs", "--limit", "1", "--merge"),
       command("scripts/firecrawl_mbplc_prices.mjs", "--limit", "1"),
       command("scripts/harvest_outer_london_prices.mjs", "--limit", "1", "--budget", "2"),
@@ -285,7 +284,6 @@ export function commandsForMode(mode, dryRun) {
   }
   return [
     command("scripts/refresh_drink_prices.mjs"),
-    command("scripts/refresh_prices.mjs"),
     command("scripts/firecrawl_greene_king_prices.mjs", "--merge"),
     command("scripts/firecrawl_mbplc_prices.mjs"),
     command("scripts/harvest_outer_london_prices.mjs"),

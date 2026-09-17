@@ -220,11 +220,27 @@ function evaluateDataset(dataset, observedAt, now, unresolvedReason = null) {
       detail: unresolvedReason ?? "Expected a timestamp but none could be resolved from the artifact.",
     };
   }
+  const ageHoursOf = (stamp) => Math.round(((now.getTime() - Date.parse(stamp)) / 3_600_000) * 10) / 10;
+
+  // Mirror of lib/freshness.ts: a closed lane is asked before every answer
+  // that implies a run, and after the unresolved-stamp branch, which still
+  // owns "the artifact that ships has gone missing". Never a breach.
+  if (dataset.retired === true) {
+    return {
+      ...base,
+      ageHours: observedAt === null ? null : ageHoursOf(observedAt),
+      status: "retired",
+      detail:
+        "Retired: no producer for this lane exists in this tree, so no refresh is owed " +
+        "and none can be run. See refreshWorkflow and gate for what closed it.",
+    };
+  }
+
   if (observedAt === null) {
     return { ...base, ageHours: null, status: "untracked", detail: "No stamp declared (static reference data)." };
   }
 
-  const ageHours = Math.round(((now.getTime() - Date.parse(observedAt)) / 3_600_000) * 10) / 10;
+  const ageHours = ageHoursOf(observedAt);
 
   if (base.stalenessBudgetHours === null) {
     // Mirror of lib/freshness.ts: a lane DECLARED a snapshot and given no
@@ -394,6 +410,7 @@ async function main() {
   const stale = results.filter((r) => r.status === "stale");
   const unknown = results.filter((r) => r.status === "unknown");
   const unmeasured = results.filter((r) => r.status === "unmeasured");
+  const retired = results.filter((r) => r.status === "retired");
   const unmeasurableHere = unknown.filter((r) => /unmeasurable without credentials/.test(r.detail ?? ""));
   const failed =
     stale.length > 0 || (requireStore ? unknown.length > 0 : unknown.length > unmeasurableHere.length);
@@ -410,6 +427,7 @@ async function main() {
       for (const r of unknown) console.log(`    ? ${r.id}: ${r.detail}`);
     }
     printUnmeasured(unmeasured);
+    printRetired(retired);
     if (failed) {
       console.log(
         `\nFRESHNESS CHECK FAILED: ${stale.length} stale, ${unknown.length} unresolved of ${results.length} datasets.`,
@@ -423,9 +441,10 @@ async function main() {
     return;
   }
   printUnmeasured(unmeasured);
+  printRetired(retired);
   console.log(
     `FRESHNESS CHECK PASSED: ${results.length} datasets within budget (or live/untracked/snapshot), ` +
-      `${unmeasured.length} unmeasured.`,
+      `${unmeasured.length} unmeasured, ${retired.length} retired.`,
   );
 }
 
@@ -438,6 +457,18 @@ function printUnmeasured(unmeasured) {
   if (!unmeasured.length) return;
   console.log("  UNMEASURED (served live; this spine holds no observation):");
   for (const r of unmeasured) console.log(`    · ${r.id}: ${r.detail}`);
+  console.log("");
+}
+
+/**
+ * A FOURTH finding, printed apart from all three above and failing nothing. A
+ * closed lane has no producer, so it is neither late nor unmeasured: it is
+ * shut, and the point of printing it is that a reader stops waiting for it.
+ */
+function printRetired(retired) {
+  if (!retired.length) return;
+  console.log("  RETIRED (closed lane; nothing in this tree can advance it):");
+  for (const r of retired) console.log(`    – ${r.id}: ${r.cadence}`);
   console.log("");
 }
 

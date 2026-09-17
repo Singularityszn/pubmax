@@ -52,6 +52,20 @@ export interface FreshnessDataset {
    * discard it would cost every request for nothing.
    */
   readonly pack?: boolean;
+  /**
+   * Opt-in: this lane is CLOSED. Nothing in this tree can advance it, because
+   * no producer exists for it at all, so no run is owed and no cadence is
+   * promised. The reason belongs in `refreshWorkflow` and `gate`.
+   *
+   * It is deliberately NOT the same declaration as a budget-less `snapshot`.
+   * A snapshot lane has a producer that RUNS and finds nothing to add
+   * (`drink_price_updates`: a weekly retrieval-only workflow over a source
+   * that publishes no per-drink web price), so its rows are dated and final
+   * and its collection day is the whole claim. A retired lane has no writer at
+   * all, and reporting it with the snapshot's "the day it was collected"
+   * sentence would credit somebody with a collection nobody makes.
+   */
+  readonly retired?: boolean;
 }
 
 export interface FreshnessRegistry {
@@ -78,6 +92,13 @@ export interface FreshnessRegistry {
  *  - unmeasured — served per request from somewhere this spine cannot read, so
  *                 it holds no observation of it at all. Never fresh, never
  *                 stale, and never a breach: only a probe could say.
+ *  - retired   — a CLOSED lane: no producer exists in this tree, so no run is
+ *                owed and none can be. A FOURTH finding, kept apart from the
+ *                three above for the reason they are kept apart from each
+ *                other: "late", "unreadable", "never observed" and "nobody
+ *                writes this" are four different facts with four different
+ *                owners, and a reader who cannot tell them apart cannot act.
+ *                Never a breach, and never reported as progress.
  */
 export type FreshnessStatus =
   | "live"
@@ -86,7 +107,8 @@ export type FreshnessStatus =
   | "stale"
   | "untracked"
   | "unknown"
-  | "unmeasured";
+  | "unmeasured"
+  | "retired";
 
 /**
  * How old a POINT-IN-TIME dataset may be before the spine names it a snapshot
@@ -414,6 +436,33 @@ export function evaluateDataset(
     };
   }
 
+  const ageHoursOf = (stamp: string): number =>
+    Math.round(((now.getTime() - Date.parse(stamp)) / 3_600_000) * 10) / 10;
+
+  // A CLOSED LANE IS ASKED BEFORE EVERY ANSWER THAT IMPLIES A RUN, AND AFTER
+  // THE ONE THAT DOES NOT.
+  //
+  // `fresh`, `stale`, `snapshot` and `untracked` all describe a lane somebody
+  // refreshes or might; a retired lane has no producer at all, so there is
+  // nothing to be late for. But it is asked BELOW the unresolved-stamp branch
+  // on purpose: a closed lane still SHIPS its artifact (food_price_updates is
+  // a 3 MB pack the venue Menu tab reads), so "the file that ships has gone
+  // missing" stays the breach it always was. Retiring a lane retires its
+  // refresh, never the file's own integrity check.
+  //
+  // The age rides along where a stamp resolved, because a reader is owed the
+  // date the artifact carries even when no refresh is owed.
+  if (dataset.retired === true) {
+    return {
+      ...base,
+      ageHours: observedAt === null ? null : ageHoursOf(observedAt),
+      status: "retired",
+      detail:
+        "Retired: no producer for this lane exists in this tree, so no refresh is owed " +
+        "and none can be run. See refreshWorkflow and gate for what closed it.",
+    };
+  }
+
   if (observedAt === null) {
     return {
       ...base,
@@ -423,8 +472,7 @@ export function evaluateDataset(
     };
   }
 
-  const ageMs = now.getTime() - Date.parse(observedAt);
-  const ageHours = Math.round((ageMs / 3_600_000) * 10) / 10;
+  const ageHours = ageHoursOf(observedAt);
 
   if (dataset.stalenessBudgetHours === null) {
     // A lane DECLARED a snapshot and given no budget is one nothing may
@@ -530,10 +578,23 @@ export function unmeasuredFeeds(results: readonly FreshnessResult[]): FreshnessR
 }
 
 /**
+ * Lanes that are CLOSED. A FOURTH finding, apart from all three above: a stale
+ * feed is late, an unresolved feed promised a stamp and broke, an unmeasured
+ * one never promised a stamp, and a retired one has nobody to promise
+ * anything. Failing the gate over it would be the mirror of the older defect
+ * of reporting it healthy: nothing is owed either way, and the reader's whole
+ * need is to be told the lane is shut rather than behind.
+ */
+export function retiredFeeds(results: readonly FreshnessResult[]): FreshnessResult[] {
+  return results.filter((r) => r.status === "retired");
+}
+
+/**
  * True when any result is a hard breach (stale) or a broken artifact (unknown).
  * A `snapshot` is neither: it is a feed inside its budget, named honestly. It
  * must never turn the release gate red, or a point-in-time feed would alarm for
- * ageing exactly as designed.
+ * ageing exactly as designed. A `retired` lane is neither for the stronger
+ * reason: nothing is owed, so there is nothing to be late for.
  */
 export function hasBreach(results: readonly FreshnessResult[]): boolean {
   return results.some((r) => r.status === "stale" || r.status === "unknown");

@@ -242,7 +242,6 @@ describe("local refresh scraper sequence", () => {
     const commands = commandsForMode("prices", false);
     expect(commands.map((command) => command.args[0])).toEqual([
       "scripts/refresh_drink_prices.mjs",
-      "scripts/refresh_prices.mjs",
       "scripts/firecrawl_greene_king_prices.mjs",
       "scripts/firecrawl_mbplc_prices.mjs",
       "scripts/harvest_outer_london_prices.mjs",
@@ -255,7 +254,6 @@ describe("local refresh scraper sequence", () => {
   it("bounds network-heavy scrapers during a dry run", () => {
     expect(commandsForMode("prices", true).map((command) => command.args)).toEqual([
       ["scripts/refresh_drink_prices.mjs", "--limit", "1"],
-      ["scripts/refresh_prices.mjs"],
       ["scripts/firecrawl_greene_king_prices.mjs", "--limit", "1", "--merge"],
       ["scripts/firecrawl_mbplc_prices.mjs", "--limit", "1"],
       ["scripts/harvest_outer_london_prices.mjs", "--limit", "1", "--budget", "2"],
