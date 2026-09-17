@@ -1,20 +1,26 @@
-// KNIP IS SCOPED TO ONE QUESTION: IS A DECLARED DEPENDENCY STILL READ?
-//
-// Every other issue type is off on purpose. The unused-file and unused-export
-// findings run to over a thousand rows on this tree, and a gate nobody can get
-// to zero is a gate somebody deletes; the whole report is still one command
-// away, `npm run deadcode:all`.
-//
-// This is `.ts` rather than `.json` so the ignore list is READ from
-// lib/agentToolingPaths.mjs rather than being a second hand-written copy of
-// eslint's. The two lists already disagreed in five entries before they were
-// folded; see that module's header.
 import type { KnipConfig } from "knip";
 
 import { AGENT_TOOLING_PATHS } from "./lib/agentToolingPaths.mjs";
 
 const config: KnipConfig = {
-  ignore: [...AGENT_TOOLING_PATHS],
+  ignore: [
+    ...AGENT_TOOLING_PATHS,
+
+    // TypeScript declaration sidecars for plain .mjs modules. Knip cannot
+    // trace the implicit .mjs ↔ .d.mts pairing, so every sidecar appears as
+    // an unreferenced file even when its .mjs companion is fully used.
+    "**/*.d.mts",
+
+    // Runtime-loaded browser scripts: service workers registered via
+    // navigator.serviceWorker.register() and theme-init inlined by <script>.
+    // Not part of the app's import graph but loaded at runtime.
+    "public/sw.js",
+    "public/sw-plan-cache.js",
+    "public/theme-init.js",
+
+    // E2E fixtures read via fs at test time, not imported.
+    "e2e/fixtures/**",
+  ],
   rules: {
     files: "off",
     exports: "off",
