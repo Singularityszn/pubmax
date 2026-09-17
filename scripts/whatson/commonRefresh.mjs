@@ -31,7 +31,7 @@ export const COMMON_FETCH_GAP_MS = 1000;
 // polite second, so a run that re-read all of it would grow without limit. A
 // post we already hold a live row for is not re-read, and the remainder is
 // capped per run. Both counts are reported: a skip is a finding, never silence.
-export const COMMON_MAX_FETCHES_PER_RUN = 60;
+const COMMON_MAX_FETCHES_PER_RUN = 60;
 
 const MONTHS = {
   jan: 0,

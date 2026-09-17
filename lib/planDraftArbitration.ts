@@ -8,7 +8,7 @@ import type { ParsedPlanIntakeDraft } from "@/lib/planIntake";
 import type { ParsedPlanRouteDraft } from "@/lib/planRouteDraft";
 import type { PlanningIntentArea, PlanningIntentV1 } from "@/lib/planningIntent";
 
-export type DraftSurface = "map" | "plan" | "route";
+type DraftSurface = "map" | "plan" | "route";
 
 export type DraftArbitrationProvenance =
   | "explicit-url"
@@ -22,7 +22,7 @@ export type DraftArbitrationProvenance =
   | "default"
   | "none";
 
-export type DraftArbitrationConflictCode =
+type DraftArbitrationConflictCode =
   | "draft-overlap"
   | "intent-preserved-existing"
   | "inspection-not-anchor"
@@ -31,7 +31,7 @@ export type DraftArbitrationConflictCode =
   | "route-proof-stale"
   | "operation-replay";
 
-export type DraftArbitrationRecoveryAction =
+type DraftArbitrationRecoveryAction =
   | "review-plan-details"
   | "review-existing-plan"
   | "make-it-stop-1"
@@ -45,12 +45,12 @@ export type DraftArbitrationConflict = {
   recoveryAction: DraftArbitrationRecoveryAction;
 };
 
-export type DraftField<T> = {
+type DraftField<T> = {
   value: T;
   source: DraftArbitrationProvenance;
 };
 
-export type DraftArbitrationDefaults = {
+type DraftArbitrationDefaults = {
   surface?: DraftSurface;
   area?: PlanningIntentArea;
   startsAt?: string | null;

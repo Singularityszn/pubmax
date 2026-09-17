@@ -5,7 +5,7 @@ const SAFE_FALLBACK_MESSAGE = "Something went wrong. Try again.";
 export const OFFLINE_RETRY_MESSAGE = "You look offline. Reconnect, then try again.";
 export const INVITE_LINK_FALLBACK_MESSAGE = "Could not mint an invite link.";
 
-export function isBrowserOffline(): boolean {
+function isBrowserOffline(): boolean {
   return typeof navigator !== "undefined" && navigator.onLine === false;
 }
 

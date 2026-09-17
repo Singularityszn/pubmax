@@ -105,7 +105,7 @@ export function filterVenuesByKind(
  * nobody can reach. `MAP_EXPERIENCE_LENS` narrows the offer, so the rule takes
  * the lens rather than assuming all four.
  */
-export const CURATED_VENUE_KIND_ORDER: readonly CuratedVenueKind[] = [
+const CURATED_VENUE_KIND_ORDER: readonly CuratedVenueKind[] = [
   "pub",
   "bar",
   "food",

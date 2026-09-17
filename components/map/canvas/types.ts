@@ -49,5 +49,5 @@ export type HoveredVenue = { id: string; name: string; x: number; y: number };
  * used as a `Venue` directly.
  */
 export type VenueDetailResponse = { venue?: VenueDetailPayload | null };
-export type VenueDetailPayload = Parameters<typeof venueFromDetailPayload>[0];
+type VenueDetailPayload = Parameters<typeof venueFromDetailPayload>[0];
 export type FailedHoverImage = { venueId: string; url: string };

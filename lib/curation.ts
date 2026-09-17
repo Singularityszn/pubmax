@@ -86,7 +86,7 @@ export const pubSources: PubSource[] = [
   },
 ];
 
-export const writerTrail = [
+const writerTrail = [
   "The City Barge",
   "The Grapes",
   "The Sun Tavern",
@@ -264,7 +264,7 @@ export function normaliseVenueName(value: string): string {
  * address-qualified (`the albion|barnsbury`) so common pub names do not
  * mis-label the wrong venue.
  */
-export function lookupCuratedVenue(
+function lookupCuratedVenue(
   pubName: string,
   address = "",
 ): VenueCuration {

@@ -21,10 +21,10 @@
 export type ViewMode = "lock-in" | "ledger";
 
 /** localStorage key for the persisted view mode. Mirrors "pubmax-legacy". */
-export const MODE_STORAGE_KEY = "pubmax-mode";
+const MODE_STORAGE_KEY = "pubmax-mode";
 
 /** localStorage key Legacy Mode persists under — the flag Ledger composes. */
-export const LEGACY_STORAGE_KEY = "pubmax-legacy";
+const LEGACY_STORAGE_KEY = "pubmax-legacy";
 
 /** The default when nothing is stored: Lock-In (energetic, chaos-forward). */
 export const DEFAULT_MODE: ViewMode = "lock-in";
@@ -70,7 +70,7 @@ export function modeEnablesLegacy(mode: ViewMode): boolean {
  * no-ops off the DOM (SSR). This is the single writer used by the nav switch;
  * it mirrors LegacyToggle.toggle()'s DOM+storage shape exactly.
  */
-export function applyMode(mode: ViewMode): void {
+function applyMode(mode: ViewMode): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   root.dataset.mode = mode;

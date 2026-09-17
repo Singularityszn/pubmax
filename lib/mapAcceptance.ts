@@ -140,7 +140,7 @@ function acceptedArrivalIntent(
  * PlanningIntent for the same Venue and city. URL text alone carries no
  * acceptance authority.
  */
-export function verifiedAcceptedArrivalSource(
+function verifiedAcceptedArrivalSource(
   input: AcceptedArrivalInput,
   options: PlanningIntentOptions = {},
 ): PlanningIntentSource | null {

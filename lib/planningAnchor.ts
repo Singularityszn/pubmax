@@ -23,7 +23,7 @@ export const ANCHOR_CONFLICT_CODES = [
 export type AnchorConflictCode = (typeof ANCHOR_CONFLICT_CODES)[number];
 
 /** Honest freshness of the recomputed price evidence, mirroring Tonight's split. */
-export type PlanningAnchorFreshnessKind =
+type PlanningAnchorFreshnessKind =
   | "provider-observed"
   | "dataset-generated"
   | "unknown";
@@ -40,7 +40,7 @@ export type PlanningAnchorPriceEvidence = {
  * server-internal scoring, no alternative venues, and no Route — only what the
  * acceptance surface needs to confirm "same Venue, same context".
  */
-export type PlanningAnchorDisplayDTO = {
+type PlanningAnchorDisplayDTO = {
   venueId: string;
   venueName: string;
   areaName: string | null;
@@ -55,7 +55,7 @@ export type PlanningAnchorDisplayDTO = {
  * Canonical machine context fed verbatim into anchored generation. Server-owned
  * in practice, but the type is shared so the generation seam cannot drift.
  */
-export type PlanningAnchorCanonical = {
+type PlanningAnchorCanonical = {
   cityId: CityId;
   venueId: string;
   nightAreaSlug: string | null;
@@ -66,7 +66,7 @@ export type PlanningAnchorCanonical = {
   priceFreshnessKind: PlanningAnchorFreshnessKind;
 };
 
-export type PlanningAnchorResolved = {
+type PlanningAnchorResolved = {
   status: "resolved";
   display: PlanningAnchorDisplayDTO;
   canonical: PlanningAnchorCanonical;
@@ -96,7 +96,7 @@ const ANCHOR_CONFLICT_MESSAGES: Record<AnchorConflictCode, string> = {
   ANCHOR_ROUTE_CONFLICT: "We could not build a route from that pub right now. Try a different pub.",
 };
 
-export function isAnchorConflictCode(value: unknown): value is AnchorConflictCode {
+function isAnchorConflictCode(value: unknown): value is AnchorConflictCode {
   return typeof value === "string" && (ANCHOR_CONFLICT_CODES as readonly string[]).includes(value);
 }
 

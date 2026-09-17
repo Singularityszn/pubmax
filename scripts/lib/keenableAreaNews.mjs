@@ -3,8 +3,8 @@ import canonicalAreaSlugs from "../../data/area_news_areas.json" with { type: "j
 import venueIndex from "../../public/data/venues_slim.json" with { type: "json" };
 import { matchVenue, slugifyBorough } from "./areaNewsMatch.mjs";
 
-export const KEENABLE_API_BASE = "https://api.keenable.ai";
-export const KEENABLE_TITLE = "PUBMAXX area news refresh";
+const KEENABLE_API_BASE = "https://api.keenable.ai";
+const KEENABLE_TITLE = "PUBMAXX area news refresh";
 
 export const KNOWN_AREA_SLUGS = new Set(canonicalAreaSlugs);
 
@@ -93,7 +93,7 @@ export function areaNewsExtractPrompt(year = new Date().getUTCFullYear()) {
   return `Return JSON only with keys area, kind, title, detail for one real London pub fact explicitly stated on this page. Use area as one of ${[...KNOWN_AREA_SLUGS].join(", ")}, or null if no named pub fact maps to one of those areas. Use kind opening for a new opening, closure for a closing, refurb for refurbishment, award for an award, threat for a risk or licensing threat, and buzz for a current price or other pub news. The fact itself must describe a current ${year} event or a fact from late ${year - 1} that is still within the 21-day window, not an older historical fact. Include an exact day, month, and year, plus a venue name present in the London venue dataset. Do not infer or invent facts. Do not include em dashes or en dashes.`;
 }
 
-export const AREA_NEWS_EXTRACT_PROMPT = areaNewsExtractPrompt();
+const AREA_NEWS_EXTRACT_PROMPT = areaNewsExtractPrompt();
 
 function apiUrl(apiBase, path, key) {
   const base = apiBase.replace(/\/$/, "");

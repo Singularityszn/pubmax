@@ -24,7 +24,7 @@ export type ConciergeIntent = {
   maxPintPrice?: number;
 };
 
-export type ConciergeContext = {
+type ConciergeContext = {
   weather?: "rainy" | "cold" | "warm-dry" | "mild";
   dayType?: "weekday" | "weekend";
   timeOfDay?: "afternoon" | "evening" | "late";

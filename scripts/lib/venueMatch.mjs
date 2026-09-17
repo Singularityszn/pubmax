@@ -2,7 +2,7 @@
  * Shared venue-key resolution for Firecrawl price harvesters.
  */
 
-export function normaliseVenueKeyPart(value) {
+function normaliseVenueKeyPart(value) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 

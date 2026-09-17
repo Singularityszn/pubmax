@@ -78,14 +78,14 @@ export const CATEGORY_COLORS: Record<DrinkCategory, CategoryColor> = {
 // Reconciled to the canonical LIGHT values so there is a single source of hue.
 // New work should prefer `categoryColor(cat)` (theme-aware CSS var) instead —
 // CATEGORY_ACCENT is a flat light-only hex kept for the existing call-sites.
-export const CATEGORY_ACCENT: Record<DrinkCategory, string> = Object.fromEntries(
+const CATEGORY_ACCENT: Record<DrinkCategory, string> = Object.fromEntries(
   (Object.keys(CATEGORY_COLORS) as DrinkCategory[]).map((c) => [
     c,
     CATEGORY_COLORS[c].light,
   ]),
 ) as Record<DrinkCategory, string>;
 
-export function categoryAccent(category: DrinkCategory): string {
+function categoryAccent(category: DrinkCategory): string {
   return CATEGORY_ACCENT[category];
 }
 

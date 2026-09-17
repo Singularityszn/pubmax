@@ -219,7 +219,7 @@ export const demoPintDrops: PintDrop[] = [
 ];
 
 /** Manchester slim-index venue ids are prefixed `venue-mcr-`. */
-export const MANCHESTER_VENUE_ID_PREFIX = "venue-mcr-";
+const MANCHESTER_VENUE_ID_PREFIX = "venue-mcr-";
 
 export function isManchesterVenueId(venueId: string): boolean {
   return venueId.startsWith(MANCHESTER_VENUE_ID_PREFIX);

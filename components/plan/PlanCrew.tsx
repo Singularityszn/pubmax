@@ -30,7 +30,7 @@ function inviteHashIsMalformed(token: string | null): boolean {
   return token !== null && !isClassicPlanInviteToken(token);
 }
 
-export const MALFORMED_INVITE_LINE =
+const MALFORMED_INVITE_LINE =
   "This invite link isn't valid. Ask the host for a fresh one.";
 
 const STATUS_LABELS: Record<CrewPresenceStatus, string> = {

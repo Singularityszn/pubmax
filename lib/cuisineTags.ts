@@ -27,7 +27,7 @@ export const KNOWN_CUISINE_TAGS = [
   "mexican",
 ] as const;
 
-export type CuisineTag = (typeof KNOWN_CUISINE_TAGS)[number];
+type CuisineTag = (typeof KNOWN_CUISINE_TAGS)[number];
 
 const KNOWN_SET = new Set<string>(KNOWN_CUISINE_TAGS);
 

@@ -185,9 +185,9 @@ export const MESSAGE_READ_STATE_LABEL: Record<MessageReadState, string> = {
   sent: "Sent",
 };
 
-export type TimelineDay = { kind: "day"; key: string; label: string };
+type TimelineDay = { kind: "day"; key: string; label: string };
 
-export type TimelineMessage = {
+type TimelineMessage = {
   kind: "message";
   message: MessageDTO;
   mine: boolean;

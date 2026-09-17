@@ -51,7 +51,7 @@ import type {
 } from "@/lib/ask/toolContract";
 
 export type {
-  AskProvenance,
+  
   AskToolArgs,
   AskToolContext,
   AskToolResult,
@@ -1014,4 +1014,4 @@ export function resolveAskCityId(raw: unknown): CityId {
 }
 
 /** Exported for deterministic router tests. */
-export { matchVenueByName, detectWhatsOnIntent };
+;

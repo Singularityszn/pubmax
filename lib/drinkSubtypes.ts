@@ -32,7 +32,7 @@ import {
   normalizeDrinkHaystack,
 } from "@/lib/drinkBrands";
 
-export type DrinkSubtypeId = `${DrinkCategory}-${string}`;
+type DrinkSubtypeId = `${DrinkCategory}-${string}`;
 
 export type DrinkSubtype = {
   /** Globally unique, URL-safe id. Always `${category}-${slug}`. */
@@ -435,7 +435,7 @@ export function parseDrinkSubtypeParam(
 // app-wide "never assert what the data can't back" rule.
 //   1. Premium brand ids from the curated lib/drinkBrands catalog.
 //   2. Menu language that only appears on a back-bar pour.
-export const TOP_SHELF_BRAND_IDS: ReadonlySet<string> = new Set([
+const TOP_SHELF_BRAND_IDS: ReadonlySet<string> = new Set([
   "grey-goose",
   "belvedere",
   "ciroc",
@@ -455,7 +455,7 @@ export const TOP_SHELF_BRAND_IDS: ReadonlySet<string> = new Set([
 // Standalone marketing adjectives ("premium", "vintage", "reserve") are NOT
 // signals: ordinary pints wear them too (HENRY WESTON'S VINTAGE CIDER,
 // Appleshed Premium Cider). Only category-scoped combinations qualify.
-export const TOP_SHELF_TOKENS: readonly string[] = [
+const TOP_SHELF_TOKENS: readonly string[] = [
   "top shelf",
   "topshelf",
   "single malt",
@@ -700,7 +700,7 @@ export function drinkSubtypeFromText(
  * classifier so venue filtering can use the strict text rule plus this, and
  * never the lenient category-pinned short forms.
  */
-export function subtypeFromBrandName(
+function subtypeFromBrandName(
   drink: string | null | undefined,
   category?: DrinkCategory | null,
 ): DrinkSubtype | null {

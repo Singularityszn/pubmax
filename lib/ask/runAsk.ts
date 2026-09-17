@@ -220,4 +220,4 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
   };
 }
 
-export { normaliseTurns, mergeToolResults, composeAnswer };
+export {  mergeToolResults, composeAnswer };

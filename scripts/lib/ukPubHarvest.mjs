@@ -22,9 +22,9 @@ export const SHARD_SIZE = 500;
 export const EXA_SEARCH_URL = "https://api.exa.ai/search";
 export const EXA_CONTENTS_URL = "https://api.exa.ai/contents";
 export const EXA_PACE_MS = 1_500;
-export const EXA_REQUEST_TIMEOUT_MS = 60_000;
-export const EXA_MAX_ATTEMPTS = 6;
-export const PROGRESS_FILE = "progress.json";
+const EXA_REQUEST_TIMEOUT_MS = 60_000;
+const EXA_MAX_ATTEMPTS = 6;
+const PROGRESS_FILE = "progress.json";
 
 export const EXA_SYSTEM_PROMPT =
   "Prefer official venue sites. Collapse duplicate pages. Ground every field in a source page. If a field is not stated, return an empty string or an empty array. Do not invent a website, a history sentence, a social handle, a menu URL or a price.";
@@ -136,7 +136,7 @@ export function isPlainBar(tags) {
   return Boolean(tags && tags.amenity === "bar" && !isPubLikeBar(tags));
 }
 
-export function isHarvestableTags(tags) {
+function isHarvestableTags(tags) {
   if (!tags) return false;
   if (tags.amenity === "pub") return true;
   return isPubLikeBar(tags);
@@ -500,7 +500,7 @@ export function observationsFromExaOutput(content, grounding, fetchedAt) {
   return observations;
 }
 
-export function exaApiKey(env = process.env) {
+function exaApiKey(env = process.env) {
   const value = typeof env.EXA_API_KEY === "string" ? env.EXA_API_KEY.trim() : "";
   return value.length > 0 ? value : null;
 }
@@ -769,7 +769,7 @@ export function shardFileName(index) {
   return `shard_${String(index).padStart(4, "0")}.jsonl`;
 }
 
-export function nextShardIndexFromNames(names) {
+function nextShardIndexFromNames(names) {
   const complete = (Array.isArray(names) ? names : [])
     .filter((name) => /^shard_\d{4}\.jsonl$/.test(name))
     .map((name) => Number(name.slice(6, 10)));
@@ -792,7 +792,7 @@ async function fileExists(filePath) {
   }
 }
 
-export async function listCompleteShardIndexes(dir) {
+async function listCompleteShardIndexes(dir) {
   if (!(await fileExists(dir))) return [];
   const names = await readdir(dir);
   return names

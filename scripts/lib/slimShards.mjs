@@ -57,10 +57,10 @@ export const SPATIAL_GRID = {
   lonStep: 0.025,
 };
 
-export const SPATIAL_SHARD_PREFIX = "venues_slim.cell.";
+const SPATIAL_SHARD_PREFIX = "venues_slim.cell.";
 
 /** Public URL path (what the client fetches) for a data filename. */
-export function dataUrl(fileName) {
+function dataUrl(fileName) {
   return `/data/${fileName}`;
 }
 
@@ -77,7 +77,7 @@ export function slugifyBorough(borough) {
     .replace(/^_+|_+$/g, "");
 }
 
-export function shardFileForSlug(slug) {
+function shardFileForSlug(slug) {
   return `venues_slim.${slug}.json`;
 }
 

@@ -28,17 +28,17 @@ export const OPERATOR_PROPOSAL_TYPES: readonly OperatorProposalType[] = [
 
 export type OperatorProposalStatus = "pending" | "accepted" | "declined";
 
-export const OPERATOR_PROPOSAL_STATUSES: readonly OperatorProposalStatus[] = [
+const OPERATOR_PROPOSAL_STATUSES: readonly OperatorProposalStatus[] = [
   "pending",
   "accepted",
   "declined",
 ];
 
-export const MAX_PROPOSAL_TITLE = 120;
-export const MAX_PROPOSAL_BODY = 500;
-export const MAX_PROPOSAL_FIELD = 60;
-export const MAX_PROPOSAL_WHEN = 60;
-export const MAX_PROPOSAL_VENUE_ID = 120;
+const MAX_PROPOSAL_TITLE = 120;
+const MAX_PROPOSAL_BODY = 500;
+const MAX_PROPOSAL_FIELD = 60;
+const MAX_PROPOSAL_WHEN = 60;
+const MAX_PROPOSAL_VENUE_ID = 120;
 
 // One structured payload shape covers all four types; per-type validation below
 // enforces which fields are REQUIRED. Kept flat + optional so the store persists
@@ -97,7 +97,7 @@ export function toOperatorProposalDTO(p: OperatorProposal): OperatorProposalDTO 
   };
 }
 
-export function isOperatorProposalType(v: unknown): v is OperatorProposalType {
+function isOperatorProposalType(v: unknown): v is OperatorProposalType {
   return typeof v === "string" && (OPERATOR_PROPOSAL_TYPES as readonly string[]).includes(v);
 }
 

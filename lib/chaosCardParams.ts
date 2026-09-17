@@ -9,7 +9,7 @@ import { clampOgInt, clampOgText } from "@/lib/ogCardText";
 
 const GRADE_SET: ReadonlySet<string> = new Set(CHAOS_BANDS.map((b) => b.grade));
 
-export function isChaosGrade(value: string): value is ChaosGrade {
+function isChaosGrade(value: string): value is ChaosGrade {
   return GRADE_SET.has(value);
 }
 

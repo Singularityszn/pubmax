@@ -3,7 +3,7 @@
 // prefixed token without changing the provider/fan-out interface. The payload
 // carries no account, Plan, location, or other identity.
 
-export const WEB_PUSH_TOKEN_PREFIX = "webpush:";
+const WEB_PUSH_TOKEN_PREFIX = "webpush:";
 
 export type WebPushSubscription = {
   endpoint: string;
@@ -17,7 +17,7 @@ export type WebPushSubscription = {
 /** Exact production Push API service endpoints we currently accept. Never
  * widen these to a user-controlled suffix: the endpoint is later fetched by
  * web-push with server credentials and is therefore an SSRF boundary. */
-export const SUPPORTED_WEB_PUSH_SERVICES = [
+const SUPPORTED_WEB_PUSH_SERVICES = [
   { host: "fcm.googleapis.com", pathPrefixes: ["/fcm/send/", "/wp/"] },
   { host: "updates.push.services.mozilla.com", pathPrefixes: ["/wpush/"] },
   { host: "web.push.apple.com", pathPrefixes: ["/"] },

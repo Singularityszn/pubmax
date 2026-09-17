@@ -1,6 +1,6 @@
 import type { NightMomentKind } from "@/lib/nightMemory";
 
-export const MOMENT_DRAFT_VERSION = 1 as const;
+const MOMENT_DRAFT_VERSION = 1 as const;
 export const MOMENT_DRAFT_CHANNEL = "pubmaxx:moment-drafts:v1";
 
 export type MomentMediaDraft = {

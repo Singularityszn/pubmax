@@ -569,7 +569,7 @@ async function main() {
   else console.log("  Run: npm run build:slim");
 }
 
-export { inLondon, loadJson, venueKey };
+export { inLondon, loadJson,  };
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((err) => {

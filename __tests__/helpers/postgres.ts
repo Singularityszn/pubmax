@@ -36,19 +36,11 @@ import {
   findPostgresBinary,
   missingPostgresReason,
   postgresSkipReason,
-  POSTGRES_SLOT_ROOT,
-  type PostgresBinaryName,
 } from "../../scripts/rls/postgresHost.mjs";
 
 const execFileAsync = promisify(execFile);
 
-export {
-  findPostgresBinary,
-  missingPostgresReason,
-  postgresSkipReason,
-  POSTGRES_SLOT_ROOT,
-  type PostgresBinaryName,
-};
+export { postgresSkipReason };
 
 /* ------------------------------------------------------------------ */
 /* The cluster                                                         */

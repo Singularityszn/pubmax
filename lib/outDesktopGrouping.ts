@@ -26,7 +26,7 @@ export const OUT_LISTING_PUB_ABSENT_LINE = "Not on our map yet.";
 
 export { OUT_UNMATCHED_PLACES_SHOWN } from "@/lib/out/types";
 
-export { canonicalOutVenueId } from "@/lib/out/venueId";
+;
 
 export type OutListingGroup = OutListingDayGroup;
 

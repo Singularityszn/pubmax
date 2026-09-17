@@ -33,7 +33,7 @@ import {
 // is the canonical grouping key (lib/venues.ts venueGroupingKey) so an update
 // targets exactly the same venue the app groups by — no fuzzy name matching.
 // `drinkName` + `category` identify the specific menu row within that venue.
-export type DrinkPriceUpdateLane = "publisher" | "demo";
+type DrinkPriceUpdateLane = "publisher" | "demo";
 
 export type DrinkPriceUpdate = {
   venueKey: string;
@@ -57,7 +57,7 @@ export type DrinkPriceUpdate = {
 export const DRINK_PRICE_UPDATE_PROVENANCE: Provenance = "sourced";
 
 // The provenance stamp the drinks menu reads to attribute a refreshed price.
-export type DrinkPriceProvenance = {
+type DrinkPriceProvenance = {
   provenance: Provenance; // always "sourced"
   sourceLabel: string;
   sourceUrl: string;

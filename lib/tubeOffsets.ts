@@ -36,7 +36,7 @@ export const SUBSURFACE_FAN_ORDER = [
   "District",
 ] as const;
 
-export type OffsetableFeature = Feature & {
+type OffsetableFeature = Feature & {
   properties: Record<string, unknown> & { line?: string };
 };
 

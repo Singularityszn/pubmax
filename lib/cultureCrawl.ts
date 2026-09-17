@@ -142,7 +142,7 @@ export const CULTURE_WAYPOINT_OPEN_AIR_NOTE =
 
 const OPEN_AIR_CATEGORIES: readonly PoiCategory[] = ["river", "park", "garden", "viewpoint"];
 
-export function cultureWaypointNote(category: PoiCategory): string {
+function cultureWaypointNote(category: PoiCategory): string {
   return OPEN_AIR_CATEGORIES.includes(category)
     ? CULTURE_WAYPOINT_OPEN_AIR_NOTE
     : CULTURE_WAYPOINT_UNKNOWN_NOTE;

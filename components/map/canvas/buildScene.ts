@@ -147,7 +147,7 @@ export const CLUSTER_COLLISION_PADDING = 10;
 // clears, so the badge changes what a pin LOOKS like and not which pins get
 // placed. __tests__/mapSymbolCollision.test.ts pins that.
 export const PROVISIONAL_BADGE_OFFSET_PX: [number, number] = [6.5, -8.5];
-export const PROVISIONAL_BADGE_RADIUS_MIN_PX = 3.2;
+const PROVISIONAL_BADGE_RADIUS_MIN_PX = 3.2;
 export const PROVISIONAL_BADGE_RADIUS_MAX_PX = 4.2;
 /** The widest ring any pin wears (what's-on, at z15) — the envelope to stay in. */
 export const PIN_HALO_ENVELOPE_PX = 15;
@@ -205,7 +205,7 @@ function confirmedBadgePaint(
 // just clear of the glass silhouette's foot (the glyph bottom sits at ~0.32 of
 // the icon box below centre) at every zoom the label draws at, on both the
 // standard pin and the 1.28× selected one.
-export const PIN_PRICE_LABEL_SIZE_EXPR: maplibregl.ExpressionSpecification = [
+const PIN_PRICE_LABEL_SIZE_EXPR: maplibregl.ExpressionSpecification = [
   "interpolate",
   ["linear"],
   ["zoom"],
@@ -214,19 +214,19 @@ export const PIN_PRICE_LABEL_SIZE_EXPR: maplibregl.ExpressionSpecification = [
   16.5,
   11,
 ];
-export const PIN_PRICE_LABEL_OFFSET_EM: [number, number] = [0, 1.2];
-export const SELECTED_PIN_PRICE_LABEL_OFFSET_EM: [number, number] = [0, 1.45];
+const PIN_PRICE_LABEL_OFFSET_EM: [number, number] = [0, 1.2];
+const SELECTED_PIN_PRICE_LABEL_OFFSET_EM: [number, number] = [0, 1.45];
 /** Collision padding around the tag's own box, in px. */
 export const PIN_PRICE_LABEL_PADDING = 4;
 /** The plaque halo behind a pin tag, shared by the curated and base layers. */
-export const PIN_PRICE_LABEL_HALO_WIDTH = 2.1;
+const PIN_PRICE_LABEL_HALO_WIDTH = 2.1;
 
 // Zoom at/above which curated landmark pictograms stop yielding to other
 // symbols. Below it a landmark icon gives way where a pub cluster or pin
 // already occupies the spot; at/above it (the landmark-inspector camera flies
 // to 15) the curated icon is the hero and always draws.
 export const LANDMARK_ICON_PRIORITY_ZOOM = 14;
-export const FIRST_PUB_LAYER_ID = "pubs-drops-halo";
+const FIRST_PUB_LAYER_ID = "pubs-drops-halo";
 
 export type SceneCtx = {
   map: maplibregl.Map;
@@ -260,7 +260,7 @@ export type SceneCtx = {
 
 // Wave J1 — warm paper/river/brass washes on the stock basemap before we add
 // pub layers, so Liberty/Positron stop reading as generic grey GIS.
-export function applySceneTaste(ctx: SceneCtx) {
+function applySceneTaste(ctx: SceneCtx) {
   const { map, tokens, dark } = ctx;
   applyBasemapTaste(
     map,
@@ -497,7 +497,7 @@ export function buildTransitLines(ctx: SceneCtx) {
   });
 }
 
-export function registerSceneIcons(ctx: SceneCtx) {
+function registerSceneIcons(ctx: SceneCtx) {
   const { map, tokens, dark } = ctx;
   // --- Designed marker images: landmark pictograms + TfL symbols, re-tinted
   // from the live theme tokens (a setStyle wipes them, so re-register here).
@@ -748,7 +748,7 @@ export function buildPois(ctx: SceneCtx) {
   });
 }
 
-export function buildRoute(ctx: SceneCtx) {
+function buildRoute(ctx: SceneCtx) {
   const { map, tokens, dark, addLayerOnce, routeLine } = ctx;
   // --- Crawl route: a high-contrast walking line that follows real roads.
   // Three layers off the one `route-line` source, whose single LineString
@@ -808,7 +808,7 @@ export function buildRoute(ctx: SceneCtx) {
   });
 }
 
-export function buildBandCorridor(ctx: SceneCtx) {
+function buildBandCorridor(ctx: SceneCtx) {
   const { map, dark, addLayerOnce, bandCorridor, bandColor } = ctx;
   // --- Story-band corridor (issue #15): a subtle token-tinted line threading
   // the active band's anchor landmarks. Low opacity + a soft blur so it reads
@@ -944,7 +944,7 @@ export function buildUkBase(ctx: SceneCtx) {
  * is a circle, not a symbol, so the collision index never hides the reader
  * themselves: it yields the FIGURE, never the position.
  */
-export function buildUserLocation(ctx: SceneCtx) {
+function buildUserLocation(ctx: SceneCtx) {
   const { map, tokens, addLayerOnce, userLocationData } = ctx;
   if (!map.getSource("user-location")) {
     map.addSource("user-location", { type: "geojson", data: userLocationData });
@@ -1375,7 +1375,7 @@ export function buildPubs(ctx: SceneCtx) {
   });
 }
 
-export function buildRouteStops(ctx: SceneCtx) {
+function buildRouteStops(ctx: SceneCtx) {
   const { map, tokens, dark, textFont, addLayerOnce, routeStops } = ctx;
   // --- Route stops (numbered) above everything.
   if (!map.getSource("route-stops")) {
@@ -1439,7 +1439,7 @@ export function buildRouteStops(ctx: SceneCtx) {
   });
 }
 
-export function buildTonight(ctx: SceneCtx) {
+function buildTonight(ctx: SceneCtx) {
   const { map, tokens, dark, textFont, addLayerOnce, tonightData, tonightVisible } = ctx;
   // --- CityMCP "tonight" opportunities: amber/moon pins above route stops,
   // with visibility controlled by parent overlay state and data reseeded via ref.
@@ -1540,7 +1540,7 @@ export function assembleSceneDeferred(ctx: SceneCtx) {
   applySelectionState(ctx);
 }
 
-export function assembleScene(ctx: SceneCtx) {
+function assembleScene(ctx: SceneCtx) {
   assembleSceneCritical(ctx);
   assembleSceneDeferred(ctx);
 }

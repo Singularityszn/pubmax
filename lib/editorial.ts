@@ -33,11 +33,11 @@ export const EDITORIAL_DEGRADED_EMPTY_LINE = "Picks could not be checked.";
 // honest, and inventing a day, or apologising a second time in different words,
 // would both be worse than saying less.
 export const EDITORIAL_STALE_LINE = "No fresh picks to show just now.";
-export const EDITORIAL_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const EDITORIAL_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 // A generated overlay is a build artifact, not a live feed. Once it is two
 // days old, its current-week rows are withheld until a new poll lands.
 export const EDITORIAL_SNAPSHOT_MAX_AGE_MS = 48 * 60 * 60 * 1000;
-export const EDITORIAL_RAIL_LIMIT = 12;
+const EDITORIAL_RAIL_LIMIT = 12;
 export const EDITORIAL_ITEM_KEYS = RSS_ITEM_KEYS;
 
 export const EDITORIAL_OGL_ATTRIBUTION =
@@ -55,7 +55,7 @@ export type EditorialSnapshot = {
 };
 
 /** The day an editorial snapshot was generated, in the house short form. */
-export function editorialCheckedDay(
+function editorialCheckedDay(
   generatedAt: string,
   now: number = Date.now(),
 ): string | null {
@@ -95,7 +95,7 @@ export function editorialOglMark(licence: string): "OGL" | null {
   return licence === "ogl" ? "OGL" : null;
 }
 
-export function editorialOglMarkForSource(sourceId: string): "OGL" | null {
+function editorialOglMarkForSource(sourceId: string): "OGL" | null {
   return editorialOglMark(licenceForSource(sourceId));
 }
 

@@ -14,7 +14,7 @@ export const SEED_BOROUGH_CAMPAIGN = [
 /** Corroborated beer pints this month before the line reads as met. */
 export const SEED_BOROUGH_MONTHLY_TARGET = 20;
 
-export type BoroughCoverageReadStatus = "ready" | "partial" | "degraded" | "unknown";
+type BoroughCoverageReadStatus = "ready" | "partial" | "degraded" | "unknown";
 
 export type BoroughCoverageInput = {
   slug: string;

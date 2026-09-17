@@ -26,7 +26,7 @@ import {
 
 export type UkPriceBundleReadStatus = "ready" | "empty" | "unavailable";
 
-export type UkPriceBundleRead = {
+type UkPriceBundleRead = {
   status: UkPriceBundleReadStatus;
   byVenue: Map<string, UkPriceBundleRow[]>;
 };
@@ -58,7 +58,7 @@ async function load(): Promise<UkPriceBundleRead> {
   }
 }
 
-export async function readUkPriceBundle(): Promise<UkPriceBundleRead> {
+async function readUkPriceBundle(): Promise<UkPriceBundleRead> {
   if (cached) return cached;
   pending ??= load();
   return pending;
@@ -81,7 +81,7 @@ export async function ukPriceBundleRowsFor(venueId: string): Promise<{
  * `standingCarriesAuthority` admits, so a page ranking pubs by price cannot
  * quietly rank a modelled figure among the observed ones.
  */
-export async function venuesWithAuthoritativeBundlePrice(): Promise<{
+async function venuesWithAuthoritativeBundlePrice(): Promise<{
   status: UkPriceBundleReadStatus;
   venueIds: Set<string>;
 }> {

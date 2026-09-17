@@ -44,7 +44,7 @@ import {
 } from "@/lib/uploadedImage.server";
 
 export const MESSAGE_PHOTO_MAX_BYTES = UPLOADED_IMAGE_MAX_BYTES;
-export const MESSAGE_PHOTO_SIGNED_TTL_SECONDS = 180;
+const MESSAGE_PHOTO_SIGNED_TTL_SECONDS = 180;
 
 export type PreparedMessagePhoto = PreparedImage;
 
@@ -192,7 +192,7 @@ export async function discardStagedMessagePhoto(
 }
 
 /** Delete the serving bytes of a photo no message may point at any more. */
-export async function removeMessagePhotoObject(
+async function removeMessagePhotoObject(
   objectKey: string,
   storage: MessagePhotoStorage = supabaseMessagePhotoStorage,
 ): Promise<void> {

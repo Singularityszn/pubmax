@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { isDeployedProduction } from "@/lib/deploymentEnv";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
-export const MIN_TRUSTED_SIGNING_SECRET_BYTES = 32;
+const MIN_TRUSTED_SIGNING_SECRET_BYTES = 32;
 
 // This key exists only for the lifetime of one keyless demo process. Tokens and
 // proofs minted with it intentionally stop verifying after a restart, matching

@@ -8,7 +8,7 @@ import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
 
 type Signal = { headline?: string; detail?: string; kind?: string; severity?: string; timeWindow?: string; areas?: string[] };
 type TubeLine = { line?: string; status?: string; disruption?: string };
-export type TflPayload = { asOf?: string | null; signals?: Signal[]; tubeLines?: TubeLine[]; error?: string };
+type TflPayload = { asOf?: string | null; signals?: Signal[]; tubeLines?: TubeLine[]; error?: string };
 export type MobileTflStatus = { payload: TflPayload | null; failed: boolean; issueCount: number };
 
 const GROUPS = ["Alerts", "Transport", "Events", "Other"] as const;

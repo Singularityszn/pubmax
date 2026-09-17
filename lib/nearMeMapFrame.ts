@@ -50,13 +50,13 @@ export const NEAR_ME_MIN_ZOOM = 13.5;
  * The ground the camera shows even when a pub stands on the reader's doorstep.
  * Without it a 0 m nearest pub would ask for infinite zoom.
  */
-export const NEAR_ME_MIN_REACH_KM = 0.12;
+const NEAR_ME_MIN_REACH_KM = 0.12;
 
 /**
  * The reader may never be squeezed into a sliver. If measured chrome leaves
  * less than this, the band is re-cut from the top of the map instead.
  */
-export const NEAR_ME_MIN_BAND_PX = 96;
+const NEAR_ME_MIN_BAND_PX = 96;
 
 /** Metres per pixel at the equator, zoom 0 — MapLibre's Web Mercator constant. */
 const EQUATOR_METRES_PER_PIXEL = 156543.03392;
@@ -84,7 +84,7 @@ export function metresPerPixel(zoom: number, latitudeDeg: number): number {
 }
 
 /** The zoom whose ground resolution is `metres` per pixel at this latitude. */
-export function zoomForMetresPerPixel(metres: number, latitudeDeg: number): number {
+function zoomForMetresPerPixel(metres: number, latitudeDeg: number): number {
   const safe = Math.max(metres, 1e-6);
   return Math.log2((EQUATOR_METRES_PER_PIXEL * Math.cos((latitudeDeg * Math.PI) / 180)) / safe);
 }

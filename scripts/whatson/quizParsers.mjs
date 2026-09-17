@@ -20,7 +20,7 @@ import { resolveVenueId } from "./resolveVenueId.mjs";
 
 const LONDON_TZ = "Europe/London";
 
-export const DAY_NAMES = [
+const DAY_NAMES = [
   "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
 ];
 
@@ -146,7 +146,7 @@ const ENTITIES = {
   "&#8230;": "…",
 };
 
-export function decodeEntities(text) {
+function decodeEntities(text) {
   return String(text ?? "")
     .replace(/&#?\w+;/g, (e) => ENTITIES[e] ?? e)
     .replace(/\s+/g, " ")
@@ -159,7 +159,7 @@ export function decodeEntities(text) {
 // of the card title, e.g. "Grapes, Limehouse"). Only districts unambiguously
 // inside Greater London are listed — Epping, Histon, Windsor etc. never
 // match, and an unknown area is dropped, not guessed.
-export const LONDON_AREA_NAMES = new Set([
+const LONDON_AREA_NAMES = new Set([
   "angel", "balham", "bank", "barnes", "battersea", "bermondsey",
   "bethnal green", "blackheath", "bloomsbury", "borough", "bow", "brixton",
   "camden", "canary wharf", "chancery lane", "chelsea", "chiswick",

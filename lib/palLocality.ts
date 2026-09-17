@@ -15,7 +15,7 @@ import {
 } from "@/lib/nightPatches";
 import type { PlanningIntentArea } from "@/lib/planningIntent";
 
-export type PalLocalityScope = "query" | "remembered" | "london-wide";
+type PalLocalityScope = "query" | "remembered" | "london-wide";
 
 export type PalLocality = {
   scope: PalLocalityScope;

@@ -3,7 +3,7 @@ import { cleanText } from "@/lib/textClean";
 export const CREW_NAME_MAX = 40;
 export const CREW_MAX_MEMBERS = 20;
 
-export const CREW_PRESENCE_STATUSES = [
+const CREW_PRESENCE_STATUSES = [
   "in",
   "on_the_way",
   "here",

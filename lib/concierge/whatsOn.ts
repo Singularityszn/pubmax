@@ -138,7 +138,7 @@ export function filterRowsByWeekday(rows: WhatsOnRow[], weekday: number): WhatsO
 
 // Grounded, provenance-carrying listing DTO returned to the client. Mirrors the
 // row's honest fields; never adds anything the row did not attest.
-export type WhatsOnListingDto = {
+type WhatsOnListingDto = {
   id: string;
   kind: WhatsOnKind;
   title: string;

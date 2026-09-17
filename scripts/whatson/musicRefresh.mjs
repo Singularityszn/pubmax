@@ -99,7 +99,7 @@ export const IVY_HOUSE_SOURCE = {
 // The Spice of Life's own events page, checked 2026-07-12: two explicitly
 // weekly residencies — "DOVE JONES CONNECTION BLUES & JAZZ JAM PARTY … Every
 // Monday Doors at 7pm" and "Jazz Notes Jazz Jam … Every Sunday Doors at 1pm".
-export const SPICE_OF_LIFE_SOURCE = {
+const SPICE_OF_LIFE_SOURCE = {
   label: "The Spice of Life — Events",
   url: "https://www.spiceoflifesoho.com/events/",
 };
@@ -108,7 +108,7 @@ export const SPICE_OF_LIFE_SOURCE = {
 // Sunday afternoons and Monday nights" (aintnothinbut.co.uk), with the Monday
 // Blues Jam's own listing on the venue's What's On page stating 8pm-1am.
 // The Sunday jam carries no published start time, so only Monday is emitted.
-export const AINT_NOTHIN_BUT_SOURCE = {
+const AINT_NOTHIN_BUT_SOURCE = {
   label: "Ain't Nothin' But — What's On",
   url: "https://www.aintnothinbut.co.uk/whatson",
 };
@@ -116,7 +116,7 @@ export const AINT_NOTHIN_BUT_SOURCE = {
 // The Troubadour's own Sunday Jazz page, checked 2026-07-12: a longstanding
 // weekly Jazz Sundays residency directed by Sebastiaan de Krom; doors/table
 // reservations 7:30pm, artists play 8pm-10:30pm.
-export const TROUBADOUR_SOURCE = {
+const TROUBADOUR_SOURCE = {
   label: "Troubadour — Sunday Jazz",
   url: "https://www.troubadourlondon.com/sunday-jazz",
 };

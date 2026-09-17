@@ -16,7 +16,7 @@ export const POSTCODE_COORDINATE_MAX_DISTANCE_KM = 5;
 // duplicate aliases; nearest genuinely distinct venues were The Boathouse and
 // The Rocket at 0.416 m. At London latitudes, 0.0000001 degrees is at most
 // 0.0112 m, below 3% of that observed minimum.
-export const POSTCODE_COORDINATE_PUBLISHED_LEAK_TOLERANCE_DEGREES =
+const POSTCODE_COORDINATE_PUBLISHED_LEAK_TOLERANCE_DEGREES =
   0.0000001;
 
 const POSTCODE_PATTERN =
@@ -67,7 +67,7 @@ export function matchesStrictBuildQuarantineIdentity(row, entry) {
   );
 }
 
-export function findTolerantPublishedQuarantineLeaks({
+function findTolerantPublishedQuarantineLeaks({
   publishedRows,
   quarantineRows,
 }) {
@@ -97,7 +97,7 @@ function median(values) {
     : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
-export function buildOutwardCodeReferences(osmPubs) {
+function buildOutwardCodeReferences(osmPubs) {
   const grouped = new Map();
   for (const pub of osmPubs) {
     const parsed = parseUkPostcode(pub?.postcode);

@@ -39,7 +39,7 @@ export type StepOutNudgeDispatchDeps = {
   markSent: (ownerActor: string, sentAt: string) => Promise<void>;
 };
 
-export function defaultStepOutNudgeDispatchDeps(): StepOutNudgeDispatchDeps {
+function defaultStepOutNudgeDispatchDeps(): StepOutNudgeDispatchDeps {
   return {
     listEnabled: () => stepOutNudgeStore().listEnabled(),
     resolveAccountId: accountIdForOwnerActor,

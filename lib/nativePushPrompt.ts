@@ -37,7 +37,7 @@ const ENABLED_KEY = "pubmax:nativePush:enabled:v1";
 const DISMISSED_SEQ_KEY = "pubmax:nativePush:dismissedSeq:v1";
 const SEQ_KEY = "pubmax:nativePush:actionSeq:v1";
 /** Same-tab notify so useSyncExternalStore clients (the prompt UI) re-read after a write. */
-export const NATIVE_PUSH_PROMPT_EVENT = "pubmax:native-push-prompt";
+const NATIVE_PUSH_PROMPT_EVENT = "pubmax:native-push-prompt";
 export const NATIVE_PUSH_PROMPT_COPY = {
   title: "Know when tonight changes",
   body: "Get a ping when a fresh London night signal goes live.",
@@ -210,7 +210,7 @@ export function markPushPromptDismissed(): void {
 }
 
 /** Clear all prompt state — handy for local testing. */
-export function resetPushPrompt(): void {
+function resetPushPrompt(): void {
   if (!hasStorage()) return;
   try {
     window.localStorage.removeItem(ENABLED_KEY);

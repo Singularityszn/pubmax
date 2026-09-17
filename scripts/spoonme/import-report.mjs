@@ -62,7 +62,7 @@ export function isCreditUrl(value) {
 }
 export const SPOONME_AUTHOR = "Oliver Clegg";
 export const SPOONME_PUBLISHED_AT = "2026-08-30";
-export const SPOONME_TITLE =
+const SPOONME_TITLE =
   "I ranked all UK Wetherspoon pubs by where £10 gets you the most drunk";
 
 const USER_AGENT = `PubMaxxingBot/1.0 (+https://pubmaxxing.com; spoons-value import; contact ${CONTACT_EMAIL})`;

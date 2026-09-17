@@ -4,9 +4,9 @@ import { createHash } from "node:crypto";
 
 import type { SocialPostCommentPolicy, SocialPostDTO, SocialPostVisibility } from "@/lib/socialPosts";
 
-export const SOCIAL_DESIRED_INTERACTIONS = ["cheer", "save", "repost"] as const;
-export const SOCIAL_FEATURE_STATUSES = ["submitted", "planned", "shipped", "declined"] as const;
-export const SOCIAL_REPORT_REASONS = ["harassment", "hate", "threat", "doxxing", "spam", "other"] as const;
+const SOCIAL_DESIRED_INTERACTIONS = ["cheer", "save", "repost"] as const;
+const SOCIAL_FEATURE_STATUSES = ["submitted", "planned", "shipped", "declined"] as const;
+const SOCIAL_REPORT_REASONS = ["harassment", "hate", "threat", "doxxing", "spam", "other"] as const;
 
 export type SocialDesiredInteraction = (typeof SOCIAL_DESIRED_INTERACTIONS)[number];
 export type SocialFeatureStatus = (typeof SOCIAL_FEATURE_STATUSES)[number];
@@ -106,6 +106,6 @@ export function emptyInteractionSummary(): SocialInteractionSummary {
   return { cheered: false, saved: false, reposted: false, cheerCount: 0, repostCount: 0 };
 }
 
-export function isSocialCommentPolicy(value: unknown): value is SocialPostCommentPolicy {
+function isSocialCommentPolicy(value: unknown): value is SocialPostCommentPolicy {
   return value === "open" || value === "friends" || value === "locked";
 }

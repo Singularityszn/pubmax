@@ -21,9 +21,9 @@ const EXA_ENDPOINT = "https://api.exa.ai/search";
 const LOOKBACK_DAYS = 30;
 const RESULTS_PER_QUERY = 15;
 
-export type { NightSignalCandidate };
+;
 
-export type NightSignalIngestResult =
+type NightSignalIngestResult =
   | { status: "skipped"; reason: "no-exa-key"; candidates: [] }
   | { status: "ingested"; candidates: NightSignalCandidate[] };
 
@@ -104,7 +104,7 @@ export async function sweepNightSignalQuery(
  * cursor paging is required. Throws only on a provider/transport failure so the
  * caller can report it loudly; a well-formed empty sweep returns [].
  */
-export async function ingestNightSignalCandidates(
+async function ingestNightSignalCandidates(
   deps: NightSignalIngestDeps = {},
 ): Promise<NightSignalIngestResult> {
   const apiKey = (deps.apiKey ?? process.env.EXA_API_KEY)?.trim();

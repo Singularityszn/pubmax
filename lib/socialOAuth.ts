@@ -162,7 +162,7 @@ export async function createSocialOAuthStart(input: {
   return { authorizeUrl: url.toString() };
 }
 
-export function encryptSocialCredential(value: string): string {
+function encryptSocialCredential(value: string): string {
   const configured = process.env.SOCIAL_CONNECTION_ENCRYPTION_KEY;
   if (!configured || configured.length < 32) throw new Error("Social credential encryption is not configured.");
   const key = createHash("sha256").update(configured).digest();
@@ -172,7 +172,7 @@ export function encryptSocialCredential(value: string): string {
   return ["v1", iv.toString("base64url"), cipher.getAuthTag().toString("base64url"), ciphertext.toString("base64url")].join(".");
 }
 
-export const socialOAuthScopes = (provider: SocialOAuthProvider): string[] => [...SCOPES[provider]];
+const socialOAuthScopes = (provider: SocialOAuthProvider): string[] => [...SCOPES[provider]];
 
 const TOKEN_URLS: Record<SocialOAuthProvider, string> = {
   x: "https://api.x.com/2/oauth2/token",

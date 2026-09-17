@@ -29,7 +29,7 @@ export const DESK_MODE_KINDS = [
   "hotel_lounge",
 ] as const satisfies readonly VenueKind[];
 
-export const DESK_MAX_ANSWERS = 5;
+const DESK_MAX_ANSWERS = 5;
 
 /**
  * ONE clock for a desk card. The rank key (`openNow`) and the human hours line
@@ -52,10 +52,10 @@ export const DESK_TIME_ZONE = "Europe/London";
  * bucket is what makes the later keys decide anything: raw metres would settle
  * every pair before amenity or open-now was ever read.
  */
-export const DESK_DISTANCE_RING_KM = 0.4;
+const DESK_DISTANCE_RING_KM = 0.4;
 
 /** Which walkable ring a distance sits in. Lower is nearer. */
-export function deskDistanceRing(km: number): number {
+function deskDistanceRing(km: number): number {
   if (!Number.isFinite(km) || km <= 0) return 0;
   return Math.floor(km / DESK_DISTANCE_RING_KM);
 }
@@ -327,7 +327,7 @@ export function deskChainKey(name: string): string {
   return folded;
 }
 
-export const DESK_COLLAPSED_CHAINS_ATTRIBUTE = "data-desk-collapsed-chains";
+const DESK_COLLAPSED_CHAINS_ATTRIBUTE = "data-desk-collapsed-chains";
 
 /**
  * The development-only attribute naming which chains a diverse answer put
@@ -394,7 +394,7 @@ export function deskAnswerHeadline(input: {
     : "Somewhere to sit near you";
 }
 
-export function deskKindLabel(kind: VenueKind): string {
+function deskKindLabel(kind: VenueKind): string {
   return kind === "pub" ? "Pub with wifi" : venueKindLabel(kind);
 }
 

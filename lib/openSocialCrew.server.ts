@@ -16,7 +16,7 @@ import { lookupCanonicalVenue } from "@/lib/venueIndex";
  * A meeting point that cannot be resolved names no city at all rather than
  * falling back to London.
  */
-export type OpenMeetingPoint = OutOpenPlanMeetingPoint & { cityId: CityId };
+type OpenMeetingPoint = OutOpenPlanMeetingPoint & { cityId: CityId };
 
 export type OpenMeetingPointResolution =
   | { ok: true; meetingPoint: OpenMeetingPoint }
@@ -101,7 +101,7 @@ export async function resolveOpenPlanMeetingPoint(
   return resolveOpenMeetingFromStops(lookup.plan.stops);
 }
 
-export type AttachOpenPlanMeetingPoints = {
+type AttachOpenPlanMeetingPoints = {
   status: "ready" | "degraded";
   plans: OutOpenPlan[];
 };
@@ -110,6 +110,7 @@ export type AttachOpenPlanMeetingPoints = {
  * Attach the meeting point each Out card renders. City narrowing happens in
  * list_open_social_crews; this lane only resolves Stop 1 for rows the RPC
  * already returned. A row whose read could NOT run degrades the answer.
+ * @public — imported by app/api/out/route.ts.
  */
 export async function attachOpenPlanMeetingPoints(
   rows: readonly OutOpenPlan[],

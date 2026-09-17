@@ -8,7 +8,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { boroughNameForPoint, LONDON_BOROUGH_CLASSIFIER_VERSION } from "../../lib/londonBoroughPoint.mjs";
 
-export { LONDON_BOROUGH_CLASSIFIER_VERSION };
+;
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const BOROUGH_PATH = join(ROOT, "data/london_boroughs_simplified.json");

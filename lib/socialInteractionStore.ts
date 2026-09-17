@@ -715,7 +715,7 @@ export function createMemorySocialInteractionStore(options: {
   };
 }
 
-export const memorySocialInteractionStore = createMemorySocialInteractionStore();
+const memorySocialInteractionStore = createMemorySocialInteractionStore();
 
 function row(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {

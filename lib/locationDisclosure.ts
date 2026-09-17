@@ -101,7 +101,7 @@ export function locationDisclosureLines(
  * refuses honest copy gets switched off, and a rule that is off catches
  * nothing.
  */
-export const LOCATION_OVERCLAIM_RULES = Object.freeze([
+const LOCATION_OVERCLAIM_RULES = Object.freeze([
   {
     id: "never-leaves",
     why: "says the point does not leave the device, and it does",

@@ -9,33 +9,33 @@ import { isPlanStopCount } from "@/lib/planStopCount";
 
 export const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
 export const PLAN_ROUTE_DRAFT_V2_KEY = "pubmax:plan-route-draft:v2";
-export const PLAN_ROUTE_DRAFT_STORAGE_VERSION = 2 as const;
-export const PLAN_ROUTE_DRAFT_MAX_RAW_BYTES = 40 * 1024;
+const PLAN_ROUTE_DRAFT_STORAGE_VERSION = 2 as const;
+const PLAN_ROUTE_DRAFT_MAX_RAW_BYTES = 40 * 1024;
 export const PLAN_ROUTE_DRAFT_TTL_MS = DAY_MS;
-export const PLAN_ROUTE_DRAFT_MAX_FUTURE_SKEW_MS = 5 * 60 * 1000;
+const PLAN_ROUTE_DRAFT_MAX_FUTURE_SKEW_MS = 5 * 60 * 1000;
 
-export const PLAN_ROUTE_DRAFT_ORIGINS = [
+const PLAN_ROUTE_DRAFT_ORIGINS = [
   "manual",
   "plan-generated",
   "map-generated",
   "planning-intent",
 ] as const;
-export const PLAN_ROUTE_DRAFT_OUTCOMES = [
+const PLAN_ROUTE_DRAFT_OUTCOMES = [
   "route",
   "anchor-only",
   "unanchored",
 ] as const;
 
 export type PlanRouteDraftOrigin = (typeof PLAN_ROUTE_DRAFT_ORIGINS)[number];
-export type PlanRouteDraftOutcome = (typeof PLAN_ROUTE_DRAFT_OUTCOMES)[number];
-export type RouteRevision = string | number;
+type PlanRouteDraftOutcome = (typeof PLAN_ROUTE_DRAFT_OUTCOMES)[number];
+type RouteRevision = string | number;
 
-export type StoredRouteAlternative = {
+type StoredRouteAlternative = {
   venueId: string;
   venueName: string;
 };
 
-export type StoredRouteStop = {
+type StoredRouteStop = {
   key: number;
   venueId: string;
   venueName: string;
@@ -43,9 +43,9 @@ export type StoredRouteStop = {
   alternatives: StoredRouteAlternative[];
 };
 
-export type StoredRouteAlternatives = StoredRouteAlternative[];
+type StoredRouteAlternatives = StoredRouteAlternative[];
 
-export type PlanRouteDraftEnvelopeV2 = {
+type PlanRouteDraftEnvelopeV2 = {
   storageVersion: typeof PLAN_ROUTE_DRAFT_STORAGE_VERSION;
   savedAt: string;
   expiresAt: string;
@@ -429,7 +429,7 @@ export function parsePlanRouteDraftV2(
 }
 
 /** Parse an unversioned Route draft without inventing savedAt. */
-export function parseLegacyPlanRouteDraft(
+function parseLegacyPlanRouteDraft(
   raw: string | null,
   now = Date.now(),
 ): ParsedPlanRouteDraft | null {

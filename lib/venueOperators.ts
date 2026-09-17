@@ -19,7 +19,7 @@ import { cleanText, readString } from "@/lib/textClean";
 
 export type OperatorVerificationState = "pending" | "verified" | "rejected" | "revoked";
 
-export const OPERATOR_VERIFICATION_STATES: readonly OperatorVerificationState[] = [
+const OPERATOR_VERIFICATION_STATES: readonly OperatorVerificationState[] = [
   "pending",
   "verified",
   "rejected",
@@ -37,8 +37,8 @@ export const OPERATOR_EVIDENCE_KINDS: readonly OperatorEvidenceKind[] = [
   "document",
 ];
 
-export const MAX_EVIDENCE_NOTE = 500;
-export const MAX_OPERATOR_VENUE_ID = 120;
+const MAX_EVIDENCE_NOTE = 500;
+const MAX_OPERATOR_VENUE_ID = 120;
 
 // The stored record. accountId is the VERIFIED Supabase uid (never a body value).
 export type OperatorClaim = {
@@ -91,7 +91,7 @@ export function isOperatorVerificationState(v: unknown): v is OperatorVerificati
   return typeof v === "string" && (OPERATOR_VERIFICATION_STATES as readonly string[]).includes(v);
 }
 
-export function isOperatorEvidenceKind(v: unknown): v is OperatorEvidenceKind {
+function isOperatorEvidenceKind(v: unknown): v is OperatorEvidenceKind {
   return typeof v === "string" && (OPERATOR_EVIDENCE_KINDS as readonly string[]).includes(v);
 }
 

@@ -133,7 +133,7 @@ const DEFAULT_RETRIES = 1;
  * transient; a parse, rpc, 4xx, or empty error is deterministic (retrying is
  * pure latency with no upside).
  */
-export function isTransientCityMcpError(err: unknown): boolean {
+function isTransientCityMcpError(err: unknown): boolean {
   if (!(err instanceof CityMcpError)) return false;
   if (err.kind === "timeout" || err.kind === "network") return true;
   if (err.kind === "http") {
@@ -168,7 +168,7 @@ export class CityMcpError extends Error {
 
 // ---------- Structured content types (per probe notes) ----------
 
-export type CityStatusSeverity = "info" | "notable" | "major";
+type CityStatusSeverity = "info" | "notable" | "major";
 
 export type CityStatusSignal = {
   headline: string;
@@ -182,7 +182,7 @@ export type CityStatusSignal = {
   fetchedAt?: string;
 };
 
-export type CityStatusWeather = {
+type CityStatusWeather = {
   condition?: string;
   tempC?: number;
   feelsLikeC?: number;
@@ -521,7 +521,7 @@ export async function searchCityPlaces(
  * Every field is optional because the upstream may omit anything at any
  * time; the UI must render "nothing" rather than a fabricated fact.
  */
-export type CityTransitStop = {
+type CityTransitStop = {
   name: string;
   modes?: string[];
   distanceM?: number;
@@ -964,7 +964,7 @@ export async function fetchThingsToDo(
 
 // ---------- get_journey: TfL itineraries + short-TTL cache ----------
 
-export type CityJourneyLeg = {
+type CityJourneyLeg = {
   mode: string;
   summary?: string;
   durationMinutes?: number;
@@ -1008,7 +1008,7 @@ export function formatJourneyPoint(lat: number, lng: number): string {
   return `${lat.toFixed(5)},${lng.toFixed(5)}`;
 }
 
-export function trimJourneyLeg(raw: unknown): CityJourneyLeg | null {
+function trimJourneyLeg(raw: unknown): CityJourneyLeg | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
   const mode = pickString(o.mode);
@@ -1026,7 +1026,7 @@ export function trimJourneyLeg(raw: unknown): CityJourneyLeg | null {
   return out;
 }
 
-export function trimJourney(raw: unknown): CityJourney | null {
+function trimJourney(raw: unknown): CityJourney | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
   const durationMinutes = pickNumber(o.durationMinutes);

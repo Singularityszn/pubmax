@@ -4,7 +4,7 @@ export type CreatorListProfile = {
   avatarUrl?: string;
 };
 
-export type CreatorListPreviewVenue = {
+type CreatorListPreviewVenue = {
   venueId: string;
   venueName: string;
   venueMapUrl: string;

@@ -83,7 +83,7 @@ export function buildGrid({ bbox = UK_BBOX, latStep = DEFAULT_LAT_STEP, lonStep 
 }
 
 /** Stable, human-readable chunk id from its south-west corner. */
-export function chunkId(bbox) {
+function chunkId(bbox) {
   return `lat${formatCoord(bbox[0])}_lon${formatCoord(bbox[1])}`;
 }
 

@@ -76,7 +76,7 @@ export type RobotsRules = {
   sitemaps: string[];
 };
 
-export type RobotsDecisionReason =
+type RobotsDecisionReason =
   | "allowed"
   | "no-rules-published"
   | "robots-disallowed"
@@ -97,7 +97,7 @@ export type RobotsDecisionReason =
  *   not-a-rules-file 200 with a body that is neither rules, HTML nor a challenge
  *   unreachable     the request itself failed, twice
  */
-export type RobotsFileClass =
+type RobotsFileClass =
   | "rules-file"
   | "absent"
   | "html-page"
@@ -106,7 +106,7 @@ export type RobotsFileClass =
   | "not-a-rules-file"
   | "unreachable";
 
-export type RobotsDecision = {
+type RobotsDecision = {
   allowed: boolean;
   reason: RobotsDecisionReason;
   evidence: string;
@@ -208,7 +208,7 @@ export function looksLikeHtmlDocument(body: string): boolean {
  * file that grant permission: an empty one, one that names only its Sitemap, and
  * one that is comments to the last line.
  */
-export function looksLikeRulesFile(body: string): boolean {
+function looksLikeRulesFile(body: string): boolean {
   for (const raw of body.split(/\r?\n/)) {
     const line = raw.split("#")[0].trim();
     if (line.length === 0) continue;

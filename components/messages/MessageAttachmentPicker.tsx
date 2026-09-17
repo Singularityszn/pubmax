@@ -22,7 +22,7 @@ export type MessageAttachmentPickerHandle = {
   select: (kind: MessageAttachKind) => void;
 };
 
-export type MessageAttachmentPickerProps = {
+type MessageAttachmentPickerProps = {
   open: boolean;
   disabled: boolean;
   onOpenChange: (open: boolean) => void;

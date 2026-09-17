@@ -11,7 +11,7 @@ import {
 import { fetchPublicJson } from "@/lib/publicJsonLoader";
 
 /** Public URL for the live Pint Index snapshot (mirrors public/data/...). */
-export const PINT_INDEX_SNAPSHOT_PUBLIC_PATH = "/data/pint_index_snapshot.json";
+const PINT_INDEX_SNAPSHOT_PUBLIC_PATH = "/data/pint_index_snapshot.json";
 
 let leaguePromise: Promise<LeagueRow[]> | null = null;
 

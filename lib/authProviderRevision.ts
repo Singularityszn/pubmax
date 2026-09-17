@@ -1,4 +1,4 @@
-export type AuthProviderName = "clerk" | "supabase";
+type AuthProviderName = "clerk" | "supabase";
 export type ProviderAuthState =
   | "unresolved"
   | "authenticated"
@@ -125,7 +125,7 @@ export function createProviderIdentityRevisionStore(): ProviderIdentityRevisionS
 const providerIdentityRevisionStore = createProviderIdentityRevisionStore();
 
 export const readProviderIdentityRevision = providerIdentityRevisionStore.read;
-export const readProviderIdentitySignal = providerIdentityRevisionStore.signal;
+const readProviderIdentitySignal = providerIdentityRevisionStore.signal;
 export const readProviderAccountRevision = providerIdentityRevisionStore.accountRevision;
 export const readProviderAccountSignal = providerIdentityRevisionStore.accountSignal;
 export const setProviderIdentity = providerIdentityRevisionStore.set;

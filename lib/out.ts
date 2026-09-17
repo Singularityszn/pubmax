@@ -35,7 +35,7 @@ export type OutOpenPlan = {
  * service-day open through 05:00 the next morning. Tomorrow is the next
  * service day. Weekend is Fri 17:00 through Sun 05:00.
  */
-export type OutPlanWindow = { from: string; until: string };
+type OutPlanWindow = { from: string; until: string };
 
 type LondonClock = {
   year: number;
@@ -177,6 +177,7 @@ function weekendWindow(now = Date.now()): OutPlanWindow {
  * today  = London day from 05:00 to 05:00 next day.
  * tomorrow = next London day from 05:00 to 05:00 next day.
  * weekend = Fri 17:00 through Sun 05:00.
+ * @public — imported by app/api/out/route.ts.
  */
 export function outPlansWindow(day: OutDay, now: number = Date.now()): OutPlanWindow {
   const clock = londonClock(now);
@@ -218,6 +219,7 @@ export function outPlansWindow(day: OutDay, now: number = Date.now()): OutPlanWi
   };
 }
 
+/** Slice open plans to the UI cap. @public — imported by app/api/out/route.ts. */
 export function boundOutOpenPlans(rows: OutOpenPlan[]): OutOpenPlan[] {
   return rows.slice(0, OUT_OPEN_PLAN_LIMIT);
 }

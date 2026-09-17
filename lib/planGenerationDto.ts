@@ -1,4 +1,4 @@
-export type PlanConstraintDisclosure = {
+type PlanConstraintDisclosure = {
   code: "safety" | "exclusions" | "exact_area" | "accessibility" | "budget_ceiling" | "opening_hours" | "transport_feasibility";
   status: "satisfied" | "flagged";
   message: string;

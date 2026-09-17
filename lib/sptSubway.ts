@@ -29,10 +29,10 @@ import {
 export const SPT_SUBWAY_PROVENANCE =
   "Typical SPT Subway last service (static, ~23:00 close; Fri/Sat often similar). Not a live SPT feed. Check boards before you leave.";
 
-export const SPT_SUBWAY_MODE_LABEL = "subway";
+const SPT_SUBWAY_MODE_LABEL = "subway";
 
 /** SPT Subway orange (Clockwork Orange network colour). */
-export const SPT_SUBWAY_LINE_COLOUR = "#E87722";
+const SPT_SUBWAY_LINE_COLOUR = "#E87722";
 
 export type SptSubwayStation = {
   id: string;
@@ -181,7 +181,7 @@ function departuresForStation(
 }
 
 /** "Now" in Europe/London — same approach as TfL / Metrolink last-ride routes. */
-export function glasgowNow(base: Date = new Date()): Date {
+function glasgowNow(base: Date = new Date()): Date {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/London",
     year: "numeric",

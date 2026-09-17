@@ -20,7 +20,7 @@
 
 import type { FreshnessResult } from "@/lib/freshness";
 
-export type StaleFeedNotice = {
+type StaleFeedNotice = {
   id: string;
   label: string;
   status: FreshnessResult["status"];

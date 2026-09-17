@@ -32,6 +32,6 @@ export function PubPalAvatar({ appearance, name, compact = false }: { appearance
   );
 }
 
-export function signalLabel(signal: SignalFamily): string {
+function signalLabel(signal: SignalFamily): string {
   return signal[0].toUpperCase() + signal.slice(1);
 }

@@ -23,7 +23,7 @@ import { rowsFromSlimPayload } from "@/lib/slimPayload";
 // lands them). This returns an empty list, `find_desk` says "no seat data yet",
 // and nothing changes for pubs when the rows arrive.
 
-export type DeskVenue = {
+type DeskVenue = {
   id: string;
   name: string;
   area: string;
@@ -99,7 +99,7 @@ export async function loadDeskVenues(cityId: CityId): Promise<DeskVenueRead> {
   }
 }
 
-export function resetDeskVenuesForTests(): void {
+function resetDeskVenuesForTests(): void {
   if (
     process.env.NODE_ENV === "test" ||
     Boolean(process.env.VITEST) ||

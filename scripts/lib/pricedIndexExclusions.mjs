@@ -14,7 +14,7 @@ function normalise(value) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
-export function excludedPricedVenueKey(entry) {
+function excludedPricedVenueKey(entry) {
   return `${normalise(entry?.name)}|${normalise(entry?.address)}`;
 }
 

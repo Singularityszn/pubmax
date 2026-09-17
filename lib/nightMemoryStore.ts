@@ -369,7 +369,7 @@ export async function listNightMoments(
  * as `not_found`, the same answer an unknown id gets, so a stranger learns
  * nothing about what somebody else keeps.
  */
-export type NightRemovalRefusal = "not_found" | "published" | "shared" | "error";
+type NightRemovalRefusal = "not_found" | "published" | "shared" | "error";
 
 /**
  * The outcome of removing a Memory or a Moment. A success carries the storage
@@ -1021,7 +1021,7 @@ export type NightStoryWorkspace = {
   caller: { role: StoryContributorRole; canEdit: boolean };
 };
 
-export type NightStoryStoreError = "invalid" | "not_found" | "forbidden" | "error";
+type NightStoryStoreError = "invalid" | "not_found" | "forbidden" | "error";
 export type NightStoryStoreResult<T> = { ok: true; value: T } | { ok: false; error: NightStoryStoreError };
 
 export function safeNightStory(story: NightStory): NightStoryWorkspace["story"] {

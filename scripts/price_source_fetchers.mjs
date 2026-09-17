@@ -8,7 +8,7 @@
 // Each source-specific parser belongs here once its official source contract is
 // implemented. Until then, returning no rows is the only honest behavior.
 
-export const PERMISSIBLE_PRICE_SOURCE_KINDS = new Set([
+const PERMISSIBLE_PRICE_SOURCE_KINDS = new Set([
   "first-party-official",
   "open-data",
 ]);

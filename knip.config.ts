@@ -1,28 +1,75 @@
-// KNIP IS SCOPED TO ONE QUESTION: IS A DECLARED DEPENDENCY STILL READ?
-//
-// Every other issue type is off on purpose. The unused-file and unused-export
-// findings run to over a thousand rows on this tree, and a gate nobody can get
-// to zero is a gate somebody deletes; the whole report is still one command
-// away, `npm run deadcode:all`.
-//
-// This is `.ts` rather than `.json` so the ignore list is READ from
-// lib/agentToolingPaths.mjs rather than being a second hand-written copy of
-// eslint's. The two lists already disagreed in five entries before they were
-// folded; see that module's header.
 import type { KnipConfig } from "knip";
 
 import { AGENT_TOOLING_PATHS } from "./lib/agentToolingPaths.mjs";
 
 const config: KnipConfig = {
-  ignore: [...AGENT_TOOLING_PATHS],
+  ignore: [
+    ...AGENT_TOOLING_PATHS,
+
+    // TypeScript declaration sidecars for plain .mjs modules. Knip cannot
+    // trace the implicit .mjs ↔ .d.mts pairing, so every sidecar appears as
+    // an unreferenced file even when its .mjs companion is fully used.
+    "**/*.d.mts",
+
+    // Runtime-loaded browser scripts: service workers registered via
+    // navigator.serviceWorker.register() and theme-init inlined by <script>.
+    // Not part of the app's import graph but loaded at runtime.
+    "public/sw.js",
+    "public/sw-plan-cache.js",
+    "public/theme-init.js",
+
+    // E2E fixtures read via fs at test time, not imported.
+    "e2e/fixtures/**",
+
+    // Module resolution false positives: Knip resolves the bare specifier
+    // to the .mjs file, but app code imports the .ts wrapper via @/lib/*.
+    "lib/siteContact.ts",
+
+    // Referenced by GitHub Actions workflow, not by app imports.
+    "lib/productionDeploymentHosts.mjs",
+
+    // Invoked via execFileSync in scripts/perf-ab.mjs, not imported.
+    "scripts/print-e2e-server-env.ts",
+
+    // Scripts read by fence tests via readFileSync or execFileSync at test
+    // time, never imported by the app. Knip sees them as unreferenced files
+    // but removing them breaks the fence tests that pin source-level
+    // invariants (e.g. nativeSplashArt, storeAssets, brandIconAssets).
+    "scripts/gen-native-app-icons.mjs",
+    "scripts/gen-store-assets.mjs",
+    "scripts/ui-ux-battle-test.mjs",
+    "scripts/link-cursor-skills.mjs",
+    "scripts/enrich_heritage.mjs",
+    "scripts/resolve_postcode_coordinate_decisions.mjs",
+    "scripts/lib/postcodeCoordinateDecisions.mjs",
+    "scripts/lib/uiUxAxeAuditMetadata.mjs",
+    "scripts/firecrawl_greene_king_prices.mjs",
+    "scripts/firecrawl_mbplc_prices.mjs",
+    "scripts/whatson/quizRefresh.mjs",
+    "scripts/whatson/scrape_greene_king_sport.mjs",
+    "scripts/landing/build-landing-map.mjs",
+    "scripts/landing/build-landing-photos.mjs",
+
+    // Invoked by scripts/local-refresh/scheduler.mjs commandsForMode() at runtime;
+    // Knip cannot trace the command() string-argument reference across the process boundary.
+    "scripts/merge_london_chain_gazetteer.mjs",
+
+    // MCP server entry point referenced by .codex/config.toml and .cursor/mcp.json;
+    // loaded by the agent harness at runtime, not imported by the app's JS module graph.
+    "scripts/run-browser-mcp.mjs",
+
+    // Invoked via subprocess.run() in scripts/export_app_dataset_json.py;
+    // Python subprocess calls are invisible to Knip's JS import graph.
+    "scripts/classify_borough_points.mjs",
+  ],
   rules: {
-    files: "off",
-    exports: "off",
-    types: "off",
-    nsExports: "off",
-    nsTypes: "off",
-    enumMembers: "off",
-    duplicates: "off",
+    files: "error",
+    exports: "error",
+    types: "error",
+    nsExports: "error",
+    nsTypes: "error",
+    enumMembers: "error",
+    duplicates: "warn",
     unresolved: "off",
     dependencies: "error",
     devDependencies: "error",

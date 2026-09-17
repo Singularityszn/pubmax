@@ -30,7 +30,7 @@ const STORAGE_KEY = "pubmax:savedPubs:v1";
 // ── Pure core (no window, no storage) ────────────────────────────────────────
 // A saved entry is unique by (venueId, listType): the same pub can live in many
 // lists, but only once per list. This key is the identity used for dedupe.
-export function savedKey(venueId: string, listType: string): string {
+function savedKey(venueId: string, listType: string): string {
   return `${venueId}.${listType}`;
 }
 
@@ -163,7 +163,7 @@ function write(list: SavedPub[]): void {
 // otherwise it is added (with an optional note). Returns the new full list so
 // callers can update React state from the handler's return value without a
 // second read.
-export function toggleSave(
+function toggleSave(
   venueId: string,
   listType: ListType,
   note?: string,

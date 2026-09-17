@@ -118,7 +118,7 @@ function maskAttributesInPlace(
 }
 
 /** Mask emails and handles across a finished span's attributes and events. */
-export function maskSpanPersonalData(span: ReadableSpan): void {
+function maskSpanPersonalData(span: ReadableSpan): void {
   maskAttributesInPlace(span.attributes);
   for (const event of span.events ?? []) maskAttributesInPlace(event.attributes);
 }

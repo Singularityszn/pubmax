@@ -288,5 +288,5 @@ export function ledgerClaimDrops(drops: LedgerSourceDrop[]): ClaimDrop[] {
   }));
 }
 
-export type { VenueClaim };
+;
 export { buildVenueClaims };

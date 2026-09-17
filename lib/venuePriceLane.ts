@@ -220,7 +220,7 @@ export function venuePriceLane(
 }
 
 /** A venue carrying whatever the UK price bundle holds about it. */
-export type VenueWithBundlePrices = Venue & { bundlePrices?: VenueBundlePrices | null };
+type VenueWithBundlePrices = Venue & { bundlePrices?: VenueBundlePrices | null };
 
 /**
  * The bundle-price lane input every caller derives the same way, exactly as

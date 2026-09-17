@@ -15,7 +15,7 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
 
 const MAX_LIMIT = 100;
 
-export type WhatsOnResponse = {
+type WhatsOnResponse = {
   rows: WhatsOnRow[];
   servedAt: string;
   sourceObservedAt: string | null;

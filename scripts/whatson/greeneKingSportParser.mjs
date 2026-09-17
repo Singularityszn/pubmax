@@ -18,8 +18,8 @@ import { venueGroupingKey, stableVenueIdFromKey } from "../lib/venueMatch.mjs";
 
 // Shared, honest copy for every attribute row: what the flag actually means,
 // and why we do not list individual fixtures.
-export const SPORT_ATTRIBUTE_TITLE = "Shows live sport";
-export const SPORT_ATTRIBUTE_DETAIL =
+const SPORT_ATTRIBUTE_TITLE = "Shows live sport";
+const SPORT_ATTRIBUTE_DETAIL =
   "Greene King lists this pub as a live-sport venue with screens for televised " +
   "fixtures. Specific fixtures are partner-gated and not published here.";
 

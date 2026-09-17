@@ -40,7 +40,7 @@ export type LogNearbyCandidate = {
 };
 
 // Cap the nearby-picker list so the log-intent fallback stays thumb-scannable.
-export const LOG_NEARBY_PICKER_LIMIT = 5;
+const LOG_NEARBY_PICKER_LIMIT = 5;
 
 // D1 — how far a pub may sit from the picker's origin and still be offered as
 // one the reader might be standing in. Past this the list is guessing: the
@@ -166,7 +166,7 @@ export function hasMapLogIntent(query: QueryLike): boolean {
  * filled action says "Still £6.50?", so the composer it opens has to hold
  * £6.50 already, or the receipt the tap promised is a blank form.
  */
-export const MAP_LOG_INTENT_PRICE_PARAM = "price";
+const MAP_LOG_INTENT_PRICE_PARAM = "price";
 
 // A price is a positive GBP figure with at most two decimals. Anything else is
 // not a refusal of the whole intent: the composer still opens, just empty.

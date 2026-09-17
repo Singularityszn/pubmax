@@ -8,22 +8,22 @@ import type {
 import type { NightContext } from "@/lib/nightPlanning";
 import type { OutOpenPlanMeetingPoint } from "@/lib/out";
 
-export const SOCIAL_CREW_ROLES = ["owner", "cohost", "member"] as const;
+const SOCIAL_CREW_ROLES = ["owner", "cohost", "member"] as const;
 export type SocialCrewRole = (typeof SOCIAL_CREW_ROLES)[number];
 
 export const SOCIAL_CREW_VISIBILITIES = ["private", "friends", "open"] as const;
 export type SocialCrewVisibility = (typeof SOCIAL_CREW_VISIBILITIES)[number];
 
 export type SocialCrewPhase = "planning" | "live" | "ended";
-export const SOCIAL_CREW_MEMBERSHIP_STATES = ["active", "left", "removed"] as const;
+const SOCIAL_CREW_MEMBERSHIP_STATES = ["active", "left", "removed"] as const;
 export type SocialCrewMembershipState = (typeof SOCIAL_CREW_MEMBERSHIP_STATES)[number];
-export type SocialCrewInvitationState =
+type SocialCrewInvitationState =
   | "pending"
   | "accepted"
   | "declined"
   | "revoked"
   | "expired";
-export type SocialCrewJoinRequestState =
+type SocialCrewJoinRequestState =
   | "pending"
   | "accepted"
   | "declined"
@@ -175,7 +175,7 @@ export type SocialCrewListPageDTO = {
   nextCursor: string | null;
 };
 
-export const SOCIAL_CREW_MUTATION_CODES = [
+const SOCIAL_CREW_MUTATION_CODES = [
   "created",
   "invited",
   "accepted",

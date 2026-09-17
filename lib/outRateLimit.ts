@@ -9,5 +9,5 @@
 
 import { makeIpRateLimiter } from "@/lib/ipRateLimit";
 
-/** ~60/min-per-IP budget for the public /api/out surface. */
+/** ~60/min-per-IP budget for the public /api/out surface. @public — imported by app/api/out/route.ts; vi.mock boundary in __tests__/outRoute.test.ts prevents Knip from tracing the reference. */
 export const isOutLimited = makeIpRateLimiter("out-listings");

@@ -314,7 +314,7 @@ export const ANALYTICS_EVENTS = {
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
 
-export const PLANNING_SOURCES = [
+const PLANNING_SOURCES = [
   "near",
   "map-search",
   "tonight",
@@ -324,19 +324,19 @@ export const PLANNING_SOURCES = [
 ] as const;
 export type PlanningSource = (typeof PLANNING_SOURCES)[number];
 
-export const ACCEPTANCE_SOURCES = ["near", "map-search", "tonight", "pal"] as const;
-export type AcceptanceSource = (typeof ACCEPTANCE_SOURCES)[number];
+const ACCEPTANCE_SOURCES = ["near", "map-search", "tonight", "pal"] as const;
+type AcceptanceSource = (typeof ACCEPTANCE_SOURCES)[number];
 
-export const HANDOFF_SOURCES = [
+const HANDOFF_SOURCES = [
   "near",
   "map-search",
   "tonight",
   "pal",
   "mobile-route-preview",
 ] as const;
-export type HandoffSource = (typeof HANDOFF_SOURCES)[number];
+type HandoffSource = (typeof HANDOFF_SOURCES)[number];
 
-export const TONIGHT_LOCALITY_BASES = [
+const TONIGHT_LOCALITY_BASES = [
   "live-location",
   "remembered-patch",
   "remembered-borough",
@@ -344,7 +344,7 @@ export const TONIGHT_LOCALITY_BASES = [
 ] as const;
 export type TonightLocalityBasis = (typeof TONIGHT_LOCALITY_BASES)[number];
 
-export const NEAR_ANSWER_SOURCES = [
+const NEAR_ANSWER_SOURCES = [
   "location",
   "remembered-area",
   "picked-area",
@@ -352,7 +352,7 @@ export const NEAR_ANSWER_SOURCES = [
 ] as const;
 export type NearAnswerSource = (typeof NEAR_ANSWER_SOURCES)[number];
 
-export type TrustedHandoffAnalyticsPropsByEvent = {
+type TrustedHandoffAnalyticsPropsByEvent = {
   near_answer_ready: {
     source: NearAnswerSource;
     resultBand: "0" | "1-3" | "4+";
@@ -423,7 +423,7 @@ function completeDrinkTaxonomy<const T extends readonly DrinkCategory[]>(
   return categories;
 }
 
-export const PRICE_SUBMIT_CATEGORIES = completeDrinkTaxonomy([
+const PRICE_SUBMIT_CATEGORIES = completeDrinkTaxonomy([
   "beer", "wine", "whisky", "gin", "vodka", "rum", "cocktail", "shot",
   "alcohol-free", "soft-drink", "coffee", "other",
 ]);
@@ -434,28 +434,28 @@ export const PRICE_SUBMIT_CATEGORIES = completeDrinkTaxonomy([
  * route, `offline` a transport failure. Deliberately three coarse buckets - the
  * error sentence the drinker sees is free text and never leaves the device.
  */
-export const PRICE_SUBMIT_FAILURE_REASONS = ["invalid", "rejected", "offline"] as const;
+const PRICE_SUBMIT_FAILURE_REASONS = ["invalid", "rejected", "offline"] as const;
 export type PriceSubmitFailureReason = (typeof PRICE_SUBMIT_FAILURE_REASONS)[number];
 
-export const MISSION_SURFACES = ["near", "map", "profile"] as const;
+const MISSION_SURFACES = ["near", "map", "profile"] as const;
 export type MissionSurface = (typeof MISSION_SURFACES)[number];
 
-export const MISSION_REASONS = ["provisional", "stale", "missing"] as const;
-export type MissionReason = (typeof MISSION_REASONS)[number];
+const MISSION_REASONS = ["provisional", "stale", "missing"] as const;
+type MissionReason = (typeof MISSION_REASONS)[number];
 
 export const MISSION_OUTCOMES = ["logged", "trusted", "needs_check"] as const;
-export type MissionOutcome = (typeof MISSION_OUTCOMES)[number];
+type MissionOutcome = (typeof MISSION_OUTCOMES)[number];
 
 /**
  * Which Pint Index page the arrival happened on: the live index, or one of its
  * dated monthly editions. Kept apart because a press link to a frozen edition
  * and a link to the live page convert differently, and we want to know which.
  */
-export const PINT_INDEX_SURFACES = ["index", "archive"] as const;
+const PINT_INDEX_SURFACES = ["index", "archive"] as const;
 export type PintIndexSurface = (typeof PINT_INDEX_SURFACES)[number];
 
 /** Landing hero / final CTA destinations (docs/plans/LANDING_ACQUISITION.md W6). */
-export const LANDING_CTA_TARGETS = [
+const LANDING_CTA_TARGETS = [
   "map",
   "near",
   "plan",
@@ -508,11 +508,11 @@ export const RECAP_VISIBILITIES = ["public", "unlisted"] as const;
 export type RecapVisibility = (typeof RECAP_VISIBILITIES)[number];
 
 /** First time this browser has opened a Pint Index page, or a return. */
-export const PINT_INDEX_VISITS = ["first", "repeat"] as const;
-export type PintIndexVisit = (typeof PINT_INDEX_VISITS)[number];
+const PINT_INDEX_VISITS = ["first", "repeat"] as const;
+type PintIndexVisit = (typeof PINT_INDEX_VISITS)[number];
 
 /** The closed set of area codes a Pint Index arrival tap may report. */
-export const PINT_INDEX_AREA_CODES = LONDON_BOROUGH_NAMES.map(boroughCode);
+const PINT_INDEX_AREA_CODES = LONDON_BOROUGH_NAMES.map(boroughCode);
 
 /**
  * The four loop moments #252 named, as the six registry entries they became

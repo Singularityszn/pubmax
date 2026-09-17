@@ -9,7 +9,7 @@ export type DiscoverLazyWindow = {
   clearTimeout?: (handle: number) => void;
 };
 
-export type DiscoverLoadStatus = "idle" | "loading" | "ready" | "error";
+type DiscoverLoadStatus = "idle" | "loading" | "ready" | "error";
 
 type ScheduleDiscoverAnalysisLoadOptions = {
   start: () => void;

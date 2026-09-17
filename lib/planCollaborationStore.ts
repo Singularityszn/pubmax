@@ -23,7 +23,7 @@ export type PlanInvite = {
 };
 
 export type PlanConstraintKind = "accessibility" | "budget" | "zero_proof" | "timing" | "transport" | "other";
-export type PlanConstraintVenueEvidence = { venueId: string; sourceUrl: string; publisher: string; observedAt: string; note: string };
+type PlanConstraintVenueEvidence = { venueId: string; sourceUrl: string; publisher: string; observedAt: string; note: string };
 export type PlanConstraintEvidence = { proposalId: string; routeRevision: number; sources: PlanConstraintVenueEvidence[] };
 export type PlanConstraint = {
   id: string;
@@ -58,7 +58,7 @@ export type PlanVibeVote = {
   createdAt: string;
 };
 
-export type { VibeTally } from "@/lib/vibeTally";
+;
 
 export type PlanRouteProposal = {
   id: string;

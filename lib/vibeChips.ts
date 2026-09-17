@@ -33,7 +33,7 @@ export type VibeChipId =
 // kind filter (a night with zero rows of that kind shows the page's own honest
 // empty line); rank-backed chips have no What's-On kind, so they hand the ask
 // to the Pub Pal, where the concierge mood ranking can answer with receipts.
-export type VibeTonightAction =
+type VibeTonightAction =
   | { type: "filter"; kind: WhatsOnKind }
   | { type: "ask" };
 

@@ -32,7 +32,7 @@ export const HANDLE_PASSWORD_GENERIC_ERROR = "Handle or password is wrong.";
 export const PASSWORD_CHANGE_GENERIC_ERROR =
   "Could not change your password. Try again.";
 
-export type PasswordRuleId = "length" | "capital" | "number" | "special";
+type PasswordRuleId = "length" | "capital" | "number" | "special";
 
 export type PasswordRule = {
   id: PasswordRuleId;

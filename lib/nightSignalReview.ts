@@ -36,7 +36,7 @@ import type {
 } from "@/lib/nightSignalClaims";
 
 /** Bumped when a stored checkpoint shape stops being readable by this policy. */
-export const NIGHT_SIGNAL_CHECKPOINT_VERSION = 1;
+const NIGHT_SIGNAL_CHECKPOINT_VERSION = 1;
 
 /** The Exa query set is London publications, so one scope holds the sweep. */
 export const NIGHT_SIGNAL_SWEEP_SCOPE = "london";
@@ -53,7 +53,7 @@ export const MAX_QUERY_ATTEMPTS = 3;
  * The cron runs on its own schedule, so the first two steps let a same-day
  * re-run pick the query up while the last holds it back most of a day.
  */
-export const QUERY_RETRY_BACKOFF_MS = [15 * 60_000, 2 * 60 * 60_000, 12 * 60 * 60_000] as const;
+const QUERY_RETRY_BACKOFF_MS = [15 * 60_000, 2 * 60 * 60_000, 12 * 60 * 60_000] as const;
 
 /**
  * Provider calls of one run that retries may take. A poisoned deferred queue
@@ -76,15 +76,15 @@ export const CONSECUTIVE_QUERY_FAILURE_LIMIT = 2;
 export const NIGHT_SIGNAL_LEASE_MS = 150_000;
 
 /** Bounded lists. Operational state is not an archive, and a row has a size. */
-export const MAX_DEFERRED_QUERIES = 20;
-export const MAX_TERMINAL_QUERIES = 20;
+const MAX_DEFERRED_QUERIES = 20;
+const MAX_TERMINAL_QUERIES = 20;
 
 /** Page ceiling for the moderator queue read. */
 export const MAX_REVIEW_PAGE = 100;
 
 export type NightSignalQuery = { kind: string; query: string };
 
-export type DeferredQuery = {
+type DeferredQuery = {
   key: string;
   attempts: number;
   retryAfter: string;
@@ -92,7 +92,7 @@ export type DeferredQuery = {
   recordedAt: string;
 };
 
-export type TerminalQuery = {
+type TerminalQuery = {
   key: string;
   attempts: number;
   reason: string;
@@ -245,7 +245,7 @@ export function normaliseNightSignalCheckpoint(
   };
 }
 
-export function nightSignalLeaseIsLive(checkpoint: NightSignalCheckpoint, now: number): boolean {
+function nightSignalLeaseIsLive(checkpoint: NightSignalCheckpoint, now: number): boolean {
   if (!checkpoint.leaseOwner || !checkpoint.leaseExpiresAt) return false;
   const expires = Date.parse(checkpoint.leaseExpiresAt);
   // An unreadable expiry reads as EXPIRED. A lease nobody can date must not
@@ -415,7 +415,7 @@ export function nightSignalProviderOutage(consecutiveFailures: number): boolean 
 
 // --- Review ------------------------------------------------------------------
 
-export const NIGHT_SIGNAL_REVIEW_ACTIONS = ["approve", "reject"] as const;
+const NIGHT_SIGNAL_REVIEW_ACTIONS = ["approve", "reject"] as const;
 export type NightSignalReviewAction = (typeof NIGHT_SIGNAL_REVIEW_ACTIONS)[number];
 
 /**
@@ -423,8 +423,8 @@ export type NightSignalReviewAction = (typeof NIGHT_SIGNAL_REVIEW_ACTIONS)[numbe
  * the whole point of this door is that a human advanced the candidate, and a
  * route that let a caller name itself automated would erase that.
  */
-export const HUMAN_REVIEW_AUTHORITIES = ["operations", "editorial"] as const;
-export const DEFAULT_REVIEW_AUTHORITY: NightSignalReviewAuthority = "operations";
+const HUMAN_REVIEW_AUTHORITIES = ["operations", "editorial"] as const;
+const DEFAULT_REVIEW_AUTHORITY: NightSignalReviewAuthority = "operations";
 
 export function parseReviewAction(value: unknown): NightSignalReviewAction | null {
   return NIGHT_SIGNAL_REVIEW_ACTIONS.includes(value as NightSignalReviewAction)

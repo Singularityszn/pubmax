@@ -40,14 +40,14 @@ import {
 import { SAVED_ONLY_ARIA_LABEL } from "@/lib/savedOnlyFilter";
 
 /** Re-export so existing ControlRail importers keep resolving the aria label. */
-export { SAVED_ONLY_ARIA_LABEL };
+;
 /** Re-export so existing ControlRail importers keep resolving the default filters. */
 export { initialFilters };
 /** Re-export so existing ControlRail type importers keep resolving crawl mode. */
 export type { CrawlMode } from "@/lib/venues";
 
 /** City-aware search placeholder examples (neighbourhoods, not Tube jargon). */
-export function citySearchPlaceholder(cityId: CityId, displayName: string): string {
+function citySearchPlaceholder(cityId: CityId, displayName: string): string {
   switch (cityId) {
     case "london":
       return "Search Shoreditch, Hackney, pub name…";

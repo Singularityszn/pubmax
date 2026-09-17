@@ -7,7 +7,7 @@ import { momentHref } from "@/components/nav/navigationModel";
  * table and nothing else, so a row cannot be given one href here and another one
  * at the call site.
  */
-export type CreateFabActionKey = "moment" | "price" | "plan";
+type CreateFabActionKey = "moment" | "price" | "plan";
 
 export type CreateFabAction = {
   action: CreateFabActionKey;

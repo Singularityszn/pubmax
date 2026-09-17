@@ -53,4 +53,4 @@ export function lastTrainFetchUrl(lat: number, lng: number): string {
 }
 
 // Re-export city-aware URL builder so callers can migrate off the London-only helper.
-export { lastRideFetchUrl } from "@/lib/lastRide";
+;

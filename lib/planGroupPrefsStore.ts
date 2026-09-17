@@ -18,7 +18,7 @@ import { requireSupabaseAdmin } from "@/lib/supabase";
 export type PlanGroupPrefsError = "invalid" | "not_found" | "forbidden" | "error";
 type Failure = { ok: false; error: PlanGroupPrefsError };
 
-export type PlanGroupPrefsList = {
+type PlanGroupPrefsList = {
   ok: true;
   memberId: string;
   role: "host" | "guest";
@@ -249,6 +249,6 @@ export function __resetPlanGroupPrefs(): void {
 }
 
 /** Deterministic digest for tests that need a stable idempotency seed. */
-export function planGroupPrefIdempotencyDigest(seed: string): string {
+function planGroupPrefIdempotencyDigest(seed: string): string {
   return createHash("sha256").update(seed).digest("hex").slice(0, 32);
 }

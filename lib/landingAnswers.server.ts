@@ -24,7 +24,7 @@ import { loadFreshWeatherSnapshot } from "@/lib/weatherFreshness.server";
 // (app/page.tsx), so this runs at build and at most once an hour after that,
 // and nothing here reads the viewer.
 
-export type { LandingAnswer, LandingAnswers } from "@/lib/landingAnswers";
+export type {  LandingAnswers } from "@/lib/landingAnswers";
 
 const LONDON_DAY = new Intl.DateTimeFormat("en-GB", {
   weekday: "long",

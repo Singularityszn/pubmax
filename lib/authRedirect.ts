@@ -649,7 +649,7 @@ function claimAuthCallback(
   }
 }
 
-export function isAuthPage(pathname: string): boolean {
+function isAuthPage(pathname: string): boolean {
   return pathname === "/login" || pathname === "/signin" || pathname === "/auth/callback";
 }
 

@@ -2,8 +2,8 @@
 // Below UK_BASE_MIN_ZOOM pubs are intentionally absent (payload contract);
 // the banner must say so, never that the country has no pubs.
 
-export const UK_NATIONAL_PARAM = "uk";
-export const UK_NATIONAL_PARAM_VALUE = "1";
+const UK_NATIONAL_PARAM = "uk";
+const UK_NATIONAL_PARAM_VALUE = "1";
 
 /** Quiet overview: whole UK framed; pubs appear from zoom 12. */
 export const UK_NATIONAL_MAP_VIEW = {

@@ -8,7 +8,7 @@
  * writes a line is the only code that knows whether it is a refusal.
  */
 
-export type AdminNoticeTone = "alert" | "status";
+type AdminNoticeTone = "alert" | "status";
 
 export type AdminNotice = {
   text: string;
@@ -38,7 +38,7 @@ export function adminStatus(text: string): AdminNotice {
  * These are the operator's OWN states, so naming the cause is what makes the
  * line actionable; this is not the drinker-facing plumbing that law scrubs.
  */
-export const ADMIN_QUEUE_UNAVAILABLE_REASONS = [
+const ADMIN_QUEUE_UNAVAILABLE_REASONS = [
   /** The console session is not open, so the request was never worth sending. */
   "session",
   /** The server answered, and refused. */

@@ -655,7 +655,7 @@ function environmentWithNodePath(environment) {
   };
 }
 
-export async function runScheduledRefresh({
+async function runScheduledRefresh({
   mode,
   dryRun = false,
   repoRoot = REPO_ROOT,
@@ -789,7 +789,7 @@ function launchAgentDirectory(homeDir) {
   return join(homeDir, "Library/LaunchAgents");
 }
 
-export function writeLaunchAgents(outputDirectory, options = {}) {
+function writeLaunchAgents(outputDirectory, options = {}) {
   const repoRoot = options.repoRoot ?? REPO_ROOT;
   const homeDir = options.homeDir ?? homedir();
   const nodePath = options.nodePath ?? process.execPath;

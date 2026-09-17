@@ -138,8 +138,8 @@ export function railHeading(scope: LandingAnswerScope, area: string): string {
  * in this table. `components/landing/LandingHero.tsx` renders it and this table
  * holds the rest of the row.
  */
-export const TONIGHT_DOOR_HREF = "/tonight";
-export const TONIGHT_DOOR_LABEL = "Tonight";
+const TONIGHT_DOOR_HREF = "/tonight";
+const TONIGHT_DOOR_LABEL = "Tonight";
 
 export type LandingQuietDoor = {
   href: string;

@@ -36,7 +36,7 @@ export type PriceTrustEvent = {
   reversalOf: string | null;
 };
 
-export type PriceTrustCredit = {
+type PriceTrustCredit = {
   userId: string;
   trustEventId: string;
 };
@@ -48,7 +48,7 @@ export type PriceTrustReconciliationTask = {
   enqueuedAt: string;
 };
 
-export type RecordUnlockInput = {
+type RecordUnlockInput = {
   fingerprint: string;
   venueId: string;
   category: DrinkCategory;
@@ -58,13 +58,13 @@ export type RecordUnlockInput = {
   now?: number;
 };
 
-export type RecordUnlockResult = {
+type RecordUnlockResult = {
   event: PriceTrustEvent | null;
   created: boolean;
   failed?: true;
 };
 
-export type VisibleImpact = {
+type VisibleImpact = {
   lifetimeTrustUnlocks: number;
   eventIds: string[];
   events: PriceTrustEvent[];

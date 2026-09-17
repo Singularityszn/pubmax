@@ -4,7 +4,7 @@
 // stores that queue these jobs.
 
 /** A job stops retrying once it has made this many attempts. */
-export const MODERATION_RETRY_MAX_ATTEMPTS = 8;
+const MODERATION_RETRY_MAX_ATTEMPTS = 8;
 
 /**
  * An error is retryable unless it explicitly says otherwise. A malformed or

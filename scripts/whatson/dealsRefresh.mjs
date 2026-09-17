@@ -135,7 +135,7 @@ export const WETHERSPOONS_FOOD_DRINK_SOURCE = {
 // J D Wetherspoon's own news article naming the per-club prices (published
 // 6 June 2025; prices "representative of most pubs" per the article's own
 // caveat, and are NOT re-asserted as this pub's exact price — see `detail`).
-export const WETHERSPOONS_PRICING_SOURCE = {
+const WETHERSPOONS_PRICING_SOURCE = {
   label: "J D Wetherspoon — “New clubs, lower prices”",
   url: "https://www.jdwetherspoon.com/news/new-clubs-lower-prices/",
 };

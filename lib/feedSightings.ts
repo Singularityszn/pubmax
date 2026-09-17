@@ -49,7 +49,7 @@ export type SightingDTO = {
 };
 
 /** The venue facts the server resolves for a sighting's grouping key. */
-export type SightingVenue = {
+type SightingVenue = {
   venueId: string;
   venueName: string;
   venueMapUrl: string;

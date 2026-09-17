@@ -77,7 +77,8 @@ import {
   keepGoingDistanceDescription,
   nextStopWalkDescription,
 } from "@/lib/nightPresentation";
-import RouteEndingCard, {
+import {
+  RouteEndingCard,
   GetHomeHandoffRow,
   type RouteEndingId,
   type RouteEndingOptions,
@@ -284,7 +285,7 @@ export function keepGoingEndingSelection(
   };
 }
 
-export function canonicalPlanFromCompleteBody(
+function canonicalPlanFromCompleteBody(
   value: unknown,
 ): PlanState | null {
   if (!value || typeof value !== "object") return null;
@@ -1247,7 +1248,7 @@ function NightModeSheet({
  * The result band `late_food_viewed` reports. The served shortlist is capped at
  * MAX_LATE_FOOD_HANDOFFS, so these are the only two answers there are.
  */
-export function lateFoodResultBand(count: number): LateFoodResultBand {
+function lateFoodResultBand(count: number): LateFoodResultBand {
   return count > 0 ? "1-3" : "0";
 }
 

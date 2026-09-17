@@ -29,7 +29,7 @@ export type CrawlProgressMap = {
 };
 
 /** Celebration-shown map: crawl id → ISO timestamp when the prompt was claimed. */
-export type CrawlCelebrationMap = {
+type CrawlCelebrationMap = {
   shown: Record<string, string>;
 };
 
@@ -58,7 +58,7 @@ export type CrawlQuestChip = {
 };
 
 /** Seven-day window for place/crawl breadth quests (Wave H3). */
-export const PLACE_QUEST_WEEK_MS = 7 * DAY_MS;
+const PLACE_QUEST_WEEK_MS = 7 * DAY_MS;
 
 function emptyProgress(): CrawlProgressMap {
   return { crawls: {} };
@@ -320,7 +320,7 @@ function writeJsonKey(key: string, value: unknown, storage?: Storage | null): vo
 }
 
 /** Read which crawl completions have already shown the celebration prompt. */
-export function readCelebration(storage?: Storage | null): CrawlCelebrationMap {
+function readCelebration(storage?: Storage | null): CrawlCelebrationMap {
   return parseCelebration(readJsonKey(CRAWL_CELEBRATION_KEY, storage));
 }
 
@@ -456,7 +456,7 @@ export function placeQuestEventChips(
  * keep `target !== current` so NextBadgeChips can show honest `current/target`
  * progress (never a fake "done" 1/1 after the first walk).
  */
-export const CRAWL_QUEST_MILESTONES = [1, 3, 5, 10, 25] as const;
+const CRAWL_QUEST_MILESTONES = [1, 3, 5, 10, 25] as const;
 
 /** Next milestone strictly above `current`, or `current + 1` past the last tier. */
 export function nextQuestTarget(current: number): number {

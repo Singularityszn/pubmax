@@ -11,7 +11,7 @@ function countByKey(records, keyFor) {
   return counts;
 }
 
-export function isUiUxFlowApplicable(flow, viewportName) {
+function isUiUxFlowApplicable(flow, viewportName) {
   return !flow.desktopOnly || viewportName === "desktop-1440";
 }
 

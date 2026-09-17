@@ -59,11 +59,11 @@ function checkedAgo(ageMinutes: number | null): string {
   return `Checked about ${ageMinutes} minutes ago.`;
 }
 
-export const BUS_DEPARTURES_UNAVAILABLE_COPY =
+const BUS_DEPARTURES_UNAVAILABLE_COPY =
   "Couldn't check nearby buses just now.";
-export const BUS_DEPARTURES_CHECKING_COPY = "Checking live departures.";
-export const BUS_DEPARTURES_READY_COPY = "Nearby bus departures are ready.";
-export const BUS_DEPARTURES_OUT_OF_DATE_COPY =
+const BUS_DEPARTURES_CHECKING_COPY = "Checking live departures.";
+const BUS_DEPARTURES_READY_COPY = "Nearby bus departures are ready.";
+const BUS_DEPARTURES_OUT_OF_DATE_COPY =
   "These bus times are out of date. Check the stop display before you set off.";
 
 export type BusDeparturesUiState = {

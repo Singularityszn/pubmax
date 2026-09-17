@@ -40,7 +40,7 @@ export const OCCUPANCY_SOURCE = "crowd" as const;
 export type OccupancySource = typeof OCCUPANCY_SOURCE;
 
 /** SQL CHECK values. The wire uses hyphens; the table uses underscores. */
-export const OCCUPANCY_SQL_LEVELS = ["empty", "some_seats", "full"] as const;
+const OCCUPANCY_SQL_LEVELS = ["empty", "some_seats", "full"] as const;
 export type OccupancySqlLevel = (typeof OCCUPANCY_SQL_LEVELS)[number];
 
 export function occupancyLevelToSql(level: OccupancyLevel): OccupancySqlLevel {
@@ -158,7 +158,7 @@ export function occupancySignInHref(venueId: string): string {
  * every quarter of an hour holds several rows and would otherwise read as
  * corroboration nobody gave.
  */
-export function occupancyReportersCaption(count: number): string | null {
+function occupancyReportersCaption(count: number): string | null {
   if (count <= 0) return null;
   return count === 1 ? "1 person" : `${count} people`;
 }

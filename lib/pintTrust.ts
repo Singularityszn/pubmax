@@ -132,7 +132,7 @@ export const PINT_TRUST_LINE: Record<PintTrustState, string | null> = {
 };
 
 /** The line a split prints, or null on every state that is not one. */
-export function pintTrustSplitLine(split: PintPriceSplit | null | undefined): string | null {
+function pintTrustSplitLine(split: PintPriceSplit | null | undefined): string | null {
   return split ? pintPriceSplitLine(split) : null;
 }
 

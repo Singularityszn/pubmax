@@ -74,7 +74,7 @@ const LONDON_AUTHORITY_SET = new Set(
   LONDON_OPEN_PUBS_AUTHORITIES.map((name) => name.toLowerCase()),
 );
 
-export const OPEN_PUBS_COLUMNS = [
+const OPEN_PUBS_COLUMNS = [
   "fsa_id",
   "name",
   "address",
@@ -117,7 +117,7 @@ export function parseCsvNull(value) {
   return s;
 }
 
-export function parseFiniteNumber(value) {
+function parseFiniteNumber(value) {
   const s = parseCsvNull(value);
   if (s == null) return null;
   const n = Number(s);
@@ -130,7 +130,7 @@ export function parseFiniteNumber(value) {
  * @param {string} text
  * @returns {string[][]}
  */
-export function splitCsv(text) {
+function splitCsv(text) {
   const rows = [];
   let row = [];
   let field = "";
@@ -333,7 +333,7 @@ function postcodesConflict(aOutward, bOutward) {
  *   layerRank: number,
  * }>}
  */
-export function collectOpenPubIdentityCandidates(row, index, opts = {}) {
+function collectOpenPubIdentityCandidates(row, index, opts = {}) {
   if (!row || !Number.isFinite(row.lat) || !Number.isFinite(row.lng)) return [];
   const radiusM = opts.radiusM ?? OPEN_PUBS_MATCH_RADIUS_M;
   const normalized = normalisePubName(row.name);

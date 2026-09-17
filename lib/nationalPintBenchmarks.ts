@@ -36,7 +36,7 @@
 // the chain we could reach, not the one that ran the headline.
 
 /** One national price, and the period it describes. */
-export type NationalPintFigure = {
+type NationalPintFigure = {
   priceGbp: number;
   /** When this price applied, as it reads on screen: "1990", "May 2026". */
   period: string;

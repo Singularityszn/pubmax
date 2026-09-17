@@ -14,8 +14,8 @@ export type AccountOnboardingStatus =
   | { status: "interrupted" }
   | { status: "unavailable"; error: string };
 
-export const ACCOUNT_ONBOARDING_RETRY_DELAY_MS = 250;
-export const ACCOUNT_ONBOARDING_RETRY_DELAYS_MS = [
+const ACCOUNT_ONBOARDING_RETRY_DELAY_MS = 250;
+const ACCOUNT_ONBOARDING_RETRY_DELAYS_MS = [
   ACCOUNT_ONBOARDING_RETRY_DELAY_MS,
   1_500,
 ] as const;

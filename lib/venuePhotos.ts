@@ -41,7 +41,7 @@ export const VENUE_PHOTO_CAP_PER_ACCOUNT = 100;
 export const VENUE_PHOTO_CAPTION_MAX = 140;
 
 /** Venue ids are the slim-index / uk_base stable ids; cap them like every writer. */
-export const VENUE_PHOTO_VENUE_ID_MAX = 64;
+const VENUE_PHOTO_VENUE_ID_MAX = 64;
 
 /** One page of a wall. A wall is browsed, so it pages rather than truncating. */
 export const VENUE_PHOTO_PAGE_SIZE = 24;
@@ -56,7 +56,7 @@ export const VENUE_PHOTO_OUTPUT_HEIGHT = Math.round(
 
 /** Sentence noun for reader-facing copy, so one wording serves every message. */
 export const VENUE_PHOTO_NOUN = "Photo";
-export const VENUE_PHOTO_NOUN_LOWER = "photo";
+const VENUE_PHOTO_NOUN_LOWER = "photo";
 
 /**
  * The crop step's target. A drink photo is portrait because a pint is: a
@@ -78,7 +78,7 @@ export const VENUE_PHOTO_CROP_TARGET: CropTarget = {
  * nothing); `hidden` is a moderator decision and is reversible, because hiding
  * never deletes the row or its provenance.
  */
-export const VENUE_PHOTO_MODERATION_STATES = [
+const VENUE_PHOTO_MODERATION_STATES = [
   "approved",
   "needs_review",
   "hidden",

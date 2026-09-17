@@ -83,6 +83,6 @@ export function useTonightLaneCue(enabled: boolean): TonightLaneCue {
  * The DrinkCategory that fits tonight, or null when there is no verdict / the
  * request fails. `enabled` gates the fetch (conditions is London-only today).
  */
-export function usePersonaTonightCategory(enabled: boolean): DrinkCategory | null {
+function usePersonaTonightCategory(enabled: boolean): DrinkCategory | null {
   return useTonightLaneCue(enabled).category;
 }

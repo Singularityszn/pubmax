@@ -59,7 +59,7 @@ export type AskTurn = {
   content: string;
 };
 
-export type AskResponseStatus = "ready" | "degraded";
+type AskResponseStatus = "ready" | "degraded";
 
 export type AskResponseBody = {
   answer: string;

@@ -32,7 +32,7 @@ export type AskToolContext = {
   now?: number;
 };
 
-export type AskToolHandler = (
+type AskToolHandler = (
   args: AskToolArgs,
   ctx: AskToolContext,
 ) => Promise<AskToolResult>;
