@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 export default function GlobalError({
   error,
   reset,
@@ -7,6 +9,9 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    console.error("[global error boundary]", error);
+  }, [error]);
   return (
     <html lang="en">
       <body>
@@ -24,7 +29,7 @@ export default function GlobalError({
             <h1 style={{ margin: "0 0 14px", fontSize: "1.8rem" }}>
               Something went wrong
             </h1>
-            <p style={{ margin: "0 0 28px", color: "#666", lineHeight: 1.6 }}>
+            <p style={{ margin: "0 0 28px", color: "var(--ink-soft, #666)", lineHeight: 1.6 }}>
               An unexpected error occurred. Try again or head back to the front
               page.
             </p>
@@ -44,7 +49,7 @@ export default function GlobalError({
                   padding: "0 20px",
                   borderRadius: "8px",
                   border: "none",
-                  background: "#0f1c16",
+                  background: "var(--ink-deep, #0f1c16)",
                   color: "#fdfaf2",
                   fontWeight: 600,
                   cursor: "pointer",
@@ -60,8 +65,8 @@ export default function GlobalError({
                   alignItems: "center",
                   padding: "0 20px",
                   borderRadius: "8px",
-                  border: "1px solid #ddd",
-                  color: "#333",
+                  border: "1px solid var(--line, #ddd)",
+                  color: "var(--ink, #333)",
                   textDecoration: "none",
                   fontWeight: 600,
                 }}
