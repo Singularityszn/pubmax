@@ -11,6 +11,7 @@ import {
   type LngLat,
 } from "@/lib/routeMiniMap";
 import { discardBody } from "@/lib/responseBody";
+import planStyles from "@/app/plan/Plan.module.css";
 
 // A lightweight static route mini-map for the locked plan page. It draws the
 // crawl's stops as numbered discs joined by the walking line — a self-contained
@@ -178,9 +179,9 @@ export default function PlanRouteMiniMap({ stops }: { stops: Stop[] }) {
   const description = `Walking route between ${activeResolved.names.join(", ")}.`;
 
   return (
-    <figure className="planRouteMiniMap planRouteMiniMap--in" data-source={activeDrawn.source}>
+    <figure className={`${planStyles.planRouteMiniMap} ${planStyles["planRouteMiniMap--in"]}`} data-source={activeDrawn.source}>
       <svg
-        className="planRouteMiniMap__svg"
+        className={planStyles.planRouteMiniMap__svg}
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
         preserveAspectRatio="xMidYMid meet"
         role="img"
@@ -190,20 +191,20 @@ export default function PlanRouteMiniMap({ stops }: { stops: Stop[] }) {
         <desc id={descId}>{description}</desc>
         {geometry.path ? (
           <>
-            <path className="planRouteMiniMap__casing" d={geometry.path} />
-            <path className="planRouteMiniMap__line" d={geometry.path} pathLength={1} />
+            <path className={planStyles.planRouteMiniMap__casing} d={geometry.path} />
+            <path className={planStyles.planRouteMiniMap__line} d={geometry.path} pathLength={1} />
           </>
         ) : null}
         {geometry.discs.map((point, index) => (
           <g className="planRouteMiniMap__stop" key={`${index}-${activeResolved.names[index]}`}>
             <circle
-              className="planRouteMiniMap__disc"
+              className={planStyles.planRouteMiniMap__disc}
               cx={point.x}
               cy={point.y}
               r={DISC_R}
             />
             <text
-              className="planRouteMiniMap__num"
+              className={planStyles.planRouteMiniMap__num}
               x={point.x}
               y={point.y}
               textAnchor="middle"

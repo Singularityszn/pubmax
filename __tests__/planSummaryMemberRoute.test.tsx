@@ -51,6 +51,7 @@ vi.mock("@/components/round/RoundStarter", () => ({ default: () => null }));
 
 import PlanSummary from "@/components/plan/PlanSummary";
 import { PLAN_PENDING_ROUTE_PREFIX } from "@/components/plan/PlanSummary";
+import planStyles from "@/app/plan/Plan.module.css";
 import type { PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 
 const PLAN = "6ab5ca40-836b-4970-9477-d1779fdd31ab";
@@ -106,7 +107,7 @@ function renderedStops(): string[] {
 }
 
 function editControl(): HTMLButtonElement {
-  const control = container.querySelector<HTMLButtonElement>("button.planSummary__edit");
+  const control = container.querySelector<HTMLButtonElement>(`button.${planStyles.planSummary__edit}`);
   if (!control) throw new Error("the route edit control did not render");
   return control;
 }
@@ -212,7 +213,7 @@ describe("a fresher canonical route", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(container.querySelector(".planSummary__editor")).not.toBeNull();
+    expect(container.querySelector(`.${planStyles.planSummary__editor}`)).not.toBeNull();
 
     planBody = memberState(["The George", "The Lamb", "The Crown"], 2);
     capability.token = "member-token-rotated";
@@ -225,6 +226,6 @@ describe("a fresher canonical route", () => {
     });
 
     // The editor is still the reader's own working copy.
-    expect(container.querySelector(".planSummary__editor")).not.toBeNull();
+    expect(container.querySelector(`.${planStyles.planSummary__editor}`)).not.toBeNull();
   });
 });

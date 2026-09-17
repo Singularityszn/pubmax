@@ -25,6 +25,7 @@ import {
   restorePlanCapability,
 } from "@/lib/planSessionCapability";
 import { shareNightObject } from "@/lib/shareSheet";
+import planStyles from "@/app/plan/Plan.module.css";
 
 type LastCrewInviteProps = {
   planId: string;
@@ -108,19 +109,19 @@ export default function LastCrewInvite({
   }
 
   return (
-    <section className="lastCrewInvite" aria-label="Invite the usual lot">
-      <p className="lastCrewInvite__lede">
+    <section className={planStyles.lastCrewInvite} aria-label="Invite the usual lot">
+      <p className={planStyles.lastCrewInvite__lede}>
         Usual lot: <strong>{crew.names.join(", ")}</strong>
       </p>
       <button
         type="button"
-        className="lastCrewInvite__cta pressable"
+        className={`${planStyles.lastCrewInvite__cta} pressable`}
         onClick={() => void handleInvite()}
       >
         Invite the usual lot
       </button>
       {status ? (
-        <p className="lastCrewInvite__status" role="status">
+        <p className={planStyles.lastCrewInvite__status} role="status">
           {status}
         </p>
       ) : null}

@@ -37,6 +37,7 @@ import {
   seedRouteDraft,
 } from "@/lib/planRouteEditor";
 import type { EditableStop, PendingRoute, RouteAlternative, RouteEditorNotice, RouteRevision } from "@/lib/planRouteEditor";
+import planStyles from "@/app/plan/Plan.module.css";
 
 /** Map the §4.10 preview onto the existing preview component's DTO. */
 function toInvitePreview(preview: PlanPrivacyPreviewDTO): InvitePrivacyPreviewDTO {
@@ -337,9 +338,9 @@ export default function PlanSummary({
   // at x 43, so it struck through the host's name and the join control.
   if (!state) {
     return (
-      <section className="planSummary" aria-labelledby="plan-stops-title">
-        <div className="planSummary__heading">
-          <p className="planPage__eyebrow">First pint · {initialPreview.startLabel}</p>
+      <section className={planStyles.planSummary} aria-labelledby="plan-stops-title">
+        <div className={planStyles.planSummary__heading}>
+          <p className={planStyles.planPage__eyebrow}>First pint · {initialPreview.startLabel}</p>
           <h2 id="plan-stops-title">The route</h2>
         </div>
         <InvitePrivacyPreview preview={toInvitePreview(initialPreview)} />
@@ -673,13 +674,13 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   function renderEditor() {
     if (!canBeginEditing || !(editing || pending)) return null;
     return (
-      <div className="planSummary__editor" aria-labelledby="plan-route-editor-title" aria-busy={saving || loadingPreview}>
+      <div className={planStyles.planSummary__editor} aria-labelledby="plan-route-editor-title" aria-busy={saving || loadingPreview}>
         <h3 id="plan-route-editor-title">Route preview</h3>
         <p>{anchoredPlan ? "Review the fresh route with Stop 1 kept." : "Swap a stop to make a private draft."} {isHost ? `Save only when it differs and still has ${PLAN_STOP_COUNT_RANGE_SENTENCE} distinct stops.` : "The route stays unchanged until the host accepts your proposal."}</p>
-        <ol className="planSummary__editStops">
+        <ol className={planStyles.planSummary__editStops}>
           {draftStops.map((stop, index) => (
             <li key={`${stop.position}-${stop.venueId}`}>
-              <span className="planSummary__editMarker" aria-hidden="true">{index + 1}</span>
+              <span className={planStyles.planSummary__editMarker} aria-hidden="true">{index + 1}</span>
               <span>
                 <strong>{stop.venueName}</strong>
                 {stop.alternatives?.length ? <small>{stop.alternatives.length} backup{stop.alternatives.length === 1 ? "" : "s"} ready</small> : null}
@@ -687,7 +688,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
               {!anchoredPlan ? (
                 <button
                   type="button"
-                  className="planSummary__swap"
+                  className={planStyles.planSummary__swap}
                   onClick={() => swapStop(index)}
                   disabled={!stop.alternatives?.length || saving}
                   aria-label={stop.alternatives?.length ? `Swap stop ${index + 1}, currently ${stop.venueName}` : `No alternatives for stop ${index + 1}`}
@@ -699,15 +700,15 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
           ))}
         </ol>
         {isHost ? (
-          <div className="planSummary__editorActions">
-            <button type="button" className="planSummary__save" onClick={() => void saveRoute()} disabled={saving || !canSaveDraft} aria-disabled={saving || !canSaveDraft}>
+          <div className={planStyles.planSummary__editorActions}>
+            <button type="button" className={planStyles.planSummary__save} onClick={() => void saveRoute()} disabled={saving || !canSaveDraft} aria-disabled={saving || !canSaveDraft}>
               {saving ? "Saving…" : canSaveDraft ? "Save route changes" : "Choose a route change"}
             </button>
-            <button type="button" className="planSummary__cancel" onClick={() => { clearPendingRoute(planId); setLocalStops(canonicalStops); setLocalAuthority(null); closeEditor(); announce("Unsaved route changes discarded."); }} disabled={saving}>
+            <button type="button" className={planStyles.planSummary__cancel} onClick={() => { clearPendingRoute(planId); setLocalStops(canonicalStops); setLocalAuthority(null); closeEditor(); announce("Unsaved route changes discarded."); }} disabled={saving}>
               Discard draft
             </button>
           </div>
-        ) : <p className="planSummary__editorNote">Explain the change in Crew decisions. Only the host can make it canonical.</p>}
+        ) : <p className={planStyles.planSummary__editorNote}>Explain the change in Crew decisions. Only the host can make it canonical.</p>}
       </div>
 
     );
@@ -716,19 +717,19 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   function renderNotice() {
     if (!notice) return null;
     return notice.tone === "status"
-      ? <p className="planSummary__status" role="status" aria-live="polite">{notice.text}</p>
-      : <p className="planSummary__status planSummary__status--error" role="alert">{notice.text}</p>;
+      ? <p className={planStyles.planSummary__status} role="status" aria-live="polite">{notice.text}</p>
+      : <p className={`${planStyles.planSummary__status} ${planStyles["planSummary__status--error"]}`} role="alert">{notice.text}</p>;
   }
 
   return (
-    <section className="planSummary" aria-labelledby="plan-stops-title">
-      <div className="planSummary__rail" aria-hidden="true" />
-      <div className="planSummary__heading">
-        <p className="planPage__eyebrow">First pint · {view.startLabel}</p>
-        <div className="planSummary__headingRow">
+    <section className={planStyles.planSummary} aria-labelledby="plan-stops-title">
+      <div className={planStyles.planSummary__rail} aria-hidden="true" />
+      <div className={planStyles.planSummary__heading}>
+        <p className={planStyles.planPage__eyebrow}>First pint · {view.startLabel}</p>
+        <div className={planStyles.planSummary__headingRow}>
           <h2 id="plan-stops-title">The route</h2>
           {canBeginEditing ? (
-            <button ref={editControl} type="button" className="planSummary__edit" onClick={() => void beginEditing()} aria-expanded={editing} disabled={loadingPreview || saving}>
+            <button ref={editControl} type="button" className={planStyles.planSummary__edit} onClick={() => void beginEditing()} aria-expanded={editing} disabled={loadingPreview || saving}>
               {loadingPreview ? "Finding alternatives…" : editing ? "Editing" : isHost ? "Edit route" : "Propose swap"}
             </button>
           ) : null}

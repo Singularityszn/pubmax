@@ -20,6 +20,7 @@ import type { NightContext } from "@/lib/nightPlanning";
 vi.mock("@/components/wanted/WantedPlanChips", () => ({ default: () => null }));
 
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
+import planStyles from "@/app/plan/Plan.module.css";
 
 let root: Root;
 let container: HTMLDivElement;
@@ -247,7 +248,7 @@ describe("PlanDescribeFirst chip intent", () => {
     if (!query) throw new Error("describe-first query did not render");
     const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
     setter?.call(query, "Camden");
-    const chip = container.querySelector<HTMLButtonElement>(".planDescribeFirst__chip--culture");
+    const chip = container.querySelector<HTMLButtonElement>(`.${planStyles["planDescribeFirst__chip--culture"]}`);
     await act(async () => {
       query.dispatchEvent(new Event("input", { bubbles: true }));
       chip?.click();

@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import PlanRouteMiniMap from "@/components/plan/PlanRouteMiniMap";
+import planStyles from "@/app/plan/Plan.module.css";
 
 type Stop = { venueId: string; venueName: string; position: number };
 
@@ -129,7 +130,7 @@ describe("PlanRouteMiniMap request identity", () => {
       await Promise.resolve();
     });
 
-    const path = host.querySelector<SVGPathElement>(".planRouteMiniMap__line");
+    const path = host.querySelector<SVGPathElement>(`.${planStyles.planRouteMiniMap__line}`);
     const values = path?.getAttribute("d")?.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
     expect(values).toHaveLength(6);
     for (let index = 0; index < values.length; index += 2) {
@@ -149,7 +150,7 @@ describe("PlanRouteMiniMap request identity", () => {
       { id: "venue-b", latitude: 51.52, longitude: -0.13 },
     ]);
 
-    expect(host.querySelector(".planRouteMiniMap")).not.toBeNull();
+    expect(host.querySelector(`.${planStyles.planRouteMiniMap}`)).not.toBeNull();
     const previousRoute = findPending("/api/walk-route?");
 
     await act(async () => {
@@ -158,7 +159,7 @@ describe("PlanRouteMiniMap request identity", () => {
 
     // The new plan has not resolved yet. The old SVG must not remain as the
     // visible answer while its replacement is in flight.
-    expect(host.querySelector(".planRouteMiniMap")).toBeNull();
+    expect(host.querySelector(`.${planStyles.planRouteMiniMap}`)).toBeNull();
 
     // The route request ignores abort in this harness. This models a response
     // that was already buffered when the old effect was cleaned up.
@@ -166,18 +167,18 @@ describe("PlanRouteMiniMap request identity", () => {
       previousRoute.resolve(routeResponse());
       await Promise.resolve();
     });
-    expect(host.querySelector(".planRouteMiniMap")).toBeNull();
+    expect(host.querySelector(`.${planStyles.planRouteMiniMap}`)).toBeNull();
 
     await settleVenueLookups([
       { id: "venue-c", latitude: 51.53, longitude: -0.12 },
       { id: "venue-d", latitude: 51.54, longitude: -0.11 },
     ]);
 
-    expect(host.querySelector(".planRouteMiniMap")).not.toBeNull();
-    expect(host.querySelector(".planRouteMiniMap desc")?.textContent).toContain(
+    expect(host.querySelector(`.${planStyles.planRouteMiniMap}`)).not.toBeNull();
+    expect(host.querySelector(`.${planStyles.planRouteMiniMap} desc`)?.textContent).toContain(
       "Third pub, Fourth pub",
     );
-    expect(host.querySelector(".planRouteMiniMap desc")?.textContent).not.toContain(
+    expect(host.querySelector(`.${planStyles.planRouteMiniMap} desc`)?.textContent).not.toContain(
       "First pub",
     );
   });
@@ -191,7 +192,7 @@ describe("PlanRouteMiniMap request identity", () => {
       { id: "venue-b", latitude: 51.52, longitude: -0.13 },
     ]);
 
-    expect(host.querySelector(".planRouteMiniMap desc")?.textContent).toContain(
+    expect(host.querySelector(`.${planStyles.planRouteMiniMap} desc`)?.textContent).toContain(
       "First pub, Second pub",
     );
 
@@ -201,17 +202,17 @@ describe("PlanRouteMiniMap request identity", () => {
 
     // A venue rename changes the accessible route description. Do not retain
     // the old labels while the renamed stops are being resolved.
-    expect(host.querySelector(".planRouteMiniMap")).toBeNull();
+    expect(host.querySelector(`.${planStyles.planRouteMiniMap}`)).toBeNull();
 
     await settleVenueLookups([
       { id: "venue-a", latitude: 51.51, longitude: -0.14 },
       { id: "venue-b", latitude: 51.52, longitude: -0.13 },
     ]);
 
-    expect(host.querySelector(".planRouteMiniMap desc")?.textContent).toContain(
+    expect(host.querySelector(`.${planStyles.planRouteMiniMap} desc`)?.textContent).toContain(
       "Renamed first pub, Renamed second pub",
     );
-    expect(host.querySelector(".planRouteMiniMap desc")?.textContent).not.toContain(
+    expect(host.querySelector(`.${planStyles.planRouteMiniMap} desc`)?.textContent).not.toContain(
       "First pub",
     );
   });

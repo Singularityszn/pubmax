@@ -25,6 +25,7 @@ vi.mock("@/components/plan/PlanVibe", () => ({
 
 import PlanHostInviteLink from "@/components/plan/PlanHostInviteLink";
 import PlanInviteNextStep from "@/components/plan/PlanInviteNextStep";
+import planStyles from "@/app/plan/Plan.module.css";
 
 let root: Root;
 let container: HTMLDivElement;
@@ -69,6 +70,6 @@ describe("plan invite session restoration", () => {
     // ONE notice for a stranger. The nested host link used to print the same
     // sentence a second time, and the host-only tools rendered beside it.
     expect(container.textContent!.split("Invite tools need a crew session").length - 1).toBe(1);
-    expect(container.querySelector(".planInviteNext__more")).toBeNull();
+    expect(container.querySelector(`.${planStyles.planInviteNext__more}`)).toBeNull();
   });
 });

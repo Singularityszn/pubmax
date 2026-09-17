@@ -13,6 +13,7 @@ import PriceBadge from "@/components/PriceBadge";
 import PubmaxxNightSeal from "@/components/brand/PubmaxxNightSeal";
 import RecapShareButton from "@/components/plan/RecapShareButton";
 import type { RecapView } from "@/lib/recapView";
+import recapStyles from "@/app/plan/[id]/recap/Recap.module.css";
 
 type MemberRecap =
   | { visibility: "member"; completed: false; stopCount: number }
@@ -55,17 +56,17 @@ export default function RecapDetail({ planId }: { planId: string }) {
   }, [planId]);
 
   if (state.kind === "loading") {
-    return <section className="recapSection" aria-busy="true" aria-label="Loading recap" />;
+    return <section className={recapStyles.recapSection} aria-busy="true" aria-label="Loading recap" />;
   }
 
   if (state.kind === "preview") {
     return (
-      <section className="recapSection recapSection--locked" aria-label="Private recap">
-        <p className="recapEmpty__body">
+      <section className={`${recapStyles.recapSection} recapSection--locked`} aria-label="Private recap">
+        <p className={recapStyles.recapEmpty__body}>
           This recap is private to the crew. Join the plan to see the route you walked, the pints logged, and how the
           night ended.
         </p>
-        <Link className="recapEmpty__back" href={`/plan/${planId}`}>
+        <Link className={recapStyles.recapEmpty__back} href={`/plan/${planId}`}>
           Back to the plan
         </Link>
       </section>
@@ -75,13 +76,13 @@ export default function RecapDetail({ planId }: { planId: string }) {
   const { recap } = state;
   if (!recap.completed) {
     return (
-      <section className="recapEmpty" aria-label="Recap not finished">
+      <section className={recapStyles.recapEmpty} aria-label="Recap not finished">
         <h2 className="type-section-title">This night isn&rsquo;t finished yet</h2>
-        <p className="recapEmpty__body">
+        <p className={recapStyles.recapEmpty__body}>
           The recap writes itself the morning after. Finish the night and the route, the pints, and the last-train
           verdict land here.
         </p>
-        <Link className="recapEmpty__back" href={`/plan/${planId}`}>
+        <Link className={recapStyles.recapEmpty__back} href={`/plan/${planId}`}>
           Back to the plan
         </Link>
       </section>
@@ -95,21 +96,21 @@ export default function RecapDetail({ planId }: { planId: string }) {
 
   return (
     <>
-      <header className="recapHero" style={step()}>
-        <PubmaxxNightSeal className="recapHero__seal" size={64} title="Night sealed" />
-        <p className="type-meta recapHero__eyebrow">The morning after</p>
-        <h1 className="recapHero__title type-section-title">{view.title}</h1>
-        <div className="recapHero__stats" aria-label="Night at a glance">
-          <span className="recapStat">
+      <header className={recapStyles.recapHero} style={step()}>
+        <PubmaxxNightSeal className={recapStyles.recapHero__seal} size={64} title="Night sealed" />
+        <p className={`type-meta ${recapStyles.recapHero__eyebrow}`}>The morning after</p>
+        <h1 className={`${recapStyles.recapHero__title} type-section-title`}>{view.title}</h1>
+        <div className={recapStyles.recapHero__stats} aria-label="Night at a glance">
+          <span className={recapStyles.recapStat}>
             <b>{view.stats.stopCount}</b> {view.stats.stopCount === 1 ? "stop" : "stops"}
           </span>
           {view.stats.pintCount > 0 ? (
-            <span className="recapStat">
+            <span className={recapStyles.recapStat}>
               <b>{view.stats.pintCount}</b> {view.stats.pintCount === 1 ? "pint logged" : "pints logged"}
             </span>
           ) : null}
           {view.stats.totalGbp !== null ? (
-            <PriceBadge variant="current" className="recapStat--price">
+            <PriceBadge variant="current" className={recapStyles["recapStat--price"]}>
               £{view.stats.totalGbp.toFixed(2)}
             </PriceBadge>
           ) : null}
@@ -117,19 +118,19 @@ export default function RecapDetail({ planId }: { planId: string }) {
       </header>
 
       {view.route.length > 0 ? (
-        <section className="recapSection" style={step()} aria-labelledby="recap-route-title">
-          <h2 id="recap-route-title" className="type-card-title recapSection__title">
+        <section className={recapStyles.recapSection} style={step()} aria-labelledby="recap-route-title">
+          <h2 id="recap-route-title" className={`type-card-title ${recapStyles.recapSection__title}`}>
             The route you walked
           </h2>
-          <ol className="recapRoute">
+          <ol className={recapStyles.recapRoute}>
             {view.route.map((stop) => (
-              <li key={`${stop.venueId}-${stop.position}`} className="recapRoute__stop">
-                <span className="recapRoute__number" aria-hidden="true">
+              <li key={`${stop.venueId}-${stop.position}`} className={recapStyles.recapRoute__stop}>
+                <span className={recapStyles.recapRoute__number} aria-hidden="true">
                   {stop.position + 1}
                 </span>
-                <div className="recapRoute__body">
-                  <span className="recapRoute__name">{stop.venueName}</span>
-                  {stop.caption ? <p className="recapRoute__caption">{stop.caption}</p> : null}
+                <div className={recapStyles.recapRoute__body}>
+                  <span className={recapStyles.recapRoute__name}>{stop.venueName}</span>
+                  {stop.caption ? <p className={recapStyles.recapRoute__caption}>{stop.caption}</p> : null}
                 </div>
               </li>
             ))}
@@ -138,20 +139,20 @@ export default function RecapDetail({ planId }: { planId: string }) {
       ) : null}
 
       {view.pints.length > 0 ? (
-        <section className="recapSection" style={step()} aria-labelledby="recap-pints-title">
-          <h2 id="recap-pints-title" className="type-card-title recapSection__title">
+        <section className={recapStyles.recapSection} style={step()} aria-labelledby="recap-pints-title">
+          <h2 id="recap-pints-title" className={`type-card-title ${recapStyles.recapSection__title}`}>
             Pints logged
           </h2>
-          <ul className="recapPints">
+          <ul className={recapStyles.recapPints}>
             {view.pints.map((pint, index) => (
-              <li key={`${pint.venueId}-${index}`} className="recapPint">
-                <div className="recapPint__body">
-                  <span className="recapPint__drink">{pint.drink ?? "A pint"}</span>
-                  {pint.venueName ? <span className="recapPint__venue type-meta">{pint.venueName}</span> : null}
-                  {pint.note ? <p className="recapPint__note">{pint.note}</p> : null}
+              <li key={`${pint.venueId}-${index}`} className={recapStyles.recapPint}>
+                <div className={recapStyles.recapPint__body}>
+                  <span className={recapStyles.recapPint__drink}>{pint.drink ?? "A pint"}</span>
+                  {pint.venueName ? <span className={`${recapStyles.recapPint__venue} type-meta`}>{pint.venueName}</span> : null}
+                  {pint.note ? <p className={recapStyles.recapPint__note}>{pint.note}</p> : null}
                 </div>
                 {pint.priceLabel ? (
-                  <PriceBadge variant="current" className="recapPint__price">
+                  <PriceBadge variant="current" className={recapStyles.recapPint__price}>
                     {pint.priceLabel}
                   </PriceBadge>
                 ) : null}
@@ -162,27 +163,27 @@ export default function RecapDetail({ planId }: { planId: string }) {
       ) : null}
 
       {ending || view.guardian ? (
-        <section className="recapSection recapSection--ending" style={step()} aria-label="How the night ended">
+        <section className={`${recapStyles.recapSection} ${recapStyles["recapSection--ending"]}`} style={step()} aria-label="How the night ended">
           {ending ? (
-            <div className="recapEnding">
-              <span className="type-meta recapEnding__label">How it ended</span>
-              <p className="recapEnding__line">{ending}</p>
+            <div className={recapStyles.recapEnding}>
+              <span className={`type-meta ${recapStyles.recapEnding__label}`}>How it ended</span>
+              <p className={recapStyles.recapEnding__line}>{ending}</p>
             </div>
           ) : null}
           {view.guardian ? (
-            <div className={`recapGuardian recapGuardian--${view.guardian.tone}`}>
-              <span className="type-meta recapGuardian__label">The guardian</span>
-              <p className="recapGuardian__line">{view.guardian.label}</p>
+            <div className={`${recapStyles.recapGuardian} ${recapStyles[`recapGuardian--${view.guardian.tone}`]}`}>
+              <span className={`type-meta ${recapStyles.recapGuardian__label}`}>The guardian</span>
+              <p className={recapStyles.recapGuardian__line}>{view.guardian.label}</p>
             </div>
           ) : null}
         </section>
       ) : null}
 
-      <footer className="recapFooter" style={step()}>
-        <p className="recapClosing">{view.closingLine}</p>
-        <div className="recapFooter__actions">
+      <footer className={recapStyles.recapFooter} style={step()}>
+        <p className={recapStyles.recapClosing}>{view.closingLine}</p>
+        <div className={recapStyles.recapFooter__actions}>
           <RecapShareButton planId={planId} shareText={shareText} />
-          <Link className="recapFooter__plan" href={`/plan/${planId}`}>
+          <Link className={recapStyles.recapFooter__plan} href={`/plan/${planId}`}>
             Back to the plan
           </Link>
         </div>

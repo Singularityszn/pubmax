@@ -46,6 +46,7 @@ vi.mock("@/components/plan/PlanHostInviteLink", () => ({
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
 import PlanInviteNextStep from "@/components/plan/PlanInviteNextStep";
+import planStyles from "@/app/plan/Plan.module.css";
 
 let root: Root;
 let container: HTMLDivElement;
@@ -82,7 +83,7 @@ afterEach(async () => {
 
 describe("Send on WhatsApp carries an absolute crew-join URL", () => {
   it("puts the site origin in the anchor href, not a bare /plan path", () => {
-    const anchor = container.querySelector<HTMLAnchorElement>("a.planInviteNext__whatsapp");
+    const anchor = container.querySelector<HTMLAnchorElement>(`a.${planStyles.planInviteNext__whatsapp}`);
     expect(anchor).not.toBeNull();
 
     const payload = sharedPayload(anchor!.href);
@@ -95,7 +96,7 @@ describe("Send on WhatsApp carries an absolute crew-join URL", () => {
     const open = vi.fn().mockReturnValue({} as Window);
     vi.stubGlobal("open", open);
 
-    const anchor = container.querySelector<HTMLAnchorElement>("a.planInviteNext__whatsapp");
+    const anchor = container.querySelector<HTMLAnchorElement>(`a.${planStyles.planInviteNext__whatsapp}`);
     act(() => {
       anchor!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     });
@@ -106,7 +107,7 @@ describe("Send on WhatsApp carries an absolute crew-join URL", () => {
   });
 
   it("never carries a viewer coordinate in the share URL", () => {
-    const anchor = container.querySelector<HTMLAnchorElement>("a.planInviteNext__whatsapp");
+    const anchor = container.querySelector<HTMLAnchorElement>(`a.${planStyles.planInviteNext__whatsapp}`);
     const payload = sharedPayload(anchor!.href);
     expect(payload).not.toMatch(/lat=|lng=|lon=|near=/);
   });

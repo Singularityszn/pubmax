@@ -27,6 +27,7 @@ import {
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
 import type { Budget } from "@/lib/nightPlanning";
 import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
+import planStyles from "@/app/plan/Plan.module.css";
 
 const STEP_COPY: Record<PlanIntakeStep, { short: string; eyebrow: string; title: string; note: string }> = {
   area: {
@@ -187,19 +188,19 @@ export default function PlanIntake({
 
   if (draft.completed) {
     return (
-      <section className="planIntake planIntake--complete" aria-labelledby="plan-intake-summary-title">
-        <div className="planIntake__completeMark" aria-hidden="true"><Check size={18} /></div>
-        <div className="planIntake__summaryBody">
-          <p className="planIntake__eyebrow">Your night so far</p>
+      <section className={`${planStyles.planIntake} ${planStyles["planIntake--complete"]}`} aria-labelledby="plan-intake-summary-title">
+        <div className={planStyles.planIntake__completeMark} aria-hidden="true"><Check size={18} /></div>
+        <div className={planStyles.planIntake__summaryBody}>
+          <p className={planStyles.planIntake__eyebrow}>Your night so far</p>
           <h2 id="plan-intake-summary-title">{summary.length ? summary.join(" · ") : "Start in your own words"}</h2>
           <p>{summary.length
             ? "Saved for later on this device. Lock it in below when you want a share link for the crew."
             : "No choices needed. Describe what matters and we will work from that."}</p>
           {summary.length ? (
-            <div className="planIntake__summaryChips" aria-label="Saved planning details">
+            <div className={planStyles.planIntake__summaryChips} aria-label="Saved planning details">
               {PLAN_INTAKE_STEPS.filter((step) => draft.settledSteps.includes(step) && !draft.skippedSteps.includes(step)).map((step) => (
                 <button key={step} type="button" onClick={() => onChange(reopenPlanIntakeStep(draft, step))}>
-                  {STEP_COPY[step].short}<span className="planComposer__srOnly">: edit</span>
+                  {STEP_COPY[step].short}<span className={planStyles.planComposer__srOnly}>: edit</span>
                 </button>
               ))}
             </div>
@@ -211,7 +212,7 @@ export default function PlanIntake({
         </div>
         <button
           type="button"
-          className="planIntake__tune"
+          className={planStyles.planIntake__tune}
           onClick={() => onChange(reopenPlanIntakeStep(draft, "area"))}
         >
           <RotateCcw size={16} aria-hidden="true" /> Tune details
@@ -221,15 +222,15 @@ export default function PlanIntake({
   }
 
   return (
-    <section className="planIntake" aria-labelledby="plan-intake-title">
-      <header className="planIntake__header">
+    <section className={planStyles.planIntake} aria-labelledby="plan-intake-title">
+      <header className={planStyles.planIntake__header}>
         <div>
-          <p className="planIntake__kicker">Shape the route</p>
-          <p className="planIntake__count">Step {stepIndex + 1} of {PLAN_INTAKE_STEPS.length}</p>
+          <p className={planStyles.planIntake__kicker}>Shape the route</p>
+          <p className={planStyles.planIntake__count}>Step {stepIndex + 1} of {PLAN_INTAKE_STEPS.length}</p>
         </div>
         <button
           type="button"
-          className="planIntake__describe"
+          className={planStyles.planIntake__describe}
           onClick={() => {
             cancelLocationRequest();
             onChange(skipRemainingPlanIntake(draft));
@@ -239,7 +240,7 @@ export default function PlanIntake({
         </button>
       </header>
 
-      <p className="planIntake__palEntry">
+      <p className={planStyles.planIntake__palEntry}>
         Not sure?{" "}
         <Link href="/pal/chat">Ask your Pub Pal…</Link>
       </p>
@@ -249,7 +250,7 @@ export default function PlanIntake({
         onChange={(stopCount) => onChange({ ...draft, answers: { ...draft.answers, stopCount } })}
       />
 
-      <ol className="planIntake__progress" aria-label="Plan details progress">
+      <ol className={planStyles.planIntake__progress} aria-label="Plan details progress">
         {PLAN_INTAKE_STEPS.map((step, index) => {
           const settled = draft.settledSteps.includes(step);
           const skipped = draft.skippedSteps.includes(step);
@@ -266,16 +267,16 @@ export default function PlanIntake({
         })}
       </ol>
 
-      <div className="planIntake__stage" key={draft.currentStep}>
-        <p className="planIntake__eyebrow">{copy.eyebrow}</p>
+      <div className={planStyles.planIntake__stage} key={draft.currentStep}>
+        <p className={planStyles.planIntake__eyebrow}>{copy.eyebrow}</p>
         <h2 id="plan-intake-title" ref={headingRef} tabIndex={-1}>{copy.title}</h2>
-        <p className="planIntake__note">{copy.note}</p>
+        <p className={planStyles.planIntake__note}>{copy.note}</p>
 
         {draft.currentStep === "area" ? (
-          <div className="planIntake__areaPicker">
+          <div className={planStyles.planIntake__areaPicker}>
             <button
               type="button"
-              className="planIntake__locate"
+              className={planStyles.planIntake__locate}
               onClick={useCurrentLocation}
               disabled={locationState.kind === "locating"}
             >
@@ -284,13 +285,13 @@ export default function PlanIntake({
             </button>
             {locationState.kind !== "idle" ? (
               <p
-                className={`planIntake__locationStatus${locationState.kind === "error" ? " planIntake__locationStatus--error" : ""}`}
+                className={`${planStyles.planIntake__locationStatus}${locationState.kind === "error" ? ` ${planStyles["planIntake__locationStatus--error"]}` : ""}`}
                 role={locationState.kind === "error" ? "alert" : "status"}
               >
                 {locationState.message}
               </p>
             ) : null}
-            <div className="planIntake__choices planIntake__choices--areas" role="group" aria-label="Choose an area">
+            <div className={`${planStyles.planIntake__choices} ${planStyles["planIntake__choices--areas"]}`} role="group" aria-label="Choose an area">
               {NIGHT_PATCHES.map((patch) => (
                 <button
                   key={patch.id}
@@ -310,7 +311,7 @@ export default function PlanIntake({
         ) : null}
 
         {draft.currentStep === "time-window" ? (
-          <div className="planIntake__choices planIntake__choices--cards" role="group" aria-label="Choose a time window">
+          <div className={`${planStyles.planIntake__choices} ${planStyles["planIntake__choices--cards"]}`} role="group" aria-label="Choose a time window">
             {PLAN_TIME_WINDOWS.map((option) => (
               <button
                 key={option.id}
@@ -331,7 +332,7 @@ export default function PlanIntake({
               </button>
             ))}
             {draft.answers.timeWindow && draft.answers.exactStartIso ? (
-              <label className="planIntake__exactTime" htmlFor="plan-intake-exact-time">
+              <label className={planStyles.planIntake__exactTime} htmlFor="plan-intake-exact-time">
                 Exact first pint
                 <input
                   id="plan-intake-exact-time"
@@ -349,8 +350,8 @@ export default function PlanIntake({
         ) : null}
 
         {draft.currentStep === "group-size" ? (
-          <div className="planIntake__group">
-            <div className="planIntake__numberChoices" role="group" aria-label="Quick group sizes">
+          <div className={planStyles.planIntake__group}>
+            <div className={planStyles.planIntake__numberChoices} role="group" aria-label="Quick group sizes">
               {[1, 2, 3, 4, 5, 6].map((size) => (
                 <button
                   key={size}
@@ -379,8 +380,8 @@ export default function PlanIntake({
         ) : null}
 
         {draft.currentStep === "budget" ? (
-          <div className="planIntake__budget">
-            <div className="planIntake__choices planIntake__choices--cards" role="group" aria-label="Choose a budget">
+          <div className={planStyles.planIntake__budget}>
+            <div className={`${planStyles.planIntake__choices} ${planStyles["planIntake__choices--cards"]}`} role="group" aria-label="Choose a budget">
               {PLAN_BUDGET_OPTIONS.map((option) => (
                 <button
                   key={option.id}
@@ -393,7 +394,7 @@ export default function PlanIntake({
               ))}
             </div>
             <label htmlFor="plan-intake-budget-limit">Optional ceiling per person</label>
-            <div className="planIntake__moneyInput">
+            <div className={planStyles.planIntake__moneyInput}>
               <span aria-hidden="true">£</span>
               <input
                 id="plan-intake-budget-limit"
@@ -424,7 +425,7 @@ export default function PlanIntake({
         ) : null}
 
         {draft.currentStep === "accessibility" ? (
-          <div className="planIntake__choices planIntake__choices--access" role="group" aria-label="Choose accessibility needs">
+          <div className={`${planStyles.planIntake__choices} ${planStyles["planIntake__choices--access"]}`} role="group" aria-label="Choose accessibility needs">
             {PLAN_ACCESSIBILITY_NEEDS.map((option) => (
               <button
                 key={option.id}
@@ -440,10 +441,10 @@ export default function PlanIntake({
         ) : null}
       </div>
 
-      <footer className="planIntake__actions">
+      <footer className={planStyles.planIntake__actions}>
         <button
           type="button"
-          className="planIntake__back"
+          className={planStyles.planIntake__back}
           disabled={stepIndex === 0}
           onClick={() => {
             const previous = PLAN_INTAKE_STEPS[stepIndex - 1];
@@ -453,7 +454,7 @@ export default function PlanIntake({
         <div>
           <button
             type="button"
-            className="planIntake__skip"
+            className={planStyles.planIntake__skip}
             onClick={() => {
               cancelLocationRequest();
               onChange(settlePlanIntakeStep(draft, { skip: true }));
@@ -463,7 +464,7 @@ export default function PlanIntake({
           </button>
           <button
             type="button"
-            className="planIntake__continue"
+            className={planStyles.planIntake__continue}
             disabled={!planIntakeStepHasAnswer(draft)}
             onClick={() => {
               cancelLocationRequest();

@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const css = readFileSync(join(process.cwd(), "app/plan/plan.css"), "utf8");
+const css = readFileSync(join(process.cwd(), "app/plan/Plan.module.css"), "utf8");
 
 describe("plan surface token palette", () => {
   it("pairs every solid planner accent fill with its semantic label ink", () => {

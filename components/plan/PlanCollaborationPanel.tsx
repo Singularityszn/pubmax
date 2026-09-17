@@ -11,6 +11,7 @@ import { trackEvent } from "@/lib/analytics";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { formatInviteExpiry, invitePrivacyBlurb } from "@/lib/planInviteUi";
 import MatchGroupPrefs from "@/components/plan/MatchGroupPrefs";
+import planStyles from "@/app/plan/Plan.module.css";
 
 type CollaborationState = {
   memberId: string;
@@ -256,37 +257,37 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
   const evidenceProposal = pendingProposals.find((proposal) => proposal.id === evidenceProposalId) ?? null;
 
   return (
-    <section className="planCollab" aria-labelledby="plan-collab-title">
-      <div className="planCollab__heading">
-        <div><p className="planPage__eyebrow">Crew decisions</p><h3 id="plan-collab-title">Plan it together</h3></div>
+    <section className={planStyles.planCollab} aria-labelledby="plan-collab-title">
+      <div className={planStyles.planCollab__heading}>
+        <div><p className={planStyles.planPage__eyebrow}>Crew decisions</p><h3 id="plan-collab-title">Plan it together</h3></div>
         <span>{isHost ? "Host" : "Guest"}</span>
       </div>
 
       {isHost ? (
-        <div className="planCollab__invite">
+        <div className={planStyles.planCollab__invite}>
           <button type="button" onClick={() => void createInvite()} disabled={Boolean(pending)}>Create private invite</button>
-          <small className="planCollab__status">{invitePrivacyBlurb()}</small>
+          <small className={planStyles.planCollab__status}>{invitePrivacyBlurb()}</small>
           {invite ? <output aria-label="Private invite link">{invite.url}</output> : null}
           {state.invites.map((activeInvite) => (
-            <div className="planCollab__activeInvite" key={activeInvite.id}>
+            <div className={planStyles.planCollab__activeInvite} key={activeInvite.id}>
               <small>
                 One-use · {formatInviteExpiry(activeInvite.expiresAt)}
                 {" · "}
                 {new Date(activeInvite.expiresAt).toLocaleString()}
               </small>
               {revokeConfirmId === activeInvite.id ? (
-                <span className="planCollab__actions">
+                <span className={planStyles.planCollab__actions}>
                   <button type="button" onClick={() => void revokeInvite(activeInvite.id)} disabled={Boolean(pending)}>
                     Confirm revoke
                   </button>
-                  <button type="button" className="planCollab__quiet" onClick={() => setRevokeConfirmId(null)} disabled={Boolean(pending)}>
+                  <button type="button" className={planStyles.planCollab__quiet} onClick={() => setRevokeConfirmId(null)} disabled={Boolean(pending)}>
                     Keep
                   </button>
                 </span>
               ) : (
                 <button
                   type="button"
-                  className="planCollab__quiet"
+                  className={planStyles.planCollab__quiet}
                   onClick={() => setRevokeConfirmId(activeInvite.id)}
                   disabled={Boolean(pending)}
                 >
@@ -302,47 +303,47 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
         <MatchGroupPrefs planId={planId} memberId={state.memberId} memberToken={memberToken} isHost={isHost} />
       ) : null}
 
-      <form className="planCollab__form" onSubmit={addConstraint}>
+      <form className={planStyles.planCollab__form} onSubmit={addConstraint}>
         <strong>Add a need</strong>
-        <div className="planCollab__fields">
+        <div className={planStyles.planCollab__fields}>
           <select aria-label="Need type" value={kind} onChange={(event) => setKind(event.target.value as PlanConstraintKind)}>{CONSTRAINT_KINDS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
           <select aria-label="Need priority" value={priority} onChange={(event) => setPriority(event.target.value as PlanConstraint["priority"])}><option value="preference">Preference</option><option value="required">Must-have</option></select>
         </div>
-        <div className="planCollab__inputRow"><input type="text" maxLength={180} value={constraintValue} onChange={(event) => setConstraintValue(event.target.value)} placeholder="e.g. step-free entrance" aria-label="Describe this crew need" /><button disabled={pending === "constraint" || !constraintValue.trim()}>Add</button></div>
+        <div className={planStyles.planCollab__inputRow}><input type="text" maxLength={180} value={constraintValue} onChange={(event) => setConstraintValue(event.target.value)} placeholder="e.g. step-free entrance" aria-label="Describe this crew need" /><button disabled={pending === "constraint" || !constraintValue.trim()}>Add</button></div>
       </form>
 
-      {state.constraints.length ? <ul className="planCollab__constraints">{state.constraints.map((constraint) => <li key={constraint.id}><span>{constraint.value}{constraint.evidence ? <span className="planCollab__provenance">{constraint.evidence.sources.map((source) => <a key={source.venueId} href={source.sourceUrl} target="_blank" rel="noopener noreferrer">{source.publisher} · {source.venueId}</a>)}</span> : null}</span><small>{constraint.evidence ? "sources for this proposal" : constraint.priority} · {constraint.kind.replace("_", " ")}</small></li>)}</ul> : null}
+      {state.constraints.length ? <ul className={planStyles.planCollab__constraints}>{state.constraints.map((constraint) => <li key={constraint.id}><span>{constraint.value}{constraint.evidence ? <span className={planStyles.planCollab__provenance}>{constraint.evidence.sources.map((source) => <a key={source.venueId} href={source.sourceUrl} target="_blank" rel="noopener noreferrer">{source.publisher} · {source.venueId}</a>)}</span> : null}</span><small>{constraint.evidence ? "sources for this proposal" : constraint.priority} · {constraint.kind.replace("_", " ")}</small></li>)}</ul> : null}
 
       {isHost && pendingProposals.length > 0 && state.constraints.some((constraint) => constraint.priority === "required") ? (
-        <form className="planCollab__form" onSubmit={resolveConstraint}>
+        <form className={planStyles.planCollab__form} onSubmit={resolveConstraint}>
           <strong>Check each must-have</strong>
           <select aria-label="Must-have need to review" value={resolutionConstraintId} onChange={(event) => setResolutionConstraintId(event.target.value)}><option value="">Choose a must-have need</option>{state.constraints.filter((constraint) => constraint.priority === "required").map((constraint) => <option key={constraint.id} value={constraint.id}>{constraint.value}</option>)}</select>
           <select aria-label="Route proposal to check" value={evidenceProposalId} onChange={(event) => { setEvidenceProposalId(event.target.value); setEvidenceSources({}); }}><option value="">Choose a route proposal</option>{pendingProposals.map((proposal) => <option key={proposal.id} value={proposal.id}>{proposal.reason}</option>)}</select>
-          {evidenceProposal?.stops.map((stop) => <div className="planCollab__source" key={stop.venueId}><strong>{stop.venueName}</strong><input type="url" value={evidenceSources[stop.venueId]?.sourceUrl ?? ""} onChange={(event) => setEvidenceSources((current) => ({ ...current, [stop.venueId]: { sourceUrl: event.target.value, publisher: current[stop.venueId]?.publisher ?? "" } }))} placeholder="https://source.example/listing" aria-label={`Source URL for ${stop.venueName}`} /><input type="text" value={evidenceSources[stop.venueId]?.publisher ?? ""} onChange={(event) => setEvidenceSources((current) => ({ ...current, [stop.venueId]: { sourceUrl: current[stop.venueId]?.sourceUrl ?? "", publisher: event.target.value } }))} placeholder="Publisher or venue" aria-label={`Source publisher for ${stop.venueName}`} /></div>)}
-          <p className="planCollab__evidenceNote">Add a source for every proposed stop. It applies only to this version of the route. Anything without a source stays unresolved.</p>
+          {evidenceProposal?.stops.map((stop) => <div className={planStyles.planCollab__source} key={stop.venueId}><strong>{stop.venueName}</strong><input type="url" value={evidenceSources[stop.venueId]?.sourceUrl ?? ""} onChange={(event) => setEvidenceSources((current) => ({ ...current, [stop.venueId]: { sourceUrl: event.target.value, publisher: current[stop.venueId]?.publisher ?? "" } }))} placeholder="https://source.example/listing" aria-label={`Source URL for ${stop.venueName}`} /><input type="text" value={evidenceSources[stop.venueId]?.publisher ?? ""} onChange={(event) => setEvidenceSources((current) => ({ ...current, [stop.venueId]: { sourceUrl: current[stop.venueId]?.sourceUrl ?? "", publisher: event.target.value } }))} placeholder="Publisher or venue" aria-label={`Source publisher for ${stop.venueName}`} /></div>)}
+          <p className={planStyles.planCollab__evidenceNote}>Add a source for every proposed stop. It applies only to this version of the route. Anything without a source stays unresolved.</p>
           <button disabled={pending === "resolution" || !resolutionConstraintId || !evidenceProposal || evidenceProposal.stops.some((stop) => !evidenceSources[stop.venueId]?.sourceUrl.trim() || !evidenceSources[stop.venueId]?.publisher.trim())}>Check this proposal</button>
         </form>
       ) : null}
 
       {canPropose ? (
-        <form className="planCollab__form" onSubmit={createProposal}>
+        <form className={planStyles.planCollab__form} onSubmit={createProposal}>
           <strong>{isHost ? "Share this route change" : "Propose this swap"}</strong>
           <textarea maxLength={300} value={proposalReason} onChange={(event) => setProposalReason(event.target.value)} placeholder="Why this route works better" aria-label="Explain this route proposal" />
-          {state.constraints.some((constraint) => constraint.priority === "required") ? <p className="planCollab__evidenceNote">A must-have need isn&rsquo;t ticked off until the host confirms every stop can actually meet it. A proposal can&rsquo;t promise that on its own.</p> : null}
+          {state.constraints.some((constraint) => constraint.priority === "required") ? <p className={planStyles.planCollab__evidenceNote}>A must-have need isn&rsquo;t ticked off until the host confirms every stop can actually meet it. A proposal can&rsquo;t promise that on its own.</p> : null}
           <button disabled={pending === "proposal" || !proposalReason.trim()}>Send for crew review</button>
         </form>
       ) : null}
 
-      {pendingProposals.length ? <div className="planCollab__proposals"><strong>Open proposals</strong>{pendingProposals.map((proposal) => {
+      {pendingProposals.length ? <div className={planStyles.planCollab__proposals}><strong>Open proposals</strong>{pendingProposals.map((proposal) => {
         const votes = state.votes.filter((vote) => vote.proposalId === proposal.id);
         const approveCount = votes.filter((vote) => vote.value === "approve").length;
         const rejectCount = votes.filter((vote) => vote.value === "reject").length;
         const myVote = votes.find((vote) => vote.memberId === state.memberId)?.value;
         const unresolved = state.constraints.filter((constraint) => proposal.unresolvedConstraintIds.includes(constraint.id));
-        return <article key={proposal.id}><p>{proposal.reason}</p><ol>{proposal.stops.map((stop) => <li key={stop.venueId}>{stop.venueName}</li>)}</ol><small>{approveCount} for · {rejectCount} against</small>{unresolved.length ? <div className="planCollab__blocked"><strong>Must-have needs left</strong><ul>{unresolved.map((constraint) => <li key={constraint.id}>{constraint.value}</li>)}</ul></div> : null}<div className="planCollab__actions"><button aria-pressed={myVote === "approve"} onClick={() => void mutateProposal(proposal.id, "approve")} disabled={Boolean(pending)}>Vote for</button><button aria-pressed={myVote === "reject"} className="planCollab__quiet" onClick={() => void mutateProposal(proposal.id, "reject")} disabled={Boolean(pending)}>Vote against</button>{isHost ? <><button onClick={() => void mutateProposal(proposal.id, "accepted")} disabled={Boolean(pending) || unresolved.length > 0}>Accept route</button><button className="planCollab__quiet" onClick={() => void mutateProposal(proposal.id, "rejected")} disabled={Boolean(pending)}>Reject</button></> : null}</div></article>;
+        return <article key={proposal.id}><p>{proposal.reason}</p><ol>{proposal.stops.map((stop) => <li key={stop.venueId}>{stop.venueName}</li>)}</ol><small>{approveCount} for · {rejectCount} against</small>{unresolved.length ? <div className={planStyles.planCollab__blocked}><strong>Must-have needs left</strong><ul>{unresolved.map((constraint) => <li key={constraint.id}>{constraint.value}</li>)}</ul></div> : null}<div className={planStyles.planCollab__actions}><button aria-pressed={myVote === "approve"} onClick={() => void mutateProposal(proposal.id, "approve")} disabled={Boolean(pending)}>Vote for</button><button aria-pressed={myVote === "reject"} className={planStyles.planCollab__quiet} onClick={() => void mutateProposal(proposal.id, "reject")} disabled={Boolean(pending)}>Vote against</button>{isHost ? <><button onClick={() => void mutateProposal(proposal.id, "accepted")} disabled={Boolean(pending) || unresolved.length > 0}>Accept route</button><button className={planStyles.planCollab__quiet} onClick={() => void mutateProposal(proposal.id, "rejected")} disabled={Boolean(pending)}>Reject</button></> : null}</div></article>;
       })}</div> : null}
-      {status ? <p className="planCollab__status" role="status">{status}</p> : null}
-      {error ? <p className="planComposer__error" role="alert">{error}</p> : null}
+      {status ? <p className={planStyles.planCollab__status} role="status">{status}</p> : null}
+      {error ? <p className={planStyles.planComposer__error} role="alert">{error}</p> : null}
     </section>
   );
 }

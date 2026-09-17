@@ -10,6 +10,7 @@ import { inferNightContext } from "@/lib/nightPlanning";
 import { resolveDescribeChipSubmit } from "@/lib/planComposerChipFill";
 import { normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
+import planStyles from "@/app/plan/Plan.module.css";
 
 export { DESCRIBE_FIRST_CHIPS };
 
@@ -106,11 +107,11 @@ export default function PlanDescribeFirst({
     /* The route's head (docs/design/LAUNCH_SCREENS.md): kicker, the h1, the
        ask, and ONE painted action, the submit control of this form. The
        Screen owns the heading, so app/plan/page.tsx prints none of its own.
-       A route-owned rule in app/plan/plan.css seats the field between the
+       A route-owned rule in app/plan/Plan.module.css seats the field between the
        heading and the actions, the order a form reads in. */
     <Screen
       as="section"
-      className="planDescribeFirst planPage__intro"
+      className={`${planStyles.planDescribeFirst} ${planStyles.planPage__intro}`}
       kicker="Sort the outing"
       title={<>Describe the outing. We&rsquo;ll put it in order.</>}
       titleId="plan-describe-first-title"
@@ -133,8 +134,8 @@ export default function PlanDescribeFirst({
       {/* Plain markup, not a form: this whole surface already sits inside
           PlanComposerForm's own <form>, and a nested <form> is invalid HTML
           that browsers silently reparent, breaking native submission. */}
-      <div className="planDescribeFirst__form">
-        <label className="planComposer__srOnly" htmlFor="plan-describe-first-query">Describe the outing</label>
+      <div className={planStyles.planDescribeFirst__form}>
+        <label className={planStyles.planComposer__srOnly} htmlFor="plan-describe-first-query">Describe the outing</label>
         <input
           ref={queryInput}
           id="plan-describe-first-query"
@@ -162,14 +163,14 @@ export default function PlanDescribeFirst({
         }}
       />
       <WantedPlanChips onPick={submitChip} />
-      <div className="planDescribeFirst__culture" role="group" aria-label="Culture Crawl">
-        <p className="planDescribeFirst__cultureLead">{CULTURE_CRAWL_MISSION}</p>
-        <div className="planDescribeFirst__cultureChips">
+      <div className={planStyles.planDescribeFirst__culture} role="group" aria-label="Culture Crawl">
+        <p className={planStyles.planDescribeFirst__cultureLead}>{CULTURE_CRAWL_MISSION}</p>
+        <div className={planStyles.planDescribeFirst__cultureChips}>
           {CULTURE_CRAWL_CHIPS.map((chip) => (
             <button
               key={chip.id}
               type="button"
-              className="planDescribeFirst__chip planDescribeFirst__chip--culture"
+              className={`${planStyles.planDescribeFirst__chip} ${planStyles["planDescribeFirst__chip--culture"]}`}
               onClick={() => submitChip(chip.query)}
             >
               {chip.label}
@@ -177,12 +178,12 @@ export default function PlanDescribeFirst({
           ))}
         </div>
       </div>
-      <div className="planDescribeFirst__chips" role="group" aria-label="Try an example">
+      <div className={planStyles.planDescribeFirst__chips} role="group" aria-label="Try an example">
         {DESCRIBE_FIRST_CHIPS.map((chip) => (
           <button
             key={chip}
             type="button"
-            className="planDescribeFirst__chip"
+            className={planStyles.planDescribeFirst__chip}
             onClick={() => submitChip(chip)}
           >
             {chip}
