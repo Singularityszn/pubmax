@@ -584,13 +584,13 @@ function VenueVisitReports({
 
           <button
             type="button"
-            className="visitReportSubmit"
+            className={styles.visitReportSubmit}
             onClick={() => void submit()}
             disabled={saving}
           >
             {saving ? "Saving…" : "Add visit account"}
           </button>
-          <p className="visitReportTrust">
+          <p className={styles.visitReportTrust}>
             This is your account of one visit. It is shown with your handle and
             the day, not as a checked fact about the pub.
           </p>
@@ -600,7 +600,7 @@ function VenueVisitReports({
       {feedback ? (
         <p
           className={
-            feedback.kind === "error" ? "visitReportError" : "visitReportOk"
+            feedback.kind === "error" ? styles.visitReportError : styles.visitReportOk
           }
           role={feedback.kind === "error" ? "alert" : "status"}
         >

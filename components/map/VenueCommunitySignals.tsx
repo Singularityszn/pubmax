@@ -15,6 +15,7 @@ import {
   type CommunityVenueSignalKey,
   type CommunityVenueSignalValue,
 } from "@/lib/communityVenueSignals";
+import styles from "./venuePriceSubmit.module.css";
 
 type AuthorQuestion =
   | "character"

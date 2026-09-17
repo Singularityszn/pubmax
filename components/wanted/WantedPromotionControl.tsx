@@ -6,6 +6,7 @@ import { trackEvent } from "@/lib/analytics";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { BUILT_IN_LIST_TYPES } from "@/lib/savedListPolicy";
+import styles from "./wanted.module.css";
 
 export default function WantedPromotionControl({
   wantedId,
@@ -20,7 +21,7 @@ export default function WantedPromotionControl({
 
   if (promotedListType) {
     return (
-      <p className="wantedPromotionState" role="status">
+      <p className={styles.wantedPromotionState} role="status">
         Added to {promotedListType}
       </p>
     );
@@ -60,7 +61,7 @@ export default function WantedPromotionControl({
   }
 
   return (
-    <div className="wantedPromotion">
+    <div className={styles.wantedPromotion}>
       <label>
         <span>Public list</span>
         <select

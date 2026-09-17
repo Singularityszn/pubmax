@@ -18,8 +18,8 @@ import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
 import { missionAnalyticsProps, missionHeading } from "@/lib/priceEvidenceMissions";
 
 import VenuePriceSignInGate from "./VenuePriceSignInGate";
-import "../venuePriceSubmit.css";
-import "@/components/nearme/priceEvidenceMission.css";
+import styles from "../venuePriceSubmit.module.css";
+import pemStyles from "@/components/nearme/priceEvidenceMission.module.css";
 
 type VenuePriceEntryPanelProps = {
   venueId: string;
@@ -142,9 +142,9 @@ export default function VenuePriceEntryPanel({
 
   const missionSlot =
     open && mission && canSubmitPrice ? (
-      <div className="pemSlot pemSlotSheet">
-        <div className="pemHead">
-          <h3 className="pemHeading">
+      <div className={`${pemStyles.pemSlot} pemSlotSheet`}>
+        <div className={pemStyles.pemHead}>
+          <h3 className={pemStyles.pemHeading}>
             {missionHeading({
               reason: mission.reason,
               venueName,
@@ -152,10 +152,10 @@ export default function VenuePriceEntryPanel({
             })}
           </h3>
           {onDismissMission ? (
-            <div className="pemActions">
+            <div className={pemStyles.pemActions}>
               <button
                 type="button"
-                className="pemSkip"
+                className={pemStyles.pemSkip}
                 onClick={() => onDismissMission(mission)}
               >
                 Not now
@@ -189,7 +189,7 @@ export default function VenuePriceEntryPanel({
   if (!missionSlot && !priceEntry && !signals) return null;
 
   return (
-    <div className="venuePriceEntryPanel">
+    <div className={styles.venuePriceEntryPanel}>
       {missionSlot}
       {priceEntry}
       {signals}

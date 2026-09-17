@@ -18,6 +18,7 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import WantedCapture from "./WantedCapture";
 import WantedPromotionControl from "./WantedPromotionControl";
+import styles from "./wanted.module.css";
 
 function mapUrlFor(wanted: WantedDTO): string | null {
   if (!wanted.venueId) return null;
@@ -232,7 +233,7 @@ export default function WantedListBody(): React.JSX.Element {
   return (
     <>
       {loadStatus === "sign_in" ? (
-        <p className="wantedPanel__empty">Sign in to keep a Wanted list.</p>
+        <p className={styles.wantedPanelEmpty}>Sign in to keep a Wanted list.</p>
       ) : (
         <WantedCapture
           key={userId ?? "no-account"}
@@ -242,32 +243,32 @@ export default function WantedListBody(): React.JSX.Element {
       )}
 
       {fulfilNote ? (
-        <p className="wantedFulfilNote" role="status">
+        <p className={styles.wantedFulfilNote} role="status">
           {fulfilNote}
         </p>
       ) : null}
 
       {loadStatus === "loading" ? (
-        <p className="wantedPanel__empty">Loading your Wanted list…</p>
+        <p className={styles.wantedPanelEmpty}>Loading your Wanted list…</p>
       ) : null}
       {loadStatus === "error" ? (
-        <p className="wantedPanel__empty">Could not load Wanted places right now.</p>
+        <p className={styles.wantedPanelEmpty}>Could not load Wanted places right now.</p>
       ) : null}
 
       {loadStatus === "ready" && open.length === 0 && anonymousOpen.length === 0 ? (
-        <p className="wantedPanel__empty">No open Wanted places yet.</p>
+        <p className={styles.wantedPanelEmpty}>No open Wanted places yet.</p>
       ) : null}
 
       {open.length > 0 ? <WantedOpenList wanteds={open} /> : null}
       {anonymousOpen.length > 0 ? <WantedOpenList anonymous wanteds={anonymousOpen} /> : null}
 
       {fulfilled.length > 0 ? (
-        <ul className="wantedList" aria-label="Fulfilled Wanted places">
+        <ul className={styles.wantedList} aria-label="Fulfilled Wanted places">
           {fulfilled.slice(0, 5).map((wanted) => (
-            <li key={wanted.id} className="wantedRow">
+            <li key={wanted.id} className={styles.wantedRow}>
               <div>
-                <p className="wantedRow__name">{wanted.venueName || wantedPendingLabel(wanted.rawPaste)}</p>
-                <p className="wantedRow__meta">Done</p>
+                <p className={styles.wantedRowName}>{wanted.venueName || wantedPendingLabel(wanted.rawPaste)}</p>
+                <p className={styles.wantedRowMeta}>Done</p>
               </div>
             </li>
           ))}
@@ -287,7 +288,7 @@ function WantedOpenList({
   wanteds: WantedDTO[];
 }): React.JSX.Element {
   return (
-    <ul className="wantedList" aria-label={anonymous ? "Anonymous open Wanted places" : "Open Wanted places"}>
+    <ul className={styles.wantedList} aria-label={anonymous ? "Anonymous open Wanted places" : "Open Wanted places"}>
       {wanteds.map((wanted) => {
         const href = mapUrlFor(wanted);
         const promotable = !anonymous && (isWantedPromotable(wanted) || Boolean(wanted.promotedListType));
@@ -296,10 +297,10 @@ function WantedOpenList({
             ? wantedPendingLabel(wanted.rawPaste)
             : wanted.venueName;
         return (
-          <li key={wanted.id} className="wantedRow">
+          <li key={wanted.id} className={styles.wantedRow}>
             <div>
-              <p className="wantedRow__name">{title}</p>
-              <p className="wantedRow__meta">
+              <p className={styles.wantedRowName}>{title}</p>
+              <p className={styles.wantedRowMeta}>
                 {wanted.venueKind === "uk_base"
                   ? "UK pub · mark only, no invented pint price"
                   : wanted.venueKind === "pending"
@@ -310,9 +311,9 @@ function WantedOpenList({
               </p>
             </div>
             {href || promotable ? (
-              <div className="wantedRow__actions">
+              <div className={styles.wantedRowActions}>
                 {href ? (
-                  <a className="wantedRow__map" href={href}>
+                  <a className={styles.wantedRowMap} href={href}>
                     Open map
                   </a>
                 ) : null}

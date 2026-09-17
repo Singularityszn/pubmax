@@ -35,7 +35,7 @@
 
 /* The floating create action parks over this block's right edge on a phone, and
    the second door's arrow was landing under it. Reserve the lane the way a
-   scrolling /near row does (components/nearme/nearMeNow.css), off the same
+   scrolling /near row does (components/nearme/nearMeNow.module.css), off the same
    published token rather than a number restated here, and hold it whenever the
    control is in the DOCUMENT rather than only while it is painted: a lane that
    appeared and vanished with the soft keyboard would reflow the block under the

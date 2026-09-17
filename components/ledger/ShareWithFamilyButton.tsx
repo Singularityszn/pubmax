@@ -6,7 +6,7 @@ import { useCallback, useState } from "react";
 
 import { buildFamilyShareText } from "@/lib/ledger";
 
-import "./shareWithFamilyButton.css";
+import styles from "./shareWithFamilyButton.module.css";
 
 // One-tap "Share with family" (issue #27, PRD § "The Spill" — The Family
 // Table). Smallest honest implementation: feature-detect the Web Share API
@@ -73,7 +73,7 @@ export default function ShareWithFamilyButton({
     <>
       <button
         type="button"
-        className={className ? `familyShareButton ${className}` : "familyShareButton"}
+        className={className ? `${styles.familyShareButton} ${className}` : styles.familyShareButton}
         onClick={handleClick}
         aria-label={`${label}${note ? ": " + venueName : ""}`}
       >

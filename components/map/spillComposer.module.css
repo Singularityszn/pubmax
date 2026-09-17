@@ -284,7 +284,7 @@
 /* The pub's own last logged price carries a word beside its figure, so it
    takes two columns of the ladder rather than clipping inside one. It leads
    the list, so it still starts the first row in the first column. */
-.priceChip--tagged {
+.priceChipTagged {
   grid-column: span 2;
 }
 
@@ -530,7 +530,7 @@
   object-fit: cover;
 }
 
-.spillCaptureRail .photoRemove {
+.spillCaptureRail :global(.photoRemove) {
   position: absolute;
   top: 8px;
   right: 8px;
@@ -864,11 +864,11 @@
   box-shadow: inset 0 0 0 1px rgba(217, 207, 186, 0.28);
 }
 
-.spillPreviewProv.feedProv-anecdote {
+.spillPreviewProv:global(.feedProv-anecdote) {
   color: #e7d8b4;
 }
 
-.spillPreviewProv.feedProv-demo {
+.spillPreviewProv:global(.feedProv-demo) {
   color: #cfc6b3;
 }
 
@@ -971,13 +971,13 @@
    content — let it grow but never let the aspect-ratio squeeze the note. In
    Legacy Mode the field-guide favours legibility over the 9:16 flex, so relax
    the fixed ratio and let the card size to its content. */
-html[data-legacy="1"] .spillPreviewCard {
+:global(html[data-legacy="1"]) .spillPreviewCard {
   aspect-ratio: auto;
   min-height: 320px;
   max-height: none;
 }
 
-html[data-legacy="1"] .spillPreviewNote {
+:global(html[data-legacy="1"]) .spillPreviewNote {
   -webkit-line-clamp: 5;
   line-clamp: 5;
 }

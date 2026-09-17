@@ -22,7 +22,7 @@ import { isNativeApp, nativePlatform } from "@/lib/nativePlatform";
 import { releaseNativeSplashOnFirstPaint } from "@/lib/nativeSplash";
 import { followNativeTextScale } from "@/lib/nativeTextScale";
 import { installNativeWebShareBridge } from "@/lib/nativeWebShareBridge";
-import "./nativeShell.css";
+import "./nativeShell.module.css";
 
 /** The attribute components/native/nativeShell.css scopes every rule to. */
 export const NATIVE_SHELL_ATTRIBUTE = "data-native-shell";

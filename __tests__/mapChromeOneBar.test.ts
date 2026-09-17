@@ -189,8 +189,8 @@ describe("finding 2.15 — the banners dock under the bar and step off the map",
     // The constant survives only as the pre-measure fallback.
     expect(toolbarCss).toMatch(/--map-toolbar-resting-height:\s*155px/);
     for (const file of [
-      "components/map/citySuggestBanner.css",
-      "components/map/cityStatusBanner.css",
+      "components/map/citySuggestBanner.module.css",
+      "components/map/cityStatusBanner.module.css",
     ]) {
       expect(read(file), `${file} docks under the bar`).toMatch(
         /var\(--map-toolbar-resting-height/,

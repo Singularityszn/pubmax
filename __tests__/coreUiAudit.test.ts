@@ -129,7 +129,7 @@ import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 const root = process.cwd();
 const wordmark = readFileSync(join(root, "components/brand/PubmaxxWordmark.tsx"), "utf8");
 const consent = readFileSync(join(root, "components/AnalyticsConsent.module.css"), "utf8");
-const tour = readFileSync(join(root, "components/onboarding/firstRunTour.css"), "utf8");
+const tour = readFileSync(join(root, "components/onboarding/firstRunTour.module.css"), "utf8");
 const planEntry = readFileSync(join(root, "components/plan/PlanDescribeFirst.tsx"), "utf8");
 const planCss = readFileSync(join(root, "app/plan/Plan.module.css"), "utf8");
 const mobileMapCss = readFileSync(
@@ -164,9 +164,9 @@ describe("core UI audit fixes", () => {
   });
 
   it("uses a distinct neutral tone for the dearest first-visit price band", () => {
-    expect(tour).toMatch(/\.tourLegendRow \.mapPriceDot\.red\s*\{[\s\S]*?background:\s*color-mix\(/);
-    expect(tour).not.toMatch(/\.tourLegendRow \.mapPriceDot\.red\s*\{[\s\S]*?background:\s*var\(--amber\)/);
-    expect(tour).not.toMatch(/\.tourLegendRow \.mapPriceDot\.red\s*\{[\s\S]*?var\(--brick\)/);
+    expect(tour).toMatch(/\.tourLegendRow :global\(\.mapPriceDot\.red\)\s*\{[\s\S]*?background:\s*color-mix\(/);
+    expect(tour).not.toMatch(/\.tourLegendRow :global\(\.mapPriceDot\.red\)\s*\{[\s\S]*?background:\s*var\(--amber\)/);
+    expect(tour).not.toMatch(/\.tourLegendRow :global\(\.mapPriceDot\.red\)\s*\{[\s\S]*?var\(--brick\)/);
   });
 
   it("keeps the plan entry placeholder readable on a phone", () => {

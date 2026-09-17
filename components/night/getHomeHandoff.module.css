@@ -6,20 +6,20 @@
   margin-block: 14px;
 }
 
-.getHomeHandoff__heading {
+.getHomeHandoffHeading {
   margin: 0;
   color: var(--ink-soft, var(--muted));
   font-size: var(--text-sm, 0.85rem);
   line-height: var(--leading-snug, 1.35);
 }
 
-.getHomeHandoff__actions {
+.getHomeHandoffActions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.getHomeHandoff__link {
+.getHomeHandoffLink {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -37,12 +37,12 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.getHomeHandoff__link:hover {
+.getHomeHandoffLink:hover {
   border-color: color-mix(in srgb, var(--brass) 56%, var(--line));
   background: color-mix(in srgb, var(--brass) 5%, var(--panel));
 }
 
-.getHomeHandoff__link:focus-visible {
+.getHomeHandoffLink:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--brass) 60%, transparent);
   outline-offset: 3px;
 }

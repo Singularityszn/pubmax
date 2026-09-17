@@ -80,7 +80,7 @@ import "./accessibilityFilters.module.css";
 // Map-scoped colour polish (D3): POI-toggle swatch rings + the documented,
 // unwired pin-by-category paint patch. Imported here (map chrome, non-hot) so
 // the rules load with the map without touching the codex-hot canvas.
-import "./mapColor.css";
+import "./mapColor.module.css";
 
 export const styleLabels: Record<CrawlStyle, string> = {
   balanced: "Balanced",

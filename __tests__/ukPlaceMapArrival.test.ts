@@ -109,7 +109,7 @@ describe("UK place map arrival", () => {
 
   it("keeps the map note contained with a thumb-sized dismissal", () => {
     const css = readFileSync(
-      join(process.cwd(), "components/map/ukPlaceArrivalBanner.css"),
+      join(process.cwd(), "components/map/ukPlaceArrivalBanner.module.css"),
       "utf8",
     );
     expect(css).toMatch(/\.ukPlaceArrival\s*{[^}]*min-width:\s*0/);

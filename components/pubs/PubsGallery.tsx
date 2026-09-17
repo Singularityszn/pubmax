@@ -21,7 +21,6 @@ import { resolveBookingAction } from "@/lib/venueExternalActions";
 import type { ZoneSelection } from "@/lib/zones";
 
 import styles from "./pubsGallery.module.css";
-import "@/components/map/zonePicker.css";
 
 export function pubsCountLabel({
   matchingPubs,
@@ -66,7 +65,7 @@ function DrinkArt({
     >
       {photoUrl ? (
         <VenueImage
-          className="pubsCardPhoto"
+          className={styles.pubsCardPhoto}
           sources={[{ url: photoUrl, provenance: "chain" }]}
           alt=""
           fill
@@ -79,11 +78,11 @@ function DrinkArt({
           maxWidth={640}
         />
       ) : null}
-      <div className="pubsCardArtWash" aria-hidden="true" />
-      <div className="pubsCardGlyphHero" aria-hidden="true">
+      <div className={styles.pubsCardArtWash} aria-hidden="true" />
+      <div className={styles.pubsCardGlyphHero} aria-hidden="true">
         <DrinkGlyph category={accent} size={72} inheritColor />
       </div>
-      <ul className="pubsCardShelf" aria-label={`${categoryLabel(accent)} and more`}>
+      <ul className={styles.pubsCardShelf} aria-label={`${categoryLabel(accent)} and more`}>
         <li>
           <DrinkGlyph category={accent} size={22} inheritColor />
           <span>{categoryLabel(accent)}</span>
@@ -95,7 +94,7 @@ function DrinkArt({
           </li>
         ))}
       </ul>
-      <span className="pubsCardArtLabel">{name}</span>
+      <span className={styles.pubsCardArtLabel}>{name}</span>
     </div>
   );
 }
@@ -131,7 +130,7 @@ export default function PubsGallery({
   }
 
   return (
-    <div className="pubsGallery">
+    <div className={styles.pubsGallery}>
       <BookingClickAnalytics />
       <PubsFilters
         counts={counts}
@@ -141,21 +140,21 @@ export default function PubsGallery({
         showCounts={complete}
       />
 
-      <p className="pubsCount" aria-live="polite">
+      <p className={styles.pubsCount} aria-live="polite">
         {pubsCountLabel({ matchingPubs, filter, zone, page, totalPages, complete })}
       </p>
 
       {boroughJumpTargets.length > 1 ? (
-        <nav className="pubsJumpNav" aria-label="Jump to area">
+        <nav className={styles.pubsJumpNav} aria-label="Jump to area">
           {boroughJumpTargets.map(({ borough, id }) => (
-            <a key={borough} className="pubsJumpChip" href={`#pubsCard-${id}`}>
+            <a key={borough} className={styles.pubsJumpChip} href={`#pubsCard-${id}`}>
               {borough}
             </a>
           ))}
         </nav>
       ) : null}
 
-      <ul className="pubsGrid">
+      <ul className={styles.pubsGrid}>
         {pubs.map((pub) => {
           const menuUrl = firstHttps(pub.menuUrl);
           const booking = resolveBookingAction({
@@ -166,8 +165,8 @@ export default function PubsGallery({
           });
           const hasPhoto = Boolean(pub.photoUrl);
           const cardClassName = hasPhoto
-            ? "pubsCard"
-            : "pubsCard pubsCard--no-art";
+            ? styles.pubsCard
+            : `${styles.pubsCard} ${styles.pubsCardNoArt}`;
           return (
             <li key={pub.id} id={`pubsCard-${pub.id}`} className={cardClassName}>
               {hasPhoto ? (
@@ -178,25 +177,25 @@ export default function PubsGallery({
                   name={categoryLabel(pub.drinkAccent)}
                 />
               ) : null}
-              <div className="pubsCardBody">
+              <div className={styles.pubsCardBody}>
                 {!hasPhoto ? (
-                  <p className="pubsCardDrink">
+                  <p className={styles.pubsCardDrink}>
                     <DrinkGlyph category={pub.drinkAccent} size={18} inheritColor />
                     <span>{categoryLabel(pub.drinkAccent)}</span>
                   </p>
                 ) : null}
-                <div className="pubsCardMeta">
-                  <span className="pubsSource" data-source={pub.source}>
+                <div className={styles.pubsCardMeta}>
+                  <span className={styles.pubsSource} data-source={pub.source}>
                     {pub.sourceLabel}
                   </span>
-                  {pub.borough ? <span className="pubsBorough">{pub.borough}</span> : null}
+                  {pub.borough ? <span className={styles.pubsBorough}>{pub.borough}</span> : null}
                   {pub.zone !== null ? (
-                    <span className="pubsZone" title="Nearest station's fare zone">
+                    <span className={styles.pubsZone} title="Nearest station's fare zone">
                       Zone {pub.zone}
                     </span>
                   ) : null}
                 </div>
-                <h2 className="pubsCardName">
+                <h2 className={styles.pubsCardName}>
                   {/* A plain Link that PREFETCHES NOTHING, which is the same
                       rule IntentLink states and the only way to state it from a
                       server component. IntentLink is a client one, so importing
@@ -211,19 +210,19 @@ export default function PubsGallery({
                     {pub.name}
                   </Link>
                 </h2>
-                <p className="pubsCardPrice">
+                <p className={styles.pubsCardPrice}>
                   {pub.cheapestPrice != null
                     ? `From ${formatPrice(pub.cheapestPrice)}`
                     : "No price logged yet"}
                 </p>
-                <div className="pubsCardActions">
-                  <Link className="pubsMapLink" href={venueMapUrl(pub.id)} prefetch={false}>
+                <div className={styles.pubsCardActions}>
+                  <Link className={styles.pubsMapLink} href={venueMapUrl(pub.id)} prefetch={false}>
                     <MapPinned size={14} aria-hidden="true" />
                     See on map
                   </Link>
                   {menuUrl ? (
                     <a
-                      className="pubsMenuLink"
+                      className={styles.pubsMenuLink}
                       href={menuUrl}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -233,7 +232,7 @@ export default function PubsGallery({
                     </a>
                   ) : null}
                   <a
-                    className="pubsBookLink"
+                    className={styles.pubsBookLink}
                     href={booking.href}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -252,10 +251,10 @@ export default function PubsGallery({
       </ul>
 
       {totalPages > 1 ? (
-        <nav className="pubsPagination" aria-label="Pub pages">
+        <nav className={styles.pubsPagination} aria-label="Pub pages">
           {page > 1 ? (
             <Link
-              className="pubsShowMoreBtn"
+              className={styles.pubsShowMoreBtn}
               href={pubsIndexHref({ source: filter, zone: zone === "all" ? null : zone, page }, page - 1)}
             >
               Previous
@@ -264,7 +263,7 @@ export default function PubsGallery({
           <span>Page {page} of {totalPages}</span>
           {page < totalPages ? (
             <Link
-              className="pubsShowMoreBtn"
+              className={styles.pubsShowMoreBtn}
               href={pubsIndexHref({ source: filter, zone: zone === "all" ? null : zone, page }, page + 1)}
             >
               Next
@@ -274,7 +273,7 @@ export default function PubsGallery({
       ) : null}
 
       {pubs.length === 0 ? (
-        <p className="pubsEmpty">No pubs under that filter yet. Loosen it, or take it to the map.</p>
+        <p className={styles.pubsEmpty}>No pubs under that filter yet. Loosen it, or take it to the map.</p>
       ) : null}
     </div>
   );

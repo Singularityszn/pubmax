@@ -605,3 +605,11 @@
     transform: none;
   }
 }
+
+/* 2b) Home city cards (dark theme override, moved from theme.css). */
+:global(html[data-theme="dark"]) .cityChooserSection {
+  --panel: var(--chrome-panel);
+  --panel-raised: var(--chrome-panel-raised);
+  --paper: var(--chrome-paper);
+  --line: var(--chrome-line);
+}

@@ -8,7 +8,7 @@
  * switcher) paints over it and takes its taps.
  */
 
-.mapCameraControls {
+:global(.mapCameraControls) {
   position: absolute;
   top: var(--map-overlay-top);
   right: 10px;
@@ -19,9 +19,9 @@
   transition: opacity 0.16s ease, transform 0.16s ease;
 }
 
-.mapFitLondonBtn,
-.mapRecenterBtn,
-.mapCompassBtn {
+:global(.mapFitLondonBtn),
+:global(.mapRecenterBtn),
+:global(.mapCompassBtn) {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -43,32 +43,32 @@
     transform var(--duration-fast) var(--ease-out);
 }
 
-.mapFitLondonBtn:hover,
-.mapRecenterBtn:not(:disabled):hover,
-.mapCompassBtn:hover {
+:global(.mapFitLondonBtn):hover,
+:global(.mapRecenterBtn):not(:disabled):hover,
+:global(.mapCompassBtn):hover {
   border-color: var(--ink-soft);
   background: var(--panel);
   color: var(--ink);
 }
 
-.mapFitLondonBtn:focus-visible,
-.mapRecenterBtn:focus-visible,
-.mapCompassBtn:focus-visible {
+:global(.mapFitLondonBtn):focus-visible,
+:global(.mapRecenterBtn):focus-visible,
+:global(.mapCompassBtn):focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--river);
 }
 
-.mapCompassBtn svg {
+:global(.mapCompassBtn) svg {
   transition: transform var(--duration-base) var(--ease-out);
 }
 
-.mapRecenterBtn:disabled {
+:global(.mapRecenterBtn):disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
 
-.appShell.sheet-full .mapCameraControls,
-.appShell.onboarding-open .mapCameraControls {
+:global(.appShell.sheet-full) :global(.mapCameraControls),
+:global(.appShell.onboarding-open) :global(.mapCameraControls) {
   opacity: 0;
   pointer-events: none;
   transform: translateY(-8px);
@@ -80,7 +80,7 @@
  * column it was designed with.
  */
 @media (min-width: 901px) {
-  .mapCameraControls {
+  :global(.mapCameraControls) {
     grid-auto-flow: column;
     align-items: center;
   }
@@ -89,7 +89,7 @@
 /* ── Phone responsive (migrated from globals.css) ── */
 
 @media (max-width: 640px) {
-  .mapCameraControls {
+  :global(.mapCameraControls) {
     top: calc(var(--map-top-clearance) + 58px);
     right: 10px;
     gap: 4px;
@@ -97,12 +97,12 @@
 
   /* MapLibre's built-in zoom/compass compete with the bottom tab bar and
      corner FABs on phones. App-owned London/Recenter stay visible. */
-  .maplibregl-ctrl-bottom-left .maplibregl-ctrl-group {
+  :global(.maplibregl-ctrl-bottom-left) :global(.maplibregl-ctrl-group) {
     display: none;
   }
 
-  .mapFitLondonBtn,
-  .mapRecenterBtn {
+  :global(.mapFitLondonBtn),
+  :global(.mapRecenterBtn) {
     min-height: 44px;
     padding: 0 9px;
     font-size: 0.68rem;

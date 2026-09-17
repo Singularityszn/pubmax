@@ -5,7 +5,7 @@
   flex: 0 0 auto;
 }
 
-.citySwitcher--list {
+.citySwitcherListMode {
   width: 100%;
 }
 
@@ -123,7 +123,7 @@
   opacity: 0.7;
 }
 
-.citySwitcher--list .citySwitcherList {
+.citySwitcherListMode .citySwitcherList {
   position: static;
   width: 100%;
   max-height: min(44vh, 22rem);
@@ -131,7 +131,7 @@
   box-shadow: none;
 }
 
-.citySwitcher--list .citySwitcherNational {
+.citySwitcherListMode .citySwitcherNational {
   display: none;
 }
 
@@ -183,11 +183,11 @@
      abbreviation and says nothing about an area, and the control announces the
      area either way. Ordered after the rules above so it wins on source order
      at equal specificity for the width, and on specificity for the label. */
-  .citySwitcher--named {
+  .citySwitcherNamed {
     max-width: none;
   }
 
-  .citySwitcher--named .citySwitcherLabelFull {
+  .citySwitcherNamed .citySwitcherLabelFull {
     display: inline;
   }
 }
@@ -219,7 +219,7 @@
     z-index: var(--z-map-toolbar);
   }
 
-  .citySwitcher--list .citySwitcherList {
+  .citySwitcherListMode .citySwitcherList {
     right: auto;
     left: auto;
   }

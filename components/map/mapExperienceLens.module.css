@@ -2,7 +2,7 @@
    fills are for selection, hairlines are for structure. This section is none of
    those - it is a heading with a control under it, so the card around it goes
    and the spacing does the grouping. */
-.mapExperienceLens {
+:global(.mapExperienceLens) {
   display: grid;
   gap: 8px;
   width: 100%;
@@ -87,7 +87,7 @@
 
 /* Selection is the fill, and the fill alone. Coral stays with the primary CTA
    (DESIGN.md, The One Accent Rule); a view chooser is not one. */
-.mapExperienceLensOption.isSelected {
+.mapExperienceLensOption:global(.isSelected) {
   background: var(--panel-raised);
   color: var(--ink);
   font-weight: 800;

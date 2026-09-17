@@ -23,9 +23,9 @@
 
 @media (min-width: 641px) {
   /* 1. Onboarding open — suppress ambient status and Tonight. */
-  .appShell.onboarding-open .cityStatusStack,
-  .appShell.onboarding-open .cityStatusBanner,
-  .appShell.onboarding-open .tonightLaneCollapsed {
+  :global(.appShell.onboarding-open) :global(.cityStatusStack),
+  :global(.appShell.onboarding-open) :global(.cityStatusBanner),
+  :global(.appShell.onboarding-open) :global(.tonightLaneCollapsed) {
     display: none;
   }
 
@@ -48,28 +48,28 @@
      backstop for whichever sibling a later commit forgets, keyed on element
      presence so dismissing the card releases every one of them under the
      ordinary policy below. */
-  body:has(.mapArrivalCard) .citySuggestBanner,
-  body:has(.mapArrivalCard) .cityStatusBanner,
-  body:has(.mapArrivalCard) .cityStatusStack,
-  body:has(.mapArrivalCard) .desktopRail,
-  body:has(.mapArrivalCard) .palSummon,
-  body:has(.mapArrivalCard) .tonightLaneCollapsed,
-  body:has(.mapArrivalCard) .mapConciergeAsk {
+  body:has(:global(.mapArrivalCard)) :global(.citySuggestBanner),
+  body:has(:global(.mapArrivalCard)) :global(.cityStatusBanner),
+  body:has(:global(.mapArrivalCard)) :global(.cityStatusStack),
+  body:has(:global(.mapArrivalCard)) :global(.desktopRail),
+  body:has(:global(.mapArrivalCard)) :global(.palSummon),
+  body:has(:global(.mapArrivalCard)) :global(.tonightLaneCollapsed),
+  body:has(:global(.mapArrivalCard)) :global(.mapConciergeAsk) {
     display: none;
   }
 
   /* 2. Keep the opt-in location control available while either prompt defers
      the lower Tonight card. Keyed on element PRESENCE (eligibility), so
      dismissing both higher siblings releases Tonight normally. */
-  .mapStage:has(.cityStatusBanner) .tonightLaneCollapsed,
-  .mapStage:has(.citySuggestBanner) .tonightLaneCollapsed {
+  :global(.mapStage):has(:global(.cityStatusBanner)) :global(.tonightLaneCollapsed),
+  :global(.mapStage):has(:global(.citySuggestBanner)) :global(.tonightLaneCollapsed) {
     display: none;
   }
 
   /* Location owns first-run centre. The actionable status remains visible but
      yields into Tonight's now-vacant left lane, so two eligible banners do not
      form a stack across the map's focal point. */
-  .mapStage:has(.citySuggestBanner) .citySuggestBanner {
+  :global(.mapStage):has(:global(.citySuggestBanner)) :global(.citySuggestBanner) {
     max-width: min(420px, calc(100vw - 384px));
   }
 
@@ -81,7 +81,7 @@
    banner keeps its default berth: centred, full width, under the prompt,
    which the +82px top anchor already clears. */
 @media (min-width: 1024px) {
-  .mapStage:has(.citySuggestBanner) .cityStatusStack {
+  :global(.mapStage):has(:global(.citySuggestBanner)) :global(.cityStatusStack) {
     left: 16px;
     width: min(460px, max(160px, calc(50vw - 242px)));
     transform: none;
@@ -93,31 +93,31 @@
    the sheet. Re-centre them on the map lane that is left, the same way the
    toolbar above them does (mapToolbar.css). */
 @media (min-width: 1024px) {
-  .appShell.detail-open .cityStatusStack,
-  .appShell.detail-open .citySuggestBanner {
+  :global(.appShell.detail-open) :global(.cityStatusStack),
+  :global(.appShell.detail-open) :global(.citySuggestBanner) {
     left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
     max-width: calc(100% - var(--desktop-venue-drawer-width) - 32px);
   }
 
   /* The planner owns the mirrored left edge. Keep both ambient banners inside
      the remaining map lane using the same centre and width as the toolbar. */
-  .appShell.planning-open .cityStatusStack,
-  .appShell.planning-open .citySuggestBanner,
-  .appShell.story-open .cityStatusStack,
-  .appShell.story-open .citySuggestBanner {
+  :global(.appShell.planning-open) :global(.cityStatusStack),
+  :global(.appShell.planning-open) :global(.citySuggestBanner),
+  :global(.appShell.story-open) :global(.cityStatusStack),
+  :global(.appShell.story-open) :global(.citySuggestBanner) {
     left: calc((100% + var(--desktop-planner-rail-width)) / 2);
     max-width: calc(100% - var(--desktop-planner-rail-width) - 32px);
   }
 
-  .appShell.planning-open .cityStatusStack,
-  .appShell.story-open .cityStatusStack {
+  :global(.appShell.planning-open) :global(.cityStatusStack),
+  :global(.appShell.story-open) :global(.cityStatusStack) {
     transform: translateX(-50%);
   }
 
   /* A drawer leaves too little horizontal room for both prompts. Keep the
      location prompt in the drawer-aware centre and move status to the bottom
      of that same free lane instead of rebuilding the first-load stack. */
-  .appShell.detail-open .mapStage:has(.citySuggestBanner) .cityStatusStack {
+  :global(.appShell.detail-open) :global(.mapStage):has(:global(.citySuggestBanner)) :global(.cityStatusStack) {
     top: auto;
     bottom: 16px;
     left: 16px;
@@ -125,8 +125,8 @@
     transform: none;
   }
 
-  .appShell.planning-open .mapStage:has(.citySuggestBanner) .cityStatusStack,
-  .appShell.story-open .mapStage:has(.citySuggestBanner) .cityStatusStack {
+  :global(.appShell.planning-open) :global(.mapStage):has(:global(.citySuggestBanner)) :global(.cityStatusStack),
+  :global(.appShell.story-open) :global(.mapStage):has(:global(.citySuggestBanner)) :global(.cityStatusStack) {
     top: auto;
     bottom: 16px;
     left: calc(var(--desktop-planner-rail-width) + 16px);
@@ -142,8 +142,8 @@
    centred on the whole stage the route chip's right end ran under it: 24px at
    1440, 95px at 900. The 44px buttons keep their size; only the centre moves. */
 @media (min-width: 769px) {
-  .appShell.detail-open .mappedRouteChip,
-  .appShell.detail-open .activeRoundChip {
+  :global(.appShell.detail-open) :global(.mappedRouteChip),
+  :global(.appShell.detail-open) :global(.activeRoundChip) {
     left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
     max-width: calc(100% - var(--desktop-venue-drawer-width) - 32px);
   }
@@ -153,8 +153,8 @@
    leaves no lane. The chips leave the layout while it is open, which also
    takes the route chip's buttons out of the trap's Tab order. */
 @media (min-width: 641px) and (max-width: 768px) {
-  .appShell.detail-open .mappedRouteChip,
-  .appShell.detail-open .activeRoundChip {
+  :global(.appShell.detail-open) :global(.mappedRouteChip),
+  :global(.appShell.detail-open) :global(.activeRoundChip) {
     display: none;
   }
 }

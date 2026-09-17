@@ -1,21 +1,24 @@
 /* Screen head (components/ui/screen.tsx): kicker, heading, one primary action.
    Launch tokens only. The same order at every width; the phone version is the
-   desktop version narrowed, not a different composition. */
+   desktop version narrowed, not a different composition.
 
-.screen {
+   All classes are :global() because they are referenced by many external CSS
+   Modules (Pal, Today, Tonight, Messages, etc.) via :global() selectors. */
+
+:global(.screen) {
   width: min(var(--content-max-wide), 100%);
   margin: 0 auto;
   padding-inline: var(--page-gutter);
 }
 
-.screenHead {
+:global(.screenHead) {
   display: grid;
   gap: var(--space-3);
   max-width: 40rem;
   padding-block: var(--space-6) var(--space-4);
 }
 
-.screenTitle {
+:global(.screenTitle) {
   margin: 0;
   color: var(--color-text);
   font-family: var(--font-display);
@@ -26,7 +29,7 @@
   text-wrap: balance;
 }
 
-.screenLede {
+:global(.screenLede) {
   margin: 0;
   max-width: 34rem;
   color: var(--color-text-soft);
@@ -35,7 +38,7 @@
   text-wrap: pretty;
 }
 
-.screenActions {
+:global(.screenActions) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -47,14 +50,14 @@
    (components/ui/screen.tsx `actionsAfterContent`). It is the same row, so only
    the space above it changes: the head's own top margin would sit it too close
    to the content it follows. */
-.screenActionsAfterContent {
+:global(.screenActionsAfterContent) {
   margin-top: var(--space-6);
 }
 
 /* The one filled control on the screen. The caller passes a bare link or
    button; the Screen owns its weight so no caller can make two. This app ships
    no Tailwind preflight, so border and background are stated, not assumed. */
-.screenPrimary > :is(a, button) {
+:global(.screenPrimary) > :is(a, button) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -76,14 +79,14 @@
   transition: background-color var(--duration-fast) var(--ease-out);
 }
 
-.screenPrimary > :is(a, button):hover {
+:global(.screenPrimary) > :is(a, button):hover {
   background: var(--accent-action-strong);
   color: var(--color-on-accent-strong);
 }
 
 /* Press feedback owned here, so the shared press layer in app/globals.css is
    told to stand down through its documented seam (--shared-press-scale). */
-.screenPrimary > :is(a, button):active {
+:global(.screenPrimary) > :is(a, button):active {
   transform: scale(var(--press-scale));
   --shared-press-scale: 1;
 }
@@ -91,7 +94,7 @@
 /* The quiet row under the primary. One door on nearly every screen, two on the
    landing (#1488), so it is stated as a row with a gap rather than left a bare
    wrapper: with a single child it is the same box it has always been. */
-.screenSecondary {
+:global(.screenSecondary) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -101,7 +104,7 @@
 /* The quieter way onward reads as a link, not as a second button. A one-word
    door ("Back") is narrower than a thumb, so the box is 44 px each way; the
    words stay at the start edge, so they still line up with the heading. */
-.screenSecondary > :is(a, button) {
+:global(.screenSecondary) > :is(a, button) {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -119,27 +122,27 @@
   cursor: pointer;
 }
 
-.screenSecondary > :is(a, button):hover {
+:global(.screenSecondary) > :is(a, button):hover {
   color: var(--color-accent);
 }
 
 @media (max-width: 640px) {
-  .screenActions {
+  :global(.screenActions) {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .screenPrimary > :is(a, button) {
+  :global(.screenPrimary) > :is(a, button) {
     width: 100%;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .screenPrimary > :is(a, button) {
+  :global(.screenPrimary) > :is(a, button) {
     transition: none;
   }
 
-  .screenPrimary > :is(a, button):active {
+  :global(.screenPrimary) > :is(a, button):active {
     transform: none;
   }
 }

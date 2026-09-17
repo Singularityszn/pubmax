@@ -28,7 +28,7 @@ import {
   type OperatorProposalType,
 } from "@/lib/operatorProposals";
 
-import "./operatorRail.css";
+import styles from "./operatorRail.module.css";
 
 export type OperatorRailPanelProps = {
   venueId: string;
@@ -167,18 +167,18 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
   const canReclaim = !claim || state === "rejected" || state === "revoked";
 
   return (
-    <section className="operatorRail" aria-label={`Run ${venueName}`}>
+    <section className={styles.operatorRail} aria-label={`Run ${venueName}`}>
       {!open ? (
-        <button type="button" className="operatorRailTrigger" onClick={() => setOpen(true)}>
+        <button type="button" className={styles.operatorRailTrigger} onClick={() => setOpen(true)}>
           Run this pub?
         </button>
       ) : (
-        <div className="operatorRailCard">
-          <div className="operatorRailHead">
-            <span className="operatorRailTitle">Run {venueName}?</span>
+        <div className={styles.operatorRailCard}>
+          <div className={styles.operatorRailHead}>
+            <span className={styles.operatorRailTitle}>Run {venueName}?</span>
             <button
               type="button"
-              className="operatorRailClose"
+              className={styles.operatorRailClose}
               aria-label="Close"
               onClick={() => setOpen(false)}
             >
@@ -187,24 +187,24 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
           </div>
 
           {loading ? (
-            <p className="operatorRailBody">One moment…</p>
+            <p className={styles.operatorRailBody}>One moment…</p>
           ) : !signedIn ? (
-            <p className="operatorRailBody">
+            <p className={styles.operatorRailBody}>
               Sign in with the account that runs {venueName}, then send a claim.
               Claims must be approved before proposal tools open.
             </p>
           ) : !checked ? (
-            <p className="operatorRailBody">Checking your status…</p>
+            <p className={styles.operatorRailBody}>Checking your status…</p>
           ) : state === "pending" ? (
-            <p className="operatorRailBody" role="status">
+            <p className={styles.operatorRailBody} role="status">
               {`Claim under review. We're checking that you run ${venueName} and will open the proposal tools once it is approved.`}
             </p>
           ) : state === "verified" ? (
-            <div className="operatorRailForm">
-              <p className="operatorRailBody">
+            <div className={styles.operatorRailForm}>
+              <p className={styles.operatorRailBody}>
                 {`Your claim for ${venueName} is approved. Propose an update and we'll review it before it shows. Your submissions never overwrite existing notes.`}
               </p>
-              <label className="operatorRailField">
+              <label className={styles.operatorRailField}>
                 <span>What kind</span>
                 <select
                   value={proposalType}
@@ -222,7 +222,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
               </label>
 
               {proposalType === "correction" ? (
-                <label className="operatorRailField">
+                <label className={styles.operatorRailField}>
                   <span>Which detail</span>
                   <input
                     type="text"
@@ -234,7 +234,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
               ) : null}
 
               {proposalType === "event" || proposalType === "offer" ? (
-                <label className="operatorRailField">
+                <label className={styles.operatorRailField}>
                   <span>Title</span>
                   <input
                     type="text"
@@ -246,7 +246,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
               ) : null}
 
               {proposalType === "event" ? (
-                <label className="operatorRailField">
+                <label className={styles.operatorRailField}>
                   <span>When</span>
                   <input
                     type="text"
@@ -257,7 +257,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
                 </label>
               ) : null}
 
-              <label className="operatorRailField">
+              <label className={styles.operatorRailField}>
                 <span>
                   {proposalType === "correction"
                     ? "Corrected value"
@@ -275,7 +275,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
 
               <button
                 type="button"
-                className="operatorRailSubmit"
+                className={styles.operatorRailSubmit}
                 onClick={() => void submitProposal()}
                 disabled={savingProposal}
               >
@@ -283,7 +283,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
               </button>
               {proposalFeedback ? (
                 <span
-                  className={proposalFeedback.kind === "error" ? "operatorRailError" : "operatorRailOk"}
+                  className={proposalFeedback.kind === "error" ? styles.operatorRailError : styles.operatorRailOk}
                   role="status"
                 >
                   {proposalFeedback.text}
@@ -291,17 +291,17 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
               ) : null}
             </div>
           ) : (
-            <div className="operatorRailForm">
+            <div className={styles.operatorRailForm}>
               {state === "rejected" || state === "revoked" ? (
-                <p className="operatorRailBody">
+                <p className={styles.operatorRailBody}>
                   Your previous claim was {state}. You can send fresh details for another review.
                 </p>
               ) : (
-                <p className="operatorRailBody">
+                <p className={styles.operatorRailBody}>
                   Tell us how we can check that you run {venueName}. Approval is required before proposal tools open.
                 </p>
               )}
-              <label className="operatorRailField">
+              <label className={styles.operatorRailField}>
                 <span>How should we check</span>
                 <select
                   value={evidenceKind}
@@ -314,7 +314,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
                   ))}
                 </select>
               </label>
-              <label className="operatorRailField">
+              <label className={styles.operatorRailField}>
                 <span>A short note</span>
                 <textarea
                   value={evidenceNote}
@@ -325,7 +325,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
               </label>
               <button
                 type="button"
-                className="operatorRailSubmit"
+                className={styles.operatorRailSubmit}
                 onClick={() => void submitClaim()}
                 disabled={savingClaim || !canReclaim}
               >
@@ -333,7 +333,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
               </button>
               {claimFeedback ? (
                 <span
-                  className={claimFeedback.kind === "error" ? "operatorRailError" : "operatorRailOk"}
+                  className={claimFeedback.kind === "error" ? styles.operatorRailError : styles.operatorRailOk}
                   role="status"
                 >
                   {claimFeedback.text}

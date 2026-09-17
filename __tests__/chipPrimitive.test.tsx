@@ -15,21 +15,21 @@ import { Chip } from "@/components/ui/chip";
 
 const ROOT = process.cwd();
 const read = (file: string): string => readFileSync(join(ROOT, file), "utf8");
-const chipCss = read("components/ui/chip.css");
+const chipCss = read("components/ui/chip.module.css");
 
 describe("the Chip primitive", () => {
   it("is painted OUTSIDE every cascade layer, where the unlayered reset cannot beat it", () => {
-    // Same reason as button.css: `button { font: inherit }` is unlayered in
+    // Same reason as button.module.css: `button { font: inherit }` is unlayered in
     // app/globals.css and outranks every layered utility, which is why the
     // Tailwind `text-sm font-bold` this primitive used to carry rendered as the
     // inherited 16px at weight 400.
     expect(chipCss).not.toMatch(/^\s*@layer/m);
-    expect(read("components/ui/chip.tsx")).toContain('import "./chip.css"');
+    expect(read("components/ui/chip.tsx")).toContain('import styles from "./chip.module.css"');
     expect(read("components/ui/chip.tsx")).not.toMatch(/rounded-\[|text-sm|font-bold/);
   });
 
   it("reads the one row of control tokens rather than restating a figure", () => {
-    const base = chipCss.match(/\.uiChip\s*{([^}]*)}/)?.[1] ?? "";
+    const base = chipCss.match(/:global\(\.uiChip\)\s*{([^}]*)}/)?.[1] ?? "";
     expect(base).toMatch(/min-height:\s*var\(--control-height/);
     expect(base).toMatch(/font-size:\s*var\(--control-font-size/);
     expect(base).toMatch(/font-weight:\s*var\(--control-font-weight/);
@@ -37,7 +37,7 @@ describe("the Chip primitive", () => {
     expect(base.indexOf("font: inherit")).toBeLessThan(base.indexOf("font-size:"));
 
     // The square differs in SHAPE alone, and its shape is the control radius.
-    const number = chipCss.match(/\.uiChip--number\s*{([^}]*)}/)?.[1] ?? "";
+    const number = chipCss.match(/:global\(\.uiChip--number\)\s*{([^}]*)}/)?.[1] ?? "";
     expect(number).toMatch(/min-width:\s*var\(--control-height/);
     expect(number).toMatch(/border-radius:\s*var\(--control-radius/);
     expect(number).not.toMatch(/border-radius:\s*(10px|var\(--radius-sm)/);
@@ -53,8 +53,8 @@ describe("the Chip primitive", () => {
   });
 
   it("carries the chosen state on aria-pressed, so the state and the label agree", () => {
-    expect(chipCss).toMatch(/\.uiChip\[aria-pressed="true"\]/);
-    const chosen = chipCss.match(/\.uiChip\[aria-pressed="true"\]\s*{([^}]*)}/)?.[1] ?? "";
+    expect(chipCss).toMatch(/:global\(\.uiChip\)\[aria-pressed="true"\]/);
+    const chosen = chipCss.match(/:global\(\.uiChip\)\[aria-pressed="true"\]\s*{([^}]*)}/)?.[1] ?? "";
     // The quiet active tint, never the painted primary: a chip row is a
     // refinement and the loud fill belongs to the screen's one primary.
     expect(chosen).toMatch(/background:\s*var\(--control-tint-surface/);

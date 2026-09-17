@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import "./emptyState.css";
+import styles from "./emptyState.module.css";
 
 /**
  * An empty list that points forward.

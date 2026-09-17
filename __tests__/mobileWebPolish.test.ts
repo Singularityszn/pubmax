@@ -39,7 +39,7 @@ describe("mobile web polish source contracts", () => {
       "app/feed/Feed.module.css",
       "app/pint-index/PintIndex.module.css",
       "app/pal/Pal.module.css",
-      "components/drinks/categoryShowcase.css",
+      "components/drinks/categoryShowcase.module.css",
       "components/landing/landing.css",
       "components/map/mapToolbar.css",
       "components/map/tonightLane.css",

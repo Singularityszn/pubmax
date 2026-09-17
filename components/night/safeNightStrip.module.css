@@ -8,7 +8,7 @@
   background: color-mix(in srgb, var(--brass) 6%, transparent);
 }
 
-.nightSafe__head {
+.nightSafeHead {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -24,7 +24,7 @@
   text-align: left;
 }
 
-.nightSafe__title {
+.nightSafeTitle {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -33,35 +33,35 @@
   color: var(--ink);
 }
 
-.nightSafe__chevron {
+.nightSafeChevron {
   flex: 0 0 auto;
   color: var(--ink-soft);
   transition: transform 160ms ease;
 }
 
-.nightSafe__chevron[data-open] {
+.nightSafeChevron[data-open] {
   transform: rotate(180deg);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nightSafe__chevron {
+  .nightSafeChevron {
     transition: none;
   }
 }
 
-.nightSafe__body {
+.nightSafeBody {
   display: grid;
   gap: 7px;
 }
 
-.nightSafe__line {
+.nightSafeLine {
   margin: 0;
   font-size: 12px;
   line-height: 1.45;
   color: var(--ink-soft);
 }
 
-.nightSafe__tel {
+.nightSafeTel {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -73,11 +73,11 @@
   white-space: nowrap;
 }
 
-.nightSafe__tel:hover {
+.nightSafeTel:hover {
   text-decoration: underline;
 }
 
-.nightSafe__link {
+.nightSafeLink {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -88,14 +88,14 @@
   text-underline-offset: 2px;
 }
 
-.nightSafe__actions {
+.nightSafeActions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 2px;
 }
 
-.nightSafe__share {
+.nightSafeShare {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -110,11 +110,11 @@
   cursor: pointer;
 }
 
-.nightSafe__share:active {
+.nightSafeShare:active {
   transform: translateY(1px);
 }
 
-.nightSafe__hide {
+.nightSafeHide {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -130,14 +130,14 @@
   cursor: pointer;
 }
 
-.nightSafe__note {
+.nightSafeNote {
   margin: 0;
   font-size: 12px;
   color: var(--ink-soft);
 }
 
 @media (max-width: 360px) {
-  .nightSafe__actions > * {
+  .nightSafeActions > * {
     width: 100%;
   }
 }

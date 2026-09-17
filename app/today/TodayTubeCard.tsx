@@ -30,7 +30,7 @@ import type { PatchDisruption } from "@/lib/tflDisruption";
 
 import { rememberedAreaCentre } from "./todayArea";
 import styles from "./Today.module.css";
-import "@/components/transport/disruptionLine.css";
+import disruptionStyles from "@/components/transport/disruptionLine.module.css";
 
 type DisruptionResponse = { disruption?: PatchDisruption | null };
 
@@ -67,10 +67,10 @@ export default function TodayTubeCard({ slot }: { slot: DaySlot }) {
           </h2>
         </div>
       </div>
-      <p className="transportDisruption" data-testid="tfl-disruption">
-        <AlertTriangle size={14} aria-hidden="true" className="transportDisruptionIcon" />
-        <span className="transportDisruptionCopy">
-          {disruption.line}. <span className="transportDisruptionProv">via TfL</span>
+      <p className={disruptionStyles.transportDisruption} data-testid="tfl-disruption">
+        <AlertTriangle size={14} aria-hidden="true" className={disruptionStyles.transportDisruptionIcon} />
+        <span className={disruptionStyles.transportDisruptionCopy}>
+          {disruption.line}. <span className={disruptionStyles.transportDisruptionProv}>via TfL</span>
         </span>
       </p>
     </section>

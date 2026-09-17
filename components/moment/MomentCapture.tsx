@@ -60,7 +60,7 @@ import {
   type MomentMediaDraft,
 } from "@/lib/momentDraft";
 
-import "./moment.css";
+import styles from "./moment.module.css";
 
 /** How long the saved receipt stays on screen before the page returns. */
 const MOMENT_SAVED_RECEIPT_MS = 1600;
@@ -69,7 +69,7 @@ const GUEST_OWNER = "guest";
 
 const MomentImageEditor = dynamic(() => import("./MomentImageEditor"), {
   ssr: false,
-  loading: () => <div className="momentEditorLoading" role="status">Opening editor...</div>,
+  loading: () => <div className={styles.momentEditorLoading} role="status">Opening editor...</div>,
 });
 
 type MomentImageEditorBoundaryProps = {
@@ -563,7 +563,7 @@ export default function MomentCapture(): React.JSX.Element {
   }
 
   return (
-    <div className="momentPage">
+    <div className={styles.momentPage}>
       <SiteNav />
       {/* The launch head (docs/design/LAUNCH_SCREENS.md): kicker, heading,
           ONE primary. Save is the composer's own submit, reached from the head
@@ -572,7 +572,7 @@ export default function MomentCapture(): React.JSX.Element {
       <Screen
         as="main"
         id="main"
-        className="momentMain"
+        className={styles.momentMain}
         kicker="Moment"
         title="Keep this one."
         titleId="moment-title"
@@ -595,12 +595,12 @@ export default function MomentCapture(): React.JSX.Element {
         }
         secondary={<Link href={returnTo}>Back</Link>}
       >
-        <p className="momentPrivacy">
+        <p className={styles.momentPrivacy}>
           <LockKeyhole size={14} aria-hidden="true" /> Private first
         </p>
 
-        <section className="momentIntent" aria-label="Choose what to save">
-          <div className="momentIntentCurrent">
+        <section className={styles.momentIntent} aria-label="Choose what to save">
+          <div className={styles.momentIntentCurrent}>
             {isPhone ? <Camera size={21} aria-hidden="true" /> : <Upload size={21} aria-hidden="true" />}
             <div>
               <strong>Private Moment</strong>
@@ -611,7 +611,7 @@ export default function MomentCapture(): React.JSX.Element {
               </span>
             </div>
           </div>
-          <Link href="/map?log=1" className="momentIntentLink">
+          <Link href="/map?log=1" className={styles.momentIntentLink}>
             <MapPin size={21} aria-hidden="true" />
             <div><strong>Log a Pint Drop</strong><span>Pub, drink and price</span></div>
             <ArrowRight size={18} aria-hidden="true" />
@@ -620,13 +620,13 @@ export default function MomentCapture(): React.JSX.Element {
 
         <form
           ref={composerForm}
-          className="momentComposer"
+          className={styles.momentComposer}
           onSubmit={saveMoment}
           aria-label="Private Moment composer"
         >
-          <div className={`momentMediaGrid momentMediaGrid${draft.media.length || 1}`}>
+          <div className={`${styles.momentMediaGrid}${(draft.media.length || 1) === 1 ? ` ${styles.momentMediaGrid1}` : ''}`}>
             {draft.media.map((item) => (
-              <figure className="momentMedia" key={item.id}>
+              <figure className={styles.momentMedia} key={item.id}>
                 {item.objectUrl ? (
                   <Image
                     src={item.objectUrl}
@@ -636,7 +636,7 @@ export default function MomentCapture(): React.JSX.Element {
                     unoptimized
                   />
                 ) : null}
-                <div className="momentMediaActions">
+                <div className={styles.momentMediaActions}>
                   <button type="button" disabled={saveState === "saving"} onClick={(event) => openPhotoEditor(item.id, event.currentTarget)} aria-label={`Edit ${item.name}`}>
                     Edit
                   </button>
@@ -649,7 +649,7 @@ export default function MomentCapture(): React.JSX.Element {
             {draft.media.length < 4 ? (
               <label
                 className={
-                  dragOver ? "momentMediaPicker momentMediaPickerDragOver" : "momentMediaPicker"
+                  dragOver ? `${styles.momentMediaPicker} ${styles.momentMediaPickerDragOver}` : styles.momentMediaPicker
                 }
                 onClick={chooseNativeMedia}
                 onDragEnter={onPickerDragEnter}
@@ -665,7 +665,7 @@ export default function MomentCapture(): React.JSX.Element {
                 <strong>{pickerPrimary}</strong>
                 <span>
                   {pickerSecondary.map((line, index) => (
-                    <span className="momentMediaPickerLine" key={line}>
+                    <span className={styles.momentMediaPickerLine} key={line}>
                       {index > 0 ? <br /> : null}
                       {line}
                     </span>
@@ -688,14 +688,14 @@ export default function MomentCapture(): React.JSX.Element {
           </div>
 
           {draft.media.length ? (
-            <fieldset className="momentAltText">
+            <fieldset className={styles.momentAltText}>
               <legend>Describe each photo</legend>
-              <p className="momentAltText__hint">
+              <p className={styles.momentAltTextHint}>
                 Describe the photo for someone who cannot see it. One clear line
                 each. It is what a screen reader reads aloud when you publish.
               </p>
               {draft.media.map((item, index) => (
-                <label className="momentAltText__row" key={`alt-${item.id}`}>
+                <label className={styles.momentAltTextRow} key={`alt-${item.id}`}>
                   <span>Photo {index + 1}</span>
                   {/* AI-suggestion seam (v1: none): a provider could prefill this with
                       a suggestion for the author to edit and confirm. It must never
@@ -713,7 +713,7 @@ export default function MomentCapture(): React.JSX.Element {
             </fieldset>
           ) : null}
 
-          <div className="momentFields">
+          <div className={styles.momentFields}>
             <label>
               <span>What happened?</span>
               <textarea
@@ -725,7 +725,7 @@ export default function MomentCapture(): React.JSX.Element {
                 placeholder="One line you will still remember next year."
               />
             </label>
-            <div className="momentFieldPair">
+            <div className={styles.momentFieldPair}>
               <label>
                 <span>Name this night</span>
                 <input value={draft.memoryTitle} onChange={(event) => update({ memoryTitle: event.target.value })} maxLength={120} placeholder="Friday detour" />

@@ -35,7 +35,7 @@
                               0 16px 36px glass shadow on mobile to match.
    Consumed with literal fallbacks at every use site so the landing route (which
    does not load this file's stylesheet) still resolves to the same values. */
-:root {
+:global(:root) {
   --topbar-h: 52px;
   --topbar-inset: calc(env(safe-area-inset-top, 0px) + 10px);
   --topbar-radius: 14px;
@@ -79,7 +79,7 @@
   -webkit-backdrop-filter: blur(14px) saturate(1.06);
 }
 
-.siteNavBar:not(.siteNavBarFloating) {
+.siteNavBar:not(:global(.siteNavBarFloating)) {
   margin-top: env(safe-area-inset-top, 0px);
 }
 
@@ -99,7 +99,7 @@
    little extra headroom over that measured floor (1100px, up from 1080px) so
    future label/utility additions don't reopen the clip. */
 @media (min-width: 641px) {
-  .siteNavBar:not(.siteNavBarFloating) {
+  .siteNavBar:not(:global(.siteNavBarFloating)) {
     --site-nav-width: min(1100px, 100vw - 48px);
     width: var(--site-nav-width);
     margin-inline: calc((100% - var(--site-nav-width)) / 2);
@@ -109,7 +109,7 @@
 /* Map variant: the shell is overflow-hidden + full-bleed, so the bar floats
    across the top. Centred pill on desktop; full-width compact bar on phone
    so it matches the Search/Plan toolbar width and inset. */
-.siteNavBarFloating {
+:global(.siteNavBarFloating) {
   position: fixed;
   top: 12px;
   left: 50%;
@@ -615,7 +615,7 @@ button.siteNavMoreItem {
 }
 
 @media (min-width: 641px) and (max-width: 767px) {
-  .siteNavBar:not(.siteNavBarFloating) {
+  .siteNavBar:not(:global(.siteNavBarFloating)) {
     --site-nav-width: min(1100px, 100vw - 24px);
   }
 }
@@ -671,7 +671,7 @@ button.siteNavMoreItem {
      align-self:stretch is required because some shells (e.g. /feed) are flex
      columns with align-items:center — without it width:auto would shrink-wrap
      the bar there instead of filling; it is inert in a plain block host. */
-  .siteNavBar:not(.siteNavBarFloating) {
+  .siteNavBar:not(:global(.siteNavBarFloating)) {
     width: auto;
     align-self: stretch;
     margin-inline: calc(var(--topbar-side, 10px) - (100vw - 100%) / 2);
@@ -683,7 +683,7 @@ button.siteNavMoreItem {
 
   /* On the map the floating bar spans the same inset as .mapToolbar — a clean
      compact header twin, never a centred pill that could clip. */
-  .siteNavBarFloating {
+  :global(.siteNavBarFloating) {
     /* Shared frame tokens: same top offset + radius the standard and landing
        bars now use. Values are unchanged from before (env+10px / 14px); only
        the source is now the one shared token so all three stay locked together. */
@@ -719,7 +719,7 @@ button.siteNavMoreItem {
     overflow: hidden;
   }
 
-  .siteNavBrand .pubmaxxWordmark { line-height: 1; }
+  .siteNavBrand :global(.pubmaxxWordmark) { line-height: 1; }
 
   /* The actions cluster holds its shape — the brand is the only flexible part
      of the compact bar, so the controls never compress or wrap. */
@@ -757,17 +757,17 @@ button.siteNavMoreItem {
 }
 
 @media (max-width: 360px) {
-  .siteNavBarFloating {
+  :global(.siteNavBarFloating) {
     gap: 3px;
     padding-inline: 5px;
   }
 
-  .siteNavBarFloating .siteNavBrand {
+  :global(.siteNavBarFloating) .siteNavBrand {
     min-width: 90px;
     padding-inline: 5px;
   }
 
-  .siteNavBarFloating .siteNavActions {
+  :global(.siteNavBarFloating) .siteNavActions {
     gap: 2px;
   }
 }

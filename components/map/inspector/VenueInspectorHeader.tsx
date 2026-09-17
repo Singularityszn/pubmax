@@ -7,6 +7,7 @@ import type { TabKey } from "@/lib/venueInspectorTabs";
 import { venueKindLabel, venueKindNoun } from "@/lib/venueKindFilters";
 import VenueTonightChips from "@/components/map/VenueTonightChips";
 import VenueImage from "@/components/media/VenueImage";
+import venueImageStyles from "@/components/media/venueImage.module.css";
 
 type TabDef = { key: TabKey; label: string; shortLabel: string };
 
@@ -73,7 +74,7 @@ export default function VenueInspectorHeader({
           placeholder for photo-less venues. Additive/self-contained so it does
           not touch the tab strip or grab-zone layout N3 owns below. */}
       <VenueImage
-        className={`venueImage--header venueBaselinePhoto${revealBloom ? " venueRevealBloom" : ""}`}
+        className={`${venueImageStyles.venueImageHeader} venueBaselinePhoto${revealBloom ? " venueRevealBloom" : ""}`}
         sources={[
           { url: venue.imageUrl, provenance: "chain" },
           { url: communityPhotoUrl, provenance: "community" },

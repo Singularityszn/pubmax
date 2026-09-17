@@ -128,7 +128,7 @@
        must paint over the ask, never under it. */
     z-index: calc(var(--z-map-panel, 500) - 1);
     /* The same anchor the ambient banners take, so the one thing docked under
-       the toolbar is docked where they are (components/map/citySuggestBanner.css). */
+       the toolbar is docked where they are (components/map/citySuggestBanner.module.css). */
     position: absolute;
     top: calc(
       var(--map-top-clearance, 0px) +

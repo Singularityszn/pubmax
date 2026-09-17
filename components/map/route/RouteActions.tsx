@@ -8,6 +8,7 @@ import type { Venue } from "@/lib/venues";
 import RoundStarter from "@/components/round/RoundStarter";
 import btnStyles from '../addStopBtn.module.css';
 import routeStyles from './route.module.css';
+import rpStyles from '@/components/map/routePanel.module.css';
 
 type RouteActionsProps = {
   mode: CrawlMode;
@@ -120,7 +121,7 @@ export default function RouteActions({
       ) : null}
 
       {route.length >= 2 ? (
-        <div className="planRoundBridge" data-testid="plan-round-bridge">
+        <div className={rpStyles.planRoundBridge} data-testid="plan-round-bridge">
           <p className="roundStarterHelper">
             Invite friends to walk this plan as a Round.
           </p>
@@ -136,7 +137,7 @@ export default function RouteActions({
       {route.length >= 1 ? (
         <button
           type="button"
-          className={`${btnStyles.addStopBtn} calendarBtn`}
+          className={`${btnStyles.addStopBtn} ${rpStyles.calendarBtn}`}
           onClick={addToCalendar}
           data-testid="add-to-calendar"
         >

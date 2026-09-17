@@ -57,7 +57,7 @@ import {
   subscribeA2hsAppInstalled,
   subscribeA2hsInstallPrompt,
 } from "@/lib/a2hsInstallEvent";
-import "./a2hsInstallPrompt.css";
+import styles from "./a2hsInstallPrompt.module.css";
 
 const BUDGET_SURFACE = "a2hs";
 const EXIT_MS = 240;
@@ -258,7 +258,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
   const sheet = (
     <section
       ref={cardRef}
-      className={`a2hsSheet a2hsSheet--${surface}${closing ? " isClosing" : ""}`}
+      className={`${styles.a2hsSheet} ${surface === "android" ? styles.a2hsSheetAndroid : ""}${closing ? ` ${styles.isClosing}` : ""}`}
       role={surface === "ios" ? "dialog" : "region"}
       aria-modal={surface === "ios" ? "true" : undefined}
       aria-labelledby="a2hsTitle"
@@ -277,35 +277,35 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
     >
       <button
         type="button"
-        className="a2hsClose pressable"
+        className={`${styles.a2hsClose} pressable`}
         onClick={() => close(true)}
         aria-label="Not now"
       >
         <X size={18} aria-hidden="true" />
       </button>
 
-      <p className="a2hsEyebrow">Add to home screen</p>
-      <h2 id="a2hsTitle" className="a2hsTitle">
+      <p className={styles.a2hsEyebrow}>Add to home screen</p>
+      <h2 id="a2hsTitle" className={styles.a2hsTitle}>
         {surface === "android" ? "Install PUBMAXX" : "Put PUBMAXX on your home screen"}
       </h2>
 
       {surface === "android" ? (
         <>
-          <p id="a2hsBody" className="a2hsBody">
+          <p id="a2hsBody" className={styles.a2hsBody}>
             Listed pint prices, one tap away.
           </p>
           {installError ? (
-            <p className="a2hsError" role="status">
+            <p className={styles.a2hsError} role="status">
               {installError}
             </p>
           ) : null}
-          <div className="a2hsActions">
-            <button type="button" className="a2hsNever" onClick={onNeverAsk}>
+          <div className={styles.a2hsActions}>
+            <button type="button" className={styles.a2hsNever} onClick={onNeverAsk}>
               Don&apos;t ask again
             </button>
             <button
               type="button"
-              className="a2hsPrimary pressable"
+              className={`${styles.a2hsPrimary} pressable`}
               onClick={onAndroidInstall}
             >
               Install
@@ -314,29 +314,29 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
         </>
       ) : (
         <>
-          <p id="a2hsBody" className="a2hsBody">
+          <p id="a2hsBody" className={styles.a2hsBody}>
             One tap to tonight, and once it&apos;s installed, PUBMAXX can send you
             price-drop and last-orders alerts. Works in Safari.
           </p>
-          <ol className="a2hsSteps">
-            <li className="a2hsStep">
-              <span className="a2hsStepIcon" aria-hidden="true">
+          <ol className={styles.a2hsSteps}>
+            <li className={styles.a2hsStep}>
+              <span className={styles.a2hsStepIcon} aria-hidden="true">
                 <Share size={18} />
               </span>
               <span>
                 Tap <strong>Share</strong> in Safari&apos;s toolbar.
               </span>
             </li>
-            <li className="a2hsStep">
-              <span className="a2hsStepIcon" aria-hidden="true">
+            <li className={styles.a2hsStep}>
+              <span className={styles.a2hsStepIcon} aria-hidden="true">
                 <Plus size={18} />
               </span>
               <span>
                 Choose <strong>Add to Home Screen</strong>.
               </span>
             </li>
-            <li className="a2hsStep">
-              <span className="a2hsStepNum" aria-hidden="true">
+            <li className={styles.a2hsStep}>
+              <span className={styles.a2hsStepNum} aria-hidden="true">
                 3
               </span>
               <span>
@@ -344,12 +344,12 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
               </span>
             </li>
           </ol>
-          <div className="a2hsActions">
-            <button type="button" className="a2hsPrimary pressable" onClick={() => close(true)}>
+          <div className={styles.a2hsActions}>
+            <button type="button" className={`${styles.a2hsPrimary} pressable`} onClick={() => close(true)}>
               Got it
             </button>
           </div>
-          <button type="button" className="a2hsNever" onClick={onNeverAsk}>
+          <button type="button" className={styles.a2hsNever} onClick={onNeverAsk}>
             Don&apos;t ask again
           </button>
         </>
@@ -361,7 +361,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
 
   return (
     <div
-      className={`a2hsScrim${closing ? " isClosing" : ""}`}
+      className={`${styles.a2hsScrim}${closing ? ` ${styles.isClosing}` : ""}`}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) close(true);
       }}

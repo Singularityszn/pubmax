@@ -246,11 +246,11 @@ export default function PersonaLensPicker({
             />
           </div>
 
-          <div className="personaLensList" id={listId} role="listbox" aria-label="Personas">
+          <div className={styles.personaLensList} id={listId} role="listbox" aria-label="Personas">
             {active ? (
               <PersonaLensOption
                 id={optionId(0)}
-                className="personaLensOption personaLensOptionClear"
+                className={`${styles.personaLensOption} ${styles.personaLensOptionClear}`}
                 highlighted={safeActive === 0}
                 selected={false}
                 onHover={() => chooseActiveIndex(0)}
@@ -261,12 +261,12 @@ export default function PersonaLensPicker({
             ) : null}
 
             {sections.length === 0 ? (
-              <p className="personaLensEmpty">No personas match that search.</p>
+              <p className={styles.personaLensEmpty}>No personas match that search.</p>
             ) : null}
 
             {sections.map((section) => (
               <div key={section.kind} className="personaLensGroup">
-                <p className="personaLensGroupLabel">{section.label}</p>
+                <p className={styles.personaLensGroupLabel}>{section.label}</p>
                 {section.personas.map((persona) => {
                   const index = entryIndexByPersonaId.get(persona.id);
                   if (index === undefined) return null;
@@ -277,18 +277,18 @@ export default function PersonaLensPicker({
                       key={persona.id}
                       id={optionId(index)}
                       className={
-                        selected ? "personaLensOption isSelected" : "personaLensOption"
+                        selected ? `${styles.personaLensOption} ${styles.isSelected}` : styles.personaLensOption
                       }
                       highlighted={safeActive === index}
                       selected={selected}
                       onHover={() => chooseActiveIndex(index)}
                       onPick={() => choose(persona)}
                     >
-                      <span className="personaLensOptionName">{persona.name}</span>
-                      <span className="personaLensOptionMeta">
+                      <span className={styles.personaLensOptionName}>{persona.name}</span>
+                      <span className={styles.personaLensOptionMeta}>
                         {persona.drink}
                         {fits ? (
-                          <span className="personaLensFitsTag">
+                          <span className={styles.personaLensFitsTag}>
                             <Sparkles size={11} aria-hidden="true" />
                             fits tonight
                           </span>

@@ -13,12 +13,15 @@
   box-shadow: var(--shadow-sm, 0 7px 18px rgba(60, 30, 20, 0.09));
 }
 
-.routeEndingCard__header {
+.routeEndingCardHeader {
   display: grid;
   gap: 6px;
 }
 
-.routeEndingCard__eyebrow {
+/* Sub-element classes below are :global() because nightMode.module.css
+   overrides them via .nightCardEndingChoices descendant selectors. */
+
+:global(.routeEndingCardEyebrow) {
   margin: 0;
   color: var(--ink-soft, var(--muted));
   font-size: var(--text-2xs, 0.68rem);
@@ -27,7 +30,7 @@
   line-height: 1.2;
 }
 
-.routeEndingCard__title {
+:global(.routeEndingCardTitle) {
   margin: 0;
   font-family: var(--font-display, var(--serif));
   font-size: clamp(1.35rem, 2vw, 1.7rem);
@@ -35,7 +38,7 @@
   letter-spacing: var(--tracking-tight, -0.01em);
 }
 
-.routeEndingCard__description {
+:global(.routeEndingCardDescription) {
   max-width: 54ch;
   margin: 0;
   color: var(--ink-soft, var(--muted));
@@ -43,13 +46,13 @@
   line-height: var(--leading-snug, 1.35);
 }
 
-.routeEndingCard__choices {
+:global(.routeEndingCardChoices) {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-3, 12px);
 }
 
-.routeEndingCard__choice {
+:global(.routeEndingCardChoice) {
   display: grid;
   grid-template-rows: auto 1fr auto;
   align-items: start;
@@ -72,27 +75,27 @@
     transform var(--duration-press, 130ms) var(--ease-out, ease);
 }
 
-.routeEndingCard__choice:hover {
+:global(.routeEndingCardChoice):hover {
   border-color: color-mix(in srgb, var(--brass) 56%, var(--line));
   background: color-mix(in srgb, var(--brass) 5%, var(--panel));
 }
 
-.routeEndingCard__choice:focus-visible {
+:global(.routeEndingCardChoice):focus-visible {
   outline: 3px solid color-mix(in srgb, var(--brass) 60%, transparent);
   outline-offset: 3px;
 }
 
-.routeEndingCard__choice:active {
+:global(.routeEndingCardChoice):active {
   transform: translateY(1px) scale(var(--press-scale, 0.97));
   --shared-press-scale: 1;
 }
 
-.routeEndingCard__choice[data-recommended="true"] {
+:global(.routeEndingCardChoice)[data-recommended="true"] {
   border-color: var(--brass, #ff5a5f);
   background: color-mix(in srgb, var(--brass) 8%, var(--panel));
 }
 
-.routeEndingCard__choiceTop {
+:global(.routeEndingCardChoiceTop) {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -100,13 +103,13 @@
   width: 100%;
 }
 
-.routeEndingCard__choiceTitle {
+.routeEndingCardChoiceTitle {
   font-size: var(--text-base, 1rem);
   font-weight: 750;
   line-height: var(--leading-snug, 1.35);
 }
 
-.routeEndingCard__recommendation {
+.routeEndingCardRecommendation {
   flex: 0 0 auto;
   padding: 3px 7px;
   border-radius: var(--radius-pill, 999px);
@@ -119,13 +122,13 @@
   text-transform: uppercase;
 }
 
-.routeEndingCard__choiceDescription {
+:global(.routeEndingCardChoiceDescription) {
   color: var(--ink-soft, var(--muted));
   font-size: var(--text-xs, 0.76rem);
   line-height: var(--leading-snug, 1.35);
 }
 
-.routeEndingCard__action {
+:global(.routeEndingCardAction) {
   color: var(--brass, #ff5a5f);
   font-size: var(--text-xs, 0.76rem);
   font-weight: 750;
@@ -137,12 +140,12 @@
     gap: var(--space-4, 16px);
   }
 
-  .routeEndingCard__choices {
+  :global(.routeEndingCardChoices) {
     grid-template-columns: 1fr;
     gap: 10px;
   }
 
-  .routeEndingCard__choice {
+  :global(.routeEndingCardChoice) {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: auto auto;
     align-items: center;
@@ -150,15 +153,15 @@
     padding: 14px 16px;
   }
 
-  .routeEndingCard__choiceTop {
+  :global(.routeEndingCardChoiceTop) {
     grid-column: 1 / -1;
   }
 
-  .routeEndingCard__choiceDescription {
+  :global(.routeEndingCardChoiceDescription) {
     grid-column: 1;
   }
 
-  .routeEndingCard__action {
+  :global(.routeEndingCardAction) {
     grid-column: 2;
     grid-row: 2;
     align-self: end;
@@ -167,7 +170,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .routeEndingCard__choice {
+  :global(.routeEndingCardChoice) {
     transition: none;
   }
 }

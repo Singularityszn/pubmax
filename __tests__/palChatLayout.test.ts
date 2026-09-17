@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const palChatCss = readFileSync(
-  join(process.cwd(), "components/pal/palChat.css"),
+  join(process.cwd(), "components/pal/palChat.module.css"),
   "utf8",
 );
 const palChatSource = readFileSync(

@@ -1,6 +1,6 @@
 /* Geolocation city nudge — sits under the map toolbar; brass/ink tokens. */
 
-.citySuggestBanner {
+:global(.citySuggestBanner) {
   position: absolute;
   /* Clear the full closed toolbar block, including its always-visible
      experience lens. The old +60px assumed a single-row toolbar and left this
@@ -29,7 +29,7 @@
   transform: translateX(-50%);
 }
 
-.citySuggestBannerCopy {
+:global(.citySuggestBannerCopy) {
   margin: 0;
   min-width: 0;
   overflow-wrap: break-word;
@@ -39,7 +39,7 @@
   color: var(--ink);
 }
 
-.citySuggestBannerSwitch {
+:global(.citySuggestBannerSwitch) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -57,18 +57,18 @@
   font-family: inherit;
 }
 
-.citySuggestBannerSwitch:hover:not(:disabled) {
+:global(.citySuggestBannerSwitch):hover:not(:disabled) {
   border-color: var(--state-active-ink);
   background: color-mix(in srgb, var(--state-active-surface) 82%, var(--ink) 18%);
   color: var(--ink);
 }
 
-.citySuggestBannerSwitch:disabled {
+:global(.citySuggestBannerSwitch):disabled {
   opacity: 0.65;
   cursor: wait;
 }
 
-.citySuggestBannerDismiss {
+:global(.citySuggestBannerDismiss) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -82,13 +82,13 @@
   cursor: pointer;
 }
 
-.citySuggestBannerDismiss:hover {
+:global(.citySuggestBannerDismiss):hover {
   border-color: var(--brass);
   color: var(--brass);
 }
 
 @media (max-width: 640px) {
-  .citySuggestBanner {
+  :global(.citySuggestBanner) {
     /* F6: was a bare 52px, predating --map-top-clearance's safe-area-aware
        mobile formula (globals.css). On a zero-safe-area viewport the toolbar
        itself already starts at ~56px, so 52px sat the banner UNDER the
@@ -112,7 +112,7 @@
     transform: none;
   }
 
-  .citySuggestBannerCopy {
+  :global(.citySuggestBannerCopy) {
     display: block;
     flex: 1 1 auto;
   }

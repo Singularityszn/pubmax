@@ -34,6 +34,7 @@ import {
   laneCardsFromRows,
   laneKindFacets,
 } from "@/lib/whatsOnBadges";
+import styles from "./tonightLane.module.css";
 
 
 type TonightLaneProps = {
@@ -180,13 +181,13 @@ export default function TonightLane({
 function TonightErrorState({ inSheet }: { inSheet: boolean }) {
   return (
     <section
-      className={`tonightLane tonightLane--error${inSheet ? " tonightLane--sheet" : ""}`}
+      className={`${styles.tonightLane} ${styles.tonightLaneError}${inSheet ? ` ${styles.tonightLaneSheet}` : ""}`}
       aria-label="On tonight near you"
     >
-      <div className="tonightLaneTitleRow" role="status">
-        <div className="tonightLaneTitleMeta">
-          <h2 className="tonightLaneTitle">On tonight</h2>
-          <span className="tonightLaneChecked">
+      <div className={styles.tonightLaneTitleRow} role="status">
+        <div className={styles.tonightLaneTitleMeta}>
+          <h2 className={styles.tonightLaneTitle}>On tonight</h2>
+          <span className={styles.tonightLaneChecked}>
             Tonight&rsquo;s listings unavailable right now
           </span>
         </div>
@@ -198,10 +199,10 @@ function TonightErrorState({ inSheet }: { inSheet: boolean }) {
 function TonightLaneEmptySheet() {
   return (
     <section
-      className="tonightLane tonightLane--sheet tonightLane--open"
+      className={`${styles.tonightLane} ${styles.tonightLaneSheet} ${styles.tonightLaneOpen}`}
       aria-label="On tonight near you"
     >
-      <p className="tonightLaneEmpty" role="status">
+      <p className={styles.tonightLaneEmpty} role="status">
         Nothing listed on tonight near you right now.
       </p>
     </section>
@@ -229,28 +230,28 @@ function TonightLaneCollapsed({
 }) {
   return (
     <section
-      className="tonightLane tonightLane--collapsed"
+      className={`${styles.tonightLane} ${styles.stateCollapsed}`}
       aria-label="On tonight near you"
     >
-      <div className="tonightLaneCollapsed">
+      <div className={styles.tonightLaneCollapsed}>
         {rows.length > 0 ? (
           <button
             type="button"
-            className="tonightLaneCollapsedMain pressable"
+            className={`${styles.tonightLaneCollapsedMain} pressable`}
             data-testid="tonight-lane-chip"
             aria-expanded={false}
             onClick={onOpen}
           >
-            <span className="tonightLaneCollapsedTitle">
+            <span className={styles.tonightLaneCollapsedTitle}>
               On tonight <span aria-hidden="true">·</span> {rows.length}
             </span>
-            <span className="tonightLaneCollapsedChecked">{checkedLabel(asOf)}</span>
+            <span className={styles.tonightLaneCollapsedChecked}>{checkedLabel(asOf)}</span>
           </button>
         ) : (
-          <span className="tonightLaneCollapsedMain" role="status">
-            <span className="tonightLaneCollapsedTitle">Tonight nearby</span>
+          <span className={styles.tonightLaneCollapsedMain} role="status">
+            <span className={styles.tonightLaneCollapsedTitle}>Tonight nearby</span>
             {status === "error" ? (
-              <span className="tonightLaneCollapsedChecked">Listings unavailable</span>
+              <span className={styles.tonightLaneCollapsedChecked}>Listings unavailable</span>
             ) : null}
           </span>
         )}
@@ -302,21 +303,21 @@ function TonightLaneOpen({
 }) {
   return (
     <section
-      className={`tonightLane tonightLane--open${inSheet ? " tonightLane--sheet" : ""}`}
+      className={`${styles.tonightLane} ${styles.tonightLaneOpen}${inSheet ? ` ${styles.tonightLaneSheet}` : ""}`}
       aria-label="On tonight near you"
     >
-      <div className="tonightLaneHead">
-        <div className="tonightLaneTitleRow">
-          <div className="tonightLaneTitleMeta">
-            <h2 className="tonightLaneTitle">On tonight</h2>
-            <span className="tonightLaneChecked">{checkedLabel(asOf)}</span>
+      <div className={styles.tonightLaneHead}>
+        <div className={styles.tonightLaneTitleRow}>
+          <div className={styles.tonightLaneTitleMeta}>
+            <h2 className={styles.tonightLaneTitle}>On tonight</h2>
+            <span className={styles.tonightLaneChecked}>{checkedLabel(asOf)}</span>
             {gardenCue ? (
-              <span className="tonightLaneGardenCue" data-testid="tonight-lane-garden-cue">
+              <span className={styles.tonightLaneGardenCue} data-testid="tonight-lane-garden-cue">
                 {gardenCue}
               </span>
             ) : null}
           </div>
-          <div className="tonightLaneTitleActions">
+          <div className={styles.tonightLaneTitleActions}>
             {toggleOverlay ? (
               <>
                 <TonightOverlayToggle
@@ -337,7 +338,7 @@ function TonightLaneOpen({
             {!inSheet ? (
               <button
                 type="button"
-                className="tonightLaneClose pressable"
+                className={`${styles.tonightLaneClose} pressable`}
                 aria-label="Collapse on tonight"
                 onClick={onCollapse}
               >
@@ -348,13 +349,13 @@ function TonightLaneOpen({
         </div>
         {facets.length > 1 ? (
           <div
-            className="tonightLaneChips"
+            className={styles.tonightLaneChips}
             role="group"
             aria-label="Filter tonight by kind"
           >
             <button
               type="button"
-              className="tonightLaneChip"
+              className={styles.tonightLaneChip}
               data-active={activeKind === null}
               aria-pressed={activeKind === null}
               onClick={() => {
@@ -368,7 +369,7 @@ function TonightLaneOpen({
               <button
                 key={facet.kind}
                 type="button"
-                className="tonightLaneChip"
+                className={styles.tonightLaneChip}
                 data-active={activeKind === facet.kind}
                 data-kind={facet.kind}
                 aria-pressed={activeKind === facet.kind}
@@ -378,24 +379,24 @@ function TonightLaneOpen({
                 }}
               >
                 {facet.label}
-                <span className="tonightLaneChipCount">{facet.count}</span>
+                <span className={styles.tonightLaneChipCount}>{facet.count}</span>
               </button>
             ))}
           </div>
         ) : null}
       </div>
 
-      <ul className="tonightLaneScroll" data-testid="tonight-lane">
+      <ul className={styles.tonightLaneScroll} data-testid="tonight-lane">
         {cards.map((card) => {
           const when = card.timeLabel ?? card.badgeLabel;
           const KindIcon = card.kind === "sport" ? Tv : CalendarClock;
           const sourceRow = rowsById.get(card.id);
           return (
-            <li key={card.id} className="tonightLaneCard" data-kind={card.kind}>
+            <li key={card.id} className={styles.tonightLaneCard} data-kind={card.kind}>
               {card.venueId ? (
                 <button
                   type="button"
-                  className="tonightLaneCardTap pressable"
+                  className={`${styles.tonightLaneCardTap} pressable`}
                   onClick={() => {
                     trackEvent("lane_card_tap");
                     onSelectVenue(card.venueId as string);
@@ -404,13 +405,13 @@ function TonightLaneOpen({
                   <TonightLaneCardBody card={card} when={when} KindIcon={KindIcon} sourceRow={sourceRow} />
                 </button>
               ) : (
-                <div className="tonightLaneCardTap">
+                <div className={styles.tonightLaneCardTap}>
                   <TonightLaneCardBody card={card} when={when} KindIcon={KindIcon} sourceRow={sourceRow} />
                 </div>
               )}
               <Link
                 href="/plan?src=tonight-lane"
-                className="tonightLanePlan pressable"
+                className={`${styles.tonightLanePlan} pressable`}
                 onClick={() => trackEvent("lane_card_tap")}
               >
                 Plan a round
@@ -427,7 +428,7 @@ function TonightOverlayDismiss({ onDismiss }: { onDismiss: () => void }) {
   return (
     <button
       type="button"
-      className="tonightLaneOverlayDismiss pressable"
+      className={`${styles.tonightLaneOverlayDismiss} pressable`}
       aria-label="Dismiss tonight map pins"
       onClick={onDismiss}
     >
@@ -448,7 +449,7 @@ function TonightOverlayToggle({
   return (
     <button
       type="button"
-      className="tonightLaneOverlayToggle pressable"
+      className={`${styles.tonightLaneOverlayToggle} pressable`}
       data-testid="tonight-overlay-toggle"
       data-active={active}
       aria-label={active ? "Hide tonight on map" : "Show tonight on map"}
@@ -457,7 +458,7 @@ function TonightOverlayToggle({
     >
       <MoonStar size={15} aria-hidden="true" />
       <span>Pins</span>
-      <span className="tonightLaneOverlayCount" aria-hidden="true">
+      <span className={styles.tonightLaneOverlayCount} aria-hidden="true">
         {count}
       </span>
     </button>
@@ -482,33 +483,33 @@ function TonightLaneCardBody({
   const listingAge = dealRow ? dealListingAgeCaption(dealRow) : null;
   return (
     <>
-      <div className="tonightLaneCardMeta">
-        <span className="tonightLaneCardKind">
+      <div className={styles.tonightLaneCardMeta}>
+        <span className={styles.tonightLaneCardKind}>
           <KindIcon size={12} aria-hidden="true" />
           {card.kindLabel}
         </span>
         {typeof card.priceGbp === "number" ? (
-          <span className="tonightLaneCardPrice">£{card.priceGbp.toFixed(2)}</span>
+          <span className={styles.tonightLaneCardPrice}>£{card.priceGbp.toFixed(2)}</span>
         ) : null}
       </div>
-      <p className="tonightLaneCardTitle">{card.title}</p>
-      <p className="tonightLaneCardPlace">
+      <p className={styles.tonightLaneCardTitle}>{card.title}</p>
+      <p className={styles.tonightLaneCardPlace}>
         <MapPin size={12} aria-hidden="true" />
         <span>{card.placeName}</span>
         {card.walkLabel ? (
-          <span className="tonightLaneCardWalk">{card.walkLabel}</span>
+          <span className={styles.tonightLaneCardWalk}>{card.walkLabel}</span>
         ) : null}
       </p>
-      <p className="tonightLaneCardWhen">
+      <p className={styles.tonightLaneCardWhen}>
         <span>{when}</span>
         {endsCaption ? (
-          <span className="tonightLaneCardEnds">{endsCaption}</span>
+          <span className={styles.tonightLaneCardEnds}>{endsCaption}</span>
         ) : null}
         {sourceRow ? <WhatsOnUrgencyBadge row={sourceRow} /> : null}
       </p>
-      <p className="tonightLaneCardSource">via {card.sourceLabel}</p>
+      <p className={styles.tonightLaneCardSource}>via {card.sourceLabel}</p>
       {listingAge ? (
-        <p className="tonightLaneCardListingAge">{listingAge}</p>
+        <p className={styles.tonightLaneCardListingAge}>{listingAge}</p>
       ) : null}
     </>
   );

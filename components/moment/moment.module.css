@@ -54,7 +54,7 @@
   padding: clamp(48px, 8vw, 96px) 0 120px;
 }
 
-.momentPage .momentMain .screenHead {
+.momentPage .momentMain :global(.screenHead) {
   padding-top: 0;
 }
 
@@ -188,7 +188,7 @@
 .momentEditorTools span { min-width: 0; padding: 8px 4px; border-radius: 10px; }
 .momentEditorTools span[aria-current="step"] { background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised)); color: var(--ink); }
 .momentEditorCanvas { min-height: 0; overflow: auto; padding: 12px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
-.momentEditorCanvas .profileCropStep { width: min(100%, 480px); margin: 0 auto; }
+.momentEditorCanvas :global(.profileCropStep) { width: min(100%, 480px); margin: 0 auto; }
 .momentDecorator { width: min(100%, 520px); margin: 0 auto; display: grid; gap: 12px; }
 .momentDecoratorPreview { display: block; width: 100%; height: auto; max-height: min(48svh, 560px); border: 1px solid var(--line); border-radius: 14px; background: var(--panel); object-fit: contain; }
 .momentDecoratorPreviewDraw { touch-action: none; cursor: crosshair; }
@@ -225,9 +225,9 @@
 
 .momentAltText { margin-top: 18px; padding: 16px; border: 1px solid var(--line-soft); border-radius: 14px; background: color-mix(in srgb, var(--brass) 4%, var(--panel-raised)); display: grid; gap: 12px; }
 .momentAltText legend { padding: 0 6px; font: 700 14px/1.2 var(--font-body); color: var(--ink); }
-.momentAltText__hint { margin: 0; color: var(--ink-soft); font-size: 13px; line-height: 1.45; }
-.momentAltText__row { display: grid; gap: 6px; color: var(--ink-soft); font-size: 13px; font-weight: 700; }
-.momentAltText__row textarea {
+.momentAltTextHint { margin: 0; color: var(--ink-soft); font-size: 13px; line-height: 1.45; }
+.momentAltTextRow { display: grid; gap: 6px; color: var(--ink-soft); font-size: 13px; font-weight: 700; }
+.momentAltTextRow textarea {
   width: 100%;
   min-height: 44px;
   padding: 11px 13px;
@@ -238,8 +238,8 @@
   font: 500 16px/1.45 var(--font-body);
   resize: vertical;
 }
-.momentAltText__row textarea::placeholder { color: var(--muted); opacity: .86; }
-.momentAltText__row textarea:focus-visible { outline: 3px solid color-mix(in srgb, var(--brass) 55%, transparent); outline-offset: 2px; border-color: var(--brass); }
+.momentAltTextRow textarea::placeholder { color: var(--muted); opacity: .86; }
+.momentAltTextRow textarea:focus-visible { outline: 3px solid color-mix(in srgb, var(--brass) 55%, transparent); outline-offset: 2px; border-color: var(--brass); }
 
 .momentFields { margin-top: 22px; display: grid; gap: 16px; }
 .momentFields label { display: grid; gap: 7px; color: var(--ink-soft); font-size: 13px; font-weight: 700; }

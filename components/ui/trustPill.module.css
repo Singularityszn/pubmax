@@ -33,17 +33,18 @@
 
 /* A banded pill reads the band's own hue and ink off the class family in
    app/globals.css; the dot echoes the hue for a reader who cannot read the
-   tint. Unbanded (no figure) stays the neutral badge above. */
-.trustPill.priceBand-cheap,
-.trustPill.priceBand-average,
-.trustPill.priceBand-expensive {
+   tint. Unbanded (no figure) stays the neutral badge above.
+   The priceBand-* classes are global (defined in app/globals.css). */
+.trustPill:global(.priceBand-cheap),
+.trustPill:global(.priceBand-average),
+.trustPill:global(.priceBand-expensive) {
   background: var(--price-band-surface);
   color: var(--price-band-ink);
 }
 
-.trustPill.priceBand-cheap .trustPillDot,
-.trustPill.priceBand-average .trustPillDot,
-.trustPill.priceBand-expensive .trustPillDot {
+.trustPill:global(.priceBand-cheap) .trustPillDot,
+.trustPill:global(.priceBand-average) .trustPillDot,
+.trustPill:global(.priceBand-expensive) .trustPillDot {
   background: var(--price-band-hue);
 }
 

@@ -120,7 +120,7 @@ describe("area picker surface tokens", () => {
 describe("surface and type hierarchy", () => {
   it("gives the landing one primary through the Screen primitive and no second button family", () => {
     // The relaunch landing (issue #1354) paints its one primary through
-    // components/ui/screen.css. The old landing button family, the signal
+    // components/ui/screen.module.css. The old landing button family, the signal
     // grid and the glass nav are gone and must not creep back.
     expect(landingCss).not.toMatch(/\.lpButton(Primary|Quiet)?\s*{/);
     expect(landingCss).not.toMatch(/\.lpSignalGrid/);

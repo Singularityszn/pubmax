@@ -6,11 +6,11 @@ import {
   type LogNearbyOriginSource,
 } from "@/lib/mapLogIntent";
 import btnStyles from '../addStopBtn.module.css';
+import styles from "@/components/map/logIntentFallback.module.css";
 
 // Log-drop fallback panel: shown when a ?log= arrival can't auto-pick a venue.
 // Offers the nearby-pub list, a search action, and a "show all pubs" escape
 // when filters hide everything.
-// Global CSS (logIntentFallback / logIntent*) is already imported by PubMap.
 // Extracted verbatim from PubMap (F1); the logIntentFallbackVisible guard
 // stays in PubMap. Owns formatLogNearbyDistance.
 //
@@ -39,14 +39,14 @@ export function LogIntentFallback({
 }) {
   const listed = candidates.length > 0 && origin !== null;
   return (
-    <div className="logIntentFallback" role="status" aria-live="polite">
+    <div className={styles.logIntentFallback} role="status" aria-live="polite">
       <div>
-        <div className="logIntentHead">
+        <div className={styles.logIntentHead}>
           <strong>Pick a pub to log a Pint Drop</strong>
           {onDismiss ? (
             <button
               type="button"
-              className="logIntentClose"
+              className={styles.logIntentClose}
               onClick={onDismiss}
               aria-label="Close the pub picker"
             >
@@ -54,7 +54,7 @@ export function LogIntentFallback({
             </button>
           ) : null}
         </div>
-        <p className="description">
+        <p className={styles.description}>
           {!listed
             ? "We won’t guess which pub you’re in. Search for it, or tap it on the map. Then we’ll open the Pint Drop composer."
             : origin === "user"
@@ -66,7 +66,7 @@ export function LogIntentFallback({
         /* U6e — only claim "nearby" when we actually have a location fix;
            the map-centre order names the map instead. */
         <ul
-          className="logIntentNearbyList"
+          className={styles.logIntentNearbyList}
           aria-label={origin === "user" ? "Nearby pubs to log" : "Pubs near the map centre"}
         >
           {candidates.map((candidate) => {
@@ -79,14 +79,14 @@ export function LogIntentFallback({
               <li key={candidate.id}>
                 <button
                   type="button"
-                  className="logIntentNearbyBtn"
+                  className={styles.logIntentNearbyBtn}
                   onClick={() => onPickVenue(candidate.id)}
                   onPointerEnter={() => onPrefetchVenue(candidate.id)}
                   onTouchStart={() => onPrefetchVenue(candidate.id)}
                 >
                   <span>{candidate.name}</span>
-                  <span className="logIntentNearbyMeta">
-                    {dist ? <span className="logIntentNearbyDist">{dist}</span> : null}
+                  <span className={styles.logIntentNearbyMeta}>
+                    {dist ? <span className={styles.logIntentNearbyDist}>{dist}</span> : null}
                     <span>{candidate.priceLabel}</span>
                   </span>
                 </button>
@@ -95,7 +95,7 @@ export function LogIntentFallback({
           })}
         </ul>
       ) : null}
-      <div className="logIntentActions">
+      <div className={styles.logIntentActions}>
         <button type="button" className={btnStyles.addStopBtn} onClick={onFocusSearch}>
           Search pubs
         </button>

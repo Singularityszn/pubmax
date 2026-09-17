@@ -4,7 +4,7 @@ import { GlassWater, Map, Utensils } from "lucide-react";
 
 import type { MapExperienceLens as MapExperienceLensValue } from "@/lib/mapExperienceLens";
 
-import "./mapExperienceLens.css";
+import styles from "./mapExperienceLens.module.css";
 
 /**
  * The three map views, and the one place their names are written.
@@ -35,11 +35,11 @@ export default function MapExperienceLens({
 }) {
   return (
     <section className="mapExperienceLens" aria-labelledby="mapExperienceLensTitle">
-      <div className="mapExperienceLensHead">
+      <div className={styles.mapExperienceLensHead}>
         <span id="mapExperienceLensTitle">Show me</span>
         <small>Prices and places for your night</small>
       </div>
-      <div className="mapExperienceLensOptions" role="group" aria-label="Map view">
+      <div className={styles.mapExperienceLensOptions} role="group" aria-label="Map view">
         {OPTIONS.map(({ id, label, Icon }) => {
           const selected = lens === id && (id !== "all" || allSelected);
           return (
@@ -48,8 +48,8 @@ export default function MapExperienceLens({
               type="button"
               className={
                 selected
-                  ? "mapExperienceLensOption isSelected"
-                  : "mapExperienceLensOption"
+                  ? `${styles.mapExperienceLensOption} isSelected`
+                  : styles.mapExperienceLensOption
               }
               aria-pressed={selected}
               onClick={() => onChange(id)}
@@ -61,7 +61,7 @@ export default function MapExperienceLens({
         })}
       </div>
       {summary ? (
-        <p className="mapExperienceLensSummary" role="status" aria-live="polite">
+        <p className={styles.mapExperienceLensSummary} role="status" aria-live="polite">
           {summary}
         </p>
       ) : null}

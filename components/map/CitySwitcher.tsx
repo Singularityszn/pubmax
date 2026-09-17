@@ -18,7 +18,7 @@ import {
   UK_NATIONAL_MAP_HREF,
 } from "@/lib/ukNationalBrowse";
 
-import "./citySwitcher.css";
+import styles from "./citySwitcher.module.css";
 
 export type CitySwitcherProps = {
   cityId?: CityId;
@@ -70,15 +70,15 @@ function CitySwitcherList({
   return (
     <ul
       id={listId}
-      className="citySwitcherList"
+      className={styles.citySwitcherList}
       role="listbox"
       aria-label="Choose city map"
     >
       {onUseMyLocation ? (
-        <li role="option" aria-selected={false} className="citySwitcherLocation">
+        <li role="option" aria-selected={false} className={styles.citySwitcherLocation}>
           <button
             type="button"
-            className="citySwitcherLink citySwitcherLocationLink"
+            className={`${styles.citySwitcherLink} ${styles.citySwitcherLocationLink}`}
             disabled={locationBusy}
             onClick={() => {
               onClose?.();
@@ -91,10 +91,10 @@ function CitySwitcherList({
         </li>
       ) : null}
       {onOpenArea ? (
-        <li role="option" aria-selected={false} className="citySwitcherArea">
+        <li role="option" aria-selected={false} className={styles.citySwitcherArea}>
           <button
             type="button"
-            className="citySwitcherLink citySwitcherAreaLink"
+            className={`${styles.citySwitcherLink} ${styles.citySwitcherAreaLink}`}
             onClick={() => {
               onClose?.();
               onOpenArea();
@@ -110,7 +110,7 @@ function CitySwitcherList({
           <li key={city.id} role="option" aria-selected={selected}>
             <Link
               href={cityMapShareUrl(city.id)}
-              className={selected ? "citySwitcherLink isActive" : "citySwitcherLink"}
+              className={selected ? `${styles.citySwitcherLink} ${styles.isActive}` : styles.citySwitcherLink}
               onClick={() => {
                 writePreferredCity(city.id);
                 onClose?.();
@@ -122,17 +122,17 @@ function CitySwitcherList({
           </li>
         );
       })}
-      <li role="option" aria-selected={false} className="citySwitcherNational">
+      <li role="option" aria-selected={false} className={styles.citySwitcherNational}>
         <Link
           href={UK_NATIONAL_MAP_HREF}
-          className="citySwitcherLink citySwitcherNationalLink"
+          className={`${styles.citySwitcherLink} ${styles.citySwitcherNationalLink}`}
           onClick={() => onClose?.()}
         >
           {UK_NATIONAL_ENTRY_LABEL}
         </Link>
         <Link
           href={UK_TOWN_SEARCH_HREF}
-          className="citySwitcherLink citySwitcherNationalLink"
+          className={`${styles.citySwitcherLink} ${styles.citySwitcherNationalLink}`}
           onClick={() => onClose?.()}
         >
           Search a UK town
@@ -197,27 +197,27 @@ function CitySwitcherTrigger({
     <div
       ref={rootRef}
       className={`${className ?? ""} ${
-        open ? "citySwitcher isOpen" : "citySwitcher"
-      }${namedArea ? " citySwitcher--named" : ""}`.trim()}
+        open ? `${styles.citySwitcher} ${styles.isOpen}` : styles.citySwitcher
+      }${namedArea ? ` ${styles.citySwitcherNamed}` : ""}`.trim()}
     >
       <button
         type="button"
-        className="citySwitcherTrigger"
+        className={styles.citySwitcherTrigger}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
         aria-label={`Map area: ${namedArea ?? current.displayName}. Change city`}
         onClick={() => setOpen((value) => !value)}
       >
-        <span className="citySwitcherLabel citySwitcherLabelFull">
+        <span className={`${styles.citySwitcherLabel} ${styles.citySwitcherLabelFull}`}>
           {namedArea ?? current.displayName}
         </span>
         {namedArea ? null : (
-          <span className="citySwitcherLabel citySwitcherLabelShort" aria-hidden="true">
+          <span className={`${styles.citySwitcherLabel} ${styles.citySwitcherLabelShort}`} aria-hidden="true">
             {cityShortLabel(current.displayName)}
           </span>
         )}
-        <span className="citySwitcherCaret" aria-hidden="true" />
+        <span className={styles.citySwitcherCaret} aria-hidden="true" />
       </button>
       {open ? (
         <CitySwitcherList
@@ -251,7 +251,7 @@ export default function CitySwitcher(props: CitySwitcherProps) {
 
   if (variant === "list") {
     return (
-      <div className="citySwitcher citySwitcher--list">
+      <div className={`${styles.citySwitcher} ${styles.citySwitcherListMode}`}>
         <CitySwitcherList
           cityId={cityId}
           listId="citySwitcherList"

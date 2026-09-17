@@ -15,7 +15,7 @@ import {
   type ZonePintIndex,
 } from "@/lib/zones";
 
-import "./zonePintIndex.css";
+import styles from "./zonePintIndex.module.css";
 import { priceBand, priceBandClass } from "@/lib/priceBand";
 
 type ZonePintIndexStripProps = {
@@ -47,11 +47,11 @@ export default function ZonePintIndexStrip({
 }: ZonePintIndexStripProps) {
   const hasAny = index.ranked.length > 0;
   const orderSurprise = zoneOrderSurpriseLine(index);
-  const className = compact ? "zonePintIndex isCompact" : "zonePintIndex";
+  const className = compact ? `${styles.zonePintIndex} ${styles.isCompact}` : styles.zonePintIndex;
 
   return (
     <div className={className}>
-      <ol className="zonePintIndexRow" aria-label="Median pint price by fare zone">
+      <ol className={styles.zonePintIndexRow} aria-label="Median pint price by fare zone">
         {index.rows.map((row) => {
           const priced = row.enough && row.medianGbp !== null;
           const isActive = activeZone === row.zone;
@@ -63,11 +63,11 @@ export default function ZonePintIndexStrip({
             ? `${label}: median ${formatZoneGbp(row.medianGbp)} from ${row.pricedCount} priced pubs`
             : `${label}: only ${row.pricedCount} priced pubs. Not enough pints logged yet`;
           const cellClass = [
-            "zonePintCell",
-            priced ? "isPriced" : "isThin",
+            styles.zonePintCell,
+            priced ? styles.isPriced : styles.isThin,
             // A zone's median is a pint figure, so the cell wears its band.
             priced ? priceBandClass(priceBand(row.medianGbp, { city: "london" })) : "",
-            isActive ? "isActive" : "",
+            isActive ? styles.isActive : "",
           ]
             .filter(Boolean)
             .join(" ");
@@ -82,9 +82,9 @@ export default function ZonePintIndexStrip({
                   title={title}
                   onClick={() => onPickZone(row.zone)}
                 >
-                  <span className="zonePintCellZone">{label}</span>
-                  <span className="zonePintCellValue">{value}</span>
-                  {!priced ? <span className="zonePintCellHint">log more</span> : null}
+                  <span className={styles.zonePintCellZone}>{label}</span>
+                  <span className={styles.zonePintCellValue}>{value}</span>
+                  {!priced ? <span className={styles.zonePintCellHint}>log more</span> : null}
                 </button>
               </li>
             );
@@ -92,15 +92,15 @@ export default function ZonePintIndexStrip({
 
           return (
             <li key={row.zone} className={cellClass} title={title}>
-              <span className="zonePintCellZone">{label}</span>
-              <span className="zonePintCellValue">{value}</span>
-              {!priced ? <span className="zonePintCellHint">log more</span> : null}
+              <span className={styles.zonePintCellZone}>{label}</span>
+              <span className={styles.zonePintCellValue}>{value}</span>
+              {!priced ? <span className={styles.zonePintCellHint}>log more</span> : null}
             </li>
           );
         })}
       </ol>
 
-      <p className="zonePintIndexTax">
+      <p className={styles.zonePintIndexTax}>
         {hasAny ? (
           taxLine(index)
         ) : (
@@ -112,10 +112,10 @@ export default function ZonePintIndexStrip({
           it. lib/zones.ts decides whether there is one, and stays silent when
           there is not. */}
       {orderSurprise ? (
-        <p className="zonePintIndexOrderNote">{orderSurprise}</p>
+        <p className={styles.zonePintIndexOrderNote}>{orderSurprise}</p>
       ) : null}
 
-      <p className="zonePintIndexMethod">
+      <p className={styles.zonePintIndexMethod}>
         Each zone figure is the median of the cheapest recorded pint price for
         pubs assigned to that zone. Assignment uses each pub&rsquo;s nearest
         station&rsquo;s TfL fare zone. A figure appears after{" "}

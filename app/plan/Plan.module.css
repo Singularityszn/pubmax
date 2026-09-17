@@ -719,7 +719,7 @@
 /* The floating create action owns a lane at the right edge, and Continue sits
    in it: MEASURED at 390px, the button spanned x 199-368 while the control
    held x 322-378, so its right 46px was not tappable. The row reserves that
-   lane the way a scrolling answer list does (components/nearme/nearMeNow.css),
+   lane the way a scrolling answer list does (components/nearme/nearMeNow.module.css),
    reading the control's OWN published berth rather than a second copy of it. */
 @media (max-width: 640px) {
   :global(body:has(.createFabRoot):not(:has(.pageHidesCreateFab))) .planIntake > footer {

@@ -33,7 +33,6 @@ import CrawlProgressSection from "@/components/map/route/CrawlProgressSection";
 import VenuePicker from "@/components/map/route/VenuePicker";
 import { useRoutePois } from "@/components/map/route/useRoutePois";
 import { useCrawlProgress } from "@/components/map/route/useCrawlProgress";
-import "@/components/map/routePanel.module.css";
 
 type VenueSignals = Map<
   string,

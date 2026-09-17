@@ -1,4 +1,4 @@
-.ukPlaceArrival {
+:global(.ukPlaceArrival) {
   position: absolute;
   z-index: var(--z-map-toolbar);
   top: calc(var(--map-top-clearance, 0px) + 62px);
@@ -19,12 +19,12 @@
   transform: translateX(-50%);
 }
 
-.ukPlaceArrivalIcon {
+:global(.ukPlaceArrivalIcon) {
   margin-top: 4px;
   color: var(--brass);
 }
 
-.ukPlaceArrivalCopy {
+:global(.ukPlaceArrivalCopy) {
   display: grid;
   gap: 3px;
   min-width: 0;
@@ -32,17 +32,17 @@
   line-height: 1.4;
 }
 
-.ukPlaceArrivalCopy strong {
+:global(.ukPlaceArrivalCopy) strong {
   color: var(--ink);
   font-family: var(--font-display, var(--serif));
   font-size: 0.94rem;
 }
 
-.ukPlaceArrivalCopy span {
+:global(.ukPlaceArrivalCopy) span {
   color: var(--ink-soft);
 }
 
-.ukPlaceArrivalDismiss {
+:global(.ukPlaceArrivalDismiss) {
   display: grid;
   place-items: center;
   min-width: 44px;
@@ -56,19 +56,19 @@
   touch-action: manipulation;
 }
 
-.ukPlaceArrivalDismiss:hover,
-.ukPlaceArrivalDismiss:focus-visible {
+:global(.ukPlaceArrivalDismiss):hover,
+:global(.ukPlaceArrivalDismiss):focus-visible {
   background: color-mix(in srgb, var(--brass) 14%, transparent);
   color: var(--ink);
 }
 
-.ukPlaceArrivalDismiss:focus-visible {
+:global(.ukPlaceArrivalDismiss):focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 1px;
 }
 
 @media (max-width: 640px) {
-  .ukPlaceArrival {
+  :global(.ukPlaceArrival) {
     position: fixed;
     top: calc(var(--mobile-map-top) + var(--mobile-map-bar-h) + 172px);
     right: var(--mobile-map-corner-lane, 68px);

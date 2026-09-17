@@ -58,6 +58,6 @@
   color: var(--ink);
 }
 
-.pemSlot .venuePriceSubmit {
+.pemSlot :global(.venuePriceSubmit) {
   margin-top: var(--space-1);
 }

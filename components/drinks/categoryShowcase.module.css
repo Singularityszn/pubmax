@@ -3,6 +3,7 @@
    utility) lives in the appended section of app/globals.css. */
 
 .catShowcase {
+  composes: catShowcase from global;
   border: 1px solid var(--color-border, var(--line));
   border-radius: var(--radius);
   background: var(--panel);
@@ -20,6 +21,7 @@
 }
 
 .catShowcase__grid {
+  composes: catShowcase__grid from global;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -29,6 +31,7 @@
 }
 
 .catShowcase__item {
+  composes: catShowcase__item from global;
   display: flex;
   align-items: center;
   gap: var(--space-3, 12px);
@@ -41,6 +44,7 @@
 /* The swatch: a soft tinted disc carrying the category colour, with the glyph
    drawn in the same hue (currentcolor). `color` is set inline per category. */
 .catShowcase__swatch {
+  composes: catShowcase__swatch from global;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -54,6 +58,7 @@
 }
 
 .catShowcase__labelWrap {
+  composes: catShowcase__labelWrap from global;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -61,6 +66,7 @@
 }
 
 .catShowcase__label {
+  composes: catShowcase__label from global;
   font-family: var(--font-body);
   font-size: var(--text-sm);
   font-weight: 600;
@@ -119,6 +125,7 @@
 }
 
 .catShowcase__link {
+  composes: catShowcase__link from global;
   display: flex;
   align-items: center;
   gap: var(--space-3, 12px);
@@ -166,12 +173,14 @@
 }
 
 .catShowcase__hint {
+  composes: catShowcase__hint from global;
   font-size: var(--text-xs, 0.72rem);
   font-weight: 600;
   color: var(--ink-soft);
 }
 
 .discoverLowNoBadge {
+  composes: discoverLowNoBadge from global;
   font-family: var(--font-data, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: 0.8rem;
   font-weight: 900;

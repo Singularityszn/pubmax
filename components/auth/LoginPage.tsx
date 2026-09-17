@@ -38,7 +38,7 @@ import { loginPageHeadCopy, loginPageShowsSkeleton } from "@/lib/loginPageFramin
 import { authAvatarInitials } from "@/lib/authAvatarInitials";
 
 import authStyles from "@/app/auth/Auth.module.css";
-import "./loginPage.css";
+import styles from "./loginPage.module.css";
 
 /**
  * The two doors. They share the link machinery and differ in the three things a
@@ -135,30 +135,30 @@ function SignedInCard({
 }): React.JSX.Element {
   const avatar = avatarUrl(user);
   return (
-    <section className="loginPageSignedIn" aria-label="Signed-in account">
-      <div className="loginPageIdentity">
+    <section className={styles.loginPageSignedIn} aria-label="Signed-in account">
+      <div className={styles.loginPageIdentity}>
         {avatar ? (
           // eslint-disable-next-line @next/next/no-img-element -- remote IdP avatar
           <img
-            className={`${authStyles.authAvatar} loginPageAvatar`}
+            className={`${authStyles.authAvatar} ${styles.loginPageAvatar}`}
             src={avatar}
             alt=""
             width={48}
             height={48}
           />
         ) : (
-          <span className={`${authStyles.authAvatarFallback} loginPageAvatar`} aria-hidden="true">
+          <span className={`${authStyles.authAvatarFallback} ${styles.loginPageAvatar}`} aria-hidden="true">
             {authAvatarInitials(displayName(user))}
           </span>
         )}
-        <div className="loginPageIdentityText">
-          <p className="loginPageWho">{displayName(user)}</p>
-          {user.email ? <p className="loginPageEmail">{user.email}</p> : null}
+        <div className={styles.loginPageIdentityText}>
+          <p className={styles.loginPageWho}>{displayName(user)}</p>
+          {user.email ? <p className={styles.loginPageEmail}>{user.email}</p> : null}
         </div>
       </div>
       {/* The map and the profile are the head's primary and secondary; the
           card keeps the device controls the nav card would carry. */}
-      <div className="loginPageActions">
+      <div className={styles.loginPageActions}>
         <AccountDeviceControls
           handle={handle}
           activeUserId={activeUserId}
@@ -167,7 +167,7 @@ function SignedInCard({
           addAccountHref={addAccountHref}
           onSignOut={onSignOut}
           signOutDisabled={busy}
-          signOutClassName={`${authStyles.authSignOut} loginPageSignOut`}
+          signOutClassName={`${authStyles.authSignOut} ${styles.loginPageSignOut}`}
         />
       </div>
     </section>
@@ -189,8 +189,8 @@ function WelcomeBackCard({
   message: string;
 }): React.JSX.Element {
   return (
-    <section className="loginPageWelcomeBack" aria-label="Continue signed in">
-      <p className="loginPageWelcomeBackLead">
+    <section className={styles.loginPageWelcomeBack} aria-label="Continue signed in">
+      <p className={styles.loginPageWelcomeBackLead}>
         Your session on this device ended.
         {maskedEmail
           ? ` Continue as ${maskedEmail}.`
@@ -199,7 +199,7 @@ function WelcomeBackCard({
       {message ? (
         <p
           className={
-            status === "sent" ? authStyles.authMagicLinkSuccess : `${authStyles.authError} loginPageError`
+            status === "sent" ? authStyles.authMagicLinkSuccess : `${authStyles.authError} ${styles.loginPageError}`
           }
           role={status === "sent" ? "status" : "alert"}
           aria-live="polite"
@@ -234,17 +234,17 @@ function SignInSkeleton(): React.JSX.Element {
 
   return (
     <>
-      <p ref={announcement} className="loginPageSrOnly" role="status" />
-      <div className="loginPageSkeleton" aria-busy="true">
-        <div className="loginPageSkeletonDoors" aria-hidden="true">
-          <span className="loginPageSkeletonPill" />
-          <span className="loginPageSkeletonPill" />
+      <p ref={announcement} className={styles.loginPageSrOnly} role="status" />
+      <div className={styles.loginPageSkeleton} aria-busy="true">
+        <div className={styles.loginPageSkeletonDoors} aria-hidden="true">
+          <span className={styles.loginPageSkeletonPill} />
+          <span className={styles.loginPageSkeletonPill} />
         </div>
-        <div className="loginPageSkeletonOptions" aria-hidden="true">
-          <span className="loginPageSkeletonBar" />
-          <span className="loginPageSkeletonBar" />
-          <span className="loginPageSkeletonField" />
-          <span className="loginPageSkeletonButton" />
+        <div className={styles.loginPageSkeletonOptions} aria-hidden="true">
+          <span className={styles.loginPageSkeletonBar} />
+          <span className={styles.loginPageSkeletonBar} />
+          <span className={styles.loginPageSkeletonField} />
+          <span className={styles.loginPageSkeletonButton} />
         </div>
       </div>
     </>
@@ -274,7 +274,7 @@ export function PageHead({
     return (
       <Screen
         as="div"
-        className="loginPageHead"
+        className={styles.loginPageHead}
         kicker={BRAND_NAME}
         title={title}
         titleId="login-title"
@@ -285,10 +285,10 @@ export function PageHead({
     );
   }
   return (
-    <header className="loginPageHead">
+    <header className={styles.loginPageHead}>
       <Kicker>{BRAND_NAME}</Kicker>
-      <h1 className="loginPageTitle">{title}</h1>
-      <p className="loginPageLead">{lead}</p>
+      <h1 className={styles.loginPageTitle}>{title}</h1>
+      <p className={styles.loginPageLead}>{lead}</p>
     </header>
   );
 }
@@ -303,7 +303,7 @@ function DoorSwitch({
 }): React.JSX.Element {
   return (
     <div
-      className="loginPageDoors"
+      className={styles.loginPageDoors}
       role="tablist"
       aria-label="Sign in or create an account"
     >
@@ -312,7 +312,7 @@ function DoorSwitch({
           key={option}
           type="button"
           role="tab"
-          className="loginPageDoor"
+          className={styles.loginPageDoor}
           aria-selected={intent === option}
           data-selected={intent === option ? "" : undefined}
           onClick={() => onChoose(option)}
@@ -553,8 +553,8 @@ export default function LoginPage({
   ) : undefined;
 
   return (
-    <main className="loginPage">
-      <div className="loginPageInner">
+    <main className={styles.loginPage}>
+      <div className={styles.loginPageInner}>
         <PageHead
           title={head.title}
           lead={head.lead}
@@ -563,7 +563,7 @@ export default function LoginPage({
         />
 
         {!hasAuthSurface && !loading ? (
-          <p className="loginPageNotice" role="status">
+          <p className={styles.loginPageNotice} role="status">
             Sign-in is not configured on this build. You can still browse the
             map.
           </p>
@@ -595,7 +595,7 @@ export default function LoginPage({
         ) : null}
 
         {showForm ? (
-          <section ref={formRegion} className="loginPageForm" aria-label="Sign-in options">
+          <section ref={formRegion} className={styles.loginPageForm} aria-label="Sign-in options">
             <DoorSwitch intent={intent} onChoose={chooseDoor} />
             <div className={authStyles.authOptions}>
               {configured || clerkSessionAvailable ? (
@@ -631,19 +631,19 @@ export default function LoginPage({
               ) : null}
             </div>
             {error ? (
-              <p className={`${authStyles.authError} loginPageError`} role="alert">
+              <p className={`${authStyles.authError} ${styles.loginPageError}`} role="alert">
                 {error}
               </p>
             ) : null}
           </section>
         ) : null}
 
-        <footer className="loginPageFoot">
-          <Link href="/map" className="loginPageQuietLink">
+        <footer className={styles.loginPageFoot}>
+          <Link href="/map" className={styles.loginPageQuietLink}>
             <LogIn size={14} aria-hidden="true" />
             Browse without signing in
           </Link>
-          <p className="loginPageLegal">
+          <p className={styles.loginPageLegal}>
             {door.legalLead}{" "}
             <Link href="/terms">terms</Link> and{" "}
             <Link href="/privacy">privacy notice</Link>.

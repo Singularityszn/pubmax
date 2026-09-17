@@ -35,7 +35,7 @@ import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
 
 const IDENTITY_SURFACE = "identity-nudge";
 import authStyles from "@/app/auth/Auth.module.css";
-import "./identityNudge.css";
+import styles from "./identityNudge.module.css";
 
 // Honest, trigger-specific value copy — no dark patterns, no fake urgency.
 const COPY: Record<IdentityNudgeTrigger, { title: string; body: string }> = {
@@ -149,10 +149,10 @@ export default function IdentityNudge(): React.JSX.Element | null {
   }
 
   return (
-    <div className={`${authStyles.claimNightBackdrop} identityNudgeBackdrop`} role="presentation">
+    <div className={`${authStyles.claimNightBackdrop} ${styles.identityNudgeBackdrop}`} role="presentation">
       <div
         ref={dialogRef}
-        className={`${authStyles.claimNightDialog} identityNudgeDialog`}
+        className={`${authStyles.claimNightDialog} ${styles.identityNudgeDialog}`}
         role="dialog"
         tabIndex={-1}
         aria-modal="true"
@@ -171,7 +171,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
           disabled={authBusy}
           onGoogle={() => startSignIn(signInWithGoogle)}
           onApple={() => startSignIn(signInWithApple)}
-          className="identityNudgeProviders"
+          className={styles.identityNudgeProviders}
         />
         {authError ? <p className={authStyles.authError} role="alert">{authError}</p> : null}
         {configured ? (
@@ -183,7 +183,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
           />
         ) : null}
 
-        <div className={`${authStyles.claimNightActions} identityNudgeActions`}>
+        <div className={`${authStyles.claimNightActions} ${styles.identityNudgeActions}`}>
           <button type="button" className={authStyles.claimNightSkip} onClick={dismissAuthNudge}>
             Not now
           </button>

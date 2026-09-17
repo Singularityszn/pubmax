@@ -16,17 +16,17 @@
      700ms  - both animations finish (fill: forwards); the overlay is fully
               transparent and inert (pointer-events: none throughout). */
 
-:root {
+:global(:root) {
   --duration-splash-ceiling: 700ms; /* mirrors motionDuration.splashCeiling in lib/motionVocabulary.ts */
   --duration-splash-hold: 180ms; /* mirrors motionDuration.splashHold in lib/motionVocabulary.ts */
   --ease-splash-aperture: cubic-bezier(0.16, 1, 0.3, 1); /* mirrors motionEase.splashAperture in lib/motionVocabulary.ts */
 }
 
-#pubmax-splash {
+:global(#pubmax-splash) {
   display: none;
 }
 
-html[data-splash="on"] #pubmax-splash {
+:global(html[data-splash="on"]) :global(#pubmax-splash) {
   display: block;
   position: fixed;
   inset: 0;
@@ -37,7 +37,7 @@ html[data-splash="on"] #pubmax-splash {
   animation: pubmaxSplashBackdrop var(--duration-splash-ceiling) var(--ease-splash-aperture) forwards;
 }
 
-html[data-splash="on"] .pubmaxSplashMark {
+:global(html[data-splash="on"]) .pubmaxSplashMark {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -50,7 +50,7 @@ html[data-splash="on"] .pubmaxSplashMark {
     var(--ease-splash-aperture) var(--duration-splash-hold) forwards;
 }
 
-@keyframes pubmaxSplashBackdrop {
+@keyframes :global(pubmaxSplashBackdrop) {
   0% {
     opacity: 1;
   }
@@ -63,7 +63,7 @@ html[data-splash="on"] .pubmaxSplashMark {
   }
 }
 
-@keyframes pubmaxSplashAperture {
+@keyframes :global(pubmaxSplashAperture) {
   0% {
     transform: translate(-50%, -50%) scale(1);
     opacity: 1;
@@ -78,7 +78,7 @@ html[data-splash="on"] .pubmaxSplashMark {
    reduced motion, so this never fires in practice - kept in sync with the
    same house pattern as the retired hero cinema gate. */
 @media (prefers-reduced-motion: reduce) {
-  html[data-splash="on"] #pubmax-splash {
+  :global(html[data-splash="on"]) :global(#pubmax-splash) {
     display: none;
   }
 }

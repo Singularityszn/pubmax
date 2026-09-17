@@ -12,8 +12,8 @@
   pointer-events: auto;
 }
 
-.appShell.detail-open .tonightLane,
-.appShell.planning-open .tonightLane {
+:global(.appShell.detail-open) .tonightLane,
+:global(.appShell.planning-open) .tonightLane {
   display: none;
 }
 
@@ -76,7 +76,7 @@
   white-space: normal;
 }
 
-.tonightLane--open {
+.tonightLaneOpen {
   top: auto;
   right: auto;
   bottom: calc(var(--mobile-tab-clearance, 58px) + 26px);
@@ -108,8 +108,8 @@
 /* In-sheet variant: the bottom sheet owns positioning, chrome and scroll, so
    strip the map-edge float (absolute position, translateX, viewport-width math,
    panel background/border/shadow) and let the lane fill the sheet body in
-   normal flow. Placed after .tonightLane--open so it wins at equal specificity. */
-.tonightLane--sheet {
+   normal flow. Placed after .tonightLaneOpen so it wins at equal specificity. */
+.tonightLaneSheet {
   position: static;
   inset: auto;
   width: 100%;
@@ -129,17 +129,17 @@
 }
 
 /* Stack full-width cards vertically; the sheet body handles the scroll. */
-.tonightLane--sheet .tonightLaneScroll {
+.tonightLaneSheet .tonightLaneScroll {
   flex-direction: column;
   overflow: visible;
   scroll-snap-type: none;
 }
 
-.tonightLane--sheet .tonightLaneCard {
+.tonightLaneSheet .tonightLaneCard {
   width: 100%;
 }
 
-.tonightLane--sheet .tonightLaneCardPlace span {
+.tonightLaneSheet .tonightLaneCardPlace span {
   max-width: none;
 }
 
@@ -151,7 +151,7 @@
   font-weight: 600;
 }
 
-.tonightLane--error {
+.tonightLaneError {
   max-width: calc(100vw - 24px);
   padding: 8px 12px;
   border: 1px solid color-mix(in srgb, var(--brass) 35%, var(--line));
@@ -558,18 +558,18 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .tonightLane--collapsed {
+  .stateCollapsed {
     animation: tonightLaneChipIn 140ms ease-out both;
   }
 
-  .tonightLane--open {
+  .tonightLaneOpen {
     animation: tonightLaneSheetIn 180ms ease-out both;
   }
 
   /* The sheet float-in keyframe ends at translate(-50%, 0); with `both` its fill
      would reinstate the map-edge -50% offset inside the sheet. In-sheet the lane
      is static and needs no entrance of its own (the sheet animates in). */
-  .tonightLane--sheet {
+  .tonightLaneSheet {
     animation: none;
     transform: none;
   }

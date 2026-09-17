@@ -360,7 +360,7 @@ describe("login page", () => {
     expect(ratio(onPhoto!, brassAccessible!)).toBeGreaterThanOrEqual(4.5);
 
     // The /login head's own primary is painted by the Screen primitive
-    // (components/ui/screen.css), so the coral hover mix under test is the
+    // (components/ui/screen.module.css), so the coral hover mix under test is the
     // shared email button's alone.
     const hoverRule =
       /color-mix\(in srgb, var\(--brass-accessible\) (\d+)%, var\(--([a-z-]+)\) (\d+)%\)/;

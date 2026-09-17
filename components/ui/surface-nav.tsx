@@ -2,7 +2,7 @@
 
 import { ChevronLeft, X } from "lucide-react";
 
-import "./surfaceNav.css";
+import styles from "./surfaceNav.module.css";
 
 /**
  * The one way out of any surface in this product.
@@ -60,7 +60,7 @@ export default function SurfaceNav({
       {backLabel && onBack ? (
         <button
           type="button"
-          className={`surfaceNavBack${className ? ` ${className}` : ""}`}
+          className={`${styles.surfaceNavBack}${className ? ` ${className}` : ""}`}
           aria-label={backLabel}
           onClick={onBack}
           onPointerDown={(event) => event.stopPropagation()}
@@ -71,7 +71,7 @@ export default function SurfaceNav({
       <button
         ref={closeRef}
         type="button"
-        className={`surfaceNavHome${className ? ` ${className}` : ""}`}
+        className={`${styles.surfaceNavHome}${className ? ` ${className}` : ""}`}
         aria-label={homeLabel}
         onClick={onHome}
         onPointerDown={(event) => event.stopPropagation()}

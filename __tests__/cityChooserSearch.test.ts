@@ -161,7 +161,7 @@ describe("city chooser search model", () => {
 
 describe("city chooser search mobile contract", () => {
   const css = readFileSync(
-    join(process.cwd(), "components/city/cityChooser.css"),
+    join(process.cwd(), "components/city/cityChooser.module.css"),
     "utf8",
   );
 

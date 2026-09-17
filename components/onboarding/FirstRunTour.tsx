@@ -35,7 +35,7 @@ import {
 import { readMobileMapSession } from "@/lib/mobileShell";
 import { trackEvent } from "@/lib/analytics";
 import { subscribePromptBudget } from "@/lib/promptBudget";
-import "./firstRunTour.css";
+import styles from "./firstRunTour.module.css";
 
 /** Fallback finalize delay so we unmount even if animationend never fires. */
 const EXIT_MS = 260;
@@ -176,7 +176,7 @@ export default function FirstRunTour(): React.JSX.Element | null {
 
   return (
     <div
-      className={`tourScrim${closing ? " isClosing" : ""}`}
+      className={`${styles.tourScrim}${closing ? ` ${styles.isClosing}` : ""}`}
       // Backdrop click (only on the scrim itself, not the card) dismisses.
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) dismiss(false);
@@ -185,7 +185,7 @@ export default function FirstRunTour(): React.JSX.Element | null {
     >
       <div
         ref={cardRef}
-        className="tourCard"
+        className={styles.tourCard}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -194,7 +194,7 @@ export default function FirstRunTour(): React.JSX.Element | null {
       >
         <button
           type="button"
-          className="tourClose pressable"
+          className={`${styles.tourClose} pressable`}
           onClick={() => dismiss(false)}
           aria-label="Skip the tour"
         >
@@ -208,18 +208,18 @@ export default function FirstRunTour(): React.JSX.Element | null {
           </svg>
         </button>
 
-        <div className="tourStep">
-          <p className="tourEyebrow">The map</p>
-          <h2 id={titleId} className="tourTitle">
+        <div className={styles.tourStep}>
+          <p className={styles.tourEyebrow}>The map</p>
+          <h2 id={titleId} className={styles.tourTitle}>
             {ORIENTATION_LEGEND_TITLE}
           </h2>
-          <p id={bodyId} className="tourBody">
+          <p id={bodyId} className={styles.tourBody}>
             Pin colour is the listed pint band. Grey means nobody has logged a
             price the map can trust yet.
           </p>
-          <ul className="tourLegend" aria-label="Pint price colours">
+          <ul className={styles.tourLegend} aria-label="Pint price colours">
             {LEGEND_ROWS.map((row) => (
-              <li key={row.tone} className="tourLegendRow">
+              <li key={row.tone} className={styles.tourLegendRow}>
                 <i className={`mapPriceDot ${row.tone}`} aria-hidden="true" />
                 <span>{row.label}</span>
               </li>
@@ -227,17 +227,17 @@ export default function FirstRunTour(): React.JSX.Element | null {
           </ul>
         </div>
 
-        <div className="tourActions">
+        <div className={styles.tourActions}>
           <button
             type="button"
-            className="tourSkip pressable"
+            className={`${styles.tourSkip} pressable`}
             onClick={() => dismiss(false)}
           >
             Skip
           </button>
           <button
             type="button"
-            className="tourNext pressable"
+            className={`${styles.tourNext} pressable`}
             onClick={() => dismiss(true)}
           >
             Got it

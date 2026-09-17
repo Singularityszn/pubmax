@@ -142,10 +142,10 @@ export default function UnsupportedAreaPreview({
             <p className={styles.uapNearestCopy}>Here&rsquo;s where we have the pints mapped:</p>
           )}
 
-          <ul className="uapPatches" aria-label="Areas we cover">
+          <ul className={styles.uapPatches} aria-label="Areas we cover">
             {alternativePatches.map((patch) => (
               <li key={patch.id}>
-                <button type="button" className="uapChip" onClick={() => onPickPatch(patch)}>
+                <button type="button" className={styles.uapChip} onClick={() => onPickPatch(patch)}>
                   {patch.label}
                 </button>
               </li>
@@ -155,19 +155,19 @@ export default function UnsupportedAreaPreview({
       ) : null}
 
       {/* ── The ask: only below the alternative, never a wall ───────────────── */}
-      <div className="uapAsk">
+      <div className={styles.uapAsk}>
         {state === "done" ? (
-          <p className="uapThanks" role="status">
+          <p className={styles.uapThanks} role="status">
             Thanks, we have noted it{knownArea ? ` for ${knownArea}` : ""}.
           </p>
         ) : asking ? (
-          <div className="uapForm">
+          <div className={styles.uapForm}>
             {!knownArea ? (
-              <label className="uapField">
-                <span className="uapLabel">Which area?</span>
+              <label className={styles.uapField}>
+                <span className={styles.uapLabel}>Which area?</span>
                 <input
                   type="text"
-                  className="uapInput"
+                  className={styles.uapInput}
                   value={typedArea}
                   onChange={(event) => setTypedArea(event.target.value)}
                   placeholder="e.g. Peckham"
@@ -176,11 +176,11 @@ export default function UnsupportedAreaPreview({
                 />
               </label>
             ) : null}
-            <label className="uapField">
-              <span className="uapLabel">Email for a heads-up (optional)</span>
+            <label className={styles.uapField}>
+              <span className={styles.uapLabel}>Email for a heads-up (optional)</span>
               <input
                 type="email"
-                className="uapInput"
+                className={styles.uapInput}
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
@@ -189,7 +189,7 @@ export default function UnsupportedAreaPreview({
             </label>
             <button
               type="button"
-              className="uapPrimary uapSend"
+              className={`${styles.uapPrimary} ${styles.uapSend}`}
               onClick={submit}
               disabled={!effectiveArea || state === "sending"}
             >
@@ -197,13 +197,13 @@ export default function UnsupportedAreaPreview({
               {state === "sending" ? "Sending…" : "Send"}
             </button>
             {state === "error" ? (
-              <p className="uapRetry" role="status">
+              <p className={styles.uapRetry} role="status">
                 Could not save that area. Try again.
               </p>
             ) : null}
           </div>
         ) : (
-          <button type="button" className="uapAskBtn" onClick={() => setAsking(true)}>
+          <button type="button" className={styles.uapAskBtn} onClick={() => setAsking(true)}>
             {limited
               ? `Want more in ${knownArea ?? "this area"}? Tell us`
               : knownArea

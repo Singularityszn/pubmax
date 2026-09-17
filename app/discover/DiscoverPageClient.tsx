@@ -28,6 +28,7 @@ import ThenVsNowCard from "@/components/discovery/ThenVsNowCard";
 import SiteNav from "@/components/nav/SiteNav";
 import Screen from "@/components/ui/screen";
 import { CategoryShowcase } from "@/components/drinks/CategoryShowcase";
+import catStyles from "@/components/drinks/categoryShowcase.module.css";
 import { brandsForCategory } from "@/lib/drinkBrands";
 import {
   categoryLabel,
@@ -494,25 +495,25 @@ export function DiscoverBody({
           extraItemsPosition="start"
           extraItems={
             <li
-              className="catShowcase__item discoverLowNoItem"
+              className={`${catStyles["catShowcase__item"]} discoverLowNoItem`}
               style={{ ["--cat" as string]: "var(--pint)" } as React.CSSProperties}
             >
               <Link
                 prefetch={false}
-                className="catShowcase__link discoverLowNoLink"
+                className={`${catStyles["catShowcase__link"]} discoverLowNoLink`}
                 href={lowNoMapHref}
                 aria-label="Explore low and no alcohol drinks"
               >
                 <span
-                  className="catShowcase__swatch discoverLowNoBadge"
+                  className={`${catStyles["catShowcase__swatch"]} ${catStyles.discoverLowNoBadge}`}
                   style={{ color: "var(--pint)" }}
                   aria-hidden="true"
                 >
                   Free
                 </span>
-                <span className="catShowcase__labelWrap">
-                  <span className="catShowcase__label">Low / No</span>
-                  <span className="catShowcase__hint">Open on map</span>
+                <span className={catStyles["catShowcase__labelWrap"]}>
+                  <span className={catStyles["catShowcase__label"]}>Low / No</span>
+                  <span className={catStyles["catShowcase__hint"]}>Open on map</span>
                 </span>
               </Link>
             </li>

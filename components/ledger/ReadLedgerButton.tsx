@@ -72,7 +72,7 @@ export default function ReadLedgerButton({ text }: ReadLedgerButtonProps) {
     <>
       <button
         type="button"
-        className="ledgerReadButton"
+        className={styles.ledgerReadButton}
         onClick={speaking ? handleStop : handleRead}
         aria-pressed={speaking}
       >

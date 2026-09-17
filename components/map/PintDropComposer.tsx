@@ -38,7 +38,7 @@ import { useSpeechDictation } from "@/components/map/composer/useSpeechDictation
 import { useVenueDraft } from "@/components/map/composer/useVenueDraft";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 import { pintDropDoorHref } from "@/lib/landingHero";
-import "./spillComposer.css";
+import styles from "./spillComposer.module.css";
 
 type PintDropComposerProps = {
   venueId: string;
@@ -209,7 +209,7 @@ export default function PintDropComposer({
   if (!draftReady) {
     return (
       <form
-        className="dropComposer spillComposer"
+        className={`dropComposer ${styles.spillComposer}`}
         aria-busy="true"
         aria-label="Pint Drop composer"
       >
@@ -232,22 +232,22 @@ export default function PintDropComposer({
 
   return (
     <form
-      className="dropComposer spillComposer"
+      className={`dropComposer ${styles.spillComposer}`}
       aria-label="Pint Drop composer"
       onSubmit={(event) => {
         void submitDrop(event, venueId, { venueName, lastTrainDecision });
         setTransientVoiceNote(null);
       }}
     >
-      <div className="spillComposerIntro">
-        <span className="spillComposerEyebrow">Drop a pint here</span>
+      <div className={styles.spillComposerIntro}>
+        <span className={styles.spillComposerEyebrow}>Drop a pint here</span>
         <strong>{venueName ?? "This pub"}</strong>
       </div>
 
       {/* Signed out, the door stays the same: price first, and the gate is the
           sign-in link where submit would be. This line says so up front. */}
       {signedOutGate ? (
-        <p className="spillSignedOutNote">{SPILL_SIGNED_OUT_DOOR_LINE}</p>
+        <p className={styles.spillSignedOutNote}>{SPILL_SIGNED_OUT_DOOR_LINE}</p>
       ) : null}
 
       {/* ── The price step: the first thing the composer shows ──────────── */}
@@ -274,12 +274,12 @@ export default function PintDropComposer({
           value (spec 3.3) and is shown, never edited. The typed handle input
           exists only on the keyless demo path. */}
       {author.accountOwned ? (
-        <p className="spillPostingAs">
+        <p className={styles.spillPostingAs}>
           Posting as <strong>@{author.handle.replace(/^@+/, "")}</strong>
         </p>
       ) : !authConfigured ? (
-        <label className="spillTextField" htmlFor={`${extrasId}-handle`}>
-          <span className="spillFieldLabel">Handle</span>
+        <label className={styles.spillTextField} htmlFor={`${extrasId}-handle`}>
+          <span className={styles.spillFieldLabel}>Handle</span>
           <input
             id={`${extrasId}-handle`}
             value={handle}
@@ -306,7 +306,7 @@ export default function PintDropComposer({
         {mobile && (pintPhoto || venuePhoto) ? (
           <button
             type="button"
-            className="spillRetakeBtn"
+            className={styles.spillRetakeBtn}
             onClick={() => {
               if (pintPhoto) removePhoto("pint");
               if (venuePhoto) removePhoto("venue");
@@ -337,7 +337,7 @@ export default function PintDropComposer({
       {/* ── Everything else is optional, behind one disclosure ──────────── */}
       <button
         type="button"
-        className="spillExtrasToggle"
+        className={styles.spillExtrasToggle}
         aria-expanded={extrasOpen}
         aria-controls={extrasId}
         onClick={() => setExtrasOpen((open) => !open)}
@@ -347,7 +347,7 @@ export default function PintDropComposer({
       </button>
 
       {extrasOpen ? (
-        <div id={extrasId} className="spillExtras">
+        <div id={extrasId} className={styles.spillExtras}>
           {mobile ? (
             <SpillCameraStep
               pintPhoto={pintPhoto}

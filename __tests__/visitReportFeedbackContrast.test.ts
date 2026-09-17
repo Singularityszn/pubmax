@@ -7,13 +7,13 @@ import { describe, expect, it } from "vitest";
 // success line is the only confirmation their account landed. Both are painted
 // from --brick / --pint, which are tuned for price bands and pin fills: raw,
 // they land near 2.9:1 on the light card. So this file reads the SHIPPED
-// stylesheets — the two theme blocks and the mix in visitReports.css — rather
+// stylesheets — the two theme blocks and the mix in visitReports.module.css — rather
 // than a restated palette, because a restated copy could not catch a token whose
 // value drifts under one theme.
 
 const globalsCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
 const themeCss = readFileSync(join(process.cwd(), "app/theme.css"), "utf8");
-const panelCss = readFileSync(join(process.cwd(), "components/visits/visitReports.css"), "utf8");
+const panelCss = readFileSync(join(process.cwd(), "components/visits/visitReports.module.css"), "utf8");
 
 function block(css: string, selector: string): string {
   const start = css.indexOf(`${selector} {`);

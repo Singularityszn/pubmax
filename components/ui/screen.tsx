@@ -1,7 +1,7 @@
 import type { ReactElement, ReactNode } from "react";
 
 import Kicker from "./kicker";
-import "./screen.css";
+import styles from "./screen.module.css";
 
 /**
  * The head of a launch screen: kicker, heading, one primary action.

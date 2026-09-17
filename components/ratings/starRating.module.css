@@ -16,7 +16,7 @@
   letter-spacing: 0.08em;
 }
 
-.starRating--sm .starRatingGlyphs {
+.starRatingSm .starRatingGlyphs {
   font-size: 0.85rem;
 }
 
@@ -25,24 +25,24 @@
   white-space: nowrap;
 }
 
-.starRatingRow--empty {
+.starRatingRowEmpty {
   color: var(--color-border);
 }
 
-.starRatingRow--fill {
+.starRatingRowFill {
   position: absolute;
   inset: 0 auto 0 0;
   overflow: hidden;
   color: var(--rating-accent);
 }
 
-.starRating--interactive {
+.starRatingInteractive {
   cursor: pointer;
   border-radius: 4px;
   touch-action: manipulation;
 }
 
-.starRating--interactive:focus-visible {
+.starRatingInteractive:focus-visible {
   outline: 2px solid var(--rating-accent);
   outline-offset: 3px;
 }

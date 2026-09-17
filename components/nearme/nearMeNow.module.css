@@ -36,7 +36,7 @@
   padding-inline: 0;
 }
 
-.nmn > .nmnScreen > .screenHead {
+.nmn > .nmnScreen > :global(.screenHead) {
   padding-top: var(--space-2);
 }
 
@@ -312,8 +312,7 @@
    reflow the list under the reader's thumb. Rendered proof at 320, 390 and 430
    is e2e/mobile-map-chrome-fit.spec.ts. */
 @media (max-width: 640px) {
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab))
-    .nmnPage
+  :global(body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .nmnPage)
     :is(.nmnListCaption, .nmnCard, .nmnPriceCollected) {
     padding-right: max(
       var(--space-2),

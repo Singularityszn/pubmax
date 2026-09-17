@@ -3,11 +3,12 @@
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import DesktopRail from "@/components/desktop/DesktopRail";
 
+import styles from "./mapDesktopRail.module.css";
 
 // Desktop map right-rail (D3.1). Composes the shared DesktopRail host with the
 // map's Area-news slot. Mounted only at >=1024, with the venue drawer closed and
 // the first-visit strip gone (PubMap gates all three); the top-right positioning
-// lives in mapDesktopRail.css. `area` is the Night Area slug under the current
+// lives in mapDesktopRail.module.css. `area` is the Night Area slug under the current
 // map view, or null when unknown, and AreaNewsRail then renders nothing, so an
 // empty rail is simply an invisible, empty stack.
 //
@@ -18,7 +19,7 @@ import DesktopRail from "@/components/desktop/DesktopRail";
 export default function MapDesktopRail({ area }: { area: string | null }) {
   return (
     <DesktopRail
-      className="mapRail"
+      className={styles.mapRail}
       ariaLabel="Conditions and area news"
       areaNews={<AreaNewsRail area={area} />}
     />

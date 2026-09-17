@@ -112,28 +112,28 @@
   color: var(--ink);
 }
 
-.tourLegendRow .mapPriceDot {
+.tourLegendRow :global(.mapPriceDot) {
   width: 12px;
   height: 12px;
   border-radius: var(--radius-pill);
   flex: 0 0 auto;
 }
 
-.tourLegendRow .mapPriceDot.green {
+.tourLegendRow :global(.mapPriceDot.green) {
   background: var(--pint);
 }
 
-.tourLegendRow .mapPriceDot.amber {
+.tourLegendRow :global(.mapPriceDot.amber) {
   background: var(--amber);
 }
 
-.tourLegendRow .mapPriceDot.red {
+.tourLegendRow :global(.mapPriceDot.red) {
   /* Dearer price band, not a failure state. Keep first-visit guidance warm
      and neutral while keeping it distinct from the middle amber band. */
   background: color-mix(in srgb, var(--amber) 48%, var(--ink) 52%);
 }
 
-.tourLegendRow .mapPriceDot.grey {
+.tourLegendRow :global(.mapPriceDot.grey) {
   background: color-mix(in srgb, var(--muted) 84%, transparent);
 }
 

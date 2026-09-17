@@ -9,6 +9,7 @@ import {
   type ScrapedPubSourceId,
 } from "@/lib/scrapedPubs";
 import type { ZoneSelection } from "@/lib/zones";
+import galleryStyles from "./pubsGallery.module.css";
 
 export type PubsFilterKey = "all" | ScrapedPubSourceId;
 export type PubsFilterCounts = Record<PubsFilterKey, number>;
@@ -61,7 +62,7 @@ export default function PubsFilters({
   return (
     <>
       <div
-        className="pubsFilters"
+        className={galleryStyles.pubsFilters}
         role="group"
         aria-label="Filter by scrape source"
         aria-busy={pending}
@@ -75,11 +76,11 @@ export default function PubsFilters({
               key={item.key}
               type="button"
               aria-pressed={selected}
-              className={selected ? "pubsFilter isActive" : "pubsFilter"}
+              className={selected ? `${galleryStyles.pubsFilter} ${galleryStyles.isActive}` : galleryStyles.pubsFilter}
               onClick={() => navigate(item.key, zone)}
             >
               <span>{item.label}</span>
-              {showCounts ? <span className="pubsFilterCount">{count}</span> : null}
+              {showCounts ? <span className={galleryStyles.pubsFilterCount}>{count}</span> : null}
             </button>
           );
         })}
@@ -90,7 +91,7 @@ export default function PubsFilters({
           pub-stop count renders (components/ui/chip.tsx), rather than a
           look-alike square of its own. */}
       {zonesPresent.length > 0 ? (
-        <div className="zoneChips pubsZoneChips" role="group" aria-label="Filter by fare zone">
+        <div className={`zoneChips ${galleryStyles.pubsZoneChips}`} role="group" aria-label="Filter by fare zone">
           <Chip
             variant="number"
             aria-pressed={zone === "all"}

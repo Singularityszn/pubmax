@@ -13,16 +13,16 @@
    on dark). mapLayersControl.css owns default + isOn rings. */
 
 /* Tapped-POI label card still uses .poiSwatch — hairline ring on the frost. */
-.poiLabelCard .poiSwatch {
+:global(.poiLabelCard) :global(.poiSwatch) {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-raised) 70%, transparent);
 }
 
-html[data-legacy="1"] .poiLabelCard .poiSwatch {
+:global(html[data-legacy="1"]) :global(.poiLabelCard) :global(.poiSwatch) {
   box-shadow: none;
 }
 
 @media (forced-colors: active) {
-  .poiLabelCard .poiSwatch {
+  :global(.poiLabelCard) :global(.poiSwatch) {
     box-shadow: none;
   }
 }

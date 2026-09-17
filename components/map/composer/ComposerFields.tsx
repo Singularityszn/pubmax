@@ -13,6 +13,7 @@ import {
 } from "@/lib/spillPreview";
 import { GENERATION_PRESETS, VISIBILITY_COPY } from "@/lib/pintDropComposerConfig";
 import type { PintDropsState } from "@/components/map/usePintDrops";
+import styles from "@/components/map/spillComposer.module.css";
 
 type ComposerFieldsProps = {
   dropForm: PintDropsState["dropForm"];
@@ -61,9 +62,9 @@ export function ComposerFields({
       {/* ── One-tap destinations (PRD priority 2) ──────────────────────────
           Shortcuts onto EXISTING visibility semantics. My Round is disabled
           (never faked) unless a Round is actually open. */}
-      <fieldset className="destinationField">
+      <fieldset className={styles.destinationField}>
         <legend>Add to</legend>
-        <div className="destinationRow" role="group" aria-label="Add this Spill to">
+        <div className={styles.destinationRow} role="group" aria-label="Add this Spill to">
           {SPILL_DESTINATIONS.map((key) => {
             const meta = DESTINATION_META[key];
             const resolved = resolveDestination(key, hasActiveRound);
@@ -72,7 +73,7 @@ export function ComposerFields({
               <button
                 key={key}
                 type="button"
-                className={selected ? "destinationChip selected" : "destinationChip"}
+                className={selected ? `${styles.destinationChip} ${styles.selected}` : styles.destinationChip}
                 aria-pressed={selected}
                 disabled={!resolved.enabled}
                 title={resolved.helper}
@@ -84,20 +85,20 @@ export function ComposerFields({
           })}
         </div>
         {destination ? (
-          <p className="destinationHelper">
+          <p className={styles.destinationHelper}>
             {resolveDestination(destination, hasActiveRound).helper}
           </p>
         ) : null}
       </fieldset>
 
-      <div className="noteField">
-        <div className="spillFieldHeader">
-          <label className="spillFieldLabel" htmlFor={noteInputId}>
+      <div className={styles.noteField}>
+        <div className={styles.spillFieldHeader}>
+          <label className={styles.spillFieldLabel} htmlFor={noteInputId}>
             Story
           </label>
-          <span className="voiceAffordance">Type or talk it in</span>
+          <span className={styles.voiceAffordance}>Type or talk it in</span>
         </div>
-        <div className="noteFieldRow">
+        <div className={styles.noteFieldRow}>
           <textarea
             id={noteInputId}
             value={dropForm.note}
@@ -109,7 +110,7 @@ export function ComposerFields({
           {speechSupported ? (
             <button
               type="button"
-              className={listening ? "micBtn listening" : "micBtn"}
+              className={listening ? `${styles.micBtn} ${styles.listening}` : styles.micBtn}
               aria-pressed={listening}
               aria-label={listening ? "Stop voice note" : "Add note by voice"}
               onClick={toggleListening}
@@ -119,19 +120,19 @@ export function ComposerFields({
           ) : null}
         </div>
         {speechSupported ? (
-          <span role="status" className="visuallyHidden">
+          <span role="status" className={styles.visuallyHidden}>
             {listening ? "Listening…" : ""}
           </span>
         ) : null}
         {speechError ? (
-          <span role="status" className="voiceAffordance">
+          <span role="status" className={styles.voiceAffordance}>
             {speechError}
           </span>
         ) : null}
       </div>
 
-      <label className="spillTextField" htmlFor={withWhoInputId}>
-        <span className="spillFieldLabel">With</span>
+      <label className={styles.spillTextField} htmlFor={withWhoInputId}>
+        <span className={styles.spillFieldLabel}>With</span>
         <input
           id={withWhoInputId}
           value={dropForm.withWho}
@@ -140,16 +141,16 @@ export function ComposerFields({
         />
       </label>
 
-      <fieldset className="generationField">
+      <fieldset className={styles.generationField}>
         <legend>When is this from?</legend>
-        <div className="generationRow" role="group" aria-label="Generation mode">
+        <div className={styles.generationRow} role="group" aria-label="Generation mode">
           {GENERATION_PRESETS.map((preset) => {
             const selected = dropForm.era === preset.value;
             return (
               <button
                 key={preset.value}
                 type="button"
-                className={selected ? "generationChip selected" : "generationChip"}
+                className={selected ? `${styles.generationChip} ${styles.selected}` : styles.generationChip}
                 aria-pressed={selected}
                 onClick={() => setDropForm({ ...dropForm, era: preset.value })}
               >
@@ -158,7 +159,7 @@ export function ComposerFields({
             );
           })}
         </div>
-        <label className="visuallyHidden" htmlFor={eraInputId}>
+        <label className={styles.visuallyHidden} htmlFor={eraInputId}>
           Custom generation or memory label
         </label>
         <input
@@ -193,9 +194,9 @@ export function ComposerFields({
       {/* Visibility is now SECONDARY (PRD priority 2): the one-tap
           destinations above are the primary lane pick; this segmented control
           stays for fine-grained control and keeps the accessible radiogroup. */}
-      <fieldset className="visibilityField">
+      <fieldset className={styles.visibilityField}>
         <legend>Who sees this</legend>
-        <div className="visibilitySegment" role="radiogroup" aria-label="Visibility">
+        <div className={styles.visibilitySegment} role="radiogroup" aria-label="Visibility">
           {VISIBILITIES.map((option) => {
             const selected = visibility === option;
             return (
@@ -204,7 +205,7 @@ export function ComposerFields({
                 type="button"
                 role="radio"
                 aria-checked={selected}
-                className={selected ? "visibilityOption selected" : "visibilityOption"}
+                className={selected ? `${styles.visibilityOption} ${styles.selected}` : styles.visibilityOption}
                 onClick={() => {
                   setVisibility(option);
                   setDestination(null); // A manual lane pick clears the chip.
@@ -215,7 +216,7 @@ export function ComposerFields({
             );
           })}
         </div>
-        <p className="visibilityHelper">{VISIBILITY_COPY[visibility].helper}</p>
+        <p className={styles.visibilityHelper}>{VISIBILITY_COPY[visibility].helper}</p>
       </fieldset>
     </>
   );

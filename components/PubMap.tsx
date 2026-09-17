@@ -18,24 +18,21 @@ import "@/components/map/MapChromeMicro.module.css";
 import "@/components/map/pubmap/MappedRouteChip.module.css";
 import "@/components/map/pubmap/BandOnboardingChip.module.css";
 import "@/components/map/venueSheet.css";
-import "@/components/map/spillComposer.css";
-import "@/components/map/logIntentFallback.css";
-import "@/components/map/mapBannerStaging.css";
+import "@/components/map/mapBannerStaging.module.css";
 // The selection notice below renders `.ukPlaceArrival` MARKUP directly, and
 // that stylesheet used to arrive only with UkPlaceArrivalBanner or
 // UkNationalBrowseBanner, both dynamically imported. A bad `?sel=` mounts
 // neither, so the note a reader needs painted unstyled at the top-left of
 // the viewport, one clipped line over the phone top bar. The shell that
 // renders the markup owns the stylesheet.
-import "@/components/map/ukPlaceArrivalBanner.css";
+import "@/components/map/ukPlaceArrivalBanner.module.css";
 import "@/components/map/mapToolbar.css";
-import "@/components/map/citySuggestBanner.css";
-import "@/components/map/cityStatusBanner.css";
+import "@/components/map/citySuggestBanner.module.css";
+import "@/components/map/cityStatusBanner.module.css";
 import "@/components/map/mapConciergeAsk.css";
 import "@/components/map/mapDesktopRail.css";
 import searchEmptyStyles from './map/mapSearchEmpty.module.css';
 import btnStyles from './map/addStopBtn.module.css';
-import "@/components/map/tonightLane.css";
 const UkPlaceArrivalBanner = dynamic(
   () => import("@/components/map/UkPlaceArrivalBanner"),
   { ssr: false },

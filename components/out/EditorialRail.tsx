@@ -18,7 +18,7 @@ import { loadEditorialSnapshot } from "@/lib/editorialLoader";
 import { OUT_MAP_WAY, OUT_RETRY_LABEL } from "@/lib/out/outStatus";
 import EmptyState from "@/components/ui/empty-state";
 
-import "./editorialRail.css";
+import styles from "./editorialRail.module.css";
 
 export function EditorialRailView({
   snapshot,
@@ -51,8 +51,8 @@ export function EditorialRailView({
         : null;
 
   return (
-    <section className="editorialRail" aria-labelledby="editorial-rail-heading">
-      <h2 id="editorial-rail-heading" className="editorialRailTitle">
+    <section className={styles.editorialRail} aria-labelledby="editorial-rail-heading">
+      <h2 id="editorial-rail-heading" className={styles.editorialRailTitle}>
         {EDITORIAL_RAIL_TITLE}
       </h2>
       {statusLine && empty ? (
@@ -75,28 +75,28 @@ export function EditorialRailView({
           />
         </div>
       ) : statusLine ? (
-        <p className="editorialRailStatus">{statusLine}</p>
+        <p className={styles.editorialRailStatus}>{statusLine}</p>
       ) : null}
       {items.length > 0 ? (
-        <ul className="editorialRailList">
+        <ul className={styles.editorialRailList}>
           {items.map((item) => {
             const ogl = editorialOglAttributionForSource(item.source_id);
             return (
-              <li key={item.canonical_url} className="editorialRailItem">
+              <li key={item.canonical_url} className={styles.editorialRailItem}>
                 <a
-                  className="editorialRailLink"
+                  className={styles.editorialRailLink}
                   href={item.canonical_url}
                   rel="noopener noreferrer"
                   target="_blank"
                 >
                   {item.title}
                 </a>
-                {item.excerpt ? <p className="editorialRailExcerpt">{item.excerpt}</p> : null}
-                <p className="editorialRailCredit">
-                  <span className="editorialRailChip">{editorialViaChip(item.attribution_label)}</span>
+                {item.excerpt ? <p className={styles.editorialRailExcerpt}>{item.excerpt}</p> : null}
+                <p className={styles.editorialRailCredit}>
+                  <span className={styles.editorialRailChip}>{editorialViaChip(item.attribution_label)}</span>
                   {ogl ? (
                     <a
-                      className="editorialRailOgl"
+                      className={styles.editorialRailOgl}
                       href={ogl.url}
                       rel="license noopener noreferrer"
                       target="_blank"
@@ -193,14 +193,14 @@ export default function EditorialRail() {
   if (!snapshot) {
     return (
       <section
-        className="editorialRail"
+        className={styles.editorialRail}
         aria-labelledby="editorial-rail-heading"
         aria-busy="true"
       >
-        <h2 id="editorial-rail-heading" className="editorialRailTitle">
+        <h2 id="editorial-rail-heading" className={styles.editorialRailTitle}>
           {EDITORIAL_RAIL_TITLE}
         </h2>
-        <p className="editorialRailLoading">Loading picks</p>
+        <p className={styles.editorialRailLoading}>Loading picks</p>
       </section>
     );
   }

@@ -211,7 +211,7 @@ describe("Visit Report venue surface", () => {
   });
 
   it("keeps all interactive controls thumb-sized at phone width", () => {
-    const css = source("components/visits/visitReports.css");
+    const css = source("components/visits/visitReports.module.css");
 
     expect(css).toMatch(/\.visitChip[\s\S]*min-height:\s*44px/);
     expect(css).toMatch(/\.visitReportSubmit[\s\S]*min-height:\s*44px/);

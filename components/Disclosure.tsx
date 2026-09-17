@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import "./disclosure.css";
+import styles from "./disclosure.module.css";
 
 type DisclosureProps = {
   summary: ReactNode;
@@ -20,7 +20,7 @@ export default function Disclosure({
   bodyClassName,
 }: DisclosureProps) {
   return (
-    <details className={classNames("contentDisclosure", className)}>
+    <details className={classNames(styles.contentDisclosure, className)}>
       <summary>{summary}</summary>
       {children ? (
         <div className={classNames("contentDisclosureBody", bodyClassName)}>
@@ -40,12 +40,12 @@ export function ProseDisclosure({
 }) {
   return (
     <Disclosure
-      className={classNames("proseDisclosure", className)}
+      className={classNames(styles.proseDisclosure, className)}
       summary={
         <>
-          <span className="proseDisclosureText">{text}</span>
-          <span className="proseDisclosureMore">Show more</span>
-          <span className="proseDisclosureLess">Show less</span>
+          <span className={styles.proseDisclosureText}>{text}</span>
+          <span className={styles.proseDisclosureMore}>Show more</span>
+          <span className={styles.proseDisclosureLess}>Show less</span>
         </>
       }
     />

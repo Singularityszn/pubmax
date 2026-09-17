@@ -30,7 +30,7 @@ export default function FoundersDiscordLink({
   if (!invite) return null;
   return (
     <a
-      className={className ? `foundersDiscordLink ${className}` : "foundersDiscordLink"}
+      className={className ? `${styles.foundersDiscordLink} ${className}` : styles.foundersDiscordLink}
       data-pressable
       href={invite}
       target="_blank"

@@ -38,7 +38,7 @@
   }
 }
 
-.morningCard__close {
+.morningCardClose {
   position: absolute;
   top: 4px;
   right: 4px;
@@ -54,18 +54,18 @@
   border-radius: 999px;
 }
 
-.morningCard__close:hover {
+.morningCardClose:hover {
   background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
-.morningCard__head {
+.morningCardHead {
   display: flex;
   align-items: center;
   gap: 12px;
   padding-right: 40px; /* clear the close button */
 }
 
-.morningCard__badge {
+.morningCardBadge {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -77,20 +77,20 @@
   color: var(--brass);
 }
 
-.morningCard__eyebrow {
+.morningCardEyebrow {
   margin: 0;
   font-size: 15px;
   font-weight: 750;
   color: var(--ink);
 }
 
-.morningCard__lede {
+.morningCardLede {
   margin: 1px 0 0;
   font-size: 13px;
   color: var(--ink-soft);
 }
 
-.morningCard__title {
+.morningCardTitle {
   margin: 0;
   font-size: 13px;
   font-weight: 600;
@@ -100,12 +100,12 @@
   white-space: nowrap;
 }
 
-.morningCard__actions {
+.morningCardActions {
   display: grid;
   gap: 8px;
 }
 
-.morningCard__link {
+.morningCardLink {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -121,17 +121,17 @@
   text-decoration: none;
 }
 
-.morningCard__link--secondary {
+.morningCardLinkSecondary {
   border: 1px solid var(--line);
   background: transparent;
   color: var(--ink);
 }
 
-.morningCard__link:active {
+.morningCardLink:active {
   transform: translateY(1px);
 }
 
-.morningCard__habit {
+.morningCardHabit {
   margin: 0.35rem 0 0;
   color: color-mix(in srgb, var(--ink) 72%, transparent);
   font-size: 0.85rem;

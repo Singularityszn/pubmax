@@ -8,7 +8,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { isUkBaseVenueId, type WantedDTO } from "@/lib/wanted";
 
-import "./wanted.css";
+import styles from "./wanted.module.css";
 
 export default function SaveForNightButton({
   venueId,
@@ -65,10 +65,10 @@ export default function SaveForNightButton({
   }
 
   return (
-    <div className="wantedSaveWrap">
+    <div className={styles.wantedSaveWrap}>
       <button
         type="button"
-        className="wantedSaveBtn"
+        className={styles.wantedSaveBtn}
         onClick={() => void save()}
         disabled={busy}
         aria-label={`Save ${venueName} for a night`}
@@ -76,7 +76,7 @@ export default function SaveForNightButton({
         {busy ? "Saving…" : "Save for a night"}
       </button>
       {toast ? (
-        <p className="wantedCapture__status" role="status">
+        <p className={styles.wantedCaptureStatus} role="status">
           {toast}
         </p>
       ) : null}

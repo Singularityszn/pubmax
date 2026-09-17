@@ -6,12 +6,12 @@
    whichever member is on screen, this control clears that member's own top edge.
    Rendered proof at 320/390/430 is e2e/mobile-map-chrome-fit.spec.ts. */
 
-.createFabRoot {
+:global(.createFabRoot) {
   display: none;
 }
 
 @media (max-width: 640px) {
-  .createFabRoot {
+  :global(.createFabRoot) {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
@@ -55,7 +55,7 @@
      below reads the same marker (mobileNav.css). The 404 is the reason this is
      a marker and not a path: it renders under whatever address was mistyped, so
      there is no pathname to test. */
-  body:has(.pageHidesCreateFab) .createFabRoot {
+  :global(body:has(.pageHidesCreateFab) .createFabRoot) {
     display: none;
   }
 
@@ -63,12 +63,12 @@
      width, its one action across this control's own lane, and it is the answer
      the whole page exists to give. Compose offers "Start a plan", which from
      that page is a door back to the page the reader is standing on. */
-  body:has(.analyticsConsentPrompt) .createFabRoot,
-  body:has(.planComposer__lock) .createFabRoot,
-  body:has(.mapArrivalCard) .createFabRoot,
-  body:has(.appShell.detail-open) .createFabRoot,
-  body:has(.appShell.planning-open) .createFabRoot,
-  .createFabRoot.isKeyboardHidden {
+  :global(body:has(.analyticsConsentPrompt) .createFabRoot),
+  :global(body:has(.planComposer__lock) .createFabRoot),
+  :global(body:has(.mapArrivalCard) .createFabRoot),
+  :global(body:has(.appShell.detail-open) .createFabRoot),
+  :global(body:has(.appShell.planning-open) .createFabRoot),
+  :global(.createFabRoot.isKeyboardHidden) {
     opacity: 0;
     transform: translateY(110%);
     /* Delayed to the end of the slide, so the control is still painted while it
@@ -80,12 +80,12 @@
       visibility 0s linear var(--duration-base);
   }
 
-  body:has(.analyticsConsentPrompt) .createFabRoot :is(.createFab, .createFabMenu),
-  body:has(.planComposer__lock) .createFabRoot :is(.createFab, .createFabMenu),
-  body:has(.mapArrivalCard) .createFabRoot :is(.createFab, .createFabMenu),
-  body:has(.appShell.detail-open) .createFabRoot :is(.createFab, .createFabMenu),
-  body:has(.appShell.planning-open) .createFabRoot :is(.createFab, .createFabMenu),
-  .createFabRoot.isKeyboardHidden :is(.createFab, .createFabMenu) {
+  :global(body:has(.analyticsConsentPrompt) .createFabRoot) :is(.createFab, .createFabMenu),
+  :global(body:has(.planComposer__lock) .createFabRoot) :is(.createFab, .createFabMenu),
+  :global(body:has(.mapArrivalCard) .createFabRoot) :is(.createFab, .createFabMenu),
+  :global(body:has(.appShell.detail-open) .createFabRoot) :is(.createFab, .createFabMenu),
+  :global(body:has(.appShell.planning-open) .createFabRoot) :is(.createFab, .createFabMenu),
+  :global(.createFabRoot.isKeyboardHidden) :is(.createFab, .createFabMenu) {
     pointer-events: none;
   }
 
@@ -157,7 +157,7 @@
      of the page, so a page cannot end underneath it; what it cannot reserve is
      the horizontal lane every row of a scrolling list passes through, and the
      cell that lands there is the one a price, a walk time or a way-onward
-     arrow prints in. /near reserved it by hand first (nearMeNow.css); the same
+     arrow prints in. /near reserved it by hand first (nearMeNow.module.css); the same
      reserve was then missing on the landing rail, the /today cards and the
      /tonight rows, so the compose action sat on a price and on two arrows.
      The reserve is the control's OWN published lane less the page gutter the
@@ -165,7 +165,7 @@
      whenever the control is in the DOCUMENT rather than only while it is
      painted: a lane that appeared and vanished with the soft keyboard would
      reflow the list under the reader's thumb. */
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .createFabLane {
+  :global(body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .createFabLane) {
     padding-right: max(
       var(--space-2),
       calc(var(--create-fab-lane) - var(--page-gutter))
@@ -184,13 +184,13 @@
      and to `body:has(...) .createFabRoot`, so the control kept sliding and fading
      for a reader who asked for neither. Dropping the transition also drops the
      delay the visibility flip was riding, so it withdraws at once. */
-  .createFabRoot,
+  :global(.createFabRoot),
   .createFab,
-  .createFabRoot.isKeyboardHidden,
-  body:has(.analyticsConsentPrompt) .createFabRoot,
-  body:has(.mapArrivalCard) .createFabRoot,
-  body:has(.appShell.detail-open) .createFabRoot,
-  body:has(.appShell.planning-open) .createFabRoot {
+  :global(.createFabRoot.isKeyboardHidden),
+  :global(body:has(.analyticsConsentPrompt) .createFabRoot),
+  :global(body:has(.mapArrivalCard) .createFabRoot),
+  :global(body:has(.appShell.detail-open) .createFabRoot),
+  :global(body:has(.appShell.planning-open) .createFabRoot) {
     transition: none;
   }
 }

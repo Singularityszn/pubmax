@@ -9,7 +9,7 @@ import type { MissionSurface } from "@/lib/analyticsEvents";
 import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
 import { missionAnalyticsProps, missionHeading } from "@/lib/priceEvidenceMissions";
 
-import "./priceEvidenceMission.css";
+import styles from "./priceEvidenceMission.module.css";
 
 export type PriceEvidenceMissionSlotProps = {
   mission: PriceEvidenceMission;
@@ -50,21 +50,21 @@ export default function PriceEvidenceMissionSlot({
   }
 
   return (
-    <section className="pemSlot" aria-labelledby={headingId} data-surface={surface}>
+    <section className={styles.pemSlot} aria-labelledby={headingId} data-surface={surface}>
       {answered ? null : (
-        <div className="pemHead">
-          <h3 id={headingId} className="pemHeading">
+        <div className={styles.pemHead}>
+          <h3 id={headingId} className={styles.pemHeading}>
             {heading}
           </h3>
-          <div className="pemActions">
+          <div className={styles.pemActions}>
             {!opened ? (
-              <button type="button" className="pemOpen" onClick={open}>
+              <button type="button" className={styles.pemOpen} onClick={open}>
                 Log it
               </button>
             ) : null}
             <button
               type="button"
-              className="pemSkip"
+              className={styles.pemSkip}
               onClick={() => onDismiss(mission)}
             >
               Not now

@@ -4,11 +4,11 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const firstRunTourCss = readFileSync(
-  join(process.cwd(), "components/onboarding/firstRunTour.css"),
+  join(process.cwd(), "components/onboarding/firstRunTour.module.css"),
   "utf8",
 );
 const citySuggestBannerCss = readFileSync(
-  join(process.cwd(), "components/map/citySuggestBanner.css"),
+  join(process.cwd(), "components/map/citySuggestBanner.module.css"),
   "utf8",
 );
 const mobileMapShellCss = readFileSync(

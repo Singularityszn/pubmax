@@ -27,7 +27,7 @@ function read(relative: string): string {
 
 const mobileNavCss = read("components/nav/mobileNav.css");
 const createFabCss = read("components/nav/createFab.css");
-const nearMeNowCss = read("components/nearme/nearMeNow.css");
+const nearMeNowCss = read("components/nearme/nearMeNow.module.css");
 
 describe("the body reserves the control's own lane", () => {
   it("publishes the create action's geometry beside every other member", () => {

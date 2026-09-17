@@ -2,7 +2,7 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-import "./chip.css";
+import styles from "./chip.module.css";
 
 // The look lives in chip.css, outside every cascade layer, for the reason the
 // Button primitive states: a layered utility loses to app/globals.css's

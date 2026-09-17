@@ -8,18 +8,18 @@
 /* The community price row in the venue price block. Reuses .contributorPrice
    (app/globals.css) for layout and only re-tints it, so tonight's logged price
    reads as the freshest line without becoming a different component. */
-.contributorPrice.communityPriceRow {
+:global(.contributorPrice.communityPriceRow) {
   border-color: color-mix(in srgb, var(--brass) 34%, var(--line));
   background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
 }
 
-.contributorPrice.communityPriceRow strong {
+:global(.contributorPrice.communityPriceRow) strong {
   color: var(--brass);
 }
 
 /* The dated half of the stamp - sits inline with the price, not on its own
    line like the longer provenance note beneath it. */
-.contributorPrice.communityPriceRow .communityPriceStamp {
+:global(.contributorPrice.communityPriceRow) :global(.communityPriceStamp) {
   flex: 0 0 auto;
   font-size: 0.7rem;
   font-weight: 700;
@@ -34,7 +34,7 @@
    brass - it is a caveat about the figure above, not a second claim, so it
    sits at the same quiet weight as the provenance note below it while staying
    a step more legible than muted. */
-.contributorPrice.communityPriceRow .communityPriceStanding {
+:global(.contributorPrice.communityPriceRow) :global(.communityPriceStanding) {
   color: var(--ink-soft);
   font-weight: 600;
   font-style: italic;
@@ -45,14 +45,14 @@
    everyone else - it sits on its own line, right-aligned, below the provenance
    note, at the same pill weight as the Pint Drop report button (.reportBtn in
    globals.css, shared on purpose so the two never drift). */
-.contributorPrice.communityPriceRow .reportBtn {
+:global(.contributorPrice.communityPriceRow) :global(.reportBtn) {
   margin-left: auto;
 }
 
 /* The acknowledgement that replaces it. Same footprint, no takedown promise -
    the price is still on the row above, because a flag is not a moderation
    decision. */
-.contributorPrice.communityPriceRow .communityPriceReported {
+:global(.contributorPrice.communityPriceRow) :global(.communityPriceReported) {
   flex: 0 0 auto;
   margin-left: auto;
   color: var(--muted);

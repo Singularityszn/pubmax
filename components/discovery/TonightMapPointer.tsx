@@ -9,22 +9,22 @@ import { Sparkles } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
 
-import "./dealsTonightLane.css";
+import styles from "./dealsTonightLane.module.css";
 
 export default function TonightMapPointer() {
   return (
-    <section className="dealsTonight" aria-labelledby="tonight-map-pointer-title">
-      <div className="dealsTonightHead">
+    <section className={styles.dealsTonight} aria-labelledby="tonight-map-pointer-title">
+      <div className={styles.dealsTonightHead}>
         <h2 id="tonight-map-pointer-title">
           <Sparkles size={18} aria-hidden="true" /> On tonight
         </h2>
       </div>
-      <p className="dealsTonightLead">
+      <p className={styles.dealsTonightLead}>
         Quiz, screens, deals, and live music live on the map Tonight lane, the
         same `/api/whats-on` spine, with pin badges and kind filters.
       </p>
       <Link prefetch={false}
-        className="dealsTonightMap"
+        className={styles.dealsTonightMap}
         href="/map?src=discover-tonight"
         onClick={() => trackEvent("whats_on_filter")}
       >

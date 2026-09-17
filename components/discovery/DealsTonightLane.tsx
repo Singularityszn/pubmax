@@ -21,7 +21,7 @@ import { preferredCityMapHref } from "@/lib/cityPreference";
 import { WhatsOnUrgencyBadge } from "@/components/map/WhatsOnUrgencyBadge";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
-import "./dealsTonightLane.css";
+import styles from "./dealsTonightLane.module.css";
 
 const CARD_LIMIT = 8;
 
@@ -110,20 +110,20 @@ export default function DealsTonightLane({
   const meta = WHATS_ON_KIND_META.deal;
 
   return (
-    <section className="dealsTonight" aria-labelledby="deals-tonight-title">
-      <div className="dealsTonightHead">
+    <section className={styles.dealsTonight} aria-labelledby="deals-tonight-title">
+      <div className={styles.dealsTonightHead}>
         <h2 id="deals-tonight-title">
           <PoundSterling size={18} aria-hidden="true" /> Deals tonight
         </h2>
-        <span className="dealsTonightChecked">
+        <span className={styles.dealsTonightChecked}>
           {rows.length} listed deal{rows.length === 1 ? "" : "s"}
         </span>
       </div>
-      <p className="dealsTonightLead">
+      <p className={styles.dealsTonightLead}>
         Listed offers and other deals, {meta.badgeLabel.toLowerCase()}.
         Prices and inclusions vary; check the source.
       </p>
-      <ul className="dealsTonightList">
+      <ul className={styles.dealsTonightList}>
         {rows.map((row) => {
           const mapHref = row.venueId
             ? `/map?sel=${encodeURIComponent(row.venueId)}`
@@ -134,22 +134,22 @@ export default function DealsTonightLane({
             <li key={row.id}>
               <Link prefetch={false}
                 href={mapHref}
-                className="dealsTonightCard"
+                className={styles.dealsTonightCard}
                 onClick={() => trackEvent("lane_card_tap")}
               >
-                <div className="dealsTonightCardHead">
+                <div className={styles.dealsTonightCardHead}>
                   <strong>{row.title}</strong>
                   <WhatsOnUrgencyBadge row={row} now={badgeNow} />
                 </div>
-                <span className="dealsTonightPlace">{row.placeName}</span>
-                {ends ? <span className="dealsTonightEnds">{ends}</span> : null}
-                {row.detail ? <span className="dealsTonightDetail">{row.detail}</span> : null}
-                <span className="dealsTonightSource">
+                <span className={styles.dealsTonightPlace}>{row.placeName}</span>
+                {ends ? <span className={styles.dealsTonightEnds}>{ends}</span> : null}
+                {row.detail ? <span className={styles.dealsTonightDetail}>{row.detail}</span> : null}
+                <span className={styles.dealsTonightSource}>
                   {row.source.label}
                   {row.source.url ? " · sourced" : ""}
                 </span>
                 {listingAge ? (
-                  <span className="dealsTonightListingAge">{listingAge}</span>
+                  <span className={styles.dealsTonightListingAge}>{listingAge}</span>
                 ) : null}
               </Link>
             </li>
@@ -157,7 +157,7 @@ export default function DealsTonightLane({
         })}
       </ul>
       <Link prefetch={false}
-        className="dealsTonightMap"
+        className={styles.dealsTonightMap}
         href="/map?src=whats-on-deal"
         onClick={() => trackEvent("whats_on_filter")}
       >

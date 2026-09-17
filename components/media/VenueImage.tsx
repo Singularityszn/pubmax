@@ -24,7 +24,7 @@ import {
   type VenueImageWidth,
 } from "@/lib/venueImages";
 
-import "./venueImage.css";
+import styles from "./venueImage.module.css";
 
 type VenueImageProps = {
   /** Candidate sources in priority order — first one that resolves wins. */
@@ -81,7 +81,7 @@ export default function VenueImage({
   if (!resolved) {
     return (
       <div
-        className={`venueImage venueImage--empty ${className}`.trim()}
+        className={`${styles.venueImage} ${styles.venueImageEmpty} ${className}`.trim()}
         role="img"
         aria-label={alt}
       >
@@ -105,14 +105,14 @@ export default function VenueImage({
     setFailedUrls((prev) => (prev.has(src) ? prev : new Set(prev).add(src)));
 
   return (
-    <figure className={`venueImage ${className}`.trim()}>
+    <figure className={`${styles.venueImage} ${className}`.trim()}>
       {fill ? (
         <Image
           src={src}
           alt={alt}
           fill
           sizes={sizes ?? "(max-width: 640px) 100vw, 420px"}
-          className="venueImage__img"
+          className={styles.venueImageImg}
           priority={priority}
           {...sizing}
           onError={markFailed}
@@ -124,14 +124,14 @@ export default function VenueImage({
           width={width}
           height={height}
           {...(sizes ? { sizes } : {})}
-          className="venueImage__img"
+          className={styles.venueImageImg}
           priority={priority}
           {...sizing}
           onError={markFailed}
         />
       )}
-      <span className="venueImage__provenance">{provenanceLabel}</span>
-      {caption ? <figcaption className="venueImage__caption">{caption}</figcaption> : null}
+      <span className={styles.venueImageProvenance}>{provenanceLabel}</span>
+      {caption ? <figcaption className={styles.venueImageCaption}>{caption}</figcaption> : null}
     </figure>
   );
 }

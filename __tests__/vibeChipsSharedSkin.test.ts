@@ -23,7 +23,7 @@ describe("shared vibe chip skin", () => {
   });
 
   it("defines one canonical vibeChip class with the house stamp recipe", () => {
-    const css = readFileSync(join(root, "components/vibe/vibeChips.css"), "utf8");
+    const css = readFileSync(join(root, "components/vibe/vibeChips.module.css"), "utf8");
     expect(css).toMatch(/\.vibeChip\s*\{/);
     expect(css).toMatch(/min-height:\s*44px/);
     expect(css).not.toMatch(/text-transform:\s*uppercase/);

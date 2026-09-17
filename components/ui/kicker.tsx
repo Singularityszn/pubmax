@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import "./kicker.css";
+import styles from "./kicker.module.css";
 
 /**
  * The small line above a heading.
@@ -34,7 +34,7 @@ export default function Kicker({
   id?: string;
   className?: string;
 }) {
-  const classes = ["kicker", tone === "muted" ? "kickerMuted" : null, className]
+  const classes = [styles.kicker, tone === "muted" ? styles.kickerMuted : null, className]
     .filter(Boolean)
     .join(" ");
   return (

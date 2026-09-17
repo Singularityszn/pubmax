@@ -2,7 +2,7 @@
 
 import { PASSWORD_HINT, passwordRuleResults } from "@/lib/passwordPolicy";
 
-import "./passwordPolicyHint.css";
+import styles from "./passwordPolicyHint.module.css";
 
 type PasswordPolicyHintProps = {
   /** What the person has typed so far. */
@@ -26,7 +26,7 @@ export default function PasswordPolicyHint({
   const rules = passwordRuleResults(value);
 
   return (
-    <div className="passwordPolicyHint" id={id}>
+    <div className={styles.passwordPolicyHint} id={id}>
       {value.length === 0 ? (
         <p>{PASSWORD_HINT}</p>
       ) : (

@@ -28,7 +28,7 @@ import NearDeskNow from "./NearDeskNow";
 import NearMeNow from "./NearMeNow";
 import NearModeSwitch from "./NearModeSwitch";
 import PosterLandingNote from "./PosterLandingNote";
-import "./nearPage.css";
+import styles from "./nearPage.module.css";
 
 export function resolveNearAutoLocate(
   searchParams: Pick<URLSearchParams, "get">,
@@ -116,12 +116,12 @@ function NearPageBody() {
   }, []);
 
   return (
-    <div className="nmnPage">
+    <div className={`nmnPage ${styles.nmnPage}`}>
       {/* Standard app chrome (journey audit P0): same floating SiteNav pill as
           every other app page. /near is not a primary-nav destination, so no
           active key is set (Map stays unlit). */}
       <SiteNav />
-      <main id="main" className="nmnPageBody">
+      <main id="main" className={styles.nmnPageBody}>
         {/* Physical QR arrival (PLG Wave 2): one honest orientation line when
             the drinker scanned a bar poster into /near?src=poster. */}
         <PosterLandingNote src={hydrated ? searchParams.get("src") : null} />
@@ -151,7 +151,7 @@ function NearPageBody() {
 
 export default function NearPageClient() {
   return (
-    <Suspense fallback={<div className="nmnPage" aria-busy="true" />}>
+    <Suspense fallback={<div className={`nmnPage ${styles.nmnPage}`} aria-busy="true" />}>
       <NearPageBody />
     </Suspense>
   );

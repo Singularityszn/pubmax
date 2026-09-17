@@ -64,11 +64,11 @@ export default function NationalPintBenchmarks({
     <div className={styles.nationalPint}>
       <dl className={styles.nationalPintList} aria-labelledby={headingId}>
         {rows.map((row) => (
-          <div className="nationalPintRow" key={row.id}>
-            <dt className="nationalPintMeasure">{row.measure}</dt>
-            <dd className="nationalPintValue">
+          <div className={styles.nationalPintRow} key={row.id}>
+            <dt className={styles.nationalPintMeasure}>{row.measure}</dt>
+            <dd className={styles.nationalPintValue}>
               <BenchmarkFigures row={row} />
-              <p className="nationalPintSource">
+              <p className={styles.nationalPintSource}>
                 <a href={row.sourceUrl} target="_blank" rel="noopener noreferrer">
                   {row.publisher}
                 </a>

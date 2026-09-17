@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const css = readFileSync(join(process.cwd(), "components/plan/nightCrawl.css"), "utf8");
+const css = readFileSync(join(process.cwd(), "components/plan/nightCrawl.module.css"), "utf8");
 const tsx = readFileSync(join(process.cwd(), "components/plan/NightCrawlMode.tsx"), "utf8");
 const navCss = readFileSync(join(process.cwd(), "components/nav/mobileNav.css"), "utf8");
 const consentCss = readFileSync(join(process.cwd(), "components/AnalyticsConsent.module.css"), "utf8");
@@ -15,8 +15,8 @@ describe("Night-crawl surface conformance (U7)", () => {
   });
 
   it("makes the arrive slab the one giant target (>= 64px tall) and skip a demoted 62px+ secondary", () => {
-    const arrive = css.match(/\.nightCrawl__arrive\s*{([\s\S]*?)}/)?.[1] ?? "";
-    const skip = css.match(/\.nightCrawl__skip\s*{([\s\S]*?)}/)?.[1] ?? "";
+    const arrive = css.match(/\.nightCrawlArrive\s*{([\s\S]*?)}/)?.[1] ?? "";
+    const skip = css.match(/\.nightCrawlSkip\s*{([\s\S]*?)}/)?.[1] ?? "";
     const arriveMin = Number(arrive.match(/min-height:\s*(\d+)px/)?.[1] ?? "0");
     const skipMin = Number(skip.match(/min-height:\s*(\d+)px/)?.[1] ?? "0");
     expect(arriveMin).toBeGreaterThanOrEqual(64);
@@ -26,10 +26,10 @@ describe("Night-crawl surface conformance (U7)", () => {
   });
 
   it("pins a get-home escape hatch at 64px+ that always renders", () => {
-    const escape = css.match(/\.nightCrawl__escape\s*{([\s\S]*?)}/)?.[1] ?? "";
+    const escape = css.match(/\.nightCrawlEscape\s*{([\s\S]*?)}/)?.[1] ?? "";
     expect(Number(escape.match(/min-height:\s*(\d+)px/)?.[1] ?? "0")).toBeGreaterThanOrEqual(64);
     // Rendered unconditionally in the surface (outside every conditional branch).
-    expect(tsx).toMatch(/nightCrawl__escape[\s\S]*Get me home/);
+    expect(tsx).toMatch(/nightCrawlEscape[\s\S]*Get me home/);
     expect(tsx).toContain("tfl.gov.uk/plan-a-journey");
   });
 
@@ -45,7 +45,7 @@ describe("Night-crawl surface conformance (U7)", () => {
   });
 
   it("keeps thumb-sized touch targets on the exit control (44px+)", () => {
-    const exit = css.match(/\.nightCrawl__exit\s*{([\s\S]*?)}/)?.[1] ?? "";
+    const exit = css.match(/\.nightCrawlExit\s*{([\s\S]*?)}/)?.[1] ?? "";
     expect(Number(exit.match(/min-height:\s*(\d+)px/)?.[1] ?? "0")).toBeGreaterThanOrEqual(44);
   });
 

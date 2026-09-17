@@ -27,7 +27,7 @@ import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { trackEvent } from "@/lib/analytics";
 
-import "./contributionGate.css";
+import styles from "./contributionGate.module.css";
 
 /** The dialog answers the gate, so it speaks the gate's own vocabulary. */
 export type ContributionGateDialogMode = ContributionGateStatus;
@@ -75,14 +75,14 @@ function AdultCheck({
     <>
       <button
         type="button"
-        className="contributionGatePrimary"
+        className={styles.contributionGatePrimary}
         onClick={assert}
         disabled={busy}
       >
         {ADULT_SELF_ASSERTION_ACTION}
       </button>
       {assertError ? (
-        <p className="contributionGateError" role="alert">
+        <p className={styles.contributionGateError} role="alert">
           {assertError}
         </p>
       ) : null}
@@ -101,16 +101,16 @@ export function ContributionGateDialog({
   // the end of the dialog to leave.
   useDismissOnEscape(true, onClose);
   const dialog = (
-    <div className="contributionGateBackdrop" role="presentation">
+    <div className={styles.contributionGateBackdrop} role="presentation">
       <section
-        className="contributionGate"
+        className={styles.contributionGate}
         role="dialog"
         aria-modal="true"
         aria-labelledby="contribution-gate-title"
       >
         {mode === "sign_in_required" ? (
           <>
-            <p className="contributionGateEyebrow">Account needed</p>
+            <p className={styles.contributionGateEyebrow}>Account needed</p>
             <h2 id="contribution-gate-title">Sign in to contribute</h2>
             <p>
               Contributions show your public handle, so you need an account
@@ -121,7 +121,7 @@ export function ContributionGateDialog({
           </>
         ) : mode === "adult_check_required" ? (
           <>
-            <p className="contributionGateEyebrow">Age check</p>
+            <p className={styles.contributionGateEyebrow}>Age check</p>
             <h2 id="contribution-gate-title">Confirm your age</h2>
             <p>
               Logging a drink price is for over-18s. One tap records it, and we
@@ -135,20 +135,20 @@ export function ContributionGateDialog({
           // with nothing behind it. The line names the answer on file, which is
           // the only thing the reader could change.
           <>
-            <p className="contributionGateEyebrow">Age check</p>
+            <p className={styles.contributionGateEyebrow}>Age check</p>
             <h2 id="contribution-gate-title">Not open to you</h2>
             <p>{CONTRIBUTION_UNDER_18_REFUSAL}</p>
           </>
         ) : (
           <>
-            <p className="contributionGateEyebrow">Handle needed</p>
+            <p className={styles.contributionGateEyebrow}>Handle needed</p>
             <h2 id="contribution-gate-title">Choose your handle</h2>
             <p>
               Contributions carry your public handle, so pick one before you
               log a price.
             </p>
             <Link
-              className="contributionGatePrimary"
+              className={styles.contributionGatePrimary}
               href={HANDLE_CLAIM_NEXT}
               onClick={onClose}
             >
@@ -157,13 +157,13 @@ export function ContributionGateDialog({
           </>
         )}
         {error ? (
-          <p className="contributionGateError" role="alert">
+          <p className={styles.contributionGateError} role="alert">
             {error}
           </p>
         ) : null}
         <button
           type="button"
-          className="contributionGateClose"
+          className={styles.contributionGateClose}
           onClick={onClose}
         >
           Not now

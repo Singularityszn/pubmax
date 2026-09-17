@@ -21,9 +21,9 @@
   pointer-events: auto;
 }
 
-.appShell.detail-open .mapVenueList,
-.appShell.planning-open .mapVenueList,
-.appShell.onboarding-open .mapVenueList {
+:global(.appShell.detail-open) .mapVenueList,
+:global(.appShell.planning-open) .mapVenueList,
+:global(.appShell.onboarding-open) .mapVenueList {
   display: none;
 }
 
@@ -36,7 +36,7 @@
   }
 
   /* List panel owns this lane until it closes; the story notice then returns. */
-  .mapStage:has(.mapVenueList--open) .bandOnboardingChip {
+  :global(.mapStage):has(.mapVenueListOpen) :global(.bandOnboardingChip) {
     display: none;
   }
 }
@@ -190,7 +190,7 @@
   text-transform: uppercase;
 }
 
-.mapVenueListGroup--unverified .mapVenueListGroupTitle {
+.mapVenueListGroupUnverified .mapVenueListGroupTitle {
   color: var(--brass);
 }
 

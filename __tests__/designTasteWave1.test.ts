@@ -58,7 +58,7 @@ describe("desktop taste wave 1", () => {
   it("keeps Discover backgrounds flat", () => {
     const routeStyles = [
       "app/discover/Discover.module.css",
-      "components/discovery/gardenTonightCard.css",
+      "components/discovery/gardenTonightCard.module.css",
       "components/night/nightAreaCoverage.css",
     ];
 

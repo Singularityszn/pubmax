@@ -16,11 +16,11 @@ import { IconButton } from "@/components/ui/icon-button";
 // while app/globals.css declares `button { font: inherit }` UNLAYERED. An
 // unlayered declaration outranks every layered one whatever its order, so the
 // primitive lost its type on every surface. Its look now lives in
-// components/ui/button.css, outside any layer, reading the --control-* tokens.
+// components/ui/button.module.css, outside any layer, reading the --control-* tokens.
 
 const ROOT = process.cwd();
 const read = (file: string): string => readFileSync(join(ROOT, file), "utf8");
-const buttonCss = read("components/ui/button.css");
+const buttonCss = read("components/ui/button.module.css");
 const globalCss = read("app/globals.css");
 
 function walk(dir: string, out: string[]): void {
@@ -39,14 +39,14 @@ describe("the Button primitive", () => {
   it("is painted OUTSIDE every cascade layer, where the unlayered reset cannot beat it", () => {
     expect(buttonCss).not.toMatch(/^\s*@layer/m);
     // The reason this matters is still true: the reset is unlayered and the
-    // utilities are layered. If either changes, revisit whether button.css
+    // utilities are layered. If either changes, revisit whether button.module.css
     // still has to be a plain sheet.
     expect(globalCss).toMatch(/\nbutton,\s*\ninput,\s*\ntextarea,\s*\nselect\s*{\s*font:\s*inherit;/);
     expect(globalCss).toMatch(/@import "tailwindcss\/utilities\.css" layer\(utilities\)/);
   });
 
   it("reads the one row of control tokens rather than restating a figure", () => {
-    const base = buttonCss.match(/\.uiButton\s*{([^}]*)}/)?.[1] ?? "";
+    const base = buttonCss.match(/:global\(\.uiButton\)\s*{([^}]*)}/)?.[1] ?? "";
     expect(base).toMatch(/min-height:\s*var\(--control-height/);
     expect(base).toMatch(/padding:\s*0 var\(--control-pad-x/);
     expect(base).toMatch(/border-radius:\s*var\(--control-radius/);
@@ -101,7 +101,7 @@ describe("the Button primitive", () => {
 
 describe("the venue sheet's two Save controls wear the same row", () => {
   const saveToList = read("components/savedpubs/saveToList.module.css");
-  const wanted = read("components/wanted/wanted.css");
+  const wanted = read("components/wanted/wanted.module.css");
 
   it("Save to a list reads the control tokens instead of an 8px box at 13px/600", () => {
     const rule = saveToList.match(/\.saveToListToggle\s*{([^}]*)}/)?.[1] ?? "";

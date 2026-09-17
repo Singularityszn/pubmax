@@ -2,8 +2,8 @@
 
 import dynamic from "next/dynamic";
 import "maplibre-gl/dist/maplibre-gl.css";
-import "./map/mapColor.css";
-import "./map/mapCameraControls.css";
+import "./map/mapColor.module.css";
+import "./map/mapCameraControls.module.css";
 import styles from './PubMapCanvas.module.css';
 
 import * as maplibregl from "maplibre-gl";

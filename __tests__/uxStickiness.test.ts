@@ -172,7 +172,7 @@ describe("Feed empty-state CTA collapse", () => {
     expect(errorBlock).not.toContain("/we-are-out");
   });
 
-  // The way onward is the shared empty-state idiom (components/ui/emptyState.css):
+  // The way onward is the shared empty-state idiom (components/ui/emptyState.module.css):
   // a bordered secondary at 44px, never a second filled primary. The feed's own
   // stylesheet only sizes it to the column.
   it("feedEmpty leaves the action's shape to the shared empty-state idiom", () => {
@@ -180,14 +180,14 @@ describe("Feed empty-state CTA collapse", () => {
     expect(feedCss).not.toContain("feedEmptyPrimary");
     expect(feedCss).not.toContain("feedEmptySecondary");
     const emptyStateCss = readFileSync(
-      join(process.cwd(), "components/ui/emptyState.css"),
+      join(process.cwd(), "components/ui/emptyState.module.css"),
       "utf8",
     );
     expect(emptyStateCss).toMatch(
-      /\.emptyStateAction > :is\(a, button\)\s*\{[\s\S]*?min-height:\s*44px/,
+      /:global\(\.emptyStateAction\) > :is\(a, button\)\s*\{[\s\S]*?min-height:\s*44px/,
     );
     expect(emptyStateCss).not.toMatch(
-      /\.emptyStateAction > :is\(a, button\)\s*\{[^}]*background:\s*var\(--accent-action\)/,
+      /:global\(\.emptyStateAction\) > :is\(a, button\)\s*\{[^}]*background:\s*var\(--accent-action\)/,
     );
   });
 });
@@ -195,7 +195,7 @@ describe("Feed empty-state CTA collapse", () => {
 // ── 4. Tonight filter chip active state ───────────────────────────────────
 
 const tonightCss = readFileSync(join(process.cwd(), "app/tonight/Tonight.module.css"), "utf8");
-const vibeChipsCss = readFileSync(join(process.cwd(), "components/vibe/vibeChips.css"), "utf8");
+const vibeChipsCss = readFileSync(join(process.cwd(), "components/vibe/vibeChips.module.css"), "utf8");
 
 describe("Tonight filter chip active state", () => {
   // Extract the .tonightChip[data-active="true"] block to assert on its values.
