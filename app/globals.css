@@ -670,36 +670,6 @@ button {
   }
 }
 
-.loadingShell {
-  min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  background: var(--paper);
-  background-image: radial-gradient(color-mix(in srgb, var(--brass) 8%, transparent) 1px, transparent 1px);
-  background-size: 22px 22px;
-  text-align: center;
-}
-
-.loadingShell .eyebrow {
-  animation: pulse 1.6s ease-in-out infinite;
-}
-
-.loadingShell h1 {
-  margin: 6px 0 0;
-  font-family: var(--serif);
-  font-size: 1.6rem;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
 /* Map-first shell: the map fills the viewport; planner + detail are overlay
    drawers that slide in over it (see .mapDrawer). No grid — the map is never
    boxed into a column. */
