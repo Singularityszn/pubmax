@@ -36,7 +36,7 @@ import {
 import SiteNav from "@/components/nav/SiteNav";
 import AdminSessionEntry from "./AdminSessionEntry";
 
-import "./admin.css";
+import styles from "./Admin.module.css";
 
 // Moderator DTO as returned by GET ?status=reported|hidden. Photos resolve even
 // on hidden rows; report metadata rides along. Kept loose (optional) — old rows
@@ -308,15 +308,15 @@ function SocialPostModerationQueue({
 }) {
   return (
     <>
-      <h2 className="admin-section" ref={headingRef} tabIndex={-1}>
+      <h2 className={styles.adminSection} ref={headingRef} tabIndex={-1}>
         Social post moderation
       </h2>
       {state === "loading" ? (
-        <div className="admin-empty" role="status">
+        <div className={styles.adminEmpty} role="status">
           Loading Social posts awaiting review…
           <button
             type="button"
-            className="admin-retry"
+            className={styles.adminRetry}
             onClick={onRetry}
             disabled={retryDisabled || state === "loading"}
           >
@@ -325,7 +325,7 @@ function SocialPostModerationQueue({
         </div>
       ) : state === "unavailable" ? (
         <>
-          <div className="admin-empty" role="alert">
+          <div className={styles.adminEmpty} role="alert">
             <span>
               {
                 adminQueueUnavailable(
@@ -337,7 +337,7 @@ function SocialPostModerationQueue({
             {unavailableReason !== "session" ? (
               <button
                 type="button"
-                className="admin-retry"
+                className={styles.adminRetry}
                 onClick={onRetry}
                 disabled={retryDisabled}
               >
@@ -348,20 +348,20 @@ function SocialPostModerationQueue({
           {unavailableReason === "session" ? sessionEntry : null}
         </>
       ) : posts.length === 0 && state === "ready" ? (
-        <div className="admin-empty">
+        <div className={styles.adminEmpty}>
           <strong>No Social posts awaiting review</strong>
         </div>
       ) : state === "ready" ? (
-        <div className="admin-list">
+        <div className={styles.adminList}>
           {posts.map((post) => (
-            <article className="admin-card" key={post.postId}>
-              <div className="admin-card-head">
-                <span className="admin-handle">@{post.authorHandle}</span>
-                <span className="admin-report">Revision {post.revision}</span>
+            <article className={styles.adminCard} key={post.postId}>
+              <div className={styles.adminCardHead}>
+                <span className={styles.adminHandle}>@{post.authorHandle}</span>
+                <span className={styles.adminReport}>Revision {post.revision}</span>
               </div>
-              <p className="admin-note">{post.body}</p>
+              <p className={styles.adminNote}>{post.body}</p>
               {post.mediaId ? (
-                <div className="admin-photos">
+                <div className={styles.adminPhotos}>
                   <Image
                     src={`/api/admin/social-posts/media/${post.mediaId}`}
                     alt={post.photoAltText ?? "Social post photo"}
@@ -371,15 +371,15 @@ function SocialPostModerationQueue({
                   />
                 </div>
               ) : null}
-              <div className="admin-meta">
+              <div className={styles.adminMeta}>
                 <span>Area: {post.area ?? "None"}</span>
                 <span>Venue: {post.venueId ?? "None"}</span>
                 <span>Visibility: {socialPostPolicyLabel(post.visibility)}</span>
                 <span>Comments: {socialPostPolicyLabel(post.commentPolicy)}</span>
                 <span>State: {socialPostPolicyLabel(post.moderationState)}</span>
               </div>
-              <p className="admin-note">Reason: {post.moderationClaim}</p>
-              <div className="admin-meta">
+              <p className={styles.adminNote}>Reason: {post.moderationClaim}</p>
+              <div className={styles.adminMeta}>
                 <span>
                   Created: <time dateTime={post.createdAt}>{new Date(post.createdAt).toLocaleString()}</time>
                 </span>
@@ -387,16 +387,16 @@ function SocialPostModerationQueue({
                   Updated: <time dateTime={post.updatedAt}>{new Date(post.updatedAt).toLocaleString()}</time>
                 </span>
               </div>
-              <div className="admin-actions">
+              <div className={styles.adminActions}>
                 <button
-                  className="admin-btn admin-restore"
+                  className={`${styles.adminBtn} ${styles.adminRestore}`}
                   onClick={() => onDecision(post, "approve")}
                   disabled={pendingAction !== null}
                 >
                   {socialPostActionLabel(pendingAction, post.postId, "approve")}
                 </button>
                 <button
-                  className="admin-btn admin-keep"
+                  className={`${styles.adminBtn} ${styles.adminKeep}`}
                   onClick={() => onDecision(post, "hide")}
                   disabled={pendingAction !== null}
                 >
@@ -1541,22 +1541,22 @@ export default function AdminClient() {
   );
 
   return (
-    <main id="main" className="admin">
+    <main id="main" className={styles.admin}>
       <SiteNav />
 
       <h1>Admin</h1>
-      <p className="admin-sub">
+      <p className={styles.adminSub}>
         Review reports, claims and notes before publication.
       </p>
-      <Link className="adminMapCallout" href="/map">
+      <Link className={styles.adminMapCallout} href="/map">
         Back to the map
       </Link>
 
-      <div className="admin-tabs" role="tablist" aria-label="Admin sections">
+      <div className={styles.adminTabs} role="tablist" aria-label="Admin sections">
         <button
           type="button"
           role="tab"
-          className={tab === "moderation" ? "admin-tab active" : "admin-tab"}
+          className={tab === "moderation" ? `${styles.adminTab} ${styles.adminTabActive}` : styles.adminTab}
           aria-selected={tab === "moderation"}
           onClick={() => setTab("moderation")}
         >
@@ -1565,7 +1565,7 @@ export default function AdminClient() {
         <button
           type="button"
           role="tab"
-          className={tab === "import" ? "admin-tab active" : "admin-tab"}
+          className={tab === "import" ? `${styles.adminTab} ${styles.adminTabActive}` : styles.adminTab}
           aria-selected={tab === "import"}
           onClick={() => {
             setTab("import");
@@ -1577,7 +1577,7 @@ export default function AdminClient() {
         <button
           type="button"
           role="tab"
-          className={tab === "operators" ? "admin-tab active" : "admin-tab"}
+          className={tab === "operators" ? `${styles.adminTab} ${styles.adminTabActive}` : styles.adminTab}
           aria-selected={tab === "operators"}
           onClick={() => {
             setTab("operators");
@@ -1589,8 +1589,8 @@ export default function AdminClient() {
       </div>
 
       {tab === "moderation" ? (
-        <div className="admin-bar">
-          <button className="admin-btn" onClick={() => load()} disabled={loading}>
+        <div className={styles.adminBar}>
+          <button className={styles.adminBtn} onClick={() => load()} disabled={loading}>
             {loading ? "Loading…" : "Load reported drops"}
           </button>
         </div>
@@ -1599,20 +1599,20 @@ export default function AdminClient() {
       {tab === "moderation" ? (
         <>
           {message ? (
-            <div className="admin-msg" role={message.tone}>
+            <div className={styles.adminMsg} role={message.tone}>
               {message.text}
             </div>
           ) : null}
 
-          <h2 className="admin-section" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
+          <h2 className={styles.adminSection} style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
             Pint Drop moderation
           </h2>
-          <p className="admin-sub">
+          <p className={styles.adminSub}>
             Review reported community drops. Restore the good, keep the rest hidden.
           </p>
 
           {reportedDrops.length === 0 && drops.length === 0 ? (
-            <div className="admin-empty">
+            <div className={styles.adminEmpty}>
               <strong>Queue clear</strong>
               <span>
                 Reported Pint Drops will appear here when a moderator review is needed.
@@ -1623,19 +1623,19 @@ export default function AdminClient() {
 
           {reportedDrops.length > 0 ? (
             <>
-              <h3 className="admin-section">Reported Pint Drops</h3>
-              <div className="admin-list">
+              <h3 className={styles.adminSection}>Reported Pint Drops</h3>
+              <div className={styles.adminList}>
               {reportedDrops.map((d) => (
-                <article className="admin-card" key={d.id}>
-                  <div className="admin-card-head">
-                    <span className="admin-handle">{d.handle}</span>
+                <article className={styles.adminCard} key={d.id}>
+                  <div className={styles.adminCardHead}>
+                    <span className={styles.adminHandle}>{d.handle}</span>
                     {d.priceGbp != null ? (
-                      <span className="admin-price">£{d.priceGbp.toFixed(2)}</span>
+                      <span className={styles.adminPrice}>£{d.priceGbp.toFixed(2)}</span>
                     ) : null}
                   </div>
 
-                  <div className="admin-venue">
-                    <span className="admin-venue-name">
+                  <div className={styles.adminVenue}>
+                    <span className={styles.adminVenueName}>
                       {venueNames.get(d.venueId) ?? d.venueId}
                     </span>
                     <Link className="admin-venue-link" href={venueMapUrl(d.venueId)}>
@@ -1643,18 +1643,18 @@ export default function AdminClient() {
                     </Link>
                   </div>
 
-                  {d.passedDownNote ? <p className="admin-note">{d.passedDownNote}</p> : null}
+                  {d.passedDownNote ? <p className={styles.adminNote}>{d.passedDownNote}</p> : null}
 
-                  <div className="admin-meta">
+                  <div className={styles.adminMeta}>
                     {d.era ? <span>Era: {d.era}</span> : null}
                     {d.reportReason ? (
-                      <span className="admin-report">Reason: {d.reportReason}</span>
+                      <span className={styles.adminReport}>Reason: {d.reportReason}</span>
                     ) : null}
-                    <span className="admin-report">
+                    <span className={styles.adminReport}>
                       Verified reports: {moderatorReportEvidence(d.reportCount, d.reportedAt).verifiedCount}
                     </span>
                     {moderatorReportEvidence(d.reportCount, d.reportedAt).hasEvidence ? (
-                      <span className="admin-report">Report evidence received</span>
+                      <span className={styles.adminReport}>Report evidence received</span>
                     ) : null}
                     {d.reportedAt ? (
                       <span>Reported: {new Date(d.reportedAt).toLocaleString()}</span>
@@ -1662,7 +1662,7 @@ export default function AdminClient() {
                   </div>
 
                   {d.pintPhotoUrl || d.venuePhotoUrl ? (
-                    <div className="admin-photos">
+                    <div className={styles.adminPhotos}>
                       {d.pintPhotoUrl ? (
                         <Image
                           src={d.pintPhotoUrl}
@@ -1684,16 +1684,16 @@ export default function AdminClient() {
                     </div>
                   ) : null}
 
-                  <div className="admin-actions">
+                  <div className={styles.adminActions}>
                     <button
-                      className="admin-btn admin-restore"
+                      className={`${styles.adminBtn} ${styles.adminRestore}`}
                       onClick={() => decide(d.id, "restore")}
                       disabled={pendingId === d.id}
                     >
                       {pendingId === d.id ? "Working…" : "Keep visible"}
                     </button>
                     <button
-                      className="admin-btn admin-keep"
+                      className={`${styles.adminBtn} ${styles.adminKeep}`}
                       onClick={() => decide(d.id, "keep_hidden")}
                       disabled={pendingId === d.id}
                     >
@@ -1708,19 +1708,19 @@ export default function AdminClient() {
 
           {drops.length > 0 ? (
             <>
-              <h3 className="admin-section">Hidden Pint Drops</h3>
-            <div className="admin-list">
+              <h3 className={styles.adminSection}>Hidden Pint Drops</h3>
+            <div className={styles.adminList}>
               {drops.map((d) => (
-                <article className="admin-card" key={d.id}>
-                  <div className="admin-card-head">
-                    <span className="admin-handle">{d.handle}</span>
+                <article className={styles.adminCard} key={d.id}>
+                  <div className={styles.adminCardHead}>
+                    <span className={styles.adminHandle}>{d.handle}</span>
                     {d.priceGbp != null ? (
-                      <span className="admin-price">£{d.priceGbp.toFixed(2)}</span>
+                      <span className={styles.adminPrice}>£{d.priceGbp.toFixed(2)}</span>
                     ) : null}
                   </div>
 
-                  <div className="admin-venue">
-                    <span className="admin-venue-name">
+                  <div className={styles.adminVenue}>
+                    <span className={styles.adminVenueName}>
                       {venueNames.get(d.venueId) ?? d.venueId}
                     </span>
                     <Link
@@ -1731,18 +1731,18 @@ export default function AdminClient() {
                     </Link>
                   </div>
 
-                  {d.passedDownNote ? <p className="admin-note">{d.passedDownNote}</p> : null}
+                  {d.passedDownNote ? <p className={styles.adminNote}>{d.passedDownNote}</p> : null}
 
-                  <div className="admin-meta">
+                  <div className={styles.adminMeta}>
                     {d.era ? <span>Era: {d.era}</span> : null}
                     {d.reportReason ? (
-                      <span className="admin-report">Reason: {d.reportReason}</span>
+                      <span className={styles.adminReport}>Reason: {d.reportReason}</span>
                     ) : null}
-                    <span className="admin-report">
+                    <span className={styles.adminReport}>
                       Verified reports: {moderatorReportEvidence(d.reportCount, d.reportedAt).verifiedCount}
                     </span>
                     {moderatorReportEvidence(d.reportCount, d.reportedAt).hasEvidence ? (
-                      <span className="admin-report">Report evidence received</span>
+                      <span className={styles.adminReport}>Report evidence received</span>
                     ) : null}
                     {d.reportedAt ? (
                       <span>Reported: {new Date(d.reportedAt).toLocaleString()}</span>
@@ -1750,7 +1750,7 @@ export default function AdminClient() {
                   </div>
 
                   {d.pintPhotoUrl || d.venuePhotoUrl ? (
-                    <div className="admin-photos">
+                    <div className={styles.adminPhotos}>
                       {d.pintPhotoUrl ? (
                         <Image
                           src={d.pintPhotoUrl}
@@ -1772,16 +1772,16 @@ export default function AdminClient() {
                     </div>
                   ) : null}
 
-                  <div className="admin-actions">
+                  <div className={styles.adminActions}>
                     <button
-                      className="admin-btn admin-restore"
+                      className={`${styles.adminBtn} ${styles.adminRestore}`}
                       onClick={() => decide(d.id, "restore")}
                       disabled={pendingId === d.id}
                     >
                       {pendingId === d.id ? "Working…" : "Restore"}
                     </button>
                     <button
-                      className="admin-btn admin-keep"
+                      className={`${styles.adminBtn} ${styles.adminKeep}`}
                       onClick={() => decide(d.id, "keep_hidden")}
                       disabled={pendingId === d.id}
                     >
@@ -1812,62 +1812,62 @@ export default function AdminClient() {
           />
 
           {/* ── Community observation moderation queue ─────────────────────── */}
-          <h2 className="admin-section">Community Price moderation</h2>
+          <h2 className={styles.adminSection}>Community Price moderation</h2>
           {communityPriceMessage ? (
-            <div className="admin-msg" role={communityPriceMessage.tone}>
+            <div className={styles.adminMsg} role={communityPriceMessage.tone}>
               {communityPriceMessage.text}
             </div>
           ) : null}
           {communityPriceLoading &&
           reportedCommunityPrices.length === 0 &&
           hiddenCommunityPrices.length === 0 ? (
-            <div className="admin-empty" role="status">
+            <div className={styles.adminEmpty} role="status">
               Loading community prices…
             </div>
           ) : null}
 
-          <h3 className="admin-section">Reported Community Prices</h3>
+          <h3 className={styles.adminSection}>Reported Community Prices</h3>
           {reportedCommunityPrices.length === 0 ? (
-            <div className="admin-empty">
+            <div className={styles.adminEmpty}>
               <strong>No reported community prices</strong>
             </div>
           ) : (
-            <div className="admin-list">
+            <div className={styles.adminList}>
               {reportedCommunityPrices.map((row) => (
                 <article
-                  className="admin-card"
+                  className={styles.adminCard}
                   data-community-price-id={row.id}
                   key={row.id}
                 >
-                  <div className="admin-card-head">
-                    <span className="admin-handle">
+                  <div className={styles.adminCardHead}>
+                    <span className={styles.adminHandle}>
                       {row.kind === "price" ? "Community price" : "Venue signal"}
                     </span>
                     {row.kind === "price" && row.priceGbp != null ? (
-                      <span className="admin-price">£{row.priceGbp.toFixed(2)}</span>
+                      <span className={styles.adminPrice}>£{row.priceGbp.toFixed(2)}</span>
                     ) : null}
                   </div>
-                  <div className="admin-venue">
-                    <span className="admin-venue-name">{venueNames.get(row.venueId) ?? row.venueId}</span>
+                  <div className={styles.adminVenue}>
+                    <span className={styles.adminVenueName}>{venueNames.get(row.venueId) ?? row.venueId}</span>
                     <Link className="admin-venue-link" href={venueMapUrl(row.venueId)}>
                       View on map
                     </Link>
                   </div>
-                  <div className="admin-meta">
+                  <div className={styles.adminMeta}>
                     <span>{communityObservationText(row)}</span>
                     <span>Reports: {row.reportCount}</span>
                     <span>Submitted: {new Date(row.submittedAt).toLocaleString()}</span>
                     {row.reportReason ? (
-                      <span className="admin-report">Reason: {row.reportReason}</span>
+                      <span className={styles.adminReport}>Reason: {row.reportReason}</span>
                     ) : null}
                     {row.reportedAt ? (
                       <span>Reported: {new Date(row.reportedAt).toLocaleString()}</span>
                     ) : null}
                   </div>
-                  <div className="admin-actions">
+                  <div className={styles.adminActions}>
                     {row.kind === "price" ? (
                       <button
-                        className="admin-btn admin-keep"
+                        className={`${styles.adminBtn} ${styles.adminKeep}`}
                         onClick={() => void decideCommunityPrice(row, "reconcile")}
                         disabled={communityPricePendingId !== null || communityPriceLoading}
                       >
@@ -1877,7 +1877,7 @@ export default function AdminClient() {
                       </button>
                     ) : null}
                     <button
-                      className="admin-btn admin-keep"
+                      className={`${styles.adminBtn} ${styles.adminKeep}`}
                       onClick={() => void decideCommunityPrice(row, "hide")}
                       disabled={communityPricePendingId !== null || communityPriceLoading}
                     >
@@ -1889,48 +1889,48 @@ export default function AdminClient() {
             </div>
           )}
 
-          <h3 className="admin-section">Hidden Community Prices</h3>
+          <h3 className={styles.adminSection}>Hidden Community Prices</h3>
           {hiddenCommunityPrices.length === 0 ? (
-            <div className="admin-empty">
+            <div className={styles.adminEmpty}>
               <strong>No hidden community prices</strong>
             </div>
           ) : (
-            <div className="admin-list">
+            <div className={styles.adminList}>
               {hiddenCommunityPrices.map((row) => (
                 <article
-                  className="admin-card"
+                  className={styles.adminCard}
                   data-community-price-id={row.id}
                   key={row.id}
                 >
-                  <div className="admin-card-head">
-                    <span className="admin-handle">
+                  <div className={styles.adminCardHead}>
+                    <span className={styles.adminHandle}>
                       {row.kind === "price" ? "Community price" : "Venue signal"}
                     </span>
                     {row.kind === "price" && row.priceGbp != null ? (
-                      <span className="admin-price">£{row.priceGbp.toFixed(2)}</span>
+                      <span className={styles.adminPrice}>£{row.priceGbp.toFixed(2)}</span>
                     ) : null}
                   </div>
-                  <div className="admin-venue">
-                    <span className="admin-venue-name">{venueNames.get(row.venueId) ?? row.venueId}</span>
+                  <div className={styles.adminVenue}>
+                    <span className={styles.adminVenueName}>{venueNames.get(row.venueId) ?? row.venueId}</span>
                     <Link className="admin-venue-link" href={venueMapUrl(row.venueId)}>
                       View on map
                     </Link>
                   </div>
-                  <div className="admin-meta">
+                  <div className={styles.adminMeta}>
                     <span>{communityObservationText(row)}</span>
                     <span>Reports: {row.reportCount}</span>
                     <span>Submitted: {new Date(row.submittedAt).toLocaleString()}</span>
                     {row.reportReason ? (
-                      <span className="admin-report">Reason: {row.reportReason}</span>
+                      <span className={styles.adminReport}>Reason: {row.reportReason}</span>
                     ) : null}
                     {row.reportedAt ? (
                       <span>Reported: {new Date(row.reportedAt).toLocaleString()}</span>
                     ) : null}
                   </div>
-                  <div className="admin-actions">
+                  <div className={styles.adminActions}>
                     {row.kind === "price" ? (
                       <button
-                        className="admin-btn admin-keep"
+                        className={`${styles.adminBtn} ${styles.adminKeep}`}
                         onClick={() => void decideCommunityPrice(row, "reconcile")}
                         disabled={communityPricePendingId !== null || communityPriceLoading}
                       >
@@ -1940,7 +1940,7 @@ export default function AdminClient() {
                       </button>
                     ) : null}
                     <button
-                      className="admin-btn admin-restore"
+                      className={`${styles.adminBtn} ${styles.adminRestore}`}
                       onClick={() => void decideCommunityPrice(row, "restore")}
                       disabled={communityPricePendingId !== null || communityPriceLoading}
                     >
@@ -1953,25 +1953,25 @@ export default function AdminClient() {
           )}
 
           {/* ── Comment moderation queue (story 37) ─────────────────────────── */}
-          <h2 className="admin-section">Hidden comments</h2>
-          <p className="admin-sub">
+          <h2 className={styles.adminSection}>Hidden comments</h2>
+          <p className={styles.adminSub}>
             Review hidden Pint Drop comments. Restore the good, keep the rest hidden.
           </p>
           {comments.length === 0 ? (
-            <div className="admin-empty">
+            <div className={styles.adminEmpty}>
               <strong>No hidden comments</strong>
               <span>Hidden or reported comments will appear here for review.</span>
             </div>
           ) : (
-            <div className="admin-list">
+            <div className={styles.adminList}>
               {comments.map((c) => (
-                <article className="admin-card" key={c.id}>
-                  <div className="admin-card-head">
-                    <span className="admin-handle">{c.handle}</span>
-                    <span className="admin-report">{c.status}</span>
+                <article className={styles.adminCard} key={c.id}>
+                  <div className={styles.adminCardHead}>
+                    <span className={styles.adminHandle}>{c.handle}</span>
+                    <span className={styles.adminReport}>{c.status}</span>
                   </div>
-                  <p className="admin-note">{c.body}</p>
-                  <div className="admin-meta">
+                  <p className={styles.adminNote}>{c.body}</p>
+                  <div className={styles.adminMeta}>
                     <Link
                       className="admin-venue-link"
                       href={`/map?drop=${encodeURIComponent(c.pintDropId)}`}
@@ -1980,16 +1980,16 @@ export default function AdminClient() {
                     </Link>
                     <span>Posted: {new Date(c.createdAt).toLocaleString()}</span>
                   </div>
-                  <div className="admin-actions">
+                  <div className={styles.adminActions}>
                     <button
-                      className="admin-btn admin-restore"
+                      className={`${styles.adminBtn} ${styles.adminRestore}`}
                       onClick={() => decideComment(c.id, "restore")}
                       disabled={pendingId === c.id}
                     >
                       {pendingId === c.id ? "Working…" : "Restore"}
                     </button>
                     <button
-                      className="admin-btn admin-keep"
+                      className={`${styles.adminBtn} ${styles.adminKeep}`}
                       onClick={() => decideComment(c.id, "keep_hidden")}
                       disabled={pendingId === c.id}
                     >
@@ -2001,50 +2001,50 @@ export default function AdminClient() {
             </div>
           )}
           {/* ── Visit report moderation queue (Wayfinder 3.4) ───────────────── */}
-          <h2 className="admin-section">Reported visit reports</h2>
-          <p className="admin-sub">
+          <h2 className={styles.adminSection}>Reported visit reports</h2>
+          <p className={styles.adminSub}>
             Check reported visit accounts. Keep the good visible, hide the rest.
           </p>
           {visitReports.length === 0 ? (
-            <div className="admin-empty">
+            <div className={styles.adminEmpty}>
               <strong>No reported visit reports</strong>
               <span>Visit accounts appear here after a reader reports one.</span>
             </div>
           ) : (
-            <div className="admin-list">
+            <div className={styles.adminList}>
               {visitReports.map((v) => (
-                <article className="admin-card" key={v.id}>
-                  <div className="admin-card-head">
-                    <span className="admin-handle">{v.handle}</span>
-                    <span className="admin-report">{v.visitedAt}</span>
+                <article className={styles.adminCard} key={v.id}>
+                  <div className={styles.adminCardHead}>
+                    <span className={styles.adminHandle}>{v.handle}</span>
+                    <span className={styles.adminReport}>{v.visitedAt}</span>
                   </div>
-                  <div className="admin-venue">
-                    <span className="admin-venue-name">{venueNames.get(v.venueId) ?? v.venueId}</span>
+                  <div className={styles.adminVenue}>
+                    <span className={styles.adminVenueName}>{venueNames.get(v.venueId) ?? v.venueId}</span>
                     <Link className="admin-venue-link" href={venueMapUrl(v.venueId)}>
                       View on map
                     </Link>
                   </div>
-                  {v.note ? <p className="admin-note">{v.note}</p> : null}
-                  <div className="admin-meta">
+                  {v.note ? <p className={styles.adminNote}>{v.note}</p> : null}
+                  <div className={styles.adminMeta}>
                     {v.busyness ? <span>Busyness: {v.busyness}</span> : null}
                     {v.noise ? <span>Noise: {v.noise}</span> : null}
                     {v.seating ? <span>Seating: {v.seating}</span> : null}
                     {v.serviceWait ? <span>Bar wait: {v.serviceWait}</span> : null}
                     {v.reportReason ? (
-                      <span className="admin-report">Reason: {v.reportReason}</span>
+                      <span className={styles.adminReport}>Reason: {v.reportReason}</span>
                     ) : null}
-                    <span className="admin-report">Reports: {v.reportCount ?? 1}</span>
+                    <span className={styles.adminReport}>Reports: {v.reportCount ?? 1}</span>
                   </div>
-                  <div className="admin-actions">
+                  <div className={styles.adminActions}>
                     <button
-                      className="admin-btn admin-restore"
+                      className={`${styles.adminBtn} ${styles.adminRestore}`}
                       onClick={() => decideVisitReport(v, "restore", "reported")}
                       disabled={pendingId === v.id}
                     >
                       {pendingId === v.id ? "Working…" : "Keep visible"}
                     </button>
                     <button
-                      className="admin-btn admin-keep"
+                      className={`${styles.adminBtn} ${styles.adminKeep}`}
                       onClick={() => decideVisitReport(v, "hide", "reported")}
                       disabled={pendingId === v.id}
                     >
@@ -2057,32 +2057,32 @@ export default function AdminClient() {
           )}
 
           {/* ── Hidden visit reports: a hide stays reversible from here ─────── */}
-          <h2 className="admin-section">Hidden visit reports</h2>
-          <p className="admin-sub">
+          <h2 className={styles.adminSection}>Hidden visit reports</h2>
+          <p className={styles.adminSub}>
             Visit accounts a moderator has hidden. Hiding never deletes one, so any
             of these can go back on the pub&apos;s page.
           </p>
           {hiddenVisitReports.length === 0 ? (
-            <div className="admin-empty">
+            <div className={styles.adminEmpty}>
               <strong>No hidden visit reports</strong>
               <span>Accounts you hide from the queue above appear here.</span>
             </div>
           ) : (
-            <div className="admin-list">
+            <div className={styles.adminList}>
               {hiddenVisitReports.map((v) => (
-                <article className="admin-card" key={v.id}>
-                  <div className="admin-card-head">
-                    <span className="admin-handle">{v.handle}</span>
-                    <span className="admin-report">{v.visitedAt}</span>
+                <article className={styles.adminCard} key={v.id}>
+                  <div className={styles.adminCardHead}>
+                    <span className={styles.adminHandle}>{v.handle}</span>
+                    <span className={styles.adminReport}>{v.visitedAt}</span>
                   </div>
-                  <div className="admin-venue">
-                    <span className="admin-venue-name">{venueNames.get(v.venueId) ?? v.venueId}</span>
+                  <div className={styles.adminVenue}>
+                    <span className={styles.adminVenueName}>{venueNames.get(v.venueId) ?? v.venueId}</span>
                     <Link className="admin-venue-link" href={venueMapUrl(v.venueId)}>
                       View on map
                     </Link>
                   </div>
-                  {v.note ? <p className="admin-note">{v.note}</p> : null}
-                  <div className="admin-meta">
+                  {v.note ? <p className={styles.adminNote}>{v.note}</p> : null}
+                  <div className={styles.adminMeta}>
                     {v.busyness ? <span>Busyness: {v.busyness}</span> : null}
                     {v.noise ? <span>Noise: {v.noise}</span> : null}
                     {v.seating ? <span>Seating: {v.seating}</span> : null}
@@ -2091,12 +2091,12 @@ export default function AdminClient() {
                       <span>Hidden: {new Date(v.moderatedAt).toLocaleString()}</span>
                     ) : null}
                     {v.moderatorNote ? (
-                      <span className="admin-report">Note: {v.moderatorNote}</span>
+                      <span className={styles.adminReport}>Note: {v.moderatorNote}</span>
                     ) : null}
                   </div>
-                  <div className="admin-actions">
+                  <div className={styles.adminActions}>
                     <button
-                      className="admin-btn admin-restore"
+                      className={`${styles.adminBtn} ${styles.adminRestore}`}
                       onClick={() => decideVisitReport(v, "restore", "hidden")}
                       disabled={pendingId === v.id}
                     >
@@ -2118,30 +2118,30 @@ export default function AdminClient() {
           />
 
           {/* ── Profile picture report queue (Social Launch WP4) ─────────────── */}
-          <h2 className="admin-section">Reported profile pictures</h2>
-          <p className="admin-sub">
+          <h2 className={styles.adminSection}>Reported profile pictures</h2>
+          <p className={styles.adminSub}>
             Check reported profile pictures. Keep the good visible, hide the rest.
             A report never hides a face on its own.
           </p>
           {reportedAvatars.length === 0 ? (
-            <div className="admin-empty">
+            <div className={styles.adminEmpty}>
               <strong>No reported profile pictures</strong>
               <span>Faces appear here after a reader reports one.</span>
             </div>
           ) : (
-            <div className="admin-list">
+            <div className={styles.adminList}>
               {reportedAvatars.map((a) => (
-                <article className="admin-card" key={a.profileId}>
-                  <div className="admin-card-head">
-                    <span className="admin-handle">{a.handle}</span>
+                <article className={styles.adminCard} key={a.profileId}>
+                  <div className={styles.adminCardHead}>
+                    <span className={styles.adminHandle}>{a.handle}</span>
                     {a.reportedAt ? (
-                      <span className="admin-report">
+                      <span className={styles.adminReport}>
                         Reported: {new Date(a.reportedAt).toLocaleString()}
                       </span>
                     ) : null}
                   </div>
                   {a.previewUrl ? (
-                    <div className="admin-photos">
+                    <div className={styles.adminPhotos}>
                       <Image
                         className="admin-photo"
                         src={a.previewUrl}
@@ -2152,22 +2152,22 @@ export default function AdminClient() {
                       />
                     </div>
                   ) : null}
-                  <div className="admin-meta">
+                  <div className={styles.adminMeta}>
                     {a.reportReason ? (
-                      <span className="admin-report">Reason: {a.reportReason}</span>
+                      <span className={styles.adminReport}>Reason: {a.reportReason}</span>
                     ) : null}
-                    <span className="admin-report">Reports: {a.reportCount || 1}</span>
+                    <span className={styles.adminReport}>Reports: {a.reportCount || 1}</span>
                   </div>
-                  <div className="admin-actions">
+                  <div className={styles.adminActions}>
                     <button
-                      className="admin-btn admin-restore"
+                      className={`${styles.adminBtn} ${styles.adminRestore}`}
                       onClick={() => decideProfileAvatar(a, "restore", "reported")}
                       disabled={pendingId === a.profileId}
                     >
                       {pendingId === a.profileId ? "Working…" : "Keep visible"}
                     </button>
                     <button
-                      className="admin-btn admin-keep"
+                      className={`${styles.adminBtn} ${styles.adminKeep}`}
                       onClick={() => decideProfileAvatar(a, "hide", "reported")}
                       disabled={pendingId === a.profileId}
                     >
@@ -2179,40 +2179,40 @@ export default function AdminClient() {
             </div>
           )}
 
-          <h2 className="admin-section">Hidden profile pictures</h2>
-          <p className="admin-sub">
+          <h2 className={styles.adminSection}>Hidden profile pictures</h2>
+          <p className={styles.adminSub}>
             Profile pictures a moderator has hidden. Hiding never deletes one, so
             any of these can go back on the profile.
           </p>
           {hiddenAvatars.length === 0 ? (
-            <div className="admin-empty">
+            <div className={styles.adminEmpty}>
               <strong>No hidden profile pictures</strong>
               <span>Faces you hide from the queue above appear here.</span>
             </div>
           ) : (
-            <div className="admin-list">
+            <div className={styles.adminList}>
               {hiddenAvatars.map((a) => (
-                <article className="admin-card" key={a.profileId}>
-                  <div className="admin-card-head">
-                    <span className="admin-handle">{a.handle}</span>
+                <article className={styles.adminCard} key={a.profileId}>
+                  <div className={styles.adminCardHead}>
+                    <span className={styles.adminHandle}>{a.handle}</span>
                     {a.moderatedAt ? (
-                      <span className="admin-report">
+                      <span className={styles.adminReport}>
                         Hidden: {new Date(a.moderatedAt).toLocaleString()}
                       </span>
                     ) : null}
                   </div>
-                  <div className="admin-meta">
+                  <div className={styles.adminMeta}>
                     {a.reportReason ? (
-                      <span className="admin-report">Reason: {a.reportReason}</span>
+                      <span className={styles.adminReport}>Reason: {a.reportReason}</span>
                     ) : null}
-                    <span className="admin-report">Reports: {a.reportCount || 0}</span>
+                    <span className={styles.adminReport}>Reports: {a.reportCount || 0}</span>
                     {a.moderatorNote ? (
-                      <span className="admin-report">Note: {a.moderatorNote}</span>
+                      <span className={styles.adminReport}>Note: {a.moderatorNote}</span>
                     ) : null}
                   </div>
-                  <div className="admin-actions">
+                  <div className={styles.adminActions}>
                     <button
-                      className="admin-btn admin-restore"
+                      className={`${styles.adminBtn} ${styles.adminRestore}`}
                       onClick={() => decideProfileAvatar(a, "restore", "hidden")}
                       disabled={pendingId === a.profileId}
                     >
@@ -2224,25 +2224,25 @@ export default function AdminClient() {
             </div>
           )}
 
-          <h2 className="admin-section">Reported cover photos</h2>
-          <p className="admin-sub">
+          <h2 className={styles.adminSection}>Reported cover photos</h2>
+          <p className={styles.adminSub}>
             Check reported photos in a profile rotation. Keep the good visible, hide the rest.
           </p>
           {reportedCovers.length === 0 ? (
-            <div className="admin-empty">
+            <div className={styles.adminEmpty}>
               <strong>No reported cover photos</strong>
               <span>Rotation photos appear here after a reader reports one.</span>
             </div>
           ) : (
-            <div className="admin-list">
+            <div className={styles.adminList}>
               {reportedCovers.map((cover) => (
-                <article className="admin-card" key={cover.id}>
-                  <div className="admin-card-head">
-                    <span className="admin-handle">{cover.handle}</span>
-                    <span className="admin-report">Cover {cover.position}</span>
+                <article className={styles.adminCard} key={cover.id}>
+                  <div className={styles.adminCardHead}>
+                    <span className={styles.adminHandle}>{cover.handle}</span>
+                    <span className={styles.adminReport}>Cover {cover.position}</span>
                   </div>
                   {cover.previewUrl ? (
-                    <div className="admin-photos">
+                    <div className={styles.adminPhotos}>
                       <Image
                         className="admin-photo"
                         src={cover.previewUrl}
@@ -2253,25 +2253,25 @@ export default function AdminClient() {
                       />
                     </div>
                   ) : null}
-                  <div className="admin-meta">
+                  <div className={styles.adminMeta}>
                     {cover.reportReason ? (
-                      <span className="admin-report">Reason: {cover.reportReason}</span>
+                      <span className={styles.adminReport}>Reason: {cover.reportReason}</span>
                     ) : null}
-                    <span className="admin-report">Reports: {cover.reportCount || 1}</span>
+                    <span className={styles.adminReport}>Reports: {cover.reportCount || 1}</span>
                     {cover.reportedAt ? (
                       <span>Reported: {new Date(cover.reportedAt).toLocaleString()}</span>
                     ) : null}
                   </div>
-                  <div className="admin-actions">
+                  <div className={styles.adminActions}>
                     <button
-                      className="admin-btn admin-restore"
+                      className={`${styles.adminBtn} ${styles.adminRestore}`}
                       onClick={() => decideProfileCover(cover, "restore", "reported")}
                       disabled={pendingId === cover.id}
                     >
                       {pendingId === cover.id ? "Working…" : "Keep visible"}
                     </button>
                     <button
-                      className="admin-btn admin-keep"
+                      className={`${styles.adminBtn} ${styles.adminKeep}`}
                       onClick={() => decideProfileCover(cover, "hide", "reported")}
                       disabled={pendingId === cover.id}
                     >
@@ -2283,38 +2283,38 @@ export default function AdminClient() {
             </div>
           )}
 
-          <h2 className="admin-section">Hidden cover photos</h2>
-          <p className="admin-sub">
+          <h2 className={styles.adminSection}>Hidden cover photos</h2>
+          <p className={styles.adminSub}>
             Cover photos a moderator has hidden. Hiding never deletes one, so it can be restored.
           </p>
           {hiddenCovers.length === 0 ? (
-            <div className="admin-empty">
+            <div className={styles.adminEmpty}>
               <strong>No hidden cover photos</strong>
               <span>Hidden rotation photos appear here after moderation.</span>
             </div>
           ) : (
-            <div className="admin-list">
+            <div className={styles.adminList}>
               {hiddenCovers.map((cover) => (
-                <article className="admin-card" key={cover.id}>
-                  <div className="admin-card-head">
-                    <span className="admin-handle">{cover.handle}</span>
-                    <span className="admin-report">Cover {cover.position}</span>
+                <article className={styles.adminCard} key={cover.id}>
+                  <div className={styles.adminCardHead}>
+                    <span className={styles.adminHandle}>{cover.handle}</span>
+                    <span className={styles.adminReport}>Cover {cover.position}</span>
                   </div>
-                  <div className="admin-meta">
+                  <div className={styles.adminMeta}>
                     {cover.reportReason ? (
-                      <span className="admin-report">Reason: {cover.reportReason}</span>
+                      <span className={styles.adminReport}>Reason: {cover.reportReason}</span>
                     ) : null}
-                    <span className="admin-report">Reports: {cover.reportCount || 0}</span>
+                    <span className={styles.adminReport}>Reports: {cover.reportCount || 0}</span>
                     {cover.moderatedAt ? (
                       <span>Hidden: {new Date(cover.moderatedAt).toLocaleString()}</span>
                     ) : null}
                     {cover.moderatorNote ? (
-                      <span className="admin-report">Note: {cover.moderatorNote}</span>
+                      <span className={styles.adminReport}>Note: {cover.moderatorNote}</span>
                     ) : null}
                   </div>
-                  <div className="admin-actions">
+                  <div className={styles.adminActions}>
                     <button
-                      className="admin-btn admin-restore"
+                      className={`${styles.adminBtn} ${styles.adminRestore}`}
                       onClick={() => decideProfileCover(cover, "restore", "hidden")}
                       disabled={pendingId === cover.id}
                     >
@@ -2328,17 +2328,17 @@ export default function AdminClient() {
         </>
       ) : tab === "import" ? (
         <>
-          <h2 className="admin-section" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
+          <h2 className={styles.adminSection} style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
             Import note
           </h2>
-          <p className="admin-sub">
+          <p className={styles.adminSub}>
             Queue a URL or research note for moderated review. Staff-entered only.
             No Reddit/X polling. Notes persist on disk when the server can write
             <code> .data/</code>.
           </p>
 
           {importMsg ? (
-            <div className="admin-msg" role={importMsg.tone}>
+            <div className={styles.adminMsg} role={importMsg.tone}>
               {importMsg.text}
             </div>
           ) : null}
@@ -2350,13 +2350,13 @@ export default function AdminClient() {
           ) : null}
 
           <form
-            className="admin-import-form"
+            className={styles.adminImportForm}
             onSubmit={(event) => {
               event.preventDefault();
               void submitImportNote();
             }}
           >
-            <label className="admin-field">
+            <label className={styles.adminField}>
               <span>URL or note text</span>
               <textarea
                 value={importBody}
@@ -2367,7 +2367,7 @@ export default function AdminClient() {
                 aria-label="URL or note text"
               />
             </label>
-            <label className="admin-field">
+            <label className={styles.adminField}>
               <span>Venue id (optional)</span>
               <input
                 type="text"
@@ -2377,7 +2377,7 @@ export default function AdminClient() {
                 aria-label="Optional venue id"
               />
             </label>
-            <label className="admin-field">
+            <label className={styles.adminField}>
               <span>Venue name (optional)</span>
               <input
                 type="text"
@@ -2387,7 +2387,7 @@ export default function AdminClient() {
                 aria-label="Optional venue name"
               />
             </label>
-            <label className="admin-field">
+            <label className={styles.adminField}>
               <span>Source type</span>
               <select
                 value={importProvenance}
@@ -2400,18 +2400,18 @@ export default function AdminClient() {
                 <option value="contributor">contributor</option>
               </select>
             </label>
-            <button className="admin-btn" type="submit" disabled={importPending}>
+            <button className={styles.adminBtn} type="submit" disabled={importPending}>
               {importPending ? "Queuing…" : "Submit for review"}
             </button>
           </form>
 
           <div className="admin-import-queue">
-            <div className="admin-import-queue-head">
-              <h3 className="admin-section" style={{ marginTop: 28 }}>
+            <div className={styles.adminImportQueueHead}>
+              <h3 className={styles.adminSection} style={{ marginTop: 28 }}>
                 Review queue
               </h3>
-              <div className="admin-import-queue-actions">
-                <label className="admin-field admin-inline-check">
+              <div className={styles.adminImportQueueActions}>
+                <label className={`${styles.adminField} ${styles.adminInlineCheck}`}>
                   <input
                     type="checkbox"
                     checked={importShowDismissed}
@@ -2425,7 +2425,7 @@ export default function AdminClient() {
                 </label>
                 <button
                   type="button"
-                  className="admin-btn"
+                  className={styles.adminBtn}
                   onClick={() => void loadImportNotes()}
                   disabled={importLoading}
                 >
@@ -2434,15 +2434,15 @@ export default function AdminClient() {
               </div>
             </div>
             {importNotes.length === 0 ? (
-              <p className="admin-sub" role="status">
+              <p className={styles.adminSub} role="status">
                 {importLoading ? "Loading notes…" : "No notes in the queue."}
               </p>
             ) : (
-              <ul className="admin-import-list">
+              <ul className={styles.adminImportList}>
                 {importNotes.map((note) => (
-                  <li key={note.id} className="admin-import-item">
-                    <div className="admin-import-meta">
-                      <span className={`admin-import-status admin-import-status-${note.status}`}>
+                  <li key={note.id} className={styles.adminImportItem}>
+                    <div className={styles.adminImportMeta}>
+                      <span className={`${styles.adminImportStatus} ${note.status === "queued" ? styles.adminImportStatusQueued : styles.adminImportStatusDismissed}`}>
                         {note.status}
                       </span>
                       <span className="admin-import-prov">{note.provenance}</span>
@@ -2450,18 +2450,18 @@ export default function AdminClient() {
                         {new Date(note.createdAt).toLocaleString()}
                       </time>
                     </div>
-                    <p className="admin-import-body">{note.body}</p>
+                    <p className={styles.adminImportBody}>{note.body}</p>
                     {note.venueName || note.venueId ? (
-                      <p className="admin-import-venue">
+                      <p className={styles.adminImportVenue}>
                         {note.venueName ?? "Venue"}
                         {note.venueId ? ` · ${note.venueId}` : ""}
                       </p>
                     ) : null}
-                    <div className="admin-actions">
+                    <div className={styles.adminActions}>
                       {note.status === "queued" ? (
                         <button
                           type="button"
-                          className="admin-btn admin-keep"
+                          className={`${styles.adminBtn} ${styles.adminKeep}`}
                           onClick={() => void decideImportNote(note.id, "dismiss")}
                           disabled={importActionId === note.id}
                         >
@@ -2470,7 +2470,7 @@ export default function AdminClient() {
                       ) : (
                         <button
                           type="button"
-                          className="admin-btn admin-restore"
+                          className={`${styles.adminBtn} ${styles.adminRestore}`}
                           onClick={() => void decideImportNote(note.id, "restore")}
                           disabled={importActionId === note.id}
                         >
@@ -2486,24 +2486,24 @@ export default function AdminClient() {
         </>
       ) : (
         <>
-          <h2 className="admin-section" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
+          <h2 className={styles.adminSection} style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
             Operator rail
           </h2>
-          <p className="admin-sub">
+          <p className={styles.adminSub}>
             Check claims from people who run each pub, then review their proposed updates. Accepting a
             proposal records who sent it. It never overwrites existing notes.
           </p>
 
           {operatorMsg ? (
-            <div className="admin-msg" role={operatorMsg.tone}>
+            <div className={styles.adminMsg} role={operatorMsg.tone}>
               {operatorMsg.text}
             </div>
           ) : null}
 
-          <div className="admin-bar">
+          <div className={styles.adminBar}>
             <button
               type="button"
-              className="admin-btn"
+              className={styles.adminBtn}
               onClick={() => void loadOperators()}
               disabled={operatorLoading}
             >
@@ -2511,37 +2511,37 @@ export default function AdminClient() {
             </button>
           </div>
 
-          <h3 className="admin-section">Pending operator claims</h3>
+          <h3 className={styles.adminSection}>Pending operator claims</h3>
           {operatorClaims.length === 0 ? (
-            <div className="admin-empty">
+            <div className={styles.adminEmpty}>
               <strong>No pending claims</strong>
               <span>Check claims outside PUBMAXX by checking the email domain, ringing the bar or reading the document.</span>
             </div>
           ) : (
-            <div className="admin-list">
+            <div className={styles.adminList}>
               {operatorClaims.map((c) => (
-                <article className="admin-card" key={c.id}>
-                  <div className="admin-card-head">
-                    <span className="admin-handle">{venueNames.get(c.venueId) ?? c.venueId}</span>
-                    <span className="admin-report">{c.evidenceKind}</span>
+                <article className={styles.adminCard} key={c.id}>
+                  <div className={styles.adminCardHead}>
+                    <span className={styles.adminHandle}>{venueNames.get(c.venueId) ?? c.venueId}</span>
+                    <span className={styles.adminReport}>{c.evidenceKind}</span>
                   </div>
-                  <p className="admin-note">{c.evidenceNote}</p>
-                  <div className="admin-meta">
+                  <p className={styles.adminNote}>{c.evidenceNote}</p>
+                  <div className={styles.adminMeta}>
                     <Link className="admin-venue-link" href={`/ledger/${encodeURIComponent(c.venueId)}`}>
                       Open the ledger
                     </Link>
                     <span>Filed: {new Date(c.createdAt).toLocaleString()}</span>
                   </div>
-                  <div className="admin-actions">
+                  <div className={styles.adminActions}>
                     <button
-                      className="admin-btn admin-restore"
+                      className={`${styles.adminBtn} ${styles.adminRestore}`}
                       onClick={() => void decideOperatorClaim(c.id, "verify")}
                       disabled={operatorActionId === c.id}
                     >
                       {operatorActionId === c.id ? "Working…" : "Approve"}
                     </button>
                     <button
-                      className="admin-btn admin-keep"
+                      className={`${styles.adminBtn} ${styles.adminKeep}`}
                       onClick={() => void decideOperatorClaim(c.id, "reject")}
                       disabled={operatorActionId === c.id}
                     >
@@ -2553,42 +2553,42 @@ export default function AdminClient() {
             </div>
           )}
 
-          <h3 className="admin-section">Pending proposals</h3>
+          <h3 className={styles.adminSection}>Pending proposals</h3>
           {operatorProposals.length === 0 ? (
-            <div className="admin-empty">
+            <div className={styles.adminEmpty}>
               <strong>No pending proposals</strong>
               <span>Proposals from approved pub operators land here for review before they show.</span>
             </div>
           ) : (
-            <div className="admin-list">
+            <div className={styles.adminList}>
               {operatorProposals.map((p) => (
-                <article className="admin-card" key={p.id}>
-                  <div className="admin-card-head">
-                    <span className="admin-handle">{venueNames.get(p.venueId) ?? p.venueId}</span>
-                    <span className="admin-report">{p.type}</span>
+                <article className={styles.adminCard} key={p.id}>
+                  <div className={styles.adminCardHead}>
+                    <span className={styles.adminHandle}>{venueNames.get(p.venueId) ?? p.venueId}</span>
+                    <span className={styles.adminReport}>{p.type}</span>
                   </div>
-                  <p className="admin-note">
+                  <p className={styles.adminNote}>
                     {p.payload.field ? <strong>{p.payload.field}: </strong> : null}
                     {p.payload.title ? <strong>{p.payload.title} </strong> : null}
                     {p.payload.startsAt ? <em>({p.payload.startsAt}) </em> : null}
                     {p.payload.body ?? ""}
                   </p>
-                  <div className="admin-meta">
+                  <div className={styles.adminMeta}>
                     <Link className="admin-venue-link" href={`/ledger/${encodeURIComponent(p.venueId)}`}>
                       Open the ledger
                     </Link>
                     <span>Proposed: {new Date(p.createdAt).toLocaleString()}</span>
                   </div>
-                  <div className="admin-actions">
+                  <div className={styles.adminActions}>
                     <button
-                      className="admin-btn admin-restore"
+                      className={`${styles.adminBtn} ${styles.adminRestore}`}
                       onClick={() => void decideOperatorProposal(p.id, "accept")}
                       disabled={operatorActionId === p.id}
                     >
                       {operatorActionId === p.id ? "Working…" : "Accept"}
                     </button>
                     <button
-                      className="admin-btn admin-keep"
+                      className={`${styles.adminBtn} ${styles.adminKeep}`}
                       onClick={() => void decideOperatorProposal(p.id, "decline")}
                       disabled={operatorActionId === p.id}
                     >

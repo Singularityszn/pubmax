@@ -11,6 +11,7 @@
 import Image from "next/image";
 
 import { venuePhotoServePath } from "@/lib/venuePhotos";
+import styles from "./Admin.module.css";
 
 export type ModeratorVenuePhoto = {
   id: string;
@@ -51,29 +52,29 @@ export default function VenuePhotoModeration({
 }: VenuePhotoModerationProps) {
   return (
     <>
-      <h2 className="admin-section">Reported wall photos</h2>
-      <p className="admin-sub">
+      <h2 className={styles.adminSection}>Reported wall photos</h2>
+      <p className={styles.adminSub}>
         Check reported photos from pub walls. Keep the good ones up, hide the
         rest. A report never takes a photo off a wall on its own.
       </p>
       {reported.length === 0 ? (
-        <div className="admin-empty">
+        <div className={styles.adminEmpty}>
           <strong>No reported wall photos</strong>
           <span>Photos appear here after a reader reports one.</span>
         </div>
       ) : (
-        <div className="admin-list">
+        <div className={styles.adminList}>
           {reported.map((photo) => (
-            <article className="admin-card" key={photo.id}>
-              <div className="admin-card-head">
-                <span className="admin-venue-name">{venueLabel(photo, venueNames)}</span>
+            <article className={styles.adminCard} key={photo.id}>
+              <div className={styles.adminCardHead}>
+                <span className={styles.adminVenueName}>{venueLabel(photo, venueNames)}</span>
                 {photo.reportedAt ? (
-                  <span className="admin-report">
+                  <span className={styles.adminReport}>
                     Reported: {new Date(photo.reportedAt).toLocaleString()}
                   </span>
                 ) : null}
               </div>
-              <div className="admin-photos">
+              <div className={styles.adminPhotos}>
                 <Image
                   className="admin-photo"
                   src={venuePhotoServePath(photo.venueId, photo.id)}
@@ -83,26 +84,26 @@ export default function VenuePhotoModeration({
                   unoptimized
                 />
               </div>
-              <div className="admin-meta">
+              <div className={styles.adminMeta}>
                 {photo.caption ? <span>{photo.caption}</span> : null}
                 {photo.drinkCategory ? (
-                  <span className="admin-report">Drink: {photo.drinkCategory}</span>
+                  <span className={styles.adminReport}>Drink: {photo.drinkCategory}</span>
                 ) : null}
                 {photo.reportReason ? (
-                  <span className="admin-report">Reason: {photo.reportReason}</span>
+                  <span className={styles.adminReport}>Reason: {photo.reportReason}</span>
                 ) : null}
-                <span className="admin-report">Reports: {photo.reportCount || 1}</span>
+                <span className={styles.adminReport}>Reports: {photo.reportCount || 1}</span>
               </div>
-              <div className="admin-actions">
+              <div className={styles.adminActions}>
                 <button
-                  className="admin-btn admin-restore"
+                  className={`${styles.adminBtn} ${styles.adminRestore}`}
                   onClick={() => onDecide(photo, "restore", "reported")}
                   disabled={pendingId === photo.id}
                 >
                   {pendingId === photo.id ? "Working…" : "Keep visible"}
                 </button>
                 <button
-                  className="admin-btn admin-keep"
+                  className={`${styles.adminBtn} ${styles.adminKeep}`}
                   onClick={() => onDecide(photo, "hide", "reported")}
                   disabled={pendingId === photo.id}
                 >
@@ -114,41 +115,41 @@ export default function VenuePhotoModeration({
         </div>
       )}
 
-      <h2 className="admin-section">Hidden wall photos</h2>
-      <p className="admin-sub">
+      <h2 className={styles.adminSection}>Hidden wall photos</h2>
+      <p className={styles.adminSub}>
         Photos a moderator has hidden. Hiding never deletes one, so any of these
         can go back on its wall.
       </p>
       {hidden.length === 0 ? (
-        <div className="admin-empty">
+        <div className={styles.adminEmpty}>
           <strong>No hidden wall photos</strong>
           <span>Photos you hide from the queue above appear here.</span>
         </div>
       ) : (
-        <div className="admin-list">
+        <div className={styles.adminList}>
           {hidden.map((photo) => (
-            <article className="admin-card" key={photo.id}>
-              <div className="admin-card-head">
-                <span className="admin-venue-name">{venueLabel(photo, venueNames)}</span>
+            <article className={styles.adminCard} key={photo.id}>
+              <div className={styles.adminCardHead}>
+                <span className={styles.adminVenueName}>{venueLabel(photo, venueNames)}</span>
                 {photo.moderatedAt ? (
-                  <span className="admin-report">
+                  <span className={styles.adminReport}>
                     Hidden: {new Date(photo.moderatedAt).toLocaleString()}
                   </span>
                 ) : null}
               </div>
-              <div className="admin-meta">
+              <div className={styles.adminMeta}>
                 {photo.caption ? <span>{photo.caption}</span> : null}
                 {photo.reportReason ? (
-                  <span className="admin-report">Reason: {photo.reportReason}</span>
+                  <span className={styles.adminReport}>Reason: {photo.reportReason}</span>
                 ) : null}
-                <span className="admin-report">Reports: {photo.reportCount || 0}</span>
+                <span className={styles.adminReport}>Reports: {photo.reportCount || 0}</span>
                 {photo.moderatorNote ? (
-                  <span className="admin-report">Note: {photo.moderatorNote}</span>
+                  <span className={styles.adminReport}>Note: {photo.moderatorNote}</span>
                 ) : null}
               </div>
-              <div className="admin-actions">
+              <div className={styles.adminActions}>
                 <button
-                  className="admin-btn admin-restore"
+                  className={`${styles.adminBtn} ${styles.adminRestore}`}
                   onClick={() => onDecide(photo, "restore", "hidden")}
                   disabled={pendingId === photo.id}
                 >

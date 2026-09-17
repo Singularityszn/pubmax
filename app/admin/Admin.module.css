@@ -17,12 +17,12 @@
   margin: 0 0 0.25rem;
 }
 
-.admin p.admin-sub {
+.admin p.adminSub {
   color: var(--muted);
   margin: 0 0 1.5rem;
 }
 
-.admin-section {
+.adminSection {
   margin: 2.5rem 0 0.25rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--line, rgba(0, 0, 0, 0.1));
@@ -42,7 +42,7 @@
   text-decoration: none;
 }
 
-.admin-bar {
+.adminBar {
   display: flex;
   gap: 0.5rem;
   align-items: center;
@@ -50,7 +50,7 @@
   margin-bottom: 1.5rem;
 }
 
-.admin-bar input {
+.adminBar input {
   flex: 1 1 220px;
   padding: 0.55rem 0.7rem;
   border: 1px solid var(--line);
@@ -60,13 +60,13 @@
   font: inherit;
 }
 
-.admin-bar input:focus-visible {
+.adminBar input:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 1px;
   border-color: var(--brass);
 }
 
-.admin-btn {
+.adminBtn {
   padding: 0.55rem 0.9rem;
   border: 1px solid var(--brass);
   border-radius: var(--radius-sm);
@@ -76,28 +76,28 @@
   cursor: pointer;
 }
 
-.admin-btn:hover {
+.adminBtn:hover {
   filter: brightness(1.05);
 }
 
-.admin-btn:disabled {
+.adminBtn:disabled {
   cursor: wait;
   opacity: 0.68;
 }
 
-.admin-msg {
+.adminMsg {
   padding: 0.7rem 0.9rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   color: var(--ink-soft);
   margin-bottom: 1.25rem;
 }
-.admin-msg[role="alert"] {
+.adminMsg[role="alert"] {
   border-color: var(--brick);
   color: var(--brick);
 }
 
-.admin-empty {
+.adminEmpty {
   display: grid;
   gap: 0.4rem;
   padding: 1rem;
@@ -107,13 +107,13 @@
   color: var(--muted);
 }
 
-.admin-empty strong {
+.adminEmpty strong {
   color: var(--ink);
 }
 
 /* The way onward from a queue that could not load. Outline, because the queue
    it sits in is a refusal rather than an invitation. */
-.admin-empty .admin-retry {
+.adminEmpty .adminRetry {
   justify-self: start;
   padding: 0.45rem 0.8rem;
   border: 1px solid var(--brass);
@@ -125,34 +125,34 @@
   cursor: pointer;
 }
 
-.admin-empty .admin-retry:hover {
+.adminEmpty .adminRetry:hover {
   background: color-mix(in srgb, var(--brass) 12%, transparent);
 }
 
-.admin-empty .admin-retry:focus-visible {
+.adminEmpty .adminRetry:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
 
-.admin-empty a {
+.adminEmpty a {
   color: var(--brass);
   font-weight: 800;
   text-decoration: none;
 }
 
-.admin-list {
+.adminList {
   display: grid;
   gap: 1rem;
 }
 
-.admin-card {
+.adminCard {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
   padding: 1rem 1.1rem;
 }
 
-.admin-card-head {
+.adminCardHead {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -160,12 +160,12 @@
   margin-bottom: 0.5rem;
 }
 
-.admin-handle {
+.adminHandle {
   font-weight: 600;
   color: var(--ink);
 }
 
-.admin-venue {
+.adminVenue {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -173,22 +173,22 @@
   margin-bottom: 0.5rem;
 }
 
-.admin-venue-name {
+.adminVenueName {
   font-weight: 600;
   color: var(--ink);
 }
 
-.admin-price {
+.adminPrice {
   color: var(--pint);
   font-weight: 600;
 }
 
-.admin-note {
+.adminNote {
   color: var(--ink-soft);
   margin: 0.25rem 0 0.5rem;
 }
 
-.admin-meta {
+.adminMeta {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem 0.9rem;
@@ -197,18 +197,18 @@
   margin-bottom: 0.75rem;
 }
 
-.admin-report {
+.adminReport {
   color: var(--brick);
   font-weight: 600;
 }
 
-.admin-photos {
+.adminPhotos {
   display: flex;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
 }
 
-.admin-photos img {
+.adminPhotos img {
   width: 96px;
   height: 96px;
   object-fit: cover;
@@ -216,28 +216,28 @@
   border-radius: var(--radius-sm);
 }
 
-.admin-actions {
+.adminActions {
   display: flex;
   gap: 0.5rem;
 }
 
-.admin-restore {
+.adminRestore {
   border-color: var(--pint);
   background: var(--pint);
 }
 
-.admin-keep {
+.adminKeep {
   border-color: var(--brick);
   background: var(--brick);
 }
 
-.admin-tabs {
+.adminTabs {
   display: flex;
   gap: 0.4rem;
   margin: 0 0 1.25rem;
 }
 
-.admin-tab {
+.adminTab {
   padding: 0.45rem 0.85rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -248,19 +248,19 @@
   cursor: pointer;
 }
 
-.admin-tab.active {
+.adminTabActive {
   border-color: var(--brass);
   background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
   color: var(--ink);
 }
 
-.admin-import-form {
+.adminImportForm {
   display: grid;
   gap: 0.9rem;
   max-width: 520px;
 }
 
-.admin-field {
+.adminField {
   display: grid;
   gap: 0.35rem;
   font-size: 0.86rem;
@@ -268,9 +268,9 @@
   color: var(--ink);
 }
 
-.admin-field input,
-.admin-field textarea,
-.admin-field select {
+.adminField input,
+.adminField textarea,
+.adminField select {
   padding: 0.55rem 0.7rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -280,20 +280,20 @@
   font-weight: 400;
 }
 
-.admin-field textarea {
+.adminField textarea {
   resize: vertical;
   min-height: 110px;
 }
 
-.admin-field input:focus-visible,
-.admin-field textarea:focus-visible,
-.admin-field select:focus-visible {
+.adminField input:focus-visible,
+.adminField textarea:focus-visible,
+.adminField select:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 1px;
   border-color: var(--brass);
 }
 
-.admin-import-queue-head {
+.adminImportQueueHead {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -301,14 +301,14 @@
   gap: 0.75rem 1rem;
 }
 
-.admin-import-queue-actions {
+.adminImportQueueActions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
 }
 
-.admin-inline-check {
+.adminInlineCheck {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -316,11 +316,11 @@
   color: var(--muted);
 }
 
-.admin-inline-check input {
+.adminInlineCheck input {
   width: auto;
 }
 
-.admin-import-list {
+.adminImportList {
   list-style: none;
   margin: 1rem 0 0;
   padding: 0;
@@ -328,14 +328,14 @@
   gap: 0.85rem;
 }
 
-.admin-import-item {
+.adminImportItem {
   padding: 0.9rem 1rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
 }
 
-.admin-import-meta {
+.adminImportMeta {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 0.75rem;
@@ -344,21 +344,21 @@
   color: var(--muted);
 }
 
-.admin-import-status {
+.adminImportStatus {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
-.admin-import-status-queued {
+.adminImportStatusQueued {
   color: var(--brass);
 }
 
-.admin-import-status-dismissed {
+.adminImportStatusDismissed {
   color: var(--muted);
 }
 
-.admin-import-body {
+.adminImportBody {
   margin: 0 0 0.4rem;
   white-space: pre-wrap;
   word-break: break-word;
@@ -367,7 +367,7 @@
   line-height: 1.45;
 }
 
-.admin-import-venue {
+.adminImportVenue {
   margin: 0 0 0.65rem;
   font-size: 0.82rem;
   color: var(--muted);

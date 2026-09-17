@@ -7,6 +7,7 @@ import {
   clearLegacyAdminTokenStorage,
   submitAdminToken,
 } from "@/lib/adminSessionClient";
+import styles from "./Admin.module.css";
 
 type AdminSessionEntryProps = {
   onOpened: () => void | Promise<void>;
@@ -44,7 +45,7 @@ export default function AdminSessionEntry({
 
   return (
     <>
-      <form className="admin-bar" onSubmit={(event) => void onSubmit(event)}>
+      <form className={styles.adminBar} onSubmit={(event) => void onSubmit(event)}>
         <input
           type="password"
           value={token}
@@ -54,12 +55,12 @@ export default function AdminSessionEntry({
           autoComplete="current-password"
           required
         />
-        <button className="admin-btn" type="submit" disabled={busy}>
+        <button className={styles.adminBtn} type="submit" disabled={busy}>
           {busy ? "Checking…" : submitLabel}
         </button>
       </form>
       {error ? (
-        <p className="admin-msg" role="alert">
+        <p className={styles.adminMsg} role="alert">
           {error}
         </p>
       ) : null}
