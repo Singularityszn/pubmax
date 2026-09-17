@@ -110,6 +110,7 @@ export type AttachOpenPlanMeetingPoints = {
  * Attach the meeting point each Out card renders. City narrowing happens in
  * list_open_social_crews; this lane only resolves Stop 1 for rows the RPC
  * already returned. A row whose read could NOT run degrades the answer.
+ * @public
  */
 export async function attachOpenPlanMeetingPoints(
   rows: readonly OutOpenPlan[],

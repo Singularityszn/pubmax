@@ -9,5 +9,5 @@
 
 import { makeIpRateLimiter } from "@/lib/ipRateLimit";
 
-/** ~60/min-per-IP budget for the public /api/out surface. */
+/** ~60/min-per-IP budget for the public /api/out surface. @public */
 export const isOutLimited = makeIpRateLimiter("out-listings");

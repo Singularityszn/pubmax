@@ -177,6 +177,7 @@ function weekendWindow(now = Date.now()): OutPlanWindow {
  * today  = London day from 05:00 to 05:00 next day.
  * tomorrow = next London day from 05:00 to 05:00 next day.
  * weekend = Fri 17:00 through Sun 05:00.
+ * @public
  */
 export function outPlansWindow(day: OutDay, now: number = Date.now()): OutPlanWindow {
   const clock = londonClock(now);
@@ -218,6 +219,7 @@ export function outPlansWindow(day: OutDay, now: number = Date.now()): OutPlanWi
   };
 }
 
+/** @public */
 export function boundOutOpenPlans(rows: OutOpenPlan[]): OutOpenPlan[] {
   return rows.slice(0, OUT_OPEN_PLAN_LIMIT);
 }

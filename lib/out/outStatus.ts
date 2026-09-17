@@ -12,6 +12,7 @@ export const OUT_UNSETTLED_CACHE_CONTROL = "public, s-maxage=30, stale-while-rev
  * upstream blip would otherwise pin "Some listings could not be checked." on
  * the CDN for a quarter of an hour after the provider recovered - so it is held
  * briefly and re-asked.
+ * @public
  */
 export function outCacheControl(
   status: OutStatus,

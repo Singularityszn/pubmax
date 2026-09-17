@@ -33,9 +33,9 @@ const config: KnipConfig = {
   ],
   rules: {
     files: "error",
-    exports: "off",
+    exports: "error",
     types: "off",
-    nsExports: "off",
+    nsExports: "error",
     nsTypes: "off",
     enumMembers: "off",
     duplicates: "off",

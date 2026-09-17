@@ -32,7 +32,7 @@ import "server-only";
 
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-/** Extract a bearer token from an Authorization header, or null when absent. */
+/** Extract a bearer token from an Authorization header, or null when absent. @public */
 export function bearerToken(request: Request): string | null {
   const header = request.headers.get("authorization") ?? request.headers.get("Authorization");
   if (!header) return null;
