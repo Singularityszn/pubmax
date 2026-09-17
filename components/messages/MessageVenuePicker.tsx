@@ -9,6 +9,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
+import styles from "@/app/messages/Messages.module.css";
 import {
   MESSAGE_VENUE_SEARCH_EMPTY_LINE,
   MESSAGE_VENUE_SEARCH_FAILED_LINE,
@@ -94,15 +95,15 @@ export default function MessageVenuePicker({
   }, [query]);
 
   return (
-    <div className="composerVenuePicker">
-      <label htmlFor={fieldId} className="composerVenueNote">
+    <div className={styles.composerVenuePicker}>
+      <label htmlFor={fieldId} className={styles.composerVenueNote}>
         {MESSAGE_VENUE_SEARCH_LABEL}
       </label>
       <input
         ref={inputRef}
         id={fieldId}
         type="search"
-        className="composerVenueSearch"
+        className={styles.composerVenueSearch}
         value={query}
         placeholder={MESSAGE_VENUE_SEARCH_PLACEHOLDER}
         autoComplete="off"
@@ -123,32 +124,32 @@ export default function MessageVenuePicker({
       />
 
       {state === "ready" && hits.length === 0 ? (
-        <p className="composerVenueNote">{MESSAGE_VENUE_SEARCH_EMPTY_LINE}</p>
+        <p className={styles.composerVenueNote}>{MESSAGE_VENUE_SEARCH_EMPTY_LINE}</p>
       ) : null}
       {state === "failed" ? (
-        <p className="composerVenueNote" role="status">
+        <p className={styles.composerVenueNote} role="status">
           {MESSAGE_VENUE_SEARCH_FAILED_LINE}
         </p>
       ) : null}
 
       {hits.length > 0 ? (
-        <ul className="composerVenueResults">
+        <ul className={styles.composerVenueResults}>
           {hits.map((hit) => (
             <li key={hit.id}>
               <button
                 type="button"
-                className="composerVenueResult"
+                className={styles.composerVenueResult}
                 onClick={() => onPick(hit)}
               >
                 <span>{hit.name}</span>
-                {hit.area ? <span className="composerVenueResultArea">{hit.area}</span> : null}
+                {hit.area ? <span className={styles.composerVenueResultArea}>{hit.area}</span> : null}
               </button>
             </li>
           ))}
         </ul>
       ) : null}
 
-      <button type="button" className="composerPendingRemove" onClick={onCancel}>
+      <button type="button" className={styles.composerPendingRemove} onClick={onCancel}>
         Cancel
       </button>
     </div>

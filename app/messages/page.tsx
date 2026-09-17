@@ -4,7 +4,7 @@ import SiteNav from "@/components/nav/SiteNav";
 
 import MessagesInboxClient, { MessagesThreadEmptyCopy } from "./MessagesInboxClient";
 
-import "./messages.css";
+import styles from "./Messages.module.css";
 
 // Server shell for /messages so the route carries real metadata (the client
 // component can't export it). Direct messages are private to the signed-in
@@ -17,16 +17,16 @@ export const metadata: Metadata = {
 
 export default function MessagesInboxPage(): React.JSX.Element {
   return (
-    <div className="lp messagesPage">
+    <div className={`lp ${styles.messagesPage}`}>
       <SiteNav />
-      <main id="main" className="container messagesMain messagesMainInbox">
-        <div className="messagesSplit">
-          <aside className="messagesInboxPane" aria-label="Inbox">
+      <main id="main" className={`container ${styles.messagesMain} ${styles.messagesMainInbox}`}>
+        <div className={styles.messagesSplit}>
+          <aside className={styles.messagesInboxPane} aria-label="Inbox">
             <MessagesInboxClient />
           </aside>
           {/* The pane is neutral here on purpose: what it says depends on the
               viewer, and this page may not server-render per-account content. */}
-          <section className="messagesThreadPane messagesThreadEmpty" aria-label="Conversation">
+          <section className={`${styles.messagesThreadPane} ${styles.messagesThreadEmpty}`} aria-label="Conversation">
             <MessagesThreadEmptyCopy />
           </section>
         </div>

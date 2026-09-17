@@ -60,7 +60,7 @@ import {
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 
-import "@/app/messages/messages.css";
+import styles from "@/app/messages/Messages.module.css";
 
 // The message thread (PRD E4): bubbles (mine right / coral, theirs left /
 // panel), a composer with the 1000-char cap, and a light abuse "Report"
@@ -76,7 +76,7 @@ import "@/app/messages/messages.css";
 // A BUBBLE'S WIDTH IS THE ROW'S BUSINESS. Each row wraps its bubble in a
 // `.messageLine`, which is the box the 75% limit lives on; putting that limit on
 // the bubble made every bubble 78% of its OWN natural width, and "Yo!!" arrived
-// on production as one character per line. See app/messages/messages.css.
+// on production as one character per line. See app/messages/Messages.module.css.
 //
 // A THREAD READS LIKE A CONVERSATION. lib/messageTimeline.ts decides the day
 // lines, which bubbles sit tight in one run, and where the time and the read
@@ -149,7 +149,7 @@ function MessageBody({ body }: { body: string }): React.JSX.Element {
     <>
       {segments.map((seg, i) =>
         seg.type === "mention" ? (
-          <Link key={i} href={`/u/${encodeURIComponent(seg.handle)}`} className="messageMention">
+          <Link key={i} href={`/u/${encodeURIComponent(seg.handle)}`} className={styles.messageMention}>
             {seg.raw}
           </Link>
         ) : (
@@ -704,34 +704,34 @@ export default function MessageThread({
   );
 
   if (!sameThreadReadKey(viewRevision, conversationId, accountRevision)) {
-    return <p className="conversationPreview">With you in a sec.</p>;
+    return <p className={styles.conversationPreview}>With you in a sec.</p>;
   }
 
   if (state === "signedout" && viewerSession.signedOut) {
     return (
-      <div className="conversationPreview messagesSignInPrompt">
+      <div className={`${styles.conversationPreview} ${styles.messagesSignInPrompt}`}>
         <p>Sign in to read and send messages.</p>
         <SignInButton />
       </div>
     );
   }
   if (state === "signedout") {
-    return <p className="conversationPreview">With you in a sec.</p>;
+    return <p className={styles.conversationPreview}>With you in a sec.</p>;
   }
   if (state === "notfound") {
     return (
-      <p className="conversationPreview">
+      <p className={styles.conversationPreview}>
         Conversation not found. <Link href="/messages">Back to inbox</Link>
       </p>
     );
   }
   if (state === "unreachable") {
     return (
-      <div className="threadFailure" role="status">
+      <div className={styles.threadFailure} role="status">
         <p>This conversation won&rsquo;t open right now. Your messages are safe.</p>
         <button
           type="button"
-          className="threadRetryBtn"
+          className={styles.threadRetryBtn}
           onClick={() => {
             setState("loading");
             void refresh();
@@ -747,48 +747,48 @@ export default function MessageThread({
   const showCounter = draft.length >= COUNTER_FROM;
 
   return (
-    <div className="messageThread">
+    <div className={styles.messageThread}>
       {/* The shell is `display: contents`: it carries the keyboard facts as
           data for the stylesheet and the marker that hides the compose
           control, and draws no box of its own. */}
       <div
-        className="messageThreadShell pageHidesCreateFab"
+        className={`${styles.messageThreadShell} pageHidesCreateFab`}
         data-keyboard-open={keyboardOpen ? "" : undefined}
         style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
       >
-      <div className="threadHeader">
-        <Link href="/messages" className="threadBackLink" aria-label="Back to inbox">
+      <div className={styles.threadHeader}>
+        <Link href="/messages" className={styles.threadBackLink} aria-label="Back to inbox">
           <ChevronLeft size={24} aria-hidden="true" />
         </Link>
         {otherHandle ? (
-          <Link href={`/u/${encodeURIComponent(otherHandle)}`} className="threadWith">
+          <Link href={`/u/${encodeURIComponent(otherHandle)}`} className={styles.threadWith}>
             <MessageAvatar handle={otherHandle} size={36} />
-            <span className="threadWithHandle">@{otherHandle}</span>
+            <span className={styles.threadWithHandle}>@{otherHandle}</span>
           </Link>
         ) : (
-          <span className="threadWith">
-            <span className="threadWithHandle">Conversation</span>
+          <span className={styles.threadWith}>
+            <span className={styles.threadWithHandle}>Conversation</span>
           </span>
         )}
       </div>
 
       {state === "loading" ? (
-        <p className="conversationPreview">With you in a sec.</p>
+        <p className={styles.conversationPreview}>With you in a sec.</p>
       ) : (
-        <ul className="threadMessages" ref={listRef}>
+        <ul className={styles.threadMessages} ref={listRef}>
           {timeline.length === 0 ? (
-            <li className="threadEmpty" aria-live="polite">
+            <li className={styles.threadEmpty} aria-live="polite">
               {otherHandle ? <MessageAvatar handle={otherHandle} size={72} /> : null}
-              <p className="threadEmptyTitle">
+              <p className={styles.threadEmptyTitle}>
                 {otherHandle ? `@${otherHandle}` : "Nothing here yet."}
               </p>
-              <p className="threadEmptyLine">Say hello. This one stays between the two of you.</p>
+              <p className={styles.threadEmptyLine}>Say hello. This one stays between the two of you.</p>
             </li>
           ) : null}
           {timeline.map((item) => {
             if (item.kind === "day") {
               return (
-                <li key={`day-${item.key}`} className="threadDay" aria-label={item.label}>
+                <li key={`day-${item.key}`} className={styles.threadDay} aria-label={item.label}>
                   <span>{item.label}</span>
                 </li>
               );
@@ -801,19 +801,19 @@ export default function MessageThread({
             return (
               <li
                 key={m.id}
-                className={mine ? "messageRow messageRowMine" : "messageRow"}
+                className={mine ? `${styles.messageRow} ${styles.messageRowMine}` : styles.messageRow}
                 data-first={item.first ? "" : undefined}
                 data-last={item.last ? "" : undefined}
                 data-revealed={revealed ? "" : undefined}
                 data-sending={sendingRow ? "" : undefined}
               >
                 {/* The box the 75% width limit lives on. */}
-                <div className="messageLine">
+                <div className={styles.messageLine}>
                   <div
                     className={
                       mine
-                        ? "messageBubble messageBubbleMine"
-                        : "messageBubble messageBubbleTheirs"
+                        ? `${styles.messageBubble} ${styles.messageBubbleMine}`
+                        : `${styles.messageBubble} ${styles.messageBubbleTheirs}`
                     }
                     onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
                   >
@@ -828,23 +828,23 @@ export default function MessageThread({
                     ) : null}
                     {pendingPhoto ? (
                       // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo on its way
-                      <img className="messagePhotoSending" src={pendingPhoto} alt="" />
+                      <img className={styles.messagePhotoSending} src={pendingPhoto} alt="" />
                     ) : null}
                     {m.attachment?.kind === "venue" ? (
                       <MessageVenueCard card={m.attachment.card} />
                     ) : null}
                     {m.body ? <MessageBody body={m.body} /> : null}
                   </div>
-                  <div className="messageMeta">
-                    <time className="messageClock" dateTime={m.createdAt}>
+                  <div className={styles.messageMeta}>
+                    <time className={styles.messageClock} dateTime={m.createdAt}>
                       {item.clock}
                     </time>
                     {m.flagged ? (
-                      <span className="messageFlagged">Reported</span>
+                      <span className={styles.messageFlagged}>Reported</span>
                     ) : !mine ? (
                       <button
                         type="button"
-                        className="messageReportBtn"
+                        className={styles.messageReportBtn}
                         onClick={() => void report(m.id)}
                       >
                         Report
@@ -852,9 +852,9 @@ export default function MessageThread({
                     ) : null}
                   </div>
                   {sendingRow ? (
-                    <span className="messageReadState">Sending</span>
+                    <span className={styles.messageReadState}>Sending</span>
                   ) : item.readState ? (
-                    <span className="messageReadState">
+                    <span className={styles.messageReadState}>
                       {MESSAGE_READ_STATE_LABEL[item.readState]}
                     </span>
                   ) : null}
@@ -878,10 +878,10 @@ export default function MessageThread({
       />
 
       {cropping ? (
-        <div className="messageCropOverlay">
+        <div className={styles.messageCropOverlay}>
           <div
             ref={cropCardRef}
-            className="messageCropCard"
+            className={styles.messageCropCard}
             role="dialog"
             aria-modal="true"
             aria-label="Crop photo"
@@ -902,8 +902,8 @@ export default function MessageThread({
         </div>
       ) : null}
 
-      <div className="composerDock">
-        {error ? <p className="threadError" role="alert">{error}</p> : null}
+      <div className={styles.composerDock}>
+        {error ? <p className={styles.threadError} role="alert">{error}</p> : null}
 
         {pickingVenue ? (
           <MessageVenuePicker
@@ -916,28 +916,28 @@ export default function MessageThread({
         ) : null}
 
         {pending ? (
-          <div className="composerPending">
+          <div className={styles.composerPending}>
             {pending.kind === "photo" ? (
               // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo about to send
-              <img className="composerPendingThumb" src={pending.previewUrl} alt="" />
+              <img className={styles.composerPendingThumb} src={pending.previewUrl} alt="" />
             ) : (
-              <MapPin size={18} aria-hidden="true" className="composerPendingIcon" />
+              <MapPin size={18} aria-hidden="true" className={styles.composerPendingIcon} />
             )}
-            <span className="composerPendingLabel">
+            <span className={styles.composerPendingLabel}>
               {pending.kind === "photo" ? "Photo ready to send" : pending.venue.name}
             </span>
-            <button type="button" className="composerPendingRemove" onClick={clearPending}>
+            <button type="button" className={styles.composerPendingRemove} onClick={clearPending}>
               Remove
             </button>
           </div>
         ) : null}
 
-        <div className="composer">
-          <div className="composerControls">
+        <div className={styles.composer}>
+          <div className={styles.composerControls}>
             {isMobileViewport ? (
               <button
                 type="button"
-                className="composerMobileAttach"
+                className={styles.composerMobileAttach}
                 aria-label="Add an attachment"
                 aria-expanded={mobileAttachOpen}
                 disabled={sending}
@@ -951,7 +951,7 @@ export default function MessageThread({
             ) : null}
             <button
               type="button"
-              className="composerAttach composerPhotoDesktop"
+              className={`${styles.composerAttach} ${styles.composerPhotoDesktop}`}
               aria-label={MESSAGE_ATTACH_PHOTO_LABEL}
               aria-pressed={pending?.kind === "photo"}
               disabled={sending}
@@ -964,7 +964,7 @@ export default function MessageThread({
             </button>
             <button
               type="button"
-              className="composerAttach composerVenueDesktop"
+              className={`${styles.composerAttach} composerVenueDesktop`}
               aria-label={MESSAGE_ATTACH_VENUE_LABEL}
               aria-pressed={pending?.kind === "venue"}
               disabled={sending}
@@ -976,10 +976,10 @@ export default function MessageThread({
               <MapPin size={20} aria-hidden="true" />
             </button>
           </div>
-          <div className="composerField">
+          <div className={styles.composerField}>
             <textarea
               ref={inputRef}
-              className="composerInput"
+              className={styles.composerInput}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               placeholder="Message…"
@@ -1005,7 +1005,7 @@ export default function MessageThread({
             />
             {showCounter ? (
               <span
-                className={over ? "composerCount composerCountOver" : "composerCount"}
+                className={over ? `${styles.composerCount} ${styles.composerCountOver}` : styles.composerCount}
                 aria-live="polite"
               >
                 {draft.length}/{MAX_MESSAGE_BODY}
@@ -1014,7 +1014,7 @@ export default function MessageThread({
           </div>
           <button
             type="button"
-            className="composerSend"
+            className={styles.composerSend}
             aria-label="Send"
             disabled={!canSend}
             onClick={() => void send()}

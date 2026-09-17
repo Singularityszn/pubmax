@@ -9,6 +9,7 @@
 
 import Link from "next/link";
 
+import styles from "@/app/messages/Messages.module.css";
 import {
   MESSAGE_VENUE_CARD_UNRESOLVED_LINE,
   messageVenueCardLabel,
@@ -22,14 +23,14 @@ export default function MessageVenueCard({
   card: VenueCard | null;
 }): React.JSX.Element {
   if (!card) {
-    return <p className="messageVenueCardUnresolved">{MESSAGE_VENUE_CARD_UNRESOLVED_LINE}</p>;
+    return <p className={styles.messageVenueCardUnresolved}>{MESSAGE_VENUE_CARD_UNRESOLVED_LINE}</p>;
   }
   const price = messageVenuePriceLine(card.priceGbp);
   return (
-    <Link href={card.mapUrl} className="messageVenueCard" aria-label={messageVenueCardLabel(card)}>
-      <span className="messageVenueCardName">{card.name}</span>
-      {card.area ? <span className="messageVenueCardArea">{card.area}</span> : null}
-      {price ? <span className="messageVenueCardPrice">{price}</span> : null}
+    <Link href={card.mapUrl} className={styles.messageVenueCard} aria-label={messageVenueCardLabel(card)}>
+      <span className={styles.messageVenueCardName}>{card.name}</span>
+      {card.area ? <span className={styles.messageVenueCardArea}>{card.area}</span> : null}
+      {price ? <span className={styles.messageVenueCardPrice}>{price}</span> : null}
     </Link>
   );
 }

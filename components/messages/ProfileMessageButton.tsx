@@ -10,7 +10,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { normalizeHandle } from "@/lib/profiles";
 
-import "@/app/messages/messages.css";
+import styles from "@/app/messages/Messages.module.css";
 
 // The "Message" control on a profile (PRD E4 / Wave I2). Opens (or finds) the
 // conversation via POST /api/messages {action:"open"} with Bearer JWT, then
@@ -88,14 +88,14 @@ export default function ProfileMessageButton({
     <>
       <button
         type="button"
-        className="profileMessageBtn"
+        className={styles.profileMessageBtn}
         onClick={() => void open()}
         disabled={busy}
       >
         Message
       </button>
       {error ? (
-        <p className="profileMessageError" role="status">
+        <p className={styles.profileMessageError} role="status">
           {error}
         </p>
       ) : null}

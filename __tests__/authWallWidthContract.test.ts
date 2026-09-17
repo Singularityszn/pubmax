@@ -27,7 +27,7 @@ describe("app-wide auth-wall width contract (post-766)", () => {
 
 describe("messages thread eyebrow uses type token", () => {
   it("reads --text-2xs instead of a raw rem size", () => {
-    const css = read("app/messages/messages.css");
+    const css = read("app/messages/Messages.module.css");
     const rule = /\.messagesThreadEyebrow\s*\{([\s\S]*?)\}/.exec(css);
     expect(rule, ".messagesThreadEyebrow missing").not.toBeNull();
     expect(rule![1]).toMatch(/font-size:\s*var\(--text-2xs,\s*0\.68rem\)/);

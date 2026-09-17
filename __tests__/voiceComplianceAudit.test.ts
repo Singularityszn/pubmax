@@ -523,7 +523,7 @@ describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
     ["app/pal/Pal.module.css", [".palEyebrow", ".palMemoryList__meta span"]],
     // Pub Pal chat's kicker is the shared Kicker primitive inside its Screen head.
     ["components/pal/palChat.css", [".palGlanceLabel"]],
-    ["app/messages/messages.css", [".messagesThreadEyebrow"]],
+    ["app/messages/Messages.module.css", [".messagesThreadEyebrow"]],
     // The landing's labels are the shared Kicker primitive (components/ui/kicker.css).
     ["components/ui/kicker.css", [".kicker"]],
     ["components/plan/nightCrawl.css", [

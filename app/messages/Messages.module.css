@@ -91,7 +91,7 @@
   padding-inline: 0;
 }
 
-.messagesScreen .screenHead {
+.messagesScreen :global(.screenHead) {
   padding-block: 0 var(--space-3);
 }
 
@@ -453,7 +453,7 @@ a.threadWith:hover {
   color: var(--ink);
 }
 
-html[data-theme="dark"] .messageBubbleTheirs {
+:global(html[data-theme="dark"]) .messageBubbleTheirs {
   background: var(--panel-raised);
 }
 
@@ -885,7 +885,7 @@ html[data-theme="dark"] .messageBubbleTheirs {
   color: var(--color-on-inverse);
 }
 
-.messageAttachSheetHeader .mobileSharedSheetGrab {
+.messageAttachSheetHeader :global(.mobileSharedSheetGrab) {
   position: absolute;
   top: 7px;
   left: 50%;
@@ -1330,7 +1330,7 @@ html[data-theme="dark"] .messageBubbleTheirs {
      padding) comes off the panel's fixed height, or the panel keeps its
      viewport-sized box and the card lands on the composer row at its foot
      (verify-preview-4, 7.2 at 1440). */
-  body:has(.analyticsConsentPrompt) .messagesSplit {
+  :global(body:has(.analyticsConsentPrompt)) .messagesSplit {
     height: calc(
       100dvh - 9rem
         - var(--analytics-consent-clearance, 72px)
@@ -1351,7 +1351,7 @@ html[data-theme="dark"] .messageBubbleTheirs {
     background: var(--panel-raised);
   }
 
-  .messagesInboxPane .screenHead {
+  .messagesInboxPane :global(.screenHead) {
     padding-inline: 0.5rem;
   }
 
@@ -1436,7 +1436,7 @@ html[data-theme="dark"] .messageBubbleTheirs {
      card never covers the field. With the keyboard up the card steps aside
      instead, because a person typing has answered nothing yet and the field
      comes first. */
-  body:has(.analyticsConsentPrompt) .messageThreadShell:not([data-keyboard-open]) {
+  :global(body:has(.analyticsConsentPrompt)) .messageThreadShell:not([data-keyboard-open]) {
     --composer-clearance: calc(
       var(--tabbar-h, 64px)
         + env(safe-area-inset-bottom, 0px)
@@ -1444,7 +1444,7 @@ html[data-theme="dark"] .messageBubbleTheirs {
     );
   }
 
-  body:has(.messageThreadShell[data-keyboard-open]) .analyticsConsentPrompt {
+  :global(body):has(.messageThreadShell[data-keyboard-open]) :global(.analyticsConsentPrompt) {
     visibility: hidden;
     pointer-events: none;
   }
