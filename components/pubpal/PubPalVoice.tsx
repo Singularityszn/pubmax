@@ -8,6 +8,8 @@ import { Send } from "lucide-react";
 import { discardBody } from "@/lib/responseBody";
 import type { PalAnimationState } from "@/lib/pubPal";
 
+import styles from "@/app/pal/Pal.module.css";
+
 // The session half carries the ElevenLabs SDK, so it is fetched when the probe
 // says voice is on and never before. ssr:false because there is nothing to
 // render on the server for a control that needs a microphone.
@@ -16,8 +18,8 @@ const PubPalVoiceSession = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="palVoice">
-        <div className="palVoiceStatus" role="status">
+      <div className={styles.palVoice}>
+        <div className={styles.palVoiceStatus} role="status">
           Warming up voice
         </div>
       </div>
@@ -61,12 +63,12 @@ export function palVoiceAvailabilityFrom(
 /** The voice-off card: one honest line and the door that does work. */
 export function PalVoiceOffline() {
   return (
-    <div className="palVoice palVoice--offline">
-      <div className="palVoiceStatus" role="status">
+    <div className={styles.palVoice}>
+      <div className={styles.palVoiceStatus} role="status">
         {PAL_VOICE_UNAVAILABLE_LINE}
       </div>
-      <div className="palVoiceActions">
-        <Link className="palVoiceWriteLink" href="/pal/chat">
+      <div className={styles.palVoiceActions}>
+        <Link className={styles.palVoiceWriteLink} href="/pal/chat">
           <Send size={17} aria-hidden="true" /> Ask in writing
         </Link>
       </div>
@@ -76,12 +78,12 @@ export function PalVoiceOffline() {
 
 function PalVoiceMuted() {
   return (
-    <div className="palVoice palVoice--offline">
-      <div className="palVoiceStatus" role="status">
+    <div className={styles.palVoice}>
+      <div className={styles.palVoiceStatus} role="status">
         {PAL_VOICE_MUTED_LINE}
       </div>
-      <div className="palVoiceActions">
-        <Link className="palVoiceWriteLink" href="/pal/chat">
+      <div className={styles.palVoiceActions}>
+        <Link className={styles.palVoiceWriteLink} href="/pal/chat">
           <Send size={17} aria-hidden="true" /> Ask in writing
         </Link>
       </div>
@@ -118,8 +120,8 @@ function VoiceAvailabilityGate({ onStateChange }: { onStateChange?: (state: PalA
   // "voice is off" is a statement we must have checked.
   if (availability === "asking") {
     return (
-      <div className="palVoice">
-        <div className="palVoiceStatus" role="status">
+      <div className={styles.palVoice}>
+        <div className={styles.palVoiceStatus} role="status">
           Checking whether voice is on
         </div>
       </div>

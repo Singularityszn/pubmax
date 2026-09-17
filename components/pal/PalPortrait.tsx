@@ -8,6 +8,8 @@ import {
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import { pubPalMascotSlugFor } from "@/lib/pubPalMascot";
 
+import styles from "@/app/pal/Pal.module.css";
+
 /**
  * A stored legacy species with no master of its own draws an icon. `hound` is
  * absent because it stands in for the greyhound's master
@@ -68,7 +70,7 @@ export default function PalPortrait({ appearance, name, compact = false, state =
 
   return (
     <div
-      className={`palPortrait palPortrait-${appearance.signalAffinity} palPortrait-${appearance.material} ${compact ? "isCompact" : ""}`}
+      className={`${styles.palPortrait} ${styles[`palPortrait-${appearance.signalAffinity}`]} ${styles[`palPortrait-${appearance.material}`]}${compact ? " isCompact" : ""}`}
       data-pal-state={state}
       {...(legacy
         ? {
@@ -77,8 +79,8 @@ export default function PalPortrait({ appearance, name, compact = false, state =
           }
         : {})}
     >
-      <span className="palPortraitField" aria-hidden="true" />
-      <span className="palPortraitCore" aria-hidden={!rendered}>
+      <span className={styles.palPortraitField} aria-hidden="true" />
+      <span className={styles.palPortraitCore} aria-hidden={!rendered}>
         {rendered ? (
           <PubPalMascot
             species={appearance.species}
@@ -86,15 +88,15 @@ export default function PalPortrait({ appearance, name, compact = false, state =
             sizes={compact ? undefined : PORTRAIT_MASCOT_SIZES}
             priority={priority}
             circular={false}
-            className="palPortraitMascot"
+            className={styles.palPortraitMascot}
           />
         ) : legacy ? (
-          <legacy.Icon className="palLegacyIcon" strokeWidth={1.15} />
+          <legacy.Icon className={styles.palLegacyIcon} strokeWidth={1.15} />
         ) : null}
-        <span className="palPortraitScan" />
+        <span className={styles.palPortraitScan} />
       </span>
-      <span className="palPortraitEcho" aria-hidden="true"><span className="palPortraitSignalMark" /></span>
-      {appearance.accessory !== "none" ? <span className="palPortraitAccessory" aria-hidden="true">{appearance.accessory.replace("-", " ")}</span> : null}
+      <span className={styles.palPortraitEcho} aria-hidden="true"><span className={styles.palPortraitSignalMark} /></span>
+      {appearance.accessory !== "none" ? <span className={styles.palPortraitAccessory} aria-hidden="true">{appearance.accessory.replace("-", " ")}</span> : null}
     </div>
   );
 }

@@ -28,6 +28,7 @@ import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { PalAnimationState } from "@/lib/pubPal";
 import type { PalVoiceOverrides } from "@/lib/palVoiceOverrides";
+import palStyles from "@/app/pal/Pal.module.css";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
 import {
   createPubPalVoiceStartController,
@@ -268,8 +269,8 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   };
 
   return (
-    <div className="palVoice">
-      <div className="palVoiceStatus" role="status">
+    <div className={palStyles.palVoice}>
+      <div className={palStyles.palVoiceStatus} role="status">
         <i className={status === "connected" ? "isLive" : ""} />
         {isStarting
           ? "Starting voice"
@@ -277,7 +278,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             ? "Pal is listening"
             : "Voice ready when you are"}
       </div>
-      <div className="palVoiceActions">
+      <div className={palStyles.palVoiceActions}>
         {status === "connected" ? (
           <button type="button" onClick={stopCurrentAttempt}>
             <MicOff size={18} /> End
@@ -305,8 +306,8 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
           </button>
         </label>
       </div>
-      {error && <p className="palVoiceError" role="alert">{error}</p>}
-      <p className="palVoicePrivacy">
+      {error && <p className={palStyles.palVoiceError} role="alert">{error}</p>}
+      <p className={palStyles.palVoicePrivacy}>
         No audio or transcript becomes memory. The Pal proposes facts for you to approve separately.
       </p>
     </div>

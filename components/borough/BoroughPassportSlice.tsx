@@ -8,6 +8,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { buildBoroughPassport } from "@/lib/passport";
 import { normalizeHandle, type ProfileDrop } from "@/lib/profiles";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import styles from "@/app/borough/[slug]/Borough.module.css";
 
 type PublicDrop = ProfileDrop & { id?: string };
 
@@ -69,16 +70,16 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
 
   return (
     <section
-      className={`boroughSection boroughPassport${identityLoading ? " boroughPassportLoading" : ""}`}
+      className={`${styles.boroughSection} boroughPassport${identityLoading ? ` ${styles.boroughPassportLoading}` : ""}`}
       aria-labelledby="boroughPassportHeading"
       aria-busy={identityLoading}
     >
-      <h2 id="boroughPassportHeading" className="boroughSectionTitle">
+      <h2 id="boroughPassportHeading" className={styles.boroughSectionTitle}>
         {identityLoading ? "Borough passport" : `Your ${boroughName} passport`}
       </h2>
-      <p className="boroughSectionDek">
+      <p className={styles.boroughSectionDek}>
         {identityLoading ? (
-          <span className="boroughPassportSkeleton boroughPassportSkeletonCopy" aria-hidden="true" />
+          <span className={`${styles.boroughPassportSkeleton} ${styles.boroughPassportSkeletonCopy}`} aria-hidden="true" />
         ) : handle ? (
           <>
             Pubs logged, drinks tried, and pints stamped in {boroughName} for @{handle}.
@@ -90,30 +91,30 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
           </>
         )}
       </p>
-      <dl className="boroughPassportGrid" aria-label={`Passport stats for ${boroughName}`}>
-        <div className="boroughPassportStat">
+      <dl className={styles.boroughPassportGrid} aria-label={`Passport stats for ${boroughName}`}>
+        <div className={styles.boroughPassportStat}>
           <dt>Pubs visited</dt>
           <dd>
-            {identityLoading ? <span className="boroughPassportSkeleton" aria-hidden="true" /> : shownPassport.pubs}
+            {identityLoading ? <span className={styles.boroughPassportSkeleton} aria-hidden="true" /> : shownPassport.pubs}
           </dd>
         </div>
-        <div className="boroughPassportStat">
+        <div className={styles.boroughPassportStat}>
           <dt>Drinks tried</dt>
           <dd>
-            {identityLoading ? <span className="boroughPassportSkeleton" aria-hidden="true" /> : shownPassport.beers}
+            {identityLoading ? <span className={styles.boroughPassportSkeleton} aria-hidden="true" /> : shownPassport.beers}
           </dd>
         </div>
-        <div className="boroughPassportStat">
+        <div className={styles.boroughPassportStat}>
           <dt>Pints logged</dt>
           <dd>
-            {identityLoading ? <span className="boroughPassportSkeleton" aria-hidden="true" /> : shownPassport.pints}
+            {identityLoading ? <span className={styles.boroughPassportSkeleton} aria-hidden="true" /> : shownPassport.pints}
           </dd>
         </div>
-        <div className="boroughPassportStat">
+        <div className={styles.boroughPassportStat}>
           <dt>Cheapest pint</dt>
           <dd>
             {identityLoading ? (
-              <span className="boroughPassportSkeleton" aria-hidden="true" />
+              <span className={styles.boroughPassportSkeleton} aria-hidden="true" />
             ) : shownPassport.cheapestPintGbp == null ? (
               "–"
             ) : (
@@ -123,7 +124,7 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
         </div>
       </dl>
       {hasActivity ? (
-        <p className="boroughPassportFoot">
+        <p className={styles.boroughPassportFoot}>
           {passport.badges.length > 0 ? (
             <>
               {passport.badges.length} badge{passport.badges.length === 1 ? "" : "s"} earned here
@@ -135,12 +136,12 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
           </Link>
         </p>
       ) : handle ? (
-        <p className="boroughPassportFoot">
+        <p className={styles.boroughPassportFoot}>
           Nothing stamped in {boroughName} yet.{" "}
           <Link prefetch={false} href={`/map?q=${encodeURIComponent(boroughName)}`}>Log a pint on the map →</Link>
         </p>
       ) : (
-        <p className="boroughPassportFoot">
+        <p className={styles.boroughPassportFoot}>
           <Link href="/u/you">Set your handle →</Link>
         </p>
       )}

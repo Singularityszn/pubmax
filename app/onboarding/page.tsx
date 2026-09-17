@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import FirstRunOnboardingGate from "@/components/onboarding/FirstRunOnboardingGate";
 import { getNightAreasForCity } from "@/lib/nightAreas";
 
-import "../pal/pal.css";
 import "./onboarding.css";
 
 export const metadata: Metadata = {

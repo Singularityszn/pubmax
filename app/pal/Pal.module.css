@@ -29,7 +29,7 @@
 .palExperience button, .palExperience a { -webkit-tap-highlight-color: transparent; }
 .palExperience button:active, .palExperience a:active { transform: scale(.98); --shared-press-scale: 1; }
 .palExperience button:focus-visible, .palExperience a:focus-visible, .palExperience input:focus-visible { outline: 3px solid var(--pal-mist); outline-offset: 3px; }
-.palExperience h1:not(.screenTitle), .palExperience h2 { margin: 0; font-family: var(--font-display); letter-spacing: -.052em; }
+.palExperience h1:not(:global(.screenTitle)), .palExperience h2 { margin: 0; font-family: var(--font-display); letter-spacing: -.052em; }
 .palExperience p { margin: 0; }
 
 .palTopbar {
@@ -77,8 +77,8 @@
   align-content: center;
   gap: clamp(1.5rem, 4vw, 3rem);
 }
-.palMeeting .screenHead { max-width: 35rem; padding-block: 0; }
-.palMeeting .screenTitle { max-width: 11ch; }
+.palMeeting :global(.screenHead) { max-width: 35rem; padding-block: 0; }
+.palMeeting :global(.screenTitle) { max-width: 11ch; }
 @media (min-width: 960px) {
   .palMeeting .palMeetingStage {
     grid-template-columns: minmax(0, 1.04fr) minmax(20rem, .96fr);
@@ -328,7 +328,7 @@
 }
 
 @media (max-width: 760px) {
-  body:has(.palOnboarding) .mobileTabBar { display: none; }
+  :global(body):has(.palOnboarding) :global(.mobileTabBar) { display: none; }
   /* House tab-bar + pill clearance: bind the bottom pad to the shared --tabbar-h
      token (mobileNav.css) + the home-indicator inset + the re-open pill's
      published footprint (--night-pill-clearance, 0px unless a pill is floating),
