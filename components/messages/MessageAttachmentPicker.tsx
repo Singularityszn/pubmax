@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, FileText, Images, X } from "lucide-react";
+import { BarChart3, CalendarDays, Camera, FileText, Images, MapPin, UserRound, X } from "lucide-react";
 import {
   forwardRef,
   useCallback,
@@ -12,11 +12,24 @@ import {
   type PointerEvent,
 } from "react";
 
+import {
+  MESSAGE_ATTACH_CONTACT_SHORT,
+  MESSAGE_ATTACH_EVENT_SHORT,
+  MESSAGE_ATTACH_POLL_SHORT,
+  MESSAGE_ATTACH_VENUE_SHORT,
+} from "@/lib/messageAttachments";
 import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
 
 import "@/components/mobile/mobileMapShell.css";
 
 export type MessageAttachKind = "photos" | "camera" | "document";
+
+/**
+ * The kinds that are not a FILE. A file target clicks a hidden input; these
+ * open a picker in the composer dock instead, so the sheet is one grid rather
+ * than two families of control that look alike and behave differently.
+ */
+export type MessageAttachmentKindTarget = "venue" | "contact" | "event" | "poll";
 
 export type MessageAttachmentPickerHandle = {
   select: (kind: MessageAttachKind) => void;
@@ -28,10 +41,21 @@ export type MessageAttachmentPickerProps = {
   onOpenChange: (open: boolean) => void;
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onKindSelected: (kind: MessageAttachKind) => void;
+  /**
+   * Optional: when a host offers the non-file kinds, the sheet grows a row for
+   * them. Absent, the sheet is exactly the three file targets it shipped with.
+   */
+  onAttachmentKind?: (kind: MessageAttachmentKindTarget) => void;
 };
 
 type Target = {
   kind: MessageAttachKind;
+  label: string;
+  Icon: typeof Images;
+};
+
+type AttachmentTarget = {
+  kind: MessageAttachmentKindTarget;
   label: string;
   Icon: typeof Images;
 };
@@ -54,13 +78,20 @@ const TARGETS: readonly Target[] = [
   },
 ];
 
+const ATTACHMENT_TARGETS: readonly AttachmentTarget[] = [
+  { kind: "venue", label: MESSAGE_ATTACH_VENUE_SHORT, Icon: MapPin },
+  { kind: "contact", label: MESSAGE_ATTACH_CONTACT_SHORT, Icon: UserRound },
+  { kind: "event", label: MESSAGE_ATTACH_EVENT_SHORT, Icon: CalendarDays },
+  { kind: "poll", label: MESSAGE_ATTACH_POLL_SHORT, Icon: BarChart3 },
+];
+
 const SWIPE_DISMISS_PX = 80;
 
 const MessageAttachmentPicker = forwardRef<
   MessageAttachmentPickerHandle,
   MessageAttachmentPickerProps
 >(function MessageAttachmentPicker(
-  { open, disabled, onOpenChange, onFileChange, onKindSelected },
+  { open, disabled, onOpenChange, onFileChange, onKindSelected, onAttachmentKind },
   ref,
 ) {
   const titleId = useId();
@@ -213,6 +244,26 @@ const MessageAttachmentPicker = forwardRef<
                     <span className="messageAttachLabel">{label}</span>
                   </button>
                 ))}
+                {onAttachmentKind
+                  ? ATTACHMENT_TARGETS.map(({ kind, label, Icon }) => (
+                      <button
+                        key={kind}
+                        type="button"
+                        className="messageAttachTarget"
+                        disabled={disabled}
+                        onClick={() => {
+                          if (disabled) return;
+                          close();
+                          onAttachmentKind(kind);
+                        }}
+                      >
+                        <span className="messageAttachIcon" aria-hidden="true">
+                          <Icon size={30} strokeWidth={2.2} />
+                        </span>
+                        <span className="messageAttachLabel">{label}</span>
+                      </button>
+                    ))
+                  : null}
               </div>
             </div>
           </section>

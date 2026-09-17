@@ -123,11 +123,15 @@ describe("listMessages — participant gating + mark-read", () => {
     expect(await s.markRead(id, "sam")).toBe(0);
   });
 
-  it("participants names the pair, and null for an unknown conversation", async () => {
+  it("membership names the pair, and null for an unknown conversation", async () => {
     const s = memoryMessagesStore;
     const id = (await s.openConversation("sam", "ken"))!;
-    expect(await s.participants(id)).toEqual({ handleA: "ken", handleB: "sam" });
-    expect(await s.participants("nope")).toBeNull();
+    expect(await s.membership(id)).toEqual({
+      kind: "direct",
+      handles: ["ken", "sam"],
+      title: null,
+    });
+    expect(await s.membership("nope")).toBeNull();
   });
 
   it("returns NULL for a non-participant (route → 404, the leak test)", async () => {

@@ -217,18 +217,38 @@ function exportPintDrop(drop: PintDropDTO): AccountExportPintDrop {
   };
 }
 
+function exportAttachment(
+  attachment: MessageDTO["attachment"],
+): AccountExportMessage["attachment"] {
+  if (!attachment) return null;
+  switch (attachment.kind) {
+    case "photo":
+      return { kind: "photo" };
+    case "venue":
+      return { kind: "venue", venueId: attachment.venueId };
+    case "contact":
+      return { kind: "contact", handle: attachment.handle };
+    case "event":
+      return { kind: "event", planId: attachment.planId };
+    case "poll":
+      // The ballot and the exporter's OWN answer. No other voter is named here
+      // for the reason no reader is ever told who voted.
+      return {
+        kind: "poll",
+        question: attachment.poll.question,
+        options: attachment.poll.options.map((option) => option.label),
+        yourAnswer: attachment.poll.viewerOptionIndex,
+      };
+  }
+}
+
 function exportMessage(message: MessageDTO): AccountExportMessage {
-  const attachment = message.attachment;
   return {
     id: message.id,
     conversationId: message.conversationId,
     body: message.body,
     createdAt: message.createdAt,
-    attachment: !attachment
-      ? null
-      : attachment.kind === "photo"
-        ? { kind: "photo" }
-        : { kind: "venue", venueId: attachment.venueId },
+    attachment: exportAttachment(message.attachment),
   };
 }
 

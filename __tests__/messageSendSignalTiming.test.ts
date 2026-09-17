@@ -60,9 +60,9 @@ vi.mock("@/lib/messagesStore", async (importOriginal) => {
       const inner = actual.messagesStore();
       return {
         ...inner,
-        participants: (conversationId: string) => {
+        membership: (conversationId: string) => {
           storeCalls.participants += 1;
-          return inner.participants(conversationId);
+          return inner.membership(conversationId);
         },
       };
     },

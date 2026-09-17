@@ -5,11 +5,12 @@
 // builtins), so the composer, the thread, the routes and the migration all read
 // one copy of the rules rather than four.
 //
-// THE FOUR RULES THIS FILE OWNS
+// THE FIVE RULES THIS FILE OWNS
 //
-// 1. THE SET IS CLOSED. A message carries at most ONE attachment, and it is
-//    either a PHOTO or a PUB. Two kinds, named once, so a route cannot invent a
-//    third and a reader cannot be handed something the thread has no shape for.
+// 1. THE SET IS CLOSED. A message carries at most ONE attachment, and it is a
+//    PHOTO, a PUB, a CONTACT, an EVENT or a POLL. Five kinds, named once, so a
+//    route cannot invent a sixth and a reader cannot be handed something the
+//    thread has no shape for.
 //
 // 2. A PHOTO IS PRIVATE, AND ITS KEY SAYS SO. The serving key is built from the
 //    conversation and the message, so the database CHECK, the upload path and
@@ -31,13 +32,46 @@
 //    bare number beside a pub name reads as tonight's pint. Everything richer
 //    (the community lane, its corroboration, its date) lives one tap away on
 //    the map, which is where the card sends you.
+//
+// 5. AN ID IS STORED AND A CARD IS RESOLVED, FOR EVERY KIND THAT POINTS AT
+//    SOMETHING. Rule 3 was written about a pub and it is the rule for all of
+//    them: a `contact` stores a handle, an `event` stores a plan id, and
+//    neither stores a name, a face, a time or a place. A person who renames
+//    themselves reads correctly in a message from last month, a plan that moved
+//    is never quoted back out of an old thread, and a card that could not be
+//    resolved carries `card: null` rather than a guessed name. What each card
+//    may SAY is the narrower half of the rule and it belongs to the thing being
+//    pointed at: a contact card prints the PUBLIC profile and nothing else, and
+//    an event card prints the plan's ANONYMOUS preview
+//    (`buildPlanPrivacyPreview`) and nothing else, because a message is not a
+//    capability - the reader's own capability decides at /plan/<id>.
+//
+//    A POLL points at nothing, so it stores its own ballot; its counts are
+//    derived on every read and no voter is ever named (`lib/messagePoll.ts`).
 
+import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
 import type { CropTarget } from "@/lib/profileImagePicker";
+import { normalizeHandle } from "@/lib/handleNormalize";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 /** The closed set. One message carries at most one of these. */
-export const MESSAGE_ATTACHMENT_KINDS = ["photo", "venue"] as const;
+export const MESSAGE_ATTACHMENT_KINDS = [
+  "photo",
+  "venue",
+  "contact",
+  "event",
+  "poll",
+] as const;
 export type MessageAttachmentKind = (typeof MESSAGE_ATTACHMENT_KINDS)[number];
+
+export function isMessageAttachmentKind(
+  value: unknown,
+): value is MessageAttachmentKind {
+  return (
+    typeof value === "string" &&
+    (MESSAGE_ATTACHMENT_KINDS as readonly string[]).includes(value)
+  );
+}
 
 // ── Photo ────────────────────────────────────────────────────────────────────
 
@@ -162,6 +196,94 @@ export function isMessageVenueId(value: unknown): value is string {
   );
 }
 
+// ── Contact card ─────────────────────────────────────────────────────────────
+
+/**
+ * One person, handed on. What it prints is the PUBLIC profile and nothing
+ * else - the handle, the display name somebody chose to publish, and the
+ * approved owned avatar. No email, no date of birth, no city, no full name:
+ * those sit behind the owner-authenticated read
+ * (`__tests__/profilesRoutePrivacy.test.ts`) and passing somebody's handle on
+ * in a message may not be a way around it.
+ *
+ * Resolved on every read, so a rename reads correctly in an old thread, and a
+ * tombstoned account resolves to null rather than to the name it retired.
+ */
+export type MessageContactCard = {
+  handle: string;
+  /** What they call themselves, when they published one. Never the handle again. */
+  displayName: string | null;
+  /** Approved owned avatar path, when there is one. The monogram covers absence. */
+  avatarUrl: string | null;
+  /** Always `/u/<handle>`, through the one helper below. */
+  profileUrl: string;
+};
+
+export function messageContactProfileUrl(handle: string): string {
+  return `/u/${encodeURIComponent(handle)}`;
+}
+
+/**
+ * A handle a message may carry. The SAME alphabet every other handle in the
+ * product runs through, so a contact card can never name something the profile
+ * routes could not look up.
+ */
+export function isMessageContactHandle(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const normalized = normalizeHandle(value);
+  return normalized.length > 0 && normalized === value.trim().toLowerCase().replace(/^@+/, "");
+}
+
+/** The stored form: normalised once, at the door. */
+export function readMessageContactHandle(value: unknown): string | null {
+  const normalized = normalizeHandle(value);
+  return normalized ? normalized : null;
+}
+
+// ── Event card ───────────────────────────────────────────────────────────────
+
+/**
+ * One plan, handed on. Every field here is a field of the ANONYMOUS preview
+ * (`PlanPrivacyPreviewDTO`), because a message is not a capability: sharing a
+ * plan id tells the reader a night exists and who is hosting it, and the route,
+ * the stops and the crew stay behind the reader's OWN capability at
+ * `/plan/<id>`. A stop is never named here, not even one.
+ */
+export type MessageEventCard = {
+  planId: string;
+  hostDisplayName: string;
+  /** Broad area name, null when the plan carries no Night Context. */
+  areaName: string | null;
+  /** Formatted London start time, or the preview's own fallback label. */
+  startLabel: string;
+  /** How many stops, WITHOUT naming any of them. */
+  stopCount: number;
+  /** Whether the route has reached a usable state. Says nothing about where. */
+  routeReady: boolean;
+  /** Always `/plan/<id>`, through the one helper below. */
+  planUrl: string;
+};
+
+export function messageEventPlanUrl(planId: string): string {
+  return `/plan/${encodeURIComponent(planId)}`;
+}
+
+/**
+ * Plan ids are uuids in both backends and the column is a `uuid`, so the shape
+ * is checked here rather than letting a non-uuid raise 22P02 on the write path
+ * of a real message.
+ */
+const PLAN_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isMessageEventPlanId(value: unknown): value is string {
+  return typeof value === "string" && PLAN_ID.test(value.trim());
+}
+
+export function readMessageEventPlanId(value: unknown): string | null {
+  return isMessageEventPlanId(value) ? value.trim().toLowerCase() : null;
+}
+
 // ── The attachment as it crosses the wire ────────────────────────────────────
 
 /**
@@ -175,7 +297,10 @@ export function isMessageVenueId(value: unknown): value is string {
  */
 export type MessageAttachment =
   | { kind: "photo"; url: string; width: number; height: number }
-  | { kind: "venue"; venueId: string; card: MessageVenueCard | null };
+  | { kind: "venue"; venueId: string; card: MessageVenueCard | null }
+  | { kind: "contact"; handle: string; card: MessageContactCard | null }
+  | { kind: "event"; planId: string; card: MessageEventCard | null }
+  | { kind: "poll"; poll: MessagePollView };
 
 /** What a writer hands the store. The photo half names the id it was keyed on. */
 export type MessageAttachmentWrite =
@@ -186,7 +311,10 @@ export type MessageAttachmentWrite =
       width: number;
       height: number;
     }
-  | { kind: "venue"; venueId: string };
+  | { kind: "venue"; venueId: string }
+  | { kind: "contact"; handle: string }
+  | { kind: "event"; planId: string }
+  | ({ kind: "poll" } & MessagePollWrite);
 
 /** The stored columns, as the store reads them back. */
 export type MessageAttachmentRecord = {
@@ -195,7 +323,19 @@ export type MessageAttachmentRecord = {
   width: number | null;
   height: number | null;
   venueId: string | null;
+  contactHandle: string | null;
+  planId: string | null;
+  pollQuestion: string | null;
+  pollOptions: readonly string[] | null;
 };
+
+/**
+ * Which kinds a card is RESOLVED for on the read path (rule 5). A poll carries
+ * its own ballot and a photo carries its own bytes, so neither is in here.
+ */
+export const MESSAGE_RESOLVED_CARD_KINDS = ["venue", "contact", "event"] as const;
+export type MessageResolvedCardKind =
+  (typeof MESSAGE_RESOLVED_CARD_KINDS)[number];
 
 // ── Copy ─────────────────────────────────────────────────────────────────────
 // Empty, refused and unreadable states say what happened and hand the reader
@@ -209,10 +349,20 @@ export type MessageAttachmentRecord = {
  */
 export const MESSAGE_ATTACH_PHOTO_LABEL = "Add a photo";
 export const MESSAGE_ATTACH_VENUE_LABEL = "Share a pub";
+export const MESSAGE_ATTACH_CONTACT_LABEL = "Share a handle";
+export const MESSAGE_ATTACH_EVENT_LABEL = "Share a plan";
+export const MESSAGE_ATTACH_POLL_LABEL = "Start a poll";
 export const MESSAGE_ATTACH_PHOTO_SHORT = "Photo";
 export const MESSAGE_ATTACH_VENUE_SHORT = "Pub";
+export const MESSAGE_ATTACH_CONTACT_SHORT = "Contact";
+export const MESSAGE_ATTACH_EVENT_SHORT = "Plan";
+export const MESSAGE_ATTACH_POLL_SHORT = "Poll";
 export const MESSAGE_VENUE_SEARCH_LABEL = "Search pubs";
 export const MESSAGE_VENUE_SEARCH_PLACEHOLDER = "Name a pub";
+export const MESSAGE_CONTACT_SEARCH_LABEL = "Whose handle?";
+export const MESSAGE_CONTACT_SEARCH_PLACEHOLDER = "handle";
+export const MESSAGE_EVENT_PICK_LABEL = "Which plan?";
+export const MESSAGE_EVENT_PICK_PLACEHOLDER = "Paste a plan link";
 
 export const MESSAGE_PHOTO_REFUSED_LINE =
   "That photo did not pass our checks. Choose another.";
@@ -227,8 +377,16 @@ export const MESSAGE_PHOTO_UNREADABLE_LINE = "This photo will not open just now.
  * nothing else. Without it the preview is blank, which reads as a message that
  * failed to arrive rather than one with no words in it.
  */
+const ATTACHMENT_PREVIEW: Record<MessageAttachmentKind, string> = {
+  photo: MESSAGE_ATTACH_PHOTO_SHORT,
+  venue: MESSAGE_ATTACH_VENUE_SHORT,
+  contact: MESSAGE_ATTACH_CONTACT_SHORT,
+  event: MESSAGE_ATTACH_EVENT_SHORT,
+  poll: MESSAGE_ATTACH_POLL_SHORT,
+};
+
 export function messageAttachmentPreview(kind: MessageAttachmentKind): string {
-  return kind === "photo" ? "Photo" : "Pub";
+  return ATTACHMENT_PREVIEW[kind];
 }
 
 export const MESSAGE_VENUE_SEARCH_EMPTY_LINE = "No pubs by that name yet.";
@@ -238,6 +396,52 @@ export const MESSAGE_VENUE_SEARCH_FAILED_LINE =
 
 export const MESSAGE_VENUE_CARD_UNRESOLVED_LINE =
   "We could not read this pub just now.";
+
+/**
+ * A handle nobody holds any more, or a read we could not make. Worded the same
+ * way the pub's own unresolved line is: it says what happened and never invents
+ * the person it could not find.
+ */
+export const MESSAGE_CONTACT_CARD_UNRESOLVED_LINE =
+  "We could not read this handle just now.";
+
+export const MESSAGE_EVENT_CARD_UNRESOLVED_LINE =
+  "We could not read this plan just now.";
+
+/**
+ * What an event card says instead of a route. The card is the anonymous
+ * preview, so the line has to be honest about there being more behind the door
+ * without implying the reader will definitely get in - that is their own
+ * capability's answer at /plan/<id>.
+ */
+export const MESSAGE_EVENT_CARD_PRIVACY_LINE =
+  "The route shows to the crew. Open it to see if you're on it.";
+
+export const MESSAGE_EVENT_OPEN_LABEL = "Open the plan";
+export const MESSAGE_CONTACT_OPEN_LABEL = "Open profile";
+
+/** The accessible name of one contact card. Names the person, then the door. */
+export function messageContactCardLabel(card: MessageContactCard): string {
+  const name = card.displayName ? `${card.displayName}, @${card.handle}` : `@${card.handle}`;
+  return `${name}. Open profile`;
+}
+
+/**
+ * The accessible name of one event card. The area rides in the name for the
+ * reason a pub card's does - a card read aloud is "whose night, and where" -
+ * and the stop count is left to the card's own line, because a figure inside a
+ * link name reads as part of the destination.
+ */
+export function messageEventCardLabel(card: MessageEventCard): string {
+  const where = card.areaName ? ` in ${card.areaName}` : "";
+  return `${card.hostDisplayName}'s plan${where}, from ${card.startLabel}. Open the plan`;
+}
+
+/** How many stops, without naming one. Null when the plan has no route yet. */
+export function messageEventStopLine(stopCount: number): string | null {
+  if (!Number.isInteger(stopCount) || stopCount <= 0) return null;
+  return stopCount === 1 ? "1 stop" : `${stopCount} stops`;
+}
 
 /**
  * The accessible name of one pub card. A card read aloud is "which pub, and

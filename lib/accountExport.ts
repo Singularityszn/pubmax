@@ -134,8 +134,28 @@ export type AccountExportMessage = {
   conversationId: string;
   body: string;
   createdAt: string;
-  /** `photo` or `venue`; a venue share also carries its venue id. */
-  attachment: { kind: "photo" } | { kind: "venue"; venueId: string } | null;
+  /**
+   * What rode with the message, in the shape the person actually sent.
+   *
+   * A photo is named and not inlined (the bytes are the storage half of the
+   * export). Every other kind carries the ID it stored rather than the card
+   * that was resolved from it, because the card is a live read of somebody
+   * else's row and a frozen copy of it in a file is a claim nobody can
+   * correct. A poll carries its ballot and the EXPORTER'S OWN answer; no other
+   * voter is named, exactly as no reader is ever told who voted.
+   */
+  attachment:
+    | { kind: "photo" }
+    | { kind: "venue"; venueId: string }
+    | { kind: "contact"; handle: string }
+    | { kind: "event"; planId: string }
+    | {
+        kind: "poll";
+        question: string;
+        options: string[];
+        yourAnswer: number | null;
+      }
+    | null;
 };
 
 export type AccountExportConversation = {

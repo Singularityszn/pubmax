@@ -105,6 +105,9 @@ beforeEach(() => {
 describe("inbox read", () => {
   it("answers a whole inbox in one conversations read plus TWO batched message reads, in parallel", async () => {
     state.answer = (q) => {
+      // Two DMs and no group, so the group lane finds nothing and costs the
+      // inbox one read of the members table and nothing else.
+      if (q.table === "conversation_members") return { data: [], error: null };
       if (q.table === "conversations") {
         return {
           data: [
@@ -183,7 +186,14 @@ describe("inbox read", () => {
       conversations: [],
       status: "ready",
     });
-    expect(state.queries).toHaveLength(1);
+    // TWO reads, and no more: a conversation's kind names its membership
+    // authority, so the pair columns find every DM and the members table finds
+    // every group. Neither decorates anything until there is a row to decorate.
+    expect(state.queries).toHaveLength(2);
+    expect(state.queries.map((q) => q.table).sort()).toEqual([
+      "conversation_members",
+      "conversations",
+    ]);
   });
 });
 
@@ -236,11 +246,15 @@ describe("thread read", () => {
     expect(state.queries.some((q) => q.op === "update")).toBe(false);
   });
 
-  it("participants answers the pair, and null for an unknown conversation", async () => {
+  it("membership answers the pair, and null for an unknown conversation", async () => {
     state.answer = () => ({ data: pairAnswer, error: null });
-    await expect(supabaseMessagesStore.participants(C1)).resolves.toEqual({ handleA: "ken", handleB: "sam" });
+    await expect(supabaseMessagesStore.membership(C1)).resolves.toEqual({
+      kind: "direct",
+      handles: ["ken", "sam"],
+      title: null,
+    });
     state.answer = () => ({ data: null, error: null });
-    await expect(supabaseMessagesStore.participants(C1)).resolves.toBeNull();
+    await expect(supabaseMessagesStore.membership(C1)).resolves.toBeNull();
   });
 });
 

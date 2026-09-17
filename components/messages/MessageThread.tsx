@@ -22,7 +22,13 @@ import MessageAttachmentPicker, {
   type MessageAttachmentPickerHandle,
 } from "@/components/messages/MessageAttachmentPicker";
 import MessageAvatar from "@/components/messages/MessageAvatar";
+import MessageContactCard from "@/components/messages/MessageContactCard";
+import MessageContactPicker from "@/components/messages/MessageContactPicker";
+import MessageEventCard from "@/components/messages/MessageEventCard";
+import MessageEventPicker from "@/components/messages/MessageEventPicker";
 import MessagePhoto from "@/components/messages/MessagePhoto";
+import MessagePollCard from "@/components/messages/MessagePollCard";
+import MessagePollComposer from "@/components/messages/MessagePollComposer";
 import MessageVenueCard from "@/components/messages/MessageVenueCard";
 import MessageVenuePicker, {
   type PickedVenue,
@@ -40,9 +46,18 @@ import {
   MESSAGE_PHOTO_FAILED_LINE,
 } from "@/lib/messageAttachments";
 import {
+  GROUP_EMPTY_THREAD_LINE,
+  GROUP_LEAVE_FAILED_LINE,
+  GROUP_LEAVE_LABEL,
+  GROUP_LEFT_LINE,
+  groupMemberCountLine,
+  groupThreadName,
+} from "@/lib/messageGroupThread";
+import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
+import {
   linkifyMentions,
   MAX_MESSAGE_BODY,
-  type ConversationDTO,
+  type ConversationKind,
   type MessageDTO,
 } from "@/lib/messages";
 import { subscribeToMessages } from "@/lib/messagesRealtime";
@@ -160,7 +175,14 @@ function MessageBody({ body }: { body: string }): React.JSX.Element {
   );
 }
 
-type ThreadState = "loading" | "ready" | "notfound" | "signedout" | "unreachable";
+type ThreadState =
+  | "loading"
+  | "ready"
+  | "notfound"
+  | "signedout"
+  | "unreachable"
+  /** This reader has just left a group. The thread stays; the way in does not. */
+  | "left";
 
 type ThreadReadKey = {
   conversationId: string;
@@ -193,7 +215,36 @@ function sameThreadReadRequest(
 /** What is riding on the NEXT message. At most one, by design. */
 type PendingAttachment =
   | { kind: "photo"; file: File; previewUrl: string }
-  | { kind: "venue"; venue: PickedVenue };
+  | { kind: "venue"; venue: PickedVenue }
+  | { kind: "contact"; handle: string }
+  | { kind: "event"; planId: string }
+  | { kind: "poll"; poll: MessagePollWrite };
+
+/** Which picker is open. One at a time, because one attachment rides at a time. */
+type OpenPicker = "venue" | "contact" | "event" | "poll" | null;
+
+/** What the composer's pending row says about what is ready to send. */
+function pendingLabel(pending: PendingAttachment): string {
+  switch (pending.kind) {
+    case "photo":
+      return "Photo ready to send";
+    case "venue":
+      return pending.venue.name;
+    case "contact":
+      return `@${pending.handle}`;
+    case "event":
+      return "Plan ready to send";
+    case "poll":
+      return pending.poll.question;
+  }
+}
+
+/** What a thread is CALLED at the top of the screen. */
+type ThreadIdentity = {
+  kind: ConversationKind;
+  members: string[];
+  title: string | null;
+};
 
 function fileKey(file: File): string {
   return `${file.name}:${file.size}:${file.lastModified}`;
@@ -256,7 +307,8 @@ export default function MessageThread({
   const [error, setError] = useState("");
   const [pending, setPending] = useState<PendingAttachment | null>(null);
   const [cropping, setCropping] = useState<File | null>(null);
-  const [pickingVenue, setPickingVenue] = useState(false);
+  const [picking, setPicking] = useState<OpenPicker>(null);
+  const [identity, setIdentity] = useState<ThreadIdentity | null>(null);
   const [mobileAttachOpen, setMobileAttachOpen] = useState(false);
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
@@ -394,14 +446,41 @@ export default function MessageThread({
           }
           return;
         }
-        const body = (await res.json()) as { messages?: MessageDTO[] };
+        const body = (await res.json()) as {
+          messages?: MessageDTO[];
+          conversation?: {
+            kind?: string;
+            members?: unknown;
+            title?: unknown;
+          };
+        };
         if (!stillCurrent()) return;
         const next = Array.isArray(body.messages) ? body.messages : [];
         loadedForRef.current = requestKey;
         setViewRevision(requestKey);
         setMessages(next);
-        const theirs = next.find((m) => m.senderHandle !== h);
-        if (theirs) setOtherHandle(theirs.senderHandle);
+        // WHO THE THREAD IS WITH comes from the read itself. It used to be
+        // guessed off the first message from somebody else, which said
+        // "Conversation" over an empty thread and could never name a group at
+        // all; a membership the server could not read is left absent rather
+        // than guessed, and the head keeps its neutral word.
+        const conversation = body.conversation;
+        const members = Array.isArray(conversation?.members)
+          ? conversation.members.filter((m): m is string => typeof m === "string")
+          : [];
+        if (conversation && members.length > 0) {
+          setIdentity({
+            kind: conversation.kind === "group" ? "group" : "direct",
+            members,
+            title: typeof conversation.title === "string" ? conversation.title : null,
+          });
+          if (conversation.kind !== "group") {
+            setOtherHandle(members.find((member) => member !== h) ?? "");
+          }
+        } else {
+          const theirs = next.find((m) => m.senderHandle !== h);
+          if (theirs) setOtherHandle(theirs.senderHandle);
+        }
         setState("ready");
       } catch (err) {
         // An abort is our own teardown, never a failure the reader should see.
@@ -440,36 +519,6 @@ export default function MessageThread({
       unsub();
     };
   }, [conversationId, refresh]);
-
-  // An EMPTY thread has no row to read the other participant off, so the head
-  // would say "Conversation" to somebody who opened a named person. The inbox
-  // row for this id names them; one read of it, only in that case.
-  const readyAndEmpty = state === "ready" && messages.length === 0;
-  useEffect(() => {
-    if (!readyAndEmpty || otherHandle || !user) return;
-    const h = normalizeHandle(authHandle ?? "") || readHandle();
-    if (!h) return;
-    const controller = new AbortController();
-    void (async () => {
-      try {
-        const res = await authedActionFetch(
-          `/api/messages?handle=${encodeURIComponent(h)}`,
-          { signal: controller.signal },
-          { requiresIdentity: true },
-        );
-        if (!res.ok) {
-          discardBody(res);
-          return;
-        }
-        const body = (await res.json()) as { conversations?: ConversationDTO[] };
-        const row = (body.conversations ?? []).find((c) => c.id === conversationId);
-        if (row?.otherHandle && !controller.signal.aborted) setOtherHandle(row.otherHandle);
-      } catch {
-        // The head keeps its neutral word; nothing else depends on this.
-      }
-    })();
-    return () => controller.abort();
-  }, [readyAndEmpty, otherHandle, user, authHandle, conversationId]);
 
   // The newest message is what a thread opens on and what a send lands on.
   // The list scrolls on its own inside the desktop split; on a phone the page
@@ -536,7 +585,13 @@ export default function MessageThread({
   const clearPending = useCallback(() => {
     setPending(null);
     setCropping(null);
-    setPickingVenue(false);
+    setPicking(null);
+  }, []);
+
+  /** One picker at a time, because one attachment rides at a time. */
+  const openPicker = useCallback((next: Exclude<OpenPicker, null>) => {
+    setCropping(null);
+    setPicking((current) => (current === next ? null : next));
   }, []);
 
   const handlePhotoFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
@@ -574,7 +629,7 @@ export default function MessageThread({
     setDraft("");
     setPending(null);
     setCropping(null);
-    setPickingVenue(false);
+    setPicking(null);
     // A REFUSED SEND KEEPS WHAT THE DRINKER WROTE. The field was cleared at the
     // tap, so somebody who started the next line while the first was in flight
     // used to lose the first one outright: the bubble went, the text was
@@ -591,12 +646,18 @@ export default function MessageThread({
     };
     try {
       const address = `/api/messages/${encodeURIComponent(conversationId)}`;
+      // AT MOST ONE attachment names itself on the wire, and the server refuses
+      // a body that names two, so this spread is the browser half of one rule
+      // rather than a second copy of it.
       const post = {
         action: "send",
         handle: h,
         body: bodyText,
         clientMessageId,
         ...(sentPending?.kind === "venue" ? { venueId: sentPending.venue.id } : {}),
+        ...(sentPending?.kind === "contact" ? { contactHandle: sentPending.handle } : {}),
+        ...(sentPending?.kind === "event" ? { planId: sentPending.planId } : {}),
+        ...(sentPending?.kind === "poll" ? { poll: sentPending.poll } : {}),
       };
 
       let res: Response;
@@ -664,6 +725,63 @@ export default function MessageThread({
     }
   }, [conversationId, draft, over, pending, refresh, user, authHandle]);
 
+  /**
+   * Answering a poll. The card shows the server's OWN tally rather than one
+   * counted here, because a count derived in two places is two counts.
+   */
+  const vote = useCallback(
+    async (messageId: string, optionIndex: number): Promise<MessagePollView | null> => {
+      const h = normalizeHandle(authHandle ?? "") || readHandle();
+      if (!user || !h) return null;
+      const res = await authedActionFetch(
+        `/api/messages/${encodeURIComponent(conversationId)}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "vote", handle: h, messageId, optionIndex }),
+        },
+        { requiresIdentity: true },
+      );
+      if (!res.ok) {
+        discardBody(res);
+        return null;
+      }
+      const body = (await res.json().catch(() => null)) as { poll?: MessagePollView } | null;
+      return body?.poll ?? null;
+    },
+    [conversationId, user, authHandle],
+  );
+
+  const leaveGroup = useCallback(async () => {
+    const h = normalizeHandle(authHandle ?? "") || readHandle();
+    if (!user || !h) return;
+    setError("");
+    try {
+      const res = await authedActionFetch(
+        `/api/messages/${encodeURIComponent(conversationId)}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "leave", handle: h }),
+        },
+        { requiresIdentity: true },
+      );
+      if (!res.ok) {
+        const body: unknown = await res.json().catch(() => null);
+        setError(offlineOrMessage(errorMessageFrom(body, GROUP_LEAVE_FAILED_LINE)));
+        return;
+      }
+      discardBody(res);
+      // NO NAVIGATION. The thread is still on screen and still readable, so
+      // the honest thing is to SAY what happened and offer the way back, the
+      // same shape every other refused or finished state here takes. A
+      // redirect would take the words away mid-sentence.
+      setState("left");
+    } catch {
+      setError(offlineOrMessage(GROUP_LEAVE_FAILED_LINE));
+    }
+  }, [conversationId, user, authHandle]);
+
   const report = useCallback(
     async (messageId: string) => {
       const h = normalizeHandle(authHandle ?? "") || readHandle();
@@ -718,6 +836,13 @@ export default function MessageThread({
   if (state === "signedout") {
     return <p className="conversationPreview">With you in a sec.</p>;
   }
+  if (state === "left") {
+    return (
+      <p className="conversationPreview" role="status">
+        {GROUP_LEFT_LINE} <Link href="/messages">Back to inbox</Link>
+      </p>
+    );
+  }
   if (state === "notfound") {
     return (
       <p className="conversationPreview">
@@ -744,7 +869,124 @@ export default function MessageThread({
     );
   }
 
+  /**
+   * WHAT RODE WITH ONE MESSAGE. A nested function rather than a component, the
+   * decomposition idiom this tree already uses: the element tree stays
+   * identical where a component would add a fibre, and ESLint scores the
+   * branch count here rather than on the whole thread.
+   */
+  function renderAttachment(m: MessageDTO, sendingRow: boolean): React.JSX.Element | null {
+    const attachment = m.attachment;
+    if (!attachment) return null;
+    if (attachment.kind === "photo") {
+      return (
+        <MessagePhoto
+          url={attachment.url}
+          width={attachment.width}
+          height={attachment.height}
+          senderHandle={m.senderHandle}
+          handle={handle}
+        />
+      );
+    }
+    if (attachment.kind === "venue") return <MessageVenueCard card={attachment.card} />;
+    if (attachment.kind === "contact") return <MessageContactCard card={attachment.card} />;
+    if (attachment.kind === "event") return <MessageEventCard card={attachment.card} />;
+    return (
+      <MessagePollCard
+        poll={attachment.poll}
+        disabled={sendingRow}
+        onVote={(optionIndex) => vote(m.id, optionIndex)}
+      />
+    );
+  }
+
   const showCounter = draft.length >= COUNTER_FROM;
+  const isGroup = identity?.kind === "group";
+  const groupName = isGroup
+    ? groupThreadName(identity?.title ?? null, identity?.members ?? [], handle)
+    : "";
+
+  /** Whichever picker is open, in the composer dock. One at a time, by design. */
+  function renderPicker(): React.JSX.Element | null {
+    if (picking === "venue") {
+      return (
+        <MessageVenuePicker
+          onCancel={() => setPicking(null)}
+          onPick={(venue) => {
+            setPicking(null);
+            setPending({ kind: "venue", venue });
+          }}
+        />
+      );
+    }
+    if (picking === "contact") {
+      return (
+        <MessageContactPicker
+          onCancel={() => setPicking(null)}
+          onPick={(contactHandle) => {
+            setPicking(null);
+            setPending({ kind: "contact", handle: contactHandle });
+          }}
+        />
+      );
+    }
+    if (picking === "event") {
+      return (
+        <MessageEventPicker
+          onCancel={() => setPicking(null)}
+          onPick={(planId) => {
+            setPicking(null);
+            setPending({ kind: "event", planId });
+          }}
+        />
+      );
+    }
+    if (picking === "poll") {
+      return (
+        <MessagePollComposer
+          onCancel={() => setPicking(null)}
+          onPick={(poll) => {
+            setPicking(null);
+            setPending({ kind: "poll", poll });
+          }}
+        />
+      );
+    }
+    return null;
+  }
+
+  /** Who the thread is with. A group is named by its people, never linked to. */
+  function renderThreadWith(): React.JSX.Element {
+    if (isGroup) {
+      // A GROUP IS NOT A PERSON, so its head is not a link to a profile: its
+      // name is the title or the people in it.
+      return (
+        <span className="threadWith">
+          <MessageAvatar handle={otherHandle || groupName} size={36} />
+          <span className="threadWithGroup">
+            <span className="threadWithHandle">{groupName}</span>
+            <span className="threadWithMembers">
+              {groupMemberCountLine(identity?.members.length ?? 0)}
+            </span>
+          </span>
+        </span>
+      );
+    }
+    if (otherHandle) {
+      return (
+        <Link href={`/u/${encodeURIComponent(otherHandle)}`} className="threadWith">
+          <MessageAvatar handle={otherHandle} size={36} />
+          <span className="threadWithHandle">@{otherHandle}</span>
+        </Link>
+      );
+    }
+    return (
+      <span className="threadWith">
+        <span className="threadWithHandle">Conversation</span>
+      </span>
+    );
+  }
 
   return (
     <div className="messageThread">
@@ -760,16 +1002,12 @@ export default function MessageThread({
         <Link href="/messages" className="threadBackLink" aria-label="Back to inbox">
           <ChevronLeft size={24} aria-hidden="true" />
         </Link>
-        {otherHandle ? (
-          <Link href={`/u/${encodeURIComponent(otherHandle)}`} className="threadWith">
-            <MessageAvatar handle={otherHandle} size={36} />
-            <span className="threadWithHandle">@{otherHandle}</span>
-          </Link>
-        ) : (
-          <span className="threadWith">
-            <span className="threadWithHandle">Conversation</span>
-          </span>
-        )}
+        {renderThreadWith()}
+        {isGroup ? (
+          <button type="button" className="threadLeaveBtn" onClick={() => void leaveGroup()}>
+            {GROUP_LEAVE_LABEL}
+          </button>
+        ) : null}
       </div>
 
       {state === "loading" ? (
@@ -780,9 +1018,13 @@ export default function MessageThread({
             <li className="threadEmpty" aria-live="polite">
               {otherHandle ? <MessageAvatar handle={otherHandle} size={72} /> : null}
               <p className="threadEmptyTitle">
-                {otherHandle ? `@${otherHandle}` : "Nothing here yet."}
+                {isGroup ? groupName : otherHandle ? `@${otherHandle}` : "Nothing here yet."}
               </p>
-              <p className="threadEmptyLine">Say hello. This one stays between the two of you.</p>
+              <p className="threadEmptyLine">
+                {isGroup
+                  ? GROUP_EMPTY_THREAD_LINE
+                  : "Say hello. This one stays between the two of you."}
+              </p>
             </li>
           ) : null}
           {timeline.map((item) => {
@@ -817,21 +1059,10 @@ export default function MessageThread({
                     }
                     onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
                   >
-                    {m.attachment?.kind === "photo" ? (
-                      <MessagePhoto
-                        url={m.attachment.url}
-                        width={m.attachment.width}
-                        height={m.attachment.height}
-                        senderHandle={m.senderHandle}
-                        handle={handle}
-                      />
-                    ) : null}
+                    {renderAttachment(m, sendingRow)}
                     {pendingPhoto ? (
                       // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo on its way
                       <img className="messagePhotoSending" src={pendingPhoto} alt="" />
-                    ) : null}
-                    {m.attachment?.kind === "venue" ? (
-                      <MessageVenueCard card={m.attachment.card} />
                     ) : null}
                     {m.body ? <MessageBody body={m.body} /> : null}
                   </div>
@@ -870,11 +1101,15 @@ export default function MessageThread({
 
       <MessageAttachmentPicker
         ref={attachmentPickerRef}
-        open={mobileAttachOpen && isMobileViewport}
+        open={mobileAttachOpen}
         disabled={sending}
         onOpenChange={setMobileAttachOpen}
         onFileChange={handlePhotoFileChange}
         onKindSelected={handleAttachKindSelected}
+        onAttachmentKind={(kind) => {
+          trackEvent("message_attach_selected", { kind });
+          openPicker(kind);
+        }}
       />
 
       {cropping ? (
@@ -905,15 +1140,7 @@ export default function MessageThread({
       <div className="composerDock">
         {error ? <p className="threadError" role="alert">{error}</p> : null}
 
-        {pickingVenue ? (
-          <MessageVenuePicker
-            onCancel={() => setPickingVenue(false)}
-            onPick={(venue) => {
-              setPickingVenue(false);
-              setPending({ kind: "venue", venue });
-            }}
-          />
-        ) : null}
+        {renderPicker()}
 
         {pending ? (
           <div className="composerPending">
@@ -923,9 +1150,7 @@ export default function MessageThread({
             ) : (
               <MapPin size={18} aria-hidden="true" className="composerPendingIcon" />
             )}
-            <span className="composerPendingLabel">
-              {pending.kind === "photo" ? "Photo ready to send" : pending.venue.name}
-            </span>
+            <span className="composerPendingLabel">{pendingLabel(pending)}</span>
             <button type="button" className="composerPendingRemove" onClick={clearPending}>
               Remove
             </button>
@@ -934,6 +1159,10 @@ export default function MessageThread({
 
         <div className="composer">
           <div className="composerControls">
+            {/* THE SHEET IS THE ONE HOME FOR EVERY KIND, at every width: five
+                kinds is five icons, and a composer row cannot hold five and a
+                field and Send on a 320px screen. The two shortcuts beside it
+                are the two a drinker reaches for most. */}
             {isMobileViewport ? (
               <button
                 type="button"
@@ -942,13 +1171,27 @@ export default function MessageThread({
                 aria-expanded={mobileAttachOpen}
                 disabled={sending}
                 onClick={() => {
-                  setPickingVenue(false);
+                  setPicking(null);
                   setMobileAttachOpen(true);
                 }}
               >
                 <Plus size={22} aria-hidden="true" />
               </button>
-            ) : null}
+            ) : (
+              <button
+                type="button"
+                className="composerAttach composerMoreDesktop"
+                aria-label="More to attach"
+                aria-expanded={mobileAttachOpen}
+                disabled={sending}
+                onClick={() => {
+                  setPicking(null);
+                  setMobileAttachOpen(true);
+                }}
+              >
+                <Plus size={20} aria-hidden="true" />
+              </button>
+            )}
             <button
               type="button"
               className="composerAttach composerPhotoDesktop"
@@ -956,7 +1199,7 @@ export default function MessageThread({
               aria-pressed={pending?.kind === "photo"}
               disabled={sending}
               onClick={() => {
-                setPickingVenue(false);
+                setPicking(null);
                 attachmentPickerRef.current?.select("photos");
               }}
             >
@@ -968,10 +1211,7 @@ export default function MessageThread({
               aria-label={MESSAGE_ATTACH_VENUE_LABEL}
               aria-pressed={pending?.kind === "venue"}
               disabled={sending}
-              onClick={() => {
-                setCropping(null);
-                setPickingVenue((open) => !open);
-              }}
+              onClick={() => openPicker("venue")}
             >
               <MapPin size={20} aria-hidden="true" />
             </button>

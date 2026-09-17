@@ -20,6 +20,14 @@
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { requireLinkedActor } from "@/lib/messageAuth";
+import {
+  cleanGroupTitle,
+  GROUP_MAX_MEMBERS,
+  GROUP_MEMBER_UNKNOWN_LINE,
+  GROUP_TOO_LARGE_LINE,
+  GROUP_TOO_SMALL_LINE,
+  normalizeGroupMembers,
+} from "@/lib/messageGroupThread";
 import { broadcastMessageSent, deferMessagesSignal } from "@/lib/messagesBroadcast.server";
 import { messagesStore } from "@/lib/messagesStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
@@ -91,11 +99,18 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiErrorFromStatus(actor.error, actor.status);
   }
   const handle = actor.handle;
-  const other = normalizeHandle(readString(body.other) ?? "");
   if (!handle) return publicApiError("Add your handle.", "INVALID_REQUEST", 400);
-  if (!other) return publicApiError("Add a recipient handle.", "INVALID_REQUEST", 400);
-  if (handle === other) {
-    return publicApiError("You can't message yourself.", "INVALID_REQUEST", 400);
+
+  // A GROUP IS OPENED WHOLE, so it names its members up front and takes its own
+  // branch before the 1:1 door's `other` is read. Everything below it — the one
+  // limiter, the ownership gate, the live-profile check — applies to both.
+  const openingGroup = action === "open-group";
+  const other = openingGroup ? "" : normalizeHandle(readString(body.other) ?? "");
+  if (!openingGroup) {
+    if (!other) return publicApiError("Add a recipient handle.", "INVALID_REQUEST", 400);
+    if (handle === other) {
+      return publicApiError("You can't message yourself.", "INVALID_REQUEST", 400);
+    }
   }
 
   // ONE limiter, ABOVE the action switch AND above the ownership read it would
@@ -132,6 +147,8 @@ export async function POST(request: Request): Promise<Response> {
 
   const store = messagesStore();
 
+  if (openingGroup) return openGroup(handle, body, store);
+
   if (action === "open") {
     const conversationId = await store.openConversation(handle, other);
     if (!conversationId) {
@@ -161,4 +178,56 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   return publicApiError("Unknown action.", "INVALID_REQUEST", 400);
+}
+
+/**
+ * Opening a GROUP thread. A group is opened WHOLE, so its members are named up
+ * front and every one of them must be somebody: a group minted around a
+ * fabricated handle is a durable row with a person in it who does not exist,
+ * and the thread would name them for ever.
+ */
+async function openGroup(
+  handle: string,
+  body: Record<string, unknown>,
+  store: ReturnType<typeof messagesStore>,
+): Promise<Response> {
+  const members = normalizeGroupMembers(handle, body.participants);
+  if (!members) {
+    // The caps are the only two ways a list can be wrong here, and they owe
+    // different sentences: one says add somebody, the other says take one off.
+    const named = Array.isArray(body.participants) ? body.participants.length : 0;
+    return publicApiError(
+      named >= GROUP_MAX_MEMBERS ? GROUP_TOO_LARGE_LINE : GROUP_TOO_SMALL_LINE,
+      "INVALID_REQUEST",
+      400,
+    );
+  }
+  for (const member of members) {
+    if (member === handle) continue;
+    let profile: ProfileRecord | null;
+    try {
+      profile = await profileStore().getByHandle(member);
+    } catch {
+      return publicApiError("Profile storage is unavailable.", "UNAVAILABLE", 503, {
+        retryable: true,
+      });
+    }
+    if (!profile || isProfileTombstoned(profile)) {
+      return publicApiError(GROUP_MEMBER_UNKNOWN_LINE, "NOT_FOUND", 404);
+    }
+  }
+  const opened = await store.openGroupConversation(
+    handle,
+    members,
+    cleanGroupTitle(body.title),
+  );
+  if (opened.status === "invalid") {
+    return publicApiError(GROUP_TOO_SMALL_LINE, "INVALID_REQUEST", 400);
+  }
+  if (opened.status === "unavailable") {
+    return publicApiError("Couldn't start that group.", "UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
+  return jsonNoStore({ conversationId: opened.conversationId, members }, { status: 201 });
 }

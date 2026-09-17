@@ -149,7 +149,11 @@ describe("durable send with an idempotency key", () => {
 
     const sent = await supabaseMessagesStore.send(CONVERSATION, "ken", "first");
 
-    expect(sent?.pair).toEqual({ handleA: "ken", handleB: "sam" });
+    expect(sent?.membership).toEqual({
+      kind: "direct",
+      handles: ["ken", "sam"],
+      title: null,
+    });
     // ONE conversations read for the whole send: the participant check's.
     expect(state.queries.filter((q) => q.table === "conversations" && q.op === "select")).toHaveLength(1);
   });

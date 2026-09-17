@@ -39,9 +39,17 @@ const MIGRATION = "supabase/migrations/20260810180000_0102_message_attachments.s
 const ROLLBACK =
   "supabase/migrations/rollback/20260810180000_0102_message_attachments_rollback.sql";
 
-describe("the attachment set is closed at two", () => {
-  it("names exactly a photo and a pub", () => {
-    expect([...MESSAGE_ATTACHMENT_KINDS]).toEqual(["photo", "venue"]);
+describe("the attachment set is closed at five", () => {
+  it("names exactly a photo, a pub, a contact, an event and a poll", () => {
+    // The set is CLOSED, so widening it is a decision somebody takes here and
+    // in migration 0155 together, never a kind a route invents.
+    expect([...MESSAGE_ATTACHMENT_KINDS]).toEqual([
+      "photo",
+      "venue",
+      "contact",
+      "event",
+      "poll",
+    ]);
   });
 
   it("keys a photo to its own conversation and message", () => {
