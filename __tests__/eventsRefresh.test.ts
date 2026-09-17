@@ -24,7 +24,10 @@ import {
   WITH_COMMON_FLAG,
   summariseEventDrops,
 } from "../scripts/whatson/eventsRefresh.mjs";
-import { commandsForMode } from "../scripts/local-refresh/scheduler.mjs";
+import {
+  EVENTS_REFRESH_NODE_ARGS,
+  commandsForMode,
+} from "../scripts/local-refresh/scheduler.mjs";
 import { isValidWhatsOnRow } from "@/lib/whatsOn";
 
 const temporaryDirs: string[] = [];
@@ -916,54 +919,73 @@ describe("review publication branch and PR handoff", () => {
   });
 });
 
-describe("plain-node entry point", () => {
-  // `npm run refresh:events` and the local scheduler both spawn this script
-  // with plain `node`, which resolves no tsconfig `@/*` alias. Vitest reaches
-  // the same module through Vite, which resolves one - so a specifier
-  // regression inside the Context.dev lane is invisible to every other test
-  // here while it kills the CLI at module load. This is the fence for that.
-  it("loads under plain node and answers for the Context.dev lane", () => {
+describe("CLI entry point", () => {
+  // `npm run refresh:events` and the local scheduler both spawn this script as
+  // a node CLI, which resolves no tsconfig `@/*` alias. Vitest reaches the same
+  // module through Vite, which resolves one - so a specifier regression inside
+  // the Context.dev lane is invisible to every other test here while it kills
+  // the CLI at module load. This is the fence for that.
+  //
+  // It spawns with the SAME flags the shipped invocations carry, taken from the
+  // one place they are written down, because the lane statically imports a `.ts`
+  // module: under bare `node` it depended on unflagged type stripping (22.18+)
+  // while `engines` admits 22.12, so on 22.12 through 22.17 this fence and the
+  // nightly refresh both died with ERR_UNKNOWN_FILE_EXTENSION.
+  const packageJson = JSON.parse(
+    readFileSync(join(process.cwd(), "package.json"), "utf8"),
+  ) as { scripts: Record<string, string> };
+
+  function runCli(source: string, env: NodeJS.ProcessEnv): string {
+    return String(
+      execFileSync(
+        process.execPath,
+        [...EVENTS_REFRESH_NODE_ARGS, "--input-type=module", "-e", source],
+        { cwd: process.cwd(), env, stdio: ["ignore", "pipe", "pipe"] },
+      ),
+    );
+  }
+
+  it("carries the loader flags on every shipped invocation", () => {
+    // One loader, written down once. A lane that drops back to bare `node`
+    // reintroduces the runtime-version dependency this fence exists for.
+    expect(EVENTS_REFRESH_NODE_ARGS).toEqual(["--import", "tsx"]);
+    expect(packageJson.scripts["refresh:events"]).toBe(
+      `node ${EVENTS_REFRESH_NODE_ARGS.join(" ")} scripts/whatson/eventsRefresh.mjs`,
+    );
+    const eventsLane = commandsForMode("events", false).find((command) =>
+      command.args[0].endsWith("eventsRefresh.mjs"),
+    );
+    expect(eventsLane?.nodeArgs).toEqual(EVENTS_REFRESH_NODE_ARGS);
+  });
+
+  it("loads as a CLI and answers for the Context.dev lane", () => {
     const childEnv = { ...process.env };
     delete childEnv.CONTEXT_DEV_API_KEY;
 
-    const stdout = execFileSync(
-      process.execPath,
+    const stdout = runCli(
       [
-        "--input-type=module",
-        "-e",
-        [
-          'const mod = await import("./scripts/whatson/eventsRefresh.mjs");',
-          "process.stdout.write(JSON.stringify(mod.providerLaneStatus({})));",
-        ].join("\n"),
-      ],
-      { cwd: process.cwd(), env: childEnv, stdio: ["ignore", "pipe", "pipe"] },
+        'const mod = await import("./scripts/whatson/eventsRefresh.mjs");',
+        "process.stdout.write(JSON.stringify(mod.providerLaneStatus({})));",
+      ].join("\n"),
+      childEnv,
     );
 
-    expect(JSON.parse(String(stdout))).toMatchObject({
+    expect(JSON.parse(stdout)).toMatchObject({
       contextdev: "not-configured",
       ticketmaster: "not-configured",
       skiddle: "not-configured",
     });
   });
 
-  it("answers configured under plain node once the key is in the environment", () => {
-    const stdout = execFileSync(
-      process.execPath,
+  it("answers configured as a CLI once the key is in the environment", () => {
+    const stdout = runCli(
       [
-        "--input-type=module",
-        "-e",
-        [
-          'const mod = await import("./scripts/whatson/eventsRefresh.mjs");',
-          "process.stdout.write(mod.providerLaneStatus(process.env).contextdev);",
-        ].join("\n"),
-      ],
-      {
-        cwd: process.cwd(),
-        env: { ...process.env, CONTEXT_DEV_API_KEY: "  probe-key  " },
-        stdio: ["ignore", "pipe", "pipe"],
-      },
+        'const mod = await import("./scripts/whatson/eventsRefresh.mjs");',
+        "process.stdout.write(mod.providerLaneStatus(process.env).contextdev);",
+      ].join("\n"),
+      { ...process.env, CONTEXT_DEV_API_KEY: "  probe-key  " },
     );
 
-    expect(String(stdout)).toBe("configured");
+    expect(stdout).toBe("configured");
   });
 });

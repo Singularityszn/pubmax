@@ -34,6 +34,21 @@ const LABELS = ["com.pubmax.refresh-prices", "com.pubmax.refresh-events"];
 const PRICE_PROVIDER_KEYS = ["EXA_API_KEY", "BROWSERBASE_API_KEY", "TAVILY_API_KEY"];
 const EVENT_PROVIDER_KEYS = ["TICKETMASTER_API_KEY", "SKIDDLE_API_KEY", "CONTEXT_DEV_API_KEY"];
 const PROVIDER_SECRET_ENV_KEYS = [...PRICE_PROVIDER_KEYS, ...EVENT_PROVIDER_KEYS];
+/**
+ * The runtime flags `scripts/whatson/eventsRefresh.mjs` is run with, wherever it
+ * is run from.
+ *
+ * That script statically imports the TypeScript Context.dev lane, so under bare
+ * `node` it depends on UNFLAGGED type stripping, which arrives in 22.18 while
+ * `engines` admits 22.12: on 22.12 through 22.17 it died at module load with
+ * `ERR_UNKNOWN_FILE_EXTENSION` and the nightly refresh fetched nothing, with the
+ * workflow's own failure the only signal. Every sibling script that imports a
+ * `.ts` module already goes through tsx, so this lane joins them rather than
+ * raising the floor under a repo whose CI pins the floating `node-version: 22`.
+ * `package.json`'s `refresh:events` carries the same flags, and
+ * `__tests__/eventsRefresh.test.ts` holds the two to each other.
+ */
+export const EVENTS_REFRESH_NODE_ARGS = ["--import", "tsx"];
 
 export function parseFreeMemoryPercent(output) {
   const match = String(output).match(/System-wide memory free percentage:\s*(\d+(?:\.\d+)?)%/);
@@ -237,6 +252,13 @@ export function commandsForMode(mode, dryRun) {
     return [
       {
         executable: process.execPath,
+        // The events lane statically imports the TypeScript Context.dev
+        // provider, so it runs through the tsx loader like every other script
+        // in this repo that imports a `.ts` module. Bare `node` relied on
+        // unflagged type stripping, which lands in 22.18, and `engines` admits
+        // 22.12: on 22.12-22.17 the lane died at module load with
+        // ERR_UNKNOWN_FILE_EXTENSION and the nightly refresh fetched nothing.
+        nodeArgs: EVENTS_REFRESH_NODE_ARGS,
         args: ["scripts/whatson/eventsRefresh.mjs"],
         independent: true,
         requiresAnyKey: EVENT_PROVIDER_KEYS,
@@ -619,10 +641,15 @@ function streamLines(stream, emit) {
   });
 }
 
-async function runChild({ executable, args, cwd, environment, log }) {
-  log(`$ ${executable} ${args.join(" ")}`);
+// `nodeArgs` are the runtime's own flags and go BEFORE the script, while `args`
+// stays the script and its arguments: the key-readiness reason and every test
+// that finds a lane read `args[0]` as the file being run, so a loader flag may
+// not be pushed in front of it.
+async function runChild({ executable, nodeArgs = [], args, cwd, environment, log }) {
+  const argv = [...nodeArgs, ...args];
+  log(`$ ${executable} ${argv.join(" ")}`);
   await new Promise((resolve, reject) => {
-    const child = spawn(executable, args, {
+    const child = spawn(executable, argv, {
       cwd,
       env: environment,
       stdio: ["ignore", "pipe", "pipe"],
