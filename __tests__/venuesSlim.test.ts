@@ -92,14 +92,8 @@ function hasValidFamousVenueFields(row: Record<string, unknown>): boolean {
   return kind && priceBand && anchor;
 }
 
-// eslint-disable-next-line complexity
-function isSlimVenue(value: unknown): value is SlimVenue {
-  if (typeof value !== "object" || value === null) return false;
-  const row = value as Record<string, unknown>;
+function hasValidBaseFields(row: Record<string, unknown>): boolean {
   const price = row.cheapestPrice;
-  const hints = row.filterHints as Record<string, unknown> | undefined;
-  const amenities = hints?.amenities as Record<string, unknown> | undefined;
-  const curation = hints?.curation as Record<string, unknown> | undefined;
   return (
     typeof row.id === "string" &&
     row.id.length > 0 &&
@@ -110,7 +104,15 @@ function isSlimVenue(value: unknown): value is SlimVenue {
     Number.isFinite(row.lat) &&
     typeof row.lng === "number" &&
     Number.isFinite(row.lng) &&
-    (price === null || (typeof price === "number" && Number.isFinite(price))) &&
+    (price === null || (typeof price === "number" && Number.isFinite(price)))
+  );
+}
+
+function hasValidFilterHints(row: Record<string, unknown>): boolean {
+  const hints = row.filterHints as Record<string, unknown> | undefined;
+  const amenities = hints?.amenities as Record<string, unknown> | undefined;
+  const curation = hints?.curation as Record<string, unknown> | undefined;
+  return (
     typeof hints?.searchText === "string" &&
     typeof amenities?.food === "boolean" &&
     typeof amenities?.cocktails === "boolean" &&
@@ -119,7 +121,16 @@ function isSlimVenue(value: unknown): value is SlimVenue {
     typeof amenities?.nonAlcoholic === "boolean" &&
     typeof curation?.nearWater === "boolean" &&
     typeof curation?.hasStory === "boolean" &&
-    typeof hints?.canonical === "boolean" &&
+    typeof hints?.canonical === "boolean"
+  );
+}
+
+function isSlimVenue(value: unknown): value is SlimVenue {
+  if (typeof value !== "object" || value === null) return false;
+  const row = value as Record<string, unknown>;
+  return (
+    hasValidBaseFields(row) &&
+    hasValidFilterHints(row) &&
     hasValidFamousVenueFields(row)
   );
 }

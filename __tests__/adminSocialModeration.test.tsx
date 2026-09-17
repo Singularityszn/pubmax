@@ -82,58 +82,65 @@ function rawResponse(body: string, status = 200): Response {
   });
 }
 
-// eslint-disable-next-line complexity
+function respondToSessionRequest(method: string, init?: RequestInit): Response | Promise<Response> {
+  state.fetchEvents.push(`session:${method}`);
+  if (method === "POST") {
+    state.sessionPostBodies.push(JSON.parse(String(init?.body)));
+    const queuedResponse = state.sessionPostResponses.shift();
+    const response = () => {
+      if (queuedResponse?.accepted === false) {
+        return jsonResponse({ error: "refused" }, 403);
+      }
+      state.sessionAuthenticated = true;
+      return jsonResponse({ ok: true });
+    };
+    return queuedResponse?.gate ? queuedResponse.gate.then(response) : response();
+  }
+  if (state.sessionProbeUnknown) return rawResponse("{");
+  return jsonResponse({ authenticated: state.sessionAuthenticated });
+}
+
+function respondToSocialPostsRequest(method: string, init?: RequestInit): Response | Promise<Response> {
+  state.fetchEvents.push(`social:${method}`);
+  if (method === "POST") {
+    state.socialActionBodies.push(JSON.parse(String(init?.body)));
+    const response = () => state.socialActionStatus === 200
+      ? jsonResponse({ ok: true })
+      : jsonResponse({ error: "unavailable" }, state.socialActionStatus);
+    if (state.socialActionStatus === 403) state.sessionAuthenticated = false;
+    return state.socialActionGate ? state.socialActionGate.then(response) : response();
+  }
+  if (state.socialThrows) throw new TypeError("Failed to fetch");
+  if (state.socialMalformedBody !== null) return rawResponse(state.socialMalformedBody);
+  if (state.socialUnreadable) return jsonResponse({ posts: "not-a-list" });
+  const queuedResponse = state.socialGetResponses.shift();
+  if (queuedResponse) {
+    const response = () => jsonResponse({ posts: queuedResponse.posts });
+    return queuedResponse.gate ? queuedResponse.gate.then(response) : response();
+  }
+  if (state.socialResponsePosts !== null) return jsonResponse({ posts: state.socialResponsePosts });
+  if (state.socialRefusals > 0) {
+    state.socialRefusals -= 1;
+    const status = state.socialRefusalStatus;
+    if (status === 403) {
+      state.sessionAuthenticated = false;
+      state.sessionProbeUnknown = state.socialRefusalProbeUnknown;
+    }
+    return jsonResponse({ error: "unavailable" }, status);
+  }
+  return state.socialUnavailable
+    ? jsonResponse({ error: "unavailable" }, 503)
+    : jsonResponse({ posts: state.socialPosts });
+}
+
 function responseFor(input: string, init?: RequestInit): Response | Promise<Response> {
   const url = new URL(input, "http://localhost");
   const method = init?.method ?? "GET";
   if (url.pathname === "/api/admin/session") {
-    state.fetchEvents.push(`session:${method}`);
-    if (method === "POST") {
-      state.sessionPostBodies.push(JSON.parse(String(init?.body)));
-      const queuedResponse = state.sessionPostResponses.shift();
-      const response = () => {
-        if (queuedResponse?.accepted === false) {
-          return jsonResponse({ error: "refused" }, 403);
-        }
-        state.sessionAuthenticated = true;
-        return jsonResponse({ ok: true });
-      };
-      return queuedResponse?.gate ? queuedResponse.gate.then(response) : response();
-    }
-    if (state.sessionProbeUnknown) return rawResponse("{");
-    return jsonResponse({ authenticated: state.sessionAuthenticated });
+    return respondToSessionRequest(method, init);
   }
   if (url.pathname === "/api/admin/social-posts") {
-    state.fetchEvents.push(`social:${method}`);
-    if (method === "POST") {
-      state.socialActionBodies.push(JSON.parse(String(init?.body)));
-      const response = () => state.socialActionStatus === 200
-        ? jsonResponse({ ok: true })
-        : jsonResponse({ error: "unavailable" }, state.socialActionStatus);
-      if (state.socialActionStatus === 403) state.sessionAuthenticated = false;
-      return state.socialActionGate ? state.socialActionGate.then(response) : response();
-    }
-    if (state.socialThrows) throw new TypeError("Failed to fetch");
-    if (state.socialMalformedBody !== null) return rawResponse(state.socialMalformedBody);
-    if (state.socialUnreadable) return jsonResponse({ posts: "not-a-list" });
-    const queuedResponse = state.socialGetResponses.shift();
-    if (queuedResponse) {
-      const response = () => jsonResponse({ posts: queuedResponse.posts });
-      return queuedResponse.gate ? queuedResponse.gate.then(response) : response();
-    }
-    if (state.socialResponsePosts !== null) return jsonResponse({ posts: state.socialResponsePosts });
-    if (state.socialRefusals > 0) {
-      state.socialRefusals -= 1;
-      const status = state.socialRefusalStatus;
-      if (status === 403) {
-        state.sessionAuthenticated = false;
-        state.sessionProbeUnknown = state.socialRefusalProbeUnknown;
-      }
-      return jsonResponse({ error: "unavailable" }, status);
-    }
-    return state.socialUnavailable
-      ? jsonResponse({ error: "unavailable" }, 503)
-      : jsonResponse({ posts: state.socialPosts });
+    return respondToSocialPostsRequest(method, init);
   }
   if (url.pathname === "/api/admin/import-notes") {
     state.fetchEvents.push(`import:${method}`);

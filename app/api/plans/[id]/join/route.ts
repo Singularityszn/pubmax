@@ -67,7 +67,78 @@ function crewCommittedToken(plan: PlanState | null): string | undefined {
   });
 }
 
-// eslint-disable-next-line complexity
+/** Map a failed join store result to the appropriate API error response. */
+function joinErrorResponse(result: { error: string }): Response {
+  const status = result.error === "invalid" ? 400
+    : result.error === "not_found" ? 404
+      : result.error === "full" || result.error === "conflict" || result.error === "account_conflict" ? 409
+        : 503;
+  const error = result.error === "full" ? "This Plan's crew is full."
+    : result.error === "invalid" ? "Add your name."
+      : result.error === "not_found" ? "That Plan doesn't exist."
+        : result.error === "account_conflict" ? "This account is already in the Plan."
+        : result.error === "conflict" ? "That request key was already used for a different join."
+          : "Could not join the Plan.";
+  return publicApiError(
+    error,
+    result.error === "error" ? "PLAN_JOIN_UNAVAILABLE"
+      : result.error === "not_found" ? "PLAN_NOT_FOUND"
+        : result.error === "full" ? "PLAN_CREW_FULL"
+          : result.error === "account_conflict" ? "PLAN_ACCOUNT_ALREADY_MEMBER"
+          : result.error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT"
+            : "PLAN_JOIN_INVALID",
+    status,
+    { retryable: result.error === "error" },
+  );
+}
+
+/** Handle the classic multi-use invite token join flow. */
+async function handleClassicInviteJoin(
+  request: Request,
+  id: string,
+  name: string,
+  inviteToken: string,
+  idempotencyKey: string,
+  userId: string | null,
+): Promise<Response> {
+  const resolved = await resolvePlanIdByInviteToken(inviteToken);
+  if (!resolved.ok) {
+    return publicApiError("Plan data is temporarily unavailable.", "PLAN_JOIN_UNAVAILABLE", 503, { retryable: true });
+  }
+  if (resolved.planId !== id) {
+    return publicApiError("That invite link isn't valid for this Plan.", "PLAN_INVITE_INVALID", 403);
+  }
+  const result = await planStore().join(id, name, {
+    collaborationAuthorized: false,
+    idempotencyKey,
+    userId: userId ?? undefined,
+  });
+  if (!result.ok) {
+    return joinErrorResponse(result);
+  }
+  const friendEdgesFormed = await maybeFormCrewFriendEdges(
+    id,
+    result.memberToken,
+    userId,
+  );
+  return attachPlanMemberSession(
+    jsonNoStore(
+      {
+        plan: result.plan,
+        memberToken: result.memberToken,
+        role: result.role,
+        collaborationAuthorized: result.collaborationAuthorized,
+        crewCommitted: crewCommittedToken(result.plan),
+        friendEdgesFormed,
+      },
+      { status: 200 },
+    ),
+    request,
+    id,
+    result.memberToken,
+  );
+}
+
 export async function POST(request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
   if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
@@ -105,62 +176,7 @@ export async function POST(request: Request, context: Context): Promise<Response
   }
 
   if (isClassicPlanInviteToken(inviteToken)) {
-    const resolved = await resolvePlanIdByInviteToken(inviteToken);
-    if (!resolved.ok) {
-      return publicApiError("Plan data is temporarily unavailable.", "PLAN_JOIN_UNAVAILABLE", 503, { retryable: true });
-    }
-    if (resolved.planId !== id) {
-      return publicApiError("That invite link isn't valid for this Plan.", "PLAN_INVITE_INVALID", 403);
-    }
-    const result = await planStore().join(id, name, {
-      collaborationAuthorized: false,
-      idempotencyKey,
-      userId: userId ?? undefined,
-    });
-    if (!result.ok) {
-      const status = result.error === "invalid" ? 400
-        : result.error === "not_found" ? 404
-          : result.error === "full" || result.error === "conflict" || result.error === "account_conflict" ? 409
-            : 503;
-      const error = result.error === "full" ? "This Plan's crew is full."
-        : result.error === "invalid" ? "Add your name."
-          : result.error === "not_found" ? "That Plan doesn't exist."
-            : result.error === "account_conflict" ? "This account is already in the Plan."
-            : result.error === "conflict" ? "That request key was already used for a different join."
-              : "Could not join the Plan.";
-      return publicApiError(
-        error,
-        result.error === "error" ? "PLAN_JOIN_UNAVAILABLE"
-          : result.error === "not_found" ? "PLAN_NOT_FOUND"
-            : result.error === "full" ? "PLAN_CREW_FULL"
-              : result.error === "account_conflict" ? "PLAN_ACCOUNT_ALREADY_MEMBER"
-              : result.error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT"
-                : "PLAN_JOIN_INVALID",
-        status,
-        { retryable: result.error === "error" },
-      );
-    }
-    const friendEdgesFormed = await maybeFormCrewFriendEdges(
-      id,
-      result.memberToken,
-      userId,
-    );
-    return attachPlanMemberSession(
-      jsonNoStore(
-        {
-          plan: result.plan,
-          memberToken: result.memberToken,
-          role: result.role,
-          collaborationAuthorized: result.collaborationAuthorized,
-          crewCommitted: crewCommittedToken(result.plan),
-          friendEdgesFormed,
-        },
-        { status: 200 },
-      ),
-      request,
-      id,
-      result.memberToken,
-    );
+    return handleClassicInviteJoin(request, id, name, inviteToken, idempotencyKey, userId);
   }
 
   const joined = await planCollaborationStore().redeemInviteAndJoin(

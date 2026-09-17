@@ -94,7 +94,53 @@ async function claimSignedInPlanCreator(
   }
 }
 
-// eslint-disable-next-line complexity
+/**
+ * Validate the anchor field against V2 grounding proof.
+ * Returns `{ ok: true, anchorAnchored }` on success or `{ ok: false, response }` on failure.
+ */
+function validateAnchor(
+  body: Record<string, unknown>,
+  anchor: ReturnType<typeof cleanPlanAnchor>,
+  acceptedVenueIds: string[],
+  idempotencyKey: string,
+): { ok: true; anchorAnchored: boolean } | { ok: false; response: Response } {
+  const anchorSupplied = Object.prototype.hasOwnProperty.call(body, "anchor");
+  if (anchorSupplied && !anchor) {
+    return { ok: false, response: publicApiError("Include the accepted pub and where it came from.", "PLAN_ANCHOR_INVALID", 422) };
+  }
+  if (!anchor && readPlanGroundingClaimsV2(body.groundingProof)) {
+    return { ok: false, response: publicApiError("Include the accepted pub for this route.", "PLAN_ANCHOR_REQUIRED", 422) };
+  }
+  if (!anchor) return { ok: true, anchorAnchored: false };
+  const verdict = verifyAnchoredPlanGroundingProofV2(body.groundingProof, acceptedVenueIds, idempotencyKey);
+  if (!verdict.ok) {
+    const mapped = anchorProofError(verdict.reason);
+    return { ok: false, response: publicApiError(mapped.message, mapped.code, 422) };
+  }
+  if (verdict.outcome !== anchor.outcome) {
+    return { ok: false, response: publicApiError("That saved route does not match this plan.", "PLAN_ANCHOR_OUTCOME_MISMATCH", 422) };
+  }
+  if (verdict.anchorVenueId !== anchor.venueId) {
+    return { ok: false, response: publicApiError("That saved pub does not match this plan.", "PLAN_ANCHOR_VENUE_MISMATCH", 422) };
+  }
+  if (verdict.anchorSource !== anchor.source) {
+    return { ok: false, response: publicApiError("That pub came from somewhere else than this plan says.", "PLAN_ANCHOR_SOURCE_MISMATCH", 422) };
+  }
+  return { ok: true, anchorAnchored: verdict.anchored };
+}
+
+/** Map a failed `planStore().create()` result to the appropriate error response. */
+function planCreateErrorResponse(result: { error: string }): Response {
+  return publicApiError(
+    result.error === "invalid" ? "Add a start time, your name, and at least one venue."
+      : result.error === "conflict" ? "That request key was already used for a different Plan."
+        : "Could not create the Plan.",
+    result.error === "invalid" ? "PLAN_CREATE_INVALID" : result.error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT" : "PLAN_CREATE_UNAVAILABLE",
+    result.error === "invalid" ? 400 : result.error === "conflict" ? 409 : 503,
+    { retryable: result.error === "error" },
+  );
+}
+
 export async function POST(request: Request): Promise<Response> {
   let body: Record<string, unknown>;
   try {
@@ -129,46 +175,15 @@ export async function POST(request: Request): Promise<Response> {
   // proof whose exact ordered Stops match this Plan. Every proof failure is an
   // explicit 422; a same-key replay with a changed anchor or proof is resolved
   // to a 409 by the store's idempotency hash below.
-  const anchorSupplied = Object.prototype.hasOwnProperty.call(body, "anchor");
   const anchor = cleanPlanAnchor(body.anchor);
-  if (anchorSupplied && !anchor) {
-    return publicApiError("Include the accepted pub and where it came from.", "PLAN_ANCHOR_INVALID", 422);
-  }
-  if (!anchor && readPlanGroundingClaimsV2(body.groundingProof)) {
-    return publicApiError("Include the accepted pub for this route.", "PLAN_ANCHOR_REQUIRED", 422);
-  }
-  let anchorAnchored = false;
-  if (anchor) {
-    const verdict = verifyAnchoredPlanGroundingProofV2(body.groundingProof, acceptedVenueIds, idempotencyKey);
-    if (!verdict.ok) {
-      const mapped = anchorProofError(verdict.reason);
-      return publicApiError(mapped.message, mapped.code, 422);
-    }
-    if (verdict.outcome !== anchor.outcome) {
-      return publicApiError("That saved route does not match this plan.", "PLAN_ANCHOR_OUTCOME_MISMATCH", 422);
-    }
-    if (verdict.anchorVenueId !== anchor.venueId) {
-      return publicApiError("That saved pub does not match this plan.", "PLAN_ANCHOR_VENUE_MISMATCH", 422);
-    }
-    if (verdict.anchorSource !== anchor.source) {
-      return publicApiError("That pub came from somewhere else than this plan says.", "PLAN_ANCHOR_SOURCE_MISMATCH", 422);
-    }
-    anchorAnchored = verdict.anchored;
-  }
+  const anchorResult = validateAnchor(body, anchor, acceptedVenueIds, idempotencyKey);
+  if (!anchorResult.ok) return anchorResult.response;
+  const anchorAnchored = anchorResult.anchorAnchored;
   const result = await planStore().create(
     { ...body, stops },
     { idempotencyKey, ...(groundingProofDigest ? { groundingProofDigest } : {}), ...(anchor ? { anchor } : {}) },
   );
-  if (!result.ok) {
-    return publicApiError(
-      result.error === "invalid" ? "Add a start time, your name, and at least one venue."
-        : result.error === "conflict" ? "That request key was already used for a different Plan."
-          : "Could not create the Plan.",
-      result.error === "invalid" ? "PLAN_CREATE_INVALID" : result.error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT" : "PLAN_CREATE_UNAVAILABLE",
-      result.error === "invalid" ? 400 : result.error === "conflict" ? 409 : 503,
-      { retryable: result.error === "error" },
-    );
-  }
+  if (!result.ok) return planCreateErrorResponse(result);
   // An anchored Plan is grounded by its verified V2 proof; legacy creation keeps
   // the V1 candidate-set derivation.
   const grounded = anchor

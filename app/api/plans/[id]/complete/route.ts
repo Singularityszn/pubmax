@@ -45,6 +45,46 @@ function verifiedCompletionResponse(
   }
 }
 
+type CompletionInput =
+  | { ok: true; ending: CrawlEnding; memberToken: string; terminalVenueId: string | null; endingSelection: NonNullable<ReturnType<typeof cleanEndingSelection>>; expectedRouteRevision: number }
+  | { ok: false; response: Response };
+
+function parseCompletionInput(request: Request, body: Record<string, unknown>): CompletionInput {
+  const ending = typeof body.ending === "string" && ENDINGS.includes(body.ending as CrawlEnding) ? body.ending as CrawlEnding : null;
+  const memberToken = planMemberCapability(request, body.memberToken);
+  const terminalVenueId = cleanText(body.terminalVenueId, 80);
+  const endingSelection = ending ? cleanEndingSelection(body.endingSelection, ending) : null;
+  if (body.finalPintDropId !== undefined) return { ok: false, response: publicApiError("A final Pint Drop cannot be attached until Plan member ownership is verifiable.", "FINAL_PINT_DROP_FORBIDDEN", 400) };
+  const expectedRouteRevision = typeof body.expectedRouteRevision === "number" && Number.isInteger(body.expectedRouteRevision) && body.expectedRouteRevision > 0 ? body.expectedRouteRevision : null;
+  if (!ending || !memberToken || !expectedRouteRevision) return { ok: false, response: publicApiError("Choose an ending and use the latest Plan link.", "PLAN_COMPLETION_INVALID", 400) };
+  if (!endingSelection) return { ok: false, response: publicApiError("Choose an ending from this route.", "PLAN_ENDING_SELECTION_INVALID", 400) };
+  if (ending === "food" && !terminalVenueId) return { ok: false, response: publicApiError("Include the current route stop before completing this Plan with food.", "PLAN_FOOD_TERMINAL_REQUIRED", 400) };
+  return { ok: true, ending, memberToken, terminalVenueId, endingSelection, expectedRouteRevision };
+}
+
+function completionErrorResponse(error: string): Response {
+  const message =
+    error === "forbidden" ? "Only the Plan host can complete this Plan." :
+    error === "conflict" ? "That route has changed. Refresh and try again." :
+    error === "arrival_required" ? "Mark at least one route stop as arrived before completing this Plan." :
+    error === "error" ? "Plan completion is temporarily unavailable." :
+    "Could not complete this Plan.";
+  const code =
+    error === "error" ? "PLAN_COMPLETION_UNAVAILABLE" :
+    error === "forbidden" ? "PLAN_COMPLETION_FORBIDDEN" :
+    error === "not_found" ? "PLAN_NOT_FOUND" :
+    error === "conflict" ? "PLAN_ROUTE_CONFLICT" :
+    error === "arrival_required" ? "PLAN_ARRIVAL_REQUIRED" :
+    "PLAN_COMPLETION_INVALID";
+  const status =
+    error === "forbidden" ? 403 :
+    error === "not_found" ? 404 :
+    error === "conflict" ? 409 :
+    error === "error" ? 503 :
+    400;
+  return publicApiError(message, code, status, { retryable: error === "error" || error === "conflict" });
+}
+
 export async function GET(_request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
   if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
@@ -54,7 +94,6 @@ export async function GET(_request: Request, context: Context): Promise<Response
   return jsonNoStore({ completion: completionLookup.completion });
 }
 
-// eslint-disable-next-line complexity
 export async function POST(request: Request, context: Context): Promise<Response> {
   const limiterKey = `plan-complete:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, 30)) {
@@ -65,15 +104,9 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch { return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400); }
-  const ending = typeof body.ending === "string" && ENDINGS.includes(body.ending as CrawlEnding) ? body.ending as CrawlEnding : null;
-  const memberToken = planMemberCapability(request, body.memberToken);
-  const terminalVenueId = cleanText(body.terminalVenueId, 80);
-  const endingSelection = ending ? cleanEndingSelection(body.endingSelection, ending) : null;
-  if (body.finalPintDropId !== undefined) return publicApiError("A final Pint Drop cannot be attached until Plan member ownership is verifiable.", "FINAL_PINT_DROP_FORBIDDEN", 400);
-  const expectedRouteRevision = typeof body.expectedRouteRevision === "number" && Number.isInteger(body.expectedRouteRevision) && body.expectedRouteRevision > 0 ? body.expectedRouteRevision : null;
-  if (!ending || !memberToken || !expectedRouteRevision) return publicApiError("Choose an ending and use the latest Plan link.", "PLAN_COMPLETION_INVALID", 400);
-  if (!endingSelection) return publicApiError("Choose an ending from this route.", "PLAN_ENDING_SELECTION_INVALID", 400);
-  if (ending === "food" && !terminalVenueId) return publicApiError("Include the current route stop before completing this Plan with food.", "PLAN_FOOD_TERMINAL_REQUIRED", 400);
+  const input = parseCompletionInput(request, body);
+  if (!input.ok) return input.response;
+  const { ending, memberToken, terminalVenueId, endingSelection, expectedRouteRevision } = input;
   const signingUnavailable = planSigningPreflightResponse();
   if (signingUnavailable) return signingUnavailable;
   const [planLookup, completionLookup] = await Promise.all([
@@ -98,11 +131,6 @@ export async function POST(request: Request, context: Context): Promise<Response
     ...(terminalVenueId ? { terminalVenueId } : {}),
     endingSelection: canonicalSelection,
   });
-  if (!result.ok) return publicApiError(
-    result.error === "forbidden" ? "Only the Plan host can complete this Plan." : result.error === "conflict" ? "That route has changed. Refresh and try again." : result.error === "arrival_required" ? "Mark at least one route stop as arrived before completing this Plan." : result.error === "error" ? "Plan completion is temporarily unavailable." : "Could not complete this Plan.",
-    result.error === "error" ? "PLAN_COMPLETION_UNAVAILABLE" : result.error === "forbidden" ? "PLAN_COMPLETION_FORBIDDEN" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "conflict" ? "PLAN_ROUTE_CONFLICT" : result.error === "arrival_required" ? "PLAN_ARRIVAL_REQUIRED" : "PLAN_COMPLETION_INVALID",
-    result.error === "forbidden" ? 403 : result.error === "not_found" ? 404 : result.error === "conflict" ? 409 : result.error === "error" ? 503 : 400,
-    { retryable: result.error === "error" || result.error === "conflict" },
-  );
+  if (!result.ok) return completionErrorResponse(result.error);
   return verifiedCompletionResponse(result.plan, result.completion, result.created, result.created ? 201 : 200);
 }
