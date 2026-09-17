@@ -509,7 +509,7 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
 // that read as a pressed mark. These are the eyebrow rules that broke it.
 describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
   const EYEBROW_RULES: ReadonlyArray<readonly [string, readonly string[]]> = [
-    ["app/plan/plan.css", [
+    ["app/plan/Plan.module.css", [
       ".planPage__eyebrow",
       ".matchGroupPrefs__eyebrow",
       ".planIntake__eyebrow",
@@ -520,7 +520,7 @@ describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
     // Tonight's kicker is the shared Kicker primitive inside its Screen head.
     ["app/tonight/Tonight.module.css", [".tonightRowKind"]],
     ["components/vibe/vibeChips.css", [".vibeChipsLede"]],
-    ["app/pal/pal.css", [".palEyebrow", ".palMemoryList__meta span"]],
+    ["app/pal/Pal.module.css", [".palEyebrow", ".palMemoryList__meta span"]],
     // Pub Pal chat's kicker is the shared Kicker primitive inside its Screen head.
     ["components/pal/palChat.css", [".palGlanceLabel"]],
     ["app/messages/messages.css", [".messagesThreadEyebrow"]],
