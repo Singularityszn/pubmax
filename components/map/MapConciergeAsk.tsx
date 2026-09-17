@@ -21,6 +21,7 @@ import type { AskProposal } from "@/lib/ask/types";
 import { confirmOccupancyProposal } from "@/components/map/useVenueOccupancy";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
+import styles from "./mapConciergeAsk.module.css";
 
 const EXAMPLE_PROMPTS = [
   "Quiet-ish near Bank, 4 of us",
@@ -166,10 +167,10 @@ export default function MapConciergeAsk({
 
   if (!open) {
     return (
-      <div className="mapConciergeAsk mapConciergeAsk--collapsed">
+      <div className="mapConciergeAsk mapConciergeAskCollapsed">
         <button
           type="button"
-          className="mapConciergeAskPill pressable"
+          className={`${styles.mapConciergeAskPill} pressable`}
           onClick={expand}
           aria-expanded={false}
         >
@@ -181,20 +182,20 @@ export default function MapConciergeAsk({
   }
 
   return (
-    <div className="mapConciergeAsk mapConciergeAsk--open">
+    <div className="mapConciergeAsk mapConciergeAskOpen">
       <section
-        className="mapConciergeAskPanel"
+        className={styles.mapConciergeAskPanel}
         role="dialog"
         aria-label="Ask your Pub Pal"
       >
-        <header className="mapConciergeAskHead">
-          <span className="mapConciergeAskEyebrow">
+        <header className={styles.mapConciergeAskHead}>
+          <span className={styles.mapConciergeAskEyebrow}>
             <PubPalMascot size={16} circular />
             Ask your Pub Pal
           </span>
           <button
             type="button"
-            className="mapConciergeAskClose pressable"
+            className={`${styles.mapConciergeAskClose} pressable`}
             onClick={collapse}
             aria-label="Close ask"
           >
@@ -202,14 +203,14 @@ export default function MapConciergeAsk({
           </button>
         </header>
 
-        <form className="mapConciergeAskForm" onSubmit={onSubmit}>
-          <label className="mapConciergeAskSr" htmlFor="map-concierge-query">
+        <form className={styles.mapConciergeAskForm} onSubmit={onSubmit}>
+          <label className={styles.mapConciergeAskSr} htmlFor="map-concierge-query">
             Describe the outing
           </label>
           <input
             id="map-concierge-query"
             ref={inputRef}
-            className="mapConciergeAskInput"
+            className={styles.mapConciergeAskInput}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Quiet-ish near Bank, not pricey…"
@@ -218,7 +219,7 @@ export default function MapConciergeAsk({
           />
           <button
             type="submit"
-            className="mapConciergeAskGo pressable"
+            className={`${styles.mapConciergeAskGo} pressable`}
             disabled={state.status === "loading" || !query.trim()}
           >
             {state.status === "loading" ? "Asking…" : "Ask"}
@@ -226,12 +227,12 @@ export default function MapConciergeAsk({
         </form>
 
         {state.status === "idle" ? (
-          <div className="mapConciergeAskExamples" aria-label="Example asks">
+          <div className={styles.mapConciergeAskExamples} aria-label="Example asks">
             {EXAMPLE_PROMPTS.map((prompt) => (
               <button
                 key={prompt}
                 type="button"
-                className="mapConciergeAskChip pressable"
+                className={`${styles.mapConciergeAskChip} pressable`}
                 onClick={() => {
                   setQuery(prompt);
                   void ask(prompt);
@@ -244,38 +245,38 @@ export default function MapConciergeAsk({
         ) : null}
 
         {state.status === "error" ? (
-          <p className="mapConciergeAskMsg mapConciergeAskMsg--error" role="alert">
+          <p className={`${styles.mapConciergeAskMsg} ${styles.mapConciergeAskMsgError}`} role="alert">
             {state.message}
           </p>
         ) : null}
 
         {state.status === "answered" ? (
-          <div className="mapConciergeAskAnswer" role="status" aria-live="polite">
-            <p className="mapConciergeAskMsg">{state.message}</p>
+          <div className={styles.mapConciergeAskAnswer} role="status" aria-live="polite">
+            <p className={styles.mapConciergeAskMsg}>{state.message}</p>
             {state.responseStatus === "degraded" ? (
-              <p className="mapConciergeAskMsg mapConciergeAskMsg--degraded">
+              <p className={`${styles.mapConciergeAskMsg} ${styles.mapConciergeAskMsgDegraded}`}>
                 Some live city facts could not be checked just now.
               </p>
             ) : null}
             {proposalError ? (
-              <p className="mapConciergeAskMsg mapConciergeAskMsg--error">
+              <p className={`${styles.mapConciergeAskMsg} ${styles.mapConciergeAskMsgError}`}>
                 {proposalError}
               </p>
             ) : null}
             {state.proposals.length > 0 ? (
-              <ul className="mapConciergeAskProposals" aria-label="Confirm an action">
+              <ul className={styles.mapConciergeAskProposals} aria-label="Confirm an action">
                 {state.proposals.map((proposal) => (
-                  <li key={proposal.id} className="mapConciergeAskProposal">
+                  <li key={proposal.id} className={styles.mapConciergeAskProposal}>
                     <button
                       type="button"
-                      className="mapConciergeAskProposalConfirm pressable"
+                      className={`${styles.mapConciergeAskProposalConfirm} pressable`}
                       onClick={() => confirmProposal(proposal)}
                     >
                       {proposal.label}
                     </button>
                     <button
                       type="button"
-                      className="mapConciergeAskProposalDismiss pressable"
+                      className={`${styles.mapConciergeAskProposalDismiss} pressable`}
                       onClick={() => dismissProposal(proposal.id)}
                     >
                       Dismiss
@@ -285,45 +286,45 @@ export default function MapConciergeAsk({
               </ul>
             ) : null}
             {state.cards.length > 0 ? (
-              <ul className="mapConciergeAskList">
+              <ul className={styles.mapConciergeAskList}>
                 {state.cards.map((card) => {
                   const tappable = Boolean(card.venueId);
                   const body = (
                     <>
-                      <div className="mapConciergeAskCardTop">
-                        <p className="mapConciergeAskCardTitle">{card.title}</p>
+                      <div className={styles.mapConciergeAskCardTop}>
+                        <p className={styles.mapConciergeAskCardTitle}>{card.title}</p>
                         {typeof card.price === "number" ? (
-                          <span className="mapConciergeAskCardPrice">
+                          <span className={styles.mapConciergeAskCardPrice}>
                             £{card.price.toFixed(2)}
                           </span>
                         ) : null}
                       </div>
                       {card.place ? (
-                        <p className="mapConciergeAskCardPlace">
+                        <p className={styles.mapConciergeAskCardPlace}>
                           <MapPin size={12} aria-hidden="true" />
                           <span>{card.place}</span>
                         </p>
                       ) : null}
                       {card.note ? (
-                        <p className="mapConciergeAskCardNote">{card.note}</p>
+                        <p className={styles.mapConciergeAskCardNote}>{card.note}</p>
                       ) : null}
                     </>
                   );
                   return (
-                    <li key={card.key} className="mapConciergeAskCard">
+                    <li key={card.key} className={styles.mapConciergeAskCard}>
                       {tappable ? (
                         <button
                           type="button"
-                          className="mapConciergeAskCardTap pressable"
+                          className={`${styles.mapConciergeAskCardTap} pressable`}
                           onClick={() => pickCard(card)}
                         >
                           {body}
-                          <span className="mapConciergeAskCardCta" aria-hidden="true">
+                          <span className={styles.mapConciergeAskCardCta} aria-hidden="true">
                             Show on map
                           </span>
                         </button>
                       ) : (
-                        <div className="mapConciergeAskCardTap mapConciergeAskCardTap--static">
+                        <div className={`${styles.mapConciergeAskCardTap} ${styles.mapConciergeAskCardTapStatic}`}>
                           {body}
                         </div>
                       )}
