@@ -1,0 +1,256 @@
+/* ── Analytics consent prompt ─────────────────────────────────────────────
+   Full-bleed docked consent bar, body clearance rules and responsive layout.
+   The :root token block (--analytics-consent-clearance, etc.) stays in
+   globals.css because it is a design token read by other surfaces.
+   Extracted from app/globals.css. */
+
+/* DOCKED, NEVER FLOATING. The card used to be an inset, blurred, shadowed
+   panel that hovered over whatever was under it; PlanAstra section 3 found it
+   standing over the answer on every route. It is a plain strip pinned to the
+   chrome now: full bleed, square, opaque, one hairline on the edge it meets
+   the page at, and no backdrop blur, no shadow and no scrim, so nothing it
+   covers is dimmed and nothing shows through it. Its lane is reserved from
+   the body below, so at rest the page ends above it rather than under it.
+
+   ONE ROW, NEVER A STACK. Site audit 13 Sep 2026 (D3): on a phone the card was
+   115px, a four-line sentence beside two stacked buttons, and with the dock it
+   took a fifth of the screen. It is one row now, the sentence and both choices
+   side by side: a 1px hairline, 5px, the 44px controls and 6px make 56px. */
+.analyticsConsentPrompt {
+  position: fixed;
+  z-index: 1000;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: minmax(0, max-content) auto;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  box-sizing: border-box;
+  width: auto;
+  max-width: none;
+  margin-inline: 0;
+  padding:
+    5px
+    max(14px, env(safe-area-inset-right))
+    max(6px, env(safe-area-inset-bottom))
+    max(14px, env(safe-area-inset-left));
+  border: 0;
+  border-top: 1px solid var(--hairline, var(--line));
+  border-radius: 0;
+  background: var(--panel-raised);
+  color: var(--ink);
+}
+
+.analyticsConsentPrompt p {
+  min-width: 0;
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+/* A 44px tap target that does not grow the row: the block padding is the hit
+   area and the equal negative margin gives its layout height back, so the link
+   rides its line of the sentence. The area reaches UP, over the plain words
+   above it, rather than down: the link is on the sentence's last line, and a
+   hit area hanging below that line would leave the 56px row. */
+.analyticsConsentPrompt a {
+  display: inline-block;
+  min-width: 44px;
+  padding: 24px 4px 6px;
+  margin: -24px -4px -6px;
+  color: inherit;
+  text-align: center;
+  text-underline-offset: 3px;
+}
+
+.analyticsConsentPromptActions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+/* The text-button row (--control-*), on the page's own surface so the pair
+   reads against the raised strip. Equal weight: neither is the one to press. */
+.analyticsConsentPromptActions button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--control-pad-x, 16px);
+  border: 1px solid var(--control-secondary-border, var(--line));
+  border-radius: var(--control-radius, 14px);
+  background: var(--panel);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
+  line-height: 1;
+  white-space: nowrap;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.analyticsConsentPromptActions button:hover,
+.analyticsConsentPromptActions button:focus-visible {
+  border-color: var(--brass);
+}
+
+/* Any open map surface owns the reader's attention; the consent card must not
+   bleed through semi-transparent scrims or sit above sheet chrome. The desktop
+   choose-area picker is the second shape of that surface, and it dims the map
+   with a scrim of its own rather than the phone sheet portal. */
+body:has(.mobileSheetPortal) .analyticsConsentPrompt,
+body:has(.chooseAreaDesktopScrim) .analyticsConsentPrompt {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Night mode is the whole screen while it is engaged (components/plan/
+   NightCrawlMode.tsx): a fixed surface with its own way out. The card owned
+   the centre of "We are here" at 320x568 (verify-preview-4 RED 2). Its own
+   rule rather than a third branch above, because that list is the map sheet's
+   and __tests__/qaHighFindings.test.ts reads it as the two selectors it is. */
+body:has(.nightCrawl) .analyticsConsentPrompt {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* CANVAS HOLE, NOT A TYPO. This fully opaque card made the compositor cull the
+   WebGL map canvas under its rect mirrored in y: a band of bare map background
+   behind the chip row (y 64 to 120), measured at 390 and 430 at dpr 2 in light
+   and dark, and 390 at dpr 3 (site audit 13 Sep 2026). A layer below full opacity is never
+   an occluder, and 0.999 changes no visible pixel. isolation: isolate,
+   transform: translateZ(0), will-change: transform or opacity and
+   backface-visibility: hidden each left the hole; opacity alone cleared it.
+   Fence: e2e/map-consent-canvas-band.spec.ts. */
+body:has(.maplibregl-canvas) .analyticsConsentPrompt {
+  opacity: 0.999;
+}
+
+/* Desktop: reserve foot clearance while the fixed consent bar is mounted so
+   list cards and page footers are not half-covered. */
+@media (min-width: 641px) {
+  body:has(.analyticsConsentPrompt) {
+    padding-bottom: calc(
+      var(--analytics-consent-clearance, 72px) + max(12px, env(safe-area-inset-bottom))
+    );
+  }
+}
+
+@media (max-width: 640px) {
+  /* Phone: the card is one 56px row on the tab bar's lane, so scroll surfaces
+     reserve exactly that row and Today, Plan and /pubs actions end above it. */
+  body:has(.analyticsConsentPrompt):has(.mobileTabBar, .mobileTabBarClearance) {
+    padding-bottom: calc(
+        var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--analytics-consent-mobile-clearance, 56px)
+    );
+  }
+
+  body:has(.analyticsConsentPrompt):not(:has(.mobileTabBar, .mobileTabBarClearance)) {
+    padding-bottom: calc(
+      var(--analytics-consent-mobile-clearance, 56px) + max(12px, env(safe-area-inset-bottom))
+    );
+  }
+
+  /* FLUSH TO THE TAB BAR, with no gap and no inset: the card is the bar's own
+     top edge rather than a panel hovering 8px above it. The bottom safe-area
+     inset belongs to the tab bar underneath, so the card's own padding is the
+     plain 5px and 6px of the row. The sentence is kept short enough to wrap
+     beside both choices inside 56px at 320px. Nothing caps the height: larger
+     text grows the card rather than spilling it onto the dock, and the lane
+     is sized in rem so browser text zoom grows it with the row. */
+  .analyticsConsentPrompt {
+    bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom));
+    grid-template-columns: minmax(0, 1fr) auto;
+    justify-content: stretch;
+    gap: 8px;
+    min-height: 56px;
+    padding: 5px max(10px, env(safe-area-inset-right)) 6px max(10px, env(safe-area-inset-left));
+  }
+
+  /* WITH NO TAB BAR THE CARD IS THE FOOT OF THE SCREEN. It still reaches the
+     edge, because a docked strip that stops short of it is the floating panel
+     again; the home-indicator inset is cleared by the card's OWN padding
+     instead, so the two buttons never sit under the system gesture area. */
+  body:not(:has(.mobileTabBar, .mobileTabBarClearance)) .analyticsConsentPrompt {
+    bottom: 0;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+  }
+
+  /* The first-run surface hides the tab bar (app/onboarding/onboarding.css)
+     without taking it out of the document, so the :not(:has()) rule above
+     still sees a dock and parks the card 72px up over a bar nobody can see.
+     On that surface the safe area IS the dock, and the surface reserves the
+     lane the card then sits in. */
+  body:has(.firstRunOnboarding) .analyticsConsentPrompt {
+    bottom: 0;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+  }
+
+  /* AT A LARGE OS TEXT SIZE THE CARD GROWS INSTEAD OF CLIPPING. The 56px
+     row above holds because the copy fits it at every phone width at an
+     ordinary size; at the 2.0x the native shells apply (lib/nativeTextScale.ts,
+     which publishes the bucket on <html>) the sentence, the Privacy link and
+     the second word of "No thanks" all fell below the ceiling, measured on
+     both rigs (docs/proof/mobile-app-design, either rig's textscale folder;
+     a glob here would end this comment). The card is
+     bottom-anchored above the tab bar, so it grows upward, and the two
+     buttons share one row under the sentence. The lane the page reserves
+     grows with the card, and the first-run lane reads the same token. It is
+     11.5rem, 184px at the 16px root: a 1px hairline, 5px, four 29px lines of
+     the sentence at 320px, 8px, the 44px choices and 6px make 180px, and 4px
+     of margin make 184px. */
+  html[data-text-scale="large"] {
+    --analytics-consent-mobile-clearance: 11.5rem;
+  }
+
+  html[data-text-scale="large"] .analyticsConsentPrompt {
+    grid-template-columns: minmax(0, 1fr);
+    max-height: none;
+  }
+
+  html[data-text-scale="large"] .analyticsConsentPromptActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analyticsConsentPrompt p {
+    font-size: 0.72rem;
+    line-height: 1.25;
+  }
+
+  /* NOTHING here clamps the sentence. A clamp on the card cuts the two buttons
+     that are the only way out of a fixed overlay; a clamp on the paragraph cuts
+     the banner's only route to the privacy notice, which is the last thing on
+     it; and a clamp on the sentence alone silently drops the "never sold"
+     half of the disclosure on a 320px phone. The card holds its 56px row by
+     the COPY being short enough to wrap inside it beside both choices at
+     every phone width, with the Privacy link riding the last line. */
+
+  .analyticsConsentPromptActions {
+    gap: 6px;
+  }
+
+  .analyticsConsentPromptActions button {
+    padding-inline: 10px;
+    font-size: 0.78rem;
+  }
+
+  /* NO MAP BERTH. On the phone map the card keeps this dock, and the outing
+     pill steps down while it is up (components/mobile/mobileMapShell.css), so
+     one element owns the foot and nothing is lifted over another. */
+
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .analyticsConsentPrompt {
+    animation: analytics-consent-arrive 160ms var(--ease-out, ease-out);
+  }
+}
+
+@keyframes analytics-consent-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}

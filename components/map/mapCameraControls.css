@@ -1,17 +1,80 @@
-/* Where the map's camera chips sit on a wide screen.
+/* Map camera controls — base rules extracted from app/globals.css, plus the
+ * wide-screen row layout that was already co-located here.
  *
- * The stack's base geometry is in app/globals.css: `--map-overlay-top` is 108px
- * on desktop and `--map-top-clearance` is 159px, so there is room for exactly
- * ONE 44px chip above the search toolbar. Everything below that first row falls
- * inside the toolbar's own band, and at 1024 and 1280 the toolbar's right end -
- * the city switcher - is painted over it and takes its taps.
- *
- * That was survivable while the second row was "Recenter", which only exists
- * once a route does. It is not survivable now the compass is always there
- * (lib/mapCompass.ts): a control nobody can press is worse than the one that
- * used to disappear.
- *
- * So on a wide screen the chips share the one clear band as a ROW rather than
+ * The stack's base geometry: `--map-overlay-top` is 108px on desktop and
+ * `--map-top-clearance` is 159px, so there is room for exactly ONE 44px chip
+ * above the search toolbar. Everything below that first row falls inside the
+ * toolbar's own band, and at 1024 / 1280 the toolbar's right end (the city
+ * switcher) paints over it and takes its taps.
+ */
+
+.mapCameraControls {
+  position: absolute;
+  top: var(--map-overlay-top);
+  right: 10px;
+  z-index: var(--z-map-camera);
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.mapFitLondonBtn,
+.mapRecenterBtn,
+.mapCompassBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  box-shadow: var(--map-overlay-shadow-tight);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.mapFitLondonBtn:hover,
+.mapRecenterBtn:not(:disabled):hover,
+.mapCompassBtn:hover {
+  border-color: var(--ink-soft);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.mapFitLondonBtn:focus-visible,
+.mapRecenterBtn:focus-visible,
+.mapCompassBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--river);
+}
+
+.mapCompassBtn svg {
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+.mapRecenterBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.appShell.sheet-full .mapCameraControls,
+.appShell.onboarding-open .mapCameraControls {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+}
+
+/* On a wide screen the chips share the one clear band as a ROW rather than
  * stacking down into the toolbar. Below 901px the toolbar's own stylesheet
  * already moves the whole stack underneath itself, so that width keeps the
  * column it was designed with.
@@ -20,5 +83,29 @@
   .mapCameraControls {
     grid-auto-flow: column;
     align-items: center;
+  }
+}
+
+/* ── Phone responsive (migrated from globals.css) ── */
+
+@media (max-width: 640px) {
+  .mapCameraControls {
+    top: calc(var(--map-top-clearance) + 58px);
+    right: 10px;
+    gap: 4px;
+  }
+
+  /* MapLibre's built-in zoom/compass compete with the bottom tab bar and
+     corner FABs on phones. App-owned London/Recenter stay visible. */
+  .maplibregl-ctrl-bottom-left .maplibregl-ctrl-group {
+    display: none;
+  }
+
+  .mapFitLondonBtn,
+  .mapRecenterBtn {
+    min-height: 44px;
+    padding: 0 9px;
+    font-size: 0.68rem;
+    border-radius: 999px;
   }
 }

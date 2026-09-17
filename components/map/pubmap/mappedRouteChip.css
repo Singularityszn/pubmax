@@ -1,11 +1,14 @@
-/* Active Round chip — mirrors .mappedRouteChip chrome (Candle Coral tokens).
-   Mobile bottom/left overrides live in globals.css next to .mappedRouteChip. */
+/* MappedRouteChip chrome — extracted from app/globals.css.
+ *
+ * The "N stops mapped" floating chip with edit / last-train / hide actions.
+ * Imported by PubMap.tsx which guards the chip's mount.
+ */
 
-.activeRoundChip {
+.mappedRouteChip {
   position: absolute;
   left: 50%;
-  bottom: 134px; /* sits above .mappedRouteChip (bottom: 82px) */
-  z-index: var(--z-map-chip);
+  bottom: 82px;
+  z-index: var(--z-map-route-chip);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -20,45 +23,41 @@
   transform: translateX(-50%);
 }
 
-.activeRoundChip > svg {
+.mappedRouteChip > svg {
   flex: 0 0 auto;
   color: var(--brass);
 }
 
-.activeRoundChip div {
+.mappedRouteChip div {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.activeRoundChip strong,
-.activeRoundChip span {
+.mappedRouteChip strong,
+.mappedRouteChip span {
   white-space: nowrap;
 }
 
-.activeRoundChip strong {
+.mappedRouteChip strong {
   font-size: 0.82rem;
 }
 
-.activeRoundChip span {
+.mappedRouteChip span {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-.activeRoundChip button,
-.activeRoundChip a.activeRoundChipBoard {
+.mappedRouteChip button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: 32px;
-  min-width: 32px;
+  min-height: 44px;
+  min-width: 44px;
   padding: 0 11px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -69,12 +68,9 @@
   font-weight: 800;
   white-space: nowrap;
   cursor: pointer;
-  text-decoration: none;
-  box-sizing: border-box;
 }
 
-.activeRoundChip button:hover,
-.activeRoundChip a.activeRoundChipBoard:hover {
+.mappedRouteChip button:hover {
   border-color: var(--brass);
   color: var(--brass);
 }
@@ -82,7 +78,34 @@
 /* ── Phone responsive (migrated from globals.css) ── */
 
 @media (max-width: 640px) {
-  .activeRoundChip {
-    bottom: calc(var(--map-bottom-chip-row) + 52px);
+  .mappedRouteChip,
+  .activeRoundChip,
+  .bandOnboardingChip {
+    left: 10px;
+    right: 10px;
+    bottom: var(--map-bottom-chip-row);
+    max-width: none;
+    transform: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .mappedRouteChip,
+  .activeRoundChip,
+  .bandOnboardingChip {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .mappedRouteChip strong,
+  .activeRoundChip strong,
+  .bandOnboardingChip strong {
+    font-size: 0.78rem;
+  }
+
+  .mappedRouteChip span,
+  .activeRoundChip span,
+  .bandOnboardingChip span {
+    font-size: 0.68rem;
   }
 }

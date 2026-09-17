@@ -1,0 +1,157 @@
+/* ── Chrome micro-interactions: hover warm-up, focus rings, disabled ──────
+   Color/focus/disabled states are unconditional (a11y). Transform-based
+   press/lift feedback lives in the no-preference block below so reduced-motion
+   users get instant, static states. Tokens only, both themes.
+   Extracted from app/globals.css.
+
+   NOTE: button:disabled and @media (prefers-reduced-motion: reduce) remain
+   in globals.css as truly global rules. */
+
+/* Consistent brass focus ring on interactive chrome that lacked one. */
+.modeToggle button:focus-visible,
+.mapHeroVisit:focus-visible,
+.clearBtn:focus-visible,
+.resetBtn:focus-visible,
+.reportBtn:focus-visible,
+.composerToggle:focus-visible,
+.landlordBtn:focus-visible,
+.landlordSuggest button:focus-visible,
+.mapHeroCardHead button:focus-visible,
+.photoPick:focus-within,
+.photoRemove:focus-visible,
+.citationChip:focus-visible,
+.sourceLinks a:focus-visible,
+.claimCard a:focus-visible,
+.bandBtn:focus-visible,
+.bandActiveCard a:focus-visible,
+.venuePickerList button:focus-visible,
+.routeList li > button:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* Hover warm-up (color/border only) for list-style controls. */
+.landlordSuggest button:hover,
+.citationChip:hover {
+  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+}
+
+.dropCard,
+.claimCard {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dropCard:hover,
+.claimCard:hover {
+  border-color: var(--brass);
+}
+
+.venuePickerList button {
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.venuePickerList button:hover {
+  background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Short, scoped transitions so hover/focus states ease rather than snap. */
+  .modeToggle button,
+  .mapHeroVisit,
+  .clearBtn,
+  .resetBtn,
+  .reportBtn,
+  .composerToggle,
+  .landlordBtn,
+  .landlordSuggest button,
+  .citationChip,
+  .mapHeroCardHead button,
+  .photoPick,
+  .photoRemove {
+    transition:
+      background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+      transform 0.12s ease, box-shadow 0.15s ease;
+  }
+
+  /* Press feedback — buttons dip on tap so interactions feel responsive. */
+  .segmented button:active,
+  .modeToggle button:active,
+  .nearbyBtn:active,
+  .clearBtn:active,
+  .resetBtn:active,
+  .shareBtn:active,
+  .reportBtn:active,
+  .composerToggle:active,
+  .landlordBtn:active,
+  .landlordForm button:active,
+  .landlordSuggest button:active,
+  .dropComposer button[type="submit"]:active,
+  .mapHeroVisit:active,
+  .photoPick:active,
+  .venuePickerList button:active,
+  .featuredCrawl:active {
+    transform: translateY(1px);
+  }
+
+  /* Featured cards and drop/claim cards lift a hair on hover. */
+  .featuredCrawl:hover,
+  .dropCard:hover,
+  .claimCard:hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* ── Phone responsive (migrated from globals.css) ── */
+
+@media (max-width: 640px), (hover: none), (pointer: coarse) {
+  .mapFitLondonBtn,
+  .mapRecenterBtn,
+  .mappedRouteChip,
+  .activeRoundChip,
+  .bandOnboardingChip,
+  .mapToolbar,
+  .mapLoading,
+  .poiToggle,
+  .poiLabelCard,
+  .bandPicker,
+  .placeStoriesControl,
+  .mapLegend,
+  .mapHeroCard {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .mapFitLondonBtn,
+  .mapRecenterBtn,
+  .poiToggle,
+  .bandPicker,
+  .placeStoriesControl,
+  .mapLegend,
+  .mapHeroCard {
+    background: var(--panel-raised);
+    box-shadow: var(--map-overlay-shadow-tight);
+  }
+
+  .mapToolbar,
+  .mappedRouteChip,
+  .activeRoundChip,
+  .bandOnboardingChip {
+    background:
+      linear-gradient(135deg, var(--panel-raised), color-mix(in srgb, var(--surface-tint-river) 36%, var(--panel-raised) 64%)),
+      var(--panel-raised);
+    box-shadow: var(--map-overlay-shadow);
+  }
+
+  .mappedRouteChip,
+  .activeRoundChip,
+  .bandOnboardingChip {
+    border-color: color-mix(in srgb, var(--brass) 34%, var(--line));
+  }
+
+  .mapDrawer.left.open,
+  .mapDrawer.right.open,
+  .mapDrawer.left.sheet-dragging,
+  .mapDrawer.right.sheet-dragging {
+    will-change: transform;
+  }
+}

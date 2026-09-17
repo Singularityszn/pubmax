@@ -1,0 +1,52 @@
+/* ── Shared inspector primitives ─────────────────────────────────────────
+   Section dividers, price list, pint-drop area shell, and the .description
+   paragraph style. Used by VenueInspector.tsx, VenueStoryTab.tsx,
+   VenuePintsTab.tsx and PubMap.tsx.
+   Extracted from app/globals.css. */
+
+.venueInspector {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.venueInspector > p {
+  color: var(--muted);
+}
+
+.description {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.priceList {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--panel-raised);
+}
+
+.priceList div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+  border-top: 1px solid var(--line-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.priceList div:first-child {
+  border-top: 0;
+}
+
+.pintDrops {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+}

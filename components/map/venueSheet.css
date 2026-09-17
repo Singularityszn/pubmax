@@ -1,3 +1,181 @@
+/* ── Base drawer chrome (migrated from globals.css) ── */
+.mapDrawer {
+  position: absolute;
+  top: var(--map-top-clearance);
+  bottom: 0;
+  z-index: var(--z-map-panel);
+  width: 376px;
+  max-width: 92vw;
+  background: var(--sheet-material);
+  box-shadow: var(--sheet-material-shadow);
+  /* PREFIX FIRST, STANDARD LAST, and it is not a style preference. The CSS
+     minifier treats the two as one logical property and keeps whichever is
+     declared LAST, so the old standard-then-prefix order shipped a rule with
+     only `-webkit-backdrop-filter` in it. Chrome no longer honours that alias,
+     so this sheet went out over the map at 82% opacity with NO blur: road
+     lines, pins and the map's own place labels read straight through a panel
+     of prices. Tailwind's own backdrop utilities in the same bundle survive
+     because they are written in this order. */
+  -webkit-backdrop-filter: blur(20px) saturate(1.08);
+  backdrop-filter: blur(20px) saturate(1.08);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  /* iOS-like drawer travel — a sheet sliding in from the edge reads best on the
+     Ionic/Vaul curve, not the gentle Material ease. */
+  transition: transform var(--duration-slow) var(--ease-drawer);
+  will-change: auto;
+}
+
+.mapDrawer.left {
+  left: 0;
+  border-right: 1px solid var(--sheet-material-border);
+  transform: translateX(-100%);
+}
+
+.mapDrawer.right {
+  right: 0;
+  border-left: 1px solid var(--sheet-material-border);
+  transform: translateX(100%);
+}
+
+.mapDrawer.left.open,
+.mapDrawer.right.open {
+  transform: translateX(0);
+  will-change: transform;
+}
+
+/* From 769px to 1023px the venue drawer is this base 376px side panel. The
+   map chips beside it read the width from here; from 1024px venueSheet.css
+   widens the drawer and publishes its own value. */
+@media (min-width: 769px) and (max-width: 1023px) {
+  .appShell {
+    --desktop-venue-drawer-width: 376px;
+  }
+}
+
+/* Desktop map chrome needs one measured source for the planner lane. The
+   drawer's rendered width is 376px at this breakpoint; toolbar and banners
+   consume this variable so their free-lane geometry cannot drift from it. */
+@media (min-width: 1024px) {
+  .appShell {
+    --desktop-planner-rail-width: 376px;
+  }
+
+  .mapDrawer.left {
+    width: var(--desktop-planner-rail-width);
+  }
+}
+
+/* React owns spring presentation through this variable. The tablet sheet rules
+   below use !important for their legacy dvh snaps, so the variable is repeated
+   in that band with equal authority. */
+.mapDrawer.springDrawer {
+  transform: var(--drawer-spring-transform);
+  transition: none;
+}
+
+.mapDrawer[aria-hidden="true"] {
+  pointer-events: none;
+}
+
+.plannerMapButton {
+  display: none;
+}
+
+/* Panels lose their own chrome inside a drawer — the drawer carries it. */
+.mapDrawer .controlRail,
+.mapDrawer .routePanel {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  max-height: none;
+  overflow: visible;
+}
+
+/* The same three-column head every surface wears: leading Back, the middle
+   (empty here, or the planner's grab handle), trailing Home. It used to be a
+   flex row pinned right, which put a Back arrow beside the close instead of at
+   the opposite edge where every other surface keeps it. */
+.mapDrawerHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  padding: 10px 12px 0;
+  background: linear-gradient(
+    var(--sheet-material),
+    color-mix(in srgb, var(--sheet-material-solid) 38%, transparent)
+  );
+}
+
+.mapDrawerHead .venueSheetGrabZone {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+}
+
+/* MapLibre's own zoom control, dressed as one of ours.
+   It ships a white box with a 4px radius and a hairline shadow, which on this
+   map was the only pure-white, square-cornered thing on screen: every other
+   floater is a dark pill on the app's own panel surface. The phone shell
+   already re-homed and re-shaped this group (components/mobile/mobileMapShell
+   .css) and hides the zoom pair there; this is the desktop half of the same
+   job, so the control reads as map chrome rather than as the library's.
+   Scoped through .appShell .mapStage for a reason: MapLibre's own sheet loads
+   after ours, so a bare `.maplibregl-ctrl-group` loses `background` and
+   `border-radius` back to the white box while keeping the properties MapLibre
+   does not set - a half-themed control, which is worse than none. */
+.appShell .mapStage .maplibregl-ctrl-group {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  box-shadow: var(--map-overlay-shadow-tight);
+}
+
+.appShell .mapStage .maplibregl-ctrl-group button {
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  color: var(--ink-soft);
+}
+
+.appShell .mapStage .maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--line);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .appShell .mapStage .maplibregl-ctrl-group button:hover {
+    background: var(--panel);
+    color: var(--ink);
+  }
+}
+
+/* The glyphs are background images drawn dark for a white control, so on the
+   dark surface they are inverted rather than re-drawn. Light is the default
+   theme here (`html:not([data-theme="dark"])`), so only dark opts in. */
+html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.6);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .mapDrawer {
+    background: var(--sheet-material-solid);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .mapDrawer {
+    background: var(--sheet-material-solid);
+    /* Same order rule as the base above: the LAST of the pair is the one that
+       survives the build, and this opt-out only means anything if the standard
+       property is the one that reaches the browser. */
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 /* Mobile-first tab bar + "sheet" feel for the venue detail panel.
    Scoped to elements *inside* .venueInspector only — we never restyle the
    outer .venueInspector box (positioning/size stays owned by globals.css) so
@@ -1589,5 +1767,196 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
+  }
+}
+
+/* ── Demo-data badge (migrated from globals.css) ─────────────────────────── */
+/* Used by VenuePintsTab to flag seeded example Pint Drops. */
+
+.demoDataNote {
+  display: grid;
+  gap: 3px;
+  margin: 8px 0 10px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--brass) 32%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--brass) 9%, transparent);
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.demoDataNote span {
+  color: var(--brass);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ── Phone responsive (migrated from globals.css) ── */
+
+@media (max-width: 768px) {
+  /* Map stays full-bleed; drawers slide UP as bottom sheets instead of in from
+     the sides, so they're thumb-reachable and never crowd a narrow screen. */
+  .mapDrawer {
+    top: auto;
+    bottom: var(--mobile-tab-clearance);
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 82vh;
+    border: 0;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -10px 30px rgba(15, 28, 22, 0.28);
+    transform: translateY(calc(100% + var(--mobile-tab-clearance)));
+  }
+
+  .mapDrawer.springDrawer {
+    transform: var(--drawer-spring-transform) !important;
+    transition: none;
+  }
+
+  .mapDrawer.left:not(.open):not(.sheet-dragging),
+  .mapDrawer.right:not(.open):not(.sheet-dragging) {
+    /* Production CSS bundling can place the desktop side-drawer transform after
+       this mobile block. Keep the phone drawer on the vertical sheet axis. */
+    transform: translateY(calc(100% + var(--mobile-tab-clearance))) !important;
+  }
+
+  .mapDrawer.left.open,
+  .mapDrawer.right.open {
+    transform: translateY(0);
+  }
+
+  .mapDrawer.left.open:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open:not(.sheet-dragging):not(.mobileSharedSheet) {
+    transform: translateY(0) !important;
+  }
+
+  /* Keep in sync with lib/sheetSnap.ts SHEET_SNAP_FRACTIONS / venueSheet.css.
+     dvh (visible viewport) with vh fallback — see venueSheet.css for why.
+     `:not(.mobileSharedSheet)` fences these to the LEGACY 641–768 inline drawer:
+     the ≤640 phone portal (.mobileSharedSheet) is a bottom-anchored, content-
+     height flex box (mobileMapShell.css) — a viewport-tall translateY panel would
+     reintroduce the void the rebuild removed, and these !important rules would
+     otherwise win over the portal's own geometry. */
+  .mapDrawer.left.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet) {
+    --drawer-sheet-offset: 45dvh;
+    transform: translateY(45vh) !important;
+    transform: translateY(45dvh) !important;
+  }
+
+  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet) {
+    --drawer-sheet-offset: 78dvh;
+    transform: translateY(78vh) !important;
+    transform: translateY(78dvh) !important;
+  }
+
+  .mapDrawer.left.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet) {
+    --drawer-sheet-offset: 8dvh;
+    transform: translateY(8vh) !important;
+    transform: translateY(8dvh) !important;
+  }
+
+  .mapDrawer.left.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.left.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet) {
+    height: 100dvh;
+    max-height: none;
+  }
+
+  /* THE SHEET SAYS HOW MUCH OF ITSELF IS BELOW THE VIEWPORT, ONCE. This legacy
+     641-768 sheet is viewport-tall and translated down by its snap, so at
+     `half` 45dvh of its scrollport hangs under the screen: its last 45dvh of
+     content could never scroll into view, and anything pinned to its bottom
+     edge (`position: sticky; bottom: 0`) sat 45dvh out of sight. Every
+     consumer used to restate the translate in dvh to compensate, and a
+     restated number is wrong the moment the real one differs: mid-spring,
+     mid-drag, or after the shell's box moved (#1516). So the translate is
+     published as ONE value: SpringDrawer writes `--drawer-sheet-offset` in px
+     on every frame it owns, and the per-snap declarations above are the
+     fallback for the frame before it does. `--sheet-hidden-below` is that
+     offset less the lane the sheet already sits above, i.e. exactly the part
+     of the sheet under the viewport's bottom edge. A spacer of that height
+     ends the scroll body so the LAST content pixel can reach the visible
+     bottom, and a bottom-pinned child reads the same variable for its inset
+     (venueSheet.css). The spacer is CONTENT, not padding, on purpose: Chromium
+     measures a sticky inset from the scroll container's content edge, so a
+     padding of the same size would move the reference edge the inset is
+     measured from (measured: `padding-bottom: 100px` on the scroller put a
+     `bottom: 0` sticky child 100px up), and the same rule would then read two
+     ways in two engines. The ≤640 portal sheet (.mobileSharedSheet) is
+     content-height and needs none of this. */
+  .mapDrawer.left.open:not(.mobileSharedSheet),
+  .mapDrawer.right.open:not(.mobileSharedSheet) {
+    --sheet-hidden-below: max(
+      0px,
+      calc(var(--drawer-sheet-offset, 0px) - var(--mobile-tab-clearance))
+    );
+  }
+
+  .mapDrawer.left.open:not(.mobileSharedSheet)::after,
+  .mapDrawer.right.open:not(.mobileSharedSheet)::after {
+    content: "";
+    display: block;
+    height: var(--sheet-hidden-below);
+  }
+
+  /* SpringDrawer must outrank the legacy snap declarations above, including
+     their !important fence. The extra spring class and axis attribute make
+     ownership explicit without weakening the legacy fallback. */
+  .mapDrawer.springDrawer.left.open.sheet-full[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.left.open.sheet-half[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.left.open.sheet-peek[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.right.open.sheet-full[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.right.open.sheet-half[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.right.open.sheet-peek[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.left[data-spring-axis="vertical"]:not(.open),
+  .mapDrawer.springDrawer.right[data-spring-axis="vertical"]:not(.open) {
+    transform: var(--drawer-spring-transform) !important;
+  }
+
+  .mapDrawer.springDrawer.left.open[data-spring-axis="vertical"] {
+    z-index: var(--z-nav);
+  }
+
+  .mapDrawer.springDrawer.right.open[data-spring-axis="vertical"] {
+    z-index: calc(var(--z-nav) + 1);
+  }
+
+  .plannerMapButton {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    width: calc(100% - 28px);
+    min-height: 44px;
+    margin: 12px 14px 2px;
+    border: 1px solid color-mix(in srgb, var(--river) 34%, var(--line));
+    border-radius: 999px;
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--river) 10%, var(--panel-raised)), var(--panel-raised));
+    color: var(--river);
+    box-shadow: 0 12px 26px color-mix(in srgb, var(--ink) 10%, transparent);
+    font: inherit;
+    font-size: 0.86rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .plannerMapButton:hover {
+    border-color: var(--river);
+    background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
   }
 }

@@ -1,0 +1,109 @@
+/* BandOnboardingChip chrome — extracted from app/globals.css.
+ *
+ * G3 — Place story deep-link onboarding chip (mirrors mappedRouteChip chrome).
+ * Imported by PubMap.tsx which guards the chip's mount.
+ */
+
+.bandOnboardingChip {
+  position: absolute;
+  left: 50%;
+  bottom: 82px;
+  z-index: var(--z-map-onboard-chip);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 9px 10px 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--line));
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--panel-raised) 94%, transparent), color-mix(in srgb, var(--surface-tint-lager) 62%, transparent)),
+    color-mix(in srgb, var(--panel-raised) 90%, transparent);
+  color: var(--ink);
+  box-shadow: var(--map-overlay-shadow);
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  transform: translateX(-50%);
+}
+
+.bandOnboardingChip div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bandOnboardingChip strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bandOnboardingChip strong {
+  font-size: 0.82rem;
+}
+
+.bandOnboardingChip span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+.bandOnboardingChip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.bandOnboardingChip button:hover {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+/* ── Phone responsive (migrated from globals.css) ── */
+
+@media (max-width: 640px) {
+  .bandOnboardingChip {
+    /* Stops short of the map-edge column: Near me and the create action park
+       in this band, and they painted over the chip's Dismiss button. */
+    right: var(--mobile-map-corner-lane);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 18px;
+  }
+
+  .bandOnboardingChip > div {
+    grid-column: 1 / -1;
+  }
+
+  .bandOnboardingChip > button:first-of-type {
+    grid-column: 1;
+    width: 100%;
+  }
+
+  .bandOnboardingChip > button:last-child {
+    grid-column: 2;
+    min-width: 44px;
+    padding-inline: 0;
+  }
+
+  .bandOnboardingChip button {
+    min-height: 44px;
+  }
+}

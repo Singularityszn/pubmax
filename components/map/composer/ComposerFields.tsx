@@ -1,3 +1,5 @@
+import "@/components/vibe/vibeTags.css";
+
 import { useId } from "react";
 import { Mic, MicOff } from "lucide-react";
 

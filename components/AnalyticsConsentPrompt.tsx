@@ -1,5 +1,7 @@
 "use client";
 
+import "./analyticsConsent.css";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BRAND_NAME } from "@/lib/brandNaming";

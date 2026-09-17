@@ -1,3 +1,5 @@
+import "./photoComposer.css";
+
 import { ImagePlus, SmilePlus, X } from "lucide-react";
 
 import type { PintDropsState } from "@/components/map/usePintDrops";

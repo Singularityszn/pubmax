@@ -1,5 +1,8 @@
 "use client";
 
+import "./composer/dropComposer.css";
+import "./composer/photoComposer.css";
+
 import { useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, RefreshCw, Send } from "lucide-react";

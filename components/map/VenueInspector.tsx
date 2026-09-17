@@ -56,6 +56,7 @@ import VenueStickyBar from "./inspector/VenueStickyBar";
 
 import "./venueSheet.css";
 import "./accessibilityFilters.css";
+import "./inspector/venueInspectorChrome.css";
 
 // TabKey is imported by other modules from this file — keep it re-exported here.
 export type { TabKey };

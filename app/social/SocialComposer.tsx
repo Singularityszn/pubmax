@@ -1,5 +1,7 @@
 "use client";
 
+import "@/components/map/composer/photoComposer.css";
+
 import { type RefObject, useEffect, useId, useRef, useState } from "react";
 
 import { nightAreasByCity } from "@/lib/nightAreas";

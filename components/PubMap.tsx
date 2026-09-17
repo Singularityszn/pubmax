@@ -13,6 +13,10 @@ const PubPalMascot = dynamic(
 );
 const ThemeToggle = dynamic(() => import("@/components/ThemeToggle"), { ssr: false });
 import PriceBadge from "@/components/PriceBadge";
+import "@/components/map/mapStageChrome.css";
+import "@/components/map/mapChromeMicro.css";
+import "@/components/map/pubmap/mappedRouteChip.css";
+import "@/components/map/pubmap/bandOnboardingChip.css";
 import "@/components/map/venueSheet.css";
 import "@/components/map/spillComposer.css";
 import "@/components/map/logIntentFallback.css";

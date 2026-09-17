@@ -1,3 +1,71 @@
+/* ── Base toolbar chrome (migrated from globals.css) ── */
+.mapToolbar {
+  position: absolute;
+  top: var(--map-top-clearance);
+  left: 50%;
+  transform: translateX(-50%);
+  /* Above camera controls (530) + city-suggest banner so the city dropdown
+     stays tappable on the right edge of the toolbar. */
+  z-index: var(--z-map-toolbar);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 32px);
+  padding: 7px 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--river) 28%);
+  border-radius: 999px;
+  /* Wave J2 — solid raised panel + soft shadow; less frosted glass over the map. */
+  background: var(--color-surface-raised);
+  box-shadow: var(--map-overlay-shadow);
+}
+
+.mapToolbarSearch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  color: var(--muted);
+}
+
+.mapToolbarSearch input {
+  border: 0;
+  background: transparent;
+  outline: none;
+  color: var(--ink);
+  font-size: 0.85rem;
+  min-width: 168px;
+  min-height: 44px;
+}
+
+.mapToolbarClear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.mapToolbarClear:hover {
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mapToolbarClear {
+    transition:
+      color var(--duration-base) var(--ease-out),
+      transform var(--duration-press) var(--ease-out);
+  }
+  .mapToolbarClear:active {
+    transform: scale(0.97);
+    --shared-press-scale: 1;
+  }
+}
+
 /* Compact map toolbar — map-first on phones; drink filters opt-in. */
 
 .appShell {
@@ -730,5 +798,27 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   .mapToolbar,
   .mapLegend {
     transition: none;
+  }
+}
+
+/* ── Phone responsive (migrated from globals.css) ── */
+
+@media (max-width: 640px) {
+  /* Toolbar hugs the top under the nav; same inset/radius as the floating Home
+     bar — both switch to full-width at the same 640px breakpoint. */
+  .mapToolbar {
+    top: var(--map-top-clearance);
+    left: var(--map-chrome-inset);
+    right: var(--map-chrome-inset);
+    max-width: none;
+    transform: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    border-radius: var(--map-chrome-radius);
+    box-sizing: border-box;
+  }
+
+  .mapToolbarSearch input {
+    min-width: 120px;
   }
 }
