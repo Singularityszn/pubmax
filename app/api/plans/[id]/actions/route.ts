@@ -6,7 +6,8 @@ import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { isPlanId, type PlanActionDTO } from "@/lib/plan";
 import { planStore } from "@/lib/planStore";
 import { planMemberCapability } from "@/lib/planMemberCapability";
-import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMutationHttp";
+import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey, planWriteErrorToStatus } from "@/lib/planMutationHttp";
+import type { PlanWriteError } from "@/lib/planStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { fulfilWantedsAtVenue } from "@/lib/wantedFulfil.server";
 import { wantedFulfilledLine } from "@/lib/wanted";
@@ -22,17 +23,17 @@ function parseActionInput(body: Record<string, unknown>): { ok: true; type: Plan
   return { ok: true, type, stopPosition };
 }
 
-const ACTION_ERROR_MAP: Record<string, { status: number; error: string; code: string }> = {
-  forbidden: { status: 403, error: "That member token cannot update this Plan.", code: "PLAN_ACTION_FORBIDDEN" },
-  not_found: { status: 404, error: "That Plan doesn't exist.", code: "PLAN_NOT_FOUND" },
-  error:     { status: 503, error: "The Plan update is temporarily unavailable.", code: "PLAN_ACTION_UNAVAILABLE" },
-  conflict:  { status: 409, error: "Could not record the action.", code: "PLAN_IDEMPOTENCY_CONFLICT" },
+const ACTION_ERROR_MAP: Record<string, { error: string; code: string }> = {
+  forbidden: { error: "That member token cannot update this Plan.", code: "PLAN_ACTION_FORBIDDEN" },
+  not_found: { error: "That Plan doesn't exist.", code: "PLAN_NOT_FOUND" },
+  error:     { error: "The Plan update is temporarily unavailable.", code: "PLAN_ACTION_UNAVAILABLE" },
+  conflict:  { error: "Could not record the action.", code: "PLAN_IDEMPOTENCY_CONFLICT" },
 };
-const ACTION_ERROR_FALLBACK = { status: 400, error: "Could not record the action.", code: "PLAN_ACTION_INVALID" };
+const ACTION_ERROR_FALLBACK = { error: "Could not record the action.", code: "PLAN_ACTION_INVALID" };
 
 function actionErrorResponse(resultError: string): Response {
   const mapped = ACTION_ERROR_MAP[resultError] ?? ACTION_ERROR_FALLBACK;
-  return publicApiError(mapped.error, mapped.code, mapped.status, { retryable: resultError === "error" });
+  return publicApiError(mapped.error, mapped.code, planWriteErrorToStatus(resultError as PlanWriteError), { retryable: resultError === "error" });
 }
 
 export async function POST(request: Request, context: Context): Promise<Response> {

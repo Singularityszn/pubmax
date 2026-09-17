@@ -3,11 +3,12 @@ import { clientIp, hashIp } from "@/lib/supabase";
 import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { cleanEndingSelection, isPlanId, type CrawlEnding, type PlanCompletionDTO, type PlanState } from "@/lib/plan";
-import { planCompletionResult, planMemberIdentityResult, planStateResult, planStore } from "@/lib/planStore";
+import { planCompletionResult, planMemberIdentityResult, planStateResult, planStore, type PlanWriteError } from "@/lib/planStore";
 import { canonicalEndingSelection } from "@/lib/planEndingSelection.server";
 import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { planMemberCapability } from "@/lib/planMemberCapability";
 import { cleanText } from "@/lib/textClean";
+import { planWriteErrorToStatus } from "@/lib/planMutationHttp";
 import { completionLoopEventTokens } from "@/lib/verifiedAnalytics.server";
 
 type Context = { params: Promise<{ id: string }> };
@@ -62,27 +63,18 @@ function parseCompletionInput(request: Request, body: Record<string, unknown>): 
   return { ok: true, ending, memberToken, terminalVenueId, endingSelection, expectedRouteRevision };
 }
 
+const COMPLETION_ERROR_MAP: Record<string, { message: string; code: string }> = {
+  forbidden:        { message: "Only the Plan host can complete this Plan.", code: "PLAN_COMPLETION_FORBIDDEN" },
+  conflict:         { message: "That route has changed. Refresh and try again.", code: "PLAN_ROUTE_CONFLICT" },
+  arrival_required: { message: "Mark at least one route stop as arrived before completing this Plan.", code: "PLAN_ARRIVAL_REQUIRED" },
+  error:            { message: "Plan completion is temporarily unavailable.", code: "PLAN_COMPLETION_UNAVAILABLE" },
+  not_found:        { message: "Could not complete this Plan.", code: "PLAN_NOT_FOUND" },
+};
+const COMPLETION_ERROR_FALLBACK = { message: "Could not complete this Plan.", code: "PLAN_COMPLETION_INVALID" };
+
 function completionErrorResponse(error: string): Response {
-  const message =
-    error === "forbidden" ? "Only the Plan host can complete this Plan." :
-    error === "conflict" ? "That route has changed. Refresh and try again." :
-    error === "arrival_required" ? "Mark at least one route stop as arrived before completing this Plan." :
-    error === "error" ? "Plan completion is temporarily unavailable." :
-    "Could not complete this Plan.";
-  const code =
-    error === "error" ? "PLAN_COMPLETION_UNAVAILABLE" :
-    error === "forbidden" ? "PLAN_COMPLETION_FORBIDDEN" :
-    error === "not_found" ? "PLAN_NOT_FOUND" :
-    error === "conflict" ? "PLAN_ROUTE_CONFLICT" :
-    error === "arrival_required" ? "PLAN_ARRIVAL_REQUIRED" :
-    "PLAN_COMPLETION_INVALID";
-  const status =
-    error === "forbidden" ? 403 :
-    error === "not_found" ? 404 :
-    error === "conflict" ? 409 :
-    error === "error" ? 503 :
-    400;
-  return publicApiError(message, code, status, { retryable: error === "error" || error === "conflict" });
+  const { message, code } = COMPLETION_ERROR_MAP[error] ?? COMPLETION_ERROR_FALLBACK;
+  return publicApiError(message, code, planWriteErrorToStatus(error as PlanWriteError), { retryable: error === "error" || error === "conflict" });
 }
 
 export async function GET(_request: Request, context: Context): Promise<Response> {

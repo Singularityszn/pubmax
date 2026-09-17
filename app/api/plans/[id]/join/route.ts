@@ -13,11 +13,12 @@ import {
   planStateResult,
   planStore,
   resolvePlanIdByInviteToken,
+  type PlanWriteError,
 } from "@/lib/planStore";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { collaborationErrorResponse } from "@/lib/planCollaborationHttp";
 import { attachPlanMemberSession } from "@/lib/planMemberCapability";
-import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMutationHttp";
+import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey, planWriteErrorToStatus } from "@/lib/planMutationHttp";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { crewCommittedEventToken } from "@/lib/verifiedAnalytics.server";
@@ -67,29 +68,20 @@ function crewCommittedToken(plan: PlanState | null): string | undefined {
   });
 }
 
+const JOIN_ERROR_MAP: Record<string, { message: string; code: string }> = {
+  full:             { message: "This Plan's crew is full.", code: "PLAN_CREW_FULL" },
+  not_found:        { message: "That Plan doesn't exist.", code: "PLAN_NOT_FOUND" },
+  account_conflict: { message: "This account is already in the Plan.", code: "PLAN_ACCOUNT_ALREADY_MEMBER" },
+  conflict:         { message: "That request key was already used for a different join.", code: "PLAN_IDEMPOTENCY_CONFLICT" },
+  error:            { message: "Could not join the Plan.", code: "PLAN_JOIN_UNAVAILABLE" },
+  invalid:          { message: "Add your name.", code: "PLAN_JOIN_INVALID" },
+};
+const JOIN_ERROR_FALLBACK = { message: "Could not join the Plan.", code: "PLAN_JOIN_INVALID" };
+
 /** Map a failed join store result to the appropriate API error response. */
 function joinErrorResponse(result: { error: string }): Response {
-  const status = result.error === "invalid" ? 400
-    : result.error === "not_found" ? 404
-      : result.error === "full" || result.error === "conflict" || result.error === "account_conflict" ? 409
-        : 503;
-  const error = result.error === "full" ? "This Plan's crew is full."
-    : result.error === "invalid" ? "Add your name."
-      : result.error === "not_found" ? "That Plan doesn't exist."
-        : result.error === "account_conflict" ? "This account is already in the Plan."
-        : result.error === "conflict" ? "That request key was already used for a different join."
-          : "Could not join the Plan.";
-  return publicApiError(
-    error,
-    result.error === "error" ? "PLAN_JOIN_UNAVAILABLE"
-      : result.error === "not_found" ? "PLAN_NOT_FOUND"
-        : result.error === "full" ? "PLAN_CREW_FULL"
-          : result.error === "account_conflict" ? "PLAN_ACCOUNT_ALREADY_MEMBER"
-          : result.error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT"
-            : "PLAN_JOIN_INVALID",
-    status,
-    { retryable: result.error === "error" },
-  );
+  const { message, code } = JOIN_ERROR_MAP[result.error] ?? JOIN_ERROR_FALLBACK;
+  return publicApiError(message, code, planWriteErrorToStatus(result.error as PlanWriteError), { retryable: result.error === "error" });
 }
 
 /** Handle the classic multi-use invite token join flow. */

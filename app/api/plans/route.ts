@@ -16,7 +16,8 @@ import {
 } from "@/lib/planGrounding.server";
 import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { attachPlanMemberSession } from "@/lib/planMemberCapability";
-import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMutationHttp";
+import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey, planWriteErrorToStatus } from "@/lib/planMutationHttp";
+import type { PlanWriteError } from "@/lib/planStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { planAcceptedEventTokens, planDraftSavedEventToken, planLoopEventTokens } from "@/lib/verifiedAnalytics.server";
@@ -129,16 +130,17 @@ function validateAnchor(
   return { ok: true, anchorAnchored: verdict.anchored };
 }
 
+const CREATE_ERROR_MAP: Record<string, { message: string; code: string }> = {
+  invalid:  { message: "Add a start time, your name, and at least one venue.", code: "PLAN_CREATE_INVALID" },
+  conflict: { message: "That request key was already used for a different Plan.", code: "PLAN_IDEMPOTENCY_CONFLICT" },
+  error:    { message: "Could not create the Plan.", code: "PLAN_CREATE_UNAVAILABLE" },
+};
+const CREATE_ERROR_FALLBACK = { message: "Could not create the Plan.", code: "PLAN_CREATE_UNAVAILABLE" };
+
 /** Map a failed `planStore().create()` result to the appropriate error response. */
 function planCreateErrorResponse(result: { error: string }): Response {
-  return publicApiError(
-    result.error === "invalid" ? "Add a start time, your name, and at least one venue."
-      : result.error === "conflict" ? "That request key was already used for a different Plan."
-        : "Could not create the Plan.",
-    result.error === "invalid" ? "PLAN_CREATE_INVALID" : result.error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT" : "PLAN_CREATE_UNAVAILABLE",
-    result.error === "invalid" ? 400 : result.error === "conflict" ? 409 : 503,
-    { retryable: result.error === "error" },
-  );
+  const { message, code } = CREATE_ERROR_MAP[result.error] ?? CREATE_ERROR_FALLBACK;
+  return publicApiError(message, code, planWriteErrorToStatus(result.error as PlanWriteError), { retryable: result.error === "error" });
 }
 
 export async function POST(request: Request): Promise<Response> {
