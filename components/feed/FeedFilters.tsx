@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FEED_FILTERS, type FeedFilter } from "@/lib/feed";
+import styles from "@/app/feed/Feed.module.css";
 
 type FeedFiltersProps = {
   active: FeedFilter;
@@ -64,7 +65,7 @@ export default function FeedFilters({ active, onChange }: FeedFiltersProps) {
 
   return (
     <div
-      className={`feedFilters${hintMore ? " hasScrollHint" : ""}`}
+      className={`${styles.feedFilters}${hintMore ? ` ${styles.hasScrollHint}` : ""}`}
       ref={railRef}
       role="group"
       aria-label="Feed lanes"
@@ -75,13 +76,13 @@ export default function FeedFilters({ active, onChange }: FeedFiltersProps) {
           <button
             key={filter.id}
             type="button"
-            className={`feedFilterChip${isActive ? " isActive" : ""}`}
+            className={`${styles.feedFilterChip}${isActive ? ` ${styles.isActive}` : ""}`}
             aria-pressed={isActive}
             onClick={() => onChange(filter.id)}
           >
             {filter.label}
             {filter.demo ? (
-              <span className="feedFilterDemo" title="Demo lane. Best-effort in this prototype">
+              <span className={styles.feedFilterDemo} title="Demo lane. Best-effort in this prototype">
                 demo
               </span>
             ) : null}
@@ -91,7 +92,7 @@ export default function FeedFilters({ active, onChange }: FeedFiltersProps) {
       {!moreOpen ? (
         <button
           type="button"
-          className={`feedFilterChip feedFilterMore${moreActive ? " isActive" : ""}`}
+          className={`${styles.feedFilterChip}${moreActive ? ` ${styles.isActive}` : ""}`}
           aria-expanded={false}
           onClick={() => setMoreOpen(true)}
         >
@@ -100,7 +101,7 @@ export default function FeedFilters({ active, onChange }: FeedFiltersProps) {
       ) : (
         <button
           type="button"
-          className="feedFilterChip feedFilterMore"
+          className={styles.feedFilterChip}
           aria-expanded={true}
           onClick={() => setMoreOpen(false)}
         >

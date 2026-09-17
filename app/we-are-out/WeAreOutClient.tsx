@@ -13,8 +13,8 @@ import SiteNav from "@/components/nav/SiteNav";
 import { trackEvent } from "@/lib/analytics";
 import { getNightAreasForCity } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
-import "../feed/feed.css";
-import "./we-are-out.css";
+import feedStyles from "../feed/Feed.module.css";
+import styles from "./WeAreOut.module.css";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { socialBoundaryCopy } from "@/lib/socialLaunch";
@@ -50,11 +50,11 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
 
   if (!socialFriendsLaunchEnabled) {
     return (
-      <main id="main" className="feedShell weAreOut">
+      <main id="main" className={`${feedStyles.feedShell} ${styles.weAreOut}`}>
         <SiteNav active="feed" />
-        <section className="weAreOutDone" role="status">
-          <p className="weAreOutDoneTitle">{socialBoundaryCopy("preview", false)}</p>
-          <Link className="feedDropCta" href="/u/you#night-memories">
+        <section className={styles.weAreOutDone} role="status">
+          <p className={styles.weAreOutDoneTitle}>{socialBoundaryCopy("preview", false)}</p>
+          <Link className={feedStyles.feedDropCta} href="/u/you#night-memories">
             Open Memories
           </Link>
         </section>
@@ -92,40 +92,40 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
   }
 
   return (
-    <main id="main" className="feedShell weAreOut">
+    <main id="main" className={`${feedStyles.feedShell} ${styles.weAreOut}`}>
       <SiteNav active="feed" />
 
-      <div className="weAreOutLayout">
-        <header className="feedHeader">
-          <p className="feedEyebrow">Tonight</p>
-          <h1 className="feedTitle">I&rsquo;m here</h1>
-          <p className="feedLede">
+      <div className={`${styles.weAreOutLayout} ${styles.weAreOutLayoutDesktop}`}>
+        <header className={`${feedStyles.feedHeader} ${styles.feedHeaderInWeAreOut} ${styles.feedHeaderDesktop}`}>
+          <p className={`${feedStyles.feedEyebrow} ${styles.feedEyebrowInWeAreOut}`}>Tonight</p>
+          <h1 className={`${feedStyles.feedTitle} ${styles.feedTitleInWeAreOut}`}>I&rsquo;m here</h1>
+          <p className={`${feedStyles.feedLede} ${styles.feedLedeDesktop}`}>
             Tell your lot you&rsquo;re here tonight. Area only, no exact spot. Friends
             who follow you back see it. It clears itself after 12 hours.
           </p>
         </header>
 
         {state === "done" ? (
-          <section className="weAreOutDone" role="status">
-            <p className="weAreOutDoneTitle">You&rsquo;re here. Your lot can see it.</p>
-            <div className="weAreOutDoneActions">
+          <section className={`${styles.weAreOutDone} ${styles.weAreOutDoneDesktop}`} role="status">
+            <p className={styles.weAreOutDoneTitle}>You&rsquo;re here. Your lot can see it.</p>
+            <div className={styles.weAreOutDoneActions}>
               {socialFriendsLaunchEnabled ? (
-                <Link className="feedDropCta" href="/social">
+                <Link className={feedStyles.feedDropCta} href="/social">
                   Open Social
                 </Link>
               ) : (
-                <Link className="feedDropCta" href="/u/you#night-memories">
+                <Link className={feedStyles.feedDropCta} href="/u/you#night-memories">
                   Open Memories
                 </Link>
               )}
             </div>
           </section>
         ) : (
-          <section className="weAreOutForm">
-            <label className="weAreOutField">
-              <span className="weAreOutLabel">Area</span>
+          <section className={`${styles.weAreOutForm} ${styles.weAreOutFormDesktop}`}>
+            <label className={styles.weAreOutField}>
+              <span className={styles.weAreOutLabel}>Area</span>
               <select
-                className="weAreOutSelect"
+                className={styles.weAreOutSelect}
                 value={areaSlug}
                 onChange={(e) => setAreaSlug(e.target.value)}
               >
@@ -138,12 +138,12 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
               </select>
             </label>
 
-            <label className="weAreOutField">
-              <span className="weAreOutLabel">
-                A line <span className="weAreOutOptional">(optional)</span>
+            <label className={styles.weAreOutField}>
+              <span className={styles.weAreOutLabel}>
+                A line <span className={styles.weAreOutOptional}>(optional)</span>
               </span>
               <input
-                className="weAreOutInput"
+                className={styles.weAreOutInput}
                 type="text"
                 maxLength={140}
                 value={note}
@@ -152,19 +152,19 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
               />
             </label>
 
-            <p className="weAreOutPrivacy">
+            <p className={styles.weAreOutPrivacy}>
               Visible to your lot only. Never your exact location.
             </p>
 
             {state === "error" && error ? (
-              <p className="weAreOutError" role="alert">
+              <p className={styles.weAreOutError} role="alert">
                 {error}
               </p>
             ) : null}
 
             <button
               type="button"
-              className="weAreOutSubmit"
+              className={styles.weAreOutSubmit}
               disabled={state === "posting"}
               onClick={post}
             >

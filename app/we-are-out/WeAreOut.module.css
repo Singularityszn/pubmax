@@ -5,22 +5,23 @@
 
 /* Stack the OUT TONIGHT pill above the title. The shared feed eyebrow is
    inline-flex in a centred header; next to a 2.65rem title it could sit on the
-   W. Column + gap keeps the stamp and the heading apart. */
-.weAreOut .feedHeader {
+   W. Column + gap keeps the stamp and the heading apart.
+   Override applied alongside feedStyles.feedHeader in WeAreOutClient.tsx. */
+.feedHeaderInWeAreOut {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
 }
 
-.weAreOut .feedEyebrow {
+.feedEyebrowInWeAreOut {
   position: relative;
   z-index: 0;
   margin: 0;
   flex: 0 0 auto;
 }
 
-.weAreOut .feedTitle {
+.feedTitleInWeAreOut {
   position: relative;
   z-index: 0;
   margin: 0;
@@ -132,7 +133,7 @@
 }
 
 @media (min-width: 1024px) {
-  .weAreOut .weAreOutLayout {
+  .weAreOutLayoutDesktop {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
     align-items: start;
@@ -146,22 +147,22 @@
 
   /* The header leads its own column, so it stops being centred trim above a
      form and becomes the reading half of the pair. */
-  .weAreOut .feedHeader {
+  .feedHeaderDesktop {
     align-items: flex-start;
     max-width: none;
     padding: 0;
     text-align: left;
   }
 
-  .weAreOut .feedLede {
+  .feedLedeDesktop {
     margin: 0;
     max-width: 42ch;
   }
 
   /* The action half reads as one card, the same panel treatment the social
      context rail uses, so the form has an edge instead of floating. */
-  .weAreOut .weAreOutForm,
-  .weAreOut .weAreOutDone {
+  .weAreOutFormDesktop,
+  .weAreOutDoneDesktop {
     max-width: none;
     margin: 0;
     padding: 24px;

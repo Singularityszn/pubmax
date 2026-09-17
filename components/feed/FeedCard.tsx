@@ -30,12 +30,11 @@ import { formatGbp } from "@/lib/formatGbp";
 // rendered beside the reaction row.
 import "./cheersButton.css";
 // The card's own chrome (.feedCard, .feedSpill, reaction row, provenance…) lives
-// in feed.css. Co-locate the import here so a FeedCard renders styled wherever it
-// mounts — /feed and /we-are-out import feed.css too, but the profile Timeline
-// (ProfileTimeline) and any future consumer did not, so those cards painted raw.
-// Placed AFTER cheersButton.css so the feed route's cascade order is byte-identical
-// (feed.css already loads via FeedPageClient after cheersButton; the dupe dedupes).
-import "@/app/feed/feed.css";
+// in Feed.module.css. Co-locate the import here so a FeedCard renders styled
+// wherever it mounts — /feed and /we-are-out import Feed.module.css too, but the
+// profile Timeline (ProfileTimeline) and any future consumer did not, so those
+// cards painted raw.
+import styles from "@/app/feed/Feed.module.css";
 
 // Pub-native reactions — chip labels/emoji live in lib/reactions.ts REACTION_META.
 
@@ -56,15 +55,15 @@ function ReactionChip({
   return (
     <button
       type="button"
-      className={`feedReactBtn${on ? " isOn" : ""}`}
+      className={`${styles.feedReactBtn}${on ? ` ${styles.isOn}` : ""}`}
       aria-pressed={on}
       aria-label={count ? `${meta.label}, ${count}` : meta.label}
       title={meta.label}
       onClick={onClick}
     >
       <span aria-hidden="true">{meta.emoji}</span>
-      <span className="feedReactLabel">{meta.label}</span>
-      {count > 0 ? <span className="feedReactCount">{count}</span> : null}
+      <span className={styles.feedReactLabel}>{meta.label}</span>
+      {count > 0 ? <span className={styles.feedReactCount}>{count}</span> : null}
     </button>
   );
 }
@@ -99,15 +98,11 @@ function feedCardClassName(
   entered: boolean,
 ): string {
   return [
-    "feedCard",
-    hero ? "feedCardSpill" : "",
-    // Only paint the coloured left accent stripe when we honestly know the
-    // category — an unknown drink falls back to the plain (brass-neutral) card.
-    hasCategory ? "feedCardCat" : "",
-    optimistic ? `feedCard-${optimistic.state}` : "",
-    // Wave L1 — mount-only entrance (see the `entered` effect below): starts
-    // scaled/faded, settles once. Never replays on a prop-only re-render.
-    entered ? "feedCardEntered" : "feedCardEnter",
+    styles.feedCard,
+    hero ? styles.feedCardSpill : "",
+    hasCategory ? styles.feedCardCat : "",
+    optimistic ? styles[`feedCard-${optimistic.state}` as keyof typeof styles] ?? "" : "",
+    entered ? styles.feedCardEntered : styles.feedCardEnter,
   ]
     .filter(Boolean)
     .join(" ");
@@ -137,14 +132,14 @@ function FeedOptimisticStatus({
   const canRetry = optimistic.state === "failed" && optimistic.canRetry && onRetryPost;
   return (
     <div
-      className={`feedCardStatus feedCardStatus-${optimistic.state}`}
+      className={`${styles.feedCardStatus} ${styles[`feedCardStatus-${optimistic.state}` as keyof typeof styles] ?? ""}`}
       role={optimistic.state === "failed" ? "alert" : "status"}
       aria-live={optimistic.state === "failed" ? "assertive" : "polite"}
     >
-      <span className="feedCardStatusText">{optimistic.message}</span>
+      <span className={styles.feedCardStatusText}>{optimistic.message}</span>
       {optimistic.state === "uploading" && optimistic.uploadProgress !== null ? (
         <span
-          className="feedUploadProgress"
+          className={styles.feedUploadProgress}
           aria-label={`Photo upload ${optimistic.uploadProgress}% complete`}
         >
           <span style={{ width: `${optimistic.uploadProgress}%` }} />
@@ -152,7 +147,7 @@ function FeedOptimisticStatus({
       ) : null}
       {canRetry ? (
         <button
-          className="feedRetryPost"
+          className={styles.feedRetryPost}
           type="button"
           onClick={() => onRetryPost(optimistic.clientRequestId)}
         >
@@ -290,9 +285,9 @@ export default function FeedCard({
         // Vertical 9:16 full-bleed "Spill" card (issue #36): the photo IS the
         // card (IG-Stories ratio) with the handle, venue, note, price stamp and
         // provenance badge overlaid on a bottom scrim — a TikTok/IG post treatment.
-        <div className="feedSpill">
+        <div className={styles.feedSpill}>
           <Image
-            className="feedSpillPhoto"
+            className={styles.feedSpillPhoto}
             src={hero}
             alt={`Pint at ${item.venueName}, shared by ${shownHandle}`}
             width={720}
@@ -305,25 +300,25 @@ export default function FeedCard({
               along the bottom edge, UNDER the fixed dark scrim so it never fights
               text legibility. Only when the category is a real read. */}
           {categoryResolved ? (
-            <span className="feedSpillCatEdge" aria-hidden="true" />
+            <span className={styles.feedSpillCatEdge} aria-hidden="true" />
           ) : null}
           {/* Provenance badge — top-left, ALWAYS visible on the photo, read like
               a verified checkmark (glyph + label): the X-style provenance
               prominence the brief calls for. */}
           <span
-            className={`feedSpillProv feedProv-${item.provenance}`}
+            className={`${styles.feedSpillProv} ${styles[`feedProv-${item.provenance}` as keyof typeof styles] ?? ""}`}
             title={`Source: ${provLabel}`}
             aria-label={`Source: ${provLabel}`}
           >
             <ProvenanceCheck />
-            <span className="feedSpillProvLabel">{provLabel}</span>
+            <span className={styles.feedSpillProvLabel}>{provLabel}</span>
           </span>
 
           {/* Price stamp — top-right, the pressed-ink signature. */}
           {typeof item.priceGbp === "number" ? (
             <PriceBadge
               variant="current"
-              className="feedSpillPrice"
+              className={styles.feedSpillPrice}
               band={priceBandFor(item.priceGbp)}
               style={{ viewTransitionName: `feed-price-${item.id}` }}
             >
@@ -334,33 +329,33 @@ export default function FeedCard({
           {/* Bottom scrim + overlaid content. The scrim is a FIXED dark gradient
               (not theme-mixed) so text legibility is guaranteed over an arbitrary
               photo background in BOTH themes. */}
-          <div className="feedSpillScrim">
-            <div className="feedSpillWho">
+          <div className={styles.feedSpillScrim}>
+            <div className={styles.feedSpillWho}>
               <HandleAvatar
                 handle={item.handle}
                 avatarUrl={item.avatarUrl}
-                className="feedSpillAvatar"
-                imageClassName="feedSpillAvatar"
+                className={styles.feedSpillAvatar}
+                imageClassName={styles.feedSpillAvatar}
                 size={40}
               />
-              <div className="feedSpillWhoText">
-                <span className="feedSpillHandle">{shownHandle}</span>
+              <div className={styles.feedSpillWhoText}>
+                <span className={styles.feedSpillHandle}>{shownHandle}</span>
                 {/* Pub identity anchor (taste fix, feed card slim): its own
                     bold line, ahead of the timestamp — the price stamp stays
                     prominent but stops being the only thing that reads at a
                     glance. */}
                 <Link
-                  className="feedSpillVenueLink"
+                  className={styles.feedSpillVenueLink}
                   href={item.venueMapUrl}
                   onPointerEnter={() => prefetchVenue(item.venueId)}
                 >
                   {item.venueName}
                 </Link>
-                <span className="feedSpillMeta">
+                <span className={styles.feedSpillMeta}>
                   {ago ? <time dateTime={item.createdAt}>{ago}</time> : null}
                   {ago && trainBadge ? " · " : null}
                   {trainBadge ? (
-                    <span className="feedTrainBadge" data-tone={trainBadge.tone}>
+                    <span className={styles.feedTrainBadge} data-tone={trainBadge.tone}>
                       {trainBadge.label}
                     </span>
                   ) : null}
@@ -371,17 +366,17 @@ export default function FeedCard({
                 WCAG 1.4.1). Only when the category is a confident read; an
                 unknown drink shows no fabricated family. */}
             {categoryResolved ? (
-              <span className="feedSpillCat" title={`${catLabel} · ${item.drink}`}>
+              <span className={styles.feedSpillCat} title={`${catLabel} · ${item.drink}`}>
                 <DrinkGlyph category={category} size={16} inheritColor />
-                <span className="feedSpillCatLabel">{catLabel}</span>
+                <span className={styles.feedSpillCatLabel}>{catLabel}</span>
               </span>
             ) : null}
-            {item.caption ? <p className="feedSpillNote">{item.caption}</p> : null}
+            {item.caption ? <p className={styles.feedSpillNote}>{item.caption}</p> : null}
             {/* Cheers lives ONCE per card, as the first chip of the reaction
                 row below — a second standalone button here duplicated it. */}
             {!isOptimistic ? (
               <Link
-                className="feedSpillBarTab"
+                className={styles.feedSpillBarTab}
                 href={`/bar-tab/${encodeURIComponent(item.venueId)}`}
               >
                 See the bar tab
@@ -393,72 +388,72 @@ export default function FeedCard({
         // Text-only drop: keep the header + typographic "receipt" collectible.
         // Do NOT force 9:16 on a card with no photo.
         <>
-          <header className="feedCardHead">
+          <header className={styles.feedCardHead}>
             <HandleAvatar
               handle={item.handle}
               avatarUrl={item.avatarUrl}
-              className="feedAvatar"
-              imageClassName="feedAvatar"
+              className={styles.feedAvatar}
+              imageClassName={styles.feedAvatar}
               size={40}
             />
-            <div className="feedWho">
-              <span className="feedHandle">{shownHandle}</span>
+            <div className={styles.feedWho}>
+              <span className={styles.feedHandle}>{shownHandle}</span>
               {/* Pub identity is the card's anchor (taste fix: it used to only
                   surface in a buried line under the receipt, well below the
                   price). It sits right under the handle, one tap from the map. */}
               <Link
-                className="feedVenueLink feedVenueLinkHead"
+                className={`${styles.feedVenueLink} ${styles.feedVenueLinkHead}`}
                 href={item.venueMapUrl}
                 onPointerEnter={() => prefetchVenue(item.venueId)}
               >
                 {item.venueName}
               </Link>
-              <span className="feedMetaLine">
+              <span className={styles.feedMetaLine}>
                 {ago ? <time dateTime={item.createdAt}>{ago}</time> : null}
                 {trainBadge ? (
-                  <span className="feedTrainBadge" data-tone={trainBadge.tone}>
+                  <span className={styles.feedTrainBadge} data-tone={trainBadge.tone}>
                     {trainBadge.label}
                   </span>
                 ) : null}
               </span>
             </div>
-            <span className={`feedProv feedProv-${item.provenance}`}>{provLabel}</span>
+            <span className={`${styles.feedProv} ${styles[`feedProv-${item.provenance}` as keyof typeof styles] ?? ""}`}>{provLabel}</span>
           </header>
 
-          <div className="feedReceipt" role="img" aria-label="Pint drop receipt">
+          <div className={styles.feedReceipt} role="img" aria-label="Pint drop receipt">
             {/* Category glyph, colour-driven — the drink family's mark presiding
                 over the receipt. Honest fallback: beer/brass when unresolved. */}
-            <span className="feedReceiptGlyph" aria-hidden="true">
+            <span className={styles.feedReceiptGlyph} aria-hidden="true">
               <DrinkGlyph category={category} size={34} />
             </span>
-            <span className="feedReceiptEyebrow">Pint Drop</span>
+            <span className={styles.feedReceiptEyebrow}>Pint Drop</span>
             {typeof item.priceGbp === "number" ? (
-              <PriceBadge variant="current" className="feedReceiptPrice" band={priceBandFor(item.priceGbp)}>
+              <PriceBadge variant="current" className={styles.feedReceiptPrice} band={priceBandFor(item.priceGbp)}>
                 {formatGbp(item.priceGbp)}
               </PriceBadge>
             ) : (
-              <span className="feedReceiptPrice feedReceiptPriceMuted">A memory</span>
+              <span className={`${styles.feedReceiptPrice} ${styles.feedReceiptPriceMuted}`}>A memory</span>
             )}
-            {item.drink ? <span className="feedReceiptDrink">{item.drink}</span> : null}
-            {item.era ? <span className="feedReceiptEra">{item.era}</span> : null}
+            {item.drink ? <span className={styles.feedReceiptDrink}>{item.drink}</span> : null}
+            {item.era ? <span className={styles.feedReceiptEra}>{item.era}</span> : null}
           </div>
         </>
       )}
 
-      <div className="feedCardBody">
+      <div className={styles.feedCardBody}>
         {/* Category chip — the redundant non-colour cue (glyph + label) that
             accompanies the card's accent colour. Text-only card only; the Spill
             card carries its own chip over the scrim. Resolved categories only. */}
         {!hero && categoryResolved ? (
-          <span className="feedCatChip" title={`${catLabel} · ${item.drink}`}>
+          <span className={styles.feedCatChip} title={`${catLabel} · ${item.drink}`}>
             <DrinkGlyph category={category} size={16} inheritColor />
-            <span className="feedCatChipLabel">{catLabel}</span>
+            <span className={styles.feedCatChipLabel}>{catLabel}</span>
           </span>
         ) : null}
         {item.vibeTags.length > 0 || showChaosBadge ? (
-          <ul className="feedVibes" aria-label="Vibe tags">
+          <ul className={styles.feedVibes} aria-label="Vibe tags">
             {item.vibeTags.map((tag) => (
-              <li key={tag} className="feedVibe">
+              <li key={tag} className={styles.feedVibe}>
                 {tag}
               </li>
             ))}
@@ -468,7 +463,7 @@ export default function FeedCard({
                 drop actually clears "Steady" — most single pints won't. */}
             {showChaosBadge ? (
               <li
-                className="feedVibe feedChaos"
+                className={`${styles.feedVibe} feedChaos`}
                 title={chaos.oneLiner}
                 aria-label={`Chaos Score ${chaos.score} out of 100, ${chaos.grade}`}
               >
@@ -480,7 +475,7 @@ export default function FeedCard({
 
         {/* The caption + venue line live in the Spill scrim for photo drops; the
             body only repeats them for the text-only receipt card. */}
-        {!hero && item.caption ? <p className="feedCaption">{item.caption}</p> : null}
+        {!hero && item.caption ? <p className={styles.feedCaption}>{item.caption}</p> : null}
 
         {/* Taste fix (feed card slim, 2026-07): the three full-width chrome
             rows (reactions / Map-Drop-Pub + share strip / comments bar) are
@@ -490,8 +485,8 @@ export default function FeedCard({
             (CommentThread `variant="compact"`) instead of an always-open bar.
             Every action is still one honest tap away. */}
         {!isOptimistic ? (
-          <div className="feedActionRow">
-            <div className="feedReactions" role="group" aria-label="React to this pint">
+          <div className={styles.feedActionRow}>
+            <div className={styles.feedReactions} role="group" aria-label="React to this pint">
               {REACTION_KEYS.map((key) => (
                 <ReactionChip
                   key={key}
@@ -503,12 +498,12 @@ export default function FeedCard({
               ))}
             </div>
 
-            <span className="feedActionSpacer" aria-hidden="true" />
+            <span className={styles.feedActionSpacer} aria-hidden="true" />
 
-            <div className="feedMoreWrap">
+            <div className={styles.feedMoreWrap}>
               <button
                 type="button"
-                className="feedActionIconBtn"
+                className={styles.feedActionIconBtn}
                 aria-expanded={moreOpen}
                 aria-label={moreOpen ? "Hide pub actions" : "More pub actions"}
                 title="More"
@@ -519,7 +514,7 @@ export default function FeedCard({
             </div>
 
             <Link
-              className="feedPermalink feedPermalinkIcon"
+              className={`${styles.feedPermalink} ${styles.feedPermalinkIcon}`}
               href={`/p/${item.id}`}
               aria-label="Open pint"
               title="Open pint"
@@ -585,26 +580,26 @@ function CheckInCard({
 }) {
   return (
     <article
-      className={`feedCard feedCheckIn ${entered ? "feedCardEntered" : "feedCardEnter"}`}
+      className={`${styles.feedCard} ${styles.feedCheckIn} ${entered ? styles.feedCardEntered : styles.feedCardEnter}`}
       aria-label={areaName ? `${handle} is out in ${areaName}` : `${handle} is out tonight`}
     >
-      <div className="feedCheckInBody">
+      <div className={styles.feedCheckInBody}>
         <HandleAvatar
           handle={handle}
           avatarUrl={avatarUrl}
-          className="feedAvatar feedCheckInAvatar"
-          imageClassName="feedAvatar feedCheckInAvatar"
+          className={`${styles.feedAvatar} ${styles.feedCheckInAvatar}`}
+          imageClassName={`${styles.feedAvatar} ${styles.feedCheckInAvatar}`}
           size={40}
         />
-        <div className="feedCheckInText">
-          <p className="feedCheckInLine">
-            <span className="feedCheckInHandle">{handle}</span>
-            <span className="feedCheckInVerb"> is out</span>
-            {areaName ? <span className="feedCheckInWhere"> in {areaName}</span> : null}
+        <div className={styles.feedCheckInText}>
+          <p className={styles.feedCheckInLine}>
+            <span className={styles.feedCheckInHandle}>{handle}</span>
+            <span className={styles.feedCheckInVerb}> is out</span>
+            {areaName ? <span className={styles.feedCheckInWhere}> in {areaName}</span> : null}
           </p>
-          {note ? <p className="feedCheckInNote">{note}</p> : null}
-          <span className="feedCheckInMeta">
-            <span className="feedCheckInTag" aria-hidden="true">I&rsquo;m here</span>
+          {note ? <p className={styles.feedCheckInNote}>{note}</p> : null}
+          <span className={styles.feedCheckInMeta}>
+            <span className={styles.feedCheckInTag} aria-hidden="true">I&rsquo;m here</span>
             {ago ? <time dateTime={createdAt}>{ago}</time> : null}
           </span>
         </div>
@@ -626,13 +621,13 @@ function PubOverflowActions({
   onPrefetch: () => void;
 }) {
   return (
-    <nav className="feedCardActions feedCardActionsExpanded" aria-label="Pub actions">
-      <Link className="feedCardAction" href={mapUrl || venueMapUrl(venueId)} onPointerEnter={onPrefetch}>
+    <nav className={`${styles.feedCardActions} ${styles.feedCardActionsExpanded}`} aria-label="Pub actions">
+      <Link className={styles.feedCardAction} href={mapUrl || venueMapUrl(venueId)} onPointerEnter={onPrefetch}>
         Map
       </Link>
       {venueId ? (
         <Link
-          className="feedCardAction"
+          className={styles.feedCardAction}
           href={`${venueMapUrl(venueId)}&log=1`}
           onPointerEnter={onPrefetch}
         >
@@ -640,7 +635,7 @@ function PubOverflowActions({
         </Link>
       ) : null}
       <Link
-        className="feedCardAction"
+        className={styles.feedCardAction}
         href={venueId ? `/bar-tab/${encodeURIComponent(venueId)}` : mapUrl || "/map"}
       >
         Pub
@@ -656,7 +651,7 @@ function PubOverflowActions({
 function ProvenanceCheck() {
   return (
     <svg
-      className="feedSpillProvGlyph"
+      className={styles.feedSpillProvGlyph}
       viewBox="0 0 24 24"
       width="14"
       height="14"

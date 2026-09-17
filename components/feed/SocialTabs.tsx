@@ -8,6 +8,8 @@
 
 export type SocialTab = "lot" | "nearby" | "london";
 
+import styles from "@/app/feed/Feed.module.css";
+
 const TABS: { id: SocialTab; label: string; hint: string }[] = [
   { id: "lot", label: "Your lot", hint: "Friends' nights, chronological" },
   { id: "london", label: "London", hint: "The whole city" },
@@ -21,7 +23,7 @@ export default function SocialTabs({
   onChange: (tab: SocialTab) => void;
 }) {
   return (
-    <div className="feedSocialTabs" role="tablist" aria-label="Feed">
+    <div className={styles.feedSocialTabs} role="tablist" aria-label="Feed">
       {TABS.map((tab) => {
         const selected = tab.id === active;
         return (
@@ -31,7 +33,7 @@ export default function SocialTabs({
             role="tab"
             aria-selected={selected}
             title={tab.hint}
-            className={`feedSocialTab${selected ? " isActive" : ""}`}
+            className={`${styles.feedSocialTab}${selected ? ` ${styles.isActive}` : ""}`}
             onClick={() => onChange(tab.id)}
           >
             {tab.label}

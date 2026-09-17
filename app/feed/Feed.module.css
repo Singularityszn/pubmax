@@ -54,7 +54,7 @@
   padding-inline: 0;
 }
 
-.feedScreen .screenHead {
+.feedScreen :global(.screenHead) {
   padding-block: var(--space-2) var(--space-3);
 }
 
@@ -1970,8 +1970,8 @@
 .feedSpillCatLabel {
   line-height: 1;
 }
-html:not([data-theme="dark"]) .feedSpillCat,
-html:not([data-theme="dark"]) .feedSpillCat svg {
+:global(html:not([data-theme="dark"])) .feedSpillCat,
+:global(html:not([data-theme="dark"])) .feedSpillCat svg {
   color: color-mix(in srgb, var(--feed-cat) 82%, #ffffff);
 }
 
@@ -2041,7 +2041,7 @@ html:not([data-theme="dark"]) .feedSpillCat svg {
     max-width: none;
   }
 
-  .feedMain > .feedEmpty .emptyStateLine {
+  .feedMain > .feedEmpty :global(.emptyStateLine) {
     max-width: 52ch;
   }
 }
@@ -2057,7 +2057,7 @@ html:not([data-theme="dark"]) .feedSpillCat svg {
     display: block;
   }
 
-  .feedRailDesktopOnly .tonightConditions {
+  .feedRailDesktopOnly :global(.tonightConditions) {
     margin: 0;
   }
 }
