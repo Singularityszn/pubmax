@@ -10,14 +10,14 @@
 
 /* The head is the launch Screen (components/ui/screen.tsx). The page already
    pads its own gutter and keeps its own width, so the Screen takes neither. */
-.socialPage > .screen {
+.socialPage > :global(.screen) {
   width: 100%;
   padding-inline: 0;
 }
 
 /* The Screen paints the one primary; while the session or the access answer
    is still open that control waits rather than routing anybody anywhere. */
-.socialPage .screenPrimary > button:disabled {
+.socialPage :global(.screenPrimary) > button:disabled {
   opacity: 0.58;
   cursor: default;
 }
@@ -124,7 +124,7 @@
    account. The packs bring their own material and their own heading, so this
    owes only the space between them and the door above - and no wrapper, which
    with no packs to show would leave an empty landmark behind. */
-.socialBoundary + .starterPacks {
+.socialBoundary + :global(.starterPacks) {
   margin-top: 20px;
 }
 
@@ -696,33 +696,35 @@
   min-width: 0;
 }
 
-.creatorListsLane {
+/* Creator lists — used by components/social/CreatorListsLane.tsx which does
+   not import this module, so these stay global. */
+:global(.creatorListsLane) {
   display: grid;
   gap: var(--space-4);
   margin-bottom: var(--space-6);
 }
 
-.creatorListsLane > h2,
-.creatorListCard h3,
-.creatorListCount,
-.creatorListsState {
+:global(.creatorListsLane) > h2,
+:global(.creatorListCard) h3,
+:global(.creatorListCount),
+:global(.creatorListsState) {
   margin: 0;
 }
 
-.creatorListsGrid,
-.creatorListVenues {
+:global(.creatorListsGrid),
+:global(.creatorListVenues) {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.creatorListsGrid {
+:global(.creatorListsGrid) {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
   gap: var(--space-3);
 }
 
-.creatorListCard {
+:global(.creatorListCard) {
   display: grid;
   min-width: 0;
   gap: var(--space-3);
@@ -732,7 +734,7 @@
   background: var(--panel-raised);
 }
 
-.creatorListOwner {
+:global(.creatorListOwner) {
   display: flex;
   min-width: 0;
   align-items: center;
@@ -742,7 +744,7 @@
   text-decoration: none;
 }
 
-.creatorListAvatar {
+:global(.creatorListAvatar) {
   display: grid;
   width: 40px;
   height: 40px;
@@ -754,36 +756,36 @@
   object-fit: cover;
 }
 
-.creatorListCard h3 a {
+:global(.creatorListCard) h3 a {
   color: var(--ink);
   text-decoration: none;
 }
 
-.creatorListCount,
-.creatorListVenues,
-.creatorListsState {
+:global(.creatorListCount),
+:global(.creatorListVenues),
+:global(.creatorListsState) {
   color: var(--ink-soft);
 }
 
-.creatorListsState {
+:global(.creatorListsState) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
 }
 
-.creatorListsState p {
+:global(.creatorListsState) p {
   margin: 0;
 }
 
-.creatorListVenues {
+:global(.creatorListVenues) {
   display: flex;
   min-width: 0;
   flex-wrap: wrap;
   gap: var(--space-2);
 }
 
-.creatorListVenues li {
+:global(.creatorListVenues) li {
   min-width: 0;
   padding: 0.35rem 0.55rem;
   border: 1px solid var(--line);
@@ -791,23 +793,23 @@
   overflow-wrap: anywhere;
 }
 
-.creatorListActions {
+:global(.creatorListActions) {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
 }
 
-.creatorListFollowAction {
+:global(.creatorListFollowAction) {
   display: contents;
 }
 
 /* Text buttons read the --control-* row (docs/DESIGN_SYSTEM.md): these
    stood at --radius-md corners in 16px beside the page's 14px-corner
    controls at 0.86rem. */
-.creatorListActions a,
-.creatorListFollowAction button,
-.creatorListsState a,
-.creatorListsState button {
+:global(.creatorListActions) a,
+:global(.creatorListFollowAction) button,
+:global(.creatorListsState) a,
+:global(.creatorListsState) button {
   display: inline-flex;
   min-height: var(--control-height, 44px);
   align-items: center;
@@ -822,18 +824,18 @@
   text-decoration: none;
 }
 
-.creatorListFollowAction [role="status"] {
+:global(.creatorListFollowAction) [role="status"] {
   flex-basis: 100%;
   color: var(--brick);
 }
 
-.creatorListActions .creatorListPlanAction {
+:global(.creatorListActions .creatorListPlanAction) {
   border-color: var(--accent-action);
   background: var(--accent-action);
   color: var(--color-on-accent);
 }
 
-.discoverPage.discoverPageEmbedded {
+:global(.discoverPage.discoverPageEmbedded) {
   max-width: none;
   margin: 0;
   padding: 0;
@@ -887,7 +889,7 @@
 }
 
 @media (max-width: 640px) {
-  html:has(.socialPage) {
+  :global(html):has(.socialPage) {
     scroll-padding-bottom: calc(
       var(--mobile-tab-clearance, 72px) + 16px +
         env(safe-area-inset-bottom, 0px)
@@ -954,37 +956,39 @@
   }
 }
 
-/* WP7 find-your-lot — search + invite entry on Social */
-.findLot {
+/* WP7 find-your-lot — search + invite entry on Social.
+   Used by components/social/FindYourLot.tsx which imports its own
+   findYourLot.css; these are cascade overrides and stay global. */
+:global(.findLot) {
   margin-top: var(--space-4);
   padding: var(--space-4) 0 0;
   border-top: 1px solid var(--line);
 }
 
-.findLot--compact {
+:global(.findLot--compact) {
   margin-top: var(--space-3);
   padding-top: var(--space-3);
 }
 
-.findLot__title {
+:global(.findLot__title) {
   margin: 0;
   font-size: var(--text-lg, 1.15rem);
   font-weight: 750;
 }
 
-.findLot__body,
-.findLot__muted {
+:global(.findLot__body),
+:global(.findLot__muted) {
   margin: var(--space-2) 0 0;
   font-size: var(--text-sm);
   color: var(--muted, var(--ink-soft));
 }
 
-.findLot__field {
+:global(.findLot__field) {
   display: block;
   margin-top: var(--space-3);
 }
 
-.findLot__field input {
+:global(.findLot__field) input {
   width: 100%;
   min-height: 44px;
   padding: 0.65rem 0.85rem;
@@ -995,7 +999,7 @@
   font: inherit;
 }
 
-.findLot__list {
+:global(.findLot__list) {
   list-style: none;
   margin: var(--space-3) 0 0;
   padding: 0;
@@ -1003,7 +1007,7 @@
   gap: var(--space-2);
 }
 
-.findLot__row {
+:global(.findLot__row) {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: var(--space-2);
@@ -1011,7 +1015,7 @@
   min-height: 44px;
 }
 
-.findLot__identity {
+:global(.findLot__identity) {
   display: grid;
   grid-template-columns: 36px 1fr;
   gap: var(--space-2);
@@ -1021,7 +1025,7 @@
   color: inherit;
 }
 
-.findLot__avatar {
+:global(.findLot__avatar) {
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -1033,23 +1037,23 @@
   overflow: hidden;
 }
 
-.findLot__avatar img {
+:global(.findLot__avatar) img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.findLot__names {
+:global(.findLot__names) {
   display: grid;
   min-width: 0;
 }
 
-.findLot__handle {
+:global(.findLot__handle) {
   font-weight: 700;
   overflow-wrap: anywhere;
 }
 
-.findLot__display {
+:global(.findLot__display) {
   font-size: var(--text-xs);
   color: var(--muted, var(--ink-soft));
   overflow-wrap: anywhere;
@@ -1058,7 +1062,7 @@
 /* The same control row the component's own sheet reads
    (components/social/findYourLot.css): this copy loads after it and used to
    restate a 10px corner at weight 650. */
-.findLot__follow {
+:global(.findLot__follow) {
   min-height: var(--control-height, 44px);
   min-width: 44px;
   padding: 0 var(--control-pad-x, 16px);
@@ -1072,23 +1076,23 @@
   cursor: pointer;
 }
 
-.findLot__follow:disabled {
+:global(.findLot__follow):disabled {
   opacity: 0.65;
   cursor: default;
 }
 
-.findLot__self {
+:global(.findLot__self) {
   font-size: var(--text-xs);
   color: var(--muted, var(--ink-soft));
 }
 
-.findLot__invite {
+:global(.findLot__invite) {
   margin-top: var(--space-3);
   display: grid;
   gap: var(--space-2);
 }
 
-.findLot__inviteUrl {
+:global(.findLot__inviteUrl) {
   display: block;
   padding: 0.55rem 0.75rem;
   border-radius: var(--radius-md, 10px);
@@ -1098,18 +1102,20 @@
   overflow-wrap: anywhere;
 }
 
-.findLot__ghost {
+:global(.findLot__ghost) {
   color: var(--ink-soft);
   font-size: var(--text-sm);
 }
 
-.findLot__error {
+:global(.findLot__error) {
   margin: var(--space-2) 0 0;
   font-size: var(--text-sm);
   color: var(--danger, #a33);
 }
 
-.referralFollowBack {
+/* Referral follow-back — used by components/social/ReferralFollowBack.tsx
+   which imports its own referralFollowBack.css; these stay global. */
+:global(.referralFollowBack) {
   margin: var(--space-4) 0;
   padding: var(--space-4);
   border: 1px solid var(--line);
@@ -1117,26 +1123,26 @@
   background: var(--panel-raised);
 }
 
-.referralFollowBack__eyebrow {
+:global(.referralFollowBack__eyebrow) {
   margin: 0;
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--ink-soft);
 }
 
-.referralFollowBack__title {
+:global(.referralFollowBack__title) {
   margin: var(--space-1) 0 0;
   font-size: var(--text-lg, 1.15rem);
   font-weight: 750;
 }
 
-.referralFollowBack__body {
+:global(.referralFollowBack__body) {
   margin: var(--space-2) 0 0;
   font-size: var(--text-sm);
   color: var(--muted, var(--ink-soft));
 }
 
-.referralFollowBack__actions {
+:global(.referralFollowBack__actions) {
   margin-top: var(--space-3);
   display: flex;
   flex-wrap: wrap;
@@ -1144,7 +1150,7 @@
   align-items: center;
 }
 
-.referralFollowBack__primary {
+:global(.referralFollowBack__primary) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1157,7 +1163,7 @@
   font-weight: 650;
 }
 
-.referralFollowBack__ghost {
+:global(.referralFollowBack__ghost) {
   min-height: 44px;
   padding: 0.55rem 0.85rem;
   border: 0;
@@ -1185,3 +1191,8 @@
 .socialFoundersLink:focus-visible {
   color: var(--ink);
 }
+
+/* Marker classes with no visual rules — exported so TSX can reference them. */
+.socialComposeOpen {}
+.socialPostAvatar {}
+.socialOutboxRetry {}

@@ -175,7 +175,7 @@ describe("Social viewer surfaces", () => {
   it("renders public pack cards beside one sign-in action without follow controls", async () => {
     await renderSocial();
 
-    expect(host.querySelector(".socialBoundary")?.textContent).toContain(
+    expect(host.querySelector('[class*="socialBoundary"]')?.textContent).toContain(
       "Sign in to use Social.",
     );
     expect(host.querySelectorAll('a[href*="/login"]')).toHaveLength(1);

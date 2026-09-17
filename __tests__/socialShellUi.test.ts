@@ -39,7 +39,7 @@ const protectedPost: SocialPostDTO = {
   venueName: "The Test Arms",
 };
 
-const socialCss = readFileSync("app/social/social.css", "utf8");
+const socialCss = readFileSync("app/social/Social.module.css", "utf8");
 
 describe("Social access boundary", () => {
   it("keeps signed-out preview to one boundary and one sign-in action", () => {
@@ -240,7 +240,7 @@ describe("desktop Social rail", () => {
       createElement(SocialContextRail, { status: "loading" }),
     );
 
-    expect(html).toContain('class="socialContextRail"');
+    expect(html).toMatch(/class="[^"]*socialContextRail[^"]*"/);
     expect(html).toContain("Activity");
     expect(html).not.toContain("Social rules");
     expect(html).not.toContain("Newest first");

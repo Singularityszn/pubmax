@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const globalsCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
 const themeCss = readFileSync(join(process.cwd(), "app/theme.css"), "utf8");
-const socialCss = readFileSync(join(process.cwd(), "app/social/social.css"), "utf8");
+const socialCss = readFileSync(join(process.cwd(), "app/social/Social.module.css"), "utf8");
 const composerSource = readFileSync(
   join(process.cwd(), "app/social/SocialComposer.tsx"),
   "utf8",
@@ -160,10 +160,10 @@ describe("Social composer visual contract", () => {
 
   it("ships one focus ring, a dedicated body label, safe spacing, and legible actions", () => {
     expect(composerSource).toMatch(
-      /<label className="socialComposerBody">\s*Write post\s*<textarea/,
+      /<label className=\{styles\.socialComposerBody\}>\s*Write post\s*<textarea/,
     );
     expect(composerSource).toMatch(
-      /<span className="socialPhotoCue" aria-hidden="true">\+<\/span>\s*<span>\{photo \?/,
+      /<span className=\{styles\.socialPhotoCue\} aria-hidden="true">\+<\/span>\s*<span>\{photo \?/,
     );
     expect(composerSource).toMatch(/<input[^>]+aria-label="Add photo"[^>]+type="file"/);
     expect(socialCss).toMatch(

@@ -11,6 +11,7 @@ import {
   SocialViewerState,
   type SocialViewerPhase,
 } from "@/components/social/SocialViewerState";
+import styles from "./Social.module.css";
 import SocialComposer from "./SocialComposer";
 
 type LegacyOutboxItem = {
@@ -122,7 +123,7 @@ export default function SocialOutbox({
   if (viewerPhase !== "resolved") {
     return (
       <section
-        className="socialOutbox"
+        className={styles.socialOutbox}
         aria-labelledby="social-outbox-title"
       >
         <h2 id="social-outbox-title">Outbox</h2>
@@ -137,7 +138,7 @@ export default function SocialOutbox({
   if (visibleItems.length === 0 && !error) return null;
   return (
     <section
-      className="socialOutbox"
+      className={styles.socialOutbox}
       aria-labelledby="social-outbox-title"
       aria-busy={loading || loadingMore}
     >
@@ -145,7 +146,7 @@ export default function SocialOutbox({
       {error ? <p role="alert">{error}</p> : null}
       <ul>
         {visibleItems.map((item) => (
-          <li key={item.id} className="socialOutboxItem">
+          <li key={item.id} className={styles.socialOutboxItem}>
             <strong>{stateLabel(item)}</strong>
             {isPost(item) ? (
               <>
@@ -174,7 +175,7 @@ export default function SocialOutbox({
       </ul>
       {error && !loading ? (
         <button
-          className="socialOutboxRetry"
+          className={styles.socialOutboxRetry}
           type="button"
           onClick={() => void loadPage()}
         >
@@ -183,7 +184,7 @@ export default function SocialOutbox({
       ) : null}
       {nextCursor ? (
         <button
-          className="socialOutboxMore"
+          className={styles.socialOutboxMore}
           type="button"
           aria-busy={loadingMore}
           aria-label="Load more"
