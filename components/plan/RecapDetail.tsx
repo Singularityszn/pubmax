@@ -61,7 +61,7 @@ export default function RecapDetail({ planId }: { planId: string }) {
 
   if (state.kind === "preview") {
     return (
-      <section className={`${recapStyles.recapSection} recapSection--locked`} aria-label="Private recap">
+      <section className={recapStyles.recapSection} aria-label="Private recap">
         <p className={recapStyles.recapEmpty__body}>
           This recap is private to the crew. Join the plan to see the route you walked, the pints logged, and how the
           night ended.

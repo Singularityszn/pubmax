@@ -160,7 +160,7 @@ function areaNewsSlug(
 // (UI_UX_FIX_PRD #1), so the main column remains the only full listing spine.
 function mobileSecondaryLanes(lanes: ReactNode): ReactNode {
   return (
-    <div className={`tonightSecondaryLanes ${styles.tonightSecondaryLanesMobile}`}>{lanes}</div>
+    <div className={styles.tonightSecondaryLanesMobile}>{lanes}</div>
   );
 }
 

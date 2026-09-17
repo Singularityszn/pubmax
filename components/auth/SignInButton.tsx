@@ -49,7 +49,7 @@ const ClerkAccountControls = dynamic(
   () => import("@/components/auth/ClerkAccountControls"),
   {
     loading: () => (
-      <div className={`${authStyles.clerkAccount} clerkAccountLoading`} hidden aria-hidden="true">
+      <div className={authStyles.clerkAccount} hidden aria-hidden="true">
         Clerk account controls
       </div>
     ),

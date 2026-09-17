@@ -76,8 +76,6 @@ export default function ContributorRecord({
                   <HandleAvatar
                     handle={entry.handle}
                     avatarUrl={entry.avatarUrl}
-                    className="contributorAvatar"
-                    imageClassName="contributorAvatar"
                     size={36}
                   />
                   <Link href={`/u/${encodeURIComponent(entry.handle)}`}>

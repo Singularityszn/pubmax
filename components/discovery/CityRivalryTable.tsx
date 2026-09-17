@@ -42,7 +42,7 @@ export default function CityRivalryTable({
           <th scope="col" className={`${styles.leaderboardArea} ${styles.cityRivalryDrops}`}>
             Drops
           </th>
-          <th scope="col" className={`${styles.leaderboardPriceHead} cityRivalryScore`}>
+          <th scope="col" className={styles.leaderboardPriceHead}>
             Energy
           </th>
         </tr>
@@ -67,7 +67,7 @@ export default function CityRivalryTable({
               </Link>
             </th>
             <td className={`${styles.leaderboardArea} ${styles.cityRivalryDrops}`}>{entry.dropCount}</td>
-            <td className={`${styles.leaderboardPriceHead} cityRivalryScore`}>
+            <td className={styles.leaderboardPriceHead}>
               <span className={styles.cityRivalryScoreNum}>{formatScore(entry.score)}</span>
             </td>
           </tr>

@@ -165,7 +165,7 @@ export default function GardenTonightCard() {
 
   return (
     <section
-      className={`${discoverStyles.discoverSection} gardenTonightSection`}
+      className={discoverStyles.discoverSection}
       aria-labelledby="gardenTonight-title"
     >
       <div className="gardenTonightCard">

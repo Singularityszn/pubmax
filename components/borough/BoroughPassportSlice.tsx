@@ -70,7 +70,7 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
 
   return (
     <section
-      className={`${styles.boroughSection} boroughPassport${identityLoading ? ` ${styles.boroughPassportLoading}` : ""}`}
+      className={`${styles.boroughSection}${identityLoading ? ` ${styles.boroughPassportLoading}` : ""}`}
       aria-labelledby="boroughPassportHeading"
       aria-busy={identityLoading}
     >
