@@ -55,6 +55,9 @@ function toCandidate(profile: ProfileRecord): StarterPackCandidate {
     ...(profile.displayName ? { displayName: profile.displayName } : {}),
     ...(avatarUrl ? { avatarUrl } : {}),
     ...(profile.homeCity ? { homeCity: profile.homeCity } : {}),
+    // The choice travels so the borough lane can refuse a private account: see
+    // `selectBoroughPackMembers` for why membership there IS the disclosure.
+    ...(profile.visibility ? { visibility: profile.visibility } : {}),
     ...(profile.foundingMemberNumber !== undefined
       ? { foundingMemberNumber: profile.foundingMemberNumber }
       : {}),

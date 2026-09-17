@@ -7,10 +7,20 @@
 // Store choice is the single seam pattern from app/api/pint-drops/route.ts:
 // Supabase when configured, process-memory otherwise. Reads never 503 — a
 // missing profile is a first-class "null" result, so the page always renders.
+//
+// WHAT THE READ CARRIES IS A PROJECTION, NOT A ROW. A private account (its own
+// visible choice, migration 0154) answers its full card to its owner and to a
+// mate, and the limited card to everybody else. The body therefore carries TWO
+// facts and they are different: `profile.visibility` is the CHOICE the account
+// made, and `projection` is which of the two answers THIS reader was handed.
+// `lib/profileVisibilityBoundary.server.ts` is the only place that is decided.
 
+import { isAccountVisibility } from "@/lib/accountVisibility";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
+import { projectionCarriesSocialLinks } from "@/lib/profileVisibility";
+import { resolveProfileProjection } from "@/lib/profileVisibilityBoundary.server";
 import {
   PROFILE_IMAGE_SLOTS,
   profileImageStagingKey,
@@ -22,6 +32,7 @@ import {
   MAX_WORKPLACE,
   profileImageState,
   profileStore,
+  ProfileVisibilityUnavailableError,
   publicProfileFromRecord,
   type ProfilePatch,
   type ProfileRecord,
@@ -109,6 +120,15 @@ function buildPatch(
     const workplace = cleanText(body.workplace, MAX_WORKPLACE);
     patch.workplace = workplace || null;
   }
+  // The one field with a closed vocabulary rather than a cap. A word neither of
+  // us knows is REFUSED here rather than cleaned into one of the two, because
+  // guessing would either publish or hide somebody on a value they did not send.
+  if ("visibility" in body) {
+    if (!isAccountVisibility(body.visibility)) {
+      return { ok: false, error: "Choose public or private." };
+    }
+    patch.visibility = body.visibility;
+  }
   if ("avatarUrl" in body) {
     return {
       ok: false,
@@ -156,6 +176,7 @@ export async function GET(
       return jsonNoStore(
         {
           profile: null,
+          projection: "full",
           status: "gone",
           socialLinks: [],
           counts,
@@ -166,15 +187,33 @@ export async function GET(
       );
     }
 
-    // The card's backdrop is a ROTATION of up to five photos, so the public
-    // read carries the ordered list beside the single back-compat cover. A list
-    // that could not be read travels as absent rather than as empty, and the
-    // header falls back to cover #1.
-    const coverUrls = profile ? await publicCoverUrls(profile.id) : undefined;
+    // WHAT THIS READER MAY HAVE IS ONE SEAM'S ANSWER. `resolveProfileProjection`
+    // fails closed to the limited card and derives its viewer from the BEARER,
+    // never from `?viewer=` above: that parameter is the follow control's own
+    // convenience and is self-asserted, so it may decide what a button says and
+    // never what a body carries.
+    //
+    // The card's backdrop is a ROTATION of up to five photos, so the full read
+    // carries the ordered list beside the single back-compat cover. A list that
+    // could not be read travels as absent rather than as empty, and the header
+    // falls back to cover #1. It is handed over as a THUNK the seam spends only
+    // on the full lane, because a limited card carries no backdrop and a private
+    // profile a stranger opened must not pay for photographs nobody hands them.
+    const projection = await resolveProfileProjection({
+      request,
+      profile,
+      readCoverUrls: async () =>
+        profile ? await publicCoverUrls(profile.id) : undefined,
+    });
+    // The linked socials are public BY CHOICE on a public account, so they are
+    // exactly as private as the bio beside them.
+    const carriesLinks =
+      socialEnabled && projectionCarriesSocialLinks(projection.projection);
     return jsonNoStore(
       {
-        profile: publicProfileFromRecord(profile, coverUrls ? { coverUrls } : {}),
-        socialLinks: socialEnabled ? await publicLinksFor(profile) : [],
+        profile: projection.profile,
+        projection: projection.projection,
+        socialLinks: carriesLinks ? await publicLinksFor(profile) : [],
         counts,
         viewerFollowing,
         followsViewer,
@@ -182,11 +221,12 @@ export async function GET(
       { status: 200 },
     );
   } catch {
-    // A backend hiccup degrades to the synthesized-profile path on the client —
+    // A backend hiccup degrades to the synthesized-profile path on the client:
     // return an empty-but-valid shape rather than an error the page must handle.
     return jsonNoStore(
       {
         profile: null,
+        projection: "full",
         socialLinks: [],
         counts: null,
         viewerFollowing: false,
@@ -263,7 +303,14 @@ export async function PATCH(
     await store.ensure(handle);
     const profile = await store.update(handle, built.patch);
     return jsonNoStore({ profile: publicProfileFromRecord(profile) }, { status: 200 });
-  } catch {
+  } catch (err) {
+    // The one storage failure worth its own sentence: the person asked to change
+    // who can see their profile and the column that answer lives in is not
+    // deployed yet, so nothing was saved and the generic line would read as if
+    // the rest of the edit had been.
+    if (err instanceof ProfileVisibilityUnavailableError) {
+      return publicApiError(err.message, "STORE_UNAVAILABLE", 503, { retryable: true });
+    }
     return publicApiError("Profile storage is unavailable.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
 }

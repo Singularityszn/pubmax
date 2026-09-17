@@ -108,6 +108,32 @@ async function performAdd(
   }
 }
 
+/**
+ * The body under the card while an add is on offer or in flight.
+ *
+ * A component at module scope rather than three branches inside `ConfirmFollow`,
+ * which is already at its complexity ceiling, and never a function defined
+ * inside the render: this one has no state to lose, but a component declared in
+ * there is a new type on every render whatever it holds.
+ *
+ * `ADD_LINK_COPY.lotMeans` rides the OFFER as well as the receipt, because a
+ * person is owed the honest half before they tap and not only after. It stands
+ * down while the add is in flight, since the one thing that line is about is
+ * what happens next.
+ */
+function AddOfferBody({ state }: { state: FollowState }) {
+  if (state === "gone") return null;
+  if (state === "working") {
+    return <p className="confirmFollowBody">{ADD_LINK_COPY.adding}</p>;
+  }
+  return (
+    <>
+      <p className="confirmFollowBody">{ADD_LINK_COPY.signedIn}</p>
+      <p className="confirmFollowMeta">{ADD_LINK_COPY.lotMeans}</p>
+    </>
+  );
+}
+
 export default function ConfirmFollow({
   targetHandle,
   targetAvatarUrl,
@@ -293,6 +319,7 @@ export default function ConfirmFollow({
         <p className="confirmFollowEyebrow">{ADD_LINK_COPY.eyebrow}</p>
         <h1 className="confirmFollowTitle">{addLinkReceiptTitle(target, name)}</h1>
         <p className="confirmFollowBody">{ADD_LINK_RECEIPT_BODY}</p>
+        <p className="confirmFollowMeta">{ADD_LINK_COPY.lotMeans}</p>
         <ul className="confirmFollowNext">
           {addLinkNextSteps(target).map((step, index) => (
             <li key={step.href}>
@@ -380,11 +407,7 @@ export default function ConfirmFollow({
   return (
     <section className="confirmFollow" aria-label={`Add ${displayHandle(target)}`}>
       {card}
-      {state === "gone" ? null : (
-        <p className="confirmFollowBody">
-          {state === "working" ? ADD_LINK_COPY.adding : ADD_LINK_COPY.signedIn}
-        </p>
-      )}
+      <AddOfferBody state={state} />
       {errorLine}
       {state === "gone" ? null : (
         <button

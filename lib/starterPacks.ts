@@ -25,6 +25,7 @@
 // number and nothing else: no capability may ever branch on it
 // (`lib/foundingMembers.ts`).
 
+import { accountIsPrivate, type AccountVisibility } from "@/lib/accountVisibility";
 import { LONDON_BOROUGHS, slugifyBorough } from "@/lib/boroughs";
 import { isFoundingMemberNumber } from "@/lib/foundingMembers";
 import { normalizeHandle } from "@/lib/profiles";
@@ -73,6 +74,11 @@ export type StarterPackCandidate = {
   avatarUrl?: string;
   /** The owner's own public location words. Free text, matched, never inferred from. */
   homeCity?: string;
+  /**
+   * The account's own public/private choice. Absent reads as public, exactly as
+   * `parseAccountVisibility` reads an absent column.
+   */
+  visibility?: AccountVisibility;
   foundingMemberNumber?: number;
   /** An account owns this handle. An unclaimed row is not a person. */
   claimed: boolean;
@@ -190,9 +196,20 @@ function toMember(candidate: StarterPackCandidate): StarterPackMember {
 }
 
 /**
- * The accounts a borough pack holds: claimed, alive, and placed there by their
- * own public location. Handle order, so the pack is the same for everybody who
- * opens it and no invented ranking decides who a new drinker meets first.
+ * The accounts a borough pack holds: claimed, alive, PUBLIC, and placed there by
+ * their own public location. Handle order, so the pack is the same for everybody
+ * who opens it and no invented ranking decides who a new drinker meets first.
+ *
+ * A PRIVATE ACCOUNT IS NOT IN A BOROUGH PACK, because membership IS the
+ * disclosure. The rows print a name and a face, which a private card already
+ * carries, but the pack's own heading says the borough, and `homeCity` is one of
+ * the fields a private account withholds (`PROFILE_FIELDS_WITHHELD_WHEN_PRIVATE`).
+ * Placing somebody under "Drinkers of Camden" republishes the words they asked
+ * us to hold back, through a surface that never reads their profile at all.
+ *
+ * The founding pack keeps them, and the people directory keeps them too: a
+ * founding number is public by design and printed on a public wall, and the
+ * directory prints exactly the name and face a private card already carries.
  */
 export function selectBoroughPackMembers(
   candidates: readonly StarterPackCandidate[],
@@ -202,6 +219,7 @@ export function selectBoroughPackMembers(
     .filter(
       (candidate) =>
         isRealAccount(candidate) &&
+        !accountIsPrivate(candidate.visibility) &&
         locationNamesBorough(candidate.homeCity, borough),
     )
     .map(toMember)

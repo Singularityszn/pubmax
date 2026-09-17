@@ -5,6 +5,12 @@ import { useRef, useState } from "react";
 
 import ProfileCoverPhotosEditor from "@/components/profile/ProfileCoverPhotosEditor";
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
+import {
+  ACCOUNT_VISIBILITIES,
+  ACCOUNT_VISIBILITY_COPY,
+  DEFAULT_ACCOUNT_VISIBILITY,
+  type AccountVisibility,
+} from "@/lib/accountVisibility";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { AuthActionSessionError, authedActionFetch } from "@/lib/authedFetch";
 import { categoryLabel, MAP_LENS_DRINK_CATEGORIES } from "@/lib/drinks";
@@ -78,6 +84,8 @@ type ProfileEditorProps = {
     favouriteDrink?: string;
     interests?: string;
     workplace?: string;
+    /** The stored choice. Absent means nobody has chosen, which is public. */
+    visibility?: AccountVisibility;
   };
   /** The form was saved: the editing session is over. */
   onSaved: (profile: PublicProfile) => void;
@@ -118,6 +126,9 @@ export default function ProfileEditor({
   const [favouriteDrink, setFavouriteDrink] = useState(initial.favouriteDrink ?? "");
   const [interests, setInterests] = useState(initial.interests ?? "");
   const [workplace, setWorkplace] = useState(initial.workplace ?? "");
+  const [visibility, setVisibility] = useState<AccountVisibility>(
+    initial.visibility ?? DEFAULT_ACCOUNT_VISIBILITY,
+  );
   const [avatarPreview, setAvatarPreview] = useState(initial.avatarUrl ?? "");
   // DERIVED, never held. The text fields above are snapshot-once on purpose -
   // resyncing one would clobber what the owner is typing - but the held covers
@@ -254,6 +265,7 @@ export default function ProfileEditor({
           favouriteDrink,
           interests,
           workplace,
+          visibility,
         }),
       }, { requiresIdentity: true });
       const body: unknown = await res.json().catch(() => null);
@@ -462,6 +474,39 @@ export default function ProfileEditor({
             {workplace.length}/{MAX_WORKPLACE}
           </span>
         </div>
+      </fieldset>
+
+      {/* WHO CAN SEE THIS IS THE LAST GROUP, because it is a decision about
+          everything above it. Two radios and no third control: the choice is a
+          closed word (lib/accountVisibility.ts), so a switch that could be left
+          in a third position would be a state the column cannot hold. The line
+          about prices rides here rather than in a help page, because a person
+          choosing private is owed the boundary now and not later. */}
+      <fieldset className="profileEditorGroup" disabled={formBusy}>
+        <legend>{ACCOUNT_VISIBILITY_COPY.legend}</legend>
+
+        {ACCOUNT_VISIBILITIES.map((choice) => (
+          <div className="profileEditorField profileEditorChoice" key={choice}>
+            <label htmlFor={`pe-visibility-${choice}`}>
+              <input
+                id={`pe-visibility-${choice}`}
+                type="radio"
+                name="pe-visibility"
+                value={choice}
+                checked={visibility === choice}
+                onChange={() => setVisibility(choice)}
+              />
+              {ACCOUNT_VISIBILITY_COPY.label[choice]}
+            </label>
+            <p className="profileEditorChoiceHint">
+              {ACCOUNT_VISIBILITY_COPY.explainer[choice]}
+            </p>
+          </div>
+        ))}
+
+        <p className="profileEditorChoiceHint">
+          {ACCOUNT_VISIBILITY_COPY.pricesStay}
+        </p>
       </fieldset>
 
       <div className="profileEditorActions">

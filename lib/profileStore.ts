@@ -10,6 +10,12 @@ import "server-only";
 // distinct atomic operation that never exposes an unowned intermediate row.
 
 import {
+  DEFAULT_ACCOUNT_VISIBILITY,
+  isAccountVisibility,
+  parseAccountVisibility,
+  type AccountVisibility,
+} from "@/lib/accountVisibility";
+import {
   FOUNDING_MEMBER_CAP,
   parseFoundingMemberNumber,
 } from "@/lib/foundingMembers";
@@ -119,6 +125,13 @@ export type ProfileRecord = {
    * this product branches on it. See `lib/foundingMembers.ts`.
    */
   foundingMemberNumber?: number;
+  /**
+   * The account's own public/private choice (migration 0154). Absent on a row
+   * this process read before that migration was applied, and on a hand-built
+   * record; every reader goes through `parseAccountVisibility`, which reads an
+   * absent value as the public default.
+   */
+  visibility?: AccountVisibility;
   createdAt: string;
   updatedAt: string;
 };
@@ -325,6 +338,14 @@ export type ProfilePatch = {
   favouriteDrink?: string | null;
   interests?: string | null;
   workplace?: string | null;
+  /**
+   * The account's own public/private choice. Unlike every field beside it there
+   * is no "clear this", because an account is always one thing or the other:
+   * only one of the two words is written, and anything else leaves the column
+   * exactly as it was. The route is what REFUSES a word neither of us knows
+   * (400), because this last line may neither publish nor hide on a guess.
+   */
+  visibility?: AccountVisibility | null;
 };
 
 export type ProfileSoftDeleteResult =
@@ -376,6 +397,9 @@ function cleanPatch(patch: ProfilePatch): ProfilePatch {
   }
   if ("interests" in patch) out.interests = cleanField(patch.interests, MAX_INTERESTS);
   if ("workplace" in patch) out.workplace = cleanField(patch.workplace, MAX_WORKPLACE);
+  if ("visibility" in patch && isAccountVisibility(patch.visibility)) {
+    out.visibility = patch.visibility;
+  }
   return out;
 }
 
@@ -569,6 +593,9 @@ function fromRow(row: Record<string, unknown>): ProfileRecord {
     ...(parseFoundingMemberNumber(row.founding_member_number) !== null
       ? { foundingMemberNumber: parseFoundingMemberNumber(row.founding_member_number)! }
       : {}),
+    // Total by construction: a row from before migration 0154 carries no such
+    // column, and the parse answers the public default for it.
+    visibility: parseAccountVisibility(row.visibility),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
@@ -695,7 +722,45 @@ function patchToRow(patch: ProfilePatch): Record<string, unknown> {
   if ("favouriteDrink" in patch) row.favourite_drink = patch.favouriteDrink;
   if ("interests" in patch) row.interests = patch.interests;
   if ("workplace" in patch) row.workplace = patch.workplace;
+  if ("visibility" in patch) row.visibility = patch.visibility;
   return row;
+}
+
+/**
+ * Additive-rollout guard for migration 0154's `profiles.visibility`.
+ *
+ * The READ side needs none: an absent column simply is not on the row and
+ * `parseAccountVisibility` reads that as the public default, which is what
+ * every account was before the column existed.
+ *
+ * The WRITE side is the opposite of the receipt-photo guard beside it, and for
+ * the same reason the measure guard refuses a half rather than retrying it
+ * without its column: a visibility write that quietly dropped the column would
+ * answer 200 to somebody who had just asked to be private and leave them
+ * public. So a visibility write with no column REFUSES, and the rest of the
+ * patch travels with it rather than being half-applied.
+ */
+function isMissingVisibilityColumnError(
+  error: { code?: string; message?: string } | null,
+): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = (error.message ?? "").toLowerCase();
+  return (code === "42703" || code === "PGRST204") && message.includes("visibility");
+}
+
+/**
+ * Thrown when a person asked to change who can see their profile and the column
+ * that answer lives in is not deployed yet. Its own class, so the route answers
+ * a retryable 503 naming the choice rather than a generic storage failure.
+ */
+export class ProfileVisibilityUnavailableError extends Error {
+  readonly code = "PROFILE_VISIBILITY_UNAVAILABLE" as const;
+
+  constructor() {
+    super("Who can see your profile cannot be changed yet. Try again shortly.");
+    this.name = "ProfileVisibilityUnavailableError";
+  }
 }
 
 // A Postgres unique_violation — two concurrent ensure() inserts race on the
@@ -945,7 +1010,12 @@ export const supabaseProfileStore: ProfileStore = {
       .eq("handle", key)
       .select("*")
       .limit(1);
-    if (error) throw new Error(error.message);
+    if (error) {
+      if ("visibility" in row && isMissingVisibilityColumnError(error)) {
+        throw new ProfileVisibilityUnavailableError();
+      }
+      throw new Error(error.message);
+    }
     const updated = (data ?? [])[0];
     return updated ? fromRow(updated as Record<string, unknown>) : null;
   },
@@ -1291,6 +1361,7 @@ export const memoryProfileStore: ProfileStore = {
     const record: ProfileRecord = {
       id: memoryId(key),
       handle: key,
+      visibility: DEFAULT_ACCOUNT_VISIBILITY,
       createdAt: now,
       updatedAt: now,
     };
@@ -1320,6 +1391,7 @@ export const memoryProfileStore: ProfileStore = {
       handle: key,
       userId,
       ...(founding === undefined ? {} : { foundingMemberNumber: founding }),
+      visibility: DEFAULT_ACCOUNT_VISIBILITY,
       createdAt: now,
       updatedAt: now,
     };
@@ -1343,6 +1415,9 @@ export const memoryProfileStore: ProfileStore = {
         : {}),
       ...("interests" in patch ? { interests: patch.interests ?? undefined } : {}),
       ...("workplace" in patch ? { workplace: patch.workplace ?? undefined } : {}),
+      // `cleanPatch` only ever puts one of the two words here, so an absent key
+      // and an unreadable value both leave the stored choice alone.
+      ...(patch.visibility ? { visibility: patch.visibility } : {}),
       updatedAt: new Date().toISOString(),
     };
     memoryProfiles.set(key, next);

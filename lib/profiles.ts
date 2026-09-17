@@ -6,6 +6,10 @@
 // simple stats from the drops. Everything here is pure and backend-free so it
 // unit-tests without a DOM, a network, or a database.
 
+import {
+  type AccountVisibility,
+  parseAccountVisibility,
+} from "@/lib/accountVisibility";
 import { normalizeHandle as normalizeHandleCore } from "@/lib/handleNormalize";
 
 // A profile drop is the public Pint Drop DTO shape, kept loose so this module
@@ -55,6 +59,12 @@ export type Profile = {
    * why no capability may ever read it.
    */
   foundingMemberNumber?: number;
+  /**
+   * The stored account's own public/private choice, when a durable row answered.
+   * Absent means no stored row, which is a handle nobody owns rather than a
+   * public account: see `lib/accountVisibility.ts` for why those differ.
+   */
+  visibility?: AccountVisibility;
 };
 
 /**
@@ -85,6 +95,19 @@ export type PublicProfile = {
   workplace?: string;
   /** Public by design: the founding number, when this account holds one. */
   foundingMemberNumber?: number;
+  /**
+   * The account's own visible choice, public or private. ALWAYS present, so a
+   * reader that has to word a private card never has to tell "public" from
+   * "this read forgot to say": `toPublicProfile` resolves it through
+   * `parseAccountVisibility`, which answers for a row written before the column
+   * existed as well as for one that carries it.
+   *
+   * It is the CHOICE and not the answer this reader got. Which of the two
+   * projections a reader was handed is the separate `projection` discriminant
+   * on `lib/profileVisibility.ts`, because "they chose private" and "you were
+   * given the limited card" are two facts and a surface needs both.
+   */
+  visibility: AccountVisibility;
   createdAt: string;
   updatedAt: string;
 };
@@ -104,6 +127,8 @@ export type PublicProfileSource = {
   interests?: string;
   workplace?: string;
   foundingMemberNumber?: number;
+  /** Absent on every row written before migration 0154. Reads as public. */
+  visibility?: AccountVisibility;
   createdAt: string;
   updatedAt: string;
 };
@@ -157,6 +182,10 @@ export function toPublicProfile(
     ...(profile.foundingMemberNumber !== undefined
       ? { foundingMemberNumber: profile.foundingMemberNumber }
       : {}),
+    // Always stated, never omitted, because a card that says nothing about the
+    // choice reads as public and that is the one direction this field may not
+    // fail in. A row written before the column existed resolves to the default.
+    visibility: parseAccountVisibility(profile.visibility),
     createdAt: profile.createdAt,
     updatedAt: profile.updatedAt,
   };
@@ -520,6 +549,7 @@ export function withStoredProfile(
     favouriteDrink: stored?.favouriteDrink,
     interests: stored?.interests,
     workplace: stored?.workplace,
+    visibility: stored?.visibility,
     // Granted by the store, never synthesized: a handle with no stored row has
     // claimed nothing, so it is not a founding member of anything.
     foundingMemberNumber: stored?.foundingMemberNumber,

@@ -29,7 +29,11 @@ import SiteNavMore, {
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
+import EmptyState from "@/components/ui/empty-state";
+import { ACCOUNT_VISIBILITY_COPY } from "@/lib/accountVisibility";
+import { getAccessToken } from "@/lib/authClient";
 import { authedFetch } from "@/lib/authedFetch";
+import { isLimitedProfileProjection } from "@/lib/profileVisibility";
 import {
   AUTHOR_CRAWL_LIST_DEFAULT_LIMIT,
   AUTHOR_CRAWL_LIST_MAX_LIMIT,
@@ -433,6 +437,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // Durable profile row + follow graph, fetched from /api/profiles/[handle].
   // Null profile → fall back to the synthesized-from-drops identity.
   const [stored, setStored] = useState<PublicProfile | null>(null);
+  // Which card the read was handed. A private account answers its full card to
+  // its owner and to a mate, and the limited one to everybody else, so this is
+  // what a reader needs to know that the fields below it are withheld rather
+  // than unwritten.
+  const [projection, setProjection] = useState<"full" | "limited">("full");
   // Whether that read has ANSWERED yet. Separate from `stored`, because
   // "nobody owns this handle" and "we could not find out" are two answers and
   // only the first one may offer a stranger the claim (`handleIsAdoptable`).
@@ -757,8 +766,20 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       // The viewer rides in the key, so one account never reads another's
       // follow edge; the whole store is dropped at an account boundary anyway
       // (lib/surfaceDataCache.ts). Failures keep the synthesized fallback.
+      // A PRIVATE ACCOUNT'S OWN CARD RIDES THE BEARER, NEVER `?viewer=`. The
+      // server seam derives its viewer from the token alone
+      // (lib/profileVisibilityBoundary.server.ts), because a query parameter is
+      // self-asserted, so a signed-in read has to send one or the owner of a
+      // private profile would be handed the limited card on their own page. The
+      // token is asked for only once this device HAS a handle, which is the same
+      // condition that puts the viewer in the key above, so a signed-out read
+      // waits for nothing.
+      const bearer = viewerHandle
+        ? await getAccessToken().catch(() => null)
+        : null;
       const outcome = await loadSurfaceJson<{
         profile?: PublicProfile | null;
+        projection?: string;
         status?: string;
         socialLinks?: PublicSocialLink[];
         counts?: FollowCounts | null;
@@ -766,7 +787,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         followsViewer?: boolean;
       }>(
         `/api/profiles/${encodeURIComponent(routeHandle)}${qs}`,
-        { signal: controller.signal },
+        {
+          signal: controller.signal,
+          ...(bearer
+            ? { init: { headers: { authorization: `Bearer ${bearer}` } } }
+            : {}),
+        },
         (body) => {
           if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
           const socialData = profileSocialDataForLaunch(socialFriendsLaunchEnabled, {
@@ -782,6 +808,15 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
             setCounts(socialData.counts);
             return;
           }
+          // Which of the two cards this read was handed, kept apart from the
+          // choice the account made: a later read that comes back limited must
+          // take a full card back down (`isLimitedProfileProjection` owns the
+          // discriminant, so no surface restates it).
+          setProjection(
+            isLimitedProfileProjection({ projection: body.projection })
+              ? "limited"
+              : "full",
+          );
           setStored(body.profile ?? null);
           setSocialLinks([...socialData.socialLinks]);
           setCounts(socialData.counts);
@@ -1199,6 +1234,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               favouriteDrink: stored?.favouriteDrink,
               interests: stored?.interests,
               workplace: stored?.workplace,
+              // The one field that IS pre-filled from a value nobody typed: the
+              // account is always one thing or the other, and the control has to
+              // open on the answer the row already holds.
+              visibility: stored?.visibility,
             }}
             onSaved={handleSaved}
             onProfileChanged={handleProfileChanged}
@@ -1375,6 +1414,15 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
             </div>
 
             <div className="profileContentPane">
+              {/* The one place a withheld card SAYS it is withheld. Without it a
+                  private profile reads as a person who has written nothing about
+                  themselves, which is a different claim entirely. */}
+              {projection === "limited" ? (
+                <EmptyState title={ACCOUNT_VISIBILITY_COPY.strangerTitle}>
+                  {ACCOUNT_VISIBILITY_COPY.strangerBody}
+                </EmptyState>
+              ) : null}
+
               {passportIsOwn && !youSignedOut ? (
                 <div id="passport">
                   <PintPassport

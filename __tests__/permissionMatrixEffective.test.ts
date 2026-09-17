@@ -340,6 +340,7 @@ beforeAll(async () => {
     wantedRoute,
     savedPubsRoute,
     tagsRoute,
+    profileRoute,
     planStore,
   ] = await Promise.all([
     import("@/app/api/plans/[id]/route"),
@@ -369,6 +370,7 @@ beforeAll(async () => {
     import("@/app/api/wanted/route"),
     import("@/app/api/saved-pubs/route"),
     import("@/app/api/social/tags/route"),
+    import("@/app/api/profiles/[handle]/route"),
     import("@/lib/planStore"),
   ]);
   handlers = {
@@ -410,6 +412,8 @@ beforeAll(async () => {
     listSavedPubs: savedPubsRoute.GET as unknown as Handler,
     writeSavedPub: savedPubsRoute.POST as unknown as Handler,
     tagInbox: tagsRoute.GET as unknown as Handler,
+    readProfile: profileRoute.GET as Handler,
+    writeProfile: profileRoute.PATCH as Handler,
   };
   hashPlanMemberToken = planStore.hashPlanMemberToken;
 
@@ -1037,6 +1041,146 @@ async function submitPrice(
     context({}),
   );
 }
+
+/**
+ * THE PRIVATE PROFILE CARD (migration 0154, the account-privacy wave).
+ *
+ * The cells run in file order over one shared account, because the choice is
+ * state: Alice writes her card, the control cell reads it public, she turns it
+ * private through her own door, and every role reads it again.
+ *
+ * WHAT THIS DOES NOT MEASURE, named rather than left to be discovered: the
+ * Social BLOCK. Carol is a mutual follower Alice has blocked, so by the follow
+ * graph she is a mate and this seam answers her the full card. A block lives in
+ * the Social product-account graph keyed on profile ids (`social_blocks`), a
+ * different identity space from the follow-handle graph the seam reads, and it
+ * does not hide a PUBLIC profile card from a blocked account either, so this
+ * wave neither opens that door nor closes it. Folding it in is its own slice
+ * with its own cells, and asserting Carol's answer here would write the gap
+ * down as intent.
+ */
+describe("private profile card: read", () => {
+  const PROFILE_HANDLE = "alicepm";
+  const WITHHELD = ["Alice-withheld-bio", "Camden", "Alice-withheld-work"];
+
+  type CardBody = {
+    projection?: string;
+    profile?: Record<string, unknown> | null;
+    socialLinks?: unknown[];
+  };
+
+  async function readCard(bearer?: string): Promise<{ status: number; raw: string; body: CardBody }> {
+    const response = await handlers.readProfile(
+      request(`/api/profiles/${PROFILE_HANDLE}`, bearer ? { bearer } : {}),
+      context({ handle: PROFILE_HANDLE }),
+    );
+    const raw = await response.text();
+    return { status: response.status, raw, body: JSON.parse(raw) as CardBody };
+  }
+
+  it("A authors her card through her own door, and every role reads it while it is public", async () => {
+    const authored = await handlers.writeProfile(
+      request(`/api/profiles/${PROFILE_HANDLE}`, {
+        bearer: BEARER_ALICE,
+        method: "PATCH",
+        body: {
+          displayName: "Alice PM",
+          bio: "Alice-withheld-bio",
+          homeCity: "Camden",
+          workplace: "Alice-withheld-work",
+        },
+      }),
+      context({ handle: PROFILE_HANDLE }),
+    );
+    expect(authored.status).toBe(200);
+
+    for (const bearer of [undefined, BEARER_DAVE, BEARER_BOB, BEARER_ALICE]) {
+      const card = await readCard(bearer);
+      expect(card.status).toBe(200);
+      expect(card.body.projection).toBe("full");
+      expect(card.body.profile?.bio).toBe("Alice-withheld-bio");
+    }
+  });
+
+  it("only A may turn her account private, and a stranger's attempt moves nothing", async () => {
+    const dave = await handlers.writeProfile(
+      request(`/api/profiles/${PROFILE_HANDLE}`, {
+        bearer: BEARER_DAVE,
+        method: "PATCH",
+        body: { visibility: "private" },
+      }),
+      context({ handle: PROFILE_HANDLE }),
+    );
+    expect(dave.status).toBe(403);
+    expect(truth(`select visibility from public.profiles where handle = '${PROFILE_HANDLE}'`))
+      .toBe("public");
+
+    const alice = await handlers.writeProfile(
+      request(`/api/profiles/${PROFILE_HANDLE}`, {
+        bearer: BEARER_ALICE,
+        method: "PATCH",
+        body: { visibility: "private" },
+      }),
+      context({ handle: PROFILE_HANDLE }),
+    );
+    expect(alice.status).toBe(200);
+    expect(truth(`select visibility from public.profiles where handle = '${PROFILE_HANDLE}'`))
+      .toBe("private");
+  });
+
+  it("anonymous and an unrelated account get the limited card and nothing withheld", async () => {
+    for (const bearer of [undefined, BEARER_DAVE]) {
+      const card = await readCard(bearer);
+      expect(card.status).toBe(200);
+      expect(card.body.projection).toBe("limited");
+      // Asserted over the WHOLE serialized body rather than the fields a reader
+      // remembered to check.
+      for (const leak of WITHHELD) expect(card.raw).not.toContain(leak);
+      expect(card.body.socialLinks).toEqual([]);
+      // Still recognisable, which is the point of a limited card rather than a
+      // 404: a friend has to know whose profile they have reached.
+      expect(card.body.profile?.handle).toBe(PROFILE_HANDLE);
+      expect(card.body.profile?.visibility).toBe("private");
+    }
+  });
+
+  it("the owner and a mate get the full card", async () => {
+    for (const bearer of [BEARER_ALICE, BEARER_BOB]) {
+      const card = await readCard(bearer);
+      expect(card.body.projection).toBe("full");
+      expect(card.body.profile?.bio).toBe("Alice-withheld-bio");
+      expect(card.body.profile?.workplace).toBe("Alice-withheld-work");
+    }
+  });
+
+  it("at the table: no browser role reads another account's row, choice included", () => {
+    expect(
+      visibleRows("anon", null, `select count(*) from public.profiles where handle = '${PROFILE_HANDLE}'`),
+    ).toBe(0);
+    expect(
+      visibleRows("authenticated", DAVE, `select count(*) from public.profiles where handle = '${PROFILE_HANDLE}'`),
+    ).toBe(0);
+    // Alice's own row is hers to read, which is what 0067's owner policy says.
+    expect(
+      visibleRows("authenticated", ALICE, `select count(*) from public.profiles where handle = '${PROFILE_HANDLE}'`),
+    ).toBe(1);
+  });
+
+  it("A can turn it back, and the card is whole again", async () => {
+    const restored = await handlers.writeProfile(
+      request(`/api/profiles/${PROFILE_HANDLE}`, {
+        bearer: BEARER_ALICE,
+        method: "PATCH",
+        body: { visibility: "public" },
+      }),
+      context({ handle: PROFILE_HANDLE }),
+    );
+    expect(restored.status).toBe(200);
+    const card = await readCard();
+    expect(card.body.projection).toBe("full");
+    expect(card.body.profile?.bio).toBe("Alice-withheld-bio");
+  });
+});
 
 describe("price observation and its confirmation", () => {
   it("anonymous cannot log a price", async () => {
