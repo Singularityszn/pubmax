@@ -613,7 +613,9 @@
     padding: 10px 4px max(12px, env(safe-area-inset-bottom, 0px));
     background: var(--paper);
   }
+}
 
+@media (max-width: 640px) {
   body:has(.firstRunOnboarding) :global(.analyticsConsentPrompt) {
     bottom: 0;
     padding-bottom: max(6px, env(safe-area-inset-bottom));
