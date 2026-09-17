@@ -29,8 +29,17 @@ export function keyReadinessError(
 export function providerSafeEnvironment(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv;
 export function captureRefreshSnapshot(root: string): RefreshSnapshot;
 export function baseRefForRun(dryRun: boolean): "HEAD" | "origin/main";
+/**
+ * Runtime flags the events lane is spawned with. The lane statically imports a
+ * `.ts` module, so it runs through tsx rather than depending on Node's
+ * unflagged type stripping (22.18+) under an `engines` floor of 22.12.
+ */
+export const EVENTS_REFRESH_NODE_ARGS: string[];
+
 export type RefreshCommand = {
   executable: string;
+  /** Runtime flags, spawned BEFORE `args` so `args[0]` stays the script. */
+  nodeArgs?: string[];
   args: string[];
   /** A lane whose non-zero exit must not stop the others. */
   independent?: boolean;
