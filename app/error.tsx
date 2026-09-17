@@ -32,14 +32,20 @@ export default function Error({
       }}
     >
       <div style={{ maxWidth: "34rem", textAlign: "center" }}>
+        {/* An eyebrow with no border and no fill is plain text, not a stamp, so
+            it is sentence case with tight tracking (docs/DESIGN_SYSTEM.md, caps
+            policy: uppercase is reserved for a bordered or filled mark, and the
+            wide tracking only ever existed to make all-caps legible). And a
+            coral WORD takes the accent's ink: --brass reads 2.49:1 to 2.91:1 as
+            text on the light ladder, which is what --color-accent-ink exists
+            for; dark points that token back at the one coral. */}
         <p
           style={{
             margin: "0 0 12px",
-            color: "var(--brass)",
-            fontSize: "0.74rem",
+            color: "var(--color-accent-ink)",
+            fontSize: "0.8rem",
             fontWeight: 700,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
+            letterSpacing: "0.01em",
           }}
         >
           Last orders interrupted
@@ -67,10 +73,11 @@ export default function Error({
             style={{
               minHeight: "44px",
               padding: "0 20px",
-              borderRadius: "var(--radius-sm, 8px)",
+              // A text button takes --control-radius, never --radius-sm.
+              borderRadius: "var(--control-radius, 14px)",
               border: "none",
-              background: "var(--ink-deep, #0f1c16)",
-              color: "#fdfaf2",
+              background: "var(--ink-deep)",
+              color: "var(--color-on-inverse)",
               fontWeight: 600,
               cursor: "pointer",
             }}
@@ -84,7 +91,7 @@ export default function Error({
               display: "inline-flex",
               alignItems: "center",
               padding: "0 20px",
-              borderRadius: "var(--radius-sm, 8px)",
+              borderRadius: "var(--control-radius, 14px)",
               border: "1px solid var(--line)",
               color: "var(--ink)",
               textDecoration: "none",

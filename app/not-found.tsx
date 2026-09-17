@@ -44,14 +44,17 @@ export default function NotFound() {
         >
           <PubmaxxWordmark />
         </span>
+        {/* Plain text with no border and no fill, so tight tracking and no
+            uppercase transform (docs/DESIGN_SYSTEM.md, caps policy). The
+            fallback used to be #c9a44a, the retired brass gold, which named a
+            colour the app has not shipped since coral took the accent. */}
         <p
           style={{
             margin: "0 0 12px",
-            color: "var(--brass, #c9a44a)",
-            fontSize: "0.74rem",
+            color: "var(--brass, #ff5a5f)",
+            fontSize: "0.8rem",
             fontWeight: 700,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
+            letterSpacing: "0.01em",
           }}
         >
           404
@@ -97,7 +100,7 @@ export default function NotFound() {
               display: "inline-flex",
               alignItems: "center",
               padding: "0 20px",
-              borderRadius: "var(--radius-sm, 8px)",
+              borderRadius: "var(--control-radius, 14px)",
               border: "none",
               background: "#fdfaf2",
               color: "var(--ink-deep, #0f1c16)",
@@ -115,7 +118,7 @@ export default function NotFound() {
               display: "inline-flex",
               alignItems: "center",
               padding: "0 20px",
-              borderRadius: "var(--radius-sm, 8px)",
+              borderRadius: "var(--control-radius, 14px)",
               border: "1px solid rgba(253, 250, 242, 0.3)",
               color: "#fdfaf2",
               textDecoration: "none",
