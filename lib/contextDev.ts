@@ -33,13 +33,13 @@ import ContextDev, { APIError } from "context.dev";
 import type { RobotsChecker } from "./harvest/robots.ts";
 import { hasRecordedHarvestPermission, isHarvestableOperatorUrl } from "./harvest/sourcePolicy.ts";
 
-export const CONTEXT_DEV_API_BASE = "https://api.context.dev/v1";
+const CONTEXT_DEV_API_BASE = "https://api.context.dev/v1";
 
 export const CONTEXT_DEV_MAX_ATTEMPTS = 3;
 
-export const CONTEXT_DEV_RETRY_BASE_DELAY_MS = 2_000;
+const CONTEXT_DEV_RETRY_BASE_DELAY_MS = 2_000;
 
-export const CONTEXT_DEV_REQUEST_TIMEOUT_MS = 60_000;
+const CONTEXT_DEV_REQUEST_TIMEOUT_MS = 60_000;
 
 /**
  * The longest a provider-chosen `Retry-After` may park this run.
@@ -69,7 +69,7 @@ export const CONTEXT_DEV_RUN_REQUEST_BUDGET = 12;
  * rather than in requests. Nothing branches on it; it is documentation the type
  * checker keeps honest.
  */
-export const CONTEXT_DEV_CREDIT_COST = {
+const CONTEXT_DEV_CREDIT_COST = {
   scrapeMarkdown: 1,
   scrapeHtml: 1,
   sitemapUrls: 1,

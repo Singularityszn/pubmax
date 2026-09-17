@@ -104,7 +104,7 @@ export async function sweepNightSignalQuery(
  * cursor paging is required. Throws only on a provider/transport failure so the
  * caller can report it loudly; a well-formed empty sweep returns [].
  */
-export async function ingestNightSignalCandidates(
+async function ingestNightSignalCandidates(
   deps: NightSignalIngestDeps = {},
 ): Promise<NightSignalIngestResult> {
   const apiKey = (deps.apiKey ?? process.env.EXA_API_KEY)?.trim();

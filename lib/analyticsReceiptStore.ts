@@ -51,7 +51,7 @@ export const memoryAnalyticsReceiptStore: AnalyticsReceiptStore = {
   },
 };
 
-export const supabaseAnalyticsReceiptStore: AnalyticsReceiptStore = {
+const supabaseAnalyticsReceiptStore: AnalyticsReceiptStore = {
   async claim(input) {
     try {
       const now = input.now ?? new Date();

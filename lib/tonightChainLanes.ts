@@ -33,7 +33,7 @@ export type TonightChainLane = {
 /** How many rows a chain block shows before the rest fold away. */
 export const TONIGHT_CHAIN_LANE_VISIBLE = 3;
 
-export const TONIGHT_CHAIN_LANES: readonly TonightChainLane[] = [
+const TONIGHT_CHAIN_LANES: readonly TonightChainLane[] = [
   { key: "wetherspoon", title: "Wetherspoon deals tonight" },
   { key: "greene-king", title: "Greene King tonight" },
 ];
@@ -70,7 +70,7 @@ export function tonightChainLaneOf(
   return null;
 }
 
-export function isTonightChainRow(row: Pick<WhatsOnRow, "id" | "source">): boolean {
+function isTonightChainRow(row: Pick<WhatsOnRow, "id" | "source">): boolean {
   return tonightChainLaneOf(row) !== null;
 }
 

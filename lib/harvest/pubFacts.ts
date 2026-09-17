@@ -19,7 +19,7 @@ import type { OpeningWindow, WeeklyOpeningHours } from "@/lib/busyness";
 import { WEEKDAY_NAMES, parseStatedClock, type WeekdayName } from "@/lib/harvest/chainDeals";
 
 /** Hosts that describe venues rather than speak for them. */
-export const NON_OPERATOR_HOSTS = [
+const NON_OPERATOR_HOSTS = [
   "tripadvisor.co.uk",
   "tripadvisor.com",
   "yelp.co.uk",
@@ -89,7 +89,7 @@ const NAME_STOPWORDS = new Set([
   "company",
 ]);
 
-export function venueNameTokens(name: string): string[] {
+function venueNameTokens(name: string): string[] {
   return name
     .toLowerCase()
     .replace(/\([^)]*\)/g, " ")

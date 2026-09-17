@@ -102,7 +102,7 @@ export type FeedItem = {
 
 // The friendly label shown when an id has no resolvable pub name — kept here so
 // the server route, the normalizer, and any test agree on one string.
-export const VENUE_FALLBACK_LABEL = "A London pub";
+const VENUE_FALLBACK_LABEL = "A London pub";
 
 function normalizeOptimistic(value: unknown): OptimisticSpillState | undefined {
   if (!value || typeof value !== "object") return undefined;

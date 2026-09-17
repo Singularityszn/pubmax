@@ -28,7 +28,7 @@ import type { EstimatedPriceInput } from "@/lib/priceTier";
 export const ESTIMATE_BASES = ["chain_menu", "regional_baseline"] as const;
 export type EstimateBasis = (typeof ESTIMATE_BASES)[number];
 
-export function isEstimateBasis(value: unknown): value is EstimateBasis {
+function isEstimateBasis(value: unknown): value is EstimateBasis {
   return typeof value === "string" && (ESTIMATE_BASES as readonly string[]).includes(value);
 }
 
@@ -40,11 +40,11 @@ export function isEstimateBasis(value: unknown): value is EstimateBasis {
 export const MIN_ESTIMATE_SAMPLE = 3;
 
 /** A pint's plausible band. Outside it, the row is not a pint and is dropped. */
-export const ESTIMATE_MIN_GBP = 2;
-export const ESTIMATE_MAX_GBP = 12;
+const ESTIMATE_MIN_GBP = 2;
+const ESTIMATE_MAX_GBP = 12;
 
 /** How a region row was keyed, because the two are not interchangeable. */
-export const REGION_KINDS = ["london_borough", "postcode_area"] as const;
+const REGION_KINDS = ["london_borough", "postcode_area"] as const;
 export type RegionKind = (typeof REGION_KINDS)[number];
 
 export type ChainBaseline = {
@@ -199,7 +199,7 @@ export function estimateForPub(
 }
 
 /** What an estimate's basis is called in front of a reader. */
-export function estimateBasisLabel(basis: EstimateBasis): string {
+function estimateBasisLabel(basis: EstimateBasis): string {
   return basis === "chain_menu" ? "chain menu prices" : "prices nearby";
 }
 

@@ -28,7 +28,7 @@ function toPricedPoint(venue: Venue): PricedPoint {
   };
 }
 
-export function defaultCheapPintPingSelectDeps(): CheapPintPingSelectDeps {
+function defaultCheapPintPingSelectDeps(): CheapPintPingSelectDeps {
   return {
     nightAreaForAccount: async (accountId) => {
       try {

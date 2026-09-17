@@ -1,6 +1,6 @@
 import { cleanEndingSelection, isPlanId, type CrawlEnding, type EndingSelection, type PlanCompletionDTO } from "@/lib/plan";
 
-export const PENDING_PLAN_RECAP_VERSION = 1 as const;
+const PENDING_PLAN_RECAP_VERSION = 1 as const;
 const KEY_PREFIX = "pubmaxx.pending-plan-recap.v1:";
 const RESOLUTION_PREFIX = "pubmaxx.pending-plan-recap-resolution.v1:";
 const CHANGE_EVENT = "pubmaxx:pending-plan-recap";

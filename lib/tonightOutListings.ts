@@ -126,7 +126,7 @@ export function filterTonightPubSurfaceRows(
  * Only pub-matched Out rows may land: unmatched Ticketmaster theatre and arena
  * cards are not pub events and never reach the list.
  */
-export function tonightOutEventsForStatus(
+function tonightOutEventsForStatus(
   whatsOn: TonightWhatsOnStatus,
   outEvents: readonly WhatsOnRow[],
   now: number = Date.now(),
@@ -340,10 +340,10 @@ export function tonightWhatsOnObservedAt(input: {
  * tonight's quiet sentence is the 6 September defect wearing the live read's
  * clothes.
  */
-export const TONIGHT_QUIET_READ_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const TONIGHT_QUIET_READ_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /** The day an empty surface may claim it was checked, or null. */
-export function tonightQuietReadObservedAt(
+function tonightQuietReadObservedAt(
   kindObservedAt: WhatsOnKindObservedAt,
   now: number = Date.now(),
 ): string | null {
@@ -599,7 +599,7 @@ export function tonightEmptyLead(
 }
 
 export const TONIGHT_WHATS_ON_CREDIT = "via what’s-on";
-export const TONIGHT_QUIET_NIGHT_LABEL = "Quiet night";
+const TONIGHT_QUIET_NIGHT_LABEL = "Quiet night";
 
 export type TonightProvenanceCredits = {
   /** The What's-On segment of the coverage line, or null when it carried none. */

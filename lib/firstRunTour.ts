@@ -76,7 +76,7 @@ export function markTourSeen(): void {
 }
 
 /** Clear the flag so the tour shows again — handy for local testing. */
-export function resetTour(): void {
+function resetTour(): void {
   if (!hasStorage()) return;
   try {
     window.localStorage.removeItem(STORAGE_KEY);

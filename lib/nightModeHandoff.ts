@@ -4,7 +4,7 @@ import { nightCrawlHandoffTarget, stopDisposition } from "@/lib/nightCrawl";
 import type { PlanState } from "@/lib/plan";
 import type { PlanMutationFlushResult } from "@/lib/planMutationOutbox";
 
-export const NIGHT_MODE_ENDING_HANDOFF_EVENT = "pubmaxx:night-mode-ending-handoff";
+const NIGHT_MODE_ENDING_HANDOFF_EVENT = "pubmaxx:night-mode-ending-handoff";
 const HANDOFF_KEY_PREFIX = "pubmaxx:night-mode-ending-ready:";
 
 function handoffKey(planId: string): string {

@@ -10,7 +10,7 @@ export function isDeployedProduction(): boolean {
 }
 
 /** The value Next sets on NEXT_PHASE while compiling a production build. */
-export const NEXT_PRODUCTION_BUILD_PHASE = "phase-production-build";
+const NEXT_PRODUCTION_BUILD_PHASE = "phase-production-build";
 
 /**
  * True while `next build` is compiling, collecting page data or prerendering a

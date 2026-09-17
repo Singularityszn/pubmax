@@ -536,8 +536,8 @@ export async function getStoryAuthor(slug: string): Promise<string | null> {
 // `?limit=`, the query applying it and the browser paging through it cannot
 // drift; re-exported here because the store is where a server caller looks.
 export {
-  AUTHOR_CRAWL_LIST_DEFAULT_LIMIT,
-  AUTHOR_CRAWL_LIST_MAX_LIMIT,
+  
+  
   clampAuthorCrawlListLimit,
 };
 

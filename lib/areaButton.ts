@@ -249,7 +249,7 @@ export function areaLabelOrigin(
  * only wording that places the reader, and areaLabelOrigin is the one thing
  * allowed to award it.
  */
-export function areaChipClaimPrefix(origin: MapPlaceOrigin): string {
+function areaChipClaimPrefix(origin: MapPlaceOrigin): string {
   return origin === "reader" ? "Your area: " : "Area in view: ";
 }
 

@@ -17,7 +17,7 @@ export {
   type VenueRevealForm,
 } from "@/lib/sheetSnap";
 export {
-  venueDrinkPriceView,
+  
   type VenueDrinkPriceView,
 } from "@/lib/drinkLanes";
 

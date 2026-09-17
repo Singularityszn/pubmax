@@ -42,7 +42,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import { admin, errorMessage, missingTables, selectStore } from "@/lib/storeBackend";
 
 // Hard caps so one busy handle can't return an unbounded payload.
-export const MAX_CONVERSATIONS = 100;
+const MAX_CONVERSATIONS = 100;
 export const MAX_MESSAGES = 200;
 // The inbox read's two windows (see listConversations): how many unread rows
 // one inbox is counted over, and how many recent rows per conversation the

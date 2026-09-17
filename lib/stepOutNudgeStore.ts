@@ -102,7 +102,7 @@ export function __resetStepOutNudgeStore(): void {
   memoryPrefs.clear();
 }
 
-export function __listMemoryStepOutNudgePrefs(): StepOutNudgePref[] {
+function __listMemoryStepOutNudgePrefs(): StepOutNudgePref[] {
   return [...memoryPrefs.values()];
 }
 
@@ -260,7 +260,7 @@ async function writeRow(row: Record<string, unknown>): Promise<StepOutNudgePref>
   return toDTO(data as DbRow);
 }
 
-export const supabaseStepOutNudgeStore: StepOutNudgeStore = {
+const supabaseStepOutNudgeStore: StepOutNudgeStore = {
   async get(ownerActor) {
     return guard({
       context: "get",

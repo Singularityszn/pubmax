@@ -253,7 +253,7 @@ export function socialProviderPlaceholder(provider: SocialProvider): string {
 }
 
 /** Longest value a link field accepts, before any parsing. */
-export const MAX_SOCIAL_LINK_LENGTH = 300;
+const MAX_SOCIAL_LINK_LENGTH = 300;
 
 export type SocialLinkInput = { provider: SocialProvider; value: unknown };
 export type SocialLinkResult =

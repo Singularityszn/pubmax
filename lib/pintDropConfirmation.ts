@@ -59,7 +59,7 @@ import {
 export {
   confirmationIsLive,
   isPintDropConfirmationBasis,
-  PINT_DROP_CONFIRMATION_BASES,
+  
 } from "@/lib/pintDropConfirmationRecord";
 export type {
   PintDropConfirmation,

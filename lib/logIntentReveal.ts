@@ -27,7 +27,7 @@ export const LOG_INTENT_PRICE_STEP_SELECTOR = '[data-testid="spill-price-step"]'
 export const LOG_INTENT_REVEAL_BUDGET_MS = 1_500;
 
 /** How often it looks while it waits. */
-export const LOG_INTENT_REVEAL_POLL_MS = 60;
+const LOG_INTENT_REVEAL_POLL_MS = 60;
 
 /**
  * Reduced motion means no glide, never no move: the reader still lands on the

@@ -14,7 +14,7 @@ import type { PlanState, PlanStopDTO } from "@/lib/plan";
 import { classifyActionOutcome, type NightCrawlOutcome } from "@/lib/nightCrawl";
 
 export const PLAN_MUTATION_OUTBOX_KEY = "pubmaxx:plan-mutation-outbox:v1";
-export const PLAN_MUTATION_OUTBOX_EVENT = "pubmaxx:plan-mutation-outbox";
+const PLAN_MUTATION_OUTBOX_EVENT = "pubmaxx:plan-mutation-outbox";
 const MAX_ENTRIES = 50;
 
 export type PlanMutationOutboxStatus =
@@ -185,7 +185,7 @@ export function subscribePlanMutationOutbox(listener: () => void): () => void {
   };
 }
 
-export async function enqueuePlanMutation(input: {
+async function enqueuePlanMutation(input: {
   planId: string;
   scope: string;
   idempotencyKey: string;

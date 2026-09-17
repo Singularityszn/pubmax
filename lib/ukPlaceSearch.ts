@@ -4,7 +4,7 @@ import {
   isPublishableUkPlaceName,
 } from "@/lib/ukPlaceName.mjs";
 
-export { isPublishableUkPlaceName };
+;
 
 export const UK_PLACE_INDEX_PATH = "/data/uk_base/places.json";
 

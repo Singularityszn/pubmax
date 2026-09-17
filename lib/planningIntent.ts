@@ -23,7 +23,7 @@ export const PLANNING_INTENT_SOURCES = [
   "pal",
 ] as const;
 
-export const PLANNING_INTENT_EVIDENCE_KINDS = [
+const PLANNING_INTENT_EVIDENCE_KINDS = [
   "price",
   "whats-on",
   "directory",

@@ -52,7 +52,7 @@ function weekdayIndexOf(word: string): number | undefined {
  * Sister brands whose deals may appear on a parent chain's page. Matching is on
  * the block's own words, so a brand is only claimed when it is written down.
  */
-export const CHAIN_SISTER_BRANDS = [
+const CHAIN_SISTER_BRANDS = [
   "Flaming Grill",
   "Hungry Horse",
   "Farmhouse Inns",
@@ -222,7 +222,7 @@ const WINDOW_ONLY_LINE = new RegExp(
   "i",
 );
 
-export function isWindowOnlyLine(line: string): boolean {
+function isWindowOnlyLine(line: string): boolean {
   const cleaned = normaliseDashes(line).replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
   if (cleaned.length === 0 || cleaned.length > 40) return false;
   const match = WINDOW_ONLY_LINE.exec(cleaned);

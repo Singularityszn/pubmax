@@ -2,7 +2,7 @@
 // PURE + browser-safe. Every food fact carries provenance {source, licence,
 // observedAt}; provenance NEVER flattens.
 
-export const FOOD_CATEGORIES = [
+const FOOD_CATEGORIES = [
   "breakfast",
   "starters",
   "sharers",
@@ -45,7 +45,7 @@ export type FoodCategoryMeta = {
   order: number;
 };
 
-export const FOOD_CATEGORY_META: Record<FoodCategory, FoodCategoryMeta> = {
+const FOOD_CATEGORY_META: Record<FoodCategory, FoodCategoryMeta> = {
   breakfast: { label: "Breakfast", order: 0 },
   starters: { label: "Starters", order: 1 },
   sharers: { label: "Sharers", order: 2 },

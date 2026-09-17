@@ -272,7 +272,7 @@ export function tonightNowLine(input: {
  * listed pint is still on record. A listed figure is real, and it may never
  * stand in for the read that failed.
  */
-export function venueDrinksUnavailableLine(venueName: string): string {
+function venueDrinksUnavailableLine(venueName: string): string {
   return `I couldn't read what people have logged at ${venueName}.`;
 }
 

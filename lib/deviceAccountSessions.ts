@@ -34,7 +34,7 @@
 export const DEVICE_ACCOUNT_SESSIONS_KEY = "pubmax_device_sessions_v1";
 
 /** Same-tab notice that the remembered account list changed under a reader. */
-export const DEVICE_ACCOUNT_SESSIONS_CHANGED_EVENT =
+const DEVICE_ACCOUNT_SESSIONS_CHANGED_EVENT =
   "pubmax:device-account-sessions-changed";
 
 /**

@@ -17,10 +17,10 @@ import { accountIsAdult, needsAdultSelfAssertion } from "@/lib/adultGate";
 export {
   contributionAdultRefusal,
   CONTRIBUTION_ADULT_REFUSAL,
-  CONTRIBUTION_GATE_STATUSES,
+  
   CONTRIBUTION_HANDLE_REFUSAL,
   CONTRIBUTION_UNDER_18_REFUSAL,
-  readContributionGateStatus,
+  
 } from "@/lib/contributionGateStatus";
 export type {
   ContributionAdultRefusal,

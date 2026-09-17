@@ -5,8 +5,8 @@ import { isPlanStopCount } from "@/lib/planStopCount";
 
 export const PLAN_TITLE_MAX = 80;
 export const PLAN_STOP_MAX = 8;
-export const PLAN_VENUE_ID_MAX = 80;
-export const PLAN_VENUE_NAME_MAX = 120;
+const PLAN_VENUE_ID_MAX = 80;
+const PLAN_VENUE_NAME_MAX = 120;
 
 /** The two grounded generation outcomes a Plan can be anchored on (§3.3). */
 export const PLAN_OUTCOMES = ["route", "anchor-only"] as const;

@@ -9,7 +9,7 @@ import { safeLocalStorage } from "@/lib/safeStorage";
 const ENABLED_KEY = "pubmax:webPush:enabled:v1";
 const DISMISSED_SEQ_KEY = "pubmax:webPush:dismissedSeq:v1";
 const SEQ_KEY = "pubmax:webPush:actionSeq:v1";
-export const WEB_PUSH_PROMPT_EVENT = "pubmax:web-push-prompt";
+const WEB_PUSH_PROMPT_EVENT = "pubmax:web-push-prompt";
 
 export type WebPushPromptGateState = {
   eligibleRuntime: boolean;
@@ -70,7 +70,7 @@ function notify(): void {
 
 /** Browser support + product boundary for this prompt. Ordinary tabs and the
  * native Capacitor shell are deliberately excluded. */
-export function isWebPushPromptRuntimeEligible(): boolean {
+function isWebPushPromptRuntimeEligible(): boolean {
   if (typeof window === "undefined" || typeof navigator === "undefined") return false;
   if (isNativeApp() || !isStandaloneDisplay()) return false;
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
@@ -155,7 +155,7 @@ export function markWebPushPromptDismissed(): void {
   }
 }
 
-export function resetWebPushPrompt(): void {
+function resetWebPushPrompt(): void {
   if (!hasStorage()) return;
   try {
     window.localStorage.removeItem(ENABLED_KEY);

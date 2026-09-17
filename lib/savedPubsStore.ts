@@ -211,7 +211,7 @@ function rowFrom(raw: Record<string, unknown>): SavedRow | null {
   };
 }
 
-export const supabaseSavedPubsStore: SavedPubsStore = {
+const supabaseSavedPubsStore: SavedPubsStore = {
   async readSavedByHandles({ handles }) {
     const keys = normalizedHandleKeys(handles);
     if (keys.length === 0) return new Map();
@@ -490,7 +490,7 @@ export type SavedListsStore = {
   createList(handle: string, name: string): Promise<string[]>;
 };
 
-export const supabaseSavedListsStore: SavedListsStore = {
+const supabaseSavedListsStore: SavedListsStore = {
   async listCustom(handle) {
     try {
       const profileId = await profileIdForHandle(supabaseProfileStore, handle, false);
@@ -802,7 +802,7 @@ function memoryFollowerCount(ownerHandle: string, listType: string): number {
   return count;
 }
 
-export const memorySavedListFollowsStore: SavedListFollowsStore = {
+const memorySavedListFollowsStore: SavedListFollowsStore = {
   async followList(followerHandle, ownerHandle, rawListType) {
     const follower = normalizeHandle(followerHandle);
     const owner = normalizeHandle(ownerHandle);

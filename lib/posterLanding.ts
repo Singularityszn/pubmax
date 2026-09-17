@@ -74,7 +74,7 @@ export function posterLandingOrientation(): string {
   return "You scanned a pub poster. Compare listed pint prices near you, cheapest first.";
 }
 
-export function readPosterLandingSrc(
+function readPosterLandingSrc(
   from: SearchParamRecord | URLSearchParams,
 ): string | null {
   if (from instanceof URLSearchParams) return from.get("src");

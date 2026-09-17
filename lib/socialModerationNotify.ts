@@ -43,7 +43,7 @@ export const SOCIAL_MODERATION_PENDING_ALERT_FLOOR = 10;
 /** A pending job older than this (with any count) is a named finding. */
 export const SOCIAL_MODERATION_PENDING_AGE_ALERT_MS = 30 * 60 * 1000;
 /** Repeat an unchanged operator alert no more than once per shift. */
-export const SOCIAL_MODERATION_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+const SOCIAL_MODERATION_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 /** Alert delivery must not wait on operational state for the cron lifetime. */
 export const SOCIAL_MODERATION_ALERT_STATE_TIMEOUT_MS = 500;
 

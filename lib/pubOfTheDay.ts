@@ -82,7 +82,7 @@ export type PubOfTheDayMarkerId =
  * it is known for. Deliberately narrow, because a table that also admits
  * "pub in Barnes, London, UK" admits everything.
  */
-export const PUB_OF_THE_DAY_MARKERS: readonly {
+const PUB_OF_THE_DAY_MARKERS: readonly {
   id: PubOfTheDayMarkerId;
   why: string;
   pattern: RegExp;

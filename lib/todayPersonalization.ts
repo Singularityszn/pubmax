@@ -22,7 +22,7 @@ import {
 } from "@/lib/todayBrief";
 
 /** Highest-priority source wins independently for every field. */
-export const TODAY_PERSONALIZATION_SOURCES = [
+const TODAY_PERSONALIZATION_SOURCES = [
   "explicit-current-intent",
   "progressive-intake",
   "account",

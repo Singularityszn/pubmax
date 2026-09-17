@@ -41,7 +41,7 @@ export type DealProximityAnchor = { lat: number; lng: number };
  * order. Sized to the anchor: a night-area centre answers "which patch", not
  * "which street", so anything finer would be a precision the input has not got.
  */
-export const DEAL_PROXIMITY_RING_KM = 1;
+const DEAL_PROXIMITY_RING_KM = 1;
 
 /** A deal ending within this long is the set a surface may call ending soon. */
 export const DEAL_ENDING_SOON_MS = 2 * 60 * 60 * 1000;
@@ -91,7 +91,7 @@ function endsAtMs(row: WhatsOnRow): number {
  * order. Generic over the item so a surface can order raw rows or the grouped
  * families the Tonight list renders without either one restating the rule.
  */
-export function orderDealsByNearThenEnding<T>(
+function orderDealsByNearThenEnding<T>(
   items: readonly T[],
   toRow: (item: T) => WhatsOnRow,
   anchor: DealProximityAnchor | null,

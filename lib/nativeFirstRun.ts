@@ -69,7 +69,7 @@ export function shouldRouteNativeFirstRun(state: NativeFirstRunState): boolean {
 }
 
 /** Whether the native first-run redirect has already fired on this device. */
-export function hasRoutedNativeFirstRun(): boolean {
+function hasRoutedNativeFirstRun(): boolean {
   if (!hasStorage()) return true;
   try {
     return window.localStorage.getItem(STORAGE_KEY) === "1";
@@ -147,7 +147,7 @@ export function consumeNativeFirstRunHandoff(
 }
 
 /** Clear the flag so the redirect fires again — handy for local testing. */
-export function resetNativeFirstRunRouted(): void {
+function resetNativeFirstRunRouted(): void {
   if (!hasStorage()) return;
   try {
     window.localStorage.removeItem(STORAGE_KEY);

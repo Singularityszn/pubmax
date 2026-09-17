@@ -17,8 +17,8 @@ import type { Budget, NightAreaSlug } from "@/lib/nightPlanning";
 import { isPlanStopCount, normalizePlanStopCount } from "@/lib/planStopCount";
 import { DAY_MS } from "@/lib/dayMs";
 
-export const PLAN_GENERATION_HORIZON_DAYS = 14;
-export const PLAN_GENERATION_HORIZON_MS = PLAN_GENERATION_HORIZON_DAYS * DAY_MS;
+const PLAN_GENERATION_HORIZON_DAYS = 14;
+const PLAN_GENERATION_HORIZON_MS = PLAN_GENERATION_HORIZON_DAYS * DAY_MS;
 
 const INTAKE_KEYS = [
   "version",

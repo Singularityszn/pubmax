@@ -18,7 +18,7 @@ import type { SlimVenue } from "@/lib/venuesSlim";
  * Recover it so drink/food price updates keyed by name|address|lat|lng attach
  * to city venues that have no VenuePrice rows.
  */
-export function addressFromSlimSearchText(slim: SlimVenue): string {
+function addressFromSlimSearchText(slim: SlimVenue): string {
   const search = (slim.filterHints?.searchText ?? "").trim().toLowerCase();
   if (!search) return "";
   const name = slim.name.trim().toLowerCase();
@@ -106,7 +106,7 @@ export function slimVenuesToPins(slim: SlimVenue[]): Venue[] {
 }
 
 /** Re-compact resident pins for the optional last-view resume snapshot. */
-export function pinToSlimVenue(pin: Venue): SlimVenue {
+function pinToSlimVenue(pin: Venue): SlimVenue {
   return {
     id: pin.id,
     name: pin.name,

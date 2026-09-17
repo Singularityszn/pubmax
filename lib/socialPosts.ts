@@ -2,10 +2,10 @@ import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { resolveAvatarUrlsForHandles } from "@/lib/avatarResolve";
 import { normalizeHandle } from "@/lib/profiles";
 
-export const SOCIAL_POST_KINDS = ["standard", "feature_request"] as const;
-export const SOCIAL_POST_VISIBILITIES = ["public", "friends", "private"] as const;
-export const SOCIAL_POST_STATUSES = ["visible", "hidden", "removed"] as const;
-export const SOCIAL_POST_COMMENT_POLICIES = ["open", "friends", "locked"] as const;
+const SOCIAL_POST_KINDS = ["standard", "feature_request"] as const;
+const SOCIAL_POST_VISIBILITIES = ["public", "friends", "private"] as const;
+const SOCIAL_POST_STATUSES = ["visible", "hidden", "removed"] as const;
+const SOCIAL_POST_COMMENT_POLICIES = ["open", "friends", "locked"] as const;
 
 export type SocialPostKind = (typeof SOCIAL_POST_KINDS)[number];
 export type SocialPostVisibility = (typeof SOCIAL_POST_VISIBILITIES)[number];

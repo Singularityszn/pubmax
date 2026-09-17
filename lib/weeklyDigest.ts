@@ -165,7 +165,7 @@ export function pickGuardianTip(
   return tips[((weekIndex % tips.length) + tips.length) % tips.length];
 }
 
-export { formatGbp } from "@/lib/formatGbp";
+;
 
 // ── Generator ─────────────────────────────────────────────────────────────────
 
@@ -357,7 +357,7 @@ function esc(s: string): string {
 }
 
 /** Short, honest "how fresh" label for an observed-at within the week. */
-export function freshnessLabel(observedAt: string, now: Date): string {
+function freshnessLabel(observedAt: string, now: Date): string {
   const ms = toMs(observedAt);
   if (!isFiniteTime(ms)) return "";
   const days = Math.floor((now.getTime() - ms) / DAY_MS);
@@ -518,7 +518,7 @@ export function renderWeeklyDigestText(digest: WeeklyDigest): string {
 /** The per-recipient unsubscribe placeholder the renderers emit. The
  *  message-building path (toEmailMessage) MUST substitute it with a real,
  *  per-recipient URL before a message may leave this module. */
-export const UNSUBSCRIBE_PLACEHOLDER = "{{unsubscribe_url}}";
+const UNSUBSCRIBE_PLACEHOLDER = "{{unsubscribe_url}}";
 
 function isHttpUrl(value: unknown): value is string {
   if (typeof value !== "string" || value.trim().length === 0) return false;

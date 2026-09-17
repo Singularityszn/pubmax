@@ -51,14 +51,14 @@ import type {
 const TABLE = "structured_visit_reports";
 
 /** Bounded public reads: a venue read never returns more than this many rows. */
-export const MAX_VENUE_REPORTS = 500;
+const MAX_VENUE_REPORTS = 500;
 
 /**
  * How many of one contributor's own reports a single read carries. A cap is a
  * window rather than a filter; the account export says so through its own
  * `truncated` flag.
  */
-export const MAX_CONTRIBUTOR_REPORTS = 1_000;
+const MAX_CONTRIBUTOR_REPORTS = 1_000;
 
 export type VisitReportReadResult = {
   status: VisitReportReadStatus;
@@ -643,7 +643,7 @@ export function visitReportsStore(): VisitReportStore {
 }
 
 /** Bound schema-miss predicate, exported for tests / callers that branch on it. */
-export const isVisitReportsSchemaMiss = isSchemaMiss;
+const isVisitReportsSchemaMiss = isSchemaMiss;
 
 /** Test-only: clear the in-memory state + warn dedupe between cases. */
 export function __resetVisitReports(): void {

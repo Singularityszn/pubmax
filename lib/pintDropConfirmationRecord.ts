@@ -18,7 +18,7 @@ import { DAY_MS } from "@/lib/dayMs";
 import { CONFIRMED_MAX_AGE_DAYS } from "@/lib/priceTier";
 
 /** How a confirmation came about. Closed: nothing else may mint one. */
-export const PINT_DROP_CONFIRMATION_BASES = ["second_reporter", "moderator"] as const;
+const PINT_DROP_CONFIRMATION_BASES = ["second_reporter", "moderator"] as const;
 export type PintDropConfirmationBasis = (typeof PINT_DROP_CONFIRMATION_BASES)[number];
 
 const BASIS_SET: ReadonlySet<string> = new Set(PINT_DROP_CONFIRMATION_BASES);

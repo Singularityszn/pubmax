@@ -278,7 +278,7 @@ function shardRequestPath(path: string): string {
 }
 
 /** Guessed core shard URL for a city's slim index (London: venues_slim.core.json). */
-export function guessedCoreShardUrl(slimVenuesPath: string): string {
+function guessedCoreShardUrl(slimVenuesPath: string): string {
   return slimVenuesPath.replace(/\.json$/, ".core.json");
 }
 

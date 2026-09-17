@@ -131,4 +131,4 @@ export async function readOpeningMapLocation(
   return readCurrentLocation();
 }
 
-export const MAP_OPENING_LOCATION_STORAGE_KEY = STORAGE_KEY;
+const MAP_OPENING_LOCATION_STORAGE_KEY = STORAGE_KEY;

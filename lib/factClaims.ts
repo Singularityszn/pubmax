@@ -44,7 +44,7 @@ export const FACT_AUTHORITY_RANK: Record<FactAuthority, number> = {
 // beats a lone unreviewed source).
 export type FactVerification = "single_source" | "corroborated" | "manual_review";
 
-export const FACT_VERIFICATION_RANK: Record<FactVerification, number> = {
+const FACT_VERIFICATION_RANK: Record<FactVerification, number> = {
   corroborated: 2,
   manual_review: 1,
   single_source: 0,

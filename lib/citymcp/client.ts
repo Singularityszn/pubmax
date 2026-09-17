@@ -133,7 +133,7 @@ const DEFAULT_RETRIES = 1;
  * transient; a parse, rpc, 4xx, or empty error is deterministic (retrying is
  * pure latency with no upside).
  */
-export function isTransientCityMcpError(err: unknown): boolean {
+function isTransientCityMcpError(err: unknown): boolean {
   if (!(err instanceof CityMcpError)) return false;
   if (err.kind === "timeout" || err.kind === "network") return true;
   if (err.kind === "http") {
@@ -1008,7 +1008,7 @@ export function formatJourneyPoint(lat: number, lng: number): string {
   return `${lat.toFixed(5)},${lng.toFixed(5)}`;
 }
 
-export function trimJourneyLeg(raw: unknown): CityJourneyLeg | null {
+function trimJourneyLeg(raw: unknown): CityJourneyLeg | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
   const mode = pickString(o.mode);
@@ -1026,7 +1026,7 @@ export function trimJourneyLeg(raw: unknown): CityJourneyLeg | null {
   return out;
 }
 
-export function trimJourney(raw: unknown): CityJourney | null {
+function trimJourney(raw: unknown): CityJourney | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
   const durationMinutes = pickNumber(o.durationMinutes);

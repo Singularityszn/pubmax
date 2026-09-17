@@ -1,6 +1,6 @@
-export const NIGHT_SIGNAL_SNAPSHOT_VERSION = 1 as const;
+const NIGHT_SIGNAL_SNAPSHOT_VERSION = 1 as const;
 
-export const NIGHT_SIGNAL_KINDS = ["event", "price", "access", "opening", "transport"] as const;
+const NIGHT_SIGNAL_KINDS = ["event", "price", "access", "opening", "transport"] as const;
 export type NightSignalKind = (typeof NIGHT_SIGNAL_KINDS)[number];
 export type NightSignalReviewState = "pending" | "approved" | "rejected";
 export type NightSignalVerification = "single_source" | "corroborated" | "manual_review";

@@ -49,7 +49,7 @@ const SECRET_VALUE_PATTERNS: RegExp[] = [
  * `app_key=[redacted]`, `OPENROUTER_API_KEY=[redacted]`). Non-strings are
  * returned untouched (callers only pass strings here).
  */
-export function scrubSecrets(value: string): string {
+function scrubSecrets(value: string): string {
   let out = value;
   for (const pattern of SECRET_VALUE_PATTERNS) {
     out = out.replace(pattern, (match) => {

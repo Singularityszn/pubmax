@@ -75,7 +75,7 @@ type FeedRow = {
   note: string | null;
 };
 
-export const supabaseFeedFreshnessStore: FeedFreshnessStore = {
+const supabaseFeedFreshnessStore: FeedFreshnessStore = {
   async stamp(input) {
     return guard<StampOutcome>({
       context: "stamp",

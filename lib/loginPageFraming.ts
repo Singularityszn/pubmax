@@ -11,12 +11,12 @@ export const LOGIN_FIRST_TIME_TITLE = "Sign in or create your account";
 export const LOGIN_FIRST_TIME_LEAD =
   "Use your email, or pick a handle after the link lands.";
 
-export const LOGIN_SIGNED_IN_TITLE = "You are signed in";
-export const LOGIN_SIGNED_IN_LEAD =
+const LOGIN_SIGNED_IN_TITLE = "You are signed in";
+const LOGIN_SIGNED_IN_LEAD =
   "Your account is ready. Jump back into the map, or sign out.";
 
-export const LOGIN_ADD_ACCOUNT_TITLE = "Add another account";
-export const LOGIN_ADD_ACCOUNT_LEAD =
+const LOGIN_ADD_ACCOUNT_TITLE = "Add another account";
+const LOGIN_ADD_ACCOUNT_LEAD =
   "Sign in to the other account. This device keeps both, and you can switch between them whenever you like.";
 
 /**

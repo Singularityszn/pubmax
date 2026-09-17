@@ -134,7 +134,7 @@ export function searchUkNationalPubs(
   return { status: "ready", hits };
 }
 
-export function nationalHitToUkBasePub(hit: UkNationalPubHit): UkBasePub {
+function nationalHitToUkBasePub(hit: UkNationalPubHit): UkBasePub {
   return {
     id: hit.id,
     name: hit.name,

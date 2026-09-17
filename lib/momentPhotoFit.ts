@@ -94,7 +94,7 @@ async function browserDecode(file: File): Promise<DecodedMomentPhoto | null> {
   };
 }
 
-export const browserMomentPhotoFitDeps: MomentPhotoFitDeps = { decode: browserDecode };
+const browserMomentPhotoFitDeps: MomentPhotoFitDeps = { decode: browserDecode };
 
 /**
  * Walk the ladder until a JPEG lands under `budget`. The first attempt that

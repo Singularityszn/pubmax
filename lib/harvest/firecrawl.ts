@@ -27,10 +27,10 @@
 // parsers' job (lib/harvest/chainDeals.ts and friends), because a page that does
 // not state a thing must yield no row.
 
-export const FIRECRAWL_API_BASE = "https://api.firecrawl.dev/v2";
+const FIRECRAWL_API_BASE = "https://api.firecrawl.dev/v2";
 
 /** One request may take this long before it is abandoned as a timeout. */
-export const HARVEST_REQUEST_TIMEOUT_MS = 60_000;
+const HARVEST_REQUEST_TIMEOUT_MS = 60_000;
 
 /** Total attempts per URL: one try plus at most two retries. */
 export const HARVEST_MAX_ATTEMPTS = 3;
@@ -40,7 +40,7 @@ export const HARVEST_MAX_ATTEMPTS = 3;
  * Sized for a rate limit rather than a blip: the first harvest lost twenty
  * operator lookups to 429s that a one-second pause did not outlast.
  */
-export const HARVEST_RETRY_BASE_DELAY_MS = 2_000;
+const HARVEST_RETRY_BASE_DELAY_MS = 2_000;
 
 /**
  * Requests a single SCHEDULED run may spend. Deliberately small: the cron's job
@@ -57,7 +57,7 @@ export const HARVEST_CRON_REQUEST_BUDGET = 12;
 export const HARVEST_CLI_REQUEST_BUDGET = 120;
 
 /** How stale a reused Firecrawl index copy may be for a harvest read (12h). */
-export const HARVEST_DEFAULT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const HARVEST_DEFAULT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 
 export type HarvestBudget = {
   /** Requests this run may send in total. */

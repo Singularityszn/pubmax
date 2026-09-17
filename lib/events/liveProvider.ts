@@ -61,7 +61,7 @@ function readKey(envVar: string): string | undefined {
  * the window it will keep (a day chip on /out) hands it in, so an upstream call
  * is never spent on rows the caller would then discard.
  */
-export function providerWindow(ctx: EventsProviderContext): LiveProviderWindow {
+function providerWindow(ctx: EventsProviderContext): LiveProviderWindow {
   if (ctx.window && Number.isFinite(ctx.window.startMs) && Number.isFinite(ctx.window.endMs)) {
     return {
       startIso: new Date(ctx.window.startMs).toISOString(),

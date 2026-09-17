@@ -183,7 +183,7 @@ function toModeratorDTO(row: Record<string, unknown>): ModeratorCommentDTO {
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
-export const supabaseCommentsStore: CommentsStore = {
+const supabaseCommentsStore: CommentsStore = {
   async listComments(pintDropId) {
     if (!pintDropId) return [];
     try {

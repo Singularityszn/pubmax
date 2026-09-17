@@ -46,7 +46,7 @@ export function publicApiError(
 }
 
 /** Conventional generic code for a bare HTTP status. */
-export function statusErrorCode(status: number): string {
+function statusErrorCode(status: number): string {
   switch (status) {
     case 400:
       return "INVALID_REQUEST";

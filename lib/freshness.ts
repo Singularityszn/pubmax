@@ -525,7 +525,7 @@ export function unresolvedFeeds(results: readonly FreshnessResult[]): FreshnessR
  * unmeasured lane as healthy is the older defect; failing the gate over it
  * would be the mirror mistake, because nothing is owed.
  */
-export function unmeasuredFeeds(results: readonly FreshnessResult[]): FreshnessResult[] {
+function unmeasuredFeeds(results: readonly FreshnessResult[]): FreshnessResult[] {
   return results.filter((r) => r.status === "unmeasured");
 }
 

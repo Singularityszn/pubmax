@@ -166,7 +166,7 @@ export async function readVenuePintTrust(
 
 /** The venue's live confirmation, or null. Read seam for a server surface that
  *  wants the standing without re-deriving the rules. Never throws. */
-export async function readVenueConfirmation(
+async function readVenueConfirmation(
   venueId: string,
   now: number = Date.now(),
 ): Promise<{ confirmationId: string; confirmedAtMs: number } | null> {

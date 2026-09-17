@@ -68,9 +68,9 @@ const JOIN_TIMEOUT_MS = 5_000;
 /** How many times a dropped channel is re-asked before the poll lane keeps it. */
 export const MESSAGES_REATTACH_MAX_ATTEMPTS = 4;
 /** First backoff step; each further attempt doubles it, capped below. */
-export const MESSAGES_REATTACH_BASE_MS = 1_000;
+const MESSAGES_REATTACH_BASE_MS = 1_000;
 /** No backoff step is longer than this, so a woken phone recovers promptly. */
-export const MESSAGES_REATTACH_MAX_MS = 30_000;
+const MESSAGES_REATTACH_MAX_MS = 30_000;
 
 /** The delay before re-asking, for attempt 1..MESSAGES_REATTACH_MAX_ATTEMPTS. */
 export function messagesReattachDelayMs(attempt: number): number {
@@ -83,7 +83,7 @@ export const MESSAGES_POLL_FALLBACK_MS = 5_000;
 export const MESSAGES_POLL_LIVE_MS = 30_000;
 /** The inbox is a list, not a conversation; it can wait a little longer. */
 export const INBOX_POLL_FALLBACK_MS = 15_000;
-export const INBOX_POLL_LIVE_MS = 60_000;
+const INBOX_POLL_LIVE_MS = 60_000;
 
 type Cadence = Readonly<{ fallbackMs: number; liveMs: number }>;
 

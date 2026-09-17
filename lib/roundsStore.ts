@@ -199,7 +199,7 @@ function spendFromRow(row: Record<string, unknown>): RoundSpendDTO {
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
-export const supabaseRoundsStore: RoundsStore = {
+const supabaseRoundsStore: RoundsStore = {
   async create(input) {
     const clean = cleanNewRound(input);
     if (!clean) return { ok: false, error: "invalid" };

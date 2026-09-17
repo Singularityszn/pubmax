@@ -757,7 +757,7 @@ function figure(value: number): string {
 }
 
 /** A duration that names a real quantity, whether it is minutes or the last seconds. */
-export function formatAbDuration(milliseconds: number): string {
+function formatAbDuration(milliseconds: number): string {
   if (milliseconds >= 60_000) return `${Math.round(milliseconds / 60_000)} minute(s)`;
   return `${Math.round(milliseconds / 1_000)} second(s)`;
 }

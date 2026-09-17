@@ -21,7 +21,7 @@ export function storedThemePreference(storage: Pick<Storage, "getItem"> | null |
 }
 
 /** The OS appearance, read off the media query the no-flash script reads. */
-export function systemThemePreference(matches: boolean): ThemePreference {
+function systemThemePreference(matches: boolean): ThemePreference {
   return matches ? "dark" : "light";
 }
 

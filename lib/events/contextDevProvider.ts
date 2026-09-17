@@ -24,11 +24,11 @@ import {
   type EventDropReason,
 } from "../whatson/eventNormalise.mjs";
 
-export const CONTEXT_DEV_EVENTS_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const CONTEXT_DEV_EVENTS_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 
 const ALLOWED_KINDS = new Set(["music", "sport", "event"]);
 
-export const CONTEXT_DEV_EVENT_EXTRACT_SCHEMA = {
+const CONTEXT_DEV_EVENT_EXTRACT_SCHEMA = {
   type: "object",
   properties: {
     events: {

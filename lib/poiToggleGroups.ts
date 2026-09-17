@@ -140,7 +140,7 @@ export function defaultPoiHiddenMobile(): Record<PoiCategory, boolean> {
   };
 }
 
-export function isMobileMapViewport(): boolean {
+function isMobileMapViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
 }
 

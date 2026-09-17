@@ -38,7 +38,7 @@ import { admin, selectStore } from "@/lib/storeBackend";
 
 // A recipient's inbox: newest-first list + how many are unread. Hard-capped so
 // one busy handle can't return an unbounded list.
-export const MAX_NOTIFICATIONS = 100;
+const MAX_NOTIFICATIONS = 100;
 
 export type Inbox = { notifications: NotificationDTO[]; unread: number };
 
@@ -177,7 +177,7 @@ function inboxFrom(dtos: NotificationDTO[]): Inbox {
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
-export const supabaseNotificationsStore: NotificationsStore = {
+const supabaseNotificationsStore: NotificationsStore = {
   async emit(input) {
     const clean = cleanNotification(input);
     if (!clean) return false;

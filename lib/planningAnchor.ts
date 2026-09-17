@@ -96,7 +96,7 @@ const ANCHOR_CONFLICT_MESSAGES: Record<AnchorConflictCode, string> = {
   ANCHOR_ROUTE_CONFLICT: "We could not build a route from that pub right now. Try a different pub.",
 };
 
-export function isAnchorConflictCode(value: unknown): value is AnchorConflictCode {
+function isAnchorConflictCode(value: unknown): value is AnchorConflictCode {
   return typeof value === "string" && (ANCHOR_CONFLICT_CODES as readonly string[]).includes(value);
 }
 

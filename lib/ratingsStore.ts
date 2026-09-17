@@ -114,7 +114,7 @@ function groupRecords(
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
-export const supabaseRatingsStore: RatingsStore = {
+const supabaseRatingsStore: RatingsStore = {
   async rate(input) {
     const handle = normalizeHandle(input.handle);
     if (!handle) throw new Error("A rating needs a handle.");

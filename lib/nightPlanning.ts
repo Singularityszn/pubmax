@@ -8,12 +8,12 @@ import {
   type PlanStopCount,
 } from "@/lib/planStopCount";
 
-export const DAYPARTS = ["daytime", "after_work", "evening", "late_night", "get_home"] as const;
+const DAYPARTS = ["daytime", "after_work", "evening", "late_night", "get_home"] as const;
 export type Daypart = (typeof DAYPARTS)[number];
 export { type NightAreaSlug };
-export const PARTY_TYPES = ["solo", "friends", "work"] as const;
+const PARTY_TYPES = ["solo", "friends", "work"] as const;
 export type PartyType = (typeof PARTY_TYPES)[number];
-export const BUDGETS = ["value", "standard", "treat"] as const;
+const BUDGETS = ["value", "standard", "treat"] as const;
 export type Budget = (typeof BUDGETS)[number];
 
 export type NightContext = {
@@ -56,7 +56,7 @@ function defaultDaypart(now: Date): Daypart {
 const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8 };
 
 /** Names the chain in free text (Wetherspoon / Wetherspoons / Spoons). */
-export const WETHERSPOONS_QUERY_PATTERN = /\bwetherspoons?\b|\bspoons\b/i;
+const WETHERSPOONS_QUERY_PATTERN = /\bwetherspoons?\b|\bspoons\b/i;
 
 export function inferNightContext(rawQuery: unknown, now = new Date()): InferredNightContext {
   const query = cleanText(rawQuery, 500);

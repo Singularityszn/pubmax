@@ -99,7 +99,7 @@ export async function loadDeskVenues(cityId: CityId): Promise<DeskVenueRead> {
   }
 }
 
-export function resetDeskVenuesForTests(): void {
+function resetDeskVenuesForTests(): void {
   if (
     process.env.NODE_ENV === "test" ||
     Boolean(process.env.VITEST) ||

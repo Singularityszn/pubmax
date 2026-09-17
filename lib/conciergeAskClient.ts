@@ -31,7 +31,7 @@ export type AskResult =
 
 export const ASK_FALLBACK_MESSAGE = "Couldn't answer that. Try again.";
 
-export const ASK_TIMEOUT_MS = 12_000;
+const ASK_TIMEOUT_MS = 12_000;
 
 type AskOptions = {
   timeoutMs?: number;

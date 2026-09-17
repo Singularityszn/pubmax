@@ -6,7 +6,7 @@ import { isNativeApp } from "@/lib/nativePlatform";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
 export const CHEAP_PINT_PING_PROMPT_SURFACE = "cheap-pint-ping";
-export const CHEAP_PINT_PING_PROMPT_EVENT = "pubmax:cheap-pint-ping-prompt";
+const CHEAP_PINT_PING_PROMPT_EVENT = "pubmax:cheap-pint-ping-prompt";
 
 const QUALIFIED_KEY = "pubmax:cheap-pint-ping:qualified:v1";
 const DISMISSED_KEY = "pubmax:cheap-pint-ping:dismissed:v1";
@@ -21,7 +21,7 @@ function notify(): void {
   }
 }
 
-export function isCheapPintPingPromptRuntimeEligible(): boolean {
+function isCheapPintPingPromptRuntimeEligible(): boolean {
   if (typeof window === "undefined" || typeof navigator === "undefined") return false;
   if (isNativeApp() || !isStandaloneDisplay()) return false;
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;

@@ -7,7 +7,7 @@ import type { PubPalSpecies } from "@/lib/pubPal";
 
 export const PUB_PAL_MASCOT_ALT = "Pub Pal";
 
-export const PUB_PAL_MASCOT_SIZES = PAL_MASCOT_SIZES;
+const PUB_PAL_MASCOT_SIZES = PAL_MASCOT_SIZES;
 
 export type PubPalMascotSize = (typeof PUB_PAL_MASCOT_SIZES)[number];
 

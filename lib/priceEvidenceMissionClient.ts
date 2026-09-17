@@ -105,7 +105,7 @@ export function startPriceEvidenceMissionRequest(
 }
 
 /** How long Log it may wait on the mission read before it answers anyway. */
-export const PRICE_EVIDENCE_MISSION_DEADLINE_MS = 2000;
+const PRICE_EVIDENCE_MISSION_DEADLINE_MS = 2000;
 
 export type PriceEvidenceMissionOutcome =
   | { outcome: "read"; read: PriceEvidenceMissionRead }

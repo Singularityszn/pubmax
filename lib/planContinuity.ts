@@ -1,6 +1,6 @@
 import { isPlanId } from "@/lib/plan";
 
-export const PLAN_COLLABORATION_MARKER_VERSION = 1 as const;
+const PLAN_COLLABORATION_MARKER_VERSION = 1 as const;
 const PREFIX = "pubmaxx.plan-collaboration-change.v1:";
 const EVENT = "pubmaxx:plan-collaboration-change";
 

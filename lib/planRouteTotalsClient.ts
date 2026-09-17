@@ -79,7 +79,7 @@ export async function fetchRoutedRouteSummary(
   }
 }
 
-export function routeSummaryLabel(summary: RouteLegsSummary): string {
+function routeSummaryLabel(summary: RouteLegsSummary): string {
   return formatRouteTotal(summary);
 }
 

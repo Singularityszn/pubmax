@@ -18,12 +18,12 @@ import evidenceSnapshot from "@/public/data/late_food_evidence.json";
 export const LATE_FOOD_AREAS = LONDON_NIGHT_AREA_SLUGS;
 export type LateFoodArea = LondonNightAreaSlug;
 
-export const LATE_FOOD_AREA_ALIASES = {
+const LATE_FOOD_AREA_ALIASES = {
   soho: "piccadilly-soho",
   piccadilly: "piccadilly-soho",
 } as const satisfies Record<string, LateFoodArea>;
 
-export const LATE_FOOD_CATEGORIES = [
+const LATE_FOOD_CATEGORIES = [
   "kebab",
   "pizza",
   "cafe",
@@ -316,7 +316,7 @@ export const LATE_FOOD_TERMINALS: readonly LateFoodTerminal[] = rawOptions()
   )
   .filter((terminal): terminal is LateFoodTerminal => terminal !== null);
 
-export function isLateFoodArea(value: string): value is LateFoodArea {
+function isLateFoodArea(value: string): value is LateFoodArea {
   return (LONDON_NIGHT_AREA_SLUGS as readonly string[]).includes(value);
 }
 

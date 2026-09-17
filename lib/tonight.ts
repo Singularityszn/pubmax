@@ -13,7 +13,7 @@ import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 export type TonightOpportunity = ThingsToDoOpportunity;
 
 // Re-export the shared helpers so the screen imports one module.
-export { labelForKind, opportunityMapHref };
+;
 
 export function tonightHeading(basis: TonightLocalityBasis): string {
   return basis === "london-default"

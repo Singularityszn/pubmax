@@ -328,7 +328,7 @@ export function landingPhotoAlt(resolved: ResolvedLandingPhoto): string {
 // them once and components/landing/landingPhoto.css spends them.
 
 /** The scrim colour, as sRGB 0-255. `#0C0A09`, the ink-deep end of the ramp. */
-export const LANDING_SCRIM_RGB = [12, 10, 9] as const;
+const LANDING_SCRIM_RGB = [12, 10, 9] as const;
 /** How much of the scrim covers the photograph, everywhere text sits. */
 export const LANDING_SCRIM_ALPHA = 0.72;
 /** The ink a photo card prints its own name and figures in. */

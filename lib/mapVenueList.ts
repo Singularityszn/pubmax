@@ -149,7 +149,7 @@ function mapVenueListPintPriceLabel(
  * via venueSignals. A bare non-pub figure without complete provenance is not
  * shown on the row, so it cannot climb the cheapest sort.
  */
-export function mapVenueListSortPrice(
+function mapVenueListSortPrice(
   venue: Venue,
   lensPrices: ReadonlyMap<string, MapLensPrice> | null,
   venueSignals: MapVenueListVenueSignals | null = null,

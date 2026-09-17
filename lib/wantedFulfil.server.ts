@@ -11,7 +11,7 @@ import { log } from "@/lib/log";
 import { wantedStore } from "@/lib/wantedStore";
 import type { WantedDTO } from "@/lib/wanted";
 
-export async function ownerActorForHandle(handle: string): Promise<string | null> {
+async function ownerActorForHandle(handle: string): Promise<string | null> {
   const key = normalizeHandle(handle);
   if (!key) return null;
   try {

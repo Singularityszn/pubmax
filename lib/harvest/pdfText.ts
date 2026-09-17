@@ -20,7 +20,7 @@
  * whole crawl more than the price it might hold is worth.
  */
 export const MAX_PDF_BYTES = 12 * 1024 * 1024;
-export const MAX_PDF_PAGES = 12;
+const MAX_PDF_PAGES = 12;
 
 /** Whether a PDF is small enough to be worth opening. */
 export function pdfIsWorthReading(byteLength: number): boolean {

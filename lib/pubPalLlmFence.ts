@@ -2,16 +2,16 @@
 // receive freestyle model prose. Grounded Ask tools may supply last-train and
 // journey facts; the pal never assesses sobriety or nudges another drink.
 
-export const PUB_PAL_GET_HOME_SOBRIETY_RE =
+const PUB_PAL_GET_HOME_SOBRIETY_RE =
   /\b(?:get(?:ting)?\s+home|last\s+train|heading\s+home|should\s+i\s+have\s+(?:one\s+)?more|one\s+more\s+(?:drink|pint)|am\s+i\s+(?:okay|ok|fine|sober|drunk)|sobri(?:ety|ous)|drunk\s+enough|fit\s+to\s+drive|drive\s+home|uber\s+home|taxi\s+home|way\s+home|how\s+(?:do|can)\s+i\s+get\s+home)\b/i;
 
-export const PUB_PAL_SOBRIETY_ONLY_RE =
+const PUB_PAL_SOBRIETY_ONLY_RE =
   /\b(?:should\s+i\s+have\s+(?:one\s+)?more|one\s+more\s+(?:drink|pint)|am\s+i\s+(?:okay|ok|fine|sober|drunk)|sobri(?:ety|ous)|drunk\s+enough|fit\s+to\s+drive)\b/i;
 
-export const PUB_PAL_GET_HOME_REGISTER_CLOSER =
+const PUB_PAL_GET_HOME_REGISTER_CLOSER =
   "Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.";
 
-export const PUB_PAL_SOBRIETY_REGISTER =
+const PUB_PAL_SOBRIETY_REGISTER =
   "I cannot tell you whether to have another drink.";
 
 export function isPubPalGetHomeOrSobrietyIntent(text: string): boolean {

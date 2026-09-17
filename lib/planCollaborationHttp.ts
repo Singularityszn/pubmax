@@ -5,7 +5,7 @@ export function collaborationIdempotencyKey(request: Request, body: Record<strin
   return request.headers.get("idempotency-key")?.trim() || (typeof body.idempotencyKey === "string" ? body.idempotencyKey.trim() : "");
 }
 
-export function collaborationError(error: PlanCollaborationError): { body: PublicApiError; status: number } {
+function collaborationError(error: PlanCollaborationError): { body: PublicApiError; status: number } {
   const status = error === "not_found" ? 404
     : error === "forbidden" ? 403
       : error === "expired" ? 410

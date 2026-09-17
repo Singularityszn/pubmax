@@ -50,7 +50,7 @@ export function typedSearchCameraMove(input: {
 }
 
 /** The map search fields, both the phone overlay and the desktop toolbar. */
-export const MAP_SEARCH_FIELD_SELECTOR = ".mapSearchSuggest input";
+const MAP_SEARCH_FIELD_SELECTOR = ".mapSearchSuggest input";
 
 /** True when the given element is one of those fields. */
 export function isMapSearchField(element: Element | null): boolean {

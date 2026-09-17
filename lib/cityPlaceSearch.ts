@@ -26,7 +26,7 @@ type PlacesBody = {
 };
 
 /** The request both surfaces make. Shared so the answer is keyed by one URL. */
-export function cityPlaceSearchUrl(name: string, borough: string | undefined): string {
+function cityPlaceSearchUrl(name: string, borough: string | undefined): string {
   const params = new URLSearchParams();
   params.set("q", borough ? `${name} ${borough}` : name);
   params.set("limit", "5");

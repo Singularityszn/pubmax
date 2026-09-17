@@ -47,7 +47,7 @@ export function __resetHarvestOverlayStore(): void {
   memoryRows.clear();
 }
 
-export const memoryHarvestOverlayStore: HarvestOverlayStore = {
+const memoryHarvestOverlayStore: HarvestOverlayStore = {
   async upsertMany(rows) {
     for (const row of rows) remember(row);
     return { written: rows.length };
@@ -111,7 +111,7 @@ function fromSql(row: OverlaySqlRow): HarvestOverlayRow | null {
   }
 }
 
-export const supabaseHarvestOverlayStore: HarvestOverlayStore = {
+const supabaseHarvestOverlayStore: HarvestOverlayStore = {
   async upsertMany(rows) {
     if (rows.length === 0) return { written: 0 };
     const foldedAt = new Date().toISOString();

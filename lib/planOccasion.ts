@@ -37,11 +37,11 @@ export const PLAN_OCCASION_PARAM = "occasion";
 /** Pub Pal route handoff: any grounded ask text, not only shipped chips. */
 export const PLAN_QUERY_PARAM = "query";
 
-export function isSoftPlanOccasionId(value: unknown): value is SoftPlanOccasionId {
+function isSoftPlanOccasionId(value: unknown): value is SoftPlanOccasionId {
   return typeof value === "string" && (SOFT_PLAN_OCCASION_IDS as readonly string[]).includes(value);
 }
 
-export function resolveSoftPlanOccasionQuery(id: SoftPlanOccasionId): string {
+function resolveSoftPlanOccasionQuery(id: SoftPlanOccasionId): string {
   return SOFT_PLAN_OCCASIONS[id];
 }
 

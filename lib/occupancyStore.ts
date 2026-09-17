@@ -98,7 +98,7 @@ function findMemoryRow(id: string): OccupancyStoredReport | undefined {
  * apart are one reporter, so an unattributed flag takes one sentinel rather
  * than a fresh identity, and the count can never be inflated by omission.
  */
-export const ANONYMOUS_OCCUPANCY_FLAG_ACTOR = "anonymous";
+const ANONYMOUS_OCCUPANCY_FLAG_ACTOR = "anonymous";
 
 function flagActor(actorHash: string | undefined): string {
   const cleaned = typeof actorHash === "string" ? actorHash.trim() : "";

@@ -9,7 +9,7 @@ export const STEP_OUT_NUDGE_WEEK_MS = 7 * DAY_MS;
 export const STEP_OUT_NUDGE_MAX_WALK_MINUTES = 25;
 export const STEP_OUT_NUDGE_THREAD_ID = "step-out";
 
-export const STEP_OUT_NUDGE_KINDS = [
+const STEP_OUT_NUDGE_KINDS = [
   "wanted_nearby",
   "soft_plan_open",
   "deal_ending",
@@ -17,7 +17,7 @@ export const STEP_OUT_NUDGE_KINDS = [
 export type StepOutNudgeKind = (typeof STEP_OUT_NUDGE_KINDS)[number];
 
 /** Priority for owed payloads: Wanted, then Soft Plan, then a sourced deal. */
-export const STEP_OUT_NUDGE_KIND_PRIORITY: readonly StepOutNudgeKind[] = [
+const STEP_OUT_NUDGE_KIND_PRIORITY: readonly StepOutNudgeKind[] = [
   "wanted_nearby",
   "soft_plan_open",
   "deal_ending",
@@ -89,7 +89,7 @@ export function composeSoftPlanOpenNudge(input?: {
 }
 
 /** Format an endsAt ISO as a short London clock label, e.g. "21:00". */
-export function formatDealEndsLabel(
+function formatDealEndsLabel(
   endsAt: string,
   timeZone = "Europe/London",
 ): string | null {

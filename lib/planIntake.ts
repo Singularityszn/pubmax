@@ -669,7 +669,7 @@ export type PlanGenerationAnchorInput = PlanGenerationWireAnchor & {
 };
 
 /** Remove values inherited from an earlier intake before applying its current answers. */
-export function stripPlanIntakeOwnedContext(
+function stripPlanIntakeOwnedContext(
   context: NightContext | null,
 ): Partial<NightContext> {
   if (!context) return {};

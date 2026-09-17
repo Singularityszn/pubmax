@@ -47,7 +47,7 @@ function inLondon(lng: number, lat: number): boolean {
 
 /** A single row is a locality iff it has a non-empty name/borough and finite
  *  coordinates inside Greater London. Mirrors the validate-data row rules. */
-export function isValidLocality(value: unknown): value is Locality {
+function isValidLocality(value: unknown): value is Locality {
   if (!value || typeof value !== "object") return false;
   const row = value as Record<string, unknown>;
   if (typeof row.name !== "string" || row.name.trim().length === 0) return false;

@@ -33,7 +33,7 @@ export const CHAIN_PINT_MIN_GBP = 2;
 export const CHAIN_PINT_MAX_GBP = 12;
 
 /** How much page text either side of a figure is read for its drink word. */
-export const PRICE_CONTEXT_CHARS = 80;
+const PRICE_CONTEXT_CHARS = 80;
 
 /** A draught pint's own vocabulary. A figure with none of this beside it is not a pint. */
 const DRINK_WORDS =

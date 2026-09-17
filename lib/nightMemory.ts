@@ -1,6 +1,6 @@
 import { cleanText } from "@/lib/textClean";
 
-export const NIGHT_MOMENT_KINDS = [
+const NIGHT_MOMENT_KINDS = [
   "photo",
   "pint_drop",
   "event",
@@ -154,7 +154,7 @@ export function cleanNightMomentDraft(raw: unknown): NightMomentDraft | null {
 
 /** A photo Moment (one that carries stored media) needs author-confirmed alt
  * text before it may be published. Non-photo Moments never need it. */
-export function momentRequiresAltText(
+function momentRequiresAltText(
   moment: Pick<NightMoment, "mediaObjectKey">,
 ): boolean {
   return Boolean(moment.mediaObjectKey);

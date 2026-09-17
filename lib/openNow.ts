@@ -93,7 +93,7 @@ export function openStateForWetherspoonsPub(
 }
 
 /** Open state for a curated venue via directory match. Unmatched = unknown. */
-export function openStateForVenue(
+function openStateForVenue(
   venue: Omit<WetherspoonsMatchVenue, "id">,
   pubs: readonly WetherspoonsPub[],
   now: Date = new Date(),

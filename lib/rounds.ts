@@ -68,20 +68,20 @@ export function isValidRoundCode(raw: string | null | undefined): boolean {
 }
 
 // ── Field caps ───────────────────────────────────────────────────────────────
-export const ROUND_TITLE_MAX = 80;
-export const VENUE_NAME_MAX = 120;
-export const VENUE_ID_MAX = 80;
-export const DROP_REF_MAX = 200;
-export const ROUND_SPEND_CLIENT_REF_MAX = 80;
-export const ROUND_SPEND_ITEM_NAME_MAX = 80;
-export const ROUND_SPEND_ITEM_MAX = 20;
+const ROUND_TITLE_MAX = 80;
+const VENUE_NAME_MAX = 120;
+const VENUE_ID_MAX = 80;
+const DROP_REF_MAX = 200;
+const ROUND_SPEND_CLIENT_REF_MAX = 80;
+const ROUND_SPEND_ITEM_NAME_MAX = 80;
+const ROUND_SPEND_ITEM_MAX = 20;
 // How many of a turn's lines may be first-party price observations. The diary
 // takes up to ROUND_SPEND_ITEM_MAX lines; this narrower ceiling is what the
 // community store sees, and it bounds both the account budget one turn can spend
 // and the number of limiter checks a phone tap waits on.
 export const ROUND_SPEND_PRICE_LINE_MAX = 10;
-export const ROUND_SPEND_TOTAL_MIN_PENCE = 100;
-export const ROUND_SPEND_TOTAL_MAX_PENCE = 100_000;
+const ROUND_SPEND_TOTAL_MIN_PENCE = 100;
+const ROUND_SPEND_TOTAL_MAX_PENCE = 100_000;
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────
 export type RoundStopDTO = {

@@ -16,7 +16,7 @@ export type PalChatResult =
   | (PalAnswer & { proposals: AskProposal[] })
   | { status: "error"; message: string };
 
-export const PAL_CHAT_TIMEOUT_MS = 12_000;
+const PAL_CHAT_TIMEOUT_MS = 12_000;
 
 type SessionOptions = {
   timeoutMs?: number;

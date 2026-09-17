@@ -38,7 +38,7 @@ export type VibeTag = (typeof VIBE_TAGS)[number];
 
 const VIBE_TAG_SET = new Set<string>(VIBE_TAGS);
 
-export function isVibeTag(value: unknown): value is VibeTag {
+function isVibeTag(value: unknown): value is VibeTag {
   return typeof value === "string" && VIBE_TAG_SET.has(value);
 }
 

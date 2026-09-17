@@ -6,12 +6,12 @@ import { PLANNING_INTENT_SOURCES, type PlanningIntentArea, type PlanningIntentSo
 
 export const PLAN_DRAFT_KEY = "pubmaxx:plan-draft:v1";
 export const PLAN_DRAFT_V2_KEY = "pubmax:plan-draft:v2";
-export const PLAN_DRAFT_STORAGE_VERSION = 2 as const;
-export const PLAN_DRAFT_MAX_RAW_BYTES = 20 * 1024;
+const PLAN_DRAFT_STORAGE_VERSION = 2 as const;
+const PLAN_DRAFT_MAX_RAW_BYTES = 20 * 1024;
 export const PLAN_DRAFT_TTL_MS = DAY_MS;
-export const PLAN_DRAFT_MAX_FUTURE_SKEW_MS = 5 * 60 * 1000;
+const PLAN_DRAFT_MAX_FUTURE_SKEW_MS = 5 * 60 * 1000;
 
-export const PLAN_DRAFT_ORIGINS = [
+const PLAN_DRAFT_ORIGINS = [
   "manual",
   "template",
   "planning-intent",
@@ -194,7 +194,7 @@ export function parsePlanDraft(raw: string | null, now = Date.now()): StoredPlan
   }
 }
 
-export function parsePlanDraftV2(
+function parsePlanDraftV2(
   raw: string | null,
   now = Date.now(),
 ): ParsedPlanDraft | null {

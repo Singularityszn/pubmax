@@ -4,7 +4,7 @@ import { getVercelOidcTokenSync } from "@vercel/oidc";
 import { gateway, generateText } from "ai";
 
 export const SEARCH_GATEWAY_MODEL = "openai/gpt-5-nano";
-export const DEFAULT_SEARCH_GATEWAY_MAX_CALLS = 25;
+const DEFAULT_SEARCH_GATEWAY_MAX_CALLS = 25;
 const EXA_HIGHLIGHT_MAX_CHARACTERS = 1600;
 
 export type SearchProviderName = "exa" | "tavily";
@@ -74,7 +74,7 @@ export class SearchProviderBudgetError extends Error {
   }
 }
 
-export class SearchProviderUnavailableError extends Error {
+class SearchProviderUnavailableError extends Error {
   readonly code = "SEARCH_PROVIDER_UNAVAILABLE";
 
   constructor(message: string) {

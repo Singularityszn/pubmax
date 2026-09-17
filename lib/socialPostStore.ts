@@ -637,7 +637,7 @@ export function createMemorySocialPostStore(options: {
   };
 }
 
-export const memorySocialPostStore = createMemorySocialPostStore();
+const memorySocialPostStore = createMemorySocialPostStore();
 
 async function durableOrMemory<T>(operation: () => Promise<T>, fallback: () => Promise<T>, write: boolean): Promise<T> {
   try {

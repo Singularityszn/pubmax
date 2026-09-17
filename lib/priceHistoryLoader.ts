@@ -16,7 +16,7 @@ import {
 } from "@/lib/priceHistory";
 import { fetchPublicJson, hasPublicJsonRows } from "@/lib/publicJsonLoader";
 
-export const PRICE_HISTORY_PATH = "/data/price_history/london.json";
+const PRICE_HISTORY_PATH = "/data/price_history/london.json";
 
 let historyPromise: Promise<Map<string, PriceHistoryObservation[]>> | null = null;
 

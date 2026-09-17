@@ -51,7 +51,7 @@ export function storyBandsForCity(
 }
 
 /** Landmark catalog that resolves a city's story-band anchors. */
-export function storyBandLandmarkCatalog(
+function storyBandLandmarkCatalog(
   cityId: CityId | string | null | undefined = DEFAULT_CITY_ID,
 ): readonly Landmark[] {
   return landmarksForCity(cityId);

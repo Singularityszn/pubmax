@@ -50,7 +50,7 @@ export type HypedPubsFile = {
   rows: HypedPub[];
 };
 
-export const HYPED_PUBS_PATH = "/data/hyped/london.json";
+const HYPED_PUBS_PATH = "/data/hyped/london.json";
 
 export const EMPTY_HYPED_PUBS: HypedPubsFile = Object.freeze({
   generatedAt: null,

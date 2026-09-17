@@ -53,7 +53,7 @@ export type AgreeableDrop = {
 };
 
 /** A price as whole pennies, so 4.5 and 4.50 are one figure and 4.5 and 4.7 are two. */
-export function pricePennies(priceGbp: number): number {
+function pricePennies(priceGbp: number): number {
   return Math.round(priceGbp * 100);
 }
 
@@ -77,7 +77,7 @@ export function drinkAgreementKey(drop: AgreeableDrop): string | null {
  * `pint`, and an `other` measure carries its own label, so a schooner and a
  * bottle never merge into one "other".
  */
-export function measureAgreementKey(drop: AgreeableDrop): string {
+function measureAgreementKey(drop: AgreeableDrop): string {
   const measure: DrinkMeasure = drop.measure ?? "pint";
   const label = measure === "other" ? (drop.measureLabel?.trim().toLowerCase() ?? "") : "";
   return `${measure}|${label}`;
@@ -131,7 +131,7 @@ export type ReportedDrop = AgreeableDrop & { authorityKey?: string };
  * a separate row, and folding every keyless drop into one would tell a reader
  * a pub holds fewer reports than it shows them.
  */
-export function reporterCount(drops: readonly ReportedDrop[]): number {
+function reporterCount(drops: readonly ReportedDrop[]): number {
   const keys = new Set<string>();
   let keyless = 0;
   for (const drop of drops) {

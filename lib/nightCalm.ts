@@ -26,7 +26,7 @@ export const NIGHT_CALM_VERSION = 1 as const;
  * Everything else the API returns (shoplifting, vehicle crime, burglary, drugs,
  * etc.) is deliberately excluded — it is not what a walk-home guardian speaks to.
  */
-export const NIGHT_RELEVANT_CATEGORIES = [
+const NIGHT_RELEVANT_CATEGORIES = [
   "anti-social-behaviour",
   "violent-crime",
   "robbery",
@@ -37,7 +37,7 @@ export const NIGHT_RELEVANT_CATEGORIES = [
 export const MIN_CALM_SAMPLE = 20;
 
 /** data.police.uk publishes ~2 months in arrears; this is the fallback target month. */
-export const POLICE_DATA_LAG_MONTHS = 2;
+const POLICE_DATA_LAG_MONTHS = 2;
 
 export type NightCalmBand = "settled" | "steady" | "aware";
 

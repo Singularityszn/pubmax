@@ -74,6 +74,6 @@ export async function getListedBuilding(
 }
 
 // Test-only: drop the in-memory cache between cases.
-export function __resetListedBuildingCache(): void {
+function __resetListedBuildingCache(): void {
   cache = null;
 }

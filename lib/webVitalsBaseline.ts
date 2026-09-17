@@ -40,7 +40,7 @@ import baselineJson from "@/perf/cwv-baseline.json";
 export const VITAL_METRICS = ["lcpMs", "inpMs", "cls"] as const;
 export type VitalMetric = (typeof VITAL_METRICS)[number];
 
-export const VITAL_METRIC_LABELS: Record<VitalMetric, string> = {
+const VITAL_METRIC_LABELS: Record<VitalMetric, string> = {
   lcpMs: "LCP (ms)",
   inpMs: "INP (ms)",
   cls: "CLS",
@@ -69,7 +69,7 @@ export const CORE_WEB_VITAL_TARGETS: Record<VitalMetric, number> = {
  * reached 3.17x one route's own median, so a tight fence here would be a fence
  * against the runner rather than against the code.
  */
-export const REGRESSION_TOLERANCE: Record<string, { pct: number; floor: number }> = {
+const REGRESSION_TOLERANCE: Record<string, { pct: number; floor: number }> = {
   lcpMs: { pct: 0.3, floor: 250 },
   inpMs: { pct: 0.5, floor: 80 },
   cls: { pct: 0.5, floor: 0.03 },
@@ -471,7 +471,7 @@ export function mergeProductTimings(
 }
 
 /** Round a vital for printing: milliseconds whole, CLS to three places. */
-export function formatVital(metric: VitalMetric, value: number): string {
+function formatVital(metric: VitalMetric, value: number): string {
   if (!Number.isFinite(value)) return "unmeasured";
   return metric === "cls" ? value.toFixed(3) : String(Math.round(value));
 }

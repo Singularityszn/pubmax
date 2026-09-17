@@ -43,7 +43,7 @@ export type MessageAttachmentKind = (typeof MESSAGE_ATTACHMENT_KINDS)[number];
 
 /** Sentence noun for reader-facing copy, so one wording serves every message. */
 export const MESSAGE_PHOTO_NOUN = "Photo";
-export const MESSAGE_PHOTO_NOUN_LOWER = "photo";
+const MESSAGE_PHOTO_NOUN_LOWER = "photo";
 
 /**
  * The frame a message photo is cut to. Portrait, because a phone photograph is,
@@ -52,7 +52,7 @@ export const MESSAGE_PHOTO_NOUN_LOWER = "photo";
  */
 export const MESSAGE_PHOTO_ASPECT_RATIO = 4 / 5;
 /** Longest edge of the stored JPEG. Portrait, so height is the max edge. */
-export const MESSAGE_PHOTO_MAX_EDGE = 2_048;
+const MESSAGE_PHOTO_MAX_EDGE = 2_048;
 export const MESSAGE_PHOTO_OUTPUT_HEIGHT = MESSAGE_PHOTO_MAX_EDGE;
 export const MESSAGE_PHOTO_OUTPUT_WIDTH = Math.round(
   MESSAGE_PHOTO_MAX_EDGE * MESSAGE_PHOTO_ASPECT_RATIO,
@@ -149,7 +149,7 @@ export function messageVenueMapUrl(venueId: string): string {
  * narrow on purpose: no slashes, nothing that needs escaping to be a URL
  * segment. Same alphabet the pub wall admits, for the same reason.
  */
-export const MESSAGE_VENUE_ID_MAX = 64;
+const MESSAGE_VENUE_ID_MAX = 64;
 const VENUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 
 export function isMessageVenueId(value: unknown): value is string {
@@ -209,8 +209,8 @@ export type MessageAttachmentRecord = {
  */
 export const MESSAGE_ATTACH_PHOTO_LABEL = "Add a photo";
 export const MESSAGE_ATTACH_VENUE_LABEL = "Share a pub";
-export const MESSAGE_ATTACH_PHOTO_SHORT = "Photo";
-export const MESSAGE_ATTACH_VENUE_SHORT = "Pub";
+const MESSAGE_ATTACH_PHOTO_SHORT = "Photo";
+const MESSAGE_ATTACH_VENUE_SHORT = "Pub";
 export const MESSAGE_VENUE_SEARCH_LABEL = "Search pubs";
 export const MESSAGE_VENUE_SEARCH_PLACEHOLDER = "Name a pub";
 

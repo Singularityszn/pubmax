@@ -14,10 +14,10 @@ import {
 } from "@/lib/nightProfileDeviceProvenance";
 
 export {
-  NIGHT_PROFILE_DEVICE_KEY,
+  
   type NightProfileDeviceSource,
 } from "@/lib/nightProfileDeviceProvenance";
-export const NIGHT_PROFILE_DEVICE_CHANGED_EVENT = "pubmax:night-profile-device-changed";
+const NIGHT_PROFILE_DEVICE_CHANGED_EVENT = "pubmax:night-profile-device-changed";
 
 type StoredNightProfileDraft = {
   version: typeof NIGHT_PROFILE_VERSION;
@@ -87,7 +87,7 @@ export function mirrorAccountNightProfileToDevice(
   return input;
 }
 
-export function clearDeviceNightProfile(storage = browserStorage()): void {
+function clearDeviceNightProfile(storage = browserStorage()): void {
   try {
     storage?.removeItem(NIGHT_PROFILE_DEVICE_KEY);
     if (typeof window !== "undefined" && storage === window.localStorage) {

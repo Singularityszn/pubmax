@@ -312,11 +312,11 @@ export async function resolveVenuePermalinkSlug(
 
 // A display label that never surfaces a raw id: the pub name, or a friendly
 // fallback for an id the dataset no longer carries.
-export async function venueLabel(id: string): Promise<string> {
+async function venueLabel(id: string): Promise<string> {
   return (await resolveVenue(id))?.name ?? unresolvedVenueLabel(id);
 }
 
-export { unresolvedVenueLabel } from "@/lib/cityVenueIds";
+;
 
 export function resetVenueIndexForTests(): void {
   if (

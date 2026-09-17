@@ -364,4 +364,4 @@ export async function requireVerifiedSocialActor(
   };
 }
 
-export { provisionSocialAccount, readDefaultDependencies };
+;

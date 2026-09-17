@@ -59,6 +59,6 @@ export function loadLandingHeroData(): Promise<LandingHeroData> {
 }
 
 /** The anchor card alone, for the share card and any surface that wants one pub. */
-export function loadLandingPubCard(): Promise<LandingPubCardData | null> {
+function loadLandingPubCard(): Promise<LandingPubCardData | null> {
   return loadLandingHeroData().then((hero) => hero.card);
 }

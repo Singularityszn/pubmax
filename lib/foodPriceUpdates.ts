@@ -22,7 +22,7 @@ export type FoodPriceUpdate = {
   observedAt: string;
 };
 
-export const FOOD_PRICE_UPDATE_PROVENANCE: Provenance = "sourced";
+const FOOD_PRICE_UPDATE_PROVENANCE: Provenance = "sourced";
 
 export type FoodPriceProvenance = {
   provenance: Provenance;
@@ -64,7 +64,7 @@ function isValidDietary(value: unknown): value is FoodDietary[] | undefined {
   return value.every((d) => typeof d === "string" && DIETARY_SET.has(d));
 }
 
-export function isValidFoodPriceUpdate(
+function isValidFoodPriceUpdate(
   value: unknown,
   now: number = Date.now(),
 ): value is FoodPriceUpdate {
@@ -108,7 +108,7 @@ function stableFoodId(update: FoodPriceUpdate): string {
   return `food-${(hash >>> 0).toString(36)}`;
 }
 
-export function foodFromPriceUpdate(update: FoodPriceUpdate): FoodItem {
+function foodFromPriceUpdate(update: FoodPriceUpdate): FoodItem {
   return {
     id: stableFoodId(update),
     name: update.itemName,

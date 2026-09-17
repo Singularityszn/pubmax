@@ -60,8 +60,8 @@ export type WetherspoonsDirectory = {
   pubs: WetherspoonsPub[];
 };
 
-export const WETHERSPOONS_DIRECTORY_URL = "/data/wetherspoons/pubs.json";
-export const WETHERSPOONS_GEOJSON_URL = "/data/wetherspoons/pubs.geojson";
+const WETHERSPOONS_DIRECTORY_URL = "/data/wetherspoons/pubs.json";
+const WETHERSPOONS_GEOJSON_URL = "/data/wetherspoons/pubs.geojson";
 
 export async function loadWetherspoonsDirectory(
   signal?: AbortSignal,

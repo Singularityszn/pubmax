@@ -6,7 +6,7 @@ export type BoroughBoundaryCollection = {
   features: Array<{ properties: { name: string }; geometry: Geometry }>;
 };
 
-export { LONDON_BOROUGH_CLASSIFIER_VERSION };
+;
 
 export type BoroughClassification = {
   code: string;

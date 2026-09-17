@@ -27,8 +27,8 @@ export function socialListedInSitemap(friendsLaunchEnabled = true): boolean {
   return friendsLaunchEnabled;
 }
 
-export const SOCIAL_LAUNCH_NAV_LABEL = "Social";
-export const SOCIAL_PREVIEW_NAV_LABEL = "Social preview";
+const SOCIAL_LAUNCH_NAV_LABEL = "Social";
+const SOCIAL_PREVIEW_NAV_LABEL = "Social preview";
 
 /** In-page headings, desktop nav and loading lines use the surface name. */
 export function socialSurfaceName(friendsLaunchEnabled = true): string {

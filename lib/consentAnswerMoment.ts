@@ -45,7 +45,7 @@ export const CONSENT_ANSWER_MOMENT_KEY = "pubmax:consent-answer-moment:v1";
 /** sessionStorage slot holding the first route this session painted. */
 export const CONSENT_FIRST_ROUTE_KEY = "pubmax:consent-first-route:v1";
 /** sessionStorage slot naming the route a shell entry rewrite is heading for. */
-export const CONSENT_ENTRY_REWRITE_KEY = "pubmax:consent-entry-rewrite:v1";
+const CONSENT_ENTRY_REWRITE_KEY = "pubmax:consent-entry-rewrite:v1";
 /** Same-tab notify, because a storage write raises no event on its own tab. */
 const CHANGE_EVENT = "pubmax:consent-answer-moment";
 

@@ -118,7 +118,7 @@ export type PintDropDTO = Omit<
 // CARRIES an authority key, and `toDTO` withholds that too: a per-venue key
 // published beside the same account's public drop would name the drinker as
 // surely as the handle would.
-export { ANON_HANDLE_LABEL };
+;
 
 // Moderator read shape. Same photo-URL swap, but a moderator must see the
 // evidence they are judging, so photos resolve even on hidden rows and the
@@ -372,7 +372,7 @@ function toRow(drop: PersistableDrop, capDay: string | null = null) {
  * confirmation is not evidence: the Pint Index cites `confirmationId`, and a
  * row that cannot say when or on what basis it was confirmed may not be cited.
  */
-export function confirmationFromRow(
+function confirmationFromRow(
   row: Record<string, unknown>,
 ): PintDropConfirmation | undefined {
   const confirmationId =
@@ -461,7 +461,7 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
 // drops read as null so a reported photo stops being served. Keys never reach
 // the client. Signed URLs expire (SIGNED_URL_TTL_SEC) so a previously-shared
 // public URL cannot keep working after takedown once the bucket is private.
-export const SIGNED_URL_TTL_SEC = 3600;
+const SIGNED_URL_TTL_SEC = 3600;
 
 /** Resolve one Storage object to a short-lived signed URL, or null when denied. */
 export async function resolveStorageUrl(
@@ -481,7 +481,7 @@ export async function resolveStorageUrl(
 }
 
 /** Resolve many Storage keys to signed URLs in one (or few) Storage API calls. */
-export async function resolveStorageUrlsBatch(
+async function resolveStorageUrlsBatch(
   keys: readonly (string | null | undefined)[],
 ): Promise<Map<string, string>> {
   const unique = [...new Set(keys.filter((k): k is string => typeof k === "string" && k.length > 0))];
@@ -506,7 +506,7 @@ export async function resolveStorageUrlsBatch(
   return out;
 }
 
-export async function resolveDropPhotoUrls(
+async function resolveDropPhotoUrls(
   drop: PersistableDrop,
   grant: boolean,
   urlByKey?: Map<string, string>,
@@ -537,7 +537,7 @@ export async function toDTOWithPhotos(
 }
 
 /** Moderator DTO with signed photo URLs (evidence must resolve for review). */
-export async function toModeratorDTOWithPhotos(
+async function toModeratorDTOWithPhotos(
   drop: PersistableDrop,
   urlByKey?: Map<string, string>,
 ): Promise<ModeratorDrop> {

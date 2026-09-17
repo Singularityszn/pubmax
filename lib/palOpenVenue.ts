@@ -24,7 +24,7 @@ export function palKnownVenueIds(slim: readonly SlimVenue[]): ReadonlySet<string
 }
 
 /** Map browse link with no `?sel=` — the unmatched fallback lands here. */
-export function palMapBrowseHref(cityId: CityId | null = DEFAULT_CITY_ID): string {
+function palMapBrowseHref(cityId: CityId | null = DEFAULT_CITY_ID): string {
   return cityAwareMapPath(
     cityId ?? DEFAULT_CITY_ID,
     `${MAP_SELECTION_NOTICE_PARAM}=unknown`,

@@ -30,7 +30,7 @@ import {
 } from "@/lib/webPushSubscription";
 
 /** Bundle id (apns-topic) for the Capacitor shell — see docs/CAPACITOR_WRAP.md. */
-export const APNS_BUNDLE_ID = "com.pubmaxx.app";
+const APNS_BUNDLE_ID = "com.pubmaxx.app";
 
 type ApnsEnvironment = "sandbox" | "production";
 
@@ -77,7 +77,7 @@ export function isApnsConfigured(): boolean {
 }
 
 /** Distinguish an empty local setup from a broken partial production setup. */
-export function isApnsConfigurationPresent(): boolean {
+function isApnsConfigurationPresent(): boolean {
   return Boolean(
     process.env.APNS_KEY_ID
       || process.env.APNS_TEAM_ID
@@ -510,7 +510,7 @@ export function createWebPushProvider(deps: WebPushProviderDeps = {}): PushProvi
   };
 }
 
-export const webPushProvider: PushProvider = createWebPushProvider();
+const webPushProvider: PushProvider = createWebPushProvider();
 
 /** Select one transport from stored registration platform. This is the routing
  * authority for current fan-out and prevents Android tokens reaching APNs. */

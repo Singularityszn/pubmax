@@ -208,7 +208,7 @@ export function looksLikeHtmlDocument(body: string): boolean {
  * file that grant permission: an empty one, one that names only its Sitemap, and
  * one that is comments to the last line.
  */
-export function looksLikeRulesFile(body: string): boolean {
+function looksLikeRulesFile(body: string): boolean {
   for (const raw of body.split(/\r?\n/)) {
     const line = raw.split("#")[0].trim();
     if (line.length === 0) continue;

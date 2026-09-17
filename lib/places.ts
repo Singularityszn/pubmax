@@ -35,7 +35,7 @@ import {
 } from "@/lib/ukNationalBrowse";
 
 export { PLACES_PATH };
-export const PLACES_CITY_PARAM = "city";
+const PLACES_CITY_PARAM = "city";
 
 /** Kicker above the heading, per the shell's kicker-then-heading rhythm. */
 export const PLACES_KICKER = "Places";
@@ -65,7 +65,7 @@ export const PLACES_CURRENT_CITY_LABEL = "This is your city.";
 
 export const PLACES_BACK_LABEL = "All cities";
 export const PLACES_AREAS_KICKER = "Inside the city";
-export const PLACES_TONIGHT_KICKER = "Tonight";
+const PLACES_TONIGHT_KICKER = "Tonight";
 
 /**
  * The short mark on a city row.

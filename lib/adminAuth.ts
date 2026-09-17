@@ -12,7 +12,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 // wide open.
 
 export const ADMIN_SESSION_COOKIE = "pubmax_admin_session";
-export const SOCIAL_MODERATOR_STAFF_ROLE_ID_ENV = "SOCIAL_MODERATOR_STAFF_ROLE_ID";
+const SOCIAL_MODERATOR_STAFF_ROLE_ID_ENV = "SOCIAL_MODERATOR_STAFF_ROLE_ID";
 
 // 24h — long enough for a moderation shift, short enough to limit stolen-cookie
 // exposure. Refreshed on each successful POST /api/admin/session.

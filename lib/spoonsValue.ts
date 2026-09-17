@@ -674,8 +674,8 @@ export function applySpoonsValueCut(
  * own `spoonsBucket` property, never `bucket`, so no reader is ever told a green
  * pin means a cheap pint here.
  */
-export const SPOONS_VALUE_LENS_PARAM = "lens";
-export const SPOONS_VALUE_LENS_VALUE = "spoons";
+const SPOONS_VALUE_LENS_PARAM = "lens";
+const SPOONS_VALUE_LENS_VALUE = "spoons";
 
 /** Whether an arrival asked for the units lens. */
 export function spoonsValueLensRequested(search: string): boolean {

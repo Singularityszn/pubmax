@@ -105,13 +105,13 @@ const TIMETABLE_CACHE_TTL_MS = 6 * 60 * 60_000;
 // This is an upstream-response budget, not an end-to-end SLO: local response
 // work and the rate limiter still sit outside it. A timeout returns only known
 // station context and the unavailable decision, never a guessed departure.
-export const LAST_TRAIN_ROUTE_BUDGET_MS = 1_800;
+const LAST_TRAIN_ROUTE_BUDGET_MS = 1_800;
 
 // A shared producer may outlive its first request so a later request can reuse
 // it. Keep that orphan work finite: three seconds gives the latency test's
 // two-second producer time to help a second waiter, while avoiding the default
 // nine-second read plus retry (up to eighteen seconds without a waiter).
-export const LAST_TRAIN_SHARED_PRODUCER_TIMEOUT_MS = 3_000;
+const LAST_TRAIN_SHARED_PRODUCER_TIMEOUT_MS = 3_000;
 
 function runSharedProducer<T>(
   load: (signal: AbortSignal) => Promise<T>,

@@ -74,7 +74,7 @@ async function fetchJson(url: string): Promise<unknown> {
  * the ~2-month-lag estimate when the endpoint is unreachable. This is how we
  * "handle the lag" without hard-coding a month that silently goes stale.
  */
-export async function resolveCrimeMonth(now: Date = new Date()): Promise<string> {
+async function resolveCrimeMonth(now: Date = new Date()): Promise<string> {
   try {
     const month = crimeMonthFromLastUpdated(await fetchJson(`${POLICE_API_BASE}/crime-last-updated`));
     if (month) return month;

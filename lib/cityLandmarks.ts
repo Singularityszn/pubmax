@@ -45,7 +45,7 @@ export function landmarksForCity(
 }
 
 /** Look up a landmark within a city's catalog (shareable chapter pages, deep links). */
-export function landmarkByIdForCity(
+function landmarkByIdForCity(
   cityId: CityId | string | null | undefined,
   landmarkId: string | null | undefined,
 ): Landmark | undefined {

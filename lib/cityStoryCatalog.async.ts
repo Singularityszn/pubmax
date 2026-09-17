@@ -98,7 +98,7 @@ export async function storyBandsForCityAsync(
   }
 }
 
-export async function bandByIdForCityAsync(
+async function bandByIdForCityAsync(
   cityId: CityId | string | null | undefined,
   bandId: string | null | undefined,
 ): Promise<StoryBand | undefined> {

@@ -474,7 +474,7 @@ function recordEdgeResult(data: unknown): RecordEdgeResult {
   return { ok: false, reason: "storage" };
 }
 
-export const supabaseReferralStore: ReferralStore = {
+const supabaseReferralStore: ReferralStore = {
   async getOrCreateInviteCode(inviterUserId, now = Date.now()) {
     return guard({
       context: "invite-code",

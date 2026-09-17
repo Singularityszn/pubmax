@@ -29,7 +29,7 @@ import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 /** One pub, resolved. Null when the index does not know it or could not answer. */
-export async function resolveMessageVenueCard(
+async function resolveMessageVenueCard(
   venueId: string,
 ): Promise<MessageVenueCard | null> {
   if (!isMessageVenueId(venueId)) return null;

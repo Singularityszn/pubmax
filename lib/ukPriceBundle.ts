@@ -39,8 +39,8 @@ import {
 export const UK_PRICE_BUNDLE_VERSION = 1;
 
 /** Where the bundle lives, and the one path a reader opens. */
-export const UK_PRICE_BUNDLE_MANIFEST_PATH = "/data/uk_prices/manifest.json";
-export const UK_PRICE_BUNDLE_ROWS_PATH = "/data/uk_prices/rows.json";
+const UK_PRICE_BUNDLE_MANIFEST_PATH = "/data/uk_prices/manifest.json";
+const UK_PRICE_BUNDLE_ROWS_PATH = "/data/uk_prices/rows.json";
 
 /**
  * Which lane a row came down. This is PROVENANCE, not authority: the standing

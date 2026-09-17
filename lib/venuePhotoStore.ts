@@ -181,7 +181,7 @@ function boundedLimit(limit: number | undefined): number {
 // Supabase.
 const byId = new Map<string, VenuePhoto>();
 
-export const memoryVenuePhotoStore: VenuePhotoStore = {
+const memoryVenuePhotoStore: VenuePhotoStore = {
   async create(fields, now = Date.now()) {
     const photo: VenuePhoto = {
       ...fields,
@@ -326,7 +326,7 @@ function fromRow(row: Record<string, unknown>): VenuePhoto {
   };
 }
 
-export const supabaseVenuePhotoStore: VenuePhotoStore = {
+const supabaseVenuePhotoStore: VenuePhotoStore = {
   async create(fields, now = Date.now()) {
     const photo: VenuePhoto = {
       ...fields,
@@ -555,7 +555,7 @@ export function venuePhotoStore(): VenuePhotoStore {
   return selectStore(memoryVenuePhotoStore, supabaseVenuePhotoStore);
 }
 
-export const isVenuePhotoSchemaMiss = isSchemaMiss;
+const isVenuePhotoSchemaMiss = isSchemaMiss;
 
 /** The captain's number, re-exported so a caller reads one constant. */
 export { VENUE_PHOTO_CAP_PER_ACCOUNT };

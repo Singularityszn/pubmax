@@ -32,7 +32,7 @@ import { WEEKDAY_NAMES } from "@/lib/harvest/chainDeals";
 import type { WhatsOnKind } from "@/lib/whatsOn";
 
 /** How far ahead a dateless-year listing may be resolved. */
-export const EVENT_FORWARD_HORIZON_DAYS = 400;
+const EVENT_FORWARD_HORIZON_DAYS = 400;
 
 /**
  * Words that name one of our kinds without ambiguity. Order matters: the first
