@@ -27,7 +27,14 @@ export async function GET(
   ) {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
-  const id = decodeURIComponent(rawId);
+  // NOT decoded again. Next already URL-decodes an App Router dynamic param, so
+  // a second decodeURIComponent threw `URIError: URI malformed` on a path
+  // carrying `%25` (which arrives here as a literal `%`), escaping the
+  // publicApiError envelope entirely and answering a bodyless 500 on a public
+  // route - after the rate-limit budget was already spent. It also mangled any
+  // legitimate id holding a literal `%`. The id is validated by shape below,
+  // which is what turns a crafted param into the documented 400.
+  const id = rawId;
   if (!isUkBaseId(id)) {
     return publicApiError("Not a UK base pub id.", "INVALID_REQUEST", 400);
   }
