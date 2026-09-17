@@ -172,6 +172,25 @@
   --price-band-average-ink: color-mix(in srgb, var(--amber) 45%, var(--ink));
   --price-band-expensive-ink: color-mix(in srgb, var(--brick) 85%, var(--ink));
 
+  /* A HUE IS NEVER TEXT ON A TINT OF ITSELF. A source badge, an era chip and a
+     provenance stamp each print the hue they mean as a word on a 7 to 20 per
+     cent tint of that same hue, which measures 2.1:1 to 4.4:1 in light and
+     4.4:1 in dark. That is the defect --fit-ink and --plan-stamp-ink already
+     fix locally in app/plan/plan.css; these are the same derivation promoted to
+     the token layer, one per semantic hue, so a new badge reads a token instead
+     of inventing a percentage. The paired SURFACE keeps whatever tint it chose:
+     only the ink moves. Each clears 4.5:1 over the worst pair in the tree (a
+     20 per cent tint on the recessed panel in light, on the overlay in dark) in
+     both themes, measured in __tests__/accentInkContrast.test.ts, which also
+     sweeps every stylesheet for a hue put back on a tint of itself. They are
+     NOT the price-band inks: a price wears its band and no other colour, so a
+     chain badge or a heritage chip may not borrow one. */
+  --tint-ink-accent: color-mix(in srgb, var(--brass) 50%, var(--ink));
+  --tint-ink-positive: color-mix(in srgb, var(--pint) 50%, var(--ink));
+  --tint-ink-caution: color-mix(in srgb, var(--amber) 42%, var(--ink));
+  --tint-ink-negative: color-mix(in srgb, var(--brick) 75%, var(--ink));
+  --tint-ink-info: color-mix(in srgb, var(--river) 70%, var(--ink));
+
   /* Active / selected — a low-chroma accent tint + accent hairline. "You are
      here" should whisper; only the CTA fill shouts. */
   --state-active-surface: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));

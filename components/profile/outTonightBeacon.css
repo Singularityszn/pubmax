@@ -163,7 +163,7 @@
   border: 1px solid var(--line);
   font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--brass);
+  color: var(--color-accent-ink);
 }
 
 .beaconBoardCopy {

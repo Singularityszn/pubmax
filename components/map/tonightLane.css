@@ -227,7 +227,7 @@
 
 .tonightLaneOverlayToggle[data-active="true"] {
   background: color-mix(in srgb, var(--amber) 20%, var(--panel-raised));
-  color: color-mix(in srgb, var(--amber) 58%, var(--ink));
+  color: var(--tint-ink-caution);
 }
 
 .tonightLaneOverlayCount {
@@ -343,7 +343,7 @@
 .tonightLaneChip[data-active="true"] {
   background: color-mix(in srgb, var(--amber) 20%, var(--panel-raised));
   border-color: color-mix(in srgb, var(--amber) 55%, var(--line));
-  color: color-mix(in srgb, var(--amber) 60%, var(--ink));
+  color: var(--tint-ink-caution);
 }
 
 .tonightLaneChipCount {

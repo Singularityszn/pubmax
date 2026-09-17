@@ -79,7 +79,7 @@
   margin-top: 1px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--brass);
+  color: var(--tint-ink-accent);
 }
 
 .todayCardEyebrow {

@@ -207,7 +207,7 @@
   border: 1px solid color-mix(in srgb, var(--brass) 30%, transparent);
   font-size: 0.72rem;
   font-weight: 700;
-  color: var(--color-accent-ink);
+  color: var(--tint-ink-accent);
 }
 
 .historicGrade {
@@ -220,11 +220,7 @@
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: var(--river);
-}
-
-html:not([data-theme="dark"]) .historicGrade {
-  color: #2459c4;
+  color: var(--tint-ink-info);
 }
 
 .historicCardName {

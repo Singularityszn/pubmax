@@ -66,7 +66,7 @@
   border-radius: 50%;
   border: 1px solid color-mix(in srgb, var(--brass) 30%, var(--line));
   background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
-  color: var(--brass);
+  color: var(--tint-ink-accent);
   font-weight: 700;
 }
 

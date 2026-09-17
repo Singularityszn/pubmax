@@ -324,7 +324,7 @@
   border: 1px solid color-mix(in srgb, var(--brass) 50%, var(--line));
   border-radius: 8px;
   background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
-  color: var(--brass);
+  color: var(--tint-ink-accent);
   font-family: var(--font-data, var(--font-body));
   font-weight: 800;
   font-size: 13px;

@@ -865,7 +865,7 @@ html[data-theme="dark"] .messageBubbleTheirs {
 
 .composerAttach[aria-pressed="true"] {
   background: color-mix(in srgb, var(--brass) 16%, var(--panel));
-  color: var(--brass);
+  color: var(--tint-ink-accent);
 }
 
 .composerAttach:disabled {

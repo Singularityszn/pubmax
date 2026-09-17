@@ -122,6 +122,15 @@ html[data-theme="dark"] {
   --price-band-cheap-ink: color-mix(in srgb, var(--pint) 85%, var(--ink));
   --price-band-average-ink: color-mix(in srgb, var(--amber) 85%, var(--ink));
   --price-band-expensive-ink: color-mix(in srgb, var(--brick) 85%, var(--ink));
+  /* A hue on a tint of itself (globals.css owns the rationale). Dark lifts the
+     hue TOWARD the pale ink instead of deepening it, because the tint it sits
+     on is a near-black surface. The shares differ per hue because the dark
+     palette is already muted for three of them and full-chroma for amber. */
+  --tint-ink-accent: color-mix(in srgb, var(--brass) 65%, var(--ink));
+  --tint-ink-positive: color-mix(in srgb, var(--pint) 75%, var(--ink));
+  --tint-ink-caution: color-mix(in srgb, var(--amber) 85%, var(--ink));
+  --tint-ink-negative: color-mix(in srgb, var(--brick) 65%, var(--ink));
+  --tint-ink-info: color-mix(in srgb, var(--river) 75%, var(--ink));
   /* Structural edge (section / toolbar boundaries) — one clear step brighter
      than --hairline, anchored on it so the two track together. */
   --hairline-strong: color-mix(in srgb, var(--hairline) 58%, var(--ink-soft) 42%);

@@ -618,7 +618,7 @@
   height: 34px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--brass);
+  color: var(--tint-ink-accent);
 }
 
 .tonightSoftPlansLabel {
@@ -697,7 +697,7 @@
   height: 34px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--brass);
+  color: var(--tint-ink-accent);
 }
 
 .tonightQuietBody {

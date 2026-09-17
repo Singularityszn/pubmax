@@ -829,7 +829,7 @@
 .planIntake__actions > div { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 
 .planIntake--complete { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 14px; }
-.planIntake__completeMark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--color-positive) 15%, var(--panel)); color: var(--color-positive); }
+.planIntake__completeMark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--color-positive) 15%, var(--panel)); color: var(--tint-ink-positive); }
 .planIntake__summaryBody { min-width: 0; }
 .planIntake__summaryBody h2 { font-size: clamp(1.3rem, 3vw, 2rem); line-height: 1.05; overflow-wrap: anywhere; }
 .planIntake__summaryBody > p:last-of-type { margin: 8px 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.4; }

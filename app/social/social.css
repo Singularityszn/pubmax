@@ -214,7 +214,7 @@
   padding: 4px 8px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--river) 12%, var(--panel-raised));
-  color: var(--river);
+  color: var(--tint-ink-info);
   font-size: 0.75rem;
   font-weight: 800;
 }
