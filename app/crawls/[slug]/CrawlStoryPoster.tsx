@@ -124,9 +124,9 @@ export default function CrawlStoryPoster({ story, slug }: { story: DurableStory;
                 {index + 1}
               </span>
               <div className={styles.storyStopBody}>
-                <a className={styles.storyStopName} href={stop.venueMapUrl}>
+                <Link prefetch={false} className={styles.storyStopName} href={stop.venueMapUrl}>
                   {stop.venueName}
-                </a>
+                </Link>
                 {stop.note ? <p className={styles.storyStopNote}>{stop.note}</p> : null}
               </div>
               <span className={styles.storyStopPrice}>
