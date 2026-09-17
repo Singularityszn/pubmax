@@ -240,23 +240,23 @@ describe("drink chip styling ships with the component", () => {
   );
 
   it("imports the chip stylesheet directly (not only via MapToolbar)", () => {
-    expect(component).toMatch(/import\s+"\.\/mapToolbar\.css"/);
+    expect(component).toMatch(/import\s+"\.\/mapToolbar\.module\.css"/);
   });
 
   it("keeps selected-state rules for subtype and top-shelf chips in that stylesheet", () => {
-    expect(css).toMatch(/\.drinkShapeChip\.isOn/);
-    expect(css).toMatch(/\.drinkSubtypeChip\.isOn/);
-    expect(css).toMatch(/\.drinkSubtypeChip\.isTopShelf\.isOn/);
+    expect(css).toMatch(/\.drinkShapeChip\.isOn\)/);
+    expect(css).toMatch(/\.drinkSubtypeChip\.isOn\)/);
+    expect(css).toMatch(/\.drinkSubtypeChip\.isTopShelf\.isOn\)/);
   });
 
   it("keeps the category strip de-boxed at rest (no resting border)", () => {
-    const chip = /\.drinkShapeChip\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    const chip = /:global\(\.drinkShapeChip\)\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
     expect(chip).toMatch(/border:\s*0/);
     expect(chip).toMatch(/background:\s*transparent/);
   });
 
   it("selected category chips use panel-raised and ink, never a coral CTA fill", () => {
-    const selected = /\.drinkShapeChip\.isOn\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    const selected = /:global\(\.drinkShapeChip\.isOn\)\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
     const background = /background:\s*([^;]+);/.exec(selected)?.[1] ?? "";
     expect(background).toBe("var(--panel-raised)");
     expect(selected).toMatch(/color:\s*var\(--ink\)/);
@@ -266,32 +266,32 @@ describe("drink chip styling ships with the component", () => {
   });
 
   it("edge-fades the horizontal chip strips and clears the mask in the filter grid", () => {
-    const strip = /\.drinkShapeChips\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    const strip = /:global\(\.drinkShapeChips\)\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
     expect(strip).toMatch(/mask-image:\s*linear-gradient/);
     expect(strip).toMatch(/-webkit-mask-image:\s*linear-gradient/);
     expect(css).toMatch(
-      /\.mobileMapFilters\s+\.drinkShapeChips\s*\{[^}]*mask-image:\s*none/,
+      /:global\(\.mobileMapFilters\) :global\(\.drinkShapeChips\)\s*\{[^}]*mask-image:\s*none/,
     );
   });
 
   it("keeps the 44px phone tap target and gates chip motion behind reduced-motion", () => {
     expect(css).toMatch(
-      /@media\s*\(max-width:\s*640px\)\s*\{[\s\S]*?\.drinkShapeChip\s*\{[^}]*min-height:\s*44px/,
+      /@media\s*\(max-width:\s*640px\)\s*\{[\s\S]*?:global\(\.drinkShapeChip\)\s*\{[^}]*min-height:\s*44px/,
     );
     expect(css).toMatch(
-      /@media\s*\(prefers-reduced-motion:\s*no-preference\)\s*\{[\s\S]*?\.drinkShapeChip\s*\{[^}]*transition:/,
+      /@media\s*\(prefers-reduced-motion:\s*no-preference\)\s*\{[\s\S]*?:global\(\.drinkShapeChip\)\s*\{[^}]*transition:/,
     );
     expect(css).toMatch(
-      /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?\.drinkShapeChip/,
+      /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?:global\(\.drinkShapeChip\)/,
     );
   });
 
   it("keeps dark-mode selected and label rules so outing glyphs stay readable", () => {
     expect(css).toMatch(
-      /html\[data-theme="dark"\]\s+\.drinkShapeChip\.isOn\s*\{[^}]*color:\s*var\(--ink\)/,
+      /:global\(html\[data-theme="dark"\]\) :global\(\.drinkShapeChip\.isOn\)\s*\{[^}]*color:\s*var\(--ink\)/,
     );
     expect(css).toMatch(
-      /html\[data-theme="dark"\]\s+\.drinkShapeChip\s*\{[^}]*color:\s*var\(--ink-soft\)/,
+      /:global\(html\[data-theme="dark"\]\) :global\(\.drinkShapeChip\)\s*\{[^}]*color:\s*var\(--ink-soft\)/,
     );
   });
 });

@@ -104,7 +104,7 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
 
   it("renders no Social link and exactly one Plan link in the primary row", async () => {
     const markup = await renderSiteNav();
-    const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
+    const row = markup.match(/<ul class="[^"]*siteNavLinks[^"]*">[\s\S]*?<\/ul>/)?.[0] ?? "";
     expect(row).not.toContain('href="/social"');
     expect(row.match(/href="\/plan"/g)).toHaveLength(1);
   });

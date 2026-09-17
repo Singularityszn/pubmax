@@ -17,10 +17,10 @@ describe("map surface alignment", () => {
       /--desktop-map-surface-width:\s*min\(1240px,\s*calc\(100vw - 32px\)\)/,
     );
     expect(toolbarCss).toMatch(
-      /\.mapToolbar\s*{[\s\S]*?width:\s*var\(--desktop-map-surface-width\)/,
+      /:global\(\.mapToolbar\)\s*{[\s\S]*?width:\s*var\(--desktop-map-surface-width\)/,
     );
     expect(siteNavCss).toMatch(
-      /\.siteNavBarFloating\s*{[\s\S]*?width:\s*var\(--desktop-map-surface-width\)/,
+      /:global\(\.siteNavBarFloating\)\s*{[\s\S]*?width:\s*var\(--desktop-map-surface-width\)/,
     );
     // The venue-type chips no longer claim a surface of their own: they are
     // content inside the toolbar's Filters popover, which is anchored to its
@@ -39,7 +39,7 @@ describe("map surface alignment", () => {
       /\.mobileMapChrome\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left\)[\s\S]*?right:\s*var\(--mobile-map-stack-right\)/,
     );
     expect(mobileCss).toMatch(
-      /\.mobilePlanActivation\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left\)[\s\S]*?right:\s*var\(--mobile-map-stack-right\)/,
+      /:global\(\.mobilePlanActivation\)\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left\)[\s\S]*?right:\s*var\(--mobile-map-stack-right\)/,
     );
     expect(mobileCss).toMatch(
       /\.mobileMapNearMeAlert\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left\)[\s\S]*?right:\s*var\(--mobile-map-stack-right\)/,
@@ -63,7 +63,7 @@ describe("map surface alignment", () => {
 
   it("does not leak mobile-only controls into desktop layout", () => {
     expect(mobileCss).toMatch(
-      /@media \(min-width: 641px\)\s*{[\s\S]*?\.mobileMapUtilityCorner,[\s\S]*?\.mobilePlanActivation[\s\S]*?display:\s*none/,
+      /@media \(min-width: 641px\)\s*{[\s\S]*?:global\(\.mobileMapUtilityCorner\),[\s\S]*?:global\(\.mobilePlanActivation\)[\s\S]*?display:\s*none/,
     );
   });
 });

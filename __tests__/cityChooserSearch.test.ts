@@ -41,7 +41,7 @@ function cityLinkMarkup(markup: string, cityId: CityId): string {
   const href = cityMapShareUrl(cityId).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return markup.match(
     new RegExp(
-      `<a(?=[^>]*href="${href}")(?=[^>]*class="cityChooserLink")[^>]*>([\\s\\S]*?)</a>`,
+      `<a(?=[^>]*href="${href}")(?=[^>]*class="[^"]*cityChooserLink[^"]*")[^>]*>([\\s\\S]*?)</a>`,
     ),
   )?.[1] ?? "";
 }
@@ -201,12 +201,12 @@ describe("city chooser release labels", () => {
   it("labels only Llandudno as Preview, once", () => {
     const markup = renderToStaticMarkup(createElement(CityChooser));
     const previewBadges = markup.match(
-      /class="cityChooserReleaseBadge"[^>]*>Preview<\/span>/g,
+      /class="[^"]*cityChooserReleaseBadge[^"]*"[^>]*>Preview<\/span>/g,
     ) ?? [];
 
     expect(previewBadges).toHaveLength(1);
-    expect(cityLinkMarkup(markup, "llandudno")).toContain(
-      'class="cityChooserReleaseBadge">Preview</span>',
+    expect(cityLinkMarkup(markup, "llandudno")).toMatch(
+      /class="[^"]*cityChooserReleaseBadge[^"]*">Preview<\/span>/,
     );
     for (const cityId of V1_CITY_IDS) {
       expect(cityLinkMarkup(markup, cityId)).not.toContain(">Preview<");

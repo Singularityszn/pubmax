@@ -38,7 +38,7 @@ describe("sheet material", () => {
       /:global\(\.mapDrawer\)\s*{[^}]*background:\s*var\(--sheet-material\);[^}]*backdrop-filter:\s*blur\(20px\) saturate\(1\.08\)/,
     );
     expect(mobileCss).toMatch(
-      /\.mobileSharedSheet\.mapDrawer\s*{[^}]*background:\s*var\(--sheet-material\);[^}]*backdrop-filter:\s*blur\(20px\) saturate\(1\.08\);[^}]*contain:\s*layout paint/,
+      /\.mobileSharedSheet:global\(\.mapDrawer\)\s*{[^}]*background:\s*var\(--sheet-material\);[^}]*backdrop-filter:\s*blur\(20px\) saturate\(1\.08\);[^}]*contain:\s*layout paint/,
     );
   });
 
@@ -47,7 +47,7 @@ describe("sheet material", () => {
       /@media \(prefers-reduced-transparency: reduce\), \(prefers-contrast: more\)\s*{[\s\S]*?:global\(\.mapDrawer\)\s*{[^}]*background:\s*var\(--sheet-material-solid\);[^}]*backdrop-filter:\s*none/,
     );
     expect(mobileCss).toMatch(
-      /@media \(max-width: 640px\) and \(prefers-reduced-transparency: reduce\)\s*{[\s\S]*?\.mobileSharedSheet\.mapDrawer\s*{[^}]*background:\s*var\(--sheet-material-solid\);[^}]*backdrop-filter:\s*none/,
+      /@media \(max-width: 640px\) and \(prefers-reduced-transparency: reduce\)\s*{[\s\S]*?\.mobileSharedSheet:global\(\.mapDrawer\)\s*{[^}]*background:\s*var\(--sheet-material-solid\);[^}]*backdrop-filter:\s*none/,
     );
   });
 });
@@ -140,7 +140,7 @@ describe("surface and type hierarchy", () => {
       /\.mobileSharedSheetHeader h2\s*{[^}]*font-size:\s*clamp\([^;]+;[^}]*font-weight:\s*720/,
     );
     expect(mobileCss).toMatch(
-      /\.mobileVenuePeekSummary\s*{[^}]*border-inline:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent/,
+      /:global\(\.mobileVenuePeekSummary\)\s*{[^}]*border-inline:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent/,
     );
     expect(venueCss).toMatch(
       /\.venueTabPanel :global\(\.contributorPrice\)\s*{[^}]*border-inline:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none/,
@@ -178,10 +178,10 @@ describe("pointer-down feedback", () => {
       /button,[\s\S]*?a\[data-pressable\],[\s\S]*?\.pressable\s*{[^}]*touch-action:\s*manipulation/,
     );
     expect(venueCss).toMatch(
-      /\.venueSheetGrabZone:active \.venueSheetGrab,[\s\S]*?\.sheet-dragging \.venueSheetGrab\s*{[^}]*background:/,
+      /\.venueSheetGrabZone:active \.venueSheetGrab,[\s\S]*?\.sheet-dragging\) \.venueSheetGrab\s*{[^}]*background:/,
     );
     expect(mobileCss).toMatch(
-      /\.mobileSharedSheetDetent:active \.mobileSharedSheetGrab,[\s\S]*?\.sheet-dragging \.mobileSharedSheetGrab\s*{[^}]*background:/,
+      /\.mobileSharedSheetDetent:active \.mobileSharedSheetGrab,[\s\S]*?\.sheet-dragging\) \.mobileSharedSheetGrab\s*{[^}]*background:/,
     );
   });
 

@@ -41,9 +41,9 @@ function rule(css: string, selector: string): string {
 describe("phone map compass — a control, not a box", () => {
   const appCompass = rule(
     mobileMapCss,
-    ".appShell .mapStage .mapCameraControls .mapCompassBtn",
+    ":global(.appShell .mapStage .mapCameraControls .mapCompassBtn)",
   );
-  const nativeGroup = rule(mobileMapCss, ".appShell .mapStage .maplibregl-ctrl-top-right");
+  const nativeGroup = rule(mobileMapCss, ":global(.appShell .mapStage .maplibregl-ctrl-top-right)");
 
   it("wears the round 44px shape the rest of the lane uses", () => {
     expect(appCompass).toMatch(/border-radius:\s*50%/);
@@ -74,13 +74,13 @@ describe("wide-screen camera chips — reachable, not under the toolbar", () => 
   // the compass. Survivable while that row was the route-only Recenter chip;
   // not survivable now the compass is always there.
   it("lays the chips out as a row on a wide screen", () => {
-    const row = rule(cameraControlsCss, ".mapCameraControls");
+    const row = rule(cameraControlsCss, ":global(.mapCameraControls)");
     expect(row).toMatch(/grid-auto-flow:\s*column/);
     expect(cameraControlsCss).toMatch(/@media \(min-width:\s*901px\)/);
   });
 
   it("is loaded by the canvas that draws the chips", () => {
-    expect(canvasSource).toContain('import "./map/mapCameraControls.css"');
+    expect(canvasSource).toContain('import "./map/mapCameraControls.module.css"');
   });
 
   // A 44px circle in the phone's map-edge lane cannot hold a word: it wrapped
@@ -89,7 +89,7 @@ describe("wide-screen camera chips — reachable, not under the toolbar", () => 
     expect(canvasSource).toContain('className="mapCompassBtnLabel"');
     expect(canvasSource).toMatch(/aria-label=\{compassResetLabel\(/);
     expect(
-      rule(mobileMapCss, ".appShell .mapStage .mapCameraControls .mapCompassBtn .mapCompassBtnLabel"),
+      rule(mobileMapCss, ":global(.appShell .mapStage .mapCameraControls .mapCompassBtn .mapCompassBtnLabel)"),
     ).toMatch(/display:\s*none/);
   });
 });

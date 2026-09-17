@@ -77,7 +77,7 @@ function render(withCard = true): string {
 }
 
 function hero(rendered: string): string {
-  const match = rendered.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0];
+  const match = rendered.match(/<section class="screen [^"]*lpHero[^"]*"[\s\S]*?<\/section>/)?.[0];
   expect(match, "landing hero present").toBeTruthy();
   return match ?? "";
 }
@@ -118,7 +118,7 @@ describe("landing hierarchy: the price receipt door", () => {
 
   it("asks for location only from the one primary, never the footer", () => {
     for (const rendered of [render(false), render()]) {
-      const footerNav = rendered.match(/<nav class="lpFooterNav"[^>]*>[\s\S]*?<\/nav>/)?.[0];
+      const footerNav = rendered.match(/<nav class="[^"]*lpFooterNav[^"]*"[^>]*>[\s\S]*?<\/nav>/)?.[0];
       expect(footerNav, "footer nav present").toBeTruthy();
       expect(footerNav).toMatch(/href="\/near"/);
       expect(footerNav).not.toMatch(/locate=1/);
@@ -149,7 +149,7 @@ describe("landing hierarchy: the price receipt door", () => {
     // counts the painted anchors against; the two cannot disagree about how
     // many doors the hero carries (#1503).
     expect(quietDoors.slice(1)).toEqual(LANDING_QUIET_DOORS.map((door) => [door.href, door.label]));
-    const textLinks = [...rendered.matchAll(/<a[^>]*class="lpTextLink"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1]);
+    const textLinks = [...rendered.matchAll(/<a[^>]*class="[^"]*lpTextLink[^"]*"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1]);
     expect(textLinks).toEqual(["Open the map"]);
   });
 
@@ -157,9 +157,9 @@ describe("landing hierarchy: the price receipt door", () => {
     // The landing bar hides its link list under 960px and the six-tab dock
     // carried Now rather than Tonight, so before #1488 the only rendered
     // /tonight link on `/` sat in the footer, thousands of pixels down.
-    const hero = render().match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
+    const hero = render().match(/<section class="screen [^"]*lpHero[^"]*"[\s\S]*?<\/section>/)?.[0] ?? "";
     expect(hero).toMatch(/href="\/tonight"/);
-    expect(hero).toMatch(/class="lpTonightDoor"/);
+    expect(hero).toMatch(/class="[^"]*lpTonightDoor[^"]*"/);
     // The width half of the tap floor is stated here, because the shared
     // quiet-link rule floors the height alone.
     expect(landingCss).toMatch(/\.lpTonightDoor\s*{[^}]*min-width:\s*44px/);
@@ -169,7 +169,7 @@ describe("landing hierarchy: the price receipt door", () => {
 
   it("opens the Map directly for a stranger and keeps city choice explicit", () => {
     const rendered = render();
-    const landingNav = rendered.match(/<nav class="lpPrimaryNav"[^>]*>[\s\S]*?<\/nav>/)?.[0];
+    const landingNav = rendered.match(/<nav class="[^"]*lpPrimaryNav[^"]*"[^>]*>[\s\S]*?<\/nav>/)?.[0];
     expect(landingNav, "landing navigation present").toBeTruthy();
     expect(landingNav).toMatch(/href="\/map"[^>]*>Map<\/a>/);
 

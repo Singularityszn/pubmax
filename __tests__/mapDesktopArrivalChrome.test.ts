@@ -60,13 +60,13 @@ describe("one banner at a time, and the first-visit strip is the first of them",
   it("stands the rail, the closure banner and the Pub Pal chip down", () => {
     const block =
       bannerStagingCss.match(
-        /body:has\(\.mapArrivalCard\)[\s\S]*?display:\s*none;/,
+        /body:has\(:global\(\.mapArrivalCard\)\)[\s\S]*?display:\s*none;/,
       )?.[0] ?? "";
-    expect(block).toContain(".citySuggestBanner");
-    expect(block).toContain(".cityStatusBanner");
-    expect(block).toContain(".desktopRail");
-    expect(block).toContain(".palSummon");
-    expect(block).toContain(".mapConciergeAsk");
+    expect(block).toContain(":global(.citySuggestBanner)");
+    expect(block).toContain(":global(.cityStatusBanner)");
+    expect(block).toContain(":global(.desktopRail)");
+    expect(block).toContain(":global(.palSummon)");
+    expect(block).toContain(":global(.mapConciergeAsk)");
   });
 });
 

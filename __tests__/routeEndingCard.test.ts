@@ -27,7 +27,7 @@ describe("RouteEndingCard", () => {
       createElement(RouteEndingCard, { onChoose: vi.fn() }),
     );
 
-    expect(html.match(/class="_routeEndingCardChoice_[^"]*"/g)).toHaveLength(3);
+    expect(html.match(/class="routeEndingCardChoice"/g)).toHaveLength(3);
     expect(html).toContain("Find food");
     expect(html).toContain("Get home");
     expect(html).toContain("Keep going");

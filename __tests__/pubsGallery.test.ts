@@ -23,7 +23,7 @@ describe("pubs gallery secondary surface", () => {
 
   it("does not mount a gradient art tile when a pub has no photo", () => {
     expect(source).toContain("const hasPhoto = Boolean(pub.photoUrl);");
-    expect(source).toContain('pubsCard--no-art');
+    expect(source).toContain('pubsCardNoArt');
     expect(source).toContain("hasPhoto ? (");
   });
 
@@ -35,6 +35,6 @@ describe("pubs gallery secondary surface", () => {
   });
 
   it("lets no-art cards use their content height", () => {
-    expect(css).toMatch(/\.pubsCard--no-art\s*\{[^}]*grid-template-rows:\s*auto/);
+    expect(css).toMatch(/\.pubsCardNoArt\s*\{[^}]*grid-template-rows:\s*auto/);
   });
 });

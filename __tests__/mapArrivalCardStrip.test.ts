@@ -65,10 +65,10 @@ describe("the first-visit card is a strip at the top on a phone", () => {
   });
 
   it("docks under the phone's own chrome rather than over the pins", () => {
-    expect(cardCss).toMatch(/\.mapArrivalCard\s*\{[^}]*top:/);
+    expect(cardCss).toMatch(/:global\(\.mapArrivalCard\)\s*\{[^}]*top:/);
     expect(cardCss).toContain("--mobile-map-chrome-full-h");
     // The old berth pinned it to the foot of the screen.
-    expect(cardCss).not.toMatch(/\.mapArrivalCard\s*\{[^}]*bottom:\s*var\(\s*--map-arrival-bottom/);
+    expect(cardCss).not.toMatch(/:global\(\.mapArrivalCard\)\s*\{[^}]*bottom:\s*var\(\s*--map-arrival-bottom/);
   });
 
   it("yields to a panel the reader opens from the toolbar", () => {
@@ -78,7 +78,7 @@ describe("the first-visit card is a strip at the top on a phone", () => {
     // three. One surface at a time: the reader opening Filters has moved on
     // from the ask, and the strip comes back when the panel closes.
     expect(cardCss).toMatch(
-      /body:has\(\.mapToolbar \[aria-expanded="true"\]\)[\s\S]{0,120}?\.mapArrivalCard[\s\S]{0,60}?display:\s*none/,
+      /body:has\(:global\(\.mapToolbar\) \[aria-expanded="true"\]\)[\s\S]{0,120}?:global\(\.mapArrivalCard\)[\s\S]{0,60}?display:\s*none/,
     );
   });
 
@@ -86,7 +86,7 @@ describe("the first-visit card is a strip at the top on a phone", () => {
     // `Plan an outing` is the toolbar's own coral fill and it sat directly
     // above this strip's `Use my location` at 1440.
     expect(cardCss).toMatch(
-      /body:has\(\.mapArrivalCard\)[\s\S]{0,120}?\.planBtn/,
+      /body:has\(:global\(\.mapArrivalCard\)\)[\s\S]{0,120}?:global\(\.planBtn\)/,
     );
   });
 
@@ -107,7 +107,7 @@ describe("the first-visit card is a strip at the top on a phone", () => {
   });
 
   it("is capped short enough that the pin field is never under it", () => {
-    const card = cardCss.match(/\.mapArrivalCard\s*\{[^}]*\}/)?.[0] ?? "";
+    const card = cardCss.match(/:global\(\.mapArrivalCard\)\s*\{[^}]*\}/)?.[0] ?? "";
     expect(card).toContain("--map-arrival-strip-max-h");
   });
 });

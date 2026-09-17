@@ -214,9 +214,9 @@ describe("mobile chrome fit at 390px", () => {
     const topbar = declarationsFor(".mobileMapTopbar");
     const limitedTopbar = declarationsFor(".mobileMapTopbar.mobileMapTopbarLimited");
     const chipRow = declarationsFor(".mobileMapChipRow");
-    const areaRoot = declarationsFor(".citySwitcher--mobile");
-    const areaTrigger = declarationsFor(".citySwitcher--mobile .citySwitcherTrigger");
-    const areaLabel = declarationsFor(".citySwitcher--mobile .citySwitcherLabelFull");
+    const areaRoot = declarationsFor(".citySwitcherMobile");
+    const areaTrigger = declarationsFor(".citySwitcherMobile :global(.citySwitcherTrigger)");
+    const areaLabel = declarationsFor(".citySwitcherMobile :global(.citySwitcherLabelFull)");
     const tonightLabel = declarationsFor(".mobileMapTonightChipLabel");
 
     expect(topbar.get("width"), "topbar fills its bounded shell").toBe("100%");
@@ -260,12 +260,12 @@ describe("mobile chrome fit at 390px", () => {
   });
 
   it("never truncates the venue price caption", () => {
-    const rule = mobileMapCss.match(/\.mobileVenuePeekSummary small\s*{([^}]*)}/)?.[1] ?? "";
+    const rule = mobileMapCss.match(/:global\(\.mobileVenuePeekSummary\) small\s*{([^}]*)}/)?.[1] ?? "";
     expect(rule, ".mobileVenuePeekSummary small rule present").not.toBe("");
     expect(rule).toMatch(/white-space:\s*normal/);
     expect(rule).not.toMatch(/text-overflow:\s*ellipsis/);
     expect(mobileMapCss).toMatch(
-      /\.mobileVenuePeekSummary \.mobileVenuePeekDrop strong\s*{[^}]*white-space:\s*normal/,
+      /:global\(\.mobileVenuePeekSummary \.mobileVenuePeekDrop\) strong\s*{[^}]*white-space:\s*normal/,
     );
   });
 
@@ -294,14 +294,14 @@ describe("mobile chrome fit at 390px", () => {
     // The lane only describes the controls if the controls are laid out from
     // the same two numbers.
     expect(mobileMapCss).toMatch(
-      /\.mobileMapUtilityCorner\s*{[^}]*right:\s*var\(--mobile-map-corner-inset\)/,
+      /:global\(\.mobileMapUtilityCorner\)\s*{[^}]*right:\s*var\(--mobile-map-corner-inset\)/,
     );
     expect(mobileMapCss).toMatch(
-      /\.mobileMapUtilityCorner > button\s*{[^}]*min-width:\s*var\(--mobile-map-corner-btn\)/,
+      /:global\(\.mobileMapUtilityCorner\) > button\s*{[^}]*min-width:\s*var\(--mobile-map-corner-btn\)/,
     );
     // TfL at the top, Near me at the bottom of that one lane.
     expect(mobileMapCss).toMatch(
-      /\.mobileMapUtilityCorner\s*{[^}]*justify-content:\s*space-between/,
+      /:global\(\.mobileMapUtilityCorner\)\s*{[^}]*justify-content:\s*space-between/,
     );
     const fab = mobileMapCss.match(/\.mobileMapLocateFab\s*{([^}]*)}/)?.[1] ?? "";
     expect(fab, ".mobileMapLocateFab rule present").not.toBe("");

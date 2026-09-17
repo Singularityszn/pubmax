@@ -51,18 +51,18 @@ describe("PubmaxxMarkStrike — the draw-in", () => {
     const svg = strike();
     expect((svg.match(/var\(--brass, #ff5a5f\)/g) ?? []).length).toBe(3);
     expect(svg).toContain("var(--brass-bright, #ff7a55)");
-    expect(svg).toContain('class="markStrike__ember"');
+    expect(svg).toMatch(/class="[^"]*markStrikeEmber[^"]*"/);
   });
 
   it("mono is ember-less by default but pops a monochrome ember when asked", () => {
     const mono = strike({ variant: "mono" });
     expect(mono).toContain("currentColor");
-    expect(mono).not.toContain("markStrike__ember");
+    expect(mono).not.toContain("markStrikeEmber");
     const monoSeal = strike({ variant: "mono", monoEmber: true });
-    expect(monoSeal).toContain("markStrike__ember");
+    expect(monoSeal).toContain("markStrikeEmber");
     // The ember inherits the single stamp tone, not the bright token.
     expect(monoSeal).not.toContain("var(--brass-bright");
-    expect(monoSeal).toMatch(/markStrike__ember"[^>]*fill="currentColor"/);
+    expect(monoSeal).toMatch(/markStrikeEmber[^"]*"[^>]*fill="currentColor"/);
   });
 
   it("is decorative by default and labelled when titled", () => {
@@ -93,8 +93,8 @@ describe("PubmaxxNightSeal — the completed-night stamp", () => {
     // 0.72 * 100 = 72 — the mark inside the stamp.
     expect(svg).toContain('width="72"');
     expect(svg).toContain("markStrike");
-    expect(svg).toContain("nightSeal__mark");
-    expect(svg).toContain("markStrike__ember"); // monoEmber on
+    expect(svg).toContain("nightSealMark");
+    expect(svg).toContain("markStrikeEmber"); // monoEmber on
   });
 
   it("selects tone by variant (auto theme-driven by default)", () => {

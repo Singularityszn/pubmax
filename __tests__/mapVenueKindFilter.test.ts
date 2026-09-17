@@ -121,8 +121,8 @@ describe("the control the desktop map opens", () => {
     });
     // The word and the count are two elements, because the word is what the
     // 641 to 900px toolbar budget drops and the count is what stays.
-    expect(html).toContain('class="mapVenueKindFilterWord"');
-    expect(html).toContain('class="mapVenueKindFilterCount"');
+    expect(html).toMatch(/class="[^"]*mapVenueKindFilterWord[^"]*"/);
+    expect(html).toMatch(/class="[^"]*mapVenueKindFilterCount[^"]*"/);
     expect(html).toContain(">2<");
     expect(html).toContain(
       'aria-label="Filters: venue types, view and zone, 2 filters on"',

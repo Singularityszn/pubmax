@@ -28,7 +28,7 @@ describe("DesktopRail host — slot contract", () => {
     expect(html.indexOf("SLOT_CONDITIONS")).toBeGreaterThan(-1);
     expect(html.indexOf("SLOT_CONDITIONS")).toBeLessThan(html.indexOf("SLOT_AREANEWS"));
     expect(html.indexOf("SLOT_AREANEWS")).toBeLessThan(html.indexOf("SLOT_NIGHTARC"));
-    expect(html).toContain('class="desktopRail"');
+    expect(html).toMatch(/class="[^"]*desktopRail[^"]*"/);
     expect(html).toContain("<aside");
   });
 
@@ -67,7 +67,7 @@ describe("DesktopRail host — slot contract", () => {
         conditions: createElement("div", null, "x"),
       }),
     );
-    expect(html).toContain('class="desktopRail mapRail"');
+    expect(html).toMatch(/class="[^"]*desktopRail[^"]*\bmapRail[^"]*"/);
     expect(html).toContain('aria-label="Map conditions"');
   });
 });

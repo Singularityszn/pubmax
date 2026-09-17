@@ -112,12 +112,12 @@ describe("UK place map arrival", () => {
       join(process.cwd(), "components/map/ukPlaceArrivalBanner.module.css"),
       "utf8",
     );
-    expect(css).toMatch(/\.ukPlaceArrival\s*{[^}]*min-width:\s*0/);
+    expect(css).toMatch(/:global\(\.ukPlaceArrival\)\s*{[^}]*min-width:\s*0/);
     expect(css).toMatch(
-      /\.ukPlaceArrivalDismiss\s*{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/,
+      /:global\(\.ukPlaceArrivalDismiss\)\s*{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/,
     );
     expect(css).toMatch(
-      /@media \(max-width: 640px\)[\s\S]*?\.ukPlaceArrival\s*{[^}]*right:\s*var\(--mobile-map-corner-lane/,
+      /@media \(max-width: 640px\)[\s\S]*?:global\(\.ukPlaceArrival\)\s*{[^}]*right:\s*var\(--mobile-map-corner-lane/,
     );
   });
 
@@ -158,7 +158,8 @@ describe("UK place map arrival", () => {
     expect(pubMap).toContain("cityLabel={mapChipLabel}");
     expect(mobileShell).toContain("limitedCoverage: boolean;");
     expect(mobileShell).toContain("if (limitedCoverage)");
-    expect(mobileShell).toContain("mobileMapTopbar mobileMapTopbarLimited");
+    expect(mobileShell).toContain("styles.mobileMapTopbar");
+    expect(mobileShell).toContain("styles.mobileMapTopbarLimited");
     expect(mobileShell).toContain('aria-label="Search the map"');
   });
 

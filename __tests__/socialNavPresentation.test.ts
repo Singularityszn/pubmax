@@ -82,7 +82,7 @@ describe("the phone dock", () => {
 describe("the desktop primary link row", () => {
   it.each([true, false])("carries no Social link when the friends launch is %s", (enabled) => {
     const host = serverRender(SiteNav, enabled);
-    expect(host.querySelector('.siteNavLinks a[href^="/social"]')).toBeNull();
-    expect(host.querySelector(".siteNavLinks")?.textContent).not.toContain("Social");
+    expect(host.querySelector('[class*="siteNavLinks"] a[href^="/social"]')).toBeNull();
+    expect(host.querySelector('[class*="siteNavLinks"]')?.textContent).not.toContain("Social");
   });
 });

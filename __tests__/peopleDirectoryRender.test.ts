@@ -128,7 +128,7 @@ describe("a card gives way rather than crushing itself", () => {
   });
 
   it("keeps the 44px tap floor on the control", () => {
-    expect(CSS).toMatch(/\.peopleDir__button \{[^}]*min-height: 44px/);
+    expect(CSS).toMatch(/\.peopleDirButton \{[^}]*min-height: 44px/);
   });
 });
 

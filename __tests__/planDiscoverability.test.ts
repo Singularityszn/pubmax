@@ -37,24 +37,24 @@ const planIntake = readFileSync(PLAN_INTAKE, "utf8");
 
 describe("Lane H plan discoverability", () => {
   it("keeps the near-me answer the landing's one primary and the Pal a door in the footer", () => {
-    const hero = renderedLanding.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
+    const hero = renderedLanding.match(/<section class="[^"]*lpHero[^"]*"[\s\S]*?<\/section>/)?.[0] ?? "";
     expect(hero).toMatch(/data-primary-action=""><a[^>]*href="\/near\?locate=1"/);
     // The Pal moved off the hero's quiet row on 7 Sep 2026: the row caps at two
     // and the receipt door took the first place. Its footer door is the one
     // that must stay.
-    const footerNav = renderedLanding.match(/<nav class="lpFooterNav"[^>]*>[\s\S]*?<\/nav>/)?.[0];
+    const footerNav = renderedLanding.match(/<nav class="[^"]*lpFooterNav[^"]*"[^>]*>[\s\S]*?<\/nav>/)?.[0];
     expect(footerNav).toMatch(/href="\/pal"[^>]*>Pub Pal<\/a>/);
   });
 
   it("exposes Plan in the landing primary nav", () => {
-    const nav = renderedLanding.match(/<nav class="lpPrimaryNav"[\s\S]*?<\/nav>/)?.[0] ?? "";
+    const nav = renderedLanding.match(/<nav class="[^"]*lpPrimaryNav[^"]*"[\s\S]*?<\/nav>/)?.[0] ?? "";
     expect(nav).toMatch(/href="\/plan"[^>]*>Plan<\/a>/);
   });
 
   it("keeps Plan in the footer directory and out of the hero", () => {
-    const footer = renderedLanding.match(/<nav class="lpFooterNav"[\s\S]*?<\/nav>/)?.[0] ?? "";
+    const footer = renderedLanding.match(/<nav class="[^"]*lpFooterNav[^"]*"[\s\S]*?<\/nav>/)?.[0] ?? "";
     expect(footer).toMatch(/href="\/plan"[^>]*>Plan a night<\/a>/);
-    const hero = renderedLanding.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
+    const hero = renderedLanding.match(/<section class="[^"]*lpHero[^"]*"[\s\S]*?<\/section>/)?.[0] ?? "";
     expect(hero).not.toMatch(/href="\/plan"/);
   });
 
