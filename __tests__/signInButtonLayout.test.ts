@@ -32,8 +32,12 @@ vi.mock("@clerk/nextjs", () => ({
   SignUpButton: ({ children }: { children: ReactNode }) => children,
   UserButton: () => createElement("span", { className: "clerkUserButton" }),
 }));
+const authCss = await vi.hoisted(async () => {
+  const mod = await import("@/app/auth/Auth.module.css");
+  return mod.default;
+});
 vi.mock("@/components/auth/MagicLinkForm", () => ({
-  default: () => createElement("input", { className: "authMagicLinkInput" }),
+  default: () => createElement("input", { className: authCss.authMagicLinkInput }),
 }));
 vi.mock("@/components/auth/SocialSignInButtons", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
