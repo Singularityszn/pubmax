@@ -28,7 +28,8 @@ const pubMap = read("components/PubMap.tsx");
 const toolbar = read("components/map/MapToolbar.tsx");
 
 function mapChromeMarkup(): string {
-  const start = shell.lastIndexOf('<div className="mobileMapChrome"');
+  const marker = shell.lastIndexOf("styles.mobileMapChrome");
+  const start = shell.lastIndexOf("<div", marker);
   const end = shell.indexOf("\n      </div>", start);
   expect(start, "the map chrome container").toBeGreaterThan(-1);
   expect(end, "its closing tag").toBeGreaterThan(start);
@@ -38,7 +39,7 @@ function mapChromeMarkup(): string {
 describe("finding 2.3 — the phone map chrome is one bar", () => {
   it("renders exactly one bar inside the chrome", () => {
     const chrome = mapChromeMarkup();
-    expect((chrome.match(/className="mobileMapTopbar["\s]/g) ?? []).length).toBe(1);
+    expect((chrome.match(/styles\.mobileMapTopbar\b/g) ?? []).length).toBe(1);
     // The rail was the second container. Nothing may bring it back.
     expect(chrome, "no control rail").not.toContain("mobileMapRail");
     expect(shellCss, "and no rail styling survives").not.toContain(".mobileMapRail");
@@ -48,9 +49,9 @@ describe("finding 2.3 — the phone map chrome is one bar", () => {
     // a second chip can never grow into a second control rail.
     expect(chrome).toMatch(/overlay === "search" \? \([\s\S]*?mobileMapSearchRow/);
     expect(chrome).toMatch(/overlay === "search" \? null : \([\s\S]*?<MapChipRow/);
-    expect((shell.match(/className="mobileMapChipRow"/g) ?? []).length).toBe(1);
+    expect((shell.match(/className=\{styles\.mobileMapChipRow\}/g) ?? []).length).toBe(1);
     expect(shell).toMatch(
-      /mobileMapChipRow"[\s\S]*?mobileMapDrinkChip[\s\S]*?tonightChip \? \([\s\S]*?mobileMapTonightChip/,
+      /mobileMapChipRow[}"'][\s\S]*?mobileMapDrinkChip[\s\S]*?tonightChip \? \([\s\S]*?mobileMapTonightChip/,
     );
     expect(chrome, "no control rail").not.toContain("mobileMapRail");
   });
@@ -58,7 +59,7 @@ describe("finding 2.3 — the phone map chrome is one bar", () => {
   it("puts Near me on the map edge as a round control, not in the bar", () => {
     const chrome = mapChromeMarkup();
     expect(chrome, "Near me left the bar").not.toContain("mobileMapLocateFab");
-    expect(shell).toContain('className="mobileMapLocateFab"');
+    expect(shell).toContain('className={styles.mobileMapLocateFab}');
     expect(shell, "the FAB carries the Near me action").toMatch(
       /mobileMapLocateFab[\s\S]{0,320}onClick=\{onNearMe\}/,
     );
@@ -134,7 +135,7 @@ describe("finding 2.3 — the category toggles have exactly one home per viewpor
     // the experience lens and the fare-zone picker moved in beside them
     // (7 Sep 2026, walk finding B9), and a badge counting one of three would
     // say the map is unfiltered while two filters are on.
-    expect(filter).toMatch(/mapVenueKindFilterCount"?>\{refinements\}/);
+    expect(filter).toMatch(/mapVenueKindFilterCount[}"']?>\{refinements\}/);
     expect(filter).toContain("mapFilterRefinementCount");
     expect(filter).toMatch(/venueKindFilterAriaLabel\(refinements\)/);
     // The chips are the reader's own tap, never the map's cold start.

@@ -32,7 +32,7 @@ describe("MapExperienceLens", () => {
     );
     expect(css).toMatch(/\.mapExperienceLensOption\s*{[^}]*min-height:\s*44px/);
     expect(css).toMatch(/\.mapExperienceLensOptions\s*{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
-    expect(css).toMatch(/\.mapExperienceLens\s*{[^}]*min-width:\s*0/);
+    expect(css).toMatch(/:global\(\.mapExperienceLens\)\s*{[^}]*min-width:\s*0/);
   });
 
   it("removes pint-only controls while an experience view owns the map", () => {
@@ -232,12 +232,13 @@ describe("MapExperienceLens", () => {
     const pints = html.match(/<button[^>]*aria-pressed="true"[^>]*>[\s\S]*?Pints[\s\S]*?<\/button>/)?.[0] ?? "";
     const bars = html.match(/<button[^>]*aria-pressed="false"[^>]*>[\s\S]*?Bars[\s\S]*?<\/button>/)?.[0] ?? "";
 
-    expect(pints).toContain('class="tonightArcChip isOn"');
-    expect(bars).toContain('class="tonightArcChip"');
+    expect(pints).toMatch(/class="[^"]*tonightArcChip[^"]*isOn[^"]*"/);
+    expect(bars).toMatch(/class="[^"]*tonightArcChip/);
+    expect(bars).not.toMatch(/isOn/);
     // The tick is the non-colour selection mark (design judgement 2026-08-01,
     // finding 2.1: selection reads without the accent). Decorative only —
     // aria-pressed carries the state.
-    expect(pints).toContain('class="tonightArcChipTick" aria-hidden="true"');
+    expect(pints).toMatch(/class="[^"]*tonightArcChipTick[^"]*" aria-hidden="true"/);
     expect(bars).not.toContain("✓");
     // The Clubs chip is gone (7 Sep 2026, walk finding B9). It was permanently
     // disabled, explained by a `title` attribute no phone shows, and it could

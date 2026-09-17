@@ -13,9 +13,9 @@ describe("map banner staging CSS", () => {
   it("keeps location independent while onboarding suppresses ambient status and Tonight", () => {
     for (const sel of [".cityStatusBanner", ".tonightLaneCollapsed"]) {
       const escaped = sel.replace(/\./g, "\\.");
-      expect(css).toMatch(new RegExp(`\\.appShell\\.onboarding-open\\s+${escaped}`));
+      expect(css).toMatch(new RegExp(`:global\\(\\.appShell\\.onboarding-open\\)\\s+:global\\(${escaped}\\)`));
     }
-    expect(css).not.toMatch(/\.appShell\.onboarding-open\s+\.citySuggestBanner/);
+    expect(css).not.toMatch(/:global\(\.appShell\.onboarding-open\)\s+:global\(\.citySuggestBanner\)/);
   });
 
   it("keeps the location control available alongside closure/safety status", () => {
@@ -23,8 +23,8 @@ describe("map banner staging CSS", () => {
   });
 
   it("defers the tonight-nearby card to either status or location", () => {
-    expect(css).toMatch(/\.mapStage:has\(\.cityStatusBanner\)\s+\.tonightLaneCollapsed/);
-    expect(css).toMatch(/\.mapStage:has\(\.citySuggestBanner\)\s+\.tonightLaneCollapsed/);
+    expect(css).toMatch(/:global\(\.mapStage\):has\(:global\(\.cityStatusBanner\)\)\s+:global\(\.tonightLaneCollapsed\)/);
+    expect(css).toMatch(/:global\(\.mapStage\):has\(:global\(\.citySuggestBanner\)\)\s+:global\(\.tonightLaneCollapsed\)/);
   });
 
   it("defers the closure band to the first-visit ask, and to nothing else", () => {
@@ -36,9 +36,9 @@ describe("map banner staging CSS", () => {
     // reader's own first move on the map. Every OTHER banner still yields to
     // the closure band rather than the other way round.
     const suppressors = [
-      ...css.matchAll(/([^\n{,]*:has\([^)]*\)[^\n{,]*)\s+\.cityStatusBanner/g),
+      ...css.matchAll(/([^\n{,]*:has\((?:[^()]*|\([^()]*\))*\)[^\n{,]*)\s+:global\(\.cityStatusBanner\)/g),
     ].map((match) => match[1].trim());
-    expect(suppressors).toEqual(["body:has(.mapArrivalCard)"]);
+    expect(suppressors).toEqual(["body:has(:global(.mapArrivalCard))"]);
   });
 
   it("scopes the staging to desktop so the mobile map shell is untouched", () => {
