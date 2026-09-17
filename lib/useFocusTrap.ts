@@ -70,7 +70,7 @@ export function shouldInertOutsideSibling(
   if (outsidePolicy === "strict-modal") return true;
   return !(
     node.classList.contains("mobileTabBar") ||
-    node.classList.contains("accountOnboardingBackdrop") ||
+    node.hasAttribute("data-identity-gate") ||
     node.classList.contains("a2hsSheet--android")
   );
 }

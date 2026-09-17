@@ -39,9 +39,10 @@ describe("shouldEngageFocusTrap", () => {
 });
 
 describe("shouldInertOutsideSibling", () => {
-  function el(className: string): HTMLElement {
+  function el(className: string, attrs: Record<string, string> = {}): HTMLElement {
     return {
       classList: { contains: (token: string) => className.split(/\s+/).includes(token) },
+      hasAttribute: (name: string) => name in attrs,
     } as HTMLElement;
   }
 
@@ -52,7 +53,7 @@ describe("shouldInertOutsideSibling", () => {
 
   it("keeps account setup above an open map sheet interactive", () => {
     expect(
-      shouldInertOutsideSibling(el("accountOnboardingBackdrop"), "map-surface"),
+      shouldInertOutsideSibling(el("", { "data-identity-gate": "" }), "map-surface"),
     ).toBe(false);
   });
 
@@ -70,7 +71,7 @@ describe("shouldInertOutsideSibling", () => {
   it("inerts every outside sibling for a strict modal", () => {
     expect(shouldInertOutsideSibling(el("mobileTabBar"), "strict-modal")).toBe(true);
     expect(
-      shouldInertOutsideSibling(el("accountOnboardingBackdrop"), "strict-modal"),
+      shouldInertOutsideSibling(el("", { "data-identity-gate": "" }), "strict-modal"),
     ).toBe(true);
   });
 });
