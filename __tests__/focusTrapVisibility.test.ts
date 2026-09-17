@@ -47,7 +47,7 @@ describe("shouldInertOutsideSibling", () => {
   }
 
   it("keeps the primary tab bar interactive beside a map sheet", () => {
-    expect(shouldInertOutsideSibling(el("mobileTabBar"), "map-surface")).toBe(false);
+    expect(shouldInertOutsideSibling(el("", { "data-mobile-tab-bar": "" }), "map-surface")).toBe(false);
     expect(shouldInertOutsideSibling(el("appShell mapStage"), "map-surface")).toBe(true);
   });
 
@@ -59,17 +59,17 @@ describe("shouldInertOutsideSibling", () => {
 
   it("keeps the non-modal Android install card tappable beside a map sheet", () => {
     expect(
-      shouldInertOutsideSibling(el("a2hsSheet a2hsSheet--android"), "map-surface"),
+      shouldInertOutsideSibling(el("", { "data-a2hs-android-card": "" }), "map-surface"),
     ).toBe(false);
     // The iOS instructions are their own modal over a scrim, not a card.
     expect(shouldInertOutsideSibling(el("a2hsScrim"), "map-surface")).toBe(true);
     expect(
-      shouldInertOutsideSibling(el("a2hsSheet a2hsSheet--android"), "strict-modal"),
+      shouldInertOutsideSibling(el("", { "data-a2hs-android-card": "" }), "strict-modal"),
     ).toBe(true);
   });
 
   it("inerts every outside sibling for a strict modal", () => {
-    expect(shouldInertOutsideSibling(el("mobileTabBar"), "strict-modal")).toBe(true);
+    expect(shouldInertOutsideSibling(el("", { "data-mobile-tab-bar": "" }), "strict-modal")).toBe(true);
     expect(
       shouldInertOutsideSibling(el("", { "data-identity-gate": "" }), "strict-modal"),
     ).toBe(true);

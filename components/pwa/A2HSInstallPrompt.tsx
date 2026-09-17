@@ -259,6 +259,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
     <section
       ref={cardRef}
       className={`${styles.a2hsSheet} ${surface === "android" ? styles.a2hsSheetAndroid : ""}${closing ? ` ${styles.isClosing}` : ""}`}
+      data-a2hs-android-card={surface === "android" ? "" : undefined}
       role={surface === "ios" ? "dialog" : "region"}
       aria-modal={surface === "ios" ? "true" : undefined}
       aria-labelledby="a2hsTitle"

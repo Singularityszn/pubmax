@@ -69,9 +69,9 @@ export function shouldInertOutsideSibling(
 ): boolean {
   if (outsidePolicy === "strict-modal") return true;
   return !(
-    node.classList.contains("mobileTabBar") ||
+    node.hasAttribute("data-mobile-tab-bar") ||
     node.hasAttribute("data-identity-gate") ||
-    node.classList.contains("a2hsSheet--android")
+    node.hasAttribute("data-a2hs-android-card")
   );
 }
 

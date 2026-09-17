@@ -154,6 +154,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
   return (
     <nav
       className={styles.mobileTabBar + (keyboardOpen ? ` ${styles.isKeyboardHidden}` : "")}
+      data-mobile-tab-bar
       role="navigation"
       aria-label="Primary"
       // Hidden from the reader means hidden from a screen reader too: a bar
