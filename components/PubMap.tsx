@@ -5048,7 +5048,7 @@ export default function PubMap({
     if (!loaded || filteredPubVenueCount !== 0) return null;
     if (savedOnly && !hasSavedPub) {
       return (
-        <section className={sheetStyles.venueInspector} style={{ textAlign: "center" }}>
+        <section className={`venueInspector ${sheetStyles.venueInspector}`} style={{ textAlign: "center" }}>
           <p className="description" style={{ marginTop: 0 }}>
             {SAVED_ONLY_EMPTY_NOTE}
           </p>
@@ -5059,7 +5059,7 @@ export default function PubMap({
       );
     }
     return (
-      <section className={sheetStyles.venueInspector} style={{ textAlign: "center" }}>
+      <section className={`venueInspector ${sheetStyles.venueInspector}`} style={{ textAlign: "center" }}>
         <p className="description" style={{ marginTop: 0 }}>
           No pubs match these filters. Try widening your price or clearing your story filters.
         </p>
