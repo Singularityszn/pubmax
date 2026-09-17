@@ -100,7 +100,6 @@
     "harvest:uk-prices-ocr": "tsx scripts/harvest/uk-prices/ocr.mjs",
     "build:price-bands": "tsx scripts/build_price_bands.mjs",
     "build:discover-board": "tsx scripts/build_discover_board.mjs",
-    "deadcode:all": "knip --include files,exports,types,duplicates",
     "arize:smoke": "tsx scripts/arizeSmoke.ts"
   },
   "dependencies": {
