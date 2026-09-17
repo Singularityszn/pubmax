@@ -117,7 +117,6 @@ function amenityScore(venue: ConciergeVenue, mood: ConciergeMood): number {
   }
 }
 
-// eslint-disable-next-line complexity
 function scoreOne(
   venue: ConciergeVenue,
   intent: ConciergeIntent,

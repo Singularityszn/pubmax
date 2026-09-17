@@ -351,7 +351,6 @@ function AccountHandleEditor({
   );
 }
 
-// eslint-disable-next-line complexity
 export default function PubmaxxAccountHub() {
   const { accountRevision, user, loading, session, identityResolved } = useAuth();
   const viewerSession = useViewerSession();

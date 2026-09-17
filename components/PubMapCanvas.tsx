@@ -512,7 +512,6 @@ function probeWebGl2(): { hasContext: boolean; status: string } {
 
 
 
-// eslint-disable-next-line complexity
 export default function PubMapCanvas({
   venues,
   filteredVenueCount = venues.length,

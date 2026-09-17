@@ -87,7 +87,6 @@ function isGrid(value: unknown): value is ShardManifest["grid"] {
 }
 
 /** Parse an unknown payload into a ShardManifest, or null if malformed. */
-// eslint-disable-next-line complexity
 export function parseShardManifest(
   value: unknown,
   expectedVersion?: number,

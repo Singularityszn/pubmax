@@ -28,7 +28,6 @@ import "./mapVenueList.css";
 // lib/mapSurfaceChrome.ts). Do not rebuild the floating toggle.
 // It's also a useful feature for everyone: list view is not a
 // shim.
-// eslint-disable-next-line complexity
 export default function MapVenueList({
   model,
   ukBaseModel,

@@ -1091,7 +1091,6 @@ function describeAskFromLocation(): UrlPrefill {
 
 // The form owns several independent draft and route transitions; keep this
 // warning visible in reviews without turning its state machine into wrappers.
-// eslint-disable-next-line complexity
 function PlanComposerForm({
   recoveredDraft,
   recoveredRouteDraft,
@@ -1822,7 +1821,6 @@ function PlanComposerForm({
     }
   }
 
-  // eslint-disable-next-line complexity
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const validationError = planLockValidationError({

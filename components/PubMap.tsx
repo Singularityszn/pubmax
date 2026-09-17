@@ -943,7 +943,6 @@ function mapChipLabelFor(input: {
     : ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName;
 }
 
-// eslint-disable-next-line complexity
 export default function PubMap({
   cityId = DEFAULT_CITY_ID,
   placeArrival = null,
@@ -5273,7 +5272,6 @@ export default function PubMap({
     );
   }
 
-  // eslint-disable-next-line complexity
   function renderVenuePanel() {
     if (basePubOpen && selectedBasePub) {
       return (
@@ -6180,7 +6178,6 @@ export default function PubMap({
 
   /* Everything that floats over the desktop map: the right rail, the ambient banners,
      the concierge ask, the Tonight lane, the Drop picker fallback and the chips. */
-  // eslint-disable-next-line complexity
   function renderDesktopMapOverlays() {
     return (
       <>

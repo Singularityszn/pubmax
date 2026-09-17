@@ -67,7 +67,6 @@ const ITEM_HEADING = /^####\s+(.+)$/;
 const POUND_PRICE = /£\s*(\d+(?:\.\d{2})?)/;
 const BARE_PRICE = /^\s*(\d+\.\d{2})\s*$/;
 
-// eslint-disable-next-line complexity
 function mapMbplcSectionToCategory(section) {
   const s = section.toLowerCase();
   if (

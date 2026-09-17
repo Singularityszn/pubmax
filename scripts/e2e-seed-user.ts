@@ -217,7 +217,6 @@ function profileActor(profileId: string): string {
   return `profile:${profileId}`;
 }
 
-// eslint-disable-next-line complexity
 async function cleanupQaData(
   admin: Admin,
   userId: string | null,

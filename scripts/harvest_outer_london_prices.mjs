@@ -292,7 +292,6 @@ function main() {
     `Independents to sweep: ${queue.length} (of ${targets.length}); chains logged: ${log.length}; budget ${budget} requests`,
   );
 
-  // eslint-disable-next-line complexity
   return (async () => {
     for (const row of queue) {
       if (requests >= budget) {

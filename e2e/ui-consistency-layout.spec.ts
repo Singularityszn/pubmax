@@ -391,7 +391,6 @@ function assertMeasured(
   );
 }
 
-// eslint-disable-next-line complexity
 async function measureSurfaceAssertions(
   page: Page,
   viewport: (typeof VIEWPORTS)[number],

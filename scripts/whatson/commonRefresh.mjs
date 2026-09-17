@@ -292,7 +292,6 @@ async function fetchText(url, fetchImpl) {
   return res.text();
 }
 
-// eslint-disable-next-line complexity
 export async function refreshCommonEvents({
   nowMs = Date.now(),
   fetchImpl = fetch,

@@ -245,7 +245,6 @@ export function PalMeetingScreen({
   );
 }
 
-// eslint-disable-next-line complexity
 export default function PalExperience() {
   const { user, loading, configured } = useAuth();
   const palViewerSession = useViewerSession();

@@ -129,7 +129,6 @@ function parseLine(value: unknown): SpoonsValueLine | null {
   };
 }
 
-// eslint-disable-next-line complexity
 function parseRow(value: unknown): SpoonsValueRow | null {
   if (!isRecord(value)) return null;
   if (typeof value.spoonmeId !== "string" || value.spoonmeId === "") return null;

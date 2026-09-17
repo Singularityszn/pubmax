@@ -151,7 +151,6 @@ function strictList(value: unknown): string[] | null {
   return new Set(cleaned).size === cleaned.length ? cleaned : null;
 }
 
-// eslint-disable-next-line complexity
 function parseContext(value: unknown): Partial<NightContext> | null | undefined {
   if (value === undefined || value === null) return null;
   if (!isPlainRecord(value) || !hasOnlyKeys(value, CONTEXT_KEYS)) return undefined;

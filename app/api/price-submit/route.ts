@@ -126,7 +126,6 @@ async function communityWriteIsLimited(
   return isLimited(venueLimitKey, venueLimitKey);
 }
 
-// eslint-disable-next-line complexity
 export async function POST(request: Request): Promise<Response> {
   const parsedBody = await parsePriceSubmitPostBody(request);
   if (!parsedBody) {

@@ -382,7 +382,6 @@ function isContextEvidence(value: WebMcpJsonValue | null): value is ContextEvide
   return isRecord(value) && ["ready", "partial", "failed"].includes(String(value.status));
 }
 
-// eslint-disable-next-line complexity
 export default function WebMcpNightBoard() {
   const router = useRouter();
   const [board, setBoard] = useState(createWebMcpBoard);

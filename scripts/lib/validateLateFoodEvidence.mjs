@@ -124,7 +124,6 @@ function anchorDocumentCoverageError(option, localityNames) {
   return null;
 }
 
-// eslint-disable-next-line complexity
 export function validateLateFoodEvidence(value, localityNames) {
   const errors = [];
   const places = (Array.isArray(localityNames) ? localityNames : [])

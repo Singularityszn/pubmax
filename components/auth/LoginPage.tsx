@@ -334,7 +334,6 @@ function DoorSwitch({
  * drinker asking to sign in should never have to wonder whether the page is
  * about to make them a second account.
  */
-// eslint-disable-next-line complexity
 export default function LoginPage({
   initialIntent = "signin",
   from = null,

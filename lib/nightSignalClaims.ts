@@ -77,7 +77,6 @@ function source(value: unknown): NightSignalSource | null {
   return sourceUrl && publisher && publishedAt ? { sourceUrl, publisher, publishedAt } : null;
 }
 
-// eslint-disable-next-line complexity
 export function validateNightSignalClaim(value: unknown): NightSignalClaim | null {
   if (!value || typeof value !== "object") return null;
   const row = value as Record<string, unknown>;

@@ -199,7 +199,6 @@ function priceForCategory(
   return rows?.find((row) => row.drinkCategory === category) ?? null;
 }
 
-// eslint-disable-next-line complexity
 export default function VenuePriceSubmit({
   venueId,
   venueName,

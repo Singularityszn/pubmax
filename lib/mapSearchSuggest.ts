@@ -414,7 +414,6 @@ function buildPubSuggestion(
  * and no pubs. A non-empty query with no match returns empty groups, so the
  * shell can show one honest "nothing matching" line rather than a dead panel.
  */
-// eslint-disable-next-line complexity
 export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSearchSuggestions {
   const { cityId, userLocation, mapCenter, now = new Date() } = input;
   const includeLocalResults = input.includeLocalResults !== false;

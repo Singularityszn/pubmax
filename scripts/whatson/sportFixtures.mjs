@@ -316,7 +316,6 @@ function venueIdForAttrRow(attrRow, placeName, venueIndex) {
   return resolveVenueId({ name: placeName, address: attrRow.address, lat: attrRow.lat, lng: attrRow.lng }, venueIndex);
 }
 
-// eslint-disable-next-line complexity
 export function buildSportFixtureRowsWithDiagnostics({ attributeRows, fixtures, observedAt, venueIndex = null }) {
   const rows = [];
   const droppedFixtures = [];

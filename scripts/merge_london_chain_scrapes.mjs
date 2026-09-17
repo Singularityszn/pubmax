@@ -476,7 +476,6 @@ function hasReliablePoundPrices(markdown) {
   return pounds.length >= 3;
 }
 
-// eslint-disable-next-line complexity
 function main() {
   const archived = {
     youngs: archiveMarkdown([/^youngs\.co\.uk-/], join(CHAINS_DIR, "youngs", "raw")),

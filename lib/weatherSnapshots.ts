@@ -53,7 +53,6 @@ function httpUrl(value: unknown): string | null {
   }
 }
 
-// eslint-disable-next-line complexity
 export function validateWeatherObservation(value: unknown): NightAreaWeatherObservation | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;

@@ -577,7 +577,6 @@ async function main() {
   let done = 0;
   const started = Date.now();
 
-  // eslint-disable-next-line complexity
   async function worker() {
     for (;;) {
       const entry = pending[index++];

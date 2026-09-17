@@ -718,7 +718,6 @@ function accessibilityRow(accessChips: readonly string[], quietHours: string | n
   );
 }
 
-// eslint-disable-next-line complexity
 export default function VenueOverviewTab({
   venue,
   tab,

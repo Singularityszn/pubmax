@@ -156,7 +156,6 @@ function browserStorage(): Storage | null {
   }
 }
 
-// eslint-disable-next-line complexity
 export default function VenueInspector({
   venue,
   mode,

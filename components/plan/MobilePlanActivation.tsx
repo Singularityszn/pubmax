@@ -112,7 +112,6 @@ export function MobilePlanActivation({
     return () => controller.abort();
   }, [cityId]);
 
-  // eslint-disable-next-line complexity
   async function generate() {
     if (requestRef.current) return;
     const controller = new AbortController();

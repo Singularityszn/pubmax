@@ -205,7 +205,6 @@ function containsWord(haystack: string, word: string): boolean {
   return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`, "i").test(haystack);
 }
 
-// eslint-disable-next-line complexity
 function containsExactLocality(haystack: string, locality: string): boolean {
   const escaped = locality.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const localityRe = new RegExp(
@@ -686,7 +685,6 @@ export function overlayRowsFromHarvestRecords(rawRecords: unknown[]): HarvestOve
     }
   >();
 
-  // eslint-disable-next-line complexity
   rawRecords.forEach((raw, index) => {
     const line = index + 1;
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) {

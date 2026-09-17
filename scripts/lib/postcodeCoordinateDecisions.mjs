@@ -8,7 +8,6 @@ function correctionError(index, message) {
   return `correction ${index}: ${message}`;
 }
 
-// eslint-disable-next-line complexity
 function validateCorrectionShape(correction, index) {
   const errors = [];
   if (

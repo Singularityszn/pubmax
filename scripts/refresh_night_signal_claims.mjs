@@ -33,7 +33,6 @@ const isHttp = (value) => {
 };
 const isSource = (source) => source && typeof source === "object" && isHttp(source.sourceUrl) && isText(source.publisher, 160) && isIso(source.publishedAt);
 
-// eslint-disable-next-line complexity
 export function isValidNightSignalClaim(row, ingestedAt = Date.now()) {
   if (!row || typeof row !== "object") return false;
   if (!isText(row.id, 120) || !KINDS.has(row.kind) || !isText(row.claim, 500)) return false;

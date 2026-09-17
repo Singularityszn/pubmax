@@ -198,7 +198,6 @@ const QUIET_ALTERNATIVES: QuietAlternative[] = [
   },
 ];
 
-// eslint-disable-next-line complexity
 export default function TonightClient({
   quietPint = null,
   softPlansWindow = false,

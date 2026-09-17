@@ -207,7 +207,6 @@ function PolicyFields({ draft, hasPhoto, onDraft }: { draft: Draft; hasPhoto: bo
   );
 }
 
-// eslint-disable-next-line complexity
 export default function SocialComposer({
   post,
   draftScope,

@@ -259,7 +259,6 @@ export function rankByUnits(rows) {
 // Build
 // ---------------------------------------------------------------------------
 
-// eslint-disable-next-line complexity
 function buildPack(report, directory, basePubs, retrievedAt, sourceSha256) {
   const budgetPence = report.budgetPence;
   if (!Number.isInteger(budgetPence) || budgetPence <= 0) {

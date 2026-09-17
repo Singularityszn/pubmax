@@ -320,7 +320,6 @@ function DecisionBlock({
   );
 }
 
-// eslint-disable-next-line complexity
 export default function LastTrainCard({
   lat,
   lng,

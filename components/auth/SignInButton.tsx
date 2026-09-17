@@ -122,7 +122,6 @@ function accountIdentity(
   };
 }
 
-// eslint-disable-next-line complexity
 export default function SignInButton({
   compact = false,
 }: {

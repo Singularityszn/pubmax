@@ -382,7 +382,6 @@ function makeDatasetRow({ name, lat, lng, borough, description, wikipediaUrl, se
   };
 }
 
-// eslint-disable-next-line complexity
 async function main() {
   const { dryRun, heritageOnly, skipFetch, limit } = parseArgs(process.argv.slice(2));
   const seed = loadJson(SEED_PATH, null);

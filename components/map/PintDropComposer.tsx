@@ -48,7 +48,6 @@ type PintDropComposerProps = {
   lastTrainDecision?: LastPintDecision | null;
 };
 
-// eslint-disable-next-line complexity
 export default function PintDropComposer({
   venueId,
   state,

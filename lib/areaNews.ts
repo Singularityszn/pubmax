@@ -353,7 +353,6 @@ function isValidHttpsUrl(value: unknown): value is string {
 /** Validate one entry against the schema + house rules. Returns a list of
  *  human-readable problems (empty means valid). Shared by the dataset shape
  *  test so the rules live in one place. */
-// eslint-disable-next-line complexity
 export function validateAreaNewsEntry(entry: AreaNewsEntry): string[] {
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
     return ["(invalid row): entry must be an object"];

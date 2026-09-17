@@ -138,7 +138,6 @@ function areaNameFor(
 }
 
 /** Resolve one accepted Venue into a canonical anchor or a machine-readable conflict. */
-// eslint-disable-next-line complexity
 export async function resolvePlanningAnchor(
   input: ResolvePlanningAnchorInput,
   overrides: Partial<ResolvePlanningAnchorDeps> = {},
