@@ -756,12 +756,6 @@ h3 {
   letter-spacing: -0.005em;
 }
 
-.panelSection {
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px solid var(--line-soft);
-}
-
 .sectionTitle,
 .inspectorTitle {
   color: var(--ink-soft);
@@ -1010,28 +1004,6 @@ html[data-legacy="1"] *::after {
   animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
   scroll-behavior: auto !important;
-}
-
-/* Map mobile nav guard: /map renders the shared SiteNav over a full-bleed map.
-   The bottom tab bar owns primary nav at this width, while the compact PX mark
-   remains the landing-page affordance. Keep the utility cluster tight so the
-   390px demo viewport never overflows. */
-@media (max-width: 640px) {
-  .siteNavBarFloating .siteNavActions {
-    gap: 6px;
-  }
-
-  .siteNavBarFloating .authSignIn {
-    width: 32px;
-    height: 32px;
-    justify-content: center;
-    padding: 0;
-  }
-
-  .siteNavBarFloating .authSignInLabelFull,
-  .siteNavBarFloating .authSignInLabelShort {
-    display: none;
-  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
