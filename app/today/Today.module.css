@@ -32,7 +32,7 @@
   padding-inline: 0;
 }
 
-.todayPage > .todayScreen > .screenHead {
+.todayPage > .todayScreen > :global(.screenHead) {
   padding-top: var(--space-3);
 }
 
@@ -226,7 +226,7 @@
    of its own at r0 and 0.78rem, and in the get-there column it stretched to
    the card's width with its label at the left edge (site audit 13 Sep 2026,
    D7). It hugs its label, and one that starts a line pulls its padding back so
-   the label keeps the card's text edge. quietPintCard.css holds the same rule
+   the label keeps the card's text edge. QuietPintCard.module.css holds the same rule
    for /tonight, which loads that sheet without this one. */
 .todayTextButton {
   align-self: flex-start;
@@ -528,7 +528,7 @@
 /* A quiet pint (heritage-cited, quiet-hour). Same raised-row idiom as the picks
    and pints lists; the cited heritage line carries the weight, so rows breathe
    a little more. Both themes via role tokens. */
-/* Quiet-pint row styles live on TodayQuietPintCard's quietPintCard.css so
+/* Quiet-pint row styles live on TodayQuietPintCard's QuietPintCard.module.css so
    /tonight can host the same module without this page sheet. */
 
 /* Page foot */
@@ -547,7 +547,7 @@
    so the row itself reads as pressed, not just nudged. */
 .todayPickLink,
 .todayPintLink,
-.quietPintLink,
+:global(.quietPintLink),
 .todayCardFootLink,
 .todayButton,
 .todayAreaChip,
@@ -588,7 +588,7 @@
   }
 
   /* The greeting leads the stack in, one beat ahead of the first card. */
-  .todayScreen > .screenHead {
+  .todayScreen > :global(.screenHead) {
     animation: todayHeadIn var(--duration-slow, 0.28s) var(--ease-out-strong) both;
   }
 

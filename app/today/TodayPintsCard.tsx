@@ -21,7 +21,8 @@ import { formatPintDatasetSnapshot } from "@/lib/dataFreshness";
 import { readRememberedArea } from "@/lib/nightPatches";
 import { AREA_NEARBY_ROW_TAG } from "@/lib/venueTruth";
 
-import { TODAY_TEXT_BUTTON_CLASS } from "./todayTextButton";
+import { todayTextButtonClass } from "./todayTextButton";
+import styles from "./Today.module.css";
 
 import {
   resolveTodayPintsPatchId,
@@ -81,40 +82,40 @@ export default function TodayPintsCard({ index }: Props) {
   const { pints, hasRememberedLocality } = view;
 
   return (
-    <section className="todayCard" aria-labelledby="today-pints-title" data-testid="today-pints">
-      <div className="todayCardHead">
-        <span className="todayCardIcon" aria-hidden="true">
+    <section className={styles.todayCard} aria-labelledby="today-pints-title" data-testid="today-pints">
+      <div className={styles.todayCardHead}>
+        <span className={styles.todayCardIcon} aria-hidden="true">
           <Beer size={18} />
         </span>
         <div>
-          <p className="todayCardEyebrow">
+          <p className={styles.todayCardEyebrow}>
             {eyebrow(hasRememberedLocality)}
           </p>
-          <h2 className="todayCardTitle" id="today-pints-title">
+          <h2 className={styles.todayCardTitle} id="today-pints-title">
             {todayPintsHeading(pints)}
           </h2>
         </div>
       </div>
 
-      <ul className="todayPintList">
+      <ul className={styles.todayPintList}>
         {pints.rows.map((row) => (
-          <li key={row.id} className="todayPintRow">
-            <Link className="todayPintLink pressable" href={row.mapHref}>
-              <span className="todayPintName">
+          <li key={row.id} className={styles.todayPintRow}>
+            <Link className={`${styles.todayPintLink} pressable`} href={row.mapHref}>
+              <span className={styles.todayPintName}>
                 {/* The name carries the hover underline on its own. Text
                     decoration propagates to in-flow children and a child cannot
                     cancel it, so underlining the whole row would drag the
                     qualifier under with it. */}
-                <span className="todayPintNameText">{row.name}</span>
+                <span className={styles.todayPintNameText}>{row.name}</span>
                 {/* The heading names one area. A row that only sits NEAR it says
                     so on its own row rather than borrowing the heading's claim
                     (lib/venueTruth.ts, "nearby is not inside"). */}
                 {row.areaRelation === "nearby" ? (
-                  <span className="todayPintNearby">{AREA_NEARBY_ROW_TAG}</span>
+                  <span className={styles.todayPintNearby}>{AREA_NEARBY_ROW_TAG}</span>
                 ) : null}
               </span>
               <PriceBadge
-                className="todayPintPrice"
+                className={styles.todayPintPrice}
                 band={priceBand(row.price, priceBandAreaForVenue(row.id))}
               >
                 {row.priceLabel}
@@ -128,8 +129,8 @@ export default function TodayPintsCard({ index }: Props) {
           the eyebrow above. The footer used to repeat it undated over a
           different geography, so a reader met the same claim twice and only
           one copy said which day it was collected. */}
-      <p className="todayCardFootRow">
-        <Link href="/map" className={TODAY_TEXT_BUTTON_CLASS}>
+      <p className={styles.todayCardFootRow}>
+        <Link href="/map" className={todayTextButtonClass(styles.todayTextButton)}>
           Change area
           <ArrowRight size={14} aria-hidden="true" />
         </Link>

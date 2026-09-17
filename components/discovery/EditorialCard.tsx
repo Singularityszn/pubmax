@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
+import styles from "@/app/discover/Discover.module.css";
 
 // A single editorial discovery card: an <article> with a real, followable link
 // into /map or /crawls. Prop-driven and presentational — the copy and hrefs are
@@ -17,11 +18,11 @@ export type EditorialCardData = {
 
 export default function EditorialCard({ eyebrow, title, dek, href, cta }: EditorialCardData) {
   return (
-    <article className="editorialCard" data-reveal>
-      <p className="editorialEyebrow">{eyebrow}</p>
-      <h3 className="editorialTitle">{title}</h3>
-      <p className="editorialDek">{dek}</p>
-      <Link href={href} className="editorialLink pressable">
+    <article className={styles.editorialCard} data-reveal>
+      <p className={styles.editorialEyebrow}>{eyebrow}</p>
+      <h3 className={styles.editorialTitle}>{title}</h3>
+      <p className={styles.editorialDek}>{dek}</p>
+      <Link href={href} className={`${styles.editorialLink} pressable`}>
         {cta}
         <ArrowUpRight size={16} aria-hidden="true" />
       </Link>

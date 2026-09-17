@@ -835,11 +835,8 @@
   color: var(--color-on-accent);
 }
 
-:global(.discoverPage.discoverPageEmbedded) {
-  max-width: none;
-  margin: 0;
-  padding: 0;
-}
+/* Embedded Discover overrides now live in Discover.module.css
+   (.discoverPageEmbedded) so the module class hash resolves correctly. */
 
 @keyframes social-skeleton {
   from {

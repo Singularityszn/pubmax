@@ -29,6 +29,7 @@ import { readRememberedArea } from "@/lib/nightPatches";
 import type { PatchDisruption } from "@/lib/tflDisruption";
 
 import { rememberedAreaCentre } from "./todayArea";
+import styles from "./Today.module.css";
 import "@/components/transport/disruptionLine.css";
 
 type DisruptionResponse = { disruption?: PatchDisruption | null };
@@ -54,14 +55,14 @@ export default function TodayTubeCard({ slot }: { slot: DaySlot }) {
   if (!disruption) return null;
 
   return (
-    <section className="todayCard" aria-labelledby="today-tube-title" data-testid="today-tube">
-      <div className="todayCardHead">
-        <span className="todayCardIcon" aria-hidden="true">
+    <section className={styles.todayCard} aria-labelledby="today-tube-title" data-testid="today-tube">
+      <div className={styles.todayCardHead}>
+        <span className={styles.todayCardIcon} aria-hidden="true">
           <TrainFront size={18} />
         </span>
         <div>
-          <p className="todayCardEyebrow">The Tube {TUBE_WHEN_LABEL[slot]}</p>
-          <h2 className="todayCardTitle" id="today-tube-title">
+          <p className={styles.todayCardEyebrow}>The Tube {TUBE_WHEN_LABEL[slot]}</p>
+          <h2 className={styles.todayCardTitle} id="today-tube-title">
             Worth planning around near {disruption.patchLabel}.
           </h2>
         </div>

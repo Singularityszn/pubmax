@@ -67,7 +67,7 @@
 }
 
 /* The Button primitive's ghost paints this action; the sheet only places it
-   (same rule as today.css, because /tonight loads this sheet alone). */
+   (same rule as Today.module.css, because /tonight loads this sheet alone). */
 .todayTextButton {
   align-self: flex-start;
   touch-action: manipulation;

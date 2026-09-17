@@ -10,10 +10,19 @@
   color: var(--ink);
 }
 
+/* Embedded variant (used when Discover is inlined inside another page, e.g.
+   /social). Previously targeted from Social.module.css via :global(); now
+   co-located so the module class hash resolves correctly. */
+.discoverPageEmbedded {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
 /* The head is the launch Screen (components/ui/screen.tsx), on the page
    itself: no card, no shadow, no pill around the kicker. The page already
    pads its gutter and keeps its own width, so the Screen takes neither. */
-.discoverHead.screen {
+.discoverHead:global(.screen) {
   width: 100%;
   padding-inline: 0;
 }
@@ -710,14 +719,14 @@
    Leaderboard, Cheapest Pints Tonight, Ways to drink) stayed permanently
    blank until a real scroll happened to trip the observer first. */
 @media (prefers-reduced-motion: no-preference) {
-  .discoverPage.revealArmed [data-reveal] {
+  .discoverPage:global(.revealArmed) [data-reveal] {
     opacity: 0;
     transform: translateY(14px);
     transition: opacity var(--duration-slow) var(--ease-out-strong),
       transform var(--duration-slow) var(--ease-out-strong);
   }
 
-  .discoverPage.revealArmed [data-reveal].is-revealed {
+  .discoverPage:global(.revealArmed) [data-reveal]:global(.is-revealed) {
     opacity: 1;
     transform: none;
   }
@@ -841,22 +850,22 @@
 }
 
 /* ── Focused visual polish: bright listing surfaces + coral/blue accents ── */
-.discoverExplore.catShowcase {
+.discoverExplore:global(.catShowcase) {
   border-color: color-mix(in srgb, var(--line) 74%, var(--panel-raised));
   background-color: var(--panel-raised);
   box-shadow: 0 12px 30px color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
-.discoverExplore.catShowcase {
+.discoverExplore:global(.catShowcase) {
   background: var(--panel-raised);
 }
 
-.discoverExplore .catShowcase__link {
+.discoverExplore :global(.catShowcase__link) {
   background: var(--panel-raised);
   box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--cat, var(--brass)) 18%, transparent);
 }
 
-.discoverExplore .catShowcase__hint {
+.discoverExplore :global(.catShowcase__hint) {
   color: var(--river);
 }
 
@@ -869,37 +878,37 @@
 }
 
 @media (max-width: 560px) {
-  .discoverExplore.catShowcase {
+  .discoverExplore:global(.catShowcase) {
     padding: 12px;
   }
 
   /* The lane's scroll-snap/mask setup lives in categoryShowcase.css (all
      viewports); mobile just narrows the gap and card width. */
-  .discoverExplore .catShowcase__grid {
+  .discoverExplore :global(.catShowcase__grid) {
     gap: 8px;
     padding: 2px 2px 6px;
   }
 
-  .discoverExplore .catShowcase__item {
+  .discoverExplore :global(.catShowcase__item) {
     flex-basis: 128px;
   }
 
-  .discoverExplore .catShowcase__link {
+  .discoverExplore :global(.catShowcase__link) {
     min-height: 48px;
     gap: 8px;
     padding: 8px 10px;
   }
 
-  .discoverExplore .catShowcase__swatch {
+  .discoverExplore :global(.catShowcase__swatch) {
     width: 32px;
     height: 32px;
   }
 
-  .discoverExplore .catShowcase__label {
+  .discoverExplore :global(.catShowcase__label) {
     font-size: 0.98rem;
   }
 
-  .discoverExplore .catShowcase__hint {
+  .discoverExplore :global(.catShowcase__hint) {
     display: none;
   }
 }

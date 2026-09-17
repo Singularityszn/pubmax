@@ -47,7 +47,8 @@ import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import { summariseGetHome, type GetHomeSummary } from "@/lib/tonightGetHome";
 import type { LastTrainResult } from "@/lib/tfl";
 
-import { TODAY_TEXT_BUTTON_CLASS } from "./todayTextButton";
+import { todayTextButtonClass } from "./todayTextButton";
+import styles from "./Today.module.css";
 
 const SURFACE = "today-last-train" as const;
 
@@ -151,65 +152,65 @@ export default function TodayGetThereStrip() {
   const areaPickerOpen = areaPickerAsked || locationStatus === "unavailable";
 
   return (
-    <section className="todayCard" aria-labelledby="today-getthere-title" data-testid="today-get-there">
-      <div className="todayCardHead">
-        <span className="todayCardIcon" aria-hidden="true">
+    <section className={styles.todayCard} aria-labelledby="today-getthere-title" data-testid="today-get-there">
+      <div className={styles.todayCardHead}>
+        <span className={styles.todayCardIcon} aria-hidden="true">
           <TrainFront size={18} />
         </span>
         <div>
-          <p className="todayCardEyebrow">Getting home</p>
-          <h2 className="todayCardTitle" id="today-getthere-title">
+          <p className={styles.todayCardEyebrow}>Getting home</p>
+          <h2 className={styles.todayCardTitle} id="today-getthere-title">
             Your last train, before you commit to the night.
           </h2>
         </div>
       </div>
 
       {origin && result?.kind === "summary" ? (
-        <div className="todayGetThere">
-          {originLine ? <p className="todayOriginLine">{originLine}</p> : null}
-          <p className="todayGetThereCopy">
-            <span className="todayGetThereStatus">{result.summary.statusLine}</span>{" "}
+        <div className={styles.todayGetThere}>
+          {originLine ? <p className={styles.todayOriginLine}>{originLine}</p> : null}
+          <p className={styles.todayGetThereCopy}>
+            <span className={styles.todayGetThereStatus}>{result.summary.statusLine}</span>{" "}
             <span>{result.summary.trainLine}</span>
           </p>
           <DisruptionLine lat={origin.lat} lng={origin.lng} />
-          <div className="todayCardFootRow">
-            <span className="todayProvenance">via TfL</span>
-            <button type="button" className={TODAY_TEXT_BUTTON_CLASS} onClick={clearOrigin}>
+          <div className={styles.todayCardFootRow}>
+            <span className={styles.todayProvenance}>via TfL</span>
+            <button type="button" className={todayTextButtonClass(styles.todayTextButton)} onClick={clearOrigin}>
               <X size={14} aria-hidden="true" />
               {removeLabel}
             </button>
           </div>
         </div>
       ) : origin && result?.kind === "none" ? (
-        <div className="todayGetThere">
-          {originLine ? <p className="todayOriginLine">{originLine}</p> : null}
-          <p className="todayCardEmpty">
+        <div className={styles.todayGetThere}>
+          {originLine ? <p className={styles.todayOriginLine}>{originLine}</p> : null}
+          <p className={styles.todayCardEmpty}>
             Couldn&rsquo;t find a last train {origin.kind === "area" ? "there" : "near you"} just
             now. Check TfL before you head out.
           </p>
           <DisruptionLine lat={origin.lat} lng={origin.lng} />
-          <div className="todayCardFootRow">
-            <button type="button" className={TODAY_TEXT_BUTTON_CLASS} onClick={clearOrigin}>
+          <div className={styles.todayCardFootRow}>
+            <button type="button" className={todayTextButtonClass(styles.todayTextButton)} onClick={clearOrigin}>
               <X size={14} aria-hidden="true" />
               {removeLabel}
             </button>
           </div>
         </div>
       ) : origin ? (
-        <p className="todayCardEmpty" role="status">
+        <p className={styles.todayCardEmpty} role="status">
           Checking the last train&hellip;
         </p>
       ) : (
-        <div className="todayGetThere">
+        <div className={styles.todayGetThere}>
           {/* The disclosure, in the order lib/locationDisclosure sets: what is
               sent, how coarse, who our server passes it to, what we keep. */}
           {locationDisclosureLines(SURFACE).map((line, index, lines) => (
-            <p className="todayCardBody" key={line}>
+            <p className={styles.todayCardBody} key={line}>
               {line}
               {index === lines.length - 1 ? (
                 <>
                   {" "}
-                  <Link href={LOCATION_POLICY_LINK.href} className="todayInlineLink">
+                  <Link href={LOCATION_POLICY_LINK.href} className={styles.todayInlineLink}>
                     {LOCATION_POLICY_LINK.label}
                   </Link>
                 </>
@@ -218,7 +219,7 @@ export default function TodayGetThereStrip() {
           ))}
           <button
             type="button"
-            className="todayButton"
+            className={styles.todayButton}
             onClick={requestLocation}
             disabled={locationStatus === "requesting"}
           >
@@ -233,10 +234,10 @@ export default function TodayGetThereStrip() {
               because a reader who will not share should not have to be refused
               first to find out there is another way. The chips themselves cost
               a tap, so the card stays one primary action tall until asked. */}
-          <p className="todayManualPrompt">{LOCATION_MANUAL_PROMPT}</p>
+          <p className={styles.todayManualPrompt}>{LOCATION_MANUAL_PROMPT}</p>
           {areaPickerOpen ? (
             <div
-              className="todayAreaPicker"
+              className={styles.todayAreaPicker}
               role="group"
               aria-label={LOCATION_MANUAL_GROUP_LABEL}
             >
@@ -244,7 +245,7 @@ export default function TodayGetThereStrip() {
                 <button
                   key={patch.id}
                   type="button"
-                  className="todayAreaChip"
+                  className={styles.todayAreaChip}
                   onClick={() => pickArea(patch)}
                 >
                   <MapPin size={12} aria-hidden="true" />
@@ -255,14 +256,14 @@ export default function TodayGetThereStrip() {
           ) : (
             <button
               type="button"
-              className={TODAY_TEXT_BUTTON_CLASS}
+              className={todayTextButtonClass(styles.todayTextButton)}
               onClick={() => setAreaPickerAsked(true)}
             >
               <MapPin size={14} aria-hidden="true" />
               {LOCATION_MANUAL_OPEN_LABEL}
             </button>
           )}
-          <span className="todaySrOnly" role="status" aria-live="polite">
+          <span className={styles.todaySrOnly} role="status" aria-live="polite">
             {locationStatus === "requesting"
               ? LOCATION_FINDING_STATUS
               : locationStatus === "unavailable"
@@ -274,8 +275,8 @@ export default function TodayGetThereStrip() {
       {/* A quiet way to the pubs from inside the getting-home card. The route's
           one primary action is Find my pint in the Screen head
           (docs/design/LAUNCH_SCREENS.md), so this stays a text link. */}
-      <p className="todayCardFootRow todayNearEntry">
-        <Link href="/near" className="todayCardFootLink">
+      <p className={`${styles.todayCardFootRow} todayNearEntry`}>
+        <Link href="/near" className={styles.todayCardFootLink}>
           <LocateFixed size={14} aria-hidden="true" />
           Find pubs near you
         </Link>

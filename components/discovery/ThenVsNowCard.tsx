@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+import styles from "@/app/discover/Discover.module.css";
 
 import PriceBadge from "@/components/PriceBadge";
 import { venueMapUrl } from "@/lib/venueMapUrl";
@@ -43,37 +44,37 @@ export default function ThenVsNowCard({ item }: ThenVsNowCardProps) {
   const DirIcon = dir === "up" ? ArrowUpRight : dir === "down" ? ArrowDownRight : Minus;
 
   return (
-    <article className="tvnCard" data-reveal>
-      <h3 className="tvnName">
-        <Link prefetch={false} href={href} className="tvnLink">
+    <article className={styles.tvnCard} data-reveal>
+      <h3 className={styles.tvnName}>
+        <Link prefetch={false} href={href} className={styles.tvnLink}>
           {item.venueName}
         </Link>
       </h3>
 
-      <div className="tvnCompareRow">
-        <div className="tvnPriceGroup">
-          <span className="tvnPriceLabel">Then</span>
+      <div className={styles.tvnCompareRow}>
+        <div className={styles.tvnPriceGroup}>
+          <span className={styles.tvnPriceLabel}>Then</span>
           <PriceBadge variant="baseline">{formatPrice(item.thenGbp)}</PriceBadge>
         </div>
-        <span className="tvnArrow" aria-hidden="true">
+        <span className={styles.tvnArrow} aria-hidden="true">
           →
         </span>
-        <div className="tvnPriceGroup">
-          <span className="tvnPriceLabel">Now</span>
+        <div className={styles.tvnPriceGroup}>
+          <span className={styles.tvnPriceLabel}>Now</span>
           <PriceBadge variant={dir === "up" ? "increase" : "current"}>
             {formatPrice(item.nowGbp)}
           </PriceBadge>
         </div>
       </div>
 
-      <p className={`tvnDelta tvnDelta-${dir}`}>
+      <p className={`${styles.tvnDelta} ${styles[`tvnDelta-${dir}` as keyof typeof styles]}`}>
         <DirIcon size={15} aria-hidden="true" />
         <span aria-hidden="true">
           {dir === "flat"
             ? "No change"
             : `${dir === "up" ? "+" : "−"}${formatPrice(abs)} (${pctAbs.toFixed(0)}%)`}
         </span>
-        <span className="srOnly">{movementLabel}</span>
+        <span className={styles.srOnly}>{movementLabel}</span>
       </p>
     </article>
   );
