@@ -15,11 +15,11 @@
    Policy:
    1. Location owns first paint while available, so onboarding eligibility
       defers to it. While onboarding is open, status and Tonight do not render.
-   2. Otherwise location keeps the centred prompt slot. A simultaneous status
-      alert yields to the left map lane instead of building a centred banner
-      stack. Tonight-nearby yields to either one. Each banner renders its root
-      only when eligible and UNMOUNTS it on dismissal, so removing both higher
-      siblings releases Tonight normally. */
+   2. Otherwise ONE of them holds the map at a time, in a fixed order: the
+      location ask, then the closure and area-news rail, then Tonight-nearby,
+      then the concierge ask. Each banner renders its root only when eligible
+      and UNMOUNTS it on dismissal, so answering the one on screen releases
+      exactly the next one down. */
 
 @media (min-width: 641px) {
   /* 1. Onboarding open — suppress ambient status and Tonight. */
