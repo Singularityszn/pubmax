@@ -6,6 +6,8 @@ import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 test.describe.configure({ mode: "serial" });
 
 test.beforeEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+  await page.context().unrouteAll({ behavior: "ignoreErrors" });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -841,7 +843,7 @@ test("/map states a TileJSON metadata failure instead of revealing a blank field
 }) => {
   test.setTimeout(45_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.route(
+  await page.context().route(
     /tiles\.openfreemap\.org\/planet(?:\?|$)/,
     (route) => route.abort("failed"),
   );

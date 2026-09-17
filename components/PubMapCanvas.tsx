@@ -2389,14 +2389,14 @@ export default function PubMapCanvas({
       tileSpend = markTileFailureSurfaced(tileSpend);
       sceneSettled = true;
       clearTimeout(hangFailTimer);
+      if (
+        basemapFailureSurface(styleEverLoaded || styleLoaded) === "toast"
+      ) {
+        tileNoticeOwner = "errors";
+        setSoftRetry(BASEMAP_RETRY_NOTICE);
+        return;
+      }
       queueMicrotask(() => {
-        if (
-          basemapFailureSurface(styleEverLoaded) === "toast"
-        ) {
-          tileNoticeOwner = "errors";
-          setSoftRetry(BASEMAP_RETRY_NOTICE);
-          return;
-        }
         reportMapError({
           kind: "tiles",
           message:
@@ -2634,6 +2634,10 @@ export default function PubMapCanvas({
         }, Math.max(1, delay));
         return;
       }
+      // Tile recovery can outlast the scene-ready hang guard while the basemap
+      // is still legitimately pending. Let the tile lane finish before the
+      // timeout card blames a slow box for a source that is actively retrying.
+      clearTimeout(hangFailTimer);
       clearTileFailureRecheck();
       const spent = spendTileFailureDecision(tileSpend, decision);
       tileSpend = spent.state;
