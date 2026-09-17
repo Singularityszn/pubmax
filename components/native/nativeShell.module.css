@@ -34,14 +34,14 @@
    lane). Restating them under a native-only attribute would fork the geometry
    that e2e/mobile-map-chrome-fit.spec.ts measures. */
 
-[data-native-shell] {
+:global([data-native-shell]) {
   /* The document itself stops bouncing; inner scrollers keep theirs. */
   overscroll-behavior: none;
   /* iOS momentum inside the panes that do scroll. */
   -webkit-overflow-scrolling: touch;
 }
 
-[data-native-shell] body {
+:global([data-native-shell]) body {
   overscroll-behavior: none;
   /* A WebView has no browser chrome to fall back on, so a horizontal drag that
      escapes a rail would leave the page visibly offset with no way to correct
@@ -49,7 +49,7 @@
   overflow-x: hidden;
 }
 
-[data-native-shell] * {
+:global([data-native-shell]) * {
   /* Android's grey press box. Every control here draws its own press state. */
   -webkit-tap-highlight-color: transparent;
 }
@@ -62,15 +62,15 @@
    __tests__/mobileWebPolish.test.ts holds that to a short deliberate list so a
    new file cannot quietly make more of the page unselectable. The callout is
    the part no web rule covers, so it is the only part this file adds. */
-[data-native-shell] :is(button, a, summary, label, [role="button"], [role="tab"], [role="switch"]),
-[data-native-shell] :global(:is(.mobileTabBar, .siteNavBar, .surfaceNav, .createFab)) {
+:global([data-native-shell]) :is(button, a, summary, label, [role="button"], [role="tab"], [role="switch"]),
+:global([data-native-shell]) :global(:is(.mobileTabBar, .siteNavBar, .surfaceNav, .createFab)) {
   -webkit-touch-callout: none;
 }
 
 /* A field is for typing in, and a figure, a date, an address or a pub name is
    worth copying. Both get the callout back inside whatever control wrapper the
    rule above matched around them. */
-[data-native-shell] :is(input, textarea, [contenteditable="true"]),
-[data-native-shell] :is(p, li, dd, address, blockquote, code, pre, [data-copyable]) {
+:global([data-native-shell]) :is(input, textarea, [contenteditable="true"]),
+:global([data-native-shell]) :is(p, li, dd, address, blockquote, code, pre, [data-copyable]) {
   -webkit-touch-callout: default;
 }

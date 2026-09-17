@@ -83,7 +83,7 @@
   animation: mapLayersPanelIn var(--duration-base) var(--ease-out) both;
 }
 
-@keyframes :global(mapLayersPanelIn) {
+@keyframes mapLayersPanelIn {
   from {
     opacity: 0;
     transform: translateY(6px) scale(0.97);

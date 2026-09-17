@@ -50,7 +50,7 @@
     var(--ease-splash-aperture) var(--duration-splash-hold) forwards;
 }
 
-@keyframes :global(pubmaxSplashBackdrop) {
+@keyframes pubmaxSplashBackdrop {
   0% {
     opacity: 1;
   }
@@ -63,7 +63,7 @@
   }
 }
 
-@keyframes :global(pubmaxSplashAperture) {
+@keyframes pubmaxSplashAperture {
   0% {
     transform: translate(-50%, -50%) scale(1);
     opacity: 1;
