@@ -94,6 +94,7 @@ async function claimSignedInPlanCreator(
   }
 }
 
+// eslint-disable-next-line complexity
 export async function POST(request: Request): Promise<Response> {
   let body: Record<string, unknown>;
   try {

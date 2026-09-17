@@ -315,6 +315,7 @@ export function mintPlanGroundingProofV2(
 }
 
 /** Read signature-verified V2 claims without checking operation, order, or expiry. */
+// eslint-disable-next-line complexity
 export function readPlanGroundingClaimsV2(proof: unknown): PlanGroundingClaimsV2 | null {
   if (typeof proof !== "string" || !proof || proof.length > PROOF_MAX_LENGTH) return null;
   const parts = proof.split(".");

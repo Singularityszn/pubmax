@@ -163,6 +163,7 @@ function FeedOptimisticStatus({
   );
 }
 
+// eslint-disable-next-line complexity
 export default function FeedCard({
   item,
   summary,

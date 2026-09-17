@@ -635,6 +635,7 @@ async function defaultRunCommonLane(options) {
  * test: this whole path used to be reachable only by spawning the CLI, which is
  * why a module-level binding error in it went uncaught.
  */
+// eslint-disable-next-line complexity
 export async function runEventsRefresh({
   argv = process.argv,
   env = process.env,

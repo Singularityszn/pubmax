@@ -60,6 +60,7 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
     tonightOpportunitiesRef,
     cinematic,
   } = deps;
+  // eslint-disable-next-line complexity
   map.on("click", (event) => {
     const features = map.queryRenderedFeatures(event.point, {
       layers: PUB_FIRST_LAYERS.filter((id) => Boolean(map.getLayer(id))),

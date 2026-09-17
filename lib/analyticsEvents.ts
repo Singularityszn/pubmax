@@ -1028,6 +1028,7 @@ function isSafeValue(value: unknown): value is string | number | boolean {
  * silently so a bad prop never blocks a legitimate event. The result is safe to
  * both send from the client and persist server-side.
  */
+// eslint-disable-next-line complexity
 export function sanitizeEvent(
   name: string,
   props?: Record<string, unknown> | null,

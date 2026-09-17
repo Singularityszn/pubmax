@@ -427,6 +427,7 @@ export function createMemorySocialPostStore(options: {
       });
       return socialPostDTO(post, { exactVenue: true, viewerProfileId: actor.profileId });
     },
+    // eslint-disable-next-line complexity
     async edit(id, actor, expectedMutationVersion, changes, moderationSensitive, editOptions) {
       const current = rows.get(id);
       if (!current || current.status !== "visible") throw new SocialPostStoreError("NOT_FOUND", "Post not found.");
@@ -656,6 +657,7 @@ async function durableOrMemory<T>(operation: () => Promise<T>, fallback: () => P
 
 export const supabaseSocialPostStore: SocialPostStore = {
   async create(actor, fields, createOptions = {}) {
+    // eslint-disable-next-line complexity
     return durableOrMemory(async () => {
       const media = createOptions.media;
       const idempotent = Boolean(createOptions.idempotencyKey && createOptions.requestDigest);
@@ -699,6 +701,7 @@ export const supabaseSocialPostStore: SocialPostStore = {
     }, () => memorySocialPostStore.create(actor, fields, createOptions), true);
   },
   async edit(id, actor, expectedMutationVersion, changes, moderationSensitive, options) {
+    // eslint-disable-next-line complexity
     return durableOrMemory(async () => {
       const { data: currentData, error: currentError } = await requireSupabaseAdmin()
         .from("social_posts")

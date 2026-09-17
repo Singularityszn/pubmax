@@ -53,6 +53,7 @@ export function usePresence(venue: Venue) {
     currentAccountRevisionRef.current = accountRevision;
   }, [accountRevision, currentUserId]);
 
+  // eslint-disable-next-line complexity
   async function markPresenceHere() {
     if (presenceState === "sending" || presenceState === "here") return;
     if (supabaseAuthState === "unresolved" || supabaseAuthState === "unavailable") return;

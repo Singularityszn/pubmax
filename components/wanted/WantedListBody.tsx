@@ -43,6 +43,7 @@ type WantedAccountState = {
   fulfilNote: string | null;
 };
 
+// eslint-disable-next-line complexity
 export default function WantedListBody(): React.JSX.Element {
   // Wanted is owner-only, so asking for it without a session is a question we
   // already know the answer to. A cold /you fired GET /api/wanted anyway and

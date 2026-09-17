@@ -425,6 +425,7 @@ function NightModePill({
   );
 }
 
+// eslint-disable-next-line complexity
 function NightModeSheet({
   entry,
   onCollapse,

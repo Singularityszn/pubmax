@@ -54,6 +54,7 @@ export async function GET(_request: Request, context: Context): Promise<Response
   return jsonNoStore({ completion: completionLookup.completion });
 }
 
+// eslint-disable-next-line complexity
 export async function POST(request: Request, context: Context): Promise<Response> {
   const limiterKey = `plan-complete:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, 30)) {

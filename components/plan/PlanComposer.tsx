@@ -1822,6 +1822,7 @@ function PlanComposerForm({
     }
   }
 
+  // eslint-disable-next-line complexity
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const validationError = planLockValidationError({

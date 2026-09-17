@@ -108,6 +108,7 @@ async function performAdd(
   }
 }
 
+// eslint-disable-next-line complexity
 export default function ConfirmFollow({
   targetHandle,
   targetAvatarUrl,

@@ -82,6 +82,7 @@ function rawResponse(body: string, status = 200): Response {
   });
 }
 
+// eslint-disable-next-line complexity
 function responseFor(input: string, init?: RequestInit): Response | Promise<Response> {
   const url = new URL(input, "http://localhost");
   const method = init?.method ?? "GET";

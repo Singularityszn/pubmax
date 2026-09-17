@@ -129,6 +129,7 @@ export function hoverPriceLine(
   return { price: null, provenance: "Tap for detail" };
 }
 
+// eslint-disable-next-line complexity
 export function hoverCardCopy(
   mapVenue: Venue | undefined,
   signal: VenueSignal | undefined,

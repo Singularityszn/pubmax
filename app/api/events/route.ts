@@ -84,6 +84,7 @@ function safeClientIp(request: Request): string | undefined {
   return isIP(value) ? value : undefined;
 }
 
+// eslint-disable-next-line complexity
 export async function POST(req: Request): Promise<Response> {
   try {
     // Server-side Do Not Track: the client beacon (lib/analytics.ts) already

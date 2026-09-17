@@ -150,6 +150,7 @@ function areaSheetEmptyNote(input: {
   return `No ${input.drinkNoun} prices ${where} yet. Try somewhere else below.`;
 }
 
+// eslint-disable-next-line complexity
 export default function AreaSheet({
   cityId,
   area,

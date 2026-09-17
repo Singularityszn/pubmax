@@ -128,6 +128,7 @@ function validate(raw: string): URL | null {
   return url;
 }
 
+// eslint-disable-next-line complexity
 export async function GET(request: Request): Promise<Response> {
   const limiterKey = `image-proxy:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS)) {

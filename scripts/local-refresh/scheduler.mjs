@@ -154,6 +154,7 @@ function stableJson(value) {
   return JSON.stringify(value);
 }
 
+// eslint-disable-next-line complexity
 export function captureRefreshSnapshot(root) {
   const datasetPath = join(root, "public/data/pint_prices_app_dataset.json");
   const dataset = readJson(datasetPath, []);

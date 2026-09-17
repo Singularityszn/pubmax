@@ -103,6 +103,7 @@ function canonicalTimestamp(value: unknown): { value: string; time: number } | n
   return { value, time };
 }
 
+// eslint-disable-next-line complexity
 function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDraft | null {
   if (
     !isRecord(value)

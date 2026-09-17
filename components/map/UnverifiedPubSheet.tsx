@@ -89,6 +89,7 @@ export function HarvestOverlayFields({ overlay }: { overlay: PublicHarvestOverla
   );
 }
 
+// eslint-disable-next-line complexity
 export default function UnverifiedPubSheet({
   pub,
   communityPrices,

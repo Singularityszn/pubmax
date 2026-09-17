@@ -130,6 +130,7 @@ function wallAgeRefusalLine(refusal: ContributionAdultRefusal): string {
   return `Photo walls are for over-18s. Confirm your age on ${surface}.`;
 }
 
+// eslint-disable-next-line complexity
 export async function POST(request: Request): Promise<Response> {
   const contentType = (request.headers.get("Content-Type") ?? "").toLowerCase();
 

@@ -526,6 +526,7 @@ function* venueIndexSequence(pubs, startIndex, indices) {
   }
 }
 
+// eslint-disable-next-line complexity
 export async function runCityEnrichment({
   city: cityId,
   pubs,

@@ -58,6 +58,7 @@ const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4
 /** Names the chain in free text (Wetherspoon / Wetherspoons / Spoons). */
 export const WETHERSPOONS_QUERY_PATTERN = /\bwetherspoons?\b|\bspoons\b/i;
 
+// eslint-disable-next-line complexity
 export function inferNightContext(rawQuery: unknown, now = new Date()): InferredNightContext {
   const query = cleanText(rawQuery, 500);
   const lower = query.toLocaleLowerCase();

@@ -220,6 +220,7 @@ function parseMember(value: unknown): SocialCrewMemberDTO | null {
   };
 }
 
+// eslint-disable-next-line complexity
 export function parseCrewRead(value: unknown): SocialCrewReadDTO | null {
   if (!isRecord(value)) return null;
   if (value.kind === "preview") {

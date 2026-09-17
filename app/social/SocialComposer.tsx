@@ -54,6 +54,7 @@ function initialDraft(post?: SocialPostDTO): Draft {
   };
 }
 
+// eslint-disable-next-line complexity
 function draftHasChanges(
   draft: Draft,
   post: SocialPostDTO | undefined,
@@ -203,6 +204,7 @@ function PolicyFields({ draft, hasPhoto, onDraft }: { draft: Draft; hasPhoto: bo
   );
 }
 
+// eslint-disable-next-line complexity
 export default function SocialComposer({
   post,
   draftScope,

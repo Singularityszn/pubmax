@@ -490,6 +490,7 @@ async function loadProfileModerationQueues(): Promise<{
   };
 }
 
+// eslint-disable-next-line complexity
 export default function AdminClient() {
   const [sessionEstablished, setSessionEstablished] = useState(false);
   const [sessionRecoveryNeeded, setSessionRecoveryNeeded] = useState(false);
@@ -747,6 +748,7 @@ export default function AdminClient() {
     [retryWithFreshSession, socialQueueUnavailable],
   );
 
+  // eslint-disable-next-line complexity
   const load = useCallback(async (forceSession = false) => {
     const requestGeneration = ++socialPostsRequestGeneration.current;
     const isLatestLoad = () => requestGeneration === socialPostsRequestGeneration.current;

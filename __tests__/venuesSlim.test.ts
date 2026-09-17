@@ -92,6 +92,7 @@ function hasValidFamousVenueFields(row: Record<string, unknown>): boolean {
   return kind && priceBand && anchor;
 }
 
+// eslint-disable-next-line complexity
 function isSlimVenue(value: unknown): value is SlimVenue {
   if (typeof value !== "object" || value === null) return false;
   const row = value as Record<string, unknown>;

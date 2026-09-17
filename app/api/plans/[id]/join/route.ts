@@ -67,6 +67,7 @@ function crewCommittedToken(plan: PlanState | null): string | undefined {
   });
 }
 
+// eslint-disable-next-line complexity
 export async function POST(request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
   if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);

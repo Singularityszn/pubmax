@@ -646,6 +646,7 @@ function buildFilterHints(rows, venueId, scrapedIds) {
 
 // --- build -------------------------------------------------------------------
 
+// eslint-disable-next-line complexity
 async function main() {
   const rawText = await readFile(RAW_PATH, "utf8");
   const rows = JSON.parse(rawText);

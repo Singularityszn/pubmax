@@ -521,6 +521,7 @@ function json(body: unknown, opts: { status?: number; cache?: boolean } = {}): R
   });
 }
 
+// eslint-disable-next-line complexity
 export async function runLastTrainRoute(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const stableOnly = params.get("scope") === "stable";

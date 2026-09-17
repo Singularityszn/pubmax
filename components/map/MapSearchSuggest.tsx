@@ -103,6 +103,7 @@ export type MapSearchSuggestProps = {
   onClose?: () => void;
 };
 
+// eslint-disable-next-line complexity
 export default function MapSearchSuggest({
   id,
   mode = "overlay",

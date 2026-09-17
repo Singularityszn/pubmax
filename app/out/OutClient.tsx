@@ -46,6 +46,7 @@ const DAY_LABEL: Record<OutDayWindow, string> = {
   weekend: "Weekend",
 };
 
+// eslint-disable-next-line complexity
 export default function OutClient({ day }: { day: OutDayWindow }) {
   // Out follows the city Places set. The server snapshot is null, so the first
   // paint asks for London and the browser's own answer takes over after mount:

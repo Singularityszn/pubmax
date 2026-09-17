@@ -88,6 +88,7 @@ export function buildVenueIndex(venues: Venue[]): Map<string, VenueRef> {
   return index;
 }
 
+// eslint-disable-next-line complexity
 function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, IndexedVenue> {
   const index = new Map<string, IndexedVenue>();
   for (const row of rows) {

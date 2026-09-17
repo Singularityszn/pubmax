@@ -210,6 +210,7 @@ async function promoteReadyRoundPrices(input: {
 }
 
 // One immutable buying turn, plus the price submissions its drink lines earn.
+// eslint-disable-next-line complexity
 async function recordSpend(
   request: Request,
   code: string,

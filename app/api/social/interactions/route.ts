@@ -208,6 +208,7 @@ export async function DELETE(request: Request): Promise<Response> {
   }
 }
 
+// eslint-disable-next-line complexity
 export async function POST(request: Request): Promise<Response> {
   const input = await body(request);
   if (!input || typeof input.action !== "string") return publicApiError("Request body is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });

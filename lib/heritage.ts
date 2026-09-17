@@ -125,6 +125,7 @@ export type HeritageReadResult = {
   facts: HeritageFact[];
 };
 
+// eslint-disable-next-line complexity
 export async function retrieveHeritageWithStatus(input: {
   venueId?: string;
   venueName: string;

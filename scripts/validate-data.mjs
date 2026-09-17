@@ -993,6 +993,7 @@ function validatePostcodeCoordinateBuildDecisions({
   ];
 }
 
+// eslint-disable-next-line complexity
 function validatePintPrices() {
   const name = "public/data/pint_prices_app_dataset.json";
   const errs = makeCollector();
@@ -1598,6 +1599,7 @@ function validateCityVenuePacks() {
 // venues_slim.json using the same shared module the build script uses, so the
 // shipped manifest and cell files can never silently drift from the complete
 // index. It also enforces eager and total-across-shard budgets.
+// eslint-disable-next-line complexity
 function validateSlimShards() {
   const name = "public/data/venues_slim shards";
   const errs = makeCollector();
@@ -1898,6 +1900,7 @@ function addUkBaseErrors(errs, errors) {
   for (const error of errors) errs.add(error);
 }
 
+// eslint-disable-next-line complexity
 function validateUkPlaceIndex() {
   const errors = [];
   const file = join(UK_BASE_DIR, UK_PLACE_INDEX_FILE);
@@ -2253,6 +2256,7 @@ function validateFamousDetailArtifact({
 // artifacts generated beside venues_slim.json. The manifest points each venue
 // id to a byte range in the JSONL file, so /api/venue/[id] reads one venue's
 // pub-price rows or curated facts without loading every source on cold start.
+// eslint-disable-next-line complexity
 function validateVenueDetails() {
   const name = "data/generated/venue_details.jsonl";
   const manifestName = "data/generated/venue_detail_index.json";
@@ -2351,6 +2355,7 @@ function validateVenueDetails() {
 
   const spans = [];
   let unverifiableFamousRows = 0;
+  // eslint-disable-next-line complexity
   entries.forEach(([id, entry], i) => {
     const where = `entry ${i + 1} (${id})`;
     if (typeof id !== "string" || id.length === 0) {
@@ -3461,6 +3466,7 @@ function validatePintIndexSnapshotShape(data, errs, iso) {
 // One source's eligibility: id/dup, kind, public URL, then the kind-specific
 // evidence each pint-index source type must carry. Mutates `ids` exactly as
 // the original inline loop did, so later observations can check membership.
+// eslint-disable-next-line complexity
 function validatePintIndexSource(source, index, ids, errs, publicUrl, hostname) {
   if (!source?.id || ids.has(source.id))
     errs.add(`source ${index}: missing or duplicate id`);

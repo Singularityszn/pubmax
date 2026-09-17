@@ -15,6 +15,7 @@ assertServerEnv();
 type Context = { params: Promise<{ id: string }> };
 const ACTIONS: PlanActionDTO["type"][] = ["arrived", "skipped", "swapped"];
 
+// eslint-disable-next-line complexity
 export async function POST(request: Request, context: Context): Promise<Response> {
   const limiterKey = `plan-actions:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, 30)) {

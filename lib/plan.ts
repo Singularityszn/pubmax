@@ -155,6 +155,7 @@ export type PlanCompletionDTO = {
 
 const ENDING_CONFIDENCE = ["high", "medium", "low", "unknown"] as const;
 
+// eslint-disable-next-line complexity
 export function cleanEndingSelection(value: unknown, ending?: CrawlEnding): EndingSelection | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;

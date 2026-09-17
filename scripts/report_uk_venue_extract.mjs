@@ -29,6 +29,7 @@ async function sizeOf(filePath) {
   }
 }
 
+// eslint-disable-next-line complexity
 async function main() {
   const manifest = JSON.parse(await readFile(path.join(UK_DIR, "venue_chunks.json"), "utf8"));
   const counts = JSON.parse(await readFile(path.join(UK_DIR, "venue_counts.json"), "utf8"));

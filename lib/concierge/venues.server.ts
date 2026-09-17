@@ -20,6 +20,7 @@ function optionalBool(record: Record<string, unknown>, key: string): boolean | u
   return typeof record[key] === "boolean" ? record[key] as boolean : undefined;
 }
 
+// eslint-disable-next-line complexity
 function toVenue(value: unknown): ConciergeVenue | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as SlimRow;

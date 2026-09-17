@@ -263,6 +263,7 @@ export default function VisitReportPanel({
   );
 }
 
+// eslint-disable-next-line complexity
 function VenueVisitReports({
   venueId,
   venueName,

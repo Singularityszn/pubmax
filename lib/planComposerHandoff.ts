@@ -107,6 +107,7 @@ export type ResolveComposerHydrationInput = {
   lastAppliedOperationKey?: string | null;
 };
 
+// eslint-disable-next-line complexity
 export function resolveComposerHydration(input: ResolveComposerHydrationInput): ComposerHydration {
   const result = arbitratePlanDrafts({
     url: input.url ?? null,

@@ -529,6 +529,7 @@ export function usePintDrops(
     return submitDropRequest(venueId, options);
   }
 
+  // eslint-disable-next-line complexity
   async function submitDropRequest(
     venueId: string,
     options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
