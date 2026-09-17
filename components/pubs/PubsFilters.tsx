@@ -91,7 +91,7 @@ export default function PubsFilters({
           pub-stop count renders (components/ui/chip.tsx), rather than a
           look-alike square of its own. */}
       {zonesPresent.length > 0 ? (
-        <div className={`zoneChips ${galleryStyles.pubsZoneChips}`} role="group" aria-label="Filter by fare zone">
+        <div className={galleryStyles.pubsZoneChips} role="group" aria-label="Filter by fare zone">
           <Chip
             variant="number"
             aria-pressed={zone === "all"}
