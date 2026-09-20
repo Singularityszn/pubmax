@@ -41,6 +41,17 @@ export const DRAUGHT_PINT_PUBLISH_THRESHOLD = 0.72;
 export const DRAUGHT_PINT_REVIEW_THRESHOLD = 0.42;
 export const PROMOTIONAL_REJECT_THRESHOLD = 0.6;
 
+/**
+ * A NON-DRAUGHT OPTION PUBLISHES ON THE SAME FLOOR AS A PINT.
+ *
+ * `whatIsPriced` is an eight-way choice, so its winner can top the field on 0.13
+ * and still be the model saying it has no idea. Publishing on argmax alone put a
+ * wine price, or a bottle read as a pint, on the map for a real pub. Every
+ * branch now clears `DRAUGHT_PINT_PUBLISH_THRESHOLD`, and the winning
+ * `drinkCategory` clears its own floor before it is allowed to name a lane.
+ */
+export const DRINK_CATEGORY_PUBLISH_THRESHOLD = 0.42;
+
 const WHAT_TO_CATEGORY: Partial<Record<WhatIsPriced, DrinkCategory>> = {
   draught_pint: "beer",
   wine_glass: "wine",
@@ -70,10 +81,6 @@ function resolveCategory(
     if (fromDrink === "alcohol-free") return "alcohol-free";
     if (fromDrink === "soft-drink") return "soft-drink";
     return "soft-drink";
-  }
-  if (whatIsPriced === "bottle_or_can") {
-    const fromDrink = drinkCategoryFromJudgment(drinkCategory);
-    return fromDrink ?? "beer";
   }
   return WHAT_TO_CATEGORY[whatIsPriced] ?? null;
 }
@@ -105,38 +112,53 @@ export function decisionFromJudgment(
     return { outcome: "reject", drop: "offer-not-a-menu-price" };
   }
 
-  const draughtProb = probs.whatIsPriced.draught_pint ?? 0;
   const topWhat = WHAT_IS_PRICED_OPTIONS.reduce((best, key) =>
     (probs.whatIsPriced[key] ?? 0) > (probs.whatIsPriced[best] ?? 0) ? key : best,
   );
+  const topWhatProb = probs.whatIsPriced[topWhat] ?? 0;
 
   if (topWhat === "draught_pint") {
-    if (draughtProb >= DRAUGHT_PINT_PUBLISH_THRESHOLD) {
-      const band = CATEGORY_PRICE_BANDS.beer;
-      if (!band || priceGbp < band.minGbp || priceGbp > band.maxGbp) {
-        return { outcome: "reject", drop: "outside-category-band" };
-      }
-      return { outcome: "publish", category: "beer" };
+    if (topWhatProb >= DRAUGHT_PINT_PUBLISH_THRESHOLD) {
+      return publishInBand("beer", priceGbp);
     }
-    if (draughtProb >= DRAUGHT_PINT_REVIEW_THRESHOLD) {
+    if (topWhatProb >= DRAUGHT_PINT_REVIEW_THRESHOLD) {
       return { outcome: "review" };
     }
     return { outcome: "reject", drop: "judgment-below-threshold" };
   }
 
-  const category = resolveCategory(topWhat, DRINK_CATEGORY_JUDGMENT_OPTIONS.reduce((best, key) =>
-    (probs.drinkCategory[key] ?? 0) > (probs.drinkCategory[best] ?? 0) ? key : best,
-  ));
-
-  if (category) {
-    const band = CATEGORY_PRICE_BANDS[category];
-    if (!band || priceGbp < band.minGbp || priceGbp > band.maxGbp) {
-      return { outcome: "reject", drop: "outside-category-band" };
-    }
-    return { outcome: "publish", category };
+  // A bottle or can is never a pint, however sure the model is. It has its own
+  // drop reason and must never fall through to the beer lane.
+  if (topWhat === "bottle_or_can") {
+    return { outcome: "reject", drop: "bottled-measure-not-a-pint" };
   }
 
+  // No branch publishes on argmax alone: the winner clears the same floor a
+  // pint does, or the figure is dropped as too uncertain to paint on the map.
+  if (topWhatProb < DRAUGHT_PINT_PUBLISH_THRESHOLD) {
+    return { outcome: "reject", drop: "judgment-below-threshold" };
+  }
+
+  const topDrink = DRINK_CATEGORY_JUDGMENT_OPTIONS.reduce((best, key) =>
+    (probs.drinkCategory[key] ?? 0) > (probs.drinkCategory[best] ?? 0) ? key : best,
+  );
+  const category =
+    (probs.drinkCategory[topDrink] ?? 0) >= DRINK_CATEGORY_PUBLISH_THRESHOLD
+      ? resolveCategory(topWhat, topDrink)
+      : null;
+
+  if (category) return publishInBand(category, priceGbp);
+
   return { outcome: "reject", drop: dropForWhatIsPriced(topWhat) };
+}
+
+/** Publish only inside the committed plausibility band for that lane. */
+function publishInBand(category: DrinkCategory, priceGbp: number): UkPriceJudgmentDecision {
+  const band = CATEGORY_PRICE_BANDS[category];
+  if (!band || priceGbp < band.minGbp || priceGbp > band.maxGbp) {
+    return { outcome: "reject", drop: "outside-category-band" };
+  }
+  return { outcome: "publish", category };
 }
 
 export function probabilitiesFromAnswers(answers: {
