@@ -1,7 +1,6 @@
 {
   "version": 1,
-  "generatedAt": null,
-  "note": "Written by scripts/canonicalize_venue_dataset.mjs --judged when pairs fall in the review band. Never auto-merged.",
+  "note": "Pairs in the uncertain band between the refuse and merge thresholds. Never auto-merged.",
   "pairCount": 0,
   "pairs": []
 }

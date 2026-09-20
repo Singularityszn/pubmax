@@ -128,19 +128,35 @@ export async function buildJudgedSamePubMatch(groupList: VenueGroup[]): Promise<
   return { samePubMatch, review };
 }
 
+/**
+ * The review queue is committed, so it carries no clock: the same dataset and
+ * the same verdicts must produce the same bytes, or every judged run dirties
+ * the tree with a timestamp and hides the pairs that actually changed. Git
+ * already records when the file was written.
+ */
+export function samePubReviewDocument(review: SamePubReviewEntry[]): {
+  version: number;
+  note: string;
+  pairCount: number;
+  pairs: SamePubReviewEntry[];
+} {
+  const pairs = [...review].sort((x, y) =>
+    `${x.a.id}|${x.b.id}`.localeCompare(`${y.a.id}|${y.b.id}`),
+  );
+  return {
+    version: 1,
+    note: "Pairs in the uncertain band between the refuse and merge thresholds. Never auto-merged.",
+    pairCount: pairs.length,
+    pairs,
+  };
+}
+
 export async function writeSamePubReviewFile(
   review: SamePubReviewEntry[],
   rootDir: string,
 ): Promise<string> {
   const outPath = path.join(rootDir, "data", "review", "same-pub-review.json");
-  const doc = {
-    version: 1,
-    generatedAt: new Date().toISOString(),
-    note:
-      "Pairs in the uncertain band between refuse and merge thresholds. Never auto-merged.",
-    pairCount: review.length,
-    pairs: review,
-  };
+  const doc = samePubReviewDocument(review);
   const { mkdir, writeFile } = await import("node:fs/promises");
   await mkdir(path.dirname(outPath), { recursive: true });
   await writeFile(outPath, `${JSON.stringify(doc, null, 2)}\n`, "utf8");
