@@ -91,7 +91,7 @@
     "harvest:uk-bars": "node --max-old-space-size=2048 scripts/harvest/uk-pubs/run.mjs --bars",
     "harvest:fold": "node --conditions=react-server --import tsx scripts/harvest/uk-pubs/fold.mjs",
     "editorial:poll": "node scripts/editorial/poll.mjs",
-    "harvest:uk-prices": "tsx scripts/harvest/uk-prices/run.mjs",
+    "harvest:uk-prices": "node --conditions=react-server --import tsx scripts/harvest/uk-prices/run.mjs",
     "build:uk-price-bundle": "tsx scripts/build_uk_price_bundle.mjs",
     "harvest:uk-menu-urls": "tsx scripts/harvest/uk-prices/menu-urls.mjs",
     "harvest:uk-prices-rendered": "tsx scripts/harvest/uk-prices/render.mjs",

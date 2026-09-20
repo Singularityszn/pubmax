@@ -47,7 +47,14 @@ const config: KnipConfig = {
   // The implementation half of every `.mjs` + `.d.mts` pair enters as an entry
   // rather than an ignore: knip then traces what it imports, and stops judging
   // exports it reads through the sidecar. See declaredMjsPairs above.
-  entry: [...declaredMjsPairs(["lib", "scripts"])],
+  entry: [
+    ...declaredMjsPairs(["lib", "scripts"]),
+    // Refreshes __tests__/fixtures/typesafe/pint-price-judgment-probabilities.json
+    // and needs TYPESAFE_API_KEY. An entry rather than an ignore, so knip keeps
+    // tracing what it imports: the judgment leaf it calls is reached from here
+    // and nowhere else, and an ignore would report that leaf as dead.
+    "scripts/harvest/uk-prices/record-judgment-fixtures.mjs",
+  ],
   ignore: [
     ...AGENT_TOOLING_PATHS,
 

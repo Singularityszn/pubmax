@@ -1,0 +1,70 @@
+[
+  {
+    "id": "happy-hour-two-for-nine",
+    "pubName": "Brewers Fayre Example",
+    "pageUrl": "https://example.co.uk/drinks",
+    "snippet": "Get in a round with our NEW happy hour 2 for £9 on every pint",
+    "priceText": "£9",
+    "priceGbp": 9,
+    "expectPublish": false,
+    "expectMisfire": "draught_pint"
+  },
+  {
+    "id": "bitter-lemon-mixer",
+    "pubName": "Staffordshire Example",
+    "pageUrl": "https://example.co.uk/menu",
+    "snippet": "Bosford Rose Pink, soft and sweet. Try with Britvic Bitter Lemon. £7.25",
+    "priceText": "£7.25",
+    "priceGbp": 7.25,
+    "expectPublish": false,
+    "expectMisfire": "draught_pint"
+  },
+  {
+    "id": "madri-pint-standard",
+    "pubName": "The Crown",
+    "pageUrl": "https://thecrown.co.uk/drinks",
+    "snippet": "Madri pint £6.20",
+    "priceText": "£6.20",
+    "priceGbp": 6.2,
+    "expectPublish": true,
+    "expectCategory": "beer"
+  },
+  {
+    "id": "wine-from-floor",
+    "pubName": "The Crown",
+    "pageUrl": "https://thecrown.co.uk/wine",
+    "snippet": "Wines by the glass from £5.50",
+    "priceText": "£5.50",
+    "priceGbp": 5.5,
+    "expectPublish": false
+  },
+  {
+    "id": "house-red-glass",
+    "pubName": "The Crown",
+    "pageUrl": "https://thecrown.co.uk/drinks",
+    "snippet": "House red wine 175ml £7.50",
+    "priceText": "£7.50",
+    "priceGbp": 7.5,
+    "expectPublish": true,
+    "expectCategory": "wine"
+  },
+  {
+    "id": "steak-and-pint-meal",
+    "pubName": "The Crown",
+    "pageUrl": "https://thecrown.co.uk/food",
+    "snippet": "Steak and a pint of ale £16.99",
+    "priceText": "£16.99",
+    "priceGbp": 16.99,
+    "expectPublish": false
+  },
+  {
+    "id": "peroni-pint-line",
+    "pubName": "The Crown",
+    "pageUrl": "https://thecrown.co.uk/draught",
+    "snippet": "Draft beer Pilsner Half £2.50 £5.00 Peroni Half £3.55 £7.10",
+    "priceText": "£7.10",
+    "priceGbp": 7.1,
+    "expectPublish": true,
+    "expectCategory": "beer"
+  }
+]
