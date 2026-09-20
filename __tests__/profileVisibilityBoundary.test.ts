@@ -252,3 +252,47 @@ describe("resolveProfileProjection \u2014 no deployment may decide this", () => 
     expect(source).not.toContain("process.env");
   });
 });
+
+describe("the page holds no card across an account or handle boundary", () => {
+  // The seam decides correctly on every read, and the page can still PRINT the
+  // previous answer while the next one is in flight: `stored` and `projection`
+  // are React state, they survive a sign-in, a sign-out and a walk to another
+  // profile, and `getAccessToken()` plus the round trip are awaited before
+  // either moves. So a device that had just read a private account as a MATE
+  // kept that full card on screen for the new reader. `lib/surfaceDataCache.ts`
+  // drops its whole store at an account boundary for exactly this reason; the
+  // state beside it has to go the same way.
+  //
+  // A source fence rather than a mount, because this is the 1,400-line page
+  // client and its siblings (`__tests__/profileEditMode.test.ts`) fence it the
+  // same way.
+  const pageSource = readFileSync(
+    path.join(process.cwd(), "app/u/[handle]/ProfilePageClient.tsx"),
+    "utf8",
+  );
+
+  it("drops the stored card, the projection and the read state on the boundary", () => {
+    const boundary = pageSource.slice(
+      pageSource.indexOf("if (followStateKey === followKey) return;"),
+    );
+    expect(boundary).not.toBe("");
+    const body = boundary.slice(0, boundary.indexOf("}, [followKey, followStateKey]);"));
+
+    expect(body, "the card belongs to the account that read it").toContain(
+      "setStored(null)",
+    );
+    expect(body, "a full card may not outlive the read that earned it").toContain(
+      'setProjection("full")',
+    );
+    expect(
+      body,
+      "a claim may not be offered off an answer about somebody else",
+    ).toContain('setPublicRead("asking")');
+  });
+
+  it("keys that boundary on the account AND the handle", () => {
+    expect(pageSource).toContain(
+      "const followKey = `${accountRevision}:${routeHandle}`;",
+    );
+  });
+});

@@ -469,6 +469,18 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       setFollowStateKey(followKey);
       setFollowing(false);
       setFollowsViewer(false);
+      // A CARD DOES NOT CROSS A BOUNDARY. `followKey` is the account and the
+      // handle together, so a sign-in, a sign-out and a walk to another profile
+      // all land here, and the card held in state belongs to neither the new
+      // account nor the new handle. Keeping it would print the PREVIOUS
+      // reader's full card of a private account until the next read answered,
+      // which is exactly the leak `lib/surfaceDataCache.ts` drops its whole
+      // store at an account boundary to avoid. The read state goes back to
+      // "asking" with it, so no claim is offered off an answer about somebody
+      // else.
+      setStored(null);
+      setProjection("full");
+      setPublicRead("asking");
     });
   }, [followKey, followStateKey]);
   // PUBLIC crawl count for this handle, from /api/crawls?author= (the
