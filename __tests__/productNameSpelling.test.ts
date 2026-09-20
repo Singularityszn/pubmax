@@ -1,12 +1,47 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { extname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
-const MISSPELLING = /\bPub[Mm]axing\b/g;
+
+/**
+ * The one-x product spellings, as whole words. The word boundaries are load
+ * bearing: identifiers that merely start with the old spelling (`PubMaxingShell`,
+ * `PubMaxingNotablePubs/0.1`) are deliberately out of scope, because this fence
+ * is about prose the reader sees, not about renaming code.
+ */
+const MISSPELLING = /\bPub[Mm]axing\b/;
 
 const SCAN_DIRS = ["docs", "app", "components", "lib", "scripts"] as const;
+
+/** Files at the repo root that carry product prose and so are fenced too. */
+const SCAN_ROOT_FILES = ["CONTEXT.md"] as const;
+
+/**
+ * Only text a human writes is read. Without this the walk slurps every
+ * screenshot under `docs/proof/` into a UTF-8 string, which is about 0.9 GB of
+ * PNG per run for no possible hit.
+ */
+const TEXT_EXTENSIONS = new Set([
+  ".md",
+  ".mdx",
+  ".txt",
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".json",
+  ".html",
+  ".css",
+  ".scss",
+  ".yml",
+  ".yaml",
+  ".sql",
+  ".sh",
+]);
 
 const SKIP_DIR_NAMES = new Set([
   "node_modules",
@@ -66,7 +101,7 @@ function walkFiles(absoluteDir: string, relativeDir: string, out: string[]): voi
       walkFiles(abs, rel, out);
       continue;
     }
-    if (stat.isFile()) {
+    if (stat.isFile() && TEXT_EXTENSIONS.has(extname(entry).toLowerCase())) {
       out.push(rel);
     }
   }
@@ -84,6 +119,8 @@ function collectScanTargets(): string[] {
 
   collectAgentsAndReadmes("", files);
 
+  for (const file of SCAN_ROOT_FILES) files.add(file);
+
   return [...files].sort();
 }
 
@@ -96,7 +133,6 @@ function findMisspellings(relativePath: string): string[] {
     if (lineIsExplicitlyAllowed(relativePath, line)) continue;
     if (MISSPELLING.test(line)) {
       hits.push(`${relativePath}:${i + 1}`);
-      MISSPELLING.lastIndex = 0;
     }
   }
   return hits;
@@ -109,5 +145,22 @@ describe("product name spelling (PubMaxxing in prose)", () => {
       violations.push(...findMisspellings(file));
     }
     expect(violations, violations.join("\n")).toEqual([]);
+  });
+
+  it("catches the one-x spellings and leaves identifiers and the real name alone", () => {
+    expect(MISSPELLING.test("PubMaxing is a planner")).toBe(true);
+    expect(MISSPELLING.test("the Pubmaxing dataset")).toBe(true);
+    expect(MISSPELLING.test("PubMaxingShell mounts PubMap")).toBe(false);
+    expect(MISSPELLING.test("PubMaxxing is a planner")).toBe(false);
+  });
+
+  it("scans the files it claims to scan", () => {
+    const targets = new Set(collectScanTargets());
+    expect(targets.has("CONTEXT.md")).toBe(true);
+    expect(targets.has("AGENTS.md")).toBe(true);
+    expect(targets.has("README.md")).toBe(true);
+    expect(targets.has("lib/siteJsonLd.ts")).toBe(true);
+    expect(targets.has("docs/growth/SEARCH_CONSOLE.md")).toBe(true);
+    expect(targets.has("scripts/lib/overpassClient.mjs")).toBe(true);
   });
 });
