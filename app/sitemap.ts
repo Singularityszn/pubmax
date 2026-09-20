@@ -170,12 +170,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/tonight", priority: 0.6, changeFrequency: "daily", lastModified: now },
     {
-      path: "/near",
-      priority: 0.6,
-      changeFrequency: "daily",
-      lastModified: pricesModified,
-    },
-    {
       path: "/how-we-estimate",
       priority: 0.4,
       changeFrequency: "yearly",
