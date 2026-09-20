@@ -16,12 +16,18 @@
 // clobbered, so a dedup already applied is never forgotten).
 //
 // Run manually:  node scripts/canonicalize_venue_dataset.mjs
+// Judged pass (requires TYPESAFE_API_KEY):
+//   node --import tsx scripts/canonicalize_venue_dataset.mjs --judged
 
 import { readFile, writeFile, rename } from "node:fs/promises";
 import path, { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { canonicalizeDataset, mergeAliasMaps } from "./lib/venueCanonicalization.mjs";
+import {
+  buildVenueGroupList,
+  canonicalizeDataset,
+  mergeAliasMaps,
+} from "./lib/venueCanonicalization.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -56,7 +62,31 @@ async function main() {
     throw new Error(`Expected an array in ${DATASET_PATH}, got ${typeof rows}`);
   }
 
-  const { rows: newRows, aliases, clusters, stats } = canonicalizeDataset(rows);
+  const judged = process.argv.includes("--judged");
+  let canonicalizeOptions = {};
+  if (judged) {
+    const { typesafeConfigured, requiresTypesafeKeyMessage, SAME_PUB_CANDIDATE_MAX_METRES } =
+      await import("../lib/samePubIdentity.ts");
+    const { buildJudgedSamePubMatch, writeSamePubReviewFile } = await import(
+      "./lib/samePubJudgedCanonicalize.ts"
+    );
+    if (!typesafeConfigured()) {
+      console.error(requiresTypesafeKeyMessage());
+      process.exit(1);
+    }
+    const groupList = buildVenueGroupList(rows);
+    const { samePubMatch, review } = await buildJudgedSamePubMatch(groupList);
+    const reviewPath = await writeSamePubReviewFile(review, ROOT);
+    console.log(
+      `canonicalize: judged same-pub pass wrote ${review.length} review-band pair(s) to ${reviewPath}`,
+    );
+    canonicalizeOptions = {
+      samePubMatch,
+      fuzzyMergeMeters: SAME_PUB_CANDIDATE_MAX_METRES,
+    };
+  }
+
+  const { rows: newRows, aliases, clusters, stats } = canonicalizeDataset(rows, canonicalizeOptions);
 
   // Cumulative alias map: never forget a dedup that was applied on an earlier
   // (full-dataset) run just because this run sees an already-canonical file.
