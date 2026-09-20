@@ -25,7 +25,9 @@
 --     on every read from public.message_poll_votes, never stored in a column,
 --     for the reason the corroboration count is derived on the price read path:
 --     a tally written into a row is a number that can disagree with the votes
---     behind it.
+--     behind it. A vote is the one row in messaging that names a person against
+--     an answer, so it is the strictest row here: readable only to the person
+--     who cast it, and DELETED when that account leaves.
 --
 -- NO COORDINATE IS STORED HERE, by any kind. 0102's rule about a pub card is
 -- the rule for all of them, and the viewer-coordinate egress law (lib/geo.ts)
@@ -370,6 +372,16 @@ begin
     update public.conversation_members
        set left_at = coalesce(left_at, now())
      where lower(handle) = lower(v_handle);
+  end if;
+
+  -- A poll answer is a fact about a PERSON, not a fact about the thread, and it
+  -- is keyed on the handle that gave it. So it leaves with the account rather
+  -- than sitting in the table under a retired name: the tally drops by one,
+  -- which is the truth, because the person who said it is gone. A retired
+  -- handle is never re-issued, so this can only ever match this account.
+  if v_handle is not null then
+    delete from public.message_poll_votes
+     where lower(voter_handle) = lower(v_handle);
   end if;
 
   -- Message attachments: the columns that pointed at them. The message keeps

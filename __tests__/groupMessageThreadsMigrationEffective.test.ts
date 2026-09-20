@@ -437,6 +437,19 @@ describe.skipIf(skipReason !== null)("0156 contact, event and poll attachments",
 
   it("takes EVERY attachment column with a departing account", () => {
     const session = requireDatabase();
+    // KEN answers his own poll first, so the delete below has something of his
+    // to take. SAM's answer is already on the same row and must survive it.
+    const poll = session.sql(
+      `select id from public.messages
+         where conversation_id = '${GROUP}'::uuid and attachment_kind = 'poll' limit 1;`,
+    );
+    session.sql(
+      `insert into public.message_poll_votes (message_id, voter_handle, option_index, created_at, updated_at)
+         values ('${poll}'::uuid, 'ken', 0, '${AT}', '${AT}');`,
+    );
+    expect(
+      session.sql("select count(*)::int from public.message_poll_votes;"),
+    ).toBe("2");
     // The account that sent the contact, the plan and the poll leaves.
     session.sql(`delete from auth.users where id = '${KEN}'::uuid;`);
     expect(
@@ -453,6 +466,11 @@ describe.skipIf(skipReason !== null)("0156 contact, event and poll attachments",
            where conversation_id = '${GROUP}'::uuid and body = 'Attachment removed.';`,
       ),
     ).toBe("3");
+    // Their ANSWER leaves with them: a vote names a person against an answer,
+    // so it may not sit in the table under a retired handle. SAM's stays.
+    expect(
+      session.sql("select voter_handle from public.message_poll_votes;"),
+    ).toBe("sam");
     // Their seat ends with the account; the thread keeps their sentences.
     expect(
       session.sql(
