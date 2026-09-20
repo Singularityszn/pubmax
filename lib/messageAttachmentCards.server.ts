@@ -17,7 +17,10 @@ import "server-only";
 //    pub kinds alone, no coordinate at any point.
 //
 // 2. A CONTACT CARD IS THE PUBLIC PROFILE AND NOTHING ELSE. The handle, the
-//    display name somebody chose to publish, and the approved owned avatar.
+//    display name somebody chose to publish, and the APPROVED OWNED avatar —
+//    the face through `publicOwnedImageUrl`, the one door every other public
+//    surface reads a face through, so a pending or refused avatar prints here
+//    exactly as it prints on /u/<handle>: not at all.
 //    Email, date of birth, full name and city sit behind the
 //    owner-authenticated read, and passing a handle on in a message may not be
 //    a way around it. A tombstoned or unknown handle resolves to null rather
@@ -46,7 +49,11 @@ import { resolveMessageVenueCard } from "@/lib/messageVenueCards.server";
 import type { MessageDTO } from "@/lib/messages";
 import { buildPlanPrivacyPreview } from "@/lib/planPrivacy";
 import { planStore } from "@/lib/planStore";
-import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
+import {
+  isProfileTombstoned,
+  profileStore,
+  publicOwnedImageUrl,
+} from "@/lib/profileStore";
 import { normalizeHandle } from "@/lib/profiles";
 
 /**
@@ -69,7 +76,11 @@ export async function resolveMessageContactCard(
     // The handle is already on the card, so repeating it as a display name adds
     // nothing and reads like a bug.
     displayName: displayName && displayName.toLowerCase() !== normalized ? displayName : null,
-    avatarUrl: typeof profile.avatarUrl === "string" && profile.avatarUrl ? profile.avatarUrl : null,
+    // The MODERATED OWNED avatar, through the one door every public surface
+    // reads a face through. `ProfileRecord.avatarUrl` is the LEGACY hotlinked
+    // column and is internal: it crosses no other public wire, so reading it
+    // here would print a pending or refused face in somebody's thread.
+    avatarUrl: publicOwnedImageUrl(profile, "avatar") ?? null,
     profileUrl: messageContactProfileUrl(normalized),
   };
 }

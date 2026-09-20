@@ -39,9 +39,11 @@
 -- not carry, so the `search_path` line below is load-bearing.
 --
 -- RLS. Unchanged and deliberately stricter than the social tables:
--- public.messages keeps RLS-on with the two participant policies 0066 added,
--- and the new votes table takes the same posture — a signed-in participant may
--- SELECT, anon may do nothing, and every write goes through the service role.
+-- public.messages keeps RLS-on with the two participant policies 0066 added.
+-- The votes table is stricter STILL, because it is the one row in messaging
+-- that names a person against an answer: a signed-in caller may SELECT only
+-- THEIR OWN vote, anon may do nothing, and every write goes through the service
+-- role. The counts are folded service-side and cross the wire without a name.
 --
 -- Reverse: supabase/migrations/rollback/20260917091000_0155_message_attachment_kinds_rollback.sql
 
@@ -73,6 +75,15 @@ alter table public.messages
 -- Each kind owns its own columns, and nothing else's. Restated whole rather
 -- than extended, because the photo and venue arms have to say the new columns
 -- are null too or a photo row could smuggle a plan id.
+--
+-- EVERY ARM ASKS `is not distinct from`, AND THAT IS THE LOAD-BEARING PART. An
+-- arm written `attachment_kind = 'photo'` answers NULL on a row whose kind is
+-- null, and `false or null` is NULL, and a CHECK that evaluates to NULL PASSES.
+-- So the first arm — the one that says a plain message carries no attachment
+-- column at all — never fired: a row could keep a contact handle, a plan id or
+-- a ballot beside a null kind, invisible to every reader and untouched by the
+-- tombstone below (which only looks at rows whose kind is not null). `is not
+-- distinct from` answers false rather than NULL, so the first arm decides.
 alter table public.messages drop constraint if exists messages_attachment_shape_chk;
 alter table public.messages
   add constraint messages_attachment_shape_chk
@@ -89,7 +100,7 @@ alter table public.messages
       and attachment_poll_options is null
     )
     or (
-      attachment_kind = 'photo'
+      attachment_kind is not distinct from 'photo'
       and attachment_object_key is not null
       and attachment_width is not null
       and attachment_height is not null
@@ -100,7 +111,7 @@ alter table public.messages
       and attachment_poll_options is null
     )
     or (
-      attachment_kind = 'venue'
+      attachment_kind is not distinct from 'venue'
       and attachment_venue_id is not null
       and attachment_object_key is null
       and attachment_width is null
@@ -111,7 +122,7 @@ alter table public.messages
       and attachment_poll_options is null
     )
     or (
-      attachment_kind = 'contact'
+      attachment_kind is not distinct from 'contact'
       and attachment_contact_handle is not null
       and attachment_object_key is null
       and attachment_width is null
@@ -122,7 +133,7 @@ alter table public.messages
       and attachment_poll_options is null
     )
     or (
-      attachment_kind = 'event'
+      attachment_kind is not distinct from 'event'
       and attachment_plan_id is not null
       and attachment_object_key is null
       and attachment_width is null
@@ -133,7 +144,7 @@ alter table public.messages
       and attachment_poll_options is null
     )
     or (
-      attachment_kind = 'poll'
+      attachment_kind is not distinct from 'poll'
       and attachment_poll_question is not null
       and attachment_poll_options is not null
       and attachment_object_key is null
@@ -207,16 +218,30 @@ alter table public.message_poll_votes enable row level security;
 grant select on table public.message_poll_votes to authenticated;
 grant select, insert, update, delete on table public.message_poll_votes to service_role;
 
--- A vote is readable to the thread it was cast in, and to nobody else. The
--- predicate is the same one every messaging policy asks, so a group thread's
--- members are admitted through 0154's widened branch with nothing restated.
+-- A VOTE IS READABLE TO THE PERSON WHO CAST IT, AND TO NOBODY ELSE.
+--
+-- The thread predicate alone is NOT enough here, and it is the one place in
+-- this wave where it is not. Every other messaging row says something the whole
+-- thread is entitled to; this row names a voter, and rule 2 in
+-- `lib/messagePoll.ts` says no voter is ever named to anybody — including the
+-- poll's own author. A policy that admitted every participant would hand a
+-- browser holding an ordinary `authenticated` key one request
+-- (`/rest/v1/message_poll_votes?message_id=eq.<id>`) that reads the ballot back
+-- by name, and the TypeScript that folds the counts would be the only thing
+-- standing in front of it. So the predicate asks BOTH: the thread must be the
+-- caller's, AND the row must be the caller's own vote, through the same
+-- `rls_owns_handle` every handle question in this schema goes through.
+--
+-- The COUNTS are unaffected: they are folded by the service role in
+-- `lib/messagesStore.ts`, which does not read through a policy at all.
 drop policy if exists message_poll_votes_participant_select on public.message_poll_votes;
 create policy message_poll_votes_participant_select
   on public.message_poll_votes
   for select
   to authenticated
   using (
-    exists (
+    pubmax_private.rls_owns_handle(voter_handle)
+    and exists (
       select 1
       from public.messages m
       where m.id = public.message_poll_votes.message_id

@@ -369,7 +369,7 @@ describe.skipIf(skipReason !== null)("0155 contact, event and poll attachments",
     ).toBe("1");
   });
 
-  it("shows a vote to the thread and to nobody else", () => {
+  it("shows a vote to ITS OWN VOTER and to nobody else, the author included", () => {
     const session = requireDatabase();
     const readsVotes = (userId: string): string =>
       session.sql(
@@ -381,8 +381,41 @@ describe.skipIf(skipReason !== null)("0155 contact, event and poll attachments",
           "commit;",
         ].join("\n"),
       );
+    // SAM cast the vote, so SAM may read it back.
     expect(readsVotes(SAM)).toBe("1");
+    // KEN asked the question and is in the thread, and still reads NOTHING:
+    // `lib/messagePoll.ts` rule 2 says no voter is named to anybody, and a
+    // policy that admitted every participant would leave that rule standing in
+    // TypeScript alone while one PostgREST request read the ballot by name.
+    expect(readsVotes(KEN)).toBe("0");
+    // JEN is in the thread and did not vote.
+    expect(readsVotes(JEN)).toBe("0");
+    // MAL was never in it.
     expect(readsVotes(MAL)).toBe("0");
+  });
+
+  it("refuses an attachment column on a row whose kind says there is none", async () => {
+    const session = requireDatabase();
+    // The shape CHECK's FIRST arm. Written with `=` it answers NULL on a null
+    // kind, and a CHECK that evaluates to NULL passes — so a contact handle, a
+    // plan id or a ballot could sit on a row every reader shows as plain words,
+    // and the tombstone (which only visits rows whose kind is not null) would
+    // never take it away.
+    const smuggled = await session.attempt(
+      message(", attachment_contact_handle", ", 'sam'"),
+    );
+    expect(smuggled.ok).toBe(false);
+    const planned = await session.attempt(
+      message(", attachment_plan_id", `, '${DM}'::uuid`),
+    );
+    expect(planned.ok).toBe(false);
+    // And the same on the way out of a kind, which is what the 0155 rollback
+    // does to every contact, event and poll row before dropping the columns.
+    const stripped = await session.attempt(
+      `update public.messages set attachment_kind = null
+         where conversation_id = '${GROUP}'::uuid and attachment_kind = 'contact';`,
+    );
+    expect(stripped.ok).toBe(false);
   });
 
   it("takes EVERY attachment column with a departing account", () => {
@@ -416,7 +449,24 @@ describe.skipIf(skipReason !== null)("0155 contact, event and poll attachments",
 describe.skipIf(skipReason !== null)("the way back out", () => {
   it("0155 rolls back to the two-kind set and keeps the words", () => {
     const session = requireDatabase();
+    // The tombstone above cleared every attachment KEN sent, so the rollback
+    // would otherwise run over nothing. A live contact row from an account that
+    // is still here is what the captain would actually be rolling back, and it
+    // is the row the shape CHECK refuses to let the rollback half-clear.
+    session.sql(
+      `insert into public.messages (id, conversation_id, sender_handle, body, created_at, attachment_kind, attachment_contact_handle)
+         values (gen_random_uuid(), '${GROUP}'::uuid, 'sam', '', '${AT}', 'contact', 'jen');`,
+    );
     session.applyFile(KINDS_ROLLBACK);
+    // The row that was ONLY an attachment keeps a line rather than a blank
+    // bubble the content CHECK would refuse.
+    expect(
+      session.sql(
+        `select count(*)::int from public.messages
+           where conversation_id = '${GROUP}'::uuid and sender_handle = 'sam'
+             and body = 'Attachment removed.';`,
+      ),
+    ).toBe("1");
     expect(
       session.sql(
         "select count(*)::int from information_schema.columns " +
@@ -430,7 +480,7 @@ describe.skipIf(skipReason !== null)("the way back out", () => {
       session.sql(
         `select count(*)::int from public.messages where conversation_id = '${GROUP}'::uuid;`,
       ),
-    ).toBe("4");
+    ).toBe("5");
   });
 
   it("0154 rolls back to the pair, and says what it cost", () => {

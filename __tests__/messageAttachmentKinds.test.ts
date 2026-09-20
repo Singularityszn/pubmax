@@ -36,12 +36,15 @@ const PLAN_ID = "3f1d1ad0-1111-4111-8111-111111111111";
 const profiles = new Map<string, Record<string, unknown>>();
 const plans = new Map<string, unknown>();
 
-vi.mock("@/lib/profileStore", () => ({
+// Only the STORE is stubbed. `isProfileTombstoned` and `publicOwnedImageUrl`
+// are the real ones on purpose: they are the doors the contact card has to be
+// held to, and a stubbed door proves nothing about the card that walks through
+// it.
+vi.mock("@/lib/profileStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/profileStore")>()),
   profileStore: () => ({
     getByHandle: async (handle: string) => profiles.get(handle) ?? null,
   }),
-  isProfileTombstoned: (profile: { tombstonedAt?: unknown } | null) =>
-    Boolean(profile?.tombstonedAt),
 }));
 
 vi.mock("@/lib/planStore", () => ({
@@ -123,9 +126,15 @@ describe("the ids each kind stores", () => {
 describe("a contact card is the PUBLIC profile and nothing else", () => {
   it("resolves the handle, the published name and the approved face", async () => {
     profiles.set("sam", {
+      id: "profile-sam",
       handle: "sam",
       displayName: "Sam Smith",
-      avatarUrl: "/api/profiles/sam/avatar",
+      // The LEGACY hotlinked column. It crosses no other public wire, so it may
+      // not cross this one either.
+      avatarUrl: "https://elsewhere.example/hotlinked.jpg",
+      avatarObjectKey: "avatars/profile-sam/gen-7/image.jpg",
+      avatarGeneration: "gen-7",
+      avatarModerationState: "approved",
       email: "sam@example.com",
       dateOfBirth: "1990-01-01",
       homeCity: "Hackney",
@@ -136,13 +145,40 @@ describe("a contact card is the PUBLIC profile and nothing else", () => {
     expect(card).toEqual({
       handle: "sam",
       displayName: "Sam Smith",
-      avatarUrl: "/api/profiles/sam/avatar",
+      avatarUrl: "/api/avatar/profile-sam/gen-7",
       profileUrl: "/u/sam",
     });
     // The WHOLE serialized card, not the fields somebody remembered to check.
     const serialized = JSON.stringify(card);
-    for (const secret of ["sam@example.com", "1990-01-01", "Hackney", "Samantha Example"]) {
+    for (const secret of [
+      "sam@example.com",
+      "1990-01-01",
+      "Hackney",
+      "Samantha Example",
+      "elsewhere.example",
+    ]) {
       expect(serialized).not.toContain(secret);
+    }
+  });
+
+  it("prints NO face when the owned avatar is not approved", async () => {
+    // The moderation door is the same one /u/<handle> reads a face through.
+    // Handing somebody's handle on in a message may not walk around it, and a
+    // refused or still-pending avatar is the case that would.
+    const { resolveMessageContactCard } = await import("@/lib/messageAttachmentCards.server");
+    for (const state of ["pending", "refused", undefined]) {
+      profiles.set("sam", {
+        id: "profile-sam",
+        handle: "sam",
+        displayName: "Sam Smith",
+        avatarUrl: "https://elsewhere.example/hotlinked.jpg",
+        avatarObjectKey: "avatars/profile-sam/gen-7/image.jpg",
+        avatarGeneration: "gen-7",
+        ...(state ? { avatarModerationState: state } : {}),
+      });
+      await expect(resolveMessageContactCard("sam")).resolves.toMatchObject({
+        avatarUrl: null,
+      });
     }
   });
 

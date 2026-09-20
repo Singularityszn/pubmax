@@ -14,9 +14,19 @@
 begin;
 
 -- Say what the row was, before the columns that said it are dropped.
+--
+-- THE COLUMNS GO NULL IN THE SAME STATEMENT AS THE KIND, because 0155's shape
+-- CHECK is still on the table at this point and its first arm says a row with
+-- no kind carries no attachment column either. Clearing the kind alone leaves a
+-- contact handle, a plan id or a ballot beside a null kind and the CHECK
+-- refuses the update, which would take the whole rollback with it.
 update public.messages
    set body = case when char_length(body) >= 1 then body else 'Attachment removed.' end,
-       attachment_kind = null
+       attachment_kind = null,
+       attachment_contact_handle = null,
+       attachment_plan_id = null,
+       attachment_poll_question = null,
+       attachment_poll_options = null
  where attachment_kind in ('contact', 'event', 'poll');
 
 drop policy if exists message_poll_votes_participant_select on public.message_poll_votes;
