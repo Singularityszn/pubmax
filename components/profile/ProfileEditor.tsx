@@ -126,9 +126,20 @@ export default function ProfileEditor({
   const [favouriteDrink, setFavouriteDrink] = useState(initial.favouriteDrink ?? "");
   const [interests, setInterests] = useState(initial.interests ?? "");
   const [workplace, setWorkplace] = useState(initial.workplace ?? "");
-  const [visibility, setVisibility] = useState<AccountVisibility>(
-    initial.visibility ?? DEFAULT_ACCOUNT_VISIBILITY,
+  // THE ONE FIELD THAT IS NOT SNAPSHOT-ONCE, and the reason is the opposite of
+  // the reason the text fields are. `initial.visibility` is absent whenever the
+  // profile read has not answered - Edit tapped before it landed, a slow read,
+  // a read that FAILED - and a snapshot taken in that window opens the control
+  // on "Public" and then rides every save, so an owner who had chosen private
+  // and came back to fix a typo would be republished by the typo. So: null
+  // means nobody has touched the control, the control DISPLAYS whatever the row
+  // currently says, and a save with nothing chosen and nothing read omits the
+  // key altogether, which leaves the stored choice exactly as it was.
+  const [visibilityChoice, setVisibilityChoice] = useState<AccountVisibility | null>(
+    null,
   );
+  const visibility = visibilityChoice ?? initial.visibility ?? DEFAULT_ACCOUNT_VISIBILITY;
+  const visibilityToSave = visibilityChoice ?? initial.visibility ?? null;
   const [avatarPreview, setAvatarPreview] = useState(initial.avatarUrl ?? "");
   // DERIVED, never held. The text fields above are snapshot-once on purpose -
   // resyncing one would clobber what the owner is typing - but the held covers
@@ -265,7 +276,7 @@ export default function ProfileEditor({
           favouriteDrink,
           interests,
           workplace,
-          visibility,
+          ...(visibilityToSave ? { visibility: visibilityToSave } : {}),
         }),
       }, { requiresIdentity: true });
       const body: unknown = await res.json().catch(() => null);
@@ -494,7 +505,7 @@ export default function ProfileEditor({
                 name="pe-visibility"
                 value={choice}
                 checked={visibility === choice}
-                onChange={() => setVisibility(choice)}
+                onChange={() => setVisibilityChoice(choice)}
               />
               {ACCOUNT_VISIBILITY_COPY.label[choice]}
             </label>
