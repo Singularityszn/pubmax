@@ -2730,6 +2730,9 @@ export default function PubMapCanvas({
         sourceType: mapError.source?.type,
         tilePresent: mapError.tile !== undefined,
       });
+      if (sourceMetadataFailure) {
+        clearStyleLoadProtection();
+      }
       const critical =
         isCriticalBasemapFailure({
           message,
