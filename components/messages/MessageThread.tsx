@@ -51,13 +51,13 @@ import {
   GROUP_LEAVE_LABEL,
   GROUP_LEFT_LINE,
   groupMemberCountLine,
-  groupThreadName,
 } from "@/lib/messageGroupThread";
 import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
 import {
   linkifyMentions,
   MAX_MESSAGE_BODY,
   otherHandleFromThreadIdentity,
+  threadHeaderPrimaryLine,
   threadIdentityFromInboxRow,
   threadIdentityFromWire,
   type ConversationDTO,
@@ -351,6 +351,8 @@ export default function MessageThread({
   const activeReadRef = useRef<ThreadReadRequest | null>(null);
   const requestGenerationRef = useRef(0);
   const conversationIdRef = useRef(conversationId);
+  /** Whether the inbox has already been asked to name THIS empty thread. */
+  const askedInboxForNameRef = useRef(false);
   const accountRevisionRef = useRef(accountRevision);
   useLayoutEffect(() => {
     if (conversationIdRef.current === conversationId) return;
@@ -372,8 +374,6 @@ export default function MessageThread({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   /** Claimed before the first await in `send`; see the note there. */
   const sendInFlightRef = useRef(false);
-  /** Whether the inbox has already been asked to name THIS empty thread. */
-  const askedInboxForNameRef = useRef(false);
   const cropCardRef = useRef<HTMLDivElement | null>(null);
   const enterSends = useEnterSends();
   const isMobileViewport = useSyncExternalStore(
@@ -958,9 +958,10 @@ export default function MessageThread({
 
   const showCounter = draft.length >= COUNTER_FROM;
   const isGroup = identity?.kind === "group";
-  const groupName = isGroup
-    ? groupThreadName(identity?.title ?? null, identity?.members ?? [], handle)
-    : "";
+  // ONE naming rule for every kind (`threadHeaderPrimaryLine`), the same one
+  // the inbox row reads through `conversationRowName`: a direct thread is the
+  // other person, a group is its title or its people. Null is the neutral word.
+  const threadName = threadHeaderPrimaryLine(identity, otherHandle, handle);
 
   /** Whichever picker is open, in the composer dock. One at a time, by design. */
   function renderPicker(): React.JSX.Element | null {
@@ -1018,9 +1019,9 @@ export default function MessageThread({
       // name is the title or the people in it.
       return (
         <span className="threadWith">
-          <MessageAvatar handle={otherHandle || groupName} size={36} />
+          <MessageAvatar handle={otherHandle || (threadName ?? "")} size={36} />
           <span className="threadWithGroup">
-            <span className="threadWithHandle">{groupName}</span>
+            <span className="threadWithHandle">{threadName}</span>
             <span className="threadWithMembers">
               {groupMemberCountLine(identity?.members.length ?? 0)}
             </span>
@@ -1028,11 +1029,11 @@ export default function MessageThread({
         </span>
       );
     }
-    if (otherHandle) {
+    if (threadName) {
       return (
         <Link href={`/u/${encodeURIComponent(otherHandle)}`} className="threadWith">
           <MessageAvatar handle={otherHandle} size={36} />
-          <span className="threadWithHandle">@{otherHandle}</span>
+          <span className="threadWithHandle">{threadName}</span>
         </Link>
       );
     }
@@ -1073,7 +1074,7 @@ export default function MessageThread({
             <li className="threadEmpty" aria-live="polite">
               {otherHandle ? <MessageAvatar handle={otherHandle} size={72} /> : null}
               <p className="threadEmptyTitle">
-                {isGroup ? groupName : otherHandle ? `@${otherHandle}` : "Nothing here yet."}
+                {threadName ?? "Nothing here yet."}
               </p>
               <p className="threadEmptyLine">
                 {isGroup

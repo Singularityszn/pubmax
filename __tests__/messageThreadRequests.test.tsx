@@ -36,6 +36,8 @@ const fetchLog = vi.hoisted(() => ({
   inboxRows: [] as Array<Record<string, unknown>>,
   inboxFails: false,
   inboxThrows: false,
+  /** The membership the thread read carries, when it carries one. */
+  threadConversation: null as Record<string, unknown> | null,
 }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => authState.current }));
@@ -76,7 +78,14 @@ vi.mock("@/lib/authedFetch", () => ({
         }
         return Promise.resolve(Response.json({ conversations: fetchLog.inboxRows }));
       }
-      return Promise.resolve(Response.json({ messages: fetchLog.threadRows }));
+      return Promise.resolve(
+        Response.json({
+          messages: fetchLog.threadRows,
+          ...(fetchLog.threadConversation
+            ? { conversation: fetchLog.threadConversation }
+            : {}),
+        }),
+      );
     }
     if (fetchLog.holdPosts) {
       return new Promise<Response>((resolve) => fetchLog.pendingPosts.push(resolve));
@@ -149,6 +158,7 @@ beforeEach(() => {
   ];
   fetchLog.inboxFails = false;
   fetchLog.inboxThrows = false;
+  fetchLog.threadConversation = null;
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.setItem("pubmax_handle", "ken");
   Object.defineProperty(window, "matchMedia", {
@@ -382,5 +392,49 @@ describe("an empty thread still knows whose it is", () => {
     await refocus();
 
     expect(head()).toBe("@sam");
+  });
+});
+
+describe("a group thread is named by the group, never by one of its people", () => {
+  function head(): string {
+    return container.querySelector(".threadWithHandle")?.textContent ?? "";
+  }
+
+  it("reads its title off the thread read, and asks the inbox for nothing", async () => {
+    fetchLog.threadRows = [];
+    fetchLog.threadConversation = {
+      kind: "group",
+      members: ["ken", "sam", "maisie"],
+      title: "Friday crew",
+    };
+    await mount();
+
+    expect(head()).toBe("Friday crew");
+    expect(container.querySelector(".threadWithMembers")?.textContent).toBe("3 people");
+    expect(
+      fetchLog.calls.filter((call) => call.url.startsWith("/api/messages?")),
+    ).toHaveLength(0);
+  });
+
+  it("falls back to the people in it when it has no title", async () => {
+    fetchLog.threadRows = [];
+    fetchLog.threadConversation = {
+      kind: "group",
+      members: ["ken", "sam", "maisie"],
+    };
+    await mount();
+
+    expect(head()).toBe("@sam, @maisie");
+  });
+
+  it("names a direct thread by the other person from the same read", async () => {
+    fetchLog.threadRows = [];
+    fetchLog.threadConversation = { kind: "direct", members: ["ken", "sam"] };
+    await mount();
+
+    expect(head()).toBe("@sam");
+    expect(
+      fetchLog.calls.filter((call) => call.url.startsWith("/api/messages?")),
+    ).toHaveLength(0);
   });
 });
