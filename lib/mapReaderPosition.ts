@@ -72,21 +72,48 @@ export function mapReaderPositionGeoJSON(
   return { type: "FeatureCollection", features: [feature] };
 }
 
-/** MapLibre circle-radius: accuracy ring diameter in pixels at the current zoom. */
-export const USER_LOCATION_ACCURACY_RADIUS_PX: ExpressionSpecification = [
-  "max",
-  8,
+/** Degrees to radians: MapLibre's `cos` operator takes radians. */
+const DEGREES_TO_RADIANS = Math.PI / 180;
+
+/**
+ * Metres per pixel at zoom 0 on the equator. MapLibre's world is
+ * `tileSize * 2 ** zoom` pixels wide and its tile size is 512, so the figure is
+ * the equatorial circumference over 512, which is HALF the constant a
+ * 256-pixel tile scheme uses. Getting that wrong draws the ring at half size.
+ */
+const METRES_PER_PIXEL_AT_ZOOM_0 = 40075016.686 / 512;
+
+const ACCURACY_RING_TOP_ZOOM = 24;
+
+/** The fix's own accuracy radius in metres, as pixels at zoom 0 and its latitude. */
+const ACCURACY_RADIUS_PX_AT_ZOOM_0: ExpressionSpecification = [
+  "/",
+  ["get", "accuracyMeters"],
   [
-    "/",
-    ["get", "accuracyMeters"],
-    [
-      "/",
-      [
-        "*",
-        156543.03392,
-        ["cos", ["*", ["get", "lat"], 0.017453292519943295]],
-      ],
-      ["^", 2, ["zoom"]],
-    ],
+    "*",
+    METRES_PER_PIXEL_AT_ZOOM_0,
+    ["cos", ["*", ["get", "lat"], DEGREES_TO_RADIANS]],
   ],
+];
+
+/**
+ * MapLibre `circle-radius`: the fix's accuracy radius drawn at its true size in
+ * pixels, at the reader's own latitude. A ring that means metres is the only
+ * honest one; a fixed halo would claim a precision the fix does not have.
+ *
+ * `["zoom"]` may only be the input to a TOP-LEVEL `interpolate` or `step`, so
+ * the scale cannot be divided out inside the arithmetic - a style carrying it
+ * anywhere else fails validation and MapLibre drops the layer in silence. An
+ * `exponential` base of 2 between a zoom-0 stop and one `ACCURACY_RING_TOP_ZOOM`
+ * above it, whose value is `2 ** ACCURACY_RING_TOP_ZOOM` times larger,
+ * reproduces the doubling EXACTLY at every zoom between the two.
+ */
+export const USER_LOCATION_ACCURACY_RADIUS_PX: ExpressionSpecification = [
+  "interpolate",
+  ["exponential", 2],
+  ["zoom"],
+  0,
+  ACCURACY_RADIUS_PX_AT_ZOOM_0,
+  ACCURACY_RING_TOP_ZOOM,
+  ["*", ACCURACY_RADIUS_PX_AT_ZOOM_0, 2 ** ACCURACY_RING_TOP_ZOOM],
 ];

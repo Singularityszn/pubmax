@@ -143,6 +143,7 @@
     "web-vitals": "^6.2.1"
   },
   "devDependencies": {
+    "@maplibre/maplibre-gl-style-spec": "^26.4.4",
     "@axe-core/playwright": "^4.13.0",
     "@capacitor/cli": "^8.5.2",
     "@capacitor/core": "^8.5.2",

@@ -2,6 +2,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { validateStyleMin, createExpression, v8 } from "@maplibre/maplibre-gl-style-spec";
+import type * as maplibregl from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -9,6 +11,7 @@ import {
   MAP_READER_LOCATION_LATCH_EVENT,
   mapReaderPositionFromGeolocation,
   mapReaderPositionGeoJSON,
+  USER_LOCATION_ACCURACY_RADIUS_PX,
 } from "@/lib/mapReaderPosition";
 import type { MapReaderPosition } from "@/lib/mapReaderPosition";
 import { attachMapReaderPositionWatch } from "@/lib/mapReaderPositionWatch";
@@ -30,6 +33,60 @@ describe("mapReaderPositionGeoJSON", () => {
       type: "Point",
       coordinates: [-0.12, 51.5],
     });
+  });
+});
+
+// MapLibre's world is 512 pixels wide at zoom 0 (Transform.worldSize is
+// tileSize * 2 ** zoom, tileSize 512), so this is the metres a pixel covers on
+// the equator there. The test derives the truth rather than restating the
+// module's own constant.
+const METRES_PER_PIXEL_AT_ZOOM_0 = 40075016.686 / 512;
+
+describe("USER_LOCATION_ACCURACY_RADIUS_PX", () => {
+  it("is a style MapLibre accepts, so the ring layer is actually added", () => {
+    const errors = validateStyleMin({
+      version: 8,
+      name: "accuracy-ring",
+      sources: {
+        "user-location": {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        },
+      },
+      layers: [
+        {
+          id: "user-location-accuracy",
+          type: "circle",
+          source: "user-location",
+          paint: { "circle-radius": USER_LOCATION_ACCURACY_RADIUS_PX },
+        },
+      ],
+    } as never);
+    expect(errors.map((error) => error.message)).toEqual([]);
+  });
+
+  it("draws the fix's own metres, at the reader's latitude and zoom", () => {
+    const compiled = createExpression(
+      USER_LOCATION_ACCURACY_RADIUS_PX as never,
+      v8.paint_circle["circle-radius"] as never,
+    );
+    expect(compiled.result).toBe("success");
+    if (compiled.result !== "success") return;
+
+    const accuracyMeters = 25;
+    const lat = 51.5;
+    const feature = {
+      type: "Feature",
+      properties: { accuracyMeters, lat },
+      geometry: { type: "Point", coordinates: [-0.12, lat] },
+    } as never;
+
+    for (const zoom of [11, 13, 15, 16, 18]) {
+      const metresPerPixel =
+        (METRES_PER_PIXEL_AT_ZOOM_0 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom;
+      const expected = accuracyMeters / metresPerPixel;
+      expect(compiled.value.evaluate({ zoom }, feature)).toBeCloseTo(expected, 6);
+    }
   });
 });
 
