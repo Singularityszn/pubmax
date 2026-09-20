@@ -17,10 +17,10 @@ export const WHAT_IS_PRICED_OPTIONS = [
   "not_a_menu_price",
 ] as const;
 
-export type WhatIsPriced = (typeof WHAT_IS_PRICED_OPTIONS)[number];
+type WhatIsPriced = (typeof WHAT_IS_PRICED_OPTIONS)[number];
 
 export const DRINK_CATEGORY_JUDGMENT_OPTIONS = [...DRINK_CATEGORIES, "unclear"] as const;
-export type DrinkCategoryJudgment = (typeof DRINK_CATEGORY_JUDGMENT_OPTIONS)[number];
+type DrinkCategoryJudgment = (typeof DRINK_CATEGORY_JUDGMENT_OPTIONS)[number];
 
 export type UkPriceJudgmentProbabilities = {
   whatIsPriced: Record<WhatIsPriced, number>;
@@ -28,7 +28,7 @@ export type UkPriceJudgmentProbabilities = {
   drinkCategory: Record<DrinkCategoryJudgment, number>;
 };
 
-export type UkPriceJudgmentOutcome = "publish" | "review" | "reject";
+type UkPriceJudgmentOutcome = "publish" | "review" | "reject";
 
 export type UkPriceJudgmentDecision = {
   outcome: UkPriceJudgmentOutcome;
@@ -39,7 +39,7 @@ export type UkPriceJudgmentDecision = {
 // Thresholds from __tests__/fixtures/typesafe/pint-price-judgment-probabilities.json
 export const DRAUGHT_PINT_PUBLISH_THRESHOLD = 0.72;
 export const DRAUGHT_PINT_REVIEW_THRESHOLD = 0.42;
-export const PROMOTIONAL_REJECT_THRESHOLD = 0.6;
+const PROMOTIONAL_REJECT_THRESHOLD = 0.6;
 
 /**
  * A NON-DRAUGHT OPTION PUBLISHES ON THE SAME FLOOR AS A PINT.
@@ -50,7 +50,7 @@ export const PROMOTIONAL_REJECT_THRESHOLD = 0.6;
  * branch now clears `DRAUGHT_PINT_PUBLISH_THRESHOLD`, and the winning
  * `drinkCategory` clears its own floor before it is allowed to name a lane.
  */
-export const DRINK_CATEGORY_PUBLISH_THRESHOLD = 0.42;
+const DRINK_CATEGORY_PUBLISH_THRESHOLD = 0.42;
 
 const WHAT_TO_CATEGORY: Partial<Record<WhatIsPriced, DrinkCategory>> = {
   draught_pint: "beer",
@@ -161,7 +161,7 @@ function publishInBand(category: DrinkCategory, priceGbp: number): UkPriceJudgme
   return { outcome: "publish", category };
 }
 
-export function probabilitiesFromAnswers(answers: {
+function probabilitiesFromAnswers(answers: {
   whatIsPriced: { probabilities: Record<string, number> };
   isPromotionalPrice: { noul: number };
   drinkCategory: { probabilities: Record<string, number> };

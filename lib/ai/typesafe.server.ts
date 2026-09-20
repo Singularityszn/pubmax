@@ -52,7 +52,7 @@ function typesafeApiKeyConfigured(): boolean {
   return Boolean(process.env.TYPESAFE_API_KEY?.trim());
 }
 
-export type SystemOneFailureReason = "timeout" | "error";
+type SystemOneFailureReason = "timeout" | "error";
 
 export type SystemOneOutcome<Q extends Questions> =
   | { status: "ok"; result: SystemOneResult<Q> }

@@ -4,13 +4,13 @@ import type { UkPriceRawCandidate } from "@/lib/harvest/ukPriceCrawl";
 export const UK_PRICE_JUDGMENT_TOKEN_BUDGET = 28_000;
 
 /** Conservative sizing when the SDK does not expose a counter (Jev docs use ~4 chars per token). */
-export const UK_PRICE_JUDGMENT_CHARS_PER_TOKEN = 4;
+const UK_PRICE_JUDGMENT_CHARS_PER_TOKEN = 4;
 
 /**
  * One candidate's three questions (including criteria) sized as the longest question
  * in the batch; Jev limits state plus the longest question, not state plus all questions.
  */
-export const UK_PRICE_JUDGMENT_LONGEST_QUESTION_TOKENS = 2_200;
+const UK_PRICE_JUDGMENT_LONGEST_QUESTION_TOKENS = 2_200;
 
 export type UkPriceJudgmentBatchContext = {
   pubName: string;
