@@ -23,7 +23,11 @@ const DEFAULT_TIMEOUT_MS = 4_000;
  */
 export const TYPESAFE_API_BASE_URL = "https://api.typesafe.ai";
 
-export type TypesafeObservabilityLane = PaidSpendLane | "typesafe";
+/**
+ * Which caller a timing line is attributed to. `typesafe` is the SPEND lane and
+ * one budget covers every caller; this names the feature that spent it.
+ */
+export type TypesafeObservabilityLane = PaidSpendLane;
 
 /**
  * What a log line may say about the judgment state: its SIZE and nothing else.
@@ -63,6 +67,9 @@ export async function systemOne<Q extends Questions>(
     return null;
   }
 
+  // The lane is spelled out here on purpose: `__tests__/paidSpendBudget.test.ts`
+  // greps each lane's owning file for this exact call, so a lane cannot be
+  // declared and then quietly never spent.
   const budgetRefusal = await paidSpendBudgetRefusal("typesafe");
   if (budgetRefusal) {
     log("warn", "typesafe.budget_spent", { lane: options.lane });

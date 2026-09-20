@@ -58,10 +58,8 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Ask a question.", "QUERY_REQUIRED", 400);
   }
 
-  const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(
-    query,
-    extractAskTurns(record.messages),
-  );
+  const turns = extractAskTurns(record.messages);
+  const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, turns);
 
   const llmAssistAllowed =
     !fenced &&
@@ -71,7 +69,7 @@ export async function POST(request: Request): Promise<Response> {
   const answerBody = await runAsk({
     query,
     cityId: record.cityId,
-    turns: extractAskTurns(record.messages),
+    turns,
     skipModel: !llmAssistAllowed,
     traceRoute: "api/pub-pal/llm",
   });

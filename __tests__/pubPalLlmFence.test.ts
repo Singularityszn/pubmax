@@ -10,6 +10,7 @@ import {
   pubPalFenceFromNouls,
   PUB_PAL_FENCE_NOUL_THRESHOLD,
   PUB_PAL_FENCE_QUESTION_IDS,
+  type PubPalFenceTurn,
   resolvePubPalFenceIntent,
 } from "@/lib/pubPalLlmFence";
 
@@ -20,6 +21,21 @@ vi.mock("@/lib/ai/typesafe.server", () => ({
 import { systemOne } from "@/lib/ai/typesafe.server";
 
 const ROOT = process.cwd();
+
+// A JSON import widens `role` to string, so name the recorded shape once here
+// rather than casting at each use. If a fixture ever carries a role the fence
+// does not know, this is where it stops.
+type RecordedCase = {
+  id: string;
+  message: string;
+  recentTurns: PubPalFenceTurn[];
+  expectFenced: boolean;
+  expectSobrietyOnly: boolean;
+  fitToTravelAfterDrinking: number;
+  getHomeTonight: number;
+};
+
+const recordedCases = probabilities.cases as RecordedCase[];
 
 function mockSystemOneFromFixture(
   fitToTravelAfterDrinking: number,
@@ -73,7 +89,7 @@ describe("Pub Pal TypeSafe fence on recorded fixtures", () => {
   });
 
   it("matches fixture labels when systemOne returns recorded probabilities", async () => {
-    for (const caseRow of probabilities.cases) {
+    for (const caseRow of recordedCases) {
       mockSystemOneFromFixture(
         caseRow.fitToTravelAfterDrinking,
         caseRow.getHomeTonight,
@@ -126,5 +142,14 @@ describe("pubPalFenceFromNouls", () => {
       fenced: true,
       sobrietyOnly: false,
     });
+  });
+
+  it("stays quiet just under the bar, so an inverted comparison fails here", () => {
+    const under = PUB_PAL_FENCE_NOUL_THRESHOLD - 0.01;
+    expect(pubPalFenceFromNouls(under, under)).toEqual({
+      fenced: false,
+      sobrietyOnly: false,
+    });
+    expect(pubPalFenceFromNouls(0, 0)).toEqual({ fenced: false, sobrietyOnly: false });
   });
 });
