@@ -23,7 +23,7 @@ import {
   type UkPriceReading,
 } from "@/lib/harvest/ukPriceCrawl";
 
-export type UkPriceJudgmentReviewRow = {
+type UkPriceJudgmentReviewRow = {
   pubName: string;
   pageUrl: string;
   snippet: string;
@@ -108,7 +108,7 @@ function ukPriceQuestionsForBatch(candidateCount: number): Questions {
   return questions;
 }
 
-export type UkPriceJudgmentState = {
+type UkPriceJudgmentState = {
   pubName: string;
   pageUrl: string;
   snippet: string;
@@ -219,6 +219,10 @@ export async function judgeUkPriceCandidate(
         verbatim: state.priceText,
         snippet: state.snippet,
         priceText: state.priceText,
+        // The recorder judges a snippet on its own, so the figure's offset is
+        // its offset within that snippet. Nothing on this path re-reads the
+        // page, but the field is the candidate's identity and is never faked.
+        at: Math.max(0, state.snippet.indexOf(state.priceText)),
       },
     ],
   );

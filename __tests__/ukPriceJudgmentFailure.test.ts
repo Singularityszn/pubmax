@@ -14,7 +14,12 @@ vi.mock("@/lib/harvest/ukPriceJudgmentBatch.ts", async (importOriginal) => {
 
 import { systemOneOutcome } from "@/lib/ai/typesafe.server";
 import { batchUkPriceCandidates } from "@/lib/harvest/ukPriceJudgmentBatch";
-import { readVenueDrinkPrices } from "@/lib/harvest/ukPriceCrawl";
+import {
+  decideKeylessUkPriceCandidate,
+  findUkPriceCandidates,
+  pageText,
+  readVenueDrinkPrices,
+} from "@/lib/harvest/ukPriceCrawl";
 import type { UkPriceRawCandidate } from "@/lib/harvest/ukPriceCrawl";
 import { readVenueDrinkPricesJudged } from "@/lib/harvest/ukPriceJudgment.server";
 
@@ -54,12 +59,17 @@ function mockAnswersForBatch(questionMap: Record<string, unknown>) {
 describe("readVenueDrinkPricesJudged batch failures", () => {
   it("records a budget drop and keyless-falls back only the refused batch", async () => {
     vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    // Offsets come from the page, never hand-written: a candidate carries where
+    // it was, and the keyless fallback reads it there. See the offset test below.
+    const pageCandidates = findUkPriceCandidates(pageText(drinksList), 120);
+    const byPrice = (gbp: number) => {
+      const found = pageCandidates.find((row) => row.priceGbp === gbp);
+      if (!found) throw new Error(`no candidate for ${gbp}`);
+      return found;
+    };
     vi.mocked(batchUkPriceCandidates).mockReturnValueOnce([
-      [{ priceGbp: 6.2, verbatim: "£6.20", snippet: "Madri pint £6.20", priceText: "£6.20" }],
-      [
-        { priceGbp: 6.4, verbatim: "£6.40", snippet: "Guinness pint £6.40", priceText: "£6.40" },
-        { priceGbp: 6.8, verbatim: "£6.80", snippet: "Neck Oil pint £6.80", priceText: "£6.80" },
-      ],
+      [byPrice(6.2)],
+      [byPrice(6.4), byPrice(6.8)],
     ] as UkPriceRawCandidate[][]);
 
     vi.mocked(systemOneOutcome)
@@ -105,5 +115,27 @@ describe("readVenueDrinkPricesJudged batch failures", () => {
     expect(vi.mocked(systemOneOutcome).mock.calls.length).toBeLessThan(10);
     vi.unstubAllEnvs();
     vi.mocked(systemOneOutcome).mockReset();
+  });
+
+  // A page prices two different things at the same figure all the time. The
+  // keyless re-read used to search for the verbatim string, so BOTH candidates
+  // were read in the context of whichever came first: the supper was published
+  // with the pint's category, and the pint was published twice. The fallback is
+  // the failure path, so a false publish there is a false price on the map.
+  it("reads each repeated figure at its own offset, not the first match", () => {
+    const filler = `<p>${"Our kitchen serves hearty plates every day of the week. ".repeat(6)}</p>`;
+    const html = `<html><body><p>Madri pint &pound;6.20</p>${filler}<p>Steak and chips supper &pound;6.20</p></body></html>`;
+    const text = pageText(html);
+    const candidates = findUkPriceCandidates(text, 120);
+    expect(candidates).toHaveLength(2);
+    expect(candidates[0].at).toBeLessThan(candidates[1].at);
+
+    const decisions = candidates.map((raw) => decideKeylessUkPriceCandidate(text, raw));
+
+    // The fallback agrees with the keyless reader it falls back to, row for row.
+    const truth = readVenueDrinkPrices(html);
+    expect(decisions.filter((d) => d.kept).map((d) => d.kept)).toEqual(truth.kept);
+    expect(decisions[0].kept?.category).toBe("beer");
+    expect(decisions[1].kept).toBeUndefined();
   });
 });

@@ -240,9 +240,7 @@ function isHalfMeasure(before: string): boolean {
   return !between.includes("£");
 }
 
-export const UK_PRICE_CANDIDATE_PATTERN = /£\s?(\d{1,2}(?:\.\d{2})?)\b/g;
-
-const PRICE_PATTERN = UK_PRICE_CANDIDATE_PATTERN;
+const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{2})?)\b/g;
 
 export type UkPriceCandidate = {
   priceGbp: number;
@@ -260,6 +258,17 @@ export type UkPriceRawCandidate = {
   /** Page text ±120 chars around the figure for judgment state. */
   snippet: string;
   priceText: string;
+  /**
+   * WHERE ON THE PAGE THIS FIGURE WAS, AND WHY IT IS CARRIED.
+   *
+   * A page prices two different things at the same figure all the time: a pint
+   * at £6.20 and a supper at £6.20. `verbatim` cannot tell them apart, so a
+   * keyless re-read that searched for the string would read BOTH candidates in
+   * the context of whichever came first -- publishing the pint's category for
+   * the supper's figure, and publishing the pint twice. The offset is the only
+   * thing that distinguishes them, so it travels with the candidate.
+   */
+  at: number;
 };
 
 export type UkPriceReading = {
@@ -363,7 +372,7 @@ export function categoryFor(context: string, at = Math.floor(context.length / 2)
  */
 export function findUkPriceCandidates(text: string, snippetChars = 120): UkPriceRawCandidate[] {
   const out: UkPriceRawCandidate[] = [];
-  for (const match of text.matchAll(UK_PRICE_CANDIDATE_PATTERN)) {
+  for (const match of text.matchAll(PRICE_PATTERN)) {
     const priceGbp = Number(match[1]);
     const verbatim = match[0];
     const at = match.index ?? 0;
@@ -371,7 +380,7 @@ export function findUkPriceCandidates(text: string, snippetChars = 120): UkPrice
       Math.max(0, at - snippetChars),
       at + verbatim.length + snippetChars,
     );
-    out.push({ priceGbp, verbatim, snippet, priceText: verbatim });
+    out.push({ priceGbp, verbatim, snippet, priceText: verbatim, at });
   }
   return out;
 }
@@ -380,7 +389,7 @@ export function findUkPriceCandidates(text: string, snippetChars = 120): UkPrice
  * Keyless regex table for one £ figure already located on `text`.
  * Used for the default path and for a TypeSafe batch that failed mid-page.
  */
-export function decideKeylessUkPriceAt(
+function decideKeylessUkPriceAt(
   text: string,
   at: number,
   priceGbp: number,
@@ -432,9 +441,11 @@ export function decideKeylessUkPriceCandidate(
   text: string,
   raw: UkPriceRawCandidate,
 ): { kept?: UkPriceCandidate; drop?: UkPriceDropReason } {
-  const at = text.indexOf(raw.verbatim);
-  if (at < 0) return { drop: "not-verbatim-on-page" };
-  return decideKeylessUkPriceAt(text, at, raw.priceGbp, raw.verbatim);
+  // The candidate's own offset, never a fresh search: see `at` on the type.
+  if (text.startsWith(raw.verbatim, raw.at)) {
+    return decideKeylessUkPriceAt(text, raw.at, raw.priceGbp, raw.verbatim);
+  }
+  return { drop: "not-verbatim-on-page" };
 }
 
 export function readVenueDrinkPrices(html: string): UkPriceReading {
