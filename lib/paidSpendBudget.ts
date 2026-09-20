@@ -49,6 +49,7 @@ export const PAID_SPEND_LANES = [
   "heritage",
   "pub-pal-llm",
   "plan-generate",
+  "typesafe",
 ] as const;
 
 export type PaidSpendLane = (typeof PAID_SPEND_LANES)[number];
@@ -67,6 +68,7 @@ export const PAID_SPEND_DEFAULT_DAILY_BUDGET: Record<PaidSpendLane, number> = {
   heritage: 1_000,
   "pub-pal-llm": 2_000,
   "plan-generate": 1_000,
+  typesafe: 5_000,
 };
 
 /** One sentence for every lane, so a refusal cannot say which lane it was. */

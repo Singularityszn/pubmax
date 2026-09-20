@@ -1,0 +1,429 @@
+{
+  "recordedAt": "2026-09-20T12:59:07.056Z",
+  "model": "jev-1.13.0",
+  "cases": [
+    {
+      "id": "can-i-drive",
+      "message": "Can I drive?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": true,
+      "fitToTravelAfterDrinking": 0.88,
+      "getHomeTonight": 0.05
+    },
+    {
+      "id": "too-many",
+      "message": "have I had too many?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": true,
+      "fitToTravelAfterDrinking": 0.9,
+      "getHomeTonight": 0.03
+    },
+    {
+      "id": "safe-cycle",
+      "message": "safe to cycle back?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": true,
+      "fitToTravelAfterDrinking": 0.93,
+      "getHomeTonight": 0.26
+    },
+    {
+      "id": "fit-to-drive",
+      "message": "Am I fit to drive home from here?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": true,
+      "fitToTravelAfterDrinking": 0.92,
+      "getHomeTonight": 0.09
+    },
+    {
+      "id": "one-more-regex",
+      "message": "Should I have one more?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": true,
+      "fitToTravelAfterDrinking": 0.12,
+      "getHomeTonight": 0.01
+    },
+    {
+      "id": "last-train-regex",
+      "message": "When is the last train home?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.02,
+      "getHomeTonight": 0.75
+    },
+    {
+      "id": "get-home-explicit",
+      "message": "How do I get home from Shoreditch?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.02,
+      "getHomeTonight": 0.87
+    },
+    {
+      "id": "uber-home",
+      "message": "Need an Uber home, what's the move?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.03,
+      "getHomeTonight": 0.96
+    },
+    {
+      "id": "quiet-garden",
+      "message": "Quiet garden near Soho",
+      "recentTurns": [],
+      "expectFenced": false,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.01,
+      "getHomeTonight": 0.02
+    },
+    {
+      "id": "cheapest-pint",
+      "message": "Where's the cheapest pint in Camden?",
+      "recentTurns": [],
+      "expectFenced": false,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.01,
+      "getHomeTonight": 0.01
+    },
+    {
+      "id": "beer-rec",
+      "message": "Recommend a good IPA around here",
+      "recentTurns": [],
+      "expectFenced": false,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.01,
+      "getHomeTonight": 0.01
+    },
+    {
+      "id": "opening-hours",
+      "message": "What time does the pub close tonight?",
+      "recentTurns": [],
+      "expectFenced": false,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.01,
+      "getHomeTonight": 0.01
+    },
+    {
+      "id": "friends-meet",
+      "message": "Find a pub my mates can reach from Waterloo",
+      "recentTurns": [],
+      "expectFenced": false,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.01,
+      "getHomeTonight": 0.02
+    },
+    {
+      "id": "heritage",
+      "message": "Tell me about the history of this pub",
+      "recentTurns": [],
+      "expectFenced": false,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.01,
+      "getHomeTonight": 0.01
+    },
+    {
+      "id": "quiz-night",
+      "message": "Any quiz nights nearby on Tuesday?",
+      "recentTurns": [],
+      "expectFenced": false,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.01,
+      "getHomeTonight": 0.01
+    },
+    {
+      "id": "too-drunk-tube",
+      "message": "Am I too drunk for the tube?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": true,
+      "fitToTravelAfterDrinking": 0.97,
+      "getHomeTonight": 0.26
+    },
+    {
+      "id": "scooter-home",
+      "message": "Is it safe to take an e-scooter home after these pints?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.97,
+      "getHomeTonight": 0.38
+    },
+    {
+      "id": "walk-home-drunk",
+      "message": "Could I walk home or am I wasted?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.95,
+      "getHomeTonight": 0.71
+    },
+    {
+      "id": "drive-okay",
+      "message": "Honestly am I okay to drive?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": true,
+      "fitToTravelAfterDrinking": 0.86,
+      "getHomeTonight": 0.03
+    },
+    {
+      "id": "one-more-pint",
+      "message": "One more pint or call it?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": true,
+      "fitToTravelAfterDrinking": 0.45,
+      "getHomeTonight": 0.05
+    },
+    {
+      "id": "sober-enough",
+      "message": "Do you think I'm sober enough to cycle?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": true,
+      "fitToTravelAfterDrinking": 0.98,
+      "getHomeTonight": 0.05
+    },
+    {
+      "id": "heading-home",
+      "message": "I'm heading home, what's the last train from Liverpool Street?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.01,
+      "getHomeTonight": 0.93
+    },
+    {
+      "id": "taxi-home-please",
+      "message": "Can you help me get a taxi home?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.02,
+      "getHomeTonight": 0.96
+    },
+    {
+      "id": "way-home-night-bus",
+      "message": "What's the best way home on a night bus?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.03,
+      "getHomeTonight": 0.91
+    },
+    {
+      "id": "getting-home-rain",
+      "message": "Getting home in the rain, any tips?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.02,
+      "getHomeTonight": 0.79
+    },
+    {
+      "id": "last-train-facts-only",
+      "message": "What time is the last train from Paddington on a Friday?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.01,
+      "getHomeTonight": 0.33
+    },
+    {
+      "id": "tfl-planner",
+      "message": "Open the TfL planner for me",
+      "recentTurns": [],
+      "expectFenced": false,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.01,
+      "getHomeTonight": 0.13
+    },
+    {
+      "id": "map-quiet",
+      "message": "Show me somewhere quiet on the map",
+      "recentTurns": [],
+      "expectFenced": false,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.01,
+      "getHomeTonight": 0.01
+    },
+    {
+      "id": "dog-friendly",
+      "message": "Dog-friendly beer garden?",
+      "recentTurns": [],
+      "expectFenced": false,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.01,
+      "getHomeTonight": 0.01
+    },
+    {
+      "id": "na-options",
+      "message": "Any good alcohol-free options round here?",
+      "recentTurns": [],
+      "expectFenced": false,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.01,
+      "getHomeTonight": 0.01
+    },
+    {
+      "id": "context-drive",
+      "message": "What do you reckon?",
+      "recentTurns": [
+        {
+          "role": "assistant",
+          "content": "That was your third pint in an hour."
+        },
+        {
+          "role": "user",
+          "content": "Yeah I'm thinking about driving."
+        }
+      ],
+      "expectFenced": true,
+      "expectSobrietyOnly": true,
+      "fitToTravelAfterDrinking": 0.8,
+      "getHomeTonight": 0.21
+    },
+    {
+      "id": "context-home",
+      "message": "How do we get back to Clapham?",
+      "recentTurns": [
+        {
+          "role": "assistant",
+          "content": "Last orders were ten minutes ago."
+        },
+        {
+          "role": "user",
+          "content": "Right, how do we get back to Clapham?"
+        }
+      ],
+      "expectFenced": true,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.03,
+      "getHomeTonight": 0.91
+    },
+    {
+      "id": "context-pub-chat",
+      "message": "Is the garden heated?",
+      "recentTurns": [
+        {
+          "role": "assistant",
+          "content": "The Ship has a covered terrace."
+        },
+        {
+          "role": "user",
+          "content": "Is the garden heated?"
+        }
+      ],
+      "expectFenced": false,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.01,
+      "getHomeTonight": 0.01
+    },
+    {
+      "id": "motorcycle",
+      "message": "Too drunk to ride my motorbike home?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.97,
+      "getHomeTonight": 0.75
+    },
+    {
+      "id": "drunk-enough",
+      "message": "Am I drunk enough that I shouldn't drive?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": true,
+      "fitToTravelAfterDrinking": 0.98,
+      "getHomeTonight": 0.06
+    },
+    {
+      "id": "call-it-a-night",
+      "message": "Should I call it a night or grab one more?",
+      "recentTurns": [],
+      "expectFenced": false,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.17,
+      "getHomeTonight": 0.02
+    },
+    {
+      "id": "rideshare-split",
+      "message": "Split an Uber home with me?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.02,
+      "getHomeTonight": 0.71
+    },
+    {
+      "id": "night-tube-home",
+      "message": "Is the night tube still running for me to get home?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.02,
+      "getHomeTonight": 0.55
+    },
+    {
+      "id": "sobriety-word",
+      "message": "Quick sobriety check - can I drive?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": true,
+      "fitToTravelAfterDrinking": 0.98,
+      "getHomeTonight": 0.08
+    },
+    {
+      "id": "water-and-leave",
+      "message": "I'll get some water and leave, cheers",
+      "recentTurns": [],
+      "expectFenced": false,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.02,
+      "getHomeTonight": 0.01
+    },
+    {
+      "id": "price-check",
+      "message": "How much is Guinness here?",
+      "recentTurns": [],
+      "expectFenced": false,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.01,
+      "getHomeTonight": 0.01
+    },
+    {
+      "id": "live-music",
+      "message": "Any live music pubs tonight?",
+      "recentTurns": [],
+      "expectFenced": false,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.01,
+      "getHomeTonight": 0.01
+    },
+    {
+      "id": "both-intents",
+      "message": "I'm hammered, how do I get home safely?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": false,
+      "fitToTravelAfterDrinking": 0.5,
+      "getHomeTonight": 0.98
+    },
+    {
+      "id": "cycle-fit",
+      "message": "Fit to cycle after two pints?",
+      "recentTurns": [],
+      "expectFenced": true,
+      "expectSobrietyOnly": true,
+      "fitToTravelAfterDrinking": 0.98,
+      "getHomeTonight": 0.1
+    }
+  ]
+}

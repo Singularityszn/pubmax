@@ -2,9 +2,8 @@ import { publicApiError } from "@/lib/apiError";
 import { runAsk } from "@/lib/ask/runAsk";
 import { assertPubPalLlmAuth } from "@/lib/pubPalLlmAuth";
 import {
-  isPubPalGetHomeOrSobrietyIntent,
-  isPubPalSobrietyOnlyIntent,
   pubPalGetHomeRegisterAnswer,
+  resolvePubPalFenceIntent,
 } from "@/lib/pubPalLlmFence";
 import {
   extractAskTurns,
@@ -59,8 +58,10 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Ask a question.", "QUERY_REQUIRED", 400);
   }
 
-  const fenced = isPubPalGetHomeOrSobrietyIntent(query);
-  const sobrietyOnly = isPubPalSobrietyOnlyIntent(query);
+  const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(
+    query,
+    extractAskTurns(record.messages),
+  );
 
   const llmAssistAllowed =
     !fenced &&

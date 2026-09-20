@@ -39,6 +39,7 @@ const LANE_OWNERS: Record<PaidSpendLane, string> = {
   heritage: "app/api/heritage/route.ts",
   "pub-pal-llm": "app/api/pub-pal/llm/route.ts",
   "plan-generate": "lib/planGeneration.server.ts",
+  typesafe: "lib/ai/typesafe.server.ts",
 };
 
 afterEach(() => {
