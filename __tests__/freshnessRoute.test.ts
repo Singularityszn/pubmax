@@ -140,7 +140,13 @@ describe("GET /api/freshness", () => {
       expect(Number.isFinite(Date.parse(row?.observedAt ?? "")), id).toBe(true);
     }
     expect(body.summary.retired).toBe(2);
-    expect(body.summary.stale ?? 0).toBe(0);
+    // A retired lane is never counted as stale. Other lanes may be over their
+    // cadence budget on the day the suite runs, so the stale count is checked
+    // against the rows themselves rather than pinned to zero.
+    const staleIds = body.datasets.filter((d) => d.status === "stale").map((d) => d.id);
+    expect(staleIds).not.toContain("price_updates");
+    expect(staleIds).not.toContain("food_price_updates");
+    expect(body.summary.stale ?? 0).toBe(staleIds.length);
   });
 
   it("never surfaces a broken bundled artifact as an unresolved stamp", async () => {
