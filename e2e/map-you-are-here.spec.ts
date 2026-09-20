@@ -45,26 +45,24 @@ async function prepareMap(page: Page): Promise<void> {
 }
 
 
-async function readReaderDot(page: Page): Promise<{
+type ReaderDotReading = {
+  hasSource: boolean;
   hasAccuracyLayer: boolean;
   hasCoreLayer: boolean;
-  coordinates: [number, number] | null;
-}> {
+  written: [number, number] | null;
+  rendered: [number, number] | null;
+};
+
+async function readReaderDot(page: Page): Promise<ReaderDotReading> {
   return page.evaluate(() => {
     const probe = (
       window as typeof window & {
-        __pubmaxMapReaderPosition?: {
-          read: () => {
-            hasAccuracyLayer: boolean;
-            hasCoreLayer: boolean;
-            coordinates: [number, number] | null;
-          };
-        };
+        __pubmaxMapReaderPosition?: { read: () => ReaderDotReading };
       }
     ).__pubmaxMapReaderPosition;
     if (!probe) throw new Error("reader position probe missing");
     return probe.read();
-  });
+  }) as Promise<ReaderDotReading>;
 }
 
 type CameraReading = {
@@ -110,7 +108,7 @@ test.describe("map you are here dot", () => {
     test.setTimeout(180_000);
     await context.grantPermissions(["geolocation"]);
     const first = { latitude: 51.515, longitude: -0.09, accuracy: 25 };
-    const second = { latitude: 51.522, longitude: -0.078, accuracy: 40 };
+    const second = { latitude: 51.5162, longitude: -0.0882, accuracy: 40 };
     await context.setGeolocation(first);
 
     await page.setViewportSize({ width: 390, height: 844 });
@@ -139,21 +137,29 @@ test.describe("map you are here dot", () => {
       })
       .toBe(true);
 
-    // Both layers exist: a circle-radius MapLibre refuses leaves the ring out
-    // of the style in silence, and the dot alone still paints.
-    await expect
-      .poll(async () => (await readReaderDot(page)).hasAccuracyLayer, { timeout: 20_000 })
-      .toBe(true);
-    await expect
-      .poll(async () => (await readReaderDot(page)).hasCoreLayer, { timeout: 20_000 })
-      .toBe(true);
-
+    // The source and BOTH layers exist. A circle-radius MapLibre refuses is
+    // dropped from the style in silence, so the ring's absence is the defect
+    // this reading is here to catch; the dot alone still paints without it.
     await expect
       .poll(
         async () => {
-          const { coordinates } = await readReaderDot(page);
-          if (!coordinates) return Number.POSITIVE_INFINITY;
-          return metresApart(coordinates, [first.longitude, first.latitude]);
+          const dot = await readReaderDot(page);
+          return [dot.hasSource, dot.hasAccuracyLayer, dot.hasCoreLayer];
+        },
+        { timeout: 30_000 },
+      )
+      .toEqual([true, true, true]);
+
+    // The fix reached the canvas, and MapLibre is drawing it.
+    await expect
+      .poll(async () => (await readReaderDot(page)).written, { timeout: 30_000 })
+      .toEqual([first.longitude, first.latitude]);
+    await expect
+      .poll(
+        async () => {
+          const { rendered } = await readReaderDot(page);
+          if (!rendered) return Number.POSITIVE_INFINITY;
+          return metresApart(rendered, [first.longitude, first.latitude]);
         },
         { timeout: 30_000 },
       )
@@ -177,13 +183,16 @@ test.describe("map you are here dot", () => {
     // The dot follows the fix. This is the assertion that fails if the watch
     // stops feeding the source, so nothing downstream may run before it.
     await expect
+      .poll(async () => (await readReaderDot(page)).written, { timeout: 60_000 })
+      .toEqual([second.longitude, second.latitude]);
+    await expect
       .poll(
         async () => {
-          const { coordinates } = await readReaderDot(page);
-          if (!coordinates) return Number.POSITIVE_INFINITY;
-          return metresApart(coordinates, [second.longitude, second.latitude]);
+          const { rendered } = await readReaderDot(page);
+          if (!rendered) return Number.POSITIVE_INFINITY;
+          return metresApart(rendered, [second.longitude, second.latitude]);
         },
-        { timeout: 60_000 },
+        { timeout: 30_000 },
       )
       .toBeLessThan(20);
 

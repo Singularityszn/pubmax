@@ -150,6 +150,7 @@ export default defineConfig({
         // (and without its blocked service worker) before the GL project runs it.
         "**/map-console-health.spec.ts",
         "**/map-arrival-turn.spec.ts",
+        "**/map-you-are-here.spec.ts",
         "**/map-arrival-card-pins.spec.ts",
         "**/map-desktop-arrival-chrome.spec.ts",
         "**/map-tile-retry.spec.ts",
@@ -273,6 +274,9 @@ export default defineConfig({
         // read a real camera and a real painted-pin probe.
         "**/map-arrival-turn.spec.ts",
         "**/map-arrival-card-pins.spec.ts",
+        // The reader's own dot: a real GeoJSON source on a real scene, and a
+        // real camera to hold still while the dot moves.
+        "**/map-you-are-here.spec.ts",
         // The arrival chrome count at 1440: a rendered map, so a real canvas.
         "**/map-desktop-arrival-chrome.spec.ts",
         // A deep-linked pin's painted position against the phone sheet's own
