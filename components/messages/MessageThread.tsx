@@ -51,14 +51,18 @@ import {
   GROUP_LEAVE_LABEL,
   GROUP_LEFT_LINE,
   groupMemberCountLine,
-  groupThreadName,
 } from "@/lib/messageGroupThread";
 import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
 import {
   linkifyMentions,
   MAX_MESSAGE_BODY,
-  type ConversationKind,
+  otherHandleFromThreadIdentity,
+  threadHeaderPrimaryLine,
+  threadIdentityFromInboxRow,
+  threadIdentityFromWire,
+  type ConversationDTO,
   type MessageDTO,
+  type ThreadIdentity,
 } from "@/lib/messages";
 import { subscribeToMessages } from "@/lib/messagesRealtime";
 import {
@@ -239,12 +243,41 @@ function pendingLabel(pending: PendingAttachment): string {
   }
 }
 
-/** What a thread is CALLED at the top of the screen. */
-type ThreadIdentity = {
-  kind: ConversationKind;
-  members: string[];
-  title: string | null;
-};
+/**
+ * The inbox row for one conversation, for naming an EMPTY thread's head.
+ *
+ * Never throws and never rejects: a head with no name is a cosmetic gap, not a
+ * thread that failed to read, and this runs inside the read. Null means the
+ * inbox could not be asked at all, so the caller may ask again; a resolved read
+ * with no matching row answers with an empty name and is not asked twice.
+ */
+async function nameFromInboxRow(
+  viewerHandle: string,
+  conversationId: string,
+): Promise<{ identity: ThreadIdentity | null; otherHandle: string } | null> {
+  try {
+    const res = await authedActionFetch(
+      `/api/messages?handle=${encodeURIComponent(viewerHandle)}`,
+      {},
+      { requiresIdentity: true },
+    );
+    if (!res.ok) {
+      discardBody(res);
+      return null;
+    }
+    const body = (await res.json()) as { conversations?: ConversationDTO[] };
+    const row = (body.conversations ?? []).find(
+      (conversation) => conversation.id === conversationId,
+    );
+    if (!row) return { identity: null, otherHandle: "" };
+    return {
+      identity: threadIdentityFromInboxRow(row),
+      otherHandle: row.otherHandle ?? "",
+    };
+  } catch {
+    return null;
+  }
+}
 
 function fileKey(file: File): string {
   return `${file.name}:${file.size}:${file.lastModified}`;
@@ -318,6 +351,8 @@ export default function MessageThread({
   const activeReadRef = useRef<ThreadReadRequest | null>(null);
   const requestGenerationRef = useRef(0);
   const conversationIdRef = useRef(conversationId);
+  /** Whether the inbox has already been asked to name THIS empty thread. */
+  const askedInboxForNameRef = useRef(false);
   const accountRevisionRef = useRef(accountRevision);
   useLayoutEffect(() => {
     if (conversationIdRef.current === conversationId) return;
@@ -326,6 +361,10 @@ export default function MessageThread({
     setViewRevision(null);
     setOutbox([]);
     setRevealedId(null);
+    setIdentity(null);
+    setOtherHandle("");
+    setMessages([]);
+    askedInboxForNameRef.current = false;
     conversationIdRef.current = conversationId;
   }, [conversationId]);
   useLayoutEffect(() => {
@@ -459,28 +498,44 @@ export default function MessageThread({
         loadedForRef.current = requestKey;
         setViewRevision(requestKey);
         setMessages(next);
-        // WHO THE THREAD IS WITH comes from the read itself. It used to be
-        // guessed off the first message from somebody else, which said
-        // "Conversation" over an empty thread and could never name a group at
-        // all; a membership the server could not read is left absent rather
-        // than guessed, and the head keeps its neutral word.
-        const conversation = body.conversation;
-        const members = Array.isArray(conversation?.members)
-          ? conversation.members.filter((m): m is string => typeof m === "string")
-          : [];
-        if (conversation && members.length > 0) {
-          setIdentity({
-            kind: conversation.kind === "group" ? "group" : "direct",
-            members,
-            title: typeof conversation.title === "string" ? conversation.title : null,
-          });
-          if (conversation.kind !== "group") {
-            setOtherHandle(members.find((member) => member !== h) ?? "");
+        // WHO THE THREAD IS WITH comes from the read's membership when it has
+        // one; only then may a group title win. An empty direct thread has no
+        // message to read a name off, so the inbox row for this id names it.
+        // A GROUP is named by its title or its people, never by one of them,
+        // so its head keeps drawing from the group's own name.
+        const identityFromRead = threadIdentityFromWire(body.conversation);
+        let nextIdentity: ThreadIdentity | null = identityFromRead;
+        let nextOther =
+          identityFromRead && identityFromRead.kind !== "group"
+            ? otherHandleFromThreadIdentity(identityFromRead, h)
+            : "";
+        if (!identityFromRead) {
+          const me = normalizeHandle(h);
+          const theirs = next.find(
+            (message) => normalizeHandle(message.senderHandle) !== me,
+          );
+          if (theirs) {
+            nextOther = theirs.senderHandle;
+          } else if (next.length === 0 && !askedInboxForNameRef.current) {
+            // ONE read of the inbox per thread, and only for an empty one with
+            // no membership: it names the head and nothing else leans on it, so
+            // it may never fail a thread read that already succeeded, and a
+            // request that never landed is asked again on the next refresh.
+            const named = await nameFromInboxRow(h, conversationId);
+            if (!stillCurrent()) return;
+            if (named) {
+              askedInboxForNameRef.current = true;
+              nextIdentity = named.identity;
+              if (named.identity?.kind !== "group") nextOther = named.otherHandle;
+            }
           }
-        } else {
-          const theirs = next.find((m) => m.senderHandle !== h);
-          if (theirs) setOtherHandle(theirs.senderHandle);
         }
+        if (!stillCurrent()) return;
+        // A NAME ALREADY LEARNED FOR THIS THREAD IS NEVER TAKEN BACK. A later
+        // read that carries no membership leaves the head as it was rather than
+        // flipping a named person back to the neutral word.
+        setIdentity((previous) => nextIdentity ?? previous);
+        setOtherHandle((previous) => nextOther || previous);
         setState("ready");
       } catch (err) {
         // An abort is our own teardown, never a failure the reader should see.
@@ -903,9 +958,10 @@ export default function MessageThread({
 
   const showCounter = draft.length >= COUNTER_FROM;
   const isGroup = identity?.kind === "group";
-  const groupName = isGroup
-    ? groupThreadName(identity?.title ?? null, identity?.members ?? [], handle)
-    : "";
+  // ONE naming rule for every kind (`threadHeaderPrimaryLine`), the same one
+  // the inbox row reads through `conversationRowName`: a direct thread is the
+  // other person, a group is its title or its people. Null is the neutral word.
+  const threadName = threadHeaderPrimaryLine(identity, otherHandle, handle);
 
   /** Whichever picker is open, in the composer dock. One at a time, by design. */
   function renderPicker(): React.JSX.Element | null {
@@ -963,9 +1019,9 @@ export default function MessageThread({
       // name is the title or the people in it.
       return (
         <span className="threadWith">
-          <MessageAvatar handle={otherHandle || groupName} size={36} />
+          <MessageAvatar handle={otherHandle || (threadName ?? "")} size={36} />
           <span className="threadWithGroup">
-            <span className="threadWithHandle">{groupName}</span>
+            <span className="threadWithHandle">{threadName}</span>
             <span className="threadWithMembers">
               {groupMemberCountLine(identity?.members.length ?? 0)}
             </span>
@@ -973,11 +1029,11 @@ export default function MessageThread({
         </span>
       );
     }
-    if (otherHandle) {
+    if (threadName) {
       return (
         <Link href={`/u/${encodeURIComponent(otherHandle)}`} className="threadWith">
           <MessageAvatar handle={otherHandle} size={36} />
-          <span className="threadWithHandle">@{otherHandle}</span>
+          <span className="threadWithHandle">{threadName}</span>
         </Link>
       );
     }
@@ -1018,7 +1074,7 @@ export default function MessageThread({
             <li className="threadEmpty" aria-live="polite">
               {otherHandle ? <MessageAvatar handle={otherHandle} size={72} /> : null}
               <p className="threadEmptyTitle">
-                {isGroup ? groupName : otherHandle ? `@${otherHandle}` : "Nothing here yet."}
+                {threadName ?? "Nothing here yet."}
               </p>
               <p className="threadEmptyLine">
                 {isGroup

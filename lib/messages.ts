@@ -198,6 +198,77 @@ export function conversationRowName(
   );
 }
 
+/** What a thread header knows after a thread read or an inbox fallback. */
+export type ThreadIdentity = {
+  kind: ConversationKind;
+  members: readonly string[];
+  title: string | null;
+};
+
+/** The kind on the wire; absent or unknown means direct. */
+function wireConversationKind(kind: unknown): ConversationKind {
+  return kind === "group" ? "group" : "direct";
+}
+
+/**
+ * Membership from GET /api/messages/[id] `conversation`. Null when the read
+ * carried no members, so a caller may fall back to the inbox row or a message.
+ */
+export function threadIdentityFromWire(
+  conversation:
+    | { kind?: unknown; members?: unknown; title?: unknown }
+    | undefined
+    | null,
+): ThreadIdentity | null {
+  if (!conversation) return null;
+  const members = Array.isArray(conversation.members)
+    ? conversation.members.filter((member): member is string => typeof member === "string")
+    : [];
+  if (members.length === 0) return null;
+  return {
+    kind: wireConversationKind(conversation.kind),
+    members,
+    title: typeof conversation.title === "string" ? conversation.title : null,
+  };
+}
+
+/** Group identity from an inbox row when the thread read named no membership. */
+export function threadIdentityFromInboxRow(row: ConversationDTO): ThreadIdentity | null {
+  if ((row.kind ?? "direct") !== "group") return null;
+  const members = [...(row.memberHandles ?? [])];
+  if (members.length === 0) return null;
+  return {
+    kind: "group",
+    members,
+    title: row.title ?? null,
+  };
+}
+
+/** The other participant's handle for the thread avatar on a direct or group row. */
+export function otherHandleFromThreadIdentity(
+  identity: ThreadIdentity,
+  viewer: string,
+): string {
+  const me = normalizeHandle(viewer);
+  return identity.members.find((handle) => normalizeHandle(handle) !== me) ?? "";
+}
+
+/**
+ * The primary line under the thread back control. Null means the neutral
+ * "Conversation" fallback until a name is known.
+ */
+export function threadHeaderPrimaryLine(
+  identity: ThreadIdentity | null,
+  otherHandle: string,
+  viewer: string,
+): string | null {
+  if (identity?.kind === "group") {
+    return groupThreadName(identity.title, identity.members, viewer);
+  }
+  const handle = normalizeHandle(otherHandle);
+  return handle ? `@${handle}` : null;
+}
+
 /**
  * Count messages unread BY `viewer`: a message is unread-for-viewer when it has
  * no read_at AND the viewer did not send it (you never have unread messages from

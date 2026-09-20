@@ -9,6 +9,9 @@ import {
   linkifyMentions,
   MAX_MESSAGE_BODY,
   normalizePair,
+  threadHeaderPrimaryLine,
+  threadIdentityFromInboxRow,
+  threadIdentityFromWire,
   unreadForViewer,
 } from "@/lib/messages";
 
@@ -76,6 +79,81 @@ describe("unreadForViewer — per-viewer unread count", () => {
   });
   it("is zero for a blank viewer", () => {
     expect(unreadForViewer([{ senderHandle: "sam", read: false }], "")).toBe(0);
+  });
+});
+
+describe("thread header naming", () => {
+  it("names a direct thread by the other participant", () => {
+    expect(
+      threadHeaderPrimaryLine(
+        { kind: "direct", members: ["karan", "tom_the_lamb"], title: null },
+        "tom_the_lamb",
+        "karan",
+      ),
+    ).toBe("@tom_the_lamb");
+  });
+
+  it("names a group by its title", () => {
+    expect(
+      threadHeaderPrimaryLine(
+        {
+          kind: "group",
+          members: ["karan", "sam", "maisie"],
+          title: "Friday crew",
+        },
+        "sam",
+        "karan",
+      ),
+    ).toBe("Friday crew");
+  });
+
+  it("names an untitled group by its members minus the viewer", () => {
+    expect(
+      threadHeaderPrimaryLine(
+        { kind: "group", members: ["karan", "sam", "maisie"], title: null },
+        "sam",
+        "karan",
+      ),
+    ).toMatch(/sam/);
+  });
+
+  it("returns null for a direct thread with no other handle yet", () => {
+    expect(threadHeaderPrimaryLine(null, "", "karan")).toBeNull();
+  });
+
+  it("reads direct membership from the wire without treating it as a group", () => {
+    const identity = threadIdentityFromWire({
+      kind: "direct",
+      members: ["karan", "tom_the_lamb"],
+    });
+    expect(identity?.kind).toBe("direct");
+    expect(
+      threadHeaderPrimaryLine(identity, "tom_the_lamb", "karan"),
+    ).toBe("@tom_the_lamb");
+  });
+
+  it("builds group identity from an inbox row only for group rows", () => {
+    expect(
+      threadIdentityFromInboxRow({
+        id: "c4",
+        otherHandle: "tom_the_lamb",
+        lastAt: "",
+        lastFromMe: false,
+        unread: 0,
+      }),
+    ).toBeNull();
+    expect(
+      threadIdentityFromInboxRow({
+        id: "g1",
+        kind: "group",
+        otherHandle: "sam",
+        memberHandles: ["karan", "sam", "maisie"],
+        title: "Pub crawl",
+        lastAt: "",
+        lastFromMe: false,
+        unread: 0,
+      })?.kind,
+    ).toBe("group");
   });
 });
 

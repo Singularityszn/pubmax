@@ -12,10 +12,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const authState = vi.hoisted(() => ({
   current: { user: { id: "user-ken" } as { id: string } | null, handle: "ken" as string | null, accountRevision: 1 },
 }));
+type ThreadRow = {
+  id: string;
+  conversationId: string;
+  senderHandle: string;
+  body: string;
+  createdAt: string;
+  read: boolean;
+  flagged: boolean;
+};
+
+const ONE_ROW: ThreadRow[] = [
+  { id: "m1", conversationId: "c1", senderHandle: "sam", body: "hi", createdAt: "2026-09-05T10:00:00Z", read: true, flagged: false },
+];
+
 const fetchLog = vi.hoisted(() => ({
   calls: [] as Array<{ url: string; method: string; body: string }>,
   pendingPosts: [] as Array<(response: Response) => void>,
   holdPosts: false,
+  /** What the thread read answers. An empty list is an EMPTY thread. */
+  threadRows: [] as Array<Record<string, unknown>>,
+  /** What the inbox read answers, and whether it can be read at all. */
+  inboxRows: [] as Array<Record<string, unknown>>,
+  inboxFails: false,
+  inboxThrows: false,
+  /** The membership the thread read carries, when it carries one. */
+  threadConversation: null as Record<string, unknown> | null,
 }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => authState.current }));
@@ -49,11 +71,19 @@ vi.mock("@/lib/authedFetch", () => ({
       body: typeof init?.body === "string" ? init.body : "",
     });
     if (method === "GET") {
+      if (String(input).startsWith("/api/messages?")) {
+        if (fetchLog.inboxThrows) return Promise.reject(new TypeError("offline"));
+        if (fetchLog.inboxFails) {
+          return Promise.resolve(Response.json({ error: "down" }, { status: 503 }));
+        }
+        return Promise.resolve(Response.json({ conversations: fetchLog.inboxRows }));
+      }
       return Promise.resolve(
         Response.json({
-          messages: [
-            { id: "m1", conversationId: "c1", senderHandle: "sam", body: "hi", createdAt: "2026-09-05T10:00:00Z", read: true, flagged: false },
-          ],
+          messages: fetchLog.threadRows,
+          ...(fetchLog.threadConversation
+            ? { conversation: fetchLog.threadConversation }
+            : {}),
         }),
       );
     }
@@ -122,6 +152,13 @@ beforeEach(() => {
   fetchLog.calls = [];
   fetchLog.pendingPosts = [];
   fetchLog.holdPosts = false;
+  fetchLog.threadRows = [...ONE_ROW];
+  fetchLog.inboxRows = [
+    { id: "c1", otherHandle: "sam", lastAt: "2026-09-05T10:00:00Z", lastFromMe: false, unread: 0 },
+  ];
+  fetchLog.inboxFails = false;
+  fetchLog.inboxThrows = false;
+  fetchLog.threadConversation = null;
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.setItem("pubmax_handle", "ken");
   Object.defineProperty(window, "matchMedia", {
@@ -293,5 +330,111 @@ describe("a refused send never eats the message", () => {
     await flush();
 
     expect(composerValue()).toBe("alone");
+  });
+});
+
+describe("an empty thread still knows whose it is", () => {
+  function head(): string {
+    return container.querySelector(".threadWithHandle")?.textContent ?? "";
+  }
+
+  function inboxReads(): number {
+    return fetchLog.calls.filter(
+      (call) => call.method === "GET" && call.url.startsWith("/api/messages?"),
+    ).length;
+  }
+
+  async function refocus(): Promise<void> {
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    await flush();
+    await flush();
+  }
+
+  it("names the head off the inbox row, and asks the inbox ONCE however often the thread refreshes", async () => {
+    fetchLog.threadRows = [];
+    await mount();
+    expect(head()).toBe("@sam");
+    expect(inboxReads()).toBe(1);
+
+    await refocus();
+    await refocus();
+
+    // The thread is read again on each focus; the inbox is not.
+    expect(inboxReads()).toBe(1);
+    expect(head()).toBe("@sam");
+  });
+
+  it("keeps a name it already learned when a later read carries none", async () => {
+    fetchLog.threadRows = [];
+    await mount();
+    expect(head()).toBe("@sam");
+
+    fetchLog.inboxRows = [];
+    fetchLog.inboxFails = true;
+    await refocus();
+
+    expect(head()).toBe("@sam");
+  });
+
+  it("stays READY when the inbox read throws, and asks again next time", async () => {
+    fetchLog.threadRows = [];
+    fetchLog.inboxThrows = true;
+    await mount();
+
+    // A head with no name is a cosmetic gap, never a thread that failed.
+    expect(container.querySelector(".threadEmpty")).not.toBeNull();
+    expect(container.textContent).not.toContain("With you in a sec");
+    expect(head()).toBe("Conversation");
+
+    fetchLog.inboxThrows = false;
+    await refocus();
+
+    expect(head()).toBe("@sam");
+  });
+});
+
+describe("a group thread is named by the group, never by one of its people", () => {
+  function head(): string {
+    return container.querySelector(".threadWithHandle")?.textContent ?? "";
+  }
+
+  it("reads its title off the thread read, and asks the inbox for nothing", async () => {
+    fetchLog.threadRows = [];
+    fetchLog.threadConversation = {
+      kind: "group",
+      members: ["ken", "sam", "maisie"],
+      title: "Friday crew",
+    };
+    await mount();
+
+    expect(head()).toBe("Friday crew");
+    expect(container.querySelector(".threadWithMembers")?.textContent).toBe("3 people");
+    expect(
+      fetchLog.calls.filter((call) => call.url.startsWith("/api/messages?")),
+    ).toHaveLength(0);
+  });
+
+  it("falls back to the people in it when it has no title", async () => {
+    fetchLog.threadRows = [];
+    fetchLog.threadConversation = {
+      kind: "group",
+      members: ["ken", "sam", "maisie"],
+    };
+    await mount();
+
+    expect(head()).toBe("@sam, @maisie");
+  });
+
+  it("names a direct thread by the other person from the same read", async () => {
+    fetchLog.threadRows = [];
+    fetchLog.threadConversation = { kind: "direct", members: ["ken", "sam"] };
+    await mount();
+
+    expect(head()).toBe("@sam");
+    expect(
+      fetchLog.calls.filter((call) => call.url.startsWith("/api/messages?")),
+    ).toHaveLength(0);
   });
 });
