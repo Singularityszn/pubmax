@@ -315,6 +315,18 @@ export async function buildAccountExport(
         out.push({
           id: conversation.id,
           otherHandle: conversation.otherHandle,
+          // A GROUP says so, and says who was in it. `otherHandle` is only the
+          // first other member on a group row, so a file carrying that alone
+          // would hand somebody their nine-person thread back as a DM.
+          ...(conversation.kind === "group"
+            ? {
+                kind: "group" as const,
+                ...(conversation.title ? { title: conversation.title } : {}),
+                ...(conversation.memberHandles
+                  ? { memberHandles: [...conversation.memberHandles] }
+                  : {}),
+              }
+            : {}),
           messages: thread
             .filter((message) => normalizeHandle(message.senderHandle) === handle)
             .map(exportMessage),

@@ -26,6 +26,7 @@
 // list, the linked socials and the Night Profile out of it.
 
 import type { DrinkCategory } from "@/lib/drinks";
+import type { ConversationKind } from "@/lib/messageGroupThread";
 import type { CheckIn } from "@/lib/checkIn";
 import type { NightMemory, NightMoment } from "@/lib/nightMemory";
 import type { NightProfile } from "@/lib/nightProfile";
@@ -161,6 +162,21 @@ export type AccountExportMessage = {
 export type AccountExportConversation = {
   id: string;
   otherHandle: string;
+  /**
+   * WHAT KIND OF THREAD IT WAS. Absent means `direct`, so a file written before
+   * group threads reads exactly as it did.
+   *
+   * A group carries its members and its title as well, because `otherHandle` on
+   * a group row is only the FIRST other member - a nine-person thread exported
+   * with that field alone reads back as a one-to-one with whoever happened to
+   * sort first, which is a portable copy saying something untrue about the
+   * person's own record.
+   */
+  kind?: ConversationKind;
+  /** A group's own name, when it was given one. Absent on a direct row. */
+  title?: string;
+  /** Every live member at export time, the exporter included. Absent on a direct row. */
+  memberHandles?: string[];
   /** The caller's OWN messages in the thread, oldest first. */
   messages: AccountExportMessage[];
 };
