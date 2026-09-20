@@ -20,7 +20,6 @@ import { randomUUID } from "crypto";
 
 import { log } from "@/lib/log";
 import {
-  liveConfirmationFor,
   outcomeForUnmintedReading,
   readSecondReporter,
   type PintDropConfirmation,
@@ -158,25 +157,6 @@ export async function readVenuePintTrust(
     return pintTrustFor(candidates, now).state;
   } catch (err) {
     log("warn", "pint_drop.trust_read_failed", {
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return null;
-  }
-}
-
-/** The venue's live confirmation, or null. Read seam for a server surface that
- *  wants the standing without re-deriving the rules. Never throws. */
-export async function readVenueConfirmation(
-  venueId: string,
-  now: number = Date.now(),
-): Promise<{ confirmationId: string; confirmedAtMs: number } | null> {
-  try {
-    return liveConfirmationFor(
-      await pintDropsStore().listConfirmationCandidates(venueId),
-      now,
-    );
-  } catch (err) {
-    log("warn", "pint_drop.confirmation_read_failed", {
       error: err instanceof Error ? err.message : String(err),
     });
     return null;

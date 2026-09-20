@@ -66,7 +66,7 @@ export type PushTokenStore = {
 const TABLE = "push_tokens";
 
 // ── Supabase implementation ──────────────────────────────────────────────────
-export const supabasePushTokenStore: PushTokenStore = {
+const supabasePushTokenStore: PushTokenStore = {
   async save(input) {
     const now = new Date().toISOString();
     const { data, error } = await admin()

@@ -75,18 +75,6 @@ export function markTourSeen(): void {
   }
 }
 
-/** Clear the flag so the tour shows again — handy for local testing. */
-export function resetTour(): void {
-  if (!hasStorage()) return;
-  try {
-    window.localStorage.removeItem(STORAGE_KEY);
-    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
-    notifyTourChange();
-  } catch {
-    // ignore
-  }
-}
-
 /**
  * Subscribe to tour-seen changes (same-tab writes + cross-tab `storage`).
  * For `useSyncExternalStore` in the FirstRunTour client.

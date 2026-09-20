@@ -25,7 +25,7 @@ import {
   type WeatherSnapshot,
 } from "@/lib/weatherSnapshots";
 
-export type WriteWeatherOutcome = {
+type WriteWeatherOutcome = {
   /** Number of observations persisted. */
   written: number;
   /** Set when the durable write hard-failed — nothing was persisted. */

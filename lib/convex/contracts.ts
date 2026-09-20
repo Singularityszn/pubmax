@@ -23,9 +23,9 @@ export type PubPalDto = Readonly<{
   updatedAt: string;
 }>;
 
-export type PubPalMemoryStatus = "proposed" | "approved" | "rejected";
+type PubPalMemoryStatus = "proposed" | "approved" | "rejected";
 
-export type PubPalMemoryProvenance = Readonly<{
+type PubPalMemoryProvenance = Readonly<{
   source:
     | "user_confirmed"
     | "completed_plan"
@@ -59,12 +59,6 @@ export type PalUnlockDto = Readonly<
   }
 >;
 
-export type MasteryLedgerDto = Readonly<{
-  points: number;
-  events: readonly MasteryEventDto[];
-  unlocks: readonly PalUnlockDto[];
-}>;
-
 export type PlanCompletionDto = Readonly<{
   id: string;
   planId: string;
@@ -75,21 +69,13 @@ export type PlanCompletionDto = Readonly<{
   completedAt: string;
 }>;
 
-export type ConfirmedCommandEnvelope<TPayload> = Readonly<{
-  ownerIssuer: string;
-  ownerSubject: string;
-  confirmationId: string;
-  confirmedAt: string;
-  payload: TPayload;
-}>;
-
-export type ConvexHybridCapability =
+type ConvexHybridCapability =
   | "pal"
   | "memory"
   | "mastery"
   | "plan_completion";
 
-export type ConvexReadMode = "supabase" | "shadow" | "convex";
+type ConvexReadMode = "supabase" | "shadow" | "convex";
 
 export type ConvexHybridFlags = Readonly<
   Record<ConvexHybridCapability, ConvexReadMode>

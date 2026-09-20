@@ -2,11 +2,11 @@ import type { Badge, ProfileDrop } from "@/lib/profiles";
 
 type DistinctDropField = "borough" | "venueId";
 
-export type BadgeEventDropRule =
+type BadgeEventDropRule =
   | { field: "vibeTags"; includes: string }
   | { field: "createdAtWeekdayUtc"; equals: number };
 
-export type BadgeEventCriteria =
+type BadgeEventCriteria =
   | {
       kind: "distinct-drop-field";
       field: DistinctDropField;

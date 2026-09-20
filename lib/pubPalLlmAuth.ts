@@ -8,7 +8,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 import { publicApiError } from "@/lib/apiError";
 
-export const PUB_PAL_LLM_SECRET_HEADER = "x-elevenlabs-llm-secret";
+const PUB_PAL_LLM_SECRET_HEADER = "x-elevenlabs-llm-secret";
 
 function safeSecretEqual(provided: string, expected: string): boolean {
   const a = createHash("sha256").update(provided).digest();
@@ -28,7 +28,7 @@ function headerToken(request: Request): string | null {
   return token && token.length > 0 ? token : null;
 }
 
-export function readPubPalLlmSharedSecret(): string | null {
+function readPubPalLlmSharedSecret(): string | null {
   const secret = process.env.ELEVENLABS_LLM_SHARED_SECRET?.trim();
   return secret && secret.length > 0 ? secret : null;
 }

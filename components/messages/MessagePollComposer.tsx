@@ -18,6 +18,7 @@ import {
   cleanPollQuestion,
   POLL_ADD_OPTION_LABEL,
   POLL_ATTACH_LABEL,
+  POLL_COMPOSE_LABEL,
   POLL_INVALID_LINE,
   POLL_MAX_OPTIONS,
   POLL_MIN_OPTIONS,
@@ -53,7 +54,7 @@ export default function MessagePollComposer({
   const ready = Boolean(cleanedQuestion && cleanedOptions);
 
   return (
-    <div className="composerVenuePicker composerPollComposer">
+    <div className="composerVenuePicker composerPollComposer" aria-label={POLL_COMPOSE_LABEL}>
       <label htmlFor={`${fieldId}-q`} className="composerVenueNote">
         {POLL_QUESTION_LABEL}
       </label>

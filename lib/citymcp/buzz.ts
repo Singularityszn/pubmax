@@ -25,7 +25,7 @@ import {
   type CityMcpCallOptions,
 } from "./client";
 
-export type CityBuzzMention = { label: string; url: string };
+type CityBuzzMention = { label: string; url: string };
 
 export type CityBuzz = {
   /** AI-written pros/cons paragraph from the upstream digest. */

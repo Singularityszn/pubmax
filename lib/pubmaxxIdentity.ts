@@ -106,9 +106,3 @@ export function evaluateHandleRename(input: {
     ? { allowed: true }
     : { allowed: false, retryAt: new Date(retryAt).toISOString() };
 }
-
-export type PublicHandleAlias = {
-  handle: string;
-  currentHandle: string;
-  isCurrent: boolean;
-};

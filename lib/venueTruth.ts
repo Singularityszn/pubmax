@@ -77,8 +77,6 @@ export const VENUE_TRUTH_DISTINCTIONS = [
   },
 ] as const;
 
-export type VenueTruthDistinctionId = (typeof VENUE_TRUTH_DISTINCTIONS)[number]["id"];
-
 /* ------------------------------------------------------------------ *
  * Contacts                                                            *
  * ------------------------------------------------------------------ */

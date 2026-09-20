@@ -48,6 +48,10 @@ import MessageAttachmentPicker from "@/components/messages/MessageAttachmentPick
 
 import {
   MESSAGE_ATTACHMENT_KINDS,
+  MESSAGE_ATTACH_CONTACT_LABEL,
+  MESSAGE_ATTACH_EVENT_LABEL,
+  MESSAGE_ATTACH_POLL_LABEL,
+  MESSAGE_ATTACH_VENUE_LABEL,
   MESSAGE_PHOTO_ASPECT_PROPERTY,
   MESSAGE_PHOTO_ASPECT_RATIO,
   messagePhotoAspect,
@@ -237,6 +241,24 @@ describe("mobile message attachment picker", () => {
     expect(markup).toMatch(/id="message-document-file"[^>]*type="file"[^>]*>/);
     expect(markup).not.toMatch(/id="message-photo-file"[^>]*capture=/);
     expect(markup).not.toMatch(/id="message-document-file"[^>]*capture=/);
+  });
+
+  it("names non-file attach targets with the long accessible labels", () => {
+    const markup = renderToStaticMarkup(
+      createElement(MessageAttachmentPicker, {
+        open: true,
+        disabled: false,
+        onOpenChange: () => {},
+        onFileChange: () => {},
+        onKindSelected: () => {},
+        onAttachmentKind: () => {},
+      }),
+    );
+
+    expect(markup).toContain(`aria-label="${MESSAGE_ATTACH_VENUE_LABEL}"`);
+    expect(markup).toContain(`aria-label="${MESSAGE_ATTACH_CONTACT_LABEL}"`);
+    expect(markup).toContain(`aria-label="${MESSAGE_ATTACH_EVENT_LABEL}"`);
+    expect(markup).toContain(`aria-label="${MESSAGE_ATTACH_POLL_LABEL}"`);
   });
 
   it("keeps picker controls mobile-only and touch-safe", () => {

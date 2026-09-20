@@ -50,7 +50,7 @@ export type NightSignalHighlight = {
 };
 
 /** Reason a plan changed — decode target once tokens gain identity. */
-export type PlanUpdateReason = "proposal_accepted" | "proposal_rejected" | "getin_changed";
+type PlanUpdateReason = "proposal_accepted" | "proposal_rejected" | "getin_changed";
 
 /** Plan-scoped notification payload. Plumbed now, dispatched once tokens carry
  *  identity (see PLAN-SCOPED SEAM). */

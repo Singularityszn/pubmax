@@ -14,7 +14,7 @@ import { join } from "node:path";
 // because two fixtures drift and only one of them gets fixed.
 
 /** The committed receipt photo: a baseline JPEG that decodes. */
-export const BILL_FIXTURE_PATH = join(process.cwd(), "e2e/fixtures/bill.jpg");
+const BILL_FIXTURE_PATH = join(process.cwd(), "e2e/fixtures/bill.jpg");
 
 /** The receipt as a `File`, ready for a multipart body. */
 export function billFixtureFile(name = "bill.jpg"): File {

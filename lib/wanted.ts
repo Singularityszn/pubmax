@@ -9,13 +9,13 @@ import { presentableDescription } from "@/lib/slopFilter";
 import { cleanText } from "@/lib/textClean";
 import { UK_BASE_ID_PREFIX } from "@/lib/ukBasePubs";
 
-export const MAX_WANTED_NOTE = 140;
+const MAX_WANTED_NOTE = 140;
 export const MAX_WANTED_RAW_PASTE = 500;
-export const MAX_WANTED_SOURCE_URL = 2_000;
-export const MAX_WANTED_VENUE_ID = 64;
-export const MAX_WANTED_VENUE_NAME = 120;
+const MAX_WANTED_SOURCE_URL = 2_000;
+const MAX_WANTED_VENUE_ID = 64;
+const MAX_WANTED_VENUE_NAME = 120;
 
-export type WantedVenueKind = "curated" | "uk_base" | "pending";
+type WantedVenueKind = "curated" | "uk_base" | "pending";
 
 export type WantedStatus = "open" | "fulfilled";
 

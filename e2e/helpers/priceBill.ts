@@ -16,7 +16,7 @@ import type { Locator, Page, Request } from "@playwright/test";
 /** A real baseline JPEG of a receipt. The upload path sniffs the leading bytes,
  *  so an invented buffer would be refused for the wrong reason, and the proof
  *  shots print this thumbnail, so it has to DECODE as well as validate. */
-export const BILL_FIXTURE = join(process.cwd(), "e2e/fixtures/bill.jpg");
+const BILL_FIXTURE = join(process.cwd(), "e2e/fixtures/bill.jpg");
 
 /**
  * Attach the bill to the one-tap composer inside `scope`.

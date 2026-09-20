@@ -29,14 +29,14 @@ export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number];
 export const SOCIAL_OAUTH_PROVIDERS = ["x", "instagram", "tiktok"] as const;
 export type SocialOAuthProvider = (typeof SOCIAL_OAUTH_PROVIDERS)[number];
 
-export type SocialConnectionMode = "oauth" | "manual";
+type SocialConnectionMode = "oauth" | "manual";
 export type SocialAccountKind = "personal" | "professional";
-export type SocialRefreshStatus =
+type SocialRefreshStatus =
   | "not_applicable"
   | "current"
   | "refresh_due"
   | "refresh_failed";
-export type SocialRevocationState =
+type SocialRevocationState =
   | "not_applicable"
   | "active"
   | "unknown"
@@ -253,7 +253,7 @@ export function socialProviderPlaceholder(provider: SocialProvider): string {
 }
 
 /** Longest value a link field accepts, before any parsing. */
-export const MAX_SOCIAL_LINK_LENGTH = 300;
+const MAX_SOCIAL_LINK_LENGTH = 300;
 
 export type SocialLinkInput = { provider: SocialProvider; value: unknown };
 export type SocialLinkResult =

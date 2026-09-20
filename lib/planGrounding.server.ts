@@ -163,8 +163,8 @@ export function wasPlanGroundedAtCreation(
  * the anchor, or forge an anchored outcome.
  * ------------------------------------------------------------------ */
 
-export type PlanGroundingOutcome = "route" | "anchor-only";
-export type PlanGroundingAnchorSource = PlanningIntentSource;
+type PlanGroundingOutcome = "route" | "anchor-only";
+type PlanGroundingAnchorSource = PlanningIntentSource;
 
 type GroundingPayloadV2 = {
   v: typeof PROOF_V2_VERSION;

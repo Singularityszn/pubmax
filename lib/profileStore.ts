@@ -30,13 +30,13 @@ import { admin, selectStore } from "@/lib/storeBackend";
 import { cleanText, isHttpUrl } from "@/lib/textClean";
 
 /** Owned-image moderation states persisted on profiles (migrations 0089/0096). */
-export type ProfileAvatarModerationState =
+type ProfileAvatarModerationState =
   | "pending"
   | "approved"
   | "needs_review"
   | "hidden";
 
-export type ProfileOwnedImage = {
+type ProfileOwnedImage = {
   objectKey: string;
   generation: string;
   moderationState: ProfileAvatarModerationState;
@@ -348,7 +348,7 @@ export type ProfilePatch = {
   visibility?: AccountVisibility | null;
 };
 
-export type ProfileSoftDeleteResult =
+type ProfileSoftDeleteResult =
   | { status: "deleted"; profile: ProfileRecord; ownerUserId: string | null }
   | { status: "not-found" }
   | { status: "forbidden" };

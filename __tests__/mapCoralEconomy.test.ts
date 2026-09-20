@@ -192,7 +192,7 @@ describe("findings 2.1 / 2.9 — map canvas coral economy", () => {
     expect(tokensSrc).not.toMatch(
       /const userLocation = resolvedColour\("--color-accent",/,
     );
-    const dot = /export function buildUserLocation[\s\S]*?\n\}/.exec(buildSceneSrc)?.[0] ?? "";
+    const dot = /\nfunction buildUserLocation[\s\S]*?\n\}/.exec(buildSceneSrc)?.[0] ?? "";
     expect(dot.length).toBeGreaterThan(0);
     expect(dot).not.toContain("tokens.brass");
     expect(dot).not.toContain("tokens.brick");

@@ -54,5 +54,3 @@ export function TonightRowAccept({
     </>
   );
 }
-
-export default TonightRowAccept;

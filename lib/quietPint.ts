@@ -62,7 +62,7 @@ export type QuietPintCandidate = {
   listed: string | null;
 };
 
-export type QuietPintRow = {
+type QuietPintRow = {
   /** venueId — the row key and the map deep-link target. */
   id: string;
   name: string;

@@ -1,13 +1,12 @@
 import { getCity, parseCityId } from "@/lib/cities";
-import { cityMapShareUrl } from "@/lib/cityShare";
 import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
 
-export type MapWarmConnection = {
+type MapWarmConnection = {
   saveData?: boolean;
   effectiveType?: string;
 };
 
-export type MapWarmFetchInit = {
+type MapWarmFetchInit = {
   cache?: "force-cache";
 };
 
@@ -70,15 +69,6 @@ function mapWarmPathsFor(href: string): { venueIndex: string[]; overlays: string
 export function warmPathsForMapHref(href: string): readonly string[] {
   const { venueIndex, overlays } = mapWarmPathsFor(href);
   return [...venueIndex, ...overlays];
-}
-
-/** Only the venue index: what the map's FIRST frame reads. */
-export function mapFirstPaintWarmPaths(href: string): readonly string[] {
-  const path = href.split("?")[0] || href;
-  if (path === "/map" || path === "/map/") {
-    return ["/data/venues_slim.manifest.json"];
-  }
-  return mapWarmPathsFor(href).venueIndex;
 }
 
 export function shouldWarmMapIntent(nav: unknown): boolean {
@@ -156,17 +146,6 @@ export function scheduleMapCanvasWarmup({
   } catch {
     state.status = "idle";
   }
-}
-
-export function warmMapIntent(): void {
-  warmMapIntentData({
-    fetch: (url, init) =>
-      typeof fetch === "function"
-        ? fetch(url, init)
-        : Promise.reject(new Error("fetch unavailable")),
-    navigator: typeof navigator !== "undefined" ? navigator : undefined,
-    seen: sessionSeen,
-  });
 }
 
 /** Session-deduped route prefetch + slim-data warm (landing CTAs + tab bar). */
@@ -275,13 +254,4 @@ export function warmMapFirstPaint(): void {
 export function warmCityMapFirstPaint(cityId: string): void {
   void cityId;
   warmMapFirstPaint();
-}
-
-/** Convenience: warm the share URL for a known city id. */
-export function warmCityMapRoute(
-  router: MapRoutePrefetcher,
-  cityId: string,
-  seen?: Set<string>,
-): void {
-  warmMapRoute(router, cityMapShareUrl(cityId), seen);
 }

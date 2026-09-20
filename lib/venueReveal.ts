@@ -16,10 +16,6 @@ export {
   VENUE_REVEAL_STALE_MS,
   type VenueRevealForm,
 } from "@/lib/sheetSnap";
-export {
-  venueDrinkPriceView,
-  type VenueDrinkPriceView,
-} from "@/lib/drinkLanes";
 
 export type VenueRevealRequest = {
   sequence: number;

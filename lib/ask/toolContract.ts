@@ -31,8 +31,3 @@ export type AskToolContext = {
   /** Injected clock, so a "what is on right now" answer is testable. */
   now?: number;
 };
-
-export type AskToolHandler = (
-  args: AskToolArgs,
-  ctx: AskToolContext,
-) => Promise<AskToolResult>;

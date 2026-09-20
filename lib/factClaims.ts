@@ -42,9 +42,9 @@ export const FACT_AUTHORITY_RANK: Record<FactAuthority, number> = {
 // behind it; `single_source` = one source, unreviewed. Ranked so more
 // corroboration wins the third tiebreak (corroborated beats a lone human review
 // beats a lone unreviewed source).
-export type FactVerification = "single_source" | "corroborated" | "manual_review";
+type FactVerification = "single_source" | "corroborated" | "manual_review";
 
-export const FACT_VERIFICATION_RANK: Record<FactVerification, number> = {
+const FACT_VERIFICATION_RANK: Record<FactVerification, number> = {
   corroborated: 2,
   manual_review: 1,
   single_source: 0,
@@ -84,7 +84,7 @@ export type FactClaim<T> = {
 };
 
 // A live disagreement: two or more distinct values still in contention.
-export type FactConflict<T> = {
+type FactConflict<T> = {
   fieldId: string;
   /** Distinct live values, winner first. Always length >= 2. */
   values: T[];

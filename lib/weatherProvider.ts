@@ -23,7 +23,7 @@ import {
 // scripts/refresh_weather_snapshots.mjs). The snapshot this feeds is London's,
 // so the table is keyed on London's own patches: an area in another city has no
 // row here and reads as no weather rather than as somebody else's.
-export const NIGHT_AREA_COORDS: Record<LondonNightAreaSlug, readonly [number, number]> = {
+const NIGHT_AREA_COORDS: Record<LondonNightAreaSlug, readonly [number, number]> = {
   clapham: [51.462, -0.138],
   victoria: [51.496, -0.143],
   "piccadilly-soho": [51.511, -0.134],

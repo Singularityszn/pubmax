@@ -19,7 +19,7 @@ import type { ConciergeVenue } from "@/lib/concierge/rank";
 export const PINT_CEILING_GBP = 6;
 
 /** "Near you" means a short walk, not the whole city. */
-export const NEAR_RADIUS_KM = 2.5;
+const NEAR_RADIUS_KM = 2.5;
 
 export type ConditionsWeather = {
   tempC: number;

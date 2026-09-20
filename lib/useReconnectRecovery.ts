@@ -8,7 +8,7 @@ const DEFAULT_RECOVERY_EVENTS: readonly ReconnectRecoveryEvent[] = [
   "visible",
 ];
 
-export type ReconnectRecoveryEvent = "online" | "visible" | "pageshow";
+type ReconnectRecoveryEvent = "online" | "visible" | "pageshow";
 
 type RecoveryWindow = Pick<Window, "addEventListener" | "removeEventListener" | "setTimeout" | "clearTimeout">;
 type RecoveryDocument = Pick<Document, "addEventListener" | "removeEventListener"> & {

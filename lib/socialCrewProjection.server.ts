@@ -36,7 +36,7 @@ import {
 } from "@/lib/socialCrew";
 import type { SocialPostActor } from "@/lib/socialPostStore";
 
-export type RawSocialCrewMember = {
+type RawSocialCrewMember = {
   memberId: string;
   accountId: string;
   profileId: string;
@@ -58,7 +58,7 @@ export type RawSocialCrew = {
   members: RawSocialCrewMember[];
 };
 
-export type RawSocialCrewListItem = {
+type RawSocialCrewListItem = {
   crewId: string;
   title: string;
   status: PlannedNightStatus;
@@ -92,28 +92,6 @@ export type SocialCrewProjectionViewer = {
   ownerRelationship: SocialRelationshipResolution;
   plan: PlanState;
 };
-
-export type RawSocialCrewReadSnapshot =
-  | {
-      kind: "member";
-      ownerRelationship: "self" | "mutual" | "not_mutual";
-      crew: RawSocialCrew;
-      plan: PlanState;
-    }
-  | {
-      kind: "preview";
-      preview: {
-        title: string;
-        status: PlannedNightStatus;
-        nightArea: NightContext["nightArea"];
-        startsAt: string;
-        joinRequestState: "none" | "pending" | "declined";
-        hostHandle?: string;
-        stopVenueId?: string | null;
-        stopVenueName?: string | null;
-        memberCount?: number;
-      };
-    };
 
 type ParsedSocialCrewMember = RawSocialCrewMember & { joinedAt: string };
 

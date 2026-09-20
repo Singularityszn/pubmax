@@ -136,18 +136,6 @@ function acceptedArrivalIntent(
 }
 
 /**
- * Return a trusted accepted-arrival source only when URL markers match a live
- * PlanningIntent for the same Venue and city. URL text alone carries no
- * acceptance authority.
- */
-export function verifiedAcceptedArrivalSource(
-  input: AcceptedArrivalInput,
-  options: PlanningIntentOptions = {},
-): PlanningIntentSource | null {
-  return acceptedArrivalIntent(input, options)?.source ?? null;
-}
-
-/**
  * The URL a landed Venue detail owes a canonicalised selection, or null when
  * the acceptance could not travel with it.
  *

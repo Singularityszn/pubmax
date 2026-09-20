@@ -33,7 +33,7 @@ import { normalizeHandle } from "@/lib/handleNormalize";
 import { cleanText } from "@/lib/textClean";
 
 /** The closed set. A conversation is one of exactly these. */
-export const CONVERSATION_KINDS = ["direct", "group"] as const;
+const CONVERSATION_KINDS = ["direct", "group"] as const;
 export type ConversationKind = (typeof CONVERSATION_KINDS)[number];
 
 export function isConversationKind(value: unknown): value is ConversationKind {
@@ -56,7 +56,7 @@ export const GROUP_MAX_MEMBERS = 12;
 export const GROUP_TITLE_MAX = 60;
 
 /** What a member may be. `owner` is who opened it; nothing branches on it yet. */
-export const GROUP_MEMBER_ROLES = ["owner", "member"] as const;
+const GROUP_MEMBER_ROLES = ["owner", "member"] as const;
 export type GroupMemberRole = (typeof GROUP_MEMBER_ROLES)[number];
 
 /**

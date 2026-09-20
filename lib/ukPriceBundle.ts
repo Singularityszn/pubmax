@@ -38,10 +38,6 @@ import {
 
 export const UK_PRICE_BUNDLE_VERSION = 1;
 
-/** Where the bundle lives, and the one path a reader opens. */
-export const UK_PRICE_BUNDLE_MANIFEST_PATH = "/data/uk_prices/manifest.json";
-export const UK_PRICE_BUNDLE_ROWS_PATH = "/data/uk_prices/rows.json";
-
 /**
  * Which lane a row came down. This is PROVENANCE, not authority: the standing
  * says how good the row is, and the lane says who produced it, so a coverage
@@ -77,20 +73,6 @@ export type UkPriceBundleRow = {
   /** Present only on an estimate, and what makes it answerable. */
   basis: string | null;
   sampleSize: number | null;
-};
-
-export type UkPriceBundleManifest = {
-  version: number;
-  generatedAt: string;
-  rowsPath: string;
-  counts: {
-    rows: number;
-    venues: number;
-    byStanding: Record<string, number>;
-    byLane: Record<string, number>;
-  };
-  /** What each lane contributed, and what it could not. A skip is a finding. */
-  notes: string[];
 };
 
 function isNonEmptyString(value: unknown): value is string {

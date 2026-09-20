@@ -4,7 +4,7 @@
 import { londonDayKey } from "@/lib/pintContributions";
 
 export const NIGHTS_KEPT_STORAGE_KEY = "pubmax:nights-kept:v1";
-export const NIGHTS_KEPT_VERSION = 1 as const;
+const NIGHTS_KEPT_VERSION = 1 as const;
 
 export type NightsKeptRecord = {
   version: typeof NIGHTS_KEPT_VERSION;

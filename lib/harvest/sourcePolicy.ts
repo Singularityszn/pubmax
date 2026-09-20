@@ -52,7 +52,7 @@ export type HarvestSourceKind =
   // `chain-menu-prices`.
   | "pub-directory";
 
-export type HarvestSourceAccess =
+type HarvestSourceAccess =
   | { allowed: true; evidence: string; checkedOn: string }
   | { allowed: false; reason: HarvestSkipReason; evidence: string; checkedOn: string };
 

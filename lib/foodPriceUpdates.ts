@@ -1,8 +1,3 @@
-// Permissible-source FOOD price refresh layer — mirrors lib/drinkPriceUpdates.ts
-// for the food menu. Same governance: every price carries
-// { source: {label, url, licence}, observedAt }; never present stale as live.
-
-import type { Provenance } from "@/lib/curation";
 import {
   isFoodCategory,
   type FoodCategory,
@@ -19,16 +14,6 @@ export type FoodPriceUpdate = {
   description?: string;
   dietary?: FoodDietary[];
   source: { label: string; url: string; licence: string };
-  observedAt: string;
-};
-
-export const FOOD_PRICE_UPDATE_PROVENANCE: Provenance = "sourced";
-
-export type FoodPriceProvenance = {
-  provenance: Provenance;
-  sourceLabel: string;
-  sourceUrl: string;
-  licence: string;
   observedAt: string;
 };
 
@@ -64,7 +49,7 @@ function isValidDietary(value: unknown): value is FoodDietary[] | undefined {
   return value.every((d) => typeof d === "string" && DIETARY_SET.has(d));
 }
 
-export function isValidFoodPriceUpdate(
+function isValidFoodPriceUpdate(
   value: unknown,
   now: number = Date.now(),
 ): value is FoodPriceUpdate {
@@ -108,7 +93,7 @@ function stableFoodId(update: FoodPriceUpdate): string {
   return `food-${(hash >>> 0).toString(36)}`;
 }
 
-export function foodFromPriceUpdate(update: FoodPriceUpdate): FoodItem {
+function foodFromPriceUpdate(update: FoodPriceUpdate): FoodItem {
   return {
     id: stableFoodId(update),
     name: update.itemName,

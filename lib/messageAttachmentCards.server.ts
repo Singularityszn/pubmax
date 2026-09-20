@@ -12,9 +12,8 @@ import "server-only";
 //
 // THREE RULES, ONE PER KIND, AND EACH IS A PRIVACY RULE.
 //
-// 1. A PUB CARD SAYS WHAT THE PIN SAYS. Unchanged, and it lives where it always
-//    did (`lib/messageVenueCards.server.ts`): the curated sourced lane alone,
-//    pub kinds alone, no coordinate at any point.
+// 1. A PUB CARD SAYS WHAT THE PIN SAYS. The curated sourced lane alone, pub
+//    kinds alone, no coordinate at any point.
 //
 // 2. A CONTACT CARD IS THE PUBLIC PROFILE AND NOTHING ELSE. The handle, the
 //    display name somebody chose to publish, and the APPROVED OWNED avatar —
@@ -43,10 +42,37 @@ import {
   type MessageAttachment,
   type MessageContactCard,
   type MessageEventCard,
+  isMessageVenueId,
+  messageVenueMapUrl,
   type MessageVenueCard,
 } from "@/lib/messageAttachments";
-import { resolveMessageVenueCard } from "@/lib/messageVenueCards.server";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import type { MessageDTO } from "@/lib/messages";
+
+/** One pub, resolved. Null when the index does not know it or could not answer. */
+async function resolveMessageVenueCard(
+  venueId: string,
+): Promise<MessageVenueCard | null> {
+  if (!isMessageVenueId(venueId)) return null;
+  const lookup = await lookupCanonicalVenue(venueId);
+  if (lookup.status !== "found") return null;
+  const { venue, slimVenue, canonicalId } = lookup;
+  const sayable =
+    isPubVenueKind(slimVenue.kind ?? venue.kind) &&
+    typeof slimVenue.cheapestPrice === "number" &&
+    Number.isFinite(slimVenue.cheapestPrice) &&
+    slimVenue.cheapestPrice > 0;
+  return {
+    venueId: canonicalId,
+    name: venue.name,
+    area: venue.borough ?? "",
+    priceGbp: sayable ? slimVenue.cheapestPrice : null,
+    mapUrl: messageVenueMapUrl(canonicalId),
+  };
+}
+
+
 import { buildPlanPrivacyPreview } from "@/lib/planPrivacy";
 import { planStore } from "@/lib/planStore";
 import {

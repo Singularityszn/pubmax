@@ -34,10 +34,10 @@ export type HandleActionGate =
   | { allowed: true; callerUserId: string | null; handle: string }
   | { allowed: false; status: number; error: string };
 
-export type HandleActionIntent = "read" | "write" | "delete";
+type HandleActionIntent = "read" | "write" | "delete";
 
 /** One owner for deciding whether a route action may claim an unlinked handle. */
-export function handleActionIntent(method: string): HandleActionIntent {
+function handleActionIntent(method: string): HandleActionIntent {
   const normalized = method.toUpperCase();
   if (normalized === "GET" || normalized === "HEAD") return "read";
   if (normalized === "DELETE") return "delete";

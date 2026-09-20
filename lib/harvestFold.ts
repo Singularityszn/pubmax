@@ -25,23 +25,9 @@ export class HarvestFoldError extends Error {
   }
 }
 
-export type HarvestMatchedLore = {
+type HarvestMatchedLore = {
   text: string;
   citations: string[];
-};
-
-export type HarvestObservation = {
-  kind: "website" | "history" | "social" | "menu" | "coverage";
-  value: string;
-  sourceUrl: string;
-  fetchedAt: string;
-};
-
-export type HarvestObservationRecord = {
-  osmId: string;
-  name: string;
-  town: string | null;
-  observations: HarvestObservation[];
 };
 
 export type HarvestOverlayRow = {
@@ -63,7 +49,6 @@ export type FoldCounts = {
   social: number;
 };
 
-const NAME_STOP = new Set(["the", "a", "an", "and", "of"]);
 const SOCIAL_KEYS = new Set(["social", "socials", "socialHandle", "socialHandles"]);
 const SOCIAL_HOSTS = new Set([
   "facebook.com",
@@ -180,7 +165,7 @@ function isHarvestTimestamp(value: string): boolean {
 }
 
 /** Harvest observations may contain several comma-separated https URLs. */
-export function isHttpsObservation(value: string): boolean {
+function isHttpsObservation(value: string): boolean {
   const parts = value.split(",").map((part) => part.trim());
   return parts.length > 0 && parts.every((part) => part.length > 0 && isHttpsUrl(part));
 }
@@ -401,14 +386,6 @@ function containsVenueReferenceLocalityRelation(sentence: string): boolean {
   );
 }
 
-export function nameTokens(name: string): string[] {
-  const tokens = name
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((token) => token && !NAME_STOP.has(token));
-  return tokens.length > 0 ? tokens : [name.toLowerCase().trim()].filter(Boolean);
-}
-
 export type LoreGateResult = "pass" | "town-missing" | "town-mismatch" | "name-mismatch";
 
 export function loreNameTownGate(
@@ -492,7 +469,7 @@ export function canonicalOsmId(value: string): string | null {
   return null;
 }
 
-export function osmRefFromOsmId(osmId: string): string {
+function osmRefFromOsmId(osmId: string): string {
   const canonical = canonicalOsmId(osmId);
   if (!canonical) {
     throw new HarvestFoldError("MALFORMED_ROW", `Unrecognised OSM id ${osmId}`);

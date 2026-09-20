@@ -20,7 +20,7 @@ import { cleanText } from "@/lib/textClean";
 
 // friends-only today; 'area' reserved for the pending public opt-in. Kept as a
 // readonly tuple so the type, the validator, and the SQL CHECK agree on one set.
-export const CHECK_IN_VISIBILITIES = ["friends", "area"] as const;
+const CHECK_IN_VISIBILITIES = ["friends", "area"] as const;
 export type CheckInVisibility = (typeof CHECK_IN_VISIBILITIES)[number];
 
 export const DEFAULT_CHECK_IN_VISIBILITY: CheckInVisibility = "friends";

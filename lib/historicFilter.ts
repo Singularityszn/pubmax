@@ -8,7 +8,7 @@
 
 import type { HistoricPub, HistoricVenueStatus } from "@/lib/historic";
 
-export type HistoricSort = "oldest" | "az" | "borough";
+type HistoricSort = "oldest" | "az" | "borough";
 
 export type HistoricFilters = {
   /** Exact borough match; null = every borough. */

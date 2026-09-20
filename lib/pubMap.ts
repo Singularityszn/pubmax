@@ -43,7 +43,6 @@ import {
   eagerCuratedCrawlAltStyle,
   eagerCuratedCrawlAltStyleForBuiltIds,
 } from "@/lib/curatedCrawlHints";
-export { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 
 // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
 // link)? If any are present the arrival is intentional and we never onboard.
@@ -75,7 +74,7 @@ export function filtersForCuratedCrawl(current: Filters, crawl: CuratedCrawl): F
   };
 }
 
-export function filtersForCuratedCrawlHint(
+function filtersForCuratedCrawlHint(
   current: Filters,
   altStyle: CuratedCrawl["altStyle"],
 ): Filters {
@@ -927,7 +926,7 @@ export function peekPriceChip(
  * (Baseline on record, Sourced, Listed), so the two surfaces cannot read one
  * pub two ways (battle test M05).
  */
-export const PEEK_LANE_CAPTION: Record<
+const PEEK_LANE_CAPTION: Record<
   Exclude<VenuePriceLane["lane"], "baseline">,
   string
 > = {

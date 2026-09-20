@@ -6,7 +6,7 @@ import { formatGbp } from "@/lib/formatGbp";
 import { londonHour } from "@/lib/londonHour";
 
 export const CHEAP_PINT_PING_THREAD_ID = "cheap-pint-ping";
-export const CHEAP_PINT_PING_LONDON_HOUR = 17;
+const CHEAP_PINT_PING_LONDON_HOUR = 17;
 
 const BANNED_BODY =
   /\b(haven't been out|have not been out|streak|drink more|don't miss out|dont miss out|you should drink|subscribe|unsubscribe)\b/i;

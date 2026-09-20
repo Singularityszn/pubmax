@@ -79,7 +79,7 @@ export type CommunitySubmissionFailure = {
   status?: ContributionGateStatus;
 };
 
-export type CommunityPriceSubmitResult =
+type CommunityPriceSubmitResult =
   | {
       ok: true;
       attribution: CommunityPriceAttribution;
@@ -541,7 +541,7 @@ export function rollbackOptimisticPrice(
   return loadedIsKnown ? [] : undefined;
 }
 
-export function upsertVenueSignal(
+function upsertVenueSignal(
   rows: CommunityVenueSignal[],
   next: CommunityVenueSignal,
 ): CommunityVenueSignal[] {

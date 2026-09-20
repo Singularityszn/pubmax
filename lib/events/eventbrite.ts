@@ -36,7 +36,7 @@ export const EVENTBRITE_SOURCE = {
 // conservative Ticketmaster Music/Sports mapping. Everything else (theatre,
 // comedy, food, community, …) is DROPPED rather than forced into a kind it is
 // not. 103 = Music, 108 = Sports & Fitness (Eventbrite public category ids).
-export const EVENTBRITE_CATEGORY_KIND: Record<string, WhatsOnKind> = {
+const EVENTBRITE_CATEGORY_KIND: Record<string, WhatsOnKind> = {
   "103": "music",
   "108": "sport",
 };

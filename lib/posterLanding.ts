@@ -12,14 +12,6 @@ const KEPT_QUERY_KEYS = new Set(["src"]);
 
 type SearchParamRecord = Record<string, string | string[] | undefined>;
 
-function firstParam(
-  value: string | string[] | undefined,
-): string | null {
-  if (typeof value === "string") return value;
-  if (Array.isArray(value) && typeof value[0] === "string") return value[0];
-  return null;
-}
-
 /** True when the campaign tag is exactly the closed poster source. */
 export function isPosterLandingSrc(
   value: string | null | undefined,
@@ -72,13 +64,6 @@ export function posterNearHref(from: SearchParamRecord | URLSearchParams): strin
 /** One honest orientation line for a poster scan that landed on /near. */
 export function posterLandingOrientation(): string {
   return "You scanned a pub poster. Compare listed pint prices near you, cheapest first.";
-}
-
-export function readPosterLandingSrc(
-  from: SearchParamRecord | URLSearchParams,
-): string | null {
-  if (from instanceof URLSearchParams) return from.get("src");
-  return firstParam(from.src);
 }
 
 export function rememberPosterLandingSession(): void {

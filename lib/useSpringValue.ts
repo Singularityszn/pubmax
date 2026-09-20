@@ -10,7 +10,7 @@ import {
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
-export type SpringAnimationOptions = {
+type SpringAnimationOptions = {
   /** Presentation velocity in value units per second. */
   velocity?: number;
   dampingRatio?: number;

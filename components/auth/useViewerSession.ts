@@ -22,7 +22,7 @@ import { useAuth } from "@/components/auth/authContext";
 import { providerHasAnswered } from "@/lib/authProviderRevision";
 
 /** Three answers, never two. `unresolved` is "we have not been told". */
-export type ViewerSessionPhase = "unresolved" | "signed-in" | "signed-out";
+type ViewerSessionPhase = "unresolved" | "signed-in" | "signed-out";
 
 export type ViewerSession = {
   phase: ViewerSessionPhase;
@@ -39,7 +39,7 @@ export type ViewerSession = {
 };
 
 /** The viewer's session phase, from the one provider-neutral authority. */
-export function useViewerSessionPhase(): ViewerSessionPhase {
+function useViewerSessionPhase(): ViewerSessionPhase {
   const { user, providerAuthState } = useAuth();
   if (user) return "signed-in";
   if (!providerHasAnswered(providerAuthState)) {

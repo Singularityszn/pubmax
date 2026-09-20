@@ -18,13 +18,13 @@ export const ACCOUNTS = {
 } as const;
 
 export type AccountKey = keyof typeof ACCOUNTS;
-export type Account = (typeof ACCOUNTS)[AccountKey];
+type Account = (typeof ACCOUNTS)[AccountKey];
 
 export const AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
 export const DEVICE_ACCOUNTS_KEY = "pubmax_device_sessions_v1";
-export const WHICH_ACCOUNT_KEY = "__e2e_signed_in_account";
-export const DEVICE_HANDLE_KEY = "pubmax_handle";
-export const RESUME_COOKIE = "pubmax_session_resume";
+const WHICH_ACCOUNT_KEY = "__e2e_signed_in_account";
+const DEVICE_HANDLE_KEY = "pubmax_handle";
+const RESUME_COOKIE = "pubmax_session_resume";
 
 export type Stub = {
   /** Whose session the init script installs, and whom the doubles answer for. */
@@ -34,15 +34,15 @@ export type Stub = {
 };
 
 /** A cross-origin POST carrying `apikey` needs the preflight answered too. */
-export const CORS_HEADERS = {
+const CORS_HEADERS = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers": "*",
   "access-control-allow-methods": "GET,POST,OPTIONS",
 } as const;
 
-export const JWT_EXPIRY_SECONDS = Math.floor(Date.now() / 1000) + 3_600;
+const JWT_EXPIRY_SECONDS = Math.floor(Date.now() / 1000) + 3_600;
 
-export function base64url(value: string): string {
+function base64url(value: string): string {
   return Buffer.from(value, "utf8").toString("base64url");
 }
 
@@ -52,7 +52,7 @@ export function base64url(value: string): string {
  * spec uses elsewhere are not enough for the switch path. Nothing verifies a
  * signature here, and nothing in the app reads a claim out of it.
  */
-export function accessJwt(account: Account): string {
+function accessJwt(account: Account): string {
   return [
     base64url(JSON.stringify({ alg: "HS256", typ: "JWT" })),
     base64url(
@@ -68,11 +68,11 @@ export function accessJwt(account: Account): string {
 }
 
 /** GoTrue rotates a refresh token on use, so a switch must store the new one. */
-export function rotatedToken(account: Account): string {
+function rotatedToken(account: Account): string {
   return `${account.refreshToken}-rotated`;
 }
 
-export function userBody(account: Account) {
+function userBody(account: Account) {
   return {
     id: account.id,
     aud: "authenticated",
@@ -83,7 +83,7 @@ export function userBody(account: Account) {
   };
 }
 
-export function accountForRefreshToken(token: string | undefined): Account | null {
+function accountForRefreshToken(token: string | undefined): Account | null {
   if (!token) return null;
   return (
     Object.values(ACCOUNTS).find(
@@ -94,7 +94,7 @@ export function accountForRefreshToken(token: string | undefined): Account | nul
 }
 
 /** Which account an Authorization header speaks for, seeded or minted. */
-export function accountForBearer(header: string | undefined): Account | null {
+function accountForBearer(header: string | undefined): Account | null {
   if (!header) return null;
   const token = header.replace(/^Bearer\s+/i, "");
   for (const [key, account] of Object.entries(ACCOUNTS)) {

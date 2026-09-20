@@ -97,7 +97,7 @@ export const DRINK_BRANDS: DrinkBrandCatalog = {
 
 // Category tokens used when a venue has no structured drinkCategories hint —
 // matched as substrings against normalised search text / pint names.
-export const CATEGORY_SEARCH_TOKENS: Record<DrinkCategory, string[]> = {
+const CATEGORY_SEARCH_TOKENS: Record<DrinkCategory, string[]> = {
   beer: ["beer", "pint", "lager", "ale", "ipa", "stout", "porter", "cider"],
   wine: ["wine", "prosecco", "champagne", "rioja", "malbec", "chardonnay"],
   whisky: ["whisky", "whiskey", "scotch", "bourbon", "dram"],

@@ -187,7 +187,7 @@ function fromRow(row: Record<string, unknown>): Wanted | null {
   };
 }
 
-export const supabaseWantedStore: WantedStore = {
+const supabaseWantedStore: WantedStore = {
   async create(fields, now = Date.now()) {
     const wanted: Wanted = {
       id: randomUUID(),

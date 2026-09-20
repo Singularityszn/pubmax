@@ -164,7 +164,7 @@ export function peekAddLinkDoorTaken(
   return true;
 }
 
-export function clearAddLinkDoorTaken(
+function clearAddLinkDoorTaken(
   storage: AddLinkStorage | null,
   target: string,
 ): void {

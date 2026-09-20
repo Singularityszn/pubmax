@@ -17,7 +17,7 @@ import {
   type RecapView,
 } from "@/lib/recapView";
 
-export type RecapLastTrain = {
+type RecapLastTrain = {
   dropCreatedAt?: string | null;
   leaveByIso?: string | null;
   decision?: LastPintDecisionKind | null;
@@ -60,7 +60,7 @@ async function resolveFinalPint(
   }
 }
 
-export type RecapAssembly =
+type RecapAssembly =
   | { completed: false; stopCount: number }
   | { completed: true; stopCount: number; view: RecapView; shareText: string };
 

@@ -23,7 +23,7 @@ export const CONTEXT_LOST_RECOVERY_MS = 800;
  * MapLibre painter gl handle is unavailable — `getContext` after MapLibre
  * constructed the canvas returns the same context object.
  */
-export function readWebGlContextLost(canvas: HTMLCanvasElement): boolean {
+function readWebGlContextLost(canvas: HTMLCanvasElement): boolean {
   try {
     const gl2 = canvas.getContext("webgl2") as WebGL2RenderingContext | null;
     if (gl2 && typeof gl2.isContextLost === "function") {

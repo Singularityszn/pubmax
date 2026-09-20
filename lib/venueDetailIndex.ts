@@ -18,13 +18,13 @@ import { enrichVenueForDetail } from "@/lib/venueMenuEnrichment";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
-export type VenueDetailManifestEntry = {
+type VenueDetailManifestEntry = {
   offset: number;
   length: number;
   rowCount: number;
 };
 
-export type VenueDetailManifest = {
+type VenueDetailManifest = {
   version: 1;
   detailsFile: string;
   count: number;

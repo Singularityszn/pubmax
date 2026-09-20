@@ -27,7 +27,7 @@ import { gateHandleAction } from "@/lib/profileOwnership";
 import { clientIp, hashIp } from "@/lib/supabase";
 
 /** A DM photo is one person's, so nothing shared may hold a copy of it. */
-export const MESSAGE_PHOTO_SERVE_CACHE_CONTROL = "private, no-store";
+const MESSAGE_PHOTO_SERVE_CACHE_CONTROL = "private, no-store";
 
 const SERVE_LIMIT = 240;
 const SERVE_WINDOW_MS = 60_000;

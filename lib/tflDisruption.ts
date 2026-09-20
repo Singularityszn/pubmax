@@ -43,7 +43,7 @@ export function lineDisplayLabel(name: string): string {
 //            overlaps tonight (17:00–02:00 London). A closure for next weekend is
 //            not tonight's problem and must stay silent.
 
-export type MaterialKind =
+type MaterialKind =
   | "closed"
   | "suspended"
   | "part_suspended"
@@ -211,7 +211,7 @@ export type LineStatusPeriod = {
   isNow?: boolean;
 };
 
-export type LineStatusDetail = {
+type LineStatusDetail = {
   statusSeverity?: number;
   statusSeverityDescription?: string;
   reason?: string;
@@ -425,7 +425,7 @@ const STATUS_MODES = "tube,dlr,elizabeth-line,overground";
 // Revalidate cadence: line status genuinely moves, but not minute to minute for a
 // "will this reshape my night" glance. Five minutes keeps it live-feeling while
 // the Next data cache means we never hit TfL per render.
-export const DISRUPTION_REVALIDATE_SECONDS = 300;
+const DISRUPTION_REVALIDATE_SECONDS = 300;
 const CALL_TIMEOUT_MS = 9000;
 
 function statusUrl(): string {

@@ -61,7 +61,7 @@ function fromRow(row: Record<string, unknown>): CheckIn {
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
-export const supabaseCheckInStore: CheckInStore = {
+const supabaseCheckInStore: CheckInStore = {
   async create(input) {
     const author = await supabaseProfileStore.ensure(input.handle);
     const createdAt = new Date().toISOString();
@@ -171,7 +171,7 @@ function makeMemoryCheckInStore(profiles: ProfileStore): CheckInStore {
   };
 }
 
-export const memoryCheckInStore: CheckInStore = makeMemoryCheckInStore(memoryProfileStore);
+const memoryCheckInStore: CheckInStore = makeMemoryCheckInStore(memoryProfileStore);
 
 /** The single backend selection point (mirrors the other stores). */
 export function checkInStore(): CheckInStore {

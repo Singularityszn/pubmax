@@ -49,7 +49,7 @@ export type VenuePhotoCrosspostInput = {
  * The one sentence a feed post says when the drinker wrote no caption. It
  * describes the act, claims nothing about the pub, and carries no figure.
  */
-export const VENUE_PHOTO_CROSSPOST_FALLBACK_BODY = "Added a photo to this pub's wall.";
+const VENUE_PHOTO_CROSSPOST_FALLBACK_BODY = "Added a photo to this pub's wall.";
 
 export type CrosspostDeps = {
   resolveActor: (request: Request) => Promise<

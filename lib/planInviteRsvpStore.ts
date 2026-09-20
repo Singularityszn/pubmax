@@ -65,7 +65,7 @@ export class PlanInviteMembershipMismatchError extends Error {
 }
 
 /** Host is already the canonical first member and cannot hold an RSVP row. */
-export class PlanHostCannotRsvpError extends Error {
+class PlanHostCannotRsvpError extends Error {
   constructor(planId: string) {
     super(`Host cannot RSVP for plan: ${planId}`);
     this.name = "PlanHostCannotRsvpError";
@@ -91,18 +91,18 @@ function summarizeRsvpRows(rows: RsvpRow[]): PlanInviteRsvpSummary {
   return { counts, guests: guests.slice(0, GUEST_LIST_DISPLAY_CAP) };
 }
 
-export type PlanInviteMembershipCapability = {
+type PlanInviteMembershipCapability = {
   memberToken: string;
   role: "host" | "guest";
   collaborationAuthorized: boolean;
 };
 
-export type ExistingPlanInviteMembership = {
+type ExistingPlanInviteMembership = {
   memberToken: string;
   identity: PlanMemberIdentity;
 };
 
-export type PlanInviteRsvpUpsertResult = {
+type PlanInviteRsvpUpsertResult = {
   summary: PlanInviteRsvpSummary;
   isUpdate: boolean;
   membership: PlanInviteMembershipCapability | null;
@@ -206,7 +206,7 @@ const inviteRsvpMemory = inviteRsvpMemoryGlobal.__pubmaxPlanInviteRsvpMemory ??=
 inviteRsvpMemory.rsvps ??= new Map();
 const memoryRsvps = inviteRsvpMemory.rsvps;
 
-export const memoryRsvpStore: PlanInviteRsvpStore = {
+const memoryRsvpStore: PlanInviteRsvpStore = {
   async upsert(planId, submitterHash, displayName, status, existingMembership) {
     if (existingMembership?.identity.role === "host") throw new PlanHostCannotRsvpError(planId);
     const byPlan = memoryRsvps.get(planId) ?? new Map();
@@ -306,7 +306,7 @@ export type PlanInviteReactionStore = {
   summarize(planId: string, submitterHash: string): Promise<ReactionSummary>;
 };
 
-export const supabaseReactionStore: PlanInviteReactionStore = {
+const supabaseReactionStore: PlanInviteReactionStore = {
   async toggle(planId, submitterHash, reaction) {
     const { data: existing, error: readError } = await admin()
       .from(REACTION_TABLE)
@@ -364,7 +364,7 @@ function reactionRowKey(planId: string, submitterHash: string, reaction: string)
   return `${planId}|${submitterHash}|${reaction}`;
 }
 
-export const memoryReactionStore: PlanInviteReactionStore = {
+const memoryReactionStore: PlanInviteReactionStore = {
   async toggle(planId, submitterHash, reaction) {
     const key = reactionRowKey(planId, submitterHash, reaction);
     if (memoryReactionRows.has(key)) memoryReactionRows.delete(key);

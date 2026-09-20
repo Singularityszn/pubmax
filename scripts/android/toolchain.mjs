@@ -47,7 +47,7 @@ function probeJavaHome(javaBinary) {
 }
 
 /** Resolve JAVA_HOME, preferring an explicit environment over any guess. */
-export function resolveJavaHome() {
+function resolveJavaHome() {
   if (process.env.JAVA_HOME && existsSync(process.env.JAVA_HOME)) {
     return process.env.JAVA_HOME;
   }
@@ -60,7 +60,7 @@ export function resolveJavaHome() {
 }
 
 /** Resolve ANDROID_HOME, preferring an explicit environment over any guess. */
-export function resolveAndroidHome() {
+function resolveAndroidHome() {
   for (const candidate of [process.env.ANDROID_HOME, process.env.ANDROID_SDK_ROOT]) {
     if (candidate && existsSync(candidate)) return candidate;
   }

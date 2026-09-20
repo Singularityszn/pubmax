@@ -32,7 +32,7 @@ export const PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE =
 const SESSION_CAP_RULE =
   `End the call with end_call once the chat reaches ${PAL_VOICE_MAX_SESSION_SECONDS} seconds or the user is done. Do not run past that cap.`;
 
-export function resolveElevenLabsVoiceId(voiceId: PubPalVoiceId): string | null {
+function resolveElevenLabsVoiceId(voiceId: PubPalVoiceId): string | null {
   const envKey = VOICE_ENV_KEYS[voiceId];
   const value = process.env[envKey]?.trim();
   return value || null;
@@ -69,7 +69,7 @@ function sliderHints(pal: PubPal): string {
   return hints.join(" ");
 }
 
-export function buildPalVoiceFirstMessage(pal: PubPal): string {
+function buildPalVoiceFirstMessage(pal: PubPal): string {
   return `Hi, I'm ${pal.name}. What kind of night are you planning?`;
 }
 

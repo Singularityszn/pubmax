@@ -49,7 +49,7 @@ const SECRET_VALUE_PATTERNS: RegExp[] = [
  * `app_key=[redacted]`, `OPENROUTER_API_KEY=[redacted]`). Non-strings are
  * returned untouched (callers only pass strings here).
  */
-export function scrubSecrets(value: string): string {
+function scrubSecrets(value: string): string {
   let out = value;
   for (const pattern of SECRET_VALUE_PATTERNS) {
     out = out.replace(pattern, (match) => {
@@ -70,7 +70,7 @@ export function scrubSecrets(value: string): string {
 
 // A single log record. `ts` is injectable so tests are deterministic; it
 // defaults to Date.now() at call time.
-export type LogRecord = {
+type LogRecord = {
   level: LogLevel;
   event: string;
   ts: number;

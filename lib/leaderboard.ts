@@ -142,7 +142,7 @@ export function leaderboardPubKey(venue: Venue): string {
  * row and no more. The drink must be NAMED: a bare figure proves no list, and a
  * row with no drink beside it is left to rank on its own.
  */
-export function sharedPriceListKey(venue: PricedVenue): string | null {
+function sharedPriceListKey(venue: PricedVenue): string | null {
   const drink = venue.cheapestPint.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   if (!drink) return null;
   return `${venue.cheapestPrice.toFixed(2)}|${drink}`;

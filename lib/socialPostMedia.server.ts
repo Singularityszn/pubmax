@@ -13,10 +13,10 @@ import {
 import { uploadUploadedImageObject } from "@/lib/uploadedImage.server";
 
 export const SOCIAL_PHOTO_MAX_BYTES = 10 * 1024 * 1024;
-export const SOCIAL_PHOTO_MAX_DIMENSION = 12_000;
-export const SOCIAL_PHOTO_MAX_PIXELS = 20_000_000;
-export const SOCIAL_PHOTO_OUTPUT_DIMENSION = 1_200;
-export const SOCIAL_MEDIA_SIGNED_TTL_SECONDS = 180;
+const SOCIAL_PHOTO_MAX_DIMENSION = 12_000;
+const SOCIAL_PHOTO_MAX_PIXELS = 20_000_000;
+const SOCIAL_PHOTO_OUTPUT_DIMENSION = 1_200;
+const SOCIAL_MEDIA_SIGNED_TTL_SECONDS = 180;
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -125,7 +125,7 @@ export async function prepareSocialPhoto(file: File): Promise<PreparedSocialPhot
   }
 }
 
-export const supabaseSocialPhotoStorage: SocialPhotoStorage = {
+const supabaseSocialPhotoStorage: SocialPhotoStorage = {
   async upload(path, bytes, contentType) {
     if (!isSupabaseConfigured()) {
       throw new SocialPhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");

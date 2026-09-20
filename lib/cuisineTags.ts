@@ -27,8 +27,6 @@ export const KNOWN_CUISINE_TAGS = [
   "mexican",
 ] as const;
 
-export type CuisineTag = (typeof KNOWN_CUISINE_TAGS)[number];
-
 const KNOWN_SET = new Set<string>(KNOWN_CUISINE_TAGS);
 
 // Small curated map for well-known food pubs (ids from venues_slim / crawls).

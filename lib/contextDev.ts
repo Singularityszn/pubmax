@@ -33,13 +33,13 @@ import ContextDev, { APIError } from "context.dev";
 import type { RobotsChecker } from "./harvest/robots.ts";
 import { hasRecordedHarvestPermission, isHarvestableOperatorUrl } from "./harvest/sourcePolicy.ts";
 
-export const CONTEXT_DEV_API_BASE = "https://api.context.dev/v1";
+const CONTEXT_DEV_API_BASE = "https://api.context.dev/v1";
 
 export const CONTEXT_DEV_MAX_ATTEMPTS = 3;
 
-export const CONTEXT_DEV_RETRY_BASE_DELAY_MS = 2_000;
+const CONTEXT_DEV_RETRY_BASE_DELAY_MS = 2_000;
 
-export const CONTEXT_DEV_REQUEST_TIMEOUT_MS = 60_000;
+const CONTEXT_DEV_REQUEST_TIMEOUT_MS = 60_000;
 
 /**
  * The longest a provider-chosen `Retry-After` may park this run.
@@ -61,23 +61,6 @@ export const CONTEXT_DEV_MAX_RETRY_AFTER_MS = 30_000;
  * 10, so twelve requests is at most 120 credits a run.
  */
 export const CONTEXT_DEV_RUN_REQUEST_BUDGET = 12;
-
-/**
- * What each endpoint this wrapper exposes costs, from the published catalog.
- *
- * Written down beside the calls so a lane's ceiling can be argued in credits
- * rather than in requests. Nothing branches on it; it is documentation the type
- * checker keeps honest.
- */
-export const CONTEXT_DEV_CREDIT_COST = {
-  scrapeMarkdown: 1,
-  scrapeHtml: 1,
-  sitemapUrls: 1,
-  crawlMarkdown: 1,
-  searchWeb: 1,
-  extract: 10,
-  brandRetrieve: 10,
-} as const;
 
 /** Most URLs one batch submission may carry, from the published catalog. */
 export const CONTEXT_DEV_BATCH_MAX_URLS = 25_000;
@@ -116,11 +99,11 @@ export type ContextDevFailure = {
   statusCode?: number;
 };
 
-export type ContextDevNotConfigured = { status: "not-configured" };
+type ContextDevNotConfigured = { status: "not-configured" };
 
-export type ContextDevError = { status: "error"; error: ContextDevFailure };
+type ContextDevError = { status: "error"; error: ContextDevFailure };
 
-export type ContextDevScrapeOk = {
+type ContextDevScrapeOk = {
   status: "ok";
   url: string;
   markdown: string;
@@ -128,7 +111,7 @@ export type ContextDevScrapeOk = {
 
 export type ContextDevScrapeResult = ContextDevNotConfigured | ContextDevScrapeOk | ContextDevError;
 
-export type ContextDevHtmlOk = {
+type ContextDevHtmlOk = {
   status: "ok";
   url: string;
   html: string;
@@ -136,7 +119,7 @@ export type ContextDevHtmlOk = {
 
 export type ContextDevHtmlResult = ContextDevNotConfigured | ContextDevHtmlOk | ContextDevError;
 
-export type ContextDevSitemapOk = {
+type ContextDevSitemapOk = {
   status: "ok";
   domain: string;
   urls: string[];
@@ -144,12 +127,12 @@ export type ContextDevSitemapOk = {
 
 export type ContextDevSitemapResult = ContextDevNotConfigured | ContextDevSitemapOk | ContextDevError;
 
-export type ContextDevCrawlPage = {
+type ContextDevCrawlPage = {
   url: string;
   markdown: string;
 };
 
-export type ContextDevCrawlOk = {
+type ContextDevCrawlOk = {
   status: "ok";
   url: string;
   pages: ContextDevCrawlPage[];
@@ -157,14 +140,14 @@ export type ContextDevCrawlOk = {
 
 export type ContextDevCrawlResult = ContextDevNotConfigured | ContextDevCrawlOk | ContextDevError;
 
-export type ContextDevSearchHit = {
+type ContextDevSearchHit = {
   url: string;
   title: string;
   description: string;
   markdown: string | null;
 };
 
-export type ContextDevSearchOk = {
+type ContextDevSearchOk = {
   status: "ok";
   query: string;
   results: ContextDevSearchHit[];
@@ -172,7 +155,7 @@ export type ContextDevSearchOk = {
 
 export type ContextDevSearchResult = ContextDevNotConfigured | ContextDevSearchOk | ContextDevError;
 
-export type ContextDevBrandOk = {
+type ContextDevBrandOk = {
   status: "ok";
   domain: string;
   brand: Record<string, unknown> | null;
@@ -180,7 +163,7 @@ export type ContextDevBrandOk = {
 
 export type ContextDevBrandResult = ContextDevNotConfigured | ContextDevBrandOk | ContextDevError;
 
-export type ContextDevBatchOk = {
+type ContextDevBatchOk = {
   status: "ok";
   batchId: string;
   submitted: number;
@@ -189,7 +172,7 @@ export type ContextDevBatchOk = {
 
 export type ContextDevBatchResult = ContextDevNotConfigured | ContextDevBatchOk | ContextDevError;
 
-export type ContextDevExtractOk<T> = {
+type ContextDevExtractOk<T> = {
   status: "ok";
   url: string;
   data: T;

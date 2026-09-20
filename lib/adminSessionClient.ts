@@ -16,7 +16,7 @@ import { discardBody } from "@/lib/responseBody";
 
 export const ADMIN_SESSION_UNREACHABLE_MESSAGE =
   "Could not reach the server. Try again.";
-export const ADMIN_SESSION_REFUSED_FALLBACK = "Not authorised.";
+const ADMIN_SESSION_REFUSED_FALLBACK = "Not authorised.";
 // The route's own 403 body is the bare "Not authorised.", which tells a
 // moderator nothing to do. A refused token has exactly one remedy, so this door
 // says it; every other status still carries the route's own honest line (the
@@ -29,8 +29,8 @@ export const ADMIN_SESSION_UNCONFIRMED_MESSAGE =
   "Could not confirm the sign-in. Try again.";
 export const ADMIN_SESSION_MISSING_TOKEN_MESSAGE = "Enter the admin token.";
 
-export const ADMIN_SESSION_PATH = "/api/admin/session";
-export const LEGACY_ADMIN_TOKEN_KEY = "pubmax_admin_token";
+const ADMIN_SESSION_PATH = "/api/admin/session";
+const LEGACY_ADMIN_TOKEN_KEY = "pubmax_admin_token";
 
 /** Remove raw-token storage left by console versions before cookie-only auth. */
 export function clearLegacyAdminTokenStorage(): void {
@@ -93,7 +93,7 @@ export async function readAdminSessionState(
 }
 
 /** Whether the browser kept the session cookie the POST just handed it. */
-export async function confirmAdminSession(
+async function confirmAdminSession(
   fetchImpl: FetchLike,
 ): Promise<AdminSessionSubmitOutcome> {
   const state = await readAdminSessionState(fetchImpl);

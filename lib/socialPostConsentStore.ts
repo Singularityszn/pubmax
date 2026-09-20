@@ -12,8 +12,8 @@ import {
 import { requireSupabaseAdmin } from "@/lib/supabase";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 
-export type SocialPostTag = { handle: string };
-export type SocialPostTagProposal = {
+type SocialPostTag = { handle: string };
+type SocialPostTagProposal = {
   id: string;
   postId: string;
   authorHandle: string;
@@ -29,16 +29,16 @@ export type SocialPostTagProposal = {
   } | null;
   createdAt: string;
 };
-export type SocialPostTagInboxPage = { proposals: SocialPostTagProposal[]; nextCursor: string | null };
-export type SocialPostOutboxPage = { posts: SocialPostDTO[]; nextCursor: string | null };
-export type SocialPostHeldItem = {
+type SocialPostTagInboxPage = { proposals: SocialPostTagProposal[]; nextCursor: string | null };
+type SocialPostOutboxPage = { posts: SocialPostDTO[]; nextCursor: string | null };
+type SocialPostHeldItem = {
   staffDisplayName: string;
   postId: string;
   mediaId: string | null;
   moderationClaim: string;
   createdAt: string;
 };
-export type SocialPostAdminHeldItem = SocialPostHeldItem & {
+type SocialPostAdminHeldItem = SocialPostHeldItem & {
   revision: number;
   authorHandle: string;
   body: string;

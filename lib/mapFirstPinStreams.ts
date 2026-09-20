@@ -51,8 +51,6 @@ export const HELD_MAP_SECONDARY_STREAMS = [
   "ambient-poi-overlay",
 ] as const;
 
-export type HeldMapSecondaryStream = (typeof HELD_MAP_SECONDARY_STREAMS)[number];
-
 export type MapSecondaryStreamSignals = {
   /** The canvas has announced a painted, tappable pin. */
   pinsRevealed: boolean;

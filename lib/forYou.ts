@@ -20,12 +20,12 @@ import { normalizeHandle } from "@/lib/profiles";
 // reaction summaries client-side; the caller folds those counts to a single
 // number per drop and hands them in here. Absent id ⇒ 0 (a drop with no loaded
 // summary simply scores no reaction bonus — never a crash).
-export type ReactionCounts = Record<string, number>;
+type ReactionCounts = Record<string, number>;
 
 // Venue ids the viewer's dataset considers "story pubs" — curated/heritage
 // venues that carry a pub story. Membership is a small quality nudge, not a
 // gate. Optional so the lane still ranks with no curation signal at hand.
-export type StoryVenueSet = Set<string>;
+type StoryVenueSet = Set<string>;
 
 export type ForYouContext = {
   // Current wall-clock ms — ALWAYS injected (never read from Date.now() inside),
@@ -53,8 +53,8 @@ export const RECENCY_HALF_LIFE_MS = 12 * 60 * 60 * 1000; // 12h
 // weights so the ordering is easy to reason about and test at the boundaries.
 export const QUALITY_BASE = 1;
 export const PHOTO_BONUS = 0.6; // has at least one photo (the hero of a Spill)
-export const NOTE_BONUS = 0.5; // has a passed-down note of real substance
-export const STORY_VENUE_BONUS = 0.3; // dropped at a curated "story pub"
+const NOTE_BONUS = 0.5; // has a passed-down note of real substance
+const STORY_VENUE_BONUS = 0.3; // dropped at a curated "story pub"
 // Friends (Wave G4): modest quality nudge when the author is in the viewer's
 // follow set. Sized below photo/note so a rich stranger still beats a thin
 // friend at equal recency, but enough to lift an otherwise-equal friend above
@@ -62,8 +62,8 @@ export const STORY_VENUE_BONUS = 0.3; // dropped at a curated "story pub"
 export const FRIENDS_BONUS = 0.35;
 // Reactions: diminishing returns via log, capped, so one loud drop can't run
 // away with the lane.
-export const REACTION_WEIGHT = 0.25;
-export const REACTION_BONUS_CAP = 0.75;
+const REACTION_WEIGHT = 0.25;
+const REACTION_BONUS_CAP = 0.75;
 
 // A note must clear this many (trimmed) characters to earn the note bonus — a
 // one-word "nice" doesn't count as a story handed down over the bar.

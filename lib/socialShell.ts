@@ -1,6 +1,6 @@
 import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 
-export type SocialFeedLane = "following" | "nearby" | "discover";
+type SocialFeedLane = "following" | "nearby" | "discover";
 
 export type SocialPostsShellState = {
   valid: boolean;

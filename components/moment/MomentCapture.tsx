@@ -63,7 +63,7 @@ import {
 import "./moment.css";
 
 /** How long the saved receipt stays on screen before the page returns. */
-export const MOMENT_SAVED_RECEIPT_MS = 1600;
+const MOMENT_SAVED_RECEIPT_MS = 1600;
 
 const GUEST_OWNER = "guest";
 

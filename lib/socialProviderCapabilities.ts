@@ -1,6 +1,6 @@
 import { SOCIAL_PROVIDERS, type SocialProvider } from "@/lib/socialConnections";
 
-export const SOCIAL_PROVIDER_CAPABILITY_NAMES = [
+const SOCIAL_PROVIDER_CAPABILITY_NAMES = [
   "manual_link",
   "oauth_identity",
   "read_selected_content",

@@ -31,7 +31,7 @@ export type StepOutNudgePref = {
   cheapPintSentAt: string | null;
 };
 
-export type StepOutNudgePrefPut = {
+type StepOutNudgePrefPut = {
   enabled: boolean;
   subscriptionToken?: string | null;
 };
@@ -100,10 +100,6 @@ const memoryPrefs = new Map<string, StepOutNudgePref>();
 
 export function __resetStepOutNudgeStore(): void {
   memoryPrefs.clear();
-}
-
-export function __listMemoryStepOutNudgePrefs(): StepOutNudgePref[] {
-  return [...memoryPrefs.values()];
 }
 
 function memoryPut(ownerActor: string, input: StepOutNudgePrefPut): StepOutNudgePref {
@@ -260,7 +256,7 @@ async function writeRow(row: Record<string, unknown>): Promise<StepOutNudgePref>
   return toDTO(data as DbRow);
 }
 
-export const supabaseStepOutNudgeStore: StepOutNudgeStore = {
+const supabaseStepOutNudgeStore: StepOutNudgeStore = {
   async get(ownerActor) {
     return guard({
       context: "get",
@@ -492,4 +488,3 @@ export const stepOutNudgeStore = createDualBackendStore(
   supabaseStepOutNudgeStore,
 );
 
-export const cheapPintPingStore = stepOutNudgeStore;

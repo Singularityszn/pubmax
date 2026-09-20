@@ -45,7 +45,7 @@ import { messagesInboxTopic, messagesThreadTopic } from "@/lib/messagesTopics";
 import { supabaseServerConfig } from "@/lib/supabase";
 
 /** What a thread signal is about. The payload never says more than this. */
-export type MessagesSignalEvent = "message" | "read";
+type MessagesSignalEvent = "message" | "read";
 
 export const MESSAGES_BROADCAST_TIMEOUT_MS = 1_500;
 

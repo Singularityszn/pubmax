@@ -236,5 +236,3 @@ export function drinkTaxonomyFromText(
     topShelf: haystackIsTopShelf(drink),
   };
 }
-
-export { CATEGORY_KEYWORDS };

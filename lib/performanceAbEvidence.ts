@@ -558,7 +558,7 @@ export type AbRoutePair = {
  * measured some of it: absence of evidence convicts nobody and clears nobody,
  * and the next run measures again.
  */
-export type AbVerdict = "BRANCH SLOWER" | "NOT SLOWER THAN BASE" | "NOT COMPARED";
+type AbVerdict = "BRANCH SLOWER" | "NOT SLOWER THAN BASE" | "NOT COMPARED";
 
 export type AbComparison = {
   path: string;
@@ -757,7 +757,7 @@ function figure(value: number): string {
 }
 
 /** A duration that names a real quantity, whether it is minutes or the last seconds. */
-export function formatAbDuration(milliseconds: number): string {
+function formatAbDuration(milliseconds: number): string {
   if (milliseconds >= 60_000) return `${Math.round(milliseconds / 60_000)} minute(s)`;
   return `${Math.round(milliseconds / 1_000)} second(s)`;
 }

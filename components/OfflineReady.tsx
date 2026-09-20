@@ -24,7 +24,7 @@ import { useEffect } from "react";
 // first idle moment IS the cold path this gate was written to protect.
 
 /** Idle deadline once a trigger has fired. Unchanged from the first-pins path. */
-export const OFFLINE_REGISTER_IDLE_TIMEOUT_MS = 2_000;
+const OFFLINE_REGISTER_IDLE_TIMEOUT_MS = 2_000;
 /** How long a loaded route waits before registering without a first-pins event. */
 export const OFFLINE_REGISTER_FALLBACK_DELAY_MS = 4_000;
 

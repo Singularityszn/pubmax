@@ -4,8 +4,6 @@ import {
   isPublishableUkPlaceName,
 } from "@/lib/ukPlaceName.mjs";
 
-export { isPublishableUkPlaceName };
-
 export const UK_PLACE_INDEX_PATH = "/data/uk_base/places.json";
 
 /**
@@ -17,7 +15,7 @@ export const UK_PLACE_INDEX_PATH = "/data/uk_base/places.json";
  */
 export type UkPlaceIndexStatus = "idle" | "loading" | "ready" | "error";
 
-export type UkPlaceKind = "city" | "town" | "village" | "place" | "suburb";
+type UkPlaceKind = "city" | "town" | "village" | "place" | "suburb";
 
 export type UkPlace = {
   name: string;

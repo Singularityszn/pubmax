@@ -12,14 +12,14 @@ const FALLBACK_EXECUTION_CONTEXT: WebMcpToolExecutionContext = {
   signal: new AbortController().signal,
 };
 
-export type WebMcpToolName = (typeof WEBMCP_TOOL_NAMES)[number];
+type WebMcpToolName = (typeof WEBMCP_TOOL_NAMES)[number];
 export type WebMcpRegistrationStatus =
   | "unavailable"
   | "registering"
   | "ready"
   | "failed";
 
-export interface WebMcpToolInputMap {
+interface WebMcpToolInputMap {
   search_pubmaxx_venues: { query: string; limit?: number };
   read_london_night_context: Record<string, never>;
   draft_pub_crawl: { request: string; expectedRevision: number };
@@ -27,7 +27,7 @@ export interface WebMcpToolInputMap {
   open_crawl_in_pubmaxx: { expectedRevision: number };
 }
 
-export type WebMcpToolImplementation<Name extends WebMcpToolName> = (
+type WebMcpToolImplementation<Name extends WebMcpToolName> = (
   input: WebMcpToolInputMap[Name],
   context: WebMcpToolExecutionContext,
 ) => Promise<WebMcpJsonValue>;

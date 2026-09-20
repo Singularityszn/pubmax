@@ -9,10 +9,10 @@ import {
   isPubPalSobrietyOnlyIntent,
   pubPalFenceFromNouls,
   PUB_PAL_FENCE_NOUL_THRESHOLD,
-  PUB_PAL_FENCE_QUESTION_IDS,
   type PubPalFenceTurn,
   resolvePubPalFenceIntent,
 } from "@/lib/pubPalLlmFence";
+import { PUB_PAL_FENCE_QUESTION_IDS } from "@/lib/pubPalLlmFenceQuestions";
 
 vi.mock("@/lib/ai/typesafe.server", () => ({
   systemOne: vi.fn(),

@@ -97,17 +97,3 @@ export async function storyBandsForCityAsync(
       return [];
   }
 }
-
-export async function bandByIdForCityAsync(
-  cityId: CityId | string | null | undefined,
-  bandId: string | null | undefined,
-): Promise<StoryBand | undefined> {
-  if (!bandId) return undefined;
-  const id = resolveCityId(cityId);
-  if (id === "london") {
-    const { bandById } = await import("@/lib/storyBands");
-    return bandById(bandId);
-  }
-  const bands = await storyBandsForCityAsync(id);
-  return bands.find((band) => band.id === bandId);
-}

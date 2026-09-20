@@ -27,7 +27,7 @@ export const LOG_INTENT_PRICE_STEP_SELECTOR = '[data-testid="spill-price-step"]'
 export const LOG_INTENT_REVEAL_BUDGET_MS = 1_500;
 
 /** How often it looks while it waits. */
-export const LOG_INTENT_REVEAL_POLL_MS = 60;
+const LOG_INTENT_REVEAL_POLL_MS = 60;
 
 /**
  * Reduced motion means no glide, never no move: the reader still lands on the
@@ -61,7 +61,7 @@ export function revealLogIntentPriceStep(
 
 /** Node answers a Timeout object where the browser answers a number, and the
  *  reveal never reads the value, so the id stays opaque to both. */
-export type LogIntentRevealTimerId = number | ReturnType<typeof setTimeout>;
+type LogIntentRevealTimerId = number | ReturnType<typeof setTimeout>;
 
 export type LogIntentRevealTimers = {
   setTimeout: (callback: () => void, ms: number) => LogIntentRevealTimerId;

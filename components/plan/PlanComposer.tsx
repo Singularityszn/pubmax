@@ -107,8 +107,8 @@ import {
   type PlanIntakeDraft,
 } from "@/lib/planIntake";
 
-export type RouteRevision = string | number;
-export type RouteAlternative = { venueId: string; venueName: string };
+type RouteRevision = string | number;
+type RouteAlternative = { venueId: string; venueName: string };
 export type DraftStop = {
   key: number;
   venueId: string;
@@ -179,7 +179,7 @@ export function editedPlanStop(input: {
     preservesAcceptedAuthority,
   };
 }
-export const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
+const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
 
 export type StoredRouteDraft = {
   stops: DraftStop[];
@@ -358,7 +358,7 @@ function cleanRouteRevision(value: unknown): RouteRevision | null {
 }
 
 /** Read the revision wherever the canonical PlanState places it. */
-export function routeRevisionFromState(value: unknown): RouteRevision | null {
+function routeRevisionFromState(value: unknown): RouteRevision | null {
   if (!value || typeof value !== "object") return null;
   const row = value as { routeRevision?: unknown; revision?: unknown; plan?: unknown };
   const direct = cleanRouteRevision(row.routeRevision ?? row.revision);
@@ -648,7 +648,7 @@ export function planComposerShowsIntake(input: {
   return input.completed || input.entryMode === "wizard";
 }
 
-export function focusPlanRouteStatus(root: ParentNode | Document = document): void {
+function focusPlanRouteStatus(root: ParentNode | Document = document): void {
   const status = root.querySelector("#plan-route-status");
   if (!(status instanceof HTMLElement)) return;
   status.tabIndex = -1;
@@ -1054,7 +1054,6 @@ function initialComposerRouteDraft(
       : "",
   };
 }
-
 
 type UrlPrefill = {
   /** Any prefill the address carries: `occasion`, `describe` or `query`. */

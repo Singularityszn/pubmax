@@ -22,7 +22,7 @@ export function parseMapExperienceLensParam(
   }
   return null;
 }
-export type NoAlcoholDrinkCategory = Extract<
+type NoAlcoholDrinkCategory = Extract<
   DrinkCategory,
   "soft-drink" | "alcohol-free"
 >;

@@ -45,7 +45,7 @@ export type WeatherRecommendationReadResult = {
   recommendations: WeatherRecommendation[];
 };
 
-export type WeatherRecommendationContributorCountResult = {
+type WeatherRecommendationContributorCountResult = {
   status: "ready" | "degraded";
   count: number;
 };

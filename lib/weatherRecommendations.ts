@@ -19,7 +19,7 @@ export const WEATHER_RECOMMENDATION_CONDITIONS = [
 export type WeatherRecommendationCondition =
   (typeof WEATHER_RECOMMENDATION_CONDITIONS)[number];
 
-export const WEATHER_RECOMMENDATION_META: Record<
+const WEATHER_RECOMMENDATION_META: Record<
   WeatherRecommendationCondition,
   { label: string; sentence: string }
 > = {
@@ -30,7 +30,7 @@ export const WEATHER_RECOMMENDATION_META: Record<
   windy: { label: "Windy", sentence: "it’s windy" },
 };
 
-export const WEATHER_RECOMMENDATION_REASON_MIN = 8;
+const WEATHER_RECOMMENDATION_REASON_MIN = 8;
 export const WEATHER_RECOMMENDATION_REASON_MAX = 160;
 export const WEATHER_RECOMMENDATION_RESPONSE_BUDGET_BYTES = 8 * 1024;
 

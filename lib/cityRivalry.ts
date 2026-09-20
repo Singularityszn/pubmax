@@ -83,7 +83,7 @@ export function slimVenuesDiskPath(slimVenuesPath: string): string {
  * Count rows in a slim venues JSON array. Returns 0 on missing/malformed files.
  * Accepts an optional override map for tests (cityId → count).
  */
-export function countSlimVenues(
+function countSlimVenues(
   cityId: CityId,
   overrides?: Partial<Record<CityId, number>>,
 ): number {
@@ -112,7 +112,7 @@ export function countSlimVenues(
  * Demo Pint Drop count for a city — seeds only, never invented organics.
  * London + Manchester ship seeds; Glasgow and others are 0 until seeded.
  */
-export function demoDropCountForCity(cityId: CityId): number {
+function demoDropCountForCity(cityId: CityId): number {
   return demoPintDropsForCity(cityId).length;
 }
 

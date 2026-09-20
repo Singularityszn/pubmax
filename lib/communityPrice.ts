@@ -256,8 +256,8 @@ export const COMMUNITY_PRICE_MAX_AGE_MS = PRICE_AUTHORITY_MAX_AGE_MS;
  * being refused, not two nearby-but-different drinks agreeing, because the
  * category is already pinned and both reports still have to be independent.
  */
-export const COMMUNITY_PRICE_AGREEMENT_FLOOR_GBP = 0.5;
-export const COMMUNITY_PRICE_AGREEMENT_FRACTION = 0.1;
+const COMMUNITY_PRICE_AGREEMENT_FLOOR_GBP = 0.5;
+const COMMUNITY_PRICE_AGREEMENT_FRACTION = 0.1;
 
 /** Whole pennies - the only precision a price has, and the only one worth comparing in. */
 function pennies(priceGbp: number): number {
@@ -421,7 +421,7 @@ export function mapCandidateOf(price: CommunityPrice): CommunityPrice {
  * row itself (the same cautious fallback `mapCandidateOf` takes). Takes only the
  * three fields the gate reads, so a sheet row and a full record can both ask it.
  */
-export function mapCandidateDrivesMap(
+function mapCandidateDrivesMap(
   price: Pick<CommunityPrice, "corroborations" | "submittedAt" | "mapCandidate">,
   now: number = Date.now(),
 ): boolean {

@@ -51,7 +51,7 @@ export const ORS_BUDGET_WINDOW_MS = DAY_MS;
  *  round-trip (and stop making provider calls) for the rest of the window. Short
  *  enough that a freed budget — a rolled UTC day, or a raised env cap — recovers
  *  within minutes rather than being pinned for the whole day. */
-export const ORS_BUDGET_EXHAUSTED_TTL_MS = 5 * 60 * 1000;
+const ORS_BUDGET_EXHAUSTED_TTL_MS = 5 * 60 * 1000;
 
 /**
  * Configured daily budget. `ORS_DAILY_BUDGET` overrides the default; a missing,

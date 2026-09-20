@@ -4,8 +4,8 @@ import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 
 /** OG share-card routes: IP-keyed budget shared across card generators. */
-export const OG_CARD_RATE_LIMIT = 30;
-export const OG_CARD_RATE_WINDOW_MS = 60_000;
+const OG_CARD_RATE_LIMIT = 30;
+const OG_CARD_RATE_WINDOW_MS = 60_000;
 
 /**
  * Rate-limit an OG card GET. Distinct `prefix` per route so one card's budget

@@ -29,7 +29,7 @@ import {
 const TABLE = "operator_proposals";
 
 /** Bounded reads: never return more than this many rows for one query. */
-export const MAX_PROPOSAL_ROWS = 500;
+const MAX_PROPOSAL_ROWS = 500;
 
 export type OperatorProposalStore = {
   /** Persist a new pending proposal. Returns the DTO. THROWS on hard failure. */

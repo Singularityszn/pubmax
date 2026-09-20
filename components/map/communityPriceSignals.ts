@@ -81,7 +81,7 @@ export function mergeCommunityPriceSignals<S extends PricedVenueSignal>(
 }
 
 /** Shared empty result, so "nothing pending" is one stable identity. */
-export const NO_PROVISIONAL_VENUES: ReadonlySet<string> = new Set();
+const NO_PROVISIONAL_VENUES: ReadonlySet<string> = new Set();
 
 /**
  * Membership of a provisional id set, collapsed to one order-independent
