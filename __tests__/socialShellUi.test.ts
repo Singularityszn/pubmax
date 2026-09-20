@@ -42,7 +42,7 @@ const protectedPost: SocialPostDTO = {
 const socialCss = readFileSync("app/social/social.css", "utf8");
 
 describe("Social access boundary", () => {
-  it("keeps signed-out preview to one boundary and one sign-in action", () => {
+  it("keeps signed-out preview to one boundary line when the Screen owns the door", () => {
     const html = renderToStaticMarkup(
       createElement(SocialAccessBoundary, {
         state: "sign_in_required",
@@ -52,7 +52,7 @@ describe("Social access boundary", () => {
 
     expect(html).toContain("Sign in to use Social.");
     expect(html).not.toContain("socialFeedEmpty");
-    expect(html.match(/href="/g)).toHaveLength(1);
+    expect(html.match(/href="/g) ?? []).toHaveLength(0);
   });
 
   it("uses a compact boundary so preview does not leave a large empty panel", () => {
@@ -105,7 +105,11 @@ describe("Social access boundary", () => {
       expect(html).not.toContain(protectedPost.id);
       expect(html).not.toContain("/api/social/posts");
       if (state === "sign_in_required") {
-        expect(html).toContain('href="/login?mode=signin&amp;from=%2Fsocial"');
+        if (friendsLaunchEnabled) {
+          expect(html).not.toContain('href="/login?mode=signin&amp;from=%2Fsocial"');
+        } else {
+          expect(html).toContain('href="/login?mode=signin&amp;from=%2Fsocial"');
+        }
       } else {
         expect(html).not.toContain("href=");
       }
