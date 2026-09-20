@@ -11,7 +11,6 @@ import {
   cheapSamePubNameCandidate,
   haversineMeters,
   namesLikelySamePub,
-  normalizeVenueIdentityName,
   postcodeOutward,
 } from "../scripts/lib/venueCanonicalization.mjs";
 
@@ -145,4 +144,4 @@ export function requiresTypesafeKeyMessage(): string {
   return "A judged same-pub canonicalisation pass requires TYPESAFE_API_KEY.";
 }
 
-export { normalizeVenueIdentityName, typesafeConfigured };
+export { typesafeConfigured };
