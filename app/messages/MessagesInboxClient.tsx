@@ -15,9 +15,10 @@ import Screen from "@/components/ui/screen";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import MessageAvatar from "@/components/messages/MessageAvatar";
+import MessagesNewGroup from "@/components/messages/MessagesNewGroup";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
-import type { ConversationDTO } from "@/lib/messages";
+import { conversationRowName, type ConversationDTO } from "@/lib/messages";
 import { subscribeToInbox } from "@/lib/messagesRealtime";
 import { inboxTimeLabel } from "@/lib/messageTimeline";
 import { discardBody } from "@/lib/responseBody";
@@ -289,6 +290,14 @@ export default function MessagesInboxClient({
         </p>
       ) : null}
 
+      {/* A GROUP IS OPENED FROM THE INBOX, because a group is not "with" one
+          person and there is no profile to start it from. It sits under the
+          head rather than beside it: the head's one painted control is the
+          door to the people, and a screen has one primary. */}
+      {!viewerSession.signedOut && user ? (
+        <MessagesNewGroup handle={handle} onOpened={() => void refresh()} />
+      ) : null}
+
       {!accountDataReady ? (
         <p className="conversationPreview">With you in a sec.</p>
       ) : viewerSession.unresolved ? (
@@ -346,7 +355,11 @@ export default function MessagesInboxClient({
                   >
                     <MessageAvatar handle={c.otherHandle} avatarUrl={c.otherAvatarUrl} />
                     <div className="conversationBody">
-                      <div className="conversationHandle">@{c.otherHandle}</div>
+                      {/* ONE naming rule for every kind (`conversationRowName`):
+                          a DM is the other person, a group is its title or its
+                          people, so the inbox and the thread head cannot each
+                          invent a different name for one thread. */}
+                      <div className="conversationHandle">{conversationRowName(c, handle)}</div>
                       <div className="conversationPreview">
                         {c.lastBody
                           ? `${c.lastFromMe ? "You: " : ""}${c.lastBody}`

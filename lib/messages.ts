@@ -13,8 +13,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { MessageAttachment } from "@/lib/messageAttachments";
+import {
+  groupThreadName,
+  isGroupMember,
+  type ConversationKind,
+} from "@/lib/messageGroupThread";
 import { normalizeHandle } from "@/lib/profiles";
 import { cleanText } from "@/lib/textClean";
+
+export type { ConversationKind };
 
 // Message bodies are capped here AND by the messages_body_len_chk constraint in
 // migration 0019. Keep the two in lockstep.
@@ -48,6 +55,52 @@ export function isParticipant(pair: HandlePair, handle: string): boolean {
   const h = normalizeHandle(handle);
   if (!h) return false;
   return h === pair.handleA || h === pair.handleB;
+}
+
+/**
+ * WHO IS IN A CONVERSATION, whatever kind it is.
+ *
+ * This is what replaced `HandlePair` at every seam that asked "who is in this"
+ * (docs/adr/0015-group-message-threads.md). The pair survives as what it always
+ * was — the ordered IDENTITY of a direct row, and the only thing `normalizePair`
+ * mints — while everything above the store reads a membership, so a caller can
+ * never be written against an assumption of two.
+ *
+ * `handles` is normalised and holds LIVE members only: somebody who left a
+ * group is not in it, and their words stay in the thread exactly as a departed
+ * account's words do.
+ */
+export type ConversationMembership = Readonly<{
+  kind: ConversationKind;
+  handles: readonly string[];
+  /** A group's own name, when it was given one. Always null on a direct row. */
+  title: string | null;
+}>;
+
+/** The membership of a direct conversation: its pair, in pair order. */
+export function membershipFromPair(pair: HandlePair): ConversationMembership {
+  return { kind: "direct", handles: [pair.handleA, pair.handleB], title: null };
+}
+
+/**
+ * True when `handle` is in this conversation — the courtesy check every read
+ * side leans on, widened past two. Both sides normalise, so "@Ken" matches a
+ * stored "ken" exactly as the pair check does.
+ */
+export function isMember(
+  membership: ConversationMembership,
+  handle: string,
+): boolean {
+  return isGroupMember(membership.handles, handle);
+}
+
+/** Everybody but the viewer. The people an inbox row is about. */
+export function otherMembers(
+  membership: ConversationMembership,
+  viewer: string,
+): string[] {
+  const me = normalizeHandle(viewer);
+  return membership.handles.filter((handle) => handle !== me);
 }
 
 /**
@@ -96,10 +149,24 @@ export type MessageDTO = {
 // the last message + how many are unread FOR THE VIEWER.
 export type ConversationDTO = {
   id: string;
+  /**
+   * WHO THE ROW IS ABOUT, in one field every existing surface already reads.
+   *
+   * On a direct row it is the other person. On a GROUP row it is the first
+   * other member, so the avatar and the monogram still have a handle to draw
+   * from; what the row is CALLED comes from `conversationRowName` instead,
+   * because a group is its title or its people and never one of them.
+   */
   otherHandle: string;
   /** The other participant's face, when the read carries one. Optional by
    *  design: the inbox draws a monogram without it. */
   otherAvatarUrl?: string;
+  /** `direct` when absent, so a pre-group body reads correctly. */
+  kind?: ConversationKind;
+  /** A group's own name, when it was given one. Absent on a direct row. */
+  title?: string;
+  /** Every live member, viewer included. Absent on a direct row. */
+  memberHandles?: readonly string[];
   lastBody?: string;
   lastAt: string;
   lastFromMe: boolean;
@@ -108,6 +175,28 @@ export type ConversationDTO = {
    *  the inbox read's own `status` says so. Never coerce it to 0 in a store. */
   unread?: number;
 };
+
+/**
+ * What ONE inbox row is CALLED.
+ *
+ * A direct row is the other person, printed as a handle exactly as it always
+ * was. A group row is its title, or the people in it, through the one naming
+ * rule in `lib/messageGroupThread.ts` — so the inbox, the thread header and any
+ * future surface cannot each invent a different name for one thread.
+ */
+export function conversationRowName(
+  conversation: ConversationDTO,
+  viewer: string,
+): string {
+  if ((conversation.kind ?? "direct") !== "group") {
+    return `@${conversation.otherHandle}`;
+  }
+  return groupThreadName(
+    conversation.title ?? null,
+    conversation.memberHandles ?? [],
+    viewer,
+  );
+}
 
 /**
  * Count messages unread BY `viewer`: a message is unread-for-viewer when it has

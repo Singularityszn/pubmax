@@ -1453,8 +1453,8 @@ html[data-theme="dark"] .messageBubbleTheirs {
     display: none;
   }
 
-  /* The + opens the attachment sheet; the pin stays beside it because the
-     sheet carries photos alone. */
+  /* The + opens the attachment sheet; the pin stays beside it because the pub
+     is the one a drinker reaches for most. The sheet carries every kind. */
   .composerMobileAttach {
     display: inline-flex;
     min-height: 44px;
@@ -1488,4 +1488,291 @@ html[data-theme="dark"] .messageBubbleTheirs {
   .messageAttachSheetPortal {
     display: none;
   }
+}
+
+/* ── group threads ────────────────────────────────────────────────────────── */
+/* A group's head carries its name and how many people are in it, stacked, so a
+   long list of handles never pushes the count off the row. */
+.threadWithGroup {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.threadWithMembers {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* The one thing a group head offers besides its name. Quiet, because leaving is
+   not the thing a reader came here to do. */
+.threadLeaveBtn {
+  margin-left: auto;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: none;
+  border-radius: var(--radius-pill, 999px);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.threadLeaveBtn:hover {
+  background: var(--panel);
+  color: var(--ink);
+}
+
+/* Starting a group, from the inbox. Closed it is one quiet control; open it is
+   a short form. It is never a dialog: the inbox behind it is the context. */
+.messagesNewGroupOpen,
+.messagesNewGroupCancel {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius, 10px);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.messagesNewGroupOpen:hover,
+.messagesNewGroupCancel:hover {
+  background: var(--panel-raised);
+}
+
+.messagesNewGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius, 8px);
+  background: var(--panel);
+}
+
+.messagesNewGroupHeading {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.messagesNewGroupLabel {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.messagesNewGroupField {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius, 10px);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+}
+
+.messagesNewGroupHint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.messagesNewGroupError {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--brick);
+}
+
+.messagesNewGroupActions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.messagesNewGroupCreate {
+  min-height: 44px;
+  padding: 0 1rem;
+  border: none;
+  border-radius: var(--control-radius, 10px);
+  background: var(--color-accent, var(--brass));
+  color: var(--color-on-accent, var(--paper));
+  font: inherit;
+  font-weight: var(--control-font-weight, 600);
+  cursor: pointer;
+}
+
+.messagesNewGroupCreate[aria-disabled="true"] {
+  opacity: 0.6;
+}
+
+/* ── contact, plan and poll attachments ───────────────────────────────────── */
+/* A PHOTO is the only kind that reserves a box, because it is the only one
+   whose height is somebody else's pixels. Everything else is a compact row and
+   may declare no height and no aspect of its own. */
+.messageContactCard {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--paper) 55%, transparent);
+  color: inherit;
+  text-decoration: none;
+}
+
+.messageEventCard {
+  display: block;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--paper) 55%, transparent);
+  color: inherit;
+  text-decoration: none;
+}
+
+.messageBubbleTheirs .messageContactCard,
+.messageBubbleTheirs .messageEventCard {
+  background: var(--panel-raised);
+}
+
+.messageContactCardText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.messageContactCardName {
+  font-weight: 600;
+  color: inherit;
+}
+
+.messageContactCardHandle {
+  font-size: 0.8rem;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.messageEventCardName {
+  display: block;
+  font-weight: 600;
+  color: inherit;
+}
+
+.messageEventCardWhen,
+.messageEventCardStops,
+.messageEventCardPrivacy {
+  display: block;
+  font-size: 0.8rem;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.messageEventCardPrivacy {
+  margin-top: 0.25rem;
+  opacity: 0.7;
+}
+
+/* A poll's bars are the COUNTS, and nothing here names a voter. */
+.messagePoll {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.messagePollQuestion {
+  margin: 0;
+  font-weight: 600;
+}
+
+.messagePollOptions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.messagePollOption {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.messagePollOption[aria-pressed="true"] {
+  border-color: currentColor;
+  font-weight: 600;
+}
+
+.messagePollBar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--message-poll-share, 0%);
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  pointer-events: none;
+}
+
+.messagePollOptionLabel {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.messagePollOptionCount {
+  position: relative;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.messagePollTotal,
+.messagePollError {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+/* The picker rows the new kinds share with the pub picker. */
+.composerPickerActions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.composerPollOptions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.messagesNewGroupRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.messagesNewGroupOpened {
+  font-size: 0.85rem;
+  color: var(--color-accent-ink, var(--brass));
 }

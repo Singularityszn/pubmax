@@ -324,12 +324,21 @@ describe("a photo tile is measured against the screen, never the reader's font",
   });
 
   it("has no document attachment to render, so nothing may grow a preview for one", () => {
-    // v1 shipped two kinds and only two. A compact row is what a non-photo
-    // attachment gets, and the pub card is already one.
-    expect([...MESSAGE_ATTACHMENT_KINDS]).toEqual(["photo", "venue"]);
-    const card = rule(".messageVenueCard");
-    expect(card).toMatch(/padding:\s*0\.5rem 0\.6rem/);
-    expect(card).not.toMatch(/(height|aspect-ratio):/);
+    // A PHOTO is the only kind that reserves a box, because it is the only one
+    // whose height is somebody else's pixels. Every other kind is a compact
+    // row, so a card may not grow a height or an aspect of its own.
+    expect([...MESSAGE_ATTACHMENT_KINDS]).toEqual([
+      "photo",
+      "venue",
+      "contact",
+      "event",
+      "poll",
+    ]);
+    for (const selector of [".messageVenueCard", ".messageContactCard", ".messageEventCard"]) {
+      const card = rule(selector);
+      expect(card).toMatch(/padding:\s*0\.5rem 0\.6rem/);
+      expect(card).not.toMatch(/(height|aspect-ratio):/);
+    }
   });
 });
 

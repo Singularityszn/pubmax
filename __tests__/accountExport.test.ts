@@ -350,6 +350,45 @@ describe("buildAccountExport", () => {
     }
   });
 
+  it("exports a GROUP as a group, never as a DM with whoever sorts first", async () => {
+    // `otherHandle` on a group row is the first OTHER member. A file carrying
+    // that alone hands somebody their nine-person thread back as a one-to-one,
+    // which is a portable copy saying something untrue about their own record.
+    const group: ConversationDTO = {
+      id: "conv-2",
+      otherHandle: "bobpm",
+      kind: "group",
+      title: "Friday session",
+      memberHandles: ["night_owl", "bobpm", "jen"],
+      lastAt: "2026-09-05T12:06:00.000Z",
+      lastFromMe: true,
+      unread: 0,
+    };
+    const document = await buildAccountExport(
+      USER,
+      fakeDeps({
+        conversations: async () => ({
+          conversations: [group],
+          status: "ready" as const,
+        }),
+        messages: async () => thread,
+      }),
+      NOW,
+    );
+    expect(document.messages.items[0]).toMatchObject({
+      id: "conv-2",
+      kind: "group",
+      title: "Friday session",
+      memberHandles: ["night_owl", "bobpm", "jen"],
+    });
+  });
+
+  it("says nothing about a KIND on a direct thread, so an old file still reads", async () => {
+    const document = await buildAccountExport(USER, fakeDeps(), NOW);
+    expect(document.messages.items[0]).not.toHaveProperty("kind");
+    expect(document.messages.items[0]).not.toHaveProperty("memberHandles");
+  });
+
   it("exports the caller's own messages and never the other side's words", async () => {
     const document = await buildAccountExport(USER, fakeDeps(), NOW);
 

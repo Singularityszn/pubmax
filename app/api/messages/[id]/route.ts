@@ -24,9 +24,21 @@ import { log } from "@/lib/log";
 import {
   isMessageVenueId,
   MESSAGE_PHOTO_REFUSED_LINE,
+  readMessageContactHandle,
+  readMessageEventPlanId,
   type MessageAttachmentWrite,
 } from "@/lib/messageAttachments";
 import { requireLinkedActor } from "@/lib/messageAuth";
+import {
+  GROUP_LEFT_LINE,
+  GROUP_MEMBER_FLOOR_LINE,
+} from "@/lib/messageGroupThread";
+import {
+  cleanPollOptions,
+  cleanPollQuestion,
+  POLL_INVALID_LINE,
+  POLL_VOTE_FAILED_LINE,
+} from "@/lib/messagePoll";
 import {
   broadcastMessageSent,
   broadcastMessagesRead,
@@ -43,8 +55,8 @@ import {
   type StagedMessagePhoto,
 } from "@/lib/messagePhotoMedia.server";
 import { messagePhotoRouteDeps } from "@/lib/messagePhotoRoute.server";
-import { attachMessageVenueCards } from "@/lib/messageVenueCards.server";
-import type { HandlePair } from "@/lib/messages";
+import { attachMessageAttachmentCards } from "@/lib/messageAttachmentCards.server";
+import type { ConversationMembership } from "@/lib/messages";
 import { messagesStore } from "@/lib/messagesStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
@@ -65,6 +77,12 @@ const SEND_WINDOW_MS = 60_000;
  *  the provider bill to whoever asks. */
 const PHOTO_LIMIT = 12;
 const PHOTO_WINDOW_MS = 60 * 60 * 1000;
+
+/** Answering a poll costs one small write and no paid call, so the budget is
+ *  looser than a send's — but it is a budget, because every mutating route
+ *  consults `isLimited`. */
+const VOTE_LIMIT = 60;
+const VOTE_WINDOW_MS = 60_000;
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -131,7 +149,14 @@ export async function GET(request: Request, { params }: Ctx): Promise<Response> 
   const gateDone = performance.now();
 
   const store = messagesStore();
-  const messages = await store.listMessages(id, handle);
+  // The rows and WHO IS IN THE THREAD together. The header has to be able to
+  // name a group by its title or its people, and a thread with no message in it
+  // has no row to read a name off — which is why it used to fetch the WHOLE
+  // inbox from the browser just to learn one handle.
+  const [messages, membership] = await Promise.all([
+    store.listMessages(id, handle),
+    store.membership(id),
+  ]);
   if (messages === null) {
     return publicApiError("Conversation not found.", "NOT_FOUND", 404);
   }
@@ -145,7 +170,21 @@ export async function GET(request: Request, { params }: Ctx): Promise<Response> 
   }
   const readDone = performance.now();
   return jsonNoStore(
-    { messages: await attachMessageVenueCards(messages) },
+    {
+      messages: await attachMessageAttachmentCards(messages),
+      // A membership we could not read is ABSENT rather than guessed: the
+      // header keeps its neutral word instead of naming the wrong thread.
+      ...(membership
+        ? {
+            conversation: {
+              id,
+              kind: membership.kind,
+              members: membership.handles,
+              ...(membership.title ? { title: membership.title } : {}),
+            },
+          }
+        : {}),
+    },
     {
       status: 200,
       headers: {
@@ -210,6 +249,16 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
     return jsonNoStore({ flagged }, { status: 200 });
   }
 
+  // ANSWERING A POLL IS NOT SENDING A MESSAGE, and LEAVING A GROUP is not
+  // either: a tap on a poll button and a departure both write a row nobody
+  // reads as words, so neither takes the send budget or the social freeze.
+  // Both are still WRITES, so each takes a limiter of its own.
+  if (!multipart && (action === "vote" || action === "leave")) {
+    return action === "vote"
+      ? voteOnPoll(request, { conversationId: id, handle, body, store })
+      : leaveGroup(request, { conversationId: id, handle, store });
+  }
+
   if (action !== "send") {
     return publicApiError("Unknown action.", "INVALID_REQUEST", 400);
   }
@@ -232,16 +281,9 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
     return sendPhoto(request, { conversationId: id, handle, messageBody, photo, store });
   }
 
-  // A pub shared into a message stores its id and nothing else. No coordinate
-  // of any kind rides here: the viewer-coordinate egress law is untouched.
-  let attachment: MessageAttachmentWrite | undefined;
-  const venueId = readString(body.venueId);
-  if (venueId) {
-    if (!isMessageVenueId(venueId)) {
-      return publicApiError("Choose a pub.", "INVALID_REQUEST", 400);
-    }
-    attachment = { kind: "venue", venueId };
-  }
+  const parsed = readSendAttachment(body);
+  if (parsed instanceof Response) return parsed;
+  const attachment = parsed;
 
   if (!messageBody && !attachment) {
     return publicApiError("Write a message.", "INVALID_REQUEST", 400);
@@ -253,23 +295,146 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   if (!sent) {
     return publicApiError("Conversation not found.", "NOT_FOUND", 404);
   }
-  signalSent(id, sent.pair);
+  signalSent(id, sent.membership);
   return jsonNoStore(
-    { message: (await attachMessageVenueCards([sent.message]))[0] },
+    { message: (await attachMessageAttachmentCards([sent.message]))[0] },
     { status: 201 },
   );
 }
 
 /**
- * The row is stored; tell the two open surfaces. Never a reason to fail the
- * send: a nudge that could not go out leaves the poll fallback to carry it, so
- * this is handed to the platform rather than awaited before the 201. The PAIR
- * comes from the write that just proved it, not from a second read of the
- * conversation the send had already loaded.
+ * WHAT RIDES WITH ONE SEND, read off an untrusted body.
+ *
+ * EVERY POINTING KIND STORES AN ID AND NOTHING ELSE. No coordinate of any kind
+ * rides here (the viewer-coordinate egress law is untouched), no name, no face
+ * and no time: the card is resolved on the READ path, so a rename reads
+ * correctly in an old thread and a moved plan is never quoted back out of one.
+ * A poll points at nothing, so it carries its own ballot.
+ *
+ * AT MOST ONE, and naming two is a refusal rather than a silent pick: a
+ * composer that sends a pub and a poll together has a bug in it, and choosing
+ * for it would hide the bug in somebody's thread.
  */
-function signalSent(conversationId: string, pair: HandlePair): void {
+function readSendAttachment(
+  body: Record<string, unknown>,
+): MessageAttachmentWrite | undefined | Response {
+  const named = [body.venueId, body.contactHandle, body.planId, body.poll].filter(
+    (value) => value !== undefined && value !== null,
+  ).length;
+  if (named > 1) {
+    return publicApiError("One attachment at a time.", "INVALID_REQUEST", 400);
+  }
+
+  const venueId = readString(body.venueId);
+  if (venueId !== undefined) {
+    if (!isMessageVenueId(venueId)) {
+      return publicApiError("Choose a pub.", "INVALID_REQUEST", 400);
+    }
+    return { kind: "venue", venueId };
+  }
+  if (body.contactHandle !== undefined && body.contactHandle !== null) {
+    const contactHandle = readMessageContactHandle(body.contactHandle);
+    if (!contactHandle) {
+      return publicApiError("Choose a handle to share.", "INVALID_REQUEST", 400);
+    }
+    return { kind: "contact", handle: contactHandle };
+  }
+  if (body.planId !== undefined && body.planId !== null) {
+    const planId = readMessageEventPlanId(body.planId);
+    if (!planId) {
+      return publicApiError("Choose a plan to share.", "INVALID_REQUEST", 400);
+    }
+    return { kind: "event", planId };
+  }
+  if (body.poll !== undefined && body.poll !== null) {
+    const poll = body.poll as Record<string, unknown>;
+    const question = cleanPollQuestion(poll?.question);
+    const options = cleanPollOptions(poll?.options);
+    if (!question || !options) {
+      return publicApiError(POLL_INVALID_LINE, "INVALID_REQUEST", 400);
+    }
+    return { kind: "poll", question, options };
+  }
+  return undefined;
+}
+
+/**
+ * One answer to one poll. ONE refusal covers an unknown conversation, an
+ * outsider, a message that is not a poll and an option the ballot does not
+ * carry, so it says nothing about which of them it was.
+ */
+async function voteOnPoll(
+  request: Request,
+  input: {
+    conversationId: string;
+    handle: string;
+    body: Record<string, unknown>;
+    store: ReturnType<typeof messagesStore>;
+  },
+): Promise<Response> {
+  const { conversationId, handle, body, store } = input;
+  const messageId = readString(body.messageId);
+  if (!messageId) return publicApiError("Missing message id.", "INVALID_REQUEST", 400);
+  const key = `msg-vote:${handle}:${hashIp(clientIp(request))}`;
+  if (await isLimited(key, key, VOTE_LIMIT, VOTE_WINDOW_MS)) {
+    return publicApiError("Too many taps, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
+  }
+  const optionIndex = typeof body.optionIndex === "number" ? body.optionIndex : Number.NaN;
+  const poll = await store.votePoll(conversationId, messageId, handle, optionIndex);
+  if (!poll) return publicApiError(POLL_VOTE_FAILED_LINE, "NOT_FOUND", 404);
+  return jsonNoStore({ poll }, { status: 200 });
+}
+
+/**
+ * Leaving a group. A DIRECT conversation answers the same 404 an outsider
+ * gets: half of two people's record of talking to each other is not the
+ * leaver's to take away.
+ */
+async function leaveGroup(
+  request: Request,
+  input: {
+    conversationId: string;
+    handle: string;
+    store: ReturnType<typeof messagesStore>;
+  },
+): Promise<Response> {
+  const { conversationId, handle, store } = input;
+  const key = `msg-leave:${handle}:${hashIp(clientIp(request))}`;
+  if (await isLimited(key, key, SEND_LIMIT, SEND_WINDOW_MS)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
+  }
+  const outcome = await store.leaveGroupConversation(conversationId, handle);
+  if (outcome === "left") return jsonNoStore({ left: true, line: GROUP_LEFT_LINE });
+  if (outcome === "floor") {
+    return publicApiError(GROUP_MEMBER_FLOOR_LINE, "GROUP_MEMBER_FLOOR", 409);
+  }
+  if (outcome === "unavailable") {
+    return publicApiError("Couldn't leave that group just now.", "UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
+  return publicApiError("Conversation not found.", "NOT_FOUND", 404);
+}
+
+/**
+ * The row is stored; tell every open surface. Never a reason to fail the send:
+ * a nudge that could not go out leaves the poll fallback to carry it, so this
+ * is handed to the platform rather than awaited before the 201. The MEMBERSHIP
+ * comes from the write that just proved it, not from a second read of the
+ * conversation the send had already loaded — and because it is a membership
+ * rather than a pair, a group of nine is nine inbox topics with nothing here
+ * changed.
+ */
+function signalSent(
+  conversationId: string,
+  membership: ConversationMembership,
+): void {
   deferMessagesSignal(() =>
-    broadcastMessageSent(conversationId, [pair.handleA, pair.handleB]),
+    broadcastMessageSent(conversationId, [...membership.handles]),
   );
 }
 
@@ -339,7 +504,7 @@ async function sendPhoto(
     if (!sent) {
       return publicApiError("Conversation not found.", "NOT_FOUND", 404);
     }
-    signalSent(conversationId, sent.pair);
+    signalSent(conversationId, sent.membership);
     return jsonNoStore({ message: sent.message }, { status: 201 });
   } catch (error) {
     if (staged) {
