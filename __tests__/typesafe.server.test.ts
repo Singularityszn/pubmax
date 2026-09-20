@@ -99,3 +99,45 @@ describe("systemOne request bounds", () => {
     expect(Date.now() - started).toBeLessThan(2_000);
   });
 });
+
+describe("systemOne logging", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.mocked(TypeSafeClient).mockReset();
+    vi.restoreAllMocks();
+  });
+
+  it("never writes a drinker's typed text into a log line", async () => {
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    vi.mocked(TypeSafeClient).mockImplementation(function () {
+      return {
+        systemOne: () =>
+          Promise.resolve({
+            model: "jev-test",
+            usage: { input_tokens: 1, output_tokens: 1 },
+            answers: { q: { type: "noul", noul: 0.5 } },
+          }),
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    const lines: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((line: unknown) => {
+      lines.push(String(line));
+    });
+
+    const secret = "Am I too drunk to drive back to Peckham";
+    await systemOne(
+      { message: secret, recentTurns: [{ role: "user", content: "two pints in" }] },
+      { q: { type: "noul", instructions: "test?" } },
+      { lane: "typesafe" },
+    );
+
+    expect(lines.length).toBeGreaterThan(0);
+    const emitted = lines.join("\n");
+    expect(emitted).not.toContain("Peckham");
+    expect(emitted).not.toContain("two pints in");
+    // The size is what an operator reads instead.
+    expect(emitted).toContain(`"messageChars":${secret.length}`);
+    expect(emitted).toContain('"turnCount":1');
+  });
+});

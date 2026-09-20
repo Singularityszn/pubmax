@@ -25,39 +25,27 @@ export const TYPESAFE_API_BASE_URL = "https://api.typesafe.ai";
 
 export type TypesafeObservabilityLane = PaidSpendLane | "typesafe";
 
-function typesafeApiKeyConfigured(): boolean {
-  return Boolean(process.env.TYPESAFE_API_KEY?.trim());
+/**
+ * What a log line may say about the judgment state: its SIZE and nothing else.
+ * The state carries a drinker's typed message and their recent turns, and
+ * `lib/log.ts` is explicit that a caller hands it already-safe fields. Truncated
+ * prose is still prose, so none of it reaches a log; the counts are what an
+ * operator actually reads when a call is slow or refused.
+ */
+function stateSize(state: EntryType): { messageChars: number; turnCount: number } {
+  if (state === null || typeof state !== "object" || Array.isArray(state)) {
+    return { messageChars: typeof state === "string" ? state.length : 0, turnCount: 0 };
+  }
+  const message = (state as Record<string, unknown>).message;
+  const turns = (state as Record<string, unknown>).recentTurns;
+  return {
+    messageChars: typeof message === "string" ? message.length : 0,
+    turnCount: Array.isArray(turns) ? turns.length : 0,
+  };
 }
 
-/** Log-safe copy of judgment state: trim long strings, cap turn count. */
-export function redactTypesafeState(state: EntryType): EntryType {
-  if (state === null || typeof state !== "object" || Array.isArray(state)) {
-    if (typeof state === "string") {
-      return state.length > 120 ? `${state.slice(0, 120)}…` : state;
-    }
-    return state;
-  }
-  const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(state)) {
-    if (key === "message" && typeof value === "string") {
-      out[key] = value.length > 120 ? `${value.slice(0, 120)}…` : value;
-      continue;
-    }
-    if (key === "recentTurns" && Array.isArray(value)) {
-      out[key] = value.slice(0, 6).map((turn) => {
-        if (!turn || typeof turn !== "object") return turn;
-        const row = turn as Record<string, unknown>;
-        const content =
-          typeof row.content === "string" && row.content.length > 80
-            ? `${row.content.slice(0, 80)}…`
-            : row.content;
-        return { ...row, content };
-      });
-      continue;
-    }
-    out[key] = value;
-  }
-  return out as EntryType;
+function typesafeApiKeyConfigured(): boolean {
+  return Boolean(process.env.TYPESAFE_API_KEY?.trim());
 }
 
 /**
@@ -108,7 +96,7 @@ export async function systemOne<Q extends Questions>(
       lane: options.lane,
       durationMs,
       questionCount: Object.keys(questions).length,
-      state: redactTypesafeState(state),
+      ...stateSize(state),
       model: result.model,
     });
     return result;
@@ -119,7 +107,7 @@ export async function systemOne<Q extends Questions>(
       lane: options.lane,
       durationMs,
       questionCount: Object.keys(questions).length,
-      state: redactTypesafeState(state),
+      ...stateSize(state),
       error: err instanceof Error ? err.message : String(err),
     });
     return null;
