@@ -4773,6 +4773,26 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
 
 }
 
+/* THE NARROWEST PHONE BUYS ITS THIRD LINE FROM THE CHOICES, NEVER FROM THE
+   DISCLOSURE. Measured on a production build at 320x844 (17 Sep 2026): the two
+   choices asked 151px of the card's 300px of content, which left the sentence a
+   141px column, and the disclosure plus its Privacy link took FOUR 14.4px lines
+   there, so the card stood 69.56px against its own 56px row and every 320px
+   consent fence failed (e2e/first-run-chrome-share.spec.ts:270 and :347,
+   e2e/ux-consent-chrome.spec.ts:342). 360px and up already fitted three lines.
+   The pill padding is the cheapest thing in the row: at 6px a side "Allow" is
+   50px and "No thanks" 79px, both still over the 44px floor and still 44px
+   tall, and the 16px they give back widens the sentence to 157px, which wraps
+   it in three lines and 43.17px. NOT the sentence's own size: a consent notice
+   is the one place on the phone where the words may not be shrunk to make room
+   for the chrome asking about them, and NOT the copy, whose 64-character bound
+   __tests__/analyticsConsentRow.test.ts holds against this measurement. */
+@media (max-width: 360px) {
+  .analyticsConsentPromptActions button {
+    padding-inline: 6px;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .analyticsConsentPrompt {
     animation: analytics-consent-arrive 160ms var(--ease-out, ease-out);

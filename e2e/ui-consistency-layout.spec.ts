@@ -58,6 +58,7 @@ const ROUTES = [
   { source: "app/feed/page.tsx", path: "/feed" },
   { source: "app/historic/[slug]/page.tsx", path: "/historic/prospect-of-whitby" },
   { source: "app/historic/page.tsx", path: "/historic" },
+  { source: "app/how-we-estimate/page.tsx", path: "/how-we-estimate" },
   { source: "app/landmark/[id]/page.tsx", path: `/landmark/${VENUE_ID}` },
   { source: "app/ledger/[id]/page.tsx", path: `/ledger/${VENUE_ID}` },
   { source: "app/map/[city]/page.tsx", path: "/map/london" },

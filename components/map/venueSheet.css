@@ -1161,10 +1161,20 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 }
 
 /* A 320px phone gives the strip 248px, and five labels at 7px a side with 2px
-   gaps asked 281px, so "Overview" ran 6px past its own pill. At 3px a side and
-   no gap the row asks 242.4px, because the 44px floor lifts Drinks and Lore.
-   A 3px strip inset left 242px and wrapped Lore to a second row; a 2px inset
-   leaves 244px, so the five tabs keep one row. */
+   gaps asked 281px, so "Overview" ran 6px past its own pill. Measured again on
+   a production build at 320x844 (17 Sep 2026), against the shipped Inter
+   metrics rather than an estimate: at 3px a side and no gap the row asked
+   256.1px, not the 242.4px recorded here before (Overview 66.55 with the
+   active tab's 800 weight, Photos 49.91, Drinks 45.91, Stories 49.73, and Lore
+   at its 44px floor), so Lore wrapped to a second 44px row and the strip stood
+   94px tall (e2e/venue-tabs-fit.spec.ts:31,
+   e2e/mobile-venue-sheet-tabs.spec.ts:362). Two px of pill padding and 0.72rem
+   take the row to 240.4px inside the 244px the 2px strip inset leaves, and the
+   44px floor then squares four of the five cells, so every tab keeps its tap
+   box and its label stays centred and uncut. The label's SIZE is what yields
+   here, and never the label itself: a tab nobody can read is the section lost
+   again, and the strip is the one row on the sheet whose words are all one
+   word long. Inter is bundled, so those widths are the same on every box. */
 @media (max-width: 360px) {
   .venueTabs {
     gap: 0;
@@ -1172,7 +1182,8 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   }
 
   .venueTab {
-    padding-inline: 3px;
+    padding-inline: 2px;
+    font-size: 0.72rem;
   }
 }
 
