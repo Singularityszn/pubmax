@@ -120,6 +120,18 @@ begin
   end if;
 end $$;
 
+-- The handle alphabet (migration 0029), because the PRIMARY KEY is
+-- (conversation_id, handle) and it compares bytes. Without this, 'Ken' and
+-- 'ken' are two seats for one person: the key does not stop the second, the
+-- inbox lane (`handle = me`) finds only one of them, and the tombstone's
+-- `lower(handle) = lower(v_handle)` is written the way it is precisely because
+-- nothing else here said the column was already lower case. Now it does, so
+-- one person holds one seat and the fold is a formality.
+alter table public.conversation_members drop constraint if exists conversation_members_handle_chk;
+alter table public.conversation_members
+  add constraint conversation_members_handle_chk
+  check (handle ~ '^[a-z0-9_]{1,30}$');
+
 -- The inbox read: every group one handle is live in, and the membership of one
 -- conversation. Both are hot on every thread open.
 create index if not exists conversation_members_handle_idx

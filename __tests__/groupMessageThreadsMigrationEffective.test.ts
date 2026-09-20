@@ -186,6 +186,23 @@ describe.skipIf(skipReason !== null)("0154 group message threads", () => {
     ).toBe("4");
   });
 
+  it("holds a seat to the handle alphabet, so one person is one seat", async () => {
+    const session = requireDatabase();
+    // The primary key compares bytes, so a capitalised handle would be a SECOND
+    // seat for the same person that the inbox lane (`handle = me`) then finds
+    // only half of.
+    const shouted = await session.attempt(
+      `insert into public.conversation_members (conversation_id, handle, role, joined_at)
+         values ('${GROUP}'::uuid, 'Ken', 'member', '${AT}');`,
+    );
+    expect(shouted.ok).toBe(false);
+    const at = await session.attempt(
+      `insert into public.conversation_members (conversation_id, handle, role, joined_at)
+         values ('${GROUP}'::uuid, '@ken', 'member', '${AT}');`,
+    );
+    expect(at.ok).toBe(false);
+  });
+
   it("keeps each kind to its OWN columns", async () => {
     const session = requireDatabase();
     // A direct row still needs both handles.
