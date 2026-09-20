@@ -44,7 +44,7 @@ Rules the table obeys:
 | `/today` | Today in London | What's on across London today. | Find my pint | Open the map |
 | `/tonight` | Tonight in London | What's on across London tonight. | Find my pint | Open the map |
 | `/out` | Out in London | What's on, sourced. | Open the map | Plan a night |
-| `/social` | Social | Crews and people who are already here. | Post (a verified account); Browse pubs and pints (a stranger on the posts tab, to `?tab=discover`); Open the map (a stranger on `?tab=discover`) | Find your lot |
+| `/social` | Social | Crews and people who are already here. | Post (a verified account); Sign in (a stranger); Open the map (a stranger while `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`) | Find your lot |
 | `/plan` | Sort the outing | Describe the outing. We'll put it in order. | Sort it (submit the ask) | Guide me instead |
 | `/plan/[id]` | Your plan | (the plan's own name) | Send to the crew | Open the map |
 | `/pal` | Your Pub Pal | A little signal that becomes yours. | Meet your Pub Pal | Back to the map |

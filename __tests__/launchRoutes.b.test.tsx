@@ -129,18 +129,13 @@ describe("launch routes (group b) carry one primary action", () => {
       }),
     );
     expect(primaryCount(rendered)).toBe(1);
-    // NO PRIMARY ACTION ON A PUBLIC ROUTE IS "SIGN IN" (the launch table's own
-    // opening rule). /social answers 200 to a stranger, and next.config.mjs
-    // 308s /discover, /drinks and /feed here, so a painted Sign in put an
-    // account wall in front of four launch addresses. A stranger's one painted
-    // action is the public Pubs and pints tab; the sign-in door is the
-    // boundary's quiet way onward under the answer, in the EmptyState idiom.
+    // A stranger's first kept action is signing in: the Screen head carries the
+    // door and the boundary below prints its line without a second link.
     expect(rendered).toMatch(
-      /data-primary-action=""><a[^>]*href="\/social\?tab=discover"[^>]*>Browse pubs and pints<\/a>/,
+      /data-primary-action=""><a[^>]*href="\/login\?mode=signin&amp;from=%2Fsocial"[^>]*>Sign in<\/a>/,
     );
-    expect(rendered).not.toMatch(/data-primary-action=""><a[^>]*>Sign in<\/a>/);
     expect(rendered).toContain('class="emptyStateTitle">Sign in to use Social.');
-    expect(rendered).toMatch(
+    expect(rendered).not.toMatch(
       /class="emptyStateAction"><a[^>]*href="\/login\?mode=signin&amp;from=%2Fsocial"[^>]*>Sign in<\/a>/,
     );
     expect(rendered).not.toContain("socialButton");
