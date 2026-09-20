@@ -9,6 +9,8 @@ export const MAP_READER_POSITION_PROBE_KEY = "__pubmaxMapReaderPosition";
 export type MapReaderPositionProbeReading = {
   hasAccuracyLayer: boolean;
   hasCoreLayer: boolean;
+  hasSource: boolean;
+  userLocationLayerIds: string[];
   coordinates: [number, number] | null;
 };
 
@@ -40,6 +42,10 @@ export function installMapReaderPositionProbe(map: maplibregl.Map): () => void {
     read: () => ({
       hasAccuracyLayer: Boolean(map.getLayer("user-location-accuracy")),
       hasCoreLayer: Boolean(map.getLayer("user-location-core")),
+      hasSource: Boolean(map.getSource("user-location")),
+      userLocationLayerIds: (map.getStyle()?.layers ?? [])
+        .map((layer) => layer.id)
+        .filter((id) => id.startsWith("user-location")),
       coordinates: readCoordinates(map),
     }),
   };

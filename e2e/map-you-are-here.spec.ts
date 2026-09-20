@@ -127,10 +127,23 @@ test.describe("map you are here dot", () => {
       })
       .toBe(true);
 
+    await expect
+      .poll(async () => {
+        const dot = await readReaderDot(page);
+        if (!dot.hasCoreLayer || !dot.hasAccuracyLayer) {
+          throw new Error(`reader dot layers missing: ${JSON.stringify(dot)}`);
+        }
+        if (
+          dot.coordinates?.[0] !== first.longitude ||
+          dot.coordinates?.[1] !== first.latitude
+        ) {
+          throw new Error(`reader dot coords: ${JSON.stringify(dot.coordinates)}`);
+        }
+        return true;
+      }, { timeout: 30_000 })
+      .toBe(true);
+
     const dotBefore = await readReaderDot(page);
-    expect(dotBefore.hasAccuracyLayer).toBe(true);
-    expect(dotBefore.hasCoreLayer).toBe(true);
-    expect(dotBefore.coordinates).toEqual([first.longitude, first.latitude]);
 
 
     await expect

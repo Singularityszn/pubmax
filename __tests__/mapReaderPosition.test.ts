@@ -11,6 +11,7 @@ import {
   mapReaderPositionGeoJSON,
 } from "@/lib/mapReaderPosition";
 import type { MapReaderPosition } from "@/lib/mapReaderPosition";
+import type { Map } from "maplibre-gl";
 import { attachMapReaderPositionWatch } from "@/lib/mapReaderPositionWatch";
 import { syncReaderPositionOnMap } from "@/components/map/canvas/readerPositionProbe";
 
@@ -178,7 +179,7 @@ describe("syncReaderPositionOnMap", () => {
       jumpTo,
       fitBounds,
       setCenter,
-    } as unknown as maplibregl.Map;
+    } as unknown as Map;
 
     const data = mapReaderPositionGeoJSON({
       lat: 51.5,
