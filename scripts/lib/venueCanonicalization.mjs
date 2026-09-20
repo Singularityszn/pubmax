@@ -188,14 +188,24 @@ export function namesLikelySamePub(aNorm, bNorm) {
 // it is gated much tighter on distance than the 100 m exact-name radius.
 const DEFAULT_FUZZY_MERGE_METERS = 45;
 
+// At least one shared distinctive name token (see significantNameTokens).
+export function cheapSamePubNameCandidate(aNorm, bNorm) {
+  const sigA = new Set(significantNameTokens(aNorm));
+  const sigB = new Set(significantNameTokens(bNorm));
+  if (sigA.size === 0 || sigB.size === 0) return false;
+  for (const t of sigA) if (sigB.has(t)) return true;
+  return false;
+}
+
 // Do a record pair look like the same pub under the FUZZY predicate: very close,
 // non-conflicting postcodes, and a matching-ish name.
-function looksSameFuzzy(a, b, fuzzyMergeMeters) {
+function looksSameFuzzy(a, b, fuzzyMergeMeters, samePubMatch) {
   if (![a.lat, a.lng, b.lat, b.lng].every(Number.isFinite)) return false;
   if (haversineMeters(a.lat, a.lng, b.lat, b.lng) > fuzzyMergeMeters) return false;
   const pa = postcodeOutward(a.address);
   const pb = postcodeOutward(b.address);
   if (pa && pb && pa !== pb) return false;
+  if (samePubMatch) return samePubMatch(a, b);
   return namesLikelySamePub(a.normName, b.normName);
 }
 
@@ -281,7 +291,7 @@ export function mergeAliasMaps(prevAliases, currentAliases) {
 // removing folded units. A naive all-pairs scan is O(units²) and too slow on the
 // full dataset, so candidate pairs come from a spatial grid: the fuzzy radius is
 // tiny, so only groups in the same or an adjacent cell can possibly match.
-function fuzzyUnionUnits(units, groupList, fuzzyMergeMeters) {
+function fuzzyUnionUnits(units, groupList, fuzzyMergeMeters, samePubMatch) {
   const unitOf = new Map(); // group -> its unit array
   for (const u of units) for (const g of u) unitOf.set(g, u);
 
@@ -303,7 +313,7 @@ function fuzzyUnionUnits(units, groupList, fuzzyMergeMeters) {
     const ua = unitOf.get(a);
     const ub = unitOf.get(b);
     if (ua === ub) return;
-    if (!looksSameFuzzy(a, b, fuzzyMergeMeters)) return;
+    if (!looksSameFuzzy(a, b, fuzzyMergeMeters, samePubMatch)) return;
     if (clusterHasPostcodeConflict([...ua, ...ub])) return;
     const idx = units.indexOf(ub); // fold ub into ua
     if (idx !== -1) units.splice(idx, 1);
@@ -331,7 +341,7 @@ function fuzzyUnionUnits(units, groupList, fuzzyMergeMeters) {
  * Canonicalize a raw price-row dataset.
  *
  * @param {Array<object>} rows  raw pint_prices rows
- * @param {{maxMergeMeters?: number}} [options]
+ * @param {{maxMergeMeters?: number, fuzzyMergeMeters?: number, samePubMatch?: (a: object, b: object) => boolean}} [options]
  * @returns {{
  *   rows: Array<object>,                 // rows with duplicate identities rewritten to canonical
  *   aliases: Record<string,string>,      // losingVenueId -> canonicalVenueId
@@ -339,11 +349,7 @@ function fuzzyUnionUnits(units, groupList, fuzzyMergeMeters) {
  *   stats: object,
  * }}
  */
-export function canonicalizeDataset(rows, options = {}) {
-  const maxMergeMeters = options.maxMergeMeters ?? 100;
-  const fuzzyMergeMeters = options.fuzzyMergeMeters ?? DEFAULT_FUZZY_MERGE_METERS;
-
-  // 1. Fold rows into their existing venue identities.
+export function buildVenueGroupList(rows) {
   const groups = new Map();
   rows.forEach((row, idx) => {
     const key = venueGroupingKey(row);
@@ -369,7 +375,7 @@ export function canonicalizeDataset(rows, options = {}) {
       .forEach((s) => g.sourceSet.add(s));
   });
 
-  const groupList = [...groups.values()].map((g) => ({
+  return [...groups.values()].map((g) => ({
     ...g,
     rowCount: g.rowIdx.length,
     sourceCount: g.sourceSet.size,
@@ -378,6 +384,14 @@ export function canonicalizeDataset(rows, options = {}) {
     hasParen: /\([^)]*\)/.test(g.name),
     hasPostcode: postcodeOutward(g.address) != null,
   }));
+}
+
+export function canonicalizeDataset(rows, options = {}) {
+  const maxMergeMeters = options.maxMergeMeters ?? 100;
+  const fuzzyMergeMeters = options.fuzzyMergeMeters ?? DEFAULT_FUZZY_MERGE_METERS;
+  const samePubMatch = options.samePubMatch;
+
+  const groupList = buildVenueGroupList(rows);
 
   // 2. Cluster identities that share a normalized name and look like the same
   //    pub (single-link over the proximity+postcode predicate).
@@ -429,7 +443,7 @@ export function canonicalizeDataset(rows, options = {}) {
 
   // 2b. Fuzzy union: fold in coordinate-drift / matching-ish-name duplicates the
   //     exact pass can't see (see fuzzyUnionUnits).
-  fuzzyUnionUnits(units, groupList, fuzzyMergeMeters);
+  fuzzyUnionUnits(units, groupList, fuzzyMergeMeters, samePubMatch);
 
   const clusters = units.filter((u) => u.length > 1);
 

@@ -1,0 +1,315 @@
+{
+  "recordedAt": "2026-09-20T12:59:38.298Z",
+  "caseCount": 34,
+  "mergeThreshold": 0.82,
+  "refuseThreshold": 0.35,
+  "model": "unknown",
+  "cases": [
+    {
+      "id": "kings-head-tavern",
+      "labelSame": true,
+      "probability": 0.9,
+      "band": "merge",
+      "normA": "kings head",
+      "normB": "kings head tavern",
+      "distanceMetres": 12
+    },
+    {
+      "id": "bell-vs-bell-and-crown",
+      "labelSame": false,
+      "probability": 0.31,
+      "band": "refuse",
+      "normA": "bell",
+      "normB": "bell and crown",
+      "distanceMetres": 20
+    },
+    {
+      "id": "moon-wetherspoon-suffix",
+      "labelSame": true,
+      "probability": 0.97,
+      "band": "merge",
+      "normA": "moon on the hill",
+      "normB": "moon on the hill",
+      "distanceMetres": 56
+    },
+    {
+      "id": "new-cross-inn-house",
+      "labelSame": false,
+      "probability": 0.11,
+      "band": "refuse",
+      "normA": "new cross inn",
+      "normB": "new cross house",
+      "distanceMetres": 40
+    },
+    {
+      "id": "coach-and-horses-pub",
+      "labelSame": true,
+      "probability": 0.95,
+      "band": "merge",
+      "normA": "coach and horses",
+      "normB": "coach and horses pub",
+      "distanceMetres": 8
+    },
+    {
+      "id": "crown-and-anchor",
+      "labelSame": false,
+      "probability": 0.29,
+      "band": "refuse",
+      "normA": "crown",
+      "normB": "crown and anchor",
+      "distanceMetres": 25
+    },
+    {
+      "id": "old-hat-ealing",
+      "labelSame": true,
+      "probability": 0.89,
+      "band": "merge",
+      "normA": "old hat",
+      "normB": "old hat ealing",
+      "distanceMetres": 30
+    },
+    {
+      "id": "canonbury-tavern",
+      "labelSame": true,
+      "probability": 0.71,
+      "band": "review",
+      "normA": "canonbury",
+      "normB": "canonbury tavern",
+      "distanceMetres": 15
+    },
+    {
+      "id": "red-lion-vs-slug",
+      "labelSame": false,
+      "probability": 0.11,
+      "band": "refuse",
+      "normA": "red lion",
+      "normB": "slug and lettuce",
+      "distanceMetres": 50
+    },
+    {
+      "id": "rochester-castle-spoons",
+      "labelSame": true,
+      "probability": 0.97,
+      "band": "merge",
+      "normA": "rochester castle",
+      "normB": "rochester castle",
+      "distanceMetres": 5
+    },
+    {
+      "id": "mined-cfctc5-lbcjfd",
+      "labelSame": false,
+      "probability": 0.16,
+      "band": "refuse",
+      "normA": "j j moon s",
+      "normB": "thirsty eddie s",
+      "distanceMetres": 120
+    },
+    {
+      "id": "mined-s68ndf-r0yf7r",
+      "labelSame": false,
+      "probability": 0.88,
+      "band": "merge",
+      "normA": "green man",
+      "normB": "greene man",
+      "distanceMetres": 5
+    },
+    {
+      "id": "mined-u68xn3-c5acu3",
+      "labelSame": false,
+      "probability": 0.21,
+      "band": "refuse",
+      "normA": "prince of wales",
+      "normB": "spice of life",
+      "distanceMetres": 59
+    },
+    {
+      "id": "mined-wavdnv-jhq3s4",
+      "labelSame": false,
+      "probability": 0.1,
+      "band": "refuse",
+      "normA": "duke of cambridge",
+      "normB": "earl of essex",
+      "distanceMetres": 105
+    },
+    {
+      "id": "mined-fp1ush-qdu640",
+      "labelSame": false,
+      "probability": 0.21,
+      "band": "refuse",
+      "normA": "old nick",
+      "normB": "old red lion holborn",
+      "distanceMetres": 113
+    },
+    {
+      "id": "mined-6xmzi7-gnufko",
+      "labelSame": false,
+      "probability": 0.94,
+      "band": "merge",
+      "normA": "ye olde london",
+      "normB": "ye olde london city",
+      "distanceMetres": 0
+    },
+    {
+      "id": "mined-85cwa9-vmtkj8",
+      "labelSame": false,
+      "probability": 0.19,
+      "band": "refuse",
+      "normA": "all bar one tower of london",
+      "normB": "bodean s tower hill",
+      "distanceMetres": 21
+    },
+    {
+      "id": "mined-85cwa9-p761x9",
+      "labelSame": false,
+      "probability": 0.03,
+      "band": "refuse",
+      "normA": "all bar one tower of london",
+      "normB": "brewdog outpost tower hill",
+      "distanceMetres": 104
+    },
+    {
+      "id": "mined-gv8lwa-3wpw9e",
+      "labelSame": false,
+      "probability": 0.96,
+      "band": "merge",
+      "normA": "anchor",
+      "normB": "anchor bankside",
+      "distanceMetres": 12
+    },
+    {
+      "id": "mined-sv40c8-h7w6h3",
+      "labelSame": false,
+      "probability": 0.78,
+      "band": "review",
+      "normA": "bell bush lane ec4",
+      "normB": "bell",
+      "distanceMetres": 36
+    },
+    {
+      "id": "mined-vmtkj8-p761x9",
+      "labelSame": false,
+      "probability": 0.09,
+      "band": "refuse",
+      "normA": "bodean s tower hill",
+      "normB": "brewdog outpost tower hill",
+      "distanceMetres": 120
+    },
+    {
+      "id": "mined-vmtkj8-l6hji0",
+      "labelSame": false,
+      "probability": 0.1,
+      "band": "refuse",
+      "normA": "bodean s tower hill",
+      "normB": "feeney s",
+      "distanceMetres": 94
+    },
+    {
+      "id": "mined-p761x9-7hwv2n",
+      "labelSame": false,
+      "probability": 0.23,
+      "band": "refuse",
+      "normA": "brewdog outpost tower hill",
+      "normB": "seething lane tap a brewdog pub",
+      "distanceMetres": 89
+    },
+    {
+      "id": "mined-j71x23-f98hs4",
+      "labelSame": false,
+      "probability": 0.39,
+      "band": "review",
+      "normA": "maruquis of cornwallis",
+      "normB": "knave of clubs",
+      "distanceMetres": 72
+    },
+    {
+      "id": "mined-8x41hr-hd5y0u",
+      "labelSame": false,
+      "probability": 0.91,
+      "band": "merge",
+      "normA": "ye olde watling",
+      "normB": "yeh olde watling",
+      "distanceMetres": 11
+    },
+    {
+      "id": "mined-vslr1u-2me371",
+      "labelSame": false,
+      "probability": 0.53,
+      "band": "review",
+      "normA": "dog and bull",
+      "normB": "dog",
+      "distanceMetres": 80
+    },
+    {
+      "id": "mined-mu008f-7r9lzv",
+      "labelSame": false,
+      "probability": 0.06,
+      "band": "refuse",
+      "normA": "green dragon croydon",
+      "normB": "spread eagle croydon",
+      "distanceMetres": 79
+    },
+    {
+      "id": "mined-71tkga-2me371",
+      "labelSame": true,
+      "probability": 0.8,
+      "band": "review",
+      "normA": "dog",
+      "normB": "dog",
+      "distanceMetres": 114
+    },
+    {
+      "id": "mined-7r9lzv-2uroew",
+      "labelSame": false,
+      "probability": 0.06,
+      "band": "refuse",
+      "normA": "spread eagle croydon",
+      "normB": "turtle bay croydon",
+      "distanceMetres": 115
+    },
+    {
+      "id": "mined-n4qgq2-89rtj3",
+      "labelSame": false,
+      "probability": 0.91,
+      "band": "merge",
+      "normA": "rayan s",
+      "normB": "ryan s",
+      "distanceMetres": 1
+    },
+    {
+      "id": "mined-hvsgg4-jlqlve",
+      "labelSame": false,
+      "probability": 0.63,
+      "band": "review",
+      "normA": "cricketers enfield",
+      "normB": "cricketers arms",
+      "distanceMetres": 12
+    },
+    {
+      "id": "mined-72mx8n-68ndjw",
+      "labelSame": false,
+      "probability": 0.96,
+      "band": "merge",
+      "normA": "crown and horseshoes",
+      "normB": "crown and horseshoe",
+      "distanceMetres": 8
+    },
+    {
+      "id": "mined-w28j94-89uiwz",
+      "labelSame": false,
+      "probability": 0.24,
+      "band": "refuse",
+      "normA": "o neill s enfield",
+      "normB": "king s head",
+      "distanceMetres": 100
+    },
+    {
+      "id": "mined-cze06l-mbs1zh",
+      "labelSame": false,
+      "probability": 0.6,
+      "band": "review",
+      "normA": "piano restaurant",
+      "normB": "piano",
+      "distanceMetres": 70
+    }
+  ]
+}
