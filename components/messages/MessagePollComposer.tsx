@@ -54,7 +54,11 @@ export default function MessagePollComposer({
   const ready = Boolean(cleanedQuestion && cleanedOptions);
 
   return (
-    <div className="composerVenuePicker composerPollComposer" aria-label={POLL_COMPOSE_LABEL}>
+    <div
+      className="composerVenuePicker composerPollComposer"
+      role="group"
+      aria-label={POLL_COMPOSE_LABEL}
+    >
       <label htmlFor={`${fieldId}-q`} className="composerVenueNote">
         {POLL_QUESTION_LABEL}
       </label>
