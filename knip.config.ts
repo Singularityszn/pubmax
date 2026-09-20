@@ -172,7 +172,9 @@ const config: KnipConfig = {
   // Both ARE in devDependencies; the unlisted finding is knip classifying
   // their one caller each (__tests__/iosFormZoomFloor.test.ts,
   // scripts/gen-store-screenshots.mjs) as production.
-  ignoreDependencies: ["postcss", "playwright"],
+  // openai is imported only by @arizeai/openinference-instrumentation-openai when
+  // Arize tracing registers; this app never imports it directly.
+  ignoreDependencies: ["postcss", "playwright", "openai"],
 };
 
 export default config;
