@@ -96,22 +96,44 @@ export function cheapSamePubCandidate(
   return cheapSamePubNameCandidate(a.normName, b.normName);
 }
 
-export function bandFromSamePubProbability(pSame: number): SamePubBand {
+/**
+ * A judged answer is only a probability when it is a real number in [0, 1]. A
+ * timeout, a 5xx or a malformed body must never reach a comparison: `"0.95"`,
+ * `95` and `true` all satisfy `>= 0.82` under JavaScript coercion, and a merge
+ * rewrites `venue_id_aliases.json`. Anything else is not a probability.
+ */
+export function isSamePubProbability(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+export function bandFromSamePubProbability(pSame: unknown): SamePubBand {
+  if (!isSamePubProbability(pSame)) return "refuse";
   if (pSame >= SAME_PUB_MERGE_THRESHOLD) return "merge";
   if (pSame <= SAME_PUB_REFUSE_THRESHOLD) return "refuse";
   return "review";
 }
 
+export type SamePubJudgment = {
+  probability: number;
+  band: SamePubBand;
+  /** The model that answered, so a recorded fixture can name its source. */
+  model: string | null;
+};
+
 export async function judgeSamePubPair(
   state: SamePubPairState,
-): Promise<{ probability: number; band: SamePubBand } | null> {
+): Promise<SamePubJudgment | null> {
   const response = await systemOne(state, SAME_PUB_QUESTIONS, {
     lane: "same-pub",
     timeoutMs: 4_000,
   });
   if (!response) return null;
-  const probability = response.answers.samePhysicalPub.noul;
-  return { probability, band: bandFromSamePubProbability(probability) };
+  const model = typeof response.model === "string" ? response.model : null;
+  const answered: unknown = response.answers?.samePhysicalPub?.noul;
+  if (!isSamePubProbability(answered)) {
+    return { probability: Number.NaN, band: "refuse", model };
+  }
+  return { probability: answered, band: bandFromSamePubProbability(answered), model };
 }
 
 /** Keyless rule used by unit tests and `npm run dev` with no secrets. */
