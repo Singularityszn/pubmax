@@ -155,6 +155,41 @@ describe("who a pack may contain", () => {
     ).toEqual(["ada"]);
   });
 
+  // A BOROUGH PACK'S MEMBERSHIP IS THE DISCLOSURE. `homeCity` is one of the
+  // fields a private account withholds, and this pack's own heading says the
+  // borough, so placing a private account under "Drinkers of Camden"
+  // republishes the words they asked us to hold back through a surface that
+  // never reads their profile at all. The founding pack keeps them, because a
+  // founding number is public by design and already printed on a public wall.
+  it("keeps a private account out of a borough pack and in the founders", () => {
+    const quiet = candidate("quiet", {
+      homeCity: "Camden",
+      visibility: "private",
+      foundingMemberNumber: 3,
+    });
+    expect(
+      selectBoroughPackMembers(
+        [candidate("ada", { homeCity: "Camden" }), quiet],
+        "Camden",
+      ).map((member) => member.handle),
+    ).toEqual(["ada"]);
+    expect(
+      selectFoundingPackMembers([quiet]).map((member) => member.handle),
+    ).toEqual(["quiet"]);
+  });
+
+  it("reads an absent choice as public, so no existing account leaves a pack", () => {
+    expect(
+      selectBoroughPackMembers(
+        [
+          candidate("ada", { homeCity: "Camden" }),
+          candidate("mo", { homeCity: "Camden", visibility: "public" }),
+        ],
+        "Camden",
+      ).map((member) => member.handle),
+    ).toEqual(["ada", "mo"]);
+  });
+
   it("orders a borough pack by handle so everybody opens the same pack", () => {
     const members = selectBoroughPackMembers(
       [

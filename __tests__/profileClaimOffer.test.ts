@@ -25,6 +25,7 @@ const OWNER: PublicProfile = {
   handle: "karan",
   displayName: "Karan Manoharan",
   foundingMemberNumber: 1,
+  visibility: "public",
   createdAt: "2026-06-01T12:00:00.000Z",
   updatedAt: "2026-08-10T09:00:00.000Z",
 };

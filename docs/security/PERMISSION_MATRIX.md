@@ -77,6 +77,10 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Moderator confirm, restore, review lanes, hide a price | 403 | 403 | 403 | `ADMIN_TOKEN` only |
 | Delete account (`DELETE /api/account`) | 401 | own account only, whatever the body names | own account only | n/a |
 | Export account data (`GET /api/account/export`) | 401 | own account only, whatever the query names | own account only | not an identity: 401 |
+| Read A's PUBLIC profile card (`GET /api/profiles/[handle]`) | allowed | allowed | allowed | n/a |
+| Read A's PRIVATE profile card | limited card | full for a mate, limited for anybody else | full: she owns it | n/a |
+| Set who can see A's profile (`PATCH` `visibility`) | denied | 403, and the stored choice does not move | allowed | n/a |
+| A's `profiles` row at the table, the choice included | denied | no rows | own row | n/a |
 
 ## Cells added for the wider roles
 
@@ -150,6 +154,36 @@ no side effect, as above.
 4. **An owner policy filters a statement, it does not error it.** A stranger's
    `update` on somebody's saves succeeds against zero rows. A table cell must
    therefore assert that nothing MOVED rather than that the statement failed.
+
+## The private profile card (migration 0154)
+
+The account-privacy wave adds one visible account choice, so the matrix grew
+four cells rather than a second table. Three things about them.
+
+**The limited card is deliberately not a 404.** A private account answers its
+handle, its display name, its face and its founding mark to everybody, and
+withholds the bio, the city, the favourite drink, the interests, the workplace,
+the cover rotation and the linked socials. That is the IG shape and it is the
+useful one: a friend at the table has to know whose profile they reached before
+they can add them, and the handle, name and face are already published for every
+claimed account through the follow lists and the people directory. So the cell
+asserts "recognisable and nothing withheld" rather than indistinguishability,
+and a private account is knowable as a private account on purpose.
+
+**A price is not covered, and the setting says so.** A Pint Drop is evidence
+about a pub and stays public under the standing rule that we keep the prices, so
+the choice governs the owner-authored profile card and nothing in a price lane.
+`ACCOUNT_VISIBILITY_COPY.pricesStay` prints that beside the control.
+
+**What these cells do NOT measure is the Social block, and that is named rather
+than left to be found.** Carol is a mutual follower Alice has blocked, so by the
+follow graph she is a mate and the projection seam answers her the full card. The
+block lives in the Social product-account graph keyed on profile ids
+(`social_blocks`, `lib/socialInteractionStore.ts`), a different identity space
+from the follow-handle graph the seam reads, and it does not hide a PUBLIC
+profile card from a blocked account either, so this wave neither opens that door
+nor closes it. Folding the block into the seam is its own slice with its own
+cells; asserting Carol's current answer here would write the gap down as intent.
 
 ## The URL allow-list
 

@@ -233,7 +233,23 @@ export const ADD_LINK_COPY = {
     "PUBMAXX keeps your lot to your own account, so make one and they go straight in.",
   /** The line for a signed-in drinker who has not added them yet. */
   signedIn:
-    "A lot is mutual. Add them, and once they add you back their nights, drops and check-ins land in Your lot.",
+    "A lot is mutual. Add them, and once they add you back you are each other's lot.",
+  /**
+   * WHAT BEING SOMEBODY'S LOT REALLY GETS YOU, and it is here because the line
+   * above it used to promise something else: "their nights, drops and check-ins
+   * land in Your lot". Measured, that list does not exist. The lot feed tab
+   * lived on `/feed`, which `next.config.mjs` answers with a permanent redirect
+   * to `/social`, and `/social` carries a posts tab and a discover tab and no
+   * activity lane at all. `lib/feed.ts` still holds the `friends` filter the tab
+   * composed over, so the machinery is real and the SURFACE is not.
+   *
+   * The roadmap's activity-history layer is the lane that would make the old
+   * sentence true, and it is listed after this wave on purpose. Until it lands
+   * the add link says what the product keeps: a lot is what opens a private
+   * profile, which is the thing this wave actually built.
+   */
+  lotMeans:
+    "There is no feed of everybody's nights here yet. Being someone's lot is what opens a profile they have set to private.",
   /** While the add runs on arrival. */
   adding: "Adding them to your lot.",
   /** The session has not answered yet, so nobody is offered a door. */
@@ -263,9 +279,12 @@ export function addLinkReceiptTitle(handle: string, name?: string | null): strin
   return `${addLinkTargetLabel(handle, name)} is in your lot.`;
 }
 
-/** The receipt line under it. */
+/**
+ * The receipt line under it. It states the edge that landed and nothing about a
+ * list: see `ADD_LINK_COPY.lotMeans`, which the receipt prints beside it.
+ */
 export const ADD_LINK_RECEIPT_BODY =
-  "When they add you back, you are each other's lot and their nights show up in Your lot.";
+  "When they add you back, you are each other's lot.";
 
 export type AddLinkNextStep = { href: string; label: string };
 

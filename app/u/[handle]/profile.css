@@ -1224,6 +1224,37 @@
   line-height: 1.4;
 }
 
+/* WHO CAN SEE THIS is a radio pair, and the generic field rule above paints
+   every input as a full-width 44px box, which would draw a radio dot as one.
+   The control is the label's own row: the dot sits inline with the word, the
+   whole row carries the 44px target, and the explainer goes under it. It takes
+   the muted ink rather than .profileEditorHint's crimson, because a sentence
+   explaining a choice is not a warning about one. */
+.profilePage .profileEditorChoice label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.profilePage .profileEditorChoice input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  flex: 0 0 auto;
+  padding: 0;
+  accent-color: var(--brass);
+}
+
+.profilePage .profileEditorChoiceHint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .profilePage .profileEditorAvatarField {
   gap: 10px;
 }

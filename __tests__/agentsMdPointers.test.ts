@@ -155,6 +155,8 @@ const NOT_REPO_PATHS = new Set([
   // Browser API on the global navigator, not a repository path.
   "navigator.share",
   "auth.users.encrypted_password",
+  "ACCOUNT_VISIBILITY_COPY.pricesStay",
+  "ADD_LINK_COPY.lotMeans",
   "CATEGORY_META.order",
   "ComposerHydration.heldVenueId",
   "filters.drinkCategory",
@@ -192,6 +194,10 @@ const NOT_REPO_PATHS = new Set([
   // Database columns named in the account-deletion entry, not repository paths.
   "messages.sender_handle",
   "messages.sender_profile_id",
+  // Database column naming the account-visibility choice, and the DTO field
+  // that carries it, not repository paths.
+  "public.profiles.visibility",
+  "profile.visibility",
 ]);
 
 function pointers(): string[] {

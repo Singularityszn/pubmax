@@ -135,7 +135,10 @@ describe("profile composer", () => {
     expect(markup).toContain("Your look");
     expect(markup).toContain("You</legend>");
     expect(markup).toContain("Your night");
-    expect(markup.match(/<fieldset/g) ?? []).toHaveLength(3);
+    // The fourth group is who can see the three above it, and it comes last on
+    // purpose: it is a decision about everything already answered.
+    expect(markup).toContain("Who can see your profile");
+    expect(markup.match(/<fieldset/g) ?? []).toHaveLength(4);
   });
 
   it("asks for the cover, the photo, the name and every card field", () => {
