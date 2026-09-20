@@ -52,7 +52,12 @@ test.describe("mobile Social actions", () => {
       name: "Browse pubs and pints",
     });
     await expectTappable(primary, "Social Browse pubs and pints");
-    await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
+    // SCOPED TO THE BOUNDARY. The nav's compact host renders its own
+    // `<Link aria-label="Sign in">` on a phone, so an unscoped link locator
+    // matches two elements and Playwright's strict mode fails the run.
+    await expect(
+      page.locator(".emptyStateAction").getByRole("link", { name: "Sign in" }),
+    ).toBeVisible();
     await expect(page.getByText("Sign in to use Social.")).toBeVisible();
 
     await expectNoHorizontalOverflow(page);

@@ -107,4 +107,21 @@ describe("Social emergency rollback rendering", () => {
       expect(html).not.toContain("Crews panel");
     },
   );
+
+  it.each([postsState, discoverState])(
+    "paints no primary action into the preview wall for %s",
+    (initialState) => {
+      const html = renderRollback(initialState);
+      const primary = html.match(/data-primary-action=""><a href="([^"]+)"[^>]*>([^<]+)</);
+      expect(primary, "the rollback still paints one primary action").not.toBeNull();
+      // The public Pubs and pints tab is the stranger's value ONLY while the
+      // surface is open. The rollback turns that tab into the same invite-only
+      // boundary, so a primary pointing at it would be a door back to the wall.
+      expect(primary?.[1], "the rollback primary is not a link back to /social").not.toMatch(
+        /^\/social/,
+      );
+      expect(primary?.[1]).toBe("/map");
+      expect(primary?.[2]).toBe("Open the map");
+    },
+  );
 });

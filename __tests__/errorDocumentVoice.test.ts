@@ -44,6 +44,13 @@ function errorDocuments(directory = "app", found: string[] = []): string[] {
 
 const DOCUMENTS = errorDocuments();
 
+/**
+ * The one document that commits to the inverse surface in both themes, where a
+ * raw coral word reads 6.4:1 and is therefore legible. Adding a second entry
+ * here is a design decision, not a test change.
+ */
+const COMMITTED_DARK_DOCUMENTS = new Set(["app/not-found.tsx"]);
+
 describe("error and not-found documents", () => {
   it("finds every one of them", () => {
     expect(DOCUMENTS, "app/error.tsx and app/not-found.tsx at least").toContain(
@@ -81,8 +88,16 @@ describe("error and not-found documents", () => {
     // coral. The 404's own dark committed surface is the one place raw coral is
     // legible, so it keeps --brass there with an honest fallback.
     const source = readFileSync(join(ROOT, file), "utf8");
-    const committedDarkSurface = /background:\s*["']var\(--ink-deep/.test(source);
-    if (!committedDarkSurface) {
+    // The exception is ONE NAMED DOCUMENT, not a shape any file can grow into.
+    // Keying it on "this file mentions a --ink-deep background" let a future
+    // boundary buy a low-contrast coral word by copying one declaration, which
+    // is the opposite of what the rule says. The 404 is the only document that
+    // commits to the inverse surface, and it has to still be painting it.
+    if (COMMITTED_DARK_DOCUMENTS.has(file)) {
+      expect(source, `${file} still paints the committed dark surface`).toMatch(
+        /background:\s*["']var\(--ink-deep/,
+      );
+    } else {
       expect(source, "a coral word takes var(--color-accent-ink)").not.toMatch(
         /color:\s*["']var\(--brass/,
       );

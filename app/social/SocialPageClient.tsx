@@ -734,7 +734,14 @@ function SocialPageAccountState({
       }}
     />
   ) : viewerPhase === "signed-out" ? (
-    isPosts ? (
+    // AN EMERGENCY ROLLBACK TAKES THE VALUE WITH IT. Under
+    // PUBMAX_SOCIAL_FRIENDS_LAUNCH=0 the body is the invite-only preview
+    // boundary on BOTH tabs, so the public tab is not public any more and
+    // pointing the one painted action at it would send a stranger back to the
+    // wall they are already looking at. The map is the destination that holds
+    // whatever the flag says, so it is the fallback for both the public tab
+    // and the rollback.
+    isPosts && friendsLaunchEnabled ? (
       <Link prefetch={false} href={SOCIAL_PUBLIC_TAB_HREF}>
         Browse pubs and pints
       </Link>

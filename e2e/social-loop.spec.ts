@@ -45,7 +45,11 @@ test("legacy /feed opens signed-out Social, not the retired feed", async ({
       name: "Browse pubs and pints",
     }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
+  // Scoped to the boundary: the nav's compact host paints a "Sign in" link of
+  // its own at phone widths, and an unscoped link locator matches both.
+  await expect(
+    page.locator(".emptyStateAction").getByRole("link", { name: "Sign in" }),
+  ).toBeVisible();
   await expect(page.locator(".feedCard")).toHaveCount(0);
   await expect(page.locator(".feedEmpty")).toHaveCount(0);
   await expect(page.locator(".feedFilters")).toHaveCount(0);
