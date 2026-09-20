@@ -22,6 +22,10 @@ const FACT = {
   detail: "Golden Lion (Soho) pub opened in Soho on 27 August 2026.",
 };
 
+// A fact is only current inside a 21-day window ending at `now`, so every fixture
+// dated 27 August 2026 must be judged against a pinned clock, never the wall clock.
+const NOW = Date.parse("2026-08-28T12:00:00Z");
+
 describe("Keenable area-news client", () => {
   it("uses the keyless public search endpoint when no API key is configured", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ query: "pubs", results: [] }));
@@ -96,7 +100,7 @@ describe("Keenable area-news client", () => {
 
 describe("Keenable area-news extraction", () => {
   it("parses plain or fenced JSON and rejects non-facts", () => {
-    const options = { currentYear: 2026 };
+    const options = { currentYear: 2026, now: NOW };
     expect(KNOWN_AREA_SLUGS.has("hackney")).toBe(true);
     expect(parseExtractedFact({ content: `\`\`\`json\n${JSON.stringify(FACT)}\n\`\`\`` }, options)).toEqual(FACT);
     expect(parseExtractedFact({ content: JSON.stringify({
@@ -117,7 +121,7 @@ describe("Keenable area-news extraction", () => {
   });
 
   it("rejects historical or unnamed JSON facts even when the page is recent", () => {
-    const options = { knownAreas: new Set(["soho"]), currentYear: 2026 };
+    const options = { knownAreas: new Set(["soho"]), currentYear: 2026, now: NOW };
     expect(
       parseExtractedFact(
         {
@@ -159,7 +163,7 @@ describe("Keenable area-news extraction", () => {
         result: { url: "https://example.com/article", published_at: "2026-08-27T12:00:00Z" },
         page: { url: "https://example.com/article", published_at: "2026-08-27T12:00:00Z" },
         fact: { ...FACT, title: "Soho pub award in 2024", detail: "The pub won an award in 2024." },
-        now: Date.parse("2026-08-28T12:00:00Z"),
+        now: NOW,
         knownAreas: new Set(["soho"]),
       }),
     ).toBeNull();
@@ -172,7 +176,7 @@ describe("Keenable area-news extraction", () => {
           content:
             "# Golden Lion (Soho) reopens in Soho\n\nGolden Lion (Soho) pub reopened in Soho on 27 August 2026 after a relaunch.",
         },
-        { knownAreas: new Set(["soho"]) },
+        { knownAreas: new Set(["soho"]), now: NOW },
       ),
     ).toEqual({
       area: "soho",
@@ -189,7 +193,7 @@ describe("Keenable area-news extraction", () => {
           content:
             "# Golden Lion (Soho) pub is closing in Soho\n\nGolden Lion (Soho) pub closed for refurbishment on 27 August 2026 and will reopen on 22 October 2026.",
         },
-        { knownAreas: new Set(["soho"]) },
+        { knownAreas: new Set(["soho"]), now: NOW },
       ),
     ).toMatchObject({ area: "soho", kind: "refurb" });
   });
@@ -236,7 +240,7 @@ describe("Keenable area-news extraction", () => {
     const options = {
       knownAreas: new Set(["soho"]),
       currentYear: 2026,
-      now: Date.parse("2026-08-28T12:00:00Z"),
+      now: NOW,
     };
 
     expect(parseExtractedFact({ content: JSON.stringify({
@@ -257,7 +261,7 @@ describe("Keenable area-news extraction", () => {
       detail: "The Old King's Head pub opened in Teddington on 27 August 2026.",
     }) }, {
       currentYear: 2026,
-      now: Date.parse("2026-08-28T12:00:00Z"),
+      now: NOW,
     })).toBeNull();
   });
 
@@ -267,7 +271,7 @@ describe("Keenable area-news extraction", () => {
         {
           content: "# Soho pub award in 2024\n\nThe pub won an award in 2024.",
         },
-        { knownAreas: new Set(["soho"]), currentYear: 2026 },
+        { knownAreas: new Set(["soho"]), currentYear: 2026, now: NOW },
       ),
     ).toBeNull();
     expect(
@@ -275,7 +279,7 @@ describe("Keenable area-news extraction", () => {
         {
           content: "# Soho pub award in 2026\n\nThe pub won an award in 2026.",
         },
-        { knownAreas: new Set(["soho"]), currentYear: 2026 },
+        { knownAreas: new Set(["soho"]), currentYear: 2026, now: NOW },
       ),
     ).toBeNull();
   });
@@ -293,7 +297,7 @@ describe("Keenable area-news extraction", () => {
         published_at: 1787822400,
       },
       fact: FACT,
-      now: Date.parse("2026-08-28T12:00:00Z"),
+      now: NOW,
       knownAreas: new Set(["soho"]),
     });
 
