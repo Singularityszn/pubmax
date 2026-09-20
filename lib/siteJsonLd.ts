@@ -1,7 +1,7 @@
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 
 /** Closed alternate spellings searchers use for the PubMaxxing product name. */
-export const SITE_BRAND_ALTERNATE_NAMES = [
+const SITE_BRAND_ALTERNATE_NAMES = [
   "PUBMAXX",
   "PubMaxx",
   "Pubmax",
@@ -9,8 +9,8 @@ export const SITE_BRAND_ALTERNATE_NAMES = [
   "Pubmaxing",
 ] as const;
 
-export const SITE_ORGANIZATION_ID = `${PRODUCTION_SITE_ORIGIN}/#organization`;
-export const SITE_WEBSITE_ID = `${PRODUCTION_SITE_ORIGIN}/#website`;
+const SITE_ORGANIZATION_ID = `${PRODUCTION_SITE_ORIGIN}/#organization`;
+const SITE_WEBSITE_ID = `${PRODUCTION_SITE_ORIGIN}/#website`;
 
 const SITE_DESCRIPTION =
   "PubMaxxing is a London pub map and crawl planner with listed pint prices, explicit source status and cited pub history.";
