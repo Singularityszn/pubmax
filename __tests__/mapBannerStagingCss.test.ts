@@ -67,27 +67,45 @@ describe("map banner staging CSS", () => {
     }
   });
 
-  it("defers the closure band to the first-visit ask and to the location ask alone", () => {
+  it("defers the closure band to the ask above it and to a panel, and nothing else", () => {
     // The closure band was the top of the priority cascade and no :has() rule
-    // could touch it. TWO now can: the first-visit strip (captain, 7 Sep 2026,
+    // could touch it. THREE now can: the first-visit strip (captain, 7 Sep 2026,
     // over walk finding B9, which counted eighteen controls, a closure banner
-    // and the card at 1440 before a pin was tapped), and the location ask above
-    // it in the cascade. Nothing is lost either way, because both clear on an
-    // answer and the band arrives the moment they do.
+    // and the card at 1440 before a pin was tapped), the location ask above it
+    // in the cascade, and an open Tonight panel, which is asked for rather than
+    // ambient. Nothing is lost in any of the three, because each clears on an
+    // answer and the band arrives the moment it does.
     const suppressors = [
       ...css.matchAll(/([^\n{,]*:has\([^)]*\)[^\n{,]*)\s+\.cityStatusBanner/g),
     ].map((match) => match[1].trim());
     expect(suppressors).toEqual([
       "body:has(.mapArrivalCard)",
       ".mapStage:has(.citySuggestBanner)",
+      ".mapStage:has(.tonightLane--open)",
     ]);
   });
 
-  it("treats an expanded Tonight panel like the collapsed card in the cascade", () => {
-    // Macroscope 17 Sep 2026: suppressors keyed only on .tonightLaneCollapsed let
-    // .tonightLane--open paint beside status or the concierge ask.
-    expect(css).toMatch(
-      /\.mapStage:has\(\.cityStatusBanner\)\s+\.tonightLane--open/,
+  it("lets an open Tonight panel take the surface back off the banners above it", () => {
+    // Macroscope 17 Sep 2026 read .tonightLane--open as a missing SUPPRESSEE.
+    // Half of that is right: the expanded panel must still put the concierge ask
+    // away, because the ask sits in the same bottom lane. The other half is
+    // backwards. Only the CHIP is ambient. The panel is open because the reader
+    // opened it or because a /map?src=whats-on-* deep link opened it for them
+    // (components/PubMap.tsx, tonightLaneForcedOpen), and components/AGENTS.md
+    // holds that a panel the reader opens takes the surface back. Suppressing it
+    // landed that deep link on a map with a location prompt and none of the
+    // listings it was followed for.
+    for (const higher of [
+      ".citySuggestBanner",
+      ".cityStatusStack",
+      ".cityStatusBanner",
+    ]) {
+      expect(css, `${higher} yields to an open Tonight panel`).toMatch(
+        new RegExp(`:has\\(\\.tonightLane--open\\)\\s+${escape(higher)}`),
+      );
+    }
+    expect(css).not.toMatch(
+      /:has\(\.(citySuggestBanner|cityStatusBanner)\)\s+\.tonightLane--open/,
     );
     expect(css).toMatch(/body:has\(\.tonightLane--open\)\s+\.mapConciergeAsk/);
   });

@@ -19,7 +19,9 @@
       location ask, then the closure and area-news rail, then Tonight-nearby,
       then the concierge ask. Each banner renders its root only when eligible
       and UNMOUNTS it on dismissal, so answering the one on screen releases
-      exactly the next one down. */
+      exactly the next one down. An OPEN Tonight panel is the exception: it is
+      asked for rather than ambient, so it takes the surface off the two
+      banners above it for as long as it is open. */
 
 @media (min-width: 641px) {
   /* 1. Onboarding open — suppress ambient status and Tonight. */
@@ -76,7 +78,9 @@
      all wait"), then the closure and area-news rail, then Tonight, then the
      concierge ask. Nothing is lost: each surface still mounts only when it is
      eligible and UNMOUNTS on dismissal, so answering the one on screen releases
-     exactly the next one down and never a stack.
+     exactly the next one down and never a stack. The one member that is NOT
+     ambient is an open Tonight panel, which the reader or a deep link asked
+     for: that one takes the surface back off the banners above it.
 
      Keyed on element PRESENCE rather than visibility, which is what makes the
      order TOTAL: a lower member yields to every higher one that is eligible,
@@ -88,9 +92,23 @@
   }
 
   .mapStage:has(.cityStatusBanner) .tonightLaneCollapsed,
-  .mapStage:has(.cityStatusBanner) .tonightLane--open,
-  .mapStage:has(.citySuggestBanner) .tonightLaneCollapsed,
-  .mapStage:has(.citySuggestBanner) .tonightLane--open {
+  .mapStage:has(.citySuggestBanner) .tonightLaneCollapsed {
+    display: none;
+  }
+
+  /* AN OPEN TONIGHT PANEL IS NOT AN AMBIENT SURFACE, so it takes the surface
+     back rather than yielding it. Only the CHIP is ambient; the panel is open
+     because the reader opened it, or because a `/map?src=whats-on-quiz` style
+     deep link opened it for them (components/PubMap.tsx, tonightLaneForcedOpen),
+     and components/AGENTS.md already holds that "a PANEL the reader opens from
+     the toolbar takes the surface back". Hiding it under the two banners above
+     landed a growth deep link on a map with a location prompt and none of the
+     listings it was followed for, and closed a panel mid-read the moment a late
+     closure rail arrived. Keyed on presence like the rest, so closing the panel
+     hands the surface straight back to whichever banner is eligible. */
+  .mapStage:has(.tonightLane--open) .citySuggestBanner,
+  .mapStage:has(.tonightLane--open) .cityStatusStack,
+  .mapStage:has(.tonightLane--open) .cityStatusBanner {
     display: none;
   }
 
