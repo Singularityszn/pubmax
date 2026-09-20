@@ -25,6 +25,19 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 
 const sheetCss = read("components/map/venueSheet.css");
 
+/** Every `@media (max-width: Npx)` block at or under a phone width. */
+function phoneBlocks(): string[] {
+  return [...sheetCss.matchAll(/@media \(max-width: (\d+)px\)\s*\{([\s\S]*?)\n\}/gu)]
+    .filter(([, width]) => Number(width) <= 640)
+    .map(([, , body]) => body!);
+}
+
+/** The body of every rule in `block` whose selector is exactly `selector`. */
+function rulesFor(block: string, selector: string): string[] {
+  const pattern = new RegExp(`\\${selector}\\s*\\{([^}]*)\\}`, "gu");
+  return [...block.matchAll(pattern)].map(([, body]) => body!);
+}
+
 describe("B1 - the venue tab strip fades only what is really hidden", () => {
   it("never fades at the end of the scroll", () => {
     // A wide strip: 200px hidden, so the fade is honest until the reader
@@ -68,6 +81,32 @@ describe("B1 - the venue tab strip fades only what is really hidden", () => {
       if (selector.includes("data-trailing-fade")) continue;
       expect(body, `${selector.trim()} must not paint a mask`).not.toMatch(/mask-image:/);
     }
+  });
+
+  it("keeps the five phone tabs in one row, with none hidden past the edge", () => {
+    // #1659 (five tabs in one row with a brand kicker). The strip used to
+    // scroll sideways under this fade, which hid the last tabs past the edge,
+    // and then wrapped seven tabs into two rows of a 98px strip at 390. Five
+    // tabs share one row now: the phone block turns the base sideways scroll
+    // off, so a label can never sit past the edge, and wrap is the large-text
+    // escape (a second row beats a clipped word), never a scroll.
+    const blocks = phoneBlocks();
+    expect(blocks.length).toBeGreaterThan(0);
+    const strips = blocks.flatMap((block) => rulesFor(block, ".venueTabs"));
+    expect(strips.length).toBeGreaterThan(0);
+    for (const strip of strips) {
+      expect(strip).not.toMatch(/overflow(-x)?:\s*(auto|scroll)/u);
+      expect(strip).not.toMatch(/flex-wrap:\s*nowrap/u);
+    }
+    expect(strips.some((strip) => /overflow:\s*visible/u.test(strip))).toBe(true);
+    expect(strips.some((strip) => /flex-wrap:\s*wrap/u.test(strip))).toBe(true);
+  });
+
+  it("sizes each phone tab by its own label, which is what fits the five", () => {
+    // Equal zero-basis cells cut "Overview" to a pill narrower than the word.
+    // Each cell keeps its label's width and shares the space left over.
+    const tabs = phoneBlocks().flatMap((block) => rulesFor(block, ".venueTab"));
+    expect(tabs.some((tab) => /flex:\s*1 1 auto/u.test(tab))).toBe(true);
   });
 
   it("keeps the CSS fade width and the hook's threshold in step", () => {
