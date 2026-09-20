@@ -72,6 +72,33 @@ describe("Vercel production host canonicalisation", () => {
     expect(response.headers.get("x-robots-tag")).toBe("noindex");
   });
 
+  it("never puts noindex on a canonical pubmaxxing.com response", () => {
+    // The noindex above rides the *.vercel.app 308 so a deployment hostname
+    // leaves the index while the redirect is in flight. The whole value of
+    // that header is that it stops at the deployment host: if it ever reached
+    // the canonical host the brand would deindex itself. shouldRedirectVercelHost
+    // gates on the `.vercel.app` suffix, and this is the fence on that gate.
+    vi.stubEnv("VERCEL_ENV", "production");
+
+    for (const path of ["/", "/map", "/tonight", "/about", "/how-we-estimate", "/privacy", "/terms"]) {
+      const response = securityProxy(request("pubmaxxing.com", path));
+      expect(response.status, `${path} must not redirect`).not.toBe(308);
+      expect(
+        response.headers.get("x-robots-tag"),
+        `${path} must carry no robots tag`,
+      ).toBeNull();
+    }
+  });
+
+  it("never puts noindex on a canonical response for a host that merely contains vercel.app", () => {
+    // Suffix, not substring: a lookalike host must not be treated as ours and
+    // must not be handed a noindex either.
+    vi.stubEnv("VERCEL_ENV", "production");
+
+    const response = securityProxy(request("pubmaxxing.com.vercel.app.example", "/"));
+    expect(response.headers.get("x-robots-tag")).toBeNull();
+  });
+
   it("redirects a promoted Preview artifact with its Preview settings retained", () => {
     vi.stubEnv("VERCEL_ENV", "preview");
     const deploymentHost =

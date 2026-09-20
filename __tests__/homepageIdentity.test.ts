@@ -37,7 +37,11 @@ describe("homepage identity", () => {
     expect(website?.name).toBe("PubMaxxing");
     expect(website?.alternateName).toContain("PUBMAXX");
     expect(website?.url).toBe("https://pubmaxxing.com");
-    expect(siteJsonLd[1].logo).toBe("https://pubmaxxing.com/brand/icon.svg");
+    const organization = siteJsonLd.find(
+      (node) => node["@type"] === "Organization",
+    );
+    expect(organization?.logo).toBe("https://pubmaxxing.com/brand/icon.svg");
+    expect(organization?.alternateName).toContain("PUBMAXX");
   });
 
   it("credits the founder in the landing footer", () => {
