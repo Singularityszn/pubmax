@@ -90,29 +90,15 @@ describe("sanitizeEvent", () => {
     expect(sanitizeEvent("message_attach_selected")).toBeNull();
   });
 
-  it("keeps open-plan events closed: place kind and decision only", () => {
-    expect(ANALYTICS_EVENTS.open_plan_posted).toEqual(["placeKind"]);
-    expect(ANALYTICS_EVENTS.open_plan_join_requested).toEqual([]);
-    expect(ANALYTICS_EVENTS.open_plan_join_decided).toEqual(["decision"]);
-    expect(sanitizeEvent("open_plan_posted", {
-      placeKind: "venue",
-      crewId: "secret",
-      handle: "@alice",
-    })).toEqual({ name: "open_plan_posted", props: { placeKind: "venue" } });
-    expect(sanitizeEvent("open_plan_posted", { placeKind: "place" })).toEqual({
-      name: "open_plan_posted",
-      props: { placeKind: "place" },
-    });
-    expect(sanitizeEvent("open_plan_posted", { placeKind: "event" })).toBeNull();
-    expect(sanitizeEvent("open_plan_join_requested", { crewId: "x" })).toEqual({
-      name: "open_plan_join_requested",
-      props: {},
-    });
-    expect(sanitizeEvent("open_plan_join_decided", { decision: "accept" })).toEqual({
-      name: "open_plan_join_decided",
-      props: { decision: "accept" },
-    });
-    expect(sanitizeEvent("open_plan_join_decided", { decision: "maybe" })).toBeNull();
+  it("refuses the three open-plan names outright, because nothing sends them", () => {
+    // They were registered with the Out L3 wave and no surface ever emitted
+    // one. A registry row for an unbuilt surface is a tile that reads zero for
+    // ever, so the names are gone and the sanitizer answers the same null it
+    // gives any other invented name. They come back WITH their emitters.
+    for (const name of ["open_plan_posted", "open_plan_join_requested", "open_plan_join_decided"]) {
+      expect(name in ANALYTICS_EVENTS, name).toBe(false);
+      expect(sanitizeEvent(name, { placeKind: "venue" }), name).toBeNull();
+    }
   });
 
   it("rejects unsafe values: emails, over-long strings, non-finite numbers", () => {
@@ -325,31 +311,24 @@ describe("sanitizeEvent", () => {
     });
   });
 
-  it("allows district telemetry only from the reviewed catalogue and gate enums", () => {
-    expect(sanitizeEvent("district_route_blocked", {
-      district: "barnes",
-      coverageStatus: "reviewed",
-      demandWave: 0,
-      reason: "opening_hours",
-      coordinates: "51.474,-0.239",
-      note: "free text is never telemetry",
-    })).toEqual({
-      name: "district_route_blocked",
-      props: {
-        district: "barnes",
-        coverageStatus: "reviewed",
-        demandWave: 0,
-        reason: "opening_hours",
-      },
-    });
-
-    expect(sanitizeEvent("route_ready_gate_failed", {
-      district: "not-a-district",
-      coverageStatus: "available",
-      demandWave: 99,
-      reason: "a custom reviewer note",
-      gateVersion: 2,
-    })?.props).toEqual({});
+  it("refuses the five London Capture district names, because nothing sends them", () => {
+    // The reviewed district catalogue was never built and these five were
+    // registered ahead of it. Their prop vocabulary (COVERAGE_STATUSES, the
+    // route-ready gate codes and its version) left the registry with them, so
+    // an invented district event cannot arrive half-validated either.
+    for (const name of [
+      "district_catalogue_viewed",
+      "district_viewed",
+      "district_route_blocked",
+      "district_route_ready_selected",
+      "route_ready_gate_failed",
+    ]) {
+      expect(isKnownEvent(name), name).toBe(false);
+      expect(
+        sanitizeEvent(name, { district: "barnes", coverageStatus: "reviewed", demandWave: 0 }),
+        name,
+      ).toBeNull();
+    }
   });
 
   it("every registered event's prop list is an array (registry shape)", () => {
@@ -462,11 +441,21 @@ describe("sanitizeEvent", () => {
       });
       expect(sanitizeEvent("plan_saved", { stops: 3, grounded: false, title: "Friday with Jamie" }))
         .toEqual({ name: "plan_saved", props: { stops: 3, grounded: false } });
-      expect(sanitizeEvent("claim_started", { source: "auth", handle: "private_handle" }))
-        .toEqual({ name: "claim_started", props: { source: "auth" } });
-      expect(sanitizeEvent("claim_completed", { source: "auth", email: "private@example.com" }))
-        .toEqual({ name: "claim_completed", props: { source: "auth" } });
-      expect(sanitizeEvent("plan_completed", { ending: "food", finalVenueId: "private-venue" }))
+      // Both `claim_*` steps are gone. They were known dead and kept "for
+      // schema compatibility", which is a promise about events that will
+      // arrive; account onboarding replaced that path years of commits ago and
+      // nothing has sent one since.
+      expect(sanitizeEvent("claim_started", { source: "auth" })).toBeNull();
+      expect(sanitizeEvent("claim_completed", { source: "auth" })).toBeNull();
+      expect(sanitizeEvent("plan_completed", {
+        ending: "food",
+        crewNight: true,
+        finalVenueId: "private-venue",
+        planId: "private-plan",
+      })).toEqual({ name: "plan_completed", props: { ending: "food", crewNight: true } });
+      // A receipt minted before the crew boolean shipped carries the ending
+      // alone, and is still a countable completion.
+      expect(sanitizeEvent("plan_completed", { ending: "food" }))
         .toEqual({ name: "plan_completed", props: { ending: "food" } });
       expect(sanitizeEvent("memory_reviewed", { source: "inline_recap", caption: "private words" }))
         .toEqual({ name: "memory_reviewed", props: { source: "inline_recap" } });
@@ -494,8 +483,11 @@ describe("sanitizeEvent", () => {
       })).toBeNull();
       expect(sanitizeEvent("plan_saved", { stops: 3, grounded: true })?.props)
         .toEqual({ stops: 3, grounded: true });
-      expect(sanitizeEvent("claim_started", { source: "you" })?.props).toEqual({});
       expect(sanitizeEvent("plan_completed", { ending: true })?.props).toEqual({});
+      // The crew answer is a boolean or it is nothing. A count would be a
+      // roster size, which narrows toward one night's own crew.
+      expect(sanitizeEvent("plan_completed", { ending: "food", crewNight: 2 })?.props)
+        .toEqual({ ending: "food" });
       expect(sanitizeEvent("memory_reviewed", { source: 51 })?.props).toEqual({});
       expect(sanitizeEvent("story_published", {
         visibility: "private",
@@ -576,15 +568,21 @@ describe("community-price funnel events", () => {
     ).toBeNull();
   });
 
-  it("does not leak its vocabulary into the pal-memory category key", () => {
-    // Same prop NAME, a different closed set - the price check must be scoped
-    // to the funnel events, not to the key.
-    expect(
-      sanitizeEvent("pub_pal_memory_changed", { action: "create", category: "preference" }),
-    ).toEqual({
-      name: "pub_pal_memory_changed",
-      props: { action: "create", category: "preference" },
-    });
+  it("stays scoped to the funnel, and the pal-memory name it shared a key with is gone", () => {
+    // `category` used to mean two closed sets: the drink taxonomy here and the
+    // pal-memory vocabulary there, which is why the price check is scoped to
+    // the event and never to the key. `pub_pal_memory_changed` had no emitter
+    // and is deleted, so the scoping is now load-bearing for the mission lane
+    // alone - and it must stay that way, or a `category` check keyed on the
+    // KEY would quietly widen the next event that borrows the name.
+    expect(isKnownEvent("pub_pal_memory_changed")).toBe(false);
+    expect(sanitizeEvent("pub_pal_memory_changed", { action: "create", category: "preference" }))
+      .toBeNull();
+    expect(sanitizeEvent("mission_viewed", { surface: "map", reason: "missing", category: "wine" }))
+      .toEqual({
+        name: "mission_viewed",
+        props: { surface: "map", reason: "missing", category: "wine" },
+      });
   });
 
   it("keeps only closed, identity-free contribution gate states", () => {

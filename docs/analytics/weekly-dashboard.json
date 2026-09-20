@@ -164,7 +164,7 @@
     },
     {
       "name": "6. The four loop moments",
-      "description": "Read as pairs, never as totals: a shortlist shown against one taken, a brief seen against one opened from its own notification. docs/analytics/TRACKING_PLAN.md section 5.11.",
+      "description": "Read as pairs, never as totals: a shortlist shown against one taken, a brief seen against one opened from its own notification. docs/analytics/TRACKING_PLAN.md section 5.10.",
       "query": {
         "kind": "InsightVizNode",
         "source": {

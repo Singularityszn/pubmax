@@ -137,7 +137,7 @@ seven insights: tile 2 ships its funnel companion beside the figure it answers w
 | 3 | Landing to Map to venue sheet | `discovery_viewed` (landing), `$pageview` (`/map`), `venue_sheet_opened` |
 | 4 | Pint Drop submissions and corroboration | `price_submitted`, `price_submit_outcome`, `price_submit_failed` |
 | 5 | Top routes by LCP | `web_vital` where `metric = LCP`, p75 of `value`, broken down by `route` |
-| 6 | The four loop moments (5.11) | `late_food_viewed` / `late_food_added`, `briefing_viewed` / `briefing_opened`, `voice_started`, `recap_viewed` |
+| 6 | The four loop moments (5.10) | `late_food_viewed` / `late_food_added`, `briefing_viewed` / `briefing_opened`, `voice_started`, `recap_viewed` |
 
 Two honest limits on that table.
 
@@ -146,7 +146,7 @@ Two honest limits on that table.
   drops out at step 2 while still reaching step 3. Read step 1 to step 3 as the
   reliable pair, and step 2 as the shape of the walk between them.
 - **Tile 6 reads as pairs, not as totals.** Each series is one half of a ratio
-  (5.11). A rise in `late_food_viewed` with a flat `late_food_added` is the
+  (5.10). A rise in `late_food_viewed` with a flat `late_food_added` is the
   finding; either line alone says nothing, because both move with how many
   nights reached their last stop at all.
 - **Tile 4 does not say "confirmed".** A `PintDropConfirmation` is minted on the
@@ -253,7 +253,6 @@ vocabularies. The column here is the question the event exists to answer.
 | `map_search_no_results` | A search found nothing. |
 | `map_search_jump` | A search result moved the camera. |
 | `map_area_switched` | The reader changed city. |
-| `map_search_ran` | A search ran, with its intent and national result health. |
 | `badge_tap` | A tonight badge on a pin was tapped. |
 | `lane_card_tap` | A card in the tonight lane was tapped. |
 | `lane_to_plan` | That lane handed a venue to the planner. |
@@ -275,7 +274,6 @@ vocabularies. The column here is the question the event exists to answer.
 | `occupancy_reported` | A crowd reading was given. |
 | `occupancy_read` | A crowd reading was shown, and how fresh it was. |
 | `check_in_created` | Somebody said they were there. |
-| `drop_logged` | A Pint Drop was logged (the original R3 rail). |
 | `wanted_created` | A place was saved to try, and whether a source link came with it. |
 | `wanted_fulfilled` | The saver reached that place. |
 | `wanted_promoted` | A saved place joined the curated layer. |
@@ -298,9 +296,9 @@ vocabularies. The column here is the question the event exists to answer.
 | `plan_accepted` | A grounded, route-ready three-stop plan was verified server-side. |
 | `plan_saved` | The plan and its route finished saving. |
 | `plan_created` | A plan was created, with its stop count. |
-| `plan_completed` | The night ended, and how. |
-| `late_food_viewed` | The food ending's shortlist was shown. See 5.11. |
-| `late_food_added` | A food ending was taken. See 5.11. |
+| `plan_completed` | The night ended, how it ended, and whether it had a crew. The crew answer is the server's, minted on the completion receipt: see METRICS.md 2.2. |
+| `late_food_viewed` | The food ending's shortlist was shown. See 5.10. |
+| `late_food_added` | A food ending was taken. See 5.10. |
 | `memory_reviewed` | The night was read back. |
 | `story_published` | The night became a public story. |
 | `meaningful_core_action` | The roll-up denominator for Weekly Meaningful Pubmaxxers. |
@@ -308,15 +306,11 @@ vocabularies. The column here is the question the event exists to answer.
 | `next_night_committed` | A finished night turned into the next one. The crew night loop's north star. |
 | `venue_accepted` | A pub was accepted into a plan, and what context came with it. |
 | `planning_handoff_opened` | A surface handed the planner a pub. |
-| `planning_handoff_preserved` | What survived that handoff. |
 | `night_description_submitted` | The describe-first field was used. |
-| `planned_night_status_changed` | A planned night changed state. |
 | `planned_night_action` | An action was taken on a planned night. |
-| `guest_plan_participated` | A guest took part without an account. |
 | `draft_recovered` | A recovered draft was offered and taken. |
 | `plan_vibe_vote` | The crew voted on the mood. |
 | `tour_complete` | The guided tour finished, or did not. |
-| `cmdk_open` | The command palette was opened. |
 | `night_mode_active` | The night surface was active. |
 
 ### 5.5 Invites, crews and the friend graph
@@ -334,9 +328,6 @@ vocabularies. The column here is the question the event exists to answer.
 | `invite_reaction_toggled` | A reaction was added or removed. |
 | `invite_map_opened` | The invite sent somebody to the Map. |
 | `friend_edge_via_crew` | A mutual pair formed because both were on one crew. |
-| `open_plan_posted` | An open plan was posted, on a venue or a place. |
-| `open_plan_join_requested` | A stranger asked to join. |
-| `open_plan_join_decided` | The host accepted or declined. |
 | `out_tonight_beacon_on` | The crew-only beacon went on. |
 | `out_tonight_beacon_off` | It went off. |
 
@@ -357,9 +348,9 @@ vocabularies. The column here is the question the event exists to answer.
 | `night_story_published` | A night story was published. |
 | `recap_shared` | A recap was shared. |
 | `recap_share_gate_opened` | A crew stepped toward the share consent flow. |
-| `recap_viewed` | A published recap was read. See 5.11. |
-| `briefing_viewed` | The morning brief was on screen. See 5.11. |
-| `briefing_opened` | The brief was reached from its own notification. See 5.11. |
+| `recap_viewed` | A published recap was read. See 5.10. |
+| `briefing_viewed` | The morning brief was on screen. See 5.10. |
+| `briefing_opened` | The brief was reached from its own notification. See 5.10. |
 
 ### 5.7 Pub Pal and the concierge
 
@@ -367,10 +358,8 @@ vocabularies. The column here is the question the event exists to answer.
 |---|---|
 | `concierge_ask` | Somebody asked the concierge. |
 | `concierge_result_tap` | An answer was taken. |
-| `pub_pal_adopted` | A Pal was chosen. |
 | `pub_pal_summoned` | The Pal was called from a surface. |
-| `pub_pal_memory_changed` | A Pal memory was written or removed. |
-| `voice_started` | A Pub Pal voice session connected. See 5.11. |
+| `voice_started` | A Pub Pal voice session connected. See 5.10. |
 
 ### 5.8 Identity and account
 
@@ -381,23 +370,11 @@ vocabularies. The column here is the question the event exists to answer.
 | `user_signed_out` | A session ended. |
 | `account_switched` | A device moved between accounts it already holds. |
 | `account_claimed` | A handle was claimed. |
-| `claim_started` | Held for schema compatibility. Account onboarding replaced this path. |
-| `claim_completed` | Held for schema compatibility. |
 | `social_account_connected` | A public social handle was linked, and how. |
 | `founding_grant` | A claim landed inside the first hundred. |
 | `message_attach_selected` | Which attachment door a message used. |
 
-### 5.9 Districts and the London capture
-
-| Event | Answers |
-|---|---|
-| `district_catalogue_viewed` | The reviewed district catalogue was seen. |
-| `district_viewed` | One district was seen, with its coverage and demand wave. |
-| `district_route_blocked` | A route was refused, and by which gate. |
-| `district_route_ready_selected` | A ready district route was taken. |
-| `route_ready_gate_failed` | The gate refused, with its code and version. |
-
-### 5.10 Install, platform and health
+### 5.9 Install, platform and health
 
 | Event | Answers |
 |---|---|
@@ -409,7 +386,7 @@ vocabularies. The column here is the question the event exists to answer.
 | `activity_pulse` | One coarse day bucket per identity per day. The return-rate rail. |
 | `web_vital` | Field performance, per metric, per route. Tile 5. |
 
-### 5.11 The four loop moments
+### 5.10 The four loop moments
 
 The four moments #252 named and nothing sent until 5 September 2026. Each is one
 half of a ratio, so they are read as pairs and never on their own.
@@ -445,25 +422,38 @@ Four limits that decide how these are queried.
   is a compile error, and `__tests__/loopMomentEvents.test.ts` holds the
   sanitizer to the same answer.
 
-## 6. Registered with no emitter today
+## 6. Every registered name has an emitter
 
-These 18 names are in the registry and nothing in `app`, `components` or `lib` sends
-them. The six loop moments in 5.11 were added WITH their emitters and are not on
-this list; `__tests__/loopMomentEvents.test.ts` is what keeps them off it. A dashboard tile built on one of them reads zero forever, and the zero is not a
-product finding.
+There is no list here any more, and that is the change.
 
-`cmdk_open`, `drop_logged`, `planned_night_status_changed`, `pub_pal_adopted`,
-`pub_pal_memory_changed`, `planning_handoff_preserved`, `map_search_ran`,
-`guest_plan_participated`, `district_catalogue_viewed`, `district_viewed`,
-`district_route_blocked`, `district_route_ready_selected`, `route_ready_gate_failed`,
-`claim_started`, `claim_completed`, `open_plan_posted`, `open_plan_join_requested`,
-`open_plan_join_decided`.
+This section used to name 18 events that were in the registry and sent by
+nothing in `app`, `components` or `lib`: `cmdk_open`, `drop_logged`,
+`planned_night_status_changed`, `pub_pal_adopted`, `pub_pal_memory_changed`,
+`planning_handoff_preserved`, `map_search_ran`, `guest_plan_participated`, the
+five London Capture district names, both `claim_*` steps, and the three
+open-plan names. A tile built on one of them read zero for ever, and that zero
+was indistinguishable from a real one.
 
-`claim_started` and `claim_completed` are known dead and are kept for schema
-compatibility (`docs/METRICS_FUNNEL.md`). The other 16 are unbuilt surfaces or
-surfaces that lost their emitter. Keeping the registry entry is right, because the
-sanitizer must know the shape before the first event arrives. Building a tile on one
-is not.
+All 18 are **deleted**, and `__tests__/analyticsEmitterFence.test.ts` is what
+stops the list growing back: every name in `lib/analyticsEvents.ts` must appear
+in a file that also reaches an emitter seam (`trackEvent`, `useLoopMoment`,
+`trackMeaningfulCoreAction`, or the two server-side minting seams). A name and
+its emitter now land in the same commit, which is the rule the six loop moments
+in 5.10 already followed.
+
+The defence for keeping an emitter-less row was that the sanitizer must know an
+event's shape before its first event arrives. That is a promise about a surface
+that is COMING, and it is still the right answer for one: register the name in
+the commit that builds the surface. It was not the right answer for a surface
+that was cancelled, never built, or lost its emitter, which is what all 18 were.
+Two of them (`claim_started`, `claim_completed`) were explicitly known dead and
+kept "for schema compatibility" with events that will never arrive.
+
+What the fence proves is the cheap half: that each name is referenced from a
+file that can emit. Whether a call site really fires, and fires once, stays each
+event's own test's job (`components/map/useVenueSheetOpened.ts`, the
+loop-moment latch, the verified completion receipt). The cheap half is the one
+that was missing: all 18 failed at this bar, and nobody noticed for months.
 
 ## 7. What this plan will not measure
 

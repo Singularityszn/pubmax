@@ -28,10 +28,11 @@ describe("price freshness honesty (Grok W5.7)", () => {
     readFileSync(join(ROOT, "data", "freshness_registry.json"), "utf8"),
   ) as FreshnessRegistry;
 
-  it("registers price_updates as episodic with no machine staleness budget", () => {
+  it("registers price_updates as a RETIRED lane with no machine staleness budget", () => {
     const entry = registry.datasets.find((dataset) => dataset.id === "price_updates");
     expect(entry).toMatchObject({
       class: "episodic",
+      retired: true,
       stalenessBudgetHours: null,
       artifact: "public/data/price_updates/latest.json",
     });
@@ -48,7 +49,7 @@ describe("price freshness honesty (Grok W5.7)", () => {
     );
   });
 
-  it("does not treat the empty July baseline as a stale cron feed in the audit", () => {
+  it("reports the closed baseline lane as retired rather than merely unbudgeted", () => {
     const now = new Date("2026-08-20T12:00:00.000Z");
     const results = evaluateRegistry(
       registry,
@@ -64,8 +65,13 @@ describe("price freshness honesty (Grok W5.7)", () => {
       now,
     );
 
+    // `untracked` was the old answer and it read as "not budgeted", which is a
+    // sentence about a lane somebody might still refresh. Nobody can refresh
+    // this one: the publish and its stub parser are deleted. Never a breach
+    // either way, so the release gate is untouched.
     const priceUpdates = results.find((row) => row.id === "price_updates");
-    expect(priceUpdates?.status).toBe("untracked");
+    expect(priceUpdates?.status).toBe("retired");
+    expect(priceUpdates?.status).not.toBe("untracked");
     expect(hasBreach(results.filter((row) => row.id === "price_updates"))).toBe(
       false,
     );

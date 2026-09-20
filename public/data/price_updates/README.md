@@ -1,18 +1,42 @@
-# Permissible-source price updates
+# Permissible-source price updates (RETIRED LANE)
 
-Versioned, provenance-stamped price files that refresh the **static baseline**
-price for a venue. Community Pint Drops remain the live price signal — a fresher
-Pint Drop always beats an update here (see `lib/priceUpdates.ts`
-`mergePriceUpdates`). These files exist so that, absent a recent community drop,
-the app can show a price sourced from a **permissible first-party source** with
-full attribution, instead of an ageing baseline.
+**This lane is closed.** `data/freshness_registry.json` declares it
+`retired: true`, so `/api/freshness` reports it as `retired` rather than as a
+feed anybody owes a run. Nothing in this tree writes these files.
 
-## File naming
+What was deleted, rather than switched off:
 
-`prices_YYYYMMDD.json` — one file per refresh run. The loader reads all files and,
-per venue, keeps the **newest valid `observedAt`**.
+- `scripts/refresh_prices.mjs`, the hand-run publish;
+- `scripts/price_source_fetchers.mjs`, whose `fetchFromSource()` returned `[]`
+  by construction, so every run of that publish wrote nothing;
+- the `refresh:prices` package script, and the slot the nightly local-refresh
+  scheduler spent on it;
+- the two `example-*` placeholder rows in `data/price_sources.json` `sources`,
+  which are not sources.
 
-## Schema
+**Why, and it is supply rather than permission.** Measured on the 2026-09-03
+re-read recorded in `lib/harvest/sourcePolicy.ts`: Greene King and Wetherspoon
+both permit automated reading and publish no web pint price at all, and the one
+chain that does publish one (Nicholson's, Mitchells & Butlers) answers
+`robots.txt` with a Cloudflare 403 and is refused on permission. A real
+first-party parser therefore has nothing permissible to parse. Reviving this
+lane is a captain SOURCE decision with a producer beside it, never a cadence
+or a budget change.
+
+## What still ships
+
+`latest.json` stays, empty, and the Map still reads it (`components/PubMap.tsx`,
+404-tolerant), so the sourced lane in `lib/venuePriceLane.ts` keeps its shape
+and a future publish has somewhere to land. Its `generatedAt` is an **envelope
+date**: it names the day the empty envelope was aligned to the bundled pint
+dataset's own collection day, and it dates no observation, because there are no
+rows to date.
+
+The current price lanes that are NOT this one, and that do carry real dated
+rows, are `public/data/drink_price_updates/`, `public/data/uk_prices/` and
+community Pint Drops. Read `data/AGENTS.md` for which of them may colour a pin.
+
+## Schema (unchanged, for a future publish)
 
 ```jsonc
 {
@@ -35,26 +59,19 @@ per venue, keeps the **newest valid `observedAt`**.
 }
 ```
 
-A bare top-level array (`[ {…update…}, … ]`) is also accepted by the loader.
+A bare top-level array (`[ {…update…}, … ]`) is also accepted by the loader
+(`lib/priceUpdates.ts` `parsePriceUpdates`), which drops malformed rows rather
+than throwing.
 
-## Governance (hard rules)
+## Governance (hard rules, still binding on any revival)
 
 - **First-party / open sources ONLY.** Prices may come from pub or brewery
-  official pages, or open-licensed datasets — see `data/price_sources.json`.
-  **No scraping of competitor price-aggregator sites, ever.**
-- **Every price carries `source` + `observedAt`.** The venue detail attributes a
-  refreshed price as **"sourced"** (`lib/priceUpdates.ts`
+  official pages, or open-licensed datasets, and only through
+  `data/price_sources.json`. **No scraping of competitor price-aggregator
+  sites, ever.** The two governance tables are read together and the narrower
+  answer binds (`__tests__/priceSourceGovernance.test.ts`).
+- **Every price carries `source` + `observedAt`.** The venue detail attributes
+  a refreshed price as **"sourced"** (`lib/priceUpdates.ts`
   `PRICE_UPDATE_PROVENANCE`), never as a community contribution.
 - **Never present stale as live.** `observedAt` is always surfaced; a future or
   malformed timestamp is rejected by the loader.
-
-## Why this example is empty
-
-No prices could be verified against a permissible first-party source without web
-access at authoring time. Rather than ship an unverified (and therefore
-governance-violating) price, this example file ships with `"updates": []`. The
-committed `latest.json` keeps `generatedAt` on the bundled pint collection day
-(2026-07-03) so public copy and the freshness spine do not read a fresher-looking
-stamp with no rows behind it. Audit class and cadence live in
-[`data/freshness_registry.json`](../../data/freshness_registry.json). The
-refresh scaffold (`scripts/refresh_prices.mjs`) writes real files of this shape.

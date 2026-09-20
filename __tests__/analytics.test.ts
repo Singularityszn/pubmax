@@ -60,7 +60,7 @@ afterEach(() => {
 
 describe("trackEvent", () => {
   it("no-ops when window is undefined (SSR / tests) and never throws", () => {
-    expect(() => trackEvent("cmdk_open")).not.toThrow();
+    expect(() => trackEvent("night_mode_active")).not.toThrow();
   });
 
   it("sends a known event via sendBeacon with allow-listed props", () => {

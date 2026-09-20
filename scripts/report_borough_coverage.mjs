@@ -141,7 +141,7 @@ function main() {
   lines.push("");
   lines.push("### Price-refresh sources & provenance rules");
   lines.push("");
-  lines.push("- **`refresh:prices`** (`scripts/refresh_prices.mjs`) reads the `data/price_sources.json` allowlist and refuses any URL not marked `first-party-official` / `open-data`. Its `fetchFromSource()` is a documented **stub returning `[]`** and the allowlist holds only `example-*` placeholders — so a run is a safe no-op that adds no rows.");
+  lines.push("- **The `price_updates` baseline lane is RETIRED.** `scripts/refresh_prices.mjs` and its stub `fetchFromSource()` are deleted, the `data/price_sources.json` `sources` allowlist is empty, and `data/freshness_registry.json` declares the lane `retired: true`. It was a safe no-op that added no rows; it is now absent rather than silent. Supply is the reason, not permission: the chains that permit automated reading publish no web pint price.");
   lines.push("- **`refresh:drink-prices`** (`scripts/refresh_drink_prices.mjs`) + the Firecrawl chain harvesters (`firecrawl_greene_king_prices.mjs`, `firecrawl_mbplc_prices.mjs`) target first-party chain drink menus (Greene King, Nicholson's, Wetherspoons). These require `FIRECRAWL_API_KEY` and live network access. **They feed `public/data/drink_price_updates/` — a separate runtime overlay read at venue-detail time — NOT the slim index's `cheapestPrice`.** `build_slim_index.mjs` reads no `price_updates` file, so running them does not change any number in this coverage table.");
   lines.push("- **Hard governance (all refreshers):** every emitted price carries `{ source, observedAt }` (or `licence`), rows that can't be attributed to a specific venue are dropped (never guessed), no competitor price-aggregators, and output goes through a reviewed PR — never a push to main.");
   lines.push("");
@@ -150,7 +150,7 @@ function main() {
   lines.push("Honest accounting of what could be run to raise coverage using the EXISTING scripts:");
   lines.push("");
   lines.push("- **Gazetteer seeds — exhausted.** Both merges are already fully applied (`merge_london_chain_gazetteer` → 0 merged / 63 skipped). Re-running `merge_outer_london_gazetteer` merges 1 \"new\" row — but it is a **coordinate-drift duplicate** of *The Moon on the Hill – JD Wetherspoon* (Harrow), which already exists with canonical priced rows: the seed's coords (51.5795, -0.335) round differently from the already-merged copy (51.5794, -0.3342), dodging the 4-decimal dedup key. This was **not committed** (it would double a pin). Filed as a seed/dedup finding for a later cycle.");
-  lines.push("- **`refresh:prices` — nothing to run.** Stub + placeholder allowlist; produces no rows.");
+  lines.push("- **`refresh:prices` — gone.** The lane it fed is retired; there is no longer a command here to consider running.");
   lines.push("- **Firecrawl drink harvesters — out of scope for this metric.** `FIRECRAWL_API_KEY` is available, but the output is a drink-menu overlay that does not touch slim `cheapestPrice`/borough coverage, so running it cannot improve this table. Left for the drinks-enrichment lane, not the coverage lane.");
   lines.push("- **No keyless London venue-ingestion path exists.** `fetch:city-pubs` (Overpass/OSM, keyless) is scoped to the non-London Wave-2 cities (Manchester, Liverpool, …), not Greater London. Adding Outer-London pub *presence* at scale would need a new curated seed or a new ingestion script — deliberately out of scope for \"expand via existing scripts\".");
   lines.push("");

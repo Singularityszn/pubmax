@@ -4,6 +4,7 @@ import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { cleanEndingSelection, isPlanId, type CrawlEnding, type PlanCompletionDTO, type PlanState } from "@/lib/plan";
 import { planCompletionResult, planMemberIdentityResult, planStateResult, planStore } from "@/lib/planStore";
+import { CREW_NIGHT_MIN_PARTICIPANTS } from "@/lib/crew";
 import { canonicalEndingSelection } from "@/lib/planEndingSelection.server";
 import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { planMemberCapability } from "@/lib/planMemberCapability";
@@ -13,19 +14,33 @@ import { completionLoopEventTokens } from "@/lib/verifiedAnalytics.server";
 type Context = { params: Promise<{ id: string }> };
 const ENDINGS: CrawlEnding[] = ["food", "get_home", "keep_going"];
 
+// Whether the night that just ended had a crew, read off the roster the store
+// already answered with. It reads the SAME threshold `crew_committed` is
+// minted on (lib/crew.ts), so the two halves of the crew-night ratio cannot
+// come to mean different things, and it travels as `eventProps` beside the
+// tokens because the browser has to send the props the receipt was signed
+// over. Never a roster count and never a plan id: docs/analytics/METRICS.md
+// §2.2 and ADR 0009.
+function completionEventProps(plan: PlanState): { crewNight: boolean } {
+  return { crewNight: plan.crew.length >= CREW_NIGHT_MIN_PARTICIPANTS };
+}
+
 function completionResponse(
   plan: PlanState,
   completion: PlanCompletionDTO,
   created: boolean,
 ): Record<string, unknown> {
+  const eventProps = completionEventProps(plan);
   return {
     plan,
     completion,
     created,
+    eventProps,
     eventTokens: completionLoopEventTokens({
       completionId: completion.id,
       completedAt: completion.completedAt,
       ending: completion.ending,
+      crewNight: eventProps.crewNight,
     }),
   };
 }

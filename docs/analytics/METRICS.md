@@ -143,23 +143,47 @@ ORDER BY week
 The repeat denominator is the devices that qualified in that week. It is a device
 count, not a people count, and it may never be reported as one.
 
-### 2.2 The one gap, and the smallest honest way to close it
+### 2.2 The one gap, closed
 
-`plan_completed` does not say whether the night it ended had a crew. A solo night
-that reaches its last stop reports the same event as a night of six. So
-"crew nights completed" cannot be stated as a single number today, and this file
-does not state one.
+`plan_completed` used not to say whether the night it ended had a crew: a solo night
+that reached its last stop reported exactly what a night of six reported, so
+"crew nights completed" could not be stated as a number at all.
 
-The smallest change that closes it adds no identifier and no join key: give
-`plan_completed` one low-cardinality boolean prop saying whether the completed
-night's roster held two or more people. The completion receipt is already minted on
-the server (`completionLoopEventTokens` in `lib/verifiedAnalytics.server.ts`), which
-is where the roster is known, so the value is a fact the server already holds rather
-than a claim the browser makes. A plan id or any per-plan key would do the same job
-and is refused: it would link two devices to one night, which is exactly the identity
-join ADR 0009 rules out.
+It now carries `crewNight`, one low-cardinality boolean saying whether the completed
+night's roster reached `CREW_NIGHT_MIN_PARTICIPANTS` (two). Three things make it the
+smallest honest close rather than a new identity surface.
 
-Until that ships, report the pair from 2.1 and say the ratio is not available.
+- **The server decides it.** The value is minted on the completion receipt
+  (`completionLoopEventTokens` in `lib/verifiedAnalytics.server.ts`) from the roster
+  the store already answered with, and it is signed into the delivery token, so a
+  browser that flips the answer gets a token that no longer verifies and the event is
+  discarded rather than counted.
+- **It is the same threshold `crew_committed` is minted on** (`lib/crew.ts`), so the
+  two halves of the ratio cannot come to mean different sizes of night.
+- **It adds no join key.** A plan id, or any per-plan key, would answer the same
+  question and is refused: it would link two devices to one night, which is exactly
+  the identity join ADR 0009 rules out.
+
+```sql
+-- Crew nights completed, as a share of completions.
+SELECT
+    toStartOfWeek(timestamp) AS week,
+    countIf(properties.crewNight = true) AS crew_nights_completed,
+    count() AS completed_nights
+FROM events
+WHERE event = 'plan_completed'
+  AND properties.environment = 'production'
+  AND timestamp >= now() - INTERVAL 90 DAY
+GROUP BY week
+ORDER BY week
+```
+
+Two limits ride with it. A completion whose receipt was minted before this shipped
+carries `ending` alone, so `crewNight` is **absent** rather than `false` on those
+rows: filter on `crewNight = true` against a denominator of rows that carry the
+property at all, never against every completion ever recorded. And this closes the
+crew question for one night; clauses 2 and 3 of the north star for the SAME night
+still cannot be joined at row level, for the reason 2.1 gives.
 
 ## 3. Supporting measures
 
@@ -170,12 +194,13 @@ count is never reported as a rate.
 |---|---|---|---|
 | First action within 60 seconds | See TRACKING_PLAN 2.1 | Landings in the same window | The release metric. This file does not restate its query |
 | Plan reaches a crew | `crew_committed` in the week | `plan_accepted` in the week | Two weekly counts, never a row-level join. Both are one per plan-night |
-| Night completed | `plan_completed` in the week | `plan_accepted` in the week | Includes solo nights. See 2.2 |
+| Night completed | `plan_completed` in the week | `plan_accepted` in the week | Includes solo nights |
+| Crew night completed | `plan_completed` with `crewNight = true` | `plan_completed` rows carrying `crewNight` at all | Never against every completion: a pre-`crewNight` receipt has no answer. See 2.2 |
 | Weekly meaningful pubmaxxers | Distinct `distinct_id` with `meaningful_core_action` | Distinct `distinct_id` with any event | The roll-up in `WEEKLY_MEANINGFUL_CORE_ACTIONS`. Five actions, no impressions |
 | Invite opened | `plan_invite_opened` | `plan_invite_sent` | Sends and opens come from different devices. A weekly ratio, not a funnel |
 | Near answers served | `near_answer_ready` with `resultBand` other than `0` | All `near_answer_ready` | An empty answer is reported, so the denominator is honest |
 | Price loop | `price_submitted` | `price_submit_viewed` | The composer's own funnel. `price_submit_failed` is the third line |
-| Loop moments | Each of the six in TRACKING_PLAN 5.11 | Its own pair | Read as pairs. Neither line alone says anything |
+| Loop moments | Each of the six in TRACKING_PLAN 5.10 | Its own pair | Read as pairs. Neither line alone says anything |
 | Release health | `web_vital` p75 by `route` | Not a rate | Compare across `release` to see what a deploy moved |
 
 ## 4. What this file will not define
@@ -187,5 +212,7 @@ count is never reported as a rate.
   figure about consented visitors.
 - **A server-minted confirmation.** Nobody consenting stands behind it. TRACKING_PLAN
   section 3, tile 4.
-- **A guest-only depth figure.** `guest_plan_participated` has no emitter. The
-  honest answer is that it is unmeasured.
+- **A guest-only depth figure.** `guest_plan_participated` was registered and never
+  emitted, and is now deleted with the other seventeen orphan names
+  (TRACKING_PLAN 6). The honest answer is unchanged: guest depth is unmeasured, and
+  it stays unmeasured until a surface sends something.

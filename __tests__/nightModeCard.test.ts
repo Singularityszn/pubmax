@@ -174,9 +174,43 @@ describe("canonical route revision completion", () => {
       eventTokens: { planCompleted: "completion-token", meaningfulCoreAction: "meaningful-token" },
     })).toEqual({
       ending: "get_home",
+      planCompletedProps: { ending: "get_home" },
       planCompletedToken: "completion-token",
       meaningfulCoreActionToken: "meaningful-token",
     });
+  });
+
+  it("carries the SERVER's crew answer, and never one derived on the device", () => {
+    // The props sent have to match the props the receipt was signed over, so
+    // the crew boolean is read off the response rather than counted off the
+    // plan on screen. Both values travel; neither is inferred.
+    for (const crewNight of [true, false]) {
+      expect(completionTelemetryFromBody({
+        created: true,
+        completion: { ending: "food" },
+        eventProps: { crewNight },
+        eventTokens: { planCompleted: "completion-token", meaningfulCoreAction: "meaningful-token" },
+      })).toEqual({
+        ending: "food",
+        planCompletedProps: { ending: "food", crewNight },
+        planCompletedToken: "completion-token",
+        meaningfulCoreActionToken: "meaningful-token",
+      });
+    }
+  });
+
+  it("leaves the crew answer off a receipt minted before it shipped", () => {
+    // Absent is not false: a night whose receipt predates the boolean is a
+    // completion nobody asked the crew question about, and sending `false`
+    // would report it as a solo night.
+    const telemetry = completionTelemetryFromBody({
+      created: true,
+      completion: { ending: "keep_going" },
+      eventProps: { crewNight: "yes" },
+      eventTokens: { planCompleted: "completion-token", meaningfulCoreAction: "meaningful-token" },
+    });
+    expect(telemetry?.planCompletedProps).toEqual({ ending: "keep_going" });
+    expect(telemetry && "crewNight" in telemetry.planCompletedProps).toBe(false);
   });
 
   it("reads the active revision and sends the current canonical pub as terminal", () => {

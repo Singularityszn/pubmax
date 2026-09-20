@@ -12,22 +12,8 @@
       "notes": "scripts/enrich_city_pubs_tavily.mjs uses bounded searches restricted to OSM-declared official pub domains. Tavily never appears in emitted source fields. Undeclared domains are never promoted to official provenance. Wetherspoons, Greene King, and Mitchells & Butlers are delegated to existing chain harvesters."
     }
   ],
-  "sources": [
-    {
-      "id": "example-brewery-official",
-      "label": "Example Brewery — official taproom page",
-      "kind": "first-party-official",
-      "url": "https://www.example-brewery.co.uk/taproom",
-      "note": "PLACEHOLDER. Replace with a real brewery/pub official menu page you have permission to read. First-party publisher of their own pint prices."
-    },
-    {
-      "id": "example-open-data",
-      "label": "Example open-data pub dataset",
-      "kind": "open-data",
-      "url": "https://data.example.gov.uk/pub-prices",
-      "note": "PLACEHOLDER. Replace with a real open-licensed dataset (e.g. a council/OS/ONS open feed). Must carry an open licence permitting reuse."
-    }
-  ],
+  "$sourcesComment": "EMPTY, and that is the honest reading. This array fed the `price_updates` baseline lane, which is RETIRED (data/freshness_registry.json, `retired: true`): its hand-run publish and the stub parser behind it are deleted, so nothing reads this array to fetch with any more. It held two `example-*` placeholders pointing at example.co.uk and example.gov.uk, which a reader could mistake for supply this lane had. It has none: on the 2026-09-03 re-read the chains that PERMIT automated reading publish no web pint price, and the one that publishes a price is refused on permission. A placeholder is not a source, so it is deleted rather than kept; the rule that a REFUSED real source stays in the table so the gap stays visible is untouched and is why Nicholson's is still below. Adding a row here is a captain source decision, and it needs a producer beside it or the lane is retired again the moment it lands.",
+  "sources": [],
   "$drinkSourcesComment": "Allowlist of PERMISSIBLE first-party / open DRINK-menu price sources for scripts/refresh_drink_prices.mjs (E2 of docs/PRD_ALL_DRINKS.md). Same hard rule as `sources` above: a chain publishing ITS OWN pub menus (e.g. Wetherspoons' own site/app for its own pubs) is first-party and permissible. Competitor price aggregators, review sites (Vivino, Untappd, etc.) or any site whose ToS/robots.txt forbids automated access are NEVER permissible, no exceptions. `kind` must be one of first-party-chain | first-party-venue | open-data. Every entry must be `permissible: true` AND documented with a `licence` string; the refresh script refuses any source that is missing either. GOVERNANCE PRECEDENCE, settled 2026-09-03: this table and lib/harvest/sourcePolicy.ts are read together and the NARROWER answer binds. A source is usable only when it is permissible HERE and not refused THERE on permission. The two disagreed about Nicholson's while 1,914 Nicholson's rows shipped, so `permissible` here is false for any host sourcePolicy refuses on permission, and __tests__/priceSourceGovernance.test.ts fails the build if they drift apart again.",
   "drinkSources": [
     {

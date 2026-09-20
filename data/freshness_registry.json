@@ -1,5 +1,5 @@
 {
-  "$comment": "Machine-readable freshness registry — the single source of truth for WHEN every data class is meant to refresh and how stale it is allowed to get. Consumed by scripts/check_freshness.mjs (CI/owner check), lib/freshness.ts (the /api/freshness route and the /api/cron/freshness-audit cron), validate-data (WARN wiring), and next.config.mjs, which derives the outputFileTracingIncludes entry for every field-stamped artifact from this file so both freshness functions are deployed with the files they open at runtime. See docs/WAYFINDER_LIVE_DATA.md for the cadence table and activation matrix. Keep entries in lockstep with vercel.json, app/api/cron, remaining workflows, and refresh scripts.",
+  "$comment": "Machine-readable freshness registry — the single source of truth for WHEN every data class is meant to refresh and how stale it is allowed to get. Consumed by scripts/check_freshness.mjs (CI/owner check), lib/freshness.ts (the /api/freshness route and the /api/cron/freshness-audit cron), validate-data (WARN wiring), and next.config.mjs, which derives the outputFileTracingIncludes entry for every field-stamped artifact from this file so both freshness functions are deployed with the files they open at runtime. See docs/WAYFINDER_LIVE_DATA.md for the cadence table and activation matrix. Keep entries in lockstep with vercel.json, app/api/cron, remaining workflows, and refresh scripts. A row may declare `retired: true`, which means the lane is CLOSED: no producer for it exists in this tree, so no run is owed and none can be made. Both readers report it as `retired` rather than as `untracked` or `snapshot`, because those two words describe a lane somebody still refreshes or might, and a closed lane read as either is a lane a reader keeps waiting for. Retiring a lane retires its REFRESH and never its artifact's integrity: a declared stamp that stops resolving is still an UNRESOLVED breach.",
   "version": 1,
   "generatedBy": "infra/live-data-wayfinder",
   "datasets": [
@@ -16,14 +16,15 @@
     },
     {
       "id": "price_updates",
-      "label": "Cheapest-pint baseline price updates",
+      "label": "Cheapest-pint baseline price updates (RETIRED)",
       "class": "episodic",
+      "retired": true,
       "artifact": "public/data/price_updates/latest.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "human-gated reviewed publish; no machine schedule until real first-party parsers ship",
+      "cadence": "none: a closed lane. No producer exists in this tree and none may be built against today's allowlist.",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "manual reviewed publish via npm run refresh:prices -- --open-pr. The retired scheduled retrieval route had only stubbed parsers and could never advance this served file. While parsers are stubbed the committed envelope stays EMPTY and its generatedAt dates NO observation: it is the day the empty envelope was aligned to the bundled pint dataset's own collection day, and it moves only when that day moves. Read it as an envelope date, never as a price date. This prose names no day of its own: the day the envelope is aligned to is whatever pint_prices reports, and a date typed here would rot the moment that one moved. Nothing restamps a row, because there are no rows.",
-      "gate": "none to run; first-party parsers are STUBBED (fetchFromSource returns []), so scheduled retrieval remains an honest no-op until a real parser retrieves valid rows AND a human publishes them"
+      "refreshWorkflow": "None. The hand-run publish (scripts/refresh_prices.mjs) and the parser module behind it (scripts/price_source_fetchers.mjs, whose fetchFromSource returned [] by construction) are DELETED rather than switched off, the refresh:prices package script is gone with them, and the nightly local-refresh scheduler no longer spends a slot on a command that could only ever write nothing. The registry used to name that command as this lane's refresh workflow, which read as progress somebody owed: it was not. The committed envelope stays EMPTY and its generatedAt dates NO observation: it is the day the empty envelope was aligned to the bundled pint dataset's own collection day, and it moves only when that day moves. Read it as an envelope date, never as a price date. This prose names no day of its own: the day the envelope is aligned to is whatever pint_prices reports, and a date typed here would rot the moment that one moved. Nothing restamps a row, because there are no rows.",
+      "gate": "SUPPLY, not permission, and it is measured rather than assumed: on the 2026-09-03 re-read Greene King and Wetherspoon both PERMIT automated reading and publish no web pint price at all, while the one chain that does publish one (Nicholson's, Mitchells & Butlers) answers robots.txt with a Cloudflare 403 and is refused on permission. A first-party parser therefore has nothing permissible to parse, so data/price_sources.json `sources` now holds no source rather than two example-* placeholders. Reviving the lane is a captain SOURCE decision followed by a parser and a producer, never a budget or a cadence change. See lib/harvest/sourcePolicy.ts and docs/plans/CHAIN_PRICE_HARVEST.md."
     },
     {
       "id": "drink_price_updates",
@@ -38,14 +39,15 @@
     },
     {
       "id": "food_price_updates",
-      "label": "Food-menu price updates",
+      "label": "Food-menu price updates (RETIRED)",
       "class": "episodic",
+      "retired": true,
       "artifact": "public/data/food_price_updates/latest.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "episodic snapshot, harvested by hand; no script in the tree writes it",
+      "cadence": "none: a closed lane. The 3 MB pack still ships and is still read; nothing writes it.",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "None. No script in this tree writes public/data/food_price_updates/latest.json: lib/priceUpdates.server.ts only reads it, and the Greene King rendered lane (scripts/harvest/uk-prices/render.mjs) writes the uk-prices overlay, not this file. A 1440h budget here was a promise nobody could keep: the lane reported stale for ageing exactly as designed and took the merge bar red with it (astra-review P0-1). Every row carries its own observedAt and lib/priceUpdates.ts never presents one as live. Adding a generator is a separate captain decision, not a budget change.",
-      "gate": "FIRECRAWL_API_KEY plus a generator that does not yet exist in the tree. Until both exist this snapshot advances only by hand, so it carries no staleness budget and is never reported fresh."
+      "refreshWorkflow": "None, and `retired: true` is now what says so rather than a sentence a reader had to reach the end of. No script in this tree writes public/data/food_price_updates/latest.json: lib/priceUpdates.server.ts only reads it, scripts/firecrawl_greene_king_prices.mjs writes the DRINK pack beside it (its mapSectionToCategory returns null for every food section on purpose), and the Greene King rendered lane (scripts/harvest/uk-prices/render.mjs) writes the uk-prices overlay. `harvested by hand` was the last claim standing here and nobody harvests it: every row in the pack carries the same single import, which was never repeated. A 1440h budget was a promise nobody could keep before that: the lane reported stale for ageing exactly as designed and took the merge bar red with it (astra-review P0-1). The pack keeps serving and every row carries its own observedAt, which lib/priceUpdates.ts never presents as live. Writing a generator is a separate captain decision, not a budget or a status change.",
+      "gate": "No writer, which is a stronger fact than a missing key: FIRECRAWL_API_KEY alone buys nothing while no script in the tree turns a permitted Greene King menu into a food row. The artifact is still opened by both freshness readers, so a pack that goes missing or stops parsing is still an UNRESOLVED breach: retiring a lane retires its refresh, never its file's integrity."
     },
     {
       "id": "night_signals",
