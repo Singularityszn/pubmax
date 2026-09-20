@@ -14,6 +14,15 @@ import type { PaidSpendLane } from "@/lib/paidSpendBudget";
 
 const DEFAULT_TIMEOUT_MS = 4_000;
 
+/**
+ * The one host this module talks to, named here so `/privacy` can be held to it
+ * (`__tests__/legalPages.test.ts` reads the prompt-text recipient table out of
+ * the source that contacts each host). `TYPESAFE_BASE_URL` still overrides it
+ * for a staging endpoint; the SDK would otherwise pick this same default up
+ * silently and no fence would see the egress.
+ */
+export const TYPESAFE_API_BASE_URL = "https://api.typesafe.ai";
+
 export type TypesafeObservabilityLane = PaidSpendLane | "typesafe";
 
 function typesafeApiKeyConfigured(): boolean {
@@ -75,12 +84,23 @@ export async function systemOne<Q extends Questions>(
 
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const start = Date.now();
-  const client = new TypeSafeClient({ logLevel: "off" });
+  // THE RETRY POLICY IS OURS, as it is for context.dev (`lib/AGENTS.md`). The
+  // SDK defaults to two retries with no total budget and honours a `Retry-After`
+  // up to sixty seconds, so a 429 or a hung endpoint would hold a Pub Pal reply
+  // for minutes on the request path and bill three calls against one counted
+  // budget decrement. Retries off, and `signal` is a WALL-CLOCK deadline the SDK
+  // applies to the request and to any pending wait, so `timeoutMs` is the whole
+  // cost of this call and not the cost of one attempt.
+  const client = new TypeSafeClient({
+    logLevel: "off",
+    baseURL: process.env.TYPESAFE_BASE_URL?.trim() || TYPESAFE_API_BASE_URL,
+    retry: { maxRetries: 0 },
+  });
 
   try {
     const result = await client.systemOne(
       { state, questions },
-      { timeout: timeoutMs },
+      { timeout: timeoutMs, signal: AbortSignal.timeout(timeoutMs) },
     );
     const durationMs = Date.now() - start;
     recordTypesafeTiming(options.lane, durationMs, "ok");
