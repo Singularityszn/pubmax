@@ -185,11 +185,6 @@ function isSocialUrl(value: string): boolean {
   }
 }
 
-function containsWord(haystack: string, word: string): boolean {
-  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`, "i").test(haystack);
-}
-
 function containsExactLocality(haystack: string, locality: string): boolean {
   const escaped = locality.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const localityRe = new RegExp(
