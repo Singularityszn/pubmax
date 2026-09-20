@@ -17,11 +17,19 @@ import {
   type CityMapShareOptions,
 } from "@/lib/cityShare";
 
+const LONDON_MAP_DESCRIPTION =
+  "PubMaxxing is the London pub map on PUBMAXX, with listed pint prices and crawl planning.";
+
 export function londonMapMetadata(
   options: CityMapShareOptions = {},
 ): Metadata {
   const title = cityMapOgTitle("london", options);
-  const description = cityMapOgDescription("london", options);
+  const shareDescription = cityMapOgDescription("london", options);
+  const plainLondonDescription = cityMapOgDescription("london", {});
+  const description =
+    shareDescription === plainLondonDescription
+      ? LONDON_MAP_DESCRIPTION
+      : shareDescription;
   const url = cityMapShareUrl("london", options);
   const image = cityMapOgImageUrl("london", options);
   const alt = cityMapOgAlt("london", options);

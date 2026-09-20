@@ -69,6 +69,7 @@ describe("Vercel production host canonicalisation", () => {
       response,
       "https://pubmaxxing.com/map/where?sel=venue-xjf3n0&next=%2Fu%2Fyou",
     );
+    expect(response.headers.get("x-robots-tag")).toBe("noindex");
   });
 
   it("redirects a promoted Preview artifact with its Preview settings retained", () => {

@@ -39,7 +39,7 @@ import type { MetadataRoute } from "next";
 // row returning is a conscious test edit, the same as a change to the list
 // above; the gate itself is proved in both directions by the fixture-driven
 // describe at the foot of this file. The ROUTE is unaffected either way.
-const STATIC_HUB_COUNT = 14;
+const STATIC_HUB_COUNT = 16;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -171,6 +171,16 @@ describe("sitemap()", () => {
       "/crawls",
       "/about",
       "/spoons-value",
+    ]) {
+      expect(urls).toContain(`${SITE}${hub}`);
+    }
+  });
+
+  it("lists brand-relevant discovery routes", () => {
+    for (const hub of [
+      "/tonight",
+      "/near",
+      "/how-we-estimate",
     ]) {
       expect(urls).toContain(`${SITE}${hub}`);
     }

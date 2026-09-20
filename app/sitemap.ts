@@ -169,6 +169,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/tonight", priority: 0.6, changeFrequency: "daily", lastModified: now },
+    {
+      path: "/near",
+      priority: 0.6,
+      changeFrequency: "daily",
+      lastModified: pricesModified,
+    },
+    {
+      path: "/how-we-estimate",
+      priority: 0.4,
+      changeFrequency: "yearly",
+      lastModified: now,
+    },
     { path: "/crawls", priority: 0.6, changeFrequency: "weekly", lastModified: now },
     // The city picker. /choose-city held this row until the picker was made
     // one page: it now 308s to /places (proxy.ts), and the canonical moved in

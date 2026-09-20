@@ -400,6 +400,15 @@
       "lcpMs": 300
     },
     {
+      "path": "/how-we-estimate",
+      "readySelector": "main.legalPage",
+      "why": "The authority page every estimated price links to. It shares the legal shell and composes nothing per request, so it sits on the same floor as /privacy and /terms.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 910,
+      "requests": 37,
+      "lcpMs": 500
+    },
+    {
       "path": "/places",
       "readySelector": "main.placesBody",
       "why": "The Places tab, which sets the one city Map, Out and Near follow. It shipped in #1368 after this sweep's route list was drawn, and an unbudgeted route is one nothing can regress.",
