@@ -117,7 +117,7 @@ Expected: early probe and prior explicit-authority certification pass.
 ### Task 4: Closeout and evidence
 
 **Files:**
-- Modify: `.superpowers/sdd/2026-08-05-verified-social-night-loop/task-2-report.md`
+- Modify: `docs/superpowers/sdd/2026-08-05-verified-social-night-loop/task-2-report.md`
 
 - [ ] **Step 1: Run shape, diff, and docs review**
 

@@ -12,7 +12,9 @@ const baseUrl = process.argv.includes("--base-url")
 const label = process.argv.includes("--label")
   ? process.argv[process.argv.indexOf("--label") + 1]
   : "shot";
-const outDir = join(process.cwd(), "pubmax-wave-screenshots", "map-fix");
+// Screenshots are a local artifact, never a committed one: `e2e-shots/` is
+// gitignored, so a run cannot leave a stale image in the tree.
+const outDir = join(process.cwd(), "e2e-shots", "map-fix");
 
 await mkdir(outDir, { recursive: true });
 

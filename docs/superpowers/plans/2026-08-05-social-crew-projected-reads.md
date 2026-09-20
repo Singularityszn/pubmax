@@ -43,8 +43,8 @@ membership, friendship, and block state.
 
 **Files:**
 
-- Modify: `specs/social-crews/README.md`
-- Modify: `specs/social-crews/slices/02-projection.md`
+- Modify: `docs/specs/social-crews/README.md`
+- Modify: `docs/specs/social-crews/slices/02-projection.md`
 - Modify: `lib/socialCrew.ts`
 - Modify: `lib/socialCrewProjection.server.ts`
 - Create: `__tests__/socialCrewProjection.test.ts`
@@ -220,9 +220,9 @@ membership, friendship, and block state.
 
 **Files:**
 
-- Modify: `specs/social-crews/README.md`
+- Modify: `docs/specs/social-crews/README.md`
 - Create:
-  `.superpowers/sdd/2026-08-05-verified-social-night-loop/task-7-slice-2-report.md`
+  `docs/superpowers/sdd/2026-08-05-verified-social-night-loop/task-7-slice-2-report.md`
 
 - [ ] Run a fresh seven-area gate: projection, cursor, store, routes,
   relationships, PostgreSQL 16, and legacy firewall, followed by RLS,

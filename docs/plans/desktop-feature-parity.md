@@ -234,7 +234,7 @@ Snapshot of **live worktrees / branches as of 2026-07-23**. Re-run `git worktree
 | **Codex — security** | `.codex-worktrees/wave-next-security` + security-persistence/rls trees | Next.js dep, security reads | No shared dep bumps; no social-read API thrash |
 | **Codex — push / analytics / generation** | `pubmax-codex-wave*` | push identity, VAPID, grounded plan gen | Orthogonal — do not open those PRs from this tree |
 | **Sol (historical / branches)** | `sol-s3-walk`, `cursor/sol-wave-*`, map chrome waves | map chrome, walk/routing, mobile-first | **HOLD** MAP-1/2/4/7 and tablet unification while Sol map PRs are open; Sol owns mobile map quality first |
-| **Opus (per sol.md)** | map pin dark-mode, mobile visual audit | `PubMap` / basemap / sheet | Same map freeze; Opus map fixes land **before** desktop map shell PRs |
+| **Opus (per docs/plans/sol.md)** | map pin dark-mode, mobile visual audit | `PubMap` / basemap / sheet | Same map freeze; Opus map fixes land **before** desktop map shell PRs |
 | **Other** | mobile-sheet-scroll-fix, brand/* | mobile sheets, brand icons | Do not edit mobile portal sheet physics from this lane |
 
 ### Hard rules
@@ -510,7 +510,7 @@ git worktree add -b feat/desktop-parity-d1-messages \
 | 2026-07-23 | Explore subagent: map/planner | Portal vs drawer; 768 hybrid; D1 incomplete; plan intent mobile-only |
 | 2026-07-23 | Explore subagent: routes | Route readiness table; top gaps Messages/Today/Moment/Activity |
 | 2026-07-23 | Explore subagent: docs | D1/D2 authority; superseded UI Next still useful as defect catalogue |
-| 2026-07-23 | `FABLE_HANDOFF.md` | Desktop area-search ticket; #401 D1 claims |
+| 2026-07-23 | `docs/handoffs/FABLE_HANDOFF.md` | Desktop area-search ticket; #401 D1 claims |
 | 2026-07-23 | Targeted rg | Feed/Tonight `@media (min-width: 1024px)` rails; MapToolbar ConditionsChip |
 | 2026-07-23 | Isolation move | Plan removed from `main` working tree; lives only on worktree `pubmax-desktop-parity-plan` / branch `docs/desktop-feature-parity-plan` |
 | 2026-07-23 | Worktree census | Fable: auth, data, plan-location, today, integration; Codex: personalized-today, surprise-drink, personalization-integration, security, producthunt (tonight+plan); Sol/Opus map lanes treated as HOLD for D3+ |
@@ -524,7 +524,7 @@ git worktree add -b feat/desktop-parity-d1-messages \
 - `docs/MAP_CHROME_TIERS.md` — mobile chip hierarchy  
 - `docs/PRD_UI_NEXT.md` — superseded but N1–N4 history  
 - `docs/archive/PRD_MAP_FIRST_REDESIGN.md` — full-bleed + drawers  
-- `FABLE_HANDOFF.md` — live verification + open tickets  
+- `docs/handoffs/FABLE_HANDOFF.md` — live verification + open tickets  
 - `lib/breakpoints.ts`  
 - `components/nav/navigationModel.ts`  
 - `components/desktop/*`  

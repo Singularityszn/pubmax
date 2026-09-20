@@ -5,8 +5,8 @@ import type { PintDrop } from "@/lib/pintDropShared";
 import type { LastPintDecisionKind } from "@/lib/tfl";
 
 // Seeded demo Pint Drops for the curated heritage pubs (lib/curation.ts,
-// seeds/heritage.md). They exist so the community layer reads as alive on
-// day one — and they are provenance-tagged "demo" so that liveliness never
+// docs/data/heritage-seeds.md). They exist so the community layer reads as
+// alive on day one — and they are provenance-tagged "demo" so that liveliness never
 // masquerades as organic (PRD "Implementation decisions"):
 // - the UI renders a distinct Demo badge (never Contributor/Anecdote);
 // - mergeVenueDrops ignores them for derived signals (prices, hasStory);

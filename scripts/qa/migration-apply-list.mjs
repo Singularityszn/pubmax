@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Prints the owner apply list for supabase/migrations, in real apply order.
 //
-// The list used to be a hand-typed section in FABLE_HANDOFF.md. A hand-typed
-// list drifts: it stops being updated, and the migrations directory keeps
+// The list used to be a hand-typed section in docs/handoffs/FABLE_HANDOFF.md.
+// A hand-typed list drifts: it stops being updated, and the migrations directory keeps
 // growing past it. This script reads the migrations directory itself, so the
 // list can never go stale.
 //

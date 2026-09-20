@@ -329,7 +329,7 @@ TICKETMASTER_API_KEY (the sole events-discovery path) · demo-content flip (NEXT
 
 ## Cycle 15-16 close + Cycle 17 (launch week, 2026-07-19/20)
 
-Cycles 15-16 (overnight research + clarity loops) closed into the launch: regional sweeps, slop filter (#376), native readiness (#377), Tonight Conditions (#378), Social Loop v1 (#379), wayfinder clarity #393-#397 closed with judge evidence. Full detail in FABLE_HANDOFF.md history and docs/UNIVERSAL_DAY0_PRD.md.
+Cycles 15-16 (overnight research + clarity loops) closed into the launch: regional sweeps, slop filter (#376), native readiness (#377), Tonight Conditions (#378), Social Loop v1 (#379), wayfinder clarity #393-#397 closed with judge evidence. Full detail in docs/handoffs/FABLE_HANDOFF.md history and docs/UNIVERSAL_DAY0_PRD.md.
 
 Cycle 17 (docs/UNIVERSAL_DAY0_PRD.md = canonical): 26 PRs merged in one owner-steered day+night, #409-#416 + #418-#434. Three arcs:
 

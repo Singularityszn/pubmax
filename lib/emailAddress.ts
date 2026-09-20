@@ -4,8 +4,8 @@
 //
 // This was `lib/emailSubscribers.ts`. The identity-nudge email capture, its
 // store and its routes were removed once the weekly digest turned out never to
-// have been built (see specs/honest-identity-nudge-email-action.md); the
-// address helpers stayed because `lib/areaDemand.ts` still validates an address
+// have been built (see docs/specs/honest-identity-nudge-email-action.md);
+// the address helpers stayed because `lib/areaDemand.ts` still validates an address
 // with them.
 
 /** RFC-pragmatic max length; addresses longer than this are rejected outright. */

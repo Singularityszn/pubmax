@@ -31,7 +31,7 @@ Cursor only loads project skills from:
 | kunchenguid / Firstmate | `afk`, `bearings`, `stow`, `acpx`, `lavish` | same |
 | Matt Van Horn | `last30days` | same |
 
-Full list: [`INSTALLED_SKILLS.md`](../INSTALLED_SKILLS.md) and [`.cursor/skills/README.md`](../.cursor/skills/README.md).
+Full list: [`docs/agents/INSTALLED_SKILLS.md`](agents/INSTALLED_SKILLS.md) and [`.cursor/skills/README.md`](../.cursor/skills/README.md).
 
 ## If they still do not appear
 

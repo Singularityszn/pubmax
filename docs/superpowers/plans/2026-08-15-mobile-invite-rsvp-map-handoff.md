@@ -8,7 +8,7 @@
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript, CSS, Playwright, Vitest.
 
-**Spec:** `specs/mobile-invite-rsvp-map-handoff.md`
+**Spec:** `docs/specs/mobile-invite-rsvp-map-handoff.md`
 
 ## Global Constraints
 

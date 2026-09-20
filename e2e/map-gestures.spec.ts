@@ -374,8 +374,9 @@ test("two fingers tilt the map, and the pins stay on the ground", async ({ page 
 });
 
 // A phone has no compass at all: the popover that owns it is hidden under the
-// 640px query, which e2e/RED-ON-MAIN.md R19 records as an open lead. This block
-// runs where the control ships, so the proof is of the shipped control.
+// 640px query, which docs/proof/red-on-main-2026-09.md R19 records as an open
+// lead. This block runs where the control ships, so the proof is of the
+// shipped control.
 test.describe("the compass, where the map has one", () => {
   test.use({ hasTouch: true, viewport: TABLET_VIEWPORT });
 

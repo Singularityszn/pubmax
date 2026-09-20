@@ -6,7 +6,7 @@ A feature gets a checked-in spec only when it crosses one of two bars:
   and a human should choose between them.
 - **Complexity:** the change is more than a few hundred lines.
 
-When either bar is met, add both files under `specs/<feature>/` in the same PR:
+When either bar is met, add both files under `docs/specs/<feature>/` in the same PR:
 
 - `PRODUCT.md` describes user-visible behaviour, states, boundaries, and copy.
 - `TECH.md` describes architecture shape, ownership boundaries, interfaces, and

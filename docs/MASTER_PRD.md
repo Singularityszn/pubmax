@@ -422,6 +422,7 @@ The full release matrix includes:
 | `PRD_WHATS_ON.md` | Authoritative appendix | Shipped data governance; remainder in Tonight wave |
 | `PRD_WORKTREE_COMPLETION_AND_REVIEW_2026-07-07.md` | Superseded snapshot | Historical worktree/review evidence |
 | `PRD_YOU_PUB_PAL_SOCIAL_PROFILE_2026-07-15.md` | Authoritative appendix | Owned profile and Pal implementation seam |
+| `prd/fable-implement-prd.md` | Superseded history | Cycles 1-14 decision log and PR queue; the live programme moved to `UNIVERSAL_DAY0_PRD.md` |
 | `prd/PUBPAL_CONNECTIONS_PRD.md` | Authoritative appendix | PubPal voice, get-home ride handoff, and food-ending connection packages |
 | `prd/SOCIAL_LAUNCH_PRD.md` | Authoritative appendix | Friends-only social launch and uploaded, pre-publish-moderated profile pictures; captain decisions D1-D3 locked |
 | `prd/SOCIAL_NIGHT_OS_VISION_PRD.md` | Draft vision appendix | Post-launch social Night OS: Wanted + reel paste import, taste personality, friends-only Tonight snaps, Night Stories, kudos; sits on Social Launch floor |

@@ -109,7 +109,7 @@
 21. EXIF stripping + magic-byte validation on photo uploads.
 22. Structured logging + rate limits on all write endpoints.
 23. Run Playwright in CI; add visual regression snapshots (landing, map, feed, profile, crawl story).
-24. Update `teach.md`, `README.md`, and archive old PRDs.
+24. Update `docs/teach.md`, `README.md`, and archive old PRDs.
 25. Add offline support (Service Worker + IndexedDB cache for map + recent drops).
 
 ---

@@ -1,4 +1,4 @@
-# sol.md — PubMax PRD: Verify → THE LOCAL (mobile-first) · 2026-07-16
+# docs/plans/sol.md — PubMax PRD: Verify → THE LOCAL (mobile-first) · 2026-07-16
 
 Handoff PRD for Sol/GPT-5.6 + Fable's Claude fleet.
 **MOBILE-FIRST MANDATE: every item designs for 390×844 one-hand use first; desktop is the adaptation.**

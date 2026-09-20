@@ -12,7 +12,7 @@ Production-browser proof for the public Plan invite flow.
 | `invite-after-rsvp-390-reduced-motion.png` | 390 x 844 | Reduced-motion rendering |
 | `invite-map-focus-390-light.png` | 390 x 844 | Two-tone keyboard focus ring |
 
-The [product spec](../../../specs/mobile-invite-rsvp-map-handoff.md) defines the
+The [product spec](../../specs/mobile-invite-rsvp-map-handoff.md) defines the
 handoff. The [Playwright spec](../../../e2e/mobile-invite-map-prompt.spec.ts)
 owns current browser assertions for initial, returning, confirmed, and failed
 RSVP visibility, ordered Map routing, mobile geometry, focus order, and rendered

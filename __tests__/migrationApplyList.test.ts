@@ -1,7 +1,7 @@
 // scripts/qa/migration-apply-list.mjs derives the owner apply list from
 // supabase/migrations/*.sql instead of a hand-typed list, because a hand-typed
-// list drifts (FABLE_HANDOFF.md's stopped updating and fell many migrations
-// behind). This test pins two things: apply order is TIMESTAMP order, not the
+// list drifts (docs/handoffs/FABLE_HANDOFF.md's stopped updating and fell many
+// migrations behind). This test pins two things: apply order is TIMESTAMP order, not the
 // four-digit number embedded in a filename (real case: 0075's file has a
 // later timestamp than 0076's and 0077's), and --against drops already
 // applied migrations while keeping apply order for the rest.

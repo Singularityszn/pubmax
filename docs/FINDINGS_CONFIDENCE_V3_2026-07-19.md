@@ -36,7 +36,7 @@ now**. The largest remaining debt is cosmetic token hygiene and two doc gaps.
 |---|--------------|-----------|------------------|
 | 1 | Early email capture not built | **RESOLVED** | `components/identity/IdentityNudge.tsx:226-247` ships a pre-OAuth email form ("Just leave your email...") posting to `/api/email-subscribers` (:143) with double-opt-in (:22); backend routes on main (#379 lineage, envelopes unified by #415). |
 | 2 | USP bet 3 (live buzz) blocked on EXA key | **RESOLVED (code) · OWNER (ops)** | Ingest producer merged (#366, `scripts/ingest_night_signal_candidates.mjs` no-ops loudly without key); `EXA_API_KEY` present in Vercel prod env per handoff infra facts. Local `.env.local` lacks it — owner item, not a code gap. |
-| 3 | USP bet 4 (group ledger) scope dispute | **RESOLVED (owner)** | Owner ruled bill-split OUT of launch (2026-07-18 pre-sleep decisions, FABLE_HANDOFF.md); Round loop = the shipped reading. |
+| 3 | USP bet 4 (group ledger) scope dispute | **RESOLVED (owner)** | Owner ruled bill-split OUT of launch (2026-07-18 pre-sleep decisions, docs/handoffs/FABLE_HANDOFF.md); Round loop = the shipped reading. |
 | 5 | #324 iPhone-PRD scope creep | **RESOLVED (owner)** | Native work owner-sanctioned; #295 Capacitor wrap + #377 store readiness merged. |
 | 6 | A2HS "second calendar day" reading | **RESOLVED (owner, reconciled)** | Idiom unchanged at `lib/a2hsPrompt.ts:71` (`dayBucketFromDate`), `secondDayBucket` model intact (:52,:61); Cycle-4 reconciliation stands. |
 | 7 | Identity cooldown 7 days | **CONFIRMED · OK** | `lib/identityNudge.ts:41` `IDENTITY_NUDGE_COOLDOWN_DAYS = 7`. |
@@ -80,7 +80,7 @@ now**. The largest remaining debt is cosmetic token hygiene and two doc gaps.
 |---|---------|---------|----------|
 | 64 | Ten load-bearing overnight claims (#406 canary, #409 overlap, #410 two-clock, migration 0043 privacy, check-in coordinate-free model, recap choke, slop-filter wiring, persona lens, push pipeline, secret sweep) | **CONFIRMED · PASS** | Spec axis verified each against HEAD code; details in the 07-19 spec report. Marginal note: a row ending exactly at 16:00 counts as "on tonight" (`>=`), cosmetic. |
 | 65 | PRD Lane B briefed Sol to rebuild an existing push pipeline | **RESOLVED (same day)** | Lane B rescoped to real gaps (web-push/VAPID, sw.js handler, daily sender) in `docs/UNIVERSAL_DAY0_PRD.md`, commit `4c69feba`. |
-| 66 | Private individual's name in tracked `FABLE_HANDOFF.md` | **RESOLVED (same day)** | Scrubbed in `4c69feba`; `git grep` over tracked tree = 0 matches for either private name. |
+| 66 | Private individual's name in tracked `docs/handoffs/FABLE_HANDOFF.md` | **RESOLVED (same day)** | Scrubbed in `4c69feba`; `git grep` over tracked tree = 0 matches for either private name. |
 | 67 | Night-signal descriptions bypass the slop filter | **REFUTED** | `NIGHT_SIGNALS` copy is house-authored static literals in `components/landing/NightSignals.tsx:45+` ("Good-value pints, familiar pubs..."), not scraped; the Exa ingest pipeline is a separate ops candidate path, not this component's source. |
 | 68 | Error-envelope divergence on 5 new routes (429s unsignalled) | **RESOLVED** | #415 routes check-ins, email-subscribers (+confirm/unsubscribe), area-news through `publicApiError` with additive `code`/`retryable`; 429s carry `retryable: true`. |
 | 69 | Check-ins limiter key asymmetry (degraded-mode shared budget) | **RESOLVED** | #415 `lib/checkInRateLimit.ts` aligns both axes on one `check-in:<handle>:<ipHash>` key via `makeIpRateLimiter`. |

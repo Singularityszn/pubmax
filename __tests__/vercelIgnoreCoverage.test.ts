@@ -31,7 +31,6 @@ const DEPLOY_INPUTS: Record<string, string> = {
   scripts: "the prebuild pack builders",
   types: "TypeScript declarations the build compiles against",
   supabase: "migrations read by validate-data at build",
-  specs: "read by the build-time contract checks",
   perf: "budgets read by the build-time checks",
 };
 

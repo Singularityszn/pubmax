@@ -26,7 +26,7 @@ Active warning: migration 0075 follows 0074. Captain applies it only after all
 eight slices pass final review. Use current migration and rollout state from
 [`docs/SOFT_LAUNCH_RUNBOOK.md`](../../docs/SOFT_LAUNCH_RUNBOOK.md).
 
-[Slice 1 handoff and verification evidence](../../.superpowers/sdd/2026-08-05-verified-social-night-loop/task-7-slice-1-report.md).
+[Slice 1 handoff and verification evidence](../../superpowers/sdd/2026-08-05-verified-social-night-loop/task-7-slice-1-report.md).
 
 ## Goal
 

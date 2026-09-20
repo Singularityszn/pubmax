@@ -28,7 +28,7 @@ FROM surface × intent → TO surface, with the exact mechanic. Deep-link params
 | Feed story | "see this pub" → "on the map" | Venue → Map | Story pub `Link` → `/map?sel=<venueId>` (same sheet+centre contract as Pubs). | sheet → back → Feed |
 | Crawl editorial | "walk this crawl" | Map crawl mode | `Link` → `/map?crawl=<id>` (curated) or `?mode=build&pubs=<ids>`. Map draws the polyline + route panel. | back → Crawls |
 | Pint Drop composer | finished / cancelled | back where they were | Composer is a mode of Map (`?log=1`), not a page. Closing clears `log` and returns to the map beneath; if arrived from a tab, the tab's root shows. | closing composer ≠ leaving Map |
-| Invite card | "see these stops" | Map | `Open these stops on the map` is unconditional: one stop opens `?sel=`, two or more open the ordered crawl in build mode. A confirmed RSVP is remembered per Plan on the guest's own device and only changes the emphasis. See [`specs/mobile-invite-rsvp-map-handoff.md`](../specs/mobile-invite-rsvp-map-handoff.md). | back → invite card |
+| Invite card | "see these stops" | Map | `Open these stops on the map` is unconditional: one stop opens `?sel=`, two or more open the ordered crawl in build mode. A confirmed RSVP is remembered per Plan on the guest's own device and only changes the emphasis. See [`docs/specs/mobile-invite-rsvp-map-handoff.md`](specs/mobile-invite-rsvp-map-handoff.md). | back → invite card |
 | Plan link (shared) | "join this plan" | Map of the plan's stops | `/plan/<id>` → join → `/map?pubs=<stops>&mode=build` showing the route. | back → plan detail |
 | You | passport / activity / messages | profile sub-screens | `/u/<handle>`, `/activity`, `/messages` — in-tab pushes with back to the tab root. | back within You tab |
 

@@ -1,6 +1,6 @@
 # WAYFINDER PRODUCT MAP (2026-07-20)
 
-Canonical execution map for the decision-complete product roadmap authored by Sol 5.6, reconciled against shipped code on main. Written by Fable after owner rulings on 2026-07-20. Sol and every lane read this file together with docs/UNIVERSAL_DAY0_PRD.md (STATE OF THE BUILD + TASTE DOCTRINE remain binding). FABLE_HANDOFF.md carries live session state.
+Canonical execution map for the decision-complete product roadmap authored by Sol 5.6, reconciled against shipped code on main. Written by Fable after owner rulings on 2026-07-20. Sol and every lane read this file together with docs/UNIVERSAL_DAY0_PRD.md (STATE OF THE BUILD + TASTE DOCTRINE remain binding). docs/handoffs/FABLE_HANDOFF.md carries live session state.
 
 Status legend used throughout: EXISTS (shipped on main, wire or extend it, do not rebuild), PARTIAL (seams exist, close the gap), MISSING (genuine new build), OWNER (blocked on an owner-only action). Every EXISTS/PARTIAL claim names real files; read them before writing anything.
 

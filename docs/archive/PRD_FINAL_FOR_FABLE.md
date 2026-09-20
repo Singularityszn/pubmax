@@ -1,6 +1,6 @@
 # PubMaxing — Final PRD for Fable
 
-> **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md. Historical context; current state also lives in teach.md.
+> **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md. Historical context; current state also lives in docs/teach.md.
 
 > A price-aware, story-led London pub-crawl planner. This is the build-and-design handoff for Fable: what exists (verified, running), what to make beautiful, and the exact order to do it in. Vocabulary follows `CONTEXT.md`; supersedes nothing but consolidates `OPUS_REVIEW_PRD.md`, `PRD_PINT_DROPS.md`, `PRD_PRODUCTION_READINESS_FOR_OPUS.md`, and `codex_plan.md` into one Fable-facing brief.
 

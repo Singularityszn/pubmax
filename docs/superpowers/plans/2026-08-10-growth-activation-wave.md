@@ -162,7 +162,7 @@ git commit -m "feat(growth): add fifth seed borough"
 ### Task 4: Integrate and verify
 
 **Files:**
-- Modify: `specs/growth-activation-wave/README.md`
+- Modify: `docs/specs/growth-activation-wave/README.md`
 
 **Interfaces:**
 - Consumes: three task commits.

@@ -1,6 +1,6 @@
 # PubMaxing — Build Review & Defect Triage (Addendum for Fable)
 
-> **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md. Historical context; current state also lives in teach.md.
+> **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md. Historical context; current state also lives in docs/teach.md.
 
 > Companion to `PRD_FINAL_FOR_FABLE.md`. That doc is the *vision + roadmap*. This doc is the *verified state of the build* and the *ranked pain-point list* as of the handoff. Where the two disagree, this one is newer.
 >
@@ -89,7 +89,7 @@ PRD target #6 asks that tapping a landmark tie "directly into The Landlord + `pu
 
 ---
 
-## 4. The demo deck needs regenerating (`PubMaxing_Final_Demo.pptx`)
+## 4. The demo deck needs regenerating (`docs/decks/PubMaxing_Final_Demo.pptx`)
 
 The deck is a **580 KB binary committed to git** (un-diffable, un-reviewable) and it is **stale — it undersells the product**, the opposite failure from the landing page's old overclaiming:
 

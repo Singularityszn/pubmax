@@ -139,5 +139,5 @@ addresses by default · replacing MapLibre/OpenFreeMap · multi-city before the 
 PRD_FINAL_FOR_FABLE, PRD_MAP_FIRST_REDESIGN, PRD_OPUS_AFTER_MAP_UPGRADE_2026_07_06,
 PRD_OPUS_FINAL_POLISH_2026_07_05, PRD_OPUS_NEXT_IMPROVEMENTS_2026_07_06, PRD_PINT_DROPS,
 PRD_PRODUCTION_READINESS_FOR_OPUS, PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER, PRODUCT_PLAN, ACTIVE_PLAN,
-cc_plan, cc_plan2, codex_plan. Kept live: `teach.md` (repo tour), `docs/DEPLOYMENT.md` (runbook),
+cc_plan, cc_plan2, codex_plan. Kept live: `docs/teach.md` (repo tour), `docs/DEPLOYMENT.md` (runbook),
 `docs/DEMO_DECK.md`, `docs/adr/`, `README.md`, `CONTEXT.md`.

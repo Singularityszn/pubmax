@@ -1,4 +1,4 @@
-# cursorplan.md
+# docs/plans/cursorplan.md
 
 > PubMaxxing product-led growth and network monopoly plan.
 > First-principles strategy from shipped product, open PRs, live site review, and PLG / Thiel framing.

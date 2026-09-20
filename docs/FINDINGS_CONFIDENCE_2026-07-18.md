@@ -14,7 +14,7 @@ the shared checkout's HEAD was never touched).
 `DEEP_REVIEW_APP_2026-07-18.md` (#321), `DEEP_REVIEW_DATA_2026-07-18.md` (#322),
 `DEEP_REVIEW_C8_2026-07-18.md` (#332), `DEEP_REVIEW_RECAP_2026-07-18.md` (#336),
 `REVIEW_STANDARDS_AXIS_2026-07-18.md` (#337), `REVIEW_SPEC_AXIS_2026-07-18.md` (#338),
-and the "For Sol" flags in `fable-implement-prd.md`.
+and the "For Sol" flags in `docs/prd/fable-implement-prd.md`.
 
 **Verdict legend:** `CONFIRMED` (finding stands, evidence quoted) · `REFUTED` (review was wrong) ·
 `STALE` (since fixed — fixing branch/commit cited) · `OWNER-DECISION` (not mechanically verifiable,
