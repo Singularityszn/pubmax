@@ -18,7 +18,7 @@ The current app has the raw materials for that idea, but not the social loop yet
 - Contributor identity is a local handle, not a profile.
 - There is no feed, follow graph, likes, comments, saves, lists, or crawl diary.
 - Mobile is responsive, but not yet a mobile-native night-out capture flow.
-- The brand already uses PubMaxxing across UI, docs, metadata, and OG assets; the product should be **PUBMAXXING**.
+- The brand still carries the legacy one-x spelling across UI, docs, metadata, and OG assets; the product should be **PUBMAXXING**.
 
 ## Solution
 
