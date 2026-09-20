@@ -28,7 +28,7 @@
 
 import { cleanText } from "@/lib/textClean";
 
-/** Mirrors the CHECKs in migration 0155. Keep the two in lockstep. */
+/** Mirrors the CHECKs in migration 0156. Keep the two in lockstep. */
 export const POLL_QUESTION_MAX = 120;
 export const POLL_OPTION_MAX = 60;
 export const POLL_MIN_OPTIONS = 2;

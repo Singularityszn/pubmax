@@ -1,4 +1,4 @@
--- Group message threads (0154). Apply AFTER 0153.
+-- Group message threads (0155). Apply AFTER 0153.
 -- Captain applies; agents ship SQL only.
 --
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -39,7 +39,7 @@
 -- participant SELECT policy and an anon deny, the posture 0066 gave the two
 -- messaging tables; every write still goes through the service role.
 --
--- Reverse: supabase/migrations/rollback/20260917090000_0154_group_message_threads_rollback.sql
+-- Reverse: supabase/migrations/rollback/20260917090000_0155_group_message_threads_rollback.sql
 
 begin;
 

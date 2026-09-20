@@ -52,7 +52,7 @@ export function isConversationKind(value: unknown): value is ConversationKind {
 export const GROUP_MIN_MEMBERS = 3;
 export const GROUP_MAX_MEMBERS = 12;
 
-/** Mirrors the `conversations_title_len_chk` CHECK in migration 0154. */
+/** Mirrors the `conversations_title_len_chk` CHECK in migration 0155. */
 export const GROUP_TITLE_MAX = 60;
 
 /** What a member may be. `owner` is who opened it; nothing branches on it yet. */

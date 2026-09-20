@@ -237,7 +237,7 @@ const MESSAGE_COLUMNS_BASE =
   "id, conversation_id, sender_handle, body, created_at, read_at, flagged_at, " +
   "attachment_kind, attachment_object_key, attachment_width, attachment_height, attachment_venue_id";
 
-/** The columns migration 0155 adds. Named once, so the rollout guard below and
+/** The columns migration 0156 adds. Named once, so the rollout guard below and
  *  the read list cannot name different sets. */
 const WIDE_ATTACHMENT_COLUMNS = [
   "attachment_contact_handle",
@@ -249,10 +249,10 @@ const WIDE_ATTACHMENT_COLUMNS = [
 const MESSAGE_COLUMNS_WIDE = `${MESSAGE_COLUMNS_BASE}, ${WIDE_ATTACHMENT_COLUMNS.join(", ")}`;
 
 /**
- * ADDITIVE-ROLLOUT LATCH for migration 0155, in the shape lib/pintDropsStore.ts
+ * ADDITIVE-ROLLOUT LATCH for migration 0156, in the shape lib/pintDropsStore.ts
  * uses for every other additive column. A deploy that lands ahead of the
  * migration must still serve threads: the first read that 42703s on one of the
- * new columns drops the process to the pre-0155 list, and a message a drinker
+ * new columns drops the process to the pre-0156 list, and a message a drinker
  * sent is never lost to a column that is not there.
  *
  * A WRITE of one of the new kinds is REFUSED rather than downgraded. Saving a
@@ -275,14 +275,14 @@ function isMissingWideAttachmentColumn(
   return WIDE_ATTACHMENT_COLUMNS.some((column) => message.includes(column));
 }
 
-/** Latch the process down to the pre-0155 list. Returns true when it moved. */
+/** Latch the process down to the pre-0156 list. Returns true when it moved. */
 function dropToBaseAttachmentColumns(
   error: { code?: string; message?: string } | null | undefined,
 ): boolean {
   if (!wideAttachmentColumns || !isMissingWideAttachmentColumn(error)) return false;
   wideAttachmentColumns = false;
   console.warn(
-    "[messages] attachment columns missing — serving the pre-0155 attachment set (apply migration 0155)",
+    "[messages] attachment columns missing — serving the pre-0156 attachment set (apply migration 0156)",
   );
   return true;
 }
@@ -294,7 +294,7 @@ const isMissingPollSchema = missingTables(POLL_VOTES);
 const CONVERSATION_COLUMNS = "id, handle_a, handle_b, last_message_at, kind, title";
 const CONVERSATION_COLUMNS_BASE = "id, handle_a, handle_b, last_message_at";
 
-/** The same latch, for migration 0154's own columns. */
+/** The same latch, for migration 0155's own columns. */
 let groupConversationColumns = true;
 
 function conversationColumns(): string {
@@ -317,7 +317,7 @@ function dropToBaseConversationColumns(
   if (!groupConversationColumns || !isMissingGroupColumn(error)) return false;
   groupConversationColumns = false;
   console.warn(
-    "[messages] conversation kind missing — every thread reads as direct (apply migration 0154)",
+    "[messages] conversation kind missing — every thread reads as direct (apply migration 0155)",
   );
   return true;
 }
@@ -335,7 +335,7 @@ function previewBody(body: string, kind: unknown): string {
 /**
  * The insert half of the same list. A message with no attachment writes nulls,
  * and every kind writes ONLY its own columns — the shape CHECK in migration
- * 0155 refuses anything else, so the two say one sentence.
+ * 0156 refuses anything else, so the two say one sentence.
  */
 function attachmentColumns(
   attachment: MessageAttachmentWrite | undefined,
@@ -367,8 +367,8 @@ function attachmentColumns(
 }
 
 /**
- * Which kinds need a column migration 0155 added. A write of one of these
- * against a pre-0155 database is refused rather than downgraded (see the latch
+ * Which kinds need a column migration 0156 added. A write of one of these
+ * against a pre-0156 database is refused rather than downgraded (see the latch
  * above), because a contact card saved as a blank line is an attachment nobody
  * was told had gone.
  */
@@ -789,8 +789,8 @@ export const supabaseMessagesStore: MessagesStore = {
       let inserted = await insertRow();
 
       if (isMissingWideAttachmentColumn(inserted.error)) {
-        // Migration 0155 has not landed. A message with no new-kind column in
-        // it is still a message, so the process drops to the pre-0155 read list
+        // Migration 0156 has not landed. A message with no new-kind column in
+        // it is still a message, so the process drops to the pre-0156 read list
         // and this write is retried; a write that NEEDED one of those columns
         // was refused above and never reaches here.
         dropToBaseAttachmentColumns(inserted.error);
@@ -1244,7 +1244,7 @@ async function readDirectConversationRows(
   const first = await read();
   const { data, error } = dropToBaseConversationColumns(first.error) ? await read() : first;
   if (error) throw new Error(error.message);
-  // Only a direct row may come back on the pair lane, and a pre-0154 database
+  // Only a direct row may come back on the pair lane, and a pre-0155 database
   // has no kind at all, which reads as direct exactly as it should.
   return ((data ?? []) as unknown as Array<Record<string, unknown>>).filter(
     (row) => row.kind !== "group",

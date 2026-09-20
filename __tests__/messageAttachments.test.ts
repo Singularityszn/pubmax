@@ -42,7 +42,7 @@ const ROLLBACK =
 describe("the attachment set is closed at five", () => {
   it("names exactly a photo, a pub, a contact, an event and a poll", () => {
     // The set is CLOSED, so widening it is a decision somebody takes here and
-    // in migration 0155 together, never a kind a route invents.
+    // in migration 0156 together, never a kind a route invents.
     expect([...MESSAGE_ATTACHMENT_KINDS]).toEqual([
       "photo",
       "venue",

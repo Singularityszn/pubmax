@@ -189,7 +189,7 @@ describe("the store keeps one vote per person, and only from a participant", () 
     expect(inbox.conversations.find((c) => c.id === id)?.lastBody).toBe("Poll");
   });
 
-  it("keeps the floor and ceiling in lockstep with migration 0155", () => {
+  it("keeps the floor and ceiling in lockstep with migration 0156", () => {
     expect(POLL_MIN_OPTIONS).toBe(2);
     expect(POLL_MAX_OPTIONS).toBe(6);
     expect(POLL_QUESTION_MAX).toBe(120);

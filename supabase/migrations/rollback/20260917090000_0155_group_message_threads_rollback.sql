@@ -1,4 +1,4 @@
--- Rollback for 0154 (group message threads).
+-- Rollback for 0155 (group message threads).
 --
 -- WHAT THIS COSTS. Every GROUP conversation and every word in one. The pair
 -- columns are `not null` again, so a row with no pair cannot exist, and the
@@ -26,7 +26,7 @@ delete from public.messages m
 delete from public.conversations where kind = 'group';
 
 -- THE POLICIES COME OFF BEFORE THE TABLE, because the conversations SELECT
--- policy 0154 widened NAMES the members table, and PostgreSQL refuses to drop a
+-- policy 0155 widened NAMES the members table, and PostgreSQL refuses to drop a
 -- table a policy depends on. Restoring the predicate and the policy first is
 -- what makes the drop below plain rather than a CASCADE that would take the
 -- policy with it and leave the table unguarded in between.

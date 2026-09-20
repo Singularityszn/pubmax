@@ -105,7 +105,7 @@ The two existing rules are unchanged and the new kinds are held to them:
 
 ## Consequences
 
-- Migration `0154` (group threads) and `0155` (attachment kinds) each ship with a
+- Migration `0155` (group threads) and `0156` (attachment kinds) each ship with a
   rollback. The captain applies both; the store carries an additive-rollout guard
   so a deploy that lands first keeps working on the pre-migration shape.
 - `pubmax_private.rls_is_conversation_participant` gains a group branch, so

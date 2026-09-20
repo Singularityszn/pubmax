@@ -1,11 +1,11 @@
-// Effective PostgreSQL proof for 0154 and 0155 (group threads, and the three
+// Effective PostgreSQL proof for 0155 and 0156 (group threads, and the three
 // new attachment kinds).
 //
 // THE CLAIMS UNDER TEST are the ones only a real database can answer, because
 // they are constraints and a policy rather than code:
 //
 // 1. A GROUP ROW CAN EXIST AT ALL. 0019 made `handle_a` and `handle_b` NOT
-//    NULL, so before 0154 there is no shape a group could take. After it, a
+//    NULL, so before 0155 there is no shape a group could take. After it, a
 //    group row carries neither handle and a direct row still carries both —
 //    which is the per-kind CHECK saying in SQL what
 //    `docs/adr/0015-group-message-threads.md` says in words.
@@ -24,7 +24,7 @@
 //    id, a poll with one option and a photo smuggling a handle are each refused
 //    by the shape CHECK rather than by the application.
 //
-// 5. AN ACCOUNT THAT LEAVES TAKES EVERY ATTACHMENT COLUMN WITH IT. Before 0155
+// 5. AN ACCOUNT THAT LEAVES TAKES EVERY ATTACHMENT COLUMN WITH IT. Before 0156
 //    the tombstone cleared the two columns it knew about; with three more, a
 //    departing account would leave `kind` null beside a non-null contact handle
 //    and the shape CHECK would fail the whole deletion.
@@ -46,17 +46,17 @@ const skipReason = postgresSkipReason();
 
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
-const GROUPS_NAME = "20260917090000_0154_group_message_threads.sql";
-const KINDS_NAME = "20260917091000_0155_message_attachment_kinds.sql";
+const GROUPS_NAME = "20260917090000_0155_group_message_threads.sql";
+const KINDS_NAME = "20260917091000_0156_message_attachment_kinds.sql";
 const GROUPS = join(MIGRATIONS, GROUPS_NAME);
 const KINDS = join(MIGRATIONS, KINDS_NAME);
 const GROUPS_ROLLBACK = join(
   MIGRATIONS,
-  "rollback/20260917090000_0154_group_message_threads_rollback.sql",
+  "rollback/20260917090000_0155_group_message_threads_rollback.sql",
 );
 const KINDS_ROLLBACK = join(
   MIGRATIONS,
-  "rollback/20260917091000_0155_message_attachment_kinds_rollback.sql",
+  "rollback/20260917091000_0156_message_attachment_kinds_rollback.sql",
 );
 const SESSION_FIXTURE = join(ROOT, "scripts/rls/session-fixture.sql");
 const PREREQUISITES = readdirSync(MIGRATIONS)
@@ -145,7 +145,7 @@ afterAll(async () => {
   database = null;
 });
 
-describe.skipIf(skipReason !== null)("0154 group message threads", () => {
+describe.skipIf(skipReason !== null)("0155 group message threads", () => {
   // ── the fault, on the tree as it stands ───────────────────────────────────
   it("BEFORE the migration there is no shape a group could take", async () => {
     const said = await requireDatabase().attempt(
@@ -281,7 +281,7 @@ describe.skipIf(skipReason !== null)("0154 group message threads", () => {
   });
 });
 
-describe.skipIf(skipReason !== null)("0155 contact, event and poll attachments", () => {
+describe.skipIf(skipReason !== null)("0156 contact, event and poll attachments", () => {
   const message = (columns: string, values: string): string =>
     `insert into public.messages (id, conversation_id, sender_handle, body, created_at${columns})
        values (gen_random_uuid(), '${GROUP}'::uuid, 'ken', '', '${AT}'${values});`;
@@ -426,7 +426,7 @@ describe.skipIf(skipReason !== null)("0155 contact, event and poll attachments",
       message(", attachment_plan_id", `, '${DM}'::uuid`),
     );
     expect(planned.ok).toBe(false);
-    // And the same on the way out of a kind, which is what the 0155 rollback
+    // And the same on the way out of a kind, which is what the 0156 rollback
     // does to every contact, event and poll row before dropping the columns.
     const stripped = await session.attempt(
       `update public.messages set attachment_kind = null
@@ -464,7 +464,7 @@ describe.skipIf(skipReason !== null)("0155 contact, event and poll attachments",
 });
 
 describe.skipIf(skipReason !== null)("the way back out", () => {
-  it("0155 rolls back to the two-kind set and keeps the words", () => {
+  it("0156 rolls back to the two-kind set and keeps the words", () => {
     const session = requireDatabase();
     // The tombstone above cleared every attachment KEN sent, so the rollback
     // would otherwise run over nothing. A live contact row from an account that
@@ -500,7 +500,7 @@ describe.skipIf(skipReason !== null)("the way back out", () => {
     ).toBe("5");
   });
 
-  it("0154 rolls back to the pair, and says what it cost", () => {
+  it("0155 rolls back to the pair, and says what it cost", () => {
     const session = requireDatabase();
     session.applyFile(GROUPS_ROLLBACK);
     // The group and every word in it went with it; the rollback's own header

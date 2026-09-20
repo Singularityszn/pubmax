@@ -3,7 +3,7 @@
 // Writing a poll, without leaving the thread.
 //
 // The caps are `lib/messagePoll.ts`'s and are read from it rather than typed
-// here, so the composer, the route and migration 0155 cannot disagree about how
+// here, so the composer, the route and migration 0156 cannot disagree about how
 // long a question may be or how many answers a ballot may hold.
 //
 // TWO BOXES TO START WITH, because two is the floor and a composer that opens

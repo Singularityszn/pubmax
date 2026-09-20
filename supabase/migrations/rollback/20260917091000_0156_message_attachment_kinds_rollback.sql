@@ -1,4 +1,4 @@
--- Rollback for 0155 (contact, event and poll attachments).
+-- Rollback for 0156 (contact, event and poll attachments).
 --
 -- WHAT THIS COSTS. Every contact card, plan card and poll anybody sent, and
 -- every answer anybody gave to a poll. The columns go, so the rows that carried
@@ -8,14 +8,14 @@
 -- deleted. Photos and pub cards are untouched.
 --
 -- WHAT IT RESTORES. 0102's two-kind closed set, its shape CHECK, and 0151's
--- tombstone function exactly as it stood before 0155 widened the message
+-- tombstone function exactly as it stood before 0156 widened the message
 -- update.
 
 begin;
 
 -- Say what the row was, before the columns that said it are dropped.
 --
--- THE COLUMNS GO NULL IN THE SAME STATEMENT AS THE KIND, because 0155's shape
+-- THE COLUMNS GO NULL IN THE SAME STATEMENT AS THE KIND, because 0156's shape
 -- CHECK is still on the table at this point and its first arm says a row with
 -- no kind carries no attachment column either. Clearing the kind alone leaves a
 -- contact handle, a plan id or a ballot beside a null kind and the CHECK
@@ -78,8 +78,8 @@ comment on column public.messages.attachment_kind is
   'photo | venue | null. The closed set in lib/messageAttachments.ts.';
 
 -- 0151's function, verbatim: the message update names the five columns that
--- exist again, and the conversation_members line 0155 added goes with the
--- columns it was written beside. 0154's rollback is what removes that table.
+-- exist again, and the conversation_members line 0156 added goes with the
+-- columns it was written beside. 0155's rollback is what removes that table.
 create or replace function public.stamp_profile_tombstone_on_auth_user_delete()
 returns trigger
 language plpgsql

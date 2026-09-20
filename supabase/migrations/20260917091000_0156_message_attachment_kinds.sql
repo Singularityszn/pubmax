@@ -1,4 +1,4 @@
--- Message attachment kinds: contact, event, poll (0155). Apply AFTER 0154.
+-- Message attachment kinds: contact, event, poll (0156). Apply AFTER 0155.
 -- Captain applies; agents ship SQL only.
 --
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@
 -- THEIR OWN vote, anon may do nothing, and every write goes through the service
 -- role. The counts are folded service-side and cross the wire without a name.
 --
--- Reverse: supabase/migrations/rollback/20260917091000_0155_message_attachment_kinds_rollback.sql
+-- Reverse: supabase/migrations/rollback/20260917091000_0156_message_attachment_kinds_rollback.sql
 
 begin;
 
