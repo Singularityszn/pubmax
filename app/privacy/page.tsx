@@ -726,6 +726,25 @@ export default function PrivacyPage() {
             </dd>
           </div>
           <div className="legalRow">
+            <dt>Arize AX (United States)</dt>
+            <dd>
+              Server-side tracing for the model calls above, so we can see what
+              they cost and where they fail. While it is switched on for a
+              deployment, every model call our server makes sends Arize the
+              model name, the token counts, how long the call took, and a fixed
+              tag naming the feature, together with the text of the request and
+              the model&rsquo;s reply. That includes what you type into The
+              Landlord, Pub Pal, a question about a pub&rsquo;s history, and the
+              free text a planning ask carries. Traces go to{" "}
+              <code>otlp.arize.com</code> in the United States. Email addresses
+              and @handles are replaced before a trace leaves our server;
+              nothing else in the text is. The moderation calls named above
+              send Arize no text and no picture. A trace carries no IP address,
+              no account ID and no handle of its own, and nothing is sent at
+              all unless both Arize keys are set on the deployment.
+            </dd>
+          </div>
+          <div className="legalRow">
             <dt>Email and push</dt>
             <dd>
               Supabase sends account magic links and stores an optional contact

@@ -499,14 +499,15 @@ async function getFromSupabase(slug: string): Promise<StoredStory | null> {
 
 // ── Authorship: attribution + edit/delete (story 35) ──────────────────────────
 //
-// AUTHORSHIP ENFORCEMENT SEAM. Today identity is a self-asserted device handle
-// (no auth), so `author_handle` is the ONLY thing an edit/delete can be gated on.
-// isAuthor(slug, handle) below is that gate; the API route (app/api/crawls/[slug])
-// rejects a mismatch with 403. This is a HONEST but WEAK gate — anyone can claim
-// any handle until auth ownership merges. When it does: add a recipient/author
-// user-id link and change isAuthor to compare auth.uid() ownership (the store
-// method signature stays the same, only the comparison hardens). Do NOT loosen
-// this to "anyone can edit" — the handle gate is the placeholder for real auth.
+// AUTHORSHIP ENFORCEMENT SEAM. `author_handle` equality is the FIRST question and
+// never the whole one. isAuthor(slug, handle, callerUserId) below compares the
+// handle and, when that handle is linked to a `profiles.user_id`, the caller's
+// verified auth uid too; the API route (app/api/crawls/[slug]) rejects a mismatch
+// with 403. An UNLINKED author handle skips that second comparison, which is why
+// the route asks gateHasVerifiedActor before it calls in here: a handle is public
+// (it is rendered on the story page) and cannot stand alone as proof of who is
+// asking. Do NOT loosen this to "anyone can edit", and do NOT let a caller reach
+// a destructive verb on the handle alone.
 
 /** The author handle registered on a story, or null (anonymous / unknown slug).
  *  Reads a draft's author too (the gate must work before a story is published).
