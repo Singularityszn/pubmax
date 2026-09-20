@@ -57,8 +57,12 @@ import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
 import {
   linkifyMentions,
   MAX_MESSAGE_BODY,
-  type ConversationKind,
+  otherHandleFromThreadIdentity,
+  threadIdentityFromInboxRow,
+  threadIdentityFromWire,
+  type ConversationDTO,
   type MessageDTO,
+  type ThreadIdentity,
 } from "@/lib/messages";
 import { subscribeToMessages } from "@/lib/messagesRealtime";
 import {
@@ -239,13 +243,6 @@ function pendingLabel(pending: PendingAttachment): string {
   }
 }
 
-/** What a thread is CALLED at the top of the screen. */
-type ThreadIdentity = {
-  kind: ConversationKind;
-  members: string[];
-  title: string | null;
-};
-
 function fileKey(file: File): string {
   return `${file.name}:${file.size}:${file.lastModified}`;
 }
@@ -326,6 +323,9 @@ export default function MessageThread({
     setViewRevision(null);
     setOutbox([]);
     setRevealedId(null);
+    setIdentity(null);
+    setOtherHandle("");
+    setMessages([]);
     conversationIdRef.current = conversationId;
   }, [conversationId]);
   useLayoutEffect(() => {
@@ -459,28 +459,50 @@ export default function MessageThread({
         loadedForRef.current = requestKey;
         setViewRevision(requestKey);
         setMessages(next);
-        // WHO THE THREAD IS WITH comes from the read itself. It used to be
-        // guessed off the first message from somebody else, which said
-        // "Conversation" over an empty thread and could never name a group at
-        // all; a membership the server could not read is left absent rather
-        // than guessed, and the head keeps its neutral word.
-        const conversation = body.conversation;
-        const members = Array.isArray(conversation?.members)
-          ? conversation.members.filter((m): m is string => typeof m === "string")
-          : [];
-        if (conversation && members.length > 0) {
-          setIdentity({
-            kind: conversation.kind === "group" ? "group" : "direct",
-            members,
-            title: typeof conversation.title === "string" ? conversation.title : null,
-          });
-          if (conversation.kind !== "group") {
-            setOtherHandle(members.find((member) => member !== h) ?? "");
+        // WHO THE THREAD IS WITH comes from the read's membership when it has
+        // one; only then may a group title win. An empty direct thread has no
+        // message to read a name off, so the inbox row for this id names it.
+        const identityFromRead = threadIdentityFromWire(body.conversation);
+        let nextIdentity: ThreadIdentity | null = identityFromRead;
+        let nextOther = identityFromRead
+          ? otherHandleFromThreadIdentity(identityFromRead, h)
+          : "";
+        if (!identityFromRead) {
+          const me = normalizeHandle(h);
+          const theirs = next.find(
+            (message) => normalizeHandle(message.senderHandle) !== me,
+          );
+          if (theirs) {
+            nextOther = theirs.senderHandle;
+          } else if (next.length === 0) {
+            const inboxRes = await authedActionFetch(
+              `/api/messages?handle=${encodeURIComponent(h)}`,
+              {},
+              { requiresIdentity: true },
+            );
+            if (!stillCurrent()) {
+              discardBody(inboxRes);
+              return;
+            }
+            if (inboxRes.ok) {
+              const inboxBody = (await inboxRes.json()) as {
+                conversations?: ConversationDTO[];
+              };
+              const row = (inboxBody.conversations ?? []).find(
+                (conversation) => conversation.id === conversationId,
+              );
+              if (row) {
+                nextIdentity = threadIdentityFromInboxRow(row);
+                if (row.otherHandle) nextOther = row.otherHandle;
+              }
+            } else {
+              discardBody(inboxRes);
+            }
           }
-        } else {
-          const theirs = next.find((m) => m.senderHandle !== h);
-          if (theirs) setOtherHandle(theirs.senderHandle);
         }
+        if (!stillCurrent()) return;
+        setIdentity(nextIdentity);
+        setOtherHandle(nextOther);
         setState("ready");
       } catch (err) {
         // An abort is our own teardown, never a failure the reader should see.
