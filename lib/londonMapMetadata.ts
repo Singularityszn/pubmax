@@ -13,6 +13,7 @@ import {
   cityMapOgDescription,
   cityMapOgImageUrl,
   cityMapOgTitle,
+  cityMapShareSelectsDescription,
   cityMapShareUrl,
   type CityMapShareOptions,
 } from "@/lib/cityShare";
@@ -24,12 +25,12 @@ export function londonMapMetadata(
   options: CityMapShareOptions = {},
 ): Metadata {
   const title = cityMapOgTitle("london", options);
-  const shareDescription = cityMapOgDescription("london", options);
-  const plainLondonDescription = cityMapOgDescription("london", {});
-  const description =
-    shareDescription === plainLondonDescription
-      ? LONDON_MAP_DESCRIPTION
-      : shareDescription;
+  // A crawl or band share link keeps the copy it earns; every other render of
+  // this document - the prerendered shell and the per-request twin alike -
+  // carries the brand description, so the two routes never disagree.
+  const description = cityMapShareSelectsDescription("london", options)
+    ? cityMapOgDescription("london", options)
+    : LONDON_MAP_DESCRIPTION;
   const url = cityMapShareUrl("london", options);
   const image = cityMapOgImageUrl("london", options);
   const alt = cityMapOgAlt("london", options);
