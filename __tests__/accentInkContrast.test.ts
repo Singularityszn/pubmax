@@ -64,6 +64,12 @@ function channels(hex: string): Rgb | null {
   return parsed.some(Number.isNaN) ? null : [parsed[0], parsed[1], parsed[2]];
 }
 
+function hexOf(colour: Rgb): string {
+  return `#${colour
+    .map((channel) => Math.round(channel).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
 function relativeLuminance(colour: Rgb): number {
   const [red, green, blue] = colour.map((channel) => {
     const scaled = channel / 255;
@@ -113,6 +119,25 @@ function declarationsIn(block: string): Array<[string, string]> {
   ]);
 }
 
+/**
+ * Apply one rule's custom properties over the map, and refuse a rule that
+ * matched nothing or carried no token: a remap this file reads by selector is
+ * a moving target, and a silently empty match makes the whole sweep measure
+ * the wrong surface while still passing.
+ */
+function applyRule(
+  css: string,
+  selector: RegExp,
+  label: string,
+  tokens: Map<string, string>,
+): void {
+  const rule = css.match(selector);
+  expect(rule, label).not.toBeNull();
+  const declared = declarationsIn((rule as RegExpMatchArray)[1]);
+  expect(declared.length, `${label} declares custom properties`).toBeGreaterThan(0);
+  for (const [name, value] of declared) tokens.set(name, value);
+}
+
 function themeTokens(theme: "light" | "dark"): Map<string, string> {
   const tokens = new Map<string, string>();
   // First declaration wins, which is :root's, before any narrower block
@@ -120,17 +145,36 @@ function themeTokens(theme: "light" | "dark"): Map<string, string> {
   for (const [name, value] of declarationsIn(GLOBALS)) {
     if (!tokens.has(name)) tokens.set(name, value);
   }
-  const bodyRemap = GLOBALS.match(/\nbody\s*\{([\s\S]*?)\n\}/);
-  expect(bodyRemap, "app/globals.css has a body rule").not.toBeNull();
-  for (const [name, value] of declarationsIn((bodyRemap as RegExpMatchArray)[1])) {
-    tokens.set(name, value);
+  // THE DOM IS NOT THE BASEMAP, and that remap is the whole reason to read a
+  // rule here rather than stop at :root. --paper, --panel-raised and --line
+  // keep their :root values so the WebGL map reads them unchanged at
+  // documentElement; every DOM surface is painted by the `body` remap under
+  // them. The selector is the REMAP's and not a bare `body`, because
+  // globals.css declares a plain `body { margin: 0; ... }` first which carries
+  // no token at all: matching that one read the page as #faf8f5 instead of the
+  // deepened #f8f2ec it really paints, and called every light ratio in this
+  // file higher than it ships.
+  if (theme === "light") {
+    applyRule(
+      GLOBALS,
+      /html:not\(\[data-theme="dark"\]\)\s+body\s*\{([\s\S]*?)\n\}/,
+      "app/globals.css has the light DOM surface remap",
+      tokens,
+    );
+    return tokens;
   }
-  if (theme === "light") return tokens;
-  const darkRoot = THEME.match(/html\[data-theme="dark"\]\s*\{([\s\S]*?)\n\}/);
-  expect(darkRoot, "app/theme.css has an html[data-theme=dark] rule").not.toBeNull();
-  for (const [name, value] of declarationsIn((darkRoot as RegExpMatchArray)[1])) {
-    tokens.set(name, value);
-  }
+  applyRule(
+    THEME,
+    /html\[data-theme="dark"\]\s*\{([\s\S]*?)\n\}/,
+    "app/theme.css has an html[data-theme=dark] rule",
+    tokens,
+  );
+  applyRule(
+    THEME,
+    /html\[data-theme="dark"\]\s+body\s*\{([\s\S]*?)\n\}/,
+    "app/theme.css has the dark DOM surface remap",
+    tokens,
+  );
   return tokens;
 }
 
@@ -303,18 +347,33 @@ const HUE_TINT_INKS = {
   "--river": "--tint-ink-info",
 } as const;
 
-/** The DOM light ladder, as the body remap paints it. */
-const LIGHT_LADDER = {
-  "--paper (page)": "#f8f2ec",
-  "--panel (recessed well)": "#eee7df",
-  "--panel-raised (card)": "#fdf9f4",
-} as const;
+/**
+ * The elevation ladder, read out of the theme's own token map rather than
+ * restated as four hexes here, so a retune of a surface cannot leave this file
+ * measuring a colour the app stopped painting. ALL FOUR STEPS: the overlay is
+ * the brightest light surface and the palest dark one, and it is what a sheet,
+ * a popover and a menu paint, so leaving it out left the token row's own claim
+ * ("the worst pair is a 20 per cent tint on the recessed panel in light, on
+ * the overlay in dark") unmeasured in exactly the place it names.
+ */
+function ladder(tokens: Map<string, string>): Record<string, string> {
+  const steps: ReadonlyArray<readonly [string, string]> = [
+    ["--paper (page)", "--paper"],
+    ["--panel (recessed well)", "--panel"],
+    ["--panel-raised (card)", "--panel-raised"],
+    ["--panel-overlay (sheet)", "--panel-overlay"],
+  ];
+  const resolved: Record<string, string> = {};
+  for (const [label, token] of steps) {
+    const colour = resolveColour(`var(${token})`, tokens);
+    expect(colour, `${token} resolves to a colour`).not.toBeNull();
+    resolved[label] = hexOf((colour as Resolved).rgb);
+  }
+  return resolved;
+}
 
-const DARK_LADDER = {
-  "--paper": "#0a0a0b",
-  "--panel": "#141416",
-  "--panel-raised": "#202024",
-} as const;
+const LIGHT_LADDER = ladder(THEMES[0][1]);
+const DARK_LADDER = ladder(THEMES[1][1]);
 
 describe("the accent as ink", () => {
   it("declares --brass-ink in both themes", () => {
