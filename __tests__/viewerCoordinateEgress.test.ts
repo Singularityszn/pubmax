@@ -32,3 +32,42 @@ describe("viewer coordinate egress", () => {
     },
   );
 });
+
+// The other side of the same seam. These modules hold the reader's own live
+// fix, so the law for them is not "coarsen before it leaves" but "it never
+// leaves": no network door, no analytics, no URL, no storage, no log line and
+// nothing handed to the resume viewport the map writes on every idle.
+// The map dot is painted from them (lib/mapReaderPosition.ts, #1724).
+const VIEWER_COORDINATE_NO_EGRESS_FILES = [
+  "lib/mapReaderPosition.ts",
+  "lib/mapReaderPositionWatch.ts",
+  "components/map/useMapReaderPosition.ts",
+  "components/map/canvas/readerPositionProbe.ts",
+] as const;
+
+const NO_EGRESS_DOORS: ReadonlyArray<readonly [string, RegExp]> = [
+  ["fetch", /\bfetch\s*\(/],
+  ["sendBeacon", /\bnavigator\.sendBeacon\s*\(/],
+  ["an API path", /["'`]\/api\//],
+  ["analytics", /\b(trackEvent|posthog|analytics)\b/i],
+  ["a URL", /\b(URLSearchParams|history\.(push|replace)State)\b/],
+  ["storage", /\b(localStorage|sessionStorage)\b/],
+  ["a log line", /\bconsole\.\w+\s*\(/],
+  ["the resume viewport", /\bwriteMapResume\s*\(/],
+  ["the opening-location store", /\bwriteMapOpeningLocation\s*\(/],
+];
+
+describe("viewer coordinates that never leave the browser", () => {
+  it.each(VIEWER_COORDINATE_NO_EGRESS_FILES)("%s opens no door at all", (file) => {
+    const source = readFileSync(join(process.cwd(), file), "utf8");
+    for (const [door, pattern] of NO_EGRESS_DOORS) {
+      expect(source, `${file} reaches ${door}`).not.toMatch(pattern);
+    }
+  });
+
+  it("neither list claims the same file", () => {
+    for (const file of VIEWER_COORDINATE_NO_EGRESS_FILES) {
+      expect(VIEWER_COORDINATE_EGRESS_FILES as readonly string[]).not.toContain(file);
+    }
+  });
+});

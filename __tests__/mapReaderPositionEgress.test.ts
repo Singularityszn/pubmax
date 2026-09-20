@@ -5,22 +5,35 @@ import { describe, expect, it } from "vitest";
 
 import { sanitizeEvent } from "@/lib/analyticsEvents";
 
-const MAP_READER_POSITION_FILES = [
-  "lib/mapReaderPosition.ts",
-  "lib/mapReaderPositionWatch.ts",
-  "components/map/useMapReaderPosition.ts",
-] as const;
-
 const read = (file: string) => readFileSync(join(process.cwd(), file), "utf8");
 
-describe("map reader position stays on the device", () => {
-  it.each(MAP_READER_POSITION_FILES)("%s never opens a network door", (file) => {
-    const source = read(file);
-    expect(source).not.toMatch(/\bfetch\s*\(/);
-    expect(source).not.toMatch(/\bnavigator\.sendBeacon\s*\(/);
-    expect(source).not.toMatch(/coarsenViewerPoint\s*\(/);
-    expect(source).not.toMatch(/\/api\//);
-    expect(source).not.toMatch(/analytics/i);
+// The modules themselves are swept by __tests__/viewerCoordinateEgress.test.ts,
+// which owns the egress law and both of its lists. What is left here is the
+// canvas WRITE path: the one place the reader's fix reaches MapLibre.
+describe("map reader position reaches the canvas and nothing else", () => {
+  it("the write path updates the GeoJSON source and never moves the camera", () => {
+    // The probe module is where the write lives, so it is read for what it
+    // does NOT do. Asserting it contains its own function's name would pass
+    // whatever that function did.
+    const probe = read("components/map/canvas/readerPositionProbe.ts");
+    expect(probe).toMatch(/setData\s*\(/);
+    expect(probe).not.toMatch(
+      /\b(flyTo|easeTo|jumpTo|fitBounds|setCenter|setZoom|setBearing|setPitch)\s*\(/,
+    );
+
+    // And the canvas effect that owns the reader position calls that one
+    // helper rather than reaching for the map itself.
+    const canvas = read("components/PubMapCanvas.tsx");
+    const start = canvas.indexOf("// The reader's dot is a CANVAS layer");
+    expect(start).toBeGreaterThan(-1);
+    const block = canvas.slice(
+      start,
+      canvas.indexOf("// Frame the crawl only when", start),
+    );
+    expect(block).toMatch(/syncReaderPositionOnMap\s*\(/);
+    expect(block).not.toMatch(
+      /\b(flyTo|easeTo|jumpTo|fitBounds|setCenter|setZoom|setBearing|setPitch)\s*\(/,
+    );
   });
 
   it("drops coordinate-shaped analytics props", () => {
@@ -30,21 +43,5 @@ describe("map reader position stays on the device", () => {
     });
     expect(event).not.toBeNull();
     expect(JSON.stringify(event)).not.toMatch(/51\.5/);
-  });
-
-  it("the canvas reader-position write path only updates the GeoJSON source", () => {
-    const source = read("components/map/canvas/readerPositionProbe.ts");
-    expect(source).toContain("syncReaderPositionOnMap");
-    expect(source).toContain("setData");
-    expect(source).not.toMatch(/\b(flyTo|easeTo|jumpTo|fitBounds|setCenter)\s*\(/);
-  });
-});
-
-describe("viewer coordinate egress", () => {
-  it("map reader modules are not in the coarsening egress list because they never leave the browser", () => {
-    const egress = read("__tests__/viewerCoordinateEgress.test.ts");
-    for (const file of MAP_READER_POSITION_FILES) {
-      expect(egress).not.toContain(`"${file}"`);
-    }
   });
 });

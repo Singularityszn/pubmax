@@ -27,9 +27,15 @@ export function latchMapReaderLocationWatch(): void {
   }
 }
 
+/**
+ * The fix's own accuracy, or 0 when the browser did not give one. A number we
+ * invented would draw a ring claiming a precision nobody measured, and this
+ * app does not print a figure it cannot source; a ring of no radius leaves the
+ * dot alone, which is exactly what is known.
+ */
 function validAccuracy(value: unknown): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-    return 25;
+    return 0;
   }
   return value;
 }
