@@ -1,4 +1,4 @@
-# PRD - Opus Continuation Plan for PubMaxing Production Readiness
+# PRD - Opus Continuation Plan for PubMaxxing Production Readiness
 
 > Prepared for Opus from the current `prd-implementation-review` workspace, the existing PRDs, the Conductor worktree audit, and six GPT-5.5 subagent review tracks. This is a continuation PRD, not a replacement for `docs/PRD_PINT_DROPS.md` or `docs/PRD_PRODUCTION_READINESS_FOR_OPUS.md`.
 
@@ -47,7 +47,7 @@ Opus should resolve these before building. They are product or architecture conf
 
 ## Problem Statement
 
-PubMaxing has a compelling prototype: a price-aware London pub crawl planner with MapLibre, crawl routes, venue context, story signals, Pint Drops, and a landing-page direction. It is not ready for Opus to treat as production complete.
+PubMaxxing has a compelling prototype: a price-aware London pub crawl planner with MapLibre, crawl routes, venue context, story signals, Pint Drops, and a landing-page direction. It is not ready for Opus to treat as production complete.
 
 The current branch still has gaps that could break trust:
 

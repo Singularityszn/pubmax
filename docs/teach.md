@@ -1,4 +1,4 @@
-# docs/teach.md — Understanding PubMaxing
+# docs/teach.md — Understanding PubMaxxing
 
 > A guided tour of this repository for a developer joining the project. Read the "big picture" first, then dive into whichever subsystem you're touching. Every section is written to be read in a few minutes and cites real `file:line` anchors so you can jump straight to the code.
 
@@ -6,7 +6,7 @@
 
 ## What it is (the 60-second version)
 
-**PubMaxing** is a price-aware, story-led **London pub-crawl planner**. Three layers on one living map:
+**PubMaxxing** is a price-aware, story-led **London pub-crawl planner**. Three layers on one living map:
 
 - **Price** — every real observed pint price in London, colour-coded (cheap → mid → expensive).
 - **Setting** — by the water, gardens, the right room, a walkable route shape.
@@ -47,7 +47,7 @@ Run `npm run setup` after cloning so a broken push is caught locally before it l
 
 ## The big picture (architecture)
 
-PubMaxing is a **thin, deterministic pipeline** with a small server seam. The data layer is pure and framework-free; the UI is a thin consumer; the backend is one write path and one Q&A path.
+PubMaxxing is a **thin, deterministic pipeline** with a small server seam. The data layer is pure and framework-free; the UI is a thin consumer; the backend is one write path and one Q&A path.
 
 ```
                        public/data/pint_prices_app_dataset.json   (product price rows)
@@ -105,7 +105,7 @@ PubMaxing is a **thin, deterministic pipeline** with a small server seam. The da
 
 ### Overview
 
-This is the pure, framework-free core of PubMaxing: it turns the flat price dataset into story-bearing `Venue` objects, and owns every rule about **money and provenance**. It groups price rows into venues, filters and scores them for a given crawl style, greedily builds a walkable route, and layers a moderated community "Pint Drop" system on top — all while keeping editorial facts, contributor evidence, and demo seeds *visibly distinct and never blended*. Everything here is deterministic and side-effect-free except the in-memory Pint Drop store, which is deliberately swappable. The UI (`components/PubMap.tsx`) is a thin consumer of these functions.
+This is the pure, framework-free core of PubMaxxing: it turns the flat price dataset into story-bearing `Venue` objects, and owns every rule about **money and provenance**. It groups price rows into venues, filters and scores them for a given crawl style, greedily builds a walkable route, and layers a moderated community "Pint Drop" system on top — all while keeping editorial facts, contributor evidence, and demo seeds *visibly distinct and never blended*. Everything here is deterministic and side-effect-free except the in-memory Pint Drop store, which is deliberately swappable. The UI (`components/PubMap.tsx`) is a thin consumer of these functions.
 
 ### Key types & files
 
@@ -162,7 +162,7 @@ This is the pure, framework-free core of PubMaxing: it turns the flat price data
 
 ### Overview
 
-The map is PubMaxing's centerpiece: a pitched, reader-controlled 3-D view of
+The map is PubMaxxing's centerpiece: a pitched, reader-controlled 3-D view of
 London and supported UK cities. Curated venues use price-aware markers, while
 UK-wide OpenStreetMap pubs form a quieter unverified layer with no price fields.
 The crawl route is drawn with animated brass "marching ants." Rendering uses

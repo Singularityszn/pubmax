@@ -7,7 +7,7 @@
 >
 > Details: [`docs/WHERE_ARE_THE_SKILLS.md`](docs/WHERE_ARE_THE_SKILLS.md)
 
-_Generated 2026-08-07 for PubMaxing / Cursor cloud agent._
+_Generated 2026-08-07 for PubMaxxing / Cursor cloud agent._
 
 This catalog lists every skill available to this agent environment:
 

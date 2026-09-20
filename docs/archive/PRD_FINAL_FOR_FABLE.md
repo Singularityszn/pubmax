@@ -1,4 +1,4 @@
-# PubMaxing — Final PRD for Fable
+# PubMaxxing — Final PRD for Fable
 
 > **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md. Historical context; current state also lives in docs/teach.md.
 
@@ -91,7 +91,7 @@ Today's map is a competent flat 2-D dark web map. The reference we want to match
 ## Design direction
 
 - **Two moods, one system.** Dark = a candle-lit night city (current default). Light = a printed day guidebook. Both driven by the same tokens (`--ink`, `--paper`, `--brass`, `--river`, `--pint`…) so the whole app + map flip cleanly.
-- **One accent: brass.** No second accent, no gradient-as-decoration, no glassmorphism, no emoji, no hype copy. Serif (EB-Garamond-feel via the system `--serif`) for brand + headlines; Inter for chrome; tabular figures for prices. (lavish-design discipline, applied to PubMaxing's own guidebook brand.)
+- **One accent: brass.** No second accent, no gradient-as-decoration, no glassmorphism, no emoji, no hype copy. Serif (EB-Garamond-feel via the system `--serif`) for brand + headlines; Inter for chrome; tabular figures for prices. (lavish-design discipline, applied to PubMaxxing's own guidebook brand.)
 - **The "pub guidebook margin" motif** — side panels as annotated margins: price stamps, route numbers, sourced notes, provenance chips beside a living map.
 - **Motion with restraint** — the idle orbit, cinematic fly-to, and reveal-on-scroll; all behind `prefers-reduced-motion`.
 

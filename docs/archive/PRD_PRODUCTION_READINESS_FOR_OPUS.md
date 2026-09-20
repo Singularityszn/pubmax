@@ -1,4 +1,4 @@
-# PRD - Production Readiness for Pint Drops and PubMaxing
+# PRD - Production Readiness for Pint Drops and PubMaxxing
 
 > **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md
 
@@ -6,7 +6,7 @@
 
 ## Problem Statement
 
-PubMaxing now has the core product loop: a map of London venues, Crawl Route planning, curated heritage signals, and Pint Drops for community prices, photos, and Passed-Down Notes. The local build is working, but it is not yet production-ready because durable credentials, hosted data stores, content policies, deployment ownership, and moderation decisions are outside the codebase.
+PubMaxxing now has the core product loop: a map of London venues, Crawl Route planning, curated heritage signals, and Pint Drops for community prices, photos, and Passed-Down Notes. The local build is working, but it is not yet production-ready because durable credentials, hosted data stores, content policies, deployment ownership, and moderation decisions are outside the codebase.
 
 Without those production inputs, the app can demo the experience but cannot safely accept public contributions. Supabase credentials and migrations are the critical path; legal/privacy copy, verified source permissions, and moderation ownership are the trust path.
 

@@ -1,6 +1,6 @@
 /**
  * The UK-wide OSM venue taxonomy: what a "place to drink, eat or work" is in
- * OpenStreetMap tags, which PubMaxing venue kind each one becomes, and the
+ * OpenStreetMap tags, which PubMaxxing venue kind each one becomes, and the
  * Overpass query that asks for it.
  *
  * This is the widening of `scripts/lib/ukOsmSeed.mjs`, which asks for

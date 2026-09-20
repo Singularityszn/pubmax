@@ -301,7 +301,7 @@ Clean up stale handoff artifacts so the next agent does not chase old work.
 Required:
 
 - Update `README.md` and `docs/teach.md` to remove stray closing markers such as `</content>` and `</invoke>`.
-- Update docs that still say PubMaxing on public-facing surfaces unless the old spelling is explicitly historical.
+- Update docs that unless noted as historical archive surfaces unless quoting historical archives verbatim.
 - Mark older PRDs as superseded when their work has landed.
 - Add a short `docs/ACTIVE_PLAN.md` linking to this PRD and the current demo checklist.
 - Refresh `docs/DEMO_DECK.md` with the PUBMAXXING narrative and current screenshots.

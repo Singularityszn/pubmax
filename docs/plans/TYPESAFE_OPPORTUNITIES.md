@@ -1,4 +1,4 @@
-# TypeSafe opportunities in PubMaxing
+# TypeSafe opportunities in PubMaxxing
 
 Scope: read-only survey of `lib/`, `scripts/` and `app/api/` on 20 Sep 2026 (branch `fm/pubmax-map-gl-retry-red-on-main`, same tree as main for these files). Each entry names a place where the app makes a semantic judgment with regex tables, keyword lists or hand-tuned thresholds, and shows how a small TypeSafe System One judgment (Choice, Noul or Score) would stand in for the fragile part while code keeps the candidates, rules and side effects.
 

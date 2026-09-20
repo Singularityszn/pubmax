@@ -1,4 +1,4 @@
-# PubMaxing Screenshots
+# PubMaxxing Screenshots
 
 Reference screenshots for the Gate-Z visual baseline. The required gate captures
 **390×844** and **1440×900** in light and dark themes via:

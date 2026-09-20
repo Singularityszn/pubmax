@@ -1,6 +1,6 @@
 # Add a Community Heritage Layer Behind a Single Write-Path Seam
 
-PubMaxing's differentiator is not price — pint-prices.com already has price. It is the human layer around a venue: pint photos, observed prices, and Passed-Down Notes (memory and inherited local knowledge). This is the content a competitor cannot scrape, and the mechanic that lets the 30–50s who hold pub knowledge and the Gen Z who discover it meet on the same map.
+PubMaxxing's differentiator is not price — pint-prices.com already has price. It is the human layer around a venue: pint photos, observed prices, and Passed-Down Notes (memory and inherited local knowledge). This is the content a competitor cannot scrape, and the mechanic that lets the 30–50s who hold pub knowledge and the Gen Z who discover it meet on the same map.
 
 Adding user contributions forces an architectural decision the app has so far deferred: the product is a static, client-only dataset (`public/data/pint_prices_app_dataset.json`) and cannot accept writes or photos.
 

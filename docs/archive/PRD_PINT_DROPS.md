@@ -6,7 +6,7 @@
 
 ## Problem Statement
 
-A PubMaxing user can see what a pint costs and plan a Crawl Route, but the map holds no human memory of London's pubs. The knowledge that makes a pub matter — a story handed down from a parent, a childhood local, why an old boozer is worth the detour — lives only in people's heads, and the generation that holds it has no way to pass it to the generation discovering these places. The price data is a commodity anyone can copy; the memory is not, and today the product captures none of it.
+A PubMaxxing user can see what a pint costs and plan a Crawl Route, but the map holds no human memory of London's pubs. The knowledge that makes a pub matter — a story handed down from a parent, a childhood local, why an old boozer is worth the detour — lives only in people's heads, and the generation that holds it has no way to pass it to the generation discovering these places. The price data is a commodity anyone can copy; the memory is not, and today the product captures none of it.
 
 ## Solution
 
@@ -78,5 +78,5 @@ Let anyone attach a **Pint Drop** to a Venue: a pint photo, a Venue photo, the p
 
 - **Confirm the seam.** Per `to-prd`, the intended single seam is `POST /api/pint-drops` (write) + the `curation` merge (read). Confirm this matches your expectation before Codex builds; if a Supabase Edge Function is preferred over a Next.js route handler, that is the one place to change.
 - **Why now:** this is the moment the deferred Supabase backend is justified — scoped to one table, one bucket, one route — rather than a speculative rewrite.
-- **The loop it completes:** plan a Crawl Route (acquisition) → walk it → drop your pints and a memory (contribution) → others discover via the map (retention). The optimiser gave PubMaxing a reason to arrive; Pint Drops give it a reason to come back.
+- **The loop it completes:** plan a Crawl Route (acquisition) → walk it → drop your pints and a memory (contribution) → others discover via the map (retention). The optimiser gave PubMaxxing a reason to arrive; Pint Drops give it a reason to come back.
 - **Dependencies:** Supabase project + Storage bucket + service-role key in `.env.local` (server-side only, never committed).
