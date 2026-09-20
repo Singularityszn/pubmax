@@ -18,6 +18,7 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 const mobileMapCss = read("components/mobile/mobileMapShell.css");
 const mapKeyCss = read("components/map/mapKey.css");
 const cameraControlsCss = read("components/map/mapCameraControls.css");
+const toolbarCss = read("components/map/mapToolbar.css");
 const canvasSource = read("components/PubMapCanvas.tsx");
 
 /**
@@ -91,6 +92,30 @@ describe("wide-screen camera chips — reachable, not under the toolbar", () => 
     expect(
       rule(mobileMapCss, ".appShell .mapStage .mapCameraControls .mapCompassBtn .mapCompassBtnLabel"),
     ).toMatch(/display:\s*none/);
+  });
+
+  // The chips being a row bought the zoom column a berth DERIVED from one 44px
+  // chip: --map-overlay-top 108px plus 44 plus the 6px gap is 158px, one pixel
+  // INSIDE the toolbar block, which starts at --map-top-clearance (159px) and
+  // runs --map-toolbar-resting-height. So from 1024px to 1280px "Zoom in" was
+  // painted, 44x44, and elementFromPoint at its own centre answered
+  // div.mapToolbarRow (UI review 17 Sep 2026, finding 1). The fix is the one
+  // both earlier instances of this class took (components/AGENTS.md): the
+  // floating member reads the occluder's OWN published berth rather than
+  // restating a number, and the toolbar's height is published because the block
+  // GROWS when the drink panel opens.
+  it("clears the toolbar's own published berth, not the camera stack alone", () => {
+    const berth = rule(
+      toolbarCss,
+      ".appShell .mapStage .maplibregl-ctrl-top-right",
+    );
+    expect(berth).toMatch(/top:\s*max\(/);
+    expect(berth).toContain("var(--map-top-clearance)");
+    expect(berth).toContain("var(--map-toolbar-resting-height)");
+    // The camera stack's own clearance stays, for the widths where the stack is
+    // the taller occluder.
+    expect(berth).toContain("var(--map-camera-stack-height)");
+    expect(berth).toContain("var(--map-overlay-top)");
   });
 });
 

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { paintedAmbientSurfaces } from "./helpers/ambientMapSurfaces";
+
 // What a desktop reader meets before they have touched anything.
 //
 // Measured on a production build at 1440x900, 7 Sep 2026 (docs/proof/
@@ -120,4 +122,94 @@ test.describe("the desktop map's arrival chrome", () => {
       await page.locator(".mapArrivalCard button").count(),
     ).toBe(FIRST_VISIT_STRIP_CONTROLS);
   });
+});
+
+// AND THE WAIT HOLDS AFTER THE STRIP IS ANSWERED. UI review 17 Sep 2026,
+// finding 5: dismissing the strip released THREE at once at 1440 (the location
+// prompt, the closure and area-news rail, the concierge ask). The wait was
+// enforced only against the strip; it is a cascade among the banners now
+// (components/map/mapBannerStaging.css), so answering the one on screen releases
+// exactly the next one down.
+test.describe("the desktop map after the arrival strip is answered", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+  });
+
+  test("still holds one ambient surface, whichever of them is eligible", async ({
+    page,
+  }) => {
+    const response = await page.goto("/map");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".mapArrivalCard")).toHaveCount(0);
+    await expect(page.locator(".mapCanvasWrap")).toBeVisible({
+      timeout: ARRIVAL_TIMEOUT_MS,
+    });
+
+    // These mount off four independent reads, so the count is watched while
+    // each of them lands rather than read once at the end.
+    for (let pass = 0; pass < 12; pass += 1) {
+      const painted = await paintedAmbientSurfaces(page);
+      expect(
+        painted.length,
+        `pass ${pass}: ${painted.join(", ") || "no ambient surface"}`,
+      ).toBeLessThanOrEqual(1);
+      await page.waitForTimeout(500);
+    }
+  });
+
+  // ZOOM IN OWNS ITS OWN CENTRE AT EVERY WIDTH. UI review 17 Sep 2026, finding
+  // 1: from 1024px to 1280px the button was painted, 44x44, and
+  // `elementFromPoint` at its own centre answered `div.mapToolbarRow`, so the
+  // click was swallowed by the toolbar. A hit test at the button's centre is the
+  // assertion, not a screenshot: the button was always THERE.
+  for (const width of [768, 900, 1024, 1280, 1440] as const) {
+    test(`${width}px zoom controls own their own centres`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const response = await page.goto("/map");
+      expect(response?.status()).toBe(200);
+      await expect(page.locator(".maplibregl-ctrl-zoom-in")).toBeVisible({
+        timeout: ARRIVAL_TIMEOUT_MS,
+      });
+      await expect(page.locator(".mapToolbar")).toBeVisible({
+        timeout: ARRIVAL_TIMEOUT_MS,
+      });
+
+      const reading = await page.evaluate(() =>
+        [".maplibregl-ctrl-zoom-in", ".maplibregl-ctrl-zoom-out"].map(
+          (selector) => {
+            const node = document.querySelector(selector);
+            if (!node) throw new Error(`${selector} is missing`);
+            const box = node.getBoundingClientRect();
+            const hit = document.elementFromPoint(
+              box.left + box.width / 2,
+              box.top + box.height / 2,
+            );
+            return {
+              selector,
+              width: box.width,
+              height: box.height,
+              ownsCentre: hit === node || node.contains(hit),
+              answeredBy: hit
+                ? `${hit.tagName.toLowerCase()}.${String(hit.className)}`
+                : "nothing",
+            };
+          },
+        ),
+      );
+
+      for (const control of reading) {
+        expect(
+          control.ownsCentre,
+          `${control.selector} centre answered ${control.answeredBy}`,
+        ).toBe(true);
+        expect(control.width).toBeGreaterThanOrEqual(44);
+        expect(control.height).toBeGreaterThanOrEqual(44);
+      }
+    });
+  }
 });

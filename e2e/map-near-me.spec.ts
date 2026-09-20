@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { paintedAmbientSurfaces } from "./helpers/ambientMapSurfaces";
+
 test.use({ storageState: { cookies: [], origins: [] } });
 
 const desktopCases = [
@@ -70,9 +72,15 @@ for (const { width, tonightState, tonightBody } of desktopCases) {
         ),
     );
     await page.waitForTimeout(1_000);
-    await expect(page.locator(".cityStatusBanner")).toBeVisible({
+    // The status rail is ELIGIBLE (the stub answers a Central line with severe
+    // delays) and it WAITS: the location ask is first in the map's one ambient
+    // cascade, because that ask is what the arrival strip is (UI review 17 Sep
+    // 2026, finding 5; components/map/mapBannerStaging.css). This spec is about
+    // the location ask's own control, so it is the surface that must be up.
+    await expect(page.locator(".cityStatusBanner")).toHaveCount(1, {
       timeout: 20_000,
     });
+    await expect(page.locator(".cityStatusBanner")).toBeHidden();
     await expect(page.locator(".appShell")).not.toHaveClass(/onboarding-open/);
     await expect(page.locator(".mapOnboarding")).toHaveCount(0);
     await expect(page.locator(".tourScrim")).toHaveCount(0);
@@ -103,12 +111,10 @@ for (const { width, tonightState, tonightBody } of desktopCases) {
       width,
     );
 
-    const suggestBounds = await page.locator(".citySuggestBanner").boundingBox();
-    const statusBounds = await page.locator(".cityStatusBanner").boundingBox();
-    expect(
-      (statusBounds?.y ?? 0) -
-        ((suggestBounds?.y ?? 0) + (suggestBounds?.height ?? 0)),
-    ).toBeGreaterThanOrEqual(8);
+    // The prompt owns the map on its own, so there is no second banner to keep
+    // eight pixels away from. What is measured instead is the count.
+    const painted = await paintedAmbientSurfaces(page);
+    expect(painted).toEqual([".citySuggestBanner"]);
   });
 }
 
@@ -117,6 +123,11 @@ test("keeps the expanded city-status feed inside an 800px viewport", async ({
 }) => {
   await page.addInitScript(() => {
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // The location ask is first in the map's one ambient cascade, so the status
+    // rail owns the surface once that ask is answered
+    // (components/map/mapBannerStaging.css). This test is about the rail's own
+    // expanded geometry, so the ask is already answered.
+    window.sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
   });
   await page.setViewportSize({ width: 800, height: 800 });
   await page.route("**/api/whats-on**", (route) =>

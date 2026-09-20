@@ -402,6 +402,11 @@ test("expanded city-status sheet follows wrapped headline geometry", async ({
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // The location ask is first in the map's one ambient cascade, so the status
+    // rail owns the surface once that ask is answered
+    // (components/map/mapBannerStaging.css). This test is about the rail's own
+    // wrapped headline, so the ask is already answered.
+    window.sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
   });
   await installDeterministicMapBasemap(page);
   await page.route("**/api/whats-on**", (route) =>

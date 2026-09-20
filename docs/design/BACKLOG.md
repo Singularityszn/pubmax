@@ -19,8 +19,8 @@ at 1440 and 1280 with a venue drawer open over a mapped two-stop route.
 
 | Defect | Where | What makes it hard |
 |---|---|---|
-| The route chip stacks 10px above the bottom-left status banner, and with the drawer open the two pills overlap sideways with ragged left edges. | `.mappedRouteChip` (`bottom: 82px`, `app/globals.css`) beside `.cityStatusStack` moved to the bottom-left lane by `components/map/mapBannerStaging.css`. | The status stack has no fixed height and opens into a panel, so a fixed lift is a guess; the bottom chips and the banner need one shared flow. |
-| At 1280 the search placeholder is cut mid-word, and the zoom buttons do not show beside `Recenter`. | The desktop map toolbar and camera controls. | Both sit in the 641 to 1280 chrome budget other lanes have already cut. |
+| The route chip stacks 10px above the bottom-left status banner, and with the drawer open the two pills overlap sideways with ragged left edges. | `.mappedRouteChip` (`bottom: 82px`, `app/globals.css`) beside `.cityStatusStack`. | The status stack has no fixed height and opens into a panel, so a fixed lift is a guess; the bottom chips and the banner need one shared flow. The bottom-left lane this row was measured in is gone with the one-ambient-banner cascade (17 Sep 2026), so re-measure before spending a lane on it: the status stack now keeps its centred berth. |
+| The search placeholder is cut mid-word at 641px (a 162px input reading "Search London venu…") and at 768px (215px). | The desktop map toolbar's search cell. | It sits in the 641 to 1280 chrome budget other lanes have already cut. |
 
 ## Decisions raised and still open
 
@@ -33,6 +33,7 @@ at 1440 and 1280 with a venue drawer open over a mapped two-stop route.
 
 | Key | Answer | Where |
 |---|---|---|
+| The zoom buttons at 1280 | They were never missing: measured 17 September 2026 they are painted, 44×44, at 1024 and 1280 and `elementFromPoint` at "Zoom in"'s own centre answered `div.mapToolbarRow`, so the button was dead rather than absent. The column reads the toolbar's own published berth now (`components/map/mapToolbar.css`). The `Recenter` control this row named is in no viewport's DOM. | The UI-review follow-ups lane; fence `__tests__/mapChromeDebris.test.ts`. |
 | `head-primary-on-form-screens` | A form screen paints no head primary: the form's own submit, beside the field it submits, is the one painted control. | Captain, 7 September 2026; applied in #1597 and written into `docs/design/LAUNCH_SCREENS.md`'s rules list. |
 | The profile editor's own form buttons | Every text button on `/u/you` is the Button primitive in its quiet variant, and the surface's stylesheet paints none of them. A destructive action is the primitive's `danger` fill rather than a box of its own. | The design-review follow-ups lane; proof `docs/proof/design-review-followups/`. |
 | One family for number-square chips | The planner's pub-stop count and the /pubs fare-zone picker both render `Chip variant="number"`, painted from the `--control-*` row by `components/ui/chip.css`. The map's segmented zone picker keeps its own recorded treatment. | Same lane. |
