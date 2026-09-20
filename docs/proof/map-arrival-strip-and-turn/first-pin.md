@@ -3,7 +3,7 @@
 Measured 7 September 2026 on one MacBook, against two local production builds:
 `origin/main` at `a28e3f0ed` and this branch. Both served by `next start`, both
 read by the same rig, which asks the map's own painted-pin probe
-(`components/map/canvas/paintedPinProbe.ts`) every 200ms and stops at the first
+(`components/map/canvas/paintedPinProbe.ts`) every 100ms and stops at the first
 answer. The probe only counts a mark that is drawn, has survived symbol
 collision, and carries no app chrome on top of it, so it answers the question a
 reader actually has: can I tap a pub yet.
