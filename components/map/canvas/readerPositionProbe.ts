@@ -4,9 +4,9 @@ import type { FeatureCollection, Point } from "geojson";
 // For the browser suite: whether the reader dot layers exist and what the
 // user-location GeoJSON source holds right now. Unconditional in production,
 // like the camera and painted-pin probes beside it.
-export const MAP_READER_POSITION_PROBE_KEY = "__pubmaxMapReaderPosition";
+const MAP_READER_POSITION_PROBE_KEY = "__pubmaxMapReaderPosition";
 
-export type MapReaderPositionProbeReading = {
+type MapReaderPositionProbeReading = {
   hasAccuracyLayer: boolean;
   hasCoreLayer: boolean;
   coordinates: [number, number] | null;
