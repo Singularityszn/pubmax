@@ -198,10 +198,3 @@ export function browserDeviceAccountSwitchDeps(): DeviceAccountSwitchDeps {
     },
   };
 }
-
-/** Switch this device to a remembered account. */
-export async function switchToDeviceAccount(
-  userId: string,
-): Promise<DeviceAccountSwitchOutcome> {
-  return activateDeviceAccount(userId, browserDeviceAccountSwitchDeps());
-}

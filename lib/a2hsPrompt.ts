@@ -337,15 +337,3 @@ export function recordA2hsVisit(now: Date, storage?: Storage | null): A2hsState 
   if (next !== current) writeA2hsState(next, storage);
   return next;
 }
-
-/** Subscribe to state changes (same-tab writes + cross-tab `storage`). */
-export function subscribeA2hs(onChange: () => void): () => void {
-  if (typeof window === "undefined") return () => {};
-  const handler = () => onChange();
-  window.addEventListener(CHANGE_EVENT, handler);
-  window.addEventListener("storage", handler);
-  return () => {
-    window.removeEventListener(CHANGE_EVENT, handler);
-    window.removeEventListener("storage", handler);
-  };
-}

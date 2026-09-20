@@ -47,10 +47,14 @@ const AREA_LABELS = NIGHT_AREAS
 
 function defaultDaypart(now: Date): Daypart {
   const hour = londonHour(now);
+  // The small hours (past midnight, before the daytime cutoff) are still last
+  // night's late_night, not the next day's daytime — check them before the
+  // hour < 16 daytime band so they cannot be swallowed by it.
+  if (hour < 4) return "late_night";
   if (hour < 16) return "daytime";
   if (hour < 19) return "after_work";
   if (hour < 23) return "evening";
-  return hour < 4 ? "late_night" : "get_home";
+  return "get_home";
 }
 
 const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8 };
