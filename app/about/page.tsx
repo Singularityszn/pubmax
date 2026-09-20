@@ -27,7 +27,7 @@ import "./about.css";
 
 const PAGE_TITLE = "Our story: why PUBMAXX exists";
 const PAGE_DESCRIPTION =
-  "A pint in London can cost eight quid. PUBMAXX puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.";
+  "A pint in London can cost eight quid. PubMaxxing puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,

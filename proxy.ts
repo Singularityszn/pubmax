@@ -228,11 +228,12 @@ export function securityProxy(request: NextRequest) {
     canonicalUrl.protocol = "https:";
     canonicalUrl.host = CANONICAL_HOST;
     canonicalUrl.port = "";
-    // Permanent host redirects still get the tag when not production so a
-    // preview artifact never answers without noindex, even mid-redirect.
-    return applyNonProductionRobotsTag(
-      NextResponse.redirect(canonicalUrl, 308),
-    );
+    const response = NextResponse.redirect(canonicalUrl, 308);
+    // Tell crawlers not to keep the deployment hostname in the index while the
+    // 308 is in flight. Production previews already noindex via
+    // applyNonProductionRobotsTag; this covers production *.vercel.app aliases.
+    response.headers.set("X-Robots-Tag", "noindex");
+    return applyNonProductionRobotsTag(response);
   }
   if (pathname === "/ingest" || pathname.startsWith("/ingest/")) {
     return applyNonProductionRobotsTag(NextResponse.next());

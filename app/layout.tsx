@@ -20,6 +20,7 @@ import {
 } from "@/lib/clerkIdentity";
 import CommandPaletteProvider from "@/components/command/CommandPaletteProvider";
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
+import { siteJsonLd } from "@/lib/siteJsonLd";
 import PerformanceVitals from "@/components/PerformanceVitals";
 import JsonLd from "@/components/seo/JsonLd";
 import { serializeInlineScriptJson } from "@/lib/inlineScriptJson";
@@ -39,42 +40,8 @@ import OptionalClerkProvider from "@/components/auth/OptionalClerkProvider";
 // out of every keyless route, which is the normal map build, by loading one
 // client boundary only when both Clerk keys open its provider branch below.
 
-// Site-wide structured data (Wave S1.3). WebSite + Organization only — the
-// identity graph Google reads for the brand panel and AI engines read to know
-// what pubmaxxing.com IS. No SearchAction/potentialAction: the only on-site
-// search is the client-rendered WebGL map (/map?q=), which is not a crawlable
-// results page, so advertising a sitelinks search box would be schema for
-// something we can't prove (PRD non-negotiable). logo is an absolute URL to a
-// shipped icon asset (public/icon-512.png).
-const SITE_JSON_LD = [
-  {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "@id": "https://pubmaxxing.com/#website",
-    name: "PUBMAXXING",
-    alternateName: "PUBMAXX",
-    url: "https://pubmaxxing.com",
-    description:
-      "A London pub map and crawl planner with listed pint prices, explicit source status and cited pub history.",
-  },
-  {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "@id": "https://pubmaxxing.com/#organization",
-    name: "PUBMAXXING",
-    url: "https://pubmaxxing.com",
-    logo: "https://pubmaxxing.com/icon-512.png",
-    founder: {
-      "@type": "Person",
-      name: "Karan Manoharan",
-      url: "https://x.com/karansznx",
-    },
-    sameAs: [
-      "https://x.com/karansznx",
-      "https://github.com/karanmrn",
-    ],
-  },
-];
+// Site-wide structured data (Wave S1.3). WebSite + Organization graph lives in
+// lib/siteJsonLd.ts so tests and the layout share one emitter.
 
 // Speculation rules for the prerender candidates documented at the <script>
 // below. Hoisted to module scope so the block is a rendered constant rather
@@ -188,7 +155,7 @@ export const metadata: Metadata = {
     template: "%s | PUBMAXX",
   },
   description:
-    "PUBMAXX is a price-aware nightlife map. Listed pint prices, what's on tonight, and crawl plans.",
+    "PubMaxxing is a price-aware London pub map: listed pint prices, what's on tonight, and crawl plans.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -352,7 +319,7 @@ export default async function RootLayout({
         />
         {/* Site-wide JSON-LD (WebSite + Organization). Carries the nonce like
             every other inline script under the nonce CSP (proxy.ts). */}
-        <JsonLd data={SITE_JSON_LD} nonce={nonce} />
+        <JsonLd data={siteJsonLd} nonce={nonce} />
       </head>
       <body data-social-friends-launch={socialFriendsLaunchEnabled ? "1" : "0"}>
         {/* The nav, the phone tab bar and the command palette all name Social

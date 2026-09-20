@@ -39,7 +39,7 @@ import type { MetadataRoute } from "next";
 // row returning is a conscious test edit, the same as a change to the list
 // above; the gate itself is proved in both directions by the fixture-driven
 // describe at the foot of this file. The ROUTE is unaffected either way.
-const STATIC_HUB_COUNT = 14;
+const STATIC_HUB_COUNT = 15;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -174,6 +174,22 @@ describe("sitemap()", () => {
     ]) {
       expect(urls).toContain(`${SITE}${hub}`);
     }
+  });
+
+  it("lists the brand-relevant discovery routes a stranger can be sent to", () => {
+    for (const hub of ["/", "/map", "/tonight", "/about", "/how-we-estimate"]) {
+      expect(urls).toContain(`${SITE}${hub}`);
+    }
+  });
+
+  it("advertises no /near page, because /near ships noindex", () => {
+    // /near is a per-user, location-dependent view and carries
+    // `robots: { index: false }` (app/near/page.tsx). A sitemap row for a
+    // noindex URL is a contradictory signal: Search Console reports it as
+    // "Submitted URL marked noindex" rather than indexing it. The borough
+    // pages carry the indexable price content, and they are listed below.
+    expect(urls).not.toContain(`${SITE}/near`);
+    expect(urls).toContain(`${SITE}/borough`);
   });
 
   it("publishes the city picker once, at /places, and never at /choose-city", () => {

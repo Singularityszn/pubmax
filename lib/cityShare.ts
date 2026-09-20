@@ -142,6 +142,23 @@ export function cityMapOgDescription(
 }
 
 /**
+ * True when `options` carry share copy of their own - a curated crawl or a
+ * story band - rather than falling back to the city tagline above. The `/map`
+ * metadata builder asks this so the plain document and a share link can differ
+ * without comparing rendered strings, which would flip the moment a band blurb
+ * happened to read like the tagline.
+ */
+export function cityMapShareSelectsDescription(
+  cityId: CityId | string | null | undefined,
+  options: CityMapShareOptions = {},
+): boolean {
+  const id = resolveCityId(cityId);
+  if (resolveCrawl(id, options)) return true;
+  const bandId = normalizeBandId(options.band ?? undefined);
+  return Boolean(bandId && bandByIdForCity(id, bandId));
+}
+
+/**
  * Dynamic OG image URL. Query-aware so crawlers that hit `?band=` / `?crawl=`
  * get a cult / crawl card (opengraph-image.tsx cannot read searchParams).
  */

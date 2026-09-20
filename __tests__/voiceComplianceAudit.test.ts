@@ -170,7 +170,7 @@ describe("VOICE.md compliance audit", () => {
     expect(tonight).not.toContain("same spine as the map");
     expect(tonightPage).not.toContain("Same spine as the map");
     expect(tonightPage).toContain(
-      "Check sourced London pub listings for tonight, with map links when available.",
+      "Check sourced London pub listings for tonight on PubMaxxing, with map links when available.",
     );
     expect(planTemplates).not.toContain("What's-On spine");
     expect(planTemplates).toContain("Quiz listings with start times.");
