@@ -9,7 +9,7 @@ import NearPageClient from "@/components/nearme/NearPageClient";
 export const metadata: Metadata = {
   title: "Find my pint. Nearby London pint prices",
   description:
-    "PubMaxxing compares listed pint prices near you on PUBMAXX, cheapest first. Use your location or pick a London patch.",
+    "PubMaxxing compares listed pint prices near you, cheapest first. Use your location or pick a London patch.",
   robots: { index: false, follow: true },
   alternates: { canonical: "/near" },
 };

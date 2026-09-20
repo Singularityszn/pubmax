@@ -155,7 +155,7 @@ export const metadata: Metadata = {
     template: "%s | PUBMAXX",
   },
   description:
-    "PubMaxxing is the product behind the PUBMAXX wordmark: a price-aware London pub map with listed pint prices, what's on tonight, and crawl plans.",
+    "PubMaxxing is a price-aware London pub map: listed pint prices, what's on tonight, and crawl plans.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

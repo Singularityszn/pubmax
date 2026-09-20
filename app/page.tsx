@@ -13,7 +13,7 @@ import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 // prints on the share card.
 const HOME_TITLE = "PUBMAXXING: what a pint costs, pub by pub";
 const HOME_DESCRIPTION =
-  "PubMaxxing on PUBMAXX: the cheapest listed pint near you, on one map. Who listed it, and the day they did.";
+  "PubMaxxing puts the cheapest listed pint near you on one map. Who listed it, and the day they did.";
 
 // Self-canonical for the homepage (Wave S1.4). Title/description inherit the
 // root layout defaults; this pins the canonical URL and the homepage's own
