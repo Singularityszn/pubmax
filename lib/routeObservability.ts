@@ -72,3 +72,16 @@ export function withRouteTiming<Rest extends unknown[]>(
     }
   };
 }
+
+/** Emit one timing line for a TypeSafe System One call (no request URL or body). */
+export function recordTypesafeTiming(
+  lane: string,
+  durationMs: number,
+  outcome: "ok" | "error" | "skipped",
+): void {
+  log(outcome === "error" ? "warn" : "info", "typesafe.request", {
+    lane,
+    durationMs,
+    outcome,
+  });
+}

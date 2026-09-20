@@ -2,6 +2,12 @@
 // receive freestyle model prose. Grounded Ask tools may supply last-train and
 // journey facts; the pal never assesses sobriety or nudges another drink.
 
+import { systemOne } from "@/lib/ai/typesafe.server";
+import {
+  PUB_PAL_FENCE_QUESTION_IDS,
+  PUB_PAL_FENCE_QUESTIONS,
+} from "@/lib/pubPalLlmFenceQuestions";
+
 export const PUB_PAL_GET_HOME_SOBRIETY_RE =
   /\b(?:get(?:ting)?\s+home|last\s+train|heading\s+home|should\s+i\s+have\s+(?:one\s+)?more|one\s+more\s+(?:drink|pint)|am\s+i\s+(?:okay|ok|fine|sober|drunk)|sobri(?:ety|ous)|drunk\s+enough|fit\s+to\s+drive|drive\s+home|uber\s+home|taxi\s+home|way\s+home|how\s+(?:do|can)\s+i\s+get\s+home)\b/i;
 
@@ -14,12 +20,85 @@ export const PUB_PAL_GET_HOME_REGISTER_CLOSER =
 export const PUB_PAL_SOBRIETY_REGISTER =
   "I cannot tell you whether to have another drink.";
 
+export type PubPalFenceTurn = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export type PubPalFenceIntent = {
+  fenced: boolean;
+  sobrietyOnly: boolean;
+};
+
+/** Keyless fallback: regex table only. */
 export function isPubPalGetHomeOrSobrietyIntent(text: string): boolean {
   return PUB_PAL_GET_HOME_SOBRIETY_RE.test(text.trim());
 }
 
+/** Keyless fallback: regex table only. */
 export function isPubPalSobrietyOnlyIntent(text: string): boolean {
   return PUB_PAL_SOBRIETY_ONLY_RE.test(text.trim());
+}
+
+function regexFenceIntent(message: string): PubPalFenceIntent {
+  const trimmed = message.trim();
+  if (!isPubPalGetHomeOrSobrietyIntent(trimmed)) {
+    return { fenced: false, sobrietyOnly: false };
+  }
+  return {
+    fenced: true,
+    sobrietyOnly: isPubPalSobrietyOnlyIntent(trimmed),
+  };
+}
+
+export { PUB_PAL_FENCE_QUESTION_IDS, PUB_PAL_FENCE_QUESTIONS } from "@/lib/pubPalLlmFenceQuestions";
+
+// Threshold from __tests__/fixtures/typesafe/pubPalFenceProbabilities.json (low bar: FN is harm).
+export const PUB_PAL_FENCE_NOUL_THRESHOLD = 0.33;
+
+export function pubPalFenceFromNouls(
+  fitToTravel: number,
+  getHome: number,
+): PubPalFenceIntent {
+  const fitnessHit = fitToTravel >= PUB_PAL_FENCE_NOUL_THRESHOLD;
+  const getHomeHit = getHome >= PUB_PAL_FENCE_NOUL_THRESHOLD;
+  if (!fitnessHit && !getHomeHit) {
+    return { fenced: false, sobrietyOnly: false };
+  }
+  return {
+    fenced: true,
+    sobrietyOnly: fitnessHit && !getHomeHit,
+  };
+}
+
+/** TypeSafe when keyed; regex table when keyless or the judgment call fails. */
+export async function resolvePubPalFenceIntent(
+  message: string,
+  recentTurns: PubPalFenceTurn[] = [],
+): Promise<PubPalFenceIntent> {
+  const trimmed = message.trim();
+  if (!trimmed) return { fenced: false, sobrietyOnly: false };
+
+  const response = await systemOne(
+    { message: trimmed, recentTurns: recentTurns.slice(-6) },
+    PUB_PAL_FENCE_QUESTIONS,
+    { lane: "typesafe", timeoutMs: 4_000 },
+  );
+
+  if (!response) {
+    return regexFenceIntent(trimmed);
+  }
+
+  const fit =
+    response.answers[PUB_PAL_FENCE_QUESTION_IDS.fitToTravelAfterDrinking].noul;
+  const home = response.answers[PUB_PAL_FENCE_QUESTION_IDS.getHomeTonight].noul;
+  const typesafeIntent = pubPalFenceFromNouls(fit, home);
+
+  if (typesafeIntent.fenced) {
+    return typesafeIntent;
+  }
+
+  return regexFenceIntent(trimmed);
 }
 
 /** Compose a plain register answer from grounded tool hints only. */

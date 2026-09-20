@@ -315,6 +315,7 @@ describe("legal content pages", () => {
     const promptTextRecipients = [
       { name: "Arize", host: "otlp.arize.com", source: "lib/observability/arize.ts" },
       { name: "OpenRouter", host: "openrouter.ai", source: "lib/ask/modelLoop.ts" },
+      { name: "TypeSafe", host: "api.typesafe.ai", source: "lib/ai/typesafe.server.ts" },
     ];
     for (const recipient of promptTextRecipients) {
       expect(thirdPartySection, `Missing recipient name ${recipient.name}`).toContain(
@@ -334,18 +335,30 @@ describe("legal content pages", () => {
     // to hold telemetry that leaves the process.
     const thirdPartySection =
       privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
-    const directory = join(process.cwd(), "lib", "observability");
-    const modules = readdirSync(directory).filter((name) => name.endsWith(".ts"));
-    expect(modules.length, "lib/observability has no modules to sweep").toBeGreaterThan(0);
+    // Two directories, on the same reasoning: `lib/observability` exists to
+    // hold telemetry that leaves the process, and `lib/ai` exists to hold the
+    // judgment and model vendors a request path calls. Both send a drinker's
+    // typed text to somebody else, so both are swept.
+    const directories = [
+      join(process.cwd(), "lib", "observability"),
+      join(process.cwd(), "lib", "ai"),
+    ];
 
     const hosts = new Set<string>();
-    for (const name of modules) {
-      const source = readFileSync(join(directory, name), "utf8");
-      for (const match of source.matchAll(/https:\/\/([A-Za-z0-9.-]+)/g)) {
-        hosts.add(match[1]);
+    for (const directory of directories) {
+      const modules = readdirSync(directory).filter((name) => name.endsWith(".ts"));
+      expect(modules.length, `${directory} has no modules to sweep`).toBeGreaterThan(0);
+      for (const name of modules) {
+        const source = readFileSync(join(directory, name), "utf8");
+        for (const match of source.matchAll(/https:\/\/([A-Za-z0-9.-]+)/g)) {
+          hosts.add(match[1]);
+        }
       }
     }
     expect(hosts, "expected the Arize endpoint host in the sweep").toContain("otlp.arize.com");
+    expect(hosts, "expected the TypeSafe endpoint host in the sweep").toContain(
+      "api.typesafe.ai",
+    );
     for (const host of hosts) {
       expect(thirdPartySection, `Undisclosed observability egress host ${host}`).toContain(host);
     }
