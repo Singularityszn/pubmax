@@ -85,10 +85,10 @@ describe("buildJudgedSamePubMatch bands", () => {
     await expect(buildJudgedSamePubMatch([BELL, BELL_CROWN])).rejects.toThrow("ETIMEDOUT");
   });
 
-  it("aborts when a judgment comes back null rather than merging", async () => {
+  it("aborts when a call fails and comes back null rather than merging", async () => {
     judgeSamePubPair.mockResolvedValue(null);
     await expect(buildJudgedSamePubMatch([BELL, BELL_CROWN])).rejects.toThrow(
-      "TYPESAFE_API_KEY",
+      "No aliases were written",
     );
   });
 });

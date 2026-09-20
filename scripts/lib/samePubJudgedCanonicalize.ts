@@ -103,7 +103,13 @@ export async function buildJudgedSamePubMatch(groupList: VenueGroup[]): Promise<
     };
     const judged = await judgeSamePubPair(state);
     if (!judged) {
-      throw new Error(requiresTypesafeKeyMessage());
+      // The key was checked before the sweep began, so a null here is a failed
+      // call: a timeout, a 5xx or a refused request. Abort rather than carry
+      // on, because a partial verdict map silently refuses every pair the run
+      // never reached, and a half-judged alias map is worse than none.
+      throw new Error(
+        `A judged same-pub pass could not reach TypeSafe for ${a.id} / ${b.id}. No aliases were written.`,
+      );
     }
     const key = pairKey(a, b);
     if (judged.band === "merge") mergeAllowed.set(key, true);
