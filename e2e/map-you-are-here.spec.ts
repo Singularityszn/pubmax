@@ -67,31 +67,39 @@ async function readReaderDot(page: Page): Promise<{
   });
 }
 
-async function readCameraCenter(page: Page): Promise<[number, number]> {
+type CameraReading = {
+  center: [number, number];
+  zoom: number;
+  bearing: number;
+  pitch: number;
+  moving: boolean;
+};
+
+async function readCamera(page: Page): Promise<CameraReading> {
   return page.evaluate(() => {
     const probe = (
       window as typeof window & {
-        __pubmaxMapCamera?: { read: () => { center: [number, number] } };
+        __pubmaxMapCamera?: { read: () => CameraReading };
       }
     ).__pubmaxMapCamera;
     if (!probe) throw new Error("camera probe missing");
-    return probe.read().center;
-  });
+    return probe.read();
+  }) as Promise<CameraReading>;
 }
 
-async function projectLngLat(
-  page: Page,
-  lngLat: [number, number],
-): Promise<{ x: number; y: number }> {
-  return page.evaluate((point) => {
-    const probe = (
-      window as typeof window & {
-        __pubmaxMapCamera?: { project: (value: [number, number]) => { x: number; y: number } };
-      }
-    ).__pubmaxMapCamera;
-    if (!probe) throw new Error("camera probe missing");
-    return probe.project(point);
-  }, lngLat);
+/**
+ * The dot as the map holds it. `querySourceFeatures` decodes a rendered tile,
+ * so the coordinates come back quantised to the tile grid - close, never
+ * identical - and every comparison here is a distance rather than an equality.
+ */
+function metresApart(
+  a: [number, number],
+  b: [number, number],
+): number {
+  const meanLat = ((a[1] + b[1]) / 2) * (Math.PI / 180);
+  const dx = (a[0] - b[0]) * 111_320 * Math.cos(meanLat);
+  const dy = (a[1] - b[1]) * 110_574;
+  return Math.hypot(dx, dy);
 }
 
 test.describe("map you are here dot", () => {
@@ -102,7 +110,7 @@ test.describe("map you are here dot", () => {
     test.setTimeout(180_000);
     await context.grantPermissions(["geolocation"]);
     const first = { latitude: 51.515, longitude: -0.09, accuracy: 25 };
-    const second = { latitude: 51.518, longitude: -0.085, accuracy: 40 };
+    const second = { latitude: 51.522, longitude: -0.078, accuracy: 40 };
     await context.setGeolocation(first);
 
     await page.setViewportSize({ width: 390, height: 844 });
@@ -115,11 +123,15 @@ test.describe("map you are here dot", () => {
 
     const arrival = page.locator(".mapArrivalCard");
     await expect(arrival).toBeVisible({ timeout: 15_000 });
-    await arrival.getByRole("button", { name: "Use my location" }).click();
-
-    await expect(page.locator('[data-user-location="shown"]')).toBeVisible({
-      timeout: 20_000,
-    });
+    // A server-painted control is tappable before React attaches, so the tap
+    // is retried rather than the assertion after it (e2e/AGENTS.md).
+    const useMyLocation = arrival.getByRole("button", { name: "Use my location" });
+    await expect(async () => {
+      await useMyLocation.click();
+      await expect(page.locator('[data-user-location="shown"]')).toBeVisible({
+        timeout: 2_000,
+      });
+    }).toPass({ timeout: 30_000 });
 
     await expect
       .poll(async () => page.evaluate(() => "__pubmaxMapReaderPosition" in window), {
@@ -127,43 +139,60 @@ test.describe("map you are here dot", () => {
       })
       .toBe(true);
 
-    const dotBefore = await readReaderDot(page);
-    expect(dotBefore.hasAccuracyLayer).toBe(true);
-    expect(dotBefore.hasCoreLayer).toBe(true);
-    expect(dotBefore.coordinates).toEqual([first.longitude, first.latitude]);
+    // Both layers exist: a circle-radius MapLibre refuses leaves the ring out
+    // of the style in silence, and the dot alone still paints.
+    await expect
+      .poll(async () => (await readReaderDot(page)).hasAccuracyLayer, { timeout: 20_000 })
+      .toBe(true);
+    await expect
+      .poll(async () => (await readReaderDot(page)).hasCoreLayer, { timeout: 20_000 })
+      .toBe(true);
 
+    await expect
+      .poll(
+        async () => {
+          const { coordinates } = await readReaderDot(page);
+          if (!coordinates) return Number.POSITIVE_INFINITY;
+          return metresApart(coordinates, [first.longitude, first.latitude]);
+        },
+        { timeout: 30_000 },
+      )
+      .toBeLessThan(20);
 
     await expect
       .poll(async () => page.evaluate(() => "__pubmaxMapCamera" in window), {
         timeout: 30_000,
       })
       .toBe(true);
+    // The opening-location answer owns a camera move of its own; let it settle
+    // before the reading the dot's own move is held against.
+    await expect
+      .poll(async () => (await readCamera(page)).moving, { timeout: 30_000 })
+      .toBe(false);
 
-    const centerBefore = await readCameraCenter(page);
-    const screenBefore = await projectLngLat(page, [first.longitude, first.latitude]);
+    const cameraBefore = await readCamera(page);
 
     await context.setGeolocation(second);
 
+    // The dot follows the fix. This is the assertion that fails if the watch
+    // stops feeding the source, so nothing downstream may run before it.
     await expect
-      .poll(async () => {
-        const screen = await projectLngLat(page, [second.longitude, second.latitude]);
-        const dx = Math.abs(screen.x - screenBefore.x);
-        const dy = Math.abs(screen.y - screenBefore.y);
-        return dx + dy;
-      }, { timeout: 20_000 })
-      .toBeGreaterThan(8);
+      .poll(
+        async () => {
+          const { coordinates } = await readReaderDot(page);
+          if (!coordinates) return Number.POSITIVE_INFINITY;
+          return metresApart(coordinates, [second.longitude, second.latitude]);
+        },
+        { timeout: 60_000 },
+      )
+      .toBeLessThan(20);
 
-    const dotAfter = await readReaderDot(page);
-    expect(dotAfter.coordinates).toEqual([second.longitude, second.latitude]);
-
-    const centerAfter = await readCameraCenter(page);
-    expect(Math.abs(centerAfter[0] - centerBefore[0])).toBeLessThan(0.0005);
-    expect(Math.abs(centerAfter[1] - centerBefore[1])).toBeLessThan(0.0005);
-
-    const layerPresent = await page.evaluate(() => {
-      const canvas = document.querySelector("canvas.maplibregl-canvas");
-      return Boolean(canvas);
-    });
-    expect(layerPresent).toBe(true);
+    // ... and the camera does not. No flyTo, easeTo, jumpTo, fitBounds or
+    // setCenter rides the reader's position: components/AGENTS.md.
+    const cameraAfter = await readCamera(page);
+    expect(metresApart(cameraAfter.center, cameraBefore.center)).toBeLessThan(5);
+    expect(cameraAfter.zoom).toBeCloseTo(cameraBefore.zoom, 3);
+    expect(cameraAfter.bearing).toBeCloseTo(cameraBefore.bearing, 3);
+    expect(cameraAfter.pitch).toBeCloseTo(cameraBefore.pitch, 3);
   });
 });
