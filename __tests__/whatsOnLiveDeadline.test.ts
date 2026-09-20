@@ -56,28 +56,42 @@ describe("live What's-On top-up render deadline", () => {
   });
 
   it("serves the bundled spine and names the LAPSE when the provider is slower than the deadline", async () => {
-    mockFetch.mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve(answer("slow")), 400)),
-    );
+    // A virtual clock, not a wall-clock race: advancing past the 20ms deadline
+    // before the mocked 400ms provider settles makes the lapse deterministic
+    // instead of leaving CI to guess whether "waited < 300ms" holds under load.
+    vi.useFakeTimers();
+    try {
+      mockFetch.mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve(answer("slow")), 400)),
+      );
 
-    const started = Date.now();
-    const result = await loadWhatsOn(
-      {},
-      { now: NOW, loadBaseline: () => [], liveDeadlineMs: 20 },
-    );
-    const waited = Date.now() - started;
+      let settledAtDeadline = false;
+      const pending = loadWhatsOn(
+        {},
+        { now: NOW, loadBaseline: () => [], liveDeadlineMs: 20 },
+      ).then((value) => {
+        settledAtDeadline = true;
+        return value;
+      });
+      await vi.advanceTimersByTimeAsync(20);
+      // The render is finished AT the deadline, said out loud: a build that
+      // waited for the provider's 400ms instead would leave this false and
+      // fail here, rather than hanging until the runner's timeout guesses why.
+      expect(settledAtDeadline).toBe(true);
+      const result = await pending;
 
-    // The render did not wait for the provider.
-    expect(waited).toBeLessThan(300);
-    // A lane we stopped waiting for is not a lane that failed. Three findings,
-    // three names.
-    expect(result.revalidation).toEqual({
-      status: "unmeasured",
-      reason: "live-provider-deadline",
-    });
-    // The bundled spine is what a reader gets, never a fabricated night.
-    expect(result.readStatus).toBe("ready");
-    expect(result.rows).toEqual([]);
+      // A lane we stopped waiting for is not a lane that failed. Three findings,
+      // three names.
+      expect(result.revalidation).toEqual({
+        status: "unmeasured",
+        reason: "live-provider-deadline",
+      });
+      // The bundled spine is what a reader gets, never a fabricated night.
+      expect(result.readStatus).toBe("ready");
+      expect(result.rows).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("still calls a lapsed lane a lapse and NOT a failure", async () => {

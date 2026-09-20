@@ -1,4 +1,5 @@
 import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
+import { slugifyVenueName } from "@/lib/venuePermalinkSlug";
 import type { Venue } from "@/lib/venues";
 
 // Pure, deterministic helpers behind the borough discovery pages (cc_plan2
@@ -36,11 +37,7 @@ export type BoroughSummary = {
 // collapse to single hyphens, and leading/trailing hyphens are trimmed. Empty
 // or symbol-only input yields "" so callers can guard against it.
 export function slugifyBorough(name: string): string {
-  return String(name ?? "")
-    .toLowerCase()
-    .replace(/&/g, " and ")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return slugifyVenueName(String(name ?? ""));
 }
 
 // Reverse a slug back to a real borough name by matching against the boroughs

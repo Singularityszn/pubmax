@@ -34,6 +34,16 @@ describe("inferNightContext", () => {
     expect(result.context).not.toHaveProperty("homeArea");
   });
 
+  it("keeps the small hours past midnight as late_night instead of the next day's daytime", () => {
+    const result = inferNightContext("A quiet solo night in Barnes", new Date("2026-01-13T02:00:00.000Z"));
+    expect(result.context.daypart).toBe("late_night");
+  });
+
+  it("treats 11pm London time as get_home, not daytime", () => {
+    const result = inferNightContext("A quiet solo night in Barnes", new Date("2026-01-13T23:00:00.000Z"));
+    expect(result.context.daypart).toBe("get_home");
+  });
+
   it.each([
     ["Quiet in Clapham for 4, not pricey", 4],
     ["A party of five in Soho", 5],
