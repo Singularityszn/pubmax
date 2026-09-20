@@ -92,12 +92,15 @@ describe("USER_LOCATION_ACCURACY_RADIUS_PX", () => {
 
 describe("attachMapReaderPositionWatch", () => {
   let watchSuccess: PositionCallback | null = null;
+  let watchError: PositionErrorCallback | null = null;
 
   beforeEach(() => {
     watchSuccess = null;
+    watchError = null;
     const geolocation = {
-      watchPosition: vi.fn((success: PositionCallback) => {
+      watchPosition: vi.fn((success: PositionCallback, error?: PositionErrorCallback | null) => {
         watchSuccess = success;
+        watchError = error ?? null;
         return 1;
       }),
       clearWatch: vi.fn(),
@@ -188,6 +191,72 @@ describe("attachMapReaderPositionWatch", () => {
     attachMapReaderPositionWatch(() => {});
     await Promise.resolve();
     expect(navigator.geolocation.watchPosition).toHaveBeenCalled();
+  });
+
+  it("starts no watch when the watcher detaches before the permission query answers", async () => {
+    let resolveQuery: (status: PermissionStatus) => void = () => {};
+    const addEventListener = vi.fn();
+    vi.mocked(navigator.permissions!.query).mockReturnValueOnce(
+      new Promise<PermissionStatus>((resolve) => {
+        resolveQuery = resolve;
+      }),
+    );
+    const updates: Array<MapReaderPosition | null> = [];
+
+    const detach = attachMapReaderPositionWatch((position) => updates.push(position));
+    detach();
+
+    resolveQuery({
+      state: "granted",
+      addEventListener,
+      removeEventListener: vi.fn(),
+    } as unknown as PermissionStatus);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(navigator.geolocation.watchPosition).not.toHaveBeenCalled();
+    expect(addEventListener).not.toHaveBeenCalled();
+    expect(updates).toEqual([]);
+  });
+
+  it("keeps watching through a transient fix error", () => {
+    const updates: Array<MapReaderPosition | null> = [];
+    const detach = attachMapReaderPositionWatch((position) => updates.push(position));
+    latchMapReaderLocationWatch();
+
+    watchSuccess?.({
+      coords: {
+        latitude: 51.51,
+        longitude: -0.11,
+        accuracy: 18,
+        altitude: null,
+        altitudeAccuracy: null,
+        heading: null,
+        speed: null,
+      },
+      timestamp: Date.now(),
+    } as GeolocationPosition);
+
+    // A timeout indoors is the common case, and watchPosition keeps running
+    // after one. Clearing the watch here left the reader with no dot for the
+    // life of the page.
+    watchError?.({ code: 3, message: "timeout" } as GeolocationPositionError);
+
+    expect(navigator.geolocation.clearWatch).not.toHaveBeenCalled();
+    expect(updates.at(-1)).toEqual({ lat: 51.51, lng: -0.11, accuracyMeters: 18 });
+    detach();
+  });
+
+  it("stops and clears the dot when permission is denied", () => {
+    const updates: Array<MapReaderPosition | null> = [];
+    const detach = attachMapReaderPositionWatch((position) => updates.push(position));
+    latchMapReaderLocationWatch();
+
+    watchError?.({ code: 1, message: "denied" } as GeolocationPositionError);
+
+    expect(navigator.geolocation.clearWatch).toHaveBeenCalledWith(1);
+    expect(updates.at(-1)).toBeNull();
+    detach();
   });
 });
 
