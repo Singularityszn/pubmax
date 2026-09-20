@@ -180,3 +180,30 @@ export function probabilitiesFromAnswers(answers: {
     drinkCategory,
   };
 }
+
+type BatchAnswerRow = {
+  probabilities?: Record<string, number>;
+  noul?: number;
+};
+
+/** Read one candidate's probabilities out of a batched System One answer map. */
+export function probabilitiesFromBatchIndex(
+  answers: Record<string, BatchAnswerRow | undefined>,
+  index: number,
+): UkPriceJudgmentProbabilities | null {
+  const whatIsPriced = answers[`whatIsPriced_${index}`];
+  const isPromotionalPrice = answers[`isPromotionalPrice_${index}`];
+  const drinkCategory = answers[`drinkCategory_${index}`];
+  if (
+    !whatIsPriced?.probabilities ||
+    typeof isPromotionalPrice?.noul !== "number" ||
+    !drinkCategory?.probabilities
+  ) {
+    return null;
+  }
+  return probabilitiesFromAnswers({
+    whatIsPriced: { probabilities: whatIsPriced.probabilities },
+    isPromotionalPrice: { noul: isPromotionalPrice.noul },
+    drinkCategory: { probabilities: drinkCategory.probabilities },
+  });
+}

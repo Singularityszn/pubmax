@@ -1,23 +1,25 @@
 import "server-only";
 
-import { choice, noul } from "@typesafe-ai/sdk";
+import { choice, noul, type Questions } from "@typesafe-ai/sdk";
 
-import { systemOne } from "@/lib/ai/typesafe.server";
+import { systemOneOutcome, type SystemOneOutcome } from "@/lib/ai/typesafe.server";
 import { DRINK_CATEGORIES } from "@/lib/drinks";
+import { batchUkPriceCandidates } from "@/lib/harvest/ukPriceJudgmentBatch";
 import {
   DRINK_CATEGORY_JUDGMENT_OPTIONS,
   UK_PRICE_JUDGMENT_SNIPPET_CHARS,
-  WHAT_IS_PRICED_OPTIONS,
   decisionFromJudgment,
-  probabilitiesFromAnswers,
+  probabilitiesFromBatchIndex,
   type UkPriceJudgmentProbabilities,
 } from "@/lib/harvest/ukPriceJudgmentPolicy";
 import {
+  decideKeylessUkPriceCandidate,
   findUkPriceCandidates,
   pageText,
   readVenueDrinkPrices,
   type UkPriceCandidate,
   type UkPriceDropReason,
+  type UkPriceRawCandidate,
   type UkPriceReading,
 } from "@/lib/harvest/ukPriceCrawl";
 
@@ -78,32 +80,32 @@ const whatIsPricedCriteria = {
   },
 };
 
-function ukPriceQuestions() {
+function ukPriceQuestionsForBatch(candidateCount: number): Questions {
   const drinkLabels = DRINK_CATEGORIES.join(", ");
-  return {
-    whatIsPriced: choice(
+  const questions: Questions = {};
+  for (let index = 0; index < candidateCount; index += 1) {
+    questions[`whatIsPriced_${index}`] = choice(
       {
-        question:
-          "Given `snippet` and `priceText` on a pub drinks page, what single item does this figure price?",
-        inspect: "snippet",
+        question: `For candidate ${index} on this page, given \`candidates[${index}].snippet\` and \`candidates[${index}].priceText\`, what single item does this figure price?`,
+        inspect: `candidates[${index}].snippet`,
         focus: "Use the words beside the figure only, not offers or headings elsewhere on the page.",
       },
       whatIsPricedCriteria,
-    ),
-    isPromotionalPrice: noul({
-      question:
-        "Is `priceText` in `snippet` a promotional, happy-hour, bundle, multi-buy, or 'from' price rather than the standard menu price for one item?",
-      inspect: "snippet",
+    );
+    questions[`isPromotionalPrice_${index}`] = noul({
+      question: `For candidate ${index}, is \`candidates[${index}].priceText\` in \`candidates[${index}].snippet\` a promotional, happy-hour, bundle, multi-buy, or 'from' price rather than the standard menu price for one item?`,
+      inspect: `candidates[${index}].snippet`,
       focus: "Multi-buy (two for £X), happy hour, 'only', 'from', and meal bundles count as promotional.",
-    }),
-    drinkCategory: choice(
+    });
+    questions[`drinkCategory_${index}`] = choice(
       {
-        question: `When the priced item is a drink, which category fits best? Choose unclear only when the snippet does not name the drink type. Categories: ${drinkLabels}.`,
-        inspect: "snippet",
+        question: `For candidate ${index}, when the priced item is a drink, which category fits best? Choose unclear only when the snippet does not name the drink type. Categories: ${drinkLabels}.`,
+        inspect: `candidates[${index}].snippet`,
       },
       drinkCategoryCriteria,
-    ),
-  };
+    );
+  }
+  return questions;
 }
 
 export type UkPriceJudgmentState = {
@@ -113,12 +115,115 @@ export type UkPriceJudgmentState = {
   priceText: string;
 };
 
+type UkPriceBatchJudgmentResult =
+  | { ok: true; probabilities: UkPriceJudgmentProbabilities[] }
+  | { ok: false; drop: UkPriceDropReason };
+
+function dropForTypesafeBatchFailure(
+  outcome: Exclude<SystemOneOutcome<Questions>, { status: "ok" }>,
+): UkPriceDropReason {
+  if (outcome.status === "skipped" && outcome.reason === "budget") {
+    return "typesafe-judgment-budget-refused";
+  }
+  if (outcome.status === "failed" && outcome.reason === "timeout") {
+    return "typesafe-judgment-call-timeout";
+  }
+  return "typesafe-judgment-call-error";
+}
+
+function applyKeylessFallback(
+  text: string,
+  raw: UkPriceRawCandidate,
+  drop: UkPriceDropReason,
+): { kept?: UkPriceCandidate; drops: UkPriceDropReason[] } {
+  const keyless = decideKeylessUkPriceCandidate(text, raw);
+  if (keyless.kept) return { kept: keyless.kept, drops: [drop] };
+  return { drops: keyless.drop ? [drop, keyless.drop] : [drop] };
+}
+
+function applyJudgmentToCandidate(
+  raw: UkPriceRawCandidate,
+  probs: UkPriceJudgmentProbabilities,
+  ctx: { pubName: string; pageUrl: string },
+): {
+  kept?: UkPriceCandidate;
+  drops: UkPriceDropReason[];
+  review?: UkPriceJudgmentReviewRow;
+} {
+  const decision = decisionFromJudgment(probs, raw.priceGbp);
+  if (decision.outcome === "review") {
+    return {
+      drops: ["judgment-needs-review"],
+      review: {
+        pubName: ctx.pubName,
+        pageUrl: ctx.pageUrl,
+        snippet: raw.snippet,
+        priceText: raw.priceText,
+        priceGbp: raw.priceGbp,
+        probabilities: probs,
+      },
+    };
+  }
+  if (decision.outcome === "reject") {
+    return { drops: [decision.drop ?? "judgment-below-threshold"] };
+  }
+  if (decision.category) {
+    return {
+      kept: {
+        priceGbp: raw.priceGbp,
+        category: decision.category,
+        verbatim: raw.verbatim,
+        context: raw.snippet,
+      },
+      drops: [],
+    };
+  }
+  return { drops: ["judgment-below-threshold"] };
+}
+
+async function judgeUkPriceCandidateBatch(
+  ctx: { pubName: string; pageUrl: string },
+  batch: UkPriceRawCandidate[],
+): Promise<UkPriceBatchJudgmentResult> {
+  const state = {
+    pubName: ctx.pubName,
+    pageUrl: ctx.pageUrl,
+    candidates: batch.map((row) => ({ snippet: row.snippet, priceText: row.priceText })),
+  };
+  const outcome = await systemOneOutcome(state, ukPriceQuestionsForBatch(batch.length), {
+    lane: "typesafe",
+  });
+  if (outcome.status !== "ok") {
+    return { ok: false, drop: dropForTypesafeBatchFailure(outcome) };
+  }
+
+  const probabilities: UkPriceJudgmentProbabilities[] = [];
+  for (let index = 0; index < batch.length; index += 1) {
+    const probs = probabilitiesFromBatchIndex(outcome.result.answers, index);
+    if (!probs) {
+      return { ok: false, drop: "typesafe-judgment-malformed-answer" };
+    }
+    probabilities.push(probs);
+  }
+  return { ok: true, probabilities };
+}
+
 export async function judgeUkPriceCandidate(
   state: UkPriceJudgmentState,
 ): Promise<UkPriceJudgmentProbabilities | null> {
-  const response = await systemOne(state, ukPriceQuestions(), { lane: "typesafe" });
-  if (!response) return null;
-  return probabilitiesFromAnswers(response.answers);
+  const judged = await judgeUkPriceCandidateBatch(
+    { pubName: state.pubName, pageUrl: state.pageUrl },
+    [
+      {
+        priceGbp: 0,
+        verbatim: state.priceText,
+        snippet: state.snippet,
+        priceText: state.priceText,
+      },
+    ],
+  );
+  if (!judged.ok) return null;
+  return judged.probabilities[0] ?? null;
 }
 
 export async function readVenueDrinkPricesJudged(
@@ -138,48 +243,35 @@ export async function readVenueDrinkPricesJudged(
   const kept: UkPriceCandidate[] = [];
   const drops: UkPriceDropReason[] = [];
   const review: UkPriceJudgmentReviewRow[] = [];
+  const batches = batchUkPriceCandidates(ctx, candidates);
 
-  for (const raw of candidates) {
-    if (!text.includes(raw.verbatim)) {
-      drops.push("not-verbatim-on-page");
-      continue;
-    }
-
-    const probs = await judgeUkPriceCandidate({
-      pubName: ctx.pubName,
-      pageUrl: ctx.pageUrl,
-      snippet: raw.snippet,
-      priceText: raw.priceText,
+  for (const batch of batches) {
+    const verbatimBatch = batch.filter((raw) => {
+      if (!text.includes(raw.verbatim)) {
+        drops.push("not-verbatim-on-page");
+        return false;
+      }
+      return true;
     });
+    if (verbatimBatch.length === 0) continue;
 
-    if (!probs) {
-      return { ...readVenueDrinkPrices(html), review: [] };
-    }
-
-    const decision = decisionFromJudgment(probs, raw.priceGbp);
-    if (decision.outcome === "review") {
-      drops.push("judgment-needs-review");
-      review.push({
-        pubName: ctx.pubName,
-        pageUrl: ctx.pageUrl,
-        snippet: raw.snippet,
-        priceText: raw.priceText,
-        priceGbp: raw.priceGbp,
-        probabilities: probs,
-      });
+    const judged = await judgeUkPriceCandidateBatch(ctx, verbatimBatch);
+    if (!judged.ok) {
+      for (const raw of verbatimBatch) {
+        const fallback = applyKeylessFallback(text, raw, judged.drop);
+        if (fallback.kept) kept.push(fallback.kept);
+        drops.push(...fallback.drops);
+      }
       continue;
     }
-    if (decision.outcome === "reject") {
-      drops.push(decision.drop ?? "judgment-below-threshold");
-      continue;
-    }
-    if (decision.category) {
-      kept.push({
-        priceGbp: raw.priceGbp,
-        category: decision.category,
-        verbatim: raw.verbatim,
-        context: raw.snippet,
-      });
+
+    for (let index = 0; index < verbatimBatch.length; index += 1) {
+      const raw = verbatimBatch[index];
+      const probs = judged.probabilities[index];
+      const outcome = applyJudgmentToCandidate(raw, probs, ctx);
+      if (outcome.kept) kept.push(outcome.kept);
+      drops.push(...outcome.drops);
+      if (outcome.review) review.push(outcome.review);
     }
   }
 

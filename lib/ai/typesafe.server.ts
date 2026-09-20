@@ -52,19 +52,31 @@ function typesafeApiKeyConfigured(): boolean {
   return Boolean(process.env.TYPESAFE_API_KEY?.trim());
 }
 
+export type SystemOneFailureReason = "timeout" | "error";
+
+export type SystemOneOutcome<Q extends Questions> =
+  | { status: "ok"; result: SystemOneResult<Q> }
+  | { status: "skipped"; reason: "no_key" | "budget" }
+  | { status: "failed"; reason: SystemOneFailureReason };
+
+function classifyTypesafeFailure(err: unknown): SystemOneFailureReason {
+  const message = err instanceof Error ? err.message : String(err);
+  if (/abort|timeout|timed out/i.test(message)) return "timeout";
+  return "error";
+}
+
 /**
- * TypeSafe System One with deployment budget, timeout and observability.
- * Returns `null` when the API key is unset, the lane budget is spent, or the
- * call fails, so callers keep their deterministic fallback.
+ * TypeSafe System One with explicit skip and failure reasons for callers that
+ * must not treat a budget refusal like a transient 5xx.
  */
-export async function systemOne<Q extends Questions>(
+export async function systemOneOutcome<Q extends Questions>(
   state: EntryType,
   questions: Q,
   options: { timeoutMs?: number; lane: TypesafeObservabilityLane },
-): Promise<SystemOneResult<Q> | null> {
+): Promise<SystemOneOutcome<Q>> {
   if (!typesafeApiKeyConfigured()) {
     recordTypesafeTiming(options.lane, 0, "skipped");
-    return null;
+    return { status: "skipped", reason: "no_key" };
   }
 
   // The lane is spelled out here on purpose: `__tests__/paidSpendBudget.test.ts`
@@ -72,9 +84,8 @@ export async function systemOne<Q extends Questions>(
   // declared and then quietly never spent.
   const budgetRefusal = await paidSpendBudgetRefusal("typesafe");
   if (budgetRefusal) {
-    log("warn", "typesafe.budget_spent", { lane: options.lane });
     recordTypesafeTiming(options.lane, 0, "skipped");
-    return null;
+    return { status: "skipped", reason: "budget" };
   }
 
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -106,7 +117,7 @@ export async function systemOne<Q extends Questions>(
       ...stateSize(state),
       model: result.model,
     });
-    return result;
+    return { status: "ok", result };
   } catch (err) {
     const durationMs = Date.now() - start;
     recordTypesafeTiming(options.lane, durationMs, "error");
@@ -117,6 +128,20 @@ export async function systemOne<Q extends Questions>(
       ...stateSize(state),
       error: err instanceof Error ? err.message : String(err),
     });
-    return null;
+    return { status: "failed", reason: classifyTypesafeFailure(err) };
   }
+}
+
+/**
+ * TypeSafe System One with deployment budget, timeout and observability.
+ * Returns `null` when the API key is unset, the lane budget is spent, or the
+ * call fails, so callers keep their deterministic fallback.
+ */
+export async function systemOne<Q extends Questions>(
+  state: EntryType,
+  questions: Q,
+  options: { timeoutMs?: number; lane: TypesafeObservabilityLane },
+): Promise<SystemOneResult<Q> | null> {
+  const outcome = await systemOneOutcome(state, questions, options);
+  return outcome.status === "ok" ? outcome.result : null;
 }

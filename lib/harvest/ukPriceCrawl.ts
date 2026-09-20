@@ -79,8 +79,13 @@ export const UK_PRICE_DROP_REASONS = [
   "judgment-needs-review",
   // TypeSafe judged the figure too uncertain to publish or route to review.
   "judgment-below-threshold",
+  // TypeSafe could not judge this batch: spend ceiling, call failure, or bad shape.
+  "typesafe-judgment-budget-refused",
+  "typesafe-judgment-call-timeout",
+  "typesafe-judgment-call-error",
+  "typesafe-judgment-malformed-answer",
 ] as const;
-type UkPriceDropReason = (typeof UK_PRICE_DROP_REASONS)[number];
+export type UkPriceDropReason = (typeof UK_PRICE_DROP_REASONS)[number];
 
 /**
  * The plausible band per drink, in pounds. A figure outside its own category's
@@ -239,7 +244,7 @@ export const UK_PRICE_CANDIDATE_PATTERN = /£\s?(\d{1,2}(?:\.\d{2})?)\b/g;
 
 const PRICE_PATTERN = UK_PRICE_CANDIDATE_PATTERN;
 
-type UkPriceCandidate = {
+export type UkPriceCandidate = {
   priceGbp: number;
   category: DrinkCategory;
   /** The exact substring the page carried, kept for the verbatim check. */
@@ -371,6 +376,67 @@ export function findUkPriceCandidates(text: string, snippetChars = 120): UkPrice
   return out;
 }
 
+/**
+ * Keyless regex table for one £ figure already located on `text`.
+ * Used for the default path and for a TypeSafe batch that failed mid-page.
+ */
+export function decideKeylessUkPriceAt(
+  text: string,
+  at: number,
+  priceGbp: number,
+  verbatim: string,
+): { kept?: UkPriceCandidate; drop?: UkPriceDropReason } {
+  const context = text.slice(
+    Math.max(0, at - PRICE_CONTEXT_CHARS),
+    at + verbatim.length + PRICE_CONTEXT_CHARS,
+  );
+
+  if (!text.includes(verbatim)) {
+    return { drop: "not-verbatim-on-page" };
+  }
+  if (OFFER_WORDS.test(context)) {
+    return { drop: "offer-not-a-menu-price" };
+  }
+  const decision = categoryDecisionFor(context, at - Math.max(0, at - PRICE_CONTEXT_CHARS));
+  if (!decision) {
+    return {
+      drop: Number.isFinite(priceGbp) ? "no-category-word-nearby" : "no-drink-word-nearby",
+    };
+  }
+  if (decision.fromMixer) {
+    return { drop: "mixer-serve-not-one-drink" };
+  }
+  const category = decision.category;
+  const band = CATEGORY_PRICE_BANDS[category];
+  if (!band) {
+    return { drop: "no-category-word-nearby" };
+  }
+  if (!Number.isFinite(priceGbp) || priceGbp < band.minGbp || priceGbp > band.maxGbp) {
+    return { drop: "outside-category-band" };
+  }
+  if (FOOD_WORDS.test(context) || FOOD_WEARING_A_DRINK_WORD.test(context)) {
+    return { drop: "food-word-nearby" };
+  }
+  const before = text.slice(Math.max(0, at - 30), at);
+  const after = text.slice(at + verbatim.length, at + verbatim.length + 6);
+  if (category === "beer" && (isHalfMeasure(before) || isFirstOfAMeasurePair(after))) {
+    return { drop: "half-measure-not-a-pint" };
+  }
+  if (category === "beer" && isBottledMeasure(before)) {
+    return { drop: "bottled-measure-not-a-pint" };
+  }
+  return { kept: { priceGbp, category, verbatim, context } };
+}
+
+export function decideKeylessUkPriceCandidate(
+  text: string,
+  raw: UkPriceRawCandidate,
+): { kept?: UkPriceCandidate; drop?: UkPriceDropReason } {
+  const at = text.indexOf(raw.verbatim);
+  if (at < 0) return { drop: "not-verbatim-on-page" };
+  return decideKeylessUkPriceAt(text, at, raw.priceGbp, raw.verbatim);
+}
+
 export function readVenueDrinkPrices(html: string): UkPriceReading {
   const text = pageText(html);
   const kept: UkPriceCandidate[] = [];
@@ -383,56 +449,9 @@ export function readVenueDrinkPrices(html: string): UkPriceReading {
     const priceGbp = Number(match[1]);
     const verbatim = match[0];
     const at = match.index ?? 0;
-    const context = text.slice(
-      Math.max(0, at - PRICE_CONTEXT_CHARS),
-      at + verbatim.length + PRICE_CONTEXT_CHARS,
-    );
-
-    // The verbatim rule, applied to our own extraction as well.
-    if (!text.includes(verbatim)) {
-      drops.push("not-verbatim-on-page");
-      continue;
-    }
-    if (OFFER_WORDS.test(context)) {
-      drops.push("offer-not-a-menu-price");
-      continue;
-    }
-    const decision = categoryDecisionFor(context, at - Math.max(0, at - PRICE_CONTEXT_CHARS));
-    if (!decision) {
-      drops.push(Number.isFinite(priceGbp) ? "no-category-word-nearby" : "no-drink-word-nearby");
-      continue;
-    }
-    // The word that decided the category is the MIXER of a serve, so the figure
-    // is over two drinks and belongs to neither.
-    if (decision.fromMixer) {
-      drops.push("mixer-serve-not-one-drink");
-      continue;
-    }
-    const category = decision.category;
-    const band = CATEGORY_PRICE_BANDS[category];
-    if (!band) {
-      drops.push("no-category-word-nearby");
-      continue;
-    }
-    if (!Number.isFinite(priceGbp) || priceGbp < band.minGbp || priceGbp > band.maxGbp) {
-      drops.push("outside-category-band");
-      continue;
-    }
-    if (FOOD_WORDS.test(context) || FOOD_WEARING_A_DRINK_WORD.test(context)) {
-      drops.push("food-word-nearby");
-      continue;
-    }
-    const before = text.slice(Math.max(0, at - 30), at);
-    const after = text.slice(at + verbatim.length, at + verbatim.length + 6);
-    if (category === "beer" && (isHalfMeasure(before) || isFirstOfAMeasurePair(after))) {
-      drops.push("half-measure-not-a-pint");
-      continue;
-    }
-    if (category === "beer" && isBottledMeasure(before)) {
-      drops.push("bottled-measure-not-a-pint");
-      continue;
-    }
-    kept.push({ priceGbp, category, verbatim, context });
+    const outcome = decideKeylessUkPriceAt(text, at, priceGbp, verbatim);
+    if (outcome.kept) kept.push(outcome.kept);
+    else if (outcome.drop) drops.push(outcome.drop);
   }
 
   return { kept, drops };
