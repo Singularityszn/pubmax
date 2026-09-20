@@ -33,12 +33,10 @@ describe("map reader position stays on the device", () => {
   });
 
   it("the canvas reader-position write path only updates the GeoJSON source", () => {
-    const source = read("components/PubMapCanvas.tsx");
-    const start = source.indexOf("// The reader's dot is a CANVAS layer");
-    const block = source.slice(start, source.indexOf("// Frame the crawl only when", start));
-    expect(block).toContain('getSource("user-location")');
-    expect(block).toContain("setData");
-    expect(block).not.toMatch(/\b(flyTo|easeTo|jumpTo|fitBounds|setCenter)\s*\(/);
+    const source = read("components/map/canvas/readerPositionProbe.ts");
+    expect(source).toContain("syncReaderPositionOnMap");
+    expect(source).toContain("setData");
+    expect(source).not.toMatch(/\b(flyTo|easeTo|jumpTo|fitBounds|setCenter)\s*\(/);
   });
 });
 
