@@ -35,7 +35,7 @@ const REDACT_KEY_PATTERN =
 const SECRET_VALUE_PATTERNS: RegExp[] = [
   // NAME=... / NAME: ... for each known secret env key (value runs to the next
   // whitespace, quote, comma, or ampersand — i.e. the end of the token).
-  /\b(SUPABASE_SERVICE_ROLE_KEY|OPENROUTER_API_KEY|TFL_APP_KEY)\s*[:=]\s*["']?[^\s"',&]+/gi,
+  /\b(SUPABASE_SERVICE_ROLE_KEY|OPENROUTER_API_KEY|TFL_APP_KEY|TYPESAFE_API_KEY)\s*[:=]\s*["']?[^\s"',&]+/gi,
   // Bearer tokens in an Authorization header value.
   /\bBearer\s+[^\s"',&]+/gi,
   // app_key=<...> query param (case-insensitive param name).

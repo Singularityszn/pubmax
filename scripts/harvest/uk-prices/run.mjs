@@ -8,6 +8,12 @@
 //   npm run harvest:uk-prices -- --reset           # forget the ledger and start over
 //   npm run harvest:uk-prices -- --only greeneking.co.uk
 //   npm run harvest:uk-prices -- --recheck robots-unreadable   # ask one finding again
+//   npm run harvest:uk-prices -- --judged                      # require TYPESAFE_API_KEY
+//
+// With TYPESAFE_API_KEY set, each £ candidate is judged via TypeSafe (see
+// lib/harvest/ukPriceJudgment.server.ts). Without a key the regex table in
+// lib/harvest/ukPriceCrawl.ts is used unchanged. Pass --judged to refuse a run
+// that would fall back to regex.
 //
 // FIVE RULES, and they are the whole design.
 //
@@ -68,15 +74,16 @@ import {
   menuLinkCandidates,
   pageMayPriceThisPub,
   pageStatesADrinksList,
-  readVenueDrinkPrices,
   sitemapLocations,
 } from "../../../lib/harvest/ukPriceCrawl.ts";
+import { readVenueDrinkPricesForHarvest, typesafeKeyConfigured } from "./readPrices.mjs";
 
 const ROOT = process.cwd();
 const OSM_PUBS = path.join(ROOT, "data/osm/uk/uk_osm_pubs.json");
 const OUT_DIR = path.join(ROOT, "data-harvest/uk_prices");
 const LEDGER_PATH = path.join(OUT_DIR, "hosts.json");
 const ROWS_PATH = path.join(OUT_DIR, "rows.jsonl");
+const REVIEW_PATH = path.join(OUT_DIR, "judgment_review.jsonl");
 const REPORT_PATH = path.join(ROOT, "data/uk_prices/harvest_report.json");
 
 const USER_AGENT = "PUBMAXXHarvest/1.0 (+https://pubmaxxing.com; hello@pubmaxxing.com)";
@@ -117,6 +124,7 @@ function option(name, fallback) {
 
 const RESET = flag("--reset");
 const DRY_RUN = flag("--dry-run");
+const JUDGED_REQUIRED = flag("--judged");
 const HOST_LIMIT = Number(option("--hosts", Number.POSITIVE_INFINITY));
 const PAGE_BUDGET = Number(option("--pages", DEFAULT_PAGE_BUDGET));
 const CONCURRENCY = Math.max(1, Number(option("--concurrency", DEFAULT_CONCURRENCY)));
@@ -361,7 +369,19 @@ async function crawlHost(entry, robots, spend, delayMs) {
     .filter((url) => url !== entry.origin)
     .slice(0, DEFAULT_PAGES_PER_HOST - 1);
 
-  const readings = [{ url: entry.origin, reading: readVenueDrinkPrices(home.body) }];
+  const pubName = entry.pubs[0]?.name ?? entry.host;
+  const reviewRows = [];
+
+  async function readPage(url, body) {
+    const { reading, review } = await readVenueDrinkPricesForHarvest(body, {
+      pubName,
+      pageUrl: url,
+    });
+    reviewRows.push(...review);
+    return reading;
+  }
+
+  const readings = [{ url: entry.origin, reading: await readPage(entry.origin, home.body) }];
   let pdfSeen = 0;
   let pdfRead = 0;
   let pdfUnread = 0;
@@ -382,10 +402,10 @@ async function crawlHost(entry, robots, spend, delayMs) {
       pdfRead += 1;
       // The PDF's words are fed in as TEXT, so the HTML stripper is not asked to
       // strip markup that was never there.
-      readings.push({ url, reading: readVenueDrinkPrices(text) });
+      readings.push({ url, reading: await readPage(url, text) });
       continue;
     }
-    readings.push({ url, reading: readVenueDrinkPrices(page.body) });
+    readings.push({ url, reading: await readPage(url, page.body) });
   }
 
   const rows = [];
@@ -452,6 +472,7 @@ async function crawlHost(entry, robots, spend, delayMs) {
       pdfUnread,
       drops,
       rows: [],
+      reviewRows,
     };
   }
 
@@ -465,6 +486,7 @@ async function crawlHost(entry, robots, spend, delayMs) {
     pdfUnread,
     drops,
     rows: priced,
+    reviewRows,
   };
 }
 
@@ -494,6 +516,14 @@ function tallyLedger(ledger) {
 async function main() {
   if (!existsSync(OSM_PUBS)) {
     console.error(`missing ${path.relative(ROOT, OSM_PUBS)}; run npm run fetch:uk-pubs first`);
+    process.exitCode = 1;
+    return;
+  }
+
+  if (JUDGED_REQUIRED && !typesafeKeyConfigured()) {
+    console.error(
+      "harvest:uk-prices --judged requires TYPESAFE_API_KEY in the environment (judged pass refuses regex fallback).",
+    );
     process.exitCode = 1;
     return;
   }
@@ -591,6 +621,11 @@ async function main() {
       pdfsSeen += result.pdfSeen ?? 0;
       pdfsRead += result.pdfRead ?? 0;
       pdfsUnread += result.pdfUnread ?? 0;
+      if (!DRY_RUN && result.reviewRows?.length) {
+        for (const row of result.reviewRows) {
+          appendFileSync(REVIEW_PATH, `${JSON.stringify(row)}\n`);
+        }
+      }
       ledger.hosts[entry.host] = {
         outcome: result.outcome,
         // `html-page` here is the captain's 2026-09-05 admission: the host

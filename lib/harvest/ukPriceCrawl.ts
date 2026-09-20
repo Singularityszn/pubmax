@@ -75,6 +75,10 @@ export const UK_PRICE_DROP_REASONS = [
   // An estate-wide figure is not this pub's price, and attributing it to every
   // pub on the host is how one number becomes hundreds of wrong ones.
   "page-names-no-pub",
+  // TypeSafe judged the figure below the publish threshold and above no action.
+  "judgment-needs-review",
+  // TypeSafe judged the figure too uncertain to publish or route to review.
+  "judgment-below-threshold",
 ] as const;
 type UkPriceDropReason = (typeof UK_PRICE_DROP_REASONS)[number];
 
@@ -231,7 +235,9 @@ function isHalfMeasure(before: string): boolean {
   return !between.includes("£");
 }
 
-const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{2})?)\b/g;
+export const UK_PRICE_CANDIDATE_PATTERN = /£\s?(\d{1,2}(?:\.\d{2})?)\b/g;
+
+const PRICE_PATTERN = UK_PRICE_CANDIDATE_PATTERN;
 
 type UkPriceCandidate = {
   priceGbp: number;
@@ -240,6 +246,15 @@ type UkPriceCandidate = {
   verbatim: string;
   /** The text either side, which is what the category and food words are read from. */
   context: string;
+};
+
+/** One £ figure on a page before category judgment (TypeSafe or regex). */
+export type UkPriceRawCandidate = {
+  priceGbp: number;
+  verbatim: string;
+  /** Page text ±120 chars around the figure for judgment state. */
+  snippet: string;
+  priceText: string;
 };
 
 export type UkPriceReading = {
@@ -337,6 +352,25 @@ export function categoryFor(context: string, at = Math.floor(context.length / 2)
  * an empty result, because "we read it and it says nothing" is a finding and an
  * empty list is not.
  */
+/**
+ * Every £ figure on a page, with snippet context only. Over-finds on purpose;
+ * TypeSafe or the regex table narrows to drink rows.
+ */
+export function findUkPriceCandidates(text: string, snippetChars = 120): UkPriceRawCandidate[] {
+  const out: UkPriceRawCandidate[] = [];
+  for (const match of text.matchAll(UK_PRICE_CANDIDATE_PATTERN)) {
+    const priceGbp = Number(match[1]);
+    const verbatim = match[0];
+    const at = match.index ?? 0;
+    const snippet = text.slice(
+      Math.max(0, at - snippetChars),
+      at + verbatim.length + snippetChars,
+    );
+    out.push({ priceGbp, verbatim, snippet, priceText: verbatim });
+  }
+  return out;
+}
+
 export function readVenueDrinkPrices(html: string): UkPriceReading {
   const text = pageText(html);
   const kept: UkPriceCandidate[] = [];
