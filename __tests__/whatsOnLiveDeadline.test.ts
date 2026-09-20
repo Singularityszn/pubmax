@@ -65,11 +65,19 @@ describe("live What's-On top-up render deadline", () => {
         () => new Promise((resolve) => setTimeout(() => resolve(answer("slow")), 400)),
       );
 
+      let settledAtDeadline = false;
       const pending = loadWhatsOn(
         {},
         { now: NOW, loadBaseline: () => [], liveDeadlineMs: 20 },
-      );
+      ).then((value) => {
+        settledAtDeadline = true;
+        return value;
+      });
       await vi.advanceTimersByTimeAsync(20);
+      // The render is finished AT the deadline, said out loud: a build that
+      // waited for the provider's 400ms instead would leave this false and
+      // fail here, rather than hanging until the runner's timeout guesses why.
+      expect(settledAtDeadline).toBe(true);
       const result = await pending;
 
       // A lane we stopped waiting for is not a lane that failed. Three findings,
