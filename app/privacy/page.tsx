@@ -726,6 +726,20 @@ export default function PrivacyPage() {
             </dd>
           </div>
           <div className="legalRow">
+            <dt>TypeSafe</dt>
+            <dd>
+              Pub Pal asks TypeSafe two yes-or-no safety questions about your
+              message before it answers: whether you are asking if you are fit
+              to travel after drinking, and whether you are asking how to get
+              home. Your message and up to six recent turns of that
+              conversation go to <code>api.typesafe.ai</code> for those
+              judgments, and nothing else about you goes with them. It is off
+              and sends nothing unless a TypeSafe key is set on the deployment;
+              without one Pub Pal falls back to a fixed word list on our own
+              server.
+            </dd>
+          </div>
+          <div className="legalRow">
             <dt>Arize AX (United States)</dt>
             <dd>
               Server-side tracing for the model calls above, so we can see what
