@@ -1,10 +1,10 @@
-# PubMaxing — Demo Deck
+# PubMaxxing — Demo Deck
 
 > Markdown source of truth for the client demo. Replaces the stale `docs/decks/PubMaxing_Final_Demo.pptx` (kept as a build artifact only). Every claim here is checkable against `PRD_FINAL_FOR_FABLE.md` § "Current state".
 
 ---
 
-## 1. PubMaxing
+## 1. PubMaxxing
 
 **Every real pint price in London, on a living map — and the story of every pub worth the walk.**
 

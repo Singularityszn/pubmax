@@ -6,7 +6,7 @@
 
 ## Problem Statement
 
-PubMaxing now has the core product: a price-aware London pub map, Crawl Route planning, Pint Drops, photo-backed community contributions, provenance claims, a moderation console, seeded heritage, and The Landlord heritage narrator. The app builds locally and the main flows are implemented, but a public launch still carries avoidable risk.
+PubMaxxing now has the core product: a price-aware London pub map, Crawl Route planning, Pint Drops, photo-backed community contributions, provenance claims, a moderation console, seeded heritage, and The Landlord heritage narrator. The app builds locally and the main flows are implemented, but a public launch still carries avoidable risk.
 
 The remaining problem is not "build the feature". It is final product hardening: prevent abuse of public reporting and paid AI calls, make the map and route builder accessible beyond pointer/touch input, complete Vercel production setup, and turn the competent map into the crafted Fable demo.
 
@@ -20,7 +20,7 @@ Phase 2 makes it Fable-quality: improve the map into a 3-D, story-led London exp
 
 ## User Stories
 
-1. As a first-time visitor, I want the map to load quickly and clearly, so that I understand PubMaxing before reading long copy.
+1. As a first-time visitor, I want the map to load quickly and clearly, so that I understand PubMaxxing before reading long copy.
 2. As a crawl planner, I want to build a Crawl Route by mouse, touch, or keyboard, so that the product is usable without relying on map clicks.
 3. As a keyboard user, I want route stops and mode controls to be real controls, so that I can inspect, add, remove, and reorder stops.
 4. As a screen-reader user, I want form errors and submission results announced, so that Pint Drop contribution is understandable.

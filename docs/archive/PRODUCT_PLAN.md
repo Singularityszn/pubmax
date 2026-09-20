@@ -1,12 +1,12 @@
-# PubMaxing Product Plan
+# PubMaxxing Product Plan
 
 > **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md
 
-PubMaxing is a London pub discovery and crawl-design app. It helps people understand what London has to offer by combining pint prices, venue character, map exploration, travel constraints, and user visit reports.
+PubMaxxing is a London pub discovery and crawl-design app. It helps people understand what London has to offer by combining pint prices, venue character, map exploration, travel constraints, and user visit reports.
 
 ## Product Wedge
 
-Every map can show where pubs are. PubMaxing should show which pub night is worth having.
+Every map can show where pubs are. PubMaxxing should show which pub night is worth having.
 
 The first product wedge is a map-led crawl planner:
 
@@ -93,4 +93,4 @@ Use these fields first:
 
 ## Key Product Decision
 
-PubMaxing should not compete with Google Maps as a generic directory. It should compete as a curated pub-night planner: price-aware, map-led, and emotionally tuned to the kind of night the user wants.
+PubMaxxing should not compete with Google Maps as a generic directory. It should compete as a curated pub-night planner: price-aware, map-led, and emotionally tuned to the kind of night the user wants.

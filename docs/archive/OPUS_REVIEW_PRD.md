@@ -1,4 +1,4 @@
-# PubMaxing PRD for Opus Review
+# PubMaxxing PRD for Opus Review
 
 > **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md
 
@@ -6,13 +6,13 @@
 
 London pub discovery is currently split across price lists, generic map directories, social posts, and personal memory. A person planning a pub night can find cheap pints, or nearby venues, or a few famous historic pubs, but the experience rarely combines price, walkability, setting, venue heritage, and trusted local recommendations in one place.
 
-PubMaxing is trying to solve a more specific problem than "find a pub": help people choose a Crawl Route that is worth leaving the house for. The product should make the tradeoff visible: a cheaper pint, a better room, a riverside setting, a stronger story, or a venue that someone knowledgeable actively recommends.
+PubMaxxing is trying to solve a more specific problem than "find a pub": help people choose a Crawl Route that is worth leaving the house for. The product should make the tradeoff visible: a cheaper pint, a better room, a riverside setting, a stronger story, or a venue that someone knowledgeable actively recommends.
 
 The current prototype proves the map-led crawl planner direction, but it now needs a more intentional product and UI layer. The OPUS proposal correctly pushed toward story, heritage, by-water discovery, and a seeded crawl. The latest work adds the first editorial curation layer around Alastair Hilton, `@London_W4`, and his book *The Greatest Pubs*, but this layer is still seed content. It needs validation, provenance, a better visual system, and a path toward community contributions.
 
 ## Solution
 
-Build PubMaxing as a price-aware, story-led London pub crawl planner.
+Build PubMaxxing as a price-aware, story-led London pub crawl planner.
 
 The first-screen experience should remain the actual tool: a full London map, control rail, and Crawl Route panel. Users should be able to search, filter, select a Crawl Preference, inspect Venue Heritage, and either accept a Suggested Crawl or build their own route by tapping venues on the map.
 

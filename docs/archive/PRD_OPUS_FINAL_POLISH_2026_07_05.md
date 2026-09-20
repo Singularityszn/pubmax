@@ -1,4 +1,4 @@
-# PubMaxing Final Polish PRD for Opus
+# PubMaxxing Final Polish PRD for Opus
 
 > **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md
 
@@ -9,7 +9,7 @@ Source inputs: GLM improvement list, current repository state, existing demo/pro
 
 ## Problem Statement
 
-PubMaxing is now a working demo product: landing page, 3-D London map, crawl planner, curated routes, Pint Drops, The Landlord, moderation, Supabase persistence, and Vercel deployment are all in place. The remaining work is not a rebuild. It is the final polish layer that makes the product feel trustworthy, stable, and production-conscious when a judge, user, or future agent clicks through the app.
+PubMaxxing is now a working demo product: landing page, 3-D London map, crawl planner, curated routes, Pint Drops, The Landlord, moderation, Supabase persistence, and Vercel deployment are all in place. The remaining work is not a rebuild. It is the final polish layer that makes the product feel trustworthy, stable, and production-conscious when a judge, user, or future agent clicks through the app.
 
 The main risks left are:
 

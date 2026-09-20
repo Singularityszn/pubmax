@@ -1,4 +1,4 @@
-# PubMaxing — Build Review & Defect Triage (Addendum for Fable)
+# PubMaxxing — Build Review & Defect Triage (Addendum for Fable)
 
 > **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md. Historical context; current state also lives in docs/teach.md.
 
@@ -122,4 +122,4 @@ H3 (fail-open + logging) · H4 (report-count race) · M1 (XFF trust) · M2 (cons
 
 ## 7. The one-paragraph status for the Fable kickoff
 
-> PubMaxing is past prototype. The rotating 3-D London map is built and, bugs aside, genuinely good; the community layer is live (seeded, honestly labelled); The Landlord narrates real history and refuses to invent it, with production LLM bounds; abuse limits are durable in Postgres; 87 tests pass. What's left is **craft and three bugs**: one theme-toggle crash to guard, one blank-screen fallback to restore, and one spec wire-up (landmarks → heritage) that turns the map from pretty into *teaching*. Fix those, regenerate the deck honestly, and this is a demo that opens with London turning under you and every claim — price and past — carrying its receipts.
+> PubMaxxing is past prototype. The rotating 3-D London map is built and, bugs aside, genuinely good; the community layer is live (seeded, honestly labelled); The Landlord narrates real history and refuses to invent it, with production LLM bounds; abuse limits are durable in Postgres; 87 tests pass. What's left is **craft and three bugs**: one theme-toggle crash to guard, one blank-screen fallback to restore, and one spec wire-up (landmarks → heritage) that turns the map from pretty into *teaching*. Fix those, regenerate the deck honestly, and this is a demo that opens with London turning under you and every claim — price and past — carrying its receipts.

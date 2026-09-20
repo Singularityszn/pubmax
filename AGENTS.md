@@ -1,6 +1,6 @@
 # AGENTS.md
 
-PubMaxing is a single Next.js 16 (App Router, React 19, TypeScript) web app, a price-aware London pub-crawl planner with a MapLibre 3-D map. There is one service.
+PubMaxxing is a single Next.js 16 (App Router, React 19, TypeScript) web app, a price-aware London pub-crawl planner with a MapLibre 3-D map. There is one service.
 
 ## Cursor Cloud specific instructions
 

@@ -104,7 +104,7 @@ leak into the client.
   disruption summary, nearest-station geo). CityMCP `get_journey` and
   `city_status.tubeLines` are complementary; do not use them to replace the
   TfL-native last-train pipeline.
-- **Static venue index / prices / hygiene badges:** the PubMaxing dataset in
+- **Static venue index / prices / hygiene badges:** the PubMaxxing dataset in
   `data/` and `lib/venuePriceIndex.ts` remains the source of truth for names,
   cheapest price bands, and curated crawls. Use `get_place` (`deep: true`)
   only for opt-in enrichment on specific venues — do not fabricate hygiene

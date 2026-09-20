@@ -17,7 +17,7 @@ for the 12 highest-volume lanes. Axis: coding **standards** only (Spec is a sepa
 
 ## (a) Documented-standard violations (hard)
 **None found.** The corpus is unusually disciplined against its own standards:
-- CONTEXT.md naming: grep for banned spellings (`PubMax`, `Pub Max`, `Pubmaxing`) across new
+- CONTEXT.md naming: grep for banned spellings (`PubMax`, `Pub Max`, one-x product spellings) across new
   `lib`/`components`/`app` source in all lanes — **zero hits**. Domain types use the glossary
   correctly (`RecapPint`, `NightMoment`, `CrawlEnding`, Storage-key-only photos, `Provenance`).
 - No new `@ts-ignore`/`@ts-nocheck`/`as any` in new lib code. The two `eslint-disable` lines in

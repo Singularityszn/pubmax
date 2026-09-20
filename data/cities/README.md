@@ -57,4 +57,4 @@ Venue ids are city-salted (`venue-mcr-…`, `venue-glw-…`, …) so they never 
 
 OpenStreetMap data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), licensed under the [Open Database License (ODbL) 1.0](https://opendatacommons.org/licenses/odbl/).
 
-When you redistribute or publicly display these packs, keep the ODbL attribution. Do not claim OSM as a price source — pint prices on PubMaxing come from Pint Drops and curated London datasets, not from OpenStreetMap.
+When you redistribute or publicly display these packs, keep the ODbL attribution. Do not claim OSM as a price source — pint prices on PubMaxxing come from Pint Drops and curated London datasets, not from OpenStreetMap.

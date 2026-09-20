@@ -18,7 +18,7 @@ The current app has the raw materials for that idea, but not the social loop yet
 - Contributor identity is a local handle, not a profile.
 - There is no feed, follow graph, likes, comments, saves, lists, or crawl diary.
 - Mobile is responsive, but not yet a mobile-native night-out capture flow.
-- The brand still says `PubMaxing` across UI, docs, metadata, and OG assets; the product should be **PUBMAXXING**.
+- The brand still carries the legacy one-x spelling across UI, docs, metadata, and OG assets; the product should be **PUBMAXXING**.
 
 ## Solution
 
@@ -63,7 +63,7 @@ Build this in phases:
 
 ### 1. Brand: PUBMAXXING
 
-- Rename public-facing brand text from `PubMaxing` to **PUBMAXXING** across landing, map shell, footer, metadata, OG image, README, demo deck, and docs that are not historical archives.
+- Rename public-facing brand text from the legacy one-x spelling to **PUBMAXXING** across landing, map shell, footer, metadata, OG image, README, demo deck, and docs that are not historical archives.
 - Update the default title, Open Graph title, Twitter title, site name, and OG image text.
 - Keep internal localStorage keys and package names unchanged unless changing them has no migration cost. Public brand matters more than internal identifiers.
 - Suggested public tagline: **"Every pint has a story."**
