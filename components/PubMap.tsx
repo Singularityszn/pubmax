@@ -4296,6 +4296,18 @@ export default function PubMap({
   const moveMapCameraTo = useCallback(
     (camera: { center: [number, number]; zoom: number }) => {
       setNearbyMapResult(null);
+      // A deliberate move is the reader taking the camera, exactly as a
+      // gesture is (dismissAmbientBanners sets the same flag), and it is set
+      // FIRST because the cancellation below cannot do it: cancelOpeningLocation
+      // early-returns once the location has already resolved
+      // (openingLocationCancellationAfterAttempt). Two readers of this ref then
+      // hold the pick. The opening-location mint effect bails on it. So do both
+      // readMapResume callbacks, whose snapshot otherwise lands as a jumpTo in
+      // PubMapCanvas long after the pick and throws the reader back to the
+      // viewport they arrived on - the reachable yank this closes. MapLibre
+      // 6.10.0 readies the map early enough to widen that window.
+      mapCameraTouchedRef.current = true;
+      setMapCameraTouched(true);
       cancelOpeningLocation();
       setOpeningLocationFocus(null);
       setAreaFocus((prev) => ({
