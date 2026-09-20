@@ -21,7 +21,7 @@ vi.mock("@/lib/stepOutNudgeStore", async () => {
   );
   return {
     ...actual,
-    cheapPintPingStore: () => actual.memoryStepOutNudgeStore,
+    stepOutNudgeStore: () => actual.memoryStepOutNudgeStore,
   };
 });
 
