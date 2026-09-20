@@ -67,6 +67,7 @@ import {
   type GestureCameraState,
 } from "@/lib/mapGestureGuard";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
+import { mapReaderPositionGeoJSON, type MapReaderPosition } from "@/lib/mapReaderPosition";
 import { opportunitiesToGeoJSON } from "@/lib/thingsToDoMap";
 import { formatPrice, venueFromDetailPayload, type Venue } from "@/lib/venues";
 import type {
@@ -389,6 +390,7 @@ type PubMapCanvasProps = {
   searchFitToken?: number;
   /** Precise location retained only in memory after explicit permission. */
   userLocation?: { lat: number; lng: number } | null;
+  readerPosition?: MapReaderPosition | null;
   poiHidden?: Record<PoiCategory, boolean>;
   onPoiHiddenChange?: (next: PoiHiddenChange) => void;
   hideLayersControl?: boolean;
@@ -564,6 +566,7 @@ export default function PubMapCanvas({
   fitQueryOnArrival = false,
   searchFitToken = 0,
   userLocation = null,
+  readerPosition = null,
   poiHidden: controlledPoiHidden,
   onPoiHiddenChange,
   hideLayersControl = false,
@@ -605,18 +608,9 @@ export default function PubMapCanvas({
     () => (userLocation ? nearMeMapVenues(userLocation.lat, userLocation.lng, venues) : []),
     [userLocation, venues],
   );
-  const userLocationGeoJSON = useMemo<GeoJSON.FeatureCollection>(
-    () => ({
-      type: "FeatureCollection",
-      features: userLocation
-        ? [{
-          type: "Feature",
-          properties: {},
-          geometry: { type: "Point", coordinates: [userLocation.lng, userLocation.lat] },
-        }]
-        : [],
-    }),
-    [userLocation],
+  const readerPositionGeoJSON = useMemo(
+    () => mapReaderPositionGeoJSON(readerPosition),
+    [readerPosition],
   );
   const cityBounds = useMemo(
     () => cityMaxBounds(getCity(cityId)),
@@ -3611,13 +3605,13 @@ export default function PubMapCanvas({
   // price readable. Feed the source; the layers themselves are built with the
   // scene and survive a basemap style swap the same way every other layer does.
   useEffect(() => {
-    userLocationDataRef.current = userLocationGeoJSON;
+    userLocationDataRef.current = readerPositionGeoJSON;
     const map = mapRef.current;
     if (!mapReady || !map) return;
     (map.getSource("user-location") as maplibregl.GeoJSONSource | undefined)?.setData(
-      userLocationGeoJSON,
+      readerPositionGeoJSON,
     );
-  }, [mapReady, userLocationGeoJSON]);
+  }, [mapReady, readerPositionGeoJSON]);
 
   // Frame the crawl only when the route identity changes *materially* — the
   // ordered list of stop ids. Filters that churn the route array or a mere
@@ -3955,7 +3949,7 @@ export default function PubMapCanvas({
           screen reader. This carries the same accessible name the old DOM
           marker did, so the position stays announced while the pins keep the
           pixels. It is also how a test can tell the map accepted a location. */}
-      {userLocation ? (
+      {readerPosition ? (
         <span
           className="sr-only"
           role="img"

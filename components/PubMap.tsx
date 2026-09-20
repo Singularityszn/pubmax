@@ -441,6 +441,8 @@ import {
   writeMapOpeningLocation,
 } from "@/lib/mapOpeningLocation";
 import type { MapOpeningLocation } from "@/lib/mapOpeningLocation";
+import { latchMapReaderLocationWatch } from "@/lib/mapReaderPosition";
+import { useMapReaderPosition } from "@/components/map/useMapReaderPosition";
 import { mapLoadingHeld, mapLoadingProgressPercent } from "@/lib/mapLoadingCopy";
 import {
   MAP_CANVAS_READINESS_CEILING_MS,
@@ -1171,6 +1173,7 @@ export default function PubMap({
         pointInCityBounds(location.lat, location.lng, city)
       ) {
         setGrantedOpeningLocation(location);
+        latchMapReaderLocationWatch();
         writeMapOpeningLocation(location);
       }
       setOpeningLocationPromptActive(false);
@@ -1562,6 +1565,7 @@ export default function PubMap({
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const readerPosition = useMapReaderPosition();
   // Purpose-limited copy used only after the viewer explicitly asks for travel
   // times. A location granted for "Pubs near me" must not silently become a
   // precise journey request for every venue they inspect.
@@ -4108,6 +4112,7 @@ export default function PubMap({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         });
+        latchMapReaderLocationWatch();
         writeMapOpeningLocation({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
@@ -4137,6 +4142,7 @@ export default function PubMap({
       (position) => {
         const location = { lat: position.coords.latitude, lng: position.coords.longitude };
         setUserLocation(location);
+        latchMapReaderLocationWatch();
         writeMapOpeningLocation(location);
         setPendingNearMeRequest({
           kind: "crawl",
@@ -4196,6 +4202,7 @@ export default function PubMap({
             lng: position.coords.longitude,
           };
           setUserLocation(location);
+          latchMapReaderLocationWatch();
           writeMapOpeningLocation(location);
           setPendingNearMeRequest({ kind: "map", location, mode });
           // A mode marker, never a point: lib/mapChosenArea.ts owns that rule.
@@ -6104,6 +6111,7 @@ export default function PubMap({
         fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
         searchFitToken={searchFitToken}
         userLocation={userLocation}
+        readerPosition={readerPosition}
         poisPath={city.poisPath}
         secondaryStreamsHeld={secondaryStreamsHeld}
         transitLinesPath={city.transitLinesPath}
@@ -6209,7 +6217,10 @@ export default function PubMap({
       {ambientBannerLaneOpen && !baseLedChrome ? (
         <CitySuggestBanner
           cityId={cityId}
-          onLocationFound={setUserLocation}
+          onLocationFound={(location) => {
+            setUserLocation(location);
+            latchMapReaderLocationWatch();
+          }}
         />
       ) : null}
       {ambientBannerLaneOpen && isLondon ? (
