@@ -100,3 +100,21 @@ ios/build/
 # The migrations, the rollbacks and config.toml ARE committed.
 supabase/.branches/
 supabase/.temp/
+
+# Review dumps agents drop at the repository root. Each one is the output of a
+# single review or check run, named the same way every time, so a stray copy
+# lands in `git status` and reads as a change somebody made. None is an input
+# to a build, a test or a deploy. The leading-space variant is a real filename
+# some tools write.
+review_result.json
+ review_result.json
+notes.md
+*.review.json
+PR_TITLE_AND_BODY.json
+CHECK_SUMMARY.json
+EXIT.json
+
+# Playwright screenshots written by the Tonight trusted-UI specs. The specs
+# create the directory themselves and overwrite every file on each run, so a
+# committed copy is stale the moment the page changes.
+e2e-shots/
