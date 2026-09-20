@@ -221,6 +221,19 @@ export type CriticalBasemapFailureInput = {
  * marks that source loaded so it will be ignored. Do not make that terminal
  * error satisfy a tile-burst threshold it can never reach.
  */
+export function isBasemapSourceMetadataFailure({
+  message,
+  sourceType,
+  tilePresent,
+}: Omit<CriticalBasemapFailureInput, "initialBasemapPending">): boolean {
+  if (tilePresent || isStyleResourceFailure(message)) return false;
+  return (
+    sourceType === "vector" ||
+    sourceType === "raster" ||
+    sourceType === "raster-dem"
+  );
+}
+
 export function isCriticalBasemapFailure({
   message,
   initialBasemapPending,
@@ -230,10 +243,7 @@ export function isCriticalBasemapFailure({
   if (isStyleResourceFailure(message)) return true;
   return (
     initialBasemapPending &&
-    !tilePresent &&
-    (sourceType === "vector" ||
-      sourceType === "raster" ||
-      sourceType === "raster-dem")
+    isBasemapSourceMetadataFailure({ message, sourceType, tilePresent })
   );
 }
 
@@ -271,6 +281,12 @@ export type TileFailureInput = {
    * cannot answer it.
    */
   styleResourceFailure?: boolean;
+  /**
+   * TileJSON or another source-level metadata fetch failed with no tile in the
+   * error. MapLibre emits one such error and marks the source settled, so the
+   * silent source lane cannot help and the reader should be told immediately.
+   */
+  sourceMetadataFailure?: boolean;
   /**
    * Remaining shared recovery budget (paint watchdog cap minus recoveries
    * already spent by EITHER net). At zero, retries are over for the mount.
@@ -326,6 +342,7 @@ export function classifyTileFailure(input: TileFailureInput): TileFailureDecisio
     silentRetriesLeft,
     unrecoveredTileFailures = 0,
     styleResourceFailure = false,
+    sourceMetadataFailure = false,
     initialBasemapPending = false,
     burstThreshold = TILE_FAILURE_BURST,
     windowMs = TILE_FAILURE_WINDOW_MS,
@@ -342,6 +359,7 @@ export function classifyTileFailure(input: TileFailureInput): TileFailureDecisio
     // A sprite or glyph is the style's, not a source's: only setStyle re-fetches
     // it, so the silent lane would spend an attempt that cannot help.
     if (styleResourceFailure) return reloadStyleOrSurface();
+    if (sourceMetadataFailure) return "surface";
     if (silentRetriesLeft > 0) return "retry-source";
     return reloadStyleOrSurface();
   }

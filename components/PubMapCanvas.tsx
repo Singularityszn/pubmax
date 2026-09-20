@@ -179,6 +179,7 @@ import {
   classifyTileFailure,
   clearSilentTileRetries,
   createBasemapTileFailureTracker,
+  isBasemapSourceMetadataFailure,
   isCriticalBasemapFailure,
   isStyleResourceFailure,
   markSilentTileRetrySpent,
@@ -1838,9 +1839,21 @@ export default function PubMapCanvas({
       ) {
         return;
       }
-      initialBasemapPending = false;
-      basemapTileReadyForPaint = true;
-      silentRetryAwaitingPaint = false;
+      // OpenFreeMap ships a shaded-relief raster under `ne2_shaded` beside the
+      // vector `openmaptiles` source. A loaded relief tile is not the basemap
+      // the reader is waiting on, and clearing `initialBasemapPending` there
+      // downgrades a later TileJSON failure from critical to a lone stamp that
+      // never reaches the retry surface.
+      const primaryBasemapPainted =
+        dataEvent.source?.type === "vector" ||
+        ((dataEvent.source?.type === "raster" ||
+          dataEvent.source?.type === "raster-dem") &&
+          dataEvent.sourceId !== "ne2_shaded");
+      if (primaryBasemapPainted) {
+        initialBasemapPending = false;
+        basemapTileReadyForPaint = true;
+        silentRetryAwaitingPaint = false;
+      }
       const recoveredFailures = failedBasemapTiles.recordSuccess({
         sourceId: dataEvent.sourceId,
         sourceType: dataEvent.source?.type,
@@ -2393,6 +2406,8 @@ export default function PubMapCanvas({
         basemapFailureSurface(styleEverLoaded || styleLoaded) === "toast"
       ) {
         tileNoticeOwner = "errors";
+        pinNoticeActive = false;
+        clearPinRetryWait();
         setSoftRetry(BASEMAP_RETRY_NOTICE);
         return;
       }
@@ -2556,6 +2571,7 @@ export default function PubMapCanvas({
       critical: boolean,
       message: string,
       mayRecheck: boolean,
+      metadataFailure = false,
     ) => {
       const decision = classifyTileFailure({
         now,
@@ -2572,6 +2588,7 @@ export default function PubMapCanvas({
         silentRetriesLeft: silentTileRetriesLeft(tileSpend),
         unrecoveredTileFailures: failedBasemapTiles.count(),
         styleResourceFailure: isStyleResourceFailure(message),
+        sourceMetadataFailure: critical && metadataFailure,
         initialBasemapPending,
       });
       if (decision === "ignore") {
@@ -2707,12 +2724,19 @@ export default function PubMapCanvas({
         recoverDataPack(dataPackSourceId, message);
         return;
       }
-      const critical = isCriticalBasemapFailure({
+      const sourceMetadataFailure = isBasemapSourceMetadataFailure({
         message,
-        initialBasemapPending,
         sourceType: mapError.source?.type,
         tilePresent: mapError.tile !== undefined,
       });
+      const critical =
+        isCriticalBasemapFailure({
+          message,
+          initialBasemapPending,
+          sourceType: mapError.source?.type,
+          tilePresent: mapError.tile !== undefined,
+        }) ||
+        (sourceMetadataFailure && !basemapTileReadyForPaint);
       const vectorRetriesExhausted =
         mapError.source?.type === "vector" &&
         mapError.tile !== undefined &&
@@ -2757,6 +2781,7 @@ export default function PubMapCanvas({
         critical || vectorRetriesExhausted,
         message,
         documentVisible && !cameraInFlight,
+        sourceMetadataFailure,
       );
     });
 

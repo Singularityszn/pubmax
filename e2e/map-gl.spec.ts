@@ -843,8 +843,20 @@ test("/map states a TileJSON metadata failure instead of revealing a blank field
 }) => {
   test.setTimeout(45_000);
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.context().route(/tiles\.openfreemap\.org\/planet/, (route) => {
+    const url = route.request().url();
+    // TileJSON lives on `/planet` or `/planet/<revision>`; vector tiles share
+    // the same prefix. Abort metadata only so the spec stays on the production
+    // vector path without racing relief rasters for the failure signal.
+    if (/\.pbf(?:\?|$)/.test(url)) {
+      return route.continue();
+    }
+    return route.abort("failed");
+  });
+  // The style-load watchdog swaps to CARTO after 8s. A fallback that paints
+  // would make the pin ceiling name missing pub data instead of the basemap.
   await page.context().route(
-    /tiles\.openfreemap\.org\/planet(?:\?|$)/,
+    /basemaps\.cartocdn\.com\/gl\/.*\/style\.json/,
     (route) => route.abort("failed"),
   );
 
@@ -853,7 +865,7 @@ test("/map states a TileJSON metadata failure instead of revealing a blank field
     timeout: 20_000,
   });
 
-  const notice = page.locator(".mapSoftRetry");
+  const notice = page.locator('.mapSoftRetry[data-kind="tiles"]');
   await expect(notice).toContainText("Map background couldn't load", {
     timeout: 20_000,
   });
