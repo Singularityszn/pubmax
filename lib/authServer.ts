@@ -32,7 +32,15 @@ import "server-only";
 
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-/** Extract a bearer token from an Authorization header, or null when absent. */
+/**
+ * Extract a bearer token from an Authorization header, or null when absent.
+ *
+ * @public Read through `importOriginal()` by
+ * __tests__/permissionMatrixEffective.test.ts, which builds its identity
+ * stub out of the real header parse. Knip cannot follow a namespace read
+ * taken from a dynamic `typeof import()`, so the tag stands in for the
+ * caller: drop the export keyword and typecheck goes red on that spec.
+ */
 export function bearerToken(request: Request): string | null {
   const header = request.headers.get("authorization") ?? request.headers.get("Authorization");
   if (!header) return null;

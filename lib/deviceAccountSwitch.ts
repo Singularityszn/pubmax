@@ -175,7 +175,7 @@ function browserLocalStorage(): Storage | null {
 }
 
 /** The public Supabase browser env, or null on a keyless build. */
-export function browserAuthConfig(): { url: string; key: string } | null {
+function browserAuthConfig(): { url: string; key: string } | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   return url && key ? { url, key } : null;

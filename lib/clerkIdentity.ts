@@ -40,7 +40,7 @@ export const CLERK_IMAGE_ORIGIN = "https://img.clerk.com";
  * expression on purpose — that is the form Next.js statically replaces at build
  * time, so a computed lookup would silently read `undefined` in the browser.
  */
-export function readClerkPublishableKey(): string | undefined {
+function readClerkPublishableKey(): string | undefined {
   const key = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   return key && key.trim() ? key.trim() : undefined;
 }

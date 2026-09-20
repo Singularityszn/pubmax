@@ -23,7 +23,7 @@ export const CHAIN_PRICE_DROP_REASONS = [
   "food-word-nearby",
   "no-price-on-page",
 ] as const;
-export type ChainPriceDropReason = (typeof CHAIN_PRICE_DROP_REASONS)[number];
+type ChainPriceDropReason = (typeof CHAIN_PRICE_DROP_REASONS)[number];
 
 /**
  * A pint's plausible band in the UK. Outside it the figure is a bottle, a
@@ -33,7 +33,7 @@ export const CHAIN_PINT_MIN_GBP = 2;
 export const CHAIN_PINT_MAX_GBP = 12;
 
 /** How much page text either side of a figure is read for its drink word. */
-export const PRICE_CONTEXT_CHARS = 80;
+const PRICE_CONTEXT_CHARS = 80;
 
 /** A draught pint's own vocabulary. A figure with none of this beside it is not a pint. */
 const DRINK_WORDS =
@@ -49,7 +49,7 @@ const FOOD_WORDS =
 
 const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{2})?)\b/g;
 
-export type ChainPriceCandidate = {
+type ChainPriceCandidate = {
   priceGbp: number;
   /** The exact substring the page carried, kept for the verbatim check. */
   verbatim: string;

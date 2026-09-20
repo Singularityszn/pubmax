@@ -165,19 +165,3 @@ export function inheritedResumeEmail(
   if (next.userId) return existing.userId === next.userId ? existing.email : null;
   return existing.refreshToken === next.refreshToken ? existing.email : null;
 }
-
-/** Outcome of a resume-cookie redeem, as returned to the browser. */
-export type AuthResumeRedeemOutcome =
-  | {
-      status: "restored";
-      session: {
-        access_token: string;
-        refresh_token: string;
-        expires_in?: number;
-        expires_at?: number;
-        token_type?: string;
-      };
-    }
-  | { status: "expired"; maskedEmail: string | null }
-  | { status: "none" }
-  | { status: "unavailable" };

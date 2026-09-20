@@ -82,7 +82,7 @@ export function sniffPhotoKind(bytes: Uint8Array): MomentPhotoKind | null {
 }
 
 /** What the picker offers, as words: the four types a phone or a desk holds. */
-export const MOMENT_PHOTO_TYPES_LINE = "JPEG, PNG, WebP or HEIC";
+const MOMENT_PHOTO_TYPES_LINE = "JPEG, PNG, WebP or HEIC";
 export const MOMENT_PHOTO_WRONG_TYPE_LINE = `Choose ${MOMENT_PHOTO_TYPES_LINE} photos.`;
 
 export type MomentPhotoBox = { readonly width: number; readonly height: number };
@@ -111,7 +111,7 @@ function positive(value: number): boolean {
 }
 
 /** The one line that says what leaves the phone, and the real number in it. */
-export const MOMENT_PICKER_RESIZE_LINE = `Photos over ${UPLOAD_PHOTO_MAX_LABEL} are resized.`;
+const MOMENT_PICKER_RESIZE_LINE = `Photos over ${UPLOAD_PHOTO_MAX_LABEL} are resized.`;
 
 /**
  * What the composer says under the picker, at each width: one sentence per

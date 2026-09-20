@@ -6,7 +6,6 @@ import path from "path";
 import { getCity, listEnabledCities, type CityId } from "@/lib/cities";
 import {
   cityIdFromVenueId,
-  unresolvedVenueLabel,
   venueCityPrefix,
 } from "@/lib/cityVenueIds";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
@@ -309,14 +308,6 @@ export async function resolveVenuePermalinkSlug(
   }
   return matchVenuePermalinkSlug(slug, candidates, candidateById);
 }
-
-// A display label that never surfaces a raw id: the pub name, or a friendly
-// fallback for an id the dataset no longer carries.
-export async function venueLabel(id: string): Promise<string> {
-  return (await resolveVenue(id))?.name ?? unresolvedVenueLabel(id);
-}
-
-export { unresolvedVenueLabel } from "@/lib/cityVenueIds";
 
 export function resetVenueIndexForTests(): void {
   if (

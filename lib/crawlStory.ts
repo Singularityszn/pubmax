@@ -4,7 +4,7 @@
 // malformed input returns null rather than throwing, so a garbage link degrades
 // to a friendly empty state instead of a crash.
 
-export type CrawlStop = {
+type CrawlStop = {
   venueId: string;
   name: string;
   priceGbp?: number | null;
@@ -38,7 +38,7 @@ export type VibeTag = (typeof VIBE_TAGS)[number];
 
 const VIBE_TAG_SET = new Set<string>(VIBE_TAGS);
 
-export function isVibeTag(value: unknown): value is VibeTag {
+function isVibeTag(value: unknown): value is VibeTag {
   return typeof value === "string" && VIBE_TAG_SET.has(value);
 }
 

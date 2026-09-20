@@ -23,7 +23,7 @@ type HeldOutAnswer = {
  * never answers would pin the loading skeleton for good over a night What's-On
  * had already described. Every read here settles, one way or the other.
  */
-export const OUT_FETCH_TIMEOUT_MS = 8_000;
+const OUT_FETCH_TIMEOUT_MS = 8_000;
 
 /**
  * One client read of GET /api/out. Shared by /out and /tonight so a ready

@@ -23,7 +23,7 @@ export const PLANNING_INTENT_SOURCES = [
   "pal",
 ] as const;
 
-export const PLANNING_INTENT_EVIDENCE_KINDS = [
+const PLANNING_INTENT_EVIDENCE_KINDS = [
   "price",
   "whats-on",
   "directory",
@@ -33,7 +33,7 @@ export const PLANNING_INTENT_EVIDENCE_KINDS = [
 ] as const;
 
 export type PlanningIntentSource = (typeof PLANNING_INTENT_SOURCES)[number];
-export type PlanningIntentEvidenceKind =
+type PlanningIntentEvidenceKind =
   (typeof PLANNING_INTENT_EVIDENCE_KINDS)[number];
 
 export type PlanningIntentArea =

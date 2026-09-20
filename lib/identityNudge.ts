@@ -45,7 +45,7 @@ const PENDING_AT_KEY = "pubmax:identityNudge:pendingAt:v1";
 const PENDING_PLAN_RETURN_TO_KEY = "pubmax:identityNudge:planReturnTo:v1";
 
 /** How long a "not now" keeps the gate shut before the next qualifying action can re-open it. */
-export const IDENTITY_NUDGE_COOLDOWN_DAYS = 7;
+const IDENTITY_NUDGE_COOLDOWN_DAYS = 7;
 export const IDENTITY_NUDGE_COOLDOWN_MS = IDENTITY_NUDGE_COOLDOWN_DAYS * DAY_MS;
 
 /**
@@ -67,7 +67,7 @@ export const IDENTITY_NUDGE_PENDING_TTL_MS = 20 * 60 * 1000;
 export const IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS = 8000;
 
 /** Same-tab notify so useSyncExternalStore clients (the nudge UI) re-read after a write. */
-export const IDENTITY_NUDGE_EVENT = "pubmax:identity-nudge";
+const IDENTITY_NUDGE_EVENT = "pubmax:identity-nudge";
 
 // Conservative bot/crawler UA match — enough to keep the nudge out of
 // prerender/screenshot/social-unfurl traffic without trying to be exhaustive.

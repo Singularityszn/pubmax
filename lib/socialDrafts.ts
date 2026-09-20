@@ -13,7 +13,7 @@ export type MemoryStudioDraft = {
   storySummary: string;
 };
 
-export type MemoryStudioDraftV1 = {
+type MemoryStudioDraftV1 = {
   version: 1;
   savedAt: string;
   draft: MemoryStudioDraft;
@@ -25,7 +25,7 @@ export type CommentDraft = {
   replyBody: string;
 };
 
-export type CommentDraftV1 = {
+type CommentDraftV1 = {
   version: 1;
   savedAt: string;
   draft: CommentDraft;

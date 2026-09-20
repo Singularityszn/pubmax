@@ -46,13 +46,6 @@ export type PriceHistoryObservation = {
   };
 };
 
-/** The parsed file: rows plus the day the file itself was built. */
-export type PriceHistoryFile = {
-  version: number;
-  generatedAt: string;
-  observations: PriceHistoryObservation[];
-};
-
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }

@@ -45,16 +45,33 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import MessageAttachmentPicker from "@/components/messages/MessageAttachmentPicker";
+import MessagePollCard from "@/components/messages/MessagePollCard";
+import MessagePollComposer from "@/components/messages/MessagePollComposer";
 
 import {
   MESSAGE_ATTACHMENT_KINDS,
+  MESSAGE_ATTACH_CONTACT_LABEL,
+  MESSAGE_ATTACH_EVENT_LABEL,
+  MESSAGE_ATTACH_POLL_LABEL,
+  MESSAGE_ATTACH_VENUE_LABEL,
   MESSAGE_PHOTO_ASPECT_PROPERTY,
   MESSAGE_PHOTO_ASPECT_RATIO,
   messagePhotoAspect,
 } from "@/lib/messageAttachments";
+import {
+  POLL_COMPOSE_LABEL,
+  POLL_UNREADABLE_LINE,
+  type MessagePollView,
+} from "@/lib/messagePoll";
 import { MAX_MESSAGE_BODY } from "@/lib/messages";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
+
+/** A ballot that is readable: a question plus the two answers a poll needs. */
+const BALLOT = [
+  { index: 0, label: "The Harp", votes: 0 },
+  { index: 1, label: "The Blackfriar", votes: 0 },
+] as const;
 
 const CSS = read("app/messages/messages.css");
 const THREAD = read("components/messages/MessageThread.tsx");
@@ -237,6 +254,71 @@ describe("mobile message attachment picker", () => {
     expect(markup).toMatch(/id="message-document-file"[^>]*type="file"[^>]*>/);
     expect(markup).not.toMatch(/id="message-photo-file"[^>]*capture=/);
     expect(markup).not.toMatch(/id="message-document-file"[^>]*capture=/);
+  });
+
+  it("names non-file attach targets with the long accessible labels", () => {
+    const markup = renderToStaticMarkup(
+      createElement(MessageAttachmentPicker, {
+        open: true,
+        disabled: false,
+        onOpenChange: () => {},
+        onFileChange: () => {},
+        onKindSelected: () => {},
+        onAttachmentKind: () => {},
+      }),
+    );
+
+    expect(markup).toContain(`aria-label="${MESSAGE_ATTACH_VENUE_LABEL}"`);
+    expect(markup).toContain(`aria-label="${MESSAGE_ATTACH_CONTACT_LABEL}"`);
+    expect(markup).toContain(`aria-label="${MESSAGE_ATTACH_EVENT_LABEL}"`);
+    expect(markup).toContain(`aria-label="${MESSAGE_ATTACH_POLL_LABEL}"`);
+  });
+
+  it("refuses to render a poll it cannot read, and says so in words", () => {
+    // A ballot needs a question and at least two answers, so a row that lost
+    // either is a row nobody can vote in. Printing a bare button list or an
+    // empty question reads as a poll that is merely loading, and a reader waits
+    // for something that is never coming; the line says what happened instead.
+    const unreadable: readonly MessagePollView[] = [
+      { question: "   ", options: BALLOT, totalVotes: 0, viewerOptionIndex: null },
+      {
+        question: "Where first?",
+        options: [{ index: 0, label: "The Harp", votes: 0 }],
+        totalVotes: 0,
+        viewerOptionIndex: null,
+      },
+    ];
+    for (const poll of unreadable) {
+      const markup = renderToStaticMarkup(createElement(MessagePollCard, { poll }));
+      expect(markup).toContain(POLL_UNREADABLE_LINE);
+      expect(markup).not.toContain("messagePollQuestion");
+    }
+  });
+
+  it("renders a readable ballot rather than the unreadable line", () => {
+    const markup = renderToStaticMarkup(
+      createElement(MessagePollCard, {
+        poll: {
+          question: "Where first?",
+          options: BALLOT,
+          totalVotes: 0,
+          viewerOptionIndex: null,
+        },
+      }),
+    );
+    expect(markup).not.toContain(POLL_UNREADABLE_LINE);
+    expect(markup).toContain("Where first?");
+  });
+
+  it("names the poll composer as one group, on an element that can carry a name", () => {
+    // `aria-label` on a bare <div> is discarded: the generic role takes no
+    // accessible name, so the label has to ride a real role.
+    const markup = renderToStaticMarkup(
+      createElement(MessagePollComposer, { onPick: () => {}, onCancel: () => {} }),
+    );
+    expect(markup).toMatch(
+      new RegExp(`role="group"[^>]*aria-label="${POLL_COMPOSE_LABEL}"`),
+    );
   });
 
   it("keeps picker controls mobile-only and touch-safe", () => {

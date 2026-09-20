@@ -71,7 +71,7 @@ export type AlcoholType = "alcoholic" | "low-no" | "unknown";
 // full Bayesian/percentile aggregation is E3 (lib/ratings.ts). E1 only needs a
 // place to hang a summary so the menu can show a star line when one exists;
 // it never fabricates one (undefined = honestly unrated, never zero stars).
-export type DrinkRatingSummary = {
+type DrinkRatingSummary = {
   // Mean 1–5 stars (0.5 granularity), already aggregated upstream.
   average: number;
   // How many ratings back it — the menu hides the star line under the vote

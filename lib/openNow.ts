@@ -92,20 +92,6 @@ export function openStateForWetherspoonsPub(
   return evaluateOpenState({ now, timeZone, openingHours });
 }
 
-/** Open state for a curated venue via directory match. Unmatched = unknown. */
-export function openStateForVenue(
-  venue: Omit<WetherspoonsMatchVenue, "id">,
-  pubs: readonly WetherspoonsPub[],
-  now: Date = new Date(),
-  timeZone = "Europe/London",
-): OpenNowState {
-  return openStateForWetherspoonsPub(
-    matchWetherspoonsDirectoryPub(venue, pubs),
-    now,
-    timeZone,
-  );
-}
-
 /**
  * Per-venue open-state map for the filter pipeline. Venues without a trusted
  * match stay `"unknown"`.

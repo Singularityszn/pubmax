@@ -4,7 +4,7 @@
 // the two never fight. Session dismiss key is distinct from curated onboarding.
 
 /** sessionStorage key prefix; append `:${bandId}` for per-band dismiss. */
-export const BAND_CHIP_DISMISSED_KEY_PREFIX = "pubmax_band_chip_dismissed";
+const BAND_CHIP_DISMISSED_KEY_PREFIX = "pubmax_band_chip_dismissed";
 
 export function bandChipDismissedKey(bandId: string): string {
   return `${BAND_CHIP_DISMISSED_KEY_PREFIX}:${bandId}`;

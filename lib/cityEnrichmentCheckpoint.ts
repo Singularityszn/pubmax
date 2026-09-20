@@ -117,14 +117,14 @@ export type DeferredVenue = {
   retryAfter: string;
 };
 
-export type TerminalVenue = {
+type TerminalVenue = {
   osmId: string;
   attempts: number;
   lastError: string;
   failedAt: string;
 };
 
-export type CityEnrichmentRunOutcome = "ok" | "partial" | "failed" | "lease-held";
+type CityEnrichmentRunOutcome = "ok" | "partial" | "failed" | "lease-held";
 
 export type CityEnrichmentRunRecord = {
   runId: string;

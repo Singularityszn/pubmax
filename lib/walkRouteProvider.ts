@@ -25,7 +25,7 @@ export const ORS_FOOT_WALKING_URL =
 // the leg to null, and the caller draws its straight segment. 4s is comfortably
 // above ORS's usual sub-second reply while still bounding a stall. Injectable
 // (opts.timeoutMs) so tests prove the deadline path without a real wait.
-export const WALK_LEG_TIMEOUT_MS = 4000;
+const WALK_LEG_TIMEOUT_MS = 4000;
 
 // Bound a fetch to `timeoutMs`, honouring any caller signal too, without
 // depending on AbortSignal.any/timeout being present. The returned signal

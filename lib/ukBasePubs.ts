@@ -62,7 +62,7 @@ export const MAX_PROVISIONAL_BASE_VENUE_IDS = 64;
  * is a lie a reader can check. Nothing else rides on this - neither kind
  * carries a price, and both draw the same unpriced pin.
  */
-export type UkBaseVenueKind = "pub" | "bar";
+type UkBaseVenueKind = "pub" | "bar";
 
 /** A pub on the base layer. No price field exists: OSM is not a price source. */
 export type UkBasePub = {
@@ -221,7 +221,7 @@ export const PAN_AHEAD_PAD_RATIO = 0.5;
 export const MAX_PAN_PREFETCH_SHARDS = 2;
 
 /** Centre drift below this (degrees) is treated as zoom-only, not a pan. */
-export const PAN_EPSILON_DEG = 1e-5;
+const PAN_EPSILON_DEG = 1e-5;
 
 export type PanDelta = { dLng: number; dLat: number };
 
@@ -236,7 +236,7 @@ export function padBounds(bounds: MapBounds, ratio = BOUNDS_PAD_RATIO): MapBound
   };
 }
 
-export function boundsCenter(bounds: MapBounds): { lat: number; lng: number } {
+function boundsCenter(bounds: MapBounds): { lat: number; lng: number } {
   return {
     lat: (bounds.south + bounds.north) / 2,
     lng: (bounds.west + bounds.east) / 2,
@@ -335,7 +335,7 @@ export type UkBaseLoader = {
   ): Promise<UkBasePub | null>;
 };
 
-export type UkBaseViewportRead = {
+type UkBaseViewportRead = {
   status: "ready" | "unavailable";
   pubs: UkBasePub[];
 };

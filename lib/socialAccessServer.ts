@@ -363,5 +363,3 @@ export async function requireVerifiedSocialActor(
     error: "Adult verification is needed for Social.",
   };
 }
-
-export { provisionSocialAccount, readDefaultDependencies };

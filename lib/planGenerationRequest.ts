@@ -22,7 +22,7 @@ import { isPlanIdempotencyKey } from "@/lib/planStore";
 import { isPlanStopCount } from "@/lib/planStopCount";
 
 export const MAX_PLAN_GENERATION_BODY_BYTES = 16_384;
-export const MAX_PLAN_GENERATION_QUERY_LENGTH = 500;
+const MAX_PLAN_GENERATION_QUERY_LENGTH = 500;
 
 const REQUEST_KEYS = ["query", "context", "cityId", "intake", "operationKey", "anchor"] as const;
 const ANCHOR_KEYS = ["venueId", "source", "acceptedArea", "startsAt"] as const;
@@ -52,7 +52,7 @@ export type PlanGenerationAnchor = {
   startsAt: string | null;
 };
 
-export type PlanGenerationRequest = {
+type PlanGenerationRequest = {
   query: string;
   context: Partial<NightContext> | null;
   cityId: string | null;
@@ -62,7 +62,7 @@ export type PlanGenerationRequest = {
   anchor: PlanGenerationAnchor | null;
 };
 
-export type PlanGenerationRequestFailure = {
+type PlanGenerationRequestFailure = {
   ok: false;
   code: PlanIntakeParseFailure["code"] | "MALFORMED_REQUEST" | "REQUEST_TOO_LARGE";
   message: string;

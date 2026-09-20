@@ -1,28 +1,160 @@
-// KNIP IS SCOPED TO ONE QUESTION: IS A DECLARED DEPENDENCY STILL READ?
+// KNIP IS THE DEAD-CODE GATE: UNREAD FILES, UNREAD EXPORTS, UNREAD DEPENDENCIES.
 //
-// Every other issue type is off on purpose. The unused-file and unused-export
-// findings run to over a thousand rows on this tree, and a gate nobody can get
-// to zero is a gate somebody deletes; the whole report is still one command
-// away, `npm run deadcode:all`.
+// `npm run deadcode` runs every issue type at "error" bar `duplicates` (a
+// judgement, so a warning) and `unresolved` (knip cannot see a runtime
+// require). `verify` runs it after `typecheck` and
+// `__tests__/qualityGateWiring.test.ts` holds it there.
 //
-// This is `.ts` rather than `.json` so the ignore list is READ from
-// lib/agentToolingPaths.mjs rather than being a second hand-written copy of
-// eslint's. The two lists already disagreed in five entries before they were
-// folded; see that module's header.
+// This is `.ts` rather than `.json` so the agent-tooling ignore list is READ
+// from lib/agentToolingPaths.mjs rather than being a second hand-written copy
+// of eslint's. The two lists already disagreed in five entries before they
+// were folded; see that module's header.
+//
+// EVERY OTHER IGNORE ENTRY CARRIES THE REASON THE FILE IS REACHED FROM
+// OUTSIDE THE JAVASCRIPT IMPORT GRAPH. A file knip cannot see a caller for is
+// not automatically dead: a workflow, a Python step, a fence test reading
+// source text, or a documented refresh command all count as a caller.
+import { readdirSync } from "node:fs";
+import path from "node:path";
+
 import type { KnipConfig } from "knip";
 
 import { AGENT_TOOLING_PATHS } from "./lib/agentToolingPaths.mjs";
 
+/**
+ * A plain `.mjs` leaf beside a `.d.mts` sidecar is ONE module in two files, and
+ * knip cannot judge either half on its own: TypeScript resolution sends an
+ * `import ... from "@/lib/foo.mjs"` to `lib/foo.d.mts`, so the sidecar looks
+ * like a file nobody imports AND the implementation's exports look like exports
+ * nobody reads. Deleting on that reading is how a live export disappears while
+ * `tsc` stays green off the stale sidecar. So the pair leaves the graph
+ * together, and the tests that import these leaves are what fences them.
+ */
+function declaredMjsPairs(roots: readonly string[]): string[] {
+  const paired: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith(".d.mts")) paired.push(full.replace(/\.d\.mts$/, ".mjs"));
+    }
+  };
+  for (const root of roots) walk(root);
+  return paired;
+}
+
 const config: KnipConfig = {
-  ignore: [...AGENT_TOOLING_PATHS],
+  // The implementation half of every `.mjs` + `.d.mts` pair enters as an entry
+  // rather than an ignore: knip then traces what it imports, and stops judging
+  // exports it reads through the sidecar. See declaredMjsPairs above.
+  entry: [...declaredMjsPairs(["lib", "scripts"])],
+  ignore: [
+    ...AGENT_TOOLING_PATHS,
+
+    // The sidecar half of every `.mjs` + `.d.mts` pair; see declaredMjsPairs.
+    "**/*.d.mts",
+
+    // Evidence scripts kept beside the proof they produced. A proof README
+    // names its script as the way to reproduce the run.
+    "docs/proof/**",
+    "scripts/clerk-auth-firefox-proof.mjs",
+    "scripts/venue-truth-shots.mjs",
+    // Refreshes TypeSafe fixture probabilities for Pub Pal fence tests.
+    "scripts/record_pubpal_fence_probabilities.ts",
+    // The same, for the same-pub identity fixtures: needs TYPESAFE_API_KEY and
+    // writes __tests__/fixtures/typesafe/same-pub-probabilities.json.
+    "scripts/record_same_pub_fixture_probs.mjs",
+
+    // Manual evidence CLIs documented beside their proof output.
+    "scripts/map-fix-shots.mjs",
+    "scripts/report_borough_coverage.mjs",
+    // Named by docs/data/uk-osm-extract-2026-08-16.md as the ONE way to rewrite
+    // that doc's figures ("Do not edit the figures by hand").
+    "scripts/report_uk_venue_extract.mjs",
+
+    // Runtime-loaded browser files: service workers registered through
+    // navigator.serviceWorker.register() and the theme script inlined by a
+    // <script> tag. Loaded by the browser, never imported.
+    "public/sw.js",
+    "public/sw-plan-cache.js",
+    "public/theme-init.js",
+
+    // Read from disk by an e2e spec rather than imported.
+    "e2e/fixtures/**",
+
+    // Read by .github/workflows/api-performance.yml.
+    "lib/productionDeploymentHosts.mjs",
+
+    // App code imports the .ts wrapper through @/lib/siteContact; knip
+    // resolves the bare specifier to the .mjs leaf and loses the wrapper.
+    "lib/siteContact.ts",
+
+    // Fence tests import these leaves to pin a published number; no runtime
+    // caller is the point of them.
+    "lib/apiBudgets.ts",
+    "lib/sponsorship.ts",
+
+    // The perf baseline harness, run by hand and cited by perf/ evidence.
+    "scripts/perf-baseline.mjs",
+
+    // Run with execFileSync by scripts/perf-ab.mjs.
+    "scripts/print-e2e-server-env.ts",
+
+    // Run through command() strings by scripts/local-refresh/scheduler.mjs,
+    // which knip cannot follow across the process boundary.
+    "scripts/firecrawl_greene_king_prices.mjs",
+    "scripts/firecrawl_mbplc_prices.mjs",
+    // Read only by those two harvesters, so it leaves the graph with them.
+    "scripts/lib/venueMatch.mjs",
+    "scripts/merge_london_chain_gazetteer.mjs",
+    "scripts/merge_outer_london_gazetteer.mjs",
+
+    // Run with subprocess.run() by the Python dataset builders.
+    "scripts/classify_borough_points.mjs",
+    "scripts/repair_borough_labels.mjs",
+    "scripts/lib/boroughFromPoint.mjs",
+    "scripts/resolve_postcode_coordinate_decisions.mjs",
+    "scripts/lib/postcodeCoordinateDecisions.mjs",
+
+    // Named as the refresh command for a lane in data/freshness_registry.json,
+    // which `npm run check:freshness` reads.
+    "scripts/build_area_news_matches.mjs",
+    "scripts/build_persona_drinks.mjs",
+    "scripts/refresh_pint_price_observations.mjs",
+
+    // Generators for committed assets and data, documented beside the output
+    // they write.
+    "scripts/enrich_heritage.mjs",
+    "scripts/enrich_landmark_attribution.mjs",
+    "scripts/gen-native-app-icons.mjs",
+    "scripts/gen-pubpal-mascot.mjs",
+    "scripts/gen-store-assets.mjs",
+    "scripts/landing/build-landing-map.mjs",
+    "scripts/landing/build-landing-photos.mjs",
+    "scripts/link-cursor-skills.mjs",
+    "scripts/harvest/uk-pubs/start-bars-when-pubs-done.mjs",
+    "scripts/whatson/quizRefresh.mjs",
+    "scripts/whatson/scrape_greene_king_sport.mjs",
+
+    // Audit CLIs whose source text or output shape a fence test reads.
+    "scripts/ui-ux-axe-audit.mjs",
+    "scripts/ui-ux-battle-test.mjs",
+
+    // Signed-in QA helper documented in docs/QA_SIGNED_IN_JOURNEYS.md.
+    "scripts/qa/mint-signin-link.mjs",
+
+    // MCP server entry named by .cursor/mcp.json, started by the agent
+    // harness rather than imported.
+    "scripts/run-browser-mcp.mjs",
+  ],
   rules: {
-    files: "off",
-    exports: "off",
-    types: "off",
-    nsExports: "off",
-    nsTypes: "off",
-    enumMembers: "off",
-    duplicates: "off",
+    files: "error",
+    exports: "error",
+    types: "error",
+    nsExports: "error",
+    nsTypes: "error",
+    enumMembers: "error",
+    duplicates: "warn",
     unresolved: "off",
     dependencies: "error",
     devDependencies: "error",

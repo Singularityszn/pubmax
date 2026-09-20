@@ -90,7 +90,7 @@ function stableVenueIdFromKey(key) {
 // venueGroupingKey, and the first row of a group supplies name/lat/lng/borough.
 // When several distinct groups share a normalised name (e.g. two "The Grapes"),
 // the first in dataset order wins — a stable, deterministic choice.
-export function buildVenueNameIndex(dataset) {
+function buildVenueNameIndex(dataset) {
   const seenGroups = new Set();
   const byName = new Map();
   for (const row of dataset) {
@@ -154,7 +154,7 @@ export const VENUE_ID_BY_CACHE_KEY = {
   "owl and pussycat": "venue-t3ii33",
 };
 
-export function resolveVenueAlias(venueId, aliases) {
+function resolveVenueAlias(venueId, aliases) {
   let current = venueId;
   const seen = new Set();
   while (aliases && typeof aliases[current] === "string" && !seen.has(current)) {
@@ -268,7 +268,7 @@ export function extractListed(text) {
 }
 
 // The single headline fact: prefer a wikipedia-source fact, else the first fact.
-export function pickHook(facts) {
+function pickHook(facts) {
   const wiki = facts.find((f) => f && f.source === "wikipedia" && typeof f.fact === "string");
   const chosen = wiki ?? facts.find((f) => f && typeof f.fact === "string");
   return chosen ? String(chosen.fact).trim() : "";

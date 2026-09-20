@@ -47,7 +47,7 @@ export type VenueMissionRows = {
   undated?: boolean;
 };
 
-export type MissionReceiptOutcome = "logged" | "trusted" | "needs_check";
+type MissionReceiptOutcome = "logged" | "trusted" | "needs_check";
 
 export type MissionReceipt = {
   outcome: MissionReceiptOutcome;

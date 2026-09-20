@@ -34,7 +34,7 @@ function londonClock(): Intl.DateTimeFormat {
  * A single reading of the whole wall clock, so the hour and the offset into it
  * can never come from two different formatter calls straddling a second.
  */
-export function londonMsSinceMidnight(date: Date): number {
+function londonMsSinceMidnight(date: Date): number {
   const parts = londonClock().formatToParts(date);
   const part = (type: Intl.DateTimeFormatPartTypes): number =>
     Number(parts.find((item) => item.type === type)?.value);

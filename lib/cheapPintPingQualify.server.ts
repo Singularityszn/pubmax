@@ -1,12 +1,12 @@
 import "server-only";
 
-import { cheapPintPingStore } from "@/lib/stepOutNudgeStore";
+import { stepOutNudgeStore } from "@/lib/stepOutNudgeStore";
 import { profileStore } from "@/lib/profileStore";
 
 /** Mark an owner qualified after their first pint drop or saved favourite pint. */
 export async function qualifyCheapPintForOwnerActor(ownerActor: string): Promise<void> {
   try {
-    await cheapPintPingStore().qualifyCheapPint(ownerActor);
+    await stepOutNudgeStore().qualifyCheapPint(ownerActor);
   } catch {
     // Qualifying must never block the write that triggered it.
   }

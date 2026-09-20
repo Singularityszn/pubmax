@@ -1,7 +1,7 @@
 import { parseUkPlaceMapArrival } from "@/lib/ukPlaceSearch";
 import { isUkNationalBrowse } from "@/lib/ukNationalBrowse";
 
-export const CITY_SUGGEST_DISMISS_KEY = "pubmax:citySuggestDismiss:v1";
+const CITY_SUGGEST_DISMISS_KEY = "pubmax:citySuggestDismiss:v1";
 
 const CITY_SUGGEST_DISMISS_EVENT = "pubmax:city-suggest-dismiss";
 const DESKTOP_MAP_MEDIA_QUERY = "(min-width: 641px)";
@@ -11,7 +11,7 @@ export type CitySuggestClientFlags = {
   saveData: boolean;
 };
 
-export const CITY_SUGGEST_SERVER_FLAGS: CitySuggestClientFlags = {
+const CITY_SUGGEST_SERVER_FLAGS: CitySuggestClientFlags = {
   geoAvailable: false,
   saveData: true,
 };

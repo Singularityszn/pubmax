@@ -22,12 +22,12 @@ import {
 /** Where a demand capture happened. Constrained to a known allowlist so a
  *  spoofed body can't invent an arbitrary source (mirrors the DB check in
  *  migration 0045). */
-export const AREA_DEMAND_SOURCES = ["near-empty", "area-picker", "map-miss"] as const;
+const AREA_DEMAND_SOURCES = ["near-empty", "area-picker", "map-miss"] as const;
 export type AreaDemandSource = (typeof AREA_DEMAND_SOURCES)[number];
 
 /** Free-text area, capped. A night out is named in a word or two ("Broadway
  *  Market", "Peckham Rye") — anything longer is not an area name. */
-export const MAX_AREA_LENGTH = 80;
+const MAX_AREA_LENGTH = 80;
 
 /**
  * Trim + collapse internal whitespace + cap length. Returns the cleaned area, or
@@ -42,7 +42,7 @@ export function normaliseArea(value: unknown): string | null {
 }
 
 /** True when `value` is a known capture source. */
-export function isAreaDemandSource(value: unknown): value is AreaDemandSource {
+function isAreaDemandSource(value: unknown): value is AreaDemandSource {
   return (
     typeof value === "string" &&
     (AREA_DEMAND_SOURCES as readonly string[]).includes(value)

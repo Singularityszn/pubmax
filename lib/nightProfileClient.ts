@@ -14,10 +14,9 @@ import {
 } from "@/lib/nightProfileDeviceProvenance";
 
 export {
-  NIGHT_PROFILE_DEVICE_KEY,
   type NightProfileDeviceSource,
 } from "@/lib/nightProfileDeviceProvenance";
-export const NIGHT_PROFILE_DEVICE_CHANGED_EVENT = "pubmax:night-profile-device-changed";
+const NIGHT_PROFILE_DEVICE_CHANGED_EVENT = "pubmax:night-profile-device-changed";
 
 type StoredNightProfileDraft = {
   version: typeof NIGHT_PROFILE_VERSION;
@@ -85,17 +84,6 @@ export function mirrorAccountNightProfileToDevice(
   // takes it with it (lib/deviceAccountIdentity.ts).
   if (!writeDeviceNightProfile(input, storage, "account")) return null;
   return input;
-}
-
-export function clearDeviceNightProfile(storage = browserStorage()): void {
-  try {
-    storage?.removeItem(NIGHT_PROFILE_DEVICE_KEY);
-    if (typeof window !== "undefined" && storage === window.localStorage) {
-      window.dispatchEvent(new Event(NIGHT_PROFILE_DEVICE_CHANGED_EVENT));
-    }
-  } catch {
-    // Storage is best effort; a failed clear must not erase the server profile.
-  }
 }
 
 /**

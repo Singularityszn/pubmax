@@ -51,5 +51,3 @@ export function NightCalmLine({ area }: { area: NightAreaSlug | null }): React.J
     </span>
   );
 }
-
-export default NightCalmLine;

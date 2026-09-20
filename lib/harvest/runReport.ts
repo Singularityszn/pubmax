@@ -19,9 +19,9 @@
 
 import type { HarvestSkipReason, HarvestSourceKind } from "@/lib/harvest/sourcePolicy";
 
-export const HARVEST_REPORT_VERSION = 1;
+const HARVEST_REPORT_VERSION = 1;
 
-export type HarvestOutcomeStatus = "harvested" | "empty" | "skipped" | "failed";
+type HarvestOutcomeStatus = "harvested" | "empty" | "skipped" | "failed";
 
 export type HarvestDropCount = {
   reason: string;

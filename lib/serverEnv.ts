@@ -22,8 +22,6 @@ import "server-only";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { isDeployedProduction, isProductionBuildPhase } from "@/lib/deploymentEnv";
 
-export { isDeployedProduction } from "@/lib/deploymentEnv";
-
 /** Dev default for RATE_LIMIT_SALT — must not be used in production. */
 export const DEV_RATE_LIMIT_SALT = "pubmax-rate-limit";
 const MIN_PRODUCTION_SECRET_BYTES = 32;

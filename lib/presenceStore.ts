@@ -50,7 +50,7 @@ function clean(value: unknown, cap: number): string {
     .slice(0, cap);
 }
 
-export type PresenceStore = {
+type PresenceStore = {
   mark(input: PresenceInput, now?: number): Promise<void>;
   recent(venueId?: string, now?: number): Promise<PresenceDTO[]>;
 };
@@ -122,7 +122,7 @@ function memoryRecent(
     }));
 }
 
-export const memoryPresenceStore: PresenceStore = {
+const memoryPresenceStore: PresenceStore = {
   async mark(input, now = Date.now()) {
     memoryMark(input, now);
   },
@@ -140,7 +140,7 @@ export const memoryPresenceStore: PresenceStore = {
   },
 };
 
-export const supabasePresenceStore: PresenceStore = {
+const supabasePresenceStore: PresenceStore = {
   async mark(input, now = Date.now()) {
     const handle = clean(input.handle, HANDLE_MAX);
     const venueId = clean(input.venueId, MAX_VENUE_ID);
@@ -202,7 +202,7 @@ export const supabasePresenceStore: PresenceStore = {
 };
 
 /** The single backend selection point (mirrors the other stores). */
-export function presenceStore(): PresenceStore {
+function presenceStore(): PresenceStore {
   return selectStore(memoryPresenceStore, supabasePresenceStore);
 }
 

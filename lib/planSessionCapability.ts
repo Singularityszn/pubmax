@@ -10,7 +10,7 @@ const restorationAbort = new Map<string, AbortController>();
 const legacyRecovery = new Map<string, string>();
 export const PLAN_HTTP_ONLY_SESSION = "__pubmax_http_only_plan_session__";
 /** Keep invite and route surfaces from waiting forever on a stalled session read. */
-export const PLAN_SESSION_RESTORE_TIMEOUT_MS = 5_000;
+const PLAN_SESSION_RESTORE_TIMEOUT_MS = 5_000;
 
 export class PlanSessionUnavailableError extends Error {
   constructor() {

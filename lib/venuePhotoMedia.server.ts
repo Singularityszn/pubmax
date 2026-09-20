@@ -42,7 +42,7 @@ import {
 } from "@/lib/venuePhotos";
 
 export const VENUE_PHOTO_MAX_BYTES = UPLOADED_IMAGE_MAX_BYTES;
-export const VENUE_PHOTO_SIGNED_TTL_SECONDS = 180;
+const VENUE_PHOTO_SIGNED_TTL_SECONDS = 180;
 
 export type PreparedVenuePhoto = PreparedImage;
 

@@ -42,7 +42,7 @@ export function cellIndexFor(lat, lon, grid = UK_BASE_GRID) {
  * three, and formatting it to two would collapse several cells onto one id and
  * MERGE THEIR ROWS - which is a silent data loss, not a naming detail.
  */
-export function cellKeyDecimals(grid = UK_BASE_GRID) {
+function cellKeyDecimals(grid = UK_BASE_GRID) {
   const decimals = (step) => {
     const text = String(step);
     const dot = text.indexOf(".");

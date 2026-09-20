@@ -30,7 +30,7 @@ import {
 } from "@/lib/webPushSubscription";
 
 /** Bundle id (apns-topic) for the Capacitor shell — see docs/CAPACITOR_WRAP.md. */
-export const APNS_BUNDLE_ID = "com.pubmaxx.app";
+const APNS_BUNDLE_ID = "com.pubmaxx.app";
 
 type ApnsEnvironment = "sandbox" | "production";
 
@@ -77,7 +77,7 @@ export function isApnsConfigured(): boolean {
 }
 
 /** Distinguish an empty local setup from a broken partial production setup. */
-export function isApnsConfigurationPresent(): boolean {
+function isApnsConfigurationPresent(): boolean {
   return Boolean(
     process.env.APNS_KEY_ID
       || process.env.APNS_TEAM_ID
@@ -161,7 +161,7 @@ export interface ApnsTransport {
 
 /** Opens a transport to `host`. The real one wraps node:http2; tests pass a
  *  fake. May throw synchronously (connection refused) → whole batch errors. */
-export type ApnsSessionFactory = (host: string) => ApnsTransport;
+type ApnsSessionFactory = (host: string) => ApnsTransport;
 
 /** Injectable seams — all default to production behaviour. */
 export type ApnsProviderDeps = {
@@ -416,13 +416,13 @@ export const apnsPushProvider: PushProvider = createApnsPushProvider();
 
 // ── Web Push / VAPID transport ──────────────────────────────────────────────
 
-export type VapidConfig = {
+type VapidConfig = {
   subject: string;
   publicKey: string;
   privateKey: string;
 };
 
-export type WebPushSend = (
+type WebPushSend = (
   subscription: WebPushSubscription,
   payload: string,
   config: VapidConfig,
@@ -510,7 +510,7 @@ export function createWebPushProvider(deps: WebPushProviderDeps = {}): PushProvi
   };
 }
 
-export const webPushProvider: PushProvider = createWebPushProvider();
+const webPushProvider: PushProvider = createWebPushProvider();
 
 /** Select one transport from stored registration platform. This is the routing
  * authority for current fan-out and prevents Android tokens reaching APNs. */

@@ -19,7 +19,7 @@ export const BRIEFING_ARRIVAL_PARAM = "from";
 export const BRIEFING_ARRIVAL_VALUE = "brief";
 
 /** The surface a daily brief opens. */
-export const BRIEFING_ARRIVAL_PATH = "/today";
+const BRIEFING_ARRIVAL_PATH = "/today";
 
 /** The exact URL `broadcastDailyBrief` puts in its notification payload. */
 export const BRIEFING_PUSH_URL =

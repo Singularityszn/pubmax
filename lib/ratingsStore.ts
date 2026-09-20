@@ -37,9 +37,9 @@ import {
   selectStore,
 } from "@/lib/storeBackend";
 
-export { isRatingKind, type RatingKind } from "@/lib/ratings";
+export { isRatingKind } from "@/lib/ratings";
 
-export type RateInput = {
+type RateInput = {
   kind: RatingKind;
   /** The item key: a drink ref, or (kind "venue") the venue id itself. */
   ref: string;
@@ -114,7 +114,7 @@ function groupRecords(
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
-export const supabaseRatingsStore: RatingsStore = {
+const supabaseRatingsStore: RatingsStore = {
   async rate(input) {
     const handle = normalizeHandle(input.handle);
     if (!handle) throw new Error("A rating needs a handle.");

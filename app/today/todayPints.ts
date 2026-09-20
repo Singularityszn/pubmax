@@ -26,7 +26,7 @@ export const TODAY_PINTS_LIMIT = 5;
 /** The patch a locationless viewer sees before any area is remembered. */
 export const TODAY_PINTS_DEFAULT_PATCH_ID = CENTRAL_PATCH.id;
 
-export type TodayPintRow = {
+type TodayPintRow = {
   id: string;
   name: string;
   /** Verified cheapest pint in pounds — always a real number (priced rows only). */

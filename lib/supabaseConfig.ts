@@ -9,7 +9,7 @@ export type SupabaseConfigOptions = Readonly<{
   allowUnknownKeyRole?: boolean;
 }>;
 
-export type SupabaseKeyRole = "publishable" | "secret";
+type SupabaseKeyRole = "publishable" | "secret";
 
 function legacyJwtRole(key: string): SupabaseKeyRole | null {
   const parts = key.split(".");

@@ -21,7 +21,7 @@ export type OAuthConnectionInput = {
   tokenExpiresAt?: string;
 };
 
-export type ManualConnectionInput = {
+type ManualConnectionInput = {
   provider: SocialProvider;
   username: string;
   profileUrl: string;
@@ -69,7 +69,7 @@ function fromRow(row: Record<string, unknown>): StoredSocialConnection {
   };
 }
 
-export const memorySocialConnectionStore: SocialConnectionStore = {
+const memorySocialConnectionStore: SocialConnectionStore = {
   async list(ownerId) {
     return [...memoryRows.values()].filter((row) => row.ownerId === ownerId);
   },
@@ -117,7 +117,7 @@ export const memorySocialConnectionStore: SocialConnectionStore = {
   },
 };
 
-export const supabaseSocialConnectionStore: SocialConnectionStore = {
+const supabaseSocialConnectionStore: SocialConnectionStore = {
   async list(ownerId) {
     const { data, error } = await requireSupabaseAdmin()
       .from("external_social_accounts")

@@ -28,10 +28,10 @@ import {
 export const METROLINK_PROVENANCE =
   "Typical Metrolink last service (static), not a live TfGM feed. Check boards before you leave.";
 
-export const METROLINK_MODE_LABEL = "tram";
+const METROLINK_MODE_LABEL = "tram";
 
 /** Metrolink brand green (approx. network map colour). */
-export const METROLINK_LINE_COLOUR = "#6B2D5B";
+const METROLINK_LINE_COLOUR = "#6B2D5B";
 
 export type MetrolinkStation = {
   id: string;
@@ -177,7 +177,7 @@ function departuresForStation(station: MetrolinkStation, dayType: DayType): Next
 }
 
 /** "Now" in Europe/London — same approach as the TfL last-train route. */
-export function manchesterNow(base: Date = new Date()): Date {
+function manchesterNow(base: Date = new Date()): Date {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/London",
     year: "numeric",

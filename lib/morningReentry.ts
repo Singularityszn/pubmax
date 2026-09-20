@@ -34,7 +34,7 @@ const SHOWN_PREFIX = "pubmax:morning-reentry:shown:v1:";
 const SUPPRESS_PREFIX = "pubmax:morning-reentry:suppress:v1:";
 
 /** Same-tab notify so a mounted card can re-read after a write (cross-tab: storage). */
-export const MORNING_REENTRY_EVENT = "pubmax:morning-reentry";
+const MORNING_REENTRY_EVENT = "pubmax:morning-reentry";
 
 const TITLE_MAX = 120;
 
@@ -159,7 +159,7 @@ export function isMorningCardShown(planId: string): boolean {
 }
 
 /** Is this plan's completion from the current session (so the card waits)? */
-export function isMorningCardSuppressedThisSession(planId: string): boolean {
+function isMorningCardSuppressedThisSession(planId: string): boolean {
   if (!hasSession() || !isPlanId(planId)) return false;
   try {
     return window.sessionStorage.getItem(suppressKey(planId)) === "1";
@@ -230,18 +230,6 @@ export function readShowableMorningNight(now: number = Date.now()): CompletedNig
     alreadyShown: night ? isMorningCardShown(night.planId) : false,
     suppressedThisSession: night ? isMorningCardSuppressedThisSession(night.planId) : false,
   });
-}
-
-/** Subscribe to marker changes (same-tab custom event + cross-tab storage). */
-export function subscribeMorningReentry(onChange: () => void): () => void {
-  if (typeof window === "undefined") return () => undefined;
-  const handler = () => onChange();
-  window.addEventListener(MORNING_REENTRY_EVENT, handler);
-  window.addEventListener("storage", handler);
-  return () => {
-    window.removeEventListener(MORNING_REENTRY_EVENT, handler);
-    window.removeEventListener("storage", handler);
-  };
 }
 
 /** Clear all morning-reentry state — handy for local testing. */

@@ -29,7 +29,7 @@
  */
 
 /** A surface's stable id. One id per openable surface, product-wide. */
-export type SurfaceId = string;
+type SurfaceId = string;
 
 export type SurfaceEntry<S = unknown> = {
   id: SurfaceId;

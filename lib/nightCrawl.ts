@@ -17,7 +17,7 @@ import type { PlanActionDTO, PlanStopDTO } from "@/lib/plan";
 
 export type NightCrawlActionType = "arrived" | "skipped";
 export type StopDisposition = NightCrawlActionType;
-export type NightCrawlSlot = "done" | "current" | "upcoming";
+type NightCrawlSlot = "done" | "current" | "upcoming";
 
 export type NightCrawlStopView = {
   stop: PlanStopDTO;

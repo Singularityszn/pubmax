@@ -1,4 +1,4 @@
-export const AUTH_BROWSER_FETCH_TIMEOUT_MS = 15_000;
+const AUTH_BROWSER_FETCH_TIMEOUT_MS = 15_000;
 
 type FetchLike = typeof fetch;
 

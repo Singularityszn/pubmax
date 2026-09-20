@@ -1,10 +1,10 @@
-export const BUS_PREDICTION_MAX_AGE_MS = 2 * 60_000;
-export const BUS_DEPARTURE_HORIZON_MS = 60 * 60_000;
+const BUS_PREDICTION_MAX_AGE_MS = 2 * 60_000;
+const BUS_DEPARTURE_HORIZON_MS = 60 * 60_000;
 
 // TfL stamps every prediction in a response from its own clock, so a second or
 // two of skew ahead of ours must not throw the whole response away. The stale
 // ceiling above is untouched by this tolerance.
-export const BUS_PREDICTION_FUTURE_TOLERANCE_MS = 5_000;
+const BUS_PREDICTION_FUTURE_TOLERANCE_MS = 5_000;
 
 // Latency budget. TfL's StopPoint geo query measures around 3s and runs slower
 // from a serverless region, so it keeps the 9s headroom the last-train route
@@ -14,7 +14,7 @@ export const BUS_PREDICTION_FUTURE_TOLERANCE_MS = 5_000;
 // upstream deadline is whatever is left of the budget rather than a fixed slice
 // summed by hand. See docs/superpowers/plans/2026-07-28-nearby-bus-departures.md.
 export const BUS_ROUTE_BUDGET_MS = 15_000;
-export const BUS_ROUTE_RESERVE_MS = 1_000;
+const BUS_ROUTE_RESERVE_MS = 1_000;
 export const BUS_UPSTREAM_BUDGET_MS = BUS_ROUTE_BUDGET_MS - BUS_ROUTE_RESERVE_MS;
 export const BUS_STOP_LOOKUP_TIMEOUT_MS = 9_000;
 export const BUS_ARRIVALS_TIMEOUT_MS = 5_000;
@@ -44,8 +44,8 @@ export const BUS_DEPARTURES_REFRESH_MS = 30_000;
 export const BUS_DEPARTURES_SLOW_WAIT_MS = 6_000;
 // A check old enough to name, and the age past which a counted-down minute
 // figure stops being a claim we can stand behind.
-export const BUS_DEPARTURES_AGE_NOTE_MS = 60_000;
-export const BUS_DEPARTURES_OUT_OF_DATE_MS = BUS_PREDICTION_MAX_AGE_MS;
+const BUS_DEPARTURES_AGE_NOTE_MS = 60_000;
+const BUS_DEPARTURES_OUT_OF_DATE_MS = BUS_PREDICTION_MAX_AGE_MS;
 
 export type BusDirection = "inbound" | "outbound" | null;
 
@@ -69,7 +69,7 @@ export type FreshBusPrediction = {
   expectedArrival: string;
 };
 
-export type NearbyBusDeparture = Omit<FreshBusPrediction, "naptanId">;
+type NearbyBusDeparture = Omit<FreshBusPrediction, "naptanId">;
 
 export type NearbyBusStop = {
   id: string;

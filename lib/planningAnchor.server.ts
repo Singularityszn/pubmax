@@ -50,7 +50,7 @@ export type ResolvePlanningAnchorInput = {
   requiresStepFreeAccess?: boolean;
 };
 
-export type OpeningEvidence = "open" | "closed" | "unknown";
+type OpeningEvidence = "open" | "closed" | "unknown";
 
 export type ResolvePlanningAnchorDeps = {
   loadVenue: (id: string) => Promise<Venue | null>;

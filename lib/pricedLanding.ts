@@ -40,7 +40,7 @@ export type PricedLandingFamily = keyof typeof PRICED_LANDING_PUBLICATION_FLOORS
 export const PRICED_LANDING_ROW_LIMIT = 20;
 
 /** Cheapest first, then name, then id, so one dataset gives one order. */
-export function comparePricedLandingRows(
+function comparePricedLandingRows(
   left: PricedLandingCandidate,
   right: PricedLandingCandidate,
 ): number {

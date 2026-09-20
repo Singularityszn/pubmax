@@ -3,10 +3,8 @@
 
 import {
   ASK_PLAN_DRAFT_STORAGE_KEY,
-  type AskCard as AskApiCard,
   type AskPlanDraft,
   type AskProposal,
-  type AskResponseBody,
   type AskTurn,
 } from "@/lib/ask/types";
 
@@ -31,7 +29,7 @@ export type AskResult =
 
 export const ASK_FALLBACK_MESSAGE = "Couldn't answer that. Try again.";
 
-export const ASK_TIMEOUT_MS = 12_000;
+const ASK_TIMEOUT_MS = 12_000;
 
 type AskOptions = {
   timeoutMs?: number;
@@ -271,5 +269,3 @@ export function createAskSession(options: AskOptions = {}) {
     }
   };
 }
-
-export type { AskApiCard, AskProposal, AskResponseBody, AskTurn };

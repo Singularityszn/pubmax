@@ -20,6 +20,7 @@ import {
   pollOptionLabel,
   pollOptionShare,
   pollTotalLine,
+  POLL_UNREADABLE_LINE,
   POLL_VOTE_FAILED_LINE,
   type MessagePollView,
 } from "@/lib/messagePoll";
@@ -60,6 +61,10 @@ export default function MessagePollCard({
   // refetch that carried a newer tally arrives as a new `poll` prop on a
   // remounted bubble, which is when the thread's own read is the fresher one.
   const shown = view.question === poll.question && view.totalVotes >= poll.totalVotes ? view : poll;
+
+  if (!shown.question?.trim() || !Array.isArray(shown.options) || shown.options.length < 2) {
+    return <p className="messagePollError">{POLL_UNREADABLE_LINE}</p>;
+  }
 
   return (
     <div className="messagePoll">

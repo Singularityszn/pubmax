@@ -30,13 +30,3 @@ export async function loadHypedPubs(): Promise<HypedPubsFile> {
   }
   return cached;
 }
-
-export function resetHypedPubsForTests(): void {
-  if (
-    process.env.NODE_ENV === "test" ||
-    Boolean(process.env.VITEST) ||
-    Boolean(process.env.VITEST_WORKER_ID)
-  ) {
-    cached = null;
-  }
-}

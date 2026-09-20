@@ -141,7 +141,7 @@ function boundedPattern(word: string): RegExp {
  * beer. A drinker typing one of those had a valid pint refused with a sentence
  * telling them to pick the measure they had already picked.
  */
-export const MEASURE_CONTEXT_WORDS: readonly string[] = ["of", "a", "pint", "pints"];
+const MEASURE_CONTEXT_WORDS: readonly string[] = ["of", "a", "pint", "pints"];
 
 const MEASURE_CONTEXT_SET: ReadonlySet<string> = new Set(MEASURE_CONTEXT_WORDS);
 

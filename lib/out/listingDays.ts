@@ -52,7 +52,7 @@ function londonNightName(ms: number): string {
 }
 
 /** The service night a row falls in, as its London calendar date, or null. */
-export function outListingServiceDay(row: WhatsOnRow): string | null {
+function outListingServiceDay(row: WhatsOnRow): string | null {
   const stated = rowStatedInterval(row);
   if (!stated || !Number.isFinite(stated.startMs)) return null;
   return londonYmd(tonightServiceWindow(stated.startMs).startMs);

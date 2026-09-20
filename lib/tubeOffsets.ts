@@ -36,10 +36,6 @@ export const SUBSURFACE_FAN_ORDER = [
   "District",
 ] as const;
 
-export type OffsetableFeature = Feature & {
-  properties: Record<string, unknown> & { line?: string };
-};
-
 // Round a coordinate to a stable key so near-identical vertices from different
 // OSM ways collapse to the same segment id. 4 dp ≈ 11 m — tight enough to avoid
 // false merges, loose enough to catch genuinely-shared track.

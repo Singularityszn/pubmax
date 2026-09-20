@@ -64,7 +64,7 @@ export const ACCOUNT_EXPORT_FAILED_LINE = "Your data could not be prepared. Try 
 export const ACCOUNT_EXPORT_SESSION_LINE = "Sign in again, then download your data.";
 
 /** A lane either answered whole or could not be run; there is no third word. */
-export type AccountExportLaneStatus = "complete" | "unavailable";
+type AccountExportLaneStatus = "complete" | "unavailable";
 
 export type AccountExportMemory = NightMemory & {
   moments: NightMoment[];

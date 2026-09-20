@@ -60,7 +60,7 @@ function parseReading(body: unknown): VenueOccupancyReading {
   };
 }
 
-export async function fetchVenueOccupancy(
+async function fetchVenueOccupancy(
   venueId: string,
 ): Promise<VenueOccupancyReading> {
   try {
@@ -112,7 +112,7 @@ export async function flagVenueOccupancy(
   }
 }
 
-export async function postVenueOccupancy(
+async function postVenueOccupancy(
   venueId: string,
   level: OccupancyLevel,
   auth: AccountAuthSnapshot,

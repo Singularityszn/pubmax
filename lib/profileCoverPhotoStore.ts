@@ -394,7 +394,7 @@ export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
 };
 
 // ── Supabase implementation ──────────────────────────────────────────────────
-const { guard, isSchemaMiss, resetWarnings } = createFailSoftGuard({
+const { guard, resetWarnings } = createFailSoftGuard({
   tag: "profile-cover-photos",
   tables: TABLE,
   migrationHint: MIGRATION_HINT,
@@ -803,11 +803,6 @@ export async function moderateDurableProfileCoverAcrossStores(
   if (error) throw new Error(error.message);
   return data === true;
 }
-
-export const isProfileCoverPhotoSchemaMiss = isSchemaMiss;
-
-/** The captain's number, re-exported so a caller reads one constant. */
-export { PROFILE_COVER_PHOTO_CAP };
 
 /** Test-only: clear in-memory state + warn dedupe between cases. */
 export function __resetProfileCoverPhotos(): void {

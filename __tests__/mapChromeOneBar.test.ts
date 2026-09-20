@@ -174,7 +174,7 @@ describe("finding 2.15 — SHOW ME opens only from a control the reader presses"
   it("keeps one table of view names", () => {
     const lens = read("components/map/MapExperienceLens.tsx");
     expect(lens, "one table of view names").toContain(
-      "export const MAP_EXPERIENCE_LENS_OPTIONS",
+      "const MAP_EXPERIENCE_LENS_OPTIONS",
     );
   });
 });

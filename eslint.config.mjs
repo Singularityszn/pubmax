@@ -59,6 +59,18 @@ const eslintConfig = [
       complexity: ["warn", 35],
     },
   },
+  {
+    // A stray `;` on its own line and an empty `{}` block are what a mechanical
+    // edit leaves behind when it lifts a statement out and does not read the
+    // line back. Both are errors so the tree cannot carry that debris:
+    // `npm run lint` is the merge bar and a warning here would be ignored.
+    // The matching export-list debris (`export { a, b,  }`) has no core rule,
+    // so __tests__/handWrittenSourceFence.test.ts scans for it instead.
+    rules: {
+      "no-empty": ["error", { allowEmptyCatch: true }],
+      "no-extra-semi": "error",
+    },
+  },
 ];
 
 export default eslintConfig;

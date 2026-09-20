@@ -154,7 +154,7 @@ export function scoreVenueForPlan(
   };
 }
 
-export function missingPlanContextEvidence(context: NightContext): string[] {
+function missingPlanContextEvidence(context: NightContext): string[] {
   const missing = new Set<string>();
   if (context.accessibility.length > 0) missing.add("venue_accessibility");
   if (context.transportConstraints.length > 0) missing.add("per_venue_transport");

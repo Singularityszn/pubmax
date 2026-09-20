@@ -37,7 +37,7 @@ export type ContributionLaneStats = {
   total?: number;
 };
 
-export type PriceTrustImpactStats = {
+type PriceTrustImpactStats = {
   status: "ready" | "degraded";
   observationsLogged?: number;
   pricesTrustedNow?: number;

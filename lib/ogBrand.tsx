@@ -55,13 +55,13 @@ export const OG_SIZE = { width: 1200, height: 630 } as const;
 // window: the browser revalidates modestly (max-age=0) while the edge serves an
 // instant hit, and a redraw after a data change lands within the SWR window.
 // Applied via the `headers` option on `new ImageResponse(el, { ...size, headers })`.
-export const OG_CACHE_CONTROL =
+const OG_CACHE_CONTROL =
   "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
 export const OG_CACHE_HEADERS = { "cache-control": OG_CACHE_CONTROL } as const;
 
 // The canonical page background: a near-black diagonal wash across the
 // elevation ladder. Kept as one string so every card opens on the same surface.
-export const OG_BG = `linear-gradient(150deg, ${OG.inkDeep} 0%, ${OG.panel} 52%, ${OG.paper} 100%)`;
+const OG_BG = `linear-gradient(150deg, ${OG.inkDeep} 0%, ${OG.panel} 52%, ${OG.paper} 100%)`;
 
 // ── Fonts ────────────────────────────────────────────────────────────────────
 // Space Grotesk is the PUBMAXX display face (see app/layout.tsx). satori needs
@@ -113,7 +113,7 @@ export function loadPartyFont(): OgFont {
   return partyFontCache;
 }
 
-export const OG_FONT_FAMILY = "Space Grotesk";
+const OG_FONT_FAMILY = "Space Grotesk";
 
 // GBP price stamp, or null when there is no honest, positive number to show.
 export function priceStamp(value: number | null | undefined): string | null {

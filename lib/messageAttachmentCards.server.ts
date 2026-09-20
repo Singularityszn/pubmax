@@ -12,9 +12,8 @@ import "server-only";
 //
 // THREE RULES, ONE PER KIND, AND EACH IS A PRIVACY RULE.
 //
-// 1. A PUB CARD SAYS WHAT THE PIN SAYS. Unchanged, and it lives where it always
-//    did (`lib/messageVenueCards.server.ts`): the curated sourced lane alone,
-//    pub kinds alone, no coordinate at any point.
+// 1. A PUB CARD SAYS WHAT THE PIN SAYS. The curated sourced lane alone, pub
+//    kinds alone, no coordinate at any point.
 //
 // 2. A CONTACT CARD IS THE PUBLIC PROFILE AND NOTHING ELSE. The handle, the
 //    display name somebody chose to publish, and the APPROVED OWNED avatar —
@@ -43,9 +42,10 @@ import {
   type MessageAttachment,
   type MessageContactCard,
   type MessageEventCard,
+  isMessageVenueId,
+  messageVenueMapUrl,
   type MessageVenueCard,
 } from "@/lib/messageAttachments";
-import { resolveMessageVenueCard } from "@/lib/messageVenueCards.server";
 import type { MessageDTO } from "@/lib/messages";
 import { buildPlanPrivacyPreview } from "@/lib/planPrivacy";
 import { planStore } from "@/lib/planStore";
@@ -55,6 +55,40 @@ import {
   publicOwnedImageUrl,
 } from "@/lib/profileStore";
 import { normalizeHandle } from "@/lib/profiles";
+import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
+
+/**
+ * One pub, resolved. Null when the index does not know it or could not answer.
+ *
+ * Resolving on the READ path rather than freezing the card at send time is the
+ * whole design: a pub that was renamed reads correctly in a message from last
+ * month, and a price that moved is never quoted back out of an old thread as
+ * though it were tonight's.
+ */
+async function resolveMessageVenueCard(
+  venueId: string,
+): Promise<MessageVenueCard | null> {
+  if (!isMessageVenueId(venueId)) return null;
+  const lookup = await lookupCanonicalVenue(venueId);
+  if (lookup.status !== "found") return null;
+  const { venue, slimVenue, canonicalId } = lookup;
+  // Pub kinds only, and only a real positive figure. Everything else prints its
+  // name and its area and stops, which is the honest card for a pub nobody has
+  // priced.
+  const sayable =
+    isPubVenueKind(slimVenue.kind ?? venue.kind) &&
+    typeof slimVenue.cheapestPrice === "number" &&
+    Number.isFinite(slimVenue.cheapestPrice) &&
+    slimVenue.cheapestPrice > 0;
+  return {
+    venueId: canonicalId,
+    name: venue.name,
+    area: venue.borough ?? "",
+    priceGbp: sayable ? slimVenue.cheapestPrice : null,
+    mapUrl: messageVenueMapUrl(canonicalId),
+  };
+}
 
 /**
  * One person, resolved. Null when nobody holds that handle, when the account

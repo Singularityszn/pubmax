@@ -19,7 +19,7 @@ import type { CameraIntentKind } from "@/lib/cameraIntent";
 // other exists.
 
 /** Who asked for the camera. A closed set: every owner names itself. */
-export type MapCameraFocusSource = "opening-location" | "area";
+type MapCameraFocusSource = "opening-location" | "area";
 
 export type MapCameraFocus = {
   center: [number, number];

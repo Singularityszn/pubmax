@@ -1,6 +1,6 @@
 import type { BrowserContext, Page, TestInfo } from "@playwright/test";
 
-export type GateViewport = {
+type GateViewport = {
   width: 390 | 1440;
   height: 844 | 900;
 };
@@ -11,7 +11,7 @@ export type GatePresentation = {
   motion: "normal" | "reduced";
 };
 
-export type BrowserPerformanceSample = {
+type BrowserPerformanceSample = {
   lcp: number;
   cls: number;
   inp: number | null;

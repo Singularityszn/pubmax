@@ -77,7 +77,7 @@ export function clearPlanMemberProjectionRead(planId: string): void {
 }
 
 /** The live capability token for one Plan, or "" while there is none. */
-export function usePlanCapabilityToken(planId: string): string {
+function usePlanCapabilityToken(planId: string): string {
   const tokenEvent = planCapabilityEvent(planId);
   const snapshot = useSyncExternalStore(
     (onChange) => {

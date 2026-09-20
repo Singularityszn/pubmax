@@ -21,10 +21,10 @@
 export type ViewMode = "lock-in" | "ledger";
 
 /** localStorage key for the persisted view mode. Mirrors "pubmax-legacy". */
-export const MODE_STORAGE_KEY = "pubmax-mode";
+const MODE_STORAGE_KEY = "pubmax-mode";
 
 /** localStorage key Legacy Mode persists under — the flag Ledger composes. */
-export const LEGACY_STORAGE_KEY = "pubmax-legacy";
+const LEGACY_STORAGE_KEY = "pubmax-legacy";
 
 /** The default when nothing is stored: Lock-In (energetic, chaos-forward). */
 export const DEFAULT_MODE: ViewMode = "lock-in";
@@ -61,32 +61,6 @@ export function resolveMode(
 /** Does this mode turn Legacy Mode (html[data-legacy="1"]) on? Ledger does. */
 export function modeEnablesLegacy(mode: ViewMode): boolean {
   return mode === "ledger";
-}
-
-/**
- * Apply a mode to the document: set html[data-mode] and drive the SAME
- * html[data-legacy] attribute LegacyToggle owns (so every existing legacy CSS
- * override composes for free), then persist both under their keys. Defensive:
- * no-ops off the DOM (SSR). This is the single writer used by the nav switch;
- * it mirrors LegacyToggle.toggle()'s DOM+storage shape exactly.
- */
-export function applyMode(mode: ViewMode): void {
-  if (typeof document === "undefined") return;
-  const root = document.documentElement;
-  root.dataset.mode = mode;
-
-  if (modeEnablesLegacy(mode)) {
-    root.dataset.legacy = "1";
-  } else {
-    delete root.dataset.legacy;
-  }
-
-  try {
-    localStorage.setItem(MODE_STORAGE_KEY, mode);
-    localStorage.setItem(LEGACY_STORAGE_KEY, modeEnablesLegacy(mode) ? "1" : "0");
-  } catch {
-    // Storage denied — the DOM attributes already applied for this session.
-  }
 }
 
 /** Read the currently-applied mode from the DOM (attribute the no-flash script

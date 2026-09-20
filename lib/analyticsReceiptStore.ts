@@ -3,7 +3,7 @@ import "server-only";
 import { selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
-export type AnalyticsReceiptClaim = "claimed" | "delivered" | "busy" | "conflict" | "error";
+type AnalyticsReceiptClaim = "claimed" | "delivered" | "busy" | "conflict" | "error";
 
 export type AnalyticsReceiptStore = {
   claim(input: { eventId: string; tokenDigest: string; eventName: string; now?: Date }): Promise<AnalyticsReceiptClaim>;
@@ -51,7 +51,7 @@ export const memoryAnalyticsReceiptStore: AnalyticsReceiptStore = {
   },
 };
 
-export const supabaseAnalyticsReceiptStore: AnalyticsReceiptStore = {
+const supabaseAnalyticsReceiptStore: AnalyticsReceiptStore = {
   async claim(input) {
     try {
       const now = input.now ?? new Date();

@@ -38,7 +38,7 @@ export type RoutePace = "walk" | "run";
 // How a leg's (or a whole route's) distance was measured. Absent is treated as
 // "straight-line" everywhere so pre-existing legs, and any summary that was
 // never upgraded with routed geometry, keep the honest straight-line wording.
-export type RouteDistanceBasis = "straight-line" | "routed";
+type RouteDistanceBasis = "straight-line" | "routed";
 
 // The POI categories eligible for "on the way" threading (story 26). Tube/
 // rail/bus/river stay off this list on purpose — they're transport, not the

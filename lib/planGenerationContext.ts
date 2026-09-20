@@ -7,7 +7,7 @@ import { PLAN_TIME_WINDOWS } from "@/lib/planIntake";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { DEFAULT_PLAN_STOP_COUNT } from "@/lib/planStopCount";
 
-export type PlanContextSource = "query" | "context" | "intake" | "default";
+type PlanContextSource = "query" | "context" | "intake" | "default";
 export type ReconciledPlanContext = {
   context: NightContext;
   confidence: number;

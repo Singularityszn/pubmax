@@ -10,7 +10,6 @@ import {
 } from "@/lib/wetherspoonsMatch";
 
 export {
-  WETHERSPOONS_MATCH_MAX_KM,
   matchWetherspoonsDirectoryPub,
   normalizeWetherspoonsMatchName,
   type WetherspoonsMatchVenue,

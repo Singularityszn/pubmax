@@ -18,7 +18,7 @@ import {
 } from "@/lib/venueKindFilters";
 import type { VenueSignal, FailedHoverImage } from "./types";
 
-export const HOVER_DETAIL_CACHE_LIMIT = 24;
+const HOVER_DETAIL_CACHE_LIMIT = 24;
 export const HOVER_CARD_VIEWPORT_GUTTER_PX = 16;
 export const HOVER_CARD_WIDTH_PX = 292;
 export const HOVER_CARD_HEIGHT_PX = 138;

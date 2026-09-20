@@ -69,5 +69,3 @@ export function DrinkGlyph({
     : { color: categoryColor(category), ...style };
   return <Glyph size={size} style={mergedStyle} {...rest} />;
 }
-
-export { GLYPHS as DRINK_GLYPHS };

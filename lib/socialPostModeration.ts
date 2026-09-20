@@ -10,7 +10,7 @@ export function isOpenAISocialModerationConfigured(apiKey = process.env.OPENAI_A
   return Boolean((apiKey ?? "").trim());
 }
 
-export class SocialPostModerationError extends Error {
+class SocialPostModerationError extends Error {
   constructor(message: string, public readonly retryable: boolean) {
     super(message);
   }

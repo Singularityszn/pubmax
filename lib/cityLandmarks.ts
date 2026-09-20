@@ -3,7 +3,7 @@
 // under lib/cities/{id}/landmarks.ts.
 
 import { parseCityId, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
-import { landmarks, landmarkById as londonLandmarkById, type Landmark } from "@/lib/landmarks";
+import { landmarks, type Landmark } from "@/lib/landmarks";
 import { manchesterLandmarks } from "@/lib/cities/manchester/landmarks";
 import { glasgowLandmarks } from "@/lib/cities/glasgow/landmarks";
 import { oxfordLandmarks } from "@/lib/cities/oxford/landmarks";
@@ -42,15 +42,4 @@ export function landmarksForCity(
     default:
       return [];
   }
-}
-
-/** Look up a landmark within a city's catalog (shareable chapter pages, deep links). */
-export function landmarkByIdForCity(
-  cityId: CityId | string | null | undefined,
-  landmarkId: string | null | undefined,
-): Landmark | undefined {
-  if (!landmarkId) return undefined;
-  const id = resolveCityId(cityId);
-  if (id === "london") return londonLandmarkById(landmarkId);
-  return landmarksForCity(id).find((lm) => lm.id === landmarkId);
 }

@@ -17,7 +17,7 @@ import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
 import { pushTokenStore, validatePushToken } from "@/lib/pushTokenStore";
-import { cheapPintPingStore } from "@/lib/stepOutNudgeStore";
+import { stepOutNudgeStore } from "@/lib/stepOutNudgeStore";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { decodeWebPushSubscription } from "@/lib/webPushSubscription";
 
@@ -75,7 +75,7 @@ export async function GET(request: Request): Promise<Response> {
   if (!owner.ok) return owner.response;
 
   try {
-    const pref = await cheapPintPingStore().get(owner.contributor.actor);
+    const pref = await stepOutNudgeStore().get(owner.contributor.actor);
     return jsonNoStore(prefBody(pref), { status: 200 });
   } catch (err) {
     log("error", "cheap_pint_ping.get_failed", {
@@ -112,12 +112,12 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     if (action === "qualify") {
-      const pref = await cheapPintPingStore().qualifyCheapPint(owner.contributor.actor);
+      const pref = await stepOutNudgeStore().qualifyCheapPint(owner.contributor.actor);
       return jsonNoStore(prefBody(pref), { status: 200 });
     }
 
     if (action === "decline") {
-      const pref = await cheapPintPingStore().declineCheapPint(owner.contributor.actor);
+      const pref = await stepOutNudgeStore().declineCheapPint(owner.contributor.actor);
       return jsonNoStore(prefBody(pref), { status: 200 });
     }
 
@@ -134,7 +134,7 @@ export async function POST(request: Request): Promise<Response> {
       return publicApiError(validation.error, "INVALID_REQUEST", 400);
     }
     await pushTokenStore().save(validation.input);
-    const pref = await cheapPintPingStore().optInCheapPint(
+    const pref = await stepOutNudgeStore().optInCheapPint(
       owner.contributor.actor,
       token,
     );

@@ -27,7 +27,7 @@ export function safePlanReturnTo(raw: string | null | undefined): string | null 
   }
 }
 
-export function accountClaimReturnTo(raw: string | null | undefined): string | null {
+function accountClaimReturnTo(raw: string | null | undefined): string | null {
   return safeInviteReturnTo(raw) ?? safePlanReturnTo(raw);
 }
 

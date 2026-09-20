@@ -1,4 +1,4 @@
-import { buildVenueClaims, type ClaimDrop, type Provenance, type VenueClaim } from "@/lib/curation";
+import { buildVenueClaims, type ClaimDrop, type Provenance } from "@/lib/curation";
 import { displayHandle, handleOnly } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import { formatGbp } from "@/lib/formatGbp";
@@ -288,5 +288,4 @@ export function ledgerClaimDrops(drops: LedgerSourceDrop[]): ClaimDrop[] {
   }));
 }
 
-export type { VenueClaim };
 export { buildVenueClaims };

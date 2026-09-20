@@ -29,7 +29,7 @@ export function ticketFromLine(row: WhatsOnRow): string | null {
  * differently. A listing that publishes no clock time gets "Sun 16 Aug" and no
  * time at all: inventing one is a fact the source does not carry.
  */
-export function formatWhen(row: WhatsOnRow): string {
+function formatWhen(row: WhatsOnRow): string {
   if (row.startsAt) {
     return new Intl.DateTimeFormat("en-GB", {
       timeZone: "Europe/London",

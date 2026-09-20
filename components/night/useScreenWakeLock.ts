@@ -33,7 +33,7 @@ export type WakeLockSentinelLike = {
   removeEventListener?(type: "release", listener: () => void): void;
 };
 
-export type WakeLockApiLike = {
+type WakeLockApiLike = {
   request(type: "screen"): Promise<WakeLockSentinelLike>;
 };
 

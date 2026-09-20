@@ -11,7 +11,7 @@ import type { Page } from "@playwright/test";
  * present but `visibility: hidden` is NOT painted, and a count keyed on the
  * bounding box alone reads it as one more surface on screen.
  */
-export const AMBIENT_MAP_SURFACES = [
+const AMBIENT_MAP_SURFACES = [
   ".citySuggestBanner",
   ".cityStatusStack",
   ".tonightLaneCollapsed",

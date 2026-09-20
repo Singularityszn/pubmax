@@ -8,7 +8,7 @@ import { act } from "react";
 // picker moves there is one place to follow it.
 
 /** A four-byte JPEG: the leading bytes are what `photoRefusal` reads. */
-export function billFile(): File {
+function billFile(): File {
   return new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], "bill.jpg", {
     type: "image/jpeg",
   });

@@ -6,7 +6,7 @@ import { listEnabledCities } from "@/lib/cities";
 import { getNightAreasForCity } from "@/lib/nightAreas";
 import { normaliseUkPlaceQuery } from "@/lib/ukPlaceSearch";
 
-export type MapSearchIntentKind =
+type MapSearchIntentKind =
   | "borough"
   | "city"
   | "area"
@@ -14,7 +14,7 @@ export type MapSearchIntentKind =
   | "venue"
   | "unknown";
 
-export type MapSearchIntentCandidate = {
+type MapSearchIntentCandidate = {
   kind: MapSearchIntentKind;
   /** Display label for the matched geo entity, or "" for venue/unknown. */
   label: string;

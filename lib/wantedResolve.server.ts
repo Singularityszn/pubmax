@@ -12,7 +12,7 @@ import {
   type WantedResolveResult,
 } from "@/lib/wanted";
 
-export type { WantedResolveCandidate, WantedResolveResult };
+export type { WantedResolveResult };
 
 // The matcher itself is `lib/curatedVenueSearch.server.ts`, shared with the pub
 // a drinker attaches to a message: two surfaces asking "which pub did you mean"

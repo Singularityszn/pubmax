@@ -23,13 +23,12 @@ import {
 
 import { log } from "@/lib/log";
 
-export { choice, noul, score, TypeSafeClient } from "@typesafe-ai/sdk";
 export type { EntryType, Questions, SystemOneResult };
 
 /** The one host this module talks to; disclosed on `/privacy`. */
-export const TYPESAFE_API_BASE_URL = "https://api.typesafe.ai";
+const TYPESAFE_API_BASE_URL = "https://api.typesafe.ai";
 
-export const TYPESAFE_DEFAULT_TIMEOUT_MS = 4_000;
+const TYPESAFE_DEFAULT_TIMEOUT_MS = 4_000;
 
 export type SystemOneOptions = {
   timeoutMs?: number;

@@ -43,7 +43,7 @@ function operatorFromName(name: string): string | null {
   return null;
 }
 
-export function collectSamePubCandidatePairs(
+function collectSamePubCandidatePairs(
   groupList: VenueGroup[],
   maxMetres: number = SAME_PUB_CANDIDATE_MAX_METRES,
 ): Array<[VenueGroup, VenueGroup]> {

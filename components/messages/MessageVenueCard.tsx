@@ -2,7 +2,7 @@
 
 // The pub somebody shared with you, as a card that opens the map on it.
 //
-// It prints what the READ path resolved (`lib/messageVenueCards.server.ts`) and
+// It prints what the READ path resolved (`lib/messageAttachmentCards.server.ts`) and
 // nothing else. There is no figure of its own here and no fallback name: a card
 // whose lookup could not answer says so in words, because a pub we could not
 // read may never render as a pub that does not exist.

@@ -15,7 +15,7 @@ import { venueExternalActions } from "@/lib/venueExternalActions";
  * (never an invented in-app food menu).
  */
 
-export type MenuHubTileKind = "drinks" | "drink-category" | "food-external";
+type MenuHubTileKind = "drinks" | "drink-category" | "food-external";
 
 export type MenuHubTile = {
   id: string;

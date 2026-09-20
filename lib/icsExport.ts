@@ -9,7 +9,7 @@
 // a stable UID, DTSTART/DTEND in UTC (…Z), and the required PRODID/VERSION.
 // It is not a full calendar library — no timezones, RRULEs or alarms.
 
-export type IcsStop = {
+type IcsStop = {
   name: string;
   /** Optional street address, surfaced in the event body if present. */
   address?: string;

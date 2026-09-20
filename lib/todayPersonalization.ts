@@ -22,23 +22,19 @@ import {
 } from "@/lib/todayBrief";
 
 /** Highest-priority source wins independently for every field. */
-export const TODAY_PERSONALIZATION_SOURCES = [
-  "explicit-current-intent",
-  "progressive-intake",
-  "account",
-  "reviewed-device",
-  "defaults",
-] as const;
+type TodayPersonalizationSource =
+  | "explicit-current-intent"
+  | "progressive-intake"
+  | "account"
+  | "reviewed-device"
+  | "defaults";
 
-export type TodayPersonalizationSource =
-  (typeof TODAY_PERSONALIZATION_SOURCES)[number];
-
-export type ResolvedTodayField<T> = {
+type ResolvedTodayField<T> = {
   value: T;
   source: TodayPersonalizationSource;
 };
 
-export type TodayIntentLayer = {
+type TodayIntentLayer = {
   context?: Partial<NightContext> | null;
   /** A patch may be more precise than the modelled Night Area in context. */
   preferredPatch?: NightPatchId | null;
@@ -49,7 +45,7 @@ export type TodayIntentLayer = {
   }>;
 };
 
-export type ReviewedTodayDevice = {
+type ReviewedTodayDevice = {
   /** Device state is ignored unless the caller explicitly attests this flag. */
   reviewed: boolean;
   profile: NightProfileInput;

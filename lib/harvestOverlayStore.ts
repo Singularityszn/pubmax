@@ -22,13 +22,13 @@ const MIGRATION_HINT = "apply migration 0123";
 const STORE_TAG = "harvest-overlay";
 const UPSERT_BATCH = 500;
 
-export type HarvestOverlayWriteOutcome = {
+type HarvestOverlayWriteOutcome = {
   written: number;
   failed?: true;
   failure?: string;
 };
 
-export type HarvestOverlayRead =
+type HarvestOverlayRead =
   | { status: "ready"; overlay: HarvestOverlayRow | null }
   | { status: "degraded"; overlay: null };
 
@@ -47,7 +47,7 @@ export function __resetHarvestOverlayStore(): void {
   memoryRows.clear();
 }
 
-export const memoryHarvestOverlayStore: HarvestOverlayStore = {
+const memoryHarvestOverlayStore: HarvestOverlayStore = {
   async upsertMany(rows) {
     for (const row of rows) remember(row);
     return { written: rows.length };
@@ -111,7 +111,7 @@ function fromSql(row: OverlaySqlRow): HarvestOverlayRow | null {
   }
 }
 
-export const supabaseHarvestOverlayStore: HarvestOverlayStore = {
+const supabaseHarvestOverlayStore: HarvestOverlayStore = {
   async upsertMany(rows) {
     if (rows.length === 0) return { written: 0 };
     const foldedAt = new Date().toISOString();

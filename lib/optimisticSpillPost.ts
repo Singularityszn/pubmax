@@ -4,7 +4,7 @@ import type { LastPintDecisionKind } from "@/lib/tfl";
 import { discardBody } from "@/lib/responseBody";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
-export const OPTIMISTIC_SPILL_STORAGE_KEY = "pubmax:optimistic-spill-posts:v1";
+const OPTIMISTIC_SPILL_STORAGE_KEY = "pubmax:optimistic-spill-posts:v1";
 export const OPTIMISTIC_SPILL_EVENT = "pubmax:optimistic-spill-posts-changed";
 
 export type StoredOptimisticSpill = {

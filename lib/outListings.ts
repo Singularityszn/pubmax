@@ -24,7 +24,7 @@ export type OutDayWindow = (typeof OUT_DAY_WINDOWS)[number];
  * nobody remembered to widen. A deal is not an event: it has its own honesty
  * lane (lib/dealsHonesty.ts) and stays on Tonight.
  */
-export const OUT_EXCLUDED_LISTING_KIND: WhatsOnKind = "deal";
+const OUT_EXCLUDED_LISTING_KIND: WhatsOnKind = "deal";
 
 export const OUT_LISTING_KINDS: readonly WhatsOnKind[] = WHATS_ON_KINDS.filter(
   (kind) => kind !== OUT_EXCLUDED_LISTING_KIND,
@@ -39,7 +39,7 @@ export const OUT_LISTING_KINDS: readonly WhatsOnKind[] = WHATS_ON_KINDS.filter(
  * and printed "no listings" over a city whose gigs our own truncation had
  * dropped.
  */
-export const OUT_LISTING_LIMIT = 60;
+const OUT_LISTING_LIMIT = 60;
 
 /**
  * The day ONE card may print.
@@ -132,7 +132,7 @@ export function outListingsEmptyLine(
     : `Nothing listed for ${WINDOW_NOUN[window]} yet.`;
 }
 
-export function isOutDayWindow(value: unknown): value is OutDayWindow {
+function isOutDayWindow(value: unknown): value is OutDayWindow {
   return (OUT_DAY_WINDOWS as readonly string[]).includes(value as string);
 }
 

@@ -24,7 +24,7 @@ const warmed = new Set<string>();
 export type IntentLinkProps = Omit<ComponentProps<typeof Link>, "prefetch">;
 
 /** The intent warm on its own, for a link that needs its own element. */
-export function useIntentWarm(): (href: string) => void {
+function useIntentWarm(): (href: string) => void {
   const router = useRouter();
   return useCallback(
     (href: string) => {

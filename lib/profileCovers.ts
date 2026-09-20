@@ -37,11 +37,8 @@ export const PROFILE_COVER_PHOTO_CAP = 5;
 /** How long one cover holds the header before the next takes it. */
 export const PROFILE_COVER_ROTATION_MS = 5_000;
 
-/** How long the two covers overlap while one becomes the other. */
-export const PROFILE_COVER_CROSSFADE_MS = 900;
-
 /** Positions are 1-based, so "cover #1" in the copy is `position === 1`. */
-export const PROFILE_COVER_FIRST_POSITION = 1;
+const PROFILE_COVER_FIRST_POSITION = 1;
 
 /**
  * Moderation states, the same closed set every owned image carries. A photo
@@ -49,7 +46,7 @@ export const PROFILE_COVER_FIRST_POSITION = 1;
  * nothing); `hidden` is a moderator decision and stays reversible, because
  * hiding never deletes the row, its bytes or its report trail.
  */
-export const PROFILE_COVER_MODERATION_STATES = [
+const PROFILE_COVER_MODERATION_STATES = [
   "approved",
   "needs_review",
   "hidden",
@@ -98,11 +95,6 @@ export type ProfileCoverPhotoDTO = {
   id: string;
   position: number;
   url: string;
-};
-
-export type ProfileCoverPhotoList = {
-  status: ProfileCoverReadStatus;
-  covers: ProfileCoverPhotoDTO[];
 };
 
 /** The fields a writer supplies. `position` is derived, never client-supplied. */
