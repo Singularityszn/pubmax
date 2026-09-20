@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { paintedAmbientSurfaces } from "./helpers/ambientMapSurfaces";
+
 const DESKTOP = { width: 1440, height: 900 };
 const DESKTOP_WIDTHS = [1024, 1280, 1440, 1600] as const;
 const FIRST_RUN_BANNER_WIDTHS = [641, 800, 1023, ...DESKTOP_WIDTHS] as const;
@@ -676,19 +678,7 @@ for (const width of FIRST_RUN_BANNER_WIDTHS) {
     ).toBeLessThanOrEqual(width - EDGE_GUTTER + SUBPIXEL_TOLERANCE);
 
     // ONE ambient surface, counted rather than argued about.
-    const painted = await page.evaluate(() =>
-      [
-        ".citySuggestBanner",
-        ".cityStatusStack",
-        ".tonightLaneCollapsed",
-        ".mapConciergeAsk",
-      ].filter((selector) => {
-        const node = document.querySelector(selector);
-        if (!node) return false;
-        const box = node.getBoundingClientRect();
-        return box.width > 0 && box.height > 0;
-      }),
-    );
+    const painted = await paintedAmbientSurfaces(page);
     expect(painted).toEqual([".citySuggestBanner"]);
   });
 }

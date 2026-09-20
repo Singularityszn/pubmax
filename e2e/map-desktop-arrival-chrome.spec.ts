@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { paintedAmbientSurfaces } from "./helpers/ambientMapSurfaces";
+
 // What a desktop reader meets before they have touched anything.
 //
 // Measured on a production build at 1440x900, 7 Sep 2026 (docs/proof/
@@ -122,31 +124,6 @@ test.describe("the desktop map's arrival chrome", () => {
   });
 });
 
-/** The four ambient surfaces, in the order the cascade spends them. */
-const AMBIENT_SURFACES = [
-  ".citySuggestBanner",
-  ".cityStatusStack",
-  ".tonightLaneCollapsed",
-  ".mapConciergeAsk",
-] as const;
-
-async function paintedAmbientSurfaces(page: Page): Promise<string[]> {
-  return page.evaluate((selectors) =>
-    selectors.filter((selector) => {
-      const node = document.querySelector(selector);
-      if (!node) return false;
-      const box = node.getBoundingClientRect();
-      const style = getComputedStyle(node);
-      return (
-        box.width > 2 &&
-        box.height > 2 &&
-        style.visibility !== "hidden" &&
-        style.display !== "none"
-      );
-    }),
-  [...AMBIENT_SURFACES]);
-}
-
 // AND THE WAIT HOLDS AFTER THE STRIP IS ANSWERED. UI review 17 Sep 2026,
 // finding 5: dismissing the strip released THREE at once at 1440 (the location
 // prompt, the closure and area-news rail, the concierge ask). The wait was
@@ -175,13 +152,13 @@ test.describe("the desktop map after the arrival strip is answered", () => {
 
     // These mount off four independent reads, so the count is watched while
     // each of them lands rather than read once at the end.
-    const readings: string[][] = [];
     for (let pass = 0; pass < 12; pass += 1) {
-      readings.push(await paintedAmbientSurfaces(page));
+      const painted = await paintedAmbientSurfaces(page);
+      expect(
+        painted.length,
+        `pass ${pass}: ${painted.join(", ") || "no ambient surface"}`,
+      ).toBeLessThanOrEqual(1);
       await page.waitForTimeout(500);
-    }
-    for (const painted of readings) {
-      expect(painted.join(", ")).toBe(painted[0] ?? "");
     }
   });
 

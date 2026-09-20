@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { paintedAmbientSurfaces } from "./helpers/ambientMapSurfaces";
+
 test.use({ storageState: { cookies: [], origins: [] } });
 
 const desktopCases = [
@@ -111,19 +113,7 @@ for (const { width, tonightState, tonightBody } of desktopCases) {
 
     // The prompt owns the map on its own, so there is no second banner to keep
     // eight pixels away from. What is measured instead is the count.
-    const painted = await page.evaluate(() =>
-      [
-        ".citySuggestBanner",
-        ".cityStatusStack",
-        ".tonightLaneCollapsed",
-        ".mapConciergeAsk",
-      ].filter((selector) => {
-        const node = document.querySelector(selector);
-        if (!node) return false;
-        const box = node.getBoundingClientRect();
-        return box.width > 0 && box.height > 0;
-      }),
-    );
+    const painted = await paintedAmbientSurfaces(page);
     expect(painted).toEqual([".citySuggestBanner"]);
   });
 }
