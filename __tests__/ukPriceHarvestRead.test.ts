@@ -19,17 +19,21 @@ describe("harvest price reader without TYPESAFE_API_KEY", () => {
     const previous = process.env.TYPESAFE_API_KEY;
     delete process.env.TYPESAFE_API_KEY;
 
-    const { readVenueDrinkPricesForHarvest } = await import(
-      "../scripts/harvest/uk-prices/readPrices.mjs"
-    );
-    const { reading, review } = await readVenueDrinkPricesForHarvest(drinksList, {
-      pubName: "The Crown",
-      pageUrl: "https://thecrown.co.uk/drinks",
-    });
+    try {
+      const { readVenueDrinkPricesForHarvest } = await import(
+        "../scripts/harvest/uk-prices/readPrices.mjs"
+      );
+      const { reading, review } = await readVenueDrinkPricesForHarvest(drinksList, {
+        pubName: "The Crown",
+        pageUrl: "https://thecrown.co.uk/drinks",
+      });
 
-    expect(review).toEqual([]);
-    expect(reading).toEqual(readVenueDrinkPrices(drinksList));
-
-    if (previous !== undefined) process.env.TYPESAFE_API_KEY = previous;
+      expect(review).toEqual([]);
+      expect(reading).toEqual(readVenueDrinkPrices(drinksList));
+    } finally {
+      // Restore on the failing path too: a leaked unset key would silently put
+      // every later test in this worker on the keyless path.
+      if (previous !== undefined) process.env.TYPESAFE_API_KEY = previous;
+    }
   });
 });
