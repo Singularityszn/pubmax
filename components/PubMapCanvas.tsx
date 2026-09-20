@@ -137,6 +137,10 @@ import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
 } from "@/components/map/canvas/interactions";
 import { installMapCameraProbe } from "@/components/map/canvas/cameraProbe";
+import {
+  installMapReaderPositionProbe,
+  syncReaderPositionOnMap,
+} from "@/components/map/canvas/readerPositionProbe";
 import { installPaintedPinProbe } from "@/components/map/canvas/paintedPinProbe";
 import {
   measureBottomSheetTop,
@@ -3007,6 +3011,7 @@ export default function PubMapCanvas({
     // Camera side of the same answer: what a gesture left behind, and where a
     // geographic point is being painted (cameraProbe.ts).
     const removeMapCameraProbe = installMapCameraProbe(map);
+    const removeMapReaderPositionProbe = installMapReaderPositionProbe(map);
     wireHoverPrefetch(map, { onVenuePrefetchRef });
     wirePubHover(map, { hoverCapableRef, setHoveredVenue });
     wireCursor(map);
@@ -3150,6 +3155,7 @@ export default function PubMapCanvas({
       donutSync.destroy();
       removePaintedPinProbe();
       removeMapCameraProbe();
+      removeMapReaderPositionProbe();
       if (publishCurrentViewportRef.current === publishCurrentViewport) {
         publishCurrentViewportRef.current = null;
       }
@@ -3608,9 +3614,7 @@ export default function PubMapCanvas({
     userLocationDataRef.current = readerPositionGeoJSON;
     const map = mapRef.current;
     if (!mapReady || !map) return;
-    (map.getSource("user-location") as maplibregl.GeoJSONSource | undefined)?.setData(
-      readerPositionGeoJSON,
-    );
+    syncReaderPositionOnMap(map, readerPositionGeoJSON);
   }, [mapReady, readerPositionGeoJSON]);
 
   // Frame the crawl only when the route identity changes *materially* — the

@@ -44,6 +44,29 @@ async function prepareMap(page: Page): Promise<void> {
   }, MAP_FIRST_VISIT_KEY);
 }
 
+
+async function readReaderDot(page: Page): Promise<{
+  hasAccuracyLayer: boolean;
+  hasCoreLayer: boolean;
+  coordinates: [number, number] | null;
+}> {
+  return page.evaluate(() => {
+    const probe = (
+      window as typeof window & {
+        __pubmaxMapReaderPosition?: {
+          read: () => {
+            hasAccuracyLayer: boolean;
+            hasCoreLayer: boolean;
+            coordinates: [number, number] | null;
+          };
+        };
+      }
+    ).__pubmaxMapReaderPosition;
+    if (!probe) throw new Error("reader position probe missing");
+    return probe.read();
+  });
+}
+
 async function readCameraCenter(page: Page): Promise<[number, number]> {
   return page.evaluate(() => {
     const probe = (
@@ -99,6 +122,18 @@ test.describe("map you are here dot", () => {
     });
 
     await expect
+      .poll(async () => page.evaluate(() => "__pubmaxMapReaderPosition" in window), {
+        timeout: 30_000,
+      })
+      .toBe(true);
+
+    const dotBefore = await readReaderDot(page);
+    expect(dotBefore.hasAccuracyLayer).toBe(true);
+    expect(dotBefore.hasCoreLayer).toBe(true);
+    expect(dotBefore.coordinates).toEqual([first.longitude, first.latitude]);
+
+
+    await expect
       .poll(async () => page.evaluate(() => "__pubmaxMapCamera" in window), {
         timeout: 30_000,
       })
@@ -117,6 +152,9 @@ test.describe("map you are here dot", () => {
         return dx + dy;
       }, { timeout: 20_000 })
       .toBeGreaterThan(8);
+
+    const dotAfter = await readReaderDot(page);
+    expect(dotAfter.coordinates).toEqual([second.longitude, second.latitude]);
 
     const centerAfter = await readCameraCenter(page);
     expect(Math.abs(centerAfter[0] - centerBefore[0])).toBeLessThan(0.0005);

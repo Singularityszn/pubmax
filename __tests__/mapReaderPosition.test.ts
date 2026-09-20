@@ -12,6 +12,8 @@ import {
 } from "@/lib/mapReaderPosition";
 import type { MapReaderPosition } from "@/lib/mapReaderPosition";
 import { attachMapReaderPositionWatch } from "@/lib/mapReaderPositionWatch";
+import { syncReaderPositionOnMap } from "@/components/map/canvas/readerPositionProbe";
+
 
 describe("mapReaderPositionGeoJSON", () => {
   it("carries accuracy and latitude on the feature for the accuracy ring", () => {
@@ -115,7 +117,7 @@ describe("attachMapReaderPositionWatch", () => {
       start,
       canvasSrc.indexOf("// Frame the crawl only when", start),
     );
-    expect(readerBlock).toContain('getSource("user-location")');
+    expect(readerBlock).toContain('syncReaderPositionOnMap');
     expect(readerBlock).not.toMatch(/\b(flyTo|easeTo|jumpTo|fitBounds|setCenter)\s*\(/);
   });
 
@@ -160,3 +162,36 @@ describe("map reader position latch", () => {
     expect(handler).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("syncReaderPositionOnMap", () => {
+  it("updates the GeoJSON source and never moves the camera", () => {
+    const setData = vi.fn();
+    const flyTo = vi.fn();
+    const easeTo = vi.fn();
+    const jumpTo = vi.fn();
+    const fitBounds = vi.fn();
+    const setCenter = vi.fn();
+    const map = {
+      getSource: () => ({ setData }),
+      flyTo,
+      easeTo,
+      jumpTo,
+      fitBounds,
+      setCenter,
+    } as unknown as maplibregl.Map;
+
+    const data = mapReaderPositionGeoJSON({
+      lat: 51.5,
+      lng: -0.12,
+      accuracyMeters: 20,
+    });
+    syncReaderPositionOnMap(map, data);
+    expect(setData).toHaveBeenCalledWith(data);
+    expect(flyTo).not.toHaveBeenCalled();
+    expect(easeTo).not.toHaveBeenCalled();
+    expect(jumpTo).not.toHaveBeenCalled();
+    expect(fitBounds).not.toHaveBeenCalled();
+    expect(setCenter).not.toHaveBeenCalled();
+  });
+});
+
