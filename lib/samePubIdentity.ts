@@ -8,11 +8,11 @@ import { noul } from "@typesafe-ai/sdk";
 
 import { systemOne, typesafeConfigured } from "@/lib/ai/typesafe";
 import {
+  cheapSamePubNameCandidate,
   haversineMeters,
   namesLikelySamePub,
   normalizeVenueIdentityName,
   postcodeOutward,
-  significantNameTokens,
 } from "../scripts/lib/venueCanonicalization.mjs";
 
 export const SAME_PUB_CANDIDATE_MAX_METRES = 120;
@@ -93,13 +93,7 @@ export function cheapSamePubCandidate(
   const pa = postcodeOutward(a.address);
   const pb = postcodeOutward(b.address);
   if (pa && pb && pa !== pb) return false;
-  const sigA = new Set(significantNameTokens(a.normName));
-  const sigB = new Set(significantNameTokens(b.normName));
-  if (sigA.size === 0 || sigB.size === 0) return false;
-  for (const t of sigA) {
-    if (sigB.has(t)) return true;
-  }
-  return false;
+  return cheapSamePubNameCandidate(a.normName, b.normName);
 }
 
 export function bandFromSamePubProbability(pSame: number): SamePubBand {
