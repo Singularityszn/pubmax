@@ -316,18 +316,20 @@ const NOT_RENDERED: ReadonlyArray<{ route: string; reason: string }> = [
   { route: "/map", reason: "the map canvas is another track's surface and has no heading" },
   { route: "/map/[city]", reason: "the map canvas is another track's surface and has no heading" },
   { route: "/u/you", reason: "an alias of /u/[handle], rendered under that row" },
-  {
-    route: "/drinks",
-    reason:
-      "next.config.mjs 308s it to /social?tab=discover and app/drinks/page.tsx is the same permanentRedirect, so it renders no document and has no primary action to count",
-  },
 ];
+
+/** Every table row's route, in the order the table names them. */
+function tableRoutes(): string[] {
+  const table = readFileSync(join(root, "docs/design/LAUNCH_SCREENS.md"), "utf8");
+  const body = table.slice(0, table.indexOf("## Retired addresses"));
+  return [...body.matchAll(/^\| (`[^|]+)/gm)].flatMap((m) =>
+    [...m[1].matchAll(/`(\/[^`]*)`/g)].map((r) => r[1]),
+  );
+}
 
 describe("every launch route is rendered by an audit", () => {
   it("names each table route in a launch-route audit or excuses it by name", () => {
-    const table = readFileSync(join(root, "docs/design/LAUNCH_SCREENS.md"), "utf8");
-    const routes = [...table.matchAll(/^\| (`[^|]+)/gm)]
-      .flatMap((m) => [...m[1].matchAll(/`(\/[^`]*)`/g)].map((r) => r[1]));
+    const routes = tableRoutes();
     expect(routes.length).toBeGreaterThan(30);
     const audits = readdirSync(join(root, "__tests__"))
       .filter((name) => /^launchRoutes\.[a-z]+\.test\.tsx$/.test(name))
@@ -341,5 +343,38 @@ describe("every launch route is rendered by an audit", () => {
       return !new RegExp(`it(?:\\.skip)?\\(\\s*["'\`]${escaped}\\s`).test(audits);
     });
     expect(missing, "table routes with no launch-route audit").toEqual([]);
+  });
+
+  // A ROUTE THE ROUTER REDIRECTS IS NOT A SCREEN. /discover, /drinks and /feed
+  // held full rows in the table while next.config.mjs answered all three with a
+  // permanent 308 to /social, and the audit above reported them covered because
+  // two launchRoutes tests rendered the page components behind them - components
+  // no reader can reach. The excuse note the table carried for /drinks was
+  // itself the proof that the row was fiction, so the rows are gone and this is
+  // what keeps another one from landing.
+  it("names no route the router permanently redirects", () => {
+    const redirected = [
+      ...nextConfig.matchAll(
+        /source:\s*"(\/[^"*]*)",\s*destination:\s*"([^"]+)",\s*permanent:\s*true/g,
+      ),
+    ].map((match) => match[1]);
+    expect(redirected.length, "permanent redirects read out of next.config.mjs")
+      .toBeGreaterThan(2);
+    const rows = new Set(tableRoutes());
+    expect(
+      redirected.filter((route) => rows.has(route)),
+      "launch table rows the router answers with a 308",
+    ).toEqual([]);
+  });
+
+  // The other half: an address the table retired still has to say where it
+  // went, or the next reader re-derives the router to find out.
+  it("records each retired address and where the router sends it", () => {
+    const table = readFileSync(join(root, "docs/design/LAUNCH_SCREENS.md"), "utf8");
+    const retired = table.slice(table.indexOf("## Retired addresses"));
+    expect(retired, "the table has a retired-addresses section").not.toBe("");
+    for (const route of ["/discover", "/drinks", "/feed"]) {
+      expect(retired, `${route} is recorded as retired`).toContain(`\`${route}\``);
+    }
   });
 });

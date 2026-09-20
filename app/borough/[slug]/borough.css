@@ -128,7 +128,7 @@
   border: 1px solid var(--line);
   font-weight: 700;
   font-size: 13px;
-  color: var(--brass);
+  color: var(--color-accent-ink);
 }
 
 .boroughName {
@@ -249,7 +249,7 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: var(--brass);
+  color: var(--tint-ink-accent);
 }
 
 /* --- night-out chapter sections (story pubs / crawls) ---------------------- */
@@ -399,7 +399,7 @@
   border: 1px solid color-mix(in srgb, var(--brass) 30%, transparent);
   font-size: 12px;
   font-weight: 700;
-  color: var(--brass);
+  color: var(--tint-ink-accent);
 }
 
 .boroughHeritageGrade {
@@ -411,7 +411,7 @@
   border: 1px solid color-mix(in srgb, var(--river) 32%, transparent);
   font-size: 12px;
   font-weight: 700;
-  color: var(--river);
+  color: var(--tint-ink-info);
 }
 
 .boroughHeritageName {

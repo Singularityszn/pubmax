@@ -267,8 +267,10 @@
   border: 1px solid var(--brass);
   border-radius: 999px;
   background: color-mix(in srgb, var(--brass) 12%, var(--panel));
-  /* A word in the accent takes the accent's ink on the light ground. */
-  color: var(--color-accent-ink);
+  /* A word in the accent on a TINT of the accent takes the tint ink, not the
+     ladder ink: --color-accent-ink is tuned against the page and the card, and
+     over this tint on the recessed panel it reads 4.25:1. */
+  color: var(--tint-ink-accent);
   font-size: 13px;
   font-weight: 600;
 }

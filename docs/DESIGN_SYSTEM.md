@@ -59,6 +59,7 @@ refuses, and add your assertion there rather than minting a second gate.
 | A chip reads that same row, and a number square is ONE family across the planner and /pubs | Launch tokens > Text buttons; `components/ui/chip.css` | `__tests__/chipPrimitive.test.tsx`, `e2e/design-review-followups.spec.ts` |
 | One painted primary per screen, a quiet row of at most two ways onward, and a form screen paints no head primary | `docs/design/LAUNCH_SCREENS.md` | `__tests__/coreUiAudit.test.ts`, `__tests__/launchPrimitives.test.tsx` |
 | The accent as a WORD takes `--brass-ink`; opacity is never a muted token | Colour, below | `__tests__/accentInkContrast.test.ts` |
+| A hue is never text on a tint of itself: the tint inks | Colour > A hue on a tint of itself | `__tests__/accentInkContrast.test.ts` |
 | The map retry notice uses semantic ink for readable text in both themes | `.mapSoftRetry` in `app/globals.css` | `__tests__/mapSoftRetryContrast.test.ts` |
 | A price wears its band and no other colour | `docs/PRICE_BANDS.md` | `__tests__/priceBand.test.ts`, `__tests__/priceBandSurfaces.test.ts` |
 | The template-pattern ban list | `docs/VOICE.md` > Template patterns | `__tests__/templatePatterns.test.ts` |
@@ -197,6 +198,7 @@ live in `lib/mapBasemapTaste.ts`; the stable token roles are:
 | `--brass`, `--brass-bright` | Plan CTA and identity accent |
 | `--brass-accessible` | login primary only - deepened coral that carries a white label at AA |
 | `--brass-ink` | coral as a WORD on a light surface - light-only deepening so accent TEXT clears AA; dark keeps `--brass` |
+| `--tint-ink-accent`, `--tint-ink-positive`, `--tint-ink-caution`, `--tint-ink-negative`, `--tint-ink-info` | a hue as a WORD on a TINT of itself - see "A hue on a tint of itself" |
 | `--pint`, `--amber`, `--brick` | price and status semantics |
 | `--river`, `--river-bright` | heritage and by-water information |
 
@@ -205,6 +207,60 @@ amber (`--night-amber`) stays a route and price signal. Every other hue (`pint` 
 `brick`, `river`) is a semantic status/category colour — don't reach for them
 to "add colour" to something that isn't a price band or a heritage/by-water
 marker.
+
+### A hue on a tint of itself
+
+**A hue is never text on a tint of itself.** A source badge, an era chip, a
+provenance stamp and a pressed icon chip all print the hue they mean as a word
+on a 7 to 20 per cent tint of that same hue. That measures 2.1:1 to 4.4:1 in
+light and 4.4:1 in dark, so `/pubs` shipped 24 chain-source badges at 3.75:1 —
+the one axe finding in the 17 September 2026 sweep — with a Young's badge at
+2.25:1 and a Greene King badge at 2.75:1 latent behind them.
+
+No ladder ink fixes it. `--brass-ink` is tuned against `--paper`, `--panel` and
+`--panel-raised`, and on a 12 per cent coral tint of the recessed panel it is
+4.25:1. `app/plan/plan.css` already derived a local answer twice (`--fit-ink`
+and `--plan-stamp-ink`, the hue deepened toward `--ink` per theme); the
+**tint inks** are that derivation promoted to the token layer, one per semantic
+hue, so the next badge reads a token instead of inventing a percentage:
+
+```
+--tint-ink-accent     the coral  (--brass)  as a word on a coral tint
+--tint-ink-positive   the green  (--pint)   as a word on a green tint
+--tint-ink-caution    the amber  (--amber)  as a word on an amber tint
+--tint-ink-negative   the red    (--brick)  as a word on a red tint
+--tint-ink-info       the blue   (--river)  as a word on a blue tint
+```
+
+Only the ink moves: the paired SURFACE keeps whatever tint it chose. Light
+deepens the hue toward `--ink` and dark lifts it toward the pale ink, because
+the tint under it is a near-black surface. Each clears 4.5:1 against the worst
+pair in the tree (a 20 per cent tint on the recessed panel in light, on the
+overlay in dark) in both themes.
+
+The accent's is derived from **`--brass-ink`, not raw `--brass`**. `--brass-ink`
+is warmed to hue 12 against `--brick`'s 356 on purpose, because a price wears
+its band and no other colour and a coral word must not read as "expensive"; a
+straight mix of `--brass` and `--ink` lands on hue 357, which *is* brick's hue,
+so the chain badges and the Pint Index pill would have printed in the crimson
+the expensive band owns. `__tests__/accentInkContrast.test.ts` holds the two at
+least 10 degrees apart in light. Dark separates the same pair by chroma and
+lightness instead, so the rule is a light-theme one.
+
+The other four sit close to their own band's ink by construction - they are the
+same hue deepened the same way - and that is fine: what stops a chain badge
+reading as a price is the tint under it, not the ink over it. They are still a
+**separate row**, and a badge may not reach for a `--price-band-*-ink`.
+
+`__tests__/accentInkContrast.test.ts` holds the shipped ratios and sweeps every
+stylesheet under `app/**` and `components/**` except the two token owners
+themselves (`app/globals.css` and `app/theme.css`, which the token assertions
+in that same file cover), resolving each rule's own `color`-over-`background`
+pair through `var()` and `color-mix()` in both themes against the surfaces the
+DOM really paints - the `body` remap, not the `:root` values the map reads.
+Two shapes it cannot see stay with `e2e/a11y-core-journeys.spec.ts`: a rule that
+declares no background of its own, and a translucent fill whose composite
+depends on an ancestor.
 
 ### Semantic roles (new — additive aliases)
 

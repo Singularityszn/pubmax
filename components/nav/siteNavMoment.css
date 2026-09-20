@@ -35,7 +35,7 @@
    quiet nod to the coral FAB without the filled-circle weight. */
 @media (hover: hover) and (pointer: fine) {
   .siteNavMoment:hover {
-    color: var(--brass);
+    color: var(--tint-ink-accent);
     border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
     background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
   }

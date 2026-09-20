@@ -36,7 +36,7 @@
 .citySwitcherTrigger:hover {
   border-color: var(--brass);
   background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
-  color: var(--brass);
+  color: var(--tint-ink-accent);
 }
 
 .citySwitcherLabel {

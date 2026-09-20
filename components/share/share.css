@@ -47,7 +47,7 @@
 }
 
 .shareBar__btn:hover {
-  color: var(--brass);
+  color: var(--color-accent-ink);
   border-color: var(--brass);
   background: var(--panel-raised);
 }
@@ -67,7 +67,7 @@
 }
 
 .shareBar__toggle[aria-expanded="true"] {
-  color: var(--brass);
+  color: var(--color-accent-ink);
   border-color: var(--brass);
   background: var(--panel-raised);
 }

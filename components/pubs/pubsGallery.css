@@ -360,19 +360,24 @@
   color: var(--badge-ink);
 }
 
+/* The chain's own hue on a tint of itself, so the ink is the hue's tint ink and
+   never the raw hue: 24 of these badges rendered at 3.75:1 in light against the
+   4.5:1 an 11.2px word owes (`/pubs` at 390, the only axe finding in the 17 Sep
+   2026 sweep). The Young's and Greene King variants were latent at 2.25:1 and
+   2.75:1, waiting on a row from either chain. */
 .pubsSource[data-source="nicholsonspubs.co.uk"] {
   background: color-mix(in srgb, var(--river) 12%, var(--panel));
-  color: var(--river);
+  color: var(--tint-ink-info);
 }
 
 .pubsSource[data-source="youngs.co.uk"] {
   background: color-mix(in srgb, var(--pint) 12%, var(--panel));
-  color: var(--pint);
+  color: var(--tint-ink-positive);
 }
 
 .pubsSource[data-source="greene-king.co.uk"] {
   background: color-mix(in srgb, var(--amber) 16%, var(--panel));
-  color: color-mix(in srgb, var(--amber) 70%, var(--ink));
+  color: var(--tint-ink-caution);
 }
 
 .pubsBorough {
