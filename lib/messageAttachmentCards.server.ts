@@ -46,11 +46,26 @@ import {
   messageVenueMapUrl,
   type MessageVenueCard,
 } from "@/lib/messageAttachments";
-import { isPubVenueKind } from "@/lib/venueKindFilters";
-import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import type { MessageDTO } from "@/lib/messages";
+import { buildPlanPrivacyPreview } from "@/lib/planPrivacy";
+import { planStore } from "@/lib/planStore";
+import {
+  isProfileTombstoned,
+  profileStore,
+  publicOwnedImageUrl,
+} from "@/lib/profileStore";
+import { normalizeHandle } from "@/lib/profiles";
+import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
-/** One pub, resolved. Null when the index does not know it or could not answer. */
+/**
+ * One pub, resolved. Null when the index does not know it or could not answer.
+ *
+ * Resolving on the READ path rather than freezing the card at send time is the
+ * whole design: a pub that was renamed reads correctly in a message from last
+ * month, and a price that moved is never quoted back out of an old thread as
+ * though it were tonight's.
+ */
 async function resolveMessageVenueCard(
   venueId: string,
 ): Promise<MessageVenueCard | null> {
@@ -58,6 +73,9 @@ async function resolveMessageVenueCard(
   const lookup = await lookupCanonicalVenue(venueId);
   if (lookup.status !== "found") return null;
   const { venue, slimVenue, canonicalId } = lookup;
+  // Pub kinds only, and only a real positive figure. Everything else prints its
+  // name and its area and stops, which is the honest card for a pub nobody has
+  // priced.
   const sayable =
     isPubVenueKind(slimVenue.kind ?? venue.kind) &&
     typeof slimVenue.cheapestPrice === "number" &&
@@ -71,16 +89,6 @@ async function resolveMessageVenueCard(
     mapUrl: messageVenueMapUrl(canonicalId),
   };
 }
-
-
-import { buildPlanPrivacyPreview } from "@/lib/planPrivacy";
-import { planStore } from "@/lib/planStore";
-import {
-  isProfileTombstoned,
-  profileStore,
-  publicOwnedImageUrl,
-} from "@/lib/profileStore";
-import { normalizeHandle } from "@/lib/profiles";
 
 /**
  * One person, resolved. Null when nobody holds that handle, when the account
