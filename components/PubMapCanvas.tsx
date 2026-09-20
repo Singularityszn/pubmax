@@ -50,6 +50,7 @@ import MapHeroCard from "@/components/map/MapHeroCard";
 import type { CityId } from "@/lib/cities";
 import { cityMaxBounds, DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import {
+  cameraIntentForFocusSource,
   mapCameraFocusKey,
   mapCameraFocusMoves,
   type MapCameraFocus,
@@ -1196,13 +1197,13 @@ export default function PubMapCanvas({
     focusKeyRef.current = mapCameraFocusKey(focusPoint);
     cinematic(
       { center: focusPoint.center, zoom: focusPoint.zoom, duration: 900 },
-      // The emitted kind names the OWNER, not one shared lane. Both focus
-      // owners are deliberate moves and fly identically, but the opening
-      // location's answer is not an area pick: a reader searching an area
-      // counts exactly one area intent (map-gl.spec.ts:913), and an
-      // opening-location fly that lands first - MapLibre 6.10.0 readies the
-      // map earlier - must not inflate that count.
-      focusPoint.source === "area" ? "area" : "opening-location",
+      // The kind names the OWNER, not one shared lane, and the rule for which
+      // lane an owner rides lives in lib/mapCameraFocus.ts beside the identity
+      // itself. MapLibre 6.10.0 readies the map early enough that an
+      // opening-location fly can land first, and on one shared kind it both
+      // inflated the area-intent count and shared a dedupe key with the
+      // reader's own pick.
+      cameraIntentForFocusSource(focusPoint.source),
     );
   }, [mapReady, focusPoint, cinematic]);
 

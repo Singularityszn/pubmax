@@ -1,3 +1,5 @@
+import type { CameraIntentKind } from "@/lib/cameraIntent";
+
 // One deliberate camera move, and how the canvas tells it from the last one.
 //
 // DEFECT (captain, live, 2026-09-01): the map header read "Piccadilly & Soho"
@@ -44,4 +46,30 @@ export function mapCameraFocusMoves(
 ): boolean {
   if (!focus) return false;
   return mapCameraFocusKey(focus) !== appliedKey;
+}
+
+/**
+ * The camera intent an owner's move rides on.
+ *
+ * The kind names the OWNER, not one shared lane. Both owners are deliberate
+ * moves and fly identically, so it is tempting to give them one kind. Two
+ * things forbid it. The kind is counted: a reader who searches an area counts
+ * exactly ONE area intent (`e2e/map-gl.spec.ts`), and an opening-location fly
+ * that lands first would inflate that count. The kind is also the PREFIX of
+ * the dedupe key `components/map/canvas/useMapCamera.ts` builds, so one shared
+ * kind let an opening-location fly to a view swallow an area pick to the same
+ * view inside the coordinator's dedupe window.
+ *
+ * A total map rather than a ternary, so a third owner cannot be added to
+ * `MapCameraFocusSource` without naming the lane it rides on.
+ */
+const CAMERA_INTENT_BY_FOCUS_SOURCE: Record<MapCameraFocusSource, CameraIntentKind> = {
+  "opening-location": "opening-location",
+  area: "area",
+};
+
+export function cameraIntentForFocusSource(
+  source: MapCameraFocusSource,
+): CameraIntentKind {
+  return CAMERA_INTENT_BY_FOCUS_SOURCE[source];
 }

@@ -16,6 +16,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  cameraIntentForFocusSource,
   mapCameraFocusKey,
   mapCameraFocusMoves,
   type MapCameraFocus,
@@ -97,5 +98,82 @@ describe("both camera owners name themselves", () => {
     // sheet's "go somewhere else" and a map-search select all go through.
     expect(pubMap).toContain("const moveMapCameraTo = useCallback(");
     expect(pubMap).toContain("setAreaFocus((prev) => ({");
+  });
+});
+
+// The second half of the same defect, surfaced by MapLibre 6.10.0 readying the
+// map early enough that the opening-location answer can fly FIRST.
+//
+// The canvas counted both owners on ONE camera-intent kind, "area". A reader
+// who searched an area then counted two area intents where the product
+// promises one, and, because the kind is also the prefix of the camera
+// coordinator's dedupe key, an opening-location fly to a view could swallow the
+// reader's own pick of the same view inside the dedupe window.
+describe("each camera owner rides its own intent lane", () => {
+  it("gives the area lane the area intent", () => {
+    expect(cameraIntentForFocusSource("area")).toBe("area");
+  });
+
+  it("does not let the opening answer count as an area pick", () => {
+    expect(cameraIntentForFocusSource("opening-location")).toBe("opening-location");
+  });
+
+  it("gives no two owners the same lane", () => {
+    const sources: MapCameraFocus["source"][] = ["opening-location", "area"];
+    const lanes = sources.map(cameraIntentForFocusSource);
+    expect(new Set(lanes).size).toBe(sources.length);
+  });
+
+  it("is the rule the canvas asks, rather than a ternary of its own", () => {
+    const canvas = readFileSync(
+      join(__dirname, "..", "components/PubMapCanvas.tsx"),
+      "utf8",
+    );
+    expect(canvas).toContain("cameraIntentForFocusSource(focusPoint.source)");
+  });
+});
+
+// The reader's own pick must KEEP the camera afterwards.
+//
+// The mint effect that re-flies the opening-location answer bails on
+// mapCameraTouchedRef, and cancelOpeningLocation cannot set it: that callback
+// is a no-op once the location has already resolved
+// (openingLocationCancellationAfterAttempt, __tests__/mapFirstUsefulPins.test.ts).
+// So the deliberate move has to take the camera itself, exactly as a gesture
+// does through dismissAmbientBanners. Without it a later locationFirstMapView
+// change re-mints an opening-location focus and yanks the map off the pick.
+describe("a deliberate move takes the camera and keeps it", () => {
+  const pubMap = readFileSync(
+    join(__dirname, "..", "components/PubMap.tsx"),
+    "utf8",
+  );
+  const moveMapCameraTo = (() => {
+    const start = pubMap.indexOf("const moveMapCameraTo = useCallback(");
+    expect(start).toBeGreaterThan(-1);
+    const end = pubMap.indexOf("[cancelOpeningLocation],", start);
+    expect(end).toBeGreaterThan(start);
+    return pubMap.slice(start, end);
+  })();
+
+  it("marks the camera touched", () => {
+    expect(moveMapCameraTo).toContain("mapCameraTouchedRef.current = true");
+    expect(moveMapCameraTo).toContain("setMapCameraTouched(true)");
+  });
+
+  it("marks it before it asks the cancellation that cannot", () => {
+    const touched = moveMapCameraTo.indexOf("mapCameraTouchedRef.current = true");
+    const cancelled = moveMapCameraTo.indexOf("cancelOpeningLocation()");
+    expect(touched).toBeGreaterThan(-1);
+    expect(cancelled).toBeGreaterThan(-1);
+    expect(touched).toBeLessThan(cancelled);
+  });
+
+  it("drops the opening focus it just overtook", () => {
+    expect(moveMapCameraTo).toContain("setOpeningLocationFocus(null)");
+  });
+
+  it("is the guard the opening-location mint effect reads", () => {
+    const mint = pubMap.slice(pubMap.indexOf('source: "opening-location"') - 1200);
+    expect(mint).toContain("mapCameraTouchedRef.current");
   });
 });
