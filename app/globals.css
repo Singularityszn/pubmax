@@ -182,10 +182,22 @@
      only the ink moves. Each clears 4.5:1 over the worst pair in the tree (a
      20 per cent tint on the recessed panel in light, on the overlay in dark) in
      both themes, measured in __tests__/accentInkContrast.test.ts, which also
-     sweeps every stylesheet for a hue put back on a tint of itself. They are
-     NOT the price-band inks: a price wears its band and no other colour, so a
-     chain badge or a heritage chip may not borrow one. */
-  --tint-ink-accent: color-mix(in srgb, var(--brass) 50%, var(--ink));
+     sweeps every stylesheet for a hue put back on a tint of itself. They are a
+     SEPARATE ROW from the price-band inks and a badge may not borrow one of
+     those, but three of them land within a few units of their band's ink
+     because they ARE the same hue deepened the same way: what stops a chain
+     badge reading as a price is the tint under it, not the ink over it. The
+     accent is the one that had to move off its hue - see the note on
+     --tint-ink-accent below. */
+  /* The accent's tint ink is derived from --brass-INK and not from raw --brass,
+     because --brass-ink is warmed to hue 12 against --brick's 356 ON PURPOSE:
+     a price wears its band and no other colour, so a coral word may not read
+     as "expensive" (components/AGENTS.md). A straight 50/50 of --brass and
+     --ink lands on hue 357, which IS brick's hue, and would have printed 24
+     chain badges and a Pint Index pill in the crimson the price band owns.
+     Deepened from there until it clears AA on a 20 per cent coral tint of the
+     recessed panel, the worst light pair in the tree. */
+  --tint-ink-accent: color-mix(in srgb, var(--brass-ink) 84%, var(--ink));
   --tint-ink-positive: color-mix(in srgb, var(--pint) 50%, var(--ink));
   --tint-ink-caution: color-mix(in srgb, var(--amber) 42%, var(--ink));
   --tint-ink-negative: color-mix(in srgb, var(--brick) 75%, var(--ink));

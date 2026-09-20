@@ -70,6 +70,28 @@ function hexOf(colour: Rgb): string {
     .join("")}`;
 }
 
+/** Hue in degrees, the axis the price band and the accent are held apart on. */
+function hueOf(colour: Rgb): number {
+  const [red, green, blue] = colour.map((channel) => channel / 255);
+  const high = Math.max(red, green, blue);
+  const low = Math.min(red, green, blue);
+  const span = high - low;
+  if (span === 0) return 0;
+  const sextant =
+    high === red
+      ? (green - blue) / span
+      : high === green
+        ? (blue - red) / span + 2
+        : (red - green) / span + 4;
+  return ((sextant * 60) % 360 + 360) % 360;
+}
+
+/** The smaller of the two ways round the wheel, in degrees. */
+function hueGap(first: Rgb, second: Rgb): number {
+  const raw = Math.abs(hueOf(first) - hueOf(second));
+  return Math.min(raw, 360 - raw);
+}
+
 function relativeLuminance(colour: Rgb): number {
   const [red, green, blue] = colour.map((channel) => {
     const scaled = channel / 255;
@@ -348,6 +370,26 @@ const HUE_TINT_INKS = {
 } as const;
 
 /**
+ * Every token that counts as CARRYING a hue. Four of the five are the palette
+ * token alone; the accent also owns --brass-ink, its deepened warm, because a
+ * coral word is that token by law and the tint ink is derived from it rather
+ * than from raw --brass. Without this the accent's tint ink would read as
+ * "derived from nothing" and drop out of the sweep below entirely.
+ */
+const HUE_FAMILY: Record<string, readonly string[]> = {
+  "--brass": ["--brass", "--brass-ink"],
+  "--pint": ["--pint"],
+  "--amber": ["--amber"],
+  "--brick": ["--brick"],
+  "--river": ["--river"],
+};
+
+/** How much of this colour is the named hue, counting the hue's own family. */
+function hueShare(colour: Resolved, hue: string): number {
+  return Math.max(...HUE_FAMILY[hue].map((token) => colour.share.get(token) ?? 0));
+}
+
+/**
  * The elevation ladder, read out of the theme's own token map rather than
  * restated as four hexes here, so a retune of a surface cannot leave this file
  * measuring a colour the app stopped painting. ALL FOUR STEPS: the overlay is
@@ -468,10 +510,38 @@ describe("a hue on a tint of itself", () => {
     for (const [hue, inkToken] of Object.entries(HUE_TINT_INKS)) {
       for (const [, tokens] of THEMES) {
         const ink = resolveColour(`var(${inkToken})`, tokens);
-        expect(ink?.share.get(hue) ?? 0, `${inkToken} is derived from ${hue}`).toBeGreaterThan(
-          0.3,
-        );
+        expect(ink, `${inkToken} resolves`).not.toBeNull();
+        expect(
+          hueShare(ink as Resolved, hue),
+          `${inkToken} is derived from ${hue} or its own ink`,
+        ).toBeGreaterThan(0.3);
       }
+    }
+  });
+
+  it("keeps the accent's tint ink off the price band's hue in LIGHT", () => {
+    // A PRICE WEARS ITS BAND AND NO OTHER COLOUR (captain's law 2026-09-05),
+    // which is why --brass-ink is warmed to hue 12 against --brick's 356 and
+    // is deliberately not the crimson (components/AGENTS.md). A tint ink mixed
+    // straight off raw --brass lands on hue 357 - brick's own hue - so 24
+    // chain-source badges and the Pint Index pill would have printed in the
+    // colour the expensive band owns. The accent's tint ink is derived from
+    // --brass-ink for exactly this reason, and this is what holds it there.
+    // LIGHT ONLY, and deliberately so: the DARK palette already separates the
+    // two by chroma and lightness rather than by hue (a full-chroma #ff5a5f
+    // coral against a muted #d47a82 rose, 4.3 degrees apart on the wheel), and
+    // __tests__/mapPinBandContrast.test.ts is what holds that pair apart.
+    const [, tokens] = THEMES[0];
+    const accentInk = resolveColour("var(--tint-ink-accent)", tokens);
+    expect(accentInk, "--tint-ink-accent resolves in light").not.toBeNull();
+    for (const crimson of ["--brick", "--tint-ink-negative", "--price-band-expensive-ink"]) {
+      const other = resolveColour(`var(${crimson})`, tokens);
+      expect(other, `${crimson} resolves in light`).not.toBeNull();
+      const gap = hueGap((accentInk as Resolved).rgb, (other as Resolved).rgb);
+      expect(
+        gap,
+        `--tint-ink-accent is ${gap.toFixed(1)} degrees from ${crimson} in light`,
+      ).toBeGreaterThanOrEqual(10);
     }
   });
 
@@ -502,7 +572,7 @@ describe("a hue on a tint of itself", () => {
           // A minority share is a TINT; a majority share is a painted fill,
           // which is the other law (--color-on-accent) and another lane.
           if (tint <= 0 || tint > 0.5) continue;
-          if ((foreground.share.get(hue) ?? 0) <= 0) continue;
+          if (hueShare(foreground, hue) <= 0) continue;
           const measured = contrast(foreground.rgb, background.rgb);
           if (measured >= AA_SMALL_TEXT) continue;
           offences.push(

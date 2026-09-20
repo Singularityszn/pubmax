@@ -236,13 +236,28 @@ Only the ink moves: the paired SURFACE keeps whatever tint it chose. Light
 deepens the hue toward `--ink` and dark lifts it toward the pale ink, because
 the tint under it is a near-black surface. Each clears 4.5:1 against the worst
 pair in the tree (a 20 per cent tint on the recessed panel in light, on the
-overlay in dark) in both themes. They are **not** the price-band inks: a price
-wears its band and no other colour, so a chain badge or a heritage chip may
-not borrow one.
+overlay in dark) in both themes.
+
+The accent's is derived from **`--brass-ink`, not raw `--brass`**. `--brass-ink`
+is warmed to hue 12 against `--brick`'s 356 on purpose, because a price wears
+its band and no other colour and a coral word must not read as "expensive"; a
+straight mix of `--brass` and `--ink` lands on hue 357, which *is* brick's hue,
+so the chain badges and the Pint Index pill would have printed in the crimson
+the expensive band owns. `__tests__/accentInkContrast.test.ts` holds the two at
+least 10 degrees apart in light. Dark separates the same pair by chroma and
+lightness instead, so the rule is a light-theme one.
+
+The other four sit close to their own band's ink by construction - they are the
+same hue deepened the same way - and that is fine: what stops a chain badge
+reading as a price is the tint under it, not the ink over it. They are still a
+**separate row**, and a badge may not reach for a `--price-band-*-ink`.
 
 `__tests__/accentInkContrast.test.ts` holds the shipped ratios and sweeps every
-stylesheet under `app/**` and `components/**`, resolving each rule's own
-`color`-over-`background` pair through `var()` and `color-mix()` in both themes.
+stylesheet under `app/**` and `components/**` except the two token owners
+themselves (`app/globals.css` and `app/theme.css`, which the token assertions
+in that same file cover), resolving each rule's own `color`-over-`background`
+pair through `var()` and `color-mix()` in both themes against the surfaces the
+DOM really paints - the `body` remap, not the `:root` values the map reads.
 Two shapes it cannot see stay with `e2e/a11y-core-journeys.spec.ts`: a rule that
 declares no background of its own, and a translucent fill whose composite
 depends on an ancestor.

@@ -126,7 +126,10 @@ html[data-theme="dark"] {
      hue TOWARD the pale ink instead of deepening it, because the tint it sits
      on is a near-black surface. The shares differ per hue because the dark
      palette is already muted for three of them and full-chroma for amber. */
-  --tint-ink-accent: color-mix(in srgb, var(--brass) 65%, var(--ink));
+  /* Through --brass-ink, as light does: dark points that token back at the one
+     coral, so this is byte-identical to a mix off --brass and the row reads the
+     same way in both themes. */
+  --tint-ink-accent: color-mix(in srgb, var(--brass-ink) 65%, var(--ink));
   --tint-ink-positive: color-mix(in srgb, var(--pint) 75%, var(--ink));
   --tint-ink-caution: color-mix(in srgb, var(--amber) 85%, var(--ink));
   --tint-ink-negative: color-mix(in srgb, var(--brick) 65%, var(--ink));
