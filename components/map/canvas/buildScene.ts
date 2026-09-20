@@ -7,6 +7,7 @@ import {
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
 import { iconId, UK_BASE_ICON_KEY, type IconTokens } from "@/lib/mapIcons";
+import { USER_LOCATION_ACCURACY_RADIUS_PX } from "@/lib/mapReaderPosition";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   type Tokens,
@@ -433,7 +434,7 @@ export function buildTransitLines(ctx: SceneCtx) {
   }
   const addTransitLayer = (layer: Parameters<maplibregl.Map["addLayer"]>[0]) => {
     if (map.getLayer(layer.id)) return;
-    map.addLayer(layer, map.getLayer("user-location-halo") ? "user-location-halo" : undefined);
+    map.addLayer(layer, map.getLayer("user-location-accuracy") ? "user-location-accuracy" : undefined);
   };
   const tubeVisibility: "none" | "visible" = isTransitNetworkVisible(poiHidden)
     ? "visible"
@@ -950,16 +951,16 @@ export function buildUserLocation(ctx: SceneCtx) {
     map.addSource("user-location", { type: "geojson", data: userLocationData });
   }
   addLayerOnce({
-    id: "user-location-halo",
+    id: "user-location-accuracy",
     type: "circle",
     source: "user-location",
     paint: {
       "circle-color": tokens.userLocation,
       "circle-opacity": 0.18,
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 12, 16, 22],
+      "circle-radius": USER_LOCATION_ACCURACY_RADIUS_PX,
       "circle-stroke-color": tokens.userLocation,
-      "circle-stroke-opacity": 0.45,
-      "circle-stroke-width": 1.5,
+      "circle-stroke-opacity": 0.35,
+      "circle-stroke-width": 1,
     },
   });
   addLayerOnce({
