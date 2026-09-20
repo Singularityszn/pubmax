@@ -36,7 +36,7 @@ Executable merge plan for the open PR queue. Generated for Sol to run top-to-bot
 | #297 ↔ #304 | `components/PubMapCanvas.tsx`, `app/globals.css`, `e2e/map-fallback.spec.ts` | Same MapLibre constructor path. Different hunks → clean, but land **#297 first** so #304's disclosure sits on the watchdog fix. (Deep-app §2 confirms the merged fallback shows both #304's disclosure and #297's venue list; the two error paths don't fight over the DOM.) |
 | #306 ↔ #309 | `components/PubMap.tsx` | Both touch the map component in separable hunks; identical `import dynamic from "next/dynamic"` is git-deduped. Land adjacent (#306 then #309); clean either way. (Deep-app §2: NearMeNow's inputs live in PubMap's own scope, not in any lazied panel — no breakage.) |
 
-> Every PR also touches `fable-implement-prd.md` (running log). merge-tree auto-resolves these across the whole queue — no prd.md conflict appears in the simulation — so it is not a blocker, just a known soft hotspot.
+> Every PR also touches `docs/prd/fable-implement-prd.md` (running log). merge-tree auto-resolves these across the whole queue — no prd.md conflict appears in the simulation — so it is not a blocker, just a known soft hotspot.
 
 ---
 

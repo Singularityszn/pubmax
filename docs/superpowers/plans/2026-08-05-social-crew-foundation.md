@@ -230,8 +230,8 @@
 ### Task 5: Slice review and handoff
 
 **Files:**
-- Modify: `specs/social-crews/README.md`
-- Create: `.superpowers/sdd/2026-08-05-verified-social-night-loop/task-7-slice-1-report.md`
+- Modify: `docs/specs/social-crews/README.md`
+- Create: `docs/superpowers/sdd/2026-08-05-verified-social-night-loop/task-7-slice-1-report.md`
 
 - [ ] **Step 1: Run focused gate**
 

@@ -1,6 +1,6 @@
 # Spec-Axis Review — PR corpus vs locked spec (2026-07-18)
 
-Fixed point: `main@5e1252df`. Sources: `fable-implement-prd.md`, issues #252/#45/#168/#279/#281–#287, `docs/WAYFINDER_MASTER_V1.md`. Corpus: 40 open PRs (#276, #295–#336).
+Fixed point: `main@5e1252df`. Sources: `docs/prd/fable-implement-prd.md`, issues #252/#45/#168/#279/#281–#287, `docs/WAYFINDER_MASTER_V1.md`. Corpus: 40 open PRs (#276, #295–#336).
 
 ## (a) Missing / partial vs locked decisions
 

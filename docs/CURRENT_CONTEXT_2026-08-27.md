@@ -6,7 +6,7 @@ This snapshot predates the Social revival change. For current Social launch,
 rollback, and moderation deployment policy, use
 [`docs/SOFT_LAUNCH_RUNBOOK.md`](SOFT_LAUNCH_RUNBOOK.md).
 
-This document records current operational truth after the 23-27 August merge wave. `CONTEXT.md` remains the domain-language authority. `FableNextSteps.md` remains the detailed product specification. `CodexSolPlan.md` remains a historical handoff and does not prove that unfinished work is complete.
+This document records current operational truth after the 23-27 August merge wave. `CONTEXT.md` remains the domain-language authority. `FableNextSteps.md` remains the detailed product specification. `docs/plans/CodexSolPlan.md` remains a historical handoff and does not prove that unfinished work is complete.
 
 ## 1. Source, local, and production truth
 
@@ -70,7 +70,7 @@ Resolved in source by #1219: bundled rows retain refresh-owned identity, and pub
 - #1218 is merged with linked Open Government Licence v3 attribution, 48-hour snapshot freshness, and resilient polling.
 - #1211 is closed. Its valid behaviours were ported through #1221 with fresh tests and a full TypeScript check.
 - #1206 is closed. Its missing safe fixes were ported through #1220; already-shipped and stale work was not copied.
-- `CodexSolPlan.md` says all work is durable while also recording incomplete harvest, editorial, speed, and folding lanes. Treat it as history, not completion proof.
+- `docs/plans/CodexSolPlan.md` says all work is durable while also recording incomplete harvest, editorial, speed, and folding lanes. Treat it as history, not completion proof.
 
 ### 3.3 Open issue disposition
 

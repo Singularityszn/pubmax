@@ -1,4 +1,4 @@
-# cursorplan.md
+# docs/plans/cursorplan.md
 
 > New-user acquisition through taste: landing + first map open.
 > Drafted from a live computer-use review of pubmaxxing.com (2026-08-07).

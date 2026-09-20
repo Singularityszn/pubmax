@@ -1,4 +1,4 @@
-# teach.md — Understanding PubMaxing
+# docs/teach.md — Understanding PubMaxing
 
 > A guided tour of this repository for a developer joining the project. Read the "big picture" first, then dive into whichever subsystem you're touching. Every section is written to be read in a few minutes and cites real `file:line` anchors so you can jump straight to the code.
 

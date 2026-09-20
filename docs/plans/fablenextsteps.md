@@ -8,7 +8,7 @@
 
 **Tech stack:** Next.js 16 App Router, React 19, TypeScript, MapLibre, Supabase, Vercel, PostHog, Vitest, Playwright, Capacitor, OpenRouter, and existing provider adapters.
 
-**Spec:** This file is the current handoff and next-steps specification. It supersedes stale deployment facts and stale launch decisions in `cursorplan.md` and `docs/RELEASE_LEDGER_2026-08-23.md`. Those files remain historical evidence.
+**Spec:** This file is the current handoff and next-steps specification. It supersedes stale deployment facts and stale launch decisions in `docs/plans/cursorplan.md` and `docs/RELEASE_LEDGER_2026-08-23.md`. Those files remain historical evidence.
 
 ## Global constraints
 

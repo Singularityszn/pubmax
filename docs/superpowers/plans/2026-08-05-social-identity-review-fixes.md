@@ -80,7 +80,7 @@
 - Modify: `app/privacy/page.tsx`
 - Modify: `app/terms/page.tsx`
 - Modify: `__tests__/legalPages.test.ts`
-- Modify: `.superpowers/sdd/2026-08-05-verified-social-night-loop/task-2-report.md`
+- Modify: `docs/superpowers/sdd/2026-08-05-verified-social-night-loop/task-2-report.md`
 
 **Interfaces:**
 - Produces: current-state disclosure limited to service-only Yoti-shaped evidence storage and conditional future provider processing.
@@ -92,7 +92,7 @@
 ### Task 5: Verify and commit
 
 **Files:**
-- Modify: `.superpowers/sdd/2026-08-05-verified-social-night-loop/task-2-report.md`
+- Modify: `docs/superpowers/sdd/2026-08-05-verified-social-night-loop/task-2-report.md`
 
 - [ ] Run focused policy, route, store, migration, certification, legal, and every restored caller test.
 - [ ] Run `npm test` to completion and record exact test/file counts.

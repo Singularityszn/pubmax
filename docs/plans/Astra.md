@@ -1,6 +1,6 @@
-# Astra.md: PUBMAXX, everything built from 3 to 7 September 2026, and what comes next
+# docs/plans/Astra.md: PUBMAXX, everything built from 3 to 7 September 2026, and what comes next
 
-Current PlanAstra: [docs/plans/PlanAstra.md](docs/plans/PlanAstra.md). It reconciles the fleet draft with the deployed 7 September baseline.
+Current PlanAstra: [docs/plans/PlanAstra.md](PlanAstra.md). It reconciles the fleet draft with the deployed 7 September baseline.
 Its decision table supersedes the older PlanAstra recommendations below. Historical measurements and deployment statements below retain their original dates.
 
 Written 7 September 2026, 13:30 BST, by the firstmate orchestrator (Claude Fable 5.1) for Astra. This file is the complete handoff: why the product exists, what was built, how the work was run, which skills and tools were used, what the live site does today, and what to build next. Read it top to bottom once, then use section 14 as the index.
@@ -215,7 +215,7 @@ User skills invoked in this session: `ideate` (panel of skeptic, builder, differ
 
 ### 6.2 Skills workers used inside lanes
 
-Workers read the project's committed skills under `skills/` and `.agents/skills/` (mirrored in the repo, catalogued in `INSTALLED_SKILLS.md`): the design packs (impeccable, taste-skill, ui-ux-pro-max, hallmark, refactoring-ui, anti-ui-slop, design-taste-frontend, stitch-design-taste), superpowers (brainstorming, test-driven-development, subagent-driven-development, systematic-debugging), Matt Pocock's skills (grilling, wayfinder, domain-modeling, adr), the Vercel agent skills (react and Next.js best practice), Cloudflare and Supabase skills, the caveman compression skill, the cursor plugins (thermos, ralph-loop, orchestrate), the marketing and SEO packs (OpenSEO), gstack (autoplan, review, qa, benchmark, investigate), the printing-press CLI skills, no-mistakes (the validation pipeline, used in earlier waves), Playwright and chrome-devtools-axi for browser proof, lavish-axi for review boards (the mascot and landing hero boards).
+Workers read the project's committed skills under `skills/` and `.agents/skills/` (mirrored in the repo, catalogued in `docs/agents/INSTALLED_SKILLS.md`): the design packs (impeccable, taste-skill, ui-ux-pro-max, hallmark, refactoring-ui, anti-ui-slop, design-taste-frontend, stitch-design-taste), superpowers (brainstorming, test-driven-development, subagent-driven-development, systematic-debugging), Matt Pocock's skills (grilling, wayfinder, domain-modeling, adr), the Vercel agent skills (react and Next.js best practice), Cloudflare and Supabase skills, the caveman compression skill, the cursor plugins (thermos, ralph-loop, orchestrate), the marketing and SEO packs (OpenSEO), gstack (autoplan, review, qa, benchmark, investigate), the printing-press CLI skills, no-mistakes (the validation pipeline, used in earlier waves), Playwright and chrome-devtools-axi for browser proof, lavish-axi for review boards (the mascot and landing hero boards).
 
 ### 6.3 Installed packs (2,911 skill directories tracked in `~/.agents/.skill-lock.json`, 2,986 under `~/.claude/skills`)
 
@@ -420,7 +420,7 @@ iOS and Android submission through the owner-only steps in `docs/STORE_READINESS
 ### 10.8 Engineering debt worth a lane each
 
 - The P2 lists: `lib/` is 871 flat modules (fold by domain); ten test files are half the suite's cost; 209 exported lib symbols exist only for tests; four runtime import cycles in the auth provider; the design law lives in four places (one door now, the rest to fold); one-area geometry and location-ask fences; the dataset should have one reader.
-- `INSTALLED_SKILLS.md` (300 KB) and the vendored `skills/` tree in the product repo (held call `vendored-skills-in-repo`).
+- `docs/agents/INSTALLED_SKILLS.md` (300 KB) and the vendored `skills/` tree in the product repo (held call `vendored-skills-in-repo`).
 - 279 venue-pack files on main carry `revision: local` (harmless in production, restore on a future commit).
 - Pint Index: empty since 16 July; hold or seed (D10).
 - `/drink/pravha` 404; test handles on the founders wall; `/rounds` stub; `/we-are-out` dark. The two city pickers are now one: `/places` is the picker, and `/choose-city` 308s to it (`app/AGENTS.md`).

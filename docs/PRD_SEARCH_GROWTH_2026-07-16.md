@@ -1,6 +1,6 @@
 # PRD — Search, AI Visibility & Growth (D2+) · 2026-07-16
 
-Owner-approved via grilling session 2026-07-16. Extends sol.md's queued **D2 (SEO growth)** lane.
+Owner-approved via grilling session 2026-07-16. Extends docs/plans/sol.md's queued **D2 (SEO growth)** lane.
 North star for this lane: **organic sessions that reach `discovery_viewed`** (top of the existing
 activation funnel). Secondary: AI-assistant citations of pubmaxxing.com.
 
@@ -110,7 +110,7 @@ other maps, and ChatGPT. One app. Great memories."*
   "state of pint prices" post. Brand mentions are AI-model training signal.
 - **S4.3 Short-form social** — map fly-through clips (borough heat map), "cheapest pint
   challenge" format; reuse OG card system for thumbnails.
-- **S4.4 Partnerships** — deferred until B-wave (aligns with sol.md Rails); QR-at-bar
+- **S4.4 Partnerships** — deferred until B-wave (aligns with docs/plans/sol.md Rails); QR-at-bar
   drives the data flywheel more than search.
 - **S4.5 Founder/fundraising surface** — `/about` story page (why PUBMAXX exists, the
   provenance ethos, traction numbers) — doubles as press bio and investor link.

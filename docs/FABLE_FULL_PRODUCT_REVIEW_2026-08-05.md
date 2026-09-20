@@ -92,7 +92,7 @@ Required fix:
 
 ### P1. Production demo-off setting does not cover menu data
 
-`FABLE_HANDOFF.md` records `NEXT_PUBLIC_DEMO_CONTENT=off`. `lib/demoContent.ts` describes a global kill switch, but `lib/drinkMenu.ts` always merges `lib/drinkSeeds.ts`, and the published update artifact contains demo-priced rows.
+`docs/handoffs/FABLE_HANDOFF.md` records `NEXT_PUBLIC_DEMO_CONTENT=off`. `lib/demoContent.ts` describes a global kill switch, but `lib/drinkMenu.ts` always merges `lib/drinkSeeds.ts`, and the published update artifact contains demo-priced rows.
 
 Required fix: route menu seeds and demo overlays through the same switch and add a production-off test covering venue menus.
 
@@ -285,7 +285,7 @@ Owner-gated:
 
 ## Coordination requirement
 
-`FABLE_HANDOFF.md` claims live authority but its last execution entries stop on 23 July. `docs/grok_prd.md` still asks agents to implement work already shipped, including MapLibre 6. Before starting another wave, publish one current execution ledger containing:
+`docs/handoffs/FABLE_HANDOFF.md` claims live authority but its last execution entries stop on 23 July. `docs/grok_prd.md` still asks agents to implement work already shipped, including MapLibre 6. Before starting another wave, publish one current execution ledger containing:
 
 - exact `origin/main` SHA
 - deployed Vercel SHA

@@ -35,7 +35,7 @@ Fleet evidence paths remain relative to `~/karan-agent-workspace`, not this repo
 - `data/plan-astra/report.md` and `data/plan-astra/shots/`: route, journey, social and performance evidence.
 - `data/astra-delta-plan/report.md`: verification of Astra findings F01 to F12 and the original change map.
 - `data/audits/2026-09-06-astra-delta-audit.md`: the underlying delta audit.
-- `data/review-*`: the three reviews of 5 September; [Astra.md](../../Astra.md) records their context.
+- `data/review-*`: the three reviews of 5 September; [docs/plans/Astra.md](Astra.md) records their context.
 
 The fleet evidence is referenced, not copied or asserted to exist in Git.
 Historical screenshots and measurements do not describe every current route.
@@ -476,7 +476,7 @@ All unshipped scope remains proposed and subject to section 1. Existing routes r
 | Vercel firewall rule | section 2 item 15 | Blocked on D6 and dashboard evidence. `/api/*` never challenged | S | captain-side | D6 |
 | Support mailbox | `support@pubmaxxing.com` answers | The owner records successful inbound delivery and reply from the published address; configuring a string alone does not pass. | S | captain-side | none |
 | CWV sweep on the merge bar | `npm run perf:cwv-sweep` before a map merge; production Slow 4G table recorded | The audit owner supplies release-labelled results against unchanged budgets. This docs task does not run the heavy sweep. | S | time | none |
-| `profiles.user_id` backfill | migration 0152, reported applied in Astra.md | Confirm the private thread admits participants and refuses non-members. | S: verification | access policy | existing migration and relevant proof |
+| `profiles.user_id` backfill | migration 0152, reported applied in docs/plans/Astra.md | Confirm the private thread admits participants and refuses non-members. | S: verification | access policy | existing migration and relevant proof |
 | Founding numbers 9, 11, 12 | identify test accounts for removal or leave them retired; never reclaim or reassign a number | Any removal preserves permanent number gaps and the allocation sequence. No remaining account receives a retired number. Account removal requires the owner's named disposition. | S | none | captain |
 | Retire the P2 debt | the review lists (report section 4) | Each finding has its own fix and relevant proof, or a named accepted deferral. A merged bundle is not blanket clearance. | M | none | none |
 | Leaked-password protection | the captain enables it in the Supabase Auth dashboard (advisor WARN `auth_leaked_password_protection`, open since 6 August and louder since #1524 shipped password sign-in) | the advisor reads clean | S | captain-side | none |

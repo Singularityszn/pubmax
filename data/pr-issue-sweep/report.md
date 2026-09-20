@@ -6,7 +6,7 @@ Base: `origin/main` at `155a6b6060dae23756245c1613f092d90401c5b3` (`feat(events)
 Reviewed PRs: #1196, #1191, #1189, #1188.
 Out of scope (inbox 001.msg): issues, plus PRs #1179, #1180, #1190.
 
-Laws used: `fablenextsteps.md` (no invented prices or facts; two independent reports for price authority; Social gated behind `PUBMAX_SOCIAL_FRIENDS_LAUNCH`; north star is Planned Nights), `docs/VOICE.md`, `AGENTS.md`.
+Laws used: `docs/plans/fablenextsteps.md` (no invented prices or facts; two independent reports for price authority; Social gated behind `PUBMAX_SOCIAL_FRIENDS_LAUNCH`; north star is Planned Nights), `docs/VOICE.md`, `AGENTS.md`.
 
 Machine: `NODE_OPTIONS=--max-old-space-size=2048`, Vitest `--maxWorkers=1`. Local rebase only. No push to PR branches. No merge.
 
@@ -124,7 +124,7 @@ Put `isPubVenueKind` (or a venue-kind field on the Wanted DTO) into `isWantedPro
 
 `AGENTS.md`: a Wanted is a private place you mean to try. Wave A is solo, owner-only reads, source URL never fetched.
 
-This PR makes an explicit owner tap that publishes the venue id and list name. Notes and source URLs do not copy. That is careful. It is still a new public write from a private list. `fablenextsteps.md` north star is Planned Nights, not public Wanted promotion.
+This PR makes an explicit owner tap that publishes the venue id and list name. Notes and source URLs do not copy. That is careful. It is still a new public write from a private list. `docs/plans/fablenextsteps.md` north star is Planned Nights, not public Wanted promotion.
 
 Captain authored the PR, so this may be an intended Wave B. Still escalate: do not merge as a silent law change, and do not merge on top of a colliding 0119 or a red unread-body fence.
 

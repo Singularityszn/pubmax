@@ -60,5 +60,5 @@ Launch is July. The product's imagery, drink-weather table, and outdoor-crawl as
 2. **Interview the owner**: highest-leverage next step is a one-question-at-a-time grilling on U1, U4, U5, U6 — the four where Karan's answer changes the map. (Grilling skill exists; this is its job.)
 3. **Prototype for unknown knowns**: U7 mid-crawl surface, three throwaway mockups before any spec.
 4. **References over prose**: for Membership pricing and consent UX, pull 3 comparable products each (references beat description).
-5. **Implementation notes**: lanes already keep handoffs; add "deviations from plan" as a required section (Sol's sol_execution.md already does this well — make it the template).
+5. **Implementation notes**: lanes already keep handoffs; add "deviations from plan" as a required section (Sol's docs/handoffs/sol_execution.md already does this well — make it the template).
 6. **This file is living**: every closed unknown gets its answer recorded inline, dated. An unknown with no probe and no owner is just anxiety; every entry above names its probe.

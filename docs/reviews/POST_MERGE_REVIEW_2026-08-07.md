@@ -14,7 +14,7 @@
 4. Re-run **§5 Verification** commands.
 5. Challenge the fixes with **§6 Review checklist for the next agent**.
 
-Do not treat this file as a product plan. Implementation plan for landing UX is `cursorplan.md` on a different branch (`cursor/landing-ux-plan-e73e` / PR #787) and is out of scope here.
+Do not treat this file as a product plan. Implementation plan for landing UX is `docs/plans/cursorplan.md` on a different branch (`cursor/landing-ux-plan-e73e` / PR #787) and is out of scope here.
 
 ---
 
@@ -130,7 +130,7 @@ Identity migration `#783` looks correct in SQL shape but remains under-proven (r
 ### 3.3 Intentionally not “fixed” by inventing product
 
 - No fake social proof, no invite token UX beyond security/authz repair.
-- No palette / landing work (see `cursorplan.md`).
+- No palette / landing work (see `docs/plans/cursorplan.md`).
 - No AuthProvider / RLS wave / community corroboration threshold changes.
 
 ---
@@ -231,7 +231,7 @@ Manual probes that caught the originals:
 
 ## 8. Out of scope of this review branch
 
-- Landing acquisition / CTA hierarchy (`cursorplan.md`, PR #787)
+- Landing acquisition / CTA hierarchy (`docs/plans/cursorplan.md`, PR #787)
 - Applying Supabase migrations (captain)
 - Invite token rotate UI
 - Planner `scoreVenueForPlan` NA amenity heuristic (known separate gap from #789)

@@ -6,7 +6,7 @@ or promise a digest. The separate area-demand form may store an optional contact
 address for that named area.
 
 Captain decision, 2026-08-15: delete the path rather than leave it dormant. The
-capture surface had already gone (`specs/honest-identity-nudge-email-action.md`)
+capture surface had already gone (`docs/specs/honest-identity-nudge-email-action.md`)
 because confirmation, delivery and the weekly schedule were never built, which
 left a public unauthenticated POST writing subscriber rows that no product
 surface called. A write nobody makes is a write nobody watches.

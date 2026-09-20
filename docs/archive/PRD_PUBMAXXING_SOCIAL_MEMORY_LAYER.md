@@ -303,16 +303,16 @@ Before a public social launch:
 
 Before another agent starts major feature work, make the repo's handoff story true:
 
-- Treat this PRD plus `teach.md` as the active handoff.
+- Treat this PRD plus `docs/teach.md` as the active handoff.
 - Update `docs/DEMO_DECK.md` so it points at the current final PRD, not stale superseded PRDs.
-- Remove generated tail markers from `README.md` and `teach.md` if present.
+- Remove generated tail markers from `README.md` and `docs/teach.md` if present.
 - Mark older PRDs as superseded or archive them:
   - `docs/OPUS_REVIEW_PRD.md`
   - `docs/PRD_PINT_DROPS.md`
   - `docs/PRD_PRODUCTION_READINESS_FOR_OPUS.md`
   - stale Fable PRDs where they conflict with the current app
 - Refresh or delete `.context/opus-handoff.md`; it currently describes older uncommitted state.
-- Decide whether `PubMaxing_Final_Demo.pptx` remains a tracked final artifact. If Markdown is the source of truth, either regenerate the deck or treat the binary as generated output.
+- Decide whether `docs/decks/PubMaxing_Final_Demo.pptx` remains a tracked final artifact. If Markdown is the source of truth, either regenerate the deck or treat the binary as generated output.
 - Decide what to do with untracked local files:
   - `skill_disabled.md`
   - `skill_in_pub.md`

@@ -1,6 +1,6 @@
 # PubMaxing — Demo Deck
 
-> Markdown source of truth for the client demo. Replaces the stale `PubMaxing_Final_Demo.pptx` (kept as a build artifact only). Every claim here is checkable against `PRD_FINAL_FOR_FABLE.md` § "Current state".
+> Markdown source of truth for the client demo. Replaces the stale `docs/decks/PubMaxing_Final_Demo.pptx` (kept as a build artifact only). Every claim here is checkable against `PRD_FINAL_FOR_FABLE.md` § "Current state".
 
 ---
 

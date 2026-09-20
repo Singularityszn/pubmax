@@ -46,7 +46,7 @@ Set these in the Vercel project (Settings → Environment Variables).
 | Var | Purpose |
 |---|---|
 | `PLAN_IDEMPOTENCY_SECRET` | Optional dedicated HMAC secret of at least 32 random bytes for retry-safe Plan writes, grounding proofs, referral signup proofs, and verified loop analytics. When omitted, the required `RATE_LIMIT_SALT` is used. A configured short value fails startup/signing rather than silently falling back. |
-| `EXA_API_KEY` | Powers the scheduled signals-ingestion job (sol.md TL-6). If unset, that job is skipped; the interactive app path does not depend on it. |
+| `EXA_API_KEY` | Powers the scheduled signals-ingestion job (docs/plans/sol.md TL-6). If unset, that job is skipped; the interactive app path does not depend on it. |
 | `SEARCH_PROVIDER` | **Server-only** `exa` (default) or `tavily` selector for `/api/cron/enrich-city-pubs`. `exa` may fall back to a configured Tavily key. `tavily` uses only Tavily, so one environment change can switch providers without a code change. |
 | `AI_GATEWAY_API_KEY` | Optional **server-only** explicit Vercel AI Gateway credential for Exa search in `/api/cron/enrich-city-pubs`. Vercel request-context OIDC is also accepted automatically. No separate Exa key is used by this path. |
 | `SEARCH_GATEWAY_MAX_CALLS` | Hard per-run Gateway call cap for city enrichment. See `docs/CRON_PLANE_RUNBOOK.md` for the billing and spend-log contract. |

@@ -13,7 +13,7 @@ Release roles: Karan owns product rulings; Fable owns architecture review, green
 ## Owner supersession record
 
 - Karan's 2026-07-22 direction asked Codex to build the user-personalised PUBMAXX product, then explicitly directed the 5.6-high agent fleet to execute the resulting tasks and waves. That authorises this narrow read-only Today slice and supersedes the original Lane A "Cut: personalization" line in `docs/UNIVERSAL_DAY0_PRD.md`; it does not authorise account writes, automatic memory, or new tracking.
-- The current `FABLE_HANDOFF.md` records the later owner decision `persona shape = pub-tied lens only`. That supersedes the older `OWNER DECISION PENDING` language in `docs/PERSONA_DRINKS_AND_DESKTOP_PRD.md`. Wave B implements only that pub-tied pure contract and still defers UI wiring.
+- The current `docs/handoffs/FABLE_HANDOFF.md` records the later owner decision `persona shape = pub-tied lens only`. That supersedes the older `OWNER DECISION PENDING` language in `docs/PERSONA_DRINKS_AND_DESKTOP_PRD.md`. Wave B implements only that pub-tied pure contract and still defers UI wiring.
 
 ## Scope and ownership
 
@@ -80,7 +80,7 @@ All checks below ran against `https://pubmaxxing.com/today` after PR #557 merged
 
 ## Proposed next non-overlapping product queue
 
-Status: **planning only**. `sol_execution.md` pauses the next implementation wave until Fable reviews the open Sol work. None of the slices below has started, and each requires a fresh ownership check immediately before branching.
+Status: **planning only**. `docs/handoffs/sol_execution.md` pauses the next implementation wave until Fable reviews the open Sol work. None of the slices below has started, and each requires a fresh ownership check immediately before branching.
 
 Current collision fence: do not touch the newly merged #462 Plan-generation contract or remaining PlanComposer drafts (#495 to #497, #510), analytics (#456), auth or push identity (#459), Tonight (#495, #504), map chrome/search (#501, #502, #509), invitations (#503, #508, #516), `/near` (#517), or Fable's owner-blocked migrations and configuration sequence.
 
@@ -105,8 +105,8 @@ Suggested wave order after Fable clears the hold: availability adapter and measu
 - No new high-severity dependency issue was found: Next.js 16.2.11 is inherited from Fable #550 and the registry-backed high-severity audit returned zero vulnerabilities.
 - Production migrations remain an owner-authorized operation. The live handoff records migrations through 0050 plus later Sol mappings as unapplied or sequence-sensitive; do not apply, renumber, or route around them from a product lane.
 - Web push #457 is merged, but production targeting remains bounded by the still-open identity join #459 and by VAPID/provider configuration. Do not duplicate that work in chooser or personalization code.
-- GitHub scheduled-job billing/capacity and remaining external credentials are infrastructure blockers documented in `sol_execution.md`; product UI must fail soft and must not claim background freshness it cannot prove.
-- Mobile owner-device verification debt remains for the sheet/map fixes listed in `FABLE_HANDOFF.md`. The captures in this ledger verify `/today`; they do not close unrelated map, planner, or native-shell rendering claims.
+- GitHub scheduled-job billing/capacity and remaining external credentials are infrastructure blockers documented in `docs/handoffs/sol_execution.md`; product UI must fail soft and must not claim background freshness it cannot prove.
+- Mobile owner-device verification debt remains for the sheet/map fixes listed in `docs/handoffs/FABLE_HANDOFF.md`. The captures in this ledger verify `/today`; they do not close unrelated map, planner, or native-shell rendering claims.
 - Worktree and disk hygiene is release reliability, not housekeeping: remove only a lane proven merged or otherwise preserved, and stop orphaned Next servers before production builds. No Fable worktree was removed in this wave.
 
 ## Review ledger
@@ -144,7 +144,7 @@ The first isolated production-build attempt correctly failed because Turbopack w
 
 ## Evidence inspected
 
-- `AGENTS.md` and the current `FABLE_HANDOFF.md`, including Fable's reviewer/merger protocol, current Cursor ownership exclusions, and the 2026-07-22 close-out through #556.
+- `AGENTS.md` and the current `docs/handoffs/FABLE_HANDOFF.md`, including Fable's reviewer/merger protocol, current Cursor ownership exclusions, and the 2026-07-22 close-out through #556.
 - `docs/SOL_SYNC_2026-07-22.md`, including active file-collision rules and the recorded Cursor/Fable lane boundaries.
 - Local refs, worktree registry, branch tracking, and history for the integration branch plus Waves A and B at `a3fde784`, then conflict-reviewed rebases through `07b645ea`; no lane-specific remote PR evidence existed at ledger creation.
 - Existing Today lineage: #414 morning brief, #429 remembered-area ordering, #527 deal diversity, #528 Tube/pints modules, #533 quiet-pint module, and #540 weather read-through.

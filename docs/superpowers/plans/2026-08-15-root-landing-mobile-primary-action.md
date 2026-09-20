@@ -7,7 +7,7 @@ after product handoff.
 owns all non-root hooks, warmups, and rendering. CSS reserves bottom space from
 the non-root fallback marker before hydration and from rendered navigation after.
 
-**Spec:** `specs/root-landing-mobile-primary-action.md`
+**Spec:** `docs/specs/root-landing-mobile-primary-action.md`
 
 ## Task 1: Pin route visibility in RED
 

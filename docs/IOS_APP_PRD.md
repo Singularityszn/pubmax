@@ -23,14 +23,14 @@ Source branches read for this PRD (all open, none merged — Sol's queue):
 - `#300` `feat/push-senders` (stacked on #295) — server-side send pipeline behind an APNs-ready seam.
 - `#312` `feat/identity-nudges`, `#313` `feat/a2hs-flow` — the two other interruptive-prompt surfaces the app must coordinate with.
 - `docs/merge-order-matrix` → `docs/MERGE_ORDER_2026-07-18.md` (PR #316) — the executable merge plan ("MERGE_ORDER v2").
-- `fable-implement-prd.md` — session decision log + PR queue.
+- `docs/prd/fable-implement-prd.md` — session decision log + PR queue.
 - Grounding runbook: `docs/CAPACITOR_WRAP.md` (present on #295/#299/#300).
 
 ---
 
 ## 1. Product definition
 
-**The iPhone app IS the mobile-web THE LOCAL / near-me experience, wrapped in a native shell, given three native superpowers.** It is not a reimplementation. The persona is unchanged from the mobile-web loop (`fable-implement-prd.md`): *a 9-to-5 worker leaving the office, any night, who wants a cheap good pint near where they are* and needs open → answer in seconds.
+**The iPhone app IS the mobile-web THE LOCAL / near-me experience, wrapped in a native shell, given three native superpowers.** It is not a reimplementation. The persona is unchanged from the mobile-web loop (`docs/prd/fable-implement-prd.md`): *a 9-to-5 worker leaving the office, any night, who wants a cheap good pint near where they are* and needs open → answer in seconds.
 
 The three native superpowers the shell adds on top of the site:
 
@@ -41,7 +41,7 @@ The three native superpowers the shell adds on top of the site:
 **What v1 deliberately is NOT:**
 - **No offline app rebuild.** The shell loads `https://pubmaxxing.com` live (remote-URL mode). There is no bundled copy of the product. `native/web-stub/offline.html`, wired through `server.errorPath`, gives an honest retry surface when the first production load fails.
 - **No separate native UI.** No SwiftUI screens, no native navigation, no native map. Native code stays limited to the Capacitor shell and bridge glue, including APNs forwarding in `AppDelegate.swift`. Every product screen is the same server-rendered React the web serves.
-- **No multi-city.** London only. Wave-2 nine-city and Wave-4 Pub Pal voice are deferred (`fable-implement-prd.md` decision 3).
+- **No multi-city.** London only. Wave-2 nine-city and Wave-4 Pub Pal voice are deferred (`docs/prd/fable-implement-prd.md` decision 3).
 - **No new product surface.** The app ships no feature the site doesn't already have; it upgrades three interaction points (camera, push, first-run) and adds an install identity.
 
 ---
@@ -168,7 +168,7 @@ Per `docs/MERGE_ORDER_2026-07-18.md`, the native stack lands **last** in the que
 
 ## 4. Paid-account activation checklist (later)
 
-When the owner enrolls (the longest pole, per `fable-implement-prd.md` owner queue):
+When the owner enrolls (the longest pole, per `docs/prd/fable-implement-prd.md` owner queue):
 
 1. **Enroll** in the Apple Developer Program ($99/yr). Obtain the **Team ID**.
 2. **APNs Auth Key** — create an APNs key in the developer portal; note `APNS_KEY_ID` and the `.p8` private key.

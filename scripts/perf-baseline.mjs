@@ -14,7 +14,7 @@
  *      against the <300ms transition budget (median of N runs).
  *
  * Output: a dated JSON + a human-readable markdown table under
- *   pubmax-wave-screenshots/perf/perf-baseline-<target>-<YYYY-MM-DD>.{json,md}
+ *   docs/proof/perf-baseline/perf-baseline-<target>-<YYYY-MM-DD>.{json,md}
  *
  * USAGE (one command)
  *   # Production (the default; what the wave baseline is taken against):
@@ -28,7 +28,7 @@
  *
  *   Flags: --runs <n> (Lighthouse runs/route, default 3)
  *          --transition-runs <n> (probe runs/tab, default 5)
- *          --out <dir> (default pubmax-wave-screenshots/perf)
+ *          --out <dir> (default docs/proof/perf-baseline)
  *          --port <n> (auto build+serve port, default 3200)
  *          --skip-lighthouse | --skip-transitions
  *
@@ -83,7 +83,7 @@ function parseArgs(argv) {
     baseUrl: null,
     runs: 3,
     transitionRuns: 5,
-    out: path.join(REPO_ROOT, "pubmax-wave-screenshots", "perf"),
+    out: path.join(REPO_ROOT, "docs", "proof", "perf-baseline"),
     port: 3200,
     skipLighthouse: false,
     skipTransitions: false,

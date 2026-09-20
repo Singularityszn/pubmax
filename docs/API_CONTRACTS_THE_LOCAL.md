@@ -8,9 +8,9 @@ Source of truth: **issue #252** ("Spec: The Local — companion-led activation, 
 - **IMPLEMENTED LOCALLY** — present in the reviewed hardening worktree but not pushed.
 - **DEFERRED** — explicitly outside this manifest or still awaiting an owner decision.
 
-**The four Lane-2 endpoints** (`sol.md`) and their reconciled reality:
+**The four Lane-2 endpoints** (`docs/plans/sol.md`) and their reconciled reality:
 
-| `sol.md` name | Reality | Status |
+| `docs/plans/sol.md` name | Reality | Status |
 | --- | --- | --- |
 | `POST /api/plans/generate` | Editable three-stop route generation | IMPLEMENTED LOCALLY |
 | `PATCH /api/plans/:id` | Status, context, and route replacement | IMPLEMENTED LOCALLY |
@@ -23,12 +23,12 @@ Adjacent endpoints Codex also built and this contract now governs: `POST /api/pl
 
 ## 0. Reconciliation summary — read this first
 
-These are the places where Codex's implementation diverges from #252 or `sol.md`.
+These are the places where Codex's implementation diverges from #252 or `docs/plans/sol.md`.
 
 **Four of them were decided by the owner on 2026-07-16 and are RESOLVED. §12 is the record.** They are marked RESOLVED below and repeat the decision rather than the question, so a reader who stops here gets the same answer as a reader who reaches §12. Only two things are still open, and §12 lists those two and nothing else: the read and member-write rate-limit budgets (§0.3, §12.5) and the late-food evidence expansion (§12.6).
 
 1. **Endpoint naming: `/api/plans/generate` vs #252's `/api/companion/recommend` - RESOLVED (§12.1).**
-   #252's Implementation Decisions literally say `POST /api/companion/recommend`. Codex shipped `POST /api/plans/generate` instead, matching `sol.md`. **`sol.md` / Codex won.** `/api/plans/generate` is the endpoint; `/api/companion/recommend` is a superseded historical alias in #252. Do not build a parallel companion route. `app/api/companion/` does not exist and must not be created.
+   #252's Implementation Decisions literally say `POST /api/companion/recommend`. Codex shipped `POST /api/plans/generate` instead, matching `docs/plans/sol.md`. **`docs/plans/sol.md` / Codex won.** `/api/plans/generate` is the endpoint; `/api/companion/recommend` is a superseded historical alias in #252. Do not build a parallel companion route. `app/api/companion/` does not exist and must not be created.
 
 2. **Flat public errors are authoritative - RESOLVED (§12.2).** THE LOCAL clients consume `{ error: string, code: string, retryable: boolean, details? }`. `publicApiError()` emits that shape with `no-store`. The older nested `apiError()` is retained only for the shipped Heritage response and is not a THE LOCAL contract. See §7.
 
@@ -226,7 +226,7 @@ Catalogue is **reviewed application data**, not inferred at request time (per #2
 
 ## 3. `POST /api/plans/generate` — grounded Plan generation
 
-**Status: IMPLEMENTED LOCALLY.** (This is `sol.md`'s `/api/plans/generate`; supersedes #252's `/api/companion/recommend`.)
+**Status: IMPLEMENTED LOCALLY.** (This is `docs/plans/sol.md`'s `/api/plans/generate`; supersedes #252's `/api/companion/recommend`.)
 
 Keyless. Produces a grounded three-stop draft route from a Night Area + NightContext, with per-stop reasons and explicit context attribution. Does **not** persist a Plan — it returns a draft the client can then create/save via `POST /api/plans`.
 
@@ -447,7 +447,7 @@ type NightAreasListResponse = {
 ```
 - `400` if `city` missing/invalid; `404` if no areas for that city.
 
-### `GET /api/night-areas/:slug` (`sol.md` shape)
+### `GET /api/night-areas/:slug` (`docs/plans/sol.md` shape)
 
 ```ts
 // 200

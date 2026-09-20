@@ -2,9 +2,9 @@ import { formatGbp } from "@/lib/formatGbp";
 import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 
 // WhatsApp-native share artifacts — one pure text builder per shareable night
-// object (Cycle 2 decision 5 / Wave C in fable-implement-prd.md). Every object
-// that can leave the site as a group-chat message builds its copy HERE, so the
-// tone, honesty rules, and wa.me idiom can never drift between call sites.
+// object. Every object that can leave the site as a group-chat message builds
+// its copy HERE, so the tone, honesty rules, and wa.me idiom can never drift
+// between call sites.
 //
 // Rules (mirroring lib/tfl.ts's buildLastPintShareText on the guardian lane):
 // - Pure functions only — no window, no navigator, no Date.now. Call sites own

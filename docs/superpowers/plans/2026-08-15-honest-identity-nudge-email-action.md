@@ -10,7 +10,7 @@ per captain decision D1. Keep migration 0042 and existing rows as history.
 Known gap: a body-level sibling mounted after a trap engages is not contained,
 so this PR keeps main's Command Palette overlap as a separate fix.
 
-**Spec:** `specs/honest-identity-nudge-email-action.md`
+**Spec:** `docs/specs/honest-identity-nudge-email-action.md`
 
 ## Task 1: Write RED truth and component contracts
 

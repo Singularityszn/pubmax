@@ -125,7 +125,7 @@ Run `npm run test:rls`. Expected: PostgreSQL 16 and PostgREST 14 execute every e
 
 **Files:**
 - Modify: `__tests__/v1ReleaseSecurityMigration.test.ts`
-- Modify: release report `.superpowers/sdd/2026-08-05-v1-public-release/task-1-report.md` in release worktree
+- Modify: release report `docs/superpowers/sdd/2026-08-05-v1-public-release/task-1-report.md` in release worktree
 
 **Interfaces:**
 - Consumes: final forward and rollback SQL plus effective proof output.

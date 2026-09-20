@@ -1,6 +1,6 @@
 # UNIVERSAL DAY-0 PRD (cycle 17)
 
-Written 2026-07-18 by Fable after owner grilling + three-lens ideation panel (skeptic, builder, differentiator, all Fable 5 forks). This is the canonical spec for the launch-week push. Sol (Codex) and all Opus lanes read THIS file first. FABLE_HANDOFF.md carries live session state; this file carries the what and why.
+Written 2026-07-18 by Fable after owner grilling + three-lens ideation panel (skeptic, builder, differentiator, all Fable 5 forks). This is the canonical spec for the launch-week push. Sol (Codex) and all Opus lanes read THIS file first. docs/handoffs/FABLE_HANDOFF.md carries live session state; this file carries the what and why.
 
 ## Vision (owner's words, condensed)
 
@@ -138,4 +138,4 @@ Everything below is MERGED, deployed to production (pubmaxxing.com, chengdu Verc
 
 - Frontend destination: **app-store-ready frontend** (vibe loop wired, judge backlog burned, first-run onboarding, native-shell UX, both-theme evidence refresh).
 - Wrapped-app cold start: **/tonight** on every open after first-run. Landing page becomes web-only marketing; the app never sees it.
-- Next frontend lane (queued, first action next Fable session): plan-page vibe picker + share stamp wiring (full brief in FABLE_HANDOFF.md "Remaining this week" item 0).
+- Next frontend lane (queued, first action next Fable session): plan-page vibe picker + share stamp wiring (full brief in docs/handoffs/FABLE_HANDOFF.md "Remaining this week" item 0).
