@@ -41,7 +41,7 @@ Two authorities rather than one is the deliberate choice. The alternative —
 backfilling every direct conversation into the members table and reading
 membership from one place — creates a second copy of a fact the pair columns
 already state, and a second copy is what drifted in `0124`/`0144`. One reader
-(`readMembership` in `lib/messagesStore.ts`) branches on the kind, so no caller
+(`loadMembership` in `lib/messagesStore.ts`) branches on the kind, so no caller
 above the store sees the split.
 
 ### 2. The store speaks MEMBERSHIP, never a pair
