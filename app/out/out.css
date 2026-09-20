@@ -28,6 +28,10 @@
   padding-inline: 0;
 }
 
+.outPage > .outScreen > .screenHead {
+  padding-top: var(--space-3);
+}
+
 .outDayChips {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
