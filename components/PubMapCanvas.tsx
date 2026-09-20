@@ -2588,7 +2588,7 @@ export default function PubMapCanvas({
         silentRetriesLeft: silentTileRetriesLeft(tileSpend),
         unrecoveredTileFailures: failedBasemapTiles.count(),
         styleResourceFailure: isStyleResourceFailure(message),
-        sourceMetadataFailure: critical && metadataFailure,
+        sourceMetadataFailure: metadataFailure,
         initialBasemapPending,
       });
       if (decision === "ignore") {
@@ -2616,9 +2616,10 @@ export default function PubMapCanvas({
             }
             evaluateTileFailure(
               performance.now(),
-              false,
+              critical || metadataFailure,
               message,
               document.visibilityState !== "hidden" && !map.isMoving(),
+              metadataFailure,
             );
           });
         }
@@ -2735,8 +2736,7 @@ export default function PubMapCanvas({
           initialBasemapPending,
           sourceType: mapError.source?.type,
           tilePresent: mapError.tile !== undefined,
-        }) ||
-        (sourceMetadataFailure && !basemapTileReadyForPaint);
+        }) || sourceMetadataFailure;
       const vectorRetriesExhausted =
         mapError.source?.type === "vector" &&
         mapError.tile !== undefined &&

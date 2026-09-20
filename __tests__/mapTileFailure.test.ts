@@ -235,6 +235,24 @@ describe("classifyTileFailure", () => {
     ).toBe("surface");
   });
 
+  it("surfaces metadata failure even when initialBasemapPending already cleared", () => {
+    expect(
+      classifyTileFailure({
+        now: 0,
+        errorTimestamps: [0],
+        criticalFailure: true,
+        documentVisible: true,
+        cameraInFlight: false,
+        retrySpent: false,
+        recoveryBudgetLeft: 1,
+        silentRetriesLeft: 2,
+        styleResourceFailure: false,
+        sourceMetadataFailure: true,
+        initialBasemapPending: false,
+      }),
+    ).toBe("surface");
+  });
+
   it("spends the one retry on a sustained burst with budget left", () => {
     expect(classifyTileFailure(bursting)).toBe("retry");
   });
