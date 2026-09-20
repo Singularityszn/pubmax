@@ -40,6 +40,9 @@ function minedPairsFromDataset(rows, limit = 24) {
       ) {
         continue;
       }
+      // NOT a hand label: this is the incumbent heuristic's own verdict, kept
+      // so the file records where the judge and the rule disagree. It is an
+      // observation, never ground truth, and `labelSource` says so in the file.
       const keylessSame = namesLikelySamePub(a.normName, b.normName);
       out.push({
         id: `mined-${a.id.slice(-6)}-${b.id.slice(-6)}`,
@@ -73,16 +76,18 @@ async function main() {
   }
 
   const recorded = [];
-  let model = "unknown";
+  let model = null;
   for (const caseRow of cases) {
     const judged = await judgeSamePubPair(caseRow.state);
     if (!judged) {
       console.error(requiresTypesafeKeyMessage());
       process.exit(1);
     }
+    model = model ?? judged.model;
     recorded.push({
       id: caseRow.id,
       labelSame: caseRow.same,
+      labelSource: caseRow.labelSource ?? "hand",
       probability: judged.probability,
       band: judged.band,
       normA: normalizeVenueIdentityName(caseRow.state.a.name),
@@ -96,7 +101,7 @@ async function main() {
     caseCount: recorded.length,
     mergeThreshold: 0.82,
     refuseThreshold: 0.35,
-    model,
+    model: model ?? "unknown",
     cases: recorded,
   };
   await writeFile(OUT, `${JSON.stringify(doc, null, 2)}\n`, "utf8");
