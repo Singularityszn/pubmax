@@ -77,7 +77,7 @@ export function isMessageAttachmentKind(
 
 /** Sentence noun for reader-facing copy, so one wording serves every message. */
 export const MESSAGE_PHOTO_NOUN = "Photo";
-export const MESSAGE_PHOTO_NOUN_LOWER = "photo";
+const MESSAGE_PHOTO_NOUN_LOWER = "photo";
 
 /**
  * The frame a message photo is cut to. Portrait, because a phone photograph is,
@@ -86,7 +86,7 @@ export const MESSAGE_PHOTO_NOUN_LOWER = "photo";
  */
 export const MESSAGE_PHOTO_ASPECT_RATIO = 4 / 5;
 /** Longest edge of the stored JPEG. Portrait, so height is the max edge. */
-export const MESSAGE_PHOTO_MAX_EDGE = 2_048;
+const MESSAGE_PHOTO_MAX_EDGE = 2_048;
 export const MESSAGE_PHOTO_OUTPUT_HEIGHT = MESSAGE_PHOTO_MAX_EDGE;
 export const MESSAGE_PHOTO_OUTPUT_WIDTH = Math.round(
   MESSAGE_PHOTO_MAX_EDGE * MESSAGE_PHOTO_ASPECT_RATIO,
@@ -183,7 +183,7 @@ export function messageVenueMapUrl(venueId: string): string {
  * narrow on purpose: no slashes, nothing that needs escaping to be a URL
  * segment. Same alphabet the pub wall admits, for the same reason.
  */
-export const MESSAGE_VENUE_ID_MAX = 64;
+const MESSAGE_VENUE_ID_MAX = 64;
 const VENUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 
 export function isMessageVenueId(value: unknown): value is string {
@@ -316,26 +316,11 @@ export type MessageAttachmentWrite =
   | { kind: "event"; planId: string }
   | ({ kind: "poll" } & MessagePollWrite);
 
-/** The stored columns, as the store reads them back. */
-export type MessageAttachmentRecord = {
-  kind: MessageAttachmentKind;
-  objectKey: string | null;
-  width: number | null;
-  height: number | null;
-  venueId: string | null;
-  contactHandle: string | null;
-  planId: string | null;
-  pollQuestion: string | null;
-  pollOptions: readonly string[] | null;
-};
-
 /**
  * Which kinds a card is RESOLVED for on the read path (rule 5). A poll carries
  * its own ballot and a photo carries its own bytes, so neither is in here.
  */
 export const MESSAGE_RESOLVED_CARD_KINDS = ["venue", "contact", "event"] as const;
-export type MessageResolvedCardKind =
-  (typeof MESSAGE_RESOLVED_CARD_KINDS)[number];
 
 // ── Copy ─────────────────────────────────────────────────────────────────────
 // Empty, refused and unreadable states say what happened and hand the reader
@@ -352,7 +337,7 @@ export const MESSAGE_ATTACH_VENUE_LABEL = "Share a pub";
 export const MESSAGE_ATTACH_CONTACT_LABEL = "Share a handle";
 export const MESSAGE_ATTACH_EVENT_LABEL = "Share a plan";
 export const MESSAGE_ATTACH_POLL_LABEL = "Start a poll";
-export const MESSAGE_ATTACH_PHOTO_SHORT = "Photo";
+const MESSAGE_ATTACH_PHOTO_SHORT = "Photo";
 export const MESSAGE_ATTACH_VENUE_SHORT = "Pub";
 export const MESSAGE_ATTACH_CONTACT_SHORT = "Contact";
 export const MESSAGE_ATTACH_EVENT_SHORT = "Plan";
@@ -423,7 +408,7 @@ export const MESSAGE_CONTACT_OPEN_LABEL = "Open profile";
 /** The accessible name of one contact card. Names the person, then the door. */
 export function messageContactCardLabel(card: MessageContactCard): string {
   const name = card.displayName ? `${card.displayName}, @${card.handle}` : `@${card.handle}`;
-  return `${name}. Open profile`;
+  return `${name}. ${MESSAGE_CONTACT_OPEN_LABEL}`;
 }
 
 /**
@@ -434,7 +419,7 @@ export function messageContactCardLabel(card: MessageContactCard): string {
  */
 export function messageEventCardLabel(card: MessageEventCard): string {
   const where = card.areaName ? ` in ${card.areaName}` : "";
-  return `${card.hostDisplayName}'s plan${where}, from ${card.startLabel}. Open the plan`;
+  return `${card.hostDisplayName}'s plan${where}, from ${card.startLabel}. ${MESSAGE_EVENT_OPEN_LABEL}`;
 }
 
 /** How many stops, without naming one. Null when the plan has no route yet. */

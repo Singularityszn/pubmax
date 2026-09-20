@@ -23,8 +23,6 @@ export const CULT_STORY_BAND_IDS = [
   "harbourside",
 ] as const;
 
-export type CultStoryBandId = (typeof CULT_STORY_BAND_IDS)[number];
-
 export type CityMapShareOptions = CityMapHrefOptions & {
   /**
    * Stop count from `?pubs=` (comma-separated venue ids). When omitted and a

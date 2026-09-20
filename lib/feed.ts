@@ -61,7 +61,7 @@ export type OptimisticSpillState = {
 // A normalized feed item. `type` is a lane discriminant so the surface can grow
 // beyond raw pint drops (crawl stories, cheap-pint highlights) without the card
 // needing to know which lane produced it. Every lane resolves to this one shape.
-export type FeedItemType = "pint_drop" | "crawl_story" | "cheap_pint" | "check_in";
+type FeedItemType = "pint_drop" | "crawl_story" | "cheap_pint" | "check_in";
 
 export type FeedItem = {
   type: FeedItemType;
@@ -102,7 +102,7 @@ export type FeedItem = {
 
 // The friendly label shown when an id has no resolvable pub name — kept here so
 // the server route, the normalizer, and any test agree on one string.
-export const VENUE_FALLBACK_LABEL = "A London pub";
+const VENUE_FALLBACK_LABEL = "A London pub";
 
 function normalizeOptimistic(value: unknown): OptimisticSpillState | undefined {
   if (!value || typeof value !== "object") return undefined;

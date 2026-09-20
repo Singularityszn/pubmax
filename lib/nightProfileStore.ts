@@ -9,7 +9,7 @@ import {
 import { requireSupabaseAdmin } from "@/lib/supabase";
 import { selectStore } from "@/lib/storeBackend";
 
-export type NightProfilePutResult =
+type NightProfilePutResult =
   | { ok: true; profile: NightProfile }
   | { ok: false; error: "conflict"; current: NightProfile | null };
 

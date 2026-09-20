@@ -74,7 +74,7 @@ export function isSelfFollow(a: string, b: string): boolean {
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
-export const supabaseFollowStore: FollowStore = {
+const supabaseFollowStore: FollowStore = {
   async follow(followerHandle, followeeHandle) {
     if (isSelfFollow(followerHandle, followeeHandle)) return false;
     const follower = await supabaseProfileStore.ensure(followerHandle);

@@ -350,7 +350,7 @@ export type BudgetVerdict = {
  * against a ceiling of 46, and a gate that excused it would ship the
  * regression. So a count is never excluded, however wide it ran.
  */
-export const CLOCK_METRICS: readonly BudgetMetric[] = ["serverRenderMs", "lcpMs"];
+const CLOCK_METRICS: readonly BudgetMetric[] = ["serverRenderMs", "lcpMs"];
 
 function metricKey(path: string, metric: BudgetMetric): string {
   return `${path}\u0000${metric}`;
@@ -488,7 +488,7 @@ export function judgeBudgets(
  * able to say when. So a sweep that beats a ceiling by more than this names the
  * candidate, and somebody decides whether to take it down.
  */
-export const RATCHET_SLACK_FRACTION = 0.15;
+const RATCHET_SLACK_FRACTION = 0.15;
 
 export type RatchetCandidate = {
   path: string;

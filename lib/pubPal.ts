@@ -17,7 +17,7 @@ export const PAL_ONBOARDING_SPECIES = [
   "badger",
   "corgi",
 ] as const;
-export const PAL_LEGACY_SPECIES = [
+const PAL_LEGACY_SPECIES = [
   "hound",
   "raven",
   "rabbit",
@@ -29,7 +29,7 @@ export const PAL_SPECIES = [...PAL_ONBOARDING_SPECIES, ...PAL_LEGACY_SPECIES] as
 export const SIGNAL_FAMILIES = ["beer", "gin", "rum", "whisky", "brandy", "vodka"] as const;
 export const PAL_VOICES = ["ember", "velvet", "signal"] as const;
 export type PubPalSpecies = (typeof PAL_SPECIES)[number];
-export type SignalFamily = (typeof SIGNAL_FAMILIES)[number];
+type SignalFamily = (typeof SIGNAL_FAMILIES)[number];
 export type PubPalVoiceId = (typeof PAL_VOICES)[number];
 
 export const PAL_ANIMATION_STATES = [
@@ -70,7 +70,7 @@ export const PAL_VISUAL_MANIFEST: Record<(typeof PAL_ONBOARDING_SPECIES)[number]
   corgi: { species: "corgi", format: PAL_MASCOT_SLUGS.corgi, silhouette: "short, bright corgi with oversized ears", face: "open grin and eager round eyes", signatureProp: "crew band", material: "soft black plush with a coral signal chest and amber traces", idlePose: "front paws wide and ready to celebrate", supportedStates: PAL_ANIMATION_STATES },
 };
 
-export const PAL_SPECIES_COMPATIBILITY = {
+const PAL_SPECIES_COMPATIBILITY = {
   hound: "greyhound",
   raven: "raven",
   rabbit: "rabbit",

@@ -27,8 +27,7 @@ export type WhatsOnKind = (typeof WHATS_ON_KINDS)[number];
 // were never jointly confirmed by either source (e.g. "this pub screens live
 // sport" x "this fixture kicks off at 8pm") — a plausible, sourced inference,
 // not a confirmation. See scripts/whatson/sportFixtures.mjs.
-export const WHATS_ON_CONFIDENCES = ["confirmed", "listed", "derived"] as const;
-export type WhatsOnConfidence = (typeof WHATS_ON_CONFIDENCES)[number];
+export type WhatsOnConfidence = "confirmed" | "listed" | "derived";
 
 // Provenance is non-negotiable: every row is attributable to a real link.
 export type WhatsOnSource = { label: string; url: string };
@@ -80,7 +79,7 @@ export function isValidIso(value: unknown): value is string {
 
 // A London calendar date, exactly YYYY-MM-DD, that names a real day. This is
 // what a listing carries when it publishes a DAY and no clock time.
-export function isCalendarDate(value: unknown): value is string {
+function isCalendarDate(value: unknown): value is string {
   return isCalendarDateShape(value);
 }
 
@@ -160,10 +159,6 @@ export function coveringObservedAt(
     if (oldest === null || Date.parse(at) < Date.parse(oldest)) oldest = at;
   }
   return oldest;
-}
-
-export function isWhatsOnConfidence(value: unknown): value is WhatsOnConfidence {
-  return (WHATS_ON_CONFIDENCES as readonly string[]).includes(value as string);
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -308,7 +303,7 @@ export function parseWhatsOnRows(raw: unknown, now: number = Date.now()): WhatsO
 // Before this hour (London local) "tonight" still belongs to the PREVIOUS
 // calendar evening's window — the same rollback lib/tfl.ts uses so the small
 // hours resolve against the evening that is still running.
-export const SERVICE_DAY_ROLLBACK_HOUR = 4;
+const SERVICE_DAY_ROLLBACK_HOUR = 4;
 // The evening window opens at 16:00 and runs to 04:00 the next morning.
 const WINDOW_OPEN_HOUR = 16;
 
@@ -385,14 +380,6 @@ function londonWallTimeToUtcMs(
   return instant;
 }
 
-// "Now" in Europe/London as a wall-clock Date (same approach as manchesterNow).
-// Its local getHours()/getDate() read the London wall clock; do NOT use it as an
-// absolute instant.
-export function londonNow(base: Date = new Date()): Date {
-  const p = londonParts(base);
-  return new Date(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
-}
-
 // The "tonight" window as absolute ISO instants: [evening 16:00, next 04:00).
 // Before 04:00 London, the evening date rolls back a day (the still-running
 // evening). Resolve each wall-clock boundary independently so spring/autumn DST
@@ -461,7 +448,7 @@ export function tonightServiceWindow(now: number = Date.now()): TonightServiceWi
  * so this is the whole interval it may claim. Never derive a clock time from a
  * stated date: an invented start is a fact the listing does not carry.
  */
-export function londonEveningWindowForDate(date: string): TonightServiceWindow | null {
+function londonEveningWindowForDate(date: string): TonightServiceWindow | null {
   if (!isCalendarDate(date)) return null;
   const year = Number(date.slice(0, 4));
   const month = Number(date.slice(5, 7));

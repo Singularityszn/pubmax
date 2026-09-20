@@ -27,7 +27,7 @@ export type MatePreference = {
   updatedAt?: string;
 };
 
-export type GroupPrefsHardConstraints = {
+type GroupPrefsHardConstraints = {
   budgetBand: GroupPrefBudgetBand | null;
   budgetLabel: string | null;
   zeroProofRequired: boolean;

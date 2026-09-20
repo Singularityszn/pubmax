@@ -23,7 +23,7 @@ import { DAY_MS } from "@/lib/dayMs";
 import { isNativeApp } from "@/lib/nativePlatform";
 
 /** Milliseconds in one UTC day. Shared owner: lib/dayMs.ts. */
-export const MS_PER_DAY = DAY_MS;
+const MS_PER_DAY = DAY_MS;
 
 /** How long a decline suppresses the prompt before it may re-offer. */
 export const A2HS_DECLINE_COOLDOWN_DAYS = 14;
@@ -46,7 +46,7 @@ const CHANGE_EVENT = "pubmax:a2hs";
 export type A2hsPlatform = "android" | "ios-safari" | "standalone" | "unsupported";
 
 /** Terminal user choices we persist so we stop asking. */
-export type A2hsOutcome = "none" | "installed" | "dismissed-forever";
+type A2hsOutcome = "none" | "installed" | "dismissed-forever";
 
 export type A2hsState = {
   /** First day bucket we ever recorded a visit for. */

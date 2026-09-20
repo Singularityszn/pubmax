@@ -21,12 +21,6 @@ const EXA_ENDPOINT = "https://api.exa.ai/search";
 const LOOKBACK_DAYS = 30;
 const RESULTS_PER_QUERY = 15;
 
-export type { NightSignalCandidate };
-
-export type NightSignalIngestResult =
-  | { status: "skipped"; reason: "no-exa-key"; candidates: [] }
-  | { status: "ingested"; candidates: NightSignalCandidate[] };
-
 /**
  * One query's own outcome. The sweep reports PER QUERY rather than throwing for
  * the whole run, because a checkpoint can only defer a query it was told about,
@@ -95,29 +89,4 @@ export async function sweepNightSignalQuery(
   } catch (err) {
     return { query, status: "failed", reason: err instanceof Error ? err.message : String(err) };
   }
-}
-
-/**
- * Sweep Exa for recent London pub buzz and return deduped PENDING candidates.
- * Bounded by design: EXA_QUERY_SET (3 queries) × RESULTS_PER_QUERY (15) capped at
- * MAX_CANDIDATES (40) — a single serverless invocation covers a full sweep, so no
- * cursor paging is required. Throws only on a provider/transport failure so the
- * caller can report it loudly; a well-formed empty sweep returns [].
- */
-export async function ingestNightSignalCandidates(
-  deps: NightSignalIngestDeps = {},
-): Promise<NightSignalIngestResult> {
-  const apiKey = (deps.apiKey ?? process.env.EXA_API_KEY)?.trim();
-  if (!apiKey) return { status: "skipped", reason: "no-exa-key", candidates: [] };
-
-  const fetchImpl = deps.fetchImpl ?? fetch;
-  const now = deps.now ?? Date.now();
-  const startPublishedDate = new Date(now - LOOKBACK_DAYS * DAY_MS).toISOString();
-
-  const groups: Array<{ kind: string; results: unknown[] }> = [];
-  for (const { kind, query } of EXA_QUERY_SET) {
-    const results = await searchExa(fetchImpl, apiKey, query, startPublishedDate);
-    groups.push({ kind, results });
-  }
-  return { status: "ingested", candidates: buildCandidates(groups, { now }) };
 }

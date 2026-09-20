@@ -7,12 +7,12 @@ import {
 
 export type WebMcpEvidence = WebMcpJsonValue;
 
-export type WebMcpRouteAlternative = {
+type WebMcpRouteAlternative = {
   venueId: string;
   venueName: string;
 };
 
-export type WebMcpRouteStop = {
+type WebMcpRouteStop = {
   key: number;
   venueId: string;
   venueName: string;

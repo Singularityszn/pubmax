@@ -174,7 +174,7 @@ const DEVICE_IDENTITY_STORAGE_KEYS: ReadonlySet<string> = new Set([
  * dropped its access answer and closed an open composer the moment a second tab
  * opened.
  */
-export function isDeviceIdentityStorageEvent(event: { key?: string | null }): boolean {
+function isDeviceIdentityStorageEvent(event: { key?: string | null }): boolean {
   return typeof event.key !== "string" || DEVICE_IDENTITY_STORAGE_KEYS.has(event.key);
 }
 

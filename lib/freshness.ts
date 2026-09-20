@@ -100,7 +100,7 @@ export interface FreshnessRegistry {
  *                owners, and a reader who cannot tell them apart cannot act.
  *                Never a breach, and never reported as progress.
  */
-export type FreshnessStatus =
+type FreshnessStatus =
   | "live"
   | "fresh"
   | "snapshot"
@@ -573,21 +573,7 @@ export function unresolvedFeeds(results: readonly FreshnessResult[]): FreshnessR
  * unmeasured lane as healthy is the older defect; failing the gate over it
  * would be the mirror mistake, because nothing is owed.
  */
-export function unmeasuredFeeds(results: readonly FreshnessResult[]): FreshnessResult[] {
-  return results.filter((r) => r.status === "unmeasured");
-}
 
-/**
- * Lanes that are CLOSED. A FOURTH finding, apart from all three above: a stale
- * feed is late, an unresolved feed promised a stamp and broke, an unmeasured
- * one never promised a stamp, and a retired one has nobody to promise
- * anything. Failing the gate over it would be the mirror of the older defect
- * of reporting it healthy: nothing is owed either way, and the reader's whole
- * need is to be told the lane is shut rather than behind.
- */
-export function retiredFeeds(results: readonly FreshnessResult[]): FreshnessResult[] {
-  return results.filter((r) => r.status === "retired");
-}
 
 /**
  * True when any result is a hard breach (stale) or a broken artifact (unknown).

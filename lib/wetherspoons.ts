@@ -51,7 +51,7 @@ export type WetherspoonsPubIdentity = {
 // A raw priced item as it might appear in a first-party menu payload. This is
 // the ONLY place a price can enter the pipeline. `priceGbp` is required — an
 // item with no price is not a candidate row (we never guess a price).
-export type WetherspoonsMenuItem = {
+type WetherspoonsMenuItem = {
   name: string;
   // The site's own section/category label (e.g. "Draught beer", "Wines").
   section: string;

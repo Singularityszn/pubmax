@@ -206,7 +206,7 @@ export type VenuePriceStamp = {
 
 // The historical "then" anchor: an anecdotal/contributor drop carrying BOTH a
 // price and a parseable era year, revalued into today's money.
-export type VenueInflationAnchor = {
+type VenueInflationAnchor = {
   year: number;
   thenGbp: number; // the price as originally remembered/logged
   todayGbp: number; // that same price in INFLATION_TODAY_YEAR money

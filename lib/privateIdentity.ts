@@ -55,7 +55,7 @@ export function londonCalendarDate(now: number): string {
   return `${read("year")}-${read("month")}-${read("day")}`;
 }
 
-export function cleanDateOfBirth(
+function cleanDateOfBirth(
   value: unknown,
   now: number = Date.now(),
 ): string | null {

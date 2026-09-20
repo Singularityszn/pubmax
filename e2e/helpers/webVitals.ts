@@ -32,7 +32,7 @@ import type { VitalsDevice } from "../../lib/webVitalsBaseline";
  */
 
 /** The shortest interaction the Event Timing API will report. */
-export const INP_FLOOR_MS = 16;
+const INP_FLOOR_MS = 16;
 
 export type VitalsReading = {
   lcpMs: number;
@@ -370,7 +370,7 @@ async function suppressNavigation(page: Page): Promise<void> {
 }
 
 /** How long a primary action gets to become actionable before it is a no-show. */
-export const PRIMARY_ACTION_TIMEOUT_MS = 20_000;
+const PRIMARY_ACTION_TIMEOUT_MS = 20_000;
 
 /**
  * Browser state one sample's own interaction leaves behind for the next one.
@@ -449,39 +449,6 @@ export async function exercisePrimaryAction(page: Page, routePath: string): Prom
   );
   return true;
 }
-
-/**
- * The four product timings the audit names.
- *
- * Each is the moment the PRODUCT became usable, which is never the paint: a map
- * with no pins on it has painted, and a composer whose field is not there yet
- * has painted too. Every clock is the page's own, taken against the same time
- * origin every resource entry already uses.
- */
-export const PRODUCT_TIMINGS = [
-  {
-    key: "map-usable-venues",
-    label: "usable venue results on /map (first painted pin)",
-    startedAt: "navigation start",
-  },
-  {
-    key: "map-venue-sheet",
-    label: "a selected venue sheet (/map?sel=)",
-    startedAt: "navigation start",
-  },
-  {
-    key: "plan-editable",
-    label: "an editable plan on /plan",
-    startedAt: "navigation start",
-  },
-  {
-    key: "plan-acknowledged-save",
-    label: "an acknowledged save (Lock it in to the saved plan)",
-    startedAt: "the Lock it in tap",
-  },
-] as const;
-
-export type ProductTimingKey = (typeof PRODUCT_TIMINGS)[number]["key"];
 
 /** How long a product timing may take before the harness gives up on it. */
 export const PRODUCT_TIMING_CEILING_MS = 180_000;

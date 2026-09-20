@@ -23,7 +23,7 @@ import type { Venue } from "@/lib/venues";
 export const MIN_ARRIVAL_PRICED_PUBS = 8;
 
 /** How many areas the strip offers before deferring to the full borough list. */
-export const ARRIVAL_AREA_LIMIT = 8;
+const ARRIVAL_AREA_LIMIT = 8;
 
 /** The query param a Pint Index arrival carries onto the map. */
 export const ARRIVAL_PARAM = "from";

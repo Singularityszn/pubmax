@@ -127,8 +127,6 @@ export function writeMapResume(
   }
 }
 
-export const MAP_RESUME_MAX_AGE = MAP_RESUME_MAX_AGE_MS;
-
 export type MapResumeLiveLoadStatus = "pending" | "ready" | "unavailable";
 
 export function isCurrentMapResumeRefresh(

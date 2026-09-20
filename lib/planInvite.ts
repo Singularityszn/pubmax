@@ -77,7 +77,7 @@ export function isPlanInviteRsvpSummary(value: unknown): value is PlanInviteRsvp
 // permission: the map link below it is unconditional, because the stops are
 // what the link was opened for and a guest who answered on another device, or
 // cleared their browser, has lost nothing but the emphasis.
-export const INVITE_RSVP_DEVICE_PREFIX = "pubmax:inviteRsvp:v1:";
+const INVITE_RSVP_DEVICE_PREFIX = "pubmax:inviteRsvp:v1:";
 
 export type InviteRsvpDeviceStorage = Pick<Storage, "getItem" | "setItem">;
 

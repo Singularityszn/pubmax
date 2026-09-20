@@ -20,7 +20,7 @@ export type OutQuery = {
  * text stays in the server log: this body is public and CDN-cacheable, and an
  * upstream diagnostic string is not something a stranger is owed.
  */
-export type OutProviderStatus = "ready" | "degraded" | "not-configured";
+type OutProviderStatus = "ready" | "degraded" | "not-configured";
 
 export type OutProviderReport = {
   name: string;
@@ -35,7 +35,7 @@ export type OutProviderReport = {
  * own, weaker than degraded (which means we looked and could not see).
  */
 export type OutStatus = "ready" | "degraded" | "not-configured";
-export type OutOpenPlansStatus = "ready" | "degraded" | "preview";
+type OutOpenPlansStatus = "ready" | "degraded" | "preview";
 
 export type OutResponse = {
   /**

@@ -28,10 +28,10 @@ import {
 export const MERSEYRAIL_PROVENANCE =
   "Typical Merseyrail last service (static). Not a live Merseytravel feed. Check boards before you leave.";
 
-export const MERSEYRAIL_MODE_LABEL = "train";
+const MERSEYRAIL_MODE_LABEL = "train";
 
 /** Merseyrail network yellow (approx. brand / map colour). */
-export const MERSEYRAIL_LINE_COLOUR = "#FECB00";
+const MERSEYRAIL_LINE_COLOUR = "#FECB00";
 
 export type MerseyrailStation = {
   id: string;
@@ -181,7 +181,7 @@ function departuresForStation(
 }
 
 /** "Now" in Europe/London — same approach as the TfL / Metrolink routes. */
-export function liverpoolNow(base: Date = new Date()): Date {
+function liverpoolNow(base: Date = new Date()): Date {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/London",
     year: "numeric",

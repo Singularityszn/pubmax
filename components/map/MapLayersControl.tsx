@@ -21,7 +21,7 @@ import type { StoryBand } from "@/lib/storyBands";
 import "./mapLayersControl.css";
 
 /** City-aware Layers chrome — transit framing without Tube-first copy elsewhere. */
-export function mapLayersCopy(cityId: CityId = DEFAULT_CITY_ID): {
+function mapLayersCopy(cityId: CityId = DEFAULT_CITY_ID): {
   ariaLabelClosed: string;
   title: string;
   hint: string;

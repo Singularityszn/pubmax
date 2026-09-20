@@ -54,7 +54,7 @@ export function emitIdentityHandleChanged(
 }
 
 // App-wide device-handle convention shared with the composers and /u/you.
-export const DEVICE_HANDLE_KEY = "pubmax_handle";
+const DEVICE_HANDLE_KEY = "pubmax_handle";
 
 /**
  * Write the server-owned handle onto this device. Fresh browsers after sign-in
@@ -89,7 +89,7 @@ export function syncDeviceHandle(
 }
 
 /** Read the device-local handle, or "" when absent or unreadable. */
-export function readStoredDeviceHandle(
+function readStoredDeviceHandle(
   storage: Pick<Storage, "getItem"> | null | undefined,
 ): string {
   if (!storage) return "";

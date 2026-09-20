@@ -14,7 +14,7 @@
 import { discardBody } from "@/lib/responseBody";
 
 /** Attribution for a scraped fact — mirrors the repo's sourced-price shape. */
-export type WetherspoonsSource = {
+type WetherspoonsSource = {
   label: string;
   url: string;
   licence: string;
@@ -60,8 +60,7 @@ export type WetherspoonsDirectory = {
   pubs: WetherspoonsPub[];
 };
 
-export const WETHERSPOONS_DIRECTORY_URL = "/data/wetherspoons/pubs.json";
-export const WETHERSPOONS_GEOJSON_URL = "/data/wetherspoons/pubs.geojson";
+const WETHERSPOONS_DIRECTORY_URL = "/data/wetherspoons/pubs.json";
 
 export async function loadWetherspoonsDirectory(
   signal?: AbortSignal,

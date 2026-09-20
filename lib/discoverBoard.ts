@@ -36,7 +36,7 @@ export const DISCOVER_BOARD_LIMIT = 10;
 export type DiscoverBoardRow = LeaderboardRowView;
 
 /** One venue's "then" price: the three fields `computeThenVsNow` reads. */
-export type DiscoverBoardBaseline = {
+type DiscoverBoardBaseline = {
   id: string;
   name: string;
   cheapestPrice: number;

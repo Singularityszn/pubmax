@@ -35,15 +35,15 @@ import { UPLOAD_PHOTO_MAX_BYTES } from "@/lib/uploadBodyLimit";
  * would be a promise no route could keep.
  */
 export const UPLOADED_IMAGE_MAX_BYTES = UPLOAD_PHOTO_MAX_BYTES;
-export const UPLOADED_IMAGE_MAX_DIMENSION = 12_000;
-export const UPLOADED_IMAGE_MAX_PIXELS = 20_000_000;
+const UPLOADED_IMAGE_MAX_DIMENSION = 12_000;
+const UPLOADED_IMAGE_MAX_PIXELS = 20_000_000;
 
 /**
  * What the server is willing to decode. Deliberately three types and not the
  * picker's five: a browser converts an iPhone's HEIC to JPEG in the crop step,
  * so widening a picker never widens this.
  */
-export const UPLOADED_IMAGE_ALLOWED_TYPES: ReadonlySet<string> = new Set([
+const UPLOADED_IMAGE_ALLOWED_TYPES: ReadonlySet<string> = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
@@ -63,7 +63,7 @@ export type DownloadedUploadedImage = {
  * A reader that collapsed the two would make the write proof below either
  * blind to a mangled object or hostage to a momentary outage.
  */
-export type UploadedImageReadFailure =
+type UploadedImageReadFailure =
   | "storage_unconfigured"
   | "storage_error"
   | "magic_bytes_mismatch";
@@ -156,7 +156,7 @@ export async function downloadUploadedImageObject(
  * The `contentType` option still rides along beside this, because the multipart
  * branch sends the option rather than the Blob's own type.
  */
-export function uploadedImageStorageBody(bytes: Buffer, contentType: string): Blob {
+function uploadedImageStorageBody(bytes: Buffer, contentType: string): Blob {
   // An explicit copy rather than the Buffer itself: a pooled Buffer is a view
   // into a larger ArrayBuffer, and this is not the bug to be clever about.
   return new Blob([new Uint8Array(bytes)], { type: contentType });
@@ -249,7 +249,7 @@ function unproven(objectKey: string, detail: string): UploadedImageWriteProof {
   return "unproven";
 }
 
-export type UploadedImageErrorCode =
+type UploadedImageErrorCode =
   | "INVALID_TYPE"
   | "TOO_LARGE"
   | "INVALID_DIMENSIONS"

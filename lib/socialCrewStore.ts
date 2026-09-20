@@ -51,7 +51,7 @@ export type SocialCrewRpcName =
   | "leave_social_crew_atomic"
   | "update_social_crew_visibility_atomic";
 
-export type SocialCrewSnapshotRpcName =
+type SocialCrewSnapshotRpcName =
   | "read_social_crew_snapshot"
   | "read_social_crew_member_page"
   | "read_social_crew_join_requests"
@@ -111,7 +111,7 @@ type VisibilityInput = WriteInput & {
   visibility: SocialCrewVisibility;
   expectedAuthorityRevision: number;
 };
-export type SocialCrewListInput = {
+type SocialCrewListInput = {
   cursor?: string | null;
   limit?: number;
 };

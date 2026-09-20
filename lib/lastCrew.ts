@@ -6,7 +6,7 @@
 import { cleanCrewName, CREW_NAME_MAX } from "@/lib/crew";
 
 export const LAST_CREW_STORAGE_KEY = "pubmax-last-crew-v1";
-export const LAST_CREW_MAX_NAMES = 12;
+const LAST_CREW_MAX_NAMES = 12;
 
 export type LastCrew = {
   names: string[];

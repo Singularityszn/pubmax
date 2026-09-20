@@ -21,12 +21,12 @@ export type FcmConfig = {
   privateKey: string;
 };
 
-export type FcmFetch = (
+type FcmFetch = (
   input: string | URL | Request,
   init?: RequestInit,
 ) => Promise<Response>;
 
-export type FcmAccessTokenCacheEntry = {
+type FcmAccessTokenCacheEntry = {
   token: string;
   expiresAtMs: number;
 };

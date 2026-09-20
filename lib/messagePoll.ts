@@ -177,7 +177,6 @@ export function pollOptionShare(votes: number, totalVotes: number): number {
 
 // ── Copy ─────────────────────────────────────────────────────────────────────
 
-export const POLL_NOUN = "Poll";
 export const POLL_COMPOSE_LABEL = "Start a poll";
 export const POLL_QUESTION_LABEL = "Question";
 export const POLL_QUESTION_PLACEHOLDER = "Where are we starting?";

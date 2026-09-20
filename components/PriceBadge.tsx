@@ -4,7 +4,7 @@ import { priceBandClass, type PriceBand } from "@/lib/priceBand";
 
 import styles from "./PriceBadge.module.css";
 
-export type PriceBadgeVariant = "baseline" | "current" | "cheap" | "increase" | "neutral";
+type PriceBadgeVariant = "baseline" | "current" | "cheap" | "increase" | "neutral";
 
 type PriceBadgeProps = {
   children?: ReactNode;

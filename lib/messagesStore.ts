@@ -55,7 +55,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import { admin, errorMessage, missingTables, selectStore } from "@/lib/storeBackend";
 
 // Hard caps so one busy handle can't return an unbounded payload.
-export const MAX_CONVERSATIONS = 100;
+const MAX_CONVERSATIONS = 100;
 export const MAX_MESSAGES = 200;
 // The inbox read's two windows (see listConversations): how many unread rows
 // one inbox is counted over, and how many recent rows per conversation the
@@ -72,13 +72,13 @@ export const INBOX_LAST_MESSAGE_WINDOW = 4;
  * name every participant's inbox topic off the write rather than a second read,
  * whether the thread holds two people or twelve.
  */
-export type MessageSendResult = Readonly<{
+type MessageSendResult = Readonly<{
   message: MessageDTO;
   membership: ConversationMembership;
 }>;
 
 /** What opening a group answered. `unavailable` is a read we could not run. */
-export type GroupOpenOutcome =
+type GroupOpenOutcome =
   | { status: "opened"; conversationId: string }
   | { status: "invalid" }
   | { status: "unavailable" };
@@ -90,7 +90,7 @@ export type GroupOpenOutcome =
  * in a group are a DM with extra steps, so leaving is refused there rather than
  * silently leaving one person talking to a wall.
  */
-export type GroupLeaveOutcome = "left" | "floor" | "not-member" | "unavailable";
+type GroupLeaveOutcome = "left" | "floor" | "not-member" | "unavailable";
 
 /**
  * `clientMessageId` is the id the SENDER minted for this attempt, before the
@@ -101,7 +101,7 @@ export type GroupLeaveOutcome = "left" | "floor" | "not-member" | "unavailable";
  * handed that one back. A caller that does not send one keeps the old
  * behaviour, which is what the memory backend and the legacy lanes rely on.
  */
-export type MessageSendOptions = Readonly<{
+type MessageSendOptions = Readonly<{
   clientMessageId?: string;
 }>;
 
@@ -114,7 +114,7 @@ export type MessageSendOptions = Readonly<{
  * refuses everywhere else (picksState, whatsOn readStatus), and the batched
  * inbox read had turned one statement timeout into an empty inbox served 200.
  */
-export type InboxReadStatus = "ready" | "degraded";
+type InboxReadStatus = "ready" | "degraded";
 
 export type InboxRead = Readonly<{
   conversations: ConversationDTO[];

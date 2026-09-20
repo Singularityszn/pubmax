@@ -1,6 +1,6 @@
 import { cleanText } from "@/lib/textClean";
 
-export const NIGHT_MOMENT_KINDS = [
+const NIGHT_MOMENT_KINDS = [
   "photo",
   "pint_drop",
   "event",
@@ -19,7 +19,7 @@ export type StoryContributorRole = "host" | "editor" | "contributor";
 // redact their content + identity. It is additive: it never frees the host slot
 // (the host-uniqueness index keys off `status <> 'removed'`), and it is distinct
 // from "removed" (an invitation declined / a member kicked before publish).
-export type StoryContributorStatus = "invited" | "accepted" | "removed" | "withdrawn";
+type StoryContributorStatus = "invited" | "accepted" | "removed" | "withdrawn";
 export type MomentConsentStatus = "pending" | "approved" | "withdrawn";
 
 export type NightMomentDraft = {
@@ -52,11 +52,6 @@ export type NightMoment = NightMomentDraft & {
 
 /** Max length of an author-written photo description. */
 export const NIGHT_MOMENT_ALT_TEXT_MAX = 200;
-
-export type PintDropMoment = NightMoment & {
-  kind: "pint_drop";
-  pintDropId: string;
-};
 
 export type NightMemory = {
   id: string;
@@ -154,7 +149,7 @@ export function cleanNightMomentDraft(raw: unknown): NightMomentDraft | null {
 
 /** A photo Moment (one that carries stored media) needs author-confirmed alt
  * text before it may be published. Non-photo Moments never need it. */
-export function momentRequiresAltText(
+function momentRequiresAltText(
   moment: Pick<NightMoment, "mediaObjectKey">,
 ): boolean {
   return Boolean(moment.mediaObjectKey);

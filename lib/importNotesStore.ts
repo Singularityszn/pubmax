@@ -9,9 +9,9 @@ import "server-only";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-export type ImportNoteProvenance = "sourced" | "contributor";
+type ImportNoteProvenance = "sourced" | "contributor";
 
-export type ImportNoteStatus = "queued" | "dismissed";
+type ImportNoteStatus = "queued" | "dismissed";
 
 export type ImportNote = {
   id: string;

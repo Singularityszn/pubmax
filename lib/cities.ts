@@ -25,9 +25,7 @@ export type CityId =
   | "bath"
   | "llandudno";
 
-export type { CityBounds };
-
-export type CityMapView = {
+type CityMapView = {
   center: [number, number];
   zoom: number;
   pitch: number;

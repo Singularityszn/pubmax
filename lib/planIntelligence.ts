@@ -1,4 +1,4 @@
-export type PlanningConfidenceLevel = "high" | "medium" | "low";
+type PlanningConfidenceLevel = "high" | "medium" | "low";
 
 export type PlanningEvidenceSource = {
   kind: "venue_dataset" | "night_area_review" | "night_signal";

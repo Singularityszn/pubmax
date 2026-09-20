@@ -35,7 +35,7 @@ export type PriceUpdate = {
 export const PRICE_UPDATE_PROVENANCE: Provenance = "sourced";
 
 // The provenance stamp the venue detail reads to attribute a refreshed price.
-export type PriceProvenance = {
+type PriceProvenance = {
   provenance: Provenance; // always "sourced"
   sourceLabel: string;
   sourceUrl: string;

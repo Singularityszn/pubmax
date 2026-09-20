@@ -88,7 +88,7 @@ export type ScheduledCityEnrichment = TavilyEnrichmentResult & {
   checkpointExpectedDurable?: boolean;
 };
 
-export type VenueOutcome = {
+type VenueOutcome = {
   index: number;
   osmId: string;
   status: "matched" | "empty" | "delegated" | "no-website" | "failed";

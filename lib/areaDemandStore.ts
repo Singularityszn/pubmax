@@ -30,9 +30,9 @@ import {
 } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
-export type RecordAreaDemandInput = NormalisedAreaDemand;
+type RecordAreaDemandInput = NormalisedAreaDemand;
 
-export type RecordAreaDemandOutcome = {
+type RecordAreaDemandOutcome = {
   /** `recorded` = the demand signal was persisted. */
   status: "recorded";
   /** Set when a durable write hard-failed — the demand was NOT recorded. */

@@ -10,13 +10,13 @@ import {
 import { requireSupabaseAdmin } from "@/lib/supabase";
 import { selectStore } from "@/lib/storeBackend";
 
-export type HandleAvailability = {
+type HandleAvailability = {
   handle: string;
   available: boolean;
   reason?: "taken";
 };
 
-export type HandleClaimResult =
+type HandleClaimResult =
   | {
       ok: true;
       profileId: string;
@@ -31,7 +31,7 @@ export type HandleClaimResult =
     }
   | { ok: false; code: "taken" | "already_has_handle" | "storage"; error: string };
 
-export type HandleRenameResult =
+type HandleRenameResult =
   | { ok: true; profileId: string; previousHandle: string; handle: string }
   | { ok: false; code: "not_found" | "taken" | "cooldown" | "storage"; error: string; retryAt?: string };
 
@@ -42,7 +42,7 @@ export type HandleRenameResult =
  * legacy anonymous-era handles with user_id null. The handle stays reserved
  * either way so attribution attacks cannot reclaim it.
  */
-export type HandleResolution = {
+type HandleResolution = {
   profileId: string;
   requestedHandle: string;
   currentHandle: string;

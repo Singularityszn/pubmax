@@ -54,7 +54,7 @@ function schemaMissFallback<T>(fallback: () => Promise<T>): Promise<T> {
   });
 }
 
-export const memoryPendingPlanRecapStore: PendingPlanRecapStore = {
+const memoryPendingPlanRecapStore: PendingPlanRecapStore = {
   async list(ownerId) {
     if (!ownerId) return [];
     return [...ownerBucket(ownerId).values()].sort((left, right) =>
@@ -85,7 +85,7 @@ export const memoryPendingPlanRecapStore: PendingPlanRecapStore = {
   },
 };
 
-export const supabasePendingPlanRecapStore: PendingPlanRecapStore = {
+const supabasePendingPlanRecapStore: PendingPlanRecapStore = {
   async list(ownerId) {
     if (!ownerId) return [];
     const { data, error } = await requireSupabaseAdmin()

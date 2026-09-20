@@ -61,7 +61,7 @@ export function nativePhotoFileName(
  * it. A refusal names the way out rather than repeating that it failed, because
  * nothing the person does inside the app can grant this.
  */
-export const NATIVE_CAMERA_BLOCKED_LINE =
+const NATIVE_CAMERA_BLOCKED_LINE =
   "The camera is switched off for this app. Turn it on in Settings, or pick a photo you already have.";
 
 /** A capture attempt is THREE-WAY. See the header: a cancel and a refusal reach

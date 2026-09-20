@@ -3,7 +3,6 @@
 // corridors live under lib/cities/{id}/storyBands.ts.
 
 import { parseCityId, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
-import { landmarksForCity } from "@/lib/cityLandmarks";
 import {
   STORY_BANDS,
   bandById as londonBandById,
@@ -16,7 +15,6 @@ import { liverpoolStoryBands } from "@/lib/cities/liverpool/storyBands";
 import { cambridgeStoryBands } from "@/lib/cities/cambridge/storyBands";
 import { durhamStoryBands } from "@/lib/cities/durham/storyBands";
 import { bristolStoryBands } from "@/lib/cities/bristol/storyBands";
-import type { Landmark } from "@/lib/landmarks";
 
 function resolveCityId(cityId: CityId | string | null | undefined): CityId {
   return parseCityId(cityId) ?? DEFAULT_CITY_ID;
@@ -48,13 +46,6 @@ export function storyBandsForCity(
     default:
       return [];
   }
-}
-
-/** Landmark catalog that resolves a city's story-band anchors. */
-export function storyBandLandmarkCatalog(
-  cityId: CityId | string | null | undefined = DEFAULT_CITY_ID,
-): readonly Landmark[] {
-  return landmarksForCity(cityId);
 }
 
 export function bandByIdForCity(

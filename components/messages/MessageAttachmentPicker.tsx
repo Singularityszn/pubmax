@@ -16,6 +16,10 @@ import {
   MESSAGE_ATTACH_CONTACT_SHORT,
   MESSAGE_ATTACH_EVENT_SHORT,
   MESSAGE_ATTACH_POLL_SHORT,
+  MESSAGE_ATTACH_CONTACT_LABEL,
+  MESSAGE_ATTACH_EVENT_LABEL,
+  MESSAGE_ATTACH_POLL_LABEL,
+  MESSAGE_ATTACH_VENUE_LABEL,
   MESSAGE_ATTACH_VENUE_SHORT,
 } from "@/lib/messageAttachments";
 import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
@@ -29,13 +33,13 @@ export type MessageAttachKind = "photos" | "camera" | "document";
  * open a picker in the composer dock instead, so the sheet is one grid rather
  * than two families of control that look alike and behave differently.
  */
-export type MessageAttachmentKindTarget = "venue" | "contact" | "event" | "poll";
+type MessageAttachmentKindTarget = "venue" | "contact" | "event" | "poll";
 
 export type MessageAttachmentPickerHandle = {
   select: (kind: MessageAttachKind) => void;
 };
 
-export type MessageAttachmentPickerProps = {
+type MessageAttachmentPickerProps = {
   open: boolean;
   disabled: boolean;
   onOpenChange: (open: boolean) => void;
@@ -77,6 +81,13 @@ const TARGETS: readonly Target[] = [
     Icon: FileText,
   },
 ];
+
+const ATTACHMENT_TARGET_ARIA: Record<MessageAttachmentKindTarget, string> = {
+  venue: MESSAGE_ATTACH_VENUE_LABEL,
+  contact: MESSAGE_ATTACH_CONTACT_LABEL,
+  event: MESSAGE_ATTACH_EVENT_LABEL,
+  poll: MESSAGE_ATTACH_POLL_LABEL,
+};
 
 const ATTACHMENT_TARGETS: readonly AttachmentTarget[] = [
   { kind: "venue", label: MESSAGE_ATTACH_VENUE_SHORT, Icon: MapPin },
@@ -251,6 +262,7 @@ const MessageAttachmentPicker = forwardRef<
                         type="button"
                         className="messageAttachTarget"
                         disabled={disabled}
+                        aria-label={ATTACHMENT_TARGET_ARIA[kind]}
                         onClick={() => {
                           if (disabled) return;
                           close();

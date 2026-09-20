@@ -22,9 +22,9 @@ import { wantedStore } from "@/lib/wantedStore";
 import { loadWhatsOn } from "@/lib/whatsOnStore";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
-export type SoftPlanCandidate = { id: string; title: string };
+type SoftPlanCandidate = { id: string; title: string };
 
-export type DealCandidate = {
+type DealCandidate = {
   dealTitle: string;
   placeName: string;
   endsAt: string;

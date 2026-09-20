@@ -175,16 +175,16 @@ function rowToCheckpoint(row: CheckpointRow, scope: string, now: number): NightS
 // ---------------------------------------------------------------------------
 
 /** What a sweep did to each candidate it offered the store. */
-export type CandidateSaveResult =
+type CandidateSaveResult =
   | { status: "saved"; stored: string[]; kept: string[]; durable: boolean }
   /** A write we could not run. The sweep says so rather than claiming storage. */
   | { status: "unavailable"; reason: string };
 
-export type CandidateListResult =
+type CandidateListResult =
   | { status: "ready"; candidates: NightSignalClaim[]; durable: boolean }
   | { status: "unavailable"; reason: string };
 
-export type CandidateReviewResult =
+type CandidateReviewResult =
   | { status: "decided"; candidate: NightSignalClaim }
   | {
       status: "already_decided";
@@ -207,13 +207,13 @@ export type NightSignalCandidateStore = {
   ): Promise<CandidateReviewResult>;
 };
 
-export type CheckpointClaim =
+type CheckpointClaim =
   | { status: "claimed"; checkpoint: NightSignalCheckpoint; durable: boolean }
   | { status: "lease-held"; heldBy: string; expiresAt: string }
   /** A read we could not run. It costs a sweep, never a wrong write. */
   | { status: "unavailable"; reason: string };
 
-export type CheckpointCommit =
+type CheckpointCommit =
   | { status: "committed"; durable: boolean }
   | { status: "lease-lost" }
   | { status: "unavailable"; reason: string };

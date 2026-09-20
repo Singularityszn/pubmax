@@ -76,7 +76,7 @@ export type ZonePricedVenue = {
 };
 
 /** One zone's row in the pint index. */
-export type ZonePintIndexRow = {
+type ZonePintIndexRow = {
   zone: ZoneId;
   /** Median cheapest pint across priced venues in this zone, or null if gated. */
   medianGbp: number | null;

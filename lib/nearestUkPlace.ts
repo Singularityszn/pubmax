@@ -4,7 +4,7 @@ import { haversineKm } from "@/lib/haversine";
 import type { UkPlace } from "@/lib/ukPlaceSearch";
 
 /** Cap how far a "near me" place may be before we refuse (honest scarcity). */
-export const NEAREST_UK_PLACE_MAX_KM = 120;
+const NEAREST_UK_PLACE_MAX_KM = 120;
 
 /**
  * Closest place in the index within maxKm, or null.

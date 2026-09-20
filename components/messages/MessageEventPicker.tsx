@@ -21,7 +21,7 @@ import {
 } from "@/lib/messageAttachments";
 
 /** The id out of `/plan/<id>`, a bare id, or null when there is neither. */
-export function readPlanIdFromPaste(value: string): string | null {
+function readPlanIdFromPaste(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
   const direct = readMessageEventPlanId(trimmed);

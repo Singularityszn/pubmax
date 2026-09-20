@@ -67,7 +67,7 @@ function cleanUpdatedAt(value: unknown): string {
   return Number.isNaN(parsed.getTime()) ? new Date(0).toISOString() : parsed.toISOString();
 }
 
-export function emptyPintDropDraftForm(): PintDropDraftForm {
+function emptyPintDropDraftForm(): PintDropDraftForm {
   return { ...EMPTY_FORM };
 }
 

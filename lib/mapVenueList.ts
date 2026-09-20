@@ -55,11 +55,11 @@ export type MapVenueListModel = {
  * The list is the DOM parallel to the unpriced pins, so it names what OSM
  * states: a bar reads as a bar. Neither kind carries a price.
  */
-export type UkBasePubListLabel =
+type UkBasePubListLabel =
   | "Other pub · no listed price"
   | "Other bar · no listed price";
 
-export type UkBasePubListRow = {
+type UkBasePubListRow = {
   id: string;
   name: string;
   priceLabel: UkBasePubListLabel;
@@ -149,7 +149,7 @@ function mapVenueListPintPriceLabel(
  * via venueSignals. A bare non-pub figure without complete provenance is not
  * shown on the row, so it cannot climb the cheapest sort.
  */
-export function mapVenueListSortPrice(
+function mapVenueListSortPrice(
   venue: Venue,
   lensPrices: ReadonlyMap<string, MapLensPrice> | null,
   venueSignals: MapVenueListVenueSignals | null = null,

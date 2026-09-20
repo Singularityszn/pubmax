@@ -28,7 +28,7 @@ import { DAY_MS } from "@/lib/dayMs";
 export const PRICE_CONFLICT_WINDOW_MS = FRESH_WITHIN_DAYS * DAY_MS;
 
 /** Compare GBP prices in integer pennies so 6.4 and 6.40 are one value. */
-export function pricesEqual(a: number, b: number): boolean {
+function pricesEqual(a: number, b: number): boolean {
   return Math.round(a * 100) === Math.round(b * 100);
 }
 

@@ -18,7 +18,7 @@ import type { PintDrop } from "@/lib/pintDropShared";
 import type { CrawlEnding, EndingSelection } from "@/lib/plan";
 import { formatGbp } from "@/lib/formatGbp";
 
-export type RecapRouteStop = {
+type RecapRouteStop = {
   position: number;
   venueId: string;
   venueName: string;
@@ -37,7 +37,7 @@ export type RecapPint = {
 };
 
 /** A photo is only ever referenced by its Storage key — never bytes, never a face. */
-export type RecapPhoto = {
+type RecapPhoto = {
   id: string;
   caption: string | null;
   venueId: string | null;

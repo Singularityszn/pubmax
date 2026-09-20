@@ -76,7 +76,7 @@ export const UK_PRICE_DROP_REASONS = [
   // pub on the host is how one number becomes hundreds of wrong ones.
   "page-names-no-pub",
 ] as const;
-export type UkPriceDropReason = (typeof UK_PRICE_DROP_REASONS)[number];
+type UkPriceDropReason = (typeof UK_PRICE_DROP_REASONS)[number];
 
 /**
  * The plausible band per drink, in pounds. A figure outside its own category's
@@ -106,7 +106,7 @@ export const CATEGORY_PRICE_BANDS: Readonly<
 };
 
 /** How much page text either side of a figure is read for its drink word. */
-export const PRICE_CONTEXT_CHARS = 80;
+const PRICE_CONTEXT_CHARS = 80;
 
 /**
  * The vocabulary that names a category, strongest signal first. The order is
@@ -233,7 +233,7 @@ function isHalfMeasure(before: string): boolean {
 
 const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{2})?)\b/g;
 
-export type UkPriceCandidate = {
+type UkPriceCandidate = {
   priceGbp: number;
   category: DrinkCategory;
   /** The exact substring the page carried, kept for the verbatim check. */
@@ -306,7 +306,7 @@ function isMixerName(context: string, index: number): boolean {
  * `at` is where the figure sits inside `context`. A caller that does not know
  * measures from the middle, which is where `readVenueDrinkPrices` puts it.
  */
-export function categoryDecisionFor(
+function categoryDecisionFor(
   context: string,
   at = Math.floor(context.length / 2),
 ): { category: DrinkCategory; fromMixer: boolean } | null {
@@ -551,11 +551,6 @@ export function menuLinkCandidates(html: string, siteOrigin: string, max = 8): s
     if (out.length >= max) break;
   }
   return out;
-}
-
-/** The sitemap URLs a robots.txt body names, in the order it names them. */
-export function sitemapsIn(robotsBody: string): string[] {
-  return [...robotsBody.matchAll(/^\s*sitemap:\s*(\S+)\s*$/gim)].map((match) => match[1].trim());
 }
 
 /** Every `<loc>` a sitemap or sitemap index states. */

@@ -20,7 +20,7 @@ import type * as maplibregl from "maplibre-gl";
 //      resolves a pub there rather than a landmark card;
 //   3. nothing in the app chrome covers it, so the map canvas - not a topbar
 //      button - receives the tap.
-export const PAINTED_MAP_PROBE_KEY = "__pubmaxPaintedMapTapPoints";
+const PAINTED_MAP_PROBE_KEY = "__pubmaxPaintedMapTapPoints";
 
 /** A pub mark the map is painting, in viewport coordinates a tap can use. */
 export type PaintedMapTapPoint = {

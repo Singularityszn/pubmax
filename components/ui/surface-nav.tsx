@@ -34,7 +34,7 @@ import "./surfaceNav.css";
  * red over there with nothing having actually broken. A caller that wants to
  * assert the icon reads THIS.
  */
-export const SURFACE_NAV_BACK_ICON_SIZE = 20;
+const SURFACE_NAV_BACK_ICON_SIZE = 20;
 export const SURFACE_NAV_HOME_ICON_SIZE = 19;
 
 export default function SurfaceNav({

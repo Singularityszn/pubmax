@@ -10,7 +10,7 @@ import {
   accountIdForOwnerActor,
   selectCheapPintPing,
 } from "@/lib/cheapPintPingSelect.server";
-import { cheapPintPingStore, type StepOutNudgePref } from "@/lib/stepOutNudgeStore";
+import { stepOutNudgeStore, type StepOutNudgePref } from "@/lib/stepOutNudgeStore";
 
 export type CheapPintPingDispatchSummary = {
   considered: number;
@@ -40,7 +40,7 @@ export type CheapPintPingDispatchDeps = {
 
 export function defaultCheapPintPingDispatchDeps(): CheapPintPingDispatchDeps {
   return {
-    listSendReady: () => cheapPintPingStore().listCheapPintSendReady(),
+    listSendReady: () => stepOutNudgeStore().listCheapPintSendReady(),
     resolveAccountId: accountIdForOwnerActor,
     selectPayload: (ownerActor, accountId, now) => {
       void now; // Signature carries dispatch clock; selection reads live index.
@@ -55,7 +55,7 @@ export function defaultCheapPintPingDispatchDeps(): CheapPintPingDispatchDeps {
       };
     },
     markSent: (ownerActor, sentAt) =>
-      cheapPintPingStore().markCheapPintSent(ownerActor, sentAt),
+      stepOutNudgeStore().markCheapPintSent(ownerActor, sentAt),
   };
 }
 

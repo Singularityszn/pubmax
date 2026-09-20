@@ -32,7 +32,7 @@
 import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 
 /** The three the upload path can strip, normalise and serve. */
-export const PHOTO_ACCEPT_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+const PHOTO_ACCEPT_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 
 /** The `accept` attribute both composers hand their file input. */
 export const PHOTO_ACCEPT = PHOTO_ACCEPT_TYPES.join(",");

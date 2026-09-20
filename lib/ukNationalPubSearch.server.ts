@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { UK_PUB_SEARCH_INDEX_FILE } from "@/lib/ukPubSearchIndexFile.mjs";
-import { ukBaseIdFor, type UkBasePub } from "@/lib/ukBasePubs";
+import { ukBaseIdFor } from "@/lib/ukBasePubs";
 import { normaliseUkPlaceQuery } from "@/lib/ukPlaceSearch";
 
 const INDEX_FILE = join(
@@ -132,18 +132,4 @@ export function searchUkNationalPubs(
   }));
 
   return { status: "ready", hits };
-}
-
-export function nationalHitToUkBasePub(hit: UkNationalPubHit): UkBasePub {
-  return {
-    id: hit.id,
-    name: hit.name,
-    address: hit.address,
-    lat: hit.lat,
-    lng: hit.lng,
-    curatedVenueId: "",
-    // The national index is built from the pub pack alone
-    // (scripts/build_uk_pub_search_index.mjs), so every hit is a pub.
-    kind: "pub",
-  };
 }

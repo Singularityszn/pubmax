@@ -50,7 +50,7 @@ const guard = createFailSoftGuard({
   migrationHint: MIGRATION_HINT,
 });
 
-export const supabaseAdultSelfAssertionStore: AdultSelfAssertionStore = {
+const supabaseAdultSelfAssertionStore: AdultSelfAssertionStore = {
   async read(userId) {
     const key = cleanUserId(userId);
     if (!key) return null;

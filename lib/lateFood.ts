@@ -18,19 +18,13 @@ import evidenceSnapshot from "@/public/data/late_food_evidence.json";
 export const LATE_FOOD_AREAS = LONDON_NIGHT_AREA_SLUGS;
 export type LateFoodArea = LondonNightAreaSlug;
 
-export const LATE_FOOD_AREA_ALIASES = {
+const LATE_FOOD_AREA_ALIASES = {
   soho: "piccadilly-soho",
   piccadilly: "piccadilly-soho",
 } as const satisfies Record<string, LateFoodArea>;
 
-export const LATE_FOOD_CATEGORIES = [
-  "kebab",
-  "pizza",
-  "cafe",
-  "restaurant",
-] as const;
-export type LateFoodCategory = (typeof LATE_FOOD_CATEGORIES)[number];
-export type LateFoodDietary = "vegan" | "vegetarian" | "gluten-free";
+type LateFoodCategory = "kebab" | "pizza" | "cafe" | "restaurant";
+type LateFoodDietary = "vegan" | "vegetarian" | "gluten-free";
 export type LateFoodConfidence = "high" | "medium" | "low";
 export const MAX_LATE_FOOD_HANDOFFS = 3;
 
@@ -69,7 +63,7 @@ const WEEKDAYS = [
 ] as const;
 type Weekday = (typeof WEEKDAYS)[number];
 
-export type LateFoodServiceWindow = {
+type LateFoodServiceWindow = {
   open: string;
   close: string;
   closesNextDay: boolean;
@@ -80,7 +74,7 @@ export type LateFoodHours = {
   weekly: Record<Weekday, LateFoodServiceWindow[]>;
 };
 
-export type LateFoodProvenance = {
+type LateFoodProvenance = {
   kind: "official_operator";
   source: string;
   sourceUrl: string;
@@ -89,14 +83,14 @@ export type LateFoodProvenance = {
   expiresAt: string;
 };
 
-export type LateFoodAnchor = {
+type LateFoodAnchor = {
   label: string;
   price: number;
   sourceUrl: string;
   observedAt: string;
 };
 
-export type LateFoodWalkingDetour = {
+type LateFoodWalkingDetour = {
   minutes: number | null;
   distanceKm: number | null;
   basis: "straight-line-from-final-stop" | "unavailable";
@@ -316,7 +310,7 @@ export const LATE_FOOD_TERMINALS: readonly LateFoodTerminal[] = rawOptions()
   )
   .filter((terminal): terminal is LateFoodTerminal => terminal !== null);
 
-export function isLateFoodArea(value: string): value is LateFoodArea {
+function isLateFoodArea(value: string): value is LateFoodArea {
   return (LONDON_NIGHT_AREA_SLUGS as readonly string[]).includes(value);
 }
 

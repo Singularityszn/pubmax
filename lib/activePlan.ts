@@ -16,7 +16,7 @@ import { isPlanId, type CrawlEnding, type PlanMemberRole } from "@/lib/plan";
 import { DAY_MS } from "@/lib/dayMs";
 
 export const ACTIVE_PLAN_KEY = "pubmax_active_plan";
-export const ACTIVE_PLAN_VERSION = 1 as const;
+const ACTIVE_PLAN_VERSION = 1 as const;
 
 // The plan is only "on tonight" for a bounded window around its start time, so
 // the card never haunts the shell days later off a stale pointer. Generous on
@@ -266,7 +266,7 @@ export function subscribeActivePlan(onChange: () => void): () => void {
 // on a fresh session, kept while they browse. Keyed per plan id so dismissing
 // tonight's card never suppresses a different plan later.
 
-export function nightModeDismissKey(id: string): string {
+function nightModeDismissKey(id: string): string {
   return `${DISMISS_PREFIX}${id}`;
 }
 

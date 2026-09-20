@@ -49,7 +49,7 @@ export const CONFIRMED_MAX_AGE_DAYS = 30;
 export const LISTED_MAX_AGE_DAYS = 365;
 
 /** Why a pub landed on the standing it did. Surfaces may word this; none may re-derive it. */
-export type PriceStandingReason =
+type PriceStandingReason =
   | "confirmed_in_window"
   | "confirmation_expired"
   | "listed_with_source"

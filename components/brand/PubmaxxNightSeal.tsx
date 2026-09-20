@@ -12,7 +12,7 @@ import PubmaxxMarkStrike from "./PubmaxxMarkStrike";
 // dark surface; `auto` (default) flips with the live theme token. The ring and
 // the mark both wear `currentColor`, so a single instance is correct in both.
 
-export type PubmaxxNightSealVariant = "ink" | "coral" | "auto";
+type PubmaxxNightSealVariant = "ink" | "coral" | "auto";
 
 export interface PubmaxxNightSealProps {
   /** Rendered pixel size (width & height of the stamp). Default 72. */

@@ -52,13 +52,13 @@ export const STORE_LISTING_LIMITS = {
 export type StoreListingField = keyof typeof STORE_LISTING_LIMITS;
 
 /** The name under the icon. An install surface, so APP_NAME. */
-export const STORE_LISTING_NAME: string = APP_NAME;
+const STORE_LISTING_NAME: string = APP_NAME;
 
 /**
  * Apple's subtitle. It says what the app does in a search result, so it carries
  * the promise rather than repeating the name.
  */
-export const STORE_LISTING_SUBTITLE = "Cheap pints near you, tonight";
+const STORE_LISTING_SUBTITLE = "Cheap pints near you, tonight";
 
 /**
  * Google Play's short description, shown above the fold in search and INDEXED,
@@ -66,7 +66,7 @@ export const STORE_LISTING_SUBTITLE = "Cheap pints near you, tonight";
  * the terms rather than to sound like a strapline, and it still has to read as
  * one sentence a person would say.
  */
-export const STORE_LISTING_SHORT_DESCRIPTION =
+const STORE_LISTING_SHORT_DESCRIPTION =
   "London pub prices, the cheapest pint near you, and a crawl route home.";
 
 /**
@@ -90,7 +90,7 @@ export const STORE_LISTING_SHORT_DESCRIPTION =
  * drinker calls the pub, and "local", "ale" and "lager" are what the same
  * person types.
  */
-export const STORE_LISTING_KEYWORDS =
+const STORE_LISTING_KEYWORDS =
   "london,uk,pub,bar,crawl,beer,ale,lager,garden,price,drink,nightlife,happy,hour,finder,local,guide";
 
 /**
@@ -99,7 +99,7 @@ export const STORE_LISTING_KEYWORDS =
  * it is NOT indexed for search, so it is written for the reader alone and
  * spends none of its 170 characters chasing a term.
  */
-export const STORE_LISTING_PROMOTIONAL_TEXT =
+const STORE_LISTING_PROMOTIONAL_TEXT =
   "Paid for a pint? Log what you paid, and the next drinker sees it. Nearest pubs, " +
   "what a pint costs, what is on tonight, and a crawl route home. London prices, UK pubs.";
 
@@ -129,7 +129,7 @@ export const STORE_LISTING_PROMOTIONAL_TEXT =
  * docs/STORE_READINESS.md, which declares a pub wall photo SHARED on Google
  * Play's data safety form, because it is.
  */
-export const STORE_LISTING_DESCRIPTION = [
+const STORE_LISTING_DESCRIPTION = [
   `${BRAND_NAME} tells you what a pint costs before you walk in.`,
   "",
   "You have left work. You want a decent pint that does not cost a fortune, somewhere close, " +

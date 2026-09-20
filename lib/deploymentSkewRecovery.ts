@@ -1,4 +1,4 @@
-export const DEPLOYMENT_SKEW_RELOAD_KEY = "pubmax:deployment-skew-reloaded:v1";
+const DEPLOYMENT_SKEW_RELOAD_KEY = "pubmax:deployment-skew-reloaded:v1";
 
 /**
  * Ask the recovery component to check the deployment now, rather than at the

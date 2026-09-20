@@ -36,7 +36,7 @@ const ACCEPTANCE_PARAMS = ["accept", "src"] as const;
  * those ids are already written into community_prices rows, and a pack refresh
  * nudging a pub across a cell boundary must never orphan its prices.
  */
-export const SELECTION_HINT_PARAM = "at";
+const SELECTION_HINT_PARAM = "at";
 
 /** ~11 m of precision: enough to target the cell and centre the camera. */
 export function formatSelectionHint(lat: number, lng: number): string {

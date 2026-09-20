@@ -138,10 +138,3 @@ export async function loadPoisFromPath(
   }
   return normalizePois(await response.json());
 }
-
-/**
- * London default POI loader — same contract as before multi-city routing.
- */
-export async function loadPois(): Promise<Poi[]> {
-  return loadPoisFromPath(LONDON_POIS_PATH);
-}

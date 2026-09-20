@@ -10,7 +10,7 @@ import type { Venue } from "@/lib/venues";
  * Food ordering stays link-out only until we have a curated `orderUrl` layer.
  */
 
-export type VenueExternalActionKind = "book" | "menu" | "website" | "order";
+type VenueExternalActionKind = "book" | "menu" | "website" | "order";
 
 /**
  * Honesty tier for the booking CTA:
@@ -20,7 +20,7 @@ export type VenueExternalActionKind = "book" | "menu" | "website" | "order";
  * - "search": we hold nothing bookable for this venue — send the guest to a
  *   Google Maps place search instead of inventing a link that might not exist.
  */
-export type BookingTier = "direct" | "site" | "search";
+type BookingTier = "direct" | "site" | "search";
 
 export type VenueExternalAction = {
   kind: VenueExternalActionKind;

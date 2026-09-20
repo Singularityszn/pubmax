@@ -45,7 +45,7 @@ export type EmailMessage = {
  *  Derived from the shared DeliveryStatus owner (lib/deliveryStatus.ts). */
 export type EmailDeliveryStatus = DeliveryStatus;
 
-export type PerMessageResult = {
+type PerMessageResult = {
   to: string;
   status: EmailDeliveryStatus;
   /** Provider message id when sent — for logging / idempotency, never a secret. */

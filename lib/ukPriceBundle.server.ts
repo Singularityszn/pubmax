@@ -4,7 +4,6 @@ import { promises as fs } from "fs";
 import path from "path";
 
 import {
-  authoritativeBundleRows,
   bundleRowsByVenue,
   parseUkPriceBundleRows,
   type UkPriceBundleRow,
@@ -26,7 +25,7 @@ import {
 
 export type UkPriceBundleReadStatus = "ready" | "empty" | "unavailable";
 
-export type UkPriceBundleRead = {
+type UkPriceBundleRead = {
   status: UkPriceBundleReadStatus;
   byVenue: Map<string, UkPriceBundleRow[]>;
 };
@@ -58,7 +57,7 @@ async function load(): Promise<UkPriceBundleRead> {
   }
 }
 
-export async function readUkPriceBundle(): Promise<UkPriceBundleRead> {
+async function readUkPriceBundle(): Promise<UkPriceBundleRead> {
   if (cached) return cached;
   pending ??= load();
   return pending;
@@ -71,26 +70,6 @@ export async function ukPriceBundleRowsFor(venueId: string): Promise<{
 }> {
   const read = await readUkPriceBundle();
   return { status: read.status, rows: read.byVenue.get(venueId) ?? [] };
-}
-
-/**
- * The venues the bundle holds a price a surface may treat as a FACT for, as a
- * set of ids.
- *
- * This is the seam a listing page asks, and it hands back only what
- * `standingCarriesAuthority` admits, so a page ranking pubs by price cannot
- * quietly rank a modelled figure among the observed ones.
- */
-export async function venuesWithAuthoritativeBundlePrice(): Promise<{
-  status: UkPriceBundleReadStatus;
-  venueIds: Set<string>;
-}> {
-  const read = await readUkPriceBundle();
-  const venueIds = new Set<string>();
-  for (const [venueId, rows] of read.byVenue) {
-    if (authoritativeBundleRows(rows).length > 0) venueIds.add(venueId);
-  }
-  return { status: read.status, venueIds };
 }
 
 export function resetUkPriceBundleForTests(): void {

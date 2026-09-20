@@ -49,7 +49,7 @@ export type EventsProvider = {
   fetchTonight(ctx: EventsProviderContext): Promise<WhatsOnRow[]>;
 };
 
-export type EventsProviderReport = {
+type EventsProviderReport = {
   name: string;
   configured: boolean;
   rows: number;

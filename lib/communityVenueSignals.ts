@@ -167,7 +167,7 @@ export function validateCommunityVenueSignal(
  * `unknown` covers "nobody has said" AND "one person has said", because a lone
  * report is not an answer to an access question at any age.
  */
-export type CommunityVenueSignalTrust = "unknown" | "reported" | "established";
+type CommunityVenueSignalTrust = "unknown" | "reported" | "established";
 
 export type CommunityVenueSignalText = {
   primary: string;

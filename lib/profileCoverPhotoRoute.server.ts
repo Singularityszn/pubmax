@@ -168,7 +168,7 @@ async function requireOwnedProfile(
 }
 
 /** What the editor reads. A serve path and a position; never a storage key. */
-export function coverPhotoDTOs(
+function coverPhotoDTOs(
   covers: readonly ProfileCoverPhoto[],
 ): ProfileCoverPhotoDTO[] {
   return covers.map((cover) => ({

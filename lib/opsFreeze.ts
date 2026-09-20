@@ -23,7 +23,7 @@ export const SOCIAL_FREEZE_ENV = "PUBMAX_SOCIAL_FREEZE";
  * normally; `social` freezes the social mutating surfaces. Kept as a closed set
  * so a typo fails safe to `off` rather than silently freezing something new.
  */
-export type FreezeScope = "off" | "social";
+type FreezeScope = "off" | "social";
 
 export type SocialFreezeState = {
   /** True only when the social write surfaces should refuse mutations. */

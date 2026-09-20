@@ -16,8 +16,7 @@ export function venueMapUrl(id: string): string {
  * The four surfaces that can hand a pub off as an EXPLICIT acceptance (a pin tap
  * or a plain `?sel=` link is browse-only and never appears here — see §4.8).
  */
-export const VENUE_ACCEPTANCE_SOURCES = ["near", "map-search", "tonight", "pal"] as const;
-export type VenueAcceptanceSource = (typeof VENUE_ACCEPTANCE_SOURCES)[number];
+export type VenueAcceptanceSource = "near" | "map-search" | "tonight" | "pal";
 
 /**
  * Explicit-acceptance deep link (§4.6): `?sel=<id>&accept=1&src=<source>`. Unlike

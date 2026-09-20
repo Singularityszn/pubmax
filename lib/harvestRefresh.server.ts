@@ -67,7 +67,7 @@ function keylessOutcome(source: HarvestSource): HarvestSourceOutcome {
   };
 }
 
-export type ChainDealHarvest = {
+type ChainDealHarvest = {
   sourceId: string;
   label: string;
   url: string;

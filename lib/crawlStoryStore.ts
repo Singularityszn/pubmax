@@ -73,7 +73,7 @@ export type CreateCrawlStoryInput = {
 // One stop as read back for rendering: the raw venue id PLUS the server-resolved
 // pub name and map link (venueIndex is server-only — the raw id must never be the
 // label the poster shows, PRD §9).
-export type DurableStop = {
+type DurableStop = {
   venueId: string;
   venueName: string;
   venueMapUrl: string;
@@ -537,15 +537,13 @@ export async function getStoryAuthor(slug: string): Promise<string | null> {
 // `?limit=`, the query applying it and the browser paging through it cannot
 // drift; re-exported here because the store is where a server caller looks.
 export {
-  AUTHOR_CRAWL_LIST_DEFAULT_LIMIT,
-  AUTHOR_CRAWL_LIST_MAX_LIMIT,
   clampAuthorCrawlListLimit,
 };
 
 /** One public crawl by a handle, in the shape a profile row needs. `stops` is
  *  TRI-STATE by way of null: a stop count we could not read is unknown, so the
  *  row still opens and simply prints no number. */
-export type AuthoredCrawlSummary = {
+type AuthoredCrawlSummary = {
   slug: string;
   title: string;
   stops: number | null;

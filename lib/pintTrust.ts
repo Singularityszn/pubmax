@@ -64,10 +64,7 @@ import {
   type VenuePriceLane,
 } from "@/lib/venuePriceLane";
 import { confirmPintActionLabel } from "@/lib/pintDropSecondDrinker";
-import {
-  pintPriceSplitLine,
-  type PintPriceSplit,
-} from "@/lib/pintDropAgreement";
+import { type PintPriceSplit } from "@/lib/pintDropAgreement";
 import {
   agedPriceDrop,
   confirmedPriceDrop,
@@ -130,11 +127,6 @@ export const PINT_TRUST_LINE: Record<PintTrustState, string | null> = {
   "aged-out": AGED_PRICE_LINE,
   none: null,
 };
-
-/** The line a split prints, or null on every state that is not one. */
-export function pintTrustSplitLine(split: PintPriceSplit | null | undefined): string | null {
-  return split ? pintPriceSplitLine(split) : null;
-}
 
 export type PintTrustReading<D extends SummaryDrop = SummaryDrop> = {
   state: PintTrustState;

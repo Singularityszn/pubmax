@@ -191,7 +191,7 @@ export async function runStoreOp<T>(opts: RunStoreOpOptions<T>): Promise<T> {
 }
 
 /** A single fail-soft operation for a guard: everything a store op still varies. */
-export type GuardedOp<T> = {
+type GuardedOp<T> = {
   /** Label for logs and deduped schema-miss warns (e.g. "confirm", "read"). */
   context: string;
   run: () => Promise<T>;

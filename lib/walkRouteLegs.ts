@@ -10,7 +10,7 @@ export type PlanWalkingStop = {
   lng: number;
 };
 
-export type PlanWalkingLegEstimate = {
+type PlanWalkingLegEstimate = {
   fromIndex: number;
   toIndex: number;
   from: LngLat;

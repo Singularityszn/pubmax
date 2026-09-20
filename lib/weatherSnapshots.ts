@@ -2,7 +2,7 @@ import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 
 export const WEATHER_SNAPSHOT_VERSION = 1 as const;
 
-export type WeatherEvidenceSource = {
+type WeatherEvidenceSource = {
   sourceUrl: string;
   publisher: string;
   publishedAt: string;

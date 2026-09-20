@@ -40,17 +40,17 @@ import {
 import type { UkBasePub } from "@/lib/ukBasePubs";
 
 export type { UkBasePubSuggestion };
-export { SUGGEST_UK_BASE_PUB_LIMIT, UK_BASE_SEARCH_GROUP_LABEL } from "@/lib/ukBasePubSearch";
+export { UK_BASE_SEARCH_GROUP_LABEL } from "@/lib/ukBasePubSearch";
 
 /** How many pub name-matches the panel shows at most. Kept tight so the popup
  *  stays scannable on a phone; the map itself already narrows to every match. */
 export const SUGGEST_PUB_LIMIT = 6;
 /** Cap on the Areas group while a query is being typed. */
-export const SUGGEST_AREA_LIMIT = 6;
+const SUGGEST_AREA_LIMIT = 6;
 /** Cap on the "nearby areas" shown on an empty query (taste-first, minimal). */
-export const SUGGEST_EMPTY_AREA_LIMIT = 5;
+const SUGGEST_EMPTY_AREA_LIMIT = 5;
 /** Cap on UK place matches from the national gazetteer. */
-export const SUGGEST_PLACE_LIMIT = 6;
+const SUGGEST_PLACE_LIMIT = 6;
 
 /** Visible group head for national place rows in MapSearchSuggest. */
 export const UK_PLACE_SEARCH_GROUP_LABEL = "UK places";
@@ -600,4 +600,3 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
     isEmptyQuery,
   };
 }
-

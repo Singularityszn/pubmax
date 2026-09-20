@@ -51,6 +51,3 @@ export function lastTrainFetchUrl(lat: number, lng: number): string {
   params.set("lng", String(egressPoint.lng));
   return `/api/last-train?${params.toString()}`;
 }
-
-// Re-export city-aware URL builder so callers can migrate off the London-only helper.
-export { lastRideFetchUrl } from "@/lib/lastRide";

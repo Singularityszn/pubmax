@@ -28,7 +28,7 @@ export const SAFE_NIGHT_DISMISS_PREFIX = "pubmax:safe-night-dismissed:v1:";
 export const SAFE_NIGHT_GETTING_HOME_SCOPE = "getting-home";
 const TFL_JOURNEY_PLANNER = "https://tfl.gov.uk/plan-a-journey/";
 
-export type SafeNightVenueShare = {
+type SafeNightVenueShare = {
   id: string;
   name: string;
   latitude: number;
@@ -258,5 +258,3 @@ export function SafeNightStrip({ planId, venue, cityId }: SafeNightStripProps) {
     </section>
   );
 }
-
-export default SafeNightStrip;

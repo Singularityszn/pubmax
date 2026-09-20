@@ -19,10 +19,17 @@ import {
   isMessagePhotoServingKey,
   isMessageVenueId,
   MESSAGE_ATTACHMENT_KINDS,
+  MESSAGE_ATTACH_CONTACT_LABEL,
+  MESSAGE_ATTACH_EVENT_LABEL,
+  MESSAGE_ATTACH_POLL_LABEL,
+  MESSAGE_CONTACT_OPEN_LABEL,
+  MESSAGE_EVENT_OPEN_LABEL,
   MESSAGE_PHOTO_ASPECT_RATIO,
   MESSAGE_PHOTO_CROP_TARGET,
   MESSAGE_PHOTO_OUTPUT_HEIGHT,
   MESSAGE_PHOTO_OUTPUT_WIDTH,
+  messageContactCardLabel,
+  messageEventCardLabel,
   messagePhotoAltText,
   messagePhotoServePath,
   messagePhotoServingKey,
@@ -272,5 +279,32 @@ describe("0102 message_attachments", () => {
     ]) {
       expect(rollback).toMatch(new RegExp(`drop column if exists ${column}`));
     }
+  });
+});
+
+describe("attachment card accessible names", () => {
+  it("ends contact and event card labels with the shared open copy", () => {
+    expect(MESSAGE_CONTACT_OPEN_LABEL).toBe("Open profile");
+    expect(MESSAGE_EVENT_OPEN_LABEL).toBe("Open the plan");
+    expect(messageContactCardLabel({ handle: "ada", displayName: null, avatarUrl: null, profileUrl: "/u/ada" })).toContain(
+      MESSAGE_CONTACT_OPEN_LABEL,
+    );
+    expect(
+      messageEventCardLabel({
+        planId: "p1",
+        hostDisplayName: "Ada",
+        areaName: "Clapham",
+        startLabel: "Friday 8pm",
+        stopCount: 2,
+        routeReady: true,
+        planUrl: "/plan/p1",
+      }),
+    ).toContain(MESSAGE_EVENT_OPEN_LABEL);
+  });
+
+  it("keeps long attach labels for non-file picker controls", () => {
+    expect(MESSAGE_ATTACH_CONTACT_LABEL).toBe("Share a handle");
+    expect(MESSAGE_ATTACH_EVENT_LABEL).toBe("Share a plan");
+    expect(MESSAGE_ATTACH_POLL_LABEL).toBe("Start a poll");
   });
 });

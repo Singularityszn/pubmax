@@ -30,7 +30,7 @@ export type UploadedImageScanSurface =
   | "message-photo";
 
 /** Why a scan produced no verdict. Every one of these lets the upload through. */
-export type UploadedImageScanSkipReason =
+type UploadedImageScanSkipReason =
   | "no_signed_url"
   | "adapter_unavailable"
   | "scan_failed"

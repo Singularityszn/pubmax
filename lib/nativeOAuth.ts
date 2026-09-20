@@ -82,7 +82,7 @@ export async function openOAuthInSystemBrowser(
 }
 
 /** The path a provider sends the person back to. */
-export const OAUTH_CALLBACK_PATH = "/auth/callback";
+const OAUTH_CALLBACK_PATH = "/auth/callback";
 
 /** True for the callback link, which is the moment the system browser is done. */
 export function isOAuthCallbackPath(path: string): boolean {

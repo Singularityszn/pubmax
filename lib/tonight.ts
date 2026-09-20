@@ -7,13 +7,10 @@ import type { TonightLocalityBasis } from "@/lib/analyticsEvents";
 import { haversineKm } from "@/lib/haversine";
 import { resolveNightPatch, type RememberedArea } from "@/lib/nightPatches";
 import { walkMinutesFromKm } from "@/lib/walkMinutes";
-import { labelForKind, opportunityMapHref } from "@/lib/thingsToDoMap";
+import { labelForKind } from "@/lib/thingsToDoMap";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 
 export type TonightOpportunity = ThingsToDoOpportunity;
-
-// Re-export the shared helpers so the screen imports one module.
-export { labelForKind, opportunityMapHref };
 
 export function tonightHeading(basis: TonightLocalityBasis): string {
   return basis === "london-default"

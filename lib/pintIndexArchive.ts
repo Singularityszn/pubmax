@@ -30,7 +30,7 @@ import { canonicalObservationsPayload as canonicalPayload } from "@/lib/pintInde
 import { SEED_BOROUGH_MONTHLY_TARGET } from "@/lib/boroughCoverageStatus";
 
 /** `YYYY-MM`, the id of a monthly edition and the last segment of its URL. */
-export const PINT_INDEX_MONTH_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])$/;
+const PINT_INDEX_MONTH_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])$/;
 
 /**
  * The first month the public Index existed to assess, declared rather than
@@ -43,7 +43,7 @@ export const PINT_INDEX_MONTH_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])$/;
  */
 export const PINT_INDEX_PUBLIC_START_MONTH = "2026-06";
 
-export type PintIndexCorrection = {
+type PintIndexCorrection = {
   /** When the correction was published. */
   issuedAt: string;
   /** What was wrong and what changed, in one plain sentence. */
@@ -54,7 +54,7 @@ export type PintIndexCorrection = {
   previousObservationsSha256: string;
 };
 
-export type PintIndexArchiveMeta = {
+type PintIndexArchiveMeta = {
   month: string;
   /** 1 on first publication, then +1 per correction. */
   revision: number;
@@ -138,7 +138,7 @@ export function londonMonthOf(date: Date): string {
 }
 
 /** The `YYYY-MM` an ISO instant falls in, UTC. Null when it is not a date. */
-export function pintIndexMonthOf(iso: string): string | null {
+function pintIndexMonthOf(iso: string): string | null {
   const parsed = Date.parse(iso);
   if (!Number.isFinite(parsed)) return null;
   return new Date(parsed).toISOString().slice(0, 7);
@@ -175,7 +175,7 @@ export function canonicalObservationsPayload(observations: readonly PintIndexObs
   return canonicalPayload(observations);
 }
 
-export function observationsHash(observations: readonly PintIndexObservation[], sha256: Sha256): string {
+function observationsHash(observations: readonly PintIndexObservation[], sha256: Sha256): string {
   return sha256(canonicalObservationsPayload(observations));
 }
 

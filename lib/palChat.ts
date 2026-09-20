@@ -21,9 +21,9 @@
 // Which grounded source a card came from. `directory` = our own first-party
 // venue index (deterministic rank); `whats-on` = a verified What's-On row that
 // carries its own attributable {label, url} source.
-export type PalProvenanceKind = "directory" | "whats-on";
+type PalProvenanceKind = "directory" | "whats-on";
 
-export type PalProvenance = {
+type PalProvenance = {
   // The chip label a reader sees. Never blank — a card is not rendered without
   // an honest provenance label.
   label: string;

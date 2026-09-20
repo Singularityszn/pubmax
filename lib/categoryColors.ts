@@ -69,26 +69,6 @@ export const CATEGORY_COLORS: Record<DrinkCategory, CategoryColor> = {
   other: { light: "#5c5347", dark: "#a89e8c", label: "Other" },
 };
 
-// Legacy Mode / high-contrast overrides live only in the
-// `html[data-legacy="1"]` block of app/globals.css — no TS consumer reads
-// them, so they are not duplicated here.
-
-// ── Legacy minimal map (E1 compatibility) ────────────────────────────────────
-// CATEGORY_ACCENT / categoryAccent are the shape E1's menu already imports.
-// Reconciled to the canonical LIGHT values so there is a single source of hue.
-// New work should prefer `categoryColor(cat)` (theme-aware CSS var) instead —
-// CATEGORY_ACCENT is a flat light-only hex kept for the existing call-sites.
-export const CATEGORY_ACCENT: Record<DrinkCategory, string> = Object.fromEntries(
-  (Object.keys(CATEGORY_COLORS) as DrinkCategory[]).map((c) => [
-    c,
-    CATEGORY_COLORS[c].light,
-  ]),
-) as Record<DrinkCategory, string>;
-
-export function categoryAccent(category: DrinkCategory): string {
-  return CATEGORY_ACCENT[category];
-}
-
 // ── Theme-aware helpers (preferred for new surfaces) ─────────────────────────
 /** The CSS custom-property name for a category (matches the globals.css block). */
 export function categoryVar(category: DrinkCategory): string {

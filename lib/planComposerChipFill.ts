@@ -31,7 +31,7 @@ export function resolveDescribeChipSubmit(input: {
   return { query, stopCount };
 }
 
-export function nightPatchIdForNightArea(slug: NightAreaSlug): NightPatchId | null {
+function nightPatchIdForNightArea(slug: NightAreaSlug): NightPatchId | null {
   for (const patch of NIGHT_PATCHES) {
     if (nightAreaForPlanIntakePatch(patch.id) === slug) return patch.id;
   }

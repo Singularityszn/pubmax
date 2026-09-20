@@ -10,7 +10,7 @@ export type WetherspoonsMatchVenue = {
 };
 
 /** Exact normalised name + 250 m; shared by open-now filter and plan opening evidence. */
-export const WETHERSPOONS_MATCH_MAX_KM = 0.25;
+const WETHERSPOONS_MATCH_MAX_KM = 0.25;
 
 export function normalizeWetherspoonsMatchName(value: string): string {
   return value
