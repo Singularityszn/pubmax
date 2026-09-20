@@ -243,6 +243,42 @@ function pendingLabel(pending: PendingAttachment): string {
   }
 }
 
+/**
+ * The inbox row for one conversation, for naming an EMPTY thread's head.
+ *
+ * Never throws and never rejects: a head with no name is a cosmetic gap, not a
+ * thread that failed to read, and this runs inside the read. Null means the
+ * inbox could not be asked at all, so the caller may ask again; a resolved read
+ * with no matching row answers with an empty name and is not asked twice.
+ */
+async function nameFromInboxRow(
+  viewerHandle: string,
+  conversationId: string,
+): Promise<{ identity: ThreadIdentity | null; otherHandle: string } | null> {
+  try {
+    const res = await authedActionFetch(
+      `/api/messages?handle=${encodeURIComponent(viewerHandle)}`,
+      {},
+      { requiresIdentity: true },
+    );
+    if (!res.ok) {
+      discardBody(res);
+      return null;
+    }
+    const body = (await res.json()) as { conversations?: ConversationDTO[] };
+    const row = (body.conversations ?? []).find(
+      (conversation) => conversation.id === conversationId,
+    );
+    if (!row) return { identity: null, otherHandle: "" };
+    return {
+      identity: threadIdentityFromInboxRow(row),
+      otherHandle: row.otherHandle ?? "",
+    };
+  } catch {
+    return null;
+  }
+}
+
 function fileKey(file: File): string {
   return `${file.name}:${file.size}:${file.lastModified}`;
 }
@@ -326,6 +362,7 @@ export default function MessageThread({
     setIdentity(null);
     setOtherHandle("");
     setMessages([]);
+    askedInboxForNameRef.current = false;
     conversationIdRef.current = conversationId;
   }, [conversationId]);
   useLayoutEffect(() => {
@@ -335,6 +372,8 @@ export default function MessageThread({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   /** Claimed before the first await in `send`; see the note there. */
   const sendInFlightRef = useRef(false);
+  /** Whether the inbox has already been asked to name THIS empty thread. */
+  const askedInboxForNameRef = useRef(false);
   const cropCardRef = useRef<HTMLDivElement | null>(null);
   const enterSends = useEnterSends();
   const isMobileViewport = useSyncExternalStore(
@@ -462,11 +501,14 @@ export default function MessageThread({
         // WHO THE THREAD IS WITH comes from the read's membership when it has
         // one; only then may a group title win. An empty direct thread has no
         // message to read a name off, so the inbox row for this id names it.
+        // A GROUP is named by its title or its people, never by one of them,
+        // so its head keeps drawing from the group's own name.
         const identityFromRead = threadIdentityFromWire(body.conversation);
         let nextIdentity: ThreadIdentity | null = identityFromRead;
-        let nextOther = identityFromRead
-          ? otherHandleFromThreadIdentity(identityFromRead, h)
-          : "";
+        let nextOther =
+          identityFromRead && identityFromRead.kind !== "group"
+            ? otherHandleFromThreadIdentity(identityFromRead, h)
+            : "";
         if (!identityFromRead) {
           const me = normalizeHandle(h);
           const theirs = next.find(
@@ -474,35 +516,26 @@ export default function MessageThread({
           );
           if (theirs) {
             nextOther = theirs.senderHandle;
-          } else if (next.length === 0) {
-            const inboxRes = await authedActionFetch(
-              `/api/messages?handle=${encodeURIComponent(h)}`,
-              {},
-              { requiresIdentity: true },
-            );
-            if (!stillCurrent()) {
-              discardBody(inboxRes);
-              return;
-            }
-            if (inboxRes.ok) {
-              const inboxBody = (await inboxRes.json()) as {
-                conversations?: ConversationDTO[];
-              };
-              const row = (inboxBody.conversations ?? []).find(
-                (conversation) => conversation.id === conversationId,
-              );
-              if (row) {
-                nextIdentity = threadIdentityFromInboxRow(row);
-                if (row.otherHandle) nextOther = row.otherHandle;
-              }
-            } else {
-              discardBody(inboxRes);
+          } else if (next.length === 0 && !askedInboxForNameRef.current) {
+            // ONE read of the inbox per thread, and only for an empty one with
+            // no membership: it names the head and nothing else leans on it, so
+            // it may never fail a thread read that already succeeded, and a
+            // request that never landed is asked again on the next refresh.
+            const named = await nameFromInboxRow(h, conversationId);
+            if (!stillCurrent()) return;
+            if (named) {
+              askedInboxForNameRef.current = true;
+              nextIdentity = named.identity;
+              if (named.identity?.kind !== "group") nextOther = named.otherHandle;
             }
           }
         }
         if (!stillCurrent()) return;
-        setIdentity(nextIdentity);
-        setOtherHandle(nextOther);
+        // A NAME ALREADY LEARNED FOR THIS THREAD IS NEVER TAKEN BACK. A later
+        // read that carries no membership leaves the head as it was rather than
+        // flipping a named person back to the neutral word.
+        setIdentity((previous) => nextIdentity ?? previous);
+        setOtherHandle((previous) => nextOther || previous);
         setState("ready");
       } catch (err) {
         // An abort is our own teardown, never a failure the reader should see.
