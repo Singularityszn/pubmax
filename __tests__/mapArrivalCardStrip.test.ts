@@ -90,6 +90,27 @@ describe("the first-visit card is a strip at the top on a phone", () => {
     );
   });
 
+  it("paints its one primary in the product's coral, like every other screen", () => {
+    // The card's own `.mapArrivalCardPrimary` is gone: #1664 moved every
+    // off-family button onto the shared button system, so the claim now rides
+    // that family's primary variant. "Use my location" is the card's ONE
+    // primary and "Choose an area" is the secondary beside it.
+    const primaries = [...cardSource.matchAll(/variant:\s*"primary"/gu)];
+    expect(primaries).toHaveLength(1);
+    expect(cardSource).toContain('buttonVariants({ variant: "primary" })');
+    expect(cardSource).toContain('buttonVariants({ variant: "secondary" })');
+
+    const buttonCss = read("components/ui/button.css");
+    const primary = buttonCss.match(/\.uiButton--primary\s*\{[^}]*\}/u)?.[0] ?? "";
+    expect(primary).toContain("var(--color-accent)");
+    expect(primary).toContain("var(--color-on-accent)");
+    expect(primary).not.toContain("var(--ink)");
+
+    // And the card repaints none of it: a fill of its own here is how the one
+    // primary would drift off the product's coral again.
+    expect(cardCss).not.toContain("uiButton");
+  });
+
   it("drops the eyebrow, and keeps the sentence the App Store copy is paired to", () => {
     // "FIRST VISIT" is decoration: the card's own accessible name already says
     // it. The location sentence STAYS. docs/proof/mobile-app-design/

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -32,6 +32,20 @@ const ROOT = path.join(__dirname, "..");
 
 function read(relative: string): string {
   return readFileSync(path.join(ROOT, relative), "utf8");
+}
+
+/** Every component source the browser can load, as repo-relative paths. */
+function browserSources(): string[] {
+  const found: string[] = [];
+  const walk = (relative: string): void => {
+    for (const entry of readdirSync(path.join(ROOT, relative), { withFileTypes: true })) {
+      const next = `${relative}/${entry.name}`;
+      if (entry.isDirectory()) walk(next);
+      else if (/\.tsx?$/u.test(entry.name)) found.push(next);
+    }
+  };
+  walk("components");
+  return found;
 }
 
 /** The `useEffect(...)` call whose body contains `marker`. */
@@ -68,6 +82,43 @@ describe("the Wetherspoon directory is the Open now filter's own read", () => {
 
   it("keeps the filter as the effect's only dependency", () => {
     expect(effect).toMatch(/\}, \[filters\.openNow\]\)$/);
+  });
+});
+
+describe("the price-update overlays are the open pub's own read", () => {
+  // #1657 moved this read to the server. The tab used to fetch both national
+  // packs on mount and draw a handful of rows about one pub; the venue detail
+  // the sheet fetches anyway now carries that pub's own rows, scoped by the
+  // keys it answers to. So the fence is no longer a gate inside an effect: it
+  // is that the scope lives on the server and the browser owns no pack read.
+  const route = read("app/api/venue/[id]/route.ts");
+  const tab = read("components/map/inspector/VenueMenuTab.tsx");
+
+  it("scopes both packs to the open pub, on the server", () => {
+    expect(route).toContain("venuePriceUpdatesFor(venueMenuLookupKeys(venue))");
+    expect(route).toContain('from "@/lib/priceUpdates.server"');
+  });
+
+  it("draws them off that answer, and fetches nothing of its own", () => {
+    expect(tab).toContain("venuePriceUpdatesOf(venue)");
+    expect(tab).not.toContain("fetch(");
+    expect(tab).not.toContain("priceUpdatesLoader");
+  });
+
+  it("leaves no browser module reading either national pack", () => {
+    // 1862 KB and 1519 KB. A read of one of these from a client component is
+    // the defect whatever component it moves into, so the scan is the whole
+    // browser tree rather than the one tab it landed in.
+    const packs = /\/data\/(drink|food)_price_updates/u;
+    const readers = browserSources().filter((file) => packs.test(read(file)));
+    expect(readers).toEqual([]);
+  });
+
+  it("draws the panel hidden rather than unmounted, which is why the gate was needed", () => {
+    // Every tab is mounted on every sheet open and hides itself; that is what
+    // made a mount-time effect a read for a tab nobody had opened, and it is
+    // why the read may not be the browser's at all.
+    expect(tab).toContain('hidden={tab !== "menu"}');
   });
 });
 

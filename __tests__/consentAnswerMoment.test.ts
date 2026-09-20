@@ -183,6 +183,15 @@ describe("the card waits for that answer", () => {
     expect(prompt).toContain('from "@/lib/consentAnswerMoment"');
   });
 
+  it("spends no prompt budget while it is waiting", () => {
+    // Claiming the session's one interruptive slot during the wait would hold
+    // it open and starve whichever surface is genuinely next.
+    const gate = prompt.indexOf("if (!hasAnsweredThisSession())");
+    const claim = prompt.indexOf("claimPromptBudget(ANALYTICS_CONSENT_PROMPT_SURFACE)");
+    expect(gate).toBeGreaterThan(-1);
+    expect(claim).toBeGreaterThan(gate);
+  });
+
   it("re-reads when an answer lands, so the wait can end without a reload", () => {
     expect(prompt).toContain("subscribeConsentAnswerMoment");
   });
