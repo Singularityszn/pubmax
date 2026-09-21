@@ -31,7 +31,7 @@
  * Requires EXA_API_KEY and TAVILY_API_KEY in the environment (never commit them).
  *
  * Usage:
- *   npx tsx scripts/harvest_outer_london_prices.mjs \
+ *   node --conditions=react-server --import tsx scripts/harvest_outer_london_prices.mjs \
  *     [--limit N] [--budget N] [--dry-run]
  */
 
@@ -197,8 +197,23 @@ function bestDrinkLink(links, baseHost) {
   return cands[0] || null;
 }
 
+export function pubDiscoveryAvailable(environment = process.env) {
+  try {
+    assertProviderCredentials(["pub-discovery"], environment);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function main() {
-  assertProviderCredentials(["pub-discovery", "plain-page"]);
+  assertProviderCredentials(["plain-page"]);
+  const exaDiscovery = pubDiscoveryAvailable();
+  if (!exaDiscovery) {
+    console.warn(
+      "[harvest] EXA_API_KEY missing: Exa pub-discovery disabled; on-site menu links only.",
+    );
+  }
   const limit = Number(arg("--limit", "0")) || 0;
   const budget = Number(arg("--budget", "280")) || 280;
   const dryRun = arg("--dry-run", false) === true;
@@ -342,7 +357,7 @@ function main() {
       let usedSecond = false;
       if ((!extracted.length || !homeHasSignal) && requests < budget) {
         let link = bestDrinkLink(home.links, h);
-        if (!link) {
+        if (!link && exaDiscovery) {
           const discoveries = await discoverRefreshPages({
             query: `${row.pub_name} drinks menu wine cocktail gin whisky price`,
             includeDomains: [h],

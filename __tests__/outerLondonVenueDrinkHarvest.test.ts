@@ -8,7 +8,10 @@ import {
   venueDrinkPricesFromUkReading,
 } from "@/lib/harvest/tavilyVenueDrinkPrices";
 import { readVenueDrinkPrices } from "@/lib/harvest/ukPriceCrawl";
-import { verbatimValidateHarvestedDrinks } from "../scripts/harvest_outer_london_prices.mjs";
+import {
+  pubDiscoveryAvailable,
+  verbatimValidateHarvestedDrinks,
+} from "../scripts/harvest_outer_london_prices.mjs";
 
 describe("outer London full-category drink extraction", () => {
   it("names beer, wine and cocktail rows from a drinks list snippet", () => {
@@ -47,6 +50,11 @@ Espresso martini £12.00
     expect(validated).toEqual([
       { drinkName: "Madri", category: "beer", priceGbp: 6.2 },
     ]);
+  });
+
+  it("pubDiscoveryAvailable is false without EXA_API_KEY", () => {
+    expect(pubDiscoveryAvailable({ TAVILY_API_KEY: "tavily" })).toBe(false);
+    expect(pubDiscoveryAvailable({ EXA_API_KEY: "exa", TAVILY_API_KEY: "tavily" })).toBe(true);
   });
 
   it("outer London harvest script calls the shared venue drink reader", () => {
