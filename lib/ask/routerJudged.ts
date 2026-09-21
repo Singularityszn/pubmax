@@ -163,6 +163,10 @@ function callsFromJudgment(
   if (!isAskToolName(judgment.tool)) return routeAskDeterministically(query);
   const overlays = overlaysFromJudgment(judgment, venues, areas);
   const regex = routeAskDeterministically(query);
+  if (
+    judgment.tool === "venue_heritage" && !overlays.venueName &&
+    regex.length === 1 && regex[0].name === "search_venues"
+  ) return regex;
   const matching = regex.find((call) => call.name === judgment.tool);
   const primary = matching
     ? applyOverlays(matching, overlays)
