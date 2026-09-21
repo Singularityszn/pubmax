@@ -88,7 +88,7 @@ export async function installDeterministicMapBasemap(
 
   await page.route("**/*.mvt*", emptyVectorTile);
   await page.route("**/*.pbf*", emptyVectorTile);
-  await page.route("**/__empty/**/*.png", async (route) => {
+  await page.route("**/__empty/**/*.png*", async (route) => {
     if (primaryRasterFailuresLeft > 0) {
       primaryRasterFailuresLeft -= 1;
       await route.abort("failed");
@@ -106,7 +106,7 @@ export async function installDeterministicMapBasemap(
     });
   });
   if (options.stallSecondaryRaster) {
-    await page.route("**/__pending/**/*.png", async (route) => {
+    await page.route("**/__pending/**/*.png*", async (route) => {
       await new Promise((resolve) =>
         setTimeout(resolve, options.secondaryRasterDelayMs ?? 20_000),
       );

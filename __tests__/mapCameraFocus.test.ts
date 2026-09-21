@@ -19,6 +19,7 @@ import {
   cameraIntentForFocusSource,
   mapCameraFocusKey,
   mapCameraFocusMoves,
+  nextAreaCameraFocus,
   type MapCameraFocus,
 } from "@/lib/mapCameraFocus";
 
@@ -63,6 +64,18 @@ describe("two camera owners can never mint the same identity", () => {
     expect(mapCameraFocusMoves(second, mapCameraFocusKey(first))).toBe(true);
   });
 
+  it("flies again when the reader picks the same area after panning away", () => {
+    const soho = { center: LONDON, zoom: 14 };
+    const first = nextAreaCameraFocus(null, soho);
+    expect(mapCameraFocusMoves(first, null)).toBe(true);
+    // The canvas flies to Soho, then the reader pans away by gesture. A pan
+    // mints no focus, so the canvas still holds the first pick's key.
+    const appliedKey = mapCameraFocusKey(first);
+    const second = nextAreaCameraFocus(first, soho);
+    expect(mapCameraFocusKey(second)).not.toBe(appliedKey);
+    expect(mapCameraFocusMoves(second, appliedKey)).toBe(true);
+  });
+
   it("has nothing to do with no focus at all", () => {
     expect(mapCameraFocusMoves(null, null)).toBe(false);
     expect(mapCameraFocusMoves(undefined, "area:1")).toBe(false);
@@ -90,14 +103,16 @@ describe("both camera owners name themselves", () => {
 
   it("stamps a source on every focus it mints", () => {
     expect(pubMap).toContain('source: "opening-location"');
-    expect(pubMap).toContain('source: "area"');
+    expect(nextAreaCameraFocus(null, { center: LONDON, zoom: 14 }).source).toBe(
+      "area",
+    );
   });
 
   it("keeps the area lane as the ONE deliberate move", () => {
     // moveMapCameraTo is the single door the choose-area pick, the Area
     // sheet's "go somewhere else" and a map-search select all go through.
     expect(pubMap).toContain("const moveMapCameraTo = useCallback(");
-    expect(pubMap).toContain("setAreaFocus((prev) => ({");
+    expect(pubMap).toContain("setAreaFocus((prev) => nextAreaCameraFocus(prev, camera));");
   });
 });
 

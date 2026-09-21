@@ -84,6 +84,114 @@ for (const viewport of [
   });
 }
 
+test("/map retries a transient production vector-source outage silently", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const warnings = collectPubmapWarnings(page);
+  let failedVectorRequests = 0;
+  await page.route(/tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/, async (route) => {
+    if (failedVectorRequests < 6) {
+      failedVectorRequests += 1;
+      await route.abort("failed");
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect.poll(() => failedVectorRequests, { timeout: 30_000 }).toBeGreaterThanOrEqual(6);
+  await page.waitForTimeout(16_000);
+  expect(
+    warnings.filter((line) => STYLE_RELOAD_WARNING.test(line)),
+    `no style reload for a transient vector outage: ${warnings.join(" | ")}`,
+  ).toEqual([]);
+  await expect(page.locator("body")).not.toContainText(BASEMAP_BANNER);
+});
+
+test("/map re-fetches failed vector tile identities without rebuilding the style", async ({ page }) => {
+  test.setTimeout(60_000);
+  const warnings = collectPubmapWarnings(page);
+  const failed = new Set<string>();
+  const recovered = new Set<string>();
+  let outage = false;
+  let targetPath = "";
+  let targetZoom = 0;
+  let styleRequests = 0;
+  await page.route(
+    /tiles\.openfreemap\.org\/styles\/|basemaps\.cartocdn\.com\/gl\/.*\/style\.json/,
+    async (route) => {
+      styleRequests += 1;
+      await route.fulfill({
+        json: {
+          version: 8,
+          sources: {
+            basemap: {
+              type: "vector",
+              tiles: ["https://tiles.openfreemap.org/planet/__retry/{z}/{x}/{y}.pbf"],
+            },
+          },
+          layers: [
+            { id: "background", type: "background", paint: { "background-color": "#111111" } },
+            { id: "water", type: "fill", source: "basemap", "source-layer": "water" },
+          ],
+        },
+      });
+    },
+  );
+  await page.route("**/planet/__retry/**/*.pbf*", async (route) => {
+    const key = new URL(route.request().url()).pathname;
+    if (outage && key === targetPath && !failed.has(key)) {
+      // Only the centre tile at the final zoom fails. Intermediate zoom and
+      // fallback-parent requests may be culled and are not outage evidence.
+      await expect.poll(() => page.evaluate(() => (
+        window as Window & { __pubmaxMapCamera?: { read: () => { moving: boolean; zoom: number } } }
+      ).__pubmaxMapCamera?.read())).toMatchObject({ moving: false, zoom: targetZoom });
+      failed.add(key);
+      await route.fulfill({ status: 503, body: "temporary vector outage" });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/x-protobuf",
+      body: Buffer.alloc(0),
+    });
+    if (failed.has(key)) recovered.add(key);
+  });
+  await page.goto("/map");
+  await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 30_000 });
+  // Phone pin readiness and a transient moveend do not mean the opening
+  // flight finished. Wait for London's final close view before zooming.
+  await expect.poll(() => page.evaluate(() => {
+    const camera = (window as Window & { __pubmaxMapCamera?: { read: () => { moving: boolean; zoom: number } } }).__pubmaxMapCamera?.read();
+    return !!camera && !camera.moving && camera.zoom >= 11;
+  })).toBe(true);
+  const camera = await page.evaluate(() => (
+    window as Window & { __pubmaxMapCamera: { read: () => { zoom: number; center: [number, number] } } }
+  ).__pubmaxMapCamera.read());
+  targetZoom = camera.zoom + 1;
+  const z = Math.floor(targetZoom);
+  const scale = 2 ** z;
+  const x = Math.floor((camera.center[0] + 180) / 360 * scale);
+  const latitude = camera.center[1] * Math.PI / 180;
+  const y = Math.floor((1 - Math.asinh(Math.tan(latitude)) / Math.PI) / 2 * scale);
+  targetPath = `/planet/__retry/${z}/${x}/${y}.pbf`;
+  const initialStyleRequests = styleRequests;
+  outage = true;
+  // One move requests fresh tiles. No later camera movement can rescue an
+  // errored tile: recovery must actually re-fetch those same identities.
+  await page.locator(".maplibregl-ctrl-zoom-in").evaluate((button: HTMLButtonElement) => button.click());
+  await expect.poll(() => failed.size).toBeGreaterThan(0);
+  await expect.poll(() => [...failed].filter((key) => !recovered.has(key)), { timeout: 15_000 }).toEqual([]);
+  expect(styleRequests).toBe(initialStyleRequests);
+  expect(warnings.filter((line) => STYLE_RELOAD_WARNING.test(line))).toEqual([]);
+  await expect(page.locator("body")).not.toContainText(BASEMAP_BANNER);
+});
+
 test("/map still says so when both style URLs refuse", async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 1440, height: 900 });

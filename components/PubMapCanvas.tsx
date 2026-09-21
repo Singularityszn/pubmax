@@ -179,12 +179,14 @@ import {
   classifyTileFailure,
   clearSilentTileRetries,
   createBasemapTileFailureTracker,
+  isBasemapSourceMetadataFailure,
   isCriticalBasemapFailure,
   isStyleResourceFailure,
   markSilentTileRetrySpent,
   markTileFailureSurfaced,
   markTileRetrySpent,
   pruneTileFailures,
+  TILE_SILENT_RETRY_MAX,
   releaseQueuedSilentTileRetry,
   silentTileRetriesLeft,
   silentTileRetryDelayMs,
@@ -1623,7 +1625,10 @@ export default function PubMapCanvas({
     let tileFailureRecheckTimer: ReturnType<typeof setTimeout> | undefined;
     let tileFailureRestRecheckArmed = false;
     let silentTileRetryTimer: ReturnType<typeof setTimeout> | undefined;
+    let silentRetryAwaitingPaint = false;
+    let silentSourceRetries = 0;
     const failedBasemapTiles = createBasemapTileFailureTracker();
+    const failedVectorTiles = new Map<string, Map<string, { x: number; y: number; z: number }>>();
     const clearTileFailureRecheck = () => {
       if (tileFailureRecheckTimer !== undefined) {
         clearTimeout(tileFailureRecheckTimer);
@@ -1640,9 +1645,11 @@ export default function PubMapCanvas({
       tileFailureGeneration += 1;
       clearTileFailureRecheck();
       clearSilentTileRetryTimer();
+      silentRetryAwaitingPaint = false;
       tileSpend = releaseQueuedSilentTileRetry(tileSpend);
       tileFailureStamps = [];
       failedBasemapTiles.reset();
+      failedVectorTiles.clear();
       basemapTileReadyForPaint = false;
     };
     // The silent lane: re-ask every tiled basemap SOURCE for its own tiles.
@@ -1654,12 +1661,18 @@ export default function PubMapCanvas({
     const reloadBasemapSources = () => {
       const sources = map.getStyle()?.sources;
       if (!sources) return;
+      silentSourceRetries += 1;
       // A silent retry is a FRESH attempt, so the stamps and the failed-tile
       // set it was decided from - both about the attempt that just failed -
       // go with it. The generation is NOT bumped: no style is being rebuilt.
       clearTileFailureRecheck();
       tileFailureStamps = [];
       failedBasemapTiles.reset();
+      // A source retry starts a fresh tile-paint attempt. Do not let a render
+      // frame from the previous generation hand the silent budget back before
+      // the newly requested vector/raster tiles answer.
+      basemapTileReadyForPaint = false;
+      silentRetryAwaitingPaint = true;
       for (const [sourceId, spec] of Object.entries(sources)) {
         if (appDataPackSourceId(sourceId)) continue;
         const plan = basemapSourceReloadPlan(spec);
@@ -1671,8 +1684,22 @@ export default function PubMapCanvas({
             }
           | undefined;
         try {
-          if (plan.kind === "tiles") source?.setTiles?.(plan.tiles);
-          else source?.setUrl?.(plan.url);
+          const failedTiles = failedVectorTiles.get(sourceId);
+          if (spec.type === "vector" && failedTiles?.size) {
+            // A source-wide reload marks an errored vector tile `loading`
+            // (`TileManager.reload`), and `VectorTileSource.loadTile` parks a
+            // tile in that state on a `reloadPromise` that the already-finished
+            // worker request will never resolve, so the tile stays a hole. The
+            // public targeted refresh expires those tiles instead, which takes
+            // the `loadTile` message path and really re-fetches them. Verified
+            // against maplibre-gl 6.10.0. Keeps the source, layers and pins.
+            map.refreshTiles(sourceId, [...failedTiles.values()]);
+            failedVectorTiles.delete(sourceId);
+          } else if (plan.kind === "tiles") {
+            source?.setTiles?.(plan.tiles);
+          } else {
+            source?.setUrl?.(plan.url);
+          }
         } catch {
           // A source mid-swap is a no-op here, not a failure worth surfacing.
         }
@@ -1769,6 +1796,7 @@ export default function PubMapCanvas({
     };
     const markBasemapRecovered = () => {
       markPinsRecovered();
+      if (silentRetryAwaitingPaint) return;
       if (
         !basemapRecoveryConfirmed({
           tilesLoaded: areBasemapTilesLoaded(),
@@ -1782,6 +1810,7 @@ export default function PubMapCanvas({
       }
       initialBasemapPending = false;
       tileFailureStamps = [];
+      silentSourceRetries = 0;
       clearSilentTileRetryTimer();
       tileSpend = clearSilentTileRetries({ ...tileSpend, surfaced: false });
       // MapLibre treats errored tiles as settled, so `areTilesLoaded()` cannot
@@ -1813,15 +1842,35 @@ export default function PubMapCanvas({
       ) {
         return;
       }
-      initialBasemapPending = false;
-      basemapTileReadyForPaint = true;
+      // OpenFreeMap ships a shaded-relief raster under `ne2_shaded` beside the
+      // vector `openmaptiles` source. A loaded relief tile is not the basemap
+      // the reader is waiting on, and clearing `initialBasemapPending` there
+      // downgrades a later TileJSON failure from critical to a lone stamp that
+      // never reaches the retry surface.
+      const primaryBasemapPainted =
+        dataEvent.source?.type === "vector" ||
+        ((dataEvent.source?.type === "raster" ||
+          dataEvent.source?.type === "raster-dem") &&
+          dataEvent.sourceId !== "ne2_shaded");
+      if (primaryBasemapPainted) {
+        initialBasemapPending = false;
+        basemapTileReadyForPaint = true;
+        silentRetryAwaitingPaint = false;
+      }
       const recoveredFailures = failedBasemapTiles.recordSuccess({
         sourceId: dataEvent.sourceId,
         sourceType: dataEvent.source?.type,
         tileKey: dataEvent.tile.tileID?.key,
       });
       if (failedBasemapTiles.hasFailures()) return;
-      if (!recoveredFailures && tileFailureRecheckTimer !== undefined) return;
+      if (
+        !recoveredFailures &&
+        (tileFailureRecheckTimer !== undefined ||
+          tileSpend.silentQueued ||
+          tileSpend.silentSpent > 0)
+      ) {
+        return;
+      }
       clearTileFailureRecheck();
       tileFailureStamps = [];
       markBasemapRecovered();
@@ -2181,6 +2230,7 @@ export default function PubMapCanvas({
     // CARTO's keyless styles; if that also fails, surface the same graceful
     // notice as a WebGL failure rather than a blank map.
     let styleLoaded = false;
+    let styleEverLoaded = false;
     let usingFallback = false;
     let sceneSettled = false;
     let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
@@ -2355,12 +2405,16 @@ export default function PubMapCanvas({
       tileSpend = markTileFailureSurfaced(tileSpend);
       sceneSettled = true;
       clearTimeout(hangFailTimer);
+      // `styleEverLoaded` is the historical fact: a replacement style that is
+      // mid-load must not tear down a canvas that already drew.
+      if (basemapFailureSurface(styleEverLoaded) === "toast") {
+        tileNoticeOwner = "errors";
+        pinNoticeActive = false;
+        clearPinRetryWait();
+        setSoftRetry(BASEMAP_RETRY_NOTICE);
+        return;
+      }
       queueMicrotask(() => {
-        if (basemapFailureSurface(styleLoaded) === "toast") {
-          tileNoticeOwner = "errors";
-          setSoftRetry(BASEMAP_RETRY_NOTICE);
-          return;
-        }
         reportMapError({
           kind: "tiles",
           message:
@@ -2444,6 +2498,7 @@ export default function PubMapCanvas({
       cancelDeferredWork();
       styleStructureReadyRef.current = true;
       styleLoaded = true;
+      styleEverLoaded = true;
       clearStyleLoadProtection();
       if (!protectedStyleInFlight) return;
       protectedStyleInFlight = false;
@@ -2519,6 +2574,7 @@ export default function PubMapCanvas({
       critical: boolean,
       message: string,
       mayRecheck: boolean,
+      metadataFailure = false,
     ) => {
       const decision = classifyTileFailure({
         now,
@@ -2535,6 +2591,7 @@ export default function PubMapCanvas({
         silentRetriesLeft: silentTileRetriesLeft(tileSpend),
         unrecoveredTileFailures: failedBasemapTiles.count(),
         styleResourceFailure: isStyleResourceFailure(message),
+        sourceMetadataFailure: metadataFailure,
         initialBasemapPending,
       });
       if (decision === "ignore") {
@@ -2562,9 +2619,10 @@ export default function PubMapCanvas({
             }
             evaluateTileFailure(
               performance.now(),
-              false,
+              critical || metadataFailure,
               message,
               document.visibilityState !== "hidden" && !map.isMoving(),
+              metadataFailure,
             );
           });
         }
@@ -2597,11 +2655,16 @@ export default function PubMapCanvas({
         }, Math.max(1, delay));
         return;
       }
+      // Tile recovery can outlast the scene-ready hang guard while the basemap
+      // is still legitimately pending. Let the tile lane finish before the
+      // timeout card blames a slow box for a source that is actively retrying.
+      clearTimeout(hangFailTimer);
       clearTileFailureRecheck();
       const spent = spendTileFailureDecision(tileSpend, decision);
       tileSpend = spent.state;
       if (spent.effect === "reload-source") {
         const generation = tileFailureGeneration;
+        silentRetryAwaitingPaint = true;
         clearSilentTileRetryTimer();
         silentTileRetryTimer = setTimeout(() => {
           silentTileRetryTimer = undefined;
@@ -2649,16 +2712,11 @@ export default function PubMapCanvas({
       );
     };
     map.on("error", (event) => {
-      if (!styleLoaded) {
-        swapToBasemapFallback();
-        return;
-      }
-      if (tileSpend.surfaced || mapRef.current !== map) return;
       const mapError = event as {
         error?: { message?: unknown };
         sourceId?: unknown;
         source?: { type?: unknown };
-        tile?: { tileID?: { key?: unknown } };
+        tile?: { tileID?: { key?: unknown; canonical?: { x: number; y: number; z: number } } };
       };
       const message = String(mapError.error?.message ?? "");
       // An app data pack answers to its own lane and leaves the tile-failure
@@ -2670,22 +2728,54 @@ export default function PubMapCanvas({
         recoverDataPack(dataPackSourceId, message);
         return;
       }
+      const sourceMetadataFailure = isBasemapSourceMetadataFailure({
+        message,
+        sourceType: mapError.source?.type,
+        tilePresent: mapError.tile !== undefined,
+      });
+      if (sourceMetadataFailure) {
+        clearStyleLoadProtection();
+      }
+      const critical =
+        isCriticalBasemapFailure({
+          message,
+          initialBasemapPending,
+          sourceType: mapError.source?.type,
+          tilePresent: mapError.tile !== undefined,
+        }) || sourceMetadataFailure;
+      const vectorRetriesExhausted =
+        mapError.source?.type === "vector" &&
+        mapError.tile !== undefined &&
+        (silentSourceRetries >= TILE_SILENT_RETRY_MAX || tileSpend.retrySpent);
+      if (!styleLoaded && !styleEverLoaded) {
+        swapToBasemapFallback();
+        return;
+      }
+      if (tileSpend.surfaced || mapRef.current !== map) return;
       const now = performance.now();
       tileFailureStamps = pruneTileFailures(tileFailureStamps, now);
       tileFailureStamps.push(now);
       const documentVisible = document.visibilityState !== "hidden";
       const cameraInFlight = map.isMoving();
-      const critical = isCriticalBasemapFailure({
-        message,
-        initialBasemapPending,
-        sourceType: mapError.source?.type,
-        tilePresent: mapError.tile !== undefined,
-      });
+      const vectorTileNetworkFailure =
+        mapError.source?.type === "vector" && mapError.tile !== undefined;
+      if (vectorRetriesExhausted && tileSpend.silentSpent < TILE_SILENT_RETRY_MAX) {
+        tileSpend = {
+          ...tileSpend,
+          silentQueued: false,
+          silentSpent: TILE_SILENT_RETRY_MAX,
+        };
+      }
       if (
         documentVisible &&
-        !cameraInFlight &&
-        !initialBasemapPending
+        (!cameraInFlight || vectorTileNetworkFailure)
       ) {
+        const canonical = mapError.tile?.tileID?.canonical;
+        if (vectorTileNetworkFailure && typeof mapError.sourceId === "string" && canonical) {
+          const tiles = failedVectorTiles.get(mapError.sourceId) ?? new Map();
+          tiles.set(`${canonical.z}/${canonical.x}/${canonical.y}`, canonical);
+          failedVectorTiles.set(mapError.sourceId, tiles);
+        }
         failedBasemapTiles.recordFailure({
           sourceId: mapError.sourceId,
           sourceType: mapError.source?.type,
@@ -2694,9 +2784,10 @@ export default function PubMapCanvas({
       }
       evaluateTileFailure(
         now,
-        critical,
+        critical || vectorRetriesExhausted,
         message,
         documentVisible && !cameraInFlight,
+        sourceMetadataFailure,
       );
     });
 

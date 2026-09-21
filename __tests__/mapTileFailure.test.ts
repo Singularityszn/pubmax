@@ -217,6 +217,42 @@ const bursting: TileFailureInput = {
 };
 
 describe("classifyTileFailure", () => {
+
+  it("surfaces source metadata failure immediately instead of silent retry", () => {
+    expect(
+      classifyTileFailure({
+        now: 0,
+        errorTimestamps: [0],
+        criticalFailure: true,
+        documentVisible: true,
+        cameraInFlight: false,
+        retrySpent: false,
+        recoveryBudgetLeft: 1,
+        silentRetriesLeft: 2,
+        styleResourceFailure: false,
+        sourceMetadataFailure: true,
+      }),
+    ).toBe("surface");
+  });
+
+  it("surfaces metadata failure even when initialBasemapPending already cleared", () => {
+    expect(
+      classifyTileFailure({
+        now: 0,
+        errorTimestamps: [0],
+        criticalFailure: true,
+        documentVisible: true,
+        cameraInFlight: false,
+        retrySpent: false,
+        recoveryBudgetLeft: 1,
+        silentRetriesLeft: 2,
+        styleResourceFailure: false,
+        sourceMetadataFailure: true,
+        initialBasemapPending: false,
+      }),
+    ).toBe("surface");
+  });
+
   it("spends the one retry on a sustained burst with budget left", () => {
     expect(classifyTileFailure(bursting)).toBe("retry");
   });
@@ -450,7 +486,7 @@ describe("basemapFailureSurface", () => {
     expect(basemapFailureSurface(false)).toBe("card");
   });
 
-  it("shows the toast only after a style actually loaded", () => {
+  it("keeps the toast when a previously loaded style is being replaced", () => {
     expect(basemapFailureSurface(true)).toBe("toast");
   });
 });

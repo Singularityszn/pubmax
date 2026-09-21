@@ -518,7 +518,10 @@ import {
   subscribeMapChosenArea,
   writeMapChosenArea,
 } from "@/lib/mapChosenArea";
-import type { MapCameraFocus } from "@/lib/mapCameraFocus";
+import {
+  nextAreaCameraFocus,
+  type MapCameraFocus,
+} from "@/lib/mapCameraFocus";
 import {
   dismissMapFirstVisitArrivalOnMapUse,
   shouldShowMapFirstVisitArrival,
@@ -1732,6 +1735,42 @@ export default function PubMap({
     () => mergeLazyDetailPins(slimPins, detailById),
     [slimPins, detailById],
   );
+
+  // A shared crawl may name cell-pack venues that are outside the opening
+  // viewport. Resolve those stops through the existing detail lane so the
+  // route is real on first paint instead of silently dropping unavailable
+  // rows while the spatial loader quite correctly stays viewport-scoped.
+  const seededRouteIds = seed.builtIds;
+  useEffect(() => {
+    const knownIds = new Set(baseVenues.map((venue) => venue.id));
+    const missingRouteIds = seededRouteIds.filter(
+      (id) => !knownIds.has(id) && !isUkBaseId(id),
+    );
+    if (missingRouteIds.length === 0) return;
+    let cancelled = false;
+    void Promise.all(missingRouteIds.map((id) => warmVenueDetail(id))).then(
+      (results) => {
+        if (cancelled) return;
+        const found = results.flatMap((result) =>
+          result.status === "found" ? [result.venue] : [],
+        );
+        if (found.length === 0) return;
+        setDetailById((current) => {
+          const next = new Map(current);
+          let changed = false;
+          for (const venue of found) {
+            if (next.get(venue.id) === venue) continue;
+            next.set(venue.id, venue);
+            changed = true;
+          }
+          return changed ? next : current;
+        });
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [baseVenues, seededRouteIds]);
 
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   // City-scoped so Manchester demo seeds colour Manchester pins without
@@ -4317,12 +4356,7 @@ export default function PubMap({
       setMapCameraTouched(true);
       cancelOpeningLocation();
       setOpeningLocationFocus(null);
-      setAreaFocus((prev) => ({
-        center: camera.center,
-        zoom: camera.zoom,
-        source: "area",
-        token: (prev?.token ?? 0) + 1,
-      }));
+      setAreaFocus((prev) => nextAreaCameraFocus(prev, camera));
     },
     [cancelOpeningLocation],
   );
@@ -6132,7 +6166,7 @@ export default function PubMap({
         onListOpenChange={setMapListOpen}
         listCount={mapVenueListModel.total + ukBasePubListModel.total}
         onSoftRetryChange={setMapSoftRetryActive}
-        focusPoint={openingLocationFocus ?? areaFocus}
+        focusPoint={areaFocus ?? openingLocationFocus}
         onViewportChange={setMapViewport}
         onReaderTouchedMap={dismissMapFirstVisitArrivalOnMapUse}
         onUserCameraMove={dismissAmbientBanners}
