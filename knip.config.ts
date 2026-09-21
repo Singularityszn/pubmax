@@ -1,9 +1,9 @@
 // KNIP IS THE DEAD-CODE GATE: UNREAD FILES, UNREAD EXPORTS, UNREAD DEPENDENCIES.
 //
-// `npm run deadcode` runs every issue type at "error" bar `duplicates` (a
-// judgement, so a warning) and `unresolved` (knip cannot see a runtime
-// require). `verify` runs it after `typecheck` and
-// `__tests__/qualityGateWiring.test.ts` holds it there.
+// `npm run deadcode` runs scripts/deadcode-gate.mjs: same knip, then on a
+// branch subtracts findings origin/main already has. `npm run deadcode:all`
+// is the unfiltered run. `verify` runs deadcode after `typecheck` and
+// `__tests__/qualityGateWiring.test.ts` holds both scripts.
 //
 // This is `.ts` rather than `.json` so the agent-tooling ignore list is READ
 // from lib/agentToolingPaths.mjs rather than being a second hand-written copy
