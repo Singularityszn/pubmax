@@ -40,8 +40,14 @@
  * - Only once the silent lane is spent does the first systemic verdict earn
  *   one style reload, IF the shared recovery budget (paint watchdog cap) still
  *   has room.
- * - After that single retry, a fresh systemic verdict surfaces the error
- *   card. Never a second retry loop, never a silent black canvas.
+ * - After that single retry, a fresh systemic verdict on the SAME source URL
+ *   and viewport tile surfaces the error card. A new source URL or a camera
+ *   move onto new tiles is a new cycle and is owed the ladder again. Never a
+ *   second retry loop on one cycle, never a silent black canvas.
+ * - Tile recovery may cancel the scene hang guard so a legitimate retry is
+ *   not blamed as a stuck box. Cancelling without re-arming leaves a stalled
+ *   recovery with no hang notice; re-arm once a reload-source or reload-style
+ *   attempt begins, while the scene is still pending.
  */
 
 /** Sliding window for counting tile errors toward a burst (ms). */
@@ -264,7 +270,10 @@ export type TileFailureInput = {
    * are expected catch-up, not failure; never act on them.
    */
   cameraInFlight: boolean;
-  /** The one bounded tile retry has already been spent this mount. */
+  /**
+   * The one bounded tile retry has already been spent on this source-URL-and-
+   * viewport cycle. A new cycle (caller-scoped) arrives here as false.
+   */
   retrySpent: boolean;
   /**
    * Silent source reloads still available. Zero means the invisible lane is
@@ -541,6 +550,128 @@ export function markTileFailureSurfaced(
   state: TileFailureSpendState,
 ): TileFailureSpendState {
   return { ...state, surfaced: true };
+}
+
+/**
+ * Tiled basemap source identity, read off the serialized style sources the
+ * same way `basemapSourceReloadPlan` does. GeoJSON overlays and sources with
+ * no tile list or TileJSON url contribute nothing. Empty means the style is
+ * mid-swap and the cycle must not change.
+ */
+export function basemapSourceIdentity(
+  sources: Record<string, unknown> | null | undefined,
+): string {
+  if (!sources) return "";
+  const parts: string[] = [];
+  for (const [id, spec] of Object.entries(sources)) {
+    const plan = basemapSourceReloadPlan(spec);
+    if (!plan) continue;
+    parts.push(
+      plan.kind === "url" ? `${id}:${plan.url}` : `${id}:${plan.tiles.join(",")}`,
+    );
+  }
+  return parts.sort().join("|");
+}
+
+/**
+ * Integer zoom plus the Web Mercator tile that currently holds the viewport
+ * centre. A pan that stays inside that tile is the same cycle; a pan onto a
+ * new tile, or a zoom that changes z, is a new one. Read-only: this never
+ * moves the camera.
+ */
+export function viewportTileKey(
+  center: { lng: number; lat: number },
+  zoom: number,
+): string {
+  const z = Math.max(0, Math.floor(zoom));
+  const n = 2 ** z;
+  const wrappedX = ((center.lng + 180) / 360) * n;
+  const x = Math.floor(((wrappedX % n) + n) % n);
+  const lat = Math.min(85.05112878, Math.max(-85.05112878, center.lat));
+  const latRad = (lat * Math.PI) / 180;
+  const yUnclamped = Math.floor(
+    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n,
+  );
+  const y = Math.min(n - 1, Math.max(0, yUnclamped));
+  return `${z}/${x}/${y}`;
+}
+
+/** Source-URL-and-viewport identity for one tile-retry cycle, or null when unknown. */
+export function tileRetryCycleIdentity(
+  sourceIdentity: string,
+  viewportIdentity: string,
+): string | null {
+  if (!sourceIdentity || !viewportIdentity) return null;
+  return `${sourceIdentity}@${viewportIdentity}`;
+}
+
+/**
+ * Whether the mount's spent style reload still applies to this sample.
+ * Unknown identity (style mid-swap) keeps the latch so a half-built style
+ * cannot mint a second reload. A different cycle does not.
+ */
+export function retrySpentOnThisCycle({
+  retrySpent,
+  spentCycleIdentity,
+  currentCycleIdentity,
+}: {
+  retrySpent: boolean;
+  spentCycleIdentity: string | null;
+  currentCycleIdentity: string | null;
+}): boolean {
+  if (!retrySpent) return false;
+  if (currentCycleIdentity === null || spentCycleIdentity === null) {
+    return true;
+  }
+  return spentCycleIdentity === currentCycleIdentity;
+}
+
+/** Drop the spent style-reload latch so a new cycle can climb the ladder. */
+export function releaseTileRetryForNewCycle(
+  state: TileFailureSpendState,
+): TileFailureSpendState {
+  return {
+    ...state,
+    silentQueued: false,
+    silentSpent: 0,
+    retryQueued: false,
+    retrySpent: false,
+  };
+}
+
+/**
+ * A basemap that really painted ends the cycle. Silent budget, style-reload
+ * latch and the surfaced flag all go back, so the next outage is met by the
+ * invisible lane rather than by a leftover toast.
+ */
+export function endTileRetryCycle(
+  state: TileFailureSpendState,
+): TileFailureSpendState {
+  return {
+    ...clearSilentTileRetries(state),
+    retryQueued: false,
+    retrySpent: false,
+    surfaced: false,
+  };
+}
+
+/**
+ * Tile recovery cancelled the scene hang guard so a legitimate retry was not
+ * blamed as a stuck box. Re-arm only when a recovery attempt actually begins
+ * and the scene has not yet settled; a stall after that still owes the hang
+ * notice. A later sample whose effect is `none` must not touch the timer.
+ */
+export function shouldRearmSceneHangGuard({
+  sceneSettled,
+  recoveryEffect,
+}: {
+  sceneSettled: boolean;
+  recoveryEffect: TileFailureSpendEffect;
+}): boolean {
+  return (
+    !sceneSettled &&
+    (recoveryEffect === "reload-source" || recoveryEffect === "reload-style")
+  );
 }
 
 /**
