@@ -55,6 +55,7 @@ import { estimateBaselines } from "@/lib/priceEstimateBaselines";
 import {
   bundleRowSupersedes,
   isValidUkPriceBundleRow,
+  ukPriceBundleCollectKey,
   UK_PRICE_BUNDLE_VERSION,
 } from "@/lib/ukPriceBundle";
 import { stableVenueIdFromKey } from "@/lib/venues";
@@ -164,7 +165,7 @@ function collectRows(report) {
       report.droppedInvalidRow += 1;
       return;
     }
-    const key = `${row.venueId} ${row.category} ${row.lane}`;
+    const key = ukPriceBundleCollectKey(row);
     if (!bundleRowSupersedes(row, held.get(key))) return;
     held.set(key, row);
   };
