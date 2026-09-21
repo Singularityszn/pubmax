@@ -227,6 +227,9 @@ async function main() {
     maxQueries: args.maxQueries,
     startIndex: base.nextIndex,
     observedAt: new Date().toISOString(),
+    // One slow or empty Tavily answer is a fact about that pub, not a reason to
+    // throw away the rest of the run's query budget (same posture as the cron).
+    onVenueError: () => "continue",
     onProgress: (progress) => {
       if (!args.dryRun) {
         atomicWriteJson(
