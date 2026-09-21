@@ -55,6 +55,27 @@ them, and latency as the span duration. `metadata` never carries a request
 URL, an IP, a handle or an account id: the tag is a static string chosen at
 the call site.
 
+### The OpenAI SDK instrumentation
+
+`registerArizeTracing` also hands `registerOTel` an `OpenAIInstrumentation`
+from `@arizeai/openinference-instrumentation-openai`, on the same keyed path
+and never on the keyless one, so its spans join the provider, the
+OpenInference filter and the masking exporter the rest of this module uses.
+
+It patches the `openai` npm SDK on require. **No module in this app imports
+that SDK today**: every model call is a raw `fetch` (OpenRouter in the ask
+loop, heritage and concierge; `https://api.openai.com/v1/moderations` in the
+two moderation adapters), so the instrumentation currently emits nothing and
+the `openai` dependency exists only so the patch target resolves. It is here
+for the first call site that does adopt the SDK. Do not read the table above
+as covering OpenAI SDK calls until one exists.
+
+When one does: its spans carry the SDK's own prompt and completion values.
+They are masked for emails and handles by `MaskingSpanExporter`, like AI SDK
+spans, and like AI SDK spans they are NOT capped at 2048 characters, because
+this module does not write them. Cap or hide them with the instrumentation's
+`traceConfig` at that point, not after the first export.
+
 ## What is never sent
 
 - **Prompts and completions are masked before export.** Emails become
