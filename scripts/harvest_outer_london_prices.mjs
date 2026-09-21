@@ -31,14 +31,14 @@
  * Requires EXA_API_KEY and TAVILY_API_KEY in the environment (never commit them).
  *
  * Usage:
- *   node scripts/harvest_outer_london_prices.mjs \
+ *   npx tsx scripts/harvest_outer_london_prices.mjs \
  *     [--limit N] [--budget N] [--dry-run]
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CATEGORY_PRICE_BANDS, pageStatesADrinksList } from "../lib/harvest/ukPriceCrawl.ts";
+import { CATEGORY_PRICE_BANDS } from "./harvest/uk-prices/readPrices.mjs";
 import { extractVenueDrinkPricesMaybeJudged } from "./lib/tavilyPubEnrichment.mjs";
 import {
   assertProviderCredentials,
@@ -164,11 +164,10 @@ async function scrape(url, pubName) {
     pageUrl: url,
     pubName,
   });
-  const onList = pageStatesADrinksList(reading);
   return {
     ...page,
     json: {
-      drinks: onList ? drinks : [],
+      drinks,
       reading,
     },
   };

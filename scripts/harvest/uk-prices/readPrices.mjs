@@ -10,7 +10,13 @@ import {
   extractVenueDrinkPrices,
   venueDrinkPricesFromUkReading,
 } from "../../../lib/harvest/tavilyVenueDrinkPrices.ts";
-import { readVenueDrinkPrices } from "../../../lib/harvest/ukPriceCrawl.ts";
+import {
+  CATEGORY_PRICE_BANDS,
+  pageStatesADrinksList,
+  readVenueDrinkPrices,
+} from "../../../lib/harvest/ukPriceCrawl.ts";
+
+export { CATEGORY_PRICE_BANDS };
 import { readVenueDrinkPricesJudged } from "../../../lib/harvest/ukPriceJudgment.server.ts";
 
 export function typesafeKeyConfigured() {
@@ -42,17 +48,21 @@ export async function extractPintPricesForHarvest(markdown, ctx) {
 }
 
 export async function extractVenueDrinkPricesForHarvest(markdown, ctx) {
+  let reading;
+  let review;
+  let drinks;
   if (!typesafeKeyConfigured()) {
-    return {
-      drinks: extractVenueDrinkPrices(markdown),
-      reading: readVenueDrinkPrices(markdown),
-      review: [],
-    };
+    reading = readVenueDrinkPrices(markdown);
+    drinks = extractVenueDrinkPrices(markdown);
+    review = [];
+  } else {
+    const judged = await readVenueDrinkPricesForHarvest(markdown, ctx);
+    reading = judged.reading;
+    review = judged.review;
+    drinks = venueDrinkPricesFromUkReading(reading, markdown);
   }
-  const { reading, review } = await readVenueDrinkPricesForHarvest(markdown, ctx);
-  return {
-    drinks: venueDrinkPricesFromUkReading(reading, markdown),
-    reading,
-    review,
-  };
+  if (!pageStatesADrinksList(reading)) {
+    drinks = [];
+  }
+  return { drinks, reading, review };
 }
