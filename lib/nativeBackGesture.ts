@@ -84,7 +84,10 @@ export function decideBackAction(context: BackContext): BackAction {
 export function dispatchDismissKey(target: Window = window): boolean {
   try {
     const event = escapeKeyEvent();
-    target.dispatchEvent(event);
+    // Start where a physical key would, so document and window handlers share
+    // the same bubbling event and a child can claim it before its parent.
+    const origin = target.document?.activeElement ?? target.document ?? target;
+    origin.dispatchEvent(event);
     return event.defaultPrevented;
   } catch {
     // Nothing dispatchable. Fall through to history, which is the safer
