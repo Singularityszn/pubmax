@@ -291,7 +291,7 @@ export function drinkLabelFromPriceContext(
     const last = priorPrices[priorPrices.length - 1];
     start = (last.index ?? 0) + last[0].length;
   }
-  for (const sep of [". ", "; ", " | ", "| ", " — ", " - "]) {
+  for (const sep of [". ", "; ", " | ", "| ", " - ", " - "]) {
     const at = before.lastIndexOf(sep, priceAt);
     if (at >= start) start = at + sep.length;
   }
