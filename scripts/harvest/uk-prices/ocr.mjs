@@ -477,12 +477,14 @@ export function rowsFromReadings(entry, readings, observedAt) {
   const byCategory = new Map();
   for (const { url, cheapest, linesOnPage } of priced) {
     for (const row of cheapest) {
-      const seen = byCategory.get(row.category);
+      const key = `${row.category}\0${(row.drinkLabel ?? "").trim().toLowerCase()}`;
+      const seen = byCategory.get(key);
       if (!seen || row.priceGbp < seen.priceGbp) {
-        byCategory.set(row.category, {
+        byCategory.set(key, {
           url,
           category: row.category,
           priceGbp: row.priceGbp,
+          drinkLabel: row.drinkLabel,
           linesOnPage,
         });
       }
@@ -515,6 +517,7 @@ export function rowsFromReadings(entry, readings, observedAt) {
         lng: pub.lng,
         category: row.category,
         priceGbp: row.priceGbp,
+        ...(row.drinkLabel ? { drinkLabel: row.drinkLabel } : {}),
         sourceUrl: row.url,
         observedAt,
         pubsOnHost: entry.pubs.length,

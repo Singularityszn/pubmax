@@ -14,6 +14,7 @@ import {
 } from "@/lib/harvest/ukPriceJudgmentPolicy";
 import {
   decideKeylessUkPriceCandidate,
+  drinkLabelFromPriceContext,
   findUkPriceCandidates,
   pageText,
   readVenueDrinkPrices,
@@ -168,12 +169,19 @@ function applyJudgmentToCandidate(
     return { drops: [decision.drop ?? "judgment-below-threshold"] };
   }
   if (decision.category) {
+    const drinkLabel =
+      drinkLabelFromPriceContext(
+        raw.snippet,
+        raw.verbatim,
+        raw.at - Math.max(0, raw.at - UK_PRICE_JUDGMENT_SNIPPET_CHARS),
+      ) ?? undefined;
     return {
       kept: {
         priceGbp: raw.priceGbp,
         category: decision.category,
         verbatim: raw.verbatim,
         context: raw.snippet,
+        drinkLabel,
       },
       drops: [],
     };

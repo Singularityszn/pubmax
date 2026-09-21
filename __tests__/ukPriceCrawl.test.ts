@@ -13,6 +13,7 @@ import {
   EMPTY_RENDER_MAX_CHARS,
   MIN_PRICED_LINES_FOR_LIST,
   UK_PRICE_DROP_REASONS,
+  drinkLabelFromPriceContext,
   categoryFor,
   cheapestPerCategory,
   isLikelyMenuUrl,
@@ -45,10 +46,32 @@ describe("what a page states", () => {
   it("keeps a stated price per drink and names its category", () => {
     const reading = readVenueDrinkPrices(drinksList);
     expect(cheapestPerCategory(reading)).toEqual([
-      { category: "beer", priceGbp: 6.2 },
-      { category: "gin", priceGbp: 8 },
-      { category: "wine", priceGbp: 7.5 },
+      { category: "beer", priceGbp: 6.2, drinkLabel: "Draught Madri pint" },
+      { category: "beer", priceGbp: 6.4, drinkLabel: "Guinness pint" },
+      { category: "beer", priceGbp: 6.8, drinkLabel: "Neck Oil pint" },
+      { category: "gin", priceGbp: 8, drinkLabel: "Gordon's gin and tonic" },
+      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine 175ml" },
     ]);
+  });
+
+
+  it("keeps separate soft-drink labels for subtype-priced views", () => {
+    const softDrinksList = `
+<html><body>
+  <p>Coke Zero &pound;2.50</p>
+  <p>Diet Coke &pound;2.50</p>
+  <p>Still water &pound;1.80</p>
+  <p>Orange juice &pound;3.20</p>
+</body></html>`;
+    const reading = readVenueDrinkPrices(softDrinksList);
+    const priced = cheapestPerCategory(reading);
+    expect(priced.filter((row) => row.category === "soft-drink")).toEqual([
+      { category: "soft-drink", priceGbp: 2.5, drinkLabel: "Coke Zero" },
+      { category: "soft-drink", priceGbp: 2.5, drinkLabel: "Diet Coke" },
+      { category: "soft-drink", priceGbp: 3.2, drinkLabel: "Orange juice" },
+      { category: "soft-drink", priceGbp: 1.8, drinkLabel: "Still water" },
+    ]);
+    expect(drinkLabelFromPriceContext("Coke Zero £2.50", "£2.50")).toBe("Coke Zero");
   });
 
   it("answers one finding rather than an empty list when the page states no figure", () => {
