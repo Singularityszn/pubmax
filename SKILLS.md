@@ -19,11 +19,12 @@ may have different instructions.
 | Reproduce a defect | `diagnosing-bugs`, `reproduce-and-fix-issues` |
 | Define ownership and types | `domain-modeling`, `codebase-design`, `typescript-best-practices`, `typed-service-contracts` |
 | Implement and prove behaviour | `tdd`, `test-unit`, `test-playwright`, `test-qa` |
-| React and Next.js | `react-best-practices`, `debug-fe-be-integration` |
-| MapLibre | `maplibre-source-wiring`, `maplibre-tile-sources`, `maplibre-terrain-rendering` |
-| Supabase and persistence | `backend-db-performance`, `plan-rls-audit`; shared `supabase-postgres-best-practices` |
+| React and Next.js | `react-best-practices`, `debug-fe-be-integration`; shared `vercel-react-best-practices` |
+| MapLibre | `maplibre-source-wiring`, `maplibre-tile-sources`, `maplibre-terrain-rendering`, `maplibre-pmtiles-patterns`, `maplibre-cartography`, `maplibre-fonts-glyphs` |
+| Supabase and persistence | `backend-db-performance`, `plan-rls-audit`; shared `supabase`, `supabase-postgres-best-practices` |
 | Capacitor | `debugging-capacitor`, `plan-capacitor-hardening`, `mobile-emulator-test` |
-| Product design | `design-system`, `enhance-web-ui`, `enhance-web-ux`; follow the project design and voice docs |
+| Product design | `design-system`, `enhance-web-ui`, `enhance-web-ux`; shared `frontend-design`, `web-design-guidelines`; follow the project design and voice docs |
+| Browser QA | `test-playwright`, `test-qa`, `playwright-cli`; shared `agent-browser` |
 | Review and ship | `code-review`, `no-mistakes`, `new-branch-and-pr`; follow the build methodology's review loop |
 | Research current practices | `last30days`; report source failures and verify technical claims against first-party docs |
 | AI judgments | `typesafe-ai`, `typed-service-contracts`, `plan-llm-cost-guardrails` |
