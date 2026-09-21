@@ -263,6 +263,8 @@ vocabularies. The column here is the question the event exists to answer.
 | `price_submitted` | A price landed. The product's core action. |
 | `price_submit_outcome` | What that price turned out to be worth: trusted, still one voice, or kept on the page. |
 | `price_submit_failed` | Why a price did not land. |
+| `soft_drinks_water_view_opened` | The Soft drinks and water view opened, with which subtype chip was active. |
+| `soft_drinks_water_price_submitted` | A drinker opened the log door from that view for a subtype. |
 | `price_impact_opened` | A credited submitter opened their own impact. |
 | `contribution_gate` | Where identity added friction, and which step. |
 | `mission_viewed` | A ranked price mission was shown. |

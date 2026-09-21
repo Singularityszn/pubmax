@@ -67,6 +67,7 @@ const HEAVY_HREF_HELPERS: ReadonlySet<string> = new Set([
   "boroughCoverageMapHref",
   "boroughMapUrl",
   "buildCrawlMapHref",
+  "drinkSubtypePricedMapHref",
   "cityAwareMapPath",
   "curatedCrawlMapHref",
   "exploreHref",

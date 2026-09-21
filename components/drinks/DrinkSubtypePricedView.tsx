@@ -157,6 +157,7 @@ export default function DrinkSubtypePricedView({
                         No price yet,{" "}
                         <Link
                           href={logHref}
+                          prefetch={false}
                           onClick={() =>
                             trackEvent("soft_drinks_water_price_submitted", {
                               subtype: activeSubtypeId,
