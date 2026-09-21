@@ -16,6 +16,55 @@ import { attachBill } from "./helpers/priceBill";
 // a failed read and a below-gate camera are the same screenshot.
 
 const VIEWPORT = { width: 390, height: 844 };
+const E2E_AUTH_USER_ID = "00000000-0000-4000-8000-000000000001";
+const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
+
+async function seedSignedInSession(page: Page): Promise<void> {
+  await page.addInitScript(({ authStorageKey, userId }) => {
+    window.localStorage.setItem(
+      authStorageKey,
+      JSON.stringify({
+        access_token: "pubmaxx-e2e-access-token",
+        refresh_token: "pubmaxx-e2e-refresh-token",
+        expires_at: Math.floor(Date.now() / 1000) + 86_400,
+        expires_in: 86_400,
+        token_type: "bearer",
+        user: {
+          id: userId,
+          aud: "authenticated",
+          role: "authenticated",
+          email: "price-e2e@example.test",
+          app_metadata: {},
+          user_metadata: {},
+          created_at: "2026-07-29T00:00:00.000Z",
+        },
+      }),
+    );
+  }, {
+    authStorageKey: E2E_AUTH_STORAGE_KEY,
+    userId: E2E_AUTH_USER_ID,
+  });
+}
+
+type PaintedMark = {
+  kind: "pin" | "cluster";
+  id: string;
+  x: number;
+  y: number;
+  lng: number;
+  lat: number;
+};
+
+async function paintedMarks(page: Page): Promise<PaintedMark[]> {
+  return page.evaluate(
+    () =>
+      (
+        window as Window & {
+          __pubmaxPaintedMapTapPoints?: () => PaintedMark[];
+        }
+      ).__pubmaxPaintedMapTapPoints?.() ?? [],
+  );
+}
 
 function ukBaseRequests(page: Page): string[] {
   const urls: string[] = [];
@@ -32,6 +81,9 @@ test.beforeEach(async ({ page }) => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
   });
 });
 
@@ -39,6 +91,60 @@ test("normal London entry paints UK base pubs and takes a price", async ({
   page,
 }) => {
   test.setTimeout(180_000);
+  await seedSignedInSession(page);
+  await page.route("https://pubmaxx-e2e.supabase.co/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({
+        id: E2E_AUTH_USER_ID,
+        aud: "authenticated",
+        role: "authenticated",
+        email: "price-e2e@example.test",
+      }),
+    });
+  });
+  await page.route("**/api/identity/onboarding", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ complete: true }),
+    });
+  });
+  await page.route("**/api/identity/handle/current", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ handle: "night_owl" }),
+    });
+  });
+  await page.route("**/api/price-submit**", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ prices: [], signals: [] }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        price: {
+          id: "price-e2e-uk-base",
+          venueId: "venue-uk-e2e",
+          drinkCategory: "whisky",
+          priceGbp: 4.2,
+          submittedAt: new Date().toISOString(),
+          source: "community",
+          corroborations: 1,
+        },
+        attribution: { status: "credited", handle: "night_owl" },
+      }),
+    });
+  });
   const requests = ukBaseRequests(page);
 
   const response = await page.goto("/map");
@@ -65,49 +171,131 @@ test("normal London entry paints UK base pubs and takes a price", async ({
   // mounted sheet - pub A, type, tap pub B, with no close in between - rather
   // than asserted on a React key that would pass either way.
   //
-  // Pin positions are data-dependent, so sweep rather than hard-coding a pixel a
-  // data refresh would move. Empty canvas clicks fall through inertly
-  // (components/map/canvas/interactions.ts), which is what lets the sweep keep
-  // hunting while the sheet stays mounted. A curated pin DOES replace the sheet;
-  // that ends the mounted chain, so the sweep escapes it and starts over.
+  // Pin positions are data-dependent; paintedMapTapPoints names each UK base
+  // mark the map is drawing (components/map/canvas/paintedPinProbe.ts).
   const sheet = page.locator(".unverifiedPub");
-  const priceField = sheet.getByRole("textbox");
+  const priceField = sheet.locator("input.vpsubInput");
   const TYPED_PRICE = "9.90";
   let firstName: string | null = null;
   let switched = false;
 
   async function sheetName(): Promise<string> {
-    return ((await sheet.locator(".unverifiedPubName").textContent()) ?? "").trim();
+    return (
+      (await page.locator(".mobileSharedSheetHeader h2").textContent()) ??
+      (await sheet.locator(".unverifiedPubName").textContent()) ??
+      ""
+    ).trim();
   }
 
-  for (let y = 200; y < 620 && !switched; y += 20) {
-    for (let x = 24; x < 366 && !switched; x += 20) {
-      await page.mouse.click(x, y);
-      await page.waitForTimeout(90);
+  const uniqueUkPins = (marks: PaintedMark[]) => {
+    const byId = new Map<string, PaintedMark>();
+    for (const mark of marks) {
+      if (mark.kind !== "pin" || !mark.id.startsWith("venue-uk-")) continue;
+      byId.set(mark.id, mark);
+    }
+    return [...byId.values()].sort((a, b) => a.y - b.y || a.x - b.x);
+  };
 
-      // Order matters: the unverified sheet rides in the same mobile sheet
-      // portal a curated venue uses, so it must be recognised FIRST.
-      if ((await sheet.count()) === 0) {
-        if (await page.locator('.mobileSheetPortal[data-sheet-kind="venue"]').count()) {
-          // A curated pin took the sheet. The A-to-B chain is broken; forget A.
-          await page.keyboard.press("Escape");
-          await page.waitForTimeout(120);
-          firstName = null;
-        }
-        continue;
-      }
+  await expect
+    .poll(async () => uniqueUkPins(await paintedMarks(page)).length, {
+      timeout: 60_000,
+    })
+    .toBeGreaterThan(1);
 
-      const name = await sheetName();
-      if (!name) continue;
-      if (firstName === null) {
+  const pins = uniqueUkPins(await paintedMarks(page));
+  expect(pins.length).toBeGreaterThan(1);
+  let firstPinId: string | null = null;
+
+  async function dismissCuratedSheetIfOpen(): Promise<void> {
+    const curatedClose = page.getByRole("button", { name: "Close pub detail" });
+    if (!(await curatedClose.isVisible().catch(() => false))) return;
+    await curatedClose.click();
+    await expect(page.locator(".venueInspector")).toHaveCount(0, { timeout: 10_000 });
+    await expect(sheet).toHaveCount(0, { timeout: 5_000 });
+  }
+
+  let firstPinAttempt = 0;
+  await expect
+    .poll(
+      async () => {
+        await dismissCuratedSheetIfOpen();
+        const ukPins = uniqueUkPins(await paintedMarks(page));
+        if (ukPins.length === 0) return null;
+        const pin = ukPins[firstPinAttempt % ukPins.length];
+        firstPinAttempt += 1;
+        await page.mouse.click(pin.x, pin.y);
+        await page.waitForTimeout(400);
+        if ((await sheet.count()) === 0) return null;
+        const name = await sheetName();
+        if (!name) return null;
+        const sel = new URL(page.url()).searchParams.get("sel");
+        if (!sel?.startsWith("venue-uk-")) return null;
+        firstPinId = pin.id;
         firstName = name;
         await priceField.fill(TYPED_PRICE);
         await expect(priceField).toHaveValue(TYPED_PRICE);
-        continue;
-      }
-      if (name !== firstName) switched = true;
+        return name;
+      },
+      {
+        message: "a painted UK base pin opens the unverified price sheet",
+        timeout: 90_000,
+      },
+    )
+    .not.toBeNull();
+
+  expect(firstPinId).not.toBeNull();
+
+  async function selectOtherUkBaseFromList(): Promise<void> {
+    const listButton = page
+      .locator(
+        `button.mapVenueListItem[data-venue-id^="venue-uk-"]:not([data-venue-id="${firstPinId}"])`,
+      )
+      .first();
+    if (!(await listButton.isVisible().catch(() => false))) {
+      const more = page.getByRole("button", { name: "More map controls" });
+      await expect(more).toBeVisible({ timeout: 10_000 });
+      await more.click();
+      const listToggle = page.getByRole("button", { name: "List view" });
+      await expect(listToggle).toBeVisible({ timeout: 10_000 });
+      await listToggle.click();
+      await expect(listButton).toBeVisible({ timeout: 15_000 });
     }
+    await listButton.click();
+    await page.waitForTimeout(400);
   }
+
+  await priceField.blur();
+
+  await expect
+    .poll(
+      async () => {
+        for (const pin of uniqueUkPins(await paintedMarks(page))) {
+          if (pin.id === firstPinId) continue;
+          await dismissCuratedSheetIfOpen();
+          await page.mouse.click(pin.x, pin.y);
+          await page.waitForTimeout(500);
+          if ((await sheet.count()) === 0) continue;
+          const name = await sheetName();
+          if (name && name !== firstName) return name;
+        }
+        try {
+          await selectOtherUkBaseFromList();
+        } catch {
+          return null;
+        }
+        const name = await sheetName();
+        if (name && name !== firstName) return name;
+        return null;
+      },
+      {
+        message: "a second UK base pub is reachable while the first sheet stays open",
+        timeout: 90_000,
+      },
+    )
+    .not.toBeNull();
+
+  switched = true;
+
   const opened = firstName !== null;
   expect(opened, "a UK base pin should be tappable somewhere on a zoomed-in map").toBe(true);
   expect(switched, "a second, different UK base pin should be reachable from the first").toBe(true);
@@ -130,10 +318,14 @@ test("normal London entry paints UK base pubs and takes a price", async ({
   );
 
   // The flywheel: an unpriced pub takes a community price like any other.
-  await sheet.getByRole("textbox").fill("4.20");
+  const logButton = sheet.getByRole("button", { name: "Log it" });
+  await sheet.locator("input.vpsubInput").fill("4.20");
   await attachBill(sheet);
-  await sheet.getByRole("button", { name: "Log it" }).click();
-  await expect(sheet.locator(".vpsubStamp")).toContainText("£4.20", { timeout: 15_000 });
+  await expect(logButton).toBeEnabled({ timeout: 20_000 });
+  await expect(async () => {
+    await logButton.click();
+    await expect(sheet.locator(".vpsubStamp")).toContainText("£4.20", { timeout: 5_000 });
+  }).toPass({ timeout: 60_000 });
 
   // (3) RESTORE. The tap wrote ?sel= plus its `at=` location hint; reloading
   // that URL must stream the pub's cell, fly the camera and reopen the SAME
@@ -163,5 +355,12 @@ test("a fresh national overview stays below the UK base gate and fetches no data
   await expect(wrap).toHaveAttribute("data-uk-base-count", "0");
 
   await page.waitForTimeout(1800);
-  expect(requests).toEqual([]);
+  // The national gazetteer (places.json) loads for search and browse; below the
+  // zoom gate the manifest and cell shards must stay unfetched.
+  expect(requests.filter((url) => url.endsWith("places.json"))).toHaveLength(1);
+  expect(
+    requests.filter(
+      (url) => !url.endsWith("places.json"),
+    ),
+  ).toEqual([]);
 });

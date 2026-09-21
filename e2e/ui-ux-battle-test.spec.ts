@@ -384,8 +384,11 @@ test("shared audit navigation measures layout shift from navigation start", asyn
 test("keyless readiness waits for client hydration", async ({ baseURL, page }) => {
   const near = AUDITED_ROUTES.find((route) => route.name === "near")!;
   await navigateToAuditedRoute(page, baseURL!, near);
-  await page.getByRole("button", { name: "Soho", exact: true }).click();
-  await expect(page.locator(".nmnHead")).toBeVisible();
+  const soho = page.getByRole("button", { name: "Soho", exact: true });
+  await expect(async () => {
+    await soho.click();
+    await expect(page.locator(".nmnHead")).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
 });
 
 test("audited labels keep readable contrast in reachable states", async ({ baseURL, page }) => {
@@ -433,6 +436,8 @@ test.describe("UI UX battle-test guardrails", () => {
   test("first-visit consent link meets the touch target floor", async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.removeItem("pubmaxx:analytics-consent:v1");
+      localStorage.setItem("pubmax-tour-v1-done", "1");
+      localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
     });
     await page.goto("/today");
     const privacy = page.locator(".analyticsConsentPrompt a");

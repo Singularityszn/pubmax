@@ -38,6 +38,7 @@ function makeMap(options: FakeMapOptions): maplibregl.Map {
   } = options;
 
   const canvas = { nodeName: "CANVAS" } as unknown as HTMLCanvasElement;
+  const chromeButton = { nodeName: "BUTTON" } as unknown as HTMLElement;
   const container = {
     getBoundingClientRect: () => ({
       left: rect.left,
@@ -47,14 +48,21 @@ function makeMap(options: FakeMapOptions): maplibregl.Map {
       width: rect.width,
       height: rect.height,
     }),
+    contains: () => false,
     ownerDocument: {
-      elementFromPoint: (x: number, y: number) => {
+      defaultView: {
+        Element: class {} as typeof Element,
+        getComputedStyle: (element: unknown) => ({
+          pointerEvents:
+            element === chromeButton ? "auto" : "auto",
+        }),
+      },
+      elementsFromPoint: (x: number, y: number) => {
         const mark = painted.find(
           (item) => item.x === x - rect.left && item.y === y - rect.top,
         );
-        return mark && covered.includes(mark.id)
-          ? { nodeName: "BUTTON" }
-          : canvas;
+        if (mark && covered.includes(mark.id)) return [chromeButton];
+        return [canvas];
       },
     },
   };
@@ -189,6 +197,33 @@ describe("paintedMapTapPoints", () => {
 
   it("answers with nothing when the map paints no pub mark", () => {
     expect(paintedMapTapPoints(makeMap({ painted: [] }))).toEqual([]);
+  });
+
+  it("includes UK base pin layers when they are on the map", () => {
+    const ukPin: FakeMark = {
+      layer: "uk-base-point",
+      id: "venue-uk-1",
+      lng: -0.15,
+      lat: 51.52,
+      x: 140,
+      y: 420,
+    };
+    const points = paintedMapTapPoints(
+      makeMap({
+        painted: [ukPin],
+        layers: ["uk-base-point", "uk-base-selected", "pubs-point", "clusters"],
+      }),
+    );
+    expect(points).toEqual([
+      {
+        kind: "pin",
+        id: "venue-uk-1",
+        x: 140,
+        y: 420,
+        lng: -0.15,
+        lat: 51.52,
+      },
+    ]);
   });
 
   // A gesture moves where a mark is DRAWN and may never move where it IS, so a

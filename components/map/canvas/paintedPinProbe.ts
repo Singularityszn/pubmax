@@ -41,9 +41,35 @@ type ProbeWindow = Window & {
 
 // The click router treats a pub hit as the winner before every other layer, so
 // a point that hits either of these opens the venue sheet.
-const PIN_LAYERS = ["pubs-point-selected", "pubs-point"] as const;
+const PIN_LAYERS = [
+  "pubs-point-selected",
+  "pubs-point",
+  "uk-base-selected",
+  "uk-base-point",
+] as const;
 const CLUSTER_LAYER = "clusters";
 const PIN_PROBE_OVERVIEW_ZOOM = 12;
+
+function mapCanvasReceivesTap(
+  ownerDocument: Document,
+  canvas: HTMLCanvasElement,
+  mapContainer: HTMLElement,
+  x: number,
+  y: number,
+): boolean {
+  const view = ownerDocument.defaultView;
+  if (!view) return false;
+  const stack = ownerDocument.elementsFromPoint(x, y);
+  const canvasIndex = stack.indexOf(canvas);
+  if (canvasIndex === -1) return false;
+  for (const element of stack.slice(0, canvasIndex)) {
+    if (!(element instanceof view.Element)) continue;
+    if (element === mapContainer || mapContainer.contains(element)) continue;
+    if (view.getComputedStyle(element).pointerEvents === "none") continue;
+    return false;
+  }
+  return true;
+}
 
 function markId(
   feature: maplibregl.MapGeoJSONFeature,
@@ -90,7 +116,7 @@ export function paintedMapTapPoints(map: maplibregl.Map): PaintedMapTapPoint[] {
       const x = rect.left + point.x;
       const y = rect.top + point.y;
       if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) continue;
-      if (ownerDocument.elementFromPoint(x, y) !== canvas) continue;
+      if (!mapCanvasReceivesTap(ownerDocument, canvas, container, x, y)) continue;
 
       // Circle clusters have no placement box. Once the viewport query found
       // one and the projected centre is on the map canvas, the click router's

@@ -64,6 +64,11 @@ const E2E_ADMIN_TOKEN = process.env.PW_E2E_ADMIN_TOKEN ?? "pubmax-e2e-admin-toke
 const E2E_DISCORD_INVITE_URL = "https://discord.gg/pubmaxx-e2e-invite";
 const E2E_RATE_LIMIT_SALT =
   process.env.RATE_LIMIT_SALT ?? "pubmax-e2e-rate-limit-salt-32-chars-min";
+// Two Playwright workers share one production-style process and one hashed
+// loopback IP. Production stays at 8 / 60s (plans) and 60 / 60s (CityMCP);
+// only this harness raises the in-process ceiling so console-error
+// assertions do not see the limiter answering the suite.
+const E2E_RATE_LIMIT_MAX = process.env.PUBMAX_E2E_RATE_LIMIT_MAX ?? "10000";
 const REAL_AUTH_CONFIGURED = Boolean(
   !E2E_LOGIN &&
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -395,6 +400,7 @@ export default defineConfig({
           PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
           ADMIN_TOKEN: E2E_ADMIN_TOKEN,
           RATE_LIMIT_SALT: E2E_RATE_LIMIT_SALT,
+          PUBMAX_E2E_RATE_LIMIT_MAX: E2E_RATE_LIMIT_MAX,
           PUBMAX_E2E_LOGIN: "0",
           PUBMAX_E2E_KEYLESS: "1",
           // Auth regressions may opt into the real public Supabase project.
@@ -442,6 +448,7 @@ export default defineConfig({
               NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "",
               NEXT_PUBLIC_DISCORD_INVITE_URL: E2E_DISCORD_INVITE_URL,
               PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
+              PUBMAX_E2E_RATE_LIMIT_MAX: E2E_RATE_LIMIT_MAX,
               PUBMAX_E2E_LOGIN: "0",
               PUBMAX_E2E_KEYLESS: "1",
             },
@@ -475,6 +482,7 @@ export default defineConfig({
               PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
               ADMIN_TOKEN: E2E_ADMIN_TOKEN,
               RATE_LIMIT_SALT: E2E_RATE_LIMIT_SALT,
+              PUBMAX_E2E_RATE_LIMIT_MAX: E2E_RATE_LIMIT_MAX,
             },
             url: AUTH_BASE_URL,
             reuseExistingServer: false,

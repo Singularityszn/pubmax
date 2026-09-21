@@ -23,7 +23,13 @@ export const AUDITED_ROUTES = [
     pendingSelectors: ["[data-testid='listings-skeleton']"],
     waitForAuthResolution: true,
   },
-  { name: "near", path: "/near", readySelector: ".nmnIntro", waitForAuthResolution: true },
+  {
+    name: "near",
+    path: "/near",
+    // Standalone /near uses the Screen primitive; only the map sheet intro keeps .nmnIntro.
+    readySelector: "#near-title",
+    waitForAuthResolution: true,
+  },
   {
     name: "add",
     path: "/add/karan",

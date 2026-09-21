@@ -28,6 +28,16 @@
 }
 
 @media (max-width: 640px) {
+  /* At peek, the venue sheet leaves enough map showing that the in-viewport
+     list stays a honest way to hop between unpriced base pubs. */
+  body:has(.mobileSheetPortal[data-sheet-kind="venue"]:has(.sheet-peek))
+    .appShell.detail-open
+    .mapVenueList {
+    display: flex;
+  }
+}
+
+@media (max-width: 640px) {
   .mapVenueList {
     /* max() so the fallback path (var undefined) still clears the home-indicator
        inset the base rule guarantees — the clearance token already folds the

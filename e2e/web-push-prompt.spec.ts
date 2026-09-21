@@ -143,6 +143,7 @@ test("installed PWA asks for the honest London brief only after a useful plan ac
   await page.goto("/about");
   await page.evaluate(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
     window.localStorage.removeItem("pubmax:webPush:enabled:v1");
     window.localStorage.removeItem("pubmax:webPush:dismissedSeq:v1");
     window.localStorage.removeItem("pubmax:webPush:actionSeq:v1");
