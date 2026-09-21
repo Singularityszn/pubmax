@@ -48,6 +48,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
+import {
+  bundleDrinkFieldsFromPrintedName,
+  bundleRowDedupeDrinkKey,
+} from "@/lib/bundleDrinkFields";
 import { isDemoDrinkProvenance } from "@/lib/drinks";
 import { isHarvestableOperatorUrl } from "@/lib/harvest/sourcePolicy";
 import { estimateForPub } from "@/lib/priceEstimate";
@@ -164,7 +168,7 @@ function collectRows(report) {
       report.droppedInvalidRow += 1;
       return;
     }
-    const key = `${row.venueId} ${row.category} ${row.lane}`;
+    const key = `${row.venueId} ${row.category} ${bundleRowDedupeDrinkKey(row)} ${row.lane}`;
     if (!bundleRowSupersedes(row, held.get(key))) return;
     held.set(key, row);
   };
@@ -230,6 +234,10 @@ function addSiteHarvestRows(harvestRows, owners, push, report) {
       observedAt: row.observedAt,
       basis: null,
       sampleSize: null,
+      ...bundleDrinkFieldsFromPrintedName(
+        row.drinkLabel ?? row.drinkName ?? null,
+        row.category,
+      ),
     });
   }
 }
@@ -262,6 +270,7 @@ function addDrinkPriceUpdateRows(updates, push, report) {
       observedAt: update.observedAt,
       basis: null,
       sampleSize: null,
+      ...bundleDrinkFieldsFromPrintedName(update.drinkName, update.category),
     });
   }
 }

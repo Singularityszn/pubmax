@@ -23,14 +23,22 @@ rows.json       # the rows themselves, sorted by venue, drink, then lane
   "publisher":  "thewitchball.co.uk",
   "observedAt": "2026-09-04T10:06:14.812Z",
   "basis":      null,                    // estimate rows only
-  "sampleSize": null                     // estimate rows only
+  "sampleSize": null,                    // estimate rows only
+  "drinkLabel": "Coke Zero",             // optional: printed name (max 80 chars)
+  "drinkSubtype": "soft-drink-coke-zero" // optional: lib/drinkSubtypes.ts id when the label classifies
 }
 ```
 
+`drinkLabel` and `drinkSubtype` are stamped at bundle-build time from each lane's
+printed drink name (`scripts/build_uk_price_bundle.mjs` via `lib/bundleDrinkFields.ts`).
+When a lane only states a category, both fields stay absent. `drinkSubtype` is
+never guessed without a label that classifies.
+
 `lib/ukPriceBundle.ts` owns the shape, the parser and the one rule about who may
 read what. `scripts/validate-data.mjs` refuses the file over a row with no
-observation day, a published row with no source URL, or an estimate with no
-basis and sample behind it.
+observation day, a published row with no source URL, an estimate with no
+basis and sample behind it, a `drinkLabel` over 80 characters, or a
+`drinkSubtype` outside the closed vocabulary for its category.
 
 ## The three lanes
 
