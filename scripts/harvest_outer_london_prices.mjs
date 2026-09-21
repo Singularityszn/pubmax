@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Cycle-6 PRD item 1 — honest DRAUGHT PINT prices for the new Outer-London OSM
+ * Cycle-6 PRD item 1 — honest first-party drink prices for the new Outer-London OSM
  * presence pubs (added on data/outer-london-osm, currently price_gbp: null).
  *
  * EVIDENCE RULES (absolute — mirror /pint-index methodology + lib/pintFacts.ts):
@@ -28,21 +28,24 @@
  *  - merges sourced rows into public/data/drink_price_updates/latest.json.
  *  - writes a per-venue result log JSON to data/osm/outer_price_harvest_log.json.
  *
- * Requires EXA_API_KEY and TAVILY_API_KEY in the environment (never commit them).
+ * Requires TAVILY_API_KEY in the environment (never commit it). EXA_API_KEY is
+ * optional: without it, menu discovery uses on-site links only.
  *
  * Usage:
- *   node scripts/harvest_outer_london_prices.mjs \
+ *   node --conditions=react-server --import tsx scripts/harvest_outer_london_prices.mjs \
  *     [--limit N] [--budget N] [--dry-run]
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { extractPintPricesMaybeJudged } from "./lib/tavilyPubEnrichment.mjs";
+import { CATEGORY_PRICE_BANDS } from "./harvest/uk-prices/readPrices.mjs";
+import { extractVenueDrinkPricesMaybeJudged } from "./lib/tavilyPubEnrichment.mjs";
 import {
   assertProviderCredentials,
   discoverRefreshPages,
   fetchRefreshPage,
+  RefreshProviderError,
 } from "./lib/localRefreshProviders.mjs";
 
 const MODULE_PATH = fileURLToPath(import.meta.url);
@@ -86,18 +89,34 @@ const NO_WEB_PRICE_CHAINS = [
   { re: /facebook\.com|instagram\.com|google\.|linktr\.ee|wixsite/, label: "Social/holding page (no first-party menu)" },
 ];
 
-// Draught-pint signal: a beer keyword must co-occur with a £ price for a page to
-// be worth an extraction call.
-const DRAUGHT_KW = /\b(pint|draught|draft|on tap|lager|real ale|\bale\b|cider|stout|guinness|ipa|pale ale|bitter|neck oil|birra|moretti|estrella|madri|camden|amstel|carling|fosters|foster's|peroni|heineken|cruzcampo|kronenbourg|paulaner|beavertown|gamma ray|lucky saint|inches|thatchers|aspall|carlsberg|san miguel|stella)\b/i;
+// Drink-menu signal: a drink keyword must co-occur with a £ price for a page to
+// be worth a second fetch.
+const DRINK_MENU_KW =
+  /\b(pint|draught|draft|on tap|lager|real ale|\bale\b|cider|stout|guinness|ipa|pale ale|bitter|wine|prosecco|champagne|cocktail|martini|spritz|whisky|whiskey|gin\b|vodka|rum\b|shot|espresso|coffee|soft drink|alcohol[- ]free)\b/i;
 const POUND_RE = /£\s?(\d{1,2}(?:\.\d{2})?)/g;
 
 const SOURCE_LICENCE =
   "All rights reserved — first-party publisher of its own pub menu/prices; read-only, attributed use only.";
 
-// A draught pint's plausible price band in Greater London (guards against
-// grabbing a food / bottle / carafe / spirit-double number).
-const MIN_PINT = 3.0;
-const MAX_PINT = 9.5;
+const MIN_PINT = CATEGORY_PRICE_BANDS.beer?.minGbp ?? 3.0;
+const MAX_PINT = CATEGORY_PRICE_BANDS.beer?.maxGbp ?? 9.5;
+
+/** Verbatim-validate extracted rows against the scraped page text and category bands. */
+export function verbatimValidateHarvestedDrinks(extracted, pagePounds) {
+  const validated = [];
+  for (const item of extracted) {
+    const price = Number(item.priceGbp);
+    const category = item.category;
+    const band = CATEGORY_PRICE_BANDS[category];
+    if (!band || !Number.isFinite(price)) continue;
+    if (price < band.minGbp || price > band.maxGbp) continue;
+    if (!pagePounds.has(price.toFixed(2))) continue;
+    const drinkName = String(item.drinkName || "").trim();
+    if (!drinkName) continue;
+    validated.push({ drinkName, priceGbp: price, category });
+  }
+  return validated;
+}
 
 function arg(name, fallback) {
   const i = process.argv.indexOf(name);
@@ -141,16 +160,31 @@ export function priorPublishedSourceFor(row, priorEntries) {
   return row.website;
 }
 
-async function scrape(url) {
+async function scrape(url, pubName) {
   const page = await fetchRefreshPage({ job: "plain-page", url });
+  const { drinks, reading } = await extractVenueDrinkPricesMaybeJudged(page.markdown, {
+    pageUrl: url,
+    pubName,
+  });
   return {
     ...page,
     json: {
-      draughtPints: (await extractPintPricesMaybeJudged(page.markdown, { pageUrl: url })).map(
-        ({ drinkName, priceGbp }) => ({ drinkName, priceGbp }),
-      ),
+      drinks,
+      reading,
     },
   };
+}
+
+async function safeScrape(url, pubName) {
+  try {
+    return { page: await scrape(url, pubName) };
+  } catch (error) {
+    const reason =
+      error instanceof RefreshProviderError || error instanceof Error
+        ? error.message
+        : String(error);
+    return { error: reason };
+  }
 }
 
 /** All £ values present verbatim in the page text (as a Set of "3.80" strings). */
@@ -166,7 +200,7 @@ function poundsInText(md) {
 function bestDrinkLink(links, baseHost) {
   const cands = links
     .filter((l) => typeof l === "string" && host(l) === baseHost)
-    .filter((l) => /drink|menu|tap|beer|bar\b/i.test(l))
+    .filter((l) => /drink|menu|tap|beer|bar\b|wine|cocktail|spirit/i.test(l))
     .filter((l) => !/\.(jpg|jpeg|png|pdf|gif|webp)$/i.test(l))
     .filter((l) => !/food-?(menu|and)|breakfast|sunday|lunch|book|reserv|event|christmas|gift/i.test(l));
   // Prefer an explicit "drink" page, then "menu".
@@ -177,8 +211,23 @@ function bestDrinkLink(links, baseHost) {
   return cands[0] || null;
 }
 
+export function pubDiscoveryAvailable(environment = process.env) {
+  try {
+    assertProviderCredentials(["pub-discovery"], environment);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function main() {
-  assertProviderCredentials(["pub-discovery", "plain-page"]);
+  assertProviderCredentials(["plain-page"]);
+  const exaDiscovery = pubDiscoveryAvailable();
+  if (!exaDiscovery) {
+    console.warn(
+      "[harvest] EXA_API_KEY missing: Exa pub-discovery disabled; on-site menu links only.",
+    );
+  }
   const limit = Number(arg("--limit", "0")) || 0;
   const budget = Number(arg("--budget", "280")) || 280;
   const dryRun = arg("--dry-run", false) === true;
@@ -309,104 +358,124 @@ function main() {
 
       // 1) revisit the exact prior evidence page, or start from the official homepage.
       const initialUrl = priorPublishedSourceFor(row, priorEntries);
-      const home = await scrape(initialUrl);
+      const homeResult = await safeScrape(initialUrl, row.pub_name);
       requests += 1;
+      if (homeResult.error) {
+        log.push({
+          ...rec,
+          result: "blocked",
+          reason: homeResult.error,
+          requests: 1,
+        });
+        continue;
+      }
+      const home = homeResult.page;
 
       let md = home.markdown;
       let pageUrl = initialUrl;
-      let extracted = home.json?.draughtPints || [];
+      let extracted = home.json?.drinks || [];
 
-      // 2) if the homepage has no validated pint, follow a drinks/menu link.
+      // 2) if the homepage has no validated drinks, follow a drinks/menu link.
       const homePounds = poundsInText(md);
-      const homeHasSignal = DRAUGHT_KW.test(md) && homePounds.size > 0;
+      const homeHasSignal = DRINK_MENU_KW.test(md) && homePounds.size > 0;
       let usedSecond = false;
       if ((!extracted.length || !homeHasSignal) && requests < budget) {
         let link = bestDrinkLink(home.links, h);
-        if (!link) {
+        if (!link && exaDiscovery) {
           const discoveries = await discoverRefreshPages({
-            query: `${row.pub_name} drinks menu pint price`,
+            query: `${row.pub_name} drinks menu wine cocktail gin whisky price`,
             includeDomains: [h],
             numResults: 3,
           });
-          link = discoveries.map((result) => result.url).find((url) => /drink|menu|tap|beer/i.test(url)) ?? null;
+          link =
+            discoveries
+              .map((result) => result.url)
+              .find((url) => /drink|menu|tap|beer|wine|cocktail|spirit/i.test(url)) ?? null;
         }
         if (link && link !== initialUrl) {
-          const drink = await scrape(link);
+          const drinkResult = await safeScrape(link, row.pub_name);
           requests += 1;
           usedSecond = true;
-          if (DRAUGHT_KW.test(drink.markdown) || (drink.json?.draughtPints || []).length) {
+          if (drinkResult.error) {
+            log.push({
+              ...rec,
+              result: "blocked",
+              reason: drinkResult.error,
+              requests: 2,
+            });
+            continue;
+          }
+          const drink = drinkResult.page;
+          if (DRINK_MENU_KW.test(drink.markdown) || (drink.json?.drinks || []).length) {
             md = drink.markdown;
             pageUrl = link;
-            extracted = drink.json?.draughtPints || [];
+            extracted = drink.json?.drinks || [];
           }
         }
       }
 
       // 3) verbatim-validate every extracted price against the scraped page text.
       const pagePounds = poundsInText(md);
-      const validated = [];
-      for (const item of extracted) {
-        const price = Number(item.priceGbp);
-        if (!Number.isFinite(price)) continue;
-        if (price < MIN_PINT || price > MAX_PINT) continue; // pint band guard
-        if (!pagePounds.has(price.toFixed(2))) continue; // MUST appear verbatim
-        const name = String(item.drinkName || "").trim();
-        if (!name) continue;
-        validated.push({ drinkName: name, priceGbp: price });
-      }
+      const validated = verbatimValidateHarvestedDrinks(extracted, pagePounds);
 
       if (!validated.length) {
         log.push({
           ...rec,
           result: "no-price-published",
-          reason: DRAUGHT_KW.test(md)
-            ? "draught listed but no extractable/verbatim pint price"
-            : "no draught pint pricing on site",
+          reason: DRINK_MENU_KW.test(md)
+            ? "drinks listed but no extractable/verbatim menu price"
+            : "no drink pricing on site",
           requests: usedSecond ? 2 : 1,
         });
         continue;
       }
 
-      // cheapest validated draught pint drives the map price.
-      validated.sort((a, b) => a.priceGbp - b.priceGbp);
-      const cheapest = validated[0];
+      const validatedPints = validated
+        .filter((v) => v.category === "beer")
+        .filter((v) => v.priceGbp >= MIN_PINT && v.priceGbp <= MAX_PINT)
+        .toSorted((a, b) => a.priceGbp - b.priceGbp);
+      const cheapestPint = validatedPints[0] ?? null;
       priced += 1;
 
-      // stamp the app-dataset row (all rows for this venue key share cheapestPrice
-      // via build:slim, but there is exactly one OSM row per venue here).
-      row.price_gbp = cheapest.priceGbp;
-      row.pint_name = cheapest.drinkName;
-      row.price_text = `£${cheapest.priceGbp.toFixed(2)}`;
-      row.pub_url = pageUrl;
-      row.constructed_pub_url = pageUrl;
-      row.comment = `${row.comment} Draught pint price from first-party site ${pageUrl}, observed ${observedDate}.`;
-      row.data_quality_notes = `${row.data_quality_notes}|price:first_party_web|${pageUrl}|observed=${observedDate}`;
-      row.scraped_at_values = observedAt;
+      if (cheapestPint) {
+        row.price_gbp = cheapestPint.priceGbp;
+        row.pint_name = cheapestPint.drinkName;
+        row.price_text = `£${cheapestPint.priceGbp.toFixed(2)}`;
+        row.pub_url = pageUrl;
+        row.constructed_pub_url = pageUrl;
+        row.comment = `${row.comment} Draught pint price from first-party site ${pageUrl}, observed ${observedDate}.`;
+        row.data_quality_notes = `${row.data_quality_notes}|price:first_party_web|${pageUrl}|observed=${observedDate}`;
+        row.scraped_at_values = observedAt;
+      }
 
-      // sanctioned per-drink store rows (same schema as the other harvesters).
       const venueKey = venueGroupingKey(row);
       for (const v of validated) {
         drinkUpdates.push({
           venueKey,
           drinkName: v.drinkName,
-          category: "beer",
+          category: v.category,
           priceGbp: v.priceGbp,
           source: { label: `${row.pub_name} — official website`, url: pageUrl, licence: SOURCE_LICENCE },
           observedAt,
         });
       }
 
+      const categories = [...new Set(validated.map((v) => v.category))].sort();
       log.push({
         ...rec,
         result: "priced",
-        cheapestPint: cheapest.priceGbp,
-        drink: cheapest.drinkName,
-        allDraught: validated,
+        cheapestPint: cheapestPint?.priceGbp ?? null,
+        drink: cheapestPint?.drinkName ?? validated[0]?.drinkName,
+        categories,
+        allDrinks: validated,
         sourceUrl: pageUrl,
         observedAt,
         requests: usedSecond ? 2 : 1,
       });
-      console.log(`  PRICED ${row.pub_name} (${row.primary_borough}): £${cheapest.priceGbp.toFixed(2)} ${cheapest.drinkName}`);
+      const headline = cheapestPint
+        ? `£${cheapestPint.priceGbp.toFixed(2)} ${cheapestPint.drinkName}`
+        : `${validated.length} drink row(s) (${categories.join(", ")})`;
+      console.log(`  PRICED ${row.pub_name} (${row.primary_borough}): ${headline}`);
     }
 
     // --- write outputs -------------------------------------------------------

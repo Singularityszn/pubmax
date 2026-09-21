@@ -216,6 +216,15 @@ export async function extractPintPricesMaybeJudged(markdown, ctx) {
   return prices;
 }
 
+/**
+ * Keyless shared reader for every drink category, or the judged batch path when
+ * TYPESAFE_API_KEY is set.
+ */
+export async function extractVenueDrinkPricesMaybeJudged(markdown, ctx) {
+  const { extractVenueDrinkPricesForHarvest } = await import("../harvest/uk-prices/readPrices.mjs");
+  return extractVenueDrinkPricesForHarvest(markdown, ctx);
+}
+
 function canonicalPriceKey(row) {
   return `${row.venueKey}|${String(row.drinkName).toLowerCase()}|${row.category}`;
 }

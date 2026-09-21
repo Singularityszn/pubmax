@@ -24,3 +24,10 @@ export function priorPublishedSourceFor(
     result?: string;
   }>,
 ): string | undefined;
+
+export function pubDiscoveryAvailable(environment?: Record<string, string | undefined>): boolean;
+
+export function verbatimValidateHarvestedDrinks(
+  extracted: Array<{ drinkName: string; category: string; priceGbp: number }>,
+  pagePounds: Set<string>,
+): Array<{ drinkName: string; category: string; priceGbp: number }>;
