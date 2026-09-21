@@ -1,0 +1,725 @@
+{
+  "recordedAt": "2026-09-21T06:03:15.994Z",
+  "caseCount": 45,
+  "publishThreshold": 0.55,
+  "model": "jev-1.13.0",
+  "cases": [
+    {
+      "id": "exact-railway-bell",
+      "query": "The Railway Bell",
+      "expectedId": "venue-railway-bell",
+      "kind": "exact",
+      "skipped": true,
+      "choice": "skipped-unique-exact",
+      "probabilities": {},
+      "model": null
+    },
+    {
+      "id": "exact-shy-horse",
+      "query": "The Shy Horse",
+      "expectedId": "venue-shy-horse",
+      "kind": "exact",
+      "skipped": true,
+      "choice": "skipped-unique-exact",
+      "probabilities": {},
+      "model": null
+    },
+    {
+      "id": "exact-kings-tun",
+      "query": "The Kings Tun",
+      "expectedId": "venue-kings-tun",
+      "kind": "exact",
+      "skipped": true,
+      "choice": "skipped-unique-exact",
+      "probabilities": {},
+      "model": null
+    },
+    {
+      "id": "exact-hope-anchor",
+      "query": "Hope and Anchor",
+      "expectedId": "venue-hope-anchor",
+      "kind": "exact",
+      "skipped": true,
+      "choice": "skipped-unique-exact",
+      "probabilities": {},
+      "model": null
+    },
+    {
+      "id": "exact-white-cross",
+      "query": "The White Cross",
+      "expectedId": "venue-white-cross",
+      "kind": "exact",
+      "skipped": true,
+      "choice": "skipped-unique-exact",
+      "probabilities": {},
+      "model": null
+    },
+    {
+      "id": "partial-greyhound",
+      "query": "greyhound",
+      "expectedId": "venue-crown-greyhound",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "none": 0.17,
+        "c0": 0.83
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "partial-horseshoes",
+      "query": "horseshoes",
+      "expectedId": "venue-crown-horseshoes",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c0": 0.81,
+        "none": 0.19
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "partial-crown-pepper",
+      "query": "crown and pepper",
+      "expectedId": "venue-crown-pepper",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c5": 0,
+        "c7": 0,
+        "c0": 0.97,
+        "c2": 0,
+        "c3": 0,
+        "c6": 0,
+        "none": 0.03,
+        "c4": 0,
+        "c1": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "partial-belle-vue",
+      "query": "belle vue",
+      "expectedId": "venue-belle-vue",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c0": 0.97,
+        "none": 0.03
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "partial-kings-head-tooting",
+      "query": "kings head tooting",
+      "expectedId": "venue-kings-head-tooting",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c5": 0,
+        "c1": 0,
+        "none": 0,
+        "c2": 0,
+        "c6": 0,
+        "c7": 0,
+        "c8": 0,
+        "c0": 1,
+        "c4": 0,
+        "c3": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "partial-red-lion-bromley",
+      "query": "red lion bromley",
+      "expectedId": "venue-red-lion-bromley",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c2": 0,
+        "c4": 0,
+        "c0": 0.99,
+        "none": 0.01,
+        "c6": 0,
+        "c7": 0,
+        "c1": 0,
+        "c5": 0,
+        "c3": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "partial-red-lion-sutton",
+      "query": "red lion sutton",
+      "expectedId": "venue-red-lion-sutton",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c8": 0,
+        "c0": 0.85,
+        "none": 0.15,
+        "c9": 0,
+        "c11": 0,
+        "c2": 0,
+        "c1": 0,
+        "c3": 0,
+        "c7": 0,
+        "c4": 0,
+        "c6": 0,
+        "c10": 0,
+        "c5": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "partial-angel-islington",
+      "query": "angel islington",
+      "expectedId": "venue-angel-islington",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "none": 0.06,
+        "c0": 0.94,
+        "c2": 0,
+        "c1": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "partial-angel-hillingdon",
+      "query": "angel hillingdon",
+      "expectedId": "venue-angel-hillingdon",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "none": 0.02,
+        "c0": 0.98,
+        "c1": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "partial-ship-wandsworth",
+      "query": "ship wandsworth",
+      "expectedId": "venue-ship-wandsworth",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c2": 0,
+        "c4": 0,
+        "c3": 0,
+        "c5": 0,
+        "c0": 0.88,
+        "c1": 0,
+        "none": 0.12
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "partial-ship-limehouse",
+      "query": "ship tower hamlets",
+      "expectedId": "venue-ship-tower",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c1": 0,
+        "none": 0.3,
+        "c0": 0.7,
+        "c2": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "partial-white-horse-hammersmith",
+      "query": "white horse hammersmith",
+      "expectedId": "venue-white-horse",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c6": 0,
+        "c0": 0.97,
+        "c8": 0,
+        "c9": 0,
+        "none": 0.03,
+        "c3": 0,
+        "c2": 0,
+        "c4": 0,
+        "c1": 0,
+        "c7": 0,
+        "c5": 0,
+        "c10": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "partial-coach-greenwich",
+      "query": "coach and horses greenwich",
+      "expectedId": "venue-coach-greenwich",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c0": 0.99,
+        "c4": 0,
+        "none": 0.01,
+        "c1": 0,
+        "c2": 0,
+        "c3": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "partial-eight-bells-sutton",
+      "query": "eight bells sutton",
+      "expectedId": "venue-eight-bells-sutton",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c8": 0,
+        "c1": 0,
+        "c7": 0,
+        "c2": 0,
+        "none": 0,
+        "c5": 0,
+        "c3": 0,
+        "c4": 0,
+        "c0": 1,
+        "c6": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "partial-olde-red-lion",
+      "query": "ye olde red lion",
+      "expectedId": "venue-olde-red-lion",
+      "kind": "partial",
+      "skipped": true,
+      "choice": "skipped-unique-exact",
+      "probabilities": {},
+      "model": null
+    },
+    {
+      "id": "partial-blue-anchor",
+      "query": "blue anchor hammersmith",
+      "expectedId": "venue-blue-anchor",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c1": 0,
+        "c7": 0,
+        "none": 0,
+        "c3": 0,
+        "c5": 0,
+        "c0": 1,
+        "c2": 0,
+        "c6": 0,
+        "c4": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "partial-george-dragon",
+      "query": "george and dragon greenwich",
+      "expectedId": "venue-george-dragon",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "none": 0,
+        "c2": 0,
+        "c0": 1,
+        "c1": 0,
+        "c3": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "partial-waggon-horses",
+      "query": "waggon and horses",
+      "expectedId": "venue-waggon-horses",
+      "kind": "partial",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c3": 0,
+        "c1": 0,
+        "c0": 0.98,
+        "c2": 0,
+        "none": 0.02
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "ambiguous-crown",
+      "query": "Crown",
+      "expectedId": null,
+      "kind": "ambiguous",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "c1": 0,
+        "c2": 0,
+        "none": 1,
+        "c4": 0,
+        "c5": 0,
+        "c0": 0,
+        "c6": 0,
+        "c7": 0,
+        "c3": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "ambiguous-bell",
+      "query": "Bell",
+      "expectedId": null,
+      "kind": "ambiguous",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "c2": 0,
+        "c1": 0.2,
+        "none": 0.8,
+        "c0": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "ambiguous-kings-head",
+      "query": "Kings Head",
+      "expectedId": null,
+      "kind": "ambiguous",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "c4": 0,
+        "c6": 0,
+        "c3": 0,
+        "c2": 0,
+        "c7": 0,
+        "c1": 0.05,
+        "c5": 0,
+        "c8": 0,
+        "none": 0.93,
+        "c0": 0.02
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "ambiguous-red-lion",
+      "query": "Red Lion",
+      "expectedId": null,
+      "kind": "ambiguous",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "c0": 0.01,
+        "c4": 0,
+        "c5": 0,
+        "none": 0.99,
+        "c2": 0,
+        "c3": 0,
+        "c1": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "ambiguous-the-ship",
+      "query": "The Ship",
+      "expectedId": null,
+      "kind": "ambiguous",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "c2": 0,
+        "c0": 0.02,
+        "c1": 0.01,
+        "none": 0.97
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "ambiguous-the-angel",
+      "query": "The Angel",
+      "expectedId": null,
+      "kind": "ambiguous",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "c0": 0.2,
+        "none": 0.8,
+        "c1": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "ambiguous-coach-horses",
+      "query": "Coach and Horses",
+      "expectedId": null,
+      "kind": "ambiguous",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "c0": 0.01,
+        "none": 0.98,
+        "c1": 0,
+        "c3": 0,
+        "c2": 0.01
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "ambiguous-white-hart",
+      "query": "White Hart",
+      "expectedId": null,
+      "kind": "ambiguous",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "c0": 0.13,
+        "c3": 0,
+        "c2": 0,
+        "c1": 0.16,
+        "c4": 0,
+        "none": 0.71
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "ambiguous-lion",
+      "query": "Lion",
+      "expectedId": null,
+      "kind": "ambiguous",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "c2": 0,
+        "c4": 0,
+        "c0": 0,
+        "none": 1,
+        "c5": 0,
+        "c3": 0,
+        "c1": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "ambiguous-head",
+      "query": "Head",
+      "expectedId": null,
+      "kind": "ambiguous",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "c1": 0,
+        "none": 1,
+        "c3": 0,
+        "c0": 0,
+        "c5": 0,
+        "c6": 0,
+        "c2": 0,
+        "c4": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "ambiguous-the-george",
+      "query": "The George",
+      "expectedId": null,
+      "kind": "ambiguous",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "c1": 0,
+        "none": 0.97,
+        "c2": 0,
+        "c0": 0.03
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "ambiguous-the-crown",
+      "query": "The Crown",
+      "expectedId": null,
+      "kind": "ambiguous",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "c3": 0,
+        "none": 0.93,
+        "c2": 0,
+        "c4": 0,
+        "c0": 0.05,
+        "c5": 0,
+        "c7": 0,
+        "c1": 0.02,
+        "c6": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "typo-kigns-head-tooting",
+      "query": "kigns head tooting",
+      "expectedId": "venue-kings-head-tooting",
+      "kind": "typo",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c4": 0,
+        "none": 0.01,
+        "c1": 0,
+        "c2": 0,
+        "c5": 0,
+        "c3": 0,
+        "c0": 0.99,
+        "c6": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "typo-crowne-anchor",
+      "query": "crowne and anchor hounslow",
+      "expectedId": "venue-crown-anchor",
+      "kind": "typo",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c2": 0,
+        "c1": 0,
+        "none": 0,
+        "c0": 1,
+        "c3": 0,
+        "c4": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "typo-greyhond",
+      "query": "crown and greyhond",
+      "expectedId": "venue-crown-greyhound",
+      "kind": "typo",
+      "skipped": false,
+      "choice": "c4",
+      "probabilities": {
+        "none": 0,
+        "c0": 0,
+        "c2": 0,
+        "c7": 0,
+        "c6": 0,
+        "c3": 0,
+        "c4": 1,
+        "c5": 0,
+        "c1": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "typo-bel-vue",
+      "query": "bel vue lambeth",
+      "expectedId": "venue-belle-vue",
+      "kind": "typo",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c0": 0.93,
+        "none": 0.07
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "typo-red-lon-sutton",
+      "query": "red lon sutton",
+      "expectedId": "venue-red-lion-sutton",
+      "kind": "typo",
+      "skipped": false,
+      "choice": "c0",
+      "probabilities": {
+        "c0": 0.66,
+        "c8": 0,
+        "none": 0.34,
+        "c2": 0,
+        "c3": 0,
+        "c4": 0,
+        "c7": 0,
+        "c1": 0,
+        "c5": 0,
+        "c6": 0
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "none-soho",
+      "query": "Soho",
+      "expectedId": null,
+      "kind": "none",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "none": 1
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "none-camden",
+      "query": "Camden",
+      "expectedId": null,
+      "kind": "none",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "none": 1
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "none-quiet-garden",
+      "query": "quiet garden",
+      "expectedId": null,
+      "kind": "none",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "none": 1
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "none-pint-prices",
+      "query": "how much is a pint",
+      "expectedId": null,
+      "kind": "none",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "none": 1
+      },
+      "model": "jev-1.13.0"
+    },
+    {
+      "id": "none-get-home",
+      "query": "how do I get home",
+      "expectedId": null,
+      "kind": "none",
+      "skipped": false,
+      "choice": "none",
+      "probabilities": {
+        "none": 1
+      },
+      "model": "jev-1.13.0"
+    }
+  ]
+}

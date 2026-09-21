@@ -43,6 +43,7 @@ import {
   toolTonightNow,
   toolVenueDrinks,
 } from "@/lib/ask/conciergeTools.server";
+import { matchVenueByName } from "@/lib/ask/venueResolution.server";
 import type {
   AskProvenance,
   AskToolArgs,
@@ -70,19 +71,6 @@ function proposalId(prefix: string, seed: string): string {
 
 function directoryProvenance(): AskProvenance {
   return { label: "On record", kind: "directory" };
-}
-
-function matchVenueByName(
-  venues: ConciergeVenue[],
-  name: string,
-): ConciergeVenue | null {
-  const needle = name.trim().toLowerCase();
-  if (!needle) return null;
-  const exact = venues.find((v) => v.name.toLowerCase() === needle);
-  if (exact) return exact;
-  const starts = venues.find((v) => v.name.toLowerCase().startsWith(needle));
-  if (starts) return starts;
-  return venues.find((v) => v.name.toLowerCase().includes(needle)) ?? null;
 }
 
 function venueCard(
@@ -259,7 +247,7 @@ async function toolVenueHeritage(
     const venues = await loadConciergeVenues(ctx.cityId);
     const hit =
       (id ? venues.find((v) => v.id === id) : null) ??
-      matchVenueByName(venues, ctx.query.replace(/\?+$/, ""));
+      (await matchVenueByName(venues, ctx.query.replace(/\?+$/, "")));
     if (hit) {
       name = hit.name;
       id = hit.id;
@@ -341,8 +329,8 @@ async function toolVenuePrices(
   const venues = await loadConciergeVenues(ctx.cityId);
   const venue =
     (venueIdArg ? venues.find((v) => v.id === venueIdArg) : null) ??
-    (venueName ? matchVenueByName(venues, venueName) : null) ??
-    matchVenueByName(venues, ctx.query);
+    (venueName ? await matchVenueByName(venues, venueName) : null) ??
+    (await matchVenueByName(venues, ctx.query));
 
   if (!venue) {
     return {
@@ -500,10 +488,10 @@ async function toolJourney(
   const from = str(args.from);
   const to = str(args.to);
   const venues = await loadConciergeVenues(ctx.cityId);
-  const fromVenue = from ? matchVenueByName(venues, from) : null;
+  const fromVenue = from ? await matchVenueByName(venues, from) : null;
   const toVenue =
-    (to ? matchVenueByName(venues, to) : null) ??
-    (!to ? matchVenueByName(venues, stripForMatch(ctx.query)) : null);
+    (to ? await matchVenueByName(venues, to) : null) ??
+    (!to ? await matchVenueByName(venues, stripForMatch(ctx.query)) : null);
 
   if (!from && !fromVenue) {
     return {
@@ -760,7 +748,7 @@ async function toolProposeMapAction(
   const venues = await loadConciergeVenues(ctx.cityId);
   const venue =
     (venueId ? venues.find((v) => v.id === venueId) : null) ??
-    matchVenueByName(venues, str(args.venueName) || ctx.query);
+    (await matchVenueByName(venues, str(args.venueName) || ctx.query));
 
   if (venue) {
     const proposals: AskProposal[] = [
