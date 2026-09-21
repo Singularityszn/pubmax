@@ -46,6 +46,9 @@ test.describe("Moment photo editor", () => {
       window.localStorage.setItem("pubmax-tour-v1-done", "1");
       window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
       window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      // Consent docks after the product answers; a photo upload counts, so pin
+      // the wait as already satisfied before the editor opens.
+      window.sessionStorage.setItem("pubmax:consent-answer-moment:v1", "second-route");
     });
   });
 
@@ -91,7 +94,7 @@ test.describe("Moment photo editor", () => {
     expect(editorCrossOriginRequests).toEqual([]);
     expect(editorExternalWrites).toEqual([]);
 
-    await page.getByRole("button", { name: "Close editor" }).click();
+    await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
     await expect(page.getByRole("img", { name: "Moment preview" })).toBeVisible();
 
