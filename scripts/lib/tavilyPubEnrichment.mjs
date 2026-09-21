@@ -1,6 +1,10 @@
-import { extractPintPrices } from "../../lib/harvest/tavilyPintPrices.ts";
+import {
+  extractPintPrices,
+  extractVenueDrinkPrices,
+  venueDrinkPricesFromUkReading,
+} from "../../lib/harvest/tavilyPintPrices.ts";
 
-export { extractPintPrices };
+export { extractPintPrices, extractVenueDrinkPrices };
 
 const TAVILY_SEARCH_URL = "https://api.tavily.com/search";
 const MAX_TAVILY_CALLS_PER_RUN = 200;
@@ -218,7 +222,9 @@ export async function extractPintPricesMaybeJudged(markdown, ctx) {
 
 /**
  * Keyless shared reader for every drink category, or the judged batch path when
- * TYPESAFE_API_KEY is set.
+ * TYPESAFE_API_KEY is set. Returns the same { drinks, reading, review } shape as
+ * the uk-prices harvest lane so outer-London Tavily refresh and city enrichment
+ * share one entry point.
  */
 export async function extractVenueDrinkPricesMaybeJudged(markdown, ctx) {
   const { extractVenueDrinkPricesForHarvest } = await import("../harvest/uk-prices/readPrices.mjs");
@@ -239,7 +245,9 @@ export function mergeCanonicalPrices(existing, incoming) {
 
 function searchQuery(pub) {
   const host = hostnameOf(pub.website);
-  return `site:${host} "${pub.name}" drinks menu "pint" "£"`;
+  return (
+    `site:${host} "${pub.name}" (drinks OR menu OR cocktail OR gin OR whisky OR vodka OR rum OR wine OR "soft drink" OR "alcohol free") "£"`
+  );
 }
 
 async function searchTavily({ pub, apiKey, fetchImpl, signal }) {
@@ -332,7 +340,7 @@ function acceptedOfficialResults(pub, payload, hostCounts, observedAt) {
 async function selectBestOfficialPage(results, pub) {
   let matchedPage = null;
   for (const result of results) {
-    const extracted = await extractPintPricesMaybeJudged(resultContent(result), {
+    const { drinks: extracted } = await extractVenueDrinkPricesMaybeJudged(resultContent(result), {
       pubName: pub?.name ?? "Unknown pub",
       pageUrl: result?.url ?? "",
     });
@@ -389,7 +397,7 @@ function recordOfficialPage({ pub, matchedPage, observedAt, pages, prices }) {
     prices.push({
       venueKey,
       drinkName: price.drinkName,
-      category: "beer",
+      category: price.category,
       priceGbp: price.priceGbp,
       servingSize: price.servingSize,
       source: {

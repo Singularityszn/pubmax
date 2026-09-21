@@ -543,7 +543,8 @@ describe("Tavily pub enrichment governance", () => {
     expect(result.matchedPubs).toBe(1);
     const request = fetchImpl.mock.calls[0]?.[1];
     expect(JSON.parse(String(request?.body))).toMatchObject({
-      query: 'site:independentarms.co.uk "Independent Arms" drinks menu "pint" "£"',
+      query:
+        'site:independentarms.co.uk "Independent Arms" (drinks OR menu OR cocktail OR gin OR whisky OR vodka OR rum OR wine OR "soft drink" OR "alcohol free") "£"',
       search_depth: "advanced",
       chunks_per_source: 3,
       max_results: 10,
