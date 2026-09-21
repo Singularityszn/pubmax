@@ -137,6 +137,10 @@ async function typesafeIntent(
   return validateJudgedIntent(composed, text);
 }
 
+function typesafeKeyConfigured(): boolean {
+  return Boolean(process.env.TYPESAFE_API_KEY?.trim());
+}
+
 /** Parse intent with a bounded TypeSafe assist and a deterministic, keyless fallback. */
 export async function parseConciergeIntent(
   text: string,
@@ -144,11 +148,15 @@ export async function parseConciergeIntent(
 ): Promise<ParsedConciergeIntent> {
   const clipped = text.slice(0, 500);
   const fallback = deterministicIntent(clipped);
-  if (options.skipModel) {
+  if (options.skipModel || !typesafeKeyConfigured()) {
     return { intent: fallback, source: "deterministic" };
   }
-  const parsed = await typesafeIntent(clipped, options.knownAreas ?? defaultKnownAreas());
-  return parsed
-    ? { intent: parsed, source: "model" }
-    : { intent: fallback, source: "deterministic" };
+  try {
+    const parsed = await typesafeIntent(clipped, options.knownAreas ?? defaultKnownAreas());
+    return parsed
+      ? { intent: parsed, source: "model" }
+      : { intent: fallback, source: "deterministic" };
+  } catch {
+    return { intent: fallback, source: "deterministic" };
+  }
 }

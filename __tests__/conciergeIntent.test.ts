@@ -130,6 +130,15 @@ describe("parseConciergeIntent keyless fallback", () => {
     });
   });
 
+  it("falls back to regex when systemOne throws and never spends without a key", async () => {
+    vi.mocked(systemOne).mockRejectedValue(new Error("typesafe unavailable"));
+    await expect(parseConciergeIntent("Cheapest pint in Camden tonight")).resolves.toEqual({
+      intent: expect.objectContaining({ mood: [], groupSize: 2 }),
+      source: "deterministic",
+    });
+    expect(systemOne).not.toHaveBeenCalled();
+  });
+
   it("stays on the regex path when skipModel is set even if a key exists", async () => {
     vi.stubEnv("TYPESAFE_API_KEY", "test-key");
     mockSystemOne({
@@ -146,9 +155,13 @@ describe("parseConciergeIntent keyless fallback", () => {
 });
 
 describe("parseConciergeIntent TypeSafe path", () => {
+  beforeEach(() => {
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+  });
+
   afterEach(() => {
     vi.mocked(systemOne).mockReset();
-    delete process.env.TYPESAFE_API_KEY;
+    vi.unstubAllEnvs();
   });
 
   it("accepts typed answers in place of prompt-then-parse JSON", async () => {
@@ -176,6 +189,17 @@ describe("parseConciergeIntent TypeSafe path", () => {
       intent: { mood: ["sports"], groupSize: 8, area: "Waterloo" },
       source: "deterministic",
     });
+  });
+
+  it("falls back to regex when systemOne throws with a key configured", async () => {
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    vi.mocked(systemOne).mockRejectedValue(new Error("typesafe unavailable"));
+
+    const parsed = await parseConciergeIntent("Somewhere to work with wifi in Angel");
+
+    expect(parsed.source).toBe("deterministic");
+    expect(parsed.intent.groupSize).toBe(2);
+    vi.unstubAllEnvs();
   });
 
   it("refuses a hallucinated area that is not verbatim in the request", async () => {
