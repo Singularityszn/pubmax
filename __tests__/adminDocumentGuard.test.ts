@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ADMIN_SESSION_COOKIE,
   canOpenAdminDocument,
-  hashAdminSession,
+  mintAdminSession,
   isModerator,
 } from "@/lib/adminAuth";
 
@@ -51,7 +51,7 @@ afterEach(() => {
 });
 
 function moderatorCookie(token: string): string {
-  return `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(hashAdminSession(token))}`;
+  return `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(mintAdminSession(token))}`;
 }
 
 /** Next hands the page a sealed adapter, so the gate may only ever call `get`. */
