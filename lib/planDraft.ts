@@ -225,14 +225,13 @@ function parsePlanDraftV2(
   }
 }
 
-/** Prefer a valid V2 envelope; fall back to populated legacy work without assigning it an age. */
+/** A canonical record owns expiry. Only unmigrated work may use the legacy reader. */
 export function parsePlanDraftEnvelope(
   rawV2: string | null,
   rawV1: string | null,
   now = Date.now(),
 ): ParsedPlanDraft | null {
-  const v2 = parsePlanDraftV2(rawV2, now);
-  if (v2) return v2;
+  if (rawV2 !== null) return parsePlanDraftV2(rawV2, now);
   const draft = parsePlanDraft(rawV1, now);
   return draft
     ? {

@@ -458,7 +458,9 @@ export function parsePlanRouteDraftEnvelope(
   rawV1: string | null,
   now = Date.now(),
 ): ParsedPlanRouteDraft | null {
-  return parsePlanRouteDraftV2(rawV2, now) ?? parseLegacyPlanRouteDraft(rawV1, now);
+  return rawV2 !== null
+    ? parsePlanRouteDraftV2(rawV2, now)
+    : parseLegacyPlanRouteDraft(rawV1, now);
 }
 
 export function readPlanRouteDraftEnvelope(
