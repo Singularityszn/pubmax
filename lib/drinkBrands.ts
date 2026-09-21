@@ -90,7 +90,11 @@ export const DRINK_BRANDS: DrinkBrandCatalog = {
   ],
   shot: [],
   "alcohol-free": [],
-  "soft-drink": [],
+  "soft-drink": [
+    { id: "coke-zero", label: "Coke Zero", aliases: ["coca-cola zero sugar", "coca cola zero"] },
+    { id: "diet-coke", label: "Diet Coke", aliases: ["coca-cola light", "coca cola light"] },
+    { id: "still-water", label: "Still water", aliases: ["bottled water", "mineral water"] },
+  ],
   coffee: [],
   other: [],
 };

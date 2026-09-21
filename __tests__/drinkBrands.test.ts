@@ -29,7 +29,11 @@ describe("drinkBrands", () => {
   it("keeps thin categories honestly empty", () => {
     expect(brandsForCategory("shot")).toEqual([]);
     expect(brandsForCategory("other")).toEqual([]);
-    expect(brandsForCategory("soft-drink")).toEqual([]);
+    expect(brandsForCategory("soft-drink").map((brand) => brand.id)).toEqual([
+      "coke-zero",
+      "diet-coke",
+      "still-water",
+    ]);
     expect(brandsForCategory("alcohol-free")).toEqual([]);
     expect(categoryHasBrandCoverage("shot")).toBe(false);
     expect(categoryHasBrandCoverage("gin")).toBe(true);

@@ -403,6 +403,22 @@ html[data-theme="dark"] .drinkShapeChipLabel {
 /* Progressive disclosure: the subtype row only mounts once a category is
    picked, so the resting toolbar keeps exactly one strip. Both strips scroll
    horizontally on their own, so neither can widen the toolbar at 390px. */
+.drinkShapeChipsMore {
+  margin: 0;
+  padding: 0 4px 4px;
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+.drinkShapeChipsMore a {
+  color: var(--accent-price-ink);
+  text-decoration: none;
+}
+
+.drinkShapeChipsMore a:hover {
+  text-decoration: underline;
+}
+
 .drinkShapeChipsStack {
   display: flex;
   flex-direction: column;

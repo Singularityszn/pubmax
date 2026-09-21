@@ -92,6 +92,13 @@ describe("drinkSubtypeFromText", () => {
     expect(drinkSubtypeFromText("Maker's Mark")?.id).toBe("whisky-bourbon");
   });
 
+  it("classifies soft-drink subtypes without widening the category union", () => {
+    expect(drinkSubtypeFromText("Coke Zero")?.id).toBe("soft-drink-coke-zero");
+    expect(drinkSubtypeFromText("Diet Coke")?.id).toBe("soft-drink-diet-coke");
+    expect(drinkSubtypeFromText("Still water")?.id).toBe("soft-drink-still-water");
+    expect(drinkSubtypeFromText("Tap water", "soft-drink")).toBeNull();
+  });
+
   // Spot-check against the real strings in data/pint_prices_app_dataset.csv.
   it.each([
     ["GUINNESS", "beer-stout"],

@@ -101,6 +101,13 @@ async function readPriceUpdates(): Promise<PriceUpdatesIndex | null> {
  * Null when the read failed, so the caller publishes an absence it can tell
  * from an empty answer.
  */
+/** Every drink-price update row, flattened once per process read. */
+export async function allDrinkPriceUpdates(): Promise<DrinkPriceUpdate[]> {
+  const index = await readPriceUpdates();
+  if (!index) return [];
+  return [...index.drinkByKey.values()].flat();
+}
+
 export async function venuePriceUpdatesFor(
   keys: readonly string[],
 ): Promise<VenuePriceUpdates | null> {

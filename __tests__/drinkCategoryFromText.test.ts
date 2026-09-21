@@ -60,6 +60,9 @@ describe("drinkCategoryFromText", () => {
     expect(drinkCategoryFromText("Heineken 0.0")).toBe("alcohol-free");
     expect(drinkCategoryFromText("Alcohol-free pint")).toBe("alcohol-free");
     expect(drinkCategoryFromText("Coke")).toBe("soft-drink");
+    expect(drinkCategoryFromText("Coke Zero")).toBe("soft-drink");
+    expect(drinkCategoryFromText("Diet Coke")).toBe("soft-drink");
+    expect(drinkCategoryFromText("Still water")).toBe("soft-drink");
     expect(drinkCategoryFromText("Lime and lemonade")).toBe("soft-drink");
     expect(drinkCategoryFromText("Flat white")).toBe("coffee");
     expect(drinkCategoryFromText("Americano")).toBe("coffee");

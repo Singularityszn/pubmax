@@ -1,0 +1,139 @@
+.softDrinksWaterLanding {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: 24px 0 calc(96px + env(safe-area-inset-bottom));
+  color: var(--ink);
+  overflow-x: hidden;
+}
+
+.softDrinksWater {
+  width: min(100%, 1080px);
+  min-width: 0;
+  margin: 0 auto;
+  padding-inline: 20px;
+}
+
+.softDrinksWater__layout {
+  display: grid;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+@media (min-width: 900px) {
+  .softDrinksWater__layout {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+    align-items: start;
+  }
+}
+
+.softDrinksWater__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 0;
+}
+
+.softDrinksWater__chip {
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.softDrinksWater__chip.isOn {
+  border-color: var(--cat-soft-drink, var(--accent));
+  background: color-mix(in srgb, var(--cat-soft-drink, var(--accent)) 12%, var(--paper));
+}
+
+.softDrinksWater__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.softDrinksWater__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card, var(--paper));
+}
+
+.softDrinksWater__venue {
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.softDrinksWater__venue:hover {
+  text-decoration: underline;
+}
+
+.softDrinksWater__borough {
+  display: block;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+}
+
+.softDrinksWater__meta {
+  display: block;
+  margin-top: 6px;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+}
+
+.softDrinksWater__door {
+  margin-top: 8px;
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+.softDrinksWater__door a {
+  color: var(--accent-price-ink);
+}
+
+.softDrinksWater__price {
+  align-self: start;
+  font-family: var(--font-data);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-price-ink);
+}
+
+.softDrinksWater__mapFrame {
+  display: block;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+}
+
+.softDrinksWater__mapBg {
+  fill: var(--panel);
+}
+
+.softDrinksWater__mapDot {
+  fill: var(--cat-soft-drink, var(--accent));
+}
+
+.softDrinksWater__mapCaption {
+  display: block;
+  padding: 10px 12px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-align: center;
+  background: var(--paper);
+}
