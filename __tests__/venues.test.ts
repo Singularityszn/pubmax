@@ -862,6 +862,41 @@ describe("mergeVenueDrops", () => {
     expect(merged.hasStory).toBe(false);
   });
 
+  it("a corroborated drop priced ABOVE the baseline never relabels cheapestPint (cheapestPint must name cheapestPrice's own row)", () => {
+    const venue = plainVenue();
+    expect(venue.cheapestPrice).toBe(6);
+    expect(venue.cheapestPint).toBe("Lager");
+    const [merged] = mergeVenueDrops(
+      [venue],
+      new Map([
+        [
+          venue.id,
+          [
+            makeSummaryDrop({
+              drink: "Guinness",
+              priceGbp: 7.5,
+              handle: "first_drinker",
+              authorityKey: "venue-authority-a",
+            }),
+            makeSummaryDrop({
+              drink: "Guinness",
+              priceGbp: 7.5,
+              handle: "second_drinker",
+              authorityKey: "venue-authority-b",
+              createdAt: "2026-05-31T10:00:00.000Z",
+            }),
+          ],
+        ],
+      ]),
+      NOW,
+    );
+    // The baseline price is still cheaper, so it must keep naming its own drink.
+    expect(merged.cheapestPrice).toBe(6);
+    expect(merged.cheapestPint).toBe("Lager");
+    // The pricier corroborated report still surfaces on the contributor layer.
+    expect(merged.latestContributorPrice).toBe(7.5);
+  });
+
   it("an editorial heritage note keeps hasStory true regardless of drops", () => {
     const venue = groupVenuePrices([makeRow({ pub_name: "The Lamb" })])[0];
     const [merged] = mergeVenueDrops(
