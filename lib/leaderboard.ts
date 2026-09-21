@@ -1,3 +1,4 @@
+import { measureIsPint, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { isoDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { DAY_MS } from "@/lib/dayMs";
 import { answerEvidenceFor } from "@/lib/landingHero";
@@ -241,6 +242,8 @@ export function cheapestByArea(venues: Venue[]): LeaderboardEntry[] {
 // /api/pint-drops DTO satisfies this (venueId, priceGbp, createdAt, handle,
 // server-enriched venueName); callers narrow the API payload before passing it.
 export type TonightDrop = {
+  measure?: DrinkMeasure;
+  drink?: string;
   venueId: string;
   priceGbp: number | null;
   createdAt: string;
@@ -299,7 +302,7 @@ export function cheapestTonight(
   // so the winner is stable regardless of input order.
   const cheapestPerVenue = new Map<string, TonightEntry>();
   for (const drop of drops) {
-    if (!drop.venueId) continue;
+    if (!drop.venueId || !measureIsPint(drop.measure)) continue;
     if (!isFinitePrice(drop.priceGbp)) continue;
     const at = dropTime(drop.createdAt);
     if (!Number.isFinite(at) || at <= windowStart || at > now) continue;
