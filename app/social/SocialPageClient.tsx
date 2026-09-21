@@ -65,13 +65,6 @@ const ACCESS_STATES = new Set<SocialAccessState>([
   "suspended",
 ]);
 
-/**
- * The public half of this surface: pub and pint listings a stranger can read
- * without an account. It is where `next.config.mjs` 308s `/discover` and
- * `/drinks`, so it is the value a signed-out reader is owed before any ask.
- */
-const SOCIAL_PUBLIC_TAB_HREF = "/social?tab=discover";
-
 type AccessLoadState = "checking" | SocialAccessState | "unavailable";
 type FeedLoadState = "idle" | "loading" | "ready" | "error";
 type ActivityLoadState = "idle" | "loading" | "ready" | "unavailable";
@@ -204,13 +197,14 @@ export function SocialAccessBoundary({
   const assertionLine = adultSelfAssertionLine(friendsLaunchEnabled);
   // One line and at most one quiet way onward, in the EmptyState idiom every
   // other boundary here shares. Never a dialog: arrival is not an admin form.
-  // The Screen above owns the one painted action, so nothing here is filled:
-  // the sign-in door is this surface's quiet way onward and never its primary,
-  // because no primary action on a public route is "Sign in".
+  // The Screen above owns the one painted action when the surface is open, so
+  // nothing here is filled for sign-in: the door sits in the head, not twice.
   const asking = state === "age_verification_required" && adultPrompt;
   const action =
     state === "sign_in_required" ? (
-      <Link href={SOCIAL_SIGN_IN_HREF}>Sign in</Link>
+      friendsLaunchEnabled ? undefined : (
+        <Link href={SOCIAL_SIGN_IN_HREF}>Sign in</Link>
+      )
     ) : asking && onAssertAdult ? (
       <button type="button" onClick={onAssertAdult} disabled={assertBusy}>
         {ADULT_SELF_ASSERTION_ACTION}
@@ -711,15 +705,14 @@ function SocialPageAccountState({
   // primary slot and the sheet it opens is fixed, so nothing else on the page
   // wears the fill.
   //
-  // NO PRIMARY ACTION ON A PUBLIC ROUTE IS "SIGN IN" (the launch table's own
-  // opening rule, and /social answers 200 to a stranger). It painted one
-  // anyway, and because `next.config.mjs` 308s /discover, /drinks and /feed
-  // here, four launch addresses met an account wall as their one painted
-  // action. A stranger is handed the value instead: the public Pubs and pints
-  // tab from the posts tab, and the map from the public tab, both real
-  // destinations that need no account. The sign-in door keeps its place as the
-  // boundary's own quiet way onward, below the answer, which is what "value
-  // first, account at the first kept action" means. While the session or the
+  // A STRANGER'S PRIMARY FOLLOWS WHAT THE BODY UNDER IT ACTUALLY SAYS. On the
+  // posts tab under the friends launch the body is the sign-in boundary and
+  // nothing else a stranger can act on, so the door is their first kept action
+  // and the head paints it, leaving the boundary to print its line without a
+  // second link to the same page. Everywhere else the body answers with public
+  // value - the Pubs and pints tab's listings, or the map behind the
+  // invite-only preview - and the launch table's opening rule stands: no
+  // primary action on a public route is "Sign in". While the session or the
   // access answer is still open the control waits, because a surface that
   // routes the viewer may not guess who they are.
   const composeReady = showPostsControls && draftScope !== null;
@@ -739,11 +732,11 @@ function SocialPageAccountState({
     // boundary on BOTH tabs, so the public tab is not public any more and
     // pointing the one painted action at it would send a stranger back to the
     // wall they are already looking at. The map is the destination that holds
-    // whatever the flag says, so it is the fallback for both the public tab
-    // and the rollback.
+    // whatever the flag says, and the preview boundary keeps its own quiet
+    // sign-in way onward underneath.
     isPosts && friendsLaunchEnabled ? (
-      <Link prefetch={false} href={SOCIAL_PUBLIC_TAB_HREF}>
-        Browse pubs and pints
+      <Link prefetch={false} href={SOCIAL_SIGN_IN_HREF}>
+        Sign in
       </Link>
     ) : (
       <Link prefetch={false} href="/map">
@@ -850,9 +843,8 @@ function SocialPageAccountState({
             </section>
           ) : viewerPhase === "signed-out" ? (
             <>
-              {/* The head above paints the public tab now, not the door, so
-                  the boundary keeps its own quiet sign-in way onward: one
-                  painted action for the value, one quiet link for the ask. */}
+              {/* The head above carries the sign-in door as the one painted
+                  action, so the boundary prints its line alone. */}
               <SocialAccessBoundary
                 state="sign_in_required"
                 friendsLaunchEnabled={friendsLaunchEnabled}

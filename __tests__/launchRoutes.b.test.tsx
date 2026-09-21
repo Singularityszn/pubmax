@@ -129,21 +129,37 @@ describe("launch routes (group b) carry one primary action", () => {
       }),
     );
     expect(primaryCount(rendered)).toBe(1);
-    // NO PRIMARY ACTION ON A PUBLIC ROUTE IS "SIGN IN" (the launch table's own
-    // opening rule). /social answers 200 to a stranger, and next.config.mjs
-    // 308s /discover, /drinks and /feed here, so a painted Sign in put an
-    // account wall in front of four launch addresses. A stranger's one painted
-    // action is the public Pubs and pints tab; the sign-in door is the
-    // boundary's quiet way onward under the answer, in the EmptyState idiom.
+    // A stranger's first kept action is signing in: the Screen head carries the
+    // door and the boundary below prints its line without a second link.
     expect(rendered).toMatch(
-      /data-primary-action=""><a[^>]*href="\/social\?tab=discover"[^>]*>Browse pubs and pints<\/a>/,
+      /data-primary-action=""><a[^>]*href="\/login\?mode=signin&amp;from=%2Fsocial"[^>]*>Sign in<\/a>/,
     );
-    expect(rendered).not.toMatch(/data-primary-action=""><a[^>]*>Sign in<\/a>/);
     expect(rendered).toContain('class="emptyStateTitle">Sign in to use Social.');
-    expect(rendered).toMatch(
+    expect(rendered).not.toMatch(
       /class="emptyStateAction"><a[^>]*href="\/login\?mode=signin&amp;from=%2Fsocial"[^>]*>Sign in<\/a>/,
     );
     expect(rendered).not.toContain("socialButton");
+  });
+
+  it("/social?tab=discover keeps the public primary, not the door", () => {
+    // The door is the primary only where the stranger meets the boundary. The
+    // Pubs and pints tab answers a stranger with real public listings under
+    // the friends launch, so the launch table's opening rule stands there and
+    // its one painted action is the map, never "Sign in".
+    const rendered = renderToStaticMarkup(
+      createElement(SocialPageClient, {
+        initialState: { valid: true, tab: "discover", feed: null, area: null },
+        rivalry: [],
+        heritageCrawls: [],
+        friendsLaunchEnabled: true,
+      }),
+    );
+    expect(primaryCount(rendered)).toBe(1);
+    expect(rendered).toMatch(
+      /data-primary-action=""><a[^>]*href="\/map"[^>]*>Open the map<\/a>/,
+    );
+    expect(rendered).not.toMatch(/data-primary-action=""><a[^>]*>Sign in<\/a>/);
+    expect(rendered).not.toContain("Sign in to use Social.");
   });
 
   it("/places carries one primary action", () => {
