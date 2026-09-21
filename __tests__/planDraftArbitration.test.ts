@@ -155,6 +155,23 @@ describe("V2 Plan draft migration", () => {
     });
   });
 
+  it("does not revive a dual-written plan through its legacy mirror after expiry", () => {
+    const storage = memoryStorage();
+    writePlanDraftEnvelope(storedPlan(), "manual", storage, NOW);
+    const expired = readPlanDraftEnvelope(storage, NOW + PLAN_DRAFT_TTL_MS);
+    expect(expired).toBeNull();
+    const freshIntake = intake(NOW + PLAN_DRAFT_TTL_MS, "2026-07-25T19:00:00.000Z");
+    const result = arbitratePlanDrafts({ planDraft: expired, intakeDraft: freshIntake });
+    expect(result.startsAt).toEqual({
+      value: freshIntake.draft.answers.exactStartIso,
+      source: "intake-v1",
+    });
+  });
+
+  it("does not downgrade a corrupt canonical plan to an unaged legacy mirror", () => {
+    expect(parsePlanDraftEnvelope("{broken", JSON.stringify(storedPlan()), NOW)).toBeNull();
+  });
+
   it("falls back to populated legacy work without inventing savedAt", () => {
     const legacy = JSON.stringify(storedPlan());
     expect(parsePlanDraftEnvelope(null, legacy, NOW)).toMatchObject({
@@ -198,6 +215,12 @@ describe("V2 Route draft migration", () => {
       legacy: false,
       value: { operationKey: "operation-1", routeRevision: 1 },
     });
+  });
+
+  it("does not revive a dual-written route through its legacy mirror after expiry", () => {
+    const storage = memoryStorage();
+    writePlanRouteDraftEnvelope(routeValue(), "manual", storage, NOW);
+    expect(readPlanRouteDraftEnvelope(storage, NOW + PLAN_ROUTE_DRAFT_TTL_MS)).toBeNull();
   });
 
   it("recovers a legacy Route without assigning it an age", () => {
