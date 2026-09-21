@@ -127,6 +127,8 @@ const NOT_REPO_PATHS = new Set([
   "page.setDefaultNavigationTimeout",
   // URL in trailing-slash law, not a repository path.
   "/api/thing/",
+  // Git ref the knip deadcode gate diffs against, not a repository path.
+  "origin/main",
   // Harvest working directory is gitignored by design.
   "data-harvest/bars-enriched/",
   // Throwaway Overpass working directory is absent from clean clones.

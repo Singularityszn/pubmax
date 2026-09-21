@@ -159,7 +159,9 @@ const ahead = aheadCount();
 const headIssues = flattenKnipReport(headReport());
 
 let baseIssues = [];
-let baseReadable = false;
+// No findings on HEAD means we never need the base report; treat it as readable so
+// verify does not print the full-tree fallback line on a clean branch.
+let baseReadable = true;
 if (!isMainlineGate(ahead) && errorIssues(headIssues).length > 0) {
   const base = readBase();
   baseReadable = base.readable;
