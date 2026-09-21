@@ -55,11 +55,9 @@ Today: twelve top-level regexes with a hand-ordered precedence cascade and negat
 TypeSafe shape (intent routing plus function calling cookbooks): one Choice over the tool set plus `none`, and speculative branch-specific questions in the same call: Choice `venue` over the top N venue candidates found by code (substring hits, nearby venues, recently viewed), Choice `area` over known areas plus `none`, Noul `wantsMap`. Code consumes only the answers on the chosen branch. The regex cascade stays as the keyless fallback.
 
 ### 5. Concierge intent parsing
-`lib/concierge/intent.ts:24-78` deterministic path, `lib/concierge/whatsOn.ts:32-99`.
+`lib/concierge/intent.ts` judged path, `lib/concierge/intentPolicy.ts` thresholds, `lib/concierge/whatsOn.ts` still regex.
 
-Today: eleven mood regexes, a number-word table, a lookahead-terminated area regex, and `cheap` hardcoded to £6. There is already a model path; its `validateModelIntent` (require the area verbatim in the user text) is the right pattern and should be kept.
-
-TypeSafe shape: over `{text, knownAreas, moods}` ask Noul per mood (several may apply), Choice `area` over the areas that appear in the text plus `none`, Choice `groupSize` over the numbers found in the text plus `unstated`, Choice `budgetSignal` over `explicit figure`, `cheap`, `unstated`. Replaces prompt-then-parse-JSON with typed answers and removes the second OpenRouter call.
+Shipped: TypeSafe System One over `{text, knownAreas, moods}` with a Noul per mood, Choice `area` over areas that appear in the text plus `none`, Choice `groupSize` over numbers found in the text plus `unstated`, Choice `budgetSignal` over `explicit figure`, `cheap`, `unstated`. The OpenRouter prompt-then-parse path is gone. `validateJudgedIntent` still requires a chosen area to appear verbatim in the request. The eleven mood regexes, number-word table, lookahead area regex and cheap = £6 stay as the keyless fallback. What's-on kind detection in `lib/concierge/whatsOn.ts` was never the OpenRouter path and stays regex. Thresholds from `__tests__/fixtures/typesafe/conciergeIntentProbabilities.json`.
 
 ### 6. Venue resolution by name in Ask tools
 `lib/ask/tools.ts:76-87` (`matchVenueByName`), used by heritage, prices, journey and map-action tools.

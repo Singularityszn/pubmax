@@ -1,9 +1,25 @@
+import { systemOne } from "@/lib/ai/typesafe.server";
+import { conciergeIntentQuestions } from "@/lib/concierge/intentQuestions";
+import {
+  AREA_NONE,
+  CHEAP_PINT_GBP,
+  DEFAULT_GROUP_SIZE,
+  GROUP_UNSTATED,
+  NUMBER_WORDS,
+  areaCandidatesInText,
+  defaultKnownAreas,
+  extractAreaPhrase,
+  extractExplicitBudget,
+  groupSizeCandidatesInText,
+  intentFromJudgment,
+  moodQuestionId,
+  validateJudgedIntent,
+} from "@/lib/concierge/intentPolicy";
 import {
   CONCIERGE_MOODS,
   type ConciergeIntent,
   type ConciergeMood,
 } from "@/lib/concierge/rank";
-import { traceArizeModelCall } from "@/lib/observability/arize";
 
 export type ParsedConciergeIntent = {
   intent: ConciergeIntent;
@@ -11,15 +27,13 @@ export type ParsedConciergeIntent = {
 };
 
 type ParseOptions = {
-  apiKey?: string;
-  model?: string;
-  fetcher?: typeof fetch;
   /**
-   * Withhold the paid model assist and answer deterministically. Callers set
+   * Withhold the paid TypeSafe assist and answer deterministically. Callers set
    * this when paid spend can't be safely rate-limited (e.g. production with
    * no durable limiter) — the parse still works, it just never spends.
    */
   skipModel?: boolean;
+  knownAreas?: readonly string[];
 };
 
 const MOOD_TERMS: Record<ConciergeMood, RegExp> = {
@@ -36,38 +50,22 @@ const MOOD_TERMS: Record<ConciergeMood, RegExp> = {
   heritage: /\b(?:heritage|historic|history|old pub)\b/i,
 };
 
-const NUMBER_WORDS: Record<string, number> = {
-  one: 1,
-  two: 2,
-  three: 3,
-  four: 4,
-  five: 5,
-  six: 6,
-  seven: 7,
-  eight: 8,
-  nine: 9,
-  ten: 10,
-  twelve: 12,
-};
-
 function deterministicIntent(text: string): ConciergeIntent {
   const mood = CONCIERGE_MOODS.filter((candidate) => MOOD_TERMS[candidate].test(text));
   const numericGroup = text.match(/\b(\d{1,2})\s+(?:of us|people|mates|pax)\b/i)?.[1]
     ?? text.match(/\b(?:for|group of|we(?:'re| are))\s+(?!£)(\d{1,2})\b/i)?.[1];
   const wordGroup = text.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten|twelve)\s+(?:of us|people|mates|pax)\b/i)?.[1]
     ?? text.match(/\b(?:for|group of|we(?:'re| are))\s+(one|two|three|four|five|six|seven|eight|nine|ten|twelve)\b/i)?.[1];
-  const parsedGroup = numericGroup ? Number(numericGroup) : wordGroup ? NUMBER_WORDS[wordGroup.toLowerCase()] : 2;
+  const parsedGroup = numericGroup ? Number(numericGroup) : wordGroup ? NUMBER_WORDS[wordGroup.toLowerCase()] : DEFAULT_GROUP_SIZE;
   const groupSize = Math.min(20, Math.max(1, parsedGroup));
 
-  const areaMatch = text.match(/\b(?:near|around|in)\s+([\p{L}][\p{L}' .-]*?)(?=\s+(?:for|with|under|below|max|not)\b|\s*,|[.!?]|$)/iu);
-  const area = areaMatch?.[1]?.trim().replace(/\s+/g, " ");
+  const area = extractAreaPhrase(text);
 
-  const explicitBudget = text.match(/(?:under|below|max(?:imum)?|up to)\s*£?\s*(\d+(?:\.\d{1,2})?)/i)?.[1]
-    ?? text.match(/£\s*(\d+(?:\.\d{1,2})?)\s*(?:or less|max)/i)?.[1];
-  const maxPintPrice = explicitBudget
-    ? Math.min(15, Math.max(3, Number(explicitBudget)))
+  const explicitBudget = extractExplicitBudget(text);
+  const maxPintPrice = explicitBudget !== undefined
+    ? explicitBudget
     : /\b(?:not pricey|cheap|budget|inexpensive|affordable)\b/i.test(text)
-      ? 6
+      ? CHEAP_PINT_GBP
       : undefined;
 
   return {
@@ -78,107 +76,98 @@ function deterministicIntent(text: string): ConciergeIntent {
   };
 }
 
-function validateModelIntent(value: unknown, originalText: string): ConciergeIntent | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const record = value as Record<string, unknown>;
-  const mood = record.mood;
-  if (!Array.isArray(mood) || !mood.every((item) => typeof item === "string" && CONCIERGE_MOODS.includes(item as ConciergeMood))) return null;
-  const groupSize = record.groupSize;
-  if (typeof groupSize !== "number" || !Number.isInteger(groupSize) || groupSize < 1 || groupSize > 20) return null;
-  const area = record.area;
-  if (area !== undefined) {
-    if (typeof area !== "string" || !area.trim() || area.length > 80) return null;
-    // Areas are factual strings, not creative output: require a verbatim phrase
-    // from the user's request so the model cannot relocate the crew.
-    if (!originalText.toLocaleLowerCase("en-GB").includes(area.trim().toLocaleLowerCase("en-GB"))) return null;
-  }
-  const maxPintPrice = record.maxPintPrice;
-  if (maxPintPrice !== undefined && (typeof maxPintPrice !== "number" || !Number.isFinite(maxPintPrice) || maxPintPrice < 3 || maxPintPrice > 15)) return null;
+type ChoiceAnswer = {
+  choice?: unknown;
+  probabilities?: Record<string, unknown>;
+};
 
+function asChoiceAnswer(value: unknown): ChoiceAnswer {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const record = value as Record<string, unknown>;
+  const probabilities = record.probabilities;
   return {
-    mood: [...new Set(mood as ConciergeMood[])],
-    groupSize,
-    ...(typeof area === "string" ? { area: area.trim() } : {}),
-    ...(typeof maxPintPrice === "number" ? { maxPintPrice } : {}),
+    choice: record.choice,
+    probabilities:
+      probabilities && typeof probabilities === "object" && !Array.isArray(probabilities)
+        ? probabilities as Record<string, unknown>
+        : undefined,
   };
 }
 
-const SYSTEM_PROMPT = [
-  "You parse one UK pub-night request into JSON only.",
-  `Allowed mood values: ${CONCIERGE_MOODS.join(", ")}.`,
-  "Schema: {mood: string[], groupSize: integer 1..20, area?: string, maxPintPrice?: number 3..15}.",
-  "Copy area verbatim from the request. Do not add preferences or facts the user did not express.",
-  "Use groupSize 2 when absent and mood [] when absent.",
-].join(" ");
-
-async function modelIntent(text: string, options: ParseOptions): Promise<ConciergeIntent | null> {
-  if (options.skipModel) return null;
-  const apiKey = options.apiKey ?? process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return null;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10_000);
-  const model = options.model ?? process.env.OPENROUTER_MODEL ?? "anthropic/claude-sonnet-4-5";
-  const userContent = text.slice(0, 500);
-  // One Arize AX span around the model call (lib/observability/arize.ts):
-  // model, tokens, latency, route; prompt masked for emails and handles.
-  return traceArizeModelCall({
-    route: "concierge/intent",
-    model,
-    provider: "openrouter",
-    prompt: userContent,
-    invocationParameters: { temperature: 0, max_tokens: 180 },
-    call: async (span) => {
-      try {
-        const response = await (options.fetcher ?? fetch)("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model,
-            temperature: 0,
-            max_tokens: 180,
-            response_format: { type: "json_object" },
-            messages: [
-              { role: "system", content: SYSTEM_PROMPT },
-              { role: "user", content: userContent },
-            ],
-          }),
-          signal: controller.signal,
-        });
-        if (!response.ok) {
-          span?.setError(new Error(`OpenRouter responded ${response.status}.`));
-          return null;
-        }
-        const payload = await response.json();
-        span?.setUsage({
-          promptTokens: payload?.usage?.prompt_tokens,
-          completionTokens: payload?.usage?.completion_tokens,
-          totalTokens: payload?.usage?.total_tokens,
-        });
-        const content = payload?.choices?.[0]?.message?.content;
-        if (typeof content !== "string") {
-          span?.setError(new Error("OpenRouter returned no content."));
-          return null;
-        }
-        span?.setOutput(content);
-        return validateModelIntent(JSON.parse(content), text);
-      } catch (error) {
-        span?.setError(error);
-        return null;
-      } finally {
-        clearTimeout(timer);
-      }
-    },
+async function typesafeIntent(
+  text: string,
+  knownAreas: readonly string[],
+): Promise<ConciergeIntent | null> {
+  const areaCandidates = areaCandidatesInText(text, knownAreas);
+  const groupSizeCandidates = groupSizeCandidatesInText(text);
+  const questions = conciergeIntentQuestions({
+    areaCandidates,
+    groupSizeCandidates,
   });
+  const response = await systemOne(
+    { text, knownAreas: [...knownAreas], moods: [...CONCIERGE_MOODS] },
+    questions,
+    { lane: "typesafe", timeoutMs: 4_000 },
+  );
+  if (!response) return null;
+
+  const moods: Partial<Record<ConciergeMood, unknown>> = {};
+  for (const mood of CONCIERGE_MOODS) {
+    const answered: unknown = response.answers[moodQuestionId(mood)];
+    moods[mood] = answered && typeof answered === "object" && "noul" in answered
+      ? (answered as { noul: unknown }).noul
+      : undefined;
+  }
+  const areaAnswer = asChoiceAnswer(response.answers.area);
+  const groupAnswer = asChoiceAnswer(response.answers.groupSize);
+  const budgetAnswer = asChoiceAnswer(response.answers.budgetSignal);
+
+  const composed = intentFromJudgment(text, {
+    moods,
+    areaChoice: areaAnswer.choice ?? AREA_NONE,
+    areaProbabilities: areaAnswer.probabilities,
+    groupChoice: groupAnswer.choice ?? GROUP_UNSTATED,
+    groupProbabilities: groupAnswer.probabilities,
+    budgetChoice: budgetAnswer.choice,
+    budgetProbabilities: budgetAnswer.probabilities,
+    areaOptions: areaCandidates,
+    groupOptions: groupSizeCandidates,
+  });
+  if (!composed) return null;
+  return validateJudgedIntent(composed, text);
 }
 
-/** Parse intent with a bounded LLM assist and a deterministic, keyless fallback. */
+function typesafeKeyConfigured(): boolean {
+  return Boolean(process.env.TYPESAFE_API_KEY?.trim());
+}
+
+/** Keyless Playwright servers must never spend on intent, even if `.env.local` carries a key. */
+function keylessRuntimeForIntent(): boolean {
+  return process.env.PUBMAX_E2E_KEYLESS === "1";
+}
+
+function useDeterministicIntentOnly(options: ParseOptions): boolean {
+  if (keylessRuntimeForIntent()) return true;
+  if (options.skipModel) return true;
+  return !typesafeKeyConfigured();
+}
+
+/** Parse intent with a bounded TypeSafe assist and a deterministic, keyless fallback. */
 export async function parseConciergeIntent(
   text: string,
   options: ParseOptions = {},
 ): Promise<ParsedConciergeIntent> {
-  const fallback = deterministicIntent(text.slice(0, 500));
-  const parsed = await modelIntent(text.slice(0, 500), options);
-  return parsed
-    ? { intent: parsed, source: "model" }
-    : { intent: fallback, source: "deterministic" };
+  const clipped = text.slice(0, 500);
+  const fallback = deterministicIntent(clipped);
+  if (useDeterministicIntentOnly(options)) {
+    return { intent: fallback, source: "deterministic" };
+  }
+  try {
+    const parsed = await typesafeIntent(clipped, options.knownAreas ?? defaultKnownAreas());
+    return parsed
+      ? { intent: parsed, source: "model" }
+      : { intent: fallback, source: "deterministic" };
+  } catch {
+    return { intent: fallback, source: "deterministic" };
+  }
 }

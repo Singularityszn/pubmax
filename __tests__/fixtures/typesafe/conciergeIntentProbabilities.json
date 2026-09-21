@@ -1,0 +1,1780 @@
+{
+  "recordedAt": "2026-09-21T06:04:15.876Z",
+  "model": "jev-1.13.0",
+  "cases": [
+    {
+      "id": "quiet-bank-cheap",
+      "text": "Quiet-ish near Bank, 4 of us, not pricey",
+      "expectMoods": [
+        "quiet"
+      ],
+      "expectArea": "Bank",
+      "expectGroupSize": 4,
+      "expectBudget": "cheap",
+      "expectMaxPintPrice": 6,
+      "moods": {
+        "balanced": 0.06,
+        "quiet": 0.97,
+        "lively": 0.02,
+        "cosy": 0.04,
+        "garden": 0.03,
+        "riverside": 0.02,
+        "sports": 0.02,
+        "date": 0.05,
+        "food": 0.06,
+        "cocktails": 0.04,
+        "heritage": 0.03
+      },
+      "areaChoice": "Bank",
+      "areaProbabilities": {
+        "none": 0.02,
+        "Bank": 0.98
+      },
+      "groupChoice": "4",
+      "groupProbabilities": {
+        "4": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "cheap",
+      "budgetProbabilities": {
+        "unstated": 0,
+        "explicit figure": 0,
+        "cheap": 1
+      }
+    },
+    {
+      "id": "garden-soho-six-seven",
+      "text": "Garden in Soho for 6 under £7",
+      "expectMoods": [
+        "garden"
+      ],
+      "expectArea": "Soho",
+      "expectGroupSize": 6,
+      "expectBudget": "explicit figure",
+      "expectMaxPintPrice": 7,
+      "moods": {
+        "balanced": 0.04,
+        "quiet": 0.09,
+        "lively": 0.06,
+        "cosy": 0.03,
+        "garden": 0.99,
+        "riverside": 0.02,
+        "sports": 0.02,
+        "date": 0.05,
+        "food": 0.06,
+        "cocktails": 0.03,
+        "heritage": 0.03
+      },
+      "areaChoice": "Soho",
+      "areaProbabilities": {
+        "none": 0.03,
+        "Soho": 0.97
+      },
+      "groupChoice": "6",
+      "groupProbabilities": {
+        "6": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "explicit figure",
+      "budgetProbabilities": {
+        "cheap": 0,
+        "explicit figure": 0.98,
+        "unstated": 0.02
+      }
+    },
+    {
+      "id": "sports-waterloo-eight",
+      "text": "Sports near Waterloo for 8",
+      "expectMoods": [
+        "sports"
+      ],
+      "expectArea": "Waterloo",
+      "expectGroupSize": 8,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.08,
+        "quiet": 0.03,
+        "lively": 0.08,
+        "cosy": 0.02,
+        "garden": 0.13,
+        "riverside": 0.03,
+        "sports": 0.91,
+        "date": 0.03,
+        "food": 0.01,
+        "cocktails": 0.01,
+        "heritage": 0.01
+      },
+      "areaChoice": "Waterloo",
+      "areaProbabilities": {
+        "Waterloo": 0.59,
+        "none": 0.41
+      },
+      "groupChoice": "8",
+      "groupProbabilities": {
+        "8": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "unstated": 0.97,
+        "explicit figure": 0.03,
+        "cheap": 0
+      }
+    },
+    {
+      "id": "quiet-bank-under-seven",
+      "text": "Quiet near Bank under £7",
+      "expectMoods": [
+        "quiet"
+      ],
+      "expectArea": "Bank",
+      "expectGroupSize": 2,
+      "expectBudget": "explicit figure",
+      "expectMaxPintPrice": 7,
+      "moods": {
+        "balanced": 0.02,
+        "quiet": 0.98,
+        "lively": 0.02,
+        "cosy": 0.03,
+        "garden": 0.03,
+        "riverside": 0.02,
+        "sports": 0.02,
+        "date": 0.04,
+        "food": 0.03,
+        "cocktails": 0.03,
+        "heritage": 0.03
+      },
+      "areaChoice": "Bank",
+      "areaProbabilities": {
+        "none": 0.11,
+        "Bank": 0.89
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "explicit figure",
+      "budgetProbabilities": {
+        "explicit figure": 1,
+        "cheap": 0,
+        "unstated": 0
+      }
+    },
+    {
+      "id": "cosy-shoreditch-two",
+      "text": "Cosy in Shoreditch for two",
+      "expectMoods": [
+        "cosy"
+      ],
+      "expectArea": "Shoreditch",
+      "expectGroupSize": 2,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.03,
+        "quiet": 0.47,
+        "lively": 0.03,
+        "cosy": 0.97,
+        "garden": 0.03,
+        "riverside": 0.03,
+        "sports": 0.02,
+        "date": 0.25,
+        "food": 0.09,
+        "cocktails": 0.05,
+        "heritage": 0.04
+      },
+      "areaChoice": "Shoreditch",
+      "areaProbabilities": {
+        "Shoreditch": 1,
+        "none": 0
+      },
+      "groupChoice": "2",
+      "groupProbabilities": {
+        "2": 0.99,
+        "unstated": 0.01
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "explicit figure": 0,
+        "cheap": 0,
+        "unstated": 1
+      }
+    },
+    {
+      "id": "quiet-garden-soho",
+      "text": "Quiet garden near Soho",
+      "expectMoods": [
+        "quiet",
+        "garden"
+      ],
+      "expectArea": "Soho",
+      "expectGroupSize": 2,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.02,
+        "quiet": 0.92,
+        "lively": 0.02,
+        "cosy": 0.03,
+        "garden": 0.95,
+        "riverside": 0.02,
+        "sports": 0.02,
+        "date": 0.07,
+        "food": 0.02,
+        "cocktails": 0.02,
+        "heritage": 0.03
+      },
+      "areaChoice": "Soho",
+      "areaProbabilities": {
+        "none": 0.13,
+        "Soho": 0.87
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "explicit figure": 0,
+        "cheap": 0,
+        "unstated": 1
+      }
+    },
+    {
+      "id": "lively-camden-ten",
+      "text": "Somewhere lively in Camden for ten of us",
+      "expectMoods": [
+        "lively"
+      ],
+      "expectArea": "Camden",
+      "expectGroupSize": 10,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.03,
+        "quiet": 0.02,
+        "lively": 0.97,
+        "cosy": 0.02,
+        "garden": 0.04,
+        "riverside": 0.03,
+        "sports": 0.03,
+        "date": 0.03,
+        "food": 0.08,
+        "cocktails": 0.06,
+        "heritage": 0.03
+      },
+      "areaChoice": "Camden",
+      "areaProbabilities": {
+        "Camden": 1,
+        "none": 0
+      },
+      "groupChoice": "10",
+      "groupProbabilities": {
+        "10": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "unstated": 1,
+        "cheap": 0,
+        "explicit figure": 0
+      }
+    },
+    {
+      "id": "date-marylebone",
+      "text": "Date night in Marylebone",
+      "expectMoods": [
+        "date"
+      ],
+      "expectArea": "Marylebone",
+      "expectGroupSize": 2,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.18,
+        "quiet": 0.13,
+        "lively": 0.08,
+        "cosy": 0.06,
+        "garden": 0.05,
+        "riverside": 0.04,
+        "sports": 0.02,
+        "date": 0.95,
+        "food": 0.16,
+        "cocktails": 0.08,
+        "heritage": 0.06
+      },
+      "areaChoice": "Marylebone",
+      "areaProbabilities": {
+        "none": 0.04,
+        "Marylebone": 0.96
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "cheap": 0,
+        "explicit figure": 0,
+        "unstated": 1
+      }
+    },
+    {
+      "id": "food-kings-cross",
+      "text": "Dinner near King's Cross for 3",
+      "expectMoods": [
+        "food"
+      ],
+      "expectArea": "King's Cross",
+      "expectGroupSize": 3,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.24,
+        "quiet": 0.04,
+        "lively": 0.06,
+        "cosy": 0.03,
+        "garden": 0.03,
+        "riverside": 0.03,
+        "sports": 0.02,
+        "date": 0.03,
+        "food": 0.99,
+        "cocktails": 0.03,
+        "heritage": 0.03
+      },
+      "areaChoice": "King's Cross",
+      "areaProbabilities": {
+        "King's Cross": 0.84,
+        "none": 0.16
+      },
+      "groupChoice": "3",
+      "groupProbabilities": {
+        "3": 0.99,
+        "unstated": 0.01
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "explicit figure": 0,
+        "cheap": 0,
+        "unstated": 1
+      }
+    },
+    {
+      "id": "cocktails-soho-four",
+      "text": "Cocktails in Soho for four",
+      "expectMoods": [
+        "cocktails"
+      ],
+      "expectArea": "Soho",
+      "expectGroupSize": 4,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.18,
+        "quiet": 0.05,
+        "lively": 0.36,
+        "cosy": 0.02,
+        "garden": 0.03,
+        "riverside": 0.02,
+        "sports": 0.01,
+        "date": 0.05,
+        "food": 0.02,
+        "cocktails": 0.99,
+        "heritage": 0.02
+      },
+      "areaChoice": "Soho",
+      "areaProbabilities": {
+        "Soho": 1,
+        "none": 0
+      },
+      "groupChoice": "4",
+      "groupProbabilities": {
+        "4": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "cheap": 0,
+        "unstated": 1,
+        "explicit figure": 0
+      }
+    },
+    {
+      "id": "heritage-greenwich",
+      "text": "Historic pub in Greenwich",
+      "expectMoods": [
+        "heritage"
+      ],
+      "expectArea": "Greenwich",
+      "expectGroupSize": 2,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.38,
+        "quiet": 0.09,
+        "lively": 0.07,
+        "cosy": 0.06,
+        "garden": 0.05,
+        "riverside": 0.19,
+        "sports": 0.04,
+        "date": 0.09,
+        "food": 0.05,
+        "cocktails": 0.06,
+        "heritage": 0.99
+      },
+      "areaChoice": "Greenwich",
+      "areaProbabilities": {
+        "none": 0,
+        "Greenwich": 1
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "explicit figure": 0,
+        "cheap": 0,
+        "unstated": 1
+      }
+    },
+    {
+      "id": "riverside-putney",
+      "text": "Riverside pints in Putney, 5 mates",
+      "expectMoods": [
+        "riverside"
+      ],
+      "expectArea": "Putney",
+      "expectGroupSize": 5,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.13,
+        "quiet": 0.07,
+        "lively": 0.2,
+        "cosy": 0.02,
+        "garden": 0.18,
+        "riverside": 0.97,
+        "sports": 0.05,
+        "date": 0.03,
+        "food": 0.02,
+        "cocktails": 0.03,
+        "heritage": 0.03
+      },
+      "areaChoice": "Putney",
+      "areaProbabilities": {
+        "Putney": 1,
+        "none": 0
+      },
+      "groupChoice": "5",
+      "groupProbabilities": {
+        "5": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "unstated": 1,
+        "cheap": 0,
+        "explicit figure": 0
+      }
+    },
+    {
+      "id": "balanced-anything-peckham",
+      "text": "Anything around Peckham for six people",
+      "expectMoods": [
+        "balanced"
+      ],
+      "expectArea": "Peckham",
+      "expectGroupSize": 6,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.96,
+        "quiet": 0.05,
+        "lively": 0.09,
+        "cosy": 0.03,
+        "garden": 0.05,
+        "riverside": 0.03,
+        "sports": 0.03,
+        "date": 0.04,
+        "food": 0.13,
+        "cocktails": 0.04,
+        "heritage": 0.04
+      },
+      "areaChoice": "Peckham",
+      "areaProbabilities": {
+        "none": 0,
+        "Peckham": 1
+      },
+      "groupChoice": "6",
+      "groupProbabilities": {
+        "6": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "explicit figure": 0,
+        "unstated": 1,
+        "cheap": 0
+      }
+    },
+    {
+      "id": "cheap-brixton-word",
+      "text": "Somewhere cheap in Brixton",
+      "expectMoods": [],
+      "expectArea": "Brixton",
+      "expectGroupSize": 2,
+      "expectBudget": "cheap",
+      "expectMaxPintPrice": 6,
+      "moods": {
+        "balanced": 0.62,
+        "quiet": 0.06,
+        "lively": 0.06,
+        "cosy": 0.03,
+        "garden": 0.03,
+        "riverside": 0.02,
+        "sports": 0.03,
+        "date": 0.04,
+        "food": 0.1,
+        "cocktails": 0.03,
+        "heritage": 0.03
+      },
+      "areaChoice": "Brixton",
+      "areaProbabilities": {
+        "none": 0,
+        "Brixton": 1
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "cheap",
+      "budgetProbabilities": {
+        "cheap": 1,
+        "unstated": 0,
+        "explicit figure": 0
+      }
+    },
+    {
+      "id": "no-area-quiet-four",
+      "text": "Quiet pint for 4 of us",
+      "expectMoods": [
+        "quiet"
+      ],
+      "expectArea": null,
+      "expectGroupSize": 4,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.02,
+        "quiet": 0.98,
+        "lively": 0.02,
+        "cosy": 0.05,
+        "garden": 0.03,
+        "riverside": 0.03,
+        "sports": 0.03,
+        "date": 0.03,
+        "food": 0.02,
+        "cocktails": 0.03,
+        "heritage": 0.03
+      },
+      "areaChoice": "none",
+      "areaProbabilities": {
+        "none": 1
+      },
+      "groupChoice": "4",
+      "groupProbabilities": {
+        "4": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "unstated": 0.99,
+        "explicit figure": 0,
+        "cheap": 0.01
+      }
+    },
+    {
+      "id": "no-mood-soho-group",
+      "text": "Pub in Soho, group of 7",
+      "expectMoods": [],
+      "expectArea": "Soho",
+      "expectGroupSize": 7,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.53,
+        "quiet": 0.07,
+        "lively": 0.27,
+        "cosy": 0.05,
+        "garden": 0.04,
+        "riverside": 0.03,
+        "sports": 0.04,
+        "date": 0.04,
+        "food": 0.05,
+        "cocktails": 0.06,
+        "heritage": 0.05
+      },
+      "areaChoice": "Soho",
+      "areaProbabilities": {
+        "Soho": 1,
+        "none": 0
+      },
+      "groupChoice": "7",
+      "groupProbabilities": {
+        "7": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "explicit figure": 0,
+        "unstated": 1,
+        "cheap": 0
+      }
+    },
+    {
+      "id": "cosy-fireside-islington",
+      "text": "Snug fireside in Islington for two",
+      "expectMoods": [
+        "quiet",
+        "cosy"
+      ],
+      "expectArea": "Islington",
+      "expectGroupSize": 2,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.04,
+        "quiet": 0.77,
+        "lively": 0.02,
+        "cosy": 0.99,
+        "garden": 0.02,
+        "riverside": 0.02,
+        "sports": 0.02,
+        "date": 0.38,
+        "food": 0.12,
+        "cocktails": 0.04,
+        "heritage": 0.05
+      },
+      "areaChoice": "Islington",
+      "areaProbabilities": {
+        "none": 0,
+        "Islington": 1
+      },
+      "groupChoice": "2",
+      "groupProbabilities": {
+        "2": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "cheap": 0,
+        "explicit figure": 0,
+        "unstated": 1
+      }
+    },
+    {
+      "id": "lively-buzzing-dalston",
+      "text": "Buzzing bar in Dalston, we are 9",
+      "expectMoods": [
+        "lively"
+      ],
+      "expectArea": "Dalston",
+      "expectGroupSize": 9,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.35,
+        "quiet": 0.05,
+        "lively": 0.96,
+        "cosy": 0.04,
+        "garden": 0.04,
+        "riverside": 0.03,
+        "sports": 0.04,
+        "date": 0.07,
+        "food": 0.05,
+        "cocktails": 0.15,
+        "heritage": 0.03
+      },
+      "areaChoice": "Dalston",
+      "areaProbabilities": {
+        "Dalston": 1,
+        "none": 0
+      },
+      "groupChoice": "9",
+      "groupProbabilities": {
+        "9": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "cheap": 0.01,
+        "unstated": 0.66,
+        "explicit figure": 0.33
+      }
+    },
+    {
+      "id": "garden-sunny-richmond",
+      "text": "Sunny outdoor tables in Richmond",
+      "expectMoods": [
+        "garden"
+      ],
+      "expectArea": "Richmond",
+      "expectGroupSize": 2,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.16,
+        "quiet": 0.06,
+        "lively": 0.06,
+        "cosy": 0.02,
+        "garden": 0.98,
+        "riverside": 0.08,
+        "sports": 0.02,
+        "date": 0.06,
+        "food": 0.1,
+        "cocktails": 0.03,
+        "heritage": 0.03
+      },
+      "areaChoice": "Richmond",
+      "areaProbabilities": {
+        "none": 0,
+        "Richmond": 1
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "unstated": 1,
+        "cheap": 0,
+        "explicit figure": 0
+      }
+    },
+    {
+      "id": "sports-football-camden",
+      "text": "Where is the football on near Camden?",
+      "expectMoods": [
+        "sports"
+      ],
+      "expectArea": "Camden",
+      "expectGroupSize": 2,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.19,
+        "quiet": 0.03,
+        "lively": 0.07,
+        "cosy": 0.02,
+        "garden": 0.08,
+        "riverside": 0.03,
+        "sports": 0.95,
+        "date": 0.03,
+        "food": 0.02,
+        "cocktails": 0.02,
+        "heritage": 0.02
+      },
+      "areaChoice": "Camden",
+      "areaProbabilities": {
+        "Camden": 0.76,
+        "none": 0.24
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "unstated": 1,
+        "cheap": 0,
+        "explicit figure": 0
+      }
+    },
+    {
+      "id": "date-romantic-soho",
+      "text": "Somewhere romantic in Soho",
+      "expectMoods": [
+        "date"
+      ],
+      "expectArea": "Soho",
+      "expectGroupSize": 2,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.06,
+        "quiet": 0.17,
+        "lively": 0.08,
+        "cosy": 0.05,
+        "garden": 0.06,
+        "riverside": 0.03,
+        "sports": 0.02,
+        "date": 0.94,
+        "food": 0.04,
+        "cocktails": 0.08,
+        "heritage": 0.04
+      },
+      "areaChoice": "Soho",
+      "areaProbabilities": {
+        "none": 0.01,
+        "Soho": 0.99
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "cheap": 0,
+        "explicit figure": 0,
+        "unstated": 1
+      }
+    },
+    {
+      "id": "food-meal-hammersmith",
+      "text": "Pub meal in Hammersmith for eight",
+      "expectMoods": [
+        "food"
+      ],
+      "expectArea": "Hammersmith",
+      "expectGroupSize": 8,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.12,
+        "quiet": 0.08,
+        "lively": 0.21,
+        "cosy": 0.04,
+        "garden": 0.04,
+        "riverside": 0.04,
+        "sports": 0.04,
+        "date": 0.03,
+        "food": 0.99,
+        "cocktails": 0.03,
+        "heritage": 0.04
+      },
+      "areaChoice": "Hammersmith",
+      "areaProbabilities": {
+        "Hammersmith": 1,
+        "none": 0
+      },
+      "groupChoice": "8",
+      "groupProbabilities": {
+        "8": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "cheap": 0,
+        "unstated": 1,
+        "explicit figure": 0
+      }
+    },
+    {
+      "id": "cocktails-mixed-shoreditch",
+      "text": "Mixed drinks around Shoreditch, twelve of us",
+      "expectMoods": [
+        "cocktails"
+      ],
+      "expectArea": "Shoreditch",
+      "expectGroupSize": 12,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.52,
+        "quiet": 0.07,
+        "lively": 0.61,
+        "cosy": 0.04,
+        "garden": 0.03,
+        "riverside": 0.03,
+        "sports": 0.02,
+        "date": 0.04,
+        "food": 0.03,
+        "cocktails": 0.98,
+        "heritage": 0.05
+      },
+      "areaChoice": "Shoreditch",
+      "areaProbabilities": {
+        "none": 0,
+        "Shoreditch": 1
+      },
+      "groupChoice": "12",
+      "groupProbabilities": {
+        "12": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "explicit figure": 0,
+        "unstated": 1,
+        "cheap": 0
+      }
+    },
+    {
+      "id": "heritage-old-pub-borough",
+      "text": "Old pub near London Bridge",
+      "expectMoods": [
+        "heritage"
+      ],
+      "expectArea": "London Bridge",
+      "expectGroupSize": 2,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.43,
+        "quiet": 0.08,
+        "lively": 0.09,
+        "cosy": 0.06,
+        "garden": 0.05,
+        "riverside": 0.18,
+        "sports": 0.04,
+        "date": 0.08,
+        "food": 0.04,
+        "cocktails": 0.05,
+        "heritage": 0.97
+      },
+      "areaChoice": "London Bridge",
+      "areaProbabilities": {
+        "none": 0.01,
+        "London Bridge": 0.99
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "unstated": 1,
+        "explicit figure": 0,
+        "cheap": 0
+      }
+    },
+    {
+      "id": "riverside-by-water-canary",
+      "text": "Somewhere by the water in Canary Wharf",
+      "expectMoods": [
+        "riverside"
+      ],
+      "expectArea": "Canary Wharf",
+      "expectGroupSize": 2,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.39,
+        "quiet": 0.1,
+        "lively": 0.07,
+        "cosy": 0.03,
+        "garden": 0.27,
+        "riverside": 0.96,
+        "sports": 0.03,
+        "date": 0.11,
+        "food": 0.03,
+        "cocktails": 0.06,
+        "heritage": 0.06
+      },
+      "areaChoice": "Canary Wharf",
+      "areaProbabilities": {
+        "Canary Wharf": 0.99,
+        "none": 0.01
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "explicit figure": 0,
+        "cheap": 0,
+        "unstated": 1
+      }
+    },
+    {
+      "id": "quiet-chat-clapham-cheap",
+      "text": "Low-key chat in Clapham, affordable",
+      "expectMoods": [
+        "quiet"
+      ],
+      "expectArea": "Clapham",
+      "expectGroupSize": 2,
+      "expectBudget": "cheap",
+      "expectMaxPintPrice": 6,
+      "moods": {
+        "balanced": 0.16,
+        "quiet": 0.97,
+        "lively": 0.03,
+        "cosy": 0.06,
+        "garden": 0.04,
+        "riverside": 0.03,
+        "sports": 0.03,
+        "date": 0.08,
+        "food": 0.05,
+        "cocktails": 0.03,
+        "heritage": 0.04
+      },
+      "areaChoice": "Clapham",
+      "areaProbabilities": {
+        "none": 0,
+        "Clapham": 1
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "cheap",
+      "budgetProbabilities": {
+        "explicit figure": 0,
+        "unstated": 0,
+        "cheap": 1
+      }
+    },
+    {
+      "id": "lively-party-brixton-budget",
+      "text": "Party atmosphere in Brixton, budget pints",
+      "expectMoods": [
+        "lively"
+      ],
+      "expectArea": "Brixton",
+      "expectGroupSize": 2,
+      "expectBudget": "cheap",
+      "expectMaxPintPrice": 6,
+      "moods": {
+        "balanced": 0.05,
+        "quiet": 0.02,
+        "lively": 0.98,
+        "cosy": 0.02,
+        "garden": 0.04,
+        "riverside": 0.02,
+        "sports": 0.03,
+        "date": 0.04,
+        "food": 0.03,
+        "cocktails": 0.02,
+        "heritage": 0.03
+      },
+      "areaChoice": "Brixton",
+      "areaProbabilities": {
+        "none": 0,
+        "Brixton": 1
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "cheap",
+      "budgetProbabilities": {
+        "cheap": 1,
+        "unstated": 0,
+        "explicit figure": 0
+      }
+    },
+    {
+      "id": "garden-outside-balham-five",
+      "text": "Outside seating in Balham for 5",
+      "expectMoods": [
+        "garden"
+      ],
+      "expectArea": "Balham",
+      "expectGroupSize": 5,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.43,
+        "quiet": 0.06,
+        "lively": 0.05,
+        "cosy": 0.02,
+        "garden": 0.98,
+        "riverside": 0.02,
+        "sports": 0.02,
+        "date": 0.04,
+        "food": 0.11,
+        "cocktails": 0.03,
+        "heritage": 0.02
+      },
+      "areaChoice": "Balham",
+      "areaProbabilities": {
+        "Balham": 1,
+        "none": 0
+      },
+      "groupChoice": "5",
+      "groupProbabilities": {
+        "5": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "cheap": 0,
+        "unstated": 1,
+        "explicit figure": 0
+      }
+    },
+    {
+      "id": "sports-rugby-victoria",
+      "text": "Rugby match near Victoria, group of 6",
+      "expectMoods": [
+        "sports"
+      ],
+      "expectArea": "Victoria",
+      "expectGroupSize": 6,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.05,
+        "quiet": 0.03,
+        "lively": 0.15,
+        "cosy": 0.02,
+        "garden": 0.17,
+        "riverside": 0.04,
+        "sports": 0.95,
+        "date": 0.03,
+        "food": 0.02,
+        "cocktails": 0.02,
+        "heritage": 0.03
+      },
+      "areaChoice": "Victoria",
+      "areaProbabilities": {
+        "none": 0.26,
+        "Victoria": 0.74
+      },
+      "groupChoice": "6",
+      "groupProbabilities": {
+        "6": 0.98,
+        "unstated": 0.02
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "unstated": 1,
+        "explicit figure": 0,
+        "cheap": 0
+      }
+    },
+    {
+      "id": "cosy-cozy-barnes-one",
+      "text": "Cozy pint in Barnes for one",
+      "expectMoods": [
+        "cosy"
+      ],
+      "expectArea": "Barnes",
+      "expectGroupSize": 1,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.03,
+        "quiet": 0.61,
+        "lively": 0.03,
+        "cosy": 0.97,
+        "garden": 0.03,
+        "riverside": 0.05,
+        "sports": 0.03,
+        "date": 0.04,
+        "food": 0.02,
+        "cocktails": 0.03,
+        "heritage": 0.04
+      },
+      "areaChoice": "Barnes",
+      "areaProbabilities": {
+        "none": 0,
+        "Barnes": 1
+      },
+      "groupChoice": "1",
+      "groupProbabilities": {
+        "1": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "unstated": 1,
+        "cheap": 0,
+        "explicit figure": 0
+      }
+    },
+    {
+      "id": "quiet-food-chiswick",
+      "text": "Quiet dinner around Chiswick for three of us",
+      "expectMoods": [
+        "quiet",
+        "food"
+      ],
+      "expectArea": "Chiswick",
+      "expectGroupSize": 3,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.02,
+        "quiet": 0.69,
+        "lively": 0.02,
+        "cosy": 0.04,
+        "garden": 0.03,
+        "riverside": 0.04,
+        "sports": 0.01,
+        "date": 0.05,
+        "food": 0.98,
+        "cocktails": 0.02,
+        "heritage": 0.03
+      },
+      "areaChoice": "Chiswick",
+      "areaProbabilities": {
+        "Chiswick": 0.85,
+        "none": 0.15
+      },
+      "groupChoice": "3",
+      "groupProbabilities": {
+        "3": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "explicit figure": 0,
+        "unstated": 1,
+        "cheap": 0
+      }
+    },
+    {
+      "id": "lively-garden-soho-under-five",
+      "text": "Lively garden in Soho, max £5",
+      "expectMoods": [
+        "lively",
+        "garden"
+      ],
+      "expectArea": "Soho",
+      "expectGroupSize": 2,
+      "expectBudget": "explicit figure",
+      "expectMaxPintPrice": 5,
+      "moods": {
+        "balanced": 0.03,
+        "quiet": 0.03,
+        "lively": 0.92,
+        "cosy": 0.02,
+        "garden": 0.98,
+        "riverside": 0.02,
+        "sports": 0.02,
+        "date": 0.04,
+        "food": 0.03,
+        "cocktails": 0.03,
+        "heritage": 0.02
+      },
+      "areaChoice": "Soho",
+      "areaProbabilities": {
+        "Soho": 0.99,
+        "none": 0.01
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "explicit figure",
+      "budgetProbabilities": {
+        "explicit figure": 0.99,
+        "cheap": 0,
+        "unstated": 0.01
+      }
+    },
+    {
+      "id": "date-food-angel",
+      "text": "Romantic meal near Angel",
+      "expectMoods": [
+        "date",
+        "food"
+      ],
+      "expectArea": "Angel",
+      "expectGroupSize": 2,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.03,
+        "quiet": 0.18,
+        "lively": 0.05,
+        "cosy": 0.05,
+        "garden": 0.04,
+        "riverside": 0.03,
+        "sports": 0.01,
+        "date": 0.87,
+        "food": 0.98,
+        "cocktails": 0.04,
+        "heritage": 0.03
+      },
+      "areaChoice": "Angel",
+      "areaProbabilities": {
+        "none": 0.15,
+        "Angel": 0.85
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "explicit figure": 0,
+        "cheap": 0,
+        "unstated": 1
+      }
+    },
+    {
+      "id": "heritage-riverside-greenwich",
+      "text": "Historic riverside pub in Greenwich",
+      "expectMoods": [
+        "heritage",
+        "riverside"
+      ],
+      "expectArea": "Greenwich",
+      "expectGroupSize": 2,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.17,
+        "quiet": 0.1,
+        "lively": 0.07,
+        "cosy": 0.05,
+        "garden": 0.16,
+        "riverside": 0.98,
+        "sports": 0.05,
+        "date": 0.12,
+        "food": 0.06,
+        "cocktails": 0.06,
+        "heritage": 0.98
+      },
+      "areaChoice": "Greenwich",
+      "areaProbabilities": {
+        "Greenwich": 1,
+        "none": 0
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "cheap": 0,
+        "unstated": 1,
+        "explicit figure": 0
+      }
+    },
+    {
+      "id": "word-group-nine-camden",
+      "text": "Pubs in Camden, nine people",
+      "expectMoods": [],
+      "expectArea": "Camden",
+      "expectGroupSize": 9,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.59,
+        "quiet": 0.06,
+        "lively": 0.27,
+        "cosy": 0.04,
+        "garden": 0.05,
+        "riverside": 0.04,
+        "sports": 0.04,
+        "date": 0.04,
+        "food": 0.07,
+        "cocktails": 0.05,
+        "heritage": 0.05
+      },
+      "areaChoice": "Camden",
+      "areaProbabilities": {
+        "Camden": 1,
+        "none": 0
+      },
+      "groupChoice": "9",
+      "groupProbabilities": {
+        "9": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "unstated": 1,
+        "cheap": 0,
+        "explicit figure": 0
+      }
+    },
+    {
+      "id": "we-are-four-peckham",
+      "text": "We are 4, somewhere in Peckham",
+      "expectMoods": [],
+      "expectArea": "Peckham",
+      "expectGroupSize": 4,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.52,
+        "quiet": 0.1,
+        "lively": 0.1,
+        "cosy": 0.08,
+        "garden": 0.09,
+        "riverside": 0.08,
+        "sports": 0.06,
+        "date": 0.09,
+        "food": 0.05,
+        "cocktails": 0.1,
+        "heritage": 0.13
+      },
+      "areaChoice": "Peckham",
+      "areaProbabilities": {
+        "none": 0.03,
+        "Peckham": 0.97
+      },
+      "groupChoice": "4",
+      "groupProbabilities": {
+        "4": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "unstated": 0.98,
+        "cheap": 0,
+        "explicit figure": 0.02
+      }
+    },
+    {
+      "id": "under-six-fifty-soho",
+      "text": "Pints in Soho up to £6.50",
+      "expectMoods": [],
+      "expectArea": "Soho",
+      "expectGroupSize": 2,
+      "expectBudget": "explicit figure",
+      "expectMaxPintPrice": 6.5,
+      "moods": {
+        "balanced": 0.61,
+        "quiet": 0.04,
+        "lively": 0.12,
+        "cosy": 0.03,
+        "garden": 0.03,
+        "riverside": 0.02,
+        "sports": 0.02,
+        "date": 0.05,
+        "food": 0.02,
+        "cocktails": 0.03,
+        "heritage": 0.03
+      },
+      "areaChoice": "Soho",
+      "areaProbabilities": {
+        "none": 0,
+        "Soho": 1
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "explicit figure",
+      "budgetProbabilities": {
+        "explicit figure": 1,
+        "unstated": 0,
+        "cheap": 0
+      }
+    },
+    {
+      "id": "inexpensive-dalston-seven",
+      "text": "Inexpensive round in Dalston for 7 mates",
+      "expectMoods": [],
+      "expectArea": "Dalston",
+      "expectGroupSize": 7,
+      "expectBudget": "cheap",
+      "expectMaxPintPrice": 6,
+      "moods": {
+        "balanced": 0.6,
+        "quiet": 0.06,
+        "lively": 0.21,
+        "cosy": 0.04,
+        "garden": 0.03,
+        "riverside": 0.03,
+        "sports": 0.03,
+        "date": 0.02,
+        "food": 0.17,
+        "cocktails": 0.05,
+        "heritage": 0.03
+      },
+      "areaChoice": "Dalston",
+      "areaProbabilities": {
+        "none": 0,
+        "Dalston": 1
+      },
+      "groupChoice": "7",
+      "groupProbabilities": {
+        "7": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "cheap",
+      "budgetProbabilities": {
+        "explicit figure": 0,
+        "unstated": 0.01,
+        "cheap": 0.99
+      }
+    },
+    {
+      "id": "no-place-no-mood",
+      "text": "Find us a pub tonight",
+      "expectMoods": [
+        "balanced"
+      ],
+      "expectArea": null,
+      "expectGroupSize": 2,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.85,
+        "quiet": 0.06,
+        "lively": 0.13,
+        "cosy": 0.04,
+        "garden": 0.03,
+        "riverside": 0.03,
+        "sports": 0.03,
+        "date": 0.05,
+        "food": 0.04,
+        "cocktails": 0.04,
+        "heritage": 0.04
+      },
+      "areaChoice": "none",
+      "areaProbabilities": {
+        "none": 1
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "explicit figure": 0,
+        "cheap": 0,
+        "unstated": 1
+      }
+    },
+    {
+      "id": "bit-of-everything-islington",
+      "text": "A bit of everything near Islington, 8 of us",
+      "expectMoods": [
+        "balanced"
+      ],
+      "expectArea": "Islington",
+      "expectGroupSize": 8,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.97,
+        "quiet": 0.09,
+        "lively": 0.19,
+        "cosy": 0.05,
+        "garden": 0.1,
+        "riverside": 0.05,
+        "sports": 0.07,
+        "date": 0.06,
+        "food": 0.29,
+        "cocktails": 0.12,
+        "heritage": 0.1
+      },
+      "areaChoice": "Islington",
+      "areaProbabilities": {
+        "Islington": 0.98,
+        "none": 0.02
+      },
+      "groupChoice": "8",
+      "groupProbabilities": {
+        "8": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "cheap": 0,
+        "explicit figure": 0,
+        "unstated": 1
+      }
+    },
+    {
+      "id": "calm-chat-marylebone-two",
+      "text": "Calm chat in Marylebone for two",
+      "expectMoods": [
+        "quiet"
+      ],
+      "expectArea": "Marylebone",
+      "expectGroupSize": 2,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.04,
+        "quiet": 0.97,
+        "lively": 0.02,
+        "cosy": 0.05,
+        "garden": 0.04,
+        "riverside": 0.03,
+        "sports": 0.02,
+        "date": 0.25,
+        "food": 0.05,
+        "cocktails": 0.04,
+        "heritage": 0.04
+      },
+      "areaChoice": "Marylebone",
+      "areaProbabilities": {
+        "none": 0,
+        "Marylebone": 1
+      },
+      "groupChoice": "2",
+      "groupProbabilities": {
+        "2": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "cheap": 0,
+        "unstated": 1,
+        "explicit figure": 0
+      }
+    },
+    {
+      "id": "atmosphere-party-shoreditch",
+      "text": "Atmosphere and party in Shoreditch, we're 11",
+      "expectMoods": [
+        "lively"
+      ],
+      "expectArea": "Shoreditch",
+      "expectGroupSize": 11,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.08,
+        "quiet": 0.02,
+        "lively": 0.97,
+        "cosy": 0.02,
+        "garden": 0.03,
+        "riverside": 0.02,
+        "sports": 0.02,
+        "date": 0.06,
+        "food": 0.03,
+        "cocktails": 0.08,
+        "heritage": 0.03
+      },
+      "areaChoice": "Shoreditch",
+      "areaProbabilities": {
+        "none": 0,
+        "Shoreditch": 1
+      },
+      "groupChoice": "11",
+      "groupProbabilities": {
+        "11": 0.99,
+        "unstated": 0.01
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "explicit figure": 0.32,
+        "unstated": 0.68,
+        "cheap": 0
+      }
+    },
+    {
+      "id": "eat-cocktails-soho",
+      "text": "Eat and cocktails in Soho for 6",
+      "expectMoods": [
+        "food",
+        "cocktails"
+      ],
+      "expectArea": "Soho",
+      "expectGroupSize": 6,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.13,
+        "quiet": 0.04,
+        "lively": 0.44,
+        "cosy": 0.03,
+        "garden": 0.03,
+        "riverside": 0.02,
+        "sports": 0.02,
+        "date": 0.06,
+        "food": 0.96,
+        "cocktails": 0.99,
+        "heritage": 0.03
+      },
+      "areaChoice": "Soho",
+      "areaProbabilities": {
+        "none": 0,
+        "Soho": 1
+      },
+      "groupChoice": "6",
+      "groupProbabilities": {
+        "6": 1,
+        "unstated": 0
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "cheap": 0,
+        "unstated": 1,
+        "explicit figure": 0
+      }
+    },
+    {
+      "id": "old-pub-history-richmond",
+      "text": "Pub with history in Richmond, not pricey",
+      "expectMoods": [
+        "heritage"
+      ],
+      "expectArea": "Richmond",
+      "expectGroupSize": 2,
+      "expectBudget": "cheap",
+      "expectMaxPintPrice": 6,
+      "moods": {
+        "balanced": 0.37,
+        "quiet": 0.08,
+        "lively": 0.06,
+        "cosy": 0.05,
+        "garden": 0.05,
+        "riverside": 0.08,
+        "sports": 0.03,
+        "date": 0.06,
+        "food": 0.05,
+        "cocktails": 0.04,
+        "heritage": 0.98
+      },
+      "areaChoice": "Richmond",
+      "areaProbabilities": {
+        "Richmond": 1,
+        "none": 0
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "unstated": 1
+      },
+      "budgetChoice": "cheap",
+      "budgetProbabilities": {
+        "explicit figure": 0,
+        "unstated": 0,
+        "cheap": 1
+      }
+    },
+    {
+      "id": "five-minute-red-herring",
+      "text": "Quiet pub, maybe a 5 minute walk",
+      "expectMoods": [
+        "quiet"
+      ],
+      "expectArea": null,
+      "expectGroupSize": 2,
+      "expectBudget": "unstated",
+      "expectMaxPintPrice": null,
+      "moods": {
+        "balanced": 0.03,
+        "quiet": 0.97,
+        "lively": 0.02,
+        "cosy": 0.04,
+        "garden": 0.02,
+        "riverside": 0.03,
+        "sports": 0.03,
+        "date": 0.06,
+        "food": 0.03,
+        "cocktails": 0.03,
+        "heritage": 0.03
+      },
+      "areaChoice": "none",
+      "areaProbabilities": {
+        "none": 1
+      },
+      "groupChoice": "unstated",
+      "groupProbabilities": {
+        "5": 0.01,
+        "unstated": 0.99
+      },
+      "budgetChoice": "unstated",
+      "budgetProbabilities": {
+        "cheap": 0,
+        "explicit figure": 0,
+        "unstated": 1
+      }
+    }
+  ]
+}

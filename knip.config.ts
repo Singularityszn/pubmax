@@ -54,6 +54,9 @@ const config: KnipConfig = {
     // tracing what it imports: the judgment leaf it calls is reached from here
     // and nowhere else, and an ignore would report that leaf as dead.
     "scripts/harvest/uk-prices/record-judgment-fixtures.mjs",
+    // Refreshes __tests__/fixtures/typesafe/conciergeIntentProbabilities.json
+    // and needs TYPESAFE_API_KEY.
+    "scripts/record_concierge_intent_probabilities.ts",
   ],
   ignore: [
     ...AGENT_TOOLING_PATHS,
