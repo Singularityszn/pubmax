@@ -28,6 +28,10 @@
 // that needs to read the bundle does not pull the venue index in behind it.
 
 import {
+  UK_PRICE_BUNDLE_DRINK_LABEL_MAX,
+  isValidBundleDrinkSubtypeForRow,
+} from "@/lib/bundleDrinkFields";
+import {
   type EstimatedPriceInput,
   type ListedPriceInput,
   type PriceStanding,
@@ -73,7 +77,16 @@ export type UkPriceBundleRow = {
   /** Present only on an estimate, and what makes it answerable. */
   basis: string | null;
   sampleSize: number | null;
+  /**
+   * The drink name as printed on the source page or menu line (trimmed, max
+   * 80 chars). Absent when the producing lane stated category only.
+   */
+  drinkLabel?: string;
+  /** Closed subtype from lib/drinkSubtypes.ts when the label classifies; never guessed. */
+  drinkSubtype?: string;
 };
+
+export { UK_PRICE_BUNDLE_DRINK_LABEL_MAX };
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -114,6 +127,14 @@ export function isValidUkPriceBundleRow(value: unknown): value is UkPriceBundleR
   if (row.standing === "estimate") {
     if (!isNonEmptyString(row.basis)) return false;
     if (!Number.isInteger(row.sampleSize) || (row.sampleSize as number) <= 0) return false;
+  }
+  if (row.drinkLabel !== undefined) {
+    if (typeof row.drinkLabel !== "string" || row.drinkLabel.length === 0) return false;
+    if (row.drinkLabel.length > UK_PRICE_BUNDLE_DRINK_LABEL_MAX) return false;
+  }
+  if (row.drinkSubtype !== undefined) {
+    if (!isValidBundleDrinkSubtypeForRow(row.category, row.drinkSubtype)) return false;
+    if (typeof row.drinkLabel !== "string" || !row.drinkLabel.trim()) return false;
   }
   return row.standing === "confirmed" || row.standing === "listed" || row.standing === "estimate";
 }
