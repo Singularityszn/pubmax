@@ -235,6 +235,13 @@ export function bundleRowSupersedes(
   return candidate.priceGbp < held.priceGbp;
 }
 
+/** The ONE collect key `scripts/build_uk_price_bundle.mjs` uses per pub, drink and lane. */
+export function ukPriceBundleCollectKey(
+  row: Pick<UkPriceBundleRow, "venueId" | "category" | "lane">,
+): string {
+  return `${row.venueId} ${row.category} ${row.lane}`;
+}
+
 /** Rows grouped by the venue they are about, in the order the bundle states them. */
 export function bundleRowsByVenue(
   rows: readonly UkPriceBundleRow[],
