@@ -181,9 +181,10 @@ export default function MobileSharedSheet({
     setSheetSnap(requestedSnap);
   }, [kind, requestedSnap, setSheetSnap]);
 
-  // Modal focus trap at half and full: the scrim blocks pointer input to the map,
-  // so keyboard focus must not walk the inert page behind an unreachable surface.
-  // Peek is the tested exception — enough map stays live that trapping would lie.
+  // Modal focus trap at half and full: keyboard focus must not walk the inert
+  // page behind an unreachable surface. Venue peek and half keep the visible map
+  // tappable (mobileMapShell.css), so peek is also the tested exception to
+  // trapping — enough map stays live that trapping would lie.
   //
   // The policy is "map-surface", not "strict-modal": this sheet is a map surface
   // with body-level siblings that outrank it. The primary tab bar stays reachable

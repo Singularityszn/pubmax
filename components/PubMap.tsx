@@ -3252,7 +3252,7 @@ export default function PubMap({
         interruptVenueReveal();
         setVenueRevealSettleSequence((current) => current + 1);
       }
-      setSheetSnap("half"); // a fresh pick always opens at the readable mid-height snap
+      setSheetSnap(isUkBaseId(id) ? "peek" : "half"); // base pubs keep the map live for pin-to-pin switches
       setSheetDragY(null);
       if (reducedMotion) {
         setVenueRevealRequest(null);

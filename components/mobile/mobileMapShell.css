@@ -662,6 +662,10 @@
     right: 0;
     bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
     z-index: var(--z-overlay-top);
+    /* The portal frames the sheet; only the sheet and (when modal) the scrim
+       capture taps. Otherwise the full-screen box inerts the map above a half
+       venue sheet and a second pin tap never reaches the canvas. */
+    pointer-events: none;
   }
   /* A venue or the planner hides the tab bar (mobileNav.css), so there is no
      bar to stop above. Held at the bar's berth, the sheet floated 64px up over
@@ -670,7 +674,20 @@
   body:has(.appShell.planning-open) .mobileSheetPortal {
     bottom: 0;
   }
-  .mobileSheetScrim { position: absolute; inset: 0; width: 100%; border: 0; background: color-mix(in srgb, var(--ink-deep) 32%, transparent); }
+  .mobileSheetScrim {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    border: 0;
+    background: color-mix(in srgb, var(--ink-deep) 32%, transparent);
+    pointer-events: auto;
+  }
+  /* Peek and half venue: enough map stays visible that pin switches must
+     reach the canvas; full and non-venue sheets keep the dismiss scrim. */
+  .mobileSheetPortal[data-sheet-kind="venue"]:has(.sheet-peek) .mobileSheetScrim,
+  .mobileSheetPortal[data-sheet-kind="venue"]:has(.sheet-half) .mobileSheetScrim {
+    pointer-events: none;
+  }
 
   /* ── Bottom-sheet box model (systemic rebuild) ──────────────────────────────
      The sheet is a bottom-anchored flex column — header (auto) / body (flex-1,
@@ -694,6 +711,7 @@
 
   .mobileSharedSheet.mapDrawer {
     --sheet-cap: 55dvh;
+    pointer-events: auto;
     display: flex;
     flex-direction: column;
     /* Absolute inside the clipped .mobileSheetPortal — fixed would escape to the
