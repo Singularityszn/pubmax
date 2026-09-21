@@ -18,11 +18,7 @@ import {
   type AreaNewsEntry,
 } from "@/lib/areaNews";
 
-// The matcher is a plain .mjs build-lib (no .d.ts), same import pattern as the
-// heritage matcher test.
-// prettier-ignore
-// @ts-expect-error -- untyped .mjs module (resolves fine at runtime under vitest)
-import { matchVenue, slugifyBorough } from "../scripts/lib/areaNewsMatch.mjs";
+import { collectAreaNewsCandidates, matchVenue, slugifyBorough } from "../scripts/lib/areaNewsMatch.mjs";
 
 import { KNOWN_AREA_SLUGS, parseExtractedFact } from "../scripts/lib/keenableAreaNews.mjs";
 
@@ -298,5 +294,15 @@ describe("conservative venue matcher", () => {
   it("slugifyBorough mirrors lib/boroughs", () => {
     expect(slugifyBorough("Waltham Forest")).toBe("waltham-forest");
     expect(slugifyBorough("Kensington & Chelsea")).toBe("kensington-and-chelsea");
+  });
+
+  it("collects both George twins as cheap candidates while keyless still refuses", () => {
+    const twins = [
+      { id: "venue-x", name: "The George", borough: "Westminster" },
+      { id: "venue-5", name: "The George", borough: "Westminster" },
+    ];
+    const { exact } = collectAreaNewsCandidates("The George", "westminster", twins);
+    expect(exact.map((v) => v.id).sort()).toEqual(["venue-5", "venue-x"]);
+    expect(matchVenue("The George", "westminster", twins)).toBeNull();
   });
 });

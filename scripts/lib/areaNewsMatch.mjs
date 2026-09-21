@@ -38,6 +38,32 @@ function isSubset(inner, outer) {
 }
 
 /**
+ * Cheap area-news gate: same borough, then exact core-name or (for a
+ * >=2-token fact name) a unique-or-not subset. Uniqueness is NOT applied
+ * here — the keyless matcher refuses twins, the judged path asks the Noul.
+ */
+export function collectAreaNewsCandidates(pubName, boroughSlug, venues) {
+  const pubTokens = coreTokens(pubName);
+  if (pubTokens.length === 0 || !boroughSlug) {
+    return { pubTokens, exact: [], subset: [] };
+  }
+
+  const inBorough = venues.filter(
+    (v) => v && typeof v.id === "string" && slugifyBorough(v.borough) === boroughSlug,
+  );
+  const exact = inBorough.filter((v) => setEqual(pubTokens, coreTokens(v.name)));
+  const subset =
+    pubTokens.length >= 2
+      ? inBorough.filter(
+          (v) =>
+            isSubset(pubTokens, coreTokens(v.name)) &&
+            !setEqual(pubTokens, coreTokens(v.name)),
+        )
+      : [];
+  return { pubTokens, exact, subset };
+}
+
+/**
  * Match a named pub in a given borough to a venue id.
  * pubName:      the pub's name as it appears in the fact
  * boroughSlug:  the fact's borough (slugified), used to scope candidates
@@ -45,21 +71,10 @@ function isSubset(inner, outer) {
  * Returns { venueId, confidence: "high"|"medium" } or null when not confident.
  */
 export function matchVenue(pubName, boroughSlug, venues) {
-  const pubTokens = coreTokens(pubName);
-  if (pubTokens.length === 0 || !boroughSlug) return null;
-
-  const inBorough = venues.filter(
-    (v) => v && typeof v.id === "string" && slugifyBorough(v.borough) === boroughSlug,
-  );
-  if (inBorough.length === 0) return null;
-
-  const exact = inBorough.filter((v) => setEqual(pubTokens, coreTokens(v.name)));
+  const { exact, subset } = collectAreaNewsCandidates(pubName, boroughSlug, venues);
   if (exact.length === 1) return { venueId: exact[0].id, confidence: "high" };
   if (exact.length > 1) return null; // ambiguous — refuse
 
-  if (pubTokens.length >= 2) {
-    const subset = inBorough.filter((v) => isSubset(pubTokens, coreTokens(v.name)));
-    if (subset.length === 1) return { venueId: subset[0].id, confidence: "medium" };
-  }
+  if (subset.length === 1) return { venueId: subset[0].id, confidence: "medium" };
   return null;
 }

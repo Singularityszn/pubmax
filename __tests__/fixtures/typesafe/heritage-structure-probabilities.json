@@ -1,0 +1,118 @@
+{
+  "caseCount": 12,
+  "acceptThreshold": 0.8,
+  "refuseThreshold": 0.35,
+  "weakestTrue": 0.96,
+  "strongestFalse": 0.15,
+  "model": "jev-1.13.0",
+  "cases": [
+    {
+      "id": "duke-hamilton-stables",
+      "labelListingIsPubBuilding": false,
+      "labelSource": "hand",
+      "probability": 0.02,
+      "band": "refuse",
+      "listingName": "STABLES IN REAR YARD OF THE DUKE OF HAMILTON PUBLIC HOUSE (PUBLIC HOUSE NOT INCLUDED)",
+      "pubName": "The Duke of Hamilton"
+    },
+    {
+      "id": "gate-public-house",
+      "labelListingIsPubBuilding": true,
+      "labelSource": "hand",
+      "probability": 0.97,
+      "band": "accept",
+      "listingName": "THE GATE PUBLIC HOUSE",
+      "pubName": "The Gate"
+    },
+    {
+      "id": "prospect-of-whitby",
+      "labelListingIsPubBuilding": true,
+      "labelSource": "hand",
+      "probability": 0.98,
+      "band": "accept",
+      "listingName": "PROSPECT OF WHITBY PUBLIC HOUSE",
+      "pubName": "The Prospect of Whitby"
+    },
+    {
+      "id": "tottenham-high-cross",
+      "labelListingIsPubBuilding": false,
+      "labelSource": "hand",
+      "probability": 0.15,
+      "band": "refuse",
+      "listingName": "TOTTENHAM HIGH CROSS",
+      "pubName": "The High Cross"
+    },
+    {
+      "id": "dove-public-house",
+      "labelListingIsPubBuilding": true,
+      "labelSource": "hand",
+      "probability": 0.96,
+      "band": "accept",
+      "listingName": "THE DOVE PUBLIC HOUSE",
+      "pubName": "The Dove"
+    },
+    {
+      "id": "railings-to-crown",
+      "labelListingIsPubBuilding": false,
+      "labelSource": "hand",
+      "probability": 0.03,
+      "band": "refuse",
+      "listingName": "RAILINGS TO THE CROWN PUBLIC HOUSE",
+      "pubName": "The Crown"
+    },
+    {
+      "id": "gateway-to-george",
+      "labelListingIsPubBuilding": false,
+      "labelSource": "hand",
+      "probability": 0.13,
+      "band": "refuse",
+      "listingName": "GATEWAY TO THE GEORGE INN",
+      "pubName": "The George"
+    },
+    {
+      "id": "old-windmill-and-restaurant",
+      "labelListingIsPubBuilding": true,
+      "labelSource": "hand",
+      "probability": 0.97,
+      "band": "accept",
+      "listingName": "THE OLD WINDMILL PUBLIC HOUSE AND RESTAURANT",
+      "pubName": "The Old Windmill"
+    },
+    {
+      "id": "hamilton-social-club",
+      "labelListingIsPubBuilding": false,
+      "labelSource": "hand",
+      "probability": 0.08,
+      "band": "refuse",
+      "listingName": "DUKE OF HAMILTON SOCIAL CLUB",
+      "pubName": "The Duke of Hamilton"
+    },
+    {
+      "id": "fountain-in-yard",
+      "labelListingIsPubBuilding": false,
+      "labelSource": "hand",
+      "probability": 0.03,
+      "band": "refuse",
+      "listingName": "FOUNTAIN IN YARD OF THE RED LION",
+      "pubName": "The Red Lion"
+    },
+    {
+      "id": "wells-tavern",
+      "labelListingIsPubBuilding": true,
+      "labelSource": "hand",
+      "probability": 0.96,
+      "band": "accept",
+      "listingName": "WELLS TAVERN",
+      "pubName": "Wells Tavern"
+    },
+    {
+      "id": "wall-and-railings",
+      "labelListingIsPubBuilding": false,
+      "labelSource": "hand",
+      "probability": 0.03,
+      "band": "refuse",
+      "listingName": "WALL AND RAILINGS TO THE FREEMASONS ARMS",
+      "pubName": "The Freemasons Arms"
+    }
+  ]
+}

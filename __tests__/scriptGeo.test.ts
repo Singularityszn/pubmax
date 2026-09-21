@@ -35,7 +35,6 @@ describe("script great-circle distance", () => {
     const { haversineMeters: canonicalizationDistance } = await import(
       "@/scripts/lib/venueCanonicalization.mjs"
     );
-    // @ts-expect-error - heritage script has no declaration file.
     const { haversineMeters: heritageDistance } = await import("@/scripts/lib/heritageMatch.mjs");
     const { haversineMeters: osmDistance } = await import("@/scripts/lib/ukOsmSeed.mjs");
     const coordinates = [51.5074, -0.1278, 55.9533, -3.1883] as const;

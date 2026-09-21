@@ -140,7 +140,13 @@ export async function buildJudgedSamePubMatch(groupList: VenueGroup[]): Promise<
  * the tree with a timestamp and hides the pairs that actually changed. Git
  * already records when the file was written.
  */
-export function samePubReviewDocument(review: SamePubReviewEntry[]): {
+const SAME_PUB_REVIEW_NOTE =
+  "Pairs in the uncertain band between the refuse and merge thresholds. Never auto-merged.";
+
+export function samePubReviewDocument(
+  review: SamePubReviewEntry[],
+  note: string = SAME_PUB_REVIEW_NOTE,
+): {
   version: number;
   note: string;
   pairCount: number;
@@ -151,7 +157,7 @@ export function samePubReviewDocument(review: SamePubReviewEntry[]): {
   );
   return {
     version: 1,
-    note: "Pairs in the uncertain band between the refuse and merge thresholds. Never auto-merged.",
+    note,
     pairCount: pairs.length,
     pairs,
   };
@@ -160,9 +166,11 @@ export function samePubReviewDocument(review: SamePubReviewEntry[]): {
 export async function writeSamePubReviewFile(
   review: SamePubReviewEntry[],
   rootDir: string,
+  relativePath: string = path.join("data", "review", "same-pub-review.json"),
+  note: string = SAME_PUB_REVIEW_NOTE,
 ): Promise<string> {
-  const outPath = path.join(rootDir, "data", "review", "same-pub-review.json");
-  const doc = samePubReviewDocument(review);
+  const outPath = path.join(rootDir, relativePath);
+  const doc = samePubReviewDocument(review, note);
   const { mkdir, writeFile } = await import("node:fs/promises");
   await mkdir(path.dirname(outPath), { recursive: true });
   await writeFile(outPath, `${JSON.stringify(doc, null, 2)}\n`, "utf8");

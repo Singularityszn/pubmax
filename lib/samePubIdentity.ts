@@ -119,10 +119,20 @@ export type SamePubJudgment = {
   model: string | null;
 };
 
+export type SamePubSystemOneRun = (
+  state: SamePubPairState,
+  questions: typeof SAME_PUB_QUESTIONS,
+  options: { timeoutMs?: number; lane?: string },
+) => Promise<{
+  answers?: { samePhysicalPub?: { noul?: unknown } };
+  model?: string;
+} | null>;
+
 export async function judgeSamePubPair(
   state: SamePubPairState,
+  run: SamePubSystemOneRun = systemOne,
 ): Promise<SamePubJudgment | null> {
-  const response = await systemOne(state, SAME_PUB_QUESTIONS, {
+  const response = await run(state, SAME_PUB_QUESTIONS, {
     lane: "same-pub",
     timeoutMs: 4_000,
   });
