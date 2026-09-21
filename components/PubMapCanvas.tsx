@@ -1686,10 +1686,13 @@ export default function PubMapCanvas({
         try {
           const failedTiles = failedVectorTiles.get(sourceId);
           if (spec.type === "vector" && failedTiles?.size) {
-            // MapLibre 6.9 source-wide reload marks errored vector tiles
-            // loading, then waits on their already-finished worker request.
-            // The public targeted refresh expires them and sends a fresh
-            // loadTile request instead. Keep the source, layers and pins.
+            // A source-wide reload marks an errored vector tile `loading`
+            // (`TileManager.reload`), and `VectorTileSource.loadTile` parks a
+            // tile in that state on a `reloadPromise` that the already-finished
+            // worker request will never resolve, so the tile stays a hole. The
+            // public targeted refresh expires those tiles instead, which takes
+            // the `loadTile` message path and really re-fetches them. Verified
+            // against maplibre-gl 6.10.0. Keeps the source, layers and pins.
             map.refreshTiles(sourceId, [...failedTiles.values()]);
             failedVectorTiles.delete(sourceId);
           } else if (plan.kind === "tiles") {
@@ -2402,9 +2405,9 @@ export default function PubMapCanvas({
       tileSpend = markTileFailureSurfaced(tileSpend);
       sceneSettled = true;
       clearTimeout(hangFailTimer);
-      if (
-        basemapFailureSurface(styleEverLoaded || styleLoaded) === "toast"
-      ) {
+      // `styleEverLoaded` is the historical fact: a replacement style that is
+      // mid-load must not tear down a canvas that already drew.
+      if (basemapFailureSurface(styleEverLoaded) === "toast") {
         tileNoticeOwner = "errors";
         pinNoticeActive = false;
         clearPinRetryWait();
