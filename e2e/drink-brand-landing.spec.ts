@@ -63,6 +63,9 @@ async function setLandingState(page: Page): Promise<void> {
     localStorage.setItem("pubmax-tour-v1-done", "1");
     localStorage.setItem("pubmax_onboarding_dismissed", "1");
     sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
   });
 }
 
