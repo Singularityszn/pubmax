@@ -96,6 +96,7 @@ function mockSystemOne(input: {
 describe("parseConciergeIntent keyless fallback", () => {
   beforeEach(() => {
     delete process.env.TYPESAFE_API_KEY;
+    delete process.env.PUBMAX_E2E_KEYLESS;
     vi.mocked(systemOne).mockResolvedValue(null);
   });
 
@@ -152,10 +153,37 @@ describe("parseConciergeIntent keyless fallback", () => {
     expect(systemOne).not.toHaveBeenCalled();
     vi.unstubAllEnvs();
   });
+
+  it("never spends on intent when PUBMAX_E2E_KEYLESS is set, even with a key", async () => {
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    vi.stubEnv("PUBMAX_E2E_KEYLESS", "1");
+    mockSystemOne({
+      moods: hitNouls(["garden"]),
+      area: "Camden",
+    });
+    const parsed = await parseConciergeIntent("anything in Camden with a garden");
+    expect(parsed.source).toBe("deterministic");
+    expect(parsed.intent.mood).toContain("garden");
+    expect(systemOne).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
+  });
+
+  it("parses the Pub Pal recall thread on the regex path without calling TypeSafe", async () => {
+    const prior = ["Quiet pub in Camden for four", "cheaper"];
+    const current = "anything in Camden with a garden";
+    for (const line of [...prior, current]) {
+      const parsed = await parseConciergeIntent(line, { skipModel: true });
+      expect(parsed.source).toBe("deterministic");
+    }
+    const { palRecall } = await import("@/lib/palRecall");
+    expect(palRecall(prior, current)?.line).toBe("You asked about Camden earlier.");
+    expect(systemOne).not.toHaveBeenCalled();
+  });
 });
 
 describe("parseConciergeIntent TypeSafe path", () => {
   beforeEach(() => {
+    delete process.env.PUBMAX_E2E_KEYLESS;
     vi.stubEnv("TYPESAFE_API_KEY", "test-key");
   });
 

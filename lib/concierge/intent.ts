@@ -141,6 +141,17 @@ function typesafeKeyConfigured(): boolean {
   return Boolean(process.env.TYPESAFE_API_KEY?.trim());
 }
 
+/** Keyless Playwright servers must never spend on intent, even if `.env.local` carries a key. */
+function keylessRuntimeForIntent(): boolean {
+  return process.env.PUBMAX_E2E_KEYLESS === "1";
+}
+
+function useDeterministicIntentOnly(options: ParseOptions): boolean {
+  if (keylessRuntimeForIntent()) return true;
+  if (options.skipModel) return true;
+  return !typesafeKeyConfigured();
+}
+
 /** Parse intent with a bounded TypeSafe assist and a deterministic, keyless fallback. */
 export async function parseConciergeIntent(
   text: string,
@@ -148,7 +159,7 @@ export async function parseConciergeIntent(
 ): Promise<ParsedConciergeIntent> {
   const clipped = text.slice(0, 500);
   const fallback = deterministicIntent(clipped);
-  if (options.skipModel || !typesafeKeyConfigured()) {
+  if (useDeterministicIntentOnly(options)) {
     return { intent: fallback, source: "deterministic" };
   }
   try {

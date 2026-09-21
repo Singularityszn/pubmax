@@ -109,9 +109,7 @@ async function toolSearchVenues(
   const limit = Math.min(6, Math.max(1, Math.floor(limitRaw)));
   const query = str(args.query) || ctx.query;
   try {
-    const parsed = await parseConciergeIntent(query, {
-      skipModel: ctx.skipModel !== false,
-    });
+    const parsed = await parseConciergeIntent(query, { skipModel: true });
     const venues = await loadConciergeVenues(ctx.cityId);
     const ranked = rankConciergeVenues(venues, parsed.intent, { limit });
     const cards = ranked.map(({ venue, reasons }) =>
@@ -681,9 +679,7 @@ async function toolProposePlan(
 ): Promise<AskToolResult> {
   const query = str(args.query) || ctx.query;
   try {
-    const parsed = await parseConciergeIntent(query, {
-      skipModel: ctx.skipModel !== false,
-    });
+    const parsed = await parseConciergeIntent(query, { skipModel: true });
     const venues = await loadConciergeVenues(ctx.cityId);
     const ranked = rankConciergeVenues(venues, parsed.intent, { limit: 3 });
     if (ranked.length < 3) {
