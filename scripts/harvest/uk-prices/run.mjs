@@ -70,6 +70,7 @@ import {
   DEFAULT_HOST_DELAY_MS,
   DEFAULT_PAGES_PER_HOST,
   cheapestPerCategory,
+  siteHarvestPriceKey,
   isLikelyMenuUrl,
   menuLinkCandidates,
   pageMayPriceThisPub,
@@ -450,7 +451,7 @@ async function crawlHost(entry, robots, spend, delayMs) {
   // price is attributed to every pub on that host and the row says so.
   const byCategory = new Map();
   for (const row of rows) {
-    const key = `${row.category}\0${(row.drinkLabel ?? "").trim().toLowerCase()}`;
+    const key = siteHarvestPriceKey(row.category, row.drinkLabel);
     const seen = byCategory.get(key);
     if (!seen || row.priceGbp < seen.priceGbp) byCategory.set(key, row);
   }

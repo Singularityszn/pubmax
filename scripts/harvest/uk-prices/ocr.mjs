@@ -117,6 +117,7 @@ import {
   DEFAULT_HOST_DELAY_MS,
   DEFAULT_PAGES_PER_HOST,
   cheapestPerCategory,
+  siteHarvestPriceKey,
   isLikelyMenuUrl,
   menuLinkCandidates,
   pageMayPriceThisPub,
@@ -477,7 +478,7 @@ export function rowsFromReadings(entry, readings, observedAt) {
   const byCategory = new Map();
   for (const { url, cheapest, linesOnPage } of priced) {
     for (const row of cheapest) {
-      const key = `${row.category}\0${(row.drinkLabel ?? "").trim().toLowerCase()}`;
+      const key = siteHarvestPriceKey(row.category, row.drinkLabel);
       const seen = byCategory.get(key);
       if (!seen || row.priceGbp < seen.priceGbp) {
         byCategory.set(key, {
