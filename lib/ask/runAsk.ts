@@ -1,9 +1,8 @@
 // Orchestrate one Night OS Ask turn: deterministic tools and optional model loop.
 
-import {
-  refineRoutedAskQuery,
-  routeAskDeterministically,
-} from "@/lib/ask/router";
+import { refineRoutedAskQuery } from "@/lib/ask/router";
+import { routeAsk } from "@/lib/ask/routerJudged";
+import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { runAskModelLoop } from "@/lib/ask/modelLoop";
 import {
   resolveAskCityId,
@@ -198,8 +197,18 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     // current ask is short ("cheaper", "closer to the Tube").
     const priorUser = [...turns].reverse().find((t) => t.role === "user");
     const routedQuery = refineRoutedAskQuery(query, priorUser?.content);
-    const routed = routeAskDeterministically(routedQuery);
-    for (const call of routed) {
+    let venues: Array<{ id: string; name: string; area: string }> = [];
+    try {
+      venues = (await loadConciergeVenues(cityId)).map((venue) => ({
+        id: venue.id,
+        name: venue.name,
+        area: venue.area,
+      }));
+    } catch {
+      venues = [];
+    }
+    const routed = await routeAsk(routedQuery, { venues });
+    for (const call of routed.calls) {
       toolResults.push(
         await runAskTool(call.name, { ...call.args, query: routedQuery }, {
           ...ctx,

@@ -78,10 +78,12 @@ export function recordTypesafeTiming(
   lane: string,
   durationMs: number,
   outcome: "ok" | "error" | "skipped",
+  extra?: { dropReason?: string },
 ): void {
   log(outcome === "error" ? "warn" : "info", "typesafe.request", {
     lane,
     durationMs,
     outcome,
+    ...(extra?.dropReason ? { dropReason: extra.dropReason } : {}),
   });
 }
