@@ -60,9 +60,11 @@ describe("Arize tracing activation", () => {
       },
     });
 
+    // expect.any, not expect.anything: the list must hold the OpenAI
+    // instrumentation itself, not merely one entry of some kind.
     expect(registerOTel).toHaveBeenCalledWith(
       expect.objectContaining({
-        instrumentations: [expect.anything()],
+        instrumentations: [expect.any(OpenAIInstrumentation)],
       }),
     );
     expect(OpenAIInstrumentation).toHaveBeenCalledTimes(1);
