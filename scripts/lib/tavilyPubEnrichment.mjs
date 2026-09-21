@@ -1,3 +1,7 @@
+import { extractPintPrices } from "../../lib/harvest/tavilyPintPrices.ts";
+
+export { extractPintPrices };
+
 const TAVILY_SEARCH_URL = "https://api.tavily.com/search";
 const MAX_TAVILY_CALLS_PER_RUN = 200;
 
@@ -200,78 +204,15 @@ export function isOfficialResult(pub, result) {
   );
 }
 
-function cleanDrinkName(line, sizeMatch, priceMatch) {
-  const cutoff = Math.min(sizeMatch.index ?? line.length, priceMatch.index ?? line.length);
-  return line
-    .slice(0, cutoff)
-    .replace(/^[-*#|>\s]+/, "")
-    .replace(/\b(?:draught|draft)\b\s*[:|-]?\s*/gi, "")
-    .replace(/^(?:(?:beer|boards|cider|drinks|flight|menu)\s+){2,}/i, "")
-    .replace(/\s+\d{1,2}(?:\.\d+)?%(?=\s|$)/g, "")
-    .replace(/\s+/g, " ")
-    .replace(/[\s:|()[\]\u2013\u2014-]+$/, "")
-    .trim();
-}
-
-export function extractPintPrices(markdown) {
-  const prices = [];
-  const seen = new Set();
-  const addPrice = (drinkName, priceGbp, servingSize = "pint") => {
-    if (!Number.isFinite(priceGbp) || priceGbp < 1.5 || priceGbp > 15) return;
-    if (drinkName.length < 2 || drinkName.length > 100) return;
-    if (
-      /["“”]/.test(drinkName) ||
-      /\b(?:all beers?|beer is priced|lunchtime)\b/i.test(drinkName) ||
-      /\b(?:at|for|from|only)\s*$/i.test(drinkName)
-    ) {
-      return;
-    }
-    const key = `${drinkName.toLowerCase()}|${priceGbp}|${servingSize}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    prices.push({ drinkName, priceGbp, servingSize });
-  };
-  const lines = String(markdown ?? "").split(/\r?\n/);
-  for (const sourceLine of lines) {
-    const line = sourceLine.replace(/\\£/g, "£").trim();
-    const sizeMatch = /\b(pint|568\s*ml)\b/i.exec(line);
-    const priceMatch = /£\s*(\d{1,2}(?:\.\d{1,2})?)\b/i.exec(line);
-    if (!sizeMatch || !priceMatch) continue;
-    if (/(?:\bhalf\b|½)/i.test(line.slice(0, Math.max(sizeMatch.index, priceMatch.index)))) continue;
-    if (/\b(?:and|includes?|plus|served with|with)\s+(?:an?\s+)?pint\b/i.test(line)) continue;
-    const priceGbp = Number(priceMatch[1]);
-    const drinkName = cleanDrinkName(line, sizeMatch, priceMatch);
-    const servingSize = sizeMatch[1].toLowerCase().startsWith("568") ? "568ml" : "pint";
-    addPrice(drinkName, priceGbp, servingSize);
-  }
-
-  const compact = lines
-    .map((line) => line.replace(/\\£/g, "£").replace(/^[_*]+|[_*]+$/g, "").trim())
-    .filter(Boolean);
-  let hasPintColumn = false;
-  for (let index = 0; index < compact.length; index += 1) {
-    const line = compact[index];
-    if (/\bhalf\s+pint\b.*\bpint\b/i.test(line) && !/£/.test(line)) {
-      hasPintColumn = true;
-      continue;
-    }
-    const matches = [...line.matchAll(/£\s*(\d{1,2}(?:\.\d{1,2})?)/g)];
-    if (!matches.length || index === 0) continue;
-    if (!/^(?:£\s*\d{1,2}(?:\.\d{1,2})?\s*(?:[|/]\s*)?)+$/.test(line)) continue;
-    const rawName = compact[index - 1];
-    const namedPint = /\b(?:pint|draught|draft)\b/i.test(rawName);
-    if (!namedPint && !(hasPintColumn && matches.length >= 2)) {
-      if (hasPintColumn) hasPintColumn = false;
-      continue;
-    }
-    const selected = matches[matches.length - 1];
-    const drinkName = rawName
-      .replace(/\b(?:pint|568\s*ml)\b/gi, "")
-      .replace(/^[-*#|>\s]+/, "")
-      .replace(/\s+/g, " ")
-      .trim();
-    addPrice(drinkName, Number(selected[1]));
-  }
+/**
+ * Keyless shared reader, or the judged batch path when TYPESAFE_API_KEY is set.
+ * The model call lives in readPrices.mjs so this module stays free of it until
+ * a key is actually present.
+ */
+export async function extractPintPricesMaybeJudged(markdown, ctx) {
+  if (!process.env.TYPESAFE_API_KEY?.trim()) return extractPintPrices(markdown);
+  const { extractPintPricesForHarvest } = await import("../harvest/uk-prices/readPrices.mjs");
+  const { prices } = await extractPintPricesForHarvest(markdown, ctx);
   return prices;
 }
 
@@ -379,10 +320,13 @@ function acceptedOfficialResults(pub, payload, hostCounts, observedAt) {
   );
 }
 
-function selectBestOfficialPage(results) {
+async function selectBestOfficialPage(results, pub) {
   let matchedPage = null;
   for (const result of results) {
-    const extracted = extractPintPrices(resultContent(result));
+    const extracted = await extractPintPricesMaybeJudged(resultContent(result), {
+      pubName: pub?.name ?? "Unknown pub",
+      pageUrl: result?.url ?? "",
+    });
     const dateRank = explicitUrlDateRank(result);
     const existingDateRank = matchedPage?.dateRank ?? null;
     const isNewerDatedPage =
@@ -629,7 +573,7 @@ export async function runCityEnrichment({
     throwIfAborted(signal);
     creditsSpent += Number(payload?.creditsSpent ?? payload?.usage?.credits) || 0;
     const officialResults = acceptedOfficialResults(pub, payload, hostCounts, observedAt);
-    const matchedPage = selectBestOfficialPage(officialResults);
+    const matchedPage = await selectBestOfficialPage(officialResults, pub);
 
     outcomes.push({
       index,

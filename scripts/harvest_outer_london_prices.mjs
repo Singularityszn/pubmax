@@ -38,7 +38,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { extractPintPrices } from "./lib/tavilyPubEnrichment.mjs";
+import { extractPintPricesMaybeJudged } from "./lib/tavilyPubEnrichment.mjs";
 import {
   assertProviderCredentials,
   discoverRefreshPages,
@@ -146,10 +146,9 @@ async function scrape(url) {
   return {
     ...page,
     json: {
-      draughtPints: extractPintPrices(page.markdown).map(({ drinkName, priceGbp }) => ({
-        drinkName,
-        priceGbp,
-      })),
+      draughtPints: (await extractPintPricesMaybeJudged(page.markdown, { pageUrl: url })).map(
+        ({ drinkName, priceGbp }) => ({ drinkName, priceGbp }),
+      ),
     },
   };
 }

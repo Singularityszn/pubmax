@@ -96,6 +96,18 @@ describe("what a page states", () => {
     expect(reading.kept.map((row) => row.priceGbp)).toEqual([4.6, 4.7, 5, 4.8]);
   });
 
+  it("takes the pint column of a half|pint table pair", () => {
+    const reading = readVenueDrinkPrices("<p>Estrella Damm £4.00 | £6.80</p>");
+    expect(reading.kept.map((row) => row.priceGbp)).toEqual([6.8]);
+    expect(reading.drops).toContain("half-measure-not-a-pint");
+  });
+
+  it("reads 568ml as a pint, not a bottle", () => {
+    const reading = readVenueDrinkPrices("<p>Cask Bitter (568ml) £4.75</p>");
+    expect(reading.kept).toEqual([expect.objectContaining({ category: "beer", priceGbp: 4.75 })]);
+    expect(reading.drops).not.toContain("bottled-measure-not-a-pint");
+  });
+
   it("names alcohol-free before beer, and a cocktail before a coffee", () => {
     expect(categoryFor("Lucky Saint alcohol-free lager")).toBe("alcohol-free");
     expect(categoryFor("Espresso martini")).toBe("cocktail");

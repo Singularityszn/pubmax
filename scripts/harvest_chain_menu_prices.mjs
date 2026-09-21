@@ -18,7 +18,8 @@
 //    robots.txt is a REFUSAL rather than a shrug.
 //
 // 3. A PRICE MUST BE ON THE PAGE. Every figure is verbatim-checked against the
-//    page text and needs a drink word beside it, in lib/harvest/chainMenuPrices.ts.
+//    page text and needs a drink word beside it, in the shared reader
+//    lib/harvest/ukPriceCrawl.ts, mapped through lib/harvest/chainMenuPrices.ts.
 //    Nothing is inferred, and every drop is counted and printed.
 //
 // WHAT THIS RETURNS TODAY IS NOTHING, and that is the finding rather than a
@@ -66,6 +67,18 @@ const DRY_RUN = flag("--dry-run");
 const PAGE_BUDGET = Number(option("--limit", DEFAULT_PAGE_BUDGET));
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Keyless shared reader, or the judged batch path when TYPESAFE_API_KEY is set.
+ * The model call lives in readPrices.mjs so this CLI stays free of it until a
+ * key is actually present.
+ */
+async function readChainPintPricesMaybeJudged(html, ctx) {
+  if (!process.env.TYPESAFE_API_KEY?.trim()) return readChainPintPrices(html);
+  const { readChainPintPricesForHarvest } = await import("./harvest/uk-prices/readPrices.mjs");
+  const { reading } = await readChainPintPricesForHarvest(html, ctx);
+  return reading;
+}
 
 async function fetchText(url) {
   const controller = new AbortController();
@@ -155,7 +168,10 @@ async function main() {
         coverage.set(city, row);
         continue;
       }
-      const reading = readChainPintPrices(page.body);
+      const reading = await readChainPintPricesMaybeJudged(page.body, {
+        pubName: source.label,
+        pageUrl: url,
+      });
       drops.push(...reading.drops);
       row.pagesRead += 1;
       const cheapest = cheapestStatedPint(reading);

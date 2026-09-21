@@ -1,10 +1,9 @@
 // What a chain menu page is allowed to yield, and how a price gets off it.
 //
 // PURE ON PURPOSE. The CLI in scripts/harvest_chain_menu_prices.mjs does the
-// fetching; everything that decides what counts as a price lives here, where it
-// can be tested without a network. That split is the same one the events lane
-// uses (lib/whatson/eventNormalise.mjs beside its CLI) and for the same reason:
-// a rule only a script knows is a rule nobody can check.
+// fetching; everything that decides what counts as a price lives in
+// lib/harvest/ukPriceCrawl.ts, the one reader. This file keeps the chain
+// lane's own shape: pint-only kept rows and this lane's drop-reason names.
 //
 // THE ABSOLUTE RULE, inherited from scripts/harvest_outer_london_prices.mjs: a
 // price is kept only if the exact figure appears LITERALLY in the page text we
@@ -14,6 +13,14 @@
 // PERMISSION AND SUPPLY ARE TWO QUESTIONS, and this module answers only the
 // second. Whether a host may be read at all is lib/harvest/sourcePolicy.ts and
 // lib/harvest/robots.ts, asked live, before anything here runs.
+
+import {
+  CATEGORY_PRICE_BANDS,
+  pageText as harvestPageText,
+  readVenueDrinkPrices,
+  type UkPriceDropReason,
+  type UkPriceReading,
+} from "./ukPriceCrawl";
 
 /** Why a candidate figure on a permitted page did not become a row. */
 export const CHAIN_PRICE_DROP_REASONS = [
@@ -26,28 +33,11 @@ export const CHAIN_PRICE_DROP_REASONS = [
 type ChainPriceDropReason = (typeof CHAIN_PRICE_DROP_REASONS)[number];
 
 /**
- * A pint's plausible band in the UK. Outside it the figure is a bottle, a
- * carafe, a food line or a tab total, and it is dropped rather than squeezed in.
+ * A pint's plausible band in the UK. The shared beer band, restated under the
+ * names this lane already publishes.
  */
-export const CHAIN_PINT_MIN_GBP = 2;
-export const CHAIN_PINT_MAX_GBP = 12;
-
-/** How much page text either side of a figure is read for its drink word. */
-const PRICE_CONTEXT_CHARS = 80;
-
-/** A draught pint's own vocabulary. A figure with none of this beside it is not a pint. */
-const DRINK_WORDS =
-  /\b(pint|draught|draft|on tap|lager|real ale|ale|cider|stout|guinness|ipa|pale ale|bitter|porter|session|neck oil|madri|camden|amstel|carling|fosters|foster's|peroni|heineken|cruzcampo|kronenbourg|beavertown|estrella|moretti|birra|san miguel|stella|carlsberg|thatchers|aspall|inches)\b/i;
-
-/**
- * Words that mean the figure belongs to a plate rather than a glass. Checked
- * AFTER the drink word, because "steak and a pint for £16.99" is a meal deal
- * and not the price of the pint.
- */
-const FOOD_WORDS =
-  /\b(burger|steak|pizza|meal|deal|roast|breakfast|brunch|lunch|sandwich|wrap|curry|fish and chips|dessert|sundae|platter|sharer|combo|bundle|two courses|three courses|with a)\b/i;
-
-const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{2})?)\b/g;
+export const CHAIN_PINT_MIN_GBP = CATEGORY_PRICE_BANDS.beer?.minGbp ?? 2;
+export const CHAIN_PINT_MAX_GBP = CATEGORY_PRICE_BANDS.beer?.maxGbp ?? 12;
 
 type ChainPriceCandidate = {
   priceGbp: number;
@@ -62,21 +52,40 @@ export type ChainPriceReading = {
   drops: ChainPriceDropReason[];
 };
 
+/** Strip a page to the text a reader sees. Owned by the shared reader. */
+export const pageText = harvestPageText;
+
+function chainDropFromUk(reason: UkPriceDropReason): ChainPriceDropReason {
+  switch (reason) {
+    case "not-verbatim-on-page":
+      return "not-verbatim-on-page";
+    case "outside-category-band":
+      return "outside-pint-band";
+    case "food-word-nearby":
+      return "food-word-nearby";
+    case "no-price-on-page":
+      return "no-price-on-page";
+    default:
+      return "no-drink-word-nearby";
+  }
+}
+
 /**
- * Strip a page to the text a reader sees. Scripts and styles go first, because
- * a price inside a JSON blob or a CSS rule is not something the page states.
+ * Map a shared drinks reading onto this lane's pint-only shape, keeping this
+ * lane's drop-reason names.
  */
-export function pageText(html: string): string {
-  return html
-    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
-    .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&pound;/gi, "£")
-    .replace(/\s+/g, " ")
-    .trim();
+export function chainPintReadingFromUk(reading: UkPriceReading): ChainPriceReading {
+  const kept: ChainPriceCandidate[] = [];
+  const drops: ChainPriceDropReason[] = [];
+  for (const row of reading.kept) {
+    if (row.category === "beer") {
+      kept.push({ priceGbp: row.priceGbp, verbatim: row.verbatim, context: row.context });
+    } else {
+      drops.push("no-drink-word-nearby");
+    }
+  }
+  for (const reason of reading.drops) drops.push(chainDropFromUk(reason));
+  return { kept, drops };
 }
 
 /**
@@ -87,44 +96,7 @@ export function pageText(html: string): string {
  * empty list is not.
  */
 export function readChainPintPrices(html: string): ChainPriceReading {
-  const text = pageText(html);
-  const kept: ChainPriceCandidate[] = [];
-  const drops: ChainPriceDropReason[] = [];
-
-  const matches = [...text.matchAll(PRICE_PATTERN)];
-  if (matches.length === 0) return { kept, drops: ["no-price-on-page"] };
-
-  for (const match of matches) {
-    const priceGbp = Number(match[1]);
-    const verbatim = match[0];
-    const at = match.index ?? 0;
-    const context = text.slice(
-      Math.max(0, at - PRICE_CONTEXT_CHARS),
-      at + verbatim.length + PRICE_CONTEXT_CHARS,
-    );
-
-    // The verbatim rule, applied to our own extraction as well: the figure we
-    // are about to keep has to be readable in the page we read.
-    if (!text.includes(verbatim)) {
-      drops.push("not-verbatim-on-page");
-      continue;
-    }
-    if (!Number.isFinite(priceGbp) || priceGbp < CHAIN_PINT_MIN_GBP || priceGbp > CHAIN_PINT_MAX_GBP) {
-      drops.push("outside-pint-band");
-      continue;
-    }
-    if (!DRINK_WORDS.test(context)) {
-      drops.push("no-drink-word-nearby");
-      continue;
-    }
-    if (FOOD_WORDS.test(context)) {
-      drops.push("food-word-nearby");
-      continue;
-    }
-    kept.push({ priceGbp, verbatim, context });
-  }
-
-  return { kept, drops };
+  return chainPintReadingFromUk(readVenueDrinkPrices(html));
 }
 
 /**
