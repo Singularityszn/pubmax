@@ -1,3 +1,5 @@
+import type { ChainPriceReading } from "@/lib/harvest/chainMenuPrices";
+import type { TavilyPintPrice } from "@/lib/harvest/tavilyPintPrices";
 import type { UkPriceJudgedReading } from "@/lib/harvest/ukPriceJudgment.server";
 import type { UkPriceReading } from "@/lib/harvest/ukPriceCrawl";
 
@@ -7,3 +9,13 @@ export function readVenueDrinkPricesForHarvest(
   html: string,
   ctx?: { pubName?: string; pageUrl?: string },
 ): Promise<{ reading: UkPriceReading; review: UkPriceJudgedReading["review"] }>;
+
+export function readChainPintPricesForHarvest(
+  html: string,
+  ctx?: { pubName?: string; pageUrl?: string },
+): Promise<{ reading: ChainPriceReading; review: UkPriceJudgedReading["review"] }>;
+
+export function extractPintPricesForHarvest(
+  markdown: string,
+  ctx?: { pubName?: string; pageUrl?: string },
+): Promise<{ prices: TavilyPintPrice[]; review: UkPriceJudgedReading["review"] }>;

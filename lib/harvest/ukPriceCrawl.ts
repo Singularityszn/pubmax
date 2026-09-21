@@ -7,8 +7,9 @@
 // network. This module imports one TYPE and no values, so the CLI can load it
 // under tsx with nothing to resolve at runtime.
 //
-// THIS IS THE SAME LANE AS THE CHAIN EXTRACTOR, WIDENED IN TWO PLACES AND
-// NARROWED IN ONE.
+// THIS IS THE ONE PRICE READER. The chain menu lane and the Tavily enrichment
+// lane map onto it. Widened in two places and narrowed in one versus the old
+// chain-only table.
 //
 //   Widened first by DRINK: a chain page was read for a pint alone, because a
 //   pint is what the chain lane was built to price. A pub's own drinks list
@@ -219,6 +220,9 @@ export const MIN_PRICED_LINES_FOR_LIST = 4;
  * that is not the one the price is being read as.
  */
 function isBottledMeasure(before: string): boolean {
+  // 568ml is a UK pint, not a bottle. The generic ml pattern would otherwise
+  // drop every drinks list that writes the measure in millilitres.
+  if (/\b568\s*ml\b/i.test(before)) return false;
   return /(\d{2,3}\s?ml|\bbottle[ds]?\b|\bcans?\b)/i.test(before);
 }
 
@@ -229,7 +233,7 @@ function isBottledMeasure(before: string): boolean {
  * time.
  */
 function isFirstOfAMeasurePair(after: string): boolean {
-  return /^\s*\/\s*£/.test(after);
+  return /^\s*[|/]\s*£/.test(after);
 }
 
 function isHalfMeasure(before: string): boolean {
@@ -452,15 +456,11 @@ export function readVenueDrinkPrices(html: string): UkPriceReading {
   const text = pageText(html);
   const kept: UkPriceCandidate[] = [];
   const drops: UkPriceDropReason[] = [];
+  const candidates = findUkPriceCandidates(text);
+  if (candidates.length === 0) return { kept, drops: ["no-price-on-page"] };
 
-  const matches = [...text.matchAll(PRICE_PATTERN)];
-  if (matches.length === 0) return { kept, drops: ["no-price-on-page"] };
-
-  for (const match of matches) {
-    const priceGbp = Number(match[1]);
-    const verbatim = match[0];
-    const at = match.index ?? 0;
-    const outcome = decideKeylessUkPriceAt(text, at, priceGbp, verbatim);
+  for (const raw of candidates) {
+    const outcome = decideKeylessUkPriceCandidate(text, raw);
     if (outcome.kept) kept.push(outcome.kept);
     else if (outcome.drop) drops.push(outcome.drop);
   }

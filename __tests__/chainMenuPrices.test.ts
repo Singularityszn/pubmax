@@ -4,6 +4,9 @@
 // work the day a chain publishes a price: an untested harvester that yields
 // zero is indistinguishable from a broken one.
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -15,6 +18,7 @@ import {
   pageText,
   readChainPintPrices,
 } from "@/lib/harvest/chainMenuPrices";
+import { CATEGORY_PRICE_BANDS } from "@/lib/harvest/ukPriceCrawl";
 
 const menuPage = (body: string) => `<!doctype html><html><head>
   <style>.price::after{content:"£9.99"}</style>
@@ -54,7 +58,14 @@ describe("reading a chain menu page", () => {
   it("drops a meal deal that happens to mention a pint", () => {
     const reading = readChainPintPrices(menuPage("<li>Burger and a pint £16.99</li>"));
     expect(reading.kept).toHaveLength(0);
-    expect(reading.drops.some((drop) => drop === "food-word-nearby" || drop === "outside-pint-band")).toBe(true);
+    // `pint` is a measure, not a drink category, so the shared reader may drop
+    // this as no drink word rather than as food. Either way it is not a pint.
+    expect(
+      reading.drops.some(
+        (drop) =>
+          drop === "food-word-nearby" || drop === "outside-pint-band" || drop === "no-drink-word-nearby",
+      ),
+    ).toBe(true);
   });
 
   it("drops a figure outside the pint band in either direction", () => {
@@ -83,6 +94,26 @@ describe("reading a chain menu page", () => {
 
   it("answers null for the cheapest pint on a page that states none", () => {
     expect(cheapestStatedPint({ kept: [], drops: ["no-price-on-page"] })).toBeNull();
+  });
+
+  it("does not read a bitter lemon mixer as a pint", () => {
+    const reading = readChainPintPrices(
+      menuPage("<p>Bosford Rose, try with Britvic Bitter Lemon £7.25</p>"),
+    );
+    expect(reading.kept).toHaveLength(0);
+  });
+
+  it("uses the shared beer band rather than a second pint range", () => {
+    expect(CHAIN_PINT_MIN_GBP).toBe(CATEGORY_PRICE_BANDS.beer?.minGbp);
+    expect(CHAIN_PINT_MAX_GBP).toBe(CATEGORY_PRICE_BANDS.beer?.maxGbp);
+  });
+
+  it("has no drink-word table of its own", () => {
+    const source = readFileSync(join(process.cwd(), "lib/harvest/chainMenuPrices.ts"), "utf8");
+    expect(source).toMatch(/from "\.\/ukPriceCrawl"/);
+    expect(source).not.toMatch(/neck oil\|madri/);
+    expect(source).not.toMatch(/const PRICE_PATTERN/);
+    expect(source).not.toMatch(/const DRINK_WORDS/);
   });
 });
 
