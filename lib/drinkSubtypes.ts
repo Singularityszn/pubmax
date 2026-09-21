@@ -392,6 +392,38 @@ const SUBTYPE_TABLE: DrinkSubtype[] = [
     longLabel: "Liqueur shot",
     tokens: ["liqueur", "baileys", "tequila rose", "schnapps", "absinthe"],
   },
+
+  // ── soft-drink ──────────────────────────────────────────────────────────────
+  // Listed before the broad "coke" category keywords can steal them. Tap water
+  // is never a priced still-water product.
+  {
+    id: "soft-drink-coke-zero",
+    category: "soft-drink",
+    label: "Coke Zero",
+    longLabel: "Coke Zero",
+    tokens: [
+      "coke zero",
+      "coca cola zero sugar",
+      "coca-cola zero sugar",
+      "coca cola zero",
+      "coca-cola zero",
+      "zero sugar coke",
+    ],
+  },
+  {
+    id: "soft-drink-diet-coke",
+    category: "soft-drink",
+    label: "Diet Coke",
+    longLabel: "Diet Coke",
+    tokens: ["diet coke", "coca cola light", "coca-cola light", "diet coca cola"],
+  },
+  {
+    id: "soft-drink-still-water",
+    category: "soft-drink",
+    label: "Still water",
+    longLabel: "Still water",
+    tokens: ["still water", "bottled water", "mineral water"],
+  },
 ];
 
 export const DRINK_SUBTYPES: readonly DrinkSubtype[] = SUBTYPE_TABLE;
@@ -621,6 +653,9 @@ const NAME_SUBTYPE_HINTS: ReadonlyArray<[string, DrinkSubtypeId]> = [
 // Catalog identities carry punctuation, diacritics, and aliases that the
 // dataset-oriented name hints above deliberately do not duplicate.
 const BRAND_SUBTYPE_HINTS: ReadonlyArray<[string, DrinkSubtypeId]> = [
+  ["coke-zero", "soft-drink-coke-zero"],
+  ["diet-coke", "soft-drink-diet-coke"],
+  ["still-water", "soft-drink-still-water"],
   ["guinness", "beer-stout"],
   ["neck-oil", "beer-ipa"],
   ["amstel", "beer-lager"],
@@ -668,6 +703,10 @@ function matchingCatalogSubtype(
  * (so "white" under `rum` means white rum, not white wine) and rejects a hit
  * belonging to another category.
  */
+function isUnpricedTapWater(hay: string): boolean {
+  return haystackHasNeedle(hay, "tap water");
+}
+
 export function drinkSubtypeFromText(
   drink: string | null | undefined,
   category?: DrinkCategory | null,
@@ -675,6 +714,7 @@ export function drinkSubtypeFromText(
   if (typeof drink !== "string") return null;
   const hay = normalizeDrinkHaystack(drink);
   if (!hay) return null;
+  if (isUnpricedTapWater(hay)) return null;
 
   const pool = category ? subtypesForCategory(category) : SUBTYPE_TABLE;
 
@@ -689,7 +729,10 @@ export function drinkSubtypeFromText(
       bestScore = score;
     }
   }
-  if (best) return best;
+  if (best) {
+    if (best.id === "soft-drink-still-water" && isUnpricedTapWater(hay)) return null;
+    return best;
+  }
 
   return subtypeFromBrandName(hay, category);
 }

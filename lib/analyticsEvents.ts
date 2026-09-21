@@ -172,6 +172,8 @@ export const ANALYTICS_EVENTS = {
   price_submit_viewed: ["category"],
   price_submitted: ["category"],
   price_submit_failed: ["category", "reason"],
+  soft_drinks_water_view_opened: ["subtype"],
+  soft_drinks_water_price_submitted: ["subtype"],
   // What the drinker's own confirmed submission turned out to be worth, read
   // back off the same response the receipt is drawn from. `outcome` is the
   // existing three-value mission vocabulary: `trusted` (this tap corroborated
@@ -587,6 +589,8 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   price_submit_viewed: ["category"],
   price_submitted: ["category"],
   price_submit_failed: ["category", "reason"],
+  soft_drinks_water_view_opened: ["subtype"],
+  soft_drinks_water_price_submitted: ["subtype"],
   contribution_gate: ["step"],
   mission_viewed: ["surface", "reason"],
   mission_opened: ["surface", "reason"],
@@ -775,6 +779,16 @@ function isAllowedLandingCtaProp(
  * check keyed on the KEY would quietly widen the next event to borrow the
  * name, which is the mistake this shape exists to prevent.
  */
+function isAllowedSoftDrinksWaterProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (!name.startsWith("soft_drinks_water_")) return true;
+  if (key !== "subtype") return true;
+  return typeof value === "string" && /^soft-drink-[a-z0-9-]+$/.test(value);
+}
+
 function isAllowedPriceFunnelProp(
   name: AnalyticsEventName,
   key: string,
@@ -956,6 +970,7 @@ export function sanitizeEvent(
               && isAllowedTrustedHandoffEventProp(name, key, value)
               && isAllowedVitalProp(name, key, value)
               && isAllowedPriceFunnelProp(name, key, value)
+              && isAllowedSoftDrinksWaterProp(name, key, value)
               && isAllowedMissionProp(name, key, value)
               && isAllowedContributionGateProp(name, key, value)
               && isAllowedPintIndexArrivalProp(name, key, value)

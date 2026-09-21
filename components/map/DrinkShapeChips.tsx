@@ -18,6 +18,8 @@
 // chips fall back to unstyled browser buttons with no selected state.
 import "./mapToolbar.css";
 
+import Link from "next/link";
+
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import {
   CATEGORY_META,
@@ -164,6 +166,12 @@ export default function DrinkShapeChips({
           );
         })}
       </div>
+
+      {active === "soft-drink" ? (
+        <p className="drinkShapeChipsMore">
+          <Link href="/soft-drinks-and-water">Soft drinks and water</Link>
+        </p>
+      ) : null}
 
       {active && showsDrinkRefinements(filters) ? (
         <div
