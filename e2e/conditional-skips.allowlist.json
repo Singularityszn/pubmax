@@ -27,7 +27,7 @@
     },
     {
       "file": "e2e/plan-capability-recovery.spec.ts",
-      "condition": "true",
+      "condition": "!process.env.SUPABASE_SERVICE_ROLE_KEY",
       "reason": "The keyless e2e server holds no service-role key, so verifyCallerAuth answers unavailable and both the claim PUT and the recovery PATCH answer 503 by design. The alternative was a test-only bypass inside production auth code, which was refused.",
       "ends": "A real authenticated e2e lane with a service-role key (#1300). The journey is kept whole so it can be switched on that day.",
       "tests": [
