@@ -122,6 +122,19 @@ test("keeps the expanded city-status feed inside an 800px viewport", async ({
   page,
 }) => {
   await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem(
+      "pubmaxx:analytics-consent:v1",
+      "denied",
+    );
+    // THE FIRST-VISIT ARRIVAL STRIP IS THE FIRST MEMBER OF THE CASCADE, and it
+    // is what this spec was missing: while `.mapArrivalCard` is present PubMap
+    // never mounts the status rail at all, so the sheet, its rows and their
+    // boxes are simply absent (measured at 800x800 on a production build, the
+    // stack was not in the document). The spec then read that absence as a
+    // geometry failure on the LAST row. Seed the same dismissal the sibling
+    // desktop cases above seed (components/map/mapBannerStaging.css rule 1b).
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     // The location ask is first in the map's one ambient cascade, so the status
     // rail owns the surface once that ask is answered
@@ -166,6 +179,13 @@ test("keeps the expanded city-status feed inside an 800px viewport", async ({
 
   const sheet = page.locator(".cityStatusSignalSheet");
   await expect(sheet).toBeVisible();
+  // The sheet enters on a transform (cityStatusBanner.css), so its first box is
+  // six pixels off its resting one. Measure the surface it settles at.
+  await sheet.evaluate(async (element) => {
+    await Promise.all(
+      element.getAnimations().map((animation) => animation.finished),
+    );
+  });
   const bounds = await sheet.boundingBox();
   expect(bounds).not.toBeNull();
   expect((bounds?.y ?? 800) + (bounds?.height ?? 800)).toBeLessThanOrEqual(784);
@@ -174,6 +194,9 @@ test("keeps the expanded city-status feed inside an 800px viewport", async ({
     element.scrollTop = element.scrollHeight;
   });
   const lastRow = sheet.locator(".cityStatusSignalRow").last();
+  // A box inside the budget is not yet a row a reader can SEE, so the row has
+  // to intersect the viewport as well as measure inside it.
+  await expect(lastRow).toBeInViewport();
   const lastBounds = await lastRow.boundingBox();
   expect(lastBounds).not.toBeNull();
   expect(
