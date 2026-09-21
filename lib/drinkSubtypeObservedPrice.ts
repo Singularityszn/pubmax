@@ -19,9 +19,6 @@ export const SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS = [
   "soft-drink-still-water",
 ] as const;
 
-export type SoftDrinksWaterLaunchSubtypeId =
-  (typeof SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS)[number];
-
 export type ObservedSubtypePrice = {
   drinkLabel: string;
   priceGbp: number;
@@ -134,7 +131,7 @@ function compareObservedSubtypePrices(
   );
 }
 
-export function compareSubtypePricedVenueRows(
+function compareSubtypePricedVenueRows(
   left: SubtypePricedVenueRow,
   right: SubtypePricedVenueRow,
 ): number {
