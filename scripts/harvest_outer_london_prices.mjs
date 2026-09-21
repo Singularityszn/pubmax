@@ -28,7 +28,8 @@
  *  - merges sourced rows into public/data/drink_price_updates/latest.json.
  *  - writes a per-venue result log JSON to data/osm/outer_price_harvest_log.json.
  *
- * Requires EXA_API_KEY and TAVILY_API_KEY in the environment (never commit them).
+ * Requires TAVILY_API_KEY in the environment (never commit it). EXA_API_KEY is
+ * optional: without it, menu discovery uses on-site links only.
  *
  * Usage:
  *   node --conditions=react-server --import tsx scripts/harvest_outer_london_prices.mjs \
