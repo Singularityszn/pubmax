@@ -68,6 +68,9 @@ const config: KnipConfig = {
     "scripts/venue-truth-shots.mjs",
     // Refreshes TypeSafe fixture probabilities for Pub Pal fence tests.
     "scripts/record_pubpal_fence_probabilities.ts",
+    // The same, for Ask-router fixtures: needs TYPESAFE_API_KEY and writes
+    // __tests__/fixtures/typesafe/ask-router-probabilities.json.
+    "scripts/record_ask_router_probabilities.ts",
     // The same, for the same-pub identity fixtures: needs TYPESAFE_API_KEY and
     // writes __tests__/fixtures/typesafe/same-pub-probabilities.json.
     "scripts/record_same_pub_fixture_probs.mjs",
