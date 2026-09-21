@@ -16,7 +16,7 @@ Reference comps: no Figma MCP or Mobbin session in this harness; direction follo
 | 4 | Pint Drops rail stays a horizontal scroll on desktop though width allows a grid | `/` | Three-up `dropStripRail` grid from 1024px |
 | 5 | Landing hero block not centred to `--content-max-wide` on very wide viewports | `/`, 1920 | `lpHero` width + auto margins from 1280px |
 | 6 | Feed card lift/hover ran on coarse pointers (touch laptops) | `/feed` | Gate hover motion to `(hover: hover) and (pointer: fine)` + token durations |
-| 7 | Map toolbar conditions chip had no hover acknowledgement | `/map` | Token hover on `.conditionsChip` (150ms) |
+| 7 | Map toolbar conditions chip had no hover acknowledgement | `/map` | Token hover on `.conditionsChip` (no transition: drawer rail timing) |
 | 8 | Social lane tabs changed background with no transition | `/social` | `--duration-base` transitions on switcher links |
 | 9 | Hard-coded 1240px on `.socialPage` instead of `--content-max-wide` | `/social` | Token swap |
 | 10 | Plan example chips lacked hover transition parity with other controls | `/plan` | Chip transitions under desktop block |

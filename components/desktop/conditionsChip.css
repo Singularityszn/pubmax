@@ -17,9 +17,6 @@
   white-space: nowrap;
   flex: none;
   box-sizing: border-box;
-  transition:
-    border-color var(--duration-base) var(--ease-out),
-    background var(--duration-base) var(--ease-out);
 }
 
 @media (hover: hover) and (pointer: fine) {
