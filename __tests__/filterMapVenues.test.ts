@@ -161,3 +161,10 @@ describe("withForcedVenue", () => {
     expect(out).toHaveLength(1);
   });
 });
+
+ describe("explicit slim-pin requirements", () => {
+  it.each(["requireBeerGarden", "requireNonAlcoholic", "requireLiveSports", "requireWater", "requireHeritage", "requireStepFree", "requireAccessibleToilet", "requireSeatedService"] as const)("does not admit unknown or false evidence for %s", (key) => {
+    const venue = slimPin({ hasStory: false, filterHints: undefined, curation: {} });
+    expect(filterMapVenues([venue], { ...initialFilters, [key]: true }, () => false)).toEqual([]);
+  });
+});

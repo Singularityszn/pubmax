@@ -1,5 +1,5 @@
 // Map pin filtering for PubMap. Slim pins (prices: []) must stay visible through
-// filters whose evidence exists only after detail hydrates.
+// price-source filtering; explicit venue requirements still need evidence.
 
 import { filterVenues, type Filters, type Venue } from "@/lib/venues";
 
@@ -16,14 +16,6 @@ export function filterMapVenues(
   const slimPinFilters: Filters = {
     ...filters,
     canonicalOnly: false,
-    requireBeerGarden: false,
-    requireNonAlcoholic: false,
-    requireLiveSports: false,
-    requireWater: false,
-    requireHeritage: false,
-    requireStepFree: false,
-    requireAccessibleToilet: false,
-    requireSeatedService: false,
     // openNow stays on for slim pins: match uses name+coords, which slim rows have.
   };
 
