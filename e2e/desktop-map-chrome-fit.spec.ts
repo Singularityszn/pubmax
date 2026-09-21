@@ -371,12 +371,20 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     Math.abs(ownershipChange.after - ownershipChange.before),
   ).toBeLessThan(16);
 
+  // Fully off-screen is also x < -1, so wait for a frame that is still
+  // crossing rather than sampling after the spring has finished.
   await expect
-    .poll(async () => (await renderedBox(planner, "moving planner")).x, {
-      intervals: [16, 16, 16, 16],
-      timeout: 5_000,
-    })
-    .toBeLessThan(-1);
+    .poll(
+      async () => {
+        const box = await renderedBox(planner, "moving planner");
+        return box.x < -1 && box.x > -box.width;
+      },
+      {
+        intervals: [16, 16, 16, 16],
+        timeout: 5_000,
+      },
+    )
+    .toBe(true);
   const [plannerMid, venueMid, toolbarMid] = await Promise.all([
     renderedBox(planner, "planner during exchange"),
     renderedBox(venue, "venue during exchange"),

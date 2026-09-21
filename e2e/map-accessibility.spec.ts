@@ -290,11 +290,19 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     await expect.poll(() => baseRows.count(), { timeout: 20_000 }).toBeGreaterThan(0);
     await canvas.focus();
-    await page.keyboard.press("Minus");
-    await page.waitForTimeout(400);
-    await page.keyboard.press("Minus");
-    await page.waitForTimeout(400);
-    await page.keyboard.press("Minus");
+    // London opens already past UK_BASE_MIN_ZOOM (12). Three Minus presses
+    // from a zoomed-in view often land back on that street-level camera, which
+    // is still above the gate, so keep zooming until the wrap reports the
+    // floor rather than assuming a fixed key count crossed it.
+    await expect
+      .poll(
+        async () => {
+          await page.keyboard.press("Minus");
+          return wrap.getAttribute("data-uk-base-status");
+        },
+        { timeout: 20_000 },
+      )
+      .toBe("zoom_required");
     // MapLibre has settled below the layer floor, but the base stream's 180 ms
     // clear may still be pending on a loaded runner. Poll rather than a tight
     // fixed-timeout assertion so runner variance can't race the clear.

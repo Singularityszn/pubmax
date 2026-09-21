@@ -6,9 +6,23 @@ const PROOF_PATH = "docs/proof/moment-photo-editor/moment-editor-390.png";
 const PHOTO = readFileSync(resolve(process.cwd(), "docs/proof/night-mode-mid-crawl/after-390.png"));
 
 async function momentPreviewDigest(page: Page): Promise<string> {
-  return page.getByRole("img", { name: "Moment preview" }).evaluate(async (image) => {
-    const response = await fetch((image as HTMLImageElement).src);
-    const digest = await crypto.subtle.digest("SHA-256", await response.arrayBuffer());
+  return page.getByRole("img", { name: "Moment preview" }).evaluate(async (element) => {
+    const image = element as HTMLImageElement;
+    // Object URLs from the first-party picker can fail `fetch()` under the
+    // production CSP even while the <img> paints. Hash the decoded pixels.
+    if (!image.complete || image.naturalWidth === 0) {
+      await new Promise<void>((resolve, reject) => {
+        image.addEventListener("load", () => resolve(), { once: true });
+        image.addEventListener("error", () => reject(new Error("Moment preview failed to paint.")), { once: true });
+      });
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Moment preview could not be read.");
+    context.drawImage(image, 0, 0);
+    const digest = await crypto.subtle.digest("SHA-256", context.getImageData(0, 0, canvas.width, canvas.height).data);
     return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   });
 }
