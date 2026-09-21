@@ -12,10 +12,12 @@ import {
   TILE_SILENT_RETRY_MAX_DELAY_MS,
   areBasemapTilesLoaded,
   basemapRecoveryConfirmed,
+  basemapSourceIdentity,
   basemapSourceReloadPlan,
   classifyTileFailure,
   clearSilentTileRetries,
   createBasemapTileFailureTracker,
+  endTileRetryCycle,
   isCriticalBasemapFailure,
   isStyleResourceFailure,
   basemapFailureSurface,
@@ -24,11 +26,16 @@ import {
   markTileRetrySpent,
   pruneTileFailures,
   releaseQueuedSilentTileRetry,
+  releaseTileRetryForNewCycle,
+  retrySpentOnThisCycle,
+  shouldRearmSceneHangGuard,
   silentTileRetriesLeft,
   silentTileRetryDelayMs,
   spendTileFailureDecision,
   tileFailureAwaitsCameraRest,
   tileFailureRecheckDelay,
+  tileRetryCycleIdentity,
+  viewportTileKey,
   type TileFailureInput,
 } from "@/lib/mapTileFailure";
 
@@ -799,5 +806,189 @@ describe("createBasemapTileFailureTracker counts", () => {
     expect(tracker.count()).toBe(1);
     tracker.reset();
     expect(tracker.count()).toBe(0);
+  });
+});
+
+// Q1 leftover from #1729: evaluateTileFailure cancelled the scene hang guard
+// so a legitimate retry was not blamed as a stuck box, then never re-armed it.
+// A recovery that then stalls left the reader with no hang notice at all.
+describe("re-arming the scene hang guard after tile recovery begins", () => {
+  it("re-arms only while the scene is still pending and a recovery actually starts", () => {
+    expect(
+      shouldRearmSceneHangGuard({
+        sceneSettled: false,
+        recoveryEffect: "reload-source",
+      }),
+    ).toBe(true);
+    expect(
+      shouldRearmSceneHangGuard({
+        sceneSettled: false,
+        recoveryEffect: "reload-style",
+      }),
+    ).toBe(true);
+    expect(
+      shouldRearmSceneHangGuard({
+        sceneSettled: false,
+        recoveryEffect: "surface",
+      }),
+    ).toBe(false);
+    expect(
+      shouldRearmSceneHangGuard({
+        sceneSettled: false,
+        recoveryEffect: "none",
+      }),
+    ).toBe(false);
+    expect(
+      shouldRearmSceneHangGuard({
+        sceneSettled: true,
+        recoveryEffect: "reload-style",
+      }),
+    ).toBe(false);
+  });
+
+  it("is asked by the canvas after a recovery attempt is spent, not only cancelled", () => {
+    const canvas = readFileSync(
+      path.join(process.cwd(), "components/PubMapCanvas.tsx"),
+      "utf8",
+    );
+    const branch = canvas.slice(
+      canvas.indexOf("const evaluateTileFailure = ("),
+      canvas.indexOf('map.on("error", (event) => {'),
+    );
+    expect(branch).toContain("clearHangFailTimer");
+    expect(branch).toContain("shouldRearmSceneHangGuard");
+    expect(branch).toContain("armHangFailTimer");
+    const rearmAt = branch.indexOf("shouldRearmSceneHangGuard");
+    const armAt = branch.indexOf("armHangFailTimer");
+    expect(rearmAt).toBeGreaterThan(-1);
+    expect(armAt).toBeGreaterThan(rearmAt);
+  });
+});
+
+// Q2 leftover from #1729: retrySpent latched for the mount, so a later vector
+// tile error after one spent style reload skipped recovery and went straight
+// to the toast. A new source URL or a camera move onto new tiles is a new
+// cycle and is owed the silent lane and the one style reload again.
+describe("retrySpent is per source-URL-and-viewport cycle", () => {
+  const planet = "https://tiles.openfreemap.org/planet";
+  const carto = "https://basemaps.cartocdn.com/gl/positron";
+  const soho = { lng: -0.1341, lat: 51.5108 };
+  const spitalfields = { lng: -0.0754, lat: 51.5195 };
+
+  it("keys the cycle on tiled source URLs and the viewport centre tile", () => {
+    const sources = {
+      openmaptiles: { type: "vector", url: planet },
+      landmarks: { type: "geojson", data: { type: "FeatureCollection" } },
+    };
+    const sourceIdentity = basemapSourceIdentity(sources);
+    expect(sourceIdentity).toContain(planet);
+    expect(sourceIdentity).not.toContain("landmarks");
+
+    const here = viewportTileKey(soho, 14);
+    const there = viewportTileKey(spitalfields, 14);
+    expect(here).toMatch(/^\d+\/\d+\/\d+$/);
+    expect(there).not.toBe(here);
+
+    expect(tileRetryCycleIdentity(sourceIdentity, here)).toBe(
+      `${sourceIdentity}@${here}`,
+    );
+    expect(tileRetryCycleIdentity("", here)).toBeNull();
+  });
+
+  it("keeps the spent latch on the same source and the same viewport tile", () => {
+    const cycle = tileRetryCycleIdentity(
+      `openmaptiles:${planet}`,
+      viewportTileKey(soho, 14),
+    );
+    expect(
+      retrySpentOnThisCycle({
+        retrySpent: true,
+        spentCycleIdentity: cycle,
+        currentCycleIdentity: cycle,
+      }),
+    ).toBe(true);
+  });
+
+  it("gives a fresh retry when the source URL changes", () => {
+    const viewport = viewportTileKey(soho, 14);
+    expect(
+      retrySpentOnThisCycle({
+        retrySpent: true,
+        spentCycleIdentity: tileRetryCycleIdentity(
+          `openmaptiles:${planet}`,
+          viewport,
+        ),
+        currentCycleIdentity: tileRetryCycleIdentity(
+          `openmaptiles:${carto}`,
+          viewport,
+        ),
+      }),
+    ).toBe(false);
+  });
+
+  it("gives a fresh retry when the camera has moved to new tiles", () => {
+    const source = `openmaptiles:${planet}`;
+    expect(
+      retrySpentOnThisCycle({
+        retrySpent: true,
+        spentCycleIdentity: tileRetryCycleIdentity(
+          source,
+          viewportTileKey(soho, 14),
+        ),
+        currentCycleIdentity: tileRetryCycleIdentity(
+          source,
+          viewportTileKey(spitalfields, 14),
+        ),
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps the latch while the style is mid-swap and identity cannot be read", () => {
+    expect(
+      retrySpentOnThisCycle({
+        retrySpent: true,
+        spentCycleIdentity: "openmaptiles:planet@14/8186/5447",
+        currentCycleIdentity: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("lets spendTileFailureDecision retry again after the cycle ends", () => {
+    const spent = markTileRetrySpent({
+      ...INITIAL_TILE_FAILURE_SPEND,
+      retryQueued: true,
+    });
+    expect(spendTileFailureDecision(spent, "retry").effect).toBe("none");
+    expect(
+      spendTileFailureDecision(releaseTileRetryForNewCycle(spent), "retry").effect,
+    ).toBe("reload-style");
+    expect(
+      spendTileFailureDecision(endTileRetryCycle(spent), "retry").effect,
+    ).toBe("reload-style");
+  });
+
+  it("is asked by the canvas before vector retries are treated as exhausted", () => {
+    const canvas = readFileSync(
+      path.join(process.cwd(), "components/PubMapCanvas.tsx"),
+      "utf8",
+    );
+    const handler = canvas.slice(
+      canvas.indexOf('map.on("error", (event) => {'),
+      canvas.indexOf("evaluateTileFailure(\n        now,"),
+    );
+    expect(handler).toContain("syncTileRetryCycle");
+    expect(handler.indexOf("syncTileRetryCycle")).toBeLessThan(
+      handler.indexOf("vectorRetriesExhausted"),
+    );
+    const evaluate = canvas.slice(
+      canvas.indexOf("const evaluateTileFailure = ("),
+      canvas.indexOf('map.on("error", (event) => {'),
+    );
+    expect(evaluate).toContain("retrySpentOnThisCycle");
+    const recovered = canvas.slice(
+      canvas.indexOf("const markBasemapRecovered = () => {"),
+      canvas.indexOf('map.on("render", markBasemapRecovered)'),
+    );
+    expect(recovered).toContain("endTileRetryCycle");
   });
 });

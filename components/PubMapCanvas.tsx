@@ -174,11 +174,12 @@ import {
   INITIAL_TILE_FAILURE_SPEND,
   areBasemapTilesLoaded as readBasemapTilesLoaded,
   basemapFailureSurface,
+  basemapSourceIdentity,
   basemapSourceReloadPlan,
   basemapRecoveryConfirmed,
   classifyTileFailure,
-  clearSilentTileRetries,
   createBasemapTileFailureTracker,
+  endTileRetryCycle,
   isBasemapSourceMetadataFailure,
   isCriticalBasemapFailure,
   isStyleResourceFailure,
@@ -188,11 +189,16 @@ import {
   pruneTileFailures,
   TILE_SILENT_RETRY_MAX,
   releaseQueuedSilentTileRetry,
+  releaseTileRetryForNewCycle,
+  retrySpentOnThisCycle,
+  shouldRearmSceneHangGuard,
   silentTileRetriesLeft,
   silentTileRetryDelayMs,
   spendTileFailureDecision,
   tileFailureAwaitsCameraRest,
   tileFailureRecheckDelay,
+  tileRetryCycleIdentity,
+  viewportTileKey,
 } from "@/lib/mapTileFailure";
 import {
   CONTEXT_LOST_RECOVERY_MS,
@@ -1621,6 +1627,7 @@ export default function PubMapCanvas({
     let tileNoticeOwner: BasemapNoticeOwner = "none";
     let tileFailureStamps: number[] = [];
     let tileSpend = INITIAL_TILE_FAILURE_SPEND;
+    let tileRetrySpentCycle: string | null = null;
     let tileFailureGeneration = 0;
     let tileFailureRecheckTimer: ReturnType<typeof setTimeout> | undefined;
     let tileFailureRestRecheckArmed = false;
@@ -1651,6 +1658,29 @@ export default function PubMapCanvas({
       failedBasemapTiles.reset();
       failedVectorTiles.clear();
       basemapTileReadyForPaint = false;
+    };
+    // Read-only: source URLs off the serialized style, viewport tile off the
+    // live centre. Never a camera move. A new identity drops the spent latch
+    // so a later vector error is owed recovery instead of the leftover toast.
+    const syncTileRetryCycle = (): string | null => {
+      const center = map.getCenter();
+      const currentCycle = tileRetryCycleIdentity(
+        basemapSourceIdentity(map.getStyle()?.sources),
+        viewportTileKey({ lng: center.lng, lat: center.lat }, map.getZoom()),
+      );
+      if (
+        tileSpend.retrySpent &&
+        !retrySpentOnThisCycle({
+          retrySpent: true,
+          spentCycleIdentity: tileRetrySpentCycle,
+          currentCycleIdentity: currentCycle,
+        })
+      ) {
+        tileSpend = releaseTileRetryForNewCycle(tileSpend);
+        tileRetrySpentCycle = null;
+        silentSourceRetries = 0;
+      }
+      return currentCycle;
     };
     // The silent lane: re-ask every tiled basemap SOURCE for its own tiles.
     // MapLibre never re-requests a tile it failed, so without this a transient
@@ -1812,7 +1842,8 @@ export default function PubMapCanvas({
       tileFailureStamps = [];
       silentSourceRetries = 0;
       clearSilentTileRetryTimer();
-      tileSpend = clearSilentTileRetries({ ...tileSpend, surfaced: false });
+      tileSpend = endTileRetryCycle(tileSpend);
+      tileRetrySpentCycle = null;
       // MapLibre treats errored tiles as settled, so `areTilesLoaded()` cannot
       // prove recovery from a real error burst. Only a timeout-owned notice
       // may clear when a slow source eventually settles. Error-owned notices
@@ -2367,12 +2398,20 @@ export default function PubMapCanvas({
       // full-opacity pins before the RAF loop's next tick picks up the ramp.
       applyPinEntranceFrame(0);
     };
-    // settle* helpers close over hangFailTimer; they only run after this const
-    // is initialized (and after style.load listeners are wired below).
+    // settle* helpers close over hangFailTimer; they only run after this let
+    // and the arm/clear pair are initialized (and after style.load listeners
+    // are wired below). Tile recovery may cancel the guard so a legitimate
+    // retry is not blamed as a stuck box; armHangFailTimer re-starts it so a
+    // recovery that then stalls still owes the hang notice.
+    let hangFailTimer: ReturnType<typeof setTimeout> | undefined;
+    const clearHangFailTimer = () => {
+      if (hangFailTimer !== undefined) clearTimeout(hangFailTimer);
+      hangFailTimer = undefined;
+    };
     const settleSceneReady = () => {
       if (sceneSettled) return;
       sceneSettled = true;
-      clearTimeout(hangFailTimer);
+      clearHangFailTimer();
       // Internal scene-built gate only: unblock the map's own data/camera
       // effects now that the scene graph exists at style.load. The PARENT
       // loading chrome is deliberately NOT lifted here — it stays up until the
@@ -2385,26 +2424,31 @@ export default function PubMapCanvas({
     const settleSceneError = (error: NonNullable<typeof mapError>) => {
       if (sceneSettled) return;
       sceneSettled = true;
-      clearTimeout(hangFailTimer);
+      clearHangFailTimer();
       queueMicrotask(() => reportMapError(error));
     };
     // Last-resort hang guard BEFORE style.load listeners: a cached style can
     // fire style.load synchronously from map.on(...). Primary + CARTO each get
     // STYLE_LOAD_TIMEOUT_MS, then slack — surface Retry instead of a stuck overlay.
-    const hangFailTimer = setTimeout(() => {
-      console.warn("[pubmap] scene ready timeout");
-      settleSceneError({
-        kind: "tiles",
-        message:
-          "The map is taking too long to finish loading. The pub list and crawl planner still work.",
-        detail: "Scene ready timeout",
-      });
-    }, STYLE_LOAD_TIMEOUT_MS * 2 + 2000);
+    const armHangFailTimer = () => {
+      clearHangFailTimer();
+      hangFailTimer = setTimeout(() => {
+        hangFailTimer = undefined;
+        console.warn("[pubmap] scene ready timeout");
+        settleSceneError({
+          kind: "tiles",
+          message:
+            "The map is taking too long to finish loading. The pub list and crawl planner still work.",
+          detail: "Scene ready timeout",
+        });
+      }, STYLE_LOAD_TIMEOUT_MS * 2 + 2000);
+    };
+    armHangFailTimer();
     const surfaceBasemapFailure = (detail: string) => {
       if (tileSpend.surfaced) return;
       tileSpend = markTileFailureSurfaced(tileSpend);
       sceneSettled = true;
-      clearTimeout(hangFailTimer);
+      clearHangFailTimer();
       // `styleEverLoaded` is the historical fact: a replacement style that is
       // mid-load must not tear down a canvas that already drew.
       if (basemapFailureSurface(styleEverLoaded) === "toast") {
@@ -2576,6 +2620,7 @@ export default function PubMapCanvas({
       mayRecheck: boolean,
       metadataFailure = false,
     ) => {
+      const currentCycle = syncTileRetryCycle();
       const decision = classifyTileFailure({
         now,
         errorTimestamps: tileFailureStamps,
@@ -2584,7 +2629,11 @@ export default function PubMapCanvas({
         // A flyTo legitimately outruns the tile stream and paints black for a
         // few seconds; the classifier stays silent until the flight ends.
         cameraInFlight: map.isMoving(),
-        retrySpent: tileSpend.retrySpent,
+        retrySpent: retrySpentOnThisCycle({
+          retrySpent: tileSpend.retrySpent,
+          spentCycleIdentity: tileRetrySpentCycle,
+          currentCycleIdentity: currentCycle,
+        }),
         recoveryBudgetLeft: PAINT_WATCHDOG_MAX_RETRIES - recoverySpent,
         // The silent lane spends NONE of the shared recovery budget: it
         // rebuilds nothing, so it cannot compound with the paint watchdog.
@@ -2656,12 +2705,23 @@ export default function PubMapCanvas({
         return;
       }
       // Tile recovery can outlast the scene-ready hang guard while the basemap
-      // is still legitimately pending. Let the tile lane finish before the
-      // timeout card blames a slow box for a source that is actively retrying.
-      clearTimeout(hangFailTimer);
+      // is still legitimately pending. Cancel the current clock so a legitimate
+      // retry is not blamed as a stuck box, then re-arm so a recovery that
+      // then stalls still owes the hang notice. A later sample whose effect is
+      // none must not touch the timer.
       clearTileFailureRecheck();
       const spent = spendTileFailureDecision(tileSpend, decision);
       tileSpend = spent.state;
+      if (
+        shouldRearmSceneHangGuard({
+          sceneSettled,
+          recoveryEffect: spent.effect,
+        })
+      ) {
+        armHangFailTimer();
+      } else if (spent.effect === "surface") {
+        clearHangFailTimer();
+      }
       if (spent.effect === "reload-source") {
         const generation = tileFailureGeneration;
         silentRetryAwaitingPaint = true;
@@ -2684,9 +2744,11 @@ export default function PubMapCanvas({
         return;
       }
       if (spent.effect === "reload-style") {
+        const cycleAtRetry = currentCycle;
         queueMicrotask(() => {
           if (mapRef.current !== map || tileSpend.surfaced) return;
           tileSpend = markTileRetrySpent(tileSpend);
+          tileRetrySpentCycle = cycleAtRetry;
           recoverySpent += 1; // shared budget with the paint watchdog
           beginTileFailureGeneration();
           console.warn("[pubmap] tile failure burst, reloading style", {
@@ -2743,6 +2805,7 @@ export default function PubMapCanvas({
           sourceType: mapError.source?.type,
           tilePresent: mapError.tile !== undefined,
         }) || sourceMetadataFailure;
+      syncTileRetryCycle();
       const vectorRetriesExhausted =
         mapError.source?.type === "vector" &&
         mapError.tile !== undefined &&
@@ -2804,7 +2867,7 @@ export default function PubMapCanvas({
     let contextRecoveryTimer: ReturnType<typeof setTimeout> | undefined;
     const surfaceSoftContextRetry = () => {
       sceneSettled = true;
-      clearTimeout(hangFailTimer);
+      clearHangFailTimer();
       // Soft toast only — full mapError would unmount the canvas and hide the
       // live DOM overlays the owner still sees after iOS app-switch. Retry on
       // the toast re-inits; if construct fails, the honest full card still lands.
@@ -2968,7 +3031,7 @@ export default function PubMapCanvas({
         // Settle the scene state so the style/tile hang guard can't race a
         // second error card on top of this one.
         sceneSettled = true;
-        clearTimeout(hangFailTimer);
+        clearHangFailTimer();
         queueMicrotask(() =>
           reportMapError({
             kind: "no-frame",
@@ -3226,7 +3289,7 @@ export default function PubMapCanvas({
       if (contextRecoveryTimer) clearTimeout(contextRecoveryTimer);
       clearStyleLoadProtection();
       clearPinEntranceCeiling();
-      clearTimeout(hangFailTimer);
+      clearHangFailTimer();
       pinRevealCoordinator.dispose();
       clearTileFailureRecheck();
       clearSilentTileRetryTimer();
