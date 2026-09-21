@@ -148,3 +148,29 @@ describe("selectObservedSubtypePriceForVenue", () => {
     expect(selectObservedSubtypePriceForVenue(venue, "soft-drink-coke-zero")).toBeNull();
   });
 });
+
+describe("live bundle counts (PR reporting)", () => {
+  it("reports how many pubs carry each launch subtype today", async () => {
+    const { getPricedVenues, resetVenuePriceIndexForTests } = await import(
+      "@/lib/venuePriceIndex",
+    );
+    const { allDrinkPriceUpdates, resetVenuePriceUpdatesForTests } = await import(
+      "@/lib/priceUpdates.server",
+    );
+    const { countObservedSubtypePrices, SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS } = await import(
+      "@/lib/drinkSubtypeObservedPrice",
+    );
+    resetVenuePriceIndexForTests();
+    resetVenuePriceUpdatesForTests();
+    const [venues, updates] = await Promise.all([getPricedVenues(), allDrinkPriceUpdates()]);
+    const counts = Object.fromEntries(
+      SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS.map((id) => [
+        id,
+        countObservedSubtypePrices(venues, id, updates),
+      ]),
+    );
+    // eslint-disable-next-line no-console -- PR gate reports honest data counts
+    console.log("soft-drinks-water observed counts", JSON.stringify(counts));
+    expect(counts).toBeTruthy();
+  });
+});

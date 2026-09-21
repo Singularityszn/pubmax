@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type TestInfo } from "@playwright/test";
 
 import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 
@@ -33,7 +33,7 @@ test.describe("Soft drinks and water view", () => {
 
   test("shows chips, a priced row with date when data exists, and the no-price door", async ({
     page,
-  }) => {
+  }, testInfo: TestInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(VIEW_PATH);
 
@@ -57,12 +57,26 @@ test.describe("Soft drinks and water view", () => {
 
     await expect(page.getByText("No price yet", { exact: false }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "add one" }).first()).toBeVisible();
+
+    if (process.env.PW_SCREENSHOTS === "1") {
+      await page.screenshot({
+        path: testInfo.outputPath("soft-drinks-water-390.png"),
+        fullPage: true,
+      });
+    }
   });
 
-  test("desktop width keeps chips and list readable", async ({ page }) => {
+  test("desktop width keeps chips and list readable", async ({ page }, testInfo: TestInfo) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${VIEW_PATH}?sub=soft-drink-diet-coke`);
     await expect(page.getByRole("tab", { name: "Diet Coke", selected: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Open the map" }).first()).toBeVisible();
+
+    if (process.env.PW_SCREENSHOTS === "1") {
+      await page.screenshot({
+        path: testInfo.outputPath("soft-drinks-water-1440.png"),
+        fullPage: true,
+      });
+    }
   });
 });
