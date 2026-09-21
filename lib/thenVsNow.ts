@@ -1,3 +1,5 @@
+import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import { DEFAULT_DRINK_MEASURE, type DrinkMeasure } from "@/lib/drinkMeasure";
 import type { Provenance } from "@/lib/curation";
 import type { Venue } from "@/lib/venues";
 
@@ -10,16 +12,21 @@ import type { Venue } from "@/lib/venues";
 // /api/pint-drops DTO satisfies this (it carries venueId, priceGbp, createdAt);
 // callers narrow the API payload to this before passing it in.
 export type ThenVsNowDrop = {
+  drink?: string;
+  measure?: DrinkMeasure;
   venueId: string;
   priceGbp: number | null;
   createdAt: string;
 };
 
-// The "then" half: the three fields this reads off a venue and nothing else. A
+// The "then" half carries price, drink identity and observation date. A
 // grouped `Venue` satisfies it, and so does a baseline row cut at build time
 // (lib/discoverBoard.ts), so asking for a comparison never means downloading
 // the whole priced dataset to a browser.
 export type ThenVsNowVenue = {
+  cheapestPint?: string;
+  measure?: DrinkMeasure;
+  observedAt?: string;
   id: string;
   name: string;
   cheapestPrice: number | null;
@@ -28,15 +35,21 @@ export type ThenVsNowVenue = {
 // One resolved comparison row, ready to hand straight to a card.
 // - thenGbp  = the venue's baseline/dataset cheapest price
 // - nowGbp   = the price on the most-recent priced community drop for that venue
-// - deltaGbp = nowGbp - thenGbp (positive → gone up, negative → gone down)
-// - pct      = deltaGbp / thenGbp * 100 (0 when thenGbp is 0, guarded)
+// - deltaGbp = nowGbp - thenGbp only for matching named drinks and servings.
+// - pct      = deltaGbp / thenGbp * 100; both deltas are null when incomparable.
 export type ThenVsNowItem = {
   venueId: string;
   venueName: string;
   thenGbp: number;
   nowGbp: number;
-  deltaGbp: number;
-  pct: number;
+  deltaGbp: number | null;
+  pct: number | null;
+  thenDrink: string;
+  nowDrink: string;
+  thenMeasure: DrinkMeasure | null;
+  nowMeasure: DrinkMeasure;
+  thenObservedAt: string | null;
+  nowObservedAt: string;
 };
 
 function isFiniteNumber(value: unknown): value is number {
@@ -84,14 +97,27 @@ export function computeThenVsNow(
     if (!now || !isFiniteNumber(now.priceGbp)) continue; // no "now" community price → skip
 
     const nowGbp = now.priceGbp;
-    const deltaGbp = nowGbp - thenGbp;
-    const pct = thenGbp !== 0 ? (deltaGbp / thenGbp) * 100 : 0;
+    const thenDrink = venue.cheapestPint?.trim() ?? "";
+    const nowDrink = now.drink?.trim() ?? "";
+    const thenMeasure = venue.measure ?? (thenDrink ? "pint" : null);
+    const nowMeasure = now.measure ?? DEFAULT_DRINK_MEASURE;
+    const comparable = Boolean(thenDrink && nowDrink &&
+      thenDrink.toLowerCase() === nowDrink.toLowerCase() &&
+      thenMeasure === nowMeasure && thenMeasure !== "other");
+    const deltaGbp = comparable ? nowGbp - thenGbp : null;
+    const pct = deltaGbp === null ? null : thenGbp !== 0 ? (deltaGbp / thenGbp) * 100 : 0;
 
     items.push({
       venueId: venue.id,
       venueName: venue.name,
       thenGbp,
       nowGbp,
+      thenDrink,
+      nowDrink,
+      thenMeasure,
+      nowMeasure,
+      thenObservedAt: venue.observedAt ?? null,
+      nowObservedAt: now.createdAt,
       deltaGbp,
       pct,
     });
@@ -100,7 +126,7 @@ export function computeThenVsNow(
   return items
     .sort(
       (a, b) =>
-        Math.abs(b.deltaGbp) - Math.abs(a.deltaGbp) ||
+        Math.abs(b.deltaGbp ?? 0) - Math.abs(a.deltaGbp ?? 0) ||
         a.venueName.localeCompare(b.venueName),
     )
     .slice(0, Math.max(0, limit));
@@ -222,7 +248,7 @@ export type VenuePriceStory = {
   baseline: VenuePriceStamp | null;
   // The freshest priced community drop ("now"), when present.
   now: VenuePriceStamp | null;
-  // now.gbp - baseline.gbp, and its percent, when BOTH are present. Mirrors
+  // now.gbp - baseline.gbp, only when drink and serving match. Mirrors
   // computeThenVsNow so the venue surface can reuse the same delta framing.
   deltaGbp: number | null;
   pct: number | null;
@@ -295,7 +321,7 @@ export function computeVenuePriceStory(
         // The dataset baseline is editorial/sourced record, unless the venue's
         // curation explicitly marks its provenance otherwise (e.g. demo).
         provenance: venue.curation.provenance ?? "sourced",
-        label: "Baseline on record",
+        label: `${venue.cheapestPint || "Drink not recorded"} · pint · ${PINT_DATASET_OBSERVED_AT.toISOString().slice(0, 10)}`,
       }
     : null;
 
@@ -305,15 +331,16 @@ export function computeVenuePriceStory(
       ? {
           gbp: nowDrop.priceGbp,
           provenance: (nowDrop as VenuePriceStoryDrop).provenance,
-          label: "Community tonight",
+          label: `${nowDrop.drink || "Drink not recorded"} · ${nowDrop.measure ?? "pint"} · ${Number.isFinite(Date.parse(nowDrop.createdAt)) ? new Date(nowDrop.createdAt).toISOString().slice(0, 10) : "Date not recorded"}`,
         }
       : null;
 
   let deltaGbp: number | null = null;
   let pct: number | null = null;
   if (baseline && now) {
-    deltaGbp = now.gbp - baseline.gbp;
-    pct = baseline.gbp !== 0 ? (deltaGbp / baseline.gbp) * 100 : 0;
+    const comparison = computeThenVsNow([venue], drops, 1)[0];
+    deltaGbp = comparison?.deltaGbp ?? null;
+    pct = comparison?.pct ?? null;
   }
 
   const inflation = bestInflationAnchor(drops);

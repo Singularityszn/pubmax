@@ -19,7 +19,7 @@ function v(
   return {
     primaryBorough: "",
     visibleBoroughs: [],
-    cheapestPint: "",
+    cheapestPint: "House lager",
     curation: {},
     ...over,
   } as Venue;
@@ -29,6 +29,8 @@ function drop(
   over: Partial<VenuePriceStoryDrop> & { venueId: string; provenance: Provenance },
 ): VenuePriceStoryDrop {
   return {
+    drink: "House lager",
+    measure: "pint",
     priceGbp: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     era: "",
@@ -133,7 +135,7 @@ describe("computeVenuePriceStory", () => {
     expect(story.baseline).toEqual({
       gbp: 4,
       provenance: "sourced",
-      label: "Baseline on record",
+      label: expect.stringContaining("House lager · pint ·"),
     });
     // "now" is the newest priced drop (the £6 contributor).
     expect(story.now?.gbp).toBe(6);
@@ -221,4 +223,11 @@ describe("computeVenuePriceStory", () => {
     expect(story.deltaGbp).toBeNull();
     expect(story.pct).toBeNull();
   });
+});
+
+it('does not turn a different drink into a venue price increase', () => {
+ const venue = v({id:'a',name:'A',cheapestPrice:4,cheapestPint:'Lager'});
+ const story = computeVenuePriceStory(venue, [drop({venueId:'a',drink:'Stout',measure:'pint',priceGbp:7,provenance:'contributor'})]);
+ expect(story.deltaGbp).toBeNull();
+ expect(story.pct).toBeNull();
 });

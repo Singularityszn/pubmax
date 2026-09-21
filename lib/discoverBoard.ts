@@ -16,8 +16,8 @@ import type { Venue } from "@/lib/venues";
 //               the reader cannot disagree about what "cheapest" means.
 //   `baselines` is the "then" half of Then vs Now, which cannot be precomputed
 //               because the "now" half is a live community drop read at
-//               request time. It carries the three fields `computeThenVsNow`
-//               reads and nothing else.
+//               request time. Drink identity and collection date keep the
+//               comparison grounded in matching, dated observations.
 //
 // Pure: no fetch, no React, no filesystem. The script writes it, the page
 // parses it, `__tests__/discoverBoard.test.ts` recomputes it from the dataset
@@ -35,11 +35,13 @@ export const DISCOVER_BOARD_LIMIT = 10;
  */
 export type DiscoverBoardRow = LeaderboardRowView;
 
-/** One venue's "then" price: the three fields `computeThenVsNow` reads. */
+/** One venue's dated baseline price and the drink that earned it. */
 type DiscoverBoardBaseline = {
   id: string;
   name: string;
   cheapestPrice: number;
+  cheapestPint?: string;
+  observedAt?: string;
 };
 
 export type DiscoverBoard = {
@@ -79,7 +81,7 @@ export function discoverBoardFromVenues(
   for (const venue of venues) {
     const price = venue.cheapestPrice;
     if (typeof price !== "number" || !Number.isFinite(price)) continue;
-    baselines.push({ id: venue.id, name: venue.name, cheapestPrice: price });
+    baselines.push({ id: venue.id, name: venue.name, cheapestPrice: price, cheapestPint: venue.cheapestPint, observedAt });
   }
 
   return { observedAt, cheapest, baselines };
@@ -126,7 +128,10 @@ function parseBaseline(raw: unknown): DiscoverBoardBaseline | null {
   if (typeof row.id !== "string" || !row.id) return null;
   if (typeof row.name !== "string") return null;
   if (!isFiniteNumber(row.cheapestPrice)) return null;
-  return { id: row.id, name: row.name, cheapestPrice: row.cheapestPrice };
+  return { id: row.id, name: row.name, cheapestPrice: row.cheapestPrice,
+    ...(typeof row.cheapestPint === "string" ? { cheapestPint: row.cheapestPint } : {}),
+    ...(typeof row.observedAt === "string" ? { observedAt: row.observedAt } : {}),
+  };
 }
 
 /**

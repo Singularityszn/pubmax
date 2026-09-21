@@ -669,11 +669,11 @@ export function DiscoverBody({
             Then vs Now
           </h2>
           <p className="discoverSectionDek">
-            Latest community-reported pint against the earlier price on
-            record. The biggest movers first.
+            Dated price observations from the same pub. Price changes appear only
+            for a matching drink and serving.
           </p>
           <p className="discoverSectionNote">
-            Then is the price on record. Now is the latest one someone logged.
+            Different drinks and servings stay separate observations.
           </p>
           {status === "idle" ? (
             <p className="discoverEmpty" role="status">

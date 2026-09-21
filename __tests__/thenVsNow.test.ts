@@ -8,11 +8,11 @@ import type { Venue } from "@/lib/venues";
 function v(
   over: Partial<Venue> & { id: string; name: string; cheapestPrice: number | null },
 ): Venue {
-  return { primaryBorough: "", visibleBoroughs: [], cheapestPint: "", ...over } as Venue;
+  return { primaryBorough: "", visibleBoroughs: [], cheapestPint: "House lager", ...over } as Venue;
 }
 
 function drop(over: Partial<ThenVsNowDrop> & { venueId: string }): ThenVsNowDrop {
-  return { priceGbp: null, createdAt: "2026-01-01T00:00:00.000Z", ...over };
+  return { drink: "House lager", measure: "pint", priceGbp: null, createdAt: "2026-01-01T00:00:00.000Z", ...over };
 }
 
 describe("computeThenVsNow", () => {
@@ -126,4 +126,12 @@ describe("computeThenVsNow", () => {
     const venues = [v({ id: "a", name: "Anchor", cheapestPrice: 5 })];
     expect(computeThenVsNow(venues, [])).toEqual([]);
   });
+});
+
+it("retains dated observations without a delta for different or unknown drinks and servings", () => {
+ const venue = { id: "a", name: "A", cheapestPrice: 4, cheapestPint: "House lager", measure: "pint" as const, observedAt: "2026-01-01T00:00:00Z" };
+ for (const latest of [{ drink: "Stout", measure: "pint" as const }, { drink: "House lager", measure: "half" as const }, { drink: "", measure: "pint" as const }]) {
+  const [item] = computeThenVsNow([venue], [{ venueId: "a", priceGbp: 7, createdAt: "2026-09-21T18:00:00Z", ...latest }]);
+  expect(item).toMatchObject({ thenGbp: 4, nowGbp: 7, deltaGbp: null, pct: null, thenObservedAt: venue.observedAt, nowObservedAt: "2026-09-21T18:00:00Z" });
+ }
 });
