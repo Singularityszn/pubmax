@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "generatedAt": "2026-09-21T20:54:23.152Z",
+  "lane": "reddit-london",
+  "observations": [
+    {
+      "venueId": "venue-1t2rx3d",
+      "drinkCategory": "beer",
+      "drinkName": "beer-stout",
+      "priceGbp": 5.5,
+      "observedAt": "2024-09-16T16:00:00.000Z",
+      "source": "reddit",
+      "sourceUrl": "https://www.reddit.com/r/london/comments/abc/fix1/",
+      "confidence": 0.78,
+      "pubNameHint": "The Roebuck"
+    },
+    {
+      "venueId": "venue-s2ppfm",
+      "drinkCategory": "beer",
+      "drinkName": "Pint",
+      "priceGbp": 6.2,
+      "observedAt": "2024-09-17T16:00:00.000Z",
+      "source": "reddit",
+      "sourceUrl": "https://www.reddit.com/r/london/comments/abc/fix2/",
+      "confidence": 0.78,
+      "pubNameHint": "The Devonshire"
+    }
+  ]
+}

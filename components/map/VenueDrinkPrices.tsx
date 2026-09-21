@@ -6,6 +6,7 @@ import { ClaimBadge } from "@/components/map/venueInspectorBits";
 import PriceBadge from "@/components/PriceBadge";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import {
+  communityPriceDisplayStamp,
   communityStampLabel,
   communityTrustNote,
   type CommunityPrice,
@@ -147,7 +148,7 @@ export default function VenueDrinkPrices({
             }
             data-reveal-delay={revealRecord && !revealRecordLate ? "0" : undefined}
           >
-            {lead.label} · {communityStampLabel(lead.price.submittedAt)}
+            {lead.label} · {communityPriceDisplayStamp(lead.price)}
           </small>
           {communityTrustNote(lead.price) ? (
             <small
@@ -191,7 +192,7 @@ export default function VenueDrinkPrices({
                   {formatPrice(row.price.priceGbp)}
                 </span>
                 <span className="venueDrinkPriceStamp">
-                  {communityStampLabel(row.price.submittedAt)}
+                  {communityPriceDisplayStamp(row.price)}
                 </span>
                 {standing ? (
                   <span className="venueDrinkPriceStanding">{standing}</span>

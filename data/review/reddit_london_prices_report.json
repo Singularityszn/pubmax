@@ -1,0 +1,31 @@
+{
+  "generatedAt": "2026-09-21T20:54:23.152Z",
+  "threadsScanned": 3,
+  "candidates": 2,
+  "passing": 2,
+  "landed": 2,
+  "rejected": 0,
+  "reviewCount": 0,
+  "queries": [
+    "site:reddit.com/r/london pint price £",
+    "site:reddit.com/r/londonpubs pint £ London",
+    "site:reddit.com/r/CasualUK pint London £",
+    "site:reddit.com/r/AskUK how much is a pint in London",
+    "site:reddit.com/r/beer London pint price 2026",
+    "site:reddit.com/r/ukdrinking London pub prices",
+    "cocktail prices London reddit £",
+    "gin and tonic price pub London reddit",
+    "Guinness price London 2026 reddit",
+    "£ pint Camden reddit",
+    "£ pint Shoreditch reddit",
+    "£ pint Brixton reddit",
+    "how much is a pint in Westminster reddit"
+  ],
+  "spend": {
+    "tavily": 0,
+    "typesafe": 0
+  },
+  "byCategory": {
+    "beer": 2
+  }
+}
