@@ -7,6 +7,7 @@ import path from "node:path";
 
 import {
   bundleRowSupersedes,
+  ukPriceBundleCollectKey,
   type UkPriceBundleLane,
   type UkPriceBundleRow,
 } from "@/lib/ukPriceBundle";
@@ -43,9 +44,13 @@ export function siteHarvestLedgerCollectKey(
   if (!venueId || typeof row.category !== "string" || row.category.length === 0) {
     return null;
   }
-  const raw = row.drinkLabel ?? row.drinkName ?? "";
-  const label = typeof raw === "string" ? raw.trim().toLowerCase() : "";
-  return `${venueId} ${row.category} ${label} ${SITE_HARVEST_LANE}`;
+  const raw = row.drinkLabel ?? row.drinkName;
+  return ukPriceBundleCollectKey({
+    venueId,
+    category: row.category,
+    lane: SITE_HARVEST_LANE,
+    drinkLabel: typeof raw === "string" ? raw : undefined,
+  });
 }
 
 function ledgerRowAsBundleRow(
@@ -73,6 +78,9 @@ function ledgerRowAsBundleRow(
     observedAt: row.observedAt,
     basis: null,
     sampleSize: null,
+    ...(typeof row.drinkLabel === "string" && row.drinkLabel.trim()
+      ? { drinkLabel: row.drinkLabel.trim() }
+      : {}),
   };
 }
 

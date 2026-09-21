@@ -29,6 +29,7 @@
 
 import {
   UK_PRICE_BUNDLE_DRINK_LABEL_MAX,
+  bundleRowDedupeDrinkKey,
   isValidBundleDrinkSubtypeForRow,
 } from "@/lib/bundleDrinkFields";
 import {
@@ -85,6 +86,8 @@ export type UkPriceBundleRow = {
   /** Closed subtype from lib/drinkSubtypes.ts when the label classifies; never guessed. */
   drinkSubtype?: string;
 };
+
+export { UK_PRICE_BUNDLE_DRINK_LABEL_MAX };
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -256,9 +259,9 @@ export function bundleRowSupersedes(
 
 /** The ONE collect key `scripts/build_uk_price_bundle.mjs` uses per pub, drink and lane. */
 export function ukPriceBundleCollectKey(
-  row: Pick<UkPriceBundleRow, "venueId" | "category" | "lane">,
+  row: Pick<UkPriceBundleRow, "venueId" | "category" | "lane" | "drinkLabel">,
 ): string {
-  return `${row.venueId} ${row.category} ${row.lane}`;
+  return `${row.venueId} ${row.category} ${bundleRowDedupeDrinkKey(row)} ${row.lane}`;
 }
 
 /** Rows grouped by the venue they are about, in the order the bundle states them. */
