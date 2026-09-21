@@ -705,11 +705,16 @@ function SocialPageAccountState({
   // primary slot and the sheet it opens is fixed, so nothing else on the page
   // wears the fill.
   //
-  // For a verified account it IS the composer (above). A stranger's first kept
-  // action is signing in, so their primary is the door and says so, and the
-  // boundary below prints its line without a second link to the same page.
-  // While the session or the access answer is still open the control waits,
-  // because a surface that routes the viewer may not guess who they are.
+  // A STRANGER'S PRIMARY FOLLOWS WHAT THE BODY UNDER IT ACTUALLY SAYS. On the
+  // posts tab under the friends launch the body is the sign-in boundary and
+  // nothing else a stranger can act on, so the door is their first kept action
+  // and the head paints it, leaving the boundary to print its line without a
+  // second link to the same page. Everywhere else the body answers with public
+  // value - the Pubs and pints tab's listings, or the map behind the
+  // invite-only preview - and the launch table's opening rule stands: no
+  // primary action on a public route is "Sign in". While the session or the
+  // access answer is still open the control waits, because a surface that
+  // routes the viewer may not guess who they are.
   const composeReady = showPostsControls && draftScope !== null;
   const primary: ReactElement = composeReady ? (
     <SocialComposer
@@ -727,9 +732,12 @@ function SocialPageAccountState({
     // boundary on BOTH tabs, so the public tab is not public any more and
     // pointing the one painted action at it would send a stranger back to the
     // wall they are already looking at. The map is the destination that holds
-    // whatever the flag says.
-    friendsLaunchEnabled ? (
-      <Link href={SOCIAL_SIGN_IN_HREF}>Sign in</Link>
+    // whatever the flag says, and the preview boundary keeps its own quiet
+    // sign-in way onward underneath.
+    isPosts && friendsLaunchEnabled ? (
+      <Link prefetch={false} href={SOCIAL_SIGN_IN_HREF}>
+        Sign in
+      </Link>
     ) : (
       <Link prefetch={false} href="/map">
         Open the map

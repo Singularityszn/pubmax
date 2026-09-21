@@ -141,6 +141,27 @@ describe("launch routes (group b) carry one primary action", () => {
     expect(rendered).not.toContain("socialButton");
   });
 
+  it("/social?tab=discover keeps the public primary, not the door", () => {
+    // The door is the primary only where the stranger meets the boundary. The
+    // Pubs and pints tab answers a stranger with real public listings under
+    // the friends launch, so the launch table's opening rule stands there and
+    // its one painted action is the map, never "Sign in".
+    const rendered = renderToStaticMarkup(
+      createElement(SocialPageClient, {
+        initialState: { valid: true, tab: "discover", feed: null, area: null },
+        rivalry: [],
+        heritageCrawls: [],
+        friendsLaunchEnabled: true,
+      }),
+    );
+    expect(primaryCount(rendered)).toBe(1);
+    expect(rendered).toMatch(
+      /data-primary-action=""><a[^>]*href="\/map"[^>]*>Open the map<\/a>/,
+    );
+    expect(rendered).not.toMatch(/data-primary-action=""><a[^>]*>Sign in<\/a>/);
+    expect(rendered).not.toContain("Sign in to use Social.");
+  });
+
   it("/places carries one primary action", () => {
     const rendered = renderToStaticMarkup(createElement(PlacesClient, { cityId: null }));
     expect(primaryCount(rendered)).toBe(1);
