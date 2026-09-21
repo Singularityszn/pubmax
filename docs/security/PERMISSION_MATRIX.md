@@ -241,3 +241,15 @@ anon key and the two seeded accounts' own sessions: the private Moment object
 answered `NoSuchKey` on the public, authenticated and plain object paths and an
 empty list on the bucket for anonymous, owner and stranger alike, and no client
 could mint a signed URL for it. `night_moments` answered the owner's rows alone.
+
+## Prepaid Pub Pal voice grants (0157)
+
+Local migration only; production apply remains a separate operation.
+
+| Resource | anon/authenticated | service_role |
+| --- | --- | --- |
+| `pub_pal_voice_grants` rows | No privileges; RLS enabled | Read/write for grant accounting |
+| `prepay_pub_pal_voice_grant` | No execute | Atomically reserve three minutes within monthly limit; duplicate grant refused |
+| `refund_pub_pal_voice_grant` | No execute | One refund for the matching owner and server grant; original month only |
+
+Client completion never invokes either RPC. Effective PostgreSQL coverage lives in `__tests__/pubPalPrepaidVoiceMigrationEffective.test.ts`; deployment prerequisites and conservative allowance semantics live in [voice-grant-rollout.md](voice-grant-rollout.md).
