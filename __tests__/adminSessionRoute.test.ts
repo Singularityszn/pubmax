@@ -92,9 +92,9 @@ describe("POST /api/admin/session", () => {
 
 describe("GET /api/admin/session", () => {
   it("returns authenticated true when a valid session cookie is present", async () => {
-    const { hashAdminSession } = await import("@/lib/adminAuth");
+    const { mintAdminSession } = await import("@/lib/adminAuth");
     const { GET } = await import("@/app/api/admin/session/route");
-    const cookie = `pubmax_admin_session=${encodeURIComponent(hashAdminSession("test-admin-secret"))}`;
+    const cookie = `pubmax_admin_session=${encodeURIComponent(mintAdminSession("test-admin-secret"))}`;
     const res = await GET(
       new Request("http://localhost/api/admin/session", {
         headers: { cookie },
