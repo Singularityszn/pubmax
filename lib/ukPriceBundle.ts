@@ -86,8 +86,6 @@ export type UkPriceBundleRow = {
   drinkSubtype?: string;
 };
 
-export { UK_PRICE_BUNDLE_DRINK_LABEL_MAX };
-
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
