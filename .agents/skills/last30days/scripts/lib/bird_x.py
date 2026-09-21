@@ -54,6 +54,29 @@ DEPTH_CONFIG = {
 # Module-level credentials injected from .env config
 _credentials: Dict[str, str] = {}
 
+# The vendored bird-search client reads exactly this env surface, and the
+# node subprocess it spawns needs the node-runtime env (platform, locale,
+# TLS/proxy config) to run in every environment it runs in today. Ambient
+# BIRD_* vars pass through as well. Everything else in os.environ - unrelated
+# API keys, tokens, .env contents - must not reach the scan-excluded vendored
+# client (issue #1063). Mirrors the platform-var surface grok_x keeps for its
+# node child (grok_x._subprocess_env).
+_SUBPROCESS_ENV_ALLOWLIST = (
+    # Runtime / platform vars the node subprocess needs (mirrors grok_x)
+    "PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "SystemRoot",
+    "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "SystemDrive", "COMSPEC",
+    "PATHEXT", "TEMP", "TMP",
+    # Node TLS / proxy / CA config for custom-CA and proxied environments
+    "NODE_ENV", "NODE_OPTIONS", "NODE_EXTRA_CA_CERTS",
+    "NODE_TLS_REJECT_UNAUTHORIZED", "NODE_USE_ENV_PROXY",
+    "SSL_CERT_FILE", "SSL_CERT_DIR", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
+    "http_proxy", "https_proxy", "no_proxy",
+    # X session cookies the vendored client reads from the environment
+    "AUTH_TOKEN", "CT0", "TWITTER_AUTH_TOKEN", "TWITTER_CT0",
+    # Browser-cookie disable flag the client reads (cookies.js envFlagEnabled)
+    "LAST30DAYS_DISABLE_BROWSER_COOKIES",
+)
+
 
 def set_credentials(auth_token: Optional[str], ct0: Optional[str]):
     """Inject AUTH_TOKEN/CT0 from .env config so Node subprocesses can use them."""
@@ -74,8 +97,22 @@ def _has_process_credentials() -> bool:
 
 
 def _subprocess_env() -> Dict[str, str]:
-    """Build env dict for Node subprocesses, merging injected credentials."""
-    env = os.environ.copy()
+    """Build env dict for Node subprocesses, merging injected credentials.
+
+    The child env is limited to the vendored client's env surface (see
+    ``_SUBPROCESS_ENV_ALLOWLIST``) plus injected credentials, so unrelated
+    ambient secrets never reach scan-excluded vendored code (issue #1063).
+    The ambient-credential lane behaves exactly as before.
+    """
+    env = {
+        name: os.environ[name]
+        for name in _SUBPROCESS_ENV_ALLOWLIST
+        if name in os.environ
+    }
+    env.update({
+        key: value for key, value in os.environ.items()
+        if key.startswith("BIRD_")
+    })
     env.update(_credentials)
     # Hard-disable browser-cookie fallback so normal pipeline runs never hit
     # Safari/Chrome Keychain prompts during source detection or search.
@@ -103,7 +140,7 @@ def classify_run_failure(detail: str) -> str:
 def _extract_core_subject(topic: str) -> str:
     """Extract core subject from verbose query for X search.
 
-    X search is literal keyword AND matching - all words must appear.
+    X search is literal keyword AND matching — all words must appear.
     Aggressively strip question/meta/research words to keep only the
     core product/concept name (max 5 words).
     """
@@ -211,7 +248,7 @@ def probe_works(timeout: int = 8) -> Optional[bool]:
     if isinstance(resp, dict) and resp.get("error"):
         err = str(resp.get("error")).lower()
         if "timed out" in err or "timeout" in err:
-            _probe_cache = None  # inconclusive - don't downgrade on a transient timeout
+            _probe_cache = None  # inconclusive — don't downgrade on a transient timeout
             return None
         _probe_cache = False
         return False
@@ -262,7 +299,7 @@ def _invoke_bird_subprocess(query: str, count: int, timeout: int):
     """Invoke the vendored bird-search.mjs subprocess once.
 
     Returns (result, error_dict). If error_dict is non-None, treat it as the
-    final result and do not retry - those errors are terminal (timeout,
+    final result and do not retry — those errors are terminal (timeout,
     spawn failure). If error_dict is None, the subprocess ran to completion
     and `result` is the SubprocResult; the caller decides whether to retry
     based on the result.stdout content.
@@ -380,7 +417,7 @@ def _run_bird_search(query: str, count: int, timeout: int) -> Dict[str, Any]:
             return {"items": parsed}
         return parsed
 
-    # Defensive fallthrough - loop should always return above.
+    # Defensive fallthrough — loop should always return above.
     return {
         "error": f"Bird search exhausted retries: {last_decode_error}",
         "items": [],
@@ -482,7 +519,7 @@ def search_handles(
 ) -> List[Dict[str, Any]]:
     """Search specific X handles for topic-related content.
 
-    Pulls each handle's actual timeline via `from:handle since:` - the FROM
+    Pulls each handle's actual timeline via `from:handle since:` — the FROM
     lane (tweets BY the person), engagement-weighted downstream. The topic is
     used for relevance RANKING, never AND'd into the query: X search is literal,
     so `from:handle <their name>` only matched tweets where they wrote their own
@@ -490,7 +527,7 @@ def search_handles(
 
     Args:
         handles: List of X handles to search (without @)
-        topic: Search topic - used for relevance ranking only, not the query
+        topic: Search topic — used for relevance ranking only, not the query
         from_date: Start date (YYYY-MM-DD)
         count_per: Results to request per handle
 
@@ -558,7 +595,7 @@ def search_mentions(
     from_date: str,
     count_per: int = 5,
 ) -> List[Dict[str, Any]]:
-    """Search for tweets ABOUT/TO each handle - the mention lane.
+    """Search for tweets ABOUT/TO each handle — the mention lane.
 
     Queries `@handle since:` (tweets that mention the account) and excludes the
     handle's OWN tweets (those belong to the FROM lane via search_handles), so

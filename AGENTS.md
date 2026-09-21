@@ -73,6 +73,9 @@ infrastructure is in [`e2e/AGENTS.md`](e2e/AGENTS.md) and [`__tests__/AGENTS.md`
 
 ## Agent skills
 
+[`SKILLS.md`](SKILLS.md) maps Pubmaxx work to the installed playbooks and their
+source owners. Read only the skills relevant to the current task.
+
 ### Issue tracker
 
 Issues live in this repo's GitHub Issues (Singularityszn/pubmax), driven by the `gh` CLI. See `docs/agents/issue-tracker.md`.

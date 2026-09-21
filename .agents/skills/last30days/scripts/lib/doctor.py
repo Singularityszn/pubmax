@@ -29,11 +29,11 @@ Semantics and guarantees:
 - ``active_backend`` is a PREDICTION ("will use"), never an observation
   (KTD 4). Reddit is conditional mode: honest wording, no single winner.
 - On a native-search host with no web keys, engine-side web search is
-  intentionally off - doctor reports tier ``off`` with a host-native note,
+  intentionally off — doctor reports tier ``off`` with a host-native note,
   never a false-alarm error. Web search has NO env pin, only the
   ``--web-backend`` flag; the record says so.
 - No cookie reads (plan-only, like ``--diagnose``); no secret values
-  anywhere - key presence is booleans only.
+  anywhere — key presence is booleans only.
 - Per-source exception isolation: one failing probe becomes that source's
   ``error`` record; it can never blank the report.
 - Reporting problems is a successful run: the exit code is always 0.
@@ -48,12 +48,13 @@ import json
 import os
 import shutil
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from . import backends, brightdata, env, health, http, prescriptions
+from . import backends, brightdata, env, health, http, prescriptions, x_api
 from .backends import TIER_ERROR, TIER_OK, TIER_WARN
 
 # Rollup tiers (R1). ok/warn/error are U2's; only "off" is doctor's own.
@@ -139,7 +140,14 @@ def audit_state(
             return AUDIT_UNVERIFIED
         return AUDIT_NOT_WORKING
     if probe_result is not None:
-        return AUDIT_WORKING if probe_result.get("ok") else AUDIT_NOT_WORKING
+        if probe_result.get("ok"):
+            return AUDIT_WORKING
+        # A transient refusal (host rate-limited THIS probe) is not evidence the
+        # source is broken: the lane retries with backoff and serves fine. Report
+        # it as unverified instead of claiming a working source is down.
+        if probe_result.get("transient"):
+            return AUDIT_UNVERIFIED
+        return AUDIT_NOT_WORKING
     if name in KEYLESS_ALWAYS_ON:
         return AUDIT_WORKING
     return AUDIT_UNVERIFIED
@@ -158,9 +166,11 @@ SOURCE_ORDER = (
     "arxiv",
     "trustpilot",
     "amazon",
+    "meta_ads",
     "tiktok",
     "instagram",
     "threads",
+    "telegram",
     "bluesky",
     "truthsocial",
     "perplexity",
@@ -194,6 +204,7 @@ KEY_PRESENCE_VARS = (
     "SCRAPECREATORS_API_KEY",
     "XAI_API_KEY",
     "XQUIK_API_KEY",
+    "X_BEARER_TOKEN",
     "BRAVE_API_KEY",
     "EXA_API_KEY",
     "SERPER_API_KEY",
@@ -415,8 +426,58 @@ def _reddit_record(config):
     return _chained_record("reddit", config)
 
 
+# Official-path wording. The bearer path is never described as
+# parity with the connector lane.
+X_BEARER_CAVEAT = x_api.BEARER_COVERAGE_NOTE
+X_CONNECTOR_NOTE = "will use: X connector (host-fetched at run time)"
+X_CONNECTOR_ARMED = "X connector lane armed"
+
+
+def _x_will_use_note(record: Dict[str, Any], policy: env.XPolicy) -> str:
+    """The will-use line for a predicted X backend, shaped by the policy.
+
+    On an official-only host a pinned backend renders as ``will use: <name>
+    (pinned)`` and nothing else names it (the pin variable is not
+    advertised). Off it the backends summary is kept verbatim.
+    The bearer prediction carries the about-a-week caveat on every host.
+    """
+    name = record["active_backend"]
+    if policy.official_only:
+        qualifiers: List[str] = []
+        if record.get("pinned"):
+            qualifiers.append("pinned")
+        if name == "xapi":
+            qualifiers.append(X_BEARER_CAVEAT)
+        return f"will use: {name}" + (f" ({'; '.join(qualifiers)})" if qualifiers else "")
+    note = record.get("note") or f"will use: {name}"
+    if name == "xapi":
+        if note.endswith(")"):
+            return f"{note[:-1]}; {X_BEARER_CAVEAT})"
+        return f"{note} ({X_BEARER_CAVEAT})"
+    return note
+
+
 def _x_record(config):
     record = _chained_record("x", config)
+    policy = env.x_policy(config)
+    if policy.official_only and not record.get("pinned"):
+        # The pin is documented in CONFIGURATION.md only; doctor never
+        # advertises the knob on an official-only host.
+        record["pin_var"] = None
+    if record.get("active_backend"):
+        record["note"] = _x_will_use_note(record, policy)
+        return record
+    # The declared X connector lane serves X when no engine backend is
+    # predicted (the same precedence as diagnose.x_backend). Host-independent:
+    # the envelope is accepted anywhere.
+    if env.x_host_lane_declared(config):
+        record["status"] = health.OK
+        record["tier"] = TIER_BY_STATUS[health.OK]
+        record["active_backend"] = "connector"
+        record["note"] = X_CONNECTOR_NOTE
+        record["detail"] = ""
+        record["fix"] = ""
+        return record
     # Diagnose/doctor load config in plan_only mode, so browser cookies are not
     # extracted and every X backend reads as statically missing -> unconfigured.
     # But if bird is installed and FROM_BROWSER will authenticate X at run time,
@@ -426,6 +487,9 @@ def _x_record(config):
     # will *attempt* browser auth, not that the session is currently valid -
     # keep the note honest and point at the verified key-backed path.
     #
+    # Policy-gated: on an official-only host no run-time cookie source
+    # exists unless bird is pinned, and then the note names only the pin.
+    #
     # This check MUST come before grok normalization: a pending bird path takes
     # precedence over marking X as unconfigured due to an unused grok store.
     # Handle both "unconfigured" (all backends missing) and "error" (grok present
@@ -434,10 +498,12 @@ def _x_record(config):
     # HOWEVER: pending bird must NOT replace a record that has a configured
     # auto-chain backend in ERROR/DEGRADED/BROKEN/TIMEOUT. Same rule as the
     # grok normalizer: only upgrade when no auto backend is configured-but-broken.
-    pending_bird = env.x_pending_browser_auth(config, local_only=True)
+    auto_chain_names = set(env.x_auto_chain(config))
+    pending_bird = policy.cookie_discovery and env.x_pending_browser_auth(
+        config, local_only=True
+    )
     if pending_bird and record["status"] in ("unconfigured", health.ERROR):
         backends_list = record.get("backends", [])
-        auto_chain_names = {"bird", "xai", "xurl", "xquik"}
         auto_backends = [b for b in backends_list if b.get("name") in auto_chain_names]
         # Only apply pending-bird upgrade if ALL auto-chain backends are MISSING.
         # If any auto backend is configured but broken, keep that error.
@@ -447,10 +513,13 @@ def _x_record(config):
         if all_auto_missing:
             record["status"] = health.OK
             record["tier"] = TIER_BY_STATUS[health.OK]
-            record["note"] = (
-                "will use: bird (browser cookies; session not verified until a run "
-                "- add XAI_API_KEY for a verified, cookie-free path)"
-            )
+            if policy.official_only:
+                record["note"] = "will use: bird (pinned)"
+            else:
+                record["note"] = (
+                    "will use: bird (browser cookies; session not verified until a run "
+                    "- add XAI_API_KEY for a verified, cookie-free path)"
+                )
             record["fix"] = ""
             return record
     #
@@ -458,6 +527,10 @@ def _x_record(config):
     # lane. The grok backend appears in the chain findings (for visibility) but
     # is never auto-selected. Doctor reports it as "available, unused - pin
     # LAST30DAYS_X_BACKEND=grok to enable" rather than "will use: grok".
+    #
+    # Policy-gated: on an official-only host the CLI is not probed
+    # unless pinned and is never offered, so this branch does not run there
+    # (no "pin LAST30DAYS_X_BACKEND=grok" note on a Grok Bot host).
     #
     # R3/R8: When no auto-chain backend is CONFIGURED (all MISSING) but grok has
     # any non-MISSING status, X is unconfigured/skipped - NOT broken/auth-failed.
@@ -468,15 +541,15 @@ def _x_record(config):
     # guidance. Unused grok must not swallow a genuine auto-chain failure.
     #
     # Do NOT apply this normalization when pending browser auth would make bird
-    # usable - check pending_bird first (handled above via early return).
+    # usable — check pending_bird first (handled above via early return).
     if (
-        record["tier"] == TIER_ERROR
+        not policy.official_only
+        and record["tier"] == TIER_ERROR
         and not record.get("pinned")
         and record.get("active_backend") is None
         and not pending_bird
     ):
         backends_list = record.get("backends", [])
-        auto_chain_names = {"bird", "xai", "xurl", "xquik"}
         auto_backends = [b for b in backends_list if b.get("name") in auto_chain_names]
         # Only normalize if ALL auto-chain backends are MISSING (not configured).
         # If any auto backend is ERROR/DEGRADED/BROKEN/TIMEOUT, keep that error.
@@ -484,7 +557,7 @@ def _x_record(config):
             b.get("status") == health.MISSING for b in auto_backends
         )
         if not all_auto_missing:
-            # An auto-chain backend is configured but broken - do NOT normalize.
+            # An auto-chain backend is configured but broken — do NOT normalize.
             # Keep the original error and its repair guidance.
             return record
         grok_finding = next(
@@ -500,14 +573,29 @@ def _x_record(config):
             record["tier"] = TIER_OFF
             if grok_finding.get("status") == health.ERROR:
                 record["note"] = (
-                    "X unconfigured; grok CLI store is broken but unused (opt-in only) - "
+                    "X unconfigured; grok CLI store is broken but unused (opt-in only) — "
                     "pin LAST30DAYS_X_BACKEND=grok to enable, then fix the store"
                 )
             else:
                 record["note"] = (
-                    "X unconfigured; grok CLI available but opt-in only - "
+                    "X unconfigured; grok CLI available but opt-in only — "
                     "pin LAST30DAYS_X_BACKEND=grok to enable"
                 )
+            record["fix"] = ""
+            return record
+        xapi_finding = next(
+            (b for b in backends_list if b.get("name") == "xapi"),
+            None,
+        )
+        if xapi_finding and xapi_finding.get("status") in (health.OK, health.DEGRADED):
+            # Same shape as the grok note: a configured opt-in backend is not
+            # a broken X, it is an unconfigured X with a one-line enable.
+            record["status"] = "unconfigured"
+            record["tier"] = TIER_OFF
+            record["note"] = (
+                "X unconfigured; X_BEARER_TOKEN is set but the X API backend is opt-in "
+                "on this host — pin LAST30DAYS_X_BACKEND=xapi to enable"
+            )
             record["fix"] = ""
             return record
     return record
@@ -666,6 +754,36 @@ def _threads_record(config):
     return _sc_optin_record(config, "threads", "threads")
 
 
+def _telegram_record(config):
+    # Telegram needs the key AND an INCLUDE_SOURCES=telegram opt-in AND a
+    # channel list (TELEGRAM_SOURCES). Without named channels there is no
+    # discovery endpoint to call.
+    requires = "SCRAPECREATORS_API_KEY + INCLUDE_SOURCES=telegram + TELEGRAM_SOURCES"
+    if not config.get("SCRAPECREATORS_API_KEY"):
+        return _record(status="unconfigured", requires=requires, fix=_sc_fix())
+    from . import telegram
+    channels = telegram._get_channel_sources(config)
+    if "telegram" in env.include_sources(config):
+        if channels:
+            return _record(
+                status=health.OK,
+                requires=requires,
+                detail=f"SCRAPECREATORS_API_KEY present, {len(channels)} channel(s) configured",
+            )
+        return _record(
+            status="unconfigured",
+            requires=requires,
+            fix="set TELEGRAM_SOURCES to a comma-separated list of public channel handles",
+            note="key present and opt-in active, but no channels configured",
+        )
+    return _record(
+        status="opt-in",
+        requires=requires,
+        fix="add telegram to INCLUDE_SOURCES and set TELEGRAM_SOURCES to channel handles",
+        note="key present; opt-in only, channels required",
+    )
+
+
 def _bluesky_record(config):
     if env.is_bluesky_available(config):
         return _record(status=health.OK, requires="BSKY_HANDLE + BSKY_APP_PASSWORD")
@@ -718,6 +836,10 @@ def _perplexity_record(config):
         fix="add perplexity to INCLUDE_SOURCES (or request it via --search perplexity)",
         note="key present; source runs only when opted in",
     )
+
+
+def _meta_ads_record(config):
+    return _sc_optin_record(config, "meta_ads", "Meta Ad Library")
 
 
 def _linkedin_record(config):
@@ -842,9 +964,11 @@ _SOURCE_BUILDERS: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
     "arxiv": _arxiv_record,
     "trustpilot": _trustpilot_record,
     "amazon": _amazon_record,
+    "meta_ads": _meta_ads_record,
     "tiktok": _tiktok_record,
     "instagram": _instagram_record,
     "threads": _threads_record,
+    "telegram": _telegram_record,
     "bluesky": _bluesky_record,
     "truthsocial": _truthsocial_record,
     "perplexity": _perplexity_record,
@@ -949,6 +1073,48 @@ def load_run_evidence(
 # is answerable at a glance without inventing fake sources.
 # ---------------------------------------------------------------------------
 
+def _x_auth_path(config: Dict[str, Any]) -> Dict[str, Any]:
+    """The "X auth path" sub-lane, routed through the X policy.
+
+    Off an official-only host the wording is unchanged (key-backed, cookie
+    path, or nothing armed). On one it names only the official path: the
+    connector lane when declared, else the bearer (with the about-a-week
+    caveat), the xAI key, or xurl; a pinned non-official backend is named
+    once, on the will-use line, never here.
+    """
+    policy = env.x_policy(config)
+    if not policy.official_only:
+        has_key = bool(config.get("XAI_API_KEY") or config.get("XQUIK_API_KEY"))
+        cookie = bool(env.x_pending_browser_auth(config, local_only=True))
+        if has_key:
+            note = "XAI_API_KEY key-backed path (verified, cookie-free)"
+        elif cookie:
+            note = (
+                "browser-cookie path primary; add XAI_API_KEY for a verified "
+                "cookie-free backup"
+            )
+        else:
+            note = "no auth path armed"
+        return {"name": "X auth path", "armed": has_key or cookie, "note": note}
+    if env.x_host_lane_declared(config):
+        return {"name": "X auth path", "armed": True, "note": X_CONNECTOR_ARMED}
+    source = env.get_x_source(config, local_only=True)
+    if source == "xapi":
+        note = f"X_BEARER_TOKEN path ({X_BEARER_CAVEAT})"
+    elif source == "xai":
+        note = "XAI_API_KEY licensed path (console.x.ai)"
+    elif source == "xurl":
+        note = "X API through the xurl CLI (stored OAuth2 login)"
+    elif source:
+        note = "explicit backend pin"
+    else:
+        note = (
+            "no official X path armed (add the X for Grok Bot plugin and connect X in Grok Bot settings, or set "
+            "X_BEARER_TOKEN or XAI_API_KEY)"
+        )
+    return {"name": "X auth path", "armed": bool(source), "note": note}
+
+
 def _sub_lanes_for(source: str, config: Dict[str, Any]):
     """Return (backups, comments) metadata for a source, or ([], None)."""
     backups: List[Dict[str, Any]] = []
@@ -966,18 +1132,7 @@ def _sub_lanes_for(source: str, config: Dict[str, Any]):
         })
         comments = {"enabled": bool(env.is_youtube_comments_available(config))}
     elif source == "x":
-        has_key = bool(config.get("XAI_API_KEY") or config.get("XQUIK_API_KEY"))
-        cookie = bool(env.x_pending_browser_auth(config, local_only=True))
-        if has_key:
-            note = "XAI_API_KEY key-backed path (verified, cookie-free)"
-        elif cookie:
-            note = (
-                "browser-cookie path primary; add XAI_API_KEY for a verified "
-                "cookie-free backup"
-            )
-        else:
-            note = "no auth path armed"
-        backups.append({"name": "X auth path", "armed": has_key or cookie, "note": note})
+        backups.append(_x_auth_path(config))
     elif source == "tiktok":
         comments = {"enabled": bool(env.is_tiktok_comments_available(config))}
     elif source == "instagram":
@@ -1013,6 +1168,13 @@ def _setup_block(config: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "setup_complete": env.is_setup_complete(config),
         "keys_present": keys_present,
+        # get_config() rejected these before any presence check ran, so
+        # keys_present already reads them as absent. Carrying the names here is
+        # what lets the text renderer say *why* they are absent instead of
+        # leaving the user to read "credentials present: none". Only keys left
+        # unset are listed: one whose placeholder fell through to a real
+        # lower-priority credential is configured and does not appear.
+        "unsubstituted_templates": env.templated_config_keys(config),
     }
 
 
@@ -1042,7 +1204,7 @@ def build_report(config: Dict[str, Any]) -> Dict[str, Any]:
 
     # Builders are independent probes (subprocess/filesystem bound), so run
     # them concurrently. ``pool.map`` preserves SOURCE_ORDER, keeping the
-    # sources dict insertion order - and render grouping - deterministic.
+    # sources dict insertion order — and render grouping — deterministic.
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=min(8, len(SOURCE_ORDER))
     ) as pool:
@@ -1097,6 +1259,10 @@ def build_report(config: Dict[str, Any]) -> Dict[str, Any]:
         "config": {
             "global_env": str(env.CONFIG_FILE) if env.CONFIG_FILE else None,
             "config_source": config.get("_CONFIG_SOURCE"),
+            # The resolved host value, so a missing export is visible.
+            "host": env.x_policy(config).host or None,
+            # A .env line cannot declare the X connector lane.
+            "host_lane_file_ignored": bool(config.get("_X_HOST_LANE_FILE_IGNORED")),
         },
         "setup": _setup_block(config),
         "permissions": permissions,
@@ -1164,12 +1330,12 @@ def _audit_source_line(name: str, record: Dict[str, Any], state: str) -> str:
     elif record.get("detail") and record.get("tier") != TIER_OK:
         descriptors.append(record["detail"])
     if descriptors:
-        parts.append(" - " + "; ".join(descriptors))
+        parts.append(" — " + "; ".join(descriptors))
     evidence = _run_evidence_suffix(record, state)
     if evidence:
         parts.append(evidence)
     # fix is only ever populated when there is something actionable, so
-    # render it whenever present - an ok-tier record can carry one (the
+    # render it whenever present — an ok-tier record can carry one (the
     # youtube transcription-key note) and must not lose it in text mode.
     if record.get("fix"):
         parts.append(f"; fix: {record['fix']}")
@@ -1186,7 +1352,7 @@ def _sub_lane_lines(record: Dict[str, Any]) -> List[str]:
     for backup in record.get("backups") or []:
         state = "armed" if backup.get("armed") else "off"
         note = f" - {backup['note']}" if backup.get("note") else ""
-        lines.append(f"      backup: {backup['name']} - {state}{note}")
+        lines.append(f"      backup: {backup['name']} — {state}{note}")
     comments = record.get("comments")
     if comments is not None:
         state = "on" if comments.get("enabled") else "off"
@@ -1213,7 +1379,7 @@ def _cli_health_lines(report: Dict[str, Any]) -> List[str]:
                 tail = " (installed off-PATH)"
             elif cli.get("optional"):
                 tail = " (optional)"
-        rows.append(f"  {glyph} {cli['name']} - {source}{tail}: {detail}")
+        rows.append(f"  {glyph} {cli['name']} — {source}{tail}: {detail}")
     if not rows:
         return []
     return (
@@ -1224,13 +1390,24 @@ def _cli_health_lines(report: Dict[str, Any]) -> List[str]:
 
 
 def render_text(report: Dict[str, Any]) -> str:
-    lines: List[str] = [f"last30days doctor - engine v{report['engine_version']}"]
+    lines: List[str] = [f"last30days doctor — engine v{report['engine_version']}"]
     config_block = report.get("config") or {}
     if config_block.get("global_env"):
         line = f"config: {config_block['global_env']}"
         if config_block.get("config_source"):
             line += f" (source: {config_block['config_source']})"
         lines.append(line)
+    host = config_block.get("host")
+    if host:
+        lines.append(f"host: {host} ({env.X_HOST_VAR})")
+    else:
+        lines.append(f"host: not set ({env.X_HOST_VAR} unset; default X policy)")
+    if config_block.get("host_lane_file_ignored"):
+        lines.append(
+            f"note: a {env.X_HOST_LANE_VAR} line in .env cannot declare the X "
+            "connector lane (ignored); export it in the process environment "
+            "for the session instead"
+        )
 
     setup = report.get("setup") or {}
     present = sorted(
@@ -1242,6 +1419,13 @@ def render_text(report: Dict[str, Any]) -> str:
         + (", ".join(present) if present else "none")
         + " (values never shown)"
     )
+    templated = setup.get("unsubstituted_templates") or []
+    if templated:
+        lines.append(
+            "note: unsubstituted config template(s), counted as unset: "
+            + ", ".join(templated)
+            + " (set a real value or remove each)"
+        )
 
     permissions = report.get("permissions") or {}
     if permissions.get("status"):
@@ -1333,8 +1517,21 @@ def build_postmortem(config: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _postmortem_state_label(source: str, outcome: Dict[str, Any]) -> str:
+    """State label for a failed post-mortem line.
+
+    ``payment-required`` reads as "credits exhausted" ("X API credits
+    exhausted" for X) so the fix is obvious at a glance: top up, not re-login.
+    Every other state prints as its raw name.
+    """
+    state = str(outcome.get("state") or "")
+    if state == health.PAYMENT_REQUIRED:
+        return health.credits_exhausted_label(source)
+    return state
+
+
 def render_postmortem_text(pm: Dict[str, Any]) -> str:
-    lines = [f"last30days post-mortem - engine v{pm['engine_version']}"]
+    lines = [f"last30days post-mortem — engine v{pm['engine_version']}"]
     if not pm.get("present"):
         lines.append("")
         lines.append(
@@ -1363,7 +1560,7 @@ def render_postmortem_text(pm: Dict[str, Any]) -> str:
         lines.append("Failed:")
         for source, outcome in failed:
             detail = outcome.get("detail") or outcome.get("state")
-            lines.append(f"  ✕ {source} - {outcome.get('state')}: {detail}")
+            lines.append(f"  ✕ {source} — {_postmortem_state_label(source, outcome)}: {detail}")
             if outcome.get("fix_hint"):
                 lines.append(f"    fix: {outcome['fix_hint']}")
     if partial:
@@ -1372,15 +1569,21 @@ def render_postmortem_text(pm: Dict[str, Any]) -> str:
         for source, outcome in partial:
             count = outcome.get("items_returned") or 0
             detail = outcome.get("detail")
-            tail = f" - {detail}" if detail else ""
+            tail = f" — {detail}" if detail else ""
             lines.append(f"  ⚠ {source} ({count} items){tail}")
             if outcome.get("fix_hint"):
                 lines.append(f"    fix: {outcome['fix_hint']}")
     if succeeded:
         lines.append("")
-        names = ", ".join(
-            f"{s} ({o.get('items_returned') or 0})" for s, o in succeeded
-        )
+        def _succeeded_label(source: str, outcome: Dict[str, Any]) -> str:
+            count = outcome.get("items_returned") or 0
+            detail = outcome.get("detail")
+            if detail:
+                noun = "item" if count == 1 else "items"
+                return f"{source} ({count} {noun}; {detail})"
+            return f"{source} ({count})"
+
+        names = ", ".join(_succeeded_label(s, o) for s, o in succeeded)
         lines.append(f"Succeeded: {names}")
     if skipped:
         lines.append("")
@@ -1401,11 +1604,11 @@ def render_postmortem_text(pm: Dict[str, Any]) -> str:
 # check costs one file read on the healthy path instead of a dozen probe
 # subprocesses. ``--cached`` serves the stored report within the TTL and
 # falls through to a live run (rewriting the cache) when the file is stale,
-# absent, or corrupt - corruption is treated as absence, never a crash.
+# absent, or corrupt — corruption is treated as absence, never a crash.
 # An explicit ``doctor`` (no ``--cached``) always runs live and refreshes.
 #
 # The payload carries a schema stamp (mirrors REPORT_CACHE_VERSION in
-# last30days.py) and a config fingerprint - a sha256 over the same
+# last30days.py) and a config fingerprint — a sha256 over the same
 # non-secret signals doctor already reports (key-presence booleans, backend
 # pin values, INCLUDE_SOURCES). A schema or fingerprint mismatch is treated
 # as stale, so a credential or pin change can never serve yesterday's
@@ -1431,8 +1634,15 @@ _SECRET_CONFIG_VARS = KEY_PRESENCE_VARS + (
 )
 
 # Backend pin vars folded into the config fingerprint. Pin values are
-# backend names (e.g. "bird"), never secrets.
-_FINGERPRINT_PIN_VARS = (env.X_BACKEND_PIN_VAR, env.REDDIT_BACKEND_PIN_VAR)
+# backend names (e.g. "bird"), never secrets. The host key and the X
+# connector lane signal join them: both are non-secret switches that
+# change every X conclusion, so a cached report must not outlive them.
+_FINGERPRINT_PIN_VARS = (
+    env.X_BACKEND_PIN_VAR,
+    env.REDDIT_BACKEND_PIN_VAR,
+    env.X_HOST_VAR,
+    env.X_HOST_LANE_VAR,
+)
 
 # Top-level report keys the renderers read unguarded; a cached report
 # missing any of them is treated as corrupt (absent), never rendered.
@@ -1466,7 +1676,7 @@ def _is_fresh(timestamp: Any, ttl_seconds: int) -> bool:
 def _config_fingerprint(config: Dict[str, Any]) -> str:
     """sha256 over the non-secret config signals doctor already reports.
 
-    Inputs are key-presence BOOLEANS (never credential values - the same
+    Inputs are key-presence BOOLEANS (never credential values — the same
     ``keys_present`` set the setup block renders), backend pin values
     (backend names, not secrets), and INCLUDE_SOURCES (not a secret).
     Adding or removing a credential, changing a pin, or toggling an opt-in
@@ -1489,7 +1699,7 @@ def _report_shape_ok(report: Any) -> bool:
     Validates everything the renderers read unguarded: the required
     top-level keys exist (dict-valued where render calls ``.get`` on them),
     and every sources record is a dict carrying a known tier and a str
-    status. Anything else is corrupt - treated as absent, never rendered.
+    status. Anything else is corrupt — treated as absent, never rendered.
     """
     if not isinstance(report, dict):
         return False
@@ -1516,8 +1726,8 @@ def _report_shape_ok(report: Any) -> bool:
 def read_cached_report(config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Return the cached report when present, well-formed, and within TTL.
 
-    Any failure mode - unreadable file, invalid JSON, schema mismatch,
-    config-fingerprint mismatch, wrong shape, bad or stale timestamp -
+    Any failure mode — unreadable file, invalid JSON, schema mismatch,
+    config-fingerprint mismatch, wrong shape, bad or stale timestamp —
     returns None (cache treated as absent, never a crash).
 
     A served report is stamped with ``from_cache: True`` and
@@ -1607,8 +1817,20 @@ _HTTP_PROBE_URLS = {
 
 # Per-source exception to "a 4xx still means the endpoint responded". The
 # keyless Reddit lanes send no credentials, so a 403/429 there is the host
-# refusing this client - the exact failure the engine hits - not reachability.
+# refusing this client — the exact failure the engine hits — not reachability.
 _PROBE_BLOCKED_STATUSES = {"reddit": frozenset({403, 429})}
+
+# Blocked statuses that mean "refused this probe right now", not "the source is
+# down". Reddit answers a burst of keyless probes with 429 while the research
+# lane — which retries with backoff across several endpoints — serves the same
+# query fine. A single unretried 429 was reporting a healthy Reddit as NOT
+# WORKING, so these get one retry and, if still refused, downgrade to unverified
+# rather than a false outage. 403 stays hard: that is a real keyless block.
+_PROBE_TRANSIENT_STATUSES = {"reddit": frozenset({429})}
+
+# One retry only: the probe budget is the per-source deadline, and a source that
+# rate-limits twice in a row is worth surfacing as unverified.
+_PROBE_RETRY_DELAY_SECONDS = 2.0
 
 # Probe with the identity the lane sends, or the probe measures the User-Agent
 # rather than the endpoint (get_text sends http.BROWSER_USER_AGENT).
@@ -1656,7 +1878,7 @@ def _http_ok(
     connection/timeout error means it did not.
 
     ``blocked_statuses`` names the per-source codes that mean "responded, but
-    refused us" (Reddit's keyless 403/429) - those are a failure, not
+    refused us" (Reddit's keyless 403/429) — those are a failure, not
     reachability. ``headers`` overrides the probe identity so a source can be
     probed with the same User-Agent its lane sends.
     """
@@ -1675,15 +1897,34 @@ def _http_ok(
         return False, f"{type(exc).__name__}: {exc}"
 
 
+def _transient_probe_detail(name: str, detail: str) -> bool:
+    """True when ``detail`` is a status this source may refuse us transiently.
+
+    ``_http_ok`` renders its verdict as ``HTTP {code}``; both live in this module,
+    so matching that shape here keeps the retry rule next to the codes it covers.
+    """
+    transient = _PROBE_TRANSIENT_STATUSES.get(name)
+    if not transient:
+        return False
+    return any(detail == f"HTTP {code}" for code in transient)
+
+
 def _probe_source(name: str, config: Dict[str, Any], timeout: float) -> Optional[Dict[str, Any]]:
     url = _HTTP_PROBE_URLS.get(name)
     if url:
-        ok, detail = _http_ok(
-            url,
-            timeout,
-            blocked_statuses=_PROBE_BLOCKED_STATUSES.get(name, frozenset()),
-            headers=_PROBE_HEADERS.get(name),
-        )
+        blocked = _PROBE_BLOCKED_STATUSES.get(name, frozenset())
+        headers = _PROBE_HEADERS.get(name)
+        ok, detail = _http_ok(url, timeout, blocked_statuses=blocked, headers=headers)
+        if not ok and _transient_probe_detail(name, detail):
+            time.sleep(_PROBE_RETRY_DELAY_SECONDS)
+            ok, detail = _http_ok(url, timeout, blocked_statuses=blocked, headers=headers)
+            if not ok and _transient_probe_detail(name, detail):
+                return {
+                    "ok": False,
+                    "transient": True,
+                    "detail": f"{detail} (rate-limited twice; the lane retries with backoff)",
+                    "probed": True,
+                }
         return {"ok": ok, "detail": detail, "probed": True}
     cli = CLI_DEPENDENCIES.get(name)
     if cli:
@@ -1754,7 +1995,7 @@ def run(
     is verified, not guessed.
     ``cached=True`` serves the stored report within the TTL; stale, absent,
     corrupt, schema-mismatched, or fingerprint-mismatched caches fall
-    through to a live run that rewrites the cache - as does ANY exception
+    through to a live run that rewrites the cache — as does ANY exception
     raised while serving the cache (never-crash contract, KTD 8).
     ``cached=False`` (explicit ``doctor``) always runs live and refreshes.
     """

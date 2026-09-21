@@ -1,7 +1,7 @@
 """Backend-chain descriptors with predicted selection (doctor, R4).
 
-Chained sources declare their routing here ONCE - imported from the
-definitions ``lib/env.py`` already owns (chain order, pin var names) - and
+Chained sources declare their routing here ONCE — imported from the
+definitions ``lib/env.py`` already owns (chain order, pin var names) — and
 ``resolve()`` turns side-effect-free probes into a truthful prediction of
 what the next run will do.
 
@@ -16,7 +16,7 @@ Two resolution modes:
   picking prevents an installed-but-unauthenticated preferred backend from
   shadowing a fully working fallback.
 
-- ``conditional`` (Reddit): routing is per-query and outcome-dependent -
+- ``conditional`` (Reddit): routing is per-query and outcome-dependent —
   public keyless composite by default, ScrapeCreators backfill only when
   results fall below the configured thinness floor (see the gating in
   ``lib/pipeline.py``). No probe can pick one winner, so resolution renders
@@ -24,20 +24,23 @@ Two resolution modes:
   internal keyless lanes (rss/listing/arctic/shreddit) are sub-probe detail
   inside the public composite, never chain entries.
 
-``active_backend`` semantics: a PREDICTION - "the first backend the probes
-say the next run will try" - rendered as "will use". It is not an
+``active_backend`` semantics: a PREDICTION — "the first backend the probes
+say the next run will try" — rendered as "will use". It is not an
 observation of what served a past run, and runtime failover can still
 diverge mid-run (a present-but-expired paid key passes a presence probe).
 
-Paid lanes (xai, xquik, serper, and every other API-key backend, including
-ScrapeCreators) probe KEY PRESENCE ONLY: a dict lookup, never a network
-call or credential spend. Binary-backed lanes reuse the U1 dependency
+Paid lanes (xai, xapi, xquik, serper, and every other API-key backend,
+including ScrapeCreators) probe KEY PRESENCE ONLY: a dict lookup, never a
+network call or credential spend. Binary-backed lanes reuse the U1 dependency
 probe layer (``health.probe_dependency``) so a stale shim reads as BROKEN,
 not available (#692).
 
 This module observes and predicts only. It must never alter which backend
 the pipeline actually uses; parity with the pipeline's pre-failover
-selection is asserted in ``tests/test_backend_descriptors.py``.
+selection is asserted in ``tests/test_backend_descriptors.py``. The X chain
+is shaped by ``env.x_policy``: on an official-only host the findings and
+the chain carry only the policy's backends (plus a pinned one), so doctor
+JSON never names a non-official backend there unless it is pinned.
 """
 
 from __future__ import annotations
@@ -64,7 +67,7 @@ TIER_ERROR = "error"
 WEB_BACKEND_ORDER: Tuple[str, ...] = ("brave", "exa", "serper", "parallel", "keyless")
 
 # YouTube backend order (pipeline: yt-dlp first, ScrapeCreators search
-# fallback when yt-dlp is absent or fails - see lib/pipeline.py).
+# fallback when yt-dlp is absent or fails — see lib/pipeline.py).
 YOUTUBE_BACKEND_ORDER: Tuple[str, ...] = ("yt-dlp", "scrapecreators")
 
 # Chain-failure fixes embed the registry's CLI forms (KTD 7): the command a
@@ -74,10 +77,20 @@ _SC_PRESCRIPTION = (
     "set SCRAPECREATORS_API_KEY (free 10,000-call signup: "
     f"{prescriptions.get('scrapecreators', 'key_missing').fix_cli})"
 )
-_X_COOKIES_PRESCRIPTION = (
-    "run setup with browser-cookie consent: "
-    f"{prescriptions.get('x', 'cookies_missing').fix_cli}"
-)
+
+
+def _x_cookies_prescription(config: Dict[str, Any]) -> str:
+    """Bird's unconfigured fix, routed through the X policy.
+
+    Off an official-only host this is the cookie-consent command; on one
+    the same lookup yields the official-path entry (connector lane, bearer,
+    xAI key), so a pinned-but-unconfigured scraper never prescribes a
+    cookie read there.
+    """
+    entry = prescriptions.for_x(config, "cookies_missing")
+    if entry.failure == "cookies_missing":
+        return f"run setup with browser-cookie consent: {entry.fix_cli}"
+    return f"{entry.fix_nl} (cli: {entry.fix_cli})"
 
 
 @dataclass
@@ -97,7 +110,7 @@ class BackendFinding:
 
     @property
     def usable(self) -> bool:
-        """Fully or partially usable (OK/DEGRADED) - eligible for selection."""
+        """Fully or partially usable (OK/DEGRADED) — eligible for selection."""
         return self.status in (health.OK, health.DEGRADED)
 
 
@@ -135,7 +148,7 @@ class BackendResolution:
 
     ``active_backend`` is the will-use PREDICTION for alternative chains
     and always None for conditional mode (Reddit never gets a computed
-    winner - ``conditional`` carries the honest wording instead).
+    winner — ``conditional`` carries the honest wording instead).
     """
 
     source: str
@@ -204,7 +217,7 @@ def _probe_bird(config: Dict[str, Any]) -> BackendFinding:
     Cookie presence is checked FIRST, mirroring ``env._x_backend_available``'s
     gating (``has_bird_creds and is_bird_installed()``): without cookies bird
     is unconfigured regardless of node/script state, and the fix is the
-    cookie-consent flow - a broken node runtime must not turn an unconfigured
+    cookie-consent flow — a broken node runtime must not turn an unconfigured
     backend into an error carrying a node prescription.
     """
     from . import bird_x
@@ -215,7 +228,7 @@ def _probe_bird(config: Dict[str, Any]) -> BackendFinding:
             name="bird",
             status=health.MISSING,
             detail="X browser cookies (AUTH_TOKEN/CT0) not configured",
-            prescription=_X_COOKIES_PRESCRIPTION,
+            prescription=_x_cookies_prescription(config),
             requires=requires,
         )
     if not bird_x.is_bird_installed():
@@ -328,11 +341,41 @@ def _probe_grok(config: Dict[str, Any]) -> BackendFinding:
     )
 
 
+def _probe_xapi(config: Dict[str, Any]) -> BackendFinding:
+    """xapi = direct X API v2 with an app-only bearer. KEY PRESENCE ONLY.
+
+    Never a network call. The unconfigured fix is the official-path
+    prescription on an official-only host (connector lane, bearer, xAI key,
+    with the about-a-week caveat); elsewhere the plain key hint,
+    since xapi runs there only under an explicit pin.
+    """
+    requires = "X_BEARER_TOKEN (X API v2)"
+    if config.get("X_BEARER_TOKEN"):
+        return BackendFinding(
+            name="xapi",
+            status=health.OK,
+            detail="X_BEARER_TOKEN present",
+            requires=requires,
+        )
+    if env.x_policy(config).official_only:
+        entry = prescriptions.get("x", "bearer_missing")
+        prescription = f"{entry.fix_nl} (cli: {entry.fix_cli})"
+    else:
+        prescription = "set X_BEARER_TOKEN in ~/.config/last30days/.env"
+    return BackendFinding(
+        name="xapi",
+        status=health.MISSING,
+        detail="X_BEARER_TOKEN not set",
+        prescription=prescription,
+        requires=requires,
+    )
+
+
 def _probe_xurl(config: Dict[str, Any]) -> BackendFinding:
     """xurl = official X API v2 CLI (OAuth2). Free lane; LOCAL-ONLY probe.
 
     Doctor's no-network guarantee forbids the live ``xurl whoami`` check
-    (``xurl_x.is_available()`` - an authenticated X API call, reserved for
+    (``xurl_x.is_available()`` — an authenticated X API call, reserved for
     research time). This probe keys on local evidence instead: the binary
     on PATH plus xurl's on-disk token store (~/.xurl). Stored credentials
     read as OK with an explicit "not live-verified" caveat; an unreadable
@@ -428,8 +471,10 @@ _X_PROBES: Dict[str, Callable[[Dict[str, Any]], BackendFinding]] = {
     "bird": _probe_bird,
     "xurl": _probe_xurl,
     "xquik": _key_probe("xquik", "XQUIK_API_KEY", "XQUIK_API_KEY (xquik.com)"),
+    # Direct X API v2 with an app-only bearer: key presence only, no network.
+    "xapi": _probe_xapi,
 }
-_X_PAID = {"xai", "xquik"}
+_X_PAID = {"xai", "xquik", "xapi"}
 # Opt-in backends: never auto-selected; require explicit pin.
 _X_OPT_IN = set(env.X_BACKEND_OPT_IN)
 
@@ -459,6 +504,7 @@ _X_REQUIRES: Dict[str, str] = {
     "bird": "X browser cookies (AUTH_TOKEN/CT0) + node",
     "xurl": "xurl CLI installed + OAuth2 login",
     "xquik": "XQUIK_API_KEY (xquik.com)",
+    "xapi": "X_BEARER_TOKEN (X API v2)",
 }
 
 DESCRIPTORS: Dict[str, ChainDescriptor] = {
@@ -547,7 +593,7 @@ def resolve(
     mean unpinned. Probing is side-effect-free and collect-then-pick.
 
     Time budget: backends are probed sequentially, so a chain's budget is
-    ADDITIVE across its backends - each binary-backed probe is bounded by
+    ADDITIVE across its backends — each binary-backed probe is bounded by
     ``health.PROBE_TIMEOUT`` and paid/key lanes are dict lookups that cost
     nothing, giving a worst case of roughly (binary probes in the chain) x
     ``health.PROBE_TIMEOUT``. Deliberately no intra-chain concurrency:
@@ -555,12 +601,41 @@ def resolve(
     multiple binaries are simultaneously hung.
     """
     descriptor = get_descriptor(source)
-    findings = [
-        _run_probe(spec, config) for spec in descriptor.backends
-    ]
+    specs, auto_names = _specs_for_policy(descriptor, config)
+    findings = [_run_probe(spec, config) for spec in specs]
     if descriptor.mode == MODE_CONDITIONAL:
         return _resolve_conditional(descriptor, config, findings)
-    return _resolve_alternative(descriptor, config, findings, pin)
+    return _resolve_alternative(descriptor, config, findings, pin, auto_names)
+
+
+def _specs_for_policy(
+    descriptor: ChainDescriptor,
+    config: Dict[str, Any],
+) -> Tuple[List[BackendSpec], set]:
+    """The backends to probe for this host, and which of them auto-select.
+
+    Every source except X keeps its declared backends; auto-selection is the
+    non-opt-in set. For X the answer comes from ``env.x_policy``: on a
+    default host the declared chain (auto order plus opt-in entries for
+    doctor visibility) is unchanged; on an official-only host the findings
+    are the policy's chain in its order, plus the pinned backend when the
+    pin names something outside it, so neither doctor JSON nor the chain
+    string carries a non-official backend unless it is pinned. Observation
+    only: this mirrors ``env.x_backend_chain``, it never alters it.
+    """
+    specs = list(descriptor.backends)
+    if descriptor.source != "x":
+        return specs, {spec.name for spec in specs if not spec.opt_in}
+    policy = env.x_policy(config)
+    auto_names = set(policy.auto_chain)
+    if not policy.official_only:
+        return specs, auto_names
+    by_name = {spec.name: spec for spec in specs}
+    ordered = [by_name[name] for name in policy.auto_chain if name in by_name]
+    pin = env.x_backend_pin(config)
+    if pin in by_name and pin not in auto_names:
+        ordered.append(by_name[pin])
+    return ordered, auto_names
 
 
 def _run_probe(spec: BackendSpec, config: Dict[str, Any]) -> BackendFinding:
@@ -584,11 +659,14 @@ def _resolve_alternative(
     config: Dict[str, Any],
     findings: List[BackendFinding],
     pin: Optional[str],
+    auto_names: Optional[set] = None,
 ) -> BackendResolution:
-    names = [spec.name for spec in descriptor.backends]
+    names = [f.name for f in findings]
     by_name = {f.name: f for f in findings}
-    # Track which backends are opt-in (never auto-selected).
-    opt_in_names = {spec.name for spec in descriptor.backends if spec.opt_in}
+    if auto_names is None:
+        auto_names = {spec.name for spec in descriptor.backends if not spec.opt_in}
+    # Backends outside the auto set are opt-in here (never auto-selected).
+    opt_in_names = {name for name in names if name not in auto_names}
     res = BackendResolution(
         source=descriptor.source,
         mode=MODE_ALTERNATIVE,
@@ -605,7 +683,7 @@ def _resolve_alternative(
             pin_name = raw
 
     if pin_name:
-        # A pin forces a single backend (no failover) - mirror
+        # A pin forces a single backend (no failover) — mirror
         # env.x_backend_chain's pin semantics exactly.
         res.pinned = True
         res.pin = pin_name
