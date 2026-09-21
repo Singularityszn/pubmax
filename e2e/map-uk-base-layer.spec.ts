@@ -206,69 +206,95 @@ test("normal London entry paints UK base pubs and takes a price", async ({
   expect(pins.length).toBeGreaterThan(1);
   let firstPinId: string | null = null;
 
+  async function dismissCuratedSheetIfOpen(): Promise<void> {
+    const curatedClose = page.getByRole("button", { name: "Close pub detail" });
+    if (!(await curatedClose.isVisible().catch(() => false))) return;
+    await curatedClose.click();
+    await expect(page.locator(".venueInspector")).toHaveCount(0, { timeout: 10_000 });
+    await expect(sheet).toHaveCount(0, { timeout: 5_000 });
+  }
+
+  let firstPinAttempt = 0;
   await expect
     .poll(
       async () => {
-        for (const pin of uniqueUkPins(await paintedMarks(page))) {
-          await page.mouse.click(pin.x, pin.y);
-          await page.waitForTimeout(120);
-          if ((await sheet.count()) === 0) continue;
-          const name = await sheetName();
-          if (!name) continue;
-          firstPinId = pin.id;
-          firstName = name;
-          await priceField.fill(TYPED_PRICE);
-          await expect(priceField).toHaveValue(TYPED_PRICE);
-          return name;
-        }
-        return null;
+        await dismissCuratedSheetIfOpen();
+        const ukPins = uniqueUkPins(await paintedMarks(page));
+        if (ukPins.length === 0) return null;
+        const pin = ukPins[firstPinAttempt % ukPins.length];
+        firstPinAttempt += 1;
+        await page.mouse.click(pin.x, pin.y);
+        await page.waitForTimeout(400);
+        if ((await sheet.count()) === 0) return null;
+        const name = await sheetName();
+        if (!name) return null;
+        const sel = new URL(page.url()).searchParams.get("sel");
+        if (!sel?.startsWith("venue-uk-")) return null;
+        firstPinId = pin.id;
+        firstName = name;
+        await priceField.fill(TYPED_PRICE);
+        await expect(priceField).toHaveValue(TYPED_PRICE);
+        return name;
       },
-      { timeout: 90_000 },
+      {
+        message: "a painted UK base pin opens the unverified price sheet",
+        timeout: 90_000,
+      },
     )
     .not.toBeNull();
 
   expect(firstPinId).not.toBeNull();
 
-  for (const pin of uniqueUkPins(await paintedMarks(page))) {
-    if (pin.id === firstPinId) continue;
-    await page.mouse.click(pin.x, pin.y);
-    await page.waitForTimeout(120);
-    const name = await sheetName();
-    if (name && name !== firstName) {
-      switched = true;
-      break;
-    }
-  }
-
-  if (!switched) {
-    const sheetTop =
-      (await page.locator(".mobileSharedSheet.mapDrawer").boundingBox())?.y ?? 620;
-    for (let y = 160; y < Math.min(sheetTop - 12, 620) && !switched; y += 20) {
-      for (let x = 24; x < 366 && !switched; x += 20) {
-        await page.mouse.click(x, y);
-        await page.waitForTimeout(90);
-        const name = await sheetName();
-        if (name && name !== firstName) switched = true;
-      }
-    }
-  }
-
-  if (!switched) {
-    const listToggle = page.getByRole("button", { name: "List view" });
-    if (await listToggle.isVisible()) {
+  async function selectOtherUkBaseFromList(): Promise<void> {
+    const listButton = page
+      .locator(
+        `button.mapVenueListItem[data-venue-id^="venue-uk-"]:not([data-venue-id="${firstPinId}"])`,
+      )
+      .first();
+    if (!(await listButton.isVisible().catch(() => false))) {
+      const more = page.getByRole("button", { name: "More map controls" });
+      await expect(more).toBeVisible({ timeout: 10_000 });
+      await more.click();
+      const listToggle = page.getByRole("button", { name: "List view" });
+      await expect(listToggle).toBeVisible({ timeout: 10_000 });
       await listToggle.click();
-      const listButton = page
-        .locator('.mapVenueListItem[data-venue-id^="venue-uk-"]')
-        .filter({ hasNot: page.locator(`[data-venue-id="${firstPinId}"]`) })
-        .first();
-      if ((await listButton.count()) > 0) {
-        await listButton.click();
-        await page.waitForTimeout(150);
-        const name = await sheetName();
-        if (name && name !== firstName) switched = true;
-      }
+      await expect(listButton).toBeVisible({ timeout: 15_000 });
     }
+    await listButton.click();
+    await page.waitForTimeout(400);
   }
+
+  await priceField.blur();
+
+  await expect
+    .poll(
+      async () => {
+        for (const pin of uniqueUkPins(await paintedMarks(page))) {
+          if (pin.id === firstPinId) continue;
+          await dismissCuratedSheetIfOpen();
+          await page.mouse.click(pin.x, pin.y);
+          await page.waitForTimeout(500);
+          if ((await sheet.count()) === 0) continue;
+          const name = await sheetName();
+          if (name && name !== firstName) return name;
+        }
+        try {
+          await selectOtherUkBaseFromList();
+        } catch {
+          return null;
+        }
+        const name = await sheetName();
+        if (name && name !== firstName) return name;
+        return null;
+      },
+      {
+        message: "a second UK base pub is reachable while the first sheet stays open",
+        timeout: 90_000,
+      },
+    )
+    .not.toBeNull();
+
+  switched = true;
 
   const opened = firstName !== null;
   expect(opened, "a UK base pin should be tappable somewhere on a zoomed-in map").toBe(true);
