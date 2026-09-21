@@ -45,10 +45,12 @@ export function useMapKeyboardShortcuts({
         // Topmost first: the Drop pub picker, then the planner (higher z on
         // mobile), then venue detail.
         if (logIntentFallbackVisible) {
+          event.preventDefault();
           dismissLogIntent();
           return;
         }
         if (planningOpen || selectedVenueId) {
+          event.preventDefault();
           onInterruptReveal();
           onBack();
         }
