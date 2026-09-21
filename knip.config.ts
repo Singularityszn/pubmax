@@ -79,6 +79,9 @@ const config: KnipConfig = {
     "scripts/record_same_pub_fixture_probs.mjs",
     // Refreshes TypeSafe fixture probabilities for NHLE listing-structure tests.
     "scripts/record_heritage_structure_fixture_probs.mjs",
+    // The same, for Ask venue-resolution fixtures: needs TYPESAFE_API_KEY and
+    // writes __tests__/fixtures/typesafe/venue-resolution-probabilities.json.
+    "scripts/record_venue_resolution_probs.ts",
 
     // Manual evidence CLIs documented beside their proof output.
     "scripts/map-fix-shots.mjs",
