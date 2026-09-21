@@ -29,7 +29,11 @@ import {
   normalisePubName,
   resolveVenueKeyFromHints,
 } from "./lib/venueMatch.mjs";
-import { assertProviderCredentials, discoverRefreshPages } from "./lib/localRefreshProviders.mjs";
+import {
+  RefreshProviderError,
+  assertProviderCredentials,
+  discoverRefreshPages,
+} from "./lib/localRefreshProviders.mjs";
 import {
   HarvestMenuTransportError,
   assertTransportCredentials,
@@ -322,6 +326,7 @@ async function main() {
   let matched = 0;
   let unmatched = 0;
   let refused = 0;
+  let fetchFailed = 0;
   let budgetStopped = 0;
 
   for (const url of urls) {
@@ -340,6 +345,11 @@ async function main() {
         budgetStopped += 1;
         console.warn(error.message);
         break;
+      }
+      if (error instanceof RefreshProviderError) {
+        fetchFailed += 1;
+        console.warn(`FETCH_FAILED ${url}: ${error.message}`);
+        continue;
       }
       throw error;
     }
@@ -378,7 +388,7 @@ async function main() {
   writeFileSync(join(OUT_DIR, "latest.json"), `${JSON.stringify(payload, null, 2)}\n`);
 
   console.log(
-    `\nDone: transport=${transport} scraped=${scraped} matched=${matched} unmatched=${unmatched} refused=${refused} budgetStopped=${budgetStopped} newRows=${updates.length} totalRows=${merged.length}`,
+    `\nDone: transport=${transport} scraped=${scraped} matched=${matched} unmatched=${unmatched} refused=${refused} fetchFailed=${fetchFailed} budgetStopped=${budgetStopped} newRows=${updates.length} totalRows=${merged.length}`,
   );
   if (transport === "tavily") {
     console.log(`Tavily extracts spent: ${harvester.extractsSpent}/${harvester.extractBudget}`);

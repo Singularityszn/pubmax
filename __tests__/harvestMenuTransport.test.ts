@@ -16,8 +16,7 @@ const FIXTURE = readFileSync(
 
 const GK_MENU =
   "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu";
-const NICHOLSONS_DRINKS =
-  "https://www.nicholsonspubs.co.uk/restaurants/london/the-ship-tavern-drinks";
+const REFUSED_PRIVATE = "http://127.0.0.1/menu";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -41,7 +40,7 @@ describe("harvest menu transport", () => {
       environment: { TAVILY_API_KEY: "test-key" },
       fetchImpl,
     });
-    await expect(harvester.fetchMenuMarkdown(NICHOLSONS_DRINKS)).rejects.toMatchObject({
+    await expect(harvester.fetchMenuMarkdown(REFUSED_PRIVATE)).rejects.toMatchObject({
       code: "policy-refused",
     });
     expect(fetchImpl).not.toHaveBeenCalled();

@@ -31,6 +31,7 @@ import {
   createMenuPageHarvester,
   parseMenuTransportArg,
 } from "./lib/harvestMenuTransport.mjs";
+import { hostHasLondonDrinkCaptainOverride } from "../lib/harvest/sourcePolicy.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -280,7 +281,6 @@ async function main() {
   const transport = parseMenuTransportArg();
   const observedAt = new Date().toISOString();
   assertTransportCredentials(transport);
-  assertProviderCredentials(["pub-discovery"]);
   const harvester = createMenuPageHarvester({
     transport,
     sourceId: "mitchells-butlers-menu-prices",
@@ -290,12 +290,15 @@ async function main() {
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter((l) => l.startsWith("http"));
-  const discoveries = await discoverRefreshPages({
-    query: "new London Nicholson's pub official drinks menu prices",
-    includeDomains: ["nicholsonspubs.co.uk"],
-    numResults: Math.min(10, Math.max(1, limit)),
-  });
-  const discoveredUrls = discoveries
+  let discoveredUrls = [];
+  if (process.env.EXA_API_KEY?.trim()) {
+    assertProviderCredentials(["pub-discovery"]);
+    const discoveries = await discoverRefreshPages({
+      query: "new London Nicholson's pub official drinks menu prices",
+      includeDomains: ["nicholsonspubs.co.uk"],
+      numResults: Math.min(10, Math.max(1, limit)),
+    });
+    discoveredUrls = discoveries
     .map((result) => result.url)
     .filter((url) => {
       try {
@@ -305,6 +308,7 @@ async function main() {
         return false;
       }
     });
+  }
   const candidates = limit > 1 && discoveredUrls.length
     ? [discoveredUrls[0], ...knownUrls]
     : knownUrls;
@@ -353,7 +357,13 @@ async function main() {
         drinkName: d.drinkName,
         category: d.category,
         priceGbp: d.priceGbp,
-        source: { ...SOURCE, url },
+        source: {
+          ...SOURCE,
+          url,
+          ...(hostHasLondonDrinkCaptainOverride(new URL(url).hostname)
+            ? { robotsDisallowed: true }
+            : {}),
+        },
         observedAt,
       });
     }
