@@ -434,9 +434,14 @@ a.lpPubPint:hover { color: var(--ink); }
   }
 
   .dropStripRail {
-    grid-auto-flow: row;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     overflow-x: visible;
+  }
+
+  .dropStripRail > .dropStripCard {
+    flex: 1 1 min(100%, 260px);
+    max-width: calc((100% - 24px) / 3);
   }
 }
 
