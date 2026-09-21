@@ -32,6 +32,9 @@ export const MAP_ARRIVAL_BEARING_DEG = 4;
 export const MAP_ARRIVAL_BEARING_DURATION_MS = 1_000;
 
 /**
+ * @public e2e/map-arrival-turn.spec.ts imports this threshold; Knip's entry
+ * graph does not trace Playwright specs.
+ *
  * Below this, a bearing is the flat arrival rather than a rotation somebody
  * owns. A resumed session or a reader's own turn is left exactly as it is.
  */
