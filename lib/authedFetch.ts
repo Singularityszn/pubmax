@@ -9,6 +9,7 @@ import {
   readProviderAccountRevision,
   readProviderAccountSignal,
 } from "@/lib/authProviderRevision";
+import { waitForAbortableDelay } from "@/lib/abortableDelay";
 
 const AUTH_ACTION_SESSION_ERROR_MESSAGE = "Still waking your session. Try again.";
 
@@ -230,21 +231,6 @@ function waitForAuthActionReadiness(deadline: number, signal?: AbortSignal): Pro
   });
 }
 
-function waitForTokenRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
-  if (signal?.aborted) return Promise.reject(abortReason(signal));
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      signal?.removeEventListener("abort", onAbort);
-      resolve();
-    }, delayMs);
-    const onAbort = (): void => {
-      clearTimeout(timer);
-      reject(abortReason(signal as AbortSignal));
-    };
-    signal?.addEventListener("abort", onAbort, { once: true });
-  });
-}
-
 function readTokenBefore(deadline: number, signal?: AbortSignal): Promise<string | null> {
   const remaining = deadline - Date.now();
   if (remaining <= 0) return Promise.resolve(null);
@@ -330,7 +316,9 @@ async function activeAuthActionFetch(
     const remaining = deadline - Date.now();
     if (remaining <= 0) break;
     if (delayMs > 0) {
-      await waitForTokenRetry(Math.min(delayMs, remaining), action.signal);
+      await waitForAbortableDelay(Math.min(delayMs, remaining), action.signal, {
+        rejectOnAbort: true,
+      });
     }
     if (Date.now() >= deadline) break;
     token = await readTokenBefore(deadline, action.signal);
