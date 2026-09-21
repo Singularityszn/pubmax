@@ -44,6 +44,7 @@ import {
   assertProviderCredentials,
   discoverRefreshPages,
   fetchRefreshPage,
+  RefreshProviderError,
 } from "./lib/localRefreshProviders.mjs";
 
 const MODULE_PATH = fileURLToPath(import.meta.url);
@@ -171,6 +172,18 @@ async function scrape(url, pubName) {
       reading,
     },
   };
+}
+
+async function safeScrape(url, pubName) {
+  try {
+    return { page: await scrape(url, pubName) };
+  } catch (error) {
+    const reason =
+      error instanceof RefreshProviderError || error instanceof Error
+        ? error.message
+        : String(error);
+    return { error: reason };
+  }
 }
 
 /** All £ values present verbatim in the page text (as a Set of "3.80" strings). */
@@ -344,8 +357,18 @@ function main() {
 
       // 1) revisit the exact prior evidence page, or start from the official homepage.
       const initialUrl = priorPublishedSourceFor(row, priorEntries);
-      const home = await scrape(initialUrl, row.pub_name);
+      const homeResult = await safeScrape(initialUrl, row.pub_name);
       requests += 1;
+      if (homeResult.error) {
+        log.push({
+          ...rec,
+          result: "blocked",
+          reason: homeResult.error,
+          requests: 1,
+        });
+        continue;
+      }
+      const home = homeResult.page;
 
       let md = home.markdown;
       let pageUrl = initialUrl;
@@ -369,9 +392,19 @@ function main() {
               .find((url) => /drink|menu|tap|beer|wine|cocktail|spirit/i.test(url)) ?? null;
         }
         if (link && link !== initialUrl) {
-          const drink = await scrape(link, row.pub_name);
+          const drinkResult = await safeScrape(link, row.pub_name);
           requests += 1;
           usedSecond = true;
+          if (drinkResult.error) {
+            log.push({
+              ...rec,
+              result: "blocked",
+              reason: drinkResult.error,
+              requests: 2,
+            });
+            continue;
+          }
+          const drink = drinkResult.page;
           if (DRINK_MENU_KW.test(drink.markdown) || (drink.json?.drinks || []).length) {
             md = drink.markdown;
             pageUrl = link;
