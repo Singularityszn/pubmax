@@ -17,7 +17,7 @@ export function normalizeUkPriceBundleDrinkLabel(
 }
 
 /** Classify a printed name into at most one closed subtype, or null. */
-export function ukPriceBundleDrinkSubtype(
+function ukPriceBundleDrinkSubtype(
   drinkLabel: string,
   category: string,
 ): string | null {
