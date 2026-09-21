@@ -53,9 +53,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 import { pdfIsWorthReading, readPdfText } from "../../../lib/harvest/pdfText.ts";
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
+import { discardBody } from "../../../lib/responseBody.ts";
 import {
   allowedHarvestSources,
   harvestSourcesOfKind,
@@ -182,30 +184,38 @@ function hostOf(website) {
   }
 }
 
-async function fetchText(url) {
+export async function fetchText(url, robots) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
-      headers: {
-        accept: "text/html,application/xhtml+xml,application/pdf;q=0.8,*/*;q=0.5",
-        "user-agent": USER_AGENT,
-      },
-      signal: controller.signal,
-      redirect: "follow",
-    });
-    // THE ALLOW-LIST IS ASKED ABOUT THE PAGE WE LANDED ON, NOT ONLY THE ONE WE
-    // ASKED FOR. `redirect: "follow"` lets the HOST pick the last hop, so a
-    // permitted site that 30x-es to a refused one used to be read in full and
-    // the row was then stamped with the asked-for URL, naming a page that never
-    // stated the price. `harvestRedirectLanding` is the one owner of that rule;
-    // `finalUrl` was already carried here and read by nothing.
-    const landing = harvestRedirectLanding(url, response.url);
-    if (landing.outcome === "refused") {
-      return { ok: false, status: response.status, body: "", redirectedAway: true, finalUrl: landing.url };
+    let current = url;
+    let response;
+    for (let hop = 0; hop <= 5; hop += 1) {
+      const landing = harvestRedirectLanding(url, current);
+      if (landing.outcome === "refused" || !(await robots(current)).allowed) {
+        return { ok: false, status: 0, body: "", error: "page-permission-refused", finalUrl: current };
+      }
+      response = await fetch(current, {
+        headers: {
+          accept: "text/html,application/xhtml+xml,application/pdf;q=0.8,*/*;q=0.5",
+          "user-agent": USER_AGENT,
+        },
+        signal: controller.signal,
+        redirect: "manual",
+      });
+      if (![301, 302, 303, 307, 308].includes(response.status)) break;
+      const location = response.headers.get("location");
+      discardBody(response);
+      if (!location || hop === 5) {
+        return { ok: false, status: response.status, body: "", error: "redirect-limit-or-missing-location", finalUrl: current };
+      }
+      current = new URL(location, current).toString();
     }
-    const landed = landing.url;
-    if (!response.ok) return { ok: false, status: response.status, body: "", finalUrl: landed };
+    const landed = current;
+    if (!response.ok) {
+      discardBody(response);
+      return { ok: false, status: response.status, body: "", finalUrl: landed };
+    }
     const type = response.headers.get("content-type") ?? "";
     // A PDF IS BYTES, NOT MARKUP, so it never goes through the HTML stripper,
     // which would invent words out of a binary. The bytes are handed back for
@@ -305,7 +315,7 @@ function loadLedger() {
 }
 
 /** Pages worth opening on one host, cheapest signal first. */
-async function discoverPages(entry, statedSitemaps, spend) {
+async function discoverPages(entry, statedSitemaps, spend, robots) {
   const pages = [];
   const push = (url) => {
     if (!pages.includes(url)) pages.push(url);
@@ -327,7 +337,7 @@ async function discoverPages(entry, statedSitemaps, spend) {
   for (const sitemapUrl of sitemaps.slice(0, 2)) {
     if (pages.length >= DEFAULT_PAGES_PER_HOST) break;
     if (!spend()) break;
-    const sitemap = await fetchText(sitemapUrl);
+    const sitemap = await fetchText(sitemapUrl, robots);
     if (!sitemap.ok || sitemap.body.length === 0) continue;
     const locations = sitemapLocations(sitemap.body);
     for (const location of locations) {
@@ -367,7 +377,7 @@ async function crawlHost(entry, robots, spend, delayMs) {
   // published rules, whatever the crawl then found.
   const robotsFile = decision.robots;
   if (!spend()) return { outcome: "no-menu-page-found", robots: robotsFile, evidence: "page budget spent", pagesRead: 0, rows: [] };
-  const home = await fetchText(entry.origin);
+  const home = await fetchText(entry.origin, robots);
   let pagesRead = 1;
   if (!home.ok) {
     return {
@@ -379,8 +389,8 @@ async function crawlHost(entry, robots, spend, delayMs) {
     };
   }
 
-  const discovered = await discoverPages(entry, decision.sitemaps ?? [], spend);
-  const fromHome = menuLinkCandidates(home.body, entry.origin, DEFAULT_PAGES_PER_HOST);
+  const discovered = await discoverPages(entry, decision.sitemaps ?? [], spend, robots);
+  const fromHome = menuLinkCandidates(home.body, home.finalUrl ?? entry.origin, DEFAULT_PAGES_PER_HOST);
   // The home page has already been read, so it is dropped from the queue by
   // VALUE rather than by position: a seeded menu page sits ahead of it now, and
   // slicing the first entry off would silently discard that seed instead.
@@ -400,7 +410,8 @@ async function crawlHost(entry, robots, spend, delayMs) {
     return reading;
   }
 
-  const readings = [{ url: entry.origin, reading: await readPage(entry.origin, home.body) }];
+  const homeUrl = home.finalUrl ?? entry.origin;
+  const readings = [{ url: homeUrl, reading: await readPage(homeUrl, home.body) }];
   let pdfSeen = 0;
   let pdfRead = 0;
   let pdfUnread = 0;
@@ -408,7 +419,7 @@ async function crawlHost(entry, robots, spend, delayMs) {
   for (const url of queue) {
     if (!spend()) break;
     await sleep(delayMs);
-    const page = await fetchText(url);
+    const page = await fetchText(url, robots);
     pagesRead += 1;
     if (!page.ok) continue;
     if (page.pdf) {
@@ -421,10 +432,10 @@ async function crawlHost(entry, robots, spend, delayMs) {
       pdfRead += 1;
       // The PDF's words are fed in as TEXT, so the HTML stripper is not asked to
       // strip markup that was never there.
-      readings.push({ url, reading: await readPage(url, text) });
+      readings.push({ url: page.finalUrl ?? url, reading: await readPage(page.finalUrl ?? url, text) });
       continue;
     }
-    readings.push({ url, reading: await readPage(url, page.body) });
+    readings.push({ url: page.finalUrl ?? url, reading: await readPage(page.finalUrl ?? url, page.body) });
   }
 
   const rows = [];
@@ -795,4 +806,6 @@ async function main() {
   if (!DRY_RUN) console.log(`  report → ${path.relative(ROOT, REPORT_PATH)}`);
 }
 
-await main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main();
+}
