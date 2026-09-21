@@ -194,6 +194,9 @@ test("keeps the expanded city-status feed inside an 800px viewport", async ({
     element.scrollTop = element.scrollHeight;
   });
   const lastRow = sheet.locator(".cityStatusSignalRow").last();
+  // A box inside the budget is not yet a row a reader can SEE, so the row has
+  // to intersect the viewport as well as measure inside it.
+  await expect(lastRow).toBeInViewport();
   const lastBounds = await lastRow.boundingBox();
   expect(lastBounds).not.toBeNull();
   expect(
