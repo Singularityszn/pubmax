@@ -104,8 +104,24 @@ export function venueDrinkPricesFromUkReading(
   return prices;
 }
 
+function mergeVenueDrinkRows(
+  prices: TavilyVenueDrinkPrice[],
+  seen: Set<string>,
+  incoming: TavilyVenueDrinkPrice[],
+): void {
+  for (const row of incoming) {
+    const key = `${row.drinkName.toLowerCase()}|${row.category}|${row.priceGbp}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    prices.push(row);
+  }
+}
+
 /** Line-at-a-time reader input, matching the Tavily pint harvest shape. */
-export function extractVenueDrinkPrices(markdown: string): TavilyVenueDrinkPrice[] {
+export function extractVenueDrinkPricesWithReader(
+  markdown: string,
+  read: (snippet: string) => UkPriceReading,
+): TavilyVenueDrinkPrice[] {
   const compact = compactLines(markdown);
   const prices: TavilyVenueDrinkPrice[] = [];
   const seen = new Set<string>();
@@ -115,13 +131,12 @@ export function extractVenueDrinkPrices(markdown: string): TavilyVenueDrinkPrice
     if (!/£/.test(line)) continue;
     const previous = index > 0 ? compact[index - 1] : "";
     const snippet = isPriceOnlyLine(line) && previous ? `${previous}\n${line}` : line;
-    for (const row of venueDrinkPricesFromUkReading(readVenueDrinkPrices(snippet), snippet)) {
-      const key = `${row.drinkName.toLowerCase()}|${row.category}|${row.priceGbp}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      prices.push(row);
-    }
+    mergeVenueDrinkRows(prices, seen, venueDrinkPricesFromUkReading(read(snippet), snippet));
   }
 
   return prices;
+}
+
+export function extractVenueDrinkPrices(markdown: string): TavilyVenueDrinkPrice[] {
+  return extractVenueDrinkPricesWithReader(markdown, readVenueDrinkPrices);
 }
