@@ -102,6 +102,7 @@
   },
   "dependencies": {
     "@ai-sdk/otel": "^1.0.102",
+    "@arizeai/openinference-instrumentation-openai": "^4.2.6",
     "@arizeai/openinference-semantic-conventions": "^2.11.0",
     "@arizeai/openinference-vercel": "^3.2.0",
     "@capacitor-community/in-app-review": "^8.0.0",
@@ -114,7 +115,7 @@
     "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/text-zoom": "^8.0.1",
-    "@clerk/nextjs": "^7.9.2",
+    "@clerk/nextjs": "^7.9.4",
     "@elevenlabs/react": "^1.15.2",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-proto": "^0.222.0",
@@ -133,6 +134,7 @@
     "lucide-react": "^1.45.0",
     "maplibre-gl": "6.10.0",
     "next": "^16.3.5",
+    "openai": "^6.49.0",
     "posthog-js": "^1.430.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -172,6 +174,8 @@
   },
   "overrides": {
     "browserslist": "^4.28.7",
+    "playwright": "1.62.1",
+    "playwright-core": "1.62.1",
     "postcss": "^8.5.23",
     "sharp": "$sharp",
     "eslint-plugin-react": {
