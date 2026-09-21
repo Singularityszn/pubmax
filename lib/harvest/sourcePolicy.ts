@@ -253,14 +253,14 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     kind: "chain-menu-prices",
     firstParty: true,
     access: {
-      allowed: true,
+      allowed: false,
+      reason: "robots-unreadable",
       evidence:
-        "robots.txt re-read 2026-09-03: https://www.nicholsonspubs.co.uk/robots.txt answers HTTP 403 with a Cloudflare challenge page, not a rules file. Captain override 2026-09-21: London drink harvest may read first-party drinks menus on this estate for the demo; every row records `robotsDisallowed: true` on the source stamp and spacing honours Crawl-delay or 10s. Estate refusal history is unchanged in the notes below.",
-      checkedOn: "2026-09-21",
+        "robots.txt re-read 2026-09-03, as the brief required: https://www.nicholsonspubs.co.uk/robots.txt answers HTTP 403 with a Cloudflare `Attention Required!` challenge page, not a rules file. No permission can be read, so the estate STAYS REFUSED, unchanged from the 2026-08-09 verdict. Captain override 2026-09-21: London drink harvest CLIs (`scripts/lib/harvestMenuTransport.mjs`) may still fetch first-party drinks menus on hosts named in `LONDON_DRINK_CAPTAIN_OVERRIDE_HOSTS`, stamping `robotsDisallowed: true` on each row.",
+      checkedOn: PRICE_CHECKED_ON,
     },
-    crawlDelaySeconds: 10,
     notes:
-      "The one chain that publishes per-drink prices on the web. Robots stayed unreadable on 2026-09-03; the captain override re-opens harvest for London drink rows only. Long-term permission still needs an estate agreement.",
+      "The one chain in the tree that DOES publish per-drink prices on the web, and the one we may not read through the general fence. That asymmetry is the whole argument for asking Mitchells & Butlers for permission or a feed: it is the single largest lever on price coverage. Until then no Nicholson's page is read through `isHarvestableOperatorUrl` alone.",
   },
 
   // --- pub directories: which pubs a chain runs today -----------------------
@@ -467,6 +467,17 @@ export function hostHasLondonDrinkCaptainOverride(hostname: string): boolean {
   return LONDON_DRINK_CAPTAIN_OVERRIDE_HOSTS.includes(host);
 }
 
+/** Drink overlay rows only: captain override hosts plus the ordinary allow-list. */
+export function isHarvestableDrinkUpdateUrl(value: unknown): boolean {
+  if (typeof value !== "string" || !value.trim()) return false;
+  try {
+    if (hostHasLondonDrinkCaptainOverride(new URL(value.trim()).hostname)) return true;
+  } catch {
+    return false;
+  }
+  return isHarvestableOperatorUrl(value);
+}
+
 /**
  * A venue's own site is first-party by definition, so it needs no table row -
  * but it still has to be a real http(s) origin we can attribute, and it may
@@ -640,7 +651,6 @@ function namesOurOwnIpv6Network(host: string): boolean {
  */
 function underRefusedHost(hostname: string): boolean {
   const host = hostname.replace(/^www\./, "");
-  if (hostHasLondonDrinkCaptainOverride(host)) return false;
   if (REFUSED_HOSTS.has(host)) return true;
   for (const refused of REFUSED_HOSTS) {
     if (host.endsWith(`.${refused}`)) return true;

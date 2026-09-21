@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isHarvestableDrinkUpdateUrl,
+  isHarvestableOperatorUrl,
   LONDON_DRINK_CAPTAIN_OVERRIDE_CHECKED_ON,
   LONDON_DRINK_CAPTAIN_OVERRIDE_HOSTS,
   hostHasLondonDrinkCaptainOverride,
@@ -12,6 +14,10 @@ import {
 
 describe("London drink captain override (2026-09-21)", () => {
   it("re-opens Nicholson's and estate hosts for drink harvest CLIs", () => {
+    expect(
+      isHarvestableDrinkUpdateUrl("https://www.nicholsonspubs.co.uk/restaurants/london/foo-drinks"),
+    ).toBe(true);
+    expect(isHarvestableOperatorUrl("https://www.nicholsonspubs.co.uk/")).toBe(false);
     expect(LONDON_DRINK_CAPTAIN_OVERRIDE_CHECKED_ON).toBe("2026-09-21");
     expect(LONDON_DRINK_CAPTAIN_OVERRIDE_HOSTS).toContain("nicholsonspubs.co.uk");
     expect(hostHasLondonDrinkCaptainOverride("www.nicholsonspubs.co.uk")).toBe(true);

@@ -6,7 +6,10 @@
  * chain source's crawl delay when recorded.
  */
 
-import { harvestSourcesOfKind, isHarvestableOperatorUrl } from "../../lib/harvest/sourcePolicy.ts";
+import {
+  harvestSourcesOfKind,
+  isHarvestableDrinkUpdateUrl,
+} from "../../lib/harvest/sourcePolicy.ts";
 import { fetchRefreshPage, providerForJob } from "./localRefreshProviders.mjs";
 import {
   tavilyHarvestExtractCap,
@@ -90,7 +93,7 @@ export function createMenuPageHarvester({
   }
 
   async function fetchMenuMarkdown(url) {
-    if (!isHarvestableOperatorUrl(url)) {
+    if (!isHarvestableDrinkUpdateUrl(url)) {
       throw new HarvestMenuTransportError("policy-refused", `sourcePolicy refused ${url}`);
     }
     if (transport === "tavily") {

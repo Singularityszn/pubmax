@@ -49,7 +49,10 @@ import path from "node:path";
 import process from "node:process";
 
 import { isDemoDrinkProvenance } from "@/lib/drinks";
-import { isHarvestableOperatorUrl } from "@/lib/harvest/sourcePolicy";
+import {
+  isHarvestableDrinkUpdateUrl,
+  isHarvestableOperatorUrl,
+} from "@/lib/harvest/sourcePolicy";
 import { estimateForPub } from "@/lib/priceEstimate";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
 import {
@@ -247,7 +250,7 @@ function addDrinkPriceUpdateRows(updates, push, report) {
       report.droppedDemoFixture += 1;
       continue;
     }
-    if (!isHarvestableOperatorUrl(update?.source?.url ?? "")) {
+    if (!isHarvestableDrinkUpdateUrl(update?.source?.url ?? "")) {
       report.droppedRefusedHost += 1;
       continue;
     }
