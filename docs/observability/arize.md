@@ -43,7 +43,6 @@ environment reads and nothing else.
 | --- | --- | --- |
 | `ask/model-loop` (default), `api/ask`, `api/pub-pal/llm` | `lib/ask/modelLoop.ts` OpenRouter tool loop | one AGENT span, one LLM span per round (input: the messages added since the previous round), one TOOL span per tool call |
 | `api/heritage` | `lib/heritage.ts` narrations | one LLM span |
-| `concierge/intent` | `lib/concierge/intent.ts` intent parsing | one LLM span |
 | `search-gateway` | `lib/searchProvider.server.ts` AI SDK `generateText` via the gateway | AI SDK spans (`gen_ai.agent.name = search-gateway`) |
 | `moderation/avatar` | `lib/profileAvatarModeration.ts` both adapters | one LLM span per moderation call |
 | `moderation/social-post` | `lib/socialPostModeration.ts` | one LLM span |

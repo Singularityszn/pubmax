@@ -53,6 +53,9 @@ chat post to `/api/ask`, and no caller of the route was ever found in `app`,
 `lib/concierge/whatsOn.ts`, `lib/concierge/intent.ts` and
 `lib/concierge/venues.server.ts` are imported by `/api/ask` and
 `/api/plans/generate`. Only the orphaned HTTP wrapper was removed.
+`parseConciergeIntent` is TypeSafe when keyed (`lib/ai/typesafe.server.ts`)
+and the mood/area/group/budget regex table when not. It no longer calls
+OpenRouter.
 
 ## Consequences
 
