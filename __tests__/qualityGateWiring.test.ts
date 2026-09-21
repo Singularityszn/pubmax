@@ -38,9 +38,8 @@ describe("the quality gates", () => {
       "npm run validate-data",
       "npm run lint",
       "npm run typecheck",
-      // A dead dependency is dead code no compiler sees, so knip is a static
-      // gate: `knip.config.ts` scopes it to dependency findings alone and it
-      // runs in about three seconds.
+      // Dead code knip cannot see from the compiler. On a branch the wrapper
+      // fails only findings the branch introduced; on main it is full-tree knip.
       "npm run deadcode",
       "npm run coverage",
       // The proofs that need a real cluster, and a skip is a failure there.
@@ -66,6 +65,14 @@ describe("the quality gates", () => {
     const browser = workflow("e2e.yml");
     expect(browser).toContain("PLAYWRIGHT_JSON_OUTPUT_NAME");
     expect(browser).toContain("scripts/assert-playwright-gate.mjs");
+  });
+
+  it("keeps full-tree knip as deadcode:all, and points verify's deadcode at the branch gate", () => {
+    const scripts = packageScripts();
+    expect(scripts.deadcode).toBe("node scripts/deadcode-gate.mjs");
+    expect(scripts["deadcode:all"]).toBe("knip");
+    expect(scripts.verify).toContain("npm run deadcode");
+    expect(scripts.verify).not.toContain("deadcode:all");
   });
 });
 
