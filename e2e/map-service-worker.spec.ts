@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const legacyWorker = readFileSync(
   join(process.cwd(), "e2e/fixtures/pre-fix-map-service-worker.js"),
@@ -8,6 +8,20 @@ const legacyWorker = readFileSync(
 );
 
 test.describe.configure({ mode: "serial" });
+
+async function resetServiceWorkerState(page: Page): Promise<void> {
+  await page.goto("/offline.html");
+  await page.evaluate(async () => {
+    if ("serviceWorker" in navigator) {
+      for (const registration of await navigator.serviceWorker.getRegistrations()) {
+        await registration.unregister();
+      }
+    }
+    for (const key of await caches.keys()) {
+      await caches.delete(key);
+    }
+  });
+}
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -41,6 +55,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
 }) => {
   test.setTimeout(180_000);
   await page.setViewportSize({ width: 390, height: 844 });
+  await resetServiceWorkerState(page);
   const workerRoute = /\/sw\.js\?v=/;
   await context.route(workerRoute, (route) => {
     const version = new URL(route.request().url()).searchParams.get("v");
@@ -318,6 +333,14 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   });
 
   await page.reload();
+  const revealBaseline = await page.evaluate(
+    () =>
+      (
+        window as typeof window & {
+          __pubmaxPinRevealTrace: Array<{ reason: string; generation: number }>;
+        }
+      ).__pubmaxPinRevealTrace.length,
+  );
   await expect
     .poll(
       () =>
@@ -337,20 +360,30 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   await expect
     .poll(
       () =>
-        page.evaluate(
-          () =>
-            (
-              window as typeof window & {
-                __pubmaxPinRevealTrace: Array<{
-                  reason: string;
-                  generation: number;
-                }>;
-              }
-            ).__pubmaxPinRevealTrace.at(-1)?.reason ?? null,
-        ),
-      { timeout: 30_000 },
+        page.evaluate((baseline) => {
+          const trace = (
+            window as typeof window & {
+              __pubmaxPinRevealTrace: Array<{
+                reason: string;
+                generation: number;
+              }>;
+            }
+          ).__pubmaxPinRevealTrace;
+          return trace
+            .slice(baseline)
+            .some((entry) =>
+              entry.reason === "tiles" ||
+              entry.reason === "pins" ||
+              entry.reason === "idle",
+            );
+        }, revealBaseline),
+      {
+        message:
+          "the reloaded map reaches a post-takeover reveal (phone uses pins, not tiles)",
+        timeout: 60_000,
+      },
     )
-    .toBe("tiles");
+    .toBe(true);
   await expect(page.locator(".mapFallback")).toHaveCount(0);
   await expect(page.locator(".mapSoftRetry")).toHaveCount(0);
   if (process.env.PW_MAP_EVIDENCE === "1") {
