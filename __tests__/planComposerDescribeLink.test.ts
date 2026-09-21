@@ -1,5 +1,8 @@
 // @vitest-environment jsdom
 
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
+  .IS_REACT_ACT_ENVIRONMENT = true;
+
 import { createElement } from "react";
 import { act } from "react";
 import { createRoot, hydrateRoot, type Root } from "react-dom/client";
@@ -58,6 +61,7 @@ import {
   writePlanIntakeDraft,
 } from "@/lib/planIntake";
 import { writePlanDraftEnvelope } from "@/lib/planDraft";
+import * as planOccasion from "@/lib/planOccasion";
 
 const URL_ASK = "Plan a crawl in Soho for 4";
 const DRAFT_ASK = "an older ask nobody asked for again";
@@ -105,21 +109,25 @@ const realLocation = Object.getOwnPropertyDescriptor(window, "location")!;
  * new one. `/pal/chat`'s Open in Plan is that navigation, so the ask it hands
  * over is the one this file's whole rule is about.
  */
+let stagedLocationReadPass = 0;
+let stagedSearchForPass: string | null = null;
+
 function stageClientNavigation(previousSearch: string, nextSearch: string): void {
   setSearch(nextSearch);
-  const live = window.location;
-  let servedPrevious = false;
-  const staged = new Proxy(live, {
-    get(target, prop, receiver) {
-      if (prop === "search" && !servedPrevious) {
-        servedPrevious = true;
-        return previousSearch;
-      }
-      const value = Reflect.get(target, prop, receiver);
-      return typeof value === "function" ? value.bind(target) : value;
-    },
+  stagedLocationReadPass = 0;
+  stagedSearchForPass = null;
+  const describeReal = planOccasion.parsePlanDescribeFromSearch;
+  const handoffReal = planOccasion.parsePlanHandoffQueryFromSearch;
+  vi.spyOn(planOccasion, "parsePlanDescribeFromSearch").mockImplementation(() => {
+    stagedLocationReadPass += 1;
+    const search = stagedLocationReadPass === 1 ? previousSearch : nextSearch;
+    stagedSearchForPass = search;
+    return describeReal(search);
   });
-  Object.defineProperty(window, "location", { configurable: true, get: () => staged });
+  vi.spyOn(planOccasion, "parsePlanHandoffQueryFromSearch").mockImplementation(() => {
+    const search = stagedSearchForPass ?? nextSearch;
+    return handoffReal(search);
+  });
 }
 
 function restoreLocation(): void {
