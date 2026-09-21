@@ -71,6 +71,8 @@ const config: KnipConfig = {
     // The same, for the same-pub identity fixtures: needs TYPESAFE_API_KEY and
     // writes __tests__/fixtures/typesafe/same-pub-probabilities.json.
     "scripts/record_same_pub_fixture_probs.mjs",
+    // Refreshes TypeSafe fixture probabilities for NHLE listing-structure tests.
+    "scripts/record_heritage_structure_fixture_probs.mjs",
 
     // Manual evidence CLIs documented beside their proof output.
     "scripts/map-fix-shots.mjs",

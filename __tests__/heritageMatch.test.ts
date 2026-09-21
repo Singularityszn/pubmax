@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-// The matcher is a plain .mjs build-lib (no .d.ts, matching the repo's other
-// scripts/*.mjs); import it with types suppressed. Same pattern as the other
-// .mjs-in-test imports (see historicIndex.test.ts).
-// prettier-ignore
-// @ts-expect-error -- untyped .mjs module (resolves fine at runtime under vitest)
-import { evaluateMatch, bestMatch, coreTokens, normaliseName, buildFactText, buildingTypeWord, titleCaseName, hasPubMarker, haversineMeters, STRONG_MATCH_M, CONTAIN_MATCH_M } from "../scripts/lib/heritageMatch.mjs";
+import {
+  evaluateMatch,
+  bestMatch,
+  cheapHeritageMatch,
+  listingNamesAdjacentStructure,
+  coreTokens,
+  normaliseName,
+  buildFactText,
+  buildingTypeWord,
+  titleCaseName,
+  hasPubMarker,
+  haversineMeters,
+  STRONG_MATCH_M,
+  CONTAIN_MATCH_M,
+} from "../scripts/lib/heritageMatch.mjs";
 
 // A listed point sitting exactly on the pub, unless overridden.
 const at = (name: string, grade: string, over: Record<string, unknown> = {}) => ({
@@ -127,6 +136,27 @@ describe("evaluateMatch — structure denylist", () => {
   });
 });
 
+describe("cheapHeritageMatch vs keyless STRUCTURE_DENY", () => {
+  it("lets the stables listing through the cheap gate so the Noul can refuse it", () => {
+    const pub = { name: "The Duke of Hamilton", lat: 51.55, lng: -0.18 };
+    const stables = at(
+      "STABLES IN REAR YARD OF THE DUKE OF HAMILTON PUBLIC HOUSE (PUBLIC HOUSE NOT INCLUDED)",
+      "II",
+      { lat: 51.55, lng: -0.18 },
+    );
+    expect(listingNamesAdjacentStructure(pub.name, stables.name)).toBe(true);
+    expect(cheapHeritageMatch(pub, stables).matched).toBe(true);
+    expect(evaluateMatch(pub, stables).matched).toBe(false);
+  });
+
+  it("does not mark The Gate as an adjacent structure", () => {
+    expect(listingNamesAdjacentStructure("The Gate", "THE GATE PUBLIC HOUSE")).toBe(false);
+    const pub = { name: "The Gate", lat: 51.5, lng: -0.1 };
+    const listing = at("THE GATE PUBLIC HOUSE", "II", { lat: 51.5, lng: -0.1 });
+    expect(cheapHeritageMatch(pub, listing).matched).toBe(true);
+  });
+});
+
 describe("bestMatch", () => {
   it("picks the closest passing listing and ignores non-matches", () => {
     const pub = { name: "The Crown", lat: 51.5, lng: -0.1 };
@@ -134,8 +164,9 @@ describe("bestMatch", () => {
     const onIt = at("THE CROWN PUBLIC HOUSE", "II*", { listEntry: 1, lat: 51.5, lng: -0.1 });
     const other = at("THE ANCHOR PUBLIC HOUSE", "II", { listEntry: 3, lat: 51.5, lng: -0.1 });
     const best = bestMatch(pub, [near, other, onIt]);
-    expect(best.listing.listEntry).toBe(1);
-    expect(best.listing.grade).toBe("II*");
+    expect(best).not.toBeNull();
+    expect(best?.listing.listEntry).toBe(1);
+    expect(best?.listing.grade).toBe("II*");
   });
 
   it("returns null when nothing matches", () => {

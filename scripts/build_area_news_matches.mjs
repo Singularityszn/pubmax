@@ -10,6 +10,9 @@
 //
 // Deterministic and reviewable: the match rule lives in one tested module, and
 // the diff to area_news.json shows exactly which facts gained a badge.
+//
+// Judged pass (requires TYPESAFE_API_KEY):
+//   node --import tsx scripts/build_area_news_matches.mjs --judged
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -41,7 +44,29 @@ const MATCH_TARGETS = {
   "the-grapes-limehouse": { name: "The Grapes", borough: "Tower Hamlets" },
 };
 
-function main() {
+async function matchOne(target, venues, judged) {
+  const boroughSlug = slugifyBorough(target.borough);
+  if (!judged) {
+    return { result: matchVenue(target.name, boroughSlug, venues), review: [] };
+  }
+  const { typesafeConfigured, requiresTypesafeKeyMessage } = await import(
+    "../lib/samePubIdentity.ts"
+  );
+  const { judgedMatchVenue } = await import("./lib/areaNewsJudgedMatch.ts");
+  if (!typesafeConfigured()) {
+    throw new Error(requiresTypesafeKeyMessage());
+  }
+  const judgedResult = await judgedMatchVenue(target.name, boroughSlug, venues);
+  return {
+    result: judgedResult.venueId
+      ? { venueId: judgedResult.venueId, confidence: judgedResult.confidence }
+      : null,
+    review: judgedResult.review,
+  };
+}
+
+async function main() {
+  const judged = process.argv.includes("--judged");
   const dataset = JSON.parse(readFileSync(DATASET, "utf8"));
   const payload = JSON.parse(readFileSync(SLIM, "utf8"));
   const venues = Array.isArray(payload)
@@ -53,13 +78,15 @@ function main() {
 
   let matched = 0;
   const report = [];
+  const review = [];
   for (const [id, target] of Object.entries(MATCH_TARGETS)) {
     const entry = byId.get(id);
     if (!entry) {
       report.push(`  SKIP  ${id} (no such entry)`);
       continue;
     }
-    const result = matchVenue(target.name, slugifyBorough(target.borough), venues);
+    const { result, review: rows } = await matchOne(target, venues, judged);
+    review.push(...rows);
     if (result) {
       entry.venueMatch = result;
       matched += 1;
@@ -71,9 +98,23 @@ function main() {
     }
   }
 
+  if (judged) {
+    const { writeSamePubReviewFile } = await import("./lib/samePubJudgedCanonicalize.ts");
+    const reviewPath = await writeSamePubReviewFile(
+      review,
+      ROOT,
+      "data/review/area-news-review.json",
+      "Area-news venue pairs in the uncertain band between the refuse and merge thresholds. Never auto-merged.",
+    );
+    console.log(`area-news: judged pass wrote ${review.length} review-band pair(s) to ${reviewPath}`);
+  }
+
   writeFileSync(DATASET, JSON.stringify(dataset, null, 2) + "\n");
   console.log(report.join("\n"));
   console.log(`\nvenueMatch written: ${matched} of ${Object.keys(MATCH_TARGETS).length} targets, ${dataset.entries.length} entries total.`);
 }
 
-main();
+main().catch((error) => {
+  console.error(error.message ?? error);
+  process.exit(1);
+});

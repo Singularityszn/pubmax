@@ -188,8 +188,8 @@ export type VenueRef = {
   longitude?: number | null;
 };
 
-/** True when an opportunity plausibly refers to the given venue. */
-export function opportunityMatchesVenue(
+/** Cheap tonight gate: name overlap or 120 m proximity. Today's keyless rule. */
+export function cheapTonightVenueCandidate(
   op: TonightOpportunity,
   venue: VenueRef,
 ): boolean {
@@ -214,6 +214,22 @@ export function opportunityMatchesVenue(
     );
   }
   return false;
+}
+
+/**
+ * True when an opportunity plausibly refers to the given venue.
+ * Keyless: the cheap gate is the whole rule. A caller that already ran the
+ * same-pub Noul can pass `samePubMatch` so a review/refuse band never
+ * auto-merges; omitting it keeps today's substring + distance answer.
+ */
+export function opportunityMatchesVenue(
+  op: TonightOpportunity,
+  venue: VenueRef,
+  samePubMatch?: (opName: string, venueName: string) => boolean,
+): boolean {
+  if (!cheapTonightVenueCandidate(op, venue)) return false;
+  if (!samePubMatch) return true;
+  return samePubMatch(normaliseName(op.place?.name), normaliseName(venue.name));
 }
 
 /** Opportunities plausibly happening at this venue tonight. */

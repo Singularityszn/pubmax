@@ -20,6 +20,7 @@ import {
   normalizeOpenPubsCells,
   parseOpenPubsCsv,
   parseCsvNull,
+  collectOpenPubIdentityCandidates,
   // @ts-expect-error -- untyped .mjs module (resolves fine at runtime under vitest)
 } from "../scripts/lib/openPubs.mjs";
 
@@ -167,6 +168,34 @@ describe("matchOpenPubToIdentity", () => {
     expect(matchOpenPubToIdentity(row, index)?.id).toBeTruthy();
     expect(matchOpenPubToIdentity(row, index, { refuseAmbiguous: true })).toBeNull();
     expect(classifyOpenPubMatch(row, index).status).toBe("ambiguous");
+  });
+
+  it("shared-token cheap gate is opt-in so keyless exact/identity rules stay", () => {
+    const row = {
+      fsaId: 9,
+      name: "Kings Head Tavern",
+      address: "1 Market Place",
+      postcode: "KT1 1JT",
+      easting: null,
+      northing: null,
+      lat: 51.4105,
+      lng: -0.3005,
+      localAuthority: "Kingston upon Thames",
+    };
+    const index = buildIdentityIndex([
+      {
+        id: "venue-kings",
+        name: "The Kings Head",
+        lat: 51.41053,
+        lng: -0.30045,
+        layer: "curated",
+      },
+    ]);
+    expect(collectOpenPubIdentityCandidates(row, index)).toEqual([]);
+    expect(classifyOpenPubMatch(row, index).status).toBe("unmatched");
+    const cheap = collectOpenPubIdentityCandidates(row, index, { sharedTokenGate: true });
+    expect(cheap).toHaveLength(1);
+    expect(cheap[0]?.matchType).toBe("shared-token-distance");
   });
 });
 

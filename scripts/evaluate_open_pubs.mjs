@@ -11,6 +11,7 @@
  *   node scripts/evaluate_open_pubs.mjs --csv fixture.csv --identity curated --limit 20
  *   node scripts/evaluate_open_pubs.mjs --csv open_pubs.csv --report data/generated/open_pubs_eval.json
  *   node scripts/evaluate_open_pubs.mjs --csv open_pubs.csv --london --report data/generated/open_pubs_london.json
+ *   node --import tsx scripts/evaluate_open_pubs.mjs --csv fixture.csv --judged
  *
  * See docs/data/OPEN_PUBS.md and docs/data/SOURCE_LEDGER.md.
  */
@@ -30,6 +31,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   OPEN_PUBS_DOWNLOAD_URL,
+  buildIdentityIndex,
   buildLondonCuratedMatchReport,
   evaluateOpenPubsMatches,
   filterOpenPubsRowsForLondon,
@@ -59,6 +61,7 @@ Options:
   --city london       Filter to Greater London authorities; curated identity only
   --london            Alias for --city london
   --report PATH       Write JSON report (match rates + sample misses). Still no slim merge
+  --judged            Same-pub Noul over cheap token+distance candidates (TYPESAFE_API_KEY)
   --help              Show this help
 
 Dry-run only. This script never writes venues_slim or community_prices.`);
@@ -77,6 +80,7 @@ function parseArgs(argv) {
     city: null,
     london: false,
     report: null,
+    judged: false,
     help: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
@@ -99,6 +103,7 @@ function parseArgs(argv) {
       args.city = city || null;
       if (city === "london") args.london = true;
     } else if (a === "--report") args.report = resolve(argv[++i] ?? "");
+    else if (a === "--judged") args.judged = true;
     else if (a.startsWith("-")) {
       console.error(`Unknown flag: ${a}`);
       printUsage(1);
@@ -250,6 +255,43 @@ async function main() {
   if (args.limit != null) rows = rows.slice(0, args.limit);
 
   const candidates = loadIdentityCandidates(args);
+
+  if (args.judged) {
+    const { typesafeConfigured, requiresTypesafeKeyMessage } = await import(
+      "../lib/samePubIdentity.ts"
+    );
+    const { judgedClassifyOpenPubMatch } = await import("./lib/openPubsJudgedMatch.ts");
+    const { writeSamePubReviewFile } = await import("./lib/samePubJudgedCanonicalize.ts");
+    if (!typesafeConfigured()) {
+      console.error(requiresTypesafeKeyMessage());
+      process.exit(1);
+    }
+    const index = buildIdentityIndex(candidates);
+    const review = [];
+    let matched = 0;
+    let unmatched = 0;
+    let ambiguous = 0;
+    let skipped = 0;
+    for (const row of rows) {
+      const classified = await judgedClassifyOpenPubMatch(row, index);
+      review.push(...classified.review);
+      if (classified.status === "matched") matched += 1;
+      else if (classified.status === "ambiguous") ambiguous += 1;
+      else if (classified.status === "skipped") skipped += 1;
+      else unmatched += 1;
+    }
+    const reviewPath = await writeSamePubReviewFile(
+      review,
+      ROOT,
+      "data/review/open-pubs-review.json",
+      "Open Pubs identity pairs in the uncertain band between the refuse and merge thresholds. Never auto-merged.",
+    );
+    console.log(
+      `judged open-pubs (dry-run; no slim merge): matched=${matched} unmatched=${unmatched} ambiguous=${ambiguous} skipped=${skipped}`,
+    );
+    console.log(`wrote ${review.length} review-band pair(s) to ${reviewPath}`);
+    return;
+  }
 
   /** @type {object} */
   let payload;

@@ -174,28 +174,33 @@ export function buildFactText(grade, name) {
 }
 
 /**
- * Decide whether a single NHLE listing is the given pub.
- * pub:     { name, lat, lng }
- * listing: { name, grade, lat, lng }
- * Returns { matched, tier, distanceM } — matched:false when no tier passes.
- * Missing grade or coordinates can never match (honest: no badge without data).
+ * Keyless adjacent-structure rule: the listing names a stables / gateway /
+ * monument / etc. that the pub name itself does not. The judged heritage
+ * pass replaces this with a Noul; evaluateMatch keeps it as today's fallback.
  */
-export function evaluateMatch(pub, listing) {
-  const miss = { matched: false, tier: null, distanceM: Infinity };
-  if (!listing || !String(listing.grade ?? "").trim()) return miss;
+export function listingNamesAdjacentStructure(pubName, listingName) {
+  const pubSet = new Set(coreTokens(pubName));
+  for (const token of coreTokens(listingName)) {
+    if (!pubSet.has(token) && STRUCTURE_DENY.has(token)) return true;
+  }
+  return false;
+}
+
+const MISS = { matched: false, tier: null, distanceM: Infinity };
+
+/**
+ * Cheap heritage gate: grade, coordinates, distance, shared core tokens.
+ * Does NOT apply STRUCTURE_DENY — that is the keyless extra, or a Noul on
+ * the judged path.
+ */
+export function cheapHeritageMatch(pub, listing) {
+  if (!listing || !String(listing.grade ?? "").trim()) return MISS;
   if (![pub.lat, pub.lng, listing.lat, listing.lng].every((n) => Number.isFinite(n))) {
-    return miss;
+    return MISS;
   }
   const pubTokens = coreTokens(pub.name);
   const listTokens = coreTokens(listing.name);
-  if (pubTokens.length === 0 || listTokens.length === 0) return miss;
-
-  // Refuse when the listing names a different structure (stables/gateway/etc.)
-  // that the pub name does not — a same-name neighbour, not the pub building.
-  const pubSet = new Set(pubTokens);
-  for (const token of listTokens) {
-    if (!pubSet.has(token) && STRUCTURE_DENY.has(token)) return miss;
-  }
+  if (pubTokens.length === 0 || listTokens.length === 0) return MISS;
 
   const distanceM = haversineMeters(pub.lat, pub.lng, listing.lat, listing.lng);
 
@@ -210,7 +215,21 @@ export function evaluateMatch(pub, listing) {
   ) {
     return { matched: true, tier: "contained", distanceM };
   }
-  return miss;
+  return MISS;
+}
+
+/**
+ * Decide whether a single NHLE listing is the given pub.
+ * pub:     { name, lat, lng }
+ * listing: { name, grade, lat, lng }
+ * Returns { matched, tier, distanceM } — matched:false when no tier passes.
+ * Missing grade or coordinates can never match (honest: no badge without data).
+ */
+export function evaluateMatch(pub, listing) {
+  const cheap = cheapHeritageMatch(pub, listing);
+  if (!cheap.matched) return cheap;
+  if (listingNamesAdjacentStructure(pub.name, listing.name)) return MISS;
+  return cheap;
 }
 
 /**

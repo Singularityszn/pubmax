@@ -147,6 +147,12 @@ describe("opportunityMatchesVenue", () => {
       false,
     );
   });
+
+  it("never auto-merges when a supplied samePubMatch refuses", () => {
+    expect(
+      opportunityMatchesVenue(op({ place: { name: "The Blue Posts Soho" } }), venue, () => false),
+    ).toBe(false);
+  });
 });
 
 describe("matchOpportunitiesToVenue / eventChipsForVenue", () => {

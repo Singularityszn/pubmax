@@ -28,6 +28,8 @@
 //   node scripts/build_heritage_listings.mjs                 # fetch live NHLE
 //   node scripts/build_heritage_listings.mjs --cache pts.json  # from a cache
 //   node scripts/build_heritage_listings.mjs --dry-run       # print, don't write
+// Judged pass (requires TYPESAFE_API_KEY; structure Noul + same-pub Noul):
+//   node --import tsx scripts/build_heritage_listings.mjs --judged
 
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -253,7 +255,50 @@ async function main() {
   }
   process.stderr.write(`Have ${points.length} listed-building points.\n`);
 
-  const listings = buildListings(venues, points);
+  const judged = argv.includes("--judged");
+  let listings;
+  if (judged) {
+    const { typesafeConfigured, requiresHeritageStructureKeyMessage } = await import(
+      "../lib/heritageListingStructure.ts"
+    );
+    const { judgedBestMatch } = await import("./lib/heritageJudgedMatch.ts");
+    const { writeSamePubReviewFile } = await import("./lib/samePubJudgedCanonicalize.ts");
+    if (!typesafeConfigured()) {
+      process.stderr.write(`${requiresHeritageStructureKeyMessage()}\n`);
+      process.exit(1);
+    }
+    listings = {};
+    const review = [];
+    const grid = indexPoints(points);
+    for (const venue of venues) {
+      const candidates = candidatesFor(grid, venue.lat, venue.lng);
+      const { match, review: rows } = await judgedBestMatch(venue, candidates);
+      review.push(...rows);
+      if (!match?.listing) continue;
+      const fact = buildFactText(match.listing.grade, match.listing.name);
+      if (!fact) continue;
+      listings[venue.id] = {
+        listEntry: match.listing.listEntry,
+        grade: String(match.listing.grade).trim(),
+        listedYear: listedYearOf(match.listing.listDate),
+        name: titleCaseName(match.listing.name),
+        fact,
+        url: LIST_ENTRY_URL(match.listing.listEntry),
+        distanceM: Math.round(match.distanceM),
+      };
+    }
+    const reviewPath = await writeSamePubReviewFile(
+      review,
+      ROOT,
+      "data/review/heritage-listing-review.json",
+      "NHLE listing pairs in the uncertain band between the refuse and merge thresholds. Never auto-merged.",
+    );
+    process.stderr.write(
+      `heritage listings: judged pass wrote ${review.length} review-band pair(s) to ${reviewPath}\n`,
+    );
+  } else {
+    listings = buildListings(venues, points);
+  }
   const matched = Object.keys(listings).length;
   process.stderr.write(`Matched ${matched} pubs to listed buildings.\n`);
 

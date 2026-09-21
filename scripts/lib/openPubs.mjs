@@ -15,6 +15,7 @@
 
 import { normalisePubName } from "./venueMatch.mjs";
 import {
+  cheapSamePubNameCandidate,
   haversineMeters,
   normalizeVenueIdentityName,
   postcodeOutward,
@@ -310,20 +311,22 @@ function postcodesConflict(aOutward, bOutward) {
  * distance). Used by the classifier so ambiguous ties are visible.
  * @param {OpenPubsRow} row
  * @param {IdentityIndex} index
- * @param {{ radiusM?: number }} [opts]
+ * @param {{ radiusM?: number, sharedTokenGate?: boolean }} [opts]
  * @returns {Array<{
  *   id: string,
  *   layer: "curated" | "osm",
  *   name: string,
- *   matchType: "exact-name-distance" | "identity-name-distance",
+ *   address: string | null,
+ *   matchType: "exact-name-distance" | "identity-name-distance" | "shared-token-distance",
  *   distanceM: number,
  *   tier: number,
  *   layerRank: number,
  * }>}
  */
-function collectOpenPubIdentityCandidates(row, index, opts = {}) {
+export function collectOpenPubIdentityCandidates(row, index, opts = {}) {
   if (!row || !Number.isFinite(row.lat) || !Number.isFinite(row.lng)) return [];
   const radiusM = opts.radiusM ?? OPEN_PUBS_MATCH_RADIUS_M;
+  const sharedTokenGate = Boolean(opts.sharedTokenGate);
   const normalized = normalisePubName(row.name);
   const identity = normalizeVenueIdentityName(row.name);
   if (!normalized && !identity) return [];
@@ -331,7 +334,7 @@ function collectOpenPubIdentityCandidates(row, index, opts = {}) {
 
   const latCell = Math.floor(row.lat / INDEX_CELL_DEG);
   const lngCell = Math.floor(row.lng / INDEX_CELL_DEG);
-  /** @type {Array<{ id: string, layer: "curated" | "osm", name: string, matchType: "exact-name-distance" | "identity-name-distance", distanceM: number, tier: number, layerRank: number }>} */
+  /** @type {Array<{ id: string, layer: "curated" | "osm", name: string, address: string | null, matchType: "exact-name-distance" | "identity-name-distance" | "shared-token-distance", distanceM: number, tier: number, layerRank: number }>} */
   const hits = [];
 
   for (let dLat = -1; dLat <= 1; dLat += 1) {
@@ -351,6 +354,15 @@ function collectOpenPubIdentityCandidates(row, index, opts = {}) {
         } else if (identity && candidate.identityName === identity) {
           matchType = "identity-name-distance";
           tier = 1;
+        } else if (
+          sharedTokenGate &&
+          cheapSamePubNameCandidate(
+            identity || normalized,
+            candidate.identityName || candidate.normalizedName,
+          )
+        ) {
+          matchType = "shared-token-distance";
+          tier = 2;
         } else {
           continue;
         }
@@ -360,6 +372,7 @@ function collectOpenPubIdentityCandidates(row, index, opts = {}) {
           id: candidate.id,
           layer: candidate.layer,
           name: candidate.name,
+          address: candidate.address,
           matchType,
           distanceM,
           tier,
