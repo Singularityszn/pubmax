@@ -68,13 +68,31 @@ function makeVenue(prices: VenuePrice[]): Venue {
     cheapestPrice: prices[0]?.price_gbp ?? null,
     cheapestPint: prices[0]?.pint_name ?? "",
     averagePrice: null,
+    hasStory: false,
+    latestContributorPrice: null,
+    latestContributorAt: null,
+    amenities: {
+      food: false,
+      cocktails: false,
+      beerGarden: false,
+      liveSports: false,
+      liveMusic: false,
+      pubQuiz: false,
+      darts: false,
+      pool: false,
+      happyHour: false,
+      karaoke: false,
+      nonAlcoholic: false,
+    },
+    website: "",
+    bookingLink: "",
     imageUrl: "",
     description: "",
     dataQualityNotes: [],
     sourceDatasets: [],
-    curation: { provenance: "seed", sourceLabel: "", sourceUrl: "", licence: "n/a" },
+    curation: {},
     kind: "pub",
-  };
+  } as Venue;
 }
 
 describe("soft-drink subtype classifiers", () => {

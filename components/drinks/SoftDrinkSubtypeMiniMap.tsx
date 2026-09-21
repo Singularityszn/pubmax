@@ -30,9 +30,12 @@ export default function SoftDrinkSubtypeMiniMap({
   if (coords.length === 0) return null;
 
   const bounds = boundsFromCoords(coords);
-  const projected = coords.map((coord) =>
-    projectCoords(coord, bounds, VIEW_W, VIEW_H, PADDING),
-  );
+  if (!bounds) return null;
+  const projected = projectCoords(coords, bounds, {
+    width: VIEW_W,
+    height: VIEW_H,
+    padding: PADDING,
+  });
 
   const mapHref = drinkSubtypePricedMapHref({ subtypeId });
 
@@ -44,11 +47,11 @@ export default function SoftDrinkSubtypeMiniMap({
         aria-label="Map preview of pubs with listed prices. Open the full map."
       >
         <rect width={VIEW_W} height={VIEW_H} className="softDrinksWater__mapBg" />
-        {projected.map(([x, y], index) => (
+        {projected.map((point, index) => (
           <circle
             key={priced[index]?.venueId ?? index}
-            cx={x}
-            cy={y}
+            cx={point.x}
+            cy={point.y}
             r={5}
             className="softDrinksWater__mapDot"
           />
