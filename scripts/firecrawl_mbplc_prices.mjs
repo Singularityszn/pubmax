@@ -24,11 +24,13 @@ import {
   resolveVenueKeyFromPubName,
   slugFromMbplcDrinksUrl,
 } from "./lib/venueMatch.mjs";
+import { assertProviderCredentials, discoverRefreshPages } from "./lib/localRefreshProviders.mjs";
 import {
-  assertProviderCredentials,
-  discoverRefreshPages,
-  fetchRefreshPage,
-} from "./lib/localRefreshProviders.mjs";
+  HarvestMenuTransportError,
+  assertTransportCredentials,
+  createMenuPageHarvester,
+  parseMenuTransportArg,
+} from "./lib/harvestMenuTransport.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -240,14 +242,14 @@ function resolveNicholsonsVenueKey(url, markdown, indexes) {
 
 // Keep this cache path stable. Downstream merge scripts treat it as an input contract.
 
-async function scrapeMenu(url, outPath) {
+async function scrapeMenu(url, outPath, harvester) {
   if (existsSync(outPath)) {
     return readFileSync(outPath, "utf8");
   }
   mkdirSync(dirname(outPath), { recursive: true });
-  const page = await fetchRefreshPage({ job: "rendered-menu", url });
-  writeFileSync(outPath, `${page.markdown.trim()}\n`);
-  return page.markdown;
+  const markdown = await harvester.fetchMenuMarkdown(url);
+  writeFileSync(outPath, `${markdown.trim()}\n`);
+  return markdown;
 }
 
 function parseArgs(argv) {
@@ -275,8 +277,14 @@ function loadExistingUpdates() {
 
 async function main() {
   const { limit, urlsFile } = parseArgs(process.argv);
+  const transport = parseMenuTransportArg();
   const observedAt = new Date().toISOString();
-  assertProviderCredentials(["pub-discovery", "rendered-menu"]);
+  assertTransportCredentials(transport);
+  assertProviderCredentials(["pub-discovery"]);
+  const harvester = createMenuPageHarvester({
+    transport,
+    sourceId: "mitchells-butlers-menu-prices",
+  });
 
   const knownUrls = readFileSync(urlsFile, "utf8")
     .split(/\r?\n/)
@@ -311,10 +319,21 @@ async function main() {
   let matched = 0;
   let unmatched = 0;
 
+  let refused = 0;
   for (const url of urls) {
     const slug = slugFromMbplcDrinksUrl(url) ?? "unknown";
     const cachePath = join(MENU_CACHE, `${slug}.md`);
-    const markdown = await scrapeMenu(url, cachePath);
+    let markdown;
+    try {
+      markdown = await scrapeMenu(url, cachePath, harvester);
+    } catch (error) {
+      if (error instanceof HarvestMenuTransportError && error.code === "policy-refused") {
+        refused += 1;
+        console.warn(`REFUSED ${url}: ${error.message}`);
+        continue;
+      }
+      throw error;
+    }
     scraped += 1;
 
     const venueKey = resolveNicholsonsVenueKey(url, markdown, indexes);
@@ -351,7 +370,7 @@ async function main() {
   writeFileSync(LATEST_PATH, `${JSON.stringify(payload, null, 2)}\n`);
 
   console.log(
-    `\nDone: scraped=${scraped} matched=${matched} unmatched=${unmatched} newRows=${updates.length} totalRows=${merged.length}`,
+    `\nDone: transport=${transport} scraped=${scraped} matched=${matched} unmatched=${unmatched} refused=${refused} newRows=${updates.length} totalRows=${merged.length}`,
   );
   console.log(`Wrote ${dated} and latest.json (merged with existing)`);
 }
