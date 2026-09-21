@@ -146,7 +146,7 @@ function keylessRuntimeForIntent(): boolean {
   return process.env.PUBMAX_E2E_KEYLESS === "1";
 }
 
-function useDeterministicIntentOnly(options: ParseOptions): boolean {
+function shouldUseDeterministicIntentOnly(options: ParseOptions): boolean {
   if (keylessRuntimeForIntent()) return true;
   if (options.skipModel) return true;
   return !typesafeKeyConfigured();
@@ -159,7 +159,7 @@ export async function parseConciergeIntent(
 ): Promise<ParsedConciergeIntent> {
   const clipped = text.slice(0, 500);
   const fallback = deterministicIntent(clipped);
-  if (useDeterministicIntentOnly(options)) {
+  if (shouldUseDeterministicIntentOnly(options)) {
     return { intent: fallback, source: "deterministic" };
   }
   try {
