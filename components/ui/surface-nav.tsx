@@ -28,13 +28,13 @@ import "./surfaceNav.css";
  * beside a pub's name. The destination lives in the accessible name, which is
  * where a reader who cannot see the glyph needs it.
  */
-/**
- * The two icon sizes this affordance draws. Published rather than inlined
+/** The two icon sizes this affordance draws. Published rather than inlined
  * because a browser spec used to restate the number, so a size change here went
  * red over there with nothing having actually broken. A caller that wants to
  * assert the icon reads THIS.
  */
 const SURFACE_NAV_BACK_ICON_SIZE = 20;
+/** @public e2e/mobile-venue-sheet-tabs.spec.ts imports this rendered size; Knip's entry graph does not trace Playwright specs. */
 export const SURFACE_NAV_HOME_ICON_SIZE = 19;
 
 export default function SurfaceNav({
