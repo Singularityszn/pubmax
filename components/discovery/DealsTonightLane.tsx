@@ -73,6 +73,24 @@ export default function DealsTonightLane({
 }: DealsTonightLaneProps) {
   const provided = providedRows !== undefined;
   const [fetchedRows, setFetchedRows] = useState<WhatsOnRow[]>([]);
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    if (now !== undefined) return;
+    const refresh = () => setClock(Date.now());
+    const nextEnd = (providedRows ?? fetchedRows).reduce((soonest, row) => {
+      const end = Date.parse(row.endsAt ?? "");
+      return end > clock ? Math.min(soonest, end) : soonest;
+    }, clock + 60_000);
+    const timer = window.setTimeout(refresh, Math.max(1, nextEnd - Date.now()));
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("pageshow", refresh);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("pageshow", refresh);
+    };
+  }, [now, clock, providedRows, fetchedRows]);
+  const currentTime = now ?? clock;
 
   useEffect(() => {
     if (provided) return; // reuse mode: the host already loaded the spine.
@@ -99,11 +117,11 @@ export default function DealsTonightLane({
   // the page is open leaves the lane rather than sitting there as a promise
   // nobody can keep. The helpers own the clock; the component stays pure.
   const rows = dealCards(
-    provided ? liveDealRowsFrom(providedRows, now) : fetchedRows,
+    provided ? liveDealRowsFrom(providedRows, currentTime) : fetchedRows,
     anchor,
-    now,
+    currentTime,
   );
-  const badgeNow = now === undefined ? undefined : new Date(now);
+  const badgeNow = new Date(currentTime);
 
   if (rows.length === 0) return null;
 
@@ -128,8 +146,8 @@ export default function DealsTonightLane({
           const mapHref = row.venueId
             ? `/map?sel=${encodeURIComponent(row.venueId)}`
             : preferredCityMapHref();
-          const ends = dealEndsCaption(row, now);
-          const listingAge = dealListingAgeCaption(row, now);
+          const ends = dealEndsCaption(row, currentTime);
+          const listingAge = dealListingAgeCaption(row, currentTime);
           return (
             <li key={row.id}>
               <Link prefetch={false}
