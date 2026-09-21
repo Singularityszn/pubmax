@@ -12,6 +12,7 @@ import "server-only";
 
 import { publicApiError } from "@/lib/apiError";
 import { profileMayWearAvatar } from "@/lib/avatarResolve";
+import { resolveProfileProjection } from "@/lib/profileVisibilityBoundary.server";
 import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
 import { downloadProfileImageObject } from "@/lib/profileImageMedia.server";
@@ -60,6 +61,7 @@ type ProfileImageServeRefusal =
   | "storage_unconfigured"
   | "malformed_request"
   | "profile_missing"
+  | "profile_private"
   | "profile_unclaimed"
   | "moderation_not_approved"
   | "image_absent"
@@ -158,6 +160,15 @@ export async function handleProfileImageServe(
   const profile = await deps.getProfileById(id);
   if (!profile) return notFound(slot, "profile_missing", { profileId: id, generation: gen });
 
+  // Covers carry the profile's privacy; avatars remain public recognition.
+  // Check before rotation and storage so every generation follows the same gate.
+  if (slot === "cover") {
+    const projection = await resolveProfileProjection({ request, profile });
+    if (projection.projection !== "full") {
+      return notFound(slot, "profile_private", { profileId: id, generation: gen });
+    }
+  }
+
   const resolved = servingKey(profile, slot, gen);
   let objectKey = "objectKey" in resolved ? resolved.objectKey : null;
   // The row holds ONE generation, and a cover rotation holds up to five. So a
@@ -191,7 +202,7 @@ export async function handleProfileImageServe(
     status: 200,
     headers: {
       "Content-Type": downloaded.contentType,
-      "Cache-Control": PROFILE_IMAGE_SERVE_CACHE_CONTROL,
+      "Cache-Control": slot === "cover" ? "private, no-store" : PROFILE_IMAGE_SERVE_CACHE_CONTROL,
     },
   });
 }
