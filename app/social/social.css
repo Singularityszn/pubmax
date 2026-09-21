@@ -1,6 +1,6 @@
 .socialPage {
   box-sizing: border-box;
-  width: min(100%, 1240px);
+  width: min(100%, var(--content-max-wide));
   min-height: 100svh;
   margin: 0 auto;
   padding: 0 var(--page-gutter) 96px;
@@ -62,6 +62,9 @@
   text-decoration: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  transition:
+    color var(--duration-base) var(--ease-out),
+    background var(--duration-base) var(--ease-out);
 }
 
 .socialSwitcher a + a,
@@ -856,6 +859,12 @@
       );
     justify-content: center;
     gap: 24px;
+  }
+
+  /* Signed-out and other states omit SocialContextRail, which used to reserve
+     a third column and leave ~300px of dead ink beside the door. */
+  .socialLayout:not(:has(.socialContextRail)) {
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
   }
 
   .socialControlRail,
