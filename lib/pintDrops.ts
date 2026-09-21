@@ -50,6 +50,7 @@ import {
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmation";
 import { londonDayKey } from "@/lib/pintContributions";
+import { applyE2ERateLimitAllowance } from "@/lib/e2eRateLimitAllowance";
 import {
   checkRateLimitDurableDetailed,
   isSupabaseConfigured,
@@ -278,6 +279,7 @@ export async function isLimited(
   windowMs = RATE_WINDOW_MS,
   opts?: { failClosed?: boolean },
 ): Promise<boolean> {
+  limit = applyE2ERateLimitAllowance(limit);
   if (!isSupabaseConfigured()) {
     // Pure local dev (no Supabase at all): in-memory result even for
     // fail-closed callers, so local dev keeps working.

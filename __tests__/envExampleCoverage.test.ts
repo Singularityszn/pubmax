@@ -39,6 +39,8 @@ const PLATFORM_OWNED: Record<string, string> = {
   PW_NEXT_DIST_DIR: "playwright.config.ts",
   PW_SCREENSHOTS: "playwright.config.ts (screenshot runs)",
   NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "playwright.config.ts webServer.env",
+  PUBMAX_E2E_RATE_LIMIT_MAX:
+    "playwright.config.ts webServer.env (test-only limiter allowance)",
   // Test seam: redirects the generated venue-detail read at a fixture tree.
   PUBMAX_VENUE_DETAIL_DIR: "test seam (lib/venueDetailIndex.ts)",
 };
