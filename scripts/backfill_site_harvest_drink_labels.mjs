@@ -80,6 +80,7 @@ async function main() {
 
   const cache = new Map();
   for (const url of slice) {
+    try {
     if (!isHarvestableOperatorUrl(url)) {
       console.log(`  skip refused ${url}`);
       continue;
@@ -90,6 +91,9 @@ async function main() {
       continue;
     }
     cache.set(url, pricedRowsFromHtml(fetched.body));
+    } catch (error) {
+      console.log(`  skip error ${url}: ${String(error).slice(0, 120)}`);
+    }
   }
 
   let labeled = 0;
