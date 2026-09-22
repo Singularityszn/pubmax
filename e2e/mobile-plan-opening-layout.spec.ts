@@ -31,18 +31,22 @@ for (const viewport of MOBILE_VIEWPORTS) {
       // are read off the document rather than typed here, so a governed token
       // change moves this assertion with it instead of rotting it: the claim
       // is that the head takes the launch scale, not that the scale is 1.12.
-      const phoneStyles = await page.locator(".planPage__intro h1").evaluate((heading) => {
+      const styleHandle = await page.waitForFunction(() => {
+        const heading = document.querySelector<HTMLElement>(".planPage__intro h1");
+        if (!heading?.isConnected) return false;
         const style = getComputedStyle(heading);
         const root = getComputedStyle(document.documentElement);
-        const fontSize = Number.parseFloat(style.fontSize);
-        return {
-          fontSize,
+        const values = {
+          fontSize: Number.parseFloat(style.fontSize),
           lineHeight: Number.parseFloat(style.lineHeight),
           letterSpacing: Number.parseFloat(style.letterSpacing),
           leadingTight: Number.parseFloat(root.getPropertyValue("--leading-tight")),
           trackingTightEm: Number.parseFloat(root.getPropertyValue("--tracking-tight")),
         };
+        return Object.values(values).every(Number.isFinite) ? values : false;
       });
+      const phoneStyles = await styleHandle.jsonValue();
+      await styleHandle.dispose();
       expect(phoneStyles.leadingTight).toBeGreaterThan(0);
       expect(phoneStyles.lineHeight).toBeCloseTo(
         phoneStyles.fontSize * phoneStyles.leadingTight,
