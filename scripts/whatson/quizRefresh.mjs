@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 /**
  * Refresh the What's-On QUIZ payload (PRD_WHATS_ON B3) from the quiz
  * suppliers' own public venue listings (first-party finders only):
@@ -22,8 +22,8 @@
  * are never fetched or ingested by this script.
  *
  * Usage:
- *   node scripts/whatson/quizRefresh.mjs                  # live fetch
- *   node scripts/whatson/quizRefresh.mjs --from-dir DIR   # offline (tests):
+ *   node --import tsx scripts/whatson/quizRefresh.mjs                  # live fetch
+ *   node --import tsx scripts/whatson/quizRefresh.mjs --from-dir DIR   # offline (tests):
  *     DIR holds saved pages: qo_venues_p*.html, qo_detail/<slug>.html,
  *     sq_find.html
  *
@@ -32,7 +32,7 @@
  */
 
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -193,7 +193,9 @@ async function main() {
   console.log(`dropped: ${JSON.stringify(dropped)}; speedquizzing coverage: ${JSON.stringify(sq)}`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

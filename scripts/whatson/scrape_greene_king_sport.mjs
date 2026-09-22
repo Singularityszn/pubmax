@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 /**
  * Refresh the What's-On SPORT payload (PRD_WHATS_ON B2) from Greene King's own
  * public per-pub pages (first-party chain pages ONLY):
@@ -20,8 +20,8 @@
  *   - Polite: descriptive UA with a contact address, 1.5s between requests.
  *
  * Usage:
- *   node scripts/whatson/scrape_greene_king_sport.mjs                 # live
- *   node scripts/whatson/scrape_greene_king_sport.mjs --from-dir DIR  # offline
+ *   node --import tsx scripts/whatson/scrape_greene_king_sport.mjs                 # live
+ *   node --import tsx scripts/whatson/scrape_greene_king_sport.mjs --from-dir DIR  # offline
  *     DIR holds saved pub pages named <slug>.html (one per menu.json venue).
  *
  * Output:
@@ -31,7 +31,7 @@
  */
 
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -173,7 +173,9 @@ function writeSportPayload(path, payload) {
   writeFileSync(path, body);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

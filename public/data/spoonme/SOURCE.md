@@ -64,7 +64,7 @@ holds the fence.
 ## Refresh
 
 ```bash
-node scripts/spoonme/import-report.mjs
+node --import tsx scripts/spoonme/import-report.mjs
 ```
 
 One fetch of the one page, with the project's own user agent and public contact

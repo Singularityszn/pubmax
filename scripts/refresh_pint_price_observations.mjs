@@ -1,3 +1,4 @@
+#!/usr/bin/env tsx
 // Re-collect the bundled London pint prices from their own source and apply the
 // fresh figures IN PLACE.
 //
@@ -38,8 +39,8 @@
 // non-zero rather than publish a thin re-collection as a full one.
 //
 // Usage:
-//   node scripts/refresh_pint_price_observations.mjs --report-only
-//   node scripts/refresh_pint_price_observations.mjs
+//   node --import tsx scripts/refresh_pint_price_observations.mjs --report-only
+//   node --import tsx scripts/refresh_pint_price_observations.mjs
 
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
@@ -449,4 +450,6 @@ async function main() {
   );
 }
 
-await main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main();
+}

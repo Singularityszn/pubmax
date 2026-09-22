@@ -16,7 +16,7 @@ are documentation of the raw reads, not independently-authored sources.
 
 ## Re-collecting the prices
 
-`node scripts/refresh_pint_price_observations.mjs` re-reads the same 32 borough
+`node --import tsx scripts/refresh_pint_price_observations.mjs` re-reads the same 32 borough
 pages and 932 pub pages the first extract read, and rewrites the PRICE of a row
 the source still states. It can neither add a row nor remove one, so the layered
 artifact below keeps every row it holds. Then stamp the registry:

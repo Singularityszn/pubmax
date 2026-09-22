@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 // Import the SpoonMe units-per-£10 report into a committed data pack.
 //
 // WHY THIS IS AN IMPORT AND NOT A COMPUTATION. The firstmate brief asked for
@@ -22,8 +22,8 @@
 // in the page's own React flight payload, so there is nothing else to ask for.
 //
 // Usage:
-//   node scripts/spoonme/import-report.mjs [--dry-run]
-//   node scripts/spoonme/import-report.mjs --from-file <path> --retrieved-at <ISO>
+//   node --import tsx scripts/spoonme/import-report.mjs [--dry-run]
+//   node --import tsx scripts/spoonme/import-report.mjs --from-file <path> --retrieved-at <ISO>
 //
 // `--from-file` replays bytes already fetched, so it REQUIRES the instant they
 // were really retrieved: a pack that dated itself to the replay would claim a

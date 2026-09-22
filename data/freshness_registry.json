@@ -11,7 +11,7 @@
       "stamp": { "kind": "literal", "value": "2026-09-04T12:00:00Z", "consumedBy": "lib/dataFreshness.ts PINT_DATASET_OBSERVED_AT (build-time import; this stamp is the single source of truth for the pint dataset's collection date — the TS constant is derived from it, never hand-authored)" },
       "cadence": "episodic — re-collected by hand, then re-exported",
       "stalenessBudgetHours": 2160,
-      "refreshWorkflow": "manual (node scripts/refresh_pint_price_observations.mjs → python3 scripts/export_app_dataset_json.py --collected-at <ISO> --stamp-only → npm run canonicalize:venues → npm run build:slim). npm run export:data re-exports the committed CSV and re-collects nothing, and the bundled artifact carries layered rows the CSV does not hold, so it is not the collection step. See data/README.md.",
+      "refreshWorkflow": "manual (node --import tsx scripts/refresh_pint_price_observations.mjs → python3 scripts/export_app_dataset_json.py --collected-at <ISO> --stamp-only → npm run canonicalize:venues → npm run build:slim). npm run export:data re-exports the committed CSV and re-collects nothing, and the bundled artifact carries layered rows the CSV does not hold, so it is not the collection step. See data/README.md.",
       "gate": "none (bundled static; keyless)"
     },
     {
@@ -301,7 +301,7 @@
       "stamp": { "kind": "field", "pointer": "retrievedAt" },
       "cadence": "one-off third-party analysis; re-imported by hand only when SpoonMe republishes",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "manual (node scripts/spoonme/import-report.mjs). The figures are SpoonMe's reading of Wetherspoon menus rather than ours, so nothing we run can lawfully advance them: the lane carries no budget and is named for the day it was retrieved, the same ruling drink_price_updates carries. See data/spoonme/README.md.",
+      "refreshWorkflow": "manual (node --import tsx scripts/spoonme/import-report.mjs). The figures are SpoonMe's reading of Wetherspoon menus rather than ours, so nothing we run can lawfully advance them: the lane carries no budget and is named for the day it was retrieved, the same ruling drink_price_updates carries. See data/spoonme/README.md.",
       "gate": "none to run (one public page fetch). The pack is credited and linked wherever it is printed and may never enter a price lane."
     }
   ]
