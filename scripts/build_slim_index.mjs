@@ -389,6 +389,14 @@ function normaliseDrinkHaystack(value) {
     .replace(/\s+/g, " ");
 }
 
+function normaliseDrinkListText(values) {
+  return values
+    .flatMap((value) => String(value ?? "").split(/[&,;+/]/))
+    .map(normaliseDrinkHaystack)
+    .filter(Boolean)
+    .join(" ; ");
+}
+
 function haystackHasCategoryToken(hay, tokens) {
   return tokens.some((token) => {
     const n = normaliseDrinkHaystack(token);
@@ -402,8 +410,10 @@ function haystackHasCategoryToken(hay, tokens) {
 function buildDrinkHints(prices) {
   const categories = new Set();
   const brands = new Set();
-  const drinkText = normaliseDrinkHaystack(
-    prices.map((price) => price.pint_name).join(" "),
+  // Semicolons survive in the compact hint so subtype matching cannot bridge
+  // adjacent menu items after the full price rows have been left behind.
+  const drinkText = normaliseDrinkListText(
+    prices.map((price) => price.pint_name),
   );
   const hay = normaliseDrinkHaystack(
     [
@@ -928,6 +938,7 @@ async function main() {
 
 export {
   assertCurrentFamousVenueRows,
+  buildDrinkHints,
   buildCurationHints,
   typeRelativePriceBands,
 };
