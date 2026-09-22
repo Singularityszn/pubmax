@@ -50,6 +50,17 @@ describe("detectWhatsOnIntent", () => {
     });
   });
 
+  it("retains an outing handoff's exact date and London start time", () => {
+    expect(
+      detectWhatsOnIntent("Find live music in Camden, on 2026-09-27, around 19:30"),
+    ).toMatchObject({
+      kind: "music",
+      area: "Camden",
+      date: "2026-09-27",
+      time: "19:30",
+    });
+  });
+
   it("does not treat 'me'/'here' as an area", () => {
     expect(detectWhatsOnIntent("quiz near me")?.area).toBeUndefined();
     expect(detectWhatsOnIntent("what's on near here")?.area).toBeUndefined();

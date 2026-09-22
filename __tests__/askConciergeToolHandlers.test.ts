@@ -10,6 +10,7 @@ const state = {
   prices: { prices: [] as CommunityPrice[], degraded: false },
   whatsOn: { rows: [] as WhatsOnRow[], kindObservedAt: {} },
   outRows: [] as WhatsOnRow[],
+  servedOutRows: [] as WhatsOnRow[],
   outDay: null as string | null,
   whatsOnThrows: false,
   whatsOnReadStatus: "ready" as "ready" | "degraded",
@@ -24,6 +25,10 @@ vi.mock("@/lib/out/loadOut", () => ({
       listingsStatus: "ready",
     };
   }),
+  loadServedOutEvents: vi.fn(async () => ({
+    rows: state.servedOutRows,
+    readStatus: state.whatsOnReadStatus,
+  })),
 }));
 
 vi.mock("@/lib/concierge/venues.server", () => ({
@@ -114,6 +119,7 @@ beforeEach(() => {
   state.prices = { prices: [], degraded: false };
   state.whatsOn = { rows: [], kindObservedAt: {} };
   state.outRows = [];
+  state.servedOutRows = [];
   state.outDay = null;
   state.whatsOnThrows = false;
   state.whatsOnReadStatus = "ready";
@@ -783,6 +789,53 @@ describe("dance listings", () => {
 });
 
 describe("music outing parity", () => {
+  it("matches the exact browse date and London start time instead of falling back to today", async () => {
+    state.servedOutRows = [
+      {
+        id: "event-exact",
+        kind: "event",
+        title: "Sunday live music",
+        placeName: "Camden venue",
+        area: "Camden",
+        startsAt: "2026-09-27T18:30:00.000Z",
+        source: { label: "Event publisher", url: "https://example.com/exact" },
+        observedAt: "2026-08-15T12:00:00.000Z",
+        confidence: "listed",
+      },
+      {
+        id: "event-wrong-time",
+        kind: "event",
+        title: "Later Sunday live music",
+        placeName: "Camden venue",
+        area: "Camden",
+        startsAt: "2026-09-27T19:30:00.000Z",
+        source: { label: "Event publisher", url: "https://example.com/later" },
+        observedAt: "2026-08-15T12:00:00.000Z",
+        confidence: "listed",
+      },
+      {
+        id: "event-wrong-date",
+        kind: "event",
+        title: "Monday live music",
+        placeName: "Camden venue",
+        area: "Camden",
+        startsAt: "2026-09-28T18:30:00.000Z",
+        source: { label: "Event publisher", url: "https://example.com/monday" },
+        observedAt: "2026-08-15T12:00:00.000Z",
+        confidence: "listed",
+      },
+    ];
+
+    const result = await runAskTool(
+      "whats_on",
+      { query: "Find live music in Camden, on 2026-09-27, around 19:30" },
+      ctx(),
+    );
+
+    expect(result.cards.map((card) => card.title)).toEqual(["Sunday live music"]);
+    expect(state.outDay).toBeNull();
+  });
+
   it("reads the browse event source and retains tomorrow", async () => {
     state.whatsOn.rows = [
       {

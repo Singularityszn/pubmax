@@ -17,6 +17,7 @@ import {
   buildWhatsOnAnswer,
   detectWhatsOnIntent,
   filterRowsByArea,
+  filterRowsByDateTime,
   filterRowsByWeekday,
   whatsOnAskCardNote,
 } from "@/lib/concierge/whatsOn";
@@ -28,7 +29,7 @@ import {
   formatJourneyPoint,
 } from "@/lib/citymcp/client";
 import { fetchCityArea } from "@/lib/citymcp/area";
-import { buildOutResponse, type OutDay } from "@/lib/out/loadOut";
+import { buildOutResponse, loadServedOutEvents, type OutDay } from "@/lib/out/loadOut";
 import { outListingKind } from "@/lib/out/listingKind";
 import { retrieveHeritage } from "@/lib/heritage";
 import { loadWhatsOn } from "@/lib/whatsOnStore";
@@ -208,7 +209,10 @@ async function toolWhatsOn(
             : detected.window === "tonight"
               ? "today"
               : null;
-    const eventListings = detected.dancing || musicDay
+    const exactEventListings = detected.date && (detected.dancing || detected.kind === "music")
+      ? await loadServedOutEvents(ctx.cityId, ctx.now)
+      : null;
+    const eventListings = !exactEventListings && (detected.dancing || musicDay)
       ? await buildOutResponse(
           {
             city: ctx.cityId,
@@ -223,7 +227,15 @@ async function toolWhatsOn(
           { now: ctx.now },
         )
       : null;
-    const { rows, asOf, readStatus } = eventListings
+    const { rows, asOf, readStatus } = exactEventListings
+      ? {
+          rows: exactEventListings.rows.filter(
+            (row) => outListingKind(row) === (detected.dancing ? "club-night" : "gig"),
+          ),
+          asOf: exactEventListings.rows.map((row) => row.observedAt).sort().at(-1) ?? null,
+          readStatus: exactEventListings.readStatus,
+        }
+      : eventListings
       ? {
           rows: eventListings.events.filter(
             (row) =>
@@ -246,6 +258,7 @@ async function toolWhatsOn(
     if (detected.window === "weekday" && detected.weekday !== undefined) {
       matched = filterRowsByWeekday(matched, detected.weekday);
     }
+    matched = filterRowsByDateTime(matched, detected.date, detected.time);
     // A failed bundled read answers no market claim only when it returned no
     // grounded matches. Preserve real source rows, but say the result may be
     // incomplete so partial availability is never dressed up as exhaustive.

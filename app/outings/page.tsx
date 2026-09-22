@@ -7,7 +7,7 @@ import { OutCardBody } from "@/components/out/OutCard";
 import { HomeTimingControl } from "@/components/out/HomeTimingControl";
 import { SafeNightStrip } from "@/components/night/SafeNightStrip";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
-import { filterRowsByArea } from "@/lib/concierge/whatsOn";
+import { filterRowsByArea, filterRowsByDateTime } from "@/lib/concierge/whatsOn";
 import { buildOutResponse, loadServedOutEvents } from "@/lib/out/loadOut";
 import { outListingKind } from "@/lib/out/listingKind";
 import { loadOutingPriceEvidence } from "@/lib/outingEvidence.server";
@@ -22,6 +22,8 @@ import {
 } from "@/lib/outingOccasions";
 import { outingShareContextParams } from "@/lib/outingShareContext";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+import type { WhatsOnRow } from "@/lib/whatsOn";
+import { eventIdentityKey } from "@/lib/whatsOnRowShape.mjs";
 import styles from "./outings.module.css";
 import "../out/out.css";
 
@@ -36,31 +38,18 @@ export const metadata: Metadata = {
   },
 };
 
-function londonDateForEvent(row: { startsDate?: string; startsAt?: string }): string | null {
-  if (row.startsDate && /^\d{4}-\d{2}-\d{2}$/.test(row.startsDate)) return row.startsDate;
-  if (!row.startsAt || !Number.isFinite(Date.parse(row.startsAt))) return null;
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date(row.startsAt));
-  const values = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
-  return values.year && values.month && values.day
-    ? `${values.year}-${values.month}-${values.day}`
-    : null;
+function outingListingKey(row: WhatsOnRow): string {
+  return eventIdentityKey(row) ?? `${row.source.label.trim().toLocaleLowerCase("en-GB")}|${row.id}`;
 }
 
-function londonTimeForEvent(row: { startsAt?: string }): string | null {
-  if (!row.startsAt || !Number.isFinite(Date.parse(row.startsAt))) return null;
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date(row.startsAt));
-  const values = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
-  return values.hour && values.minute ? `${values.hour}:${values.minute}` : null;
+function dedupeOutingRows(rows: WhatsOnRow[]): WhatsOnRow[] {
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    const key = outingListingKey(row);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export default async function OutingsPage({
@@ -85,12 +74,9 @@ export default async function OutingsPage({
     ? await loadServedOutEvents("london")
     : null;
   const relevantRows = datedListing
-    ? [...datedListing.rows, ...(listing?.events ?? [])].filter((row, index, rows) => rows.findIndex((candidate) => candidate.id === row.id) === index)
+    ? dedupeOutingRows([...datedListing.rows, ...(listing?.events ?? [])])
     : listing?.events ?? [];
-  const eventRows = relevantRows.filter((row) =>
-    (!intent.date || londonDateForEvent(row) === intent.date) &&
-    (!intent.time || londonTimeForEvent(row) === intent.time),
-  );
+  const eventRows = filterRowsByDateTime(relevantRows, intent.date, intent.time);
   const selectedEventRows = eventRows.filter(
     (row) => outListingKind(row) === (occasion === "dancing" ? "club-night" : "gig"),
   );
@@ -228,7 +214,7 @@ export default async function OutingsPage({
             {events.length ? (
               <ul className={styles.results}>
                 {events.map((row) => (
-                  <li key={row.id}>
+                  <li key={outingListingKey(row)}>
                     <OutCardBody row={row} />
                     <p>
                       {row.endsAt

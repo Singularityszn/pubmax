@@ -15,6 +15,7 @@ import {
   type WhatsOnKind,
   type WhatsOnRow,
 } from "@/lib/whatsOn";
+import { isCalendarDate } from "@/lib/whatsOnRowShape.mjs";
 
 // A parsed What's-On concierge request. `window` is time-awareness: "tonight"
 // clamps to this evening's London window; a named weekday clamps to that day;
@@ -25,6 +26,8 @@ export type WhatsOnQuery = {
   window?: "tonight" | "weekday";
   weekday?: number; // 0=Sun..6=Sat, only when window === "weekday"
   area?: string;
+  date?: string;
+  time?: string;
 };
 
 // Per-kind natural-language triggers. Order matters only for the human label;
@@ -99,6 +102,11 @@ export function detectWhatsOnIntent(text: string): WhatsOnQuery | null {
   const area = detectArea(text);
   if (area) query.area = area;
 
+  const date = text.match(/\b\d{4}-\d{2}-\d{2}\b/)?.[0];
+  if (date && isCalendarDate(date)) query.date = date;
+  const time = text.match(/\b(?:around|at)\s+((?:[01]\d|2[0-3]):[0-5]\d)\b/i)?.[1];
+  if (time) query.time = time;
+
   return query;
 }
 
@@ -137,6 +145,53 @@ export function londonWeekday(iso: string | undefined): number | null {
 /** Filter rows whose London startsAt falls on the given weekday (0=Sun..6=Sat). */
 export function filterRowsByWeekday(rows: WhatsOnRow[], weekday: number): WhatsOnRow[] {
   return rows.filter((row) => londonWeekday(row.startsAt) === weekday);
+}
+
+export function londonDateForWhatsOnRow(
+  row: Pick<WhatsOnRow, "startsAt" | "startsDate">,
+): string | null {
+  if (row.startsDate && isCalendarDate(row.startsDate)) return row.startsDate;
+  if (!row.startsAt || !Number.isFinite(Date.parse(row.startsAt))) return null;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(row.startsAt));
+  const values = Object.fromEntries(
+    parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]),
+  );
+  return values.year && values.month && values.day
+    ? `${values.year}-${values.month}-${values.day}`
+    : null;
+}
+
+export function londonTimeForWhatsOnRow(
+  row: Pick<WhatsOnRow, "startsAt">,
+): string | null {
+  if (!row.startsAt || !Number.isFinite(Date.parse(row.startsAt))) return null;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(row.startsAt));
+  const values = Object.fromEntries(
+    parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]),
+  );
+  return values.hour && values.minute ? `${values.hour}:${values.minute}` : null;
+}
+
+export function filterRowsByDateTime(
+  rows: WhatsOnRow[],
+  date?: string,
+  time?: string,
+): WhatsOnRow[] {
+  return rows.filter(
+    (row) =>
+      (!date || londonDateForWhatsOnRow(row) === date) &&
+      (!time || londonTimeForWhatsOnRow(row) === time),
+  );
 }
 
 // Grounded, provenance-carrying listing DTO returned to the client. Mirrors the

@@ -4,6 +4,7 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
 
 const state = vi.hoisted(() => ({
   outEvents: [] as WhatsOnRow[],
+  servedOutEvents: [] as WhatsOnRow[],
   outDay: null as string | null,
   venues: [] as import("@/lib/concierge/rank").ConciergeVenue[],
 }));
@@ -23,7 +24,7 @@ vi.mock("@/lib/out/loadOut", () => ({
     state.outDay = query.day;
     return { events: state.outEvents, listingsStatus: "ready" };
   },
-  loadServedOutEvents: async () => ({ rows: state.outEvents, readStatus: "ready" }),
+  loadServedOutEvents: async () => ({ rows: state.servedOutEvents, readStatus: "ready" }),
 }));
 import OutingsPage, { metadata } from "@/app/outings/page";
 
@@ -46,6 +47,7 @@ function listing(overrides: Partial<WhatsOnRow>): WhatsOnRow {
 describe("public outing browse", () => {
   beforeEach(() => {
     state.outEvents = [];
+    state.servedOutEvents = [];
     state.outDay = null;
     state.venues = [];
   });
@@ -177,6 +179,38 @@ describe("public outing browse", () => {
     expect(html).toContain("Add pubs before or after the event");
     expect(html).toContain("name=\"homeTime\"");
     expect(html).not.toMatch(/href="[^"]*homeTime/);
+  });
+
+  it("keeps cross-provider listings that reuse the same local id", async () => {
+    state.outEvents = [
+      listing({
+        id: "shared-42",
+        sourceId: "provider-local-42",
+        title: "Ticketmaster live music",
+        kind: "event",
+        startsAt: "2026-09-27T18:30:00.000Z",
+        source: { label: "Ticketmaster", url: "https://tickets.example/shared-42" },
+      }),
+    ];
+    state.servedOutEvents = [
+      listing({
+        id: "shared-42",
+        sourceId: "provider-local-42",
+        title: "Skiddle live music",
+        kind: "event",
+        startsAt: "2026-09-27T18:30:00.000Z",
+        source: { label: "Skiddle", url: "https://skiddle.example/shared-42" },
+      }),
+    ];
+
+    const html = renderToStaticMarkup(
+      await OutingsPage({
+        searchParams: Promise.resolve({ occasion: "music", date: "2026-09-27" }),
+      }),
+    );
+
+    expect(html).toContain("Ticketmaster live music");
+    expect(html).toContain("Skiddle live music");
   });
 
   it("shows dated price provenance, explicit missing prices and garden weather gaps", async () => {
