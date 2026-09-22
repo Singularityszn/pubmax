@@ -1,27 +1,17 @@
 {
   "$comment": "Sourced, dated London pub news from Keenable search_web_pages and fetch_page_content. Every entry carries a real https sourceUrl and observedAt. confidence:'social' marks self-reported price sightings, news-layer texture only, never a Pint Index input. venueMatch is written by scripts/build_area_news_matches.mjs. Refresh: npm run refresh:area-news. See lib/areaNews.ts and data/freshness_registry.json.",
   "version": 1,
-  "generatedAt": "2026-08-28T07:05:17.997Z",
+  "generatedAt": "2026-09-22T18:20:27.228Z",
   "entries": [
     {
-      "id": "area-news-5d5066f27b6150c5",
-      "area": "hampstead",
-      "kind": "closure",
-      "title": "The Magdala Tavern closed due to pest infestation",
-      "detail": "The Magdala Tavern in Hampstead was closed in 2026 due to an active uncontrolled mice and cockroach infestation following a hygiene emergency prohibition notice. The report was published on 21 August 2026.",
-      "sourceUrl": "https://www.london-now.co.uk/news/26485962.magdala-tavern-closes-due-mice-cockroach-infestation/",
-      "sourceName": "london-now.co.uk",
-      "observedAt": "2026-08-21"
-    },
-    {
-      "id": "area-news-66cf49011a3e1477",
-      "area": "croydon",
-      "kind": "refurb",
-      "title": "The George pub in Croydon",
-      "detail": "The popular George pub in Croydon recently underwent a substantial transformation and was shut down temporarily at the end of May, reopening at the end of July 2026 after two months of improvements. The report was published on 7 August 2026.",
-      "sourceUrl": "https://www.london-now.co.uk/news/26433990.london-wetherspoons-temporarily-closed-refurbishment/",
-      "sourceName": "london-now.co.uk",
-      "observedAt": "2026-08-07"
+      "id": "area-news-6dcbf39254e28d3d",
+      "area": "greenwich",
+      "kind": "buzz",
+      "title": "The Green Goddess joins Orbit ESB release",
+      "detail": "On 3 September 2026, Orbit Beers announced that The Green Goddess would receive its new ESB for Cask Ale Week.",
+      "sourceUrl": "https://orbitbeers.com/blogs/news/our-new-esb-for-cask-ale-week",
+      "sourceName": "orbitbeers.com",
+      "observedAt": "2026-09-03"
     },
     {
       "id": "horsemen-fitzgeralds-opening",
