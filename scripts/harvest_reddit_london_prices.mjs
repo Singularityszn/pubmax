@@ -21,7 +21,7 @@ import {
 import { redditDecisionFromJudgment } from "../lib/harvest/redditPriceJudgmentPolicy.ts";
 import { judgeRedditPriceCandidate } from "../lib/harvest/redditPriceJudgment.server.ts";
 import { matchPubNameToVenue } from "./lib/redditVenueMatch.mjs";
-import { isHarvestableRedditUrl } from "../lib/harvest/sourcePolicy.ts";
+import { harvestSourcesOfKind, isHarvestableRedditUrl } from "../lib/harvest/sourcePolicy.ts";
 import { createRobotsChecker } from "../lib/harvest/robots.ts";
 import { isValidCommunityPriceObservationRow, observationToCommunityPrice } from "../lib/communityPriceObservation.ts";
 import { fetchBoundedHarvestResource } from "./lib/boundedHarvestResource.mjs";
@@ -118,10 +118,7 @@ async function tavilySearch(query, spend) {
   const body = await res.json();
   return (body.results ?? [])
     .filter((r) => isHarvestableRedditUrl(r?.url))
-    .map((r) => ({
-      url: r.url,
-      content: [r.title, r.content].filter(Boolean).join("\n"),
-    }));
+    .map((r) => ({ url: r.url }));
 }
 
 async function processComments(comments, venues, state, spend) {
@@ -167,6 +164,8 @@ async function processComments(comments, venues, state, spend) {
         venueId: match.venueId,
         drinkCategory: decision.drinkCategory,
         drinkName: row.drinkText,
+        ...(row.measure ? { measure: row.measure } : {}),
+        ...(row.measureLabel ? { measureLabel: row.measureLabel } : {}),
         priceGbp: row.priceGbp,
         observedAt: row.observedAt,
         source: "reddit",
@@ -210,12 +209,13 @@ async function main() {
     const payload = JSON.parse(readFileSync(FIXTURE, "utf8"));
     await processComments(commentsFromRedditThreadPayload(payload), venues, state, spend);
   } else {
-    const subredditListings = [
-      "https://www.reddit.com/r/london/search.json?q=pint+price&restrict_sr=on&sort=relevance&t=year&limit=25",
-      "https://www.reddit.com/r/londonpubs/search.json?q=pint+%C2%A3&restrict_sr=on&sort=relevance&t=year&limit=25",
-      "https://www.reddit.com/r/CasualUK/search.json?q=pint+London+%C2%A3&restrict_sr=on&sort=relevance&t=year&limit=25",
-    ];
-    for (const listingUrl of subredditListings) {
+    const sources = harvestSourcesOfKind("community-price-observations");
+    for (const source of sources) {
+      const listingUrl = source.url;
+      if (!source.access.allowed) {
+        state.review.push({ sourceUrl: listingUrl, reason: `${source.access.reason}: ${source.access.evidence}` });
+        continue;
+      }
       try {
         const payload = await fetchRedditJson(listingUrl);
         const posts = payload?.data?.children ?? [];
@@ -236,7 +236,7 @@ async function main() {
       }
     }
 
-    for (const q of state.queries) {
+    for (const q of sources.some((source) => source.access.allowed) ? state.queries : []) {
       const hits = await tavilySearch(q, spend);
       for (const hit of hits) {
         try {

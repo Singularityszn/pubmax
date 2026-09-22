@@ -50,7 +50,8 @@ export type HarvestSourceKind =
   // A chain's own list of the pubs it runs today. It names pubs, places and
   // opening hours and never a price, which is why it is not a flavour of
   // `chain-menu-prices`.
-  | "pub-directory";
+  | "pub-directory"
+  | "community-price-observations";
 
 type HarvestSourceAccess =
   | { allowed: true; evidence: string; checkedOn: string }
@@ -118,6 +119,51 @@ const EVENTS_CHECKED_ON = "2026-09-07";
 const DIRECTORY_CHECKED_ON = "2026-09-14";
 
 export const HARVEST_SOURCES: readonly HarvestSource[] = [
+  {
+    id: "reddit-london-prices",
+    label: "Reddit - London community price observations",
+    url: "https://www.reddit.com/r/london/search.json?q=pint+price&restrict_sr=on&sort=relevance&t=year&limit=25",
+    kind: "community-price-observations",
+    firstParty: false,
+    nonFirstPartyException: "The captain authorized dated, first-person London community price observations on 2026-09-22. These remain attributed community evidence, never operator menu prices or PUBMAXX account reports.",
+    access: {
+      allowed: false,
+      reason: "robots-disallowed",
+      evidence: "The 2026-09-22 bounded harvest read www.reddit.com/robots.txt: User-agent * Disallow / refused this listing. Recorded in data/review/reddit_london_prices_report.json; no thread content was fetched.",
+      checkedOn: "2026-09-22",
+    },
+    notes: "Product authorization does not override source permission. Keep this lane closed until the registry records established access; every admitted request must still pass live robots checks.",
+  },
+  {
+    id: "reddit-londonpubs-prices",
+    label: "Reddit - London pubs community price observations",
+    url: "https://www.reddit.com/r/londonpubs/search.json?q=pint+%C2%A3&restrict_sr=on&sort=relevance&t=year&limit=25",
+    kind: "community-price-observations",
+    firstParty: false,
+    nonFirstPartyException: "The captain authorized dated, first-person London community price observations on 2026-09-22. These remain attributed community evidence, never operator menu prices or PUBMAXX account reports.",
+    access: {
+      allowed: false,
+      reason: "robots-disallowed",
+      evidence: "The 2026-09-22 bounded harvest read www.reddit.com/robots.txt: User-agent * Disallow / refused this listing. Recorded in data/review/reddit_london_prices_report.json; no thread content was fetched.",
+      checkedOn: "2026-09-22",
+    },
+    notes: "Product authorization does not override source permission. Keep this lane closed until the registry records established access; every admitted request must still pass live robots checks.",
+  },
+  {
+    id: "reddit-casualuk-prices",
+    label: "Reddit - CasualUK community price observations",
+    url: "https://www.reddit.com/r/CasualUK/search.json?q=pint+London+%C2%A3&restrict_sr=on&sort=relevance&t=year&limit=25",
+    kind: "community-price-observations",
+    firstParty: false,
+    nonFirstPartyException: "The captain authorized dated, first-person London community price observations on 2026-09-22. These remain attributed community evidence, never operator menu prices or PUBMAXX account reports.",
+    access: {
+      allowed: false,
+      reason: "robots-disallowed",
+      evidence: "The 2026-09-22 bounded harvest read www.reddit.com/robots.txt: User-agent * Disallow / refused this listing. Recorded in data/review/reddit_london_prices_report.json; no thread content was fetched.",
+      checkedOn: "2026-09-22",
+    },
+    notes: "Product authorization does not override source permission. Keep this lane closed until the registry records established access; every admitted request must still pass live robots checks.",
+  },
   // --- chain deals: first-party operator offers pages ----------------------
   {
     id: "wetherspoon-food-drink",
@@ -716,9 +762,12 @@ export function isHarvestableRedditUrl(value: unknown): value is string {
   if (typeof value !== "string") return false;
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && url.hostname === "www.reddit.com" &&
-      !url.username && !url.password && !url.port &&
-      /^\/r\/[a-z0-9_]+\/(?:search\.json|comments\/[a-z0-9]+\/[^/]+(?:\/[a-z0-9]+)?\/?(?:\.json)?)$/i.test(url.pathname);
+    const path = /^\/r\/([a-z0-9_]+)\/(?:search\.json|comments\/[a-z0-9]+\/[^/]+(?:\/[a-z0-9]+)?\/?(?:\.json)?)$/i.exec(url.pathname);
+    if (url.protocol !== "https:" || url.hostname !== "www.reddit.com" ||
+      url.username || url.password || url.port || !path) return false;
+    return allowedHarvestSources("community-price-observations").some((source) =>
+      new URL(source.url).pathname.split("/")[2]?.toLowerCase() === path[1].toLowerCase(),
+    );
   } catch {
     return false;
   }

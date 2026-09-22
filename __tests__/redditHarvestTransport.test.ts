@@ -2,6 +2,14 @@ import { describe, expect, it, vi } from "vitest";
 // @ts-expect-error Plain-node CLI exports are exercised directly.
 import { fetchRedditJson, redditJsonUrl } from "../scripts/harvest_reddit_london_prices.mjs";
 
+// Transport behavior after admission uses a mocked policy. The real registry's
+// current refusal is covered independently in redditSourcePolicy.test.ts.
+vi.mock("@/lib/harvest/sourcePolicy", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/harvest/sourcePolicy")>(),
+  isHarvestableRedditUrl: (value: unknown) => typeof value === "string" &&
+    /^https:\/\/www\.reddit\.com\/r\/london\/(?:search\.json\?|comments\/1abc234\/pints)/.test(value),
+}));
+
 const url = "https://www.reddit.com/r/london/comments/1abc234/pints/";
 const allowed = async () => ({ allowed: true, reason: "allowed", evidence: "test" });
 
