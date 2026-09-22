@@ -9,7 +9,7 @@ const htmlFetch = async () =>
   });
 
 type MockRoute = {
-  request: () => { url: () => string; resourceType: () => string };
+  request: () => { url: () => string; resourceType: () => string; method: () => string };
   abort: (reason?: string) => Promise<void>;
   continue: () => Promise<void>;
   fulfill: (options: { status: number; headers: Record<string, string>; body: Buffer }) => Promise<void>;
@@ -45,6 +45,56 @@ function makePage(
 }
 
 describe("local rendered menu page", () => {
+  it("checks script redirects before fetching their destination", async () => {
+    const { browserType, getRouteHandler } = makePage();
+    const scriptUrl = "https://www.greeneking.co.uk/menu.js";
+    const fetchImpl = vi.fn(async (url: Parameters<typeof fetch>[0]) => String(url) === MENU_URL
+      ? htmlFetch()
+      : new Response(null, { status: 302, headers: { location: "https://evil.example/menu.js" } }));
+    await fetchLocalPlaywrightMenuPage(MENU_URL, {
+      sourceId: "greene-king-menu-prices",
+      browserType,
+      fetchImpl,
+      robotsChecker: async () => ({ allowed: true, reason: "allowed", evidence: "fixture" }),
+    });
+    const route = {
+      request: () => ({ url: () => scriptUrl, resourceType: () => "script", method: () => "GET" }),
+      abort: vi.fn(async () => {}),
+      continue: vi.fn(async () => {}),
+      fulfill: vi.fn(async () => {}),
+    };
+    await getRouteHandler()?.(route);
+    expect(route.abort).toHaveBeenCalledWith("blockedbyclient");
+    expect(route.continue).not.toHaveBeenCalled();
+    expect(fetchImpl.mock.calls.map(([url]) => url)).toEqual([MENU_URL, scriptUrl]);
+  });
+
+  it("serves checked script bytes and disables service workers", async () => {
+    const { browser, browserType, getRouteHandler } = makePage();
+    const scriptUrl = "https://www.greeneking.co.uk/menu.js";
+    await fetchLocalPlaywrightMenuPage(MENU_URL, {
+      sourceId: "greene-king-menu-prices",
+      browserType,
+      fetchImpl: async (url: Parameters<typeof fetch>[0]) => String(url) === MENU_URL
+        ? htmlFetch()
+        : new Response("window.menuReady = true;", { headers: { "content-type": "text/javascript" } }),
+      robotsChecker: async () => ({ allowed: true, reason: "allowed", evidence: "fixture" }),
+    });
+    const route = {
+      request: () => ({ url: () => scriptUrl, resourceType: () => "script", method: () => "GET" }),
+      abort: vi.fn(async () => {}),
+      continue: vi.fn(async () => {}),
+      fulfill: vi.fn(async () => {}),
+    };
+    await getRouteHandler()?.(route);
+    expect(route.fulfill).toHaveBeenCalledWith(expect.objectContaining({
+      status: 200,
+      body: Buffer.from("window.menuReady = true;"),
+    }));
+    expect(route.continue).not.toHaveBeenCalled();
+    expect(browser.newPage).toHaveBeenCalledWith(expect.objectContaining({ serviceWorkers: "block" }));
+  });
+
   it("refuses URL policy failures before launching Chromium", async () => {
     const { browserType } = makePage();
     await expect(
@@ -68,7 +118,7 @@ describe("local rendered menu page", () => {
     expect(result.finalUrl).toBe(MENU_URL);
 
     const route = {
-      request: () => ({ url: () => "https://evil.example/pixel.js", resourceType: () => "script" }),
+      request: () => ({ url: () => "https://evil.example/pixel.js", resourceType: () => "script", method: () => "GET" }),
       abort: vi.fn(async () => {}),
       continue: vi.fn(async () => {}),
       fulfill: vi.fn(async () => {}),
@@ -78,7 +128,7 @@ describe("local rendered menu page", () => {
     expect(route.continue).not.toHaveBeenCalled();
 
     const documentRoute = {
-      request: () => ({ url: () => MENU_URL, resourceType: () => "document" }),
+      request: () => ({ url: () => MENU_URL, resourceType: () => "document", method: () => "GET" }),
       abort: vi.fn(async () => {}),
       continue: vi.fn(async () => {}),
       fulfill: vi.fn(async () => {}),
@@ -110,7 +160,7 @@ describe("local rendered menu page", () => {
   it("blocks same-origin paths disallowed by robots", async () => {
     const { browserType, getRouteHandler } = makePage();
     const route = {
-      request: () => ({ url: () => "https://www.greeneking.co.uk/private.js", resourceType: () => "script" }),
+      request: () => ({ url: () => "https://www.greeneking.co.uk/private.js", resourceType: () => "script", method: () => "GET" }),
       abort: vi.fn(async () => {}),
       continue: vi.fn(async () => {}),
       fulfill: vi.fn(async () => {}),

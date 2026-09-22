@@ -12,6 +12,13 @@ import { fetchBoundedHarvestResource } from "./boundedHarvestResource.mjs";
 const HARVEST_USER_AGENT =
   "PUBMAXXHarvest/1.0 (+https://pubmaxxing.com; hello@pubmaxxing.com)";
 
+const RESOURCE_CONTENT_TYPES = {
+  script: ["text/javascript", "application/javascript", "application/x-javascript", "text/ecmascript", "application/ecmascript"],
+  stylesheet: ["text/css"],
+  fetch: ["application/json", "text/plain", "text/html"],
+  xhr: ["application/json", "text/plain", "text/html"],
+};
+
 const RENDERED_PAGE_EXPRESSION = String.raw`(() => {
   const visible = (node) => {
     const style = getComputedStyle(node);
@@ -86,7 +93,7 @@ export async function fetchLocalPlaywrightMenuPage(
   const documentsByUrl = new Map([[initialDocument.finalUrl, initialDocument]]);
   const browser = await browserType.launch({ headless: true });
   try {
-    const page = await browser.newPage({ userAgent: HARVEST_USER_AGENT });
+    const page = await browser.newPage({ userAgent: HARVEST_USER_AGENT, serviceWorkers: "block" });
     await page.route("**/*", async (route) => {
       const requestUrl = route.request().url();
       const resourceType = route.request().resourceType();
@@ -127,16 +134,35 @@ export async function fetchLocalPlaywrightMenuPage(
         return;
       }
       try {
-        const decision = await robotsChecker(parsed.href);
-        if (!decision?.allowed) {
+        const expectedContentTypes = RESOURCE_CONTENT_TYPES[resourceType];
+        if (!expectedContentTypes || route.request().method() !== "GET") {
           await route.abort("blockedbyclient");
           return;
         }
+        // Browser redirects bypass page.route after the first URL. Fetch every
+        // subresource through the same hop-by-hop fence as the menu document.
+        const resource = await fetchBoundedHarvestResource({
+          url: parsed.href,
+          fetchImpl,
+          isAllowedUrl: (candidate) =>
+            new URL(candidate).origin === origin &&
+            isHarvestableChainMenuUrl(candidate, sourceId, associatedHosts),
+          robotsChecker,
+          expectedContentTypes,
+          maxBytes: maxHtmlBytes,
+          timeoutMs,
+        });
+        await route.fulfill({
+          status: 200,
+          headers: {
+            "content-type": resource.contentType,
+            "content-length": String(resource.bytes.byteLength),
+          },
+          body: Buffer.from(resource.bytes),
+        });
       } catch {
         await route.abort("blockedbyclient");
-        return;
       }
-      await route.continue();
     });
     const gotoChecked = async (targetUrl, checkedDocument) => {
       const document = checkedDocument ?? await preflightDocument(targetUrl);
