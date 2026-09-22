@@ -33,7 +33,7 @@ Offline mode groups records whose fields are exactly equal after excluding `id`.
 Load `TYPESAFE_API_KEY` from the operator environment, then run:
 
 ```sh
-node scripts/review-finding-dedup.mjs findings.json --jev > duplicate-report.json
+node --import tsx scripts/review-finding-dedup.mjs findings.json --jev > duplicate-report.json
 ```
 
 The Jev pass checks at most eight non-exact pairs from the same file and revision. It skips pairs whose optional severity or category differs. Each request carries at most 240 summary characters and 800 evidence characters per finding, uses a five-second timeout, and has no retry. The report sets `jev.pairLimitReached` when more pairs existed.
@@ -42,9 +42,9 @@ The Jev pass checks at most eight non-exact pairs from the same file and revisio
 
 Jev output is advice for a reviewer. Probability `0.9` or higher produces `review_possible_duplicate`. This threshold is provisional and has not been calibrated as a quality measure. Lower probabilities produce `retain_uncertain`, and request or response failures produce `retain_failed`. Truncated input produces `review_possible_duplicate_bounded_evidence`, which tells the reviewer to inspect the full findings. No result removes either record.
 
-The report contains IDs, file paths, revisions, decisions, probabilities, model name, request count, and API usage. It does not copy summaries or evidence into stdout or error output. `jev.usage` is `null` when no call ran or complete API usage was unavailable. The tool does not replace missing usage with zero.
+The report contains IDs, file paths, revisions, decisions, each judgment's model name, the distinct model names observed, request count, and API usage. It does not copy summaries or evidence into stdout or error output. The shared TypeSafe client honours `TYPESAFE_BASE_URL`, disables retries, and writes redacted transport diagnostics to stderr so stdout remains valid JSON. `jev.usage` is `null` when no call ran or complete API usage was unavailable. The tool does not replace missing usage with zero.
 
-Run the standalone tests directly. They are outside Vitest's configured include pattern and do not run under `npm run verify`.
+`npm run verify` runs the standalone Node tests through `test:review-dedup`. Run them directly while iterating:
 
 ```sh
 node --test __tests__/reviewFindingDedup.test.mjs

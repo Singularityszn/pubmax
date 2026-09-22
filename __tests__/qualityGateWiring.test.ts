@@ -41,6 +41,7 @@ describe("the quality gates", () => {
       // Dead code knip cannot see from the compiler. On a branch the wrapper
       // fails only findings the branch introduced; on main it is full-tree knip.
       "npm run deadcode",
+      "npm run test:review-dedup",
       "npm run coverage",
       // The proofs that need a real cluster, and a skip is a failure there.
       "npm run test:rls",

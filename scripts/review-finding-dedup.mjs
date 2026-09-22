@@ -128,42 +128,35 @@ function stateWasTruncated(state) {
   );
 }
 
-async function judgeWithJev(state) {
-  const apiKey = process.env.TYPESAFE_API_KEY?.trim();
-  if (!apiKey) throw new Error("--jev requires TYPESAFE_API_KEY");
-
-  const response = await fetch("https://api.typesafe.ai/v1/systemone", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${apiKey}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "jev-latest",
-      state,
-      questions: {
-        same_finding: {
-          type: "noul",
-          instructions:
-            "Do `findingA` and `findingB` describe the same underlying defect, such that showing both would be redundant in a human code review?",
-          criteria: {
-            true: "Same defect, cause, and impact, even if wording differs.",
-            false: "Distinct defect, cause, or impact. Related findings still count as distinct.",
-          },
+async function judgeWithJev(state, systemOneOverride) {
+  const systemOne =
+    systemOneOverride ?? (await import("../lib/ai/typesafe.ts")).systemOne;
+  const body = await systemOne(
+    state,
+    {
+      same_finding: {
+        type: "noul",
+        instructions:
+          "Do `findingA` and `findingB` describe the same underlying defect, such that showing both would be redundant in a human code review?",
+        criteria: {
+          true: "Same defect, cause, and impact, even if wording differs.",
+          false: "Distinct defect, cause, or impact. Related findings still count as distinct.",
         },
       },
-    }),
-    signal: AbortSignal.timeout(JEV_TIMEOUT_MS),
-  });
-
-  if (!response.ok) throw new Error(`TypeSafe request failed with HTTP ${response.status}`);
-  const body = await response.json();
-  const probability = body?.answers?.same_finding?.noul;
+    },
+    {
+      lane: "review-finding-dedup",
+      timeoutMs: JEV_TIMEOUT_MS,
+      logDestination: "stderr",
+    },
+  );
+  if (!body) throw new Error("TypeSafe judgment failed");
+  const probability = body.answers?.same_finding?.noul;
   if (typeof probability !== "number" || probability < 0 || probability > 1) {
     throw new Error("TypeSafe response omitted a valid same_finding probability");
   }
-  const inputTokens = body?.usage?.input_tokens;
-  const outputTokens = body?.usage?.output_tokens;
+  const inputTokens = body.usage?.input_tokens;
+  const outputTokens = body.usage?.output_tokens;
   const usage =
     Number.isInteger(inputTokens) && Number.isInteger(outputTokens)
       ? { inputTokens, outputTokens }
@@ -177,7 +170,12 @@ async function judgeWithJev(state) {
 
 export async function analyseReviewFindings(findings, options = {}) {
   validateFindings(findings);
-  if (options.jev && !options.judge && !process.env.TYPESAFE_API_KEY?.trim()) {
+  if (
+    options.jev &&
+    !options.judge &&
+    !options.systemOne &&
+    !process.env.TYPESAFE_API_KEY?.trim()
+  ) {
     throw new Error("--jev requires TYPESAFE_API_KEY");
   }
   const exactGroups = exactDuplicateGroups(findings);
@@ -192,14 +190,14 @@ export async function analyseReviewFindings(findings, options = {}) {
       pairLimit: MAX_JEV_PAIRS,
       pairLimitReached: candidates.pairLimitReached,
       requestCount: 0,
-      model: null,
+      models: [],
       usage: null,
     },
   };
   if (!options.jev) return report;
 
-  const judge = options.judge ?? judgeWithJev;
-  let model = null;
+  const judge = options.judge ?? ((state) => judgeWithJev(state, options.systemOne));
+  const models = new Set();
   let usage = { inputTokens: 0, outputTokens: 0 };
   let usageComplete = true;
 
@@ -216,7 +214,7 @@ export async function analyseReviewFindings(findings, options = {}) {
       ) {
         throw new Error("invalid Jev probability");
       }
-      model ??= result.model ?? null;
+      if (result.model) models.add(result.model);
       if (result.usage) {
         usage.inputTokens += result.usage.inputTokens;
         usage.outputTokens += result.usage.outputTokens;
@@ -228,6 +226,7 @@ export async function analyseReviewFindings(findings, options = {}) {
         file: findingA.file,
         revision: findingA.revision,
         probability: result.probability,
+        model: result.model ?? null,
         inputTruncated,
         action:
           result.probability >= SUGGESTION_THRESHOLD
@@ -243,19 +242,20 @@ export async function analyseReviewFindings(findings, options = {}) {
         file: findingA.file,
         revision: findingA.revision,
         probability: null,
+        model: null,
         inputTruncated,
         action: "retain_failed",
       });
     }
   }
 
-  report.jev.model = model;
+  report.jev.models = [...models];
   report.jev.usage = report.jev.requestCount > 0 && usageComplete ? usage : null;
   return report;
 }
 
 function usage() {
-  return "Usage: node scripts/review-finding-dedup.mjs <findings.json> [--jev]";
+  return "Usage: node scripts/review-finding-dedup.mjs <findings.json> | node --import tsx scripts/review-finding-dedup.mjs <findings.json> --jev";
 }
 
 async function main() {

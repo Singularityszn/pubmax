@@ -106,6 +106,7 @@ test("Jev receives only bounded, same-file candidate pairs", async () => {
       file: "lib/example.ts",
       revision: "abc123",
       probability: 0.93,
+      model: "jev-test",
       inputTruncated: true,
       action: "review_possible_duplicate_bounded_evidence",
     },
@@ -115,9 +116,63 @@ test("Jev receives only bounded, same-file candidate pairs", async () => {
     pairLimit: MAX_JEV_PAIRS,
     pairLimitReached: false,
     requestCount: 1,
-    model: "jev-test",
+    models: ["jev-test"],
     usage: { inputTokens: 31, outputTokens: 2 },
   });
+});
+
+test("default Jev transport uses the shared TypeSafe door", async () => {
+  const calls = [];
+  const report = await analyseReviewFindings(
+    [finding("A"), finding("B", { summary: "Authorization guard is absent" })],
+    {
+      jev: true,
+      systemOne: async (state, questions, options) => {
+        calls.push({ state, questions, options });
+        return {
+          model: "jev-shared-door",
+          usage: { input_tokens: 7, output_tokens: 2 },
+          answers: { same_finding: { noul: 0.94 } },
+        };
+      },
+    },
+  );
+
+  assert.equal(calls.length, 1);
+  assert.deepEqual(Object.keys(calls[0].questions), ["same_finding"]);
+  assert.deepEqual(calls[0].options, {
+    lane: "review-finding-dedup",
+    timeoutMs: 5_000,
+    logDestination: "stderr",
+  });
+  assert.equal(calls[0].state.findingA.evidence, finding("A").evidence);
+  assert.equal(report.semanticJudgments[0].model, "jev-shared-door");
+  assert.deepEqual(report.jev.models, ["jev-shared-door"]);
+});
+
+test("attributes every semantic judgment to its actual model", async () => {
+  const models = ["jev-2026-09-22-a", "jev-2026-09-22-b", "jev-2026-09-22-a"];
+  const report = await analyseReviewFindings(
+    [
+      finding("A"),
+      finding("B", { summary: "Authorization guard is absent" }),
+      finding("C", { summary: "Unrelated authorization wording" }),
+    ],
+    {
+      jev: true,
+      judge: async () => ({
+        probability: 0.95,
+        model: models.shift(),
+        usage: { inputTokens: 3, outputTokens: 1 },
+      }),
+    },
+  );
+
+  assert.deepEqual(
+    report.semanticJudgments.map(({ model }) => model),
+    ["jev-2026-09-22-a", "jev-2026-09-22-b", "jev-2026-09-22-a"],
+  );
+  assert.deepEqual(report.jev.models, ["jev-2026-09-22-a", "jev-2026-09-22-b"]);
 });
 
 test("uncertain and failed judgments retain both findings", async () => {
