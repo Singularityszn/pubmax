@@ -1,7 +1,6 @@
 import {
   extractPintPrices,
   extractVenueDrinkPrices,
-  venueDrinkPricesFromUkReading,
 } from "../../lib/harvest/tavilyPintPrices.ts";
 
 export { extractPintPrices, extractVenueDrinkPrices };
