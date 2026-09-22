@@ -58,6 +58,17 @@ function request(token = TOKEN): Request {
   });
 }
 
+function preservePublicRequest(token = TOKEN): Request {
+  return new Request("http://localhost/api/push-tokens/account", {
+    method: "DELETE",
+    headers: {
+      authorization: "Bearer departing-access-token",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ token, preservePublicToken: true }),
+  });
+}
+
 beforeEach(() => {
   __resetMemoryPushTokens();
   __resetStepOutNudgeStore();
@@ -127,6 +138,23 @@ describe("DELETE /api/push-tokens/account", () => {
 
     expect(response.status).toBe(200);
     expect(__listMemoryPushTokens()).toEqual([]);
+  });
+
+  it("preserves identity-free delivery while detaching personalized lanes", async () => {
+    await memoryPushTokenStore.save({ token: TOKEN, platform: "web" });
+    await memoryStepOutNudgeStore.put(ACTOR, {
+      enabled: true,
+      subscriptionToken: TOKEN,
+    });
+
+    const response = await DELETE(preservePublicRequest());
+
+    expect(response.status).toBe(200);
+    expect(await memoryStepOutNudgeStore.get(ACTOR)).toMatchObject({
+      enabled: false,
+      subscriptionToken: null,
+    });
+    expect(__listMemoryPushTokens().map((row) => row.token)).toEqual([TOKEN]);
   });
 
   it("reports cleanup failure so the browser cannot trust the boundary", async () => {

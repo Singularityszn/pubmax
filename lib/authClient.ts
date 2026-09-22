@@ -26,6 +26,19 @@ import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 let modulePromise: Promise<typeof import("@supabase/supabase-js")> | undefined;
 let clientPromise: Promise<SupabaseClient | null> | undefined;
 let cached: SupabaseClient | null | undefined;
+// Cold boot starts closed. AuthProvider opens token access only after it has
+// verified that any installed personalized subscription belongs to the session
+// it is about to publish (or safely retired an unknown/previous owner).
+let tokenAccessQuarantined = true;
+
+/** Prevent SDK session drift from leaking a new account bearer through helpers. */
+export function setAuthTokenAccessQuarantined(quarantined: boolean): void {
+  tokenAccessQuarantined = quarantined;
+}
+
+export function isAuthTokenAccessQuarantined(): boolean {
+  return tokenAccessQuarantined;
+}
 
 function buildBrowserClient(): Promise<SupabaseClient | null> {
   return (async () => {
@@ -119,10 +132,12 @@ export function isAuthConfigured(): boolean {
  * anonymous request (still valid for an unlinked, demo handle).
  */
 export async function getAccessToken(): Promise<string | null> {
+  if (tokenAccessQuarantined) return null;
   const supabase = await ensureSupabaseBrowser();
   if (!supabase) return null;
   try {
     const { data } = await supabase.auth.getSession();
+    if (tokenAccessQuarantined) return null;
     return data.session?.access_token ?? null;
   } catch {
     return null;

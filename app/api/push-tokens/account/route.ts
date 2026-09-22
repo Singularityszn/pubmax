@@ -40,12 +40,13 @@ export async function DELETE(request: Request): Promise<Response> {
   if (!validation.ok) {
     return publicApiError(validation.error, "INVALID_REQUEST", 400);
   }
+  const preservePublicToken = body.preservePublicToken === true;
 
   try {
-    await Promise.all([
-      stepOutNudgeStore().detachSubscriptionToken(validation.input.token),
-      pushTokenStore().delete(validation.input.token),
-    ]);
+    await stepOutNudgeStore().detachSubscriptionToken(validation.input.token);
+    if (!preservePublicToken) {
+      await pushTokenStore().delete(validation.input.token);
+    }
   } catch {
     return publicApiError(
       "Could not remove account notifications. Try again.",

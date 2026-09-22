@@ -134,7 +134,9 @@ describe("browser auth client", () => {
 
 describe("getAccessToken", () => {
   it("returns null when browser auth is unavailable", async () => {
-    const { getAccessToken } = await loadAuthClient();
+    const { getAccessToken, setAuthTokenAccessQuarantined } = await loadAuthClient();
+
+    setAuthTokenAccessQuarantined(false);
 
     await expect(getAccessToken()).resolves.toBeNull();
   });
@@ -148,7 +150,9 @@ describe("getAccessToken", () => {
       .mockResolvedValueOnce({ data: { session: { access_token: "jwt-token" } } })
       .mockResolvedValueOnce({ data: { session: null } });
     createClient.mockReturnValue({ auth: { getSession } });
-    const { getAccessToken } = await loadAuthClient();
+    const { getAccessToken, setAuthTokenAccessQuarantined } = await loadAuthClient();
+
+    setAuthTokenAccessQuarantined(false);
 
     await expect(getAccessToken()).resolves.toBe("jwt-token");
     await expect(getAccessToken()).resolves.toBeNull();
@@ -162,8 +166,28 @@ describe("getAccessToken", () => {
     createClient.mockReturnValue({
       auth: { getSession: vi.fn().mockRejectedValue(new Error("storage blocked")) },
     });
-    const { getAccessToken } = await loadAuthClient();
+    const { getAccessToken, setAuthTokenAccessQuarantined } = await loadAuthClient();
+
+    setAuthTokenAccessQuarantined(false);
 
     await expect(getAccessToken()).resolves.toBeNull();
+  });
+
+  it("never reads or returns the SDK bearer while auth is quarantined", async () => {
+    vi.stubGlobal("window", {});
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+    const getSession = vi.fn(async () => ({
+      data: { session: { access_token: "account-b-token" } },
+    }));
+    createClient.mockReturnValue({ auth: { getSession } });
+    const {
+      getAccessToken,
+      setAuthTokenAccessQuarantined,
+    } = await loadAuthClient();
+
+    setAuthTokenAccessQuarantined(true);
+    await expect(getAccessToken()).resolves.toBeNull();
+    expect(getSession).not.toHaveBeenCalled();
   });
 });

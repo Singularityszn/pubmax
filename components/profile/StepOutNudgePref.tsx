@@ -115,12 +115,20 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
         setNotice("Account changed. Check the active account and try again.");
         return;
       }
+      if (result.status === "coordination_unavailable") {
+        setNotice("This browser cannot safely coordinate account notifications.");
+        return;
+      }
       if (result.status === "registration_failed") {
         setNotice("Could not turn on web push. Check notification permission and try again.");
         return;
       }
       if (result.status === "request_failed") {
         setNotice(offlineOrMessage("Could not save the preference. Try again."));
+        return;
+      }
+      if (result.status === "binding_timed_out") {
+        setNotice("Notification setup timed out and was safely cancelled. Try again.");
         return;
       }
       const response = result.response;

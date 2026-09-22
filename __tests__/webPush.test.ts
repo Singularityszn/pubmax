@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { registerWebPush } from "@/lib/webPush";
+import {
+  registerWebPush,
+  unregisterWebPush,
+  unsubscribeWebPushToken,
+} from "@/lib/webPush";
+import { markPublicWebPushToken } from "@/lib/webPushRegistrationState";
+import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -183,6 +189,173 @@ describe("registerWebPush", () => {
     browserHarness();
 
     await expect(registerWebPush()).resolves.toMatch(/^webpush:/);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("unsubscribeWebPushToken", () => {
+  it("does not claim retirement when the installed subscription is unreadable", async () => {
+    const values = new Map<string, string>();
+    const token = encodeWebPushSubscription({
+      endpoint: "https://updates.push.services.mozilla.com/wpush/v2/unreadable",
+      expirationTime: null,
+      keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+    })!;
+    vi.stubGlobal("window", {
+      PushManager: class {},
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+        removeItem: (key: string) => values.delete(key),
+      },
+      dispatchEvent: vi.fn(),
+    });
+    vi.stubGlobal("navigator", {
+      serviceWorker: {
+        getRegistration: async () => {
+          throw new Error("service worker unavailable");
+        },
+      },
+    });
+    expect(markPublicWebPushToken(token)).toBe(true);
+    values.set("pubmax:webPush:enabled:v1", "1");
+
+    await expect(unregisterWebPush()).resolves.toBe(false);
+
+    expect(values.get("pubmax_public_web_push_token")).toBe(token);
+    expect(values.get("pubmax:webPush:enabled:v1")).toBe("1");
+  });
+
+  it("fails closed when the current subscription cannot be encoded", async () => {
+    const expectedToken = encodeWebPushSubscription({
+      endpoint: "https://updates.push.services.mozilla.com/wpush/v2/expected",
+      expirationTime: null,
+      keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+    })!;
+    const unsubscribe = vi.fn(async () => true);
+    vi.stubGlobal("window", { PushManager: class {} });
+    vi.stubGlobal("navigator", {
+      serviceWorker: {
+        getRegistration: async () => ({
+          pushManager: {
+            getSubscription: async () => ({
+              toJSON: () => ({ endpoint: "malformed" }),
+              unsubscribe,
+            }),
+          },
+        }),
+      },
+    });
+
+    await expect(unsubscribeWebPushToken(expectedToken)).resolves.toBe(false);
+    expect(unsubscribe).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when post-unsubscribe state cannot be encoded", async () => {
+    const values = new Map<string, string>();
+    const subscriptionJson = {
+      endpoint: "https://updates.push.services.mozilla.com/wpush/v2/post-read",
+      expirationTime: null,
+      keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+    };
+    const token = encodeWebPushSubscription(subscriptionJson)!;
+    const current = {
+      toJSON: () => subscriptionJson,
+      unsubscribe: vi.fn(async () => true),
+    };
+    const malformedRemaining = {
+      toJSON: () => ({ endpoint: "malformed" }),
+      unsubscribe: vi.fn(async () => false),
+    };
+    const getSubscription = vi.fn()
+      .mockResolvedValueOnce(current)
+      .mockResolvedValueOnce(malformedRemaining);
+    vi.stubGlobal("window", {
+      PushManager: class {},
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+        removeItem: (key: string) => values.delete(key),
+      },
+      dispatchEvent: vi.fn(),
+    });
+    vi.stubGlobal("navigator", {
+      serviceWorker: {
+        getRegistration: async () => ({ pushManager: { getSubscription } }),
+      },
+    });
+    expect(markPublicWebPushToken(token)).toBe(true);
+
+    await expect(unsubscribeWebPushToken(token)).resolves.toBe(false);
+    expect(values.get("pubmax_public_web_push_token")).toBe(token);
+  });
+
+  it("clears exact public consent after physical retirement", async () => {
+    const values = new Map<string, string>();
+    const subscriptionJson = {
+      endpoint: "https://updates.push.services.mozilla.com/wpush/v2/retire-public",
+      expirationTime: null,
+      keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+    };
+    const token = encodeWebPushSubscription(subscriptionJson)!;
+    const subscription = {
+      toJSON: () => subscriptionJson,
+      unsubscribe: vi.fn(async () => true),
+    };
+    const getSubscription = vi.fn()
+      .mockResolvedValueOnce(subscription)
+      .mockResolvedValueOnce(null);
+    vi.stubGlobal("window", {
+      PushManager: class {},
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+        removeItem: (key: string) => values.delete(key),
+      },
+      dispatchEvent: vi.fn(),
+    });
+    vi.stubGlobal("navigator", {
+      serviceWorker: {
+        getRegistration: async () => ({ pushManager: { getSubscription } }),
+      },
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 200 })));
+    expect(markPublicWebPushToken(token)).toBe(true);
+    values.set("pubmax:webPush:enabled:v1", "1");
+
+    await expect(unsubscribeWebPushToken(token)).resolves.toBe(true);
+
+    expect(subscription.unsubscribe).toHaveBeenCalledOnce();
+    expect(values.has("pubmax_public_web_push_token")).toBe(false);
+    expect(values.has("pubmax:webPush:enabled:v1")).toBe(false);
+  });
+
+  it("fails closed within a ceiling when unsubscribe never settles", async () => {
+    vi.useFakeTimers();
+    const subscriptionJson = {
+      endpoint: "https://updates.push.services.mozilla.com/wpush/v2/retire",
+      expirationTime: null,
+      keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+    };
+    const token = encodeWebPushSubscription(subscriptionJson)!;
+    const subscription = {
+      toJSON: () => subscriptionJson,
+      unsubscribe: () => new Promise<boolean>(() => undefined),
+    };
+    vi.stubGlobal("window", { PushManager: class {} });
+    vi.stubGlobal("navigator", {
+      serviceWorker: {
+        getRegistration: async () => ({
+          pushManager: { getSubscription: async () => subscription },
+        }),
+      },
+    });
+    vi.stubGlobal("fetch", vi.fn());
+
+    const retirement = unsubscribeWebPushToken(token);
+    await vi.advanceTimersByTimeAsync(3_000);
+
+    await expect(retirement).resolves.toBe(false);
     expect(vi.getTimerCount()).toBe(0);
   });
 });

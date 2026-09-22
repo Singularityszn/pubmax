@@ -42,7 +42,11 @@ import {
   clearLegacyPkceVerifiers,
   establishAuthCallbackSession,
 } from "@/lib/authCallbackClient";
-import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import {
+  ensureSupabaseBrowser,
+  isAuthConfigured,
+  setAuthTokenAccessQuarantined,
+} from "@/lib/authClient";
 import { loadAuthClientWithRetry } from "@/lib/authClientLoad";
 import { requestDeploymentSkewCheck } from "@/lib/deploymentSkewRecovery";
 import {
@@ -97,6 +101,7 @@ import {
 import {
   AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS,
   bootstrapAuthSession,
+  type AuthSessionBootstrapOutcome,
 } from "@/lib/authSessionBootstrap";
 import {
   clearPersistedSession,
@@ -106,6 +111,8 @@ import {
 } from "@/lib/authSessionResumeClient";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 import {
+  withVerifiedInitialAccountPushOwner,
+  withVerifiedInitialSignedOutAccountPush,
   withRetiredAccountWebPush,
   type AccountPushBoundaryOutcome,
 } from "@/lib/accountPushLifecycle";
@@ -313,6 +320,7 @@ export function AuthProvider({
           ? "unavailable"
           : "signed-out";
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
+  const quarantinedRetirementSession = useRef<Session | null>(null);
   const preRetiredAuthTransitions = useRef<
     Array<{ marker: symbol; expectedUserId: string | null | undefined }>
   >([]);
@@ -412,7 +420,7 @@ export function AuthProvider({
       knownSession?: Session | null,
     ): Promise<AccountPushBoundaryOutcome<T>> => {
       const currentSession = knownSession === undefined
-        ? sessionRef.current
+        ? (quarantinedRetirementSession.current ?? sessionRef.current)
         : knownSession;
       const currentUserId = currentSession?.user.id
         ?? (knownSession === undefined
@@ -425,12 +433,101 @@ export function AuthProvider({
           value: await continuation(),
         };
       }
+      const retiringQuarantine = currentSession !== null &&
+        currentSession === quarantinedRetirementSession.current;
       return withRetiredAccountWebPush(
         currentSession?.access_token,
-        continuation,
+        async () => {
+          if (retiringQuarantine) {
+            quarantinedRetirementSession.current = null;
+            setAuthTokenAccessQuarantined(false);
+          }
+          return continuation();
+        },
       );
     },
     [],
+  );
+
+  const failClosedExternalAuthTransition = useCallback(
+    (departingSession: Session | null) => {
+      quarantinedRetirementSession.current = departingSession;
+      setAuthTokenAccessQuarantined(true);
+      releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
+      emitDeviceIdentityChanged();
+      updateSession(null);
+      setProviderAuthState("supabase", "unavailable");
+      setSessionLoading(false);
+    },
+    [updateSession],
+  );
+
+  const applyBootstrappedAuthSession = useCallback(
+    async (bootstrapped: AuthSessionBootstrapOutcome): Promise<void> => {
+      if (bootstrapped.status === "unavailable") {
+        if (readProviderAuthState("supabase") === "unresolved") {
+          setProviderAuthState("supabase", "unavailable");
+        }
+        return;
+      }
+      if (bootstrapped.status === "local") {
+        const previousUserId = sessionTransitions.current.currentUserId();
+        const bootstrapUserId = bootstrapped.session.user.id;
+        if (previousUserId && previousUserId !== bootstrapUserId) {
+          const departingSession = sessionRef.current;
+          const boundary = await runAfterCurrentPushRetirement(async () => {
+            updateSession(bootstrapped.session);
+          });
+          if (boundary.status === "unavailable") {
+            failClosedExternalAuthTransition(departingSession);
+            setAuthCallbackError(PUSH_RETIREMENT_ERROR_MESSAGE);
+            return;
+          }
+        } else if (!previousUserId) {
+          const boundary = await withVerifiedInitialAccountPushOwner(
+            bootstrapUserId,
+            bootstrapped.session.access_token,
+            async () => {
+              setAuthTokenAccessQuarantined(false);
+              updateSession(bootstrapped.session);
+            },
+          );
+          if (boundary.status === "unavailable") {
+            failClosedExternalAuthTransition(null);
+            setAuthCallbackError(PUSH_RETIREMENT_ERROR_MESSAGE);
+            return;
+          }
+        } else {
+          updateSession(bootstrapped.session);
+        }
+      } else if (
+        bootstrapped.status === "expired" ||
+        bootstrapped.status === "none"
+      ) {
+        const boundary = await withVerifiedInitialSignedOutAccountPush(
+          async () => {
+            setAuthTokenAccessQuarantined(false);
+            if (bootstrapped.status === "expired") {
+              setWelcomeBack({ maskedEmail: bootstrapped.maskedEmail });
+            }
+          },
+        );
+        if (boundary.status === "unavailable") {
+          failClosedExternalAuthTransition(null);
+          setAuthCallbackError(PUSH_RETIREMENT_ERROR_MESSAGE);
+          return;
+        }
+      }
+      const bootstrapAuthState = resolveSupabaseAuthState(
+        "bootstrap",
+        sessionTransitions.current.currentUserId() !== null,
+        sessionTransitions.current.currentUserId(),
+      );
+      if (bootstrapAuthState) {
+        setProviderAuthState("supabase", bootstrapAuthState);
+      }
+    },
+    [failClosedExternalAuthTransition, runAfterCurrentPushRetirement, updateSession],
   );
 
   const installAccountSession = useCallback(
@@ -448,12 +545,14 @@ export function AuthProvider({
           return { status: "blocked" };
         }
       }
+      const retirementSession = quarantinedRetirementSession.current
+        ?? currentSession;
       const boundary = await runAfterCurrentPushRetirement(
         () => runPreRetiredAuthMutation(
           undefined,
           () => establishAuthCallbackSession(supabase.auth, tokens),
         ),
-        currentSession,
+        retirementSession,
       );
       if (boundary.status === "unavailable") {
         return { status: "blocked" };
@@ -726,6 +825,50 @@ export function AuthProvider({
         const accountChanged = previousUserId !== null && previousUserId !== nextUserId;
         const preRetired = accountChanged &&
           hasPreRetiredAuthTransition(nextUserId);
+        const quarantinedSession = quarantinedRetirementSession.current;
+        if (quarantinedSession) {
+          const boundary = await runAfterCurrentPushRetirement(async () => {
+            if (!active) return;
+            quarantinedRetirementSession.current = null;
+            setAuthTokenAccessQuarantined(false);
+            applyAuthStateChange();
+          }, quarantinedSession);
+          if (active && boundary.status === "unavailable") {
+            failClosedExternalAuthTransition(quarantinedSession);
+            setAuthCallbackError(PUSH_RETIREMENT_ERROR_MESSAGE);
+          }
+          return;
+        }
+        if (previousUserId === null) {
+          if (!next) {
+            const boundary = await withVerifiedInitialSignedOutAccountPush(
+              async () => {
+                if (!active) return;
+                setAuthTokenAccessQuarantined(false);
+                applyAuthStateChange();
+              },
+            );
+            if (active && boundary.status === "unavailable") {
+              failClosedExternalAuthTransition(null);
+              setAuthCallbackError(PUSH_RETIREMENT_ERROR_MESSAGE);
+            }
+            return;
+          }
+          const boundary = await withVerifiedInitialAccountPushOwner(
+            next.user.id,
+            next.access_token,
+            async () => {
+              if (!active) return;
+              setAuthTokenAccessQuarantined(false);
+              applyAuthStateChange();
+            },
+          );
+          if (active && boundary.status === "unavailable") {
+            failClosedExternalAuthTransition(null);
+            setAuthCallbackError(PUSH_RETIREMENT_ERROR_MESSAGE);
+          }
+          return;
+        }
         if (accountChanged && !preRetired) {
           // BroadcastChannel can replace this tab's auth state without calling
           // any local sign-out or switch action. Retire A before publishing B
@@ -735,6 +878,7 @@ export function AuthProvider({
             if (active) applyAuthStateChange();
           });
           if (active && boundary.status === "unavailable") {
+            failClosedExternalAuthTransition(sessionRef.current);
             setAuthCallbackError(PUSH_RETIREMENT_ERROR_MESSAGE);
           }
           return;
@@ -798,6 +942,21 @@ export function AuthProvider({
 
         if (exchangedSession) {
           window.clearTimeout(loadingTimeout);
+          if (sessionTransitions.current.currentUserId() === null) {
+            const boundary = await withVerifiedInitialAccountPushOwner(
+              exchangedSession.user.id,
+              exchangedSession.access_token,
+              async () => {
+                setAuthTokenAccessQuarantined(false);
+              },
+            );
+            if (boundary.status === "unavailable") {
+              failClosedExternalAuthTransition(null);
+              setAuthCallbackError(PUSH_RETIREMENT_ERROR_MESSAGE);
+              setSessionLoading(false);
+              return;
+            }
+          }
           updateSession(exchangedSession);
           setSessionLoading(false);
           // Attempt-less token sign-in (cross-browser email link, clamped
@@ -849,38 +1008,7 @@ export function AuthProvider({
         );
         if (!active) return;
         window.clearTimeout(loadingTimeout);
-        if (bootstrapped.status === "unavailable") {
-          if (readProviderAuthState("supabase") === "unresolved") {
-            setProviderAuthState("supabase", "unavailable");
-          }
-        } else if (bootstrapped.status === "local") {
-          // INITIAL_SESSION normally supplied this same session already. The
-          // explicit update also covers a client that did not emit that event.
-          const previousUserId = sessionTransitions.current.currentUserId();
-          const bootstrapUserId = bootstrapped.session.user.id;
-          if (previousUserId && previousUserId !== bootstrapUserId) {
-            const boundary = await runAfterCurrentPushRetirement(async () => {
-              updateSession(bootstrapped.session);
-            });
-            if (boundary.status === "unavailable") {
-              setAuthCallbackError(PUSH_RETIREMENT_ERROR_MESSAGE);
-            }
-          } else {
-            updateSession(bootstrapped.session);
-          }
-        } else if (bootstrapped.status === "expired") {
-          setWelcomeBack({ maskedEmail: bootstrapped.maskedEmail });
-        }
-        if (bootstrapped.status !== "unavailable") {
-          const bootstrapAuthState = resolveSupabaseAuthState(
-            "bootstrap",
-            sessionTransitions.current.currentUserId() !== null,
-            sessionTransitions.current.currentUserId(),
-          );
-          if (bootstrapAuthState) {
-            setProviderAuthState("supabase", bootstrapAuthState);
-          }
-        }
+        await applyBootstrappedAuthSession(bootstrapped);
         // A restored result has already awaited auth.setSession. Supabase emits
         // SIGNED_IN through the subscription above, so the session and identity
         // boundary are updated before this loading state is cleared.
@@ -896,6 +1024,8 @@ export function AuthProvider({
     };
   }, [
     configured,
+    applyBootstrappedAuthSession,
+    failClosedExternalAuthTransition,
     hasPreRetiredAuthTransition,
     installAccountSession,
     runAfterCurrentPushRetirement,

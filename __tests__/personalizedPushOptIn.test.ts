@@ -29,6 +29,15 @@ function deps(
     register: vi.fn(async () => TOKEN),
     readCurrentUserId: vi.fn(async () => ACCOUNT.userId),
     fetchImpl: vi.fn(async () => Response.json({ enabled: true })),
+    supportsCrossTabLock: () => true,
+    runExclusive: (work) => withAccountPushLifecycleLock(work),
+    createRevision: () => "bind-revision-a",
+    markPendingBind: vi.fn(() => true),
+    clearPendingBind: vi.fn(),
+    commitActiveBind: vi.fn(() => true),
+    retireToken: vi.fn(async () => true),
+    waitForBindCeiling: () => new Promise<void>(() => undefined),
+    preservePublicToken: () => false,
     ...overrides,
   };
 }
@@ -65,6 +74,70 @@ describe("personalized web-push opt-in lifecycle", () => {
     );
     expect(JSON.parse(String(init?.body))).toEqual({ enabled: true, token: TOKEN });
     expect(init?.signal).toBeUndefined();
+  });
+
+  it("spends no registration or request when origin-wide locking is absent", async () => {
+    const register = vi.fn(async () => TOKEN);
+    const fetchImpl = vi.fn<typeof fetch>(
+      async () => Response.json({ enabled: true }),
+    );
+
+    const result = await enablePersonalizedWebPush(
+      {
+        account: ACCOUNT,
+        endpoint: "/api/step-out-nudge",
+        body: (token) => ({ enabled: true, token }),
+      },
+      deps({
+        supportsCrossTabLock: () => false,
+        register,
+        fetchImpl,
+      }),
+    );
+
+    expect(result).toEqual({ status: "coordination_unavailable" });
+    expect(register).not.toHaveBeenCalled();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("spends no registration when the origin lock cannot be acquired", async () => {
+    const register = vi.fn(async () => TOKEN);
+    const result = await enablePersonalizedWebPush(
+      {
+        account: ACCOUNT,
+        endpoint: "/api/step-out-nudge",
+        body: (token) => ({ enabled: true, token }),
+      },
+      deps({
+        register,
+        runExclusive: async () => {
+          throw new Error("lock unavailable");
+        },
+      }),
+    );
+
+    expect(result).toEqual({ status: "coordination_unavailable" });
+    expect(register).not.toHaveBeenCalled();
+  });
+
+  it("spends no bind request when the crash guard cannot be persisted", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(
+      async () => Response.json({ enabled: true }),
+    );
+    const result = await enablePersonalizedWebPush(
+      {
+        account: ACCOUNT,
+        endpoint: "/api/step-out-nudge",
+        body: (token) => ({ enabled: true, token }),
+      },
+      deps({
+        markPendingBind: () => false,
+        fetchImpl,
+      }),
+    );
+
+    expect(result).toEqual({ status: "coordination_unavailable" });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it("does not bind after registration when another account became current", async () => {
@@ -164,5 +237,70 @@ describe("personalized web-push opt-in lifecycle", () => {
     await expect(optIn).resolves.toMatchObject({ status: "saved" });
     await retirement;
     expect(order).toEqual(["bind-start", "bind-finish", "retire"]);
+  });
+
+  it("bounds a held bind by physically retiring its exact token", async () => {
+    const heldResponse = deferred<Response>();
+    const retireToken = vi.fn(async () => true);
+    const clearPendingBind = vi.fn();
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      if (input === "/api/push-tokens/account") {
+        return Response.json({ ok: true });
+      }
+      return heldResponse.promise;
+    });
+
+    const result = await enablePersonalizedWebPush(
+      {
+        account: ACCOUNT,
+        endpoint: "/api/cheap-pint-ping",
+        body: (token) => ({ action: "opt-in", token }),
+      },
+      deps({
+        fetchImpl,
+        retireToken,
+        clearPendingBind,
+        waitForBindCeiling: async () => undefined,
+      }),
+    );
+
+    expect(result).toEqual({ status: "binding_timed_out" });
+    expect(retireToken).toHaveBeenCalledWith(TOKEN);
+    expect(clearPendingBind).toHaveBeenCalledWith(expect.objectContaining({
+      ownerId: ACCOUNT.userId,
+      subscriptionToken: TOKEN,
+      revision: "bind-revision-a",
+    }));
+    heldResponse.resolve(Response.json({ enabled: true }));
+    await vi.waitFor(() => {
+      expect(fetchImpl).toHaveBeenCalledWith(
+        "/api/push-tokens/account",
+        expect.objectContaining({ method: "DELETE" }),
+      );
+    });
+  });
+
+  it("never clears the guard from DELETE success without physical proof", async () => {
+    const clearPendingBind = vi.fn();
+    const retireToken = vi.fn(async () => false);
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      if (input === "/api/push-tokens/account") {
+        return Response.json({ ok: true });
+      }
+      throw new TypeError("connection ended after request send");
+    });
+
+    const result = await enablePersonalizedWebPush(
+      {
+        account: ACCOUNT,
+        endpoint: "/api/step-out-nudge",
+        body: (token) => ({ enabled: true, token }),
+      },
+      deps({ fetchImpl, retireToken, clearPendingBind }),
+    );
+
+    expect(result).toEqual({ status: "request_failed" });
+    await vi.waitFor(() => expect(retireToken).toHaveBeenCalledTimes(2));
+    expect(clearPendingBind).not.toHaveBeenCalled();
   });
 });

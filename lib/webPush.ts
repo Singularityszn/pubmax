@@ -3,8 +3,10 @@
 // real user action, preserving the shared prompt budget and consent boundary.
 
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
+import { clearPublicWebPushRegistration } from "@/lib/webPushRegistrationState";
 
 const WEB_PUSH_REGISTRATION_CEILING_MS = 10_000;
+const WEB_PUSH_LOCAL_RETIRE_CEILING_MS = 3_000;
 
 function abortReason(signal: AbortSignal): unknown {
   return signal.reason
@@ -67,16 +69,43 @@ function applicationServerKey(value: string): Uint8Array<ArrayBuffer> | null {
   }
 }
 
-async function currentWebSubscriptionToken(): Promise<string | null> {
-  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
-  if (!("PushManager" in window)) return null;
+async function boundedWebPushRetirement<T>(work: PromiseLike<T>): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(new DOMException("Web push retirement timed out.", "TimeoutError")),
+    WEB_PUSH_LOCAL_RETIRE_CEILING_MS,
+  );
   try {
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
-    if (!subscription) return null;
-    return encodeWebPushSubscription(subscription.toJSON());
+    return await waitForWebPushWork(work, controller.signal);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+type CurrentWebSubscription =
+  | { status: "none" }
+  | { status: "active"; token: string }
+  | { status: "unavailable" };
+
+async function currentWebSubscriptionToken(): Promise<CurrentWebSubscription> {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    return { status: "none" };
+  }
+  if (!("PushManager" in window)) return { status: "none" };
+  try {
+    const container = navigator.serviceWorker;
+    const registration = typeof container.getRegistration === "function"
+      ? await boundedWebPushRetirement(container.getRegistration())
+      : await boundedWebPushRetirement(container.ready);
+    if (!registration) return { status: "none" };
+    const subscription = await boundedWebPushRetirement(
+      registration.pushManager.getSubscription(),
+    );
+    if (!subscription) return { status: "none" };
+    const token = encodeWebPushSubscription(subscription.toJSON());
+    return token ? { status: "active", token } : { status: "unavailable" };
   } catch {
-    return null;
+    return { status: "unavailable" };
   }
 }
 
@@ -145,17 +174,66 @@ export async function registerWebPush(signal?: AbortSignal): Promise<string | nu
 export async function unregisterWebPush(): Promise<boolean> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return false;
   try {
-    const token = await currentWebSubscriptionToken();
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
-    if (subscription) await subscription.unsubscribe();
-    if (token) {
-      await fetch("/api/push-tokens", {
-        method: "DELETE",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token }),
-      }).catch(() => null);
+    const subscription = await currentWebSubscriptionToken();
+    if (subscription.status === "unavailable") return false;
+    if (subscription.status === "none") {
+      clearPublicWebPushRegistration();
+      return true;
     }
+    return unsubscribeWebPushToken(subscription.token);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Make one exact subscription token physically undeliverable. A different or
+ * absent current subscription proves the expected token is no longer active.
+ * Server deletion remains best-effort because physical retirement is the
+ * safety boundary for a bind request whose response may arrive late.
+ */
+export async function unsubscribeWebPushToken(
+  expectedToken: string,
+): Promise<boolean> {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    return false;
+  }
+  try {
+    const container = navigator.serviceWorker;
+    const registration = typeof container.getRegistration === "function"
+      ? await boundedWebPushRetirement(container.getRegistration())
+      : await boundedWebPushRetirement(container.ready);
+    if (!registration) {
+      clearPublicWebPushRegistration(expectedToken);
+      return true;
+    }
+    const subscription = await boundedWebPushRetirement(
+      registration.pushManager.getSubscription(),
+    );
+    if (!subscription) {
+      clearPublicWebPushRegistration(expectedToken);
+      return true;
+    }
+    const currentToken = encodeWebPushSubscription(subscription.toJSON());
+    if (!currentToken) return false;
+    if (currentToken !== expectedToken) {
+      clearPublicWebPushRegistration(expectedToken);
+      return true;
+    }
+    await boundedWebPushRetirement(subscription.unsubscribe()).catch(() => undefined);
+    const remaining = await boundedWebPushRetirement(
+      registration.pushManager.getSubscription(),
+    );
+    if (remaining) {
+      const remainingToken = encodeWebPushSubscription(remaining.toJSON());
+      if (!remainingToken || remainingToken === expectedToken) return false;
+    }
+    clearPublicWebPushRegistration(expectedToken);
+    void fetch("/api/push-tokens", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: expectedToken }),
+    }).catch(() => null);
     return true;
   } catch {
     return false;

@@ -5,7 +5,8 @@ import { offlineOrMessage } from "@/lib/apiErrorMessage";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
-import { registerWebPush } from "@/lib/webPush";
+import { registerWebPush, unsubscribeWebPushToken } from "@/lib/webPush";
+import { markPublicWebPushToken } from "@/lib/webPushRegistrationState";
 import {
   getWebPushPromptServerSnapshot,
   getWebPushPromptVisibleSnapshot,
@@ -47,9 +48,10 @@ export default function WebPushPrompt(): React.JSX.Element | null {
     try {
       const registered = await registerWebPush(controller.signal);
       if (controller.signal.aborted) return;
-      if (registered) {
+      if (registered && markPublicWebPushToken(registered)) {
         markWebPushPromptEnabled();
       } else {
+        if (registered) await unsubscribeWebPushToken(registered);
         setError(
           offlineOrMessage("Could not enable alerts. Try again.")
         );

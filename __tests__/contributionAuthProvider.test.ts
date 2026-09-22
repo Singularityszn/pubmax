@@ -40,9 +40,16 @@ const authCallbackClient = vi.hoisted(() => ({
   establish: vi.fn(),
 }));
 
+const authBootstrap = vi.hoisted(() => ({
+  run: vi.fn(),
+}));
+
 const accountPush = vi.hoisted(() => ({
   retire: vi.fn(),
+  verifyInitial: vi.fn(),
+  verifySignedOut: vi.fn(),
 }));
+const tokenQuarantine = vi.hoisted(() => ({ set: vi.fn() }));
 
 vi.mock("@/components/identity/AccountOnboarding", () => ({
   default: () => null,
@@ -57,12 +64,45 @@ vi.mock("@/lib/authCallbackClient", () => ({
   clearLegacyPkceVerifiers: vi.fn(),
   establishAuthCallbackSession: authCallbackClient.establish,
 }));
+vi.mock("@/lib/authSessionBootstrap", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/authSessionBootstrap")>(
+    "@/lib/authSessionBootstrap",
+  );
+  return {
+    ...actual,
+    bootstrapAuthSession: authBootstrap.run,
+  };
+});
 vi.mock("@/lib/accountPushLifecycle", () => ({
   withRetiredAccountWebPush: async <T,>(
     accessToken: string | null | undefined,
     continuation: () => Promise<T>,
   ) => {
     const retirement = await accountPush.retire(accessToken);
+    if (retirement.status === "unavailable") return { status: "unavailable" };
+    return {
+      status: "completed",
+      retirement,
+      value: await continuation(),
+    };
+  },
+  withVerifiedInitialAccountPushOwner: async <T,>(
+    ownerId: string,
+    accessToken: string,
+    continuation: () => Promise<T>,
+  ) => {
+    const retirement = await accountPush.verifyInitial(ownerId, accessToken);
+    if (retirement.status === "unavailable") return { status: "unavailable" };
+    return {
+      status: "completed",
+      retirement,
+      value: await continuation(),
+    };
+  },
+  withVerifiedInitialSignedOutAccountPush: async <T,>(
+    continuation: () => Promise<T>,
+  ) => {
+    const retirement = await accountPush.verifySignedOut();
     if (retirement.status === "unavailable") return { status: "unavailable" };
     return {
       status: "completed",
@@ -87,6 +127,7 @@ vi.mock("@/lib/authClient", () => ({
     },
   }),
   isAuthConfigured: () => true,
+  setAuthTokenAccessQuarantined: tokenQuarantine.set,
 }));
 vi.mock("@/lib/authProviderAvailability", () => ({
   guardSocialAuthProvider: authAvailability.guard,
@@ -283,8 +324,17 @@ beforeEach(() => {
     },
     failed: false,
   });
+  authBootstrap.run.mockReset();
+  authBootstrap.run.mockImplementation(async () => providerState.session
+    ? { status: "local", session: providerState.session }
+    : { status: "none" });
   accountPush.retire.mockReset();
   accountPush.retire.mockResolvedValue({ status: "not_registered" });
+  accountPush.verifyInitial.mockReset();
+  accountPush.verifyInitial.mockResolvedValue({ status: "not_registered" });
+  accountPush.verifySignedOut.mockReset();
+  accountPush.verifySignedOut.mockResolvedValue({ status: "not_registered" });
+  tokenQuarantine.set.mockReset();
   const document = new TestDocument();
   const window = {
     document,
@@ -354,7 +404,6 @@ describe("shared contribution auth invalidation", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-
     await vi.waitFor(() => {
       expect(accountPush.retire).toHaveBeenCalledWith("shared-session");
     });
@@ -420,6 +469,205 @@ describe("shared contribution auth invalidation", () => {
     await vi.waitFor(() => {
       expect(consumers.get("broadcast")?.auth.user?.id ?? null).toBe(nextUserId);
     });
+  });
+
+  it("quarantines token access and rendered identity when broadcast retirement fails", async () => {
+    const container = globalThis.document.createElement("div");
+    root = createRoot(container);
+    await commitReactWork(async () => {
+      root?.render(
+        createElement(
+          AuthProvider,
+          { clerkIntegrationConfigured: false },
+          createElement(Consumer, { name: "quarantine" }),
+        ),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => {
+      expect(consumers.get("quarantine")?.auth.user?.id).toBe("account-a");
+      expect(providerState.authChange).not.toBeNull();
+    });
+
+    accountPush.retire.mockResolvedValueOnce({ status: "unavailable" });
+    await commitReactWork(async () => {
+      await providerState.authChange?.("SIGNED_IN", {
+        access_token: "account-b-access",
+        refresh_token: "account-b-refresh",
+        user: { id: "account-b" },
+      });
+    });
+
+    expect(consumers.get("quarantine")?.auth.user).toBeNull();
+    expect(consumers.get("quarantine")?.auth.contributionAuth).toBeNull();
+    expect(tokenQuarantine.set).toHaveBeenLastCalledWith(true);
+
+    accountPush.retire.mockResolvedValueOnce({ status: "not_registered" });
+    await commitReactWork(async () => {
+      await providerState.authChange?.("TOKEN_REFRESHED", {
+        access_token: "account-b-access-2",
+        refresh_token: "account-b-refresh-2",
+        user: { id: "account-b" },
+      });
+    });
+    await vi.waitFor(() => {
+      expect(consumers.get("quarantine")?.auth.user?.id).toBe("account-b");
+    });
+    expect(accountPush.retire).toHaveBeenLastCalledWith("shared-session");
+    expect(tokenQuarantine.set).toHaveBeenLastCalledWith(false);
+  });
+
+  it("does not publish a reloaded SDK session before durable push ownership is safe", async () => {
+    providerState.session = {
+      access_token: "account-b-access",
+      user: { id: "account-b" },
+    };
+    accountPush.verifyInitial.mockResolvedValue({ status: "unavailable" });
+    const container = globalThis.document.createElement("div");
+    root = createRoot(container);
+
+    await commitReactWork(async () => {
+      root?.render(
+        createElement(
+          AuthProvider,
+          { clerkIntegrationConfigured: false },
+          createElement(Consumer, { name: "reload" }),
+        ),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await vi.waitFor(() => {
+      expect(accountPush.verifyInitial).toHaveBeenCalledWith(
+        "account-b",
+        "account-b-access",
+      );
+      expect(consumers.get("reload")?.auth.user).toBeNull();
+    });
+    expect(tokenQuarantine.set).toHaveBeenLastCalledWith(true);
+  });
+
+  it("does not publish cold signed-out state before stale push is retired", async () => {
+    providerState.session = null;
+    accountPush.verifySignedOut.mockResolvedValue({ status: "unavailable" });
+    const container = globalThis.document.createElement("div");
+    root = createRoot(container);
+    await commitReactWork(async () => {
+      root?.render(
+        createElement(
+          AuthProvider,
+          { clerkIntegrationConfigured: false },
+          createElement(Consumer, { name: "signed-out-reload" }),
+        ),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => expect(providerState.authChange).not.toBeNull());
+    await commitReactWork(async () => {
+      await providerState.authChange?.("INITIAL_SESSION", null);
+    });
+
+    await vi.waitFor(() => {
+      expect(accountPush.verifySignedOut).toHaveBeenCalled();
+      expect(consumers.get("signed-out-reload")?.auth.user).toBeNull();
+    });
+    expect(tokenQuarantine.set).toHaveBeenLastCalledWith(true);
+  });
+
+  it("keeps bootstrap signed-out unavailable when stale push cleanup fails", async () => {
+    providerState.session = null;
+    authBootstrap.run.mockResolvedValueOnce({ status: "none" });
+    accountPush.verifySignedOut.mockResolvedValue({ status: "unavailable" });
+    const container = globalThis.document.createElement("div");
+    root = createRoot(container);
+
+    await commitReactWork(async () => {
+      root?.render(
+        createElement(
+          AuthProvider,
+          { clerkIntegrationConfigured: false },
+          createElement(Consumer, { name: "bootstrap-unavailable" }),
+        ),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await vi.waitFor(() => {
+      expect(authBootstrap.run).toHaveBeenCalled();
+      expect(accountPush.verifySignedOut).toHaveBeenCalled();
+      expect(consumers.get("bootstrap-unavailable")?.auth.supabaseAuthState)
+        .toBe("unavailable");
+    });
+    expect(consumers.get("bootstrap-unavailable")?.auth.providerAuthState)
+      .toBe("unavailable");
+    expect(tokenQuarantine.set).toHaveBeenLastCalledWith(true);
+  });
+
+  it("quarantines a conflicting bootstrap account when retirement fails", async () => {
+    let resolveBootstrap!: (value: {
+      status: "local";
+      session: {
+        access_token: string;
+        refresh_token: string;
+        user: { id: string };
+      };
+    }) => void;
+    authBootstrap.run.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveBootstrap = resolve;
+    }));
+    const container = globalThis.document.createElement("div");
+    root = createRoot(container);
+
+    await commitReactWork(async () => {
+      root?.render(
+        createElement(
+          AuthProvider,
+          { clerkIntegrationConfigured: false },
+          createElement(Consumer, { name: "bootstrap-conflict" }),
+        ),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => {
+      expect(providerState.authChange).not.toBeNull();
+      expect(authBootstrap.run).toHaveBeenCalled();
+    });
+    await commitReactWork(async () => {
+      await providerState.authChange?.("INITIAL_SESSION", {
+        access_token: "account-a-access",
+        refresh_token: "account-a-refresh",
+        user: { id: "account-a" },
+      });
+    });
+    await vi.waitFor(() => {
+      expect(consumers.get("bootstrap-conflict")?.auth.user?.id).toBe("account-a");
+    });
+    accountPush.retire.mockResolvedValueOnce({ status: "unavailable" });
+
+    await commitReactWork(async () => {
+      resolveBootstrap({
+        status: "local",
+        session: {
+          access_token: "account-b-access",
+          refresh_token: "account-b-refresh",
+          user: { id: "account-b" },
+        },
+      });
+      await Promise.resolve();
+    });
+
+    await vi.waitFor(() => {
+      expect(accountPush.retire).toHaveBeenCalledWith("account-a-access");
+      expect(consumers.get("bootstrap-conflict")?.auth.user).toBeNull();
+      expect(consumers.get("bootstrap-conflict")?.auth.supabaseAuthState)
+        .toBe("unavailable");
+    });
+    expect(tokenQuarantine.set).toHaveBeenLastCalledWith(true);
   });
 
   it("stops a second consumer from receiving a rejected token", async () => {

@@ -85,6 +85,11 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
       setPending(false);
       return;
     }
+    if (result.status === "coordination_unavailable") {
+      setError("This browser cannot safely coordinate account notifications.");
+      setPending(false);
+      return;
+    }
     if (result.status === "registration_failed") {
       setError(
         offlineOrMessage("Could not enable alerts. Try again.")
@@ -94,6 +99,11 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
     }
     if (result.status === "request_failed") {
       setError(offlineOrMessage("Could not save that choice. Try again."));
+      setPending(false);
+      return;
+    }
+    if (result.status === "binding_timed_out") {
+      setError("Notification setup timed out and was safely cancelled. Try again.");
       setPending(false);
       return;
     }
