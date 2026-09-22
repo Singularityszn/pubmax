@@ -272,7 +272,7 @@ async function searchTavily({ pub, apiKey, fetchImpl, signal }) {
       max_results: 10,
       include_answer: false,
       include_images: false,
-      include_raw_content: "markdown",
+      include_raw_content: false,
       include_usage: true,
       ...(declaredHost ? { include_domains: [declaredHost] } : {}),
     }),
@@ -285,14 +285,6 @@ async function searchTavily({ pub, apiKey, fetchImpl, signal }) {
 
 function sourceLabel(pub) {
   return `${String(pub.name).trim()} - official site`;
-}
-
-function resultContent(result) {
-  return typeof result?.raw_content === "string"
-    ? result.raw_content
-    : typeof result?.content === "string"
-      ? result.content
-      : "";
 }
 
 function resultMatchesDeclaredVenuePage(pub, result) {
@@ -345,7 +337,7 @@ function acceptedOfficialResults(pub, payload, hostCounts, observedAt) {
 async function selectBestOfficialPage(results, pub) {
   let matchedPage = null;
   for (const result of results) {
-    const { drinks: extracted } = await extractVenueDrinkPricesMaybeJudged(resultContent(result), {
+    const { drinks: extracted } = await extractVenueDrinkPricesMaybeJudged(result.content, {
       pubName: pub?.name ?? "Unknown pub",
       pageUrl: result?.url ?? "",
     });
@@ -425,6 +417,7 @@ function searchOfficialPage({ pub, searchProvider, apiKey, fetchImpl, observedAt
   if (searchProvider) {
     return searchProvider.search({
       query: searchQuery(pub),
+      contentMode: "url-only",
       maxResults: 10,
       ...(host ? { includeDomains: [host] } : {}),
       endPublishedDate: observedAt,
@@ -498,6 +491,23 @@ async function sourcePermits(url, robotsChecker) {
   return decision.allowed === true;
 }
 
+async function readPermittedOfficialPages(results, robotsChecker, pageFetchImpl, signal) {
+  const pages = [];
+  for (const result of results) {
+    if (!await sourcePermits(result.url, robotsChecker)) continue;
+    try {
+      const response = await withRequestDeadline(signal, (requestSignal) =>
+        pageFetchImpl(result.url, { signal: requestSignal, redirect: "error" }),
+      );
+      const content = await response.text();
+      if (response.ok) pages.push({ ...result, content });
+    } catch {
+      // A page we cannot safely read yields no observation.
+    }
+  }
+  return pages;
+}
+
 export async function runCityEnrichment({
   city: cityId,
   pubs,
@@ -508,6 +518,7 @@ export async function runCityEnrichment({
   indices,
   observedAt = new Date().toISOString(),
   fetchImpl = fetch,
+  pageFetchImpl = fetchImpl,
   robotsChecker = createRobotsChecker({ fetchImpl: (url, init) => fetch(url, { ...init, redirect: "error" }) }),
   onProgress,
   // A venue whose search fails is a fact about that venue, not about the run.
@@ -609,12 +620,12 @@ export async function runCityEnrichment({
     await report();
     throwIfAborted(signal);
     creditsSpent += Number(payload?.creditsSpent ?? payload?.usage?.credits) || 0;
-    const officialResults = [];
-    for (const result of acceptedOfficialResults(pub, payload, hostCounts, observedAt)) {
-      if (await sourcePermits(result.url, robotsChecker)) {
-        officialResults.push(result);
-      }
-    }
+    const officialResults = await readPermittedOfficialPages(
+      acceptedOfficialResults(pub, payload, hostCounts, observedAt),
+      robotsChecker,
+      pageFetchImpl,
+      signal,
+    );
     const matchedPage = await selectBestOfficialPage(officialResults, pub);
 
     outcomes.push({

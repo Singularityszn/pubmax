@@ -91,6 +91,8 @@ export function runCityEnrichment(options: {
   indices?: number[];
   observedAt?: string;
   fetchImpl?: typeof fetch;
+  /** Reads an exact result URL only after source policy and robots permit it. */
+  pageFetchImpl?: typeof fetch;
   robotsChecker?: RobotsChecker;
   onProgress?: (state: Record<string, unknown>) => void | Promise<void>;
   /** A venue whose search failed is a fact about that venue, not the run. The

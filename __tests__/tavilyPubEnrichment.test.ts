@@ -77,6 +77,36 @@ describe("Tavily pub enrichment governance", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(result.outcomes?.[0]).toMatchObject({ status: "refused" });
   });
+
+  it("discovers URLs without provider page content and refuses a denied result before reading it", async () => {
+    const search = vi.fn(async () => ({
+      results: [{
+        title: "Independent Arms drinks menu",
+        url: "https://www.independentarms.co.uk/drinks",
+        content: "Invented Bitter - Pint £4.50",
+      }],
+    }));
+    const pageFetch = vi.fn<typeof fetch>();
+
+    const result = await runCityEnrichment({
+      city: "manchester",
+      pubs: [independentPub],
+      maxQueries: 1,
+      observedAt: OBSERVED_AT,
+      searchProvider: { search },
+      pageFetchImpl: pageFetch,
+      robotsChecker: async (url) => ({
+        allowed: url === independentPub.website,
+        reason: url === independentPub.website ? "allowed" : "robots-disallowed",
+        evidence: "the venue root is allowed but /drinks is refused",
+      }),
+    });
+
+    expect(search).toHaveBeenCalledWith(expect.objectContaining({ contentMode: "url-only" }));
+    expect(pageFetch).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ queriesSpent: 1, matchedPubs: 0, prices: [] });
+  });
+
   it("accepts an injected search provider without changing enrichment output", async () => {
     const searchProvider = {
       name: "exa",
@@ -105,6 +135,7 @@ describe("Tavily pub enrichment governance", () => {
       maxQueries: 1,
       observedAt: OBSERVED_AT,
       searchProvider,
+      pageFetchImpl: vi.fn(async () => new Response("Injected Bitter - Pint £4.50")),
     });
 
     expect(searchProvider.search).toHaveBeenCalledWith(expect.objectContaining({
@@ -544,6 +575,11 @@ describe("Tavily pub enrichment governance", () => {
       maxQueries: 1,
       observedAt: OBSERVED_AT,
       fetchImpl,
+      pageFetchImpl: vi.fn(async (url) => new Response(
+        String(url).includes("/2026/04/")
+          ? "Current Lager Pint £5.00"
+          : "Old Lager Pint £4.50\nOld Bitter Pint £4.25",
+      )),
     });
 
     expect(result.prices.map((row) => row.drinkName)).toEqual(["Current Lager"]);
@@ -570,6 +606,7 @@ describe("Tavily pub enrichment governance", () => {
       maxQueries: 1,
       observedAt: OBSERVED_AT,
       fetchImpl,
+      pageFetchImpl: vi.fn(async () => new Response("## Draught Beer\nManchester Pale Ale - Pint £5.40")),
     });
 
     expect(result.matchedPubs).toBe(1);
@@ -581,7 +618,7 @@ describe("Tavily pub enrichment governance", () => {
       chunks_per_source: 3,
       max_results: 10,
       include_domains: ["independentarms.co.uk"],
-      include_raw_content: "markdown",
+      include_raw_content: false,
       include_usage: true,
     });
     expect(result.prices).toEqual([{

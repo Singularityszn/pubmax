@@ -11,6 +11,8 @@ type SearchProviderName = "exa" | "tavily";
 
 type SearchRequest = {
   query: string;
+  /** Return result metadata only. Caller reads an approved URL itself. */
+  contentMode?: "full" | "url-only";
   signal?: AbortSignal;
   timeoutMs?: number;
   maxResults?: number;
@@ -153,7 +155,10 @@ function toolResultOutputs(value: unknown): unknown[] {
   });
 }
 
-function normalisedExaResults(value: unknown): SearchResult[] | null {
+function normalisedExaResults(
+  value: unknown,
+  contentMode: SearchRequest["contentMode"],
+): SearchResult[] | null {
   const outputs = toolResultOutputs(value);
   const rawResults: unknown[] = [];
   let foundResultOutput = false;
@@ -176,7 +181,9 @@ function normalisedExaResults(value: unknown): SearchResult[] | null {
     const highlights = Array.isArray(result?.highlights)
       ? result.highlights.filter((item): item is string => typeof item === "string").join("\n")
       : stringFrom(result?.highlights);
-    const content = highlights ?? stringFrom(result?.text) ?? stringFrom(result?.content) ?? "";
+    const content = contentMode === "url-only"
+      ? ""
+      : highlights ?? stringFrom(result?.text) ?? stringFrom(result?.content) ?? "";
     return [{
       title: stringFrom(result?.title) ?? url,
       url,
@@ -250,11 +257,13 @@ class ExaGatewayProvider implements SearchProvider {
     const toolOptions: Record<string, unknown> = {
       type: "fast",
       numResults: Math.min(100, Math.max(1, Math.floor(request.maxResults ?? 10))),
-      contents: {
+    };
+    if (request.contentMode !== "url-only") {
+      toolOptions.contents = {
         highlights: { query: request.query, maxCharacters: EXA_HIGHLIGHT_MAX_CHARACTERS },
         maxAgeHours: 24,
-      },
-    };
+      };
+    }
     if (request.includeDomains?.length) toolOptions.includeDomains = request.includeDomains;
     if (request.excludeDomains?.length) toolOptions.excludeDomains = request.excludeDomains;
     if (request.startPublishedDate) toolOptions.startPublishedDate = request.startPublishedDate;
@@ -278,7 +287,7 @@ class ExaGatewayProvider implements SearchProvider {
     const usage = recordFrom(recordFrom(result)?.usage);
     this.statsValue.estimatedTokens +=
       numberFrom(usage?.inputTokens) + numberFrom(usage?.outputTokens);
-    const results = normalisedExaResults(result);
+    const results = normalisedExaResults(result, request.contentMode);
     if (results === null) {
       throw new SearchProviderUnavailableError("AI Gateway returned malformed Exa search output.");
     }
@@ -339,7 +348,7 @@ class TavilyProvider implements SearchProvider {
         max_results: Math.min(10, Math.max(1, Math.floor(request.maxResults ?? 10))),
         include_answer: false,
         include_images: false,
-        include_raw_content: "markdown",
+        include_raw_content: request.contentMode === "url-only" ? false : "markdown",
         include_usage: true,
         ...(request.includeDomains?.length ? { include_domains: request.includeDomains } : {}),
       }),
@@ -358,7 +367,9 @@ class TavilyProvider implements SearchProvider {
         return [{
           title: stringFrom(result?.title) ?? url,
           url,
-          content: stringFrom(result?.raw_content) ?? stringFrom(result?.content) ?? "",
+          content: request.contentMode === "url-only"
+            ? ""
+            : stringFrom(result?.raw_content) ?? stringFrom(result?.content) ?? "",
           ...(stringFrom(result?.published_date) ? { publishedDate: stringFrom(result?.published_date) } : {}),
         }];
       }),

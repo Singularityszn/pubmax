@@ -50,7 +50,7 @@ afterEach(() => {
 
 describe("search provider selection", () => {
   it("selects Tavily when SEARCH_PROVIDER is tavily", async () => {
-    const fetchImpl = vi.fn(async () => tavilyResponse());
+    const fetchImpl = vi.fn<typeof fetch>(async () => tavilyResponse());
     const generateText = vi.fn();
     const provider = createSearchProvider({
       env: {
@@ -131,6 +131,48 @@ describe("search provider selection", () => {
         highlights: { query: 'site:independentarms.co.uk "Independent Arms"', maxCharacters: 1600 },
         maxAgeHours: 24,
       },
+    });
+  });
+
+  it("requests Exa URL-only discovery without page highlights", async () => {
+    const dependencies = gatewayDependencies(vi.fn(async () => ({
+      steps: [{ toolResults: [{ toolName: "exa_search", output: { results: [officialResult] } }] }],
+      usage: { inputTokens: 2, outputTokens: 3 },
+    })));
+    const provider = createSearchProvider({
+      env: { AI_GATEWAY_API_KEY: "gateway-test-key" },
+      dependencies,
+    });
+
+    const result = await provider.search({ query: "official menu", contentMode: "url-only" });
+
+    expect(dependencies.gateway.tools.exaSearch).toHaveBeenCalledWith({
+      type: "fast",
+      numResults: 10,
+    });
+    expect(result.results).toEqual([{
+      title: officialResult.title,
+      url: officialResult.url,
+      content: "",
+      publishedDate: officialResult.publishedDate,
+    }]);
+  });
+
+  it("requests Tavily URL-only discovery without raw page content", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => tavilyResponse());
+    const provider = createSearchProvider({
+      env: { SEARCH_PROVIDER: "tavily", TAVILY_API_KEY: "tavily-test-key" },
+      fetchImpl,
+      dependencies: gatewayDependencies(vi.fn()),
+    });
+
+    const result = await provider.search({ query: "official menu", contentMode: "url-only" });
+
+    const request = JSON.parse(String((fetchImpl.mock.calls[0]?.[1] as RequestInit).body));
+    expect(request.include_raw_content).toBe(false);
+    expect(result.results[0]).toMatchObject({
+      url: "https://independentarms.co.uk/menu",
+      content: "",
     });
   });
 
