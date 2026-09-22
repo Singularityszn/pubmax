@@ -50,6 +50,7 @@ const PROVIDER_SECRET_ENV_KEYS = [...PRICE_PROVIDER_KEYS, ...EVENT_PROVIDER_KEYS
  */
 export const EVENTS_REFRESH_NODE_ARGS = ["--import", "tsx"];
 export const COMMON_REFRESH_NODE_ARGS = ["--import", "tsx"];
+export const PRICE_REFRESH_NODE_ARGS = ["--import", "tsx"];
 
 export function parseFreeMemoryPercent(output) {
   const match = String(output).match(/System-wide memory free percentage:\s*(\d+(?:\.\d+)?)%/);
@@ -277,9 +278,14 @@ export function commandsForMode(mode, dryRun) {
   }
   if (mode !== "prices") throw new Error(`Unknown refresh mode: ${mode}`);
   const command = (...args) => ({ executable: process.execPath, args });
+  const guardedPriceCommand = (...args) => ({
+    executable: process.execPath,
+    nodeArgs: PRICE_REFRESH_NODE_ARGS,
+    args,
+  });
   if (dryRun) {
     return [
-      command("scripts/refresh_drink_prices.mjs", "--limit", "1"),
+      guardedPriceCommand("scripts/refresh_drink_prices.mjs", "--limit", "1"),
       command("scripts/firecrawl_greene_king_prices.mjs", "--limit", "1", "--merge"),
       command("scripts/firecrawl_mbplc_prices.mjs", "--limit", "1"),
       command("scripts/harvest_outer_london_prices.mjs", "--limit", "1", "--budget", "2"),
@@ -288,7 +294,7 @@ export function commandsForMode(mode, dryRun) {
     ];
   }
   return [
-    command("scripts/refresh_drink_prices.mjs"),
+    guardedPriceCommand("scripts/refresh_drink_prices.mjs"),
     command("scripts/firecrawl_greene_king_prices.mjs", "--merge"),
     command("scripts/firecrawl_mbplc_prices.mjs"),
     command("scripts/harvest_outer_london_prices.mjs"),

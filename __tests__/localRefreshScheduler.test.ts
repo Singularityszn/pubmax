@@ -10,6 +10,7 @@ import {
   captureRefreshSnapshot,
   COMMON_REFRESH_NODE_ARGS,
   EVENTS_REFRESH_NODE_ARGS,
+  PRICE_REFRESH_NODE_ARGS,
   keyReadinessError,
   laneReadiness,
   defaultMaxLoad,
@@ -249,11 +250,13 @@ describe("local refresh scraper sequence", () => {
       "scripts/merge_london_chain_scrapes.mjs",
       "scripts/merge_london_chain_gazetteer.mjs",
     ]);
+    expect(commands[0]?.nodeArgs).toEqual(PRICE_REFRESH_NODE_ARGS);
     expect(commands.flatMap((command) => command.args)).not.toContain("--open-pr");
   });
 
   it("bounds network-heavy scrapers during a dry run", () => {
-    expect(commandsForMode("prices", true).map((command) => command.args)).toEqual([
+    const commands = commandsForMode("prices", true);
+    expect(commands.map((command) => command.args)).toEqual([
       ["scripts/refresh_drink_prices.mjs", "--limit", "1"],
       ["scripts/firecrawl_greene_king_prices.mjs", "--limit", "1", "--merge"],
       ["scripts/firecrawl_mbplc_prices.mjs", "--limit", "1"],
@@ -261,6 +264,27 @@ describe("local refresh scraper sequence", () => {
       ["scripts/merge_london_chain_scrapes.mjs"],
       ["scripts/merge_london_chain_gazetteer.mjs"],
     ]);
+    expect(commands[0]?.nodeArgs).toEqual(PRICE_REFRESH_NODE_ARGS);
+  });
+
+  it("loads TypeScript-owned harvest guards on every shipped price and editorial entry point", () => {
+    const scripts = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"))
+      .scripts as Record<string, string>;
+    expect(PRICE_REFRESH_NODE_ARGS).toEqual(["--import", "tsx"]);
+    expect(scripts["refresh:drink-prices"]).toBe(
+      `node ${PRICE_REFRESH_NODE_ARGS.join(" ")} scripts/refresh_drink_prices.mjs`,
+    );
+    expect(scripts["editorial:poll"]).toBe(
+      `node ${PRICE_REFRESH_NODE_ARGS.join(" ")} scripts/editorial/poll.mjs`,
+    );
+    const workflow = readFileSync(
+      join(process.cwd(), ".github/workflows/drink-price-refresh.yml"),
+      "utf8",
+    );
+    expect(workflow).toContain("run: npm ci --prefer-offline");
+    expect(workflow).toContain(
+      `run: node ${PRICE_REFRESH_NODE_ARGS.join(" ")} scripts/refresh_drink_prices.mjs --open-pr`,
+    );
   });
 
   it("uses the existing official-provider event refresher", () => {

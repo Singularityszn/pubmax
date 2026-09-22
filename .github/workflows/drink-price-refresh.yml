@@ -36,6 +36,9 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
       - name: Configure git identity
         run: |
           git config user.name "pubmax-price-bot"
@@ -45,7 +48,7 @@ jobs:
         env:
           # `gh` uses this token to open the review PR.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/refresh_drink_prices.mjs --open-pr
+        run: node --import tsx scripts/refresh_drink_prices.mjs --open-pr
 
       - name: Validate bundled data
         # Guard: the refresh must never ship data that fails the app's own

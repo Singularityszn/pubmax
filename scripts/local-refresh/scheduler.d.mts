@@ -37,6 +37,8 @@ export function baseRefForRun(dryRun: boolean): "HEAD" | "origin/main";
 export const EVENTS_REFRESH_NODE_ARGS: string[];
 /** Runtime flags needed for the Common lane's shared harvested-page fence. */
 export const COMMON_REFRESH_NODE_ARGS: string[];
+/** Runtime flags needed by price refresh callers that import the harvested-page fence. */
+export const PRICE_REFRESH_NODE_ARGS: string[];
 
 export type RefreshCommand = {
   executable: string;
