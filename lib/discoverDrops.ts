@@ -15,12 +15,17 @@ export function pickDiscoverDrops(raw: unknown): TonightDrop[] {
     const drop = item as Record<string, unknown>;
     if (typeof drop.venueId !== "string" || !drop.venueId) continue;
     out.push({
+      id: typeof drop.id === "string" && drop.id.trim() ? drop.id : undefined,
       venueId: drop.venueId,
       drink: typeof drop.drink === "string" ? drop.drink : undefined,
       measure:
         drop.measure == null
           ? undefined
           : statedDrinkMeasure(drop.measure) ?? "other",
+      measureLabel:
+        typeof drop.measureLabel === "string" && drop.measureLabel.trim()
+          ? drop.measureLabel
+          : undefined,
       priceGbp:
         typeof drop.priceGbp === "number" && Number.isFinite(drop.priceGbp)
           ? drop.priceGbp
