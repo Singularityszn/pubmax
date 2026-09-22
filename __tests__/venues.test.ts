@@ -18,6 +18,7 @@ import {
   type Filters,
 } from "@/lib/venues";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import { drinkSubtypePricedMapHref } from "@/lib/drinkSubtypeObservedPrice";
 
 function makeRow(overrides: Partial<VenuePrice> = {}): VenuePrice {
   return {
@@ -402,6 +403,67 @@ describe("filterVenues", () => {
         makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-lager" }),
       ),
     ).toHaveLength(1);
+  });
+
+  it("opens the zero-sugar cola map lens as the union of its stocked leaf subtypes", () => {
+    const rows = [
+      ["Coke Zero Arms", "Coke Zero"],
+      ["Diet Coke Arms", "Diet Coke"],
+      ["Pepsi Max Arms", "Pepsi Max"],
+      ["Diet Pepsi Arms", "Diet Pepsi"],
+      ["Water Arms", "Still water"],
+      ["Cola Arms", "Coca-Cola"],
+    ] as const;
+    const pubs = rows.map(([pub_name, pint_name], index) =>
+      groupVenuePrices([
+        makeRow({
+          pub_name,
+          pint_name,
+          address: `${index + 1} Test Street`,
+          price_gbp: 3,
+        }),
+      ])[0],
+    );
+    const href = drinkSubtypePricedMapHref({ subtypeId: "soft-drink-zero-sugar-cola" });
+    const params = new URL(href, "https://pubmax.test").searchParams;
+
+    const found = filterVenues(
+      pubs,
+      makeFilters({
+        drinkCategory: params.get("drink") ?? "",
+        drinkSubtype: params.get("sub") ?? "",
+      }),
+    );
+
+    expect(found.map((venue) => venue.name)).toEqual([
+      "Coke Zero Arms",
+      "Diet Coke Arms",
+      "Pepsi Max Arms",
+      "Diet Pepsi Arms",
+    ]);
+  });
+
+  it("does not treat separate Pepsi and Diet Coke menu items as Diet Pepsi", () => {
+    const [pub] = groupVenuePrices([
+      makeRow({
+        pub_name: "The Mixed Soft Drink Arms",
+        pint_name: "Soft drink Soda, Sprite, Pepsi & Diet Coke",
+        price_gbp: 3,
+      }),
+    ]);
+
+    expect(
+      filterVenues(
+        [pub],
+        makeFilters({ drinkCategory: "soft-drink", drinkSubtype: "soft-drink-diet-coke" }),
+      ),
+    ).toHaveLength(1);
+    expect(
+      filterVenues(
+        [pub],
+        makeFilters({ drinkCategory: "soft-drink", drinkSubtype: "soft-drink-diet-pepsi" }),
+      ),
+    ).toHaveLength(0);
   });
 
   it("ignores a subtype from a different family and rejects unknown ids", () => {

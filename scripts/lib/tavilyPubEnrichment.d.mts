@@ -1,3 +1,6 @@
+import type { DrinkCategory } from "../../lib/drinks.ts";
+import type { RobotsChecker } from "../../lib/harvest/robots.ts";
+
 export type OsmPub = {
   osmId: string;
   name: string;
@@ -15,9 +18,9 @@ export type OsmPub = {
 export type TavilyPrice = {
   venueKey: string;
   drinkName: string;
-  category: "beer";
+  category: DrinkCategory;
   priceGbp: number;
-  servingSize: "pint" | "568ml";
+  servingSize?: "pint" | "568ml" | null;
   source: { label: string; url: string; licence: string };
   observedAt: string;
 };
@@ -72,7 +75,7 @@ export function mergeCanonicalPrices<T extends {
 export type VenueEnrichmentOutcome = {
   index: number;
   osmId: string;
-  status: "matched" | "empty" | "delegated" | "no-website" | "failed";
+  status: "matched" | "empty" | "delegated" | "no-website" | "failed" | "refused";
   error?: string;
 };
 
@@ -88,6 +91,9 @@ export function runCityEnrichment(options: {
   indices?: number[];
   observedAt?: string;
   fetchImpl?: typeof fetch;
+  /** Reads an exact result URL only after source policy and robots permit it. */
+  pageFetchImpl?: typeof fetch;
+  robotsChecker?: RobotsChecker;
   onProgress?: (state: Record<string, unknown>) => void | Promise<void>;
   /** A venue whose search failed is a fact about that venue, not the run. The
    *  default is "abort", so every existing caller keeps its old behaviour. */

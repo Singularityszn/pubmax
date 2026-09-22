@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/harvest/robots.ts", () => ({
+  fetchHarvestResponse: vi.fn(async () => { throw new Error("Unexpected source read in this fixture"); }),
+  createRobotsChecker: () => async () => ({ allowed: true, reason: "allowed", evidence: "unit fixture" }),
+}));
+
 import { venueCoordsGroupingKey } from "@/lib/venues";
 import {
   classifyChainPub,
@@ -13,6 +18,7 @@ import {
 } from "@/scripts/lib/tavilyPubEnrichment.mjs";
 import {
   parseArgs,
+  partitionReportedPrices,
   pruneManagedCityPrices,
 } from "@/scripts/enrich_city_pubs_tavily.mjs";
 
@@ -45,6 +51,63 @@ function tavilyResponse(overrides: Record<string, unknown> = {}) {
 }
 
 describe("Tavily pub enrichment governance", () => {
+  it("quarantines only exact run observations and preserves other evidence", () => {
+    const row = {
+      venueKey: "venue", drinkName: "Lager", category: "beer", priceGbp: 5,
+      observedAt: OBSERVED_AT,
+      source: { url: "https://pub.example/menu", licence: OFFICIAL_SITE_SOURCE_LICENCE },
+    };
+    const newer = { ...row, observedAt: "2026-09-22T00:00:00Z" };
+    const independent = { ...row, source: { ...row.source, licence: "another lane" } };
+    expect(partitionReportedPrices([row, newer, independent], [{
+      venueKey: row.venueKey, officialUrl: row.source.url, observedAt: OBSERVED_AT,
+    }])).toEqual({ removed: [row], retained: [newer, independent] });
+  });
+  it("keeps London candidates inside the actual borough boundary", () => {
+    const outside = { ...independentPub, osmId: "node/outside", name: "Tattenham Corner", lat: 51.309, lng: -0.242 };
+    const inside = { ...independentPub, osmId: "node/inside", name: "Central London", lat: 51.51, lng: -0.12 };
+    expect(selectCityPubs("london", [outside, inside]).map((pub: { osmId: string }) => pub.osmId)).toEqual(["node/inside"]);
+  });
+  it("spends no query on a pub whose robots refuse this reader", async () => {
+    const fetchImpl = vi.fn(async () => tavilyResponse());
+    const result = await runCityEnrichment({
+      city: "manchester", pubs: [independentPub], apiKey: "fixture", fetchImpl,
+      robotsChecker: async () => ({ allowed: false, reason: "robots-disallowed", evidence: "fixture refusal" }),
+    });
+    expect(result.queriesSpent).toBe(0);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(result.outcomes?.[0]).toMatchObject({ status: "refused" });
+  });
+
+  it("discovers URLs without provider page content and refuses a denied result before reading it", async () => {
+    const search = vi.fn(async () => ({
+      results: [{
+        title: "Independent Arms drinks menu",
+        url: "https://www.independentarms.co.uk/drinks",
+        content: "Invented Bitter - Pint £4.50",
+      }],
+    }));
+    const pageFetch = vi.fn<typeof fetch>();
+
+    const result = await runCityEnrichment({
+      city: "manchester",
+      pubs: [independentPub],
+      maxQueries: 1,
+      observedAt: OBSERVED_AT,
+      searchProvider: { search },
+      pageFetchImpl: pageFetch,
+      robotsChecker: async (url) => ({
+        allowed: url === independentPub.website,
+        reason: url === independentPub.website ? "allowed" : "robots-disallowed",
+        evidence: "the venue root is allowed but /drinks is refused",
+      }),
+    });
+
+    expect(search).toHaveBeenCalledWith(expect.objectContaining({ contentMode: "url-only" }));
+    expect(pageFetch).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ queriesSpent: 1, matchedPubs: 0, prices: [] });
+  });
+
   it("accepts an injected search provider without changing enrichment output", async () => {
     const searchProvider = {
       name: "exa",
@@ -73,6 +136,7 @@ describe("Tavily pub enrichment governance", () => {
       maxQueries: 1,
       observedAt: OBSERVED_AT,
       searchProvider,
+      pageFetchImpl: vi.fn(async () => new Response("Injected Bitter - Pint £4.50")),
     });
 
     expect(searchProvider.search).toHaveBeenCalledWith(expect.objectContaining({
@@ -512,6 +576,11 @@ describe("Tavily pub enrichment governance", () => {
       maxQueries: 1,
       observedAt: OBSERVED_AT,
       fetchImpl,
+      pageFetchImpl: vi.fn(async (url) => new Response(
+        String(url).includes("/2026/04/")
+          ? "Current Lager Pint £5.00"
+          : "Old Lager Pint £4.50\nOld Bitter Pint £4.25",
+      )),
     });
 
     expect(result.prices.map((row) => row.drinkName)).toEqual(["Current Lager"]);
@@ -538,17 +607,19 @@ describe("Tavily pub enrichment governance", () => {
       maxQueries: 1,
       observedAt: OBSERVED_AT,
       fetchImpl,
+      pageFetchImpl: vi.fn(async () => new Response("## Draught Beer\nManchester Pale Ale - Pint £5.40")),
     });
 
     expect(result.matchedPubs).toBe(1);
     const request = fetchImpl.mock.calls[0]?.[1];
     expect(JSON.parse(String(request?.body))).toMatchObject({
-      query: 'site:independentarms.co.uk "Independent Arms" drinks menu "pint" "£"',
+      query:
+        'site:independentarms.co.uk "Independent Arms" (drinks OR menu OR cocktail OR gin OR whisky OR vodka OR rum OR wine OR "soft drink" OR "alcohol free") "£"',
       search_depth: "advanced",
       chunks_per_source: 3,
       max_results: 10,
       include_domains: ["independentarms.co.uk"],
-      include_raw_content: "markdown",
+      include_raw_content: false,
       include_usage: true,
     });
     expect(result.prices).toEqual([{

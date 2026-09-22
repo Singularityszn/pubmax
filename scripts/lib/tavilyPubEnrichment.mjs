@@ -1,6 +1,13 @@
 import { extractPintPrices } from "../../lib/harvest/tavilyPintPrices.ts";
+import { extractVenueDrinkPrices } from "../../lib/harvest/tavilyVenueDrinkPrices.ts";
+import { boroughNameForPoint } from "../../lib/londonBoroughPoint.mjs";
+import londonBoundaries from "../../data/london_boroughs_simplified.json" with { type: "json" };
+import { isHarvestableOperatorUrl } from "../../lib/harvest/sourcePolicy.ts";
+import { createRobotsChecker, fetchHarvestResponse } from "../../lib/harvest/robots.ts";
+import { MAX_PDF_BYTES, readPdfText } from "../../lib/harvest/pdfText.ts";
+import { fetchBoundedHarvestResource } from "./boundedHarvestResource.mjs";
 
-export { extractPintPrices };
+export { extractPintPrices, extractVenueDrinkPrices };
 
 const TAVILY_SEARCH_URL = "https://api.tavily.com/search";
 const MAX_TAVILY_CALLS_PER_RUN = 200;
@@ -162,7 +169,8 @@ export function selectCityPubs(cityId, allPubs) {
         Number(pub.lat) >= south &&
         Number(pub.lat) <= north &&
         Number(pub.lng) >= west &&
-        Number(pub.lng) <= east,
+        Number(pub.lng) <= east &&
+        (cityId !== "london" || boroughNameForPoint(Number(pub.lat), Number(pub.lng), londonBoundaries) !== null),
     )
     .sort((a, b) => {
       const aWebsite = a.website ? 0 : 1;
@@ -218,9 +226,14 @@ export async function extractPintPricesMaybeJudged(markdown, ctx) {
 
 /**
  * Keyless shared reader for every drink category, or the judged batch path when
- * TYPESAFE_API_KEY is set.
+ * TYPESAFE_API_KEY is set. Returns the same { drinks, reading, review } shape as
+ * the uk-prices harvest lane so outer-London Tavily refresh and city enrichment
+ * share one entry point.
  */
 export async function extractVenueDrinkPricesMaybeJudged(markdown, ctx) {
+  if (!process.env.TYPESAFE_API_KEY?.trim()) {
+    return { drinks: extractVenueDrinkPrices(markdown), reading: null, review: [] };
+  }
   const { extractVenueDrinkPricesForHarvest } = await import("../harvest/uk-prices/readPrices.mjs");
   return extractVenueDrinkPricesForHarvest(markdown, ctx);
 }
@@ -239,7 +252,9 @@ export function mergeCanonicalPrices(existing, incoming) {
 
 function searchQuery(pub) {
   const host = hostnameOf(pub.website);
-  return `site:${host} "${pub.name}" drinks menu "pint" "£"`;
+  return (
+    `site:${host} "${pub.name}" (drinks OR menu OR cocktail OR gin OR whisky OR vodka OR rum OR wine OR "soft drink" OR "alcohol free") "£"`
+  );
 }
 
 async function searchTavily({ pub, apiKey, fetchImpl, signal }) {
@@ -259,7 +274,7 @@ async function searchTavily({ pub, apiKey, fetchImpl, signal }) {
       max_results: 10,
       include_answer: false,
       include_images: false,
-      include_raw_content: "markdown",
+      include_raw_content: false,
       include_usage: true,
       ...(declaredHost ? { include_domains: [declaredHost] } : {}),
     }),
@@ -272,14 +287,6 @@ async function searchTavily({ pub, apiKey, fetchImpl, signal }) {
 
 function sourceLabel(pub) {
   return `${String(pub.name).trim()} - official site`;
-}
-
-function resultContent(result) {
-  return typeof result?.raw_content === "string"
-    ? result.raw_content
-    : typeof result?.content === "string"
-      ? result.content
-      : "";
 }
 
 function resultMatchesDeclaredVenuePage(pub, result) {
@@ -332,7 +339,7 @@ function acceptedOfficialResults(pub, payload, hostCounts, observedAt) {
 async function selectBestOfficialPage(results, pub) {
   let matchedPage = null;
   for (const result of results) {
-    const extracted = await extractPintPricesMaybeJudged(resultContent(result), {
+    const { drinks: extracted } = await extractVenueDrinkPricesMaybeJudged(result.content, {
       pubName: pub?.name ?? "Unknown pub",
       pageUrl: result?.url ?? "",
     });
@@ -389,7 +396,7 @@ function recordOfficialPage({ pub, matchedPage, observedAt, pages, prices }) {
     prices.push({
       venueKey,
       drinkName: price.drinkName,
-      category: "beer",
+      category: price.category,
       priceGbp: price.priceGbp,
       servingSize: price.servingSize,
       source: {
@@ -412,6 +419,7 @@ function searchOfficialPage({ pub, searchProvider, apiKey, fetchImpl, observedAt
   if (searchProvider) {
     return searchProvider.search({
       query: searchQuery(pub),
+      contentMode: "url-only",
       maxResults: 10,
       ...(host ? { includeDomains: [host] } : {}),
       endPublishedDate: observedAt,
@@ -479,6 +487,42 @@ function* venueIndexSequence(pubs, startIndex, indices) {
   }
 }
 
+async function sourcePermits(url, robotsChecker) {
+  if (!isHarvestableOperatorUrl(url)) return false;
+  const decision = await robotsChecker(url).catch(() => ({ allowed: false }));
+  return decision.allowed === true;
+}
+
+async function readPermittedOfficialPages(results, robotsChecker, pageFetchImpl, signal) {
+  const pages = [];
+  for (const result of results) {
+    try {
+      const content = await withRequestDeadline(signal, async (requestSignal) => {
+        const resource = await fetchBoundedHarvestResource({
+          url: result.url,
+          fetchImpl: (url, init) => pageFetchImpl(url, {
+            ...init, signal: AbortSignal.any([requestSignal, init.signal]),
+          }),
+          isAllowedUrl: isHarvestableOperatorUrl,
+          robotsChecker,
+          expectedContentTypes: ["text/html", "application/xhtml+xml", "text/plain", "application/pdf"],
+          // One hard ceiling covers every official document, including HTML.
+          maxBytes: MAX_PDF_BYTES,
+          timeoutMs: SEARCH_REQUEST_WALL_MS,
+          maxRedirects: 0,
+        });
+        return resource.contentType === "application/pdf"
+          ? readPdfText(resource.bytes)
+          : new TextDecoder().decode(resource.bytes);
+      });
+      if (content) pages.push({ ...result, content });
+    } catch {
+      // A page we cannot safely read yields no observation.
+    }
+  }
+  return pages;
+}
+
 export async function runCityEnrichment({
   city: cityId,
   pubs,
@@ -489,6 +533,8 @@ export async function runCityEnrichment({
   indices,
   observedAt = new Date().toISOString(),
   fetchImpl = fetch,
+  pageFetchImpl = fetchHarvestResponse,
+  robotsChecker = createRobotsChecker(),
   onProgress,
   // A venue whose search fails is a fact about that venue, not about the run.
   // The default stays "abort" so the CLI and every existing caller keep the
@@ -543,6 +589,14 @@ export async function runCityEnrichment({
     }
     if (queriesSpent >= queryCap) break;
 
+    const permitted = await sourcePermits(pub.website, robotsChecker);
+    if (!permitted) {
+      outcomes.push({ index, osmId: pub.osmId, status: "refused", error: "source policy or robots refused the pub URL" });
+      resolvedIndex = index + 1;
+      await report();
+      continue;
+    }
+
     queriesSpent += 1;
     let payload;
     try {
@@ -581,7 +635,12 @@ export async function runCityEnrichment({
     await report();
     throwIfAborted(signal);
     creditsSpent += Number(payload?.creditsSpent ?? payload?.usage?.credits) || 0;
-    const officialResults = acceptedOfficialResults(pub, payload, hostCounts, observedAt);
+    const officialResults = await readPermittedOfficialPages(
+      acceptedOfficialResults(pub, payload, hostCounts, observedAt),
+      robotsChecker,
+      pageFetchImpl,
+      signal,
+    );
     const matchedPage = await selectBestOfficialPage(officialResults, pub);
 
     outcomes.push({

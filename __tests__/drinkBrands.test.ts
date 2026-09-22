@@ -32,6 +32,8 @@ describe("drinkBrands", () => {
     expect(brandsForCategory("soft-drink").map((brand) => brand.id)).toEqual([
       "coke-zero",
       "diet-coke",
+      "pepsi-max",
+      "diet-pepsi",
       "still-water",
     ]);
     expect(brandsForCategory("alcohol-free")).toEqual([]);

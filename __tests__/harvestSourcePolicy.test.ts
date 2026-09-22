@@ -11,6 +11,7 @@ import {
   HARVEST_SOURCES,
   harvestSource,
   harvestSourcesOfKind,
+  isHarvestableChainMenuUrl,
   isHarvestableOperatorUrl,
 } from "@/lib/harvest/sourcePolicy";
 import { createHarvestReporter, countDrops, harvestShortfallLines, summariseHarvestRun } from "@/lib/harvest/runReport";
@@ -127,6 +128,33 @@ describe("a venue's own site is harvestable; a refused host wearing its name is 
     expect(isHarvestableOperatorUrl("/whats-on")).toBe(false);
     expect(isHarvestableOperatorUrl("ftp://example.com")).toBe(false);
     expect(isHarvestableOperatorUrl(null)).toBe(false);
+  });
+
+  it("binds chain menu URLs to their recorded source and refuses chains with no web prices", () => {
+    expect(
+      isHarvestableChainMenuUrl(
+        "https://www.youngs.co.uk/our-pubs",
+        "youngs-menu-prices",
+      ),
+    ).toBe(true);
+    expect(
+      isHarvestableChainMenuUrl(
+        "https://www.slugandlettuce.co.uk/bars/soho/menus",
+        "youngs-menu-prices",
+      ),
+    ).toBe(false);
+    expect(
+      isHarvestableChainMenuUrl(
+        "https://www.jdwetherspoon.com/pub-menus/a-pub/",
+        "wetherspoon-menu-prices",
+      ),
+    ).toBe(false);
+    expect(
+      isHarvestableChainMenuUrl(
+        "https://www.nicholsonspubs.co.uk/restaurants/london/the-crown/drinks",
+        "mitchells-butlers-menu-prices",
+      ),
+    ).toBe(false);
   });
 });
 

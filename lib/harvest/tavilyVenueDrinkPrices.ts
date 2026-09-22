@@ -7,6 +7,7 @@ import type { DrinkCategory } from "@/lib/drinks";
 
 import {
   pintPricesFromUkReading,
+  rejectNamedDrink,
   type TavilyPintPrice,
 } from "./tavilyPintPrices";
 import { readVenueDrinkPrices, type UkPriceReading } from "./ukPriceCrawl";
@@ -15,6 +16,7 @@ export type TavilyVenueDrinkPrice = {
   drinkName: string;
   priceGbp: number;
   category: DrinkCategory;
+  servingSize?: "pint" | "568ml" | null;
 };
 
 function unescapePounds(markdown: string): string {
@@ -42,16 +44,6 @@ function cleanNamedDrink(line: string, cutoff: number): string {
     .trim();
 }
 
-function rejectNamedDrink(drinkName: string): boolean {
-  if (drinkName.length < 2 || drinkName.length > 100) return true;
-  if (/[£]|\bhalf\b/i.test(drinkName)) return true;
-  return (
-    /["“”]/.test(drinkName) ||
-    /\b(?:all beers?|beer is priced|lunchtime)\b/i.test(drinkName) ||
-    /\b(?:at|for|from|only)\s*$/i.test(drinkName)
-  );
-}
-
 function nameNonBeerRow(row: UkPriceReading["kept"][number], markdown: string): string | null {
   const compact = compactLines(markdown);
   const sourceLine =
@@ -67,6 +59,7 @@ function pintToVenueRow(pint: TavilyPintPrice): TavilyVenueDrinkPrice {
     drinkName: pint.drinkName,
     priceGbp: pint.priceGbp,
     category: "beer",
+    servingSize: pint.servingSize,
   };
 }
 

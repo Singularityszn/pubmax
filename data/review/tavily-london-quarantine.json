@@ -1,0 +1,10 @@
+{
+  "report": "data/enrichment/tavily/london/run_20260921.json",
+  "reason": "Unverified run: source permission and original price context were not retained. Re-harvest through the corrected reader before publishing.",
+  "findings": [
+    {
+      "file": "public/data/drink_price_updates/latest.json",
+      "removed": 729
+    }
+  ]
+}

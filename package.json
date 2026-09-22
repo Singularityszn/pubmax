@@ -102,7 +102,8 @@
     "build:discover-board": "tsx scripts/build_discover_board.mjs",
     "arize:smoke": "tsx scripts/arizeSmoke.ts",
     "backfill:site-harvest-drink-labels": "tsx scripts/backfill_site_harvest_drink_labels.mjs",
-    "harvest:soft-drinks-menus": "tsx scripts/harvest_soft_drinks_menus.mjs"
+    "harvest:soft-drinks-menus": "tsx scripts/harvest_soft_drinks_menus.mjs",
+    "discover:soft-drinks-menu-urls": "tsx scripts/discover_soft_drinks_menu_urls.mjs"
   },
   "dependencies": {
     "@ai-sdk/otel": "^1.0.109",

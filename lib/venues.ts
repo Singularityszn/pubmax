@@ -20,6 +20,7 @@ import {
   parseDrinkCategoryParam,
 } from "@/lib/drinkBrands";
 import {
+  drinkSubtypeMembers,
   haystackIsTopShelf,
   haystackMatchesSubtype,
   haystackMatchesSubtypeBrand,
@@ -1177,20 +1178,21 @@ function matchesDrinkSubtype(
   // silently filtering against the wrong parent.
   const category = parseDrinkCategoryParam(drinkCategory);
   if (category && category !== subtype.category) return true;
+  const members = drinkSubtypeMembers(subtype);
 
   const hinted = venue.filterHints?.drinkSubtypes;
-  if (Array.isArray(hinted) && hinted.includes(subtype.id)) return true;
+  if (Array.isArray(hinted) && members.some((member) => hinted.includes(member.id))) return true;
 
   // A subtype describes a drink product, not venue prose. Product names avoid
   // treating copy such as "dark timber" or "Japanese-inspired room" as menu
   // evidence while still covering both slim cheapest-pint and hydrated rows.
   const haystack = venueDrinkNamesHaystack(venue);
-  if (haystackMatchesSubtype(haystack, subtype)) return true;
+  if (members.some((member) => haystackMatchesSubtype(haystack, member))) return true;
   // Brand knowledge closes the gap the text can't: "GUINNESS" is a stout
   // without ever saying so. Check every stocked brand rather than returning
   // the first recognized one, so a Guinness + Amstel pub matches both stout
   // and lager refinements.
-  return haystackMatchesSubtypeBrand(haystack, subtype);
+  return members.some((member) => haystackMatchesSubtypeBrand(haystack, member));
 }
 
 function matchesTopShelf(venue: Venue, topShelfOnly: boolean): boolean {

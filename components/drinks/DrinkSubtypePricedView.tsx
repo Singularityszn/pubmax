@@ -90,7 +90,7 @@ export default function DrinkSubtypePricedView({
         titleId="soft-drinks-water-heading"
         lede={
           active
-            ? `${pricedCount} pubs with a listed ${active.longLabel.toLowerCase()} price in London.`
+            ? `${pricedCount} ${pricedCount === 1 ? "pub" : "pubs"} with a listed ${active.longLabel.toLowerCase()} price in London.`
             : "Listed soft-drink prices in London."
         }
         primary={<Link prefetch={false} href={mapHref}>Open the map</Link>}
