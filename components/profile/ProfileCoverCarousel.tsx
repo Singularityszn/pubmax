@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import ProfileCoverImage from "@/components/profile/ProfileCoverImage";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import {
@@ -86,7 +86,7 @@ export default function ProfileCoverCarousel({
   return (
     <div className="profileCoverFrames" data-cover-count={frames.length}>
       {frames.map((url, index) => (
-        <Image
+        <ProfileCoverImage
           key={url}
           className={`profileCoverImage${index === shown ? " profileCoverImageActive" : ""}`}
           src={url}

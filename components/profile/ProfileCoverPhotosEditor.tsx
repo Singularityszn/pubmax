@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import ProfileCoverImage from "@/components/profile/ProfileCoverImage";
 import { useEffect, useRef, useState } from "react";
 
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
@@ -274,7 +274,7 @@ export default function ProfileCoverPhotosEditor({
       {mirrorOnly ? (
         <div className="profileEditorCoverItem profileEditorCoverMirrorOnly">
           <div className="profileEditorCoverStage">
-            <Image
+            <ProfileCoverImage
               className="profileEditorCoverPreview"
               src={heldCoverUrls[0]!}
               alt={profileCoverThumbnailLabel(1)}
@@ -292,7 +292,7 @@ export default function ProfileCoverPhotosEditor({
           {covers.map((cover, index) => (
             <li key={cover.id} className="profileEditorCoverItem">
               <div className="profileEditorCoverStage">
-                <Image
+                <ProfileCoverImage
                   className="profileEditorCoverPreview"
                   src={cover.url}
                   alt={profileCoverThumbnailLabel(index + 1)}

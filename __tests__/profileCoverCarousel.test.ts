@@ -24,6 +24,13 @@ import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+// This suite owns cover selection/layout. Authenticated transport has its own
+// mounted regression in profileCoverAuthenticatedImage.test.tsx.
+vi.mock("@/components/profile/ProfileCoverImage", () => ({
+  default: ({ src, alt, className }: { src: string; alt: string; className?: string }) =>
+    createElement("img", { src, alt, className }),
+}));
+
 vi.mock("@/lib/authClient", () => ({ getAccessToken: async () => null }));
 
 import ProfileCoverCarousel from "@/components/profile/ProfileCoverCarousel";
