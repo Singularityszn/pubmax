@@ -32,6 +32,20 @@ describe("cheapestTonight", () => {
     expect(result.map((e) => e.venueId)).toEqual(["in-window"]);
   });
 
+  it("ranks pints and legacy rows, excluding stated half and other servings", () => {
+    const drops = [
+      d({ venueId: "half", drink: "Half of lager", measure: "half", priceGbp: 2.6 }),
+      d({ venueId: "other", drink: "Schooner", measure: "other", priceGbp: 3.5 }),
+      d({ venueId: "pint", drink: "Lager", measure: "pint", priceGbp: 5 }),
+      d({ venueId: "legacy", drink: "Lager", measure: undefined, priceGbp: 6 }),
+    ];
+
+    expect(cheapestTonight(drops, { now: NOW }).map((entry) => entry.venueId)).toEqual([
+      "pint",
+      "legacy",
+    ]);
+  });
+
   it("excludes the exact 24h-boundary drop (window is the open trailing 24h)", () => {
     const drops = [
       d({ venueId: "boundary", priceGbp: 1, createdAt: new Date(NOW - 24 * HOUR).toISOString() }),
