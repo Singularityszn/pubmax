@@ -310,14 +310,16 @@ body:has(.mobileMapUtilityCorner) {
     justify-content: space-around;
     gap: 0;
     /* Count-driven layout model. --tab-count is written by MobileTabBar from
-       the live tab array; --tab-inset is the pill's inner padding. Every
-       equal-rhythm rule below (column width, highlight geometry) derives from
-       these two, so adding or removing a tab can never desync the CSS. */
+       the live tab array. The vertical inset keeps the row compact; the
+       slightly larger inline inset gives the 12px highlight corners enough
+       room inside the row's 16px outer corners. Column width and highlight
+       geometry derive from these values, so the row stays aligned as tabs vary. */
     --tab-count: 6;
     --tab-inset: 2px;
+    --tab-inline-inset: max(3px, calc(var(--tab-inset) + 1px));
     max-width: 420px;
     margin: 0 auto;
-    padding: var(--tab-inset);
+    padding: var(--tab-inset) var(--tab-inline-inset);
     list-style: none;
     border: 1px solid var(--line);
     border-radius: 16px;
@@ -338,8 +340,8 @@ body:has(.mobileMapUtilityCorner) {
     position: absolute;
     top: var(--tab-inset);
     bottom: var(--tab-inset);
-    left: var(--tab-inset);
-    width: calc((100% - 2 * var(--tab-inset)) / var(--tab-count));
+    left: var(--tab-inline-inset);
+    width: calc((100% - 2 * var(--tab-inline-inset)) / var(--tab-count));
     border-radius: 12px;
     background: color-mix(in srgb, var(--ink) 9%, transparent);
     transform: translateX(calc(var(--active-index, -1) * 100%));
@@ -487,8 +489,8 @@ body:has(.mobileMapUtilityCorner) {
 
 @media (max-width: 360px) {
   .mobileTabList {
-    /* One knob: the highlight geometry above derives from --tab-inset, so the
-       smallest step only needs to shrink the inset and everything stays flush. */
+    /* Keep the highlight compact on narrow phones; inline padding still leaves
+       enough clearance for its rounded ends inside the outer row. */
     --tab-inset: 1px;
     max-width: 340px;
   }
