@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/harvest/robots.ts", () => ({
+  createRobotsChecker: () => async () => ({ allowed: true, reason: "allowed", evidence: "unit fixture" }),
+}));
+
 import { venueCoordsGroupingKey } from "@/lib/venues";
 import {
   classifyChainPub,
@@ -13,6 +17,7 @@ import {
 } from "@/scripts/lib/tavilyPubEnrichment.mjs";
 import {
   parseArgs,
+  partitionReportedPrices,
   pruneManagedCityPrices,
 } from "@/scripts/enrich_city_pubs_tavily.mjs";
 
@@ -45,6 +50,33 @@ function tavilyResponse(overrides: Record<string, unknown> = {}) {
 }
 
 describe("Tavily pub enrichment governance", () => {
+  it("quarantines only exact run observations and preserves other evidence", () => {
+    const row = {
+      venueKey: "venue", drinkName: "Lager", category: "beer", priceGbp: 5,
+      observedAt: OBSERVED_AT,
+      source: { url: "https://pub.example/menu", licence: OFFICIAL_SITE_SOURCE_LICENCE },
+    };
+    const newer = { ...row, observedAt: "2026-09-22T00:00:00Z" };
+    const independent = { ...row, source: { ...row.source, licence: "another lane" } };
+    expect(partitionReportedPrices([row, newer, independent], [{
+      venueKey: row.venueKey, officialUrl: row.source.url, observedAt: OBSERVED_AT,
+    }])).toEqual({ removed: [row], retained: [newer, independent] });
+  });
+  it("keeps London candidates inside the actual borough boundary", () => {
+    const outside = { ...independentPub, osmId: "node/outside", name: "Tattenham Corner", lat: 51.309, lng: -0.242 };
+    const inside = { ...independentPub, osmId: "node/inside", name: "Central London", lat: 51.51, lng: -0.12 };
+    expect(selectCityPubs("london", [outside, inside]).map((pub: { osmId: string }) => pub.osmId)).toEqual(["node/inside"]);
+  });
+  it("spends no query on a pub whose robots refuse this reader", async () => {
+    const fetchImpl = vi.fn(async () => tavilyResponse());
+    const result = await runCityEnrichment({
+      city: "manchester", pubs: [independentPub], apiKey: "fixture", fetchImpl,
+      robotsChecker: async () => ({ allowed: false, reason: "robots-disallowed", evidence: "fixture refusal" }),
+    });
+    expect(result.queriesSpent).toBe(0);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(result.outcomes?.[0]).toMatchObject({ status: "refused" });
+  });
   it("accepts an injected search provider without changing enrichment output", async () => {
     const searchProvider = {
       name: "exa",

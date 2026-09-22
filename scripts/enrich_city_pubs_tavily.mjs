@@ -15,6 +15,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -201,7 +202,50 @@ function writeEvidence(city, state, runResult, cityVenueKeys) {
   });
 }
 
+/** Remove only the exact observations a historical run recorded. */
+export function partitionReportedPrices(updates, pages) {
+  const keys = new Set(pages.map((page) => JSON.stringify([page.venueKey, page.officialUrl, page.observedAt])));
+  const retained = [];
+  const removed = [];
+  for (const row of updates) {
+    const recorded = row?.source?.licence === OFFICIAL_SITE_SOURCE_LICENCE &&
+      keys.has(JSON.stringify([row.venueKey, row.source.url, row.observedAt]));
+    (recorded ? removed : retained).push(row);
+  }
+  return { retained, removed };
+}
+
+function quarantineUnverifiedReport(reportPath, dryRun) {
+  const report = JSON.parse(readFileSync(path.resolve(ROOT, reportPath), "utf8"));
+  if (report.version !== 1 || !Array.isArray(report.pages) || !CITY_DEFINITIONS[report.city]) {
+    throw new Error("Expected a city enrichment run report.");
+  }
+  const findings = [];
+  for (const name of readdirSync(PRICE_DIR)) {
+    if (!name.endsWith(".json")) continue;
+    const file = path.join(PRICE_DIR, name);
+    const pack = JSON.parse(readFileSync(file, "utf8"));
+    if (!Array.isArray(pack.updates)) continue;
+    const { retained, removed } = partitionReportedPrices(pack.updates, report.pages);
+    if (!removed.length) continue;
+    findings.push({ file: `public/data/drink_price_updates/${name}`, removed: removed.length });
+    if (!dryRun) atomicWriteJson(file, { ...pack, updates: retained });
+  }
+  const result = {
+    report: path.relative(ROOT, path.resolve(ROOT, reportPath)),
+    reason: "Unverified run: source permission and original price context were not retained. Re-harvest through the corrected reader before publishing.",
+    findings,
+  };
+  if (!dryRun) atomicWriteJson(path.join(ROOT, "data/review", `tavily-${report.city}-quarantine.json`), result);
+  console.log(JSON.stringify(result, null, 2));
+}
+
 async function main() {
+  const quarantineReport = readArg(process.argv.slice(2), "--quarantine-report");
+  if (quarantineReport) {
+    quarantineUnverifiedReport(quarantineReport, process.argv.includes("--dry-run"));
+    return;
+  }
   const args = parseArgs(process.argv.slice(2));
   const apiKey = process.env.TAVILY_API_KEY?.trim();
   if (!apiKey) throw new Error("TAVILY_API_KEY is not set.");

@@ -7,6 +7,7 @@ import type { DrinkCategory } from "@/lib/drinks";
 
 import {
   pintPricesFromUkReading,
+  rejectNamedDrink,
   type TavilyPintPrice,
 } from "./tavilyPintPrices";
 import { readVenueDrinkPrices, type UkPriceReading } from "./ukPriceCrawl";
@@ -41,16 +42,6 @@ function cleanNamedDrink(line: string, cutoff: number): string {
     .replace(/\s+/g, " ")
     .replace(/[\s:|()[\]\u2013\u2014-]+$/, "")
     .trim();
-}
-
-function rejectNamedDrink(drinkName: string): boolean {
-  if (drinkName.length < 2 || drinkName.length > 100) return true;
-  if (/[£]|\bhalf\b/i.test(drinkName)) return true;
-  return (
-    /["“”]/.test(drinkName) ||
-    /\b(?:all beers?|beer is priced|lunchtime)\b/i.test(drinkName) ||
-    /\b(?:at|for|from|only)\s*$/i.test(drinkName)
-  );
 }
 
 function nameNonBeerRow(row: UkPriceReading["kept"][number], markdown: string): string | null {

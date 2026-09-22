@@ -1,5 +1,9 @@
 import { extractPintPrices } from "../../lib/harvest/tavilyPintPrices.ts";
 import { extractVenueDrinkPrices } from "../../lib/harvest/tavilyVenueDrinkPrices.ts";
+import { boroughNameForPoint } from "../../lib/londonBoroughPoint.mjs";
+import londonBoundaries from "../../data/london_boroughs_simplified.json" with { type: "json" };
+import { isHarvestableOperatorUrl } from "../../lib/harvest/sourcePolicy.ts";
+import { createRobotsChecker } from "../../lib/harvest/robots.ts";
 
 export { extractPintPrices, extractVenueDrinkPrices };
 
@@ -163,7 +167,8 @@ export function selectCityPubs(cityId, allPubs) {
         Number(pub.lat) >= south &&
         Number(pub.lat) <= north &&
         Number(pub.lng) >= west &&
-        Number(pub.lng) <= east,
+        Number(pub.lng) <= east &&
+        (cityId !== "london" || boroughNameForPoint(Number(pub.lat), Number(pub.lng), londonBoundaries) !== null),
     )
     .sort((a, b) => {
       const aWebsite = a.website ? 0 : 1;
@@ -487,6 +492,12 @@ function* venueIndexSequence(pubs, startIndex, indices) {
   }
 }
 
+async function sourcePermits(url, robotsChecker) {
+  if (!isHarvestableOperatorUrl(url)) return false;
+  const decision = await robotsChecker(url).catch(() => ({ allowed: false }));
+  return decision.allowed === true;
+}
+
 export async function runCityEnrichment({
   city: cityId,
   pubs,
@@ -497,6 +508,7 @@ export async function runCityEnrichment({
   indices,
   observedAt = new Date().toISOString(),
   fetchImpl = fetch,
+  robotsChecker = createRobotsChecker({ fetchImpl: (url, init) => fetch(url, { ...init, redirect: "error" }) }),
   onProgress,
   // A venue whose search fails is a fact about that venue, not about the run.
   // The default stays "abort" so the CLI and every existing caller keep the
@@ -551,6 +563,14 @@ export async function runCityEnrichment({
     }
     if (queriesSpent >= queryCap) break;
 
+    const permitted = await sourcePermits(pub.website, robotsChecker);
+    if (!permitted) {
+      outcomes.push({ index, osmId: pub.osmId, status: "refused", error: "source policy or robots refused the pub URL" });
+      resolvedIndex = index + 1;
+      await report();
+      continue;
+    }
+
     queriesSpent += 1;
     let payload;
     try {
@@ -589,7 +609,12 @@ export async function runCityEnrichment({
     await report();
     throwIfAborted(signal);
     creditsSpent += Number(payload?.creditsSpent ?? payload?.usage?.credits) || 0;
-    const officialResults = acceptedOfficialResults(pub, payload, hostCounts, observedAt);
+    const officialResults = [];
+    for (const result of acceptedOfficialResults(pub, payload, hostCounts, observedAt)) {
+      if (await sourcePermits(result.url, robotsChecker)) {
+        officialResults.push(result);
+      }
+    }
     const matchedPage = await selectBestOfficialPage(officialResults, pub);
 
     outcomes.push({

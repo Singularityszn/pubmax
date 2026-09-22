@@ -43,11 +43,13 @@ function namesAPint(text: string): boolean {
   return /\b(?:pint|draught|draft|568\s*ml)\b/i.test(text);
 }
 
-function rejectNamedRow(drinkName: string): boolean {
+export function rejectNamedDrink(drinkName: string): boolean {
   if (drinkName.length < 2 || drinkName.length > 100) return true;
   if (/[£]|\bhalf\b/i.test(drinkName)) return true;
   return (
     /["“”]/.test(drinkName) ||
+    /[\[\]#!]|https?:\/\//i.test(drinkName) ||
+    /\b(?:gets? you|enjoy|grab|drop into|cost you|regular price|beer tokens?|wednesdays?|midweek treat)\b/i.test(drinkName) ||
     /\b(?:all beers?|beer is priced|lunchtime)\b/i.test(drinkName) ||
     /\b(?:at|for|from|only)\s*$/i.test(drinkName)
   );
@@ -99,7 +101,7 @@ export function pintPricesFromUkReading(
       servingLine = sourceLine;
     }
 
-    if (rejectNamedRow(drinkName)) continue;
+    if (rejectNamedDrink(drinkName)) continue;
 
     const servingSize = /\b568\s*ml\b/i.test(servingLine) ? "568ml" : "pint";
     const key = `${drinkName.toLowerCase()}|${row.priceGbp}|${servingSize}`;

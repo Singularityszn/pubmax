@@ -14,6 +14,15 @@ import {
 } from "../scripts/harvest_outer_london_prices.mjs";
 
 describe("outer London full-category drink extraction", () => {
+  it.each([
+    "Each Beer Token gets you your first pint £5.80",
+    "Enjoy quality beer for just £4.00 a pint",
+    "Royal National drop into The London Pub. Grab a TLP lager (at just £5.45 a pint)",
+    "[![Image 16: Craft Beer Wednesdays £6.00 a pint](https://example.com/event)",
+    "Cocktails cost you between £7.00 and £12.00 in London.",
+  ])("does not invent menu labels from promotional prose: %s", (text) => {
+    expect(extractVenueDrinkPrices(text)).toEqual([]);
+  });
   it("names beer, wine and cocktail rows from a drinks list snippet", () => {
     const markdown = `
 Madri pint £6.20
