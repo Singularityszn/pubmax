@@ -5,6 +5,7 @@ import Screen from "@/components/ui/screen";
 import { OutCardBody } from "@/components/out/OutCard";
 import { SafeNightStrip } from "@/components/night/SafeNightStrip";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+import { filterRowsByArea } from "@/lib/concierge/whatsOn";
 import { buildOutResponse } from "@/lib/out/loadOut";
 import { outListingKind } from "@/lib/out/listingKind";
 import {
@@ -46,17 +47,13 @@ export default async function OutingsPage({
   const listing = eventsOccasion
     ? await buildOutResponse({ city: "london", day })
     : null;
-  const events =
-    listing?.events.filter((row) => {
-      const kind = outListingKind(row);
-      return (
-        (occasion === "dancing" ? kind === "club-night" : kind === "gig") &&
-        (!area ||
-          `${row.area ?? ""} ${row.placeName}`
-            .toLocaleLowerCase("en-GB")
-            .includes(area.toLocaleLowerCase("en-GB")))
-      );
-    }) ?? [];
+  const eventRows =
+    listing?.events.filter(
+      (row) =>
+        outListingKind(row) ===
+        (occasion === "dancing" ? "club-night" : "gig"),
+    ) ?? [];
+  const events = area ? filterRowsByArea(eventRows, area) : eventRows;
   const venues = eventsOccasion
     ? []
     : outingShortlist(await loadConciergeVenues("london"), occasion, area);

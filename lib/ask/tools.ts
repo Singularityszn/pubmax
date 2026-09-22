@@ -28,7 +28,7 @@ import {
   formatJourneyPoint,
 } from "@/lib/citymcp/client";
 import { fetchCityArea } from "@/lib/citymcp/area";
-import { buildOutResponse } from "@/lib/out/loadOut";
+import { buildOutResponse, type OutDay } from "@/lib/out/loadOut";
 import { outListingKind } from "@/lib/out/listingKind";
 import { retrieveHeritage } from "@/lib/heritage";
 import { loadWhatsOn } from "@/lib/whatsOnStore";
@@ -183,21 +183,50 @@ async function toolWhatsOn(
     degraded: true,
   });
   try {
-    const danceListings = detected.dancing ? await buildOutResponse({
-      city: ctx.cityId,
-      day: /\btomorrow\b/i.test(query) ? "tomorrow" : /\bweekend\b/i.test(query) ? "weekend" : "today",
-    }, { now: ctx.now }) : null;
-    const { rows, asOf, readStatus } = danceListings ? {
-      rows: danceListings.events.filter(row => outListingKind(row) === "club-night"),
-      asOf: Object.values(danceListings.observedAt ?? {}).sort().at(-1) ?? null,
-      readStatus: danceListings.listingsStatus === "ready" ? "ready" : "degraded",
-    } : await loadWhatsOn(
-      {
-        ...(detected.kind ? { kind: detected.kind } : {}),
-        ...(detected.window === "tonight" ? { window: "tonight" as const } : {}),
-      },
-      {},
-    );
+    const musicDay: OutDay | null =
+      detected.kind !== "music" || detected.window === "weekday"
+        ? null
+        : /\btomorrow\b/i.test(query)
+          ? "tomorrow"
+          : /\b(?:this\s+)?weekend\b/i.test(query)
+            ? "weekend"
+            : detected.window === "tonight"
+              ? "today"
+              : null;
+    const eventListings = detected.dancing || musicDay
+      ? await buildOutResponse(
+          {
+            city: ctx.cityId,
+            day:
+              musicDay ??
+              (/\btomorrow\b/i.test(query)
+                ? "tomorrow"
+                : /\bweekend\b/i.test(query)
+                  ? "weekend"
+                  : "today"),
+          },
+          { now: ctx.now },
+        )
+      : null;
+    const { rows, asOf, readStatus } = eventListings
+      ? {
+          rows: eventListings.events.filter(
+            (row) =>
+              outListingKind(row) ===
+              (detected.dancing ? "club-night" : "gig"),
+          ),
+          asOf:
+            Object.values(eventListings.observedAt ?? {}).sort().at(-1) ?? null,
+          readStatus:
+            eventListings.listingsStatus === "ready" ? "ready" : "degraded",
+        }
+      : await loadWhatsOn(
+          {
+            ...(detected.kind ? { kind: detected.kind } : {}),
+            ...(detected.window === "tonight" ? { window: "tonight" as const } : {}),
+          },
+          { now: ctx.now },
+        );
     // A bundled read that could not run answers nothing. Refusing honestly is
     // the whole contract here; "no matches" would be an invented empty market.
     if (readStatus === "degraded") return unavailable();

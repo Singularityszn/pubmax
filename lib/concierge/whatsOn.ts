@@ -43,7 +43,8 @@ const WHATS_ON_PHRASE = /\b(?:what'?s on|whats on|anything on|on tonight|things 
 
 // Words that follow "near"/"in"/"around" but are NOT areas.
 const NON_AREA =
-  /^(?:me|here|us|mine|my area|there|now|tonight|today|the\s+\S+|a\s+\S+|an\s+\S+)$/i;
+  /^(?:me|here|us|mine|my area|there|now|tonight|today|london|the\s+\S+|a\s+\S+|an\s+\S+)$/i;
+const ARTICLE_AREA = /^the city$/i;
 
 function detectKind(text: string): WhatsOnKind | undefined {
   return WHATS_ON_KINDS.find((kind) => KIND_TERMS[kind].test(text));
@@ -64,7 +65,7 @@ function detectArea(text: string): string | undefined {
     /\b(?:near|around|in|at)\s+([\p{L}][\p{L}' .-]*?)(?=\s+(?:tonight|today|tomorrow|this|for|on|at|under|with)\b|\s*,|[.!?]|$)/iu,
   );
   const area = match?.[1]?.trim().replace(/\s+/g, " ");
-  if (!area || NON_AREA.test(area)) return undefined;
+  if (!area || (NON_AREA.test(area) && !ARTICLE_AREA.test(area))) return undefined;
   return area;
 }
 
@@ -147,6 +148,7 @@ type WhatsOnListingDto = {
   venue: string;
   venueId?: string;
   startsAt?: string;
+  startsDate?: string;
   endsAt?: string;
   timeEvidence?: string;
   detail?: string;
@@ -168,18 +170,37 @@ function formatListingInstant(iso: string | undefined): string | null {
   }).format(new Date(iso));
 }
 
+function formatListingDate(value: string | undefined): string | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const instant = new Date(`${value}T12:00:00.000Z`);
+  if (!Number.isFinite(instant.getTime())) return null;
+  if (instant.toISOString().slice(0, 10) !== value) return null;
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "UTC",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  }).format(instant);
+}
+
 /** Preserve source-stated event timing when a listing becomes an Ask card. */
 export function whatsOnAskCardNote(
   listing: Pick<
     WhatsOnListingDto,
-    "detail" | "startsAt" | "endsAt" | "timeEvidence"
+    "detail" | "startsAt" | "startsDate" | "endsAt" | "timeEvidence"
   >,
 ): string {
   const start = formatListingInstant(listing.startsAt);
+  const date = formatListingDate(listing.startsDate);
   const finish = formatListingInstant(listing.endsAt);
   return [
     listing.detail,
-    start ? `Published start: ${start}` : listing.timeEvidence,
+    start
+      ? `Published start: ${start}`
+      : date
+        ? `Published date: ${date}`
+        : listing.timeEvidence,
+    !start && date ? listing.timeEvidence : null,
     finish ? `Published finish: ${finish}` : null,
   ]
     .filter((part): part is string => Boolean(part))
@@ -206,6 +227,7 @@ function toDto(row: WhatsOnRow): WhatsOnListingDto {
     source: { label: row.source.label, url: row.source.url },
   };
   if (row.startsAt) dto.startsAt = row.startsAt;
+  if (row.startsDate) dto.startsDate = row.startsDate;
   if (row.venueId) dto.venueId = row.venueId;
   if (row.endsAt) dto.endsAt = row.endsAt;
   if (row.timeEvidence) dto.timeEvidence = row.timeEvidence;
