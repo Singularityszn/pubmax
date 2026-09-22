@@ -456,8 +456,11 @@ export default function PrivacyPage() {
             system, device type, screen and viewport size, the referring page,
             recognised campaign parameters and coarse app paths. The browser
             SDK also sends Web Vitals so we can measure loading and interaction
-            performance. No account, handle, email, message content, free text
-            or precise location is attached.
+            performance. Vercel Speed Insights measures Web Vitals on public
+            static pages only. It removes query strings and skips account,
+            private, admin and routes with changing path values. No account,
+            handle, email, message content, free text or precise location is
+            attached.
           </li>
           <li>
             Product actions still come from a closed, named list, such as a plan
@@ -489,7 +492,7 @@ export default function PrivacyPage() {
           <li>
             Turning consent off deletes the browser analytics identifier and
             stops PostHog page visits, product events and the hosting
-            provider&rsquo;s pageview counter.
+            provider&rsquo;s pageview counter and Speed Insights metrics.
           </li>
         </ul>
 
@@ -664,8 +667,9 @@ export default function PrivacyPage() {
             <dt>Vercel</dt>
             <dd>
               Hosting and CDN. Serves every page, and keeps short-lived request
-              logs that include IP addresses. Also runs the pageview counter
-              that stays disabled until you consent to analytics.
+              logs that include IP addresses. Also runs consent-gated pageview
+              counts and anonymous Speed Insights metrics on public static
+              routes.
             </dd>
           </div>
           <div className="legalRow">

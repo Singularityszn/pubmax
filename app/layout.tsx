@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { headers } from "next/headers";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import ConsentAwareVercelAnalytics from "@/components/ConsentAwareVercelAnalytics";
+import ConsentAwareVercelSpeedInsights from "@/components/ConsentAwareVercelSpeedInsights";
 import "./globals.css";
 import "./theme.css";
 import CreateFab from "@/components/nav/CreateFab";
@@ -33,6 +34,7 @@ import SkipLink from "@/components/a11y/SkipLink";
 import SplashAperture from "@/components/splash/SplashAperture";
 import DeploymentSkewRecovery from "@/components/DeploymentSkewRecovery";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
+import { shouldMountVercelTelemetry } from "@/lib/vercelTelemetry";
 import { SocialFriendsLaunchProvider } from "@/lib/useSocialFriendsLaunch";
 import OptionalClerkProvider from "@/components/auth/OptionalClerkProvider";
 
@@ -251,6 +253,10 @@ export default async function RootLayout({
   // never CLERK_SECRET_KEY or a value derived from its contents.
   const clerkIntegrationConfigured = isClerkMiddlewareConfigured();
   const socialFriendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
+  const vercelTelemetryEnabled = shouldMountVercelTelemetry(
+    process.env.NODE_ENV,
+    process.env.VERCEL,
+  );
   return (
     <html
       lang="en"
@@ -408,7 +414,8 @@ export default async function RootLayout({
         {/* Vercel Web Analytics (R3) — consent-gated pageviews only. Product
             events use the separately allow-listed rail in lib/analytics.ts.
             Outside AuthProvider on purpose: it's app infra, not identity. */}
-        <ConsentAwareVercelAnalytics />
+        <ConsentAwareVercelAnalytics enabled={vercelTelemetryEnabled} />
+        <ConsentAwareVercelSpeedInsights enabled={vercelTelemetryEnabled} />
         <Suspense fallback={null}>
           <PosthogPageviews />
         </Suspense>
