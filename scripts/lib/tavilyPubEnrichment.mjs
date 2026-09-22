@@ -4,6 +4,8 @@ import { boroughNameForPoint } from "../../lib/londonBoroughPoint.mjs";
 import londonBoundaries from "../../data/london_boroughs_simplified.json" with { type: "json" };
 import { isHarvestableOperatorUrl } from "../../lib/harvest/sourcePolicy.ts";
 import { createRobotsChecker } from "../../lib/harvest/robots.ts";
+import { MAX_PDF_BYTES, readPdfText } from "../../lib/harvest/pdfText.ts";
+import { fetchBoundedHarvestResource } from "./boundedHarvestResource.mjs";
 
 export { extractPintPrices, extractVenueDrinkPrices };
 
@@ -494,13 +496,26 @@ async function sourcePermits(url, robotsChecker) {
 async function readPermittedOfficialPages(results, robotsChecker, pageFetchImpl, signal) {
   const pages = [];
   for (const result of results) {
-    if (!await sourcePermits(result.url, robotsChecker)) continue;
     try {
-      const response = await withRequestDeadline(signal, (requestSignal) =>
-        pageFetchImpl(result.url, { signal: requestSignal, redirect: "error" }),
-      );
-      const content = await response.text();
-      if (response.ok) pages.push({ ...result, content });
+      const content = await withRequestDeadline(signal, async (requestSignal) => {
+        const resource = await fetchBoundedHarvestResource({
+          url: result.url,
+          fetchImpl: (url, init) => pageFetchImpl(url, {
+            ...init, signal: AbortSignal.any([requestSignal, init.signal]),
+          }),
+          isAllowedUrl: isHarvestableOperatorUrl,
+          robotsChecker,
+          expectedContentTypes: ["text/html", "application/xhtml+xml", "text/plain", "application/pdf"],
+          // One hard ceiling covers every official document, including HTML.
+          maxBytes: MAX_PDF_BYTES,
+          timeoutMs: SEARCH_REQUEST_WALL_MS,
+          maxRedirects: 0,
+        });
+        return resource.contentType === "application/pdf"
+          ? readPdfText(resource.bytes)
+          : new TextDecoder().decode(resource.bytes);
+      });
+      if (content) pages.push({ ...result, content });
     } catch {
       // A page we cannot safely read yields no observation.
     }
