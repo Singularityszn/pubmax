@@ -271,6 +271,18 @@ export default function PalExperience() {
   const palMutationRef = useRef<{ ownerId: string; requestId: number } | null>(null);
   const controlSavingRef = useRef<{ ownerId: string; requestId: number } | null>(null);
   const controlRequestIdRef = useRef(0);
+  const onboardingIntentOwnerRef = useRef("");
+
+  const beginOnboarding = () => {
+    const owner = user?.id ?? anonymousOwner;
+    onboardingIntentOwnerRef.current = draftOwner === owner ? "" : owner;
+    setMode("onboarding");
+  };
+
+  const returnToMeeting = () => {
+    onboardingIntentOwnerRef.current = "";
+    setMode("meeting");
+  };
 
   useEffect(() => {
     if (loading) return;
@@ -299,8 +311,10 @@ export default function PalExperience() {
     let cancelled = false;
     void Promise.resolve().then(() => {
       if (cancelled) return;
+      const onboardingRequested = onboardingIntentOwnerRef.current === owner;
+      onboardingIntentOwnerRef.current = "";
       setDraftOwner(owner);
-      setMode(restored ? "onboarding" : "meeting");
+      setMode(restored || onboardingRequested ? "onboarding" : "meeting");
       setStep(restored?.step ?? 0);
       setDraft(restored?.draft ?? firstRunDraft);
       setPrivacy(restored?.privacy ?? DEFAULT_PRIVACY);
@@ -686,7 +700,7 @@ export default function PalExperience() {
     return (
       <PalMeetingScreen
         appearance={draft.appearance}
-        onMeet={() => setMode("onboarding")}
+        onMeet={beginOnboarding}
       />
     );
   }
@@ -781,7 +795,7 @@ export default function PalExperience() {
     return (
       <PalMeetingScreen
         appearance={draft.appearance}
-        onMeet={() => setMode("onboarding")}
+        onMeet={beginOnboarding}
       />
     );
   }
@@ -789,7 +803,7 @@ export default function PalExperience() {
   return (
     <main id="main" className="palExperience palOnboarding">
       <div className="palTopbar">
-        <button type="button" onClick={() => step === 0 ? setMode("meeting") : setStep((current) => current - 1)}><ArrowLeft size={17} /> Back</button>
+        <button type="button" onClick={() => step === 0 ? returnToMeeting() : setStep((current) => current - 1)}><ArrowLeft size={17} /> Back</button>
         <span>{step + 1} of 5</span>
         <Link href="/map">Skip Pal</Link>
       </div>
@@ -877,7 +891,7 @@ export default function PalExperience() {
             </div>
           )}
           <div className="palOnboardingActions">
-            <button type="button" onClick={() => step === 0 ? setMode("meeting") : setStep((current) => current - 1)}>Back</button>
+            <button type="button" onClick={() => step === 0 ? returnToMeeting() : setStep((current) => current - 1)}>Back</button>
             {step < 4 ? (
               <Button className="palPrimary" size="large" type="button" disabled={!canContinue || (step === 1 && !draft.name.trim())} onClick={() => setStep((current) => current + 1)}>Continue<ArrowRight size={18} /></Button>
             ) : user ? (

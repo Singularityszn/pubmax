@@ -5,13 +5,19 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authState = vi.hoisted(() => ({
-  current: { user: null, loading: false, configured: false },
+  current: {
+    user: null as { id: string } | null,
+    loading: false,
+    configured: false,
+  },
 }));
+const authedActionFetch = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => authState.current,
 }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
+vi.mock("@/lib/authedFetch", () => ({ authedActionFetch }));
 
 import PalExperience from "@/components/pal/PalExperience";
 import {
@@ -40,6 +46,12 @@ function buttonContaining(text: string): HTMLButtonElement {
 
 beforeEach(async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  authState.current = { user: null, loading: false, configured: false };
+  authedActionFetch.mockReset();
+  authedActionFetch.mockResolvedValue({
+    ok: true,
+    json: async () => ({ pal: null }),
+  });
   window.localStorage.clear();
   window.sessionStorage.clear();
   container = document.createElement("div");
@@ -97,6 +109,52 @@ describe("Pub Pal first meeting and onboarding", () => {
     expect(container.textContent).toContain("3 of 5");
     expect(container.textContent).toContain("Tune the signal.");
     expect(container.textContent).not.toContain("Meet your Pub Pal");
+  });
+
+  it("keeps the Meet choice while the same owner finishes loading", async () => {
+    await act(async () => {
+      root?.unmount();
+    });
+    root = createRoot(container);
+    authState.current = { user: null, loading: true, configured: false };
+    await act(async () => {
+      root?.render(createElement(PalExperience));
+    });
+
+    await act(async () => {
+      buttonContaining("Meet your Pub Pal").click();
+    });
+    authState.current = { user: null, loading: false, configured: false };
+    await act(async () => {
+      root?.render(createElement(PalExperience));
+    });
+    await settle();
+
+    expect(container.textContent).toContain("The grown-up bit first.");
+    expect(container.textContent).not.toContain("Meet your Pub Pal");
+  });
+
+  it("does not carry a held Meet choice into another account", async () => {
+    await act(async () => {
+      root?.unmount();
+    });
+    root = createRoot(container);
+    authState.current = { user: { id: "owner-a" }, loading: true, configured: true };
+    await act(async () => {
+      root?.render(createElement(PalExperience));
+    });
+
+    await act(async () => {
+      buttonContaining("Meet your Pub Pal").click();
+    });
+    authState.current = { user: { id: "owner-b" }, loading: false, configured: true };
+    await act(async () => {
+      root?.render(createElement(PalExperience));
+    });
+    await settle();
+
+    expect(buttonContaining("Meet your Pub Pal")).toBeTruthy();
+    expect(container.textContent).not.toContain("The grown-up bit first.");
   });
 
   it("switches from the default robin to another rendered form", async () => {
