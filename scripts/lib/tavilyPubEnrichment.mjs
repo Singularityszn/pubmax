@@ -3,7 +3,7 @@ import { extractVenueDrinkPrices } from "../../lib/harvest/tavilyVenueDrinkPrice
 import { boroughNameForPoint } from "../../lib/londonBoroughPoint.mjs";
 import londonBoundaries from "../../data/london_boroughs_simplified.json" with { type: "json" };
 import { isHarvestableOperatorUrl } from "../../lib/harvest/sourcePolicy.ts";
-import { createRobotsChecker } from "../../lib/harvest/robots.ts";
+import { createRobotsChecker, fetchHarvestResponse } from "../../lib/harvest/robots.ts";
 import { MAX_PDF_BYTES, readPdfText } from "../../lib/harvest/pdfText.ts";
 import { fetchBoundedHarvestResource } from "./boundedHarvestResource.mjs";
 
@@ -533,8 +533,8 @@ export async function runCityEnrichment({
   indices,
   observedAt = new Date().toISOString(),
   fetchImpl = fetch,
-  pageFetchImpl = fetchImpl,
-  robotsChecker = createRobotsChecker({ fetchImpl: (url, init) => fetch(url, { ...init, redirect: "error" }) }),
+  pageFetchImpl = fetchHarvestResponse,
+  robotsChecker = createRobotsChecker(),
   onProgress,
   // A venue whose search fails is a fact about that venue, not about the run.
   // The default stays "abort" so the CLI and every existing caller keep the

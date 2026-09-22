@@ -1,4 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+vi.mock("@/lib/harvest/robots.ts", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/harvest/robots")>(),
+  fetchHarvestResponse: vi.fn(),
+  createRobotsChecker: vi.fn(() => async () => ({ allowed: true, reason: "allowed", evidence: "fixture" })),
+}));
+import { fetchHarvestResponse, createRobotsChecker } from "@/lib/harvest/robots";
 import { runCityEnrichment } from "../scripts/lib/tavilyPubEnrichment.mjs";
 import { MAX_PDF_BYTES } from "@/lib/harvest/pdfText";
 import { pdfStating } from "./helpers/harvestPdf";
@@ -14,7 +20,19 @@ function harvest(response: Response, suffix = "drinks") {
   });
 }
 describe("Tavily official page transport", () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+  it("uses the guarded production defaults rather than raw fetch for source pages", async () => {
+    const rawFetch = vi.fn();
+    vi.stubGlobal("fetch", rawFetch);
+    vi.mocked(fetchHarvestResponse).mockResolvedValueOnce(new Response("Manchester Pale Ale - Pint £5.40"));
+    const result = await runCityEnrichment({ city: "manchester", pubs: [pub], maxQueries: 1,
+      searchProvider: { search: async () => ({ results: [{ title: "Drinks menu", url: `${pub.website}drinks` }] }) },
+    });
+    expect(result.prices).toHaveLength(1);
+    expect(fetchHarvestResponse).toHaveBeenCalledWith(`${pub.website}drinks`, expect.objectContaining({ redirect: "manual" }));
+    expect(createRobotsChecker).toHaveBeenCalledWith();
+    expect(rawFetch).not.toHaveBeenCalled();
+  });
   it("reads direct PDF menus through the text-layer reader", async () => {
     const bytes = pdfStating(["Manchester Pale Ale - Pint £5.40"]);
     const result = await harvest(new Response(Buffer.from(bytes), { headers: { "content-type": "application/pdf" } }), "drinks.pdf");

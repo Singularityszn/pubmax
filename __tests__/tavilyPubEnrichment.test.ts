@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/harvest/robots.ts", () => ({
+  fetchHarvestResponse: vi.fn(async () => { throw new Error("Unexpected source read in this fixture"); }),
   createRobotsChecker: () => async () => ({ allowed: true, reason: "allowed", evidence: "unit fixture" }),
 }));
 
