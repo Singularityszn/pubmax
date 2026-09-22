@@ -108,6 +108,14 @@ describe("mapLoadingHeld", () => {
       mapLoadingHeld({ ...stage, pinsRevealed: true, slimPinCount: 40 }),
     ).toBe(false);
   });
+
+  it("releases a national overview after reveal without requesting city rows", () => {
+    const nationalStage = { ...stage, nationalBrowse: true };
+    expect(mapLoadingHeld(nationalStage)).toBe(true);
+    expect(mapLoadingHeld({ ...nationalStage, canvasReady: true })).toBe(true);
+    expect(mapLoadingHeld({ ...nationalStage, pinsRevealed: true })).toBe(false);
+    expect(mapLoadingProgressPercent({ ...nationalStage, pinsRevealed: true })).toBe(100);
+  });
 });
 
 describe("resolveMapDisplayName", () => {

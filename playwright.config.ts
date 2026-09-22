@@ -148,6 +148,7 @@ export default defineConfig({
         "**/spill-composer-keyless.spec.ts",
         "**/ui-ux-battle-test-keyless.spec.ts",
         "**/map-gl.spec.ts",
+        "**/uk-national-loading.spec.ts",
         "**/map-gestures.spec.ts",
         "**/map-deep-link-pin.spec.ts",
         // Every WebGL journey belongs to chromium-gl. Keeping these out of the
@@ -273,6 +274,7 @@ export default defineConfig({
       // a real WebGL2 context (SwiftShader), so both run here.
       testMatch: [
         "**/map-gl.spec.ts",
+        "**/uk-national-loading.spec.ts",
         // Two-finger rotate and tilt against a real MapLibre canvas.
         "**/map-gestures.spec.ts",
         // The opening turn and the first-visit card's grip on the pins: both
