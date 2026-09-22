@@ -52,7 +52,22 @@
 
 // A plain-node CLI imports this module, so the specifier is RELATIVE and carries
 // its extension. `lib/responseBody.ts` is a leaf and pulls nothing behind it.
+import { lookup as dnsLookup } from "node:dns/promises";
+import type { LookupAddress } from "node:dns";
+import { isIP, type LookupFunction } from "node:net";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
+import { Readable, Transform, pipeline } from "node:stream";
+import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
+
 import { discardBody } from "../responseBody.ts";
+import { MAX_PDF_BYTES as MAX_TEXT_PDF_BYTES } from "./pdfText.ts";
+import {
+  harvestRedirectLanding,
+  isHarvestablePageUrl,
+  isPublicHarvestAddress,
+  type HarvestUrlPolicy,
+} from "./sourcePolicy.ts";
 
 export const HARVEST_ROBOTS_AGENTS = ["cloudflarebrowserrenderingcrawler", "firecrawlagent", "*"] as const;
 
@@ -61,6 +76,8 @@ const MAX_ROBOTS_BYTES = 512 * 1024;
 const ROBOTS_TIMEOUT_MS = 15_000;
 /** The pause before a host that could not be reached at all is asked once more. */
 const ROBOTS_RETRY_DELAY_MS = 750;
+/** Largest PDF any current harvest lane accepts, including the bounded OCR lane. */
+const MAX_HARVEST_PDF_BYTES = 64 * 1024 * 1024;
 
 export type RobotsRules = {
   /** Disallowed path prefixes, per lower-cased user-agent token. */
@@ -314,23 +331,215 @@ export function robotsAllows(rules: RobotsRules, path: string): { allowed: boole
 
 export type RobotsChecker = (url: string) => Promise<RobotsDecision>;
 
+const MAX_HARVEST_REDIRECTS = 5;
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+/** The source/address fence refused an outbound page before its bytes were read. */
+export class HarvestOutboundRefusal extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "HarvestOutboundRefusal";
+  }
+}
+
+/** Resolve all answers once; mixed public/private DNS answers fail closed. */
+export async function resolvePublicHarvestAddress(
+  hostname: string,
+  lookupImpl: typeof dnsLookup = dnsLookup,
+): Promise<LookupAddress> {
+  const host = hostname.replace(/^\[|\]$/g, "");
+  const family = isIP(host);
+  const addresses = family
+    ? [{ address: host, family }]
+    : await lookupImpl(host, { all: true, verbatim: true });
+  if (!addresses.length || addresses.some(({ address }) => !isPublicHarvestAddress(address))) {
+    throw new HarvestOutboundRefusal(`Outbound address policy refused ${hostname}.`);
+  }
+  return addresses[0]!;
+}
+
+/** Bind Node's socket lookup to the already checked DNS answer for this hop. */
+export function createPinnedHarvestLookup(pinnedAddress: LookupAddress): LookupFunction {
+  return (_hostname, options, callback) => {
+    if (typeof options === "object" && options !== null && options.all) {
+      callback(null, [{ address: pinnedAddress.address, family: pinnedAddress.family }]);
+    } else {
+      callback(null, pinnedAddress.address, pinnedAddress.family);
+    }
+  };
+}
+
+/**
+ * Make one GET/HEAD request through one already-validated, pinned DNS answer.
+ * Redirects are returned to the caller; automatic redirects would let the
+ * runtime resolve a second host without the policy and robots checks.
+ */
+export async function fetchHarvestResponse(
+  input: string | URL,
+  init: RequestInit = {},
+  options: {
+    urlPolicy?: HarvestUrlPolicy;
+    lookupImpl?: typeof dnsLookup;
+    maxPdfBytes?: number;
+  } = {},
+): Promise<Response> {
+  const url = input instanceof URL ? input : new URL(input);
+  const urlPolicy = options.urlPolicy ?? "operator";
+  if (!isHarvestablePageUrl(url.href, urlPolicy)) throw new HarvestOutboundRefusal(`Source policy refused ${url.href}.`);
+  if (init.redirect === "follow") throw new HarvestOutboundRefusal("Harvest transport refuses automatic redirects.");
+  if (init.body !== undefined && init.body !== null) throw new TypeError("Harvest transport only accepts bodyless GET/HEAD requests.");
+
+  const method = (init.method ?? "GET").toUpperCase();
+  if (method !== "GET" && method !== "HEAD") throw new TypeError("Harvest transport only accepts GET/HEAD requests.");
+  const maxPdfBytes = options.maxPdfBytes ?? MAX_TEXT_PDF_BYTES;
+  if (!Number.isSafeInteger(maxPdfBytes) || maxPdfBytes < 1 || maxPdfBytes > MAX_HARVEST_PDF_BYTES) {
+    throw new RangeError(`Harvest PDF byte ceiling must be between 1 and ${MAX_HARVEST_PDF_BYTES}.`);
+  }
+  const pinnedAddress = await resolvePublicHarvestAddress(url.hostname, options.lookupImpl);
+  const request = url.protocol === "https:" ? httpsRequest : httpRequest;
+  const headers = new Headers(init.headers);
+  if (!headers.has("accept-encoding")) headers.set("accept-encoding", "gzip, deflate, br");
+
+  return await new Promise<Response>((resolve, reject) => {
+    const req = request(url, {
+      method,
+      headers: Object.fromEntries(headers.entries()),
+      signal: init.signal ?? undefined,
+      lookup: createPinnedHarvestLookup(pinnedAddress),
+    }, (incoming) => {
+      const responseHeaders = new Headers();
+      for (const [name, value] of Object.entries(incoming.headers)) {
+        if (value === undefined) continue;
+        if (Array.isArray(value)) {
+          for (const item of value) responseHeaders.append(name, item);
+        } else {
+          responseHeaders.set(name, value);
+        }
+      }
+
+      const encoding = responseHeaders.get("content-encoding")?.trim().toLowerCase();
+      const decoder = encoding === "gzip" ? createGunzip()
+        : encoding === "deflate" ? createInflate()
+        : encoding === "br" ? createBrotliDecompress() : null;
+      if (encoding === "gzip" || encoding === "deflate" || encoding === "br") {
+        responseHeaders.delete("content-encoding");
+        responseHeaders.delete("content-length");
+      }
+
+      const status = incoming.statusCode ?? 502;
+      const noBody = method === "HEAD" || status === 204 || status === 205 || status === 304;
+      let body: ReadableStream<Uint8Array> | null = null;
+      if (noBody) {
+        incoming.destroy();
+      } else {
+        // Count decoded bytes before any caller can allocate text or a PDF buffer.
+        const maxBytes = /pdf/i.test(responseHeaders.get("content-type") ?? "") || url.pathname.toLowerCase().endsWith(".pdf")
+          ? maxPdfBytes : 4 * 1024 * 1024;
+        let bytes = 0;
+        const bounded = new Transform({
+          transform(chunk: Buffer, _encoding, callback) {
+            bytes += chunk.byteLength;
+            if (bytes > maxBytes) callback(new Error(`Harvest decoded body exceeds ${maxBytes} bytes.`));
+            else callback(null, chunk);
+          },
+        });
+        body = Readable.toWeb(bounded, {
+          strategy: { highWaterMark: 16 * 1024, size: (chunk: Uint8Array) => chunk.byteLength },
+        }) as ReadableStream<Uint8Array>;
+        // Pipeline tears down the socket and decoder on overflow or cancellation.
+        const complete = (error: NodeJS.ErrnoException | null) => {
+          if (error) bounded.destroy(error);
+        };
+        if (decoder) pipeline(incoming, decoder, bounded, complete);
+        else pipeline(incoming, bounded, complete);
+      }
+      resolve(new Response(body, {
+        status,
+        statusText: incoming.statusMessage,
+        headers: responseHeaders,
+      }));
+    });
+    req.once("error", reject);
+    req.end();
+  });
+}
+
+export type HarvestedPageResult =
+  | { ok: true; response: Response; url: string }
+  | { ok: false; reason: "source-policy" | "robots-refused" | "redirect-limit" | "redirect-location"; url: string; response?: Response };
+
+/** Check source policy and the exact path's robots rules before every hop. */
+export async function fetchHarvestedPage(
+  input: string | URL,
+  robots: RobotsChecker,
+  init: RequestInit = {},
+  options: { fetchImpl?: typeof fetch; urlPolicy?: HarvestUrlPolicy } = {},
+): Promise<HarvestedPageResult> {
+  const original = input instanceof URL ? input.href : input;
+  let current = original;
+  const urlPolicy = options.urlPolicy ?? "operator";
+  const fetchImpl: typeof fetch = options.fetchImpl ?? ((url, requestInit) => {
+    if (url instanceof Request) return Promise.reject(new TypeError("Harvest transport requires an explicit URL."));
+    return fetchHarvestResponse(url, requestInit, { urlPolicy });
+  });
+  for (let hop = 0; hop <= MAX_HARVEST_REDIRECTS; hop += 1) {
+    if (harvestRedirectLanding(original, current, urlPolicy).outcome === "refused") {
+      return { ok: false, reason: "source-policy", url: current };
+    }
+    const permission = await robots(current);
+    if (!permission.allowed) return { ok: false, reason: "robots-refused", url: current };
+
+    const response = await fetchImpl(current, { ...init, redirect: "manual" });
+    if (!REDIRECT_STATUSES.has(response.status)) return { ok: true, response, url: current };
+    const location = response.headers.get("location");
+    discardBody(response);
+    if (!location) return { ok: false, reason: "redirect-location", url: current, response };
+    if (hop === MAX_HARVEST_REDIRECTS) return { ok: false, reason: "redirect-limit", url: current, response };
+    try {
+      current = new URL(location, current).href;
+    } catch {
+      return { ok: false, reason: "redirect-location", url: current, response };
+    }
+  }
+  return { ok: false, reason: "redirect-limit", url: current };
+}
+
 /**
  * Build a per-run robots checker. One fetch per HOST, remembered for the run, so
  * a lane that reads two pages on a site asks once.
  */
-export function createRobotsChecker(options: { fetchImpl?: typeof fetch } = {}): RobotsChecker {
-  const fetchImpl = options.fetchImpl ?? fetch;
+export function createRobotsChecker(options: { fetchImpl?: typeof fetch; urlPolicy?: HarvestUrlPolicy } = {}): RobotsChecker {
+  const urlPolicy = options.urlPolicy ?? "operator";
+  const fetchImpl: typeof fetch = options.fetchImpl ?? ((url, init) => {
+    if (url instanceof Request) return Promise.reject(new TypeError("Harvest transport requires an explicit URL."));
+    return fetchHarvestResponse(url, init, { urlPolicy });
+  });
   const cache = new Map<string, Promise<RobotsDecision | RobotsRules>>();
 
   async function ask(origin: string): Promise<RobotsDecision | RobotsRules> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ROBOTS_TIMEOUT_MS);
     try {
-      const response = await fetchImpl(`${origin}/robots.txt`, {
-        headers: { accept: "text/plain", "user-agent": "PUBMAXX-harvest/1" },
-        signal: controller.signal,
-        redirect: "follow",
-      });
+      let current = `${origin}/robots.txt`;
+      let response: Response | undefined;
+      for (let hop = 0; hop <= MAX_HARVEST_REDIRECTS; hop += 1) {
+        if (!isHarvestablePageUrl(current, urlPolicy)) {
+          throw new HarvestOutboundRefusal(`Source policy refused ${current}.`);
+        }
+        response = await fetchImpl(current, {
+          headers: { accept: "text/plain", "user-agent": "PUBMAXX-harvest/1" },
+          signal: controller.signal,
+          redirect: "manual",
+        });
+        if (!REDIRECT_STATUSES.has(response.status)) break;
+        const location = response.headers.get("location");
+        discardBody(response);
+        if (!location || hop === MAX_HARVEST_REDIRECTS) {
+          throw new HarvestOutboundRefusal(`Robots redirect from ${current} has no safe landing.`);
+        }
+        current = new URL(location, current).href;
+      }
+      if (!response) throw new HarvestOutboundRefusal(`No robots response for ${origin}.`);
       if (response.status === 404 || response.status === 410) {
         // Nothing here reads this body, so let the stream go rather than
         // leaving the connection open on a host we are about to stop asking.
@@ -385,6 +594,14 @@ export function createRobotsChecker(options: { fetchImpl?: typeof fetch } = {}):
         evidence: `${origin}/robots.txt returned something that is neither a rules file nor an HTML page, so no permission can be read.`,
       };
     } catch (error) {
+      if (error instanceof HarvestOutboundRefusal) {
+        return {
+          allowed: false,
+          reason: "robots-unreadable",
+          robots: "http-refused",
+          evidence: `${origin}/robots.txt could not be safely fetched (${error.message}).`,
+        };
+      }
       return {
         allowed: false,
         reason: "robots-unreachable",
