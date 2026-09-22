@@ -364,3 +364,55 @@ test("a fresh national overview stays below the UK base gate and fetches no data
     ),
   ).toEqual([]);
 });
+
+test("desktop evidence facets hide unknown UK base pins and list rows until cleared", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const requests = ukBaseRequests(page);
+
+  const response = await page.goto("/map");
+  expect(response?.status()).toBe(200);
+
+  const wrap = page.locator(".mapCanvasWrap");
+  await expect(wrap).toHaveAttribute("data-uk-base-status", "ready", {
+    timeout: 30_000,
+  });
+  await expect
+    .poll(async () => Number(await wrap.getAttribute("data-uk-base-count")), {
+      timeout: 30_000,
+    })
+    .toBeGreaterThan(0);
+
+  await page.getByRole("button", { name: /Map layers:/ }).click();
+  await page.getByRole("button", { name: "List view" }).click();
+  const baseRows = page.locator(
+    '.mapVenueListItem[data-venue-id^="venue-uk-"]',
+  );
+  await expect.poll(() => baseRows.count(), { timeout: 20_000 }).toBeGreaterThan(0);
+  const residentRequests = [...requests];
+
+  await page.getByRole("button", { name: "Plan an outing" }).click();
+  const stepFree = page
+    .locator(".controlRail")
+    .getByRole("checkbox", { name: "Step-free entry" });
+  await expect(stepFree).not.toBeChecked();
+
+  await stepFree.check();
+  await expect(wrap).toHaveAttribute("data-uk-base-status", "suspended");
+  await expect(wrap).toHaveAttribute("data-uk-base-count", "0");
+  await expect.poll(() => baseRows.count()).toBe(0);
+
+  await stepFree.uncheck();
+  await expect(wrap).toHaveAttribute("data-uk-base-status", "ready", {
+    timeout: 30_000,
+  });
+  await expect
+    .poll(async () => Number(await wrap.getAttribute("data-uk-base-count")), {
+      timeout: 30_000,
+    })
+    .toBeGreaterThan(0);
+  await expect.poll(() => baseRows.count(), { timeout: 20_000 }).toBeGreaterThan(0);
+  expect(requests).toEqual(residentRequests);
+});

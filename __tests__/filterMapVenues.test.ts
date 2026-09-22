@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
+import {
+  filterMapVenues,
+  mapFiltersRequireVenueEvidence,
+  withForcedVenue,
+} from "@/lib/filterMapVenues";
 import { initialFilters } from "@/components/map/ControlRail";
 import type { Venue } from "@/lib/venues";
 
@@ -176,5 +180,50 @@ describe("withForcedVenue", () => {
     const byId = new Map([[venue.id, venue]]);
     const out = withForcedVenue([venue], byId, venue.id);
     expect(out).toHaveLength(1);
+  });
+});
+
+describe("explicit slim-pin requirements", () => {
+  it.each([
+    "requireBeerGarden",
+    "requireNonAlcoholic",
+    "requireLiveSports",
+    "requireWater",
+    "requireHeritage",
+    "requireStepFree",
+    "requireAccessibleToilet",
+    "requireSeatedService",
+  ] as const)("does not admit unknown or false evidence for %s", (key) => {
+    const venue = slimPin({ hasStory: false, filterHints: undefined, curation: {} });
+
+    expect(
+      filterMapVenues([venue], { ...initialFilters, [key]: true }, () => false),
+    ).toEqual([]);
+  });
+});
+
+describe("mapFiltersRequireVenueEvidence", () => {
+  it.each([
+    "requireBeerGarden",
+    "requireNonAlcoholic",
+    "requireLiveSports",
+    "requireFood",
+    "requireCocktails",
+    "requireWater",
+    "requireHeritage",
+    "requireStepFree",
+    "requireAccessibleToilet",
+    "requireSeatedService",
+  ] as const)("requires evidence when %s is active", (key) => {
+    expect(
+      mapFiltersRequireVenueEvidence({ ...initialFilters, [key]: true }),
+    ).toBe(true);
+  });
+
+  it("does not suppress unknown hours or an unfiltered base layer", () => {
+    expect(mapFiltersRequireVenueEvidence(initialFilters)).toBe(false);
+    expect(
+      mapFiltersRequireVenueEvidence({ ...initialFilters, openNow: true }),
+    ).toBe(false);
   });
 });
