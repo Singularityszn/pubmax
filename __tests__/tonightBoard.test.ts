@@ -32,6 +32,19 @@ describe("cheapestTonight", () => {
     expect(result.map((e) => e.venueId)).toEqual(["in-window"]);
   });
 
+  it("ranks only pints while retaining legacy drops with no recorded measure", () => {
+    const drops = [
+      d({ venueId: "half", priceGbp: 2.6, measure: "half" }),
+      d({ venueId: "pint", priceGbp: 5, measure: "pint" }),
+      d({ venueId: "legacy", priceGbp: 6 }),
+    ];
+
+    expect(cheapestTonight(drops, { now: NOW }).map((entry) => entry.venueId)).toEqual([
+      "pint",
+      "legacy",
+    ]);
+  });
+
   it("excludes the exact 24h-boundary drop (window is the open trailing 24h)", () => {
     const drops = [
       d({ venueId: "boundary", priceGbp: 1, createdAt: new Date(NOW - 24 * HOUR).toISOString() }),
