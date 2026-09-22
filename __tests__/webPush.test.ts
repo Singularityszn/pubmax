@@ -22,7 +22,7 @@ function browserHarness(options: BrowserHarnessOptions = {}) {
       expirationTime: null,
       keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
     }),
-  } as PushSubscription;
+  } as unknown as PushSubscription;
   const subscribe = vi.fn(options.subscribe ?? (async () => subscription));
   const getSubscription = vi.fn(async () => null);
   const ready = options.ready
@@ -121,10 +121,10 @@ describe("registerWebPush", () => {
   it("aborts a registration request that exceeds the registration deadline", async () => {
     vi.useFakeTimers();
     vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "A".repeat(87));
-    let requestSignal: AbortSignal | null = null;
+    const requestSignals: AbortSignal[] = [];
     const { fetch } = browserHarness({
       fetch: (_input, init) => {
-        requestSignal = init?.signal as AbortSignal;
+        requestSignals.push(init?.signal as AbortSignal);
         return new Promise<Response>(() => undefined);
       },
     });
@@ -140,7 +140,7 @@ describe("registerWebPush", () => {
 
     expect(settled).toBe(true);
     await expect(registration).resolves.toBeNull();
-    expect(requestSignal?.aborted).toBe(true);
+    expect(requestSignals[0]?.aborted).toBe(true);
     expect(vi.getTimerCount()).toBe(0);
   });
 
