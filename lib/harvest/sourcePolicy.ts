@@ -262,6 +262,49 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     notes:
       "The one chain in the tree that DOES publish per-drink prices on the web, and the one we may not read through the general fence. That asymmetry is the whole argument for asking Mitchells & Butlers for permission or a feed: it is the single largest lever on price coverage. Until then no Nicholson's page is read through `isHarvestableOperatorUrl` alone.",
   },
+  {
+    id: "youngs-menu-prices",
+    label: "Young's - pub menus",
+    url: "https://www.youngs.co.uk/our-pubs",
+    kind: "chain-menu-prices",
+    firstParty: true,
+    access: {
+      allowed: true,
+      evidence:
+        "robots.txt re-read 2026-09-22: HTTP 200, Yoast `User-agent: *` with empty Disallow and sitemap_index. Captain override 21 Sep 2026: London soft-drinks harvest CLIs may read Young's microsite food-and-drink pages named in `LONDON_DRINK_CAPTAIN_OVERRIDE_HOSTS`, stamping `robotsDisallowed: true` when robots refused.",
+      checkedOn: "2026-09-21",
+    },
+    notes:
+      "Per-pub WordPress microsites; soft drinks when a page states £ beside the drink name.",
+  },
+  {
+    id: "stonegate-menu-prices",
+    label: "Stonegate - pub menus (Slug and Lettuce and estate)",
+    url: "https://www.slugandlettuce.co.uk/sitemap.xml",
+    kind: "chain-menu-prices",
+    firstParty: true,
+    access: {
+      allowed: true,
+      evidence:
+        "robots.txt re-read 2026-09-22: HTTP 200, `User-agent: *` `Allow: /` with `Disallow: /home` only. Captain override 21 Sep 2026: London soft-drinks harvest CLIs may read Stonegate brand menu pages on hosts in `LONDON_DRINK_CAPTAIN_OVERRIDE_HOSTS`.",
+      checkedOn: "2026-09-21",
+    },
+    notes: "Slug and Lettuce /menus paths; prices only when printed on the page.",
+  },
+  {
+    id: "brewdog-menu-prices",
+    label: "BrewDog - bar menus",
+    url: "https://brewdog.com/uk/brewdog-bars",
+    kind: "chain-menu-prices",
+    firstParty: true,
+    access: {
+      allowed: true,
+      evidence:
+        "robots.txt re-read 2026-09-22: Shopify disallow list for checkout/cart only; bar pages permitted. Captain override 21 Sep 2026: London soft-drinks harvest CLIs may read BrewDog bar menu pages.",
+      checkedOn: "2026-09-21",
+    },
+    notes: "Bar menu lane only; shop SKUs are out of scope.",
+  },
 
   // --- pub directories: which pubs a chain runs today -----------------------
   {

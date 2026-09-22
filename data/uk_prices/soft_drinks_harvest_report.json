@@ -1,14 +1,16 @@
 {
-  "chain": "custom",
+  "chain": "youngs",
   "transport": "tavily",
-  "pagesRequested": 3,
-  "pagesRead": 3,
+  "pagesRequested": 1,
+  "pagesRead": 1,
   "refused": 0,
-  "unmatched": 3,
+  "unmatched": 0,
   "rowsLanded": 0,
   "bySubtype": {},
-  "hosts": {},
-  "tavilyExtractsSpent": 3,
-  "startedAt": "2026-09-22T01:54:44.623Z",
-  "finishedAt": "2026-09-22T01:55:07.218Z"
+  "hosts": {
+    "cocktavern.co.uk": 1
+  },
+  "tavilyExtractsSpent": 1,
+  "startedAt": "2026-09-22T03:17:10.176Z",
+  "finishedAt": "2026-09-22T03:17:10.549Z"
 }

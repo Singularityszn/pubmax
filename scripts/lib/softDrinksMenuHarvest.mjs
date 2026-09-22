@@ -60,6 +60,30 @@ function priceFromLines(lines) {
   return null;
 }
 
+
+const PROPELLER_MENU_ITEM =
+  /MenuItem-module[^>]*__title">([^<]+?)<span[^>]*__price">£\s*([\d.]+)/gi;
+
+function isLikelySoftDrinkLabel(label) {
+  const s = String(label ?? "").toLowerCase();
+  return /coke|pepsi|sprite|fanta|lemonade|tonic|water|juice|j2o|red bull|appletiser|ginger beer|fever|cordial|soda|still|sparkling/i.test(
+    s,
+  );
+}
+
+/** Young's / Propeller microsites embed menu rows in RSC HTML blobs. */
+export function parsePropellerMenuSoftDrinks(text) {
+  const out = [];
+  for (const match of String(text).matchAll(PROPELLER_MENU_ITEM)) {
+    const drinkLabel = match[1].trim();
+    if (!isLikelySoftDrinkLabel(drinkLabel)) continue;
+    const priceGbp = parseFloat(match[2]);
+    if (!Number.isFinite(priceGbp)) continue;
+    out.push({ drinkLabel, category: "soft-drink", priceGbp });
+  }
+  return filterSoftDrinkHarvestRows(out);
+}
+
 export function parseMbplcSoftDrinkLines(markdown) {
   const lines = markdown.split(/\r?\n/);
   const out = [];

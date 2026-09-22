@@ -31,11 +31,19 @@ import {
   createMenuPageHarvester,
   parseMenuTransportArg,
 } from "./lib/harvestMenuTransport.mjs";
-import { buildVenueIndexes, resolveVenueKeyFromPubName } from "./lib/venueMatch.mjs";
 import {
+  GK_SLUG_HINTS,
+  buildVenueIndexes,
+  menuUrlToVenueId,
+  resolveVenueKeyFromHints,
+  resolveVenueKeyFromPubName,
+} from "./lib/venueMatch.mjs";
+import {
+  classifySoftDrinkSubtypeId,
   filterSoftDrinkHarvestRows,
   parseGkSoftDrinkLines,
   parseMbplcSoftDrinkLines,
+  parsePropellerMenuSoftDrinks,
   softDrinkRowsFromPageText,
 } from "./lib/softDrinksMenuHarvest.mjs";
 
@@ -47,9 +55,12 @@ const DATASET_PATH = join(ROOT, "public/data/pint_prices_app_dataset.json");
 const WETHERSPOONS_PATH = join(ROOT, "public/data/wetherspoons/pubs.json");
 const NICHOLSONS_URLS = join(ROOT, "data/nicholsons_london_drink_urls.txt");
 const GK_URLS = join(ROOT, "data/greene_king_london_menu_urls.txt");
+const ENRICHMENT_PATH = join(ROOT, "public/data/venue_menu_enrichment.json");
 
-const USER_AGENT =
-  "PUBMAXXHarvest/1.0 (+https://pubmaxxing.com; hello@pubmaxxing.com)";
+function chainUrlsFile(chain) {
+  const discovered = join(ROOT, `data/soft_drinks_${chain}_london_urls.txt`);
+  return existsSync(discovered) ? discovered : null;
+}
 
 const CHAIN_CONFIG = {
   nicholsons: {
@@ -68,6 +79,21 @@ const CHAIN_CONFIG = {
     urlsFile: GK_URLS,
     parser: "gk",
     cacheDir: join(ROOT, ".firecrawl", "menus", "soft-drinks", "greeneking"),
+  },
+  youngs: {
+    sourceId: "youngs-menu-prices",
+    parser: "uk-crawl",
+    cacheDir: join(ROOT, ".firecrawl", "menus", "soft-drinks", "youngs"),
+  },
+  "slug-and-lettuce": {
+    sourceId: "stonegate-menu-prices",
+    parser: "uk-crawl",
+    cacheDir: join(ROOT, ".firecrawl", "menus", "soft-drinks", "slug-and-lettuce"),
+  },
+  brewdog: {
+    sourceId: "brewdog-menu-prices",
+    parser: "uk-crawl",
+    cacheDir: join(ROOT, ".firecrawl", "menus", "soft-drinks", "brewdog"),
   },
 };
 
@@ -107,8 +133,10 @@ function loadUrls(chain, limit, urlsFileOverride) {
       .map((pub) => ({ url: pub.menuUrl, pubName: pub.name, locality: pub.townCity }));
   }
   const cfg = CHAIN_CONFIG[chain];
-  if (!cfg?.urlsFile || !existsSync(cfg.urlsFile)) return [];
-  return readFileSync(cfg.urlsFile, "utf8")
+  const urlsPath =
+    chainUrlsFile(chain) ?? (cfg?.urlsFile && existsSync(cfg.urlsFile) ? cfg.urlsFile : null);
+  if (!urlsPath) return [];
+  return readFileSync(urlsPath, "utf8")
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line.startsWith("http"))
@@ -130,17 +158,72 @@ async function extractRows(chain, markdown, ctx) {
   }
   const { readVenueDrinkPricesForHarvest } = await import("./harvest/uk-prices/readPrices.mjs");
   await readVenueDrinkPricesForHarvest(markdown, ctx);
+  const propeller = parsePropellerMenuSoftDrinks(markdown);
+  if (propeller.length > 0) return propeller;
   return softDrinkRowsFromPageText(markdown);
 }
 
-function venueKeyFor(chain, url, markdown, indexes) {
-  if (chain === "wetherspoon") {
-    const slug = url.replace(/\/$/, "").split("/").pop();
-    const pub = slug?.replace(/-/g, " ");
-    return resolveVenueKeyFromPubName(pub ?? "", indexes);
+function slugFromGkMenuUrl(url) {
+  try {
+    const parts = new URL(url).pathname.split("/").filter(Boolean);
+    const menuIdx = parts.lastIndexOf("menu");
+    if (menuIdx < 1) return null;
+    return parts[menuIdx - 1] ?? null;
+  } catch {
+    return null;
   }
-  const pubName = pubNameFromMbplcMarkdown(markdown);
+}
+
+function titleFromGkSlug(slug) {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((w) => (w.length <= 2 ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(" ");
+}
+
+function venueKeyFor(chain, url, markdown, indexes, menuUrlToId, target, enrichment) {
+  if (chain === "wetherspoon" && target?.pubName) {
+    return resolveVenueKeyFromPubName(target.pubName, indexes);
+  }
+  if (chain === "youngs") {
+    const venueId = venueIdForMenuHost(hostFromUrl(url), enrichment);
+    if (venueId && indexes.idToKey.has(venueId)) return indexes.idToKey.get(venueId);
+  }
+  if (chain === "greene-king") {
+    const normalised = url.replace(/\/$/, "");
+    const venueId = menuUrlToId.get(normalised);
+    if (venueId && indexes.idToKey.has(venueId)) {
+      return indexes.idToKey.get(venueId);
+    }
+    const slug = slugFromGkMenuUrl(url);
+    if (slug) {
+      const hints = GK_SLUG_HINTS[slug];
+      if (hints) {
+        const keyed = resolveVenueKeyFromHints(hints, indexes);
+        if (keyed) return keyed;
+      }
+      return resolveVenueKeyFromPubName(titleFromGkSlug(slug), indexes);
+    }
+  }
+  const pubName = target?.pubName ?? pubNameFromMbplcMarkdown(markdown);
   return resolveVenueKeyFromPubName(pubName, indexes);
+}
+
+
+function venueIdForMenuHost(host, enrichment) {
+  const clean = (host ?? "").replace(/^www\./, "");
+  if (!clean) return null;
+  for (const [venueId, rec] of Object.entries(enrichment.venues ?? {})) {
+    if (!rec.menuUrl) continue;
+    try {
+      const pubHost = new URL(rec.menuUrl).hostname.replace(/^www\./, "");
+      if (pubHost === clean) return venueId;
+    } catch {
+      continue;
+    }
+  }
+  return null;
 }
 
 function hostFromUrl(url) {
@@ -171,16 +254,7 @@ function mergeIntoSiteHarvest(newRows) {
 async function main() {
   let { chain, limit, dryRun, urlsFile } = parseArgs(process.argv);
   const transport = parseMenuTransportArg();
-  let cfg = CHAIN_CONFIG[chain];
-  if (urlsFile) {
-    cfg = {
-      sourceId: "greene-king-menu-prices",
-      urlsFile,
-      parser: "uk-crawl",
-      cacheDir: join(ROOT, ".firecrawl", "menus", "soft-drinks", "custom"),
-    };
-    chain = "custom";
-  }
+  const cfg = CHAIN_CONFIG[chain];
   if (!cfg) {
     console.error(`Unknown chain ${chain}; choose: ${Object.keys(CHAIN_CONFIG).join(", ")}`);
     process.exit(1);
@@ -190,6 +264,10 @@ async function main() {
   const targets = loadUrls(chain, limit, urlsFile);
   const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
   const indexes = buildVenueIndexes(dataset);
+  const enrichment = existsSync(ENRICHMENT_PATH)
+    ? JSON.parse(readFileSync(ENRICHMENT_PATH, "utf8"))
+    : { venues: {} };
+  const menuUrlToId = menuUrlToVenueId(enrichment);
   const observedAt = new Date().toISOString();
   const report = {
     chain,
@@ -225,7 +303,7 @@ async function main() {
       throw error;
     }
     const host = hostFromUrl(target.url);
-    const venueKey = venueKeyFor(chain, target.url, markdown, indexes);
+    const venueKey = venueKeyFor(chain, target.url, markdown, indexes, menuUrlToId, target, enrichment);
     if (!venueKey) {
       report.unmatched += 1;
       continue;
@@ -249,6 +327,11 @@ async function main() {
       };
       landed.push(ledgerRow);
       report.rowsLanded += 1;
+      const subtype = classifySoftDrinkSubtypeId(row.drinkLabel);
+      if (subtype) report.bySubtype[subtype] = (report.bySubtype[subtype] ?? 0) + 1;
+      const brandKey = row.drinkLabel?.trim() ?? "";
+      if (brandKey) report.byVerbatimLabel = report.byVerbatimLabel ?? {};
+      if (brandKey) report.byVerbatimLabel[brandKey] = (report.byVerbatimLabel[brandKey] ?? 0) + 1;
     }
     if (host) report.hosts[host] = (report.hosts[host] ?? 0) + 1;
   }
