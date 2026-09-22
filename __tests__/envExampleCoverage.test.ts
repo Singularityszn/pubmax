@@ -27,6 +27,7 @@ const PLATFORM_OWNED: Record<string, string> = {
   NEXT_DEPLOYMENT_ID: "Next.js deployment marker",
   NEXT_DIST_DIR: "Next.js build directory (npm scripts pass it)",
   // Set by the Vercel platform on a deployment.
+  VERCEL: "Vercel platform",
   VERCEL_ENV: "Vercel platform",
   VERCEL_DEPLOYMENT_ID: "Vercel platform",
   // Injected by next.config.mjs from lib/buildInfo.mjs at build time.
