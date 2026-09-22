@@ -120,6 +120,77 @@ beforeEach(() => {
   state.desk = { venues: [], status: "ready" };
 });
 
+describe("search_venues", () => {
+  it.each([
+    {
+      query: "find a date-night pub in Camden",
+      reason: "Good date-night fit",
+      candidate: venue({
+        id: "date-fit",
+        name: "The Date Fit",
+        cheapestPrice: null,
+        amenities: {
+          beerGarden: false,
+          cocktails: true,
+          food: true,
+          liveSports: false,
+          liveMusic: false,
+        },
+      }),
+    },
+    {
+      query: "find a quiet pub in Camden",
+      reason: "A calmer fit",
+      candidate: venue({
+        id: "calm-fit",
+        name: "The Calm Fit",
+        cheapestPrice: null,
+        hasStory: true,
+        amenities: {
+          beerGarden: false,
+          cocktails: false,
+          food: true,
+          liveSports: false,
+          liveMusic: false,
+        },
+      }),
+    },
+  ])("qualifies editorial reason '$reason' without losing directory provenance", async ({
+    query,
+    reason,
+    candidate,
+  }) => {
+    state.venues = [candidate];
+
+    const result = await runAskTool("search_venues", { query }, ctx({ query }));
+
+    expect(result).toMatchObject({
+      data: { venues: [{ reasons: expect.arrayContaining([reason]) }] },
+    });
+    expect(result.cards[0]?.note).toBe(`Editorial estimate: ${reason}`);
+    expect(result.cards[0]?.provenance).toEqual({
+      label: "On record",
+      kind: "directory",
+    });
+  });
+
+  it("keeps factual budget reasons unqualified", async () => {
+    state.venues = [venue({ id: "budget", name: "The Budget", cheapestPrice: 4.5 })];
+
+    const result = await runAskTool(
+      "search_venues",
+      { query: "pub in Camden under £6" },
+      ctx({ query: "pub in Camden under £6" }),
+    );
+
+    expect(result.cards[0]?.note).toBe("£4.50 is within budget");
+    expect(result.cards[0]?.provenance).toEqual({
+      label: "On record",
+      kind: "directory",
+    });
+  });
+});
+
 describe("cheapest_pint_near", () => {
   it("ranks the listed pints round a named pub and leaves the anchor out", async () => {
     state.venues = [

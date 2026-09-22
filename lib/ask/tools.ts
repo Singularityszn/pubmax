@@ -76,6 +76,21 @@ function directoryProvenance(): AskProvenance {
   return { label: "On record", kind: "directory" };
 }
 
+const EDITORIAL_RANKING_REASONS = new Set([
+  "A calmer fit",
+  "Lively atmosphere",
+  "Cosy character",
+  "Good date-night fit",
+  "Garden weather",
+  "A good fit for the weather",
+]);
+
+function searchVenueReasonNote(reason: string): string {
+  return EDITORIAL_RANKING_REASONS.has(reason)
+    ? `Editorial estimate: ${reason}`
+    : reason;
+}
+
 function venueCard(
   venue: ConciergeVenue,
   note: string,
@@ -104,7 +119,7 @@ async function toolSearchVenues(
     const venues = await loadConciergeVenues(ctx.cityId);
     const ranked = rankConciergeVenues(venues, parsed.intent, { limit });
     const cards = ranked.map(({ venue, reasons }) =>
-      venueCard(venue, reasons[0] ?? "", venue.id),
+      venueCard(venue, searchVenueReasonNote(reasons[0] ?? ""), venue.id),
     );
     const proposals: AskProposal[] = cards
       .filter((c) => c.venueId)
