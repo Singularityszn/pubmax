@@ -16,6 +16,13 @@ Two transports, one consent gate.
 | Named product events | The closed registry in `lib/analyticsEvents.ts` | `trackEvent()` (`lib/analytics.ts`) to `POST /api/events`, re-validated there, then `lib/posthogServer.ts` to the EU capture endpoint |
 | Browser SDK events | `$pageview`, `$web_vitals`, redacted `$exception` | `posthog-js` (`lib/posthogClient.ts`) through the first-party `/ingest` proxy (`app/ingest/[...path]/route.ts`) |
 
+Vercel Web Analytics and Speed Insights form a separate diagnostic rail. They
+mount only on production Vercel deployments, after analytics consent, and only on
+the closed public-static route list in `lib/vercelTelemetry.ts`. Query strings and
+fragments are removed. This rail is not a product-metric source of truth and does
+not feed the weekly dashboard. PostHog `$web_vitals` remains the governed source
+for route performance figures in this plan.
+
 Four facts that decide how every query below is written.
 
 1. **Consent gates both.** `trackEvent()` no-ops without explicit analytics consent,

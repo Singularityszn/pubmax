@@ -17,6 +17,7 @@ import {
 import {
   consentAwareSpeedInsightsBeforeSend,
 } from "@/components/ConsentAwareVercelSpeedInsights";
+import { shouldMountVercelTelemetryForPath } from "@/lib/vercelTelemetry";
 
 type FakeNavigator = Partial<Navigator> & {
   sendBeacon?: (url: string, data?: BodyInit | null) => boolean;
@@ -328,7 +329,16 @@ describe("trackEvent", () => {
     expect(shouldMountVercelAnalytics("development")).toBe(false);
     expect(shouldMountVercelAnalytics("test")).toBe(false);
     expect(shouldMountVercelAnalytics("production")).toBe(false);
-    expect(shouldMountVercelAnalytics("production", "1")).toBe(true);
+    expect(shouldMountVercelAnalytics("production", "1", "preview")).toBe(false);
+    expect(shouldMountVercelAnalytics("production", "1", "production")).toBe(true);
+  });
+
+  it("mounts Vercel telemetry scripts only on public static routes", () => {
+    expect(shouldMountVercelTelemetryForPath("/")).toBe(true);
+    expect(shouldMountVercelTelemetryForPath("/map")).toBe(true);
+    expect(shouldMountVercelTelemetryForPath("/plan/private-plan-id")).toBe(false);
+    expect(shouldMountVercelTelemetryForPath("/u/private-handle")).toBe(false);
+    expect(shouldMountVercelTelemetryForPath("/admin")).toBe(false);
   });
 
   it("filters Speed Insights to consented public static routes", () => {

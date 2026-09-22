@@ -256,6 +256,7 @@ export default async function RootLayout({
   const vercelTelemetryEnabled = shouldMountVercelTelemetry(
     process.env.NODE_ENV,
     process.env.VERCEL,
+    process.env.VERCEL_ENV,
   );
   return (
     <html

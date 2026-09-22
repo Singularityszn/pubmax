@@ -20,6 +20,10 @@ export type SafeVercelTelemetryLocation = {
   url: string;
 };
 
+export function shouldMountVercelTelemetryForPath(pathname: unknown): boolean {
+  return typeof pathname === "string" && PUBLIC_STATIC_PATHS.has(pathname);
+}
+
 /** Keep Vercel telemetry on public static pages and remove query or fragment data. */
 export function safeVercelTelemetryLocation(
   eventUrl: unknown,
@@ -37,7 +41,7 @@ export function safeVercelTelemetryLocation(
     if (originUrl.protocol !== "http:" && originUrl.protocol !== "https:") return null;
     const origin = originUrl.origin;
     const url = new URL(eventUrl, origin);
-    if (url.origin !== origin || !PUBLIC_STATIC_PATHS.has(url.pathname)) return null;
+    if (url.origin !== origin || !shouldMountVercelTelemetryForPath(url.pathname)) return null;
     return {
       route: url.pathname,
       url: `${origin}${url.pathname}`,
@@ -50,6 +54,9 @@ export function safeVercelTelemetryLocation(
 export function shouldMountVercelTelemetry(
   environment: string | undefined,
   vercelDeployment?: string,
+  vercelEnvironment?: string,
 ): boolean {
-  return environment === "production" && vercelDeployment === "1";
+  return environment === "production"
+    && vercelDeployment === "1"
+    && vercelEnvironment === "production";
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 import {
   Analytics,
@@ -10,10 +11,12 @@ import {
 import {
   analyticsCollectionAllowed,
   flushVerifiedAnalyticsOutbox,
+  subscribeAnalyticsConsent,
 } from "@/lib/analytics";
 import {
   safeVercelTelemetryLocation,
   shouldMountVercelTelemetry,
+  shouldMountVercelTelemetryForPath,
 } from "@/lib/vercelTelemetry";
 
 export function consentAwareBeforeSend(
@@ -27,8 +30,13 @@ export function consentAwareBeforeSend(
 export function shouldMountVercelAnalytics(
   environment: string | undefined,
   vercelDeployment?: string,
+  vercelEnvironment?: string,
 ): boolean {
-  return shouldMountVercelTelemetry(environment, vercelDeployment);
+  return shouldMountVercelTelemetry(
+    environment,
+    vercelDeployment,
+    vercelEnvironment,
+  );
 }
 
 /** Vercel pageviews remain disabled until explicit analytics consent. */
@@ -37,7 +45,22 @@ export default function ConsentAwareVercelAnalytics({
 }: {
   enabled: boolean;
 }) {
+  const pathname = usePathname();
+  const [analyticsAllowed, setAnalyticsAllowed] = useState(false);
+
   useEffect(() => { void flushVerifiedAnalyticsOutbox(); }, []);
-  if (!enabled) return null;
+  useEffect(() => {
+    if (!enabled) return;
+    const refresh = () => setAnalyticsAllowed(analyticsCollectionAllowed());
+    const unsubscribe = subscribeAnalyticsConsent(refresh);
+    refresh();
+    return unsubscribe;
+  }, [enabled]);
+
+  if (
+    !enabled
+    || !analyticsAllowed
+    || !shouldMountVercelTelemetryForPath(pathname)
+  ) return null;
   return <Analytics beforeSend={consentAwareBeforeSend} />;
 }
