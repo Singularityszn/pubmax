@@ -98,6 +98,30 @@ describe("soft drinks menu harvest", () => {
     expect(events.map((event) => event.status)).toEqual(["unreadable-pdf"]);
   });
 
+  it.each([
+    '<a href="https://www.theeaglew12.co.uk/drinks-menu.pdf">Download PDF</a>',
+    '[Download PDF](https://www.theeaglew12.co.uk/drinks-menu.pdf)',
+  ])("follows a drinks-menu filename behind a generic anchor: %s", async (pageText) => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response("%PDF", { headers: { "content-type": "application/pdf" } }));
+    await softDrinkRowsFromMenuPdfLinks(`${pageText} ${pageText}`, {
+      pageUrl: "https://www.theeaglew12.co.uk/food-drink", sourceId: "youngs-menu-prices",
+      associatedHosts: ["theeaglew12.co.uk"], fetchImpl,
+      robotsChecker: async () => ({ allowed: true, reason: "allowed", evidence: "fixture" }),
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe("https://www.theeaglew12.co.uk/drinks-menu.pdf");
+  });
+
+  it("does not override an explicit food label with a drinks-like filename", async () => {
+    const fetchImpl = vi.fn();
+    await softDrinkRowsFromMenuPdfLinks('<a href="https://www.theeaglew12.co.uk/drinks-menu.pdf">Food menu</a>', {
+      pageUrl: "https://www.theeaglew12.co.uk/food-drink", sourceId: "youngs-menu-prices",
+      associatedHosts: ["theeaglew12.co.uk"], fetchImpl,
+      robotsChecker: async () => ({ allowed: true, reason: "allowed", evidence: "fixture" }),
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it("classifies Coke Zero, Diet Coke and still water subtypes", () => {
     expect(classifySoftDrinkSubtypeId("330ml Kingsdown Still/Sparkling Water")).toBe(
       "soft-drink-still-water",
