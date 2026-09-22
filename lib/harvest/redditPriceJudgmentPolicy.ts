@@ -1,5 +1,5 @@
 import type { DrinkCategory } from "@/lib/drinks";
-import { isRetrospectiveRedditPrice } from "@/lib/harvest/redditPriceExtract";
+import { isHypotheticalRedditPrice, isRetrospectiveRedditPrice } from "@/lib/harvest/redditPriceExtract";
 import { decisionFromJudgment, type UkPriceJudgmentProbabilities } from "@/lib/harvest/ukPriceJudgmentPolicy";
 
 /** From __tests__/fixtures/typesafe/reddit-price-judgment-probabilities.json */
@@ -39,7 +39,7 @@ export function redditDecisionFromJudgment(
 
 export function keylessRedditJudgment(snippet: string): RedditPriceJudgmentProbabilities {
   const paid = /\b(paid|cost|was|charged|got|buy|bought)\b/i.test(snippet);
-  const hypothetical = isRetrospectiveRedditPrice(snippet) || (/\b(wish|would be|if only)\b/i.test(snippet) && !paid);
+  const hypothetical = isRetrospectiveRedditPrice(snippet) || isHypotheticalRedditPrice(snippet);
   const actualScore = hypothetical ? 0.2 : paid ? 0.78 : 0.35;
   const halfPint = /\bhalf(?:[ -]pint)?\b/i.test(snippet);
   const bottleOrCan = /\b(bottle|can|330\s*ml|440\s*ml|500\s*ml)\b/i.test(snippet);

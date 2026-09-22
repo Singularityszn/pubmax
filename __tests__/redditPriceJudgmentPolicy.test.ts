@@ -18,6 +18,9 @@ const FIX = JSON.parse(
 ) as { cases: Record<string, { isActualPriceReport: number }> };
 
 describe("reddit price judgment thresholds", () => {
+  it("never publishes a wish as an actual price report", () => {
+    expect(redditDecisionFromJudgment(keylessRedditJudgment("I wish a pint cost £5.50 at The Roebuck in Southwark."), 5.5).outcome).toBe("reject");
+  });
   it.each(["I paid £5.50 for a half pint of Guinness.", "I paid £5.50 for a bottle of lager."])("does not publish a non-pint as a pint: %s", (text) => {
     expect(redditDecisionFromJudgment(keylessRedditJudgment(text), 5.5).outcome).toBe("reject");
   });

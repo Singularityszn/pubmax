@@ -15,9 +15,12 @@ describe("Reddit venue identity", () => {
   it("does not equate a name prefix with a venue", () => {
     expect(matchPubNameToVenue("The Roebuck", "Southwark", [{ ...roebuck, name: "The Roebuck Hotel" }])).toBeNull();
   });
-  it("does not infer London from a same-name pub elsewhere", () => {
+  it.each([
+    "I paid £5.50 for a pint at The Roebuck in Oxford.",
+    "I paid £4 for a pint at The Roebuck in Oxford, unlike the pubs in Southwark.",
+  ])("does not infer London from a same-name pub elsewhere: %s", (body) => {
     const [candidate] = extractRedditPriceCandidates({
-      body: "I paid £5.50 for a pint at The Roebuck in Oxford.",
+      body,
       permalink: "https://www.reddit.com/r/london/comments/1abc234/pints/mabc234/",
       observedAt: "2026-09-20T12:00:00Z", author: "fixture",
     });

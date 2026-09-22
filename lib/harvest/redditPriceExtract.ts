@@ -28,6 +28,10 @@ const RETROSPECTIVE = /\b(remember when|used to (?:be|cost|pay)|in my day|(?:bac
 export function isRetrospectiveRedditPrice(text: string): boolean {
   return RETROSPECTIVE.test(text);
 }
+
+export function isHypotheticalRedditPrice(text: string): boolean {
+  return /\b(wish|would|should|if only|imagine|probably|maybe)\b[^£]*£/i.test(text);
+}
 const PAID_OR_SAW =
   /\b(paid|pay|cost|costs|charged|was|is|it's|its|got|had|buy|bought|on the menu|they'?re charging|price is|prices are)\b/i;
 const PUB_NAME_RE =
@@ -56,8 +60,13 @@ function extractPubNameHint(body: string): string | null {
 }
 
 function extractAreaHint(body: string): string | null {
-  const m = body.match(LONDON_AREA_RE);
-  return m ? m[1] : null;
+  const pub = body.match(PUB_NAME_RE);
+  if (!pub || pub.index === undefined) return null;
+  const afterPub = body.slice(pub.index + pub[0].length);
+  const location = afterPub.match(/^\s+in\s+(.+)$/i);
+  if (!location) return null;
+  const area = location[1].match(LONDON_AREA_RE);
+  return area?.index === 0 ? area[1] : null;
 }
 
 function drinkLabelNear(body: string, poundIndex: number): string {
@@ -89,6 +98,7 @@ export function extractRedditPriceCandidates(input: {
     const priceGbp = roundToPennies(Number(match[1]));
     if (priceGbp < COMMUNITY_PRICE_MIN_GBP || priceGbp > COMMUNITY_PRICE_MAX_GBP) continue;
     const snippet = snippetAround(body, match.index);
+    if (isHypotheticalRedditPrice(snippet)) continue;
     if (JOKE_OR_HYPOTHETICAL.test(snippet) && !PAID_OR_SAW.test(snippet)) continue;
     const drinkText = drinkLabelNear(body, match.index);
     const drinkCategory = drinkCategoryFromText(drinkText) ?? drinkCategoryFromText(body);
