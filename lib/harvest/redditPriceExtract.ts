@@ -7,7 +7,7 @@ import {
   roundToPennies,
 } from "@/lib/communityPrice";
 
-import { measureNamedInDrinkText, type DrinkMeasure } from "@/lib/drinkMeasure";
+import { measureNamedInDrinkText, statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
 
 export type RedditPriceCandidate = {
   priceGbp: number;
@@ -87,8 +87,8 @@ function statedMeasure(drink: string): { measure?: DrinkMeasure; measureLabel?: 
   const nonPint = measureNamedInDrinkText(drink);
   if (nonPint) return { measure: nonPint, ...(nonPint === "other" ? { measureLabel: drink.slice(0, 24) } : {}) };
   const volume = drink.match(/\b\d{2,4}\s*ml\b/i)?.[0];
-  if (volume) return { measure: "other", measureLabel: volume };
-  return /\bpint\b/i.test(drink) ? { measure: "pint" } : {};
+  const measure = statedDrinkMeasure(volume ? "other" : /\bpint\b/i.test(drink) ? "pint" : null);
+  return measure ? { measure, ...(volume ? { measureLabel: volume } : {}) } : {};
 }
 
 export function extractRedditPriceCandidates(input: {

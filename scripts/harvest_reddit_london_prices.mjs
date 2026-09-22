@@ -22,7 +22,7 @@ import { redditDecisionFromJudgment } from "../lib/harvest/redditPriceJudgmentPo
 import { judgeRedditPriceCandidate } from "../lib/harvest/redditPriceJudgment.server.ts";
 import { matchPubNameToVenue } from "./lib/redditVenueMatch.mjs";
 import { harvestSourcesOfKind, isHarvestableRedditUrl } from "../lib/harvest/sourcePolicy.ts";
-import { createRobotsChecker } from "../lib/harvest/robots.ts";
+import { createRobotsChecker, fetchHarvestResponse } from "../lib/harvest/robots.ts";
 import { isValidCommunityPriceObservationRow, communityPriceObservationId } from "../lib/communityPriceObservation.ts";
 import { fetchBoundedHarvestResource } from "./lib/boundedHarvestResource.mjs";
 
@@ -74,17 +74,14 @@ export function redditJsonUrl(value) {
   return url.href;
 }
 
-const robotsChecker = createRobotsChecker({
-  // A robots redirect is not permission to contact another host.
-  fetchImpl: (url, init) => fetch(url, { ...init, redirect: "error" }),
-});
+const robotsChecker = createRobotsChecker();
 
 export async function fetchRedditJson(url, options = {}) {
   const jsonUrl = redditJsonUrl(url);
   await (options.wait ?? sleep)(2000);
   const res = await fetchBoundedHarvestResource({
     url: jsonUrl,
-    fetchImpl: options.fetchImpl,
+    fetchImpl: options.fetchImpl ?? fetchHarvestResponse,
     isAllowedUrl: isHarvestableRedditUrl,
     robotsChecker: options.robotsChecker ?? robotsChecker,
     expectedContentTypes: ["application/json"],
