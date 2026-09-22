@@ -219,11 +219,16 @@ export function brandMatchNeedles(brand: DrinkBrand): string[] {
 export function haystackMatchesBrand(haystack: string, brand: DrinkBrand): boolean {
   const hay = normalizeDrinkHaystack(haystack);
   if (!hay) return false;
+  const listSegments = haystack
+    .split(/(?:[&,;+/]|\band\b)/i)
+    .map(normalizeDrinkHaystack)
+    .filter(Boolean);
   return brandMatchNeedles(brand).some((needle) => {
     if (!needle) return false;
-    // Multi-word needles stay substring (same as category tokens); single
-    // tokens use word boundaries so "jd" does not match inside "adjourned".
-    if (needle.includes(" ")) return hay.includes(needle);
+    // Multi-word brand names may not bridge a menu-list separator: "Pepsi &
+    // Diet Coke" names two products, not Pepsi Diet. Hyphens and apostrophes
+    // remain inside a segment and still normalize to spaces as before.
+    if (needle.includes(" ")) return listSegments.some((segment) => segment.includes(needle));
     const re = new RegExp(`(^| )${needle}( |$)`);
     return re.test(hay);
   });
