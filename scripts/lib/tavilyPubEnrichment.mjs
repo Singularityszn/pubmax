@@ -226,6 +226,9 @@ export async function extractPintPricesMaybeJudged(markdown, ctx) {
  * share one entry point.
  */
 export async function extractVenueDrinkPricesMaybeJudged(markdown, ctx) {
+  if (!process.env.TYPESAFE_API_KEY?.trim()) {
+    return { drinks: extractVenueDrinkPrices(markdown), reading: null, review: [] };
+  }
   const { extractVenueDrinkPricesForHarvest } = await import("../harvest/uk-prices/readPrices.mjs");
   return extractVenueDrinkPricesForHarvest(markdown, ctx);
 }
