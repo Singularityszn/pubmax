@@ -32,6 +32,7 @@ export const ROUTE_PATTERNS = [
   "/near",
   "/onboarding",
   "/out",
+  "/outings",
   "/p/[id]",
   "/pal",
   "/pal/chat",

@@ -219,3 +219,19 @@ describe("Ask tool allowlist", () => {
     expect(isAskToolName("web_search")).toBe(false);
   });
 });
+
+describe("London occasion recovery", () => {
+  it.each([
+    "A date-night pub with some history, calm not loud",
+    "Date night in Camden with some history",
+  ])("keeps date-night preference %j out of named-pub heritage", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "search_venues", args: { query, limit: 4 } },
+    ]);
+  });
+  it.each(["Where can we go dancing tonight", "Disco tonight in Soho", "DJ tonight in Camden"])(
+    "routes %s to sourced listings", (query) => {
+      expect(routeAskDeterministically(query)).toEqual([{ name: "whats_on", args: { query } }]);
+    },
+  );
+});

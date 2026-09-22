@@ -27,6 +27,8 @@ import {
   formatJourneyPoint,
 } from "@/lib/citymcp/client";
 import { fetchCityArea } from "@/lib/citymcp/area";
+import { buildOutResponse } from "@/lib/out/loadOut";
+import { outListingKind } from "@/lib/out/listingKind";
 import { retrieveHeritage } from "@/lib/heritage";
 import { loadWhatsOn } from "@/lib/whatsOnStore";
 import {
@@ -180,7 +182,15 @@ async function toolWhatsOn(
     degraded: true,
   });
   try {
-    const { rows, asOf, readStatus } = await loadWhatsOn(
+    const danceListings = detected.dancing ? await buildOutResponse({
+      city: ctx.cityId,
+      day: /\btomorrow\b/i.test(query) ? "tomorrow" : /\bweekend\b/i.test(query) ? "weekend" : "today",
+    }, { now: ctx.now }) : null;
+    const { rows, asOf, readStatus } = danceListings ? {
+      rows: danceListings.events.filter(row => outListingKind(row) === "club-night"),
+      asOf: Object.values(danceListings.observedAt ?? {}).sort().at(-1) ?? null,
+      readStatus: danceListings.listingsStatus === "ready" ? "ready" : "degraded",
+    } : await loadWhatsOn(
       {
         ...(detected.kind ? { kind: detected.kind } : {}),
         ...(detected.window === "tonight" ? { window: "tonight" as const } : {}),
@@ -239,18 +249,12 @@ async function toolVenueHeritage(
 ): Promise<AskToolResult> {
   const venueName = str(args.venueName) || str(args.name);
   const venueId = str(args.venueId);
-  let name = venueName;
-  let id = venueId;
-  if (!name) {
-    const venues = await loadConciergeVenues(ctx.cityId);
-    const hit =
-      (id ? venues.find((v) => v.id === id) : null) ??
-      (await matchVenueByName(venues, ctx.query.replace(/\?+$/, "")));
-    if (hit) {
-      name = hit.name;
-      id = hit.id;
-    }
-  }
+  const venues = await loadConciergeVenues(ctx.cityId);
+  const hit = venueId
+    ? venues.find((venue) => venue.id === venueId)
+    : await matchVenueByName(venues, venueName || ctx.query.replace(/\?+$/, ""));
+  const name = hit?.name;
+  const id = hit?.id;
   if (!name) {
     return {
       ok: false,
@@ -280,7 +284,7 @@ async function toolVenueHeritage(
   const cards: AskCard[] = [
     {
       key: id || name,
-      venueId: id,
+      venueId: id ?? "",
       title: name,
       place: "",
       note,
@@ -294,7 +298,7 @@ async function toolVenueHeritage(
           id: proposalId("open", id),
           kind: "open_venue",
           label: `Open ${name}`,
-          venueId: id,
+          venueId: id ?? "",
         },
       ]
     : [];

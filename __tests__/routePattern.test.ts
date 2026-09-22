@@ -18,6 +18,7 @@ describe("toRoutePattern", () => {
   it("keeps static routes exact", () => {
     expect(toRoutePattern("/pal/chat")).toBe("/pal/chat");
     expect(toRoutePattern("/tonight")).toBe("/tonight");
+    expect(toRoutePattern("/outings?occasion=date")).toBe("/outings");
     expect(toRoutePattern("/near/")).toBe("/near");
     expect(toRoutePattern("/social?feed=nearby&area=camden")).toBe("/social");
   });

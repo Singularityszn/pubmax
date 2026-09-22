@@ -890,6 +890,8 @@ export default function TonightClient({
           carries the chain's own name and the day its page was read. */}
       <TonightChainDeals rows={listingRows} selectableVenueIds={selectableVenueIds} />
 
+      <p><Link prefetch={false} href="/outings">Choose a London outing: dates, friends, dancing, music, quiet pubs, gardens or a crawl</Link></p>
+
       {/* Vibe chips follow the list. Nine chips wrapped to four rows above it,
           and five of them lead off the page, so they were nine ways not to read
           tonight's listings. They are a mood ask for a reader the list did not
@@ -923,7 +925,9 @@ export default function TonightClient({
               <VibeChipLink
                 key={chip.id}
                 href={
-                  chip.id === "quiet"
+                  chip.id === "date"
+                    ? "/outings?occasion=date"
+                    : chip.id === "quiet"
                     ? planOccasionHref("quiet", { src: "tonight-vibes" })
                     : palChatHref(chip)
                 }
