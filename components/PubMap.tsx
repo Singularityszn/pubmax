@@ -53,7 +53,7 @@ import {
   venuePriceLane,
   venueSourcedPrice,
 } from "@/lib/venuePriceLane";
-import { dropLaneInput, splitLaneInput } from "@/lib/pintTrust";
+import { communityPintSplitInput, dropLaneInput } from "@/lib/pintTrust";
 import {
   isMapSearchField,
   typedSearchCameraMove,
@@ -5251,9 +5251,17 @@ export default function PubMap({
         peekDropSignal?.provisionalContributorAt,
       ),
       dropLaneInput(peekDropSignal?.agedContributorPrice, peekDropSignal?.agedContributorAt),
-      splitLaneInput(peekDropSignal?.disputedPrices, peekDropSignal?.disputedAt),
     );
-    const peekPrice = peekPriceChip(peekLane, peekBundle, peekDropSignal?.pintTrust ?? null);
+    const peekCommunityPintSplit = communityPintSplitInput(
+      peekDropSignal?.communityPintSplit,
+      peekDropSignal?.communityPintSplitAt,
+    );
+    const peekPrice = peekPriceChip(
+      peekLane,
+      peekBundle,
+      peekDropSignal?.pintTrust ?? null,
+      peekCommunityPintSplit,
+    );
     return (
       <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
         {activeLensPrices !== null ? (
@@ -5405,9 +5413,9 @@ export default function PubMap({
             dropSignals.get(selectedVenue.id)?.agedContributorPrice,
             dropSignals.get(selectedVenue.id)?.agedContributorAt,
           )}
-          disputedPrice={splitLaneInput(
-            dropSignals.get(selectedVenue.id)?.disputedPrices,
-            dropSignals.get(selectedVenue.id)?.disputedAt,
+          communityPintSplit={communityPintSplitInput(
+            dropSignals.get(selectedVenue.id)?.communityPintSplit,
+            dropSignals.get(selectedVenue.id)?.communityPintSplitAt,
           )}
           // Share copy prefers the MERGED map-authority figure (same seam as
           // pins), dated — never a sheet-only uncorroborated report.

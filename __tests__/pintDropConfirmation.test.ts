@@ -32,6 +32,7 @@ function drop(overrides: Partial<PintDrop> & { id: string }): PintDrop {
     venueId: VENUE,
     handle: "karan",
     drink: "Pint",
+    measure: "pint",
     priceGbp: 4.2,
     passedDownNote: "",
     era: "",

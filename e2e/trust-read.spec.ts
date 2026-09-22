@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { serveNoPintBundleFixture } from "./helpers/pintBundleFixture";
+import { serveListedPintFixture } from "./helpers/listedPintFixture";
 
 // THE TRUST STORY READS ONE WAY, on /map?sel=venue-1vle947 (captain's cut,
 // 5 Sept 2026, Fable51Fix section 1).
@@ -100,6 +100,7 @@ const FIXTURES = {
 type TrustState = keyof typeof FIXTURES;
 
 async function serveDrops(page: Page, drops: DropRow[]): Promise<void> {
+  await serveListedPintFixture(page, VENUE_ID);
   await page.route("**/api/pint-drops**", async (route) => {
     const url = new URL(route.request().url());
     const venueId = url.searchParams.get("venueId");
@@ -147,7 +148,6 @@ for (const viewport of [
         page,
       }) => {
         test.setTimeout(120_000);
-        await serveNoPintBundleFixture(page, VENUE_ID);
         await serveDrops(page, FIXTURES[state]());
 
         const response = await page.goto(`/map?sel=${VENUE_ID}`);
@@ -167,11 +167,18 @@ for (const viewport of [
         }
 
         if (viewport.name === "phone") {
-          // The peek chip a phone shows over the sheet carries the same state.
-          const peek = page.locator(`.mobileVenuePeekSummary [data-pint-trust="${state}"]`);
-          await expect(peek).toBeVisible({ timeout: 15_000 });
-          await expect(peek).toContainText("£4.50");
-          await expect(page.locator(".mobileVenuePeekSummary")).not.toContainText("No price yet");
+          const summary = page.locator(".mobileVenuePeekSummary");
+          if (state === "logged-once" || state === "aged-out") {
+            // Unconfirmed community evidence stays visible in the Overview;
+            // the compact primary price keeps the pub's published figure.
+            await expect(summary.locator(".priceBadge")).toHaveText("£6.30");
+            await expect(summary).toContainText("listed by the pub");
+          } else {
+            const peek = summary.locator(`[data-pint-trust="${state}"]`);
+            await expect(peek).toBeVisible({ timeout: 15_000 });
+            await expect(peek).toContainText("£4.50");
+          }
+          await expect(summary).not.toContainText("No price yet");
         }
       });
     }

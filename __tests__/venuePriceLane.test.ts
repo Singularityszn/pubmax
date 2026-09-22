@@ -427,6 +427,29 @@ describe("the provisional lane", () => {
   });
 });
 
+// PR1777: two named community reports are supplementary evidence. They must
+// never displace a sourced/listed page from the one global price precedence.
+describe("named community splits stay outside the global price lane", () => {
+  const LISTED = {
+    priceGbp: 6.3,
+    sourceUrl:
+      "https://www.nicholsonspubs.co.uk/restaurants/london/thesirchristopherhattonhattongardenlondon/drinks",
+    observedAt: "2026-09-21T18:54:48.491Z",
+  };
+
+  it("keeps listed and sourced precedence intact", () => {
+    expect(venuePriceLane(makeVenue(), null, null, { listed: LISTED })?.lane).toBe("listed");
+    const sourcedVenue = withSourced(makeVenue({ cheapestPrice: 6.3 }));
+    expect(
+      venuePriceLane(sourcedVenue, null, venueSourcedPrice(sourcedVenue), { listed: LISTED })?.lane,
+    ).toBe("sourced");
+  });
+
+  it("keeps a contributor above sourced/listed as before", () => {
+    expect(venuePriceLane(makeVenue(), 4.5, null, { listed: LISTED })?.lane).toBe("contributor");
+  });
+});
+
 // The other two surfaces that word a pub's missing price. Issue #1426: three
 // places said "No price" over the same pub from three different tests, so the
 // venue sheet could stop saying it while the others carried on.
@@ -494,15 +517,12 @@ describe("VenueOverviewTab renders from the shared lane", () => {
         `if (lane?.lane === "${lane}") {`,
       );
     }
-    // A DRINKER'S OWN LOG TAKES ONE BRANCH (captain 7 Sept 2026). `provisional`,
-    // `disputed` and `aged` are one claim said three ways, and three sibling
-    // branches is how a split arrived on the Overview worded as a lone report.
-    // The fence is the same promise in the new shape: every remaining lane
-    // answers `venuePriceLaneIsDrinkerLog`, and that predicate is what the
-    // component branches on.
+    // A drinker's one-price lanes still share one branch. A split is no longer
+    // a global lane: it has a named supplementary block beside the winner.
     expect(overview).toContain("venuePriceLaneIsDrinkerLog(lane)");
     expect(overview).toContain("<DrinkerLogBlock");
-    for (const lane of ["provisional", "disputed", "aged"] as const) {
+    expect(overview).toContain("<CommunityPintSplitBlock");
+    for (const lane of ["provisional", "aged"] as const) {
       expect(
         venuePriceLaneIsDrinkerLog({ lane } as unknown as VenuePriceLane),
         `the ${lane} lane must render through the drinker-log block`,

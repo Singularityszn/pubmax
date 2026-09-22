@@ -21,12 +21,13 @@ import {
   type VenueTabRequest,
 } from "@/lib/venueInspectorTabs";
 import { isPubVenue } from "@/lib/venueKindFilters";
-import { confirmPintPriceSeed } from "@/lib/pintDropSecondDrinker";
+import type { PintDropDraftSeed } from "@/lib/pintDropDraft";
 import type { JourneyPoint } from "@/lib/venueJourney";
 import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { ConfirmedPriceInput } from "@/lib/priceTier";
-import type { DisputedPriceInput, ProvisionalPriceInput } from "@/lib/venuePriceLane";
+import type { ProvisionalPriceInput } from "@/lib/venuePriceLane";
+import type { CommunityPintSplitInput } from "@/lib/pintTrust";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { ZonePintIndex } from "@/lib/zones";
 import {
@@ -74,9 +75,9 @@ type VenueInspectorProps = {
   provisionalPrice?: ProvisionalPriceInput | null;
   /** A public pint report PAST the window, for the price area alone. */
   agedPrice?: ProvisionalPriceInput | null;
-  /** The figures this pub's in-window drinkers DISAGREE about, for the price
-   *  area alone. Two prices reach no band and no pin figure. */
-  disputedPrice?: DisputedPriceInput | null;
+  /** A named same-product, same-measure community split. The Overview renders
+   *  it alongside the primary sourced/listed lane, never above it. */
+  communityPintSplit?: CommunityPintSplitInput | null;
   /**
    * Map-authority people-logged pint for share copy: the merged signal the
    * pins already paint (corroborated community candidate and/or contributor
@@ -165,7 +166,7 @@ export default function VenueInspector({
   confirmedPrice,
   provisionalPrice,
   agedPrice,
-  disputedPrice,
+  communityPintSplit,
   shareLoggedPintGbp = null,
   shareLoggedAt = null,
   onToggleStop,
@@ -267,7 +268,7 @@ export default function VenueInspector({
           interrupted: false,
         })
       : "";
-  const { dropsByVenueId, setComposerOpen, seedComposerPrice } = pintDrops;
+  const { dropsByVenueId, setComposerOpen, seedComposerClaim } = pintDrops;
   const { user, handle, loading: authLoading, configured: authConfigured } = useAuth();
   const [priceSignInVenueId, setPriceSignInVenueId] = useState<string | null>(
     null,
@@ -319,9 +320,9 @@ export default function VenueInspector({
   // The open goes through the map's own log-intent opener where there is one,
   // because that is the ONE caller of the price-step reveal
   // (lib/logIntentReveal.ts) and this door owes the reader the same field.
-  function confirmProvisionalPrice(priceGbp: number) {
+  function openSeededPintDrop(seed: PintDropDraftSeed) {
     if (!pubVenue) return;
-    seedComposerPrice(confirmPintPriceSeed(priceGbp));
+    seedComposerClaim(seed);
     selectTab("pints");
     if (onOpenComposerForLog) onOpenComposerForLog();
     else setComposerOpen(true);
@@ -460,7 +461,7 @@ export default function VenueInspector({
         confirmedPrice={confirmedPrice}
         provisionalPrice={provisionalPrice}
         agedPrice={agedPrice}
-        disputedPrice={disputedPrice}
+        communityPintSplit={communityPintSplit}
         // Where this pub's own drop read got to, so the price area can tell a
         // pub nobody has logged from one we could not look at (F-8).
         dropReadStatus={pintDrops.venueDropStatus.get(venue.id)}
@@ -475,7 +476,7 @@ export default function VenueInspector({
         onRequestLocation={onRequestLocation}
         onClearLocation={onClearLocation}
         onLogTonightPrice={requestPriceEntry}
-        onConfirmPrice={confirmProvisionalPrice}
+        onConfirmPrice={openSeededPintDrop}
         onOpenVisitReports={() => selectTab("story")}
         priceEntryAllowed={!authConfigured || Boolean(user && handle)}
         priceSignInRequested={priceSignInVenueId === venue.id}

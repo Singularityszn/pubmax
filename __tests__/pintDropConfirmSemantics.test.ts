@@ -37,6 +37,7 @@ function drop(overrides: Partial<ConfirmableDrop> = {}): ConfirmableDrop {
   return {
     id: "drop-1",
     drink: "Lager",
+    measure: "pint",
     priceGbp: 4.5,
     passedDownNote: "",
     provenance: "contributor",
@@ -78,12 +79,15 @@ describe("a match confirms, and only a match", () => {
     ];
     expect(findSecondReporterConfirmation(third, NOW)).toBeNull();
     const reading = readSecondReporter(third, NOW, "key-c");
-    expect(reading).toEqual({ kind: "split", prices: [4.5, 4.7, 5.1], reporters: 3 });
+    expect(reading).toEqual({ kind: "split", drink: "Lager", measure: "pint", measureLabel: "", prices: [4.5, 4.7, 5.1], reporters: 3 });
   });
 
   it("names the split for the caller who has just joined one", () => {
     expect(readSecondReporter(splitLane(), NOW, "key-b")).toEqual({
       kind: "split",
+      drink: "Lager",
+      measure: "pint",
+      measureLabel: "",
       prices: [4.5, 4.7],
       reporters: 2,
     });

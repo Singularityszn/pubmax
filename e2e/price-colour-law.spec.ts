@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { serveEstimatedPintFixture, serveNoPintBundleFixture } from "./helpers/pintBundleFixture";
+import { serveEstimatedPintFixture } from "./helpers/pintBundleFixture";
+import { serveListedPintFixture } from "./helpers/listedPintFixture";
 
 import { priceBand, type PriceBand } from "../lib/priceBand";
 
@@ -104,9 +105,9 @@ test.describe("venue sheet on /map?sel=venue-1vle947", () => {
     await expectBand(page, pill, "expensive");
   });
 
-  test("a £4.50 pint logged here is green, on the sheet and on the phone peek", async ({ page }) => {
+  test("a £4.50 pint logged here is green while the phone peek retains the published price", async ({ page }) => {
     test.setTimeout(120_000);
-    await serveNoPintBundleFixture(page, VENUE_ID);
+    await serveListedPintFixture(page, VENUE_ID);
     const drop = {
       id: "e3f592df-0dc3-434e-a6a4-a154e5358bbc",
       venueId: VENUE_ID,
@@ -138,10 +139,12 @@ test.describe("venue sheet on /map?sel=venue-1vle947", () => {
     await expect(chip).toBeVisible({ timeout: 60_000 });
     await expectBand(page, chip.locator(".priceBadge"), "cheap");
 
-    const peek = page.locator('.mobileVenuePeekSummary [data-pint-trust="logged-once"] .priceBadge');
+    const summary = page.locator(".mobileVenuePeekSummary");
+    const peek = summary.locator(".priceBadge");
     await expect(peek).toBeVisible({ timeout: 15_000 });
-    await expect(peek).toHaveText("£4.50");
-    await expectBand(page, peek, "cheap");
+    await expect(peek).toHaveText("£6.30");
+    await expect(summary).toContainText("listed by the pub");
+    await expectBand(page, peek, priceBand(6.3)!);
   });
 });
 

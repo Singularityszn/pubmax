@@ -146,7 +146,7 @@ describe("seededPintDropDraftForm", () => {
   // £6.50. The composer's own hydration is the only place that can keep that
   // promise, because it blanks the fields on every venue mount.
   it("seeds the price when the venue has no saved draft", () => {
-    expect(seededPintDropDraftForm(null, "6.50")).toEqual({
+    expect(seededPintDropDraftForm(null, { kind: "price", price: "6.50" })).toEqual({
       price: "6.50",
       drink: "",
       measure: "pint",
@@ -171,7 +171,7 @@ describe("seededPintDropDraftForm", () => {
       era: "",
       withWho: "",
     };
-    expect(seededPintDropDraftForm(own, "6.50")).toBe(own);
+    expect(seededPintDropDraftForm(own, { kind: "price", price: "6.50" })).toBe(own);
   });
 
   it("still seeds a draft that holds a note but no figure", () => {
@@ -184,10 +184,29 @@ describe("seededPintDropDraftForm", () => {
       era: "",
       withWho: "",
     };
-    expect(seededPintDropDraftForm(noPrice, "6.50")).toEqual({ ...noPrice, price: "6.50" });
+    expect(seededPintDropDraftForm(noPrice, { kind: "price", price: "6.50" })).toEqual({ ...noPrice, price: "6.50" });
   });
 
-  it("hands a draft straight back when the intent carried no figure", () => {
+  it("seeds a split's actual product and measure over an unfinished draft", () => {
+    const draft = {
+      price: "5.80",
+      drink: "Guinness",
+      measure: "half" as const,
+      measureLabel: "",
+      note: "Quiet corner",
+      era: "",
+      withWho: "",
+    };
+    expect(seededPintDropDraftForm(draft, {
+      kind: "claim",
+      price: "4.50",
+      drink: "Lager",
+      measure: "pint",
+      measureLabel: "",
+    })).toEqual({ ...draft, price: "4.50", drink: "Lager", measure: "pint", measureLabel: "" });
+  });
+
+  it("hands a draft straight back when the intent carried no seed", () => {
     const draft = {
       price: "",
       drink: "",

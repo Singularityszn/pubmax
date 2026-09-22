@@ -631,6 +631,7 @@ describe("pubsToGeoJSON Pint Drop trust gate (AGENTS.md pin law: an uncorroborat
   function makeDrop(overrides: Partial<SummaryDrop> = {}): SummaryDrop {
     return {
       drink: "Lager",
+      measure: "pint",
       priceGbp: 4.5,
       passedDownNote: "",
       provenance: "contributor",

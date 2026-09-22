@@ -87,7 +87,7 @@ const pintDrops = {
   dropsByVenueId: new Map(),
   venueDropStatus: new Map(),
   setComposerOpen: noop,
-  seedComposerPrice: noop,
+  seedComposerClaim: noop,
 } as unknown as PintDropsState;
 
 const communityPrices = {} as unknown as CommunityPricesState;

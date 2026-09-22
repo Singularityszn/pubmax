@@ -17,7 +17,8 @@
 // already prints, handed through unchanged.
 
 import { formatGbp } from "@/lib/formatGbp";
-import { pintPriceSplitLine } from "@/lib/pintDropAgreement";
+import { pintPriceSplitLine, type PintPriceSplit } from "@/lib/pintDropAgreement";
+import type { PintDropDraftSeed } from "@/lib/pintDropDraft";
 import type { PintDropConfirmation } from "@/lib/pintDropConfirmationRecord";
 import type { PintTrustState } from "@/lib/pintTrust";
 
@@ -48,11 +49,34 @@ export function secondDrinkerDoorOffered(state: PintTrustState | null | undefine
 }
 
 /** The figure as the composer's own price field spells it, or null. */
-export function confirmPintPriceSeed(priceGbp: number | null | undefined): string | null {
+export function confirmPintPriceSeed(priceGbp: number | null | undefined): PintDropDraftSeed | null {
   if (typeof priceGbp !== "number" || !Number.isFinite(priceGbp) || priceGbp <= 0) {
     return null;
   }
-  return priceGbp.toFixed(2);
+  return { kind: "price", price: priceGbp.toFixed(2) };
+}
+
+/**
+ * The seed for one answer inside a named split. Unlike a general log seed it
+ * carries the actual product and serving that the two reports shared, so the
+ * follow-up can corroborate THAT claim rather than whatever a stale composer
+ * draft happened to hold.
+ */
+export function confirmPintSplitSeed(
+  split: PintPriceSplit,
+  priceGbp: number | null | undefined,
+): PintDropDraftSeed | null {
+  if (typeof priceGbp !== "number" || !Number.isFinite(priceGbp) || priceGbp <= 0) {
+    return null;
+  }
+  if (!split.drink.trim()) return null;
+  return {
+    kind: "claim",
+    price: priceGbp.toFixed(2),
+    drink: split.drink,
+    measure: split.measure,
+    measureLabel: split.measureLabel,
+  };
 }
 
 /** The one action a logged-once price offers: "Still £4.50?". */

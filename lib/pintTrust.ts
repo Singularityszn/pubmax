@@ -59,7 +59,6 @@ import {
   AGED_PRICE_LINE,
   PROVISIONAL_PRICE_LINE,
   venuePriceLaneObservedGbp,
-  type DisputedPriceInput,
   type ProvisionalPriceInput,
   type VenuePriceLane,
 } from "@/lib/venuePriceLane";
@@ -238,6 +237,11 @@ export function pintTrustFor<D extends SummaryDrop>(
  * authority figure, the confirmation, the provisional figure and the aged
  * figure can never be read over different drops.
  */
+export type CommunityPintSplitInput = {
+  split: PintPriceSplit;
+  observedAt: string | number | null;
+};
+
 export type PintTrustSignalFields = {
   pintTrust: PintTrustState;
   latestContributorPrice: number | null;
@@ -247,10 +251,10 @@ export type PintTrustSignalFields = {
   provisionalContributorAt: number | null;
   agedContributorPrice: number | null;
   agedContributorAt: number | null;
-  /** The disagreeing figures and how many drinkers reported them, or null. */
-  disputedPrices: PintPriceSplit | null;
-  /** Epoch ms of the freshest drop in the split, or null. */
-  disputedAt: number | null;
+  /** A named product-and-measure split the Overview renders beside its primary lane. */
+  communityPintSplit: PintPriceSplit | null;
+  /** Epoch ms of the freshest report in that split, or null. */
+  communityPintSplitAt: number | null;
 };
 
 export function pintTrustSignalFields(reading: PintTrustReading): PintTrustSignalFields {
@@ -267,23 +271,23 @@ export function pintTrustSignalFields(reading: PintTrustReading): PintTrustSigna
     provisionalContributorAt: loggedOnce ? reading.observedAtMs : null,
     agedContributorPrice: aged ? reading.priceGbp : null,
     agedContributorAt: aged ? reading.observedAtMs : null,
-    // A split reaches the two fields below and NOTHING else. It may not fill the
-    // provisional pair, which is what let one of two disagreeing figures print
-    // as the pub's one report.
-    disputedPrices: disputed ? reading.split : null,
-    disputedAt: disputed ? reading.observedAtMs : null,
+    // A split reaches this supplementary field and NOTHING else. It may not
+    // fill the provisional pair, which is what let one of two disagreeing
+    // figures print as the pub's one report.
+    communityPintSplit: disputed ? reading.split : null,
+    communityPintSplitAt: disputed ? reading.observedAtMs : null,
   };
 }
 
 /**
- * A split and the day it was last reported, as `venuePriceLane` takes them, or
- * null. The split-lane twin of `dropLaneInput`, so the peek and the sheet build
- * one input the same way.
+ * A named community split and the day it was last reported, or null. It is
+ * deliberately NOT an input to `venuePriceLane`: sourced/listed precedence
+ * remains global while the Overview renders this evidence alongside it.
  */
-export function splitLaneInput(
+export function communityPintSplitInput(
   split: PintPriceSplit | null | undefined,
   observedAtMs: number | null | undefined,
-): DisputedPriceInput | null {
+): CommunityPintSplitInput | null {
   return split ? { split, observedAt: observedAtMs ?? null } : null;
 }
 
@@ -329,8 +333,6 @@ export function trustChipStateFor(
       return standing === "confirmed" ? "confirmed" : "corroborated";
     case "provisional":
       return "logged-once";
-    case "disputed":
-      return "disputed";
     case "aged":
       return "aged-out";
     default:
@@ -376,7 +378,10 @@ export type OverviewPriceDoorKind = "log" | "confirm" | "choose";
 export const OVERVIEW_PRICE_DOOR_KIND: Record<PintTrustState, OverviewPriceDoorKind> = {
   confirmed: "log",
   corroborated: "log",
-  disputed: "choose",
+  // A valid split gets its separate named community block and choose action.
+  // If a caller has the state but no named split payload, the ordinary log door
+  // is the only honest fallback; a generic split must never be invented here.
+  disputed: "log",
   "logged-once": "confirm",
   "aged-out": "confirm",
   none: "log",
@@ -392,6 +397,11 @@ export type OverviewPriceDoor =
   | { kind: "log"; label: string }
   | { kind: "confirm"; label: string; priceGbp: number }
   | { kind: "choose"; label: string; prices: number[] };
+
+/** The separate action a named community split earns, never a global lane. */
+export function communityPintSplitDoor(split: PintPriceSplit): Extract<OverviewPriceDoor, { kind: "choose" }> {
+  return { kind: "choose", label: CHOOSE_PRICE_DOOR_LABEL, prices: split.prices };
+}
 
 /**
  * The door the Overview's price area offers over a decided lane, or null where
@@ -409,9 +419,6 @@ export function overviewPriceDoor(
 ): OverviewPriceDoor | null {
   if (lane?.lane === "anchor") return null;
   const kind = OVERVIEW_PRICE_DOOR_KIND[state ?? "none"];
-  if (kind === "choose" && lane?.lane === "disputed") {
-    return { kind: "choose", label: CHOOSE_PRICE_DOOR_LABEL, prices: lane.split.prices };
-  }
   if (kind === "confirm" && lane) {
     const figure = venuePriceLaneObservedGbp(lane);
     if (figure !== null) {

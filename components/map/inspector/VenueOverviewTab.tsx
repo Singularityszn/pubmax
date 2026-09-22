@@ -5,11 +5,17 @@ import { MapPin, PlusCircle } from "lucide-react";
 import Disclosure from "@/components/Disclosure";
 import PriceBadge from "@/components/PriceBadge";
 import TrustPill from "@/components/ui/trust-pill";
-import { pintPriceSplitLine } from "@/lib/pintDropAgreement";
 import {
+  pintPriceSplitClaimLabel,
+  pintPriceSplitLine,
+  type PintPriceSplit,
+} from "@/lib/pintDropAgreement";
+import {
+  communityPintSplitDoor,
   LOG_PRICE_DOOR_LABEL,
   overviewPriceDoor,
   trustChipStateFor,
+  type CommunityPintSplitInput,
   type OverviewPriceDoor,
 } from "@/lib/pintTrust";
 import { priceStandingFor, type ConfirmedPriceInput } from "@/lib/priceTier";
@@ -38,7 +44,6 @@ import {
   venuePriceLane,
   venuePriceLaneIsDrinkerLog,
   venuePriceLaneObservedGbp,
-  type DisputedPriceInput,
   type ProvisionalPriceInput,
   type VenuePriceLane,
 } from "@/lib/venuePriceLane";
@@ -86,7 +91,12 @@ import {
 import { drinkLaneNoun, venueDrinkPriceView } from "@/lib/drinkLanes";
 import { type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
-import { confirmPintActionName } from "@/lib/pintDropSecondDrinker";
+import {
+  confirmPintActionName,
+  confirmPintPriceSeed,
+  confirmPintSplitSeed,
+} from "@/lib/pintDropSecondDrinker";
+import type { PintDropDraftSeed } from "@/lib/pintDropDraft";
 import type { ZonePintIndex } from "@/lib/zones";
 
 /**
@@ -173,6 +183,7 @@ function overviewPriceAreaReach(
   experienceLens: MapExperienceLens,
   drinkLensCategory: DrinkCategory | null | undefined,
   lane: VenuePriceLane | null,
+  communityEvidenceShown: boolean,
 ): { showsPriceSummary: boolean; laneLoggedPriceShown: boolean } {
   const showsPriceSummary =
     !drinkLensCategory &&
@@ -186,7 +197,8 @@ function overviewPriceAreaReach(
   return {
     showsPriceSummary,
     laneLoggedPriceShown:
-      showsPriceSummary && lane !== null && venuePriceLaneIsDrinkerLog(lane),
+      showsPriceSummary &&
+      ((lane !== null && venuePriceLaneIsDrinkerLog(lane)) || communityEvidenceShown),
   };
 }
 
@@ -200,11 +212,9 @@ function overviewPriceAreaReach(
  * lane prints. Renders nothing on a venue that is not a pub, over an anchor
  * lane, or while the composer this door opens is already on screen.
  *
- * The third kind is the SPLIT'S door (captain 7 Sept 2026): a pub holding
- * £4.50 and £4.70 cannot be asked "Still £4.70?", because that names one of two
- * answers and calls the other a correction. It asks "Which did you pay?" and
- * offers one button per recorded figure, each seeding the composer with its own
- * price through the same seam the confirm door uses.
+ * A named split gets its own neighbouring community block. That block, rather
+ * than this primary-lane control, asks "Which did you pay?" over the actual
+ * product, measure and recorded figures.
  */
 function PriceDoor({
   venue,
@@ -217,32 +227,13 @@ function PriceDoor({
   door: OverviewPriceDoor | null;
   composerOpen: boolean;
   onLogTonightPrice: () => void;
-  onConfirmPrice?: (priceGbp: number) => void;
+  onConfirmPrice?: (seed: PintDropDraftSeed) => void;
 }) {
   if (!door || !isPubVenue(venue) || composerOpen) return null;
-  if (door.kind === "choose" && onConfirmPrice) {
-    return (
-      <div className="priceDoorChoice" data-price-door="choose">
-        <p className="priceDoorAsk">{door.label}</p>
-        <div className="priceDoorOptions">
-          {door.prices.map((priceGbp) => (
-            <button
-              key={priceGbp}
-              type="button"
-              className="priceDoor"
-              data-testid="choose-pint-cta"
-              data-price-gbp={priceGbp.toFixed(2)}
-              aria-label={confirmPintActionName(priceGbp, venue.name)}
-              onClick={() => onConfirmPrice(priceGbp)}
-            >
-              {formatPrice(priceGbp)}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  if (door.kind === "choose") return null;
   if (door.kind === "confirm" && onConfirmPrice) {
+    const seed = confirmPintPriceSeed(door.priceGbp);
+    if (!seed) return null;
     return (
       <button
         type="button"
@@ -250,7 +241,7 @@ function PriceDoor({
         data-price-door="confirm"
         data-testid="confirm-pint-cta"
         aria-label={confirmPintActionName(door.priceGbp, venue.name)}
-        onClick={() => onConfirmPrice(door.priceGbp)}
+        onClick={() => onConfirmPrice(seed)}
       >
         {door.label}
       </button>
@@ -273,18 +264,78 @@ function PriceDoor({
 /**
  * A DRINKER'S OWN LOG, printed with what it is still worth beside it.
  *
- * Three lanes, one block: `provisional` (one in-window report), `disputed`
- * (two or more in-window reports that do not agree) and `aged` (every report
- * past the window). They were three sibling branches in `VenuePriceSummary`,
- * each with its own eyebrow, badge and line, and that is how the split arrived
- * on the Overview worded as a lone report.
+ * Two lanes, one block: `provisional` (one in-window report) and `aged`
+ * (every report past the window). A named split is not a generic lane: it has
+ * its own block above, alongside the winning sourced/listed claim.
  *
- * The figure comes from the ONE reader of a lane's own figure
- * (`venuePriceLaneObservedGbp`), which answers null on a split, so the badge
- * and the band simply do not render there: two prices have no one number and no
- * one colour. `priceStanding` is deliberately not consulted for any of the
- * three, because a drinker's log is not a published price.
+ * `priceStanding` is deliberately not consulted here, because a drinker's log
+ * is not a published price.
  */
+function CommunityPintSplitBlock({
+  venue,
+  split,
+  composerOpen,
+  onConfirmPrice,
+  priceRevealMotionClass,
+}: {
+  venue: Venue;
+  split: PintPriceSplit;
+  composerOpen: boolean;
+  onConfirmPrice?: (seed: PintDropDraftSeed) => void;
+  priceRevealMotionClass: string;
+}) {
+  const door = communityPintSplitDoor(split);
+  return (
+    <div
+      className="contributorPrice communityPintSplit"
+      data-pint-trust="disputed"
+      data-venue-id={venue.id}
+      data-testid="community-pint-split"
+    >
+      <span>
+        <ClaimBadge kind="contributor" /> Community split · {pintPriceSplitClaimLabel(split)}
+      </span>
+      <small className={`communityPriceStanding ${priceRevealMotionClass}`.trim()}>
+        {pintPriceSplitLine(split)}
+      </small>
+      {!composerOpen && onConfirmPrice ? (
+        <div className="priceDoorChoice" data-price-door="choose">
+          <p className="priceDoorAsk">{door.label}</p>
+          <div className="priceDoorOptions">
+            {door.prices.map((priceGbp) => {
+              const seed = confirmPintSplitSeed(split, priceGbp);
+              return seed ? (
+                <button
+                  key={priceGbp}
+                  type="button"
+                  className="priceDoor"
+                  data-testid="choose-pint-cta"
+                  data-price-gbp={priceGbp.toFixed(2)}
+                  aria-label={confirmPintActionName(priceGbp, venue.name)}
+                  onClick={() => onConfirmPrice(seed)}
+                >
+                  {formatPrice(priceGbp)}
+                </button>
+              ) : null;
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function communityLogAlongsidePrimary(
+  primary: VenuePriceLane | null,
+  provisional: ProvisionalPriceInput | null | undefined,
+  aged: ProvisionalPriceInput | null | undefined,
+): VenuePriceLane | null {
+  if (primary?.lane !== "sourced" && primary?.lane !== "listed") return null;
+  if (provisional) return { lane: "provisional", provisionalPrice: provisional.priceGbp, observedAt: provisional.observedAt };
+  if (aged) return { lane: "aged", agedPrice: aged.priceGbp, observedAt: aged.observedAt };
+  return null;
+}
+
 function DrinkerLogBlock({
   lane,
   bandArea,
@@ -300,22 +351,16 @@ function DrinkerLogBlock({
   priceRevealMotionClass: string;
   door: ReactNode;
 }) {
-  const split = lane.lane === "disputed" ? lane.split : null;
   const figure = venuePriceLaneObservedGbp(lane);
-  const observedAt = lane.lane === "aged" || lane.lane === "provisional" || lane.lane === "disputed"
+  const observedAt = lane.lane === "aged" || lane.lane === "provisional"
     ? lane.observedAt
     : null;
   const loggedAt = formatFreshness(observedAt);
-  const line = split
-    ? pintPriceSplitLine(split)
-    : lane.lane === "aged"
-      ? AGED_PRICE_LINE
-      : PROVISIONAL_PRICE_LINE;
+  const line = lane.lane === "aged" ? AGED_PRICE_LINE : PROVISIONAL_PRICE_LINE;
   return (
     <div className="contributorPrice" {...trustChipAttrs}>
       <span className={chromeRevealClass}>
-        <ClaimBadge kind="contributor" />{" "}
-        {split ? "Logged by PUBMAXXERS" : "Logged by a PUBMAXXER"}
+        <ClaimBadge kind="contributor" /> Logged by a PUBMAXXER
       </span>
       {figure !== null ? (
         <PriceBadge variant="current" band={priceBand(figure, bandArea)}>
@@ -327,6 +372,28 @@ function DrinkerLogBlock({
       {door}
     </div>
   );
+}
+
+function SupplementaryDrinkerLog({ visible, lane, venue, composerOpen, onLogTonightPrice, onConfirmPrice, priceRevealMotionClass }: {
+  visible: boolean;
+  lane: VenuePriceLane | null;
+  venue: Venue;
+  composerOpen: boolean;
+  onLogTonightPrice: () => void;
+  onConfirmPrice?: (seed: PintDropDraftSeed) => void;
+  priceRevealMotionClass: string;
+}) {
+  if (!visible || !lane || !isPubVenue(venue)) return null;
+  const state = lane.lane === "aged" ? "aged-out" : "logged-once";
+  return <DrinkerLogBlock
+    lane={lane}
+    bandArea={priceBandAreaForVenue(venue.id)}
+    trustChipAttrs={{ "data-pint-trust": state, "data-venue-id": venue.id }}
+    chromeRevealClass={priceRevealMotionClass || undefined}
+    priceRevealMotionClass={priceRevealMotionClass}
+    door={<PriceDoor venue={venue} door={overviewPriceDoor(state, lane)} composerOpen={composerOpen}
+      onLogTonightPrice={onLogTonightPrice} onConfirmPrice={onConfirmPrice} />}
+  />;
 }
 
 /**
@@ -368,6 +435,8 @@ function VenuePriceSummary({
   onLogTonightPrice,
   onConfirmPrice,
   priceRevealMotionClass = "",
+  communityPintSplit = null,
+  hasSupplementaryLog = false,
 }: {
   venue: Venue;
   /** The decided lane, taken once by the tab and never re-decided here, so the
@@ -383,10 +452,13 @@ function VenuePriceSummary({
    *  worded as a pub with no price on it (review finding F-8). */
   dropReadStatus?: VenueDropReadStatus;
   onLogTonightPrice: () => void;
-  /** The second drinker's door: opens the Pint Drop composer seeded with the
-   *  logged-once figure (lib/pintDropSecondDrinker.ts). */
-  onConfirmPrice?: (priceGbp: number) => void;
+  /** Opens the Pint Drop composer on the exact confirmation claim. */
+  onConfirmPrice?: (seed: PintDropDraftSeed) => void;
   priceRevealMotionClass?: string;
+  /** Named community evidence, rendered separately so it never takes the
+   * sourced/listed global lane. */
+  communityPintSplit?: CommunityPintSplitInput | null;
+  hasSupplementaryLog?: boolean;
 }) {
   const chromeRevealClass = priceRevealMotionClass || undefined;
   // ONE decider. This surface hands over the confirmation lane it owns and
@@ -415,7 +487,7 @@ function VenuePriceSummary({
   const bandArea = priceBandAreaForVenue(venue.id);
   // THE ONE DOOR, decided once here and appended to whichever lane block
   // renders, so no lane can grow a second invitation of its own.
-  const door = (
+  const door = communityPintSplit || hasSupplementaryLog ? null : (
     <PriceDoor
       venue={venue}
       door={overviewPriceDoor(trustChipState, lane)}
@@ -609,6 +681,10 @@ function VenuePriceSummary({
     );
   }
 
+  // A named community split is evidence even when no primary lane answers.
+  // It renders immediately after this component, so the absence nudge must not
+  // stand above it and claim nobody has logged a price here.
+  if (communityPintSplit) return null;
   return isPubVenue(venue) ? (
     <UnpricedPubBlock venue={venue} dropReadStatus={dropReadStatus} door={door} />
   ) : null;
@@ -729,7 +805,7 @@ export default function VenueOverviewTab({
   confirmedPrice,
   provisionalPrice,
   agedPrice,
-  disputedPrice,
+  communityPintSplit,
   dropReadStatus,
   communityPrices,
   experienceLens,
@@ -777,9 +853,9 @@ export default function VenueOverviewTab({
   /** A public pint report PAST the window, for the price area alone, so the
    *  area never words an absence over a drop the list below still prints. */
   agedPrice?: ProvisionalPriceInput | null;
-  /** The figures this pub's in-window drinkers DISAGREE about, for the price
-   *  area alone. Two prices have no one band, so it reaches no pin figure. */
-  disputedPrice?: DisputedPriceInput | null;
+  /** Named same-product, same-measure community evidence. It is displayed
+   * beside, never inside, the primary global price lane. */
+  communityPintSplit?: CommunityPintSplitInput | null;
   /** Where this pub's Pint Drop read got to (review finding F-8). */
   dropReadStatus?: VenueDropReadStatus;
   /** Community price layer - the dated submission row plus the submit card. */
@@ -799,9 +875,8 @@ export default function VenueOverviewTab({
   /** The log door: the community price path, soft-gated by the sheet, which
    *  answers by raising `priceFocusRequest` or `priceSignInRequested`. */
   onLogTonightPrice: () => void;
-  /** Opens the Pint Drop composer seeded with a logged-once figure, so a
-   *  second drinker can confirm it (lib/pintDropSecondDrinker.ts). */
-  onConfirmPrice?: (priceGbp: number) => void;
+  /** Opens the Pint Drop composer on the exact claim the reader chose. */
+  onConfirmPrice?: (seed: PintDropDraftSeed) => void;
   /** Opens Lore, where the full Visit Report composer and list live. */
   onOpenVisitReports: () => void;
   priceEntryAllowed: boolean;
@@ -920,13 +995,14 @@ export default function VenueOverviewTab({
     venueBundlePrices(venue),
     provisionalPrice,
     agedPrice,
-    disputedPrice,
   );
+  const supplementaryLog = communityLogAlongsidePrimary(priceLane, provisionalPrice, agedPrice);
   const { showsPriceSummary, laneLoggedPriceShown } = overviewPriceAreaReach(
     venue,
     experienceLens,
     drinkLensCategory,
     priceLane,
+    Boolean(communityPintSplit || supplementaryLog),
   );
   const drinkInviteOwnedElsewhere = drinkInviteOwnedByPriceArea(
     showsPriceSummary,
@@ -1075,11 +1151,31 @@ export default function VenueOverviewTab({
           dropReadStatus={dropReadStatus}
           onLogTonightPrice={onLogTonightPrice}
           onConfirmPrice={onConfirmPrice}
+          communityPintSplit={communityPintSplit}
+          hasSupplementaryLog={Boolean(supplementaryLog)}
           priceRevealMotionClass={
             drinkPriceRows?.length ? "" : priceRevealMotionClass
           }
         />
       ) : null}
+      {showsPriceSummary && communityPintSplit && isPubVenue(venue) ? (
+        <CommunityPintSplitBlock
+          venue={venue}
+          split={communityPintSplit.split}
+          composerOpen={composerOpen}
+          onConfirmPrice={onConfirmPrice}
+          priceRevealMotionClass={priceRevealMotionClass}
+        />
+      ) : null}
+      <SupplementaryDrinkerLog
+        visible={showsPriceSummary}
+        lane={supplementaryLog}
+        venue={venue}
+        composerOpen={composerOpen}
+        onLogTonightPrice={onLogTonightPrice}
+        onConfirmPrice={onConfirmPrice}
+        priceRevealMotionClass={priceRevealMotionClass}
+      />
       {/* What a tenner buys here, when this pub is one of the Wetherspoons the
           Spoons value ranking holds. Sits under today's price because it is a
           different question about the same bar, and renders nothing for every

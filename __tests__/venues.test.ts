@@ -691,6 +691,7 @@ describe("mergeVenueDrops", () => {
   function makeSummaryDrop(overrides: Partial<SummaryDrop> = {}): SummaryDrop {
     return {
       drink: "Lager",
+      measure: "pint",
       priceGbp: null,
       passedDownNote: "",
       provenance: "contributor",
