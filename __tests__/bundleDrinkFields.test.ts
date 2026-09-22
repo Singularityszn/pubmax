@@ -21,6 +21,10 @@ describe("normalizeUkPriceBundleDrinkLabel", () => {
 
 describe("bundleDrinkFieldsFromPrintedName", () => {
   it("classifies soft-drink launch names", () => {
+    expect(bundleDrinkFieldsFromPrintedName("Pepsi Max", "soft-drink")).toEqual({
+      drinkLabel: "Pepsi Max",
+      drinkSubtype: "soft-drink-pepsi-max",
+    });
     expect(bundleDrinkFieldsFromPrintedName("Coke Zero", "soft-drink")).toEqual({
       drinkLabel: "Coke Zero",
       drinkSubtype: "soft-drink-coke-zero",

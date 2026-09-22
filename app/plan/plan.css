@@ -1393,3 +1393,50 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
     background: var(--paper);
   }
 }
+
+/* Desktop composer (D2): the describe-first surface was capped at 920px while
+   every other wide shell uses --content-max-wide, which left a dead gutter at
+   1440 and 1920. The head and the field share one row; chips stay full width. */
+@media (min-width: 1024px) {
+  .planPage--composer .planComposer {
+    max-width: var(--content-max-wide);
+    gap: clamp(24px, 3vw, 40px);
+  }
+
+  .planComposer .planDescribeFirst {
+    grid-template-columns: minmax(0, 1.05fr) minmax(340px, 420px);
+    column-gap: clamp(32px, 4vw, 56px);
+    align-items: start;
+  }
+
+  .planDescribeFirst > .screenHead > .kicker,
+  .planDescribeFirst > .screenHead > .screenTitle,
+  .planDescribeFirst > .screenHead > .screenActions {
+    grid-column: 1;
+  }
+
+  .planDescribeFirst__form,
+  .planDescribeFirst > .planStopCount {
+    grid-column: 2;
+  }
+
+  .planDescribeFirst__culture,
+  .planDescribeFirst__chips {
+    grid-column: 1 / -1;
+  }
+
+  .planDescribeFirst > .screenHead > .screenTitle {
+    max-width: none;
+  }
+
+  .planDescribeFirst__form {
+    max-width: none;
+  }
+
+  .planDescribeFirst__chip {
+    transition:
+      border-color var(--duration-base) var(--ease-out),
+      color var(--duration-base) var(--ease-out),
+      background var(--duration-base) var(--ease-out);
+  }
+}

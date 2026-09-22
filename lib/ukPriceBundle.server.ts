@@ -73,18 +73,6 @@ export async function ukPriceBundleRowsFor(venueId: string): Promise<{
 }
 
 
-/** Every row in the committed bundle, in file order. */
-export async function allUkPriceBundleRows(): Promise<{
-  status: UkPriceBundleReadStatus;
-  rows: UkPriceBundleRow[];
-}> {
-  const read = await readUkPriceBundle();
-  if (read.status !== "ready") return { status: read.status, rows: [] };
-  const rows: UkPriceBundleRow[] = [];
-  for (const venueRows of read.byVenue.values()) rows.push(...venueRows);
-  return { status: read.status, rows };
-}
-
 export function resetUkPriceBundleForTests(): void {
   if (
     process.env.NODE_ENV === "test" ||
