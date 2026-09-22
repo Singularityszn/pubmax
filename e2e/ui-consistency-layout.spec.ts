@@ -394,6 +394,113 @@ function assertMeasured(
   );
 }
 
+function assertPostAnswerMapGeometry(
+  assertions: SurfaceAssertion[],
+  viewport: (typeof VIEWPORTS)[number],
+  panels: PanelMeasurement[],
+): void {
+  const surface = "map-after-first-answer";
+  const notice = panels.find(
+    (candidate) => candidate.name === "analytics notice",
+  );
+  const credit = panels.find(
+    (candidate) => candidate.name === "map credit",
+  );
+  const planAction = panels.find(
+    (candidate) => candidate.name === "Describe the outing",
+  );
+  const primaryAction = panels.find(
+    (candidate) => candidate.name === "map primary action",
+  );
+  // This path has crossed a real answer boundary, so the notice is required
+  // to have a box. Keep absence as a hard failure instead of turning a
+  // missing panel into a passing conditional.
+  assertMeasured(
+    assertions,
+    surface,
+    viewport.width,
+    "analytics notice appears after first answer",
+    notice !== undefined,
+    `${notice?.top}-${notice?.bottom}px`,
+  );
+  assertMeasured(
+    assertions,
+    surface,
+    viewport.width,
+    "map credit remains measurable after first answer",
+    credit !== undefined,
+    `${credit?.top}-${credit?.bottom}px`,
+  );
+  // The prompt owns the planning pill's foot berth while it is visible
+  // (components/mobile/mobileMapShell.css). Near me remains the map's live
+  // primary action, so this path proves both the source contract and the
+  // actual notice/action clearance.
+  assertMeasured(
+    assertions,
+    surface,
+    viewport.width,
+    "consent notice owns planning action berth",
+    planAction === undefined,
+    planAction ? `${planAction.top}-${planAction.bottom}px` : "hidden by consent dock",
+  );
+  assertMeasured(
+    assertions,
+    surface,
+    viewport.width,
+    "map primary action remains measurable after first answer",
+    primaryAction !== undefined,
+    primaryAction ? `${primaryAction.top}-${primaryAction.bottom}px` : "missing",
+  );
+  const overlap =
+    notice && credit
+      ? round(
+          Math.max(
+            0,
+            Math.min(notice.bottom, credit.bottom) -
+              Math.max(notice.top, credit.top),
+          ),
+        )
+      : Number.NaN;
+  assertMeasured(
+    assertions,
+    surface,
+    viewport.width,
+    "analytics notice leaves map credit reachable",
+    Number.isFinite(overlap) && overlap === 0,
+    `notice ${notice?.top}-${notice?.bottom}px; credit ${credit?.top}-${credit?.bottom}px; overlap ${overlap}px`,
+  );
+  const primaryOverlap =
+    notice && primaryAction
+      ? round(
+          Math.max(
+            0,
+            Math.min(notice.bottom, primaryAction.bottom) -
+              Math.max(notice.top, primaryAction.top),
+          ),
+        )
+      : Number.NaN;
+  assertMeasured(
+    assertions,
+    surface,
+    viewport.width,
+    "analytics notice leaves primary map action clear",
+    Number.isFinite(primaryOverlap) && primaryOverlap === 0,
+    `notice ${notice?.top}-${notice?.bottom}px; action ${primaryAction?.top}-${primaryAction?.bottom}px; overlap ${primaryOverlap}px`,
+  );
+  const noticeShare = notice
+    ? round((notice.height / viewport.height) * 100)
+    : Number.NaN;
+  assertMeasured(
+    assertions,
+    surface,
+    viewport.width,
+    "analytics notice stays below 24 percent of phone height",
+    Number.isFinite(noticeShare) && noticeShare < 24,
+    `${noticeShare}%`,
+  );
+}
+
+
 async function measureSurfaceAssertions(
   page: Page,
   viewport: (typeof VIEWPORTS)[number],
@@ -503,60 +610,7 @@ async function measureSurfaceAssertions(
   }
 
   if (surface === "map-after-first-answer" && viewport.width === 390) {
-    const notice = panels.find(
-      (candidate) => candidate.name === "analytics notice",
-    );
-    const credit = panels.find(
-      (candidate) => candidate.name === "map credit",
-    );
-    // This path has crossed a real answer boundary, so the notice is required
-    // to have a box. Keep absence as a hard failure instead of turning a
-    // missing panel into a passing conditional.
-    assertMeasured(
-      assertions,
-      surface,
-      viewport.width,
-      "analytics notice appears after first answer",
-      notice !== undefined,
-      notice ? `${notice.top}-${notice.bottom}px` : "missing",
-    );
-    assertMeasured(
-      assertions,
-      surface,
-      viewport.width,
-      "map credit remains measurable after first answer",
-      credit !== undefined,
-      credit ? `${credit.top}-${credit.bottom}px` : "missing",
-    );
-    const overlap =
-      notice && credit
-        ? round(
-            Math.max(
-              0,
-              Math.min(notice.bottom, credit.bottom) -
-                Math.max(notice.top, credit.top),
-            ),
-          )
-        : Number.NaN;
-    assertMeasured(
-      assertions,
-      surface,
-      viewport.width,
-      "analytics notice leaves map credit reachable",
-      Number.isFinite(overlap) && overlap === 0,
-      `notice ${notice?.top}-${notice?.bottom}px; credit ${credit?.top}-${credit?.bottom}px; overlap ${overlap}px`,
-    );
-    const noticeShare = notice
-      ? round((notice.height / viewport.height) * 100)
-      : Number.NaN;
-    assertMeasured(
-      assertions,
-      surface,
-      viewport.width,
-      "analytics notice stays below 24 percent of phone height",
-      Number.isFinite(noticeShare) && noticeShare < 24,
-      `${noticeShare}%`,
-    );
+    assertPostAnswerMapGeometry(assertions, viewport, panels);
   }
 
   if (surface === "venue-sheet" && viewport.width === 390) {
@@ -597,8 +651,6 @@ async function verifyPostCaptureInteractions(
   page: Page,
   viewport: (typeof VIEWPORTS)[number],
   surface: string,
-  firstVisitPrompt: SurfaceMeasurement["firstVisitPrompt"],
-  firstVisitPromptLocator: Locator,
   assertions: SurfaceAssertion[],
 ): Promise<void> {
   if (
@@ -607,6 +659,18 @@ async function verifyPostCaptureInteractions(
     viewport.width !== 390
   ) {
     return;
+  }
+  const consentPrompt = page.locator(".analyticsConsentPrompt").first();
+  let noticeBeforeDismissal: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null = null;
+  if (surface === "map-after-first-answer") {
+    await expect(consentPrompt).toBeVisible();
+    noticeBeforeDismissal = await consentPrompt.boundingBox();
+    expect(noticeBeforeDismissal, "analytics notice has a box before dismissal").not.toBeNull();
   }
   const creditButton = page.locator(".maplibregl-ctrl-attrib-button").first();
   await creditButton.click();
@@ -621,15 +685,58 @@ async function verifyPostCaptureInteractions(
       .isVisible(),
     "expanded attribution is visible",
   );
-  if (firstVisitPrompt?.kind !== "analytics consent") return;
-  await page.getByRole("button", { name: "No thanks" }).click();
+  if (surface !== "map-after-first-answer") return;
+  await consentPrompt.getByRole("button", { name: "No thanks", exact: true }).click();
+  await expect(consentPrompt).toHaveCount(0);
   assertMeasured(
     assertions,
     surface,
     viewport.width,
     "analytics notice is dismissible",
-    await firstVisitPromptLocator.isHidden(),
+    await consentPrompt.isHidden().catch(() => true),
     "No thanks removes the notice",
+  );
+  const planAction = page.locator(".mobilePlanActivation").first();
+  await expect(planAction).toBeVisible();
+  const actionAfterDismissal = await planAction.boundingBox();
+  assertMeasured(
+    assertions,
+    surface,
+    viewport.width,
+    "primary planning action returns after consent",
+    actionAfterDismissal !== null,
+    actionAfterDismissal
+      ? `${actionAfterDismissal.y}-${actionAfterDismissal.y + actionAfterDismissal.height}px`
+      : "missing",
+  );
+  const noticeBox = noticeBeforeDismissal as {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  const actionBox = actionAfterDismissal as {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  const transitionOverlap = round(
+    Math.max(
+      0,
+      Math.min(
+        noticeBox.y + noticeBox.height,
+        actionBox.y + actionBox.height,
+      ) - Math.max(noticeBox.y, actionBox.y),
+    ),
+  );
+  assertMeasured(
+    assertions,
+    surface,
+    viewport.width,
+    "analytics notice leaves primary map action clear after dismissal",
+    Number.isFinite(transitionOverlap) && transitionOverlap === 0,
+    `notice ${noticeBox.y}-${noticeBox.y + noticeBox.height}px; action ${actionBox.y}-${actionBox.y + actionBox.height}px; overlap ${transitionOverlap}px`,
   );
 }
 
@@ -813,6 +920,7 @@ async function captureSurface(
     panel(page, "Tonight Arc panel", ".tonightArcChips"),
     panel(page, "Describe the outing", ".mobilePlanActivation"),
     panel(page, "analytics notice", ".analyticsConsentPrompt"),
+    panel(page, "map primary action", ".mobileMapLocateFab"),
     panel(page, "desktop map navigation", ".siteNavBarFloating"),
     panel(page, "desktop map toolbar", ".mapToolbar"),
     panel(page, "map credit", ".maplibregl-ctrl-bottom-right"),
@@ -841,8 +949,6 @@ async function captureSurface(
     page,
     viewport,
     surface,
-    firstVisitPrompt,
-    firstVisitPromptLocator,
     assertions,
   );
 
