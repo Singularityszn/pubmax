@@ -178,6 +178,17 @@ describe("routeAsk judged path (SDK mocked)", () => {
     delete process.env.TYPESAFE_API_KEY;
   });
 
+  it("keeps a generic date preference out of model-selected named heritage", async () => {
+    mockOk({
+      tool: choiceAnswer("venue_heritage", 0.95),
+      venue: choiceAnswer(ASK_ROUTER_NONE, 0.9),
+      area: choiceAnswer(ASK_ROUTER_NONE, 0.9),
+      wantsMap: { type: "noul", noul: 0.04 },
+    });
+    const result = await routeAsk("A date-night pub with some history, calm not loud");
+    expect(result.calls[0]?.name).toBe("search_venues");
+  });
+
   it("never throws and keeps regex behaviour when the key is missing", async () => {
     vi.mocked(systemOneOutcome).mockResolvedValue({ status: "skipped", reason: "no_key" });
     await expect(routeAsk("Cheapest pint in Camden")).resolves.toEqual({

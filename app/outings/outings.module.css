@@ -1,0 +1,81 @@
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 var(--space-4, 16px) 100px;
+}
+.choices,
+.filters,
+.next {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px 0;
+}
+.choices a,
+.filters button,
+.next a {
+  min-height: 44px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  background: var(--panel-raised);
+}
+.choices a[aria-current] {
+  border-color: var(--brass);
+  box-shadow: inset 0 -3px var(--brass);
+}
+.filters label {
+  display: grid;
+  gap: 8px;
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.filters input,
+.filters select {
+  font: inherit;
+  font-size: 16px;
+  min-height: 44px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  width: 100%;
+  box-sizing: border-box;
+}
+.filters button {
+  align-self: end;
+  font: inherit;
+  cursor: pointer;
+}
+.results {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 16px;
+}
+.results li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel-raised);
+}
+.results h2 {
+  font-size: 1.25rem;
+}
+.results a,
+.home a {
+  color: var(--ink);
+  text-underline-offset: 3px;
+}
+.estimate {
+  font-size: 0.875rem;
+}
+.home {
+  padding: 20px 0;
+  border-top: 1px solid var(--line);
+}

@@ -21,6 +21,7 @@ import {
 // undefined means "any upcoming listing of this kind".
 export type WhatsOnQuery = {
   kind?: WhatsOnKind;
+  dancing?: true;
   window?: "tonight" | "weekday";
   weekday?: number; // 0=Sun..6=Sat, only when window === "weekday"
   area?: string;
@@ -34,7 +35,7 @@ const KIND_TERMS: Record<WhatsOnKind, RegExp> = {
   sport: /\b(?:sport|sports|football|footy|rugby|boxing|cricket|the match|the game|premier league|champions league|world cup|six nations|showing the)\b/i,
   deal: /\b(?:deal|deals|offer|offers|curry club|steak club|burger club|wing(?:s)? night|happy hour|2 for 1|two for one)\b/i,
   music: /\b(?:live music|gig|gigs|band|bands|dj set|karaoke|open mic|jam night)\b/i,
-  event: /\b(?:comedy|stand-?up|theatre|theater|club night|playhouse)\b/i,
+  event: /\b(?:comedy|stand-?up|theatre|theater|club night|dancing|disco|rave|dj|playhouse)\b/i,
 };
 
 // A generic "what's on" phrasing carries a What's-On intent even without a kind.
@@ -80,6 +81,7 @@ export function detectWhatsOnIntent(text: string): WhatsOnQuery | null {
 
   const query: WhatsOnQuery = {};
   if (kind) query.kind = kind;
+  if (/\b(?:club night|dancing|disco|rave|dj(?: set)?)\b/i.test(text)) query.dancing = true;
 
   if (/\b(?:tonight|this evening|on tonight|right now|later tonight)\b/i.test(text)) {
     query.window = "tonight";
@@ -113,7 +115,7 @@ export function filterRowsByArea(rows: WhatsOnRow[], area: string): WhatsOnRow[]
   const needle = normalise(area);
   if (!needle) return rows;
   return rows.filter((row) => {
-    const hay = normalise(`${row.placeName} ${row.detail ?? ""}`);
+    const hay = normalise(`${row.placeName} ${row.area ?? ""} ${row.detail ?? ""}`);
     return hay.includes(needle);
   });
 }
