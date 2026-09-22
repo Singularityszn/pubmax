@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { serveListedPintFixture } from "./helpers/listedPintFixture";
+
 import { installAuthDoubles } from "./helpers/authDoubles";
 import { attachBill, attachSpillBill } from "./helpers/priceBill";
 
@@ -24,6 +26,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 const VIEWPORTS = [
   { name: "390", width: 390, height: 844 },
+  { name: "768", width: 768, height: 1024 },
   { name: "1440", width: 1440, height: 900 },
 ] as const;
 
@@ -65,6 +68,7 @@ const SPLIT: DropRow[] = [
 ];
 
 async function serveDrops(page: Page, drops: DropRow[]): Promise<void> {
+  await serveListedPintFixture(page, HATTON);
   await page.route("**/api/pint-drops**", async (route) => {
     await route.fulfill({
       status: 200,
@@ -161,6 +165,7 @@ for (const viewport of VIEWPORTS) {
     await expect(publishedPrice).toContainText("£6.30");
     await priceArea.scrollIntoViewIfNeeded();
     await shoot(priceArea, `${PROOF}/split-overview-${viewport.name}.png`);
+    await page.screenshot({ path: `${PROOF}/split-with-published-price-${viewport.name}.png` });
     await priceArea.getByTestId("choose-pint-cta").filter({ hasText: "£4.50" }).click();
     const composer = page.getByTestId("spill-price-step");
     await expect(composer).toBeVisible();
