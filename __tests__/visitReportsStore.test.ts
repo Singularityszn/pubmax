@@ -126,7 +126,16 @@ vi.mock("@/lib/supabase", () => {
 
   return {
     isSupabaseConfigured: () => true,
-    requireSupabaseAdmin: () => ({ from: () => makeQuery() }),
+    requireSupabaseAdmin: () => ({
+      from: () => makeQuery(),
+      // Migration 0158 not deployed in this mock: report() falls back to its
+      // read-modify-write path, which is what the tests below exercise.
+      rpc: () =>
+        Promise.resolve({
+          data: null,
+          error: { code: "PGRST202", message: "Could not find the function" },
+        }),
+    }),
   };
 });
 
