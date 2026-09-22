@@ -18,6 +18,7 @@ import {
 
 export const MENU_TRANSPORTS = Object.freeze({
   browserbase: "rendered-menu",
+  playwright: "local-rendered-menu",
   tavily: "plain-page",
 });
 
@@ -38,10 +39,10 @@ export function parseMenuTransportArg(argv = process.argv) {
   if (!value || value.startsWith("--")) {
     throw new HarvestMenuTransportError("invalid-transport", "--transport requires browserbase or tavily");
   }
-  if (value !== "browserbase" && value !== "tavily") {
+  if (value !== "browserbase" && value !== "tavily" && value !== "playwright") {
     throw new HarvestMenuTransportError(
       "invalid-transport",
-      `--transport must be browserbase or tavily, not ${value}`,
+      `--transport must be browserbase, playwright, or tavily, not ${value}`,
     );
   }
   return value;
@@ -53,7 +54,12 @@ export function refreshJobForTransport(transport) {
   return job;
 }
 
+export function isKeylessMenuTransport(transport) {
+  return transport === "playwright";
+}
+
 export function assertTransportCredentials(transport, environment = process.env) {
+  if (transport === "playwright") return;
   const job = refreshJobForTransport(transport);
   providerForJob(job);
   const { key } = providerForJob(job);
@@ -77,10 +83,11 @@ export function createMenuPageHarvester({
   environment = process.env,
   fetchImpl = fetch,
   renderBrowserPage,
+  fetchLocalPlaywrightMenuPage,
   crawlDelayMs = chainMenuCrawlDelayMs(sourceId),
   extractBudget = tavilyHarvestExtractCap(environment),
 } = {}) {
-  const job = refreshJobForTransport(transport);
+  const job = isKeylessMenuTransport(transport) ? null : refreshJobForTransport(transport);
   let extractsSpent = 0;
   let lastRequestAt = 0;
 
@@ -105,13 +112,22 @@ export function createMenuPageHarvester({
       }
     }
     await waitForCrawlSpacing();
-    const page = await fetchRefreshPage({
-      job,
-      url,
-      environment,
-      fetchImpl,
-      ...(renderBrowserPage ? { renderBrowserPage } : {}),
-    });
+    let page;
+    if (transport === "playwright") {
+      const render =
+        fetchLocalPlaywrightMenuPage ??
+        (await import("./localPlaywrightMenuPage.mjs")).fetchLocalPlaywrightMenuPage;
+      const rendered = await render(url);
+      page = { markdown: rendered.markdown, links: rendered.links };
+    } else {
+      page = await fetchRefreshPage({
+        job,
+        url,
+        environment,
+        fetchImpl,
+        ...(renderBrowserPage ? { renderBrowserPage } : {}),
+      });
+    }
     lastRequestAt = Date.now();
     if (transport === "tavily") extractsSpent += 1;
     return page.markdown;

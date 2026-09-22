@@ -31,6 +31,7 @@ describe("harvest menu transport", () => {
   it("maps transports to refresh provider jobs", () => {
     expect(refreshJobForTransport("tavily")).toBe("plain-page");
     expect(refreshJobForTransport("browserbase")).toBe("rendered-menu");
+    expect(refreshJobForTransport("playwright")).toBe("local-rendered-menu");
   });
 
   it("refuses hosts sourcePolicy blocks before any provider call", async () => {

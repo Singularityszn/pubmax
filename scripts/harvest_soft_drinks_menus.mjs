@@ -44,6 +44,7 @@ import {
   parseGkSoftDrinkLines,
   parseMbplcSoftDrinkLines,
   parsePropellerMenuSoftDrinks,
+  softDrinkRowsFromMenuPdfLinks,
   softDrinkRowsFromPageText,
 } from "./lib/softDrinksMenuHarvest.mjs";
 
@@ -156,8 +157,10 @@ async function extractRows(chain, markdown, ctx) {
   if (CHAIN_CONFIG[chain]?.parser === "gk") {
     return filterSoftDrinkHarvestRows(parseGkSoftDrinkLines(markdown));
   }
-  const { readVenueDrinkPricesForHarvest } = await import("./harvest/uk-prices/readPrices.mjs");
-  await readVenueDrinkPricesForHarvest(markdown, ctx);
+  if (chain === "wetherspoon" || chain === "slug-and-lettuce") {
+    const fromPdf = await softDrinkRowsFromMenuPdfLinks(markdown);
+    if (fromPdf.length > 0) return fromPdf;
+  }
   const propeller = parsePropellerMenuSoftDrinks(markdown);
   if (propeller.length > 0) return propeller;
   return softDrinkRowsFromPageText(markdown);

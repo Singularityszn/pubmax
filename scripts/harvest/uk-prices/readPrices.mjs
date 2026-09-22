@@ -28,12 +28,16 @@ export async function readVenueDrinkPricesForHarvest(html, ctx) {
   if (!typesafeKeyConfigured()) {
     return { reading: readVenueDrinkPrices(html), review: [] };
   }
-  const { readVenueDrinkPricesJudged } = await import(
-    "../../../lib/harvest/ukPriceJudgment.server.ts"
-  );
-  const judged = await readVenueDrinkPricesJudged(html, { pubName, pageUrl });
-  const { review, ...reading } = judged;
-  return { reading, review };
+  try {
+    const { readVenueDrinkPricesJudged } = await import(
+      "../../../lib/harvest/ukPriceJudgment.server.ts"
+    );
+    const judged = await readVenueDrinkPricesJudged(html, { pubName, pageUrl });
+    const { review, ...reading } = judged;
+    return { reading, review };
+  } catch {
+    return { reading: readVenueDrinkPrices(html), review: [] };
+  }
 }
 
 export async function readChainPintPricesForHarvest(html, ctx) {

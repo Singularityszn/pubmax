@@ -72,7 +72,7 @@ function discoverYoungs() {
   const enrichment = JSON.parse(readFileSync(ENRICHMENT, "utf8"));
   const urls = Object.values(enrichment.venues ?? {})
     .filter((v) => v.source === "youngs.co.uk" && v.menuUrl)
-    .map((v) => `${v.menuUrl.replace(/\/$/, "")}/food-and-drinks/`);
+    .map((v) => `${v.menuUrl.replace(/\/$/, "")}/foodanddrink`);
   return writeUrls("youngs", urls);
 }
 

@@ -3,6 +3,7 @@
  * Reuses ukPriceCrawl verbatim rules and M&B markdown section parsing.
  */
 
+import { readPdfText } from "../../lib/harvest/pdfText.ts";
 import { drinkSubtypeFromText } from "../../lib/drinkSubtypes.ts";
 import {
   cheapestPerCategory,
@@ -225,4 +226,50 @@ export function parseGkSoftDrinkLines(markdown) {
 
 export function classifySoftDrinkSubtypeId(drinkLabel) {
   return drinkSubtypeFromText(drinkLabel, "soft-drink")?.id ?? null;
+}
+
+const MENU_PDF_LINK =
+  /(?:\[[^\]]*]\()?https?:\/\/[^\s)"']+\/menus\/[^\s)"']+\.pdf[^\s)"']*/gi;
+
+function menuPdfUrlsFromPageText(text) {
+  const urls = [];
+  const seen = new Set();
+  for (const match of String(text).matchAll(MENU_PDF_LINK)) {
+    const raw = match[0];
+    const href = raw.match(/https?:\/\/[^\s)"']+\.pdf[^\s)"']*/i)?.[0];
+    if (!href || seen.has(href)) continue;
+    seen.add(href);
+    urls.push(href.replace(/[?#].*$/, (suffix) => (suffix.startsWith("?") ? suffix : "")));
+  }
+  for (const match of String(text).matchAll(/https?:\/\/[^\s"'<>]+\.pdf[^\s"'<>]*/gi)) {
+    const href = match[0];
+    if (!/\/menus\//i.test(href) && !/drinks/i.test(href)) continue;
+    if (seen.has(href)) continue;
+    seen.add(href);
+    urls.push(href);
+  }
+  return urls;
+}
+
+/** Follow a chain menu page's drinks PDF when prices are printed in the PDF text. */
+export async function softDrinkRowsFromMenuPdfLinks(pageText, { fetchImpl = fetch } = {}) {
+  const pdfUrls = menuPdfUrlsFromPageText(pageText);
+  const rows = [];
+  for (const pdfUrl of pdfUrls.slice(0, 2)) {
+    let response;
+    try {
+      response = await fetchImpl(pdfUrl, {
+        headers: {
+          "user-agent": "PUBMAXXHarvest/1.0 (+https://pubmaxxing.com; hello@pubmaxxing.com)",
+        },
+      });
+    } catch {
+      continue;
+    }
+    if (!response.ok) continue;
+    const text = await readPdfText(new Uint8Array(await response.arrayBuffer()));
+    if (!text) continue;
+    rows.push(...softDrinkRowsFromPageText(text));
+  }
+  return filterSoftDrinkHarvestRows(rows);
 }
