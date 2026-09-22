@@ -94,6 +94,29 @@ describe("crawlUrl", () => {
     expect(back.builtIds).toEqual(["venue-abc", "venue-def"]);
   });
 
+  it("round-trips a sourced dancing event as a typed stop at its ordered position", () => {
+    const eventStop = {
+      kind: "event" as const,
+      id: "dance-42",
+      title: "Disco after dark",
+      source: { label: "Ticket publisher", url: "https://tickets.example/dance-42" },
+      startsAt: "2026-09-27T19:30:00.000Z",
+      endsAt: "2026-09-27T22:30:00.000Z",
+      admissionGbp: 12,
+    };
+    const href = buildCrawlMapHref(["pub-before", "pub-after"], {
+      eventStop,
+      eventPosition: 1,
+    });
+
+    expect(href).toContain("eventStop=");
+    expect(href).toContain("eventPosition=1");
+    const decoded = decodeCrawl(new URLSearchParams(href?.split("?")[1]));
+    expect(decoded.eventStop).toEqual(eventStop);
+    expect(decoded.eventPosition).toBe(1);
+    expect(decoded.builtIds).toEqual(["pub-before", "pub-after"]);
+  });
+
   it("seedCrawlState reproduces the captured state atop defaults", () => {
     const seeded = seedCrawlState(`?${encodeCrawl(sample)}`);
     expect(seeded).toEqual({
@@ -105,6 +128,8 @@ describe("crawlUrl", () => {
       altStyle: "pint", // additive alt-style field, defaults to "pint" (issue #31)
       landmarkId: "",
       crawlId: "",
+      eventStop: null,
+      eventPosition: null,
     });
   });
 

@@ -56,13 +56,11 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { pdfIsWorthReading, readPdfText } from "../../../lib/harvest/pdfText.ts";
-import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
-import { discardBody } from "../../../lib/responseBody.ts";
+import { createRobotsChecker, fetchHarvestedPage } from "../../../lib/harvest/robots.ts";
 import {
   allowedHarvestSources,
   harvestSourcesOfKind,
   isHarvestSourceAllowed,
-  harvestRedirectLanding,
   isHarvestableOperatorUrl,
 } from "../../../lib/harvest/sourcePolicy.ts";
 import {
@@ -184,36 +182,24 @@ function hostOf(website) {
   }
 }
 
-export async function fetchText(url, robots) {
+export async function fetchText(url, robots, fetchImpl) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
   try {
-    let current = url;
-    let response;
-    for (let hop = 0; hop <= 5; hop += 1) {
-      const landing = harvestRedirectLanding(url, current);
-      if (landing.outcome === "refused" || !(await robots(current)).allowed) {
-        return { ok: false, status: 0, body: "", error: "page-permission-refused", finalUrl: current };
-      }
-      response = await fetch(current, {
+    const result = await fetchHarvestedPage(url, robots, {
         headers: {
           accept: "text/html,application/xhtml+xml,application/pdf;q=0.8,*/*;q=0.5",
           "user-agent": USER_AGENT,
         },
         signal: controller.signal,
-        redirect: "manual",
-      });
-      if (![301, 302, 303, 307, 308].includes(response.status)) break;
-      const location = response.headers.get("location");
-      discardBody(response);
-      if (!location || hop === 5) {
-        return { ok: false, status: response.status, body: "", error: "redirect-limit-or-missing-location", finalUrl: current };
-      }
-      current = new URL(location, current).toString();
+      }, fetchImpl ? { fetchImpl } : {});
+    if (!result.ok) {
+      return { ok: false, status: result.response?.status ?? 0, body: "", error: `page-${result.reason}`, finalUrl: result.url };
     }
-    const landed = current;
+    const { response } = result;
+    const landed = result.url;
     if (!response.ok) {
-      discardBody(response);
+      response.body?.cancel().catch(() => {});
       return { ok: false, status: response.status, body: "", finalUrl: landed };
     }
     const type = response.headers.get("content-type") ?? "";

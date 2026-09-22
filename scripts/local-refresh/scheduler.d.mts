@@ -35,6 +35,8 @@ export function baseRefForRun(dryRun: boolean): "HEAD" | "origin/main";
  * unflagged type stripping (22.18+) under an `engines` floor of 22.12.
  */
 export const EVENTS_REFRESH_NODE_ARGS: string[];
+/** Runtime flags needed for the Common lane's shared harvested-page fence. */
+export const COMMON_REFRESH_NODE_ARGS: string[];
 
 export type RefreshCommand = {
   executable: string;

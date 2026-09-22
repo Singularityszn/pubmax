@@ -25,6 +25,7 @@ import { isValidWhatsOnRow, parseWhatsOnRows } from "@/lib/whatsOn";
 
 const TODAY = "2026-08-16";
 const NOW = Date.parse("2026-08-16T10:00:00.000Z");
+const allowRobots = async () => ({ allowed: true, reason: "allowed" as const, evidence: "test permission" });
 
 describe("OG prefix parse", () => {
   it("takes place and date from the OG prefix and ignores the rest", () => {
@@ -171,6 +172,33 @@ describe("refreshCommonEvents", () => {
     };
   }
 
+  it("builds its default robots checker after loading the harvest module", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "common-refresh-"));
+    const outPath = join(dir, "events_london.json");
+    const postUrl = "https://www.common-social.com/post/default-robots";
+    const fetchImpl = (async (target: string | URL) => {
+      const href = String(target);
+      if (href.endsWith("/robots.txt")) {
+        return new Response("User-agent: *\nAllow: /\n", { status: 200 });
+      }
+      if (href === COMMON_SITEMAP_URL) {
+        return new Response(`<urlset><url><loc>${postUrl}</loc></url></urlset>`, { status: 200 });
+      }
+      return new Response(post(href), { status: 200 });
+    }) as typeof fetch;
+
+    const report = await refreshCommonEvents({
+      nowMs: NOW_MS,
+      fetchImpl,
+      outPath,
+      gapMs: 0,
+    });
+
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0].source.url).toBe(postUrl);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
   it("drops a historical post rather than writing it out as next year's night", async () => {
     const dir = mkdtempSync(join(tmpdir(), "common-refresh-"));
     const outPath = join(dir, "events_london.json");
@@ -192,7 +220,7 @@ describe("refreshCommonEvents", () => {
       );
     }) as unknown as typeof fetch;
 
-    const report = await refreshCommonEvents({ nowMs: NOW_MS, fetchImpl, outPath, gapMs: 0 });
+    const report = await refreshCommonEvents({ nowMs: NOW_MS, fetchImpl, robots: allowRobots, outPath, gapMs: 0 });
 
     // "5 Jan" on a post published in December 2025 is January 2026, which is
     // past; only the genuinely upcoming night is written.
@@ -220,6 +248,7 @@ describe("refreshCommonEvents", () => {
     await refreshCommonEvents({
       nowMs: NOW_MS,
       fetchImpl: makeFetch(["https://www.common-social.com/post/one"], seen) as typeof fetch,
+      robots: allowRobots,
       outPath,
       gapMs: 0,
     });
@@ -258,6 +287,7 @@ describe("refreshCommonEvents", () => {
       nowMs: NOW_MS,
       fetchImpl: (async () =>
         new Response("<urlset></urlset>", { status: 200 })) as unknown as typeof fetch,
+      robots: allowRobots,
       outPath,
       gapMs: 0,
     });
@@ -275,12 +305,41 @@ describe("refreshCommonEvents", () => {
       nowMs: NOW_MS,
       fetchImpl: (async () =>
         new Response("<urlset></urlset>", { status: 200 })) as unknown as typeof fetch,
+      robots: allowRobots,
       outPath,
       gapMs: 0,
     });
     expect(report.refused).toBeUndefined();
     expect(report.wrote).toBe(true);
     expect(JSON.parse(readFileSync(outPath, "utf8")).rows).toEqual([]);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("checks robots permission for each sitemap-discovered post before requesting its bytes", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "common-refresh-"));
+    const outPath = join(dir, "events_london.json");
+    const deniedPost = "https://www.common-social.com/post/denied";
+    const fetched: string[] = [];
+    const robots = async (url: string) => ({
+      allowed: new URL(url).pathname === "/sitemap.xml",
+      reason: new URL(url).pathname === "/sitemap.xml" ? "allowed" as const : "robots-disallowed" as const,
+      evidence: "test path policy",
+    });
+
+    const report = await refreshCommonEvents({
+      nowMs: NOW_MS,
+      fetchImpl: (async (input) => {
+        const url = String(input);
+        fetched.push(url);
+        return new Response(`<urlset><url><loc>${deniedPost}</loc></url></urlset>`, { status: 200 });
+      }) as typeof fetch,
+      robots,
+      outPath,
+      gapMs: 0,
+    });
+
+    expect(report.droppedFetch).toBe(1);
+    expect(fetched).toEqual([COMMON_SITEMAP_URL]);
     rmSync(dir, { recursive: true, force: true });
   });
 
@@ -312,6 +371,7 @@ describe("refreshCommonEvents", () => {
     const report = await refreshCommonEvents({
       nowMs: NOW_MS,
       fetchImpl: makeFetch(urls, seen) as typeof fetch,
+      robots: allowRobots,
       outPath,
       gapMs: 0,
       maxFetches: 1,
@@ -404,6 +464,7 @@ describe("the crawl budget advances", () => {
     const report = await refreshCommonEvents({
       nowMs,
       fetchImpl: fetchImpl as typeof fetch,
+      robots: allowRobots,
       outPath,
       gapMs: 0,
       maxFetches: 1,

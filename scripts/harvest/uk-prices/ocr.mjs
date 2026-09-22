@@ -108,11 +108,8 @@ import process from "node:process";
 import { promisify } from "node:util";
 
 import { readPdfText } from "../../../lib/harvest/pdfText.ts";
-import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
-import {
-  harvestRedirectLanding,
-  isHarvestableOperatorUrl,
-} from "../../../lib/harvest/sourcePolicy.ts";
+import { createRobotsChecker, fetchHarvestedPage } from "../../../lib/harvest/robots.ts";
+import { isHarvestableOperatorUrl } from "../../../lib/harvest/sourcePolicy.ts";
 import {
   DEFAULT_HOST_DELAY_MS,
   DEFAULT_PAGES_PER_HOST,
@@ -291,29 +288,22 @@ function pubsByHost() {
 }
 
 /** A page, as text; or the bytes when the host answered with a PDF. */
-async function fetchPage(url) {
+async function fetchPage(url, robots) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
+    const result = await fetchHarvestedPage(url, robots, {
       headers: {
         accept: "text/html,application/xhtml+xml,application/pdf;q=0.8,*/*;q=0.5",
         "user-agent": USER_AGENT,
       },
       signal: controller.signal,
-      redirect: "follow",
     });
-    // THE ALLOW-LIST IS ASKED ABOUT THE PAGE WE LANDED ON, NOT ONLY THE ONE WE
-    // ASKED FOR. `redirect: "follow"` lets the HOST pick the last hop, so a
-    // permitted site that 30x-es to a refused one used to be read in full and
-    // the row was then stamped with the asked-for URL, naming a page that never
-    // stated the price. `harvestRedirectLanding` is the one owner of that rule;
-    // `finalUrl` was already carried here and read by nothing.
-    const landing = harvestRedirectLanding(url, response.url);
-    if (landing.outcome === "refused") {
-      return { ok: false, status: response.status, body: "", redirectedAway: true, finalUrl: landing.url };
+    if (!result.ok) {
+      return { ok: false, status: result.response?.status ?? 0, body: "", redirectedAway: result.reason === "source-policy", finalUrl: result.url };
     }
-    const landed = landing.url;
+    const { response } = result;
+    const landed = result.url;
     if (!response.ok) return { ok: false, status: response.status, body: "", finalUrl: landed };
     const type = response.headers.get("content-type") ?? "";
     if (/application\/pdf/i.test(type)) {
@@ -349,8 +339,8 @@ async function fetchPage(url) {
  * links the home page itself states, all judged by the ONE `isLikelyMenuUrl`
  * gate, so a document cannot arrive here that the crawler would have refused.
  */
-async function discoverPdfs(entry, statedSitemaps) {
-  const home = await fetchPage(entry.origin);
+async function discoverPdfs(entry, statedSitemaps, robots) {
+  const home = await fetchPage(entry.origin, robots);
   const candidates = [];
   const push = (url) => {
     if (!candidates.includes(url)) candidates.push(url);
@@ -362,7 +352,7 @@ async function discoverPdfs(entry, statedSitemaps) {
   const sitemaps = [...statedSitemaps];
   if (sitemaps.length === 0) sitemaps.push(new URL("/sitemap.xml", entry.origin).toString());
   for (const sitemapUrl of sitemaps.slice(0, 2)) {
-    const sitemap = await fetchPage(sitemapUrl);
+    const sitemap = await fetchPage(sitemapUrl, robots);
     if (!sitemap.ok || sitemap.body.length === 0) continue;
     for (const location of sitemapLocations(sitemap.body)) {
       if (isLikelyMenuUrl(location, entry.origin)) push(location);
@@ -387,7 +377,7 @@ async function discoverPdfs(entry, statedSitemaps) {
   for (const url of pages.slice(0, DEFAULT_PAGES_PER_HOST * 2)) {
     if (pdfs.length >= DEFAULT_PAGES_PER_HOST) break;
     await sleep(DEFAULT_HOST_DELAY_MS);
-    const page = await fetchPage(url);
+    const page = await fetchPage(url, robots);
     if (!page.ok) continue;
     if (page.pdf) {
       pdfs.push(url);
@@ -585,7 +575,7 @@ async function main() {
       continue;
     }
 
-    const pdfUrls = await discoverPdfs(entry, decision.sitemaps ?? []);
+    const pdfUrls = await discoverPdfs(entry, decision.sitemaps ?? [], robots);
     if (pdfUrls.length === 0) {
       counts["no-longer-published"] += target.unreadable;
       documents.push({ host: target.host, url: null, outcome: "no-longer-published" });
@@ -595,7 +585,7 @@ async function main() {
     const readings = [];
     for (const url of pdfUrls) {
       await sleep(DEFAULT_HOST_DELAY_MS);
-      const page = await fetchPage(url);
+      const page = await fetchPage(url, robots);
       if (
         !page.ok ||
         !page.pdf ||

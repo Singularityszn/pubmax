@@ -8,6 +8,7 @@ import {
   baseRefForRun,
   commandsForMode,
   captureRefreshSnapshot,
+  COMMON_REFRESH_NODE_ARGS,
   EVENTS_REFRESH_NODE_ARGS,
   keyReadinessError,
   laneReadiness,
@@ -278,6 +279,7 @@ describe("local refresh scraper sequence", () => {
       },
       {
         executable: process.execPath,
+        nodeArgs: COMMON_REFRESH_NODE_ARGS,
         args: ["scripts/whatson/commonRefresh.mjs"],
         independent: true,
       },

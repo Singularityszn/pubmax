@@ -17,6 +17,7 @@ import {
   readVenueDrinkPrices,
 } from "../lib/harvest/ukPriceCrawl.ts";
 import { isHarvestableOperatorUrl } from "../lib/harvest/sourcePolicy.ts";
+import { createRobotsChecker, fetchHarvestedPage } from "../lib/harvest/robots.ts";
 
 const ROOT = process.cwd();
 const ROWS_PATH = path.join(ROOT, "data/uk_prices/site_harvest.jsonl");
@@ -38,24 +39,25 @@ function loadRows() {
     .map((line) => JSON.parse(line));
 }
 
-async function fetchBody(url) {
+async function fetchBody(url, robots) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
+    const result = await fetchHarvestedPage(url, robots, {
       headers: { accept: "text/html,application/xhtml+xml,application/pdf", "user-agent": USER_AGENT },
       signal: controller.signal,
-      redirect: "follow",
     });
+    if (!result.ok) return { ok: false, body: "", error: result.reason };
+    const { response } = result;
     if (!response.ok) return { ok: false, body: "" };
     const type = response.headers.get("content-type") ?? "";
-    const body = await response.text();
-    if (/pdf/i.test(type) || url.toLowerCase().includes(".pdf")) {
-      if (!pdfIsWorthReading(body)) return { ok: false, body: "" };
-      const text = await readPdfText(body);
+    if (/pdf/i.test(type) || result.url.toLowerCase().includes(".pdf")) {
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (!pdfIsWorthReading(bytes.byteLength)) return { ok: false, body: "" };
+      const text = await readPdfText(bytes);
       return { ok: Boolean(text), body: text ?? "" };
     }
-    return { ok: true, body };
+    return { ok: true, body: await response.text() };
   } catch {
     return { ok: false, body: "" };
   } finally {
@@ -79,13 +81,14 @@ async function main() {
   );
 
   const cache = new Map();
+  const robots = createRobotsChecker();
   for (const url of slice) {
     try {
     if (!isHarvestableOperatorUrl(url)) {
       console.log(`  skip refused ${url}`);
       continue;
     }
-    const fetched = await fetchBody(url);
+    const fetched = await fetchBody(url, robots);
     if (!fetched.ok) {
       console.log(`  skip unreadable ${url}`);
       continue;

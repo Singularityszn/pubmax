@@ -278,13 +278,17 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchText(url, fetchImpl) {
-  const res = await fetchImpl(url, {
+/** @typedef {(url: string) => Promise<{ allowed: boolean, reason: string, evidence: string }>} OutboundRobotsCheck */
+
+async function fetchText(url, robots, fetchImpl, fetchHarvestedPage) {
+  const result = await fetchHarvestedPage(url, robots, {
     headers: {
       accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       "user-agent": COMMON_USER_AGENT,
     },
-  });
+  }, fetchImpl ? { fetchImpl } : undefined);
+  if (!result.ok) throw new Error(`Common fetch ${url} refused: ${result.reason}`);
+  const res = result.response;
   if (!res.ok) {
     await res.arrayBuffer();
     throw new Error(`Common fetch ${url} returned ${res.status}`);
@@ -292,14 +296,22 @@ async function fetchText(url, fetchImpl) {
   return res.text();
 }
 
+/**
+ * @param {{ nowMs?: number, fetchImpl?: typeof fetch, robots?: OutboundRobotsCheck, outPath?: string, gapMs?: number, maxFetches?: number, allowEmpty?: boolean }} [options]
+ */
 export async function refreshCommonEvents({
   nowMs = Date.now(),
-  fetchImpl = fetch,
+  fetchImpl,
+  robots,
   outPath = eventsOutputPath("london"),
   gapMs = COMMON_FETCH_GAP_MS,
   maxFetches = COMMON_MAX_FETCHES_PER_RUN,
   allowEmpty = false,
 } = {}) {
+  // Keep module import provider- and TypeScript-loader-independent. The lane's
+  // scheduler enables tsx only when this network-backed function runs.
+  const { createRobotsChecker, fetchHarvestedPage } = await import("../../lib/harvest/robots.ts");
+  const pageRobots = robots ?? createRobotsChecker(fetchImpl ? { fetchImpl } : undefined);
   const observedAt = new Date(nowMs).toISOString();
   const todayLondon = londonToday(nowMs);
 
@@ -334,7 +346,7 @@ export async function refreshCommonEvents({
     heldByUrl.set(row.source.url, row);
   }
 
-  const sitemap = await fetchText(COMMON_SITEMAP_URL, fetchImpl);
+  const sitemap = await fetchText(COMMON_SITEMAP_URL, pageRobots, fetchImpl, fetchHarvestedPage);
   const entries = parseCommonSitemapEntries(sitemap);
   const publishedByUrl = new Map();
   for (const entry of entries) {
@@ -363,7 +375,7 @@ export async function refreshCommonEvents({
     if (fetched > 0 && gapMs > 0) await sleep(gapMs);
     fetched += 1;
     try {
-      const html = await fetchText(url, fetchImpl);
+      const html = await fetchText(url, pageRobots, fetchImpl, fetchHarvestedPage);
       const parsed = parseCommonPostHtml(html);
       if (!parsed) {
         droppedUnparseable += 1;

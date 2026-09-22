@@ -208,7 +208,7 @@ describe("the page a redirect chain landed on", () => {
 });
 
 describe("both price crawl lanes spend the one rule", () => {
-  it("asks the landing rule about every fetch, rather than trusting the asked-for URL", async () => {
+  it("keeps the main harvest landing fence and checks every redirect hop before fetching it", async () => {
     const { readFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     for (const lane of ["run.mjs", "ocr.mjs"]) {
@@ -216,11 +216,23 @@ describe("both price crawl lanes spend the one rule", () => {
         join(process.cwd(), "scripts/harvest/uk-prices", lane),
         "utf8",
       );
-      // A lane that follows redirects must read where it landed. Both used to
-      // compute `finalUrl` and hand it to nothing.
-      expect(source, lane).toContain('redirect: "follow"');
-      expect(source, lane).toContain("harvestRedirectLanding(url, response.url)");
+      expect(source, lane).toContain("fetchHarvestedPage(");
+      expect(source, lane).not.toMatch(/\bfetch\s*\(/);
+      expect(source, lane).not.toContain('redirect: "follow"');
       expect(source, lane).not.toContain("finalUrl: response.url || url");
+    }
+  });
+});
+
+describe("public outbound address fence", () => {
+  it("refuses special-use IPv4 destinations before a harvested fetch", () => {
+    for (const host of [
+      "100.64.0.1", // shared address space
+      "192.0.2.1", // documentation
+      "198.18.0.1", // benchmark
+      "224.0.0.1", // multicast
+    ]) {
+      expect(isHarvestableOperatorUrl(`https://${host}/menu`), host).toBe(false);
     }
   });
 });

@@ -1,3 +1,5 @@
+import type { RobotsChecker } from "../../lib/harvest/robots";
+
 export declare const COMMON_SITEMAP_URL: string;
 export declare const COMMON_SOURCE: { label: "common"; url: string };
 export declare const COMMON_USER_AGENT: string;
@@ -53,6 +55,7 @@ export declare function toCommonEventRow(args: {
 export declare function refreshCommonEvents(opts?: {
   nowMs?: number;
   fetchImpl?: typeof fetch;
+  robots?: RobotsChecker;
   outPath?: string;
   gapMs?: number;
   maxFetches?: number;

@@ -12,6 +12,7 @@ import {
 } from "../scripts/editorial/poll.mjs";
 
 const NOW = Date.parse("2026-08-16T12:00:00.000Z");
+const allowRobots = async () => ({ allowed: true, reason: "allowed" as const, evidence: "test permission" });
 
 const ONE_FEED = [
   {
@@ -82,6 +83,21 @@ describe("editorial poller: due / backoff / interpret", () => {
 });
 
 describe("editorial poller: one request per feed per tick", () => {
+  it("checks source robots permission before reading a configured feed URL", async () => {
+    const fetchImpl = vi.fn(async () => new Response("feed body", { status: 200 }));
+    const snapshot = await pollEditorialFeeds({
+      now: NOW,
+      feeds: ONE_FEED,
+      previous: { version: 1, generatedAt: "2026-08-15T12:00:00.000Z", status: "ready", items: [] },
+      robots: async () => ({ allowed: false, reason: "robots-disallowed", evidence: "test refusal" }),
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(snapshot.status).toBe("degraded");
+    expect(snapshot.state.deserter?.lastFetchedAt).toBeUndefined();
+  });
+
   it("sends the named UA and If-Modified-Since, and never stores a body", async () => {
     const calls: Array<{ url: string; headers: Headers }> = [];
     const snapshot = await pollEditorialFeeds({
@@ -91,6 +107,7 @@ describe("editorial poller: one request per feed per tick", () => {
       state: {
         deserter: { lastModified: "Sat, 15 Aug 2026 12:00:00 GMT" },
       },
+      robots: allowRobots,
       fetchImpl: async (input, init) => {
         const url = String(input);
         const headers = new Headers(init?.headers);
@@ -136,6 +153,7 @@ describe("editorial poller: one request per feed per tick", () => {
         items: [previousItem],
       },
       state: {},
+      robots: allowRobots,
       fetchImpl: async () =>
         new Response(`<?xml version="1.0"?><rss version="2.0"><channel></channel></rss>`, {
           status: 200,
@@ -152,6 +170,7 @@ describe("editorial poller: one request per feed per tick", () => {
       feeds: ONE_FEED,
       previous: { version: 1, generatedAt: "2026-08-15T12:00:00.000Z", status: "ready", items: [] },
       state: {},
+      robots: allowRobots,
       fetchImpl: async () => {
         hits += 1;
         return new Response("no", { status: 403 });
@@ -180,6 +199,7 @@ describe("editorial poller: one request per feed per tick", () => {
         status: "ready",
         items: [previousItem],
       },
+      robots: allowRobots,
       fetchImpl: async () =>
         new Response(
           `<?xml version="1.0"?><rss version="2.0"><channel><item><title>Missing URL</title></item></channel></rss>`,
@@ -197,6 +217,7 @@ describe("editorial poller: one request per feed per tick", () => {
       previous: { version: 1, generatedAt: "2026-08-15T12:00:00.000Z", status: "ready", items: [] },
       state: { deserter: { lastFetchedAt: NOW - 60 * 60 * 1000 } },
       force: true,
+      robots: allowRobots,
       fetchImpl: async () => new Response("upstream failed", { status: 500 }),
     });
     expect(snapshot.status).toBe("degraded");
@@ -218,6 +239,7 @@ describe("editorial poller: one request per feed per tick", () => {
       now: NOW,
       feeds: [ONE_FEED[0], secondFeed],
       previous: { version: 1, generatedAt: "2026-08-15T12:00:00.000Z", status: "degraded", items: [] },
+      robots: allowRobots,
       fetchImpl: async (input) => {
         if (String(input).includes("deserter")) {
           const response = new Response("broken", { status: 200 });

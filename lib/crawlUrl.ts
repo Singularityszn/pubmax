@@ -14,6 +14,7 @@ import { isMapLensDrinkCategory } from "@/lib/drinks";
 import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import { parseZoneParam } from "@/lib/zones";
 import { clamp } from "@/lib/mathClamp";
+import { cleanOutingEventStop, type OutingEventStop } from "@/lib/outingEventStop";
 
 // Alt crawl styles (issue #31): a light "what kind of night" label that rides
 // alongside the scoring crawlStyle without touching it. It only shapes copy —
@@ -63,6 +64,10 @@ export type CrawlUrlState = {
   landmarkId?: string;
   /** Named curated crawl id (`?crawl=victorian-soho`) for map-first hydration. */
   crawlId?: string;
+  /** Optional sourced non-pub event inserted between the ordered pub stops. */
+  eventStop?: OutingEventStop | null;
+  /** Number of pub stops before eventStop; remaining pubs follow it. */
+  eventPosition?: number;
 };
 
 /** Normalize a crawl= param to a slug-ish id (defensive; never throws). */
@@ -152,6 +157,14 @@ export function encodeCrawl(state: CrawlUrlState): string {
   // Only encode an alt style when it isn't the default "pint".
   if (state.altStyle && state.altStyle !== "pint") params.set("alt", state.altStyle);
   if (state.crawlId) params.set("crawl", state.crawlId);
+  const eventStop = state.eventStop ? cleanOutingEventStop(state.eventStop) : null;
+  if (eventStop) {
+    params.set("eventStop", JSON.stringify(eventStop));
+    const position = Number.isInteger(state.eventPosition)
+      ? clamp(Number(state.eventPosition), 0, builtIds.length)
+      : 0;
+    params.set("eventPosition", String(position));
+  }
   return params.toString();
 }
 
@@ -161,7 +174,10 @@ export function encodeCrawl(state: CrawlUrlState): string {
 // `/map?mode=build&pubs=<ordered ids>` (defaults are omitted, so nothing else
 // clutters the link). Returns null for fewer than two stops — a single stop has
 // no walk to show.
-export function buildCrawlMapHref(venueIds: string[]): string | null {
+export function buildCrawlMapHref(
+  venueIds: string[],
+  options: { eventStop?: OutingEventStop | null; eventPosition?: number } = {},
+): string | null {
   const ids = venueIds.filter(Boolean);
   if (ids.length < 2) return null;
   return `/map?${encodeCrawl({
@@ -169,6 +185,7 @@ export function buildCrawlMapHref(venueIds: string[]): string | null {
     filters: initialFilters,
     builtIds: ids,
     selectedVenueId: "",
+    ...(options.eventStop ? { eventStop: options.eventStop, eventPosition: options.eventPosition } : {}),
   })}`;
 }
 
@@ -288,6 +305,21 @@ export function decodeCrawl(
     out.altStyle = alt as AltCrawlStyle;
   }
 
+  const eventRaw = params.get("eventStop");
+  if (eventRaw && eventRaw.length <= 2_000) {
+    try {
+      const eventStop = cleanOutingEventStop(JSON.parse(eventRaw));
+      const position = Number(params.get("eventPosition"));
+      const orderedPubCount = out.builtIds?.length ?? 0;
+      if (eventStop && Number.isInteger(position) && position >= 0 && position <= orderedPubCount) {
+        out.eventStop = eventStop;
+        out.eventPosition = position;
+      }
+    } catch {
+      // Invalid event handoffs are dropped; they never become a pub stop.
+    }
+  }
+
   return out;
 }
 
@@ -301,6 +333,8 @@ export function seedCrawlState(search: string): {
   altStyle: AltCrawlStyle;
   landmarkId: string;
   crawlId: string;
+  eventStop: OutingEventStop | null;
+  eventPosition: number | null;
 } {
   const decoded = decodeCrawl(new URLSearchParams(search));
   return {
@@ -312,5 +346,7 @@ export function seedCrawlState(search: string): {
     altStyle: decoded.altStyle ?? "pint",
     landmarkId: decoded.landmarkId ?? "",
     crawlId: decoded.crawlId ?? "",
+    eventStop: decoded.eventStop ?? null,
+    eventPosition: decoded.eventPosition ?? null,
   };
 }

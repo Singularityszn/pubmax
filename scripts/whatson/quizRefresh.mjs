@@ -45,6 +45,7 @@ import {
 } from "./quizParsers.mjs";
 import { loadCanonicalVenueIndex } from "./resolveVenueId.mjs";
 import { CONTACT_EMAIL } from "../../lib/siteContact.mjs";
+import { createRobotsChecker, fetchHarvestedPage } from "../../lib/harvest/robots.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT_PATH = join(ROOT, "public", "data", "whats_on", "quiz_london.json");
@@ -58,45 +59,26 @@ const MAX_ARCHIVE_PAGES = 30;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function politeFetch(url) {
-  const res = await fetch(url, { headers: { "user-agent": USER_AGENT } });
+async function politeFetch(url, robots) {
+  const result = await fetchHarvestedPage(url, robots, { headers: { "user-agent": USER_AGENT } });
+  if (!result.ok) throw new Error(`Outbound page fence refused ${url} (${result.reason})`);
+  const { response: res } = result;
   if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
   const text = await res.text();
   await sleep(FETCH_DELAY_MS);
   return text;
 }
 
-// robots.txt gate for the paths we touch: refuse to run if a Disallow rule
-// for User-agent: * covers the path (first-party or not, we stay polite).
-async function assertRobotsAllows(origin, path) {
-  let body = "";
-  try {
-    body = await politeFetch(`${origin}/robots.txt`);
-  } catch {
-    return; // no robots.txt -> allowed
-  }
-  let applies = false;
-  for (const rawLine of body.split(/\r?\n/)) {
-    const line = rawLine.replace(/#.*$/, "").trim();
-    const m = /^(user-agent|disallow)\s*:\s*(.*)$/i.exec(line);
-    if (!m) continue;
-    if (m[1].toLowerCase() === "user-agent") applies = m[2].trim() === "*";
-    else if (applies && m[2] && path.startsWith(m[2]))
-      throw new Error(`${origin}/robots.txt disallows ${path} — refusing to fetch`);
-  }
-}
-
-async function loadQuestionOne(fromDir) {
+async function loadQuestionOne(fromDir, robots) {
   const pages = [];
   if (fromDir) {
     for (const f of readdirSync(fromDir).filter((f) => /^qo_venues_p\d+\.html$/.test(f)).sort())
       pages.push(readFileSync(join(fromDir, f), "utf8"));
   } else {
-    await assertRobotsAllows("https://questionone.com", "/venues/");
     let url = QO_VENUES_URL;
     for (let i = 0; url && i < MAX_ARCHIVE_PAGES; i += 1) {
       console.log(`fetch ${url}`);
-      const html = await politeFetch(url);
+      const html = await politeFetch(url, robots);
       pages.push(html);
       url = parseQuestionOneNextPage(html);
     }
@@ -122,7 +104,7 @@ async function loadQuestionOne(fromDir) {
     } else {
       console.log(`fetch ${card.url}`);
       try {
-        detailsByUrl.set(card.url, parseQuestionOneVenueDetail(await politeFetch(card.url)));
+        detailsByUrl.set(card.url, parseQuestionOneVenueDetail(await politeFetch(card.url, robots)));
       } catch (err) {
         console.warn(`  detail fetch failed (${err.message}); card-only data used`);
       }
@@ -131,16 +113,15 @@ async function loadQuestionOne(fromDir) {
   return { cards, detailsByUrl };
 }
 
-async function loadSpeedQuizzingCoverage(fromDir) {
+async function loadSpeedQuizzingCoverage(fromDir, robots) {
   let html;
   if (fromDir) {
     const p = join(fromDir, "sq_find.html");
     if (!existsSync(p)) return { totalEvents: 0, londonEvents: 0 };
     html = readFileSync(p, "utf8");
   } else {
-    await assertRobotsAllows("https://www.speedquizzing.com", "/find/");
     console.log(`fetch ${SQ_FIND_URL}`);
-    html = await politeFetch(SQ_FIND_URL);
+    html = await politeFetch(SQ_FIND_URL, robots);
   }
   const events = parseSpeedQuizzingFindEvents(html);
   return {
@@ -154,10 +135,11 @@ async function main() {
   const fromDir = fromDirFlag >= 0 ? process.argv[fromDirFlag + 1] : null;
   const observedAt = new Date().toISOString();
 
-  const { cards, detailsByUrl } = await loadQuestionOne(fromDir);
+  const robots = createRobotsChecker();
+  const { cards, detailsByUrl } = await loadQuestionOne(fromDir, robots);
   const venueIndex = loadCanonicalVenueIndex();
   const { rows, dropped } = buildQuestionOneRows({ cards, detailsByUrl, observedAt, venueIndex });
-  const sq = await loadSpeedQuizzingCoverage(fromDir);
+  const sq = await loadSpeedQuizzingCoverage(fromDir, robots);
 
   const payload = {
     generatedAt: observedAt,

@@ -40,6 +40,7 @@ import {
   buildSportAttributeRows,
 } from "./greeneKingSportParser.mjs";
 import { CONTACT_EMAIL } from "../../lib/siteContact.mjs";
+import { createRobotsChecker, fetchHarvestedPage } from "../../lib/harvest/robots.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const RAW_DIR = join(ROOT, "data", "greene_king", "raw");
@@ -54,32 +55,14 @@ const FETCH_DELAY_MS = 1500;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function politeFetch(url) {
-  const res = await fetch(url, { headers: { "user-agent": USER_AGENT } });
+async function politeFetch(url, robots) {
+  const result = await fetchHarvestedPage(url, robots, { headers: { "user-agent": USER_AGENT } });
+  if (!result.ok) throw new Error(`Outbound page fence refused ${url} (${result.reason})`);
+  const { response: res } = result;
   if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
   const text = await res.text();
   await sleep(FETCH_DELAY_MS);
   return text;
-}
-
-// robots.txt gate for the paths we touch: refuse to run if a Disallow rule for
-// User-agent: * covers the path (first-party or not, we stay polite).
-async function assertRobotsAllows(origin, path) {
-  let body = "";
-  try {
-    body = await politeFetch(`${origin}/robots.txt`);
-  } catch {
-    return; // no robots.txt -> allowed
-  }
-  let applies = false;
-  for (const rawLine of body.split(/\r?\n/)) {
-    const line = rawLine.replace(/#.*$/, "").trim();
-    const m = /^(user-agent|disallow)\s*:\s*(.*)$/i.exec(line);
-    if (!m) continue;
-    if (m[1].toLowerCase() === "user-agent") applies = m[2].trim() === "*";
-    else if (applies && m[2] && path.startsWith(m[2]))
-      throw new Error(`${origin}/robots.txt disallows ${path} — refusing to fetch`);
-  }
 }
 
 // Load the venue identities we already hold (name+address+lat+lng+menuUrl).
@@ -91,7 +74,7 @@ function loadVenues() {
     .filter((r) => r && r.menuUrl);
 }
 
-async function resolveSportFlag(record, fromDir) {
+async function resolveSportFlag(record, fromDir, robots) {
   const url = pubPageUrlFromMenuUrl(record.menuUrl);
   const slug = url.split("/").filter(Boolean).pop() ?? "";
   let html = "";
@@ -102,7 +85,7 @@ async function resolveSportFlag(record, fromDir) {
   } else {
     console.log(`fetch ${url}`);
     try {
-      html = await politeFetch(url);
+      html = await politeFetch(url, robots);
     } catch (err) {
       console.warn(`  fetch failed (${err.message}); flag undetermined`);
       return null;
@@ -116,12 +99,12 @@ async function main() {
   const fromDir = fromDirFlag >= 0 ? process.argv[fromDirFlag + 1] : null;
   const observedAt = new Date().toISOString();
 
-  if (!fromDir) await assertRobotsAllows(ORIGIN, "/pubs/");
+  const robots = createRobotsChecker();
 
   const records = loadVenues();
   const venues = [];
   for (const record of records) {
-    const showsSport = await resolveSportFlag(record, fromDir);
+    const showsSport = await resolveSportFlag(record, fromDir, robots);
     venues.push({ record, showsSport });
   }
 

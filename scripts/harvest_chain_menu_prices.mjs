@@ -33,7 +33,7 @@ import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
-import { createRobotsChecker } from "../lib/harvest/robots.ts";
+import { createRobotsChecker, fetchHarvestedPage } from "../lib/harvest/robots.ts";
 import {
   harvestSourcesOfKind,
   isHarvestSourceAllowed,
@@ -81,15 +81,16 @@ async function readChainPintPricesMaybeJudged(html, ctx) {
   return reading;
 }
 
-async function fetchText(url) {
+async function fetchText(url, robots) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
+    const result = await fetchHarvestedPage(url, robots, {
       headers: { accept: "text/html,application/xhtml+xml", "user-agent": USER_AGENT },
       signal: controller.signal,
-      redirect: "follow",
     });
+    if (!result.ok) return { ok: false, status: result.response?.status ?? 0, body: "", error: result.reason };
+    const { response } = result;
     if (!response.ok) return { ok: false, status: response.status, body: "" };
     return { ok: true, status: response.status, body: await response.text() };
   } catch (error) {
@@ -100,10 +101,10 @@ async function fetchText(url) {
 }
 
 /** Menu page URLs a source publishes about itself, from its own sitemap. */
-async function menuPagesFor(source, spend) {
+async function menuPagesFor(source, spend, robots) {
   if (!source.url.endsWith(".xml")) return [source.url];
   if (!spend()) return [];
-  const sitemap = await fetchText(source.url);
+  const sitemap = await fetchText(source.url, robots);
   if (!sitemap.ok) return [];
   return [...sitemap.body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1].trim());
 }
@@ -147,7 +148,7 @@ async function main() {
 
   for (const source of allowed) {
     const delayMs = (source.crawlDelaySeconds ?? 1) * 1000;
-    const pages = await menuPagesFor(source, spend);
+    const pages = await menuPagesFor(source, spend, robots);
     for (const url of pages) {
       if (!spend()) {
         skipped.push({ id: source.id, reason: "budget-exhausted", checkedOn: source.access.checkedOn, evidence: `page budget of ${PAGE_BUDGET} spent` });
@@ -160,7 +161,7 @@ async function main() {
         break;
       }
       await sleep(delayMs);
-      const page = await fetchText(url);
+      const page = await fetchText(url, robots);
       const city = cityOfUrl(url);
       const row = coverage.get(city) ?? { city, pagesRead: 0, venuesPriced: 0, pagesWithNoPrice: 0 };
       if (!page.ok) {
