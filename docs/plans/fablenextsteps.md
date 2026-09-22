@@ -1,5 +1,7 @@
 # PUBMAXX Fable Next Steps
 
+> **Historical snapshot:** This document records state on 24 August 2026. It is not the current handoff. Use [`PRD_CANONICAL.md`](../PRD_CANONICAL.md) for product context, [`DEPLOYMENT.md`](../DEPLOYMENT.md) for deployment instructions, and [`STORE_READINESS.md`](../STORE_READINESS.md) for native release status.
+
 > **For agentic workers:** Read `AGENTS.md`, every repository `CONTEXT.md`, `docs/VOICE.md`, and this document before work. Use test-driven development for each defect or feature. Use no more than two concurrent agents on the 8 GB development Mac.
 
 **Goal:** Preserve the PUBMAXX work completed through 24 August 2026 and define one MECE path from the live London MVP to a trusted, repeatable group-night product.
@@ -8,7 +10,7 @@
 
 **Tech stack:** Next.js 16 App Router, React 19, TypeScript, MapLibre, Supabase, Vercel, PostHog, Vitest, Playwright, Capacitor, OpenRouter, and existing provider adapters.
 
-**Spec:** This file is the current handoff and next-steps specification. It supersedes stale deployment facts and stale launch decisions in `docs/plans/cursorplan.md` and `docs/RELEASE_LEDGER_2026-08-23.md`. Those files remain historical evidence.
+**Scope:** This plan captures the product and deployment state recorded on 24 August 2026. Use the current documents linked above for present status.
 
 ## Global constraints
 

@@ -9,17 +9,17 @@ changes made, and verification evidence.
 - GitHub inventory at review time: **394 closed PRs** — **358 merged**, **36 closed
   without merge**. The closed-without-merge set ends at #264; it is historical or
   superseded work and contributes no diff to current `main`.
-- Prior corpus reviews remain in
-  [`REVIEW_STANDARDS_AXIS_2026-07-18.md`](./REVIEW_STANDARDS_AXIS_2026-07-18.md),
-  [`REVIEW_SPEC_AXIS_2026-07-18.md`](./REVIEW_SPEC_AXIS_2026-07-18.md), and the
-  `DEEP_REVIEW_*` / `FINDINGS_CONFIDENCE_*` chain. This pass inventories the full
-  closed set and deeply re-reviews the six PRs closed on 22 July: **#489–#494**.
+- The prior Standards and Spec corpus reviews are archived in
+  [`docs/archive/reviews/REVIEW_STANDARDS_AXIS_2026-07-18.md`](archive/reviews/REVIEW_STANDARDS_AXIS_2026-07-18.md)
+  and [`docs/archive/reviews/REVIEW_SPEC_AXIS_2026-07-18.md`](archive/reviews/REVIEW_SPEC_AXIS_2026-07-18.md).
+  The related deep-review and confidence notes were removed as completed material
+  in #1762. This pass inventories the full closed set and deeply re-reviews the
+  six PRs closed on 22 July: **#489–#494**.
 - Fixed point: `a3e37b40163227abb8c90edbd3086ba5db05972d`.
 - Diff: `git diff a3e37b40163227abb8c90edbd3086ba5db05972d...HEAD`.
 - Spec sources: the complete bodies of #489–#494 and
-  [`SOL_SYNC_2026-07-22.md`](./SOL_SYNC_2026-07-22.md). The repository does not
-  contain `docs/agents/issue-tracker.md`, so GitHub PR bodies/comments were read
-  directly with the authenticated GitHub CLI.
+  [`SOL_SYNC_2026-07-22.md`](./SOL_SYNC_2026-07-22.md). GitHub PR bodies and
+  comments were read directly with the authenticated GitHub CLI.
 
 | PR | Standards | Spec | Action in this pass |
 |---|---|---|---|

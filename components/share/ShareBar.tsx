@@ -9,8 +9,8 @@ import { whatsappShareHref } from "@/lib/shareArtifacts";
 
 import "./share.css";
 
-// A reusable share row — a little pressed-brass stamp strip that sits under a
-// pint memory card or a crawl poster (cc_plan2 §11). Every pint and crawl gets
+// A reusable share row - a little pressed-brass stamp strip that sits under a
+// pint memory card or a crawl poster. Every pint and crawl gets
 // to spread across X, WhatsApp, and any group chat, so the story travels.
 //
 // Design: quiet until hovered, small 44px brass icon buttons, part of the

@@ -170,7 +170,7 @@ Deep reviews (#321 app, #322 data) found: P1 prompt stacking (identity+push on o
 **Remediation lanes (Opus 4.8, launch now):**
 1. `fix/prompt-orchestration` — adopt promptBudget in tour/#296-pattern, identity (#312), push (#299) surfaces; make identity-before-push real (wire isIdentityNudgePending at the PlanCrew anchor exactly as #321's fix specifies). Built on main as a standalone PR that supersedes the #299×#312 conflict resolution.
 2. `data/319-rebase` — rebase #319 onto #315+#320 merged base, re-run repair + build:slim, force-push its branch (branch update, not a merge).
-3. `docs/316-amendments` — fold both reviews' merge-order amendments into docs/MERGE_ORDER (data chain: #308→#315→#320→#319→#317 last; app: prompt-fix supersedes #299×#312 resolution; ShareBar rebase-by-intent note; pwa_* platform prop note).
+3. `docs/316-amendments` - completed historical lane; its execution plan was removed as completed in #1762. Current native release status is in `docs/STORE_READINESS.md`.
 
 **Next-bet queue (post-merge / owner-gated, unchanged):** drops-first growth loop (harvest log as target list), analytics wiring, preview verification, buzz (EXA), bill-splitting decision, Firecrawl credits, Apple/press timing.
 

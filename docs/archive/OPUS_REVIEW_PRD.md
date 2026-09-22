@@ -1,6 +1,6 @@
 # PubMaxxing PRD for Opus Review
 
-> **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md
+> **Superseded.** For current product context, see [PRD_CANONICAL.md](../PRD_CANONICAL.md) and [teach.md](../teach.md).
 
 ## Problem Statement
 

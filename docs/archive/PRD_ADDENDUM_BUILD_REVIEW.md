@@ -1,6 +1,6 @@
 # PubMaxxing — Build Review & Defect Triage (Addendum for Fable)
 
-> **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md. Historical context; current state also lives in docs/teach.md.
+> **Superseded.** For current product context, see [PRD_CANONICAL.md](../PRD_CANONICAL.md) and [teach.md](../teach.md).
 
 > Companion to `PRD_FINAL_FOR_FABLE.md`. That doc is the *vision + roadmap*. This doc is the *verified state of the build* and the *ranked pain-point list* as of the handoff. Where the two disagree, this one is newer.
 >
