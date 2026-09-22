@@ -1,6 +1,31 @@
-# FABLE SESSION HANDOFF (2026-07-18 morning, updated continuously)
+# Fable session handoff from 2026-07-18 morning, with entries through 2026-07-23
 
-Read this first after any model/effort switch or compaction. This is the live state; history lives in docs/prd/fable-implement-prd.md (cycles 1-14) and docs/CYCLE15_PRD.md + docs/PERSONA_DRINKS_AND_DESKTOP_PRD.md. THE CURRENT PROGRAMME IS docs/UNIVERSAL_DAY0_PRD.md (cycle 17, launch week): Sol and every new lane read that file first.
+This handoff records session state through 2026-07-23. It does not describe the
+current `main` branch. The correction below supersedes the push identity and
+migration claims in the final 2026-07-23 close-out entry. Earlier entries remain
+historical.
+
+## Current main correction (2026-09-22): push identity
+
+PR #459 merged into `codex/wave1-web-push`, the feature branch for PR #457. It
+did not merge into current `main`. The final 2026-07-23 close-out below
+incorrectly said that the identity join had landed on main.
+
+Current main contains migration
+`20260723121000_0052_web_push_subscriptions.sql` for web transport in the
+identity-free `public.push_tokens` registry. Migration
+`20260724120000_0053_grounded_one_stop_plan.sql` owns number 0053 and is
+unrelated to push identity. The #459 identity migration is absent from main.
+Do not apply the #459 identity migration from this handoff.
+
+Push tokens on main still carry no account or Plan identity. The daily brief
+targets web subscriptions only. Plan and person targeting remain disabled.
+`notifyPlanUpdate()` sends to no targets. Use the current migration tree as the
+source for any migration apply list.
+
+The historical handoff pointed to `docs/UNIVERSAL_DAY0_PRD.md` as its cycle-17
+programme. Earlier cycle history lives in `docs/prd/fable-implement-prd.md`,
+`docs/CYCLE15_PRD.md`, and `docs/PERSONA_DRINKS_AND_DESKTOP_PRD.md`.
 
 ## Who and how
 
@@ -205,12 +230,14 @@ Owner queue: unchanged (migrations 0038-0049, CRON_SECRET, ORS_API_KEY, #473 rul
   - LIMIT: the extension renders a fixed 1440px virtual viewport; resize cannot reach the mobile breakpoint, chrome-devtools MCP needs Chrome relaunched with a debug port. Mobile renderings (#552 sheets, #546 pill, #547 planner, F6 layers row) stay DEPLOYED-UNVERIFIED; owner's phone is the test.
 - Day so far: #552, #553, #554, #555, #556 merged; zero worktrees left; owner queue unchanged.
 
-## 2026-07-23 merge-everything close-out (Sol stack + backlog landed)
+## 2026-07-23 merge-everything close-out (Sol stack + backlog)
 
-- Owner order executed: everything green is merged. Landed this pass: #557 Today personalization foundations (full Fable review: MERGE-ON-GREEN, pure resolver, no collisions), #463 Sol execution handoff (stale pre-#444 icon art stripped in resolution: owner identity won, docs landed), #473 CAP floor line (rewoven into the shipped landing footer + new ProfilePageClient profileFloor after both refactors overtook the branch), #457 VAPID web push, #459 push identity join, #462 grounded intake constraints, #456 replay-safe loop analytics, #558 personalization deployment evidence docs.
+- Historical merge record: the 2026-07-23 close-out listed #557 Today personalization foundations, #463 Sol execution handoff, #473 CAP floor line, #457 VAPID web push, #462 grounded intake constraints, #456 replay-safe loop analytics, and #558 personalization deployment evidence docs as landed.
+- The close-out also reported #459 as landed. GitHub shows it merged into `codex/wave1-web-push`, PR #457's feature branch, not current main.
 - #456 needed real integration: #462's grounded-alternatives rewrite landed under its plan-signing work. Resolution kept #462's evidence-rich skeleton and re-layered signing: preflight before limiter spend, operationKey threaded through parsePlanGenerationRequest (REQUEST_KEYS + typed field, no double body read), groundingCandidateIds from the emitted stops+alternatives, response carries grounded/groundingProof/operationKey. Full suite 5237 green pre-merge.
-- OWNER APPLY LIST GREW: migrations now end at 0051_analytics_event_receipts (#456), 0052_web_push_subscriptions (#457), 0053_push_identity_join (#459). The owner apply list is derived, not hand-typed, so it cannot go stale. Run `node scripts/qa/migration-apply-list.mjs` for the full order, or `node scripts/qa/migration-apply-list.mjs --against <file>` for only the unapplied migrations, where `<file>` holds one applied version per line, as `supabase migration list` prints. Fail-closed stores still hard-error on prod until applied.
-- Product behavior note for the owner: #459's signOut refuses to clear the session while the push unlink fails (offline device stays signed in with an honest retry error). Correct privacy ordering; flagging the offline-signout limitation.
+- Superseded apply-list entry: the previous handoff named `0053_push_identity_join`. That migration is absent from main. Current main has `0051_analytics_event_receipts`, `0052_web_push_subscriptions`, and `0053_grounded_one_stop_plan`.
+- Derive the apply list from the migration tree with `node scripts/qa/migration-apply-list.mjs`. Add `--against <file>` to list only migrations absent from a file of applied versions.
+- Historical #459 behavior note: its feature branch made `signOut` retain the session when push unlink failed. That behavior is absent from current main.
 - NOT merged, deliberate: 13 Cursor drafts (drafts; several NEEDS-CHANGES per verdicts), #229 MapLibre 6 (explicit HOLD).
 - Open ticket from live verification: desktop area-search parity (gazetteer suggest is mobile-shell-only by construction).
 
