@@ -61,7 +61,7 @@ import { Readable, Transform, pipeline } from "node:stream";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 
 import { discardBody } from "../responseBody.ts";
-import { MAX_PDF_BYTES } from "./pdfText.ts";
+import { MAX_PDF_BYTES as MAX_TEXT_PDF_BYTES } from "./pdfText.ts";
 import {
   harvestRedirectLanding,
   isHarvestablePageUrl,
@@ -76,6 +76,8 @@ const MAX_ROBOTS_BYTES = 512 * 1024;
 const ROBOTS_TIMEOUT_MS = 15_000;
 /** The pause before a host that could not be reached at all is asked once more. */
 const ROBOTS_RETRY_DELAY_MS = 750;
+/** Largest PDF any current harvest lane accepts, including the bounded OCR lane. */
+const MAX_HARVEST_PDF_BYTES = 64 * 1024 * 1024;
 
 export type RobotsRules = {
   /** Disallowed path prefixes, per lower-cased user-agent token. */
@@ -375,7 +377,11 @@ export function createPinnedHarvestLookup(pinnedAddress: LookupAddress): LookupF
 export async function fetchHarvestResponse(
   input: string | URL,
   init: RequestInit = {},
-  options: { urlPolicy?: HarvestUrlPolicy; lookupImpl?: typeof dnsLookup } = {},
+  options: {
+    urlPolicy?: HarvestUrlPolicy;
+    lookupImpl?: typeof dnsLookup;
+    maxPdfBytes?: number;
+  } = {},
 ): Promise<Response> {
   const url = input instanceof URL ? input : new URL(input);
   const urlPolicy = options.urlPolicy ?? "operator";
@@ -385,6 +391,10 @@ export async function fetchHarvestResponse(
 
   const method = (init.method ?? "GET").toUpperCase();
   if (method !== "GET" && method !== "HEAD") throw new TypeError("Harvest transport only accepts GET/HEAD requests.");
+  const maxPdfBytes = options.maxPdfBytes ?? MAX_TEXT_PDF_BYTES;
+  if (!Number.isSafeInteger(maxPdfBytes) || maxPdfBytes < 1 || maxPdfBytes > MAX_HARVEST_PDF_BYTES) {
+    throw new RangeError(`Harvest PDF byte ceiling must be between 1 and ${MAX_HARVEST_PDF_BYTES}.`);
+  }
   const pinnedAddress = await resolvePublicHarvestAddress(url.hostname, options.lookupImpl);
   const request = url.protocol === "https:" ? httpsRequest : httpRequest;
   const headers = new Headers(init.headers);
@@ -424,7 +434,7 @@ export async function fetchHarvestResponse(
       } else {
         // Count decoded bytes before any caller can allocate text or a PDF buffer.
         const maxBytes = /pdf/i.test(responseHeaders.get("content-type") ?? "") || url.pathname.toLowerCase().endsWith(".pdf")
-          ? MAX_PDF_BYTES : 4 * 1024 * 1024;
+          ? maxPdfBytes : 4 * 1024 * 1024;
         let bytes = 0;
         const bounded = new Transform({
           transform(chunk: Buffer, _encoding, callback) {
