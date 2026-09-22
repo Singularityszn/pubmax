@@ -97,18 +97,6 @@ export function areaNewsExtractPrompt(year = new Date().getUTCFullYear()) {
 
 export const AREA_NEWS_EXTRACT_PROMPT = areaNewsExtractPrompt();
 
-export function createAreaNewsRobotsChecker(fetchImpl = fetch) {
-  return createRobotsChecker({
-    fetchImpl: async (url, options) => {
-      const response = await fetchImpl(url, { ...options, redirect: "error" });
-      if (response.redirected || (response.url && response.url !== String(url))) {
-        throw new Error("Area news robots redirect refused.");
-      }
-      return response;
-    },
-  });
-}
-
 function apiUrl(apiBase, path, key) {
   const base = apiBase.replace(/\/$/, "");
   return `${base}${key ? path : `${path}/public`}`;
@@ -190,7 +178,7 @@ export async function fetchKeenable(
     maxChars = 6000,
     prompt = areaNewsExtractPrompt(),
     signal,
-    checkRobots = createAreaNewsRobotsChecker(fetchImpl),
+    checkRobots = createRobotsChecker(),
   } = {},
 ) {
   let parsedUrl;
