@@ -13,7 +13,7 @@ Reference comps: no Figma MCP or Mobbin session in this harness; direction follo
 | 1 | `/plan` describe-first column capped at 920px with a single stack, leaving wide dead gutters at 1440/1920 | `/plan` | Widen composer to `--content-max-wide`; two-column head + field from 1024px |
 | 2 | `/social` signed-out keeps a third grid column for Activity even when `SocialContextRail` is absent | `/social` | `:not(:has(.socialContextRail))` two-column grid on desktop |
 | 3 | Landing "What it saves you" reads as a narrow prose stack with empty paper beside it at 1920 | `/` | Two-column `lpWorth` grid from 1024px |
-| 4 | Pint Drops rail stays a horizontal scroll on desktop though width allows a grid | `/` | Three-up `dropStripRail` grid from 1024px |
+| 4 | Pint Drops rail stays a horizontal scroll on desktop though width allows a wrapped row | `/` | Three-up `dropStripRail` flex wrap from 1024px |
 | 5 | Landing hero block not centred to `--content-max-wide` on very wide viewports | `/`, 1920 | `lpHero` width + auto margins from 1280px |
 | 6 | Feed card lift/hover ran on coarse pointers (touch laptops) | `/feed` | Gate hover motion to `(hover: hover) and (pointer: fine)` + token durations |
 | 7 | Map toolbar conditions chip had no hover acknowledgement | `/map` | Token hover on `.conditionsChip` (no transition: drawer rail timing) |
