@@ -76,6 +76,41 @@ describe("Then-vs-Now observation card", () => {
     const html = renderToStaticMarkup(createElement(ThenVsNowCard, { item }));
     expect(html).toContain("+£1.00 (25%)");
     expect(html).toContain("tvnDelta-up");
+    expect(html).toContain("Earlier observation");
+  });
+
+  it.each([
+    ["newer", "2026-09-22T12:00:00.000Z"],
+    ["undated", undefined],
+  ])("uses a neutral dataset label when the baseline is %s", (_case, observedAt) => {
+    const [item] = computeThenVsNow(
+      [
+        {
+          id: "a",
+          name: "A",
+          cheapestPrice: 4,
+          cheapestPint: "Lager",
+          measure: "pint",
+          observedAt,
+          priceCondition: "regular",
+        },
+      ],
+      [
+        {
+          id: "drop-123",
+          venueId: "a",
+          priceGbp: 5,
+          drink: "lager",
+          measure: "pint",
+          priceCondition: "regular",
+          createdAt: "2026-09-21T18:00:00.000Z",
+        },
+      ],
+    );
+
+    const html = renderToStaticMarkup(createElement(ThenVsNowCard, { item }));
+    expect(html).toContain("Dataset observation");
+    expect(html).not.toContain("Earlier observation");
   });
 
   it("does not render an unsafe baseline source URL", () => {

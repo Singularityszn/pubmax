@@ -32,6 +32,19 @@ function observationDate(value: string | null): string {
     : "Date not recorded";
 }
 
+function datasetObservationLabel(
+  thenObservedAt: string | null,
+  nowObservedAt: string | null,
+): string {
+  const thenTime = Date.parse(thenObservedAt ?? "");
+  const nowTime = Date.parse(nowObservedAt ?? "");
+  return Number.isFinite(thenTime) &&
+    Number.isFinite(nowTime) &&
+    thenTime < nowTime
+    ? "Earlier observation"
+    : "Dataset observation";
+}
+
 function observationServing(
   measure: ThenVsNowItem["thenMeasure"],
   label: string,
@@ -78,7 +91,9 @@ export default function ThenVsNowCard({ item }: ThenVsNowCardProps) {
 
       <div className="tvnCompareRow">
         <div className="tvnPriceGroup">
-          <span className="tvnPriceLabel">Earlier observation</span>
+          <span className="tvnPriceLabel">
+            {datasetObservationLabel(item.thenObservedAt, item.nowObservedAt)}
+          </span>
           <span className="tvnObservationDrink">
             {item.thenDrink || "Drink not recorded"}
           </span>
