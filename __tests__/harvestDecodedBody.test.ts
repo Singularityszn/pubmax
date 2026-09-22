@@ -39,6 +39,15 @@ it("preserves PDFs larger than the HTML ceiling", async () => {
   serve(gzipSync(Buffer.alloc(limit + 1, 65)), "gzip", "application/pdf");
   expect((await (await fetchHarvestResponse(url)).arrayBuffer()).byteLength).toBe(limit + 1);
 });
+it("honours a caller-specific bounded PDF ceiling", async () => {
+  serve(Buffer.alloc(5, 65), undefined, "application/pdf");
+  await expect((await fetchHarvestResponse(url, {}, { maxPdfBytes: 4 })).arrayBuffer()).rejects.toThrow(/decoded body exceeds 4 bytes/);
+});
+it("refuses a PDF ceiling above the OCR lane's 64 MB bound before dialing", async () => {
+  network.request.mockClear();
+  await expect(fetchHarvestResponse(url, {}, { maxPdfBytes: 64 * 1024 * 1024 + 1 })).rejects.toThrow(/between 1 and 67108864/);
+  expect(network.request).not.toHaveBeenCalled();
+});
 it.each([["crawl", fetchText], ["backfill", fetchBody]] as const)("%s fails closed without partial prices", async (_name, read) => {
   serve(gzipSync(Buffer.alloc(limit + 1, 65)), "gzip");
   const result = await read(url, robots);

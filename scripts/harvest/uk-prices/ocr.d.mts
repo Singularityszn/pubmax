@@ -1,8 +1,26 @@
 import type { DrinkCategory } from "@/lib/drinks";
+import type { RobotsChecker } from "@/lib/harvest/robots";
 import type { UkPriceReading } from "@/lib/harvest/ukPriceCrawl";
 
 /** Every reason a document the OCR lane opened produced no price. */
 export const OCR_DOCUMENT_OUTCOMES: readonly string[];
+
+export type OcrFetchedPage = {
+  ok: boolean;
+  status: number;
+  body: string;
+  finalUrl: string;
+  pdf?: boolean;
+  bytes?: Uint8Array;
+  error?: string;
+};
+
+/** Read one OCR discovery or document URL through source, robots and redirect guards. */
+export function fetchOcrPage(
+  url: string,
+  robots: RobotsChecker,
+  fetchImpl?: typeof fetch,
+): Promise<OcrFetchedPage>;
 
 /** One host the crawl recorded an unreadable PDF for, off the ledger's own evidence. */
 export type UnreadablePdfHost = {

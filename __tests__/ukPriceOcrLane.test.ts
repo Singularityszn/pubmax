@@ -7,14 +7,19 @@
 // drift: which hosts the lane is allowed to visit, and what a reading is allowed
 // to become.
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { readVenueDrinkPrices } from "@/lib/harvest/ukPriceCrawl";
 import {
   OCR_DOCUMENT_OUTCOMES,
+  fetchOcrPage,
   hostsWithUnreadablePdfs,
   rowsFromReadings,
 } from "../scripts/harvest/uk-prices/ocr.mjs";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 /** One host's ledger entry, in the shape the crawler writes it. */
 const entryWith = (evidence: string) => ({
@@ -70,6 +75,98 @@ const estate = {
 };
 
 describe("which hosts the OCR lane may visit", () => {
+  it("asks the sitemap origin before making its request", async () => {
+    const robots = vi.fn(async () => ({
+      allowed: false,
+      reason: "robots-disallowed",
+      evidence: "fixture denies sitemap host",
+    } as const));
+    const fetchImpl = vi.fn(async () => new Response("<urlset />"));
+    vi.stubGlobal("fetch", fetchImpl);
+
+    const result = await fetchOcrPage("https://sitemaps.operator.example/menu.xml", robots, fetchImpl);
+
+    expect(result.ok).toBe(false);
+    expect(robots).toHaveBeenCalledWith("https://sitemaps.operator.example/menu.xml");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("asks a menu subdomain's own robots rules", async () => {
+    const robots = vi.fn(async (url: string) => ({
+      allowed: new URL(url).hostname !== "menus.operator.example",
+      reason: "robots-disallowed",
+      evidence: "fixture denies menu subdomain",
+    } as const));
+    const fetchImpl = vi.fn(async () => new Response("pdf", {
+      headers: { "content-type": "application/pdf" },
+    }));
+    vi.stubGlobal("fetch", fetchImpl);
+
+    const result = await fetchOcrPage("https://menus.operator.example/drinks.pdf", robots, fetchImpl);
+
+    expect(result.ok).toBe(false);
+    expect(robots).toHaveBeenCalledWith("https://menus.operator.example/drinks.pdf");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("checks a redirect landing before requesting its bytes", async () => {
+    const events: string[] = [];
+    const robots = vi.fn(async (url: string) => {
+      events.push(`robots:${new URL(url).hostname}`);
+      return {
+        allowed: new URL(url).hostname !== "files.operator.example",
+        reason: "robots-disallowed",
+        evidence: "fixture denies redirected host",
+      } as const;
+    });
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const href = String(url);
+      events.push(`fetch:${new URL(href).hostname}`);
+      expect(init?.redirect).toBe("manual");
+      return new Response(null, {
+        status: 302,
+        headers: { location: "https://files.operator.example/drinks.pdf" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchImpl);
+
+    const result = await fetchOcrPage("https://www.operator.example/menu", robots, fetchImpl as typeof fetch);
+
+    expect(result.ok).toBe(false);
+    expect(events).toEqual([
+      "robots:www.operator.example",
+      "fetch:www.operator.example",
+      "robots:files.operator.example",
+    ]);
+  });
+
+  it("carries a permitted redirect landing into document provenance", async () => {
+    const robots = vi.fn(async () => ({
+      allowed: true,
+      reason: "allowed",
+      evidence: "fixture permits both hosts",
+    } as const));
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+      const href = String(url);
+      if (new URL(href).hostname === "www.operator.example") {
+        return new Response(null, {
+          status: 302,
+          headers: { location: "https://files.operator.example/drinks.pdf" },
+        });
+      }
+      return new Response("pdf", { headers: { "content-type": "application/pdf" } });
+    });
+
+    const result = await fetchOcrPage("https://www.operator.example/menu", robots, fetchImpl as typeof fetch);
+
+    expect(result).toMatchObject({
+      ok: true,
+      pdf: true,
+      finalUrl: "https://files.operator.example/drinks.pdf",
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it("takes the hosts the crawl's own evidence records an unreadable PDF for", () => {
     const targets = hostsWithUnreadablePdfs({
       hosts: {
