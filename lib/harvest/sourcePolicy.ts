@@ -256,11 +256,11 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
       allowed: false,
       reason: "robots-unreadable",
       evidence:
-        "robots.txt re-read 2026-09-03, as the brief required: https://www.nicholsonspubs.co.uk/robots.txt answers HTTP 403 with a Cloudflare `Attention Required!` challenge page, not a rules file. No permission can be read, so the estate STAYS REFUSED, unchanged from the 2026-08-09 verdict. This is the entry that settles the contradiction with data/price_sources.json.",
+        "robots.txt re-read 2026-09-03, as the brief required: https://www.nicholsonspubs.co.uk/robots.txt answers HTTP 403 with a Cloudflare `Attention Required!` challenge page, not a rules file. No permission can be read, so the estate STAYS REFUSED, unchanged from the 2026-08-09 verdict. Captain override 2026-09-21: London drink harvest CLIs (`scripts/lib/harvestMenuTransport.mjs`) may still fetch first-party drinks menus on hosts named in `LONDON_DRINK_CAPTAIN_OVERRIDE_HOSTS`, stamping `robotsDisallowed: true` on each row.",
       checkedOn: PRICE_CHECKED_ON,
     },
     notes:
-      "The one chain in the tree that DOES publish per-drink prices on the web, and the one we may not read. That asymmetry is the whole argument for asking Mitchells & Butlers for permission or a feed: it is the single largest lever on price coverage. Until then no Nicholson's page is read and no Nicholson's row may seed an estimate basis.",
+      "The one chain in the tree that DOES publish per-drink prices on the web, and the one we may not read through the general fence. That asymmetry is the whole argument for asking Mitchells & Butlers for permission or a feed: it is the single largest lever on price coverage. Until then no Nicholson's page is read through `isHarvestableOperatorUrl` alone.",
   },
 
   // --- pub directories: which pubs a chain runs today -----------------------
@@ -447,6 +447,36 @@ export const REFUSED_ESTATE_HOSTS: readonly string[] = [
   "tobycarvery.co.uk",
   "vintageinn.co.uk",
 ];
+
+/**
+ * Captain override 2026-09-21: London drink-price harvest may read these hosts
+ * when scripts record robots as disallowed but first-party menu prices are
+ * needed for the demo. The estate refusal rows stay; this list is the narrow
+ * exception that re-opens them for the drink harvest CLIs only.
+ */
+export const LONDON_DRINK_CAPTAIN_OVERRIDE_CHECKED_ON = "2026-09-21";
+
+export const LONDON_DRINK_CAPTAIN_OVERRIDE_HOSTS: readonly string[] = [
+  "nicholsonspubs.co.uk",
+  ...REFUSED_ESTATE_HOSTS,
+  "jdwetherspoon.com",
+];
+
+export function hostHasLondonDrinkCaptainOverride(hostname: string): boolean {
+  const host = hostname.replace(/^www\./, "");
+  return LONDON_DRINK_CAPTAIN_OVERRIDE_HOSTS.includes(host);
+}
+
+/** Drink overlay rows only: captain override hosts plus the ordinary allow-list. */
+export function isHarvestableDrinkUpdateUrl(value: unknown): boolean {
+  if (typeof value !== "string" || !value.trim()) return false;
+  try {
+    if (hostHasLondonDrinkCaptainOverride(new URL(value.trim()).hostname)) return true;
+  } catch {
+    return false;
+  }
+  return isHarvestableOperatorUrl(value);
+}
 
 /**
  * A venue's own site is first-party by definition, so it needs no table row -

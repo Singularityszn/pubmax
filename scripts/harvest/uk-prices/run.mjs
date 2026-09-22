@@ -7,6 +7,8 @@
 //   npm run harvest:uk-prices -- --pages 4000      # global page ceiling
 //   npm run harvest:uk-prices -- --reset           # forget the ledger and start over
 //   npm run harvest:uk-prices -- --only greeneking.co.uk
+//   npm run harvest:uk-prices -- --london                      # Greater London pubs only
+//   npm run harvest:uk-prices -- --menu-enrichment none      # skip venue_menu_enrichment seeds
 //   npm run harvest:uk-prices -- --recheck robots-unreadable   # ask one finding again
 //   npm run harvest:uk-prices -- --judged                      # require TYPESAFE_API_KEY
 //
@@ -78,6 +80,8 @@ import {
   sitemapLocations,
 } from "../../../lib/harvest/ukPriceCrawl.ts";
 import { readVenueDrinkPricesForHarvest, typesafeKeyConfigured } from "./readPrices.mjs";
+import { inGreaterLondon } from "../../fetch_uk_osm_venues.mjs";
+import { applyMenuEnrichmentSeeds, venueCoordsFromSlim } from "./londonScope.mjs";
 
 const ROOT = process.cwd();
 const OSM_PUBS = path.join(ROOT, "data/osm/uk/uk_osm_pubs.json");
@@ -86,6 +90,7 @@ const LEDGER_PATH = path.join(OUT_DIR, "hosts.json");
 const ROWS_PATH = path.join(OUT_DIR, "rows.jsonl");
 const REVIEW_PATH = path.join(OUT_DIR, "judgment_review.jsonl");
 const REPORT_PATH = path.join(ROOT, "data/uk_prices/harvest_report.json");
+const PUBLISHED_ROWS = path.join(ROOT, "data/uk_prices/site_harvest.jsonl");
 
 const USER_AGENT = "PUBMAXXHarvest/1.0 (+https://pubmaxxing.com; hello@pubmaxxing.com)";
 const PAGE_TIMEOUT_MS = 25_000;
@@ -130,6 +135,8 @@ const HOST_LIMIT = Number(option("--hosts", Number.POSITIVE_INFINITY));
 const PAGE_BUDGET = Number(option("--pages", DEFAULT_PAGE_BUDGET));
 const CONCURRENCY = Math.max(1, Number(option("--concurrency", DEFAULT_CONCURRENCY)));
 const ONLY = option("--only", null);
+const LONDON_ONLY = flag("--london");
+const MENU_ENRICHMENT_INPUT = option("--menu-enrichment", "public/data/venue_menu_enrichment.json");
 /**
  * Ask a set of hosts AGAIN, naming the outcome they were recorded under.
  *
@@ -229,14 +236,19 @@ async function fetchText(url) {
 }
 
 /** The pubs the committed snapshot states a website for, grouped by host. */
-function candidateHosts() {
+function candidateHosts({ londonOnly = false } = {}) {
   const snapshot = JSON.parse(readFileSync(OSM_PUBS, "utf8"));
   const pubs = Array.isArray(snapshot) ? snapshot : (snapshot.pubs ?? []);
   const byHost = new Map();
   let statedWebsite = 0;
   let refusedByPolicy = 0;
+  let outsideLondon = 0;
 
   for (const pub of pubs) {
+    if (londonOnly && !inGreaterLondon(pub)) {
+      outsideLondon += 1;
+      continue;
+    }
     const website = pub.website;
     if (typeof website !== "string" || website.trim().length === 0) continue;
     statedWebsite += 1;
@@ -273,7 +285,13 @@ function candidateHosts() {
     byHost.set(host, entry);
   }
 
-  return { hosts: [...byHost.values()], statedWebsite, refusedByPolicy, totalPubs: pubs.length };
+  return {
+    hosts: [...byHost.values()],
+    statedWebsite,
+    refusedByPolicy,
+    outsideLondon,
+    totalPubs: pubs.length,
+  };
 }
 
 function loadLedger() {
@@ -531,16 +549,35 @@ async function main() {
     return;
   }
 
-  const { hosts, statedWebsite, refusedByPolicy, totalPubs } = candidateHosts();
+  const { hosts, statedWebsite, refusedByPolicy, outsideLondon, totalPubs } = candidateHosts({
+    londonOnly: LONDON_ONLY,
+  });
   const ledger = loadLedger();
   const policySources = harvestSourcesOfKind("chain-menu-prices");
   const refusedSources = policySources.filter((source) => !isHarvestSourceAllowed(source));
 
   // The allowed chain sources join the same queue: one crawler, one rule.
-  for (const source of allowedHarvestSources("chain-menu-prices")) {
-    const host = hostOf(source.url);
-    if (!host || hosts.some((entry) => entry.host === host)) continue;
-    hosts.push({ host, origin: new URL(source.url).origin, pubs: [], sourceId: source.id });
+  // In the London document lane, chain menus are left to the rendered lane.
+  if (!LONDON_ONLY) {
+    for (const source of allowedHarvestSources("chain-menu-prices")) {
+      const host = hostOf(source.url);
+      if (!host || hosts.some((entry) => entry.host === host)) continue;
+      hosts.push({ host, origin: new URL(source.url).origin, pubs: [], sourceId: source.id });
+    }
+  }
+
+  let menuEnrichment = { seeded: 0, venuesConsidered: 0, onUnknownHost: 0, refused: 0 };
+  if (LONDON_ONLY && MENU_ENRICHMENT_INPUT !== "none") {
+    menuEnrichment = applyMenuEnrichmentSeeds(hosts, {
+      enrichmentPath: path.isAbsolute(MENU_ENRICHMENT_INPUT)
+        ? MENU_ENRICHMENT_INPUT
+        : path.join(ROOT, MENU_ENRICHMENT_INPUT),
+      coordsByVenueId: venueCoordsFromSlim(path.join(ROOT, "public/data/venues_slim.json")),
+      isHarvestableOperatorUrl,
+    });
+    console.log(
+      `  menu enrichment: ${menuEnrichment.seeded} page(s) seeded from ${menuEnrichment.venuesConsidered} London venue(s) (${menuEnrichment.onUnknownHost} on host with no snapshot pub, ${menuEnrichment.refused} refused)`,
+    );
   }
 
   // THE OVERLAY'S OWN MENU PAGES. A `harvest_venue_overlays.menu_url` is a page
@@ -677,7 +714,12 @@ async function main() {
             );
           }
         }
-        if (lines.length > 0) appendFileSync(ROWS_PATH, `${lines.join("\n")}\n`);
+        if (lines.length > 0) {
+          const jsonl = lines.join("\n");
+          appendFileSync(ROWS_PATH, `${jsonl}\n`);
+          mkdirSync(path.dirname(PUBLISHED_ROWS), { recursive: true });
+          appendFileSync(PUBLISHED_ROWS, `${jsonl}\n`);
+        }
       }
       done += 1;
       if (done % 25 === 0) {
@@ -699,6 +741,14 @@ async function main() {
     version: 1,
     generatedAt: new Date().toISOString(),
     snapshot: { pubs: totalPubs, statedWebsite, refusedByPolicy },
+    londonScope: LONDON_ONLY
+      ? {
+          enabled: true,
+          pubsOutsideBboxSkipped: outsideLondon,
+          menuEnrichment,
+          chainMenuSourcesOmitted: true,
+        }
+      : { enabled: false },
     hostsKnown: hosts.length,
     overlayMenuUrls: {
       inputRead: Boolean(overlayInput),

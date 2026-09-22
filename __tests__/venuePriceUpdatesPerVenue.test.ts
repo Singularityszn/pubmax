@@ -27,8 +27,8 @@ import { venuePriceUpdatesOf, type VenuePriceUpdates } from "@/lib/venuePriceUpd
 const ROOT = path.resolve(__dirname, "..");
 const DRINK_PATH = path.join(ROOT, "public", "data", "drink_price_updates", "latest.json");
 
-/** The audit's own pub: resolvable, with no row in either pack. */
-const PUB_WITH_NO_ROWS = "venue-1vle947";
+/** A resolvable pub with no overlay rows (not venue-1vle947; chain drink harvest lists The Sir Christopher Hatton). */
+const PUB_WITH_NO_ROWS = "venue-yl1a48";
 
 function generatedAtOf(raw: unknown): number {
   const stamp = Date.parse(String((raw as { generatedAt?: unknown })?.generatedAt ?? ""));

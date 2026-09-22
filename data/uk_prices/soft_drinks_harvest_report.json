@@ -1,0 +1,16 @@
+{
+  "chain": "nicholsons",
+  "transport": "tavily",
+  "pagesRequested": 2,
+  "pagesRead": 2,
+  "refused": 0,
+  "unmatched": 0,
+  "rowsLanded": 40,
+  "bySubtype": {},
+  "hosts": {
+    "nicholsonspubs.co.uk": 2
+  },
+  "tavilyExtractsSpent": 2,
+  "startedAt": "2026-09-22T01:44:05.010Z",
+  "finishedAt": "2026-09-22T01:44:06.756Z"
+}
