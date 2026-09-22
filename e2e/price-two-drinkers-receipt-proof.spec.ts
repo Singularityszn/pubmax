@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { installAuthDoubles } from "./helpers/authDoubles";
+import { serveNoPintBundleFixture } from "./helpers/pintBundleFixture";
 import { attachBill, attachSpillBill } from "./helpers/priceBill";
 
 /**
@@ -35,6 +36,7 @@ function row(overrides: DropRow = {}): DropRow {
     venueId: HATTON,
     handle: "tester",
     drink: "Lager",
+    measure: "pint",
     priceGbp: 4.7,
     passedDownNote: "",
     era: "",
@@ -142,6 +144,7 @@ for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await quietPage(page);
     const stub = await installAuthDoubles(page);
+    await serveNoPintBundleFixture(page, HATTON);
     await serveDrops(page, SPLIT);
     await page.goto("/");
     await stub.signedInAs("A");
