@@ -43,6 +43,24 @@ prose you did not touch.
   AGENTS.md "Working in this tree".
 - If a conflict cannot be resolved confidently, stop and report instead of guessing.
 
+## Context and model budgets
+
+- Delegate an outcome, owned files, worktree/base commit, acceptance criteria,
+  instruction/evidence paths, known failures and next action. Check existing owners
+  first. Reuse workers; do not copy entire conversations or logs into each brief.
+- Return changed files, tested commit, results, evidence paths and remaining risks.
+  Send updates when evidence or blockers change. Use compact task snapshots.
+- Load only relevant skills via [the lookup guide](../WHERE_ARE_THE_SKILLS.md).
+  Follow user model settings: Sol xhigh for difficult work, Luna max for routine work.
+- Use code for exact comparisons and required gates. Jev may suggest semantic
+  duplicates; retain uncertain findings for review. It cannot grant source permission,
+  waive tests or approve merges. Keep secrets/private data out of judgment inputs.
+- Measure total calls, latency and provider-reported usage per accepted outcome,
+  including Jev and retries. Record model, question version and evidence revision.
+  Bytes are not tokens. Reuse judgments only while evidence and policy are unchanged.
+- Serialize heavy local verification across worktrees; review and bounded edits can
+  run alongside it. Required final-state checks remain mandatory.
+
 ## Completing a task
 
 1. Keep the changes limited to the assigned task.
