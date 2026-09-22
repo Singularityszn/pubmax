@@ -39,3 +39,17 @@ export function countBundleVenuesForSubtype(
   }
   return venueIds.size;
 }
+
+/** Distinct venues with any authoritative bundle row in a closed subtype family. */
+export function countBundleVenuesForSubtypeFamily(
+  rows: readonly UkPriceBundleRow[],
+  subtypeIds: readonly string[],
+): number {
+  const venueIds = new Set<string>();
+  for (const subtypeId of subtypeIds) {
+    for (const row of authoritativeBundleRowsForSubtype(rows, subtypeId)) {
+      venueIds.add(row.venueId);
+    }
+  }
+  return venueIds.size;
+}

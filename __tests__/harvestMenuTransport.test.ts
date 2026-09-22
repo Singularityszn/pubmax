@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   HarvestMenuTransportError,
+  assertLocalPolicyEnforcedTransport,
   createMenuPageHarvester,
   parseMenuTransportArg,
   refreshJobForTransport,
@@ -17,6 +18,7 @@ const FIXTURE = readFileSync(
 const GK_MENU =
   "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu";
 const REFUSED_PRIVATE = "http://127.0.0.1/menu";
+const ALLOWED_ROBOTS = async () => ({ allowed: true, reason: "allowed" as const, evidence: "test fixture" });
 
 afterEach(() => {
   vi.useRealTimers();
@@ -33,16 +35,47 @@ describe("harvest menu transport", () => {
     expect(refreshJobForTransport("browserbase")).toBe("rendered-menu");
   });
 
+  it("requires local request interception for the soft-drinks lane", () => {
+    expect(() => assertLocalPolicyEnforcedTransport("playwright")).not.toThrow();
+    expect(() => assertLocalPolicyEnforcedTransport("tavily")).toThrow(
+      expect.objectContaining({ code: "unsafe-transport" }),
+    );
+    expect(() => assertLocalPolicyEnforcedTransport("browserbase")).toThrow(
+      expect.objectContaining({ code: "unsafe-transport" }),
+    );
+  });
+
   it("refuses hosts sourcePolicy blocks before any provider call", async () => {
     const fetchImpl = vi.fn();
     const harvester = createMenuPageHarvester({
       transport: "tavily",
       environment: { TAVILY_API_KEY: "test-key" },
       fetchImpl,
+      robotsChecker: ALLOWED_ROBOTS,
     });
     await expect(harvester.fetchMenuMarkdown(REFUSED_PRIVATE)).rejects.toMatchObject({
       code: "policy-refused",
     });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("refuses protocol and chain mismatches before any provider call", async () => {
+    const fetchImpl = vi.fn();
+    const harvester = createMenuPageHarvester({
+      transport: "tavily",
+      sourceId: "youngs-menu-prices",
+      environment: { TAVILY_API_KEY: "test-key" },
+      crawlDelayMs: 0,
+      fetchImpl,
+      robotsChecker: ALLOWED_ROBOTS,
+    });
+
+    await expect(
+      harvester.fetchMenuMarkdown("ftp://www.youngs.co.uk/our-pubs"),
+    ).rejects.toMatchObject({ code: "policy-refused" });
+    await expect(
+      harvester.fetchMenuMarkdown("https://www.slugandlettuce.co.uk/bars/soho/menus"),
+    ).rejects.toMatchObject({ code: "policy-refused" });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
@@ -60,6 +93,7 @@ describe("harvest menu transport", () => {
       extractBudget: 5,
       environment: { TAVILY_API_KEY: "test-key" },
       fetchImpl,
+      robotsChecker: ALLOWED_ROBOTS,
     });
 
     const first = harvester.fetchMenuMarkdown(GK_MENU);
@@ -77,6 +111,58 @@ describe("harvest menu transport", () => {
     expect(harvester.extractsSpent).toBe(2);
   });
 
+  it("rejects a provider result that resolves outside the bound menu origin", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      Response.json({
+        results: [{ url: "https://evil.example/menu", raw_content: FIXTURE }],
+        failed_results: [],
+      }),
+    );
+    const harvester = createMenuPageHarvester({
+      transport: "tavily",
+      crawlDelayMs: 0,
+      environment: { TAVILY_API_KEY: "test-key" },
+      fetchImpl,
+      robotsChecker: ALLOWED_ROBOTS,
+    });
+
+    await expect(harvester.fetchMenuMarkdown(GK_MENU)).rejects.toMatchObject({
+      code: "policy-refused",
+    });
+  });
+
+  it("refuses live robots denial before contacting a provider", async () => {
+    const fetchImpl = vi.fn();
+    const harvester = createMenuPageHarvester({
+      transport: "tavily",
+      crawlDelayMs: 0,
+      environment: { TAVILY_API_KEY: "test-key" },
+      fetchImpl,
+      robotsChecker: async () => ({ allowed: false, reason: "robots-disallowed" as const, evidence: "Disallow: /" }),
+    });
+
+    await expect(harvester.fetchMenuMarkdown(GK_MENU)).rejects.toMatchObject({
+      code: "robots-refused",
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("does not let a menu host override a live robots refusal", async () => {
+    const render = vi.fn();
+    const harvester = createMenuPageHarvester({
+      transport: "playwright",
+      sourceId: "youngs-menu-prices",
+      crawlDelayMs: 0,
+      robotsChecker: async () => ({ allowed: false, reason: "robots-disallowed" as const, evidence: "Disallow: /" }),
+      fetchLocalPlaywrightMenuPage: render,
+    });
+
+    await expect(
+      harvester.fetchMenuMarkdown("https://www.youngs.co.uk/our-pubs"),
+    ).rejects.toMatchObject({ code: "robots-refused" });
+    expect(render).not.toHaveBeenCalled();
+  });
+
   it("stops Tavily runs when the extract budget is spent", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
       Response.json({
@@ -90,6 +176,7 @@ describe("harvest menu transport", () => {
       extractBudget: 1,
       environment: { TAVILY_API_KEY: "test-key" },
       fetchImpl,
+      robotsChecker: ALLOWED_ROBOTS,
     });
     await harvester.fetchMenuMarkdown(GK_MENU);
     await expect(harvester.fetchMenuMarkdown(GK_MENU)).rejects.toBeInstanceOf(

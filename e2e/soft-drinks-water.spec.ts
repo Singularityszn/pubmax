@@ -38,10 +38,15 @@ test.describe("Soft drinks and water view", () => {
     await page.goto(VIEW_PATH);
 
     await expect(page.getByRole("heading", { name: "Soft drinks and water" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Zero-sugar cola", selected: true })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Coke Zero" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Diet Coke" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Pepsi Max" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Diet Pepsi" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Still water" })).toBeVisible();
 
+    await page.getByRole("tab", { name: "Pepsi Max" }).click();
+    await page.getByRole("tab", { name: "Zero-sugar cola" }).click();
     await page.getByRole("tab", { name: "Diet Coke" }).click();
     await page.getByRole("tab", { name: "Still water" }).click();
     await page.getByRole("tab", { name: "Coke Zero" }).click();

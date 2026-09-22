@@ -4,6 +4,7 @@ import {
   authoritativeBundleRowsForSubtype,
   bundleRowsForSubtype,
   countBundleVenuesForSubtype,
+  countBundleVenuesForSubtypeFamily,
 } from "@/lib/priceRowsBySubtype";
 import type { UkPriceBundleRow } from "@/lib/ukPriceBundle";
 
@@ -49,5 +50,27 @@ describe("priceRowsBySubtype", () => {
     expect(authoritativeBundleRowsForSubtype(rows, "soft-drink-coke-zero")).toEqual([listedSoft]);
     expect(countBundleVenuesForSubtype(rows, "soft-drink-coke-zero")).toBe(1);
     expect(countBundleVenuesForSubtype(rows, "beer-stout")).toBe(0);
+  });
+
+  it("counts each venue once across zero-sugar-cola family subtypes", () => {
+    const dietCoke = {
+      ...listedSoft,
+      drinkLabel: "Diet Coke",
+      drinkSubtype: "soft-drink-diet-coke",
+    };
+    const pepsiMax = {
+      ...listedSoft,
+      venueId: "venue-uk-w2",
+      drinkLabel: "Pepsi Max",
+      drinkSubtype: "soft-drink-pepsi-max",
+    };
+    expect(
+      countBundleVenuesForSubtypeFamily([listedSoft, dietCoke, pepsiMax], [
+        "soft-drink-coke-zero",
+        "soft-drink-diet-coke",
+        "soft-drink-pepsi-max",
+        "soft-drink-diet-pepsi",
+      ]),
+    ).toBe(2);
   });
 });

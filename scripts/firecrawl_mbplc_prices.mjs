@@ -19,7 +19,6 @@ import { fileURLToPath } from "node:url";
 import {
   buildVenueIndexes,
   mergeDrinkUpdates,
-  normalisePubName,
   resolveVenueKeyFromHints,
   resolveVenueKeyFromPubName,
   slugFromMbplcDrinksUrl,
@@ -31,7 +30,6 @@ import {
   createMenuPageHarvester,
   parseMenuTransportArg,
 } from "./lib/harvestMenuTransport.mjs";
-import { hostHasLondonDrinkCaptainOverride } from "../lib/harvest/sourcePolicy.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -360,9 +358,6 @@ async function main() {
         source: {
           ...SOURCE,
           url,
-          ...(hostHasLondonDrinkCaptainOverride(new URL(url).hostname)
-            ? { robotsDisallowed: true }
-            : {}),
         },
         observedAt,
       });

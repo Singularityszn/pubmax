@@ -51,7 +51,7 @@ function refused(provider, response) {
 async function checkedFetch(provider, url, init, fetchImpl) {
   let response;
   try {
-    response = await fetchImpl(url, init);
+    response = await fetchImpl(url, { ...init, redirect: "error" });
   } catch (error) {
     throw new RefreshProviderError(
       provider,
@@ -186,7 +186,7 @@ const RENDERED_PAGE_EXPRESSION = String.raw`(() => {
   const links = [...new Set([...document.querySelectorAll("a[href]")]
     .map((link) => link.href)
     .filter((href) => /^https?:/.test(href)))];
-  return { markdown, links };
+  return { markdown, links, finalUrl: location.href };
 })()`;
 
 export async function renderBrowserbasePage(connectUrl, url, WebSocketImpl = WebSocket) {
@@ -256,6 +256,7 @@ async function fetchRenderedPage({ url, environment, fetchImpl, renderBrowserPag
   return {
     markdown: page.markdown,
     links: Array.isArray(page.links) ? page.links : [],
+    finalUrl: typeof page.finalUrl === "string" ? page.finalUrl : url,
   };
 }
 
@@ -285,6 +286,7 @@ async function fetchPlainPage({ url, environment, fetchImpl }) {
   }
   return {
     markdown: result.raw_content,
+    finalUrl: typeof result.url === "string" ? result.url : url,
     links: absoluteMarkdownLinks(result.raw_content),
   };
 }

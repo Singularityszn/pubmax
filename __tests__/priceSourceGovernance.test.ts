@@ -8,7 +8,7 @@
 //
 // Nothing reconciles two tables by remembering to. This does it on every run.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -79,6 +79,27 @@ describe("the two price governance tables", () => {
     }
   });
 
+  it("keeps refused Nicholson rows out of every published update snapshot and bundle", () => {
+    const updatesDir = join(ROOT, "public/data/drink_price_updates");
+    const updateFiles = readdirSync(updatesDir).filter((file) => file.endsWith(".json"));
+    const refusedUpdateRows = updateFiles.flatMap((file) => {
+      const payload = JSON.parse(readFileSync(join(updatesDir, file), "utf8")) as {
+        updates?: Array<{ source?: { url?: string } }>;
+      };
+      return (payload.updates ?? []).filter((row) =>
+        hostOf(row.source?.url ?? "")?.endsWith("nicholsonspubs.co.uk"),
+      );
+    });
+    const bundle = JSON.parse(
+      readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8"),
+    ) as Array<{ sourceUrl?: string }>;
+
+    expect(refusedUpdateRows).toHaveLength(0);
+    expect(
+      bundle.filter((row) => hostOf(row.sourceUrl ?? "")?.endsWith("nicholsonspubs.co.uk")),
+    ).toHaveLength(0);
+  });
+
   it("gives every refusal a reason from the closed set", () => {
     for (const source of HARVEST_SOURCES) {
       if (source.access.allowed) continue;
@@ -114,4 +135,28 @@ describe("the two price governance tables", () => {
       expect(source.access.checkedOn >= "2026-09-03").toBe(true);
     }
   });
+
+  it("binds permitted chain menu sources to permissible drinkSources hosts", () => {
+    for (const source of HARVEST_SOURCES.filter(
+      (candidate) => candidate.kind === "chain-menu-prices" && candidate.access.allowed,
+    )) {
+      const host = hostOf(source.url);
+      const matches = priceSources.drinkSources.filter(
+        (candidate) => hostOf(candidate.url) === host,
+      );
+      expect(matches.length, `${source.id} must have a drinkSources row for ${host}`).toBeGreaterThan(0);
+      for (const match of matches) {
+        expect(match.permissible, `${match.id} contradicts ${source.id}`).toBe(true);
+      }
+    }
+  });
+
+  it.each(["youngs-menu-prices", "stonegate-menu-prices", "brewdog-menu-prices"])(
+    "%s records the day its robots evidence was re-read",
+    (sourceId) => {
+      const source = HARVEST_SOURCES.find((candidate) => candidate.id === sourceId);
+      expect(source?.access.checkedOn).toBe("2026-09-22");
+      expect(source?.access.evidence).toContain("robots.txt re-read 2026-09-22");
+    },
+  );
 });
