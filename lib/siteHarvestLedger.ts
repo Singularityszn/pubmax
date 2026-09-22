@@ -1,3 +1,5 @@
+import "server-only";
+
 // Raw `data/uk_prices/site_harvest.jsonl` rows share the bundle's collect key and
 // supersede ordering so the ledger cannot drift from what `build_uk_price_bundle` ships.
 
