@@ -40,7 +40,18 @@ function makeFixture() {
   write(
     root,
     "scripts/lib/tavilyPubEnrichment.mjs",
-    `export const extractVenueDrinkPricesMaybeJudged = async () => ({ drinks: [], reading: {} });
+    `export const extractVenueDrinkPricesMaybeJudged = async () => ({
+  drinks: process.env.TEST_PRICE_MODE === "priced"
+    ? [{ drinkName: "House Lager", category: "beer", priceGbp: 6.2 }]
+    : [],
+  reading: {},
+});
+`,
+  );
+  write(
+    root,
+    "lib/harvest/sourcePolicy.ts",
+    `export const isHarvestableOperatorUrl = (url) => !String(url).includes("refused.example");
 `,
   );
   write(
@@ -59,9 +70,18 @@ export const discoverRefreshPages = async ({ includeDomains }) => {
   return [{ url: "https://" + includeDomains[0] + "/drinks" }];
 };
 export const fetchRefreshPage = async ({ url }) => ({
-  markdown: "Welcome to our pub",
+  markdown: process.env.TEST_PRICE_MODE === "priced"
+    ? "Welcome to our pub. Draught lager £6.20"
+    : "Welcome to our pub",
   links: [],
-  finalUrl: url,
+  finalUrl:
+    process.env.TEST_FINAL_URL_MODE === "refused"
+      ? "https://refused.example/menu"
+      : process.env.TEST_FINAL_URL_MODE === "cross-origin"
+        ? "https://other-permitted.example/menu"
+        : process.env.TEST_FINAL_URL_MODE === "same-origin"
+          ? new URL("/resolved-menu", url).href
+          : url,
 });
 `,
   );
@@ -120,19 +140,88 @@ describe("outer London optional discovery failures", () => {
       JSON.stringify({ status: run.status, stdout: run.stdout, stderr: run.stderr }),
     ).toBe(true);
     const written = JSON.parse(readFileSync(logPath, "utf8"));
+    expect(written.summary.requestsUsed).toBe(4);
     expect(written.log).toEqual([
       expect.objectContaining({
         pub: "First Independent",
         result: "blocked",
         reason: "exa refused request: HTTP 429 Too Many Requests",
+        requests: 2,
       }),
       expect.objectContaining({
         pub: "Second Independent",
-        result: "no-price-published",
+        result: "skipped-budget",
+        reason: "request budget exhausted before discovered menu fetch",
+        requests: 2,
       }),
     ]);
     expect(run.stdout).toContain("SUMMARY");
     expect(run.stdout).toContain("Wrote log to ");
     expect(run.stdout).toContain("data/osm/test-log.json");
+  });
+
+  it.each([
+    {
+      mode: "refused",
+      reason: "source policy refused redirect landing https://refused.example/menu",
+    },
+    {
+      mode: "cross-origin",
+      reason: "cross-origin redirect refused",
+    },
+  ])("blocks a $mode resolved landing before extraction", ({ mode, reason }) => {
+    const root = makeFixture();
+    const script = realpathSync(join(root, "scripts/harvest_outer_london_prices.mjs"));
+    const logPath = join(root, "data/osm/test-log.json");
+    const run = spawnSync(
+      process.execPath,
+      [script, "--dry-run", "--limit", "1", "--budget", "2", "--log", "data/osm/test-log.json"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: { ...process.env, TEST_FINAL_URL_MODE: mode },
+      },
+    );
+
+    expect(run.status, run.stderr).toBe(0);
+    const written = JSON.parse(readFileSync(logPath, "utf8"));
+    expect(written.log[0]).toEqual(
+      expect.objectContaining({
+        pub: "First Independent",
+        result: "blocked",
+        reason: expect.stringContaining(reason),
+        requests: 1,
+      }),
+    );
+  });
+
+  it("uses a permitted same-origin resolved landing as price provenance", () => {
+    const root = makeFixture();
+    const script = realpathSync(join(root, "scripts/harvest_outer_london_prices.mjs"));
+    const logPath = join(root, "data/osm/test-log.json");
+    const run = spawnSync(
+      process.execPath,
+      [script, "--dry-run", "--limit", "1", "--budget", "2", "--log", "data/osm/test-log.json"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          TEST_FINAL_URL_MODE: "same-origin",
+          TEST_PRICE_MODE: "priced",
+        },
+      },
+    );
+
+    expect(run.status, run.stderr).toBe(0);
+    const written = JSON.parse(readFileSync(logPath, "utf8"));
+    expect(written.log[0]).toEqual(
+      expect.objectContaining({
+        pub: "First Independent",
+        result: "priced",
+        sourceUrl: "https://first-independent.example/resolved-menu",
+        requests: 1,
+      }),
+    );
   });
 });

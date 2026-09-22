@@ -82,6 +82,38 @@ export const createMenuPageHarvester = () => ({
   write(root, "public/data/pint_prices_app_dataset.json", "[{}]\n");
   write(
     root,
+    "public/data/drink_price_updates/latest.json",
+    `${JSON.stringify({
+      version: 1,
+      generatedAt: "2026-01-01T00:00:00.000Z",
+      updates: [
+        {
+          venueKey: "cached-nicholson|london",
+          drinkName: "House Lager",
+          category: "beer",
+          priceGbp: 6.2,
+          source: {
+            label: "Nicholson's — official drinks menu",
+            url: "https://www.nicholsonspubs.co.uk/restaurants/london/cached-nicholson/drinks",
+          },
+          observedAt: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          venueKey: "other-pub|london",
+          drinkName: "Other Lager",
+          category: "beer",
+          priceGbp: 5.9,
+          source: {
+            label: "Other pub — official menu",
+            url: "https://other-pub.example/menu",
+          },
+          observedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+    })}\n`,
+  );
+  write(
+    root,
     ".firecrawl/menus/nicholsons/cached-nicholson.md",
     "## Cached Nicholson\n\n### Draught Beer\n\n#### House Lager\n\n£6.20\n",
   );
@@ -113,7 +145,12 @@ describe("legacy Nicholson cache permission", () => {
     const latest = JSON.parse(
       readFileSync(join(root, "public/data/drink_price_updates/latest.json"), "utf8"),
     );
-    expect(latest.updates).toEqual([]);
+    expect(latest.updates).toEqual([
+      expect.objectContaining({
+        venueKey: "other-pub|london",
+        drinkName: "Other Lager",
+      }),
+    ]);
     expect(run.stdout).toContain("refused=1");
   });
 });

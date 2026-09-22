@@ -257,6 +257,47 @@ async function assertMenuReadAllowed(url, robotsChecker) {
   }
 }
 
+function isNicholsonsOwnedUpdate(update) {
+  if (update?.source?.label === SOURCE.label) return true;
+  try {
+    const hostname = new URL(update?.source?.url).hostname.toLowerCase();
+    return hostname === "nicholsonspubs.co.uk" || hostname.endsWith(".nicholsonspubs.co.uk");
+  } catch {
+    return false;
+  }
+}
+
+async function retainPermittedExistingUpdates(existing, robotsChecker) {
+  const decisions = new Map();
+  const retained = [];
+  for (const update of existing) {
+    if (!isNicholsonsOwnedUpdate(update)) {
+      retained.push(update);
+      continue;
+    }
+    const url = update?.source?.url;
+    if (!decisions.has(url)) {
+      decisions.set(
+        url,
+        assertMenuReadAllowed(url, robotsChecker).then(
+          () => true,
+          (error) => {
+            if (
+              error instanceof HarvestMenuTransportError &&
+              (error.code === "policy-refused" || error.code === "robots-refused")
+            ) {
+              return false;
+            }
+            throw error;
+          },
+        ),
+      );
+    }
+    if (await decisions.get(url)) retained.push(update);
+  }
+  return retained;
+}
+
 async function scrapeMenu(url, outPath, harvester, robotsChecker) {
   await assertMenuReadAllowed(url, robotsChecker);
   if (existsSync(outPath)) {
@@ -333,7 +374,7 @@ async function main() {
 
   const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
   const indexes = buildVenueIndexes(dataset);
-  const existing = loadExistingUpdates();
+  const existing = await retainPermittedExistingUpdates(loadExistingUpdates(), robotsChecker);
 
   const updates = [];
   let scraped = 0;
