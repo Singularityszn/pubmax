@@ -195,6 +195,12 @@ describe("live What's-On top-up render deadline", () => {
       // Move past provider completion after the render has already returned.
       await vi.advanceTimersByTimeAsync(35);
       expect(settled).toBe(1);
+      const nextReader = loadWhatsOn(
+        {},
+        { now: NOW, loadBaseline: () => [], liveDeadlineMs: 5_000 },
+      );
+      await vi.advanceTimersByTimeAsync(40);
+      expect((await nextReader).revalidation).toEqual({ status: "measured" });
     } finally {
       vi.useRealTimers();
     }
