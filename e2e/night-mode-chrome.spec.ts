@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
-import { setFirstPintIn } from "./helpers/planFirstPint";
+import { londonDateTimeIn } from "./helpers/planFirstPint";
 
 // Night mode owns the whole screen, and nothing may own a tap inside it.
 //
@@ -40,15 +40,20 @@ async function prepare(page: Page, viewport: { width: number; height: number }):
 /** Lock a plan whose first pint is half an hour out, so the night is ON. */
 async function lockAPlanOnTonight(page: Page): Promise<void> {
   await page.goto("/plan");
-  await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
-  await describeFirstSubmit(page).click();
-  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
+  const lockItIn = page.getByRole("button", { name: "Lock it in", exact: true });
+  await expect(async () => {
+    await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
+    await describeFirstSubmit(page).click();
+    await expect(lockItIn).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
   await page.getByLabel("Your name").fill("Karan");
-  await setFirstPintIn(page, 30);
-  await page.getByRole("button", { name: "Regenerate route" }).click();
-  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
-  await page.getByRole("button", { name: "Lock it in" }).click();
+  const firstPint = page.getByLabel("First pint");
+  const currentFirstPint = await firstPint.inputValue();
+  const nextFirstPint = londonDateTimeIn(30);
+  await firstPint.fill(nextFirstPint === currentFirstPint ? londonDateTimeIn(31) : nextFirstPint);
+  await expect(page.locator("#plan-route-status")).toContainText("Route refreshed.");
+  await expect(lockItIn).toBeEnabled();
+  await lockItIn.click();
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}(?:#share)?$/);
 }
 
@@ -76,6 +81,20 @@ for (const viewport of VIEWPORTS) {
     const nightMode = page.getByRole("dialog", { name: "Night mode" });
     await expect(nightMode).toBeVisible();
     await expect(page.locator(".nightCrawl__escape")).toBeVisible();
+
+    if (viewport.width === 390) {
+      const titleToActionsGap = await page.locator(".nightCrawl__hero").evaluate((hero) => {
+        const title = hero.querySelector(".nightCrawl__heroName");
+        const actions = hero.querySelector(".nightCrawl__actions");
+        if (!title || !actions) return Number.POSITIVE_INFINITY;
+        return actions.getBoundingClientRect().top - title.getBoundingClientRect().bottom;
+      });
+      expect(
+        titleToActionsGap,
+        "the walking-night actions stay close to the current venue rather than leaving a blank band",
+      ).toBeLessThanOrEqual(viewport.height * 0.18);
+    }
+
     await page.screenshot({ path: testInfo.outputPath(`night-mode-${viewport.width}x${viewport.height}.png`) });
 
     // The surface fills the viewport and nothing of the page's chrome is
