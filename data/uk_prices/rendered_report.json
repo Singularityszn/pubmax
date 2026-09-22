@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-21T18:36:59.776Z",
+  "generatedAt": "2026-09-21T23:04:33.242Z",
   "renderer": "wigolo",
   "hostsPermitted": [
     "greeneking.co.uk",
@@ -10,18 +10,18 @@
     "farmhouseinns.co.uk",
     "flaminggrill.co.uk"
   ],
-  "pagesAskedAgainAfterAnEmptyRender": 1,
+  "pagesAskedAgainAfterAnEmptyRender": 0,
   "menuPagesKnown": 1121,
   "overlayMenuPages": {
     "inputRead": true,
     "held": 0,
     "crawlable": 0
   },
-  "menuPagesReadThisRun": 707,
+  "menuPagesReadThisRun": 97,
   "menuPagesInLedger": 709,
   "outcomes": {
-    "menu-states-no-price": 610,
-    "priced": 97
+    "priced": 94,
+    "menu-states-no-price": 3
   },
-  "elapsedSeconds": 1954
+  "elapsedSeconds": 466
 }

@@ -129,8 +129,9 @@ describe("what an OCR reading is allowed to become", () => {
     expect(documents).toEqual([
       { url: "https://www.thegunhackney.com/s/TheGun-Menu-August-2026.pdf", outcome: "priced" },
     ]);
-    const beer = rows.find((row) => row.category === "beer");
-    expect(beer?.priceGbp).toBe(6.2);
+    const beers = rows.filter((row) => row.category === "beer");
+    expect(Math.min(...beers.map((row) => row.priceGbp))).toBe(6.2);
+    expect(beers.some((row) => row.drinkLabel)).toBe(true);
     // The row says HOW it was read. A figure a model took off a photograph is
     // not a figure a page stated in words, and the file may not hide which.
     expect(rows.every((row) => row.reader === "olmocr")).toBe(true);

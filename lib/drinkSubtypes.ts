@@ -422,7 +422,15 @@ const SUBTYPE_TABLE: DrinkSubtype[] = [
     category: "soft-drink",
     label: "Still water",
     longLabel: "Still water",
-    tokens: ["still water", "bottled water", "mineral water"],
+    tokens: [
+      "still water",
+      "bottled water",
+      "mineral water",
+      "kingsdown still",
+      "btl still",
+      "still/sparkling water",
+      "still / sparkling",
+    ],
   },
 ];
 

@@ -213,7 +213,7 @@ function collectRows(report) {
 /** Lane one: the prices a pub's or a chain's own site stated. */
 function addSiteHarvestRows(harvestRows, owners, push, report) {
   for (const row of harvestRows) {
-    if (!isHarvestableOperatorUrl(row.sourceUrl ?? "")) {
+    if (!isHarvestableDrinkUpdateUrl(row.sourceUrl ?? "")) {
       report.droppedRefusedHost += 1;
       continue;
     }

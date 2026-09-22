@@ -460,6 +460,13 @@ export const LONDON_DRINK_CAPTAIN_OVERRIDE_HOSTS: readonly string[] = [
   "nicholsonspubs.co.uk",
   ...REFUSED_ESTATE_HOSTS,
   "jdwetherspoon.com",
+  "slugandlettuce.co.uk",
+  "beatone.co.uk",
+  "popworld.com",
+  "craftunionpubs.co.uk",
+  "brewdog.com",
+  "youngs.co.uk",
+  "fullers.co.uk",
 ];
 
 export function hostHasLondonDrinkCaptainOverride(hostname: string): boolean {

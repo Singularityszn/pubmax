@@ -72,6 +72,7 @@ import {
   DEFAULT_HOST_DELAY_MS,
   DEFAULT_PAGES_PER_HOST,
   cheapestPerCategory,
+  siteHarvestPriceKey,
   isLikelyMenuUrl,
   menuLinkCandidates,
   pageMayPriceThisPub,
@@ -443,6 +444,7 @@ async function crawlHost(entry, robots, spend, delayMs) {
         url,
         category: priced.category,
         priceGbp: priced.priceGbp,
+        drinkLabel: priced.drinkLabel,
         linesOnPage: reading.kept.length,
       });
     }
@@ -467,8 +469,9 @@ async function crawlHost(entry, robots, spend, delayMs) {
   // price is attributed to every pub on that host and the row says so.
   const byCategory = new Map();
   for (const row of rows) {
-    const seen = byCategory.get(row.category);
-    if (!seen || row.priceGbp < seen.priceGbp) byCategory.set(row.category, row);
+    const key = siteHarvestPriceKey(row.category, row.drinkLabel);
+    const seen = byCategory.get(key);
+    if (!seen || row.priceGbp < seen.priceGbp) byCategory.set(key, row);
   }
 
   const priced = [...byCategory.values()];
@@ -702,6 +705,7 @@ async function main() {
                 lng: pub?.lng ?? null,
                 category: row.category,
                 priceGbp: row.priceGbp,
+                ...(row.drinkLabel ? { drinkLabel: row.drinkLabel } : {}),
                 sourceUrl: row.url,
                 observedAt,
                 pubsOnHost: entry.pubs.length,

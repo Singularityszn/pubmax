@@ -99,7 +99,9 @@
     "harvest:uk-prices-ocr": "tsx scripts/harvest/uk-prices/ocr.mjs",
     "build:price-bands": "tsx scripts/build_price_bands.mjs",
     "build:discover-board": "tsx scripts/build_discover_board.mjs",
-    "arize:smoke": "tsx scripts/arizeSmoke.ts"
+    "arize:smoke": "tsx scripts/arizeSmoke.ts",
+    "backfill:site-harvest-drink-labels": "tsx scripts/backfill_site_harvest_drink_labels.mjs",
+    "harvest:soft-drinks-menus": "tsx scripts/harvest_soft_drinks_menus.mjs"
   },
   "dependencies": {
     "@ai-sdk/otel": "^1.0.106",
