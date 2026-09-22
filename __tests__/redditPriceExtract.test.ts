@@ -32,6 +32,50 @@ describe("reddit price extractor fixture thread", () => {
     })).toEqual([]);
   });
 
+  it.each([
+    "I paid £12 for food and a pint was £5.50 at The Roebuck in Southwark.",
+    "At The Roebuck in Southwark, I paid £12 for a burger; a pint was £5.50.",
+  ])("does not turn a meal price into beer: %s", (body) => {
+    const rows = extractRedditPriceCandidates({ body, permalink: "", observedAt: "2026-09-20T12:00:00Z", author: "fixture" });
+    expect(rows.map((row) => row.priceGbp)).toEqual([5.5]);
+  });
+
+  it.each([
+    "I paid £12 for food at The Roebuck in Southwark. I had a pint too.",
+    "I paid £12 for a burger and pint at The Roebuck in Southwark.",
+  ])("refuses food or combined meal context: %s", (body) => {
+    expect(extractRedditPriceCandidates({ body, permalink: "", observedAt: "2026-09-20T12:00:00Z", author: "fixture" })).toEqual([]);
+  });
+
+  it.each([
+    "Paid £100 for a pint at The Roebuck in Southwark.",
+    "Paid £5.555 for a pint at The Roebuck in Southwark.",
+    "Paid £5,50 for a pint at The Roebuck in Southwark.",
+    "A pint was £5,50 at The Roebuck in Southwark.",
+  ])("does not truncate malformed or out-of-range amounts: %s", (body) => {
+    expect(extractRedditPriceCandidates({ body, permalink: "", observedAt: "2026-09-20T12:00:00Z", author: "fixture" })).toEqual([]);
+  });
+
+  it("does not attach prices from different pubs to the first pub", () => {
+    const rows = extractRedditPriceCandidates({
+      body: "Paid £5.50 for a pint at The Roebuck in Southwark. Paid £6.20 for a pint at The Devonshire in Westminster.",
+      permalink: "", observedAt: "2026-09-20T12:00:00Z", author: "fixture",
+    });
+    expect(rows.map((row) => [row.pubNameHint, row.areaHint, row.priceGbp])).toEqual([
+      ["The Roebuck", "Southwark", 5.5], ["The Devonshire", "Westminster", 6.2],
+    ]);
+  });
+
+  it.each([
+    ["Paid £5.50 for a Guinness at The Roebuck in Southwark.", "Guinness", undefined],
+    ["Paid £5.50 for a pint of Guinness at The Roebuck in Southwark.", "pint of Guinness", "pint"],
+    ["Paid £3 for a half pint of Guinness at The Roebuck in Southwark.", "half pint of Guinness", "half"],
+  ])("preserves stated drink and only explicit measure: %s", (body, drinkText, measure) => {
+    const [row] = extractRedditPriceCandidates({ body, permalink: "", observedAt: "2026-09-20T12:00:00Z", author: "fixture" });
+    expect(row?.drinkText).toBe(drinkText);
+    expect(row?.measure).toBe(measure);
+  });
+
   it("pulls paid-or-saw candidates and drops pure hypotheticals", () => {
     const comments = commentsFromRedditThreadPayload(FIXTURE);
     expect(comments.length).toBe(3);
