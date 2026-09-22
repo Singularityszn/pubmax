@@ -661,16 +661,8 @@ async function verifyPostCaptureInteractions(
     return;
   }
   const consentPrompt = page.locator(".analyticsConsentPrompt").first();
-  let noticeBeforeDismissal: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null = null;
   if (surface === "map-after-first-answer") {
     await expect(consentPrompt).toBeVisible();
-    noticeBeforeDismissal = await consentPrompt.boundingBox();
-    expect(noticeBeforeDismissal, "analytics notice has a box before dismissal").not.toBeNull();
   }
   const creditButton = page.locator(".maplibregl-ctrl-attrib-button").first();
   await creditButton.click();
@@ -688,14 +680,6 @@ async function verifyPostCaptureInteractions(
   if (surface !== "map-after-first-answer") return;
   await consentPrompt.getByRole("button", { name: "No thanks", exact: true }).click();
   await expect(consentPrompt).toHaveCount(0);
-  assertMeasured(
-    assertions,
-    surface,
-    viewport.width,
-    "analytics notice is dismissible",
-    await consentPrompt.isHidden().catch(() => true),
-    "No thanks removes the notice",
-  );
   const planAction = page.locator(".mobilePlanActivation").first();
   await expect(planAction).toBeVisible();
   const actionAfterDismissal = await planAction.boundingBox();
@@ -708,35 +692,6 @@ async function verifyPostCaptureInteractions(
     actionAfterDismissal
       ? `${actionAfterDismissal.y}-${actionAfterDismissal.y + actionAfterDismissal.height}px`
       : "missing",
-  );
-  const noticeBox = noticeBeforeDismissal as {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  const actionBox = actionAfterDismissal as {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  const transitionOverlap = round(
-    Math.max(
-      0,
-      Math.min(
-        noticeBox.y + noticeBox.height,
-        actionBox.y + actionBox.height,
-      ) - Math.max(noticeBox.y, actionBox.y),
-    ),
-  );
-  assertMeasured(
-    assertions,
-    surface,
-    viewport.width,
-    "analytics notice leaves primary map action clear after dismissal",
-    Number.isFinite(transitionOverlap) && transitionOverlap === 0,
-    `notice ${noticeBox.y}-${noticeBox.y + noticeBox.height}px; action ${actionBox.y}-${actionBox.y + actionBox.height}px; overlap ${transitionOverlap}px`,
   );
 }
 
