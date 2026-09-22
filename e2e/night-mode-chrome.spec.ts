@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
-import { londonDateTimeIn } from "./helpers/planFirstPint";
+import { setFirstPintIn } from "./helpers/planFirstPint";
 
 // Night mode owns the whole screen, and nothing may own a tap inside it.
 //
@@ -48,9 +48,9 @@ async function lockAPlanOnTonight(page: Page): Promise<void> {
   }).toPass({ timeout: 20_000 });
   await page.getByLabel("Your name").fill("Karan");
   const firstPint = page.getByLabel("First pint");
-  const currentFirstPint = await firstPint.inputValue();
-  const nextFirstPint = londonDateTimeIn(30);
-  await firstPint.fill(nextFirstPint === currentFirstPint ? londonDateTimeIn(31) : nextFirstPint);
+  const firstPintValue = await setFirstPintIn(page, 30);
+  await expect(firstPint).toHaveValue(firstPintValue);
+  await page.getByRole("button", { name: "Regenerate route" }).click();
   await expect(page.locator("#plan-route-status")).toContainText("Route refreshed.");
   await expect(lockItIn).toBeEnabled();
   await lockItIn.click();
