@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
 /** A `datetime-local` value in London, `minutes` from now. */
-function londonDateTimeIn(minutes: number): string {
+export function londonDateTimeIn(minutes: number): string {
   const when = new Date(Date.now() + minutes * 60 * 1000);
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/London",

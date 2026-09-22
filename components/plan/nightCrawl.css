@@ -299,7 +299,7 @@
 .nightCrawl__who[data-tone="late"] .nightCrawl__ava { background: var(--nc-amber); }
 .nightCrawl__who[data-tone="late"] .nightCrawl__whoState { color: var(--nc-amber); }
 
-.nightCrawl__spacer { flex: 1; min-height: 12px; }
+.nightCrawl__spacer { flex: 0 0 12px; }
 
 /* Upcoming stops — compact, waiting their turn. */
 .nightCrawl__upcoming {
