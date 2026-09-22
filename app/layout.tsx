@@ -415,8 +415,10 @@ export default async function RootLayout({
         {/* Vercel Web Analytics (R3) — consent-gated pageviews only. Product
             events use the separately allow-listed rail in lib/analytics.ts.
             Outside AuthProvider on purpose: it's app infra, not identity. */}
-        <ConsentAwareVercelAnalytics enabled={vercelTelemetryEnabled} />
-        <ConsentAwareVercelSpeedInsights enabled={vercelTelemetryEnabled} />
+        <Suspense fallback={null}>
+          <ConsentAwareVercelAnalytics enabled={vercelTelemetryEnabled} />
+          <ConsentAwareVercelSpeedInsights enabled={vercelTelemetryEnabled} />
+        </Suspense>
         <Suspense fallback={null}>
           <PosthogPageviews />
         </Suspense>

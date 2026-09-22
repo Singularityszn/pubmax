@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ComponentProps } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import {
@@ -11,7 +11,7 @@ import {
 } from "@/lib/analytics";
 import {
   safeVercelTelemetryLocation,
-  shouldMountVercelTelemetryForPath,
+  shouldMountVercelTelemetryForLocation,
 } from "@/lib/vercelTelemetry";
 
 type SpeedInsightsBeforeSendEvent = Parameters<
@@ -34,6 +34,7 @@ export default function ConsentAwareVercelSpeedInsights({
   enabled: boolean;
 }) {
   const pathname = usePathname();
+  const search = useSearchParams().toString();
   const [analyticsAllowed, setAnalyticsAllowed] = useState(false);
 
   useEffect(() => {
@@ -47,7 +48,7 @@ export default function ConsentAwareVercelSpeedInsights({
   if (
     !enabled
     || !analyticsAllowed
-    || !shouldMountVercelTelemetryForPath(pathname)
+    || !shouldMountVercelTelemetryForLocation(pathname, search)
   ) return null;
   return <SpeedInsights beforeSend={consentAwareSpeedInsightsBeforeSend} />;
 }

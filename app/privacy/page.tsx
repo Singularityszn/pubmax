@@ -457,8 +457,8 @@ export default function PrivacyPage() {
             recognised campaign parameters and coarse app paths. The browser
             SDK also sends Web Vitals so we can measure loading and interaction
             performance. Vercel Speed Insights measures Web Vitals on public
-            static pages only. It removes query strings and skips account,
-            private, admin and routes with changing path values. No account,
+            static pages only. It does not load on query-bearing URLs and skips
+            account, private, admin and routes with changing path values. No account,
             handle, email, message content, free text or precise location is
             attached.
           </li>

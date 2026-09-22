@@ -18,10 +18,11 @@ Two transports, one consent gate.
 
 Vercel Web Analytics and Speed Insights form a separate diagnostic rail. They
 mount only on production Vercel deployments, after analytics consent, and only on
-the closed public-static route list in `lib/vercelTelemetry.ts`. Query strings and
-fragments are removed. This rail is not a product-metric source of truth and does
-not feed the weekly dashboard. PostHog `$web_vitals` remains the governed source
-for route performance figures in this plan.
+the closed public-static route list in `lib/vercelTelemetry.ts`. A query-bearing
+document never mounts either SDK; fragments are removed from accepted events. This
+rail is not a product-metric source of truth and does not feed the weekly dashboard.
+PostHog `$web_vitals` remains the governed source for route performance figures in
+this plan.
 
 Four facts that decide how every query below is written.
 

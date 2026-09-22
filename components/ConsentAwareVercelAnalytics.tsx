@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import {
   Analytics,
@@ -16,7 +16,7 @@ import {
 import {
   safeVercelTelemetryLocation,
   shouldMountVercelTelemetry,
-  shouldMountVercelTelemetryForPath,
+  shouldMountVercelTelemetryForLocation,
 } from "@/lib/vercelTelemetry";
 
 export function consentAwareBeforeSend(
@@ -46,6 +46,7 @@ export default function ConsentAwareVercelAnalytics({
   enabled: boolean;
 }) {
   const pathname = usePathname();
+  const search = useSearchParams().toString();
   const [analyticsAllowed, setAnalyticsAllowed] = useState(false);
 
   useEffect(() => { void flushVerifiedAnalyticsOutbox(); }, []);
@@ -60,7 +61,7 @@ export default function ConsentAwareVercelAnalytics({
   if (
     !enabled
     || !analyticsAllowed
-    || !shouldMountVercelTelemetryForPath(pathname)
+    || !shouldMountVercelTelemetryForLocation(pathname, search)
   ) return null;
   return <Analytics beforeSend={consentAwareBeforeSend} />;
 }

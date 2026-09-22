@@ -24,6 +24,13 @@ export function shouldMountVercelTelemetryForPath(pathname: unknown): boolean {
   return typeof pathname === "string" && PUBLIC_STATIC_PATHS.has(pathname);
 }
 
+export function shouldMountVercelTelemetryForLocation(
+  pathname: unknown,
+  search: unknown,
+): boolean {
+  return search === "" && shouldMountVercelTelemetryForPath(pathname);
+}
+
 /** Keep Vercel telemetry on public static pages and remove query or fragment data. */
 export function safeVercelTelemetryLocation(
   eventUrl: unknown,
