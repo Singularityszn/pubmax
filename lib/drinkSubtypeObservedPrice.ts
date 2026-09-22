@@ -13,7 +13,7 @@ import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { venueGroupingKey, type Venue, type VenuePrice } from "@/lib/venues";
 
 /** Zero-sugar cola brands aggregated by the default family chip. */
-export const ZERO_SUGAR_COLA_FAMILY = [
+const ZERO_SUGAR_COLA_FAMILY = [
   "soft-drink-coke-zero",
   "soft-drink-diet-coke",
   "soft-drink-pepsi-max",
@@ -29,7 +29,7 @@ export const SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS = [
   "soft-drink-still-water",
 ] as const;
 
-export function isZeroSugarColaFamilySubtypeId(subtypeId: string): boolean {
+function isZeroSugarColaFamilySubtypeId(subtypeId: string): boolean {
   return subtypeId === SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID;
 }
 
