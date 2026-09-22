@@ -119,9 +119,9 @@ async function extractRows(chain, markdown, ctx) {
 
 async function scrapeMenu(url, cachePath, harvester) {
   mkdirSync(dirname(cachePath), { recursive: true });
-  const markdown = await harvester.fetchMenuMarkdown(url);
-  writeFileSync(cachePath, `${markdown.trim()}\n`);
-  return markdown;
+  const page = await harvester.fetchMenuPage(url);
+  writeFileSync(cachePath, `${page.markdown.trim()}\n`);
+  return page;
 }
 
 function urlWithoutQuery(value) {
@@ -203,9 +203,9 @@ async function main() {
   for (const target of targets) {
     const slug = target.url.replace(/[^a-z0-9]+/gi, "-").slice(0, 120);
     const cachePath = join(cfg.cacheDir, `${slug}.md`);
-    let markdown;
+    let page;
     try {
-      markdown = await scrapeMenu(target.url, cachePath, harvester);
+      page = await scrapeMenu(target.url, cachePath, harvester);
       report.pagesRead += 1;
     } catch (error) {
       const failure = {
@@ -232,9 +232,9 @@ async function main() {
       }
       throw error;
     }
+    const { markdown, finalUrl: sourceUrl } = page;
     const host = target.host;
     const pubName = target.pubName;
-    const sourceUrl = harvester.lastFinalUrl ?? target.url;
     const priced = await extractRows(chain, markdown, {
       pubName,
       pageUrl: sourceUrl,

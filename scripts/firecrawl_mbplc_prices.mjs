@@ -30,6 +30,10 @@ import {
   createMenuPageHarvester,
   parseMenuTransportArg,
 } from "./lib/harvestMenuTransport.mjs";
+import {
+  readValidatedMenuPageCache,
+  writeMenuPageCache,
+} from "./lib/harvestMenuCache.mjs";
 import { isHarvestableChainMenuUrl } from "../lib/harvest/sourcePolicy.ts";
 import { createRobotsChecker } from "../lib/harvest/robots.ts";
 
@@ -300,13 +304,16 @@ async function retainPermittedExistingUpdates(existing, robotsChecker) {
 
 async function scrapeMenu(url, outPath, harvester, robotsChecker) {
   await assertMenuReadAllowed(url, robotsChecker);
-  if (existsSync(outPath)) {
-    return readFileSync(outPath, "utf8");
-  }
+  const cached = await readValidatedMenuPageCache({
+    requestedUrl: url,
+    markdownPath: outPath,
+    validateResolvedMenuUrl: harvester.validateResolvedMenuUrl,
+  });
+  if (cached) return cached;
   mkdirSync(dirname(outPath), { recursive: true });
-  const markdown = await harvester.fetchMenuMarkdown(url);
-  writeFileSync(outPath, `${markdown.trim()}\n`);
-  return markdown;
+  const page = await harvester.fetchMenuPage(url);
+  writeMenuPageCache({ requestedUrl: url, markdownPath: outPath, page });
+  return page;
 }
 
 function parseArgs(argv) {
@@ -385,9 +392,9 @@ async function main() {
   for (const url of urls) {
     const slug = slugFromMbplcDrinksUrl(url) ?? "unknown";
     const cachePath = join(MENU_CACHE, `${slug}.md`);
-    let markdown;
+    let page;
     try {
-      markdown = await scrapeMenu(url, cachePath, harvester, robotsChecker);
+      page = await scrapeMenu(url, cachePath, harvester, robotsChecker);
     } catch (error) {
       if (
         error instanceof HarvestMenuTransportError &&
@@ -400,6 +407,7 @@ async function main() {
       throw error;
     }
     scraped += 1;
+    const { markdown, finalUrl } = page;
 
     const venueKey = resolveNicholsonsVenueKey(url, markdown, indexes);
     if (!venueKey) {
@@ -420,7 +428,7 @@ async function main() {
         priceGbp: d.priceGbp,
         source: {
           ...SOURCE,
-          url,
+          url: finalUrl,
         },
         observedAt,
       });

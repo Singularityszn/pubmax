@@ -23,10 +23,14 @@ function write(root: string, path: string, source: string) {
 function makeFixture() {
   const root = mkdtempSync(join(tmpdir(), "pubmax-mbplc-cache-"));
   temporaryRoots.push(root);
-  mkdirSync(join(root, "scripts"), { recursive: true });
+  mkdirSync(join(root, "scripts", "lib"), { recursive: true });
   copyFileSync(
     join(process.cwd(), "scripts/firecrawl_mbplc_prices.mjs"),
     join(root, "scripts/firecrawl_mbplc_prices.mjs"),
+  );
+  copyFileSync(
+    join(process.cwd(), "scripts/lib/harvestMenuCache.mjs"),
+    join(root, "scripts/lib/harvestMenuCache.mjs"),
   );
 
   write(
@@ -55,7 +59,8 @@ export const discoverRefreshPages = async () => [];
 export const assertTransportCredentials = () => {};
 export const parseMenuTransportArg = () => "browserbase";
 export const createMenuPageHarvester = () => ({
-  fetchMenuMarkdown: async () => { throw new Error("provider must not be called for cached markdown"); },
+  validateResolvedMenuUrl: async (_requestedUrl, finalUrl) => finalUrl,
+  fetchMenuPage: async () => { throw new Error("provider must not be called for cached markdown"); },
 });
 `,
   );
@@ -117,6 +122,16 @@ export const createMenuPageHarvester = () => ({
     ".firecrawl/menus/nicholsons/cached-nicholson.md",
     "## Cached Nicholson\n\n### Draught Beer\n\n#### House Lager\n\n£6.20\n",
   );
+  write(
+    root,
+    ".firecrawl/menus/nicholsons/cached-nicholson.md.source.json",
+    `${JSON.stringify({
+      requestedUrl:
+        "https://www.nicholsonspubs.co.uk/restaurants/london/cached-nicholson/drinks",
+      finalUrl:
+        "https://www.nicholsonspubs.co.uk/restaurants/london/cached-nicholson/drinks?canonical=1",
+    })}\n`,
+  );
   return root;
 }
 
@@ -152,5 +167,32 @@ describe("legacy Nicholson cache permission", () => {
       }),
     ]);
     expect(run.stdout).toContain("refused=1");
+  });
+
+  it("publishes cached rows with their validated final URL", () => {
+    const root = makeFixture();
+    const script = join(root, "scripts/firecrawl_mbplc_prices.mjs");
+    const run = spawnSync(process.execPath, [script, "--limit", "1"], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        TEST_SOURCE_ALLOWED: "1",
+        TEST_ROBOTS_ALLOWED: "1",
+      },
+    });
+
+    expect(run.status, run.stderr).toBe(0);
+    const latest = JSON.parse(
+      readFileSync(join(root, "public/data/drink_price_updates/latest.json"), "utf8"),
+    );
+    expect(latest.updates).toContainEqual(
+      expect.objectContaining({
+        venueKey: "cached-nicholson|london",
+        source: expect.objectContaining({
+          url: "https://www.nicholsonspubs.co.uk/restaurants/london/cached-nicholson/drinks?canonical=1",
+        }),
+      }),
+    );
   });
 });

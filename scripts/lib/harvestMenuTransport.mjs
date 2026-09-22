@@ -83,6 +83,23 @@ export function assertLocalPolicyEnforcedTransport(transport) {
   }
 }
 
+function requiredAbsoluteFinalUrl(value, requestedUrl) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new HarvestMenuTransportError(
+      "missing-final-url",
+      `menu transport returned no resolved final URL for ${requestedUrl}`,
+    );
+  }
+  try {
+    return new URL(value.trim());
+  } catch {
+    throw new HarvestMenuTransportError(
+      "invalid-final-url",
+      `menu transport returned a non-absolute final URL for ${requestedUrl}: ${value}`,
+    );
+  }
+}
+
 function chainMenuCrawlDelayMs(sourceId = GREENE_KING_SOURCE_ID) {
   const source = harvestSourcesOfKind("chain-menu-prices").find((row) => row.id === sourceId);
   return (source?.crawlDelaySeconds ?? 1) * 1000;
@@ -104,7 +121,6 @@ export function createMenuPageHarvester({
   let extractsSpent = 0;
   let lastRequestAt = 0;
   let lastRobotsDisallowed = false;
-  let lastFinalUrl = null;
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -114,8 +130,7 @@ export function createMenuPageHarvester({
     if (elapsed < crawlDelayMs) await sleep(crawlDelayMs - elapsed);
   }
 
-  async function fetchMenuMarkdown(url) {
-    lastFinalUrl = null;
+  async function assertRequestedMenuUrl(url) {
     if (!isHarvestableChainMenuUrl(url, sourceId, associatedHosts)) {
       throw new HarvestMenuTransportError("policy-refused", `sourcePolicy refused ${url}`);
     }
@@ -127,6 +142,40 @@ export function createMenuPageHarvester({
         `robots.txt refused ${url}: ${robots.evidence}`,
       );
     }
+  }
+
+  async function validateResolvedMenuUrl(requestedUrl, value, { checkRequested = true } = {}) {
+    if (checkRequested) await assertRequestedMenuUrl(requestedUrl);
+    const requested = new URL(requestedUrl);
+    const resolved = requiredAbsoluteFinalUrl(value, requestedUrl);
+    const finalUrl = resolved.href;
+    if (!isHarvestableChainMenuUrl(finalUrl, sourceId, associatedHosts)) {
+      throw new HarvestMenuTransportError(
+        "policy-refused",
+        `redirect landed on refused URL ${finalUrl}`,
+      );
+    }
+    if (resolved.origin !== requested.origin) {
+      throw new HarvestMenuTransportError(
+        "redirect-refused",
+        `cross-origin menu redirect refused: ${requestedUrl} -> ${finalUrl}`,
+      );
+    }
+    if (finalUrl !== requested.href) {
+      const robots = await robotsChecker(finalUrl);
+      lastRobotsDisallowed = !robots.allowed;
+      if (!robots.allowed) {
+        throw new HarvestMenuTransportError(
+          "robots-refused",
+          `robots.txt refused redirect landing ${finalUrl}: ${robots.evidence}`,
+        );
+      }
+    }
+    return finalUrl;
+  }
+
+  async function fetchMenuPage(url) {
+    await assertRequestedMenuUrl(url);
     if (transport === "tavily") {
       if (extractsSpent >= extractBudget) {
         throw new HarvestMenuTransportError(
@@ -148,7 +197,11 @@ export function createMenuPageHarvester({
           robotsChecker,
           followMenuLink: sourceId === "youngs-menu-prices",
         });
-        page = { markdown: rendered.markdown, links: rendered.links, finalUrl: rendered.finalUrl ?? rendered.url ?? url };
+        page = {
+          markdown: rendered.markdown,
+          links: rendered.links,
+          finalUrl: rendered.finalUrl,
+        };
       } else {
         page = await fetchRefreshPage({
           job,
@@ -161,16 +214,11 @@ export function createMenuPageHarvester({
     } finally {
       lastRequestAt = Date.now();
     }
-    const finalUrl = page.finalUrl ?? page.url ?? url;
-    if (!isHarvestableChainMenuUrl(finalUrl, sourceId, associatedHosts)) {
-      throw new HarvestMenuTransportError("policy-refused", `redirect landed on refused URL ${finalUrl}`);
-    }
-    if (new URL(finalUrl).origin !== new URL(url).origin) {
-      throw new HarvestMenuTransportError("redirect-refused", `cross-origin menu redirect refused: ${url}`);
-    }
-    lastFinalUrl = finalUrl;
     if (transport === "tavily") extractsSpent += 1;
-    return page.markdown;
+    const finalUrl = await validateResolvedMenuUrl(url, page.finalUrl, {
+      checkRequested: false,
+    });
+    return { markdown: page.markdown, finalUrl };
   }
 
   return {
@@ -181,12 +229,10 @@ export function createMenuPageHarvester({
     get extractsSpent() {
       return extractsSpent;
     },
-    fetchMenuMarkdown,
+    fetchMenuPage,
+    validateResolvedMenuUrl,
     get lastRobotsDisallowed() {
       return lastRobotsDisallowed;
-    },
-    get lastFinalUrl() {
-      return lastFinalUrl;
     },
     waitForCrawlSpacing,
     markRequestCompleted() {

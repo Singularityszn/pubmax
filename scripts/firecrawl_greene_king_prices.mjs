@@ -40,6 +40,10 @@ import {
   createMenuPageHarvester,
   parseMenuTransportArg,
 } from "./lib/harvestMenuTransport.mjs";
+import {
+  readValidatedMenuPageCache,
+  writeMenuPageCache,
+} from "./lib/harvestMenuCache.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -231,13 +235,16 @@ function resolveVenueKey(url, indexes, menuUrlToId) {
 // Keep this cache path stable. Downstream merge scripts treat it as an input contract.
 
 async function scrapeMenu(url, outPath, harvester) {
-  if (existsSync(outPath)) {
-    return readFileSync(outPath, "utf8");
-  }
+  const cached = await readValidatedMenuPageCache({
+    requestedUrl: url,
+    markdownPath: outPath,
+    validateResolvedMenuUrl: harvester.validateResolvedMenuUrl,
+  });
+  if (cached) return cached;
   mkdirSync(dirname(outPath), { recursive: true });
-  const markdown = await harvester.fetchMenuMarkdown(url);
-  writeFileSync(outPath, `${markdown.trim()}\n`);
-  return markdown;
+  const page = await harvester.fetchMenuPage(url);
+  writeMenuPageCache({ requestedUrl: url, markdownPath: outPath, page });
+  return page;
 }
 
 // --- main -------------------------------------------------------------------
@@ -332,9 +339,9 @@ async function main() {
   for (const url of urls) {
     const slug = slugFromMenuUrl(url) ?? "unknown";
     const cachePath = join(MENU_CACHE, transport, `${slug}.md`);
-    let markdown;
+    let page;
     try {
-      markdown = await scrapeMenu(url, cachePath, harvester);
+      page = await scrapeMenu(url, cachePath, harvester);
     } catch (error) {
       if (error instanceof HarvestMenuTransportError && error.code === "policy-refused") {
         refused += 1;
@@ -354,6 +361,7 @@ async function main() {
       throw error;
     }
     scraped += 1;
+    const { markdown, finalUrl } = page;
 
     const venueKey = resolveVenueKey(url, indexes, menuUrlToId);
     if (!venueKey) {
@@ -371,7 +379,7 @@ async function main() {
         drinkName: d.drinkName,
         category: d.category,
         priceGbp: d.priceGbp,
-        source: { ...SOURCE, url },
+        source: { ...SOURCE, url: finalUrl },
         observedAt,
       });
     }

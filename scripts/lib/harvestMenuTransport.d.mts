@@ -29,7 +29,7 @@ export function createMenuPageHarvester(input?: {
   renderBrowserPage?: (
     connectUrl: string,
     url: string,
-  ) => Promise<{ markdown: string; links: string[] }>;
+  ) => Promise<{ markdown: string; links: string[]; finalUrl: string }>;
   fetchLocalPlaywrightMenuPage?: (
     url: string,
     options: {
@@ -38,7 +38,7 @@ export function createMenuPageHarvester(input?: {
       robotsChecker: RobotsChecker;
       followMenuLink: boolean;
     },
-  ) => Promise<{ markdown: string; links: string[]; finalUrl?: string }>;
+  ) => Promise<{ markdown: string; links: string[]; finalUrl: string }>;
   robotsChecker?: RobotsChecker;
   crawlDelayMs?: number;
   extractBudget?: number;
@@ -49,8 +49,8 @@ export function createMenuPageHarvester(input?: {
   extractBudget: number;
   readonly extractsSpent: number;
   readonly lastRobotsDisallowed: boolean;
-  readonly lastFinalUrl: string | null;
+  validateResolvedMenuUrl(requestedUrl: string, finalUrl: string): Promise<string>;
   waitForCrawlSpacing(): Promise<void>;
   markRequestCompleted(): void;
-  fetchMenuMarkdown(url: string): Promise<string>;
+  fetchMenuPage(url: string): Promise<{ markdown: string; finalUrl: string }>;
 };
