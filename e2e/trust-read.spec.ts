@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { serveNoPintBundleFixture } from "./helpers/pintBundleFixture";
+
 // THE TRUST STORY READS ONE WAY, on /map?sel=venue-1vle947 (captain's cut,
 // 5 Sept 2026, Fable51Fix section 1).
 //
@@ -27,6 +29,7 @@ type DropRow = {
   venueId: string;
   handle: string;
   drink: string;
+  measure: "pint";
   priceGbp: number;
   passedDownNote: string;
   era: string;
@@ -36,6 +39,7 @@ type DropRow = {
   createdAt: string;
   pintPhotoUrl: null;
   venuePhotoUrl: null;
+  receiptPhotoUrl: null;
   venueName: string;
   venueMapUrl: string;
   authorityKey?: string;
@@ -53,6 +57,7 @@ function row(overrides: Partial<DropRow> = {}): DropRow {
     venueId: VENUE_ID,
     handle: "tester",
     drink: "Lager",
+    measure: "pint",
     priceGbp: 4.5,
     passedDownNote: "",
     era: "",
@@ -62,6 +67,7 @@ function row(overrides: Partial<DropRow> = {}): DropRow {
     createdAt: new Date(Date.now() - 4 * DAY_MS).toISOString(),
     pintPhotoUrl: null,
     venuePhotoUrl: null,
+    receiptPhotoUrl: null,
     venueName: "The Sir Christopher Hatton",
     venueMapUrl: `/map?sel=${VENUE_ID}`,
     ...overrides,
@@ -141,6 +147,7 @@ for (const viewport of [
         page,
       }) => {
         test.setTimeout(120_000);
+        await serveNoPintBundleFixture(page, VENUE_ID);
         await serveDrops(page, FIXTURES[state]());
 
         const response = await page.goto(`/map?sel=${VENUE_ID}`);

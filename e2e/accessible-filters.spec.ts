@@ -63,3 +63,36 @@ test("a Step-free route surfaces unknown accessibility evidence instead of claim
 
   expect(errors).toEqual([]);
 });
+
+test("desktop accessibility filters exclude unconfirmed map pins", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+  await page.goto("/map");
+  const plan = page.getByRole("button", { name: "Plan an outing", exact: true });
+  await expect(async () => {
+    await plan.click();
+    await expect(page.locator(".controlRail")).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+  const rail = page.locator(".controlRail");
+  const matched = rail.locator(".statsGrid > div").filter({ has: page.getByText("Matched", { exact: true }) }).locator("strong");
+  await expect.poll(async () => Number(await matched.textContent())).toBeGreaterThan(0);
+  const initialCount = Number(await matched.textContent());
+  for (const label of ["Step-free entry", "Accessible toilet", "Seated service"]) {
+    const filter = rail.getByRole("checkbox", { name: label, exact: true });
+    await filter.check();
+    await expect(async () => {
+      const count = Number(await matched.textContent());
+      expect(count).toBeLessThan(initialCount);
+      await expect(rail.getByRole("status")).toContainText(`${count} confirmed so far`);
+      await expect(rail.getByRole("status")).toContainText("Pubs without confirmed access details are left out.");
+    }).toPass();
+    const filteredCount = Number(await matched.textContent());
+    await filter.uncheck();
+    await expect.poll(async () => Number(await matched.textContent())).toBeGreaterThan(filteredCount);
+  }
+});

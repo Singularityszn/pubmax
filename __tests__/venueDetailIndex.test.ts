@@ -50,6 +50,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   resetVenueDetailCachesForTests();
   resetVenueAliasesForTests();
   vi.unstubAllEnvs();
@@ -148,6 +149,37 @@ describe("venueDetailIndex", () => {
     );
     expect(venue?.orderUrl).toBeUndefined();
     expect(venue?.bookingLink).toMatch(/^https:\/\//);
+  });
+
+  it("can omit harvest-overlay IO while preserving every field used by venue pages", async () => {
+    const reads: string[] = [];
+    const realRead = fs.readFile.bind(fs);
+    vi.spyOn(fs, "readFile").mockImplementation(async (file, ...args) => {
+      reads.push(String(file));
+      return realRead(file, ...(args as [BufferEncoding]));
+    });
+
+    const core = await lookupVenueDetail(SEED_VENUE_ID, {
+      includeHarvestOverlay: false,
+    });
+    expect(core.status).toBe("found");
+    expect(reads.some((file) => file.endsWith("data/osm/uk/uk_osm_pubs.json"))).toBe(false);
+
+    const full = await lookupVenueDetail(SEED_VENUE_ID);
+    expect(full.status).toBe("found");
+    expect(reads.some((file) => file.endsWith("data/osm/uk/uk_osm_pubs.json"))).toBe(true);
+
+    if (core.status !== "found" || full.status !== "found") return;
+    const pageFields = (venue: typeof core.venue) => ({
+      id: venue.id,
+      name: venue.name,
+      address: venue.address,
+      primaryBorough: venue.primaryBorough,
+      latitude: venue.latitude,
+      longitude: venue.longitude,
+      curation: venue.curation,
+    });
+    expect(pageFields(core.venue)).toEqual(pageFields(full.venue));
   });
 
   it("degrades to null when the detail rows file cannot be opened", async () => {

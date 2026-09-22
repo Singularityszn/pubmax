@@ -17,6 +17,7 @@ export function planMemberCapability(request: Request, bodyToken: unknown): stri
   return typeof bodyToken === "string" && bodyToken.trim() && bodyToken !== PLAN_HTTP_ONLY_SESSION ? bodyToken.trim() : undefined;
 }
 
+/** @public e2e/screenshots.spec.ts imports this cookie name; Knip's entry graph does not trace Playwright specs. */
 export function planMemberCookieName(planId: string): string {
   return `pubmax_plan_member_${planId}`;
 }

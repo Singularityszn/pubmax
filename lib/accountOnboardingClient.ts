@@ -1,4 +1,5 @@
 import { authedActionFetch } from "@/lib/authedFetch";
+import { waitForAbortableDelay } from "@/lib/abortableDelay";
 
 type AccountOnboardingRequest = (
   input: string,
@@ -69,26 +70,6 @@ export async function loadAccountOnboardingStatus(
   }
 }
 
-function waitForRetry(delayMs: number, signal?: AbortSignal): Promise<boolean> {
-  return new Promise((resolve) => {
-    if (signal?.aborted) {
-      resolve(false);
-      return;
-    }
-    let timer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
-      timer = null;
-      signal?.removeEventListener("abort", onAbort);
-      resolve(true);
-    }, delayMs);
-    const onAbort = () => {
-      if (timer !== null) clearTimeout(timer);
-      timer = null;
-      resolve(false);
-    };
-    signal?.addEventListener("abort", onAbort, { once: true });
-  });
-}
-
 /**
  * A session-backed status read can cross the last edge of auth restoration.
  * Keep that transient failure out of the UI with one bounded, abort-safe retry.
@@ -100,7 +81,9 @@ export async function loadAccountOnboardingStatusWithRetry(
   let result = await loadAccountOnboardingStatus(request, signal);
   for (const delayMs of ACCOUNT_ONBOARDING_RETRY_DELAYS_MS) {
     if (result.status !== "unavailable" || signal?.aborted) return result;
-    if (!(await waitForRetry(delayMs, signal))) return result;
+    if (!(await waitForAbortableDelay(delayMs, signal, { rejectOnAbort: false }))) {
+      return result;
+    }
     result = await loadAccountOnboardingStatus(request, signal);
   }
   return result;

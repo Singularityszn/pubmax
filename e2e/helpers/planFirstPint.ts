@@ -30,10 +30,21 @@ function londonDateTimeIn(minutes: number): string {
  */
 export async function setFirstPintIn(page: Page, minutes: number): Promise<string> {
   const field = page.getByLabel("First pint");
+  await expect(field).toBeVisible();
+  await expect(field).toBeEditable();
   const current = await field.inputValue();
   const candidate = londonDateTimeIn(minutes);
   const value = candidate === current ? londonDateTimeIn(minutes + 1) : candidate;
-  await field.fill(value);
-  await expect(page.getByRole("button", { name: "Regenerate route" })).toBeVisible();
+
+  const regenerate = page.getByRole("button", { name: "Regenerate route" });
+  await expect(async () => {
+    // Hydration can leave the DOM holding the desired value while React's
+    // input tracker missed the first event. Force a real value transition on
+    // each retry before requiring the stale-route control.
+    await field.fill("");
+    await field.fill(value);
+    await expect(field).toHaveValue(value, { timeout: 500 });
+    await expect(regenerate).toBeVisible({ timeout: 500 });
+  }).toPass({ timeout: 10_000 });
   return value;
 }

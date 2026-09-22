@@ -2,8 +2,8 @@ import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
 import { slugifyVenueName } from "@/lib/venuePermalinkSlug";
 import type { Venue } from "@/lib/venues";
 
-// Pure, deterministic helpers behind the borough discovery pages (cc_plan2
-// §14/§25). Each London borough gets a server-rendered, shareable page.
+// Pure, deterministic helpers behind the borough discovery pages. Each London
+// borough gets a server-rendered, shareable page.
 // Everything here is a plain transform over a Venue[] (no fetch, no React, no
 // side effects) so it can be unit-tested directly against tiny fixtures (see
 // __tests__/boroughs.test.ts).

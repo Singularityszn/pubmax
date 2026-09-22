@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { createRobotsChecker } from "../lib/harvest/robots.ts";
 
 import {
   KNOWN_AREA_SLUGS,
@@ -239,7 +240,7 @@ export async function refreshAreaNews({
   env = process.env,
   knownAreas = KNOWN_AREA_SLUGS,
   searchFn = searchKeenable,
-  fetchFn = fetchKeenable,
+  fetchFn,
   previousDataset = { version: 1, generatedAt: "", entries: [] },
   writeDataset = writeAreaNewsDataset,
   logger = (line) => console.log(line),
@@ -276,10 +277,11 @@ export async function refreshAreaNews({
     throw new Error("Area news refresh found no valid facts. Existing dataset was not changed.");
   }
 
+  const checkRobots = createRobotsChecker();
   const { freshEntries, fetchFailures } = await collectFreshEntries({
     candidates,
     env,
-    fetchFn,
+    fetchFn: fetchFn ?? ((url, options) => fetchKeenable(url, { ...options, checkRobots })),
     logger,
     nowTime,
     knownAreas,

@@ -40,7 +40,7 @@ import "./borough.css";
 import "@/components/seo/factLayer.css";
 
 // Borough discovery / "night-out chapter" page: /borough/[slug]. A SERVER
-// component (cc_plan2 §14/§25, story 28) — it reads the bundled dataset through
+// component. It reads the bundled dataset through
 // lib/pintPriceLandingDataset.server, the ONE governed seam every priced surface
 // shares, resolves the borough from the slug, and renders a
 // shareable page: a dek, cheapest-first pubs (each linking onto the map), the

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { installAuthDoubles } from "./helpers/authDoubles";
+import { serveListedPintFixture, serveNoPintBundleFixture } from "./helpers/pintBundleFixture";
 
 /**
  * ONE PRICE DOOR PER TRUST STATE, on the venue Overview at 390 (captain's rule
@@ -36,6 +37,7 @@ function row(overrides: DropRow = {}): DropRow {
     venueId: HATTON,
     handle: "tester",
     drink: "Lager",
+    measure: "pint",
     priceGbp: 4.5,
     passedDownNote: "",
     era: "",
@@ -45,6 +47,7 @@ function row(overrides: DropRow = {}): DropRow {
     createdAt: new Date(Date.now() - 4 * DAY_MS).toISOString(),
     pintPhotoUrl: null,
     venuePhotoUrl: null,
+    receiptPhotoUrl: null,
     venueName: "The Sir Christopher Hatton",
     venueMapUrl: `/map?sel=${HATTON}`,
     ...overrides,
@@ -154,6 +157,8 @@ for (const state of Object.keys(STATES) as StateName[]) {
   }) => {
     const fixture = STATES[state];
     const stub = await installAuthDoubles(page);
+    if (state === "listed") await serveListedPintFixture(page, fixture.venueId);
+    else await serveNoPintBundleFixture(page, fixture.venueId);
     await serveDrops(page, fixture.venueId, fixture.drops);
     await page.goto("/");
     await stub.signedInAs("A");
@@ -163,6 +168,9 @@ for (const state of Object.keys(STATES) as StateName[]) {
     const doors = sheet.locator("[data-price-door]");
     await expect(doors).toHaveCount(1, { timeout: 30_000 });
     await expect(doors.first()).toHaveAttribute("data-price-door", fixture.door);
+    if (state === "listed") {
+      await expect(sheet.locator('[data-standing="listed"]')).toContainText("£6.30");
+    }
     await doors.first().scrollIntoViewIfNeeded();
     await expect(doors.first()).toBeVisible();
     const box = await doors.first().boundingBox();
@@ -182,6 +190,7 @@ for (const state of Object.keys(STATES) as StateName[]) {
 
 test("the log door unfolds the composer in place and folds itself away", async ({ page }) => {
   const stub = await installAuthDoubles(page);
+  await serveNoPintBundleFixture(page, UNPRICED);
   await serveDrops(page, UNPRICED, []);
   await page.goto("/");
   await stub.signedInAs("A");
@@ -212,6 +221,7 @@ test("the confirm door still lands on the Pint Drop composer with the figure see
   page,
 }) => {
   const stub = await installAuthDoubles(page);
+  await serveNoPintBundleFixture(page, HATTON);
   await serveDrops(page, HATTON, STATES["logged-once"].drops);
   await page.goto("/");
   await stub.signedInAs("B");

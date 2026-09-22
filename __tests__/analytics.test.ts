@@ -14,6 +14,13 @@ import {
   consentAwareBeforeSend,
   shouldMountVercelAnalytics,
 } from "@/components/ConsentAwareVercelAnalytics";
+import {
+  consentAwareSpeedInsightsBeforeSend,
+} from "@/components/ConsentAwareVercelSpeedInsights";
+import {
+  shouldMountVercelTelemetryForLocation,
+  shouldMountVercelTelemetryForPath,
+} from "@/lib/vercelTelemetry";
 
 type FakeNavigator = Partial<Navigator> & {
   sendBeacon?: (url: string, data?: BodyInit | null) => boolean;
@@ -304,9 +311,17 @@ describe("trackEvent", () => {
   it("allows Vercel pageviews only after consent and still honors DNT", () => {
     setWindow();
     setAnalyticsConsent(true);
-    const event = { type: "pageview" as const, url: "/tonight" };
+    const event = {
+      type: "pageview" as const,
+      url: "https://pubmaxxing.com/tonight?plan=private-plan-id",
+    };
     expect(analyticsCollectionAllowed()).toBe(true);
-    expect(consentAwareBeforeSend(event)).toBe(event);
+    expect(consentAwareBeforeSend(event)).toEqual({
+      ...event,
+      url: "https://pubmaxxing.com/tonight",
+    });
+    expect(consentAwareBeforeSend({ ...event, url: "https://pubmaxxing.com/admin" })).toBeNull();
+    expect(consentAwareBeforeSend({ ...event, url: "https://pubmaxxing.com/plan/private-plan-id" })).toBeNull();
 
     (globalThis as { navigator: FakeNavigator }).navigator.doNotTrack = "1";
     expect(analyticsCollectionAllowed()).toBe(false);
@@ -317,7 +332,51 @@ describe("trackEvent", () => {
     expect(shouldMountVercelAnalytics("development")).toBe(false);
     expect(shouldMountVercelAnalytics("test")).toBe(false);
     expect(shouldMountVercelAnalytics("production")).toBe(false);
-    expect(shouldMountVercelAnalytics("production", "1")).toBe(true);
+    expect(shouldMountVercelAnalytics("production", "1", "preview")).toBe(false);
+    expect(shouldMountVercelAnalytics("production", "1", "production")).toBe(true);
+  });
+
+  it("mounts Vercel telemetry scripts only on public static routes", () => {
+    expect(shouldMountVercelTelemetryForPath("/")).toBe(true);
+    expect(shouldMountVercelTelemetryForPath("/map")).toBe(true);
+    expect(shouldMountVercelTelemetryForPath("/plan/private-plan-id")).toBe(false);
+    expect(shouldMountVercelTelemetryForPath("/u/private-handle")).toBe(false);
+    expect(shouldMountVercelTelemetryForPath("/admin")).toBe(false);
+    expect(shouldMountVercelTelemetryForLocation("/map", "")).toBe(true);
+    expect(shouldMountVercelTelemetryForLocation("/map", "?sel=private-plan-id")).toBe(false);
+    expect(shouldMountVercelTelemetryForLocation("/tonight", "?src=private-campaign")).toBe(false);
+  });
+
+  it("filters Speed Insights to consented public static routes", () => {
+    setWindow();
+    const event = {
+      type: "vital" as const,
+      url: "https://pubmaxxing.com/map?sel=private-plan-id#stop",
+      route: "/u/private-handle",
+    };
+    expect(consentAwareSpeedInsightsBeforeSend(event)).toBeNull();
+
+    setAnalyticsConsent(true);
+    expect(consentAwareSpeedInsightsBeforeSend(event)).toEqual({
+      ...event,
+      url: "https://pubmaxxing.com/map",
+      route: "/map",
+    });
+    expect(consentAwareSpeedInsightsBeforeSend({
+      ...event,
+      url: "https://pubmaxxing.com/admin?token=secret",
+    })).toBeNull();
+    expect(consentAwareSpeedInsightsBeforeSend({
+      ...event,
+      url: "https://pubmaxxing.com/plan/private-plan-id",
+    })).toBeNull();
+    expect(consentAwareSpeedInsightsBeforeSend({
+      ...event,
+      url: "https://another.example/map",
+    })).toBeNull();
+
+    (globalThis as { navigator: FakeNavigator }).navigator.doNotTrack = "1";
+    expect(consentAwareSpeedInsightsBeforeSend(event)).toBeNull();
   });
 });
 

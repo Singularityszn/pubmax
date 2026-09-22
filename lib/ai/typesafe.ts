@@ -21,7 +21,7 @@ import {
   type SystemOneResult,
 } from "@typesafe-ai/sdk";
 
-import { log } from "@/lib/log";
+import { formatLogLine, log, type LogLevel } from "@/lib/log";
 
 export type { EntryType, Questions, SystemOneResult };
 
@@ -34,7 +34,23 @@ export type SystemOneOptions = {
   timeoutMs?: number;
   /** Which caller spent the call, for the log line. */
   lane?: string;
+  /** Keep a CLI's stdout machine-readable while retaining safe diagnostics. */
+  logDestination?: "default" | "stderr" | "silent";
 };
+
+function emitSystemOneLog(
+  options: SystemOneOptions,
+  level: LogLevel,
+  event: string,
+  context: Record<string, unknown>,
+): void {
+  if (options.logDestination === "silent") return;
+  if (options.logDestination === "stderr") {
+    process.stderr.write(`${formatLogLine(level, event, context)}\n`);
+    return;
+  }
+  log(level, event, context);
+}
 
 function typesafeApiKey(env: Record<string, string | undefined> = process.env): string | undefined {
   return env.TYPESAFE_API_KEY?.trim() || undefined;
@@ -81,7 +97,7 @@ export async function systemOne<Q extends Questions>(
     // The line names the lane and what the call cost. The state never reaches
     // a log: it carries venue rows, and the server door is equally explicit
     // that prose does not.
-    log("info", "typesafe.system_one", {
+    emitSystemOneLog(options, "info", "typesafe.system_one", {
       lane,
       durationMs: Date.now() - start,
       questionCount: Object.keys(questions).length,
@@ -89,7 +105,7 @@ export async function systemOne<Q extends Questions>(
     });
     return result;
   } catch (err) {
-    log("warn", "typesafe.system_one_failed", {
+    emitSystemOneLog(options, "warn", "typesafe.system_one_failed", {
       lane,
       durationMs: Date.now() - start,
       questionCount: Object.keys(questions).length,

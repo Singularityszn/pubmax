@@ -28,6 +28,15 @@ const slim: SlimVenue = {
 };
 
 describe("slimVenueToPin", () => {
+  it("carries documented London accessibility before detail hydrates", () => {
+    expect(slimVenueToPin({ ...slim, name: "The Ice Wharf - JD Wetherspoon", borough: "Camden" }).accessibility?.stepFree).toBe(true);
+    expect(slimVenueToPin({ ...slim, name: "The Crosse Keys" }).accessibility).toMatchObject({ stepFree: false, accessibleToilet: true });
+  });
+
+  it.each(["venue-mcr-abc123", "venue-xyz-abc123", "venue-uk-n123"])("does not give London access facts to %s", (id) => {
+    expect(slimVenueToPin({ ...slim, id, name: "The Ice Wharf - JD Wetherspoon", borough: "Camden" }).accessibility).toBeUndefined();
+  });
+
   it("maps the pin-critical fields straight through", () => {
     const pin = slimVenueToPin(slim);
     expect(pin.id).toBe("venue-abc123");

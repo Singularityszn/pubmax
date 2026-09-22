@@ -968,6 +968,19 @@ export default function PubMap({
    */
   nationalBrowse?: boolean;
 }) {
+  const mainLandmarkRef = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    // The native skip link can focus the server skeleton before this chunk
+    // loads. Replacing that main drops focus onto body; hand it to the live
+    // landmark only while the skip-link target is still current.
+    if (
+      window.location.hash === "#main" &&
+      document.activeElement === document.body
+    ) {
+      mainLandmarkRef.current?.focus({ preventScroll: true });
+    }
+  }, []);
+
   const city = getCity(cityId);
   const [ukPlaceArrival] = useState(() => placeArrival);
   const [ukNationalBrowse] = useState(
@@ -6535,6 +6548,8 @@ export default function PubMap({
 
   return (
     <main id="main"
+      ref={mainLandmarkRef}
+      tabIndex={-1}
       // The `sheet-full` marker only ever matters ≤640px (mapToolbar.css
       // gates every rule that reads it behind that same breakpoint) — it
       // lets the map's floating controls (toolbar/legend) get out of the

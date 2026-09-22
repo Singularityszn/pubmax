@@ -19,6 +19,33 @@ function primaryNav(page: Page) {
 }
 
 test.describe("mobile bottom-tab navigation", () => {
+  test("planner Home leaves the entire area trail and restores the map", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.removeItem("pubmax:map-first-visit-arrival:v1");
+    });
+    await page.goto("/map");
+    await page.getByRole("button", { name: "Choose an area", exact: true }).click();
+    await page.getByRole("button", { name: /^Camden(?: \d+ pubs)?$/ }).click();
+    const plannerSheet = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
+    await expect(async () => {
+      if (!(await plannerSheet.isVisible())) {
+        await page.getByRole("button", { name: "Describe the outing", exact: true }).click();
+      }
+      await expect(plannerSheet).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: "Back to Choose an area", exact: true })).toBeVisible();
+
+    await page.getByRole("button", { name: "Close and return to the map", exact: true }).click();
+
+    await expect(page.locator(".mobileSheetPortal")).toHaveCount(0);
+    await expect(page.locator(".appShell")).not.toHaveClass(/planning-open/);
+    await expect(primaryNav(page)).toHaveCSS("opacity", "1");
+    await expect(page.getByRole("button", { name: "Describe the outing", exact: true })).toBeVisible();
+    await primaryNav(page).getByRole("link", { name: "Tonight", exact: true }).click();
+    await expect(page).toHaveURL(/\/tonight$/);
+  });
+
   test("keeps computed route clearance while keyboard state hides the bar", async ({ page }) => {
     await page.goto("/privacy");
 

@@ -72,12 +72,61 @@ test("skip link targets the page main landmark", async ({ page }) => {
   const skipLink = page.getByRole("link", { name: "Skip to main content" });
   await skipLink.focus();
   await expect(skipLink).toBeFocused();
-  await skipLink.click();
+  await page.keyboard.press("Enter");
   const main = page.locator("#main");
   await expect(main).toBeVisible();
   await expect(main).toBeFocused();
 
   expect(errors).toEqual([]);
+});
+
+test("skip link keeps focus when the server map skeleton hydrates", async ({ page }) => {
+  let releaseScripts!: () => void;
+  const scriptsHeld = new Promise<void>((resolve) => {
+    releaseScripts = resolve;
+  });
+  await page.route("**/_next/static/chunks/*.js*", async (route) => {
+    await scriptsHeld;
+    await route.continue();
+  });
+
+  try {
+    const response = await page.goto("/map", { waitUntil: "commit" });
+    expect(response?.status()).toBe(200);
+
+    const skeleton = page.locator("main#main.mapSkeleton");
+    await expect(skeleton).toBeVisible();
+    const skipLink = page.getByRole("link", { name: "Skip to main content" });
+    await skipLink.focus();
+    await page.keyboard.press("Enter");
+    await expect(skeleton).toBeFocused();
+  } finally {
+    releaseScripts();
+  }
+
+  const liveMain = page.locator("main#main.appShell");
+  await expect(liveMain).toBeVisible();
+  await expect(liveMain).toBeFocused();
+});
+
+test("skip link focuses the server-rendered main landmark without JavaScript", async ({
+  browser,
+}, testInfo) => {
+  const baseURL = String(testInfo.project.use.baseURL);
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  try {
+    const page = await context.newPage();
+    const response = await page.goto(new URL("/map", baseURL).toString());
+    expect(response?.status()).toBe(200);
+
+    const skipLink = page.getByRole("link", { name: "Skip to main content" });
+    await skipLink.focus();
+    await expect(skipLink).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#main")).toBeFocused();
+  } finally {
+    await context.close();
+  }
 });
 
 // ---------------------------------------------------------------------------

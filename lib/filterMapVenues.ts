@@ -21,9 +21,7 @@ export function filterMapVenues(
     requireLiveSports: false,
     requireWater: false,
     requireHeritage: false,
-    requireStepFree: false,
-    requireAccessibleToilet: false,
-    requireSeatedService: false,
+    // Accessibility requires confirmed evidence even before detail hydrates.
     // openNow stays on for slim pins: match uses name+coords, which slim rows have.
   };
 

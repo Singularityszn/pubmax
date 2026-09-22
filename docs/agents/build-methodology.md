@@ -6,7 +6,8 @@ tree. A beat never overrides a law in the root [AGENTS.md](../../AGENTS.md).
 ## The four beats
 
 1. **Isolate with `/new-feature`.** Start every task in a fresh worktree and branch cut from
-   `origin/main`. Never build on `main`.
+   `origin/main`. Keep an isolated worktree supplied by Codex, Treehouse or another harness.
+   Give a detached checkout its own task branch before committing. Never build on `main`.
 2. **Build with `/code-structure`.** Actions and boundaries orchestrate the why and when; a service layer
    owns the reusable how, with explicit inputs and structured returns. Here that is the policy-leaf shape
    [`lib/AGENTS.md`](../../lib/AGENTS.md) fences: one owner per rule, closed vocabularies, thin routes over
@@ -43,6 +44,25 @@ prose you did not touch.
   AGENTS.md "Working in this tree".
 - If a conflict cannot be resolved confidently, stop and report instead of guessing.
 
+## Context and model budgets
+
+- Delegate an outcome, owned files, worktree/base commit, acceptance criteria,
+  instruction/evidence paths, known failures and next action. Check existing owners
+  first. Reuse workers; do not copy entire conversations or logs into each brief.
+- Return changed files, tested commit, results, evidence paths and remaining risks.
+  Send updates when evidence or blockers change. Use compact task snapshots.
+- Load only relevant skills via [the lookup guide](../WHERE_ARE_THE_SKILLS.md).
+  Follow user model settings: Sol xhigh for difficult work, Luna max for routine work.
+- Use code for exact comparisons and required gates. The
+  [review duplicate check](review-finding-dedup.md) offers bounded Jev suggestions.
+  Retain uncertain findings for review. It cannot grant source permission,
+  waive tests or approve merges. Keep secrets/private data out of judgment inputs.
+- Measure total calls, latency and provider-reported usage per accepted outcome,
+  including Jev and retries. Record model, question version and evidence revision.
+  Bytes are not tokens. Reuse judgments only while evidence and policy are unchanged.
+- Serialize heavy local verification across worktrees; review and bounded edits can
+  run alongside it. Required final-state checks remain mandatory.
+
 ## Completing a task
 
 1. Keep the changes limited to the assigned task.
@@ -67,9 +87,12 @@ A merge happens only on the captain's word. Keep the worktree until the PR is me
 
 ## Skill sources
 
-An agent without these skills follows the beats above by hand.
+The [skill index](../../SKILLS.md) maps work to focused playbooks. An agent
+without a playbook follows the beats above by hand and reports the missing skill.
+Install only the named skills needed for the task. Do not install an entire pack
+to recover one missing entry.
 
 | Skill | Install |
 | --- | --- |
-| `new-feature`, `code-structure`, `evidence-driven-testing`, `before-and-after`, `greploop-apps`, `unslop` | `npx skills add michaelshimeles/skills -s "*"` |
+| `new-feature`, `code-structure`, `evidence-driven-testing`, `before-and-after`, `greploop-apps`, `unslop` | Repeat `npx skills add michaelshimeles/skills --skill <name> --agent <agent> -y` for each needed skill and agent |
 | `greploop` | `npx skills add greptileai/skills@greploop` |

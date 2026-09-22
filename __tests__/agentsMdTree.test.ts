@@ -1,5 +1,14 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 
 import { describe, expect, it } from "vitest";
 
@@ -72,6 +81,30 @@ function headingsOf(file: string): string[] {
 }
 
 describe("the AGENTS.md tree", () => {
+  it("ignores nested agent worktree copies", () => {
+    const fixture = mkdtempSync(join(tmpdir(), "pubmax-agents-tree-"));
+
+    try {
+      mkdirSync(join(fixture, "app"), { recursive: true });
+      mkdirSync(join(fixture, ".worktrees", "agent-copy"), {
+        recursive: true,
+      });
+      writeFileSync(join(fixture, "AGENTS.md"), "# Root\n");
+      writeFileSync(join(fixture, "app", "AGENTS.md"), "# App\n");
+      writeFileSync(
+        join(fixture, ".worktrees", "agent-copy", "AGENTS.md"),
+        "# Nested copy\n",
+      );
+
+      expect(agentsMdFiles(fixture)).toEqual([
+        "AGENTS.md",
+        "app/AGENTS.md",
+      ]);
+    } finally {
+      rmSync(fixture, { force: true, recursive: true });
+    }
+  });
+
   it("points every table row at a file that is here", () => {
     const missing = rootTablePointers().filter(
       (pointer) => !existsSync(join(ROOT, pointer)),

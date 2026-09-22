@@ -11,8 +11,8 @@ import { CLUSTER_MAX_ZOOM } from "./buildScene";
 // source or client-side aggregation is needed here — just read them off the
 // queried cluster features.
 //
-// This is the ONE sanctioned DOM-marker exception (MAP_MARKERS_PLAN /
-// PRD_MAP_BEAUTY): everything else on the map is a GL layer. The count is
+// This is the ONE sanctioned DOM-marker exception. Everything else on the map
+// is a GL layer. The count is
 // bounded (DONUT_CAP) precisely so this never turns into an unbounded-DOM
 // perf trap — past the cap we fall back to the plain circle+count GL layers
 // (buildScene's `clusters` / `cluster-count`), which stay in the style as an

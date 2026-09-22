@@ -1,6 +1,6 @@
 # PRD - Fable Final Review and Launch
 
-> **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md
+> **Superseded.** For current product context, see [PRD_CANONICAL.md](../PRD_CANONICAL.md) and [teach.md](../teach.md).
 
 > Synthesised via `to-prd` from Opus' implementation, Codex review, and parallel subagent reviews. This is the final Fable-facing execution PRD: make the app production-worthy, beautiful, accessible, and deployable to Vercel. Vocabulary follows `CONTEXT.md` and the production boundary ADRs.
 

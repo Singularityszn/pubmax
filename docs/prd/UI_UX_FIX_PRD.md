@@ -77,5 +77,5 @@ same PR, so the folder stays the visual state of record.
 ## Out of scope here
 
 Voice pal, ride handoff, food ending - `PUBPAL_CONNECTIONS_PRD.md`.
-Known code-quality follow-ups (search-suggest complexity/duplication,
-sanitizeEvent target case, store factory ports) - `docs/AGENT_STATE.md`.
+Known code-quality follow-ups are outside this PRD. Check GitHub issues for
+their current status.

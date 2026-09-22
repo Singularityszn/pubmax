@@ -166,39 +166,44 @@ describe("live What's-On top-up render deadline", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  it("never cancels a lapsed call, so it still settles and warms the lane behind the reader", async () => {
-    let settled = 0;
-    mockFetch.mockImplementation(
-      () =>
-        new Promise((resolve) =>
-          setTimeout(() => {
-            settled += 1;
-            resolve(answer("warmed"));
-          }, 40),
-        ),
-    );
+  it("uses a fake clock to separate the render deadline from provider completion", async () => {
+    vi.useFakeTimers();
+    try {
+      let settled = 0;
+      mockFetch.mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => {
+              settled += 1;
+              resolve(answer("completed after deadline"));
+            }, 40),
+          ),
+      );
 
-    const lapsed = await loadWhatsOn(
-      {},
-      { now: NOW, loadBaseline: () => [], liveDeadlineMs: 5 },
-    );
-    expect(lapsed.revalidation).toEqual({
-      status: "unmeasured",
-      reason: "live-provider-deadline",
-    });
-    // The reader has already been served while the call is still open.
-    expect(settled).toBe(0);
+      const pending = loadWhatsOn(
+        {},
+        { now: NOW, loadBaseline: () => [], liveDeadlineMs: 5 },
+      );
+      await vi.advanceTimersByTimeAsync(5);
+      const lapsed = await pending;
+      expect(lapsed.revalidation).toEqual({
+        status: "unmeasured",
+        reason: "live-provider-deadline",
+      });
+      expect(settled).toBe(0);
 
-    // It was never aborted: it completes on its own and fills the provider's own
-    // cache, which is what makes the next reader cheap in production.
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    expect(settled).toBe(1);
-
-    const next = await loadWhatsOn(
-      {},
-      { now: NOW, loadBaseline: () => [], liveDeadlineMs: 5_000 },
-    );
-    expect(next.revalidation).toEqual({ status: "measured" });
+      // Move past provider completion after the render has already returned.
+      await vi.advanceTimersByTimeAsync(35);
+      expect(settled).toBe(1);
+      const nextReader = loadWhatsOn(
+        {},
+        { now: NOW, loadBaseline: () => [], liveDeadlineMs: 5_000 },
+      );
+      await vi.advanceTimersByTimeAsync(40);
+      expect((await nextReader).revalidation).toEqual({ status: "measured" });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("leaves an INJECTED lane on its own unbounded wait, so every existing caller is unchanged", async () => {

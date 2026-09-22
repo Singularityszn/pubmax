@@ -1,4 +1,4 @@
-// Durable saved-pub LISTS for a handle (cc_plan2 §5).
+// Durable saved-pub lists for a handle.
 //   GET  ?handle=<handle>  (or ?actor=<anonId>)  → { saved: SavedPubDTO[] }
 //   POST { handle, venueId, listType, note }      → { saved: SavedPubDTO[] }  (toggles)
 //

@@ -49,6 +49,9 @@ const config: KnipConfig = {
   // exports it reads through the sidecar. See declaredMjsPairs above.
   entry: [
     ...declaredMjsPairs(["lib", "scripts"]),
+    // Manual review CLI and its standalone node:test suite.
+    "scripts/review-finding-dedup.mjs",
+    "__tests__/reviewFindingDedup.test.mjs",
     // Refreshes __tests__/fixtures/typesafe/pint-price-judgment-probabilities.json
     // and needs TYPESAFE_API_KEY. An entry rather than an ignore, so knip keeps
     // tracing what it imports: the judgment leaf it calls is reached from here
