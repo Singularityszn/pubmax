@@ -4078,8 +4078,6 @@ export default function PubMap({
     setBuiltIds([]);
     setRouteMapped(false);
     setActiveCrawl(null);
-    // Explicit Clear also drops the refresh-safety net.
-    if (typeof window !== "undefined") window.localStorage.removeItem(BUILT_STORAGE_KEY);
   }, [setBuiltIds, setRouteMapped]);
 
   // Trust fix (§4.3): a pin tap INSPECTS ONLY, in both modes. It never mutates
