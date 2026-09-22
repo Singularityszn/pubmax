@@ -216,10 +216,13 @@ describe("both price crawl lanes spend the one rule", () => {
         join(process.cwd(), "scripts/harvest/uk-prices", lane),
         "utf8",
       );
-      // A lane that follows redirects must read where it landed. Both used to
-      // compute `finalUrl` and hand it to nothing.
-      expect(source, lane).toContain('redirect: "follow"');
-      expect(source, lane).toContain("harvestRedirectLanding(url, response.url)");
+      if (lane === "run.mjs") {
+        expect(source, lane).toContain("fetchHarvestedPage(");
+        expect(source, lane).not.toContain('redirect: "follow"');
+      } else {
+        // OCR remains on its existing landing check until separately migrated.
+        expect(source, lane).toContain("harvestRedirectLanding(url, response.url)");
+      }
       expect(source, lane).not.toContain("finalUrl: response.url || url");
     }
   });
