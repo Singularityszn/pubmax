@@ -4,6 +4,58 @@
 
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
+const WEB_PUSH_REGISTRATION_CEILING_MS = 10_000;
+
+function abortReason(signal: AbortSignal): unknown {
+  return signal.reason
+    ?? new DOMException("The web push registration was cancelled.", "AbortError");
+}
+
+function waitForWebPushWork<T>(work: PromiseLike<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(abortReason(signal));
+
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      signal.removeEventListener("abort", onAbort);
+      reject(abortReason(signal));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    Promise.resolve(work).then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
+function registrationScope(parentSignal?: AbortSignal): {
+  signal: AbortSignal;
+  dispose(): void;
+} {
+  const controller = new AbortController();
+  const onParentAbort = () => {
+    if (parentSignal) controller.abort(abortReason(parentSignal));
+  };
+  if (parentSignal?.aborted) onParentAbort();
+  else parentSignal?.addEventListener("abort", onParentAbort, { once: true });
+  const timeout = setTimeout(() => {
+    controller.abort(new DOMException("Web push registration timed out.", "TimeoutError"));
+  }, WEB_PUSH_REGISTRATION_CEILING_MS);
+
+  return {
+    signal: controller.signal,
+    dispose() {
+      clearTimeout(timeout);
+      parentSignal?.removeEventListener("abort", onParentAbort);
+    },
+  };
+}
+
 function applicationServerKey(value: string): Uint8Array<ArrayBuffer> | null {
   try {
     const base64 = value.replaceAll("-", "+").replaceAll("_", "/");
@@ -31,7 +83,7 @@ async function currentWebSubscriptionToken(): Promise<string | null> {
 /** Request permission, create/reuse a browser subscription and register it on
  * the identity-free push-token route. Returns the encoded token on success, or
  * null on any unsupported, denied, unconfigured or network-failed path. */
-export async function registerWebPush(): Promise<string | null> {
+export async function registerWebPush(signal?: AbortSignal): Promise<string | null> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
   if (!("PushManager" in window) || !("Notification" in window)) return null;
 
@@ -43,28 +95,46 @@ export async function registerWebPush(): Promise<string | null> {
     );
     return null;
   }
+  if (signal?.aborted) return null;
 
   try {
     const permission = Notification.permission === "default"
-      ? await Notification.requestPermission()
+      ? signal
+        ? await waitForWebPushWork(Notification.requestPermission(), signal)
+        : await Notification.requestPermission()
       : Notification.permission;
     if (permission !== "granted") return null;
 
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription()
-      ?? await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: key,
-      });
-    const token = encodeWebPushSubscription(subscription.toJSON());
-    if (!token) return null;
+    const scope = registrationScope(signal);
+    try {
+      const registration = await waitForWebPushWork(
+        navigator.serviceWorker.ready,
+        scope.signal,
+      );
+      const currentSubscription = await waitForWebPushWork(
+        registration.pushManager.getSubscription(),
+        scope.signal,
+      );
+      const subscription = currentSubscription ?? await waitForWebPushWork(
+        registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: key,
+        }),
+        scope.signal,
+      );
+      const token = encodeWebPushSubscription(subscription.toJSON());
+      if (!token) return null;
 
-    const response = await fetch("/api/push-tokens", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token, platform: "web" }),
-    });
-    return response.ok ? token : null;
+      const response = await waitForWebPushWork(fetch("/api/push-tokens", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token, platform: "web" }),
+        signal: scope.signal,
+      }), scope.signal);
+      return response.ok ? token : null;
+    } finally {
+      scope.dispose();
+    }
   } catch {
     return null;
   }

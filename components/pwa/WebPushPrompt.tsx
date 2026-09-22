@@ -2,7 +2,7 @@
 
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
 import { registerWebPush } from "@/lib/webPush";
@@ -26,26 +26,40 @@ export default function WebPushPrompt(): React.JSX.Element | null {
     getWebPushPromptServerSnapshot,
   );
   const canShow = visible && hasPromptBudgetFor(WEB_PUSH_SURFACE);
+  const registrationAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (canShow) claimPromptBudget(WEB_PUSH_SURFACE);
   }, [canShow]);
 
+  useEffect(() => () => {
+    registrationAbortRef.current?.abort();
+  }, []);
+
   if (!canShow) return null;
 
   async function handleEnable() {
     if (pending) return;
+    const controller = new AbortController();
+    registrationAbortRef.current = controller;
     setPending(true);
     setError("");
-    const registered = await registerWebPush();
-    if (registered) {
-      markWebPushPromptEnabled();
-    } else {
-      setError(
-        offlineOrMessage("Could not enable alerts. Try again.")
-      );
+    try {
+      const registered = await registerWebPush(controller.signal);
+      if (controller.signal.aborted) return;
+      if (registered) {
+        markWebPushPromptEnabled();
+      } else {
+        setError(
+          offlineOrMessage("Could not enable alerts. Try again.")
+        );
+      }
+    } finally {
+      if (registrationAbortRef.current === controller) {
+        registrationAbortRef.current = null;
+      }
+      if (!controller.signal.aborted) setPending(false);
     }
-    setPending(false);
   }
 
   return (

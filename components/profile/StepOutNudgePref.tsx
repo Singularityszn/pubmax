@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
@@ -46,6 +46,7 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
   const [pref, setPref] = useState<PrefState | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const registrationAbortRef = useRef<AbortController | null>(null);
   // Client-only install check via external store so SSR stays stable.
   const needsInstall = useSyncExternalStore(
     subscribeNoop,
@@ -79,6 +80,10 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
     return () => controller.abort();
   }, [user]);
 
+  useEffect(() => () => {
+    registrationAbortRef.current?.abort();
+  }, []);
+
   async function enable() {
     if (!user || busy) return;
     setBusy(true);
@@ -90,7 +95,13 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
         );
         return;
       }
-      const token = await registerWebPush();
+      const controller = new AbortController();
+      registrationAbortRef.current = controller;
+      const token = await registerWebPush(controller.signal);
+      if (registrationAbortRef.current === controller) {
+        registrationAbortRef.current = null;
+      }
+      if (controller.signal.aborted) return;
       if (!token) {
         setNotice("Could not turn on web push. Check notification permission and try again.");
         return;
