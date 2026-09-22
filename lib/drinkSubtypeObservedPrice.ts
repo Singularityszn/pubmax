@@ -20,7 +20,7 @@ export const ZERO_SUGAR_COLA_FAMILY = [
   "soft-drink-diet-pepsi",
 ] as const;
 
-export const SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID = "soft-drink-zero-sugar-cola";
+const SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID = "soft-drink-zero-sugar-cola";
 
 /** Launch chips for the Soft drinks and water view; generic component accepts any subtype. */
 export const SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS = [
