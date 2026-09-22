@@ -2,10 +2,11 @@ type AbortableDelayOptions = Readonly<{
   rejectOnAbort?: boolean;
 }>;
 
-function abortReason(signal: AbortSignal): unknown {
-  return signal.reason === undefined
+export function abortReason(signal?: AbortSignal): unknown {
+  const reason = signal?.reason;
+  return reason === undefined
     ? new DOMException("The operation was aborted.", "AbortError")
-    : signal.reason;
+    : reason;
 }
 
 /** Wait for a timer while clearing it and its abort listener on either outcome. */

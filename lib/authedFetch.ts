@@ -9,7 +9,7 @@ import {
   readProviderAccountRevision,
   readProviderAccountSignal,
 } from "@/lib/authProviderRevision";
-import { waitForAbortableDelay } from "@/lib/abortableDelay";
+import { abortReason, waitForAbortableDelay } from "@/lib/abortableDelay";
 
 const AUTH_ACTION_SESSION_ERROR_MESSAGE = "Still waking your session. Try again.";
 
@@ -45,14 +45,6 @@ export class AuthActionSessionError extends Error {
     super(AUTH_ACTION_SESSION_ERROR_MESSAGE);
     this.name = "AuthActionSessionError";
   }
-}
-
-function abortError(): DOMException {
-  return new DOMException("The operation was aborted.", "AbortError");
-}
-
-function abortReason(signal: AbortSignal): unknown {
-  return signal.reason === undefined ? abortError() : signal.reason;
 }
 
 type QueuedAction = Readonly<{
@@ -401,6 +393,6 @@ export async function authedActionJson<T = unknown>(
   );
   const body = (await response.json()) as T;
   if (signal.aborted) throw abortReason(signal);
-  if (requiresIdentity && readProviderAccountRevision() !== accountRevision) throw abortError();
+  if (requiresIdentity && readProviderAccountRevision() !== accountRevision) throw abortReason();
   return { response, body };
 }

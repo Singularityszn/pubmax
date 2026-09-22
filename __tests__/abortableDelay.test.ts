@@ -1,12 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { waitForAbortableDelay } from "@/lib/abortableDelay";
+import { abortReason, waitForAbortableDelay } from "@/lib/abortableDelay";
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
 describe("waitForAbortableDelay", () => {
+  it("normalizes missing reasons to the platform AbortError", () => {
+    expect(abortReason()).toMatchObject({
+      name: "AbortError",
+      message: "The operation was aborted.",
+    });
+  });
+
   it("resolves true after the delay when abort should resolve", async () => {
     vi.useFakeTimers();
     const controller = new AbortController();
