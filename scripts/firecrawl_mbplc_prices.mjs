@@ -30,6 +30,8 @@ import {
   createMenuPageHarvester,
   parseMenuTransportArg,
 } from "./lib/harvestMenuTransport.mjs";
+import { isHarvestableChainMenuUrl } from "../lib/harvest/sourcePolicy.ts";
+import { createRobotsChecker } from "../lib/harvest/robots.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -38,6 +40,7 @@ const MENU_CACHE = join(ROOT, ".firecrawl", "menus", "nicholsons");
 const DEFAULT_URLS = join(ROOT, "data", "nicholsons_london_drink_urls.txt");
 const DATASET_PATH = join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const LATEST_PATH = join(OUT_DIR, "latest.json");
+const SOURCE_ID = "mitchells-butlers-menu-prices";
 
 const SOURCE = {
   label: "Nicholson's — official drinks menu",
@@ -241,7 +244,21 @@ function resolveNicholsonsVenueKey(url, markdown, indexes) {
 
 // Keep this cache path stable. Downstream merge scripts treat it as an input contract.
 
-async function scrapeMenu(url, outPath, harvester) {
+async function assertMenuReadAllowed(url, robotsChecker) {
+  if (!isHarvestableChainMenuUrl(url, SOURCE_ID)) {
+    throw new HarvestMenuTransportError("policy-refused", `sourcePolicy refused ${url}`);
+  }
+  const robots = await robotsChecker(url);
+  if (!robots.allowed) {
+    throw new HarvestMenuTransportError(
+      "robots-refused",
+      `robots.txt refused ${url}: ${robots.evidence}`,
+    );
+  }
+}
+
+async function scrapeMenu(url, outPath, harvester, robotsChecker) {
+  await assertMenuReadAllowed(url, robotsChecker);
   if (existsSync(outPath)) {
     return readFileSync(outPath, "utf8");
   }
@@ -279,9 +296,11 @@ async function main() {
   const transport = parseMenuTransportArg();
   const observedAt = new Date().toISOString();
   assertTransportCredentials(transport);
+  const robotsChecker = createRobotsChecker();
   const harvester = createMenuPageHarvester({
     transport,
-    sourceId: "mitchells-butlers-menu-prices",
+    sourceId: SOURCE_ID,
+    robotsChecker,
   });
 
   const knownUrls = readFileSync(urlsFile, "utf8")
@@ -327,9 +346,12 @@ async function main() {
     const cachePath = join(MENU_CACHE, `${slug}.md`);
     let markdown;
     try {
-      markdown = await scrapeMenu(url, cachePath, harvester);
+      markdown = await scrapeMenu(url, cachePath, harvester, robotsChecker);
     } catch (error) {
-      if (error instanceof HarvestMenuTransportError && error.code === "policy-refused") {
+      if (
+        error instanceof HarvestMenuTransportError &&
+        (error.code === "policy-refused" || error.code === "robots-refused")
+      ) {
         refused += 1;
         console.warn(`REFUSED ${url}: ${error.message}`);
         continue;

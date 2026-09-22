@@ -75,6 +75,16 @@ function absoluteMarkdownLinks(markdown) {
   return links;
 }
 
+function requiredFinalUrl(provider, value, requestedUrl) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new RefreshProviderError(
+      provider,
+      `${provider} returned no resolved final URL for ${requestedUrl}`,
+    );
+  }
+  return value.trim();
+}
+
 export async function discoverRefreshPages({
   query,
   includeDomains,
@@ -256,7 +266,7 @@ async function fetchRenderedPage({ url, environment, fetchImpl, renderBrowserPag
   return {
     markdown: page.markdown,
     links: Array.isArray(page.links) ? page.links : [],
-    finalUrl: typeof page.finalUrl === "string" ? page.finalUrl : url,
+    finalUrl: requiredFinalUrl(provider, page.finalUrl, url),
   };
 }
 
@@ -286,7 +296,7 @@ async function fetchPlainPage({ url, environment, fetchImpl }) {
   }
   return {
     markdown: result.raw_content,
-    finalUrl: typeof result.url === "string" ? result.url : url,
+    finalUrl: requiredFinalUrl(provider, result.url, url),
     links: absoluteMarkdownLinks(result.raw_content),
   };
 }

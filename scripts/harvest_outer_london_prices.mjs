@@ -179,12 +179,14 @@ async function safeScrape(url, pubName) {
   try {
     return { page: await scrape(url, pubName) };
   } catch (error) {
-    const reason =
-      error instanceof RefreshProviderError || error instanceof Error
-        ? error.message
-        : String(error);
-    return { error: reason };
+    return { error: refreshErrorReason(error) };
   }
+}
+
+function refreshErrorReason(error) {
+  return error instanceof RefreshProviderError || error instanceof Error
+    ? error.message
+    : String(error);
 }
 
 /** All £ values present verbatim in the page text (as a Set of "3.80" strings). */
@@ -382,11 +384,22 @@ function main() {
       if ((!extracted.length || !homeHasSignal) && requests < budget) {
         let link = bestDrinkLink(home.links, h);
         if (!link && exaDiscovery) {
-          const discoveries = await discoverRefreshPages({
-            query: `${row.pub_name} drinks menu wine cocktail gin whisky price`,
-            includeDomains: [h],
-            numResults: 3,
-          });
+          let discoveries;
+          try {
+            discoveries = await discoverRefreshPages({
+              query: `${row.pub_name} drinks menu wine cocktail gin whisky price`,
+              includeDomains: [h],
+              numResults: 3,
+            });
+          } catch (error) {
+            log.push({
+              ...rec,
+              result: "blocked",
+              reason: refreshErrorReason(error),
+              requests: 1,
+            });
+            continue;
+          }
           link =
             discoveries
               .map((result) => result.url)
