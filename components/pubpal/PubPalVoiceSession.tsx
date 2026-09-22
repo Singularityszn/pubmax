@@ -307,6 +307,9 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
       </div>
       {error && <p className="palVoiceError" role="alert">{error}</p>}
       <p className="palVoicePrivacy">
+        Each voice chat uses three minutes of your free monthly allowance, even if you end early.
+      </p>
+      <p className="palVoicePrivacy">
         No audio or transcript becomes memory. The Pal proposes facts for you to approve separately.
       </p>
     </div>
