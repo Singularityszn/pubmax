@@ -1,52 +1,15 @@
 {
-  "findings": [
-    {
-      "id": "f1",
-      "severity": "info",
-      "file": "lib/mapArrivalBearing.ts",
-      "line": 61,
-      "description": "ARRIVAL_BEARING_POLL_MS changed from 200ms to 100ms (more frequent polling to detect camera stillness sooner)",
-      "action": "auto-fix",
-      "review_scope": "source"
-    },
-    {
-      "id": "f2",
-      "severity": "info",
-      "file": "lib/mapArrivalBearing.ts",
-      "line": 64,
-      "description": "ARRIVAL_BEARING_STILL_POLLS changed from 4 to 1 (fewer consecutive still polls required to consider camera settled)",
-      "action": "auto-fix",
-      "review_scope": "source"
-    },
-    {
-      "id": "f3",
-      "severity": "warning",
-      "file": "components/PubMapCanvas.tsx",
-      "line": 1131,
-      "description": "UseEffect condition changed from `if (!mapReady || !map || arrivalBearingSpentRef.current) return;` to `if (!map || arrivalBearingSpentRef.current) return;`, removing the mapReady guard. This removal is justified by the mapInstanceReady replacement (f4/f5) but represents a policy decision about when the arrival bearing effect may start running.",
-      "action": "ask-user",
-      "review_scope": "source"
-    },
-    {
-      "id": "f4",
-      "severity": "error",
-      "file": "components/PubMapCanvas.tsx",
-      "line": 1168,
-      "description": "UseEffect dependency changed from [mapReady, easeArrivalBearing] to [mapInstanceReady, easeArrivalBearing]. This is the core fix: mapReady flips during WebGL context rebuilds, causing the arrival bearing effect to restart multiple times; each restart could easie the bearing to 4 degrees causing the idle compass drift. mapInstanceReady is set once on first mount and never changes, preventing this restart behavior and fixing the drift durably.",
-      "action": "auto-fix",
-      "review_scope": "source"
-    },
-    {
-      "id": "f5",
-      "severity": "info",
-      "file": "components/PubMapCanvas.tsx",
-      "line": 1461,
-      "description": "setMapInstanceReady(true) added after mapRef.current = map in the mount effect, ensuring the arrival bearing tracking starts after map construction (rather than waiting for mapReady which flips during context rebuilds)",
-      "action": "auto-fix",
-      "review_scope": "source"
-    }
+  "findings": [],
+  "reviewed_paths": [
+    "lib/landingImagery.ts",
+    "scripts/landing/build-landing-photos.mjs",
+    "__tests__/landingImagery.test.ts",
+    "__tests__/landingPhotoRender.test.tsx",
+    "lib/AGENTS.md"
   ],
+  "tested": [],
+  "testing_summary": "No tests executed during review phase per pipeline boundary rules; test file changes reviewed through source inspection only.",
   "risk_level": "low",
-  "risk_rationale": "The fix is well-bounded: it replaces mapReady (which can flip multiple times during WebGL context rebuilds, causing the arrival bearing effect to restart and drift the bearing to 4 degrees) with mapInstanceReady (set once on mount, never changes), which is the root cause of the idle compass drift. The polling frequency and still poll count changes support this by ensuring the effect triggers reliably in a single run. No new failure modes are introduced; the arrival bearing plan logic and epsilon checks are unchanged.",
+  "risk_rationale": "The change is a well-bounded, additive modification that adds a 960px intermediate photo width to LANDING_PHOTO_WIDTHS, filling the gap between 640px and 1280px at the 768px layout breakpoint. This is the explicitly authorized root cause fix for the Core Web Vitals issue. All code paths that reference LANDING_PHOTO_WIDTHS (landingPhotoSrcSet, LandingPhoto component, test assertions) work correctly with three widths; the change is purely additive with no removal or modification of existing 640/1280 behavior.",
   "risk_scope": "source-or-external"
 }
