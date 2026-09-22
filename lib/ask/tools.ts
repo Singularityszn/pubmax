@@ -18,6 +18,7 @@ import {
   detectWhatsOnIntent,
   filterRowsByArea,
   filterRowsByWeekday,
+  whatsOnAskCardNote,
 } from "@/lib/concierge/whatsOn";
 import {
   CityMcpError,
@@ -210,7 +211,7 @@ async function toolWhatsOn(
       venueId: item.venueId ?? "",
       title: item.title,
       place: item.venue ?? "",
-      note: item.detail ?? "",
+      note: whatsOnAskCardNote(item),
       price: typeof item.priceGbp === "number" ? item.priceGbp : null,
       provenance: {
         label: item.source?.label || "What's On",

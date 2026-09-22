@@ -155,6 +155,37 @@ type WhatsOnListingDto = {
   source: { label: string; url: string };
 };
 
+function formatListingInstant(iso: string | undefined): string | null {
+  if (!iso || !Number.isFinite(Date.parse(iso))) return null;
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(iso));
+}
+
+/** Preserve source-stated event timing when a listing becomes an Ask card. */
+export function whatsOnAskCardNote(
+  listing: Pick<
+    WhatsOnListingDto,
+    "detail" | "startsAt" | "endsAt" | "timeEvidence"
+  >,
+): string {
+  const start = formatListingInstant(listing.startsAt);
+  const finish = formatListingInstant(listing.endsAt);
+  return [
+    listing.detail,
+    start ? `Published start: ${start}` : listing.timeEvidence,
+    finish ? `Published finish: ${finish}` : null,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(" · ");
+}
+
 export type WhatsOnAnswer = {
   mode: "whats-on";
   kind: WhatsOnKind | null;
