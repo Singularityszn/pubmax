@@ -52,6 +52,32 @@ const SOURCE = {
     "All rights reserved — first-party publisher of its own pub menus/prices; read-only, attributed use only.",
 };
 
+const SOURCE_REFUSAL_CODES = new Set([
+  "policy-refused",
+  "robots-refused",
+  "redirect-refused",
+  "missing-final-url",
+  "invalid-final-url",
+]);
+
+function isSourceRefusal(error) {
+  return error instanceof HarvestMenuTransportError && SOURCE_REFUSAL_CODES.has(error.code);
+}
+
+function sameMenuUrl(left, right) {
+  try {
+    const normalise = (value) => {
+      const url = new URL(value);
+      url.search = "";
+      url.hash = "";
+      return url.href.replace(/\/$/, "");
+    };
+    return normalise(left) === normalise(right);
+  } catch {
+    return false;
+  }
+}
+
 const DRINK_CATEGORIES = new Set([
   "beer",
   "wine",
@@ -286,12 +312,7 @@ async function retainPermittedExistingUpdates(existing, robotsChecker) {
         assertMenuReadAllowed(url, robotsChecker).then(
           () => true,
           (error) => {
-            if (
-              error instanceof HarvestMenuTransportError &&
-              (error.code === "policy-refused" || error.code === "robots-refused")
-            ) {
-              return false;
-            }
+            if (isSourceRefusal(error)) return false;
             throw error;
           },
         ),
@@ -384,6 +405,8 @@ async function main() {
   const existing = await retainPermittedExistingUpdates(loadExistingUpdates(), robotsChecker);
 
   const updates = [];
+  const refusedVenueKeys = new Set();
+  const refusedRequestedUrls = new Set();
   let scraped = 0;
   let matched = 0;
   let unmatched = 0;
@@ -392,14 +415,14 @@ async function main() {
   for (const url of urls) {
     const slug = slugFromMbplcDrinksUrl(url) ?? "unknown";
     const cachePath = join(MENU_CACHE, `${slug}.md`);
+    const targetVenueKey = resolveNicholsonsVenueKey(url, "", indexes);
     let page;
     try {
       page = await scrapeMenu(url, cachePath, harvester, robotsChecker);
     } catch (error) {
-      if (
-        error instanceof HarvestMenuTransportError &&
-        (error.code === "policy-refused" || error.code === "robots-refused")
-      ) {
+      if (isSourceRefusal(error)) {
+        if (targetVenueKey) refusedVenueKeys.add(targetVenueKey);
+        refusedRequestedUrls.add(url);
         refused += 1;
         console.warn(`REFUSED ${url}: ${error.message}`);
         continue;
@@ -437,7 +460,15 @@ async function main() {
     console.log(`  ${pubName}: ${drinks.length} drinks → ${venueKey.slice(0, 45)}…`);
   }
 
-  const merged = mergeDrinkUpdates(existing, updates);
+  const retainedExisting = existing.filter(
+    (row) =>
+      !(
+        isNicholsonsOwnedUpdate(row) &&
+        (refusedVenueKeys.has(row.venueKey) ||
+          [...refusedRequestedUrls].some((url) => sameMenuUrl(row?.source?.url, url)))
+      ),
+  );
+  const merged = mergeDrinkUpdates(retainedExisting, updates);
   mkdirSync(OUT_DIR, { recursive: true });
   const stamp = observedAt.slice(0, 10).replace(/-/g, "");
   const payload = { version: 1, generatedAt: observedAt, updates: merged };

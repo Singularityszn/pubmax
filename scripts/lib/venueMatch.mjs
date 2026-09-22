@@ -126,11 +126,13 @@ export function slugFromMbplcDrinksUrl(url) {
 export function mergeDrinkUpdates(existing, incoming) {
   const byKey = new Map();
   for (const row of existing) {
-    const k = `${row.venueKey}|${row.drinkName}|${row.category}|${row.source?.url ?? ""}`;
+    const publisher = row.source?.label?.trim().toLowerCase() || row.source?.url || "";
+    const k = `${row.venueKey}|${row.drinkName}|${row.category}|${publisher}`;
     byKey.set(k, row);
   }
   for (const row of incoming) {
-    const k = `${row.venueKey}|${row.drinkName}|${row.category}|${row.source?.url ?? ""}`;
+    const publisher = row.source?.label?.trim().toLowerCase() || row.source?.url || "";
+    const k = `${row.venueKey}|${row.drinkName}|${row.category}|${publisher}`;
     byKey.set(k, row);
   }
   return [...byKey.values()];

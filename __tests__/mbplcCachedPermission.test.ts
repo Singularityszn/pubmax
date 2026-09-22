@@ -12,6 +12,12 @@ import { spawnSync } from "node:child_process";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { writeMenuPageCache } from "@/scripts/lib/harvestMenuCache.mjs";
+
+const REQUESTED_URL =
+  "https://www.nicholsonspubs.co.uk/restaurants/london/cached-nicholson/drinks";
+const FINAL_URL = `${REQUESTED_URL}?canonical=1`;
+const VENUE_KEY = "cached nicholson|1 test street|51.50000|-0.10000";
 const temporaryRoots: string[] = [];
 
 function write(root: string, path: string, source: string) {
@@ -33,15 +39,9 @@ function makeFixture() {
     join(root, "scripts/lib/harvestMenuCache.mjs"),
   );
 
-  write(
-    root,
-    "scripts/lib/venueMatch.mjs",
-    `export const buildVenueIndexes = () => ({});
-export const mergeDrinkUpdates = (existing, incoming) => [...existing, ...incoming];
-export const resolveVenueKeyFromHints = () => null;
-export const resolveVenueKeyFromPubName = () => "cached-nicholson|london";
-export const slugFromMbplcDrinksUrl = () => "cached-nicholson";
-`,
+  copyFileSync(
+    join(process.cwd(), "scripts/lib/venueMatch.mjs"),
+    join(root, "scripts/lib/venueMatch.mjs"),
   );
   write(
     root,
@@ -59,7 +59,12 @@ export const discoverRefreshPages = async () => [];
 export const assertTransportCredentials = () => {};
 export const parseMenuTransportArg = () => "browserbase";
 export const createMenuPageHarvester = () => ({
-  validateResolvedMenuUrl: async (_requestedUrl, finalUrl) => finalUrl,
+  validateResolvedMenuUrl: async (_requestedUrl, finalUrl) => {
+    if (process.env.TEST_REFUSE_LANDING === "1" && finalUrl === ${JSON.stringify(FINAL_URL)}) {
+      throw new HarvestMenuTransportError("policy-refused", "redirect landing refused");
+    }
+    return finalUrl;
+  },
   fetchMenuPage: async () => { throw new Error("provider must not be called for cached markdown"); },
 });
 `,
@@ -82,9 +87,20 @@ export const createMenuPageHarvester = () => ({
   write(
     root,
     "data/nicholsons_london_drink_urls.txt",
-    "https://www.nicholsonspubs.co.uk/restaurants/london/cached-nicholson/drinks\n",
+    `${REQUESTED_URL}\n`,
   );
-  write(root, "public/data/pint_prices_app_dataset.json", "[{}]\n");
+  write(
+    root,
+    "public/data/pint_prices_app_dataset.json",
+    `${JSON.stringify([
+      {
+        pub_name: "Cached Nicholson",
+        address: "1 Test Street",
+        latitude: 51.5,
+        longitude: -0.1,
+      },
+    ])}\n`,
+  );
   write(
     root,
     "public/data/drink_price_updates/latest.json",
@@ -93,13 +109,13 @@ export const createMenuPageHarvester = () => ({
       generatedAt: "2026-01-01T00:00:00.000Z",
       updates: [
         {
-          venueKey: "cached-nicholson|london",
+          venueKey: VENUE_KEY,
           drinkName: "House Lager",
           category: "beer",
           priceGbp: 6.2,
           source: {
             label: "Nicholson's — official drinks menu",
-            url: "https://www.nicholsonspubs.co.uk/restaurants/london/cached-nicholson/drinks",
+            url: REQUESTED_URL,
           },
           observedAt: "2026-01-01T00:00:00.000Z",
         },
@@ -117,21 +133,19 @@ export const createMenuPageHarvester = () => ({
       ],
     })}\n`,
   );
-  write(
+  const markdownPath = join(
     root,
     ".firecrawl/menus/nicholsons/cached-nicholson.md",
-    "## Cached Nicholson\n\n### Draught Beer\n\n#### House Lager\n\n£6.20\n",
   );
-  write(
-    root,
-    ".firecrawl/menus/nicholsons/cached-nicholson.md.source.json",
-    `${JSON.stringify({
-      requestedUrl:
-        "https://www.nicholsonspubs.co.uk/restaurants/london/cached-nicholson/drinks",
-      finalUrl:
-        "https://www.nicholsonspubs.co.uk/restaurants/london/cached-nicholson/drinks?canonical=1",
-    })}\n`,
-  );
+  mkdirSync(dirname(markdownPath), { recursive: true });
+  writeMenuPageCache({
+    requestedUrl: REQUESTED_URL,
+    markdownPath,
+    page: {
+      markdown: "## Cached Nicholson\n\n### Draught Beer\n\n#### House Lager\n\n£6.20\n",
+      finalUrl: FINAL_URL,
+    },
+  });
   return root;
 }
 
@@ -169,7 +183,7 @@ describe("legacy Nicholson cache permission", () => {
     expect(run.stdout).toContain("refused=1");
   });
 
-  it("publishes cached rows with their validated final URL", () => {
+  it("replaces the cached publisher row with one validated-final-URL row", () => {
     const root = makeFixture();
     const script = join(root, "scripts/firecrawl_mbplc_prices.mjs");
     const run = spawnSync(process.execPath, [script, "--limit", "1"], {
@@ -186,13 +200,44 @@ describe("legacy Nicholson cache permission", () => {
     const latest = JSON.parse(
       readFileSync(join(root, "public/data/drink_price_updates/latest.json"), "utf8"),
     );
+    const refreshed = latest.updates.filter(
+      (row: { venueKey?: string; drinkName?: string; source?: { label?: string } }) =>
+        row.venueKey === VENUE_KEY &&
+        row.drinkName === "House Lager" &&
+        row.source?.label === "Nicholson's — official drinks menu",
+    );
+    expect(refreshed).toEqual([
+      expect.objectContaining({ source: expect.objectContaining({ url: FINAL_URL }) }),
+    ]);
+  });
+
+  it("purges existing publisher rows when the resolved cache landing is refused", () => {
+    const root = makeFixture();
+    const script = join(root, "scripts/firecrawl_mbplc_prices.mjs");
+    const run = spawnSync(process.execPath, [script, "--limit", "1"], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        TEST_SOURCE_ALLOWED: "1",
+        TEST_ROBOTS_ALLOWED: "1",
+        TEST_REFUSE_LANDING: "1",
+      },
+    });
+
+    expect(run.status, run.stderr).toBe(0);
+    const latest = JSON.parse(
+      readFileSync(join(root, "public/data/drink_price_updates/latest.json"), "utf8"),
+    );
+    expect(
+      latest.updates.filter(
+        (row: { venueKey?: string; source?: { label?: string } }) =>
+          row.venueKey === VENUE_KEY &&
+          row.source?.label === "Nicholson's — official drinks menu",
+      ),
+    ).toEqual([]);
     expect(latest.updates).toContainEqual(
-      expect.objectContaining({
-        venueKey: "cached-nicholson|london",
-        source: expect.objectContaining({
-          url: "https://www.nicholsonspubs.co.uk/restaurants/london/cached-nicholson/drinks?canonical=1",
-        }),
-      }),
+      expect.objectContaining({ drinkName: "Other Lager" }),
     );
   });
 });
