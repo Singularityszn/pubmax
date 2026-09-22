@@ -242,13 +242,14 @@ async function toolWhatsOn(
           },
           { now: ctx.now },
         );
-    // A bundled read that could not run answers nothing. Refusing honestly is
-    // the whole contract here; "no matches" would be an invented empty market.
-    if (readStatus === "degraded") return unavailable();
     let matched = detected.area ? filterRowsByArea(rows, detected.area) : rows;
     if (detected.window === "weekday" && detected.weekday !== undefined) {
       matched = filterRowsByWeekday(matched, detected.weekday);
     }
+    // A failed bundled read answers no market claim only when it returned no
+    // grounded matches. Preserve real source rows, but say the result may be
+    // incomplete so partial availability is never dressed up as exhaustive.
+    if (readStatus === "degraded" && rows.length === 0) return unavailable();
     const answer = buildWhatsOnAnswer(detected, matched);
     const cards: AskCard[] = answer.listings.map((item, index) => ({
       key: item.id || `wo-${index}`,
@@ -281,7 +282,10 @@ async function toolWhatsOn(
         .filter((p): p is AskProvenance => Boolean(p)),
       cards,
       proposals,
-      answerHint: answer.message,
+      answerHint: readStatus === "degraded"
+        ? `${answer.message} Some listing sources are unavailable, so this may not be the full set.`
+        : answer.message,
+      degraded: readStatus === "degraded",
     };
   } catch {
     return unavailable();

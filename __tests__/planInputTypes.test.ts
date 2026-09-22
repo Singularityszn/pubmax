@@ -220,6 +220,24 @@ async function mountedInputs(): Promise<HTMLInputElement[]> {
 }
 
 describe("plan and Wanted fields expose their input types", () => {
+  it("does not assume a four-person group in the mobile outing form", () => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      createElement(MobilePlanActivation, {
+        cityId: "london",
+        initialNightArea: "clapham",
+        onGenerated: () => undefined,
+      }),
+    );
+    const peopleInput = Array.from(host.querySelectorAll("label")).find((label) =>
+      label.textContent?.includes("People"),
+    )?.querySelector("input");
+    const prompt = host.querySelector<HTMLInputElement>("#mobile-plan-query");
+
+    expect(peopleInput?.value).toBe("");
+    expect(prompt?.placeholder).not.toMatch(/four of us/i);
+  });
+
   it("renders an explicit type for every native input", async () => {
     const inputs = [...renderedInputs(), ...(await mountedInputs())];
 

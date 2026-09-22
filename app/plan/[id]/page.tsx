@@ -21,6 +21,9 @@ import { planStore } from "@/lib/planStore";
 import { buildPlanInviteShareText } from "@/lib/shareArtifacts";
 import { shareVibeSlug, VIBE_SLUGS } from "@/lib/vibeChips";
 import type { VibeTally } from "@/lib/vibeTally";
+import { loadServedOutEvents } from "@/lib/out/loadOut";
+import { outingShareContextParams, parseOutingShareContext, resolveCanonicalOutingEvent } from "@/lib/outingShareContext";
+import type { WhatsOnRow } from "@/lib/whatsOn";
 
 import "../plan.css";
 import "./planDetail.css";
@@ -129,8 +132,23 @@ const ENDING_LABEL: Record<"food" | "get_home" | "keep_going", string> = {
   keep_going: "kept it going",
 };
 
-export default async function PlanPage({ params }: Props) {
-  const { id } = await params;
+export default async function PlanPage({ params, searchParams }: Props) {
+  const [{ id }, routeQuery] = await Promise.all([params, searchParams]);
+  const outingContext = parseOutingShareContext(routeQuery);
+  let canonicalRows: WhatsOnRow[] = [];
+  if (outingContext.eventStop) {
+    try {
+      canonicalRows = (await loadServedOutEvents("london")).rows;
+    } catch {
+      // An unavailable event store does not upgrade caller-supplied context.
+    }
+  }
+  const resolvedEvent = resolveCanonicalOutingEvent(outingContext.eventStop, canonicalRows);
+  const shareQuery = outingShareContextParams({
+    ...outingContext,
+    eventStop: resolvedEvent.eventStop,
+    eventSide: null,
+  }).toString();
   const read = await planStore().read(id);
   // THE PLAN HAS NOT CLOSED; WE COULD NOT LOOK. `get` answered null for an
   // unknown plan and for a store error alike, and this page turned both into
@@ -212,7 +230,15 @@ export default async function PlanPage({ params }: Props) {
       {!completed ? <NightCrawlMode planId={id} initialState={redactedInitialState(state, safeTitle)} /> : null}
       {completed ? <CompletedPlanUsualLot /> : null}
       <div className="planPage__grid">
-        <PlanSummary planId={id} initialPreview={preview} vibeTally={vibeTally} />
+        <PlanSummary
+          planId={id}
+          initialPreview={preview}
+          vibeTally={vibeTally}
+          eventStop={resolvedEvent.eventStop}
+          eventPosition={outingContext.eventPosition}
+          eventSide={outingContext.eventSide}
+          eventStopVerified={resolvedEvent.verified}
+        />
         <aside className="planPage__side">
           {!completed ? (
             <section className="planShare" aria-labelledby="plan-share-title">
@@ -224,6 +250,7 @@ export default async function PlanPage({ params }: Props) {
                 title={safeTitle}
                 text={shareText}
                 initialVibeSlug={topVibeSlug}
+                shareQuery={shareQuery}
               />
               <LastCrewInvite planId={id} planTitle={safeTitle} />
             </section>

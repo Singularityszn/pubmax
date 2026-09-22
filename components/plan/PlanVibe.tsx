@@ -172,13 +172,14 @@ export default function PlanVibe({ planId, initialTally }: { planId: string; ini
  * picker's tally updates so a vote cast on this visit re-stamps the URL before
  * it is shared; with no top vibe the URL stays bare and the card renders base.
  */
-export function PlanInviteShareBar({ planId, title, text, initialVibeSlug, inviteToken }: {
+export function PlanInviteShareBar({ planId, title, text, initialVibeSlug, inviteToken, shareQuery = "" }: {
   planId: string;
   title: string;
   text: string;
   initialVibeSlug: string | null;
   /** Classic multi-use invite — required so ShareBar guests can join the crew. */
   inviteToken: string | null;
+  shareQuery?: string;
 }) {
   const [slug, setSlug] = useState(initialVibeSlug);
   useEffect(() => {
@@ -192,6 +193,6 @@ export function PlanInviteShareBar({ planId, title, text, initialVibeSlug, invit
   // Without an invite token, omit the bar rather than share a bare plan UUID
   // that can no longer join after invite-only enforcement.
   if (!inviteToken) return null;
-  const url = planCrewSharePath(planId, inviteToken, slug);
+  const url = planCrewSharePath(planId, inviteToken, slug, shareQuery);
   return <ShareBar url={url} title={title} text={text} />;
 }

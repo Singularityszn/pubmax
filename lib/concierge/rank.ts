@@ -41,8 +41,9 @@ export type ConciergeVenue = {
     beerGarden: boolean;
     cocktails: boolean;
     food: boolean;
-    liveSports: boolean;
-    liveMusic: boolean;
+    /** Undefined means not observed; false is an explicit negative claim. */
+    liveSports?: boolean;
+    liveMusic?: boolean;
     nonAlcoholic?: boolean;
   };
   nearWater: boolean;
@@ -91,11 +92,12 @@ function normalise(value: string): string {
 
 function amenityScore(venue: ConciergeVenue, mood: ConciergeMood): number {
   const a = venue.amenities;
+  const flag = (value: boolean | undefined) => value === true ? 1 : 0;
   switch (mood) {
     case "quiet":
-      return Number(a.food) * 2 + Number(venue.hasStory) * 2 - Number(a.liveSports) * 5 - Number(a.liveMusic) * 5 - Number(a.cocktails) * 2;
+      return Number(a.food) * 2 + Number(venue.hasStory) * 2 - flag(a.liveSports) * 5 - flag(a.liveMusic) * 5 - Number(a.cocktails) * 2;
     case "lively":
-      return Number(a.liveMusic) * 8 + Number(a.liveSports) * 4 + Number(a.cocktails) * 3;
+      return flag(a.liveMusic) * 8 + flag(a.liveSports) * 4 + Number(a.cocktails) * 3;
     case "cosy":
       return Number(venue.hasStory) * 6 + Number(a.food) * 3 - Number(a.beerGarden) * 1;
     case "garden":
@@ -103,7 +105,7 @@ function amenityScore(venue: ConciergeVenue, mood: ConciergeMood): number {
     case "riverside":
       return Number(venue.nearWater) * 12 + Number(a.beerGarden) * 2;
     case "sports":
-      return Number(a.liveSports) * 12;
+      return flag(a.liveSports) * 12;
     case "date":
       return Number(a.cocktails) * 5 + Number(a.food) * 4 + Number(venue.nearWater) * 3 + Number(venue.hasStory) * 2;
     case "food":

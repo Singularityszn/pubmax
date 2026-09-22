@@ -44,6 +44,7 @@ type PlanInviteNextStepProps = {
   title: string;
   text: string;
   initialVibeSlug: string | null;
+  shareQuery?: string;
 };
 
 // A crew-join link leaves the site, so it carries a host: the canonical one
@@ -65,6 +66,7 @@ export default function PlanInviteNextStep({
   title,
   text,
   initialVibeSlug,
+  shareQuery = "",
 }: PlanInviteNextStepProps) {
   const [slug, setSlug] = useState(initialVibeSlug);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -128,8 +130,8 @@ export default function PlanInviteNextStep({
 
   // Crew-join URL: classic invite in the hash. Bare /plan/{id} cannot join.
   const relativeUrl = inviteToken
-    ? planCrewSharePath(planId, inviteToken, slug)
-    : `/plan/${planId}`;
+    ? planCrewSharePath(planId, inviteToken, slug, shareQuery)
+    : `/plan/${planId}${shareQuery ? `?${shareQuery}` : ""}`;
 
   const openWhatsApp = useCallback(() => {
     if (!inviteToken) return;
@@ -216,6 +218,7 @@ export default function PlanInviteNextStep({
           text={text}
           initialVibeSlug={slug}
           inviteToken={inviteToken}
+          shareQuery={shareQuery}
         />
       ) : null}
     </div>

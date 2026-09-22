@@ -72,7 +72,7 @@ export function MobilePlanActivation({
   const [pace, setPace] = useState<(typeof PACES)[number]>("balanced pace");
   const [paceTouched, setPaceTouched] = useState(false);
   const [budgetLimit, setBudgetLimit] = useState("");
-  const [groupSize, setGroupSize] = useState(4);
+  const [groupSize, setGroupSize] = useState<number | null>(null);
   const [stopCount, setStopCount] = useState<PlanStopCount>(DEFAULT_PLAN_STOP_COUNT);
   const [groupSizeTouched, setGroupSizeTouched] = useState(false);
   const [stepFree, setStepFree] = useState(false);
@@ -129,7 +129,7 @@ export function MobilePlanActivation({
       const context: Partial<NightContext> = {
         ...(areaTouched || !inferredQuery.nightArea ? { nightArea: area } : {}),
         ...(daypartTouched || !queryFields.has("daypart") ? { daypart } : {}),
-        ...(groupSizeTouched || !queryFields.has("groupSize") ? {
+        ...(groupSizeTouched ? {
           partyType: groupSize === 1 ? "solo" as const : "friends" as const,
           groupSize,
         } : {}),
@@ -224,7 +224,7 @@ export function MobilePlanActivation({
       <div className="mobilePlannerIntentInput">
         <label htmlFor="mobile-plan-query">Describe the outing</label>
         <div>
-          <input id="mobile-plan-query" type="text" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Quiet in Soho, four of us, under £25" maxLength={500} />
+          <input id="mobile-plan-query" type="text" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Quiet in Soho, after work, under £25" maxLength={500} />
           {speech.supported ? <Button type="button" variant="ghost" size="icon" aria-label={speech.listening ? "Stop describing the outing" : "Describe the outing by voice"} aria-pressed={speech.listening} onClick={speech.toggle}>{speech.listening ? <MicOff size={18} /> : <Mic size={18} />}</Button> : null}
         </div>
         {speech.listening ? <small role="status">Listening. The transcript stays in this field only.</small> : null}
@@ -233,7 +233,7 @@ export function MobilePlanActivation({
       <div className="mobilePlannerIntentGrid">
         <label>Area<select value={area} onChange={(event) => { setAreaTouched(true); setArea(event.target.value as NightAreaSlug); }}>{areas.map((nightArea) => <option key={nightArea.slug} value={nightArea.slug}>{nightArea.name}</option>)}</select></label>
         <label>Time<select value={daypart} onChange={(event) => { setDaypartTouched(true); setDaypart(event.target.value as NightContext["daypart"]); }}><option value="daytime">Daytime</option><option value="after_work">After work</option><option value="evening">Evening</option><option value="late_night">Late night</option></select></label>
-        <label>People<input type="number" min="1" max="30" value={groupSize} onChange={(event) => { setGroupSizeTouched(true); setGroupSize(Math.max(1, Math.min(30, Number(event.target.value) || 1))); }} /></label>
+        <label>People<input type="number" min="1" max="30" value={groupSize ?? ""} onChange={(event) => { setGroupSizeTouched(true); setGroupSize(event.target.value ? Math.max(1, Math.min(30, Number(event.target.value) || 1)) : null); }} /></label>
         <label>Stops<select value={stopCount} onChange={(event) => setStopCount(normalizePlanStopCount(Number(event.target.value)))}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
         <label>Max each<input type="number" inputMode="decimal" min="5" max="500" value={budgetLimit} onChange={(event) => setBudgetLimit(event.target.value)} placeholder="£" /></label>
       </div>

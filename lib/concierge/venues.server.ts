@@ -41,6 +41,8 @@ function toVenue(value: unknown): ConciergeVenue | null {
     ? hints.curation as Record<string, unknown>
     : {};
   const nonAlcoholic = optionalBool(amenities, "nonAlcoholic");
+  const liveSports = optionalBool(amenities, "liveSports");
+  const liveMusic = optionalBool(amenities, "liveMusic");
 
   return {
     id: row.id,
@@ -53,8 +55,8 @@ function toVenue(value: unknown): ConciergeVenue | null {
       beerGarden: bool(amenities, "beerGarden"),
       cocktails: bool(amenities, "cocktails"),
       food: bool(amenities, "food"),
-      liveSports: bool(amenities, "liveSports"),
-      liveMusic: bool(amenities, "liveMusic"),
+      ...(liveSports === undefined ? {} : { liveSports }),
+      ...(liveMusic === undefined ? {} : { liveMusic }),
       ...(nonAlcoholic === undefined ? {} : { nonAlcoholic }),
     },
     nearWater: bool(curation, "nearWater"),
