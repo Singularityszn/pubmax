@@ -3,10 +3,11 @@
 // ARIZE_SPACE_KEY environment variables (see lib/observability/arize.ts and
 // docs/observability/arize.md). Client-side tracing is deliberately absent:
 // `instrumentation-client.ts` stays untouched and nothing here is bundled to
-// the browser.
+// the browser or the Edge instrumentation bundle.
 
-import { registerArizeTracing } from "@/lib/observability/arize";
-
-export function register(): Promise<void> {
-  return registerArizeTracing();
+export async function register(): Promise<void> {
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { registerNodeInstrumentation } = await import("./instrumentation.node");
+    await registerNodeInstrumentation();
+  }
 }
