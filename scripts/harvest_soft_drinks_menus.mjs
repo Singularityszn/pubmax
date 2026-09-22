@@ -150,6 +150,17 @@ function pubNameFromMbplcMarkdown(markdown) {
   return match ? match[1].trim() : "Unknown pub";
 }
 
+function pubNameFromPageMarkdown(markdown) {
+  for (const line of String(markdown).split(/\r?\n/)) {
+    const h1 = line.match(/^#\s+(.+)$/);
+    if (h1 && !/menu|food|drink/i.test(h1[1])) return h1[1].trim();
+  }
+  const mbplc = pubNameFromMbplcMarkdown(markdown);
+  if (mbplc !== "Unknown pub") return mbplc;
+  const title = markdown.match(/<title[^>]*>([^<]+)</i);
+  return title ? title[1].replace(/\s*[-|].*$/, "").trim() : "Unknown pub";
+}
+
 async function extractRows(chain, markdown, ctx) {
   if (CHAIN_CONFIG[chain]?.parser === "mbplc") {
     return filterSoftDrinkHarvestRows(parseMbplcSoftDrinkLines(markdown));
@@ -192,6 +203,8 @@ function venueKeyFor(chain, url, markdown, indexes, menuUrlToId, target, enrichm
   if (chain === "youngs") {
     const venueId = venueIdForMenuHost(hostFromUrl(url), enrichment);
     if (venueId && indexes.idToKey.has(venueId)) return indexes.idToKey.get(venueId);
+    const fromPage = resolveVenueKeyFromPubName(pubNameFromPageMarkdown(markdown), indexes);
+    if (fromPage) return fromPage;
   }
   if (chain === "greene-king") {
     const normalised = url.replace(/\/$/, "");
@@ -209,7 +222,7 @@ function venueKeyFor(chain, url, markdown, indexes, menuUrlToId, target, enrichm
       return resolveVenueKeyFromPubName(titleFromGkSlug(slug), indexes);
     }
   }
-  const pubName = target?.pubName ?? pubNameFromMbplcMarkdown(markdown);
+  const pubName = target?.pubName ?? pubNameFromPageMarkdown(markdown);
   return resolveVenueKeyFromPubName(pubName, indexes);
 }
 
@@ -299,7 +312,11 @@ async function main() {
         report.refused += 1;
         continue;
       }
-      if (error instanceof RefreshProviderError || error instanceof HarvestMenuTransportError) {
+      if (
+        error instanceof RefreshProviderError ||
+        error instanceof HarvestMenuTransportError ||
+        error instanceof Error
+      ) {
         report.hosts.fetchFailed = (report.hosts.fetchFailed ?? 0) + 1;
         continue;
       }
