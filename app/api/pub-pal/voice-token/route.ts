@@ -10,7 +10,7 @@ import {
   type PalVoiceMeterState,
 } from "@/lib/palVoiceMetering";
 import { buildPalVoiceOverrides } from "@/lib/palVoiceOverrides";
-import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
+import { pubPalVoiceReadiness } from "@/lib/pubPalVoiceConfig.server";
 import { getPubPalResult } from "@/lib/pubPalStore";
 import { clientIp, hashIp, isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
@@ -140,23 +140,27 @@ async function handleIssueToken(userId: string): Promise<Response> {
     });
   }
 
-  const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
-  const agentId = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim();
-  if (!apiKey || !agentId) {
+  const supabaseConfigured = isSupabaseConfigured();
+  const readiness = pubPalVoiceReadiness(supabaseConfigured);
+  if (!readiness.available && readiness.reason === "provider_unconfigured") {
     return publicApiError("Voice is not configured yet.", "UNAVAILABLE", 503, {
       retryable: true,
       compatibilityFields: { fallback: "text" },
     });
   }
-
-  const month = currentMonth();
-  const usageMonth = usageMonthDate(month);
-  const supabaseConfigured = isSupabaseConfigured();
-  if (!supabaseConfigured && process.env.NODE_ENV === "production") {
-    return publicApiError("Voice allowance storage is unavailable. Use text for now.", "UNAVAILABLE", 503, {
+  if (!readiness.available) {
+    const message = readiness.reason === "durable_quota_store_required"
+      ? "Voice allowance storage is unavailable. Use text for now."
+      : "Voice setup is not complete yet. Use text for now.";
+    return publicApiError(message, "UNAVAILABLE", 503, {
       compatibilityFields: { fallback: "text" },
     });
   }
+  const apiKey = process.env.ELEVENLABS_API_KEY!.trim();
+  const agentId = process.env.ELEVENLABS_PUB_PAL_AGENT_ID!.trim();
+
+  const month = currentMonth();
+  const usageMonth = usageMonthDate(month);
   const meter = meterFor(userId, month);
   if (!supabaseConfigured && remainingVoiceMinutes(meter) < GRANT_MINUTES) {
     return publicApiError("Your trial voice allowance is used for this month.", "VOICE_ALLOWANCE_USED", 429, {
@@ -174,17 +178,29 @@ async function handleIssueToken(userId: string): Promise<Response> {
         p_grant_id: grantId,
       });
       if (error) {
+        // The database may have committed before the client lost its reply.
+        // Refund this idempotent grant on every ambiguous outcome, never on an
+        // explicit false verdict that confirms no reservation was made.
+        await refundVoiceGrant(admin, userId, usageMonth, meter, grantId);
         return publicApiError("Voice allowance could not be checked.", "UNAVAILABLE", 503, {
           retryable: true,
           compatibilityFields: { fallback: "text" },
         });
       }
-      if (data !== true) {
+      if (data === false) {
         return publicApiError("Your trial voice allowance is used for this month.", "VOICE_ALLOWANCE_USED", 429, {
           compatibilityFields: { fallback: "text", remaining: 0, remainingMinutes: 0 },
         });
       }
+      if (data !== true) {
+        await refundVoiceGrant(admin, userId, usageMonth, meter, grantId);
+        return publicApiError("Voice allowance could not be checked.", "UNAVAILABLE", 503, {
+          retryable: true,
+          compatibilityFields: { fallback: "text" },
+        });
+      }
     } catch {
+      await refundVoiceGrant(admin, userId, usageMonth, meter, grantId);
       return publicApiError("Voice allowance could not be checked.", "UNAVAILABLE", 503, {
         retryable: true,
         compatibilityFields: { fallback: "text" },
@@ -226,12 +242,24 @@ async function handleIssueToken(userId: string): Promise<Response> {
         compatibilityFields: { fallback: "text" },
       });
     }
-    const payload = await response.json() as { signed_url?: string };
-    if (!payload.signed_url) {
+    const payload = await response.json() as { signed_url?: string; conversation_id?: string };
+    if (!payload.signed_url || typeof payload.conversation_id !== "string" || !payload.conversation_id.trim()) {
       return publicApiError("Voice service returned no session.", "PROVIDER_UNAVAILABLE", 502, {
         retryable: true,
         compatibilityFields: { fallback: "text" },
       });
+    }
+    if (admin) {
+      const { data, error } = await admin.rpc("link_pub_pal_voice_conversation", {
+        p_grant_id: grantId,
+        p_conversation_id: payload.conversation_id,
+      });
+      if (error || data !== true) {
+        return publicApiError("Voice session could not be recorded. Use text for now.", "UNAVAILABLE", 503, {
+          retryable: true,
+          compatibilityFields: { fallback: "text" },
+        });
+      }
     }
     providerAllocated = true;
     const remainingMinutes = supabaseConfigured ? null : remainingVoiceMinutes(meter);
@@ -267,8 +295,9 @@ async function handleIssueToken(userId: string): Promise<Response> {
  * one boolean about this deployment's own configuration.
  */
 export async function GET(): Promise<Response> {
+  const readiness = pubPalVoiceReadiness(isSupabaseConfigured());
   return jsonNoStore({
-    available: palVoiceConfigured(),
+    available: readiness.available,
     maxSessionSeconds: PAL_VOICE_MAX_SESSION_SECONDS,
     retention: "zero",
     mutationPolicy: "propose_then_confirm",

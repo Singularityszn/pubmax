@@ -34,6 +34,9 @@ Variables → Production, Preview). All four are server-only.
 |---|---|
 | `ELEVENLABS_API_KEY` | Account key. Never reaches the browser: `/api/pub-pal/voice-token` mints a short-lived signed session URL instead |
 | `ELEVENLABS_PUB_PAL_AGENT_ID` | The agent the script below creates |
+| `ELEVENLABS_PUB_PAL_WEBHOOK_SECRET` | HMAC secret for the post-call transcription webhook at `/api/webhooks/elevenlabs/pub-pal` |
+| `ELEVENLABS_PUB_PAL_WEBHOOK_CONFIGURED` | Set to `true` only after the provider webhook is created, attached to Pub Pal, and retries are enabled |
+| `ELEVENLABS_PUB_PAL_SPEND_CEILING_CONFIRMED` | Set to `true` only after a hard provider-account spend ceiling is confirmed; app code cannot verify that external setting |
 | `ELEVENLABS_LLM_SHARED_SECRET` | The secret ElevenLabs presents to `/api/pub-pal/llm`. Generate with `openssl rand -hex 32` |
 | `ELEVENLABS_VOICE_EMBER` / `_VELVET` / `_SIGNAL` | The three curated voice ids. Optional per slot: an unset slot falls back to the agent default |
 
@@ -85,7 +88,8 @@ On a first create the script prints the agent id. Put it on the deployment as
 
 ```bash
 # Answers available, maxSessionSeconds, retention and mutationPolicy.
-# `available` turns true once `ELEVENLABS_API_KEY` and the agent id are set.
+# Production `available` stays false until durable quota storage, signed callback
+# reconciliation, and the provider-account spend ceiling are also configured.
 curl -s https://pubmaxxing.com/api/pub-pal/voice-token | jq .
 
 # Should answer 401 without the shared secret, never 200.
