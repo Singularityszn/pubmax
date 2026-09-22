@@ -28,9 +28,8 @@ import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { createRobotsChecker } from "../lib/harvest/robots.ts";
+import { createRobotsChecker, fetchHarvestedPage } from "../lib/harvest/robots.ts";
 import {
-  harvestRedirectLanding,
   harvestSource,
   isHarvestSourceAllowed,
 } from "../lib/harvest/sourcePolicy.ts";
@@ -135,13 +134,12 @@ function createReader(source) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
     try {
-      const response = await fetch(url, {
+      const result = await fetchHarvestedPage(url, robots, {
         headers: { accept: "application/json", "user-agent": USER_AGENT },
         signal: controller.signal,
-        redirect: "follow",
       });
-      const landing = harvestRedirectLanding(url, response.url);
-      if (landing.outcome === "refused") throw new Error(`${url} redirected outside the allow-list to ${landing.url}`);
+      if (!result.ok) throw new Error(`${url} was refused by outbound page fence (${result.reason})`);
+      const { response } = result;
       if (!response.ok) throw new Error(`${url} answered HTTP ${response.status}`);
       return {
         items: await response.json(),

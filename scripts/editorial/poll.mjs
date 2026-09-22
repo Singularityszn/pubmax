@@ -20,6 +20,7 @@ import {
   parseEditorialFeedXml,
   storedEditorialItem,
 } from "../../lib/editorialRss.mjs";
+import { createRobotsChecker, fetchHarvestedPage } from "../../lib/harvest/robots.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const EDITORIAL_LATEST_PATH = join(ROOT, "public", "data", "editorial", "latest.json");
@@ -48,12 +49,18 @@ function releaseBody(response) {
   void response.body?.cancel?.().catch(() => {});
 }
 
+/** @typedef {(url: string) => Promise<{ allowed: boolean, reason: string, evidence: string }>} OutboundRobotsCheck */
+
+/**
+ * @param {{ now?: number, feeds?: readonly (typeof EDITORIAL_FEEDS)[number][], previous?: { version?: number, generatedAt?: string, status?: string, items?: unknown[] }, state?: Record<string, { lastFetchedAt?: number, lastModified?: string, backoffUntil?: number }>, fetchImpl?: typeof fetch, robots?: OutboundRobotsCheck, force?: boolean }} [options]
+ */
 export async function pollEditorialFeeds({
   now,
   feeds = EDITORIAL_FEEDS,
   previous = emptySnapshot(),
   state = {},
-  fetchImpl = fetch,
+  fetchImpl,
+  robots = createRobotsChecker(),
   force = false,
 } = {}) {
   const nextState = { ...(state ?? {}) };
@@ -75,10 +82,12 @@ export async function pollEditorialFeeds({
 
     let response;
     try {
-      response = await fetchImpl(feed.url, {
+      const result = await fetchHarvestedPage(feed.url, robots, {
         headers,
         signal: AbortSignal.timeout(EDITORIAL_FETCH_TIMEOUT_MS),
-      });
+      }, fetchImpl ? { fetchImpl } : undefined);
+      if (!result.ok) throw new Error(`Editorial feed refused: ${result.reason}`);
+      response = result.response;
     } catch {
       anyDegraded = true;
       nextState[feed.id] = { ...feedState, lastFetchedAt: undefined, backoffUntil: undefined };

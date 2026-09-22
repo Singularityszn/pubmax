@@ -54,6 +54,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import { CONTACT_EMAIL } from "../lib/siteContact.mjs";
+import { createRobotsChecker, fetchHarvestedPage, HarvestOutboundRefusal } from "../lib/harvest/robots.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -160,29 +161,8 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-// Minimal robots.txt parser: returns true if `path` is allowed for our UA. We
-// honour the wildcard group (the site serves `User-agent: *  Disallow:` = allow
-// all). Any explicit Disallow prefix that matches ABORTS the run for that path.
-function robotsAllows(robotsTxt, path) {
-  const lines = robotsTxt.split(/\r?\n/).map((l) => l.replace(/#.*$/, "").trim());
-  let inStar = false;
-  const disallows = [];
-  for (const line of lines) {
-    const [rawKey, ...rest] = line.split(":");
-    if (!rawKey) continue;
-    const key = rawKey.trim().toLowerCase();
-    const value = rest.join(":").trim();
-    if (key === "user-agent") {
-      inStar = value === "*";
-    } else if (key === "disallow" && inStar) {
-      if (value !== "") disallows.push(value);
-    }
-  }
-  return !disallows.some((prefix) => path.startsWith(prefix));
-}
-
 // One rate-limited, cached, backing-off GET. `cache` is a per-run Map (URL->text).
-async function politeGet(url, ctx) {
+async function politeGet(url, ctx, robots) {
   if (ctx.cache.has(url)) return ctx.cache.get(url);
   if (ctx.requests >= REQUEST_BUDGET) {
     throw new Error(`Request budget (${REQUEST_BUDGET}) exhausted — aborting run.`);
@@ -194,11 +174,13 @@ async function politeGet(url, ctx) {
     ctx.requests += 1;
     let res;
     try {
-      res = await fetch(url, {
+      const result = await fetchHarvestedPage(url, robots, {
         headers: { "User-Agent": UA, Accept: "text/html,application/xml,application/json" },
-        redirect: "follow",
-      });
+      }, { urlPolicy: "drink-update" });
+      if (!result.ok) throw new HarvestOutboundRefusal(`Outbound page fence refused ${url} (${result.reason}).`);
+      res = result.response;
     } catch (err) {
+      if (err instanceof HarvestOutboundRefusal) throw err;
       if (attempt >= MAX_RETRIES) throw err;
       await sleep(2 ** attempt * 1000);
       attempt += 1;
@@ -433,16 +415,10 @@ async function fetchFromDrinkSource(source, options) {
 async function fetchWetherspoons(source, options) {
   const { limit, scratchCacheDir } = options;
   const ctx = { cache: new Map(), requests: 0 };
-
-  // 1) ROBOTS PRE-FLIGHT — abort if our paths are disallowed.
-  const robotsTxt = await politeGet(`${WETHERSPOONS_HOST}/robots.txt`, ctx);
-  if (!robotsAllows(robotsTxt, "/pub-menus/") || !robotsAllows(robotsTxt, "/pub-menus-sitemap.xml")) {
-    throw new Error("ABORT: robots.txt disallows /pub-menus/ — refusing to fetch.");
-  }
-  console.log("  robots.txt: /pub-menus/ ALLOWED (crawl-delay honoured at 10s).");
+  const robots = createRobotsChecker({ urlPolicy: "drink-update" });
 
   // 2) Sitemap -> candidate pub-menu URLs.
-  const sitemapXml = await politeGet(SITEMAP_URL, ctx);
+  const sitemapXml = await politeGet(SITEMAP_URL, ctx, robots);
   const allUrls = [...sitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
   console.log(`  sitemap: ${allUrls.length} pub-menu URLs.`);
 
@@ -467,7 +443,7 @@ async function fetchWetherspoons(source, options) {
   const rows = [];
   let priced = 0;
   for (const cand of candidates) {
-    const html = await politeGet(cand.url, ctx);
+    const html = await politeGet(cand.url, ctx, robots);
     if (!html) continue;
     if (scratchCacheDir) {
       try {

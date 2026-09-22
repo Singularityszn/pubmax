@@ -49,6 +49,7 @@ const PROVIDER_SECRET_ENV_KEYS = [...PRICE_PROVIDER_KEYS, ...EVENT_PROVIDER_KEYS
  * `__tests__/eventsRefresh.test.ts` holds the two to each other.
  */
 export const EVENTS_REFRESH_NODE_ARGS = ["--import", "tsx"];
+export const COMMON_REFRESH_NODE_ARGS = ["--import", "tsx"];
 
 export function parseFreeMemoryPercent(output) {
   const match = String(output).match(/System-wide memory free percentage:\s*(\d+(?:\.\d+)?)%/);
@@ -265,6 +266,10 @@ export function commandsForMode(mode, dryRun) {
       },
       {
         executable: process.execPath,
+        // The Common lane stays keyless and independently scheduled, but its
+        // shared harvested-page fence is TypeScript-owned. Use the same loader
+        // on Node 22.12+ rather than relying on 22.18's default type stripping.
+        nodeArgs: COMMON_REFRESH_NODE_ARGS,
         args: ["scripts/whatson/commonRefresh.mjs"],
         independent: true,
       },

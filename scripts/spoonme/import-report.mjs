@@ -36,6 +36,7 @@ import { fileURLToPath } from "node:url";
 
 import { haversineMeters } from "../lib/geo.mjs";
 import { CONTACT_EMAIL } from "../../lib/siteContact.mjs";
+import { createRobotsChecker, fetchHarvestedPage } from "../../lib/harvest/robots.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -74,10 +75,12 @@ const OUT_MAP = join(ROOT, "public", "data", "spoonme", "map.json");
 // Fetch + extract
 // ---------------------------------------------------------------------------
 
-async function fetchReport() {
-  const res = await fetch(SPOONME_REPORT_URL, {
+async function fetchReport(robots) {
+  const result = await fetchHarvestedPage(SPOONME_REPORT_URL, robots, {
     headers: { "User-Agent": USER_AGENT, Accept: "text/html" },
   });
+  if (!result.ok) throw new Error(`Outbound page fence refused report URL (${result.reason})`);
+  const { response: res } = result;
   if (!res.ok) throw new Error(`SpoonMe report answered ${res.status}`);
   return await res.text();
 }
@@ -446,7 +449,7 @@ async function main() {
     }
     retrievedAt = new Date(stated).toISOString();
   } else {
-    html = await fetchReport();
+    html = await fetchReport(createRobotsChecker());
     retrievedAt = new Date().toISOString();
   }
   const sourceSha256 = createHash("sha256").update(html).digest("hex");

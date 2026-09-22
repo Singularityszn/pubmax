@@ -46,6 +46,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import path, { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { createRobotsChecker, fetchHarvestedPage } from "../lib/harvest/robots.ts";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const DATASET_JSON = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
@@ -94,14 +96,16 @@ function priceText(value) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function fetchText(url) {
-  const response = await fetch(url, { headers: { "user-agent": USER_AGENT } });
+async function fetchText(url, robots) {
+  const result = await fetchHarvestedPage(url, robots, { headers: { "user-agent": USER_AGENT } });
+  if (!result.ok) throw new Error(`${url} refused by outbound page fence (${result.reason})`);
+  const { response } = result;
   if (!response.ok) throw new Error(`${url} answered ${response.status}`);
   return response.text();
 }
 
-async function readSitemapUrls() {
-  const xml = await fetchText(SITEMAP_URL);
+async function readSitemapUrls(robots) {
+  const xml = await fetchText(SITEMAP_URL, robots);
   const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
   return {
     boroughs: [...new Set(locs.filter((u) => u.includes("/borough-results/")))].sort(),
@@ -204,18 +208,19 @@ function record(observations, name, address, pint, price) {
 }
 
 async function collect() {
-  const { boroughs, pubs } = await readSitemapUrls();
+  const robots = createRobotsChecker();
+  const { boroughs, pubs } = await readSitemapUrls(robots);
   const observations = new Map();
   let boroughPagesWithData = 0;
 
   for (const url of boroughs) {
-    const rows = readBoroughObservations(await fetchText(url), observations);
+    const rows = readBoroughObservations(await fetchText(url, robots), observations);
     if (rows > 0) boroughPagesWithData += 1;
     await sleep(REQUEST_DELAY_MS);
   }
   let pubPagesWithData = 0;
   for (const url of pubs) {
-    const rows = readPubPageObservations(await fetchText(url), observations);
+    const rows = readPubPageObservations(await fetchText(url, robots), observations);
     if (rows > 0) pubPagesWithData += 1;
     await sleep(REQUEST_DELAY_MS);
   }
