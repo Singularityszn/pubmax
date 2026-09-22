@@ -6106,8 +6106,8 @@ export default function PubMap({
       >
       <PubMapCanvas
         venues={canvasVenues}
-        nationalBrowse={ukNationalBrowse}
         filteredVenueCount={canvasVenues.length}
+        nationalBrowse={ukNationalBrowse}
         venueDataReady={loaded && loadedCityId === cityId}
         // Clean first view stays route-free. Once the user maps a crawl, the
         // line remains visible even if the mobile planner closes.
