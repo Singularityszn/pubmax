@@ -53,6 +53,50 @@ const TABLE = "structured_visit_reports";
 /** Bounded public reads: a venue read never returns more than this many rows. */
 const MAX_VENUE_REPORTS = 500;
 
+const REPORT_ACTOR_APPEND_RPC = "append_visit_report_report_actor";
+let reportActorRpcMissingWarned = false;
+
+/** PostgREST / Postgres signals that migration 0158 is not deployed yet. */
+function isMissingVisitReportReportActorRpc(error: { message?: string; code?: string }): boolean {
+  const code = error.code ?? "";
+  // PGRST202 = function not in schema cache; 42883 = undefined_function.
+  if (code === "PGRST202" || code === "42883") return true;
+  const message = error.message ?? "";
+  return (
+    new RegExp(REPORT_ACTOR_APPEND_RPC, "i").test(message) &&
+    /does not exist|Could not find the function|schema cache/i.test(message)
+  );
+}
+
+/**
+ * ONE statement so two concurrent reporters cannot clobber each other. Returns
+ * null (rather than throwing) when the RPC is not yet deployed, so the caller
+ * can fall back to the older read-modify-write path.
+ */
+async function appendVisitReportReportActorAtomically(
+  id: string,
+  actor: string,
+  reason: string | undefined,
+): Promise<boolean | null> {
+  const { data, error } = await admin().rpc(REPORT_ACTOR_APPEND_RPC, {
+    p_id: id,
+    p_actor: actor,
+    p_reason: reason ?? null,
+  });
+  if (error) {
+    if (!isMissingVisitReportReportActorRpc(error)) throw new Error(error.message);
+    if (!reportActorRpcMissingWarned) {
+      reportActorRpcMissingWarned = true;
+      console.warn(
+        `[visit-reports] ${REPORT_ACTOR_APPEND_RPC} not deployed - reporting falls back to a ` +
+          "read-modify-write that loses one of two concurrent reporters (apply migration 0158).",
+      );
+    }
+    return null;
+  }
+  return data === true;
+}
+
 /**
  * How many of one contributor's own reports a single read carries. A cap is a
  * window rather than a filter; the account export says so through its own
@@ -509,6 +553,14 @@ export const supabaseVisitReportStore: VisitReportStore = {
       // A report that can't be recorded should surface, not fake-succeed — but a
       // read/no-row case returns false. Non-schema errors throw → route 503.
       run: async () => {
+        // ONE statement, so two reporters cannot clobber each other: the
+        // append happens in Postgres and the UPDATE's own predicate carries
+        // the per-actor uniqueness guard. Migration 0158. Until it is
+        // applied, the read-modify-write below still runs - correct for one
+        // reporter, racy for two.
+        const appended = await appendVisitReportReportActorAtomically(id, actorHash, reason);
+        if (appended !== null) return appended;
+
         const { data, error } = await admin()
           .from(TABLE)
           .select("id, status, report_count, report_actors")

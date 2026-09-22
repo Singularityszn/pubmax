@@ -186,6 +186,7 @@ jobs:
           --exclude '__tests__/socialIdentityMigration.test.ts'
           --exclude '__tests__/socialInteractionsMigration.test.ts'
           --exclude '__tests__/socialPostsMigration.test.ts'
+          --exclude '__tests__/venueVisitReportActorAppendMigrationEffective.test.ts'
           --exclude '__tests__/wantedPromotionMigrationEffective.test.ts'
           --exclude '__tests__/whatsOnListingsMigration.test.ts'
 
@@ -250,6 +251,7 @@ jobs:
           --exclude '__tests__/socialIdentityMigration.test.ts'
           --exclude '__tests__/socialInteractionsMigration.test.ts'
           --exclude '__tests__/socialPostsMigration.test.ts'
+          --exclude '__tests__/venueVisitReportActorAppendMigrationEffective.test.ts'
           --exclude '__tests__/wantedPromotionMigrationEffective.test.ts'
           --exclude '__tests__/whatsOnListingsMigration.test.ts'
 

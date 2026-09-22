@@ -62,6 +62,50 @@ const TABLE = "venue_photos";
 const MAX_AUTHOR_PHOTOS = 1_000;
 const MIGRATION_HINT = "apply migration 0098";
 
+const REPORT_ACTOR_APPEND_RPC = "append_venue_photo_report_actor";
+let reportActorRpcMissingWarned = false;
+
+/** PostgREST / Postgres signals that migration 0158 is not deployed yet. */
+function isMissingVenuePhotoReportActorRpc(error: { message?: string; code?: string }): boolean {
+  const code = error.code ?? "";
+  // PGRST202 = function not in schema cache; 42883 = undefined_function.
+  if (code === "PGRST202" || code === "42883") return true;
+  const message = error.message ?? "";
+  return (
+    new RegExp(REPORT_ACTOR_APPEND_RPC, "i").test(message) &&
+    /does not exist|Could not find the function|schema cache/i.test(message)
+  );
+}
+
+/**
+ * ONE statement so two concurrent reporters cannot clobber each other. Returns
+ * null (rather than throwing) when the RPC is not yet deployed, so the caller
+ * can fall back to the older read-modify-write path.
+ */
+async function appendVenuePhotoReportActorAtomically(
+  id: string,
+  actor: string,
+  reason: string | undefined,
+): Promise<boolean | null> {
+  const { data, error } = await admin().rpc(REPORT_ACTOR_APPEND_RPC, {
+    p_id: id,
+    p_actor: actor,
+    p_reason: reason ?? null,
+  });
+  if (error) {
+    if (!isMissingVenuePhotoReportActorRpc(error)) throw new Error(error.message);
+    if (!reportActorRpcMissingWarned) {
+      reportActorRpcMissingWarned = true;
+      console.warn(
+        `[venue-photos] ${REPORT_ACTOR_APPEND_RPC} not deployed - reporting falls back to a ` +
+          "read-modify-write that loses one of two concurrent reporters (apply migration 0158).",
+      );
+    }
+    return null;
+  }
+  return data === true;
+}
+
 type VenuePhotoWallQuery = {
   cursor?: string | null;
   limit?: number;
@@ -326,7 +370,7 @@ function fromRow(row: Record<string, unknown>): VenuePhoto {
   };
 }
 
-const supabaseVenuePhotoStore: VenuePhotoStore = {
+export const supabaseVenuePhotoStore: VenuePhotoStore = {
   async create(fields, now = Date.now()) {
     const photo: VenuePhoto = {
       ...fields,
@@ -456,6 +500,14 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
           fallback: () => memoryVenuePhotoStore.report(id, reason, actorHash),
         }),
       run: async () => {
+        // ONE statement, so two reporters cannot clobber each other: the
+        // append happens in Postgres and the UPDATE's own predicate carries
+        // the per-actor uniqueness guard. Migration 0158. Until it is
+        // applied, the read-modify-write below still runs - correct for one
+        // reporter, racy for two.
+        const appended = await appendVenuePhotoReportActorAtomically(id, actorHash, reason);
+        if (appended !== null) return appended;
+
         const { data, error } = await admin()
           .from(TABLE)
           .select("id, moderation_state, report_count, report_actors")
