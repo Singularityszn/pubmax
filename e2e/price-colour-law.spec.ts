@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { serveEstimatedPintFixture, serveNoPintBundleFixture } from "./helpers/pintBundleFixture";
+
 import { priceBand, type PriceBand } from "../lib/priceBand";
 
 // THE PRICE COLOUR LAW (captain, 5 Sept 2026, "I already told you"): RED means
@@ -86,6 +88,7 @@ test("landing: the £6.50 answer is red, the rail's cheapest is green, the trust
 test.describe("venue sheet on /map?sel=venue-1vle947", () => {
   test("the est. £6.50 pill is red, and the word says Estimated", async ({ page }) => {
     test.setTimeout(120_000);
+    await serveEstimatedPintFixture(page, VENUE_ID);
     await page.route("**/api/pint-drops**", (route) =>
       route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ drops: [] }) }),
     );
@@ -103,11 +106,13 @@ test.describe("venue sheet on /map?sel=venue-1vle947", () => {
 
   test("a £4.50 pint logged here is green, on the sheet and on the phone peek", async ({ page }) => {
     test.setTimeout(120_000);
+    await serveNoPintBundleFixture(page, VENUE_ID);
     const drop = {
       id: "e3f592df-0dc3-434e-a6a4-a154e5358bbc",
       venueId: VENUE_ID,
       handle: "tester",
       drink: "Lager",
+      measure: "pint",
       priceGbp: 4.5,
       passedDownNote: "",
       era: "",
@@ -117,6 +122,7 @@ test.describe("venue sheet on /map?sel=venue-1vle947", () => {
       createdAt: new Date(Date.now() - 4 * DAY_MS).toISOString(),
       pintPhotoUrl: null,
       venuePhotoUrl: null,
+      receiptPhotoUrl: null,
       venueName: "The Sir Christopher Hatton",
       venueMapUrl: `/map?sel=${VENUE_ID}`,
     };
