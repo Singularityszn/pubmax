@@ -101,7 +101,7 @@
     "build:discover-board": "tsx scripts/build_discover_board.mjs",
     "arize:smoke": "tsx scripts/arizeSmoke.ts",
     "harvest:reddit-london-prices": "node --conditions=react-server --import tsx scripts/harvest_reddit_london_prices.mjs",
-    "ingest:community-price-observations": "node scripts/ingest_community_price_observations.mjs"
+    "ingest:community-price-observations": "node --import tsx scripts/ingest_community_price_observations.mjs"
   },
   "dependencies": {
     "@ai-sdk/otel": "^1.0.106",

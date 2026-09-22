@@ -7,7 +7,6 @@ import PriceBadge from "@/components/PriceBadge";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import {
   communityPriceDisplayStamp,
-  communityStampLabel,
   communityTrustNote,
   type CommunityPrice,
 } from "@/lib/communityPrice";
@@ -23,8 +22,16 @@ import {
 } from "@/lib/mapExperienceLens";
 import { COMMUNITY_PRICE_NOTE } from "@/lib/venues";
 import { formatPrice } from "@/lib/venues";
+import { isRedditCommentUrl } from "@/lib/redditEvidence";
 
 import "./venueDrinkPrices.css";
+
+function RedditCitation({ price }: { price: CommunityPrice }) {
+  const url = price.evidence?.url;
+  return isRedditCommentUrl(url)
+    ? <a href={url} target="_blank" rel="noopener noreferrer">Reported on Reddit</a>
+    : <span>Reported on Reddit</span>;
+}
 
 /**
  * What drinkers have logged at ONE pub, one row per drink, the map's lane first.
@@ -131,7 +138,9 @@ export default function VenueDrinkPrices({
       {lead ? (
         <div className="contributorPrice communityPriceRow">
           <span className={priceRevealMotionClass || undefined}>
-            <ClaimBadge kind="contributor" /> Logged by a PUBMAXXER
+            {lead.price.evidence?.source === "reddit"
+              ? <RedditCitation price={lead.price} />
+              : <><ClaimBadge kind="contributor" /> Logged by a PUBMAXXER</>}
           </span>
           <PriceBadge variant="current" band={beerBand(lead.category, lead.price.priceGbp)}>
             {formatPrice(lead.price.priceGbp)}
@@ -169,11 +178,11 @@ export default function VenueDrinkPrices({
           <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
             {COMMUNITY_PRICE_NOTE}
           </small>
-          <CommunityPriceReport
+          {!lead.price.evidence && <CommunityPriceReport
             price={lead.price}
             communityPrices={communityPrices}
             venueName={venueName}
-          />
+          />}
         </div>
       ) : null}
 
@@ -194,14 +203,15 @@ export default function VenueDrinkPrices({
                 <span className="venueDrinkPriceStamp">
                   {communityPriceDisplayStamp(row.price)}
                 </span>
+                {row.price.evidence?.source === "reddit" ? <RedditCitation price={row.price} /> : null}
                 {standing ? (
                   <span className="venueDrinkPriceStanding">{standing}</span>
                 ) : null}
-                <CommunityPriceReport
+                {!row.price.evidence && <CommunityPriceReport
                   price={row.price}
                   communityPrices={communityPrices}
                   venueName={venueName}
-                />
+                />}
               </li>
             );
           })}

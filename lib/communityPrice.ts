@@ -602,11 +602,16 @@ export function communityReachNote(
 export function communityTrustNote(
   price: Pick<
     CommunityPrice,
-    "corroborations" | "submittedAt" | "drinkCategory" | "mapCandidate"
+    "corroborations" | "submittedAt" | "drinkCategory" | "mapCandidate" | "evidence"
   >,
   now: number = Date.now(),
   reach: CommunityPriceMapReach = "paint",
 ): string {
+  if (price.evidence?.source === "reddit") {
+    return isWithinMaxAge(price, now)
+      ? "Unconfirmed report from Reddit."
+      : "Over 30 days old. This Reddit report records that night, not tonight's price.";
+  }
   const beer = price.drinkCategory === "beer";
   const paints = beer && reach === "paint";
   const marks = beer && reach !== "page";

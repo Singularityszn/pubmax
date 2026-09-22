@@ -14,6 +14,24 @@ const FIXTURE = JSON.parse(
 );
 
 describe("reddit price extractor fixture thread", () => {
+  it.each(["Remember when pints cost £2 at The Roebuck in London?", "I paid £3 at The Roebuck in Camden back in 2010."])("refuses retrospective copy: %s", (body) => {
+    expect(extractRedditPriceCandidates({
+      body,
+      permalink: "https://www.reddit.com/r/london/comments/1abc234/pints/mabc234/",
+      observedAt: "2026-09-20T12:00:00.000Z",
+      author: "fixture",
+    })).toEqual([]);
+  });
+
+  it.each(["", "invalid", "1970-01-01T00:00:00.000Z", "2099-01-01T00:00:00.000Z"])("refuses missing or unusable observation date: %s", (observedAt) => {
+    expect(extractRedditPriceCandidates({
+      body: "I paid £5.50 for a pint at The Roebuck in Camden.",
+      permalink: "https://www.reddit.com/r/london/comments/1abc234/pints/mabc234/",
+      observedAt,
+      author: "fixture",
+    })).toEqual([]);
+  });
+
   it("pulls paid-or-saw candidates and drops pure hypotheticals", () => {
     const comments = commentsFromRedditThreadPayload(FIXTURE);
     expect(comments.length).toBe(3);

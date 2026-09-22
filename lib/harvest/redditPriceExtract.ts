@@ -23,6 +23,11 @@ export type RedditPriceCandidate = {
 const POUND_RE = /£\s*(\d{1,2}(?:\.\d{1,2})?)/g;
 const JOKE_OR_HYPOTHETICAL =
   /\b(wish|would be|should be|used to be|remember when|in my day|if only|imagine|probably|maybe|about|around|ish)\b/i;
+const RETROSPECTIVE = /\b(remember when|used to (?:be|cost|pay)|in my day|back in \d{4}|years? ago)\b/i;
+
+export function isRetrospectiveRedditPrice(text: string): boolean {
+  return RETROSPECTIVE.test(text);
+}
 const PAID_OR_SAW =
   /\b(paid|pay|cost|costs|charged|was|is|it's|its|got|had|buy|bought|on the menu|they'?re charging|price is|prices are)\b/i;
 const PUB_NAME_RE =
@@ -31,11 +36,8 @@ const LONDON_AREA_RE =
   /\b(Camden|Shoreditch|Brixton|Clapham|Islington|Hackney|Greenwich|Wimbledon|Croydon|Peckham|Dalston|Hoxton|Fulham|Putney|Walthamstow|Stratford|Soho|Mayfair|Westminster|Bethnal Green|King'?s Cross|Angel|Highbury|Tooting|Balham|Richmond|Hammersmith|Barnet|Enfield|Bexley|Bromley|Lambeth|Southwark|Tower Hamlets|Haringey|Lewisham|Merton|Newham|Redbridge|Wandsworth|City of London)\b/i;
 
 export function redditObservedAt(createdUtc: number | string): string {
-  if (typeof createdUtc === "number" && Number.isFinite(createdUtc)) {
-    return new Date(createdUtc * 1000).toISOString();
-  }
-  const ms = Date.parse(String(createdUtc));
-  return Number.isFinite(ms) ? new Date(ms).toISOString() : new Date(0).toISOString();
+  const ms = typeof createdUtc === "number" ? createdUtc * 1000 : Date.parse(createdUtc);
+  return Number.isFinite(ms) && ms > 0 && ms <= Date.now() ? new Date(ms).toISOString() : "";
 }
 
 function snippetAround(text: string, index: number, radius = 120): string {
@@ -72,8 +74,10 @@ export function extractRedditPriceCandidates(input: {
   observedAt: string;
   author: string;
 }): RedditPriceCandidate[] {
+  if (!redditObservedAt(input.observedAt)) return [];
   const body = String(input.body ?? "").replace(/\s+/g, " ").trim();
   if (body.length < 8) return [];
+  if (isRetrospectiveRedditPrice(body)) return [];
   if (!PAID_OR_SAW.test(body) && !/\bpint\b/i.test(body)) return [];
 
   const pubNameHint = extractPubNameHint(body);

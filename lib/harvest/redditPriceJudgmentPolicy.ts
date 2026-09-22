@@ -1,4 +1,5 @@
 import type { DrinkCategory } from "@/lib/drinks";
+import { isRetrospectiveRedditPrice } from "@/lib/harvest/redditPriceExtract";
 import { decisionFromJudgment, type UkPriceJudgmentProbabilities } from "@/lib/harvest/ukPriceJudgmentPolicy";
 
 /** From __tests__/fixtures/typesafe/reddit-price-judgment-probabilities.json */
@@ -17,6 +18,9 @@ export function redditDecisionFromJudgment(
   priceGbp: number,
 ): { outcome: RedditJudgmentOutcome; drinkCategory?: DrinkCategory; confidence: number } {
   const actual = probs.isActualPriceReport ?? 0;
+  if (!Number.isFinite(actual) || actual < 0 || actual > 1) {
+    return { outcome: "reject", confidence: 0 };
+  }
   if (actual < REDDIT_ACTUAL_PRICE_REVIEW_THRESHOLD) {
     return { outcome: "reject", confidence: actual };
   }
@@ -35,15 +39,17 @@ export function redditDecisionFromJudgment(
 
 export function keylessRedditJudgment(snippet: string): RedditPriceJudgmentProbabilities {
   const paid = /\b(paid|cost|was|charged|got|buy|bought)\b/i.test(snippet);
-  const hypothetical = /\b(wish|would be|remember when|if only)\b/i.test(snippet) && !paid;
+  const hypothetical = isRetrospectiveRedditPrice(snippet) || (/\b(wish|would be|if only)\b/i.test(snippet) && !paid);
   const actualScore = hypothetical ? 0.2 : paid ? 0.78 : 0.35;
+  const halfPint = /\bhalf(?:[ -]pint)?\b/i.test(snippet);
+  const bottleOrCan = /\b(bottle|can|330\s*ml|440\s*ml|500\s*ml)\b/i.test(snippet);
   return {
     isActualPriceReport: actualScore,
     drinkJudgment: {
       whatIsPriced: {
-        draught_pint: /\b(pint|guinness|lager|ale|stout|cider)\b/i.test(snippet) ? 0.85 : 0.1,
-        half_pint: 0,
-        bottle_or_can: 0,
+        draught_pint: !halfPint && !bottleOrCan && /\b(pint|guinness|lager|ale|stout|cider)\b/i.test(snippet) ? 0.85 : 0.1,
+        half_pint: halfPint ? 0.95 : 0,
+        bottle_or_can: bottleOrCan ? 0.95 : 0,
         wine_glass: /\bwine\b/i.test(snippet) ? 0.75 : 0,
         spirit_or_cocktail: /\b(cocktail|gin|whisky|vodka|rum)\b/i.test(snippet) ? 0.7 : 0,
         soft_drink_or_coffee: 0,

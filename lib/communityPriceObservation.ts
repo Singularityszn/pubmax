@@ -10,6 +10,7 @@ import {
   type CommunityPriceEvidenceSource,
 } from "@/lib/communityPrice";
 import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+import { isRedditCommentUrl } from "@/lib/redditEvidence";
 
 export type CommunityPriceObservationRow = {
   venueId: string;
@@ -30,20 +31,10 @@ export type CommunityPriceObservationPack = {
   observations: CommunityPriceObservationRow[];
 };
 
-function isHttpUrl(value: unknown): value is string {
-  if (typeof value !== "string" || !value) return false;
-  try {
-    const u = new URL(value);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 function isValidObservedAt(value: unknown, now: number): value is string {
   if (typeof value !== "string" || !value) return false;
   const ms = Date.parse(value);
-  return Number.isFinite(ms) && ms <= now;
+  return Number.isFinite(ms) && ms > 0 && ms <= now;
 }
 
 export function isValidCommunityPriceObservationRow(
@@ -61,7 +52,7 @@ export function isValidCommunityPriceObservationRow(
   if (!COMMUNITY_PRICE_EVIDENCE_SOURCES.includes(row.source as CommunityPriceEvidenceSource)) {
     return false;
   }
-  if (!isHttpUrl(row.sourceUrl)) return false;
+  if (!isRedditCommentUrl(row.sourceUrl)) return false;
   if (typeof row.confidence !== "number" || !Number.isFinite(row.confidence)) return false;
   if (row.confidence < 0 || row.confidence > 1) return false;
   if (!isValidObservedAt(row.observedAt, now)) return false;
@@ -81,7 +72,7 @@ function hashStable(input: string): string {
 export function observationToCommunityPrice(row: CommunityPriceObservationRow): CommunityPrice {
   const submittedAt = Date.parse(row.observedAt);
   return {
-    id: `reddit-${hashStable(`${row.venueId}|${row.drinkCategory}|${row.sourceUrl}`)}`,
+    id: `reddit-${hashStable(`${row.venueId}|${row.drinkCategory}|${row.drinkName}|${row.priceGbp}|${row.observedAt}|${row.sourceUrl}`)}`,
     venueId: row.venueId.trim(),
     drinkCategory: row.drinkCategory,
     priceGbp: roundToPennies(row.priceGbp),

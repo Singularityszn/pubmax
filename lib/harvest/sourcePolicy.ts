@@ -671,6 +671,23 @@ export function isHarvestableOperatorUrl(value: unknown): value is string {
 }
 
 /**
+ * Captain-authorized community evidence scope. This grants no cached robots
+ * permission: every request still needs the host's live robots answer.
+ * Keep Reddit separate from first-party operator menu sources.
+ */
+export function isHarvestableRedditUrl(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname === "www.reddit.com" &&
+      !url.username && !url.password && !url.port &&
+      /^\/r\/[a-z0-9_]+\/(?:search\.json|comments\/[a-z0-9]+\/[^/]+(?:\/[a-z0-9]+)?\/?(?:\.json)?)$/i.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Hosts this table has ALREADY recorded a permission for, with evidence and a
  * day it was checked.
  *

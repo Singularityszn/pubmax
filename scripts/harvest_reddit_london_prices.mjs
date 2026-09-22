@@ -10,7 +10,7 @@
  */
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { PAID_SPEND_DEFAULT_DAILY_BUDGET } from "../lib/paidSpendBudget.ts";
 import {
@@ -21,6 +21,10 @@ import {
 import { redditDecisionFromJudgment } from "../lib/harvest/redditPriceJudgmentPolicy.ts";
 import { judgeRedditPriceCandidate } from "../lib/harvest/redditPriceJudgment.server.ts";
 import { matchPubNameToVenue } from "./lib/redditVenueMatch.mjs";
+import { isHarvestableRedditUrl } from "../lib/harvest/sourcePolicy.ts";
+import { createRobotsChecker } from "../lib/harvest/robots.ts";
+import { isValidCommunityPriceObservationRow, observationToCommunityPrice } from "../lib/communityPriceObservation.ts";
+import { fetchBoundedHarvestResource } from "./lib/boundedHarvestResource.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const USER_AGENT = "PubMaxxing/1.0 (contact: hello@pubmaxxing.com; see README)";
@@ -62,22 +66,32 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-function redditJsonUrl(url) {
-  const trimmed = String(url ?? "").replace(/\/$/, "");
-  if (trimmed.endsWith(".json")) return trimmed;
-  return `${trimmed}.json`;
+export function redditJsonUrl(value) {
+  const url = new URL(value);
+  if (!isHarvestableRedditUrl(url.href)) throw new Error("Reddit source policy refused URL");
+  url.pathname = url.pathname.replace(/\/$/, "");
+  if (!url.pathname.endsWith(".json")) url.pathname += ".json";
+  return url.href;
 }
 
-async function fetchRedditJson(url) {
+const robotsChecker = createRobotsChecker({
+  // A robots redirect is not permission to contact another host.
+  fetchImpl: (url, init) => fetch(url, { ...init, redirect: "error" }),
+});
+
+export async function fetchRedditJson(url, options = {}) {
   const jsonUrl = redditJsonUrl(url);
-  await sleep(2000);
-  const res = await fetch(jsonUrl, {
+  await (options.wait ?? sleep)(2000);
+  const res = await fetchBoundedHarvestResource({
+    url: jsonUrl,
+    fetchImpl: options.fetchImpl,
+    isAllowedUrl: isHarvestableRedditUrl,
+    robotsChecker: options.robotsChecker ?? robotsChecker,
+    expectedContentTypes: ["application/json"],
+    maxBytes: 2 * 1024 * 1024,
     headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-    redirect: "follow",
   });
-  if (res.status === 429) throw new Error("reddit-429");
-  if (!res.ok) return null;
-  const text = await res.text();
+  const text = new TextDecoder().decode(res.bytes);
   if (!text.trim().startsWith("{") && !text.trim().startsWith("[")) return null;
   try {
     return JSON.parse(text);
@@ -90,6 +104,7 @@ async function tavilySearch(query, spend) {
   if (!process.env.TAVILY_API_KEY?.trim() || !spend.tavily()) return [];
   const res = await fetch("https://api.tavily.com/search", {
     method: "POST",
+    signal: AbortSignal.timeout(20_000),
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       api_key: process.env.TAVILY_API_KEY,
@@ -102,25 +117,11 @@ async function tavilySearch(query, spend) {
   if (!res.ok) return [];
   const body = await res.json();
   return (body.results ?? [])
-    .filter((r) => r?.url)
+    .filter((r) => isHarvestableRedditUrl(r?.url))
     .map((r) => ({
       url: r.url,
       content: [r.title, r.content].filter(Boolean).join("\n"),
     }));
-}
-
-/** When Reddit blocks thread JSON, Tavily snippets may still carry verbatim £ claims. */
-async function processTavilyHit(hit, venues, state, spend) {
-  const body = String(hit.content ?? "").trim();
-  if (body.length < 12) return;
-  const permalink = hit.url.startsWith("http") ? hit.url : `https://www.reddit.com${hit.url}`;
-  const pseudo = {
-    body,
-    permalink,
-    observedAt: new Date().toISOString(),
-    author: "tavily-snippet",
-  };
-  await processComments([pseudo], venues, state, spend);
 }
 
 async function processComments(comments, venues, state, spend) {
@@ -149,7 +150,7 @@ async function processComments(comments, venues, state, spend) {
       }
       const decision = redditDecisionFromJudgment(judgment, row.priceGbp);
       if (decision.outcome === "review") {
-        state.review.push({ ...row, decision });
+        state.review.push({ sourceUrl: row.permalink, priceGbp: row.priceGbp, reason: "judgment-review" });
         continue;
       }
       if (decision.outcome !== "publish" || !decision.drinkCategory) {
@@ -159,10 +160,10 @@ async function processComments(comments, venues, state, spend) {
       state.passing += 1;
       const match = matchPubNameToVenue(row.pubNameHint, row.areaHint, venues);
       if (!match) {
-        state.review.push({ ...row, reason: "unmatched-venue", pubName: row.pubNameHint });
+        state.review.push({ sourceUrl: row.permalink, reason: "unmatched-venue", pubName: row.pubNameHint });
         continue;
       }
-      state.landed.push({
+      const observation = {
         venueId: match.venueId,
         drinkCategory: decision.drinkCategory,
         drinkName: row.drinkText,
@@ -172,13 +173,21 @@ async function processComments(comments, venues, state, spend) {
         sourceUrl: row.permalink,
         confidence: decision.confidence,
         pubNameHint: row.pubNameHint ?? undefined,
-      });
+      };
+      if (!isValidCommunityPriceObservationRow(observation)) {
+        state.rejected += 1;
+        continue;
+      }
+      const id = observationToCommunityPrice(observation).id;
+      if (!state.landed.some((existing) => observationToCommunityPrice(existing).id === id)) {
+        state.landed.push(observation);
+      }
     }
   }
 }
 
 async function main() {
-  const dryRun = flag("--dry-run");
+  const dryRun = flag("--dry-run") || flag("--from-fixture");
   const fromFixture = flag("--from-fixture");
   const limit = Number(process.argv[process.argv.indexOf("--limit") + 1]) || QUERIES.length;
   const venues = loadVenues();
@@ -194,7 +203,7 @@ async function main() {
   };
   const spend = {
     tavily: () => state.spend.tavily++ < TAVILY_BUDGET,
-    typesafe: () => state.spend.typesafe++ < TYPESAFE_BUDGET,
+    typesafe: () => !fromFixture && state.spend.typesafe++ < TYPESAFE_BUDGET,
   };
 
   if (fromFixture) {
@@ -221,9 +230,9 @@ async function main() {
         }
       } catch (e) {
         if (String(e).includes("429")) {
-          console.error("Reddit 429 on listing - pausing ten minutes");
-          await sleep(10 * 60 * 1000);
+          throw e;
         }
+        state.review.push({ sourceUrl: listingUrl, reason: String(e) });
       }
     }
 
@@ -235,13 +244,13 @@ async function main() {
           if (payload) {
             await processComments(commentsFromRedditThreadPayload(payload), venues, state, spend);
           } else {
-            await processTavilyHit(hit, venues, state, spend);
+            state.review.push({ sourceUrl: hit.url, reason: "thread-unavailable-no-dated-evidence" });
           }
         } catch (e) {
           if (String(e).includes("429")) {
-            console.error("Reddit 429 - stopping for ten minutes");
-            await sleep(10 * 60 * 1000);
+            throw e;
           }
+          state.review.push({ sourceUrl: hit.url, reason: String(e) });
         }
       }
     }
@@ -262,6 +271,7 @@ async function main() {
     landed: state.landed.length,
     rejected: state.rejected,
     reviewCount: state.review.length,
+    findings: state.review,
     queries: state.queries,
     spend: state.spend,
     byCategory: Object.fromEntries(
@@ -272,16 +282,17 @@ async function main() {
     ),
   };
 
-  mkdirSync(dirname(REVIEW_OUT), { recursive: true });
   if (!dryRun) {
+    mkdirSync(dirname(REVIEW_OUT), { recursive: true });
+    mkdirSync(dirname(SEED_OUT), { recursive: true });
     writeFileSync(SEED_OUT, JSON.stringify(pack, null, 2) + "\n");
     writeFileSync(REVIEW_OUT, state.review.map((r) => JSON.stringify(r)).join("\n") + (state.review.length ? "\n" : ""));
+    writeFileSync(REPORT_OUT, JSON.stringify(report, null, 2) + "\n");
   }
-  writeFileSync(REPORT_OUT, JSON.stringify(report, null, 2) + "\n");
   console.log(JSON.stringify(report, null, 2));
 }
 
-main().catch((e) => {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch((e) => {
   console.error(e);
   process.exit(1);
 });

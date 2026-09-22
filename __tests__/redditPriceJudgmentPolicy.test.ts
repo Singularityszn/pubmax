@@ -6,6 +6,7 @@ import {
   REDDIT_ACTUAL_PRICE_PUBLISH_THRESHOLD,
   REDDIT_ACTUAL_PRICE_REVIEW_THRESHOLD,
   redditDecisionFromJudgment,
+  keylessRedditJudgment,
 } from "@/lib/harvest/redditPriceJudgmentPolicy";
 import type { CommunityPriceEvidence } from "@/lib/communityPrice";
 
@@ -17,6 +18,12 @@ const FIX = JSON.parse(
 ) as { cases: Record<string, { isActualPriceReport: number }> };
 
 describe("reddit price judgment thresholds", () => {
+  it.each(["I paid £5.50 for a half pint of Guinness.", "I paid £5.50 for a bottle of lager."])("does not publish a non-pint as a pint: %s", (text) => {
+    expect(redditDecisionFromJudgment(keylessRedditJudgment(text), 5.5).outcome).toBe("reject");
+  });
+  it("never publishes nostalgic prices as current reports", () => {
+    expect(redditDecisionFromJudgment(keylessRedditJudgment("Remember when a pint cost £5.50?"), 5.5).outcome).toBe("reject");
+  });
   it("keeps publish above the fixture floor", () => {
     const published = Object.values(FIX.cases).filter((c) => c.isActualPriceReport >= REDDIT_ACTUAL_PRICE_PUBLISH_THRESHOLD);
     expect(published.length).toBeGreaterThan(0);
