@@ -8,8 +8,10 @@
 
 import {
   harvestSourcesOfKind,
-  isHarvestableDrinkUpdateUrl,
+  isHarvestableChainMenuUrl,
+  hostHasLondonDrinkCaptainOverride,
 } from "../../lib/harvest/sourcePolicy.ts";
+import { createRobotsChecker } from "../../lib/harvest/robots.ts";
 import { fetchRefreshPage, providerForJob } from "./localRefreshProviders.mjs";
 import {
   tavilyHarvestExtractCap,
@@ -32,9 +34,9 @@ export class HarvestMenuTransportError extends Error {
   }
 }
 
-export function parseMenuTransportArg(argv = process.argv) {
+export function parseMenuTransportArg(argv = process.argv, defaultTransport = "browserbase") {
   const at = argv.indexOf("--transport");
-  if (at === -1) return "browserbase";
+  if (at === -1) return defaultTransport;
   const value = argv[at + 1];
   if (!value || value.startsWith("--")) {
     throw new HarvestMenuTransportError("invalid-transport", "--transport requires browserbase or tavily");
@@ -72,6 +74,16 @@ export function assertTransportCredentials(transport, environment = process.env)
   }
 }
 
+/** The soft-drinks lane needs per-request policy enforcement before each fetch. */
+export function assertLocalPolicyEnforcedTransport(transport) {
+  if (transport !== "playwright") {
+    throw new HarvestMenuTransportError(
+      "unsafe-transport",
+      "soft-drinks harvest requires local Playwright so every browser request can be policy-checked",
+    );
+  }
+}
+
 function chainMenuCrawlDelayMs(sourceId = GREENE_KING_SOURCE_ID) {
   const source = harvestSourcesOfKind("chain-menu-prices").find((row) => row.id === sourceId);
   return (source?.crawlDelaySeconds ?? 1) * 1000;
@@ -80,16 +92,20 @@ function chainMenuCrawlDelayMs(sourceId = GREENE_KING_SOURCE_ID) {
 export function createMenuPageHarvester({
   transport = "browserbase",
   sourceId = GREENE_KING_SOURCE_ID,
+  associatedHosts = [],
   environment = process.env,
   fetchImpl = fetch,
   renderBrowserPage,
   fetchLocalPlaywrightMenuPage,
+  robotsChecker = createRobotsChecker(),
   crawlDelayMs = chainMenuCrawlDelayMs(sourceId),
   extractBudget = tavilyHarvestExtractCap(environment),
 } = {}) {
   const job = isKeylessMenuTransport(transport) ? null : refreshJobForTransport(transport);
   let extractsSpent = 0;
   let lastRequestAt = 0;
+  let lastRobotsDisallowed = false;
+  let lastFinalUrl = null;
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -100,8 +116,17 @@ export function createMenuPageHarvester({
   }
 
   async function fetchMenuMarkdown(url) {
-    if (!isHarvestableDrinkUpdateUrl(url)) {
+    lastFinalUrl = null;
+    if (!isHarvestableChainMenuUrl(url, sourceId, associatedHosts)) {
       throw new HarvestMenuTransportError("policy-refused", `sourcePolicy refused ${url}`);
+    }
+    const robots = await robotsChecker(url);
+    lastRobotsDisallowed = !robots.allowed;
+    if (!robots.allowed && !hostHasLondonDrinkCaptainOverride(new URL(url).hostname)) {
+      throw new HarvestMenuTransportError(
+        "robots-refused",
+        `robots.txt refused ${url}: ${robots.evidence}`,
+      );
     }
     if (transport === "tavily") {
       if (extractsSpent >= extractBudget) {
@@ -113,22 +138,38 @@ export function createMenuPageHarvester({
     }
     await waitForCrawlSpacing();
     let page;
-    if (transport === "playwright") {
-      const render =
-        fetchLocalPlaywrightMenuPage ??
-        (await import("./localPlaywrightMenuPage.mjs")).fetchLocalPlaywrightMenuPage;
-      const rendered = await render(url);
-      page = { markdown: rendered.markdown, links: rendered.links };
-    } else {
-      page = await fetchRefreshPage({
-        job,
-        url,
-        environment,
-        fetchImpl,
-        ...(renderBrowserPage ? { renderBrowserPage } : {}),
-      });
+    try {
+      if (transport === "playwright") {
+        const render =
+          fetchLocalPlaywrightMenuPage ??
+          (await import("./localPlaywrightMenuPage.mjs")).fetchLocalPlaywrightMenuPage;
+        const rendered = await render(url, {
+          sourceId,
+          associatedHosts,
+          robotsChecker,
+          followMenuLink: sourceId === "youngs-menu-prices",
+        });
+        page = { markdown: rendered.markdown, links: rendered.links, finalUrl: rendered.finalUrl ?? rendered.url ?? url };
+      } else {
+        page = await fetchRefreshPage({
+          job,
+          url,
+          environment,
+          fetchImpl,
+          ...(renderBrowserPage ? { renderBrowserPage } : {}),
+        });
+      }
+    } finally {
+      lastRequestAt = Date.now();
     }
-    lastRequestAt = Date.now();
+    const finalUrl = page.finalUrl ?? page.url ?? url;
+    if (!isHarvestableChainMenuUrl(finalUrl, sourceId, associatedHosts)) {
+      throw new HarvestMenuTransportError("policy-refused", `redirect landed on refused URL ${finalUrl}`);
+    }
+    if (new URL(finalUrl).origin !== new URL(url).origin) {
+      throw new HarvestMenuTransportError("redirect-refused", `cross-origin menu redirect refused: ${url}`);
+    }
+    lastFinalUrl = finalUrl;
     if (transport === "tavily") extractsSpent += 1;
     return page.markdown;
   }
@@ -142,5 +183,15 @@ export function createMenuPageHarvester({
       return extractsSpent;
     },
     fetchMenuMarkdown,
+    get lastRobotsDisallowed() {
+      return lastRobotsDisallowed;
+    },
+    get lastFinalUrl() {
+      return lastFinalUrl;
+    },
+    waitForCrawlSpacing,
+    markRequestCompleted() {
+      lastRequestAt = Date.now();
+    },
   };
 }

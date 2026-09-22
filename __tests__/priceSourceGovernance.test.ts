@@ -114,4 +114,28 @@ describe("the two price governance tables", () => {
       expect(source.access.checkedOn >= "2026-09-03").toBe(true);
     }
   });
+
+  it("binds permitted chain menu sources to permissible drinkSources hosts", () => {
+    for (const source of HARVEST_SOURCES.filter(
+      (candidate) => candidate.kind === "chain-menu-prices" && candidate.access.allowed,
+    )) {
+      const host = hostOf(source.url);
+      const matches = priceSources.drinkSources.filter(
+        (candidate) => hostOf(candidate.url) === host,
+      );
+      expect(matches.length, `${source.id} must have a drinkSources row for ${host}`).toBeGreaterThan(0);
+      for (const match of matches) {
+        expect(match.permissible, `${match.id} contradicts ${source.id}`).toBe(true);
+      }
+    }
+  });
+
+  it.each(["youngs-menu-prices", "stonegate-menu-prices", "brewdog-menu-prices"])(
+    "%s records the day its robots evidence was re-read",
+    (sourceId) => {
+      const source = HARVEST_SOURCES.find((candidate) => candidate.id === sourceId);
+      expect(source?.access.checkedOn).toBe("2026-09-22");
+      expect(source?.access.evidence).toContain("robots.txt re-read 2026-09-22");
+    },
+  );
 });

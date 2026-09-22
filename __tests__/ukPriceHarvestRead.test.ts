@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { readChainPintPrices } from "@/lib/harvest/chainMenuPrices";
 import { readVenueDrinkPrices } from "@/lib/harvest/ukPriceCrawl";
+import { readVenueDrinkPricesJudged } from "@/lib/harvest/ukPriceJudgment.server";
 import { extractPintPrices } from "@/scripts/lib/tavilyPubEnrichment.mjs";
 
 vi.mock("@/lib/harvest/ukPriceJudgment.server.ts", () => ({
@@ -39,6 +40,28 @@ describe("harvest price reader without TYPESAFE_API_KEY", () => {
       // Restore on the failing path too: a leaked unset key would silently put
       // every later test in this worker on the keyless path.
       if (previous !== undefined) process.env.TYPESAFE_API_KEY = previous;
+    }
+  });
+});
+
+describe("harvest price reader with TYPESAFE_API_KEY", () => {
+  it("surfaces judgment failures instead of silently switching extraction rules", async () => {
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    vi.mocked(readVenueDrinkPricesJudged).mockRejectedValueOnce(
+      new Error("TypeSafe judgment unavailable"),
+    );
+    try {
+      const { readVenueDrinkPricesForHarvest } = await import(
+        "../scripts/harvest/uk-prices/readPrices.mjs"
+      );
+      await expect(
+        readVenueDrinkPricesForHarvest(drinksList, {
+          pubName: "The Crown",
+          pageUrl: "https://thecrown.co.uk/drinks",
+        }),
+      ).rejects.toThrow("TypeSafe judgment unavailable");
+    } finally {
+      vi.unstubAllEnvs();
     }
   });
 });

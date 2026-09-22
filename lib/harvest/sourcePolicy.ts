@@ -272,7 +272,7 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
       allowed: true,
       evidence:
         "robots.txt re-read 2026-09-22: HTTP 200, Yoast `User-agent: *` with empty Disallow and sitemap_index. Captain override 21 Sep 2026: London soft-drinks harvest CLIs may read Young's microsite food-and-drink pages named in `LONDON_DRINK_CAPTAIN_OVERRIDE_HOSTS`, stamping `robotsDisallowed: true` when robots refused.",
-      checkedOn: "2026-09-21",
+      checkedOn: "2026-09-22",
     },
     notes:
       "Per-pub WordPress microsites; soft drinks when a page states £ beside the drink name.",
@@ -287,7 +287,7 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
       allowed: true,
       evidence:
         "robots.txt re-read 2026-09-22: HTTP 200, `User-agent: *` `Allow: /` with `Disallow: /home` only. Captain override 21 Sep 2026: London soft-drinks harvest CLIs may read Stonegate brand menu pages on hosts in `LONDON_DRINK_CAPTAIN_OVERRIDE_HOSTS`.",
-      checkedOn: "2026-09-21",
+      checkedOn: "2026-09-22",
     },
     notes: "Slug and Lettuce /menus paths; prices only when printed on the page.",
   },
@@ -301,7 +301,7 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
       allowed: true,
       evidence:
         "robots.txt re-read 2026-09-22: Shopify disallow list for checkout/cart only; bar pages permitted. Captain override 21 Sep 2026: London soft-drinks harvest CLIs may read BrewDog bar menu pages.",
-      checkedOn: "2026-09-21",
+      checkedOn: "2026-09-22",
     },
     notes: "Bar menu lane only; shop SKUs are out of scope.",
   },
@@ -520,12 +520,62 @@ export function hostHasLondonDrinkCaptainOverride(hostname: string): boolean {
 /** Drink overlay rows only: captain override hosts plus the ordinary allow-list. */
 export function isHarvestableDrinkUpdateUrl(value: unknown): boolean {
   if (typeof value !== "string" || !value.trim()) return false;
+  let url: URL;
   try {
-    if (hostHasLondonDrinkCaptainOverride(new URL(value.trim()).hostname)) return true;
+    url = new URL(value.trim());
   } catch {
     return false;
   }
-  return isHarvestableOperatorUrl(value);
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  if (url.username || url.password || namesOurOwnNetwork(url.hostname)) return false;
+  if (hostHasLondonDrinkCaptainOverride(url.hostname)) return true;
+  return isHarvestableOperatorUrl(url.href);
+}
+
+/**
+ * A chain menu transport is bound to one recorded publisher and its explicitly
+ * associated first-party pub sites. Callers pass associated hosts only after
+ * joining them to the publisher's curated venue records.
+ */
+export function isHarvestableChainMenuUrl(
+  value: unknown,
+  sourceId: string,
+  associatedHosts: readonly string[] = [],
+): boolean {
+  if (!isHarvestableDrinkUpdateUrl(value)) return false;
+  const source = HARVEST_SOURCES.find(
+    (row) => row.id === sourceId && row.kind === "chain-menu-prices",
+  );
+  if (!source) return false;
+  if (!source.access.allowed && source.access.reason === "publishes-no-web-price") {
+    return false;
+  }
+
+  let url: URL;
+  try {
+    url = new URL(String(value).trim());
+  } catch {
+    return false;
+  }
+  if (url.port && !((url.protocol === "http:" && url.port === "80") || (url.protocol === "https:" && url.port === "443"))) {
+    return false;
+  }
+
+  const normalizeHost = (host: string) => host.toLowerCase().replace(/^www\./, "");
+  const sourceHosts = [source.url, ...(source.renderedMenuHosts ?? [])]
+    .map((entry) => {
+      try {
+        return normalizeHost(new URL(entry).hostname);
+      } catch {
+        return "";
+      }
+    })
+    .filter(Boolean);
+  const allowedHosts = new Set([
+    ...sourceHosts,
+    ...associatedHosts.map(normalizeHost),
+  ]);
+  return allowedHosts.has(normalizeHost(url.hostname));
 }
 
 /**

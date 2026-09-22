@@ -21,6 +21,7 @@ const UNSUFFIXED_SERVER_ONLY_MODULES = [
   "reactionsStore.ts",
   "socialConnectionStore.ts",
   "supabase.ts",
+  "siteHarvestLedger.ts",
   "ukBaseIndex.ts",
 ] as const;
 
@@ -56,14 +57,14 @@ const SERVER_IO_EXEMPTIONS = {
     reason: "Reads source files while Next configuration builds tracing includes.",
     removeWhen: "Tracing metadata no longer reads project files.",
   },
-  "lib/siteHarvestLedger.ts": {
+  "lib/siteHarvestLedgerCore.ts": {
     capabilities: ["node-runtime"],
     kind: "config",
     consumers: [
       "scripts/harvest_soft_drinks_menus.mjs",
-      "__tests__/siteHarvestLedger.test.ts",
+      "lib/siteHarvestLedger.ts",
     ],
-    reason: "Dedupes committed site_harvest.jsonl rows against bundle collect keys.",
+    reason: "Plain shared ledger core lets the operator CLI and server-only facade use the same row rule.",
     removeWhen: "Site harvest moves off the JSONL ledger.",
   },
 } as const;

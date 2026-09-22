@@ -1,6 +1,6 @@
 {
   "chain": "youngs",
-  "transport": "tavily",
+  "transport": "playwright",
   "pagesRequested": 1,
   "pagesRead": 1,
   "refused": 0,
@@ -8,9 +8,11 @@
   "rowsLanded": 0,
   "bySubtype": {},
   "hosts": {
-    "cocktavern.co.uk": 1
+    "theeaglew12.co.uk": 1
   },
-  "tavilyExtractsSpent": 1,
-  "startedAt": "2026-09-22T03:17:10.176Z",
-  "finishedAt": "2026-09-22T03:17:10.549Z"
+  "fetchFailures": [],
+  "refusals": [],
+  "tavilyExtractsSpent": 0,
+  "startedAt": "2026-09-22T05:49:16.088Z",
+  "finishedAt": "2026-09-22T05:49:21.490Z"
 }

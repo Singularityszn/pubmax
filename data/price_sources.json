@@ -53,6 +53,24 @@
       "notes": "Scrape targets: youngs.co.uk regional best-pub-gardens pages and per-pub microsites linked from them (see data/london_chains/youngs/). Merge via scripts/merge_london_chain_scrapes.mjs into venue_menu_enrichment.json (menuUrl = pub website). Do NOT invent drink prices — only emit drink_price_updates when a first-party page carries extractable £ prices. Eating Europe and other third-party guides are NEVER permissible price sources."
     },
     {
+      "id": "stonegate-menu-prices",
+      "label": "Stonegate - Slug and Lettuce menus",
+      "url": "https://www.slugandlettuce.co.uk/sitemap.xml",
+      "kind": "first-party-chain",
+      "licence": "All rights reserved - first-party publisher of its own menus; read-only, attributed price facts only.",
+      "permissible": true,
+      "notes": "robots.txt re-read 2026-09-22: HTTP 200; User-agent * allows / and disallows /home only. Menu rows require a verified London venue match and a price stated beside a soft-drink label."
+    },
+    {
+      "id": "brewdog-menu-prices",
+      "label": "BrewDog - bar menus",
+      "url": "https://brewdog.com/uk/brewdog-bars",
+      "kind": "first-party-chain",
+      "licence": "All rights reserved - first-party publisher of its own menus; read-only, attributed price facts only.",
+      "permissible": true,
+      "notes": "robots.txt re-read 2026-09-22: HTTP 200; Shopify disallows checkout and cart paths, not bar pages. Shop SKUs are out of scope. Menu rows require a verified London venue match and a price stated beside a soft-drink label."
+    },
+    {
       "id": "nicholsons-official",
       "label": "Nicholson's — official site (London restaurant menus)",
       "url": "https://www.nicholsonspubs.co.uk/restaurants/london",
