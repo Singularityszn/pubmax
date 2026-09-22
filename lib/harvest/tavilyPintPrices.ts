@@ -161,7 +161,7 @@ function servingSizeForCandidate(row: UkPriceCandidate): string | null {
 }
 
 /** Map a shared page reading into every drink category the reader kept. */
-export function venueDrinkPricesFromUkReading(reading: UkPriceReading): TavilyVenueDrinkPrice[] {
+function venueDrinkPricesFromUkReading(reading: UkPriceReading): TavilyVenueDrinkPrice[] {
   const prices: TavilyVenueDrinkPrice[] = [];
   const seen = new Set<string>();
   for (const row of reading.kept) {
