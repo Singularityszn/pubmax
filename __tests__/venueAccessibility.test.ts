@@ -101,14 +101,20 @@ describe("display helpers", () => {
 });
 
 describe("accessibilityFilterSummary — honest, non-broken framing", () => {
+  it("does not describe documented exclusions as unchecked", () => {
+    const filters = { ...EMPTY_ACCESSIBILITY_FILTERS, stepFree: true };
+    const venues = [venueWith({ stepFree: true }), venueWith({ stepFree: false })];
+    const count = venues.filter((venue) => matchesAccessibilityFilters(venue, filters)).length;
+    expect(accessibilityFilterSummary(filters, count)).not.toContain("we haven’t checked them yet");
+  });
   it.each(["stepFree", "accessibleToilet", "seatedService"] as const)(
-    "explains unchecked pubs may qualify when filtering by %s",
+    "explains why pubs without confirmed details are excluded for %s",
     (facet) => {
       for (const count of [0, 3]) {
         expect(accessibilityFilterSummary(
           { ...EMPTY_ACCESSIBILITY_FILTERS, [facet]: true },
           count,
-        )).toContain("Other pubs may qualify; we haven’t checked them yet.");
+        )).toContain("Pubs without confirmed access details are left out.");
       }
     },
   );
