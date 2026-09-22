@@ -31,6 +31,7 @@ export const KNOWN_AREA_SLUGS: ReadonlySet<string>;
 export const AREA_NEWS_EXTRACT_PROMPT: string;
 export function areaNewsExtractPrompt(year?: number): string;
 export function areaNewsRefreshQueries(now?: number | string): string[];
+export function createAreaNewsRobotsChecker(fetchImpl?: typeof fetch): import("../../lib/harvest/robots").RobotsChecker;
 
 export function searchKeenable(
   query: string,

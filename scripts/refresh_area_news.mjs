@@ -1,12 +1,12 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { createRobotsChecker } from "../lib/harvest/robots.ts";
 
 import {
   KNOWN_AREA_SLUGS,
   areaNewsExtractPrompt,
   buildAreaNewsEntry,
+  createAreaNewsRobotsChecker,
   fetchKeenable,
   parseExtractedFact,
   searchKeenable,
@@ -277,7 +277,7 @@ export async function refreshAreaNews({
     throw new Error("Area news refresh found no valid facts. Existing dataset was not changed.");
   }
 
-  const checkRobots = createRobotsChecker();
+  const checkRobots = createAreaNewsRobotsChecker();
   const { freshEntries, fetchFailures } = await collectFreshEntries({
     candidates,
     env,
