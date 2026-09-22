@@ -328,11 +328,26 @@ export function useMapSurfaceNavigation({
       if (typeof window === "undefined" || !venueId) return;
       const held = stackRef.current;
       const current = currentSurface(held);
+      const { pathname, search, hash } = window.location;
       if (current?.id === "venue" && current.state?.venueId === venueId) {
-        back();
+        const next = held.slice(0, -1) as SurfaceStack<MapSurfaceState>;
+        // Back is asynchronous and may be delayed by the browser. Retire the
+        // rejected entry before traversal so reload or Forward can never
+        // restore a dead venue while the surface below is coming back.
+        window.history.replaceState(
+          stampMapSurfaceHistory(
+            window.history.state,
+            next,
+            selectedVenueId(next),
+          ),
+          "",
+          cleanMapUrl(pathname, search, hash),
+        );
+        publishStack(next);
+        onRestoreRef.current(currentSurface(next));
+        window.history.back();
         return;
       }
-      const { pathname, search, hash } = window.location;
       if (new URLSearchParams(search).get("sel") !== venueId) return;
       window.history.replaceState(
         stampMapSurfaceHistory(window.history.state, held, selectedVenueId(held)),
@@ -340,7 +355,7 @@ export function useMapSurfaceNavigation({
         cleanMapUrl(pathname, search, hash),
       );
     },
-    [back],
+    [publishStack],
   );
 
   const home = useCallback(() => {
