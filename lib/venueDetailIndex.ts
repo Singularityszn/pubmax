@@ -92,6 +92,16 @@ export type VenueDetailLookupResult =
   | { status: "missing" }
   | { status: "unavailable" };
 
+export type VenueDetailLookupOptions = {
+  /**
+   * Harvest overlays only fill website and menu URL gaps, and resolving their
+   * OSM ids loads the large UK OSM pack on a cold process. Readers that render
+   * neither field may skip that overlay read while keeping the artifact,
+   * canonical-id, menu-enrichment and three-state lookup contracts.
+   */
+  includeHarvestOverlay?: boolean;
+};
+
 type ArtifactLookupResult =
   | { status: "found"; venue: Venue }
   | { status: "missing" }
@@ -256,13 +266,18 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
   return fallbackIndex;
 }
 
-export async function lookupVenueDetail(requestedId: string): Promise<VenueDetailLookupResult> {
+export async function lookupVenueDetail(
+  requestedId: string,
+  options: VenueDetailLookupOptions = {},
+): Promise<VenueDetailLookupResult> {
+  const includeHarvestOverlay = options.includeHarvestOverlay !== false;
   if (!isVenueDetailId(requestedId)) return { status: "missing" };
   const aliasResult = await lookupCanonicalVenueId(requestedId);
   if (aliasResult.status === "unavailable") return aliasResult;
   const id = aliasResult.venueId;
   const cached = cachedDetails.get(id);
   if (cached) {
+    if (!includeHarvestOverlay) return { status: "found", venue: cached.venue };
     try {
       let overlayVenueIds = cached.overlayVenueIds;
       if (!overlayVenueIds) {
@@ -311,6 +326,8 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
 
   try {
     const enriched = await enrichVenueForDetail(venue);
+    cachedDetails.set(id, { venue: enriched });
+    if (!includeHarvestOverlay) return { status: "found", venue: enriched };
     let overlayVenueIds: string[] | undefined;
     try {
       const osmLookup = await lookupCanonicalVenueWithOsm(id);
@@ -320,7 +337,8 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
     } catch {
       overlayVenueIds = undefined;
     }
-    cachedDetails.set(id, { venue: enriched, ...(overlayVenueIds ? { overlayVenueIds } : {}) });
+    const cached = cachedDetails.get(id);
+    if (cached && overlayVenueIds) cached.overlayVenueIds = overlayVenueIds;
     if (!overlayVenueIds?.length) return { status: "found", venue: enriched };
     const reads = await Promise.all(
       overlayVenueIds.map((osmId) => harvestOverlayStore().getByVenueId(osmId)),
