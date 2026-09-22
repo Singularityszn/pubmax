@@ -63,7 +63,7 @@ export type ResolvedLandingPhoto = {
 };
 
 /** The widths on disk. A landing asks for the narrower one on a phone. */
-export const LANDING_PHOTO_WIDTHS = [640, 1280] as const;
+export const LANDING_PHOTO_WIDTHS = [640, 960, 1280] as const;
 
 const PHOTO_DIR = "/landing/london";
 

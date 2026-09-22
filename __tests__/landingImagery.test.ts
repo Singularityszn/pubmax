@@ -66,6 +66,26 @@ describe("the landing photographs are files we hold", () => {
     }
   });
 
+  it("keeps the intermediate AVIF lighter than the widest fallback", () => {
+    const intermediateWidth = LANDING_PHOTO_WIDTHS.at(-2)!;
+    const widestWidth = LANDING_PHOTO_WIDTHS.at(-1)!;
+    for (const id of ids) {
+      const intermediate = join(
+        root,
+        "public",
+        landingPhotoSrc(LANDING_PHOTOS[id], intermediateWidth, "avif").replace(/^\//, ""),
+      );
+      const widest = join(
+        root,
+        "public",
+        landingPhotoSrc(LANDING_PHOTOS[id], widestWidth, "avif").replace(/^\//, ""),
+      );
+      expect(statSync(intermediate).size, `${id} intermediate AVIF`).toBeLessThan(
+        statSync(widest).size,
+      );
+    }
+  });
+
   it("records a photographer, a licence and both links for every photograph", () => {
     for (const id of ids) {
       const { credit, place, alt, blurDataUrl } = LANDING_PHOTOS[id];

@@ -48,10 +48,12 @@ describe("the landing hero stands on a photograph", () => {
   const html = hero();
   const anchorPhoto = LANDING_PHOTOS[PUB_PHOTOS[anchorId]];
 
-  it("shows the anchor pub's own photograph, in both formats and both widths", () => {
+  it("shows the anchor pub's own photograph, in both formats and every generated width", () => {
     expect(html).toContain(`/landing/london/${anchorPhoto.id}-640.avif 640w`);
+    expect(html).toContain(`/landing/london/${anchorPhoto.id}-960.avif 960w`);
     expect(html).toContain(`/landing/london/${anchorPhoto.id}-1280.avif 1280w`);
     expect(html).toContain(`/landing/london/${anchorPhoto.id}-640.webp 640w`);
+    expect(html).toContain(`/landing/london/${anchorPhoto.id}-960.webp 960w`);
     expect(html).toContain('type="image/avif"');
   });
 
