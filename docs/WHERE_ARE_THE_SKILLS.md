@@ -1,54 +1,28 @@
-# Where are the skills?
+# Find an agent skill
 
-## Short answer
+Use the active harness's skill catalogue first. Read only the matching `SKILL.md`,
+then files it explicitly requires for the current task. A catalogue is an index,
+not instructions to load every skill.
 
-Pull this branch, then in Cursor:
+Project entry points are `.agents/skills/` and `.cursor/skills/`. The committed
+`skills/` directory also holds source mirrors. Harness discovery differs; check
+what the active harness actually exposes rather than assuming every mirror is loaded.
 
-1. Open **Customize → Skills** (or Settings → Rules → Agent Decides)
-2. Or type `/` in a **new** Agent chat and search the skill name
+For a local lookup, substitute a topic in this bounded search:
 
-Try: `/ask-matt`, `/grill-me`, `/tdd`, `/afk`, `/bearings`, `/last30days`
+```sh
+rg -l -i 'review|verification' .agents/skills skills --glob SKILL.md | head -20
+```
 
-## Why you could not see them before
+Inspect the selected path before applying it. If a named skill is absent, search
+shared installed skills once; report a missing dependency instead of installing an
+entire collection. Resolve symlinks before changing a skill and preserve aliases
+used by another harness.
 
-| What we did earlier | Why Cursor hid it |
-|---------------------|-------------------|
-| `npx skills add … -g` on the cloud agent | Installed into the **cloud VM home**, not your laptop |
-| Mirrored files under top-level `skills/` | Cursor **does not** scan `skills/` |
-| `.agents/` was gitignored | Even project installs never reached git / your machine |
+The historical [installed catalogue](agents/INSTALLED_SKILLS.md) is a generated
+snapshot, not proof of current installation. Search it only when local discovery
+cannot locate a named skill. Do not load it wholesale into task context.
 
-Cursor only loads project skills from:
-
-- `.agents/skills/` ← **now committed** (Matt Pocock, Kenji, kunchenguid, last30days, …)
-- `.cursor/skills/` ← **now committed** (symlinks to every `skills/<name>` mirror)
-
-## Pack map
-
-| You asked for | Skill examples | Path |
-|---------------|----------------|------|
-| Matt Pocock | `ask-matt`, `grill-me`, `tdd`, `to-spec`, `implement` | `.agents/skills/` + `.cursor/skills/` |
-| Kenji | `workflow-pr`, `audit-security`, `thirdparty-*` | same |
-| kunchenguid / Firstmate | `afk`, `bearings`, `stow`, `acpx`, `lavish` | same |
-| Matt Van Horn | `last30days` | same |
-
-Full list: [`docs/agents/INSTALLED_SKILLS.md`](agents/INSTALLED_SKILLS.md) and [`.cursor/skills/README.md`](../.cursor/skills/README.md).
-
-## If they still do not appear
-
-1. Confirm you are on branch `cursor/install-mattpocock-kenji-skills-44b7` (or main after merge).
-2. Confirm folders exist: `.agents/skills/ask-matt/SKILL.md` and `.cursor/skills/ask-matt`.
-3. Fully quit Cursor and reopen the project (skills are discovered at startup).
-4. Start a **new** Agent chat — old chats keep a stale skill list.
-
-## Packs installed 2026-08-08
-
-| Source | Try in chat |
-|--------|-------------|
-| Matt Pocock | `/ask-matt`, `/grill-me`, `/tdd` |
-| kunchenguid | `/afk`, `/bearings`, `/gnhf`, `/no-mistakes` |
-| Peter Yang | `/no-ai-slop`, `/human-review` |
-| google-labs-code/design.md | `/design-md`, `/typed-service-contracts` |
-| Jakub Krehel | `/make-interfaces-feel-better`, `/better-ui`, `/better-interface` |
-| ryokun6/ryos | `/create-ryos-app`, `/ui-design-styling` |
-
-Catalog note: `skills/REQUESTED_SOURCES_2026-08-08.md`
+Cursor mirror links can be rebuilt with `node scripts/link-cursor-skills.mjs`.
+After installation, refresh the harness's skill discovery or start a new session.
+See [Cursor project skills](../.cursor/skills/README.md) for that mirror layout.

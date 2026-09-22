@@ -134,6 +134,18 @@ export function log(
   context?: Record<string, unknown>,
   ts: number = Date.now(),
 ): void {
+  const line = formatLogLine(level, event, context, ts);
+  if (level === "error") console.error(line);
+  else console.log(line);
+}
+
+/** Format one redacted structured log line for a caller-owned output stream. */
+export function formatLogLine(
+  level: LogLevel,
+  event: string,
+  context?: Record<string, unknown>,
+  ts: number = Date.now(),
+): string {
   const record: LogRecord = {
     level,
     event,
@@ -141,7 +153,5 @@ export function log(
     // ts last so a stray context `ts` can't clobber the real timestamp.
     ts,
   };
-  const line = JSON.stringify(record);
-  if (level === "error") console.error(line);
-  else console.log(line);
+  return JSON.stringify(record);
 }
