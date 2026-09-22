@@ -59,7 +59,11 @@ import {
   typedSearchCameraMove,
   TYPED_SEARCH_MIN_QUERY,
 } from "@/lib/mapSearchCamera";
-import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
+import {
+  filterMapVenues,
+  mapFiltersRequireVenueEvidence,
+  withForcedVenue,
+} from "@/lib/filterMapVenues";
 import {
   OPEN_NOW_FILTER_CAPTION,
   openNowStatesForVenues,
@@ -2833,6 +2837,8 @@ export default function PubMap({
       ),
     [effectiveMapFilters, venues, venueSignals, openNowStateById],
   );
+  const ukBaseEvidenceFiltersActive =
+    mapFiltersRequireVenueEvidence(effectiveMapFilters);
   // "Saved only" composes ON TOP of the pipeline: when on, keep only venues in
   // the saved set. When off it's a no-op, so all existing behavior is preserved.
   const filteredVenues = useMemo(
@@ -6141,6 +6147,7 @@ export default function PubMap({
         whatsOnByVenue={whatsOnTonight.summary}
         provisionalVenueIds={provisionalVenueIds}
         lensPrices={activeLensPrices}
+        ukBaseEvidenceFiltersActive={ukBaseEvidenceFiltersActive}
         spoonsValue={spoonsValueLane}
         lensNoun={activeLensNoun?.toLowerCase() ?? null}
         lensIndexStatus={drinkIndexStatus}

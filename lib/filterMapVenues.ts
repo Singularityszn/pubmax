@@ -1,7 +1,28 @@
 // Map pin filtering for PubMap. Slim pins (prices: []) must stay visible through
-// filters whose evidence exists only after detail hydrates.
+// price-source filtering; explicit venue requirements still need evidence.
 
 import { filterVenues, type Filters, type Venue } from "@/lib/venues";
+
+const MAP_FILTERS_REQUIRING_VENUE_EVIDENCE = [
+  "requireBeerGarden",
+  "requireNonAlcoholic",
+  "requireLiveSports",
+  "requireFood",
+  "requireCocktails",
+  "requireWater",
+  "requireHeritage",
+  "requireStepFree",
+  "requireAccessibleToilet",
+  "requireSeatedService",
+] as const;
+
+/**
+ * Positive amenity/access filters that an evidence-free UK base row cannot
+ * answer. Hours are deliberately absent: Open now keeps unknown hours visible.
+ */
+export function mapFiltersRequireVenueEvidence(filters: Filters): boolean {
+  return MAP_FILTERS_REQUIRING_VENUE_EVIDENCE.some((key) => filters[key]);
+}
 
 /**
  * Split venues into slim (no price rows yet) vs hydrated, and apply the right
@@ -16,11 +37,6 @@ export function filterMapVenues(
   const slimPinFilters: Filters = {
     ...filters,
     canonicalOnly: false,
-    requireBeerGarden: false,
-    requireNonAlcoholic: false,
-    requireLiveSports: false,
-    requireWater: false,
-    requireHeritage: false,
     // Accessibility requires confirmed evidence even before detail hydrates.
     // openNow stays on for slim pins: match uses name+coords, which slim rows have.
   };
