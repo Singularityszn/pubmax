@@ -14,7 +14,7 @@ const FIXTURE = JSON.parse(
 );
 
 describe("reddit price extractor fixture thread", () => {
-  it.each(["Remember when pints cost £2 at The Roebuck in London?", "I paid £3 at The Roebuck in Camden back in 2010."])("refuses retrospective copy: %s", (body) => {
+  it.each(["Remember when pints cost £2 at The Roebuck in London?", "I paid £3 at The Roebuck in Camden back in 2010.", "I paid £3 for a pint at The Roebuck in Southwark in 2010."])("refuses retrospective copy: %s", (body) => {
     expect(extractRedditPriceCandidates({
       body,
       permalink: "https://www.reddit.com/r/london/comments/1abc234/pints/mabc234/",

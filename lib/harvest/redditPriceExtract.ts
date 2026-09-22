@@ -23,7 +23,7 @@ export type RedditPriceCandidate = {
 const POUND_RE = /£\s*(\d{1,2}(?:\.\d{1,2})?)/g;
 const JOKE_OR_HYPOTHETICAL =
   /\b(wish|would be|should be|used to be|remember when|in my day|if only|imagine|probably|maybe|about|around|ish)\b/i;
-const RETROSPECTIVE = /\b(remember when|used to (?:be|cost|pay)|in my day|back in \d{4}|years? ago)\b/i;
+const RETROSPECTIVE = /\b(remember when|used to (?:be|cost|pay)|in my day|(?:back in|in|during|since) (?:19|20)\d{2}|years? ago)\b/i;
 
 export function isRetrospectiveRedditPrice(text: string): boolean {
   return RETROSPECTIVE.test(text);

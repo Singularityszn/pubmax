@@ -9,16 +9,14 @@ function nameMatches(pubTokens, venueName) {
 }
 
 export function matchPubNameToVenue(pubName, boroughHint, venues) {
-  if (!pubName) return null;
+  if (!pubName || !boroughHint) return null;
   const cleaned = pubName.replace(/\s+\bin\b.+$/i, "").trim();
   const pubTokens = coreTokens(cleaned);
-  const slug = boroughHint ? slugifyBorough(boroughHint) : null;
+  const slug = slugifyBorough(boroughHint);
   const london = venues.filter((v) => LONDON_BOROUGH_NAMES.includes(v.borough));
-  const scoped = slug
-    ? london.filter((v) => slugifyBorough(v.borough) === slug)
-    : london;
+  const scoped = london.filter((v) => slugifyBorough(v.borough) === slug);
   const hits = scoped.filter((v) => nameMatches(pubTokens, v.name));
-  if (hits.length === 1) return { venueId: hits[0].id, confidence: slug ? "high" : "medium" };
+  if (hits.length === 1) return { venueId: hits[0].id, confidence: "high" };
   if (hits.length > 1) return null;
   return null;
 }
