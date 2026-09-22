@@ -19,7 +19,7 @@ function v(
   return {
     primaryBorough: "",
     visibleBoroughs: [],
-    cheapestPint: "",
+    cheapestPint: "House lager",
     curation: {},
     ...over,
   } as Venue;
@@ -29,6 +29,9 @@ function drop(
   over: Partial<VenuePriceStoryDrop> & { venueId: string; provenance: Provenance },
 ): VenuePriceStoryDrop {
   return {
+    id: "drop-fixture",
+    drink: "House lager",
+    measure: "pint",
     priceGbp: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     era: "",
@@ -130,16 +133,16 @@ describe("computeVenuePriceStory", () => {
     const story = computeVenuePriceStory(venue, drops);
 
     expect(story.isEmpty).toBe(false);
-    expect(story.baseline).toEqual({
+    expect(story.baseline).toMatchObject({
       gbp: 4,
       provenance: "sourced",
-      label: "Baseline on record",
+      label: expect.stringContaining("House lager"),
     });
     // "now" is the newest priced drop (the £6 contributor).
     expect(story.now?.gbp).toBe(6);
     expect(story.now?.provenance).toBe("contributor");
-    expect(story.deltaGbp).toBe(2);
-    expect(story.pct).toBe(50);
+    expect(story.deltaGbp).toBeNull();
+    expect(story.pct).toBeNull();
 
     // Inflation anchor is the dated 1985 anecdote, revalued up into today.
     expect(story.inflation?.year).toBe(1985);
@@ -218,6 +221,27 @@ describe("computeVenuePriceStory", () => {
     expect(story.isEmpty).toBe(false);
     expect(story.baseline?.gbp).toBe(4.5);
     expect(story.now).toBeNull();
+    expect(story.deltaGbp).toBeNull();
+    expect(story.pct).toBeNull();
+  });
+
+  it("does not turn a different drink into a venue price increase", () => {
+    const venue = v({
+      id: "a",
+      name: "A",
+      cheapestPrice: 4,
+      cheapestPint: "Lager",
+    });
+    const story = computeVenuePriceStory(venue, [
+      drop({
+        venueId: "a",
+        drink: "Stout",
+        measure: "pint",
+        priceGbp: 7,
+        provenance: "contributor",
+      }),
+    ]);
+
     expect(story.deltaGbp).toBeNull();
     expect(story.pct).toBeNull();
   });

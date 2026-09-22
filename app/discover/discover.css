@@ -533,6 +533,7 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
+  flex: 1 1 0;
   min-width: 0;
 }
 
@@ -542,6 +543,26 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-soft);
+}
+
+.tvnObservationDrink {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.tvnObservationMeta,
+.tvnObservationSource {
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+.tvnObservationSource a {
+  color: inherit;
+  text-underline-offset: 2px;
 }
 
 .tvnArrow {
@@ -571,6 +592,12 @@
 
 .tvnDelta-flat {
   color: var(--ink-soft);
+}
+
+.tvnDelta-independent {
+  color: var(--ink-soft);
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 /* ── Editorial cards ───────────────────────────────────────────────── */

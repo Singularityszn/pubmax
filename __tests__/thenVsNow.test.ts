@@ -1,18 +1,52 @@
 import { describe, it, expect } from "vitest";
 
 import { computeThenVsNow, type ThenVsNowDrop } from "@/lib/thenVsNow";
+import type { DrinkMeasure } from "@/lib/drinkMeasure";
 import type { Venue } from "@/lib/venues";
 
-// computeThenVsNow only reads id/name/cheapestPrice, so a partial cast keeps the
-// fixtures readable without spelling out every Venue field.
+type PriceCondition = "regular" | "promotion";
+
+type ComparisonVenue = Venue & {
+  measure?: DrinkMeasure;
+  observedAt?: string;
+  priceCondition?: PriceCondition;
+  priceTerms?: string;
+  sourceId?: string;
+};
+
+type ComparisonDrop = ThenVsNowDrop & {
+  id?: string;
+  drink?: string;
+  measure?: DrinkMeasure;
+  priceCondition?: PriceCondition;
+  priceTerms?: string;
+};
+
 function v(
-  over: Partial<Venue> & { id: string; name: string; cheapestPrice: number | null },
-): Venue {
-  return { primaryBorough: "", visibleBoroughs: [], cheapestPint: "", ...over } as Venue;
+  over: Partial<ComparisonVenue> & { id: string; name: string; cheapestPrice: number | null },
+): ComparisonVenue {
+  return {
+    primaryBorough: "",
+    visibleBoroughs: [],
+    cheapestPint: "House lager",
+    measure: "pint",
+    observedAt: "2026-01-01T12:00:00.000Z",
+    priceCondition: "regular",
+    sourceId: "app_price_fixture",
+    ...over,
+  } as ComparisonVenue;
 }
 
-function drop(over: Partial<ThenVsNowDrop> & { venueId: string }): ThenVsNowDrop {
-  return { priceGbp: null, createdAt: "2026-01-01T00:00:00.000Z", ...over };
+function drop(over: Partial<ComparisonDrop> & { venueId: string }): ComparisonDrop {
+  return {
+    id: "drop-fixture",
+    drink: "House lager",
+    measure: "pint",
+    priceGbp: null,
+    priceCondition: "regular",
+    createdAt: "2026-09-21T18:00:00.000Z",
+    ...over,
+  };
 }
 
 describe("computeThenVsNow", () => {
@@ -125,5 +159,83 @@ describe("computeThenVsNow", () => {
   it("returns an empty array when there are no community drops at all", () => {
     const venues = [v({ id: "a", name: "Anchor", cheapestPrice: 5 })];
     expect(computeThenVsNow(venues, [])).toEqual([]);
+  });
+
+  it.each([
+    ["different drinks", {}, { drink: "Stout" }],
+    ["different servings", {}, { measure: "half" as const }],
+    ["unknown baseline drink", { cheapestPint: "" }, {}],
+    ["unknown latest drink", {}, { drink: "" }],
+    ["unknown baseline serving", { measure: undefined }, {}],
+    ["unknown latest serving", {}, { measure: undefined }],
+    ["invalid latest serving", {}, { measure: "yard" as never }],
+    ["invalid baseline date", { observedAt: "not-a-date" }, {}],
+    ["invalid latest date", {}, { createdAt: "not-a-date" }],
+    [
+      "reversed dates",
+      { observedAt: "2026-09-22T12:00:00.000Z" },
+      { createdAt: "2026-09-21T18:00:00.000Z" },
+    ],
+    [
+      "same-day observations",
+      { observedAt: "2026-09-21T12:00:00.000Z" },
+      { createdAt: "2026-09-21T18:00:00.000Z" },
+    ],
+    ["unknown baseline terms", { priceCondition: undefined }, {}],
+    ["unknown latest terms", {}, { priceCondition: undefined }],
+    ["invalid latest terms", {}, { priceCondition: "happy-hour" as never }],
+    ["regular versus promotion", {}, { priceCondition: "promotion" as const, priceTerms: "Happy hour" }],
+    [
+      "different promotion terms",
+      { priceCondition: "promotion" as const, priceTerms: "Monday" },
+      { priceCondition: "promotion" as const, priceTerms: "Tuesday" },
+    ],
+  ])("keeps %s as separate observations without a change claim", (_label, venueOver, dropOver) => {
+    const [item] = computeThenVsNow(
+      [v({ id: "a", name: "A", cheapestPrice: 4, ...venueOver })],
+      [drop({ venueId: "a", priceGbp: 7, ...dropOver })],
+    );
+
+    expect(item).toMatchObject({ deltaGbp: null, pct: null });
+  });
+
+  it("compares an exact regular-price pair and retains both source references", () => {
+    const [item] = computeThenVsNow(
+      [v({ id: "a", name: "A", cheapestPrice: 4, sourceId: "app_price_000001" })],
+      [drop({ id: "drop-123", venueId: "a", priceGbp: 5 })],
+    );
+
+    expect(item).toMatchObject({
+      deltaGbp: 1,
+      pct: 25,
+      thenSourceId: "app_price_000001",
+      nowSourceId: "drop-123",
+      thenObservedAt: "2026-01-01T12:00:00.000Z",
+      nowObservedAt: "2026-09-21T18:00:00.000Z",
+    });
+  });
+
+  it("compares a promotion only when its terms match exactly", () => {
+    const [item] = computeThenVsNow(
+      [
+        v({
+          id: "a",
+          name: "A",
+          cheapestPrice: 4,
+          priceCondition: "promotion",
+          priceTerms: "Weekdays before 18:00",
+        }),
+      ],
+      [
+        drop({
+          venueId: "a",
+          priceGbp: 5,
+          priceCondition: "promotion",
+          priceTerms: " weekdays  before 18:00 ",
+        }),
+      ],
+    );
+
+    expect(item).toMatchObject({ deltaGbp: 1, pct: 25 });
   });
 });

@@ -242,7 +242,9 @@ export function cheapestByArea(venues: Venue[]): LeaderboardEntry[] {
 // /api/pint-drops DTO satisfies this (venueId, priceGbp, createdAt, handle,
 // server-enriched venueName); callers narrow the API payload before passing it.
 export type TonightDrop = {
+  id?: string;
   measure?: DrinkMeasure;
+  measureLabel?: string;
   drink?: string;
   venueId: string;
   priceGbp: number | null;

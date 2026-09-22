@@ -7,6 +7,7 @@ import { discardBody } from "@/lib/responseBody";
 import { pickDiscoverDrops } from "@/lib/discoverDrops";
 import {
   DISCOVER_BOARD_PATH,
+  discoverBaselineSourceUrl,
   parseDiscoverBoard,
   type DiscoverBoard,
   type DiscoverBoardRow,
@@ -252,7 +253,7 @@ export function DiscoverBody({
 
   // Defer the board read until the data-heavy sections are near the viewport.
   // The board is the ten ranked rows plus the "then" baselines, cut from the
-  // dataset at build time (lib/discoverBoard.ts): about 66 KB rather than the
+  // dataset at build time (lib/discoverBoard.ts): under 200 KB rather than the
   // 6,868 KB dataset this used to pull into a phone to print ten rows.
   useEffect(() => {
     const controller = new AbortController();
@@ -290,7 +291,18 @@ export function DiscoverBody({
           // Same drops, two computes: the live "tonight" board (last 24h,
           // cheapest-first) and the "then vs now" baseline comparison.
           setTonight(cheapestTonight(drops, { limit: 10 }));
-          setThenVsNow(computeThenVsNow(board.baselines, drops, 8));
+          setThenVsNow(
+            computeThenVsNow(
+              board.baselines.map((baseline) => ({
+                ...baseline,
+                measure: board.baselineMeasure ?? undefined,
+                observedAt: board.observedAt,
+                sourceUrl: discoverBaselineSourceUrl(baseline.sourceRef) ?? undefined,
+              })),
+              drops,
+              8,
+            ),
+          );
         },
         // Community "now" prices are best-effort: a non-abort failure still
         // leaves the rest of the page ready, with empty sections and friendly copy.
@@ -662,11 +674,11 @@ export function DiscoverBody({
             Then vs Now
           </h2>
           <p className="discoverSectionDek">
-            Latest community-reported pint against the earlier price on
-            record. The biggest movers first.
+            Dated price observations from the same pub. A change appears only
+            when drink, serving, date order and price terms match.
           </p>
           <p className="discoverSectionNote">
-            Then is the price on record. Now is the latest one someone logged.
+            Missing or different evidence stays as two observations, without a trend claim.
           </p>
           {status === "idle" ? (
             <p className="discoverEmpty" role="status">
