@@ -303,6 +303,11 @@ type PubMapCanvasProps = {
   /** Dedicated no-alcohol or food figures, separate from pint signals. */
   lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
   /**
+   * A positive amenity/access filter needs facts UK base rows never carry.
+   * Hide that unknown layer rather than presenting its pubs as matches.
+   */
+  ukBaseEvidenceFiltersActive?: boolean;
+  /**
    * A non-null lane means the Spoons value lens owns the map: the pins in the
    * ranking wear a value band and print the units the best £10 round holds.
    * Its own prop rather than a `lensPrices` entry, because the figure is a
@@ -551,6 +556,7 @@ export default function PubMapCanvas({
   whatsOnByVenue = null,
   provisionalVenueIds = null,
   lensPrices = null,
+  ukBaseEvidenceFiltersActive = false,
   // No default: an absent lane and an off lens are the same falsy answer to
   // every reader below, and a default here costs this already-dense function
   // a branch it does not need.
@@ -3444,9 +3450,9 @@ export default function PubMapCanvas({
     // base pins rather than curated venues, so it is passed through rather
     // than suspending the layer the way an experience view does.
     spoonsValue,
-    // A non-null lensPrices map is the one signal that an experience view owns
-    // the map, the same one the curated pins read below.
-    suspended: lensPrices !== null,
+    // Experience views and positive venue-evidence filters both own the map.
+    // Spoons remains on this base layer, so its separate lane never suspends it.
+    suspended: lensPrices !== null || ukBaseEvidenceFiltersActive,
     // HELD is not SUSPENDED: a suspended layer is emptied and answers so, while
     // a held one has simply not been asked for yet and starts the moment the
     // priced pins are on screen.
