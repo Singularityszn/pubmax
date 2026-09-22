@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { discardBody } from "@/lib/responseBody";
+import { pickDiscoverDrops } from "@/lib/discoverDrops";
 import {
   DISCOVER_BOARD_PATH,
   parseDiscoverBoard,
@@ -183,34 +184,6 @@ function buildEditorial(): EditorialCardData[] {
 /** Exported for unit tests — Discover editorial CTAs must stay map-first. */
 export const DISCOVER_EDITORIAL = buildEditorial();
 
-// Narrow the public /api/pint-drops payload to the drop shape our compute
-// helpers read. The returned TonightDrop carries {venueId, priceGbp, createdAt}
-// (all computeThenVsNow needs) PLUS the optional {handle, venueName} the tonight
-// board shows — the same list feeds both sections (one fetch, two computes).
-// Defensive: any malformed body yields an empty list so the sections simply
-// don't render (never crashes the page).
-function pickDrops(raw: unknown): TonightDrop[] {
-  if (!raw || typeof raw !== "object") return [];
-  const list = (raw as { drops?: unknown }).drops;
-  if (!Array.isArray(list)) return [];
-  const out: TonightDrop[] = [];
-  for (const item of list) {
-    if (!item || typeof item !== "object") continue;
-    const d = item as Record<string, unknown>;
-    if (typeof d.venueId !== "string" || !d.venueId) continue;
-    out.push({
-      venueId: d.venueId,
-      priceGbp:
-        typeof d.priceGbp === "number" && Number.isFinite(d.priceGbp) ? d.priceGbp : null,
-      createdAt: typeof d.createdAt === "string" ? d.createdAt : "",
-      handle: typeof d.handle === "string" && d.handle.trim() ? d.handle : undefined,
-      venueName:
-        typeof d.venueName === "string" && d.venueName.trim() ? d.venueName : undefined,
-    });
-  }
-  return out;
-}
-
 // Generated heritage crawls → EditorialCard shape. Each card opens the SAME
 // map deep-link the curated crawls use (curatedCrawlMapHref), so the polyline +
 // stops hydrate identically — no parallel map-link format. London-authored, so
@@ -311,7 +284,7 @@ export function DiscoverBody({
             return [];
           }
           const body = await res.json();
-          return pickDrops(body);
+          return pickDiscoverDrops(body);
         },
         applyDrops: (board: DiscoverBoard, drops: TonightDrop[]) => {
           // Same drops, two computes: the live "tonight" board (last 24h,
