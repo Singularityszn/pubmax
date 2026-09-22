@@ -1977,17 +1977,7 @@ export function readCommunityPricesWithStatus(
   venueId: string,
   now: number = Date.now(),
 ): Promise<CommunityPriceReadResult> {
-  return communityPriceStore()
-    .latestForVenue(venueId, now)
-    .then(async (result) => {
-      const { mergedCommunityPricesForVenue } = await import(
-        "@/lib/communityPriceObservationLoader.server"
-      );
-      return {
-        prices: mergedCommunityPricesForVenue(result.prices, venueId, now),
-        degraded: result.degraded,
-      };
-    });
+  return communityPriceStore().latestForVenue(venueId, now);
 }
 
 export function readCommunityVenueSignals(

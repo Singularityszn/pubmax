@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isValidCommunityPriceObservationRow, observationToCommunityPrice } from "@/lib/communityPriceObservation";
+import { isValidCommunityPriceObservationRow, communityPriceObservationId } from "@/lib/communityPriceObservation";
 
 const row = {
   venueId: "venue-a", drinkCategory: "beer" as const, drinkName: "Guinness",
@@ -20,7 +20,15 @@ describe("Reddit observation publication", () => {
   it("refuses epoch placeholders", () => {
     expect(isValidCommunityPriceObservationRow({ ...row, observedAt: "1970-01-01T00:00:00Z" }, now)).toBe(false);
   });
+  it("requires an exact known venue when publishing", () => {
+    expect(isValidCommunityPriceObservationRow(row, now, new Set(["venue-other"]))).toBe(false);
+    expect(isValidCommunityPriceObservationRow(row, now, new Set([row.venueId]))).toBe(true);
+  });
+  it("keeps explicit measures distinct without inventing a pint", () => {
+    expect(communityPriceObservationId(row)).not.toBe(communityPriceObservationId({ ...row, measure: "pint" }));
+    expect(communityPriceObservationId({ ...row, measure: "half" })).not.toBe(communityPriceObservationId({ ...row, measure: "pint" }));
+  });
   it("keeps different drinks from one comment distinct", () => {
-    expect(observationToCommunityPrice(row).id).not.toBe(observationToCommunityPrice({ ...row, drinkName: "Lager", priceGbp: 6 }).id);
+    expect(communityPriceObservationId(row)).not.toBe(communityPriceObservationId({ ...row, drinkName: "Lager", priceGbp: 6 }));
   });
 });

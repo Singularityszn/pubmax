@@ -23,7 +23,7 @@ import { judgeRedditPriceCandidate } from "../lib/harvest/redditPriceJudgment.se
 import { matchPubNameToVenue } from "./lib/redditVenueMatch.mjs";
 import { harvestSourcesOfKind, isHarvestableRedditUrl } from "../lib/harvest/sourcePolicy.ts";
 import { createRobotsChecker } from "../lib/harvest/robots.ts";
-import { isValidCommunityPriceObservationRow, observationToCommunityPrice } from "../lib/communityPriceObservation.ts";
+import { isValidCommunityPriceObservationRow, communityPriceObservationId } from "../lib/communityPriceObservation.ts";
 import { fetchBoundedHarvestResource } from "./lib/boundedHarvestResource.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -177,8 +177,8 @@ async function processComments(comments, venues, state, spend) {
         state.rejected += 1;
         continue;
       }
-      const id = observationToCommunityPrice(observation).id;
-      if (!state.landed.some((existing) => observationToCommunityPrice(existing).id === id)) {
+      const id = communityPriceObservationId(observation);
+      if (!state.landed.some((existing) => communityPriceObservationId(existing) === id)) {
         state.landed.push(observation);
       }
     }

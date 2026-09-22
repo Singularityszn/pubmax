@@ -6,7 +6,7 @@ import { ClaimBadge } from "@/components/map/venueInspectorBits";
 import PriceBadge from "@/components/PriceBadge";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import {
-  communityPriceDisplayStamp,
+  communityStampLabel,
   communityTrustNote,
   type CommunityPrice,
 } from "@/lib/communityPrice";
@@ -21,16 +21,25 @@ import {
   type VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
 import { COMMUNITY_PRICE_NOTE } from "@/lib/venues";
-import { formatPrice } from "@/lib/venues";
+import { formatPrice, formatObservedAt } from "@/lib/venues";
+import { drinkMeasureName } from "@/lib/drinkMeasure";
+import type { CommunityPriceEvidenceObservation } from "@/lib/communityPriceObservation";
 import { isRedditCommentUrl } from "@/lib/redditEvidence";
 
 import "./venueDrinkPrices.css";
 
-function RedditCitation({ price }: { price: CommunityPrice }) {
-  const url = price.evidence?.url;
-  return isRedditCommentUrl(url)
-    ? <a href={url} target="_blank" rel="noopener noreferrer">Reported on Reddit</a>
-    : <span>Reported on Reddit</span>;
+function CommunityEvidenceFromReddit({ rows }: { rows: readonly CommunityPriceEvidenceObservation[] }) {
+  if (rows.length === 0) return null;
+  return <section className="communityEvidenceFromReddit" aria-label="Community evidence from Reddit">
+    <p className="communityEvidenceHeading">Community evidence from Reddit</p>
+    <ul className="communityEvidenceList">{rows.map((row) => <li key={row.id} className="communityEvidenceRow">
+      <span className="communityEvidenceDrink">{row.drinkName}{row.measure ? ` · ${drinkMeasureName(row.measure, row.measureLabel)}` : ""}</span>
+      <span className="communityEvidenceFigure">{formatPrice(row.priceGbp)}</span>
+      <span className="communityEvidenceDate">{formatObservedAt(row.observedAt)}</span>
+      {isRedditCommentUrl(row.sourceUrl) ? <a href={row.sourceUrl} target="_blank" rel="noopener noreferrer">Reported on Reddit</a> : <span>Reported on Reddit</span>}
+      <span className="communityEvidenceCaveat">Unconfirmed report. It does not set the map price.</span>
+    </li>)}</ul>
+  </section>;
 }
 
 /**
@@ -104,6 +113,7 @@ export default function VenueDrinkPrices({
   revealRecord?: boolean;
   revealRecordLate?: boolean;
 }) {
+  const evidenceRows = communityPrices.evidenceByVenueId?.get(venueId) ?? [];
   const ordered = orderVenueDrinkPrices(rows, activeLane);
   const [lead, ...rest] = ordered;
   // A beer figure wears its price BAND (lib/priceBand.ts); the pint terciles
@@ -128,19 +138,17 @@ export default function VenueDrinkPrices({
           readStatus,
         );
 
-  if (!lead && !laneEmptyNote) return null;
+  if (!lead && !laneEmptyNote && evidenceRows.length === 0) return null;
 
   return (
     <section
       className="venueDrinkPrices"
-      aria-label={`Drink prices logged at ${venueName}`}
+      aria-label={`Drink prices and evidence at ${venueName}`}
     >
       {lead ? (
         <div className="contributorPrice communityPriceRow">
           <span className={priceRevealMotionClass || undefined}>
-            {lead.price.evidence?.source === "reddit"
-              ? <RedditCitation price={lead.price} />
-              : <><ClaimBadge kind="contributor" /> Logged by a PUBMAXXER</>}
+            <ClaimBadge kind="contributor" /> Logged by a PUBMAXXER
           </span>
           <PriceBadge variant="current" band={beerBand(lead.category, lead.price.priceGbp)}>
             {formatPrice(lead.price.priceGbp)}
@@ -157,7 +165,7 @@ export default function VenueDrinkPrices({
             }
             data-reveal-delay={revealRecord && !revealRecordLate ? "0" : undefined}
           >
-            {lead.label} · {communityPriceDisplayStamp(lead.price)}
+            {lead.label} · {communityStampLabel(lead.price.submittedAt)}
           </small>
           {communityTrustNote(lead.price) ? (
             <small
@@ -178,11 +186,11 @@ export default function VenueDrinkPrices({
           <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
             {COMMUNITY_PRICE_NOTE}
           </small>
-          {!lead.price.evidence && <CommunityPriceReport
+          <CommunityPriceReport
             price={lead.price}
             communityPrices={communityPrices}
             venueName={venueName}
-          />}
+          />
         </div>
       ) : null}
 
@@ -201,23 +209,23 @@ export default function VenueDrinkPrices({
                   {formatPrice(row.price.priceGbp)}
                 </span>
                 <span className="venueDrinkPriceStamp">
-                  {communityPriceDisplayStamp(row.price)}
+                  {communityStampLabel(row.price.submittedAt)}
                 </span>
-                {row.price.evidence?.source === "reddit" ? <RedditCitation price={row.price} /> : null}
                 {standing ? (
                   <span className="venueDrinkPriceStanding">{standing}</span>
                 ) : null}
-                {!row.price.evidence && <CommunityPriceReport
+                <CommunityPriceReport
                   price={row.price}
                   communityPrices={communityPrices}
                   venueName={venueName}
-                />}
+                />
               </li>
             );
           })}
         </ul>
       ) : null}
 
+      <CommunityEvidenceFromReddit rows={evidenceRows} />
       {laneEmptyNote ? (
         <div className="venueDrinkPricesEmpty">
           <p className="venueDrinkPricesEmptyNote" role="status">

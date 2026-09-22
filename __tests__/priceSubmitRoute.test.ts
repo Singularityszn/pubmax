@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const externalEvidence = vi.hoisted(() => ({ rows: [] as Array<Record<string, unknown>> }));
+vi.mock("@/lib/communityPriceObservationLoader.server", () => ({
+  communityPriceEvidenceForVenue: (venueId: string) => externalEvidence.rows.filter((row) => row.venueId === venueId),
+}));
+
 // Two Vercel-vs-local seams to pin (both would otherwise pass locally and fail
 // on Vercel - the classic green-local/red-Vercel trap):
 //
@@ -263,6 +268,7 @@ async function authorizeContributor(
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
 const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 beforeEach(async () => {
+  externalEvidence.rows = [];
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   venueIndexState.unavailable = false;
@@ -1183,6 +1189,20 @@ describe("GET /api/price-submit", () => {
     expect(data).not.toHaveProperty("degraded");
   });
 
+  it("returns source evidence beside direct reports without replacing their authority", async () => {
+    const venueId = "venue-3h52h";
+    await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    const evidence = { id: "reddit-fixture", venueId, drinkCategory: "beer", drinkName: "Guinness",
+      priceGbp: 5.5, source: "reddit", sourceUrl: "https://www.reddit.com/r/london/comments/1abc234/pints/mabc234/",
+      observedAt: new Date().toISOString(), confidence: 0.8 };
+    externalEvidence.rows = [evidence];
+    const data = await (await GET(get(`?venueId=${venueId}`))).json();
+    expect(data.prices).toHaveLength(1);
+    expect(data.prices[0]).toMatchObject({ priceGbp: 4.2, source: "community" });
+    expect(data.communityEvidence).toEqual([evidence]);
+    expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp: 4.2, source: "community" }]);
+  });
+
   it("reads venue signals beside prices from the same route", async () => {
     await POST(
       post({
@@ -1274,6 +1294,7 @@ describe("GET /api/price-submit", () => {
     expect(await res.json()).toEqual({
       prices: [],
       signals: [],
+      communityEvidence: [],
       degraded: true,
     });
   });

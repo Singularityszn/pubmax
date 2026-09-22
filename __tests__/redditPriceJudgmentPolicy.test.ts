@@ -8,7 +8,6 @@ import {
   redditDecisionFromJudgment,
   keylessRedditJudgment,
 } from "@/lib/harvest/redditPriceJudgmentPolicy";
-import type { CommunityPriceEvidence } from "@/lib/communityPrice";
 
 const FIX = JSON.parse(
   readFileSync(
@@ -33,8 +32,5 @@ describe("reddit price judgment thresholds", () => {
     expect(REDDIT_ACTUAL_PRICE_REVIEW_THRESHOLD).toBeLessThan(REDDIT_ACTUAL_PRICE_PUBLISH_THRESHOLD);
   });
 
-  it("types the evidence lane for knip", () => {
-    const sample: CommunityPriceEvidence = { source: "reddit", url: "https://example.com", confidence: 0.8 };
-    expect(sample.source).toBe("reddit");
-  });
+
 });

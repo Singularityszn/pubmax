@@ -127,3 +127,12 @@
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
+
+.communityEvidenceFromReddit { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.communityEvidenceHeading { margin: 0; color: var(--ink); font-size: .74rem; font-weight: 700; }
+.communityEvidenceList { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.communityEvidenceRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; align-items: baseline; }
+.communityEvidenceDrink { min-width: 0; font-size: .78rem; font-weight: 700; overflow-wrap: anywhere; }
+.communityEvidenceFigure { font-family: var(--font-data); font-size: .82rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.communityEvidenceDate, .communityEvidenceRow a { color: var(--ink-soft); font-size: .7rem; }
+.communityEvidenceCaveat { grid-column: 1 / -1; color: var(--ink-soft); font-size: .7rem; font-style: italic; line-height: 1.4; }

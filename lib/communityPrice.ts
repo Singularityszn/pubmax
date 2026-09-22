@@ -82,16 +82,6 @@ export type CommunityPriceMapCandidate = {
   corroborations: number;
 };
 
-/** Harvest lane for public-discussion community evidence (never a menu price). */
-export const COMMUNITY_PRICE_EVIDENCE_SOURCES = ["reddit"] as const;
-export type CommunityPriceEvidenceSource = (typeof COMMUNITY_PRICE_EVIDENCE_SOURCES)[number];
-
-export type CommunityPriceEvidence = {
-  source: CommunityPriceEvidenceSource;
-  url: string;
-  confidence: number;
-};
-
 /** One community-submitted price observation, as stored and as returned. */
 export type CommunityPrice = {
   /**
@@ -109,11 +99,6 @@ export type CommunityPrice = {
   submittedAt: number;
   /** Always "community" - the provenance lane this price lives in. */
   source: "community";
-  /**
-   * When set, this row was harvested from public discussion (e.g. Reddit), not
-   * logged in-app. It is community evidence, never a listed menu price.
-   */
-  evidence?: CommunityPriceEvidence;
   /**
    * How many INDEPENDENT submitters agree with this figure, counting the one
    * who logged it - so a lone report is 1. Derived on the read path from the
@@ -602,16 +587,11 @@ export function communityReachNote(
 export function communityTrustNote(
   price: Pick<
     CommunityPrice,
-    "corroborations" | "submittedAt" | "drinkCategory" | "mapCandidate" | "evidence"
+    "corroborations" | "submittedAt" | "drinkCategory" | "mapCandidate"
   >,
   now: number = Date.now(),
   reach: CommunityPriceMapReach = "paint",
 ): string {
-  if (price.evidence?.source === "reddit") {
-    return isWithinMaxAge(price, now)
-      ? "Unconfirmed report from Reddit."
-      : "Over 30 days old. This Reddit report records that night, not tonight's price.";
-  }
   const beer = price.drinkCategory === "beer";
   const paints = beer && reach === "paint";
   const marks = beer && reach !== "page";
@@ -673,16 +653,4 @@ export function formatPriceDay(submittedAt: number, now: number = Date.now()): s
 export function communityStampLabel(submittedAt: number, now: number = Date.now()): string {
   const day = formatPriceDay(submittedAt, now);
   return day ? `${day} · community` : "community";
-}
-
-/** Stamp when the row carries harvested evidence (e.g. Reddit). */
-export function communityPriceDisplayStamp(
-  price: Pick<CommunityPrice, "submittedAt" | "evidence">,
-  now: number = Date.now(),
-): string {
-  const day = formatPriceDay(price.submittedAt, now);
-  if (price.evidence?.source === "reddit") {
-    return day ? `${day} · community (Reddit)` : "community (Reddit)";
-  }
-  return communityStampLabel(price.submittedAt, now);
 }

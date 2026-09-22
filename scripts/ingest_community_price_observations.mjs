@@ -3,11 +3,15 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isValidCommunityPriceObservationRow, observationToCommunityPrice } from "../lib/communityPriceObservation.ts";
+import { isValidCommunityPriceObservationRow, communityPriceObservationId } from "../lib/communityPriceObservation.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(ROOT, "data/community_price_observations");
 const DEST = join(ROOT, "public/data/community_price_observations");
+
+const slim = JSON.parse(readFileSync(join(ROOT, "public/data/venues_slim.json"), "utf8"));
+if (!Array.isArray(slim.rows)) throw new Error("Missing venue catalogue for community evidence validation");
+const venueIds = new Set(slim.rows.map((row) => row.id));
 
 mkdirSync(DEST, { recursive: true });
 for (const name of readdirSync(SRC)) {
@@ -18,8 +22,8 @@ for (const name of readdirSync(SRC)) {
   }
   const ids = new Set();
   const observations = pack.observations.filter((row) => {
-    if (!isValidCommunityPriceObservationRow(row)) return false;
-    const id = observationToCommunityPrice(row).id;
+    if (!isValidCommunityPriceObservationRow(row, Date.now(), venueIds)) return false;
+    const id = communityPriceObservationId(row);
     if (ids.has(id)) return false;
     ids.add(id);
     return true;
