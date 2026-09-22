@@ -195,6 +195,10 @@ const nextConfig = {
   },
   // Don't advertise the framework/version on dynamic responses.
   poweredByHeader: false,
+  // The OpenAI instrumentation patches Node's module loader through
+  // require-in-the-middle. Keep that Node-only graph native instead of asking
+  // webpack to statically inspect its intentionally dynamic requires.
+  serverExternalPackages: ["@arizeai/openinference-instrumentation-openai"],
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   images: {
     qualities: [75, 78],
