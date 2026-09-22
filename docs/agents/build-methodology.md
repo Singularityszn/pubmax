@@ -52,8 +52,9 @@ prose you did not touch.
   Send updates when evidence or blockers change. Use compact task snapshots.
 - Load only relevant skills via [the lookup guide](../WHERE_ARE_THE_SKILLS.md).
   Follow user model settings: Sol xhigh for difficult work, Luna max for routine work.
-- Use code for exact comparisons and required gates. Jev may suggest semantic
-  duplicates; retain uncertain findings for review. It cannot grant source permission,
+- Use code for exact comparisons and required gates. The
+  [review duplicate check](review-finding-dedup.md) offers bounded Jev suggestions.
+  Retain uncertain findings for review. It cannot grant source permission,
   waive tests or approve merges. Keep secrets/private data out of judgment inputs.
 - Measure total calls, latency and provider-reported usage per accepted outcome,
   including Jev and retries. Record model, question version and evidence revision.
