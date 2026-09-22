@@ -48,11 +48,20 @@ test("active-plan pill resolves its route after a late capability exchange", asy
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
 
   let sessionExchanges = 0;
+  let releaseSessionExchange!: () => void;
+  let resolveSessionExchangeStarted!: () => void;
+  const releaseGate = new Promise<void>((resolve) => {
+    releaseSessionExchange = resolve;
+  });
+  const sessionExchangeStarted = new Promise<void>((resolve) => {
+    resolveSessionExchangeStarted = resolve;
+  });
   await page.route(`**/api/plans/${planId}/session`, async (route) => {
     sessionExchanges += 1;
     // Force the real ordering behind #1537: the card's first Plan read returns
     // the privacy-safe preview before the stored member token becomes a cookie.
-    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    resolveSessionExchangeStarted();
+    await releaseGate;
     await route.continue();
   });
   await page.addInitScript(
@@ -84,6 +93,9 @@ test("active-plan pill resolves its route after a late capability exchange", asy
 
   const loading = sheet.locator(".nightCard__loading");
   await expect(loading).toBeVisible();
+  await sessionExchangeStarted;
+  expect(sessionExchanges).toBe(1);
+  releaseSessionExchange();
   await expect(sheet.getByText(venues[0].name, { exact: true })).toBeVisible();
   await expect(loading).toHaveCount(0);
   expect(sessionExchanges).toBe(1);
