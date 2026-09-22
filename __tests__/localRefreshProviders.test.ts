@@ -129,6 +129,7 @@ describe("local refresh provider response contracts", () => {
     ).resolves.toEqual({
       markdown: "## Drinks\n\n[Beer list](https://example.com/drinks)",
       links: ["https://example.com/drinks"],
+      finalUrl: "https://example.com/menu",
     });
   });
 
@@ -154,6 +155,7 @@ describe("local refresh provider response contracts", () => {
     ).resolves.toEqual({
       markdown: "### Draught Beer\n\n#### Lager\n\n£6.20",
       links: ["https://example.com/drinks"],
+      finalUrl: "https://example.com/menu",
     });
     expect(renderBrowserPage).toHaveBeenCalledWith(
       "wss://browser.example/session",
