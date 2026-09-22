@@ -28,7 +28,7 @@
 // of them is credited on the page it appears on.
 //
 // Usage: node scripts/landing/build-landing-photos.mjs [--only <id>]
-// Writes public/landing/london/<id>-{640,1280}.{avif,webp}, rewrites
+// Writes public/landing/london/<id>-{640,960,1280}.{avif,webp}, rewrites
 // public/landing/london/ATTRIBUTION.md, and prints the manifest entries to
 // paste into lib/landingImagery.ts.
 
@@ -42,7 +42,7 @@ const UA =
   "PubmaxxLandingImagery/1.0 (https://pubmaxxing.com; contact via https://pubmaxxing.com/about)";
 const API = "https://commons.wikimedia.org/w/api.php";
 const OUT_DIR = path.join(process.cwd(), "public", "landing", "london");
-const WIDTHS = [640, 1280];
+const WIDTHS = [640, 960, 1280];
 const ASPECT = 16 / 9;
 
 // The set. `id` is the file stem and the manifest key; `place` is what the

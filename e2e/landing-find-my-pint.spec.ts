@@ -127,11 +127,12 @@ test.describe("landing hierarchy", () => {
 
     await receipt.click();
     await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1&price=\d+\.\d\d$/);
-    await expect(page.getByText("Set the price now. Sign in to post it under your name.")).toBeVisible({ timeout: 20_000 });
+    const composer = page.getByRole("form", { name: "Pint Drop composer" });
+    await expect(composer).toBeVisible({ timeout: 20_000 });
 
     // #1462 — the receipt the tap promised: the figure is already in the field,
     // and it is the same figure the label asked about.
-    const priceInput = page.locator(".spillPriceStep .priceStepper input");
+    const priceInput = composer.getByRole("textbox", { name: "What did it cost?" });
     await expect(priceInput).toHaveValue(figure, { timeout: 20_000 });
     // It is a seed, not a submission: the field is still the drinker's to edit.
     await expect(priceInput).toBeEditable();
