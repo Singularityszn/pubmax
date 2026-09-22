@@ -1,4 +1,11 @@
 import type { Provenance } from "@/lib/curation";
+import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import {
+  drinkMeasureName,
+  statedDrinkMeasure,
+  type DrinkMeasure,
+} from "@/lib/drinkMeasure";
+import { firstHttps } from "@/lib/httpUrl";
 import type { Venue } from "@/lib/venues";
 
 // "Then vs Now" — connect a venue's baseline dataset price ("then") to the most
@@ -10,6 +17,13 @@ import type { Venue } from "@/lib/venues";
 // /api/pint-drops DTO satisfies this (it carries venueId, priceGbp, createdAt);
 // callers narrow the API payload to this before passing it in.
 export type ThenVsNowDrop = {
+  id?: string;
+  drink?: string;
+  measure?: DrinkMeasure;
+  measureLabel?: string;
+  priceCondition?: ThenVsNowPriceCondition;
+  priceTerms?: string;
+  handle?: string;
   venueId: string;
   priceGbp: number | null;
   createdAt: string;
@@ -20,37 +34,152 @@ export type ThenVsNowDrop = {
 // (lib/discoverBoard.ts), so asking for a comparison never means downloading
 // the whole priced dataset to a browser.
 export type ThenVsNowVenue = {
+  drink?: string;
+  cheapestPint?: string;
+  measure?: DrinkMeasure;
+  measureLabel?: string;
+  observedAt?: string;
+  priceCondition?: ThenVsNowPriceCondition;
+  priceTerms?: string;
+  sourceId?: string;
+  sourceUrl?: string;
   id: string;
   name: string;
   cheapestPrice: number | null;
 };
 
+export type ThenVsNowPriceCondition = "regular" | "promotion";
+
+function isPriceCondition(value: unknown): value is ThenVsNowPriceCondition {
+  return value === "regular" || value === "promotion";
+}
+
+export type ThenVsNowComparison =
+  | "comparable"
+  | "drink-mismatch"
+  | "serving-mismatch"
+  | "date-mismatch"
+  | "terms-mismatch";
+
 // One resolved comparison row, ready to hand straight to a card.
 // - thenGbp  = the venue's baseline/dataset cheapest price
 // - nowGbp   = the price on the most-recent priced community drop for that venue
-// - deltaGbp = nowGbp - thenGbp (positive → gone up, negative → gone down)
-// - pct      = deltaGbp / thenGbp * 100 (0 when thenGbp is 0, guarded)
+// - deltaGbp = nowGbp - thenGbp only for an exact, ordered observation pair
+// - pct      = deltaGbp / thenGbp * 100; null when comparison is unsupported
 export type ThenVsNowItem = {
   venueId: string;
   venueName: string;
   thenGbp: number;
   nowGbp: number;
-  deltaGbp: number;
-  pct: number;
+  deltaGbp: number | null;
+  pct: number | null;
+  comparison: ThenVsNowComparison;
+  thenDrink: string;
+  nowDrink: string;
+  thenMeasure: DrinkMeasure | null;
+  nowMeasure: DrinkMeasure | null;
+  thenMeasureLabel: string;
+  nowMeasureLabel: string;
+  thenObservedAt: string | null;
+  nowObservedAt: string | null;
+  thenPriceCondition: ThenVsNowPriceCondition | null;
+  nowPriceCondition: ThenVsNowPriceCondition | null;
+  thenPriceTerms: string;
+  nowPriceTerms: string;
+  thenSourceId: string | null;
+  thenSourceUrl: string | null;
+  nowSourceId: string | null;
+  nowHandle: string | null;
 };
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+function cleanIdentity(value: string | null | undefined): string {
+  return (value ?? "").normalize("NFKC").replace(/\s+/g, " ").trim();
+}
+
+function sameIdentity(left: string, right: string): boolean {
+  return left.localeCompare(right, "en-GB", { sensitivity: "base" }) === 0;
+}
+
+function observationTime(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function observationDay(value: number): string {
+  return new Date(value).toISOString().slice(0, 10);
+}
+
+function comparisonFor(
+  venue: ThenVsNowVenue,
+  drop: ThenVsNowDrop,
+): ThenVsNowComparison {
+  const thenDrink = cleanIdentity(venue.drink ?? venue.cheapestPint);
+  const nowDrink = cleanIdentity(drop.drink);
+  if (!thenDrink || !nowDrink || !sameIdentity(thenDrink, nowDrink)) {
+    return "drink-mismatch";
+  }
+
+  const thenMeasure = statedDrinkMeasure(venue.measure);
+  const nowMeasure = statedDrinkMeasure(drop.measure);
+  if (!thenMeasure || !nowMeasure || thenMeasure !== nowMeasure) {
+    return "serving-mismatch";
+  }
+  if (thenMeasure === "other") {
+    const thenLabel = cleanIdentity(venue.measureLabel);
+    const nowLabel = cleanIdentity(drop.measureLabel);
+    if (!thenLabel || !nowLabel || !sameIdentity(thenLabel, nowLabel)) {
+      return "serving-mismatch";
+    }
+  }
+
+  const thenAt = observationTime(venue.observedAt);
+  const nowAt = observationTime(drop.createdAt);
+  if (
+    thenAt === null ||
+    nowAt === null ||
+    thenAt >= nowAt ||
+    observationDay(thenAt) === observationDay(nowAt)
+  ) {
+    return "date-mismatch";
+  }
+
+  if (
+    !isPriceCondition(venue.priceCondition) ||
+    !isPriceCondition(drop.priceCondition) ||
+    venue.priceCondition !== drop.priceCondition
+  ) {
+    return "terms-mismatch";
+  }
+  if (venue.priceCondition === "promotion") {
+    const thenTerms = cleanIdentity(venue.priceTerms);
+    const nowTerms = cleanIdentity(drop.priceTerms);
+    if (!thenTerms || !nowTerms || !sameIdentity(thenTerms, nowTerms)) {
+      return "terms-mismatch";
+    }
+  }
+
+  return "comparable";
+}
+
 // The most-recent priced drop for a venue: filter to drops carrying a usable
-// price, then pick the newest by createdAt (ISO strings sort lexicographically).
+// price, then pick the newest valid timestamp. An undated observation remains
+// displayable only when there is no dated candidate and can never be compared.
 // Returns null when the venue has no priced community drop at all.
 function mostRecentPricedDrop(drops: ThenVsNowDrop[]): ThenVsNowDrop | null {
   let best: ThenVsNowDrop | null = null;
+  let bestAt: number | null = null;
   for (const drop of drops) {
     if (!isFiniteNumber(drop.priceGbp)) continue;
-    if (!best || drop.createdAt.localeCompare(best.createdAt) > 0) best = drop;
+    const at = observationTime(drop.createdAt);
+    if (!best || (at !== null && (bestAt === null || at > bestAt))) {
+      best = drop;
+      bestAt = at;
+    }
   }
   return best;
 }
@@ -59,9 +188,8 @@ function mostRecentPricedDrop(drops: ThenVsNowDrop[]): ThenVsNowDrop | null {
 // signals: a baseline `cheapestPrice` ("then") AND at least one priced community
 // drop ("now"). Venues missing either are silently ignored.
 //
-// Ranking: biggest movers first — by absolute delta descending (the drops that
-// tell the most striking price story lead), ties broken on venue name so the
-// order is deterministic across renders. `limit` caps the returned list.
+// Ranking: exact comparisons lead by absolute movement. Independent
+// observations never receive a trend rank and fall back to venue name.
 export function computeThenVsNow(
   venues: readonly ThenVsNowVenue[],
   drops: ThenVsNowDrop[],
@@ -84,8 +212,10 @@ export function computeThenVsNow(
     if (!now || !isFiniteNumber(now.priceGbp)) continue; // no "now" community price → skip
 
     const nowGbp = now.priceGbp;
-    const deltaGbp = nowGbp - thenGbp;
-    const pct = thenGbp !== 0 ? (deltaGbp / thenGbp) * 100 : 0;
+    const comparison = comparisonFor(venue, now);
+    const deltaGbp = comparison === "comparable" ? nowGbp - thenGbp : null;
+    const pct =
+      deltaGbp === null ? null : thenGbp !== 0 ? (deltaGbp / thenGbp) * 100 : 0;
 
     items.push({
       venueId: venue.id,
@@ -94,14 +224,41 @@ export function computeThenVsNow(
       nowGbp,
       deltaGbp,
       pct,
+      comparison,
+      thenDrink: cleanIdentity(venue.drink ?? venue.cheapestPint),
+      nowDrink: cleanIdentity(now.drink),
+      thenMeasure: statedDrinkMeasure(venue.measure),
+      nowMeasure: statedDrinkMeasure(now.measure),
+      thenMeasureLabel: cleanIdentity(venue.measureLabel),
+      nowMeasureLabel: cleanIdentity(now.measureLabel),
+      thenObservedAt: observationTime(venue.observedAt) === null ? null : venue.observedAt ?? null,
+      nowObservedAt: observationTime(now.createdAt) === null ? null : now.createdAt,
+      thenPriceCondition: isPriceCondition(venue.priceCondition)
+        ? venue.priceCondition
+        : null,
+      nowPriceCondition: isPriceCondition(now.priceCondition)
+        ? now.priceCondition
+        : null,
+      thenPriceTerms: cleanIdentity(venue.priceTerms),
+      nowPriceTerms: cleanIdentity(now.priceTerms),
+      thenSourceId: cleanIdentity(venue.sourceId) || null,
+      thenSourceUrl: firstHttps(venue.sourceUrl) || null,
+      nowSourceId: cleanIdentity(now.id) || null,
+      nowHandle: cleanIdentity(now.handle) || null,
     });
   }
 
   return items
     .sort(
-      (a, b) =>
-        Math.abs(b.deltaGbp) - Math.abs(a.deltaGbp) ||
-        a.venueName.localeCompare(b.venueName),
+      (a, b) => {
+        if (a.deltaGbp !== null && b.deltaGbp === null) return -1;
+        if (a.deltaGbp === null && b.deltaGbp !== null) return 1;
+        if (a.deltaGbp !== null && b.deltaGbp !== null) {
+          const movement = Math.abs(b.deltaGbp) - Math.abs(a.deltaGbp);
+          if (movement !== 0) return movement;
+        }
+        return a.venueName.localeCompare(b.venueName);
+      },
     )
     .slice(0, Math.max(0, limit));
 }
@@ -198,6 +355,7 @@ export function parseEraYear(era: string | null | undefined): number | null {
 export type VenuePriceStamp = {
   gbp: number;
   provenance: Provenance;
+  sourceId?: string;
   // A human label for the moment this price is FROM: an era string for a
   // historical drop, "Baseline on record" for the dataset price, "Community
   // tonight" for the newest priced drop.
@@ -222,8 +380,8 @@ export type VenuePriceStory = {
   baseline: VenuePriceStamp | null;
   // The freshest priced community drop ("now"), when present.
   now: VenuePriceStamp | null;
-  // now.gbp - baseline.gbp, and its percent, when BOTH are present. Mirrors
-  // computeThenVsNow so the venue surface can reuse the same delta framing.
+  // now.gbp - baseline.gbp only when computeThenVsNow can establish an exact
+  // observation pair. Presence of two prices alone never creates a trend.
   deltaGbp: number | null;
   pct: number | null;
   // The inflation line: the best historical priced+dated drop revalued to today.
@@ -289,13 +447,20 @@ export function computeVenuePriceStory(
   drops: VenuePriceStoryDrop[],
 ): VenuePriceStory {
   const baselineGbp = venue.cheapestPrice;
+  const baselineDate = PINT_DATASET_OBSERVED_AT.toISOString();
+  const baselineSourceId =
+    venue.prices?.find(
+      (price) =>
+        price.price_gbp === baselineGbp && price.pint_name === venue.cheapestPint,
+    )?.app_price_id ?? null;
   const baseline: VenuePriceStamp | null = isFiniteNumber(baselineGbp)
     ? {
         gbp: baselineGbp,
         // The dataset baseline is editorial/sourced record, unless the venue's
         // curation explicitly marks its provenance otherwise (e.g. demo).
         provenance: venue.curation.provenance ?? "sourced",
-        label: "Baseline on record",
+        sourceId: baselineSourceId ?? undefined,
+        label: `${venue.cheapestPint || "Drink not recorded"} · Pint · ${baselineDate.slice(0, 10)}${baselineSourceId ? " · Listed price source" : " · source not recorded"}`,
       }
     : null;
 
@@ -305,15 +470,31 @@ export function computeVenuePriceStory(
       ? {
           gbp: nowDrop.priceGbp,
           provenance: (nowDrop as VenuePriceStoryDrop).provenance,
-          label: "Community tonight",
+          sourceId: nowDrop.id || undefined,
+          label: `${cleanIdentity(nowDrop.drink) || "Drink not recorded"} · ${nowDrop.measure ? drinkMeasureName(nowDrop.measure, nowDrop.measureLabel) : "Serving not recorded"} · ${observationTime(nowDrop.createdAt) === null ? "Date not recorded" : nowDrop.createdAt.slice(0, 10)}${nowDrop.id ? " · Pint Drop" : " · source not recorded"}`,
         }
       : null;
 
   let deltaGbp: number | null = null;
   let pct: number | null = null;
   if (baseline && now) {
-    deltaGbp = now.gbp - baseline.gbp;
-    pct = baseline.gbp !== 0 ? (deltaGbp / baseline.gbp) * 100 : 0;
+    const comparison = computeThenVsNow(
+      [
+        {
+          id: venue.id,
+          name: venue.name,
+          cheapestPrice: baseline.gbp,
+          cheapestPint: venue.cheapestPint,
+          measure: "pint",
+          observedAt: baselineDate,
+          sourceId: baselineSourceId ?? undefined,
+        },
+      ],
+      drops,
+      1,
+    )[0];
+    deltaGbp = comparison?.deltaGbp ?? null;
+    pct = comparison?.pct ?? null;
   }
 
   const inflation = bestInflationAnchor(drops);

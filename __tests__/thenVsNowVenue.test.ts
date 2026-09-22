@@ -19,7 +19,7 @@ function v(
   return {
     primaryBorough: "",
     visibleBoroughs: [],
-    cheapestPint: "",
+    cheapestPint: "House lager",
     curation: {},
     ...over,
   } as Venue;
@@ -29,6 +29,9 @@ function drop(
   over: Partial<VenuePriceStoryDrop> & { venueId: string; provenance: Provenance },
 ): VenuePriceStoryDrop {
   return {
+    id: "drop-fixture",
+    drink: "House lager",
+    measure: "pint",
     priceGbp: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     era: "",
@@ -130,16 +133,16 @@ describe("computeVenuePriceStory", () => {
     const story = computeVenuePriceStory(venue, drops);
 
     expect(story.isEmpty).toBe(false);
-    expect(story.baseline).toEqual({
+    expect(story.baseline).toMatchObject({
       gbp: 4,
       provenance: "sourced",
-      label: "Baseline on record",
+      label: expect.stringContaining("House lager"),
     });
     // "now" is the newest priced drop (the £6 contributor).
     expect(story.now?.gbp).toBe(6);
     expect(story.now?.provenance).toBe("contributor");
-    expect(story.deltaGbp).toBe(2);
-    expect(story.pct).toBe(50);
+    expect(story.deltaGbp).toBeNull();
+    expect(story.pct).toBeNull();
 
     // Inflation anchor is the dated 1985 anecdote, revalued up into today.
     expect(story.inflation?.year).toBe(1985);
@@ -148,6 +151,40 @@ describe("computeVenuePriceStory", () => {
     expect(story.inflation?.provenance).toBe("anecdote");
     expect(story.inflation?.handle).toBe("@ken");
     expect(story.inflation?.todayYear).toBe(INFLATION_TODAY_YEAR);
+  });
+
+  it("keeps source IDs as data without printing opaque IDs in labels", () => {
+    const venue = v({
+      id: "source-labels",
+      name: "Source Arms",
+      cheapestPrice: 4,
+      prices: [
+        {
+          app_price_id: "app_price_000001",
+          pint_name: "House lager",
+          price_gbp: 4,
+        } as Venue["prices"][number],
+      ],
+    });
+    const story = computeVenuePriceStory(venue, [
+      drop({
+        id: "drop-opaque-id",
+        venueId: venue.id,
+        priceGbp: 5,
+        provenance: "contributor",
+      }),
+    ]);
+
+    expect(story.baseline).toMatchObject({
+      sourceId: "app_price_000001",
+      label: expect.stringContaining("Listed price source"),
+    });
+    expect(story.now).toMatchObject({
+      sourceId: "drop-opaque-id",
+      label: expect.stringContaining("Pint Drop"),
+    });
+    expect(story.baseline?.label).not.toContain("app_price_000001");
+    expect(story.now?.label).not.toContain("drop-opaque-id");
   });
 
   it("picks the OLDEST dated priced drop as the inflation anchor", () => {
@@ -218,6 +255,27 @@ describe("computeVenuePriceStory", () => {
     expect(story.isEmpty).toBe(false);
     expect(story.baseline?.gbp).toBe(4.5);
     expect(story.now).toBeNull();
+    expect(story.deltaGbp).toBeNull();
+    expect(story.pct).toBeNull();
+  });
+
+  it("does not turn a different drink into a venue price increase", () => {
+    const venue = v({
+      id: "a",
+      name: "A",
+      cheapestPrice: 4,
+      cheapestPint: "Lager",
+    });
+    const story = computeVenuePriceStory(venue, [
+      drop({
+        venueId: "a",
+        drink: "Stout",
+        measure: "pint",
+        priceGbp: 7,
+        provenance: "contributor",
+      }),
+    ]);
+
     expect(story.deltaGbp).toBeNull();
     expect(story.pct).toBeNull();
   });

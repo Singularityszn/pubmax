@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DISCOVER_BOARD_LIMIT,
   DISCOVER_BOARD_PATH,
+  discoverBaselineSourceUrl,
   discoverBoardFromVenues,
   parseDiscoverBoard,
 } from "@/lib/discoverBoard";
@@ -37,6 +38,9 @@ describe("the shipped Discover board", () => {
     expect(shipped.baselines.length).toBe(
       venues.filter((venue) => typeof venue.cheapestPrice === "number").length,
     );
+    expect(shipped.baselines.every((row) => row.drink.trim() !== "")).toBe(true);
+    expect(shipped.baselines.every((row) => row.sourceId.trim() !== "")).toBe(true);
+    expect(shipped.baselines.filter((row) => row.sourceRef).length).toBeGreaterThan(800);
   });
 
   it("is a fraction of the dataset it replaces", () => {
@@ -79,12 +83,41 @@ describe("parseDiscoverBoard", () => {
         { rank: 2, area: "Camden", standing: "listed", venue: { id: "b", name: "B", cheapestPrice: null } },
       ],
       baselines: [
-        { id: "a", name: "A", cheapestPrice: 4 },
+        {
+          id: "a",
+          name: "A",
+          cheapestPrice: 4,
+          drink: "Lager",
+          sourceId: "app_price_000001",
+          sourceRef: "/pub/the-test-arms",
+          priceCondition: "promotion",
+          priceTerms: "Monday before 18:00",
+        },
         { id: "", name: "B", cheapestPrice: 5 },
       ],
     });
     expect(parsed?.cheapest.map((row) => row.venue.id)).toEqual(["a"]);
     expect(parsed?.baselines.map((row) => row.id)).toEqual(["a"]);
+    expect(parsed?.baselines[0]).toMatchObject({
+      drink: "Lager",
+      sourceId: "app_price_000001",
+      sourceRef: "/pub/the-test-arms",
+      priceCondition: "promotion",
+      priceTerms: "Monday before 18:00",
+    });
+  });
+
+  it("resolves compact source references without allowing an origin escape", () => {
+    expect(discoverBaselineSourceUrl("/pub/the-test-arms")).toBe(
+      "https://www.pint-prices.com/pub/the-test-arms",
+    );
+    expect(discoverBaselineSourceUrl("https://tattoo-bar.co.uk/menu")).toBe(
+      "https://tattoo-bar.co.uk/menu",
+    );
+    expect(discoverBaselineSourceUrl("//example.com/not-the-source")).toBeNull();
+    expect(discoverBaselineSourceUrl("javascript:alert(1)")).toBeNull();
+    expect(discoverBaselineSourceUrl("//[")).toBeNull();
+    expect(discoverBaselineSourceUrl("/\\[")).toBeNull();
   });
 
   // A figure without its trust word is the unlabelled board the captain

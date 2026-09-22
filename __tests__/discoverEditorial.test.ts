@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DISCOVER_EDITORIAL,
   discoverDrinkBrowseLede,
+  pickDrops,
 } from "@/app/discover/DiscoverPageClient";
 import {
   categoryLabel,
@@ -26,6 +27,44 @@ describe("Discover drink browse lede", () => {
     }
     expect(lede).toContain("coffee");
     expect(lede).not.toMatch(/\bother\b/i);
+  });
+});
+
+describe("Discover Pint Drop parsing", () => {
+  it("preserves explicit price conditions without inventing unknown ones", () => {
+    const drops = pickDrops({
+      drops: [
+        {
+          id: "regular",
+          venueId: "venue-a",
+          priceGbp: 5,
+          createdAt: "2026-09-22T12:00:00.000Z",
+          priceCondition: "regular",
+        },
+        {
+          id: "promotion",
+          venueId: "venue-b",
+          priceGbp: 4,
+          createdAt: "2026-09-22T12:00:00.000Z",
+          priceCondition: "promotion",
+          priceTerms: "Monday before 18:00",
+        },
+        {
+          id: "unknown",
+          venueId: "venue-c",
+          priceGbp: 6,
+          createdAt: "2026-09-22T12:00:00.000Z",
+          priceCondition: "full-price",
+        },
+      ],
+    });
+
+    expect(drops[0]).toMatchObject({ priceCondition: "regular" });
+    expect(drops[1]).toMatchObject({
+      priceCondition: "promotion",
+      priceTerms: "Monday before 18:00",
+    });
+    expect(drops[2]?.priceCondition).toBeUndefined();
   });
 });
 

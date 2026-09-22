@@ -1,4 +1,6 @@
 import { cheapestPints, type LeaderboardRowView } from "@/lib/leaderboard";
+import { statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
+import { firstHttps } from "@/lib/httpUrl";
 import { PRICE_STANDINGS, type PriceStanding } from "@/lib/priceTier";
 import type { Venue } from "@/lib/venues";
 
@@ -16,8 +18,9 @@ import type { Venue } from "@/lib/venues";
 //               the reader cannot disagree about what "cheapest" means.
 //   `baselines` is the "then" half of Then vs Now, which cannot be precomputed
 //               because the "now" half is a live community drop read at
-//               request time. It carries the three fields `computeThenVsNow`
-//               reads and nothing else.
+//               request time. It carries the exact drink and source-row
+//               identities; the board-level date and serving complete the
+//               observation without repeating them 950 times.
 //
 // Pure: no fetch, no React, no filesystem. The script writes it, the page
 // parses it, `__tests__/discoverBoard.test.ts` recomputes it from the dataset
@@ -29,17 +32,25 @@ export const DISCOVER_BOARD_PATH = "/data/discover/board.json";
 /** How many rows the leaderboard publishes. */
 export const DISCOVER_BOARD_LIMIT = 10;
 
+const DISCOVER_BASELINE_SOURCE_ORIGIN = "https://www.pint-prices.com";
+
 /**
  * One ranked row. It IS `LeaderboardRowView`, so the built file and the table
  * that prints it are one shape rather than two that can drift.
  */
 export type DiscoverBoardRow = LeaderboardRowView;
 
-/** One venue's "then" price: the three fields `computeThenVsNow` reads. */
+/** One venue's dated baseline price identity. */
 type DiscoverBoardBaseline = {
   id: string;
   name: string;
   cheapestPrice: number;
+  drink: string;
+  sourceId: string;
+  /** Pint Prices path, or the full HTTPS URL for another named publisher. */
+  sourceRef: string;
+  priceCondition?: "regular" | "promotion";
+  priceTerms?: string;
 };
 
 export type DiscoverBoard = {
@@ -50,9 +61,35 @@ export type DiscoverBoard = {
    * byte-stable across builds, so a rebuild is not a diff.
    */
   observedAt: string;
+  baselineMeasure: DrinkMeasure | null;
   cheapest: DiscoverBoardRow[];
   baselines: DiscoverBoardBaseline[];
 };
+
+function compactBaselineSource(...candidates: Array<string | undefined>): string {
+  const source = firstHttps(...candidates);
+  if (!source) return "";
+  const url = new URL(source);
+  return url.origin === DISCOVER_BASELINE_SOURCE_ORIGIN
+    ? `${url.pathname}${url.search}${url.hash}`
+    : url.href;
+}
+
+/** Resolve a compact board reference into a safe, inspectable HTTPS source. */
+export function discoverBaselineSourceUrl(sourceRef: string): string | null {
+  const ref = sourceRef.trim();
+  if (!ref) return null;
+  try {
+    if (ref.startsWith("/")) {
+      const url = new URL(ref, DISCOVER_BASELINE_SOURCE_ORIGIN);
+      return url.origin === DISCOVER_BASELINE_SOURCE_ORIGIN ? url.href : null;
+    }
+    const source = firstHttps(ref);
+    return source ? new URL(source).href : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Cut the board from the grouped dataset. The producer's whole rule, so the
@@ -79,10 +116,20 @@ export function discoverBoardFromVenues(
   for (const venue of venues) {
     const price = venue.cheapestPrice;
     if (typeof price !== "number" || !Number.isFinite(price)) continue;
-    baselines.push({ id: venue.id, name: venue.name, cheapestPrice: price });
+    const source = venue.prices.find(
+      (row) => row.price_gbp === price && row.pint_name === venue.cheapestPint,
+    );
+    baselines.push({
+      id: venue.id,
+      name: venue.name,
+      cheapestPrice: price,
+      drink: source?.pint_name ?? venue.cheapestPint,
+      sourceId: source?.app_price_id ?? "",
+      sourceRef: compactBaselineSource(source?.pub_url, source?.constructed_pub_url),
+    });
   }
 
-  return { observedAt, cheapest, baselines };
+  return { observedAt, baselineMeasure: "pint", cheapest, baselines };
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -126,7 +173,25 @@ function parseBaseline(raw: unknown): DiscoverBoardBaseline | null {
   if (typeof row.id !== "string" || !row.id) return null;
   if (typeof row.name !== "string") return null;
   if (!isFiniteNumber(row.cheapestPrice)) return null;
-  return { id: row.id, name: row.name, cheapestPrice: row.cheapestPrice };
+  return {
+    id: row.id,
+    name: row.name,
+    cheapestPrice: row.cheapestPrice,
+    drink: typeof row.drink === "string" ? row.drink : "",
+    sourceId: typeof row.sourceId === "string" ? row.sourceId : "",
+    sourceRef:
+      typeof row.sourceRef === "string" && discoverBaselineSourceUrl(row.sourceRef)
+        ? row.sourceRef
+        : "",
+    priceCondition:
+      row.priceCondition === "regular" || row.priceCondition === "promotion"
+        ? row.priceCondition
+        : undefined,
+    priceTerms:
+      typeof row.priceTerms === "string" && row.priceTerms.trim()
+        ? row.priceTerms
+        : undefined,
+  };
 }
 
 /**
@@ -150,6 +215,7 @@ export function parseDiscoverBoard(raw: unknown): DiscoverBoard | null {
   }
   return {
     observedAt: typeof body.observedAt === "string" ? body.observedAt : "",
+    baselineMeasure: statedDrinkMeasure(body.baselineMeasure),
     cheapest,
     baselines,
   };

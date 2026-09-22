@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { discardBody } from "@/lib/responseBody";
+import { statedDrinkMeasure } from "@/lib/drinkMeasure";
 import {
   DISCOVER_BOARD_PATH,
+  discoverBaselineSourceUrl,
   parseDiscoverBoard,
   type DiscoverBoard,
   type DiscoverBoardRow,
@@ -189,7 +191,7 @@ export const DISCOVER_EDITORIAL = buildEditorial();
 // board shows — the same list feeds both sections (one fetch, two computes).
 // Defensive: any malformed body yields an empty list so the sections simply
 // don't render (never crashes the page).
-function pickDrops(raw: unknown): TonightDrop[] {
+export function pickDrops(raw: unknown): TonightDrop[] {
   if (!raw || typeof raw !== "object") return [];
   const list = (raw as { drops?: unknown }).drops;
   if (!Array.isArray(list)) return [];
@@ -199,7 +201,25 @@ function pickDrops(raw: unknown): TonightDrop[] {
     const d = item as Record<string, unknown>;
     if (typeof d.venueId !== "string" || !d.venueId) continue;
     out.push({
+      id: typeof d.id === "string" && d.id.trim() ? d.id : undefined,
       venueId: d.venueId,
+      drink: typeof d.drink === "string" ? d.drink : undefined,
+      measure:
+        d.measure == null
+          ? undefined
+          : statedDrinkMeasure(d.measure) ?? "other",
+      measureLabel:
+        typeof d.measureLabel === "string" && d.measureLabel.trim()
+          ? d.measureLabel
+          : undefined,
+      priceCondition:
+        d.priceCondition === "regular" || d.priceCondition === "promotion"
+          ? d.priceCondition
+          : undefined,
+      priceTerms:
+        typeof d.priceTerms === "string" && d.priceTerms.trim()
+          ? d.priceTerms
+          : undefined,
       priceGbp:
         typeof d.priceGbp === "number" && Number.isFinite(d.priceGbp) ? d.priceGbp : null,
       createdAt: typeof d.createdAt === "string" ? d.createdAt : "",
@@ -279,7 +299,7 @@ export function DiscoverBody({
 
   // Defer the board read until the data-heavy sections are near the viewport.
   // The board is the ten ranked rows plus the "then" baselines, cut from the
-  // dataset at build time (lib/discoverBoard.ts): about 66 KB rather than the
+  // dataset at build time (lib/discoverBoard.ts): under 200 KB rather than the
   // 6,868 KB dataset this used to pull into a phone to print ten rows.
   useEffect(() => {
     const controller = new AbortController();
@@ -317,7 +337,18 @@ export function DiscoverBody({
           // Same drops, two computes: the live "tonight" board (last 24h,
           // cheapest-first) and the "then vs now" baseline comparison.
           setTonight(cheapestTonight(drops, { limit: 10 }));
-          setThenVsNow(computeThenVsNow(board.baselines, drops, 8));
+          setThenVsNow(
+            computeThenVsNow(
+              board.baselines.map((baseline) => ({
+                ...baseline,
+                measure: board.baselineMeasure ?? undefined,
+                observedAt: board.observedAt,
+                sourceUrl: discoverBaselineSourceUrl(baseline.sourceRef) ?? undefined,
+              })),
+              drops,
+              8,
+            ),
+          );
         },
         // Community "now" prices are best-effort: a non-abort failure still
         // leaves the rest of the page ready, with empty sections and friendly copy.
@@ -689,11 +720,11 @@ export function DiscoverBody({
             Then vs Now
           </h2>
           <p className="discoverSectionDek">
-            Latest community-reported pint against the earlier price on
-            record. The biggest movers first.
+            Dated price observations from the same pub. A change appears only
+            when drink, serving, date order and price terms match.
           </p>
           <p className="discoverSectionNote">
-            Then is the price on record. Now is the latest one someone logged.
+            Missing or different evidence stays as two observations, without a trend claim.
           </p>
           {status === "idle" ? (
             <p className="discoverEmpty" role="status">
