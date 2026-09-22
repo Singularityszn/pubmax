@@ -14,6 +14,10 @@ const state = {
   desk: { venues: [], status: "ready" } as DeskVenueRead,
 };
 
+vi.mock("@/lib/out/loadOut", () => ({
+  buildOutResponse: vi.fn(async () => ({ events: state.whatsOn.rows, listingsStatus: "ready" })),
+}));
+
 vi.mock("@/lib/concierge/venues.server", () => ({
   loadConciergeVenues: vi.fn(async () => state.venues),
 }));
@@ -618,5 +622,29 @@ describe("report_occupancy", () => {
       ctx(),
     );
     expect(result.answerHint).toBe("Is The Lamb empty, some seats, or full?");
+  });
+});
+
+describe("heritage venue identity", () => {
+  it("refuses an invented venue title even when the router supplied a name", async () => {
+    state.venues = [];
+    const result = await runAskTool("venue_heritage", {
+      venueName: "date-night with some , calm not loud",
+    }, ctx());
+    expect(result.ok).toBe(false);
+    expect(result.cards).toEqual([]);
+  });
+});
+
+describe("dance listings", () => {
+  it("keeps comedy out of a disco request while retaining publisher provenance", async () => {
+    state.whatsOn.rows = ["Disco tonight", "Comedy tonight"].map((title, index) => ({
+      id: `event-${index}`, kind: "event", title, placeName: "Camden venue", area: "Camden",
+      startsAt: "2026-08-15T20:00:00.000Z", source: { label: "Publisher", url: "https://example.com/event" },
+      observedAt: "2026-08-15T12:00:00.000Z",
+    } as WhatsOnRow));
+    const result = await runAskTool("whats_on", { query: "Disco tonight in Camden" }, ctx());
+    expect(result.cards.map(card => card.title)).toEqual(["Disco tonight"]);
+    expect(result.cards[0]?.provenance?.url).toBe("https://example.com/event");
   });
 });

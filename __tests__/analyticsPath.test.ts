@@ -12,6 +12,12 @@ describe("analytics referrer boundary", () => {
     expect(analyticsPageviewSurfaceFromPath("/social?tab=discover")).toBe("/social");
   });
 
+  it("keeps outing filters out of the pageview vocabulary", () => {
+    expect(analyticsPageviewSurfaceFromPath("/outings?occasion=date&area=Soho")).toBe(
+      "/outings",
+    );
+  });
+
   it.each([
     [
       "https://pubmaxxing.com/u/private-handle?utm_source=secret#profile",

@@ -54,6 +54,7 @@ describe("perf/route-budgets.json", () => {
     const paths = PERFORMANCE_BUDGETS.routes.map((entry) => entry.path);
     expect(paths).toContain("/");
     expect(paths).toContain("/map");
+    expect(paths).toContain("/outings");
     expect(new Set(paths).size).toBe(paths.length);
   });
 

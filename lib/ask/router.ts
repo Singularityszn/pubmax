@@ -272,7 +272,13 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
     push("journey", { from: "London Bridge", to });
   }
 
-  if (HERITAGE_RE.test(text)) {
+  // A preference for history does not name a pub whose history we can read.
+  const genericPubPreference =
+    /\b(?:a|some|find|recommend)\s+(?:date[- ]night\s+|historic\s+|quiet\s+)?pub(?:s)?\b|\bsomewhere\b/i.test(
+      text,
+    );
+  const dateNightPreference = /\bdate[- ]night\b/i.test(text);
+  if (HERITAGE_RE.test(text) && !genericPubPreference && !dateNightPreference) {
     const venueName = stripIntentWords(text);
     push("venue_heritage", venueName ? { venueName, query: text } : { query: text });
   }

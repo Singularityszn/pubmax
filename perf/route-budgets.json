@@ -1,5 +1,5 @@
 {
-  "note": "Per-route performance ceilings for every route the site serves a stranger, 45 of them: the 35 with no dynamic segment, plus ten concrete instances added on 7 September 2026 so that every family the sitemap advertises carries a ceiling (__tests__/sitemap.test.ts fails one that does not). Read docs/PERFORMANCE_BUDGETS.md before changing a number: down is free, up is a decision, and scripts/check-budget-ratchet.mjs refuses an undocumented raise against the base branch. Re-seeded 2026-09-04 from a five-sample sweep on a production build of main at 0eaa7c6f5, under the method block below. The margin is PER METRIC, because the four do not behave alike: bytes and requests take the p75 plus 15%, being identical across every sample of every route; server render takes the p75 plus 50% over a 150 ms floor, because single-digit milliseconds make a percentage meaningless; and LCP takes the WORST sample any sweep has produced plus 25%, because its spread is BETWEEN runs rather than within them and reached 3.17x one route's own p75. Seeding LCP from a single run's p75 would rebuild the gate this programme began by fixing. Every ceiling here is the same or lower than the one before it; nothing was raised, and no route's ceiling sits below a figure we have measured. CI's own sweep is the oracle and the ratchet check banks the slack.",
+  "note": "Per-route performance ceilings for every route the site serves a stranger, 46 of them: the 36 with no dynamic segment, plus ten concrete instances added on 7 September 2026 so that every family the sitemap advertises carries a ceiling (__tests__/sitemap.test.ts fails one that does not). Read docs/PERFORMANCE_BUDGETS.md before changing a number: down is free, up is a decision, and scripts/check-budget-ratchet.mjs refuses an undocumented raise against the base branch. Re-seeded 2026-09-04 from a five-sample sweep on a production build of main at 0eaa7c6f5, under the method block below. The margin is PER METRIC, because the four do not behave alike: bytes and requests take the p75 plus 15%, being identical across every sample of every route; server render takes the p75 plus 50% over a 150 ms floor, because single-digit milliseconds make a percentage meaningless; and LCP takes the WORST sample any sweep has produced plus 25%, because its spread is BETWEEN runs rather than within them and reached 3.17x one route's own p75. Seeding LCP from a single run's p75 would rebuild the gate this programme began by fixing. Every ceiling here is the same or lower than the one before it; nothing was raised, and no route's ceiling sits below a figure we have measured. CI's own sweep is the oracle and the ratchet check banks the slack.",
   "method": {
     "browser": "Desktop Chrome",
     "deviceScaleFactor": 1,
@@ -110,6 +110,15 @@
       "path": "/out",
       "readySelector": "main",
       "why": "The Out tab shell. Composed from existing what's-on rows; no new API.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1010,
+      "requests": 49,
+      "lcpMs": 1400
+    },
+    {
+      "path": "/outings",
+      "readySelector": "main#main",
+      "why": "The public occasion browser linked from Tonight. It composes from the existing concierge venue and Out listing lanes, so its first ceilings stay in the measured /out family until a route sweep can ratchet them down.",
       "serverRenderMs": 150,
       "jsDecodedKB": 1010,
       "requests": 49,
