@@ -1739,7 +1739,6 @@ export default function PubMapCanvas({
       }
     };
     const hasPinsPaintable = () => {
-      if (nationalBrowse) return basemapTileReadyForPaint;
       if (!venueDataReadyRef.current || !map.getSource("pubs")) return false;
       return map.isSourceLoaded("pubs");
     };
@@ -1931,7 +1930,9 @@ export default function PubMapCanvas({
       pinRevealTimeoutMs: PIN_REVEAL_TIMEOUT_MS,
       readyCeilingMs: PIN_READY_CEILING_MS,
       hasBasemapPainted: () => basemapTileReadyForPaint,
-      hasPinsPaintable: () => !phoneFirstImpression || hasPinsPaintable(),
+      // National arrival has no pub-source prerequisite. Keep this exception
+      // inside reveal; later pin recovery still requires the actual pub source.
+      hasPinsPaintable: () => nationalBrowse || !phoneFirstImpression || hasPinsPaintable(),
       // On a phone, local pub GeoJSON is the useful content that the reader
       // is waiting for. Do not hold its first painted frame behind remote
       // basemap tiles; tile failures still use their independent classifier
