@@ -24,6 +24,7 @@ import {
   parseSiteHarvestLedgerText,
 } from "../lib/siteHarvestLedger.ts";
 import { inGreaterLondon } from "./fetch_uk_osm_venues.mjs";
+import { RefreshProviderError } from "./lib/localRefreshProviders.mjs";
 import {
   HarvestMenuTransportError,
   assertTransportCredentials,
@@ -33,6 +34,7 @@ import {
 import { buildVenueIndexes, resolveVenueKeyFromPubName } from "./lib/venueMatch.mjs";
 import {
   filterSoftDrinkHarvestRows,
+  parseGkSoftDrinkLines,
   parseMbplcSoftDrinkLines,
   softDrinkRowsFromPageText,
 } from "./lib/softDrinksMenuHarvest.mjs";
@@ -44,6 +46,7 @@ const REPORT_PATH = join(ROOT, "data/uk_prices/soft_drinks_harvest_report.json")
 const DATASET_PATH = join(ROOT, "public/data/pint_prices_app_dataset.json");
 const WETHERSPOONS_PATH = join(ROOT, "public/data/wetherspoons/pubs.json");
 const NICHOLSONS_URLS = join(ROOT, "data/nicholsons_london_drink_urls.txt");
+const GK_URLS = join(ROOT, "data/greene_king_london_menu_urls.txt");
 
 const USER_AGENT =
   "PUBMAXXHarvest/1.0 (+https://pubmaxxing.com; hello@pubmaxxing.com)";
@@ -60,21 +63,37 @@ const CHAIN_CONFIG = {
     parser: "uk-crawl",
     cacheDir: join(ROOT, ".firecrawl", "menus", "soft-drinks", "wetherspoon"),
   },
+  "greene-king": {
+    sourceId: "greene-king-menu-prices",
+    urlsFile: GK_URLS,
+    parser: "gk",
+    cacheDir: join(ROOT, ".firecrawl", "menus", "soft-drinks", "greeneking"),
+  },
 };
 
 function parseArgs(argv) {
   let chain = "nicholsons";
   let limit = 200;
   let dryRun = false;
+  let urlsFile = null;
   for (let i = 2; i < argv.length; i += 1) {
     if (argv[i] === "--chain" && argv[i + 1]) chain = argv[++i];
     else if (argv[i] === "--limit" && argv[i + 1]) limit = parseInt(argv[++i], 10);
     else if (argv[i] === "--dry-run") dryRun = true;
+    else if (argv[i] === "--urls-file" && argv[i + 1]) urlsFile = argv[++i];
   }
-  return { chain, limit, dryRun };
+  return { chain, limit, dryRun, urlsFile };
 }
 
-function loadUrls(chain, limit) {
+function loadUrls(chain, limit, urlsFileOverride) {
+  if (urlsFileOverride && existsSync(urlsFileOverride)) {
+    return readFileSync(urlsFileOverride, "utf8")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith("http"))
+      .slice(0, limit)
+      .map((url) => ({ url, pubName: null, locality: null }));
+  }
   if (chain === "wetherspoon") {
     const raw = JSON.parse(readFileSync(WETHERSPOONS_PATH, "utf8"));
     const pubs = (raw.pubs ?? []).filter(
@@ -105,6 +124,9 @@ function pubNameFromMbplcMarkdown(markdown) {
 async function extractRows(chain, markdown, ctx) {
   if (CHAIN_CONFIG[chain]?.parser === "mbplc") {
     return filterSoftDrinkHarvestRows(parseMbplcSoftDrinkLines(markdown));
+  }
+  if (CHAIN_CONFIG[chain]?.parser === "gk") {
+    return filterSoftDrinkHarvestRows(parseGkSoftDrinkLines(markdown));
   }
   const { readVenueDrinkPricesForHarvest } = await import("./harvest/uk-prices/readPrices.mjs");
   await readVenueDrinkPricesForHarvest(markdown, ctx);
@@ -147,16 +169,25 @@ function mergeIntoSiteHarvest(newRows) {
 }
 
 async function main() {
-  const { chain, limit, dryRun } = parseArgs(process.argv);
+  let { chain, limit, dryRun, urlsFile } = parseArgs(process.argv);
   const transport = parseMenuTransportArg();
-  const cfg = CHAIN_CONFIG[chain];
+  let cfg = CHAIN_CONFIG[chain];
+  if (urlsFile) {
+    cfg = {
+      sourceId: "greene-king-menu-prices",
+      urlsFile,
+      parser: "uk-crawl",
+      cacheDir: join(ROOT, ".firecrawl", "menus", "soft-drinks", "custom"),
+    };
+    chain = "custom";
+  }
   if (!cfg) {
     console.error(`Unknown chain ${chain}; choose: ${Object.keys(CHAIN_CONFIG).join(", ")}`);
     process.exit(1);
   }
   assertTransportCredentials(transport);
   const harvester = createMenuPageHarvester({ transport, sourceId: cfg.sourceId });
-  const targets = loadUrls(chain, limit);
+  const targets = loadUrls(chain, limit, urlsFile);
   const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
   const indexes = buildVenueIndexes(dataset);
   const observedAt = new Date().toISOString();
@@ -185,6 +216,10 @@ async function main() {
     } catch (error) {
       if (error instanceof HarvestMenuTransportError && error.code === "policy-refused") {
         report.refused += 1;
+        continue;
+      }
+      if (error instanceof RefreshProviderError || error instanceof HarvestMenuTransportError) {
+        report.hosts.fetchFailed = (report.hosts.fetchFailed ?? 0) + 1;
         continue;
       }
       throw error;

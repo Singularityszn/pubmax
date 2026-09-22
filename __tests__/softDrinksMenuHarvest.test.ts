@@ -32,6 +32,9 @@ describe("soft drinks menu harvest", () => {
   });
 
   it("classifies Coke Zero, Diet Coke and still water subtypes", () => {
+    expect(classifySoftDrinkSubtypeId("330ml Kingsdown Still/Sparkling Water")).toBe(
+      "soft-drink-still-water",
+    );
     expect(classifySoftDrinkSubtypeId("Coke Zero")).toBe("soft-drink-coke-zero");
     expect(classifySoftDrinkSubtypeId("Diet Coke")).toBe("soft-drink-diet-coke");
     expect(classifySoftDrinkSubtypeId("Still Water")).toBe("soft-drink-still-water");

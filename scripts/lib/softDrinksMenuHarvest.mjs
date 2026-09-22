@@ -142,6 +142,63 @@ export function softDrinkRowsFromPageText(text) {
   );
 }
 
+
+
+const GK_SECTION = /^###\s+(.+)$/;
+const GK_ITEM = /^####\s+(.+)$/;
+
+function mapGkSectionToCategory(section) {
+  const s = section.toLowerCase();
+  if (s.includes("soft drink") || s.includes("bottled") || s.includes("mixer")) return "soft-drink";
+  if (s.includes("water") && !s.includes("tonic")) return "soft-drink";
+  return null;
+}
+
+function gkPriceFromLines(lines) {
+  for (const line of lines) {
+    const m = line.match(/£\s*(\d+(?:\.\d{2})?)/);
+    if (m) return parseFloat(m[1]);
+  }
+  return null;
+}
+
+export function parseGkSoftDrinkLines(markdown) {
+  const lines = markdown.split(/\r?\n/);
+  const out = [];
+  let section = null;
+  let itemName = null;
+  let itemLines = [];
+  const flush = () => {
+    if (!itemName || !section || !mapGkSectionToCategory(section)) {
+      itemName = null;
+      itemLines = [];
+      return;
+    }
+    const price = gkPriceFromLines(itemLines);
+    if (price !== null) out.push({ drinkLabel: itemName.trim(), category: "soft-drink", priceGbp: price });
+    itemName = null;
+    itemLines = [];
+  };
+  for (const line of lines) {
+    const sm = line.match(GK_SECTION);
+    if (sm) {
+      flush();
+      section = sm[1].trim();
+      continue;
+    }
+    const im = line.match(GK_ITEM);
+    if (im) {
+      flush();
+      itemName = im[1].trim();
+      itemLines = [];
+      continue;
+    }
+    if (itemName) itemLines.push(line);
+  }
+  flush();
+  return out;
+}
+
 export function classifySoftDrinkSubtypeId(drinkLabel) {
   return drinkSubtypeFromText(drinkLabel, "soft-drink")?.id ?? null;
 }
