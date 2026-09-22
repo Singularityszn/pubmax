@@ -40,10 +40,10 @@ export const AGED_PRICE_LINE = `Over ${PRICE_AUTHORITY_MAX_AGE_DAYS} days old, n
 export type VenuePriceLaneName =
   | "anchor"
   | "contributor"
+  | "disputed"
   | "sourced"
   | "listed"
   | "provisional"
-  | "disputed"
   | "baseline"
   | "aged"
   | "estimate";
@@ -162,6 +162,15 @@ export function venuePriceLane(
   if (latestContributorPrice !== null && latestContributorPrice !== undefined) {
     return { lane: "contributor", contributorPrice: latestContributorPrice };
   }
+  // A SPLIT OUTRANKS A MENU HARVEST. Two in-window drinkers who disagree are
+  // tonight's evidence, and the Overview's "Which did you pay?" door lives on
+  // this lane alone. A listed or sourced page (Nicholson's Daura Damm £6.30 on
+  // Hatton after #1757) must not bury that door under "Published price" while
+  // /api/pint-drops still holds £4.50 and £4.70. Provisional stays BELOW listed
+  // (#1426): one drinker's report is not yet a split.
+  if (disputed && disputed.split.prices.length > 1) {
+    return { lane: "disputed", split: disputed.split, observedAt: disputed.observedAt };
+  }
   if (sourcedPrice) return { lane: "sourced", sourcedPrice, cheapestPrice };
   // A LISTED BUNDLE ROW OUTRANKS THE BASELINE, because it carries the page it
   // was published at and the day it was read, and the baseline carries a
@@ -172,14 +181,6 @@ export function venuePriceLane(
   // a reader can open and this carries a drinker. Above, because a report from
   // this month is about tonight and a hand-stamped dataset row is not. It never
   // reaches a band, a bucket or a pin figure; only this area.
-  // A SPLIT SITS IN THE PROVISIONAL LANE'S OWN SLOT, and is asked first, because
-  // the two are one question about one pub: what this month's drinkers reported.
-  // They are disjoint by construction (lib/pintTrust.ts asks the split lane
-  // before the provisional one), and asking it first here means a surface can
-  // never print one of two disagreeing figures as the pub's single report.
-  if (disputed && disputed.split.prices.length > 1) {
-    return { lane: "disputed", split: disputed.split, observedAt: disputed.observedAt };
-  }
   if (
     provisional &&
     typeof provisional.priceGbp === "number" &&

@@ -34,6 +34,7 @@ import {
 import {
   CHOOSE_PRICE_DOOR_LABEL,
   dropLaneInput,
+  LOG_PRICE_DOOR_LABEL,
   overviewPriceDoor,
   pintTrustFor,
   pintTrustSignalFields,
@@ -404,5 +405,84 @@ describe("one projection, read the same way on every surface", () => {
       label: CHOOSE_PRICE_DOOR_LABEL,
       prices: [4.5, 4.7],
     });
+  });
+
+  it("keeps the choose door when a listed menu harvest lands beside the split (Hatton #1757)", () => {
+    // Live tip #1757: Nicholson's Daura Damm £6.30 listed beat the disputed
+    // £4.50/£4.70 drops, so Overview said "No beer price logged" + Published
+    // price and hid Confirm / Which did you pay. Disputed must outrank listed.
+    const listedBundle = {
+      listed: {
+        priceGbp: 6.3,
+        sourceUrl:
+          "https://www.nicholsonspubs.co.uk/restaurants/london/thesirchristopherhattonhattongardenlondon/drinks",
+        observedAt: "2026-09-21T18:54:48.491Z",
+      },
+    };
+    const drops = hattonDrops();
+    const [merged] = mergeVenueDrops(
+      [venue({ bundlePrices: listedBundle } as Partial<Venue>)],
+      new Map([[VENUE_ID, drops]]),
+      NOW,
+    );
+    const signal = pintTrustSignalFields(pintTrustFor(drops, NOW));
+    const lane = venuePriceLane(
+      merged,
+      signal.latestContributorPrice,
+      venueSourcedPrice(merged),
+      venueBundlePrices(merged),
+      dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
+      dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
+      splitLaneInput(signal.disputedPrices, signal.disputedAt),
+    )!;
+    expect(lane.lane).toBe("disputed");
+    expect(overviewPriceDoor("disputed", lane)).toEqual({
+      kind: "choose",
+      label: CHOOSE_PRICE_DOOR_LABEL,
+      prices: [4.5, 4.7],
+    });
+
+    const html = renderToStaticMarkup(
+      createElement(VenueOverviewTab, {
+        venue: merged,
+        tab: "overview",
+        cityId: "london",
+        mode: "suggest",
+        inCrawl: false,
+        latestContributorPrice: signal.latestContributorPrice,
+        latestPintDropAt: signal.latestContributorAt,
+        confirmedPrice: signal.confirmedPrice,
+        provisionalPrice: dropLaneInput(
+          signal.provisionalContributorPrice,
+          signal.provisionalContributorAt,
+        ),
+        agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
+        disputedPrice: splitLaneInput(signal.disputedPrices, signal.disputedAt),
+        communityPrices: communityPrices(),
+        experienceLens: "all",
+        drinkLensCategory: null,
+        onToggleStop: () => {},
+        presenceState: "idle",
+        markPresenceHere: () => {},
+        userLocation: null,
+        locationRequestStatus: "idle",
+        onRequestLocation: () => {},
+        onClearLocation: () => {},
+        onLogTonightPrice: () => {},
+        onConfirmPrice: () => {},
+        onOpenVisitReports: () => {},
+        priceEntryAllowed: true,
+        priceSignInRequested: false,
+        priceAuthLoading: false,
+        priceFocusRequest: 0,
+      }),
+    );
+    expect(html).toContain("Two drinkers, two prices: £4.50 and £4.70");
+    expect(html).toContain(CHOOSE_PRICE_DOOR_LABEL);
+    expect(html).toContain('data-price-gbp="4.50"');
+    expect(html).toContain('data-price-gbp="4.70"');
+    expect(html).not.toContain("No beer price logged here yet");
+    expect(html).not.toContain("Published price");
+    expect(html).not.toContain(LOG_PRICE_DOOR_LABEL);
   });
 });

@@ -427,6 +427,62 @@ describe("the provisional lane", () => {
   });
 });
 
+// A SPLIT OUTRANKS A MENU HARVEST (Hatton after #1757): two drinkers logging
+// £4.50 and £4.70 must keep the Overview's "Which did you pay?" door even when
+// Nicholson's listed Daura Damm at £6.30. Provisional stays below listed (#1426).
+describe("the disputed lane", () => {
+  const SPLIT = {
+    split: { prices: [4.5, 4.7], reporters: 2 },
+    observedAt: "2026-09-06T01:22:18.585Z",
+  };
+  const LISTED = {
+    priceGbp: 6.3,
+    sourceUrl:
+      "https://www.nicholsonspubs.co.uk/restaurants/london/thesirchristopherhattonhattongardenlondon/drinks",
+    observedAt: "2026-09-21T18:54:48.491Z",
+  };
+  const PROVISIONAL = { priceGbp: 4.5, observedAt: Date.now() - 86_400_000 };
+
+  it("wins over a listed menu harvest and a sourced page", () => {
+    expect(
+      venuePriceLane(makeVenue(), null, null, { listed: LISTED }, null, null, SPLIT)?.lane,
+    ).toBe("disputed");
+    const sourcedVenue = withSourced(makeVenue({ cheapestPrice: 6.3 }));
+    expect(
+      venuePriceLane(
+        sourcedVenue,
+        null,
+        venueSourcedPrice(sourcedVenue),
+        { listed: LISTED },
+        null,
+        null,
+        SPLIT,
+      )?.lane,
+    ).toBe("disputed");
+  });
+
+  it("still sits below a corroborated contributor price", () => {
+    expect(
+      venuePriceLane(makeVenue(), 4.5, null, { listed: LISTED }, null, null, SPLIT)?.lane,
+    ).toBe("contributor");
+  });
+
+  it("does not promote a lone provisional report above listed", () => {
+    // #1426: one drinker's report stays below a published page. Only a split
+    // (two disagreeing drinkers) clears that bar.
+    expect(
+      venuePriceLane(makeVenue(), null, null, { listed: LISTED }, PROVISIONAL)?.lane,
+    ).toBe("listed");
+  });
+
+  it("hands back no single figure, so a compact surface cannot pick one price", () => {
+    const lane = venuePriceLane(makeVenue(), null, null, { listed: LISTED }, null, null, SPLIT)!;
+    expect(lane.lane).toBe("disputed");
+    expect(venuePriceLaneObservedGbp(lane)).toBeNull();
+    expect(venuePriceLaneIsDrinkerLog(lane)).toBe(true);
+  });
+});
+
 // The other two surfaces that word a pub's missing price. Issue #1426: three
 // places said "No price" over the same pub from three different tests, so the
 // venue sheet could stop saying it while the others carried on.
