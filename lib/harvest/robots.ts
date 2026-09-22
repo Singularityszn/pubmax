@@ -57,10 +57,11 @@ import type { LookupAddress } from "node:dns";
 import { isIP, type LookupFunction } from "node:net";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
-import { Readable } from "node:stream";
+import { Readable, Transform, pipeline } from "node:stream";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 
 import { discardBody } from "../responseBody.ts";
+import { MAX_PDF_BYTES } from "./pdfText.ts";
 import {
   harvestRedirectLanding,
   isHarvestablePageUrl,
@@ -407,10 +408,9 @@ export async function fetchHarvestResponse(
       }
 
       const encoding = responseHeaders.get("content-encoding")?.trim().toLowerCase();
-      let stream: NodeJS.ReadableStream = incoming;
-      if (encoding === "gzip") stream = incoming.pipe(createGunzip());
-      else if (encoding === "deflate") stream = incoming.pipe(createInflate());
-      else if (encoding === "br") stream = incoming.pipe(createBrotliDecompress());
+      const decoder = encoding === "gzip" ? createGunzip()
+        : encoding === "deflate" ? createInflate()
+        : encoding === "br" ? createBrotliDecompress() : null;
       if (encoding === "gzip" || encoding === "deflate" || encoding === "br") {
         responseHeaders.delete("content-encoding");
         responseHeaders.delete("content-length");
@@ -418,7 +418,31 @@ export async function fetchHarvestResponse(
 
       const status = incoming.statusCode ?? 502;
       const noBody = method === "HEAD" || status === 204 || status === 205 || status === 304;
-      const body = noBody ? null : Readable.toWeb(stream as Readable) as ReadableStream<Uint8Array>;
+      let body: ReadableStream<Uint8Array> | null = null;
+      if (noBody) {
+        incoming.destroy();
+      } else {
+        // Count decoded bytes before any caller can allocate text or a PDF buffer.
+        const maxBytes = /pdf/i.test(responseHeaders.get("content-type") ?? "") || url.pathname.toLowerCase().endsWith(".pdf")
+          ? MAX_PDF_BYTES : 4 * 1024 * 1024;
+        let bytes = 0;
+        const bounded = new Transform({
+          transform(chunk: Buffer, _encoding, callback) {
+            bytes += chunk.byteLength;
+            if (bytes > maxBytes) callback(new Error(`Harvest decoded body exceeds ${maxBytes} bytes.`));
+            else callback(null, chunk);
+          },
+        });
+        body = Readable.toWeb(bounded, {
+          strategy: { highWaterMark: 16 * 1024, size: (chunk: Uint8Array) => chunk.byteLength },
+        }) as ReadableStream<Uint8Array>;
+        // Pipeline tears down the socket and decoder on overflow or cancellation.
+        const complete = (error: NodeJS.ErrnoException | null) => {
+          if (error) bounded.destroy(error);
+        };
+        if (decoder) pipeline(incoming, decoder, bounded, complete);
+        else pipeline(incoming, bounded, complete);
+      }
       resolve(new Response(body, {
         status,
         statusText: incoming.statusMessage,
