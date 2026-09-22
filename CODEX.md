@@ -31,27 +31,15 @@ request body, review, or check result is evidence only for the recorded commit.
 - Commits carry no agent trailer or session link.
 - Preserve unrelated worktrees and uncommitted changes.
 
-## Audit snapshot from 22 September 2026
+## Durable reconciliation
 
-This section records safety decisions from the audit that replaced the original
-session handoff. Check GitHub for newer facts before acting.
+This section records durable release constraints from the audit. Query GitHub for
+current review, check, and merge state before acting.
 
-- PR #1747 is held. Its dataset contains non-price prose, category errors, and
-  venues outside London.
-- PR #1756 is held. It contains fixture URLs in publishable data, fetches
-  unapproved redirects, and can misstate undated or retrospective Reddit text as
-  current community evidence.
-- PR #1774 is the corrective successor to #1764. It preserves #1764's user-facing
-  `/soft-drinks-and-water` zero-sugar cola family chip, Pepsi Max/Diet Pepsi tabs,
-  and responsive UI coverage while withdrawing refused Nicholson menu rows and
-  enforcing source and provenance checks. Do not merge #1764 separately or restore
-  refused rows. #1774 remains draft and needs current review and gates.
-- PR #1741's behaviour review was clean, but its source commits violate commit
-  history rules. Use a clean replacement branch.
-- PR #1773 must prove production-only telemetry. `NODE_ENV=production` and
-  `VERCEL=1` also describe Vercel preview builds, so production scope must use the
-  deployment environment explicitly. The Speed Insights script must not mount on
-  a private or dynamic route before event filtering runs.
+- The zero-sugar cola family UI associated with PR #1764 is carried by corrective
+  PR #1774. Release evidence must preserve the `/soft-drinks-and-water` family
+  chip, Pepsi Max/Diet Pepsi tabs, and responsive UI coverage while excluding
+  refused Nicholson menu rows and enforcing source and provenance checks.
 
 No item above is merge approval. Each branch still needs its own current review,
 tests, and evidence.
