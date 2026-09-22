@@ -647,4 +647,30 @@ describe("dance listings", () => {
     expect(result.cards.map(card => card.title)).toEqual(["Disco tonight"]);
     expect(result.cards[0]?.provenance?.url).toBe("https://example.com/event");
   });
+
+  it("keeps published event start and finish times visible on Ask cards", async () => {
+    state.whatsOn.rows = [{
+      id: "event-timed",
+      kind: "event",
+      title: "Disco tonight",
+      placeName: "Camden venue",
+      area: "Camden",
+      startsAt: "2026-08-15T20:00:00.000Z",
+      endsAt: "2026-08-15T22:00:00.000Z",
+      detail: "Doors 19:30",
+      source: { label: "Publisher", url: "https://example.com/event" },
+      observedAt: "2026-08-15T12:00:00.000Z",
+      confidence: "listed",
+    }];
+
+    const result = await runAskTool(
+      "whats_on",
+      { query: "Disco tonight in Camden" },
+      ctx(),
+    );
+
+    expect(result.cards[0]?.note).toBe(
+      "Doors 19:30 · Published start: Sat 15 Aug, 21:00 · Published finish: Sat 15 Aug, 23:00",
+    );
+  });
 });
