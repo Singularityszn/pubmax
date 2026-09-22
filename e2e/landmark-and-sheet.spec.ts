@@ -72,12 +72,32 @@ test("skip link targets the page main landmark", async ({ page }) => {
   const skipLink = page.getByRole("link", { name: "Skip to main content" });
   await skipLink.focus();
   await expect(skipLink).toBeFocused();
-  await skipLink.click();
+  await page.keyboard.press("Enter");
   const main = page.locator("#main");
   await expect(main).toBeVisible();
   await expect(main).toBeFocused();
 
   expect(errors).toEqual([]);
+});
+
+test("skip link focuses the server-rendered main landmark without JavaScript", async ({
+  browser,
+}, testInfo) => {
+  const baseURL = String(testInfo.project.use.baseURL);
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  try {
+    const page = await context.newPage();
+    const response = await page.goto(new URL("/map", baseURL).toString());
+    expect(response?.status()).toBe(200);
+
+    const skipLink = page.getByRole("link", { name: "Skip to main content" });
+    await skipLink.focus();
+    await expect(skipLink).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#main")).toBeFocused();
+  } finally {
+    await context.close();
+  }
 });
 
 // ---------------------------------------------------------------------------

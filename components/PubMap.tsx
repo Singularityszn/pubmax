@@ -6535,6 +6535,7 @@ export default function PubMap({
 
   return (
     <main id="main"
+      tabIndex={-1}
       // The `sheet-full` marker only ever matters ≤640px (mapToolbar.css
       // gates every rule that reads it behind that same breakpoint) — it
       // lets the map's floating controls (toolbar/legend) get out of the
