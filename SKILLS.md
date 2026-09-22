@@ -6,11 +6,12 @@ review and shipping. Root and nearest area AGENTS.md own the product rules.
 
 ## Resolve the skill
 
-Read the project copy under `.agents/skills/<name>/SKILL.md` when present.
-Otherwise use the shared installation under `~/.agents/skills/` or the active
-harness catalog. Read the actual file before applying it. Resolve symlinks before
-updates, and preserve project customisations. A plugin's similarly named skill
-may have different instructions.
+Use the enabled entry in Codex's `$` picker. On this machine, Codex suppresses same-name entries by path, leaving one
+enabled choice while keeping source files intact for Cursor and other
+harnesses. These profile settings do not travel with the repository. For project-only names, read
+`.agents/skills/<name>/SKILL.md`. Read the actual file before applying it.
+Resolve symlinks before updates, preserve customisations, and check source when
+similar names may have different instructions.
 
 ## Select a playbook
 
@@ -24,7 +25,7 @@ may have different instructions.
 | Supabase and persistence | `backend-db-performance`, `plan-rls-audit`; shared `supabase`, `supabase-postgres-best-practices` |
 | Capacitor | `debugging-capacitor`, `plan-capacitor-hardening`, `mobile-emulator-test` |
 | Product design | `design-system`, `enhance-web-ui`, `enhance-web-ux`; shared `frontend-design`, `web-design-guidelines`; follow the project design and voice docs |
-| Browser QA | `test-playwright`, `test-qa`, `playwright-cli`; shared `agent-browser` |
+| Browser QA | `test-playwright`, `test-qa`; shared `agent-browser`, `playwright-cli` |
 | Review and ship | `code-review`, `no-mistakes`, `new-branch-and-pr`; follow the build methodology's review loop |
 | Research current practices | `last30days`; report source failures and verify technical claims against first-party docs |
 | AI judgments | `typesafe-ai`, `typed-service-contracts`, `plan-llm-cost-guardrails` |
