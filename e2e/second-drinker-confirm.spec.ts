@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { ACCOUNTS, installAuthDoubles } from "./helpers/authDoubles";
+import { serveNoPintBundleFixture } from "./helpers/pintBundleFixture";
 import { attachSpillBill } from "./helpers/priceBill";
 
 /**
@@ -34,6 +35,7 @@ type DropRow = {
   venueId: string;
   handle: string;
   drink: string;
+  measure: "pint";
   priceGbp: number | null;
   passedDownNote: string;
   era: string;
@@ -43,6 +45,7 @@ type DropRow = {
   createdAt: string;
   pintPhotoUrl: null;
   venuePhotoUrl: null;
+  receiptPhotoUrl: null;
   authorityKey?: string;
   confirmation?: {
     confirmationId: string;
@@ -58,6 +61,7 @@ function firstReport(): DropRow {
     venueId: VENUE_ID,
     handle: "tester",
     drink: "Lager",
+    measure: "pint",
     priceGbp: 4.5,
     passedDownNote: "",
     era: "",
@@ -67,6 +71,7 @@ function firstReport(): DropRow {
     createdAt: new Date(Date.now() - 3 * DAY_MS).toISOString(),
     pintPhotoUrl: null,
     venuePhotoUrl: null,
+    receiptPhotoUrl: null,
   };
 }
 
@@ -148,6 +153,7 @@ test.setTimeout(90_000);
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
+  await serveNoPintBundleFixture(page, VENUE_ID);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
