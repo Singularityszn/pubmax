@@ -27,6 +27,50 @@ const FACT = {
 const NOW = Date.parse("2026-08-28T12:00:00Z");
 
 describe("Keenable area-news client", () => {
+  it.each([
+    "https://www.nicholsonspubs.co.uk/news",
+    "https://localhost/news",
+    "https://user:password@example.com/news",
+  ])("refuses prohibited source %s before any network call", async (sourceUrl) => {
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ content: "A page" }));
+    await expect(fetchKeenable(sourceUrl, { env: {}, fetchImpl })).rejects.toThrow(/source policy/i);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it.each([200, 503])("does not send a refused or unreadable robots source to the provider (%s)", async (status) => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response("User-agent: *\nDisallow: /", { status }));
+    await expect(fetchKeenable("https://example.com/news", { env: {}, fetchImpl })).rejects.toThrow(/robots/i);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0][0]).toBe("https://example.com/robots.txt");
+  });
+
+  it("rejects a provider landing on a prohibited source", async () => {
+    const fetchImpl = vi.fn(async (url: string) => url.endsWith("/robots.txt")
+      ? new Response("User-agent: *\nAllow: /")
+      : jsonResponse({ url: "https://www.nicholsonspubs.co.uk/news", content: "A page" }));
+    await expect(fetchKeenable("https://example.com/news", { env: {}, fetchImpl })).rejects.toThrow(/source policy/i);
+  });
+
+  it("checks robots for the provider's final page before accepting content", async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url === "https://example.com/robots.txt") return new Response("User-agent: *\nAllow: /");
+      if (url === "https://news.example.org/robots.txt") return new Response("User-agent: *\nDisallow: /");
+      return jsonResponse({ url: "https://news.example.org/article", content: "A page" });
+    });
+    await expect(fetchKeenable("https://example.com/news", { env: {}, fetchImpl })).rejects.toThrow(/robots/i);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not call the provider after cancellation during the permission check", async () => {
+    const controller = new AbortController();
+    const fetchImpl = vi.fn(async () => {
+      controller.abort();
+      return new Response("User-agent: *\nAllow: /");
+    });
+    await expect(fetchKeenable("https://example.com/news", { env: {}, fetchImpl, signal: controller.signal })).rejects.toThrow();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it("uses the keyless public search endpoint when no API key is configured", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ query: "pubs", results: [] }));
 
@@ -77,7 +121,7 @@ describe("Keenable area-news client", () => {
   });
 
   it("fetches a page and fails loudly when content is absent", async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(
+    const fetchImpl = vi.fn().mockResolvedValueOnce(new Response("User-agent: *\nAllow: /")).mockResolvedValue(
       jsonResponse({
         url: "https://example.com/article",
         title: "Article",
@@ -89,9 +133,9 @@ describe("Keenable area-news client", () => {
     await expect(
       fetchKeenable("https://example.com/article", { env: {}, fetchImpl }),
     ).resolves.toMatchObject({ content: "# Article\n\nA real page." });
-    expect(fetchImpl.mock.calls[0][0]).toContain("/v1/fetch/public?url=");
+    expect(fetchImpl.mock.calls[1][0]).toContain("/v1/fetch/public?url=");
 
-    const emptyFetch = vi.fn().mockResolvedValue(jsonResponse({ content: "" }));
+    const emptyFetch = vi.fn().mockResolvedValueOnce(new Response("User-agent: *\nAllow: /")).mockResolvedValue(jsonResponse({ content: "" }));
     await expect(fetchKeenable("https://example.com/article", { env: {}, fetchImpl: emptyFetch })).rejects.toThrow(
       "Keenable fetch response did not contain content",
     );

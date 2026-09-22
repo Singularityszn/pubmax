@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import canonicalAreaSlugs from "../../data/area_news_areas.json" with { type: "json" };
 import venueIndex from "../../public/data/venues_slim.json" with { type: "json" };
 import { matchVenue, slugifyBorough } from "./areaNewsMatch.mjs";
+import { harvestRedirectLanding, isHarvestableOperatorUrl } from "../../lib/harvest/sourcePolicy.ts";
+import { createRobotsChecker } from "../../lib/harvest/robots.ts";
 
 export const KEENABLE_API_BASE = "https://api.keenable.ai";
 export const KEENABLE_TITLE = "PUBMAXX area news refresh";
@@ -176,6 +178,7 @@ export async function fetchKeenable(
     maxChars = 6000,
     prompt = areaNewsExtractPrompt(),
     signal,
+    checkRobots = createRobotsChecker({ fetchImpl }),
   } = {},
 ) {
   let parsedUrl;
@@ -187,6 +190,14 @@ export async function fetchKeenable(
   if (parsedUrl.protocol !== "https:") {
     throw new Error("Keenable fetch requires an https source URL.");
   }
+  if (!isHarvestableOperatorUrl(parsedUrl.toString())) {
+    throw new Error("Keenable fetch refused by source policy.");
+  }
+  const permission = await checkRobots(parsedUrl.toString());
+  if (!permission.allowed) {
+    throw new Error("Keenable fetch refused by robots permission.");
+  }
+  signal?.throwIfAborted();
 
   const key = apiKey(env);
   const params = new URLSearchParams({
@@ -200,6 +211,14 @@ export async function fetchKeenable(
     signal,
   });
   const payload = await readJson(response, "fetch");
+  const landing = harvestRedirectLanding(parsedUrl.toString(), payload?.url);
+  if (landing.outcome === "refused" || new URL(landing.url).protocol !== "https:") {
+    throw new Error("Keenable landing refused by source policy.");
+  }
+  if (landing.outcome === "redirected" && !(await checkRobots(landing.url)).allowed) {
+    throw new Error("Keenable landing refused by robots permission.");
+  }
+  signal?.throwIfAborted();
   if (typeof payload?.content !== "string" || !payload.content.trim()) {
     throw new Error("Keenable fetch response did not contain content.");
   }
