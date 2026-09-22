@@ -6,7 +6,8 @@ tree. A beat never overrides a law in the root [AGENTS.md](../../AGENTS.md).
 ## The four beats
 
 1. **Isolate with `/new-feature`.** Start every task in a fresh worktree and branch cut from
-   `origin/main`. Never build on `main`.
+   `origin/main`. Keep an isolated worktree supplied by Codex, Treehouse or another harness.
+   Give a detached checkout its own task branch before committing. Never build on `main`.
 2. **Build with `/code-structure`.** Actions and boundaries orchestrate the why and when; a service layer
    owns the reusable how, with explicit inputs and structured returns. Here that is the policy-leaf shape
    [`lib/AGENTS.md`](../../lib/AGENTS.md) fences: one owner per rule, closed vocabularies, thin routes over
@@ -67,9 +68,12 @@ A merge happens only on the captain's word. Keep the worktree until the PR is me
 
 ## Skill sources
 
-An agent without these skills follows the beats above by hand.
+The [skill index](../../SKILLS.md) maps work to focused playbooks. An agent
+without a playbook follows the beats above by hand and reports the missing skill.
+Install only the named skills needed for the task. Do not install an entire pack
+to recover one missing entry.
 
 | Skill | Install |
 | --- | --- |
-| `new-feature`, `code-structure`, `evidence-driven-testing`, `before-and-after`, `greploop-apps`, `unslop` | `npx skills add michaelshimeles/skills -s "*"` |
+| `new-feature`, `code-structure`, `evidence-driven-testing`, `before-and-after`, `greploop-apps`, `unslop` | Repeat `npx skills add michaelshimeles/skills --skill <name> --agent <agent> -y` for each needed skill and agent |
 | `greploop` | `npx skills add greptileai/skills@greploop` |

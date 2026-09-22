@@ -59,7 +59,9 @@ scratch-*.mjs
 .claude/
 .mcp.json
 .playwright-mcp/
+# Keep repo bootstrap lock; continue ignoring nested local locks.
 skills-lock.json
+!/skills-lock.json
 skill_disabled.md
 skill_del.md
 skill_in_pub.md
