@@ -9,7 +9,8 @@
  *   node scripts/firecrawl_greene_king_prices.mjs [--limit N]
  *   node scripts/firecrawl_greene_king_prices.mjs --urls-file .firecrawl/gk-london-menu-urls.txt
  *
- * Requires EXA_API_KEY for discovery and BROWSERBASE_API_KEY for rendered menus.
+ * `--transport tavily` uses Tavily Extract; default uses Browserbase rendered menus.
+ * EXA_API_KEY is only needed when discovery runs (omit `--urls-file` only mode).
  */
 
 import {
@@ -29,10 +30,16 @@ import {
   resolveVenueKeyFromHints,
 } from "./lib/venueMatch.mjs";
 import {
+  RefreshProviderError,
   assertProviderCredentials,
   discoverRefreshPages,
-  fetchRefreshPage,
 } from "./lib/localRefreshProviders.mjs";
+import {
+  HarvestMenuTransportError,
+  assertTransportCredentials,
+  createMenuPageHarvester,
+  parseMenuTransportArg,
+} from "./lib/harvestMenuTransport.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -223,14 +230,14 @@ function resolveVenueKey(url, indexes, menuUrlToId) {
 
 // Keep this cache path stable. Downstream merge scripts treat it as an input contract.
 
-async function scrapeMenu(url, outPath) {
+async function scrapeMenu(url, outPath, harvester) {
   if (existsSync(outPath)) {
     return readFileSync(outPath, "utf8");
   }
   mkdirSync(dirname(outPath), { recursive: true });
-  const page = await fetchRefreshPage({ job: "rendered-menu", url });
-  writeFileSync(outPath, `${page.markdown.trim()}\n`);
-  return page.markdown;
+  const markdown = await harvester.fetchMenuMarkdown(url);
+  writeFileSync(outPath, `${markdown.trim()}\n`);
+  return markdown;
 }
 
 // --- main -------------------------------------------------------------------
@@ -266,8 +273,11 @@ function loadExistingUpdates() {
 
 async function main() {
   const { limit, urlsFile, merge, onlyUrlsFile } = parseArgs(process.argv);
+  const transport = parseMenuTransportArg();
   const observedAt = new Date().toISOString();
-  assertProviderCredentials(["pub-discovery", "rendered-menu"]);
+  assertTransportCredentials(transport);
+  if (!onlyUrlsFile) assertProviderCredentials(["pub-discovery"]);
+  const harvester = createMenuPageHarvester({ transport });
 
   const enrichment = JSON.parse(readFileSync(ENRICHMENT_PATH, "utf8"));
   const enrichmentUrls = Object.values(enrichment.venues ?? {})
@@ -315,11 +325,34 @@ async function main() {
   let scraped = 0;
   let matched = 0;
   let unmatched = 0;
+  let refused = 0;
+  let fetchFailed = 0;
+  let budgetStopped = 0;
 
   for (const url of urls) {
     const slug = slugFromMenuUrl(url) ?? "unknown";
-    const cachePath = join(MENU_CACHE, `${slug}.md`);
-    const markdown = await scrapeMenu(url, cachePath);
+    const cachePath = join(MENU_CACHE, transport, `${slug}.md`);
+    let markdown;
+    try {
+      markdown = await scrapeMenu(url, cachePath, harvester);
+    } catch (error) {
+      if (error instanceof HarvestMenuTransportError && error.code === "policy-refused") {
+        refused += 1;
+        console.warn(`REFUSED ${url}: ${error.message}`);
+        continue;
+      }
+      if (error instanceof HarvestMenuTransportError && error.code === "tavily-budget-spent") {
+        budgetStopped += 1;
+        console.warn(error.message);
+        break;
+      }
+      if (error instanceof RefreshProviderError) {
+        fetchFailed += 1;
+        console.warn(`FETCH_FAILED ${url}: ${error.message}`);
+        continue;
+      }
+      throw error;
+    }
     scraped += 1;
 
     const venueKey = resolveVenueKey(url, indexes, menuUrlToId);
@@ -355,8 +388,11 @@ async function main() {
   writeFileSync(join(OUT_DIR, "latest.json"), `${JSON.stringify(payload, null, 2)}\n`);
 
   console.log(
-    `\nDone: scraped=${scraped} matched=${matched} unmatched=${unmatched} newRows=${updates.length} totalRows=${merged.length}`,
+    `\nDone: transport=${transport} scraped=${scraped} matched=${matched} unmatched=${unmatched} refused=${refused} fetchFailed=${fetchFailed} budgetStopped=${budgetStopped} newRows=${updates.length} totalRows=${merged.length}`,
   );
+  if (transport === "tavily") {
+    console.log(`Tavily extracts spent: ${harvester.extractsSpent}/${harvester.extractBudget}`);
+  }
   console.log(`Wrote ${dated} and latest.json`);
 }
 

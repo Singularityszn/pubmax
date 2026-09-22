@@ -62,6 +62,9 @@ describe("local refresh provider policy", () => {
       expect(source).not.toContain("firecrawl-cli");
       expect(source).not.toContain("FIRECRAWL_API_KEY");
     }
+    const gk = readFileSync(join(process.cwd(), "scripts/firecrawl_greene_king_prices.mjs"), "utf8");
+    expect(gk).toContain("./lib/harvestMenuTransport.mjs");
+    expect(gk).toContain("--transport");
   });
 });
 

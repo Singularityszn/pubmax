@@ -106,3 +106,24 @@ export function paidSpendDailyBudget(
   const parsed = Number.parseInt(raw, 10);
   return Number.isSafeInteger(parsed) ? parsed : PAID_SPEND_DEFAULT_DAILY_BUDGET[lane];
 }
+
+/**
+ * Tavily `/extract` calls from harvest CLIs (chain menu markdown). Not a route
+ * lane: nothing in `PAID_SPEND_LANES` spends it, and the cap is per run rather
+ * than deployment-wide.
+ */
+export const TAVILY_HARVEST_DEFAULT_EXTRACT_CAP = 200;
+
+export function tavilyHarvestExtractEnvName(): string {
+  return "PUBMAX_PAID_SPEND_BUDGET_TAVILY";
+}
+
+export function tavilyHarvestExtractCap(
+  env: Record<string, string | undefined> = process.env,
+): number {
+  const raw = env[tavilyHarvestExtractEnvName()]?.trim();
+  if (!raw) return TAVILY_HARVEST_DEFAULT_EXTRACT_CAP;
+  if (!/^\d+$/.test(raw)) return TAVILY_HARVEST_DEFAULT_EXTRACT_CAP;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isSafeInteger(parsed) ? parsed : TAVILY_HARVEST_DEFAULT_EXTRACT_CAP;
+}
