@@ -61,6 +61,8 @@ export type DeviceAccountSwitchDeps = {
   storage: WritableStorage | null;
   fetchImpl: typeof fetch;
   authConfig: { url: string; key: string } | null;
+  /** Fail-closed work that must land after a successful mint but before swap. */
+  beforeSessionInstall?: () => Promise<boolean>;
   /** Install the minted session on the live client. The auth event does the rest. */
   setSession: (session: MintedSession) => Promise<{ ok: boolean }>;
 };
@@ -161,6 +163,10 @@ export async function activateDeviceAccount(
     { userId, refreshToken: minted.session.refresh_token },
     row.lastActiveAt,
   );
+  if (deps.beforeSessionInstall) {
+    const boundaryReady = await deps.beforeSessionInstall().catch(() => false);
+    if (!boundaryReady) return { status: "unavailable" };
+  }
   const installed = await deps.setSession(minted.session);
   if (!installed.ok) return { status: "unavailable" };
   return { status: "switched", userId };

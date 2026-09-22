@@ -40,6 +40,12 @@ export type StepOutNudgeStore = {
   get(ownerActor: string): Promise<StepOutNudgePref | null>;
   put(ownerActor: string, input: StepOutNudgePrefPut): Promise<StepOutNudgePref>;
   withdraw(ownerActor: string): Promise<StepOutNudgePref>;
+  /**
+   * Disable every personalized push lane still pointing at the departing
+   * browser's token. This also cleans historical cross-account reuse while a
+   * stale device cannot affect any newer token that replaced its binding.
+   */
+  detachSubscriptionToken(subscriptionToken: string): Promise<number>;
   markSent(ownerActor: string, sentAt: string): Promise<void>;
   listEnabled(): Promise<StepOutNudgePref[]>;
   qualifyCheapPint(ownerActor: string): Promise<StepOutNudgePref>;
@@ -186,6 +192,22 @@ export const memoryStepOutNudgeStore: StepOutNudgeStore = {
   async withdraw(ownerActor) {
     return memoryPut(ownerActor, { enabled: false });
   },
+  async detachSubscriptionToken(subscriptionToken) {
+    const now = new Date().toISOString();
+    let detached = 0;
+    for (const [ownerActor, existing] of memoryPrefs) {
+      if (existing.subscriptionToken !== subscriptionToken) continue;
+      memoryPrefs.set(ownerActor, {
+        ...existing,
+        enabled: false,
+        cheapPintEnabled: false,
+        subscriptionToken: null,
+        updatedAt: now,
+      });
+      detached += 1;
+    }
+    return detached;
+  },
   async markSent(ownerActor, sentAt) {
     const existing = memoryPrefs.get(ownerActor);
     if (!existing) return;
@@ -311,6 +333,33 @@ const supabaseStepOutNudgeStore: StepOutNudgeStore = {
 
   async withdraw(ownerActor) {
     return this.put(ownerActor, { enabled: false });
+  },
+
+  async detachSubscriptionToken(subscriptionToken) {
+    return guard({
+      context: "detach-subscription-token",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: STORE_TAG,
+          migrationHint: MIGRATION_HINT,
+          fallback: () => memoryStepOutNudgeStore.detachSubscriptionToken(subscriptionToken),
+        }),
+      run: async () => {
+        const now = new Date().toISOString();
+        const { data, error } = await admin()
+          .from(TABLE)
+          .update({
+            enabled: false,
+            cheap_pint_enabled: false,
+            subscription_token: null,
+            updated_at: now,
+          })
+          .eq("subscription_token", subscriptionToken)
+          .select("owner_actor");
+        if (error) throw new Error(error.message);
+        return data?.length ?? 0;
+      },
+    });
   },
 
   async markSent(ownerActor, sentAt) {
@@ -487,4 +536,3 @@ export const stepOutNudgeStore = createDualBackendStore(
   memoryStepOutNudgeStore,
   supabaseStepOutNudgeStore,
 );
-

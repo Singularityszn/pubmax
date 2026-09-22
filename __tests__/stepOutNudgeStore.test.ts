@@ -37,6 +37,65 @@ describe("stepOutNudgeStore", () => {
     expect(await memoryStepOutNudgeStore.listEnabled()).toEqual([]);
   });
 
+  it("detaches a matching browser token from both personalized push lanes", async () => {
+    await memoryStepOutNudgeStore.put(ACTOR, {
+      enabled: true,
+      subscriptionToken: TOKEN,
+    });
+    await memoryStepOutNudgeStore.qualifyCheapPint(ACTOR);
+    await memoryStepOutNudgeStore.optInCheapPint(ACTOR, TOKEN);
+
+    const detached = await memoryStepOutNudgeStore.detachSubscriptionToken(TOKEN);
+
+    expect(detached).toBe(1);
+    expect(await memoryStepOutNudgeStore.get(ACTOR)).toMatchObject({
+      enabled: false,
+      cheapPintEnabled: false,
+      subscriptionToken: null,
+    });
+    expect(await memoryStepOutNudgeStore.listEnabled()).toEqual([]);
+    expect(await memoryStepOutNudgeStore.listCheapPintSendReady()).toEqual([]);
+  });
+
+  it("does not detach a newer device token when an old device signs out", async () => {
+    const newerToken = "webpush:newer-device";
+    await memoryStepOutNudgeStore.put(ACTOR, {
+      enabled: true,
+      subscriptionToken: newerToken,
+    });
+    await memoryStepOutNudgeStore.optInCheapPint(ACTOR, newerToken);
+
+    const detached = await memoryStepOutNudgeStore.detachSubscriptionToken(TOKEN);
+
+    expect(detached).toBe(0);
+    expect(await memoryStepOutNudgeStore.get(ACTOR)).toMatchObject({
+      enabled: true,
+      cheapPintEnabled: true,
+      subscriptionToken: newerToken,
+    });
+    expect(await memoryStepOutNudgeStore.listEnabled()).toHaveLength(1);
+    expect(await memoryStepOutNudgeStore.listCheapPintSendReady()).toHaveLength(1);
+  });
+
+  it("detaches every historical account binding for the same browser token", async () => {
+    const otherActor = "profile:33333333-3333-4333-8333-333333333333";
+    await memoryStepOutNudgeStore.put(ACTOR, {
+      enabled: true,
+      subscriptionToken: TOKEN,
+    });
+    await memoryStepOutNudgeStore.optInCheapPint(ACTOR, TOKEN);
+    await memoryStepOutNudgeStore.put(otherActor, {
+      enabled: true,
+      subscriptionToken: TOKEN,
+    });
+
+    const detached = await memoryStepOutNudgeStore.detachSubscriptionToken(TOKEN);
+
+    expect(detached).toBe(2);
+    expect(await memoryStepOutNudgeStore.listEnabled()).toEqual([]);
+    expect(await memoryStepOutNudgeStore.listCheapPintSendReady()).toEqual([]);
+  });
+
   it("markSent stamps the per-subscription frequency gate", async () => {
     await memoryStepOutNudgeStore.put(ACTOR, {
       enabled: true,

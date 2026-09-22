@@ -105,6 +105,7 @@ import {
   type ResumeHint,
 } from "@/lib/authSessionResumeClient";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
+import { retireAccountWebPush } from "@/lib/accountPushLifecycle";
 import {
   readProviderAuthState,
   readProviderIdentityRevision,
@@ -124,6 +125,8 @@ export { useAuth } from "@/components/auth/authContext";
 
 const AUTH_CALLBACK_ERROR_MESSAGE =
   "Sign-in could not be completed. The link may be invalid or expired. Try again.";
+const PUSH_RETIREMENT_ERROR_MESSAGE =
+  "Notifications could not be disconnected, so this account stayed signed in. Try again.";
 
 function signedInAsMessage(email: string | null | undefined): string {
   const address = typeof email === "string" ? email.trim() : "";
@@ -909,6 +912,11 @@ export function AuthProvider({
       const supabase = await ensureSupabaseBrowser();
       if (!supabase) return;
       const departing = sessionTransitions.current.currentUserId();
+      const pushRetirement = await retireAccountWebPush(session?.access_token);
+      if (pushRetirement.status === "unavailable") {
+        setAuthCallbackError(PUSH_RETIREMENT_ERROR_MESSAGE);
+        return;
+      }
       // Explicit sign-out is the one place the durable resume cookie dies too —
       // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
       // AWAITED, because an account sign-out may hand the device straight to the
@@ -943,7 +951,7 @@ export function AuthProvider({
       if (!next) return;
       await activateDeviceAccount(next.userId, browserDeviceAccountSwitchDeps());
     },
-    [],
+    [session?.access_token],
   );
 
   const switchAccount = useCallback(
@@ -951,15 +959,22 @@ export function AuthProvider({
       if (userId === sessionTransitions.current.currentUserId()) {
         return { status: "switched", userId };
       }
+      const switchDeps = browserDeviceAccountSwitchDeps();
       const outcome = await activateDeviceAccount(
         userId,
-        browserDeviceAccountSwitchDeps(),
+        {
+          ...switchDeps,
+          async beforeSessionInstall() {
+            const pushRetirement = await retireAccountWebPush(session?.access_token);
+            return pushRetirement.status !== "unavailable";
+          },
+        },
       );
       emitDeviceAccountSessionsChanged();
       if (outcome.status === "switched") trackEvent("account_switched");
       return outcome;
     },
-    [],
+    [session?.access_token],
   );
 
   useEffect(() => {

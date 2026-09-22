@@ -217,6 +217,61 @@ describe("activating a remembered account", () => {
 
     expect(outcome).toEqual({ status: "unavailable" });
   });
+
+  it("runs the account-boundary guard only after minting and before install", async () => {
+    const order: string[] = [];
+    const outcome = await activateDeviceAccount(
+      "b",
+      deps({
+        storage: local,
+        fetchImpl: (async () => {
+          order.push("mint");
+          return jsonResponse(mintedBody());
+        }) as typeof fetch,
+        beforeSessionInstall: async () => {
+          order.push("guard");
+          return true;
+        },
+        setSession: async () => {
+          order.push("install");
+          return { ok: true };
+        },
+      }),
+    );
+
+    expect(outcome).toEqual({ status: "switched", userId: "b" });
+    expect(order).toEqual(["mint", "guard", "install"]);
+  });
+
+  it("keeps the current account active when the boundary guard fails", async () => {
+    const setSession = vi.fn(async () => ({ ok: true }));
+    const outcome = await activateDeviceAccount(
+      "b",
+      deps({
+        storage: local,
+        beforeSessionInstall: async () => false,
+        setSession,
+      }),
+    );
+
+    expect(outcome).toEqual({ status: "unavailable" });
+    expect(setSession).not.toHaveBeenCalled();
+  });
+
+  it("does not retire current-account state when target minting fails", async () => {
+    const beforeSessionInstall = vi.fn(async () => true);
+    const outcome = await activateDeviceAccount(
+      "b",
+      deps({
+        storage: local,
+        fetchImpl: (async () => jsonResponse({}, 503)) as typeof fetch,
+        beforeSessionInstall,
+      }),
+    );
+
+    expect(outcome).toEqual({ status: "unavailable" });
+    expect(beforeSessionInstall).not.toHaveBeenCalled();
+  });
 });
 
 /**
@@ -280,6 +335,22 @@ describe("the switch never binds identity itself", () => {
     const activatedAt = provider.indexOf("await activateDeviceAccount(");
     expect(signedOutAt).toBeGreaterThan(-1);
     expect(activatedAt).toBeGreaterThan(signedOutAt);
+  });
+
+  it("retires departing-account web push before sign-out or account activation", () => {
+    const provider = codeOnly("components/auth/AuthProvider.tsx");
+    const retiredAt = provider.indexOf("await retireAccountWebPush(");
+    const cookieClearedAt = provider.indexOf("await clearPersistedSession()");
+    const signedOutAt = provider.indexOf("await supabase.auth.signOut()");
+    const activatedAt = provider.indexOf("await activateDeviceAccount(");
+
+    expect(retiredAt).toBeGreaterThan(-1);
+    expect(cookieClearedAt).toBeGreaterThan(retiredAt);
+    expect(signedOutAt).toBeGreaterThan(retiredAt);
+    expect(activatedAt).toBeGreaterThan(retiredAt);
+    expect(provider.match(/await retireAccountWebPush\(/g) ?? []).toHaveLength(2);
+    expect(provider).toContain("async beforeSessionInstall()");
+    expect(provider).toContain('if (pushRetirement.status === "unavailable")');
   });
 
   it("scopes the way out to this account or to the whole device", () => {
