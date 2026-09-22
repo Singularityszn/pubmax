@@ -331,27 +331,25 @@ describe("the switch never binds identity itself", () => {
     expect(provider).toContain("await clearPersistedSession()");
     expect(provider).not.toContain("void clearPersistedSession()");
 
-    const signedOutAt = provider.indexOf("await supabase.auth.signOut()");
-    const activatedAt = provider.indexOf("await activateDeviceAccount(");
+    const signedOutAt = provider.indexOf("runPreRetiredAuthMutation(null");
+    const activatedAt = provider.indexOf("runPreRetiredAuthMutation(next.userId");
     expect(signedOutAt).toBeGreaterThan(-1);
     expect(activatedAt).toBeGreaterThan(signedOutAt);
   });
 
   it("retires departing-account web push before sign-out or account activation", () => {
     const provider = codeOnly("components/auth/AuthProvider.tsx");
-    const retiredAt = provider.indexOf("await retireAccountWebPush(");
-    const cookieClearedAt = provider.indexOf("await clearPersistedSession()");
-    const signedOutAt = provider.indexOf("await supabase.auth.signOut()");
-    const activatedAt = provider.indexOf("await activateDeviceAccount(");
 
-    expect(retiredAt).toBeGreaterThan(-1);
-    expect(cookieClearedAt).toBeGreaterThan(retiredAt);
-    expect(signedOutAt).toBeGreaterThan(retiredAt);
-    expect(activatedAt).toBeGreaterThan(retiredAt);
-    expect(provider.match(/await retireAccountWebPush\(/g) ?? []).toHaveLength(1);
+    expect(provider).toContain("return withRetiredAccountWebPush(");
+    expect(provider).toContain(
+      "const boundary = await runAfterCurrentPushRetirement(async () => {",
+    );
+    expect(provider).toContain("await clearPersistedSession()");
+    expect(provider).toContain("() => supabase.auth.signOut()");
     expect(provider).toMatch(/installAccountSession\(\s*callbackAttempt\.tokens/);
-    expect(provider).toContain("async beforeSessionInstall()");
-    expect(provider).toContain("if (!(await retireCurrentAccountPush()))");
+    expect(provider).toMatch(
+      /async setSession\(nextSession\)[\s\S]*runAfterCurrentPushRetirement\([\s\S]*switchDeps\.setSession\(nextSession\)/,
+    );
   });
 
   it("scopes the way out to this account or to the whole device", () => {

@@ -8,7 +8,8 @@ import { detectA2hsPlatform } from "@/lib/a2hsPrompt";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { isNativeApp } from "@/lib/nativePlatform";
-import { registerWebPush, unregisterWebPush } from "@/lib/webPush";
+import { enablePersonalizedWebPush } from "@/lib/personalizedPushOptIn";
+import { unregisterWebPush } from "@/lib/webPush";
 import { Button } from "@/components/ui/button";
 
 type PrefState = {
@@ -41,7 +42,7 @@ function subscribeNoop(): () => void {
  * weekly cap and iOS Home Screen install requirement honestly.
  */
 export default function StepOutNudgePref(): React.JSX.Element | null {
-  const { user } = useAuth();
+  const { session, user } = useAuth();
   const viewerSession = useViewerSession();
   const [pref, setPref] = useState<PrefState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -85,7 +86,7 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
   }, []);
 
   async function enable() {
-    if (!user || busy) return;
+    if (!user || !session?.access_token || busy) return;
     setBusy(true);
     setNotice("");
     try {
@@ -97,19 +98,32 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       }
       const controller = new AbortController();
       registrationAbortRef.current = controller;
-      const token = await registerWebPush(controller.signal);
+      const result = await enablePersonalizedWebPush({
+        account: {
+          userId: user.id,
+          accessToken: session.access_token,
+        },
+        endpoint: "/api/step-out-nudge",
+        body: (token) => ({ enabled: true, token }),
+        signal: controller.signal,
+      });
       if (registrationAbortRef.current === controller) {
         registrationAbortRef.current = null;
       }
-      if (controller.signal.aborted) return;
-      if (!token) {
+      if (result.status === "cancelled") return;
+      if (result.status === "account_changed") {
+        setNotice("Account changed. Check the active account and try again.");
+        return;
+      }
+      if (result.status === "registration_failed") {
         setNotice("Could not turn on web push. Check notification permission and try again.");
         return;
       }
-      const response = await authedActionFetch("/api/step-out-nudge", {
-        method: "POST",
-        body: JSON.stringify({ enabled: true, token }),
-      }, { requiresIdentity: true });
+      if (result.status === "request_failed") {
+        setNotice(offlineOrMessage("Could not save the preference. Try again."));
+        return;
+      }
+      const response = result.response;
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       if (!response.ok) {
         setNotice(

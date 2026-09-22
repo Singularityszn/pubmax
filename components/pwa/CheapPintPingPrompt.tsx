@@ -15,11 +15,11 @@ import {
   subscribeCheapPintPingPrompt,
   syncCheapPintPingPromptFromServer,
 } from "@/lib/cheapPintPingPrompt";
-import { registerWebPush } from "@/lib/webPush";
+import { enablePersonalizedWebPush } from "@/lib/personalizedPushOptIn";
 import "@/components/native/nativePushPrompt.css";
 
 export default function CheapPintPingPrompt(): React.JSX.Element | null {
-  const { user } = useAuth();
+  const { session, user } = useAuth();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const visible = useSyncExternalStore(
@@ -59,27 +59,45 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
   if (!canShow) return null;
 
   async function handleEnable() {
-    if (pending) return;
+    if (!user || !session?.access_token || pending) return;
     const controller = new AbortController();
     registrationAbortRef.current = controller;
     setPending(true);
     setError("");
-    const token = await registerWebPush(controller.signal);
+    const result = await enablePersonalizedWebPush({
+      account: {
+        userId: user.id,
+        accessToken: session.access_token,
+      },
+      endpoint: "/api/cheap-pint-ping",
+      body: (token) => ({ action: "opt-in", token }),
+      signal: controller.signal,
+    });
     if (registrationAbortRef.current === controller) {
       registrationAbortRef.current = null;
     }
-    if (controller.signal.aborted) return;
-    if (!token) {
+    if (result.status === "cancelled") {
+      setPending(false);
+      return;
+    }
+    if (result.status === "account_changed") {
+      setError("Account changed. Check the active account and try again.");
+      setPending(false);
+      return;
+    }
+    if (result.status === "registration_failed") {
       setError(
         offlineOrMessage("Could not enable alerts. Try again.")
       );
       setPending(false);
       return;
     }
-    const response = await authedActionFetch("/api/cheap-pint-ping", {
-      method: "POST",
-      body: JSON.stringify({ action: "opt-in", token }),
-    }, { requiresIdentity: true });
+    if (result.status === "request_failed") {
+      setError(offlineOrMessage("Could not save that choice. Try again."));
+      setPending(false);
+      return;
+    }
+    const response = result.response;
     const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     if (!response.ok) {
       setError(errorMessageFrom(body, "Could not save that choice. Try again."));

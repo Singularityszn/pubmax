@@ -9,6 +9,9 @@ import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
 const SUBSCRIPTION_READ_TIMEOUT_MS = 2_000;
 const SERVER_DETACH_TIMEOUT_MS = 5_000;
+const ACCOUNT_PUSH_LIFECYCLE_LOCK = "pubmaxx-account-push-lifecycle";
+
+let localLifecycleTail: Promise<void> = Promise.resolve();
 
 type AccountPushSubscription = Pick<PushSubscription, "toJSON" | "unsubscribe">;
 
@@ -28,6 +31,52 @@ export type AccountPushRetirementOutcome =
       unsubscribed: boolean;
     }
   | { status: "unavailable" };
+
+export type AccountPushBoundaryOutcome<T> =
+  | {
+      status: "completed";
+      retirement: AccountPushRetirementOutcome;
+      value: T;
+    }
+  | { status: "unavailable" };
+
+async function withLocalLifecycleLock<T>(work: () => Promise<T>): Promise<T> {
+  let release!: () => void;
+  const previous = localLifecycleTail.catch(() => undefined);
+  localLifecycleTail = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await previous;
+  try {
+    return await work();
+  } finally {
+    release();
+  }
+}
+
+/**
+ * Serialize personalized push binding and account replacement for this origin.
+ * Web Locks cover every open tab. The local queue is for runtimes without the
+ * API, including tests and older browsers, and still closes same-tab races.
+ */
+export async function withAccountPushLifecycleLock<T>(
+  work: () => Promise<T>,
+): Promise<T> {
+  let lockManager: LockManager | null = null;
+  try {
+    lockManager = typeof navigator !== "undefined" ? navigator.locks : null;
+  } catch {
+    lockManager = null;
+  }
+  if (lockManager) {
+    return lockManager.request(
+      ACCOUNT_PUSH_LIFECYCLE_LOCK,
+      { mode: "exclusive" },
+      async () => work(),
+    );
+  }
+  return withLocalLifecycleLock(work);
+}
 
 async function attempt(action: () => Promise<boolean>): Promise<boolean> {
   try {
@@ -109,9 +158,9 @@ function browserAccountPushLifecycleDeps(): AccountPushLifecycleDeps {
  * detach is safe when the browser refuses to unsubscribe. Only dual failure
  * blocks the account boundary.
  */
-export async function retireAccountWebPush(
+async function retireAccountWebPushUnlocked(
   accessToken: string | null | undefined,
-  deps: AccountPushLifecycleDeps = browserAccountPushLifecycleDeps(),
+  deps: AccountPushLifecycleDeps,
 ): Promise<AccountPushRetirementOutcome> {
   let subscription: AccountPushSubscription | null;
   try {
@@ -137,4 +186,40 @@ export async function retireAccountWebPush(
 
   if (!serverDetached && !unsubscribed) return { status: "unavailable" };
   return { status: "retired", serverDetached, unsubscribed };
+}
+
+export async function retireAccountWebPush(
+  accessToken: string | null | undefined,
+  deps: AccountPushLifecycleDeps = browserAccountPushLifecycleDeps(),
+): Promise<AccountPushRetirementOutcome> {
+  try {
+    return await withAccountPushLifecycleLock(() =>
+      retireAccountWebPushUnlocked(accessToken, deps),
+    );
+  } catch {
+    return { status: "unavailable" };
+  }
+}
+
+/**
+ * Keep the lifecycle lock through the auth mutation. Releasing it between
+ * retirement and setSession/signOut would let a new opt-in bind the departing
+ * account in that gap.
+ */
+export async function withRetiredAccountWebPush<T>(
+  accessToken: string | null | undefined,
+  continuation: () => Promise<T>,
+  deps: AccountPushLifecycleDeps = browserAccountPushLifecycleDeps(),
+): Promise<AccountPushBoundaryOutcome<T>> {
+  return withAccountPushLifecycleLock(async () => {
+    const retirement = await retireAccountWebPushUnlocked(accessToken, deps);
+    if (retirement.status === "unavailable") {
+      return { status: "unavailable" };
+    }
+    return {
+      status: "completed",
+      retirement,
+      value: await continuation(),
+    };
+  });
 }

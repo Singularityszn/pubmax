@@ -10,6 +10,14 @@ const providerState = vi.hoisted(() => ({
   } as { access_token: string; user: { id: string } } | null,
   supabaseOAuth: vi.fn(),
   setSession: vi.fn(),
+  authChange: null as null | ((
+    event: "INITIAL_SESSION" | "SIGNED_IN" | "SIGNED_OUT" | "TOKEN_REFRESHED",
+    session: {
+      access_token: string;
+      refresh_token: string;
+      user: { id: string; email?: string };
+    } | null,
+  ) => void | Promise<void>),
 }));
 
 const clerkState = vi.hoisted(() => ({ configured: true }));
@@ -50,16 +58,30 @@ vi.mock("@/lib/authCallbackClient", () => ({
   establishAuthCallbackSession: authCallbackClient.establish,
 }));
 vi.mock("@/lib/accountPushLifecycle", () => ({
-  retireAccountWebPush: accountPush.retire,
+  withRetiredAccountWebPush: async <T,>(
+    accessToken: string | null | undefined,
+    continuation: () => Promise<T>,
+  ) => {
+    const retirement = await accountPush.retire(accessToken);
+    if (retirement.status === "unavailable") return { status: "unavailable" };
+    return {
+      status: "completed",
+      retirement,
+      value: await continuation(),
+    };
+  },
 }));
 vi.mock("@/lib/authClient", () => ({
   ensureSupabaseBrowser: async () => ({
     auth: {
       getSession: async () => ({ data: { session: providerState.session } }),
       setSession: providerState.setSession,
-      onAuthStateChange: () => ({
-        data: { subscription: { unsubscribe: vi.fn() } },
-      }),
+      onAuthStateChange: (
+        callback: NonNullable<typeof providerState.authChange>,
+      ) => {
+        providerState.authChange = callback;
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      },
       signInWithOAuth: providerState.supabaseOAuth,
       signOut: vi.fn(),
     },
@@ -242,6 +264,7 @@ beforeEach(() => {
     },
     error: null,
   });
+  providerState.authChange = null;
   authAvailability.guard.mockReset();
   authAvailability.guard.mockResolvedValue({
     availability: { google: true, apple: false },
@@ -337,6 +360,66 @@ describe("shared contribution auth invalidation", () => {
     });
     expect(authCallbackClient.establish).not.toHaveBeenCalled();
     expect(providerState.setSession).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      event: "SIGNED_IN" as const,
+      nextSession: {
+        access_token: "account-b-access",
+        refresh_token: "account-b-refresh",
+        user: { id: "account-b", email: "b@example.com" },
+      },
+      nextUserId: "account-b",
+    },
+    {
+      event: "SIGNED_OUT" as const,
+      nextSession: null,
+      nextUserId: null,
+    },
+  ])("retires account A before applying a broadcast $event", async ({
+    event,
+    nextSession,
+    nextUserId,
+  }) => {
+    const container = globalThis.document.createElement("div");
+    root = createRoot(container);
+
+    await commitReactWork(async () => {
+      root?.render(
+        createElement(
+          AuthProvider,
+          { clerkIntegrationConfigured: false },
+          createElement(Consumer, { name: "broadcast" }),
+        ),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => {
+      expect(consumers.get("broadcast")?.auth.user?.id).toBe("account-a");
+      expect(providerState.authChange).not.toBeNull();
+    });
+
+    let finishRetirement!: () => void;
+    accountPush.retire.mockImplementationOnce(
+      () => new Promise((resolve) => {
+        finishRetirement = () => resolve({ status: "not_registered" });
+      }),
+    );
+    const transition = providerState.authChange?.(event, nextSession);
+    await Promise.resolve();
+
+    expect(accountPush.retire).toHaveBeenLastCalledWith("shared-session");
+    expect(consumers.get("broadcast")?.auth.user?.id).toBe("account-a");
+
+    await commitReactWork(async () => {
+      finishRetirement();
+      await transition;
+    });
+    await vi.waitFor(() => {
+      expect(consumers.get("broadcast")?.auth.user?.id ?? null).toBe(nextUserId);
+    });
   });
 
   it("stops a second consumer from receiving a rejected token", async () => {

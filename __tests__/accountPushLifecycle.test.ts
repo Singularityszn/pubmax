@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   retireAccountWebPush,
+  withRetiredAccountWebPush,
   type AccountPushLifecycleDeps,
 } from "@/lib/accountPushLifecycle";
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
@@ -190,5 +191,47 @@ describe("account web-push retirement", () => {
     );
 
     expect(outcome).toEqual({ status: "unavailable" });
+  });
+
+  it("keeps the account mutation behind successful retirement", async () => {
+    const order: string[] = [];
+    const outcome = await withRetiredAccountWebPush(
+      "departing-access-token",
+      async () => {
+        order.push("session-change");
+        return "changed";
+      },
+      deps({
+        readSubscription: async () => {
+          order.push("subscription-read");
+          return subscription(async () => {
+            order.push("unsubscribed");
+            return true;
+          });
+        },
+        detachAccountToken: async () => {
+          order.push("server-detached");
+          return true;
+        },
+      }),
+    );
+
+    expect(outcome).toMatchObject({ status: "completed", value: "changed" });
+    expect(order.at(-1)).toBe("session-change");
+  });
+
+  it("does not mutate the account when retirement is unavailable", async () => {
+    const continuation = vi.fn(async () => "changed");
+    const outcome = await withRetiredAccountWebPush(
+      "departing-access-token",
+      continuation,
+      deps({
+        readSubscription: async () => subscription(async () => false),
+        detachAccountToken: async () => false,
+      }),
+    );
+
+    expect(outcome).toEqual({ status: "unavailable" });
+    expect(continuation).not.toHaveBeenCalled();
   });
 });

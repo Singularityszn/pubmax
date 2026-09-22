@@ -105,7 +105,10 @@ import {
   type ResumeHint,
 } from "@/lib/authSessionResumeClient";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
-import { retireAccountWebPush } from "@/lib/accountPushLifecycle";
+import {
+  withRetiredAccountWebPush,
+  type AccountPushBoundaryOutcome,
+} from "@/lib/accountPushLifecycle";
 import {
   readProviderAuthState,
   readProviderIdentityRevision,
@@ -310,6 +313,9 @@ export function AuthProvider({
           ? "unavailable"
           : "signed-out";
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
+  const preRetiredAuthTransitions = useRef<
+    Array<{ marker: symbol; expectedUserId: string | null | undefined }>
+  >([]);
   const updateSession = useCallback(
     (nextSession: Session | null, event: string | null = null) => {
       const previousUserId = sessionTransitions.current.currentUserId();
@@ -371,8 +377,40 @@ export function AuthProvider({
     [],
   );
 
-  const retireCurrentAccountPush = useCallback(
-    async (knownSession?: Session | null): Promise<boolean> => {
+  const runPreRetiredAuthMutation = useCallback(
+    async <T,>(
+      expectedUserId: string | null | undefined,
+      mutation: () => Promise<T>,
+    ): Promise<T> => {
+      const transition = { marker: Symbol(), expectedUserId };
+      preRetiredAuthTransitions.current.push(transition);
+      try {
+        return await mutation();
+      } finally {
+        preRetiredAuthTransitions.current =
+          preRetiredAuthTransitions.current.filter(
+            ({ marker }) => marker !== transition.marker,
+          );
+      }
+    },
+    [],
+  );
+
+  const hasPreRetiredAuthTransition = useCallback(
+    (nextUserId: string | null): boolean => {
+      return preRetiredAuthTransitions.current.some(
+        ({ expectedUserId }) =>
+          expectedUserId === undefined || expectedUserId === nextUserId,
+      );
+    },
+    [],
+  );
+
+  const runAfterCurrentPushRetirement = useCallback(
+    async <T,>(
+      continuation: () => Promise<T>,
+      knownSession?: Session | null,
+    ): Promise<AccountPushBoundaryOutcome<T>> => {
       const currentSession = knownSession === undefined
         ? sessionRef.current
         : knownSession;
@@ -380,11 +418,17 @@ export function AuthProvider({
         ?? (knownSession === undefined
           ? sessionTransitions.current.currentUserId()
           : null);
-      if (!currentUserId) return true;
-      const pushRetirement = await retireAccountWebPush(
+      if (!currentUserId) {
+        return {
+          status: "completed",
+          retirement: { status: "not_registered" },
+          value: await continuation(),
+        };
+      }
+      return withRetiredAccountWebPush(
         currentSession?.access_token,
+        continuation,
       );
-      return pushRetirement.status !== "unavailable";
     },
     [],
   );
@@ -404,15 +448,22 @@ export function AuthProvider({
           return { status: "blocked" };
         }
       }
-      if (!(await retireCurrentAccountPush(currentSession))) {
+      const boundary = await runAfterCurrentPushRetirement(
+        () => runPreRetiredAuthMutation(
+          undefined,
+          () => establishAuthCallbackSession(supabase.auth, tokens),
+        ),
+        currentSession,
+      );
+      if (boundary.status === "unavailable") {
         return { status: "blocked" };
       }
 
-      const exchange = await establishAuthCallbackSession(supabase.auth, tokens);
+      const exchange = boundary.value;
       if (exchange.failed || !exchange.session) return { status: "failed" };
       return { status: "installed", session: exchange.session };
     },
-    [retireCurrentAccountPush],
+    [runAfterCurrentPushRetirement, runPreRetiredAuthMutation],
   );
 
   useEffect(() => {
@@ -626,66 +677,69 @@ export function AuthProvider({
 
       // Live updates: SIGNED_IN / SIGNED_OUT / TOKEN_REFRESHED. The callback is
       // the ONLY place these setStates run — never the effect body.
-      const registration = supabase.auth.onAuthStateChange((event, nextSession) => {
+      const registration = supabase.auth.onAuthStateChange(async (event, nextSession) => {
         if (!active) return;
-        const signedIn = updateSession(nextSession ?? null, event);
-        // INITIAL_SESSION with no local session is only the beginning of a
-        // cold boot. The durable cookie still needs to be checked before the
-        // app can honestly publish a signed-out state.
-        if (event !== "INITIAL_SESSION" || nextSession) {
-          setSessionLoading(false);
-        }
-        if (nextSession) {
-          setWelcomeBack(null);
-          // The device's remembered-account lane mirrors the SAME refresh token
-          // the durable cookie mirrors, for every account rather than only the
-          // active one, so the switcher has something to switch back to. Same
-          // trigger, same evictable storage, no access token
-          // (lib/deviceAccountSessions.ts). Every event carrying a session
-          // qualifies, because a rotation the lane missed is a dead door.
-          rememberDeviceAccount(
-            browserLocalStorage(),
-            {
-              userId: nextSession.user.id,
-              refreshToken: nextSession.refresh_token,
-              email: nextSession.user.email ?? null,
-            },
-            Date.now(),
-          );
-          emitDeviceAccountSessionsChanged();
-          // Keep the durable resume cookie current: every sign-in, restore and
-          // background token rotation re-extends its 30-day window and stores
-          // the newest refresh token (lib/authSessionResume.ts). A switch lands
-          // here too, which is the whole of how the cookie follows the ACTIVE
-          // account: `setSession` fires SIGNED_IN, this re-persists, and
-          // `inheritedResumeEmail` refuses to carry the previous account's
-          // address across because the account id differs.
-          if (
-            event === "SIGNED_IN" ||
-            event === "TOKEN_REFRESHED" ||
-            event === "INITIAL_SESSION"
-          ) {
-            void persistSessionWithRetry(supabase.auth, nextSession);
+        const next = nextSession ?? null;
+        const previousUserId = sessionTransitions.current.currentUserId();
+        const nextUserId = next?.user.id ?? null;
+        const applyAuthStateChange = () => {
+          const signedIn = updateSession(next, event);
+          // INITIAL_SESSION with no local session is only the beginning of a
+          // cold boot. The durable cookie still needs to be checked before the
+          // app can honestly publish a signed-out state.
+          if (event !== "INITIAL_SESSION" || next) {
+            setSessionLoading(false);
           }
-        }
-        if (event === "SIGNED_IN" && nextSession?.user) {
-          if (signedIn) {
+          if (next) {
+            setWelcomeBack(null);
+            rememberDeviceAccount(
+              browserLocalStorage(),
+              {
+                userId: next.user.id,
+                refreshToken: next.refresh_token,
+                email: next.user.email ?? null,
+              },
+              Date.now(),
+            );
+            emitDeviceAccountSessionsChanged();
+            if (
+              event === "SIGNED_IN" ||
+              event === "TOKEN_REFRESHED" ||
+              event === "INITIAL_SESSION"
+            ) {
+              void persistSessionWithRetry(supabase.auth, next);
+            }
+          }
+          if (event === "SIGNED_IN" && next?.user && signedIn) {
             trackEvent("user_signed_in");
-            // A GENUINE sign-in transition, which is the only thing that earns
-            // a greeting. An ordinary page load with a live session never
-            // reaches here, so returning to the map does not re-announce you.
-            // The email-link callback lands here too: establishAuthCallbackSession
-            // calls setSession, which fires SIGNED_IN through this subscription.
             markArrival(
               browserSessionStorage(),
               takeChosenIntent(browserLocalStorage(), Date.now()),
               Date.now(),
             );
           }
+          if (event === "SIGNED_OUT") {
+            trackEvent("user_signed_out");
+          }
+        };
+
+        const accountChanged = previousUserId !== null && previousUserId !== nextUserId;
+        const preRetired = accountChanged &&
+          hasPreRetiredAuthTransition(nextUserId);
+        if (accountChanged && !preRetired) {
+          // BroadcastChannel can replace this tab's auth state without calling
+          // any local sign-out or switch action. Retire A before publishing B
+          // (or signed-out) here as well. A local transition carries a marker
+          // because its outer lifecycle lock already performed this work.
+          const boundary = await runAfterCurrentPushRetirement(async () => {
+            if (active) applyAuthStateChange();
+          });
+          if (active && boundary.status === "unavailable") {
+            setAuthCallbackError(PUSH_RETIREMENT_ERROR_MESSAGE);
+          }
+          return;
         }
-        if (event === "SIGNED_OUT") {
-          trackEvent("user_signed_out");
-        }
+        applyAuthStateChange();
       });
       subscription = registration.data.subscription;
       // Unmounted while the chunk was loading: tear the subscription right back
@@ -802,7 +856,18 @@ export function AuthProvider({
         } else if (bootstrapped.status === "local") {
           // INITIAL_SESSION normally supplied this same session already. The
           // explicit update also covers a client that did not emit that event.
-          updateSession(bootstrapped.session);
+          const previousUserId = sessionTransitions.current.currentUserId();
+          const bootstrapUserId = bootstrapped.session.user.id;
+          if (previousUserId && previousUserId !== bootstrapUserId) {
+            const boundary = await runAfterCurrentPushRetirement(async () => {
+              updateSession(bootstrapped.session);
+            });
+            if (boundary.status === "unavailable") {
+              setAuthCallbackError(PUSH_RETIREMENT_ERROR_MESSAGE);
+            }
+          } else {
+            updateSession(bootstrapped.session);
+          }
         } else if (bootstrapped.status === "expired") {
           setWelcomeBack({ maskedEmail: bootstrapped.maskedEmail });
         }
@@ -829,7 +894,13 @@ export function AuthProvider({
       window.clearTimeout(lingeringSweepTimeout);
       subscription?.unsubscribe();
     };
-  }, [configured, installAccountSession, updateSession]);
+  }, [
+    configured,
+    hasPreRetiredAuthTransition,
+    installAccountSession,
+    runAfterCurrentPushRetirement,
+    updateSession,
+  ]);
 
   // Inside the native shell the provider page opens in the system browser
   // (lib/nativeOAuth.ts): Google refuses OAuth in an embedded web view, and the
@@ -968,45 +1039,48 @@ export function AuthProvider({
       const supabase = await ensureSupabaseBrowser();
       if (!supabase) return;
       const departing = sessionTransitions.current.currentUserId();
-      if (!(await retireCurrentAccountPush())) {
+      const boundary = await runAfterCurrentPushRetirement(async () => {
+        // Explicit sign-out is the one place the durable resume cookie dies too —
+        // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
+        // AWAITED, because an account sign-out may hand the device straight to the
+        // next remembered account: a DELETE still in flight would land after that
+        // account's persist and leave the device with no durable session at all.
+        await clearPersistedSession();
+        // The same set the account boundary clears, and the owner stamp with it.
+        // Leaving the handle behind is what let the next account inherit it: the
+        // session went and its name stayed.
+        releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
+        emitDeviceIdentityChanged();
+        // The account that is leaving takes its stored refresh token with it, and
+        // "all accounts" takes the whole lane. Neither is a capability: they are
+        // the same act at two scopes, and the second only exists because a device
+        // can hold more than one account.
+        if (scope === "device") forgetAllDeviceAccounts(browserLocalStorage());
+        else if (departing) forgetDeviceAccount(browserLocalStorage(), departing);
+        emitDeviceAccountSessionsChanged();
+        setWelcomeBack(null);
+        await runPreRetiredAuthMutation(null, () => supabase.auth.signOut());
+        // onAuthStateChange fires SIGNED_OUT → session clears via the subscription.
+        if (scope === "device") return;
+        // The person asked to leave ONE account on a device that still holds
+        // another signed-in one. Leaving it signed out would strand a session
+        // nothing on this page can reach, so the next remembered account takes
+        // over through the one switch path. Its own arrival line names it, so
+        // nobody is quietly renamed. A refusal simply leaves the device signed out.
+        const next = nextSignedInDeviceAccount(
+          readDeviceAccounts(browserLocalStorage()),
+          departing,
+        );
+        if (!next) return;
+        await runPreRetiredAuthMutation(next.userId, () =>
+          activateDeviceAccount(next.userId, browserDeviceAccountSwitchDeps()),
+        );
+      });
+      if (boundary.status === "unavailable") {
         setAuthCallbackError(PUSH_RETIREMENT_ERROR_MESSAGE);
-        return;
       }
-      // Explicit sign-out is the one place the durable resume cookie dies too —
-      // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
-      // AWAITED, because an account sign-out may hand the device straight to the
-      // next remembered account: a DELETE still in flight would land after that
-      // account's persist and leave the device with no durable session at all.
-      await clearPersistedSession();
-      // The same set the account boundary clears, and the owner stamp with it.
-      // Leaving the handle behind is what let the next account inherit it: the
-      // session went and its name stayed.
-      releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
-      emitDeviceIdentityChanged();
-      // The account that is leaving takes its stored refresh token with it, and
-      // "all accounts" takes the whole lane. Neither is a capability: they are
-      // the same act at two scopes, and the second only exists because a device
-      // can hold more than one account.
-      if (scope === "device") forgetAllDeviceAccounts(browserLocalStorage());
-      else if (departing) forgetDeviceAccount(browserLocalStorage(), departing);
-      emitDeviceAccountSessionsChanged();
-      setWelcomeBack(null);
-      await supabase.auth.signOut();
-      // onAuthStateChange fires SIGNED_OUT → session clears via the subscription.
-      if (scope === "device") return;
-      // The person asked to leave ONE account on a device that still holds
-      // another signed-in one. Leaving it signed out would strand a session
-      // nothing on this page can reach, so the next remembered account takes
-      // over through the one switch path. Its own arrival line names it, so
-      // nobody is quietly renamed. A refusal simply leaves the device signed out.
-      const next = nextSignedInDeviceAccount(
-        readDeviceAccounts(browserLocalStorage()),
-        departing,
-      );
-      if (!next) return;
-      await activateDeviceAccount(next.userId, browserDeviceAccountSwitchDeps());
     },
-    [retireCurrentAccountPush],
+    [runAfterCurrentPushRetirement, runPreRetiredAuthMutation],
   );
 
   const switchAccount = useCallback(
@@ -1019,8 +1093,16 @@ export function AuthProvider({
         userId,
         {
           ...switchDeps,
-          async beforeSessionInstall() {
-            return retireCurrentAccountPush();
+          async setSession(nextSession) {
+            const boundary = await runAfterCurrentPushRetirement(() =>
+              runPreRetiredAuthMutation(
+                userId,
+                () => switchDeps.setSession(nextSession),
+              ),
+            );
+            return boundary.status === "completed"
+              ? boundary.value
+              : { ok: false };
           },
         },
       );
@@ -1028,7 +1110,7 @@ export function AuthProvider({
       if (outcome.status === "switched") trackEvent("account_switched");
       return outcome;
     },
-    [retireCurrentAccountPush],
+    [runAfterCurrentPushRetirement, runPreRetiredAuthMutation],
   );
 
   useEffect(() => {
