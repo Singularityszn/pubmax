@@ -16,6 +16,13 @@ import { createElement, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// This suite owns cover selection/layout. Authenticated transport has its own
+// mounted regression in profileCoverAuthenticatedImage.test.tsx.
+vi.mock("@/components/profile/ProfileCoverImage", () => ({
+  default: ({ src, alt, className }: { src: string; alt: string; className?: string }) =>
+    createElement("img", { src, alt, className }),
+}));
+
 vi.mock("next/image", () => ({
   default: ({ src, alt }: { src: string; alt: string }) =>
     createElement("img", { src, alt }),

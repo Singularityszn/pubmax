@@ -10,13 +10,16 @@ import "server-only";
 // refusal also names itself once in the log (`profile_image.serve_refused`),
 // the way an advisory scan skip does. The reader is told nothing extra.
 
+import { isModerator } from "@/lib/adminAuth";
 import { publicApiError } from "@/lib/apiError";
 import { profileMayWearAvatar } from "@/lib/avatarResolve";
+import { resolveProfileProjection } from "@/lib/profileVisibilityBoundary.server";
 import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
 import { downloadProfileImageObject } from "@/lib/profileImageMedia.server";
 import {
   isProfileImageServingKey,
+  profileImageSlotSpec,
   type ProfileImageSlot,
 } from "@/lib/profileImageSlots";
 import {
@@ -29,7 +32,8 @@ import { clientIp, hashIp, isSupabaseConfigured } from "@/lib/supabase";
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export const PROFILE_IMAGE_SERVE_CACHE_CONTROL = "public, max-age=300, s-maxage=3600";
+export const PROFILE_IMAGE_SERVE_CACHE_CONTROL =
+  profileImageSlotSpec("avatar").serveCacheControl;
 
 export type ProfileImageServeDeps = {
   getProfileById: (id: string) => Promise<ProfileRecord | null>;
@@ -60,6 +64,7 @@ type ProfileImageServeRefusal =
   | "storage_unconfigured"
   | "malformed_request"
   | "profile_missing"
+  | "profile_private"
   | "profile_unclaimed"
   | "moderation_not_approved"
   | "image_absent"
@@ -158,6 +163,19 @@ export async function handleProfileImageServe(
   const profile = await deps.getProfileById(id);
   if (!profile) return notFound(slot, "profile_missing", { profileId: id, generation: gen });
 
+  const slotSpec = profileImageSlotSpec(slot);
+  // Covers carry the profile's privacy; avatars remain public recognition.
+  // Check before rotation and storage so every generation follows the same gate.
+  // The moderator credential remains a profile-wide exception because the
+  // review console uses these canonical URLs; approval and generation gates
+  // below still decide whether any bytes may be served.
+  if (slotSpec.serveAudience === "profile" && !isModerator(request)) {
+    const projection = await resolveProfileProjection({ request, profile });
+    if (projection.projection !== "full") {
+      return notFound(slot, "profile_private", { profileId: id, generation: gen });
+    }
+  }
+
   const resolved = servingKey(profile, slot, gen);
   let objectKey = "objectKey" in resolved ? resolved.objectKey : null;
   // The row holds ONE generation, and a cover rotation holds up to five. So a
@@ -191,7 +209,7 @@ export async function handleProfileImageServe(
     status: 200,
     headers: {
       "Content-Type": downloaded.contentType,
-      "Cache-Control": PROFILE_IMAGE_SERVE_CACHE_CONTROL,
+      "Cache-Control": slotSpec.serveCacheControl,
     },
   });
 }
