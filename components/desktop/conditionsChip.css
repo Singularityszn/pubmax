@@ -19,6 +19,13 @@
   box-sizing: border-box;
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .conditionsChip:hover {
+    border-color: color-mix(in srgb, var(--brass) 28%, var(--badge-border));
+    background: color-mix(in srgb, var(--brass) 6%, var(--badge-surface));
+  }
+}
+
 .conditionsChipWeather {
   font-weight: 600;
 }

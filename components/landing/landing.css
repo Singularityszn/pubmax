@@ -411,6 +411,47 @@ a.lpPubPint:hover { color: var(--ink); }
 .lpFooterLegal a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 2px; vertical-align: middle; }
 .lpFooterLegal a:hover { color: var(--ink); }
 
+
+/* Desktop width: prose sections and the drops rail use the wide token instead
+   of leaving a single narrow column floating in 1920px of paper. */
+@media (min-width: 1024px) {
+  .lpWorth {
+    display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    column-gap: clamp(40px, 5vw, 72px);
+    align-items: start;
+  }
+
+  .lpWorth > .kicker,
+  .lpWorth > h2 {
+    grid-column: 1;
+  }
+
+  .lpWorth > .lpSaved,
+  .lpWorth > p,
+  .lpWorth > .lpTextLink {
+    grid-column: 2;
+  }
+
+  .dropStripRail {
+    display: flex;
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .dropStripRail > .dropStripCard {
+    flex: 1 1 min(100%, 260px);
+    max-width: calc((100% - 24px) / 3);
+  }
+}
+
+@media (min-width: 1280px) {
+  .lpHero {
+    width: min(var(--lp-max), calc(100% - 2 * var(--page-gutter)));
+    margin-inline: auto;
+  }
+}
+
 /* ── Narrow widths ──────────────────────────────────────────────────────── */
 
 /* The tablet band (641px to 960px). The link row used to leave at 960px while
