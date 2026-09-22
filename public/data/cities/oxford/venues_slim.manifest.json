@@ -1,1 +1,1 @@
-{"version":1,"revision":"4749c91e7b6c","shards":[{"id":"core","core":true,"url":"/data/cities/oxford/venues_slim.core.json","count":97,"bbox":[-1.2989103,51.7203568,-1.2011619,51.7838053]}]}
+{"version":1,"revision":"local","shards":[{"id":"core","core":true,"url":"/data/cities/oxford/venues_slim.core.json","count":97,"bbox":[-1.2989103,51.7203568,-1.2011619,51.7838053]}]}

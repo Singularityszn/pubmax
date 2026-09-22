@@ -3,12 +3,13 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import type { SoftDrinkHarvestRow } from "../scripts/lib/softDrinksMenuHarvest.mjs";
 import {
   classifySoftDrinkSubtypeId,
   filterSoftDrinkHarvestRows,
   parseMbplcSoftDrinkLines,
   softDrinkRowsFromPageText,
-} from "@/scripts/lib/softDrinksMenuHarvest.mjs";
+} from "../scripts/lib/softDrinksMenuHarvest.mjs";
 
 const MBPLC_FIXTURE = readFileSync(
   join(process.cwd(), "__tests__/fixtures/harvest/mbplc-soft-drinks-snippet.md"),
@@ -18,7 +19,7 @@ const MBPLC_FIXTURE = readFileSync(
 describe("soft drinks menu harvest", () => {
   it("parses M&B markdown soft-drink sections with verbatim prices", () => {
     const rows = parseMbplcSoftDrinkLines(MBPLC_FIXTURE);
-    expect(rows.map((r) => r.drinkLabel)).toEqual([
+    expect(rows.map((r: SoftDrinkHarvestRow) => r.drinkLabel)).toEqual([
       "Coke Zero",
       "Diet Coke",
       "Still Water",
@@ -28,7 +29,7 @@ describe("soft drinks menu harvest", () => {
 
   it("never keeps tap water as a priced product", () => {
     const rows = parseMbplcSoftDrinkLines(MBPLC_FIXTURE);
-    expect(filterSoftDrinkHarvestRows(rows).some((r) => /tap/i.test(r.drinkLabel))).toBe(false);
+    expect(filterSoftDrinkHarvestRows(rows).some((r: SoftDrinkHarvestRow) => /tap/i.test(r.drinkLabel))).toBe(false);
   });
 
   it("classifies Coke Zero, Diet Coke and still water subtypes", () => {
@@ -50,7 +51,7 @@ describe("soft drinks menu harvest", () => {
     ].join("\n");
     const rows = softDrinkRowsFromPageText(text);
     expect(rows.length).toBeGreaterThanOrEqual(3);
-    expect(rows.some((r) => classifySoftDrinkSubtypeId(r.drinkLabel) === "soft-drink-coke-zero")).toBe(
+    expect(rows.some((r: SoftDrinkHarvestRow) => classifySoftDrinkSubtypeId(r.drinkLabel) === "soft-drink-coke-zero")).toBe(
       true,
     );
   });

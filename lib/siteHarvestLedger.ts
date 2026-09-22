@@ -4,7 +4,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import { bundleRowDedupeDrinkKey } from "@/lib/bundleDrinkFields";
 import {
   bundleRowSupersedes,
   type UkPriceBundleLane,
@@ -43,9 +42,8 @@ export function siteHarvestLedgerCollectKey(
   if (!venueId || typeof row.category !== "string" || row.category.length === 0) {
     return null;
   }
-  const label = bundleRowDedupeDrinkKey({
-    drinkLabel: row.drinkLabel ?? row.drinkName ?? null,
-  });
+  const raw = row.drinkLabel ?? row.drinkName ?? "";
+  const label = typeof raw === "string" ? raw.trim().toLowerCase() : "";
   return `${venueId} ${row.category} ${label} ${SITE_HARVEST_LANE}`;
 }
 
