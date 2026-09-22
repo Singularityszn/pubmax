@@ -52,7 +52,7 @@ export default function MusicTonightLane({ rows: providedRows, asOf: providedAsO
       },
       (body) => {
         const rows = (Array.isArray(body.rows) ? body.rows : [])
-          .filter(isValidWhatsOnRow)
+          .filter((row): row is WhatsOnRow => isValidWhatsOnRow(row))
           .slice(0, 8);
         // Self-fetch mode asks for kind=music alone, so the response-level
         // freshness IS this source's freshness; kindObservedAt.music is the
