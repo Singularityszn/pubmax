@@ -125,7 +125,6 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     url: "https://www.reddit.com/r/london/search.json?q=pint+price&restrict_sr=on&sort=relevance&t=year&limit=25",
     kind: "community-price-observations",
     firstParty: false,
-    nonFirstPartyException: "The captain authorized dated, first-person London community price observations on 2026-09-22. These remain attributed community evidence, never operator menu prices or PUBMAXX account reports.",
     access: {
       allowed: false,
       reason: "robots-disallowed",
@@ -140,7 +139,6 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     url: "https://www.reddit.com/r/londonpubs/search.json?q=pint+%C2%A3&restrict_sr=on&sort=relevance&t=year&limit=25",
     kind: "community-price-observations",
     firstParty: false,
-    nonFirstPartyException: "The captain authorized dated, first-person London community price observations on 2026-09-22. These remain attributed community evidence, never operator menu prices or PUBMAXX account reports.",
     access: {
       allowed: false,
       reason: "robots-disallowed",
@@ -155,7 +153,6 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     url: "https://www.reddit.com/r/CasualUK/search.json?q=pint+London+%C2%A3&restrict_sr=on&sort=relevance&t=year&limit=25",
     kind: "community-price-observations",
     firstParty: false,
-    nonFirstPartyException: "The captain authorized dated, first-person London community price observations on 2026-09-22. These remain attributed community evidence, never operator menu prices or PUBMAXX account reports.",
     access: {
       allowed: false,
       reason: "robots-disallowed",
@@ -754,7 +751,7 @@ export function isHarvestableOperatorUrl(value: unknown): value is string {
 }
 
 /**
- * Captain-authorized community evidence scope. This grants no cached robots
+ * Community evidence scope, closed without recorded source permission. This grants no cached robots
  * permission: every request still needs the host's live robots answer.
  * Keep Reddit separate from first-party operator menu sources.
  */

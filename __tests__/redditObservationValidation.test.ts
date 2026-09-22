@@ -1,5 +1,6 @@
+import { COMMUNITY_PRICE_MAX_AGE_MS } from "@/lib/communityPrice";
 import { describe, expect, it } from "vitest";
-import { isValidCommunityPriceObservationRow, communityPriceObservationId } from "@/lib/communityPriceObservation";
+import { isValidCommunityPriceObservationRow, communityPriceObservationId, communityPriceEvidenceNote } from "@/lib/communityPriceObservation";
 
 const row = {
   venueId: "venue-a", drinkCategory: "beer" as const, drinkName: "Guinness",
@@ -9,6 +10,12 @@ const row = {
 const now = Date.parse("2026-09-22T12:00:00Z");
 
 describe("Reddit observation publication", () => {
+  it("marks historical reports at the shared freshness boundary", () => {
+    const boundary = Date.parse(row.observedAt) + COMMUNITY_PRICE_MAX_AGE_MS;
+    expect(communityPriceEvidenceNote(row, boundary)).toContain("Unconfirmed");
+    expect(communityPriceEvidenceNote(row, boundary + 1)).toContain("Historical report");
+    expect(communityPriceEvidenceNote({ observedAt: "2024-09-20T12:00:00Z" }, now)).toContain("not today's price");
+  });
   it("accepts a dated Reddit comment", () => expect(isValidCommunityPriceObservationRow(row, now)).toBe(true));
   it.each([
     "https://example.com/price", "https://www.reddit.com/r/london/comments/abc/fix1/",

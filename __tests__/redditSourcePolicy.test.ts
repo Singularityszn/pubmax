@@ -9,7 +9,7 @@ describe("Reddit source admission", () => {
     expect(sources).toHaveLength(3);
     for (const source of sources) {
       expect(source.firstParty).toBe(false);
-      expect(source.nonFirstPartyException).toContain("community");
+      expect(source.nonFirstPartyException).toBeUndefined();
       expect(source.access).toMatchObject({ allowed: false, reason: "robots-disallowed" });
       expect(isHarvestableRedditUrl(source.url)).toBe(false);
     }

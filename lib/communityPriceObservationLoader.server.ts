@@ -11,14 +11,14 @@ import {
   type CommunityPriceObservationRow,
 } from "@/lib/communityPriceObservation";
 
-const PACK_PATH = join(process.cwd(), "public/data/community_price_observations/london_reddit.json");
+const PACK_PATH = join(/* turbopackIgnore: true */ process.cwd(), "public/data/community_price_observations/london_reddit.json");
 
 let cached: CommunityPriceObservationRow[] | null = null;
 
 function loadRows(): CommunityPriceObservationRow[] {
   if (cached) return cached;
   try {
-    const raw = JSON.parse(readFileSync(PACK_PATH, "utf8")) as CommunityPriceObservationPack;
+    const raw = JSON.parse(readFileSync(/* turbopackIgnore: true */ PACK_PATH, "utf8")) as CommunityPriceObservationPack;
     const now = Date.now();
     cached = raw.version === 1 && raw.lane === "reddit-london" && Array.isArray(raw.observations)
       ? raw.observations.filter((row) => isValidCommunityPriceObservationRow(row, now))

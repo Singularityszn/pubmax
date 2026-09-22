@@ -192,6 +192,8 @@ async function main() {
   const venues = loadVenues();
   const state = {
     threadsScanned: 0,
+    successfulThreadReads: 0,
+    failedReads: 0,
     candidates: 0,
     passing: 0,
     rejected: 0,
@@ -218,17 +220,21 @@ async function main() {
       }
       try {
         const payload = await fetchRedditJson(listingUrl);
-        const posts = payload?.data?.children ?? [];
+        if (!Array.isArray(payload?.data?.children)) throw new Error("Invalid Reddit listing response");
+        const posts = payload.data.children;
         for (const child of posts) {
           const link = child?.data?.permalink;
           if (!link) continue;
           const threadUrl = `https://www.reddit.com${link}`;
           const threadPayload = await fetchRedditJson(threadUrl);
+          if (!Array.isArray(threadPayload?.[1]?.data?.children)) throw new Error("Invalid Reddit thread response");
           if (threadPayload) {
+            state.successfulThreadReads += 1;
             await processComments(commentsFromRedditThreadPayload(threadPayload), venues, state, spend);
           }
         }
       } catch (e) {
+        state.failedReads += 1;
         if (String(e).includes("429")) {
           throw e;
         }
@@ -241,12 +247,15 @@ async function main() {
       for (const hit of hits) {
         try {
           const payload = await fetchRedditJson(hit.url);
-          if (payload) {
+          if (Array.isArray(payload?.[1]?.data?.children)) {
+            state.successfulThreadReads += 1;
             await processComments(commentsFromRedditThreadPayload(payload), venues, state, spend);
           } else {
+            state.failedReads += 1;
             state.review.push({ sourceUrl: hit.url, reason: "thread-unavailable-no-dated-evidence" });
           }
         } catch (e) {
+          state.failedReads += 1;
           if (String(e).includes("429")) {
             throw e;
           }
@@ -266,6 +275,8 @@ async function main() {
   const report = {
     generatedAt: pack.generatedAt,
     threadsScanned: state.threadsScanned,
+    successfulThreadReads: state.successfulThreadReads,
+    failedReads: state.failedReads,
     candidates: state.candidates,
     passing: state.passing,
     landed: state.landed.length,
@@ -282,6 +293,10 @@ async function main() {
     ),
   };
 
+  if (!dryRun && (state.successfulThreadReads === 0 || state.failedReads > 0)) {
+    console.log(JSON.stringify(report, null, 2));
+    throw new Error("Source reads were refused, incomplete or unavailable; existing evidence pack retained. Withdrawals require an explicit separate action.");
+  }
   if (!dryRun) {
     mkdirSync(dirname(REVIEW_OUT), { recursive: true });
     mkdirSync(dirname(SEED_OUT), { recursive: true });

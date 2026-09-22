@@ -3,6 +3,7 @@
 
 import {
   COMMUNITY_PRICE_MAX_GBP,
+  COMMUNITY_PRICE_MAX_AGE_MS,
   COMMUNITY_PRICE_MIN_GBP,
 } from "@/lib/communityPrice";
 import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
@@ -92,4 +93,11 @@ export function communityPriceEvidenceObservationFromRow(row: CommunityPriceObse
     ...(row.measure ? { measure: row.measure } : {}),
     ...(row.measureLabel ? { measureLabel: row.measureLabel } : {}),
   };
+}
+
+/** Older source observations describe a past night, never today's price. */
+export function communityPriceEvidenceNote(row: Pick<CommunityPriceEvidenceObservation, "observedAt">, now: number = Date.now()): string {
+  return now - Date.parse(row.observedAt) > COMMUNITY_PRICE_MAX_AGE_MS
+    ? "Historical report. It records that date, not today's price."
+    : "Unconfirmed report. It does not set the map price.";
 }

@@ -23,7 +23,7 @@ import {
 import { COMMUNITY_PRICE_NOTE } from "@/lib/venues";
 import { formatPrice, formatObservedAt } from "@/lib/venues";
 import { drinkMeasureName } from "@/lib/drinkMeasure";
-import type { CommunityPriceEvidenceObservation } from "@/lib/communityPriceObservation";
+import { communityPriceEvidenceNote, type CommunityPriceEvidenceObservation } from "@/lib/communityPriceObservation";
 import { isRedditCommentUrl } from "@/lib/redditEvidence";
 
 import "./venueDrinkPrices.css";
@@ -37,7 +37,7 @@ function CommunityEvidenceFromReddit({ rows }: { rows: readonly CommunityPriceEv
       <span className="communityEvidenceFigure">{formatPrice(row.priceGbp)}</span>
       <span className="communityEvidenceDate">{formatObservedAt(row.observedAt)}</span>
       {isRedditCommentUrl(row.sourceUrl) ? <a href={row.sourceUrl} target="_blank" rel="noopener noreferrer">Reported on Reddit</a> : <span>Reported on Reddit</span>}
-      <span className="communityEvidenceCaveat">Unconfirmed report. It does not set the map price.</span>
+      <span className="communityEvidenceCaveat">{communityPriceEvidenceNote(row)}</span>
     </li>)}</ul>
   </section>;
 }
