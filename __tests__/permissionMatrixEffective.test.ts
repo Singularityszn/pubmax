@@ -1188,22 +1188,17 @@ describe("price observation and its confirmation", () => {
     expect(response.status).toBe(401);
   });
 
-  it("A's first report waits for a second drinker, and A's second figure is a second price", async () => {
+  it("A's generic Beer reports stay unconfirmed without inventing a named split", async () => {
     const first = await submitPrice(BEARER_ALICE, PRICE_VENUE, 4.5);
     expect(first.status, await first.clone().text()).toBe(201);
     expect((await readJson<PriceSubmitBody>(first)).confirmationOutcome?.status).toBe("awaiting_second_drinker");
 
-    // A second REPORT, not a second tap: a different figure, so the
-    // duplicate-tap window (battle test D10) leaves it alone. Since 7 Sept 2026
-    // the drop lane's agreement is EXACT, so 4.50 and 4.60 are two prices this
-    // pub holds rather than one repeated report, and the outcome says so with
-    // ONE drinker behind them.
+    // Both reports remain stored. This category-only door names no product,
+    // so different figures cannot establish a split about one named drink.
     const repeat = await submitPrice(BEARER_ALICE, PRICE_VENUE, 4.6);
     expect(repeat.status, await repeat.clone().text()).toBe(201);
     expect((await readJson<PriceSubmitBody>(repeat)).confirmationOutcome).toMatchObject({
-      status: "price_disagrees",
-      prices: [4.5, 4.6],
-      reporters: 1,
+      status: "awaiting_second_drinker",
     });
     expect(truth(
       `select count(*) from public.pint_drops where venue_id = '${PRICE_VENUE}' and confirmation_id is not null`,
