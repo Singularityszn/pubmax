@@ -1,6 +1,6 @@
 # London outing recovery, integrated increment
 
-Integration revision: `fd83de6a7`. Reviewed source increment: `bc42ca4bc`.
+Integration revision: working tree after `361856e42`. Reviewed source increment: `bc42ca4bc`.
 Local branch: `codex/london-outing-recovery-20260922`.
 
 Date night now opens `/outings` with a shortlist before chat. Seven occasion
@@ -51,6 +51,21 @@ TfL or Safe Night handoff remain available around event browsing.
 No full repository verify, migration, production request, remote write, push,
 merge or deployment ran in this increment.
 
+## Event timing follow-up
+
+The Ask mapping now keeps a listing's published start and available finish in
+the visible card note. It formats both against `Europe/London` and keeps the
+publisher detail and source link.
+
+Fresh red evidence showed a sourced disco card losing both times and retaining
+only `Doors 19:30`. After the change, the focused handler suite passed 35 tests.
+Adjacent validation passed 7 files and 121 tests. Scoped ESLint, full
+`npm run typecheck` and `git diff --check` exited 0. No painted browser or
+native runtime ran for this follow-up. Jev returned `supports` at confidence
+0.98 for the bounded claim. Deterministic checks remain controlling evidence.
+The sanitized record is
+`.tmp-evidence/recovery/jev-outings-event-timing.json`.
+
 ## Explicit limits
 
 This is not a combined event-aware itinerary. Event identity persisted into a
@@ -59,8 +74,7 @@ validation, group and budget controls, and alcohol-aware refinement remain
 outstanding. Home destination stays with the external journey planner and is not
 placed in a public plan URL.
 
-Music Ask and browse still use different listing paths. Ask cards do not retain
-event start and finish fields. Venue shortlist cards do not yet show result-level
-source date or explicit price coverage or absence. Provider credentials are not
-configured in the keyless proof environment, so real current listing density was
-not established here.
+Music Ask and browse still use different listing paths. Venue shortlist cards do
+not yet show result-level source date or explicit price coverage or absence.
+Provider credentials are not configured in the keyless proof environment, so
+real current listing density was not established here.
