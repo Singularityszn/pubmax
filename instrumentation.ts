@@ -5,8 +5,9 @@
 // `instrumentation-client.ts` stays untouched and nothing here is bundled to
 // the browser.
 
-import { registerArizeTracing } from "@/lib/observability/arize";
-
-export function register(): Promise<void> {
-  return registerArizeTracing();
+export async function register(): Promise<void> {
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { registerArizeTracing } = await import("@/lib/observability/arize");
+    await registerArizeTracing();
+  }
 }
