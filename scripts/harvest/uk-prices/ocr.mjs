@@ -21,10 +21,12 @@
 //    --url flag: a host the crawl never recorded an unreadable PDF for is not
 //    visited, so this lane can never widen the crawl's reach.
 //
-// 2. PERMISSION IS ASKED LIVE, PER HOST, AND AN UNREADABLE ANSWER IS A REFUSAL.
-//    `isHarvestableOperatorUrl` drops a host the source table refuses before a
-//    request is made, and `createRobotsChecker` asks the host itself again on
-//    the day of the run. A permission recorded weeks ago is not permission now.
+// 2. PERMISSION IS ASKED LIVE FOR EVERY PAGE, AND AN UNREADABLE ANSWER IS A
+//    REFUSAL. `isHarvestableOperatorUrl` drops a host the source table refuses
+//    before a request is made, and `fetchHarvestedPage` asks the exact path's
+//    robots rules before each request and redirect hop. `createRobotsChecker`
+//    caches the rules file per origin, not a verdict across origins or paths.
+//    A permission recorded weeks ago is not permission now.
 //
 // 3. A PRICE MUST BE ON THE PAGE. The OCR text goes through
 //    `readVenueDrinkPrices`, `pageStatesADrinksList` and `cheapestPerCategory`
@@ -108,9 +110,12 @@ import process from "node:process";
 import { promisify } from "node:util";
 
 import { readPdfText } from "../../../lib/harvest/pdfText.ts";
-import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import {
-  harvestRedirectLanding,
+  createRobotsChecker,
+  fetchHarvestedPage,
+  fetchHarvestResponse,
+} from "../../../lib/harvest/robots.ts";
+import {
   isHarvestableOperatorUrl,
 } from "../../../lib/harvest/sourcePolicy.ts";
 import {
@@ -291,30 +296,41 @@ function pubsByHost() {
 }
 
 /** A page, as text; or the bytes when the host answered with a PDF. */
-async function fetchPage(url) {
+export async function fetchOcrPage(
+  url,
+  robots,
+  fetchImpl = (input, init) => fetchHarvestResponse(input, init, { maxPdfBytes: MAX_PDF_BYTES }),
+) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
-      headers: {
-        accept: "text/html,application/xhtml+xml,application/pdf;q=0.8,*/*;q=0.5",
-        "user-agent": USER_AGENT,
+    const result = await fetchHarvestedPage(
+      url,
+      robots,
+      {
+        headers: {
+          accept: "text/html,application/xhtml+xml,application/pdf;q=0.8,*/*;q=0.5",
+          "user-agent": USER_AGENT,
+        },
+        signal: controller.signal,
       },
-      signal: controller.signal,
-      redirect: "follow",
-    });
-    // THE ALLOW-LIST IS ASKED ABOUT THE PAGE WE LANDED ON, NOT ONLY THE ONE WE
-    // ASKED FOR. `redirect: "follow"` lets the HOST pick the last hop, so a
-    // permitted site that 30x-es to a refused one used to be read in full and
-    // the row was then stamped with the asked-for URL, naming a page that never
-    // stated the price. `harvestRedirectLanding` is the one owner of that rule;
-    // `finalUrl` was already carried here and read by nothing.
-    const landing = harvestRedirectLanding(url, response.url);
-    if (landing.outcome === "refused") {
-      return { ok: false, status: response.status, body: "", redirectedAway: true, finalUrl: landing.url };
+      { fetchImpl },
+    );
+    if (!result.ok) {
+      return {
+        ok: false,
+        status: result.response?.status ?? 0,
+        body: "",
+        error: `page-${result.reason}`,
+        finalUrl: result.url,
+      };
     }
-    const landed = landing.url;
-    if (!response.ok) return { ok: false, status: response.status, body: "", finalUrl: landed };
+    const { response } = result;
+    const landed = result.url;
+    if (!response.ok) {
+      response.body?.cancel().catch(() => {});
+      return { ok: false, status: response.status, body: "", finalUrl: landed };
+    }
     const type = response.headers.get("content-type") ?? "";
     if (/application\/pdf/i.test(type)) {
       const bytes = new Uint8Array(await response.arrayBuffer());
@@ -349,8 +365,8 @@ async function fetchPage(url) {
  * links the home page itself states, all judged by the ONE `isLikelyMenuUrl`
  * gate, so a document cannot arrive here that the crawler would have refused.
  */
-async function discoverPdfs(entry, statedSitemaps) {
-  const home = await fetchPage(entry.origin);
+async function discoverPdfs(entry, statedSitemaps, robots) {
+  const home = await fetchOcrPage(entry.origin, robots);
   const candidates = [];
   const push = (url) => {
     if (!candidates.includes(url)) candidates.push(url);
@@ -362,7 +378,7 @@ async function discoverPdfs(entry, statedSitemaps) {
   const sitemaps = [...statedSitemaps];
   if (sitemaps.length === 0) sitemaps.push(new URL("/sitemap.xml", entry.origin).toString());
   for (const sitemapUrl of sitemaps.slice(0, 2)) {
-    const sitemap = await fetchPage(sitemapUrl);
+    const sitemap = await fetchOcrPage(sitemapUrl, robots);
     if (!sitemap.ok || sitemap.body.length === 0) continue;
     for (const location of sitemapLocations(sitemap.body)) {
       if (isLikelyMenuUrl(location, entry.origin)) push(location);
@@ -387,7 +403,7 @@ async function discoverPdfs(entry, statedSitemaps) {
   for (const url of pages.slice(0, DEFAULT_PAGES_PER_HOST * 2)) {
     if (pdfs.length >= DEFAULT_PAGES_PER_HOST) break;
     await sleep(DEFAULT_HOST_DELAY_MS);
-    const page = await fetchPage(url);
+    const page = await fetchOcrPage(url, robots);
     if (!page.ok) continue;
     if (page.pdf) {
       pdfs.push(url);
@@ -585,7 +601,7 @@ async function main() {
       continue;
     }
 
-    const pdfUrls = await discoverPdfs(entry, decision.sitemaps ?? []);
+    const pdfUrls = await discoverPdfs(entry, decision.sitemaps ?? [], robots);
     if (pdfUrls.length === 0) {
       counts["no-longer-published"] += target.unreadable;
       documents.push({ host: target.host, url: null, outcome: "no-longer-published" });
@@ -595,7 +611,7 @@ async function main() {
     const readings = [];
     for (const url of pdfUrls) {
       await sleep(DEFAULT_HOST_DELAY_MS);
-      const page = await fetchPage(url);
+      const page = await fetchOcrPage(url, robots);
       if (
         !page.ok ||
         !page.pdf ||
@@ -604,12 +620,14 @@ async function main() {
         page.bytes.byteLength > MAX_PDF_BYTES
       ) {
         counts.unreachable += 1;
-        documents.push({ host: target.host, url, outcome: "unreachable" });
+        documents.push({ host: target.host, url: page.finalUrl ?? url, outcome: "unreachable" });
         continue;
       }
 
+      const finalUrl = page.finalUrl ?? url;
+
       if (DRY_RUN) {
-        documents.push({ host: target.host, url, outcome: "dry-run", bytes: page.bytes.byteLength });
+        documents.push({ host: target.host, url: finalUrl, outcome: "dry-run", bytes: page.bytes.byteLength });
         continue;
       }
 
@@ -621,11 +639,11 @@ async function main() {
       const layer = await readPdfText(page.bytes);
       if (typeof layer === "string" && layer.replace(/\s+/g, "").length >= MIN_TEXT_LAYER_CHARS) {
         counts["has-text-layer"] += 1;
-        documents.push({ host: target.host, url, outcome: "has-text-layer" });
+        documents.push({ host: target.host, url: finalUrl, outcome: "has-text-layer" });
         continue;
       }
 
-      const slug = url.replace(/[^a-z0-9]+/gi, "-").slice(-80);
+      const slug = finalUrl.replace(/[^a-z0-9]+/gi, "-").slice(-80);
       const workspace = path.join(WORK_DIR, `${target.host}-${slug}`);
       const file = path.join(workspace, "document.pdf");
       mkdirSync(workspace, { recursive: true });
@@ -634,13 +652,13 @@ async function main() {
       const ocr = await ocrPdf(file, workspace);
       if (!ocr.ok) {
         counts["ocr-failed"] += 1;
-        documents.push({ host: target.host, url, outcome: "ocr-failed", evidence: ocr.reason });
+        documents.push({ host: target.host, url: finalUrl, outcome: "ocr-failed", evidence: ocr.reason });
         continue;
       }
 
       // RULE 3. The transcription is fed in as TEXT, so the HTML stripper is not
       // asked to strip markup that was never there.
-      readings.push({ url, reading: readVenueDrinkPrices(ocr.text) });
+      readings.push({ url: finalUrl, reading: readVenueDrinkPrices(ocr.text) });
     }
 
     const observedAt = new Date().toISOString();

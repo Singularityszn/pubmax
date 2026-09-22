@@ -208,7 +208,7 @@ describe("the page a redirect chain landed on", () => {
 });
 
 describe("both price crawl lanes spend the one rule", () => {
-  it("asks the landing rule about every fetch, rather than trusting the asked-for URL", async () => {
+  it("uses guarded manual redirects rather than trusting the asked-for URL", async () => {
     const { readFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     for (const lane of ["run.mjs", "ocr.mjs"]) {
@@ -216,10 +216,8 @@ describe("both price crawl lanes spend the one rule", () => {
         join(process.cwd(), "scripts/harvest/uk-prices", lane),
         "utf8",
       );
-      // A lane that follows redirects must read where it landed. Both used to
-      // compute `finalUrl` and hand it to nothing.
-      expect(source, lane).toContain('redirect: "follow"');
-      expect(source, lane).toContain("harvestRedirectLanding(url, response.url)");
+      expect(source, lane).toContain("fetchHarvestedPage(");
+      expect(source, lane).not.toContain('redirect: "follow"');
       expect(source, lane).not.toContain("finalUrl: response.url || url");
     }
   });

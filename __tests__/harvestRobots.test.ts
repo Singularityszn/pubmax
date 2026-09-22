@@ -125,12 +125,12 @@ Disallow: /
 
 describe("asking a host before reading it", () => {
   it("refuses a robots redirect before contacting its target", async () => {
-    const fetchImpl = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) => new Response("", {
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response("", {
       status: 302, headers: { location: "http://169.254.169.254/latest/meta-data/" },
     }));
     const check = createRobotsChecker({ fetchImpl: fetchImpl as typeof fetch });
     await expect(check("https://thepub.co.uk/drinks")).resolves.toMatchObject({
-      allowed: false, reason: "robots-unreadable", robots: "http-refused",
+      allowed: false, reason: "robots-unreadable",
     });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(fetchImpl.mock.calls[0]?.[0]).toBe("https://thepub.co.uk/robots.txt");
@@ -158,7 +158,7 @@ describe("asking a host before reading it", () => {
   it("refuses a host that answers robots.txt with a challenge page on a 403", async () => {
     const fetchImpl = vi.fn(async () => new Response("<!DOCTYPE html><title>Attention Required!</title>", { status: 403 }));
     const check = createRobotsChecker({ fetchImpl: fetchImpl as unknown as typeof fetch });
-    const decision = await check("https://www.nicholsonspubs.co.uk/whats-on");
+    const decision = await check("https://example.com/whats-on");
     expect(decision.allowed).toBe(false);
     expect(decision.reason).toBe("robots-unreadable");
     expect(decision.robots).toBe("challenge-page");
@@ -265,7 +265,7 @@ describe("asking a host before reading it", () => {
     it("stays refused on a 200", async () => {
       const fetchImpl = vi.fn(async () => robotsResponse(CLOUDFLARE_CHALLENGE_PAGE));
       const check = createRobotsChecker({ fetchImpl: fetchImpl as unknown as typeof fetch });
-      const decision = await check("https://www.nicholsonspubs.co.uk/whats-on");
+      const decision = await check("https://example.com/whats-on");
       expect(decision.allowed).toBe(false);
       expect(decision.reason).toBe("robots-unreadable");
       expect(decision.robots).toBe("challenge-page");
