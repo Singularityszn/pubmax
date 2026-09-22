@@ -231,6 +231,8 @@ type PubMapCanvasProps = {
   filteredVenueCount?: number;
   /** Parent's slim venue read has settled for the active city. */
   venueDataReady: boolean;
+  /** National arrival reveals the basemap before zoom-gated pub reads. */
+  nationalBrowse?: boolean;
   route: Venue[];
   selectedVenueId: string;
   onVenueClick: (id: string) => void;
@@ -531,6 +533,7 @@ export default function PubMapCanvas({
   venues,
   filteredVenueCount = venues.length,
   venueDataReady,
+  nationalBrowse = false,
   route,
   selectedVenueId,
   onVenueClick,
@@ -1736,6 +1739,7 @@ export default function PubMapCanvas({
       }
     };
     const hasPinsPaintable = () => {
+      if (nationalBrowse) return basemapTileReadyForPaint;
       if (!venueDataReadyRef.current || !map.getSource("pubs")) return false;
       return map.isSourceLoaded("pubs");
     };
@@ -1931,8 +1935,9 @@ export default function PubMapCanvas({
       // On a phone, local pub GeoJSON is the useful content that the reader
       // is waiting for. Do not hold its first painted frame behind remote
       // basemap tiles; tile failures still use their independent classifier
-      // and retry lane below.
-      requiresBasemapPaint: !phoneFirstImpression,
+      // and retry lane below. National overview needs the basemap because
+      // its venue reads begin only after the reader zooms into an area.
+      requiresBasemapPaint: nationalBrowse || !phoneFirstImpression,
       confirmVisibleFrameBeforeReveal: phoneFirstImpression,
       visibleFrameHoldMs: phoneFirstImpression ? PHONE_PIN_COMPOSITE_HOLD_MS : 0,
       setPinsVisible: (visible) => {
@@ -3346,6 +3351,7 @@ export default function PubMapCanvas({
     // sync in their own effect — toggling showLandmarks must not remount MapLibre.
     cinematic,
     cityId,
+    nationalBrowse,
     selectLandmark,
     initAttempt,
     transitLinesPath,

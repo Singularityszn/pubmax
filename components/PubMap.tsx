@@ -2285,12 +2285,13 @@ export default function PubMap({
 
   const mapLoadingStage = useMemo(
     () => ({
+      nationalBrowse: ukNationalBrowse,
       pinsRevealed,
       canvasReady: mapCanvasReady,
       slimLoaded: loaded,
       slimPinCount: slimPins.length,
     }),
-    [pinsRevealed, mapCanvasReady, loaded, slimPins.length],
+    [ukNationalBrowse, pinsRevealed, mapCanvasReady, loaded, slimPins.length],
   );
   const mapLoadingProgress = mapLoadingProgressPercent(mapLoadingStage);
   const mapCanvasAvailabilityState = mapCanvasAvailability({
@@ -6118,6 +6119,7 @@ export default function PubMap({
       >
       <PubMapCanvas
         venues={canvasVenues}
+        nationalBrowse={ukNationalBrowse}
         filteredVenueCount={canvasVenues.length}
         venueDataReady={loaded && loadedCityId === cityId}
         // Clean first view stays route-free. Once the user maps a crawl, the
