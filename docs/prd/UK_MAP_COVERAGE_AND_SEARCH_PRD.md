@@ -17,7 +17,8 @@ vector style), not a flat sticker map.
 
 This wave makes search country-wide and intent-aware, seeds Wikipedia/Wikidata
 enrichment for notable pubs and POIs, and sets the honest path for denser
-London bar coverage - without scraping Reddit or inventing prices.
+London bar coverage without inventing prices. The separate London Reddit evidence lane remains closed under the source
+permission rules below.
 
 ## What already ships (do not rebuild)
 
@@ -35,7 +36,13 @@ Gaps this PRD closes first: **national pub name search**, **query intent**,
 
 ## Anti-goals (law)
 
-1. Do not scrape Instagram, Reddit, TripAdvisor, or logged-in third-party sites.
+1. Do not scrape Instagram, TripAdvisor, or logged-in third-party sites. London
+   Reddit collection remains refused by the source registry. Any future permitted
+   collection must use dated, first-person factual claims with comment attribution.
+   This is a separate community-evidence lane, not an operator price feed or
+   a PUBMAXX account report. `lib/harvest/sourcePolicy.ts` records its source
+   decisions; the observed robots refusal keeps live collection closed until
+   permission is established. Never bypass robots, authentication or API terms.
 2. Do not merge UK base pubs into `venues_slim*` or invent `cheapestPrice`.
 3. Do not treat Wikipedia prose as a price or access fact.
 4. Do not ship a 2 MB national index to every phone; national pub search is

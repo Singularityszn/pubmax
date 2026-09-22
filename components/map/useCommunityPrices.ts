@@ -1,5 +1,6 @@
 "use client";
 
+import { isValidCommunityPriceObservationRow, communityPriceEvidenceObservationFromRow, type CommunityPriceEvidenceObservation } from "@/lib/communityPriceObservation";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import {
@@ -149,6 +150,8 @@ export type CommunityPricesState = {
    *  purpose - this is what the venue sheet renders, so every submission shows
    *  there, dated, whether or not it has earned the map. */
   byVenueId: Map<string, CommunityPrice[]>;
+  /** Attributed external evidence never enters map authority or direct logs. */
+  evidenceByVenueId: Map<string, CommunityPriceEvidenceObservation[]>;
   /** Community-observed pub signals loaded by the same per-venue request. */
   signalsByVenueId: Map<string, CommunityVenueSignal[]>;
   /** The freshest BEER price at a venue - the pin's CANDIDATE, not its verdict.
@@ -295,6 +298,8 @@ function readPrices(value: unknown): CommunityPrice[] | null {
   const out: CommunityPrice[] = [];
   for (const row of rows) {
     if (!row || typeof row !== "object") continue;
+    // Old mixed-lane payloads must not lose provenance and become direct logs.
+    if ("evidence" in row) continue;
     const price = row as Partial<CommunityPrice>;
     if (typeof price.priceGbp !== "number" || !Number.isFinite(price.priceGbp)) continue;
     if (typeof price.submittedAt !== "number" || !Number.isFinite(price.submittedAt)) continue;
@@ -320,6 +325,20 @@ function readPrices(value: unknown): CommunityPrice[] | null {
     });
   }
   return rows.length > 0 && out.length === 0 ? null : out;
+}
+
+/** Decode external evidence through the same validation as the source pack. */
+export function readVenueCommunityEvidenceLoad(value: unknown): CommunityPriceEvidenceObservation[] {
+  if (!value || typeof value !== "object") return [];
+  const rows = (value as { communityEvidence?: unknown }).communityEvidence;
+  if (!Array.isArray(rows)) return [];
+  const byId = new Map<string, CommunityPriceEvidenceObservation>();
+  for (const row of rows) {
+    if (!isValidCommunityPriceObservationRow(row)) continue;
+    const evidence = communityPriceEvidenceObservationFromRow(row);
+    byId.set(evidence.id, evidence);
+  }
+  return [...byId.values()].sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt));
 }
 
 function readSignalCandidate(
@@ -595,6 +614,7 @@ export function rollbackOptimisticVenueSignal(
 
 export function useCommunityPrices(): CommunityPricesState {
   const [byVenueId, setByVenueId] = useState<Map<string, CommunityPrice[]>>(() => new Map());
+  const [evidenceByVenueId, setEvidenceByVenueId] = useState<Map<string, CommunityPriceEvidenceObservation[]>>(() => new Map());
   const [signalsByVenueId, setSignalsByVenueId] = useState<
     Map<string, CommunityVenueSignal[]>
   >(() => new Map());
@@ -672,6 +692,8 @@ export function useCommunityPrices(): CommunityPricesState {
             markVenueRead(venueId, "degraded");
             return;
           }
+          const evidence = readVenueCommunityEvidenceLoad(payload).filter((row) => row.venueId === venueId);
+          setEvidenceByVenueId((current) => new Map(current).set(venueId, evidence));
           const { prices } = result;
           const { signals } = signalResult;
           const degraded =
@@ -1262,6 +1284,7 @@ export function useCommunityPrices(): CommunityPricesState {
 
   return {
     byVenueId,
+    evidenceByVenueId,
     signalsByVenueId,
     freshestByVenueId,
     noAlcoholIndexStatus,

@@ -138,6 +138,7 @@ function venue(pubUrl: string): Venue {
 
 function communityPrices(venueId: string): CommunityPricesState {
   return {
+    evidenceByVenueId: new Map(),
     byVenueId: new Map([[venueId, []]]),
     signalsByVenueId: new Map(),
     freshestByVenueId: new Map(),

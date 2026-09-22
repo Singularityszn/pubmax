@@ -41,6 +41,7 @@
 // Reads and reader reports remain keyless. New contributions require configured
 // authentication plus a completed account profile.
 
+import { communityPriceEvidenceForVenue } from "@/lib/communityPriceObservationLoader.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
@@ -580,15 +581,17 @@ export async function GET(request: Request): Promise<Response> {
       readCommunityPricesWithStatus(priceVenueId),
       readCommunityVenueSignalsWithStatus(priceVenueId),
     ]);
+    const communityEvidence = communityPriceEvidenceForVenue(priceVenueId);
     const degraded = result.degraded || signalResult.degraded;
     return jsonNoStore(
       degraded
         ? {
             prices: result.prices,
             signals: signalResult.signals,
+            communityEvidence,
             degraded: true,
           }
-        : { prices: result.prices, signals: signalResult.signals },
+        : { prices: result.prices, signals: signalResult.signals, communityEvidence },
       { status: 200 },
     );
   } catch {

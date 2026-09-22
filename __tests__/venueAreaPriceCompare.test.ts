@@ -320,7 +320,8 @@ describe("VenueOverviewTab area-price compare mount", () => {
 
   function communityPrices(venueId: string): CommunityPricesState {
     return {
-      byVenueId: new Map([[venueId, []]]),
+      evidenceByVenueId: new Map(),
+    byVenueId: new Map([[venueId, []]]),
       signalsByVenueId: new Map(),
       freshestByVenueId: new Map(),
       noAlcoholIndexStatus: "idle",

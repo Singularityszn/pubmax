@@ -1,0 +1,15 @@
+{
+  "recordedAt": "2026-09-21",
+  "model": "jev-fixture",
+  "cases": {
+    "roebuck-guinness": {
+      "isActualPriceReport": 0.88
+    },
+    "devonshire-pint-wish": {
+      "isActualPriceReport": 0.78
+    },
+    "wish-hypothetical": {
+      "isActualPriceReport": 0.18
+    }
+  }
+}

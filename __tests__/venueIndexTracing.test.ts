@@ -178,6 +178,13 @@ describe("runtime data-pack tracing", () => {
     }
   });
 
+  it("includes Reddit evidence in the deployed price read route", () => {
+    const pack = RUNTIME_DATA_PACKS.find((candidate) => candidate.id === "community-price-evidence");
+    expect(pack).toEqual({ id: "community-price-evidence", modules: ["lib/communityPriceObservationLoader.server.ts"],
+      files: ["./public/data/community_price_observations/london_reddit.json"] });
+    expect(runtimeDataPackRouteIncludes(root)["/api/price-submit"]).toContain("./public/data/community_price_observations/london_reddit.json");
+  });
+
   it("carries the shared Pint Price reader to the landing pages and the sitemap", () => {
     const pack = RUNTIME_DATA_PACKS.find(
       (candidate) => candidate.id === "pint-price-landing-dataset",

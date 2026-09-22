@@ -81,7 +81,7 @@ const whatIsPricedCriteria = {
   },
 };
 
-function ukPriceQuestionsForBatch(candidateCount: number): Questions {
+export function ukPriceQuestionsForBatch(candidateCount: number): Questions {
   const drinkLabels = DRINK_CATEGORIES.join(", ");
   const questions: Questions = {};
   for (let index = 0; index < candidateCount; index += 1) {

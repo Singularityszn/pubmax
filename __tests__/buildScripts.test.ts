@@ -98,7 +98,7 @@ afterEach(() => {
 describe("build scripts", () => {
   it("regenerates bundled data artifacts before the production build", () => {
     expect(packageJson.scripts?.prebuild).toBe(
-      "npm run prepare:maplibre-worker && npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base && npm run build:discover-board",
+      "npm run prepare:maplibre-worker && npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base && npm run ingest:community-price-observations && npm run build:discover-board",
     );
   });
 
@@ -113,7 +113,7 @@ describe("build scripts", () => {
 
   it("regenerates bundled data artifacts before data validation", () => {
     expect(packageJson.scripts?.["prevalidate-data"]).toBe(
-      "npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base",
+      "npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base && npm run ingest:community-price-observations",
     );
   });
 

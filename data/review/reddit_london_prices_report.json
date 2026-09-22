@@ -1,0 +1,31 @@
+{
+  "generatedAt": "2026-09-22T09:54:23.242Z",
+  "threadsScanned": 0,
+  "candidates": 0,
+  "passing": 0,
+  "landed": 0,
+  "rejected": 0,
+  "reviewCount": 3,
+  "findings": [
+    {
+      "sourceUrl": "https://www.reddit.com/r/london/search.json?q=pint+price&restrict_sr=on&sort=relevance&t=year&limit=25",
+      "reason": "BoundedHarvestResourceError: robots.txt refused https://www.reddit.com/r/london/search.json?q=pint+price&restrict_sr=on&sort=relevance&t=year&limit=25: https://www.reddit.com/robots.txt disallows /r/london/search.json?q=pint+price&restrict_sr=on&sort=relevance&t=year&limit=25 for `*` (rule: /)."
+    },
+    {
+      "sourceUrl": "https://www.reddit.com/r/londonpubs/search.json?q=pint+%C2%A3&restrict_sr=on&sort=relevance&t=year&limit=25",
+      "reason": "BoundedHarvestResourceError: robots.txt refused https://www.reddit.com/r/londonpubs/search.json?q=pint+%C2%A3&restrict_sr=on&sort=relevance&t=year&limit=25: https://www.reddit.com/robots.txt disallows /r/londonpubs/search.json?q=pint+%C2%A3&restrict_sr=on&sort=relevance&t=year&limit=25 for `*` (rule: /)."
+    },
+    {
+      "sourceUrl": "https://www.reddit.com/r/CasualUK/search.json?q=pint+London+%C2%A3&restrict_sr=on&sort=relevance&t=year&limit=25",
+      "reason": "BoundedHarvestResourceError: robots.txt refused https://www.reddit.com/r/CasualUK/search.json?q=pint+London+%C2%A3&restrict_sr=on&sort=relevance&t=year&limit=25: https://www.reddit.com/robots.txt disallows /r/CasualUK/search.json?q=pint+London+%C2%A3&restrict_sr=on&sort=relevance&t=year&limit=25 for `*` (rule: /)."
+    }
+  ],
+  "queries": [
+    "site:reddit.com/r/london pint price £"
+  ],
+  "spend": {
+    "tavily": 0,
+    "typesafe": 0
+  },
+  "byCategory": {}
+}

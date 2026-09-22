@@ -21,9 +21,26 @@ import {
   type VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
 import { COMMUNITY_PRICE_NOTE } from "@/lib/venues";
-import { formatPrice } from "@/lib/venues";
+import { formatPrice, formatObservedAt } from "@/lib/venues";
+import { drinkMeasureName } from "@/lib/drinkMeasure";
+import { communityPriceEvidenceNote, type CommunityPriceEvidenceObservation } from "@/lib/communityPriceObservation";
+import { isRedditCommentUrl } from "@/lib/redditEvidence";
 
 import "./venueDrinkPrices.css";
+
+function CommunityEvidenceFromReddit({ rows }: { rows: readonly CommunityPriceEvidenceObservation[] }) {
+  if (rows.length === 0) return null;
+  return <section className="communityEvidenceFromReddit" aria-label="Community evidence from Reddit">
+    <p className="communityEvidenceHeading">Community evidence from Reddit</p>
+    <ul className="communityEvidenceList">{rows.map((row) => <li key={row.id} className="communityEvidenceRow">
+      <span className="communityEvidenceDrink">{row.drinkName}{row.measure ? ` · ${drinkMeasureName(row.measure, row.measureLabel)}` : ""}</span>
+      <span className="communityEvidenceFigure">{formatPrice(row.priceGbp)}</span>
+      <span className="communityEvidenceDate">{formatObservedAt(row.observedAt)}</span>
+      {isRedditCommentUrl(row.sourceUrl) ? <a href={row.sourceUrl} target="_blank" rel="noopener noreferrer">Reported on Reddit</a> : <span>Reported on Reddit</span>}
+      <span className="communityEvidenceCaveat">{communityPriceEvidenceNote(row)}</span>
+    </li>)}</ul>
+  </section>;
+}
 
 /**
  * What drinkers have logged at ONE pub, one row per drink, the map's lane first.
@@ -96,6 +113,7 @@ export default function VenueDrinkPrices({
   revealRecord?: boolean;
   revealRecordLate?: boolean;
 }) {
+  const evidenceRows = communityPrices.evidenceByVenueId?.get(venueId) ?? [];
   const ordered = orderVenueDrinkPrices(rows, activeLane);
   const [lead, ...rest] = ordered;
   // A beer figure wears its price BAND (lib/priceBand.ts); the pint terciles
@@ -120,12 +138,12 @@ export default function VenueDrinkPrices({
           readStatus,
         );
 
-  if (!lead && !laneEmptyNote) return null;
+  if (!lead && !laneEmptyNote && evidenceRows.length === 0) return null;
 
   return (
     <section
       className="venueDrinkPrices"
-      aria-label={`Drink prices logged at ${venueName}`}
+      aria-label={`Drink prices and evidence at ${venueName}`}
     >
       {lead ? (
         <div className="contributorPrice communityPriceRow">
@@ -207,6 +225,7 @@ export default function VenueDrinkPrices({
         </ul>
       ) : null}
 
+      <CommunityEvidenceFromReddit rows={evidenceRows} />
       {laneEmptyNote ? (
         <div className="venueDrinkPricesEmpty">
           <p className="venueDrinkPricesEmptyNote" role="status">

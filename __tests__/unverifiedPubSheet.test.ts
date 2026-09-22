@@ -37,6 +37,7 @@ function state(
   readStatus: VenuePriceReadStatus = known ? "ready" : "loading",
 ): CommunityPricesState {
   return {
+    evidenceByVenueId: new Map(),
     byVenueId: known ? new Map([[pub.id, rows]]) : new Map(),
     signalsByVenueId: new Map(),
     freshestByVenueId: new Map(),
