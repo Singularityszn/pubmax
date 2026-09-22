@@ -40,6 +40,7 @@ import {
 } from "../lib/harvest/sourcePolicy.ts";
 import {
   cheapestStatedPint,
+  cheapestStatedPintRow,
   coverageLine,
   readChainPintPrices,
 } from "../lib/harvest/chainMenuPrices.ts";
@@ -174,13 +175,14 @@ async function main() {
       });
       drops.push(...reading.drops);
       row.pagesRead += 1;
-      const cheapest = cheapestStatedPint(reading);
+      const cheapest = cheapestStatedPintRow(reading);
       if (cheapest === null) row.pagesWithNoPrice += 1;
       else {
         row.venuesPriced += 1;
         rows.push({
           url,
-          priceGbp: cheapest,
+          priceGbp: cheapest.priceGbp,
+          ...(cheapest.drinkLabel ? { drinkLabel: cheapest.drinkLabel } : {}),
           sourceId: source.id,
           label: source.label,
           observedAt: new Date().toISOString(),

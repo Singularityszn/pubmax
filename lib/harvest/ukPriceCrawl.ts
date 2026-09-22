@@ -253,7 +253,59 @@ export type UkPriceCandidate = {
   verbatim: string;
   /** The text either side, which is what the category and food words are read from. */
   context: string;
+  /** Trimmed printed menu text beside the figure, when the page named the drink. */
+  drinkLabel?: string;
 };
+
+export type UkPriceCategoryRow = {
+  category: DrinkCategory;
+  priceGbp: number;
+  drinkLabel?: string;
+};
+
+const UK_PRICE_DRINK_LABEL_MAX = 80;
+
+function normalizeHarvestDrinkLabel(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.length <= UK_PRICE_DRINK_LABEL_MAX) return trimmed;
+  return trimmed.slice(0, UK_PRICE_DRINK_LABEL_MAX);
+}
+
+/**
+ * The menu text immediately before a verbatim £ figure inside the reader's
+ * context window. This is what site-harvest rows carry as `drinkLabel`.
+ */
+export function drinkLabelFromPriceContext(
+  context: string,
+  verbatim: string,
+  priceAtInContext = context.indexOf(verbatim),
+): string | null {
+  const priceAt = priceAtInContext;
+  if (priceAt < 0) return null;
+
+  const before = context.slice(0, priceAt);
+  let start = 0;
+  const priorPrices = [...before.matchAll(/£\s?\d{1,2}(?:\.\d{2})?\b/g)];
+  if (priorPrices.length > 0) {
+    const last = priorPrices[priorPrices.length - 1];
+    start = (last.index ?? 0) + last[0].length;
+  }
+  for (const sep of [". ", "; ", " | ", "| ", " - ", " - "]) {
+    const at = before.lastIndexOf(sep, priceAt);
+    if (at >= start) start = at + sep.length;
+  }
+
+  const raw = context.slice(start, priceAt).replace(/\s+/g, " ").trim();
+  if (!raw) return null;
+  return normalizeHarvestDrinkLabel(raw);
+}
+
+/** Dedup key for site-harvest rows: category plus normalized printed name. */
+export function siteHarvestPriceKey(category: DrinkCategory, drinkLabel?: string | null): string {
+  const label = typeof drinkLabel === "string" ? drinkLabel.trim().toLowerCase() : "";
+  return `${category}\0${label}`;
+}
 
 /** One £ figure on a page before category judgment (TypeSafe or regex). */
 export type UkPriceRawCandidate = {
@@ -399,10 +451,12 @@ function decideKeylessUkPriceAt(
   priceGbp: number,
   verbatim: string,
 ): { kept?: UkPriceCandidate; drop?: UkPriceDropReason } {
+  const contextStart = Math.max(0, at - PRICE_CONTEXT_CHARS);
   const context = text.slice(
-    Math.max(0, at - PRICE_CONTEXT_CHARS),
+    contextStart,
     at + verbatim.length + PRICE_CONTEXT_CHARS,
   );
+  const priceAtInContext = at - contextStart;
 
   if (!text.includes(verbatim)) {
     return { drop: "not-verbatim-on-page" };
@@ -438,7 +492,9 @@ function decideKeylessUkPriceAt(
   if (category === "beer" && isBottledMeasure(before)) {
     return { drop: "bottled-measure-not-a-pint" };
   }
-  return { kept: { priceGbp, category, verbatim, context } };
+  const drinkLabel =
+    drinkLabelFromPriceContext(context, verbatim, priceAtInContext) ?? undefined;
+  return { kept: { priceGbp, category, verbatim, context, drinkLabel } };
 }
 
 export function decideKeylessUkPriceCandidate(
@@ -528,20 +584,28 @@ export function pageMayPriceThisPub(
 }
 
 /**
- * The cheapest figure the page states per category. A pub's own row carries one
- * price per drink, and the cheapest is the one a drinker can actually pay.
+ * The cheapest figure the page states per named drink. Rows that share a
+ * category but name different drinks (Coke Zero vs Diet Coke) stay distinct.
  */
-export function cheapestPerCategory(
-  reading: UkPriceReading,
-): ReadonlyArray<{ category: DrinkCategory; priceGbp: number }> {
-  const low = new Map<DrinkCategory, number>();
+export function cheapestPerCategory(reading: UkPriceReading): ReadonlyArray<UkPriceCategoryRow> {
+  const low = new Map<string, UkPriceCategoryRow>();
   for (const row of reading.kept) {
-    const seen = low.get(row.category);
-    if (seen === undefined || row.priceGbp < seen) low.set(row.category, row.priceGbp);
+    const drinkLabel = row.drinkLabel;
+    const key = siteHarvestPriceKey(row.category, drinkLabel);
+    const seen = low.get(key);
+    if (!seen || row.priceGbp < seen.priceGbp) {
+      low.set(key, {
+        category: row.category,
+        priceGbp: row.priceGbp,
+        ...(drinkLabel ? { drinkLabel } : {}),
+      });
+    }
   }
-  return [...low.entries()]
-    .map(([category, priceGbp]) => ({ category, priceGbp }))
-    .sort((a, b) => a.category.localeCompare(b.category));
+  return [...low.values()].sort(
+    (a, b) =>
+      a.category.localeCompare(b.category) ||
+      (a.drinkLabel ?? "").localeCompare(b.drinkLabel ?? ""),
+  );
 }
 
 // --- page discovery -------------------------------------------------------

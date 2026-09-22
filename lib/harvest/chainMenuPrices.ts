@@ -17,6 +17,7 @@
 import {
   CATEGORY_PRICE_BANDS,
   pageText as harvestPageText,
+  drinkLabelFromPriceContext,
   readVenueDrinkPrices,
   type UkPriceDropReason,
   type UkPriceReading,
@@ -45,6 +46,7 @@ type ChainPriceCandidate = {
   verbatim: string;
   /** The text either side, which is what the drink and food words are read from. */
   context: string;
+  drinkLabel?: string;
 };
 
 export type ChainPriceReading = {
@@ -79,7 +81,9 @@ export function chainPintReadingFromUk(reading: UkPriceReading): ChainPriceReadi
   const drops: ChainPriceDropReason[] = [];
   for (const row of reading.kept) {
     if (row.category === "beer") {
-      kept.push({ priceGbp: row.priceGbp, verbatim: row.verbatim, context: row.context });
+      const drinkLabel =
+        row.drinkLabel ?? drinkLabelFromPriceContext(row.context, row.verbatim) ?? undefined;
+      kept.push({ priceGbp: row.priceGbp, verbatim: row.verbatim, context: row.context, drinkLabel });
     } else {
       drops.push("no-drink-word-nearby");
     }
@@ -103,6 +107,21 @@ export function readChainPintPrices(html: string): ChainPriceReading {
  * The cheapest pint a page states, which is the figure a pub's own row carries.
  * Null when the page states none.
  */
+
+/**
+ * The cheapest stated pint and its printed menu name, when the page named it.
+ */
+export function cheapestStatedPintRow(
+  reading: ChainPriceReading,
+): { priceGbp: number; drinkLabel?: string } | null {
+  if (reading.kept.length === 0) return null;
+  let best = reading.kept[0];
+  for (const row of reading.kept) {
+    if (row.priceGbp < best.priceGbp) best = row;
+  }
+  return { priceGbp: best.priceGbp, drinkLabel: best.drinkLabel };
+}
+
 export function cheapestStatedPint(reading: ChainPriceReading): number | null {
   if (reading.kept.length === 0) return null;
   return reading.kept.reduce((low, row) => (row.priceGbp < low ? row.priceGbp : low), Infinity);

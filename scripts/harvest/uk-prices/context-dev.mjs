@@ -129,6 +129,7 @@ export function createContextDevPriceReader(options = {}) {
       rows: cheapestPerCategory(reading).map((row) => ({
         category: row.category,
         priceGbp: row.priceGbp,
+        ...(row.drinkLabel ? { drinkLabel: row.drinkLabel } : {}),
         sourceUrl: result.url || url,
         observedAt: new Date().toISOString(),
         linesOnPage: reading.kept.length,

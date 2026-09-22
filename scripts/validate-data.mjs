@@ -105,6 +105,7 @@ const POSTCODE_COORDINATE_DECISION_INPUTS = [
 const DRINK_PRICE_UPDATES_DIR = join(DATA_DIR, "drink_price_updates");
 const PRICE_ESTIMATE_BASELINES_PATH = join(DATA_DIR, "price_estimates", "baselines.json");
 const UK_PRICE_BUNDLE_DIR = join(DATA_DIR, "uk_prices");
+const UK_PRICE_BUNDLE_DRINK_LABEL_MAX = 80;
 const WHATS_ON_DIR = join(DATA_DIR, "whats_on");
 const DRINK_CATEGORIES = new Set([
   "beer",
@@ -2737,6 +2738,25 @@ function validateUkPriceBundle() {
       }
       if (!Number.isInteger(row.sampleSize) || row.sampleSize < ESTIMATE_MIN_SAMPLE) {
         errs.add(`${where}: an estimate needs a sample of at least ${ESTIMATE_MIN_SAMPLE}`);
+      }
+    }
+    if (row.drinkLabel !== undefined) {
+      if (typeof row.drinkLabel !== "string" || !row.drinkLabel.trim()) {
+        errs.add(`${where}: drinkLabel must be a non-empty string when present`);
+      } else if (row.drinkLabel.length > UK_PRICE_BUNDLE_DRINK_LABEL_MAX) {
+        errs.add(
+          `${where}: drinkLabel length ${row.drinkLabel.length} exceeds ${UK_PRICE_BUNDLE_DRINK_LABEL_MAX}`,
+        );
+      }
+    }
+    if (row.drinkSubtype !== undefined) {
+      if (typeof row.drinkSubtype !== "string" || !row.drinkSubtype.trim()) {
+        errs.add(`${where}: drinkSubtype must be a non-empty string when present`);
+      } else if (!row.drinkSubtype.startsWith(`${row.category}-`)) {
+        errs.add(`${where}: drinkSubtype ${JSON.stringify(row.drinkSubtype)} does not match category`);
+      }
+      if (typeof row.drinkLabel !== "string" || !row.drinkLabel.trim()) {
+        errs.add(`${where}: drinkSubtype requires drinkLabel on the same row`);
       }
     }
   });

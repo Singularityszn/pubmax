@@ -56,6 +56,16 @@ const SERVER_IO_EXEMPTIONS = {
     reason: "Reads source files while Next configuration builds tracing includes.",
     removeWhen: "Tracing metadata no longer reads project files.",
   },
+  "lib/siteHarvestLedger.ts": {
+    capabilities: ["node-runtime"],
+    kind: "config",
+    consumers: [
+      "scripts/harvest_soft_drinks_menus.mjs",
+      "__tests__/siteHarvestLedger.test.ts",
+    ],
+    reason: "Dedupes committed site_harvest.jsonl rows against bundle collect keys.",
+    removeWhen: "Site harvest moves off the JSONL ledger.",
+  },
 } as const;
 
 const SERVER_IO_MODULES = new Set([

@@ -1,6 +1,7 @@
 // Raw `data/uk_prices/site_harvest.jsonl` rows share the bundle's collect key and
 // supersede ordering so the ledger cannot drift from what `build_uk_price_bundle` ships.
 
+
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -19,11 +20,13 @@ export type SiteHarvestLedgerRow = {
   sourceUrl?: string;
   name?: string | null;
   host?: string;
+  drinkLabel?: string;
+  drinkName?: string;
 };
 
 const SITE_HARVEST_LANE: UkPriceBundleLane = "site-harvest";
 
-export function resolveSiteHarvestVenueId(
+function resolveSiteHarvestVenueId(
   row: SiteHarvestLedgerRow,
   curatedOwners: ReadonlyMap<string, string>,
 ): string | null {
@@ -41,10 +44,12 @@ export function siteHarvestLedgerCollectKey(
   if (!venueId || typeof row.category !== "string" || row.category.length === 0) {
     return null;
   }
+  const raw = row.drinkLabel ?? row.drinkName;
   return ukPriceBundleCollectKey({
     venueId,
     category: row.category,
     lane: SITE_HARVEST_LANE,
+    drinkLabel: typeof raw === "string" ? raw : undefined,
   });
 }
 
@@ -73,6 +78,9 @@ function ledgerRowAsBundleRow(
     observedAt: row.observedAt,
     basis: null,
     sampleSize: null,
+    ...(typeof row.drinkLabel === "string" && row.drinkLabel.trim()
+      ? { drinkLabel: row.drinkLabel.trim() }
+      : {}),
   };
 }
 

@@ -48,8 +48,15 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
+import {
+  bundleDrinkFieldsFromPrintedName,
+  bundleRowDedupeDrinkKey,
+} from "@/lib/bundleDrinkFields";
 import { isDemoDrinkProvenance } from "@/lib/drinks";
-import { isHarvestableOperatorUrl } from "@/lib/harvest/sourcePolicy";
+import {
+  isHarvestableDrinkUpdateUrl,
+  isHarvestableOperatorUrl,
+} from "@/lib/harvest/sourcePolicy";
 import { estimateForPub } from "@/lib/priceEstimate";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
 import {
@@ -165,7 +172,7 @@ function collectRows(report) {
       report.droppedInvalidRow += 1;
       return;
     }
-    const key = ukPriceBundleCollectKey(row);
+    const key = `${row.venueId} ${row.category} ${bundleRowDedupeDrinkKey(row)} ${row.lane}`;
     if (!bundleRowSupersedes(row, held.get(key))) return;
     held.set(key, row);
   };
@@ -206,7 +213,7 @@ function collectRows(report) {
 /** Lane one: the prices a pub's or a chain's own site stated. */
 function addSiteHarvestRows(harvestRows, owners, push, report) {
   for (const row of harvestRows) {
-    if (!isHarvestableOperatorUrl(row.sourceUrl ?? "")) {
+    if (!isHarvestableDrinkUpdateUrl(row.sourceUrl ?? "")) {
       report.droppedRefusedHost += 1;
       continue;
     }
@@ -231,6 +238,10 @@ function addSiteHarvestRows(harvestRows, owners, push, report) {
       observedAt: row.observedAt,
       basis: null,
       sampleSize: null,
+      ...bundleDrinkFieldsFromPrintedName(
+        row.drinkLabel ?? row.drinkName ?? null,
+        row.category,
+      ),
     });
   }
 }
@@ -247,7 +258,7 @@ function addDrinkPriceUpdateRows(updates, push, report) {
       report.droppedDemoFixture += 1;
       continue;
     }
-    if (!isHarvestableOperatorUrl(update?.source?.url ?? "")) {
+    if (!isHarvestableDrinkUpdateUrl(update?.source?.url ?? "")) {
       report.droppedRefusedHost += 1;
       continue;
     }
@@ -263,6 +274,7 @@ function addDrinkPriceUpdateRows(updates, push, report) {
       observedAt: update.observedAt,
       basis: null,
       sampleSize: null,
+      ...bundleDrinkFieldsFromPrintedName(update.drinkName, update.category),
     });
   }
 }
