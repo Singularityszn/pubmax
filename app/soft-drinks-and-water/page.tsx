@@ -5,7 +5,7 @@ import DrinkSubtypePricedView, {
   DEFAULT_SOFT_DRINKS_WATER_LAUNCH_IDS,
 } from "@/components/drinks/DrinkSubtypePricedView";
 import SiteNav from "@/components/nav/SiteNav";
-import { SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS } from "@/lib/drinkSubtypeObservedPrice";
+import { SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID } from "@/lib/drinkSubtypeObservedPrice";
 import { findSubtype } from "@/lib/drinkSubtypes";
 import { loadSoftDrinksWaterView } from "@/lib/drinkSubtypePricedView.server";
 
@@ -20,14 +20,14 @@ type PageProps = {
 export const metadata: Metadata = {
   title: WORKING_TITLE,
   description:
-    "Coke Zero, Diet Coke and still water prices at London pubs, with dates and publisher status beside every listed figure.",
+    "Zero-sugar cola, Coke Zero, Diet Coke, Pepsi Max, Diet Pepsi and still water prices at London pubs, with dates and publisher status beside every listed figure.",
   alternates: { canonical: "/soft-drinks-and-water" },
 };
 
 function defaultSubtype(sub?: string): string {
   const hit = findSubtype(sub?.trim());
   if (hit?.category === "soft-drink") return hit.id;
-  return SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS[0];
+  return SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID;
 }
 
 export default async function SoftDrinksAndWaterPage({ searchParams }: PageProps) {

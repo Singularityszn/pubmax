@@ -3,12 +3,17 @@ import "server-only";
 import {
   buildSubtypePricedVenueRows,
   countObservedSubtypePrices,
+  isZeroSugarColaFamilySubtypeId,
   SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS,
+  ZERO_SUGAR_COLA_FAMILY,
   type SubtypePricedVenueRow,
 } from "@/lib/drinkSubtypeObservedPrice";
 import { findSubtype } from "@/lib/drinkSubtypes";
 import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
-import { countBundleVenuesForSubtype } from "@/lib/priceRowsBySubtype";
+import {
+  countBundleVenuesForSubtype,
+  countBundleVenuesForZeroSugarColaFamily,
+} from "@/lib/priceRowsBySubtype";
 import { allDrinkPriceUpdates } from "@/lib/priceUpdates.server";
 import { allUkPriceBundleRows } from "@/lib/ukPriceBundle.server";
 
@@ -33,6 +38,15 @@ export async function loadSoftDrinksWaterView(
 
   const observedCounts: Record<string, number> = {};
   for (const id of SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS) {
+    if (isZeroSugarColaFamilySubtypeId(id)) {
+      const fromVenues = countObservedSubtypePrices(venues, id, drinkUpdates);
+      const fromBundle =
+        bundleRead.status === "ready"
+          ? countBundleVenuesForZeroSugarColaFamily(bundleRead.rows, ZERO_SUGAR_COLA_FAMILY)
+          : 0;
+      observedCounts[id] = fromVenues + fromBundle;
+      continue;
+    }
     const fromVenues = countObservedSubtypePrices(venues, id, drinkUpdates);
     const fromBundle =
       bundleRead.status === "ready"

@@ -102,6 +102,12 @@ describe("soft-drink subtype classifiers", () => {
     expect(drinkSubtypeFromText("Still water", "soft-drink")?.id).toBe("soft-drink-still-water");
   });
 
+
+  it("maps Pepsi Max and Diet Pepsi labels", () => {
+    expect(drinkSubtypeFromText("Pepsi Max", "soft-drink")?.id).toBe("soft-drink-pepsi-max");
+    expect(drinkSubtypeFromText("Diet Pepsi", "soft-drink")?.id).toBe("soft-drink-diet-pepsi");
+  });
+
   it("does not treat tap water as a priced still-water product", () => {
     expect(drinkSubtypeFromText("Tap water", "soft-drink")).toBeNull();
   });
@@ -148,6 +154,53 @@ describe("selectObservedSubtypePriceForVenue", () => {
     expect(selectObservedSubtypePriceForVenue(venue, "soft-drink-coke-zero")).toBeNull();
   });
 });
+
+
+describe("zero-sugar cola family aggregation", () => {
+  it("picks the cheapest family row per pub and keeps the verbatim label", () => {
+    const venue = makeVenue([
+      makePrice("Coke Zero", 3.1),
+      makePrice("Pepsi Max", 2.4),
+    ]);
+    const hit = selectObservedSubtypePriceForVenue(venue, "soft-drink-zero-sugar-cola");
+    expect(hit?.priceGbp).toBe(2.4);
+    expect(hit?.drinkLabel).toBe("Pepsi Max");
+  });
+
+  it("tie-breaks equal prices by the most recent observedAt from updates", () => {
+    const venue = makeVenue([makePrice("Guinness", 5)]);
+    const older: DrinkPriceUpdate = {
+      venueKey: "test pub|1 test st|51.50000|-0.10000",
+      drinkName: "Coke Zero",
+      category: "soft-drink",
+      priceGbp: 2.5,
+      source: { label: "menu", url: "https://example.com/a", licence: "test" },
+      observedAt: "2024-01-01T12:00:00.000Z",
+      lane: "publisher",
+    };
+    const newer: DrinkPriceUpdate = {
+      venueKey: "test pub|1 test st|51.50000|-0.10000",
+      drinkName: "Pepsi Max",
+      category: "soft-drink",
+      priceGbp: 2.5,
+      source: { label: "menu", url: "https://example.com/b", licence: "test" },
+      observedAt: "2025-06-01T12:00:00.000Z",
+      lane: "publisher",
+    };
+    const hit = selectObservedSubtypePriceForVenue(venue, "soft-drink-zero-sugar-cola", [older, newer]);
+    expect(hit?.drinkLabel).toBe("Pepsi Max");
+    expect(hit?.observedAt).toBe("2025-06-01T12:00:00.000Z");
+  });
+
+  it("does not fold still water into the family lens", () => {
+    const venue = makeVenue([makePrice("Still water", 1.5)]);
+    expect(selectObservedSubtypePriceForVenue(venue, "soft-drink-zero-sugar-cola")).toBeNull();
+    expect(selectObservedSubtypePriceForVenue(venue, "soft-drink-still-water")?.drinkLabel).toBe(
+      "Still water",
+    );
+  });
+});
+
 
 describe("live bundle counts (PR reporting)", () => {
   it("reports how many pubs carry each launch subtype today", async () => {

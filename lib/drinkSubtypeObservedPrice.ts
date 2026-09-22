@@ -12,12 +12,26 @@ import type { PricedLandingPublisher } from "@/lib/pricedLanding";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { venueGroupingKey, type Venue, type VenuePrice } from "@/lib/venues";
 
-/** Launch chips for the Soft drinks and water view; generic component accepts any subtype. */
-export const SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS = [
+/** Zero-sugar cola brands aggregated by the default family chip. */
+export const ZERO_SUGAR_COLA_FAMILY = [
   "soft-drink-coke-zero",
   "soft-drink-diet-coke",
+  "soft-drink-pepsi-max",
+  "soft-drink-diet-pepsi",
+] as const;
+
+export const SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID = "soft-drink-zero-sugar-cola";
+
+/** Launch chips for the Soft drinks and water view; generic component accepts any subtype. */
+export const SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS = [
+  SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID,
+  ...ZERO_SUGAR_COLA_FAMILY,
   "soft-drink-still-water",
 ] as const;
+
+export function isZeroSugarColaFamilySubtypeId(subtypeId: string): boolean {
+  return subtypeId === SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID;
+}
 
 export type ObservedSubtypePrice = {
   drinkLabel: string;
@@ -99,6 +113,16 @@ export function selectObservedSubtypePriceForVenue(
   subtypeId: string,
   drinkUpdates: readonly DrinkPriceUpdate[] = [],
 ): ObservedSubtypePrice | null {
+  if (isZeroSugarColaFamilySubtypeId(subtypeId)) {
+    const familyCandidates: ObservedSubtypePrice[] = [];
+    for (const memberId of ZERO_SUGAR_COLA_FAMILY) {
+      const hit = selectObservedSubtypePriceForVenue(venue, memberId, drinkUpdates);
+      if (hit) familyCandidates.push(hit);
+    }
+    if (familyCandidates.length === 0) return null;
+    return familyCandidates.sort(compareObservedSubtypePrices)[0] ?? null;
+  }
+
   const subtype = findSubtype(subtypeId);
   if (!subtype) return null;
 

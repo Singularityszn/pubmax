@@ -39,3 +39,17 @@ export function countBundleVenuesForSubtype(
   }
   return venueIds.size;
 }
+
+/** Distinct venues with any zero-sugar cola family row in the bundle. */
+export function countBundleVenuesForZeroSugarColaFamily(
+  rows: readonly UkPriceBundleRow[],
+  familySubtypeIds: readonly string[],
+): number {
+  const venueIds = new Set<string>();
+  for (const subtypeId of familySubtypeIds) {
+    for (const row of authoritativeBundleRowsForSubtype(rows, subtypeId)) {
+      venueIds.add(row.venueId);
+    }
+  }
+  return venueIds.size;
+}

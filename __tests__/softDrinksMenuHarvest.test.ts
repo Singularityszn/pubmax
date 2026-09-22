@@ -38,6 +38,8 @@ describe("soft drinks menu harvest", () => {
     );
     expect(classifySoftDrinkSubtypeId("Coke Zero")).toBe("soft-drink-coke-zero");
     expect(classifySoftDrinkSubtypeId("Diet Coke")).toBe("soft-drink-diet-coke");
+    expect(classifySoftDrinkSubtypeId("Pepsi Max")).toBe("soft-drink-pepsi-max");
+    expect(classifySoftDrinkSubtypeId("Diet Pepsi")).toBe("soft-drink-diet-pepsi");
     expect(classifySoftDrinkSubtypeId("Still Water")).toBe("soft-drink-still-water");
   });
 

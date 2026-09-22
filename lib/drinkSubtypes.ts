@@ -418,6 +418,26 @@ const SUBTYPE_TABLE: DrinkSubtype[] = [
     tokens: ["diet coke", "coca cola light", "coca-cola light", "diet coca cola"],
   },
   {
+    id: "soft-drink-pepsi-max",
+    category: "soft-drink",
+    label: "Pepsi Max",
+    longLabel: "Pepsi Max",
+    tokens: [
+      "pepsi max",
+      "pepsi zero sugar",
+      "pepsi zero",
+      "zero sugar cola",
+      "zero sugar pepsi",
+    ],
+  },
+  {
+    id: "soft-drink-diet-pepsi",
+    category: "soft-drink",
+    label: "Diet Pepsi",
+    longLabel: "Diet Pepsi",
+    tokens: ["diet pepsi", "pepsi diet", "pepsi light"],
+  },
+  {
     id: "soft-drink-still-water",
     category: "soft-drink",
     label: "Still water",
@@ -431,6 +451,14 @@ const SUBTYPE_TABLE: DrinkSubtype[] = [
       "still/sparkling water",
       "still / sparkling",
     ],
+  },
+  // Chip-only lens: never classifies menu text (empty tokens).
+  {
+    id: "soft-drink-zero-sugar-cola",
+    category: "soft-drink",
+    label: "Zero-sugar cola",
+    longLabel: "Zero-sugar cola",
+    tokens: [],
   },
 ];
 
@@ -663,6 +691,8 @@ const NAME_SUBTYPE_HINTS: ReadonlyArray<[string, DrinkSubtypeId]> = [
 const BRAND_SUBTYPE_HINTS: ReadonlyArray<[string, DrinkSubtypeId]> = [
   ["coke-zero", "soft-drink-coke-zero"],
   ["diet-coke", "soft-drink-diet-coke"],
+  ["pepsi-max", "soft-drink-pepsi-max"],
+  ["diet-pepsi", "soft-drink-diet-pepsi"],
   ["still-water", "soft-drink-still-water"],
   ["guinness", "beer-stout"],
   ["neck-oil", "beer-ipa"],
