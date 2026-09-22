@@ -380,9 +380,9 @@ test("390px: /u/you stacks the identity card", async ({ page }) => {
 
 // (6) The tablet map. The MapLibre zoom pair sat under Show all and Reset
 // view (stack 229-323, pair 248-336 at 768px), and the closure banner was
-// squeezed into a 160px lane beside the location prompt. Both are read
-// off the page: the zoom buttons own their own centre points, and the
-// banner's copy has a sentence's width.
+// squeezed into a 160px lane beside the location prompt. The map stages its
+// ambient banners one at a time, so dismiss the eligible location suggestion
+// before measuring the status banner that takes its slot.
 test("768px: the map zoom pair is pressable and the status banner keeps its width", async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 768, height: 1024 });
@@ -405,6 +405,14 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
   await expect(page.locator(".mapLayersPanel .mapFitLondonBtn")).toBeVisible();
   await page.locator(".mapLayersClose").click();
   await expect(page.locator(".mapLayersPanel")).toHaveCount(0);
+  const citySuggestion = page.locator(".citySuggestBanner");
+  await expect(citySuggestion).toBeVisible();
+  await citySuggestion.getByRole("button", { name: "Dismiss city suggestion" }).click();
+  await expect(citySuggestion).toBeHidden();
+  const cityStatus = page.locator(".cityStatusBanner");
+  await expect(cityStatus).toBeVisible();
+  await expect(page.locator(".citySuggestBanner:visible, .cityStatusBanner:visible")).toHaveCount(1);
+
   const findings = await page.evaluate(() => {
     const owns = (selector: string) => {
       const element = document.querySelector(selector);
@@ -413,22 +421,39 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
       const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
       return Boolean(hit && element.contains(hit));
     };
+    const visibleBanners = Array.from(
+      document.querySelectorAll(".citySuggestBanner, .cityStatusBanner"),
+    ).filter((element) => {
+      const styles = getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      return (
+        styles.display !== "none" &&
+        styles.visibility !== "hidden" &&
+        box.width > 0 &&
+        box.height > 0
+      );
+    });
     const banner = document.querySelector(".cityStatusBanner");
-    if (!banner) return { zoomIn: owns(".maplibregl-ctrl-zoom-in"), zoomOut: owns(".maplibregl-ctrl-zoom-out"), banner: null };
-    // The banner's text is a live TfL headline, so its rendered width is the
-    // headline's: "District line closure" is 216px by content where the Rye
-    // Lane closure was a 400px sentence. What the sweep fixed was the LANE,
-    // a 160px left column the banner was squeezed into beside the location
-    // prompt. So the measurement is the berth, not the width: the banner is
-    // centred on the map, and its headline is not broken across more than two
-    // lines, which is what a squeezed lane did to "dangerous".
+    if (!banner) {
+      return {
+        zoomIn: owns(".maplibregl-ctrl-zoom-in"),
+        zoomOut: owns(".maplibregl-ctrl-zoom-out"),
+        banners: visibleBanners.map((element) =>
+          element.classList.contains("cityStatusBanner") ? "status" : "suggest",
+        ),
+        banner: null,
+      };
+    }
     const box = banner.getBoundingClientRect();
-    const headline = banner.querySelector("button");
+    const headline = banner.querySelector(".cityStatusBannerCopy");
     const lineHeight = headline ? parseFloat(getComputedStyle(headline).lineHeight) : 0;
     const headlineBox = headline?.getBoundingClientRect();
     return {
       zoomIn: owns(".maplibregl-ctrl-zoom-in"),
       zoomOut: owns(".maplibregl-ctrl-zoom-out"),
+      banners: visibleBanners.map((element) =>
+        element.classList.contains("cityStatusBanner") ? "status" : "suggest",
+      ),
       banner: {
         width: box.width,
         centreOffset: Math.abs(box.left + box.width / 2 - window.innerWidth / 2),
@@ -439,11 +464,11 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
   });
   expect(findings.zoomIn).toBe(true);
   expect(findings.zoomOut).toBe(true);
-  if (findings.banner) {
-    expect(findings.banner.width).toBeGreaterThan(160);
-    expect(findings.banner.centreOffset).toBeLessThanOrEqual(2);
-    expect(findings.banner.headlineLines).toBeLessThanOrEqual(2);
-  }
+  expect(findings.banners).toHaveLength(1);
+  expect(findings.banners[0]).toBe("status");
+  expect(findings.banner?.width ?? 0).toBeGreaterThan(160);
+  expect(findings.banner?.centreOffset ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(2);
+  expect(findings.banner?.headlineLines ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(2);
 });
 
 // ── The 13 September sweep (site audit D7, D14, D15, D16). Each figure below
