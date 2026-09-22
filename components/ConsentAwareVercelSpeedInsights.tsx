@@ -1,46 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { ComponentProps } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-
-import {
-  Analytics,
-  type BeforeSendEvent,
-} from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import {
   analyticsCollectionAllowed,
-  flushVerifiedAnalyticsOutbox,
   subscribeAnalyticsConsent,
 } from "@/lib/analytics";
 import {
   safeVercelTelemetryLocation,
-  shouldMountVercelTelemetry,
   shouldMountVercelTelemetryForLocation,
 } from "@/lib/vercelTelemetry";
 
-export function consentAwareBeforeSend(
-  event: BeforeSendEvent,
-): BeforeSendEvent | null {
+type SpeedInsightsBeforeSendEvent = Parameters<
+  NonNullable<ComponentProps<typeof SpeedInsights>["beforeSend"]>
+>[0];
+
+export function consentAwareSpeedInsightsBeforeSend(
+  event: SpeedInsightsBeforeSendEvent,
+): SpeedInsightsBeforeSendEvent | null {
   if (!analyticsCollectionAllowed()) return null;
   const location = safeVercelTelemetryLocation(event.url, window.location.origin);
-  return location ? { ...event, url: location.url } : null;
+  return location
+    ? { ...event, url: location.url, route: location.route }
+    : null;
 }
 
-export function shouldMountVercelAnalytics(
-  environment: string | undefined,
-  vercelDeployment?: string,
-  vercelEnvironment?: string,
-): boolean {
-  return shouldMountVercelTelemetry(
-    environment,
-    vercelDeployment,
-    vercelEnvironment,
-  );
-}
-
-/** Vercel pageviews remain disabled until explicit analytics consent. */
-export default function ConsentAwareVercelAnalytics({
+export default function ConsentAwareVercelSpeedInsights({
   enabled,
 }: {
   enabled: boolean;
@@ -49,7 +37,6 @@ export default function ConsentAwareVercelAnalytics({
   const search = useSearchParams().toString();
   const [analyticsAllowed, setAnalyticsAllowed] = useState(false);
 
-  useEffect(() => { void flushVerifiedAnalyticsOutbox(); }, []);
   useEffect(() => {
     if (!enabled) return;
     const refresh = () => setAnalyticsAllowed(analyticsCollectionAllowed());
@@ -63,5 +50,5 @@ export default function ConsentAwareVercelAnalytics({
     || !analyticsAllowed
     || !shouldMountVercelTelemetryForLocation(pathname, search)
   ) return null;
-  return <Analytics beforeSend={consentAwareBeforeSend} />;
+  return <SpeedInsights beforeSend={consentAwareSpeedInsightsBeforeSend} />;
 }
