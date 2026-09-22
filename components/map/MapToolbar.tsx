@@ -297,9 +297,8 @@ export default function MapToolbar({
       : leftOpen
         ? ".mapDrawer.left.open"
         : null;
-    const drawer = drawerSelector
-      ? shell.querySelector<HTMLElement>(drawerSelector)
-      : null;
+    let drawer: HTMLElement | null = null;
+    let resizeObserver: ResizeObserver | null = null;
     const sync = (immediate = false) => {
       const width = drawer?.getBoundingClientRect().width ?? 0;
       const target = detailOpen ? -width / 2 : leftOpen ? width / 2 : 0;
@@ -309,12 +308,46 @@ export default function MapToolbar({
         animateLaneOffset(target);
       }
     };
-    sync(!laneSyncReadyRef.current);
-    laneSyncReadyRef.current = true;
-    if (!drawer || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => sync());
-    observer.observe(drawer);
-    return () => observer.disconnect();
+    const connectDrawer = (immediate: boolean) => {
+      drawer = drawerSelector
+        ? shell.querySelector<HTMLElement>(drawerSelector)
+        : null;
+      if (!drawer) return false;
+      sync(immediate);
+      laneSyncReadyRef.current = true;
+      if (typeof ResizeObserver !== "undefined") {
+        resizeObserver = new ResizeObserver(() => sync());
+        resizeObserver.observe(drawer);
+      }
+      return true;
+    };
+
+    if (!drawerSelector) {
+      sync(!laneSyncReadyRef.current);
+      laneSyncReadyRef.current = true;
+      return;
+    }
+    if (connectDrawer(!laneSyncReadyRef.current)) {
+      return () => resizeObserver?.disconnect();
+    }
+
+    // A deep-linked drawer and this toolbar can commit in separate lazy
+    // subtrees. Wait for the drawer's insertion, then jump before the browser's
+    // next paint so the first spring-owned frame already clears its lane.
+    const insertionObserver = new MutationObserver(() => {
+      if (!connectDrawer(true)) return;
+      insertionObserver.disconnect();
+    });
+    insertionObserver.observe(shell, {
+      attributes: true,
+      attributeFilter: ["class"],
+      childList: true,
+      subtree: true,
+    });
+    return () => {
+      insertionObserver.disconnect();
+      resizeObserver?.disconnect();
+    };
   }, [
     animateLaneOffset,
     desktopLaneActive,
