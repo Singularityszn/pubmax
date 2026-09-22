@@ -388,7 +388,7 @@ function SupplementaryDrinkerLog({ visible, lane, venue, composerOpen, onLogToni
   return <DrinkerLogBlock
     lane={lane}
     bandArea={priceBandAreaForVenue(venue.id)}
-    trustChipAttrs={{ "data-pint-trust": state }}
+    trustChipAttrs={{ "data-pint-trust": state, "data-venue-id": venue.id }}
     chromeRevealClass={priceRevealMotionClass || undefined}
     priceRevealMotionClass={priceRevealMotionClass}
     door={<PriceDoor venue={venue} door={overviewPriceDoor(state, lane)} composerOpen={composerOpen}

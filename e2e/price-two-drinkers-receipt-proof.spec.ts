@@ -155,6 +155,10 @@ for (const viewport of VIEWPORTS) {
     await expect(priceArea).toContainText("Two drinkers, two prices: £4.50 and £4.70");
     await expect(priceArea).not.toContainText("Logged once");
     await expect(priceArea).toContainText("Which did you pay?");
+    await expect(priceArea).toContainText("Community split · Lager pint");
+    const publishedPrice = inspector.locator('.trustPill[data-standing="listed"]');
+    await expect(publishedPrice).toBeVisible();
+    await expect(publishedPrice).toContainText("£6.30");
     await priceArea.scrollIntoViewIfNeeded();
     await shoot(priceArea, `${PROOF}/split-overview-${viewport.name}.png`);
     await priceArea.getByTestId("choose-pint-cta").filter({ hasText: "£4.50" }).click();
@@ -226,3 +230,31 @@ for (const viewport of VIEWPORTS) {
     await shoot(bill, `${PROOF}/spill-bill-ready-${viewport.name}.png`);
   });
 }
+
+test("signed-out split choice retains its named claim after the login return", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await quietPage(page);
+  const stub = await installAuthDoubles(page);
+  await serveDrops(page, SPLIT);
+  await page.goto("/");
+  await stub.signedInAs(null);
+  await page.goto(`/map?sel=${HATTON}`);
+  const inspector = await openVenueSheet(page);
+  await inspector.getByTestId("choose-pint-cta").filter({ hasText: "£4.50" }).click();
+  const composer = page.getByTestId("spill-price-step");
+  await expect(composer.getByLabel("Drink", { exact: true })).toHaveValue("Lager");
+  const signIn = page.getByRole("link", { name: "Sign in to post" });
+  const href = await signIn.getAttribute("href");
+  const returnTo = new URL(href ?? "", "http://localhost").searchParams.get("from");
+  expect(returnTo).toContain(`sel=${HATTON}`);
+  await signIn.click();
+  await expect(page).toHaveURL(/\/login\?/);
+  await stub.signedInAs("B");
+  await page.goto(returnTo!);
+  const returned = page.getByTestId("spill-price-step");
+  await expect(returned).toBeVisible();
+  await expect(returned.getByLabel("What did it cost?")).toHaveValue("4.50");
+  await expect(returned.getByLabel("Drink", { exact: true })).toHaveValue("Lager");
+  await expect(returned.getByRole("radio", { name: "Pint", exact: true })).toHaveAttribute("aria-checked", "true");
+});

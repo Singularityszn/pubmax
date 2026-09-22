@@ -381,7 +381,7 @@ describe("the rendered Overview carries exactly one price door", () => {
     const html = renderOverview(FIXTURES[state](), listed);
     expect(html.includes("Published price")).toBe(true);
     expect(html.includes("£6.30")).toBe(true);
-    expect(html.includes(`data-pint-trust="${state}"`)).toBe(true);
+    expect(html).toContain(`data-pint-trust="${state}" data-venue-id="${listed.id}"`);
     expect(html.includes('data-testid="confirm-pint-cta"')).toBe(true);
     expect(html.includes("No beer price logged")).toBe(false);
     expect(doorCount(html)).toBe(1);
