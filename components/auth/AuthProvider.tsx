@@ -116,6 +116,8 @@ import {
 } from "@/lib/authProviderRevision";
 import {
   AuthContext,
+  type AccountSessionInstallOutcome,
+  type AccountSessionTokens,
   type AuthContextValue,
   type SignOutScope,
 } from "@/components/auth/authContext";
@@ -271,6 +273,7 @@ export function AuthProvider({
     () => 0,
   );
   const [session, setSession] = useState<Session | null>(null);
+  const sessionRef = useRef<Session | null>(null);
   // Who the app may say this is. "unknown" is not "nobody": a signed-in account
   // whose canonical handle has not come back yet must render neutral rather
   // than fall back to whatever the device had cached, because that cache is
@@ -346,6 +349,7 @@ export function AuthProvider({
         rejectedContributionAuthRef.current = null;
         setRejectedContributionAuth(null);
       }
+      sessionRef.current = nextSession;
       setSession(nextSession);
       return signedIn;
     },
@@ -367,13 +371,57 @@ export function AuthProvider({
     [],
   );
 
+  const retireCurrentAccountPush = useCallback(
+    async (knownSession?: Session | null): Promise<boolean> => {
+      const currentSession = knownSession === undefined
+        ? sessionRef.current
+        : knownSession;
+      const currentUserId = currentSession?.user.id
+        ?? (knownSession === undefined
+          ? sessionTransitions.current.currentUserId()
+          : null);
+      if (!currentUserId) return true;
+      const pushRetirement = await retireAccountWebPush(
+        currentSession?.access_token,
+      );
+      return pushRetirement.status !== "unavailable";
+    },
+    [],
+  );
+
+  const installAccountSession = useCallback(
+    async (tokens: AccountSessionTokens): Promise<AccountSessionInstallOutcome> => {
+      const supabase = await ensureSupabaseBrowser().catch(() => null);
+      if (!supabase) return { status: "failed" };
+
+      let currentSession = sessionRef.current;
+      if (!currentSession) {
+        try {
+          const { data, error } = await supabase.auth.getSession();
+          if (error) return { status: "blocked" };
+          currentSession = data.session ?? null;
+        } catch {
+          return { status: "blocked" };
+        }
+      }
+      if (!(await retireCurrentAccountPush(currentSession))) {
+        return { status: "blocked" };
+      }
+
+      const exchange = await establishAuthCallbackSession(supabase.auth, tokens);
+      if (exchange.failed || !exchange.session) return { status: "failed" };
+      return { status: "installed", session: exchange.session };
+    },
+    [retireCurrentAccountPush],
+  );
+
   useEffect(() => {
     setProviderAuthState("supabase", configured ? "unresolved" : "signed-out");
   }, [configured]);
   // React Strict Mode replays effects in development. Reuse one completion so
   // the callback tokens are never applied twice by the replayed mount effect.
   const callbackSessionInFlight = useRef<
-    Promise<{ session: Session | null; failed: boolean }> | null
+    Promise<AccountSessionInstallOutcome> | null
   >(null);
 
   useEffect(() => {
@@ -655,6 +703,7 @@ export function AuthProvider({
         const captured = await callbackCapture;
         const callbackAttempt = captured?.attempt ?? null;
         let exchangedSession: Session | null = null;
+        let exchangeBlocked = false;
         // Tokens complete sign-in even without an attempt id (a clamped
         // cross-browser link); a token-less callback is the genuine failure.
         let exchangeFailed = Boolean(
@@ -664,14 +713,19 @@ export function AuthProvider({
         try {
           if (callbackAttempt?.tokens && !callbackAttempt.providerError) {
             if (!callbackSessionInFlight.current) {
-              callbackSessionInFlight.current = establishAuthCallbackSession(
-                supabase.auth,
+              callbackSessionInFlight.current = installAccountSession(
                 callbackAttempt.tokens,
               );
             }
             const exchange = await callbackSessionInFlight.current;
-            exchangedSession = exchange.session;
-            exchangeFailed = exchange.failed;
+            exchangedSession = exchange.status === "installed"
+              ? exchange.session
+              : null;
+            exchangeFailed = exchange.status !== "installed";
+            if (exchange.status === "blocked") {
+              exchangeBlocked = true;
+              setAuthCallbackError(PUSH_RETIREMENT_ERROR_MESSAGE);
+            }
           }
         } finally {
           if (callbackAttempt?.attemptId) {
@@ -684,7 +738,9 @@ export function AuthProvider({
         // refused or reverted replaceState) leave the address bar here.
         scrubLingeringBrowserAuthCallback();
         if (!active) return;
-        if (exchangeFailed) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+        if (exchangeFailed && !exchangeBlocked) {
+          setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+        }
 
         if (exchangedSession) {
           window.clearTimeout(loadingTimeout);
@@ -773,7 +829,7 @@ export function AuthProvider({
       window.clearTimeout(lingeringSweepTimeout);
       subscription?.unsubscribe();
     };
-  }, [configured, updateSession]);
+  }, [configured, installAccountSession, updateSession]);
 
   // Inside the native shell the provider page opens in the system browser
   // (lib/nativeOAuth.ts): Google refuses OAuth in an embedded web view, and the
@@ -912,8 +968,7 @@ export function AuthProvider({
       const supabase = await ensureSupabaseBrowser();
       if (!supabase) return;
       const departing = sessionTransitions.current.currentUserId();
-      const pushRetirement = await retireAccountWebPush(session?.access_token);
-      if (pushRetirement.status === "unavailable") {
+      if (!(await retireCurrentAccountPush())) {
         setAuthCallbackError(PUSH_RETIREMENT_ERROR_MESSAGE);
         return;
       }
@@ -951,7 +1006,7 @@ export function AuthProvider({
       if (!next) return;
       await activateDeviceAccount(next.userId, browserDeviceAccountSwitchDeps());
     },
-    [session?.access_token],
+    [retireCurrentAccountPush],
   );
 
   const switchAccount = useCallback(
@@ -965,8 +1020,7 @@ export function AuthProvider({
         {
           ...switchDeps,
           async beforeSessionInstall() {
-            const pushRetirement = await retireAccountWebPush(session?.access_token);
-            return pushRetirement.status !== "unavailable";
+            return retireCurrentAccountPush();
           },
         },
       );
@@ -974,7 +1028,7 @@ export function AuthProvider({
       if (outcome.status === "switched") trackEvent("account_switched");
       return outcome;
     },
-    [session?.access_token],
+    [retireCurrentAccountPush],
   );
 
   useEffect(() => {
@@ -1033,6 +1087,7 @@ export function AuthProvider({
       signInWithGoogle,
       signInWithApple,
       signInWithEmail,
+      installAccountSession,
       cancelAuthAttempt: cancelBrowserAuthAttempt,
       signOut,
       switchAccount,
@@ -1061,6 +1116,7 @@ export function AuthProvider({
     signInWithGoogle,
     signInWithApple,
     signInWithEmail,
+    installAccountSession,
     signOut,
     switchAccount,
     welcomeBack,

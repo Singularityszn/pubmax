@@ -348,9 +348,10 @@ describe("the switch never binds identity itself", () => {
     expect(cookieClearedAt).toBeGreaterThan(retiredAt);
     expect(signedOutAt).toBeGreaterThan(retiredAt);
     expect(activatedAt).toBeGreaterThan(retiredAt);
-    expect(provider.match(/await retireAccountWebPush\(/g) ?? []).toHaveLength(2);
+    expect(provider.match(/await retireAccountWebPush\(/g) ?? []).toHaveLength(1);
+    expect(provider).toMatch(/installAccountSession\(\s*callbackAttempt\.tokens/);
     expect(provider).toContain("async beforeSessionInstall()");
-    expect(provider).toContain('if (pushRetirement.status === "unavailable")');
+    expect(provider).toContain("if (!(await retireCurrentAccountPush()))");
   });
 
   it("scopes the way out to this account or to the whole device", () => {

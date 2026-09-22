@@ -9,6 +9,7 @@ const providerState = vi.hoisted(() => ({
     user: { id: "account-a" },
   } as { access_token: string; user: { id: string } } | null,
   supabaseOAuth: vi.fn(),
+  setSession: vi.fn(),
 }));
 
 const clerkState = vi.hoisted(() => ({ configured: true }));
@@ -24,6 +25,15 @@ const authRedirect = vi.hoisted(() => ({
     id: "attempt-id",
     callbackUrl: "http://localhost/auth-callback",
   })),
+  scrub: vi.fn(),
+}));
+
+const authCallbackClient = vi.hoisted(() => ({
+  establish: vi.fn(),
+}));
+
+const accountPush = vi.hoisted(() => ({
+  retire: vi.fn(),
 }));
 
 vi.mock("@/components/identity/AccountOnboarding", () => ({
@@ -37,12 +47,16 @@ vi.mock("@/lib/analytics", () => ({
 }));
 vi.mock("@/lib/authCallbackClient", () => ({
   clearLegacyPkceVerifiers: vi.fn(),
-  establishAuthCallbackSession: vi.fn(),
+  establishAuthCallbackSession: authCallbackClient.establish,
+}));
+vi.mock("@/lib/accountPushLifecycle", () => ({
+  retireAccountWebPush: accountPush.retire,
 }));
 vi.mock("@/lib/authClient", () => ({
   ensureSupabaseBrowser: async () => ({
     auth: {
       getSession: async () => ({ data: { session: providerState.session } }),
+      setSession: providerState.setSession,
       onAuthStateChange: () => ({
         data: { subscription: { unsubscribe: vi.fn() } },
       }),
@@ -63,7 +77,7 @@ vi.mock("@/lib/authRedirect", () => ({
   cancelAuthAttempt: vi.fn(),
   defaultEmailAuthNext: () => "/u/you",
   releaseAuthAttempt: vi.fn(),
-  scrubAuthCallback: async () => null,
+  scrubAuthCallback: authRedirect.scrub,
   scrubLingeringAuthCallback: vi.fn(() => false),
 }));
 vi.mock("@/lib/identityClient", () => ({
@@ -73,7 +87,7 @@ vi.mock("@/lib/identityClient", () => ({
   resolveCanonicalIdentity: async () => null,
 }));
 vi.mock("@/lib/referralClaimClient", () => ({
-  claimSignupReferralFromAuthCallback: vi.fn(),
+  claimSignupReferralFromAuthCallback: vi.fn(async () => undefined),
   withReferralSignupProof: vi.fn((attempt) => attempt),
 }));
 
@@ -217,6 +231,17 @@ beforeEach(() => {
   clerkState.configured = true;
   providerState.supabaseOAuth.mockReset();
   providerState.supabaseOAuth.mockResolvedValue({ error: null });
+  providerState.setSession.mockReset();
+  providerState.setSession.mockResolvedValue({
+    data: {
+      session: {
+        access_token: "account-b-access",
+        refresh_token: "account-b-refresh",
+        user: { id: "account-b" },
+      },
+    },
+    error: null,
+  });
   authAvailability.guard.mockReset();
   authAvailability.guard.mockResolvedValue({
     availability: { google: true, apple: false },
@@ -224,6 +249,19 @@ beforeEach(() => {
   });
   authAvailability.loadSupabase.mockClear();
   authRedirect.begin.mockClear();
+  authRedirect.scrub.mockReset();
+  authRedirect.scrub.mockResolvedValue(null);
+  authCallbackClient.establish.mockReset();
+  authCallbackClient.establish.mockResolvedValue({
+    session: {
+      access_token: "account-b-access",
+      refresh_token: "account-b-refresh",
+      user: { id: "account-b" },
+    },
+    failed: false,
+  });
+  accountPush.retire.mockReset();
+  accountPush.retire.mockResolvedValue({ status: "not_registered" });
   const document = new TestDocument();
   const window = {
     document,
@@ -264,6 +302,43 @@ afterEach(async () => {
 });
 
 describe("shared contribution auth invalidation", () => {
+  it("blocks a live-session OAuth callback before installing the added account", async () => {
+    authRedirect.scrub.mockResolvedValueOnce({
+      attempt: {
+        attemptId: null,
+        tokens: {
+          accessToken: "account-b-access",
+          refreshToken: "account-b-refresh",
+        },
+        providerError: false,
+      },
+      cleanUrl: "http://localhost/map",
+      localAttemptOwned: true,
+      releaseCoordination: vi.fn(),
+    });
+    accountPush.retire.mockResolvedValueOnce({ status: "unavailable" });
+    const container = globalThis.document.createElement("div");
+    root = createRoot(container);
+
+    await commitReactWork(async () => {
+      root?.render(
+        createElement(
+          AuthProvider,
+          { clerkIntegrationConfigured: false },
+          createElement(Consumer, { name: "callback" }),
+        ),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await vi.waitFor(() => {
+      expect(accountPush.retire).toHaveBeenCalledWith("shared-session");
+    });
+    expect(authCallbackClient.establish).not.toHaveBeenCalled();
+    expect(providerState.setSession).not.toHaveBeenCalled();
+  });
+
   it("stops a second consumer from receiving a rejected token", async () => {
     const container = globalThis.document.createElement("div");
     root = createRoot(container);

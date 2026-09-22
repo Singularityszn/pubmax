@@ -23,6 +23,8 @@ describe("browser credential form contracts", () => {
     expect(handleSignInSource).toContain("event.preventDefault();");
     expect(handleSignInSource).toMatch(/fetch\("\/api\/auth\/handle-password",\s*\{\s*method: "POST"/);
     expect(handleSignInSource).toMatch(/<button[\s\S]*type="submit"/);
+    expect(handleSignInSource).toContain("installAccountSession(");
+    expect(handleSignInSource).not.toContain("supabase.auth.setSession(");
     expect(handleSignInSource).not.toContain('setPassword("");\n      setOpen(false);');
   });
 

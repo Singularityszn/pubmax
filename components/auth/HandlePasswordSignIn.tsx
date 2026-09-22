@@ -4,7 +4,6 @@ import { FormEvent, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { safeAuthNext } from "@/lib/authRedirect";
-import { ensureSupabaseBrowser } from "@/lib/authClient";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { persistSessionForResume } from "@/lib/authSessionResumeClient";
 import {
@@ -54,7 +53,7 @@ export default function HandlePasswordSignIn({
   disabled = false,
   redirectTo = null,
 }: HandlePasswordSignInProps): React.JSX.Element {
-  const { configured } = useAuth();
+  const { configured, installAccountSession } = useAuth();
   const [open, setOpen] = useState(false);
   const [handle, setHandle] = useState("");
   const [password, setPassword] = useState("");
@@ -101,17 +100,17 @@ export default function HandlePasswordSignIn({
         return;
       }
 
-      const supabase = await ensureSupabaseBrowser();
-      if (!supabase) {
-        setError("Sign-in is not configured on this build.");
+      const install = await installAccountSession({
+        accessToken: session.access_token,
+        refreshToken: session.refresh_token,
+      });
+      if (install.status === "blocked") {
+        setError(
+          "Notifications could not be disconnected, so this account stayed signed in. Try again.",
+        );
         return;
       }
-
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-      });
-      if (sessionError) {
+      if (install.status !== "installed") {
         setError("Sign-in did not finish. Try again.");
         return;
       }

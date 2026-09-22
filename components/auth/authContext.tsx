@@ -16,6 +16,16 @@ import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 /** How far a sign-out reaches: this account, or every account on this device. */
 export type SignOutScope = "account" | "device";
 
+export type AccountSessionTokens = {
+  accessToken: string;
+  refreshToken: string;
+};
+
+export type AccountSessionInstallOutcome =
+  | { status: "installed"; session: Session }
+  | { status: "failed" }
+  | { status: "blocked" };
+
 export type AuthContextValue = {
   /** Current session, or null when signed out / not yet loaded. */
   session: Session | null;
@@ -35,6 +45,10 @@ export type AuthContextValue = {
   signInWithApple: (next?: string) => Promise<{ error: string | null }>;
   /** Send a passwordless email link with normalized, non-enumerating feedback. */
   signInWithEmail: (email: string, next?: string) => Promise<MagicLinkResult>;
+  /** Install a deliberate sign-in only after the current account boundary is safe. */
+  installAccountSession: (
+    tokens: AccountSessionTokens,
+  ) => Promise<AccountSessionInstallOutcome>;
   /** User cancelled an abandoned provider or magic-link attempt. */
   cancelAuthAttempt: () => void;
   /**
@@ -89,6 +103,7 @@ const SIGNED_OUT_AUTH: AuthContextValue = {
   signInWithGoogle: async () => ({ error: "Sign-in is not configured." }),
   signInWithApple: async () => ({ error: "Sign-in is not configured." }),
   signInWithEmail: async () => ({ status: "error", message: "Sign-in is not configured." }),
+  installAccountSession: async () => ({ status: "failed" }),
   cancelAuthAttempt: () => {},
   signOut: async () => {},
   switchAccount: async () => ({ status: "unavailable" }),
