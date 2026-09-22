@@ -15,6 +15,7 @@ export type TavilyVenueDrinkPrice = {
   drinkName: string;
   priceGbp: number;
   category: DrinkCategory;
+  servingSize?: "pint" | "568ml" | null;
 };
 
 function unescapePounds(markdown: string): string {
@@ -67,6 +68,7 @@ function pintToVenueRow(pint: TavilyPintPrice): TavilyVenueDrinkPrice {
     drinkName: pint.drinkName,
     priceGbp: pint.priceGbp,
     category: "beer",
+    servingSize: pint.servingSize,
   };
 }
 

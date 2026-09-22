@@ -4,20 +4,12 @@
 // the enrichment lane's own shape: a drink name and a serving size. Judgment
 // stays in the CLI layer (scripts/harvest/uk-prices/readPrices.mjs).
 
-import type { DrinkCategory } from "@/lib/drinks";
-import { readVenueDrinkPrices, type UkPriceCandidate, type UkPriceReading } from "./ukPriceCrawl";
+import { readVenueDrinkPrices, type UkPriceReading } from "./ukPriceCrawl";
 
 export type TavilyPintPrice = {
   drinkName: string;
   priceGbp: number;
   servingSize: "pint" | "568ml";
-};
-
-export type TavilyVenueDrinkPrice = {
-  drinkName: string;
-  category: DrinkCategory;
-  priceGbp: number;
-  servingSize: string | null;
 };
 
 function unescapePounds(markdown: string): string {
@@ -141,67 +133,5 @@ export function extractPintPrices(markdown: string): TavilyPintPrice[] {
     }
   }
 
-  return prices;
-}
-
-function drinkNameFromCandidate(row: UkPriceCandidate): string | null {
-  const priceAt = row.context.indexOf(row.verbatim);
-  const before =
-    priceAt > 0 ? row.context.slice(0, priceAt) : row.context.replace(row.verbatim, " ");
-  const drinkName = cleanDrinkName(before, before.length);
-  if (rejectNamedRow(drinkName)) return null;
-  return drinkName;
-}
-
-function servingSizeForCandidate(row: UkPriceCandidate): string | null {
-  if (row.category !== "beer") return null;
-  if (/\b568\s*ml\b/i.test(row.context)) return "568ml";
-  if (/\bpint\b/i.test(row.context)) return "pint";
-  return null;
-}
-
-/** Map a shared page reading into every drink category the reader kept. */
-function venueDrinkPricesFromUkReading(reading: UkPriceReading): TavilyVenueDrinkPrice[] {
-  const prices: TavilyVenueDrinkPrice[] = [];
-  const seen = new Set<string>();
-  for (const row of reading.kept) {
-    const drinkName = drinkNameFromCandidate(row);
-    if (!drinkName) continue;
-    const servingSize = servingSizeForCandidate(row);
-    const key = `${drinkName.toLowerCase()}|${row.category}|${row.priceGbp}|${servingSize ?? ""}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    prices.push({
-      drinkName,
-      category: row.category,
-      priceGbp: row.priceGbp,
-      servingSize,
-    });
-  }
-  return prices;
-}
-
-/** Full-menu extraction for Tavily official pages (all drink categories). */
-export function extractVenueDrinkPrices(markdown: string): TavilyVenueDrinkPrice[] {
-  const prices: TavilyVenueDrinkPrice[] = [];
-  const seen = new Set<string>();
-  for (const row of extractPintPrices(markdown)) {
-    const key = `${row.drinkName.toLowerCase()}|beer|${row.priceGbp}|${row.servingSize}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    prices.push({
-      drinkName: row.drinkName,
-      category: "beer",
-      priceGbp: row.priceGbp,
-      servingSize: row.servingSize,
-    });
-  }
-  for (const row of venueDrinkPricesFromUkReading(readVenueDrinkPrices(markdown))) {
-    if (row.category === "beer") continue;
-    const key = `${row.drinkName.toLowerCase()}|${row.category}|${row.priceGbp}|${row.servingSize ?? ""}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    prices.push(row);
-  }
   return prices;
 }
