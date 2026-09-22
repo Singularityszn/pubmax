@@ -51,6 +51,26 @@ describe("Keenable area-news client", () => {
     await expect(fetchKeenable("https://example.com/news", { env: {}, fetchImpl })).rejects.toThrow(/source policy/i);
   });
 
+  it("refuses a robots redirect before asking the content provider", async () => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/robots.txt")) {
+        if (init?.redirect === "error") throw new TypeError("redirect refused");
+        const response = new Response("User-agent: *\nAllow: /");
+        Object.defineProperty(response, "url", { value: "https://localhost/robots.txt" });
+        return response;
+      }
+      return jsonResponse({ url: "https://example.com/news", content: "A page" });
+    });
+    await expect(fetchKeenable("https://example.com/news", { env: {}, fetchImpl })).rejects.toThrow(/robots/i);
+    expect(fetchImpl.mock.calls.every(([url]) => url === "https://example.com/robots.txt")).toBe(true);
+  });
+
+  it.each([undefined, null, "", 42])("refuses content without an explicit final source URL (%s)", async (url) => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(new Response("User-agent: *\nAllow: /"))
+      .mockResolvedValue(jsonResponse({ url, content: "A page" }));
+    await expect(fetchKeenable("https://example.com/news", { env: {}, fetchImpl })).rejects.toThrow(/final source URL/i);
+  });
+
   it("checks robots for the provider's final page before accepting content", async () => {
     const fetchImpl = vi.fn(async (url: string) => {
       if (url === "https://example.com/robots.txt") return new Response("User-agent: *\nAllow: /");
@@ -135,7 +155,7 @@ describe("Keenable area-news client", () => {
     ).resolves.toMatchObject({ content: "# Article\n\nA real page." });
     expect(fetchImpl.mock.calls[1][0]).toContain("/v1/fetch/public?url=");
 
-    const emptyFetch = vi.fn().mockResolvedValueOnce(new Response("User-agent: *\nAllow: /")).mockResolvedValue(jsonResponse({ content: "" }));
+    const emptyFetch = vi.fn().mockResolvedValueOnce(new Response("User-agent: *\nAllow: /")).mockResolvedValue(jsonResponse({ url: "https://example.com/article", content: "" }));
     await expect(fetchKeenable("https://example.com/article", { env: {}, fetchImpl: emptyFetch })).rejects.toThrow(
       "Keenable fetch response did not contain content",
     );

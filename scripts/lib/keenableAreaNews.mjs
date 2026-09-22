@@ -97,6 +97,18 @@ export function areaNewsExtractPrompt(year = new Date().getUTCFullYear()) {
 
 export const AREA_NEWS_EXTRACT_PROMPT = areaNewsExtractPrompt();
 
+export function createAreaNewsRobotsChecker(fetchImpl = fetch) {
+  return createRobotsChecker({
+    fetchImpl: async (url, options) => {
+      const response = await fetchImpl(url, { ...options, redirect: "error" });
+      if (response.redirected || (response.url && response.url !== String(url))) {
+        throw new Error("Area news robots redirect refused.");
+      }
+      return response;
+    },
+  });
+}
+
 function apiUrl(apiBase, path, key) {
   const base = apiBase.replace(/\/$/, "");
   return `${base}${key ? path : `${path}/public`}`;
@@ -178,7 +190,7 @@ export async function fetchKeenable(
     maxChars = 6000,
     prompt = areaNewsExtractPrompt(),
     signal,
-    checkRobots = createRobotsChecker({ fetchImpl }),
+    checkRobots = createAreaNewsRobotsChecker(fetchImpl),
   } = {},
 ) {
   let parsedUrl;
@@ -211,6 +223,9 @@ export async function fetchKeenable(
     signal,
   });
   const payload = await readJson(response, "fetch");
+  if (typeof payload?.url !== "string" || !payload.url.trim()) {
+    throw new Error("Keenable fetch requires an explicit final source URL.");
+  }
   const landing = harvestRedirectLanding(parsedUrl.toString(), payload?.url);
   if (landing.outcome === "refused" || new URL(landing.url).protocol !== "https:") {
     throw new Error("Keenable landing refused by source policy.");
