@@ -236,7 +236,9 @@ function quarantineUnverifiedReport(reportPath, dryRun) {
     reason: "Unverified run: source permission and original price context were not retained. Re-harvest through the corrected reader before publishing.",
     findings,
   };
-  if (!dryRun) atomicWriteJson(path.join(ROOT, "data/review", `tavily-${report.city}-quarantine.json`), result);
+  const evidencePath = path.join(ROOT, "data/review", `tavily-${report.city}-quarantine.json`);
+  // Repeating a completed withdrawal must not erase its original evidence.
+  if (!dryRun && (findings.length > 0 || !existsSync(evidencePath))) atomicWriteJson(evidencePath, result);
   console.log(JSON.stringify(result, null, 2));
 }
 

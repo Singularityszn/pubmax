@@ -329,7 +329,8 @@ export function createRobotsChecker(options: { fetchImpl?: typeof fetch } = {}):
       const response = await fetchImpl(`${origin}/robots.txt`, {
         headers: { accept: "text/plain", "user-agent": "PUBMAXX-harvest/1" },
         signal: controller.signal,
-        redirect: "follow",
+        // A redirect target has not earned permission to be contacted.
+        redirect: "manual",
       });
       if (response.status === 404 || response.status === 410) {
         // Nothing here reads this body, so let the stream go rather than

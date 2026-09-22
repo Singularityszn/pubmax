@@ -124,6 +124,18 @@ Disallow: /
 });
 
 describe("asking a host before reading it", () => {
+  it("refuses a robots redirect before contacting its target", async () => {
+    const fetchImpl = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) => new Response("", {
+      status: 302, headers: { location: "http://169.254.169.254/latest/meta-data/" },
+    }));
+    const check = createRobotsChecker({ fetchImpl: fetchImpl as typeof fetch });
+    await expect(check("https://thepub.co.uk/drinks")).resolves.toMatchObject({
+      allowed: false, reason: "robots-unreadable", robots: "http-refused",
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe("https://thepub.co.uk/robots.txt");
+    expect(fetchImpl.mock.calls[0]?.[1]).toMatchObject({ redirect: "manual" });
+  });
   it("permits a page the host allows", async () => {
     const fetchImpl = vi.fn(async () => robotsResponse("User-agent: *\nDisallow: /basket\n"));
     const check = createRobotsChecker({ fetchImpl: fetchImpl as unknown as typeof fetch });
