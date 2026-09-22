@@ -17,6 +17,8 @@ const PLAN_DRAFT_V1 = "pubmaxx:plan-draft:v1";
 const PLAN_DRAFT_V2 = "pubmax:plan-draft:v2";
 const CONSENT_KEY = "pubmaxx:analytics-consent:v1";
 const COMPOSER_HEADING = "Describe the outing. We’ll put it in order.";
+const RESTORED_HANDOFF_HEADING = "Say what you need. Get a route you can stand behind.";
+const RESTORED_HANDOFF_STATE = "valid restored PlanningIntent";
 
 type Seed = {
   session?: Record<string, string>;
@@ -111,9 +113,31 @@ for (const viewport of [
       await applySeed(page, state.seed);
       await page.goto("/plan");
 
-      // The composer always resolves — the arbitration/parsers absorb every
-      // enumerated storage state instead of throwing.
-      await expect(page.getByRole("heading", { name: COMPOSER_HEADING })).toBeVisible();
+      // The composer always resolves - the arbitration/parsers absorb every
+      // enumerated storage state instead of throwing. A live accepted handoff
+      // deliberately opens the concierge that carries its locked Stop 1;
+      // describe-first remains the heading for states with no accepted pub.
+      if (state.name === RESTORED_HANDOFF_STATE) {
+        await expect(
+          page.getByRole("region", { name: "Accepted plan context" }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole("heading", { name: RESTORED_HANDOFF_HEADING }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole("textbox", { name: "Describe the outing" }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole("button", { name: "Make a plan" }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole("button", { name: "Release this pub" }),
+        ).toBeVisible();
+      } else {
+        await expect(
+          page.getByRole("heading", { name: COMPOSER_HEADING }),
+        ).toBeVisible();
+      }
       expect(pageErrors, `${state.name} must not raise a page error`).toEqual([]);
     });
   }

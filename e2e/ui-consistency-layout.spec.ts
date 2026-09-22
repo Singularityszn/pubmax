@@ -31,6 +31,8 @@ const VENUE_ID = "venue-xjf3n0";
 const PROFILE_HANDLE = "layoutcaptain";
 const E2E_AUTH_USER_ID = "00000000-0000-4000-8000-000000000091";
 const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
+const CONSENT_ANSWER_MOMENT_KEY = "pubmax:consent-answer-moment:v1";
+const CONSENT_FIRST_ROUTE_KEY = "pubmax:consent-first-route:v1";
 
 const VIEWPORTS = [
   { width: 390, height: 844 },
@@ -473,15 +475,6 @@ async function measureSurfaceAssertions(
     const topbar = panels.find(
       (candidate) => candidate.name === "mobile map topbar",
     );
-    const notice = panels.find(
-      (candidate) => candidate.name === "analytics notice",
-    );
-    const planAction = panels.find(
-      (candidate) => candidate.name === "Describe the outing",
-    );
-    const credit = panels.find(
-      (candidate) => candidate.name === "map credit",
-    );
     // The phone map chrome is ONE bar (design judgement 2026-08-01, finding
     // 2.3), so the whole stack is the bar's own height, not a three-row band.
     const chromeHeight = topbar ? round(topbar.bottom - topbar.top) : Number.NaN;
@@ -507,6 +500,34 @@ async function measureSurfaceAssertions(
       barMetrics.scrollWidth <= barMetrics.clientWidth,
       `scroll ${barMetrics.scrollWidth}px; client ${barMetrics.clientWidth}px; bar ${topbar?.left}-${topbar?.right}px`,
     );
+  }
+
+  if (surface === "map-after-first-answer" && viewport.width === 390) {
+    const notice = panels.find(
+      (candidate) => candidate.name === "analytics notice",
+    );
+    const credit = panels.find(
+      (candidate) => candidate.name === "map credit",
+    );
+    // This path has crossed a real answer boundary, so the notice is required
+    // to have a box. Keep absence as a hard failure instead of turning a
+    // missing panel into a passing conditional.
+    assertMeasured(
+      assertions,
+      surface,
+      viewport.width,
+      "analytics notice appears after first answer",
+      notice !== undefined,
+      notice ? `${notice.top}-${notice.bottom}px` : "missing",
+    );
+    assertMeasured(
+      assertions,
+      surface,
+      viewport.width,
+      "map credit remains measurable after first answer",
+      credit !== undefined,
+      credit ? `${credit.top}-${credit.bottom}px` : "missing",
+    );
     const overlap =
       notice && credit
         ? round(
@@ -524,24 +545,6 @@ async function measureSurfaceAssertions(
       "analytics notice leaves map credit reachable",
       Number.isFinite(overlap) && overlap === 0,
       `notice ${notice?.top}-${notice?.bottom}px; credit ${credit?.top}-${credit?.bottom}px; overlap ${overlap}px`,
-    );
-    const planOverlap =
-      notice && planAction
-        ? round(
-            Math.max(
-              0,
-              Math.min(notice.bottom, planAction.bottom) -
-                Math.max(notice.top, planAction.top),
-            ),
-          )
-        : Number.NaN;
-    assertMeasured(
-      assertions,
-      surface,
-      viewport.width,
-      "analytics notice leaves primary map action clear",
-      Number.isFinite(planOverlap) && planOverlap === 0,
-      `notice ${notice?.top}-${notice?.bottom}px; action ${planAction?.top}-${planAction?.bottom}px; overlap ${planOverlap}px`,
     );
     const noticeShare = notice
       ? round((notice.height / viewport.height) * 100)
@@ -600,7 +603,7 @@ async function verifyPostCaptureInteractions(
 ): Promise<void> {
   if (
     !ASSERT_LAYOUT ||
-    surface !== "map-first-visit" ||
+    !["map-first-visit", "map-after-first-answer"].includes(surface) ||
     viewport.width !== 390
   ) {
     return;
@@ -636,16 +639,52 @@ async function captureSurface(
   surface: string,
   pathname: string,
   readySelector: string,
-  options: { firstVisit?: boolean; signedIn?: boolean } = {},
+  options: {
+    firstVisit?: boolean;
+    signedIn?: boolean;
+    answerFirst?: boolean;
+  } = {},
 ): Promise<SurfaceMeasurement> {
   await page.setViewportSize(viewport);
   await preparePage(page, options);
+  if (options.answerFirst) {
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      // Keep map arrival out of this proof. Its own card owns a separate
+      // first-visit contract, while this path proves consent after a real
+      // second-route answer.
+      window.localStorage.setItem(
+        "pubmax:map-first-visit-arrival:v1",
+        "dismissed",
+      );
+    });
+    const firstResponse = await page.goto("/", {
+      waitUntil: "domcontentloaded",
+    });
+    expect(firstResponse?.status(), `${surface} /`).toBe(200);
+    await expect
+      .poll(
+        () =>
+          page.evaluate(
+            (key) => window.sessionStorage.getItem(key),
+            CONSENT_FIRST_ROUTE_KEY,
+          ),
+        { timeout: 30_000 },
+      )
+      .not.toBeNull();
+  }
   const response = await page.goto(pathname, { waitUntil: "domcontentloaded" });
   expect(response?.status(), `${surface} ${pathname}`).toBe(200);
   await expect(page.locator(readySelector).first()).toBeVisible({
     timeout: 45_000,
   });
-  if (surface === "map-first-visit" || surface === "venue-sheet") {
+  if (
+    ["map-first-visit", "map-after-first-answer", "venue-sheet"].includes(
+      surface,
+    )
+  ) {
     await expect(
       page.locator(
         viewport.width <= 640 ? ".mobileMapChrome" : ".mapToolbar",
@@ -675,6 +714,21 @@ async function captureSurface(
     await expect(arrivalCard).toHaveCount(0, { timeout: 15_000 });
   }
   await settle(page);
+  if (options.answerFirst) {
+    await expect
+      .poll(
+        () =>
+          page.evaluate(
+            (key) => window.sessionStorage.getItem(key),
+            CONSENT_ANSWER_MOMENT_KEY,
+          ),
+        { timeout: 30_000 },
+      )
+      .toBe("second-route");
+    await expect(page.locator(".analyticsConsentPrompt")).toBeVisible({
+      timeout: 30_000,
+    });
+  }
 
   const firstVisitPromptLocator = page
     .locator('.analyticsConsentPrompt:visible, [role="dialog"]:visible')
@@ -705,6 +759,18 @@ async function captureSurface(
           };
         })
       : null;
+
+  if (surface === "map-first-visit" && options.firstVisit && !options.answerFirst) {
+    // A cold map is before any consent answer. Prove both halves of that
+    // contract: no notice painted and no answer marker was manufactured.
+    await expect(page.locator(".analyticsConsentPrompt")).toHaveCount(0);
+    expect(firstVisitPrompt?.kind ?? null).not.toBe("analytics consent");
+    const answerMoment = await page.evaluate(
+      (key) => window.sessionStorage.getItem(key),
+      CONSENT_ANSWER_MOMENT_KEY,
+    );
+    expect(answerMoment).toBeNull();
+  }
 
   const rows = [
     await row(page, "mobile map topbar", ".mobileMapTopbar > a, .mobileMapTopbar > button"),
@@ -1015,6 +1081,22 @@ test("capture UI consistency evidence", async ({ browser }) => {
           spec.pathname,
           spec.readySelector,
           { firstVisit: spec.firstVisit },
+        ),
+      );
+      await context.close();
+    }
+
+    if (viewport.width === 390) {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      surfaces.push(
+        await captureSurface(
+          page,
+          viewport,
+          "map-after-first-answer",
+          "/map",
+          ".mapCanvasWrap",
+          { firstVisit: true, answerFirst: true },
         ),
       );
       await context.close();
