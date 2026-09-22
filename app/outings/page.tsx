@@ -2,19 +2,25 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import SiteNav from "@/components/nav/SiteNav";
 import Screen from "@/components/ui/screen";
+import { Button } from "@/components/ui/button";
 import { OutCardBody } from "@/components/out/OutCard";
+import { HomeTimingControl } from "@/components/out/HomeTimingControl";
 import { SafeNightStrip } from "@/components/night/SafeNightStrip";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { filterRowsByArea } from "@/lib/concierge/whatsOn";
-import { buildOutResponse } from "@/lib/out/loadOut";
+import { buildOutResponse, loadServedOutEvents } from "@/lib/out/loadOut";
 import { outListingKind } from "@/lib/out/listingKind";
+import { loadOutingPriceEvidence } from "@/lib/outingEvidence.server";
+import { outingEventStopFromRow } from "@/lib/outingEventStop";
 import {
   OUTING_OCCASIONS,
   outingAsk,
   outingBasis,
   outingShortlist,
+  parseOutingIntent,
   parseOutingOccasion,
 } from "@/lib/outingOccasions";
+import { outingShareContextParams } from "@/lib/outingShareContext";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import styles from "./outings.module.css";
 import "../out/out.css";
@@ -30,6 +36,33 @@ export const metadata: Metadata = {
   },
 };
 
+function londonDateForEvent(row: { startsDate?: string; startsAt?: string }): string | null {
+  if (row.startsDate && /^\d{4}-\d{2}-\d{2}$/.test(row.startsDate)) return row.startsDate;
+  if (!row.startsAt || !Number.isFinite(Date.parse(row.startsAt))) return null;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(row.startsAt));
+  const values = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+  return values.year && values.month && values.day
+    ? `${values.year}-${values.month}-${values.day}`
+    : null;
+}
+
+function londonTimeForEvent(row: { startsAt?: string }): string | null {
+  if (!row.startsAt || !Number.isFinite(Date.parse(row.startsAt))) return null;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(row.startsAt));
+  const values = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+  return values.hour && values.minute ? `${values.hour}:${values.minute}` : null;
+}
+
 export default async function OutingsPage({
   searchParams,
 }: {
@@ -37,35 +70,70 @@ export default async function OutingsPage({
 }) {
   const params = await searchParams;
   const occasion = parseOutingOccasion(params.occasion);
-  const area =
-    typeof params.area === "string" ? params.area.trim().slice(0, 80) : "";
+  const intent = parseOutingIntent(params);
+  const area = intent.area;
   const day =
     params.day === "tomorrow" || params.day === "weekend"
       ? params.day
       : "today";
   const eventsOccasion = occasion === "dancing" || occasion === "music";
-  const listing = eventsOccasion
+  const quietDateCheck = occasion === "quiet" && Boolean(intent.date);
+  const listing = eventsOccasion || quietDateCheck
     ? await buildOutResponse({ city: "london", day })
     : null;
-  const eventRows =
-    listing?.events.filter(
-      (row) =>
-        outListingKind(row) ===
-        (occasion === "dancing" ? "club-night" : "gig"),
-    ) ?? [];
-  const events = area ? filterRowsByArea(eventRows, area) : eventRows;
+  const datedListing = intent.date && (eventsOccasion || quietDateCheck)
+    ? await loadServedOutEvents("london")
+    : null;
+  const relevantRows = datedListing
+    ? [...datedListing.rows, ...(listing?.events ?? [])].filter((row, index, rows) => rows.findIndex((candidate) => candidate.id === row.id) === index)
+    : listing?.events ?? [];
+  const eventRows = relevantRows.filter((row) =>
+    (!intent.date || londonDateForEvent(row) === intent.date) &&
+    (!intent.time || londonTimeForEvent(row) === intent.time),
+  );
+  const selectedEventRows = eventRows.filter(
+    (row) => outListingKind(row) === (occasion === "dancing" ? "club-night" : "gig"),
+  );
+  const events = area ? filterRowsByArea(selectedEventRows, area) : selectedEventRows;
+  const quietWarnings = quietDateCheck && (listing?.listingsStatus !== "ready" || datedListing?.readStatus === "degraded");
   const venues = eventsOccasion
     ? []
-    : outingShortlist(await loadConciergeVenues("london"), occasion, area);
-  const ask = `${outingAsk(occasion, area)}${day === "tomorrow" ? ", tomorrow" : day === "weekend" ? ", this weekend" : ", tonight"}`;
-  const timing =
-    day === "tomorrow"
-      ? ", tomorrow"
-      : day === "weekend"
-        ? ", this weekend"
-        : ", tonight";
-  const browseHref = (id: string) =>
-    `/outings?${new URLSearchParams({ occasion: id, ...(area ? { area } : {}), day })}`;
+    : outingShortlist(await loadConciergeVenues("london"), occasion, area, {
+        ...(intent.date ? { date: intent.date } : {}),
+        ...(quietDateCheck ? { events: relevantRows } : {}),
+        ...(intent.groupSize ? { groupSize: intent.groupSize } : {}),
+        ...(intent.alcohol !== "any" ? { alcohol: intent.alcohol } : {}),
+      });
+  const priceEvidence = eventsOccasion ? new Map() : await loadOutingPriceEvidence();
+  const ask = `${outingAsk(occasion, area, intent)}${!intent.date ? day === "tomorrow" ? ", tomorrow" : day === "weekend" ? ", this weekend" : ", tonight" : ""}`;
+  const shareParams = (eventStop: ReturnType<typeof outingEventStopFromRow> = null, eventSide: "before" | "after" | null = null) =>
+    outingShareContextParams({ intent, eventStop, eventPosition: null, eventSide });
+  const browseHref = (id: string) => {
+    const query = shareParams();
+    query.set("occasion", id);
+    query.set("day", day);
+    return `/outings?${query}`;
+  };
+  const eventPlanHref = (row: (typeof events)[number], side: "before" | "after") => {
+    const eventStop = outingEventStopFromRow(row);
+    if (!eventStop) return "/plan";
+    const query = shareParams(eventStop, side);
+    query.set("query", `${ask}. Keep the sourced event as a non-pub stop, with pub stops ${side} it.`);
+    return `/plan?${query}`;
+  };
+  const planHref = () => {
+    const query = shareParams();
+    query.set("query", ask);
+    query.set("day", day);
+    return `/plan?${query}`;
+  };
+  const askParams = shareParams();
+  const askIntentQuery = askParams.toString();
+  const askHref = `/pal/chat?ask=${encodeURIComponent(ask)}${askIntentQuery ? `&${askIntentQuery}` : ""}`;
+  const evidenceDate = (value: string | null | undefined) =>
+    value && Number.isFinite(Date.parse(value))
+      ? new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", dateStyle: "medium" }).format(new Date(value))
+      : null;
   return (
     <main id="main" className={styles.page}>
       <SiteNav />
@@ -107,8 +175,44 @@ export default async function OutingsPage({
               <option value="weekend">Weekend</option>
             </select>
           </label>
-          <button type="submit">Find places</button>
+          <label>
+            Date
+            <input name="date" type="date" defaultValue={intent.date} />
+          </label>
+          <label>
+            Start time
+            <input name="time" type="time" defaultValue={intent.time} />
+          </label>
+          <label>
+            Group size
+            <input name="groupSize" type="number" min={1} max={30} defaultValue={intent.groupSize ?? ""} />
+          </label>
+          <label>
+            Budget per person (£)
+            <input name="budgetGbp" type="number" min={5} max={500} step="0.01" defaultValue={intent.budgetGbp ?? ""} />
+          </label>
+          <label>
+            Alcohol preference
+            <select name="alcohol" defaultValue={intent.alcohol}>
+              <option value="any">No preference</option>
+              <option value="none">Alcohol-free</option>
+              <option value="included">Alcohol is okay</option>
+            </select>
+          </label>
+          <Button className={styles.submit} type="submit" data-primary-action>
+            Find places
+          </Button>
         </form>
+        <details className={styles.filterNote}>
+          <summary>How these filters affect browse</summary>
+          <ul>
+            <li>Area narrows this list. Date filters dated music and dance listings, and removes pubs with a recorded loud event from quiet results.</li>
+            <li>Start time matches recorded start times for music and dancing. Elsewhere date and time are passed to Ask and Plan.</li>
+            <li>Groups of six or more rank pubs with listed food or a garden higher.</li>
+            <li>Alcohol-free keeps pubs with a recorded alcohol-free offer. Other alcohol preferences pass to Ask and Plan.</li>
+            <li>Budget passes to Ask and Plan; it is not a total-visit cap. Pint prices are separate evidence.</li>
+          </ul>
+        </details>
         {eventsOccasion ? (
           <>
             <p>
@@ -130,6 +234,18 @@ export default async function OutingsPage({
                       {row.endsAt
                         ? `Published finish: ${new Date(row.endsAt).toLocaleString("en-GB", { timeZone: "Europe/London" })}`
                         : "Finish time not recorded."}
+                    </p>
+                    <p>
+                      {typeof row.priceGbp === "number" && Number.isFinite(row.priceGbp)
+                        ? `Admission: tickets from £${row.priceGbp.toFixed(2)}`
+                        : "Admission price not recorded in listing."}
+                    </p>
+                    <p>Source checked: {evidenceDate(row.observedAt) ?? "date not recorded"}.</p>
+                    <p>Add pubs before or after the event, in the order you choose.</p>
+                    <p>
+                      <Link prefetch={false} href={eventPlanHref(row, "before")}>Plan around this event with pubs before</Link>
+                      {" · "}
+                      <Link prefetch={false} href={eventPlanHref(row, "after")}>Plan around this event with pubs after</Link>
                     </p>
                     {row.venueId ? (
                       <Link prefetch={false} href={venueMapUrl(row.venueId)}>
@@ -158,7 +274,7 @@ export default async function OutingsPage({
               </p>
               <Link
                 prefetch={false}
-                href={`/plan?query=${encodeURIComponent(`Plan a pub crawl${area ? ` in ${area}` : " in London"}${timing}`)}`}
+                href={planHref()}
               >
                 Plan the pub stops
               </Link>
@@ -167,6 +283,7 @@ export default async function OutingsPage({
                 destination stays with the journey planner.
               </p>
               <SafeNightStrip cityId="london" />
+              <HomeTimingControl />
             </section>
           </>
         ) : (
@@ -176,6 +293,9 @@ export default async function OutingsPage({
               below. Noise, seats and opening hours are not confirmed for your
               visit.
             </p>
+            {quietWarnings ? (
+              <p role="status">Dated event listings could not all be checked, so this quiet estimate is not a guarantee for your date.</p>
+            ) : null}
             {venues.length ? (
               <ul className={styles.results}>
                 {venues.map(({ venue }) => (
@@ -187,6 +307,22 @@ export default async function OutingsPage({
                     </h2>
                     <p>{venue.area}</p>
                     <p>{outingBasis(venue).join(" · ") || "Listed pub"}</p>
+                    {priceEvidence.has(venue.id) ? (
+                      <p>
+                        Pint evidence: {priceEvidence.get(venue.id)!.drink || "listed drink"} £{priceEvidence.get(venue.id)!.priceGbp.toFixed(2)}.
+                        {priceEvidence.get(venue.id)!.sourceUrl ? (
+                          <> Source: <a href={priceEvidence.get(venue.id)!.sourceUrl!} target="_blank" rel="noopener noreferrer">price record</a>.</>
+                        ) : " Source URL not recorded."}
+                        {priceEvidence.get(venue.id)!.reviewedAt
+                          ? ` Source reviewed ${evidenceDate(priceEvidence.get(venue.id)!.reviewedAt)}.`
+                          : " Review date not recorded."}
+                      </p>
+                    ) : (
+                      <p>No price recorded.</p>
+                    )}
+                    {occasion === "gardens" ? (
+                      <p>Weather not checked for {venue.area || "this area"}.</p>
+                    ) : null}
                     <p className={styles.estimate}>
                       Editorial estimate:{" "}
                       {OUTING_OCCASIONS[occasion].toLocaleLowerCase("en-GB")}{" "}
@@ -209,14 +345,14 @@ export default async function OutingsPage({
         <div className={styles.next}>
           <Link
             prefetch={false}
-            href={`/pal/chat?ask=${encodeURIComponent(ask)}`}
+            href={askHref}
           >
             Ask for a closer fit
           </Link>
           {!eventsOccasion ? (
             <Link
               prefetch={false}
-              href={`/plan?query=${encodeURIComponent(occasion === "crawl" || occasion === "friends" ? ask : `Plan a ${occasion === "gardens" ? "garden" : occasion === "date" ? "date-night" : "quiet"} pub route${area ? ` in ${area}` : " in London"}${timing}`)}`}
+              href={planHref()}
             >
               Make a plan
             </Link>

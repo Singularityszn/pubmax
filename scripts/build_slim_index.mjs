@@ -108,7 +108,6 @@ function famousVenueFilterHints(row) {
       food: row.kind === "food" || row.kind === "restaurant",
       cocktails: row.kind === "bar" && row.anchor.kind === "house_cocktail",
       beerGarden: false,
-      liveSports: false,
       nonAlcoholic: false,
     },
     curation: { nearWater: false, hasStory: true },
@@ -625,7 +624,7 @@ function buildFilterHints(rows, venueId, scrapedIds) {
       food: prices.some((price) => truthyFlag(price.food)),
       cocktails: prices.some((price) => truthyFlag(price.cocktails)),
       beerGarden: prices.some((price) => truthyFlag(price.beer_garden)),
-      liveSports: prices.some((price) => truthyFlag(price.live_sports)),
+      ...(prices.some((price) => truthyFlag(price.live_sports)) ? { liveSports: true } : {}),
       nonAlcoholic: prices.some((price) =>
         isNonAlcoholicDrinkName(price.pint_name),
       ),

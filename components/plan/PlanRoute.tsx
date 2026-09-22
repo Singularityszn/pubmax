@@ -10,6 +10,7 @@ import { CalendarClock, Music, Tag, Ticket, Tv, type LucideIcon } from "lucide-r
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
 import PlanRouteMiniMap from "@/components/plan/PlanRouteMiniMap";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
+import { orderOutingStops, type OutingEventStop } from "@/lib/outingEventStop";
 import { discardBody } from "@/lib/responseBody";
 import { isValidWhatsOnRow, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
@@ -44,10 +45,18 @@ export default function PlanRoute({
   planId,
   startTime,
   stops,
+  eventStop = null,
+  eventPosition = null,
+  eventSide = null,
+  eventStopVerified = false,
 }: {
   planId: string;
   startTime: string;
   stops: RouteStop[];
+  eventStop?: OutingEventStop | null;
+  eventPosition?: number | null;
+  eventSide?: "before" | "after" | null;
+  eventStopVerified?: boolean;
 }) {
   const [report, setReport] = useState<GetInReport | null>(null);
   const [state, setState] = useState<FetchState>("loading");
@@ -104,7 +113,12 @@ export default function PlanRoute({
   // Deep link the whole ordered crawl onto the map, where the route now follows
   // real walking roads. The per-stop "Open on the map" links below still jump to
   // a single pin; this shows the walk between every stop.
+  const requestedEventPosition = eventPosition ?? (eventSide === "after" ? stops.length : 0);
+  const safeEventPosition = eventStop
+    ? Math.min(stops.length, Math.max(0, requestedEventPosition))
+    : null;
   const walkRouteHref = buildCrawlMapHref(stops.map((stop) => stop.venueId));
+  const orderedStops = orderOutingStops(stops, eventStop, safeEventPosition);
 
   return (
     <div className="planRoute">
@@ -120,14 +134,37 @@ export default function PlanRoute({
       {stops.length >= 2 ? <PlanRouteMiniMap stops={stops} /> : null}
       {walkRouteHref ? (
         <Link className="planRoute__walk" href={walkRouteHref}>
-          See the walking route
+          See walking route between pub stops
         </Link>
       ) : null}
       <ol className="planSummary__stops">
-        {stops.map((stop, index) => {
+        {orderedStops.map((item, index) => {
+          if (item.kind === "event") {
+            const event = item.event;
+            return (
+              <li key={`event-${event.id}`} style={{ "--i": index } as CSSProperties} data-stop-kind="event">
+                <span className="planSummary__marker">{index + 1}</span>
+                <div className="planRoute__body">
+                  <strong>{event.title}</strong>
+                  <span>
+                    {eventStopVerified
+                      ? "Matched to a current PUBMAXX event listing; not a pub stop."
+                      : "Details supplied with this plan; not independently verified."}
+                  </span>
+                  {event.placeName ? <span>{eventStopVerified ? "Listed place" : "Reported place"}: {event.placeName}</span> : null}
+                  {event.startsAt ? <span>{eventStopVerified ? "Listed start" : "Reported start"}: {new Date(event.startsAt).toLocaleString("en-GB", { timeZone: "Europe/London" })}</span> : event.startsDate ? <span>{eventStopVerified ? "Listed date" : "Reported date"}: {event.startsDate}</span> : <span>Start not supplied.</span>}
+                  {event.endsAt ? <span>{eventStopVerified ? "Listed finish" : "Reported finish"}: {new Date(event.endsAt).toLocaleString("en-GB", { timeZone: "Europe/London" })}</span> : <span>Finish time not supplied.</span>}
+                  {event.admissionGbp !== null ? <span>{eventStopVerified ? "Listing states admission" : "Admission stated in shared details"}: from £{event.admissionGbp.toFixed(2)}</span> : <span>Admission price not supplied.</span>}
+                  {eventStopVerified && event.observedAt ? <span>Listing last observed: {new Date(event.observedAt).toLocaleDateString("en-GB", { timeZone: "Europe/London", dateStyle: "medium" })}.</span> : null}
+                  <a href={event.source.url} target="_blank" rel="noreferrer noopener">{eventStopVerified ? "Open listing source" : "Open supplied source link"}</a>
+                </div>
+              </li>
+            );
+          }
+          const { stop } = item;
           const signal = signals.get(stop.venueId);
           return (
-            <li key={`${stop.position}-${stop.venueId}`} style={{ "--i": index } as CSSProperties}>
+            <li key={`${stop.position}-${stop.venueId}`} style={{ "--i": index } as CSSProperties} data-stop-kind="pub">
               <span className="planSummary__marker">{index + 1}</span>
               <div className="planRoute__body">
                 <strong>{stop.venueName}</strong>

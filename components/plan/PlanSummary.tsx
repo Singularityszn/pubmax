@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 
 import type { PlanState } from "@/lib/plan";
 import PlanRoute from "@/components/plan/PlanRoute";
+import type { OutingEventStop } from "@/lib/outingEventStop";
 import PlanCollaborationPanel from "@/components/plan/PlanCollaborationPanel";
 import InvitePrivacyPreview from "@/components/plan/InvitePrivacyPreview";
 import RoundStarter from "@/components/round/RoundStarter";
@@ -303,10 +304,18 @@ function canonicalStateFromBody(value: unknown): PlanState | null {
 export default function PlanSummary({
   planId,
   initialPreview,
+  eventStop = null,
+  eventPosition = null,
+  eventSide = null,
+  eventStopVerified = false,
 }: {
   planId: string;
   initialPreview: PlanPrivacyPreviewDTO;
   vibeTally?: VibeTally | null;
+  eventStop?: OutingEventStop | null;
+  eventPosition?: number | null;
+  eventSide?: "before" | "after" | null;
+  eventStopVerified?: boolean;
 }) {
   const [state, setState] = useState<PlanState | null>(null);
   const { identityResolved } = useAuth();
@@ -345,10 +354,31 @@ export default function PlanSummary({
     );
   }
 
-  return <PlanSummaryMember planId={planId} state={state} />;
+  return <PlanSummaryMember
+    planId={planId}
+    state={state}
+    eventStop={eventStop}
+    eventPosition={eventPosition}
+    eventSide={eventSide}
+    eventStopVerified={eventStopVerified}
+  />;
 }
 
-function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState }) {
+function PlanSummaryMember({
+  planId,
+  state,
+  eventStop,
+  eventPosition,
+  eventSide,
+  eventStopVerified,
+}: {
+  planId: string;
+  state: PlanState;
+  eventStop: OutingEventStop | null;
+  eventPosition: number | null;
+  eventSide: "before" | "after" | null;
+  eventStopVerified: boolean;
+}) {
   const view = planViewModel(state);
   const tokenEvent = planCapabilityEvent(planId);
   const pendingEvent = `pubmax:pending-route:${planId}`;
@@ -740,6 +770,10 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
             planId={planId}
             startTime={state.plan.startTime}
             stops={canonicalRouteStops}
+            eventStop={eventStop}
+            eventPosition={eventPosition}
+            eventSide={eventSide}
+            eventStopVerified={eventStopVerified}
           />
           {memberToken ? (
             /* Round has no Plan-constraint fields, so this bridge carries only title and ordered venue identity. */

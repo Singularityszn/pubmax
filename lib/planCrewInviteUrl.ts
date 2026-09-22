@@ -21,11 +21,14 @@ export function planCrewSharePath(
   planId: string,
   inviteToken: string,
   vibeSlug?: string | null,
+  additionalQuery?: string | URLSearchParams,
 ): string {
   if (!isPlanId(planId) || !isClassicPlanInviteToken(inviteToken)) {
     return isPlanId(planId) ? `/plan/${planId}` : "/plan";
   }
   const token = inviteToken.trim().toLowerCase();
-  const query = vibeSlug ? `?vibe=${encodeURIComponent(vibeSlug)}` : "";
+  const params = new URLSearchParams(additionalQuery);
+  if (vibeSlug) params.set("vibe", vibeSlug);
+  const query = params.size ? `?${params.toString()}` : "";
   return `/plan/${planId}${query}#invite=${encodeURIComponent(token)}`;
 }

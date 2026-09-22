@@ -53,6 +53,7 @@ import {
   type PlanStopCount,
 } from "@/lib/planStopCount";
 import { planHasRoute, type PlanState } from "@/lib/plan";
+import { parseOutingShareContext, preservedOutingShareSearch } from "@/lib/outingShareContext";
 import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
 import {
@@ -1941,7 +1942,14 @@ function PlanComposerForm({
       clearPersistedPlanDrafts({ planDraft: safeSessionStorage(), routeDraft: safeLocalStorage() });
       clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
-      router.push(`/plan/${planId}#share`);
+      const outingContext = parseOutingShareContext(new URLSearchParams(window.location.search));
+      const eventPosition = outingContext.eventSide === "before"
+        ? completeStops.length
+        : outingContext.eventSide === "after"
+          ? 0
+          : undefined;
+      const outingQuery = preservedOutingShareSearch(window.location.search, eventPosition);
+      router.push(`/plan/${planId}${outingQuery ? `?${outingQuery}` : ""}#share`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The plan could not be created.");
     } finally {

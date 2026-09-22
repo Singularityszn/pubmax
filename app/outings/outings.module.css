@@ -12,7 +12,6 @@
   margin: 24px 0;
 }
 .choices a,
-.filters button,
 .next a {
   min-height: 44px;
   padding: 12px 16px;
@@ -44,10 +43,21 @@
   width: 100%;
   box-sizing: border-box;
 }
-.filters button {
+.submit {
   align-self: end;
-  font: inherit;
+}
+.filterNote {
+  margin: -12px 0 24px;
+  color: var(--color-text-soft);
+  font-size: 0.875rem;
+}
+.filterNote summary {
   cursor: pointer;
+}
+.filterNote ul {
+  display: grid;
+  gap: 6px;
+  padding-inline-start: 20px;
 }
 .results {
   list-style: none;

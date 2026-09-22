@@ -22,6 +22,13 @@ describe("planCrewSharePath", () => {
     );
   });
 
+  it("keeps typed outing context and a selected event in shared plan URLs", () => {
+    const extra = new URLSearchParams({ area: "Camden", groupSize: "6", alcohol: "none", eventId: "gig-1" });
+    expect(planCrewSharePath(PLAN_ID, CLASSIC, "cosy", extra)).toBe(
+      `/plan/${PLAN_ID}?area=Camden&groupSize=6&alcohol=none&eventId=gig-1&vibe=cosy#invite=${CLASSIC}`,
+    );
+  });
+
   it("refuses to mint a join URL without a classic invite token", () => {
     expect(planCrewSharePath(PLAN_ID, COLLAB)).toBe(`/plan/${PLAN_ID}`);
     expect(planCrewSharePath(PLAN_ID, "")).toBe(`/plan/${PLAN_ID}`);

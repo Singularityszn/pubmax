@@ -121,8 +121,9 @@ export type ServedOutEvents = {
 // that reads "ready".
 export async function loadServedOutEvents(
   city: OutCity,
-  now: number,
+  now?: number,
 ): Promise<ServedOutEvents> {
+  const requestNow = now ?? Date.now();
   const bundled = loadBundledOutEvents(city);
   if (city !== "london") return { rows: bundled, readStatus: "ready" };
   try {
@@ -131,7 +132,7 @@ export async function loadServedOutEvents(
     );
     const served = await loadServedWhatsOnListingsWithFreshness({
       bundled,
-      now,
+      now: requestNow,
       kind: "event",
     });
     return { rows: served.rows, readStatus: served.readStatus };

@@ -80,7 +80,6 @@ function buildFilterHints(pub, displayName) {
       food: Boolean(pub.cuisine),
       cocktails: false,
       beerGarden: truthyOutdoor(pub),
-      liveSports: false,
       nonAlcoholic: false,
     },
     curation: {

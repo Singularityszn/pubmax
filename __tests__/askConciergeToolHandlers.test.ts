@@ -721,6 +721,29 @@ describe("heritage venue identity", () => {
 });
 
 describe("dance listings", () => {
+  it("keeps grounded matches when one or more listing sources are degraded", async () => {
+    state.whatsOnReadStatus = "degraded";
+    state.whatsOn.rows = [{
+      id: "quiz-partial",
+      kind: "quiz",
+      title: "Quiz tonight",
+      placeName: "The Lamb",
+      area: "Camden",
+      startsAt: "2026-08-15T20:00:00.000Z",
+      source: { label: "Venue programme", url: "https://example.com/quiz" },
+      observedAt: "2026-08-15T12:00:00.000Z",
+      confidence: "listed",
+    }];
+
+    const result = await runAskTool("whats_on", { query: "Quiz tonight in Camden" }, ctx());
+
+    expect(result.ok).toBe(true);
+    expect(result.degraded).toBe(true);
+    expect(result.cards.map((card) => card.title)).toEqual(["Quiz tonight"]);
+    expect(result.cards[0]?.provenance?.url).toBe("https://example.com/quiz");
+    expect(result.answerHint).toMatch(/some|partial|unavailable/i);
+  });
+
   it("keeps comedy out of a disco request while retaining publisher provenance", async () => {
     state.whatsOn.rows = ["Disco tonight", "Comedy tonight"].map((title, index) => ({
       id: `event-${index}`, kind: "event", title, placeName: "Camden venue", area: "Camden",
