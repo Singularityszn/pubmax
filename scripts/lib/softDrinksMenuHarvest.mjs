@@ -257,6 +257,7 @@ function menuPdfUrlsFromPageText(text) {
   const input = String(text);
   const labelled = [];
   const seen = new Set();
+  const excluded = new Set();
   const add = (rawUrl, label = "") => {
     let url;
     try {
@@ -267,9 +268,13 @@ function menuPdfUrlsFromPageText(text) {
     if (!/^https?:$/.test(url.protocol) || !/\.pdf$/i.test(url.pathname)) return;
     url.hash = "";
     const normalized = url.href;
+    if (/\b(?:wine|spritz|cocktail|food)\b/i.test(label)) {
+      excluded.add(normalized);
+      return;
+    }
     if (seen.has(normalized)) return;
-    seen.add(normalized);
     if (/\b(?:drinks?\s+(?:list|menu)|soft[- ]?drinks?\s+(?:list|menu))\b/i.test(label)) {
+      seen.add(normalized);
       labelled.push(normalized);
     }
   };
@@ -280,7 +285,8 @@ function menuPdfUrlsFromPageText(text) {
   for (const match of input.matchAll(/<a\b[^>]*href=["']([^"']+\.pdf(?:\?[^"']*)?)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
     add(match[1], match[2].replace(/<[^>]+>/g, " "));
   }
-  if (labelled.length > 0) return labelled;
+  const selected = labelled.filter((url) => !excluded.has(url));
+  if (selected.length > 0) return selected;
 
   const fallback = [];
   for (const match of input.matchAll(/https?:\/\/[^\s"'<>]+?\.pdf(?:\?[^\s"'<>]*)?/gi)) {
@@ -288,7 +294,10 @@ function menuPdfUrlsFromPageText(text) {
     if (!/drink/i.test(href) || /wine|spritz|cocktail|food/i.test(href)) continue;
     try {
       const normalized = new URL(href).href;
-      if (!seen.has(normalized)) fallback.push(normalized);
+      if (!seen.has(normalized) && !excluded.has(normalized)) {
+        seen.add(normalized);
+        fallback.push(normalized);
+      }
     } catch {
       continue;
     }
