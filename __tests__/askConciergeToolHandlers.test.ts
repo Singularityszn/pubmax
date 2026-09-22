@@ -9,13 +9,21 @@ const state = {
   venues: [] as ConciergeVenue[],
   prices: { prices: [] as CommunityPrice[], degraded: false },
   whatsOn: { rows: [] as WhatsOnRow[], kindObservedAt: {} },
+  outRows: [] as WhatsOnRow[],
+  outDay: null as string | null,
   whatsOnThrows: false,
   whatsOnReadStatus: "ready" as "ready" | "degraded",
   desk: { venues: [], status: "ready" } as DeskVenueRead,
 };
 
 vi.mock("@/lib/out/loadOut", () => ({
-  buildOutResponse: vi.fn(async () => ({ events: state.whatsOn.rows, listingsStatus: "ready" })),
+  buildOutResponse: vi.fn(async (query: { day: string }) => {
+    state.outDay = query.day;
+    return {
+      events: state.outRows.length ? state.outRows : state.whatsOn.rows,
+      listingsStatus: "ready",
+    };
+  }),
 }));
 
 vi.mock("@/lib/concierge/venues.server", () => ({
@@ -32,21 +40,24 @@ vi.mock("@/lib/communityPriceStore", () => ({
 // DATE-ONLY row states a day and no clock time, and the real store windows it
 // by that day, so it is kept when its stated date is the caller's own.
 vi.mock("@/lib/whatsOnStore", () => ({
-  loadWhatsOn: vi.fn(async (_params: unknown, deps: { now?: number } = {}) => {
+  loadWhatsOn: vi.fn(async (params: { window?: string }, deps: { now?: number } = {}) => {
     if (state.whatsOnThrows) throw new Error("down");
     const now = deps.now ?? Date.now();
     return {
       ...state.whatsOn,
       readStatus: state.whatsOnReadStatus,
-      rows: state.whatsOn.rows.filter((row) => {
-        if (!row.startsAt && row.startsDate) {
-          return row.startsDate === new Date(now).toISOString().slice(0, 10);
-        }
-        const startsAt = row.startsAt ? Date.parse(row.startsAt) : Number.NaN;
-        return (
-          Number.isFinite(startsAt) && Math.abs(startsAt - now) <= 12 * 3_600_000
-        );
-      }),
+      rows:
+        params.window === "tonight"
+          ? state.whatsOn.rows.filter((row) => {
+              if (!row.startsAt && row.startsDate) {
+                return row.startsDate === new Date(now).toISOString().slice(0, 10);
+              }
+              const startsAt = row.startsAt ? Date.parse(row.startsAt) : Number.NaN;
+              return (
+                Number.isFinite(startsAt) && Math.abs(startsAt - now) <= 12 * 3_600_000
+              );
+            })
+          : state.whatsOn.rows,
     };
   }),
 }));
@@ -102,6 +113,8 @@ beforeEach(() => {
   state.venues = [];
   state.prices = { prices: [], degraded: false };
   state.whatsOn = { rows: [], kindObservedAt: {} };
+  state.outRows = [];
+  state.outDay = null;
   state.whatsOnThrows = false;
   state.whatsOnReadStatus = "ready";
   state.desk = { venues: [], status: "ready" };
@@ -672,5 +685,158 @@ describe("dance listings", () => {
     expect(result.cards[0]?.note).toBe(
       "Doors 19:30 · Published start: Sat 15 Aug, 21:00 · Published finish: Sat 15 Aug, 23:00",
     );
+  });
+});
+
+describe("music outing parity", () => {
+  it("reads the browse event source and retains tomorrow", async () => {
+    state.whatsOn.rows = [
+      {
+        id: "other-spine",
+        kind: "music",
+        title: "Different What's-On row",
+        placeName: "Camden venue",
+        area: "Camden",
+        startsAt: "2026-08-15T20:00:00.000Z",
+        source: { label: "Venue programme", url: "https://example.com/spine" },
+        observedAt: "2026-08-15T12:00:00.000Z",
+        confidence: "listed",
+      },
+    ];
+    state.outRows = [
+      {
+        id: "event-tomorrow",
+        kind: "event",
+        title: "Tomorrow live music",
+        placeName: "Camden venue",
+        area: "Camden",
+        startsAt: "2026-08-16T20:00:00.000Z",
+        source: { label: "Event publisher", url: "https://example.com/tomorrow" },
+        observedAt: "2026-08-15T12:00:00.000Z",
+        confidence: "listed",
+      },
+    ];
+
+    const result = await runAskTool(
+      "whats_on",
+      { query: "Find live music in Camden, tomorrow" },
+      ctx(),
+    );
+
+    expect(result.cards.map((card) => card.title)).toEqual(["Tomorrow live music"]);
+    expect(result.cards[0]?.provenance?.url).toBe("https://example.com/tomorrow");
+    expect(state.outDay).toBe("tomorrow");
+  });
+
+  it("treats the browse default London as the whole city, not a venue-area filter", async () => {
+    state.outRows = [
+      {
+        id: "event-camden",
+        kind: "event",
+        title: "Camden live music",
+        placeName: "Camden venue",
+        area: "Camden",
+        startsAt: "2026-08-15T20:00:00.000Z",
+        source: { label: "Event publisher", url: "https://example.com/camden" },
+        observedAt: "2026-08-15T12:00:00.000Z",
+        confidence: "listed",
+      },
+    ];
+
+    const result = await runAskTool(
+      "whats_on",
+      { query: "Find live music in London, tonight" },
+      ctx(),
+    );
+
+    expect(result.cards.map((card) => card.title)).toEqual(["Camden live music"]);
+    expect(state.outDay).toBe("today");
+  });
+
+  it("retains the weekend browse window", async () => {
+    state.outRows = [
+      {
+        id: "event-weekend",
+        kind: "event",
+        title: "Weekend live music",
+        placeName: "Camden venue",
+        area: "Camden",
+        startsAt: "2026-08-16T20:00:00.000Z",
+        source: { label: "Event publisher", url: "https://example.com/weekend" },
+        observedAt: "2026-08-15T12:00:00.000Z",
+        confidence: "listed",
+      },
+    ];
+
+    const result = await runAskTool(
+      "whats_on",
+      { query: "Find live music in Camden, this weekend" },
+      ctx(),
+    );
+
+    expect(result.cards.map((card) => card.title)).toEqual(["Weekend live music"]);
+    expect(state.outDay).toBe("weekend");
+  });
+
+  it("keeps a date-only event's published day on the Ask card", async () => {
+    state.outRows = [
+      {
+        id: "event-date-only",
+        kind: "event",
+        title: "Sunday live music",
+        placeName: "Camden venue",
+        area: "Camden",
+        startsDate: "2026-08-16",
+        timeEvidence: "Date listed, start time not published",
+        source: { label: "Event publisher", url: "https://example.com/date-only" },
+        observedAt: "2026-08-15T12:00:00.000Z",
+        confidence: "listed",
+      },
+    ];
+
+    const result = await runAskTool(
+      "whats_on",
+      { query: "Find live music in Camden, tomorrow" },
+      ctx(),
+    );
+
+    expect(result.cards[0]?.note).toBe(
+      "Published date: Sun 16 Aug · Date listed, start time not published",
+    );
+  });
+
+  it("retains a selected area whose name begins with The", async () => {
+    state.outRows = [
+      {
+        id: "event-city",
+        kind: "event",
+        title: "City live music",
+        placeName: "City venue",
+        area: "The City",
+        startsAt: "2026-08-15T20:00:00.000Z",
+        source: { label: "Event publisher", url: "https://example.com/city" },
+        observedAt: "2026-08-15T12:00:00.000Z",
+        confidence: "listed",
+      },
+      {
+        id: "event-camden-other",
+        kind: "event",
+        title: "Camden live music",
+        placeName: "Camden venue",
+        area: "Camden",
+        startsAt: "2026-08-15T20:00:00.000Z",
+        source: { label: "Event publisher", url: "https://example.com/camden-other" },
+        observedAt: "2026-08-15T12:00:00.000Z",
+        confidence: "listed",
+      },
+    ];
+
+    const result = await runAskTool(
+      "whats_on",
+      { query: "Find live music in The City, tonight" },
+      ctx(),
+    );
+
+    expect(result.cards.map((card) => card.title)).toEqual(["City live music"]);
   });
 });
