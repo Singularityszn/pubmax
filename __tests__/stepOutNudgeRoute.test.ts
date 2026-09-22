@@ -84,7 +84,10 @@ describe("GET/POST/DELETE /api/step-out-nudge", () => {
       new Request("http://localhost/api/step-out-nudge", { method: "DELETE" }),
     );
     expect(withdraw.status).toBe(200);
-    await expect(withdraw.json()).resolves.toMatchObject({ enabled: false });
+    await expect(withdraw.json()).resolves.toMatchObject({
+      enabled: false,
+      subscriptionRetained: false,
+    });
     expect(await memoryStepOutNudgeStore.get(ACTOR)).toMatchObject({
       enabled: false,
       subscriptionToken: null,
@@ -106,6 +109,10 @@ describe("GET/POST/DELETE /api/step-out-nudge", () => {
       new Request("http://localhost/api/step-out-nudge", { method: "DELETE" }),
     );
     expect(withdraw.status).toBe(200);
+    await expect(withdraw.json()).resolves.toMatchObject({
+      enabled: false,
+      subscriptionRetained: true,
+    });
     expect(await memoryStepOutNudgeStore.get(ACTOR)).toMatchObject({
       enabled: false,
       cheapPintEnabled: true,

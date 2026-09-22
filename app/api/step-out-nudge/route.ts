@@ -1,8 +1,9 @@
 // Step Out weekly nudge preference.
 //
-//   GET                    → 200 { enabled, lastSentAt, canSend }
+//   GET                    → 200 { enabled, lastSentAt, canSend, subscriptionRetained }
 //   POST { enabled: true, token }   → enable + bind web subscription
 //   POST { enabled: false } | DELETE → withdraw (opt out)
+// Responses report whether another push preference still retains the token.
 //
 // Auth via resolveContributionIdentity. Rate-limited. publicApiError envelope.
 // Default OFF. Frequency stamp is server-side; copy names the weekly cap.
@@ -44,6 +45,7 @@ async function requireOwner(request: Request) {
 function prefResponse(pref: {
   enabled: boolean;
   lastSentAt: string | null;
+  subscriptionToken: string | null;
 } | null) {
   const enabled = Boolean(pref?.enabled);
   const lastSentAt = pref?.lastSentAt ?? null;
@@ -52,6 +54,7 @@ function prefResponse(pref: {
     lastSentAt,
     canSend: enabled && canSendStepOutNudge(lastSentAt),
     maxPerWeek: 1,
+    subscriptionRetained: Boolean(pref?.subscriptionToken),
   };
 }
 
