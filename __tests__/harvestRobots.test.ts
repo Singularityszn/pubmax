@@ -146,7 +146,7 @@ describe("asking a host before reading it", () => {
   it("refuses a host that answers robots.txt with a challenge page on a 403", async () => {
     const fetchImpl = vi.fn(async () => new Response("<!DOCTYPE html><title>Attention Required!</title>", { status: 403 }));
     const check = createRobotsChecker({ fetchImpl: fetchImpl as unknown as typeof fetch });
-    const decision = await check("https://www.nicholsonspubs.co.uk/whats-on");
+    const decision = await check("https://example.com/whats-on");
     expect(decision.allowed).toBe(false);
     expect(decision.reason).toBe("robots-unreadable");
     expect(decision.robots).toBe("challenge-page");
@@ -253,7 +253,7 @@ describe("asking a host before reading it", () => {
     it("stays refused on a 200", async () => {
       const fetchImpl = vi.fn(async () => robotsResponse(CLOUDFLARE_CHALLENGE_PAGE));
       const check = createRobotsChecker({ fetchImpl: fetchImpl as unknown as typeof fetch });
-      const decision = await check("https://www.nicholsonspubs.co.uk/whats-on");
+      const decision = await check("https://example.com/whats-on");
       expect(decision.allowed).toBe(false);
       expect(decision.reason).toBe("robots-unreadable");
       expect(decision.robots).toBe("challenge-page");
