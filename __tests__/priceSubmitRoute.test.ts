@@ -1531,22 +1531,16 @@ describe("POST /api/price-submit second-drinker confirmation", () => {
     expect(listVisiblePintDrops(venueId)).toHaveLength(1);
   });
 
-  it("tells one account reporting two figures that its pub now holds two prices", async () => {
+  it("does not claim a named split from two generic Beer prices", async () => {
     const venueId = await realVenueId(20);
-    // A second REPORT, not a second tap: a different figure, so the
-    // duplicate-tap window (D10) leaves it alone. Since 7 Sept 2026 the drop
-    // lane's agreement is EXACT, so £4.50 and £4.60 are two prices rather than
-    // one repeated report, and the outcome says so - with ONE drinker behind
-    // them, because both carry this account's own authority key.
+    // This category-only door does not identify the product. Different figures
+    // remain real reports, but cannot prove a disagreement about one drink.
     await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.5 });
     const res = await submitAs("solo", { venueId, drinkCategory: "beer", priceGbp: 4.6 });
     expect(res.status).toBe(201);
     const body = (await res.json()) as ConfirmationBody;
-    expect(body.confirmationOutcome).toEqual({
-      status: "price_disagrees",
-      prices: [4.5, 4.6],
-      reporters: 1,
-    });
+    expect(body.confirmationOutcome).toEqual({ status: "awaiting_second_drinker" });
+    expect(listVisiblePintDrops(venueId)).toHaveLength(2);
     expect(listVisiblePintDrops(venueId).every((row) => !row.confirmation)).toBe(true);
   });
 

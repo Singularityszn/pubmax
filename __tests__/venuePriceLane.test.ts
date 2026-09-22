@@ -427,59 +427,26 @@ describe("the provisional lane", () => {
   });
 });
 
-// A SPLIT OUTRANKS A MENU HARVEST (Hatton after #1757): two drinkers logging
-// £4.50 and £4.70 must keep the Overview's "Which did you pay?" door even when
-// Nicholson's listed Daura Damm at £6.30. Provisional stays below listed (#1426).
-describe("the disputed lane", () => {
-  const SPLIT = {
-    split: { prices: [4.5, 4.7], reporters: 2 },
-    observedAt: "2026-09-06T01:22:18.585Z",
-  };
+// PR1777: two named community reports are supplementary evidence. They must
+// never displace a sourced/listed page from the one global price precedence.
+describe("named community splits stay outside the global price lane", () => {
   const LISTED = {
     priceGbp: 6.3,
     sourceUrl:
       "https://www.nicholsonspubs.co.uk/restaurants/london/thesirchristopherhattonhattongardenlondon/drinks",
     observedAt: "2026-09-21T18:54:48.491Z",
   };
-  const PROVISIONAL = { priceGbp: 4.5, observedAt: Date.now() - 86_400_000 };
 
-  it("wins over a listed menu harvest and a sourced page", () => {
-    expect(
-      venuePriceLane(makeVenue(), null, null, { listed: LISTED }, null, null, SPLIT)?.lane,
-    ).toBe("disputed");
+  it("keeps listed and sourced precedence intact", () => {
+    expect(venuePriceLane(makeVenue(), null, null, { listed: LISTED })?.lane).toBe("listed");
     const sourcedVenue = withSourced(makeVenue({ cheapestPrice: 6.3 }));
     expect(
-      venuePriceLane(
-        sourcedVenue,
-        null,
-        venueSourcedPrice(sourcedVenue),
-        { listed: LISTED },
-        null,
-        null,
-        SPLIT,
-      )?.lane,
-    ).toBe("disputed");
+      venuePriceLane(sourcedVenue, null, venueSourcedPrice(sourcedVenue), { listed: LISTED })?.lane,
+    ).toBe("sourced");
   });
 
-  it("still sits below a corroborated contributor price", () => {
-    expect(
-      venuePriceLane(makeVenue(), 4.5, null, { listed: LISTED }, null, null, SPLIT)?.lane,
-    ).toBe("contributor");
-  });
-
-  it("does not promote a lone provisional report above listed", () => {
-    // #1426: one drinker's report stays below a published page. Only a split
-    // (two disagreeing drinkers) clears that bar.
-    expect(
-      venuePriceLane(makeVenue(), null, null, { listed: LISTED }, PROVISIONAL)?.lane,
-    ).toBe("listed");
-  });
-
-  it("hands back no single figure, so a compact surface cannot pick one price", () => {
-    const lane = venuePriceLane(makeVenue(), null, null, { listed: LISTED }, null, null, SPLIT)!;
-    expect(lane.lane).toBe("disputed");
-    expect(venuePriceLaneObservedGbp(lane)).toBeNull();
-    expect(venuePriceLaneIsDrinkerLog(lane)).toBe(true);
+  it("keeps a contributor above sourced/listed as before", () => {
+    expect(venuePriceLane(makeVenue(), 4.5, null, { listed: LISTED })?.lane).toBe("contributor");
   });
 });
 
@@ -550,15 +517,12 @@ describe("VenueOverviewTab renders from the shared lane", () => {
         `if (lane?.lane === "${lane}") {`,
       );
     }
-    // A DRINKER'S OWN LOG TAKES ONE BRANCH (captain 7 Sept 2026). `provisional`,
-    // `disputed` and `aged` are one claim said three ways, and three sibling
-    // branches is how a split arrived on the Overview worded as a lone report.
-    // The fence is the same promise in the new shape: every remaining lane
-    // answers `venuePriceLaneIsDrinkerLog`, and that predicate is what the
-    // component branches on.
+    // A drinker's one-price lanes still share one branch. A split is no longer
+    // a global lane: it has a named supplementary block beside the winner.
     expect(overview).toContain("venuePriceLaneIsDrinkerLog(lane)");
     expect(overview).toContain("<DrinkerLogBlock");
-    for (const lane of ["provisional", "disputed", "aged"] as const) {
+    expect(overview).toContain("<CommunityPintSplitBlock");
+    for (const lane of ["provisional", "aged"] as const) {
       expect(
         venuePriceLaneIsDrinkerLog({ lane } as unknown as VenuePriceLane),
         `the ${lane} lane must render through the drinker-log block`,

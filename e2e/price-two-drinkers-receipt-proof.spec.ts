@@ -35,6 +35,7 @@ function row(overrides: DropRow = {}): DropRow {
     venueId: HATTON,
     handle: "tester",
     drink: "Lager",
+    measure: "pint",
     priceGbp: 4.7,
     passedDownNote: "",
     era: "",
@@ -156,6 +157,12 @@ for (const viewport of VIEWPORTS) {
     await expect(priceArea).toContainText("Which did you pay?");
     await priceArea.scrollIntoViewIfNeeded();
     await shoot(priceArea, `${PROOF}/split-overview-${viewport.name}.png`);
+    await priceArea.getByTestId("choose-pint-cta").filter({ hasText: "£4.50" }).click();
+    const composer = page.getByTestId("spill-price-step");
+    await expect(composer).toBeVisible();
+    await expect(composer.getByLabel("What did it cost?")).toHaveValue("4.50");
+    await expect(composer.getByLabel("Drink", { exact: true })).toHaveValue("Lager");
+    await expect(composer.getByRole("radio", { name: "Pint", exact: true })).toHaveAttribute("aria-checked", "true");
   });
 
   test(`${viewport.name}px: the composer asks for the bill, then the pint`, async ({ page }) => {

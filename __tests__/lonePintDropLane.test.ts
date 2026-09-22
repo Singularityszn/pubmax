@@ -22,6 +22,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+import type { PintDropDraftSeed } from "@/lib/pintDropDraft";
 import { firstDropNudgeCopy } from "@/lib/firstDropNudge";
 import {
   BASELINE_NO_PUBLISHER_CAPTION,
@@ -119,6 +120,7 @@ function venue(overrides: Partial<Venue> = {}): Venue {
 function drop(overrides: Partial<SummaryDrop> = {}): SummaryDrop {
   return {
     drink: "Lager",
+    measure: "pint",
     priceGbp: 4.5,
     passedDownNote: "",
     provenance: "contributor",
@@ -154,7 +156,7 @@ function renderSelectedVenue(
   drops: SummaryDrop[],
   base: Venue = venue(),
   drinkLensCategory: DrinkCategory | null = null,
-  onConfirmPrice?: (priceGbp: number) => void,
+  onConfirmPrice?: (seed: PintDropDraftSeed) => void,
 ): string {
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const corroborated = corroboratedPriceDrop(drops, NOW);
@@ -499,9 +501,7 @@ describe("the phone peek chip over a lone Pint Drop", () => {
     );
     // The chip decides first, and the "No price yet" button is reachable only
     // where it answered null.
-    expect(source).toContain(
-      "const peekPrice = peekPriceChip(peekLane, peekBundle, peekDropSignal?.pintTrust ?? null);",
-    );
+    expect(/const peekPrice = peekPriceChip\(\s*peekLane,\s*peekBundle,\s*peekDropSignal\?\.pintTrust \?\? null,\s*peekCommunityPintSplit,\s*\)/.test(source)).toBe(true);
     expect(source).toMatch(
       /\) : peekPrice \? \([\s\S]*?\) : selectedVenueIsPub \? \([\s\S]*?No price yet\./,
     );

@@ -1,15 +1,16 @@
 // The ONE price precedence for a venue's price area, and the ONE place a
 // surface asks whether a pub has a price at all.
 //
-// The overview tab renders at most one price claim, choosing between nine
-// honest sources in a fixed order, and renders the first-drop nudge in the
-// branch where none of them exist. `lib/firstDropNudge.ts` used to restate
+// The overview tab renders at most one PRIMARY price claim, choosing between
+// eight honest sources in a fixed order. A named community split is supplementary
+// evidence, never a ninth global lane, and renders beside the winning claim.
+// The first-drop nudge fills the branch where none of them exist.
+// `lib/firstDropNudge.ts` used to restate
 // that ordering by hand, so a fourth lane or a reorder in the component would
 // silently stop matching the gate (#1413). Both now ask this module, so the
 // nudge shows in — and only in — the branch that would otherwise render
 // nothing.
 
-import type { PintPriceSplit } from "@/lib/pintDropAgreement";
 import { PRICE_AUTHORITY_MAX_AGE_DAYS } from "@/lib/priceAuthorityWindow";
 import { answerEvidenceFor, type AnswerPublisher } from "@/lib/landingHero";
 import type { PricedVenue } from "@/lib/priceUpdates";
@@ -40,7 +41,6 @@ export const AGED_PRICE_LINE = `Over ${PRICE_AUTHORITY_MAX_AGE_DAYS} days old, n
 export type VenuePriceLaneName =
   | "anchor"
   | "contributor"
-  | "disputed"
   | "sourced"
   | "listed"
   | "provisional"
@@ -56,17 +56,6 @@ export type VenuePriceLaneName =
  */
 export type ProvisionalPriceInput = {
   priceGbp: number;
-  observedAt: string | number | null;
-};
-
-/**
- * The figures a pub's in-window drinkers DISAGREE about, as
- * `disputedPintPrices` (lib/venues.ts) found them, with the day the freshest of
- * them was logged. It carries no single figure on purpose: a split has none,
- * and the whole point of the lane is that we stop choosing one.
- */
-export type DisputedPriceInput = {
-  split: PintPriceSplit;
   observedAt: string | number | null;
 };
 
@@ -107,11 +96,6 @@ export type VenuePriceLane =
       observedAt: string | number | null;
     }
   | {
-      lane: "disputed";
-      split: PintPriceSplit;
-      observedAt: string | number | null;
-    }
-  | {
       lane: "baseline";
       cheapestPrice: number;
       /**
@@ -149,7 +133,6 @@ export function venuePriceLane(
   bundle: VenueBundlePrices = {},
   provisional?: ProvisionalPriceInput | null,
   aged?: ProvisionalPriceInput | null,
-  disputed?: DisputedPriceInput | null,
   now: number = Date.now(),
 ): VenuePriceLane | null {
   const cheapestPrice =
@@ -162,15 +145,9 @@ export function venuePriceLane(
   if (latestContributorPrice !== null && latestContributorPrice !== undefined) {
     return { lane: "contributor", contributorPrice: latestContributorPrice };
   }
-  // A SPLIT OUTRANKS A MENU HARVEST. Two in-window drinkers who disagree are
-  // tonight's evidence, and the Overview's "Which did you pay?" door lives on
-  // this lane alone. A listed or sourced page (Nicholson's Daura Damm £6.30 on
-  // Hatton after #1757) must not bury that door under "Published price" while
-  // /api/pint-drops still holds £4.50 and £4.70. Provisional stays BELOW listed
-  // (#1426): one drinker's report is not yet a split.
-  if (disputed && disputed.split.prices.length > 1) {
-    return { lane: "disputed", split: disputed.split, observedAt: disputed.observedAt };
-  }
+  // SOURCED AND LISTED KEEP THEIR ORIGINAL GLOBAL PRECEDENCE. A named
+  // community split is rendered beside this winner by the Overview; it may
+  // never erase a publisher's Daura Damm £6.30 page from the main price area.
   if (sourcedPrice) return { lane: "sourced", sourcedPrice, cheapestPrice };
   // A LISTED BUNDLE ROW OUTRANKS THE BASELINE, because it carries the page it
   // was published at and the day it was read, and the baseline carries a
@@ -288,10 +265,6 @@ export function venuePriceLaneObservedGbp(lane: VenuePriceLane): number | null {
       return lane.listed.priceGbp;
     case "provisional":
       return lane.provisionalPrice;
-    // NO FIGURE. Two prices have no one number, and handing a compact surface
-    // either of them would publish a price half the reporters did not pay.
-    case "disputed":
-      return null;
     case "baseline":
       return lane.cheapestPrice;
     case "aged":
@@ -313,7 +286,6 @@ export function venuePriceLaneIsDrinkerLog(lane: VenuePriceLane): boolean {
   return (
     lane.lane === "contributor" ||
     lane.lane === "provisional" ||
-    lane.lane === "disputed" ||
     lane.lane === "aged"
   );
 }

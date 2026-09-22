@@ -33,13 +33,11 @@ import {
 } from "@/lib/pintDropAgreement";
 import {
   CHOOSE_PRICE_DOOR_LABEL,
+  communityPintSplitDoor,
+  communityPintSplitInput,
   dropLaneInput,
-  LOG_PRICE_DOOR_LABEL,
-  overviewPriceDoor,
   pintTrustFor,
   pintTrustSignalFields,
-  splitLaneInput,
-  trustChipStateFor,
 } from "@/lib/pintTrust";
 import { peekPriceChip } from "@/lib/pubMap";
 import {
@@ -64,6 +62,7 @@ vi.mock("@/components/visits/VisitReportPanel", () => ({
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = Date.parse("2026-09-07T20:00:00.000Z");
 const VENUE_ID = "venue-hatton";
+const LAGER_PINT = { drink: "Lager", measure: "pint" as const, measureLabel: "" };
 
 const daysAgo = (days: number) => new Date(NOW - days * DAY_MS).toISOString();
 
@@ -111,6 +110,7 @@ function venue(overrides: Partial<Venue> = {}): Venue {
 function drop(overrides: Partial<SummaryDrop> = {}): SummaryDrop {
   return {
     drink: "Lager",
+    measure: "pint",
     priceGbp: 4.7,
     passedDownNote: "",
     provenance: "contributor",
@@ -167,7 +167,10 @@ function renderOverview(drops: SummaryDrop[]): string {
         signal.provisionalContributorAt,
       ),
       agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
-      disputedPrice: splitLaneInput(signal.disputedPrices, signal.disputedAt),
+      communityPintSplit: communityPintSplitInput(
+        signal.communityPintSplit,
+        signal.communityPintSplitAt,
+      ),
       communityPrices: communityPrices(),
       experienceLens: "all",
       drinkLensCategory: null,
@@ -201,10 +204,10 @@ function peekChip(drops: SummaryDrop[]) {
       bundle,
       dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
       dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
-      splitLaneInput(signal.disputedPrices, signal.disputedAt),
     ),
     bundle,
     signal.pintTrust,
+    communityPintSplitInput(signal.communityPintSplit, signal.communityPintSplitAt),
   );
 }
 
@@ -244,9 +247,9 @@ describe("the agreement bar is exact, and about one drink", () => {
     );
   });
 
-  it("holds a half apart from a pint even at the same figure", () => {
+  it("holds a half apart from a pint and preserves legacy confirmation compatibility", () => {
     expect(pintDropsAgree(drop({ measure: "pint" }), drop({ measure: "half" }))).toBe(false);
-    expect(pintDropsAgree(drop({}), drop({ measure: "pint" }))).toBe(true);
+    expect(pintDropsAgree(drop({ measure: undefined }), drop({ measure: "pint" }))).toBe(true);
   });
 
   it("stops two disagreeing drinkers from corroborating a figure neither paid", () => {
@@ -261,8 +264,13 @@ describe("the agreement bar is exact, and about one drink", () => {
 
 describe("the split reading", () => {
   it("finds the two figures, cheapest first, and counts the drinkers behind them", () => {
-    expect(pintPriceSplitOf(hattonDrops())).toEqual({ prices: [4.5, 4.7], reporters: 2 });
+    expect(pintPriceSplitOf(hattonDrops())).toEqual({
+      ...LAGER_PINT,
+      prices: [4.5, 4.7],
+      reporters: 2,
+    });
     expect(disputedPintPrices(hattonDrops(), NOW)?.split).toEqual({
+      ...LAGER_PINT,
       prices: [4.5, 4.7],
       reporters: 2,
     });
@@ -292,7 +300,7 @@ describe("the split reading", () => {
       drop({ priceGbp: 4.5, handle: "quiet", createdAt: daysAgo(3) }),
     ];
     const split = disputedPintPrices(three, NOW)!.split;
-    expect(split).toEqual({ prices: [4.5, 4.7], reporters: 3 });
+    expect(split).toEqual({ ...LAGER_PINT, prices: [4.5, 4.7], reporters: 3 });
     expect(pintPriceSplitLine(split)).toBe("Three drinkers, two prices: £4.50 and £4.70");
   });
 
@@ -304,19 +312,27 @@ describe("the split reading", () => {
       drop({ priceGbp: 4.5, handle: "second", authorityKey: "key-b", createdAt: daysAgo(3) }),
     ];
     const split = disputedPintPrices(repeated, NOW)!.split;
-    expect(split).toEqual({ prices: [4.5, 4.7], reporters: 2 });
+    expect(split).toEqual({ ...LAGER_PINT, prices: [4.5, 4.7], reporters: 2 });
     expect(pintPriceSplitLine(split)).toBe("Two drinkers, two prices: £4.50 and £4.70");
   });
 
-  it("reads a lane label as no drink, so the two price doors can still agree", () => {
-    // The one-tap composer writes the lane's own label ("Beer"); the full Pint
-    // Drop composer writes what the drinker typed. Those are not two drinks.
-    expect(
-      pintDropsAgree(drop({ drink: "Beer", priceGbp: 4.5 }), drop({ drink: "Guinness", priceGbp: 4.5 })),
-    ).toBe(true);
-    expect(
-      pintDropsAgree(drop({ drink: "Beer", priceGbp: 4.5 }), drop({ drink: "Guinness", priceGbp: 4.7 })),
-    ).toBe(false);
+  it("never combines an unknown product or measure into a split", () => {
+    const generic = [
+      drop({ drink: "Beer", priceGbp: 4.5 }),
+      drop({ drink: "Lager", priceGbp: 4.7, createdAt: daysAgo(2) }),
+    ];
+    const unknownMeasure = [
+      drop({ measure: undefined, priceGbp: 4.5 }),
+      drop({ priceGbp: 4.7, createdAt: daysAgo(2) }),
+    ];
+    expect(pintDropsAgree(generic[0]!, generic[1]!)).toBe(false);
+    expect(disputedPintPrices(generic, NOW)).toBeNull();
+    expect(disputedPintPrices(unknownMeasure, NOW)).toBeNull();
+  });
+
+  it("keeps a named split visible when a newer report has no product identity", () => {
+    const rows = [drop({ drink: "Beer", priceGbp: 5.2, createdAt: daysAgo(0) }), ...hattonDrops()];
+    expect(disputedPintPrices(rows, NOW)?.split).toEqual({ ...LAGER_PINT, prices: [4.5, 4.7], reporters: 2 });
   });
 
   it("stands down the moment two independent drinkers agree exactly", () => {
@@ -333,11 +349,11 @@ describe("the split reading", () => {
   });
 
   it("words the split the same way everywhere", () => {
-    expect(pintPriceSplitLine({ prices: [4.5, 4.7], reporters: 2 })).toBe(
+    expect(pintPriceSplitLine({ ...LAGER_PINT, prices: [4.5, 4.7], reporters: 2 })).toBe(
       "Two drinkers, two prices: £4.50 and £4.70",
     );
     expect(joinPriceFigures([4.5, 4.7, 5])).toBe("£4.50, £4.70 and £5.00");
-    expect(pintPriceSplitRange({ prices: [4.5, 4.7], reporters: 2 })).toBe("£4.50-£4.70");
+    expect(pintPriceSplitRange({ ...LAGER_PINT, prices: [4.5, 4.7], reporters: 2 })).toBe("£4.50-£4.70");
   });
 });
 
@@ -346,13 +362,19 @@ describe("one projection, read the same way on every surface", () => {
     const reading = pintTrustFor(hattonDrops(), NOW);
     expect(reading.state).toBe("disputed");
     expect(reading.priceGbp).toBeNull();
-    expect(reading.split).toEqual({ prices: [4.5, 4.7], reporters: 2 });
+    expect(reading.split).toEqual({ ...LAGER_PINT, prices: [4.5, 4.7], reporters: 2 });
     const signal = pintTrustSignalFields(reading);
     // The provisional pair is what printed one of two figures as the pub's own
     // report. It stays empty on a split.
     expect(signal.provisionalContributorPrice).toBeNull();
     expect(signal.latestContributorPrice).toBeNull();
-    expect(signal.disputedPrices).toEqual({ prices: [4.5, 4.7], reporters: 2 });
+    expect(signal.communityPintSplit).toEqual({
+      drink: "Lager",
+      measure: "pint",
+      measureLabel: "",
+      prices: [4.5, 4.7],
+      reporters: 2,
+    });
   });
 
   it("the Overview says both prices and never 'Logged once'", () => {
@@ -374,7 +396,9 @@ describe("one projection, read the same way on every surface", () => {
   it("the peek chip prints the range and the same line, with no band", () => {
     const chip = peekChip(hattonDrops())!;
     expect(chip.figure).toBe("£4.50-£4.70");
-    expect(chip.caption).toBe("Two drinkers, two prices: £4.50 and £4.70");
+    expect(chip.caption).toBe(
+      "Community split · Lager pint: Two drinkers, two prices: £4.50 and £4.70",
+    );
     expect(chip.trust).toBe("disputed");
     // Two prices have no one band, so the chip carries no figure to colour by.
     expect(chip.priceGbp).toBeNull();
@@ -388,29 +412,18 @@ describe("one projection, read the same way on every surface", () => {
     expect(properties.price ?? null).toBeNull();
   });
 
-  it("the chip state and the lane are one answer", () => {
-    const lane = venuePriceLane(
-      venue(),
-      null,
-      null,
-      {},
-      null,
-      null,
-      splitLaneInput({ prices: [4.5, 4.7], reporters: 2 }, NOW),
-    )!;
-    expect(lane.lane).toBe("disputed");
-    expect(trustChipStateFor(lane, "none")).toBe("disputed");
-    expect(overviewPriceDoor("disputed", lane)).toEqual({
+  it("keeps a named split outside the primary lane and gives it the choose action", () => {
+    expect(venuePriceLane(venue(), null, null)).toBeNull();
+    expect(communityPintSplitDoor({ ...LAGER_PINT, prices: [4.5, 4.7], reporters: 2 })).toEqual({
       kind: "choose",
       label: CHOOSE_PRICE_DOOR_LABEL,
       prices: [4.5, 4.7],
     });
   });
 
-  it("keeps the choose door when a listed menu harvest lands beside the split (Hatton #1757)", () => {
-    // Live tip #1757: Nicholson's Daura Damm £6.30 listed beat the disputed
-    // £4.50/£4.70 drops, so Overview said "No beer price logged" + Published
-    // price and hid Confirm / Which did you pay. Disputed must outrank listed.
+  it("keeps listed Daura Damm visible beside the named Lager pint split", () => {
+    // PR1777: sourced/listed retain their global precedence. The named split is
+    // supplementary evidence, so neither report hides the publisher's price.
     const listedBundle = {
       listed: {
         priceGbp: 6.3,
@@ -433,13 +446,11 @@ describe("one projection, read the same way on every surface", () => {
       venueBundlePrices(merged),
       dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
       dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
-      splitLaneInput(signal.disputedPrices, signal.disputedAt),
     )!;
-    expect(lane.lane).toBe("disputed");
-    expect(overviewPriceDoor("disputed", lane)).toEqual({
-      kind: "choose",
-      label: CHOOSE_PRICE_DOOR_LABEL,
-      prices: [4.5, 4.7],
+    expect(lane.lane).toBe("listed");
+    expect(communityPintSplitInput(signal.communityPintSplit, signal.communityPintSplitAt)).toEqual({
+      split: { ...LAGER_PINT, prices: [4.5, 4.7], reporters: 2 },
+      observedAt: Date.parse(drops[0]!.createdAt),
     });
 
     const html = renderToStaticMarkup(
@@ -457,7 +468,10 @@ describe("one projection, read the same way on every surface", () => {
           signal.provisionalContributorAt,
         ),
         agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
-        disputedPrice: splitLaneInput(signal.disputedPrices, signal.disputedAt),
+        communityPintSplit: communityPintSplitInput(
+          signal.communityPintSplit,
+          signal.communityPintSplitAt,
+        ),
         communityPrices: communityPrices(),
         experienceLens: "all",
         drinkLensCategory: null,
@@ -482,7 +496,9 @@ describe("one projection, read the same way on every surface", () => {
     expect(html).toContain('data-price-gbp="4.50"');
     expect(html).toContain('data-price-gbp="4.70"');
     expect(html).not.toContain("No beer price logged here yet");
-    expect(html).not.toContain("Published price");
-    expect(html).not.toContain(LOG_PRICE_DOOR_LABEL);
+    expect(html).toContain("Published price");
+    expect(html).toContain("£6.30");
+    expect(html).toContain("Community split · Lager pint");
+    expect(html).not.toContain("Log tonight’s price");
   });
 });

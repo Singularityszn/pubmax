@@ -39,7 +39,7 @@ import {
   type VenueDropRead,
   type VenueDropReadStatus,
 } from "@/lib/venueDropRead";
-import { clearPintDropDraft } from "@/lib/pintDropDraft";
+import { clearPintDropDraft, type PintDropDraftSeed } from "@/lib/pintDropDraft";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
 import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
@@ -289,16 +289,18 @@ export function usePintDrops(
     () => new Map(),
   );
   const [composerOpen, setComposerOpen] = useState(false);
-  // The second drinker's door (lib/pintDropSecondDrinker.ts). "Still £4.50?"
-  // on the venue sheet seeds the composer with the figure the pub's lane
-  // already prints, through the SAME hydration the log intent's `price=`
-  // rides, so a saved draft still outranks it and nothing here submits. The
-  // URL seed wins when both are present, because a door the reader arrived
-  // through is the older promise.
-  const [confirmSeed, setConfirmSeed] = useState<string | null>(null);
-  const seedComposerPrice = useCallback((price: string | null) => {
-    setConfirmSeed(price);
+  // A second-drinker door seeds through the SAME hydration as `?price=`. A
+  // simple confirmation carries a price alone; a named split carries the
+  // product and measure too, so choosing Lager pint £4.50 cannot land on an
+  // unrelated saved drink draft. A newly chosen claim supersedes an older URL seed.
+  const [confirmSeed, setConfirmSeed] = useState<PintDropDraftSeed | null>(null);
+  const seedComposerClaim = useCallback((seed: PintDropDraftSeed | null) => {
+    setConfirmSeed(seed);
   }, []);
+  const composerSeed = useMemo<PintDropDraftSeed | null>(
+    () => confirmSeed ?? (priceSeed ? { kind: "price", price: priceSeed } : null),
+    [priceSeed, confirmSeed],
+  );
   const [dropForm, setDropForm] = useState({
     price: "",
     drink: "",
@@ -655,6 +657,7 @@ export function usePintDrops(
       // Storage blocked — handle can be re-entered later.
     }
     resetComposer();
+    setConfirmSeed(null);
     setComposerOpen(false);
     setSubmitting(false);
     setDropMsg({
@@ -891,12 +894,12 @@ export function usePintDrops(
         agedContributorPrice: number | null;
         /** Epoch ms that aged report was logged, or null. */
         agedContributorAt: number | null;
-        /** The figures this pub's drinkers disagree about, for the sheet and
-         *  the peek. Never a band, a bucket or a pin figure: two prices have
-         *  no one number (lib/pintDropAgreement.ts). */
-        disputedPrices: PintPriceSplit | null;
-        /** Epoch ms the freshest of those was logged, or null. */
-        disputedAt: number | null;
+        /** A named same-product, same-measure community split for the
+         *  Overview. It is supplementary evidence, never a global price lane
+         *  or a pin figure (lib/pintDropAgreement.ts). */
+        communityPintSplit: PintPriceSplit | null;
+        /** Epoch ms the freshest report in that split was logged, or null. */
+        communityPintSplitAt: number | null;
       }
     >();
     for (const [venueId, venueDrops] of mapDropsByVenueId) {
@@ -946,8 +949,8 @@ export function usePintDrops(
     composerOpen,
     setComposerOpen,
     closeComposer,
-    priceSeed: priceSeed ?? confirmSeed,
-    seedComposerPrice,
+    composerSeed,
+    seedComposerClaim,
     dropForm,
     setDropForm,
     vibeTags,

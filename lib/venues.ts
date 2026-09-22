@@ -5,6 +5,7 @@ import {
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
 import {
   drinksMayBeOne,
+  namedPintClaim,
   pintDropsAgree,
   pintPriceSplitOf,
   type PintPriceSplit,
@@ -930,9 +931,10 @@ export function disputedPintPrices<D extends SummaryDrop>(
   now: number = Date.now(),
 ): { split: PintPriceSplit; drops: D[]; observedAtMs: number } | null {
   if (authoritativePriceDrop(drops, now)) return null;
-  const lead = provisionalPriceDrop(drops, now);
+  const namedDrops = drops.filter((drop) => namedPintClaim(drop) !== null);
+  const lead = provisionalPriceDrop(namedDrops, now);
   if (!lead) return null;
-  const group = drops.filter(
+  const group = namedDrops.filter(
     (drop) =>
       isPintPricedDrop(drop) &&
       isWithinMaxAge({ submittedAt: Date.parse(drop.createdAt) }, now) &&

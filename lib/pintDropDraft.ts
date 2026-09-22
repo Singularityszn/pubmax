@@ -27,6 +27,25 @@ export type PintDropDraft = {
   vibeTags: VibeTag[];
   updatedAt: string;
 };
+
+/**
+ * What a price door may put into a fresh composer.
+ *
+ * A plain price seed is the landing/log-intent promise and keeps a saved
+ * draft's own price. A claim seed is the answer to a named community split:
+ * its product and measure are part of what the reader chose, so it replaces
+ * those fields together with its figure. Otherwise "Which did you pay?" could
+ * silently submit an old Guinness half draft as a Lager pint confirmation.
+ */
+export type PintDropDraftSeed =
+  | { kind: "price"; price: string }
+  | {
+      kind: "claim";
+      price: string;
+      drink: string;
+      measure: DrinkMeasure;
+      measureLabel: string;
+    };
 type PintDropDraftV2 = PintDropDraft & { version: 2 };
 
 const DRAFT_KEY_PREFIX = "pubmax_pint_drop_draft:";
@@ -86,13 +105,21 @@ function emptyPintDropDraftForm(): PintDropDraftForm {
  */
 export function seededPintDropDraftForm(
   draftForm: PintDropDraftForm | null,
-  priceSeed: string | null,
+  seed: PintDropDraftSeed | null,
 ): PintDropDraftForm | null {
-  if (!draftForm) {
-    return priceSeed ? { ...emptyPintDropDraftForm(), price: priceSeed } : null;
+  if (!draftForm && !seed) return null;
+  const form = draftForm ?? emptyPintDropDraftForm();
+  if (!seed) return form;
+  if (seed.kind === "claim") {
+    return {
+      ...form,
+      price: seed.price,
+      drink: seed.drink,
+      measure: seed.measure,
+      measureLabel: seed.measureLabel,
+    };
   }
-  if (draftForm.price || !priceSeed) return draftForm;
-  return { ...draftForm, price: priceSeed };
+  return form.price ? form : { ...form, price: seed.price };
 }
 
 export function pintDropDraftStorageKey(venueId: string): string {

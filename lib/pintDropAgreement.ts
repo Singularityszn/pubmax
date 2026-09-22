@@ -26,7 +26,13 @@
 // caller that does that filtering.
 
 import { CATEGORY_META } from "@/lib/drinks";
-import { measureIsPint, type DrinkMeasure } from "@/lib/drinkMeasure";
+import {
+  cleanDrinkMeasureLabel,
+  drinkMeasureName,
+  measureIsPint,
+  statedDrinkMeasure,
+  type DrinkMeasure,
+} from "@/lib/drinkMeasure";
 import { formatGbp } from "@/lib/formatGbp";
 
 /**
@@ -35,10 +41,9 @@ import { formatGbp } from "@/lib/formatGbp";
  * drop's drink (`writeOneTapPintDrop`, lib/oneTapPintDrop.server.ts), while the
  * full Pint Drop composer writes whatever the drinker typed ("Guinness").
  *
- * Those two are not a disagreement about the drink: "Beer, £4.50" is a claim
- * about a pint of beer here, and "Guinness, £4.50" is a more specific claim of
- * the same figure. Reading them as two drinks would make a confirmation between
- * the product's two price doors impossible, which is a bar nobody asked for.
+ * A category label is not a named product for a split. Existing confirmation
+ * compatibility remains unchanged; the stricter named-claim reader below owns
+ * whether the UI may offer a choice between conflicting prices.
  */
 const UNNAMED_DRINKS: ReadonlySet<string> = new Set(
   Object.values(CATEGORY_META).map((meta) => meta.label.toLowerCase()),
@@ -73,17 +78,46 @@ export function drinkAgreementKey(drop: AgreeableDrop): string | null {
 }
 
 /**
- * WHICH SERVING this drop is about. Always answers: an absent measure reads as
- * `pint`, and an `other` measure carries its own label, so a schooner and a
- * bottle never merge into one "other".
+ * A named product and serving that can be compared honestly.
+ *
+ * A missing product or measure is a REAL report, but it is not a claim we can
+ * join to another row. In particular, the pre-0147 absence of `measure` keeps
+ * its historic pint-lane reach through `measureIsPint`, but must not silently
+ * make a legacy row agree with a drinker who explicitly chose Pint today.
+ * Likewise the one-tap category label "Beer" names no product. Unknowns stay
+ * visible one at a time; they never become a named split.
  */
-function measureAgreementKey(drop: AgreeableDrop): string {
-  const measure: DrinkMeasure = drop.measure ?? "pint";
-  const label = measure === "other" ? (drop.measureLabel?.trim().toLowerCase() ?? "") : "";
-  return `${measure}|${label}`;
+export type NamedPintClaim = {
+  drink: string;
+  measure: DrinkMeasure;
+  measureLabel: string;
+};
+
+function normalisedDrinkLabel(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
 }
 
-/** Could these two drops be about one drink? A drop naming none could be either. */
+function measureAgreementKey(claim: Pick<AgreeableDrop, "measure" | "measureLabel">): string {
+  const measure = claim.measure ?? "pint";
+  return `${measure}|${measure === "other" ? (claim.measureLabel?.trim().toLowerCase() ?? "") : ""}`;
+}
+
+/** The exact named claim this row can make, or null where either part is unknown. */
+export function namedPintClaim(drop: AgreeableDrop): NamedPintClaim | null {
+  const productKey = drinkAgreementKey(drop);
+  if (!productKey) return null;
+  const measure = statedDrinkMeasure(drop.measure);
+  if (!measure) return null;
+  const measureLabel = measure === "other" ? cleanDrinkMeasureLabel(drop.measureLabel) : "";
+  if (measure === "other" && !measureLabel) return null;
+  return {
+    drink: normalisedDrinkLabel(drop.drink),
+    measure,
+    measureLabel,
+  };
+}
+
+/** Existing confirmation compatibility; split choices require namedPintClaim. */
 export function drinksMayBeOne(a: AgreeableDrop, b: AgreeableDrop): boolean {
   if (measureAgreementKey(a) !== measureAgreementKey(b)) return false;
   const left = drinkAgreementKey(a);
@@ -113,7 +147,7 @@ export function pintDropsAgree(a: AgreeableDrop, b: AgreeableDrop): boolean {
  * authority key and this reading is about what is on the page, not about who
  * may paint a pin.
  */
-export type PintPriceSplit = {
+export type PintPriceSplit = NamedPintClaim & {
   prices: number[];
   reporters: number;
 };
@@ -143,27 +177,41 @@ function reporterCount(drops: readonly ReportedDrop[]): number {
 }
 
 /**
- * The split among drops that are already about ONE drink and measure, or null
- * when they all report one figure.
+ * The split among drops that are all about ONE named product and ONE stated
+ * measure, or null when they all report one figure.
  *
- * Callers pass a single drink group. Grouping is the caller's job, because the
- * caller is the one that knows which group the pub's price area is about.
+ * This verifies that promise even when a caller has already grouped rows: an
+ * unknown or differently named claim refuses the whole proposed group rather
+ * than being quietly folded into it.
  */
 export function pintPriceSplitOf(drops: readonly ReportedDrop[]): PintPriceSplit | null {
-  const pennies = new Set<number>();
-  const counted: ReportedDrop[] = [];
+  const counted: Array<{ drop: ReportedDrop; claim: NamedPintClaim }> = [];
   for (const drop of drops) {
     if (typeof drop.priceGbp !== "number" || !Number.isFinite(drop.priceGbp)) continue;
     if (!measureIsPint(drop.measure)) continue;
-    pennies.add(pricePennies(drop.priceGbp));
-    counted.push(drop);
+    const claim = namedPintClaim(drop);
+    if (!claim) return null;
+    counted.push({ drop, claim });
   }
+  const first = counted[0]?.claim;
+  if (!first) return null;
+  const product = drinkAgreementKey({ ...first, priceGbp: null });
+  if (
+    !counted.every(
+      ({ claim }) =>
+        drinkAgreementKey({ ...claim, priceGbp: null }) === product &&
+        measureAgreementKey(claim) === measureAgreementKey(first),
+    )
+  ) {
+    return null;
+  }
+  const pennies = new Set(counted.map(({ drop }) => pricePennies(drop.priceGbp as number)));
   if (pennies.size < 2) return null;
-  const reporters = reporterCount(counted);
+  const reporters = reporterCount(counted.map(({ drop }) => drop));
   const prices = Array.from(pennies)
     .sort((a, b) => a - b)
     .map((value) => value / 100);
-  return { prices, reporters };
+  return { ...first, prices, reporters };
 }
 
 /**
@@ -185,18 +233,24 @@ export function joinPriceFigures(prices: readonly number[]): string {
 }
 
 /**
- * THE ONE LINE a split prints, wherever it prints: the Overview's price area,
- * the phone peek chip and the second drinker's door all say this.
+ * THE ONE line the split itself prints. Its named claim is rendered separately
+ * through `pintPriceSplitClaimLabel`, so the reader knows exactly which product
+ * and serving the figures describe.
  *
  * "Two drinkers, two prices: £4.50 and £4.70". Both counts are said because
  * they come apart: three drops holding two figures is three drinkers and two
  * prices, and printing one count for both would tell the reader something
  * nobody reported.
  */
-export function pintPriceSplitLine(split: PintPriceSplit): string {
+export function pintPriceSplitLine(split: Pick<PintPriceSplit, "prices" | "reporters">): string {
   const drinkers = `${countWord(split.reporters)} drinker${split.reporters === 1 ? "" : "s"}`;
   const prices = `${countWord(split.prices.length).toLowerCase()} prices`;
   return `${drinkers}, ${prices}: ${joinPriceFigures(split.prices)}`;
+}
+
+/** The named claim beside a split: "Lager pint", never a generic Beer label. */
+export function pintPriceSplitClaimLabel(split: PintPriceSplit): string {
+  return `${split.drink} ${drinkMeasureName(split.measure, split.measureLabel).toLowerCase()}`;
 }
 
 /** The range a compact chip prints when it has room for one string: "£4.50-£4.70". */

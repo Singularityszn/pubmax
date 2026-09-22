@@ -26,10 +26,16 @@ import {
   priceStandingLabel,
 } from "@/lib/priceTier";
 import {
+  pintPriceSplitClaimLabel,
   pintPriceSplitLine,
   pintPriceSplitRange,
 } from "@/lib/pintDropAgreement";
-import { PINT_TRUST_LINE, trustChipStateFor, type PintTrustState } from "@/lib/pintTrust";
+import {
+  PINT_TRUST_LINE,
+  trustChipStateFor,
+  type CommunityPintSplitInput,
+  type PintTrustState,
+} from "@/lib/pintTrust";
 import {
   AGED_PRICE_LINE,
   PROVISIONAL_PRICE_LINE,
@@ -846,16 +852,19 @@ export function searchParamsQuery(
  * price on record and the chip may invite the first drop.
  *
  * The lane is decided by `venuePriceLane` alone; this only says how the winning
- * lane reads inside a chip that holds ONE figure and ONE short caption. An
- * estimate answers `observed: false`, because nobody watched a modelled figure
- * being paid, and its string comes from `priceStandingFigure`, which is what
- * keeps the "est." on it.
+ * lane reads inside a chip that holds ONE figure and ONE short caption. A named
+ * community split can fill an otherwise empty chip, but never replaces a
+ * sourced or listed winner. An estimate answers `observed: false`, because
+ * nobody watched a modelled figure being paid, and its string comes from
+ * `priceStandingFigure`, which is what keeps the "est." on it.
  */
 export function peekPriceChip(
   lane: VenuePriceLane | null,
   bundle: VenueBundlePrices,
   /** The drop lane's trust state (lib/pintTrust.ts), so the chip can carry it. */
   pintTrust: PintTrustState | null = null,
+  /** Named community evidence for a pub with no primary price lane. */
+  communityPintSplit: CommunityPintSplitInput | null = null,
 ): {
   figure: string;
   /** The figure as a number, so the chip can wear its price band (lib/priceBand.ts). */
@@ -864,7 +873,16 @@ export function peekPriceChip(
   observed: boolean;
   trust: PintTrustState | null;
 } | null {
-  if (!lane) return null;
+  if (!lane) {
+    if (!communityPintSplit) return null;
+    return {
+      figure: pintPriceSplitRange(communityPintSplit.split),
+      priceGbp: null,
+      caption: `Community split · ${pintPriceSplitClaimLabel(communityPintSplit.split)}: ${pintPriceSplitLine(communityPintSplit.split)}`,
+      observed: true,
+      trust: "disputed",
+    };
+  }
   if (lane.lane === "estimate") {
     const figure = priceStandingFigure(
       priceStandingFor({ estimate: bundle.estimate ?? null }),
@@ -888,19 +906,6 @@ export function peekPriceChip(
       caption: baselineTrustCaption(lane),
       observed: true,
       trust: null,
-    };
-  }
-  // A SPLIT PRINTS THE RANGE AND THE SPLIT'S OWN LINE. It has no single figure,
-  // so `venuePriceLaneObservedGbp` answers null for it and the chip would
-  // otherwise fall through to nothing over a pub two drinkers have reported.
-  // `priceGbp` stays null with it: two prices have no one band.
-  if (lane.lane === "disputed") {
-    return {
-      figure: pintPriceSplitRange(lane.split),
-      priceGbp: null,
-      caption: pintPriceSplitLine(lane.split),
-      observed: true,
-      trust: "disputed",
     };
   }
   const observedGbp = venuePriceLaneObservedGbp(lane);
@@ -935,10 +940,6 @@ const PEEK_LANE_CAPTION: Record<
   sourced: "sourced price on record",
   listed: "listed by the pub",
   provisional: PROVISIONAL_PRICE_LINE,
-  // Never reached: the split branch above answers before the table is asked,
-  // because its caption names the pub's own figures. The key is here so the
-  // closed lane set stays closed.
-  disputed: PROVISIONAL_PRICE_LINE,
   aged: AGED_PRICE_LINE,
   estimate: "estimate",
 };

@@ -34,6 +34,8 @@ import {
 } from "@/lib/pintDropSecondDrinker";
 import {
   CHOOSE_PRICE_DOOR_LABEL,
+  communityPintSplitDoor,
+  communityPintSplitInput,
   LOG_PRICE_DOOR_LABEL,
   OVERVIEW_PRICE_DOOR_KIND,
   PINT_TRUST_STATES,
@@ -41,7 +43,6 @@ import {
   overviewPriceDoor,
   pintTrustFor,
   pintTrustSignalFields,
-  splitLaneInput,
   type PintTrustState,
 } from "@/lib/pintTrust";
 import {
@@ -115,6 +116,7 @@ function daysAgo(days: number): string {
 function drop(overrides: Partial<SummaryDrop> = {}): SummaryDrop {
   return {
     drink: "Lager",
+    measure: "pint",
     priceGbp: 4.5,
     passedDownNote: "",
     provenance: "contributor",
@@ -195,7 +197,10 @@ function renderOverview(
       confirmedPrice: signal.confirmedPrice,
       provisionalPrice: dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
       agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
-      disputedPrice: splitLaneInput(signal.disputedPrices, signal.disputedAt),
+      communityPintSplit: communityPintSplitInput(
+        signal.communityPintSplit,
+        signal.communityPintSplitAt,
+      ),
       communityPrices: communityPrices(VENUE_ID),
       experienceLens: "all",
       drinkLensCategory: null,
@@ -235,30 +240,30 @@ describe("overviewPriceDoor: one door per trust state", () => {
     expect(OVERVIEW_PRICE_DOOR_KIND).toEqual({
       confirmed: "log",
       corroborated: "log",
-      disputed: "choose",
+      disputed: "log",
       "logged-once": "confirm",
       "aged-out": "confirm",
       none: "log",
     });
-    // The states that ASK a second drinker something - one figure to confirm or
-    // a choice between the recorded ones - are exactly the second-drinker
-    // states, so the two tables (this one and lib/pintDropSecondDrinker.ts)
-    // cannot drift apart.
+    // A split asks through its named supplementary block. The primary lane's
+    // table cannot invent a choice from a generic disputed state alone.
     for (const state of PINT_TRUST_STATES) {
       const asks =
         OVERVIEW_PRICE_DOOR_KIND[state] === "confirm" ||
         OVERVIEW_PRICE_DOOR_KIND[state] === "choose";
-      expect(asks, state).toBe(secondDrinkerDoorOffered(state));
+      expect(asks || state === "disputed", state).toBe(secondDrinkerDoorOffered(state));
     }
   });
 
   it("asks WHICH over a split, offering every recorded figure and naming none of them the answer", () => {
-    const split: VenuePriceLane = {
-      lane: "disputed",
-      split: { prices: [4.5, 4.7], reporters: 2 },
-      observedAt: null,
+    const split = {
+      drink: "Lager",
+      measure: "pint" as const,
+      measureLabel: "",
+      prices: [4.5, 4.7],
+      reporters: 2,
     };
-    expect(overviewPriceDoor("disputed", split)).toEqual({
+    expect(communityPintSplitDoor(split)).toEqual({
       kind: "choose",
       label: CHOOSE_PRICE_DOOR_LABEL,
       prices: [4.5, 4.7],
@@ -266,6 +271,7 @@ describe("overviewPriceDoor: one door per trust state", () => {
     const html = renderOverview(FIXTURES.disputed());
     expect(html).toContain(CHOOSE_PRICE_DOOR_LABEL);
     expect(html).toContain('data-price-door="choose"');
+    expect(html).toContain("Community split · Lager pint");
     expect(html).toContain('data-price-gbp="4.50"');
     expect(html).toContain('data-price-gbp="4.70"');
     // "Still £4.70?" named one of two answers and called the other a
@@ -323,7 +329,7 @@ describe("the rendered Overview carries exactly one price door", () => {
   it.each(PINT_TRUST_STATES)("%s: one door, none of the retired ones", (state) => {
     const html = renderOverview(FIXTURES[state]());
     expect(doorCount(html), `${state}: door count`).toBe(1);
-    expect(html).toContain(`data-price-door="${OVERVIEW_PRICE_DOOR_KIND[state]}"`);
+    expect(html).toContain(`data-price-door="${state === "disputed" ? "choose" : OVERVIEW_PRICE_DOOR_KIND[state]}"`);
     for (const retired of RETIRED_DOORS) {
       expect(html, `${state}: ${retired}`).not.toContain(retired);
     }
@@ -366,6 +372,19 @@ describe("the rendered Overview carries exactly one price door", () => {
     expect(baselineHtml).not.toContain("Baseline on record");
     expect(doorCount(baselineHtml)).toBe(1);
     expect(baselineHtml).toContain('data-price-door="log"');
+  });
+
+  it.each(["logged-once", "aged-out"] as const)("keeps %s evidence and its confirmation beside a listed price", (state) => {
+    const listed = venue({ bundlePrices: {
+      listed: { priceGbp: 6.3, sourceUrl: "https://pub.example/menu", observedAt: daysAgo(1) },
+    } } as Partial<Venue>);
+    const html = renderOverview(FIXTURES[state](), listed);
+    expect(html.includes("Published price")).toBe(true);
+    expect(html.includes("£6.30")).toBe(true);
+    expect(html.includes(`data-pint-trust="${state}"`)).toBe(true);
+    expect(html.includes('data-testid="confirm-pint-cta"')).toBe(true);
+    expect(html.includes("No beer price logged")).toBe(false);
+    expect(doorCount(html)).toBe(1);
   });
 
   it("a sheet handed no confirm handler still offers one door, the log door", () => {

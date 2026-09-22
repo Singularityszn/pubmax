@@ -22,6 +22,7 @@ import {
   confirmPintActionLabel,
   confirmPintActionName,
   confirmPintPriceSeed,
+  confirmPintSplitSeed,
   confirmationOutcomeLine,
   parseConfirmationOutcome,
   SECOND_DRINKER_STATES,
@@ -37,6 +38,7 @@ function drop(overrides: Partial<PintDrop> & { id: string }): PintDrop {
     venueId: VENUE,
     handle: "tester",
     drink: "Lager",
+    measure: "pint",
     priceGbp: 4.5,
     passedDownNote: "",
     era: "",
@@ -61,11 +63,24 @@ describe("the door's words", () => {
   });
 
   it("seeds the composer with the figure as its own field spells it", () => {
-    expect(confirmPintPriceSeed(4.5)).toBe("4.50");
-    expect(confirmPintPriceSeed(4)).toBe("4.00");
+    expect(confirmPintPriceSeed(4.5)).toEqual({ kind: "price", price: "4.50" });
+    expect(confirmPintPriceSeed(4)).toEqual({ kind: "price", price: "4.00" });
     expect(confirmPintPriceSeed(0)).toBeNull();
     expect(confirmPintPriceSeed(Number.NaN)).toBeNull();
     expect(confirmPintPriceSeed(null)).toBeNull();
+    expect(confirmPintSplitSeed({
+      drink: "Lager",
+      measure: "pint",
+      measureLabel: "",
+      prices: [4.5, 4.7],
+      reporters: 2,
+    }, 4.5)).toEqual({
+      kind: "claim",
+      price: "4.50",
+      drink: "Lager",
+      measure: "pint",
+      measureLabel: "",
+    });
   });
 });
 

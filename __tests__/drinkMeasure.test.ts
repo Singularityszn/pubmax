@@ -58,6 +58,7 @@ const LONG_AGO = new Date(NOW - 400 * 24 * 60 * 60 * 1000).toISOString();
 function drop(over: Partial<SummaryDrop> & { priceGbp: number }): SummaryDrop {
   return {
     drink: "Lager",
+    measure: "pint",
     passedDownNote: "",
     provenance: "contributor",
     createdAt: RECENT,

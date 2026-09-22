@@ -36,6 +36,7 @@ function row(overrides: DropRow = {}): DropRow {
     venueId: HATTON,
     handle: "tester",
     drink: "Lager",
+    measure: "pint",
     priceGbp: 4.5,
     passedDownNote: "",
     era: "",

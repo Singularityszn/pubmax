@@ -28,8 +28,8 @@ import {
   PINT_TRUST_LINE,
   PINT_TRUST_PIN_PAINT,
   PINT_TRUST_STATES,
+  communityPintSplitInput,
   dropLaneInput,
-  splitLaneInput,
   pintTrustFor,
   pintTrustPinStanding,
   pintTrustSignalFields,
@@ -117,6 +117,7 @@ function venue(overrides: Partial<Venue> = {}): Venue {
 function drop(overrides: Partial<SummaryDrop> = {}): SummaryDrop {
   return {
     drink: "Lager",
+    measure: "pint",
     priceGbp: 4.5,
     passedDownNote: "",
     provenance: "contributor",
@@ -210,7 +211,10 @@ function renderOverview(drops: SummaryDrop[], base: Venue = venue()): string {
       confirmedPrice: signal.confirmedPrice,
       provisionalPrice: dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
       agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
-      disputedPrice: splitLaneInput(signal.disputedPrices, signal.disputedAt),
+      communityPintSplit: communityPintSplitInput(
+        signal.communityPintSplit,
+        signal.communityPintSplitAt,
+      ),
       communityPrices: communityPrices(VENUE_ID),
       experienceLens: "all",
       drinkLensCategory: null,
@@ -244,10 +248,10 @@ function peekChip(drops: SummaryDrop[], base: Venue = venue()) {
       bundle,
       dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
       dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
-      splitLaneInput(signal.disputedPrices, signal.disputedAt),
     ),
     bundle,
     signal.pintTrust,
+    communityPintSplitInput(signal.communityPintSplit, signal.communityPintSplitAt),
   );
 }
 
@@ -412,6 +416,7 @@ describe("the signal projection gives each state its reach and no more", () => {
     expect(fields.provisionalContributorPrice).toBe(state === "logged-once" ? 4.5 : null);
     expect(fields.agedContributorPrice).toBe(state === "aged-out" ? 4.5 : null);
     expect(fields.confirmedPrice === null).toBe(state !== "confirmed");
+    expect(fields.communityPintSplit === null).toBe(state !== "disputed");
   });
 });
 

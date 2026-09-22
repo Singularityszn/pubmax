@@ -5,6 +5,7 @@ import {
   readPintDropDraft,
   seededPintDropDraftForm,
   writePintDropDraft,
+  type PintDropDraftSeed,
 } from "@/lib/pintDropDraft";
 import { trackEvent } from "@/lib/analytics";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
@@ -21,13 +22,11 @@ type UseVenueDraftArgs = {
   vibeTags: PintDropsState["vibeTags"];
   transientVoiceNoteBaseline: string | null;
   /**
-   * #1462 — the figure the log intent carried, or null. Applied INSIDE the
-   * hydration below, because that is where a venue's fields are decided: a seed
-   * written from outside is blanked by the `resetComposer()` on this venue's
-   * own mount. A saved draft wins, and a draft with no price of its own still
-   * takes the seed, so the door's promise survives a half-typed note.
+   * The price or named claim the door carried. Applied INSIDE hydration because
+   * `resetComposer()` owns a venue mount. A plain price honours a saved draft;
+   * a split claim deliberately seeds price, product and measure together.
    */
-  priceSeed?: string | null;
+  composerSeed?: PintDropDraftSeed | null;
 };
 
 /**
@@ -45,7 +44,7 @@ export function useVenueDraft({
   visibility,
   vibeTags,
   transientVoiceNoteBaseline,
-  priceSeed = null,
+  composerSeed = null,
 }: UseVenueDraftArgs): boolean {
   const [draftReadyVenueId, setDraftReadyVenueId] = useState<string | null>(null);
   if (draftReadyVenueId !== null && draftReadyVenueId !== venueId) {
@@ -65,7 +64,7 @@ export function useVenueDraft({
       );
       if (!active) return;
       resetComposer();
-      const seeded = seededPintDropDraftForm(draft?.form ?? null, priceSeed);
+      const seeded = seededPintDropDraftForm(draft?.form ?? null, composerSeed);
       if (draft) {
         writePintDropDraft(window.sessionStorage, venueId, draft);
         if (seeded) setDropForm(seeded);
@@ -81,7 +80,7 @@ export function useVenueDraft({
     return () => {
       active = false;
     };
-  }, [venueId, priceSeed, resetComposer, setDropForm, setVisibility, setVibeTags]);
+  }, [venueId, composerSeed, resetComposer, setDropForm, setVisibility, setVibeTags]);
 
   useEffect(() => {
     if (draftReadyVenueId !== venueId) return;
