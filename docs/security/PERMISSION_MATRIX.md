@@ -79,6 +79,7 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Export account data (`GET /api/account/export`) | 401 | own account only, whatever the query names | own account only | not an identity: 401 |
 | Read A's PUBLIC profile card (`GET /api/profiles/[handle]`) | allowed | allowed | allowed | n/a |
 | Read A's PRIVATE profile card | limited card | full for a mate, limited for anybody else | full: she owns it | n/a |
+| Read A's PRIVATE cover bytes (`GET /api/cover/[profileId]/[generation]`) | 404 | 200 for a mate, 404 for anybody else | 200 | `ADMIN_TOKEN` moderator: 200 for an approved generation |
 | Set who can see A's profile (`PATCH` `visibility`) | denied | 403, and the stored choice does not move | allowed | n/a |
 | A's `profiles` row at the table, the choice included | denied | no rows | own row | n/a |
 
@@ -174,6 +175,13 @@ and a private account is knowable as a private account on purpose.
 about a pub and stays public under the standing rule that we keep the prices, so
 the choice governs the owner-authored profile card and nothing in a price lane.
 `ACCOUNT_VISIBILITY_COPY.pricesStay` prints that beside the control.
+
+**The cover bytes carry the same boundary.** An anonymous reader or stranger
+gets the same 404 before any rotation or object read. The owner and a mutual
+mate may read an approved generation. Avatars remain public recognition. The
+moderator credential is the deliberate operator exception because the review
+console uses canonical cover URLs; approval, generation and object-key checks
+still apply, and every cover response is private and no-store.
 
 **What these cells do NOT measure is the Social block, and that is named rather
 than left to be found.** Carol is a mutual follower Alice has blocked, so by the

@@ -17,6 +17,10 @@ export type ProfileImageSlotSpec = {
   readonly servingFile: string;
   /** Public serve route base; the id and generation are appended. */
   readonly servePath: string;
+  /** Who may read the served bytes. */
+  readonly serveAudience: "public" | "profile";
+  /** Browser and shared-cache policy for served bytes. */
+  readonly serveCacheControl: string;
   /** Longest edge the stored JPEG is resized down to. */
   readonly outputWidth: number;
   /** Square box for a face; width-only for a backdrop. */
@@ -39,6 +43,8 @@ export const PROFILE_IMAGE_SLOT_SPECS: Readonly<
     prefix: "avatars",
     servingFile: "image.jpg",
     servePath: "/api/avatar",
+    serveAudience: "public",
+    serveCacheControl: "public, max-age=300, s-maxage=3600",
     outputWidth: 512,
     outputHeight: 512,
     aspectRatio: 1,
@@ -49,6 +55,8 @@ export const PROFILE_IMAGE_SLOT_SPECS: Readonly<
     prefix: "covers",
     servingFile: "cover.jpg",
     servePath: "/api/cover",
+    serveAudience: "profile",
+    serveCacheControl: "private, no-store",
     outputWidth: 1600,
     outputHeight: null,
     aspectRatio: 3,
