@@ -1,4 +1,4 @@
-// Comments on Pint Drops — "stories continue after the night" (cc_plan2 §4).
+// Comments on Pint Drops let a drop's story continue after the night.
 //
 // ONE store interface, TWO implementations, same seam pattern as the other
 // stores (reactions/pint drops): Supabase (public.pint_drop_comments) when

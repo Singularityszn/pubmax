@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-// Social-loop E2E (cc_plan2 §8/§9/§11). A READ-ONLY journey through the durable
+// Social-loop E2E. A READ-ONLY journey through the durable
 // social surfaces: Social (canonical, /feed 308s here), pint permalink, crawl
 // poster. It asserts the loop RENDERS correctly WITHOUT mutating anything: it
 // never POSTs a drop/reaction/comment, so it is safe against the production
@@ -215,7 +215,7 @@ test("discover mobile price badges stay stable and inside the viewport", async (
 
 // ---------------------------------------------------------------------------
 // Borough discovery pages (app/borough/page.tsx + app/borough/[slug]/page.tsx).
-// Server-rendered, shareable, dataset-backed (cc_plan2 §14/§25). The index lists
+// Server-rendered, shareable, dataset-backed. The index lists
 // every borough; a real borough page ranks its pubs (each linking onto the map);
 // an unknown slug is a friendly 404. All read-only — pure GETs off the bundled
 // dataset, no mutation.

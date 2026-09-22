@@ -1,6 +1,6 @@
 # PRD — Pint Drops: the Community Heritage Layer
 
-> **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md
+> **Superseded.** For current product context, see [PRD_CANONICAL.md](../PRD_CANONICAL.md) and [teach.md](../teach.md).
 
 > Synthesised from conversation via `to-prd`. Vocabulary follows `CONTEXT.md`; decision recorded in `docs/adr/0002-community-heritage-layer.md`. Publish to the issue tracker with the `ready-for-agent` label once the tracker vocabulary is configured (`/setup-matt-pocock-skills`).
 

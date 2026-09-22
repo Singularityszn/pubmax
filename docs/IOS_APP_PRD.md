@@ -22,7 +22,7 @@ Source branches read for this PRD (all open, none merged — Sol's queue):
 - `#299` `feat/native-first-run` (stacked on #295) — first-run redirect + contextual push prompt.
 - `#300` `feat/push-senders` (stacked on #295) — server-side send pipeline behind an APNs-ready seam.
 - `#312` `feat/identity-nudges`, `#313` `feat/a2hs-flow` — the two other interruptive-prompt surfaces the app must coordinate with.
-- `docs/merge-order-matrix` → `docs/MERGE_ORDER_2026-07-18.md` (PR #316) — the executable merge plan ("MERGE_ORDER v2").
+- PR #316 recorded the original merge queue; `docs/prd/fable-implement-prd.md` retains the basic native-stack order.
 - `docs/prd/fable-implement-prd.md` — session decision log + PR queue.
 - Grounding runbook: `docs/CAPACITOR_WRAP.md` (present on #295/#299/#300).
 
@@ -136,14 +136,14 @@ signing, and device results remain unproved.
 
 ### 3.1 Merge prerequisites
 
-Per `docs/MERGE_ORDER_2026-07-18.md`, the native stack lands **last** in the queue (step 28 `#295` → 29 `#299` → 30 `#300`), after `fix/prompt-orchestration` (step 22), `#312` (24) and `#313` (25). Two honest build targets:
+At the time of this PRD, the native stack was scheduled **last** in a 30-step queue: `#295` → `#299` → `#300`, after `fix/prompt-orchestration`, `#312`, and `#313`. This queue is historical. Two honest build targets:
 
 - **Minimal buildable shell (today, lowest risk):** merge **`#295` only**. This gives boots-on-device + real camera + remote-URL shell + AASA scaffold. First-run routing, push prompt, and A2HS suppression are absent. Sufficient to prove the wrap works end-to-end.
-- **Full v1 per the §6 acceptance criteria:** requires the native cluster **plus** its prompt neighbours — `#295`, `#299`, `#300`, `#312`, `#313`, and `fix/prompt-orchestration`. Because the native stack sits at the tail of a 30-step queue with three conflict clusters, the pragmatic path is to run the MERGE_ORDER top-to-bottom; the acceptance criteria cannot all be met from `#295` alone.
+- **Full v1 per the §6 acceptance criteria:** requires the native cluster **plus** its prompt neighbours - `#295`, `#299`, `#300`, `#312`, `#313`, and `fix/prompt-orchestration`. The original 30-step queue had three conflict clusters and is historical; the acceptance criteria cannot all be met from `#295` alone.
 
 ### 3.2 Ordered steps
 
-1. **Land the prerequisite PRs** (§3.1) on `main` via `MERGE_ORDER_2026-07-18.md`. Sol executes; Fable never merges.
+1. **Land the prerequisite PRs** (§3.1) on `main` in the recorded sequence. This step is historical; current native release status is in `docs/superpowers/plans/2026-08-27-ios-android-release-readiness.md`.
 2. **Owner installs full Xcode** (App Store, not just Command Line Tools). Confirm `xcode-select -p` points at `…/Xcode.app`, not `…/CommandLineTools` — Capacitor's `cap open ios` and the SPM build both require it (`docs/CAPACITOR_WRAP.md`).
 3. `npm install` — installs `@capacitor/{core,cli,ios,camera,push-notifications}`.
 4. **Verify the committed camera usage strings.** `ios/App/App/Info.plist` already carries `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription`. `NSPhotoLibraryAddUsageDescription` is deliberately absent because the capture seam does not save to the gallery.

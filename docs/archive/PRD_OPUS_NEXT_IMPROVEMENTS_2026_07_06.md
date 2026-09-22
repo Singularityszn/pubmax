@@ -428,8 +428,8 @@ Update docs so Opus and future agents have one source of truth.
 Required:
 
 - Treat this PRD as the Opus execution plan.
-- Keep `cc_plan2.md` as broader background.
-- Keep `docs/ACTIVE_PLAN.md` pointed at the current PRD.
+- Use [`../PRD_CANONICAL.md`](../PRD_CANONICAL.md) for current product context.
+- Treat this PRD as a historical snapshot, not an active execution plan.
 - Archive or mark older PRDs as superseded.
 - Refresh demo deck once the next map work lands.
 - Update deployment docs around private storage, Supabase migrations, auth provider configuration, and Vercel environment variables.

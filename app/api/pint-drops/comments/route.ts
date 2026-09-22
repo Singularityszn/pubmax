@@ -1,5 +1,4 @@
-// Comments on Pint Drops — the thread that keeps a drop's story going after the
-// night (cc_plan2 §4).
+// Comments on Pint Drops keep a drop's story going after the night.
 //
 //   GET  ?dropId=<id>                        → { comments: CommentDTO[] }  (visible only)
 //   POST { dropId, handle, body, parentId? }  → { comment: CommentDTO }     (201)

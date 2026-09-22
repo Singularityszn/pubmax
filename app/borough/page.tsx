@@ -16,7 +16,7 @@ import "./[slug]/borough.css";
 
 // Borough index: /borough. A SERVER component listing every London borough in
 // the dataset as a card (name, pub count, cheapest pint), each linking to its
-// own /borough/[slug] page (cc_plan2 §14/§25). Shareable via generateMetadata.
+// own /borough/[slug] page. Shareable via generateMetadata.
 // Reuses the detail page's stylesheet so both surfaces stay visually identical.
 
 export const metadata: Metadata = {

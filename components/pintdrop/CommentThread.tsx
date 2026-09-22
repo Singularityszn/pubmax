@@ -11,8 +11,8 @@ import { relativeTime } from "@/lib/relativeTime";
 import { readCommentDraft, subscribeCommentDraft, writeCommentDraft } from "@/lib/socialDrafts";
 import { authedActionFetch } from "@/lib/authedFetch";
 
-// The comment thread under a Pint Drop — where a drop's story continues after
-// the night (cc_plan2 §4), now with one-level THREADED replies (issue #37) and
+// The comment thread under a Pint Drop keeps its story going after the night,
+// with one-level THREADED replies (issue #37) and
 // LIVE updates. Collapsed by default so it stays out of the way on a mobile
 // feed; expanding lazily fetches the thread (visible-only, thread-ordered) and
 // reveals a compact composer.

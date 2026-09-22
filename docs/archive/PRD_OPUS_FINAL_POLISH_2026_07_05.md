@@ -1,6 +1,6 @@
 # PubMaxxing Final Polish PRD for Opus
 
-> **Superseded** — see docs/PRD_PUBMAXXING_SOCIAL_MEMORY_LAYER.md and cc_plan.md
+> **Superseded.** For current product context, see [PRD_CANONICAL.md](../PRD_CANONICAL.md) and [teach.md](../teach.md).
 
 Status: ready for agent
 Target branch: `prd-implementation-review`
