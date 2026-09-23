@@ -10,8 +10,6 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
-
 import { findPostgresBinary } from "./postgresHost.mjs";
 
 const PUBMAX_DIR_MARKERS = ["/pubmax-pg-", "/pubmax-rls-"];

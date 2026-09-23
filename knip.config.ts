@@ -118,6 +118,10 @@ const config: KnipConfig = {
     // Run with execFileSync by scripts/perf-ab.mjs.
     "scripts/print-e2e-server-env.ts",
 
+    // macOS SysV IPC utilities (ipcs, ipcrm, ps) for the postgres harness;
+    // knip cannot list them as npm binaries.
+    "scripts/rls/postgresShm.mjs",
+
     // Run through command() strings by scripts/local-refresh/scheduler.mjs,
     // which knip cannot follow across the process boundary.
     "scripts/firecrawl_greene_king_prices.mjs",
