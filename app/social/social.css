@@ -35,6 +35,16 @@
   min-width: 0;
 }
 
+/* Signed-out Posts: the switcher and founders link used to bracket a blank
+   stretch with no words (issue #1541). */
+.socialRailEmpty {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-raised);
+}
+
 .socialSwitcher,
 .socialLaneNav {
   display: grid;
