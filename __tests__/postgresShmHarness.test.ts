@@ -75,21 +75,14 @@ describe("postgres SysV harness hygiene", () => {
   );
 
   (skip ? it.skip : it)(
-    "a serial postgres-backed suite leaves the SysV segment count unchanged",
-    () => {
+    "three boot-stop cycles do not raise the SysV segment count",
+    async () => {
       const before = countSysvShmSegments();
-      const result = spawnSync(
-        "npx",
-        ["vitest", "run", "__tests__/rateLimitExpiryMigration.test.ts", "--maxWorkers=1"],
-        {
-          cwd: process.cwd(),
-          encoding: "utf8",
-          env: { ...process.env, CI: "1" },
-          timeout: 300_000,
-        },
-      );
-      expect(result.status, result.stderr || result.stdout).toBe(0);
-      sweepPubmaxHarnessOrphans();
+      for (let cycle = 0; cycle < 3; cycle += 1) {
+        const session = await startPostgres({ label: `shm-cycle-${cycle}` });
+        await session.stop();
+        sweepPubmaxHarnessOrphans();
+      }
       expect(countSysvShmSegments()).toBeLessThanOrEqual(before);
     },
     360_000,

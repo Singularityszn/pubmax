@@ -146,7 +146,6 @@ export function stopHarnessCluster(dataDir) {
   if (postmasterPid) {
     removeDetachedSegmentsForPids(new Set([postmasterPid]));
   }
-  removeLooseHarnessInterlockSegments();
 }
 
 function parseIpcsSegments() {
@@ -204,19 +203,6 @@ function removeDetachedSegmentsForPids(pids) {
   }
 }
 
-/** Reaps tiny detached interlock segments left after a tidy harness stop. */
-function removeLooseHarnessInterlockSegments() {
-  for (const segment of parseIpcsSegments()) {
-    if (segment.nattch !== 0) continue;
-    if (segment.segsz !== 56) continue;
-    try {
-      execFileSync("ipcrm", ["-m", segment.id], { stdio: "pipe" });
-    } catch {
-      /* still attached elsewhere */
-    }
-  }
-}
-
 function stalePubmaxDataDirs() {
   const root = tmpdir();
   const dirs = [];
@@ -263,7 +249,6 @@ export function sweepPubmaxHarnessOrphans() {
     }
   }
   removeDetachedSegmentsForPids(killed);
-  removeLooseHarnessInterlockSegments();
 }
 
 /* ------------------------------------------------------------------ */

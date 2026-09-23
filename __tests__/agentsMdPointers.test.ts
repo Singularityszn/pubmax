@@ -57,6 +57,9 @@ function looksLikeRepositoryPath(raw: string): boolean {
 const NOT_REPO_PATHS = new Set([
   // Next development route types are generated and absent from a clean clone.
   "./.next/dev/types/routes.d.ts",
+  // Next agent guides ship in node_modules; not git-tracked.
+  "node_modules/next/dist/docs/",
+  "node_modules/next/dist/server/lib/generate-agent-files.js",
   // Server suffix names a convention, not one concrete file.
   ".server.ts",
   // Generic JSON glob names a publish input class, not one repository file.
