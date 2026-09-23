@@ -178,6 +178,9 @@ describe("Social viewer surfaces", () => {
     expect(host.querySelector(".socialBoundary")?.textContent).toContain(
       "Sign in to use Social.",
     );
+    expect(host.querySelector(".socialRailEmpty")?.textContent).toContain(
+      "No posts to read yet.",
+    );
     expect(host.querySelectorAll('a[href*="/login"]')).toHaveLength(1);
     expect(host.querySelectorAll(".starterPacks__card")).toHaveLength(1);
     expect(host.querySelectorAll(".starterPacks__follow")).toHaveLength(0);
