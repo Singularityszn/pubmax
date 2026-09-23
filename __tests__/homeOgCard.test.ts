@@ -108,11 +108,12 @@ describe("home card figures are derived, never typed in", () => {
 });
 
 describe("home card copy", () => {
-  it("says what the landing page says", () => {
+  it("says what the landing page says", async () => {
     // The card fronts the landing page, so its hero is that page's h1 and its
     // support line is that page's lede. A drift here is a share preview
     // promising something the page it opens does not say.
-    // The h1 lives in the hero and the lede in the page's own "why" section.
+    // The h1 and the lede both live in the hero; the page no longer restates
+    // the claim as a second heading under "What it saves you".
     const landing = [
       readSource("components/landing/LandingHero.tsx"),
       readSource("components/landing/LandingPage.tsx"),
@@ -121,8 +122,15 @@ describe("home card copy", () => {
     expect(hero).toBe("What a pint costs, pub by pub.");
     expect(landing).toContain("What a pint costs, pub by pub.");
 
-    const ledeWords = HOME_CARD_SUPPORT.split(". ")[0];
-    expect(landing.replace(/\s+/g, " ")).toContain(ledeWords);
+    const { LONDON_MAP_PUB_COUNT } = await import(
+      "@/components/landing/londonMapGeometry"
+    );
+    expect(landing.replace(/\s+/g, " ")).toContain(
+      "London on one map, with ${LONDON_MAP_PUB_COUNT} historic pubs marked and a listed price wherever we hold one.",
+    );
+    expect(HOME_CARD_SUPPORT.split(". ")[0]).toBe(
+      `London on one map, with ${LONDON_MAP_PUB_COUNT} historic pubs marked and a listed price wherever we hold one`,
+    );
   });
 
   it("keeps the retired night-OS lines off the card", () => {

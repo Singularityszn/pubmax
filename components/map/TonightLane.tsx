@@ -190,7 +190,7 @@ function TonightErrorState({ inSheet }: { inSheet: boolean }) {
         <div className="tonightLaneTitleMeta">
           <h2 className="tonightLaneTitle">On tonight</h2>
           <span className="tonightLaneChecked">
-            Tonight&rsquo;s listings unavailable right now
+            Couldn&rsquo;t load tonight&rsquo;s list.
           </span>
         </div>
       </div>
@@ -253,7 +253,7 @@ function TonightLaneCollapsed({
           <span className="tonightLaneCollapsedMain" role="status">
             <span className="tonightLaneCollapsedTitle">Tonight nearby</span>
             {status === "error" ? (
-              <span className="tonightLaneCollapsedChecked">Listings unavailable</span>
+              <span className="tonightLaneCollapsedChecked">Couldn&rsquo;t load.</span>
             ) : null}
           </span>
         )}

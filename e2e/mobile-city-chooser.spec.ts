@@ -12,17 +12,14 @@ test("mobile city chooser keeps choices tappable and opens the selected city map
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
 
-  // The chooser's own route is gone: /choose-city 308s to /places, and the ONE
-  // surface that still mounts CityChooser is the landing's #cities section. So
-  // the tap targets it paints are measured where a reader now meets them.
-  const response = await page.goto("/#cities");
+  // CityChooser left the landing; /places is the picker that answers a town.
+  const response = await page.goto("/places");
   expect(response?.status()).toBe(200);
 
-  await expect(page.getByRole("heading", { name: "Choose your city" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pick a city." })).toBeVisible();
 
   const result = await page.evaluate(() => {
-    const locate = document.querySelector<HTMLElement>(".cityChooserLocate");
-    const links = Array.from(document.querySelectorAll<HTMLElement>(".cityChooserLink"))
+    const links = Array.from(document.querySelectorAll<HTMLElement>(".placesCityLink"))
       .filter((el) => el.offsetParent !== null)
       .map((el) => {
         const rect = el.getBoundingClientRect();
@@ -34,29 +31,14 @@ test("mobile city chooser keeps choices tappable and opens the selected city map
           right: rect.right,
         };
       });
-    const locateRect = locate?.getBoundingClientRect();
 
     return {
       overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      locate: locateRect
-        ? {
-            height: locateRect.height,
-            width: locateRect.width,
-            left: locateRect.left,
-            right: locateRect.right,
-          }
-        : null,
       links,
     };
   });
 
   expect(result.overflow).toBeLessThanOrEqual(1);
-  expect(result.locate, "Use my location control should render").not.toBeNull();
-  expect(result.locate!.height).toBeGreaterThanOrEqual(44);
-  expect(result.locate!.width).toBeGreaterThan(44);
-  expect(result.locate!.left).toBeGreaterThanOrEqual(0);
-  expect(result.locate!.right).toBeLessThanOrEqual(390);
-
   expect(result.links.length).toBeGreaterThanOrEqual(3);
   for (const link of result.links) {
     expect(link.height, `${link.label} link height`).toBeGreaterThanOrEqual(44);
@@ -65,13 +47,11 @@ test("mobile city chooser keeps choices tappable and opens the selected city map
     expect(link.right, `${link.label} should stay inside the viewport`).toBeLessThanOrEqual(390);
   }
 
-  // The row's accessible name is `Manchester: <tagline>. Open map.`, so the
-  // pattern may not demand a space straight after the city name.
-  const manchester = page.getByRole("link", { name: /Manchester.*Open map\./ });
-  await expect(manchester).toHaveAttribute("href", "/map/manchester");
+  const manchester = page.getByRole("link", { name: /Manchester/ }).first();
+  await expect(manchester).toHaveAttribute("href", /places\?city=manchester/);
   await Promise.all([
-    page.waitForURL(/\/map\/manchester$/),
+    page.waitForURL(/places\?city=manchester/),
     manchester.click(),
   ]);
-  await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("heading", { name: /Manchester/ })).toBeVisible({ timeout: 10_000 });
 });

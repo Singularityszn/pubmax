@@ -367,7 +367,7 @@ describe("editorial overlay: degraded reads are not empty", () => {
 
 describe("editorial overlay: copy", () => {
   it("credits a link-out rail, never an observation PUBMAXX made", () => {
-    expect(EDITORIAL_RAIL_TITLE).toBe("Also picked this week");
+    expect(EDITORIAL_RAIL_TITLE).toBe("Also this week");
     expect(editorialViaChip("Deserter")).toBe("via Deserter");
     expect(editorialOglMark("ogl")).toBe("OGL");
     expect(editorialOglMark("rss-std")).toBeNull();

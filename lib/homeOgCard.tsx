@@ -57,12 +57,15 @@ export function homeCardCoverage(stats: AboutStats): string[] {
 // The hero, kept in step with the landing page it fronts: the h1 line the
 // product already owns, then the lede under it. No jokes on this card, because
 // a figure sits four lines below (docs/VOICE.md, "Where the jokes live").
+// The support line is the hero lede with the drawing's historic-pub count
+// resolved (components/landing/londonMapGeometry.ts LONDON_MAP_PUB_COUNT).
+// __tests__/homeOgCard.test.ts holds the figure to that constant.
 export const HOME_CARD_EYEBROW = "Real prices · One map · Nobody pays to rank";
 export const HOME_CARD_HERO_LEAD = "What a pint";
 export const HOME_CARD_HERO_TAIL = "costs,";
 export const HOME_CARD_HERO_ACCENT = "pub by pub.";
 export const HOME_CARD_SUPPORT =
-  "The cheapest listed pint near you, on one map. Who listed it, and the day they did.";
+  "London on one map, with 298 historic pubs marked and a listed price wherever we hold one. Who listed it, and the day they did.";
 
 export function HomeOgCard({ stats }: { stats: AboutStats }) {
   const coverageBits = homeCardCoverage(stats);

@@ -340,7 +340,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
 
       {!sessionReady && !memberToken ? (
         <p className="planCrew__empty" role="status">
-          {sessionUnavailable ? "Your private crew session is temporarily unavailable." : "Restoring your private crew session…"}
+          {sessionUnavailable ? "Couldn't open your crew just now." : "Restoring your private crew session…"}
           {sessionUnavailable ? <button type="button" onClick={() => { setSessionUnavailable(false); setSessionAttempt((value) => value + 1); }}>Retry</button> : null}
         </p>
       ) : !memberToken && inviteHashIsMalformed(hashInviteToken) ? (

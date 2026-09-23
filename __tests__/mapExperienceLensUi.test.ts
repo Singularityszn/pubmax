@@ -13,7 +13,7 @@ describe("MapExperienceLens", () => {
       createElement(MapExperienceLens, {
         lens: "no-alcohol",
         summary:
-          "No alcohol-free or soft drink prices logged here yet. Food venues still show sourced menu prices.",
+          "No alcohol-free or soft drink prices logged here yet. Food venues still show menu prices we have.",
         onChange: () => undefined,
       }),
     );

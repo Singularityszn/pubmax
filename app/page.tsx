@@ -8,12 +8,11 @@ import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 
 // The words a forwarded link shows beside the card. They say the same thing the
 // page itself says, because a referral link (/r/<code>) lands on /#referral=…
-// and so previews THIS head: the description is the landing's own saving-section
-// heading (components/landing/LandingPage), the same line lib/homeOgCard.tsx
-// prints on the share card.
+// and so previews THIS head: the description is the landing hero's lede, the
+// same line lib/homeOgCard.tsx prints on the share card.
 const HOME_TITLE = "PUBMAXXING: what a pint costs, pub by pub";
 const HOME_DESCRIPTION =
-  "PubMaxxing puts the cheapest listed pint near you on one map. Who listed it, and the day they did.";
+  "London on one map, with 298 historic pubs marked and a listed price wherever we hold one. Who listed it, and the day they did.";
 
 // Self-canonical for the homepage (Wave S1.4). Title/description inherit the
 // root layout defaults; this pins the canonical URL and the homepage's own

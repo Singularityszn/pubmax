@@ -11,7 +11,7 @@ import {
   type EditorialItem,
 } from "@/lib/editorialRss.mjs";
 
-export const EDITORIAL_RAIL_TITLE = "Also picked this week";
+export const EDITORIAL_RAIL_TITLE = "Also this week";
 export const EDITORIAL_EMPTY_LINE = "No picks this week.";
 export const EDITORIAL_DEGRADED_LINE = "Some picks could not be checked.";
 export const EDITORIAL_DEGRADED_EMPTY_LINE = "Picks could not be checked.";

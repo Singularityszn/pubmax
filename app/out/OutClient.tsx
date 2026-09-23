@@ -13,7 +13,7 @@ import { useOutListings } from "@/components/out/useOutListings";
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
-import { CITIES, DEFAULT_CITY_ID } from "@/lib/cities";
+import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { readPreferredCity, subscribePreferredCity } from "@/lib/cityPreference";
 import { outCardSource } from "@/lib/out/attribution";
 import {
@@ -140,8 +140,8 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
       <SiteNav active="out" />
 
       {/* The head is the Screen primitive (docs/design/LAUNCH_SCREENS.md). The
-          kicker names the city the listings follow: London on the server and
-          on first paint, then the city Places set. The primary is a PRODUCT
+          heading names the night; the city follows the Places choice in the
+          listings below. The primary is a PRODUCT
           ACTION on every night, listed or quiet: a listing is a publisher's
           sale, and on 13 Sep 2026 the first one ("Burlesque") wore the fill on
           a night none of 25 listings was at a pub we list. Each listing opens
@@ -149,8 +149,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
       <Screen
         as="div"
         className="outScreen"
-        kicker={`Out in ${CITIES[cityId].displayName}`}
-        title="What’s on, sourced."
+        title="What’s on tonight."
         titleId="out-title"
         primary={
           <Link prefetch={false} href={OUT_MAP_WAY.href}>
