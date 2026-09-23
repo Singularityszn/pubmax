@@ -2,17 +2,14 @@
 // durable venue id, or a name + UK outward-postcode token (e.g. the-ship-w1).
 // Ambiguous matches resolve to nothing: a wrong pub is worse than a branded 404.
 
+import { kebabSlug } from "@/lib/textSlug";
+
 const POSTCODE_OUTWARD_RE =
   /\b([a-z]{1,2}\d{1,2}[a-z]?)\s*\d[a-z]{2}\b/i;
 const OUTWARD_ONLY_RE = /\b([a-z]{1,2}\d{1,2}[a-z]?)\b/i;
 
 export function slugifyVenueName(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/&/g, " and ")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return kebabSlug(name.replace(/&/g, " and "));
 }
 
 /** Outward postcode token from search text or address, lowercased. */

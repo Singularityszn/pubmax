@@ -9,6 +9,7 @@
 // these models (same house pattern as lib/mapSearchSuggest.ts).
 
 import { haversineKm } from "@/lib/haversine";
+import { normalizeSearchText } from "@/lib/textSlug";
 import {
   formatSuggestDistance,
   type SuggestOrigin,
@@ -44,10 +45,6 @@ export type SearchUkBasePubsInput = {
   limit?: number;
 };
 
-function normalize(value: string): string {
-  return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
-}
-
 /**
  * Match tier of a query against a pub name:
  * 0 = whole-label exact, 1 = starts the name or one of its words, 2 = appears
@@ -55,7 +52,7 @@ function normalize(value: string): string {
  * Mirrors lib/mapSearchSuggest.ts so curated and base rows rank alike.
  */
 function matchTier(name: string, query: string): number | null {
-  const hay = normalize(name);
+  const hay = normalizeSearchText(name);
   if (!hay) return null;
   if (hay === query) return 0;
   if (hay.startsWith(query) || hay.split(" ").some((word) => word.startsWith(query))) {
@@ -98,7 +95,7 @@ function compareMatch(
 export function searchUkBasePubsByName(
   input: SearchUkBasePubsInput,
 ): UkBasePubSuggestion[] {
-  const query = normalize(input.query);
+  const query = normalizeSearchText(input.query);
   if (!query || input.pubs.length === 0) return [];
 
   const limit = input.limit ?? SUGGEST_UK_BASE_PUB_LIMIT;
