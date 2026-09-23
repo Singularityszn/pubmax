@@ -67,6 +67,29 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   for (let index = 0; index < editableContextControlCount; index += 1) {
     await expectTouchHeight(editableContextControls.nth(index));
   }
+  for (const name of ["Budget", "Drinks", "Time", "Group"]) {
+    const control = page.getByRole("combobox", { name });
+    await expect(control).toBeVisible();
+    const legible = await control.evaluate((element) => {
+      const select = element as HTMLSelectElement;
+      const label = select.closest("label");
+      if (!label) return { ok: false, reason: "no label" };
+      const option = select.selectedOptions[0]?.text ?? "";
+      const selectBox = select.getBoundingClientRect();
+      const labelBox = label.getBoundingClientRect();
+      const chevronGap = 18;
+      const textFits = select.scrollWidth <= select.clientWidth + 1;
+      const insideLabel = selectBox.right <= labelBox.right - 2;
+      return { ok: textFits && insideLabel && option.length > 0, option, textFits, insideLabel };
+    });
+    expect(legible.ok, `${name} pill shows "${legible.option}" without clipping`).toBe(true);
+  }
+  const maxEach = page.getByRole("spinbutton", { name: "Max per person" });
+  await expect(maxEach).toBeVisible();
+  await expect(maxEach).toBeEditable();
+  const maxEachBox = await maxEach.boundingBox();
+  expect(maxEachBox).not.toBeNull();
+  expect(maxEachBox!.width).toBeGreaterThanOrEqual(44);
   await page.getByRole("combobox", { name: "Time" }).selectOption("late_night");
   await page.getByRole("spinbutton", { name: "People" }).fill("5");
   await expect(page.getByRole("combobox", { name: "Time" })).toHaveValue("late_night");
