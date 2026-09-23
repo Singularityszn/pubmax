@@ -35,6 +35,9 @@ import {
   laneKindFacets,
 } from "@/lib/whatsOnBadges";
 
+/** Accessible name for the Pins overlay dismiss — closes Pins, not search or area. */
+export const TONIGHT_PINS_DISMISS_LABEL = "Dismiss Pins";
+
 
 type TonightLaneProps = {
   rows: WhatsOnRow[];
@@ -428,7 +431,7 @@ function TonightOverlayDismiss({ onDismiss }: { onDismiss: () => void }) {
     <button
       type="button"
       className="tonightLaneOverlayDismiss pressable"
-      aria-label="Dismiss tonight map pins"
+      aria-label={TONIGHT_PINS_DISMISS_LABEL}
       onClick={onDismiss}
     >
       <X size={15} aria-hidden="true" />
@@ -451,7 +454,7 @@ function TonightOverlayToggle({
       className="tonightLaneOverlayToggle pressable"
       data-testid="tonight-overlay-toggle"
       data-active={active}
-      aria-label={active ? "Hide tonight on map" : "Show tonight on map"}
+      aria-label={active ? "Hide Pins" : "Show Pins"}
       aria-pressed={active}
       onClick={onToggle}
     >

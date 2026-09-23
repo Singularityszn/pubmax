@@ -6,6 +6,8 @@ import {
   type LandingAnswers,
   type TodayWeatherFacts,
 } from "@/lib/landingAnswers";
+import { hypedPubsForPage } from "@/lib/hypedPubs";
+import { loadHypedPubs } from "@/lib/hypedPubs.server";
 import {
   loadTodayOutAnswer,
   loadTodayWhatsOnAnswer,
@@ -36,10 +38,11 @@ const LONDON_DAY = new Intl.DateTimeFormat("en-GB", {
 /** Both cards, from one pass over the weather store and the listing lanes. */
 export async function loadLandingAnswers(now: Date = new Date()): Promise<LandingAnswers> {
   const stamp = LONDON_DAY.format(now);
-  const [weatherSnapshot, whatsOn, out] = await Promise.all([
+  const [weatherSnapshot, whatsOn, out, hyped] = await Promise.all([
     loadFreshWeatherSnapshot({ now }).catch(() => null),
     loadTodayWhatsOnAnswer(now.getTime()),
     loadTodayOutAnswer(now.getTime()),
+    loadHypedPubs(),
   ]);
 
   const brief = buildWeatherBrief(weatherSnapshot, now);
@@ -63,9 +66,12 @@ export async function loadLandingAnswers(now: Date = new Date()): Promise<Landin
         now.getTime(),
         whatsOnStatusForTonightListings(readStatus, rows.length),
       ).length;
+  // Same page-limited pack /tonight renders, so the card cannot under-count
+  // pubs the route will show with "Open on map".
+  const hypedCount = unread ? 0 : hypedPubsForPage(hyped.rows).length;
 
   return {
     today: todayAnswer(weather, stamp),
-    tonight: tonightAnswer({ unread, count }, stamp),
+    tonight: tonightAnswer({ unread, count, hypedCount }, stamp),
   };
 }

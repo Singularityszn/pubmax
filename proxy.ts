@@ -180,6 +180,14 @@ function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
     pathname.startsWith("/_next/static/") ||
     pathname === "/_next/image" ||
     pathname.startsWith("/_next/image/") ||
+    // Webpack-mode `next dev` upgrades `/_next/hmr` to a WebSocket. Running
+    // this function in front of that handshake answers ordinary HTTP (CSP
+    // headers, no upgrade) and the browser logs ERR_INVALID_HTTP_RESPONSE —
+    // measured 2026-09-23: client JS then never hydrates, so /out stays on
+    // "Loading listings" and /map stays on "Loading London pubs…" with no
+    // /api/out and no PubMap chunk. Keep the upgrade off this path.
+    pathname === "/_next/hmr" ||
+    pathname.startsWith("/_next/hmr/") ||
     pathname === "/favicon.ico";
   const prefetch =
     request.headers.has("next-router-prefetch") ||
@@ -541,7 +549,7 @@ export const config = {
     // fence refuses a prefix that collides with an app route.
     {
       source:
-        "/((?!api|ingest|_next/static|_next/image|favicon.ico|data/|brand/|fonts/|landing/|night-signals/|store-assets/|vendor/).*)",
+        "/((?!api|ingest|_next/static|_next/image|_next/hmr|favicon.ico|data/|brand/|fonts/|landing/|night-signals/|store-assets/|vendor/).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

@@ -125,7 +125,7 @@ for (const viewport of VIEWPORTS) {
         await expect(overlayToggle).toBeVisible();
         await expect(overlayToggle).toHaveAttribute("aria-pressed", "true");
         await expect(
-          page.getByRole("button", { name: "Dismiss tonight map pins" }),
+          page.getByRole("button", { name: "Dismiss Pins" }),
         ).toBeVisible();
         await overlayToggle.click();
         await expect(overlayToggle).toHaveAttribute("aria-pressed", "false");

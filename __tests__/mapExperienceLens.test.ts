@@ -265,6 +265,18 @@ describe("experience lens venue membership and presentation", () => {
     );
   });
 
+  it("keeps painted soft-drink prices ahead of a failed or loading index", () => {
+    // Blackfriar soft drinks on the sheet must not flash "Could not check"
+    // while trusted community prices are already on the map.
+    expect(experienceLensSummary("no-alcohol", 14, 1, "degraded")).toBe(
+      "14 alcohol-free or soft drink prices shown. Food venues also show sourced menu prices.",
+    );
+    expect(experienceLensSummary("no-alcohol", 2, 0, "loading")).toContain(
+      "2 alcohol-free or soft drink prices shown",
+    );
+    expect(experienceLensSummary("no-alcohol", 1, 1, "idle")).not.toContain("Could not check");
+  });
+
   it("never calls a partial read a failed one", () => {
     // A truncated scan ANSWERED, and its rows are already painted. Borrowing
     // the "could not check" sentence would call those figures unchecked.

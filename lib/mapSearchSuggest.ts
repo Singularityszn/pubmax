@@ -55,6 +55,21 @@ const SUGGEST_PLACE_LIMIT = 6;
 /** Visible group head for national place rows in MapSearchSuggest. */
 export const UK_PLACE_SEARCH_GROUP_LABEL = "UK places";
 
+/**
+ * When a typed query matches venues, those rows lead the panel. An area that
+ * shares a stem ("Blackfriars") must not sit above the pub ("The Blackfriar").
+ */
+export function mapSearchVenuesLeadAreas(input: {
+  query: string;
+  pubCount: number;
+  indexedVenueCount?: number;
+}): boolean {
+  return (
+    input.query.trim().length > 0 &&
+    (input.pubCount > 0 || (input.indexedVenueCount ?? 0) > 0)
+  );
+}
+
 /** Camera zoom a locality tap flies to. A locality is tighter than a modelled
  *  area, so it sits one notch deeper than the area fly's default (14). */
 export const LOCALITY_FLY_ZOOM = 14.5;

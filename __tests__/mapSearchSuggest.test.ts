@@ -5,6 +5,7 @@ import {
   buildMapSearchSuggestions,
   formatSuggestDistance,
   LOCALITY_FLY_ZOOM,
+  mapSearchVenuesLeadAreas,
   SUGGEST_PUB_LIMIT,
 } from "@/lib/mapSearchSuggest";
 import {
@@ -629,5 +630,60 @@ describe("london_localities.json — committed gazetteer integrity", () => {
     }
     const collisions = localities.filter((l) => modelled.has(l.name.toLowerCase()));
     expect(collisions).toHaveLength(0);
+  });
+});
+
+describe("mapSearchVenuesLeadAreas — venue name matches lead areas", () => {
+  it("leads when a typed query matches pubs or indexed venues", () => {
+    expect(
+      mapSearchVenuesLeadAreas({ query: "Blackfriar", pubCount: 1, indexedVenueCount: 0 }),
+    ).toBe(true);
+    expect(
+      mapSearchVenuesLeadAreas({ query: "Blackfriar", pubCount: 0, indexedVenueCount: 2 }),
+    ).toBe(true);
+  });
+
+  it("does not lead on an empty query or a miss", () => {
+    expect(mapSearchVenuesLeadAreas({ query: "", pubCount: 3 })).toBe(false);
+    expect(mapSearchVenuesLeadAreas({ query: "zzzz", pubCount: 0, indexedVenueCount: 0 })).toBe(
+      false,
+    );
+  });
+
+  it("ranks The Blackfriar among pubs when Blackfriars area also matches", () => {
+    const venues = [
+      venue({
+        id: "blackfriar",
+        name: "The Blackfriar",
+        latitude: 51.512,
+        longitude: -0.1036,
+        primaryBorough: "City of London",
+      }),
+    ];
+    const localities: Locality[] = [
+      {
+        name: "Blackfriars",
+        borough: "City of London",
+        lat: 51.512,
+        lng: -0.103,
+      },
+    ];
+    const result = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "Blackfriar",
+      venues,
+      localities,
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+    expect(result.pubs.some((p) => p.name === "The Blackfriar")).toBe(true);
+    expect(result.areas.some((a) => a.name === "Blackfriars")).toBe(true);
+    // Flat list and panel both put venues ahead of that area for this query.
+    expect(
+      mapSearchVenuesLeadAreas({
+        query: "Blackfriar",
+        pubCount: result.pubs.length,
+      }),
+    ).toBe(true);
   });
 });

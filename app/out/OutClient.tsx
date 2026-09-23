@@ -188,22 +188,28 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
         </h2>
         {pending ? <ListingsSkeleton /> : null}
         {emptyLane ? (
-          <EmptyState
-            title={emptyLane.lines[0]}
-            action={
-              emptyLane.way === "retry" ? (
-                <button type="button" onClick={retry}>
-                  {OUT_RETRY_LABEL}
-                </button>
-              ) : (
-                <Link prefetch={false} href={OUT_MAP_WAY.href}>
-                  {OUT_MAP_WAY.label}
-                </Link>
-              )
-            }
+          <div
+            data-testid="out-empty-lane"
+            data-out-state={emptyLane.way === "retry" ? "error" : "empty"}
+            role={emptyLane.way === "retry" ? "alert" : "status"}
           >
-            {emptyLane.lines.slice(1).join(" ") || null}
-          </EmptyState>
+            <EmptyState
+              title={emptyLane.lines[0]}
+              action={
+                emptyLane.way === "retry" ? (
+                  <button type="button" onClick={retry}>
+                    {OUT_RETRY_LABEL}
+                  </button>
+                ) : (
+                  <Link prefetch={false} href={OUT_MAP_WAY.href}>
+                    {OUT_MAP_WAY.label}
+                  </Link>
+                )
+              }
+            >
+              {emptyLane.lines.slice(1).join(" ") || null}
+            </EmptyState>
+          </div>
         ) : (
           outStatusLines({ body, failed }).map((line) => (
             <p className="outStatus" key={line}>
