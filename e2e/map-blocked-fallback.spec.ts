@@ -1,6 +1,8 @@
 import { expect, test as base, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 
+import { COMMUNITY_SHEET_FIXTURE_VENUE_ID } from "./helpers/communitySheetFixture";
+
 /**
  * F08/J33 - a blocked map still gets the reader to the venue.
  *
@@ -17,7 +19,7 @@ const TABLET = { width: 768, height: 1024 };
 const DESKTOP = { width: 1440, height: 900 };
 const PROOF = "docs/proof/map-blocked-fallback";
 
-const VENUE_ID = "venue-1vle947";
+const VENUE_ID = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 const MISSING_VENUE_ID = "venue-does-not-exist";
 
 function quietFirstRun(page: Page): Promise<void> {

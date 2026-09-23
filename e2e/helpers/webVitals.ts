@@ -340,7 +340,7 @@ export const PRIMARY_INTERACTIONS: Record<string, PrimaryInteraction> = {
     kind: "click",
     label: "a map chrome control",
   },
-  "/map?sel=venue-1vle947": {
+  [COMMUNITY_SHEET_FIXTURE_MAP_PATH]: {
     selector: ".venueInspector [role='tab']",
     kind: "click",
     label: "a venue sheet tab",

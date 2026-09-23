@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import {
+  COMMUNITY_SHEET_FIXTURE_VENUE_ID,
+  COMMUNITY_SHEET_FIXTURE_VENUE_NAME,
+} from "./helpers/communitySheetFixture";
+
 // A PICKED PUB IS THE CRAWL BEING BUILT. verify-preview-4 J04 (5 Sep 2026):
 // after one "Plan stop" on The Sir Christopher Hatton the phone pill read
 // "6-stop plan · Edit route", because the tap mapped the SUGGESTED six-stop
@@ -10,8 +15,8 @@ import { expect, test, type Page } from "@playwright/test";
 // (lib/planActivationPill.ts), and the built crawl leads the phone planner
 // with its stops first (lib/pubMap.ts, phonePlannerOrder).
 
-const VENUE_ID = "venue-1vle947";
-const VENUE_NAME = "The Sir Christopher Hatton";
+const VENUE_ID = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
+const VENUE_NAME = COMMUNITY_SHEET_FIXTURE_VENUE_NAME;
 
 async function preparePage(page: Page): Promise<void> {
   await page.setViewportSize({ width: 390, height: 844 });

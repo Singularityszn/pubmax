@@ -3,6 +3,8 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { COMMUNITY_SHEET_FIXTURE_MAP_PATH } from "./helpers/communitySheetFixture";
+
 import { median } from "../lib/performanceBudgets";
 import {
   BASELINE_ROUTES_BY_DEVICE,
@@ -103,7 +105,7 @@ const ROUTE_READY: Record<string, string> = {
   // its whole budget on the other if that ever stopped being true.
   "/pal": "main.palExperience",
   "/map": ".mapShell, .mobileMapShell, main",
-  "/map?sel=venue-1vle947": ".venueInspector",
+  [COMMUNITY_SHEET_FIXTURE_MAP_PATH]: ".venueInspector",
 };
 
 const ROUTE_READY_TIMEOUT_MS = 180_000;
@@ -115,7 +117,7 @@ const ROUTE_READY_TIMEOUT_MS = 180_000;
  * and in perf/route-budgets.json, and three copies of one id is three chances
  * for a sweep to measure a pub that is not the pub the baseline recorded.
  */
-const SELECTED_VENUE_PATH = "/map?sel=venue-1vle947";
+const SELECTED_VENUE_PATH = COMMUNITY_SHEET_FIXTURE_MAP_PATH;
 
 type Sample = MeasuredVitals & {
   /**

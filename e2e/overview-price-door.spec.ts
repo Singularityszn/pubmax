@@ -1,5 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import {
+  COMMUNITY_SHEET_FIXTURE_VENUE_ID,
+  COMMUNITY_SHEET_FIXTURE_VENUE_NAME,
+} from "./helpers/communitySheetFixture";
 import { installAuthDoubles } from "./helpers/authDoubles";
 
 /**
@@ -10,7 +14,7 @@ import { installAuthDoubles } from "./helpers/authDoubles";
  * Five states are driven through the same sheet, signed in through the auth
  * doubles so the account rules admit the composer: no price on record, a
  * listed bundle price alone, and the three Pint Drop states (logged once,
- * confirmed, aged out) over The Sir Christopher Hatton, whose drops are served
+ * confirmed, aged out) over the community-sheet fixture pub, whose drops are served
  * by a route mock in the shape /api/pint-drops answers. For each, exactly one
  * `[data-price-door]` is visible, the composer is folded behind it, the sticky
  * bar carries no price action, and the retired invitations never return.
@@ -23,7 +27,7 @@ test.use({
   viewport: { width: 390, height: 844 },
 });
 
-const HATTON = "venue-1vle947";
+const HATTON = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 const UNPRICED = "venue-1kt3p9o";
 const LISTED_ONLY = "venue-133bdp8";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -45,7 +49,7 @@ function row(overrides: DropRow = {}): DropRow {
     createdAt: new Date(Date.now() - 4 * DAY_MS).toISOString(),
     pintPhotoUrl: null,
     venuePhotoUrl: null,
-    venueName: "The Sir Christopher Hatton",
+    venueName: COMMUNITY_SHEET_FIXTURE_VENUE_NAME,
     venueMapUrl: `/map?sel=${HATTON}`,
     ...overrides,
   };

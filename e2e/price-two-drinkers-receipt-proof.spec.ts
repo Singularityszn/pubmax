@@ -1,6 +1,10 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { installAuthDoubles } from "./helpers/authDoubles";
+import {
+  COMMUNITY_SHEET_FIXTURE_VENUE_ID,
+  COMMUNITY_SHEET_FIXTURE_VENUE_NAME,
+} from "./helpers/communitySheetFixture";
 import { attachBill, attachSpillBill } from "./helpers/priceBill";
 
 /**
@@ -19,7 +23,7 @@ test.use({
 });
 
 const PROOF = "docs/proof/price-two-drinkers-receipt";
-const HATTON = "venue-1vle947";
+const HATTON = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const VIEWPORTS = [
@@ -45,7 +49,7 @@ function row(overrides: DropRow = {}): DropRow {
     pintPhotoUrl: null,
     venuePhotoUrl: null,
     receiptPhotoUrl: null,
-    venueName: "The Sir Christopher Hatton",
+    venueName: COMMUNITY_SHEET_FIXTURE_VENUE_NAME,
     venueMapUrl: `/map?sel=${HATTON}`,
     ...overrides,
   };
