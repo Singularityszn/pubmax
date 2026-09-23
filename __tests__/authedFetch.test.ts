@@ -514,6 +514,7 @@ describe("authedFetch (Wave I2)", () => {
   });
 
   it("waits for identity resolution before reading a signed-in action token", async () => {
+    vi.useFakeTimers();
     publishAuthActionState({ status: "signed-in", identityResolved: false });
     vi.mocked(getAccessToken)
       .mockResolvedValueOnce(null)
@@ -523,7 +524,9 @@ describe("authedFetch (Wave I2)", () => {
       publishAuthActionState({ status: "signed-in", identityResolved: true });
     }, 10);
 
-    await authedActionFetch("/api/profiles/ken/avatar", { method: "POST" }, { requiresIdentity: true });
+    const request = authedActionFetch("/api/profiles/ken/avatar", { method: "POST" }, { requiresIdentity: true });
+    await vi.advanceTimersByTimeAsync(100);
+    await request;
 
     expect(getAccessToken).toHaveBeenCalledTimes(2);
     const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
@@ -531,6 +534,7 @@ describe("authedFetch (Wave I2)", () => {
   });
 
   it("aborts an auth-hydrating action before the first account binds", async () => {
+    vi.useFakeTimers();
     publishAuthActionState({ status: "unknown", identityResolved: false });
     vi.mocked(getAccessToken).mockResolvedValue("hydrated-jwt-token");
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
@@ -540,6 +544,7 @@ describe("authedFetch (Wave I2)", () => {
       setProviderIdentity("supabase", "hydrated-account");
       publishAuthActionState({ status: "signed-in", identityResolved: true });
     }, 10);
+    await vi.advanceTimersByTimeAsync(100);
 
     await rejection;
 
@@ -607,11 +612,14 @@ describe("authedFetch (Wave I2)", () => {
   });
 
   it("sends a signed-in-only action when identity resolves before timeout", async () => {
+    vi.useFakeTimers();
     publishAuthActionState({ status: "signed-in", identityResolved: false });
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
     setTimeout(() => publishAuthActionState({ status: "signed-in", identityResolved: true }), 10);
 
-    await signedInActionFetch("/api/plans/example/session", { method: "PATCH" });
+    const request = signedInActionFetch("/api/plans/example/session", { method: "PATCH" });
+    await vi.advanceTimersByTimeAsync(100);
+    await request;
 
     expect(fetchSpy).toHaveBeenCalledOnce();
     expect(getAccessToken).toHaveBeenCalledOnce();

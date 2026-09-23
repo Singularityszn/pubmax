@@ -22,6 +22,7 @@ import {
   type DrinkCategory,
 } from "@/lib/drinks";
 import { DAY_MS } from "@/lib/dayMs";
+import { londonDayKey } from "@/lib/pintContributions";
 import { priceBandBucket, type PriceBandArea } from "@/lib/priceBand";
 import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
 
@@ -633,11 +634,13 @@ export const COMMUNITY_PROVISIONAL_SHORT_NOTE =
  */
 export function formatPriceDay(submittedAt: number, now: number = Date.now()): string {
   if (!Number.isFinite(submittedAt)) return "";
-  const dayOf = (ms: number) =>
-    new Date(ms).toLocaleDateString("en-GB", { timeZone: "Europe/London" });
-  const submittedDay = dayOf(submittedAt);
-  if (submittedDay === dayOf(now)) return "today";
-  if (submittedDay === dayOf(now - DAY_MS)) return "yesterday";
+  const submittedDay = londonDayKey(new Date(submittedAt));
+  const today = londonDayKey(new Date(now));
+  if (submittedDay === today) return "today";
+  // Step back one calendar day at UTC midnight: a London day is 23 or 25 hours
+  // long across a clock change, so now - DAY_MS can land two days back or none.
+  const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - DAY_MS).toISOString().slice(0, 10);
+  if (submittedDay === yesterday) return "yesterday";
   return new Date(submittedAt).toLocaleDateString("en-GB", {
     timeZone: "Europe/London",
     day: "numeric",

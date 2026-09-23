@@ -158,15 +158,6 @@ export type MasteryEventKind =
   | "crew_coordinated"
   | "night_captured";
 
-export type MasteryEvent = {
-  id: string;
-  palId: string;
-  kind: MasteryEventKind;
-  sourceId: string;
-  points: number;
-  createdAt: string;
-};
-
 export type PalUnlock = {
   id: string;
   pointsRequired: number;

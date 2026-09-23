@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { cleanPalDraft, compatiblePalSpecies, type MasteryEvent, type PalProposalPreferences, type PubPal, type PubPalMemory, type PubPalMemoryKind } from "@/lib/pubPal";
+import { cleanPalDraft, compatiblePalSpecies, type PalProposalPreferences, type PubPal, type PubPalMemory, type PubPalMemoryKind } from "@/lib/pubPal";
 import { cleanText } from "@/lib/textClean";
 import { admin } from "@/lib/storeBackend";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -210,14 +210,4 @@ export async function deletePalMemoryResult(ownerId: string, memoryId: string): 
   } catch {
     return { ok: false, error: "error" };
   }
-}
-
-export async function addMasteryEvent(ownerId: string, raw: unknown): Promise<MasteryEvent | null> {
-  // No mastery event is client-awardable. The existing sources (Plans, Pint
-  // Drops, venue reads, and Night Memories) do not all have an authenticated
-  // ownership join, so accepting an arbitrary { kind, sourceId } is forgeable.
-  // Trusted server workflows can add a source-bound internal writer later.
-  void ownerId;
-  void raw;
-  return null;
 }

@@ -147,6 +147,15 @@ describe("price day stamps", () => {
     expect(formatPriceDay(Date.parse("2026-07-03T14:00:00Z"), now)).toBe("3 Jul");
   });
 
+  it("names yesterday across both clock changes", () => {
+    // 29 Mar 2026 is 23 hours long in London, 25 Oct 2026 is 25 hours long.
+    const afterSpringForward = Date.parse("2026-03-29T23:20:00Z"); // 30 Mar 00:20 BST
+    expect(formatPriceDay(Date.parse("2026-03-29T12:00:00Z"), afterSpringForward)).toBe("yesterday");
+    const lateOnFallBack = Date.parse("2026-10-25T23:30:00Z"); // 25 Oct 23:30 GMT
+    expect(formatPriceDay(Date.parse("2026-10-24T20:00:00Z"), lateOnFallBack)).toBe("yesterday");
+    expect(formatPriceDay(Date.parse("2026-10-25T00:30:00Z"), lateOnFallBack)).toBe("today");
+  });
+
   it("pairs the day with its source for the restamp caption", () => {
     expect(communityStampLabel(now, now)).toBe("today · community");
   });

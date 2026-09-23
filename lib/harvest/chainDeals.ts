@@ -20,6 +20,8 @@
 // builder can refuse to hang a Hungry Horse burger deal on a Greene King pub.
 // Null means the block named none, which means the chain itself.
 
+import { kebabSlug } from "../textSlug.ts";
+
 export const WEEKDAY_NAMES = [
   "Sunday",
   "Monday",
@@ -95,12 +97,7 @@ export type ChainDealParse = {
 };
 
 function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[‘’']/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
+  return kebabSlug(value.replace(/[‘’']/g, "")).slice(0, 48);
 }
 
 /** Markdown noise a block's own sentences are never made of. */

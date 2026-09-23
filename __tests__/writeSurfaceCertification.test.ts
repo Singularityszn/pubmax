@@ -191,7 +191,8 @@ describe("mutating API surface certification", () => {
     // 150: 146 (main's 147 less POST /api/price-confirm, which contribution
     // battle test L03 retired) plus the four mutation methods of the API tree's
     // own 404, `app/api/[[...unmatched]]`, which refuses and writes nothing.
-    expect(mutationHandlers).toHaveLength(150);
+    // 149: less POST /api/pub-pal/mastery, deleted with no caller (#1802).
+    expect(mutationHandlers).toHaveLength(149);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),
     );

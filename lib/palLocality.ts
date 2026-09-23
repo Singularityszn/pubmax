@@ -7,6 +7,7 @@
 // all the honest answer is London-wide, explicitly NOT ranked by distance.
 
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
+import { normalizeSearchText } from "@/lib/textSlug";
 import {
   NIGHT_PATCHES,
   resolveNightPatch,
@@ -30,12 +31,8 @@ export type PalLocality = {
 /** Honest "no distance evidence" marker — never replaced with a fabricated number. */
 export const PAL_DISTANCE_UNKNOWN = "Distance not sourced";
 
-function normalize(value: string): string {
-  return value.toLowerCase().replace(/\s+/g, " ").trim();
-}
-
 function mentions(haystack: string, needle: string): boolean {
-  const token = normalize(needle);
+  const token = normalizeSearchText(needle);
   if (!token) return false;
   const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`\\b${escaped}\\b`).test(haystack);
@@ -43,7 +40,7 @@ function mentions(haystack: string, needle: string): boolean {
 
 /** First gazetteer area named in the query, night patches (nightlife order) before boroughs. */
 function areaFromQuery(query: string): PlanningIntentArea {
-  const text = normalize(query);
+  const text = normalizeSearchText(query);
   if (!text) return null;
   for (const patch of NIGHT_PATCHES) {
     if (mentions(text, patch.label) || mentions(text, patch.id)) {

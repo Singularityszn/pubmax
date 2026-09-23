@@ -30,6 +30,7 @@
 // first paint, never stand in for an answer nobody asked for again.
 
 import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
+import { waitUnlessAborted } from "@/lib/abortableDelay";
 import { discardBody } from "@/lib/responseBody";
 
 /**
@@ -242,26 +243,6 @@ function isTransientResponse(response: Response): boolean {
     response.status >= 500;
 }
 
-function waitForRetry(signal: AbortSignal | undefined): Promise<boolean> {
-  if (signal?.aborted) return Promise.resolve(false);
-  return new Promise((resolve) => {
-    let settled = false;
-    const timer = setTimeout(() => finish(true), SURFACE_CACHE_RETRY_BACKOFF_MS);
-    const onAbort = () => {
-      clearTimeout(timer);
-      finish(false);
-    };
-    const finish = (shouldRetry: boolean) => {
-      if (settled) return;
-      settled = true;
-      if (signal) signal.removeEventListener("abort", onAbort);
-      resolve(shouldRetry);
-    };
-    signal?.addEventListener("abort", onAbort, { once: true });
-    if (signal?.aborted) onAbort();
-  });
-}
-
 /** The held answer for this key, or undefined when there is none young enough. */
 export function readSurfaceSnapshot<T>(
   key: string,
@@ -472,19 +453,19 @@ async function runSurfaceRequest<T>(
       if (!response.ok) {
         const retryable = isTransientResponse(response);
         discardBody(response);
-        if (retryable && attempt === 0 && await waitForRetry(signal)) continue;
+        if (retryable && attempt === 0 && await waitUnlessAborted(SURFACE_CACHE_RETRY_BACKOFF_MS, signal)) continue;
         return undefined;
       }
       const body = (await response.json()) as T;
       if (signal.aborted) return undefined;
       if (validate && !validate(body)) {
-        if (attempt === 0 && await waitForRetry(signal)) continue;
+        if (attempt === 0 && await waitUnlessAborted(SURFACE_CACHE_RETRY_BACKOFF_MS, signal)) continue;
         return undefined;
       }
       return body;
     } catch {
       if (signal.aborted) return undefined;
-      if (attempt === 0 && await waitForRetry(signal)) continue;
+      if (attempt === 0 && await waitUnlessAborted(SURFACE_CACHE_RETRY_BACKOFF_MS, signal)) continue;
       // Aborted, offline, or a blip. A surface that already showed a real
       // answer keeps it; one that showed nothing reports the failure to its
       // caller.
