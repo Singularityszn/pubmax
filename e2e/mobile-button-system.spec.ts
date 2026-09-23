@@ -111,6 +111,7 @@ const COMPOSE_LANE_SURFACES = [
   { route: "/", row: ".lpRailLink" },
   // Tonight's soft-plans rows are time-gated; e2e/tonight.spec.ts owns that surface on the quiet night.
   { route: "/today", row: ".todayCardFootRow" },
+  { route: "/tonight", row: ".tonightRowLink" },
 ] as const;
 
 for (const surface of COMPOSE_LANE_SURFACES) {
