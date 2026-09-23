@@ -217,6 +217,15 @@ function stalePubmaxDataDirs() {
   return dirs;
 }
 
+function harnessProcessUsesDataDir(dataDir) {
+  const result = spawnSync("ps", ["-A", "-o", "command="], { encoding: "utf8" });
+  if (result.status !== 0 || !result.stdout) return false;
+  return result.stdout.split("\n").some((line) => {
+    if (!line.includes(dataDir)) return false;
+    return /\b(initdb|postgres)\b/.test(line);
+  });
+}
+
 /**
  * Kills harness orphans (postmaster parent is init) and reaps their SysV
  * segments. Never touches a cluster whose parent is still alive.
@@ -230,22 +239,11 @@ export function sweepPubmaxHarnessOrphans() {
     killed.add(proc.pid);
   }
   for (const dataDir of stalePubmaxDataDirs()) {
+    if (harnessProcessUsesDataDir(dataDir)) continue;
     const postmasterPid = postmasterPidForDataDir(dataDir);
-    const running = listPostgresProcesses().some(
-      (proc) => proc.dataDir === dataDir || proc.dataDir.startsWith(`${dataDir}/`),
-    );
-    if (running) continue;
     if (postmasterPid && !pidAlive(postmasterPid)) {
       stopHarnessCluster(dataDir);
       killed.add(postmasterPid);
-      continue;
-    }
-    if (!postmasterPid) {
-      try {
-        rmSync(dataDir, { recursive: true, force: true });
-      } catch {
-        /* ignore */
-      }
     }
   }
   removeDetachedSegmentsForPids(killed);
