@@ -154,15 +154,18 @@ export function scoreVenueForPlan(
   };
 }
 
-function missingPlanContextEvidence(context: NightContext): string[] {
-  const missing = new Set<string>();
-  if (context.accessibility.length > 0) missing.add("venue_accessibility");
-  if (context.transportConstraints.length > 0) missing.add("per_venue_transport");
-  if (context.zeroProof) missing.add("zero_proof_options");
+function missingPlanContextEvidence(
+  context: NightContext,
+  answered: { accessibilityEnforced: boolean; allZeroProofConfirmed: boolean },
+): string[] {
+  const missing: string[] = [];
+  if (context.accessibility.length > 0 && !answered.accessibilityEnforced) missing.push("venue_accessibility");
+  if (context.transportConstraints.length > 0) missing.push("per_venue_transport");
+  if (context.zeroProof && !answered.allZeroProofConfirmed) missing.push("zero_proof_options");
   if (context.foodNeeds.some((need) => ["kebab", "halal", "vegan", "vegetarian"].includes(need))) {
-    missing.add("food_terminal_specificity");
+    missing.push("food_terminal_specificity");
   }
-  return [...missing];
+  return missing;
 }
 
 export function planGenerationEvidenceGaps(input: {
@@ -175,17 +178,9 @@ export function planGenerationEvidenceGaps(input: {
   hasTonightEvidence: boolean;
   hasWeatherEvidence: boolean;
 }): { contextEvidenceGaps: string[]; operationalEvidenceGaps: string[] } {
-  const contextEvidenceGaps = missingPlanContextEvidence(input.context);
-  if (input.accessibilityEnforced) {
-    const index = contextEvidenceGaps.indexOf("venue_accessibility");
-    if (index >= 0) contextEvidenceGaps.splice(index, 1);
-  }
+  const contextEvidenceGaps = missingPlanContextEvidence(input.context, input);
   if ((input.context.budgetLimitPence !== null || input.context.budget === "value") && !input.hasCompletePriceEvidence) {
     contextEvidenceGaps.push("price_evidence");
-  }
-  if (input.context.zeroProof && input.allZeroProofConfirmed) {
-    const index = contextEvidenceGaps.indexOf("zero_proof_options");
-    if (index >= 0) contextEvidenceGaps.splice(index, 1);
   }
   const operationalEvidenceGaps = input.hasDatedWindow && input.allOpeningListed
     ? []

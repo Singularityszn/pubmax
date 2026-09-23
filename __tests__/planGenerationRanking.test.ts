@@ -4,6 +4,7 @@ import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { NightContext } from "@/lib/nightPlanning";
 import {
+  planGenerationEvidenceGaps,
   scoreVenueForPlan,
   WETHERSPOONS_DIRECTORY_PREFER_BOOST,
 } from "@/lib/planGenerationRanking";
@@ -167,5 +168,49 @@ describe("Plan generation ranking evidence", () => {
     expect(preferOff.score).toBe(preferOnUnmatched.score);
     expect(preferOff.reasons.join(" ")).not.toMatch(/Wetherspoon/i);
     expect(preferOnUnmatched.reasons.join(" ")).not.toMatch(/Wetherspoon/i);
+  });
+});
+
+describe("Plan generation evidence gaps", () => {
+  const settled = {
+    hasDatedWindow: true,
+    allOpeningListed: true,
+    hasCompletePriceEvidence: false,
+    hasTonightEvidence: true,
+    hasWeatherEvidence: true,
+  };
+  const asking: NightContext = {
+    ...AFTER_WORK_GROUP,
+    budget: "value",
+    zeroProof: true,
+    accessibility: ["step-free"],
+    transportConstraints: ["night-bus"],
+    foodNeeds: ["vegan"],
+  };
+
+  it.each([
+    [false, false, ["venue_accessibility", "per_venue_transport", "zero_proof_options", "food_terminal_specificity", "price_evidence"]],
+    [true, false, ["per_venue_transport", "zero_proof_options", "food_terminal_specificity", "price_evidence"]],
+    [false, true, ["venue_accessibility", "per_venue_transport", "food_terminal_specificity", "price_evidence"]],
+    [true, true, ["per_venue_transport", "food_terminal_specificity", "price_evidence"]],
+  ])("drops only the gaps the route already answered (accessibility %s, zero-proof %s)", (accessibilityEnforced, allZeroProofConfirmed, expected) => {
+    const { contextEvidenceGaps } = planGenerationEvidenceGaps({
+      ...settled,
+      context: asking,
+      accessibilityEnforced,
+      allZeroProofConfirmed,
+    });
+    expect(contextEvidenceGaps).toEqual(expected);
+  });
+
+  it("never reports an answered gap the night did not ask about", () => {
+    const { contextEvidenceGaps } = planGenerationEvidenceGaps({
+      ...settled,
+      hasCompletePriceEvidence: true,
+      context: AFTER_WORK_GROUP,
+      accessibilityEnforced: true,
+      allZeroProofConfirmed: true,
+    });
+    expect(contextEvidenceGaps).toEqual([]);
   });
 });
