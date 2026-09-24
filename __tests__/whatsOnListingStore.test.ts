@@ -10,6 +10,8 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
 
 type Row = Record<string, unknown> & { id: string; kind: string };
 
+const MAX_ROWS = vi.hoisted(() => 1_000);
+
 const db = vi.hoisted(() => ({
   rows: [] as Row[],
   generations: [] as Array<{ kind: string; generated_at: string }>,
@@ -42,16 +44,26 @@ vi.mock("@/lib/supabase", () => ({
         if (table === "whats_on_listings") {
           return {
             eq(field: string, value: string) {
-              if (db.schemaMiss) {
-                return Promise.resolve({
-                  data: null,
-                  error: { message: "Could not find the table 'public.whats_on_listings'" },
-                });
-              }
-              return Promise.resolve({
-                data: db.rows.filter((row) => row[field] === value),
-                error: null,
-              });
+              return {
+                order(column: string) {
+                  return {
+                    range(from: number, to: number) {
+                      if (db.schemaMiss) {
+                        return Promise.resolve({
+                          data: null,
+                          error: { message: "Could not find the table 'public.whats_on_listings'" },
+                        });
+                      }
+                      const matching = db.rows
+                        .filter((row) => row[field] === value)
+                        .sort((a, b) => String(a[column]).localeCompare(String(b[column])));
+                      // PostgREST's hosted max-rows cap: one response never exceeds it.
+                      const end = Math.min(to + 1, from + MAX_ROWS);
+                      return Promise.resolve({ data: matching.slice(from, end), error: null });
+                    },
+                  };
+                },
+              };
             },
           };
         }
@@ -198,6 +210,23 @@ describe("supabaseWhatsOnListingStore", () => {
       "2026-08-24T06:00:00.000Z",
     );
     expect((await supabaseWhatsOnListingStore.readAll()).generatedAt).toBe("2026-08-24T05:00:00.000Z");
+  });
+
+  it("reads every durable row past the PostgREST max-rows cap", async () => {
+    const rows = Array.from({ length: 2_500 }, (_, i) =>
+      eventRow(`tm-${String(i).padStart(4, "0")}`),
+    );
+    await supabaseWhatsOnListingStore.replaceKind("event", rows, GENERATED);
+    await supabaseWhatsOnListingStore.replaceKind(
+      "quiz",
+      [eventRow("quiz-1", { kind: "quiz", sourceId: "quiz-1" })],
+      GENERATED,
+    );
+
+    const snap = await supabaseWhatsOnListingStore.readAll();
+    expect(snap.failed).toBeUndefined();
+    expect(snap.rows).toHaveLength(2_501);
+    expect(snap.rows.some((row) => row.id === "quiz-1")).toBe(true);
   });
 
   it("reads only London rows from the durable table", async () => {

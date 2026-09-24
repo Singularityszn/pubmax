@@ -83,6 +83,10 @@ export const memoryWhatsOnListingStore: WhatsOnListingStore = {
 
 const TABLE = "whats_on_listings";
 const GENERATIONS_TABLE = "whats_on_listing_generations";
+// PostgREST silently caps one response at the project's max-rows setting
+// (hosted default 1000), so the listing read pages in chunks no larger than
+// that and stops on the first short page.
+const READ_PAGE_ROWS = 1_000;
 
 const { guard, resetWarnings: resetSchemaMissWarnings } = createFailSoftGuard({
   tag: "whats-on-listings",
@@ -164,19 +168,33 @@ export const supabaseWhatsOnListingStore: WhatsOnListingStore = {
       }),
       run: async () => {
         const admin = requireSupabaseAdmin();
-        const [{ data, error }, { data: generationData, error: generationError }] =
-          await Promise.all([
+        const readListings = async (): Promise<ListingRow[]> => {
+          const listings: ListingRow[] = [];
+          for (let offset = 0; ; offset += READ_PAGE_ROWS) {
             // The refresh pipeline writes only London rows today, but the
             // filter is the contract: a durable answer is a London answer, so
             // a future second city cannot leak into every city's read.
-            admin.from(TABLE).select("*").eq("city", "london"),
+            const { data, error } = await admin
+              .from(TABLE)
+              .select("*")
+              .eq("city", "london")
+              .order("id", { ascending: true })
+              .range(offset, offset + READ_PAGE_ROWS - 1);
+            if (error) throw new Error(error.message);
+            const page = (data ?? []) as ListingRow[];
+            listings.push(...page);
+            if (page.length < READ_PAGE_ROWS) return listings;
+          }
+        };
+        const [listings, { data: generationData, error: generationError }] =
+          await Promise.all([
+            readListings(),
             admin.from(GENERATIONS_TABLE).select("kind, generated_at"),
           ]);
-        if (error) throw new Error(error.message);
         if (generationError) throw new Error(generationError.message);
         const parsed: WhatsOnRow[] = [];
         const stamps: string[] = [];
-        for (const row of (data ?? []) as ListingRow[]) {
+        for (const row of listings) {
           if (!isWhatsOnKind(row.kind)) continue;
           const next = fromRow(row);
           if (!next) continue;
