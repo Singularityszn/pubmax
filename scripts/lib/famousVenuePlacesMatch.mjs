@@ -18,7 +18,7 @@ const NAME_STOP_WORDS = new Set([
 export function normalizeVenueName(name) {
   return String(name)
     .toLowerCase()
-    .replace(/['']/g, "")
+    .replace(/['’]/g, "")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim()
     .replace(/\s+/g, " ");

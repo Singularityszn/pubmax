@@ -8,17 +8,23 @@ const FIELD_MASK =
   "places.id,places.displayName,places.formattedAddress,places.businessStatus,places.location";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+/** Gitignored operator cache; never commit raw Places responses. */
 export const DEFAULT_CACHE_DIR = join(
   __dirname,
-  "../../data/famous_venues/places_text_search_cache",
+  "../../data/famous_venues/.places_text_search_cache",
 );
 
 function cacheKey(textQuery) {
   return createHash("sha256").update(textQuery).digest("hex");
 }
 
-function cachePath(cacheDir, textQuery) {
+export function placesCacheFilePath(cacheDir, textQuery) {
   return join(cacheDir, `${cacheKey(textQuery)}.json`);
+}
+
+function isSuccessfulCachePayload(payload) {
+  const status = payload?.httpStatus;
+  return typeof status === "number" && status >= 200 && status < 300;
 }
 
 /**
@@ -36,12 +42,14 @@ export function createPlacesTextSearchClient({
 }) {
   let liveCallCount = 0;
 
-  async function searchText(textQuery, { forceLive = false } = {}) {
+  async function searchText(textQuery) {
     mkdirSync(cacheDir, { recursive: true });
-    const path = cachePath(cacheDir, textQuery);
-    if (!forceLive && existsSync(path)) {
+    const path = placesCacheFilePath(cacheDir, textQuery);
+    if (existsSync(path)) {
       const cached = JSON.parse(readFileSync(path, "utf8"));
-      return { ...cached, fromCache: true, textQuery };
+      if (isSuccessfulCachePayload(cached)) {
+        return { ...cached, fromCache: true, textQuery };
+      }
     }
     if (liveCallCount >= maxLiveCalls) {
       throw new Error(
@@ -58,14 +66,21 @@ export function createPlacesTextSearchClient({
       },
       body: JSON.stringify({ textQuery }),
     });
-    const body = await response.json();
+    let body;
+    try {
+      body = await response.json();
+    } catch {
+      body = {};
+    }
     const payload = {
       textQuery,
       fetchedAt: new Date().toISOString(),
       httpStatus: response.status,
       body,
     };
-    writeFileSync(path, `${JSON.stringify(payload, null, 2)}\n`);
+    if (response.ok) {
+      writeFileSync(path, `${JSON.stringify(payload, null, 2)}\n`);
+    }
     return { ...payload, fromCache: false, textQuery };
   }
 

@@ -9,7 +9,10 @@ import {
   evaluateNameMatch,
 } from "@/scripts/lib/famousVenuePlacesMatch.mjs";
 import { placesFromSearchPayload } from "@/scripts/lib/googlePlacesTextSearch.mjs";
-import { verifyRowWithPlaces } from "@/scripts/verify_famous_venues.mjs";
+import {
+  placesCheckAllowsSeedMutation,
+  verifyRowWithPlaces,
+} from "@/scripts/verify_famous_venues.mjs";
 
 const FIXTURES = path.join(__dirname, "fixtures", "famous_venues", "places");
 
@@ -95,5 +98,31 @@ describe("verifyRowWithPlaces", () => {
     expect(check.outcome).toBe("confirmed");
     expect(check.method).toBe("places_text_search");
     expect(check.placeId).toMatch(/^places\//);
+  });
+});
+
+describe("places seed mutation policy", () => {
+  it("allows seed stamps only for live Places evidence on the verified day", () => {
+    const verifiedDay = "2026-09-24";
+    expect(
+      placesCheckAllowsSeedMutation(
+        {
+          outcome: "confirmed",
+          evidenceFromLiveCall: true,
+          evidenceFetchedAt: "2026-09-24T12:00:00.000Z",
+        },
+        verifiedDay,
+      ),
+    ).toBe(true);
+    expect(
+      placesCheckAllowsSeedMutation(
+        {
+          outcome: "confirmed",
+          evidenceFromLiveCall: false,
+          evidenceFetchedAt: "2026-09-24T12:00:00.000Z",
+        },
+        verifiedDay,
+      ),
+    ).toBe(false);
   });
 });

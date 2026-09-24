@@ -50,5 +50,18 @@ export function verifyRowWithPlaces(
     method: string;
     placeId: string | null;
     matchReason: string | null;
+    evidenceFetchedAt: string | null;
+    evidenceFromLiveCall: boolean;
   }
 >;
+
+export function placesCheckAllowsSeedMutation(
+  check: {
+    outcome: FamousVenueOutcome;
+    evidenceFromLiveCall?: boolean;
+    evidenceFetchedAt?: string | null;
+  },
+  verifiedDay: string,
+): boolean;
+
+export function toCommittedPlacesCheck(check: Record<string, unknown>): Record<string, unknown>;

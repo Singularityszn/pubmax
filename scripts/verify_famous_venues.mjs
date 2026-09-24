@@ -26,6 +26,7 @@
  */
 
 import {
+  existsSync,
   readFileSync,
   readdirSync,
   writeFileSync,
@@ -47,6 +48,8 @@ import {
 } from "./lib/famousVenuePlacesMatch.mjs";
 import {
   createPlacesTextSearchClient,
+  DEFAULT_CACHE_DIR,
+  placesCacheFilePath,
   placesFromSearchPayload,
 } from "./lib/googlePlacesTextSearch.mjs";
 
@@ -420,12 +423,41 @@ async function verifyAgainstUrls(row, urls, { stampableOnly }) {
   };
 }
 
+export function placesCheckAllowsSeedMutation(check, verifiedDay) {
+  if (check.outcome !== "confirmed" && check.outcome !== "closed") return false;
+  if (!check.evidenceFromLiveCall) return false;
+  if (!check.evidenceFetchedAt) return false;
+  return isoDateOnly(new Date(check.evidenceFetchedAt)) === verifiedDay;
+}
+
+/** Committed artifact: place id plus derived verdict only (no Google-sourced names/addresses). */
+export function toCommittedPlacesCheck(check) {
+  return {
+    id: check.id,
+    method: check.method,
+    sourceUrl: check.sourceUrl,
+    outcome: check.outcome,
+    result: check.result,
+    textQuery: check.textQuery,
+    placeId: check.placeId,
+    businessStatus: check.businessStatus,
+    matchReason: check.matchReason,
+    matched:
+      check.outcome === "confirmed" || check.outcome === "closed",
+    checkedAt: check.evidenceFetchedAt,
+    anchorSourceUrl: check.anchorSourceUrl,
+    anchorObservation: check.anchorObservation,
+  };
+}
+
 export async function verifyRowWithPlaces(row, searchText) {
   const textQuery = placesTextQueryForRow(row);
   const payload = await searchText(textQuery);
   const places = placesFromSearchPayload(payload);
   const decision = decidePlacesVerification(row, places);
   const ev = decision.evidence ?? {};
+  const evidenceFromLiveCall =
+    !payload.fromCache && !payload.cacheMiss && Boolean(payload.fetchedAt);
   return {
     id: row.id,
     method: "places_text_search",
@@ -433,10 +465,9 @@ export async function verifyRowWithPlaces(row, searchText) {
     outcome: decision.outcome,
     result: decision.result,
     textQuery,
-    placesFromCache: Boolean(payload.fromCache),
+    evidenceFetchedAt: payload.fetchedAt ?? null,
+    evidenceFromLiveCall,
     placeId: ev.placeId ?? null,
-    matchedName: ev.matchedName ?? null,
-    formattedAddress: ev.formattedAddress ?? null,
     businessStatus: ev.businessStatus ?? null,
     matchReason: ev.matchReason ?? null,
     anchorSourceUrl: row.anchor?.sourceUrl ?? row.sourceUrl,
@@ -537,25 +568,28 @@ export function summarizeVerification(checks) {
 
 function createCacheOnlySearch(cacheDir) {
   return async (textQuery) => {
-    const { readFileSync, existsSync } = await import("node:fs");
-    const { createHash } = await import("node:crypto");
-    const { join } = await import("node:path");
-    const path = join(
-      cacheDir,
-      `${createHash("sha256").update(textQuery).digest("hex")}.json`,
-    );
+    const path = placesCacheFilePath(cacheDir, textQuery);
     if (!existsSync(path)) {
       return { textQuery, body: {}, fromCache: true, cacheMiss: true };
     }
-    return { ...JSON.parse(readFileSync(path, "utf8")), fromCache: true };
+    const cached = JSON.parse(readFileSync(path, "utf8"));
+    if (cached.httpStatus < 200 || cached.httpStatus >= 300) {
+      return { textQuery, body: {}, fromCache: true, cacheMiss: true };
+    }
+    return { ...cached, fromCache: true, textQuery };
   };
 }
 
 async function runPlacesMode({ write, verifiedDay, rows, byFile, cacheOnly }) {
+  if (cacheOnly && write) {
+    console.error(
+      "--places-cache-only cannot be used with --write; seed renewals require a live Places check on the verified day",
+    );
+    process.exit(1);
+  }
   let getLiveCallCount = () => 0;
   let searchText;
   if (cacheOnly) {
-    const { DEFAULT_CACHE_DIR } = await import("./lib/googlePlacesTextSearch.mjs");
     searchText = createCacheOnlySearch(DEFAULT_CACHE_DIR);
   } else {
     const apiKey = process.env.GOOGLE_PLACES_API_KEY;
@@ -600,23 +634,33 @@ async function runPlacesMode({ write, verifiedDay, rows, byFile, cacheOnly }) {
     return;
   }
 
-  for (const [file, pack] of applyVerification(byFile, checks, verifiedDay)) {
+  const seedChecks = checks.map((check) => ({
+    ...check,
+    outcome: placesCheckAllowsSeedMutation(check, verifiedDay)
+      ? check.outcome
+      : check.outcome === "confirmed" || check.outcome === "closed"
+        ? "unverified"
+        : check.outcome,
+  }));
+
+  for (const [file, pack] of applyVerification(byFile, seedChecks, verifiedDay)) {
     writeFileSync(join(FAMOUS_DIR, file), `${JSON.stringify(pack, null, 2)}\n`);
   }
 
+  const committedChecks = checks.map(toCommittedPlacesCheck);
   const artifact = {
-    version: 3,
+    version: 4,
     verifiedAt: verifiedDay,
     method:
-      "places_text_search: Google Places API (New) Text Search with field mask places.id, places.displayName, places.formattedAddress, places.businessStatus, places.location; responses cached under data/famous_venues/places_text_search_cache/",
+      "places_text_search: live Google Places API (New) Text Search on the verified day; committed artifact stores placeId and derived verdict fields only (Maps ToS). Raw responses stay in gitignored data/famous_venues/.places_text_search_cache/.",
     summary: {
-      ...summarizeVerification(checks),
+      ...summarizeVerification(committedChecks),
       placesLiveApiCalls: getLiveCallCount(),
-      renewed: confirmed.length,
-      removed: closed.length,
-      stillWithheld: unverified.length,
+      renewed: seedChecks.filter((c) => c.outcome === "confirmed").length,
+      removed: seedChecks.filter((c) => c.outcome === "closed").map((c) => c.id),
+      stillWithheld: seedChecks.filter((c) => c.outcome === "unverified").length,
     },
-    checks,
+    checks: committedChecks,
   };
   const outPath = join(FAMOUS_DIR, `verification_${verifiedDay}.json`);
   writeFileSync(outPath, `${JSON.stringify(artifact, null, 2)}\n`);
