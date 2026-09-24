@@ -20,7 +20,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { NIGHT_OUT_PLACE_MAX_AGE_HOURS } from "../lib/nightOutPlaceContract.mjs";
-import { nightOutPlaceSourceName } from "../lib/nightOutPlaceSourceUrl.mjs";
 import {
   harvestRedirectLanding,
   isHarvestableOperatorUrl,
@@ -318,35 +317,6 @@ async function verifyRow(row, alternates) {
   };
 }
 
-function isOperatorSourceUrl(url) {
-  return (
-    typeof url === "string" &&
-    url.length > 0 &&
-    isHarvestableOperatorUrl(url) &&
-    isOperatorHost(url)
-  );
-}
-
-/** Operator citation stays on the row; alternates are recorded only in the verification artifact. */
-function restoreOperatorSourceUrl(row, alternates) {
-  const ordered = [
-    row.anchor?.sourceUrl,
-    ...(row.fameGates ?? []).map((gate) => gate.sourceUrl),
-    alternates.get(row.id),
-    row.story?.sourceUrl,
-    row.sourceUrl,
-  ];
-  const preferred = ordered.find((url) => isOperatorSourceUrl(url));
-  if (preferred && row.sourceUrl !== preferred) {
-    return {
-      ...row,
-      sourceUrl: preferred,
-      sourceName: nightOutPlaceSourceName(preferred),
-    };
-  }
-  return row;
-}
-
 async function mapPool(items, limit, fn) {
   const results = [];
   let index = 0;
@@ -360,10 +330,9 @@ async function mapPool(items, limit, fn) {
   return results;
 }
 
-function stampRow(row, verifiedDay, alternates) {
-  const withSource = restoreOperatorSourceUrl(row, alternates);
+function stampRow(row, verifiedDay) {
   return {
-    ...withSource,
+    ...row,
     observedAt: verifiedDay,
     expiresAt: addCalendarDays(verifiedDay, VERIFICATION_WINDOW_DAYS),
   };
@@ -379,9 +348,7 @@ async function main() {
     `Famous venue verification (${VERIFICATION_WINDOW_DAYS}-day window); verifiedDay=${verifiedDay}; write=${write}`,
   );
 
-  const checks = await mapPool(rows, CONCURRENCY, ({ row }) =>
-    verifyRow(restoreOperatorSourceUrl(row, alternates), alternates),
-  );
+  const checks = await mapPool(rows, CONCURRENCY, ({ row }) => verifyRow(row, alternates));
   const confirmed = checks.filter((c) => c.confirmed);
   const failed = checks.filter((c) => !c.confirmed);
 
@@ -403,12 +370,11 @@ async function main() {
     );
   }
 
-  const checkById = new Map(checks.map((c) => [c.id, c]));
   const confirmedIds = new Set(confirmed.map((c) => c.id));
   for (const [file, pack] of byFile) {
     const next = pack
       .filter((row) => confirmedIds.has(row.id))
-      .map((row) => stampRow(row, verifiedDay, alternates));
+      .map((row) => stampRow(row, verifiedDay));
     writeFileSync(join(FAMOUS_DIR, file), `${JSON.stringify(next, null, 2)}\n`);
   }
 
