@@ -35,12 +35,25 @@ Variables → Production, Preview). All four are server-only.
 | `ELEVENLABS_API_KEY` | Account key. Never reaches the browser: `/api/pub-pal/voice-token` mints a short-lived signed session URL instead |
 | `ELEVENLABS_PUB_PAL_AGENT_ID` | The agent the script below creates |
 | `ELEVENLABS_LLM_SHARED_SECRET` | The secret ElevenLabs presents to `/api/pub-pal/llm`. Generate with `openssl rand -hex 32` |
-| `ELEVENLABS_VOICE_EMBER` / `_VELVET` / `_SIGNAL` | The three curated voice ids. Optional per slot: an unset slot falls back to the agent default |
+| `ELEVENLABS_VOICE_ROBIN` … `_CORGI` | One voice id per species (`lib/palElevenLabsVoice.ts`). Create with `npm run pubpal:design-voices` |
+| `ELEVENLABS_VOICE_EMBER` / `_VELVET` / `_SIGNAL` | Legacy slots when a species id is unset |
 
 `.env.example` carries the same names with empty values.
 
----
 
+## Designing species voices
+
+```bash
+# Preview descriptions only (no API key).
+npm run pubpal:design-voices -- --dry-run
+
+# Design, save to the ElevenLabs library, print env lines for Vercel.
+npm run pubpal:design-voices
+```
+
+Evidence and generated preview audio land in `docs/proof/pubpal-voices/`.
+
+---
 ## Creating the agent
 
 ```bash
@@ -68,10 +81,10 @@ It sets four things and nothing else:
    surface runs, so the voice cannot answer from the provider's own model.
 2. **Zero retention**: no audio recording, no transcript, no PII kept. ADR 0006
    is explicit that raw audio and transcripts are never memory.
-3. **The three voices**, when their ids are set. The agent-level voice is the
-   default; each session then overrides it with the caller's own Pal voice from
-   `lib/palVoiceOverrides.ts`, so ember, velvet and signal all sound right off
-   one agent.
+3. **Voices**, when their ids are set. The agent-level voice is the default;
+   each session overrides it with the caller's species voice from
+   `lib/palElevenLabsVoice.ts` / `lib/palVoiceOverrides.ts`, so every Pal
+   sounds distinct off one agent.
 4. **The house prompt**: speak what the tools return, never invent a price or
    an hour, propose but never apply, and switch to plain speech on get-home
    topics.

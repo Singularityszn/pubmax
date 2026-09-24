@@ -1,16 +1,11 @@
-import type { PubPal, PubPalVoiceId } from "@/lib/pubPal";
+import { resolveElevenLabsVoiceIdForPal } from "@/lib/palElevenLabsVoice";
+import type { PubPal } from "@/lib/pubPal";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
 
 export type PalVoiceOverrides = {
   voiceId: string | null;
   firstMessage: string;
   systemPrompt: string;
-};
-
-const VOICE_ENV_KEYS: Record<PubPalVoiceId, string> = {
-  ember: "ELEVENLABS_VOICE_EMBER",
-  velvet: "ELEVENLABS_VOICE_VELVET",
-  signal: "ELEVENLABS_VOICE_SIGNAL",
 };
 
 /** SafeNightStrip register for get-home topics: plain, one fact per sentence, zero jokes. */
@@ -31,12 +26,6 @@ export const PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE =
 
 const SESSION_CAP_RULE =
   `End the call with end_call once the chat reaches ${PAL_VOICE_MAX_SESSION_SECONDS} seconds or the user is done. Do not run past that cap.`;
-
-function resolveElevenLabsVoiceId(voiceId: PubPalVoiceId): string | null {
-  const envKey = VOICE_ENV_KEYS[voiceId];
-  const value = process.env[envKey]?.trim();
-  return value || null;
-}
 
 function relationshipTone(relationship: PubPal["personality"]["relationship"]): string {
   if (relationship === "guide") return "Measured and clear. Lead with the useful fact.";
@@ -90,7 +79,7 @@ export function buildPalVoiceSystemPrompt(pal: PubPal): string {
 
 export function buildPalVoiceOverrides(pal: PubPal): PalVoiceOverrides {
   return {
-    voiceId: resolveElevenLabsVoiceId(pal.voice.id),
+    voiceId: resolveElevenLabsVoiceIdForPal(pal),
     firstMessage: buildPalVoiceFirstMessage(pal),
     systemPrompt: buildPalVoiceSystemPrompt(pal),
   };
