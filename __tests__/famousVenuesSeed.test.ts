@@ -161,9 +161,23 @@ describe("famous venue seeds", () => {
 
   it("withholds expired famous venues from slim instead of failing the build", () => {
     const rows = PACKS.flatMap(([file]) => loadSeed(file));
+    const verification = JSON.parse(
+      readFileSync(
+        path.join(ROOT, "data/famous_venues/verification_2026-09-24.json"),
+        "utf8",
+      ),
+    ) as { checks: Array<{ id: string; outcome: string }> };
+    const confirmedIds = verification.checks
+      .filter((check) => check.outcome === "confirmed")
+      .map((check) => check.id)
+      .sort();
+    vi.spyOn(console, "log").mockImplementation(() => {});
     expect(
-      assertCurrentFamousVenueRows(rows, new Date("2026-09-24T12:00:00.000Z")),
-    ).toHaveLength(89);
+      assertCurrentFamousVenueRows(rows, new Date("2026-09-24T12:00:00.000Z"))
+        .map((row) => row.id)
+        .sort(),
+    ).toEqual(confirmedIds);
+    vi.restoreAllMocks();
     const logs: string[] = [];
     const spy = vi.spyOn(console, "log").mockImplementation((...args) => {
       logs.push(args.map(String).join(" "));

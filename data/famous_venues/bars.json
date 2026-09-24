@@ -68,7 +68,7 @@
       }
     ],
     "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-bar",
-    "observedAt": "2026-09-24",
+    "observedAt": "2026-08-25",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Beaufort signature cocktail",
@@ -89,7 +89,7 @@
       "lng": -0.12025
     },
     "sourceName": "thesavoylondon.com",
-    "expiresAt": "2026-10-24",
+    "expiresAt": "2026-09-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -252,7 +252,7 @@
       }
     ],
     "sourceUrl": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar",
-    "observedAt": "2026-09-24",
+    "observedAt": "2026-08-25",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Donovan signature cocktail",
@@ -273,7 +273,7 @@
       "lng": -0.14265
     },
     "sourceName": "roccofortehotels.com",
-    "expiresAt": "2026-10-24",
+    "expiresAt": "2026-09-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1017,7 +1017,7 @@
       }
     ],
     "sourceUrl": "https://viajante87.com/",
-    "observedAt": "2026-09-24",
+    "observedAt": "2026-08-25",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Viajante87 cocktail",
@@ -1038,7 +1038,7 @@
       "lng": -0.19725
     },
     "sourceName": "viajante87.com",
-    "expiresAt": "2026-10-24",
+    "expiresAt": "2026-09-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1107,7 +1107,7 @@
       }
     ],
     "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Kw%C4%81nt-Mayfair.html",
-    "observedAt": "2026-09-24",
+    "observedAt": "2026-08-25",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Cocktail (average)",
@@ -1128,7 +1128,7 @@
       "lng": -0.14075
     },
     "sourceName": "theworlds50best.com",
-    "expiresAt": "2026-10-24",
+    "expiresAt": "2026-09-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1152,7 +1152,7 @@
       }
     ],
     "sourceUrl": "https://www.hilton.com/en/hotels/lonnmnd-nomad-london/dining/side-hustle",
-    "observedAt": "2026-09-24",
+    "observedAt": "2026-08-25",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Side Hustle agave cocktail",
@@ -1173,7 +1173,7 @@
       "lng": -0.12185
     },
     "sourceName": "hilton.com",
-    "expiresAt": "2026-10-24",
+    "expiresAt": "2026-09-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
