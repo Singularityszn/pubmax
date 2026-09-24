@@ -54,13 +54,24 @@ export async function runPalEvalSuite(options: RunPalEvalOptions): Promise<PalEv
     const usage = {
       ...(usageCapture
         ? usageCapture.take()
-        : { modelCalls: 0, promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0 }),
+        : {
+            modelCalls: 0,
+            modelToolCalls: 0,
+            promptTokens: 0,
+            completionTokens: 0,
+            totalTokens: 0,
+            costUsd: 0,
+          }),
       latencyMs,
     };
     const checks = live
       ? [
           ...graded.checks,
-          { name: "model_ran", pass: usage.modelCalls > 0, detail: `modelCalls=${usage.modelCalls}` },
+          {
+            name: "model_ran",
+            pass: usage.modelToolCalls > 0,
+            detail: `modelCalls=${usage.modelCalls} modelToolCalls=${usage.modelToolCalls}`,
+          },
         ]
       : graded.checks;
 

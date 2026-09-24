@@ -1,3 +1,6 @@
+import { isAskToolName } from "@/lib/ask/types";
+
+import { offlineFetch } from "./offlineFetch";
 import type { PalEvalUsage } from "./types";
 
 export type ModelUsage = Omit<PalEvalUsage, "latencyMs">;
@@ -13,7 +16,14 @@ function requestUrl(input: Parameters<typeof fetch>[0]): string {
 }
 
 function emptyUsage(): ModelUsage {
-  return { modelCalls: 0, promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0 };
+  return {
+    modelCalls: 0,
+    modelToolCalls: 0,
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    costUsd: 0,
+  };
 }
 
 export function createUsageCapture(): UsageCapture {
@@ -21,11 +31,13 @@ export function createUsageCapture(): UsageCapture {
   let unpricedCalls = 0;
 
   const fetchImpl: typeof fetch = async (input, init) => {
-    const response = await fetch(input, init);
-    if (!response.ok || !new URL(requestUrl(input)).hostname.endsWith("openrouter.ai")) {
-      return response;
+    if (!new URL(requestUrl(input)).hostname.endsWith("openrouter.ai")) {
+      return offlineFetch(input, init);
     }
+    const response = await fetch(input, init);
+    if (!response.ok) return response;
     const body = (await response.clone().json()) as {
+      choices?: Array<{ message?: { tool_calls?: Array<{ function?: { name?: string } }> } }>;
       usage?: {
         prompt_tokens?: number;
         completion_tokens?: number;
@@ -35,6 +47,9 @@ export function createUsageCapture(): UsageCapture {
     };
     const cost = body.usage?.cost;
     usage.modelCalls += 1;
+    usage.modelToolCalls += (body.choices?.[0]?.message?.tool_calls ?? []).filter((call) =>
+      isAskToolName(call.function?.name ?? ""),
+    ).length;
     if (typeof cost !== "number" || !Number.isFinite(cost)) {
       unpricedCalls += 1;
       return response;

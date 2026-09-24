@@ -21,6 +21,7 @@ export type PalEvalAnswerExpectations = {
 
 export type PalEvalUsage = {
   modelCalls: number;
+  modelToolCalls: number;
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;

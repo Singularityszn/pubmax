@@ -38,8 +38,20 @@ describe("Pal eval usage capture", () => {
     vi.unstubAllGlobals();
   });
 
-  function openRouterReply(usage: Record<string, number>): Response {
-    return new Response(JSON.stringify({ choices: [{ message: { content: "hi" } }], usage }), {
+  function openRouterReply(usage: Record<string, number>, toolNames: string[] = []): Response {
+    const message = {
+      content: toolNames.length ? null : "hi",
+      ...(toolNames.length
+        ? {
+            tool_calls: toolNames.map((name, i) => ({
+              id: `call-${i}`,
+              type: "function",
+              function: { name, arguments: "{}" },
+            })),
+          }
+        : {}),
+    };
+    return new Response(JSON.stringify({ choices: [{ message }], usage }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
@@ -55,6 +67,7 @@ describe("Pal eval usage capture", () => {
 
     expect(capture.take()).toEqual({
       modelCalls: 2,
+      modelToolCalls: 0,
       promptTokens: 200,
       completionTokens: 40,
       totalTokens: 240,
@@ -73,11 +86,25 @@ describe("Pal eval usage capture", () => {
     expect(() => capture.take()).toThrow(/usage\.cost/);
   });
 
-  it("does not count calls to other services as model calls", async () => {
-    vi.stubGlobal("fetch", async () => openRouterReply({ cost: 1 }));
+  it("counts only allowlisted Ask tool calls the model asked for", async () => {
+    vi.stubGlobal("fetch", async () =>
+      openRouterReply({ cost: 0.001 }, ["city_status", "not_a_tool"]),
+    );
     const capture = createUsageCapture();
-    await capture.fetchImpl("https://citymcp.com/london/mcp", { method: "POST" });
+    await capture.fetchImpl("https://openrouter.ai/api/v1/chat/completions", { method: "POST" });
 
+    expect(capture.take()).toMatchObject({ modelCalls: 1, modelToolCalls: 1 });
+  });
+
+  it("keeps every other service offline so live runs grade against the offline key", async () => {
+    const globalFetch = vi.fn(async () => openRouterReply({ cost: 1 }));
+    vi.stubGlobal("fetch", globalFetch);
+    const capture = createUsageCapture();
+
+    await expect(
+      capture.fetchImpl("https://citymcp.com/london/mcp", { method: "POST" }),
+    ).rejects.toThrow(/offline/);
+    expect(globalFetch).not.toHaveBeenCalled();
     expect(capture.take().modelCalls).toBe(0);
   });
 });
