@@ -53,7 +53,7 @@ type WhatsOnListingSnapshot = WhatsOnListingGeneration & {
  * returns only the sport rows starting inside [sportStartsFrom,
  * sportStartsBefore) and leaves the rest in the store.
  */
-export type WhatsOnListingQuery = {
+type WhatsOnListingQuery = {
   kind?: WhatsOnKind;
   sportStartsFrom?: number;
   sportStartsBefore?: number;
