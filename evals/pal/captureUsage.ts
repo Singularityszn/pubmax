@@ -1,63 +1,62 @@
 import type { PalEvalUsage } from "./types";
 
-const DEFAULT_USD_PER_MTOK = {
-  input: 3,
-  output: 15,
-};
+export type ModelUsage = Omit<PalEvalUsage, "latencyMs">;
 
-export type UsageCapture = PalEvalUsage & {
+export type UsageCapture = {
   fetchImpl: typeof fetch;
+  take(): ModelUsage;
 };
 
-export function createUsageCapture(modelHint?: string): UsageCapture {
-  const state: UsageCapture = {
-    promptTokens: 0,
-    completionTokens: 0,
-    totalTokens: 0,
-    latencyMs: 0,
-    costUsd: 0,
-    fetchImpl: fetch,
-  };
+function requestUrl(input: Parameters<typeof fetch>[0]): string {
+  if (typeof input === "string") return input;
+  return input instanceof URL ? input.href : input.url;
+}
 
-  const rates = DEFAULT_USD_PER_MTOK;
+function emptyUsage(): ModelUsage {
+  return { modelCalls: 0, promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0 };
+}
 
-  state.fetchImpl = async (input, init) => {
-    const started = performance.now();
+export function createUsageCapture(): UsageCapture {
+  let usage = emptyUsage();
+  let unpricedCalls = 0;
+
+  const fetchImpl: typeof fetch = async (input, init) => {
     const response = await fetch(input, init);
-    const url =
-      typeof input === "string"
-        ? input
-        : input instanceof URL
-          ? input.href
-          : input.url;
-    if (url.includes("openrouter.ai") && response.ok) {
-      try {
-        const clone = response.clone();
-        const body = (await clone.json()) as {
-          usage?: {
-            prompt_tokens?: number;
-            completion_tokens?: number;
-            total_tokens?: number;
-          };
-        };
-        const usage = body.usage;
-        if (usage) {
-          state.promptTokens += usage.prompt_tokens ?? 0;
-          state.completionTokens += usage.completion_tokens ?? 0;
-          state.totalTokens += usage.total_tokens ?? 0;
-          state.costUsd +=
-            ((usage.prompt_tokens ?? 0) * rates.input +
-              (usage.completion_tokens ?? 0) * rates.output) /
-            1_000_000;
-        }
-      } catch {
-        /* ignore parse errors */
-      }
+    if (!response.ok || !new URL(requestUrl(input)).hostname.endsWith("openrouter.ai")) {
+      return response;
     }
-    state.latencyMs += performance.now() - started;
+    const body = (await response.clone().json()) as {
+      usage?: {
+        prompt_tokens?: number;
+        completion_tokens?: number;
+        total_tokens?: number;
+        cost?: number;
+      };
+    };
+    const cost = body.usage?.cost;
+    usage.modelCalls += 1;
+    if (typeof cost !== "number" || !Number.isFinite(cost)) {
+      unpricedCalls += 1;
+      return response;
+    }
+    usage.promptTokens += body.usage?.prompt_tokens ?? 0;
+    usage.completionTokens += body.usage?.completion_tokens ?? 0;
+    usage.totalTokens += body.usage?.total_tokens ?? 0;
+    usage.costUsd += cost;
     return response;
   };
 
-  void modelHint;
-  return state;
+  return {
+    fetchImpl,
+    take() {
+      if (unpricedCalls > 0) {
+        throw new Error(
+          `OpenRouter reported no usage.cost on ${unpricedCalls} call(s); the Pal eval cannot price this conversation.`,
+        );
+      }
+      const taken = usage;
+      usage = emptyUsage();
+      return taken;
+    },
+  };
 }

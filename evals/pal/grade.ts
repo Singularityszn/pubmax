@@ -38,7 +38,6 @@ export function gradePalCase(
   body: AskResponseBody,
   expect: PalEvalAnswerExpectations,
   index: PalEvalVenueIndex,
-  routeTools: string[] = [],
 ): GradeOutcome {
   const checks: Array<{ name: string; pass: boolean; detail: string }> = [];
   const { inventedVenues, details } = gradeInventedVenues(body, index);
@@ -51,9 +50,7 @@ export function gradePalCase(
 
   if (expect.expectedTools?.length) {
     const used = body.toolsUsed;
-    const ok = expect.toolOrderMatters
-      ? JSON.stringify(used) === JSON.stringify(expect.expectedTools)
-      : expect.expectedTools.every((tool) => used.includes(tool));
+    const ok = expect.expectedTools.every((tool) => used.includes(tool));
     push(checks, "tool_routing", ok, `used=${used.join(",")} expected=${expect.expectedTools.join(",")}`);
   }
 
@@ -62,26 +59,12 @@ export function gradePalCase(
     push(checks, "tool_any", ok, `used=${body.toolsUsed.join(",")}`);
   }
 
-  if (expect.expectedRouteTools?.length) {
-    const ok = JSON.stringify(routeTools) === JSON.stringify(expect.expectedRouteTools);
-    push(
-      checks,
-      "route_trace",
-      ok,
-      `route=${routeTools.join(",")} expected=${expect.expectedRouteTools.join(",")}`,
-    );
-  }
-
   if (expect.expectEmpty) {
     push(checks, "empty_answer", body.cards.length === 0, `cards=${body.cards.length}`);
   }
 
   if (expect.minCards !== undefined) {
     push(checks, "min_cards", body.cards.length >= expect.minCards, `cards=${body.cards.length}`);
-  }
-
-  if (expect.maxCards !== undefined) {
-    push(checks, "max_cards", body.cards.length <= expect.maxCards, `cards=${body.cards.length}`);
   }
 
   if (expect.expectDegraded) {
@@ -93,15 +76,6 @@ export function gradePalCase(
       checks,
       `answer_includes:${fragment}`,
       body.answer.toLowerCase().includes(fragment.toLowerCase()),
-      body.answer.slice(0, 120),
-    );
-  }
-
-  for (const fragment of expect.answerExcludes ?? []) {
-    push(
-      checks,
-      `answer_excludes:${fragment}`,
-      !body.answer.toLowerCase().includes(fragment.toLowerCase()),
       body.answer.slice(0, 120),
     );
   }

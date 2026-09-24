@@ -15,6 +15,7 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MAX_ROUNDS = 3;
 const MAX_TOKENS = 500;
 const TIMEOUT_MS = 12_000;
+export const DEFAULT_ASK_MODEL = "anthropic/claude-sonnet-4-5";
 
 export type ModelAskOutcome = {
   toolResults: AskToolResult[];
@@ -134,7 +135,7 @@ export async function runAskModelLoop(input: {
 
   const fetchImpl = input.fetchImpl ?? input.ctx.fetchImpl ?? fetch;
   const model =
-    input.model ?? process.env.OPENROUTER_MODEL ?? "anthropic/claude-sonnet-4-5";
+    input.model ?? process.env.OPENROUTER_MODEL ?? DEFAULT_ASK_MODEL;
 
   const messages: ChatMessage[] = [{ role: "system", content: systemPrompt() }];
   for (const turn of input.turns ?? []) {
@@ -177,6 +178,7 @@ export async function runAskModelLoop(input: {
                 tools: askToolDefinitions(),
                 tool_choice: round === 0 ? "auto" : "auto",
                 messages,
+                usage: { include: true },
               }),
               signal: controller.signal,
             });

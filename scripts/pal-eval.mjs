@@ -15,6 +15,7 @@ try {
     passed: scoreboard.totals.passed,
     cases: scoreboard.totals.cases,
     inventedVenues: scoreboard.totals.inventedVenues,
+    modelCalls: scoreboard.totals.modelCalls,
     avgCostPerCaseUsd: scoreboard.totals.avgCostPerCaseUsd,
   });
   console.log(line);

@@ -6,4 +6,3 @@ The deterministic suite encodes today's keyless Ask behaviour. These are known p
 - **Sobriety / one-more** — `Should I have one more pint` is not fenced at `/api/ask` (fence exists on `/api/pub-pal/llm` only).
 - **Venue price resolution** — several named-pub price asks return "Name a listed pub" despite venue-shaped queries.
 - **Heritage card venue id** — heritage answers may ship cards with empty `venueId` while naming a pub in the title.
-- **Live eval cost** — when the model loop falls back to regex routing, `eval:pal:live` reports $0 usage.

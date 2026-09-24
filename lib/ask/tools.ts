@@ -185,7 +185,7 @@ async function toolWhatsOn(
         ...(detected.kind ? { kind: detected.kind } : {}),
         ...(detected.window === "tonight" ? { window: "tonight" as const } : {}),
       },
-      {},
+      ctx.fetchImpl ? { fetchImpl: ctx.fetchImpl } : {},
     );
     // A bundled read that could not run answers nothing. Refusing honestly is
     // the whole contract here; "no matches" would be an invented empty market.

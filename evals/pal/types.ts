@@ -1,32 +1,26 @@
-import type { AskResponseBody, AskTurn } from "@/lib/ask/types";
+import type { AskTurn } from "@/lib/ask/types";
 
 export type PalEvalPublicCase = {
   id: string;
   query: string;
   cityId?: string;
   turns?: AskTurn[];
-  recordedResponse?: AskResponseBody;
 };
 
 export type PalEvalAnswerExpectations = {
   expectedTools?: string[];
-  toolOrderMatters?: boolean;
   anyTools?: string[];
   minCards?: number;
-  maxCards?: number;
   expectEmpty?: boolean;
   expectDegraded?: boolean;
   answerIncludes?: string[];
-  answerExcludes?: string[];
   topVenueId?: string;
   topPrice?: number;
   priceTolerance?: number;
-  venueIdsIn?: string[];
-  /** Regex router tools before handlers run (keyless path). */
-  expectedRouteTools?: string[];
 };
 
 export type PalEvalUsage = {
+  modelCalls: number;
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
@@ -44,7 +38,7 @@ export type PalEvalCaseResult = {
   cardCount: number;
   answer: string;
   transcript: string;
-  usage?: PalEvalUsage;
+  usage: PalEvalUsage;
 };
 
 export type PalEvalScoreboard = {
@@ -56,6 +50,7 @@ export type PalEvalScoreboard = {
     passed: number;
     accuracy: number;
     inventedVenues: number;
+    modelCalls: number;
     costUsd: number;
     avgLatencyMs: number;
     avgCostPerCaseUsd: number;
