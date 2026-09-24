@@ -36,6 +36,10 @@ const SNAPSHOT_AFTER_HOURS = SNAPSHOT_AFTER_DAYS * 24;
 // question and never a change of vocabulary.
 const SNAPSHOT_NAMED_CLASSES = new Set(["episodic", "user-cadence"]);
 
+// Stale rows that warn in the CLI but never fail the dedicated freshness gate.
+// area_news is hand-refreshed editorial texture; a late cron must not block verify.
+const ADVISORY_STALE_IDS = new Set(["area_news"]);
+
 function isParseableDate(value) {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
@@ -364,6 +368,19 @@ export async function evaluateFreshness({ now = new Date(), rootDir = DEFAULT_RO
 }
 
 // Re-exported so validate-data can format identically.
+export function freshnessGateFailed(results, { requireStore = false } = {}) {
+  const stale = results.filter((r) => r.status === "stale");
+  const hardStale = stale.filter((r) => !ADVISORY_STALE_IDS.has(r.id));
+  const unknown = results.filter((r) => r.status === "unknown");
+  const unmeasurableHere = unknown.filter((r) =>
+    /unmeasurable without credentials/.test(r.detail ?? ""),
+  );
+  return (
+    hardStale.length > 0 ||
+    (requireStore ? unknown.length > 0 : unknown.length > unmeasurableHere.length)
+  );
+}
+
 export function formatFreshnessTable(results) {
   const rows = results.map((r) => ({
     status: r.status.toUpperCase(),
@@ -408,19 +425,24 @@ async function main() {
   if (artifactOnly) console.log("Scope: candidate artifact-backed feeds. Production store feeds use their own gate.\n");
   console.log(formatFreshnessTable(results));
   const stale = results.filter((r) => r.status === "stale");
+  const hardStale = stale.filter((r) => !ADVISORY_STALE_IDS.has(r.id));
+  const advisoryStale = stale.filter((r) => ADVISORY_STALE_IDS.has(r.id));
   const unknown = results.filter((r) => r.status === "unknown");
   const unmeasured = results.filter((r) => r.status === "unmeasured");
   const retired = results.filter((r) => r.status === "retired");
   const unmeasurableHere = unknown.filter((r) => /unmeasurable without credentials/.test(r.detail ?? ""));
-  const failed =
-    stale.length > 0 || (requireStore ? unknown.length > 0 : unknown.length > unmeasurableHere.length);
+  const failed = freshnessGateFailed(results, { requireStore });
   console.log("");
   if (stale.length || unknown.length) {
     // Two findings, reported apart. Stale means the data is old; unresolved means
     // the age could not be measured and says nothing about the data itself.
-    if (stale.length) {
+    if (hardStale.length) {
       console.log("  STALE (the data is over budget):");
-      for (const r of stale) console.log(`    ✗ ${r.id}: ${r.detail}`);
+      for (const r of hardStale) console.log(`    ✗ ${r.id}: ${r.detail}`);
+    }
+    if (advisoryStale.length) {
+      console.log("  STALE (advisory only — does not fail this check):");
+      for (const r of advisoryStale) console.log(`    ⚠ ${r.id}: ${r.detail}`);
     }
     if (unknown.length) {
       console.log("  UNRESOLVED (the age could not be determined):");
@@ -430,7 +452,7 @@ async function main() {
     printRetired(retired);
     if (failed) {
       console.log(
-        `\nFRESHNESS CHECK FAILED: ${stale.length} stale, ${unknown.length} unresolved of ${results.length} datasets.`,
+        `\nFRESHNESS CHECK FAILED: ${hardStale.length} stale, ${unknown.length} unresolved of ${results.length} datasets.`,
       );
       process.exit(1);
     }
