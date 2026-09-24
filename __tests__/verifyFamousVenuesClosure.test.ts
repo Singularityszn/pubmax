@@ -96,7 +96,28 @@ describe("verify:famous-venues closure evidence", () => {
 
     const check = await verifyRow(dalston, new Map());
 
-    expect(check.outcome).not.toBe("closed");
+    expect(check.outcome).toBe("confirmed");
+  }, 20_000);
+
+  it.each([
+    ["an open venue beside a closed sister", "Swiftexample Borough has closed for good, but Swiftexample Soho is open as usual."],
+    ["a negated closure", "Swiftexample Soho has not closed permanently; we reopen in May."],
+    ["the name as an ordinary lower-case word", "Swiftexample Soho. The bar next to swiftexample soho has permanently closed."],
+  ])("confirms rather than drops a venue whose operator page carries %s", async (_label, body) => {
+    const soho = {
+      id: "bar-swiftexample-soho",
+      name: "Swiftexample Soho",
+      address: "12 Old Compton Street, London W1D 4TQ",
+      borough: "Westminster",
+      sourceUrl: "https://www.swiftexample.com/soho",
+      anchor: { sourceUrl: "https://www.swiftexample.com/soho" },
+      fameGates: [],
+    };
+    servePages({ "https://www.swiftexample.com/soho": { status: 200, body } });
+
+    const check = await verifyRow(soho, new Map());
+
+    expect(check.outcome).toBe("confirmed");
   }, 20_000);
 
   it("ignores closure text on an operator page that is not about this venue", async () => {

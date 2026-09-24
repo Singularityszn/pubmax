@@ -5,12 +5,12 @@
  *
  * Each row ends in one outcome:
  *   confirmed  — re-stamped for a fresh window.
- *   closed     — the row's own sourceUrl or anchor page, on an operator host, has a
- *                sentence naming this venue that says it closed for good (never a
- *                listing or aggregator page); --write drops it.
+ *   closed     — the row's own sourceUrl or anchor page, on an operator host, says
+ *                this venue, by its exact name, closed for good (never a listing or
+ *                aggregator page); --write drops it.
  *   unverified — anything else (timeout, 403, 429, 5xx, robots, unconvincing page,
- *                or closure text on any page about the venue that is not the above,
- *                which blocks confirmation from every other source);
+ *                or any other page saying this venue closed for good, which blocks
+ *                confirmation from every other source);
  *                retried once after a backoff, then left unchanged and listed, and
  *                the command exits nonzero so the operator reruns later.
  *
@@ -72,12 +72,10 @@ const JUNK_SIGNATURES = [
   /marubiru-bekkan/i,
 ];
 
-const CLOSURE_SIGNALS = [
-  /\bpermanently closed\b/i,
-  /\bclosed permanently\b/i,
-  /\bclosed for good\b/i,
-  /\bceased trading\b/i,
-];
+/** What must directly follow the venue's own name for a sentence to say it closed. */
+const CLOSURE_PREDICATE =
+  /^ (?:(?:has|is) )?(?:now )?(?:permanently closed|closed permanently|closed for good|ceased trading)\b/i;
+const CLOSURE_NEGATION = /\b(?:not|never|rumou?rs?|reopen\w*)\b/i;
 
 /** Listing and editorial hosts the operator deny list does not name; never an operator page. */
 const LISTING_HOSTS = [
@@ -295,38 +293,29 @@ function nameWords(text) {
     .trim();
 }
 
-/** The full venue name, not followed by another capitalised word ("Swift Soho", not "Swift Borough"). */
-function sentenceNamesVenue(sentence, row) {
-  const name = nameWords(row.name).toLowerCase();
-  const text = nameWords(sentence);
-  const lower = text.toLowerCase();
+/** A sentence whose subject is this venue's exact name, followed directly by a closure predicate. */
+function saysVenueClosed(text, row) {
+  const name = nameWords(row.name);
   if (!name) return false;
-  for (let i = lower.indexOf(name); i !== -1; i = lower.indexOf(name, i + 1)) {
-    const end = i + name.length;
-    if (i > 0 && lower[i - 1] !== " ") continue;
-    if (end < text.length && text[end] !== " ") continue;
-    const next = text.slice(end + 1).charAt(0);
-    if (next && next !== next.toLowerCase()) continue;
-    return true;
-  }
-  return false;
+  return text.split(/(?<=[.!?;])\s+/).some((sentence) => {
+    if (CLOSURE_NEGATION.test(sentence)) return false;
+    const words = nameWords(sentence);
+    for (let i = words.indexOf(name); i !== -1; i = words.indexOf(name, i + 1)) {
+      if (i > 0 && words[i - 1] !== " ") continue;
+      if (CLOSURE_PREDICATE.test(words.slice(i + name.length))) return true;
+    }
+    return false;
+  });
 }
 
 function readPage(page, row, isRowPage) {
   if (!page.ok) return "failed";
-  if (!pageLooksLikeVenue(page.text, row, page.finalUrl, page.contentType)) return "unconvincing";
-  const closureSentences = page.text
-    .split(/(?<=[.!?])\s+/)
-    .filter((sentence) => CLOSURE_SIGNALS.some((re) => re.test(sentence)));
-  if (closureSentences.length === 0) return "confirmed";
-  if (
-    isRowPage &&
-    isOperatorPage(page.finalUrl) &&
-    closureSentences.some((sentence) => sentenceNamesVenue(sentence, row))
-  ) {
-    return "closed";
+  if (saysVenueClosed(page.text, row)) {
+    return isRowPage && isOperatorPage(page.finalUrl) ? "closed" : "held";
   }
-  return "held";
+  return pageLooksLikeVenue(page.text, row, page.finalUrl, page.contentType)
+    ? "confirmed"
+    : "unconvincing";
 }
 
 export async function verifyRow(row, alternates) {
