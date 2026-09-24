@@ -265,7 +265,7 @@ describe("POST /api/heritage", () => {
     const body = await res.json();
     expect(body.answer).not.toContain("1520");
     expect(body.clarifyingQuestion).toBe(
-      "What would you like to know about this late-food venue?",
+      "What would you like to know about this pub?",
     );
   });
 
