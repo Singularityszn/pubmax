@@ -191,11 +191,30 @@ async function fetchFootballDataCompetition(
   return fixtures;
 }
 
+/**
+ * Each league is read independently: one failed league is logged and skipped
+ * so its siblings still refresh. Throws only when every league failed.
+ */
+async function settleLeagueReads(reads: Promise<SportFixture[]>[]): Promise<SportFixture[]> {
+  const settled = await Promise.allSettled(reads);
+  const failures = settled.flatMap((result) =>
+    result.status === "rejected"
+      ? [result.reason instanceof Error ? result.reason.message : String(result.reason)]
+      : [],
+  );
+  if (failures.length === settled.length) throw new Error(failures.join("; "));
+  if (failures.length > 0) {
+    console.warn("[sport] fixture league read failed; serving the other leagues:", failures.join("; "));
+  }
+  return dedupeFixtures(
+    settled.flatMap((result) => (result.status === "fulfilled" ? result.value : [])),
+  );
+}
+
 async function fetchFootballDataFixtures(opts: LaneOpts, key: string): Promise<SportFixture[]> {
-  const perCompetition = await Promise.all(
+  return settleLeagueReads(
     FOOTBALL_DATA_COMPETITIONS.map((code) => fetchFootballDataCompetition(opts, key, code)),
   );
-  return dedupeFixtures(perCompetition.flat());
 }
 
 type TheSportsDbEvent = {
@@ -291,7 +310,7 @@ async function fetchTheSportsDbFixtures(
   leagues: TheSportsDbLeague[],
 ): Promise<SportFixture[]> {
   const season = theSportsDbSeasonLabel(opts.now);
-  const perLeague = await Promise.all(
+  return settleLeagueReads(
     leagues.map(async (league) => {
       const events = await fetchTheSportsDbLeagueSeason(opts, apiKey, league, season);
       const fixtures: SportFixture[] = [];
@@ -302,7 +321,6 @@ async function fetchTheSportsDbFixtures(
       return fixtures;
     }),
   );
-  return dedupeFixtures(perLeague.flat());
 }
 
 /**
