@@ -71,7 +71,9 @@ describe("the no-mistakes repository test command", () => {
   it("reaches the unit suite and never the browser suite", () => {
     const expanded = expand(splitTestCommand().command, packageScripts());
 
-    expect(expanded).toContain("vitest run");
+    // `npm run coverage` hands the unit suite to one node entry point, so its
+    // CI `--exclude` globs reach the coverage run alone.
+    expect(expanded).toContain("node scripts/run-coverage.mjs");
     // The browser suite runs in the merge bar's own e2e workflow.
     expect(expanded).not.toMatch(/playwright/);
   });
