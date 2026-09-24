@@ -93,6 +93,31 @@ describe("live sport fixtures", () => {
     vi.unstubAllEnvs();
   });
 
+  it("keeps a fixture that kicked off before the run while it is still being served", async () => {
+    vi.stubEnv("FOOTBALL_DATA_API_KEY", "");
+    const kickoff = (msAgo: number, idEvent: string) => ({
+      idEvent,
+      strHomeTeam: `Home ${idEvent}`,
+      strAwayTeam: `Away ${idEvent}`,
+      strLeague: "English Premiership Rugby",
+      strTimestamp: new Date(NOW - msAgo).toISOString(),
+      strStatus: "1H",
+    });
+    const events = [kickoff(60 * 60 * 1000, "in-progress"), kickoff(3 * 60 * 60 * 1000, "over")];
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const payload = String(input).includes("id=4414") ? { events } : { events: [] };
+      return { ok: true, status: 200, json: async () => payload } as Response;
+    });
+
+    const fixtures = await fetchLiveSportFixtures({
+      now: NOW,
+      endMs: NOW + SPORT_FIXTURE_HORIZON_MS,
+      fetchImpl,
+    });
+    expect(fixtures.map((fixture) => fixture.id)).toEqual(["tsdb-in-progress"]);
+    vi.unstubAllEnvs();
+  });
+
   it("filters fixtures outside the refresh horizon", () => {
     const league = liveSportFixtureInternals.THESPORTSDB_LEAGUES[0];
     const fixture = liveSportFixtureInternals.normaliseTheSportsDbEvent(PL_SAMPLE.events[0], league);

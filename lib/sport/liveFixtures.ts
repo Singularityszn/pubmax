@@ -5,6 +5,7 @@
 
 import { londonWallClockToIso } from "../../scripts/whatson/sportFixtures.mjs";
 import type { SportFixture } from "../../scripts/whatson/sportFixtures.d.mts";
+import { POINT_ROW_GRACE_MS } from "@/lib/whatsOn";
 
 /**
  * How far ahead sport refresh keeps fixtures. Eight days covers the furthest
@@ -44,7 +45,7 @@ export type FetchLiveSportFixturesOpts = {
   fetchImpl?: typeof fetch;
 };
 
-type LaneOpts = FetchLiveSportFixturesOpts & { signal: AbortSignal };
+type LaneOpts = FetchLiveSportFixturesOpts & { startMs: number; signal: AbortSignal };
 
 function readEnvKey(name: string): string | undefined {
   const value = process.env[name];
@@ -152,7 +153,7 @@ async function fetchFootballDataCompetition(
 ): Promise<SportFixture[]> {
   const fetchImpl = opts.fetchImpl ?? fetch;
   const url = new URL(`https://api.football-data.org/v4/competitions/${code}/matches`);
-  url.searchParams.set("dateFrom", isoDateUtc(opts.now));
+  url.searchParams.set("dateFrom", isoDateUtc(opts.startMs));
   url.searchParams.set("dateTo", isoDateUtc(opts.endMs));
   const res = await fetchImpl(url, {
     headers: {
@@ -279,7 +280,7 @@ async function fetchTheSportsDbFixtures(opts: LaneOpts, apiKey: string): Promise
       const fixtures: SportFixture[] = [];
       for (const event of events) {
         const fixture = normaliseTheSportsDbEvent(event, league);
-        if (fixture && inWindow(fixture, opts.now, opts.endMs)) fixtures.push(fixture);
+        if (fixture && inWindow(fixture, opts.startMs, opts.endMs)) fixtures.push(fixture);
       }
       return fixtures;
     }),
@@ -288,20 +289,23 @@ async function fetchTheSportsDbFixtures(opts: LaneOpts, apiKey: string): Promise
 }
 
 /**
- * Loads upcoming fixtures for the Out refresh window. Throws when every lane
+ * Loads upcoming and in-progress fixtures for the Out refresh window. Throws when every lane
  * fails so a cron run does not wipe durable sport rows.
  */
 export async function fetchLiveSportFixtures(opts: FetchLiveSportFixturesOpts): Promise<SportFixture[]> {
-  const startMs = opts.now;
   const footballKey = readEnvKey("FOOTBALL_DATA_API_KEY");
   const theSportsDbKey = readEnvKey("THESPORTSDB_API_KEY") ?? "3";
-  const lane: LaneOpts = { ...opts, signal: AbortSignal.timeout(SPORT_LANE_TIMEOUT_MS) };
+  const lane: LaneOpts = {
+    ...opts,
+    startMs: opts.now - POINT_ROW_GRACE_MS.sport,
+    signal: AbortSignal.timeout(SPORT_LANE_TIMEOUT_MS),
+  };
   const errors: string[] = [];
 
   if (footballKey) {
     try {
       const fromFootballData = await fetchFootballDataFixtures(lane, footballKey);
-      const inWindowRows = fromFootballData.filter((f) => inWindow(f, startMs, opts.endMs));
+      const inWindowRows = fromFootballData.filter((f) => inWindow(f, lane.startMs, opts.endMs));
       if (inWindowRows.length > 0) return inWindowRows;
     } catch (err) {
       errors.push(err instanceof Error ? err.message : String(err));

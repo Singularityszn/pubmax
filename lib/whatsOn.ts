@@ -420,7 +420,7 @@ export function londonServiceDayBounds(now: number = Date.now()): { start: strin
 //   deal   0     deals always carry an explicit endsAt (their window is exact),
 //                so a deal reaching here as a point gets no invented grace.
 // Interval rows (any row WITH endsAt) are untouched: their endsAt stays exact.
-const POINT_ROW_GRACE_MS: Record<WhatsOnKind, number> = {
+export const POINT_ROW_GRACE_MS: Record<WhatsOnKind, number> = {
   quiz: 3 * 60 * 60 * 1000,
   music: 3 * 60 * 60 * 1000,
   sport: 2.5 * 60 * 60 * 1000,
