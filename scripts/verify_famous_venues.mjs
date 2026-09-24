@@ -5,7 +5,9 @@
  *
  * Each row ends in one outcome:
  *   confirmed  — re-stamped for a fresh window.
- *   closed     — the row's own sourceUrl page signals closure; --write drops it.
+ *   closed     — an operator page about this venue says it closed for good (never a
+ *                listing or aggregator page); --write drops it, and no later
+ *                candidate can confirm it.
  *   unverified — anything else (timeout, 403, 429, 5xx, robots, unconvincing page);
  *                retried once after a backoff, then left unchanged and listed, and
  *                the command exits nonzero so the operator reruns later.
@@ -71,15 +73,19 @@ const JUNK_SIGNATURES = [
 const CLOSURE_SIGNALS = [
   /\bpermanently closed\b/i,
   /\bclosed permanently\b/i,
-  /\bpermanent closure\b/i,
-  /\bhas closed\b/i,
-  /\bnow closed\b/i,
-  /\bno longer (open|trading|operating)\b/i,
+  /\bclosed for good\b/i,
   /\bceased trading\b/i,
-  /\bclosed down\b/i,
-  /\bshut down\b/i,
-  /\bwe(?:'|’)ve closed\b/i,
-  /\bthis (?:venue|restaurant|bar|pub) (?:is|has) closed\b/i,
+];
+
+/** Listing and editorial hosts the operator deny list does not name; never an operator page. */
+const LISTING_HOSTS = [
+  "theworlds50best.com",
+  "theinfatuation.com",
+  "guide.michelin.com",
+  "top50cocktailbars.com",
+  "visitlondon.com",
+  "hackneypost.co.uk",
+  "thenudge.com",
 ];
 
 function isoDateOnly(date) {
@@ -148,10 +154,10 @@ function slugTokens(row) {
     .filter((t) => t.length > 3 && !STOP_WORDS.has(t));
 }
 
-function pageSignalsClosure(text, pageUrl) {
-  if (!isOperatorHost(pageUrl)) return false;
-  const sample = text.slice(0, MAX_PAGE_TEXT_CHARS);
-  return CLOSURE_SIGNALS.some((re) => re.test(sample));
+function isOperatorPage(url) {
+  if (!isOperatorHost(url)) return false;
+  const host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+  return !LISTING_HOSTS.some((listing) => host === listing || host.endsWith(`.${listing}`));
 }
 
 function pageLooksLikeVenue(text, row, finalUrl, contentType = "") {
@@ -249,17 +255,6 @@ async function fetchPage(url) {
         contentType,
       };
     }
-    if (pageSignalsClosure(text, landing.url)) {
-      return {
-        ok: false,
-        closure: true,
-        error: "page signals closure",
-        finalUrl: landing.url,
-        text,
-        status: response.status,
-        contentType,
-      };
-    }
     return { ok: true, finalUrl: landing.url, text, status: response.status, contentType };
   } catch (err) {
     return {
@@ -280,45 +275,61 @@ function candidateUrls(row, alternates) {
     ...(row.fameGates ?? []).map((gate) => gate.sourceUrl),
     alternates.get(row.id),
   ];
-  return [...new Set(urls.filter((url) => typeof url === "string" && url.length > 0))];
+  const [primary, ...others] = [
+    ...new Set(urls.filter((url) => typeof url === "string" && url.length > 0)),
+  ];
+  return [
+    primary,
+    ...others.filter((url) => isOperatorPage(url)),
+    ...others.filter((url) => !isOperatorPage(url)),
+  ];
 }
 
-async function verifyRow(row, alternates) {
+function readPage(page, row) {
+  if (!page.ok) return "failed";
+  if (!pageLooksLikeVenue(page.text, row, page.finalUrl, page.contentType)) return "unconvincing";
+  if (CLOSURE_SIGNALS.some((re) => re.test(page.text))) {
+    return isOperatorPage(page.finalUrl) ? "closed" : "unconvincing";
+  }
+  return "confirmed";
+}
+
+export async function verifyRow(row, alternates) {
   const primaryUrl = row.sourceUrl;
-  const candidates = candidateUrls(row, alternates);
   let result = "source_fetch_failed";
   let observation = "";
   let sourceUrlResult;
   let sourceUrlObservation;
   let verificationSourceUrl;
+  let closureSourceUrl;
 
-  const primary = await fetchPage(primaryUrl);
-  if (primary.ok && pageLooksLikeVenue(primary.text, row, primary.finalUrl, primary.contentType)) {
-    result = "source_page_confirmed";
-    observation = primary.text;
-  } else if (primary.closure) {
-    result = "source_page_signals_closure";
-    observation = primary.text;
-  } else {
-    sourceUrlResult = primary.ok ? "source_page_unconvincing" : "source_fetch_failed";
-    sourceUrlObservation = primary.error ?? "primary page did not corroborate the venue";
-    observation = primary.text;
-    for (const url of candidates) {
-      if (url === primaryUrl) continue;
-      const alt = await fetchPage(url);
-      if (alt.ok && pageLooksLikeVenue(alt.text, row, alt.finalUrl, alt.contentType)) {
-        result = "alternate_source_confirmed";
-        verificationSourceUrl = url;
-        observation = alt.text;
-        break;
-      }
+  for (const url of candidateUrls(row, alternates)) {
+    const page = await fetchPage(url);
+    const verdict = readPage(page, row);
+    const isPrimary = url === primaryUrl;
+    if (verdict === "closed") {
+      result = "operator_page_signals_closure";
+      closureSourceUrl = url;
+      observation = page.text;
+      break;
+    }
+    if (verdict === "confirmed") {
+      result = isPrimary ? "source_page_confirmed" : "alternate_source_confirmed";
+      if (!isPrimary) verificationSourceUrl = url;
+      observation = page.text;
+      break;
+    }
+    if (isPrimary) {
+      sourceUrlResult = page.ok ? "source_page_unconvincing" : "source_fetch_failed";
+      sourceUrlObservation = page.error ?? "primary page did not corroborate the venue";
+      observation = page.text;
     }
   }
 
   const outcome =
     result === "source_page_confirmed" || result === "alternate_source_confirmed"
       ? "confirmed"
-      : result === "source_page_signals_closure"
+      : result === "operator_page_signals_closure"
         ? "closed"
         : "unverified";
   return {
@@ -326,6 +337,7 @@ async function verifyRow(row, alternates) {
     method: "source_page_fetch",
     sourceUrl: primaryUrl,
     ...(verificationSourceUrl ? { verificationSourceUrl } : {}),
+    ...(closureSourceUrl ? { closureSourceUrl } : {}),
     result,
     pageObservation: observation.slice(0, 280),
     anchorSourceUrl: row.anchor?.sourceUrl ?? primaryUrl,
@@ -403,7 +415,7 @@ async function main() {
   const unverified = checks.filter((c) => c.outcome === "unverified");
 
   for (const check of closed) {
-    console.log(`CLOSED ${check.id}: ${check.sourceUrl} signals closure`);
+    console.log(`CLOSED ${check.id}: ${check.closureSourceUrl} signals closure`);
   }
   for (const check of unverified) {
     console.log(
