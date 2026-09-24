@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import type { NextFetchEvent, NextRequest, ProxyConfig } from "next/server";
 
 import { CHOOSE_CITY_PATH, PLACES_PATH } from "@/lib/cityPickerRoute";
+import { MAP_LIST_MAP_HREF, MAP_LIST_PATH } from "@/lib/mapListRoute";
 import { clerkCspSources, isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
 import { assertE2ELoginSafe } from "@/lib/e2eReviewAuth";
 import { ONBOARDING_PATH } from "@/lib/firstRunRoute";
@@ -262,6 +263,12 @@ export function securityProxy(request: NextRequest) {
   // The query rides along because a 308 must not silently drop what a reader
   // asked for, not because /places reads any of it: the old `focus=search`
   // param has no reader there, and the retired address has no page at all.
+  // List view lives on the map, not as a city slug. Without this, /map/list
+  // hits [city]=list, fails parseCityId, and serves the global 404 copy.
+  if (pathname === MAP_LIST_PATH) {
+    const target = new URL(MAP_LIST_MAP_HREF, request.url);
+    return applyNonProductionRobotsTag(NextResponse.redirect(target, 308));
+  }
   if (pathname === CHOOSE_CITY_PATH) {
     const target = new URL(request.url);
     target.pathname = PLACES_PATH;
