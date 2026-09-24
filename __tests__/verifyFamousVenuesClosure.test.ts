@@ -209,4 +209,49 @@ describe("verify:famous-venues closure evidence", () => {
 
     expect(check.outcome).toBe("unverified");
   }, 20_000);
+
+  it("does not confirm a venue from an operator page that shares only one word of its name", async () => {
+    const hustle = {
+      id: "bar-sideexample-hustle",
+      name: "Sideexample Hustle",
+      address: "1 Nine Elms Lane, London SW8 5AS",
+      borough: "Wandsworth",
+      sourceUrl: "https://www.hustlegroupexample.com/",
+      anchor: { sourceUrl: "https://www.hustlegroupexample.com/" },
+      fameGates: [],
+    };
+    servePages({
+      "https://www.hustlegroupexample.com/": {
+        status: 200,
+        body: "Hustle Group. Our other bars across Wandsworth, SW8.",
+      },
+    });
+
+    const check = await verifyRow(hustle, new Map());
+
+    expect(check.outcome).toBe("unverified");
+    expect(check.sourceUrlResult).toBe("source_page_unconvincing");
+  }, 20_000);
+
+  it("never stamps a venue from a bar-school page that names it", async () => {
+    const shapes = {
+      id: "bar-shapesexample",
+      name: "Shapesexample Bar",
+      address: "1 Hackney Road, London E2 7NX",
+      borough: "Hackney",
+      sourceUrl: "https://alchemybar.com/?alc-location=shapesexample",
+      fameGates: [],
+    };
+    servePages({
+      "https://alchemybar.com/?alc-location=shapesexample": {
+        status: 200,
+        body: "Shapesexample Bar - Alchemy Bar School - Bar Consulting",
+      },
+    });
+
+    const check = await verifyRow(shapes, new Map());
+
+    expect(check.outcome).toBe("unverified");
+    expect(check.result).toBe("alternate_source_confirmed");
+  }, 20_000);
 });

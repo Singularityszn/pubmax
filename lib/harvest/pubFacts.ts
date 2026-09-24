@@ -55,6 +55,7 @@ const NON_OPERATOR_HOSTS = [
   "visitlondon.com",
   "hackneypost.co.uk",
   "thenudge.com",
+  "alchemybar.com",
 ] as const;
 
 const NON_OPERATOR = new Set<string>(NON_OPERATOR_HOSTS);

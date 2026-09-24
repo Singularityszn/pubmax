@@ -168,24 +168,14 @@ function stampableUrls(row) {
   return [...new Set([row.sourceUrl, row.anchor?.sourceUrl].filter(Boolean))];
 }
 
-function pageLooksLikeVenue(text, row, finalUrl, contentType = "") {
+function pageLooksLikeVenue(text, row, contentType = "") {
   if (contentType.includes("application/pdf")) return false;
   const lower = text.slice(0, MAX_PAGE_TEXT_CHARS).toLowerCase();
   if (JUNK_SIGNATURES.some((re) => re.test(lower))) return false;
-  const tokens = [...nameTokens(row.name), ...slugTokens(row)];
+  const tokens = [...new Set([...nameTokens(row.name), ...slugTokens(row)])];
   if (tokens.length === 0) return lower.includes(row.name.toLowerCase().slice(0, 8));
   const hits = tokens.filter((t) => lower.includes(t));
-  if (hits.length >= Math.min(2, tokens.length)) return true;
-  try {
-    const path = new URL(finalUrl).pathname.toLowerCase();
-    if (slugTokens(row).some((t) => path.includes(t))) return true;
-  } catch {
-    // ignore
-  }
-  const postcode = row.address.match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\b/i)?.[1];
-  if (postcode && lower.includes(postcode.toLowerCase())) return true;
-  if (row.borough && lower.includes(row.borough.toLowerCase())) return true;
-  return hits.length >= 1;
+  return hits.length >= Math.min(2, tokens.length);
 }
 
 const VERIFIER_UA =
@@ -334,7 +324,7 @@ function readPage(page, row, isRowPage) {
   const closure = closureAboutVenue(page.text, row);
   if (closure === "exact" && isRowPage && isOperatorPage(page.finalUrl)) return "closed";
   if (closure !== "none") return "held";
-  return pageLooksLikeVenue(page.text, row, page.finalUrl, page.contentType)
+  return pageLooksLikeVenue(page.text, row, page.contentType)
     ? "confirmed"
     : "unconvincing";
 }

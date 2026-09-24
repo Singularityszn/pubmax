@@ -404,7 +404,7 @@ describe("venues_slim.json", () => {
     const bars = rows.filter((row) => row.kind === "bar");
     const food = rows.filter((row) => row.kind === "food");
     const restaurants = rows.filter((row) => row.kind === "restaurant");
-    expect(bars).toHaveLength(34);
+    expect(bars).toHaveLength(32);
     expect(food).toHaveLength(17);
     expect(restaurants).toHaveLength(18);
     expect(new Set(bars.map((row) => row.priceBand))).toEqual(
