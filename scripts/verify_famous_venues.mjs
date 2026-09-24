@@ -276,23 +276,6 @@ async function fetchPage(url) {
   }
 }
 
-function candidateUrls(row, alternates) {
-  const urls = [
-    row.sourceUrl,
-    row.anchor?.sourceUrl,
-    ...(row.fameGates ?? []).map((gate) => gate.sourceUrl),
-    alternates.get(row.id),
-  ];
-  const [primary, ...others] = [
-    ...new Set(urls.filter((url) => typeof url === "string" && url.length > 0)),
-  ];
-  return [
-    primary,
-    ...others.filter((url) => isOperatorPage(url)),
-    ...others.filter((url) => !isOperatorPage(url)),
-  ];
-}
-
 function nameWords(text) {
   return text
     .replace(/&/g, " and ")
@@ -436,20 +419,16 @@ export async function verifyRow(row, alternates) {
     const supporting = await verifyAgainstUrls(row, supportingUrls(row, alternates), {
       stampableOnly: false,
     });
-    if (supporting.result === "operator_page_signals_closure") {
-      pass = supporting;
-    } else if (!pass.stampableHit) {
-      pass = {
-        ...pass,
-        result: supporting.result !== "source_fetch_failed" ? supporting.result : pass.result,
-        verificationSourceUrl:
-          supporting.verificationSourceUrl ?? pass.verificationSourceUrl,
-        observation: supporting.observation || pass.observation,
-        sourceUrlResult: pass.sourceUrlResult ?? supporting.sourceUrlResult,
-        sourceUrlObservation: pass.sourceUrlObservation ?? supporting.sourceUrlObservation,
-        closureSourceUrl: pass.closureSourceUrl ?? supporting.closureSourceUrl,
-      };
-    }
+    const keepPass = pass.closureSourceUrl || supporting.result === "source_fetch_failed";
+    pass = {
+      ...pass,
+      result: keepPass ? pass.result : supporting.result,
+      verificationSourceUrl: supporting.verificationSourceUrl ?? pass.verificationSourceUrl,
+      observation: keepPass ? pass.observation : supporting.observation || pass.observation,
+      sourceUrlResult: pass.sourceUrlResult ?? supporting.sourceUrlResult,
+      sourceUrlObservation: pass.sourceUrlObservation ?? supporting.sourceUrlObservation,
+      closureSourceUrl: pass.closureSourceUrl ?? supporting.closureSourceUrl,
+    };
   }
 
   const outcome =
@@ -500,21 +479,15 @@ function stampRow(row, verifiedDay) {
  */
 export function applyVerification(packs, checks, verifiedDay) {
   const outcomeById = new Map(checks.map((c) => [c.id, c.outcome]));
-  const checkById = new Map(checks.map((c) => [c.id, c]));
   const next = new Map();
   for (const [file, pack] of packs) {
     next.set(
       file,
       pack
         .filter((row) => outcomeById.get(row.id) !== "closed")
-        .map((row) => {
-          const check = checkById.get(row.id);
-          return check &&
-            check.outcome === "confirmed" &&
-            isStampableVerificationResult(check.result)
-            ? stampRow(row, verifiedDay)
-            : row;
-        }),
+        .map((row) =>
+          outcomeById.get(row.id) === "confirmed" ? stampRow(row, verifiedDay) : row,
+        ),
     );
   }
   return next;

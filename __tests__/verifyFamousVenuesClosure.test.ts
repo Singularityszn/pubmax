@@ -77,6 +77,20 @@ describe("verify:famous-venues closure evidence", () => {
     expect(check.closureSourceUrl).toBe(LISTING);
   }, 20_000);
 
+  it("leaves a venue confirmed only by a listing unverified, so its stamp never moves", async () => {
+    servePages({
+      [`${OPERATOR}/`]: { status: 503, body: "" },
+      [`${OPERATOR}/menu`]: { status: 503, body: "" },
+      [LISTING]: { status: 200, body: "Kwantexample Mayfair cocktail bar" },
+    });
+
+    const check = await verifyRow(row, new Map());
+
+    expect(check.outcome).toBe("unverified");
+    expect(check.result).toBe("alternate_source_confirmed");
+    expect(check.verificationSourceUrl).toBe(LISTING);
+  }, 20_000);
+
   it("does not drop a venue when its operator page names it beside a closed sister site", async () => {
     const dalston = {
       id: "bar-sheetsexample-dalston",
@@ -134,6 +148,33 @@ describe("verify:famous-venues closure evidence", () => {
 
     expect(check.outcome).toBe("unverified");
     expect(check.result).toBe("closure_text_blocks_confirmation");
+  }, 20_000);
+
+  it("keeps the closure hold as the reported result when a listing still confirms the venue", async () => {
+    const savoy = {
+      id: "bar-american-barexample-savoy",
+      name: "American Barexample at The Savoy",
+      address: "Strand, London WC2R 0EZ",
+      borough: "Westminster",
+      area: "Westminster",
+      sourceUrl: "https://www.savoyexample.com/american-barexample",
+      anchor: { sourceUrl: "https://www.savoyexample.com/american-barexample" },
+      fameGates: [{ sourceUrl: LISTING }],
+    };
+    const asked = servePages({
+      "https://www.savoyexample.com/american-barexample": {
+        status: 200,
+        body: "The American Barexample has permanently closed.",
+      },
+      [LISTING]: { status: 200, body: "American Barexample at The Savoy, Strand cocktail bar" },
+    });
+
+    const check = await verifyRow(savoy, new Map());
+
+    expect(asked).toContain(LISTING);
+    expect(check.outcome).toBe("unverified");
+    expect(check.result).toBe("closure_text_blocks_confirmation");
+    expect(check.closureSourceUrl).toBe("https://www.savoyexample.com/american-barexample");
   }, 20_000);
 
   it.each([
