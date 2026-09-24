@@ -76,6 +76,7 @@ export const REGENERATED_LANES = [
       /^scripts\/build_uk_pub_search_index\.mjs$/,
       /^scripts\/lib\/ukBaseGrid\.mjs$/,
       /^data\/osm\/uk\/.+/,
+      /^public\/data\/venues_slim\.json$/,
     ],
   },
   {

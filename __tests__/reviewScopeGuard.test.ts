@@ -118,7 +118,7 @@ describe("review scope guard", () => {
 
   it("classifies generated venue indexes and build outputs without blocking curated data", () => {
     const generated = [
-      "public/data/venues_slim.json",
+      "public/data/venues_slim.manifest.json",
       "public/data/venues_slim.core.json",
       "public/data/cities/bath/venues_slim.manifest.json",
       "public/data/uk_base/manifest.json",
@@ -182,7 +182,7 @@ describe("review scope guard", () => {
     expect(report.regeneratedLanes).toEqual([]);
   });
 
-  it("permits venues_slim shards when the diff carries a famous venue seed they are cut from", () => {
+  it("permits venues_slim shards and the uk_base links cut from them when the diff carries a famous venue seed", () => {
     const report = summarizeReviewScope([
       "data/famous_venues/bars.json",
       "public/data/venues_slim.json",
@@ -190,7 +190,16 @@ describe("review scope guard", () => {
       "public/data/uk_base/manifest.json",
     ]);
 
-    expect(report.regeneratedLanes).toEqual(["venues_slim"]);
+    expect(report.ok).toBe(true);
+    expect(report.regeneratedLanes).toEqual(["uk_base", "venues_slim"]);
+  });
+
+  it("keeps uk_base forbidden when a famous venue seed changes without the slim index it feeds", () => {
+    const report = summarizeReviewScope([
+      "data/famous_venues/bars.json",
+      "public/data/uk_base/manifest.json",
+    ]);
+
     expect(report.forbidden).toEqual([
       { category: "generated", path: "public/data/uk_base/manifest.json" },
     ]);
