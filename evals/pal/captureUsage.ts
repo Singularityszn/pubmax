@@ -1,6 +1,6 @@
 import { isAskToolName } from "@/lib/ask/types";
 
-import { offlineFetch } from "./offlineFetch";
+import { offlineFetch, requestUrl } from "./offlineFetch";
 import type { PalEvalUsage } from "./types";
 
 export type ModelUsage = Omit<PalEvalUsage, "latencyMs">;
@@ -9,11 +9,6 @@ export type UsageCapture = {
   fetchImpl: typeof fetch;
   take(): ModelUsage;
 };
-
-function requestUrl(input: Parameters<typeof fetch>[0]): string {
-  if (typeof input === "string") return input;
-  return input instanceof URL ? input.href : input.url;
-}
 
 function emptyUsage(): ModelUsage {
   return {

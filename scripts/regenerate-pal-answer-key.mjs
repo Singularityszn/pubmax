@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Maintainer tool: rebuild the generated expectations in answer-key.json from
-// the current keyless, offline Ask path. Hand-authored keys (answerIncludes,
+// the current keyless, offline Ask path at the key's pinned `now`. Hand-authored keys (answerIncludes,
 // anyTools, priceTolerance) are kept; an entry graded by anyTools gets no
 // expectedTools.
 import { readFileSync, writeFileSync } from "node:fs";
@@ -17,7 +17,7 @@ const GENERATED_KEYS = [
 ];
 
 const { cases } = JSON.parse(readFileSync("evals/pal/cases.public.json", "utf8"));
-const previous = JSON.parse(readFileSync("evals/pal/answer-key.json", "utf8")).cases;
+const { now, cases: previous } = JSON.parse(readFileSync("evals/pal/answer-key.json", "utf8"));
 const answerKey = {};
 
 for (const c of cases) {
@@ -26,6 +26,7 @@ for (const c of cases) {
     cityId: c.cityId ?? "london",
     skipModel: true,
     turns: c.turns,
+    now: Date.parse(now),
     fetchImpl: offlineFetch,
   });
   const handAuthored = Object.fromEntries(
@@ -46,5 +47,5 @@ for (const c of cases) {
   };
 }
 
-writeFileSync("evals/pal/answer-key.json", `${JSON.stringify({ cases: answerKey }, null, 2)}\n`);
+writeFileSync("evals/pal/answer-key.json", `${JSON.stringify({ now, cases: answerKey }, null, 2)}\n`);
 console.log(`Regenerated ${Object.keys(answerKey).length} answer-key entries.`);

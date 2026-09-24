@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { isLimitedMock } = vi.hoisted(() => ({
   isLimitedMock: vi.fn(async () => false),
@@ -21,39 +21,22 @@ vi.mock("@/lib/pintDrops", async () => {
   return { ...actual, isLimited: isLimitedMock };
 });
 
-vi.mock("@/lib/citymcp/client", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/citymcp/client")>(
-    "@/lib/citymcp/client",
-  );
-  return {
-    ...actual,
-    fetchCityStatus: vi.fn(async () => {
-      throw new actual.CityMcpError("down", "network");
-    }),
-    fetchJourney: vi.fn(async () => ({ journeys: [] })),
-    fetchThingsToDo: vi.fn(async () => ({
-      window: "tonight" as const,
-      opportunities: [],
-    })),
-  };
-});
-
-vi.mock("@/lib/citymcp/area", () => ({
-  fetchCityArea: vi.fn(async () => {
-    throw new Error("down");
-  }),
-}));
-
+import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { POST } from "@/app/api/ask/route";
 import { runAsk } from "@/lib/ask/runAsk";
 import { PAL_WEB_GROUNDING } from "@/lib/palChat";
 
 beforeEach(() => {
+  vi.stubGlobal("fetch", offlineFetch);
   isLimitedMock.mockReset().mockResolvedValue(false);
   modelLoopMock.mockReset().mockResolvedValue(null);
   delete process.env.OPENROUTER_API_KEY;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 function post(body: unknown, ip: string): Promise<Response> {

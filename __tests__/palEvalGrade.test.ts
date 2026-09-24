@@ -103,7 +103,7 @@ describe("Pal eval usage capture", () => {
 
     await expect(
       capture.fetchImpl("https://citymcp.com/london/mcp", { method: "POST" }),
-    ).rejects.toThrow(/offline/);
+    ).rejects.toThrow(/offline/i);
     expect(globalFetch).not.toHaveBeenCalled();
     expect(capture.take().modelCalls).toBe(0);
   });

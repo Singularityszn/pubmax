@@ -22,7 +22,7 @@ function transcript(query: string, body: { answer: string; toolsUsed: string[] }
 
 export async function runPalEvalSuite(options: RunPalEvalOptions): Promise<PalEvalScoreboard> {
   const root = options.root ?? process.cwd();
-  const { cases, answerKey } = loadPalEvalSuite(root);
+  const { cases, answerKey, now } = loadPalEvalSuite(root);
   const index = loadPalEvalVenueIndex(root);
   const live = options.mode === "live";
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
@@ -44,6 +44,7 @@ export async function runPalEvalSuite(options: RunPalEvalOptions): Promise<PalEv
       query: caseDef.query,
       cityId: caseDef.cityId ?? "london",
       turns: caseDef.turns,
+      now,
       skipModel: !live,
       fetchImpl: usageCapture ? usageCapture.fetchImpl : offlineFetch,
       traceRoute: live ? "eval/pal-live" : "eval/pal-deterministic",

@@ -8,6 +8,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("Pal eval suite (deterministic)", () => {
@@ -26,5 +27,14 @@ describe("Pal eval suite (deterministic)", () => {
     expect(scoreboard.totals.inventedVenues).toBe(0);
     expect(scoreboard.totals.accuracy).toBe(1);
     expect(scoreboard.totals.modelCalls).toBe(0);
+  });
+
+  it("grades at the answer key's pinned instant whatever the wall clock says", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-07-21T18:00:00.000Z"));
+
+    const scoreboard = await runPalEvalSuite({ mode: "deterministic" });
+    const failures = scoreboard.results.filter((result) => !result.pass);
+    expect(failures, failures.map((f) => f.id).join(", ")).toEqual([]);
   });
 });

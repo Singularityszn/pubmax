@@ -1,4 +1,5 @@
 {
+  "now": "2026-09-24T19:00:00.000Z",
   "cases": {
     "cheapest-camden": {
       "expectedTools": [
@@ -168,8 +169,7 @@
       "expectedTools": [
         "journey"
       ],
-      "expectEmpty": true,
-      "expectDegraded": true
+      "expectEmpty": true
     },
     "football-whats-on": {
       "expectedTools": [
