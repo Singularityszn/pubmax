@@ -13,8 +13,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: performance-${{ github.workflow }}-${{ github.ref }}
+  # One self-hosted Mac shares a single _work checkout; parallel jobs stomp
+  # the tree (validate-data temp collisions, build:slim vs Playwright guard).
+  group: pubmax-mac-${{ github.repository }}
   cancel-in-progress: true
+
 
 jobs:
   # Speed is the product's claim, so a commit on main that slows a budgeted
@@ -192,6 +195,7 @@ jobs:
   # keep the pair honest.
   ux-lane-performance:
     name: UX lane performance
+    needs: [performance-budget]
     runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 15
     steps:

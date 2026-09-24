@@ -25,6 +25,7 @@ concurrency:
   group: whats-on-events-london
   cancel-in-progress: false
 
+
 jobs:
   refresh:
     runs-on: [self-hosted, pubmax-mac]

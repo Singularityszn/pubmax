@@ -27,6 +27,24 @@ PostgreSQL clusters for RLS proofs use the serial harness in
 `scripts/rls/postgresHost.mjs` (unique ports/data dirs per job, SysV slot
 budget on macOS). Do not use GitHub `services:` Postgres on this runner.
 
+
+### Serial execution on one Mac
+
+GitHub may schedule several jobs at once; this runner uses one shared
+`_work/{repo}/{repo}` checkout. Parallel jobs caused `validate-data` temp-dir
+collisions, flaky `venueRoute` reads, and Playwright's
+`run-with-restored-next-env` guard (`PUBMAX_TRACKED_OUTPUTS=public/data` for
+`NEXT_PUBLIC_SW_VERSION=local` pack stamps). Workflows therefore share:
+
+```yaml
+concurrency:
+  group: pubmax-mac-${{ github.repository }}
+  cancel-in-progress: true
+```
+
+`ci.yml` also chains jobs (`production-build` after lint + freshness, unit
+shards `max-parallel: 1`, coverage after unit tests).
+
 ### Register or re-register the runner
 
 From [GitHub → repo → Settings → Actions → Runners](https://github.com/Singularityszn/pubmax/settings/actions/runners),

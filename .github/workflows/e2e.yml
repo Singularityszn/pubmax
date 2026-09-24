@@ -12,8 +12,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  # One self-hosted Mac shares a single _work checkout; parallel jobs stomp
+  # the tree (validate-data temp collisions, build:slim vs Playwright guard).
+  group: pubmax-mac-${{ github.repository }}
   cancel-in-progress: true
+
 
 jobs:
   law-pins:
@@ -40,6 +43,7 @@ jobs:
 
       - name: Run law-pinning journeys
         env:
+          PUBMAX_TRACKED_OUTPUTS: public/data
           NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_E2E_KEYLESS: "1"
           PW_SKIP_KEYLESS_WEBSERVER: "1"
@@ -104,6 +108,7 @@ jobs:
 
       - name: Run full browser shard
         env:
+          PUBMAX_TRACKED_OUTPUTS: public/data
           NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_E2E_KEYLESS: "1"
           PLAYWRIGHT_JSON_OUTPUT_NAME: "playwright-default-${{ matrix.shard }}.json"

@@ -15,8 +15,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: rls-session-${{ github.workflow }}-${{ github.ref }}
+  # One self-hosted Mac shares a single _work checkout; parallel jobs stomp
+  # the tree (validate-data temp collisions, build:slim vs Playwright guard).
+  group: pubmax-mac-${{ github.repository }}
   cancel-in-progress: true
+
 
 jobs:
   rls-session:
