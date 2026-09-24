@@ -24,7 +24,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "../..");
 
 /** Every suite that needs a cluster runs here, because this job installs one. */
-const RLS_SUITES = POSTGRES_BACKED_SUITES;
+const SERIAL_SHM_SUITE = "__tests__/postgresShmHarness.test.ts";
+const RLS_SUITES = POSTGRES_BACKED_SUITES.filter((suite) => suite !== SERIAL_SHM_SUITE);
 
 const missing = missingPostgresReason();
 const skipAdmitted = process.env.PUBMAX_RLS_ALLOW_SKIP === "1";
@@ -72,20 +73,28 @@ if (missing) {
 }
 
 const vitestBin = join(REPO_ROOT, "node_modules/.bin/vitest");
-const result = spawnSync(
-  vitestBin,
-  [
-    "run",
-    ...RLS_SUITES,
-    // Verbose + no silent: each test name and any skip reason stays in the log.
-    "--reporter=verbose",
-    "--silent=false",
-  ],
-  {
-    cwd: REPO_ROOT,
-    stdio: "inherit",
-    env: process.env,
-  },
-);
+function runSuites(suites, extraEnv = {}) {
+  return spawnSync(
+    vitestBin,
+    [
+      "run",
+      ...suites,
+      // Verbose + no silent: each test name and any skip reason stays in the log.
+      "--reporter=verbose",
+      "--silent=false",
+    ],
+    {
+      cwd: REPO_ROOT,
+      stdio: "inherit",
+      env: { ...process.env, ...extraEnv },
+    },
+  );
+}
 
-process.exit(result.status ?? 1);
+const parallel = runSuites(RLS_SUITES);
+if (parallel.status !== 0) process.exit(parallel.status ?? 1);
+
+const serialShm = runSuites([SERIAL_SHM_SUITE], {
+  PUBMAX_SERIAL_SHM_HARNESS: "1",
+});
+process.exit(serialShm.status ?? 1);

@@ -13,6 +13,7 @@ import {
 } from "../scripts/rls/postgresShm.mjs";
 
 const skip = postgresSkipReason();
+const serialShmHarness = process.env.PUBMAX_SERIAL_SHM_HARNESS === "1";
 
 describe("postgres SysV harness hygiene", () => {
   it("recognises harness data directories under the OS temp dir", () => {
@@ -39,7 +40,7 @@ describe("postgres SysV harness hygiene", () => {
     },
   );
 
-  (skip ? it.skip : it)(
+  (skip || !serialShmHarness ? it.skip : it)(
     "does not raise the SysV segment count across one boot and stop",
     async () => {
       const before = countSysvShmSegments();
@@ -51,7 +52,7 @@ describe("postgres SysV harness hygiene", () => {
     120_000,
   );
 
-  (skip ? it.skip : it)(
+  (skip || !serialShmHarness ? it.skip : it)(
     "reaps a SIGKILL mid-run orphan via sweep",
     async () => {
       const before = countSysvShmSegments();
@@ -74,7 +75,7 @@ describe("postgres SysV harness hygiene", () => {
     180_000,
   );
 
-  (skip ? it.skip : it)(
+  (skip || !serialShmHarness ? it.skip : it)(
     "three boot-stop cycles do not raise the SysV segment count",
     async () => {
       const before = countSysvShmSegments();

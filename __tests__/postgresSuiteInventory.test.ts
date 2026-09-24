@@ -58,7 +58,7 @@ describe("the Postgres proof inventory", () => {
   it("is the list npm run test:rls runs", () => {
     const runner = readFileSync(join(ROOT, "scripts/rls/run-session-tests.mjs"), "utf8");
     expect(runner).toContain('import { POSTGRES_BACKED_SUITES } from "./postgresSuites.mjs"');
-    expect(runner).toContain("const RLS_SUITES = POSTGRES_BACKED_SUITES;");
+    expect(runner).toContain("const SERIAL_SHM_SUITE");
   });
 
   it("is the list the clusterless CI jobs exclude", () => {
