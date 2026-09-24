@@ -223,7 +223,7 @@ describe("verify:famous-venues closure evidence", () => {
     servePages({
       "https://www.hustlegroupexample.com/": {
         status: 200,
-        body: "Hustle Group. Our other bars across the river.",
+        body: "Hustle Group. Our other bars across Wandsworth, SW8.",
       },
     });
 
@@ -276,20 +276,21 @@ describe("verify:famous-venues closure evidence", () => {
     expect(check.result).toBe("alternate_source_confirmed");
   }, 20_000);
 
-  it("never stamps a venue whose listing url redirects to a host the deny list does not name", async () => {
-    const renamed = "https://www.fiftyexample.com/discovery/kwantexample";
+  it("never stamps a venue whose operator url redirects to a the50.com listing that names it", async () => {
+    const the50 = "https://www.the50.com/discovery/kwantexample";
     vi.stubGlobal("fetch", async (input: string | URL) => {
       const url = String(input);
       if (url.endsWith("/robots.txt")) return new Response("", { status: 404 });
+      const landed = url === `${OPERATOR}/` ? the50 : url;
       const response = new Response(
-        url === LISTING ? "<html><body>Kwantexample Mayfair cocktail bar</body></html>" : "",
-        { status: url === LISTING ? 200 : 404, headers: { "content-type": "text/html" } },
+        landed === the50 ? "<html><body>Kwantexample Mayfair cocktail bar</body></html>" : "",
+        { status: landed === the50 ? 200 : 404, headers: { "content-type": "text/html" } },
       );
-      Object.defineProperty(response, "url", { value: url === LISTING ? renamed : url });
+      Object.defineProperty(response, "url", { value: landed });
       return response;
     });
 
-    const check = await verifyRow({ ...row, sourceUrl: LISTING, anchor: undefined, fameGates: [] }, new Map());
+    const check = await verifyRow({ ...row, anchor: undefined, fameGates: [] }, new Map());
 
     expect(check.outcome).toBe("unverified");
     expect(check.result).toBe("alternate_source_confirmed");
