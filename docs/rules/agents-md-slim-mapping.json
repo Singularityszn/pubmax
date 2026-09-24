@@ -1,0 +1,1021 @@
+[
+  {
+    "before": 180209,
+    "after": 40964,
+    "mapping": [
+      {
+        "section": "Identity, accounts and sessions",
+        "title": "The password ask is separate from password creation",
+        "doc": "../docs/rules/lib-identity-accounts-and-sessions.md",
+        "anchor": "the-password-ask-is-separate-from-password-creation"
+      },
+      {
+        "section": "Identity, accounts and sessions",
+        "title": "The signed-in account is the only identity authority on a device",
+        "doc": "../docs/rules/lib-identity-accounts-and-sessions.md",
+        "anchor": "the-signed-in-account-is-the-only-identity-authority-on-a-device"
+      },
+      {
+        "section": "Identity, accounts and sessions",
+        "title": "A device may hold several accounts, and exactly one of them owns it",
+        "doc": "../docs/rules/lib-identity-accounts-and-sessions.md",
+        "anchor": "a-device-may-hold-several-accounts-and-exactly-one-of-them-owns-it"
+      },
+      {
+        "section": "Identity, accounts and sessions",
+        "title": "Everybody who joins is taken to be an adult, on ONE recorded tap",
+        "doc": "../docs/rules/lib-identity-accounts-and-sessions.md",
+        "anchor": "everybody-who-joins-is-taken-to-be-an-adult-on-one-recorded-tap"
+      },
+      {
+        "section": "Identity, accounts and sessions",
+        "title": "CONTRIBUTING ASKS TWO QUESTIONS, AND THE AGE ONE IS THE 10 AUG RULE'S",
+        "doc": "../docs/rules/lib-identity-accounts-and-sessions.md",
+        "anchor": "contributing-asks-two-questions-and-the-age-one-is-the-10-aug-rule-s"
+      },
+      {
+        "section": "Identity, accounts and sessions",
+        "title": "Clerk is optional and two-key gated",
+        "doc": "../docs/rules/lib-identity-accounts-and-sessions.md",
+        "anchor": "clerk-is-optional-and-two-key-gated"
+      },
+      {
+        "section": "Identity, accounts and sessions",
+        "title": "A linked social is the owner's own public handle, and OAuth is the narrower question",
+        "doc": "../docs/rules/lib-identity-accounts-and-sessions.md",
+        "anchor": "a-linked-social-is-the-owner-s-own-public-handle-and-oauth-is-the-narrower-quest"
+      },
+      {
+        "section": "Identity, accounts and sessions",
+        "title": "Founding membership buys BELONGING, and never a capability",
+        "doc": "../docs/rules/lib-identity-accounts-and-sessions.md",
+        "anchor": "founding-membership-buys-belonging-and-never-a-capability"
+      },
+      {
+        "section": "Identity, accounts and sessions",
+        "title": "A REFERRAL is a MARK OF HONOUR, and never a capability",
+        "doc": "../docs/rules/lib-identity-accounts-and-sessions.md",
+        "anchor": "a-referral-is-a-mark-of-honour-and-never-a-capability"
+      },
+      {
+        "section": "Identity, accounts and sessions",
+        "title": "A starter pack is a bundle of people who are ALREADY here",
+        "doc": "../docs/rules/lib-identity-accounts-and-sessions.md",
+        "anchor": "a-starter-pack-is-a-bundle-of-people-who-are-already-here"
+      },
+      {
+        "section": "Identity, accounts and sessions",
+        "title": "The people directory is DISCOVERY, and a starter pack is not",
+        "doc": "../docs/rules/lib-identity-accounts-and-sessions.md",
+        "anchor": "the-people-directory-is-discovery-and-a-starter-pack-is-not"
+      },
+      {
+        "section": "Identity, accounts and sessions",
+        "title": "An add link needs an ACCOUNT, and the link survives making one",
+        "doc": "../docs/rules/lib-identity-accounts-and-sessions.md",
+        "anchor": "an-add-link-needs-an-account-and-the-link-survives-making-one"
+      },
+      {
+        "section": "Identity, accounts and sessions",
+        "title": "AN ACCOUNT IS PUBLIC OR PRIVATE, AND THAT IS A VISIBLE CHOICE RATHER THAN A PROPERTY OF A SURFACE",
+        "doc": "../docs/rules/lib-identity-accounts-and-sessions.md",
+        "anchor": "an-account-is-public-or-private-and-that-is-a-visible-choice-rather-than-a-prope"
+      },
+      {
+        "section": "Images, uploads and photo walls",
+        "title": "A profile owns TWO images and ONE pipeline, and its card fields are public by choice",
+        "doc": "../docs/rules/lib-images-uploads-and-photo-walls.md",
+        "anchor": "a-profile-owns-two-images-and-one-pipeline-and-its-card-fields-are-public-by-cho"
+      },
+      {
+        "section": "Images, uploads and photo walls",
+        "title": "A backdrop is FIVE photos on one rotation, and cover #1 is still the cover",
+        "doc": "../docs/rules/lib-images-uploads-and-photo-walls.md",
+        "anchor": "a-backdrop-is-five-photos-on-one-rotation-and-cover-1-is-still-the-cover"
+      },
+      {
+        "section": "Images, uploads and photo walls",
+        "title": "Storage takes a Blob, and a write proves itself",
+        "doc": "../docs/rules/lib-images-uploads-and-photo-walls.md",
+        "anchor": "storage-takes-a-blob-and-a-write-proves-itself"
+      },
+      {
+        "section": "Images, uploads and photo walls",
+        "title": "A NEW PRICE COMES WITH THE BILL, AND THE PINT PHOTO IS THE FUN ONE",
+        "doc": "../docs/rules/lib-images-uploads-and-photo-walls.md",
+        "anchor": "a-new-price-comes-with-the-bill-and-the-pint-photo-is-the-fun-one"
+      },
+      {
+        "section": "Images, uploads and photo walls",
+        "title": "A PHOTO ON THE WIRE WEIGHS AT MOST 4 MB, AND THE COMPOSER FITS IT THERE",
+        "doc": "../docs/rules/lib-images-uploads-and-photo-walls.md",
+        "anchor": "a-photo-on-the-wire-weighs-at-most-4-mb-and-the-composer-fits-it-there"
+      },
+      {
+        "section": "Images, uploads and photo walls",
+        "title": "Choosing a profile photo is TWO BEATS, and the first one is a PICKER, never a camera",
+        "doc": "../docs/rules/lib-images-uploads-and-photo-walls.md",
+        "anchor": "choosing-a-profile-photo-is-two-beats-and-the-first-one-is-a-picker-never-a-came"
+      },
+      {
+        "section": "Images, uploads and photo walls",
+        "title": "The safety scan on an owned image is ADVISORY, and the moderator lane is the net",
+        "doc": "../docs/rules/lib-images-uploads-and-photo-walls.md",
+        "anchor": "the-safety-scan-on-an-owned-image-is-advisory-and-the-moderator-lane-is-the-net"
+      },
+      {
+        "section": "Images, uploads and photo walls",
+        "title": "A pub photo wall is a photo wall, and a crosspost is a promise",
+        "doc": "../docs/rules/lib-images-uploads-and-photo-walls.md",
+        "anchor": "a-pub-photo-wall-is-a-photo-wall-and-a-crosspost-is-a-promise"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "What a community price is allowed to move is a policy, not an implementation detail",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "what-a-community-price-is-allowed-to-move-is-a-policy-not-an-implementation-deta"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "A PRICE THE OPERATOR LEFT BEHIND IS HISTORY, NEVER TODAY'S PRICE",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "a-price-the-operator-left-behind-is-history-never-today-s-price"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "A PRICE WEARS ITS BAND AND NO OTHER COLOUR: red expensive, yellow average, green cheap",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "a-price-wears-its-band-and-no-other-colour-red-expensive-yellow-average-green-ch"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "A price says WHAT IT IS WORTH, and a modelled figure may never pass as a published one",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "a-price-says-what-it-is-worth-and-a-modelled-figure-may-never-pass-as-a-publishe"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "AN ESTIMATE IS SUPPLY, NEVER A CITY FLAG, AND EVERY BASIS THIS TREE HOLDS IS LONDON",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "an-estimate-is-supply-never-a-city-flag-and-every-basis-this-tree-holds-is-londo"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "A CONFIRMATION is minted, and `confirmed` now has a producer",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "a-confirmation-is-minted-and-confirmed-now-has-a-producer"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "THE TRUST STORY READS ONE WAY, AND `lib/pintTrust.ts` IS THE ONE READING",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "the-trust-story-reads-one-way-and-lib-pinttrust-ts-is-the-one-reading"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "A LOGGED-ONCE PINT OFFERS A SECOND DRINKER ONE DOOR, AND THE WRITE PATH SAYS WHAT THEIR REPORT DID",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "a-logged-once-pint-offers-a-second-drinker-one-door-and-the-write-path-says-what"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "A PRICE IS ABOUT A MEASURE, AND A HALF IS HELD OUT RATHER THAN SCALED IN",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "a-price-is-about-a-measure-and-a-half-is-held-out-rather-than-scaled-in"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "A CONFIRMATION VOCABULARY IS OWNED, AND THE ANONYMOUS ONE IS RETIRED",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "a-confirmation-vocabulary-is-owned-and-the-anonymous-one-is-retired"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "ONE DRINKER'S REPORT IS A PRICE, and it shows in its own lane rather than moving the map",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "one-drinker-s-report-is-a-price-and-it-shows-in-its-own-lane-rather-than-moving-"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "A price evidence mission is one useful Community Price task, never a reservation",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "a-price-evidence-mission-is-one-useful-community-price-task-never-a-reservation"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "No-alcohol prices share trust policy, never pint authority",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "no-alcohol-prices-share-trust-policy-never-pint-authority"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "A drink LANE is what the map is under, and one module owns the whole of it",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "a-drink-lane-is-what-the-map-is-under-and-one-module-owns-the-whole-of-it"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "A DEMO drink is opt-in, and the menu footnote is about attribution alone",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "a-demo-drink-is-opt-in-and-the-menu-footnote-is-about-attribution-alone"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "A published Pint Index month is written once",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "a-published-pint-index-month-is-written-once"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "A TENNER'S UNITS ARE SOMEBODY ELSE'S MEASUREMENT, AND THEY MAY NEVER BECOME A PRICE",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "a-tenner-s-units-are-somebody-else-s-measurement-and-they-may-never-become-a-pri"
+      },
+      {
+        "section": "Prices, trust and drinks",
+        "title": "A national average is somebody else's measurement, and it may never pass as one of ours",
+        "doc": "../docs/rules/lib-prices-trust-and-drinks.md",
+        "anchor": "a-national-average-is-somebody-else-s-measurement-and-it-may-never-pass-as-one-o"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "An open plan is a Social Crew strangers may request to join, never a free-text meetup",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "an-open-plan-is-a-social-crew-strangers-may-request-to-join-never-a-free-text-me"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "WHAT WE KNOW ABOUT A PUB IS SAID IN STATES, AND A BOOLEAN CANNOT HOLD ONE",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "what-we-know-about-a-pub-is-said-in-states-and-a-boolean-cannot-hold-one"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "A deal earns attention by being near, real and about to close, never by a saving it cannot prove",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "a-deal-earns-attention-by-being-near-real-and-about-to-close-never-by-a-saving-i"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "A venue KIND is a closed list with one owner, and a non-pub kind is present-but-neutral",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "a-venue-kind-is-a-closed-list-with-one-owner-and-a-non-pub-kind-is-present-but-n"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "`/near` Desk mode is a second question, never a second map",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "near-desk-mode-is-a-second-question-never-a-second-map"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "THE LANDING PAGES SHOW LONDON, AND EVERY PICTURE IS ONE WE HOLD A LICENCE FOR",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "the-landing-pages-show-london-and-every-picture-is-one-we-hold-a-licence-for"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "A LOCATION PROMPT, A DOOR AND AN EDITORIAL CARD EACH SAY ONLY WHAT THEY CAN KEEP",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "a-location-prompt-a-door-and-an-editorial-card-each-say-only-what-they-can-keep"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "A PICKS SECTION IS FOUR WORDS, AND BOTH SURFACES READ THE SAME FOUR",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "a-picks-section-is-four-words-and-both-surfaces-read-the-same-four"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "A \"Checked\" stamp reports the FRESHEST confirmation, and a stamp about one source comes from that source",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "a-checked-stamp-reports-the-freshest-confirmation-and-a-stamp-about-one-source-c"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "An Out listing is a sourced night, never a price lane",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "an-out-listing-is-a-sourced-night-never-a-price-lane"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "A PLAN MAY BE ONE PUB, AND `lib/planStopCount.ts` IS THE WHOLE VOCABULARY",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "A Plan is READY when it holds a route, and its Night Context is stamped by the creating RPC",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "a-plan-is-ready-when-it-holds-a-route-and-its-night-context-is-stamped-by-the-cr"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "A CAPABILITY IS THE WHOLE QUESTION A PLAN READ ASKS, AND THERE IS NO SECOND ONE",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "a-capability-is-the-whole-question-a-plan-read-asks-and-there-is-no-second-one"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "A ROLLOUT FLAG NO DEPLOYMENT SETS IS DARK CODE, AND THE REGISTRY IS NOW ONE ROW",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "a-rollout-flag-no-deployment-sets-is-dark-code-and-the-registry-is-now-one-row"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "A Plan seat belongs to ONE account, and it is bound in ONE write",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "a-plan-seat-belongs-to-one-account-and-it-is-bound-in-one-write"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "A Culture Crawl waypoint is a thing to see, never a Stop",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "a-culture-crawl-waypoint-is-a-thing-to-see-never-a-stop"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "THE ROUTE EDITOR OPENS ON THE STORED ROUTE, AND A DRAFT IS LIVE ONLY OVER THE REVISION THE STORE HOLDS",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "the-route-editor-opens-on-the-stored-route-and-a-draft-is-live-only-over-the-rev"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "THE UK BASE LAYER IS PUBS AND BARS, AND IT SAYS WHICH",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "the-uk-base-layer-is-pubs-and-bars-and-it-says-which"
+      },
+      {
+        "section": "Venues, areas, listings and nights",
+        "title": "A Night Area outside London is DERIVED, and it may claim only what OSM states",
+        "doc": "../docs/rules/lib-venues-areas-listings-and-nights.md",
+        "anchor": "a-night-area-outside-london-is-derived-and-it-may-claim-only-what-osm-states"
+      },
+      {
+        "section": "Saves, nudges, rounds, reports and Pub Pal",
+        "title": "A Visit Report is an account of one visit, never a venue rating",
+        "doc": "../docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md",
+        "anchor": "a-visit-report-is-an-account-of-one-visit-never-a-venue-rating"
+      },
+      {
+        "section": "Saves, nudges, rounds, reports and Pub Pal",
+        "title": "A crowd occupancy report is a NOW reading about seats, never a remembered night",
+        "doc": "../docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md",
+        "anchor": "a-crowd-occupancy-report-is-a-now-reading-about-seats-never-a-remembered-night"
+      },
+      {
+        "section": "Saves, nudges, rounds, reports and Pub Pal",
+        "title": "A Wanted is a private place you mean to try, never a scrape of Instagram Saves",
+        "doc": "../docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md",
+        "anchor": "a-wanted-is-a-private-place-you-mean-to-try-never-a-scrape-of-instagram-saves"
+      },
+      {
+        "section": "Saves, nudges, rounds, reports and Pub Pal",
+        "title": "Step Out is one owed weekly push, never a streak or drink-more nudge",
+        "doc": "../docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md",
+        "anchor": "step-out-is-one-owed-weekly-push-never-a-streak-or-drink-more-nudge"
+      },
+      {
+        "section": "Saves, nudges, rounds, reports and Pub Pal",
+        "title": "A cheap-pint ping is one weekday 5pm ask, never growth mail",
+        "doc": "../docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md",
+        "anchor": "a-cheap-pint-ping-is-one-weekday-5pm-ask-never-growth-mail"
+      },
+      {
+        "section": "Saves, nudges, rounds, reports and Pub Pal",
+        "title": "Community venue signals are observations, never venue facts",
+        "doc": "../docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md",
+        "anchor": "community-venue-signals-are-observations-never-venue-facts"
+      },
+      {
+        "section": "Saves, nudges, rounds, reports and Pub Pal",
+        "title": "A Round records spend, never debt",
+        "doc": "../docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md",
+        "anchor": "a-round-records-spend-never-debt"
+      },
+      {
+        "section": "Saves, nudges, rounds, reports and Pub Pal",
+        "title": "Ask tool selection is regex when keyless and a TypeSafe Choice when keyed",
+        "doc": "../docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md",
+        "anchor": "ask-tool-selection-is-regex-when-keyless-and-a-typesafe-choice-when-keyed"
+      },
+      {
+        "section": "Saves, nudges, rounds, reports and Pub Pal",
+        "title": "Concierge intent is TypeSafe when keyed, regex when not",
+        "doc": "../docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md",
+        "anchor": "concierge-intent-is-typesafe-when-keyed-regex-when-not"
+      },
+      {
+        "section": "Saves, nudges, rounds, reports and Pub Pal",
+        "title": "Pub Pal answers in writing with no keys, and voice is one optional grant it must be able to SAY it lacks",
+        "doc": "../docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md",
+        "anchor": "pub-pal-answers-in-writing-with-no-keys-and-voice-is-one-optional-grant-it-must-"
+      },
+      {
+        "section": "Observability",
+        "title": "Model-call tracing is one inert server leaf",
+        "doc": "../docs/rules/lib-observability.md",
+        "anchor": "model-call-tracing-is-one-inert-server-leaf"
+      },
+      {
+        "section": "Shared seams: stores, http, freshness, brand",
+        "title": "THE NIGHTLY ENRICHMENT CRON IS SAFE TO FAIL AND SAFE TO RETRY, AND ITS CURSOR IS AN ADVANCEMENT",
+        "doc": "../docs/rules/lib-shared-seams-stores-http-freshness-brand.md",
+        "anchor": "the-nightly-enrichment-cron-is-safe-to-fail-and-safe-to-retry-and-its-cursor-is-"
+      },
+      {
+        "section": "Shared seams: stores, http, freshness, brand",
+        "title": "A LIVE FEED NOBODY OBSERVED IS NOT A HEALTHY FEED",
+        "doc": "../docs/rules/lib-shared-seams-stores-http-freshness-brand.md",
+        "anchor": "a-live-feed-nobody-observed-is-not-a-healthy-feed"
+      },
+      {
+        "section": "Shared seams: stores, http, freshness, brand",
+        "title": "Context.dev is a FETCH LAYER, NEVER A PERMISSION, and one wrapper owns every call",
+        "doc": "../docs/rules/lib-shared-seams-stores-http-freshness-brand.md",
+        "anchor": "context-dev-is-a-fetch-layer-never-a-permission-and-one-wrapper-owns-every-call"
+      },
+      {
+        "section": "Shared seams: stores, http, freshness, brand",
+        "title": "PUBMAXX is the brand; PUBMAXXING is the app",
+        "doc": "../docs/rules/lib-shared-seams-stores-http-freshness-brand.md",
+        "anchor": "pubmaxx-is-the-brand-pubmaxxing-is-the-app"
+      },
+      {
+        "section": "Shared seams: stores, http, freshness, brand",
+        "title": "The mark is ONE set of numbers, and every icon is a TIER cut from it",
+        "doc": "../docs/rules/lib-shared-seams-stores-http-freshness-brand.md",
+        "anchor": "the-mark-is-one-set-of-numbers-and-every-icon-is-a-tier-cut-from-it"
+      },
+      {
+        "section": "Shared seams: stores, http, freshness, brand",
+        "title": "THE PUBLIC CONTACT ADDRESS IS WRITTEN DOWN ONCE, AND IT MAY NEVER BE A PERSONAL INBOX",
+        "doc": "../docs/rules/lib-shared-seams-stores-http-freshness-brand.md",
+        "anchor": "the-public-contact-address-is-written-down-once-and-it-may-never-be-a-personal-i"
+      },
+      {
+        "section": "Shared seams: stores, http, freshness, brand",
+        "title": "\"Stale\" and \"cannot tell\" are two findings, and an alert may never merge them",
+        "doc": "../docs/rules/lib-shared-seams-stores-http-freshness-brand.md",
+        "anchor": "stale-and-cannot-tell-are-two-findings-and-an-alert-may-never-merge-them"
+      },
+      {
+        "section": "Shared seams: stores, http, freshness, brand",
+        "title": "A LIMITER KEYED ON AN ADDRESS THE CALLER CHOOSES GUARDS NOTHING, AND FOUR ROUTES SPEND MONEY",
+        "doc": "../docs/rules/lib-shared-seams-stores-http-freshness-brand.md",
+        "anchor": "a-limiter-keyed-on-an-address-the-caller-chooses-guards-nothing-and-four-routes-"
+      },
+      {
+        "section": "Shared seams: stores, http, freshness, brand",
+        "title": "A response you decide not to read is a request that never finishes",
+        "doc": "../docs/rules/lib-shared-seams-stores-http-freshness-brand.md",
+        "anchor": "a-response-you-decide-not-to-read-is-a-request-that-never-finishes"
+      },
+      {
+        "section": "Shared seams: stores, http, freshness, brand",
+        "title": "THE DUAL-BACKEND SEAM IS `lib/storeBackend.ts`, IT REFUSES A PRODUCTION FALLBACK, AND THE INVENTORY IS A TEST",
+        "doc": "../docs/rules/lib-shared-seams-stores-http-freshness-brand.md",
+        "anchor": "the-dual-backend-seam-is-lib-storebackend-ts-it-refuses-a-production-fallback-an"
+      },
+      {
+        "section": "Shared seams: stores, http, freshness, brand",
+        "title": "A fact several modules need lives in ONE leaf module, and a server module says so on its first line",
+        "doc": "../docs/rules/lib-shared-seams-stores-http-freshness-brand.md",
+        "anchor": "a-fact-several-modules-need-lives-in-one-leaf-module-and-a-server-module-says-so"
+      },
+      {
+        "section": "Shared seams: stores, http, freshness, brand",
+        "title": "A MESSAGE IS ONE REQUEST, AND THE OTHER SIDE HEARS IT ON A BROADCAST",
+        "doc": "../docs/rules/lib-shared-seams-stores-http-freshness-brand.md",
+        "anchor": "a-message-is-one-request-and-the-other-side-hears-it-on-a-broadcast"
+      }
+    ],
+    "areaPrefix": "lib"
+  },
+  {
+    "before": 65664,
+    "after": 16982,
+    "mapping": [
+      {
+        "section": "Map canvas and pins",
+        "title": "A camera move has an OWNER, and the map a reader is looking at loads first",
+        "doc": "../docs/rules/components-map-canvas-and-pins.md",
+        "anchor": "a-camera-move-has-an-owner-and-the-map-a-reader-is-looking-at-loads-first"
+      },
+      {
+        "section": "Map canvas and pins",
+        "title": "Nothing moves this camera but the reader, and there is ONE compass",
+        "doc": "../docs/rules/components-map-canvas-and-pins.md",
+        "anchor": "nothing-moves-this-camera-but-the-reader-and-there-is-one-compass"
+      },
+      {
+        "section": "Map canvas and pins",
+        "title": "Map density is a contract, not a styling choice",
+        "doc": "../docs/rules/components-map-canvas-and-pins.md",
+        "anchor": "map-density-is-a-contract-not-a-styling-choice"
+      },
+      {
+        "section": "Map canvas and pins",
+        "title": "A god component is decomposed IN PLACE, because the map's own tests read its SOURCE",
+        "doc": "../docs/rules/components-map-canvas-and-pins.md",
+        "anchor": "a-god-component-is-decomposed-in-place-because-the-map-s-own-tests-read-its-sour"
+      },
+      {
+        "section": "Map canvas and pins",
+        "title": "A pin's COLOUR may be a hint; a pin's FIGURE may not",
+        "doc": "../docs/rules/components-map-canvas-and-pins.md",
+        "anchor": "a-pin-s-colour-may-be-a-hint-a-pin-s-figure-may-not"
+      },
+      {
+        "section": "Map canvas and pins",
+        "title": "A pin's fill says the price; its EDGE is what makes it findable, and dark mode needs two tones for that",
+        "doc": "../docs/rules/components-map-canvas-and-pins.md",
+        "anchor": "a-pin-s-fill-says-the-price-its-edge-is-what-makes-it-findable-and-dark-mode-nee"
+      },
+      {
+        "section": "Map canvas and pins",
+        "title": "The live Pint Index arrival must full-load the map",
+        "doc": "../docs/rules/components-map-canvas-and-pins.md",
+        "anchor": "the-live-pint-index-arrival-must-full-load-the-map"
+      },
+      {
+        "section": "Map canvas and pins",
+        "title": "A MAP THAT NEVER MOUNTS IS THE SHELL'S PROBLEM, AND NOTHING ON /map MAY WAIT FOR IT FOR EVER",
+        "doc": "../docs/rules/components-map-canvas-and-pins.md",
+        "anchor": "a-map-that-never-mounts-is-the-shell-s-problem-and-nothing-on-map-may-wait-for-i"
+      },
+      {
+        "section": "Sheets, chrome and navigation",
+        "title": "No surface is a dead end, and the way out is one pattern",
+        "doc": "../docs/rules/components-sheets-chrome-and-navigation.md",
+        "anchor": "no-surface-is-a-dead-end-and-the-way-out-is-one-pattern"
+      },
+      {
+        "section": "Sheets, chrome and navigation",
+        "title": "A MAP CONTROL BESIDE THE VENUE DRAWER IS AN EXEMPT SURFACE, NEVER A HOLE IN THE TRAP",
+        "doc": "../docs/rules/components-sheets-chrome-and-navigation.md",
+        "anchor": "a-map-control-beside-the-venue-drawer-is-an-exempt-surface-never-a-hole-in-the-t"
+      },
+      {
+        "section": "Sheets, chrome and navigation",
+        "title": "A LANDMARK STORY LIVES IN THE FRAME EACH WIDTH ALREADY OWNS, and the canvas only reports the tap",
+        "doc": "../docs/rules/components-sheets-chrome-and-navigation.md",
+        "anchor": "a-landmark-story-lives-in-the-frame-each-width-already-owns-and-the-canvas-only-"
+      },
+      {
+        "section": "Sheets, chrome and navigation",
+        "title": "A SHEET SAYS HOW MUCH OF ITSELF IS OFF SCREEN, ONCE, AND THE SHELL CANNOT BE SCROLLED",
+        "doc": "../docs/rules/components-sheets-chrome-and-navigation.md",
+        "anchor": "a-sheet-says-how-much-of-itself-is-off-screen-once-and-the-shell-cannot-be-scrol"
+      },
+      {
+        "section": "Sheets, chrome and navigation",
+        "title": "THE VENUE TYPES ARE ONE CONTROL AT EVERY WIDTH, AND THE COUNT RIDES THE CLOSED ONE",
+        "doc": "../docs/rules/components-sheets-chrome-and-navigation.md",
+        "anchor": "the-venue-types-are-one-control-at-every-width-and-the-count-rides-the-closed-on"
+      },
+      {
+        "section": "Sheets, chrome and navigation",
+        "title": "THE ARRIVAL ASK IS A STRIP, THE MAP UNDER IT IS LIVE, AND THE CHROME BEHIND IT IS EIGHT CONTROLS",
+        "doc": "../docs/rules/components-sheets-chrome-and-navigation.md",
+        "anchor": "the-arrival-ask-is-a-strip-the-map-under-it-is-live-and-the-chrome-behind-it-is-"
+      },
+      {
+        "section": "Sheets, chrome and navigation",
+        "title": "THE MAP ARRIVES WITH ONE SLIGHT TURN, AND THEN HOLDS STILL",
+        "doc": "../docs/rules/components-sheets-chrome-and-navigation.md",
+        "anchor": "the-map-arrives-with-one-slight-turn-and-then-holds-still"
+      },
+      {
+        "section": "Sheets, chrome and navigation",
+        "title": "Phone chrome is measured, not eyeballed, and a trust caption never ellipses",
+        "doc": "../docs/rules/components-sheets-chrome-and-navigation.md",
+        "anchor": "phone-chrome-is-measured-not-eyeballed-and-a-trust-caption-never-ellipses"
+      },
+      {
+        "section": "Venue, plan and message surfaces",
+        "title": "Arrival is the moment of togetherness, never an admin form",
+        "doc": "../docs/rules/components-venue-plan-and-message-surfaces.md",
+        "anchor": "arrival-is-the-moment-of-togetherness-never-an-admin-form"
+      },
+      {
+        "section": "Venue, plan and message surfaces",
+        "title": "THE OVERVIEW HAS ONE PRICE DOOR PER TRUST STATE, AND THE COMPOSER IS FOLDED BEHIND IT",
+        "doc": "../docs/rules/components-venue-plan-and-message-surfaces.md",
+        "anchor": "the-overview-has-one-price-door-per-trust-state-and-the-composer-is-folded-behin"
+      },
+      {
+        "section": "Venue, plan and message surfaces",
+        "title": "THE BILL IS ASKED FOR IN FRONT OF THE PRICE, NEVER INSIDE THE DISCLOSURE",
+        "doc": "../docs/rules/components-venue-plan-and-message-surfaces.md",
+        "anchor": "the-bill-is-asked-for-in-front-of-the-price-never-inside-the-disclosure"
+      },
+      {
+        "section": "Venue, plan and message surfaces",
+        "title": "`/plan` opens on one describe-first question, not the wizard",
+        "doc": "../docs/rules/components-venue-plan-and-message-surfaces.md",
+        "anchor": "plan-opens-on-one-describe-first-question-not-the-wizard"
+      },
+      {
+        "section": "Venue, plan and message surfaces",
+        "title": "A describe chip is a promise of a route, and the promise is made through the DESCRIBE-FIRST body",
+        "doc": "../docs/rules/components-venue-plan-and-message-surfaces.md",
+        "anchor": "a-describe-chip-is-a-promise-of-a-route-and-the-promise-is-made-through-the-desc"
+      },
+      {
+        "section": "Venue, plan and message surfaces",
+        "title": "A PLAN READ FOLLOWS THE CAPABILITY, AND THE INVITE TOKEN IS ONE LIVE VALUE",
+        "doc": "../docs/rules/components-venue-plan-and-message-surfaces.md",
+        "anchor": "a-plan-read-follows-the-capability-and-the-invite-token-is-one-live-value"
+      },
+      {
+        "section": "Venue, plan and message surfaces",
+        "title": "A message bubble's WIDTH is the row's business, and a message photo is the one owned image that is not public",
+        "doc": "../docs/rules/components-venue-plan-and-message-surfaces.md",
+        "anchor": "a-message-bubble-s-width-is-the-row-s-business-and-a-message-photo-is-the-one-ow"
+      },
+      {
+        "section": "Venue, plan and message surfaces",
+        "title": "A THREAD READS LIKE A CONVERSATION, AND ITS COMPOSER IS PINNED OVER THE FOOT OF THE PAGE",
+        "doc": "../docs/rules/components-venue-plan-and-message-surfaces.md",
+        "anchor": "a-thread-reads-like-a-conversation-and-its-composer-is-pinned-over-the-foot-of-t"
+      },
+      {
+        "section": "Design system and launch primitives",
+        "title": "Every Pub Pal is a rendered master, and the family is the Circuit Robin",
+        "doc": "../docs/rules/components-design-system-and-launch-primitives.md",
+        "anchor": "every-pub-pal-is-a-rendered-master-and-the-family-is-the-circuit-robin"
+      },
+      {
+        "section": "Design system and launch primitives",
+        "title": "THE FRONT DOOR SHOWS LONDON, THEN ANSWERS IN ONE TAP",
+        "doc": "../docs/rules/components-design-system-and-launch-primitives.md",
+        "anchor": "the-front-door-shows-london-then-answers-in-one-tap"
+      },
+      {
+        "section": "Design system and launch primitives",
+        "title": "A launch screen is built from the launch tokens and the four primitives, and template patterns are fenced",
+        "doc": "../docs/rules/components-design-system-and-launch-primitives.md",
+        "anchor": "a-launch-screen-is-built-from-the-launch-tokens-and-the-four-primitives-and-temp"
+      },
+      {
+        "section": "Design system and launch primitives",
+        "title": "CORAL IS A FILL AND CORAL IS A WORD, AND THOSE ARE TWO TOKENS",
+        "doc": "../docs/rules/components-design-system-and-launch-primitives.md",
+        "anchor": "coral-is-a-fill-and-coral-is-a-word-and-those-are-two-tokens"
+      },
+      {
+        "section": "Design system and launch primitives",
+        "title": "A TEXT BUTTON IS ONE ROW OF TOKENS, and the tablet bar is measured, not assumed",
+        "doc": "../docs/rules/components-design-system-and-launch-primitives.md",
+        "anchor": "a-text-button-is-one-row-of-tokens-and-the-tablet-bar-is-measured-not-assumed"
+      },
+      {
+        "section": "Design system and launch primitives",
+        "title": "THE PRODUCT ANSWERS FIRST, AND THE CONSENT CARD ARRIVES AFTER THE ANSWER, DOCKED",
+        "doc": "../docs/rules/components-design-system-and-launch-primitives.md",
+        "anchor": "the-product-answers-first-and-the-consent-card-arrives-after-the-answer-docked"
+      },
+      {
+        "section": "Design system and launch primitives",
+        "title": "A CHIP READS THE SAME ROW, AND A NUMBER SQUARE IS ONE FAMILY",
+        "doc": "../docs/rules/components-design-system-and-launch-primitives.md",
+        "anchor": "a-chip-reads-the-same-row-and-a-number-square-is-one-family"
+      },
+      {
+        "section": "Design system and launch primitives",
+        "title": "NEXT/IMAGE DROPS A `srcSet` PROP, AND A PROXIED PHOTO IS RESIZED THROUGH ITS LOADER",
+        "doc": "../docs/rules/components-design-system-and-launch-primitives.md",
+        "anchor": "next-image-drops-a-srcset-prop-and-a-proxied-photo-is-resized-through-its-loader"
+      }
+    ],
+    "areaPrefix": "components"
+  },
+  {
+    "before": 53440,
+    "after": 11991,
+    "mapping": [
+      {
+        "section": "Auth and account routes",
+        "title": "A moderator door refuses the DOCUMENT, and /login names nobody until the session answers",
+        "doc": "../docs/rules/app-auth-and-account-routes.md",
+        "anchor": "a-moderator-door-refuses-the-document-and-login-names-nobody-until-the-session-a"
+      },
+      {
+        "section": "Auth and account routes",
+        "title": "Dedicated `/login` (alias `/signin`) owns the email-link flow as a first-class page",
+        "doc": "../docs/rules/app-auth-and-account-routes.md",
+        "anchor": "dedicated-login-alias-signin-owns-the-email-link-flow-as-a-first-class-page"
+      },
+      {
+        "section": "Auth and account routes",
+        "title": "A password is CREATED behind a session and only ever SPENT without one",
+        "doc": "../docs/rules/app-auth-and-account-routes.md",
+        "anchor": "a-password-is-created-behind-a-session-and-only-ever-spent-without-one"
+      },
+      {
+        "section": "Auth and account routes",
+        "title": "AN ACCOUNT LEAVES IN TWO PHASES: THE STORAGE API OWNS THE BYTES, THE TRIGGER OWNS THE ROWS",
+        "doc": "../docs/rules/app-auth-and-account-routes.md",
+        "anchor": "an-account-leaves-in-two-phases-the-storage-api-owns-the-bytes-the-trigger-owns-"
+      },
+      {
+        "section": "Auth and account routes",
+        "title": "A PRIVATE NIGHT CAN BE TAKEN BACK, AND ONLY ITS OWNER TAKES IT",
+        "doc": "../docs/rules/app-auth-and-account-routes.md",
+        "anchor": "a-private-night-can-be-taken-back-and-only-its-owner-takes-it"
+      },
+      {
+        "section": "Landing, city and listing pages",
+        "title": "A governed price landing is a crawler's page, and `/area/{slug}` is HELD",
+        "doc": "../docs/rules/app-landing-city-and-listing-pages.md",
+        "anchor": "a-governed-price-landing-is-a-crawler-s-page-and-area-slug-is-held"
+      },
+      {
+        "section": "Landing, city and listing pages",
+        "title": "The root landing LANDS ON THE ANSWER, and the first tap is a receipt",
+        "doc": "../docs/rules/app-landing-city-and-listing-pages.md",
+        "anchor": "the-root-landing-lands-on-the-answer-and-the-first-tap-is-a-receipt"
+      },
+      {
+        "section": "Landing, city and listing pages",
+        "title": "A city is CHOSEN once, and the surfaces that read it follow",
+        "doc": "../docs/rules/app-landing-city-and-listing-pages.md",
+        "anchor": "a-city-is-chosen-once-and-the-surfaces-that-read-it-follow"
+      },
+      {
+        "section": "Landing, city and listing pages",
+        "title": "THE ANSWER COMES FIRST, AND WHAT ACTS ON IT COMES AFTER IT",
+        "doc": "../docs/rules/app-landing-city-and-listing-pages.md",
+        "anchor": "the-answer-comes-first-and-what-acts-on-it-comes-after-it"
+      },
+      {
+        "section": "Landing, city and listing pages",
+        "title": "The homepage share card IS the invite preview, so it may hold no figure of its own",
+        "doc": "../docs/rules/app-landing-city-and-listing-pages.md",
+        "anchor": "the-homepage-share-card-is-the-invite-preview-so-it-may-hold-no-figure-of-its-ow"
+      },
+      {
+        "section": "Landing, city and listing pages",
+        "title": "The privacy notice is part of the data path, not marketing copy",
+        "doc": "../docs/rules/app-landing-city-and-listing-pages.md",
+        "anchor": "the-privacy-notice-is-part-of-the-data-path-not-marketing-copy"
+      },
+      {
+        "section": "Landing, city and listing pages",
+        "title": "THE TWO DOCUMENTS A READER MEETS ON THEIR WORST VISIT ARE GOVERNED TOO",
+        "doc": "../docs/rules/app-landing-city-and-listing-pages.md",
+        "anchor": "the-two-documents-a-reader-meets-on-their-worst-visit-are-governed-too"
+      },
+      {
+        "section": "API contract and rate limits",
+        "title": "The daily price cap has TWO enforcers, and it is a ROUTE's rule rather than the table's",
+        "doc": "../docs/rules/app-api-contract-and-rate-limits.md",
+        "anchor": "the-daily-price-cap-has-two-enforcers-and-it-is-a-route-s-rule-rather-than-the-t"
+      },
+      {
+        "section": "API contract and rate limits",
+        "title": "An API error is one envelope, and every mutating route is rate limited",
+        "doc": "../docs/rules/app-api-contract-and-rate-limits.md",
+        "anchor": "an-api-error-is-one-envelope-and-every-mutating-route-is-rate-limited"
+      },
+      {
+        "section": "API contract and rate limits",
+        "title": "AN UNKNOWN ADDRESS ANSWERS THE ENVELOPE, AND A DELETE STILL ANSWERS AFTER THE ACCOUNT HAS GONE",
+        "doc": "../docs/rules/app-api-contract-and-rate-limits.md",
+        "anchor": "an-unknown-address-answers-the-envelope-and-a-delete-still-answers-after-the-acc"
+      },
+      {
+        "section": "Proxy, CSP, caching and file tracing",
+        "title": "A file a route opens at runtime is not in the deployed function unless you say so",
+        "doc": "../docs/rules/app-proxy-csp-caching-and-file-tracing.md",
+        "anchor": "a-file-a-route-opens-at-runtime-is-not-in-the-deployed-function-unless-you-say-s"
+      },
+      {
+        "section": "Proxy, CSP, caching and file tracing",
+        "title": "THE ANSWER IS A PUB PEOPLE ARE TALKING ABOUT, THEN OUR OWN LISTINGS, THEN AN HONEST QUIET NIGHT",
+        "doc": "../docs/rules/app-proxy-csp-caching-and-file-tracing.md",
+        "anchor": "the-answer-is-a-pub-people-are-talking-about-then-our-own-listings-then-an-hones"
+      },
+      {
+        "section": "Proxy, CSP, caching and file tracing",
+        "title": "A tab you have already opened is not a page you have to fetch again",
+        "doc": "../docs/rules/app-proxy-csp-caching-and-file-tracing.md",
+        "anchor": "a-tab-you-have-already-opened-is-not-a-page-you-have-to-fetch-again"
+      },
+      {
+        "section": "Proxy, CSP, caching and file tracing",
+        "title": "Exactly five documents are exempt from the nonce, and the list is the fence",
+        "doc": "../docs/rules/app-proxy-csp-caching-and-file-tracing.md",
+        "anchor": "exactly-five-documents-are-exempt-from-the-nonce-and-the-list-is-the-fence"
+      },
+      {
+        "section": "Proxy, CSP, caching and file tracing",
+        "title": "A STATIC ASSET NEVER RUNS THE PROXY, AND A FAILING PACK IS NOT A FAILING BASEMAP",
+        "doc": "../docs/rules/app-proxy-csp-caching-and-file-tracing.md",
+        "anchor": "a-static-asset-never-runs-the-proxy-and-a-failing-pack-is-not-a-failing-basemap"
+      },
+      {
+        "section": "Proxy, CSP, caching and file tracing",
+        "title": "The host canonicalisation is for READERS, and `/api` is a caller",
+        "doc": "../docs/rules/app-proxy-csp-caching-and-file-tracing.md",
+        "anchor": "the-host-canonicalisation-is-for-readers-and-api-is-a-caller"
+      },
+      {
+        "section": "Proxy, CSP, caching and file tracing",
+        "title": "A ROUTE THAT SHIPS A DOCUMENT NOBODY KEEPS, AND THE HEADER THAT SAYS SO",
+        "doc": "../docs/rules/app-proxy-csp-caching-and-file-tracing.md",
+        "anchor": "a-route-that-ships-a-document-nobody-keeps-and-the-header-that-says-so"
+      }
+    ],
+    "areaPrefix": "app"
+  },
+  {
+    "before": 41348,
+    "after": 5753,
+    "mapping": [
+      {
+        "section": "Budgets and measured findings",
+        "title": "THE PRODUCT HAS A SPEED RATING, AND THE PROFILED CAUSE WAS NOT THE BINDING ONE",
+        "doc": "../docs/rules/perf-budgets-and-measured-findings.md",
+        "anchor": "the-product-has-a-speed-rating-and-the-profiled-cause-was-not-the-binding-one"
+      },
+      {
+        "section": "Budgets and measured findings",
+        "title": "UNTIL THE PINS HAVE PAINTED, THE WIRE BELONGS TO THE PINS",
+        "doc": "../docs/rules/perf-budgets-and-measured-findings.md",
+        "anchor": "until-the-pins-have-painted-the-wire-belongs-to-the-pins"
+      },
+      {
+        "section": "Budgets and measured findings",
+        "title": "A SURFACE ASKS FOR A CITY-WIDE PACK ONLY WHEN IT IS ABOUT TO DRAW IT, AND THE PHONE SHEET ARRIVES WITHOUT MOVING THE PAGE",
+        "doc": "../docs/rules/perf-budgets-and-measured-findings.md",
+        "anchor": "a-surface-asks-for-a-city-wide-pack-only-when-it-is-about-to-draw-it-and-the-pho"
+      },
+      {
+        "section": "Budgets and measured findings",
+        "title": "A LINK IS PREFETCHED ON SIGHT, A BROWSER MAY NOT CUT WHAT A BUILD CAN CUT, AND A PIN'S SIZE IS ITS HIT BOX",
+        "doc": "../docs/rules/perf-budgets-and-measured-findings.md",
+        "anchor": "a-link-is-prefetched-on-sight-a-browser-may-not-cut-what-a-build-can-cut-and-a-p"
+      },
+      {
+        "section": "Budgets and measured findings",
+        "title": "THE RESAMPLE BAND READS BOTH WAYS, AND A ROUTE THAT CANNOT MEASURE ITSELF IN THREE IS MARKED",
+        "doc": "../docs/rules/perf-budgets-and-measured-findings.md",
+        "anchor": "the-resample-band-reads-both-ways-and-a-route-that-cannot-measure-itself-in-thre"
+      },
+      {
+        "section": "Budgets and measured findings",
+        "title": "A VERDICT IS UNANIMOUS OR IT IS NOT A VERDICT, AND AN UNDECIDED CEILING IS SAID OUT LOUD RATHER THAN FAILED",
+        "doc": "../docs/rules/perf-budgets-and-measured-findings.md",
+        "anchor": "a-verdict-is-unanimous-or-it-is-not-a-verdict-and-an-undecided-ceiling-is-said-o"
+      },
+      {
+        "section": "Budgets and measured findings",
+        "title": "A RED ROUTE AND A SLOW BOX LOOK THE SAME IN A BREACH TABLE, SO THE JOB MEASURES THE MERGE BASE BESIDE IT",
+        "doc": "../docs/rules/perf-budgets-and-measured-findings.md",
+        "anchor": "a-red-route-and-a-slow-box-look-the-same-in-a-breach-table-so-the-job-measures-t"
+      },
+      {
+        "section": "Budgets and measured findings",
+        "title": "A ROUTE THE SITEMAP ADVERTISES CARRIES A BUDGET",
+        "doc": "../docs/rules/perf-budgets-and-measured-findings.md",
+        "anchor": "a-route-the-sitemap-advertises-carries-a-budget"
+      },
+      {
+        "section": "Budgets and measured findings",
+        "title": "Speed is a number, and the number is enforced",
+        "doc": "../docs/rules/perf-budgets-and-measured-findings.md",
+        "anchor": "speed-is-a-number-and-the-number-is-enforced"
+      },
+      {
+        "section": "Budgets and measured findings",
+        "title": "A ROUTE THAT REDIRECTS IS MEASURED AS A REDIRECT, NEVER AS ITS TARGET",
+        "doc": "../docs/rules/perf-budgets-and-measured-findings.md",
+        "anchor": "a-route-that-redirects-is-measured-as-a-redirect-never-as-its-target"
+      }
+    ],
+    "areaPrefix": "perf"
+  },
+  {
+    "before": 37709,
+    "after": 10343,
+    "mapping": [
+      {
+        "section": "CI, gates and audits",
+        "title": "EVERY JOB RUNS ON THE AVREA LABEL, AND A BUILD IS NOT A PRODUCTION RUNTIME",
+        "doc": "../docs/rules/scripts-ci-gates-and-audits.md",
+        "anchor": "every-job-runs-on-the-avrea-label-and-a-build-is-not-a-production-runtime"
+      },
+      {
+        "section": "CI, gates and audits",
+        "title": "KNIP IS THE DEAD-CODE GATE, AND EVERY IGNORE NAMES THE CALLER KNIP CANNOT SEE",
+        "doc": "../docs/rules/scripts-ci-gates-and-audits.md",
+        "anchor": "knip-is-the-dead-code-gate-and-every-ignore-names-the-caller-knip-cannot-see"
+      },
+      {
+        "section": "CI, gates and audits",
+        "title": "A GENERATED LANE MAY RIDE THE REVIEW THAT PRODUCED IT, AND NOTHING ELSE MAY",
+        "doc": "../docs/rules/scripts-ci-gates-and-audits.md",
+        "anchor": "a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may"
+      },
+      {
+        "section": "CI, gates and audits",
+        "title": "EVERY GATE IS RUN BY SOMETHING, AND A REPORT-GATE RUNS WHERE THE REPORT IS",
+        "doc": "../docs/rules/scripts-ci-gates-and-audits.md",
+        "anchor": "every-gate-is-run-by-something-and-a-report-gate-runs-where-the-report-is"
+      },
+      {
+        "section": "CI, gates and audits",
+        "title": "An audit waiver is a documented exception, not a mute button",
+        "doc": "../docs/rules/scripts-ci-gates-and-audits.md",
+        "anchor": "an-audit-waiver-is-a-documented-exception-not-a-mute-button"
+      },
+      {
+        "section": "CI, gates and audits",
+        "title": "The no-mistakes Test step runs `npm run verify` as its own command",
+        "doc": "../docs/rules/scripts-ci-gates-and-audits.md",
+        "anchor": "the-no-mistakes-test-step-runs-npm-run-verify-as-its-own-command"
+      },
+      {
+        "section": "Harvest and source permission",
+        "title": "The all-UK pub harvest enumerates OSM then enriches via Exa",
+        "doc": "../docs/rules/scripts-harvest-and-source-permission.md",
+        "anchor": "the-all-uk-pub-harvest-enumerates-osm-then-enriches-via-exa"
+      },
+      {
+        "section": "Harvest and source permission",
+        "title": "A MENU URL THE FOLD RECORDED IS A CRAWL INPUT, AND THE TABLE IS EMPTY",
+        "doc": "../docs/rules/scripts-harvest-and-source-permission.md",
+        "anchor": "a-menu-url-the-fold-recorded-is-a-crawl-input-and-the-table-is-empty"
+      },
+      {
+        "section": "Harvest and source permission",
+        "title": "A URL WE DECIDE TO FETCH IS SOMEBODY ELSE'S STRING, AND THE ALLOW-LIST IS ASKED ABOUT WHERE WE LANDED",
+        "doc": "../docs/rules/scripts-harvest-and-source-permission.md",
+        "anchor": "a-url-we-decide-to-fetch-is-somebody-else-s-string-and-the-allow-list-is-asked-a"
+      },
+      {
+        "section": "Harvest and source permission",
+        "title": "A PRICE source is fenced like every other source, and the NARROWER table binds",
+        "doc": "../docs/rules/scripts-harvest-and-source-permission.md",
+        "anchor": "a-price-source-is-fenced-like-every-other-source-and-the-narrower-table-binds"
+      },
+      {
+        "section": "Harvest and source permission",
+        "title": "The London harvest reads first-party pages, and a skip is a finding",
+        "doc": "../docs/rules/scripts-harvest-and-source-permission.md",
+        "anchor": "the-london-harvest-reads-first-party-pages-and-a-skip-is-a-finding"
+      },
+      {
+        "section": "Harvest and source permission",
+        "title": "THE WETHERSPOON DIRECTORY IS THE PUBS THE CHAIN RUNS TODAY, AND IT IS NEVER EDITED BY HAND",
+        "doc": "../docs/rules/scripts-harvest-and-source-permission.md",
+        "anchor": "the-wetherspoon-directory-is-the-pubs-the-chain-runs-today-and-it-is-never-edite"
+      },
+      {
+        "section": "Harvest and source permission",
+        "title": "The UK venue extraction is OSM-stated or it does not exist",
+        "doc": "../docs/rules/scripts-harvest-and-source-permission.md",
+        "anchor": "the-uk-venue-extraction-is-osm-stated-or-it-does-not-exist"
+      },
+      {
+        "section": "Builders and publishers",
+        "title": "THE HYPED-PUBS PUBLISH IS ONE COMMAND, AND IT FETCHES NOTHING",
+        "doc": "../docs/rules/scripts-builders-and-publishers.md",
+        "anchor": "the-hyped-pubs-publish-is-one-command-and-it-fetches-nothing"
+      },
+      {
+        "section": "Builders and publishers",
+        "title": "The Pint Index PUBLISHES what drinkers confirmed, and the producer is a script",
+        "doc": "../docs/rules/scripts-builders-and-publishers.md",
+        "anchor": "the-pint-index-publishes-what-drinkers-confirmed-and-the-producer-is-a-script"
+      },
+      {
+        "section": "Builders and publishers",
+        "title": "THE HISTORIC DIRECTORY PUBLISHES THROUGH THREE GATES, AND EACH ONE REFUSES RATHER THAN REWRITES",
+        "doc": "../docs/rules/scripts-builders-and-publishers.md",
+        "anchor": "the-historic-directory-publishes-through-three-gates-and-each-one-refuses-rather"
+      },
+      {
+        "section": "Deploys and uploads",
+        "title": "A `.vercelignore` REPLACES the `.gitignore` fallback, so a heavy directory absent from it is uploaded",
+        "doc": "../docs/rules/scripts-deploys-and-uploads.md",
+        "anchor": "a-vercelignore-replaces-the-gitignore-fallback-so-a-heavy-directory-absent-from-"
+      },
+      {
+        "section": "Deploys and uploads",
+        "title": "A DEPLOY UPLOADS THE WORKING TREE, NOT THE COMMIT, so `.vercelignore` is what keeps it small",
+        "doc": "../docs/rules/scripts-deploys-and-uploads.md",
+        "anchor": "a-deploy-uploads-the-working-tree-not-the-commit-so-vercelignore-is-what-keeps-i"
+      },
+      {
+        "section": "Deploys and uploads",
+        "title": "A DEPLOY NAMES ITS OWN COMMIT, AND A CLI DEPLOY HAS TO CARRY IT",
+        "doc": "../docs/rules/scripts-deploys-and-uploads.md",
+        "anchor": "a-deploy-names-its-own-commit-and-a-cli-deploy-has-to-carry-it"
+      }
+    ],
+    "areaPrefix": "scripts"
+  }
+]

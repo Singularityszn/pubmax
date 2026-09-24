@@ -1,0 +1,20 @@
+{
+  "after_bytes": {
+    "AGENTS.md": 8145,
+    "__tests__/AGENTS.md": 4875,
+    "android/AGENTS.md": 7817,
+    "app/AGENTS.md": 12013,
+    "components/AGENTS.md": 17006,
+    "data/AGENTS.md": 11981,
+    "docs/AGENTS.md": 9280,
+    "e2e/AGENTS.md": 7365,
+    "ios/AGENTS.md": 10675,
+    "lib/AGENTS.md": 2407,
+    "lib/harvest/AGENTS.md": 413,
+    "perf/AGENTS.md": 5761,
+    "public/data/AGENTS.md": 160,
+    "scripts/AGENTS.md": 10365,
+    "supabase/AGENTS.md": 19473
+  },
+  "total": 127736
+}

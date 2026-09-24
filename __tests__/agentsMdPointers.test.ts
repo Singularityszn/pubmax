@@ -17,11 +17,21 @@ import { agentsMdFiles } from "./helpers/agentsMdTree";
 // reader to is still there.
 //
 // It reads the WHOLE tree rather than the root file. The document is a short
-// root index plus one area file per area, so every law, and with it every
-// pointer, now lives in an area file. `__tests__/agentsMdTree.test.ts` holds
-// the tree's own shape. This one holds what its prose points at.
+// root index plus one area file per area, with long-form detail under
+// `docs/rules/`. `__tests__/agentsMdTree.test.ts` holds the tree's own shape.
+// This one holds what its prose points at.
 const ROOT = resolve(process.cwd());
-const DOC = agentsMdFiles(ROOT)
+
+function ruleDetailDocPaths(): string[] {
+  const directory = join(ROOT, "docs/rules");
+  if (!existsSync(directory)) return [];
+  return readdirSync(directory)
+    .filter((name) => name.endsWith(".md"))
+    .map((name) => `docs/rules/${name}`)
+    .sort();
+}
+
+const DOC = [...agentsMdFiles(ROOT), ...ruleDetailDocPaths()]
   .map((file) => readFileSync(join(ROOT, file), "utf8"))
   .join("\n");
 const TRACKED_PATHS = new Set(
@@ -290,8 +300,19 @@ function resolvesPattern(pointer: string): boolean {
   return visit(ROOT, 0);
 }
 
+function resolvesDocsRulesPointer(pointer: string): boolean | null {
+  if (!pointer.startsWith("docs/rules")) return null;
+  const trimmed = pointer.endsWith("/") ? pointer.slice(0, -1) : pointer;
+  const absolute = join(ROOT, trimmed);
+  if (!existsSync(absolute)) return false;
+  if (pointer.endsWith("/")) return statSync(absolute).isDirectory();
+  return statSync(absolute).isFile();
+}
+
 /** Resolve a pointer that may carry glob syntax or be a directory. */
 function resolves(pointer: string): boolean {
+  const docsRules = resolvesDocsRulesPointer(pointer);
+  if (docsRules !== null) return docsRules;
   // Installed dependencies are never in git ls-tree; still verify they exist
   // after `npm ci` when AGENTS.md sends a reader into the next package.
   if (pointer.startsWith("node_modules/")) {
@@ -317,10 +338,9 @@ describe("AGENTS.md pointers", () => {
     // reads as protection and can never fire. Same rule as the performance
     // budgets: take it UP when the count rises, and take it DOWN only in the
     // commit that removes pointers on purpose, with the reason.
-    // Raised from 549 with the law-by-law trim: the document lost 27 per cent of
-    // its bytes and NO pointer, so the shipped count rose from 563 to 569 and the
-    // floor keeps the same slack under it. The split into an area tree moved
-    // every law and cost no pointer, so the count and the floor both stand.
-    expect(pointers().length).toBeGreaterThan(555);
+    // Raised when pointers move into `docs/rules/` detail files: the area indexes
+    // shrink but the corpus still carries every backticked path. Floor ratchets
+    // with the shipped count; lower only when pointers are removed on purpose.
+    expect(pointers().length).toBeGreaterThan(540);
   });
 });
