@@ -39,8 +39,10 @@ collisions, flaky `venueRoute` reads, and Playwright's
 ```yaml
 concurrency:
   group: pubmax-mac-${{ github.repository }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 ```
+
+`cancel-in-progress` stays false so a pull request does not cancel CI, browser tests, and RLS mid-flight on the same concurrency group. Superseded commits wait in queue.
 
 `ci.yml` also chains jobs (`production-build` after lint + freshness, unit
 shards `max-parallel: 1`, coverage after unit tests).

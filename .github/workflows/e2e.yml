@@ -15,7 +15,7 @@ concurrency:
   # One self-hosted Mac shares a single _work checkout; parallel jobs stomp
   # the tree (validate-data temp collisions, build:slim vs Playwright guard).
   group: pubmax-mac-${{ github.repository }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 
 jobs:
