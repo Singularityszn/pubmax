@@ -44,6 +44,7 @@ import {
 import { useLoopMoment } from "@/components/loop/useLoopMoment";
 import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
+import { formatGbp } from "@/lib/formatGbp";
 import {
   LATE_FOOD_CONFIDENCES,
   type LateFoodAnalyticsConfidence,
@@ -1324,7 +1325,7 @@ function FoodEndingPicker({
                 {terminal.walkingDetour.minutes === null
                   ? "distance pending"
                   : `${terminal.walkingDetour.minutes} min direct-distance estimate`}{" "}
-                · {terminal.anchor.label} £{terminal.anchor.price.toFixed(2)}
+                · {terminal.anchor.label} {formatGbp(terminal.anchor.price)}
               </small>
             </button>
             <small>{terminal.hours.service}</small>
@@ -1448,7 +1449,7 @@ function KeepGoingPicker({
                 {keepGoingDistanceDescription(extension.distanceKm)} ·{" "}
                 {extension.cheapestPrice === null
                   ? "no price yet"
-                  : `about £${extension.cheapestPrice.toFixed(2)} a pint`}{" "}
+                  : `about ${formatGbp(extension.cheapestPrice)} a pint`}{" "}
                 · hours not checked
               </small>
             </button>
@@ -1564,7 +1565,7 @@ function NightEndingResult({
                   {terminal.walkingDetour.minutes === null
                     ? "distance pending"
                     : `${terminal.walkingDetour.minutes} min direct-distance estimate`}{" "}
-                  · {terminal.anchor.label} £{terminal.anchor.price.toFixed(2)}
+                  · {terminal.anchor.label} {formatGbp(terminal.anchor.price)}
                 </small>
                 <small>{terminal.hours.service}</small>
                 <small>{lateFoodHoursConfidenceLabel(terminal.confidence)}</small>

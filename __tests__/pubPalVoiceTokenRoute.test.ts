@@ -40,9 +40,6 @@ vi.mock("@/lib/authServer", () => ({
 }));
 
 vi.mock("@/lib/pubPalStore", () => ({
-  getPubPal: async () => voiceState.palLookupFails || !voiceState.palPresent
-    ? null
-    : voiceState.pal,
   getPubPalResult: async () => voiceState.palLookupFails
     ? { ok: false as const, error: "error" as const }
     : { ok: true as const, value: voiceState.palPresent ? voiceState.pal : null },

@@ -15,6 +15,7 @@ export type SurfaceReadExemption = {
 export const SURFACE_READ_EXEMPTIONS = [
   { path: "app/admin/AdminClient.tsx", fetchCount: 29, reason: "admin moderation reads and writes use the admin lane" },
   { path: "app/discover/DiscoverPageClient.tsx", fetchCount: 2, reason: "Social discover access and feed reads are explicit no-store" },
+  { path: "app/global-error.tsx", fetchCount: 1, reason: "the root-layout crash report is fire-and-forget telemetry behind sendBeacon, never painted data" },
   { path: "app/feed/FeedPageClient.tsx", fetchCount: 6, reason: "Social feed and optimistic post actions keep their no-store and retry semantics" },
   { path: "app/rounds/[code]/RoundPageClient.tsx", fetchCount: 2, reason: "shared round view and report actions use their own lifecycle" },
   { path: "app/social/SocialComposer.tsx", fetchCount: 1, reason: "Social composer venue search is no-store; mutations use the shared auth transport" },

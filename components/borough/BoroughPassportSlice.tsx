@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { formatGbp } from "@/lib/formatGbp";
 import { buildBoroughPassport } from "@/lib/passport";
 import { normalizeHandle, type ProfileDrop } from "@/lib/profiles";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
@@ -117,7 +118,7 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
             ) : shownPassport.cheapestPintGbp == null ? (
               "–"
             ) : (
-              `£${shownPassport.cheapestPintGbp.toFixed(2)}`
+              formatGbp(shownPassport.cheapestPintGbp)
             )}
           </dd>
         </div>
