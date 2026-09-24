@@ -1,0 +1,1587 @@
+{
+  "runAt": "2026-09-24T12:23:32.216Z",
+  "mode": "live",
+  "model": "anthropic/claude-sonnet-4-5",
+  "totals": {
+    "cases": 30,
+    "passed": 30,
+    "accuracy": 1,
+    "inventedVenues": 0,
+    "costUsd": 0,
+    "avgLatencyMs": 62.193416699999986,
+    "avgCostPerCaseUsd": 0
+  },
+  "results": [
+    {
+      "id": "cheapest-camden",
+      "query": "Cheapest pint in Camden tonight",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=cheapest_pint_near expected=cheapest_pint_near"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=cheapest_pint_near expected=cheapest_pint_near"
+        },
+        {
+          "name": "min_cards",
+          "pass": true,
+          "detail": "cards=4"
+        },
+        {
+          "name": "top_venue_id",
+          "pass": true,
+          "detail": "got=venue-18uogns"
+        },
+        {
+          "name": "top_price",
+          "pass": true,
+          "detail": "got=3.4 expected=3.4"
+        },
+        {
+          "name": "price_data:venue-18uogns",
+          "pass": true,
+          "detail": "card=3.4 index=3.4"
+        },
+        {
+          "name": "price_data:venue-17u2i1w",
+          "pass": true,
+          "detail": "card=3.66 index=3.66"
+        },
+        {
+          "name": "price_data:venue-1s7f23v",
+          "pass": true,
+          "detail": "card=4.1 index=4.1"
+        },
+        {
+          "name": "price_data:venue-a3iffy",
+          "pass": true,
+          "detail": "card=4.2 index=4.2"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "cheapest_pint_near"
+      ],
+      "cardCount": 4,
+      "answer": "4 picks from the listed pubs, each with its source. Cheapest listed pints in Camden: Ye Olde Swiss Cottage at £3.40.",
+      "transcript": "user: Cheapest pint in Camden tonight\nassistant: 4 picks from the listed pubs, each with its source. Cheapest listed pints in Camden: Ye Olde Swiss Cottage at £3.40.\ntools: cheapest_pint_near",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 138.07108300000004,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "quiz-camden-empty",
+      "query": "Pub quiz in Camden tonight",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=whats_on expected=whats_on"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=whats_on expected=whats_on"
+        },
+        {
+          "name": "empty_answer",
+          "pass": true,
+          "detail": "cards=0"
+        },
+        {
+          "name": "answer_includes:quiz",
+          "pass": true,
+          "detail": "No sourced quiz nights in Camden tonight in the listings I can check."
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "whats_on"
+      ],
+      "cardCount": 0,
+      "answer": "No sourced quiz nights in Camden tonight in the listings I can check.",
+      "transcript": "user: Pub quiz in Camden tonight\nassistant: No sourced quiz nights in Camden tonight in the listings I can check.\ntools: whats_on",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 188.18758399999996,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "quiz-islington-empty",
+      "query": "Quiz tonight in Islington",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=whats_on expected=whats_on"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=whats_on expected=whats_on"
+        },
+        {
+          "name": "empty_answer",
+          "pass": true,
+          "detail": "cards=0"
+        },
+        {
+          "name": "answer_includes:quiz",
+          "pass": true,
+          "detail": "No sourced quiz nights in Islington tonight in the listings I can check."
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "whats_on"
+      ],
+      "cardCount": 0,
+      "answer": "No sourced quiz nights in Islington tonight in the listings I can check.",
+      "transcript": "user: Quiz tonight in Islington\nassistant: No sourced quiz nights in Islington tonight in the listings I can check.\ntools: whats_on",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 40.94758300000001,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "manchester-outscope",
+      "query": "Best pub in Manchester tonight",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=search_venues expected=search_venues"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=search_venues expected=search_venues"
+        },
+        {
+          "name": "empty_answer",
+          "pass": true,
+          "detail": "cards=0"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "search_venues"
+      ],
+      "cardCount": 0,
+      "answer": "Nothing listed matches that. Try a nearby area or a broader mood.",
+      "transcript": "user: Best pub in Manchester tonight\nassistant: Nothing listed matches that. Try a nearby area or a broader mood.\ntools: search_venues",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 37.86612500000001,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "paris-outscope",
+      "query": "Pubs in Paris tonight",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=search_venues expected=search_venues"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=search_venues expected=search_venues"
+        },
+        {
+          "name": "empty_answer",
+          "pass": true,
+          "detail": "cards=0"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "search_venues"
+      ],
+      "cardCount": 0,
+      "answer": "Nothing listed matches that. Try a nearby area or a broader mood.",
+      "transcript": "user: Pubs in Paris tonight\nassistant: Nothing listed matches that. Try a nearby area or a broader mood.\ntools: search_venues",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 38.407708999999954,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "cheapest-near-lamb",
+      "query": "Cheapest pint near The Lamb",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=cheapest_pint_near expected=cheapest_pint_near"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=cheapest_pint_near expected=cheapest_pint_near"
+        },
+        {
+          "name": "min_cards",
+          "pass": true,
+          "detail": "cards=4"
+        },
+        {
+          "name": "top_venue_id",
+          "pass": true,
+          "detail": "got=venue-p7p18j"
+        },
+        {
+          "name": "top_price",
+          "pass": true,
+          "detail": "got=2.95 expected=2.95"
+        },
+        {
+          "name": "price_data:venue-p7p18j",
+          "pass": true,
+          "detail": "card=2.95 index=2.95"
+        },
+        {
+          "name": "price_data:venue-59ibpp",
+          "pass": true,
+          "detail": "card=4 index=4"
+        },
+        {
+          "name": "price_data:venue-a3iffy",
+          "pass": true,
+          "detail": "card=4.2 index=4.2"
+        },
+        {
+          "name": "price_data:venue-1ar7s8w",
+          "pass": true,
+          "detail": "card=4.8 index=4.8"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "cheapest_pint_near"
+      ],
+      "cardCount": 4,
+      "answer": "4 picks from the listed pubs, each with its source. Cheapest listed pints near The Lamb: The Three Tuns - LSE Student Union at £2.95.",
+      "transcript": "user: Cheapest pint near The Lamb\nassistant: 4 picks from the listed pubs, each with its source. Cheapest listed pints near The Lamb: The Three Tuns - LSE Student Union at £2.95.\ntools: cheapest_pint_near",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 33.918750000000045,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "venue-drinks-lamb",
+      "query": "What do they pour at The Lamb",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=venue_drinks expected=venue_drinks"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=venue_drinks expected=venue_drinks"
+        },
+        {
+          "name": "min_cards",
+          "pass": true,
+          "detail": "cards=1"
+        },
+        {
+          "name": "top_venue_id",
+          "pass": true,
+          "detail": "got=venue-1yd70c7"
+        },
+        {
+          "name": "top_price",
+          "pass": true,
+          "detail": "got=6.65 expected=6.65"
+        },
+        {
+          "name": "price_data:venue-1yd70c7",
+          "pass": true,
+          "detail": "card=6.65 index=6.65"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "venue_drinks"
+      ],
+      "cardCount": 1,
+      "answer": "The Lamb: 1 drink figure on record.",
+      "transcript": "user: What do they pour at The Lamb\nassistant: The Lamb: 1 drink figure on record.\ntools: venue_drinks",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 34.20133400000009,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "quiet-bank",
+      "query": "Somewhere quiet near Bank for 4",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=search_venues expected=search_venues"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=search_venues expected=search_venues"
+        },
+        {
+          "name": "min_cards",
+          "pass": true,
+          "detail": "cards=4"
+        },
+        {
+          "name": "top_venue_id",
+          "pass": true,
+          "detail": "got=venue-lrlyh8"
+        },
+        {
+          "name": "top_price",
+          "pass": true,
+          "detail": "got=6.8 expected=6.8"
+        },
+        {
+          "name": "price_data:venue-lrlyh8",
+          "pass": true,
+          "detail": "card=6.8 index=6.8"
+        },
+        {
+          "name": "price_data:venue-13wpw9e",
+          "pass": true,
+          "detail": "card=6.3 index=6.3"
+        },
+        {
+          "name": "price_data:venue-1pa76n0",
+          "pass": true,
+          "detail": "card=6.9 index=6.9"
+        },
+        {
+          "name": "price_data:venue-1orqs8w",
+          "pass": true,
+          "detail": "card=6.5 index=6.5"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "search_venues"
+      ],
+      "cardCount": 4,
+      "answer": "4 picks from the listed pubs, each with its source.",
+      "transcript": "user: Somewhere quiet near Bank for 4\nassistant: 4 picks from the listed pubs, each with its source.\ntools: search_venues",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 38.177459,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "plan-soho",
+      "query": "Plan a crawl in Soho for 4",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=propose_plan expected=propose_plan"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=propose_plan expected=propose_plan"
+        },
+        {
+          "name": "min_cards",
+          "pass": true,
+          "detail": "cards=3"
+        },
+        {
+          "name": "answer_includes:Plan",
+          "pass": true,
+          "detail": "Proposed draft: Shakespeares Head (Soho) → Golden Lion (Soho) → Blue Boar Pub. Open in Plan to carry this ask over. Noth"
+        },
+        {
+          "name": "top_venue_id",
+          "pass": true,
+          "detail": "got=venue-e1srzr"
+        },
+        {
+          "name": "top_price",
+          "pass": true,
+          "detail": "got=6.25 expected=6.25"
+        },
+        {
+          "name": "price_data:venue-e1srzr",
+          "pass": true,
+          "detail": "card=6.25 index=6.25"
+        },
+        {
+          "name": "price_data:venue-15i2wst",
+          "pass": true,
+          "detail": "card=6.4 index=6.4"
+        },
+        {
+          "name": "price_data:venue-1hkvco4",
+          "pass": true,
+          "detail": "card=6.95 index=6.95"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "propose_plan"
+      ],
+      "cardCount": 3,
+      "answer": "Proposed draft: Shakespeares Head (Soho) → Golden Lion (Soho) → Blue Boar Pub. Open in Plan to carry this ask over. Nothing is saved until you do.",
+      "transcript": "user: Plan a crawl in Soho for 4\nassistant: Proposed draft: Shakespeares Head (Soho) → Golden Lion (Soho) → Blue Boar Pub. Open in Plan to carry this ask over. Nothing is saved until you do.\ntools: propose_plan",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 33.57341699999995,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "tube-delays",
+      "query": "Any tube delays right now?",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=city_status expected=city_status"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=city_status expected=city_status"
+        },
+        {
+          "name": "min_cards",
+          "pass": true,
+          "detail": "cards=1"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "city_status"
+      ],
+      "cardCount": 1,
+      "answer": "London right now: mainly clear 18.8°C · Bakerloo: Good Service; Central: Minor Delays; Circle: Good Service; District: Good Service · Severe Tube disruption on Central, Jubilee and Northern lines; BBC Singers perform Joby Talbot’s Piedra de sol; Draft London Plan online consultation event",
+      "transcript": "user: Any tube delays right now?\nassistant: London right now: mainly clear 18.8°C · Bakerloo: Good Service; Central: Minor Delays; Circle: Good Service; District: Good Service · Severe Tube disruption on Central, Jubilee and Northern lines; BBC Singers perform Joby Talbot’s Piedra de sol; Draft London Plan online consultation event\ntools: city_status",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 269.7801659999999,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "find-desk-angel",
+      "query": "Somewhere to work with wifi in Angel",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=find_desk expected=find_desk"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=find_desk expected=find_desk"
+        },
+        {
+          "name": "empty_answer",
+          "pass": true,
+          "detail": "cards=0"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "find_desk"
+      ],
+      "cardCount": 0,
+      "answer": "No seat data yet. Nobody has logged a desk-friendly seat, a plug or wifi anywhere, so I won't point you at one.",
+      "transcript": "user: Somewhere to work with wifi in Angel\nassistant: No seat data yet. Nobody has logged a desk-friendly seat, a plug or wifi anywhere, so I won't point you at one.\ntools: find_desk",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 39.14645799999994,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "tonight-soho",
+      "query": "What is on right now in Soho",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=tonight_now expected=tonight_now"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=tonight_now expected=tonight_now"
+        },
+        {
+          "name": "empty_answer",
+          "pass": true,
+          "detail": "cards=0"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "tonight_now"
+      ],
+      "cardCount": 0,
+      "answer": "Nothing sourced in Soho for tonight. No live crowd reading yet, so what people log is a visit report, dated the day they went.",
+      "transcript": "user: What is on right now in Soho\nassistant: Nothing sourced in Soho for tonight. No live crowd reading yet, so what people log is a visit report, dated the day they went.\ntools: tonight_now",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 35.81045900000004,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "cheapest-no-anchor",
+      "query": "Cheapest pint",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=venue_prices expected=venue_prices"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=venue_prices expected=venue_prices"
+        },
+        {
+          "name": "empty_answer",
+          "pass": true,
+          "detail": "cards=0"
+        },
+        {
+          "name": "answer_includes:listed pub",
+          "pass": true,
+          "detail": "Name a listed pub to check a price."
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "venue_prices"
+      ],
+      "cardCount": 0,
+      "answer": "Name a listed pub to check a price.",
+      "transcript": "user: Cheapest pint\nassistant: Name a listed pub to check a price.\ntools: venue_prices",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 43.77304200000003,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "heritage-lamb",
+      "query": "Tell me the heritage of The Lamb",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=venue_heritage expected=venue_heritage"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=venue_heritage expected=venue_heritage"
+        },
+        {
+          "name": "min_cards",
+          "pass": true,
+          "detail": "cards=1"
+        },
+        {
+          "name": "answer_includes:won",
+          "pass": true,
+          "detail": "I've got the basics but no fuller story on record yet. I won't make one up."
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "venue_heritage"
+      ],
+      "cardCount": 1,
+      "answer": "I've got the basics but no fuller story on record yet. I won't make one up.",
+      "transcript": "user: Tell me the heritage of The Lamb\nassistant: I've got the basics but no fuller story on record yet. I won't make one up.\ntools: venue_heritage",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 35.024916000000076,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "map-open-lamb",
+      "query": "Open The Lamb on the map",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=propose_map_action expected=propose_map_action"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=propose_map_action expected=propose_map_action"
+        },
+        {
+          "name": "empty_answer",
+          "pass": true,
+          "detail": "cards=0"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "propose_map_action"
+      ],
+      "cardCount": 0,
+      "answer": "Name a listed pub (or coordinates) to propose a map move.",
+      "transcript": "user: Open The Lamb on the map\nassistant: Name a listed pub (or coordinates) to propose a map move.\ntools: propose_map_action",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 38.057124999999814,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "area-buzz-camden",
+      "query": "Average pint in Camden",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=area_buzz,venue_prices expected=area_buzz,venue_prices"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=area_buzz,venue_prices expected=area_buzz,venue_prices"
+        },
+        {
+          "name": "min_cards",
+          "pass": true,
+          "detail": "cards=1"
+        },
+        {
+          "name": "degraded",
+          "pass": true,
+          "detail": "status=degraded"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "area_buzz",
+        "venue_prices"
+      ],
+      "cardCount": 1,
+      "answer": "Couldn't check the average pint for Camden just now. Nothing listed to do round Camden tonight. Name a listed pub to check a price.",
+      "transcript": "user: Average pint in Camden\nassistant: Couldn't check the average pint for Camden just now. Nothing listed to do round Camden tonight. Name a listed pub to check a price.\ntools: area_buzz, venue_prices",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 153.00866700000006,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "hampstead-quiet",
+      "query": "Quiet pub in Hampstead",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=search_venues expected=search_venues"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=search_venues expected=search_venues"
+        },
+        {
+          "name": "min_cards",
+          "pass": true,
+          "detail": "cards=4"
+        },
+        {
+          "name": "top_venue_id",
+          "pass": true,
+          "detail": "got=venue-1s7f23v"
+        },
+        {
+          "name": "top_price",
+          "pass": true,
+          "detail": "got=4.1 expected=4.1"
+        },
+        {
+          "name": "price_data:venue-1s7f23v",
+          "pass": true,
+          "detail": "card=4.1 index=4.1"
+        },
+        {
+          "name": "price_data:venue-1sfuvdz",
+          "pass": true,
+          "detail": "card=5.9 index=5.9"
+        },
+        {
+          "name": "price_data:venue-816uzg",
+          "pass": true,
+          "detail": "card=5.8 index=5.8"
+        },
+        {
+          "name": "price_data:venue-iqdvx9",
+          "pass": true,
+          "detail": "card=5 index=5"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "search_venues"
+      ],
+      "cardCount": 4,
+      "answer": "4 picks from the listed pubs, each with its source.",
+      "transcript": "user: Quiet pub in Hampstead\nassistant: 4 picks from the listed pubs, each with its source.\ntools: search_venues",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 33.38866600000006,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "food-midnight-covent",
+      "query": "Food after midnight near Covent Garden",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=search_venues expected=search_venues"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=search_venues expected=search_venues"
+        },
+        {
+          "name": "min_cards",
+          "pass": true,
+          "detail": "cards=4"
+        },
+        {
+          "name": "top_venue_id",
+          "pass": true,
+          "detail": "got=venue-u68xn3"
+        },
+        {
+          "name": "top_price",
+          "pass": true,
+          "detail": "got=6.4 expected=6.4"
+        },
+        {
+          "name": "price_data:venue-u68xn3",
+          "pass": true,
+          "detail": "card=6.4 index=6.4"
+        },
+        {
+          "name": "price_data:venue-1r4e6my",
+          "pass": true,
+          "detail": "card=6.45 index=6.45"
+        },
+        {
+          "name": "price_data:venue-gvz1hf",
+          "pass": true,
+          "detail": "card=7.05 index=7.05"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "search_venues"
+      ],
+      "cardCount": 4,
+      "answer": "4 picks from the listed pubs, each with its source.",
+      "transcript": "user: Food after midnight near Covent Garden\nassistant: 4 picks from the listed pubs, each with its source.\ntools: search_venues",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 33.71133299999997,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "wine-lamb-honest",
+      "query": "Wine price at The Lamb",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=venue_prices expected=venue_prices"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=venue_prices expected=venue_prices"
+        },
+        {
+          "name": "empty_answer",
+          "pass": true,
+          "detail": "cards=0"
+        },
+        {
+          "name": "answer_includes:listed pub",
+          "pass": true,
+          "detail": "Name a listed pub to check a price."
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "venue_prices"
+      ],
+      "cardCount": 0,
+      "answer": "Name a listed pub to check a price.",
+      "transcript": "user: Wine price at The Lamb\nassistant: Name a listed pub to check a price.\ntools: venue_prices",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 44.68724999999995,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "dearest-soho-honest",
+      "query": "Dearest pint in Soho",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=venue_prices expected=venue_prices"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=venue_prices expected=venue_prices"
+        },
+        {
+          "name": "empty_answer",
+          "pass": true,
+          "detail": "cards=0"
+        },
+        {
+          "name": "answer_includes:listed pub",
+          "pass": true,
+          "detail": "Name a listed pub to check a price."
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "venue_prices"
+      ],
+      "cardCount": 0,
+      "answer": "Name a listed pub to check a price.",
+      "transcript": "user: Dearest pint in Soho\nassistant: Name a listed pub to check a price.\ntools: venue_prices",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 35.41470800000002,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "report-crowd-lamb",
+      "query": "Report the crowd at The Lamb",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=report_occupancy expected=report_occupancy"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=report_occupancy expected=report_occupancy"
+        },
+        {
+          "name": "empty_answer",
+          "pass": true,
+          "detail": "cards=0"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "report_occupancy"
+      ],
+      "cardCount": 0,
+      "answer": "Is The Lamb empty, some seats, or full?",
+      "transcript": "user: Report the crowd at The Lamb\nassistant: Is The Lamb empty, some seats, or full?\ntools: report_occupancy",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 31.978541999999834,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "journey-lamb",
+      "query": "How do I get to The Lamb from Bank",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=journey expected=journey"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=journey expected=journey"
+        },
+        {
+          "name": "empty_answer",
+          "pass": true,
+          "detail": "cards=0"
+        },
+        {
+          "name": "degraded",
+          "pass": true,
+          "detail": "status=degraded"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "journey"
+      ],
+      "cardCount": 0,
+      "answer": "I couldn't load a journey just now.",
+      "transcript": "user: How do I get to The Lamb from Bank\nassistant: I couldn't load a journey just now.\ntools: journey",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 207.89691700000003,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "football-whats-on",
+      "query": "Any football on tonight in London",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=whats_on expected=whats_on"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=whats_on expected=whats_on"
+        },
+        {
+          "name": "empty_answer",
+          "pass": true,
+          "detail": "cards=0"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "whats_on"
+      ],
+      "cardCount": 0,
+      "answer": "No sourced live-sport screenings in London tonight in the listings I can check.",
+      "transcript": "user: Any football on tonight in London\nassistant: No sourced live-sport screenings in London tonight in the listings I can check.\ntools: whats_on",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 34.35854199999994,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "no-seats-lamb",
+      "query": "No seats at The Lamb",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=report_occupancy expected=report_occupancy"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=report_occupancy expected=report_occupancy"
+        },
+        {
+          "name": "empty_answer",
+          "pass": true,
+          "detail": "cards=0"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "report_occupancy"
+      ],
+      "cardCount": 0,
+      "answer": "Log The Lamb as full? Nothing is saved until you confirm.",
+      "transcript": "user: No seats at The Lamb\nassistant: Log The Lamb as full? Nothing is saved until you confirm.\ntools: report_occupancy",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 30.098625000000084,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "followup-cheaper-camden",
+      "query": "cheaper",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=search_venues expected=search_venues"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=search_venues expected=search_venues"
+        },
+        {
+          "name": "min_cards",
+          "pass": true,
+          "detail": "cards=4"
+        },
+        {
+          "name": "top_venue_id",
+          "pass": true,
+          "detail": "got=venue-1ar7s8w"
+        },
+        {
+          "name": "top_price",
+          "pass": true,
+          "detail": "got=4.8 expected=4.8"
+        },
+        {
+          "name": "price_data:venue-1ar7s8w",
+          "pass": true,
+          "detail": "card=4.8 index=4.8"
+        },
+        {
+          "name": "price_data:venue-1gz2vse",
+          "pass": true,
+          "detail": "card=4.5 index=4.5"
+        },
+        {
+          "name": "price_data:venue-2z5s36",
+          "pass": true,
+          "detail": "card=6.15 index=6.15"
+        },
+        {
+          "name": "price_data:venue-fr71bp",
+          "pass": true,
+          "detail": "card=6.15 index=6.15"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "search_venues"
+      ],
+      "cardCount": 4,
+      "answer": "4 picks from the listed pubs, each with its source.",
+      "transcript": "user: cheaper\nassistant: 4 picks from the listed pubs, each with its source.\ntools: search_venues",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 35.3142499999999,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "desk-then-cheapest",
+      "query": "Cheapest pint in Camden",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=cheapest_pint_near expected=cheapest_pint_near"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=cheapest_pint_near expected=cheapest_pint_near"
+        },
+        {
+          "name": "min_cards",
+          "pass": true,
+          "detail": "cards=4"
+        },
+        {
+          "name": "top_venue_id",
+          "pass": true,
+          "detail": "got=venue-18uogns"
+        },
+        {
+          "name": "top_price",
+          "pass": true,
+          "detail": "got=3.4 expected=3.4"
+        },
+        {
+          "name": "price_data:venue-18uogns",
+          "pass": true,
+          "detail": "card=3.4 index=3.4"
+        },
+        {
+          "name": "price_data:venue-17u2i1w",
+          "pass": true,
+          "detail": "card=3.66 index=3.66"
+        },
+        {
+          "name": "price_data:venue-1s7f23v",
+          "pass": true,
+          "detail": "card=4.1 index=4.1"
+        },
+        {
+          "name": "price_data:venue-a3iffy",
+          "pass": true,
+          "detail": "card=4.2 index=4.2"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "cheapest_pint_near"
+      ],
+      "cardCount": 4,
+      "answer": "4 picks from the listed pubs, each with its source. Cheapest listed pints in Camden: Ye Olde Swiss Cottage at £3.40.",
+      "transcript": "user: Cheapest pint in Camden\nassistant: 4 picks from the listed pubs, each with its source. Cheapest listed pints in Camden: Ye Olde Swiss Cottage at £3.40.\ntools: cheapest_pint_near",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 34.00274999999988,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "non-alcoholic-soho",
+      "query": "Pubs with non-alcoholic options in Soho",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=search_venues expected=search_venues"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=search_venues expected=search_venues"
+        },
+        {
+          "name": "min_cards",
+          "pass": true,
+          "detail": "cards=4"
+        },
+        {
+          "name": "top_venue_id",
+          "pass": true,
+          "detail": "got=venue-e1srzr"
+        },
+        {
+          "name": "top_price",
+          "pass": true,
+          "detail": "got=6.25 expected=6.25"
+        },
+        {
+          "name": "price_data:venue-e1srzr",
+          "pass": true,
+          "detail": "card=6.25 index=6.25"
+        },
+        {
+          "name": "price_data:venue-15i2wst",
+          "pass": true,
+          "detail": "card=6.4 index=6.4"
+        },
+        {
+          "name": "price_data:venue-1hkvco4",
+          "pass": true,
+          "detail": "card=6.95 index=6.95"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "search_venues"
+      ],
+      "cardCount": 4,
+      "answer": "4 picks from the listed pubs, each with its source.",
+      "transcript": "user: Pubs with non-alcoholic options in Soho\nassistant: 4 picks from the listed pubs, each with its source.\ntools: search_venues",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 43.30758300000002,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "heritage-bank",
+      "query": "Heritage story for The Old Bank of England",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=venue_heritage expected=venue_heritage"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=venue_heritage expected=venue_heritage"
+        },
+        {
+          "name": "min_cards",
+          "pass": true,
+          "detail": "cards=1"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "venue_heritage"
+      ],
+      "cardCount": 1,
+      "answer": "I've got the basics but no fuller story on record yet. I won't make one up.",
+      "transcript": "user: Heritage story for The Old Bank of England\nassistant: I've got the basics but no fuller story on record yet. I won't make one up.\ntools: venue_heritage",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 31.413041999999905,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "open-map-bank",
+      "query": "Fly to The Old Bank of England on the map",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_routing",
+          "pass": true,
+          "detail": "used=propose_map_action expected=propose_map_action"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=propose_map_action expected=propose_map_action"
+        },
+        {
+          "name": "empty_answer",
+          "pass": true,
+          "detail": "cards=0"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "propose_map_action"
+      ],
+      "cardCount": 0,
+      "answer": "Name a listed pub (or coordinates) to propose a map move.",
+      "transcript": "user: Fly to The Old Bank of England on the map\nassistant: Name a listed pub (or coordinates) to propose a map move.\ntools: propose_map_action",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 36.89495799999986,
+        "costUsd": 0
+      }
+    },
+    {
+      "id": "crawl-refine-cheaper",
+      "query": "cheaper",
+      "pass": true,
+      "checks": [
+        {
+          "name": "invented_venues",
+          "pass": true,
+          "detail": "none"
+        },
+        {
+          "name": "tool_any",
+          "pass": true,
+          "detail": "used=propose_plan"
+        },
+        {
+          "name": "route_trace",
+          "pass": true,
+          "detail": "route=search_venues expected=search_venues"
+        },
+        {
+          "name": "min_cards",
+          "pass": true,
+          "detail": "cards=3"
+        },
+        {
+          "name": "top_venue_id",
+          "pass": true,
+          "detail": "got=venue-e1srzr"
+        },
+        {
+          "name": "top_price",
+          "pass": true,
+          "detail": "got=6.25 expected=6.25"
+        },
+        {
+          "name": "price_data:venue-e1srzr",
+          "pass": true,
+          "detail": "card=6.25 index=6.25"
+        },
+        {
+          "name": "price_data:venue-15i2wst",
+          "pass": true,
+          "detail": "card=6.4 index=6.4"
+        },
+        {
+          "name": "price_data:venue-1hkvco4",
+          "pass": true,
+          "detail": "card=6.95 index=6.95"
+        }
+      ],
+      "inventedVenues": 0,
+      "toolsUsed": [
+        "propose_plan"
+      ],
+      "cardCount": 3,
+      "answer": "Proposed draft: Shakespeares Head (Soho) → Golden Lion (Soho) → Blue Boar Pub. Open in Plan to carry this ask over. Nothing is saved until you do.",
+      "transcript": "user: cheaper\nassistant: Proposed draft: Shakespeares Head (Soho) → Golden Lion (Soho) → Blue Boar Pub. Open in Plan to carry this ask over. Nothing is saved until you do.\ntools: propose_plan",
+      "usage": {
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "totalTokens": 0,
+        "latencyMs": 35.383458000000246,
+        "costUsd": 0
+      }
+    }
+  ]
+}

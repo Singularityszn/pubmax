@@ -1,0 +1,184 @@
+{
+  "cases": [
+    {
+      "id": "cheapest-camden",
+      "query": "Cheapest pint in Camden tonight",
+      "cityId": "london"
+    },
+    {
+      "id": "quiz-camden-empty",
+      "query": "Pub quiz in Camden tonight",
+      "cityId": "london"
+    },
+    {
+      "id": "quiz-islington-empty",
+      "query": "Quiz tonight in Islington",
+      "cityId": "london"
+    },
+    {
+      "id": "manchester-outscope",
+      "query": "Best pub in Manchester tonight",
+      "cityId": "london"
+    },
+    {
+      "id": "paris-outscope",
+      "query": "Pubs in Paris tonight",
+      "cityId": "london"
+    },
+    {
+      "id": "cheapest-near-lamb",
+      "query": "Cheapest pint near The Lamb",
+      "cityId": "london"
+    },
+    {
+      "id": "venue-drinks-lamb",
+      "query": "What do they pour at The Lamb",
+      "cityId": "london"
+    },
+    {
+      "id": "quiet-bank",
+      "query": "Somewhere quiet near Bank for 4",
+      "cityId": "london"
+    },
+    {
+      "id": "plan-soho",
+      "query": "Plan a crawl in Soho for 4",
+      "cityId": "london"
+    },
+    {
+      "id": "tube-delays",
+      "query": "Any tube delays right now?",
+      "cityId": "london"
+    },
+    {
+      "id": "find-desk-angel",
+      "query": "Somewhere to work with wifi in Angel",
+      "cityId": "london"
+    },
+    {
+      "id": "tonight-soho",
+      "query": "What is on right now in Soho",
+      "cityId": "london"
+    },
+    {
+      "id": "cheapest-no-anchor",
+      "query": "Cheapest pint",
+      "cityId": "london"
+    },
+    {
+      "id": "heritage-lamb",
+      "query": "Tell me the heritage of The Lamb",
+      "cityId": "london"
+    },
+    {
+      "id": "map-open-lamb",
+      "query": "Open The Lamb on the map",
+      "cityId": "london"
+    },
+    {
+      "id": "area-buzz-camden",
+      "query": "Average pint in Camden",
+      "cityId": "london"
+    },
+    {
+      "id": "hampstead-quiet",
+      "query": "Quiet pub in Hampstead",
+      "cityId": "london"
+    },
+    {
+      "id": "food-midnight-covent",
+      "query": "Food after midnight near Covent Garden",
+      "cityId": "london"
+    },
+    {
+      "id": "wine-lamb-honest",
+      "query": "Wine price at The Lamb",
+      "cityId": "london"
+    },
+    {
+      "id": "dearest-soho-honest",
+      "query": "Dearest pint in Soho",
+      "cityId": "london"
+    },
+    {
+      "id": "report-crowd-lamb",
+      "query": "Report the crowd at The Lamb",
+      "cityId": "london"
+    },
+    {
+      "id": "journey-lamb",
+      "query": "How do I get to The Lamb from Bank",
+      "cityId": "london"
+    },
+    {
+      "id": "football-whats-on",
+      "query": "Any football on tonight in London",
+      "cityId": "london"
+    },
+    {
+      "id": "no-seats-lamb",
+      "query": "No seats at The Lamb",
+      "cityId": "london"
+    },
+    {
+      "id": "followup-cheaper-camden",
+      "query": "cheaper",
+      "cityId": "london",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Cheapest pint in Camden"
+        },
+        {
+          "role": "assistant",
+          "content": "Camden picks"
+        }
+      ]
+    },
+    {
+      "id": "desk-then-cheapest",
+      "query": "Cheapest pint in Camden",
+      "cityId": "london",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Somewhere to work with wifi in Angel"
+        },
+        {
+          "role": "assistant",
+          "content": "No seat data yet."
+        }
+      ]
+    },
+    {
+      "id": "non-alcoholic-soho",
+      "query": "Pubs with non-alcoholic options in Soho",
+      "cityId": "london"
+    },
+    {
+      "id": "heritage-bank",
+      "query": "Heritage story for The Old Bank of England",
+      "cityId": "london"
+    },
+    {
+      "id": "open-map-bank",
+      "query": "Fly to The Old Bank of England on the map",
+      "cityId": "london"
+    },
+    {
+      "id": "crawl-refine-cheaper",
+      "query": "cheaper",
+      "cityId": "london",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Plan a crawl in Soho for 4"
+        },
+        {
+          "role": "assistant",
+          "content": "Open in Plan"
+        }
+      ]
+    }
+  ]
+}

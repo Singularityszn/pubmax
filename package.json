@@ -101,7 +101,10 @@
     "build:discover-board": "tsx scripts/build_discover_board.mjs",
     "arize:smoke": "tsx scripts/arizeSmoke.ts",
     "backfill:site-harvest-drink-labels": "tsx scripts/backfill_site_harvest_drink_labels.mjs",
-    "harvest:soft-drinks-menus": "tsx scripts/harvest_soft_drinks_menus.mjs"
+    "harvest:soft-drinks-menus": "tsx scripts/harvest_soft_drinks_menus.mjs",
+    "eval:pal": "node --conditions=react-server --import tsx scripts/pal-eval.mjs",
+    "eval:pal:live": "node --conditions=react-server --import tsx scripts/pal-eval.mjs --live --write-scoreboard",
+    "regenerate:pal-answer-key": "node --conditions=react-server --import tsx scripts/regenerate-pal-answer-key.mjs"
   },
   "dependencies": {
     "@ai-sdk/otel": "^1.0.106",
