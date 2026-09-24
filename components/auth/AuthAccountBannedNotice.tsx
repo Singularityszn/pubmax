@@ -28,7 +28,3 @@ export default function AuthAccountBannedNotice({
     </div>
   );
 }
-
-export function authAccountBannedInlineMessage(): string {
-  return `${AUTH_ACCOUNT_BANNED_MESSAGE} See ${AUTH_ACCOUNT_BANNED_TERMS_PATH}.`;
-}

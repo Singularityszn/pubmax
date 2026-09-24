@@ -58,7 +58,7 @@ async function readSupabaseEnforcement(userId: string): Promise<AccountEnforceme
   return { authBanned, socialSuspended };
 }
 
-export async function readAccountEnforcement(
+async function readAccountEnforcement(
   userId: string,
 ): Promise<AccountEnforcementState> {
   const trimmed = userId.trim();
