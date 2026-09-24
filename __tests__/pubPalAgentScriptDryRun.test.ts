@@ -47,7 +47,7 @@ describe("pubpal:agent dry run", () => {
     expect(result.status).toBe(0);
     const output = `${result.stdout}${result.stderr}`;
     expect(output).not.toContain(SECRET);
-    expect(output).toContain(`[redacted, ${SECRET.length} characters]`);
+    expect(output).toContain("[redacted workspace secret locator]");
     expect(output).toContain("https://pubmaxxing.com/api/pub-pal/llm");
   });
 
@@ -66,6 +66,7 @@ describe("pubpal:agent dry run", () => {
       "https://pubmaxxing.com/api/pub-pal/llm",
     );
     expect(body.platform_settings.privacy.retention_days).toBe(0);
+    expect(body.platform_settings.privacy.zero_retention_mode).toBe(false);
   });
 
   it("writes the product voice cap, not a longer provider window", async () => {

@@ -29,6 +29,8 @@ import process from "node:process";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "../../lib/palVoiceCap.mjs";
 
 const API = "https://api.elevenlabs.io/v1/convai";
+const SECRETS_API = "https://api.elevenlabs.io/v1/convai/secrets";
+const LLM_SECRET_NAME = "PUBMAXX_PUB_PAL_LLM_SECRET";
 const AGENT_NAME = "PUBMAXX Pub Pal";
 const MAX_SESSION_SECONDS = PAL_VOICE_MAX_SESSION_SECONDS;
 
@@ -77,12 +79,16 @@ function systemPrompt() {
   ].join("\n");
 }
 
-function agentBody(llmUrl, secret) {
+function agentBody(llmUrl, secretId) {
   const voices = {
     ember: process.env.ELEVENLABS_VOICE_EMBER?.trim(),
     velvet: process.env.ELEVENLABS_VOICE_VELVET?.trim(),
     signal: process.env.ELEVENLABS_VOICE_SIGNAL?.trim(),
   };
+  const defaultVoice =
+    process.env.ELEVENLABS_VOICE_FOX?.trim() ||
+    process.env.ELEVENLABS_VOICE_ROBIN?.trim() ||
+    voices.ember;
   const body = {
     name: AGENT_NAME,
     conversation_config: {
@@ -91,12 +97,13 @@ function agentBody(llmUrl, secret) {
           prompt: systemPrompt(),
           // The whole point: our own grounded registry answers, not the
           // provider's model. `custom_llm` carries the shared secret so
-          // /api/pub-pal/llm can refuse anybody else.
+          // /api/pub-pal/llm can refuse anybody else. ElevenLabs stores the raw
+          // secret in the workspace vault and resolves it at call time.
           llm: "custom-llm",
           custom_llm: {
             url: llmUrl,
             model_id: "pubmax-ask-grounded",
-            api_key: { secret: secret },
+            api_key: { secret_id: secretId },
           },
         },
         first_message: "Hello, I'm your Pub Pal. What kind of night are you planning?",
@@ -107,14 +114,16 @@ function agentBody(llmUrl, secret) {
       },
       // Zero retention (ADR 0006): raw audio and transcripts are never
       // source-of-truth memory, so the provider must not keep either.
-      ...(voices.ember ? { tts: { voice_id: voices.ember } } : {}),
+      ...(defaultVoice ? { tts: { voice_id: defaultVoice } } : {}),
     },
     platform_settings: {
       privacy: {
         record_voice: false,
+        // ElevenLabs rejects custom_llm while zero_retention_mode is on; keep
+        // audio off and transcripts deleted instead (ADR 0006 intent).
         retention_days: 0,
         delete_transcript_and_pii: true,
-        zero_retention_mode: true,
+        zero_retention_mode: false,
       },
     },
   };
@@ -128,9 +137,15 @@ function agentBody(llmUrl, secret) {
  * scrollback and in any CI log. The secret is what guards /api/pub-pal/llm, so
  * only its length is printed. The real request still carries the true value.
  */
-function redactSecret(body) {
+function redactSecret(body, secretLength = 0) {
   const apiKey = body?.conversation_config?.agent?.prompt?.custom_llm?.api_key;
-  if (!apiKey || typeof apiKey.secret !== "string") return body;
+  if (!apiKey) return body;
+  const redactedLocator =
+    typeof apiKey.secret_id === "string"
+      ? { secret_id: "[redacted workspace secret locator]" }
+      : typeof apiKey.secret === "string"
+        ? { secret: `[redacted, ${apiKey.secret.length} characters]` }
+        : apiKey;
   return {
     ...body,
     conversation_config: {
@@ -141,15 +156,33 @@ function redactSecret(body) {
           ...body.conversation_config.agent.prompt,
           custom_llm: {
             ...body.conversation_config.agent.prompt.custom_llm,
-            api_key: {
-              ...apiKey,
-              secret: `[redacted, ${apiKey.secret.length} characters]`,
-            },
+            api_key: redactedLocator,
           },
         },
       },
     },
   };
+}
+
+async function ensureWorkspaceLlmSecret(apiKey, secretValue) {
+  const listed = await call("GET", SECRETS_API, apiKey);
+  const rows = Array.isArray(listed.secrets) ? listed.secrets : [];
+  const hit = rows.find((row) => row?.name === LLM_SECRET_NAME);
+  if (hit?.secret_id) {
+    await call("PATCH", `${SECRETS_API}/${hit.secret_id}`, apiKey, {
+      type: "update",
+      name: LLM_SECRET_NAME,
+      value: secretValue,
+    });
+    return hit.secret_id;
+  }
+  const created = await call("POST", SECRETS_API, apiKey, {
+    type: "new",
+    name: LLM_SECRET_NAME,
+    value: secretValue,
+  });
+  if (!created.secret_id) fail("ElevenLabs returned no workspace secret id.");
+  return created.secret_id;
 }
 
 async function call(method, url, apiKey, body) {
@@ -191,14 +224,21 @@ async function main() {
   }
 
   const llmUrl = `${baseUrl}/api/pub-pal/llm`;
-  const { body, voices } = agentBody(llmUrl, secret);
+  const secretId = dryRun
+    ? "dry-run-secret-locator"
+    : await ensureWorkspaceLlmSecret(apiKey, secret);
+  const { body, voices } = agentBody(llmUrl, secretId);
 
   if (dryRun) {
     console.log(
       "Dry run. This is the agent that would be written, with the shared secret held back:\n",
     );
     console.log(
-      JSON.stringify({ ...redactSecret(body), custom_llm_url: llmUrl }, null, 2),
+      JSON.stringify(
+        { ...redactSecret(body, secret.length), custom_llm_url: llmUrl },
+        null,
+        2,
+      ),
     );
     console.log("\nVoices resolved:", voices);
     return;
