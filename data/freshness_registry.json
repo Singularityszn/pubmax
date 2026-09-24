@@ -100,10 +100,10 @@
       "class": "episodic",
       "artifact": "public/data/whats_on/sport_fixtures.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "daily re-derivation via Vercel cron (30 5 * * * UTC); bundled fixtures remain the fallback",
+      "cadence": "twice daily via Vercel cron (05:30 and 15:00 UTC); bundled fixtures remain the offline fallback",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-whats-on re-derives sport rows into durable whats_on_listings; scripts/whatson/sportFixtures.mjs remains the local and GitHub recovery path for the bundled fallback artifact",
-      "gate": "none (bundled static; keyless). Past-dated rows are never served: lib/whatsOn.ts filterNotPast guards the serving seam in lib/whatsOnStore.ts, so a stale seed degrades to zero served fixtures rather than surfacing a played match."
+      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-whats-on fetches live fixtures (football-data.org or TheSportsDB) and re-derives sport rows into durable whats_on_listings; scripts/whatson/sportFixtures.mjs remains the local recovery path for the bundled fallback artifact",
+      "gate": "FOOTBALL_DATA_API_KEY optional (preferred). THESPORTSDB_API_KEY optional (public test key when absent). Past-dated rows are never served: lib/whatsOn.ts filterNotPast guards the serving seam."
     },
     {
       "id": "events_live_eventbrite",

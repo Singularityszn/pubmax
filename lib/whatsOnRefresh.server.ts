@@ -36,10 +36,8 @@ import {
   buildMusicResidencyRows,
   MUSIC_RESIDENCIES,
 } from "../scripts/whatson/musicRefresh.mjs";
-import {
-  buildSportFixtureRows,
-  SPORT_FIXTURES,
-} from "../scripts/whatson/sportFixtures.mjs";
+import { fetchLiveSportFixtures, SPORT_FIXTURE_HORIZON_MS } from "@/lib/sport/liveFixtures";
+import { buildSportFixtureRows } from "../scripts/whatson/sportFixtures.mjs";
 import {
   buildQuestionOneRows,
   isGreaterLondonLatLng,
@@ -430,13 +428,18 @@ function defaultKindRefreshers(now: number): Record<WhatsOnKind, () => Promise<W
         observedAt,
         venueIndex,
       }) as WhatsOnRow[],
-    sport: async () =>
-      buildSportFixtureRows({
+    sport: async () => {
+      const fixtures = await fetchLiveSportFixtures({
+        now,
+        endMs: now + SPORT_FIXTURE_HORIZON_MS,
+      });
+      return buildSportFixtureRows({
         attributeRows: attributes,
-        fixtures: SPORT_FIXTURES,
+        fixtures,
         observedAt,
         venueIndex,
-      }) as WhatsOnRow[],
+      }) as WhatsOnRow[];
+    },
   };
 }
 

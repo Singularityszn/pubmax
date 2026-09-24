@@ -489,7 +489,38 @@ describe("refreshOfficialWhatsOnListings", () => {
     ]);
   });
 
-  it("forwards venue-index failure through the full refresh", async () => {
+  it("keeps previous sport rows when the live fixture lane throws", async () => {
+    const store = memoryStore();
+    await store.replaceKind("sport", [kindRow("sport")], GENERATED);
+    const result = await refreshWhatsOnListings({
+      now: NOW,
+      store,
+      providers: [
+        {
+          name: "ticketmaster",
+          isConfigured: () => false,
+          fetchTonight: async () => [],
+        },
+      ],
+      refreshers: {
+        quiz: async () => [],
+        deal: async () => [],
+        music: async () => [],
+        sport: async () => {
+          throw new Error("sport fixtures unavailable");
+        },
+      },
+    });
+
+    expect(result.kinds).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "sport", rows: 0, error: "sport fixtures unavailable" }),
+      ]),
+    );
+    expect((await store.readAll()).rows).toEqual([expect.objectContaining({ kind: "sport" })]);
+  });
+
+    it("forwards venue-index failure through the full refresh", async () => {
     const store = memoryStore();
     await store.replaceKind("event", [{ ...eventRow("kept"), venueId: LEXINGTON.id }], GENERATED);
 
