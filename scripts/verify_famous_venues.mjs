@@ -493,6 +493,16 @@ export function applyVerification(packs, checks, verifiedDay) {
   return next;
 }
 
+export function summarizeVerification(checks) {
+  const idsWith = (outcome) => checks.filter((c) => c.outcome === outcome).map((c) => c.id);
+  return {
+    rowsChecked: checks.length,
+    confirmed: idsWith("confirmed").length,
+    closed: idsWith("closed"),
+    unverified: idsWith("unverified"),
+  };
+}
+
 async function main() {
   const write = process.argv.includes("--write");
   const verifiedDay = isoDateOnly(new Date());
@@ -547,13 +557,7 @@ async function main() {
     verifiedAt: verifiedDay,
     method:
       "source_page_fetch: GET each cited sourceUrl and anchor.sourceUrl; failed primary fetches retain their result and use alternate source corroboration; anchorObservation records exact GBP evidence or an unchanged anchor.",
-    summary: {
-      rowsChecked: checks.length,
-      primarySourceConfirmed: checks.filter((c) => c.result === "source_page_confirmed").length,
-      alternateSourceVerified: checks.filter((c) => c.result === "alternate_source_confirmed").length,
-      closed: closed.map((c) => c.id),
-      unverified: unverified.map((c) => c.id),
-    },
+    summary: summarizeVerification(checks),
     checks,
   };
   const outPath = join(FAMOUS_DIR, `verification_${verifiedDay}.json`);

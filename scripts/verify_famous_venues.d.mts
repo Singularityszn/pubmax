@@ -11,6 +11,13 @@ export function applyVerification<Row extends { id: string }>(
   verifiedDay: string,
 ): Map<string, Array<Row & { observedAt?: string; expiresAt?: string }>>;
 
+export function summarizeVerification(checks: readonly FamousVenueCheck[]): {
+  rowsChecked: number;
+  confirmed: number;
+  closed: string[];
+  unverified: string[];
+};
+
 export type FamousVenueRow = {
   id: string;
   name: string;

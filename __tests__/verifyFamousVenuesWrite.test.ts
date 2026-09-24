@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { applyVerification } from "@/scripts/verify_famous_venues.mjs";
+import { applyVerification, summarizeVerification } from "@/scripts/verify_famous_venues.mjs";
 
 type Row = { id: string; name: string; observedAt: string; expiresAt: string };
 
@@ -21,7 +21,7 @@ describe("verify:famous-venues --write plan", () => {
     const next = applyVerification(
       packs,
       [
-        { id: "bar-open", outcome: "confirmed", result: "source_page_confirmed" },
+        { id: "bar-open", outcome: "confirmed" },
         { id: "bar-closed", outcome: "closed" },
         { id: "bar-timeout", outcome: "unverified" },
         { id: "food-429", outcome: "unverified" },
@@ -36,4 +36,20 @@ describe("verify:famous-venues --write plan", () => {
     expect(next.get("late_food.json")).toEqual([row("food-429")]);
   });
 
+
+  it("summarises checks by outcome, so a listing-corroborated row counts as unverified", () => {
+    expect(
+      summarizeVerification([
+        { id: "bar-source", outcome: "confirmed" },
+        { id: "bar-anchor", outcome: "confirmed" },
+        { id: "bar-listing-only", outcome: "unverified" },
+        { id: "bar-closed", outcome: "closed" },
+      ]),
+    ).toEqual({
+      rowsChecked: 4,
+      confirmed: 2,
+      closed: ["bar-closed"],
+      unverified: ["bar-listing-only"],
+    });
+  });
 });
