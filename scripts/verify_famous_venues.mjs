@@ -5,10 +5,12 @@
  *
  * Each row ends in one outcome:
  *   confirmed  — re-stamped for a fresh window.
- *   closed     — an operator page about this venue says it closed for good (never a
- *                listing or aggregator page); --write drops it, and no later
- *                candidate can confirm it.
- *   unverified — anything else (timeout, 403, 429, 5xx, robots, unconvincing page);
+ *   closed     — the row's own sourceUrl or anchor page, on an operator host, has a
+ *                sentence naming this venue that says it closed for good (never a
+ *                listing or aggregator page); --write drops it.
+ *   unverified — anything else (timeout, 403, 429, 5xx, robots, unconvincing page,
+ *                or closure text on any page about the venue that is not the above,
+ *                which blocks confirmation from every other source);
  *                retried once after a backoff, then left unchanged and listed, and
  *                the command exits nonzero so the operator reruns later.
  *
@@ -285,13 +287,46 @@ function candidateUrls(row, alternates) {
   ];
 }
 
-function readPage(page, row) {
+function nameWords(text) {
+  return text
+    .replace(/&/g, " and ")
+    .replace(/['’]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+/** The full venue name, not followed by another capitalised word ("Swift Soho", not "Swift Borough"). */
+function sentenceNamesVenue(sentence, row) {
+  const name = nameWords(row.name).toLowerCase();
+  const text = nameWords(sentence);
+  const lower = text.toLowerCase();
+  if (!name) return false;
+  for (let i = lower.indexOf(name); i !== -1; i = lower.indexOf(name, i + 1)) {
+    const end = i + name.length;
+    if (i > 0 && lower[i - 1] !== " ") continue;
+    if (end < text.length && text[end] !== " ") continue;
+    const next = text.slice(end + 1).charAt(0);
+    if (next && next !== next.toLowerCase()) continue;
+    return true;
+  }
+  return false;
+}
+
+function readPage(page, row, isRowPage) {
   if (!page.ok) return "failed";
   if (!pageLooksLikeVenue(page.text, row, page.finalUrl, page.contentType)) return "unconvincing";
-  if (CLOSURE_SIGNALS.some((re) => re.test(page.text))) {
-    return isOperatorPage(page.finalUrl) ? "closed" : "unconvincing";
+  const closureSentences = page.text
+    .split(/(?<=[.!?])\s+/)
+    .filter((sentence) => CLOSURE_SIGNALS.some((re) => re.test(sentence)));
+  if (closureSentences.length === 0) return "confirmed";
+  if (
+    isRowPage &&
+    isOperatorPage(page.finalUrl) &&
+    closureSentences.some((sentence) => sentenceNamesVenue(sentence, row))
+  ) {
+    return "closed";
   }
-  return "confirmed";
+  return "held";
 }
 
 export async function verifyRow(row, alternates) {
@@ -305,22 +340,31 @@ export async function verifyRow(row, alternates) {
 
   for (const url of candidateUrls(row, alternates)) {
     const page = await fetchPage(url);
-    const verdict = readPage(page, row);
     const isPrimary = url === primaryUrl;
+    const verdict = readPage(page, row, isPrimary || url === row.anchor?.sourceUrl);
     if (verdict === "closed") {
       result = "operator_page_signals_closure";
       closureSourceUrl = url;
       observation = page.text;
       break;
     }
-    if (verdict === "confirmed") {
+    if (verdict === "held" && !closureSourceUrl) {
+      result = "closure_text_blocks_confirmation";
+      closureSourceUrl = url;
+      observation = page.text;
+    }
+    if (verdict === "confirmed" && !closureSourceUrl) {
       result = isPrimary ? "source_page_confirmed" : "alternate_source_confirmed";
       if (!isPrimary) verificationSourceUrl = url;
       observation = page.text;
       break;
     }
-    if (isPrimary) {
-      sourceUrlResult = page.ok ? "source_page_unconvincing" : "source_fetch_failed";
+    if (isPrimary && verdict !== "confirmed") {
+      sourceUrlResult = !page.ok
+        ? "source_fetch_failed"
+        : verdict === "held"
+          ? "source_page_closure_text"
+          : "source_page_unconvincing";
       sourceUrlObservation = page.error ?? "primary page did not corroborate the venue";
       observation = page.text;
     }
@@ -419,7 +463,7 @@ async function main() {
   }
   for (const check of unverified) {
     console.log(
-      `UNVERIFIED ${check.id}: ${check.result} (${check.sourceUrlObservation ?? "no corroboration"})`,
+      `UNVERIFIED ${check.id}: ${check.result}${check.closureSourceUrl ? ` at ${check.closureSourceUrl}` : ""} (${check.sourceUrlObservation ?? "no corroboration"})`,
     );
   }
   console.log(
