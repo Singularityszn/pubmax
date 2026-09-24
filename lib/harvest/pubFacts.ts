@@ -49,6 +49,7 @@ const NON_OPERATOR_HOSTS = [
   "deliveroo.co.uk",
   "ubereats.com",
   "theworlds50best.com",
+  "the50.com",
   "theinfatuation.com",
   "guide.michelin.com",
   "top50cocktailbars.com",

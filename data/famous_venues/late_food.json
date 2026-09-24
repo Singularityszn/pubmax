@@ -23,7 +23,7 @@
       }
     ],
     "sourceUrl": "https://tbtk.co.uk/",
-    "observedAt": "2026-09-24",
+    "observedAt": "2026-08-25",
     "anchor": {
       "kind": "large_doner",
       "label": "Large lamb doner",
@@ -44,7 +44,7 @@
       "lng": -0.07422
     },
     "sourceName": "tbtk.co.uk",
-    "expiresAt": "2026-10-24",
+    "expiresAt": "2026-09-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },

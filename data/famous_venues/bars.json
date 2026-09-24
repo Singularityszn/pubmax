@@ -158,7 +158,7 @@
       }
     ],
     "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/coburg-bar",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Coburg signature cocktail",
@@ -179,7 +179,7 @@
       "lng": -0.14916
     },
     "sourceName": "the-connaught.co.uk",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },

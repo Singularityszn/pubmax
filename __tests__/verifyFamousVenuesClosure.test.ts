@@ -223,7 +223,7 @@ describe("verify:famous-venues closure evidence", () => {
     servePages({
       "https://www.hustlegroupexample.com/": {
         status: 200,
-        body: "Hustle Group. Our other bars across Wandsworth, SW8.",
+        body: "Hustle Group. Our other bars across the river.",
       },
     });
 
@@ -250,6 +250,46 @@ describe("verify:famous-venues closure evidence", () => {
     });
 
     const check = await verifyRow(shapes, new Map());
+
+    expect(check.outcome).toBe("unverified");
+    expect(check.result).toBe("alternate_source_confirmed");
+  }, 20_000);
+
+  it("never stamps a venue whose operator url redirects to a listing that names it", async () => {
+    vi.stubGlobal("fetch", async (input: string | URL) => {
+      const url = String(input);
+      if (url.endsWith("/robots.txt")) return new Response("", { status: 404 });
+      const landed = url === `${OPERATOR}/` || url === `${OPERATOR}/menu` ? SECOND_LISTING : url;
+      const response = new Response(
+        landed === SECOND_LISTING
+          ? "<html><body>Kwantexample Mayfair cocktail bar review</body></html>"
+          : "",
+        { status: landed === SECOND_LISTING ? 200 : 404, headers: { "content-type": "text/html" } },
+      );
+      Object.defineProperty(response, "url", { value: landed });
+      return response;
+    });
+
+    const check = await verifyRow(row, new Map());
+
+    expect(check.outcome).toBe("unverified");
+    expect(check.result).toBe("alternate_source_confirmed");
+  }, 20_000);
+
+  it("never stamps a venue whose listing url redirects to a host the deny list does not name", async () => {
+    const renamed = "https://www.fiftyexample.com/discovery/kwantexample";
+    vi.stubGlobal("fetch", async (input: string | URL) => {
+      const url = String(input);
+      if (url.endsWith("/robots.txt")) return new Response("", { status: 404 });
+      const response = new Response(
+        url === LISTING ? "<html><body>Kwantexample Mayfair cocktail bar</body></html>" : "",
+        { status: url === LISTING ? 200 : 404, headers: { "content-type": "text/html" } },
+      );
+      Object.defineProperty(response, "url", { value: url === LISTING ? renamed : url });
+      return response;
+    });
+
+    const check = await verifyRow({ ...row, sourceUrl: LISTING, anchor: undefined, fameGates: [] }, new Map());
 
     expect(check.outcome).toBe("unverified");
     expect(check.result).toBe("alternate_source_confirmed");

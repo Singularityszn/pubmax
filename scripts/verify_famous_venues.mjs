@@ -157,9 +157,10 @@ export function isStampableVerificationResult(result) {
   return result === "source_page_confirmed" || result === "anchor_source_confirmed";
 }
 
-function isStampableOperatorUrl(url, row) {
+function isStampableOperatorPage(url, page, row) {
   return (
     isOperatorPage(url) &&
+    isOperatorPage(page.finalUrl) &&
     (url === row.sourceUrl || url === row.anchor?.sourceUrl)
   );
 }
@@ -168,14 +169,23 @@ function stampableUrls(row) {
   return [...new Set([row.sourceUrl, row.anchor?.sourceUrl].filter(Boolean))];
 }
 
-function pageLooksLikeVenue(text, row, contentType = "") {
+function pageLooksLikeVenue(text, row, finalUrl, contentType = "") {
   if (contentType.includes("application/pdf")) return false;
   const lower = text.slice(0, MAX_PAGE_TEXT_CHARS).toLowerCase();
   if (JUNK_SIGNATURES.some((re) => re.test(lower))) return false;
   const tokens = [...new Set([...nameTokens(row.name), ...slugTokens(row)])];
   if (tokens.length === 0) return lower.includes(row.name.toLowerCase().slice(0, 8));
   const hits = tokens.filter((t) => lower.includes(t));
-  return hits.length >= Math.min(2, tokens.length);
+  if (hits.length >= Math.min(2, tokens.length)) return true;
+  try {
+    const path = new URL(finalUrl).pathname.toLowerCase();
+    if (slugTokens(row).some((t) => path.includes(t))) return true;
+  } catch {
+    // ignore
+  }
+  const postcode = row.address.match(/\b([A-Z]{1,2}\d{1,2}[A-Z]?)\b/i)?.[1];
+  if (postcode && lower.includes(postcode.toLowerCase())) return true;
+  return Boolean(row.borough && lower.includes(row.borough.toLowerCase()));
 }
 
 const VERIFIER_UA =
@@ -324,7 +334,7 @@ function readPage(page, row, isRowPage) {
   const closure = closureAboutVenue(page.text, row);
   if (closure === "exact" && isRowPage && isOperatorPage(page.finalUrl)) return "closed";
   if (closure !== "none") return "held";
-  return pageLooksLikeVenue(page.text, row, page.contentType)
+  return pageLooksLikeVenue(page.text, row, page.finalUrl, page.contentType)
     ? "confirmed"
     : "unconvincing";
 }
@@ -369,7 +379,7 @@ async function verifyAgainstUrls(row, urls, { stampableOnly }) {
       observation = page.text;
     }
     if (verdict === "confirmed" && !closureSourceUrl) {
-      if (isStampableOperatorUrl(url, row)) {
+      if (isStampableOperatorPage(url, page, row)) {
         result = isPrimary ? "source_page_confirmed" : "anchor_source_confirmed";
         observation = page.text;
         stampableHit = true;
