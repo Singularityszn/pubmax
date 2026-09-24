@@ -48,6 +48,13 @@ const NON_OPERATOR_HOSTS = [
   "justeat.co.uk",
   "deliveroo.co.uk",
   "ubereats.com",
+  "theworlds50best.com",
+  "theinfatuation.com",
+  "guide.michelin.com",
+  "top50cocktailbars.com",
+  "visitlondon.com",
+  "hackneypost.co.uk",
+  "thenudge.com",
 ] as const;
 
 const NON_OPERATOR = new Set<string>(NON_OPERATOR_HOSTS);

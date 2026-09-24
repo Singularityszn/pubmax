@@ -82,17 +82,6 @@ const CLOSURE_NEGATION = /\b(?:not|never|rumou?rs?|reopen\w*)\b/i;
 const SUBJECT_CONNECTORS = new Set(["at", "the", "and", "of", "on"]);
 const GENERIC_NAME_WORDS = new Set([...SUBJECT_CONNECTORS, "bar", "pub", "restaurant", "london"]);
 
-/** Listing and editorial hosts the operator deny list does not name; never an operator page. */
-const LISTING_HOSTS = [
-  "theworlds50best.com",
-  "theinfatuation.com",
-  "guide.michelin.com",
-  "top50cocktailbars.com",
-  "visitlondon.com",
-  "hackneypost.co.uk",
-  "thenudge.com",
-];
-
 function isoDateOnly(date) {
   return date.toISOString().slice(0, 10);
 }
@@ -160,13 +149,27 @@ function slugTokens(row) {
 }
 
 function isOperatorPage(url) {
-  if (!isOperatorHost(url)) return false;
-  const host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
-  return !LISTING_HOSTS.some((listing) => host === listing || host.endsWith(`.${listing}`));
+  return isHarvestableOperatorUrl(url) && isOperatorHost(url);
+}
+
+/** Only these operator URLs may move observedAt / expiresAt on --write. */
+export function isStampableVerificationResult(result) {
+  return result === "source_page_confirmed" || result === "anchor_source_confirmed";
+}
+
+function isStampableOperatorUrl(url, row) {
+  return (
+    isOperatorPage(url) &&
+    (url === row.sourceUrl || url === row.anchor?.sourceUrl)
+  );
+}
+
+function stampableUrls(row) {
+  return [...new Set([row.sourceUrl, row.anchor?.sourceUrl].filter(Boolean))];
 }
 
 function pageLooksLikeVenue(text, row, finalUrl, contentType = "") {
-  if (contentType.includes("application/pdf")) return true;
+  if (contentType.includes("application/pdf")) return false;
   const lower = text.slice(0, MAX_PAGE_TEXT_CHARS).toLowerCase();
   if (JUNK_SIGNATURES.some((re) => re.test(lower))) return false;
   const tokens = [...nameTokens(row.name), ...slugTokens(row)];
@@ -353,7 +356,19 @@ function readPage(page, row, isRowPage) {
     : "unconvincing";
 }
 
-export async function verifyRow(row, alternates) {
+function supportingUrls(row, alternates) {
+  const stampable = new Set(stampableUrls(row));
+  const urls = [
+    ...(row.fameGates ?? []).map((gate) => gate.sourceUrl),
+    alternates.get(row.id),
+    row.story?.sourceUrl,
+  ];
+  return [
+    ...new Set(urls.filter((url) => typeof url === "string" && url.length > 0)),
+  ].filter((url) => !stampable.has(url));
+}
+
+async function verifyAgainstUrls(row, urls, { stampableOnly }) {
   const primaryUrl = row.sourceUrl;
   let result = "source_fetch_failed";
   let observation = "";
@@ -361,11 +376,14 @@ export async function verifyRow(row, alternates) {
   let sourceUrlObservation;
   let verificationSourceUrl;
   let closureSourceUrl;
+  let stampableHit = false;
 
-  for (const url of candidateUrls(row, alternates)) {
+  for (const url of urls) {
     const page = await fetchPage(url);
     const isPrimary = url === primaryUrl;
-    const verdict = readPage(page, row, isPrimary || url === row.anchor?.sourceUrl);
+    const isAnchor = url === row.anchor?.sourceUrl;
+    const isRowPage = isPrimary || isAnchor;
+    const verdict = readPage(page, row, isRowPage);
     if (verdict === "closed") {
       result = "operator_page_signals_closure";
       closureSourceUrl = url;
@@ -378,10 +396,16 @@ export async function verifyRow(row, alternates) {
       observation = page.text;
     }
     if (verdict === "confirmed" && !closureSourceUrl) {
-      result = isPrimary ? "source_page_confirmed" : "alternate_source_confirmed";
-      if (!isPrimary) verificationSourceUrl = url;
+      if (isStampableOperatorUrl(url, row)) {
+        result = isPrimary ? "source_page_confirmed" : "anchor_source_confirmed";
+        observation = page.text;
+        stampableHit = true;
+        break;
+      }
+      result = "alternate_source_confirmed";
+      verificationSourceUrl = url;
       observation = page.text;
-      break;
+      if (stampableOnly) continue;
     }
     if (isPrimary && verdict !== "confirmed") {
       sourceUrlResult = !page.ok
@@ -394,24 +418,58 @@ export async function verifyRow(row, alternates) {
     }
   }
 
+  return {
+    result,
+    observation,
+    sourceUrlResult,
+    sourceUrlObservation,
+    verificationSourceUrl,
+    closureSourceUrl,
+    stampableHit,
+  };
+}
+
+export async function verifyRow(row, alternates) {
+  const primaryUrl = row.sourceUrl;
+  let pass = await verifyAgainstUrls(row, stampableUrls(row), { stampableOnly: true });
+  if (!pass.stampableHit && pass.result !== "operator_page_signals_closure") {
+    const supporting = await verifyAgainstUrls(row, supportingUrls(row, alternates), {
+      stampableOnly: false,
+    });
+    if (supporting.result === "operator_page_signals_closure") {
+      pass = supporting;
+    } else if (!pass.stampableHit) {
+      pass = {
+        ...pass,
+        result: supporting.result !== "source_fetch_failed" ? supporting.result : pass.result,
+        verificationSourceUrl:
+          supporting.verificationSourceUrl ?? pass.verificationSourceUrl,
+        observation: supporting.observation || pass.observation,
+        sourceUrlResult: pass.sourceUrlResult ?? supporting.sourceUrlResult,
+        sourceUrlObservation: pass.sourceUrlObservation ?? supporting.sourceUrlObservation,
+        closureSourceUrl: pass.closureSourceUrl ?? supporting.closureSourceUrl,
+      };
+    }
+  }
+
   const outcome =
-    result === "source_page_confirmed" || result === "alternate_source_confirmed"
+    isStampableVerificationResult(pass.result)
       ? "confirmed"
-      : result === "operator_page_signals_closure"
+      : pass.result === "operator_page_signals_closure"
         ? "closed"
         : "unverified";
   return {
     id: row.id,
     method: "source_page_fetch",
     sourceUrl: primaryUrl,
-    ...(verificationSourceUrl ? { verificationSourceUrl } : {}),
-    ...(closureSourceUrl ? { closureSourceUrl } : {}),
-    result,
-    pageObservation: observation.slice(0, 280),
+    outcome,
+    ...(pass.verificationSourceUrl ? { verificationSourceUrl: pass.verificationSourceUrl } : {}),
+    ...(pass.closureSourceUrl ? { closureSourceUrl: pass.closureSourceUrl } : {}),
+    result: pass.result,
+    pageObservation: pass.observation.slice(0, 280),
     anchorSourceUrl: row.anchor?.sourceUrl ?? primaryUrl,
     anchorObservation: "anchor_unchanged; verification run did not re-price anchors",
-    ...(sourceUrlResult ? { sourceUrlResult, sourceUrlObservation } : {}),
-    outcome,
+    ...(pass.sourceUrlResult ? { sourceUrlResult: pass.sourceUrlResult, sourceUrlObservation: pass.sourceUrlObservation } : {}),
   };
 }
 
@@ -442,13 +500,21 @@ function stampRow(row, verifiedDay) {
  */
 export function applyVerification(packs, checks, verifiedDay) {
   const outcomeById = new Map(checks.map((c) => [c.id, c.outcome]));
+  const checkById = new Map(checks.map((c) => [c.id, c]));
   const next = new Map();
   for (const [file, pack] of packs) {
     next.set(
       file,
       pack
         .filter((row) => outcomeById.get(row.id) !== "closed")
-        .map((row) => (outcomeById.get(row.id) === "confirmed" ? stampRow(row, verifiedDay) : row)),
+        .map((row) => {
+          const check = checkById.get(row.id);
+          return check &&
+            check.outcome === "confirmed" &&
+            isStampableVerificationResult(check.result)
+            ? stampRow(row, verifiedDay)
+            : row;
+        }),
     );
   }
   return next;

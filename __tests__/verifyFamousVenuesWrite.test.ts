@@ -21,7 +21,7 @@ describe("verify:famous-venues --write plan", () => {
     const next = applyVerification(
       packs,
       [
-        { id: "bar-open", outcome: "confirmed" },
+        { id: "bar-open", outcome: "confirmed", result: "source_page_confirmed" },
         { id: "bar-closed", outcome: "closed" },
         { id: "bar-timeout", outcome: "unverified" },
         { id: "food-429", outcome: "unverified" },
@@ -34,5 +34,21 @@ describe("verify:famous-venues --write plan", () => {
       row("bar-timeout"),
     ]);
     expect(next.get("late_food.json")).toEqual([row("food-429")]);
+  });
+
+  it("does not re-stamp rows confirmed only on a supporting (non-stampable) source", () => {
+    const packs = new Map([["bars.json", [row("bar-listing-only")]]]);
+    const next = applyVerification(
+      packs,
+      [
+        {
+          id: "bar-listing-only",
+          outcome: "confirmed",
+          result: "alternate_source_confirmed",
+        },
+      ],
+      "2026-09-24",
+    );
+    expect(next.get("bars.json")).toEqual([row("bar-listing-only")]);
   });
 });
