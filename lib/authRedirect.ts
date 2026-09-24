@@ -689,12 +689,13 @@ export function readAuthCallbackAttempt(currentUrl: string): AuthCallbackAttempt
     // fragment, so it keeps reporting a provider error on any page. An
     // unmarked bare signal only counts on an auth page (anti-spoof scoping).
     const accountBanned =
-      ((marked || authPage) && current.searchParams.get(AUTH_ACCOUNT_BANNED_PARAM) === "1") ||
-      (fragment?.kind === "error" &&
-        isGoTrueUserBannedError({
-          code: fragment.errorCode ?? undefined,
-          message: fragment.errorDescription ?? undefined,
-        }));
+      (marked || authPage) &&
+      (current.searchParams.get(AUTH_ACCOUNT_BANNED_PARAM) === "1" ||
+        (fragment?.kind === "error" &&
+          isGoTrueUserBannedError({
+            code: fragment.errorCode ?? undefined,
+            message: fragment.errorDescription ?? undefined,
+          })));
     const providerError =
       accountBanned ||
       ((marked || authPage) &&

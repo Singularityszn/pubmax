@@ -663,7 +663,7 @@ export function AuthProvider({
         const captured = await callbackCapture;
         const callbackAttempt = captured?.attempt ?? null;
         let exchangedSession: Session | null = null;
-        let exchangeBanned = Boolean(callbackAttempt?.accountBanned);
+        let exchangeBanned = false;
         // Tokens complete sign-in even without an attempt id (a clamped
         // cross-browser link); a token-less callback is the genuine failure.
         let exchangeFailed = Boolean(
@@ -680,8 +680,8 @@ export function AuthProvider({
             }
             const exchange = await callbackSessionInFlight.current;
             exchangedSession = exchange.session;
-            exchangeBanned = exchangeBanned || exchange.banned;
-            exchangeFailed = exchange.failed && !exchangeBanned;
+            exchangeBanned = exchange.banned;
+            exchangeFailed = exchange.failed && !exchange.banned;
           }
         } finally {
           if (callbackAttempt?.attemptId) {
@@ -698,6 +698,9 @@ export function AuthProvider({
           setAuthBannedNotice(true);
           setAuthCallbackError(null);
           void supabase.auth.signOut({ scope: "local" });
+        } else if (callbackAttempt?.accountBanned) {
+          setAuthBannedNotice(true);
+          setAuthCallbackError(null);
         } else if (exchangeFailed) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
 
         if (exchangedSession) {

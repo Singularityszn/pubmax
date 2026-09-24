@@ -1460,15 +1460,18 @@ describe("auth callback URL safety", () => {
     expect(scrubs).toEqual(["/login"]);
 
     const fragmentBan = await scrubAuthCallback(
-      "https://pubmaxxing.com/#error=access_denied&error_code=user_banned&error_description=User+is+banned",
+      "https://pubmaxxing.com/login#error=access_denied&error_code=user_banned&error_description=User+is+banned",
       () => {},
       { persistentStorage, tabStorage, lockManager: immediateLocks, now: 2_000 },
     );
     expect(fragmentBan?.attempt.accountBanned).toBe(true);
   });
 
-  it("ignores a bare ban param outside a marked callback or auth page", () => {
+  it("ignores a bare ban signal outside a marked callback or auth page", () => {
     expect(readAuthCallbackAttempt("https://pubmaxxing.com/map?authBanned=1")).toBeNull();
+    expect(
+      readAuthCallbackAttempt("https://pubmaxxing.com/map#error_code=user_banned"),
+    ).toBeNull();
     expect(readAuthCallbackAttempt("https://pubmaxxing.com/login?authBanned=1")).toMatchObject({
       providerError: true,
       accountBanned: true,
