@@ -52,7 +52,7 @@ jobs:
   # inside the old wall, since that work only happens on `if: failure()`.
   performance-budget:
     name: Performance budget
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 55
     steps:
       # THE JOB'S OWN CLOCK, for the A/B at the bottom of this job. It sizes its
@@ -60,7 +60,7 @@ jobs:
       # build have already spent, because a share of a wall that is gone is not
       # a share. `date +%s%3N` is epoch milliseconds.
       - name: Record the job start
-        run: echo "PUBMAX_PERF_AB_JOB_STARTED_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
+        run: echo "PUBMAX_PERF_AB_JOB_STARTED_MS=$(node -p "Date.now()")" >> "$GITHUB_ENV"
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -117,7 +117,7 @@ jobs:
       # Chromium only: the budget is measured in one engine on purpose, so a run
       # is comparable to the one before it.
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        uses: ./.github/actions/pubmax-mac-playwright
 
       # Playwright's webServer builds and starts the production build itself
       # (playwright.config.ts owns the env the keyless routes need). Measuring a
@@ -192,7 +192,7 @@ jobs:
   # keep the pair honest.
   ux-lane-performance:
     name: UX lane performance
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -218,7 +218,7 @@ jobs:
         run: npm ci
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        uses: ./.github/actions/pubmax-mac-playwright
 
       - name: Report UX lane routes
         env:

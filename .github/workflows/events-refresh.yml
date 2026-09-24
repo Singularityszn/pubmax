@@ -7,11 +7,14 @@ name: What's-On events refresh
 # WhatsOnRow contract, matches venues conservatively, and opens a PR for human
 # review. It NEVER pushes to a protected branch and NEVER scrapes aggregators.
 #
-# Daily 04:00 UTC. TICKETMASTER_API_KEY is a repo secret. SKIDDLE_API_KEY is not
-# provisioned yet and the Skiddle lane stays not-configured.
+# TICKETMASTER_API_KEY is a repo secret. SKIDDLE_API_KEY is not provisioned yet.
+#
+# Schedule disabled 24 September 2026: Vercel cron GET /api/cron/refresh-whats-on
+# (vercel.json `30 5 * * *`) already refreshes bounded lanes and official events
+# into whats_on_listings. workflow_dispatch remains a GitHub recovery path.
 on:
-  schedule:
-    - cron: "0 4 * * *"
+  # schedule:
+  #   - cron: "0 4 * * *"
   workflow_dispatch:
 
 permissions:
@@ -24,7 +27,7 @@ concurrency:
 
 jobs:
   refresh:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, pubmax-mac]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

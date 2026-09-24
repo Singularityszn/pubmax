@@ -21,7 +21,7 @@ concurrency:
 jobs:
   rls-session:
     name: Effective RLS (Postgres 16 + PostgREST 14)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 15
 
     steps:
@@ -37,27 +37,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install PostgreSQL 16 and PostgREST 14
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-16
-          # GITHUB_PATH reaches later steps only, so export it here too or the
-          # version checks at the end of this step run without the binaries.
-          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
-          export PATH="/usr/lib/postgresql/16/bin:$PATH"
-          curl --fail --location --silent --show-error \
-            --output "$RUNNER_TEMP/postgrest.tar.xz" \
-            https://github.com/PostgREST/postgrest/releases/download/v14.16/postgrest-v14.16-linux-static-x86-64.tar.xz
-          echo "36b8ae140f188cfcd6003494805bf35a41e895f88c12be9183d60f91782145c6  $RUNNER_TEMP/postgrest.tar.xz" \
-            | sha256sum --check
-          tar --extract --xz --file "$RUNNER_TEMP/postgrest.tar.xz" --directory "$RUNNER_TEMP"
-          chmod +x "$RUNNER_TEMP/postgrest"
-          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
-          export PATH="$RUNNER_TEMP:$PATH"
-          initdb --version
-          postgres --version
-          psql --version
-          "$RUNNER_TEMP/postgrest" --version
+      # macOS runners cannot use `services:` containers; Homebrew
+      # postgresql@16 + postgrest on the runner host back the session harness
+      # (scripts/rls/run-session-tests.mjs, scripts/rls/postgresHost.mjs).
+      - name: Ensure PostgreSQL 16 and PostgREST 14 on PATH
+        uses: ./.github/actions/pubmax-mac-postgres-path
 
       - name: Run effective RLS session tests
         run: npm run test:rls

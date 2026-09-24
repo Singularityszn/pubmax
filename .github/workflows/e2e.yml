@@ -18,7 +18,7 @@ concurrency:
 jobs:
   law-pins:
     name: Browser law pins
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -36,7 +36,7 @@ jobs:
         run: npm ci
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        uses: ./.github/actions/pubmax-mac-playwright
 
       - name: Run law-pinning journeys
         env:
@@ -76,14 +76,14 @@ jobs:
           --skips-argued e2e/conditional-skips.allowlist.json
 
   full-suite:
-    name: Full browser suite (${{ matrix.shard }}/4)
+    name: Full browser suite (${{ matrix.shard }}/2)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -100,7 +100,7 @@ jobs:
         run: npm ci
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        uses: ./.github/actions/pubmax-mac-playwright
 
       - name: Run full browser shard
         env:
@@ -115,7 +115,7 @@ jobs:
           --project=chromium-gl
           --project=chromium-sw-gl
           --project=chromium-no-gl
-          --shard=${{ matrix.shard }}/4
+          --shard=${{ matrix.shard }}/2
 
       - name: Gate the full browser shard
         run: node scripts/assert-playwright-gate.mjs playwright-default-${{ matrix.shard }}.json
