@@ -182,6 +182,20 @@ describe("review scope guard", () => {
     expect(report.regeneratedLanes).toEqual([]);
   });
 
+  it("permits venues_slim shards when the diff carries a famous venue seed they are cut from", () => {
+    const report = summarizeReviewScope([
+      "data/famous_venues/bars.json",
+      "public/data/venues_slim.json",
+      "public/data/venues_slim.cell.51.500_-0.125.json",
+      "public/data/uk_base/manifest.json",
+    ]);
+
+    expect(report.regeneratedLanes).toEqual(["venues_slim"]);
+    expect(report.forbidden).toEqual([
+      { category: "generated", path: "public/data/uk_base/manifest.json" },
+    ]);
+  });
+
   it("permits one lane without permitting another", () => {
     const report = summarizeReviewScope([
       "scripts/build_uk_base_shards.mjs",
