@@ -44,6 +44,8 @@ concurrency:
 
 `cancel-in-progress` stays false so a pull request does not cancel CI, browser tests, and RLS mid-flight on the same concurrency group. Superseded commits wait in queue.
 
+Avoid `workflow_dispatch` on this branch while a pull request is open: it shares the same `pubmax-mac` queue and can block or stall PR checks for hours.
+
 `ci.yml` also chains jobs (`production-build` after lint + freshness, unit
 shards `max-parallel: 1`, coverage after unit tests).
 
