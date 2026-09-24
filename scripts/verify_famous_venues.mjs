@@ -34,6 +34,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 
+import { decodeXmlEntities } from "../lib/editorialRss.mjs";
 import { NIGHT_OUT_PLACE_MAX_AGE_HOURS } from "../lib/nightOutPlaceContract.mjs";
 import {
   harvestRedirectLanding,
@@ -124,19 +125,24 @@ function loadAlternateUrls() {
   return map;
 }
 
+function foldText(text) {
+  return text.normalize("NFD").replace(/\p{M}/gu, "").replace(/['’]/g, "");
+}
+
 function nameTokens(name) {
-  return name
+  return foldText(name)
     .toLowerCase()
-    .replace(/['’]/g, "")
     .split(/[^a-z0-9]+/)
     .filter((t) => t.length > 2 && !STOP_WORDS.has(t));
 }
 
 function htmlToText(html) {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
+  return decodeXmlEntities(
+    html
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " "),
+  )
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -171,10 +177,10 @@ function stampableUrls(row) {
 
 function pageLooksLikeVenue(text, row, contentType = "") {
   if (contentType.includes("application/pdf")) return false;
-  const lower = text.slice(0, MAX_PAGE_TEXT_CHARS).toLowerCase();
+  const lower = foldText(text.slice(0, MAX_PAGE_TEXT_CHARS)).toLowerCase();
   if (JUNK_SIGNATURES.some((re) => re.test(lower))) return false;
   const tokens = [...new Set([...nameTokens(row.name), ...slugTokens(row)])];
-  if (tokens.length === 0) return lower.includes(row.name.toLowerCase().slice(0, 8));
+  if (tokens.length === 0) return lower.includes(foldText(row.name).toLowerCase().slice(0, 8));
   const hits = tokens.filter((t) => lower.includes(t));
   return hits.length >= Math.min(2, tokens.length);
 }
@@ -268,9 +274,8 @@ async function fetchPage(url) {
 }
 
 function nameWords(text) {
-  return text
+  return foldText(text)
     .replace(/&/g, " and ")
-    .replace(/['’]/g, "")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 }

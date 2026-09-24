@@ -295,4 +295,41 @@ describe("verify:famous-venues closure evidence", () => {
     expect(check.outcome).toBe("unverified");
     expect(check.result).toBe("alternate_source_confirmed");
   }, 20_000);
+
+  it.each([
+    ["confirms", "Gordon&#039;s Wine Bar, 47 Villiers Street. Wines by the glass.", "confirmed"],
+    ["drops", "Gordon&#039;s Wine Bar has closed for good.", "closed"],
+  ])("%s a venue its operator page names with an entity-encoded apostrophe", async (_label, body, outcome) => {
+    const gordons = {
+      id: "bar-gordons-wine-bar",
+      name: "Gordon's Wine Bar",
+      address: "47 Villiers Street, London WC2N 6NE",
+      borough: "Westminster",
+      sourceUrl: "https://www.gordonswinebarexample.com/",
+      fameGates: [],
+    };
+    servePages({ "https://www.gordonswinebarexample.com/": { status: 200, body } });
+
+    const check = await verifyRow(gordons, new Map());
+
+    expect(check.outcome).toBe(outcome);
+  }, 20_000);
+
+  it("drops a venue whose operator page spells its accented name plainly in a closure sentence", async () => {
+    const zedel = {
+      id: "restaurant-brasserie-zedelexample",
+      name: "Brasserie Zédelexample",
+      address: "20 Sherwood Street, London W1F 7ED",
+      borough: "Westminster",
+      sourceUrl: "https://www.zedelexample.com/",
+      fameGates: [],
+    };
+    servePages({
+      "https://www.zedelexample.com/": { status: 200, body: "Brasserie Zedelexample has closed for good." },
+    });
+
+    const check = await verifyRow(zedel, new Map());
+
+    expect(check.outcome).toBe("closed");
+  }, 20_000);
 });
