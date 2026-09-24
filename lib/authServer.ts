@@ -30,6 +30,7 @@ import "server-only";
 // second delete reaches its documented 410 rather than a 401 about an account
 // we know the caller owns. That argument is written at the call site.
 
+import { isAuthUserBannedUntil, isGoTrueUserBannedError } from "@/lib/authAccountBan";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 /**
@@ -60,6 +61,7 @@ export type CallerAuthIdentity = {
 export type CallerAuthVerification =
   | { status: "absent" }
   | { status: "invalid" }
+  | { status: "banned" }
   | { status: "unavailable" }
   | { status: "verified"; identity: CallerAuthIdentity };
 
@@ -70,7 +72,6 @@ const INVALID_BEARER_CODES = new Set([
   "session_expired",
   "session_not_found",
   "unexpected_audience",
-  "user_banned",
   "user_not_found",
 ]);
 
@@ -80,6 +81,7 @@ const INVALID_BEARER_ERROR_NAMES = new Set([
 ]);
 
 function isInvalidBearerError(error: unknown): boolean {
+  if (isGoTrueUserBannedError(error)) return false;
   if (!error || typeof error !== "object") return false;
   const candidate = error as {
     code?: unknown;
@@ -141,6 +143,7 @@ async function verifyClaimsLocally(
   if (typeof auth.getClaims !== "function") return null;
   const { data, error } = await auth.getClaims(token);
   if (error) {
+    if (isGoTrueUserBannedError(error)) return { status: "banned" };
     return { status: isInvalidBearerError(error) ? "invalid" : "unavailable" };
   }
   const id = data?.claims?.sub;
@@ -166,12 +169,14 @@ export async function verifyCallerAuth(
     }
     const { data, error } = await admin.auth.getUser(token);
     if (error) {
+      if (isGoTrueUserBannedError(error)) return { status: "banned" };
       return {
         status: isInvalidBearerError(error) ? "invalid" : "unavailable",
       };
     }
     const id = data.user?.id;
     if (typeof id !== "string" || !id) return { status: "invalid" };
+    if (isAuthUserBannedUntil(data.user)) return { status: "banned" };
     const email = typeof data.user?.email === "string" ? data.user.email : null;
     const createdAt =
       typeof data.user?.created_at === "string" ? data.user.created_at : null;

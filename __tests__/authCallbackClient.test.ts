@@ -18,12 +18,25 @@ describe("explicit implicit-flow callback completion", () => {
         { setSession },
         { accessToken: "access", refreshToken: "refresh" },
       ),
-    ).resolves.toEqual({ session, failed: false });
+    ).resolves.toEqual({ session, failed: false, banned: false });
     expect(setSession).toHaveBeenCalledOnce();
     expect(setSession).toHaveBeenCalledWith({
       access_token: "access",
       refresh_token: "refresh",
     });
+  });
+
+  it("surfaces auth bans without a generic failure", async () => {
+    const setSession = vi.fn().mockResolvedValue({
+      data: { session: null },
+      error: { code: "user_banned" },
+    });
+    await expect(
+      establishAuthCallbackSession(
+        { setSession },
+        { accessToken: "access", refreshToken: "refresh" },
+      ),
+    ).resolves.toEqual({ session: null, failed: false, banned: true });
   });
 
   it("normalizes provider and network failures", async () => {
@@ -38,13 +51,13 @@ describe("explicit implicit-flow callback completion", () => {
         { setSession: providerFailure },
         { accessToken: "expired", refreshToken: "refresh" },
       ),
-    ).resolves.toEqual({ session: null, failed: true });
+    ).resolves.toEqual({ session: null, failed: true, banned: false });
     await expect(
       establishAuthCallbackSession(
         { setSession: networkFailure },
         { accessToken: "access", refreshToken: "refresh" },
       ),
-    ).resolves.toEqual({ session: null, failed: true });
+    ).resolves.toEqual({ session: null, failed: true, banned: false });
   });
 });
 

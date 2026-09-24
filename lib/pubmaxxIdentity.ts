@@ -14,6 +14,7 @@ export const RESERVED_CONTRIBUTOR_HANDLES = [
   "tiffany",
   "karanmanoharan",
   "karanszn",
+  "karansznx",
   "karanm",
   "karanmrn",
   "kai",
@@ -40,6 +41,30 @@ const RESERVED_EXACT = new Set([
 ]);
 const RESERVED_BRAND_PATTERN = /^(?:pubmaxx|pubmaxxing|pubmaxxer)[_-]?(?:admin|help|official|safety|staff|support)$/;
 const BLOCKED_TERMS = new Set(["fuck", "fucker", "nigger", "nigga"]);
+const OWNER_HANDLE_ALLOWLIST = new Set(["karan", "karansznx"]);
+const KARAN_FAMILY_TERMS = [
+  "dad",
+  "father",
+  "papa",
+  "mom",
+  "mum",
+  "mother",
+  "mama",
+  "bro",
+  "brother",
+  "sis",
+  "sister",
+  "son",
+  "daughter",
+  "uncle",
+  "aunt",
+  "wife",
+  "husband",
+  "gf",
+  "bf",
+  "boyfriend",
+  "girlfriend",
+] as const;
 
 export type HandleAssessment =
   | { ok: true; handle: string }
@@ -50,6 +75,61 @@ export function isReservedContributorHandle(raw: unknown): boolean {
   return RESERVED_CONTRIBUTOR_HANDLE_SET.has(
     raw.trim().replace(/^@/, "").toLowerCase(),
   );
+}
+
+function normalizedIdentityText(raw: string): string {
+  return raw.trim().replace(/^@/, "").toLowerCase();
+}
+
+function compactIdentityText(raw: string): string {
+  return normalizedIdentityText(raw).replace(/[^a-z0-9]+/g, "");
+}
+
+function handleContainsBlockedTerm(handle: string): boolean {
+  for (const term of BLOCKED_TERMS) {
+    if (handle.includes(term)) return true;
+  }
+  return false;
+}
+
+function violatesOwnerKaranPolicy(compact: string): boolean {
+  if (OWNER_HANDLE_ALLOWLIST.has(compact)) return false;
+  if (!compact.includes("karan")) return false;
+  for (const term of KARAN_FAMILY_TERMS) {
+    if (compact.includes(term)) return true;
+  }
+  for (const term of BLOCKED_TERMS) {
+    if (compact.includes(term)) return true;
+  }
+  return false;
+}
+
+function violatesIdentityPolicy(raw: string): boolean {
+  const normalized = normalizedIdentityText(raw);
+  if (!normalized) return false;
+  const compact = compactIdentityText(raw);
+  if (handleContainsBlockedTerm(normalized) || handleContainsBlockedTerm(compact)) {
+    return true;
+  }
+  return violatesOwnerKaranPolicy(compact);
+}
+
+export type DisplayNameAssessment =
+  | { ok: true; displayName: string }
+  | { ok: false; reason: "reserved"; error: string };
+
+export function assessPubmaxxDisplayName(raw: unknown): DisplayNameAssessment {
+  if (typeof raw !== "string") {
+    return { ok: false, reason: "reserved", error: "That name is not available." };
+  }
+  const displayName = raw.trim().replace(/\s+/g, " ");
+  if (!displayName) {
+    return { ok: false, reason: "reserved", error: "That name is not available." };
+  }
+  if (violatesIdentityPolicy(displayName)) {
+    return { ok: false, reason: "reserved", error: "That name is not available." };
+  }
+  return { ok: true, displayName };
 }
 
 /**
@@ -82,7 +162,9 @@ export function assessPubmaxxHandle(raw: unknown): HandleAssessment {
   if (
     RESERVED_EXACT.has(handle) ||
     RESERVED_BRAND_PATTERN.test(handle) ||
-    pieces.some((piece) => BLOCKED_TERMS.has(piece))
+    pieces.some((piece) => BLOCKED_TERMS.has(piece)) ||
+    handleContainsBlockedTerm(handle) ||
+    violatesOwnerKaranPolicy(compactIdentityText(handle))
   ) {
     return { ok: false, reason: "reserved", error: "That handle is reserved." };
   }

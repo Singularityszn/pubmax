@@ -1,5 +1,7 @@
 import "server-only";
 
+import { isProfileWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
+
 // The pub photo wall store - the impure seam. ONE interface, TWO
 // implementations (process-memory + Supabase `public.venue_photos`), chosen at
 // the single `venuePhotoStore()` seam, exactly like visitReportsStore.
@@ -118,7 +120,7 @@ async function authorsByProfileId(
     unique.map(async (id) => {
       try {
         const record = await store.getById(id);
-        if (!record || isProfileTombstoned(record)) return null;
+        if (!record || isProfileTombstoned(record) || (await isProfileWithdrawnFromPublic(record))) return null;
         const profile = publicProfileFromRecord(record);
         if (!profile) return null;
         const author: VenuePhotoAuthor = {

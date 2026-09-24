@@ -22,7 +22,7 @@
 //   • Concurrent creation of the same new handle returns 409.
 
 import { callerUserId } from "@/lib/authServer";
-import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
+import { assessPubmaxxDisplayName, assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { normalizeHandle } from "@/lib/profiles";
 import { profileStore } from "@/lib/profileStore";
 

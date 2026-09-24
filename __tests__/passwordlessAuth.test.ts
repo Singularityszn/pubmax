@@ -970,7 +970,7 @@ describe("auth callback URL safety", () => {
     await Promise.resolve();
     expect(restartSettled).toBe(false);
 
-    await expect(exchange).resolves.toEqual({ session: null, failed: true });
+    await expect(exchange).resolves.toEqual({ session: null, failed: true, banned: false });
     expect(events).toEqual(["underlying-aborted"]);
     expect(restartSettled).toBe(false);
 
