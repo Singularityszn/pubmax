@@ -89,7 +89,7 @@
       "class": "cron",
       "artifact": null,
       "stamp": { "kind": "store", "feedKey": "whats_on" },
-      "cadence": "daily full What's-On refresh via Vercel cron (30 5 * * * UTC); durable rows are preferred and bundled files remain the fallback",
+      "cadence": "twice-daily full What's-On refresh via Vercel cron (30 5 * * * and 0 15 * * * UTC); durable rows are preferred and bundled files remain the fallback",
       "stalenessBudgetHours": 48,
       "refreshWorkflow": "Vercel cron GET /api/cron/refresh-whats-on refreshes Ticketmaster/Skiddle events plus bounded quiz, deal, music, and sport lanes into the durable whats_on_listings store (read store-first via lib/whatsOnListings.server; bundled public/data/whats_on files are the fallback). GitHub workflows remain as a secondary recovery path when Actions billing returns.",
       "gate": "TICKETMASTER_API_KEY and/or SKIDDLE_API_KEY for official event rows (Skiddle also needs written commercial approval and SKIDDLE_BRAND_ASSET_PRESENT). The quiz lane is bounded to Question One pages; deal, music, and sport lanes use their existing first-party definitions and bundled venue inputs. A failed lane leaves its prior durable rows unchanged. Live layer also blends CityMCP at request time."
