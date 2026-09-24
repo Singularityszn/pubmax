@@ -529,6 +529,7 @@ function cleanAuthCallbackUrl(currentUrl: string): string | null {
     current.searchParams.delete(AUTH_ATTEMPT_PARAM);
     current.searchParams.delete(REFERRAL_SIGNUP_PROOF_PARAM);
     current.searchParams.delete("authError");
+    current.searchParams.delete(AUTH_ACCOUNT_BANNED_PARAM);
     // The implicit-flow response fragment carries the session tokens (or an
     // error). It must leave the address bar with the marker parameters.
     if (parseAuthResponseFragment(current.hash)) current.hash = "";
@@ -538,9 +539,17 @@ function cleanAuthCallbackUrl(currentUrl: string): string | null {
   }
 }
 
-function rejectedAuthCallback(cleanUrl: string): CapturedAuthCallback {
+function rejectedAuthCallback(
+  parsedAttempt: AuthCallbackAttempt,
+  cleanUrl: string,
+): CapturedAuthCallback {
   return {
-    attempt: { attemptId: null, tokens: null, providerError: true },
+    attempt: {
+      attemptId: null,
+      tokens: null,
+      providerError: true,
+      ...(parsedAttempt.accountBanned ? { accountBanned: true } : {}),
+    },
     cleanUrl,
     localAttemptOwned: false,
     releaseCoordination: () => {},
@@ -560,7 +569,7 @@ function fallbackAuthCallback(
   parsedAttempt: AuthCallbackAttempt,
   cleanUrl: string,
 ): CapturedAuthCallback {
-  if (!parsedAttempt.tokens) return rejectedAuthCallback(cleanUrl);
+  if (!parsedAttempt.tokens) return rejectedAuthCallback(parsedAttempt, cleanUrl);
   return {
     attempt: parsedAttempt,
     cleanUrl,
@@ -680,7 +689,7 @@ export function readAuthCallbackAttempt(currentUrl: string): AuthCallbackAttempt
     // fragment, so it keeps reporting a provider error on any page. An
     // unmarked bare signal only counts on an auth page (anti-spoof scoping).
     const accountBanned =
-      current.searchParams.get(AUTH_ACCOUNT_BANNED_PARAM) === "1" ||
+      ((marked || authPage) && current.searchParams.get(AUTH_ACCOUNT_BANNED_PARAM) === "1") ||
       (fragment?.kind === "error" &&
         isGoTrueUserBannedError({
           code: fragment.errorCode ?? undefined,

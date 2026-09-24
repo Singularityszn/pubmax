@@ -80,6 +80,7 @@ import {
   scrubAuthCallback,
   scrubLingeringAuthCallback,
   type CanonicalAuthAttemptStart,
+  type AuthCallbackAttempt,
   type CapturedAuthCallback,
 } from "@/lib/authRedirect";
 import { authedActionFetch, publishAuthActionState } from "@/lib/authedFetch";
@@ -467,6 +468,13 @@ export function AuthProvider({
       2_000,
     );
 
+    const reportCallbackFailure = (callbackAttempt: AuthCallbackAttempt | null) => {
+      if (callbackAttempt?.accountBanned) {
+        setAuthBannedNotice(true);
+        setAuthCallbackError(null);
+      } else if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+    };
+
     if (!configured) {
       let active = true;
       void callbackCapture.then((captured) => {
@@ -477,7 +485,7 @@ export function AuthProvider({
         captured?.releaseCoordination();
         scrubLingeringBrowserAuthCallback();
         if (!active) return;
-        if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+        reportCallbackFailure(callbackAttempt);
       });
       return () => {
         active = false;
@@ -541,10 +549,7 @@ export function AuthProvider({
             captured?.releaseCoordination();
             scrubLingeringBrowserAuthCallback();
             if (!active) return;
-            if (callbackAttempt?.accountBanned) {
-            setAuthBannedNotice(true);
-            setAuthCallbackError(null);
-          } else if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+            reportCallbackFailure(callbackAttempt);
           })
           .finally(() => {
             requestDeploymentSkewCheck();
@@ -574,10 +579,7 @@ export function AuthProvider({
           captured?.releaseCoordination();
           scrubLingeringBrowserAuthCallback();
           if (!active) return;
-          if (callbackAttempt?.accountBanned) {
-            setAuthBannedNotice(true);
-            setAuthCallbackError(null);
-          } else if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+          reportCallbackFailure(callbackAttempt);
         });
         return;
       }

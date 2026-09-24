@@ -1,6 +1,7 @@
 import "server-only";
 
 import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
+import { AUTH_ACCOUNT_BANNED_MESSAGE } from "@/lib/authAccountBan";
 import { verifyCallerAuth } from "@/lib/authServer";
 import {
   contributionAdultRefusal,
@@ -70,8 +71,7 @@ export async function resolveContributionIdentity(
       ok: false,
       body: {
         code: "ACCOUNT_BANNED",
-        error:
-          "This account has been banned for not following the PubMaxx community guidelines.",
+        error: AUTH_ACCOUNT_BANNED_MESSAGE,
       },
       httpStatus: 403,
     };
