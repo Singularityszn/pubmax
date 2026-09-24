@@ -67,7 +67,7 @@
         "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-bar"
       }
     ],
-    "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Beaufort-Bar.html",
+    "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-bar",
     "observedAt": "2026-09-24",
     "anchor": {
       "kind": "house_cocktail",
@@ -88,7 +88,7 @@
       "lat": 51.51038,
       "lng": -0.12025
     },
-    "sourceName": "theworlds50best.com",
+    "sourceName": "thesavoylondon.com",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
@@ -157,7 +157,7 @@
         "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/coburg-bar"
       }
     ],
-    "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/coburg-bar",
+    "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/coburg-bar",
     "observedAt": "2026-09-24",
     "anchor": {
       "kind": "house_cocktail",
@@ -178,7 +178,7 @@
       "lat": 51.5101,
       "lng": -0.14916
     },
-    "sourceName": "timeout.com",
+    "sourceName": "the-connaught.co.uk",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
@@ -251,7 +251,7 @@
         "sourceUrl": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar"
       }
     ],
-    "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/the-donovan-bar",
+    "sourceUrl": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar",
     "observedAt": "2026-09-24",
     "anchor": {
       "kind": "house_cocktail",
@@ -272,7 +272,7 @@
       "lat": 51.50853,
       "lng": -0.14265
     },
-    "sourceName": "timeout.com",
+    "sourceName": "roccofortehotels.com",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
@@ -1016,7 +1016,7 @@
         "sourceUrl": "https://viajante87.com/"
       }
     ],
-    "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Viajante87.html",
+    "sourceUrl": "https://viajante87.com/",
     "observedAt": "2026-09-24",
     "anchor": {
       "kind": "house_cocktail",
@@ -1037,7 +1037,7 @@
       "lat": 51.50895,
       "lng": -0.19725
     },
-    "sourceName": "theworlds50best.com",
+    "sourceName": "viajante87.com",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
@@ -1151,7 +1151,7 @@
         "sourceUrl": "https://www.hilton.com/en/hotels/lonnmnd-nomad-london/dining/side-hustle"
       }
     ],
-    "sourceUrl": "https://www.timeout.com/london/bars-and-pubs/side-hustle",
+    "sourceUrl": "https://www.hilton.com/en/hotels/lonnmnd-nomad-london/dining/side-hustle",
     "observedAt": "2026-09-24",
     "anchor": {
       "kind": "house_cocktail",
@@ -1172,7 +1172,7 @@
       "lat": 51.51322,
       "lng": -0.12185
     },
-    "sourceName": "timeout.com",
+    "sourceName": "hilton.com",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"

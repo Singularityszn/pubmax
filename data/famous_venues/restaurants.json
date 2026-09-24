@@ -340,7 +340,7 @@
         "sourceUrl": "https://en.wikipedia.org/wiki/The_Wolseley"
       }
     ],
-    "sourceUrl": "https://www.thewolseley.com/history",
+    "sourceUrl": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf",
     "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_dish",
@@ -938,7 +938,7 @@
         "sourceUrl": "https://en.wikipedia.org/wiki/Bob_Bob_Ricard"
       }
     ],
-    "sourceUrl": "https://en.wikipedia.org/wiki/Bob_Bob_Ricard",
+    "sourceUrl": "https://www.bobbobricard.com/soho/menu",
     "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_dish",
@@ -960,7 +960,7 @@
       "lat": 51.5123234,
       "lng": -0.1371738
     },
-    "sourceName": "en.wikipedia.org",
+    "sourceName": "bobbobricard.com",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"

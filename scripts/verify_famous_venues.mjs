@@ -25,6 +25,8 @@ import {
   harvestRedirectLanding,
   isHarvestableOperatorUrl,
 } from "../lib/harvest/sourcePolicy.ts";
+import { isOperatorHost } from "../lib/harvest/pubFacts.ts";
+import { createRobotsChecker } from "../lib/harvest/robots.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -32,7 +34,10 @@ const FAMOUS_DIR = join(ROOT, "data", "famous_venues");
 const PACK_FILES = ["bars.json", "late_food.json", "restaurants.json"];
 const VERIFICATION_WINDOW_DAYS = NIGHT_OUT_PLACE_MAX_AGE_HOURS / 24;
 const FETCH_TIMEOUT_MS = 25_000;
-const CONCURRENCY = 6;
+/** One page at a time with a pause — polite to operators and robots.txt hosts. */
+const CONCURRENCY = 1;
+const FETCH_GAP_MS = 1_000;
+const MAX_PAGE_TEXT_CHARS = 20_000;
 
 const STOP_WORDS = new Set([
   "the",
@@ -53,6 +58,20 @@ const JUNK_SIGNATURES = [
   /domain.*for sale/i,
   /gofukuken/i,
   /marubiru-bekkan/i,
+];
+
+const CLOSURE_SIGNALS = [
+  /\bpermanently closed\b/i,
+  /\bclosed permanently\b/i,
+  /\bpermanent closure\b/i,
+  /\bhas closed\b/i,
+  /\bnow closed\b/i,
+  /\bno longer (open|trading|operating)\b/i,
+  /\bceased trading\b/i,
+  /\bclosed down\b/i,
+  /\bshut down\b/i,
+  /\bwe(?:'|’)ve closed\b/i,
+  /\bthis (?:venue|restaurant|bar|pub) (?:is|has) closed\b/i,
 ];
 
 function isoDateOnly(date) {
@@ -121,9 +140,15 @@ function slugTokens(row) {
     .filter((t) => t.length > 3 && !STOP_WORDS.has(t));
 }
 
+function pageSignalsClosure(text, pageUrl) {
+  if (!isOperatorHost(pageUrl)) return false;
+  const sample = text.slice(0, MAX_PAGE_TEXT_CHARS);
+  return CLOSURE_SIGNALS.some((re) => re.test(sample));
+}
+
 function pageLooksLikeVenue(text, row, finalUrl, contentType = "") {
   if (contentType.includes("application/pdf")) return true;
-  const lower = text.toLowerCase();
+  const lower = text.slice(0, MAX_PAGE_TEXT_CHARS).toLowerCase();
   if (JUNK_SIGNATURES.some((re) => re.test(lower))) return false;
   const tokens = [...nameTokens(row.name), ...slugTokens(row)];
   if (tokens.length === 0) return lower.includes(row.name.toLowerCase().slice(0, 8));
@@ -141,10 +166,42 @@ function pageLooksLikeVenue(text, row, finalUrl, contentType = "") {
   return hits.length >= 1;
 }
 
+const VERIFIER_UA =
+  "PubMaxx-famous-venue-verifier/1.0 (+https://pubmaxxing.com)";
+
+/** Some hosts answer robots.txt only to the same UA as the page fetch. */
+function verifierFetch(input, init) {
+  const headers = new Headers(init?.headers ?? {});
+  headers.set("user-agent", VERIFIER_UA);
+  return fetch(input, { ...init, headers });
+}
+
+let robotsChecker = createRobotsChecker({ fetchImpl: verifierFetch });
+let lastFetchAt = 0;
+
+async function politeGap() {
+  const elapsed = Date.now() - lastFetchAt;
+  if (elapsed < FETCH_GAP_MS) {
+    await new Promise((resolve) => setTimeout(resolve, FETCH_GAP_MS - elapsed));
+  }
+  lastFetchAt = Date.now();
+}
+
 async function fetchPage(url) {
   if (!isHarvestableOperatorUrl(url)) {
     return { ok: false, error: "url refused by source policy", finalUrl: url, text: "" };
   }
+  const robots = await robotsChecker(url);
+  if (!robots.allowed) {
+    return {
+      ok: false,
+      error: `robots: ${robots.reason}`,
+      finalUrl: url,
+      text: "",
+      robotsEvidence: robots.evidence,
+    };
+  }
+  await politeGap();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -153,7 +210,7 @@ async function fetchPage(url) {
       redirect: "follow",
       headers: {
         Accept: "text/html,application/pdf,*/*",
-        "User-Agent": "PubMaxx-famous-venue-verifier/1.0 (+https://pubmaxxing.com)",
+        "User-Agent": VERIFIER_UA,
       },
     });
     const landing = harvestRedirectLanding(url, response.url);
@@ -172,12 +229,22 @@ async function fetchPage(url) {
       text = `content-type application/pdf; filename ${landing.url.split("/").pop() ?? "menu.pdf"}`;
     } else {
       const body = await response.text();
-      text = htmlToText(body).slice(0, 500);
+      text = htmlToText(body).slice(0, MAX_PAGE_TEXT_CHARS);
     }
     if (!response.ok) {
       return {
         ok: false,
         error: `HTTP ${response.status}`,
+        finalUrl: landing.url,
+        text,
+        status: response.status,
+        contentType,
+      };
+    }
+    if (pageSignalsClosure(text, landing.url)) {
+      return {
+        ok: false,
+        error: "page signals closure",
         finalUrl: landing.url,
         text,
         status: response.status,
@@ -248,11 +315,36 @@ async function verifyRow(row, alternates) {
     anchorObservation: "anchor_unchanged; verification run did not re-price anchors",
     ...(sourceUrlResult ? { sourceUrlResult, sourceUrlObservation } : {}),
     confirmed,
-    preferredSourceUrl:
-      result === "alternate_source_confirmed" && verificationSourceUrl
-        ? verificationSourceUrl
-        : primaryUrl,
   };
+}
+
+function isOperatorSourceUrl(url) {
+  return (
+    typeof url === "string" &&
+    url.length > 0 &&
+    isHarvestableOperatorUrl(url) &&
+    isOperatorHost(url)
+  );
+}
+
+/** Operator citation stays on the row; alternates are recorded only in the verification artifact. */
+function restoreOperatorSourceUrl(row, alternates) {
+  const ordered = [
+    row.anchor?.sourceUrl,
+    ...(row.fameGates ?? []).map((gate) => gate.sourceUrl),
+    alternates.get(row.id),
+    row.story?.sourceUrl,
+    row.sourceUrl,
+  ];
+  const preferred = ordered.find((url) => isOperatorSourceUrl(url));
+  if (preferred && row.sourceUrl !== preferred) {
+    return {
+      ...row,
+      sourceUrl: preferred,
+      sourceName: nightOutPlaceSourceName(preferred),
+    };
+  }
+  return row;
 }
 
 async function mapPool(items, limit, fn) {
@@ -268,17 +360,13 @@ async function mapPool(items, limit, fn) {
   return results;
 }
 
-function stampRow(row, verifiedDay, preferredSourceUrl) {
-  const next = {
-    ...row,
+function stampRow(row, verifiedDay, alternates) {
+  const withSource = restoreOperatorSourceUrl(row, alternates);
+  return {
+    ...withSource,
     observedAt: verifiedDay,
     expiresAt: addCalendarDays(verifiedDay, VERIFICATION_WINDOW_DAYS),
   };
-  if (preferredSourceUrl && preferredSourceUrl !== row.sourceUrl) {
-    next.sourceUrl = preferredSourceUrl;
-    next.sourceName = nightOutPlaceSourceName(preferredSourceUrl);
-  }
-  return next;
 }
 
 async function main() {
@@ -291,7 +379,9 @@ async function main() {
     `Famous venue verification (${VERIFICATION_WINDOW_DAYS}-day window); verifiedDay=${verifiedDay}; write=${write}`,
   );
 
-  const checks = await mapPool(rows, CONCURRENCY, ({ row }) => verifyRow(row, alternates));
+  const checks = await mapPool(rows, CONCURRENCY, ({ row }) =>
+    verifyRow(restoreOperatorSourceUrl(row, alternates), alternates),
+  );
   const confirmed = checks.filter((c) => c.confirmed);
   const failed = checks.filter((c) => !c.confirmed);
 
@@ -308,8 +398,9 @@ async function main() {
   }
 
   if (failed.length) {
-    console.error("Refusing --write while venues failed verification; drop or fix them first.");
-    process.exit(1);
+    console.log(
+      `Dropping ${failed.length} venue(s) that failed verification: ${failed.map((c) => c.id).join(", ")}`,
+    );
   }
 
   const checkById = new Map(checks.map((c) => [c.id, c]));
@@ -317,9 +408,7 @@ async function main() {
   for (const [file, pack] of byFile) {
     const next = pack
       .filter((row) => confirmedIds.has(row.id))
-      .map((row) =>
-        stampRow(row, verifiedDay, checkById.get(row.id)?.preferredSourceUrl),
-      );
+      .map((row) => stampRow(row, verifiedDay, alternates));
     writeFileSync(join(FAMOUS_DIR, file), `${JSON.stringify(next, null, 2)}\n`);
   }
 
@@ -334,9 +423,8 @@ async function main() {
       alternateSourceVerified: checks.filter((c) => c.result === "alternate_source_confirmed").length,
     },
     checks: checks.map((check) => {
-      const { confirmed, preferredSourceUrl, ...rest } = check;
+      const { confirmed, ...rest } = check;
       void confirmed;
-      void preferredSourceUrl;
       return rest;
     }),
   };

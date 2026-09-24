@@ -116,7 +116,7 @@
         "sourceUrl": "https://mangal1.com/"
       }
     ],
-    "sourceUrl": "https://www.timeout.com/london/restaurants/mangal-ocakbasi",
+    "sourceUrl": "https://mangal1.com/",
     "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
@@ -137,7 +137,7 @@
       "lat": 51.54905,
       "lng": -0.07072
     },
-    "sourceName": "timeout.com",
+    "sourceName": "mangal1.com",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
@@ -255,7 +255,7 @@
         "sourceUrl": "https://antepliler.co.uk/"
       }
     ],
-    "sourceUrl": "https://www.timeout.com/london/restaurants/antepliler",
+    "sourceUrl": "https://antepliler.co.uk/",
     "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
@@ -276,7 +276,7 @@
       "lat": 51.57091,
       "lng": -0.09622
     },
-    "sourceName": "timeout.com",
+    "sourceName": "antepliler.co.uk",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
@@ -525,7 +525,7 @@
         "sourceUrl": "https://berenjaklondon.com/soho"
       }
     ],
-    "sourceUrl": "https://www.timeout.com/london/restaurants/berenjak",
+    "sourceUrl": "https://berenjaklondon.com/soho",
     "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
@@ -546,7 +546,7 @@
       "lat": 51.51286,
       "lng": -0.13057
     },
-    "sourceName": "timeout.com",
+    "sourceName": "berenjaklondon.com",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
@@ -615,7 +615,7 @@
         "sourceUrl": "https://lahore-kebabhouse.com/"
       }
     ],
-    "sourceUrl": "https://www.timeout.com/london/restaurants/lahore-kebab-house",
+    "sourceUrl": "https://lahore-kebabhouse.com/",
     "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
@@ -636,7 +636,7 @@
       "lat": 51.51408,
       "lng": -0.06362
     },
-    "sourceName": "timeout.com",
+    "sourceName": "lahore-kebabhouse.com",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
@@ -799,7 +799,7 @@
         "sourceUrl": "https://kebabkid.co.uk/"
       }
     ],
-    "sourceUrl": "https://www.timeout.com/london/restaurants/kebab-kid",
+    "sourceUrl": "https://kebabkid.co.uk/",
     "observedAt": "2026-09-24",
     "anchor": {
       "kind": "large_doner",
@@ -820,7 +820,7 @@
       "lat": 51.47346,
       "lng": -0.19992
     },
-    "sourceName": "timeout.com",
+    "sourceName": "kebabkid.co.uk",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
@@ -983,7 +983,7 @@
         "sourceUrl": "https://en.wikipedia.org/wiki/Wong_Kei"
       }
     ],
-    "sourceUrl": "https://en.wikipedia.org/wiki/Wong_Kei",
+    "sourceUrl": "https://wongkeilondon.com/",
     "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
@@ -1004,7 +1004,7 @@
       "lat": 51.51173,
       "lng": -0.13265
     },
-    "sourceName": "en.wikipedia.org",
+    "sourceName": "wongkeilondon.com",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
@@ -1122,7 +1122,7 @@
         "sourceUrl": "https://goldendragonlondon.com/"
       }
     ],
-    "sourceUrl": "https://www.timeout.com/london/restaurants/golden-dragon",
+    "sourceUrl": "https://goldendragonlondon.com/",
     "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
@@ -1143,7 +1143,7 @@
       "lat": 51.51169,
       "lng": -0.13121
     },
-    "sourceName": "timeout.com",
+    "sourceName": "goldendragonlondon.com",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
