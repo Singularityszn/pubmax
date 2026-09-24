@@ -6,6 +6,7 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
+import { filterProfilesWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
 import {
   isProfileTombstoned,
   profileStore,
@@ -73,9 +74,10 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     const rows = await profileStore().searchClaimedByHandlePrefix(q, SEARCH_LIMIT);
-    const matches = rows
-      .filter((row) => Boolean(row.userId) && !isProfileTombstoned(row))
-      .map(toPublicMatch);
+    const live = rows.filter(
+      (row) => Boolean(row.userId) && !isProfileTombstoned(row),
+    );
+    const matches = (await filterProfilesWithdrawnFromPublic(live)).map(toPublicMatch);
     return jsonNoStore({ matches }, { status: 200 });
   } catch {
     return publicApiError(

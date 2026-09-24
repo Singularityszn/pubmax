@@ -1,5 +1,6 @@
 import "server-only";
 
+import { filterProfilesWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
 import type {
   CreatorListDiscoveryItem,
   CreatorListDiscoveryResult,
@@ -122,8 +123,10 @@ export async function discoverCreatorLists(
 export const creatorListDiscoveryDependencies: CreatorListDiscoveryDependencies = {
   async listProfiles(input) {
     const profiles = await profileStore().listClaimedProfiles(input);
-    return profiles
-      .filter((profile) => Boolean(profile.userId) && !isProfileTombstoned(profile))
+    const live = await filterProfilesWithdrawnFromPublic(
+      profiles.filter((profile) => Boolean(profile.userId) && !isProfileTombstoned(profile)),
+    );
+    return live
       .map((profile) => {
         const avatarUrl = publicOwnedImageUrl(profile, "avatar");
         return {
