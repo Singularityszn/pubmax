@@ -8,20 +8,21 @@
  *   closed     — the row's own sourceUrl or anchor page, on an operator host, says
  *                this venue, by its exact name, closed for good (never a listing or
  *                aggregator page); --write drops it.
- *   unverified — anything else (timeout, 403, 429, 5xx, robots, unconvincing page,
- *                or any other page whose closure sentence names this venue, even
- *                by a short or differently cased name, which blocks confirmation
- *                from every other source). A closure sentence whose subject names
- *                another venue (a sister site) is ignored;
- *                retried once after a backoff, then left unchanged and listed, and
- *                the command exits nonzero so the operator reruns later.
+ *   unverified — anything else: timeout, 403, 429, 5xx, robots, an unconvincing
+ *                page, or a closure sentence about this venue that cannot drop it
+ *                (a short or differently cased name, a negation before it, or a
+ *                listing page). Such a sentence blocks confirmation from every
+ *                other source. A closure sentence whose subject names another
+ *                venue (a sister site) is ignored. Unverified rows are retried once
+ *                after a backoff, then left unchanged and listed, and the command
+ *                exits nonzero so the operator reruns later.
  *
  * Method matches data/famous_venues/verification_*.json:
  *   source_page_fetch — GET cited URLs; failed primaries may use alternates.
  *
  * Usage:
- *   node --import tsx scripts/verify_famous_venues.mjs           # report
- *   node --import tsx scripts/verify_famous_venues.mjs --write # update seeds + verification artifact
+ *   npm run verify:famous-venues             # report
+ *   npm run verify:famous-venues -- --write  # update seeds + verification artifact
  */
 
 import {

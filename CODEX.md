@@ -37,7 +37,6 @@ Your own drafts (#1763, #1765 to #1774) are yours; the fleet has not touched the
 
 - `e2e/price-colour-law.spec.ts:87`, `:104`, `e2e/trust-read.spec.ts:140` (x4), `e2e/overview-price-door.spec.ts:152` (x5), `:183`, `:211`: fixture venue `venue-1vle947` (The Sir Christopher Hatton) gained 73 labelled rows through #1754; the sheet renders, the seeded trust chip and door state no longer match. Task `pubmax-sheet-state-fixture-venue`: move the specs to a venue with no harvested rows, or decide trust precedence when community and harvested rows coexist.
 - `e2e/mobile-button-system.spec.ts:386` flaky under load; `e2e/ui-consistency-layout.spec.ts:963` pre-existing (fails on the 20 Sep production too).
-- `check:freshness` red on `area_news` only; tolerated.
 - Gate report with the evidence: `$FM_HOME/data/checkpoints/2026-09-20-scratch/e2e-final-42685ce22.md`.
 
 ## 5. Laws and recipes that bite
