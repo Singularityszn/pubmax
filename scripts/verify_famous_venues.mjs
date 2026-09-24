@@ -3,6 +3,13 @@
  * Re-verify famous-venue trading status against each row's sourceUrl (and recorded
  * alternates), then stamp observedAt / expiresAt for a fresh 30-day window.
  *
+ * Each row ends in one outcome:
+ *   confirmed  — re-stamped for a fresh window.
+ *   closed     — the row's own sourceUrl page signals closure; --write drops it.
+ *   unverified — anything else (timeout, 403, 429, 5xx, robots, unconvincing page);
+ *                retried once after a backoff, then left unchanged and listed, and
+ *                the command exits nonzero so the operator reruns later.
+ *
  * Method matches data/famous_venues/verification_*.json:
  *   source_page_fetch — GET cited URLs; failed primaries may use alternates.
  *
@@ -18,6 +25,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import { NIGHT_OUT_PLACE_MAX_AGE_HOURS } from "../lib/nightOutPlaceContract.mjs";
 import {
@@ -36,6 +44,7 @@ const FETCH_TIMEOUT_MS = 25_000;
 /** One page at a time with a pause — polite to operators and robots.txt hosts. */
 const CONCURRENCY = 1;
 const FETCH_GAP_MS = 1_000;
+const RETRY_BACKOFF_MS = 30_000;
 const MAX_PAGE_TEXT_CHARS = 20_000;
 
 const STOP_WORDS = new Set([
@@ -243,6 +252,7 @@ async function fetchPage(url) {
     if (pageSignalsClosure(text, landing.url)) {
       return {
         ok: false,
+        closure: true,
         error: "page signals closure",
         finalUrl: landing.url,
         text,
@@ -286,6 +296,9 @@ async function verifyRow(row, alternates) {
   if (primary.ok && pageLooksLikeVenue(primary.text, row, primary.finalUrl, primary.contentType)) {
     result = "source_page_confirmed";
     observation = primary.text;
+  } else if (primary.closure) {
+    result = "source_page_signals_closure";
+    observation = primary.text;
   } else {
     sourceUrlResult = primary.ok ? "source_page_unconvincing" : "source_fetch_failed";
     sourceUrlObservation = primary.error ?? "primary page did not corroborate the venue";
@@ -302,7 +315,12 @@ async function verifyRow(row, alternates) {
     }
   }
 
-  const confirmed = result === "source_page_confirmed" || result === "alternate_source_confirmed";
+  const outcome =
+    result === "source_page_confirmed" || result === "alternate_source_confirmed"
+      ? "confirmed"
+      : result === "source_page_signals_closure"
+        ? "closed"
+        : "unverified";
   return {
     id: row.id,
     method: "source_page_fetch",
@@ -313,7 +331,7 @@ async function verifyRow(row, alternates) {
     anchorSourceUrl: row.anchor?.sourceUrl ?? primaryUrl,
     anchorObservation: "anchor_unchanged; verification run did not re-price anchors",
     ...(sourceUrlResult ? { sourceUrlResult, sourceUrlObservation } : {}),
-    confirmed,
+    outcome,
   };
 }
 
@@ -338,6 +356,24 @@ function stampRow(row, verifiedDay) {
   };
 }
 
+/**
+ * Confirmed rows are re-stamped, closed rows are dropped, and unverified rows are
+ * kept exactly as they were so a transient failure never deletes a curated venue.
+ */
+export function applyVerification(packs, checks, verifiedDay) {
+  const outcomeById = new Map(checks.map((c) => [c.id, c.outcome]));
+  const next = new Map();
+  for (const [file, pack] of packs) {
+    next.set(
+      file,
+      pack
+        .filter((row) => outcomeById.get(row.id) !== "closed")
+        .map((row) => (outcomeById.get(row.id) === "confirmed" ? stampRow(row, verifiedDay) : row)),
+    );
+  }
+  return next;
+}
+
 async function main() {
   const write = process.argv.includes("--write");
   const verifiedDay = isoDateOnly(new Date());
@@ -349,33 +385,42 @@ async function main() {
   );
 
   const checks = await mapPool(rows, CONCURRENCY, ({ row }) => verifyRow(row, alternates));
-  const confirmed = checks.filter((c) => c.confirmed);
-  const failed = checks.filter((c) => !c.confirmed);
+  const retryIndexes = checks.flatMap((c, i) => (c.outcome === "unverified" ? [i] : []));
+  if (retryIndexes.length) {
+    console.log(
+      `Retrying ${retryIndexes.length} unverified venue(s) once after ${RETRY_BACKOFF_MS / 1000}s`,
+    );
+    await sleep(RETRY_BACKOFF_MS);
+    robotsChecker = createRobotsChecker({ fetchImpl: verifierFetch });
+    const retried = await mapPool(retryIndexes, CONCURRENCY, (i) => verifyRow(rows[i].row, alternates));
+    retryIndexes.forEach((checkIndex, k) => {
+      checks[checkIndex] = retried[k];
+    });
+  }
 
-  for (const check of failed) {
-    console.log(`FAIL ${check.id}: ${check.result} (${check.sourceUrlObservation ?? "no corroboration"})`);
+  const confirmed = checks.filter((c) => c.outcome === "confirmed");
+  const closed = checks.filter((c) => c.outcome === "closed");
+  const unverified = checks.filter((c) => c.outcome === "unverified");
+
+  for (const check of closed) {
+    console.log(`CLOSED ${check.id}: ${check.sourceUrl} signals closure`);
+  }
+  for (const check of unverified) {
+    console.log(
+      `UNVERIFIED ${check.id}: ${check.result} (${check.sourceUrlObservation ?? "no corroboration"})`,
+    );
   }
   console.log(
-    `Summary: ${confirmed.length}/${checks.length} confirmed (${failed.length} failed)`,
+    `Summary: ${confirmed.length}/${checks.length} confirmed, ${closed.length} closed, ${unverified.length} unverified`,
   );
 
   if (!write) {
-    if (failed.length) process.exit(1);
+    if (closed.length || unverified.length) process.exit(1);
     return;
   }
 
-  if (failed.length) {
-    console.log(
-      `Dropping ${failed.length} venue(s) that failed verification: ${failed.map((c) => c.id).join(", ")}`,
-    );
-  }
-
-  const confirmedIds = new Set(confirmed.map((c) => c.id));
-  for (const [file, pack] of byFile) {
-    const next = pack
-      .filter((row) => confirmedIds.has(row.id))
-      .map((row) => stampRow(row, verifiedDay));
-    writeFileSync(join(FAMOUS_DIR, file), `${JSON.stringify(next, null, 2)}\n`);
+  for (const [file, pack] of applyVerification(byFile, checks, verifiedDay)) {
+    writeFileSync(join(FAMOUS_DIR, file), `${JSON.stringify(pack, null, 2)}\n`);
   }
 
   const artifact = {
@@ -387,20 +432,26 @@ async function main() {
       rowsChecked: checks.length,
       primarySourceConfirmed: checks.filter((c) => c.result === "source_page_confirmed").length,
       alternateSourceVerified: checks.filter((c) => c.result === "alternate_source_confirmed").length,
+      closed: closed.map((c) => c.id),
+      unverified: unverified.map((c) => c.id),
     },
-    checks: checks.map((check) => {
-      const { confirmed, ...rest } = check;
-      void confirmed;
-      return rest;
-    }),
+    checks,
   };
   const outPath = join(FAMOUS_DIR, `verification_${verifiedDay}.json`);
   writeFileSync(outPath, `${JSON.stringify(artifact)}\n`);
 
-  console.log(`Wrote ${outPath} and re-stamped ${confirmed.length} rows in ${PACK_FILES.join(", ")}`);
+  console.log(
+    `Wrote ${outPath}; re-stamped ${confirmed.length}, dropped ${closed.length} closed, left ${unverified.length} unverified unchanged in ${PACK_FILES.join(", ")}`,
+  );
+  if (unverified.length) {
+    console.error(`Unverified venue(s) remain: ${unverified.map((c) => c.id).join(", ")}. Rerun later.`);
+    process.exit(1);
+  }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
