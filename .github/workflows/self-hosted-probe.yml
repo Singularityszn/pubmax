@@ -1,0 +1,17 @@
+name: Self-hosted runner probe
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Prove pubmax-mac runner
+    runs-on: [self-hosted, pubmax-mac]
+    timeout-minutes: 5
+    steps:
+      - name: Node version
+        run: node --version
