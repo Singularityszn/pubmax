@@ -9,8 +9,10 @@
  *                this venue, by its exact name, closed for good (never a listing or
  *                aggregator page); --write drops it.
  *   unverified — anything else (timeout, 403, 429, 5xx, robots, unconvincing page,
- *                or any other page saying this venue closed for good, which blocks
- *                confirmation from every other source);
+ *                or any other page whose closure sentence names this venue, even
+ *                by a short or differently cased name, which blocks confirmation
+ *                from every other source). A closure sentence whose subject names
+ *                another venue (a sister site) is ignored;
  *                retried once after a backoff, then left unchanged and listed, and
  *                the command exits nonzero so the operator reruns later.
  *
@@ -72,10 +74,12 @@ const JUNK_SIGNATURES = [
   /marubiru-bekkan/i,
 ];
 
-/** What must directly follow the venue's own name for a sentence to say it closed. */
 const CLOSURE_PREDICATE =
-  /^ (?:(?:has|is) )?(?:now )?(?:permanently closed|closed permanently|closed for good|ceased trading)\b/i;
+  /\b(?:(?:has|is)\s+)?(?:now\s+)?(?:permanently closed|closed permanently|closed for good|ceased trading)\b/gi;
+/** Negation before the closure ("rumours that X has closed for good") holds the row instead of dropping it. */
 const CLOSURE_NEGATION = /\b(?:not|never|rumou?rs?|reopen\w*)\b/i;
+const SUBJECT_CONNECTORS = new Set(["at", "the", "and", "of", "on"]);
+const GENERIC_NAME_WORDS = new Set([...SUBJECT_CONNECTORS, "bar", "pub", "restaurant", "london"]);
 
 /** Listing and editorial hosts the operator deny list does not name; never an operator page. */
 const LISTING_HOSTS = [
@@ -293,26 +297,56 @@ function nameWords(text) {
     .trim();
 }
 
-/** A sentence whose subject is this venue's exact name, followed directly by a closure predicate. */
-function saysVenueClosed(text, row) {
+function words(text) {
+  return nameWords(text).split(" ").filter(Boolean);
+}
+
+/** The run of capitalised words (and connectors) directly before a closure predicate. */
+function closureSubject(prefix) {
+  const clause = prefix.split(/[,:()–—]/).at(-1);
+  const subject = [];
+  for (const word of words(clause).reverse()) {
+    if (!/^[\p{Lu}\p{N}]/u.test(word) && !SUBJECT_CONNECTORS.has(word)) break;
+    subject.unshift(word);
+  }
+  while (subject.length && SUBJECT_CONNECTORS.has(subject[0])) subject.shift();
+  return subject;
+}
+
+/**
+ * "exact" when a closure sentence's subject is this venue by its exact name,
+ * "named" when the subject names only this venue by a short or differently cased
+ * name (or the closure is negated before it), "none" otherwise, including when the
+ * subject names another venue.
+ */
+function closureAboutVenue(text, row) {
   const name = nameWords(row.name);
-  if (!name) return false;
-  return text.split(/(?<=[.!?;])\s+/).some((sentence) => {
-    if (CLOSURE_NEGATION.test(sentence)) return false;
-    const words = nameWords(sentence);
-    for (let i = words.indexOf(name); i !== -1; i = words.indexOf(name, i + 1)) {
-      if (i > 0 && words[i - 1] !== " ") continue;
-      if (CLOSURE_PREDICATE.test(words.slice(i + name.length))) return true;
+  const known = new Set(words(`${row.name} ${row.area ?? ""} ${row.borough ?? ""}`).map((w) => w.toLowerCase()));
+  const distinctive = words(row.name)
+    .map((w) => w.toLowerCase())
+    .filter((w) => !GENERIC_NAME_WORDS.has(w));
+  let verdict = "none";
+  for (const sentence of text.split(/(?<=[.!?;])\s+/)) {
+    for (const match of sentence.matchAll(CLOSURE_PREDICATE)) {
+      const prefix = sentence.slice(0, match.index);
+      const subject = closureSubject(prefix);
+      const lower = subject.map((w) => w.toLowerCase());
+      if (!lower.every((w) => known.has(w) || GENERIC_NAME_WORDS.has(w))) continue;
+      if (!distinctive.some((w) => lower.includes(w))) continue;
+      if (!CLOSURE_NEGATION.test(prefix) && ` ${subject.join(" ")} `.includes(` ${name} `)) {
+        return "exact";
+      }
+      verdict = "named";
     }
-    return false;
-  });
+  }
+  return verdict;
 }
 
 function readPage(page, row, isRowPage) {
   if (!page.ok) return "failed";
-  if (saysVenueClosed(page.text, row)) {
-    return isRowPage && isOperatorPage(page.finalUrl) ? "closed" : "held";
-  }
+  const closure = closureAboutVenue(page.text, row);
+  if (closure === "exact" && isRowPage && isOperatorPage(page.finalUrl)) return "closed";
+  if (closure !== "none") return "held";
   return pageLooksLikeVenue(page.text, row, page.finalUrl, page.contentType)
     ? "confirmed"
     : "unconvincing";

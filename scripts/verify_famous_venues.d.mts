@@ -16,6 +16,7 @@ export type FamousVenueRow = {
   name: string;
   address: string;
   borough?: string;
+  area?: string;
   sourceUrl: string;
   anchor?: { sourceUrl?: string };
   fameGates?: Array<{ sourceUrl: string }>;

@@ -99,6 +99,43 @@ describe("verify:famous-venues closure evidence", () => {
     expect(check.outcome).toBe("confirmed");
   }, 20_000);
 
+  it("drops a venue whose operator page says it closed for good and will not reopen", async () => {
+    servePages({
+      [`${OPERATOR}/`]: {
+        status: 200,
+        body: "Kwantexample has permanently closed and will not reopen. Thank you for ten years.",
+      },
+    });
+
+    const check = await verifyRow(row, new Map());
+
+    expect(check.outcome).toBe("closed");
+  }, 20_000);
+
+  it("holds rather than confirms a venue its operator page calls closed by a shorter name", async () => {
+    const savoy = {
+      id: "bar-american-barexample-savoy",
+      name: "American Barexample at The Savoy",
+      address: "Strand, London WC2R 0EZ",
+      borough: "Westminster",
+      area: "Westminster",
+      sourceUrl: "https://www.savoyexample.com/american-barexample",
+      anchor: { sourceUrl: "https://www.savoyexample.com/american-barexample" },
+      fameGates: [],
+    };
+    servePages({
+      "https://www.savoyexample.com/american-barexample": {
+        status: 200,
+        body: "The American Barexample has permanently closed.",
+      },
+    });
+
+    const check = await verifyRow(savoy, new Map());
+
+    expect(check.outcome).toBe("unverified");
+    expect(check.result).toBe("closure_text_blocks_confirmation");
+  }, 20_000);
+
   it.each([
     ["an open venue beside a closed sister", "Swiftexample Borough has closed for good, but Swiftexample Soho is open as usual."],
     ["a negated closure", "Swiftexample Soho has not closed permanently; we reopen in May."],
