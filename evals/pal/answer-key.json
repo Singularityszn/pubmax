@@ -1,5 +1,5 @@
 {
-  "now": "2026-09-24T19:00:00.000Z",
+  "now": "2026-07-21T18:00:00.000Z",
   "cases": {
     "cheapest-camden": {
       "expectedTools": [
@@ -9,20 +9,22 @@
       "topVenueId": "venue-18uogns",
       "topPrice": 3.4
     },
-    "quiz-camden-empty": {
+    "quiz-camden": {
       "expectedTools": [
         "whats_on"
       ],
-      "expectEmpty": true,
+      "minCards": 1,
       "answerIncludes": [
         "quiz"
       ]
     },
-    "quiz-islington-empty": {
+    "quiz-islington": {
       "expectedTools": [
         "whats_on"
       ],
-      "expectEmpty": true,
+      "minCards": 1,
+      "topVenueId": "venue-18bpz15",
+      "topPrice": 2,
       "answerIncludes": [
         "quiz"
       ]
@@ -91,7 +93,7 @@
       "expectedTools": [
         "tonight_now"
       ],
-      "expectEmpty": true
+      "minCards": 1
     },
     "cheapest-no-anchor": {
       "expectedTools": [

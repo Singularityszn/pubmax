@@ -108,3 +108,34 @@ describe("Pal eval usage capture", () => {
     expect(capture.take().modelCalls).toBe(0);
   });
 });
+
+describe("Pal eval price grading", () => {
+  const index = loadPalEvalVenueIndex();
+  const [venueId, pint] = [...index.priceById.entries()][0]!;
+  const card = (price: number, kind: "directory" | "whats-on") => ({
+    key: `${kind}-${price}`,
+    venueId,
+    title: "Listed pub",
+    place: "London",
+    note: "",
+    price,
+    provenance: { label: kind, kind },
+  });
+  const body = (cards: ReturnType<typeof card>[]) => ({
+    answer: "",
+    cards,
+    proposals: [],
+    sources: [],
+    status: "ready" as const,
+    toolsUsed: ["search_venues"],
+  });
+
+  it("fails a directory card whose pint price disagrees with the record", () => {
+    expect(gradePalCase(body([card(pint + 1, "directory")]), {}, index).pass).toBe(false);
+    expect(gradePalCase(body([card(pint, "directory")]), {}, index).pass).toBe(true);
+  });
+
+  it("does not grade an event's entry fee as a pint price", () => {
+    expect(gradePalCase(body([card(pint + 1, "whats-on")]), {}, index).pass).toBe(true);
+  });
+});

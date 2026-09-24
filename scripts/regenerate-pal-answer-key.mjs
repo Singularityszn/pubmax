@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Maintainer tool: rebuild the generated expectations in answer-key.json from
-// the current keyless, offline Ask path at the key's pinned `now`. Hand-authored keys (answerIncludes,
-// anyTools, priceTolerance) are kept; an entry graded by anyTools gets no
-// expectedTools.
+// the current keyless, offline Ask path at the key's pinned `now`, with the
+// TypeSafe key cleared so routing is the regex cascade the gate replays.
+// Hand-authored keys (answerIncludes, anyTools, priceTolerance) are kept; an
+// entry graded by anyTools gets no expectedTools.
 import { readFileSync, writeFileSync } from "node:fs";
 import { offlineFetch } from "../evals/pal/offlineFetch.ts";
 import { runAsk } from "../lib/ask/runAsk.ts";
@@ -15,6 +16,8 @@ const GENERATED_KEYS = [
   "topVenueId",
   "topPrice",
 ];
+
+delete process.env.TYPESAFE_API_KEY;
 
 const { cases } = JSON.parse(readFileSync("evals/pal/cases.public.json", "utf8"));
 const { now, cases: previous } = JSON.parse(readFileSync("evals/pal/answer-key.json", "utf8"));

@@ -102,7 +102,7 @@ export function gradePalCase(
   }
 
   for (const card of body.cards) {
-    if (!card.venueId || card.price === null) continue;
+    if (!card.venueId || card.price === null || card.provenance?.kind !== "directory") continue;
     const recorded = index.priceById.get(card.venueId);
     if (recorded === undefined) continue;
     const tol = expect.priceTolerance ?? 0.02;

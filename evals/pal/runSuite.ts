@@ -21,6 +21,16 @@ function transcript(query: string, body: { answer: string; toolsUsed: string[] }
 }
 
 export async function runPalEvalSuite(options: RunPalEvalOptions): Promise<PalEvalScoreboard> {
+  const typesafeKey = process.env.TYPESAFE_API_KEY;
+  delete process.env.TYPESAFE_API_KEY;
+  try {
+    return await runSuiteWithoutTypesafe(options);
+  } finally {
+    if (typesafeKey !== undefined) process.env.TYPESAFE_API_KEY = typesafeKey;
+  }
+}
+
+async function runSuiteWithoutTypesafe(options: RunPalEvalOptions): Promise<PalEvalScoreboard> {
   const root = options.root ?? process.cwd();
   const { cases, answerKey, now } = loadPalEvalSuite(root);
   const index = loadPalEvalVenueIndex(root);

@@ -6,12 +6,12 @@
       "cityId": "london"
     },
     {
-      "id": "quiz-camden-empty",
+      "id": "quiz-camden",
       "query": "Pub quiz in Camden tonight",
       "cityId": "london"
     },
     {
-      "id": "quiz-islington-empty",
+      "id": "quiz-islington",
       "query": "Quiz tonight in Islington",
       "cityId": "london"
     },
