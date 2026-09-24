@@ -6,7 +6,9 @@
  * script of two chained vitest commands handed a clusterless CI job's
  * `--exclude` globs to the second command instead of the coverage run. One
  * node process takes those arguments and gives them to the coverage run
- * alone, then runs the SysV harness proof on its own, serially.
+ * alone, then runs the SysV harness proof on its own, serially, unless
+ * those arguments exclude it: a job with no cluster would only report its
+ * proofs skipped.
  */
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
@@ -26,5 +28,12 @@ function vitest(args, extraEnv = {}) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-vitest(["--coverage", "--maxWorkers=4", ...process.argv.slice(2)]);
-vitest([...SERIAL_SHM_RUN.suites, "--maxWorkers=1"], SERIAL_SHM_RUN.env);
+const forwarded = process.argv.slice(2);
+const excluded = new Set(
+  forwarded.filter((_, index) => index > 0 && forwarded[index - 1] === "--exclude"),
+);
+
+vitest(["--coverage", "--maxWorkers=4", ...forwarded]);
+if (!SERIAL_SHM_RUN.suites.every((suite) => excluded.has(suite))) {
+  vitest([...SERIAL_SHM_RUN.suites, "--maxWorkers=1"], SERIAL_SHM_RUN.env);
+}
