@@ -1,0 +1,22 @@
+{
+  "textQuery": "Three Sheets Dalston E8 4AB London",
+  "fetchedAt": "2026-09-24T18:19:22.258Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJ1TU305McdkgRca2LGIqPjlQ",
+        "formattedAddress": "510b Kingsland Rd, London E8 4AB, UK",
+        "location": {
+          "latitude": 51.543952,
+          "longitude": -0.0758636
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Three Sheets Dalston",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

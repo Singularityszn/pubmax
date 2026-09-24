@@ -1,0 +1,22 @@
+{
+  "textQuery": "Seed Library E1 6JQ London",
+  "fetchedAt": "2026-09-24T18:19:23.439Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJK0w18ZgddkgRQYTOSLWTceY",
+        "formattedAddress": "100 Shoreditch High St, London E1 6JQ, UK",
+        "location": {
+          "latitude": 51.5254273,
+          "longitude": -0.0772913
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Seed Library",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "textQuery": "Kwānt W1J 8LN London",
+  "fetchedAt": "2026-09-24T18:19:24.383Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJ1x7C-XsFdkgRODpYDs4BDUA",
+        "formattedAddress": "52 Stratton St, London W1J 8LN, UK",
+        "location": {
+          "latitude": 51.507183299999994,
+          "longitude": -0.14332119999999998
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Kwãnt Mayfair",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "textQuery": "Eve Bar WC2E 7HF London",
+  "fetchedAt": "2026-09-24T18:19:27.064Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJww-u68sEdkgRKOXSvAb2TiY",
+        "formattedAddress": "34 Southampton St, London WC2E 7HF, UK",
+        "location": {
+          "latitude": 51.510808399999995,
+          "longitude": -0.12203549999999999
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Eve Bar Covent Garden",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

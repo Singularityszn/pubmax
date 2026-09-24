@@ -1,0 +1,22 @@
+{
+  "textQuery": "The Ivy West Street WC2H 9NQ London",
+  "fetchedAt": "2026-09-24T18:19:34.250Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJVcvKc80EdkgRyV3q0YIzDvc",
+        "formattedAddress": "1-5 West St, London WC2H 9NQ, UK",
+        "location": {
+          "latitude": 51.5128449,
+          "longitude": -0.1280908
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "The Original Ivy, West End",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

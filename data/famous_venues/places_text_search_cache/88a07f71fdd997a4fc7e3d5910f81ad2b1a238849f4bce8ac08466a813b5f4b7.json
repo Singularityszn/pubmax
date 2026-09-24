@@ -1,0 +1,22 @@
+{
+  "textQuery": "Discount Suit Company, 29A Wentworth Street, E1 7TB, Tower Hamlets",
+  "fetchedAt": "2026-09-24T18:22:28.821Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJD6u4nrQcdkgRzUMkEzoTMdU",
+        "formattedAddress": "29A Wentworth St, London E1 7TB, UK",
+        "location": {
+          "latitude": 51.516763,
+          "longitude": -0.0754558
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Discount Suit Company",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

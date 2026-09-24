@@ -1,0 +1,22 @@
+{
+  "textQuery": "Mangal 2 N16 7XN London",
+  "fetchedAt": "2026-09-24T18:19:28.733Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJTb9jiIscdkgRqYg0ibUPTCw",
+        "formattedAddress": "4 Stoke Newington Rd, London N16 7XN, UK",
+        "location": {
+          "latitude": 51.5508057,
+          "longitude": -0.07494529999999999
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Mangal 2 Restaurant",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

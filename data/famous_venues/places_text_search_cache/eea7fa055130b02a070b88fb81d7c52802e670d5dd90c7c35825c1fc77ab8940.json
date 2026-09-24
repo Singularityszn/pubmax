@@ -1,0 +1,22 @@
+{
+  "textQuery": "Coburg Bar, Carlos Place, W1K 2AL, Westminster",
+  "fetchedAt": "2026-09-24T18:22:25.549Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJN_yCHzUFdkgRlBeo8sbWA7g",
+        "formattedAddress": "The Connaught, 16 Carlos Pl, London W1K 2AL, UK",
+        "location": {
+          "latitude": 51.5102985,
+          "longitude": -0.1496833
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Coburg Bar",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

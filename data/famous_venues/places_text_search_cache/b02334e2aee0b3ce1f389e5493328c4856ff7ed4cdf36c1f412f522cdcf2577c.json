@@ -1,0 +1,22 @@
+{
+  "textQuery": "Discount Suit Company E1 7TB London",
+  "fetchedAt": "2026-09-24T18:19:22.780Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJD6u4nrQcdkgRzUMkEzoTMdU",
+        "formattedAddress": "29A Wentworth St, London E1 7TB, UK",
+        "location": {
+          "latitude": 51.516763,
+          "longitude": -0.0754558
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Discount Suit Company",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

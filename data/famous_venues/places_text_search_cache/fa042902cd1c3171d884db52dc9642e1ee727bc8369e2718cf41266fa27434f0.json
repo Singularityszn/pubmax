@@ -1,0 +1,22 @@
+{
+  "textQuery": "Oriole, 7-9 Slingsby Place, WC2E 9AB, Westminster",
+  "fetchedAt": "2026-09-24T18:22:27.396Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJP-efSFIbdkgRnCF-jDmn864",
+        "formattedAddress": "7-9 Slingsby Pl, London WC2E 9AB, UK",
+        "location": {
+          "latitude": 51.5126431,
+          "longitude": -0.12629959999999998
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Oriole",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

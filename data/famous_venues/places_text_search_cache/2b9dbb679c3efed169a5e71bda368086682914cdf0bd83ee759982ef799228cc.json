@@ -1,0 +1,38 @@
+{
+  "textQuery": "Selale, 1-2-3 Salisbury Promenade, N8 0RX, Haringey",
+  "fetchedAt": "2026-09-24T18:22:31.832Z",
+  "httpStatus": 429,
+  "body": {
+    "error": {
+      "code": 429,
+      "message": "Quota exceeded for quota metric 'SearchTextRequest' and limit 'SearchTextRequest per day' of service 'places.googleapis.com' for consumer 'project_number:590118888791'.",
+      "status": "RESOURCE_EXHAUSTED",
+      "details": [
+        {
+          "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+          "reason": "RATE_LIMIT_EXCEEDED",
+          "domain": "googleapis.com",
+          "metadata": {
+            "quota_location": "global",
+            "service": "places.googleapis.com",
+            "quota_limit": "SearchTextRequestPerDayPerProject",
+            "window_start_time": "1790233200",
+            "quota_limit_value": "100",
+            "quota_metric": "places.googleapis.com/SearchTextRequest",
+            "quota_unit": "1/d/{project}",
+            "consumer": "projects/590118888791"
+          }
+        },
+        {
+          "@type": "type.googleapis.com/google.rpc.Help",
+          "links": [
+            {
+              "description": "Request a higher quota limit.",
+              "url": "https://cloud.google.com/docs/quotas/help/request_increase"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

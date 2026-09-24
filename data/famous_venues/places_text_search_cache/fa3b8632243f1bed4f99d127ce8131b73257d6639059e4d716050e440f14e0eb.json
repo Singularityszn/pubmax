@@ -1,0 +1,22 @@
+{
+  "textQuery": "Trailer Happiness W11 2DY London",
+  "fetchedAt": "2026-09-24T18:19:26.845Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJG_Zl6B0QdkgRMptLf4dCvV0",
+        "formattedAddress": "177 Portobello Rd, London W11 2DY, UK",
+        "location": {
+          "latitude": 51.514974599999995,
+          "longitude": -0.2046568
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Trailer Happiness",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

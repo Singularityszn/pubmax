@@ -1,0 +1,22 @@
+{
+  "textQuery": "American Bar at The Savoy, Strand, WC2R 0EZ, Westminster",
+  "fetchedAt": "2026-09-24T18:22:24.883Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJgXiP3MsEdkgRRp0YhagxGsg",
+        "formattedAddress": "Strand, London WC2R 0EZ, UK",
+        "location": {
+          "latitude": 51.510218800000004,
+          "longitude": -0.12060380000000001
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "AMERICAN BAR",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

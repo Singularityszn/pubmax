@@ -1,0 +1,22 @@
+{
+  "textQuery": "Padella Borough Market SE1 1TQ London",
+  "fetchedAt": "2026-09-24T18:19:37.332Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJdZ6paFcDdkgRpPUHPngIeq8",
+        "formattedAddress": "6 Southwark St, London SE1 1TQ, UK",
+        "location": {
+          "latitude": 51.5051655,
+          "longitude": -0.08992019999999999
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Padella Borough Market",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

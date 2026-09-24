@@ -1,0 +1,22 @@
+{
+  "textQuery": "Happiness Forgets N1 6NU London",
+  "fetchedAt": "2026-09-24T18:19:22.501Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJc71T0bocdkgRrt_uEpoLBoE",
+        "formattedAddress": "8-9 Hoxton Square, London N1 6NU, UK",
+        "location": {
+          "latitude": 51.527854399999995,
+          "longitude": -0.08177759999999999
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Happiness Forgets",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "textQuery": "Gordon's Wine Bar, 47 Villiers Street, WC2N 6NE, Westminster",
+  "fetchedAt": "2026-09-24T18:22:31.377Z",
+  "httpStatus": 429,
+  "body": {
+    "error": {
+      "code": 429,
+      "message": "Quota exceeded for quota metric 'SearchTextRequest' and limit 'SearchTextRequest per day' of service 'places.googleapis.com' for consumer 'project_number:590118888791'.",
+      "status": "RESOURCE_EXHAUSTED",
+      "details": [
+        {
+          "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+          "reason": "RATE_LIMIT_EXCEEDED",
+          "domain": "googleapis.com",
+          "metadata": {
+            "quota_unit": "1/d/{project}",
+            "quota_location": "global",
+            "quota_metric": "places.googleapis.com/SearchTextRequest",
+            "service": "places.googleapis.com",
+            "window_start_time": "1790233200",
+            "quota_limit": "SearchTextRequestPerDayPerProject",
+            "consumer": "projects/590118888791",
+            "quota_limit_value": "100"
+          }
+        },
+        {
+          "@type": "type.googleapis.com/google.rpc.Help",
+          "links": [
+            {
+              "description": "Request a higher quota limit.",
+              "url": "https://cloud.google.com/docs/quotas/help/request_increase"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

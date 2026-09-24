@@ -1,0 +1,22 @@
+{
+  "textQuery": "Experimental Cocktail Club, 13A Gerrard Street, W1D 5PS, Westminster",
+  "fetchedAt": "2026-09-24T18:22:30.410Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJ03seTNIEdkgR_bVvGVN2-d4",
+        "formattedAddress": "13a Gerrard St, London W1D 5PS, UK",
+        "location": {
+          "latitude": 51.5119233,
+          "longitude": -0.13102719999999998
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Experimental Cocktail Club Chinatown",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

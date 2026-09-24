@@ -1,0 +1,22 @@
+{
+  "textQuery": "Regency Cafe SW1P 4BY London",
+  "fetchedAt": "2026-09-24T18:19:39.295Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJ565hgN0EdkgRMhOboIZ7uJ8",
+        "formattedAddress": "17-19 Regency St, London SW1P 4BY, UK",
+        "location": {
+          "latitude": 51.494209500000004,
+          "longitude": -0.13226839999999998
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Regency Cafe",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

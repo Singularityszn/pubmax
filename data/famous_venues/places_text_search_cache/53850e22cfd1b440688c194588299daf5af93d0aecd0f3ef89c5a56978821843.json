@@ -1,0 +1,22 @@
+{
+  "textQuery": "Callooh Callay, 65 Rivington Street, EC2A 3AY, Hackney",
+  "fetchedAt": "2026-09-24T18:22:30.204Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJJ9DmjrocdkgR-TgBZwwKdKc",
+        "formattedAddress": "65 Rivington St, London EC2A 3QQ, UK",
+        "location": {
+          "latitude": 51.526290800000005,
+          "longitude": -0.07986879999999999
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Callooh Callay",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

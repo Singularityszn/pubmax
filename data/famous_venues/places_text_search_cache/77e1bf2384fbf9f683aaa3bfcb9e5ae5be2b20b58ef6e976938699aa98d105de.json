@@ -1,0 +1,22 @@
+{
+  "textQuery": "DUKES Bar, 35 St James's Place, SW1A 1NY, Westminster",
+  "fetchedAt": "2026-09-24T18:22:25.845Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJLds3OEkFdkgRcYk3My6S59o",
+        "formattedAddress": "35 St James's Pl, London SW1A 1NY, UK",
+        "location": {
+          "latitude": 51.505538099999995,
+          "longitude": -0.1396885
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Dukes Bar",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "textQuery": "Veeraswamy W1B 4EZ London",
+  "fetchedAt": "2026-09-24T18:19:36.077Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJnVRkK9QEdkgRz8uiqq2HfjM",
+        "formattedAddress": "Victory House, 99 Regent St., London W1B 4RS, UK",
+        "location": {
+          "latitude": 51.509983,
+          "longitude": -0.1378045
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Veeraswamy",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

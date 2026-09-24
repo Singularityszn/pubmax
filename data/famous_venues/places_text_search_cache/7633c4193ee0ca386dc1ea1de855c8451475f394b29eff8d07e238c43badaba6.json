@@ -1,0 +1,22 @@
+{
+  "textQuery": "The Vault at Milroy's W1D 4NX London",
+  "fetchedAt": "2026-09-24T18:19:25.905Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJp1nizNIEdkgRJTk23v1fCFg",
+        "formattedAddress": "3 Greek St, London W1D 4NX, UK",
+        "location": {
+          "latitude": 51.514810499999996,
+          "longitude": -0.1312439
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "The Vault",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

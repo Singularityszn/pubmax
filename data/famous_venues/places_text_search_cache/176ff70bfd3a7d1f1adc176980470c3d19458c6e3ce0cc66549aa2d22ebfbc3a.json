@@ -1,0 +1,22 @@
+{
+  "textQuery": "Poppies Spitalfields E1 6QR London",
+  "fetchedAt": "2026-09-24T18:19:37.790Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJX7eIgrYcdkgRJtmJIysIZVc",
+        "formattedAddress": "6-8 Hanbury St, London E1 6QR, UK",
+        "location": {
+          "latitude": 51.5202041,
+          "longitude": -0.074035
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Poppies Fish & Chips",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

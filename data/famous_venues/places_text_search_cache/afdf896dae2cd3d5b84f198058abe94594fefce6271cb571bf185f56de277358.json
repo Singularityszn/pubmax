@@ -1,0 +1,22 @@
+{
+  "textQuery": "Satan's Whiskers E2 9RA London",
+  "fetchedAt": "2026-09-24T18:19:23.207Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJf9GjdNscdkgRPi-9Fxb6iDo",
+        "formattedAddress": "Satan's Whiskers, 343 Cambridge Heath Rd, London E2 9RA, UK",
+        "location": {
+          "latitude": 51.5294983,
+          "longitude": -0.0561668
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Satan's Whiskers",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

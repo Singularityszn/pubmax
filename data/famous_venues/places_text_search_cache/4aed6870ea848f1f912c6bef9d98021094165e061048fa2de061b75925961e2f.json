@@ -1,0 +1,22 @@
+{
+  "textQuery": "The River Cafe W6 9HA London",
+  "fetchedAt": "2026-09-24T18:19:35.409Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJxxa_ELAPdkgRF2wx7RLroiY",
+        "formattedAddress": "Thames Wharf, Rainville Rd, London W6 9HA, UK",
+        "location": {
+          "latitude": 51.483998799999995,
+          "longitude": -0.2242253
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "The River Café",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

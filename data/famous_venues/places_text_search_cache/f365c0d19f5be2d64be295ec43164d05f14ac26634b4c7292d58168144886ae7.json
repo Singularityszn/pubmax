@@ -1,0 +1,22 @@
+{
+  "textQuery": "Oriole WC2E 9AB London",
+  "fetchedAt": "2026-09-24T18:19:21.267Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJP-efSFIbdkgRnCF-jDmn864",
+        "formattedAddress": "7-9 Slingsby Pl, London WC2E 9AB, UK",
+        "location": {
+          "latitude": 51.5126431,
+          "longitude": -0.12629959999999998
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Oriole",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

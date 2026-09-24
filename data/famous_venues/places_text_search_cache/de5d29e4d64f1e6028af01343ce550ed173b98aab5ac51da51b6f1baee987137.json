@@ -1,0 +1,22 @@
+{
+  "textQuery": "Ottolenghi Spitalfields E1 7LJ London",
+  "fetchedAt": "2026-09-24T18:19:36.684Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJ6QCtmrMcdkgRFV9oY5ypA6U",
+        "formattedAddress": "50 Artillery Ln, London E1 7LJ, UK",
+        "location": {
+          "latitude": 51.5182265,
+          "longitude": -0.0771835
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Ottolenghi Spitalfields",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

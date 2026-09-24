@@ -1,0 +1,22 @@
+{
+  "textQuery": "The Cocktail Trading Co. E1 6GQ London",
+  "fetchedAt": "2026-09-24T18:19:26.329Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJLdASRtUEdkgRQBluAGfwXuo",
+        "formattedAddress": "68 Bethnal Grn Rd, London E1 6GQ, UK",
+        "location": {
+          "latitude": 51.5243756,
+          "longitude": -0.0723818
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "The Cocktail Trading Co. | Shoreditch",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

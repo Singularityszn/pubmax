@@ -1,0 +1,22 @@
+{
+  "textQuery": "Bob Bob Ricard Soho W1F 9DF London",
+  "fetchedAt": "2026-09-24T18:19:38.512Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJNzsd-NQEdkgRmrDZyr1DPUg",
+        "formattedAddress": "1 Upper James St, London W1F 9DF, UK",
+        "location": {
+          "latitude": 51.51237,
+          "longitude": -0.13733399999999998
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Bob Bob Ricard Soho",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

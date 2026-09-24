@@ -1,0 +1,38 @@
+{
+  "textQuery": "Blacklock Soho, 24 Great Windmill Street, W1D 7LG, Westminster",
+  "fetchedAt": "2026-09-24T18:22:33.388Z",
+  "httpStatus": 429,
+  "body": {
+    "error": {
+      "code": 429,
+      "message": "Quota exceeded for quota metric 'SearchTextRequest' and limit 'SearchTextRequest per day' of service 'places.googleapis.com' for consumer 'project_number:590118888791'.",
+      "status": "RESOURCE_EXHAUSTED",
+      "details": [
+        {
+          "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+          "reason": "RATE_LIMIT_EXCEEDED",
+          "domain": "googleapis.com",
+          "metadata": {
+            "window_start_time": "1790233200",
+            "consumer": "projects/590118888791",
+            "service": "places.googleapis.com",
+            "quota_location": "global",
+            "quota_metric": "places.googleapis.com/SearchTextRequest",
+            "quota_unit": "1/d/{project}",
+            "quota_limit": "SearchTextRequestPerDayPerProject",
+            "quota_limit_value": "100"
+          }
+        },
+        {
+          "@type": "type.googleapis.com/google.rpc.Help",
+          "links": [
+            {
+              "description": "Request a higher quota limit.",
+              "url": "https://cloud.google.com/docs/quotas/help/request_increase"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

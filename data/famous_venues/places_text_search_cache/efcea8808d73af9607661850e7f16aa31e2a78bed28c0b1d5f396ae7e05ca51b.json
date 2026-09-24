@@ -1,0 +1,22 @@
+{
+  "textQuery": "Flat Iron Soho W1F 9RW London",
+  "fetchedAt": "2026-09-24T18:19:38.821Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJL1pkqdUEdkgRS3MDjg6kzVc",
+        "formattedAddress": "17 Beak St, Carnaby, London W1F 9RW, UK",
+        "location": {
+          "latitude": 51.512088,
+          "longitude": -0.13836099999999998
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Flat Iron Soho",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

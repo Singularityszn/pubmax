@@ -1,0 +1,22 @@
+{
+  "textQuery": "Mr Fogg's Residence W1J 6JD London",
+  "fetchedAt": "2026-09-24T18:19:25.686Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJYQWg1isFdkgRT9l43V_GL5Y",
+        "formattedAddress": "15 Bruton Ln, London W1J 6JD, UK",
+        "location": {
+          "latitude": 51.5098123,
+          "longitude": -0.14423829999999999
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Mr Fogg's Residence",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

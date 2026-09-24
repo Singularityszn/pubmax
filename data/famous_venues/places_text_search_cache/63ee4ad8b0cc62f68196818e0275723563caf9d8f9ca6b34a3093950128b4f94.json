@@ -1,0 +1,22 @@
+{
+  "textQuery": "A Bar with Shapes for a Name, 232 Kingsland Road, E2 8AX, Hackney",
+  "fetchedAt": "2026-09-24T18:22:29.763Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJrx4282IddkgRTeHNjFC_CEA",
+        "formattedAddress": "232 Kingsland Rd, Whitmore Estate, London E2 8AX, UK",
+        "location": {
+          "latitude": 51.5356735,
+          "longitude": -0.0767291
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "A Bar with Shapes for a Name",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "textQuery": "Kebab Kid SW6 4LU London",
+  "fetchedAt": "2026-09-24T18:19:32.073Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJw5_SLXYPdkgRCPYhWuUGyJg",
+        "formattedAddress": "90 New Kings Rd, London SW6 4LU, UK",
+        "location": {
+          "latitude": 51.4723055,
+          "longitude": -0.20276729999999998
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Kebab Kid",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "textQuery": "Donovan Bar W1S 4BP London",
+  "fetchedAt": "2026-09-24T18:19:19.872Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJPy_c8SkFdkgRamfYx4wZ6Xo",
+        "formattedAddress": "33 Albemarle St, London W1S 4BP, UK",
+        "location": {
+          "latitude": 51.5091781,
+          "longitude": -0.1422341
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "The Donovan Bar",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

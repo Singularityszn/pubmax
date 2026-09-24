@@ -1,0 +1,22 @@
+{
+  "textQuery": "Golden Dragon W1D 6JW London",
+  "fetchedAt": "2026-09-24T18:19:33.746Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJsVvuTtIEdkgRpsIH_WaE2es",
+        "formattedAddress": "28-29 Gerrard St, London W1D 6JW, UK",
+        "location": {
+          "latitude": 51.5114322,
+          "longitude": -0.131632
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Golden Dragon (Chinatown)",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

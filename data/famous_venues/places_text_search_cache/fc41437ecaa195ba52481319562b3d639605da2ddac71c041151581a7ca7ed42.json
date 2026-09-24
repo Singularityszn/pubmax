@@ -1,0 +1,22 @@
+{
+  "textQuery": "The Best Turkish Kebab N16 8BT London",
+  "fetchedAt": "2026-09-24T18:19:28.046Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJc_SZa4ocdkgRCSS76XrLRIo",
+        "formattedAddress": "125 Stoke Newington Rd, London N16 8BT, UK",
+        "location": {
+          "latitude": 51.5561692,
+          "longitude": -0.0747983
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "The Best Turkish Kebab",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

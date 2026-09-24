@@ -1,0 +1,22 @@
+{
+  "textQuery": "SOMA Soho W1D 7HJ London",
+  "fetchedAt": "2026-09-24T18:19:26.115Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJk-Pwqj8FdkgRsRgIlFZ8FNU",
+        "formattedAddress": "14 Denman St, London W1D 7HJ, UK",
+        "location": {
+          "latitude": 51.510779899999996,
+          "longitude": -0.1352256
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "SOMA Soho",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

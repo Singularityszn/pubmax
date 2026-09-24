@@ -1,0 +1,22 @@
+{
+  "textQuery": "Testi, 38 Stoke Newington High Street, N16 7PL, Hackney",
+  "fetchedAt": "2026-09-24T18:22:32.090Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJIY4pxmEcdkgRvmnaEN34yAI",
+        "formattedAddress": "38 Stoke Newington High St, London N16 7PL, UK",
+        "location": {
+          "latitude": 51.5581639,
+          "longitude": -0.0742028
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Testi Restaurant",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "textQuery": "Artesian, 1C Portland Place, W1B 1JA, Westminster",
+  "fetchedAt": "2026-09-24T18:22:26.549Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJEx8Vq9UadkgRaPTTkQzdmmk",
+        "formattedAddress": "1C Portland Pl, London W1B 1JA, UK",
+        "location": {
+          "latitude": 51.517589099999995,
+          "longitude": -0.1438754
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Artesian",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

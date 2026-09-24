@@ -1,0 +1,22 @@
+{
+  "textQuery": "Wong Kei W1D 6PY London",
+  "fetchedAt": "2026-09-24T18:19:33.063Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJz-VvsdMEdkgR1lQfyxijRMw",
+        "formattedAddress": "41-43 Wardour St, London W1D 6PX, UK",
+        "location": {
+          "latitude": 51.5114754,
+          "longitude": -0.1323797
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Wong Kei",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "textQuery": "Side Hustle, 28 Bow Street, WC2E 7AW, Westminster",
+  "fetchedAt": "2026-09-24T18:22:30.006Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJ522V2_wFdkgRbYNuPW8Br0E",
+        "formattedAddress": "28 Bow St, London WC2E 7AW, UK",
+        "location": {
+          "latitude": 51.513412599999995,
+          "longitude": -0.12201789999999998
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Side Hustle",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "textQuery": "Hala Restaurant N4 1LG London",
+  "fetchedAt": "2026-09-24T18:19:29.710Z",
+  "httpStatus": 200,
+  "body": {
+    "places": [
+      {
+        "id": "ChIJry83ifQbdkgRuQNeF94T_Xk",
+        "formattedAddress": "29-31 Grand Parade, Green Lanes, Harringay Ladder, London N4 1LG, UK",
+        "location": {
+          "latitude": 51.580436999999996,
+          "longitude": -0.09909970000000001
+        },
+        "businessStatus": "OPERATIONAL",
+        "displayName": {
+          "text": "Hala Restaurant",
+          "languageCode": "en"
+        }
+      }
+    ]
+  }
+}
