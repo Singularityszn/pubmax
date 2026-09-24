@@ -347,18 +347,31 @@ export function flushPlanMutationOutbox(options?: {
   );
 }
 
-/** Roll back the active-plan cursor when a held mutation fails after replay. */
-export function applyActivePlanFlushRollback(result: PlanMutationFlushResult): void {
-  if (
-    result.outcome !== "forbidden" &&
-    result.outcome !== "rejected" &&
-    result.outcome !== "conflict"
-  ) {
-    return;
+/**
+ * Roll back the active-plan cursor for every held mutation a replay refused.
+ *
+ * Failures unwind newest first, and each one only moves a cursor that still
+ * sits where its own optimistic advance left it. So a refused stop 0 cannot
+ * drag the cursor back past a stop 1 that went through, two refusals in a row
+ * still land on the first one's starting point, and running the same batch a
+ * second time (the site-wide host and the plan page share one flush) is a
+ * no-op.
+ */
+export function applyActivePlanFlushRollbacks(results: readonly PlanMutationFlushResult[]): void {
+  for (let index = results.length - 1; index >= 0; index -= 1) {
+    const result = results[index];
+    if (
+      result.outcome !== "forbidden" &&
+      result.outcome !== "rejected" &&
+      result.outcome !== "conflict"
+    ) {
+      continue;
+    }
+    const active = readActivePlan();
+    if (!active || active.id !== result.planId) continue;
+    if (active.stopIndex !== result.optimisticCursor) continue;
+    setActivePlanStopIndex(result.previousCursor);
   }
-  const active = readActivePlan();
-  if (!active || active.id !== result.planId) return;
-  setActivePlanStopIndex(result.previousCursor);
 }
 
 /** Test helper: replace in-memory + storage state. */
