@@ -367,7 +367,6 @@ export async function evaluateFreshness({ now = new Date(), rootDir = DEFAULT_RO
   return { results, breached };
 }
 
-// Re-exported so validate-data can format identically.
 export function freshnessGateFailed(results, { requireStore = false } = {}) {
   const stale = results.filter((r) => r.status === "stale");
   const hardStale = stale.filter((r) => !ADVISORY_STALE_IDS.has(r.id));
@@ -381,6 +380,7 @@ export function freshnessGateFailed(results, { requireStore = false } = {}) {
   );
 }
 
+// Re-exported so validate-data can format identically.
 export function formatFreshnessTable(results) {
   const rows = results.map((r) => ({
     status: r.status.toUpperCase(),
@@ -456,10 +456,17 @@ async function main() {
       );
       process.exit(1);
     }
-    console.log(
-      `\nFRESHNESS CHECK PASSED with ${unmeasurableHere.length} store feed(s) this runtime cannot measure. ` +
-        "They are NOT reported fresh. Run with --require-store where credentials exist.",
-    );
+    const qualifiers = [];
+    if (advisoryStale.length) {
+      qualifiers.push(`${advisoryStale.length} advisory stale dataset(s) (${advisoryStale.map((r) => r.id).join(", ")})`);
+    }
+    if (unmeasurableHere.length) {
+      qualifiers.push(
+        `${unmeasurableHere.length} store feed(s) this runtime cannot measure. ` +
+          "They are NOT reported fresh. Run with --require-store where credentials exist",
+      );
+    }
+    console.log(`\nFRESHNESS CHECK PASSED with ${qualifiers.join(" and ")}.`);
     return;
   }
   printUnmeasured(unmeasured);

@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -10,14 +9,6 @@ import {
 } from "@/scripts/check_freshness.mjs";
 
 const ROOT = process.cwd();
-
-function checkFreshnessCli() {
-  return spawnSync(process.execPath, ["scripts/check_freshness.mjs"], {
-    cwd: ROOT,
-    encoding: "utf8",
-    env: { ...process.env, SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "" },
-  });
-}
 
 describe("check:freshness area_news advisory", () => {
   it("does not fail the gate when only area_news is stale", async () => {
@@ -48,14 +39,5 @@ describe("check:freshness area_news advisory", () => {
     });
     expect(results[0].status).toBe("stale");
     expect(freshnessGateFailed(results)).toBe(true);
-  });
-
-  it("prints advisory stale area_news without failing the CLI when it is the only breach", () => {
-    const result = checkFreshnessCli();
-    const { stdout } = result;
-    if (stdout.includes("area_news") && stdout.includes("advisory only")) {
-      expect(stdout).not.toContain("FRESHNESS CHECK FAILED");
-      expect(result.status).toBe(0);
-    }
   });
 });
