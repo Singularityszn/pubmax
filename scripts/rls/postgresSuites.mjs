@@ -50,17 +50,23 @@ export const POSTGRES_BACKED_SUITES = Object.freeze([
   "__tests__/whatsOnListingsMigration.test.ts",
 ]);
 
-/** Counts SysV segments across boots, so it runs alone once every other proof is done. */
-const SERIAL_SHM_SUITE = "__tests__/postgresShmHarness.test.ts";
+/**
+ * The SysV harness proof boots init-parented clusters outside the host slot
+ * budget and asserts on the segments its own postmasters created, so it runs
+ * alone: a concurrent worker's first-slot sweep would reap its orphans first.
+ */
+export const SERIAL_SHM_RUN = Object.freeze({
+  suites: Object.freeze(["__tests__/postgresShmHarness.test.ts"]),
+  env: Object.freeze({ PUBMAX_SERIAL_SHM_HARNESS: "1" }),
+});
 
 /** The vitest runs `npm run test:rls` makes, in order: together they are every suite above. */
 export const POSTGRES_SUITE_RUNS = Object.freeze([
   Object.freeze({
-    suites: Object.freeze(POSTGRES_BACKED_SUITES.filter((suite) => suite !== SERIAL_SHM_SUITE)),
+    suites: Object.freeze(
+      POSTGRES_BACKED_SUITES.filter((suite) => !SERIAL_SHM_RUN.suites.includes(suite)),
+    ),
     env: Object.freeze({}),
   }),
-  Object.freeze({
-    suites: Object.freeze([SERIAL_SHM_SUITE]),
-    env: Object.freeze({ PUBMAX_SERIAL_SHM_HARNESS: "1" }),
-  }),
+  SERIAL_SHM_RUN,
 ]);

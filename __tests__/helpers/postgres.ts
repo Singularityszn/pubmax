@@ -24,7 +24,7 @@
  * deliberate PUBMAX_RLS_NO_PG=1 opt-out; an absent PostgreSQL nobody opted out
  * of makes `startPostgres` throw, so a green run means the proofs really ran.
  */
-import { execFile, execFileSync, spawn, type ChildProcess } from "node:child_process";
+import { execFile, execFileSync, spawn } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -138,7 +138,6 @@ export async function startPostgres(
   const releaseSlotHold = await acquireClusterSlot(label);
 
   let dataDir: string | null = null;
-  let handle: ChildProcess | null = null;
   try {
     // The data directory holds the unix socket, and PostgreSQL refuses a
     // socket path over 103 bytes, so the label is trimmed here rather than
@@ -184,7 +183,6 @@ export async function startPostgres(
       ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
       { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, LC_ALL: "C" } },
     );
-    handle = server;
     let log = "";
     const keep = (chunk: Buffer | string): void => {
       log = (log + String(chunk)).slice(-8_000);

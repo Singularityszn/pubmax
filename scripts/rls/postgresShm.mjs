@@ -165,9 +165,12 @@ export function sysvSegmentsCreatedBy(pids) {
 }
 
 function postmasterPidForDataDir(dataDir) {
-  const pidFile = join(dataDir, "postmaster.pid");
-  if (!existsSync(pidFile)) return null;
-  const firstLine = readFileSync(pidFile, "utf8").split("\n")[0]?.trim() ?? "";
+  let firstLine;
+  try {
+    firstLine = readFileSync(join(dataDir, "postmaster.pid"), "utf8").split("\n")[0]?.trim() ?? "";
+  } catch {
+    return null;
+  }
   const pid = Number.parseInt(firstLine, 10);
   return Number.isFinite(pid) && pid > 0 ? pid : null;
 }
