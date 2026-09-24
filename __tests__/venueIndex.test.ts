@@ -162,7 +162,10 @@ describe("getVenueIndex", () => {
       name: "Turf Tavern",
       borough: "Oxford",
     });
-    expect(index.get("bar-american-bar-savoy")).toBeUndefined();
+    expect(index.get("bar-american-bar-savoy")).toMatchObject({
+      name: "American Bar at The Savoy",
+      borough: "Westminster",
+    });
   });
 
   it("resolves outer London OSM ownership to its curated venue", async () => {

@@ -32,7 +32,7 @@ const DETAIL_INDEX = path.join(ROOT, "data", "generated", "venue_detail_index.js
 const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const SEED_VENUE_ID = "venue-16pnwmm";
 const FAMOUS_BAR_ID = "bar-american-bar-savoy";
-const FAMOUS_RESTAURANT_ID = "restaurant-rules";
+const FAMOUS_RESTAURANT_ID = "restaurant-river-cafe";
 
 const rows = JSON.parse(readFileSync(RAW_PATH, "utf8")) as VenuePrice[];
 const seedRows = rows.filter(

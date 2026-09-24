@@ -222,9 +222,15 @@ describe("venues_slim.json", () => {
 
   it("carries complete anchor provenance for famous non-pub venues", () => {
     const famous = (slim as SlimVenue[]).filter(
-      (row) => row.kind === "bar" || row.kind === "food",
+      (row) =>
+        row.kind === "bar" || row.kind === "food" || row.kind === "restaurant",
     );
-    expect(famous).toEqual([]);
+    expect(famous.length).toBeGreaterThan(0);
+    for (const row of famous) {
+      expect(hasValidFamousVenueFields(row as Record<string, unknown>)).toBe(
+        true,
+      );
+    }
   });
 
   it("every venue has finite coordinates in valid geographic range", () => {
@@ -396,9 +402,9 @@ describe("venues_slim.json", () => {
     const bars = rows.filter((row) => row.kind === "bar");
     const food = rows.filter((row) => row.kind === "food");
     const restaurants = rows.filter((row) => row.kind === "restaurant");
-    expect(bars).toHaveLength(0);
-    expect(food).toHaveLength(0);
-    expect(restaurants).toHaveLength(0);
+    expect(bars).toHaveLength(36);
+    expect(food).toHaveLength(19);
+    expect(restaurants).toHaveLength(21);
   });
 
   it("is meaningfully smaller than the raw dataset", () => {
