@@ -72,7 +72,7 @@ describe("live sport fixtures", () => {
     ).toMatchObject({ kickoffLondonTime: "20:00" });
   });
 
-  it("fetches every league at once under one lane deadline", async () => {
+  it("fetches every TheSportsDB league at once under one lane deadline", async () => {
     vi.stubEnv("FOOTBALL_DATA_API_KEY", "");
     let inFlight = 0;
     let peak = 0;
@@ -90,6 +90,35 @@ describe("live sport fixtures", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(liveSportFixtureInternals.THESPORTSDB_LEAGUES.length);
     expect(peak).toBe(liveSportFixtureInternals.THESPORTSDB_LEAGUES.length);
     expect(signals.size).toBe(1);
+    vi.unstubAllEnvs();
+  });
+
+  it("gives the TheSportsDB fallback its own deadline after football-data times out", async () => {
+    vi.stubEnv("FOOTBALL_DATA_API_KEY", "test-key");
+    const controllers = new Map<AbortSignal, AbortController>();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation(() => {
+      const controller = new AbortController();
+      controllers.set(controller.signal, controller);
+      return controller.signal;
+    });
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const signal = init?.signal as AbortSignal;
+      if (String(input).includes("football-data.org")) {
+        controllers.get(signal)?.abort(new DOMException("timed out", "TimeoutError"));
+        throw signal.reason;
+      }
+      if (signal.aborted) throw signal.reason;
+      const payload = String(input).includes("id=4328") ? PL_SAMPLE : { events: [] };
+      return { ok: true, status: 200, json: async () => payload } as Response;
+    });
+
+    const fixtures = await fetchLiveSportFixtures({
+      now: NOW,
+      endMs: NOW + SPORT_FIXTURE_HORIZON_MS,
+      fetchImpl,
+    });
+    expect(fixtures.map((fixture) => fixture.id)).toEqual(["tsdb-2494052"]);
+    timeout.mockRestore();
     vi.unstubAllEnvs();
   });
 

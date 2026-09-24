@@ -14,7 +14,7 @@ import { POINT_ROW_GRACE_MS } from "@/lib/whatsOn";
  */
 export const SPORT_FIXTURE_HORIZON_MS = 8 * 24 * 60 * 60 * 1000;
 
-/** One deadline for the whole sport lane, so a slow upstream cannot eat the cron budget. */
+/** One deadline per provider lane, so a slow upstream cannot eat the cron budget. */
 const SPORT_LANE_TIMEOUT_MS = 8_000;
 
 const FOOTBALL_DATA_SOURCE = {
@@ -295,17 +295,18 @@ async function fetchTheSportsDbFixtures(opts: LaneOpts, apiKey: string): Promise
 export async function fetchLiveSportFixtures(opts: FetchLiveSportFixturesOpts): Promise<SportFixture[]> {
   const footballKey = readEnvKey("FOOTBALL_DATA_API_KEY");
   const theSportsDbKey = readEnvKey("THESPORTSDB_API_KEY") ?? "3";
-  const lane: LaneOpts = {
+  const startMs = opts.now - POINT_ROW_GRACE_MS.sport;
+  const lane = (): LaneOpts => ({
     ...opts,
-    startMs: opts.now - POINT_ROW_GRACE_MS.sport,
+    startMs,
     signal: AbortSignal.timeout(SPORT_LANE_TIMEOUT_MS),
-  };
+  });
   const errors: string[] = [];
 
   if (footballKey) {
     try {
-      const fromFootballData = await fetchFootballDataFixtures(lane, footballKey);
-      const inWindowRows = fromFootballData.filter((f) => inWindow(f, lane.startMs, opts.endMs));
+      const fromFootballData = await fetchFootballDataFixtures(lane(), footballKey);
+      const inWindowRows = fromFootballData.filter((f) => inWindow(f, startMs, opts.endMs));
       if (inWindowRows.length > 0) return inWindowRows;
     } catch (err) {
       errors.push(err instanceof Error ? err.message : String(err));
@@ -313,7 +314,7 @@ export async function fetchLiveSportFixtures(opts: FetchLiveSportFixturesOpts): 
   }
 
   try {
-    const fromTheSportsDb = await fetchTheSportsDbFixtures(lane, theSportsDbKey);
+    const fromTheSportsDb = await fetchTheSportsDbFixtures(lane(), theSportsDbKey);
     if (fromTheSportsDb.length > 0) return fromTheSportsDb;
   } catch (err) {
     errors.push(err instanceof Error ? err.message : String(err));
