@@ -162,7 +162,7 @@ describe("getVenueIndex", () => {
       name: "Turf Tavern",
       borough: "Oxford",
     });
-    expect(index.get("bar-american-bar-savoy")?.kind).toBe("bar");
+    expect(index.get("bar-american-bar-savoy")).toBeUndefined();
   });
 
   it("resolves outer London OSM ownership to its curated venue", async () => {

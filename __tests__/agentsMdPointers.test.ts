@@ -292,6 +292,12 @@ function resolvesPattern(pointer: string): boolean {
 
 /** Resolve a pointer that may carry glob syntax or be a directory. */
 function resolves(pointer: string): boolean {
+  // Installed dependencies are never in git ls-tree; still verify they exist
+  // after `npm ci` when AGENTS.md sends a reader into the next package.
+  if (pointer.startsWith("node_modules/")) {
+    const target = join(ROOT, pointer.replace(/\/$/, ""));
+    return existsSync(target);
+  }
   // Brace sets assert every named path; wildcard segments assert any matching path.
   return expandBraces(pointer).every(resolvesPattern);
 }

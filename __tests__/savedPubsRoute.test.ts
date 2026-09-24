@@ -17,26 +17,39 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET, POST } from "@/app/api/saved-pubs/route";
 import { __resetMemorySavedPubs } from "@/lib/savedPubsStore";
+import * as venueIndex from "@/lib/venueIndex";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 
 const URL_BASE = "http://localhost/api/saved-pubs";
 
 let REAL_VENUE_ID = "";
 let REAL_VENUE_NAME = "";
-let NON_PUB_VENUE_ID = "";
+const NON_PUB_VENUE_ID = "food-best-turkish-kebab";
 
 function expectNoStore(res: Response): void {
   expect(res.headers.get("Cache-Control")).toBe("no-store");
 }
 
 beforeAll(async () => {
+  const { resolveVenue: realResolveVenue } =
+    await vi.importActual<typeof import("@/lib/venueIndex")>("@/lib/venueIndex");
+  vi.spyOn(venueIndex, "resolveVenue").mockImplementation(async (id) => {
+    if (id === NON_PUB_VENUE_ID) {
+      return {
+        id,
+        name: "Best Turkish Kebab",
+        borough: "Westminster",
+        lat: 51.513,
+        lng: -0.132,
+        kind: "food",
+      };
+    }
+    return realResolveVenue(id);
+  });
   const index = await getVenueIndex();
   const [id, ref] = [...index.entries()][0];
   REAL_VENUE_ID = id;
   REAL_VENUE_NAME = ref.name;
-  NON_PUB_VENUE_ID =
-    [...index.values()].find((venue) => venue.kind === "food")?.id ?? "";
-  if (!NON_PUB_VENUE_ID) throw new Error("venue index has no late-food venue");
 });
 
 function list(query: string): Promise<Response> {

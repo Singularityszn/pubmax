@@ -755,6 +755,8 @@ describe("POST /api/price-submit", () => {
     const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 8.5 }));
 
     expect(res.status).toBe(400);
+    const body = (await res.json()) as { error?: string };
+    expect(body.error).toMatch(/Pick a venue from the map|unknown venue|not a pub/i);
     expect(await readCommunityPrices(venueId)).toEqual([]);
   });
 

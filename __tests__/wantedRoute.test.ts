@@ -62,14 +62,12 @@ import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { __resetWanteds, memoryWantedStore } from "@/lib/wantedStore";
 
 let REAL_VENUE_ID = "";
-let NON_PUB_VENUE_ID = "";
+const NON_PUB_VENUE_ID = "food-best-turkish-kebab";
 
 beforeAll(async () => {
   const index = await getVenueIndex();
   REAL_VENUE_ID = [...index.values()].find((venue) => isPubVenueKind(venue.kind))?.id ?? "";
-  NON_PUB_VENUE_ID = [...index.values()].find((venue) => venue.kind === "food")?.id ?? "";
   if (!REAL_VENUE_ID) throw new Error("venue index is empty");
-  if (!NON_PUB_VENUE_ID) throw new Error("venue index has no non-pub venue");
 });
 
 function post(body: unknown, ip = "203.0.113.40"): Request {

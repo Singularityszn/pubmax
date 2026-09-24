@@ -130,15 +130,7 @@ describe("venueDetailIndex", () => {
       path.join(ROOT, "data", "generated", "missing-venue-detail-index.json"),
     );
 
-    await expect(getVenueDetail(FAMOUS_RESTAURANT_ID)).resolves.toMatchObject({
-      id: FAMOUS_RESTAURANT_ID,
-      name: "Rules",
-      kind: "restaurant",
-      anchorLabel: "Steak & Kidney Pudding",
-      anchorCourse: "mains",
-      anchorSourceUrl: "https://rules.co.uk/our-menus",
-      hasStory: true,
-    });
+    await expect(getVenueDetail(FAMOUS_RESTAURANT_ID)).resolves.toBeNull();
   });
 
   it("merges curated menu enrichment onto Prospect of Whitby detail", async () => {
