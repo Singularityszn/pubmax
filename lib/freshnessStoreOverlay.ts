@@ -60,7 +60,7 @@ export async function resolveStoreObservedAt(): Promise<Record<string, string>> 
   }
 
   try {
-    const snapshot = await whatsOnListingStore().readAll();
+    const snapshot = await whatsOnListingStore().readGeneratedAt();
     if (!snapshot.failed && snapshot.generatedAt) {
       overlay[WHATS_ON_FEED_KEY] = snapshot.generatedAt;
     }
@@ -116,7 +116,7 @@ async function readDurableWhatsOnStamp(): Promise<StoreRead> {
   if (!isSupabaseConfigured()) return { kind: "unconfigured" };
 
   try {
-    const snapshot = await whatsOnListingStore().readAll();
+    const snapshot = await whatsOnListingStore().readGeneratedAt();
     if (snapshot.failed) {
       return {
         kind: "unreachable",

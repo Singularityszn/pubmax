@@ -5,7 +5,7 @@ import {
   loadServedWhatsOnListingsWithFreshness,
 } from "@/lib/whatsOnListings.server";
 import type { WhatsOnListingStore } from "@/lib/whatsOnListingStore";
-import type { WhatsOnRow } from "@/lib/whatsOn";
+import { POINT_ROW_GRACE_MS, tonightServiceWindow, type WhatsOnRow } from "@/lib/whatsOn";
 
 const NOW = Date.parse("2026-08-24T20:00:00.000Z");
 
@@ -29,10 +29,35 @@ function storeReturning(rows: WhatsOnRow[]): WhatsOnListingStore {
   return {
     replaceKind: async () => ({ written: 0 }),
     readAll: async () => ({ rows, generatedAt: rows.length ? "2026-08-24T05:30:00.000Z" : null }),
+    readGeneratedAt: async () => ({ generatedAt: null }),
   };
 }
 
 describe("loadServedWhatsOnListings", () => {
+  it("asks the store only for the kind and tonight's sport window", async () => {
+    const queries: unknown[] = [];
+    const store: WhatsOnListingStore = {
+      replaceKind: async () => ({ written: 0 }),
+      readAll: async (query) => {
+        queries.push(query);
+        return { rows: [], generatedAt: null };
+      },
+      readGeneratedAt: async () => ({ generatedAt: null }),
+    };
+
+    await loadServedWhatsOnListings({ store, bundled: [], now: NOW, kind: "sport", window: "tonight" });
+    await loadServedWhatsOnListings({ store, bundled: [], now: NOW, kind: "event" });
+
+    expect(queries).toEqual([
+      {
+        kind: "sport",
+        sportStartsFrom: NOW - POINT_ROW_GRACE_MS.sport,
+        sportStartsBefore: tonightServiceWindow(NOW).endMs,
+      },
+      { kind: "event", sportStartsFrom: NOW - POINT_ROW_GRACE_MS.sport, sportStartsBefore: undefined },
+    ]);
+  });
+
   it("prefers durable rows over the bundled fallback", async () => {
     const bundled = [row({ observedAt: "2026-08-22T04:38:00.000Z", title: "Bundled" })];
     const durable = [row({ observedAt: "2026-08-24T10:00:00.000Z", title: "Durable" })];
@@ -58,6 +83,7 @@ describe("loadServedWhatsOnListings", () => {
     const bundled = [row({ title: "Bundled" })];
     const failedStore: WhatsOnListingStore = {
       replaceKind: async () => ({ written: 0 }),
+      readGeneratedAt: async () => ({ generatedAt: null, failed: true }),
       readAll: async () => ({
         rows: [row({ title: "Unproven durable row" })],
         generatedAt: "2026-08-24T05:30:00.000Z",
@@ -77,6 +103,7 @@ describe("loadServedWhatsOnListings", () => {
   it("reports a failed durable read while returning bundled fallback", async () => {
     const failedStore: WhatsOnListingStore = {
       replaceKind: async () => ({ written: 0 }),
+      readGeneratedAt: async () => ({ generatedAt: null, failed: true }),
       readAll: async () => ({
         rows: [],
         generatedAt: null,

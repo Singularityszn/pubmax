@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
-import { filterNotPast } from "@/lib/whatsOn";
+import { dedupeRows, filterNotPast } from "@/lib/whatsOn";
 import {
   fetchLiveSportFixtures,
   liveSportFixtureInternals,
@@ -145,6 +145,108 @@ describe("live sport fixtures", () => {
     });
     expect(fixtures.map((fixture) => fixture.id)).toEqual(["tsdb-in-progress"]);
     vi.unstubAllEnvs();
+  });
+
+  it("drops football kicking off in the Saturday 3pm blackout but keeps rugby", () => {
+    const [premierLeague, , , rugby] = liveSportFixtureInternals.THESPORTSDB_LEAGUES;
+    const event = (idEvent: string, strTimestamp: string) => ({
+      idEvent,
+      strHomeTeam: "Home",
+      strAwayTeam: "Away",
+      strTimestamp,
+      strStatus: "NS",
+    });
+
+    expect(
+      liveSportFixtureInternals.normaliseTheSportsDbEvent(event("pl-3pm", "2026-10-10T14:00:00"), premierLeague),
+    ).toBeNull();
+    expect(
+      liveSportFixtureInternals.normaliseTheSportsDbEvent(event("pl-530", "2026-10-10T16:30:00"), premierLeague),
+    ).toMatchObject({ kickoffLondonTime: "17:30" });
+    expect(
+      liveSportFixtureInternals.normaliseTheSportsDbEvent(event("pl-sun", "2026-10-11T14:00:00"), premierLeague),
+    ).toMatchObject({ kickoffLondonTime: "15:00" });
+    expect(
+      liveSportFixtureInternals.normaliseTheSportsDbEvent(event("rugby-3pm", "2026-10-10T14:00:00"), rugby),
+    ).toMatchObject({ kickoffLondonTime: "15:00" });
+    expect(
+      liveSportFixtureInternals.normaliseFootballDataMatch({
+        id: 1,
+        utcDate: "2026-10-10T14:00:00Z",
+        status: "TIMED",
+        homeTeam: { name: "Home" },
+        awayTeam: { name: "Away" },
+      }),
+    ).toBeNull();
+  });
+
+  it("keeps TheSportsDB rugby alongside football-data football", async () => {
+    vi.stubEnv("FOOTBALL_DATA_API_KEY", "test-key");
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("football-data.org")) {
+        const matches = url.includes("/PL/")
+          ? [{
+            id: 77,
+            utcDate: "2026-10-07T19:00:00Z",
+            status: "TIMED",
+            homeTeam: { name: "Arsenal" },
+            awayTeam: { name: "Spurs" },
+            competition: { name: "Premier League" },
+          }]
+          : [];
+        return { ok: true, status: 200, json: async () => ({ matches }) } as Response;
+      }
+      if (url.includes("id=4414")) {
+        const events = [{
+          idEvent: "rugby-1",
+          strHomeTeam: "Harlequins",
+          strAwayTeam: "Saracens",
+          strTimestamp: "2026-10-10T14:00:00",
+          strStatus: "NS",
+        }];
+        return { ok: true, status: 200, json: async () => ({ events }) } as Response;
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const fixtures = await fetchLiveSportFixtures({
+      now: NOW,
+      endMs: NOW + SPORT_FIXTURE_HORIZON_MS,
+      fetchImpl,
+    });
+    expect(fixtures.map((fixture) => fixture.id)).toEqual(["fd-77", "tsdb-rugby-1"]);
+    vi.unstubAllEnvs();
+  });
+
+  it("keeps every fixture a pub could show at the same kickoff", () => {
+    const league = liveSportFixtureInternals.THESPORTSDB_LEAGUES.find((l) => l.id === "4480")!;
+    const fixtures = ["9100001", "9100002"].map((idEvent, i) =>
+      liveSportFixtureInternals.normaliseTheSportsDbEvent(
+        {
+          idEvent,
+          strHomeTeam: `Home ${i}`,
+          strAwayTeam: `Away ${i}`,
+          strTimestamp: "2026-10-07T19:00:00",
+          strStatus: "NS",
+        },
+        league,
+      )!,
+    );
+    const rows = buildSportFixtureRows({
+      attributeRows: [
+        {
+          id: "sport-attr-gk-test",
+          placeName: "Test Pub",
+          kind: "sport",
+          source: { label: "Greene King", url: "https://www.greeneking.co.uk/pubs/test" },
+          observedAt: "2026-09-24T00:00:00.000Z",
+        },
+      ],
+      fixtures,
+      observedAt: "2026-10-05T12:00:00.000Z",
+    });
+    expect(dedupeRows(rows as never)).toHaveLength(2);
   });
 
   it("filters fixtures outside the refresh horizon", () => {

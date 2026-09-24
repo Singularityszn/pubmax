@@ -65,6 +65,9 @@ function memoryStore(): WhatsOnListingStore & { kinds: string[] } {
     async readAll() {
       return { rows: [...rows.values()].flat(), generatedAt: GENERATED };
     },
+    async readGeneratedAt() {
+      return { generatedAt: GENERATED };
+    },
   };
 }
 

@@ -1,7 +1,8 @@
 // Live sport fixture calendar for What's-On sport rows. Official-API lanes only:
-// football-data.org when FOOTBALL_DATA_API_KEY is set, otherwise TheSportsDB's
-// documented free tier key (override with THESPORTSDB_API_KEY). Keys are read at
-// call time and never logged.
+// football-data.org for football when FOOTBALL_DATA_API_KEY is set, with
+// TheSportsDB still supplying the non-football leagues; otherwise TheSportsDB's
+// documented free tier key for every league (override with THESPORTSDB_API_KEY).
+// Keys are read at call time and never logged.
 
 import { londonWallClockToIso } from "../../scripts/whatson/sportFixtures.mjs";
 import type { SportFixture } from "../../scripts/whatson/sportFixtures.d.mts";
@@ -30,14 +31,26 @@ const FOOTBALL_DATA_COMPETITIONS = ["PL", "CL", "ELC"] as const;
 type TheSportsDbLeague = {
   id: string;
   competition: string;
+  football: boolean;
 };
 
 const THESPORTSDB_LEAGUES: TheSportsDbLeague[] = [
-  { id: "4328", competition: "English Premier League" },
-  { id: "4329", competition: "English Championship" },
-  { id: "4480", competition: "UEFA Champions League" },
-  { id: "4414", competition: "English Premiership Rugby" },
+  { id: "4328", competition: "English Premier League", football: true },
+  { id: "4329", competition: "English Championship", football: true },
+  { id: "4480", competition: "UEFA Champions League", football: true },
+  { id: "4414", competition: "English Premiership Rugby", football: false },
 ];
+
+const THESPORTSDB_NON_FOOTBALL_LEAGUES = THESPORTSDB_LEAGUES.filter((league) => !league.football);
+
+/**
+ * UK football's Saturday 14:45-17:15 broadcast blackout: no pub can legally
+ * screen a match kicking off inside it, so a row claiming one would be false.
+ */
+function isFootballBlackoutKickoff(wall: { date: string; time: string }): boolean {
+  const saturday = new Date(`${wall.date}T12:00:00Z`).getUTCDay() === 6;
+  return saturday && wall.time >= "14:45" && wall.time < "17:15";
+}
 
 export type FetchLiveSportFixturesOpts = {
   now: number;
@@ -131,7 +144,7 @@ function normaliseFootballDataMatch(match: FootballDataMatch): SportFixture | nu
   const status = String(match.status ?? "").toUpperCase();
   if (status === "FINISHED" || status === "CANCELLED" || status === "POSTPONED") return null;
   const wall = londonWallClockFromUtc(utcDate);
-  if (!wall) return null;
+  if (!wall || isFootballBlackoutKickoff(wall)) return null;
   const competition = match.competition?.name ?? "Football";
   const venue = typeof match.venue === "string" && match.venue.length > 0 ? match.venue : "TBC";
   const id = typeof match.id === "number" ? `fd-${match.id}` : `fd-${home}-${away}-${wall.date}`;
@@ -216,7 +229,7 @@ function normaliseTheSportsDbEvent(
     (event.dateEvent && event.strTime
       ? londonWallClockFromUtc(`${event.dateEvent}T${event.strTime}`)
       : null);
-  if (!wall) return null;
+  if (!wall || (league.football && isFootballBlackoutKickoff(wall))) return null;
 
   const competition = event.strLeague ?? league.competition;
   const venue =
@@ -272,10 +285,14 @@ function theSportsDbSeasonLabel(now: number): string {
   return `${startYear}-${startYear + 1}`;
 }
 
-async function fetchTheSportsDbFixtures(opts: LaneOpts, apiKey: string): Promise<SportFixture[]> {
+async function fetchTheSportsDbFixtures(
+  opts: LaneOpts,
+  apiKey: string,
+  leagues: TheSportsDbLeague[],
+): Promise<SportFixture[]> {
   const season = theSportsDbSeasonLabel(opts.now);
   const perLeague = await Promise.all(
-    THESPORTSDB_LEAGUES.map(async (league) => {
+    leagues.map(async (league) => {
       const events = await fetchTheSportsDbLeagueSeason(opts, apiKey, league, season);
       const fixtures: SportFixture[] = [];
       for (const event of events) {
@@ -305,16 +322,19 @@ export async function fetchLiveSportFixtures(opts: FetchLiveSportFixturesOpts): 
 
   if (footballKey) {
     try {
-      const fromFootballData = await fetchFootballDataFixtures(lane(), footballKey);
-      const inWindowRows = fromFootballData.filter((f) => inWindow(f, startMs, opts.endMs));
-      if (inWindowRows.length > 0) return inWindowRows;
+      const [fromFootballData, nonFootball] = await Promise.all([
+        fetchFootballDataFixtures(lane(), footballKey),
+        fetchTheSportsDbFixtures(lane(), theSportsDbKey, THESPORTSDB_NON_FOOTBALL_LEAGUES),
+      ]);
+      const football = fromFootballData.filter((f) => inWindow(f, startMs, opts.endMs));
+      if (football.length > 0) return dedupeFixtures([...football, ...nonFootball]);
     } catch (err) {
       errors.push(err instanceof Error ? err.message : String(err));
     }
   }
 
   try {
-    const fromTheSportsDb = await fetchTheSportsDbFixtures(lane(), theSportsDbKey);
+    const fromTheSportsDb = await fetchTheSportsDbFixtures(lane(), theSportsDbKey, THESPORTSDB_LEAGUES);
     if (fromTheSportsDb.length > 0) return fromTheSportsDb;
   } catch (err) {
     errors.push(err instanceof Error ? err.message : String(err));

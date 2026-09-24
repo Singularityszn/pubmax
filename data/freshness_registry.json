@@ -103,7 +103,7 @@
       "cadence": "twice daily via Vercel cron (05:30 and 15:00 UTC); bundled fixtures remain the offline fallback",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "Vercel cron GET /api/cron/refresh-whats-on fetches live fixtures (football-data.org or TheSportsDB) and re-derives sport rows into durable whats_on_listings; scripts/whatson/sportFixtures.mjs remains the local recovery path for the bundled fallback artifact",
-      "gate": "FOOTBALL_DATA_API_KEY optional (preferred). THESPORTSDB_API_KEY optional (public test key when absent). Past-dated rows are never served: lib/whatsOn.ts filterNotPast guards the serving seam."
+      "gate": "FOOTBALL_DATA_API_KEY optional (preferred for football; rugby still comes from TheSportsDB). THESPORTSDB_API_KEY optional (public test key when absent). Past-dated rows are never served: lib/whatsOn.ts filterNotPast guards the serving seam."
     },
     {
       "id": "events_live_eventbrite",

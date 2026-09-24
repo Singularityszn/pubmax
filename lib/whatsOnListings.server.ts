@@ -12,6 +12,8 @@ import {
 import {
   filterNotPast,
   filterTonight,
+  POINT_ROW_GRACE_MS,
+  tonightServiceWindow,
   type WhatsOnKind,
   type WhatsOnRow,
 } from "@/lib/whatsOn";
@@ -43,7 +45,12 @@ export async function loadServedWhatsOnListingsWithFreshness(
   opts: LoadServedWhatsOnListingsOpts,
 ): Promise<ServedWhatsOnListings> {
   const store = opts.store ?? whatsOnListingStore();
-  const snap = await store.readAll();
+  const snap = await store.readAll({
+    kind: opts.kind,
+    sportStartsFrom: opts.now - POINT_ROW_GRACE_MS.sport,
+    sportStartsBefore:
+      opts.window === "tonight" ? tonightServiceWindow(opts.now).endMs : undefined,
+  });
   if (snap.failed) {
     console.warn("[whats-on] durable listing read failed; using bundled fallback.");
   }
