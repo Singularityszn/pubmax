@@ -1,3 +1,4 @@
+import { isGoTrueUserBannedError } from "@/lib/authAccountBan";
 import { canonicalAuthStartUrl, siteOrigin } from "@/lib/siteUrl";
 import { accountClaimReturnToFromUrl } from "@/lib/accountClaimReturnTo";
 
@@ -30,6 +31,7 @@ const AUTH_ATTEMPT_TTL_MS = 60 * 60 * 1000;
 const AUTH_ATTEMPT_ID_PATTERN = /^[0-9a-f]{32}$/;
 
 export const AUTH_CALLBACK_MARKER = "_authCallback";
+export const AUTH_ACCOUNT_BANNED_PARAM = "authBanned";
 export const AUTH_ATTEMPT_PARAM = "_authAttempt";
 export const REFERRAL_SIGNUP_PROOF_PARAM = "_referralSignupProof";
 export const AUTH_ATTEMPT_IN_PROGRESS_MESSAGE =
@@ -97,12 +99,13 @@ export type AuthCallbackAttempt = {
   attemptId: string | null;
   tokens: AuthCallbackTokens | null;
   providerError: boolean;
+  accountBanned?: boolean;
   signupProof?: string;
 };
 
 type AuthResponseFragment =
   | { kind: "tokens"; tokens: AuthCallbackTokens }
-  | { kind: "error" };
+  | { kind: "error"; errorCode?: string | null; errorDescription?: string | null };
 
 /**
  * Parse a Supabase implicit-flow response fragment. The fragment never reaches
@@ -124,7 +127,11 @@ function parseAuthResponseFragment(hash: string): AuthResponseFragment | null {
     if (accessToken && refreshToken) {
       return { kind: "tokens", tokens: { accessToken, refreshToken } };
     }
-    return { kind: "error" };
+    return {
+      kind: "error",
+      errorCode: params.get("error_code") ?? params.get("error"),
+      errorDescription: params.get("error_description"),
+    };
   } catch {
     return null;
   }
@@ -175,6 +182,7 @@ function authDestination(currentUrl: string, requestedNext?: string): URL | null
       current.searchParams.delete(AUTH_ATTEMPT_PARAM);
       current.searchParams.delete(REFERRAL_SIGNUP_PROOF_PARAM);
       current.searchParams.delete("authError");
+      current.searchParams.delete(AUTH_ACCOUNT_BANNED_PARAM);
     }
     // A leftover token/error fragment is a one-time credential, never a
     // destination. Stripping it here keeps it out of the stored return
@@ -615,6 +623,7 @@ function claimAuthCallback(
       current.searchParams.delete(AUTH_ATTEMPT_PARAM);
       current.searchParams.delete(REFERRAL_SIGNUP_PROOF_PARAM);
       current.searchParams.delete("authError");
+      current.searchParams.delete(AUTH_ACCOUNT_BANNED_PARAM);
       const path = `${current.pathname}${current.search}`;
       if (
         record.id === attemptId &&
@@ -670,9 +679,17 @@ export function readAuthCallbackAttempt(currentUrl: string): AuthCallbackAttempt
     // A marked callback is tied to a live local attempt, not a crafted
     // fragment, so it keeps reporting a provider error on any page. An
     // unmarked bare signal only counts on an auth page (anti-spoof scoping).
+    const accountBanned =
+      current.searchParams.get(AUTH_ACCOUNT_BANNED_PARAM) === "1" ||
+      (fragment?.kind === "error" &&
+        isGoTrueUserBannedError({
+          code: fragment.errorCode ?? undefined,
+          message: fragment.errorDescription ?? undefined,
+        }));
     const providerError =
-      (marked || authPage) &&
-      (current.searchParams.get("authError") === "1" || fragment?.kind === "error");
+      accountBanned ||
+      ((marked || authPage) &&
+        (current.searchParams.get("authError") === "1" || fragment?.kind === "error"));
     if (!marked && !providerError && fragment?.kind !== "tokens") return null;
     const rawAttemptId = current.searchParams.get(AUTH_ATTEMPT_PARAM);
     const attemptId = isAuthAttemptId(rawAttemptId) ? rawAttemptId : null;
@@ -688,6 +705,7 @@ export function readAuthCallbackAttempt(currentUrl: string): AuthCallbackAttempt
       // With neither a valid attempt id nor tokens there is nothing to
       // establish, so the callback reads as a failure and the banner shows.
       providerError: providerError || (!attemptId && !tokens),
+      ...(accountBanned ? { accountBanned: true } : {}),
       ...(signupProof ? { signupProof } : {}),
     };
   } catch {

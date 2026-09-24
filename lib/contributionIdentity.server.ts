@@ -33,11 +33,11 @@ export type ContributionIdentityResolution =
       accountId?: string;
       body: {
         status?: ContributionGateStatus;
-        code?: "AUTH_VERIFICATION_UNAVAILABLE";
+        code?: "AUTH_VERIFICATION_UNAVAILABLE" | "ACCOUNT_BANNED";
         error: string;
         retryable?: true;
       };
-      httpStatus: 401 | 409 | 503;
+      httpStatus: 401 | 403 | 409 | 503;
     };
 
 export async function resolveContributionIdentity(
@@ -63,6 +63,17 @@ export async function resolveContributionIdentity(
         retryable: true,
       },
       httpStatus: 503,
+    };
+  }
+  if (verification.status === "banned") {
+    return {
+      ok: false,
+      body: {
+        code: "ACCOUNT_BANNED",
+        error:
+          "This account has been banned for not following the PubMaxx community guidelines.",
+      },
+      httpStatus: 403,
     };
   }
   const userId = verification.identity.id;

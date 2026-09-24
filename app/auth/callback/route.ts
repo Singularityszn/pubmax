@@ -22,17 +22,24 @@
 
 import { NextResponse } from "next/server";
 import {
+  AUTH_ACCOUNT_BANNED_PARAM,
   AUTH_ATTEMPT_PARAM,
   AUTH_CALLBACK_MARKER,
   REFERRAL_SIGNUP_PROOF_PARAM,
   isAuthAttemptId,
   safeAuthNext,
 } from "@/lib/authRedirect";
+import { isOAuthBanSignal } from "@/lib/authAccountBan";
 import { verifyReferralSignupProof } from "@/lib/referralSignupProof.server";
 
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const oauthError = url.searchParams.get("error");
+  const oauthErrorCode = url.searchParams.get("error_code");
+  const oauthErrorDescription = url.searchParams.get("error_description");
+  const accountBanned = isOAuthBanSignal(oauthError, oauthErrorCode, oauthErrorDescription);
+
+
   const next = safeAuthNext(url.searchParams.get("next"), url.origin);
   const rawAttemptId = url.searchParams.get(AUTH_ATTEMPT_PARAM);
   const attemptId = isAuthAttemptId(rawAttemptId) ? rawAttemptId : null;
@@ -50,6 +57,7 @@ export async function GET(request: Request): Promise<Response> {
     dest.searchParams.set(AUTH_CALLBACK_MARKER, "1");
     if (attemptId) dest.searchParams.set(AUTH_ATTEMPT_PARAM, attemptId);
     dest.searchParams.set("authError", "1");
+    if (accountBanned) dest.searchParams.set(AUTH_ACCOUNT_BANNED_PARAM, "1");
     return NextResponse.redirect(dest);
   }
 

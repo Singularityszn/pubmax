@@ -23,6 +23,7 @@ export type AuthSessionBootstrapOutcome =
     }
   | { status: "expired"; maskedEmail: string | null }
   | { status: "none" }
+  | { status: "banned"; message: string }
   | { status: "unavailable" };
 
 export type AuthSessionBootstrapDeps = {
@@ -106,6 +107,7 @@ export async function bootstrapAuthSession(
   } catch {
     return { status: "unavailable" };
   }
+  if (restored.status === "banned") return restored;
   if (restored.status !== "restored") return restored;
 
   try {

@@ -19,6 +19,7 @@ import "server-only";
 
 import { followStore, isSelfFollow } from "@/lib/followStore";
 import { emitNotification } from "@/lib/notificationsStore";
+import { isProfileWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
 import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
@@ -41,7 +42,7 @@ export async function followOnce(
   target: string,
 ): Promise<FollowWriteResult> {
   const targetProfile = await profileStore().getByHandle(target);
-  if (isProfileTombstoned(targetProfile)) return "unavailable";
+  if (isProfileTombstoned(targetProfile) || (await isProfileWithdrawnFromPublic(targetProfile))) return "unavailable";
   if (!targetProfile && isSupabaseConfigured()) return "unavailable";
   if (isSelfFollow(follower, target)) return "self";
   const store = followStore();

@@ -15,9 +15,11 @@
 // made, and `projection` is which of the two answers THIS reader was handed.
 // `lib/profileVisibilityBoundary.server.ts` is the only place that is decided.
 
+import { profilePublicPresence } from "@/lib/accountPublicAccess.server";
 import { isAccountVisibility } from "@/lib/accountVisibility";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
+import { assessPubmaxxDisplayName } from "@/lib/pubmaxxIdentity";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { projectionCarriesSocialLinks } from "@/lib/profileVisibility";
 import { resolveProfileProjection } from "@/lib/profileVisibilityBoundary.server";
@@ -98,6 +100,10 @@ function buildPatch(
 
   if ("displayName" in body) {
     const name = cleanText(body.displayName, MAX_DISPLAY_NAME);
+    if (name) {
+      const assessment = assessPubmaxxDisplayName(name);
+      if (!assessment.ok) return { ok: false, error: assessment.error };
+    }
     patch.displayName = name || null;
   }
   if ("bio" in body) {
@@ -172,7 +178,12 @@ export async function GET(
         : [false, false];
 
     // Auth-deletion stamp only. Legacy user_id-null rows stay fully live.
-    if (isProfileTombstoned(profile)) {
+    const presence = await profilePublicPresence(profile);
+    if (presence === "withdrawn") {
+      return publicApiError("Profile not found.", "NOT_FOUND", 404);
+    }
+
+    if (presence === "gone" || isProfileTombstoned(profile)) {
       return jsonNoStore(
         {
           profile: null,

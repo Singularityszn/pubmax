@@ -22,6 +22,7 @@ export type RedeemResult =
   | { status: "restored"; session: { access_token: string; refresh_token: string } }
   | { status: "expired"; maskedEmail: string | null }
   | { status: "none" }
+  | { status: "banned"; message: string }
   | { status: "unavailable" };
 
 function timeoutSignal(): AbortSignal | undefined {
@@ -141,6 +142,9 @@ export async function redeemPersistedSession(
         maskedEmail:
           typeof body.maskedEmail === "string" ? body.maskedEmail : null,
       };
+    }
+    if (body.status === "banned" && typeof body.message === "string") {
+      return { status: "banned", message: body.message };
     }
     if (body.status === "none") return { status: "none" };
     return { status: "unavailable" };
