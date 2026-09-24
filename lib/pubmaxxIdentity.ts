@@ -41,7 +41,7 @@ const RESERVED_EXACT = new Set([
 ]);
 const RESERVED_BRAND_PATTERN = /^(?:pubmaxx|pubmaxxing|pubmaxxer)[_-]?(?:admin|help|official|safety|staff|support)$/;
 const BLOCKED_TERMS = new Set(["fuck", "fucker", "nigger", "nigga"]);
-const OWNER_HANDLE_ALLOWLIST = new Set(["karan", "karansznx"]);
+const KARAN_STEMS = ["karan", "karans"] as const;
 const KARAN_FAMILY_TERMS = [
   "dad",
   "father",
@@ -93,10 +93,13 @@ function handleContainsBlockedTerm(handle: string): boolean {
 }
 
 function violatesOwnerKaranPolicy(compact: string): boolean {
-  if (OWNER_HANDLE_ALLOWLIST.has(compact)) return false;
   if (!compact.includes("karan")) return false;
-  for (const term of KARAN_FAMILY_TERMS) {
-    if (compact.includes(term)) return true;
+  for (const stem of KARAN_STEMS) {
+    for (const term of KARAN_FAMILY_TERMS) {
+      if (compact.includes(`${stem}${term}`) || compact.includes(`${term}${stem}`)) {
+        return true;
+      }
+    }
   }
   for (const term of BLOCKED_TERMS) {
     if (compact.includes(term)) return true;

@@ -23,6 +23,7 @@
 // same cursor comes back - so a page may simply come back shorter than the
 // limit, and `alreadyFollowing` says how much of it discovery took.
 
+import { filterProfilesWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { followStore } from "@/lib/followStore";
@@ -123,8 +124,8 @@ export async function GET(request: Request): Promise<Response> {
       limit: Math.min(limit + 1, MAX_LIMIT + 1),
       ...(afterHandle ? { afterHandle } : {}),
     });
-    const live = rows.filter(
-      (row) => Boolean(row.userId) && !isProfileTombstoned(row),
+    const live = await filterProfilesWithdrawnFromPublic(
+      rows.filter((row) => Boolean(row.userId) && !isProfileTombstoned(row)),
     );
     // The window this page examined. Discovery narrows what is SHOWN out of it,
     // never which rows it looked at, so the cursor keeps its old meaning and no

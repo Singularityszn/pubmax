@@ -15,6 +15,7 @@
 // have gaps. That is the honest shape: reusing No. 7 would mean the mark named
 // two different people.
 
+import { filterProfilesWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { FOUNDING_MEMBER_CAP, isFoundingMemberNumber } from "@/lib/foundingMembers";
@@ -72,8 +73,10 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     const rows = await profileStore().listFoundingMembers();
-    const members = rows
-      .filter((row) => Boolean(row.userId) && !isProfileTombstoned(row))
+    const live = await filterProfilesWithdrawnFromPublic(
+      rows.filter((row) => Boolean(row.userId) && !isProfileTombstoned(row)),
+    );
+    const members = live
       .map(toFoundingEntry)
       .filter((entry): entry is FoundingMemberEntry => entry !== null)
       .sort((a, b) => a.number - b.number)
