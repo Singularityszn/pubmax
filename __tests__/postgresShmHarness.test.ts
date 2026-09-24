@@ -7,20 +7,31 @@ import { pathToFileURL } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { postgresSkipReason, startPostgres } from "./helpers/postgres";
+import { postgresSkipReason, startPostgres, type PostgresSession } from "./helpers/postgres";
 import { findPostgresBinary } from "../scripts/rls/postgresHost.mjs";
 import {
-  countSysvShmSegments,
   isPubmaxHarnessDataDir,
   postgresDataDirFromCommand,
   stopHarnessCluster,
   sweepPubmaxHarnessOrphans,
+  sysvSegmentsCreatedBy,
 } from "../scripts/rls/postgresShm.mjs";
 
 const skip = postgresSkipReason();
 const serialShmHarness = process.env.PUBMAX_SERIAL_SHM_HARNESS === "1";
 
 type PostgresProcess = { pid: number; ppid: number };
+
+/** `ipcs -ma` names a creator pid only in the macOS layout the harness parses. */
+const readsSysvCreators = process.platform === "darwin";
+
+function postmasterPidOf(session: PostgresSession): number {
+  return Number(session.sql("select split_part(pg_read_file('postmaster.pid'), E'\\n', 1)"));
+}
+
+function expectHoldsSegment(pid: number): void {
+  if (readsSysvCreators) expect(sysvSegmentsCreatedBy([pid])).not.toEqual([]);
+}
 
 function postmasterFor(dataDir: string): PostgresProcess | null {
   const listing = spawnSync("ps", ["-A", "-o", "pid=", "-o", "ppid=", "-o", "command="], {
@@ -141,17 +152,20 @@ describe("postgres SysV harness hygiene", () => {
     "sweep reaps an init-parented harness orphan and leaves a live parented cluster alone",
     async () => {
       const live = await startPostgres({ label: "shm-live" });
-      const before = countSysvShmSegments();
+      const livePid = postmasterPidOf(live);
       const orphanDir = harnessDataDir("shm-orphan");
       try {
-        expect(startInitParentedCluster(orphanDir).ppid).toBe(1);
+        const orphan = startInitParentedCluster(orphanDir);
+        expect(orphan.ppid).toBe(1);
+        expectHoldsSegment(orphan.pid);
 
         sweepPubmaxHarnessOrphans();
 
         expect(postmasterFor(orphanDir)).toBeNull();
         expect(existsSync(orphanDir)).toBe(false);
-        expect(countSysvShmSegments()).toBeLessThanOrEqual(before);
+        expect(sysvSegmentsCreatedBy([orphan.pid])).toEqual([]);
         expect(live.sql("select 1")).toBe("1");
+        expectHoldsSegment(livePid);
       } finally {
         stopHarnessCluster(orphanDir);
         await live.stop();
@@ -161,13 +175,14 @@ describe("postgres SysV harness hygiene", () => {
   );
 
   (skip || !serialShmHarness ? it.skip : it)(
-    "does not raise the SysV segment count across one boot and stop",
+    "leaves no SysV segment behind across one boot and stop",
     async () => {
-      const before = countSysvShmSegments();
       const session = await startPostgres({ label: "shm-one-shot" });
+      const pid = postmasterPidOf(session);
+      expectHoldsSegment(pid);
       await session.stop();
       sweepPubmaxHarnessOrphans();
-      expect(countSysvShmSegments()).toBeLessThanOrEqual(before);
+      expect(sysvSegmentsCreatedBy([pid])).toEqual([]);
     },
     120_000,
   );
@@ -175,7 +190,6 @@ describe("postgres SysV harness hygiene", () => {
   (skip || !serialShmHarness ? it.skip : it)(
     "sweep reclaims the data dir and segment a SIGKILLed cluster left behind",
     async () => {
-      const before = countSysvShmSegments();
       const dataDir = harnessDataDir("shm-stale");
       try {
         const postmaster = startInitParentedCluster(dataDir);
@@ -184,11 +198,12 @@ describe("postgres SysV harness hygiene", () => {
         process.kill(-postmaster.pid, "SIGKILL");
         await waitForPidExit(postmaster.pid);
         expect(existsSync(join(dataDir, "postmaster.pid"))).toBe(true);
+        expectHoldsSegment(postmaster.pid);
 
         sweepPubmaxHarnessOrphans();
 
         expect(existsSync(dataDir)).toBe(false);
-        expect(countSysvShmSegments()).toBeLessThanOrEqual(before);
+        expect(sysvSegmentsCreatedBy([postmaster.pid])).toEqual([]);
       } finally {
         stopHarnessCluster(dataDir);
       }
@@ -197,15 +212,16 @@ describe("postgres SysV harness hygiene", () => {
   );
 
   (skip || !serialShmHarness ? it.skip : it)(
-    "three boot-stop cycles do not raise the SysV segment count",
+    "three boot-stop cycles leave no SysV segment behind",
     async () => {
-      const before = countSysvShmSegments();
+      const pids: number[] = [];
       for (let cycle = 0; cycle < 3; cycle += 1) {
         const session = await startPostgres({ label: `shm-cycle-${cycle}` });
+        pids.push(postmasterPidOf(session));
         await session.stop();
         sweepPubmaxHarnessOrphans();
       }
-      expect(countSysvShmSegments()).toBeLessThanOrEqual(before);
+      expect(sysvSegmentsCreatedBy(pids)).toEqual([]);
     },
     360_000,
   );

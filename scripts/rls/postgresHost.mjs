@@ -192,10 +192,6 @@ function claimSlot() {
   return null;
 }
 
-/**
- * Takes one of the host's cluster slots and answers how to give it back.
- * Every caller that runs `initdb` must hold one first.
- */
 let harnessOrphansSwept = false;
 
 function ensureHarnessOrphansSwept() {
@@ -204,6 +200,10 @@ function ensureHarnessOrphansSwept() {
   sweepPubmaxHarnessOrphans();
 }
 
+/**
+ * Takes one of the host's cluster slots and answers how to give it back.
+ * Every caller that runs `initdb` must hold one first.
+ */
 export async function acquireClusterSlot(label = "proof") {
   ensureHarnessOrphansSwept();
   const deadline = Date.now() + SLOT_WAIT_CEILING_MS;

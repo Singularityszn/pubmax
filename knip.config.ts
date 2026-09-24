@@ -118,10 +118,6 @@ const config: KnipConfig = {
     // Run with execFileSync by scripts/perf-ab.mjs.
     "scripts/print-e2e-server-env.ts",
 
-    // macOS SysV IPC utilities (ipcs, ipcrm, ps) for the postgres harness;
-    // knip cannot list them as npm binaries.
-    "scripts/rls/postgresShm.mjs",
-
     // Run through command() strings by scripts/local-refresh/scheduler.mjs,
     // which knip cannot follow across the process boundary.
     "scripts/firecrawl_greene_king_prices.mjs",
@@ -190,6 +186,9 @@ const config: KnipConfig = {
   // openai is imported only by @arizeai/openinference-instrumentation-openai when
   // Arize tracing registers; this app never imports it directly.
   ignoreDependencies: ["postcss", "playwright", "openai"],
+  // System SysV IPC and process tools the postgres harness shells out to
+  // (scripts/rls/postgresShm.mjs); they are not npm binaries.
+  ignoreBinaries: ["ipcs", "ipcrm", "ps"],
 };
 
 export default config;

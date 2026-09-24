@@ -14,21 +14,6 @@ import { findPostgresBinary } from "./postgresHost.mjs";
 
 const PUBMAX_DIR_MARKERS = ["/pubmax-pg-", "/pubmax-rls-"];
 
-/** Counts rows in the System V shared-memory table (macOS `ipcs -m`). */
-export function countSysvShmSegments() {
-  try {
-    const text = execFileSync("ipcs", ["-m"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    return text
-      .split("\n")
-      .filter((line) => /^\s*m\s+\d+/.test(line)).length;
-  } catch {
-    return 0;
-  }
-}
-
 /**
  * True when a PostgreSQL data directory belongs to this harness (never a
  * developer or system cluster).
@@ -171,6 +156,12 @@ function parseIpcsSegments() {
     segments.push({ id, nattch, segsz, cpid });
   }
   return segments;
+}
+
+/** SysV segments whose creator pid is one of `pids` (macOS `ipcs -ma`). */
+export function sysvSegmentsCreatedBy(pids) {
+  const creators = new Set(pids);
+  return parseIpcsSegments().filter((segment) => creators.has(segment.cpid));
 }
 
 function postmasterPidForDataDir(dataDir) {
