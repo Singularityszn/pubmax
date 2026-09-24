@@ -3,7 +3,7 @@ import { isAskToolName } from "@/lib/ask/types";
 import { offlineFetch, requestUrl } from "./offlineFetch";
 import type { PalEvalUsage } from "./types";
 
-export type ModelUsage = Omit<PalEvalUsage, "latencyMs">;
+type ModelUsage = Omit<PalEvalUsage, "latencyMs">;
 
 export type UsageCapture = {
   fetchImpl: typeof fetch;

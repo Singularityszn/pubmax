@@ -1,6 +1,6 @@
 import type { PalEvalPublicCase } from "./types";
 
-export type PalEvalNormativeCall = {
+type PalEvalNormativeCall = {
   tool: string;
   args?: Record<string, unknown>;
 };
