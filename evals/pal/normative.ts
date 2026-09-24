@@ -13,7 +13,9 @@ export async function resolveNormativeExpectations(
   },
 ): Promise<Partial<PalEvalAnswerExpectations>> {
   const spec = normativeSpecForCase(caseDef);
-  if (!spec) return {};
+  if (!spec) {
+    throw new Error(`Missing normative spec for case ${caseDef.id}`);
+  }
   if ("empty" in spec) {
     return { expectEmpty: true };
   }
