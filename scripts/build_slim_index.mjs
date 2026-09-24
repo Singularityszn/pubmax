@@ -32,7 +32,10 @@ import {
   spatialShardFile,
 } from "./lib/slimShards.mjs";
 import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
-import { isCurrentNightOutPlace } from "../lib/nightOutPlaceContract.mjs";
+import {
+  isCurrentNightOutPlace,
+  nightOutPlaceRowValidationErrors,
+} from "../lib/nightOutPlaceContract.mjs";
 import { isLivePriceRow } from "../lib/priceRowEligibility.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -131,19 +134,28 @@ function famousVenueFilterHints(row) {
 }
 
 function assertCurrentFamousVenueRows(rows, now) {
-  const invalid = rows.filter((row) => !isCurrentNightOutPlace(row, now));
-  if (invalid.length > 0) {
-    const nowMs = now instanceof Date ? now.getTime() : Number(now);
-    const checkedAt = Number.isFinite(nowMs)
-      ? new Date(nowMs).toISOString()
-      : String(now);
+  const malformed = rows.filter(
+    (row) => nightOutPlaceRowValidationErrors(row).length > 0,
+  );
+  if (malformed.length > 0) {
     throw new Error(
-      `Famous venue current-trading verification failed at ${checkedAt}: ${invalid
-        .map((row) => `${row.id} (${row.observedAt} to ${row.expiresAt})`)
+      `Famous venue seed contract failed: ${malformed
+        .map((row) => row.id)
         .join(", ")}`,
     );
   }
-  return rows;
+  const current = [];
+  const withheld = [];
+  for (const row of rows) {
+    if (isCurrentNightOutPlace(row, now)) current.push(row);
+    else withheld.push(row);
+  }
+  if (withheld.length > 0) {
+    console.log(
+      `withholding ${withheld.length} famous venue(s) with lapsed or missing verification: ${withheld.map((row) => row.id).join(", ")}`,
+    );
+  }
+  return current;
 }
 
 // --- mirror of lib/venues.ts grouping + id logic (keep in lockstep) ----------

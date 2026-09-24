@@ -29,3 +29,8 @@ export function evaluateFreshness(options?: {
 }): Promise<{ results: FreshnessResult[]; breached: boolean }>;
 
 export function formatFreshnessTable(results: FreshnessResult[]): string;
+
+export function freshnessGateFailed(
+  results: FreshnessResult[],
+  options?: { requireStore?: boolean },
+): boolean;
