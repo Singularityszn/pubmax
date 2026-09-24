@@ -2,6 +2,12 @@
 
 Graded regression suite for Pub Pal / Night OS Ask (keyless `runAsk` path).
 
+## What a right answer means here
+
+The hidden answer key is derived from the committed venue and price data: it records what the current keyless Ask returns for each question at the pinned `now` (tools used, cards or honest empty, top venue and its recorded price), plus hand-authored answer checks. Accuracy is therefore regression accuracy against that behaviour, not a verdict that every answer is ideal. The invented-venue and price checks are absolute: every card's `venueId` must exist in `public/data/venues_slim.json`, and every directory pint price must match its record.
+
+Known Pal gaps are tracked in `FOLLOW_UPS.md` and are deliberately not changed by this suite. Fixing one is a product change: update the matching answer-key entries in the same commit, and remove the gap from `FOLLOW_UPS.md`.
+
 ## Layout
 
 - `cases.public.json` — queries the harness may run (no expected answers).
