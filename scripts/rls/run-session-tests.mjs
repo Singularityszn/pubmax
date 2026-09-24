@@ -18,14 +18,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { missingPostgresReason } from "./postgresHost.mjs";
-import { POSTGRES_BACKED_SUITES } from "./postgresSuites.mjs";
+import { POSTGRES_SUITE_RUNS } from "./postgresSuites.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "../..");
 
 /** Every suite that needs a cluster runs here, because this job installs one. */
-const SERIAL_SHM_SUITE = "__tests__/postgresShmHarness.test.ts";
-const RLS_SUITES = POSTGRES_BACKED_SUITES.filter((suite) => suite !== SERIAL_SHM_SUITE);
+const RLS_SUITES = POSTGRES_SUITE_RUNS.flatMap((run) => run.suites);
 
 const missing = missingPostgresReason();
 const skipAdmitted = process.env.PUBMAX_RLS_ALLOW_SKIP === "1";
@@ -91,10 +90,7 @@ function runSuites(suites, extraEnv = {}) {
   );
 }
 
-const parallel = runSuites(RLS_SUITES);
-if (parallel.status !== 0) process.exit(parallel.status ?? 1);
-
-const serialShm = runSuites([SERIAL_SHM_SUITE], {
-  PUBMAX_SERIAL_SHM_HARNESS: "1",
-});
-process.exit(serialShm.status ?? 1);
+for (const run of POSTGRES_SUITE_RUNS) {
+  const result = runSuites(run.suites, run.env);
+  if (result.status !== 0) process.exit(result.status ?? 1);
+}

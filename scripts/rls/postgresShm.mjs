@@ -256,15 +256,24 @@ export function sweepPubmaxHarnessOrphans() {
 const activeDataDirs = new Set();
 let shutdownHooksInstalled = false;
 
+function stopActiveClusters() {
+  for (const dataDir of activeDataDirs) stopHarnessCluster(dataDir);
+  activeDataDirs.clear();
+}
+
+/**
+ * A signal listener replaces Node's default termination, so once the clusters
+ * are down the signal is raised again, unless another listener owns it, so
+ * the default action still kills the process.
+ */
 function installShutdownHooks() {
   if (shutdownHooksInstalled) return;
   shutdownHooksInstalled = true;
-  process.once("exit", () => {
-    for (const dataDir of activeDataDirs) stopHarnessCluster(dataDir);
-  });
+  process.once("exit", stopActiveClusters);
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
     process.once(signal, () => {
-      for (const dataDir of activeDataDirs) stopHarnessCluster(dataDir);
+      stopActiveClusters();
+      if (process.listenerCount(signal) === 0) process.kill(process.pid, signal);
     });
   }
 }

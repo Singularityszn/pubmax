@@ -13,7 +13,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { POSTGRES_BACKED_SUITES } from "../scripts/rls/postgresSuites.mjs";
+import { POSTGRES_BACKED_SUITES, POSTGRES_SUITE_RUNS } from "../scripts/rls/postgresSuites.mjs";
 
 const ROOT = process.cwd();
 const TESTS_DIR = join(ROOT, "__tests__");
@@ -55,10 +55,10 @@ describe("the Postgres proof inventory", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("is the list npm run test:rls runs", () => {
-    const runner = readFileSync(join(ROOT, "scripts/rls/run-session-tests.mjs"), "utf8");
-    expect(runner).toContain('import { POSTGRES_BACKED_SUITES } from "./postgresSuites.mjs"');
-    expect(runner).toContain("const SERIAL_SHM_SUITE");
+  it("is the list npm run test:rls runs, each suite exactly once", () => {
+    const scheduled = POSTGRES_SUITE_RUNS.flatMap((run) => run.suites);
+    expect([...scheduled].sort()).toEqual([...POSTGRES_BACKED_SUITES].sort());
+    expect(new Set(scheduled).size).toBe(scheduled.length);
   });
 
   it("is the list the clusterless CI jobs exclude", () => {
@@ -84,6 +84,7 @@ describe("the Postgres proof inventory", () => {
     });
     expect(refused.status).toBe(1);
     expect(refused.stdout).toContain("THIS IS NOT A PASS");
+    for (const suite of POSTGRES_BACKED_SUITES) expect(refused.stdout).toContain(suite);
     expect(refused.stdout).toContain("PUBMAX_RLS_ALLOW_SKIP=1");
 
     const admitted = spawnSync(process.execPath, ["scripts/rls/run-session-tests.mjs"], {
