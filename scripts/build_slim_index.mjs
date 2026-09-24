@@ -133,6 +133,9 @@ function famousVenueFilterHints(row) {
   };
 }
 
+// A malformed seed row fails the build. A well-formed row whose verification
+// window has lapsed (isCurrentNightOutPlace) is withheld from the slim index,
+// with a log line naming it, until its source is re-verified and expiresAt moves.
 function assertCurrentFamousVenueRows(rows, now) {
   const malformed = rows.filter(
     (row) => nightOutPlaceRowValidationErrors(row).length > 0,

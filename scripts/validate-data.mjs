@@ -477,6 +477,8 @@ function loadFamousVenues() {
   );
 }
 
+// Mirrors build_slim_index.mjs: a lapsed famous row is withheld from the build,
+// so the expected slim and detail sets only carry currently verified rows.
 function currentFamousVenues(rows) {
   const now = new Date();
   return rows.filter((row) => isCurrentNightOutPlace(row, now));
