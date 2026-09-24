@@ -39,6 +39,8 @@ function snapshot(overrides: {
         feelsLikeC: overrides.feelsLikeC ?? 19.4,
         precipitationProbabilityPct: overrides.precipitationProbabilityPct ?? 0,
         windKph: 13.3,
+        isDay: null,
+        sunsetAt: null,
         source: {
           sourceUrl: "https://api.open-meteo.com/v1/forecast?x=1",
           publisher: "Open-Meteo",

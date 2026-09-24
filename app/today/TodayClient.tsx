@@ -142,6 +142,7 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
           that owns it. */}
       {weather ? (
         <>
+          <p className="todayCardBody">{weather.factsLine}</p>
           {weather.stale ? (
             <p className="todayStale" role="status">
               {weather.checkedLabel}. It may have moved on.

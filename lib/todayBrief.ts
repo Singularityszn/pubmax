@@ -28,6 +28,7 @@ import { firstHttp } from "@/lib/httpUrl";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import { formatConditionDate, londonMonth } from "@/lib/tonightConditions";
 import { validateWeatherSnapshot } from "@/lib/weatherSnapshots";
+import { formatWeatherObservationFacts } from "@/lib/weatherObservationCopy";
 import { whatsOnBarePriceGbp, type WhatsOnConfidence, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 
 // A central district for the location-free morning glance. The brief is a
@@ -61,6 +62,8 @@ export type WeatherBrief = {
   checkedLabel: string;
   /** Attribution for the weather claim. */
   source: { publisher: string; url: string };
+  /** Numbers-led line: temp, rain, wind, sunset, day or night. */
+  factsLine: string;
 };
 
 // Human "x ago" from an observation timestamp. Floor-based so the label only
@@ -113,6 +116,7 @@ export function buildWeatherBrief(
     // The greeting above this card derives the same band. Without it the card
     // said "evening" over a "Good morning".
     dayPart: daySlot(now),
+    isDay: observation.isDay,
   });
   if (!verdict) return null;
 
@@ -132,6 +136,16 @@ export function buildWeatherBrief(
     stale,
     checkedLabel: `${stale ? "Last checked" : "Checked"} ${relative}`,
     source: { publisher: observation.source.publisher, url: observation.source.sourceUrl },
+    factsLine: formatWeatherObservationFacts({
+      feelsLikeC: observation.feelsLikeC,
+      condition: observation.condition,
+      precipitationProbabilityPct: observation.precipitationProbabilityPct,
+      windKph: observation.windKph,
+      isDay: observation.isDay,
+      sunsetAt: observation.sunsetAt,
+      now,
+      stale,
+    }),
   };
 }
 

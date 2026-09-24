@@ -142,13 +142,15 @@ describe("summariseTonightConditions", () => {
 
   it("composes date, weather, drink line and a venue claim", () => {
     const summary = summariseTonightConditions({
-      weather: { tempC: 22, condition: "Clear", precipitationProbabilityPct: 10 },
+      weather: { tempC: 22, condition: "Clear", precipitationProbabilityPct: 10, windKph: null, isDay: true, sunsetAt: null },
       now,
       tally: { count: 4, underCeiling: 4 },
     });
     expect(summary).toEqual({
       dateLabel: "Saturday 18 Jul",
       weatherLabel: "22°C, clear",
+      factsLine: "22°C feels like, clear, 10% chance of rain, daylight",
+      stale: false,
       drinkLine: "Beer garden weather. Lager or cider.",
       drinkSuggestion: "a cold lager or cider",
       venueClaim: "4 gardens near you with a pint under 6 quid",
@@ -157,7 +159,7 @@ describe("summariseTonightConditions", () => {
 
   it("shows the weather line with no venue claim when there are none nearby", () => {
     const summary = summariseTonightConditions({
-      weather: { tempC: 22, condition: "Sunny", precipitationProbabilityPct: 10 },
+      weather: { tempC: 22, condition: "Sunny", precipitationProbabilityPct: 10, windKph: null, isDay: true, sunsetAt: null },
       now,
       tally: { count: 0, underCeiling: 0 },
     });
@@ -167,7 +169,7 @@ describe("summariseTonightConditions", () => {
 
   it("drops the condition text gracefully when it is blank", () => {
     const summary = summariseTonightConditions({
-      weather: { tempC: 22, condition: "  ", precipitationProbabilityPct: 10 },
+      weather: { tempC: 22, condition: "  ", precipitationProbabilityPct: 10, windKph: null, isDay: true, sunsetAt: null },
       now,
       tally: null,
     });
@@ -176,7 +178,7 @@ describe("summariseTonightConditions", () => {
 
   it("returns null when the rules table claims nothing for tonight", () => {
     const summary = summariseTonightConditions({
-      weather: { tempC: 15, condition: "Drizzle", precipitationProbabilityPct: 45 },
+      weather: { tempC: 15, condition: "Drizzle", precipitationProbabilityPct: 45, windKph: null, isDay: null, sunsetAt: null },
       now,
       tally: null,
     });

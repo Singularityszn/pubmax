@@ -48,8 +48,7 @@ export async function loadLandingAnswers(now: Date = new Date()): Promise<Landin
   const brief = buildWeatherBrief(weatherSnapshot, now);
   const weather: TodayWeatherFacts | null = brief
     ? {
-        tempLabel: brief.tempLabel,
-        conditionLabel: brief.conditionLabel,
+        factsLine: brief.factsLine,
         verdictLine: brief.verdictLine,
         stale: brief.stale,
       }

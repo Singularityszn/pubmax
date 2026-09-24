@@ -58,8 +58,9 @@ export default function TonightConditionsStrip({ origin }: Props) {
       <CloudSun size={16} aria-hidden="true" className="tonightConditionsIcon" />
       <p className="tonightConditionsCopy">
         <span className="tonightConditionsLead">
-          {summary.dateLabel}, {summary.weatherLabel}.
+          {summary.dateLabel}. {summary.factsLine}
         </span>{" "}
+        {summary.stale ? <span className="tonightConditionsStale">Reading may be out of date. </span> : null}
         <span>{summary.drinkLine}</span>
         {summary.venueClaim ? (
           <>

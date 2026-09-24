@@ -6,8 +6,8 @@ import {
   nearestNightAreaForViewport,
   type NightAreaSlug,
 } from "@/lib/nightAreas";
-import { planningWeatherForArea } from "@/lib/weatherSnapshots";
-import { loadWeatherSnapshot } from "@/lib/weatherSnapshots.server";
+import { latestWeatherForArea } from "@/lib/weatherSnapshots";
+import { loadFreshWeatherSnapshot } from "@/lib/weatherFreshness.server";
 import { evaluateDrinkWeather } from "@/lib/drinkWeather";
 import {
   lensVenuePredicate,
@@ -17,7 +17,6 @@ import {
   type TonightConditionsSummary,
   type VenueLensTally,
 } from "@/lib/tonightConditions";
-import weatherSnapshot from "@/public/data/weather/latest.json";
 
 const DEFAULT_AREA: NightAreaSlug = "piccadilly-soho";
 
@@ -32,24 +31,30 @@ export async function resolveTonightConditions(
   options: ResolveConditionsOptions,
 ): Promise<TonightConditionsSummary | null> {
   const { point, now } = options;
-  const snapshot = options.snapshot ?? (await loadWeatherSnapshot()) ?? weatherSnapshot;
+  const snapshot =
+    options.snapshot ?? (await loadFreshWeatherSnapshot({ now }).catch(() => null));
   const loadVenues = options.loadVenues ?? loadConciergeVenues;
   const area = point
     ? nearestNightAreaForViewport(DEFAULT_CITY_ID, point)
     : getNightArea(DEFAULT_AREA);
-  if (!area) return null;
+  if (!area || !snapshot) return null;
 
-  const weather = planningWeatherForArea(snapshot, area.slug, now.getTime());
-  if (!weather) return null;
+  const read = latestWeatherForArea(snapshot, area.slug, now.getTime());
+  if (!read) return null;
+  const { observation, stale } = read;
   const conditionsWeather = {
-    tempC: weather.feelsLikeC,
-    condition: weather.condition,
-    precipitationProbabilityPct: weather.precipitationProbabilityPct,
+    tempC: observation.feelsLikeC,
+    condition: observation.condition,
+    precipitationProbabilityPct: observation.precipitationProbabilityPct,
+    windKph: observation.windKph,
+    isDay: observation.isDay,
+    sunsetAt: observation.sunsetAt,
   };
   const verdict = evaluateDrinkWeather({
     tempC: conditionsWeather.tempC,
     precipitationProbabilityPct: conditionsWeather.precipitationProbabilityPct,
     month: londonMonth(now),
+    isDay: conditionsWeather.isDay,
   });
   if (!verdict) return null;
 
@@ -62,5 +67,5 @@ export async function resolveTonightConditions(
       tally = null;
     }
   }
-  return summariseTonightConditions({ weather: conditionsWeather, now, tally });
+  return summariseTonightConditions({ weather: conditionsWeather, now, tally, stale });
 }

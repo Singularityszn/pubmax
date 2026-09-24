@@ -76,12 +76,29 @@ function openMeteoUrl(lat: number, lng: number): string {
   url.search = new URLSearchParams({
     latitude: String(lat),
     longitude: String(lng),
-    current: "apparent_temperature,weather_code,wind_speed_10m",
+    current: "apparent_temperature,weather_code,wind_speed_10m,is_day",
     hourly: "precipitation_probability",
+    daily: "sunset",
     forecast_hours: "1",
-    timezone: "UTC",
+    forecast_days: "1",
+    timezone: "Europe/London",
   }).toString();
   return url.toString();
+}
+
+/** Parse an Open-Meteo local timestamp using the response's UTC offset. */
+export function openMeteoLocalInstant(time: unknown, utcOffsetSeconds: unknown): number {
+  if (typeof time !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(time)) return Number.NaN;
+  const offset =
+    typeof utcOffsetSeconds === "number" && Number.isFinite(utcOffsetSeconds)
+      ? utcOffsetSeconds
+      : 0;
+  const sign = offset >= 0 ? "+" : "-";
+  const abs = Math.abs(offset);
+  const hours = String(Math.floor(abs / 3600)).padStart(2, "0");
+  const minutes = String(Math.floor((abs % 3600) / 60)).padStart(2, "0");
+  const normalized = time.length === 16 ? `${time}:00` : time;
+  return Date.parse(`${normalized}${sign}${hours}:${minutes}`);
 }
 
 async function observationFor(
@@ -92,15 +109,32 @@ async function observationFor(
   const response = await doFetch(url);
   if (!response.ok) throw new Error(`${nightArea}: Open-Meteo returned ${response.status}`);
   const body = (await response.json()) as {
-    current?: { time?: unknown; apparent_temperature?: unknown; weather_code?: unknown; wind_speed_10m?: unknown };
+    utc_offset_seconds?: unknown;
+    current?: {
+      time?: unknown;
+      apparent_temperature?: unknown;
+      weather_code?: unknown;
+      wind_speed_10m?: unknown;
+      is_day?: unknown;
+    };
     hourly?: { precipitation_probability?: unknown[] };
+    daily?: { sunset?: unknown[] };
   };
-  const timeRaw = typeof body?.current?.time === "string" ? `${body.current.time}Z` : "";
-  const observedAtMs = Date.parse(timeRaw);
+  const observedAtMs = openMeteoLocalInstant(body?.current?.time, body?.utc_offset_seconds);
   const feelsLikeC = body?.current?.apparent_temperature;
   const weatherCode = body?.current?.weather_code;
   const windKph = body?.current?.wind_speed_10m;
   const precip = body?.hourly?.precipitation_probability?.[0];
+  const isDayRaw = body?.current?.is_day;
+  const isDay =
+    isDayRaw === 1 || isDayRaw === true
+      ? true
+      : isDayRaw === 0 || isDayRaw === false
+        ? false
+        : null;
+  const sunsetLocal = body?.daily?.sunset?.[0];
+  const sunsetAtMs = openMeteoLocalInstant(sunsetLocal, body?.utc_offset_seconds);
+  const sunsetAt = Number.isFinite(sunsetAtMs) ? new Date(sunsetAtMs).toISOString() : null;
   if (![observedAtMs, feelsLikeC, weatherCode, windKph, precip].every((v) => Number.isFinite(v as number))) {
     // Loud-but-soft: a payload that doesn't satisfy the contract is skipped,
     // never coerced into a fake reading.
@@ -116,6 +150,8 @@ async function observationFor(
     feelsLikeC,
     precipitationProbabilityPct: precip,
     windKph,
+    isDay,
+    sunsetAt,
     source: { sourceUrl: url, publisher: "Open-Meteo", publishedAt: observedAt },
   });
 }

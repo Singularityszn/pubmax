@@ -11,7 +11,9 @@
 //     with no venue claim (never a fabricated count)
 //   - a pint-under-ceiling claim only when price data actually supports it
 
+import { daySlot } from "@/lib/daySlot";
 import { evaluateDrinkWeather, type VenueLens } from "@/lib/drinkWeather";
+import { formatWeatherObservationFacts } from "@/lib/weatherObservationCopy";
 import { haversineKm } from "@/lib/haversine";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 
@@ -25,6 +27,9 @@ export type ConditionsWeather = {
   tempC: number;
   condition: string;
   precipitationProbabilityPct: number;
+  windKph: number | null;
+  isDay: boolean | null;
+  sunsetAt: string | null;
 };
 
 /**
@@ -43,6 +48,10 @@ export type TonightConditionsSummary = {
   dateLabel: string;
   /** "18C, light cloud" */
   weatherLabel: string;
+  /** Temp, rain chance, wind, sunset and day or night. */
+  factsLine: string;
+  /** True once the observation has aged past its own expiry. */
+  stale: boolean;
   /** The verdict's calm line, e.g. "Warm and dry. Beer garden weather." */
   drinkLine: string;
   /** Lower-case drink phrase, e.g. "a cold lager or cider". */
@@ -150,18 +159,33 @@ export function summariseTonightConditions(args: {
   now: Date;
   tally: VenueLensTally;
   timeZone?: string;
+  stale?: boolean;
 }): TonightConditionsSummary | null {
-  const { weather, now, tally, timeZone } = args;
+  const { weather, now, tally, timeZone, stale = false } = args;
   const month = londonMonth(now, timeZone);
   const verdict = evaluateDrinkWeather({
     tempC: weather.tempC,
     precipitationProbabilityPct: weather.precipitationProbabilityPct,
     month,
+    dayPart: daySlot(now),
+    isDay: weather.isDay,
   });
   if (!verdict) return null;
+  const factsLine = formatWeatherObservationFacts({
+    feelsLikeC: weather.tempC,
+    condition: weather.condition,
+    precipitationProbabilityPct: weather.precipitationProbabilityPct,
+    windKph: weather.windKph,
+    isDay: weather.isDay,
+    sunsetAt: weather.sunsetAt,
+    now,
+    stale,
+  });
   return {
     dateLabel: formatConditionDate(now, timeZone),
     weatherLabel: weatherLabel(weather),
+    factsLine,
+    stale,
     drinkLine: verdict.line,
     drinkSuggestion: verdict.drinkSuggestion,
     venueClaim: buildVenueClaim(verdict.venueLens, tally),

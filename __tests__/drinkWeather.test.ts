@@ -9,6 +9,16 @@ import {
 const base: DrinkWeatherInput = { tempC: 12, precipitationProbabilityPct: 20, month: 7 };
 
 describe("evaluateDrinkWeather rules table", () => {
+  it("refuses beer-garden rules on an explicit Open-Meteo night", () => {
+    const verdict = evaluateDrinkWeather({
+      tempC: 22,
+      precipitationProbabilityPct: 10,
+      month: 7,
+      isDay: false,
+    });
+    expect(verdict?.venueLens).not.toBe("beer-garden");
+  });
+
   it("warm dry summer evening is beer-garden lager or cider", () => {
     const verdict = evaluateDrinkWeather({ tempC: 22, precipitationProbabilityPct: 10, month: 7 });
     expect(verdict).toMatchObject({

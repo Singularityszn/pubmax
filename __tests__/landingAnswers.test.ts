@@ -14,15 +14,14 @@ describe("the front door's two answers", () => {
     expect(
       todayAnswer(
         {
-          tempLabel: "19C",
-          conditionLabel: "cloudy",
+          factsLine: "19°C feels like, cloudy, 0% chance of rain, daylight.",
           verdictLine: "Beer garden weather. Lager or cider.",
           stale: false,
         },
         STAMP,
       ),
     ).toEqual({
-      line: "19C and cloudy in London. Beer garden weather. Lager or cider.",
+      line: "19°C feels like, cloudy, 0% chance of rain, daylight. Beer garden weather. Lager or cider.",
       stamp: STAMP,
       measured: true,
     });
@@ -31,7 +30,7 @@ describe("the front door's two answers", () => {
   it("refuses a stale sky and a missing one alike", () => {
     for (const weather of [
       null,
-      { tempLabel: "19C", conditionLabel: "cloudy", verdictLine: "x", stale: true },
+      { factsLine: "stale", verdictLine: "x", stale: true },
     ]) {
       const answer = todayAnswer(weather, STAMP);
       expect(answer.measured).toBe(false);

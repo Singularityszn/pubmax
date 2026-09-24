@@ -49,5 +49,9 @@ export function gardenWeatherHeadline(
 ): string | null {
   if (!weather || !isGardenWeather(weather)) return null;
   if (!isFiniteNumber(weather.feelsLikeC)) return null;
-  return `${Math.round(weather.feelsLikeC)}° and dry. Beer-garden night`;
+  const rain =
+    isFiniteNumber(weather.precipProbabilityPct)
+      ? `${Math.round(weather.precipProbabilityPct)}% rain chance`
+      : "dry";
+  return `${Math.round(weather.feelsLikeC)}° feels like, ${rain}. Beer-garden weather.`;
 }

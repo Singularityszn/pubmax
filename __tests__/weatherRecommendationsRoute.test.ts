@@ -91,6 +91,8 @@ function snapshot(
         feelsLikeC: 20,
         precipitationProbabilityPct: 5,
         windKph: 8,
+        isDay: null,
+        sunsetAt: null,
         source: {
           sourceUrl: "https://api.open-meteo.com/v1/forecast?test",
           publisher: "Open-Meteo",

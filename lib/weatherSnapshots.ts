@@ -16,6 +16,10 @@ export type NightAreaWeatherObservation = {
   feelsLikeC: number;
   precipitationProbabilityPct: number;
   windKph: number | null;
+  /** Open-Meteo `is_day` when the provider carried it; null on older rows. */
+  isDay: boolean | null;
+  /** Today's sunset in London when the provider carried it; null on older rows. */
+  sunsetAt: string | null;
   source: WeatherEvidenceSource;
 };
 
@@ -83,6 +87,13 @@ export function validateWeatherObservation(value: unknown): NightAreaWeatherObse
   if (!nightArea || !observedAt || !expiresAt || !condition || feelsLikeC === null
     || precipitationProbabilityPct === null || windKph === undefined || !sourceUrl || !publisher || !publishedAt) return null;
   if (Date.parse(expiresAt) <= Date.parse(observedAt) || Date.parse(publishedAt) > Date.parse(observedAt)) return null;
+  const isDay =
+    row.isDay === true || row.isDay === 1
+      ? true
+      : row.isDay === false || row.isDay === 0
+        ? false
+        : null;
+  const sunsetAt = row.sunsetAt === null || row.sunsetAt === undefined ? null : iso(row.sunsetAt);
   return {
     nightArea,
     observedAt,
@@ -91,8 +102,40 @@ export function validateWeatherObservation(value: unknown): NightAreaWeatherObse
     feelsLikeC,
     precipitationProbabilityPct,
     windKph,
+    isDay,
+    sunsetAt,
     source: { sourceUrl, publisher, publishedAt },
   };
+}
+
+export type AreaWeatherRead = {
+  observation: NightAreaWeatherObservation;
+  stale: boolean;
+};
+
+/**
+ * Latest observation for a night area, including readings past their expiry.
+ * Used by display surfaces that must say plainly when a row is stale rather
+ * than vanish or recycle generic garden copy.
+ */
+export function latestWeatherForArea(
+  value: unknown,
+  nightArea: NightAreaSlug,
+  nowMs: number,
+  options: { fallbackToFirst?: boolean } = {},
+): AreaWeatherRead | null {
+  const snapshot = validateWeatherSnapshot(value);
+  if (!snapshot) return null;
+  if (Date.parse(snapshot.generatedAt) > nowMs) return null;
+
+  const observation =
+    snapshot.observations.find((candidate) => candidate.nightArea === nightArea) ??
+    (options.fallbackToFirst === false ? undefined : snapshot.observations[0]);
+  if (!observation) return null;
+  if (Date.parse(observation.observedAt) > nowMs) return null;
+
+  const stale = nowMs >= Date.parse(observation.expiresAt);
+  return { observation, stale };
 }
 
 export function validateWeatherSnapshot(value: unknown): WeatherSnapshot | null {

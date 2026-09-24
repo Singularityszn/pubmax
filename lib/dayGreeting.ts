@@ -216,8 +216,8 @@ export function buildDayGreeting(input: {
   }
 
   const support = weather.stale
-    ? `${input.dateLabel}. Last read of the sky: ${weather.tempLabel} and ${weather.conditionLabel}.`
-    : `${input.dateLabel}, ${weather.tempLabel} and ${weather.conditionLabel} in London.`;
+    ? `${input.dateLabel}. ${weather.factsLine}`
+    : `${input.dateLabel}. ${weather.factsLine}`;
 
   return {
     slot,
