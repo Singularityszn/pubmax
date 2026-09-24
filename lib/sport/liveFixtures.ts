@@ -324,7 +324,15 @@ export async function fetchLiveSportFixtures(opts: FetchLiveSportFixturesOpts): 
     try {
       const [fromFootballData, nonFootball] = await Promise.all([
         fetchFootballDataFixtures(lane(), footballKey),
-        fetchTheSportsDbFixtures(lane(), theSportsDbKey, THESPORTSDB_NON_FOOTBALL_LEAGUES),
+        fetchTheSportsDbFixtures(lane(), theSportsDbKey, THESPORTSDB_NON_FOOTBALL_LEAGUES).catch(
+          (err: unknown): SportFixture[] => {
+            console.warn(
+              "[sport] TheSportsDB non-football leagues unavailable; serving football-data only:",
+              err instanceof Error ? err.message : String(err),
+            );
+            return [];
+          },
+        ),
       ]);
       const football = fromFootballData.filter((f) => inWindow(f, startMs, opts.endMs));
       if (football.length > 0) return dedupeFixtures([...football, ...nonFootball]);

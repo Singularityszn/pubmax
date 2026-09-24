@@ -219,6 +219,37 @@ describe("live sport fixtures", () => {
     vi.unstubAllEnvs();
   });
 
+  it("keeps football-data football when the TheSportsDB rugby read fails", async () => {
+    vi.stubEnv("FOOTBALL_DATA_API_KEY", "test-key");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("football-data.org")) {
+        const matches = url.includes("/PL/")
+          ? [{
+            id: 77,
+            utcDate: "2026-10-07T19:00:00Z",
+            status: "TIMED",
+            homeTeam: { name: "Arsenal" },
+            awayTeam: { name: "Spurs" },
+            competition: { name: "Premier League" },
+          }]
+          : [];
+        return { ok: true, status: 200, json: async () => ({ matches }) } as Response;
+      }
+      return { ok: false, status: 503, json: async () => ({}), text: async () => "down" } as Response;
+    });
+
+    const fixtures = await fetchLiveSportFixtures({
+      now: NOW,
+      endMs: NOW + SPORT_FIXTURE_HORIZON_MS,
+      fetchImpl,
+    });
+    expect(fixtures.map((fixture) => fixture.id)).toEqual(["fd-77"]);
+    warn.mockRestore();
+    vi.unstubAllEnvs();
+  });
+
   it("keeps every fixture a pub could show at the same kickoff", () => {
     const league = liveSportFixtureInternals.THESPORTSDB_LEAGUES.find((l) => l.id === "4480")!;
     const fixtures = ["9100001", "9100002"].map((idEvent, i) =>
