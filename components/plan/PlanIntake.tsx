@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Check, LocateFixed, MapPin, RotateCcw } from "lucide-react";
 
+import Kicker from "@/components/ui/kicker";
+import SheetStepProgress from "@/components/ui/sheetStepProgress";
+import SheetStepReveal from "@/components/ui/sheetStepReveal";
 import { nearestNightPatch } from "@/lib/nearestNightPatch";
 import { writeRememberedArea } from "@/lib/nightPatches";
 import {
@@ -249,26 +252,17 @@ export default function PlanIntake({
         onChange={(stopCount) => onChange({ ...draft, answers: { ...draft.answers, stopCount } })}
       />
 
-      <ol className="planIntake__progress" aria-label="Plan details progress">
-        {PLAN_INTAKE_STEPS.map((step, index) => {
-          const settled = draft.settledSteps.includes(step);
-          const skipped = draft.skippedSteps.includes(step);
-          return (
-            <li
-              key={step}
-              aria-current={step === draft.currentStep ? "step" : undefined}
-              data-state={step === draft.currentStep ? "current" : settled ? "settled" : "upcoming"}
-            >
-              <span aria-hidden="true">{settled && !skipped ? <Check size={13} /> : index + 1}</span>
-              <span>{STEP_COPY[step].short}{skipped ? " skipped" : ""}</span>
-            </li>
-          );
-        })}
-      </ol>
+      <SheetStepProgress
+        className="planIntake__progress"
+        stepCount={PLAN_INTAKE_STEPS.length}
+        currentIndex={stepIndex}
+        stepLabels={PLAN_INTAKE_STEPS.map((step) => STEP_COPY[step].short)}
+        variant="plan"
+      />
 
-      <div className="planIntake__stage" key={draft.currentStep}>
-        <p className="planIntake__eyebrow">{copy.eyebrow}</p>
-        <h2 id="plan-intake-title" ref={headingRef} tabIndex={-1}>{copy.title}</h2>
+      <SheetStepReveal stepKey={draft.currentStep} className="planIntake__stage">
+        <Kicker>{copy.eyebrow}</Kicker>
+        <h2 id="plan-intake-title" className="planIntake__question" ref={headingRef} tabIndex={-1}>{copy.title}</h2>
         <p className="planIntake__note">{copy.note}</p>
 
         {draft.currentStep === "area" ? (
@@ -438,7 +432,7 @@ export default function PlanIntake({
             ))}
           </div>
         ) : null}
-      </div>
+      </SheetStepReveal>
 
       <footer className="planIntake__actions">
         <button

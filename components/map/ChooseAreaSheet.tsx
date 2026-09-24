@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LocateFixed, X } from "lucide-react";
 
+import Kicker from "@/components/ui/kicker";
+import SheetStepProgress from "@/components/ui/sheetStepProgress";
+import SheetStepReveal from "@/components/ui/sheetStepReveal";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import type { CityId } from "@/lib/cities";
@@ -16,6 +19,10 @@ import {
 import type { Venue } from "@/lib/venues";
 
 import "./chooseAreaSheet.css";
+
+/** Opening flow: arrival ask, area pick, live map (this sheet is step 2 of 3). */
+export const CHOOSE_AREA_PROGRESS_LABELS = ["Start", "Area", "Map"] as const;
+export const CHOOSE_AREA_PROGRESS_INDEX = 1;
 
 export type ChooseAreaPick =
   | { kind: "near-me" }
@@ -60,6 +67,18 @@ export default function ChooseAreaSheet({
 
   return (
     <div className="chooseAreaSheet">
+      <header className="chooseAreaSheetHead">
+        <SheetStepProgress
+          className="chooseAreaSheetProgress"
+          stepCount={CHOOSE_AREA_PROGRESS_LABELS.length}
+          currentIndex={CHOOSE_AREA_PROGRESS_INDEX}
+          stepLabels={CHOOSE_AREA_PROGRESS_LABELS}
+          variant="map"
+        />
+        <Kicker>Your map</Kicker>
+        <h2 className="chooseAreaQuestion">Which area should we open on?</h2>
+      </header>
+      <SheetStepReveal stepKey="choose-area-body">
       <div className="chooseAreaSearch">
         <label htmlFor="choose-area-search">Search areas and postcodes</label>
         <input
@@ -128,6 +147,7 @@ export default function ChooseAreaSheet({
           </ul>
         </section>
       ) : null}
+      </SheetStepReveal>
     </div>
   );
 }

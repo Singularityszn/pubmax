@@ -3,6 +3,26 @@
   gap: 14px;
 }
 
+.chooseAreaSheetHead {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.chooseAreaSheetProgress {
+  margin: 0;
+}
+
+.chooseAreaQuestion {
+  margin: 0;
+  color: var(--color-text, var(--ink));
+  font-family: var(--font-display);
+  font-size: clamp(var(--text-xl), 4.5vw, var(--text-2xl));
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  text-wrap: balance;
+}
+
 .chooseAreaSearch {
   display: grid;
   gap: 6px;

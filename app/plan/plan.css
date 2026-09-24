@@ -748,19 +748,18 @@
   padding: 0 0 14px;
   border-bottom: 1px solid var(--line-soft, var(--line));
 }
-.planIntake__progress { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 20px 0 0; padding: 0; list-style: none; }
-.planIntake__progress li { min-width: 0; display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: 7px; color: var(--muted); font-size: 0.67rem; font-weight: 740; }
-.planIntake__progress li::after { content: ""; grid-column: 1 / -1; height: 3px; border-radius: 999px; background: var(--line); }
-.planIntake__progress li > span:first-child { width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--panel-raised); }
-.planIntake__progress li > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.planIntake__progress li[data-state="current"] { color: var(--ink); }
-.planIntake__progress li[data-state="current"]::after,
-.planIntake__progress li[data-state="settled"]::after { background: var(--plan-accent); }
-.planIntake__progress li[data-state="settled"] > span:first-child { border-color: var(--plan-accent); color: var(--plan-accent-strong); }
+.planIntake__progress { margin: 20px 0 0; }
 
 .planIntake__stage { min-height: 244px; padding: clamp(28px, 5vw, 42px) 0 24px; }
-.planIntake__stage h2,
-.planIntake__summaryBody h2 { max-width: 650px; margin: 8px 0 0; font-size: clamp(1.8rem, 4vw, 3rem); line-height: 0.98; letter-spacing: -0.035em; }
+.planIntake__stage .planIntake__question,
+.planIntake__summaryBody h2 {
+  max-width: 650px;
+  margin: 8px 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+}
 .planIntake__stage h2:focus {
   outline: 3px solid color-mix(in srgb, var(--plan-accent) 60%, transparent);
   outline-offset: 6px;
@@ -1042,11 +1041,8 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planPage__hero h1 { font-size: clamp(3rem, 16vw, 5rem); }
   .planComposer { grid-template-columns: 1fr; padding: 0 0 14px; gap: 16px; }
   .planIntake { grid-column: 1; padding: var(--space-3) 0 0; }
-  .planIntake__progress { grid-template-columns: repeat(5, 38px); justify-content: space-between; margin-top: 14px; overflow: hidden; }
+  .planIntake__progress { margin-top: 14px; }
   .planIntake__stage { padding-top: 14px; }
-  .planIntake__progress li { display: block; }
-  .planIntake__progress li > span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
-  .planIntake__progress li::after { display: block; margin-top: 7px; }
   .planIntake__choices--cards { grid-template-columns: 1fr; }
   .planIntake__actions { align-items: stretch; flex-direction: column-reverse; }
   .planIntake__actions > div { display: grid; grid-template-columns: 1fr 1fr; }

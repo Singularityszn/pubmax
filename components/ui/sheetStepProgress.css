@@ -1,0 +1,39 @@
+/* Filled segment progress for plan and choose-area sheets (GDE-inspired capsules). */
+
+.sheetStepProgress {
+  display: grid;
+  grid-template-columns: repeat(var(--sheet-step-count, 1), minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sheetStepProgress__segment {
+  min-width: 0;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.sheetStepProgress__segment[data-state="settled"],
+.sheetStepProgress__segment[data-state="current"] {
+  background: var(--sheet-step-accent, var(--state-active-border));
+}
+
+.sheetStepProgress__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.sheetStepProgress--plan {
+  --sheet-step-accent: var(--plan-accent);
+}
+
+.sheetStepProgress--map {
+  --sheet-step-accent: var(--state-active-border);
+}
