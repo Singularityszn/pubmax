@@ -38,13 +38,13 @@ collisions, flaky `venueRoute` reads, and Playwright's
 
 ```yaml
 concurrency:
-  group: pubmax-mac-${{ github.repository }}
-  cancel-in-progress: false
+  group: pubmax-mac-${{ github.ref }}
+  cancel-in-progress: true
 ```
 
-`cancel-in-progress` stays false so a pull request does not cancel CI, browser tests, and RLS mid-flight on the same concurrency group. Superseded commits wait in queue.
+The group is **per git ref**, not repo-wide. A repo-wide group once queued ancient runs from other branches and blocked every pull request for hours.
 
-Avoid `workflow_dispatch` on this branch while a pull request is open: it shares the same `pubmax-mac` queue and can block or stall PR checks for hours.
+On one ref, CI, browser tests, and RLS still share the Mac and run one workflow at a time; superseded commits on that branch cancel the in-flight run.
 
 `ci.yml` also chains jobs (`production-build` after lint + freshness, unit
 shards `max-parallel: 1`, coverage after unit tests).
