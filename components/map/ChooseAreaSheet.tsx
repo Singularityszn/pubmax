@@ -5,7 +5,6 @@ import { LocateFixed, X } from "lucide-react";
 
 import Kicker from "@/components/ui/kicker";
 import SheetStepProgress, { type SheetStep } from "@/components/ui/sheetStepProgress";
-import SheetStepReveal from "@/components/ui/sheetStepReveal";
 import { MAP_SHEET_KICKERS, MAP_SHEET_TITLES } from "@/lib/mobileShell";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
@@ -77,7 +76,6 @@ export default function ChooseAreaSheet({
       {showOpeningProgress ? (
         <SheetStepProgress steps={OPENING_STEPS} variant="map" />
       ) : null}
-      <SheetStepReveal stepKey="choose-area-body">
       <div className="chooseAreaSearch">
         <label htmlFor="choose-area-search">Search areas and postcodes</label>
         <input
@@ -146,7 +144,6 @@ export default function ChooseAreaSheet({
           </ul>
         </section>
       ) : null}
-      </SheetStepReveal>
     </div>
   );
 }
