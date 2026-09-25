@@ -51,7 +51,7 @@ npm run pubpal:design-voices -- --dry-run
 npm run pubpal:design-voices
 ```
 
-Evidence and generated preview audio land in `docs/proof/pubpal-voices/`.
+Generated preview audio and the voice id env lines land in `artifacts/pubpal-voices/`, which git ignores. A species whose `ELEVENLABS_VOICE_<SPECIES>` is already set is skipped.
 
 ---
 ## Creating the agent

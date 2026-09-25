@@ -110,13 +110,17 @@ async function main() {
     if (!SPECIES.includes(species)) fail(`Unknown species: ${species}`);
   }
 
-  const outDir = path.join(process.cwd(), "docs/proof/pubpal-voices");
+  const outDir = path.join(process.cwd(), "artifacts/pubpal-voices");
   mkdirSync(outDir, { recursive: true });
   const envLines = [];
 
   for (const species of selected) {
     const description = VOICE_DESCRIPTIONS[species];
     console.log(`\n— ${species} —`);
+    if (process.env[envKeyForSpecies(species)]?.trim()) {
+      console.log(`  ${envKeyForSpecies(species)} is already set, skipping`);
+      continue;
+    }
     if (dryRun) {
       console.log(description);
       continue;

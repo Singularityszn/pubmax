@@ -22,10 +22,7 @@ test.describe("Pub Pal live voice", () => {
         authorization: `Bearer ${bearer}`,
         "content-type": "application/json",
       },
-      data: {
-        messages: [{ role: "user", content: "Cheapest pint near Camden tonight" }],
-        surface: "pal",
-      },
+      data: { query: "Cheapest pint near Camden tonight" },
     });
     expect(response.status()).toBe(200);
   });

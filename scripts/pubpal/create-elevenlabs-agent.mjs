@@ -8,7 +8,8 @@
 //
 //   1. the Custom LLM URL plus its shared secret,
 //   2. zero audio and transcript retention,
-//   3. the three curated voices, when their ids are set,
+//   3. a default voice, when one is set, and the per-session overrides that
+//      let each Pal speak in its own species voice,
 //   4. the house first message and the propose-then-confirm rule (ADR 0006).
 //
 // Idempotent: with ELEVENLABS_PUB_PAL_AGENT_ID set it PATCHes that agent;
@@ -80,15 +81,11 @@ function systemPrompt() {
 }
 
 function agentBody(llmUrl, secretId) {
-  const voices = {
-    ember: process.env.ELEVENLABS_VOICE_EMBER?.trim(),
-    velvet: process.env.ELEVENLABS_VOICE_VELVET?.trim(),
-    signal: process.env.ELEVENLABS_VOICE_SIGNAL?.trim(),
-  };
   const defaultVoice =
     process.env.ELEVENLABS_VOICE_FOX?.trim() ||
     process.env.ELEVENLABS_VOICE_ROBIN?.trim() ||
-    voices.ember;
+    process.env.ELEVENLABS_VOICE_EMBER?.trim() ||
+    null;
   const body = {
     name: AGENT_NAME,
     conversation_config: {
@@ -117,6 +114,18 @@ function agentBody(llmUrl, secretId) {
       ...(defaultVoice ? { tts: { voice_id: defaultVoice } } : {}),
     },
     platform_settings: {
+      // The voice-token grant sends each Pal's prompt, first message and
+      // species voice as session overrides; ElevenLabs drops any override the
+      // agent does not allow here.
+      overrides: {
+        conversation_config_override: {
+          agent: {
+            prompt: { prompt: true },
+            first_message: true,
+          },
+          tts: { voice_id: true },
+        },
+      },
       privacy: {
         record_voice: false,
         // ElevenLabs rejects custom_llm while zero_retention_mode is on; keep
@@ -127,25 +136,17 @@ function agentBody(llmUrl, secretId) {
       },
     },
   };
-  return { body, voices };
+  return { body, defaultVoice };
 }
 
 /**
  * A copy of the agent body with the Custom LLM secret held back.
  *
  * The dry run is the documented pre-flight, so its output lands in terminal
- * scrollback and in any CI log. The secret is what guards /api/pub-pal/llm, so
- * only its length is printed. The real request still carries the true value.
+ * scrollback and in any CI log. The body only ever carries the workspace secret
+ * locator, never the secret itself, and the locator is held back too.
  */
-function redactSecret(body, secretLength = 0) {
-  const apiKey = body?.conversation_config?.agent?.prompt?.custom_llm?.api_key;
-  if (!apiKey) return body;
-  const redactedLocator =
-    typeof apiKey.secret_id === "string"
-      ? { secret_id: "[redacted workspace secret locator]" }
-      : typeof apiKey.secret === "string"
-        ? { secret: `[redacted, ${apiKey.secret.length} characters]` }
-        : apiKey;
+function redactSecret(body) {
   return {
     ...body,
     conversation_config: {
@@ -156,7 +157,7 @@ function redactSecret(body, secretLength = 0) {
           ...body.conversation_config.agent.prompt,
           custom_llm: {
             ...body.conversation_config.agent.prompt.custom_llm,
-            api_key: redactedLocator,
+            api_key: { secret_id: "[redacted workspace secret locator]" },
           },
         },
       },
@@ -227,7 +228,7 @@ async function main() {
   const secretId = dryRun
     ? "dry-run-secret-locator"
     : await ensureWorkspaceLlmSecret(apiKey, secret);
-  const { body, voices } = agentBody(llmUrl, secretId);
+  const { body, defaultVoice } = agentBody(llmUrl, secretId);
 
   if (dryRun) {
     console.log(
@@ -235,12 +236,12 @@ async function main() {
     );
     console.log(
       JSON.stringify(
-        { ...redactSecret(body, secret.length), custom_llm_url: llmUrl },
+        { ...redactSecret(body), custom_llm_url: llmUrl },
         null,
         2,
       ),
     );
-    console.log("\nVoices resolved:", voices);
+    console.log("\nDefault voice resolved:", defaultVoice);
     return;
   }
 
@@ -259,12 +260,9 @@ async function main() {
     console.log(`\n  Set this on the deployment:\n    ELEVENLABS_PUB_PAL_AGENT_ID=${agentId}`);
   }
 
-  const missing = Object.entries(voices)
-    .filter(([, id]) => !id)
-    .map(([name]) => name);
-  if (missing.length > 0) {
+  if (!defaultVoice) {
     console.log(
-      `\n  Voice ids not set for: ${missing.join(", ")}. Those Pals fall back to the agent default.`,
+      "\n  No default voice id set (ELEVENLABS_VOICE_FOX, _ROBIN or _EMBER). The agent keeps its ElevenLabs default.",
     );
   }
 }

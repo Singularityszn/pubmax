@@ -52,14 +52,22 @@ describe("pubpal:agent dry run", () => {
   });
 
   it("still describes the agent it would write", () => {
-    const printed = dryRun().stdout.split("\nVoices resolved:")[0] ?? "";
+    const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
     const start = printed.indexOf("{");
     const end = printed.lastIndexOf("}");
     const body = JSON.parse(printed.slice(start, end + 1)) as {
       conversation_config: {
         agent: { prompt: { llm: string; custom_llm: { url: string } } };
       };
-      platform_settings: { privacy: { retention_days: number } };
+      platform_settings: {
+        privacy: { retention_days: number; zero_retention_mode: boolean };
+        overrides: {
+          conversation_config_override: {
+            agent: { prompt: { prompt: boolean }; first_message: boolean };
+            tts: { voice_id: boolean };
+          };
+        };
+      };
     };
     expect(body.conversation_config.agent.prompt.llm).toBe("custom-llm");
     expect(body.conversation_config.agent.prompt.custom_llm.url).toBe(
@@ -67,10 +75,14 @@ describe("pubpal:agent dry run", () => {
     );
     expect(body.platform_settings.privacy.retention_days).toBe(0);
     expect(body.platform_settings.privacy.zero_retention_mode).toBe(false);
+    expect(body.platform_settings.overrides.conversation_config_override).toEqual({
+      agent: { prompt: { prompt: true }, first_message: true },
+      tts: { voice_id: true },
+    });
   });
 
   it("writes the product voice cap, not a longer provider window", async () => {
-    const printed = dryRun().stdout.split("\nVoices resolved:")[0] ?? "";
+    const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
     const start = printed.indexOf("{");
     const end = printed.lastIndexOf("}");
     const body = JSON.parse(printed.slice(start, end + 1)) as {

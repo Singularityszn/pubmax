@@ -27,4 +27,4 @@ Local proof (Sep 2026): with dev on port 3102 and `.env.local` configured,
 `docs/proof/pubpal-voices/local-proof-summary.json` records voice GET, LLM bridge,
 and text ask statuses. Headless UI: `PUB_PAL_VOICE_E2E_CONFIGURED=1 PW_SKIP_WEBSERVER=1 PW_PORT=3102 npx playwright test e2e/pubpal-concierge-phone.spec.ts -g "text ask answers|voice explains"`.
 
-Do not commit `elevenlabs-voice-ids.env` or preview MP3s (they contain account-specific ids).
+`npm run pubpal:design-voices` writes `elevenlabs-voice-ids.env` and preview MP3s to the ignored `artifacts/pubpal-voices/` (they contain account-specific ids).
