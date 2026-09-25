@@ -639,15 +639,17 @@ export default function PubMapCanvas({
   const mapViewRef = useRef(mapView);
   const maxBoundsRef = useRef(maxBounds);
   const cityBoundsRef = useRef(cityBounds);
+  const cityViewRef = useRef(getCity(cityId).mapView);
   const landmarksGeoJSONRef = useRef(landmarksGeoJSON);
   const showLandmarksRef = useRef(showLandmarks);
   useEffect(() => {
     mapViewRef.current = mapView;
     maxBoundsRef.current = maxBounds;
     cityBoundsRef.current = cityBounds;
+    cityViewRef.current = getCity(cityId).mapView;
     landmarksGeoJSONRef.current = landmarksGeoJSON;
     showLandmarksRef.current = showLandmarks;
-  }, [mapView, maxBounds, cityBounds, landmarksGeoJSON, showLandmarks]);
+  }, [mapView, maxBounds, cityBounds, cityId, landmarksGeoJSON, showLandmarks]);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const userCameraInteractionRef = useRef(false);
@@ -1123,7 +1125,7 @@ export default function PubMapCanvas({
   } = useMapCamera({
     mapRef,
     reducedRef,
-    mapViewRef,
+    cityViewRef,
     cityBoundsRef,
     routeRef,
     venuesRef,

@@ -7,7 +7,5 @@ export const MAP_LIST_PATH = "/map/list";
 export const MAP_LIST_SEARCH_PARAM = "list";
 
 export function mapListOpenFromSearch(search: string): boolean {
-  const raw = search.startsWith("?") ? search.slice(1) : search;
-  if (!raw) return false;
-  return new URLSearchParams(raw).get(MAP_LIST_SEARCH_PARAM) === "1";
+  return new URLSearchParams(search).get(MAP_LIST_SEARCH_PARAM) === "1";
 }
