@@ -21,9 +21,9 @@ describe("browser CI policy", () => {
 
     expect(workflow).toMatch(/schedule:/);
     expect(workflow).toMatch(/push:\n\s+branches: \[main\]/);
-    expect(workflow).toContain("shard: [1, 2, 3, 4]");
-    expect(workflow).toContain("--shard=${{ matrix.shard }}/4");
-    expect(workflow).toContain("npx playwright install --with-deps chromium");
+    expect(workflow).toContain("shard: [1, 2]");
+    expect(workflow).toContain("--shard=${{ matrix.shard }}/2");
+    expect(workflow).toContain("uses: ./.github/actions/pubmax-mac-playwright");
     // P0-3: the three trusted-handoff rollout flags are retired, so there is no
     // second suite whose behaviour a deployment lacks.
     expect(workflow).not.toContain("flag-on");

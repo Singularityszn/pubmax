@@ -11,7 +11,6 @@ import {
   mkdtempSync,
   readdirSync,
   writeFileSync,
-  rmSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -23,6 +22,11 @@ import {
   findPostgresBinary,
   missingPostgresReason,
 } from "./postgresHost.mjs";
+import {
+  registerHarnessCluster,
+  stopHarnessCluster,
+  unregisterHarnessCluster,
+} from "./postgresShm.mjs";
 
 export { missingPostgresReason };
 
@@ -120,6 +124,7 @@ export async function startRlsSession() {
       { stdio: "pipe" },
     );
   } catch (error) {
+    stopHarnessCluster(dataDir);
     releaseClusterSlot();
     throw error;
   }
@@ -132,6 +137,8 @@ export async function startRlsSession() {
       `port = ${port}`,
       "max_connections = 20",
       "shared_buffers = 16MB",
+      "shared_memory_type = mmap",
+      "dynamic_shared_memory_type = mmap",
       "fsync = off",
       "full_page_writes = off",
       "synchronous_commit = off",
@@ -166,10 +173,12 @@ export async function startRlsSession() {
     }
   }
   if (!ready) {
-    proc.kill("SIGKILL");
+    stopHarnessCluster(dataDir);
     releaseClusterSlot();
     throw new Error(`Postgres failed to start:\n${logChunks.join("")}`);
   }
+
+  registerHarnessCluster(dataDir);
 
   const dbName = "pubmax_rls";
   execFileSync(
@@ -410,9 +419,9 @@ export async function startRlsSession() {
 
   const postgrest = findPostgrestBin();
   if (!postgrest) {
-    proc.kill("SIGKILL");
+    stopHarnessCluster(dataDir);
+    unregisterHarnessCluster(dataDir);
     releaseClusterSlot();
-    rmSync(dataDir, { recursive: true, force: true });
     throw new Error(
       "PostgreSQL is available but PostgREST is not. Install PostgREST 14 or set POSTGREST_BIN; HTTP-boundary RLS proofs may not be skipped.",
     );
@@ -461,10 +470,14 @@ export async function startRlsSession() {
     await sleep(100);
   }
   if (!restReady) {
-    restProc.kill("SIGKILL");
-    proc.kill("SIGKILL");
+    try {
+      restProc.kill("SIGKILL");
+    } catch {
+      /* ignore */
+    }
+    stopHarnessCluster(dataDir);
+    unregisterHarnessCluster(dataDir);
     releaseClusterSlot();
-    rmSync(dataDir, { recursive: true, force: true });
     throw new Error(`PostgREST failed to start:\n${restLogs.join("")}`);
   }
 
@@ -511,27 +524,14 @@ export async function startRlsSession() {
     } catch {
       /* ignore */
     }
-    try {
-      proc.kill("SIGTERM");
-    } catch {
-      /* ignore */
-    }
     await sleep(200);
     try {
       restProc.kill("SIGKILL");
     } catch {
       /* ignore */
     }
-    try {
-      proc.kill("SIGKILL");
-    } catch {
-      /* ignore */
-    }
-    try {
-      rmSync(dataDir, { recursive: true, force: true });
-    } catch {
-      /* ignore */
-    }
+    stopHarnessCluster(dataDir);
+    unregisterHarnessCluster(dataDir);
     // The slot is the host's budget, so it goes back even when the cluster
     // refused to die tidily.
     releaseClusterSlot();
