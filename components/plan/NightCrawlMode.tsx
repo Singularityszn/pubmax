@@ -512,8 +512,6 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
                   </div>
                 ) : null}
 
-                <div className="nightCrawl__spacer" />
-
                 <div className="nightCrawl__actions">
                   <button
                     type="button"

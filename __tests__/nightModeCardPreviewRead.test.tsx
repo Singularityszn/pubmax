@@ -152,6 +152,8 @@ describe("the Night Mode card and a revoked capability", () => {
 
     expect(container.querySelector(".nightCard__now")).toBeNull();
     expect(container.querySelector(".nightCard__busy")).toBeNull();
-    expect(container.querySelector(".nightCard__loading")).not.toBeNull();
+    expect(container.querySelector(".nightCard__loading")).toBeNull();
+    expect(container.querySelector(".nightCard__routeEmpty")).not.toBeNull();
+    expect(container.textContent).toContain("Tonight's route isn't open here yet.");
   });
 });

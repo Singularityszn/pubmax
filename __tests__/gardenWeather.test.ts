@@ -29,7 +29,6 @@ describe("isGardenWeather", () => {
       isGardenWeather({
         feelsLikeC: MIN_FEELS_LIKE_C,
         precipProbabilityPct: 0,
-        isDay: true,
       }),
     ).toBe(true);
   });
@@ -39,7 +38,6 @@ describe("isGardenWeather", () => {
       isGardenWeather({
         feelsLikeC: MIN_FEELS_LIKE_C - 0.5,
         precipProbabilityPct: 0,
-        isDay: true,
       }),
     ).toBe(false);
   });
@@ -49,7 +47,6 @@ describe("isGardenWeather", () => {
       isGardenWeather({
         feelsLikeC: 22,
         precipProbabilityPct: MAX_PRECIP_PROBABILITY_PCT,
-        isDay: true,
       }),
     ).toBe(false);
   });
@@ -74,9 +71,8 @@ describe("gardenWeatherHeadline", () => {
       gardenWeatherHeadline({
         feelsLikeC: 23.6,
         precipProbabilityPct: 10,
-        isDay: true,
       }),
-    ).toBe("24° and dry. Beer-garden night");
+    ).toBe("24°C feels like, 10% chance of rain. Beer-garden weather.");
   });
 
   it("returns null when it is not garden weather", () => {
@@ -84,7 +80,6 @@ describe("gardenWeatherHeadline", () => {
       gardenWeatherHeadline({
         feelsLikeC: 10,
         precipProbabilityPct: 10,
-        isDay: true,
       }),
     ).toBeNull();
     expect(gardenWeatherHeadline(null)).toBeNull();

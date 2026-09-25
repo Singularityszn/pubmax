@@ -10,6 +10,7 @@ import {
   tallyLensMatches,
   PINT_CEILING_GBP,
 } from "@/lib/tonightConditions";
+import { observationFacts } from "@/lib/weatherObservationCopy";
 
 // Piccadilly-ish centre so nearby-venue maths is realistic.
 const CENTRE: [number, number] = [-0.134, 51.511];
@@ -139,16 +140,34 @@ describe("buildVenueClaim", () => {
 
 describe("summariseTonightConditions", () => {
   const now = new Date("2026-07-18T19:00:00.000Z");
+  function reading(tempC: number, condition: string, precipitationProbabilityPct: number) {
+    const weather = { tempC, precipitationProbabilityPct };
+    const facts = observationFacts({
+      observation: {
+        feelsLikeC: tempC,
+        condition,
+        precipitationProbabilityPct,
+        windKph: null,
+        observedAt: "2026-07-18T18:45:00.000Z",
+      },
+      nightArea: "piccadilly-soho",
+      now,
+      stale: false,
+    });
+    return { weather, facts };
+  }
 
   it("composes date, weather, drink line and a venue claim", () => {
     const summary = summariseTonightConditions({
-      weather: { tempC: 22, condition: "Clear", precipitationProbabilityPct: 10 },
+      ...reading(22, "Clear", 10),
       now,
       tally: { count: 4, underCeiling: 4 },
     });
     expect(summary).toEqual({
       dateLabel: "Saturday 18 Jul",
-      weatherLabel: "22°C, clear",
+      factsLine: expect.stringMatching(/^22°C feels like, clear, 10% chance of rain, sunset \d{2}:\d{2}, daylight\.$/),
+      stale: false,
+      checkedLabel: "Checked 15 minutes ago",
       drinkLine: "Beer garden weather. Lager or cider.",
       drinkSuggestion: "a cold lager or cider",
       venueClaim: "4 gardens near you with a pint under 6 quid",
@@ -157,7 +176,7 @@ describe("summariseTonightConditions", () => {
 
   it("shows the weather line with no venue claim when there are none nearby", () => {
     const summary = summariseTonightConditions({
-      weather: { tempC: 22, condition: "Sunny", precipitationProbabilityPct: 10 },
+      ...reading(22, "Sunny", 10),
       now,
       tally: { count: 0, underCeiling: 0 },
     });
@@ -165,21 +184,18 @@ describe("summariseTonightConditions", () => {
     expect(summary?.drinkLine).toBe("Beer garden weather. Lager or cider.");
   });
 
-  it("drops the condition text gracefully when it is blank", () => {
+  it("keeps the facts with no drink line or venue claim when the rules table claims nothing", () => {
     const summary = summariseTonightConditions({
-      weather: { tempC: 22, condition: "  ", precipitationProbabilityPct: 10 },
+      ...reading(15, "Drizzle", 45),
       now,
-      tally: null,
+      tally: { count: 4, underCeiling: 4 },
     });
-    expect(summary?.weatherLabel).toBe("22°C");
-  });
-
-  it("returns null when the rules table claims nothing for tonight", () => {
-    const summary = summariseTonightConditions({
-      weather: { tempC: 15, condition: "Drizzle", precipitationProbabilityPct: 45 },
-      now,
-      tally: null,
+    expect(summary).toMatchObject({
+      stale: false,
+      drinkLine: "",
+      drinkSuggestion: "",
+      venueClaim: null,
     });
-    expect(summary).toBeNull();
+    expect(summary.factsLine).toMatch(/^15°C feels like, drizzle, 45% chance of rain, /);
   });
 });

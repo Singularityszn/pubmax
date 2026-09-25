@@ -28,6 +28,7 @@ function read(relative: string): string {
 const mobileNavCss = read("components/nav/mobileNav.css");
 const createFabCss = read("components/nav/createFab.css");
 const nearMeNowCss = read("components/nearme/nearMeNow.css");
+const tonightCss = read("app/tonight/tonight.css");
 
 describe("the body reserves the control's own lane", () => {
   it("publishes the create action's geometry beside every other member", () => {
@@ -138,5 +139,21 @@ describe("the pages with nothing to compose", () => {
       createFabCss.indexOf("body:has(.pageHidesCreateFab) .createFabRoot"),
     );
     expect(rule.slice(0, rule.indexOf("}"))).toContain("display: none;");
+  });
+});
+
+describe("the create action stands down for full-width surfaces", () => {
+  it("withdraws while the expanded night card is open", () => {
+    expect(createFabCss).toMatch(/body:has\(\.nightCard\) \.createFabRoot/);
+  });
+
+  it("does not reserve the vertical lane while the night card is open", () => {
+    expect(mobileNavCss).toMatch(/:not\(:has\(\.nightCard\)\)/);
+  });
+});
+
+describe("tonight listing rows reserve the compose lane", () => {
+  it("pads each listing link on a phone", () => {
+    expect(tonightCss).toMatch(/\.tonightRowLink[\s\S]*var\(--create-fab-lane\)/);
   });
 });

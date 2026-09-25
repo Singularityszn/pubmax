@@ -1,0 +1,11 @@
+{
+  "body": {
+    "places": [{
+      "id": "places/ChIJwrongName",
+      "displayName": { "text": "Totally Different Kitchen", "languageCode": "en" },
+      "formattedAddress": "41-43 Wardour St, London W1D 6PY, UK",
+      "businessStatus": "OPERATIONAL",
+      "location": { "latitude": 51.51173, "longitude": -0.13265 }
+    }]
+  }
+}
