@@ -19,7 +19,7 @@ export default function SheetStepReveal({
 }) {
   const classes = ["sheetStepReveal", className].filter(Boolean).join(" ");
   return (
-    <div key={stepKey} className={classes} data-reveal-in>
+    <div key={stepKey} className={classes} data-reveal-in="true">
       {children}
     </div>
   );
