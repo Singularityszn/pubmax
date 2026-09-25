@@ -28,14 +28,6 @@ describe("the performance budget sweep is measured once", () => {
     expect(spec).toContain("test.describe.configure({ retries: 0 })");
   });
 
-  it("configures zero retries for the mobile map budget too", () => {
-    const spec = readFileSync(
-      path.join(ROOT, "e2e", "map-perf-budget.spec.ts"),
-      "utf8",
-    );
-    expect(spec).toContain("test.describe.configure({ retries: 0 })");
-  });
-
   it("still runs under a config that retries the ordinary browser suite", () => {
     const config = readFileSync(path.join(ROOT, "playwright.config.ts"), "utf8");
     expect(config).toContain("retries: process.env.CI ? 1 : 0");

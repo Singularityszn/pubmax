@@ -2,64 +2,22 @@
 
 // Root-layout error boundary. app/error.tsx (and every other route-segment
 // error.tsx) wraps page.tsx/layout.tsx below the root layout, so none of them
-// — and neither does <ClientErrorReporter />, mounted inside the root layout's
-// own body — ever runs if the root layout itself throws while mounting. This
+// - and neither does <ClientErrorReporter />, mounted inside the root layout's
+// own body - ever runs if the root layout itself throws while mounting. This
 // is the one boundary above that gap, so it fires its own minimal report
 // rather than assuming ClientErrorReporter got a chance to attach.
 //
 // Next.js requires this file to render its own <html>/<body> and does not
 // include globals.css/theme.css here (see the Next docs on global-error), so
 // colors below are the design system's light/dark literals rather than the
-// custom properties the rest of the app reads — this page can't pick up the
+// custom properties the rest of the app reads - this page can't pick up the
 // app's own dark-mode toggle, so it follows the OS scheme like the docs say.
 import Link from "next/link";
 import { useEffect } from "react";
 
-import {
-  buildClientErrorReport,
-  describeThrownValue,
-} from "@/lib/clientErrorReport";
-import { isNativeApp } from "@/lib/nativePlatform";
-import { discardBody } from "@/lib/responseBody";
+import { createClientErrorSender } from "@/components/ClientErrorReporter";
 
-function reportRootError(error: Error) {
-  try {
-    const { name, message } = describeThrownValue(error);
-    const built = buildClientErrorReport({
-      kind: "error",
-      name,
-      message,
-      path: window.location.pathname,
-      shell: isNativeApp() ? "native" : "web",
-    });
-    if (!built) return;
-
-    const payload = JSON.stringify({
-      kind: built.kind,
-      name: built.name,
-      message: built.message,
-      path: built.route,
-      shell: built.shell,
-    });
-
-    const beacon = navigator.sendBeacon?.bind(navigator);
-    if (beacon?.("/api/client-error", new Blob([payload], { type: "application/json" }))) {
-      return;
-    }
-    void fetch("/api/client-error", {
-      method: "POST",
-      keepalive: true,
-      headers: { "content-type": "application/json" },
-      body: payload,
-    })
-      .then(discardBody)
-      .catch(() => {
-        // Reporting is best effort; a failed report is not itself worth reporting.
-      });
-  } catch {
-    // The reporter may never be the thing that throws.
-  }
-}
+const reportRootError = createClientErrorSender();
 
 export default function GlobalError({
   error,
@@ -70,11 +28,11 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error("[root layout error boundary]", error);
-    reportRootError(error);
+    reportRootError("error", error);
   }, [error]);
 
   return (
-    <html>
+    <html lang="en">
       <body className="pubmaxGlobalError">
         <style>{`
           .pubmaxGlobalError {

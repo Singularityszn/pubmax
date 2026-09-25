@@ -358,7 +358,9 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
           queued,
         });
         setOptimistic(settled.optimistic);
-        setActivePlanStopIndex(settled.cursor);
+        if (settled.cursor !== previousCursor || readActivePlan()?.stopIndex === optimisticCursor) {
+          setActivePlanStopIndex(settled.cursor);
+        }
         setNote(settled.note);
       };
 
