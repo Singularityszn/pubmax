@@ -27,8 +27,11 @@ const PROOF_SPECIES = (process.env.PUB_PAL_PROOF_SPECIES ?? "fox,robin")
   .map((value) => value.trim())
   .filter(Boolean);
 
+const PROOF_BROWSER_CHANNEL = process.env.PUB_PAL_PROOF_BROWSER_CHANNEL?.trim();
+
 test.use({
   ...(storageState ? { storageState } : {}),
+  ...(PROOF_BROWSER_CHANNEL ? { channel: PROOF_BROWSER_CHANNEL } : {}),
   permissions: ["microphone"],
   launchOptions: {
     args: [
