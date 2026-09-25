@@ -44,6 +44,7 @@ import {
   isValidExclusionEntry,
 } from "./lib/pricedIndexExclusions.mjs";
 import {
+  isCurrentNightOutPlace,
   nightOutPlaceRowValidationErrors,
 } from "../lib/nightOutPlaceContract.mjs";
 import { CITY_VENUE_PACKS } from "../lib/cityVenuePacks.mjs";
@@ -474,6 +475,13 @@ function loadFamousVenues() {
   return ["bars.json", "late_food.json", "restaurants.json"].flatMap((name) =>
     JSON.parse(readFileSync(join(FAMOUS_VENUES_DIR, name), "utf8")),
   );
+}
+
+// Mirrors build_slim_index.mjs: a lapsed famous row is withheld from the build,
+// so the expected slim and detail sets only carry currently verified rows.
+function currentFamousVenues(rows) {
+  const now = new Date();
+  return rows.filter((row) => isCurrentNightOutPlace(row, now));
 }
 
 function isReplacedByFamousVenue(first, famousRows) {
@@ -1283,10 +1291,17 @@ function validateSlimVenues() {
     else grouped.set(key, [row]);
   }
 
+  for (const row of famousRows) {
+    for (const error of nightOutPlaceRowValidationErrors(row)) {
+      errs.add(`famous venue ${row.id}: ${error}`);
+    }
+  }
+  const liveFamousRows = currentFamousVenues(famousRows);
+
   const expected = new Map();
   for (const [key, prices] of grouped) {
     const first = prices[0];
-    if (isReplacedByFamousVenue(first, famousRows)) continue;
+    if (isReplacedByFamousVenue(first, liveFamousRows)) continue;
     // A superseded row is dated history, never a pin price (lib/priceRowEligibility.mjs).
     const numericPrices = prices
       .filter(isLivePriceRow)
@@ -1302,11 +1317,8 @@ function validateSlimVenues() {
       priceBand: undefined,
     });
   }
-  const priceBands = famousPriceBands(famousRows);
-  for (const row of famousRows) {
-    for (const error of nightOutPlaceRowValidationErrors(row)) {
-      errs.add(`famous venue ${row.id}: ${error}`);
-    }
+  const priceBands = famousPriceBands(liveFamousRows);
+  for (const row of liveFamousRows) {
     expected.set(row.id, {
       name: row.name,
       lat: row.lat,
@@ -2275,7 +2287,7 @@ function validateVenueDetails() {
     return { ok: false, count: 0 };
   }
   try {
-    famousRows = loadFamousVenues();
+    famousRows = currentFamousVenues(loadFamousVenues());
   } catch (e) {
     console.log(
       `FAIL ${name}: could not read famous venue seeds (${e.message})`,

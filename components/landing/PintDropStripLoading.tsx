@@ -10,9 +10,8 @@ export default function PintDropStripLoading() {
       <div className="dropStripHead">
         <p className="eyebrow">
           <HandCoins size={15} strokeWidth={1.5} aria-hidden="true" />
-          Fresh from the taps
+          Pint drops
         </p>
-        <span className="dropStripHint">Newest community drops →</span>
       </div>
       <div className="dropStripRail">
         {Array.from({ length: 4 }, (_, index) => (

@@ -51,7 +51,7 @@ Rules the table obeys:
 | `/near` | Near you | Cheapest pints within a short walk. | Find my pint | Pick a patch |
 | `/today` | Today in London | What's on across London today. | Find my pint | Open the map |
 | `/tonight` | Tonight in London | What's on across London tonight. | Find my pint | Open the map |
-| `/out` | Out in London | What's on, sourced. | Open the map | Plan a night |
+| `/out` | Out in London | What's on tonight. | Open the map | Plan a night |
 | `/social` | Social | Crews and people who are already here. | Post (a verified account); Sign in (a stranger on the posts tab, the one exception to the opening rule); Open the map (a stranger on `?tab=discover`, and a stranger while `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`) | Find your lot |
 | `/plan` | Sort the outing | Describe the outing. We'll put it in order. | Sort it (submit the ask) | Guide me instead |
 | `/plan/[id]` | Your plan | (the plan's own name) | Send to the crew | Open the map |
@@ -74,7 +74,7 @@ Rules the table obeys:
 | `/messages` | Messages | Messages. | New message | Find your lot |
 | `/activity` | Activity | Activity. | Open the map | Find your lot |
 | `/moment` | Moment | Save a Moment. | Save this Moment | Back |
-| `/about` | Our story | (the founder line) | Open the map | Contact |
+| `/about` | About | (the founder line) | Open the map | Contact |
 | `/founders` | Founding members | The first hundred. | Open the map | Find your lot |
 | `/contributors` | Contributors | Contributor record. | Drop a pint | Open the map |
 | `/privacy` and `/terms` | Small print | How PUBMAXX handles your data. / The deal in plain English. | (none: a legal page has no action) | Contact |

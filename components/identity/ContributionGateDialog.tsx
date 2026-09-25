@@ -114,8 +114,8 @@ export function ContributionGateDialog({
             <h2 id="contribution-gate-title">Sign in to contribute</h2>
             <p>
               Contributions show your public handle, so you need an account
-              first. Email sign-in works even when Google and Apple are
-              unavailable.
+              first. Email sign-in works even when Google, Apple and
+              Microsoft are unavailable.
             </p>
             <SignInButton />
           </>

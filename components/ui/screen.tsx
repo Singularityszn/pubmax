@@ -46,7 +46,7 @@ export default function Screen({
   titleId,
   className,
 }: {
-  kicker: ReactNode;
+  kicker?: ReactNode;
   title: ReactNode;
   /** One line under the heading, or nothing. */
   lede?: ReactNode;
@@ -111,7 +111,7 @@ export default function Screen({
   return (
     <Tag className={classes} id={id} aria-labelledby={titleId}>
       <header className="screenHead">
-        <Kicker>{kicker}</Kicker>
+        {kicker ? <Kicker>{kicker}</Kicker> : null}
         <Heading className="screenTitle" id={titleId}>
           {title}
         </Heading>

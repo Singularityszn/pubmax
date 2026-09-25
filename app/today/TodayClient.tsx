@@ -312,7 +312,7 @@ function PicksCard({
               swapped for the quiet-night line, because we did not look. */}
           <p className="todayCardEmpty">
             {filteredPickCount > 0
-              ? "Tonight has listings, but none match your current preferences."
+              ? "Tonight has listings, but none match the filters you've set."
               : (state.reason ?? picksListLine(picksStatus, slot))}
           </p>
           {/* The compose action floats over this card's right cell on a phone,

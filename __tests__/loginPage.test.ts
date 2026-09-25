@@ -52,7 +52,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({
     loading: authState.current.loading,
     configured: authState.current.configured,
     clerkIntegrationConfigured: false,
-    socialProviders: { google: true, apple: true },
+    socialProviders: { google: true, apple: true , microsoft: false },
     signInWithGoogle: authActions.google,
     signInWithApple: authActions.apple,
     signInWithEmail: authActions.email,

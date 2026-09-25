@@ -60,11 +60,10 @@ describe("landing price honesty", () => {
   });
 
   it("keeps the saving beat as one column of plain words", () => {
-    // The prose section under the answer cards. It says what the product is
-    // worth in pounds and opens the map; it paints no second primary.
-    expect(copy.match(/aria-labelledby="worth-title"/g)).toHaveLength(1);
-    expect(copy).toContain("The cheapest listed pint near you, on one map.");
-    const worth = copy.match(/aria-labelledby="worth-title"[\s\S]*?<\/section>/)?.[0] ?? "";
+    // One measured savings line under the answer cards; no second hero claim.
+    expect(copy).toContain('aria-label="What it saves you"');
+    expect(copy).not.toContain("The cheapest listed pint near you, on one map.");
+    const worth = copy.match(/aria-label="What it saves you"[\s\S]*?<\/section>/)?.[0] ?? "";
     expect(worth).toContain("Open the map");
     expect(worth).not.toContain("data-primary-action");
     expect(worth).not.toMatch(/href="\/plan"/);

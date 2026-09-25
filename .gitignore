@@ -25,6 +25,7 @@ scripts/__pycache__/
 .tavily/
 test-results/
 playwright-report/
+evals/pal/scoreboard/
 artifacts/
 /coverage/
 e2e/screenshots/
@@ -70,6 +71,8 @@ skills_used_global.md
 # Wave J — commit Taste/Emil skills under skills/ (not machine .agents/)
 !skills/
 !skills/**
+.codex/
+.lavish/
 .codex-worktrees/
 
 # clerk configuration (can include secrets)

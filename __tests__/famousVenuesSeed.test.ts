@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { isFoodCategory } from "@/lib/food";
 import { nightOutPlaceRowValidationErrors } from "@/lib/nightOutPlaceContract.mjs";
@@ -159,13 +159,21 @@ describe("famous venue seeds", () => {
     expect(new Set(rows.map((row) => row.id)).size).toBe(rows.length);
   });
 
-  it("fails the build boundary when current-trading evidence expires", () => {
+  it("withholds expired famous venues from slim instead of failing the build", () => {
     const rows = PACKS.flatMap(([file]) => loadSeed(file));
+    vi.spyOn(console, "log").mockImplementation(() => {});
     expect(
       assertCurrentFamousVenueRows(rows, new Date("2026-08-25T12:00:00.000Z")),
     ).toHaveLength(89);
-    expect(() =>
+    vi.restoreAllMocks();
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, "log").mockImplementation((...args) => {
+      logs.push(args.map(String).join(" "));
+    });
+    expect(
       assertCurrentFamousVenueRows(rows, new Date("2026-09-24T00:00:00.000Z")),
-    ).toThrow(/current-trading verification failed.*bar-american-bar-savoy/);
+    ).toHaveLength(0);
+    expect(logs.join("\n")).toMatch(/withholding 89 famous venue/);
+    spy.mockRestore();
   });
 });

@@ -134,6 +134,8 @@ async function expectSheetInsideViewport(
   expect(footerBox).not.toBeNull();
   expect(footerBox!.y).toBeGreaterThanOrEqual(0);
   expect(footerBox!.y + footerBox!.height).toBeLessThanOrEqual(viewport!.height + 1);
+  const sheetBottom = await sheet.evaluate((element) => element.getBoundingClientRect().bottom);
+  expect(footerBox!.y + footerBox!.height).toBeGreaterThanOrEqual(sheetBottom - 1);
 }
 
 async function attachViewportShot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
