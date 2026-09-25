@@ -1,6 +1,19 @@
 import { expect, test } from "@playwright/test";
 
 const SUPABASE_HOST = "https://pubmaxx-e2e.supabase.co";
+// A production build hands every OAuth start on any other origin off to
+// pubmaxxing.com first (lib/siteUrl.ts canonicalAuthStartUrl), so the Azure
+// request is only made from the canonical origin. Serve that origin from the
+// local server so the spec reaches it without touching the network.
+const CANONICAL_ORIGIN = "https://pubmaxxing.com";
+
+function serveCanonicalOriginLocally(page: import("@playwright/test").Page, baseURL: string) {
+  return page.route(`${CANONICAL_ORIGIN}/**`, async (route) => {
+    const url = new URL(route.request().url());
+    const response = await route.fetch({ url: `${baseURL}${url.pathname}${url.search}` });
+    await route.fulfill({ response });
+  });
+}
 
 function stubSupabaseSettings(page: import("@playwright/test").Page, external: Record<string, boolean>) {
   return page.route(`${SUPABASE_HOST}/**`, async (route) => {
@@ -28,6 +41,9 @@ function stubSupabaseSettings(page: import("@playwright/test").Page, external: R
 }
 
 test.describe("Microsoft sign-in button", () => {
+  // A cached shell from a service worker would skip the canonical-origin route.
+  test.use({ serviceWorkers: "block" });
+
   test.beforeEach(async ({ page }) => {
     await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
     await page.route("**/_vercel/insights/script.js", (route) =>
@@ -41,9 +57,10 @@ test.describe("Microsoft sign-in button", () => {
     });
   });
 
-  test("shows Microsoft when Azure is enabled and starts Azure OAuth", async ({ page }) => {
+  test("shows Microsoft when Azure is enabled and starts Azure OAuth", async ({ page, baseURL }) => {
     await stubSupabaseSettings(page, { google: false, apple: false, azure: true, email: true });
-    await page.goto("/login");
+    await serveCanonicalOriginLocally(page, baseURL ?? "");
+    await page.goto(`${CANONICAL_ORIGIN}/login`);
 
     const microsoft = page.getByRole("button", { name: "Continue with Microsoft" });
     await expect(microsoft).toBeVisible();
@@ -58,7 +75,9 @@ test.describe("Microsoft sign-in button", () => {
     const params = new URL(authorize.url()).searchParams;
     expect(params.get("provider")).toBe("azure");
     expect(params.get("scopes")?.split(" ")).toEqual(expect.arrayContaining(["email", "openid", "profile"]));
-    expect(new URL(params.get("redirect_to") ?? "").pathname).toBe("/auth/callback");
+    const redirectTo = new URL(params.get("redirect_to") ?? "");
+    expect(redirectTo.origin).toBe(CANONICAL_ORIGIN);
+    expect(redirectTo.pathname).toBe("/auth/callback");
   });
 
   test("hides Microsoft when Azure is disabled", async ({ page }) => {
