@@ -32,7 +32,7 @@ export const MAP_ARRIVAL_BEARING_DURATION_MS = 1_000;
  * Below this, a bearing is the flat arrival rather than a rotation somebody
  * owns. A resumed session or a reader's own turn is left exactly as it is.
  */
-export const MAP_ARRIVAL_BEARING_EPSILON = 0.5;
+const MAP_ARRIVAL_BEARING_EPSILON = 0.5;
 
 // How the turn waits for the camera writers around it.
 //
