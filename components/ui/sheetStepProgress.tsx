@@ -2,7 +2,7 @@ import { Check } from "lucide-react";
 
 import "./sheetStepProgress.css";
 
-export type SheetStepState = "upcoming" | "current" | "settled" | "skipped";
+type SheetStepState = "upcoming" | "current" | "settled" | "skipped";
 
 export type SheetStep = {
   label: string;
