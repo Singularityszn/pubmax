@@ -106,6 +106,15 @@ describe("drinkSubtypeFromText", () => {
     expect(drinkSubtypeFromText("Tap water", "soft-drink")).toBeNull();
   });
 
+  it("does not join separate Pepsi and Diet Coke list items into Diet Pepsi", () => {
+    expect(drinkSubtypeFromText("Pepsi Diet", "soft-drink")?.id).toBe(
+      "soft-drink-diet-pepsi",
+    );
+    expect(drinkSubtypeFromText("Soft drink Soda, Sprite, Pepsi & Diet Coke", "soft-drink")?.id).toBe(
+      "soft-drink-diet-coke",
+    );
+  });
+
   // Spot-check against the real strings in data/pint_prices_app_dataset.csv.
   it.each([
     ["GUINNESS", "beer-stout"],

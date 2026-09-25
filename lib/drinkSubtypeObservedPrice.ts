@@ -6,32 +6,28 @@
 
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
-import { drinkSubtypeFromText, findSubtype, type DrinkSubtype } from "@/lib/drinkSubtypes";
+import {
+  drinkSubtypeFromText,
+  drinkSubtypeMembers,
+  findSubtype,
+  type DrinkSubtype,
+} from "@/lib/drinkSubtypes";
 import { namedLegacyPintPriceSource } from "@/lib/drinks";
 import type { PricedLandingPublisher } from "@/lib/pricedLanding";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { venueGroupingKey, type Venue, type VenuePrice } from "@/lib/venues";
 
-/** Zero-sugar cola brands aggregated by the default family chip. */
-export const ZERO_SUGAR_COLA_FAMILY = [
-  "soft-drink-coke-zero",
-  "soft-drink-diet-coke",
-  "soft-drink-pepsi-max",
-  "soft-drink-diet-pepsi",
-] as const;
-
-export const SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID = "soft-drink-zero-sugar-cola";
+const SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID = "soft-drink-zero-sugar-cola";
 
 /** Launch chips for the Soft drinks and water view; generic component accepts any subtype. */
 export const SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS = [
   SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID,
-  ...ZERO_SUGAR_COLA_FAMILY,
+  "soft-drink-coke-zero",
+  "soft-drink-diet-coke",
+  "soft-drink-pepsi-max",
+  "soft-drink-diet-pepsi",
   "soft-drink-still-water",
 ] as const;
-
-export function isZeroSugarColaFamilySubtypeId(subtypeId: string): boolean {
-  return subtypeId === SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID;
-}
 
 export type ObservedSubtypePrice = {
   drinkLabel: string;
@@ -113,28 +109,25 @@ export function selectObservedSubtypePriceForVenue(
   subtypeId: string,
   drinkUpdates: readonly DrinkPriceUpdate[] = [],
 ): ObservedSubtypePrice | null {
-  if (isZeroSugarColaFamilySubtypeId(subtypeId)) {
-    const candidates = ZERO_SUGAR_COLA_FAMILY.flatMap((memberId) => {
-      const hit = selectObservedSubtypePriceForVenue(venue, memberId, drinkUpdates);
-      return hit ? [hit] : [];
-    });
-    return candidates.sort(compareObservedSubtypePrices)[0] ?? null;
-  }
-
   const subtype = findSubtype(subtypeId);
   if (!subtype) return null;
+  const members = drinkSubtypeMembers(subtype);
 
   const candidates: ObservedSubtypePrice[] = [];
   for (const price of venue.prices) {
-    const hit = observedFromVenuePrice(price, subtype);
-    if (hit) candidates.push(hit);
+    for (const member of members) {
+      const hit = observedFromVenuePrice(price, member);
+      if (hit) candidates.push(hit);
+    }
   }
   const venueKey = venueDrinkUpdateKey(venue);
   if (venueKey) {
     for (const update of drinkUpdates) {
       if (update.venueKey !== venueKey) continue;
-      const hit = observedFromDrinkUpdate(update, subtype);
-      if (hit) candidates.push(hit);
+      for (const member of members) {
+        const hit = observedFromDrinkUpdate(update, member);
+        if (hit) candidates.push(hit);
+      }
     }
   }
 

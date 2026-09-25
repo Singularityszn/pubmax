@@ -25,7 +25,7 @@ export type SiteHarvestLedgerRow = {
 
 const SITE_HARVEST_LANE: UkPriceBundleLane = "site-harvest";
 
-export function resolveSiteHarvestVenueId(
+function resolveSiteHarvestVenueId(
   row: SiteHarvestLedgerRow,
   curatedOwners: ReadonlyMap<string, string>,
 ): string | null {

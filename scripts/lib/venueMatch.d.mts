@@ -16,7 +16,7 @@ export type DrinkUpdateRow = {
   venueKey: string;
   drinkName: string;
   category: string;
-  source?: { url?: string } | null;
+  source?: { label?: string; url?: string } | null;
   [key: string]: unknown;
 };
 
