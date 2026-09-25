@@ -1,0 +1,24 @@
+[
+  {
+    "id": "restaurant-fixture-seed-fallback",
+    "name": "Fixture Chop House",
+    "address": "1 Fixture Lane, London WC2E 7LB",
+    "borough": "Westminster",
+    "lat": 51.5108,
+    "lng": -0.1232,
+    "kind": "restaurant",
+    "sourceUrl": "https://example.com/menus",
+    "anchor": {
+      "kind": "signature_dish",
+      "label": "Fixture Pie",
+      "course": "mains",
+      "price": 21.5,
+      "observedAt": "2026-09-25",
+      "sourceUrl": "https://example.com/menus"
+    },
+    "story": {
+      "text": "A fixture restaurant that exists only for the seed fallback test.",
+      "sourceUrl": "https://example.com/history"
+    }
+  }
+]

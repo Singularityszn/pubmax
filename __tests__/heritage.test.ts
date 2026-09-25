@@ -22,6 +22,7 @@ import {
   __resetHarvestOverlayStore,
   harvestOverlayStore,
 } from "@/lib/harvestOverlayStore";
+import { currentFamousVenueIds } from "@/__tests__/helpers/currentFamousVenues";
 
 // These tests run fully offline: no OPENROUTER key, no Supabase, no network.
 // They pin two guarantees:
@@ -264,8 +265,12 @@ describe("POST /api/heritage", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.answer).not.toContain("1520");
+    // A lapsed famous row is withheld from the slim index, so the id no
+    // longer resolves and the kind falls back to a pub.
     expect(body.clarifyingQuestion).toBe(
-      "What would you like to know about this pub?",
+      currentFamousVenueIds().has("food-best-turkish-kebab")
+        ? "What would you like to know about this late-food venue?"
+        : "What would you like to know about this pub?",
     );
   });
 
