@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   # Serialize pubmax-mac workflows on this ref only (repo-wide group blocked other branches).
-  group: pubmax-mac-${{ github.ref }}
+  group: ${{ github.workflow }}-pubmax-mac-${{ github.ref }}
   cancel-in-progress: true
 
 
