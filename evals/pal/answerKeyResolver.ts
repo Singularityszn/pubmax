@@ -16,7 +16,7 @@ import type { PalEvalAnswerExpectations, PalEvalPublicCase } from "./types";
 import { offlineFetch } from "./offlineFetch";
 
 /** Routing constraints are hand-maintained; data-derived fields are computed below. */
-export const PAL_EVAL_ROUTING: Record<string, Partial<PalEvalAnswerExpectations>> = {
+const PAL_EVAL_ROUTING: Record<string, Partial<PalEvalAnswerExpectations>> = {
   "cheapest-camden": { expectedTools: ["cheapest_pint_near"] },
   "quiz-camden": { expectedTools: ["whats_on"], answerIncludes: ["quiz"] },
   "quiz-islington": { expectedTools: ["whats_on"], answerIncludes: ["quiz"] },
@@ -162,7 +162,7 @@ async function whatsOnFields(
 }
 
 /** Data-derived fields for answer-key.json. Does not call runAsk or runAskTool. */
-export async function resolveGeneratedAnswerKeyFields(
+async function resolveGeneratedAnswerKeyFields(
   caseDef: PalEvalPublicCase,
   ctx: ResolveAnswerKeyContext,
 ): Promise<Partial<PalEvalAnswerExpectations>> {
