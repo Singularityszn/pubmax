@@ -2,6 +2,7 @@ import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 import { rankConciergeVenues, type ConciergeVenue } from "@/lib/concierge/rank";
 import { buildWhatsOnAnswer, detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
+import { refineRoutedAskQuery } from "@/lib/ask/router";
 import { matchVenueByNameKeyless } from "@/lib/ask/venueResolution";
 import { filterRowsByArea, filterRowsByWeekday } from "@/lib/concierge/whatsOn";
 import { loadWhatsOn } from "@/lib/whatsOnStore";
@@ -81,7 +82,7 @@ function cardFields(
 async function firstSearchVenue(
   query: string,
   cityId: string,
-): Promise<{ venueId: string; price: number | null } | { minCards: number } | null> {
+): Promise<{ venueId: string; price: number | null } | null> {
   const venues = await loadConciergeVenues(cityId as "london");
   const parsed = await parseConciergeIntent(query, { skipModel: true });
   const ranked = rankConciergeVenues(venues, parsed.intent, { limit: 1 });
@@ -117,7 +118,7 @@ async function cheapestNearVenueName(
 async function firstWhatsOnCard(
   query: string,
   now: number,
-): Promise<{ venueId: string; price: number | null } | null> {
+): Promise<{ venueId: string; price: number | null } | { minCards: number } | null> {
   const detected = detectWhatsOnIntent(query);
   if (!detected) return null;
   const { rows, readStatus } = await loadWhatsOn(
@@ -145,7 +146,6 @@ async function firstWhatsOnCard(
   return {
     venueId,
     price: typeof item.priceGbp === "number" ? item.priceGbp : null,
-    minCards: 1,
   };
 }
 
@@ -167,7 +167,10 @@ export async function resolveGeneratedAnswerKeyFields(
   ctx: ResolveAnswerKeyContext,
 ): Promise<Partial<PalEvalAnswerExpectations>> {
   const cityId = caseDef.cityId ?? "london";
-  const query = caseDef.query;
+  // A short follow-up ("cheaper") is asked in the place of the prior user turn,
+  // exactly as runAsk refines it, so multi-turn cases resolve the same question.
+  const priorUser = [...(caseDef.turns ?? [])].reverse().find((turn) => turn.role === "user");
+  const query = refineRoutedAskQuery(caseDef.query, priorUser?.content);
 
   switch (caseDef.id) {
     case "cheapest-camden":

@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { resolveFullAnswerKeyEntry } from "@/evals/pal/answerKeyResolver";
+import { loadPalEvalSuite } from "@/evals/pal/loadSuite";
 import { runPalEvalSuite } from "@/evals/pal/runSuite";
 
 beforeEach(() => {
@@ -52,5 +54,22 @@ describe("Pal eval suite (deterministic)", () => {
     const scoreboard = await runPalEvalSuite({ mode: "deterministic" });
     const failures = scoreboard.results.filter((result) => !result.pass);
     expect(failures, failures.map((f) => f.id).join(", ")).toEqual([]);
+  });
+
+  it("regenerates the committed answer key unchanged from committed data", async () => {
+    const { cases, answerKey, now } = loadPalEvalSuite();
+    const handAuthored = ["answerIncludes", "anyTools", "priceTolerance"] as const;
+
+    for (const caseDef of cases) {
+      const committed = answerKey[caseDef.id];
+      const resolved = await resolveFullAnswerKeyEntry(caseDef, {
+        now,
+        cityId: caseDef.cityId ?? "london",
+      });
+      const kept = Object.fromEntries(
+        handAuthored.filter((key) => committed[key] !== undefined).map((key) => [key, committed[key]]),
+      );
+      expect({ ...resolved, ...kept }, caseDef.id).toEqual(committed);
+    }
   });
 });
