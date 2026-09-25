@@ -4,7 +4,8 @@
 // The rule is a query over auth.users, private_social_accounts and profiles, so
 // only running it proves it: a banned or suspended LIVE profile is withdrawn,
 // a DELETED (tombstoned) profile is not, even though deletion also marks its
-// Social account suspended, and an expired ban has lifted.
+// Social account suspended, an expired ban has lifted, and a withdrawn
+// profile's earlier handles are withdrawn with it.
 
 import { join } from "node:path";
 
@@ -63,6 +64,10 @@ beforeAll(async () => {
       profile_id uuid not null unique references public.profiles(id),
       ownership_state text not null default 'active'
     );
+    create table public.profile_handle_aliases (
+      profile_id uuid not null references public.profiles(id),
+      handle text not null
+    );
     insert into auth.users (id, banned_until) values
       ('${ID.bannedUser}', now() + interval '100 years'),
       ('${ID.expiredUser}', now() - interval '1 day'),
@@ -77,6 +82,11 @@ beforeAll(async () => {
       ('${ID.live}', 'active'),
       ('${ID.suspended}', 'suspended'),
       ('${ID.deleted}', 'suspended');
+    insert into public.profile_handle_aliases (profile_id, handle) values
+      ('${ID.banned}', 'karansdad'),
+      ('${ID.banned}', 'nikhil_old'),
+      ('${ID.live}', 'alice_old'),
+      ('${ID.deleted}', 'departed_old');
   `);
   session.applyFile(MIGRATION_PATH);
 }, 180_000);
@@ -86,12 +96,12 @@ afterAll(async () => {
 });
 
 describe.skipIf(skipReason !== null)("0157 public withdrawn profiles", () => {
-  it("answers live banned and suspended profiles, never deleted or lifted ones", () => {
+  it("answers every handle of live banned and suspended profiles, never deleted or lifted ones", () => {
     expect(
       session!.sql(
         "select string_agg(handle, ',' order by handle) from public.public_withdrawn_profiles()",
       ),
-    ).toBe("karansdad,nikhil_x");
+    ).toBe("karansdad,nikhil_old,nikhil_x");
   });
 
   it("is callable by the service role alone", () => {

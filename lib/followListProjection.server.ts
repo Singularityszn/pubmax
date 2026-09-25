@@ -29,23 +29,22 @@ export async function followListEntries(handles: string[]): Promise<FollowListEn
   }
   if (rows.length === 0) return rows;
 
+  const withdrawn = await withdrawnHandles(rows.map((row) => row.handle));
+  const visible = rows.filter((row) => !withdrawn.has(row.handle));
+  if (visible.length === 0) return visible;
+
   let cards: ReadonlyMap<string, ProfilePublicCard>;
-  let withdrawn: ReadonlySet<string>;
   try {
-    const handles = rows.map((row) => row.handle);
-    [cards, withdrawn] = await Promise.all([
-      profileStore().getPublicCardsByHandles(handles),
-      withdrawnHandles(handles),
-    ]);
+    cards = await profileStore().getPublicCardsByHandles(visible.map((row) => row.handle));
   } catch (error) {
     log("warn", "follow_list.enrichment_failed", {
-      handles: rows.length,
+      handles: visible.length,
       detail: error instanceof Error ? error.message : String(error),
     });
-    return rows;
+    return visible;
   }
 
-  return rows.filter((row) => !withdrawn.has(row.handle)).map((row) => {
+  return visible.map((row) => {
     const card = cards.get(row.handle);
     return card ? { ...row, ...card } : row;
   });

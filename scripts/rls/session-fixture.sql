@@ -37,15 +37,19 @@ grant usage on schema auth to anon, authenticated, service_role;
 
 -- The stand-in for GoTrue's own table. Only the columns a migration reads are
 -- here: `encrypted_password` because 0099 asks whether an account has one, and
--- nothing about it is ever selected out.
+-- nothing about it is ever selected out; `banned_until` because 0157 withdraws
+-- a banned account's profile from public view.
 create table if not exists auth.users (
   id uuid primary key,
   encrypted_password text,
+  banned_until timestamptz,
   created_at timestamptz not null default now()
 );
 
 alter table auth.users
   add column if not exists encrypted_password text;
+alter table auth.users
+  add column if not exists banned_until timestamptz;
 
 create or replace function auth.uid()
 returns uuid

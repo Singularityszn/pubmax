@@ -86,6 +86,16 @@ describe("account public access", () => {
     await expect(getPintDropById("named")).resolves.toBeNull();
   });
 
+  it("withholds drops logged under a withdrawn profile's earlier handle", async () => {
+    const karansdad = __seedMemoryOwnedProfile("karansdad", "user-karansdad");
+    __setMemoryProfileWithdrawn(karansdad.id, true, ["nikhil_old"]);
+    addPintDrop({ ...DROP, id: "old-name", handle: "nikhil_old" });
+    addPintDrop({ ...DROP, id: "alice", handle: "alice" });
+
+    const venue = await memoryPintDropStore.listVisible("the-crown");
+    expect(venue.map((drop) => drop.id)).toEqual(["alice"]);
+  });
+
   it("keeps a deleted author's retired drops public", async () => {
     withdraw("departed");
     __tombstoneMemoryProfile("departed");

@@ -9,6 +9,15 @@
 -- contributions stay public under the retired label (0150), so it is never
 -- returned here.
 --
+-- EVERY HANDLE THE PROFILE HAS WORN: a rename (0029) moves `profiles.handle`
+-- but never rewrites authored rows, so contributions made under an earlier
+-- handle carry it still. The function answers the current handle AND every
+-- `profile_handle_aliases` row of a withdrawn profile, one row per handle.
+--
+-- DEPLOY AHEAD OF THE APPLY: `lib/accountPublicAccess.server.ts` logs the
+-- missing function and falls back to a direct batched read of the same rule,
+-- so moderation holds either way; applying this makes it one round trip.
+--
 -- WHY A FUNCTION: `auth.users` is not exposed to PostgREST, and asking GoTrue
 -- per author fanned one public feed read out into one admin call per author.
 -- This answers every withdrawn profile in one round trip, and the set is as
@@ -30,22 +39,29 @@ stable
 security definer
 set search_path = ''
 as $$
-  select p.id, p.handle
-  from public.profiles p
-  join auth.users u on u.id = p.user_id
-  where p.tombstoned_at is null
-    and u.banned_until is not null
-    and u.banned_until > now()
+  with withdrawn as (
+    select p.id, p.handle
+    from public.profiles p
+    join auth.users u on u.id = p.user_id
+    where p.tombstoned_at is null
+      and u.banned_until is not null
+      and u.banned_until > now()
+    union
+    select p.id, p.handle
+    from public.private_social_accounts s
+    join public.profiles p on p.id = s.profile_id
+    where p.tombstoned_at is null
+      and s.ownership_state = 'suspended'
+  )
+  select w.id, w.handle from withdrawn w
   union
-  select p.id, p.handle
-  from public.private_social_accounts s
-  join public.profiles p on p.id = s.profile_id
-  where p.tombstoned_at is null
-    and s.ownership_state = 'suspended';
+  select a.profile_id, a.handle
+  from public.profile_handle_aliases a
+  join withdrawn w on w.id = a.profile_id;
 $$;
 
 comment on function public.public_withdrawn_profiles() is
-  'Live profiles withdrawn from public view: owner banned in auth, or Social account suspended. Tombstoned (deleted) profiles are excluded. Service role only.';
+  'Every handle (current and aliases) of live profiles withdrawn from public view: owner banned in auth, or Social account suspended. Tombstoned (deleted) profiles are excluded. Service role only.';
 
 revoke all on function public.public_withdrawn_profiles() from public;
 revoke all on function public.public_withdrawn_profiles() from anon;

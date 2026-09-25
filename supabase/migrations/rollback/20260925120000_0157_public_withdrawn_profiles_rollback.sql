@@ -1,10 +1,10 @@
 -- Rollback 0157: drop the withdrawn-profiles read.
 --
--- COST: `lib/accountPublicAccess.server.ts` fails soft when the function is
--- missing, so every banned or suspended account reappears on public surfaces
--- (profile, search, directory, feeds) until the function is restored or the
--- application stops asking. Sign-in still refuses a banned account, because
--- GoTrue enforces the ban itself. No data is lost: the function stored nothing.
+-- COST: `lib/accountPublicAccess.server.ts` logs the missing function and
+-- falls back to a direct batched read of the same rule, so banned and
+-- suspended accounts stay hidden, at the price of one GoTrue admin user list
+-- and a few table reads per check instead of one round trip. No data is lost:
+-- the function stored nothing.
 
 begin;
 
