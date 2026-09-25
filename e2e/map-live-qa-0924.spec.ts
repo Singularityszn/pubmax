@@ -6,19 +6,8 @@ const viewports = [
 ] as const;
 
 for (const viewport of viewports) {
-  test.describe(`live QA fixes ${viewport.name}`, () => {
+  test.describe(`map live QA fixes ${viewport.name}`, () => {
     test.use({ viewport: { width: viewport.width, height: viewport.height } });
-
-    test("tonight music heading has no leading whitespace", async ({ page }) => {
-      await page.goto("/tonight");
-      await expect(page.locator("#music-tonight-title")).toBeVisible({ timeout: 30_000 });
-      const text = await page.locator("#music-tonight-title").evaluate((node) => node.textContent);
-      expect(text).toBe("Live music tonight");
-      await page.screenshot({
-        path: "artifacts/live-qa-fixes-0924/after-tonight-" + viewport.name + ".png",
-        fullPage: true,
-      });
-    });
 
     test("/map/list opens the venue list on the map", async ({ page }) => {
       const response = await page.goto("/map/list");
@@ -32,10 +21,6 @@ for (const viewport of viewports) {
       });
       await expect(page.locator('[id^="map-venue-list-item-"]').first()).toBeVisible({
         timeout: 30_000,
-      });
-      await page.screenshot({
-        path: "artifacts/live-qa-fixes-0924/after-map-list-" + viewport.name + ".png",
-        fullPage: true,
       });
     });
 
@@ -70,10 +55,6 @@ for (const viewport of viewports) {
       expect(lng).toBeGreaterThan(-0.5);
       expect(lng).toBeLessThan(0.2);
       expect(camera!.zoom).toBeGreaterThan(10);
-      await page.screenshot({
-        path: "artifacts/live-qa-fixes-0924/after-map-cold-" + viewport.name + ".png",
-        fullPage: true,
-      });
     });
   });
 }

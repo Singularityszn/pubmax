@@ -2396,9 +2396,10 @@ export default function PubMap({
       !ukNationalBrowse &&
       initialShardReady
     ) {
-      // A placeholder viewport names nowhere, and its bounds are the whole
-      // world. Reading shards from it asked for the entire city before the map
-      // was interactive (lib/slimShards.ts openingLoadViewportFor).
+      // A viewport that names nowhere, such as a country-wide restored
+      // session, is answered with the city view. Reading shards from it asked
+      // for the entire city before the map was interactive (lib/slimShards.ts
+      // openingLoadViewportFor).
       const openingBounds =
         initialShardStart.settledBounds ??
         boundsForOpeningView(
