@@ -40,7 +40,7 @@ function availabilityFromClerkEnvironment(
   return {
     google: enabledStrategies.has("oauth_google"),
     apple: enabledStrategies.has("oauth_apple"),
-    microsoft: enabledStrategies.has("oauth_microsoft"),
+    microsoft: false,
   };
 }
 

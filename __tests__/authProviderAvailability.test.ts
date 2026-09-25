@@ -74,6 +74,22 @@ describe("Clerk social auth provider availability", () => {
     );
   });
 
+  it("never reports Microsoft from Clerk because Microsoft sign-in is Supabase Azure only", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", clerkPublishableKey());
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      clerkEnvironmentResponse({
+        oauth_google: { enabled: true },
+        oauth_microsoft: { enabled: true },
+      }),
+    );
+
+    await expect(loadClerkSocialAuthProviders(fetchImpl)).resolves.toEqual({
+      google: true,
+      apple: false,
+      microsoft: false,
+    });
+  });
+
   it("shows Apple automatically when Clerk enables oauth_apple", async () => {
     vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", clerkPublishableKey());
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
