@@ -256,11 +256,54 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
       allowed: false,
       reason: "robots-unreadable",
       evidence:
-        "robots.txt re-read 2026-09-03, as the brief required: https://www.nicholsonspubs.co.uk/robots.txt answers HTTP 403 with a Cloudflare `Attention Required!` challenge page, not a rules file. No permission can be read, so the estate STAYS REFUSED, unchanged from the 2026-08-09 verdict. Captain override 2026-09-21: London drink harvest CLIs (`scripts/lib/harvestMenuTransport.mjs`) may still fetch first-party drinks menus on hosts named in `LONDON_DRINK_CAPTAIN_OVERRIDE_HOSTS`, stamping `robotsDisallowed: true` on each row.",
-      checkedOn: PRICE_CHECKED_ON,
+        "robots.txt re-read live 2026-09-22: https://www.nicholsonspubs.co.uk/robots.txt answers HTTP 403 with a Cloudflare challenge page, not a rules file. No permission can be read, so the estate remains refused.",
+      checkedOn: "2026-09-22",
     },
     notes:
       "The one chain in the tree that DOES publish per-drink prices on the web, and the one we may not read through the general fence. That asymmetry is the whole argument for asking Mitchells & Butlers for permission or a feed: it is the single largest lever on price coverage. Until then no Nicholson's page is read through `isHarvestableOperatorUrl` alone.",
+  },
+  {
+    id: "youngs-menu-prices",
+    label: "Young's - pub menus",
+    url: "https://www.youngs.co.uk/our-pubs",
+    kind: "chain-menu-prices",
+    firstParty: true,
+    access: {
+      allowed: true,
+      evidence:
+        "robots.txt re-read 2026-09-22: HTTP 200, Yoast `User-agent: *` with empty Disallow and sitemap_index. Per-pub microsites are still checked against their own live robots response before each request.",
+      checkedOn: "2026-09-22",
+    },
+    notes:
+      "Per-pub WordPress microsites; soft drinks when a page states £ beside the drink name.",
+  },
+  {
+    id: "stonegate-menu-prices",
+    label: "Stonegate - pub menus (Slug and Lettuce and estate)",
+    url: "https://www.slugandlettuce.co.uk/sitemap.xml",
+    kind: "chain-menu-prices",
+    firstParty: true,
+    access: {
+      allowed: true,
+      evidence:
+        "robots.txt re-read 2026-09-22: HTTP 200, `User-agent: *` `Allow: /` with `Disallow: /home` only. Menu paths are still checked against their own live robots response before each request.",
+      checkedOn: "2026-09-22",
+    },
+    notes: "Slug and Lettuce /menus paths; prices only when printed on the page.",
+  },
+  {
+    id: "brewdog-menu-prices",
+    label: "BrewDog - bar menus",
+    url: "https://brewdog.com/uk/brewdog-bars",
+    kind: "chain-menu-prices",
+    firstParty: true,
+    access: {
+      allowed: true,
+      evidence:
+        "robots.txt re-read 2026-09-22: Shopify disallow list for checkout/cart only; bar pages permitted. Each bar-page request is still checked against its live robots response.",
+      checkedOn: "2026-09-22",
+    },
+    notes: "Bar menu lane only; shop SKUs are out of scope.",
   },
 
   // --- pub directories: which pubs a chain runs today -----------------------
@@ -448,41 +491,60 @@ export const REFUSED_ESTATE_HOSTS: readonly string[] = [
   "vintageinn.co.uk",
 ];
 
-/**
- * Captain override 2026-09-21: London drink-price harvest may read these hosts
- * when scripts record robots as disallowed but first-party menu prices are
- * needed for the demo. The estate refusal rows stay; this list is the narrow
- * exception that re-opens them for the drink harvest CLIs only.
- */
-export const LONDON_DRINK_CAPTAIN_OVERRIDE_CHECKED_ON = "2026-09-21";
-
-export const LONDON_DRINK_CAPTAIN_OVERRIDE_HOSTS: readonly string[] = [
-  "nicholsonspubs.co.uk",
-  ...REFUSED_ESTATE_HOSTS,
-  "jdwetherspoon.com",
-  "slugandlettuce.co.uk",
-  "beatone.co.uk",
-  "popworld.com",
-  "craftunionpubs.co.uk",
-  "brewdog.com",
-  "youngs.co.uk",
-  "fullers.co.uk",
-];
-
-export function hostHasLondonDrinkCaptainOverride(hostname: string): boolean {
-  const host = hostname.replace(/^www\./, "");
-  return LONDON_DRINK_CAPTAIN_OVERRIDE_HOSTS.includes(host);
-}
-
-/** Drink overlay rows only: captain override hosts plus the ordinary allow-list. */
+/** Drink overlay rows follow the same permission fence as every other harvest. */
 export function isHarvestableDrinkUpdateUrl(value: unknown): boolean {
   if (typeof value !== "string" || !value.trim()) return false;
+  let url: URL;
   try {
-    if (hostHasLondonDrinkCaptainOverride(new URL(value.trim()).hostname)) return true;
+    url = new URL(value.trim());
   } catch {
     return false;
   }
-  return isHarvestableOperatorUrl(value);
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  if (url.username || url.password || namesOurOwnNetwork(url.hostname)) return false;
+  return isHarvestableOperatorUrl(url.href);
+}
+
+/**
+ * A chain menu transport is bound to one recorded publisher and its explicitly
+ * associated first-party pub sites. Callers pass associated hosts only after
+ * joining them to the publisher's curated venue records.
+ */
+export function isHarvestableChainMenuUrl(
+  value: unknown,
+  sourceId: string,
+  associatedHosts: readonly string[] = [],
+): boolean {
+  const source = HARVEST_SOURCES.find(
+    (row) => row.id === sourceId && row.kind === "chain-menu-prices",
+  );
+  if (!source?.access.allowed || !isHarvestableDrinkUpdateUrl(value)) return false;
+
+  let url: URL;
+  try {
+    url = new URL(String(value).trim());
+  } catch {
+    return false;
+  }
+  if (url.port && !((url.protocol === "http:" && url.port === "80") || (url.protocol === "https:" && url.port === "443"))) {
+    return false;
+  }
+
+  const normalizeHost = (host: string) => host.toLowerCase().replace(/^www\./, "");
+  const sourceHosts = [source.url, ...(source.renderedMenuHosts ?? [])]
+    .map((entry) => {
+      try {
+        return normalizeHost(new URL(entry).hostname);
+      } catch {
+        return "";
+      }
+    })
+    .filter(Boolean);
+  const allowedHosts = new Set([
+    ...sourceHosts,
+    ...associatedHosts.map(normalizeHost),
+  ]);
+  return allowedHosts.has(normalizeHost(url.hostname));
 }
 
 /**

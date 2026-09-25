@@ -129,6 +129,7 @@ describe("local refresh provider response contracts", () => {
     ).resolves.toEqual({
       markdown: "## Drinks\n\n[Beer list](https://example.com/drinks)",
       links: ["https://example.com/drinks"],
+      finalUrl: "https://example.com/menu",
     });
   });
 
@@ -141,6 +142,7 @@ describe("local refresh provider response contracts", () => {
     const renderBrowserPage = vi.fn().mockResolvedValue({
       markdown: "### Draught Beer\n\n#### Lager\n\n£6.20",
       links: ["https://example.com/drinks"],
+      finalUrl: "https://example.com/menu",
     });
 
     await expect(
@@ -154,11 +156,56 @@ describe("local refresh provider response contracts", () => {
     ).resolves.toEqual({
       markdown: "### Draught Beer\n\n#### Lager\n\n£6.20",
       links: ["https://example.com/drinks"],
+      finalUrl: "https://example.com/menu",
     });
     expect(renderBrowserPage).toHaveBeenCalledWith(
       "wss://browser.example/session",
       "https://example.com/menu",
     );
+  });
+
+  it.each([
+    {
+      job: "plain-page" as const,
+      environment: { TAVILY_API_KEY: "secret-value" },
+      provider: "tavily",
+      fetchImpl: vi.fn().mockResolvedValue(
+        Response.json({
+          results: [{ raw_content: "## Drinks\n\nLager £6.20" }],
+          failed_results: [],
+        }),
+      ),
+      renderBrowserPage: undefined,
+    },
+    {
+      job: "rendered-menu" as const,
+      environment: { BROWSERBASE_API_KEY: "secret-value" },
+      provider: "browserbase",
+      fetchImpl: vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ connectUrl: "wss://browser.example/session" }), {
+          status: 201,
+        }),
+      ),
+      renderBrowserPage: vi.fn().mockResolvedValue({
+        markdown: "## Drinks\n\nLager £6.20",
+        links: [],
+      }),
+    },
+  ])("fails closed when $provider omits the resolved final URL", async (fixture) => {
+    await expect(
+      fetchRefreshPage({
+        job: fixture.job,
+        url: "https://example.com/menu",
+        environment: fixture.environment,
+        fetchImpl: fixture.fetchImpl,
+        ...(fixture.renderBrowserPage
+          ? { renderBrowserPage: fixture.renderBrowserPage }
+          : {}),
+      }),
+    ).rejects.toMatchObject({
+      provider: fixture.provider,
+      message: `${fixture.provider} returned no resolved final URL for https://example.com/menu`,
+    });
   });
 
   it("does not turn an empty or failed extraction into an honest zero-row page", async () => {

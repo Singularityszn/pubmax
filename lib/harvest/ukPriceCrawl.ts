@@ -128,7 +128,13 @@ const CATEGORY_WORDS: ReadonlyArray<{ category: DrinkCategory; pattern: RegExp }
   {
     category: "alcohol-free",
     pattern:
-      /\b(alcohol[- ]free|non[- ]alcoholic|no[- ]and[- ]low|0\.0%|0%\s*abv|lucky saint|erdinger alkoholfrei|guinness 0|heineken 0|becks blue)\b/i,
+      /\b(non[- ]alcoholic\s+ginger\s+beer|alcohol[- ]free|non[- ]alcoholic|no[- ]and[- ]low|0\.0%|0%\s*abv|lucky saint|erdinger alkoholfrei|guinness 0|heineken 0|becks blue)\b/i,
+  },
+  {
+    // Crabbie's is explicitly sold as alcoholic ginger beer. The generic
+    // ``ginger beer`` exception below must not erase that stronger label.
+    category: "beer",
+    pattern: /(?<!non[- ])\balcoholic\s+ginger\s+beer\b/i,
   },
   {
     category: "cocktail",

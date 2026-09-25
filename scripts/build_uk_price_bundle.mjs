@@ -55,14 +55,12 @@ import {
 import { isDemoDrinkProvenance } from "@/lib/drinks";
 import {
   isHarvestableDrinkUpdateUrl,
-  isHarvestableOperatorUrl,
 } from "@/lib/harvest/sourcePolicy";
 import { estimateForPub } from "@/lib/priceEstimate";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
 import {
   bundleRowSupersedes,
   isValidUkPriceBundleRow,
-  ukPriceBundleCollectKey,
   UK_PRICE_BUNDLE_VERSION,
 } from "@/lib/ukPriceBundle";
 import { stableVenueIdFromKey } from "@/lib/venues";

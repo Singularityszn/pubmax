@@ -85,18 +85,20 @@ export const GK_SLUG_HINTS = {
 
 export function resolveVenueKeyFromHints(hints, indexes) {
   if (!hints?.length) return null;
-  let best = null;
+  let bestKeys = [];
   let bestScore = 0;
-  for (const [norm, keyList] of indexes.nameToKeys.entries()) {
-    const row = indexes.rowsByKey.get(keyList[0]);
+  for (const [key, row] of indexes.rowsByKey.entries()) {
+    const norm = normalisePubName(row?.pub_name ?? "");
     const haystack = `${norm} ${normalisePubName(row?.address ?? "")}`;
     const score = hints.filter((h) => haystack.includes(h)).length;
     if (score > bestScore && score >= Math.min(2, hints.length)) {
       bestScore = score;
-      best = keyList[0];
+      bestKeys = [key];
+    } else if (score > 0 && score === bestScore && score >= Math.min(2, hints.length)) {
+      bestKeys.push(key);
     }
   }
-  return best;
+  return bestKeys.length === 1 ? bestKeys[0] : null;
 }
 
 export function resolveVenueKeyFromPubName(pubName, indexes) {
@@ -104,7 +106,7 @@ export function resolveVenueKeyFromPubName(pubName, indexes) {
   const norm = normalisePubName(pubName);
   const exact = indexes.nameToKeys.get(norm);
   if (exact?.length === 1) return exact[0];
-  if (exact?.length > 1) return exact[0];
+  if (exact?.length > 1) return null;
 
   const tokens = norm.split(" ").filter((t) => t.length > 2);
   return resolveVenueKeyFromHints(tokens, indexes);
@@ -124,11 +126,13 @@ export function slugFromMbplcDrinksUrl(url) {
 export function mergeDrinkUpdates(existing, incoming) {
   const byKey = new Map();
   for (const row of existing) {
-    const k = `${row.venueKey}|${row.drinkName}|${row.category}|${row.source?.url ?? ""}`;
+    const publisher = row.source?.label?.trim().toLowerCase() || row.source?.url || "";
+    const k = `${row.venueKey}|${row.drinkName}|${row.category}|${publisher}`;
     byKey.set(k, row);
   }
   for (const row of incoming) {
-    const k = `${row.venueKey}|${row.drinkName}|${row.category}|${row.source?.url ?? ""}`;
+    const publisher = row.source?.label?.trim().toLowerCase() || row.source?.url || "";
+    const k = `${row.venueKey}|${row.drinkName}|${row.category}|${publisher}`;
     byKey.set(k, row);
   }
   return [...byKey.values()];

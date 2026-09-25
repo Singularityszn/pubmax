@@ -7,7 +7,6 @@
 import { chainPintReadingFromUk } from "../../../lib/harvest/chainMenuPrices.ts";
 import { extractPintPrices, pintPricesFromUkReading } from "../../../lib/harvest/tavilyPintPrices.ts";
 import {
-  extractVenueDrinkPrices,
   extractVenueDrinkPricesWithReader,
   venueDrinkPricesFromUkReading,
 } from "../../../lib/harvest/tavilyVenueDrinkPrices.ts";
@@ -18,8 +17,6 @@ import {
 } from "../../../lib/harvest/ukPriceCrawl.ts";
 
 export { CATEGORY_PRICE_BANDS };
-import { readVenueDrinkPricesJudged } from "../../../lib/harvest/ukPriceJudgment.server.ts";
-
 export function typesafeKeyConfigured() {
   return Boolean(process.env.TYPESAFE_API_KEY?.trim());
 }
@@ -30,6 +27,9 @@ export async function readVenueDrinkPricesForHarvest(html, ctx) {
   if (!typesafeKeyConfigured()) {
     return { reading: readVenueDrinkPrices(html), review: [] };
   }
+  const { readVenueDrinkPricesJudged } = await import(
+    "../../../lib/harvest/ukPriceJudgment.server.ts"
+  );
   const judged = await readVenueDrinkPricesJudged(html, { pubName, pageUrl });
   const { review, ...reading } = judged;
   return { reading, review };

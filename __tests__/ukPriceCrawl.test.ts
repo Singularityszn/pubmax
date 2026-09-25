@@ -138,6 +138,17 @@ describe("what a page states", () => {
 
   it("knows a ginger ale is a soft drink and a measure is not a drink", () => {
     expect(categoryFor("Ginger Ale")).toBe("soft-drink");
+    expect(categoryFor("Crabbies Alcoholic ginger beer 3.4%")).toBe("beer");
+    expect(categoryFor("Non-alcoholic ginger beer")).toBe("alcohol-free");
+    expect(
+      readVenueDrinkPrices("<p>Crabbies Alcoholic ginger beer 3.4% &pound;5.00</p>").kept,
+    ).toEqual([
+      expect.objectContaining({
+        category: "beer",
+        drinkLabel: "Crabbies Alcoholic ginger beer 3.4%",
+        priceGbp: 5,
+      }),
+    ]);
     // `pint` names a glass, not what is in it, so a lemonade sold by the pint
     // stays a soft drink.
     expect(categoryFor("Pepsi Max / Lemonade 16oz, Pint")).toBe("soft-drink");
