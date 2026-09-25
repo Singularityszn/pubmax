@@ -221,8 +221,10 @@ function harnessProcessUsesDataDir(dataDir) {
 }
 
 /**
- * Kills harness orphans (postmaster parent is init) and reaps their SysV
- * segments. Never touches a cluster whose parent is still alive.
+ * Kills harness orphans (postmaster parent is init), removes harness data
+ * dirs whose recorded postmaster is dead and no initdb or postgres still
+ * uses, and reaps their SysV segments. Never touches a cluster whose parent
+ * is still alive.
  */
 export function sweepPubmaxHarnessOrphans() {
   const killed = new Set();
