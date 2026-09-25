@@ -217,6 +217,26 @@ function profileActor(profileId: string): string {
   return `profile:${profileId}`;
 }
 
+/** push_tokens are identity-free; QA rows are reached via Step Out nudge prefs. */
+async function deleteQaPushTokens(
+  admin: Admin,
+  profiles: readonly ProfileRow[],
+): Promise<void> {
+  const tokens = new Set<string>();
+  for (const profile of profiles) {
+    const prefs = await selectRows(admin, "step_out_nudge_prefs", "subscription_token", [
+      ["owner_actor", profileActor(profile.id)],
+    ]);
+    for (const row of prefs) {
+      const token = stringValue(row, "subscription_token");
+      if (token) tokens.add(token);
+    }
+  }
+  for (const token of tokens) {
+    await deleteRows(admin, "push_tokens", [["token", token]]);
+  }
+}
+
 async function cleanupQaData(
   admin: Admin,
   userId: string | null,
@@ -323,6 +343,8 @@ async function cleanupQaData(
     await admin.from("conversations").delete().in("id", conversationIds).then(({ error }) => assertRequest("deleting conversations", error));
   }
 
+  await deleteQaPushTokens(admin, profiles);
+
   if (userId) {
     for (const [table, column] of [
       ["adult_self_assertions", "user_id"],
@@ -332,7 +354,6 @@ async function cleanupQaData(
       ["night_memories", "owner_id"],
       ["pub_pals", "owner_id"],
       ["pub_pal_voice_usage", "owner_id"],
-      ["push_tokens", "user_id"],
       ["plans", "owner_user_id"],
       ["plan_crew_members", "user_id"],
       ["social_oauth_states", "owner_id"],

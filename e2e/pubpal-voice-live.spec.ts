@@ -1,6 +1,12 @@
 import { mkdir, writeFile } from "node:fs/promises";
 
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type BrowserContext,
+  type Page,
+} from "@playwright/test";
 
 // Live Pub Pal proof against a real deployment with ElevenLabs configured.
 //
@@ -94,7 +100,10 @@ async function setPalSpecies(request: APIRequestContext, bearer: string, species
   expect(patch.status()).toBe(200);
 }
 
-async function runVoiceSession(page: Page, species: string) {
+async function runVoiceSession(page: Page, context: BrowserContext, species: string) {
+  const origin = new URL(LIVE_PROOF!).origin;
+  await context.grantPermissions(["microphone"], { origin });
+
   const started = Date.now();
   const frames: VoiceFrame[] = [];
   page.on("websocket", (socket) => {
@@ -224,7 +233,11 @@ test.describe("Pub Pal live voice", () => {
     await page.screenshot({ path: `${EVIDENCE_DIR}/typed-chat.png`, fullPage: true });
   });
 
-  test("a person talks to the Pal in the browser and hears it answer", async ({ page, request }) => {
+  test("a person talks to the Pal in the browser and hears it answer", async ({
+    page,
+    request,
+    context,
+  }) => {
     requireProofEnv("PUB_PAL_PROOF_STORAGE_STATE");
     requireProofEnv("PUB_PAL_PROOF_WAV");
     const bearer = requireProofEnv("PUB_PAL_PROOF_BEARER");
@@ -248,7 +261,7 @@ test.describe("Pub Pal live voice", () => {
         data: { action: "release", durationSeconds: 0 },
       });
 
-      const evidence = await runVoiceSession(page, species);
+      const evidence = await runVoiceSession(page, context, species);
       sessions.push({ species, voiceId, ...evidence });
     }
 
