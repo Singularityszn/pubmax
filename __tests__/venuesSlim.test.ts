@@ -226,9 +226,7 @@ describe("venues_slim.json", () => {
       (row) =>
         row.kind === "bar" || row.kind === "food" || row.kind === "restaurant",
     );
-    expect(famous).toHaveLength(
-      expectedSlimFamousCounts(new Date("2026-09-25T12:00:00.000Z")).total,
-    );
+    expect(famous).toHaveLength(expectedSlimFamousCounts().total);
     for (const row of famous) {
       expect(hasValidFamousVenueFields(row as Record<string, unknown>)).toBe(
         true,
@@ -405,9 +403,7 @@ describe("venues_slim.json", () => {
     const bars = rows.filter((row) => row.kind === "bar");
     const food = rows.filter((row) => row.kind === "food");
     const restaurants = rows.filter((row) => row.kind === "restaurant");
-    const expected = expectedSlimFamousCounts(
-      new Date("2026-09-25T12:00:00.000Z"),
-    );
+    const expected = expectedSlimFamousCounts();
     expect(bars).toHaveLength(expected.bar);
     expect(food).toHaveLength(expected.food);
     expect(restaurants).toHaveLength(expected.restaurant);
