@@ -246,17 +246,25 @@
 .planVibe h2,
 .planShare h2 { margin: 0; font-size: clamp(1.65rem, 4vw, 2.8rem); line-height: 1; }
 
-.planSummary__rail {
+.planRoute__stopsTrack {
+  position: relative;
+  margin-top: 42px;
+}
+
+/* The route spine belongs to the stops only (#1539), never the crew card. */
+.planRoute__stopsTrack .planSummary__rail {
   position: absolute;
   left: clamp(46px, 7vw, 78px);
-  top: 120px;
-  bottom: 56px;
+  top: 0;
+  bottom: 0;
   width: 3px;
   border-radius: 2px;
   background: var(--plan-accent);
 }
 
-.planSummary__stops { list-style: none; margin: 42px 0 0; padding: 0; display: grid; gap: 14px; }
+
+.planSummary__stops { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.planRoute__stopsTrack > .planSummary__stops { margin: 0; }
 .planSummary__stops li { min-height: 92px; display: grid; grid-template-columns: 58px 1fr; gap: 22px; align-items: center; position: relative; }
 .planSummary__marker {
   z-index: 1;
@@ -931,8 +939,48 @@
 .planComposer__context { margin: 18px 0 0; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .planComposer__context legend { width: 100%; margin-bottom: 2px; }
 .planComposer__contextNote { width: 100%; margin: 0 0 2px; color: var(--muted); font-size: 0.78rem; line-height: 1.4; }
-.planComposer__context label { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--control-radius, 14px); background: var(--panel); }
-.planComposer__context select, .planComposer__context input { min-width: 0; max-width: 100%; width: auto; min-height: 44px; padding: 4px; border: 0; background: transparent; color: var(--ink); font: inherit; font-weight: 760; }
+.planComposer__context label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: min(100%, 10.5rem);
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius, 14px);
+  background: var(--panel);
+}
+.planComposer__context label:has(> input) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+.planComposer__context select,
+.planComposer__context input {
+  min-width: 0;
+  max-width: 100%;
+  width: auto;
+  min-height: 44px;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 760;
+}
+.planComposer__context select {
+  flex: 1 1 0;
+  padding-right: calc(var(--control-pad-x, 14px) + 14px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 14px) calc(50% - 2px), calc(100% - 9px) calc(50% - 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
 .planComposer__context input { width: 54px; }
 .planComposer__srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .planComposer__coverage { grid-column: 1 / -1; margin: -4px 0 2px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -1055,7 +1103,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planIntake__tune { grid-column: 1 / -1; width: 100%; }
   .planComposer__concierge { grid-column: 1; }
   .planComposer__conciergeInput { grid-template-columns: 1fr; }
-  .planComposer__context { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .planComposer__context { display: grid; grid-template-columns: 1fr; }
   .planComposer__context legend,
   .planComposer__contextNote,
   .planComposer__context label:first-of-type { grid-column: 1 / -1; }
