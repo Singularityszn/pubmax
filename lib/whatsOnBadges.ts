@@ -167,10 +167,20 @@ export function laneKindFacets(rows: readonly WhatsOnRow[]): WhatsOnKindFacet[] 
   }));
 }
 
+// A listing family is one event or offer across every pub that carries it: one
+// fixture fanned across 58 Greene King pubs is one family of 58 rows.
+function laneFamilyKey(row: WhatsOnRow): string {
+  return `${row.kind}\u0000${row.title.normalize("NFKC").toLocaleLowerCase("en-GB").trim().replace(/\s+/g, " ")}`;
+}
+
 /**
  * Derive lane cards from whats-on rows, preserving the incoming order (the
  * store already sorts by nearness when `near` is supplied) and capping at
  * `limit` (default 5, per the PRD's "3–5 nearby cards").
+ *
+ * The cap takes the first row of every family before a second row of any, so
+ * one fixture screened at many pubs cannot fill the lane and hide the other
+ * fixtures on tonight. Leftover slots go to the remaining rows in order.
  *
  * When `near` is provided, each card with venue coords gets a haversine
  * "~N min walk" label — same estimate as `/tonight`, never an N-row journey
@@ -182,8 +192,20 @@ export function laneCardsFromRows(
 ): WhatsOnLaneCard[] {
   const limit = typeof opts.limit === "number" && opts.limit > 0 ? opts.limit : 5;
   const near = opts.near ?? null;
-  const cards: WhatsOnLaneCard[] = [];
+  const seenFamilies = new Set<string>();
+  const firstOfFamily: WhatsOnRow[] = [];
+  const repeats: WhatsOnRow[] = [];
   for (const row of rows) {
+    const family = laneFamilyKey(row);
+    if (seenFamilies.has(family)) {
+      repeats.push(row);
+    } else {
+      seenFamilies.add(family);
+      firstOfFamily.push(row);
+    }
+  }
+  const cards: WhatsOnLaneCard[] = [];
+  for (const row of [...firstOfFamily, ...repeats]) {
     const meta = WHATS_ON_KIND_META[row.kind];
     const card: WhatsOnLaneCard = {
       id: row.id,
