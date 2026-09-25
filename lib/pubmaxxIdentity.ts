@@ -81,40 +81,47 @@ function normalizedIdentityText(raw: string): string {
   return raw.trim().replace(/^@/, "").toLowerCase();
 }
 
-function compactIdentityText(raw: string): string {
-  return normalizedIdentityText(raw).replace(/[^a-z0-9]+/g, "");
-}
-
-function handleContainsBlockedTerm(handle: string): boolean {
-  for (const term of BLOCKED_TERMS) {
-    if (handle.includes(term)) return true;
-  }
-  return false;
-}
-
-function violatesOwnerKaranPolicy(compact: string): boolean {
-  if (!compact.includes("karan")) return false;
-  for (const stem of KARAN_STEMS) {
-    for (const term of KARAN_FAMILY_TERMS) {
-      if (compact.includes(`${stem}${term}`) || compact.includes(`${term}${stem}`)) {
-        return true;
-      }
-    }
-  }
+function containsBlockedTerm(compact: string): boolean {
   for (const term of BLOCKED_TERMS) {
     if (compact.includes(term)) return true;
   }
   return false;
 }
 
+function isKaranStem(token: string): boolean {
+  return (KARAN_STEMS as readonly string[]).includes(token);
+}
+
+function isKaranFamilyTerm(token: string): boolean {
+  return (KARAN_FAMILY_TERMS as readonly string[]).includes(token);
+}
+
+/** One word that is a Karan stem joined to a family term: karansdad, xkarandad, dadkaran. */
+function isKaranFamilyCompound(token: string): boolean {
+  return KARAN_STEMS.some((stem) =>
+    KARAN_FAMILY_TERMS.some(
+      (term) => token.endsWith(`${stem}${term}`) || token.startsWith(`${term}${stem}`),
+    ),
+  );
+}
+
+/**
+ * Karan plus a family word, matched word by word so a real surname that only
+ * starts with a family term (Dadlani, Momin, Sisodia) stays available.
+ */
+function violatesOwnerKaranPolicy(normalized: string): boolean {
+  if (!normalized.includes("karan")) return false;
+  const tokens = normalized.split(/[^a-z]+/).filter(Boolean);
+  if (tokens.some(isKaranFamilyCompound)) return true;
+  return tokens.some(isKaranStem) && tokens.some(isKaranFamilyTerm);
+}
+
 function violatesIdentityPolicy(raw: string): boolean {
   const normalized = normalizedIdentityText(raw);
-  if (!normalized) return false;
-  const compact = compactIdentityText(raw);
-  if (handleContainsBlockedTerm(normalized) || handleContainsBlockedTerm(compact)) {
-    return true;
-  }
-  return violatesOwnerKaranPolicy(compact);
+  return (
+    containsBlockedTerm(normalized.replace(/[^a-z0-9]+/g, "")) ||
+    violatesOwnerKaranPolicy(normalized)
+  );
 }
 
 export type DisplayNameAssessment =
@@ -154,7 +161,6 @@ export function assessPubmaxxHandle(raw: unknown): HandleAssessment {
       error: "Use 3–30 letters, numbers, or underscores.",
     };
   }
-  const pieces = handle.split("_").filter(Boolean);
   if (isReservedContributorHandle(handle)) {
     return {
       ok: false,
@@ -165,9 +171,7 @@ export function assessPubmaxxHandle(raw: unknown): HandleAssessment {
   if (
     RESERVED_EXACT.has(handle) ||
     RESERVED_BRAND_PATTERN.test(handle) ||
-    pieces.some((piece) => BLOCKED_TERMS.has(piece)) ||
-    handleContainsBlockedTerm(handle) ||
-    violatesOwnerKaranPolicy(compactIdentityText(handle))
+    violatesIdentityPolicy(handle)
   ) {
     return { ok: false, reason: "reserved", error: "That handle is reserved." };
   }

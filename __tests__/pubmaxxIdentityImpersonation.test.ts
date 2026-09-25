@@ -23,7 +23,6 @@ describe("owner impersonation handle policy", () => {
     },
   );
 
-
   it.each(["karan_mom", "karan.dad", "dadkaran"])(
     "rejects adjacent family impersonation handle %s",
     (handle) => {
@@ -34,17 +33,28 @@ describe("owner impersonation handle policy", () => {
   it.each(["person", "reason", "samson", "skaran"])(
     "does not reject unrelated handle %s for substring family terms",
     (handle) => {
-      const result = assessPubmaxxHandle(handle);
-      if (handle === "skaran") {
-        expect(result.ok).toBe(true);
-        return;
-      }
-      expect(result.ok).toBe(true);
+      expect(assessPubmaxxHandle(handle)).toEqual({ ok: true, handle });
     },
   );
 
-  it("rejects matching display names", () => {
-    expect(assessPubmaxxDisplayName("Karan's dad")).toMatchObject({ ok: false });
-    expect(assessPubmaxxDisplayName("Night Owl")).toMatchObject({ ok: true });
-  });
+  it.each(["karan_dadlani", "karan_sisodia", "karan_momin", "karansonawane", "karandadlani"])(
+    "does not reject handle %s whose surname only starts with a family term",
+    (handle) => {
+      expect(assessPubmaxxHandle(handle)).toEqual({ ok: true, handle });
+    },
+  );
+
+  it.each(["Karan's dad", "Karan dad", "karan_dad", "Dad of Karan", "KaransDad", "The real karansdad"])(
+    "rejects display name %s",
+    (name) => {
+      expect(assessPubmaxxDisplayName(name)).toMatchObject({ ok: false });
+    },
+  );
+
+  it.each(["Night Owl", "Karan Dadlani", "Karan Momin", "Karan Sisodia", "Karan Sonawane"])(
+    "accepts display name %s",
+    (name) => {
+      expect(assessPubmaxxDisplayName(name)).toEqual({ ok: true, displayName: name });
+    },
+  );
 });

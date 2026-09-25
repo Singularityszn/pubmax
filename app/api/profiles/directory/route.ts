@@ -124,22 +124,23 @@ export async function GET(request: Request): Promise<Response> {
       limit: Math.min(limit + 1, MAX_LIMIT + 1),
       ...(afterHandle ? { afterHandle } : {}),
     });
-    const live = await filterProfilesWithdrawnFromPublic(
-      rows.filter((row) => Boolean(row.userId) && !isProfileTombstoned(row)),
+    const live = rows.filter(
+      (row) => Boolean(row.userId) && !isProfileTombstoned(row),
     );
-    // The window this page examined. Discovery narrows what is SHOWN out of it,
-    // never which rows it looked at, so the cursor keeps its old meaning and no
-    // account can be paged over.
+    // The window this page examined. Discovery and moderation narrow what is
+    // SHOWN out of it, never which rows it looked at, so the cursor keeps its
+    // old meaning and no account can be paged over.
     const examined = live.slice(0, limit);
     const nextCursor = live.length > examined.length && examined.length > 0
       ? examined[examined.length - 1]!.handle
       : null;
-    const page = discoverableRows(examined, following);
+    const visible = await filterProfilesWithdrawnFromPublic(examined);
+    const page = discoverableRows(visible, following);
     return jsonNoStore(
       {
         people: page.map(toDirectoryEntry),
         nextCursor,
-        alreadyFollowing: examined.length - page.length,
+        alreadyFollowing: visible.length - page.length,
       },
       { status: 200 },
     );

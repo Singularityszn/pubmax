@@ -42,6 +42,12 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => true };
 });
 
+// The fake database holds only the crawl tables; moderation reads profiles,
+// so it answers "nobody withdrawn" here and is pinned in accountPublicAccess.
+vi.mock("@/lib/accountPublicAccess.server", () => ({
+  withdrawnHandles: async () => new Set<string>(),
+}));
+
 vi.mock("@/lib/storeBackend", () => ({
   admin: () => ({
     from: (table: string) => {

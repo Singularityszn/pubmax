@@ -37,6 +37,7 @@ describe("creator-list discovery", () => {
     const result = await discoverCreatorLists(
       { limit: 2 },
       {
+        withdrawnHandles: async () => new Set<string>(),
         listProfiles: async () => [{ handle: "alice" }, { handle: "bob" }],
         listSavedByHandles,
       },
@@ -98,6 +99,7 @@ describe("creator-list discovery", () => {
     const result = await discoverCreatorLists(
       { limit: 2 },
       {
+        withdrawnHandles: async () => new Set<string>(),
         listProfiles: async () => [
           {
             handle: "alice",
@@ -175,6 +177,7 @@ describe("creator-list discovery", () => {
     const result = await discoverCreatorLists(
       { limit: 1, afterHandle: "before" },
       {
+        withdrawnHandles: async () => new Set<string>(),
         listProfiles: async (input) => {
           expect(input).toEqual({ limit: 2, afterHandle: "before" });
           return [{ handle: "empty" }, { handle: "next" }];
@@ -186,11 +189,30 @@ describe("creator-list discovery", () => {
     expect(result).toEqual({ status: "ready", lists: [], nextCursor: "empty" });
   });
 
+  it("hides a withdrawn owner but still pages past the window it examined", async () => {
+    const { discoverCreatorLists } = await loadSubject();
+    const listSavedByHandles = vi.fn(async ({ handles }: { handles: readonly string[] }) =>
+      new Map(handles.map((handle) => [handle, []])),
+    );
+    const result = await discoverCreatorLists(
+      { limit: 2 },
+      {
+        withdrawnHandles: async () => new Set(["bob"]),
+        listProfiles: async () => [{ handle: "alice" }, { handle: "bob" }, { handle: "cara" }],
+        listSavedByHandles,
+      },
+    );
+
+    expect(result.nextCursor).toBe("bob");
+    expect(listSavedByHandles).toHaveBeenCalledWith({ handles: ["alice"] });
+  });
+
   it("does not report a failed saved-list read as an empty market", async () => {
     const { discoverCreatorLists } = await loadSubject();
     const result = await discoverCreatorLists(
       { limit: 1 },
       {
+        withdrawnHandles: async () => new Set<string>(),
         listProfiles: async () => [{ handle: "alice" }],
         listSavedByHandles: async ({ handles }) =>
           new Map(handles.map((handle) => [handle, { status: "unavailable" as const }])),
@@ -206,6 +228,7 @@ describe("creator-list discovery", () => {
     const result = await discoverCreatorLists(
       { limit: 2 },
       {
+        withdrawnHandles: async () => new Set<string>(),
         listProfiles: async () => [{ handle: "alice" }, { handle: "bob" }],
         listSavedByHandles: async ({ handles }) =>
           new Map(

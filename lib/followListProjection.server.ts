@@ -1,5 +1,6 @@
 import "server-only";
 
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import type { FollowListEntry } from "@/lib/followList";
 import { log } from "@/lib/log";
 import { normalizeHandle } from "@/lib/profiles";
@@ -29,8 +30,13 @@ export async function followListEntries(handles: string[]): Promise<FollowListEn
   if (rows.length === 0) return rows;
 
   let cards: ReadonlyMap<string, ProfilePublicCard>;
+  let withdrawn: ReadonlySet<string>;
   try {
-    cards = await profileStore().getPublicCardsByHandles(rows.map((row) => row.handle));
+    const handles = rows.map((row) => row.handle);
+    [cards, withdrawn] = await Promise.all([
+      profileStore().getPublicCardsByHandles(handles),
+      withdrawnHandles(handles),
+    ]);
   } catch (error) {
     log("warn", "follow_list.enrichment_failed", {
       handles: rows.length,
@@ -39,7 +45,7 @@ export async function followListEntries(handles: string[]): Promise<FollowListEn
     return rows;
   }
 
-  return rows.map((row) => {
+  return rows.filter((row) => !withdrawn.has(row.handle)).map((row) => {
     const card = cards.get(row.handle);
     return card ? { ...row, ...card } : row;
   });

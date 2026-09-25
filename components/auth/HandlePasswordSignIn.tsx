@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 
+import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { safeAuthNext } from "@/lib/authRedirect";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
@@ -60,6 +61,7 @@ export default function HandlePasswordSignIn({
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [banned, setBanned] = useState(false);
 
   if (!configured) return <></>;
 
@@ -67,6 +69,7 @@ export default function HandlePasswordSignIn({
     event.preventDefault();
     if (busy || disabled) return;
     setError(null);
+    setBanned(false);
     setBusy(true);
     trackEvent("sign_in_initiated", { provider: "handle_password" });
 
@@ -79,6 +82,10 @@ export default function HandlePasswordSignIn({
       const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
 
       if (!res.ok) {
+        if (body.code === "ACCOUNT_BANNED") {
+          setBanned(true);
+          return;
+        }
         setError(
           offlineOrMessage(errorMessageFrom(body, HANDLE_PASSWORD_GENERIC_ERROR))
         );
@@ -204,12 +211,14 @@ export default function HandlePasswordSignIn({
           onClick={() => {
             setOpen(false);
             setError(null);
+            setBanned(false);
             setPassword("");
           }}
         >
           Back to email link
         </button>
       </div>
+      {banned ? <AuthAccountBannedNotice className="authError loginPageError" /> : null}
       {error ? (
         <>
           <p className="authError loginPageError" role="alert">

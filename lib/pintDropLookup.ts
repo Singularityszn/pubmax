@@ -13,6 +13,7 @@ import {
 } from "@/lib/pintDrops";
 import { resolveStorageUrl } from "@/lib/pintDropsStore";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { resolveAvatarUrlsForHandles } from "@/lib/avatarResolve";
 import {
   authorRetiredAtFromRow,
@@ -202,6 +203,7 @@ async function enrich(
   // skipped rather than left to answer nothing.
   const withheld =
     fields.visibility === "anonymous" || contributorHasRetired(authorRetiredAt);
+  if (!withheld && (await withdrawnHandles([fields.handle])).size > 0) return null;
   const handle = withheld ? ANON_HANDLE_LABEL : fields.handle;
   const avatarUrls = withheld
     ? new Map<string, string>()

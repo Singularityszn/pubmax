@@ -1,3 +1,4 @@
+import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   isProfileTombstoned,
@@ -40,10 +41,16 @@ export function attachAvatarUrls<T extends { handle: string }>(
   });
 }
 
-export async function enrichItemsWithAvatarUrls<T extends { handle: string }>(
+/**
+ * The public author projection for contribution feeds: items whose author
+ * account is banned or suspended leave the feed, and the rest wear their
+ * approved avatar.
+ */
+export async function projectPublicAuthors<T extends { handle: string }>(
   items: readonly T[],
 ): Promise<Array<T & { avatarUrl?: string }>> {
-  if (items.length === 0) return [];
-  const urls = await resolveAvatarUrlsForHandles(items.map((item) => item.handle));
-  return attachAvatarUrls(items, urls);
+  const visible = await dropWithdrawnAuthors(items, (item) => item.handle);
+  if (visible.length === 0) return [];
+  const urls = await resolveAvatarUrlsForHandles(visible.map((item) => item.handle));
+  return attachAvatarUrls(visible, urls);
 }

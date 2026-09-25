@@ -18,6 +18,7 @@ import {
   AUTHOR_CRAWL_LIST_MAX_LIMIT,
   clampAuthorCrawlListLimit,
 } from "@/lib/authorCrawlList";
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { totalGbp, VIBE_TAGS, type CrawlStory } from "@/lib/crawlStory";
 import { normalizeHandle } from "@/lib/profiles";
 import { profileStore } from "@/lib/profileStore";
@@ -425,6 +426,14 @@ export async function getCrawlStoryBySlug(slug: string): Promise<DurableStory | 
   if (!stored) return null;
   // Drafts are never publicly returned (no auth yet). unlisted + public are.
   if (stored.visibility === "draft") return null;
+  // A banned or suspended author's crawls leave public view with their profile.
+  if (stored.authorHandle) {
+    try {
+      if ((await withdrawnHandles([stored.authorHandle])).size > 0) return null;
+    } catch {
+      return null;
+    }
+  }
   return enrich(stored);
 }
 
@@ -643,6 +652,11 @@ export async function listAuthoredCrawlPage(
   handle: string,
   limit: number = AUTHOR_CRAWL_LIST_DEFAULT_LIMIT,
 ): Promise<AuthoredCrawlPage> {
+  try {
+    if ((await withdrawnHandles([handle])).size > 0) return { crawls: [], total: 0 };
+  } catch {
+    return { crawls: [], total: null };
+  }
   return listCrawlPageByVisibility(handle, "public", limit);
 }
 

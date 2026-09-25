@@ -5,7 +5,6 @@ import {
   assessPubmaxxHandle,
   evaluateHandleRename,
   HANDLE_RENAME_COOLDOWN_MS,
-  isReservedContributorHandle,
   RESERVED_CONTRIBUTOR_HANDLES,
 } from "@/lib/pubmaxxIdentity";
 
@@ -42,17 +41,13 @@ describe("PUBMAXX handle policy", () => {
         `${handle}_pub`,
         `pub_${handle}`,
       ]) {
-        if (isReservedContributorHandle(compound)) {
-          expect(assessPubmaxxHandle(compound)).toMatchObject({
-            ok: false,
-            reason: "reserved",
-          });
-        } else {
-          expect(assessPubmaxxHandle(compound)).toEqual({
-            ok: true,
-            handle: compound,
-          });
+        if ((EXPECTED_RESERVED_CONTRIBUTOR_HANDLES as readonly string[]).includes(compound)) {
+          continue;
         }
+        expect(assessPubmaxxHandle(compound)).toEqual({
+          ok: true,
+          handle: compound,
+        });
       }
     }
   });
