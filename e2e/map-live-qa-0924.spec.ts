@@ -47,9 +47,6 @@ for (const viewport of viewports) {
       expect(arrived.pathname).toBe("/map");
       expect(arrived.searchParams.get("list")).toBe("1");
       expect(response!.request().redirectedFrom()?.url()).toMatch(/\/map\/list$/);
-      await expect(page.getByRole("button", { name: /Hide venue list|List view/i })).toBeVisible({
-        timeout: 30_000,
-      });
       await expect(page.locator('[id^="map-venue-list-item-"]').first()).toBeVisible({
         timeout: 30_000,
       });

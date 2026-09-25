@@ -11,6 +11,8 @@ import {
   MAP_ARRIVAL_BEARING_DURATION_MS,
   MAP_ARRIVAL_BEARING_SETTLED_BY_MS,
   mapArrivalBearingPlan,
+  nextArrivalBearingWait,
+  type ArrivalBearingWait,
 } from "@/lib/mapArrivalBearing";
 import { REACTIVE_CAMERA_INTENTS } from "@/lib/mapGestureGuard";
 
@@ -84,8 +86,7 @@ describe("the opening turn is not the idle orbit", () => {
     // a frame later, the camera lane is latest-wins, and it cancelled the
     // turn's pending frame. Three runs of three came to rest at exactly the
     // bearing they arrived at.
-    expect(canvas).toContain("ARRIVAL_BEARING_STILL_POLLS");
-    expect(canvas).toContain("ARRIVAL_BEARING_WAIT_CEILING_MS");
+    expect(canvas).toContain("nextArrivalBearingWait");
     expect(canvas).toContain("map.isMoving()");
     // Not MapLibre's `idle`: that also waits on every requested tile, so a
     // basemap that never finishes would be a map that never turns.
@@ -110,5 +111,44 @@ describe("the opening turn is not the idle orbit", () => {
 
   it("reads the deep link as it was on arrival, not as it is now", () => {
     expect(canvas).toContain("arrivalDeepLinkRef");
+  });
+});
+
+function pollsUntilTurn(samples: (poll: number) => { moving: boolean; openingPending: boolean }): number {
+  let wait: ArrivalBearingWait | null = { stillPolls: 0, waitedMs: 0 };
+  let polls = 0;
+  while (wait) {
+    polls += 1;
+    wait = nextArrivalBearingWait(wait, samples(polls));
+  }
+  return polls;
+}
+
+describe("the opening turn waits for the camera's other writers", () => {
+  const ceilingPolls = ARRIVAL_BEARING_WAIT_CEILING_MS / ARRIVAL_BEARING_POLL_MS;
+
+  it("turns on the first still poll of a settled camera", () => {
+    expect(pollsUntilTurn(() => ({ moving: false, openingPending: false }))).toBe(
+      ARRIVAL_BEARING_STILL_POLLS,
+    );
+  });
+
+  it("does not count a camera whose opening answer is still to land as still", () => {
+    // The opening-location fly landed during the turn and stopped it at 1.3
+    // degrees. A still camera with that fly pending is waiting, not resting.
+    expect(
+      pollsUntilTurn((poll) => ({ moving: false, openingPending: poll <= 10 })),
+    ).toBe(10 + ARRIVAL_BEARING_STILL_POLLS);
+  });
+
+  it("waits out the answer's own move before it turns", () => {
+    expect(
+      pollsUntilTurn((poll) => ({ moving: poll > 3 && poll <= 12, openingPending: poll <= 3 })),
+    ).toBe(12 + ARRIVAL_BEARING_STILL_POLLS);
+  });
+
+  it("still turns at the ceiling when the camera never settles", () => {
+    expect(pollsUntilTurn(() => ({ moving: false, openingPending: true }))).toBe(ceilingPolls);
+    expect(pollsUntilTurn(() => ({ moving: true, openingPending: false }))).toBe(ceilingPolls);
   });
 });

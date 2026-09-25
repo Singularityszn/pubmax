@@ -20,7 +20,7 @@ import {
   mapCameraFocusKey,
   mapCameraFocusMoves,
   nextAreaCameraFocus,
-  openingFocusAlreadyFramed,
+  openingCameraSettled,
   type MapCameraFocus,
 } from "@/lib/mapCameraFocus";
 
@@ -194,26 +194,24 @@ describe("a deliberate move takes the camera and keeps it", () => {
   });
 });
 
-// A cold map opens on the city view while the location question is open, and
-// the opening turn starts once the camera is still. An answer of "no location"
-// names that same view, and flying there stopped the turn at 1.3 degrees.
-describe("an opening answer that names the framed view moves nothing", () => {
-  it("skips the opening-location fly to the view the camera already holds", () => {
-    expect(
-      openingFocusAlreadyFramed(focus("opening-location", 1, LONDON), { center: LONDON, zoom: 14 }),
-    ).toBe(true);
+// A cold map opens on the city view and makes its opening turn once the
+// camera is still. The opening-location answer moves the camera too, and a
+// move that lands during the turn stopped it at 1.3 degrees.
+describe("the opening answer settles before the turn may start", () => {
+  const unsettled = { resolving: true, cancelled: false, touched: false, focus: null };
+
+  it("holds the turn while the answer is still to come", () => {
+    expect(openingCameraSettled(unsettled)).toBe(false);
   });
 
-  it("still flies the opening answer somewhere else", () => {
-    expect(
-      openingFocusAlreadyFramed(focus("opening-location", 1, CUMBRIA), { center: LONDON, zoom: 14 }),
-    ).toBe(false);
-    expect(
-      openingFocusAlreadyFramed(focus("opening-location", 1, LONDON), { center: LONDON, zoom: 12 }),
-    ).toBe(false);
+  it("settles once the answer has minted its focus, wherever it points", () => {
+    expect(openingCameraSettled({ ...unsettled, focus: focus("opening-location", 1, LONDON) })).toBe(true);
+    expect(openingCameraSettled({ ...unsettled, focus: focus("opening-location", 1, CUMBRIA) })).toBe(true);
   });
 
-  it("always flies an area pick, even to the view on screen", () => {
-    expect(openingFocusAlreadyFramed(focus("area", 1, LONDON), { center: LONDON, zoom: 14 })).toBe(false);
+  it("settles when there is no question, or the reader cancelled or took the map", () => {
+    expect(openingCameraSettled({ ...unsettled, resolving: false })).toBe(true);
+    expect(openingCameraSettled({ ...unsettled, cancelled: true })).toBe(true);
+    expect(openingCameraSettled({ ...unsettled, touched: true })).toBe(true);
   });
 });

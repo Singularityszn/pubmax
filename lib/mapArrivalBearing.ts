@@ -75,6 +75,25 @@ export const MAP_ARRIVAL_BEARING_SETTLED_BY_MS =
   ARRIVAL_BEARING_STILL_POLLS * ARRIVAL_BEARING_POLL_MS +
   MAP_ARRIVAL_BEARING_DURATION_MS;
 
+export type ArrivalBearingWait = { stillPolls: number; waitedMs: number };
+
+/**
+ * One poll of the turn's wait: the wait that follows, or null once the turn may
+ * run. A camera the opening-location answer has not moved yet is not still,
+ * because that answer's move is on its way and would stop the turn mid-ease.
+ * The ceiling runs regardless, so a camera that never settles still turns.
+ */
+export function nextArrivalBearingWait(
+  wait: ArrivalBearingWait,
+  sample: { moving: boolean; openingPending: boolean },
+): ArrivalBearingWait | null {
+  const waitedMs = wait.waitedMs + ARRIVAL_BEARING_POLL_MS;
+  const stillPolls = sample.moving || sample.openingPending ? 0 : wait.stillPolls + 1;
+  if (stillPolls >= ARRIVAL_BEARING_STILL_POLLS) return null;
+  if (waitedMs >= ARRIVAL_BEARING_WAIT_CEILING_MS) return null;
+  return { stillPolls, waitedMs };
+}
+
 export type MapArrivalBearingPlan = {
   bearing: number;
   duration: number;

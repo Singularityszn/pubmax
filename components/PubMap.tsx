@@ -520,6 +520,7 @@ import {
 } from "@/lib/mapChosenArea";
 import {
   nextAreaCameraFocus,
+  openingCameraSettled,
   type MapCameraFocus,
 } from "@/lib/mapCameraFocus";
 import {
@@ -6160,6 +6161,12 @@ export default function PubMap({
         listCount={mapVenueListModel.total + ukBasePubListModel.total}
         onSoftRetryChange={setMapSoftRetryActive}
         focusPoint={areaFocus ?? openingLocationFocus}
+        openingCameraSettled={openingCameraSettled({
+          resolving: shouldResolveOpeningLocation,
+          cancelled: openingLocationCancelledBeforeResolution,
+          touched: mapCameraTouched,
+          focus: openingLocationFocus,
+        })}
         onViewportChange={setMapViewport}
         onReaderTouchedMap={dismissMapFirstVisitArrivalOnMapUse}
         onUserCameraMove={dismissAmbientBanners}
