@@ -233,12 +233,11 @@ export function sweepPubmaxHarnessOrphans() {
     killed.add(proc.pid);
   }
   for (const dataDir of stalePubmaxDataDirs()) {
-    if (harnessProcessUsesDataDir(dataDir)) continue;
     const postmasterPid = postmasterPidForDataDir(dataDir);
-    if (postmasterPid && !pidAlive(postmasterPid)) {
-      stopHarnessCluster(dataDir);
-      killed.add(postmasterPid);
-    }
+    if (!postmasterPid || pidAlive(postmasterPid)) continue;
+    if (harnessProcessUsesDataDir(dataDir)) continue;
+    stopHarnessCluster(dataDir);
+    killed.add(postmasterPid);
   }
   removeDetachedSegmentsForPids(killed);
 }
