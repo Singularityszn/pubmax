@@ -25,6 +25,7 @@ scripts/__pycache__/
 .tavily/
 test-results/
 playwright-report/
+evals/pal/scoreboard/
 artifacts/
 /coverage/
 e2e/screenshots/
