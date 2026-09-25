@@ -182,6 +182,20 @@ describe("withdrawn set before migration 0157 is applied", () => {
     expect(logged).toEqual([]);
   });
 
+  it("stops asking GoTrue once one auth read fails", async () => {
+    fake.tables.profiles = {
+      data: Array.from({ length: 250 }, (_, at) => ({
+        id: `profile-${at}`,
+        handle: `drinker_${at}`,
+        user_id: `user-${at}`,
+      })),
+      error: null,
+    };
+    fake.getUserByIdError = { message: "rate limited" };
+    await expect(withdrawnHandles(["drinker_0"])).rejects.toThrow("rate limited");
+    expect(fake.getUserByIdCalls.length).toBeLessThanOrEqual(8);
+  });
+
   it("refuses rather than fails open, and never holds a failure", async () => {
     fake.getUserByIdError = { message: "gotrue down" };
     await expect(withdrawnHandles(["karansdad"])).rejects.toThrow("gotrue down");

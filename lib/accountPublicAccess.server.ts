@@ -97,11 +97,11 @@ async function rowsIn<T>(
   values: readonly string[],
   read: (chunk: string[]) => Answer,
 ): Promise<T[]> {
-  const rows: T[] = [];
+  const chunks: string[][] = [];
   for (let at = 0; at < values.length; at += IN_CHUNK_SIZE) {
-    rows.push(...(await rowsOf<T>(read(values.slice(at, at + IN_CHUNK_SIZE)))));
+    chunks.push(values.slice(at, at + IN_CHUNK_SIZE));
   }
-  return rows;
+  return (await Promise.all(chunks.map((chunk) => rowsOf<T>(read(chunk))))).flat();
 }
 
 /** One held (or in-flight) auth read per user id; a failed read is dropped. */
@@ -129,12 +129,18 @@ async function readBannedUserIds(
 ): Promise<ReadonlySet<string>> {
   const banned = new Set<string>();
   let next = 0;
+  let failed = false;
   await Promise.all(
     Array.from({ length: Math.min(AUTH_READ_CONCURRENCY, userIds.length) }, async () => {
-      while (next < userIds.length) {
+      while (!failed && next < userIds.length) {
         const userId = userIds[next]!;
         next += 1;
-        if (await readAuthBanned(admin, userId, now)) banned.add(userId);
+        try {
+          if (await readAuthBanned(admin, userId, now)) banned.add(userId);
+        } catch (error) {
+          failed = true;
+          throw error;
+        }
       }
     }),
   );
