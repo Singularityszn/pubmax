@@ -35,14 +35,12 @@ describe("PUBMAXX handle policy", () => {
     );
     for (const handle of EXPECTED_RESERVED_CONTRIBUTOR_HANDLES) {
       expect(handle).toMatch(/^[a-z0-9_]{3,30}$/);
-      const compounds = [
-        `${handle}x`,
-        `x${handle}`,
+      for (const compound of [
+        `${handle}z`,
+        `z${handle}`,
         `${handle}_pub`,
         `pub_${handle}`,
-        // karanszn + "x" is the reserved owner handle karansznx itself.
-      ].filter((compound) => compound !== "karansznx");
-      for (const compound of compounds) {
+      ]) {
         expect(assessPubmaxxHandle(compound)).toEqual({
           ok: true,
           handle: compound,
