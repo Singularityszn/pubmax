@@ -227,9 +227,14 @@ describe("planMutationOutbox", () => {
 
     // Two held taps, arrived at stop 0 then stop 1, each advancing the cursor
     // by one, exactly as NightCrawlMode writes them while offline.
-    async function holdBothStops(): Promise<void> {
+    // With `clampFinal`, the last tap is on the final stop, where the advance
+    // clamps and the cursor stays put.
+    async function holdBothStops({ clampFinal = false } = {}): Promise<void> {
       markActivePlan(PLAN, new Date().toISOString());
       for (const heldStop of stops) {
+        const optimisticCursor = clampFinal
+          ? Math.min(heldStop.position + 1, stops.length - 1)
+          : heldStop.position + 1;
         await enqueueNightCrawlAction({
           planId: PLAN,
           type: "arrived",
@@ -237,9 +242,9 @@ describe("planMutationOutbox", () => {
           idempotencyKey: `key-${heldStop.position}`,
           fingerprint: `fp-${heldStop.position}`,
           previousCursor: heldStop.position,
-          optimisticCursor: heldStop.position + 1,
+          optimisticCursor,
         });
-        setActivePlanStopIndex(heldStop.position + 1);
+        setActivePlanStopIndex(optimisticCursor);
       }
     }
 
@@ -269,6 +274,28 @@ describe("planMutationOutbox", () => {
       // The site-wide host and the plan page both receive the same batch.
       applyActivePlanFlushRollbacks(results);
       expect(readActivePlan()?.stopIndex).toBe(2);
+    });
+
+    it("keeps the cursor on a confirmed final stop when an earlier one is refused", async () => {
+      await holdBothStops({ clampFinal: true });
+      answerByStop((position) => (position === 0 ? 422 : 200));
+
+      const results = await flushPlanMutationOutbox({ planId: PLAN });
+      expect(results.map((row) => row.outcome)).toEqual(["rejected", "confirmed"]);
+
+      applyActivePlanFlushRollbacks(results);
+      expect(readActivePlan()?.stopIndex).toBe(1);
+    });
+
+    it("keeps the cursor on a still-held final stop when an earlier one is refused", async () => {
+      await holdBothStops({ clampFinal: true });
+      answerByStop((position) => (position === 0 ? 403 : 503));
+
+      const results = await flushPlanMutationOutbox({ planId: PLAN });
+      expect(results.map((row) => row.outcome)).toEqual(["forbidden", "offline"]);
+
+      applyActivePlanFlushRollbacks(results);
+      expect(readActivePlan()?.stopIndex).toBe(1);
     });
 
     it("unwinds two refusals in a row back to the first stop's starting point", async () => {

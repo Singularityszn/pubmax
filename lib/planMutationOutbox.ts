@@ -351,13 +351,16 @@ export function flushPlanMutationOutbox(options?: {
  * Roll back the active-plan cursor for every held mutation a replay refused.
  *
  * Failures unwind newest first, and each one only moves a cursor that still
- * sits where its own optimistic advance left it. So a refused stop 0 cannot
- * drag the cursor back past a stop 1 that went through, two refusals in a row
- * still land on the first one's starting point, and running the same batch a
- * second time (the site-wide host and the plan page share one flush) is a
- * no-op.
+ * sits where its own optimistic advance left it. A later stop that went
+ * through or is still held is a floor no older refusal may cross, even on the
+ * final stop where the advance clamps and leaves no trace in the cursor. So a
+ * refused stop 0 cannot drag the cursor back past a stop 1 that went through,
+ * two refusals in a row still land on the first one's starting point, and
+ * running the same batch a second time (the site-wide host and the plan page
+ * share one flush) is a no-op.
  */
 export function applyActivePlanFlushRollbacks(results: readonly PlanMutationFlushResult[]): void {
+  const floored = new Set<string>();
   for (let index = results.length - 1; index >= 0; index -= 1) {
     const result = results[index];
     if (
@@ -365,8 +368,10 @@ export function applyActivePlanFlushRollbacks(results: readonly PlanMutationFlus
       result.outcome !== "rejected" &&
       result.outcome !== "conflict"
     ) {
+      floored.add(result.planId);
       continue;
     }
+    if (floored.has(result.planId)) continue;
     const active = readActivePlan();
     if (!active || active.id !== result.planId) continue;
     if (active.stopIndex !== result.optimisticCursor) continue;
