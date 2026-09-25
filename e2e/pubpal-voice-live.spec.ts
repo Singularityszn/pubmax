@@ -167,6 +167,7 @@ test.describe("Pub Pal live voice", () => {
     );
     const summary = JSON.parse(await readFile(PROOF_SUMMARY, "utf8")) as Record<string, unknown>;
     summary.voiceSession = {
+      status: "passed",
       at: new Date().toISOString(),
       baseUrl,
       connected: true,

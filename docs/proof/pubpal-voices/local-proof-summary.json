@@ -10,5 +10,10 @@
   },
   "textAsk": {
     "status": 200
+  },
+  "voiceSession": {
+    "status": "skipped",
+    "spec": "e2e/pubpal-voice-live.spec.ts",
+    "note": "A green run replaces this block with status passed and its session fields. It requires PUB_PAL_PROOF_BASE_URL, PUB_PAL_PROOF_BEARER, PUB_PAL_PROOF_STORAGE_STATE and PUB_PAL_PROOF_WAV."
   }
 }

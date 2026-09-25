@@ -47,12 +47,26 @@ Evidence for the PR lands in the ignored `artifacts/pubpal-voice-proof/`:
 arrival time), `voice-session.png` and `typed-chat.png`. Attach all three to the
 PR.
 
-A green voice run also writes a `voiceSession` block into the committed
-`docs/proof/pubpal-voices/local-proof-summary.json`: `connected`,
-`transcriptPresent`, `agentResponsePresent`, `audioReplyBytes` and their
-timings. Commit that change with the PR as the record that people can talk to
-the Pal. Until a run writes it, the file holds no `voiceSession` block and the
-talk proof is still outstanding.
+### What is committed, and what must run before merge
+
+The HTTP proof (voice token, LLM bridge, text ask) and the Playwright concierge
+proof below are committed. `e2e/pubpal-voice-live.spec.ts` is the captain's
+talk proof: run it green before merge whenever the proof keys are available,
+with exactly:
+
+```bash
+PUB_PAL_PROOF_BASE_URL=https://your-deployment \
+PUB_PAL_PROOF_BEARER=<access token> \
+PUB_PAL_PROOF_STORAGE_STATE=pal-proof.json \
+PUB_PAL_PROOF_WAV=question.wav \
+PW_SKIP_WEBSERVER=1 npx playwright test e2e/pubpal-voice-live.spec.ts --project=chromium
+```
+
+`docs/proof/pubpal-voices/local-proof-summary.json` carries a `voiceSession`
+block. It reads `"status": "skipped"` until a green run replaces it with
+`"status": "passed"` plus `connected`, `transcriptPresent`,
+`agentResponsePresent`, `audioReplyBytes` and their timings. Commit that change
+with the PR as the record that people can talk to the Pal.
 
 Local proof (Sep 2026): with dev on port 3102 and `.env.local` configured,
 `docs/proof/pubpal-voices/local-proof-summary.json` records voice GET, LLM bridge,
