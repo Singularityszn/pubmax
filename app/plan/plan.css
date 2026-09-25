@@ -246,17 +246,25 @@
 .planVibe h2,
 .planShare h2 { margin: 0; font-size: clamp(1.65rem, 4vw, 2.8rem); line-height: 1; }
 
-.planSummary__rail {
+.planRoute__stopsTrack {
+  position: relative;
+  margin-top: 42px;
+}
+
+/* The route spine belongs to the stops only (#1539), never the crew card. */
+.planRoute__stopsTrack .planSummary__rail {
   position: absolute;
   left: clamp(46px, 7vw, 78px);
-  top: 120px;
-  bottom: 56px;
+  top: 0;
+  bottom: 0;
   width: 3px;
   border-radius: 2px;
   background: var(--plan-accent);
 }
 
-.planSummary__stops { list-style: none; margin: 42px 0 0; padding: 0; display: grid; gap: 14px; }
+
+.planSummary__stops { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.planRoute__stopsTrack > .planSummary__stops { margin: 0; }
 .planSummary__stops li { min-height: 92px; display: grid; grid-template-columns: 58px 1fr; gap: 22px; align-items: center; position: relative; }
 .planSummary__marker {
   z-index: 1;
@@ -748,19 +756,18 @@
   padding: 0 0 14px;
   border-bottom: 1px solid var(--line-soft, var(--line));
 }
-.planIntake__progress { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 20px 0 0; padding: 0; list-style: none; }
-.planIntake__progress li { min-width: 0; display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: 7px; color: var(--muted); font-size: 0.67rem; font-weight: 740; }
-.planIntake__progress li::after { content: ""; grid-column: 1 / -1; height: 3px; border-radius: 999px; background: var(--line); }
-.planIntake__progress li > span:first-child { width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--panel-raised); }
-.planIntake__progress li > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.planIntake__progress li[data-state="current"] { color: var(--ink); }
-.planIntake__progress li[data-state="current"]::after,
-.planIntake__progress li[data-state="settled"]::after { background: var(--plan-accent); }
-.planIntake__progress li[data-state="settled"] > span:first-child { border-color: var(--plan-accent); color: var(--plan-accent-strong); }
+.planIntake__progress { margin: 20px 0 0; }
 
 .planIntake__stage { min-height: 244px; padding: clamp(28px, 5vw, 42px) 0 24px; }
-.planIntake__stage h2,
-.planIntake__summaryBody h2 { max-width: 650px; margin: 8px 0 0; font-size: clamp(1.8rem, 4vw, 3rem); line-height: 0.98; letter-spacing: -0.035em; }
+.planIntake__stage .planIntake__question,
+.planIntake__summaryBody h2 {
+  max-width: 650px;
+  margin: 8px 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+}
 .planIntake__stage h2:focus {
   outline: 3px solid color-mix(in srgb, var(--plan-accent) 60%, transparent);
   outline-offset: 6px;
@@ -931,8 +938,48 @@
 .planComposer__context { margin: 18px 0 0; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .planComposer__context legend { width: 100%; margin-bottom: 2px; }
 .planComposer__contextNote { width: 100%; margin: 0 0 2px; color: var(--muted); font-size: 0.78rem; line-height: 1.4; }
-.planComposer__context label { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--control-radius, 14px); background: var(--panel); }
-.planComposer__context select, .planComposer__context input { min-width: 0; max-width: 100%; width: auto; min-height: 44px; padding: 4px; border: 0; background: transparent; color: var(--ink); font: inherit; font-weight: 760; }
+.planComposer__context label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: min(100%, 10.5rem);
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius, 14px);
+  background: var(--panel);
+}
+.planComposer__context label:has(> input) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+.planComposer__context select,
+.planComposer__context input {
+  min-width: 0;
+  max-width: 100%;
+  width: auto;
+  min-height: 44px;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 760;
+}
+.planComposer__context select {
+  flex: 1 1 0;
+  padding-right: calc(var(--control-pad-x, 14px) + 14px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 14px) calc(50% - 2px), calc(100% - 9px) calc(50% - 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
 .planComposer__context input { width: 54px; }
 .planComposer__srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .planComposer__coverage { grid-column: 1 / -1; margin: -4px 0 2px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -1042,11 +1089,8 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planPage__hero h1 { font-size: clamp(3rem, 16vw, 5rem); }
   .planComposer { grid-template-columns: 1fr; padding: 0 0 14px; gap: 16px; }
   .planIntake { grid-column: 1; padding: var(--space-3) 0 0; }
-  .planIntake__progress { grid-template-columns: repeat(5, 38px); justify-content: space-between; margin-top: 14px; overflow: hidden; }
+  .planIntake__progress { margin-top: 14px; }
   .planIntake__stage { padding-top: 14px; }
-  .planIntake__progress li { display: block; }
-  .planIntake__progress li > span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
-  .planIntake__progress li::after { display: block; margin-top: 7px; }
   .planIntake__choices--cards { grid-template-columns: 1fr; }
   .planIntake__actions { align-items: stretch; flex-direction: column-reverse; }
   .planIntake__actions > div { display: grid; grid-template-columns: 1fr 1fr; }
@@ -1055,7 +1099,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planIntake__tune { grid-column: 1 / -1; width: 100%; }
   .planComposer__concierge { grid-column: 1; }
   .planComposer__conciergeInput { grid-template-columns: 1fr; }
-  .planComposer__context { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .planComposer__context { display: grid; grid-template-columns: 1fr; }
   .planComposer__context legend,
   .planComposer__contextNote,
   .planComposer__context label:first-of-type { grid-column: 1 / -1; }

@@ -16,7 +16,8 @@ export default function TonightMapPointer() {
     <section className="dealsTonight" aria-labelledby="tonight-map-pointer-title">
       <div className="dealsTonightHead">
         <h2 id="tonight-map-pointer-title">
-          <Sparkles size={18} aria-hidden="true" /> On tonight
+          <Sparkles size={18} aria-hidden="true" />
+          <span>On tonight</span>
         </h2>
       </div>
       <p className="dealsTonightLead">

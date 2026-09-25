@@ -1,6 +1,7 @@
 import { expect, test, type CDPSession, type Page } from "@playwright/test";
 
 import { getCity } from "@/lib/cities";
+import { MAP_ARRIVAL_BEARING_DEG } from "@/lib/mapArrivalBearing";
 
 // The map a reader turns with two fingers, in a real browser with a real
 // MapLibre canvas (this spec runs in the `chromium-gl` project).
@@ -139,13 +140,13 @@ async function openMap(page: Page): Promise<void> {
   // mistaken for the reader's own.
   await expect.poll(async () => (await readCamera(page)).moving, { timeout: ARRIVAL_TIMEOUT_MS })
     .toBe(false);
-  // And it has to have ARRIVED. A map that has painted its pins may still be
-  // holding a flat default while the opening-location answer is in flight, and
-  // a gesture driven into that half-arrived camera is measuring the wrong map.
-  // The city's own attitude is the honest signal that arrival is done.
+  // And it has to have ARRIVED. A cold map opens flat north and then makes its
+  // opening turn, and a gesture driven into that half-arrived camera is
+  // measuring the wrong map. The turned bearing is the honest signal that
+  // arrival is done.
   await expect.poll(async () => {
     const camera = await readCamera(page);
-    return Math.abs(camera.bearing - LONDON_ATTITUDE.bearing) < 0.5
+    return Math.abs(camera.bearing - MAP_ARRIVAL_BEARING_DEG) < 0.5
       && Math.abs(camera.pitch - LONDON_ATTITUDE.pitch) < 0.5;
   }, { timeout: ARRIVAL_TIMEOUT_MS }).toBe(true);
   // The probe polls above run queryRenderedFeatures, which occupies the render

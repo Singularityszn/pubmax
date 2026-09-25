@@ -20,7 +20,7 @@ import {
  * The cause is not the camera. MapLibre reports its own `maxBounds` as the
  * visible bounds until the camera settles, so a cold open briefly says it is
  * looking at the whole United Kingdom. `viewportNamesNowhere` cannot catch that:
- * it guards the PLACEHOLDER, centre [0, 0] at zoom 0, and UK bounds are a real
+ * it guards a viewport below the zoom a place needs, and UK bounds are a real
  * centre at a real zoom. So the read was taken literally, twice.
  */
 

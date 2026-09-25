@@ -54,11 +54,6 @@ export async function getPubPalResult(ownerId: string): Promise<PubPalStoreResul
   }
 }
 
-export async function getPubPal(ownerId: string): Promise<PubPal | null> {
-  const result = await getPubPalResult(ownerId);
-  return result.ok ? result.value : null;
-}
-
 export async function createPubPalResult(ownerId: string, raw: unknown): Promise<PubPalStoreResult<PubPal>> {
   const draft = cleanPalDraft(raw); if (!draft) return { ok: false, error: "not_found" };
   const existingResult = await getPubPalResult(ownerId);
@@ -76,11 +71,6 @@ export async function createPubPalResult(ownerId: string, raw: unknown): Promise
   } catch {
     return { ok: false, error: "error" };
   }
-}
-
-export async function createPubPal(ownerId: string, raw: unknown): Promise<PubPal | null> {
-  const result = await createPubPalResult(ownerId, raw);
-  return result.ok ? result.value : null;
 }
 
 export async function updatePubPalResult(ownerId: string, raw: unknown): Promise<PubPalStoreResult<PubPal>> {

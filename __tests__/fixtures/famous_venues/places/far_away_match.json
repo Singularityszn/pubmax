@@ -1,0 +1,11 @@
+{
+  "body": {
+    "places": [{
+      "id": "places/ChIJfar",
+      "displayName": { "text": "Wong Kei", "languageCode": "en" },
+      "formattedAddress": "1 High Street, Manchester M1 1AA, UK",
+      "businessStatus": "OPERATIONAL",
+      "location": { "latitude": 53.48, "longitude": -2.24 }
+    }]
+  }
+}

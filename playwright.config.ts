@@ -41,6 +41,8 @@ const AUTH_BASE_URL = `http://localhost:${AUTH_PORT}`;
 const AUTH_NEXT_DIST_DIR =
   process.env.PW_AUTH_NEXT_DIST_DIR ?? `${NEXT_DIST_DIR}-auth`;
 const E2E_NODE_OPTIONS = process.env.NODE_OPTIONS ?? "--max-old-space-size=4096";
+const E2E_TRACKED_OUTPUTS_ALLOWLIST =
+  process.env.PUBMAX_TRACKED_OUTPUTS ?? (process.env.CI ? "public/data" : "");
 // Production-style browser tests retain the keyless in-memory stores, but
 // trusted Plan claims never use that storage escape hatch. Give each Playwright
 // invocation a fresh process-only signing key shared by its build/start shell.
@@ -163,6 +165,7 @@ export default defineConfig({
         "**/map-fallback.spec.ts",
         "**/map-service-worker.spec.ts",
         "**/map-uk-base-layer.spec.ts",
+        "**/map-live-qa-0924.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
         "**/signed-in-review.spec.ts",
         // The Core Web Vitals sweep owns its own project: it needs a real GL
@@ -294,6 +297,9 @@ export default defineConfig({
         "**/map-webgl-recovery.spec.ts",
         // UK base layer: asserts the zoom gate + a real tap on a painted pin.
         "**/map-uk-base-layer.spec.ts",
+        // /map/list opening List view, and a cold /map opening on London: both
+        // need rendered venue rows and a real camera probe.
+        "**/map-live-qa-0924.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
       ],
       use: {
@@ -422,6 +428,9 @@ export default defineConfig({
           ...(process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH
             ? { PUBMAX_SOCIAL_FRIENDS_LAUNCH: process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH }
             : {}),
+          ...(E2E_TRACKED_OUTPUTS_ALLOWLIST
+            ? { PUBMAX_TRACKED_OUTPUTS: E2E_TRACKED_OUTPUTS_ALLOWLIST }
+            : {}),
         },
         url: BASE_URL,
         reuseExistingServer: !process.env.CI && !SCREENSHOT_RUN,
@@ -451,6 +460,9 @@ export default defineConfig({
               PUBMAX_E2E_RATE_LIMIT_MAX: E2E_RATE_LIMIT_MAX,
               PUBMAX_E2E_LOGIN: "0",
               PUBMAX_E2E_KEYLESS: "1",
+              ...(E2E_TRACKED_OUTPUTS_ALLOWLIST
+                ? { PUBMAX_TRACKED_OUTPUTS: E2E_TRACKED_OUTPUTS_ALLOWLIST }
+                : {}),
             },
             url: KEYLESS_BASE_URL,
             reuseExistingServer: !process.env.CI,

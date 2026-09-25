@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import Kicker from "@/components/ui/kicker";
 import SurfaceNav from "@/components/ui/surface-nav";
 import { homeActionLabel } from "@/lib/surfaceStack";
 import { useSheetHeightDrag } from "@/components/mobile/useSheetHeightDrag";
@@ -41,6 +42,7 @@ import "@/components/mobile/mobileMapShell.css";
 export default function MobileSharedSheet({
   kind,
   title,
+  kicker,
   initialSnap = "half",
   requestedSnap,
   onClose,
@@ -55,6 +57,8 @@ export default function MobileSharedSheet({
 }: {
   kind: MapSheetKind | null;
   title: string;
+  /** The small line above the title, for a sheet whose title asks one question. */
+  kicker?: string;
   initialSnap?: MapSheetDetent;
   requestedSnap?: MapSheetDetent;
   /** Home: leave every open sheet and return to the map. */
@@ -273,7 +277,14 @@ export default function MobileSharedSheet({
               sit empty while the trailing one held the only way out. SurfaceNav
               fills both: Back on the left when a sheet opened over another
               sheet, Home on the right always. */}
-          <h2 id={titleId}>{title}</h2>
+          {kicker ? (
+            <div className="mobileSharedSheetHeading">
+              <Kicker>{kicker}</Kicker>
+              <h2 id={titleId}>{title}</h2>
+            </div>
+          ) : (
+            <h2 id={titleId}>{title}</h2>
+          )}
           {/* No `closeRef` here on purpose. SurfaceNav is borderless and quiet
               already, so the de-box intent survives inside it, and the sheet
               focuses ITSELF on open (see the open effect above) rather than the

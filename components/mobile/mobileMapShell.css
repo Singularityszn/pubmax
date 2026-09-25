@@ -667,9 +667,17 @@
        venue sheet and a second pin tap never reaches the canvas. */
     pointer-events: none;
   }
-  /* A venue or the planner hides the tab bar (mobileNav.css), so there is no
-     bar to stop above. Held at the bar's berth, the sheet floated 64px up over
-     a strip of live map. */
+  /* A venue, planner or landmark sheet hides the tab bar (mobileNav.css), so
+     there is no bar to stop above. Held at the bar's berth, the sheet floated
+     ~250px up over live map and the command bar clipped the last row (#1533).
+     The shell class is the long-term owner; the portal's own kind is the
+     synchronous signal, because the sheet mounts before every reader has
+     painted detail-open on .appShell. */
+  .mobileSheetPortal:is(
+    [data-sheet-kind="venue"],
+    [data-sheet-kind="planner"],
+    [data-sheet-kind="landmark"]
+  ),
   body:has(.appShell.detail-open) .mobileSheetPortal,
   body:has(.appShell.planning-open) .mobileSheetPortal {
     bottom: 0;
@@ -784,6 +792,9 @@
     letter-spacing: -0.035em;
     text-wrap: balance;
   }
+  /* A kicker makes the heading taller than the header's centred row, so its
+     top would tuck under the absolutely placed drag handle; clear it. */
+  .mobileSharedSheetHeading { grid-column: 2; grid-row: 1; min-width: 0; padding-top: 10px; text-align: center; }
   .mobileSharedSheetDetent { position: absolute; top: 0; left: 50%; z-index: 1; width: 52px; height: 44px; border: 0; background: transparent; transform: translateX(-50%); }
   .mobileSharedSheetDetent:active { --shared-press-scale: 1; }
   .mobileSharedSheetGrab { position: absolute; top: 7px; left: 50%; width: 44px; height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--color-text-muted) 55%, transparent); transform: translateX(-50%); }
@@ -810,6 +821,10 @@
      is between content and footer, not the sheet's bottom edge). */
   .mobileSharedSheet.right .mobileSharedSheetBody {
     padding-bottom: 8px;
+    /* The command bar is a flex sibling below this scroller; without
+       scroll-padding, scrollIntoView and a focus scroll land the last row
+       under the footer (Book a table / Share, #1533). */
+    scroll-padding-bottom: 12px;
   }
   /* THE LOADING PANEL FILLS THE SHEET. This box is content-driven under
      `max-height: var(--sheet-cap)`, so while the venue panel's own chunk was in
@@ -857,6 +872,9 @@
   .mobilePlannerIntentInput input { min-width: 0; min-height: 48px; padding: 0 12px; border: 0; background: transparent; color: var(--color-text); font: inherit; outline: none; }
   .mobilePlannerIntentInput small { color: var(--color-text-muted); }
   .mobilePlannerIntentGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .mobilePlannerIntentGrid label { min-width: 0; }
+  .mobilePlannerIntentGrid input,
+  .mobilePlannerIntentGrid select { width: 100%; box-sizing: border-box; }
   .mobilePlannerIntentGrid input, .mobilePlannerIntentGrid select { min-width: 0; min-height: 44px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface-raised); color: var(--color-text); font: inherit; }
   .mobilePlannerIntentChips { display: flex; gap: 6px; overflow-x: auto; touch-action: pan-y; scrollbar-width: none; }
   .mobilePlannerIntentChips::-webkit-scrollbar { display: none; }

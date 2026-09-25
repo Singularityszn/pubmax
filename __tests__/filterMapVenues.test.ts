@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
 import { initialFilters } from "@/components/map/ControlRail";
 import type { Venue } from "@/lib/venues";
+import { buildDrinkHints } from "@/scripts/build_slim_index.mjs";
 
 function slimPin(overrides: Partial<Venue> = {}): Venue {
   return {
@@ -143,6 +144,57 @@ describe("filterMapVenues", () => {
         () => true,
       ),
     ).toEqual([legacyPub, explicitPub]);
+  });
+
+  it("keeps soft-drink menu-item boundaries through slim map filtering", () => {
+    const slimSoftDrinkVenue = (id: string, pintNames: string[]) =>
+      slimPin({
+        id,
+        filterHints: {
+          ...slimPin().filterHints!,
+          ...buildDrinkHints(
+            pintNames.map((pint_name) => ({
+              pint_name,
+              comment: "",
+              description: "",
+              cocktails: "",
+            })),
+          ),
+        },
+      });
+    const composite = slimSoftDrinkVenue("composite-cola", [
+      "Soft drink Soda, Sprite, Pepsi & Diet Coke",
+    ]);
+    const separateRows = slimSoftDrinkVenue("separate-colas", [
+      "Soft drink Pepsi",
+      "Diet Coke",
+    ]);
+    const genuine = slimSoftDrinkVenue("genuine-diet-pepsi", [
+      "Soft drink Pepsi Diet",
+    ]);
+    const matchesSubtype = (drinkSubtype: string) =>
+      filterMapVenues(
+        [composite, separateRows, genuine],
+        {
+          ...initialFilters,
+          drinkCategory: "soft-drink",
+          drinkSubtype,
+        },
+        () => false,
+      );
+
+    expect(matchesSubtype("soft-drink-diet-pepsi")).toEqual([genuine]);
+    expect(matchesSubtype("soft-drink-diet-coke")).toEqual([
+      composite,
+      separateRows,
+    ]);
+    // Composite rows remain truthful family hits through Diet Coke; preserving
+    // boundaries prevents only the invented Diet Pepsi attribution.
+    expect(matchesSubtype("soft-drink-zero-sugar-cola")).toEqual([
+      composite,
+      separateRows,
+      genuine,
+    ]);
   });
 });
 

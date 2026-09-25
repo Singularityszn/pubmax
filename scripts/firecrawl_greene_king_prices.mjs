@@ -40,6 +40,10 @@ import {
   createMenuPageHarvester,
   parseMenuTransportArg,
 } from "./lib/harvestMenuTransport.mjs";
+import {
+  readValidatedMenuPageCache,
+  writeMenuPageCache,
+} from "./lib/harvestMenuCache.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -48,12 +52,49 @@ const MENU_CACHE = join(ROOT, ".firecrawl", "menus");
 const DEFAULT_URLS = join(ROOT, "data", "greene_king_london_menu_urls.txt");
 const ENRICHMENT_PATH = join(ROOT, "public", "data", "venue_menu_enrichment.json");
 const DATASET_PATH = join(ROOT, "public", "data", "pint_prices_app_dataset.json");
+const SOURCE_ID = "greene-king-menu-prices";
 
 const SOURCE = {
   label: "Greene King — official menu",
   licence:
     "All rights reserved — first-party publisher of its own pub menus/prices; read-only, attributed use only.",
 };
+
+const SOURCE_REFUSAL_CODES = new Set([
+  "policy-refused",
+  "robots-refused",
+  "redirect-refused",
+  "missing-final-url",
+  "invalid-final-url",
+]);
+
+function isSourceRefusal(error) {
+  return error instanceof HarvestMenuTransportError && SOURCE_REFUSAL_CODES.has(error.code);
+}
+
+function isGreeneKingOwnedUpdate(update) {
+  if (update?.source?.label === SOURCE.label) return true;
+  try {
+    const hostname = new URL(update?.source?.url).hostname.toLowerCase();
+    return hostname === "greeneking.co.uk" || hostname.endsWith(".greeneking.co.uk");
+  } catch {
+    return false;
+  }
+}
+
+function sameMenuUrl(left, right) {
+  try {
+    const normalise = (value) => {
+      const url = new URL(value);
+      url.search = "";
+      url.hash = "";
+      return url.href.replace(/\/$/, "");
+    };
+    return normalise(left) === normalise(right);
+  } catch {
+    return false;
+  }
+}
 
 const DRINK_CATEGORIES = new Set([
   "beer",
@@ -231,13 +272,16 @@ function resolveVenueKey(url, indexes, menuUrlToId) {
 // Keep this cache path stable. Downstream merge scripts treat it as an input contract.
 
 async function scrapeMenu(url, outPath, harvester) {
-  if (existsSync(outPath)) {
-    return readFileSync(outPath, "utf8");
-  }
+  const cached = await readValidatedMenuPageCache({
+    requestedUrl: url,
+    markdownPath: outPath,
+    validateResolvedMenuUrl: harvester.validateResolvedMenuUrl,
+  });
+  if (cached) return cached;
   mkdirSync(dirname(outPath), { recursive: true });
-  const markdown = await harvester.fetchMenuMarkdown(url);
-  writeFileSync(outPath, `${markdown.trim()}\n`);
-  return markdown;
+  const page = await harvester.fetchMenuPage(url);
+  writeMenuPageCache({ requestedUrl: url, markdownPath: outPath, page });
+  return page;
 }
 
 // --- main -------------------------------------------------------------------
@@ -271,13 +315,40 @@ function loadExistingUpdates() {
   }
 }
 
+async function retainPermittedExistingUpdates(existing, harvester) {
+  const decisions = new Map();
+  const retained = [];
+  for (const update of existing) {
+    if (!isGreeneKingOwnedUpdate(update)) {
+      retained.push(update);
+      continue;
+    }
+    const url = update?.source?.url;
+    if (!url) continue;
+    if (!decisions.has(url)) {
+      decisions.set(
+        url,
+        harvester.validateResolvedMenuUrl(url, url).then(
+          () => true,
+          (error) => {
+            if (isSourceRefusal(error)) return false;
+            throw error;
+          },
+        ),
+      );
+    }
+    if (await decisions.get(url)) retained.push(update);
+  }
+  return retained;
+}
+
 async function main() {
   const { limit, urlsFile, merge, onlyUrlsFile } = parseArgs(process.argv);
   const transport = parseMenuTransportArg();
   const observedAt = new Date().toISOString();
   assertTransportCredentials(transport);
   if (!onlyUrlsFile) assertProviderCredentials(["pub-discovery"]);
-  const harvester = createMenuPageHarvester({ transport });
+  const harvester = createMenuPageHarvester({ transport, sourceId: SOURCE_ID });
 
   const enrichment = JSON.parse(readFileSync(ENRICHMENT_PATH, "utf8"));
   const enrichmentUrls = Object.values(enrichment.venues ?? {})
@@ -320,8 +391,13 @@ async function main() {
   const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
   const indexes = buildVenueIndexes(dataset);
   const menuUrlToId = menuUrlToVenueId(enrichment);
+  const existing = merge
+    ? await retainPermittedExistingUpdates(loadExistingUpdates(), harvester)
+    : [];
 
   const updates = [];
+  const refusedVenueKeys = new Set();
+  const refusedRequestedUrls = new Set();
   let scraped = 0;
   let matched = 0;
   let unmatched = 0;
@@ -332,11 +408,14 @@ async function main() {
   for (const url of urls) {
     const slug = slugFromMenuUrl(url) ?? "unknown";
     const cachePath = join(MENU_CACHE, transport, `${slug}.md`);
-    let markdown;
+    const venueKey = resolveVenueKey(url, indexes, menuUrlToId);
+    let page;
     try {
-      markdown = await scrapeMenu(url, cachePath, harvester);
+      page = await scrapeMenu(url, cachePath, harvester);
     } catch (error) {
-      if (error instanceof HarvestMenuTransportError && error.code === "policy-refused") {
+      if (isSourceRefusal(error)) {
+        if (venueKey) refusedVenueKeys.add(venueKey);
+        refusedRequestedUrls.add(url);
         refused += 1;
         console.warn(`REFUSED ${url}: ${error.message}`);
         continue;
@@ -354,8 +433,8 @@ async function main() {
       throw error;
     }
     scraped += 1;
+    const { markdown, finalUrl } = page;
 
-    const venueKey = resolveVenueKey(url, indexes, menuUrlToId);
     if (!venueKey) {
       unmatched += 1;
       console.warn(`UNMATCHED venue for ${url}`);
@@ -371,7 +450,7 @@ async function main() {
         drinkName: d.drinkName,
         category: d.category,
         priceGbp: d.priceGbp,
-        source: { ...SOURCE, url },
+        source: { ...SOURCE, url: finalUrl },
         observedAt,
       });
     }
@@ -380,8 +459,15 @@ async function main() {
 
   mkdirSync(OUT_DIR, { recursive: true });
   const stamp = observedAt.slice(0, 10).replace(/-/g, "");
-  const existing = merge ? loadExistingUpdates() : [];
-  const merged = merge ? mergeDrinkUpdates(existing, updates) : updates;
+  const retainedExisting = existing.filter(
+    (row) =>
+      !(
+        isGreeneKingOwnedUpdate(row) &&
+        (refusedVenueKeys.has(row.venueKey) ||
+          [...refusedRequestedUrls].some((url) => sameMenuUrl(row?.source?.url, url)))
+      ),
+  );
+  const merged = merge ? mergeDrinkUpdates(retainedExisting, updates) : updates;
   const payload = { version: 1, generatedAt: observedAt, updates: merged };
   const dated = join(OUT_DIR, `prices_${stamp}.json`);
   writeFileSync(dated, `${JSON.stringify(payload, null, 2)}\n`);

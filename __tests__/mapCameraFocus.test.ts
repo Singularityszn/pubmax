@@ -20,6 +20,7 @@ import {
   mapCameraFocusKey,
   mapCameraFocusMoves,
   nextAreaCameraFocus,
+  openingCameraSettled,
   type MapCameraFocus,
 } from "@/lib/mapCameraFocus";
 
@@ -190,5 +191,27 @@ describe("a deliberate move takes the camera and keeps it", () => {
   it("is the guard the opening-location mint effect reads", () => {
     const mint = pubMap.slice(pubMap.indexOf('source: "opening-location"') - 1200);
     expect(mint).toContain("mapCameraTouchedRef.current");
+  });
+});
+
+// A cold map opens on the city view and makes its opening turn once the
+// camera is still. The opening-location answer moves the camera too, and a
+// move that lands during the turn stopped it at 1.3 degrees.
+describe("the opening answer settles before the turn may start", () => {
+  const unsettled = { resolving: true, cancelled: false, touched: false, focus: null };
+
+  it("holds the turn while the answer is still to come", () => {
+    expect(openingCameraSettled(unsettled)).toBe(false);
+  });
+
+  it("settles once the answer has minted its focus, wherever it points", () => {
+    expect(openingCameraSettled({ ...unsettled, focus: focus("opening-location", 1, LONDON) })).toBe(true);
+    expect(openingCameraSettled({ ...unsettled, focus: focus("opening-location", 1, CUMBRIA) })).toBe(true);
+  });
+
+  it("settles when there is no question, or the reader cancelled or took the map", () => {
+    expect(openingCameraSettled({ ...unsettled, resolving: false })).toBe(true);
+    expect(openingCameraSettled({ ...unsettled, cancelled: true })).toBe(true);
+    expect(openingCameraSettled({ ...unsettled, touched: true })).toBe(true);
   });
 });

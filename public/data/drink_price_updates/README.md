@@ -68,7 +68,9 @@ so responsibly requires first confirming robots.txt/ToS allow it and pinning a
 stable per-pub parse target (see the `notes` field on the `wetherspoons-official`
 entry in `data/price_sources.json`).
 
-`latest.json` therefore contains only first-party **PUBMAXXING demo fixture**
-rows for menu UI coverage. They are labelled as demo in the app and must not be
-presented as live venue prices. A scheduled run of the refresh script remains a
-safe no-op until a real parser lands.
+`latest.json` may also contain dated first-party menu observations from other
+reviewed lanes. Demo fixtures are labelled as demo in the app and must not be
+presented as live venue prices. The UK price bundle re-checks source permission
+when it builds, so a row from a refused host cannot become a listed price.
+Nicholson's rows were removed from all tracked update snapshots on 2026-09-22
+after a live robots.txt re-read returned an unreadable 403 challenge.

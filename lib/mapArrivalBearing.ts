@@ -10,14 +10,11 @@
 // own (deleted 3 Sep 2026, fenced by __tests__/idleOrbitRemoved.test.ts). This
 // is ONE eased move, once per map, and the camera is still afterwards.
 //
-// TWO writers can give the map its first bearing, and which lands first is not
-// the app's decision. While the opening-location question is open the canvas
-// takes the hold view's FLAT attitude and the focus move that follows carries
-// centre and zoom only, so the map arrives at 0. Once that question is
-// answered before the canvas is built, the canvas takes the city view instead,
-// which is already off north (London is -8). Measured both ways on 7 Sep 2026:
-// bearing 0 on the local phone rig, bearing -8 under the browser suite's
-// software rasteriser.
+// A cold opening builds the canvas at bearing 0 on the city's own centre and
+// zoom, whether or not the opening-location question has answered, and the
+// focus move that follows carries centre and zoom only, so a cold map arrives
+// at 0 and turns (captain's decision B, 24 Sep 2026). A resumed or restored
+// session arrives at the attitude it was left at.
 //
 // So the rule reads the bearing the map ACTUALLY holds rather than assuming
 // one. A flat map turns; a map that already has an attitude keeps it, because
@@ -35,7 +32,7 @@ export const MAP_ARRIVAL_BEARING_DURATION_MS = 1_000;
  * Below this, a bearing is the flat arrival rather than a rotation somebody
  * owns. A resumed session or a reader's own turn is left exactly as it is.
  */
-export const MAP_ARRIVAL_BEARING_EPSILON = 0.5;
+const MAP_ARRIVAL_BEARING_EPSILON = 0.5;
 
 // How the turn waits for the camera writers around it.
 //
@@ -77,6 +74,25 @@ export const MAP_ARRIVAL_BEARING_SETTLED_BY_MS =
   ARRIVAL_BEARING_WAIT_CEILING_MS +
   ARRIVAL_BEARING_STILL_POLLS * ARRIVAL_BEARING_POLL_MS +
   MAP_ARRIVAL_BEARING_DURATION_MS;
+
+export type ArrivalBearingWait = { stillPolls: number; waitedMs: number };
+
+/**
+ * One poll of the turn's wait: the wait that follows, or null once the turn may
+ * run. A camera the opening-location answer has not moved yet is not still,
+ * because that answer's move is on its way and would stop the turn mid-ease.
+ * The ceiling runs regardless, so a camera that never settles still turns.
+ */
+export function nextArrivalBearingWait(
+  wait: ArrivalBearingWait,
+  sample: { moving: boolean; openingPending: boolean },
+): ArrivalBearingWait | null {
+  const waitedMs = wait.waitedMs + ARRIVAL_BEARING_POLL_MS;
+  const stillPolls = sample.moving || sample.openingPending ? 0 : wait.stillPolls + 1;
+  if (stillPolls >= ARRIVAL_BEARING_STILL_POLLS) return null;
+  if (waitedMs >= ARRIVAL_BEARING_WAIT_CEILING_MS) return null;
+  return { stillPolls, waitedMs };
+}
 
 export type MapArrivalBearingPlan = {
   bearing: number;

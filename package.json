@@ -29,7 +29,7 @@
     "gate:privacy": "node scripts/assert-privacy-response.mjs",
     "shots": "PUBMAX_E2E_KEYLESS=1 PW_SCREENSHOTS=1 PUBMAX_TRACKED_OUTPUTS=docs/screenshots node scripts/run-with-restored-next-env.mjs sh -c 'npm run build && base=$((30000 + ($$ % 10000))); i=0; for p in shots-390-light shots-1440-light shots-390-dark shots-1440-dark; do PW_PORT=$((base + i)) playwright test --workers=1 --project=$p || exit; i=$((i + 1)); done'",
     "shots:extended": "PUBMAX_E2E_KEYLESS=1 PW_SCREENSHOTS=1 PUBMAX_TRACKED_OUTPUTS=docs/screenshots node scripts/run-with-restored-next-env.mjs sh -c 'npm run build && base=$((30000 + ($$ % 10000))); i=0; for p in shots-390-light shots-430-light shots-1280-light shots-1440-light shots-390-dark shots-430-dark shots-1280-dark shots-1440-dark; do PW_PORT=$((base + i)) playwright test --workers=1 --project=$p || exit; i=$((i + 1)); done'",
-    "coverage": "vitest run --coverage --maxWorkers=4",
+    "coverage": "node scripts/run-coverage.mjs",
     "prevalidate-data": "npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base",
     "validate-data": "node scripts/validate-data.mjs",
     "check:freshness": "node scripts/check_freshness.mjs",
@@ -102,7 +102,12 @@
     "build:discover-board": "tsx scripts/build_discover_board.mjs",
     "arize:smoke": "tsx scripts/arizeSmoke.ts",
     "backfill:site-harvest-drink-labels": "tsx scripts/backfill_site_harvest_drink_labels.mjs",
-    "harvest:soft-drinks-menus": "tsx scripts/harvest_soft_drinks_menus.mjs"
+    "harvest:soft-drinks-menus": "tsx scripts/harvest_soft_drinks_menus.mjs",
+    "discover:soft-drinks-menu-urls": "tsx scripts/discover_soft_drinks_menu_urls.mjs",
+    "eval:pal": "node --conditions=react-server --import tsx scripts/pal-eval.mjs",
+    "eval:pal:live": "node --conditions=react-server --import tsx scripts/pal-eval.mjs --live --write-scoreboard",
+    "regenerate:pal-answer-key": "node --conditions=react-server --import tsx scripts/regenerate-pal-answer-key.mjs",
+    "verify:famous-venues": "node --env-file-if-exists=.env.local --import tsx scripts/verify_famous_venues.mjs"
   },
   "dependencies": {
     "@ai-sdk/otel": "^1.0.106",

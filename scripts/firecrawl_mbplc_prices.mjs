@@ -19,7 +19,6 @@ import { fileURLToPath } from "node:url";
 import {
   buildVenueIndexes,
   mergeDrinkUpdates,
-  normalisePubName,
   resolveVenueKeyFromHints,
   resolveVenueKeyFromPubName,
   slugFromMbplcDrinksUrl,
@@ -31,7 +30,12 @@ import {
   createMenuPageHarvester,
   parseMenuTransportArg,
 } from "./lib/harvestMenuTransport.mjs";
-import { hostHasLondonDrinkCaptainOverride } from "../lib/harvest/sourcePolicy.ts";
+import {
+  readValidatedMenuPageCache,
+  writeMenuPageCache,
+} from "./lib/harvestMenuCache.mjs";
+import { isHarvestableChainMenuUrl } from "../lib/harvest/sourcePolicy.ts";
+import { createRobotsChecker } from "../lib/harvest/robots.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -40,12 +44,39 @@ const MENU_CACHE = join(ROOT, ".firecrawl", "menus", "nicholsons");
 const DEFAULT_URLS = join(ROOT, "data", "nicholsons_london_drink_urls.txt");
 const DATASET_PATH = join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const LATEST_PATH = join(OUT_DIR, "latest.json");
+const SOURCE_ID = "mitchells-butlers-menu-prices";
 
 const SOURCE = {
   label: "Nicholson's — official drinks menu",
   licence:
     "All rights reserved — first-party publisher of its own pub menus/prices; read-only, attributed use only.",
 };
+
+const SOURCE_REFUSAL_CODES = new Set([
+  "policy-refused",
+  "robots-refused",
+  "redirect-refused",
+  "missing-final-url",
+  "invalid-final-url",
+]);
+
+function isSourceRefusal(error) {
+  return error instanceof HarvestMenuTransportError && SOURCE_REFUSAL_CODES.has(error.code);
+}
+
+function sameMenuUrl(left, right) {
+  try {
+    const normalise = (value) => {
+      const url = new URL(value);
+      url.search = "";
+      url.hash = "";
+      return url.href.replace(/\/$/, "");
+    };
+    return normalise(left) === normalise(right);
+  } catch {
+    return false;
+  }
+}
 
 const DRINK_CATEGORIES = new Set([
   "beer",
@@ -243,14 +274,67 @@ function resolveNicholsonsVenueKey(url, markdown, indexes) {
 
 // Keep this cache path stable. Downstream merge scripts treat it as an input contract.
 
-async function scrapeMenu(url, outPath, harvester) {
-  if (existsSync(outPath)) {
-    return readFileSync(outPath, "utf8");
+async function assertMenuReadAllowed(url, robotsChecker) {
+  if (!isHarvestableChainMenuUrl(url, SOURCE_ID)) {
+    throw new HarvestMenuTransportError("policy-refused", `sourcePolicy refused ${url}`);
   }
+  const robots = await robotsChecker(url);
+  if (!robots.allowed) {
+    throw new HarvestMenuTransportError(
+      "robots-refused",
+      `robots.txt refused ${url}: ${robots.evidence}`,
+    );
+  }
+}
+
+function isNicholsonsOwnedUpdate(update) {
+  if (update?.source?.label === SOURCE.label) return true;
+  try {
+    const hostname = new URL(update?.source?.url).hostname.toLowerCase();
+    return hostname === "nicholsonspubs.co.uk" || hostname.endsWith(".nicholsonspubs.co.uk");
+  } catch {
+    return false;
+  }
+}
+
+async function retainPermittedExistingUpdates(existing, robotsChecker) {
+  const decisions = new Map();
+  const retained = [];
+  for (const update of existing) {
+    if (!isNicholsonsOwnedUpdate(update)) {
+      retained.push(update);
+      continue;
+    }
+    const url = update?.source?.url;
+    if (!decisions.has(url)) {
+      decisions.set(
+        url,
+        assertMenuReadAllowed(url, robotsChecker).then(
+          () => true,
+          (error) => {
+            if (isSourceRefusal(error)) return false;
+            throw error;
+          },
+        ),
+      );
+    }
+    if (await decisions.get(url)) retained.push(update);
+  }
+  return retained;
+}
+
+async function scrapeMenu(url, outPath, harvester, robotsChecker) {
+  await assertMenuReadAllowed(url, robotsChecker);
+  const cached = await readValidatedMenuPageCache({
+    requestedUrl: url,
+    markdownPath: outPath,
+    validateResolvedMenuUrl: harvester.validateResolvedMenuUrl,
+  });
+  if (cached) return cached;
   mkdirSync(dirname(outPath), { recursive: true });
-  const markdown = await harvester.fetchMenuMarkdown(url);
-  writeFileSync(outPath, `${markdown.trim()}\n`);
-  return markdown;
+  const page = await harvester.fetchMenuPage(url);
+  writeMenuPageCache({ requestedUrl: url, markdownPath: outPath, page });
+  return page;
 }
 
 function parseArgs(argv) {
@@ -281,9 +365,11 @@ async function main() {
   const transport = parseMenuTransportArg();
   const observedAt = new Date().toISOString();
   assertTransportCredentials(transport);
+  const robotsChecker = createRobotsChecker();
   const harvester = createMenuPageHarvester({
     transport,
-    sourceId: "mitchells-butlers-menu-prices",
+    sourceId: SOURCE_ID,
+    robotsChecker,
   });
 
   const knownUrls = readFileSync(urlsFile, "utf8")
@@ -316,9 +402,11 @@ async function main() {
 
   const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
   const indexes = buildVenueIndexes(dataset);
-  const existing = loadExistingUpdates();
+  const existing = await retainPermittedExistingUpdates(loadExistingUpdates(), robotsChecker);
 
   const updates = [];
+  const refusedVenueKeys = new Set();
+  const refusedRequestedUrls = new Set();
   let scraped = 0;
   let matched = 0;
   let unmatched = 0;
@@ -327,11 +415,14 @@ async function main() {
   for (const url of urls) {
     const slug = slugFromMbplcDrinksUrl(url) ?? "unknown";
     const cachePath = join(MENU_CACHE, `${slug}.md`);
-    let markdown;
+    const targetVenueKey = resolveNicholsonsVenueKey(url, "", indexes);
+    let page;
     try {
-      markdown = await scrapeMenu(url, cachePath, harvester);
+      page = await scrapeMenu(url, cachePath, harvester, robotsChecker);
     } catch (error) {
-      if (error instanceof HarvestMenuTransportError && error.code === "policy-refused") {
+      if (isSourceRefusal(error)) {
+        if (targetVenueKey) refusedVenueKeys.add(targetVenueKey);
+        refusedRequestedUrls.add(url);
         refused += 1;
         console.warn(`REFUSED ${url}: ${error.message}`);
         continue;
@@ -339,6 +430,7 @@ async function main() {
       throw error;
     }
     scraped += 1;
+    const { markdown, finalUrl } = page;
 
     const venueKey = resolveNicholsonsVenueKey(url, markdown, indexes);
     if (!venueKey) {
@@ -359,10 +451,7 @@ async function main() {
         priceGbp: d.priceGbp,
         source: {
           ...SOURCE,
-          url,
-          ...(hostHasLondonDrinkCaptainOverride(new URL(url).hostname)
-            ? { robotsDisallowed: true }
-            : {}),
+          url: finalUrl,
         },
         observedAt,
       });
@@ -371,7 +460,15 @@ async function main() {
     console.log(`  ${pubName}: ${drinks.length} drinks → ${venueKey.slice(0, 45)}…`);
   }
 
-  const merged = mergeDrinkUpdates(existing, updates);
+  const retainedExisting = existing.filter(
+    (row) =>
+      !(
+        isNicholsonsOwnedUpdate(row) &&
+        (refusedVenueKeys.has(row.venueKey) ||
+          [...refusedRequestedUrls].some((url) => sameMenuUrl(row?.source?.url, url)))
+      ),
+  );
+  const merged = mergeDrinkUpdates(retainedExisting, updates);
   mkdirSync(OUT_DIR, { recursive: true });
   const stamp = observedAt.slice(0, 10).replace(/-/g, "");
   const payload = { version: 1, generatedAt: observedAt, updates: merged };

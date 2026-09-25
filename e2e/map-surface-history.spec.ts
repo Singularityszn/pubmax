@@ -67,12 +67,18 @@ async function selectFirstToolbarVenue(page: Page, query: string): Promise<void>
   const search = page
     .locator(".mapToolbar")
     .getByRole("combobox", { name: "Search pubs" });
-  await search.fill(query);
+  // Exact, because a role name matches by substring: "Venues across city
+  // maps" leads the list, and its first "Soho" row is a Birmingham tavern
+  // that opens another city's map.
   const option = page
-    .getByRole("group", { name: "Venues" })
+    .getByRole("group", { name: "Venues", exact: true })
     .getByRole("option")
     .first();
-  await expect(option).toBeVisible({ timeout: 20_000 });
+  await expect(async () => {
+    await search.click();
+    await search.fill(query);
+    await expect(option).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 60_000 });
   await option.click();
 }
 
@@ -145,17 +151,23 @@ test.describe("one Map surface history owner", () => {
     await expectSoleDrawer(page, "venue");
 
     await venue(page).getByRole("button", { name: /Close/ }).click();
-    await expect(venue(page)).toHaveAttribute("aria-hidden", "true");
     // Old restore replayed after Close while ?q= still matched one pub, which
     // put detail-open back on #main. That class makes the toolbar ignore
     // pointer events, so Clear search never received the click. Wait past the
     // restore timeout (0ms) and the typed-search debounce (320ms), then require
     // the overlay gone before clearing.
+    await expect(page.locator("#main")).not.toHaveClass(/detail-open/, {
+      timeout: 30_000,
+    });
+    await expect(venue(page)).toHaveAttribute("aria-hidden", "true", {
+      timeout: 30_000,
+    });
     await page.waitForTimeout(500);
     await expect(page.locator("#main")).not.toHaveClass(/detail-open/);
     await expect(venue(page)).toHaveAttribute("aria-hidden", "true");
 
-    await toolbar.getByRole("button", { name: "Clear search" }).click();
+    const searchCell = toolbar.locator(".mapToolbarSearch");
+    await searchCell.getByRole("button", { name: "Clear search" }).click();
     await expect(search).toHaveValue("");
     // The old arrival effect replayed on the next filter render. Observe past
     // both that render and the typed-search debounce before accepting success.
