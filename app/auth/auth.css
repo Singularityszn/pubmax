@@ -252,7 +252,7 @@
    display:none replacement of the accessible name — each button keeps its own
    aria-label regardless of which is visible). Default (room to spare) shows
    the full label; tight containers / ≤720px viewports swap to short provider
-   names so Google + Apple never crowd or clip. */
+   names so the provider buttons never crowd or clip. */
 .authSignInLabelShort {
   display: none;
 }

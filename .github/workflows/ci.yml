@@ -142,6 +142,11 @@ jobs:
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci
 
+      # Fresh checkout: production-build does not upload data/generated, but
+      # validate-data and venue route tests expect slim/detail artifacts.
+      - name: Build slim venue artifacts
+        run: npm run build:slim
+
       # Postgres/PostgREST proofs live in rls-session.yml, the one job that
       # installs a cluster. This job excludes exactly the suites named in
       # scripts/rls/postgresSuites.mjs, and __tests__/postgresSuiteInventory.

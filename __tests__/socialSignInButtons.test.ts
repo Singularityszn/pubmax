@@ -25,7 +25,7 @@ afterEach(() => {
 const noop = async () => {};
 
 function renderProviders(
-  availability: { google: boolean; apple: boolean },
+  availability: { google: boolean; apple: boolean; microsoft: boolean },
 ): string {
   return renderToStaticMarkup(
     createElement(SocialSignInButtons, {
@@ -33,29 +33,38 @@ function renderProviders(
       disabled: false,
       onGoogle: noop,
       onApple: noop,
+      onMicrosoft: noop,
     }),
   );
 }
 
 describe("social sign-in provider rendering", () => {
   it("renders no clickable provider when every live provider is disabled", () => {
-    const html = renderProviders({ google: false, apple: false });
+    const html = renderProviders({ google: false, apple: false, microsoft: false });
 
     expect(html).toBe("");
   });
 
   it("renders Google only when live settings enable Google", () => {
-    const html = renderProviders({ google: true, apple: false });
+    const html = renderProviders({ google: true, apple: false, microsoft: false });
 
     expect(html).toContain('aria-label="Continue with Google"');
     expect(html).not.toContain("Continue with Apple");
   });
 
   it("renders Apple only when live settings enable Apple", () => {
-    const html = renderProviders({ google: false, apple: true });
+    const html = renderProviders({ google: false, apple: true, microsoft: false });
 
     expect(html).toContain('aria-label="Continue with Apple"');
     expect(html).not.toContain("Continue with Google");
+  });
+
+  it("renders Microsoft only when live settings enable Microsoft", () => {
+    const html = renderProviders({ google: false, apple: false, microsoft: true });
+
+    expect(html).toContain('aria-label="Continue with Microsoft"');
+    expect(html).not.toContain("Continue with Google");
+    expect(html).not.toContain("Continue with Apple");
   });
 });
 
@@ -83,7 +92,7 @@ describe("email sign-in heading", () => {
 
 describe("signed-out sign-in surface", () => {
   function renderSignIn(
-    socialProviders: { google: boolean; apple: boolean },
+    socialProviders: { google: boolean; apple: boolean; microsoft: boolean },
   ): string {
     authState.current = {
       user: null,
@@ -93,6 +102,7 @@ describe("signed-out sign-in surface", () => {
       socialProviders,
       signInWithGoogle: vi.fn(),
       signInWithApple: vi.fn(),
+      signInWithMicrosoft: vi.fn(),
       signInWithEmail: vi.fn(),
       cancelAuthAttempt: vi.fn(),
       signOut: vi.fn(),
@@ -101,7 +111,7 @@ describe("signed-out sign-in surface", () => {
   }
 
   it("renders complete email sign-in and no social dead ends when all are disabled", () => {
-    const html = renderSignIn({ google: false, apple: false });
+    const html = renderSignIn({ google: false, apple: false, microsoft: false });
 
     expect(html).toContain("Continue with email");
     expect(html).toContain("Email me a link");
@@ -110,7 +120,7 @@ describe("signed-out sign-in surface", () => {
   });
 
   it("adds an enabled provider without replacing email sign-in", () => {
-    const html = renderSignIn({ google: true, apple: false });
+    const html = renderSignIn({ google: true, apple: false, microsoft: false });
 
     expect(html).toContain('aria-label="Continue with Google"');
     expect(html).toContain("Or continue with email");
@@ -125,9 +135,10 @@ describe("signed-out sign-in surface", () => {
       loading: false,
       configured: false,
       clerkIntegrationConfigured: false,
-      socialProviders: { google: true, apple: false },
+      socialProviders: { google: true, apple: false, microsoft: false },
       signInWithGoogle: vi.fn(),
       signInWithApple: vi.fn(),
+      signInWithMicrosoft: vi.fn(),
       signInWithEmail: vi.fn(),
       cancelAuthAttempt: vi.fn(),
       signOut: vi.fn(),
@@ -157,9 +168,10 @@ describe("signed-in account surface", () => {
       loading: false,
       configured: true,
       clerkIntegrationConfigured: false,
-      socialProviders: { google: false, apple: false },
+      socialProviders: { google: false, apple: false, microsoft: false },
       signInWithGoogle: vi.fn(),
       signInWithApple: vi.fn(),
+      signInWithMicrosoft: vi.fn(),
       signInWithEmail: vi.fn(),
       cancelAuthAttempt: vi.fn(),
       signOut: vi.fn(),
@@ -181,9 +193,10 @@ describe("signed-in account surface", () => {
       loading: false,
       configured: true,
       clerkIntegrationConfigured: true,
-      socialProviders: { google: false, apple: false },
+      socialProviders: { google: false, apple: false, microsoft: false },
       signInWithGoogle: vi.fn(),
       signInWithApple: vi.fn(),
+      signInWithMicrosoft: vi.fn(),
       signInWithEmail: vi.fn(),
       cancelAuthAttempt: vi.fn(),
       signOut: vi.fn(),

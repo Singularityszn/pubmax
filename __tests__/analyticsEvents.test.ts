@@ -344,7 +344,7 @@ describe("sanitizeEvent", () => {
   });
 
   describe("PostHog wizard events", () => {
-    it.each(["google", "apple", "email"])(
+    it.each(["google", "apple", "microsoft", "email"])(
       "keeps only fixed provider enum %s for sign-in initiation",
       (provider) => {
         expect(sanitizeEvent("sign_in_initiated", {
@@ -358,7 +358,7 @@ describe("sanitizeEvent", () => {
       },
     );
 
-    it.each(["microsoft", "oauth", "private", "person@example.com"])(
+    it.each(["oauth", "private", "person@example.com"])(
       "rejects provider value %s outside the sign-in button enum",
       (provider) => {
         expect(sanitizeEvent("sign_in_initiated", { provider })?.props).toEqual({});

@@ -25,6 +25,17 @@ function GoogleMark(): React.JSX.Element {
   );
 }
 
+function MicrosoftMark(): React.JSX.Element {
+  return (
+    <svg className="authProviderMark" viewBox="0 0 23 23" aria-hidden="true" focusable="false">
+      <path fill="#f35325" d="M1 1h10v10H1z" />
+      <path fill="#81bc06" d="M12 1h10v10H12z" />
+      <path fill="#05a6f0" d="M1 12h10v10H1z" />
+      <path fill="#ffba08" d="M12 12h10v10H12z" />
+    </svg>
+  );
+}
+
 function AppleMark(): React.JSX.Element {
   return (
     <svg className="authProviderMark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -40,7 +51,7 @@ function ProviderLabel({
   name,
   fullLabels,
 }: {
-  name: "Google" | "Apple";
+  name: "Google" | "Apple" | "Microsoft";
   fullLabels: boolean;
 }): React.JSX.Element {
   if (fullLabels) return <>Continue with {name}</>;
@@ -61,6 +72,7 @@ export default function SocialSignInButtons({
   disabled,
   onGoogle,
   onApple,
+  onMicrosoft,
   className,
   fullLabels = false,
 }: {
@@ -68,10 +80,11 @@ export default function SocialSignInButtons({
   disabled: boolean;
   onGoogle: () => void | Promise<void>;
   onApple: () => void | Promise<void>;
+  onMicrosoft: () => void | Promise<void>;
   className?: string;
   fullLabels?: boolean;
 }): React.JSX.Element | null {
-  if (!availability.google && !availability.apple) return null;
+  if (!availability.google && !availability.apple && !availability.microsoft) return null;
 
   const classes = ["authProviders", className].filter(Boolean).join(" ");
   return (
@@ -98,6 +111,18 @@ export default function SocialSignInButtons({
         >
           <AppleMark />
           <ProviderLabel name="Apple" fullLabels={fullLabels} />
+        </button>
+      ) : null}
+      {availability.microsoft ? (
+        <button
+          type="button"
+          className="authSignIn"
+          onClick={() => void onMicrosoft()}
+          disabled={disabled}
+          aria-label="Continue with Microsoft"
+        >
+          <MicrosoftMark />
+          <ProviderLabel name="Microsoft" fullLabels={fullLabels} />
         </button>
       ) : null}
     </div>
