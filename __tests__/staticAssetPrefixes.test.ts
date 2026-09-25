@@ -165,6 +165,19 @@ describe("static asset prefixes", () => {
     ).toBe(false);
   });
 
+  it("keeps webpack-mode HMR off the proxy so the WebSocket can upgrade", () => {
+    // Importers: this suite + Next's matcher. Callers: `next dev --webpack`
+    // HMR client. Without the exclusion the handshake returns ordinary HTTP
+    // (ERR_INVALID_HTTP_RESPONSE) and the app never hydrates.
+    expect(generalMatcherSource()).toContain("_next/hmr");
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "https://pubmaxxing.com/_next/hmr?id=test",
+      }),
+    ).toBe(false);
+  });
+
   it("still runs the proxy on every document, /pal included", () => {
     for (const path of ["/", "/map", "/pal", "/login", "/tonight", "/u/you"]) {
       expect(

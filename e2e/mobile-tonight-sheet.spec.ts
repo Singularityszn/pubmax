@@ -115,7 +115,7 @@ for (const theme of ["light", "dark"] as const) {
     // collapse × and the bare pins-dismiss × must not appear inside the sheet.
     await expect(sheet.getByRole("button", { name: "Close Map controls" })).toHaveCount(1);
     await expect(sheet.locator(".tonightLaneClose")).toHaveCount(0);
-    await expect(sheet.getByRole("button", { name: "Dismiss tonight map pins" })).toHaveCount(0);
+    await expect(sheet.getByRole("button", { name: "Dismiss Pins" })).toHaveCount(0);
 
     await expectNoHorizontalOverflow(page);
   });

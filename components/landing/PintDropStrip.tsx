@@ -147,11 +147,8 @@ export default function PintDropStrip() {
       <div className="dropStripHead">
         <p className="eyebrow" id="dropStrip-title">
           <HandCoins size={15} strokeWidth={1.5} aria-hidden="true" />
-          Fresh from the taps
+          Pint drops
         </p>
-        <span className="dropStripHint" aria-hidden="true">
-          Newest community drops →
-        </span>
       </div>
 
       {status === "loading" && (

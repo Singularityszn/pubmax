@@ -14,8 +14,9 @@ export default function LandingAnswerCards({ answers }: { answers: LandingAnswer
   return (
     <section className="lpAnswers" aria-labelledby="lp-answers-title">
       <h2 className="lpAnswersTitle" id="lp-answers-title">
-        Before you set off
+        Today and tonight
       </h2>
+
       <div className="lpAnswersGrid">
         <Link prefetch={false} href="/today" className="lpAnswerTile">
           <span className="lpAnswerTileHead">What&rsquo;s on today</span>

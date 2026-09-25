@@ -38,6 +38,7 @@ import {
   type UkBasePubSuggestion,
 } from "@/lib/ukBasePubSearch";
 import type { UkBasePub } from "@/lib/ukBasePubs";
+import { kebabSlug, normalizeSearchText } from "@/lib/textSlug";
 
 export type { UkBasePubSuggestion };
 export { UK_BASE_SEARCH_GROUP_LABEL } from "@/lib/ukBasePubSearch";
@@ -54,6 +55,21 @@ const SUGGEST_PLACE_LIMIT = 6;
 
 /** Visible group head for national place rows in MapSearchSuggest. */
 export const UK_PLACE_SEARCH_GROUP_LABEL = "UK places";
+
+/**
+ * When a typed query matches venues, those rows lead the panel. An area that
+ * shares a stem ("Blackfriars") must not sit above the pub ("The Blackfriar").
+ */
+export function mapSearchVenuesLeadAreas(input: {
+  query: string;
+  pubCount: number;
+  indexedVenueCount?: number;
+}): boolean {
+  return (
+    input.query.trim().length > 0 &&
+    (input.pubCount > 0 || (input.indexedVenueCount ?? 0) > 0)
+  );
+}
 
 /** Camera zoom a locality tap flies to. A locality is tighter than a modelled
  *  area, so it sits one notch deeper than the area fly's default (14). */
@@ -203,7 +219,7 @@ export function buildMapPlaceSuggestions(input: {
     ? [input.userLocation.lng, input.userLocation.lat]
     : input.mapCenter;
   const excluded = new Set(
-    (input.excludedNames ?? []).map((name) => normalize(name)).filter(Boolean),
+    (input.excludedNames ?? []).map((name) => normalizeSearchText(name)).filter(Boolean),
   );
   const results: PlaceSuggestion[] = [];
   for (const result of buildCityChooserSearchResults(
@@ -212,13 +228,13 @@ export function buildMapPlaceSuggestions(input: {
     input.places,
     Math.max(limit + excluded.size, limit),
   )) {
-    if (excluded.has(normalize(result.name))) continue;
+    if (excluded.has(normalizeSearchText(result.name))) continue;
     if (
       result.kind === "curated" &&
       input.currentCityId !== undefined &&
       result.cityId === input.currentCityId &&
-      normalize(result.name) ===
-        normalize(
+      normalizeSearchText(result.name) ===
+        normalizeSearchText(
           listEnabledCities().find((city) => city.id === result.cityId)
             ?.displayName ?? "",
         )
@@ -246,15 +262,6 @@ export function buildMapPlaceSuggestions(input: {
   return results;
 }
 
-function normalize(value: string): string {
-  return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
-}
-
-function slugify(value: string): string {
-  return normalize(value)
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 /**
  * Match tier of a query against a set of labels (name + aliases):
@@ -265,7 +272,7 @@ function slugify(value: string): string {
 function matchTier(labels: readonly string[], query: string): number | null {
   let best: number | null = null;
   for (const label of labels) {
-    const hay = normalize(label);
+    const hay = normalizeSearchText(label);
     if (!hay) continue;
     if (hay === query) return 0;
     if (hay.startsWith(query) || hay.split(" ").some((word) => word.startsWith(query))) {
@@ -421,7 +428,7 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
   const localities = includeLocalResults ? (input.localities ?? []) : [];
   const places = input.places ?? [];
   const pubLimit = input.pubLimit ?? SUGGEST_PUB_LIMIT;
-  const query = normalize(input.query);
+  const query = normalizeSearchText(input.query);
   const isEmptyQuery = query.length === 0;
 
   const origin: SuggestOrigin = userLocation ? "user" : "map-centre";
@@ -436,8 +443,8 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
   if (includeLocalResults) {
     const areas = getNightAreasForCity(cityId);
     for (const area of areas) {
-      modelledLabels.add(normalize(area.name));
-      for (const alias of area.aliases) modelledLabels.add(normalize(alias));
+      modelledLabels.add(normalizeSearchText(area.name));
+      for (const alias of area.aliases) modelledLabels.add(normalizeSearchText(alias));
     }
 
     for (const area of areas) {
@@ -471,7 +478,7 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
     // carry NO coverage — they are places to fly to, not coverage promises.
     if (!isEmptyQuery) {
       for (const locality of localities) {
-        const label = normalize(locality.name);
+        const label = normalizeSearchText(locality.name);
         if (!label || modelledLabels.has(label) || shownLocalityLabels.has(label)) continue;
         const tier = matchTier([locality.name], query);
         if (tier === null) continue;
@@ -482,9 +489,9 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
         areaMatches.push({
           tier,
           suggestion: {
-            key: `locality:${slugify(locality.name)}`,
+            key: `locality:${kebabSlug(locality.name)}`,
             kind: "locality",
-            slug: `locality:${slugify(locality.name)}`,
+            slug: `locality:${kebabSlug(locality.name)}`,
             name: locality.name,
             contextLabel: locality.borough,
             areaNewsArea: slugifyBorough(locality.borough),
@@ -504,7 +511,7 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
     // with its real centre and coverage, wins.
     if (!isEmptyQuery) {
       for (const [name, info] of buildBoroughCentroids(venues)) {
-        const label = normalize(name);
+        const label = normalizeSearchText(name);
         // Drop a borough that collides with a modelled area (curated area wins) or
         // with a locality already shown (no "Bromley" twice — the locality centroid
         // is the finer target).
@@ -515,9 +522,9 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
         areaMatches.push({
           tier,
           suggestion: {
-            key: `borough:${slugify(name)}`,
+            key: `borough:${kebabSlug(name)}`,
             kind: "borough",
-            slug: `borough:${slugify(name)}`,
+            slug: `borough:${kebabSlug(name)}`,
             name,
             contextLabel: "",
             areaNewsArea: slugifyBorough(name),

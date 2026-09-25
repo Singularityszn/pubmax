@@ -24,8 +24,8 @@
  * deliberate PUBMAX_RLS_NO_PG=1 opt-out; an absent PostgreSQL nobody opted out
  * of makes `startPostgres` throw, so a green run means the proofs really ran.
  */
-import { execFile, execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFile, execFileSync, spawn } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -37,6 +37,11 @@ import {
   missingPostgresReason,
   postgresSkipReason,
 } from "../../scripts/rls/postgresHost.mjs";
+import {
+  registerHarnessCluster,
+  stopHarnessCluster,
+  unregisterHarnessCluster,
+} from "../../scripts/rls/postgresShm.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -102,17 +107,6 @@ async function pickPort(): Promise<number> {
   });
 }
 
-async function waitForExit(handle: ChildProcess, timeoutMs: number): Promise<void> {
-  if (handle.exitCode !== null || handle.signalCode !== null) return;
-  await new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, timeoutMs);
-    handle.once("exit", () => {
-      clearTimeout(timer);
-      resolve();
-    });
-  });
-}
-
 /** psql prints the five-character SQLSTATE only under verbose error reporting. */
 const VERBOSE = ["-v", "VERBOSITY=verbose"] as const;
 
@@ -144,7 +138,6 @@ export async function startPostgres(
   const releaseSlotHold = await acquireClusterSlot(label);
 
   let dataDir: string | null = null;
-  let handle: ChildProcess | null = null;
   try {
     // The data directory holds the unix socket, and PostgreSQL refuses a
     // socket path over 103 bytes, so the label is trimmed here rather than
@@ -190,7 +183,6 @@ export async function startPostgres(
       ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
       { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, LC_ALL: "C" } },
     );
-    handle = server;
     let log = "";
     const keep = (chunk: Buffer | string): void => {
       log = (log + String(chunk)).slice(-8_000);
@@ -217,6 +209,8 @@ export async function startPostgres(
       }
     }
     if (!ready) throw new Error(`PostgreSQL failed to start:\n${log.trim()}`);
+
+    registerHarnessCluster(dataDir);
 
     const database = options.database ?? "postgres";
     if (database !== "postgres") {
@@ -300,19 +294,8 @@ export async function startPostgres(
     const closedDataDir = dataDir;
     const stop = async (): Promise<void> => {
       try {
-        if (server.exitCode === null && server.signalCode === null) {
-          server.kill("SIGINT");
-          await waitForExit(server, 5_000);
-        }
-        if (server.exitCode === null && server.signalCode === null) {
-          server.kill("SIGTERM");
-          await waitForExit(server, 2_000);
-        }
-        if (server.exitCode === null && server.signalCode === null) {
-          server.kill("SIGKILL");
-          await waitForExit(server, 5_000);
-        }
-        rmSync(closedDataDir, { recursive: true, force: true });
+        stopHarnessCluster(closedDataDir);
+        unregisterHarnessCluster(closedDataDir);
       } finally {
         // The slot is the host's budget, so it goes back even when the cluster
         // refused to die tidily.
@@ -338,11 +321,10 @@ export async function startPostgres(
       stop,
     };
   } catch (error) {
-    if (handle && handle.exitCode === null && handle.signalCode === null) {
-      handle.kill("SIGKILL");
-      await waitForExit(handle, 5_000);
+    if (dataDir) {
+      stopHarnessCluster(dataDir);
+      unregisterHarnessCluster(dataDir);
     }
-    if (dataDir) rmSync(dataDir, { recursive: true, force: true });
     releaseSlotHold();
     throw error;
   }

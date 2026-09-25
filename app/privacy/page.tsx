@@ -122,10 +122,10 @@ export default function PrivacyPage() {
         <h3 className="legalH3">If you make an account</h3>
         <p className="legalBody">
           Sign-in is handled by Supabase, using either an emailed magic link or
-          Google or Apple sign-in. That means we hold your email address. You
-          must choose one public handle, which is linked to your authenticated
-          account and is the only identity shown with contributions. Handle
-          is needed to finish signup. Date of birth is optional.
+          Microsoft, Google or Apple sign-in. That means we hold your email
+          address. You must choose one public handle, which is linked to your
+          authenticated account and is the only identity shown with contributions.
+          Handle is needed to finish signup. Date of birth is optional.
           Full name, gender and sex are optional. We collect and store date
           of birth, full name, gender and sex as private details for existing
           account tools.

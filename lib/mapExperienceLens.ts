@@ -373,31 +373,34 @@ export function experienceLensSummary(
   if (lens === "all") return "";
   if (lens === "food") {
     if (sourcedFoodPriceCount === 0) {
-      return "Food venues shown. No sourced menu prices in this view yet.";
+      return "Food venues shown. No menu prices we have in this view yet.";
     }
-    return `${sourcedFoodPriceCount} sourced menu price${
+    return `${sourcedFoodPriceCount} menu price${
       sourcedFoodPriceCount === 1 ? "" : "s"
-    } shown.`;
+    } we have shown.`;
   }
   // Every branch below names the lens with the one shared noun. The lens
   // control sits beside the map while the venue list and its rows are open, so
   // three orderings of the same two drinks read as three different lenses.
   const noun = NO_ALCOHOL_LENS_PRICE_NOUN;
+  const plural = noAlcoholPriceCount === 1 ? "" : "s";
+  // Prices already on the map speak for themselves. A failed or unfinished
+  // index must not call those figures unchecked, and an empty index is not
+  // "none logged" while trusted rows are painted (Blackfriar soft-drink case).
+  if (noAlcoholPriceCount > 0) {
+    if (indexStatus === "partial") {
+      return `${noAlcoholPriceCount} ${noun} price${plural} shown, read from part of the list. Food venues also show menu prices we have.`;
+    }
+    return `${noAlcoholPriceCount} ${noun} price${plural} shown. Food venues also show menu prices we have.`;
+  }
   if (indexStatus === "loading" || indexStatus === "idle") {
     return `Checking ${noun} prices. Food venues are already shown.`;
   }
   if (indexStatus === "degraded") {
-    return `Could not check ${noun} prices right now. Food venues still show sourced menu prices.`;
+    return `Could not check ${noun} prices right now. Food venues still show menu prices we have.`;
   }
-  const plural = noAlcoholPriceCount === 1 ? "" : "s";
   if (indexStatus === "partial") {
-    if (noAlcoholPriceCount === 0) {
-      return `We read part of the ${noun} prices and none of them are here. Food venues still show sourced menu prices.`;
-    }
-    return `${noAlcoholPriceCount} ${noun} price${plural} shown, read from part of the list. Food venues also show sourced menu prices.`;
+    return `We read part of the ${noun} prices and none of them are here. Food venues still show menu prices we have.`;
   }
-  if (noAlcoholPriceCount === 0) {
-    return `No ${noun} prices logged here yet. Food venues still show sourced menu prices.`;
-  }
-  return `${noAlcoholPriceCount} ${noun} price${plural} shown. Food venues also show sourced menu prices.`;
+  return `No ${noun} prices logged here yet. Food venues still show menu prices we have.`;
 }

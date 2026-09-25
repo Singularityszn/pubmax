@@ -1,12 +1,9 @@
 name: CI
 
-# GitHub-hosted `ubuntu-latest` runners, on the captain's 15 September 2026
-# decision to stay inside the GitHub free minutes. History: Avrea runners
-# (`avrea-ubuntu-latest-2-vcpu`) carried every job from 6 September, after
-# GitHub-hosted allocation stopped answering on an organisation billing fault
-# (no job started between 5 September 11:08Z and 6 September 16:37Z), and
-# Blacksmith labels replaced them in #1652. The label is the only difference -
-# the image is Ubuntu and every job below still installs its own toolchain.
+# Self-hosted `pubmax-mac` runner (`karan-mac-pubmax`, macOS ARM64) while
+# GitHub-hosted minutes are billing-locked. History: Avrea and Blacksmith
+# carried jobs after the September 2026 allocation fault; hosted runners
+# stopped again when account payments failed. See docs/CI_RUNBOOK.md.
 # Effective RLS stays in rls-session.yml so this workflow stays lean and
 # finishes under the 15-minute wall budget.
 
@@ -20,13 +17,15 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Serialize pubmax-mac workflows on this ref only (repo-wide group blocked other branches).
+  group: pubmax-mac-${{ github.ref }}
+  cancel-in-progress: false
+
 
 jobs:
   review-scope:
     name: Review scope
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 5
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
@@ -44,7 +43,7 @@ jobs:
 
   lint-and-types:
     name: Lint and typecheck
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -79,7 +78,8 @@ jobs:
 
   production-build:
     name: Production build
-    runs-on: ubuntu-latest
+    needs: [lint-and-types, freshness]
+    runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -110,13 +110,15 @@ jobs:
         run: npm run build
 
   unit-tests:
-    name: Unit tests (${{ matrix.shard }}/4)
-    runs-on: ubuntu-latest
+    needs: [production-build]
+    name: Unit tests (${{ matrix.shard }}/2)
+    runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 15
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -140,6 +142,11 @@ jobs:
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci
 
+      # Fresh checkout: production-build does not upload data/generated, but
+      # validate-data and venue route tests expect slim/detail artifacts.
+      - name: Build slim venue artifacts
+        run: npm run build:slim
+
       # Postgres/PostgREST proofs live in rls-session.yml, the one job that
       # installs a cluster. This job excludes exactly the suites named in
       # scripts/rls/postgresSuites.mjs, and __tests__/postgresSuiteInventory.
@@ -153,7 +160,7 @@ jobs:
           PUBMAX_RLS_NO_PG: "1"
         run: >-
           npx vitest run
-          --shard=${{ matrix.shard }}/4
+          --shard=${{ matrix.shard }}/2
           --exclude '__tests__/accountRemovalMigrationEffective.test.ts'
           --exclude '__tests__/accountRetentionLedgerMigrationEffective.test.ts'
           --exclude '__tests__/accountVisibilityMigrationEffective.test.ts'
@@ -177,6 +184,7 @@ jobs:
           --exclude '__tests__/planAccountTransitionMigrationEffective.test.ts'
           --exclude '__tests__/planJoinRevokedPrecheckEffective.test.ts'
           --exclude '__tests__/planLegacyReplayCapabilityEffective.test.ts'
+          --exclude '__tests__/postgresShmHarness.test.ts'
           --exclude '__tests__/priceTrustEventsMigrationEffective.test.ts'
           --exclude '__tests__/rateLimitExpiryMigration.test.ts'
           --exclude '__tests__/rlsWave2Session.test.ts'
@@ -191,7 +199,8 @@ jobs:
 
   coverage:
     name: Coverage
-    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -241,6 +250,7 @@ jobs:
           --exclude '__tests__/planAccountTransitionMigrationEffective.test.ts'
           --exclude '__tests__/planJoinRevokedPrecheckEffective.test.ts'
           --exclude '__tests__/planLegacyReplayCapabilityEffective.test.ts'
+          --exclude '__tests__/postgresShmHarness.test.ts'
           --exclude '__tests__/priceTrustEventsMigrationEffective.test.ts'
           --exclude '__tests__/rateLimitExpiryMigration.test.ts'
           --exclude '__tests__/rlsWave2Session.test.ts'
@@ -255,7 +265,7 @@ jobs:
 
   freshness:
     name: Freshness release gate
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 10
     steps:
       - name: Checkout

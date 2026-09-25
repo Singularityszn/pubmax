@@ -7,12 +7,11 @@ import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
-import CityChooser from "@/components/city/CityChooser";
 import MessagesLink from "@/components/nav/MessagesLink";
 import NotificationBell from "@/components/nav/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
-import Kicker from "@/components/ui/kicker";
 // Shared nav atoms (bell/messages island) carry their styling in siteNav.css.
+
 // The landing bar isn't the SiteNav component, but it flies the same wordmark
 // and action cluster, so it pulls in those shared styles directly.
 import "@/components/nav/siteNav.css";
@@ -141,9 +140,7 @@ export default function LandingPage({
 
         {answers ? <LandingAnswerCards answers={answers} /> : null}
 
-        <section className="lpWorth" aria-labelledby="worth-title">
-          <Kicker>What it saves you</Kicker>
-          <h2 id="worth-title">The cheapest listed pint near you, on one map.</h2>
+        <section className="lpWorth" aria-label="What it saves you">
           <LandingSavings averages={averages} />
           <Link
             prefetch={false}
@@ -161,10 +158,6 @@ export default function LandingPage({
         </div>
 
         <LandingFaq />
-
-        <div id="cities" className="lpCityChooser">
-          <CityChooser />
-        </div>
       </main>
 
       <footer className="lpFooter">
@@ -192,11 +185,11 @@ export default function LandingPage({
               <Link prefetch={false} href="/plan">Plan a night</Link>
             </div>
             <div className="lpFooterCol">
-              <h2>The good stuff</h2>
+              <h2>More</h2>
               <Link prefetch={false} href="/social">{socialLabel}</Link>
               <Link prefetch={false} href="/pal">Pub Pal</Link>
               <Link prefetch={false} href="/places">Pick your city</Link>
-              <Link prefetch={false} href="/about">Our story</Link>
+              <Link prefetch={false} href="/about">About</Link>
             </div>
           </nav>
         </div>

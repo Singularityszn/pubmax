@@ -49,7 +49,7 @@ describe("hoverPriceLine", () => {
       null,
     );
     expect(line.price).toBe(6);
-    expect(line.provenance.startsWith("Sourced")).toBe(true);
+    expect(line.provenance.startsWith("Menu")).toBe(true);
   });
 
   it("falls to baseline", () => {

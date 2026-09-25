@@ -223,7 +223,7 @@ export function ChooseAreaDesktopDialog({
           <button
             type="button"
             className="chooseAreaDesktopClose"
-            aria-label="Close"
+            aria-label="Close choose area"
             onClick={onClose}
           >
             <X size={16} aria-hidden="true" />

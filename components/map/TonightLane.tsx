@@ -35,6 +35,9 @@ import {
   laneKindFacets,
 } from "@/lib/whatsOnBadges";
 
+/** Accessible name for the Pins overlay dismiss — closes Pins, not search or area. */
+export const TONIGHT_PINS_DISMISS_LABEL = "Dismiss Pins";
+
 
 type TonightLaneProps = {
   rows: WhatsOnRow[];
@@ -187,7 +190,7 @@ function TonightErrorState({ inSheet }: { inSheet: boolean }) {
         <div className="tonightLaneTitleMeta">
           <h2 className="tonightLaneTitle">On tonight</h2>
           <span className="tonightLaneChecked">
-            Tonight&rsquo;s listings unavailable right now
+            Couldn&rsquo;t load tonight&rsquo;s list.
           </span>
         </div>
       </div>
@@ -250,7 +253,7 @@ function TonightLaneCollapsed({
           <span className="tonightLaneCollapsedMain" role="status">
             <span className="tonightLaneCollapsedTitle">Tonight nearby</span>
             {status === "error" ? (
-              <span className="tonightLaneCollapsedChecked">Listings unavailable</span>
+              <span className="tonightLaneCollapsedChecked">Couldn&rsquo;t load.</span>
             ) : null}
           </span>
         )}
@@ -428,7 +431,7 @@ function TonightOverlayDismiss({ onDismiss }: { onDismiss: () => void }) {
     <button
       type="button"
       className="tonightLaneOverlayDismiss pressable"
-      aria-label="Dismiss tonight map pins"
+      aria-label={TONIGHT_PINS_DISMISS_LABEL}
       onClick={onDismiss}
     >
       <X size={15} aria-hidden="true" />
@@ -451,7 +454,7 @@ function TonightOverlayToggle({
       className="tonightLaneOverlayToggle pressable"
       data-testid="tonight-overlay-toggle"
       data-active={active}
-      aria-label={active ? "Hide tonight on map" : "Show tonight on map"}
+      aria-label={active ? "Hide Pins" : "Show Pins"}
       aria-pressed={active}
       onClick={onToggle}
     >

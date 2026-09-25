@@ -83,7 +83,7 @@ async function renderAbout(): Promise<string> {
 
 async function renderStoryHooks(): Promise<string> {
   const html = await renderAbout();
-  const start = html.indexOf('aria-labelledby="press-hooks"');
+  const start = html.indexOf('id="press-hooks"');
   const end = html.indexOf('aria-labelledby="cta"', start);
   return html.slice(start, end);
 }
@@ -172,15 +172,14 @@ describe("About outings story (Wave S1)", () => {
     expect(note).not.toMatch(
       /\b(?:minute|hour|day|week|month|summer|year)s?\s+(?:away|ago)\b/iu,
     );
-    // The three approved beats: the why, the price provenance states, and the
-    // mission. A change back to an invented origin anecdote must fail here.
-    expect(note).toContain("pint prices became hard to know");
+    // Plain source-status sentence only. No invented origin anecdote.
+    expect(note).not.toContain("pint prices became hard to know");
     expect(note).toContain("source status");
     expect(note).toContain("named publisher where one is recorded");
     expect(note).toContain("publisher is not recorded");
     expect(note).toContain("drinker who logged it on a stated day");
     expect(note).toContain("nobody has logged a figure");
-    expect(note).toContain("best way in the world to decide which pub");
+    expect(note).not.toContain("best way in the world");
     expect(note).toContain("Karan Manoharan, founder of PUBMAXX");
     // Provenance rule: the note claims no personal facts the site cannot
     // stand behind - no dates, no CV, no schools, no prior employers.
@@ -217,7 +216,7 @@ describe("About outings story (Wave S1)", () => {
     const titleAt = html.indexOf('class="screenTitle"');
     expect(kickerAt).toBeGreaterThan(-1);
     expect(titleAt).toBeGreaterThan(kickerAt);
-    expect(html.slice(kickerAt, kickerAt + 40)).toContain("Our story");
+    expect(html.slice(kickerAt, kickerAt + 40)).toContain("About");
     expect(html.match(/data-primary-action/g)).toHaveLength(1);
     // No invented biography / vanity theatre in the hero.
     expect(html).not.toMatch(/team scars|Discord|thousands of/iu);

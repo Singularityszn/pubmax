@@ -7,6 +7,13 @@
 // landing component can take the result as props without pulling a
 // `server-only` module into its own graph. lib/landingAnswers.server.ts does
 // the reading and hands the figures in.
+//
+// Tonight's empty line is the SAME sentence /tonight prints over an empty
+// listings night (`TONIGHT_QUIET_NIGHT_SENTENCE`). The card also counts the
+// hyped-pubs pack /tonight leads with, so a home door that says nothing is on
+// cannot sit above a /tonight page full of pubs people are talking about.
+
+import { TONIGHT_QUIET_NIGHT_SENTENCE } from "@/lib/tonightOutListings";
 
 export type LandingAnswer = {
   /** The one sentence the card prints. */
@@ -56,20 +63,34 @@ export type TonightListingFacts = {
   unread: boolean;
   /** How many listings the merged lanes hold for tonight. */
   count: number;
+  /**
+   * How many hyped pubs /tonight will print. Same pack, same page limit, so the
+   * card and the route cannot disagree about whether anything is on.
+   */
+  hypedCount?: number;
 };
 
 /**
  * Tonight's sentence. A city with nothing listed and a city we could not read
  * are different answers, so they get different words and only one of them
- * counts as measured.
+ * counts as measured. Hyped pubs count when listings are empty, because that
+ * is what /tonight leads with on a quiet listings night.
  */
 export function tonightAnswer(listings: TonightListingFacts, stamp: string): LandingAnswer {
   if (listings.unread) {
     return { line: "We could not reach tonight's listings just now.", stamp, measured: false };
   }
-  if (listings.count < 1) {
-    return { line: "Nothing is listed across London tonight yet.", stamp, measured: true };
+  if (listings.count >= 1) {
+    const things = listings.count === 1 ? "1 thing" : `${listings.count} things`;
+    return { line: `${things} on across London tonight.`, stamp, measured: true };
   }
-  const things = listings.count === 1 ? "1 thing" : `${listings.count} things`;
-  return { line: `${things} on across London tonight.`, stamp, measured: true };
+  const hyped = listings.hypedCount ?? 0;
+  if (hyped >= 1) {
+    const pubs =
+      hyped === 1
+        ? "1 pub people are talking about"
+        : `${hyped} pubs people are talking about`;
+    return { line: `${pubs} tonight.`, stamp, measured: true };
+  }
+  return { line: TONIGHT_QUIET_NIGHT_SENTENCE, stamp, measured: true };
 }

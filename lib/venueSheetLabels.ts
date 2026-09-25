@@ -22,6 +22,6 @@ export function venueSheetLabels(
     detailLabel,
     closeLabel: `Close ${noun} detail`,
     loadingLabel: `Loading full ${noun} details…`,
-    unavailableLabel: `Showing fast map details. Full ${noun} notes are unavailable right now.`,
+    unavailableLabel: "Got the pin. Full notes didn’t load.",
   };
 }

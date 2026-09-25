@@ -255,14 +255,26 @@ describe("experience lens venue membership and presentation", () => {
 
   it("states honest empty and degraded results", () => {
     expect(experienceLensSummary("no-alcohol", 0, 1, "ready")).toBe(
-      "No alcohol-free or soft drink prices logged here yet. Food venues still show sourced menu prices.",
+      "No alcohol-free or soft drink prices logged here yet. Food venues still show menu prices we have.",
     );
     expect(experienceLensSummary("no-alcohol", 0, 1, "degraded")).toBe(
-      "Could not check alcohol-free or soft drink prices right now. Food venues still show sourced menu prices.",
+      "Could not check alcohol-free or soft drink prices right now. Food venues still show menu prices we have.",
     );
     expect(experienceLensSummary("food", 0, 0, "ready")).toBe(
-      "Food venues shown. No sourced menu prices in this view yet.",
+      "Food venues shown. No menu prices we have in this view yet.",
     );
+  });
+
+  it("keeps painted soft-drink prices ahead of a failed or loading index", () => {
+    // Blackfriar soft drinks on the sheet must not flash "Could not check"
+    // while trusted community prices are already on the map.
+    expect(experienceLensSummary("no-alcohol", 14, 1, "degraded")).toBe(
+      "14 alcohol-free or soft drink prices shown. Food venues also show menu prices we have.",
+    );
+    expect(experienceLensSummary("no-alcohol", 2, 0, "loading")).toContain(
+      "2 alcohol-free or soft drink prices shown",
+    );
+    expect(experienceLensSummary("no-alcohol", 1, 1, "idle")).not.toContain("Could not check");
   });
 
   it("never calls a partial read a failed one", () => {

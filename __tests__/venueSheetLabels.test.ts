@@ -17,7 +17,7 @@ describe("venueSheetLabels", () => {
       closeLabel: "Close venue detail",
       loadingLabel: "Loading full venue details…",
       unavailableLabel:
-        "Showing fast map details. Full venue notes are unavailable right now.",
+        "Got the pin. Full notes didn’t load.",
     });
   });
 
@@ -46,7 +46,7 @@ describe("venueSheetLabels", () => {
         closeLabel: "Close bar detail",
         loadingLabel: "Loading full bar details…",
         unavailableLabel:
-          "Showing fast map details. Full bar notes are unavailable right now.",
+          "Got the pin. Full notes didn’t load.",
       },
     ],
     [
@@ -58,7 +58,7 @@ describe("venueSheetLabels", () => {
         closeLabel: "Close late-food venue detail",
         loadingLabel: "Loading full late-food venue details…",
         unavailableLabel:
-          "Showing fast map details. Full late-food venue notes are unavailable right now.",
+          "Got the pin. Full notes didn’t load.",
       },
     ],
   ] as const)("uses kind-honest selected-sheet copy for %s venues", (kind, expected) => {

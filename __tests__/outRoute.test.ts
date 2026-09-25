@@ -64,7 +64,11 @@ import {
   OUT_UNSETTLED_CACHE_CONTROL,
   outAnswerView,
   OUT_EMPTY_LINE,
+  OUT_MAP_WAY,
   OUT_NOT_CONFIGURED_LINE,
+  OUT_READ_FAILED_LINE,
+  OUT_RETRY_LABEL,
+  outEmptyLane,
   outStatusLines,
 } from "@/lib/out/outStatus";
 import { buildOutVenueMatchIndex } from "@/lib/out/venueMatch";
@@ -1151,5 +1155,33 @@ describe("the live lane is venue-matched at request time", () => {
     );
     expect(body.events[0].venueId).toBeUndefined();
     expect(body.unmatchedCount).toBe(1);
+  });
+});
+
+describe("outEmptyLane keeps failure and emptiness apart", () => {
+  it("sends a failed read to Try again, never the empty market line alone", () => {
+    const lane = outEmptyLane({ body: null, failed: true, pending: false });
+    expect(lane).toEqual({
+      lines: [OUT_READ_FAILED_LINE],
+      way: "retry",
+    });
+    expect(OUT_RETRY_LABEL).toBe("Try again");
+  });
+
+  it("sends a ready empty answer to the map with the empty line", () => {
+    const lane = outEmptyLane({
+      body: { status: "ready", events: [] },
+      failed: false,
+      pending: false,
+    });
+    expect(lane).toEqual({
+      lines: [OUT_EMPTY_LINE],
+      way: "map",
+    });
+    expect(OUT_MAP_WAY.label).toBe("Open the map");
+  });
+
+  it("stays pending while the skeleton owns the lane", () => {
+    expect(outEmptyLane({ body: null, failed: false, pending: true })).toBeNull();
   });
 });

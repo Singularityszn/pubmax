@@ -16,6 +16,7 @@ import {
 } from "@/lib/mapSearchIndex";
 import {
   buildMapSearchSuggestions,
+  mapSearchVenuesLeadAreas,
   type AreaSuggestion,
   type MapSearchAreaOption,
   type PlaceSuggestion,
@@ -234,17 +235,29 @@ export default function MapSearchSuggest({
     return suggestions.ukBasePubs.slice(0, 12);
   }, [suggestions.ukBasePubs]);
 
-  const items = useMemo<FlatItem[]>(
-    () => [
-      ...indexedCities.map((item) => ({ type: "city" as const, item })),
-      ...suggestions.areas.map((item) => ({ type: "area" as const, item })),
-      ...indexedVenues.map((item) => ({ type: "indexedVenue" as const, item })),
-      ...suggestions.pubs.map((item) => ({ type: "pub" as const, item })),
-      ...suggestions.places.map((item) => ({ type: "place" as const, item })),
-      ...mergedUkBasePubs.map((item) => ({ type: "ukBase" as const, item })),
-    ],
-    [indexedCities, indexedVenues, mergedUkBasePubs, suggestions],
-  );
+  const items = useMemo<FlatItem[]>(() => {
+    const cities = indexedCities.map((item) => ({ type: "city" as const, item }));
+    const areas = suggestions.areas.map((item) => ({ type: "area" as const, item }));
+    const indexed = indexedVenues.map((item) => ({
+      type: "indexedVenue" as const,
+      item,
+    }));
+    const pubs = suggestions.pubs.map((item) => ({ type: "pub" as const, item }));
+    const places = suggestions.places.map((item) => ({ type: "place" as const, item }));
+    const ukBase = mergedUkBasePubs.map((item) => ({ type: "ukBase" as const, item }));
+    // Venue name matches lead when the reader typed a query: an area that shares
+    // a stem ("Blackfriars") must not sit above the pub ("The Blackfriar").
+    if (
+      mapSearchVenuesLeadAreas({
+        query: deferredQuery,
+        pubCount: suggestions.pubs.length,
+        indexedVenueCount: indexedVenues.length,
+      })
+    ) {
+      return [...cities, ...indexed, ...pubs, ...areas, ...places, ...ukBase];
+    }
+    return [...cities, ...areas, ...indexed, ...pubs, ...places, ...ukBase];
+  }, [deferredQuery, indexedCities, indexedVenues, mergedUkBasePubs, suggestions]);
 
   const [activeIndex, setActiveIndex] = useState(-1);
   // Keyboard events can arrive before React commits the previous highlight.
@@ -402,11 +415,35 @@ export default function MapSearchSuggest({
     [activate, chooseActiveIndex, items, mode, onClose],
   );
 
-  const areaStartIndex = indexedCities.length;
-  const indexedVenueStartIndex = areaStartIndex + suggestions.areas.length;
-  const pubStartIndex = indexedVenueStartIndex + indexedVenues.length;
-  const placeStartIndex = pubStartIndex + suggestions.pubs.length;
-  const ukBaseStartIndex = placeStartIndex + suggestions.places.length;
+  const venuesLead = mapSearchVenuesLeadAreas({
+    query: deferredQuery,
+    pubCount: suggestions.pubs.length,
+    indexedVenueCount: indexedVenues.length,
+  });
+  // Keep option indices aligned with FlatItem order (venues ahead of areas when
+  // the typed query matches pubs).
+  let cursor = indexedCities.length;
+  let areaStartIndex: number;
+  let indexedVenueStartIndex: number;
+  let pubStartIndex: number;
+  if (venuesLead) {
+    indexedVenueStartIndex = cursor;
+    cursor += indexedVenues.length;
+    pubStartIndex = cursor;
+    cursor += suggestions.pubs.length;
+    areaStartIndex = cursor;
+    cursor += suggestions.areas.length;
+  } else {
+    areaStartIndex = cursor;
+    cursor += suggestions.areas.length;
+    indexedVenueStartIndex = cursor;
+    cursor += indexedVenues.length;
+    pubStartIndex = cursor;
+    cursor += suggestions.pubs.length;
+  }
+  const placeStartIndex = cursor;
+  cursor += suggestions.places.length;
+  const ukBaseStartIndex = cursor;
   const originNote =
     suggestions.origin === "user" ? "Distances from you" : "Distances from the map centre";
   const liveAnnouncement =
@@ -469,44 +506,8 @@ export default function MapSearchSuggest({
               </div>
             ) : null}
 
-            {suggestions.areas.length > 0 ? (
-              <div role="group" aria-label="Areas" className="mapSearchSuggestGroup">
-                <p className="mapSearchSuggestGroupHead">
-                  <span>Areas</span>
-                  <span className="mapSearchSuggestOrigin">{originNote}</span>
-                </p>
-                {suggestions.areas.map((area, index) => (
-                  <div
-                    key={area.key}
-                    id={optionId(areaStartIndex + index)}
-                    role="option"
-                    aria-selected={safeActive === areaStartIndex + index}
-                    className={`mapSearchSuggestRow${safeActive === areaStartIndex + index ? " isActive" : ""}`}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => activate({ type: "area", item: area })}
-                    onPointerEnter={() => chooseActiveIndex(areaStartIndex + index)}
-                  >
-                    <span className="mapSearchSuggestRowMain">
-                      <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
-                      <span className="mapSearchSuggestRowName">{area.name}</span>
-                      {area.contextLabel ? (
-                        <span className="mapSearchSuggestBorough">{area.contextLabel}</span>
-                      ) : null}
-                      {/* No coverage chip here. A suggestion row is a place to
-                          fly to, and the chip read "Plan with warnings" beside
-                          every second name: planning words a reader cannot act
-                          on, taking the width the name needs. The coverage still
-                          travels with the pick (activate below) and the area
-                          sheet says it there, where planning is the question. */}
-                    </span>
-                    {area.distanceLabel ? (
-                      <span className="mapSearchSuggestDistance">{area.distanceLabel}</span>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            ) : null}
-
+            {venuesLead ? (
+              <>
             {indexedVenues.length > 0 ? (
               <div role="group" aria-label="Venues across city maps" className="mapSearchSuggestGroup">
                 <p className="mapSearchSuggestGroupHead">
@@ -539,7 +540,6 @@ export default function MapSearchSuggest({
                 })}
               </div>
             ) : null}
-
             {suggestions.pubs.length > 0 ? (
               <div role="group" aria-label="Venues" className="mapSearchSuggestGroup">
                 <p className="mapSearchSuggestGroupHead">
@@ -584,6 +584,161 @@ export default function MapSearchSuggest({
                 })}
               </div>
             ) : null}
+            {suggestions.areas.length > 0 ? (
+              <div role="group" aria-label="Areas" className="mapSearchSuggestGroup">
+                <p className="mapSearchSuggestGroupHead">
+                  <span>Areas</span>
+                  <span className="mapSearchSuggestOrigin">{originNote}</span>
+                </p>
+                {suggestions.areas.map((area, index) => (
+                  <div
+                    key={area.key}
+                    id={optionId(areaStartIndex + index)}
+                    role="option"
+                    aria-selected={safeActive === areaStartIndex + index}
+                    className={`mapSearchSuggestRow${safeActive === areaStartIndex + index ? " isActive" : ""}`}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => activate({ type: "area", item: area })}
+                    onPointerEnter={() => chooseActiveIndex(areaStartIndex + index)}
+                  >
+                    <span className="mapSearchSuggestRowMain">
+                      <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
+                      <span className="mapSearchSuggestRowName">{area.name}</span>
+                      {area.contextLabel ? (
+                        <span className="mapSearchSuggestBorough">{area.contextLabel}</span>
+                      ) : null}
+                      {/* No coverage chip here. A suggestion row is a place to
+                          fly to, and the chip read "Plan with warnings" beside
+                          every second name: planning words a reader cannot act
+                          on, taking the width the name needs. The coverage still
+                          travels with the pick (activate below) and the area
+                          sheet says it there, where planning is the question. */}
+                    </span>
+                    {area.distanceLabel ? (
+                      <span className="mapSearchSuggestDistance">{area.distanceLabel}</span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+              </>
+            ) : (
+              <>
+            {suggestions.areas.length > 0 ? (
+              <div role="group" aria-label="Areas" className="mapSearchSuggestGroup">
+                <p className="mapSearchSuggestGroupHead">
+                  <span>Areas</span>
+                  <span className="mapSearchSuggestOrigin">{originNote}</span>
+                </p>
+                {suggestions.areas.map((area, index) => (
+                  <div
+                    key={area.key}
+                    id={optionId(areaStartIndex + index)}
+                    role="option"
+                    aria-selected={safeActive === areaStartIndex + index}
+                    className={`mapSearchSuggestRow${safeActive === areaStartIndex + index ? " isActive" : ""}`}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => activate({ type: "area", item: area })}
+                    onPointerEnter={() => chooseActiveIndex(areaStartIndex + index)}
+                  >
+                    <span className="mapSearchSuggestRowMain">
+                      <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
+                      <span className="mapSearchSuggestRowName">{area.name}</span>
+                      {area.contextLabel ? (
+                        <span className="mapSearchSuggestBorough">{area.contextLabel}</span>
+                      ) : null}
+                      {/* No coverage chip here. A suggestion row is a place to
+                          fly to, and the chip read "Plan with warnings" beside
+                          every second name: planning words a reader cannot act
+                          on, taking the width the name needs. The coverage still
+                          travels with the pick (activate below) and the area
+                          sheet says it there, where planning is the question. */}
+                    </span>
+                    {area.distanceLabel ? (
+                      <span className="mapSearchSuggestDistance">{area.distanceLabel}</span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {indexedVenues.length > 0 ? (
+              <div role="group" aria-label="Venues across city maps" className="mapSearchSuggestGroup">
+                <p className="mapSearchSuggestGroupHead">
+                  <span>Venues across city maps</span>
+                </p>
+                {indexedVenues.map((venue, offset) => {
+                  const index = indexedVenueStartIndex + offset;
+                  const cityName = searchIndex?.cities.find((city) => city.id === venue.cityId)?.name;
+                  const locationLabel = venue.area && venue.area !== cityName
+                    ? `${venue.area} · ${cityName ?? ""}`.trim()
+                    : venue.area || cityName;
+                  return (
+                    <div
+                      key={`${venue.cityId}:${venue.id}`}
+                      id={optionId(index)}
+                      role="option"
+                      data-venue-id={venue.id}
+                      aria-selected={safeActive === index}
+                      className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => activate({ type: "indexedVenue", item: venue })}
+                      onPointerEnter={() => chooseActiveIndex(index)}
+                    >
+                      <span className="mapSearchSuggestRowMain">
+                        <span className="mapSearchSuggestRowName">{venue.name}</span>
+                        {locationLabel ? <span className="mapSearchSuggestBorough">{locationLabel}</span> : null}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+            {suggestions.pubs.length > 0 ? (
+              <div role="group" aria-label="Venues" className="mapSearchSuggestGroup">
+                <p className="mapSearchSuggestGroupHead">
+                  <span>Venues</span>
+                </p>
+                {suggestions.pubs.map((pub, offset) => {
+                  const index = pubStartIndex + offset;
+                  return (
+                    <div
+                      key={pub.id}
+                      id={optionId(index)}
+                      role="option"
+                      data-venue-id={pub.id}
+                      aria-selected={safeActive === index}
+                      className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => activate({ type: "pub", item: pub })}
+                      onPointerEnter={() => chooseActiveIndex(index)}
+                    >
+                      <span className="mapSearchSuggestRowMain">
+                        <span className="mapSearchSuggestRowName">{pub.name}</span>
+                        <span className="mapSearchSuggestBorough">{pub.typeLabel}</span>
+                        {pub.boroughLabel ? (
+                          <span className="mapSearchSuggestBorough">{pub.boroughLabel}</span>
+                        ) : null}
+                      </span>
+                      <span className="mapSearchSuggestMeta">
+                        {pub.priceLabel ? (
+                          <CompactVenuePrice
+                            priceLabel={pub.priceLabel}
+                            anchor={pub.anchor}
+                            className="mapSearchSuggestPrice"
+                            provenanceClassName="mapSearchSuggestPriceProvenance"
+                          />
+                        ) : null}
+                        {pub.distanceLabel ? (
+                          <span className="mapSearchSuggestDistance">{pub.distanceLabel}</span>
+                        ) : null}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+              </>
+            )}
 
             {suggestions.places.length > 0 ? (
               <div

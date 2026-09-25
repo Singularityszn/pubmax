@@ -52,7 +52,7 @@ describe("the front door's two answers", () => {
   it("tells a quiet city apart from a lane it could not read", () => {
     const quiet = tonightAnswer({ unread: false, count: 0 }, STAMP);
     expect(quiet).toEqual({
-      line: "Nothing is listed across London tonight yet.",
+      line: "The city’s having a quiet one tonight. We only list what’s really on, and nothing’s confirmed yet.",
       stamp: STAMP,
       measured: true,
     });
@@ -62,5 +62,18 @@ describe("the front door's two answers", () => {
       stamp: STAMP,
       measured: false,
     });
+  });
+
+  it("counts hyped pubs the /tonight route will show when listings are empty", () => {
+    expect(tonightAnswer({ unread: false, count: 0, hypedCount: 4 }, STAMP).line).toBe(
+      "4 pubs people are talking about tonight.",
+    );
+    expect(tonightAnswer({ unread: false, count: 0, hypedCount: 1 }, STAMP).line).toBe(
+      "1 pub people are talking about tonight.",
+    );
+    // Listings still win when both lanes have rows.
+    expect(tonightAnswer({ unread: false, count: 3, hypedCount: 4 }, STAMP).line).toBe(
+      "3 things on across London tonight.",
+    );
   });
 });
