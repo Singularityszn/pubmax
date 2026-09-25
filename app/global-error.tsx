@@ -21,10 +21,10 @@ const reportRootError = createClientErrorSender();
 
 export default function GlobalError({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   useEffect(() => {
     console.error("[root layout error boundary]", error);
@@ -73,7 +73,7 @@ export default function GlobalError({
           <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
             <button
               type="button"
-              onClick={reset}
+              onClick={() => retry()}
               className="retry"
               style={{ minHeight: "44px", padding: "0 20px", borderRadius: "14px", border: "none", fontWeight: 600, cursor: "pointer" }}
             >
