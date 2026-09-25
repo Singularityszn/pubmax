@@ -9,9 +9,11 @@
  *   closed     — one confident match that Places reports CLOSED_PERMANENTLY;
  *                --write drops it.
  *   unverified — anything else: no result, no confident or an ambiguous match,
- *                a temporary closure, an HTTP error, or evidence not fetched on
- *                the verified day. The row is left unchanged and listed, and the
- *                command exits nonzero.
+ *                or a temporary closure. The row is left unchanged and listed,
+ *                and the command exits nonzero.
+ *
+ * A failed Places call aborts the run before anything is written, and --write
+ * refuses to overwrite an existing artifact for the verified day.
  *
  * The committed artifact keeps the place id and derived verdict fields only;
  * no Google-sourced names, addresses or statuses are stored (Maps ToS).
@@ -21,7 +23,7 @@
  *   npm run verify:famous-venues -- --write  # update seeds + verification artifact
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -64,12 +66,6 @@ function loadPacks() {
   return { byFile, rows };
 }
 
-export function placesCheckAllowsSeedMutation(check, verifiedDay) {
-  if (check.outcome !== "confirmed" && check.outcome !== "closed") return false;
-  if (!check.evidenceFetchedAt) return false;
-  return isoDateOnly(new Date(check.evidenceFetchedAt)) === verifiedDay;
-}
-
 /** Committed artifact: place id plus derived verdict only (no Google-sourced names/addresses/statuses). */
 export function toCommittedPlacesCheck(check) {
   return {
@@ -88,29 +84,20 @@ export function toCommittedPlacesCheck(check) {
 export async function verifyRowWithPlaces(row, searchText) {
   const textQuery = placesTextQueryForRow(row);
   const payload = await searchText(textQuery);
-  const base = {
-    id: row.id,
-    method: "places_text_search",
-    sourceUrl: row.sourceUrl,
-    textQuery,
-    evidenceFetchedAt: payload.fetchedAt ?? null,
-  };
   const httpStatus = payload.httpStatus;
   if (
     typeof httpStatus === "number" &&
     (httpStatus < 200 || httpStatus >= 300)
   ) {
-    return {
-      ...base,
-      outcome: "unverified",
-      result: "places_http_error",
-      placeId: null,
-      matchReason: `http_${httpStatus}`,
-    };
+    throw new Error(`Places Text Search failed for ${row.id}: HTTP ${httpStatus}`);
   }
   const decision = decidePlacesVerification(row, placesFromSearchPayload(payload));
   return {
-    ...base,
+    id: row.id,
+    method: "places_text_search",
+    sourceUrl: row.sourceUrl,
+    textQuery,
+    evidenceFetchedAt: payload.fetchedAt ?? null,
     outcome: decision.outcome,
     result: decision.result,
     placeId: decision.evidence?.placeId ?? null,
@@ -171,18 +158,20 @@ async function main() {
     `Famous venue Places verification (${VERIFICATION_WINDOW_DAYS}-day window); verifiedDay=${verifiedDay}; write=${write}`,
   );
 
+  const outPath = join(FAMOUS_DIR, `verification_${verifiedDay}.json`);
+  if (write && existsSync(outPath)) {
+    console.error(`${outPath} already exists; refusing to overwrite the verified day's artifact`);
+    process.exit(1);
+  }
+
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) {
     console.error("GOOGLE_PLACES_API_KEY is required");
     process.exit(1);
   }
   const client = createPlacesTextSearchClient({ apiKey, maxLiveCalls: MAX_LIVE_CALLS });
-  const checks = (
-    await mapSequential(rows, ({ row }) => verifyRowWithPlaces(row, client.searchText))
-  ).map((check) =>
-    placesCheckAllowsSeedMutation(check, verifiedDay) || check.outcome === "unverified"
-      ? check
-      : { ...check, outcome: "unverified" },
+  const checks = await mapSequential(rows, ({ row }) =>
+    verifyRowWithPlaces(row, client.searchText),
   );
 
   const confirmed = checks.filter((c) => c.outcome === "confirmed");
@@ -224,7 +213,6 @@ async function main() {
     },
     checks: committedChecks,
   };
-  const outPath = join(FAMOUS_DIR, `verification_${verifiedDay}.json`);
   writeFileSync(outPath, `${JSON.stringify(artifact, null, 2)}\n`);
   console.log(`Wrote ${outPath}`);
   if (unverified.length) {

@@ -13,7 +13,6 @@ import {
   placesFromSearchPayload,
 } from "@/scripts/lib/googlePlacesTextSearch.mjs";
 import {
-  placesCheckAllowsSeedMutation,
   toCommittedPlacesCheck,
   verifyRowWithPlaces,
 } from "@/scripts/verify_famous_venues.mjs";
@@ -154,39 +153,15 @@ describe("verifyRowWithPlaces", () => {
   });
 });
 
-describe("verifyRowWithPlaces error labels", () => {
-  it("labels a non-2xx Places response as places_http_error", async () => {
-    const check = await verifyRowWithPlaces(sampleRow, async () => ({
-      httpStatus: 429,
-      body: { error: { status: "RESOURCE_EXHAUSTED" } },
-      fetchedAt: "2026-09-24T12:00:00.000Z",
-    }));
-    expect(check.result).toBe("places_http_error");
-    expect(check.matchReason).toBe("http_429");
-  });
-});
-
-describe("places seed mutation policy", () => {
-  it("allows seed stamps only for live Places evidence on the verified day", () => {
-    const verifiedDay = "2026-09-24";
-    expect(
-      placesCheckAllowsSeedMutation(
-        { outcome: "confirmed", evidenceFetchedAt: "2026-09-24T12:00:00.000Z" },
-        verifiedDay,
-      ),
-    ).toBe(true);
-    expect(
-      placesCheckAllowsSeedMutation(
-        { outcome: "closed", evidenceFetchedAt: "2026-09-23T23:59:59.000Z" },
-        verifiedDay,
-      ),
-    ).toBe(false);
-    expect(
-      placesCheckAllowsSeedMutation(
-        { outcome: "confirmed", evidenceFetchedAt: null },
-        verifiedDay,
-      ),
-    ).toBe(false);
+describe("verifyRowWithPlaces failed call", () => {
+  it("aborts on a non-2xx Places response instead of recording a verdict", async () => {
+    await expect(
+      verifyRowWithPlaces(sampleRow, async () => ({
+        httpStatus: 429,
+        body: { error: { status: "RESOURCE_EXHAUSTED" } },
+        fetchedAt: "2026-09-24T12:00:00.000Z",
+      })),
+    ).rejects.toThrow("Places Text Search failed for food-wong-kei: HTTP 429");
   });
 });
 

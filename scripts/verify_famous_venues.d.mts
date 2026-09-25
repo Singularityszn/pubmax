@@ -48,14 +48,6 @@ export function verifyRowWithPlaces(
   }>,
 ): Promise<PlacesVenueCheck>;
 
-export function placesCheckAllowsSeedMutation(
-  check: {
-    outcome: FamousVenueOutcome;
-    evidenceFetchedAt?: string | null;
-  },
-  verifiedDay: string,
-): boolean;
-
 export function toCommittedPlacesCheck(check: PlacesVenueCheck): {
   id: string;
   method: "places_text_search";
