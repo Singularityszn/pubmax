@@ -23,6 +23,9 @@ import { parse } from "yaml";
 
 import { requireDataRevision } from "@/lib/dataRevision.mjs";
 
+import { SERIAL_SHM_RUN } from "../scripts/rls/postgresSuites.mjs";
+import { coverageRuns } from "../scripts/run-coverage.mjs";
+
 const ROOT = process.cwd();
 
 type RepoConfig = { commands?: { prepare?: string; test?: string } };
@@ -71,9 +74,28 @@ describe("the no-mistakes repository test command", () => {
   it("reaches the unit suite and never the browser suite", () => {
     const expanded = expand(splitTestCommand().command, packageScripts());
 
-    expect(expanded).toContain("vitest run");
+    expect(expanded).toContain("node scripts/run-coverage.mjs");
+    const [unit] = coverageRuns([]);
+    expect(unit.args.slice(0, 3)).toEqual(["run", "--coverage", "--maxWorkers=4"]);
     // The browser suite runs in the merge bar's own e2e workflow.
     expect(expanded).not.toMatch(/playwright/);
+  });
+
+  it("gives forwarded CI excludes to the coverage run alone", () => {
+    const exclude = ["--exclude", "__tests__/rlsSession.test.ts"];
+    const [unit, serial] = coverageRuns(exclude);
+
+    expect(unit.args).toEqual(["run", "--coverage", "--maxWorkers=4", ...exclude]);
+    expect(serial).toEqual({
+      args: ["run", ...SERIAL_SHM_RUN.suites, "--maxWorkers=1"],
+      env: SERIAL_SHM_RUN.env,
+    });
+  });
+
+  it("drops the serial SysV proof when the forwarded args exclude it", () => {
+    const excluded = SERIAL_SHM_RUN.suites.flatMap((suite) => ["--exclude", suite]);
+
+    expect(coverageRuns(excluded)).toHaveLength(1);
   });
 
   it("rebuilds the slim shards with the revision they are committed with", () => {

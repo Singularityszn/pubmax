@@ -24,9 +24,14 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  # Serialize pubmax-mac workflows on this ref only (repo-wide group blocked other branches).
+  group: pubmax-mac-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   refresh:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, pubmax-mac]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

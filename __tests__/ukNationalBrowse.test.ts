@@ -80,11 +80,8 @@ describe("uk national browse", () => {
     expect(isUkNationalBrowse("?uk=1&sel=x")).toBe(true);
     expect(isUkNationalBrowse("place=Leeds")).toBe(false);
     expect(UK_NATIONAL_MAP_HREF).toBe("/map?uk=1");
-    // CityChooser now mounts only on the landing's #cities section, and this
-    // link points there. /places reads the same UK place index through its own
-    // fallback, so the anchor is a routing choice rather than the only surface
-    // that can answer a town.
-    expect(UK_TOWN_SEARCH_HREF).toBe("/#cities");
+    // Landing no longer mounts CityChooser; /places is the town search.
+    expect(UK_TOWN_SEARCH_HREF).toBe("/places");
   });
 
   it("keeps national entry copy free of banned voice tells", () => {

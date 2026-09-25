@@ -16,22 +16,27 @@
  *
  *   FATAL:  could not create shared memory segment: No space left on device
  *
- * A slot is a directory, because `mkdir` is the atomic primitive every
- * filesystem already has, and it records the pid that owns it so a killed run
- * frees its budget at once rather than after a timeout.
+ * A slot is a directory claimed by renaming a staged directory that already
+ * holds the owner's pid onto `slot-<n>`: `rename` refuses a non-empty target
+ * atomically on every filesystem, so a held slot cannot be taken, and the pid
+ * lets a killed run free its budget at once rather than after a timeout.
  */
 import { execFileSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
+
+import { sweepPubmaxHarnessOrphans } from "./postgresShm.mjs";
 
 /** Every migration in this tree is proved against PostgreSQL 16. */
 export const REQUIRED_POSTGRES_MAJOR = 16;
@@ -134,6 +139,7 @@ export const POSTGRES_SLOT_ROOT = join(tmpdir(), "pubmax-postgres-slots");
  * everything else on the machine. Raise it only with `ipcs -m` in front of you.
  */
 const DEFAULT_MAX_CLUSTERS = 6;
+const SLOT_NAME = /^slot-\d+$/;
 const SLOT_POLL_MS = 120;
 const SLOT_WAIT_CEILING_MS = 150_000;
 
@@ -142,23 +148,50 @@ export function maxPostgresClusters() {
   return Number.isFinite(stated) && stated > 0 ? stated : DEFAULT_MAX_CLUSTERS;
 }
 
-function ownerIsAlive(slot) {
+/** The pid a slot names, or null when there is no owner file to read. */
+function readOwner(slot) {
   try {
-    const pid = Number.parseInt(readFileSync(join(slot, "owner"), "utf8").trim(), 10);
-    if (!Number.isFinite(pid) || pid <= 0) return false;
-    process.kill(pid, 0);
-    return true;
+    return Number.parseInt(readFileSync(join(slot, "owner"), "utf8").trim(), 10);
   } catch {
+    return null;
+  }
+}
+
+function ownerIsDead(pid) {
+  if (!Number.isFinite(pid) || pid <= 0) return true;
+  try {
+    process.kill(pid, 0);
     return false;
+  } catch (error) {
+    return error?.code === "ESRCH";
+  }
+}
+
+function removeDirectory(directory) {
+  try {
+    rmSync(directory, { recursive: true, force: true });
+  } catch {
+    /* another reaper got there first */
+  }
+}
+
+/**
+ * Moves a slot aside before removing it: emptying it in place would let a
+ * claimant's rename land on the emptied directory and be deleted with it.
+ */
+function moveSlotAside(slot) {
+  const aside = `${slot}.released-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  try {
+    renameSync(slot, aside);
+    return aside;
+  } catch {
+    return null; // another reaper got there first
   }
 }
 
 function releaseSlotDirectory(slot) {
-  try {
-    rmSync(slot, { recursive: true, force: true });
-  } catch {
-    /* another reaper got there first */
-  }
+  const aside = moveSlotAside(slot);
+  if (aside) removeDirectory(aside);
 }
 
 function reapDeadSlots() {
@@ -169,25 +202,54 @@ function reapDeadSlots() {
     return;
   }
   for (const entry of entries) {
+    if (!SLOT_NAME.test(entry)) continue; // a claim being staged or a slot being released
     const slot = join(POSTGRES_SLOT_ROOT, entry);
-    if (!ownerIsAlive(slot)) releaseSlotDirectory(slot);
+    const owner = readOwner(slot);
+    if (owner === null || !ownerIsDead(owner)) continue;
+    const aside = moveSlotAside(slot);
+    if (!aside) continue;
+    if (Object.is(readOwner(aside), owner)) {
+      removeDirectory(aside);
+      continue;
+    }
+    // A live claim took the slot between the read and the move: hand it back.
+    try {
+      renameSync(aside, slot);
+    } catch {
+      removeDirectory(aside);
+    }
   }
 }
 
 function claimSlot() {
   mkdirSync(POSTGRES_SLOT_ROOT, { recursive: true });
-  const budget = maxPostgresClusters();
-  for (let index = 0; index < budget; index += 1) {
-    const slot = join(POSTGRES_SLOT_ROOT, `slot-${index}`);
-    try {
-      mkdirSync(slot); // atomic: the winner is whoever creates the directory
-    } catch {
-      continue;
+  // The owner is written before the slot exists and the slot appears by rename,
+  // so no reaper ever sees a slot without its owner and frees it mid-claim.
+  const staged = mkdtempSync(join(POSTGRES_SLOT_ROOT, `.claim-${process.pid}-`));
+  writeFileSync(join(staged, "owner"), String(process.pid));
+  try {
+    const budget = maxPostgresClusters();
+    for (let index = 0; index < budget; index += 1) {
+      const slot = join(POSTGRES_SLOT_ROOT, `slot-${index}`);
+      try {
+        renameSync(staged, slot); // atomic: a held slot is never empty, so this refuses it
+      } catch {
+        continue;
+      }
+      return slot;
     }
-    writeFileSync(join(slot, "owner"), String(process.pid));
-    return slot;
+    return null;
+  } finally {
+    removeDirectory(staged);
   }
-  return null;
+}
+
+let harnessOrphansSwept = false;
+
+function ensureHarnessOrphansSwept() {
+  if (harnessOrphansSwept) return;
+  harnessOrphansSwept = true;
+  sweepPubmaxHarnessOrphans();
 }
 
 /**
@@ -195,6 +257,7 @@ function claimSlot() {
  * Every caller that runs `initdb` must hold one first.
  */
 export async function acquireClusterSlot(label = "proof") {
+  ensureHarnessOrphansSwept();
   const deadline = Date.now() + SLOT_WAIT_CEILING_MS;
   for (;;) {
     const slot = claimSlot();

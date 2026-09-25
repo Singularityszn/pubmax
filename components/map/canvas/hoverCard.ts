@@ -118,7 +118,7 @@ export function hoverPriceLine(
       mapVenue?.cheapestPrice ?? hoverDetail?.cheapestPrice ?? null;
     return {
       price: price ?? null,
-      provenance: observed ? `Sourced · ${observed}` : "Sourced · tap for detail",
+      provenance: observed ? `Menu · ${observed}` : "Menu · tap for detail",
     };
   }
   const baseline =

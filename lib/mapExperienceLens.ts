@@ -373,11 +373,11 @@ export function experienceLensSummary(
   if (lens === "all") return "";
   if (lens === "food") {
     if (sourcedFoodPriceCount === 0) {
-      return "Food venues shown. No sourced menu prices in this view yet.";
+      return "Food venues shown. No menu prices we have in this view yet.";
     }
-    return `${sourcedFoodPriceCount} sourced menu price${
+    return `${sourcedFoodPriceCount} menu price${
       sourcedFoodPriceCount === 1 ? "" : "s"
-    } shown.`;
+    } we have shown.`;
   }
   // Every branch below names the lens with the one shared noun. The lens
   // control sits beside the map while the venue list and its rows are open, so
@@ -389,18 +389,18 @@ export function experienceLensSummary(
   // "none logged" while trusted rows are painted (Blackfriar soft-drink case).
   if (noAlcoholPriceCount > 0) {
     if (indexStatus === "partial") {
-      return `${noAlcoholPriceCount} ${noun} price${plural} shown, read from part of the list. Food venues also show sourced menu prices.`;
+      return `${noAlcoholPriceCount} ${noun} price${plural} shown, read from part of the list. Food venues also show menu prices we have.`;
     }
-    return `${noAlcoholPriceCount} ${noun} price${plural} shown. Food venues also show sourced menu prices.`;
+    return `${noAlcoholPriceCount} ${noun} price${plural} shown. Food venues also show menu prices we have.`;
   }
   if (indexStatus === "loading" || indexStatus === "idle") {
     return `Checking ${noun} prices. Food venues are already shown.`;
   }
   if (indexStatus === "degraded") {
-    return `Could not check ${noun} prices right now. Food venues still show sourced menu prices.`;
+    return `Could not check ${noun} prices right now. Food venues still show menu prices we have.`;
   }
   if (indexStatus === "partial") {
-    return `We read part of the ${noun} prices and none of them are here. Food venues still show sourced menu prices.`;
+    return `We read part of the ${noun} prices and none of them are here. Food venues still show menu prices we have.`;
   }
-  return `No ${noun} prices logged here yet. Food venues still show sourced menu prices.`;
+  return `No ${noun} prices logged here yet. Food venues still show menu prices we have.`;
 }

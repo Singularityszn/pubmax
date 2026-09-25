@@ -31,31 +31,31 @@ function mapLayersCopy(cityId: CityId = DEFAULT_CITY_ID): {
       return {
         ariaLabelClosed: "Map layers: Tube, Rail, parks, and place stories",
         title: "Tube, Rail, parks & place stories",
-        hint: "Tube, Rail, parks, and story corridors. Switch them on when you want them.",
+        hint: "Tube, Rail, parks, and place stories. Switch them on when you want them.",
       };
     case "manchester":
       return {
         ariaLabelClosed: "Map layers: Tram, parks, landmarks, and place stories",
         title: "Tram, parks, landmarks & place stories",
-        hint: "Tram, parks, landmarks, and story corridors. Switch them on when you want them.",
+        hint: "Tram, parks, landmarks, and place stories. Switch them on when you want them.",
       };
     case "glasgow":
       return {
         ariaLabelClosed: "Map layers: Subway, parks, landmarks, and place stories",
         title: "Subway, parks, landmarks & place stories",
-        hint: "Subway, parks, landmarks, and story corridors. Switch them on when you want them.",
+        hint: "Subway, parks, landmarks, and place stories. Switch them on when you want them.",
       };
     case "liverpool":
       return {
         ariaLabelClosed: "Map layers: Rail, parks, landmarks, and place stories",
         title: "Rail, parks, landmarks & place stories",
-        hint: "Rail, parks, landmarks, and story corridors. Switch them on when you want them.",
+        hint: "Rail, parks, landmarks, and place stories. Switch them on when you want them.",
       };
     default:
       return {
         ariaLabelClosed: "Map layers: parks, landmarks, and place stories",
         title: "Parks, landmarks & place stories",
-        hint: "Parks, landmarks, and story corridors. Switch them on when you want them.",
+        hint: "Parks, landmarks, and place stories. Switch them on when you want them.",
       };
   }
 }

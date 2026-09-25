@@ -78,7 +78,7 @@ for (const width of WIDTHS) {
       await expect(out).toBeVisible();
       await expect(out).toHaveAttribute("aria-current", "page");
       await expect(page.getByTestId("out-screen")).toBeVisible();
-      await expect(page.getByRole("heading", { name: "What’s on, sourced." })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "What’s on tonight." })).toBeVisible();
       // The day chips are LINKS, not radios: each is a destination, so they keep
       // the link role and say where they are with aria-current.
       const when = page.getByRole("navigation", { name: "When" });
@@ -319,7 +319,7 @@ test.describe("out supply honesty @390", () => {
       .evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? ""));
     const sectionAt = headings.indexOf("What's on tonight");
     const blockAt = headings.indexOf("Not on our map yet");
-    expect(headings[0]).toBe("What’s on, sourced.");
+    expect(headings[0]).toBe("What’s on tonight.");
     expect(sectionAt).toBeGreaterThan(0);
     expect(blockAt).toBeGreaterThan(sectionAt);
     const leadBox = await lead.boundingBox();
