@@ -33,6 +33,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
+import { sweepPubmaxHarnessOrphans } from "./postgresShm.mjs";
+
 /** Every migration in this tree is proved against PostgreSQL 16. */
 export const REQUIRED_POSTGRES_MAJOR = 16;
 
@@ -190,11 +192,20 @@ function claimSlot() {
   return null;
 }
 
+let harnessOrphansSwept = false;
+
+function ensureHarnessOrphansSwept() {
+  if (harnessOrphansSwept) return;
+  harnessOrphansSwept = true;
+  sweepPubmaxHarnessOrphans();
+}
+
 /**
  * Takes one of the host's cluster slots and answers how to give it back.
  * Every caller that runs `initdb` must hold one first.
  */
 export async function acquireClusterSlot(label = "proof") {
+  ensureHarnessOrphansSwept();
   const deadline = Date.now() + SLOT_WAIT_CEILING_MS;
   for (;;) {
     const slot = claimSlot();
