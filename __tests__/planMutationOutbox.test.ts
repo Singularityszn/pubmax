@@ -298,6 +298,48 @@ describe("planMutationOutbox", () => {
       expect(readActivePlan()?.stopIndex).toBe(1);
     });
 
+    it("keeps the cursor on a final stop queued after the replay took its snapshot", async () => {
+      markActivePlan(PLAN, new Date().toISOString());
+      const [firstStop, finalStop] = stops;
+      await enqueueNightCrawlAction({
+        planId: PLAN,
+        type: "arrived",
+        stop: firstStop,
+        idempotencyKey: "key-0",
+        fingerprint: "fp-0",
+        previousCursor: 0,
+        optimisticCursor: 1,
+      });
+      setActivePlanStopIndex(1);
+
+      let answer: (response: Response) => void = () => undefined;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() => new Promise<Response>((resolve) => {
+          answer = resolve;
+        })),
+      );
+      const flushing = flushPlanMutationOutbox({ planId: PLAN });
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+
+      await enqueueNightCrawlAction({
+        planId: PLAN,
+        type: "arrived",
+        stop: finalStop,
+        idempotencyKey: "key-1",
+        fingerprint: "fp-1",
+        previousCursor: 1,
+        optimisticCursor: 1,
+      });
+      answer(new Response(JSON.stringify({ error: "no" }), { status: 422 }));
+
+      const results = await flushing;
+      expect(results.map((row) => row.outcome)).toEqual(["rejected"]);
+
+      applyActivePlanFlushRollbacks(results);
+      expect(readActivePlan()?.stopIndex).toBe(1);
+    });
+
     it("unwinds two refusals in a row back to the first stop's starting point", async () => {
       await holdBothStops();
       answerByStop(() => 403);

@@ -353,14 +353,21 @@ export function flushPlanMutationOutbox(options?: {
  * Failures unwind newest first, and each one only moves a cursor that still
  * sits where its own optimistic advance left it. A later stop that went
  * through or is still held is a floor no older refusal may cross, even on the
- * final stop where the advance clamps and leaves no trace in the cursor. So a
+ * final stop where the advance clamps and leaves no trace in the cursor. That
+ * includes a tap queued after this run took its snapshot, which is still
+ * pending in the outbox but absent from the batch. So a
  * refused stop 0 cannot drag the cursor back past a stop 1 that went through,
  * two refusals in a row still land on the first one's starting point, and
  * running the same batch a second time (the site-wide host and the plan page
  * share one flush) is a no-op.
  */
 export function applyActivePlanFlushRollbacks(results: readonly PlanMutationFlushResult[]): void {
-  const floored = new Set<string>();
+  const batch = new Set(results.map((result) => result.entryId));
+  const floored = new Set(
+    listPlanMutationOutbox()
+      .filter((row) => row.status === "pending" && !batch.has(row.id))
+      .map((row) => row.planId),
+  );
   for (let index = results.length - 1; index >= 0; index -= 1) {
     const result = results[index];
     if (
