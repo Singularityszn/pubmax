@@ -367,22 +367,20 @@ export const SHARD_READ_MIN_ZOOM = 8;
 /**
  * A viewport that names nowhere, so nothing spatial may be read from it.
  *
- * The map holds this placeholder (centre [0, 0] at zoom 0) while the opening
- * location question is still open. Turned into bounds it is the whole WORLD,
- * and the first-visit shard read took it literally: a cold `/map` on a phone
- * asked for 163 of London's 244 cells - the entire city - before the map was
- * interactive, for a screen covering about four kilometres. That is the whole
- * request budget spent on pins nobody is looking at.
+ * The map once held a placeholder (centre [0, 0] at zoom 0) while the opening
+ * location question was open. Turned into bounds it was the whole WORLD, and
+ * the first-visit shard read took it literally: a cold `/map` on a phone asked
+ * for 163 of London's 244 cells - the entire city - before the map was
+ * interactive, for a screen covering about four kilometres. The canvas now
+ * holds the city view instead, and any such world view still falls under the
+ * zoom floor below.
  */
 export function viewportNamesNowhere(viewport: {
   center: [number, number];
   zoom: number;
 }): boolean {
-  if (viewport.zoom <= 0 && viewport.center[0] === 0 && viewport.center[1] === 0) {
-    return true;
-  }
-  // A country-wide viewport names no place either, and a RESTORED session is
-  // how one arrives. Measured on a warm `/map` whose saved session held
+  // A country-wide viewport names no place, and a RESTORED session is how one
+  // arrives. Measured on a warm `/map` whose saved session held
   // `zoom 4.9` over the middle of Britain: the opening read asked for 243
   // shard cells in the first second, before anything had painted, against a
   // route ceiling of 160 requests. The camera is untouched by this — the
@@ -405,13 +403,12 @@ export const SHARD_READ_MAX_SPAN_DEGREES = 2;
 /**
  * Bounds that name no place, the counterpart to {@link viewportNamesNowhere}.
  *
- * That guard catches the PLACEHOLDER the map holds while the location question
- * is open: centre [0, 0] at zoom 0. It cannot catch the other way a read ends
- * up about nowhere, and #1354's sweep found it: MapLibre reports its own
+ * That guard catches a viewport below the zoom a place needs. It cannot catch
+ * the other way a read ends up about nowhere, and #1354's sweep found it: MapLibre reports its own
  * `maxBounds` as the visible bounds before the camera has settled on the city,
  * so a cold /map briefly says it is looking at the whole United Kingdom
  * (-7.99 to 1.19, 49.8 to 61.0). That is a real centre at a real zoom, so the
- * placeholder guard passes it, and a read taken from it asked for all 244
+ * viewport guard passes it, and a read taken from it asked for all 244
  * London cells - the entire city, twice, before the map was interactive.
  *
  * The rule is the same one, applied to the bounds rather than the viewport: a
@@ -430,9 +427,9 @@ export function boundsNameNowhere(
 /**
  * The viewport the OPENING shard read may use.
  *
- * A placeholder is answered with the city's own default view, which is where
- * the camera lands the moment the location question resolves to no. Never the
- * placeholder itself: a read is about a place, and this one has none.
+ * A viewport that names nowhere is answered with the city's own default view,
+ * which is where the camera lands the moment the location question resolves to
+ * no. Never that viewport itself: a read is about a place, and it has none.
  */
 export function openingLoadViewportFor<
   Viewport extends { center: [number, number]; zoom: number },

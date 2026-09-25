@@ -3,6 +3,39 @@ import { describe, expect, it } from "vitest";
 import { createCameraIntentCoordinator } from "@/lib/cameraIntent";
 
 describe("camera intent coordinator", () => {
+  it("reports a scheduled move as pending until its frame runs it", () => {
+    let callback: FrameRequestCallback | null = null;
+    const calls: string[] = [];
+    const coordinator = createCameraIntentCoordinator({
+      requestFrame: (next) => {
+        callback = next;
+        return 1;
+      },
+      cancelFrame: () => {},
+      now: () => 100,
+    });
+
+    expect(coordinator.pending()).toBe(false);
+    coordinator.schedule("opening-location", "opening-location:-0.12,51.53:15:current", () =>
+      calls.push("opening-location"),
+    );
+    expect(coordinator.pending()).toBe(true);
+    (callback as FrameRequestCallback | null)?.(100);
+    expect(calls).toEqual(["opening-location"]);
+    expect(coordinator.pending()).toBe(false);
+  });
+
+  it("stops reporting a pending move once disposed", () => {
+    const coordinator = createCameraIntentCoordinator({
+      requestFrame: () => 1,
+      cancelFrame: () => {},
+      now: () => 100,
+    });
+    coordinator.schedule("area", "area:a", () => {});
+    coordinator.dispose();
+    expect(coordinator.pending()).toBe(false);
+  });
+
   it("coalesces competing intents so only the newest camera move runs", () => {
     const frames = new Map<number, FrameRequestCallback>();
     const cancelled: number[] = [];

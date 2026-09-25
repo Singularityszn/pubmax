@@ -68,6 +68,22 @@ const CAMERA_INTENT_BY_FOCUS_SOURCE: Record<MapCameraFocusSource, CameraIntentKi
   area: "area",
 };
 
+/**
+ * Whether the opening-location answer has had its say over the camera.
+ *
+ * True when there was no question to ask, when the reader cancelled it or took
+ * the map first, or once the answer has minted its focus. Until then the
+ * canvas holds the opening turn back (lib/mapArrivalBearing.ts).
+ */
+export function openingCameraSettled(opening: {
+  resolving: boolean;
+  cancelled: boolean;
+  touched: boolean;
+  focus: MapCameraFocus | null;
+}): boolean {
+  return !opening.resolving || opening.cancelled || opening.touched || opening.focus !== null;
+}
+
 export function cameraIntentForFocusSource(
   source: MapCameraFocusSource,
 ): CameraIntentKind {

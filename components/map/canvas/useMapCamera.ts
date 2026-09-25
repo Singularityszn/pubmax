@@ -190,7 +190,8 @@ export function whenBottomSheetSettles(
 type CameraRefs = {
   mapRef: MutableRefObject<maplibregl.Map | null>;
   reducedRef: MutableRefObject<boolean>;
-  mapViewRef: MutableRefObject<MapView>;
+  /** The city's designed view: the attitude a whole-city fit returns to. */
+  cityViewRef: MutableRefObject<MapView>;
   cityBoundsRef: MutableRefObject<[[number, number], [number, number]]>;
   routeRef: MutableRefObject<Venue[]>;
   venuesRef: MutableRefObject<Venue[]>;
@@ -206,7 +207,7 @@ export function useMapCamera(refs: CameraRefs) {
   const {
     mapRef,
     reducedRef,
-    mapViewRef,
+    cityViewRef,
     cityBoundsRef,
     routeRef,
     venuesRef,
@@ -245,6 +246,8 @@ export function useMapCamera(refs: CameraRefs) {
   }, [coordinator, gestureCameraRef, mapRef]);
 
   useEffect(() => () => coordinator.dispose(), [coordinator]);
+
+  const cameraLanePending = useCallback(() => coordinator.pending(), [coordinator]);
 
   // Explicit camera move for venue, route, and city navigation.
   const cinematic = useCallback((options: maplibregl.EaseToOptions, kind: CameraIntentKind = "venue") => {
@@ -298,7 +301,7 @@ export function useMapCamera(refs: CameraRefs) {
   // Fit the active city's bounds (not a city switcher — CitySwitcher owns that).
   const fitCityBounds = useCallback(() => {
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
-    const view = mapViewRef.current;
+    const view = cityViewRef.current;
     // M3: fit-London / city-switch is a "long jump" — fitBounds animates via
     // flyTo by default (linear defaults to false), so `curve` shapes its arc.
     scheduleCamera("city", `city:${cityBoundsRef.current.flat().join(",")}`, (map) => map.fitBounds(cityBoundsRef.current, {
@@ -311,7 +314,7 @@ export function useMapCamera(refs: CameraRefs) {
       pitch: view.pitch,
       bearing: view.bearing,
     }));
-  }, [cityBoundsRef, mapViewRef, reducedRef, scheduleCamera]);
+  }, [cityBoundsRef, cityViewRef, reducedRef, scheduleCamera]);
 
   // Borough browse arrival: frame the filtered venue set once (query owns the
   // camera). Skip if the user already tapped a pin — don't fight selectedVenue
@@ -380,6 +383,7 @@ export function useMapCamera(refs: CameraRefs) {
 
   return {
     cinematic,
+    cameraLanePending,
     easeArrivalBearing,
     fitRoute,
     fitCityBounds,

@@ -520,6 +520,7 @@ import {
 } from "@/lib/mapChosenArea";
 import {
   nextAreaCameraFocus,
+  openingCameraSettled,
   type MapCameraFocus,
 } from "@/lib/mapCameraFocus";
 import {
@@ -570,6 +571,7 @@ import LandmarkStoryBody, { LandmarkStoryHead } from "@/components/map/LandmarkS
 import { nearestStoryPubs } from "@/lib/landmarkVenueProximity";
 import { landmarkAreaLine, nightAreaContaining } from "@/lib/landmarkArea";
 import { homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
+import { mapListOpenFromSearch } from "@/lib/mapListRoute";
 import {
   filtersForCuratedCrawl,
   buildMapSeed,
@@ -852,13 +854,6 @@ type PendingNearMeRequest =
     };
 
 const LOCATION_FIRST_ZOOM = 15;
-const OPENING_LOCATION_HOLD_VIEW: MapViewportSnapshot = {
-  center: [0, 0],
-  zoom: 0,
-  pitch: 0,
-  bearing: 0,
-};
-
 function boundsForOpeningView(viewport: MapViewportSnapshot): MapBounds {
   const width = typeof window === "undefined" ? 390 : Math.max(window.innerWidth, 1);
   const height = typeof window === "undefined" ? 844 : Math.max(window.innerHeight, 1);
@@ -1019,7 +1014,7 @@ export default function PubMap({
         bearing: city.mapView.bearing ?? 0,
       };
     }
-    if (mapOpeningNeedsResolution) return OPENING_LOCATION_HOLD_VIEW;
+    if (mapOpeningNeedsResolution) return { ...city.mapView, bearing: 0 };
     const location =
       lastKnownLocation &&
         pointInCityBounds(lastKnownLocation.lat, lastKnownLocation.lng, city)
@@ -1314,13 +1309,12 @@ export default function PubMap({
   }, [city, lastKnownLocation]);
   const locationFirstMapView = useMemo(() => {
     if (!mapOpeningNeedsResolution) return initialMapView;
-    if (!openingLocationResolved) return OPENING_LOCATION_HOLD_VIEW;
-    if (!grantedOpeningLocation) return fallbackOpeningMapView;
-    return resolveMapOpeningView(
-      city.mapView,
-      grantedOpeningLocation,
-      LOCATION_FIRST_ZOOM,
-    );
+    const view = !openingLocationResolved
+      ? city.mapView
+      : !grantedOpeningLocation
+        ? fallbackOpeningMapView
+        : resolveMapOpeningView(city.mapView, grantedOpeningLocation, LOCATION_FIRST_ZOOM);
+    return { ...view, bearing: 0 };
   }, [
     fallbackOpeningMapView,
     grantedOpeningLocation,
@@ -1714,7 +1708,7 @@ export default function PubMap({
   const [tonightLaneOpen, setTonightLaneOpen] = useState(false);
   /** Once the viewer collapses a deep-linked lane, don't keep forcing it open. */
   const [dismissedTonightSrc, setDismissedTonightSrc] = useState<string | null>(null);
-  const [mapListOpen, setMapListOpen] = useState(false);
+  const [mapListOpen, setMapListOpen] = useState(() => mapListOpenFromSearch(currentSearch()));
   const [mapListSortMode, setMapListSortMode] =
     useState<MapVenueListSortMode>("nearest");
   const [visibleVenueState, setVisibleVenueState] = useState<{
@@ -2403,9 +2397,10 @@ export default function PubMap({
       !ukNationalBrowse &&
       initialShardReady
     ) {
-      // A placeholder viewport names nowhere, and its bounds are the whole
-      // world. Reading shards from it asked for the entire city before the map
-      // was interactive (lib/slimShards.ts openingLoadViewportFor).
+      // A viewport that names nowhere, such as a country-wide restored
+      // session, is answered with the city view. Reading shards from it asked
+      // for the entire city before the map was interactive (lib/slimShards.ts
+      // openingLoadViewportFor).
       const openingBounds =
         initialShardStart.settledBounds ??
         boundsForOpeningView(
@@ -4965,7 +4960,6 @@ export default function PubMap({
     if (
       ukPlaceArrival ||
       !isPersistableMapResumeViewport(
-        mapViewport,
         !mapOpeningNeedsResolution || openingLocationResolved,
         mapBounds !== null,
       ) ||
@@ -6174,6 +6168,12 @@ export default function PubMap({
         listCount={mapVenueListModel.total + ukBasePubListModel.total}
         onSoftRetryChange={setMapSoftRetryActive}
         focusPoint={areaFocus ?? openingLocationFocus}
+        openingCameraSettled={openingCameraSettled({
+          resolving: shouldResolveOpeningLocation,
+          cancelled: openingLocationCancelledBeforeResolution,
+          touched: mapCameraTouched,
+          focus: openingLocationFocus,
+        })}
         onViewportChange={setMapViewport}
         onReaderTouchedMap={dismissMapFirstVisitArrivalOnMapUse}
         onUserCameraMove={dismissAmbientBanners}

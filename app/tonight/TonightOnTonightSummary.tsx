@@ -83,7 +83,7 @@ export default function TonightOnTonightSummary({
       <div className="tonightOnTonightSummaryHead">
         <h2 id="tonight-rail-summary-title">
           <CalendarClock size={18} aria-hidden="true" />
-          On tonight
+          <span>On tonight</span>
         </h2>
         <span className="tonightOnTonightSummaryCount">
           {primaryTotalCount} listing{primaryTotalCount === 1 ? "" : "s"}
