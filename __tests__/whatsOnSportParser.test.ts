@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildSportAttributeRows,
   gkVenueIdFromRecord,
+  greeneKingLondonVenueRecords,
   parseGreeneKingSportsFlag,
   pubPageUrlFromMenuUrl,
   sportAttributeRow,
@@ -138,5 +139,53 @@ describe("buildSportAttributeRows", () => {
       expect(row.confidence).toBe("listed");
       expect(row).not.toHaveProperty("startsAt");
     }
+  });
+});
+
+describe("greeneKingLondonVenueRecords", () => {
+  const pint = (over: Record<string, unknown>) => ({
+    pub_name: "Masons Arms",
+    address: "51 Upper Berkeley Street, W1H 7QW",
+    latitude: 51.5157,
+    longitude: -0.1614,
+    website: "https://www.greeneking.co.uk/pubs/greater-london/masons-arms",
+    ...over,
+  });
+
+  it("yields one placed record per London Greene King pub page", () => {
+    const records = greeneKingLondonVenueRecords([
+      pint({}),
+      pint({ pint_name: "second pint, same pub" }),
+      pint({ website: "https://www.greeneking.co.uk/pubs/devon/masons-arms" }),
+      pint({ website: "https://example.com/masons-arms" }),
+      pint({ website: "https://www.greeneking.co.uk/pubs/greater-london/unplaced", latitude: null }),
+    ]);
+    expect(records).toEqual([
+      {
+        name: "Masons Arms",
+        address: "51 Upper Berkeley Street, W1H 7QW",
+        lat: 51.5157,
+        lng: -0.1614,
+        menuUrl: "https://www.greeneking.co.uk/pubs/greater-london/masons-arms/menu",
+      },
+    ]);
+  });
+
+  it("qualifies a slug two regions share so every attribute id stays unique", () => {
+    const [london] = greeneKingLondonVenueRecords([pint({})]);
+    const devon = { ...london, menuUrl: "https://www.greeneking.co.uk/pubs/devon/masons-arms/menu", lat: 50.7, lng: -3.5 };
+    const { rows } = buildSportAttributeRows({
+      venues: [
+        { record: london, showsSport: true },
+        { record: devon, showsSport: true },
+        { record: ARKLES, showsSport: true },
+      ],
+      observedAt: "2026-09-25T00:00:00.000Z",
+    });
+    expect(rows.map((row) => row.id)).toEqual([
+      "sport-attr-gk-arkles",
+      "sport-attr-gk-devon-masons-arms",
+      "sport-attr-gk-greater-london-masons-arms",
+    ]);
   });
 });

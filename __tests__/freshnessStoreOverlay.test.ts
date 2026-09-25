@@ -42,8 +42,7 @@ vi.mock("@/lib/weatherSnapshotStore", () => ({
 
 vi.mock("@/lib/whatsOnListingStore", () => ({
   whatsOnListingStore: () => ({
-    readAll: async () => ({
-      rows: [],
+    readGeneratedAt: async () => ({
       generatedAt: whatsOnReads.generatedAt,
       ...(whatsOnReads.failed ? { failed: true as const, failure: whatsOnReads.failure } : {}),
     }),

@@ -58,21 +58,22 @@ JSON and cannot carry inline comments.
 | Route | Schedule (UTC) | London (BST / GMT) | Purpose | maxDuration |
 |---|---|---|---|---|
 | `GET /api/cron/refresh-weather` | `0 */6 * * *` | 01:00·07:00·13:00·19:00 / 00:00·06:00·12:00·18:00 | Fetch Open-Meteo for every night area → durable `weather_snapshots` store | 60s |
-| `GET /api/cron/refresh-whats-on` | `30 5 * * *` | **06:30** / 05:30 | Refresh bounded quiz, deal, music, and sport lanes plus official Ticketmaster / Skiddle events into `whats_on_listings`; readers prefer non-expired durable rows and fall back to bundled files | 60s |
+| `GET /api/cron/refresh-whats-on` | `30 5 * * *` and `0 15 * * *` | **06:30** and **16:00** / 05:30 and 15:00 | Refresh bounded quiz, deal, music, and sport lanes plus official Ticketmaster / Skiddle events into `whats_on_listings`; readers prefer non-expired durable rows and fall back to bundled files | 60s |
 | `GET /api/cron/freshness-audit` | `30 6 * * *` | 07:30 / 06:30 | Read the freshness spine, report stale feeds and unresolvable feeds as two separate findings (console only) | 30s |
 | `GET /api/cron/refresh-night-signals` | `15 5 * * *` | 06:15 / 05:15 | Exa sweep for PENDING Night Signal candidates + freshness stamp — never publishes; human review still gates the feed | 60s |
 | `GET /api/cron/moderate-social-posts` | `* * * * *` | Every minute | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
 | `GET /api/cron/moderate-social-interactions` | `* * * * *` | Every minute | Claim and moderate up to 20 queued comments or quote posts; text stays held until approval | 30s |
 | `GET /api/cron/enrich-city-pubs` | `15 3 * * *` | 04:15 / 03:15 | Rotating official-page discovery for the night's primary UK city (`lib/searchProvider.server.ts` selects Exa or Tavily; `lib/tavilyPubEnrichment.server.ts` owns rotation, caps, and Bristol spillover) - structured observations to logs only; a function cannot commit repository files | 120s |
 
-The What's-On slot is chosen to land **before London is awake**, and that is a
-change: it used to run at `0 14 * * *` (15:00 BST), which is the middle of the
-afternoon. The cron now writes each bounded lane to `whats_on_listings` before
-morning. It does not stamp combined `feed_freshness`; the store rows carry
-their own observation times and bundled files remain the fallback. `30 5 * * *`
-is 06:30 in BST and 05:30 in GMT, so refreshed rows are available from first
-light in both halves of the year, and the job still sits clear of the evening
-read.
+The What's-On refresh runs **twice a day**. The morning run, `30 5 * * *`
+(06:30 BST, 05:30 GMT), is the baseline: it writes each bounded lane to
+`whats_on_listings` before London is awake, so refreshed rows are available
+from first light in both halves of the year. The afternoon run, `0 15 * * *`
+(16:00 BST, 15:00 GMT), catches what pubs post the day before or on the day
+itself, and lands just before the evening read. Each run replaces a lane only
+when that lane succeeds, so a failed afternoon lane leaves the morning rows in
+place. Neither run stamps combined `feed_freshness`; the store rows carry their
+own observation times and bundled files remain the fallback.
 
 ---
 

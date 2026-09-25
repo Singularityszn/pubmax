@@ -90,6 +90,30 @@ describe("laneCardsFromRows", () => {
     expect(cards[0].title).toBe("Quiz 0");
   });
 
+  it("surfaces every fixture before repeating one fixture at another pub", () => {
+    // Live 25 Sep: the spine flattens each fixture family hero-first, so two
+    // rugby fixtures across 58 pubs arrive as 58 Harlequins rows then 58
+    // Northampton rows. The 5-card cap used to show only Harlequins.
+    const fanned = (title: string) =>
+      Array.from({ length: 6 }, (_, i) =>
+        row({ kind: "sport", venueId: `${title}-pub-${i}`, title }),
+      );
+    const rows = [...fanned("Harlequins v Bath"), ...fanned("Northampton Saints v Newcastle")];
+    const cards = laneCardsFromRows(rows, { limit: 5 });
+    expect(cards).toHaveLength(5);
+    expect(cards.slice(0, 2).map((card) => card.title)).toEqual([
+      "Harlequins v Bath",
+      "Northampton Saints v Newcastle",
+    ]);
+    expect(cards.map((card) => card.venueId)).toEqual([
+      "Harlequins v Bath-pub-0",
+      "Northampton Saints v Newcastle-pub-0",
+      "Harlequins v Bath-pub-1",
+      "Harlequins v Bath-pub-2",
+      "Harlequins v Bath-pub-3",
+    ]);
+  });
+
   it("carries venueId + price and a London time for timed kinds", () => {
     const [card] = laneCardsFromRows([
       row({ kind: "quiz", venueId: "v1", priceGbp: 2 }),

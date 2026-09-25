@@ -10,6 +10,8 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
 
 type Row = Record<string, unknown> & { id: string; kind: string };
 
+const MAX_ROWS = vi.hoisted(() => 1_000);
+
 const db = vi.hoisted(() => ({
   rows: [] as Row[],
   generations: [] as Array<{ kind: string; generated_at: string }>,
@@ -17,7 +19,16 @@ const db = vi.hoisted(() => ({
   schemaMiss: false,
   configured: true,
   requiresStore: false,
+  boundFilters: [] as string[],
+  rowsServed: 0,
 }));
+
+// PostgREST's `payload->>key` column: the payload's field read as text.
+function payloadText(row: Row, field: string): unknown {
+  const [column, key] = field.split("->>");
+  const value = row[column];
+  return key ? (value as Record<string, unknown> | undefined)?.[key] : value;
+}
 
 vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => db.configured,
@@ -40,20 +51,47 @@ vi.mock("@/lib/supabase", () => ({
     from: (table: string) => ({
       select() {
         if (table === "whats_on_listings") {
-          return {
+          const filters: Array<(row: Row) => boolean> = [];
+          const query = {
             eq(field: string, value: string) {
-              if (db.schemaMiss) {
-                return Promise.resolve({
-                  data: null,
-                  error: { message: "Could not find the table 'public.whats_on_listings'" },
-                });
-              }
-              return Promise.resolve({
-                data: db.rows.filter((row) => row[field] === value),
-                error: null,
-              });
+              filters.push((row) => row[field] === value);
+              return query;
+            },
+            neq(field: string, value: string) {
+              filters.push((row) => row[field] !== value);
+              return query;
+            },
+            gte(field: string, value: string) {
+              db.boundFilters.push(`${field}>=${value}`);
+              filters.push((row) => String(payloadText(row, field)) >= value);
+              return query;
+            },
+            lt(field: string, value: string) {
+              db.boundFilters.push(`${field}<${value}`);
+              filters.push((row) => String(payloadText(row, field)) < value);
+              return query;
+            },
+            order(column: string) {
+              return {
+                range(from: number, to: number) {
+                  if (db.schemaMiss) {
+                    return Promise.resolve({
+                      data: null,
+                      error: { message: "Could not find the table 'public.whats_on_listings'" },
+                    });
+                  }
+                  const matching = db.rows
+                    .filter((row) => filters.every((keep) => keep(row)))
+                    .sort((a, b) => String(a[column]).localeCompare(String(b[column])));
+                  // PostgREST's hosted max-rows cap: one response never exceeds it.
+                  const page = matching.slice(from, Math.min(to + 1, from + MAX_ROWS));
+                  db.rowsServed += page.length;
+                  return Promise.resolve({ data: page, error: null });
+                },
+              };
             },
           };
+          return query;
         }
         if (db.schemaMiss) {
           return Promise.resolve({
@@ -92,6 +130,8 @@ beforeEach(() => {
   db.schemaMiss = false;
   db.configured = true;
   db.requiresStore = false;
+  db.boundFilters = [];
+  db.rowsServed = 0;
   __resetWhatsOnListingStore();
 });
 
@@ -198,6 +238,79 @@ describe("supabaseWhatsOnListingStore", () => {
       "2026-08-24T06:00:00.000Z",
     );
     expect((await supabaseWhatsOnListingStore.readAll()).generatedAt).toBe("2026-08-24T05:00:00.000Z");
+  });
+
+  it("reads every durable row past the PostgREST max-rows cap", async () => {
+    const rows = Array.from({ length: 2_500 }, (_, i) =>
+      eventRow(`tm-${String(i).padStart(4, "0")}`),
+    );
+    await supabaseWhatsOnListingStore.replaceKind("event", rows, GENERATED);
+    await supabaseWhatsOnListingStore.replaceKind(
+      "quiz",
+      [eventRow("quiz-1", { kind: "quiz", sourceId: "quiz-1" })],
+      GENERATED,
+    );
+
+    const snap = await supabaseWhatsOnListingStore.readAll();
+    expect(snap.failed).toBeUndefined();
+    expect(snap.rows).toHaveLength(2_501);
+    expect(snap.rows.some((row) => row.id === "quiz-1")).toBe(true);
+  });
+
+  it("leaves sport rows outside a bounded read in the table", async () => {
+    const sport = (id: string, startsAt: string) =>
+      eventRow(id, { kind: "sport", startsAt, endsAt: undefined, sourceId: id });
+    const outside = Array.from({ length: 60 }, (_, i) =>
+      sport(`later-${i}`, `2026-10-${String(10 + (i % 5)).padStart(2, "0")}T20:00:00+01:00`),
+    );
+    await supabaseWhatsOnListingStore.replaceKind(
+      "sport",
+      [
+        ...outside,
+        sport("edge-in", "2026-10-06T20:00:00+01:00"),
+        sport("edge-out", "2026-10-06T19:30:00+01:00"),
+        sport("tonight", "2026-10-06T21:00:00+01:00"),
+      ],
+      GENERATED,
+    );
+    await supabaseWhatsOnListingStore.replaceKind(
+      "quiz",
+      [eventRow("quiz-1", { kind: "quiz", sourceId: "quiz-1" })],
+      GENERATED,
+    );
+    db.rowsServed = 0;
+
+    const snap = await supabaseWhatsOnListingStore.readAll({
+      sportStartsFrom: Date.parse("2026-10-06T19:00:00.000Z"),
+      sportStartsBefore: Date.parse("2026-10-07T03:00:00.000Z"),
+    });
+
+    expect(snap.rows.map((row) => row.id).sort()).toEqual(["edge-in", "quiz-1", "tonight"]);
+    expect(db.boundFilters.length).toBe(2);
+    expect(db.rowsServed).toBeLessThan(10);
+  });
+
+  it("reads one kind without pulling sport rows", async () => {
+    await supabaseWhatsOnListingStore.replaceKind(
+      "sport",
+      [eventRow("sport-1", { kind: "sport", sourceId: "sport-1", endsAt: undefined })],
+      GENERATED,
+    );
+    await supabaseWhatsOnListingStore.replaceKind("event", [eventRow("tm-1")], GENERATED);
+    db.rowsServed = 0;
+
+    const snap = await supabaseWhatsOnListingStore.readAll({ kind: "event" });
+    expect(snap.rows.map((row) => row.id)).toEqual(["tm-1"]);
+    expect(db.rowsServed).toBe(1);
+  });
+
+  it("reads the generation stamp without reading listing rows", async () => {
+    await supabaseWhatsOnListingStore.replaceKind("event", [eventRow("tm-1")], GENERATED);
+    db.rowsServed = 0;
+    await expect(supabaseWhatsOnListingStore.readGeneratedAt()).resolves.toEqual({
+      generatedAt: GENERATED,
+    });
+    expect(db.rowsServed).toBe(0);
   });
 
   it("reads only London rows from the durable table", async () => {

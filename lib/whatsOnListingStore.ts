@@ -37,11 +37,26 @@ type WhatsOnListingWriteOutcome = {
   failed?: true;
 };
 
-type WhatsOnListingSnapshot = {
-  rows: WhatsOnRow[];
+type WhatsOnListingGeneration = {
   generatedAt: string | null;
   failed?: true;
   failure?: string;
+};
+
+type WhatsOnListingSnapshot = WhatsOnListingGeneration & {
+  rows: WhatsOnRow[];
+};
+
+/**
+ * Narrows a read to what the caller can serve. Sport rows fan one fixture out
+ * across every screening pub, so they dominate the table; a bounded read
+ * returns only the sport rows starting inside [sportStartsFrom,
+ * sportStartsBefore) and leaves the rest in the store.
+ */
+type WhatsOnListingQuery = {
+  kind?: WhatsOnKind;
+  sportStartsFrom?: number;
+  sportStartsBefore?: number;
 };
 
 export type WhatsOnListingStore = {
@@ -50,21 +65,26 @@ export type WhatsOnListingStore = {
     rows: WhatsOnRow[],
     generatedAt: string,
   ): Promise<WhatsOnListingWriteOutcome>;
-  readAll(): Promise<WhatsOnListingSnapshot>;
+  readAll(query?: WhatsOnListingQuery): Promise<WhatsOnListingSnapshot>;
+  readGeneratedAt(): Promise<WhatsOnListingGeneration>;
 };
 
 type KindSnap = { rows: WhatsOnRow[]; generatedAt: string };
 
 const memoryKinds = new Map<WhatsOnKind, KindSnap>();
 
-function snapshotFromKinds(kinds: Iterable<KindSnap>): WhatsOnListingSnapshot {
-  const snaps = [...kinds];
-  const rows = snaps.flatMap((snap) => snap.rows);
-  if (snaps.length === 0) return { rows: [], generatedAt: null };
-  const generatedAt = snaps
-    .map((snap) => snap.generatedAt)
-    .reduce((a, b) => (Date.parse(a) <= Date.parse(b) ? a : b));
-  return { rows, generatedAt };
+function oldestStamp(stamps: string[]): string | null {
+  if (stamps.length === 0) return null;
+  return stamps.reduce((a, b) => (Date.parse(a) <= Date.parse(b) ? a : b));
+}
+
+function matchesQuery(row: WhatsOnRow, query: WhatsOnListingQuery): boolean {
+  if (query.kind && row.kind !== query.kind) return false;
+  if (row.kind !== "sport" || !row.startsAt) return true;
+  const startsAt = Date.parse(row.startsAt);
+  if (query.sportStartsFrom !== undefined && startsAt < query.sportStartsFrom) return false;
+  if (query.sportStartsBefore !== undefined && startsAt >= query.sportStartsBefore) return false;
+  return true;
 }
 
 export const memoryWhatsOnListingStore: WhatsOnListingStore = {
@@ -76,13 +96,29 @@ export const memoryWhatsOnListingStore: WhatsOnListingStore = {
     memoryKinds.set(kind, { rows: [...rows], generatedAt });
     return { written: rows.length };
   },
-  async readAll() {
-    return snapshotFromKinds(memoryKinds.values());
+  async readAll(query = {}) {
+    const snaps = [...memoryKinds.values()];
+    return {
+      rows: snaps.flatMap((snap) => snap.rows).filter((row) => matchesQuery(row, query)),
+      generatedAt: oldestStamp(snaps.map((snap) => snap.generatedAt)),
+    };
+  },
+  async readGeneratedAt() {
+    return { generatedAt: oldestStamp([...memoryKinds.values()].map((snap) => snap.generatedAt)) };
   },
 };
 
 const TABLE = "whats_on_listings";
 const GENERATIONS_TABLE = "whats_on_listing_generations";
+// PostgREST silently caps one response at the project's max-rows setting
+// (hosted default 1000), so the listing read pages in chunks no larger than
+// that and stops on the first short page.
+const READ_PAGE_ROWS = 1_000;
+// Sport startsAt is stored as London wall clock with its offset
+// ("...T20:00:00+01:00"), so the text the table compares runs up to an hour
+// ahead of the instant. The table-side bound is widened past that skew and
+// matchesQuery applies the exact bound after parsing.
+const SPORT_TEXT_BOUND_SLACK_MS = 2 * 60 * 60 * 1000;
 
 const { guard, resetWarnings: resetSchemaMissWarnings } = createFailSoftGuard({
   tag: "whats-on-listings",
@@ -147,11 +183,11 @@ export const supabaseWhatsOnListingStore: WhatsOnListingStore = {
     });
   },
 
-  async readAll() {
+  async readAll(query = {}) {
     return guard<WhatsOnListingSnapshot>({
       context: "readAll",
       onSchemaMiss: async () => ({
-        ...(await memoryWhatsOnListingStore.readAll()),
+        ...(await memoryWhatsOnListingStore.readAll(query)),
         failed: true as const,
         failure: "durable table missing (apply migration 0119)",
       }),
@@ -163,40 +199,101 @@ export const supabaseWhatsOnListingStore: WhatsOnListingStore = {
         failure: errorMessage(error),
       }),
       run: async () => {
-        const admin = requireSupabaseAdmin();
-        const [{ data, error }, { data: generationData, error: generationError }] =
-          await Promise.all([
-            // The refresh pipeline writes only London rows today, but the
-            // filter is the contract: a durable answer is a London answer, so
-            // a future second city cannot leak into every city's read.
-            admin.from(TABLE).select("*").eq("city", "london"),
-            admin.from(GENERATIONS_TABLE).select("kind, generated_at"),
-          ]);
-        if (error) throw new Error(error.message);
-        if (generationError) throw new Error(generationError.message);
+        const [listings, generatedAt] = await Promise.all([
+          readListingRows(query),
+          readDurableGeneratedAt(),
+        ]);
         const parsed: WhatsOnRow[] = [];
-        const stamps: string[] = [];
-        for (const row of (data ?? []) as ListingRow[]) {
+        for (const row of listings) {
           if (!isWhatsOnKind(row.kind)) continue;
           const next = fromRow(row);
-          if (!next) continue;
-          parsed.push(next);
-          stamps.push(row.generated_at);
+          if (next && matchesQuery(next, query)) parsed.push(next);
         }
-        for (const row of (generationData ?? []) as GenerationRow[]) {
-          if (isWhatsOnKind(row.kind) && typeof row.generated_at === "string") {
-            stamps.push(row.generated_at);
-          }
-        }
-        if (stamps.length === 0) return { rows: [], generatedAt: null };
-        const generatedAt = stamps.reduce((a, b) =>
-          Date.parse(a) <= Date.parse(b) ? a : b,
-        );
         return { rows: parsed, generatedAt };
       },
     });
   },
+
+  async readGeneratedAt() {
+    return guard<WhatsOnListingGeneration>({
+      context: "readGeneratedAt",
+      onSchemaMiss: async () => ({
+        ...(await memoryWhatsOnListingStore.readGeneratedAt()),
+        failed: true as const,
+        failure: "durable table missing (apply migration 0119)",
+      }),
+      message: "readGeneratedAt failed - returning empty",
+      onError: (error) => ({
+        generatedAt: null,
+        failed: true as const,
+        failure: errorMessage(error),
+      }),
+      run: async () => ({ generatedAt: await readDurableGeneratedAt() }),
+    });
+  },
 };
+
+async function readDurableGeneratedAt(): Promise<string | null> {
+  const { data, error } = await requireSupabaseAdmin()
+    .from(GENERATIONS_TABLE)
+    .select("kind, generated_at");
+  if (error) throw new Error(error.message);
+  return oldestStamp(
+    ((data ?? []) as GenerationRow[])
+      .filter((row) => isWhatsOnKind(row.kind) && typeof row.generated_at === "string")
+      .map((row) => row.generated_at),
+  );
+}
+
+async function readListingRows(query: WhatsOnListingQuery): Promise<ListingRow[]> {
+  const reads: Promise<ListingRow[]>[] = [];
+  if (query.kind !== "sport") {
+    reads.push(readListingPages((select) =>
+      query.kind ? select.eq("kind", query.kind) : select.neq("kind", "sport"),
+    ));
+  }
+  if (!query.kind || query.kind === "sport") {
+    reads.push(readListingPages((select) => {
+      let sport = select.eq("kind", "sport");
+      if (query.sportStartsFrom !== undefined) {
+        sport = sport.gte(
+          "payload->>startsAt",
+          new Date(query.sportStartsFrom - SPORT_TEXT_BOUND_SLACK_MS).toISOString(),
+        );
+      }
+      if (query.sportStartsBefore !== undefined) {
+        sport = sport.lt(
+          "payload->>startsAt",
+          new Date(query.sportStartsBefore + SPORT_TEXT_BOUND_SLACK_MS).toISOString(),
+        );
+      }
+      return sport;
+    }));
+  }
+  return (await Promise.all(reads)).flat();
+}
+
+type ListingSelect = ReturnType<ReturnType<ReturnType<typeof requireSupabaseAdmin>["from"]>["select"]>;
+
+async function readListingPages(
+  narrow: (select: ListingSelect) => ListingSelect,
+): Promise<ListingRow[]> {
+  const listings: ListingRow[] = [];
+  for (let offset = 0; ; offset += READ_PAGE_ROWS) {
+    // The refresh pipeline writes only London rows today, but the filter is
+    // the contract: a durable answer is a London answer, so a future second
+    // city cannot leak into every city's read.
+    const { data, error } = await narrow(
+      requireSupabaseAdmin().from(TABLE).select("*").eq("city", "london"),
+    )
+      .order("id", { ascending: true })
+      .range(offset, offset + READ_PAGE_ROWS - 1);
+    if (error) throw new Error(error.message);
+    const page = (data ?? []) as ListingRow[];
+    listings.push(...page);
+    if (page.length < READ_PAGE_ROWS) return listings;
+  }
+}
 
 const unavailableProductionWhatsOnListingStore: WhatsOnListingStore = {
   async replaceKind() {
@@ -204,6 +301,9 @@ const unavailableProductionWhatsOnListingStore: WhatsOnListingStore = {
   },
   async readAll() {
     return { rows: [], generatedAt: null, failed: true };
+  },
+  async readGeneratedAt() {
+    return { generatedAt: null, failed: true };
   },
 };
 

@@ -89,10 +89,10 @@
       "class": "cron",
       "artifact": null,
       "stamp": { "kind": "store", "feedKey": "whats_on" },
-      "cadence": "daily full What's-On refresh via Vercel cron (30 5 * * * UTC); durable rows are preferred and bundled files remain the fallback",
+      "cadence": "twice-daily full What's-On refresh via Vercel cron (30 5 * * * and 0 15 * * * UTC); durable rows are preferred and bundled files remain the fallback",
       "stalenessBudgetHours": 48,
       "refreshWorkflow": "Vercel cron GET /api/cron/refresh-whats-on refreshes Ticketmaster/Skiddle events plus bounded quiz, deal, music, and sport lanes into the durable whats_on_listings store (read store-first via lib/whatsOnListings.server; bundled public/data/whats_on files are the fallback). GitHub workflows remain as a secondary recovery path when Actions billing returns.",
-      "gate": "TICKETMASTER_API_KEY and/or SKIDDLE_API_KEY for official event rows (Skiddle also needs written commercial approval and SKIDDLE_BRAND_ASSET_PRESENT). The quiz lane is bounded to Question One pages; deal, music, and sport lanes use their existing first-party definitions and bundled venue inputs. A failed lane leaves its prior durable rows unchanged. Live layer also blends CityMCP at request time."
+      "gate": "TICKETMASTER_API_KEY and/or SKIDDLE_API_KEY for official event rows (Skiddle also needs written commercial approval and SKIDDLE_BRAND_ASSET_PRESENT). The quiz lane is bounded to Question One pages; deal and music lanes use their existing first-party definitions and bundled venue inputs; the sport lane reads live fixtures (gate owned by whats_on_sport_fixtures). A failed lane leaves its prior durable rows unchanged. Live layer also blends CityMCP at request time."
     },
     {
       "id": "whats_on_sport_fixtures",
@@ -100,10 +100,10 @@
       "class": "episodic",
       "artifact": "public/data/whats_on/sport_fixtures.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "daily re-derivation via Vercel cron (30 5 * * * UTC); bundled fixtures remain the fallback",
+      "cadence": "twice daily via Vercel cron (05:30 and 15:00 UTC); bundled fixtures remain the offline fallback",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-whats-on re-derives sport rows into durable whats_on_listings; scripts/whatson/sportFixtures.mjs remains the local and GitHub recovery path for the bundled fallback artifact",
-      "gate": "none (bundled static; keyless). Past-dated rows are never served: lib/whatsOn.ts filterNotPast guards the serving seam in lib/whatsOnStore.ts, so a stale seed degrades to zero served fixtures rather than surfacing a played match."
+      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-whats-on fetches live fixtures (football-data.org football, TheSportsDB rugby) and re-derives sport rows into durable whats_on_listings; scripts/whatson/sportFixtures.mjs remains the local recovery path for the bundled fallback artifact",
+      "gate": "FOOTBALL_DATA_API_KEY optional (the only football source; without it no football is listed and rugby still comes from TheSportsDB). THESPORTSDB_API_KEY required for rugby (paid key only; public test key 3 is never used). Past-dated rows are never served: lib/whatsOn.ts filterNotPast guards the serving seam."
     },
     {
       "id": "events_live_eventbrite",

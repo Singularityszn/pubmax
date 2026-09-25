@@ -348,8 +348,9 @@ export function buildSportFixtureRowsWithDiagnostics({ attributeRows, fixtures, 
         continue;
       }
 
+      const id = `sport-fixture-${fixture.id}-${slugFromAttrRowId(attrRow)}`;
       const row = {
-        id: `sport-fixture-${fixture.id}-${slugFromAttrRowId(attrRow)}`,
+        id,
         placeName,
         kind: "sport",
         startsAt,
@@ -363,6 +364,9 @@ export function buildSportFixtureRowsWithDiagnostics({ attributeRows, fixtures, 
         source: { label: "Greene King", url: sourceUrl },
         observedAt,
         confidence: "derived",
+        // One identity per fixture per pub: without it, dedupe collapses every
+        // fixture sharing a kickoff at the same pub into one row.
+        sourceId: id,
       };
       const venueId = venueIdForAttrRow(attrRow, placeName, venueIndex);
       if (venueId) row.venueId = venueId;

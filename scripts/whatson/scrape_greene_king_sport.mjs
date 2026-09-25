@@ -7,7 +7,9 @@
  *     Each pub page inlines a first-party boolean "sports":true|false. We emit
  *     ONE venue-level attribute row per pub flagged true (kind:"sport", with no
  *     startsAt — it is an attribute, not a timed event). The venue list comes
- *     from the already-scraped identities in data/greene_king/raw/*.menu.json.
+ *     from the already-scraped identities in data/greene_king/raw/*.menu.json,
+ *     plus every Greater London Greene King pub in the canonical dataset
+ *     (public/data/pint_prices_app_dataset.json).
  *
  * GOVERNANCE:
  *   - Public first-party chain pages only. We fetch /pubs/{region}/{slug} and
@@ -38,11 +40,13 @@ import {
   parseGreeneKingSportsFlag,
   pubPageUrlFromMenuUrl,
   buildSportAttributeRows,
+  greeneKingLondonVenueRecords,
 } from "./greeneKingSportParser.mjs";
 import { CONTACT_EMAIL } from "../../lib/siteContact.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const RAW_DIR = join(ROOT, "data", "greene_king", "raw");
+const CANONICAL_DATASET_PATH = join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const OUT_DIR = join(ROOT, "public", "data", "whats_on");
 const ATTRS_PATH = join(OUT_DIR, "sport_attributes.json");
 const TIMED_PATH = join(OUT_DIR, "sport_whats_on.json");
@@ -82,13 +86,20 @@ async function assertRobotsAllows(origin, path) {
   }
 }
 
-// Load the venue identities we already hold (name+address+lat+lng+menuUrl).
+// Load the venue identities we already hold (name+address+lat+lng+menuUrl):
+// the raw menu.json records, then every Greater London Greene King pub in the
+// canonical dataset that the raw records do not already cover.
 function loadVenues() {
-  return readdirSync(RAW_DIR)
+  const raw = readdirSync(RAW_DIR)
     .filter((f) => f.endsWith(".menu.json"))
     .sort()
     .map((f) => JSON.parse(readFileSync(join(RAW_DIR, f), "utf8")))
     .filter((r) => r && r.menuUrl);
+  const seen = new Set(raw.map((r) => pubPageUrlFromMenuUrl(r.menuUrl)));
+  const london = greeneKingLondonVenueRecords(JSON.parse(readFileSync(CANONICAL_DATASET_PATH, "utf8"))).filter(
+    (r) => !seen.has(pubPageUrlFromMenuUrl(r.menuUrl)),
+  );
+  return [...raw, ...london];
 }
 
 async function resolveSportFlag(record, fromDir) {

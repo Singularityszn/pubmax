@@ -1,0 +1,32 @@
+{
+  "events": [
+    {
+      "idEvent": "2494052",
+      "strHomeTeam": "Arsenal",
+      "strAwayTeam": "Leeds United",
+      "strLeague": "English Premier League",
+      "strVenue": "Emirates Stadium",
+      "strTimestamp": "2026-10-10T11:30:00",
+      "dateEvent": "2026-10-10",
+      "dateEventLocal": "2026-10-10",
+      "strTime": "11:30:00",
+      "strTimeLocal": "12:30:00",
+      "strStatus": "NS",
+      "strPostponed": "no"
+    },
+    {
+      "idEvent": "2494000",
+      "strHomeTeam": "Arsenal",
+      "strAwayTeam": "Coventry City",
+      "strLeague": "English Premier League",
+      "strVenue": "Emirates Stadium",
+      "strTimestamp": "2026-08-21T19:00:00",
+      "dateEvent": "2026-08-21",
+      "dateEventLocal": "2026-08-21",
+      "strTime": "19:00:00",
+      "strTimeLocal": "20:00:00",
+      "strStatus": "FT",
+      "strPostponed": "no"
+    }
+  ]
+}
