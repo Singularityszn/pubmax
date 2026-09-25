@@ -327,9 +327,13 @@ describe("AGENTS.md pointers", () => {
     // reads as protection and can never fire. Same rule as the performance
     // budgets: take it UP when the count rises, and take it DOWN only in the
     // commit that removes pointers on purpose, with the reason.
-    // Raised when pointers move into `docs/rules/` detail files: the area indexes
-    // shrink but the corpus still carries every backticked path. Floor ratchets
-    // with the shipped count; lower only when pointers are removed on purpose.
-    expect(pointers().length).toBeGreaterThan(555);
+    // Raised from 549 with the law-by-law trim: the document lost 27 per cent of
+    // its bytes and NO pointer, so the shipped count rose from 563 to 569 and the
+    // floor keeps the same slack under it. The split into an area tree moved
+    // every law and cost no pointer, so the count and the floor both stand.
+    // Raised from 555 when the long-form rules moved into `docs/rules/` and this
+    // fence began reading that directory: the move cost no pointer, the shipped
+    // count reads 1374, and the floor takes the same slack under it.
+    expect(pointers().length).toBeGreaterThan(1360);
   });
 });
