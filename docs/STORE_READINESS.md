@@ -1036,7 +1036,7 @@ adb shell pm get-app-links com.pubmaxx.app     # pubmaxxing.com: verified
 ```
 
 Until this is done the state reads as a failure and shared links keep opening
-the browser. Finally, prove the email, Google and Apple sign-in callbacks return
+the browser. Finally, prove the email, Google, Apple and Microsoft sign-in callbacks return
 into the signed-in app rather than a browser tab.
 
 **14. Closed test, if this is a personal account created after November 2023.**

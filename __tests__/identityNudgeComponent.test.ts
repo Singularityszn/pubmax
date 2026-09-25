@@ -219,7 +219,7 @@ beforeEach(() => {
     loading: false,
     configured: false,
     clerkIntegrationConfigured: false,
-    socialProviders: { google: false, apple: false },
+    socialProviders: { google: false, apple: false , microsoft: false },
     signInWithGoogle: vi.fn(),
     signInWithApple: vi.fn(),
     signInWithEmail: vi.fn(),

@@ -13,6 +13,7 @@ import { LogIn } from "lucide-react";
 
 import AccountDeviceControls from "@/components/auth/AccountDeviceControls";
 import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
+import { hasSocialAuthProviders } from "@/lib/authProviderAvailability";
 import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import HandlePasswordSignIn from "@/components/auth/HandlePasswordSignIn";
@@ -357,6 +358,7 @@ export default function LoginPage({
     socialProviders,
     signInWithGoogle,
     signInWithApple,
+    signInWithMicrosoft,
     signInWithEmail,
     cancelAuthAttempt,
     signOut,
@@ -367,7 +369,7 @@ export default function LoginPage({
   } = useAuth();
   // ONE live read of the remembered-account lane on this page.
   const deviceAccounts = useDeviceAccounts();
-  const [busy, setBusy] = useState<"google" | "apple" | "out" | null>(null);
+  const [busy, setBusy] = useState<"google" | "apple" | "microsoft" | "out" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resumeStatus, setResumeStatus] = useState<
     "idle" | "sending" | MagicLinkResult["status"]
@@ -462,6 +464,19 @@ export default function LoginPage({
       setBusy(null);
     }
   }, [providerDestination, signInWithApple]);
+
+  const onSignInMicrosoft = useCallback(async () => {
+    trackEvent("sign_in_initiated", { provider: "microsoft" });
+    setBusy("microsoft");
+    setError(null);
+    const { error: signInError } = providerDestination
+      ? await signInWithMicrosoft(providerDestination)
+      : await signInWithMicrosoft();
+    if (signInError) {
+      setError(signInError);
+      setBusy(null);
+    }
+  }, [providerDestination, signInWithMicrosoft]);
 
   const onResume = useCallback(async () => {
     if (resumeStatus === "sending" || resumeStatus === "sent") return;
@@ -604,6 +619,7 @@ export default function LoginPage({
                   disabled={busy !== null}
                   onGoogle={onSignInGoogle}
                   onApple={onSignInApple}
+                  onMicrosoft={onSignInMicrosoft}
                   fullLabels
                 />
               ) : null}
@@ -612,9 +628,7 @@ export default function LoginPage({
                   <MagicLinkForm
                     key={intent}
                     disabled={busy !== null}
-                    hasSocialProviders={
-                      socialProviders.google || socialProviders.apple
-                    }
+                    hasSocialProviders={hasSocialAuthProviders(socialProviders)}
                     signInWithEmail={sendLink}
                     cancelAuthAttempt={cancelAuthAttempt}
                     label={door.emailLabel}
