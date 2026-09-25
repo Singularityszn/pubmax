@@ -182,6 +182,13 @@ test.describe("Pub Pal live voice", () => {
         `${EVIDENCE_DIR}/voice-token-${species}.json`,
         `${JSON.stringify({ species, voiceId: body.overrides?.voiceId, retention: body.retention }, null, 2)}\n`,
       );
+      await request.post(`${baseUrl}/api/pub-pal/voice-token`, {
+        headers: {
+          authorization: `Bearer ${bearer}`,
+          "content-type": "application/json",
+        },
+        data: { action: "release", durationSeconds: 0 },
+      });
     }
   });
 
@@ -233,6 +240,13 @@ test.describe("Pub Pal live voice", () => {
       const tokenBody = await tokenResponse.json();
       const voiceId = tokenBody.overrides?.voiceId as string | undefined;
       expect(voiceId).toBeTruthy();
+      await request.post(`${baseUrl}/api/pub-pal/voice-token`, {
+        headers: {
+          authorization: `Bearer ${bearer}`,
+          "content-type": "application/json",
+        },
+        data: { action: "release", durationSeconds: 0 },
+      });
 
       const evidence = await runVoiceSession(page, species);
       sessions.push({ species, voiceId, ...evidence });
