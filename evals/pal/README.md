@@ -14,13 +14,13 @@ Invented-venue and directory price checks are absolute: every card `venueId` mus
 
 - `cases.public.json` — queries the harness may run (no expected answers).
 - `answer-key.json` — hidden expectations read only by graders (never sent to a model).
-- `answerKeyResolver.ts` — independent data resolver for generated key fields.
+- `answerKeyResolver.ts` — hand-maintained routing constraints (`PAL_EVAL_ROUTING`, which overwrite `expectedTools` on regenerate) and the independent data resolver for generated key fields.
 - `scoreboard/` — output from `npm run eval:pal:live` (git-ignored).
 
 ## Commands
 
 - `npm run eval:pal` — deterministic gate (`skipModel: true`), fast enough for CI via vitest. CityMCP is the offline stub in `offlineFetch.ts`, `TYPESAFE_API_KEY` is cleared for the run, and every case runs at the `now` pinned in `answer-key.json` (an evening the bundled What's On fixtures cover).
-- `npm run eval:pal:live` — calls OpenRouter when `OPENROUTER_API_KEY` is set; writes `scoreboard/latest.json` and `latest.md`.
+- `npm run eval:pal:live` — requires `OPENROUTER_API_KEY` (refuses to run without it); only OpenRouter goes to the network, every other source stays on the offline stub. Adds a `model_ran` check per case that fails when the model made no tool call, and writes `scoreboard/latest.json` and `latest.md`.
 
 Regenerate data-derived fields after venue, price, What's On, or routing changes:
 
