@@ -40,7 +40,7 @@ import {
   ownUnlistedCrawlsLabel,
 } from "@/lib/authorCrawlList";
 import { syncDeviceHandle } from "@/lib/identityClient";
-import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
+import { isPubmaxxHandleImpersonationBlock } from "@/lib/pubmaxxIdentity";
 import { accountClaimReturnToFromUrl } from "@/lib/accountClaimReturnTo";
 import { BADGE_EVENTS } from "@/lib/badgeEvents";
 import {
@@ -898,12 +898,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // `isAnonymous` alone, so a signed-out visitor met "Claim this handle" under
   // a founding member's face, bio and number - and taking it wrote their handle
   // onto this device and opened the edit surface.
-  const handleAssessment = assessPubmaxxHandle(routeHandle);
   const handleReserved =
     routeHandle !== "" &&
     routeHandle !== YOU_SENTINEL &&
-    !handleAssessment.ok &&
-    handleAssessment.reason === "reserved";
+    isPubmaxxHandleImpersonationBlock(routeHandle);
   const canAdoptHandle = handleIsAdoptable({
     read: publicRead,
     ownerProfile: stored,

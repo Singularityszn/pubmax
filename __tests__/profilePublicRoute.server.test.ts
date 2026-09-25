@@ -20,6 +20,10 @@ describe("public profile route withholding", () => {
     await expect(publicProfileRouteWithholdsNotFound("karansdad")).resolves.toBe(true);
   });
 
+  it("allows a founder contributor handle with a live profile", async () => {
+    await expect(publicProfileRouteWithholdsNotFound("karan")).resolves.toBe(false);
+  });
+
   it("allows a normal unused handle", async () => {
     await expect(publicProfileRouteWithholdsNotFound("never_existed_qa9")).resolves.toBe(false);
   });

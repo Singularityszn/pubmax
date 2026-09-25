@@ -1,7 +1,7 @@
 import "server-only";
 
 import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
-import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
+import { isPubmaxxHandleImpersonationBlock } from "@/lib/pubmaxxIdentity";
 import { normalizeHandle } from "@/lib/profiles";
 
 const YOU_SENTINEL = "you";
@@ -11,8 +11,7 @@ export async function publicProfileRouteWithholdsNotFound(rawHandle: string): Pr
   const handle = normalizeHandle(rawHandle);
   if (!handle || handle === YOU_SENTINEL) return false;
 
-  const assessment = assessPubmaxxHandle(handle);
-  if (!assessment.ok && assessment.reason === "reserved") return true;
+  if (isPubmaxxHandleImpersonationBlock(handle)) return true;
 
   const withdrawn = await withdrawnHandles([handle]);
   return withdrawn.has(handle);
