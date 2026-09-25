@@ -405,7 +405,9 @@ describe("venues_slim.json", () => {
     const bars = rows.filter((row) => row.kind === "bar");
     const food = rows.filter((row) => row.kind === "food");
     const restaurants = rows.filter((row) => row.kind === "restaurant");
-    const expected = expectedSlimFamousCounts();
+    const expected = expectedSlimFamousCounts(
+      new Date("2026-09-25T12:00:00.000Z"),
+    );
     expect(bars).toHaveLength(expected.bar);
     expect(food).toHaveLength(expected.food);
     expect(restaurants).toHaveLength(expected.restaurant);
