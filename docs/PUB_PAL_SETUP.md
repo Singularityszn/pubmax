@@ -40,6 +40,7 @@ Variables → Production, Preview). All four are server-only.
 
 `.env.example` carries the same names with empty values.
 
+---
 
 ## Designing species voices
 
@@ -54,6 +55,7 @@ npm run pubpal:design-voices
 Generated preview audio and the voice id env lines land in `artifacts/pubpal-voices/`, which git ignores. Each id is appended to `artifacts/pubpal-voices/elevenlabs-voice-ids.env` as soon as its voice is saved, and a species whose `ELEVENLABS_VOICE_<SPECIES>` is already set, in the environment or in that file, is skipped, so a re-run after a failure only designs what is still missing.
 
 ---
+
 ## Creating the agent
 
 ```bash
@@ -66,8 +68,8 @@ npm run pubpal:agent -- --base-url https://pubmaxxing.com
 ```
 
 The script reads `.env.local` and `.env`, so a local run needs no exported
-shell variables. A dry run still needs `ELEVENLABS_LLM_SHARED_SECRET`, because
-it prints the agent it would write and that body carries the secret; it does
+shell variables. A dry run still needs `ELEVENLABS_LLM_SHARED_SECRET`, which the
+script checks up front, but it never prints the secret or its locator; it does
 not need `ELEVENLABS_API_KEY`, because it calls nothing. `--base-url` also
 reads `PUBMAX_BASE_URL`, and it must be https (or `http://localhost` for a
 tunnel test). It is idempotent: with `ELEVENLABS_PUB_PAL_AGENT_ID` set it
@@ -76,16 +78,21 @@ patches that agent, and without one it looks for an agent named
 
 It sets four things and nothing else:
 
-1. **Custom LLM** pointed at `<base-url>/api/pub-pal/llm`, with the shared
-   secret. That route runs the same source-backed Night OS Ask path the text
-   surface runs, so the voice cannot answer from the provider's own model.
+1. **Custom LLM** pointed at `<base-url>/api/pub-pal/llm`. The shared secret
+   is stored in the ElevenLabs workspace secret vault as
+   `PUBMAXX_PUB_PAL_LLM_SECRET` (created or updated on each real run), and the
+   agent carries only its `secret_id`. That route runs the same source-backed
+   Night OS Ask path the text surface runs, so the voice cannot answer from the
+   provider's own model.
 2. **Retention**: voice recording is off and transcript deletion is requested,
    but ElevenLabs refuses zero retention mode for custom-LLM agents, so it may
    retain conversation data under its default policy. The token route reports
    this as `retention: "provider_default"`. ADR 0006 is explicit that raw audio
    and transcripts are never Pal memory.
-3. **Voices**, when their ids are set. The agent-level voice is the default;
-   each session overrides it with the caller's picked voice, or with the
+3. **Voices**, when their ids are set. The agent-level default is the first of
+   `ELEVENLABS_VOICE_FOX`, `_ROBIN` or `_EMBER` that is set. The agent allows
+   prompt, first message and voice session overrides, and each session
+   overrides the default with the caller's picked voice, or with the
    species voice when that pick has no id, from `lib/palElevenLabsVoice.ts` /
    `lib/palVoiceOverrides.ts`, so Pals sound distinct off one agent.
 4. **The house prompt**: speak what the tools return, never invent a price or
