@@ -186,6 +186,9 @@ const config: KnipConfig = {
   // openai is imported only by @arizeai/openinference-instrumentation-openai when
   // Arize tracing registers; this app never imports it directly.
   ignoreDependencies: ["postcss", "playwright", "openai"],
+  // System SysV IPC and process tools the postgres harness shells out to
+  // (scripts/rls/postgresShm.mjs); they are not npm binaries.
+  ignoreBinaries: ["ipcs", "ipcrm", "ps"],
 };
 
 export default config;

@@ -1,0 +1,14 @@
+name: Install Playwright Chromium (pubmax-mac)
+description: Cache and install Chromium on the self-hosted macOS ARM64 runner.
+runs:
+  using: composite
+  steps:
+    - name: Cache Playwright browsers
+      uses: actions/cache@v4
+      with:
+        path: ~/Library/Caches/ms-playwright
+        key: playwright-browsers-macos-${{ hashFiles('package-lock.json') }}
+
+    - name: Install Chromium
+      shell: bash
+      run: npx playwright install chromium

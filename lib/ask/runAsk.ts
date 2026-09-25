@@ -155,6 +155,8 @@ export type RunAskInput = {
   /** When true, never call OpenRouter (tests / production without durable limiter). */
   skipModel?: boolean;
   fetchImpl?: typeof fetch;
+  /** Injected clock for the tools that read "tonight" or "now". */
+  now?: number;
   /** Static route tag for the trace (e.g. "api/ask"). */
   traceRoute?: string;
 };
@@ -172,6 +174,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     query,
     skipModel: true,
     ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
+    ...(input.now !== undefined ? { now: input.now } : {}),
   };
 
   let toolResults: AskToolResult[] = [];

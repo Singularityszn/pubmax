@@ -1,4 +1,4 @@
-// Auth callback landing. Supabase Auth (Google / Apple / email magic link)
+// Auth callback landing. Supabase Auth (Google / Apple / Microsoft / email magic link)
 // redirects here after the user approves, carrying the implicit-flow session
 // tokens in the URL FRAGMENT. The fragment never reaches this server; the
 // browser carries it across our redirect below, and AuthProvider establishes

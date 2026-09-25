@@ -47,7 +47,7 @@ const session = {
   providerAuthState: "signed-out",
   supabaseAuthState: "signed-out",
   clerkIntegrationConfigured: false,
-  socialProviders: { google: false, apple: false },
+  socialProviders: { google: false, apple: false , microsoft: false },
   signInWithGoogle: async () => ({}),
   signInWithApple: async () => ({}),
   signInWithEmail: async () => ({}),

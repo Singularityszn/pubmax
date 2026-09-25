@@ -15,7 +15,7 @@ const clerkState = vi.hoisted(() => ({ configured: true }));
 
 const authAvailability = vi.hoisted(() => ({
   guard: vi.fn(),
-  loadSupabase: vi.fn(async () => ({ google: false, apple: false })),
+  loadSupabase: vi.fn(async () => ({ google: false, apple: false , microsoft: false })),
 }));
 
 const authRedirect = vi.hoisted(() => ({
@@ -55,7 +55,7 @@ vi.mock("@/lib/authClient", () => ({
 vi.mock("@/lib/authProviderAvailability", () => ({
   guardSocialAuthProvider: authAvailability.guard,
   loadSocialAuthProviders: authAvailability.loadSupabase,
-  NO_SOCIAL_AUTH_PROVIDERS: { google: false, apple: false },
+  NO_SOCIAL_AUTH_PROVIDERS: { google: false, apple: false , microsoft: false },
 }));
 vi.mock("@/lib/authRedirect", () => ({
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT: "pubmax:auth-fragment-restored",
@@ -219,7 +219,7 @@ beforeEach(() => {
   providerState.supabaseOAuth.mockResolvedValue({ error: null });
   authAvailability.guard.mockReset();
   authAvailability.guard.mockResolvedValue({
-    availability: { google: true, apple: false },
+    availability: { google: true, apple: false , microsoft: false },
     result: { error: null },
   });
   authAvailability.loadSupabase.mockClear();
@@ -353,6 +353,43 @@ describe("shared contribution auth invalidation", () => {
     });
   });
 
+
+  it("starts Microsoft OAuth through Supabase with Azure scopes", async () => {
+    const container = globalThis.document.createElement("div");
+    root = createRoot(container);
+
+    await commitReactWork(async () => {
+      root?.render(
+        createElement(
+          AuthProvider,
+          { clerkIntegrationConfigured: false },
+          createElement(Consumer, { name: "microsoft" }),
+        ),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    authAvailability.guard.mockImplementationOnce(async (_provider, start) => ({
+      availability: { google: false, apple: false, microsoft: true },
+      result: await start(),
+    }));
+
+    const auth = consumers.get("microsoft")?.auth;
+    await commitReactWork(async () => {
+      await auth?.signInWithMicrosoft();
+    });
+
+    expect(authAvailability.guard).toHaveBeenCalledWith("microsoft", expect.any(Function), expect.any(Function));
+    expect(providerState.supabaseOAuth).toHaveBeenCalledWith({
+      provider: "azure",
+      options: {
+        redirectTo: "http://localhost/auth-callback",
+        scopes: "email openid profile",
+      },
+    });
+  });
+
   it("uses an explicit destination for OAuth and welcome-back email callbacks", async () => {
     const container = globalThis.document.createElement("div");
     root = createRoot(container);
@@ -371,7 +408,7 @@ describe("shared contribution auth invalidation", () => {
     });
 
     authAvailability.guard.mockImplementationOnce(async (_provider, start) => ({
-      availability: { google: true, apple: false },
+      availability: { google: true, apple: false , microsoft: false },
       result: await start(),
     }));
 
