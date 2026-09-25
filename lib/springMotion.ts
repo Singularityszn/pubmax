@@ -9,11 +9,6 @@ export type SpringState = {
   velocity: number;
 };
 
-/** Client-only; returns false when `window` is unavailable (SSR/tests). */
-export function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
 
 export type SpringConfig = {
   /** Approximate seconds for one natural response cycle. */
