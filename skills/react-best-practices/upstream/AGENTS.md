@@ -1,6 +1,6 @@
 # React Best Practices (pointer)
 
-Upstream vendored copy. Canonical compiled guide:
+Canonical vendored guide for this repo:
 
 [`../AGENTS.md`](../AGENTS.md)
 

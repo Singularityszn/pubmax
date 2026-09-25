@@ -10,8 +10,10 @@ PubMaxxing is a single Next.js 16 (App Router, React 19, TypeScript) web app, a 
 
 This file is an index. Every rule is written down once, in the area file that owns
 the code it is about, and an agent reads the nearest one up the tree from the file
-it is editing. Nothing here is a summary of a child: read the child before you
-change code in that area, and add a new rule to the child rather than to this file.
+it is editing. Area indexes stay short; long-form pins, incident history and proof
+live under [`docs/rules/`](docs/rules/) and are linked from each area file. Nothing
+here is a summary of a child: read the child before you change code in that area,
+and add a new rule to the child (or its `docs/rules/` detail) rather than to this file.
 
 | Area file | What it owns |
 | --- | --- |

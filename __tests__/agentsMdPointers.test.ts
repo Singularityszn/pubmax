@@ -300,19 +300,8 @@ function resolvesPattern(pointer: string): boolean {
   return visit(ROOT, 0);
 }
 
-function resolvesDocsRulesPointer(pointer: string): boolean | null {
-  if (!pointer.startsWith("docs/rules")) return null;
-  const trimmed = pointer.endsWith("/") ? pointer.slice(0, -1) : pointer;
-  const absolute = join(ROOT, trimmed);
-  if (!existsSync(absolute)) return false;
-  if (pointer.endsWith("/")) return statSync(absolute).isDirectory();
-  return statSync(absolute).isFile();
-}
-
 /** Resolve a pointer that may carry glob syntax or be a directory. */
 function resolves(pointer: string): boolean {
-  const docsRules = resolvesDocsRulesPointer(pointer);
-  if (docsRules !== null) return docsRules;
   // Installed dependencies are never in git ls-tree; still verify they exist
   // after `npm ci` when AGENTS.md sends a reader into the next package.
   if (pointer.startsWith("node_modules/")) {
@@ -341,6 +330,6 @@ describe("AGENTS.md pointers", () => {
     // Raised when pointers move into `docs/rules/` detail files: the area indexes
     // shrink but the corpus still carries every backticked path. Floor ratchets
     // with the shipped count; lower only when pointers are removed on purpose.
-    expect(pointers().length).toBeGreaterThan(540);
+    expect(pointers().length).toBeGreaterThan(555);
   });
 });
