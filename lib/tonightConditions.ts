@@ -6,7 +6,8 @@
 // nearby matches) and hands the numbers here so this stays unit-testable.
 //
 // Honesty rules, matching the rest of the app:
-//   - no verdict from the rules table (grey in-between weather) -> null, no strip
+//   - a stale reading, or no verdict from the rules table (grey in-between
+//     weather) -> the facts line alone, with no drink line and no venue claim
 //   - zero matching venues, or no location to measure "near you" -> weather line
 //     with no venue claim (never a fabricated count)
 //   - a pint-under-ceiling claim only when price data actually supports it
@@ -150,8 +151,8 @@ export function buildVenueClaim(lens: VenueLens, tally: VenueLensTally): string 
 }
 
 /**
- * Compose the full strip summary, or null when the rules table gives no verdict
- * for tonight's weather (the caller then renders nothing).
+ * Compose the full strip summary. The facts always stand; the drink line and
+ * the venue claim only when the reading is fresh and the rules table fires.
  */
 export function summariseTonightConditions(args: {
   weather: ConditionsWeather;
@@ -160,38 +161,25 @@ export function summariseTonightConditions(args: {
   timeZone?: string;
   /** The shared facts reading of the same observation (lib/weatherObservationCopy.ts). */
   facts: ObservationFacts;
-}): TonightConditionsSummary | null {
+}): TonightConditionsSummary {
   const { weather, now, tally, timeZone, facts } = args;
-  const { factsLine, checkedLabel, isDay } = facts;
-  if (facts.stale) {
-    return {
-      dateLabel: formatConditionDate(now, timeZone),
-      weatherLabel: weatherLabel(weather),
-      factsLine,
-      stale: true,
-      checkedLabel,
-      drinkLine: "",
-      drinkSuggestion: "",
-      venueClaim: null,
-    };
-  }
-  const month = londonMonth(now, timeZone);
-  const verdict = evaluateDrinkWeather({
-    tempC: weather.tempC,
-    precipitationProbabilityPct: weather.precipitationProbabilityPct,
-    month,
-    dayPart: daySlot(now),
-    isDay,
-  });
-  if (!verdict) return null;
+  const verdict = facts.stale
+    ? null
+    : evaluateDrinkWeather({
+        tempC: weather.tempC,
+        precipitationProbabilityPct: weather.precipitationProbabilityPct,
+        month: londonMonth(now, timeZone),
+        dayPart: daySlot(now),
+        isDay: facts.isDay,
+      });
   return {
     dateLabel: formatConditionDate(now, timeZone),
     weatherLabel: weatherLabel(weather),
-    factsLine,
-    stale: false,
-    checkedLabel,
-    drinkLine: verdict.line,
-    drinkSuggestion: verdict.drinkSuggestion,
-    venueClaim: buildVenueClaim(verdict.venueLens, tally),
+    factsLine: facts.factsLine,
+    stale: facts.stale,
+    checkedLabel: facts.checkedLabel,
+    drinkLine: verdict?.line ?? "",
+    drinkSuggestion: verdict?.drinkSuggestion ?? "",
+    venueClaim: verdict ? buildVenueClaim(verdict.venueLens, tally) : null,
   };
 }

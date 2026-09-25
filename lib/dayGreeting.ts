@@ -9,10 +9,11 @@
 // never disagree with the card beneath it.
 //
 // Honesty rules, matching the rest of the app:
-//   - no snapshot, or a grey evening the rules table has no verdict for, and
-//     the greeting falls back to a weather-free line. It never invents a sky.
-//   - a stale-but-real observation keeps its headline (it is the last real read)
-//     but the supporting line says so instead of asserting current conditions.
+//   - no snapshot, and the greeting falls back to a weather-free line. It
+//     never invents a sky.
+//   - a stale reading, or a grey evening the rules table has no verdict for,
+//     keeps a weather-free headline and prints the reading's own facts (with
+//     "Last read of the sky" when stale) as the supporting line.
 //   - the viewer's claimed handle is optional decoration; absent, the salutation
 //     simply stands alone.
 //
@@ -215,17 +216,17 @@ export function buildDayGreeting(input: {
     };
   }
 
-  if (weather.stale) {
+  const support = `${input.dateLabel}. ${weather.factsLine}`;
+
+  if (weather.stale || weather.ruleId === null) {
     return {
       slot,
       salutation,
       headline: HEADLINE_NO_WEATHER[slot],
-      support: `${input.dateLabel}. ${weather.factsLine}`,
+      support,
       weatherAware: false,
     };
   }
-
-  const support = `${input.dateLabel}. ${weather.factsLine}`;
 
   return {
     slot,

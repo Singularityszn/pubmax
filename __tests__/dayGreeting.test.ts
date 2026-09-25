@@ -157,6 +157,22 @@ describe("buildDayGreeting", () => {
     expect(greeting.support).not.toContain("in London");
   });
 
+  it("prints a fresh reading's facts with no weather headline when no rule fired", () => {
+    const greeting = buildDayGreeting({
+      now: new Date("2026-07-25T18:00:00.000Z"),
+      weather: brief({
+        ruleId: null,
+        verdictLine: "",
+        venueLens: "any",
+        factsLine: "16°C feels like, cloudy, 45% chance of rain, daylight.",
+      }),
+      dateLabel: DATE_LABEL,
+    });
+    expect(greeting.headline).toBe("Your night out, sorted.");
+    expect(greeting.support).toBe("Saturday 25 Jul. 16°C feels like, cloudy, 45% chance of rain, daylight.");
+    expect(greeting.weatherAware).toBe(false);
+  });
+
   it("adds the viewer's handle when the device has one", () => {
     const now = new Date("2026-07-25T08:00:00.000Z");
     expect(

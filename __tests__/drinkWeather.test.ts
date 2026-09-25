@@ -18,10 +18,10 @@ describe("evaluateDrinkWeather rules table", () => {
       isDay: false,
     });
     expect(verdict).toMatchObject({ ruleId: "warm-night", venueLens: "any" });
-    expect(verdict?.line).toBe("Warm and dry tonight. Terrace or open-window weather.");
+    expect(verdict?.line).toBe("Warm and dry after dark. Terrace or open-window weather.");
   });
 
-  it("refuses beer-garden rules on an explicit Open-Meteo night", () => {
+  it("refuses beer-garden rules once the sun is down", () => {
     const verdict = evaluateDrinkWeather({
       tempC: 22,
       precipitationProbabilityPct: 10,

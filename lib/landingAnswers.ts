@@ -33,7 +33,7 @@ export type LandingAnswers = {
 export type TodayWeatherFacts = {
   /** Numbers-led facts from the cached observation. */
   factsLine: string;
-  /** "Beer garden weather. Lager or cider." */
+  /** "Beer garden weather. Lager or cider.", or empty when no rule fired. */
   verdictLine: string;
   /** True once the reading has aged past its own expiry. */
   stale: boolean;
@@ -53,7 +53,7 @@ export function todayAnswer(weather: TodayWeatherFacts | null, stamp: string): L
     return { line: `${weather.factsLine} ${weather.checkedLabel}.`, stamp, measured: false };
   }
   return {
-    line: `${weather.factsLine} ${weather.verdictLine}`,
+    line: weather.verdictLine ? `${weather.factsLine} ${weather.verdictLine}` : weather.factsLine,
     stamp,
     measured: true,
   };

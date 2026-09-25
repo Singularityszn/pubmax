@@ -42,6 +42,9 @@ describe("daily brief push composition", () => {
 
   it("refuses stale weather or an empty Tonight shelf", () => {
     expect(composeDailyBriefPush({ ...WEATHER, stale: true }, [PICK])).toBeNull();
+    expect(
+      composeDailyBriefPush({ ...WEATHER, ruleId: null, verdictLine: "", venueLens: "any" }, [PICK]),
+    ).toBeNull();
     expect(composeDailyBriefPush(WEATHER, [])).toBeNull();
     expect(composeDailyBriefPush(null, [PICK])).toBeNull();
   });

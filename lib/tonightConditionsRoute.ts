@@ -49,21 +49,17 @@ export async function resolveTonightConditions(
     precipitationProbabilityPct: observation.precipitationProbabilityPct,
   };
   const facts = observationFacts({ observation, nightArea: area.slug, now, stale });
-
-  if (stale) {
-    return summariseTonightConditions({ weather, facts, now, tally: null });
-  }
-
-  const verdict = evaluateDrinkWeather({
-    tempC: weather.tempC,
-    precipitationProbabilityPct: weather.precipitationProbabilityPct,
-    month: londonMonth(now),
-    isDay: facts.isDay,
-  });
-  if (!verdict) return null;
+  const verdict = stale
+    ? null
+    : evaluateDrinkWeather({
+        tempC: weather.tempC,
+        precipitationProbabilityPct: weather.precipitationProbabilityPct,
+        month: londonMonth(now),
+        isDay: facts.isDay,
+      });
 
   let tally: VenueLensTally = null;
-  if (point && lensVenuePredicate(verdict.venueLens)) {
+  if (verdict && point && lensVenuePredicate(verdict.venueLens)) {
     try {
       const venues = await loadVenues(DEFAULT_CITY_ID);
       tally = tallyLensMatches(venues, verdict.venueLens, point);

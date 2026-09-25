@@ -7,7 +7,7 @@
 //
 // Same idiom as every fail-soft strip: fetch in an effect, AbortController on
 // unmount, renders NOTHING while loading, on error, or when the server has no
-// verdict for the current weather. The full drink line rides the title/aria
+// reading for the area. The full drink line rides the title/aria
 // text so the chip stays one quiet phrase.
 
 import { useEffect, useState } from "react";
@@ -43,7 +43,7 @@ export default function ConditionsChip() {
 
   const trailer = summary.stale ? `${summary.checkedLabel}.` : summary.drinkLine;
   const verdict = summary.stale ? trailer : shortDrinkVerdict(summary.drinkLine);
-  const full = `${summary.dateLabel}. ${summary.factsLine} ${trailer}`;
+  const full = [`${summary.dateLabel}.`, summary.factsLine, trailer].filter(Boolean).join(" ");
 
   return (
     <span className="conditionsChip" title={full} aria-label={full}>

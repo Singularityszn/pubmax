@@ -3,7 +3,6 @@
 // night area's own coordinates (lib/weatherDaylight.ts); observations store
 // neither.
 
-import { daySlot } from "@/lib/daySlot";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import { daylightForNightArea } from "@/lib/weatherDaylight";
 import type { NightAreaWeatherObservation } from "@/lib/weatherSnapshots";
@@ -35,12 +34,9 @@ function formatSunsetLabel(sunsetAt: string | null, now: Date, timeZone = "Europ
   return `sunset ${time}`;
 }
 
-function dayNightLabel(isDay: boolean | null, now: Date): string {
-  if (isDay === true) return "daylight";
-  if (isDay === false) return "night";
-  const slot = daySlot(now);
-  if (slot === "morning" || slot === "afternoon") return "daylight";
-  return "night";
+function dayNightLabel(isDay: boolean | null): string | null {
+  if (isDay === null) return null;
+  return isDay ? "daylight" : "night";
 }
 
 /**
@@ -56,7 +52,7 @@ export function formatWeatherObservationFacts(input: WeatherObservationFactsInpu
       ? `${Math.round(input.windKph)} km/h wind`
       : null;
   const sunset = formatSunsetLabel(input.sunsetAt, input.now);
-  const dayNight = dayNightLabel(input.isDay, input.now);
+  const dayNight = dayNightLabel(input.isDay);
 
   const core = [temp, condition, rain, wind, sunset, dayNight].filter(
     (part): part is string => typeof part === "string" && part.length > 0,
