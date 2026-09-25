@@ -4,23 +4,26 @@ Graded regression suite for Pub Pal / Night OS Ask (keyless `runAsk` path).
 
 ## What a right answer means here
 
-The hidden answer key is derived from the committed venue and price data: it records what the current keyless Ask returns for each question at the pinned `now` (tools used, cards or honest empty, top venue and its recorded price), plus hand-authored answer checks. Accuracy is therefore regression accuracy against that behaviour, not a verdict that every answer is ideal. The invented-venue and price checks are absolute: every card's `venueId` must exist in `public/data/venues_slim.json`, and every directory pint price must match its record.
+The hidden answer key combines hand-maintained routing constraints (`expectedTools`, `anyTools`, `answerIncludes`) with **data-derived** expectations (`topVenueId`, `topPrice`, `minCards`, `expectEmpty`) computed from committed venue, price and What's On data at the pinned `now`. The resolver lives in `answerKeyResolver.ts` and never calls `runAsk` or `runAskTool`. Graders score the live Pal response against that key for recall, invented venues, price accuracy, and tool routing.
 
-Known Pal gaps are tracked in `FOLLOW_UPS.md` and are deliberately not changed by this suite. Fixing one is a product change: update the matching answer-key entries in the same commit, and remove the gap from `FOLLOW_UPS.md`.
+The key also encodes the current keyless Ask regression baseline at the pinned instant: when Pal behaviour intentionally changes, regenerate the key in the same commit. Known Pal gaps live in `FOLLOW_UPS.md`; update the key and `FOLLOW_UPS.md` together when a gap is fixed or re-baselined.
+
+Invented-venue and directory price checks are absolute: every card `venueId` must exist in `public/data/venues_slim.json`, and directory pint prices must match the slim index within tolerance.
 
 ## Layout
 
 - `cases.public.json` — queries the harness may run (no expected answers).
 - `answer-key.json` — hidden expectations read only by graders (never sent to a model).
+- `answerKeyResolver.ts` — independent data resolver for generated key fields.
 - `scoreboard/` — output from `npm run eval:pal:live` (git-ignored).
 
 ## Commands
 
-- `npm run eval:pal` — deterministic gate (`skipModel: true`), fast enough for CI via vitest. CityMCP is the offline stub in `offlineFetch.ts`, shared with the Ask route tests, `TYPESAFE_API_KEY` is cleared for the run so routing is the regex cascade, and every case is asked at the `now` pinned in `answer-key.json` (an evening the bundled What's On fixtures cover).
-- `npm run eval:pal:live` — calls OpenRouter when `OPENROUTER_API_KEY` is set, with every other source offline so the same answer key applies; writes `scoreboard/latest.json` and `latest.md`. Cost per case is the `usage.cost` OpenRouter reports, and a case where the model never called an Ask tool (so the regex router answered) fails its `model_ran` check.
+- `npm run eval:pal` — deterministic gate (`skipModel: true`), fast enough for CI via vitest. CityMCP is the offline stub in `offlineFetch.ts`, `TYPESAFE_API_KEY` is cleared for the run, and every case runs at the `now` pinned in `answer-key.json` (an evening the bundled What's On fixtures cover).
+- `npm run eval:pal:live` — calls OpenRouter when `OPENROUTER_API_KEY` is set; writes `scoreboard/latest.json` and `latest.md`.
 
-Regenerate expectations after intentional data or routing changes. The script rebuilds the generated fields offline at the pinned `now` and keeps it, along with hand-authored `answerIncludes`, `anyTools` and `priceTolerance`:
+Regenerate data-derived fields after venue, price, What's On, or routing changes:
 
 `npm run regenerate:pal-answer-key`
 
-The pinned `now` is data: it must be an evening the bundled What's On fixtures cover, or the quiz and tonight cases grade nothing. After a What's On refresh, move `now` in `answer-key.json` to an evening the new fixtures cover, then regenerate. The script refuses to turn a case that expected cards into an empty one, and names the cases, so a stale `now` cannot quietly empty the key.
+The pinned `now` is data: it must be an evening the bundled What's On fixtures cover. After a What's On refresh, move `now` in `answer-key.json` to an evening the new fixtures cover, then regenerate. The script refuses to turn a case that expected cards into empty and names the cases.
