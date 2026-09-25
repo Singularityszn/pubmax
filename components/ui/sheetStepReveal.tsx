@@ -2,8 +2,6 @@
 
 import type { ReactNode } from "react";
 
-import { SHEET_REVEAL_IN_ENABLED_ATTRIBUTE } from "@/lib/springMotion";
-
 import "./sheetStepReveal.css";
 
 /**
@@ -21,11 +19,7 @@ export default function SheetStepReveal({
 }) {
   const classes = ["sheetStepReveal", className].filter(Boolean).join(" ");
   return (
-    <div
-      key={stepKey}
-      className={classes}
-      data-reveal-in={SHEET_REVEAL_IN_ENABLED_ATTRIBUTE}
-    >
+    <div key={stepKey} className={classes} data-reveal-in>
       {children}
     </div>
   );

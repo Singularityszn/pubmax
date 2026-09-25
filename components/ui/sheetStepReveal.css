@@ -16,13 +16,7 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .sheetStepReveal[data-reveal-in="true"] {
+  .sheetStepReveal[data-reveal-in] {
     animation: sheetRevealIn 260ms ease-out both;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sheetStepReveal[data-reveal-in="true"] {
-    animation: none;
   }
 }

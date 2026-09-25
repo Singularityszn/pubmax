@@ -51,7 +51,12 @@ export const MAP_SHEET_TITLES: Partial<Record<MapSheetKind, string>> = {
   moment: "Choose a pub",
   "near-me": "Near me",
   area: "This area",
-  "choose-area": "Choose an area",
+  "choose-area": "Which area should we open on?",
+};
+
+/** The small line above a sheet's title, for a sheet whose title asks one question. */
+export const MAP_SHEET_KICKERS: Partial<Record<MapSheetKind, string>> = {
+  "choose-area": "Your map",
 };
 
 export type MapViewportSnapshot = {

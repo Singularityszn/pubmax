@@ -4,8 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { LocateFixed, X } from "lucide-react";
 
 import Kicker from "@/components/ui/kicker";
-import SheetStepProgress from "@/components/ui/sheetStepProgress";
+import SheetStepProgress, { type SheetStep } from "@/components/ui/sheetStepProgress";
 import SheetStepReveal from "@/components/ui/sheetStepReveal";
+import { MAP_SHEET_KICKERS, MAP_SHEET_TITLES } from "@/lib/mobileShell";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import type { CityId } from "@/lib/cities";
@@ -21,8 +22,11 @@ import type { Venue } from "@/lib/venues";
 import "./chooseAreaSheet.css";
 
 /** Opening flow: arrival ask, area pick, live map (this sheet is step 2 of 3). */
-export const CHOOSE_AREA_PROGRESS_LABELS = ["Start", "Area", "Map"] as const;
-export const CHOOSE_AREA_PROGRESS_INDEX = 1;
+const OPENING_STEPS: readonly SheetStep[] = [
+  { label: "Start", state: "settled" },
+  { label: "Area", state: "current" },
+  { label: "Map", state: "upcoming" },
+];
 
 export type ChooseAreaPick =
   | { kind: "near-me" }
@@ -37,6 +41,8 @@ type ChooseAreaSheetProps = {
   completeCountSlugs?: ReadonlySet<string> | null;
   locationNote?: string | null;
   locationBusy?: boolean;
+  /** True only when the arrival card opened this sheet as the opening flow's area step. */
+  showOpeningProgress?: boolean;
   onPick: (pick: ChooseAreaPick) => void;
 };
 
@@ -52,6 +58,7 @@ export default function ChooseAreaSheet({
   completeCountSlugs = null,
   locationNote,
   locationBusy = false,
+  showOpeningProgress = false,
   onPick,
 }: ChooseAreaSheetProps) {
   const [query, setQuery] = useState("");
@@ -67,17 +74,9 @@ export default function ChooseAreaSheet({
 
   return (
     <div className="chooseAreaSheet">
-      <header className="chooseAreaSheetHead">
-        <SheetStepProgress
-          className="chooseAreaSheetProgress"
-          stepCount={CHOOSE_AREA_PROGRESS_LABELS.length}
-          currentIndex={CHOOSE_AREA_PROGRESS_INDEX}
-          stepLabels={CHOOSE_AREA_PROGRESS_LABELS}
-          variant="map"
-        />
-        <Kicker>Your map</Kicker>
-        <h2 className="chooseAreaQuestion">Which area should we open on?</h2>
-      </header>
+      {showOpeningProgress ? (
+        <SheetStepProgress steps={OPENING_STEPS} variant="map" />
+      ) : null}
       <SheetStepReveal stepKey="choose-area-body">
       <div className="chooseAreaSearch">
         <label htmlFor="choose-area-search">Search areas and postcodes</label>
@@ -234,12 +233,15 @@ export function ChooseAreaDesktopDialog({
         onKeyDown={cycleTab}
       >
         <div className="chooseAreaDesktopHead">
-          <h2
-            id="choose-area-desktop-title"
-            className="chooseAreaSectionTitle chooseAreaDesktopTitle"
-          >
-            Choose an area
-          </h2>
+          <div className="chooseAreaDesktopHeading">
+            <Kicker>{MAP_SHEET_KICKERS["choose-area"]}</Kicker>
+            <h2
+              id="choose-area-desktop-title"
+              className="chooseAreaSectionTitle chooseAreaDesktopTitle"
+            >
+              {MAP_SHEET_TITLES["choose-area"]}
+            </h2>
+          </div>
           <button
             type="button"
             className="chooseAreaDesktopClose"

@@ -254,9 +254,16 @@ export default function PlanIntake({
 
       <SheetStepProgress
         className="planIntake__progress"
-        stepCount={PLAN_INTAKE_STEPS.length}
-        currentIndex={stepIndex}
-        stepLabels={PLAN_INTAKE_STEPS.map((step) => STEP_COPY[step].short)}
+        steps={PLAN_INTAKE_STEPS.map((step) => ({
+          label: STEP_COPY[step].short,
+          state: step === draft.currentStep
+            ? "current"
+            : draft.skippedSteps.includes(step)
+              ? "skipped"
+              : draft.settledSteps.includes(step)
+                ? "settled"
+                : "upcoming",
+        }))}
         variant="plan"
       />
 

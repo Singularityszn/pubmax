@@ -1,14 +1,7 @@
-/** Sheet step content swap: GDE-inspired reveal-in (see components/ui/sheetStepReveal.css). */
-export const SHEET_REVEAL_IN_DURATION_MS = 260;
-export const SHEET_REVEAL_IN_TRANSLATE_PX = 14;
-/** Presence on `.sheetStepReveal` enables CSS animation under `prefers-reduced-motion: no-preference`. */
-export const SHEET_REVEAL_IN_ENABLED_ATTRIBUTE = "true";
-
 export type SpringState = {
   value: number;
   velocity: number;
 };
-
 
 export type SpringConfig = {
   /** Approximate seconds for one natural response cycle. */

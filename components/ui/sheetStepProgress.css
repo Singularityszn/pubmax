@@ -11,29 +11,80 @@
 
 .sheetStepProgress__segment {
   min-width: 0;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.67rem;
+  font-weight: 740;
+}
+
+.sheetStepProgress__segment::after {
+  content: "";
+  grid-column: 1 / -1;
   height: 4px;
   border-radius: 999px;
   background: var(--line);
 }
 
-.sheetStepProgress__segment[data-state="settled"],
-.sheetStepProgress__segment[data-state="current"] {
-  background: var(--sheet-step-accent, var(--state-active-border));
+.sheetStepProgress__marker {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--panel-raised);
 }
 
 .sheetStepProgress__label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
+  min-width: 0;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sheetStepProgress__segment[data-state="current"] {
+  color: var(--ink);
+}
+
+.sheetStepProgress__segment[data-state="settled"]::after,
+.sheetStepProgress__segment[data-state="skipped"]::after,
+.sheetStepProgress__segment[data-state="current"]::after {
+  background: var(--sheet-step-accent, var(--state-active-border));
+}
+
+.sheetStepProgress__segment[data-state="settled"] .sheetStepProgress__marker,
+.sheetStepProgress__segment[data-state="skipped"] .sheetStepProgress__marker {
+  border-color: var(--sheet-step-accent, var(--state-active-border));
+  color: var(--sheet-step-accent-strong, var(--sheet-step-accent, var(--state-active-border)));
 }
 
 .sheetStepProgress--plan {
   --sheet-step-accent: var(--plan-accent);
+  --sheet-step-accent-strong: var(--plan-accent-strong);
 }
 
 .sheetStepProgress--map {
   --sheet-step-accent: var(--state-active-border);
+}
+
+@media (max-width: 760px) {
+  .sheetStepProgress__segment {
+    display: block;
+  }
+
+  .sheetStepProgress__segment::after {
+    display: block;
+    margin-top: 7px;
+  }
+
+  .sheetStepProgress__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
 }

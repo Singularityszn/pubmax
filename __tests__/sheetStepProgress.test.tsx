@@ -1,57 +1,53 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+// @vitest-environment jsdom
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it } from "vitest";
 
-import SheetStepProgress, { sheetStepSegmentStates } from "@/components/ui/sheetStepProgress";
-import {
-  SHEET_REVEAL_IN_DURATION_MS,
-  SHEET_REVEAL_IN_TRANSLATE_PX,
-} from "@/lib/springMotion";
+import SheetStepProgress from "@/components/ui/sheetStepProgress";
 
-const ROOT = process.cwd();
+function renderRail(steps: Parameters<typeof SheetStepProgress>[0]["steps"]): HTMLOListElement {
+  const host = document.createElement("div");
+  host.innerHTML = renderToStaticMarkup(createElement(SheetStepProgress, { steps }));
+  return host.querySelector("ol")!;
+}
 
-describe("sheetStepSegmentStates", () => {
-  it("marks steps before the index settled and the index current", () => {
-    expect(sheetStepSegmentStates(5, 2)).toEqual([
-      "settled",
-      "settled",
-      "current",
-      "upcoming",
-      "upcoming",
+describe("SheetStepProgress", () => {
+  it("renders one segment per step with aria-current on the active one", () => {
+    const rail = renderRail([
+      { label: "Area", state: "settled" },
+      { label: "Time", state: "settled" },
+      { label: "Group", state: "settled" },
+      { label: "Budget", state: "settled" },
+      { label: "Access", state: "settled" },
+      { label: "Extra", state: "current" },
+    ]);
+    const segments = [...rail.querySelectorAll("li")];
+    expect(segments).toHaveLength(6);
+    expect(segments.filter((segment) => segment.getAttribute("aria-current") === "step")).toEqual([
+      segments[5],
     ]);
   });
 
-  it("clamps step count to five", () => {
-    expect(sheetStepSegmentStates(9, 0)).toHaveLength(5);
-  });
-});
+  it("checks an answered step and keeps a skipped step's number and disclosure", () => {
+    const rail = renderRail([
+      { label: "Area", state: "skipped" },
+      { label: "Time", state: "settled" },
+      { label: "Group", state: "current" },
+      { label: "Budget", state: "upcoming" },
+    ]);
+    const [area, time, group, budget] = [...rail.querySelectorAll("li")];
 
-describe("SheetStepProgress", () => {
-  it("exposes aria-current on the active segment", () => {
-    const html = renderToStaticMarkup(
-      createElement(SheetStepProgress, {
-        stepCount: 3,
-        currentIndex: 1,
-        stepLabels: ["One", "Two", "Three"],
-        variant: "map",
-      }),
-    );
-    expect(html).toContain('aria-current="step"');
-    expect(html).toContain('data-state="current"');
-    expect(html).toContain('data-state="settled"');
-  });
-});
+    expect(area!.dataset.state).toBe("skipped");
+    expect(area!.querySelector(".sheetStepProgress__marker")!.textContent).toBe("1");
+    expect(area!.querySelector(".sheetStepProgress__label")!.textContent).toBe("Area skipped");
 
-describe("sheet reveal-in motion contract", () => {
-  it("pins duration and translate in springMotion and CSS", () => {
-    expect(SHEET_REVEAL_IN_DURATION_MS).toBe(260);
-    expect(SHEET_REVEAL_IN_TRANSLATE_PX).toBe(14);
-    const css = readFileSync(join(ROOT, "components/ui/sheetStepReveal.css"), "utf8");
-    expect(css).toContain("260ms ease-out");
-    expect(css).toContain("translateY(14px)");
-    expect(css).toMatch(/prefers-reduced-motion: reduce[\s\S]*animation: none/);
+    expect(time!.dataset.state).toBe("settled");
+    expect(time!.querySelector(".sheetStepProgress__marker svg")).not.toBeNull();
+    expect(time!.querySelector(".sheetStepProgress__label")!.textContent).toBe("Time");
+
+    expect(group!.querySelector(".sheetStepProgress__marker")!.textContent).toBe("3");
+    expect(budget!.dataset.state).toBe("upcoming");
+    expect(budget!.querySelector(".sheetStepProgress__marker")!.textContent).toBe("4");
   });
 });
