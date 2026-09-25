@@ -26,7 +26,6 @@ const NEAR_RADIUS_KM = 2.5;
 
 export type ConditionsWeather = {
   tempC: number;
-  condition: string;
   precipitationProbabilityPct: number;
 };
 
@@ -44,8 +43,6 @@ export type VenueLensTally = {
 export type TonightConditionsSummary = {
   /** "Saturday 19 Jul" */
   dateLabel: string;
-  /** "18C, light cloud" */
-  weatherLabel: string;
   /** Temp, rain chance, wind, sunset and day or night. */
   factsLine: string;
   /** True once the observation has aged past its own expiry. */
@@ -78,12 +75,6 @@ export function formatConditionDate(date: Date, timeZone = "Europe/London"): str
 export function londonMonth(date: Date, timeZone = "Europe/London"): number {
   const value = new Intl.DateTimeFormat("en-GB", { month: "numeric", timeZone }).format(date);
   return Number.parseInt(value, 10);
-}
-
-function weatherLabel(weather: ConditionsWeather): string {
-  const temp = `${Math.round(weather.tempC)}°C`;
-  const condition = weather.condition.trim();
-  return condition ? `${temp}, ${condition.toLocaleLowerCase("en-GB")}` : temp;
 }
 
 /**
@@ -174,7 +165,6 @@ export function summariseTonightConditions(args: {
       });
   return {
     dateLabel: formatConditionDate(now, timeZone),
-    weatherLabel: weatherLabel(weather),
     factsLine: facts.factsLine,
     stale: facts.stale,
     checkedLabel: facts.checkedLabel,

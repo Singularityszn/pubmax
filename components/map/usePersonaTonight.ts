@@ -18,7 +18,6 @@ type ConditionsResponse = {
     drinkSuggestion?: string;
     drinkLine?: string;
     venueClaim?: string | null;
-    weatherLabel?: string;
     stale?: boolean;
   } | null;
 };

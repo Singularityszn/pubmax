@@ -82,7 +82,6 @@ describe("resolveTonightConditions (hermetic weather seam)", () => {
     });
     expect(summary).toMatchObject({
       dateLabel: "Saturday 18 Jul",
-      weatherLabel: "22°C, clear",
       drinkLine: "Beer garden weather. Lager or cider.",
       venueClaim: "2 gardens near you with a pint under 6 quid",
     });

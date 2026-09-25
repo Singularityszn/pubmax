@@ -123,7 +123,6 @@ test.describe("desktop venue sheet keeps the map chrome out of its lane (D3)", (
         body: JSON.stringify({
           summary: {
             dateLabel: "Thursday 23 Jul",
-            weatherLabel: "21°C, cloudy",
             factsLine: "21°C feels like, cloudy, 10% chance of rain, 14 km/h wind, sunset 21:08, daylight.",
             stale: false,
             checkedLabel: "Checked 20 minutes ago",

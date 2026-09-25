@@ -3,12 +3,14 @@
 // Compact Tonight Conditions chip for the desktop map toolbar. The owner wants
 // the weather verdict ALWAYS visible; the map page cannot host the full right
 // rail (the venue drawer owns the right edge), so the map carries this chip in
-// the toolbar row instead: "19C, cloudy. Beer garden weather."
+// the toolbar row instead: the facts line, then the verdict's first sentence
+// ("18°C feels like, light cloud, 10% chance of rain, 12 km/h wind, sunset
+// 21:08, daylight. Warm and dry."), or the reading's age in place of a verdict
+// when it is stale.
 //
 // Same idiom as every fail-soft strip: fetch in an effect, AbortController on
 // unmount, renders NOTHING while loading, on error, or when the server has no
-// reading for the area. The full drink line rides the title/aria
-// text so the chip stays one quiet phrase.
+// reading for the area. The full drink line rides the title/aria text.
 
 import { useEffect, useState } from "react";
 import { CloudSun } from "lucide-react";

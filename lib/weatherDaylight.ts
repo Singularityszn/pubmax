@@ -1,6 +1,3 @@
-import type { NightAreaSlug } from "@/lib/nightAreas";
-import { coordsForNightArea } from "@/lib/weatherAreaCoords";
-
 // Sunrise and sunset maths adapted from SunCalc 1.9.0
 // (https://github.com/mourner/suncalc), inlined so stored weather rows need no
 // sunset fields. SunCalc licence (BSD-2-Clause):
@@ -30,12 +27,13 @@ import { coordsForNightArea } from "@/lib/weatherAreaCoords";
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+import type { NightAreaSlug } from "@/lib/nightAreas";
+import { coordsForNightArea } from "@/lib/weatherAreaCoords";
+
 const PI = Math.PI;
 const sin = Math.sin;
 const cos = Math.cos;
-const tan = Math.tan;
 const asin = Math.asin;
-const atan = Math.atan2;
 const acos = Math.acos;
 const rad = PI / 180;
 const dayMs = 1000 * 60 * 60 * 24;
@@ -54,10 +52,6 @@ function fromJulian(j: number): Date {
 
 function toDays(date: Date): number {
   return toJulian(date) - J2000;
-}
-
-function rightAscension(l: number, b: number): number {
-  return atan(sin(l) * cos(e) - tan(b) * sin(e), cos(l));
 }
 
 function declination(l: number, b: number): number {
@@ -121,14 +115,13 @@ function sunTimes(date: Date, latDeg: number, lngDeg: number): { sunrise: Date; 
 export type DaylightAt = {
   isDay: boolean;
   sunsetAt: Date;
-  sunriseAt: Date;
 };
 
 function daylightAt(latDeg: number, lngDeg: number, at: Date): DaylightAt {
   const { sunrise, sunset } = sunTimes(at, latDeg, lngDeg);
   const t = at.getTime();
   const isDay = t >= sunrise.getTime() && t < sunset.getTime();
-  return { isDay, sunsetAt: sunset, sunriseAt: sunrise };
+  return { isDay, sunsetAt: sunset };
 }
 
 export function daylightForNightArea(slug: NightAreaSlug, at: Date): DaylightAt | null {

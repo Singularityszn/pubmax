@@ -36,11 +36,9 @@ function intake(
   return { ...draft, answers: { ...draft.answers, ...answers } };
 }
 
-function weather(tempLabel: string): WeatherBrief {
+function weather(temp: string): WeatherBrief {
   return {
     dateLabel: "Wednesday 22 Jul",
-    tempLabel,
-    conditionLabel: "clear",
     verdictLine: "Beer garden weather. Lager or cider.",
     ruleId: "summer-garden",
     drinkSuggestion: "a cold lager or cider",
@@ -48,7 +46,7 @@ function weather(tempLabel: string): WeatherBrief {
     stale: false,
     checkedLabel: "Checked 1 hour ago",
     source: { publisher: "Open-Meteo", url: "https://open-meteo.com/" },
-    factsLine: "24°C feels like, clear, 0% chance of rain, daylight.",
+    factsLine: `${temp} feels like, clear, 0% chance of rain, daylight.`,
   };
 }
 
@@ -279,9 +277,9 @@ describe("resolveTodayPersonalization", () => {
 });
 
 describe("applyTodayPersonalization", () => {
-  const centralWeather = weather("18C");
-  const camdenWeather = weather("15C");
-  const dalstonWeather = weather("16C");
+  const centralWeather = weather("18°C");
+  const camdenWeather = weather("15°C");
+  const dalstonWeather = weather("16°C");
   const camdenQuiz = pick("camden-quiz", { lat: 51.539, lng: -0.143 });
   const claphamMusic = pick("clapham-music", {
     title: "Live music",
