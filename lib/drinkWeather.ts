@@ -26,6 +26,7 @@ export type DrinkWeatherRuleId =
   | "mild-riverside"
   | "crisp-autumn"
   | "cool-spring"
+  | "warm-night"
   | "cool-default";
 
 export type DrinkWeatherInput = {
@@ -37,11 +38,17 @@ export type DrinkWeatherInput = {
   month: number;
   /**
    * Which part of the London day the verdict is being read in. Optional, and
-   * omitting it keeps the evening wording this table was written in, so
-   * /tonight is unchanged. A caller that shows the line beside a greeting
-   * passes its own band (lib/daySlot.ts) or the two contradict each other.
+   * omitting it keeps the evening wording this table was written in. A caller
+   * that prints the line (/today, /tonight) passes its own band
+   * (lib/daySlot.ts) so the wording matches the hour it is read at.
    */
   dayPart?: DaySlot;
+  /**
+   * Sun above the night area's horizon, computed at render from the area's
+   * coordinates (lib/weatherDaylight.ts), never stored on an observation.
+   * Beer-garden rules refuse explicit night; null or omitted claims neither.
+   */
+  isDay?: boolean | null;
 };
 
 export type DrinkWeatherVerdict = {
@@ -61,8 +68,9 @@ type DrinkWeatherRule = DrinkWeatherVerdict & {
    * Wording for the day bands where `line` would name the wrong one.
    *
    * `line` stays the EVENING sentence, because that is where this table was
-   * written and where /tonight reads it, so nothing on that surface moves.
-   * Only the four rules that name a time of day carry entries here: a reader
+   * written; a caller that passes no `dayPart` gets it. /today and /tonight
+   * both pass their own band (lib/daySlot.ts), so they read these entries.
+   * Only the rules that name a time of day carry entries here: a reader
    * greeted "Good morning" on /today met "Crisp autumn evening. Amber ale
    * weather." underneath it, and the card and the greeting were describing two
    * different parts of the same day.
@@ -109,16 +117,19 @@ export const DRINK_WEATHER_RULES: readonly DrinkWeatherRule[] = [
   },
   {
     ruleId: "summer-garden",
-    when: ({ tempC, precipitationProbabilityPct, month }) =>
-      tempC >= WARM_C && precipitationProbabilityPct < DRY_PCT && SUMMER_MONTHS.has(month),
+    when: ({ tempC, precipitationProbabilityPct, month, isDay }) =>
+      tempC >= WARM_C &&
+      precipitationProbabilityPct < DRY_PCT &&
+      SUMMER_MONTHS.has(month) &&
+      isDay !== false,
     venueLens: "beer-garden",
     drinkSuggestion: "a cold lager or cider",
     line: "Beer garden weather. Lager or cider.",
   },
   {
     ruleId: "warm-dry",
-    when: ({ tempC, precipitationProbabilityPct }) =>
-      tempC >= WARM_C && precipitationProbabilityPct < DRY_PCT,
+    when: ({ tempC, precipitationProbabilityPct, isDay }) =>
+      tempC >= WARM_C && precipitationProbabilityPct < DRY_PCT && isDay !== false,
     venueLens: "beer-garden",
     drinkSuggestion: "a cold lager or cider",
     line: "Warm and dry. Beer garden weather.",
@@ -132,9 +143,10 @@ export const DRINK_WEATHER_RULES: readonly DrinkWeatherRule[] = [
     // null, which is the winter gap the summer-tuned table left open. The
     // fireplace lens is the indoor signal only; it makes no venue claim, because
     // no fireplace amenity exists in the vocabulary to back one (see header).
-    // "Dark early" leans on the month, not a clock: December-to-February London
-    // is genuinely dark by late afternoon, so the line stays honest without
-    // inventing a per-evening sunset the snapshot does not carry.
+    // "Dark early" leans on the month, not tonight's sunset: December-to-February
+    // London is genuinely dark by late afternoon, so the line holds for every
+    // day of the band. The exact sunset is printed beside it in the facts line,
+    // computed at render from the area's coordinates (lib/weatherDaylight.ts).
     ruleId: "winter-porter",
     when: ({ tempC, month }) => tempC >= COLD_C && tempC < WARM_C && WINTER_MONTHS.has(month),
     venueLens: "fireplace",
@@ -145,6 +157,14 @@ export const DRINK_WEATHER_RULES: readonly DrinkWeatherRule[] = [
       afternoon: "Winter afternoon, dark early. Porter weather.",
       night: "Winter night. Porter weather.",
     },
+  },
+  {
+    ruleId: "warm-night",
+    when: ({ tempC, precipitationProbabilityPct, isDay }) =>
+      tempC >= WARM_C && precipitationProbabilityPct < DRY_PCT && isDay === false,
+    venueLens: "any",
+    drinkSuggestion: "a pale ale or lager",
+    line: "Warm and dry after dark. Terrace or open-window weather.",
   },
   {
     ruleId: "mild-riverside",
@@ -194,8 +214,9 @@ function isFiniteNumber(value: unknown): value is number {
 
 /**
  * Resolve tonight's conditions to a single verdict, or null when nothing in the
- * table fits (the caller then shows no strip). Guards its own inputs so a
- * malformed cached observation degrades to null rather than a bad suggestion.
+ * table fits (the caller then shows the facts line with no drink line). Guards
+ * its own inputs so a malformed cached observation degrades to null rather than
+ * a bad suggestion.
  */
 export function evaluateDrinkWeather(input: DrinkWeatherInput): DrinkWeatherVerdict | null {
   if (!isFiniteNumber(input.tempC)) return null;

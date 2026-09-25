@@ -26,6 +26,11 @@
   }
 }
 
+/* The facts line wraps inside the Layers panel; keep the icon at full size. */
+.conditionsChip > svg {
+  flex: none;
+}
+
 .conditionsChipWeather {
   font-weight: 600;
 }

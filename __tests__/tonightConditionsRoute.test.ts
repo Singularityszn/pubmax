@@ -39,6 +39,16 @@ const WARM_DRY = snapshot([
 
 const EMPTY = snapshot([]);
 
+// The same reading, two days old: long past its 12h expiry at NOW.
+const STALE = snapshot([
+  {
+    ...WARM_DRY.observations[0],
+    observedAt: "2026-07-16T18:45:00.000Z",
+    expiresAt: "2026-07-17T06:45:00.000Z",
+    source: { ...WARM_DRY.observations[0].source, publishedAt: "2026-07-16T18:45:00.000Z" },
+  },
+]);
+
 // A central point (Piccadilly Circus-ish), [lng, lat] per the app convention.
 const CENTRE: [number, number] = [-0.134, 51.511];
 
@@ -72,7 +82,6 @@ describe("resolveTonightConditions (hermetic weather seam)", () => {
     });
     expect(summary).toMatchObject({
       dateLabel: "Saturday 18 Jul",
-      weatherLabel: "22°C, clear",
       drinkLine: "Beer garden weather. Lager or cider.",
       venueClaim: "2 gardens near you with a pint under 6 quid",
     });
@@ -86,6 +95,29 @@ describe("resolveTonightConditions (hermetic weather seam)", () => {
     expect(summary).not.toBeNull();
     expect(summary?.drinkLine).toBe("Beer garden weather. Lager or cider.");
     expect(summary?.venueClaim).toBeNull();
+  });
+
+  it("stale fixture -> facts and age only, no drink verdict or venue claim", async () => {
+    let loaded = false;
+    const summary = await resolveTonightConditions({
+      point: CENTRE,
+      now: NOW,
+      snapshot: STALE,
+      loadVenues: async () => {
+        loaded = true;
+        return [gardenVenue("a", 5.2)];
+      },
+    });
+    expect(loaded).toBe(false);
+    expect(summary).toMatchObject({
+      stale: true,
+      checkedLabel: "Last checked 2 days ago",
+      drinkLine: "",
+      drinkSuggestion: "",
+      venueClaim: null,
+    });
+    expect(summary?.factsLine).toBe("Last read of the sky: 22°C feels like, clear, 0% chance of rain, 12 km/h wind.");
+    expect(summary?.factsLine).not.toMatch(/garden/i);
   });
 
   it("does not load venues when there is no location, even with a populated fixture", async () => {

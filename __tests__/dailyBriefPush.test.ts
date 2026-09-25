@@ -5,8 +5,6 @@ import type { TonightPickDto, WeatherBrief } from "@/lib/todayBrief";
 
 const WEATHER: WeatherBrief = {
   dateLabel: "Monday 20 Jul",
-  tempLabel: "19°C",
-  conditionLabel: "clear",
   verdictLine: "Beer garden weather. Lager or cider.",
   ruleId: "summer-garden",
   drinkSuggestion: "a cold lager or cider",
@@ -14,6 +12,7 @@ const WEATHER: WeatherBrief = {
   stale: false,
   checkedLabel: "Checked 1 hour ago",
   source: { publisher: "Open-Meteo", url: "https://open-meteo.com/" },
+  factsLine: "19°C feels like, clear, 0% chance of rain, daylight.",
 };
 
 const PICK: TonightPickDto = {
@@ -41,6 +40,9 @@ describe("daily brief push composition", () => {
 
   it("refuses stale weather or an empty Tonight shelf", () => {
     expect(composeDailyBriefPush({ ...WEATHER, stale: true }, [PICK])).toBeNull();
+    expect(
+      composeDailyBriefPush({ ...WEATHER, ruleId: null, verdictLine: "", venueLens: "any" }, [PICK]),
+    ).toBeNull();
     expect(composeDailyBriefPush(WEATHER, [])).toBeNull();
     expect(composeDailyBriefPush(null, [PICK])).toBeNull();
   });

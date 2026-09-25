@@ -5,10 +5,10 @@
 // this module turns them into the small, honest string bags the cards render.
 //
 // Honesty rules, matching the rest of the app:
-//   - weather: a verdict only when the rules table fires AND the observation is
-//     real and not future; when the snapshot has aged past its own expiry we
-//     still show the last-known verdict but mark it stale with a "last checked"
-//     line rather than passing old weather off as current.
+//   - weather: the observation's own facts whenever a real, not-future reading
+//     exists for the area; a verdict only when the reading is fresh AND the rules
+//     table fires. A reading past its own expiry keeps its facts and a "last
+//     checked" line, and carries no verdict.
 //   - tonight picks: ranked from the already-windowed rows, never padded; an
 //     empty night stays empty (the card shows its own honest empty state).
 //   - pub fact: one genuinely sourced heritage fact (seed-only pubs are skipped)
@@ -27,7 +27,8 @@ import { haversineKm } from "@/lib/haversine";
 import { firstHttp } from "@/lib/httpUrl";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import { formatConditionDate, londonMonth } from "@/lib/tonightConditions";
-import { validateWeatherSnapshot } from "@/lib/weatherSnapshots";
+import { latestWeatherForArea } from "@/lib/weatherSnapshots";
+import { observationFacts } from "@/lib/weatherObservationCopy";
 import { whatsOnBarePriceGbp, type WhatsOnConfidence, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 
 // A central district for the location-free morning glance. The brief is a
@@ -42,14 +43,10 @@ export const BRIEF_DEFAULT_AREA: NightAreaSlug = "piccadilly-soho";
 export type WeatherBrief = {
   /** "Saturday 19 Jul" (London time). */
   dateLabel: string;
-  /** "19C" (feels-like, rounded). */
-  tempLabel: string;
-  /** "cloudy" (lower-case, trimmed). */
-  conditionLabel: string;
   /** The verdict's calm line, e.g. "Beer garden weather. Lager or cider." */
   verdictLine: string;
-  /** The exact weather rule selected from this displayed observation. */
-  ruleId: DrinkWeatherRuleId;
+  /** The exact weather rule selected from this displayed observation; null when stale or no rule fired. */
+  ruleId: DrinkWeatherRuleId | null;
   /** Lower-case drink phrase, e.g. "a cold lager or cider". */
   drinkSuggestion: string;
   /** The verdict's venue classification, so surfaces above the card (the /today
@@ -61,77 +58,45 @@ export type WeatherBrief = {
   checkedLabel: string;
   /** Attribution for the weather claim. */
   source: { publisher: string; url: string };
+  /** Numbers-led line: temp, rain, wind, sunset, day or night. */
+  factsLine: string;
 };
 
-// Human "x ago" from an observation timestamp. Floor-based so the label only
-// ever rounds down (never claims fresher than it is). London-agnostic: a
-// duration, not a wall clock.
-export function relativeObservedLabel(observedAtMs: number, nowMs: number): string {
-  const diff = Math.max(0, nowMs - observedAtMs);
-  const minutes = Math.floor(diff / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} ${minutes === 1 ? "minute" : "minutes"} ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
-  const days = Math.floor(hours / 24);
-  if (days === 1) return "yesterday";
-  return `${days} days ago`;
-}
-
 /**
- * Build the weather card, or null when there is nothing honest to show: an
- * invalid or future-generated snapshot, no observation for the area, a
- * future-dated observation, or a grey in-between evening the rules table has no
- * verdict for. A stale-but-real observation still returns a brief (stale=true).
+ * Build the weather card, or null when there is no honest reading to show: an
+ * invalid or future-generated snapshot, no observation for the area, or a
+ * future-dated observation. A stale reading, or a fresh one the rules table has
+ * no verdict for, still returns its facts with every verdict field empty.
  */
 export function buildWeatherBrief(
   snapshot: unknown,
   now: Date,
   area: NightAreaSlug = BRIEF_DEFAULT_AREA,
-  options: { fallbackToFirst?: boolean } = {},
 ): WeatherBrief | null {
-  const validated = validateWeatherSnapshot(snapshot);
-  if (!validated) return null;
+  const read = latestWeatherForArea(snapshot, area, now.getTime());
+  if (!read) return null;
+  const { observation, stale } = read;
+  const { factsLine, checkedLabel, isDay } = observationFacts({ observation, nightArea: area, now, stale });
+  const verdict = stale
+    ? null
+    : evaluateDrinkWeather({
+        tempC: observation.feelsLikeC,
+        precipitationProbabilityPct: observation.precipitationProbabilityPct,
+        month: londonMonth(now),
+        dayPart: daySlot(now),
+        isDay,
+      });
 
-  const nowMs = now.getTime();
-  // A snapshot generated in the future is bad data / clock skew, not weather.
-  if (Date.parse(validated.generatedAt) > nowMs) return null;
-
-  const observation =
-    validated.observations.find((candidate) => candidate.nightArea === area) ??
-    (options.fallbackToFirst === false ? undefined : validated.observations[0]);
-  if (!observation) return null;
-
-  const observedMs = Date.parse(observation.observedAt);
-  // You cannot have observed tomorrow's weather.
-  if (observedMs > nowMs) return null;
-
-  const verdict = evaluateDrinkWeather({
-    tempC: observation.feelsLikeC,
-    precipitationProbabilityPct: observation.precipitationProbabilityPct,
-    month: londonMonth(now),
-    // The greeting above this card derives the same band. Without it the card
-    // said "evening" over a "Good morning".
-    dayPart: daySlot(now),
-  });
-  if (!verdict) return null;
-
-  const stale = nowMs >= Date.parse(observation.expiresAt);
-  const relative = relativeObservedLabel(observedMs, nowMs);
   return {
     dateLabel: formatConditionDate(now),
-    // Degree sign, the same one the map's own status banner prints. Without it
-    // the two surfaces contradicted each other on the same weather: "27°C" on
-    // the map, "21C" on Today.
-    tempLabel: `${Math.round(observation.feelsLikeC)}°C`,
-    conditionLabel: observation.condition.trim().toLocaleLowerCase("en-GB"),
-    verdictLine: verdict.line,
-    ruleId: verdict.ruleId,
-    drinkSuggestion: verdict.drinkSuggestion,
-    venueLens: verdict.venueLens,
+    verdictLine: verdict?.line ?? "",
+    ruleId: verdict?.ruleId ?? null,
+    drinkSuggestion: verdict?.drinkSuggestion ?? "",
+    venueLens: verdict?.venueLens ?? "any",
     stale,
-    checkedLabel: `${stale ? "Last checked" : "Checked"} ${relative}`,
+    checkedLabel,
     source: { publisher: observation.source.publisher, url: observation.source.sourceUrl },
+    factsLine,
   };
 }
 

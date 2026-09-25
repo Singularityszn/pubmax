@@ -18,7 +18,7 @@ type ConditionsResponse = {
     drinkSuggestion?: string;
     drinkLine?: string;
     venueClaim?: string | null;
-    weatherLabel?: string;
+    stale?: boolean;
   } | null;
 };
 
@@ -31,7 +31,7 @@ export type TonightLaneCue = {
 function gardenCueFromSummary(
   summary: ConditionsResponse["summary"],
 ): string | null {
-  if (!summary) return null;
+  if (!summary || summary.stale) return null;
   const drinkLine = typeof summary.drinkLine === "string" ? summary.drinkLine.trim() : "";
   if (drinkLine && /garden/i.test(drinkLine)) return drinkLine;
   const claim = typeof summary.venueClaim === "string" ? summary.venueClaim.trim() : "";
