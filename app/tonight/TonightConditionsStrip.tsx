@@ -67,6 +67,8 @@ export default function TonightConditionsStrip({ origin }: Props) {
 
   const trailer = summary.stale ? `${summary.checkedLabel}.` : summary.drinkLine;
 
+  const trailer = summary.stale ? `${summary.checkedLabel}.` : summary.drinkLine;
+
   return (
     <div className="tonightConditions" data-testid="tonight-conditions">
       <CloudSun size={16} aria-hidden="true" className="tonightConditionsIcon" />

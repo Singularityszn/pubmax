@@ -35,6 +35,8 @@ export type TodayWeatherFacts = {
   factsLine: string;
   /** True once the reading has aged past its own expiry, or will while the copy is held. */
   stale: boolean;
+  /** "Checked 2 hours ago" (fresh) or "Last checked 3 days ago" (stale). */
+  checkedLabel: string;
 };
 
 /**
