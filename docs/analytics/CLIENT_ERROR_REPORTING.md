@@ -93,6 +93,11 @@ console and React's own boundaries are unaffected, and it obeys three rules:
 `navigator.sendBeacon` first, because it survives the page going away
 mid-crash, which is the case this exists for; a `keepalive` fetch behind it.
 
+The reporter lives inside the root layout, so it never attaches when the root
+layout itself throws. `app/global-error.tsx` covers that gap: it sends its own
+report through the same `createClientErrorSender()`, which owns all three rules
+above, with one cap and dedupe set that outlives each "Try again".
+
 ## Pins
 
 - `__tests__/clientErrorReport.test.ts` - the redaction, class by class.
