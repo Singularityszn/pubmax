@@ -558,20 +558,20 @@ describe("refreshOfficialWhatsOnListings", () => {
 
 describe("live sport for a London reader", () => {
   it("serves tonight's live fixture at London sport pubs on the default read", async () => {
-    // Wednesday, so no Saturday 3pm blackout applies to the 20:00 kickoff.
     const now = Date.parse("2026-10-07T12:00:00.000Z");
     vi.stubEnv("FOOTBALL_DATA_API_KEY", "");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
         const league = new URL(String(input)).searchParams.get("id");
         const events =
-          league === "4480"
+          league === "4414"
             ? [
                 {
                   idEvent: "9200001",
-                  strHomeTeam: "Arsenal",
-                  strAwayTeam: "Inter",
+                  strHomeTeam: "Harlequins",
+                  strAwayTeam: "Bath",
                   strTimestamp: "2026-10-07T19:00:00",
                   strStatus: "NS",
                 },
@@ -605,11 +605,12 @@ describe("live sport for a London reader", () => {
       expect(london.rows.length).toBeGreaterThan(0);
       for (const row of london.rows) {
         expect(row.kind).toBe("sport");
-        expect(row.title).toContain("Arsenal v Inter");
+        expect(row.title).toContain("Harlequins v Bath");
         expect(row.lat).toBeGreaterThan(51.28);
         expect(row.lat).toBeLessThan(51.7);
       }
     } finally {
+      warn.mockRestore();
       vi.unstubAllGlobals();
       vi.unstubAllEnvs();
     }

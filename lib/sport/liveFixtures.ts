@@ -1,7 +1,7 @@
 // Live sport fixture calendar for What's-On sport rows. Official-API lanes only:
-// football-data.org for football when FOOTBALL_DATA_API_KEY is set, with
-// TheSportsDB still supplying the non-football leagues; otherwise TheSportsDB's
-// documented free tier key for every league (override with THESPORTSDB_API_KEY).
+// football comes from football-data.org and only when FOOTBALL_DATA_API_KEY is
+// set; without it no football is listed. TheSportsDB supplies rugby on its
+// documented free tier key (override with THESPORTSDB_API_KEY).
 // Keys are read at call time and never logged.
 
 import { londonWallClockToIso } from "../../scripts/whatson/sportFixtures.mjs";
@@ -31,17 +31,15 @@ const FOOTBALL_DATA_COMPETITIONS = ["PL", "CL", "ELC"] as const;
 type TheSportsDbLeague = {
   id: string;
   competition: string;
-  football: boolean;
 };
 
+/**
+ * Rugby only: TheSportsDB's free key returns just the first few events of a
+ * football season, so it can never list upcoming football honestly.
+ */
 const THESPORTSDB_LEAGUES: TheSportsDbLeague[] = [
-  { id: "4328", competition: "English Premier League", football: true },
-  { id: "4329", competition: "English Championship", football: true },
-  { id: "4480", competition: "UEFA Champions League", football: true },
-  { id: "4414", competition: "English Premiership Rugby", football: false },
+  { id: "4414", competition: "English Premiership Rugby" },
 ];
-
-const THESPORTSDB_NON_FOOTBALL_LEAGUES = THESPORTSDB_LEAGUES.filter((league) => !league.football);
 
 /**
  * UK football's Saturday 14:45-17:15 broadcast blackout: no pub can legally
@@ -248,7 +246,7 @@ function normaliseTheSportsDbEvent(
     (event.dateEvent && event.strTime
       ? londonWallClockFromUtc(`${event.dateEvent}T${event.strTime}`)
       : null);
-  if (!wall || (league.football && isFootballBlackoutKickoff(wall))) return null;
+  if (!wall) return null;
 
   const competition = event.strLeague ?? league.competition;
   const venue =
@@ -324,8 +322,9 @@ async function fetchTheSportsDbFixtures(
 }
 
 /**
- * Loads upcoming and in-progress fixtures for the Out refresh window. Throws when every lane
- * fails so a cron run does not wipe durable sport rows.
+ * Loads upcoming and in-progress fixtures for the Out refresh window. Football
+ * and rugby are independent lanes; throws only when every lane fails so a cron
+ * run does not wipe durable sport rows.
  */
 export async function fetchLiveSportFixtures(opts: FetchLiveSportFixturesOpts): Promise<SportFixture[]> {
   const footballKey = readEnvKey("FOOTBALL_DATA_API_KEY");
@@ -336,40 +335,18 @@ export async function fetchLiveSportFixtures(opts: FetchLiveSportFixturesOpts): 
     startMs,
     signal: AbortSignal.timeout(SPORT_LANE_TIMEOUT_MS),
   });
-  const errors: string[] = [];
 
+  const lanes = [fetchTheSportsDbFixtures(lane(), theSportsDbKey, THESPORTSDB_LEAGUES)];
   if (footballKey) {
-    try {
-      const [fromFootballData, nonFootball] = await Promise.all([
-        fetchFootballDataFixtures(lane(), footballKey),
-        fetchTheSportsDbFixtures(lane(), theSportsDbKey, THESPORTSDB_NON_FOOTBALL_LEAGUES).catch(
-          (err: unknown): SportFixture[] => {
-            console.warn(
-              "[sport] TheSportsDB non-football leagues unavailable; serving football-data only:",
-              err instanceof Error ? err.message : String(err),
-            );
-            return [];
-          },
-        ),
-      ]);
-      const football = fromFootballData.filter((f) => inWindow(f, startMs, opts.endMs));
-      if (football.length > 0) return dedupeFixtures([...football, ...nonFootball]);
-    } catch (err) {
-      errors.push(err instanceof Error ? err.message : String(err));
-    }
+    lanes.push(
+      fetchFootballDataFixtures(lane(), footballKey).then((fixtures) =>
+        fixtures.filter((f) => inWindow(f, startMs, opts.endMs)),
+      ),
+    );
+  } else {
+    console.warn("[sport] FOOTBALL_DATA_API_KEY is not set; no football fixtures are listed.");
   }
-
-  try {
-    const fromTheSportsDb = await fetchTheSportsDbFixtures(lane(), theSportsDbKey, THESPORTSDB_LEAGUES);
-    if (fromTheSportsDb.length > 0) return fromTheSportsDb;
-  } catch (err) {
-    errors.push(err instanceof Error ? err.message : String(err));
-  }
-
-  if (errors.length > 0) {
-    throw new Error(errors.join("; "));
-  }
-  return [];
+  return settleLeagueReads(lanes);
 }
 
 export const liveSportFixtureInternals = {
