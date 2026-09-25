@@ -14,7 +14,7 @@ import {
 // with a hand-run `next dev`). Assertions are WebGL-agnostic so headless boxes
 // with no GPU don't false-fail — see e2e/smoke.spec.ts.
 const PORT = Number(process.env.PW_PORT ?? 3100);
-const BASE_URL = `http://localhost:${PORT}`;
+const BASE_URL = process.env.PW_BASE_URL ?? `http://127.0.0.1:${PORT}`;
 const KEYLESS_PORT = Number(process.env.PW_KEYLESS_PORT ?? PORT + 1);
 const KEYLESS_BASE_URL = `http://localhost:${KEYLESS_PORT}`;
 const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
