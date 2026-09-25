@@ -18,7 +18,9 @@ export default function AuthAccountBannedNotice({
     <div className={className} role="alert">
       <span>
         {AUTH_ACCOUNT_BANNED_MESSAGE}{" "}
-        <Link href={AUTH_ACCOUNT_BANNED_TERMS_PATH}>Community guidelines</Link>
+        <Link className="authBannedNoticeLink" href={AUTH_ACCOUNT_BANNED_TERMS_PATH}>
+          Community guidelines
+        </Link>
       </span>
       {onDismiss ? (
         <button type="button" onClick={onDismiss}>

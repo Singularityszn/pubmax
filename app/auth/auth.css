@@ -207,6 +207,21 @@
   outline-offset: 2px;
 }
 
+/* The ban notice's guidelines link rides in both the callback toast and the
+   handle-password form error, so it takes its colour from whichever it sits in. */
+.authBannedNoticeLink {
+  color: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.authBannedNoticeLink:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .authSignIn {
   display: inline-flex;
   align-items: center;
