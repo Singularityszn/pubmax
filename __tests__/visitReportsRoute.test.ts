@@ -45,6 +45,11 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
 import { GET, POST } from "@/app/api/visit-reports/route";
 import { __resetVisitReports, memoryVisitReportStore } from "@/lib/visitReportsStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import {
+  __resetMemoryProfileWithdrawals,
+  __setMemoryProfileWithdrawn,
+} from "@/lib/accountPublicAccess.server";
+import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 
 function post(body: unknown, ip = "203.0.113.9"): Request {
   return new Request("http://localhost/api/visit-reports", {
@@ -347,6 +352,35 @@ describe("GET /api/visit-reports", () => {
       "2026-07-19",
     ]);
     expect(data.summary).toBeUndefined();
+  });
+
+  it("withholds a withdrawn author from the venue read and the contributor count", async () => {
+    const base = {
+      venueId: "venue-3",
+      visitedAt: "2026-07-20",
+      busyness: "steady" as const,
+      noise: null,
+      seating: null,
+      serviceWait: null,
+      note: "",
+    };
+    await memoryVisitReportStore.create({ ...base, handle: "karansdad" });
+    await memoryVisitReportStore.create({ ...base, handle: "sam" });
+    __setMemoryProfileWithdrawn(__seedMemoryOwnedProfile("karansdad", "user-karansdad").id, true);
+    try {
+      const venue = (await (await GET(get("?venueId=venue-3"))).json()) as {
+        reports: { handle: string }[];
+      };
+      expect(venue.reports.map((report) => report.handle)).toEqual(["sam"]);
+      expect(await (await GET(get("?contributor=karansdad"))).json()).toEqual({
+        contributor: "karansdad",
+        count: 0,
+        status: "ready",
+      });
+    } finally {
+      __resetMemoryProfileWithdrawals();
+      __resetMemoryProfiles();
+    }
   });
 
   it("exposes the visible count a leaderboard can read", async () => {
