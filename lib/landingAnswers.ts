@@ -29,12 +29,10 @@ export type LandingAnswers = {
   tonight: LandingAnswer;
 };
 
-/** What the weather read gave us, reduced to the three words the card uses. */
+/** What the weather read gave us, reduced to what the card uses. */
 export type TodayWeatherFacts = {
-  /** Numbers-led facts from the cached observation. */
+  /** Numbers-led facts from the cached observation, with no time-bound label. */
   factsLine: string;
-  /** "Beer garden weather. Lager or cider.", or empty when no rule fired. */
-  verdictLine: string;
   /** True once the reading has aged past its own expiry. */
   stale: boolean;
   /** "Checked 2 hours ago" (fresh) or "Last checked 3 days ago" (stale). */
@@ -42,8 +40,9 @@ export type TodayWeatherFacts = {
 };
 
 /**
- * Today's sentence. A missing reading says so. A stale one prints its facts and
- * its age, with no verdict, instead of passing an old sky off as this morning's.
+ * Today's sentence. A missing reading says so. A fresh one prints its facts; a
+ * stale one prints its facts and its age, instead of passing an old sky off as
+ * this morning's. Neither carries a drink verdict (see landingAnswers.server).
  */
 export function todayAnswer(weather: TodayWeatherFacts | null, stamp: string): LandingAnswer {
   if (!weather) {
@@ -52,11 +51,7 @@ export function todayAnswer(weather: TodayWeatherFacts | null, stamp: string): L
   if (weather.stale) {
     return { line: `${weather.factsLine} ${weather.checkedLabel}.`, stamp, measured: false };
   }
-  return {
-    line: weather.verdictLine ? `${weather.factsLine} ${weather.verdictLine}` : weather.factsLine,
-    stamp,
-    measured: true,
-  };
+  return { line: weather.factsLine, stamp, measured: true };
 }
 
 /** What the listing lanes gave us, reduced to what the card can say. */

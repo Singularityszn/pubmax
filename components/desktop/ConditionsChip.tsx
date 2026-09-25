@@ -9,14 +9,15 @@
 // when it is stale.
 //
 // Same idiom as every fail-soft strip: fetch in an effect, AbortController on
-// unmount, renders NOTHING while loading, on error, or when the server has no
-// reading for the area. The full drink line rides the title/aria text.
+// unmount, renders NOTHING while loading or on error, and says so plainly when
+// the server has no reading for the area. The full drink line rides the
+// title/aria text.
 
 import { useEffect, useState } from "react";
 import { CloudSun } from "lucide-react";
 
 import type { TonightConditionsSummary } from "@/lib/tonightConditions";
-import { shortDrinkVerdict } from "@/lib/conditionsFormat";
+import { NO_WEATHER_READING_LINE, shortDrinkVerdict } from "@/lib/conditionsFormat";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 import "./conditionsChip.css";
@@ -24,7 +25,7 @@ import "./conditionsChip.css";
 type ConditionsResponse = { summary: TonightConditionsSummary | null };
 
 export default function ConditionsChip() {
-  const [summary, setSummary] = useState<TonightConditionsSummary | null>(null);
+  const [summary, setSummary] = useState<TonightConditionsSummary | null | undefined>(undefined);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -36,12 +37,21 @@ export default function ConditionsChip() {
       },
       (body) => setSummary(body.summary ?? null),
     ).then((outcome) => {
-      if (outcome === "failed" && !controller.signal.aborted) setSummary(null);
+      if (outcome === "failed" && !controller.signal.aborted) setSummary(undefined);
     });
     return () => controller.abort();
   }, []);
 
-  if (!summary) return null;
+  if (summary === undefined) return null;
+
+  if (summary === null) {
+    return (
+      <span className="conditionsChip">
+        <CloudSun size={14} aria-hidden="true" />
+        <span className="conditionsChipText">{NO_WEATHER_READING_LINE}</span>
+      </span>
+    );
+  }
 
   const trailer = summary.stale ? `${summary.checkedLabel}.` : summary.drinkLine;
   const verdict = summary.stale ? trailer : shortDrinkVerdict(summary.drinkLine);

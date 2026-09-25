@@ -14,8 +14,10 @@ import {
   mergeTodayListingRows,
   whatsOnStatusForTonightListings,
 } from "@/lib/todayListings.server";
-import { buildWeatherBrief } from "@/lib/todayBrief";
+import { BRIEF_DEFAULT_AREA } from "@/lib/todayBrief";
 import { loadFreshWeatherSnapshot } from "@/lib/weatherFreshness.server";
+import { observationFacts } from "@/lib/weatherObservationCopy";
+import { latestWeatherForArea } from "@/lib/weatherSnapshots";
 
 // The reads behind the front door's two answer cards.
 //
@@ -45,14 +47,12 @@ export async function loadLandingAnswers(now: Date = new Date()): Promise<Landin
     loadHypedPubs(),
   ]);
 
-  const brief = buildWeatherBrief(weatherSnapshot, now);
-  const weather: TodayWeatherFacts | null = brief
-    ? {
-        factsLine: brief.factsLine,
-        verdictLine: brief.verdictLine,
-        stale: brief.stale,
-        checkedLabel: brief.checkedLabel,
-      }
+  // The document is held for an hour, so the sentence carries nothing that can
+  // turn false inside it: no sunset, no day or night, and no drink verdict,
+  // which reads the sun (a garden at 18:30 is a terrace by 19:30).
+  const read = latestWeatherForArea(weatherSnapshot, BRIEF_DEFAULT_AREA, now.getTime());
+  const weather: TodayWeatherFacts | null = read
+    ? observationFacts({ observation: read.observation, nightArea: null, now, stale: read.stale })
     : null;
 
   const readStatus = whatsOn?.readStatus ?? "degraded";

@@ -97,14 +97,15 @@ export function observationFacts(input: {
     NightAreaWeatherObservation,
     "feelsLikeC" | "condition" | "precipitationProbabilityPct" | "windKph" | "observedAt"
   >;
-  nightArea: NightAreaSlug;
+  /** Null leaves sunset and day or night out, for copy cached past the hour. */
+  nightArea: NightAreaSlug | null;
   now: Date;
   stale: boolean;
 }): ObservationFacts {
   const { observation, nightArea, now, stale } = input;
   const observedMs = Date.parse(observation.observedAt);
   const factsAt = stale ? new Date(observedMs) : now;
-  const daylight = daylightForNightArea(nightArea, factsAt);
+  const daylight = nightArea ? daylightForNightArea(nightArea, factsAt) : null;
   const isDay = daylight?.isDay ?? null;
   const factsLine = formatWeatherObservationFacts({
     feelsLikeC: observation.feelsLikeC,

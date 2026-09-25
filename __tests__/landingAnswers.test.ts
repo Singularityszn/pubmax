@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { todayAnswer, tonightAnswer } from "@/lib/landingAnswers";
+import { observationFacts } from "@/lib/weatherObservationCopy";
 
 // The two cards under the picture answer the captain's own two questions:
 // "What is happening today? What is happening tonight?" Each is one sentence
@@ -10,37 +11,23 @@ import { todayAnswer, tonightAnswer } from "@/lib/landingAnswers";
 const STAMP = "Sunday 7 September";
 
 describe("the front door's two answers", () => {
-  it("says what today is, from the weather read", () => {
-    expect(
-      todayAnswer(
-        {
-          factsLine: "19°C feels like, cloudy, 0% chance of rain, daylight.",
-          verdictLine: "Beer garden weather. Lager or cider.",
-          stale: false,
-          checkedLabel: "Checked 1 hour ago",
-        },
-        STAMP,
-      ),
-    ).toEqual({
-      line: "19°C feels like, cloudy, 0% chance of rain, daylight. Beer garden weather. Lager or cider.",
-      stamp: STAMP,
-      measured: true,
-    });
-  });
+  const observation = {
+    feelsLikeC: 19.2,
+    condition: "Cloudy",
+    precipitationProbabilityPct: 0,
+    windKph: 11,
+    observedAt: "2026-09-07T17:00:00.000Z",
+  };
 
-  it("prints a fresh reading's facts alone when no rule fired", () => {
-    expect(
-      todayAnswer(
-        {
-          factsLine: "16°C feels like, cloudy, 45% chance of rain, daylight.",
-          verdictLine: "",
-          stale: false,
-          checkedLabel: "Checked 1 hour ago",
-        },
-        STAMP,
-      ),
-    ).toEqual({
-      line: "16°C feels like, cloudy, 45% chance of rain, daylight.",
+  it("says what today is from the weather read, with nothing that turns false inside the hour", () => {
+    const facts = observationFacts({
+      observation,
+      nightArea: null,
+      now: new Date("2026-09-07T17:30:00.000Z"),
+      stale: false,
+    });
+    expect(todayAnswer(facts, STAMP)).toEqual({
+      line: "19°C feels like, cloudy, 0% chance of rain, 11 km/h wind.",
       stamp: STAMP,
       measured: true,
     });
@@ -54,18 +41,15 @@ describe("the front door's two answers", () => {
     });
   });
 
-  it("prints a stale sky as its facts and its age, with no verdict", () => {
-    const answer = todayAnswer(
-      {
-        factsLine: "Last read of the sky: 19°C feels like, cloudy, 0% chance of rain, night.",
-        verdictLine: "",
-        stale: true,
-        checkedLabel: "Last checked 2 days ago",
-      },
-      STAMP,
-    );
-    expect(answer).toEqual({
-      line: "Last read of the sky: 19°C feels like, cloudy, 0% chance of rain, night. Last checked 2 days ago.",
+  it("prints a stale sky as its facts and its age", () => {
+    const facts = observationFacts({
+      observation,
+      nightArea: null,
+      now: new Date("2026-09-09T17:00:00.000Z"),
+      stale: true,
+    });
+    expect(todayAnswer(facts, STAMP)).toEqual({
+      line: "Last read of the sky: 19°C feels like, cloudy, 0% chance of rain, 11 km/h wind. Last checked 2 days ago.",
       stamp: STAMP,
       measured: false,
     });

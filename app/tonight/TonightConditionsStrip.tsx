@@ -20,6 +20,7 @@
 import { useEffect, useState } from "react";
 import { CloudSun } from "lucide-react";
 
+import { NO_WEATHER_READING_LINE } from "@/lib/conditionsFormat";
 import { coarsenViewerPoint } from "@/lib/geo";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import type { TonightConditionsSummary } from "@/lib/tonightConditions";
@@ -33,7 +34,7 @@ type Props = {
 type ConditionsResponse = { summary: TonightConditionsSummary | null };
 
 export default function TonightConditionsStrip({ origin }: Props) {
-  const [summary, setSummary] = useState<TonightConditionsSummary | null>(null);
+  const [summary, setSummary] = useState<TonightConditionsSummary | null | undefined>(undefined);
 
   const egressPoint = origin ? coarsenViewerPoint(origin) : null;
   const lat = egressPoint?.lat ?? null;
@@ -53,7 +54,16 @@ export default function TonightConditionsStrip({ origin }: Props) {
     return () => controller.abort();
   }, [lat, lng]);
 
-  if (!summary) return null;
+  if (summary === undefined) return null;
+
+  if (summary === null) {
+    return (
+      <div className="tonightConditions" data-testid="tonight-conditions">
+        <CloudSun size={16} aria-hidden="true" className="tonightConditionsIcon" />
+        <p className="tonightConditionsCopy">{NO_WEATHER_READING_LINE}</p>
+      </div>
+    );
+  }
 
   const trailer = summary.stale ? `${summary.checkedLabel}.` : summary.drinkLine;
 
