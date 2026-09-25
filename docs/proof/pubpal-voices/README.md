@@ -11,7 +11,12 @@
 1. Set `ELEVENLABS_API_KEY`, agent id, shared secret, and per-species voice ids.
 2. `npm run pubpal:design-voices` to create missing species voices.
 3. Production build: `NEXT_DIST_DIR=.next-prod npm run build && NEXT_DIST_DIR=.next-prod npm run start`
-4. Sign in, open `/pal`, start voice; confirm `/api/pub-pal/llm` in network tab.
+4. Sign in, open `/pal` and start voice. In the browser network tab, confirm a
+   WebSocket to `elevenlabs.io` opens and carries transcript and audio frames.
+   `/api/pub-pal/llm` never shows there: ElevenLabs calls it server to server.
+   Confirm it in the deployment's request logs (Vercel: Logs, filtered to
+   `/api/pub-pal/llm`) or in the conversation's history in the ElevenLabs
+   dashboard.
 
 ### Headless browser proof: people can type and talk to it
 
