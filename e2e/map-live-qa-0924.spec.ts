@@ -73,13 +73,30 @@ for (const viewport of viewports) {
       expectLondonFramed(opening);
       expect(Math.abs(opening!.bearing)).toBeLessThanOrEqual(MAP_ARRIVAL_BEARING_DEG + 0.25);
 
-      await page.waitForTimeout(MAP_ARRIVAL_BEARING_SETTLED_BY_MS + 2_000);
+      // The turn's wait counts polls, not wall-clock time, so on a loaded box it
+      // can start after MAP_ARRIVAL_BEARING_SETTLED_BY_MS. A camera that is
+      // still at 0 then is waiting, not done: poll for the turned rest instead.
+      await page.waitForTimeout(MAP_ARRIVAL_BEARING_SETTLED_BY_MS);
       await expect
-        .poll(async () => (await readCamera(page))?.moving, { timeout: 45_000 })
-        .toBe(false);
+        .poll(
+          async () => {
+            const camera = await readCamera(page);
+            return (
+              camera !== null &&
+              !camera.moving &&
+              Math.abs(camera.bearing - MAP_ARRIVAL_BEARING_DEG) <= 0.25
+            );
+          },
+          { timeout: 45_000 },
+        )
+        .toBe(true);
       const rested = await readCamera(page);
       expectLondonFramed(rested);
-      expect(Math.abs(rested!.bearing - MAP_ARRIVAL_BEARING_DEG)).toBeLessThanOrEqual(0.25);
+      // Once turned, the camera stays put: one eased move, not an orbit.
+      await page.waitForTimeout(2_000);
+      const later = await readCamera(page);
+      expect(later!.moving).toBe(false);
+      expect(Math.abs(later!.bearing - MAP_ARRIVAL_BEARING_DEG)).toBeLessThanOrEqual(0.25);
     });
   });
 }
