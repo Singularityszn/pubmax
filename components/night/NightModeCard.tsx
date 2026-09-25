@@ -42,7 +42,7 @@ import {
   type ActivePlanRef,
 } from "@/lib/activePlan";
 import { useLoopMoment } from "@/components/loop/useLoopMoment";
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import EmptyState from "@/components/ui/empty-state";
 import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
@@ -449,7 +449,7 @@ function NightModeSheet({
   onCollapse: () => void;
 }) {
   const { id, stopIndex } = entry;
-  const { identityResolved } = useAuth();
+  const { unresolved: sessionUnresolved } = useViewerSession();
   const [plan, setPlan] = useState<PlanState | null>(null);
   const [report, setReport] = useState<PlanGetInReportDTO | null>(null);
   const [routeFetchSettled, setRouteFetchSettled] = useState(false);
@@ -502,10 +502,10 @@ function NightModeSheet({
   }, [onCollapse]);
 
   useEffect(() => {
-    if (!identityResolved || sessionAsked.current) return;
+    if (sessionUnresolved || sessionAsked.current) return;
     sessionAsked.current = true;
     void restorePlanCapability(id).catch(() => undefined);
-  }, [identityResolved, id]);
+  }, [sessionUnresolved, id]);
 
   // Plan state + get-in report - the two feeds the plan screen already uses.
   //
