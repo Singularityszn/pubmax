@@ -1,16 +1,17 @@
-export const DEFAULT_CACHE_DIR: string;
-
-export function placesCacheFilePath(cacheDir: string, textQuery: string): string;
+export type PlacesSearchPayload = {
+  textQuery: string;
+  fetchedAt: string;
+  httpStatus: number;
+  body: { places?: unknown[] };
+};
 
 export function createPlacesTextSearchClient(options: {
   apiKey: string;
-  cacheDir?: string;
   maxLiveCalls?: number;
   fetchImpl?: typeof fetch;
 }): {
-  searchText: (textQuery: string) => Promise<Record<string, unknown>>;
+  searchText: (textQuery: string) => Promise<PlacesSearchPayload>;
   getLiveCallCount: () => number;
-  cacheDir: string;
 };
 
 export function placesFromSearchPayload(

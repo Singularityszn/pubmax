@@ -4,32 +4,17 @@
 
 import { haversineMeters } from "./geo.mjs";
 
-const NAME_STOP_WORDS = new Set([
-  "the",
-  "at",
-  "and",
-  "bar",
-  "pub",
-  "london",
-  "restaurant",
-  "soho",
-  "covent",
-  "garden",
-]);
-
+/** Folds case, diacritics, apostrophes, punctuation and a leading "the". */
 export function normalizeVenueName(name) {
   return String(name)
+    .normalize("NFD")
+    .replace(/\p{M}+/gu, "")
     .toLowerCase()
     .replace(/['’]/g, "")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim()
-    .replace(/\s+/g, " ");
-}
-
-export function venueNameTokens(name) {
-  return normalizeVenueName(name)
-    .split(" ")
-    .filter((t) => t.length > 1 && !NAME_STOP_WORDS.has(t));
+    .replace(/\s+/g, " ")
+    .replace(/^the /, "");
 }
 
 /**
@@ -130,7 +115,6 @@ export function decidePlacesVerification(row, places) {
       confident.push({
         place,
         matchReason: `${name.reason};${location.reason}`,
-        matchedName: placeDisplayText(place),
       });
     }
   }
@@ -148,9 +132,6 @@ export function decidePlacesVerification(row, places) {
       result: "places_no_confident_match",
       evidence: {
         placeId: first.id ?? null,
-        matchedName: placeDisplayText(first),
-        formattedAddress: first.formattedAddress ?? null,
-        businessStatus: first.businessStatus ?? null,
         matchReason: `name:${name.reason};location:${location.reason}`,
       },
     };
@@ -164,24 +145,13 @@ export function decidePlacesVerification(row, places) {
         result: "places_ambiguous_match",
         evidence: {
           matchReason: `multiple_confident_places_${confident.length}`,
-          candidates: confident.map((c) => ({
-            placeId: c.place.id,
-            matchedName: c.matchedName,
-            businessStatus: c.place.businessStatus,
-          })),
         },
       };
     }
   }
 
-  const { place, matchReason, matchedName } = confident[0];
-  const evidence = {
-    placeId: place.id ?? null,
-    matchedName,
-    formattedAddress: place.formattedAddress ?? null,
-    businessStatus: place.businessStatus ?? null,
-    matchReason,
-  };
+  const { place, matchReason } = confident[0];
+  const evidence = { placeId: place.id ?? null, matchReason };
 
   const status = place.businessStatus;
   if (status === "OPERATIONAL") {

@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { isFoodCategory } from "@/lib/food";
 import { nightOutPlaceRowValidationErrors } from "@/lib/nightOutPlaceContract.mjs";
 import { assertCurrentFamousVenueRows } from "@/scripts/build_slim_index.mjs";
+import { normalizeVenueName } from "@/scripts/lib/famousVenuePlacesMatch.mjs";
 
 const ROOT = path.resolve(__dirname, "..");
 const FAME_GATES = new Set([
@@ -51,6 +52,7 @@ type FamousVenueRow = {
     sourceUrl: string;
   };
   story: { text: string; sourceUrl: string };
+  placesNameAliases?: string[];
 };
 
 function loadSeed(file: string): FamousVenueRow[] {
@@ -60,7 +62,7 @@ function loadSeed(file: string): FamousVenueRow[] {
 }
 
 const PACKS = [
-  ["bars.json", 38, "bar"],
+  ["bars.json", 39, "bar"],
   ["late_food.json", 25, "food"],
   ["restaurants.json", 25, "restaurant"],
 ] as const;
@@ -159,22 +161,30 @@ describe("famous venue seeds", () => {
     expect(new Set(rows.map((row) => row.id)).size).toBe(rows.length);
   });
 
+  it("keeps Places name aliases normalized and only where the name alone cannot match", () => {
+    for (const row of PACKS.flatMap(([file]) => loadSeed(file))) {
+      for (const alias of row.placesNameAliases ?? []) {
+        expect(alias, row.id).toBe(normalizeVenueName(alias));
+        expect(alias, row.id).not.toBe(normalizeVenueName(row.name));
+      }
+    }
+  });
+
   it("withholds expired famous venues from slim instead of failing the build", () => {
     const rows = PACKS.flatMap(([file]) => loadSeed(file));
-    expect(rows).toHaveLength(88);
     vi.spyOn(console, "log").mockImplementation(() => {});
     expect(
-      assertCurrentFamousVenueRows(rows, new Date("2026-09-24T18:00:00.000Z")),
-    ).toHaveLength(76);
+      assertCurrentFamousVenueRows(rows, new Date("2026-08-25T12:00:00.000Z")),
+    ).toHaveLength(89);
     vi.restoreAllMocks();
     const logs: string[] = [];
     const spy = vi.spyOn(console, "log").mockImplementation((...args) => {
       logs.push(args.map(String).join(" "));
     });
     expect(
-      assertCurrentFamousVenueRows(rows, new Date("2026-10-25T00:00:00.000Z")),
+      assertCurrentFamousVenueRows(rows, new Date("2026-09-24T00:00:00.000Z")),
     ).toHaveLength(0);
-    expect(logs.join("\n")).toMatch(/withholding 88 famous venue/);
+    expect(logs.join("\n")).toMatch(/withholding 89 famous venue/);
     spy.mockRestore();
   });
 });

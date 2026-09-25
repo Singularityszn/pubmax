@@ -23,45 +23,47 @@ export type FamousVenueRow = {
   name: string;
   address: string;
   borough?: string;
-  area?: string;
+  lat?: number;
+  lng?: number;
   sourceUrl: string;
-  anchor?: { sourceUrl?: string };
-  fameGates?: Array<{ sourceUrl: string }>;
+  placesNameAliases?: string[];
 };
 
-export function verifyRow(
-  row: FamousVenueRow,
-  alternates: Map<string, string>,
-): Promise<
-  FamousVenueCheck & {
-    result: string;
-    sourceUrl: string;
-    verificationSourceUrl?: string;
-    closureSourceUrl?: string;
-  }
->;
+export type PlacesVenueCheck = FamousVenueCheck & {
+  method: "places_text_search";
+  sourceUrl: string;
+  result: string;
+  textQuery: string;
+  placeId: string | null;
+  matchReason: string | null;
+  evidenceFetchedAt: string | null;
+};
 
 export function verifyRowWithPlaces(
   row: FamousVenueRow,
-  searchText: (textQuery: string) => Promise<unknown>,
-): Promise<
-  FamousVenueCheck & {
-    result: string;
-    method: string;
-    placeId: string | null;
-    matchReason: string | null;
-    evidenceFetchedAt: string | null;
-    evidenceFromLiveCall: boolean;
-  }
->;
+  searchText: (textQuery: string) => Promise<{
+    fetchedAt?: string;
+    httpStatus?: number;
+    body?: unknown;
+  }>,
+): Promise<PlacesVenueCheck>;
 
 export function placesCheckAllowsSeedMutation(
   check: {
     outcome: FamousVenueOutcome;
-    evidenceFromLiveCall?: boolean;
     evidenceFetchedAt?: string | null;
   },
   verifiedDay: string,
 ): boolean;
 
-export function toCommittedPlacesCheck(check: Record<string, unknown>): Record<string, unknown>;
+export function toCommittedPlacesCheck(check: PlacesVenueCheck): {
+  id: string;
+  method: "places_text_search";
+  sourceUrl: string;
+  outcome: FamousVenueOutcome;
+  result: string;
+  textQuery: string;
+  placeId: string | null;
+  matchReason: string | null;
+  checkedAt: string | null;
+};

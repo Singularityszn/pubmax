@@ -1,16 +1,20 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   decidePlacesVerification,
   evaluateLocationMatch,
   evaluateNameMatch,
 } from "@/scripts/lib/famousVenuePlacesMatch.mjs";
-import { placesFromSearchPayload } from "@/scripts/lib/googlePlacesTextSearch.mjs";
+import {
+  createPlacesTextSearchClient,
+  placesFromSearchPayload,
+} from "@/scripts/lib/googlePlacesTextSearch.mjs";
 import {
   placesCheckAllowsSeedMutation,
+  toCommittedPlacesCheck,
   verifyRowWithPlaces,
 } from "@/scripts/verify_famous_venues.mjs";
 
@@ -37,7 +41,7 @@ describe("famous venue Places match rules", () => {
     const decision = decidePlacesVerification(sampleRow, places);
     expect(decision.outcome).toBe("confirmed");
     expect(decision.result).toBe("places_operational");
-    expect(decision.evidence?.businessStatus).toBe("OPERATIONAL");
+    expect(decision.evidence.placeId).toMatch(/^places\//);
   });
 
   it("drops a permanently closed confident match", () => {
@@ -84,16 +88,23 @@ describe("famous venue Places match rules", () => {
       id: "bar-american-bar-savoy",
       name: "American Bar at The Savoy",
       address: "Strand, London WC2R 0EZ",
-      placesNameAliases: ["American Bar"],
+      placesNameAliases: ["american bar"],
     };
     const place = {
-      displayName: { text: "American Bar" },
+      displayName: { text: "AMERICAN BAR" },
       formattedAddress: "Strand, London WC2R 0EZ, UK",
       businessStatus: "OPERATIONAL",
       location: { latitude: 51.51009, longitude: -0.12085 },
     };
     const decision = decidePlacesVerification(row, [place]);
     expect(decision.outcome).toBe("confirmed");
+  });
+
+  it("matches names across diacritics and a leading article", () => {
+    expect(evaluateNameMatch("The River Cafe", "The River Café").match).toBe(true);
+    expect(evaluateNameMatch("Brasserie Zédel", "Brasserie Zedel").match).toBe(true);
+    expect(evaluateNameMatch("Connaught Bar", "The Connaught Bar").match).toBe(true);
+    expect(evaluateNameMatch("Eve Bar", "Eve Bar Covent Garden").match).toBe(false);
   });
 
   it("does not match nested postcodes (E1 vs SE1)", () => {
@@ -134,7 +145,7 @@ describe("famous venue Places match rules", () => {
 });
 
 describe("verifyRowWithPlaces", () => {
-  it("maps a cached fixture through the verifier row shape", async () => {
+  it("maps a Places fixture through the verifier row shape", async () => {
     const payload = loadFixture("operational_match.json");
     const check = await verifyRowWithPlaces(sampleRow, async () => payload);
     expect(check.outcome).toBe("confirmed");
@@ -149,19 +160,9 @@ describe("verifyRowWithPlaces error labels", () => {
       httpStatus: 429,
       body: { error: { status: "RESOURCE_EXHAUSTED" } },
       fetchedAt: "2026-09-24T12:00:00.000Z",
-      fromCache: false,
     }));
     expect(check.result).toBe("places_http_error");
     expect(check.matchReason).toBe("http_429");
-  });
-
-  it("labels a cache-only miss as places_cache_miss", async () => {
-    const check = await verifyRowWithPlaces(sampleRow, async () => ({
-      cacheMiss: true,
-      fromCache: true,
-      body: {},
-    }));
-    expect(check.result).toBe("places_cache_miss");
   });
 });
 
@@ -170,23 +171,72 @@ describe("places seed mutation policy", () => {
     const verifiedDay = "2026-09-24";
     expect(
       placesCheckAllowsSeedMutation(
-        {
-          outcome: "confirmed",
-          evidenceFromLiveCall: true,
-          evidenceFetchedAt: "2026-09-24T12:00:00.000Z",
-        },
+        { outcome: "confirmed", evidenceFetchedAt: "2026-09-24T12:00:00.000Z" },
         verifiedDay,
       ),
     ).toBe(true);
     expect(
       placesCheckAllowsSeedMutation(
-        {
-          outcome: "confirmed",
-          evidenceFromLiveCall: false,
-          evidenceFetchedAt: "2026-09-24T12:00:00.000Z",
-        },
+        { outcome: "closed", evidenceFetchedAt: "2026-09-23T23:59:59.000Z" },
         verifiedDay,
       ),
     ).toBe(false);
+    expect(
+      placesCheckAllowsSeedMutation(
+        { outcome: "confirmed", evidenceFetchedAt: null },
+        verifiedDay,
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("committed Places artifact", () => {
+  it("keeps the place id and derived verdict, never Google addresses or statuses", async () => {
+    const payload = {
+      ...loadFixture("operational_match.json"),
+      fetchedAt: "2026-09-25T10:00:00.000Z",
+    };
+    const committed = toCommittedPlacesCheck(
+      await verifyRowWithPlaces(sampleRow, async () => payload),
+    );
+    expect(Object.keys(committed).sort()).toEqual([
+      "checkedAt",
+      "id",
+      "matchReason",
+      "method",
+      "outcome",
+      "placeId",
+      "result",
+      "sourceUrl",
+      "textQuery",
+    ]);
+    const place = placesFromSearchPayload(payload)[0] as {
+      formattedAddress: string;
+      businessStatus: string;
+    };
+    const serialized = JSON.stringify(committed);
+    expect(serialized).not.toContain(place.formattedAddress);
+    expect(serialized).not.toContain(place.businessStatus);
+    expect(committed.checkedAt).toBe("2026-09-25T10:00:00.000Z");
+  });
+});
+
+describe("Places Text Search client", () => {
+  it("stops before exceeding the live call budget", async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ places: [] }));
+    const client = createPlacesTextSearchClient({
+      apiKey: "test-key",
+      maxLiveCalls: 1,
+      fetchImpl,
+    });
+    await expect(client.searchText("Wong Kei W1D 6PY London")).resolves.toMatchObject({
+      httpStatus: 200,
+      body: { places: [] },
+    });
+    await expect(client.searchText("Rules WC2E 7LB London")).rejects.toThrow(
+      /budget exhausted/,
+    );
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(client.getLiveCallCount()).toBe(1);
   });
 });

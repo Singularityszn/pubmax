@@ -32,12 +32,38 @@ const DETAIL_INDEX = path.join(ROOT, "data", "generated", "venue_detail_index.js
 const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const SEED_VENUE_ID = "venue-16pnwmm";
 const FAMOUS_BAR_ID = "bar-american-bar-savoy";
-const FAMOUS_RESTAURANT_ID = "restaurant-river-cafe";
+const FIXTURE_RESTAURANT_ID = "restaurant-fixture-seed-fallback";
+const SEED_FALLBACK_ROOT = path.join(
+  ROOT,
+  "__tests__",
+  "fixtures",
+  "famous_venues",
+  "seed_fallback",
+);
 
 const rows = JSON.parse(readFileSync(RAW_PATH, "utf8")) as VenuePrice[];
 const seedRows = rows.filter(
   (row) => stableVenueIdFromKey(venueGroupingKey(row)) === SEED_VENUE_ID,
 );
+
+vi.mock("@/lib/venueIndex", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/venueIndex")>();
+  return {
+    ...actual,
+    lookupCanonicalVenue: async (id: string) => {
+      if (id !== FIXTURE_RESTAURANT_ID) return actual.lookupCanonicalVenue(id);
+      const slimVenue = {
+        id,
+        name: "Fixture Chop House",
+        lat: 51.5108,
+        lng: -0.1232,
+        borough: "Westminster",
+        kind: "restaurant" as const,
+      };
+      return { status: "found" as const, canonicalId: id, venue: slimVenue, slimVenue };
+    },
+  };
+});
 
 beforeAll(() => {
   if (!existsSync(DETAIL_INDEX)) {
@@ -129,8 +155,21 @@ describe("venueDetailIndex", () => {
     setVenueDetailIndexFileForTests(
       path.join(ROOT, "data", "generated", "missing-venue-detail-index.json"),
     );
+    const cwd = vi.spyOn(process, "cwd").mockReturnValue(SEED_FALLBACK_ROOT);
 
-    await expect(getVenueDetail(FAMOUS_RESTAURANT_ID)).resolves.toBeNull();
+    try {
+      await expect(getVenueDetail(FIXTURE_RESTAURANT_ID)).resolves.toMatchObject({
+        id: FIXTURE_RESTAURANT_ID,
+        name: "Fixture Chop House",
+        kind: "restaurant",
+        address: "1 Fixture Lane, London WC2E 7LB",
+        anchorLabel: "Fixture Pie",
+        anchorCourse: "mains",
+        sourceDatasets: ["famous_venues"],
+      });
+    } finally {
+      cwd.mockRestore();
+    }
   });
 
   it("merges curated menu enrichment onto Prospect of Whitby detail", async () => {
