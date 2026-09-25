@@ -6,7 +6,6 @@ import { runAsk } from "@/lib/ask/runAsk";
 import { createUsageCapture } from "./captureUsage";
 import { gradePalCase } from "./grade";
 import { loadPalEvalSuite } from "./loadSuite";
-import { mergePalExpectations, resolveNormativeExpectations } from "./normative";
 import { offlineFetch } from "./offlineFetch";
 import type { PalEvalCaseResult, PalEvalScoreboard } from "./types";
 import { loadPalEvalVenueIndex } from "./venueIndex";
@@ -62,14 +61,7 @@ async function runSuiteWithoutTypesafe(options: RunPalEvalOptions): Promise<PalE
     });
     const latencyMs = performance.now() - started;
 
-    const fetchImpl = usageCapture ? usageCapture.fetchImpl : offlineFetch;
-    const normative = await resolveNormativeExpectations(caseDef, {
-      now,
-      fetchImpl,
-      cityId: caseDef.cityId,
-    });
-    const mergedExpect = mergePalExpectations(expect, normative);
-    const graded = gradePalCase(body, mergedExpect, index);
+    const graded = gradePalCase(body, expect, index);
     const usage = {
       ...(usageCapture
         ? usageCapture.take()

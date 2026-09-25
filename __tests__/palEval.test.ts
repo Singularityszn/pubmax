@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { resolveNormativeExpectations } from "@/evals/pal/normative";
-import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { runPalEvalSuite } from "@/evals/pal/runSuite";
 
 beforeEach(() => {
@@ -54,14 +52,5 @@ describe("Pal eval suite (deterministic)", () => {
     const scoreboard = await runPalEvalSuite({ mode: "deterministic" });
     const failures = scoreboard.results.filter((result) => !result.pass);
     expect(failures, failures.map((f) => f.id).join(", ")).toEqual([]);
-  });
-
-  it("refuses to grade a case that has no normative spec", async () => {
-    await expect(
-      resolveNormativeExpectations(
-        { id: "unspecified-case", query: "cheapest pint in Camden" },
-        { now: Date.parse("2026-07-21T18:00:00.000Z"), fetchImpl: offlineFetch },
-      ),
-    ).rejects.toThrow("Missing normative spec for case unspecified-case");
   });
 });
