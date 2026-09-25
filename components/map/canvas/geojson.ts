@@ -398,6 +398,44 @@ export function poisToGeoJSON(pois: Poi[]): GeoJSON.FeatureCollection {
 // carries `source: "straight"` so the map draws it as the dashed "approximate"
 // route (buildScene.buildRoute) until /api/walk-route upgrades routeLineRef to a
 // road-following LineString (source "ors", drawn solid). See PubMapCanvas.
+export function routeLineFromLngLats(coords: [number, number][]): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features:
+      coords.length > 1
+        ? [
+            {
+              type: "Feature" as const,
+              properties: { source: "straight" },
+              geometry: {
+                type: "LineString" as const,
+                coordinates: coords.map(([lng, lat]) => [lng, lat]),
+              },
+            },
+          ]
+        : [],
+  };
+}
+
+export function routeStopsFromLngLats(
+  stops: ReadonlyArray<{ id: string; name: string }>,
+  coords: [number, number][],
+): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: coords.map((coord, index) => ({
+      type: "Feature" as const,
+      properties: {
+        id: stops[index]?.id ?? `stop-${index}`,
+        label: String(index + 1),
+        name: stops[index]?.name ?? "",
+        stopName: truncateStopName(stops[index]?.name ?? ""),
+      },
+      geometry: { type: "Point" as const, coordinates: coord },
+    })),
+  };
+}
+
 export function routeToLine(route: Venue[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",

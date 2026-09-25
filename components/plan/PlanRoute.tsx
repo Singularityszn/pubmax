@@ -117,7 +117,15 @@ export default function PlanRoute({
           walking line, straight-then-routed with the same solid/dashed honesty
           rule as the big map. Degrades to nothing when it can't locate ≥2 stops,
           so the deep link below always stands on its own. */}
-      {stops.length >= 2 ? <PlanRouteMiniMap stops={stops} /> : null}
+      {stops.length >= 2 ? (
+        walkRouteHref ? (
+          <Link className="planRoute__mapLink" href={walkRouteHref}>
+            <PlanRouteMiniMap stops={stops} />
+          </Link>
+        ) : (
+          <PlanRouteMiniMap stops={stops} />
+        )
+      ) : null}
       {walkRouteHref ? (
         <Link className="planRoute__walk" href={walkRouteHref}>
           See the walking route
