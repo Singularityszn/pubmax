@@ -17,6 +17,7 @@ describe("the front door's two answers", () => {
           factsLine: "19°C feels like, cloudy, 0% chance of rain, daylight.",
           verdictLine: "Beer garden weather. Lager or cider.",
           stale: false,
+          checkedLabel: "Checked 1 hour ago",
         },
         STAMP,
       ),
@@ -27,16 +28,29 @@ describe("the front door's two answers", () => {
     });
   });
 
-  it("refuses a stale sky and a missing one alike", () => {
-    for (const weather of [
-      null,
-      { factsLine: "stale", verdictLine: "x", stale: true },
-    ]) {
-      const answer = todayAnswer(weather, STAMP);
-      expect(answer.measured).toBe(false);
-      expect(answer.line).toBe("We could not read today's London weather just now.");
-      expect(answer.stamp).toBe(STAMP);
-    }
+  it("says plainly when there is no reading at all", () => {
+    expect(todayAnswer(null, STAMP)).toEqual({
+      line: "We could not read today's London weather just now.",
+      stamp: STAMP,
+      measured: false,
+    });
+  });
+
+  it("prints a stale sky as its facts and its age, with no verdict", () => {
+    const answer = todayAnswer(
+      {
+        factsLine: "Last read of the sky: 19°C feels like, cloudy, 0% chance of rain, night.",
+        verdictLine: "",
+        stale: true,
+        checkedLabel: "Last checked 2 days ago",
+      },
+      STAMP,
+    );
+    expect(answer).toEqual({
+      line: "Last read of the sky: 19°C feels like, cloudy, 0% chance of rain, night. Last checked 2 days ago.",
+      stamp: STAMP,
+      measured: false,
+    });
   });
 
   it("counts tonight's listings, and says one thing as one thing", () => {

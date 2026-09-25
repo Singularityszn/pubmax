@@ -1,17 +1,21 @@
 // Compact, honest weather facts for surfaces that must show numbers, not vibes.
-// Pure leaf: no fetch, no React. Callers pass an observation (or its fields)
-// plus `now` for day/night wording when Open-Meteo did not carry is_day.
+// No fetch, no React. Sunset and day or night are computed at render from the
+// night area's own coordinates (lib/weatherDaylight.ts); observations store
+// neither.
 
 import { daySlot } from "@/lib/daySlot";
+import type { NightAreaSlug } from "@/lib/nightAreas";
+import { daylightForNightArea } from "@/lib/weatherDaylight";
+import type { NightAreaWeatherObservation } from "@/lib/weatherSnapshots";
 
 export type WeatherObservationFactsInput = {
   feelsLikeC: number;
   condition: string;
   precipitationProbabilityPct: number;
   windKph: number | null;
-  /** From Open-Meteo `is_day` when known; null means do not claim solar day/night. */
+  /** Sun above the area's horizon at `now`; null when the area has no coordinates. */
   isDay: boolean | null;
-  /** ISO instant for today's sunset in London when known. */
+  /** ISO instant of the area's sunset on the day of `now`, when known. */
   sunsetAt: string | null;
   now: Date;
   /** When true, prefix makes clear the reading may be out of date. */
@@ -76,7 +80,51 @@ export function relativeObservedLabel(observedAtMs: number, nowMs: number): stri
   return `${days} days ago`;
 }
 
-/** "Checked 2 hours ago" (fresh) or "Last checked 3 days ago" (stale). */
-export function checkedLabel(observedAtMs: number, nowMs: number, stale: boolean): string {
-  return `${stale ? "Last checked" : "Checked"} ${relativeObservedLabel(observedAtMs, nowMs)}`;
+export type ObservationFacts = {
+  /** Numbers-led line: temp, rain, wind, sunset, day or night. */
+  factsLine: string;
+  /** "Checked 2 hours ago" (fresh) or "Last checked 3 days ago" (stale). */
+  checkedLabel: string;
+  /** True once the observation has aged past its own expiry. */
+  stale: boolean;
+  /** Sun above the area's horizon at the instant the facts describe. */
+  isDay: boolean | null;
+};
+
+/**
+ * The one reading of an observation every weather surface shares. A fresh
+ * reading is described at `now`; a stale one at the instant it was observed,
+ * so an old sky never borrows tonight's sunset or darkness.
+ */
+export function observationFacts(input: {
+  observation: Pick<
+    NightAreaWeatherObservation,
+    "feelsLikeC" | "condition" | "precipitationProbabilityPct" | "windKph" | "observedAt"
+  >;
+  nightArea: NightAreaSlug;
+  now: Date;
+  stale: boolean;
+}): ObservationFacts {
+  const { observation, nightArea, now, stale } = input;
+  const observedMs = Date.parse(observation.observedAt);
+  const factsAt = stale ? new Date(observedMs) : now;
+  const daylight = daylightForNightArea(nightArea, factsAt);
+  const isDay = daylight?.isDay ?? null;
+  const factsLine = formatWeatherObservationFacts({
+    feelsLikeC: observation.feelsLikeC,
+    condition: observation.condition,
+    precipitationProbabilityPct: observation.precipitationProbabilityPct,
+    windKph: observation.windKph,
+    isDay,
+    sunsetAt: daylight ? daylight.sunsetAt.toISOString() : null,
+    now: factsAt,
+    stale,
+  });
+  const relative = relativeObservedLabel(observedMs, now.getTime());
+  return {
+    factsLine,
+    checkedLabel: `${stale ? "Last checked" : "Checked"} ${relative}`,
+    stale,
+    isDay,
+  };
 }

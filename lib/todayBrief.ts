@@ -28,8 +28,7 @@ import { firstHttp } from "@/lib/httpUrl";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import { formatConditionDate, londonMonth } from "@/lib/tonightConditions";
 import { validateWeatherSnapshot } from "@/lib/weatherSnapshots";
-import { daylightForNightArea } from "@/lib/weatherDaylight";
-import { checkedLabel, formatWeatherObservationFacts } from "@/lib/weatherObservationCopy";
+import { observationFacts } from "@/lib/weatherObservationCopy";
 import { whatsOnBarePriceGbp, type WhatsOnConfidence, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 
 // A central district for the location-free morning glance. The brief is a
@@ -93,21 +92,7 @@ export function buildWeatherBrief(
   if (observedMs > nowMs) return null;
 
   const stale = nowMs >= Date.parse(observation.expiresAt);
-  const factsAt = stale ? new Date(observedMs) : now;
-  const daylight = daylightForNightArea(area, factsAt);
-  const isDay = daylight?.isDay ?? null;
-  const sunsetAt = daylight ? daylight.sunsetAt.toISOString() : null;
-  const factsLine = formatWeatherObservationFacts({
-    feelsLikeC: observation.feelsLikeC,
-    condition: observation.condition,
-    precipitationProbabilityPct: observation.precipitationProbabilityPct,
-    windKph: observation.windKph,
-    isDay,
-    sunsetAt,
-    now: factsAt,
-    stale,
-  });
-  const checked = checkedLabel(observedMs, nowMs, stale);
+  const { factsLine, checkedLabel, isDay } = observationFacts({ observation, nightArea: area, now, stale });
 
   if (stale) {
     return {
@@ -119,7 +104,7 @@ export function buildWeatherBrief(
       drinkSuggestion: "",
       venueLens: "any",
       stale: true,
-      checkedLabel: checked,
+      checkedLabel,
       source: { publisher: observation.source.publisher, url: observation.source.sourceUrl },
       factsLine,
     };
@@ -143,7 +128,7 @@ export function buildWeatherBrief(
     drinkSuggestion: verdict.drinkSuggestion,
     venueLens: verdict.venueLens,
     stale: false,
-    checkedLabel: checked,
+    checkedLabel,
     source: { publisher: observation.source.publisher, url: observation.source.sourceUrl },
     factsLine,
   };

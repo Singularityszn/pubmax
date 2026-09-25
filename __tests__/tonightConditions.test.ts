@@ -10,7 +10,7 @@ import {
   tallyLensMatches,
   PINT_CEILING_GBP,
 } from "@/lib/tonightConditions";
-import { daylightForNightArea } from "@/lib/weatherDaylight";
+import { observationFacts } from "@/lib/weatherObservationCopy";
 
 // Piccadilly-ish centre so nearby-venue maths is realistic.
 const CENTRE: [number, number] = [-0.134, 51.511];
@@ -140,14 +140,28 @@ describe("buildVenueClaim", () => {
 
 describe("summariseTonightConditions", () => {
   const now = new Date("2026-07-18T19:00:00.000Z");
-  const daylight = daylightForNightArea("piccadilly-soho", now);
+  function reading(tempC: number, condition: string, precipitationProbabilityPct: number) {
+    const weather = { tempC, condition, precipitationProbabilityPct };
+    const facts = observationFacts({
+      observation: {
+        feelsLikeC: tempC,
+        condition,
+        precipitationProbabilityPct,
+        windKph: null,
+        observedAt: "2026-07-18T18:45:00.000Z",
+      },
+      nightArea: "piccadilly-soho",
+      now,
+      stale: false,
+    });
+    return { weather, facts };
+  }
 
   it("composes date, weather, drink line and a venue claim", () => {
     const summary = summariseTonightConditions({
-      weather: { tempC: 22, condition: "Clear", precipitationProbabilityPct: 10, windKph: null, observedAt: "2026-07-18T18:45:00.000Z" },
+      ...reading(22, "Clear", 10),
       now,
       tally: { count: 4, underCeiling: 4 },
-      daylight,
     });
     expect(summary).toEqual({
       dateLabel: "Saturday 18 Jul",
@@ -163,7 +177,7 @@ describe("summariseTonightConditions", () => {
 
   it("shows the weather line with no venue claim when there are none nearby", () => {
     const summary = summariseTonightConditions({
-      weather: { tempC: 22, condition: "Sunny", precipitationProbabilityPct: 10, windKph: null, observedAt: "2026-07-18T18:45:00.000Z" },
+      ...reading(22, "Sunny", 10),
       now,
       tally: { count: 0, underCeiling: 0 },
     });
@@ -173,7 +187,7 @@ describe("summariseTonightConditions", () => {
 
   it("drops the condition text gracefully when it is blank", () => {
     const summary = summariseTonightConditions({
-      weather: { tempC: 22, condition: "  ", precipitationProbabilityPct: 10, windKph: null, observedAt: "2026-07-18T18:45:00.000Z" },
+      ...reading(22, "  ", 10),
       now,
       tally: null,
     });
@@ -182,7 +196,7 @@ describe("summariseTonightConditions", () => {
 
   it("returns null when the rules table claims nothing for tonight", () => {
     const summary = summariseTonightConditions({
-      weather: { tempC: 15, condition: "Drizzle", precipitationProbabilityPct: 45, windKph: null, observedAt: "2026-07-18T18:45:00.000Z" },
+      ...reading(15, "Drizzle", 45),
       now,
       tally: null,
     });

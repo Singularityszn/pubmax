@@ -51,6 +51,7 @@ export async function loadLandingAnswers(now: Date = new Date()): Promise<Landin
         factsLine: brief.factsLine,
         verdictLine: brief.verdictLine,
         stale: brief.stale,
+        checkedLabel: brief.checkedLabel,
       }
     : null;
 

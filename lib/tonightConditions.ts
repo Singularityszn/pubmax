@@ -13,8 +13,7 @@
 
 import { daySlot } from "@/lib/daySlot";
 import { evaluateDrinkWeather, type VenueLens } from "@/lib/drinkWeather";
-import { checkedLabel, formatWeatherObservationFacts } from "@/lib/weatherObservationCopy";
-import type { DaylightAt } from "@/lib/weatherDaylight";
+import type { ObservationFacts } from "@/lib/weatherObservationCopy";
 import { haversineKm } from "@/lib/haversine";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 
@@ -28,9 +27,6 @@ export type ConditionsWeather = {
   tempC: number;
   condition: string;
   precipitationProbabilityPct: number;
-  windKph: number | null;
-  /** ISO instant the observation was read. */
-  observedAt: string;
 };
 
 /**
@@ -162,32 +158,18 @@ export function summariseTonightConditions(args: {
   now: Date;
   tally: VenueLensTally;
   timeZone?: string;
-  stale?: boolean;
-  /** Sun position for the night area at the reading's instant, when known. */
-  daylight?: DaylightAt | null;
+  /** The shared facts reading of the same observation (lib/weatherObservationCopy.ts). */
+  facts: ObservationFacts;
 }): TonightConditionsSummary | null {
-  const { weather, now, tally, timeZone, stale = false, daylight = null } = args;
-  const observedMs = Date.parse(weather.observedAt);
-  const factsAt = stale ? new Date(observedMs) : now;
-  const isDay = daylight?.isDay ?? null;
-  const factsLine = formatWeatherObservationFacts({
-    feelsLikeC: weather.tempC,
-    condition: weather.condition,
-    precipitationProbabilityPct: weather.precipitationProbabilityPct,
-    windKph: weather.windKph,
-    isDay,
-    sunsetAt: daylight ? daylight.sunsetAt.toISOString() : null,
-    now: factsAt,
-    stale,
-  });
-  const checked = checkedLabel(observedMs, now.getTime(), stale);
-  if (stale) {
+  const { weather, now, tally, timeZone, facts } = args;
+  const { factsLine, checkedLabel, isDay } = facts;
+  if (facts.stale) {
     return {
       dateLabel: formatConditionDate(now, timeZone),
       weatherLabel: weatherLabel(weather),
       factsLine,
       stale: true,
-      checkedLabel: checked,
+      checkedLabel,
       drinkLine: "",
       drinkSuggestion: "",
       venueClaim: null,
@@ -207,7 +189,7 @@ export function summariseTonightConditions(args: {
     weatherLabel: weatherLabel(weather),
     factsLine,
     stale: false,
-    checkedLabel: checked,
+    checkedLabel,
     drinkLine: verdict.line,
     drinkSuggestion: verdict.drinkSuggestion,
     venueClaim: buildVenueClaim(verdict.venueLens, tally),

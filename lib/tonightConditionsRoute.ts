@@ -9,7 +9,7 @@ import {
 import { latestWeatherForArea } from "@/lib/weatherSnapshots";
 import { loadWeatherSnapshot } from "@/lib/weatherSnapshots.server";
 import { evaluateDrinkWeather } from "@/lib/drinkWeather";
-import { daylightForNightArea } from "@/lib/weatherDaylight";
+import { observationFacts } from "@/lib/weatherObservationCopy";
 import {
   lensVenuePredicate,
   londonMonth,
@@ -47,20 +47,18 @@ export async function resolveTonightConditions(
     tempC: observation.feelsLikeC,
     condition: observation.condition,
     precipitationProbabilityPct: observation.precipitationProbabilityPct,
-    windKph: observation.windKph,
-    observedAt: observation.observedAt,
   };
-  const daylight = daylightForNightArea(area.slug, stale ? new Date(observation.observedAt) : now);
+  const facts = observationFacts({ observation, nightArea: area.slug, now, stale });
 
   if (stale) {
-    return summariseTonightConditions({ weather, now, tally: null, stale: true, daylight });
+    return summariseTonightConditions({ weather, facts, now, tally: null });
   }
 
   const verdict = evaluateDrinkWeather({
     tempC: weather.tempC,
     precipitationProbabilityPct: weather.precipitationProbabilityPct,
     month: londonMonth(now),
-    isDay: daylight?.isDay ?? null,
+    isDay: facts.isDay,
   });
   if (!verdict) return null;
 
@@ -73,5 +71,5 @@ export async function resolveTonightConditions(
       tally = null;
     }
   }
-  return summariseTonightConditions({ weather, now, tally, daylight });
+  return summariseTonightConditions({ weather, facts, now, tally });
 }
