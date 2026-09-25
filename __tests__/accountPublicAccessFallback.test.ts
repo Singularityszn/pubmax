@@ -16,12 +16,19 @@ const fake = vi.hoisted(() => ({
   getUserByIdCalls: [] as string[],
   getUserByIdError: null as { message: string } | null,
   listUsersCalls: 0,
+  authInFlight: 0,
+  authMaxInFlight: 0,
+  inCalls: [] as Array<{ table: string; column: string; size: number }>,
   tables: {} as Record<string, TableResult>,
 }));
 
 function builder(table: string) {
   const chain: Record<string, unknown> = {};
-  for (const method of ["select", "in", "is", "eq"]) chain[method] = () => chain;
+  for (const method of ["select", "is", "eq"]) chain[method] = () => chain;
+  chain.in = (column: string, values: readonly unknown[]) => {
+    fake.inCalls.push({ table, column, size: values.length });
+    return chain;
+  };
   chain.then = (resolve: (value: TableResult) => unknown, reject?: (reason: unknown) => unknown) =>
     Promise.resolve(fake.tables[table] ?? { data: [], error: null }).then(resolve, reject);
   return chain;
@@ -46,6 +53,10 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
           },
           getUserById: async (id: string) => {
             fake.getUserByIdCalls.push(id);
+            fake.authInFlight += 1;
+            fake.authMaxInFlight = Math.max(fake.authMaxInFlight, fake.authInFlight);
+            for (let tick = 0; tick < 5; tick += 1) await Promise.resolve();
+            fake.authInFlight -= 1;
             if (fake.getUserByIdError) return { data: { user: null }, error: fake.getUserByIdError };
             return { data: { user: { id, banned_until: fake.bans[id] ?? null } }, error: null };
           },
@@ -79,6 +90,9 @@ beforeEach(() => {
   fake.getUserByIdCalls = [];
   fake.getUserByIdError = null;
   fake.listUsersCalls = 0;
+  fake.authInFlight = 0;
+  fake.authMaxInFlight = 0;
+  fake.inCalls = [];
   fake.tables = {
     profiles: {
       data: [
@@ -107,6 +121,33 @@ describe("withdrawn set before migration 0157 is applied", () => {
     expect([...hidden].sort()).toEqual(["karansdad", "nikhil_old", "nikhil_x"]);
     expect(fake.listUsersCalls).toBe(0);
     expect(fake.getUserByIdCalls.sort()).toEqual(["user-alice", "user-banned"]);
+  });
+
+  it("chunks every id list and bounds and shares auth reads across a large feed", async () => {
+    const handles = Array.from({ length: 250 }, (_, at) => `drinker_${at}`);
+    fake.tables.profiles = {
+      data: handles.map((handle, at) => ({ id: `profile-${at}`, handle, user_id: `user-${at}` })),
+      error: null,
+    };
+    fake.tables.private_social_accounts = { data: [], error: null };
+    fake.tables.profile_handle_aliases = { data: [], error: null };
+
+    const [first, second] = await Promise.all([
+      withdrawnHandles(handles),
+      withdrawnHandles(handles),
+    ]);
+    expect(first).toEqual(new Set());
+    expect(second).toEqual(new Set());
+    expect(Math.max(...fake.inCalls.map((call) => call.size))).toBeLessThanOrEqual(100);
+    expect(
+      fake.inCalls
+        .filter((call) => call.table === "profile_handle_aliases")
+        .map((call) => call.size)
+        .sort((left, right) => right - left),
+    ).toEqual([100, 100, 100, 100, 50, 50]);
+    expect(fake.authMaxInFlight).toBeLessThanOrEqual(8);
+    expect(new Set(fake.getUserByIdCalls).size).toBe(250);
+    expect(fake.getUserByIdCalls).toHaveLength(250);
   });
 
   it("logs the miss and asks the function again only once a minute, holding each ban", async () => {

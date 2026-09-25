@@ -594,10 +594,11 @@ export const supabaseVisitReportStore: VisitReportStore = {
           .order("created_at", { ascending: false })
           .limit(MAX_CONTRIBUTOR_REPORTS);
         if (error) throw new Error(error.message);
-        const visible = (data ?? []).map((r) => fromRow(r as Record<string, unknown>));
         return {
           status: "ready",
-          reports: (await dropWithdrawnAuthors(visible, (r) => r.handle)).map(toVisitReportDTO),
+          reports: (data ?? []).map((r) =>
+            toVisitReportDTO(fromRow(r as Record<string, unknown>)),
+          ),
         };
       },
     });

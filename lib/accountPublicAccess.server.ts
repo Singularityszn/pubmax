@@ -38,10 +38,14 @@ type WithdrawnQuery = {
 
 const WITHDRAWN_HOLD_MS = 60_000;
 const AUTH_BAN_HOLD_MAX = 5_000;
+/** Ids per PostgREST `.in(...)`: the list travels in the request line. */
+const IN_CHUNK_SIZE = 100;
+/** GoTrue admin reads in flight at once for one fallback read. */
+const AUTH_READ_CONCURRENCY = 8;
 
 let heldRpcRows: { rows: WithdrawnRow[]; readAt: number } | null = null;
 let rpcMissedAt: number | null = null;
-const heldAuthBans = new Map<string, { banned: boolean; readAt: number }>();
+const heldAuthBans = new Map<string, { banned: Promise<boolean>; readAt: number }>();
 
 const memoryWithdrawnProfiles = new Map<string, readonly string[]>();
 
@@ -89,14 +93,51 @@ async function rowsOf<T>(answer: Answer): Promise<T[]> {
   return (data ?? []) as T[];
 }
 
-async function readAuthBanned(admin: SupabaseClient, userId: string, now: number): Promise<boolean> {
+async function rowsIn<T>(
+  values: readonly string[],
+  read: (chunk: string[]) => Answer,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let at = 0; at < values.length; at += IN_CHUNK_SIZE) {
+    rows.push(...(await rowsOf<T>(read(values.slice(at, at + IN_CHUNK_SIZE)))));
+  }
+  return rows;
+}
+
+/** One held (or in-flight) auth read per user id; a failed read is dropped. */
+function readAuthBanned(admin: SupabaseClient, userId: string, now: number): Promise<boolean> {
   const held = heldAuthBans.get(userId);
   if (held && now - held.readAt < WITHDRAWN_HOLD_MS) return held.banned;
-  const { data, error } = await admin.auth.admin.getUserById(userId);
-  if (error) throw new Error(error.message);
-  const banned = isAuthUserBannedUntil(data.user, now);
+  const banned = (async () => {
+    const { data, error } = await admin.auth.admin.getUserById(userId);
+    if (error) throw new Error(error.message);
+    return isAuthUserBannedUntil(data.user, now);
+  })();
   if (heldAuthBans.size >= AUTH_BAN_HOLD_MAX) heldAuthBans.clear();
-  heldAuthBans.set(userId, { banned, readAt: now });
+  const entry = { banned, readAt: now };
+  heldAuthBans.set(userId, entry);
+  banned.catch(() => {
+    if (heldAuthBans.get(userId) === entry) heldAuthBans.delete(userId);
+  });
+  return banned;
+}
+
+async function readBannedUserIds(
+  admin: SupabaseClient,
+  userIds: readonly string[],
+  now: number,
+): Promise<ReadonlySet<string>> {
+  const banned = new Set<string>();
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(AUTH_READ_CONCURRENCY, userIds.length) }, async () => {
+      while (next < userIds.length) {
+        const userId = userIds[next]!;
+        next += 1;
+        if (await readAuthBanned(admin, userId, now)) banned.add(userId);
+      }
+    }),
+  );
   return banned;
 }
 
@@ -109,45 +150,42 @@ async function readWithdrawnDirect(
   now: number,
 ): Promise<WithdrawnRow[]> {
   const handles = query.handles ?? [];
-  const aliasHits = handles.length === 0
-    ? []
-    : await rowsOf<{ profile_id: string; handle: string }>(
-        admin.from("profile_handle_aliases").select("profile_id, handle").in("handle", handles),
-      );
+  const aliasHits = await rowsIn<{ profile_id: string; handle: string }>(handles, (chunk) =>
+    admin.from("profile_handle_aliases").select("profile_id, handle").in("handle", chunk),
+  );
   const ids = [...new Set([...(query.profileIds ?? []), ...aliasHits.map((row) => row.profile_id)])];
   const [byHandle, byId] = await Promise.all([
-    handles.length === 0
-      ? []
-      : rowsOf<ProfileRow>(
-          admin.from("profiles").select("id, handle, user_id").in("handle", handles).is("tombstoned_at", null),
-        ),
-    ids.length === 0
-      ? []
-      : rowsOf<ProfileRow>(
-          admin.from("profiles").select("id, handle, user_id").in("id", ids).is("tombstoned_at", null),
-        ),
+    rowsIn<ProfileRow>(handles, (chunk) =>
+      admin.from("profiles").select("id, handle, user_id").in("handle", chunk).is("tombstoned_at", null),
+    ),
+    rowsIn<ProfileRow>(ids, (chunk) =>
+      admin.from("profiles").select("id, handle, user_id").in("id", chunk).is("tombstoned_at", null),
+    ),
   ]);
   const profiles = [...new Map([...byHandle, ...byId].map((row) => [row.id, row])).values()];
   if (profiles.length === 0) return [];
 
-  const [suspended, banned] = await Promise.all([
-    rowsOf<{ profile_id: string }>(
-      admin
-        .from("private_social_accounts")
-        .select("profile_id")
-        .eq("ownership_state", "suspended")
-        .in("profile_id", profiles.map((profile) => profile.id)),
+  const userIds = [...new Set(profiles.flatMap((profile) => (profile.user_id ? [profile.user_id] : [])))];
+  const [suspended, bannedUserIds] = await Promise.all([
+    rowsIn<{ profile_id: string }>(
+      profiles.map((profile) => profile.id),
+      (chunk) =>
+        admin
+          .from("private_social_accounts")
+          .select("profile_id")
+          .eq("ownership_state", "suspended")
+          .in("profile_id", chunk),
     ),
-    Promise.all(
-      profiles.map((profile) =>
-        profile.user_id ? readAuthBanned(admin, profile.user_id, now) : false,
-      ),
-    ),
+    readBannedUserIds(admin, userIds, now),
   ]);
   const suspendedIds = new Set(suspended.map((row) => row.profile_id));
   const withdrawnIds = new Set(
     profiles
-      .filter((profile, at) => banned[at] || suspendedIds.has(profile.id))
+      .filter(
+        (profile) =>
+          suspendedIds.has(profile.id) ||
+          (profile.user_id !== null && bannedUserIds.has(profile.user_id)),
+      )
       .map((profile) => profile.id),
   );
 
