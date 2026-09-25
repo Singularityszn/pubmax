@@ -17,7 +17,10 @@ export type WeatherObservationFactsInput = {
   /** ISO instant of the area's sunset on the day of `now`, when known. */
   sunsetAt: string | null;
   now: Date;
-  /** When true, prefix makes clear the reading may be out of date. */
+  /**
+   * When true, prefix makes clear the reading may be out of date, and sunset
+   * and day or night are left out: they belong to the day it was read.
+   */
   stale?: boolean;
 };
 
@@ -41,7 +44,8 @@ function dayNightLabel(isDay: boolean | null): string | null {
 
 /**
  * One comma-separated facts line: temperature, sky, rain chance, wind, sunset,
- * day or night. British spelling throughout. Stale readings are labelled plainly.
+ * day or night. British spelling throughout. Stale readings are labelled plainly
+ * and carry no sunset or day or night.
  */
 export function formatWeatherObservationFacts(input: WeatherObservationFactsInput): string {
   const temp = `${Math.round(input.feelsLikeC)}°C feels like`;
@@ -51,8 +55,8 @@ export function formatWeatherObservationFacts(input: WeatherObservationFactsInpu
     input.windKph !== null && Number.isFinite(input.windKph)
       ? `${Math.round(input.windKph)} km/h wind`
       : null;
-  const sunset = formatSunsetLabel(input.sunsetAt, input.now);
-  const dayNight = dayNightLabel(input.isDay);
+  const sunset = input.stale ? null : formatSunsetLabel(input.sunsetAt, input.now);
+  const dayNight = input.stale ? null : dayNightLabel(input.isDay);
 
   const core = [temp, condition, rain, wind, sunset, dayNight].filter(
     (part): part is string => typeof part === "string" && part.length > 0,
@@ -83,14 +87,14 @@ export type ObservationFacts = {
   checkedLabel: string;
   /** True once the observation has aged past its own expiry. */
   stale: boolean;
-  /** Sun above the area's horizon at the instant the facts describe. */
+  /** Sun above the area's horizon at `now`; null when stale or arealess. */
   isDay: boolean | null;
 };
 
 /**
  * The one reading of an observation every weather surface shares. A fresh
- * reading is described at `now`; a stale one at the instant it was observed,
- * so an old sky never borrows tonight's sunset or darkness.
+ * reading is described at `now` with sunset and day or night; a stale one gets
+ * facts and age only, so an old sky never lends its sunset or darkness to today.
  */
 export function observationFacts(input: {
   observation: Pick<
@@ -104,8 +108,7 @@ export function observationFacts(input: {
 }): ObservationFacts {
   const { observation, nightArea, now, stale } = input;
   const observedMs = Date.parse(observation.observedAt);
-  const factsAt = stale ? new Date(observedMs) : now;
-  const daylight = nightArea ? daylightForNightArea(nightArea, factsAt) : null;
+  const daylight = nightArea && !stale ? daylightForNightArea(nightArea, now) : null;
   const isDay = daylight?.isDay ?? null;
   const factsLine = formatWeatherObservationFacts({
     feelsLikeC: observation.feelsLikeC,
@@ -114,7 +117,7 @@ export function observationFacts(input: {
     windKph: observation.windKph,
     isDay,
     sunsetAt: daylight ? daylight.sunsetAt.toISOString() : null,
-    now: factsAt,
+    now,
     stale,
   });
   const relative = relativeObservedLabel(observedMs, now.getTime());

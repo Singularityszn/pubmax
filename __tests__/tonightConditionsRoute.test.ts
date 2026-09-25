@@ -116,7 +116,7 @@ describe("resolveTonightConditions (hermetic weather seam)", () => {
       drinkSuggestion: "",
       venueClaim: null,
     });
-    expect(summary?.factsLine).toMatch(/^Last read of the sky: 22°C feels like, clear, 0% chance of rain, 12 km\/h wind, /);
+    expect(summary?.factsLine).toBe("Last read of the sky: 22°C feels like, clear, 0% chance of rain, 12 km/h wind.");
     expect(summary?.factsLine).not.toMatch(/garden/i);
   });
 

@@ -141,12 +141,12 @@ describe("buildDayGreeting", () => {
       now: new Date("2026-07-25T18:00:00.000Z"),
       weather: brief({
         stale: true,
-        factsLine: "Last read of the sky: 24°C feels like, clear, 0% chance of rain, daylight.",
+        factsLine: "Last read of the sky: 24°C feels like, clear, 0% chance of rain.",
       }),
       dateLabel: DATE_LABEL,
     });
     expect(greeting.support).toBe(
-      "Saturday 25 Jul. Last read of the sky: 24°C feels like, clear, 0% chance of rain, daylight.",
+      "Saturday 25 Jul. Last read of the sky: 24°C feels like, clear, 0% chance of rain.",
     );
     expect(greeting.support).not.toContain("in London");
   });
