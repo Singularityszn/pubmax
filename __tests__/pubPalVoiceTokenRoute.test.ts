@@ -240,7 +240,7 @@ describe("Pub Pal voice token route", () => {
       connectionType: "websocket",
       maxSessionSeconds: PAL_VOICE_MAX_SESSION_SECONDS,
       mutationPolicy: "propose_then_confirm",
-      retention: "zero",
+      retention: "provider_default",
     });
     expect(body.overrides).toMatchObject({
       voiceId: "voice-fox-id",

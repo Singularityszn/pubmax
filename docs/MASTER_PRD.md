@@ -283,8 +283,9 @@ visibility, approved memories, and mute/delete state.
 - Voice is user-initiated push-to-talk, never always-listening.
 - The browser receives only a short-lived ElevenLabs conversation grant issued by
   an authenticated server endpoint.
-- Provider configuration disables audio saving and uses zero-day/zero-retention
-  settings where the account tier supports them.
+- Provider configuration disables audio saving. ElevenLabs does not offer zero
+  retention for custom-LLM agents, so it may retain conversation data under its
+  default policy.
 - Plan changes, invitations, posts, privacy changes, and memory writes return a typed
   proposal plus one-use confirmation token before mutation.
 - Only individually approved typed facts become Pal Memory. Raw audio, transcripts,

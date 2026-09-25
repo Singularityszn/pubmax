@@ -208,7 +208,7 @@ test.describe("Pub Pal concierge at 390px", () => {
     const body = (await probe.json()) as { available?: boolean; retention?: string };
     const voiceConfigured = process.env.PUB_PAL_VOICE_E2E_CONFIGURED === "1";
     expect(body.available).toBe(voiceConfigured);
-    expect(body.retention).toBe("zero");
+    expect(body.retention).toBe("provider_default");
 
     // And a caller cannot mint a session without the grant either.
     const token = await request.post("/api/pub-pal/voice-token", { data: {} });

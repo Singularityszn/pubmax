@@ -1,5 +1,5 @@
 import {
-  PAL_ONBOARDING_SPECIES,
+  DEFAULT_PAL_DRAFT,
   compatiblePalSpecies,
   type PubPal,
   type PubPalSpecies,
@@ -12,28 +12,10 @@ export function elevenLabsVoiceEnvKeyForSpecies(species: PubPalSpecies): string 
   return `ELEVENLABS_VOICE_${normalized}`;
 }
 
-const LEGACY_VOICE_ENV_KEYS: Record<PubPalVoiceId, string> = {
+const PICKED_VOICE_ENV_KEYS: Record<PubPalVoiceId, string> = {
   ember: "ELEVENLABS_VOICE_EMBER",
   velvet: "ELEVENLABS_VOICE_VELVET",
   signal: "ELEVENLABS_VOICE_SIGNAL",
-};
-
-/**
- * When only the legacy ember / velvet / signal slots are set, each onboarding
- * species maps to one slot so every Pal still gets a distinct override where
- * possible. Replace with per-species ids via voice design (docs/PUB_PAL_SETUP.md).
- */
-export const LEGACY_VOICE_SLOT_BY_ONBOARDING_SPECIES: Record<
-  (typeof PAL_ONBOARDING_SPECIES)[number],
-  PubPalVoiceId
-> = {
-  robin: "ember",
-  greyhound: "velvet",
-  cat: "signal",
-  fox: "ember",
-  pigeon: "velvet",
-  badger: "signal",
-  corgi: "ember",
 };
 
 function readEnvVoiceId(key: string): string | null {
@@ -41,25 +23,23 @@ function readEnvVoiceId(key: string): string | null {
   return value || null;
 }
 
-function resolveFromLegacySlots(pal: PubPal, species: PubPalSpecies): string | null {
-  if (PAL_ONBOARDING_SPECIES.includes(species as (typeof PAL_ONBOARDING_SPECIES)[number])) {
-    const slot =
-      LEGACY_VOICE_SLOT_BY_ONBOARDING_SPECIES[
-        species as (typeof PAL_ONBOARDING_SPECIES)[number]
-      ];
-    const fromSlot = readEnvVoiceId(LEGACY_VOICE_ENV_KEYS[slot]);
-    if (fromSlot) return fromSlot;
-  }
-  return readEnvVoiceId(LEGACY_VOICE_ENV_KEYS[pal.voice.id]);
+/**
+ * Onboarding preselects the default voice, so keeping it is indistinguishable
+ * from never choosing. Any other ember / velvet / signal pick is the person's
+ * own choice and always beats the species voice.
+ */
+export function hasMeaningfulVoicePick(pal: PubPal): boolean {
+  return pal.voice.id !== DEFAULT_PAL_DRAFT.voice.id;
 }
 
 /**
- * ElevenLabs voice id for a live session: species voice first, then legacy slot
- * bridge, then the Pal's ember/velvet/signal pick, then null (agent default).
+ * ElevenLabs voice id for a live session: the person's own voice pick when it
+ * is configured, otherwise the species voice, otherwise the picked slot, and
+ * null (agent default) when nothing is set.
  */
 export function resolveElevenLabsVoiceIdForPal(pal: PubPal): string | null {
+  const picked = readEnvVoiceId(PICKED_VOICE_ENV_KEYS[pal.voice.id]);
+  if (hasMeaningfulVoicePick(pal) && picked) return picked;
   const species = compatiblePalSpecies(pal.appearance.species) ?? pal.appearance.species;
-  const fromSpecies = readEnvVoiceId(elevenLabsVoiceEnvKeyForSpecies(species));
-  if (fromSpecies) return fromSpecies;
-  return resolveFromLegacySlots(pal, species);
+  return readEnvVoiceId(elevenLabsVoiceEnvKeyForSpecies(species)) ?? picked;
 }

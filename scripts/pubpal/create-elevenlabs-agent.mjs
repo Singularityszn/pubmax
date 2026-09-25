@@ -7,7 +7,8 @@
 // So this script sets four things and nothing else:
 //
 //   1. the Custom LLM URL plus its shared secret,
-//   2. zero audio and transcript retention,
+//   2. no voice recording; ElevenLabs may still retain conversation data
+//      under its default policy for custom-LLM agents,
 //   3. a default voice, when one is set, and the per-session overrides that
 //      let each Pal speak in its own species voice,
 //   4. the house first message and the propose-then-confirm rule (ADR 0006).
@@ -109,8 +110,6 @@ function agentBody(llmUrl, secretId) {
       conversation: {
         max_duration_seconds: MAX_SESSION_SECONDS,
       },
-      // Zero retention (ADR 0006): raw audio and transcripts are never
-      // source-of-truth memory, so the provider must not keep either.
       ...(defaultVoice ? { tts: { voice_id: defaultVoice } } : {}),
     },
     platform_settings: {
@@ -128,8 +127,9 @@ function agentBody(llmUrl, secretId) {
       },
       privacy: {
         record_voice: false,
-        // ElevenLabs rejects custom_llm while zero_retention_mode is on; keep
-        // audio off and transcripts deleted instead (ADR 0006 intent).
+        // ElevenLabs rejects custom_llm while zero_retention_mode is on, so
+        // the provider may retain conversation data under its default policy.
+        // Raw audio and transcripts are still never Pal memory (ADR 0006).
         retention_days: 0,
         delete_transcript_and_pii: true,
         zero_retention_mode: false,

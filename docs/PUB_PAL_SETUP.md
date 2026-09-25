@@ -36,7 +36,7 @@ Variables → Production, Preview). All four are server-only.
 | `ELEVENLABS_PUB_PAL_AGENT_ID` | The agent the script below creates |
 | `ELEVENLABS_LLM_SHARED_SECRET` | The secret ElevenLabs presents to `/api/pub-pal/llm`. Generate with `openssl rand -hex 32` |
 | `ELEVENLABS_VOICE_ROBIN` … `_CORGI` | One voice id per species (`lib/palElevenLabsVoice.ts`). Create with `npm run pubpal:design-voices` |
-| `ELEVENLABS_VOICE_EMBER` / `_VELVET` / `_SIGNAL` | Legacy slots when a species id is unset |
+| `ELEVENLABS_VOICE_EMBER` / `_VELVET` / `_SIGNAL` | The onboarding voice picks. A velvet or signal pick always wins over the species voice; ember is the preselected default, so it wins only when the species id is unset |
 
 `.env.example` carries the same names with empty values.
 
@@ -79,8 +79,11 @@ It sets four things and nothing else:
 1. **Custom LLM** pointed at `<base-url>/api/pub-pal/llm`, with the shared
    secret. That route runs the same source-backed Night OS Ask path the text
    surface runs, so the voice cannot answer from the provider's own model.
-2. **Zero retention**: no audio recording, no transcript, no PII kept. ADR 0006
-   is explicit that raw audio and transcripts are never memory.
+2. **Retention**: voice recording is off and transcript deletion is requested,
+   but ElevenLabs refuses zero retention mode for custom-LLM agents, so it may
+   retain conversation data under its default policy. The token route reports
+   this as `retention: "provider_default"`. ADR 0006 is explicit that raw audio
+   and transcripts are never Pal memory.
 3. **Voices**, when their ids are set. The agent-level voice is the default;
    each session overrides it with the caller's species voice from
    `lib/palElevenLabsVoice.ts` / `lib/palVoiceOverrides.ts`, so every Pal
