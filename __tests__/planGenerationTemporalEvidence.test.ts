@@ -62,6 +62,8 @@ vi.mock("@/public/data/weather/latest.json", () => ({
       feelsLikeC: 20,
       precipitationProbabilityPct: 5,
       windKph: 6,
+        isDay: null,
+        sunsetAt: null,
       source: {
         sourceUrl: "https://weather.example/current",
         publisher: "Current Weather",

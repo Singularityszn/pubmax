@@ -31,10 +31,8 @@ export type LandingAnswers = {
 
 /** What the weather read gave us, reduced to the three words the card uses. */
 export type TodayWeatherFacts = {
-  /** "19C", the feels-like figure the brief rounded. */
-  tempLabel: string;
-  /** "cloudy". */
-  conditionLabel: string;
+  /** Numbers-led facts from the cached observation. */
+  factsLine: string;
   /** "Beer garden weather. Lager or cider." */
   verdictLine: string;
   /** True once the reading has aged past its own expiry. */
@@ -51,7 +49,7 @@ export function todayAnswer(weather: TodayWeatherFacts | null, stamp: string): L
     return { line: "We could not read today's London weather just now.", stamp, measured: false };
   }
   return {
-    line: `${weather.tempLabel} and ${weather.conditionLabel} in London. ${weather.verdictLine}`,
+    line: `${weather.factsLine} ${weather.verdictLine}`,
     stamp,
     measured: true,
   };

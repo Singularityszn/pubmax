@@ -76,7 +76,7 @@ describe("gardenWeatherHeadline", () => {
         precipProbabilityPct: 10,
         isDay: true,
       }),
-    ).toBe("24° and dry. Beer-garden night");
+    ).toBe("24° feels like, 10% rain chance. Beer-garden weather.");
   });
 
   it("returns null when it is not garden weather", () => {

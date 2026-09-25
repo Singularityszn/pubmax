@@ -18,36 +18,13 @@ import {
   type NightAreaWeatherObservation,
 } from "@/lib/weatherSnapshots";
 
+import { LONDON_LONDON_NIGHT_AREA_COORDS } from "@/lib/weatherAreaCoords";
+
 // [lat, lng] centroids per LONDON night area — the established set the scheduled
 // refresh has always polled (kept in lockstep with
 // scripts/refresh_weather_snapshots.mjs). The snapshot this feeds is London's,
 // so the table is keyed on London's own patches: an area in another city has no
 // row here and reads as no weather rather than as somebody else's.
-const NIGHT_AREA_COORDS: Record<LondonNightAreaSlug, readonly [number, number]> = {
-  clapham: [51.462, -0.138],
-  victoria: [51.496, -0.143],
-  "piccadilly-soho": [51.511, -0.134],
-  "canary-wharf": [51.505, -0.022],
-  barnes: [51.474, -0.239],
-  chiswick: [51.493, -0.255],
-  shoreditch: [51.524, -0.079],
-  camden: [51.539, -0.143],
-  brixton: [51.461, -0.115],
-  "bermondsey-london-bridge": [51.504, -0.082],
-  "kings-cross": [51.531, -0.124],
-  islington: [51.534, -0.104],
-  dalston: [51.546, -0.075],
-  peckham: [51.473, -0.069],
-  greenwich: [51.482, -0.009],
-  hammersmith: [51.492, -0.224],
-  balham: [51.443, -0.152],
-  marylebone: [51.522, -0.163],
-  richmond: [51.461, -0.303],
-  putney: [51.461, -0.216],
-};
-
-// Hours a single observation is considered current before it must expire (the
-// cron re-runs well inside this window). Mirrors the legacy script's 12h.
 const OBSERVATION_TTL_HOURS = 12;
 
 export function conditionForCode(code: number): string {
@@ -79,24 +56,45 @@ function openMeteoUrl(lat: number, lng: number): string {
     current: "apparent_temperature,weather_code,wind_speed_10m",
     hourly: "precipitation_probability",
     forecast_hours: "1",
-    timezone: "UTC",
+    forecast_days: "1",
+    timezone: "Europe/London",
   }).toString();
   return url.toString();
+}
+
+/** Parse an Open-Meteo local timestamp using the response's UTC offset. */
+function openMeteoLocalInstant(time: unknown, utcOffsetSeconds: unknown): number {
+  if (typeof time !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(time)) return Number.NaN;
+  const offset =
+    typeof utcOffsetSeconds === "number" && Number.isFinite(utcOffsetSeconds)
+      ? utcOffsetSeconds
+      : 0;
+  const sign = offset >= 0 ? "+" : "-";
+  const abs = Math.abs(offset);
+  const hours = String(Math.floor(abs / 3600)).padStart(2, "0");
+  const minutes = String(Math.floor((abs % 3600) / 60)).padStart(2, "0");
+  const normalized = time.length === 16 ? `${time}:00` : time;
+  return Date.parse(`${normalized}${sign}${hours}:${minutes}`);
 }
 
 async function observationFor(
   nightArea: LondonNightAreaSlug,
   doFetch: WeatherFetch,
 ): Promise<NightAreaWeatherObservation | null> {
-  const url = openMeteoUrl(...NIGHT_AREA_COORDS[nightArea]);
+  const url = openMeteoUrl(...LONDON_NIGHT_AREA_COORDS[nightArea]);
   const response = await doFetch(url);
   if (!response.ok) throw new Error(`${nightArea}: Open-Meteo returned ${response.status}`);
   const body = (await response.json()) as {
-    current?: { time?: unknown; apparent_temperature?: unknown; weather_code?: unknown; wind_speed_10m?: unknown };
+    utc_offset_seconds?: unknown;
+    current?: {
+      time?: unknown;
+      apparent_temperature?: unknown;
+      weather_code?: unknown;
+      wind_speed_10m?: unknown;
+    };
     hourly?: { precipitation_probability?: unknown[] };
   };
-  const timeRaw = typeof body?.current?.time === "string" ? `${body.current.time}Z` : "";
-  const observedAtMs = Date.parse(timeRaw);
+  const observedAtMs = openMeteoLocalInstant(body?.current?.time, body?.utc_offset_seconds);
   const feelsLikeC = body?.current?.apparent_temperature;
   const weatherCode = body?.current?.weather_code;
   const windKph = body?.current?.wind_speed_10m;

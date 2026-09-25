@@ -95,6 +95,33 @@ export function validateWeatherObservation(value: unknown): NightAreaWeatherObse
   };
 }
 
+export type AreaWeatherRead = {
+  observation: NightAreaWeatherObservation;
+  stale: boolean;
+};
+
+/**
+ * Latest observation for a night area, including readings past their expiry.
+ * Used by display surfaces that must say plainly when a row is stale rather
+ * than vanish or recycle generic garden copy.
+ */
+export function latestWeatherForArea(
+  value: unknown,
+  nightArea: NightAreaSlug,
+  nowMs: number,
+): AreaWeatherRead | null {
+  const snapshot = validateWeatherSnapshot(value);
+  if (!snapshot) return null;
+  if (Date.parse(snapshot.generatedAt) > nowMs) return null;
+
+  const observation = snapshot.observations.find((candidate) => candidate.nightArea === nightArea);
+  if (!observation) return null;
+  if (Date.parse(observation.observedAt) > nowMs) return null;
+
+  const stale = nowMs >= Date.parse(observation.expiresAt);
+  return { observation, stale };
+}
+
 export function validateWeatherSnapshot(value: unknown): WeatherSnapshot | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;

@@ -215,9 +215,17 @@ export function buildDayGreeting(input: {
     };
   }
 
-  const support = weather.stale
-    ? `${input.dateLabel}. Last read of the sky: ${weather.tempLabel} and ${weather.conditionLabel}.`
-    : `${input.dateLabel}, ${weather.tempLabel} and ${weather.conditionLabel} in London.`;
+  if (weather.stale) {
+    return {
+      slot,
+      salutation,
+      headline: HEADLINE_NO_WEATHER[slot],
+      support: `${input.dateLabel}. ${weather.factsLine}`,
+      weatherAware: false,
+    };
+  }
+
+  const support = `${input.dateLabel}. ${weather.factsLine}`;
 
   return {
     slot,

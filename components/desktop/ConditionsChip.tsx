@@ -42,12 +42,12 @@ export default function ConditionsChip() {
   if (!summary) return null;
 
   const verdict = shortDrinkVerdict(summary.drinkLine);
-  const full = `${summary.dateLabel}, ${summary.weatherLabel}. ${summary.drinkLine}`;
+  const full = `${summary.dateLabel}. ${summary.factsLine} ${summary.drinkLine}${summary.stale ? " (reading may be out of date)" : ""}`;
 
   return (
     <span className="conditionsChip" title={full} aria-label={full}>
       <CloudSun size={14} aria-hidden="true" />
-      <span className="conditionsChipWeather">{summary.weatherLabel}.</span>
+      <span className="conditionsChipWeather">{summary.factsLine}</span>
       {verdict ? <span className="conditionsChipVerdict">{verdict}</span> : null}
     </span>
   );

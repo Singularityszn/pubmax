@@ -17,6 +17,8 @@ const snapshot: WeatherSnapshot = {
     feelsLikeC: 19,
     precipitationProbabilityPct: 10,
     windKph: 9,
+        isDay: null,
+        sunsetAt: null,
     source: {
       sourceUrl: "https://api.open-meteo.com/v1/forecast",
       publisher: "Open-Meteo",

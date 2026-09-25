@@ -28,6 +28,8 @@ import { firstHttp } from "@/lib/httpUrl";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import { formatConditionDate, londonMonth } from "@/lib/tonightConditions";
 import { validateWeatherSnapshot } from "@/lib/weatherSnapshots";
+import { daylightForNightArea } from "@/lib/weatherDaylight";
+import { formatWeatherObservationFacts } from "@/lib/weatherObservationCopy";
 import { whatsOnBarePriceGbp, type WhatsOnConfidence, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 
 // A central district for the location-free morning glance. The brief is a
@@ -61,6 +63,8 @@ export type WeatherBrief = {
   checkedLabel: string;
   /** Attribution for the weather claim. */
   source: { publisher: string; url: string };
+  /** Numbers-led line: temp, rain, wind, sunset, day or night. */
+  factsLine: string;
 };
 
 // Human "x ago" from an observation timestamp. Floor-based so the label only
@@ -88,7 +92,6 @@ export function buildWeatherBrief(
   snapshot: unknown,
   now: Date,
   area: NightAreaSlug = BRIEF_DEFAULT_AREA,
-  options: { fallbackToFirst?: boolean } = {},
 ): WeatherBrief | null {
   const validated = validateWeatherSnapshot(snapshot);
   if (!validated) return null;
@@ -97,41 +100,68 @@ export function buildWeatherBrief(
   // A snapshot generated in the future is bad data / clock skew, not weather.
   if (Date.parse(validated.generatedAt) > nowMs) return null;
 
-  const observation =
-    validated.observations.find((candidate) => candidate.nightArea === area) ??
-    (options.fallbackToFirst === false ? undefined : validated.observations[0]);
+  const observation = validated.observations.find((candidate) => candidate.nightArea === area);
   if (!observation) return null;
 
   const observedMs = Date.parse(observation.observedAt);
   // You cannot have observed tomorrow's weather.
   if (observedMs > nowMs) return null;
 
+  const stale = nowMs >= Date.parse(observation.expiresAt);
+  const factsAt = stale ? new Date(observedMs) : now;
+  const daylight = daylightForNightArea(area, factsAt);
+  const isDay = daylight?.isDay ?? null;
+  const sunsetAt = daylight ? daylight.sunsetAt.toISOString() : null;
+  const factsLine = formatWeatherObservationFacts({
+    feelsLikeC: observation.feelsLikeC,
+    condition: observation.condition,
+    precipitationProbabilityPct: observation.precipitationProbabilityPct,
+    windKph: observation.windKph,
+    isDay,
+    sunsetAt,
+    now: factsAt,
+    stale,
+  });
+  const relative = relativeObservedLabel(observedMs, nowMs);
+  const checkedLabel = `${stale ? "Last checked" : "Checked"} ${relative}`;
+
+  if (stale) {
+    return {
+      dateLabel: formatConditionDate(now),
+      tempLabel: `${Math.round(observation.feelsLikeC)}°C`,
+      conditionLabel: observation.condition.trim().toLocaleLowerCase("en-GB"),
+      verdictLine: "",
+      ruleId: "mild-riverside",
+      drinkSuggestion: "",
+      venueLens: "any",
+      stale: true,
+      checkedLabel,
+      source: { publisher: observation.source.publisher, url: observation.source.sourceUrl },
+      factsLine,
+    };
+  }
+
   const verdict = evaluateDrinkWeather({
     tempC: observation.feelsLikeC,
     precipitationProbabilityPct: observation.precipitationProbabilityPct,
     month: londonMonth(now),
-    // The greeting above this card derives the same band. Without it the card
-    // said "evening" over a "Good morning".
     dayPart: daySlot(now),
+    isDay,
   });
   if (!verdict) return null;
 
-  const stale = nowMs >= Date.parse(observation.expiresAt);
-  const relative = relativeObservedLabel(observedMs, nowMs);
   return {
     dateLabel: formatConditionDate(now),
-    // Degree sign, the same one the map's own status banner prints. Without it
-    // the two surfaces contradicted each other on the same weather: "27°C" on
-    // the map, "21C" on Today.
     tempLabel: `${Math.round(observation.feelsLikeC)}°C`,
     conditionLabel: observation.condition.trim().toLocaleLowerCase("en-GB"),
     verdictLine: verdict.line,
     ruleId: verdict.ruleId,
     drinkSuggestion: verdict.drinkSuggestion,
     venueLens: verdict.venueLens,
-    stale,
-    checkedLabel: `${stale ? "Last checked" : "Checked"} ${relative}`,
+    stale: false,
+    checkedLabel,
     source: { publisher: observation.source.publisher, url: observation.source.sourceUrl },
+    factsLine,
   };
 }
 

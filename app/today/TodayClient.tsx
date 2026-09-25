@@ -130,7 +130,7 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
         <div>
           <p className="todayCardEyebrow">Drink weather</p>
           <h2 className="todayCardTitle" id="today-weather-title">
-            {weather ? weather.verdictLine : "No weather verdict right now."}
+            {weather && !weather.stale ? weather.verdictLine : weather?.stale ? "Last sky read on file." : "No weather verdict right now."}
           </h2>
         </div>
       </div>
