@@ -87,7 +87,7 @@ function openMeteoUrl(lat: number, lng: number): string {
 }
 
 /** Parse an Open-Meteo local timestamp using the response's UTC offset. */
-export function openMeteoLocalInstant(time: unknown, utcOffsetSeconds: unknown): number {
+function openMeteoLocalInstant(time: unknown, utcOffsetSeconds: unknown): number {
   if (typeof time !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(time)) return Number.NaN;
   const offset =
     typeof utcOffsetSeconds === "number" && Number.isFinite(utcOffsetSeconds)
