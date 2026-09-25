@@ -9,6 +9,7 @@ import "server-only";
 
 import sharp from "sharp";
 
+import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
 import type { CityId } from "@/lib/cities";
 import type { Provenance } from "@/lib/curation";
 import {
@@ -688,10 +689,15 @@ export const memoryPintDropStore: PintDropStore = {
         canViewOnPublicSurface(d, viewer) &&
         (!author || normalizeViewerHandle(d.handle) === author),
     );
-    return newestFirstCapped(permitted).map((d) => toDTO(withVerifiedReportCount(d)));
+    const published = await dropWithdrawnAuthors(permitted, (d) => d.handle);
+    return newestFirstCapped(published).map((d) => toDTO(withVerifiedReportCount(d)));
   },
   async listLegacyForVenue(venueId) {
-    return newestFirstCapped(listLegacyPintDropsForVenue(venueId)).map((d) =>
+    const published = await dropWithdrawnAuthors(
+      listLegacyPintDropsForVenue(venueId),
+      (d) => d.handle,
+    );
+    return newestFirstCapped(published).map((d) =>
       toDTO(withVerifiedReportCount(d)),
     );
   },
@@ -1181,7 +1187,8 @@ export const supabasePintDropStore: PintDropStore = {
       .concat(seeds)
       .filter((d) => venueId || dropMatchesCityScope(d.venueId, cityId))
       .filter((d) => canViewOnPublicSurface(d, viewer));
-    const capped = newestFirstCapped(permitted);
+    const published = await dropWithdrawnAuthors(permitted, (d) => d.handle);
+    const capped = newestFirstCapped(published);
     return toDTOsWithBatchedPhotos(capped);
   },
 
@@ -1198,7 +1205,8 @@ export const supabasePintDropStore: PintDropStore = {
       .limit(MAX_PUBLIC_DROPS);
     const { data, error } = await query;
     if (error) throw new Error(error.message);
-    const rows = newestFirstCapped((data ?? []).map(fromRow));
+    const published = await dropWithdrawnAuthors((data ?? []).map(fromRow), (d) => d.handle);
+    const rows = newestFirstCapped(published);
     return toDTOsWithBatchedPhotos(rows);
   },
 

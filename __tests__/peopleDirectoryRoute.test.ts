@@ -63,8 +63,8 @@ vi.mock("@/lib/profileStore", async (importOriginal) => {
 
 import { GET as directory } from "@/app/api/profiles/directory/route";
 import {
-  __resetMemoryAccountEnforcement,
-  __setMemoryAccountEnforcement,
+  __resetMemoryProfileSuspensions,
+  __setMemoryProfileSuspended,
 } from "@/lib/accountPublicAccess.server";
 
 function profile(handle: string, overrides: Partial<ProfileRecord> = {}): ProfileRecord {
@@ -280,8 +280,8 @@ describe("discovery: who the viewer has not followed yet", () => {
     expect(body.alreadyFollowing).toBe(1);
   });
 
-  it("hides a banned account without ending the directory at its window", async () => {
-    __setMemoryAccountEnforcement("user-bob", { authBanned: true, socialSuspended: false });
+  it("hides a suspended account without ending the directory at its window", async () => {
+    __setMemoryProfileSuspended(profile("bob"), true);
     try {
       state.rows = [profile("alice"), profile("bob"), profile("cara")];
       const body = await browse("?limit=2");
@@ -289,7 +289,7 @@ describe("discovery: who the viewer has not followed yet", () => {
       expect(body.nextCursor).toBe("bob");
       expect(body.alreadyFollowing).toBe(0);
     } finally {
-      __resetMemoryAccountEnforcement();
+      __resetMemoryProfileSuspensions();
     }
   });
 });

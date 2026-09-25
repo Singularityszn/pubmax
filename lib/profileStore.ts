@@ -424,12 +424,6 @@ export type ProfileStore = {
     handles: readonly string[],
   ): Promise<ReadonlyMap<string, ProfilePublicCard>>;
   /**
-   * One query: the linked auth user id for each live, claimed handle. Keys are
-   * normalised handles; an unclaimed or tombstoned handle is absent. Server-only
-   * input to account enforcement, never a public field.
-   */
-  getOwnerUserIdsByHandles(handles: readonly string[]): Promise<ReadonlyMap<string, string>>;
-  /**
    * Resolve the handle linked to an auth user id, or null when no profile has
    * claimed that uid yet. Used by messaging (and similar) so an authenticated
    * caller is identified by their linked profile rather than a self-asserted
@@ -786,13 +780,6 @@ function approvedAvatarUrlForProfile(profile: ProfileRecord): string | undefined
 
 const CARD_BATCH_COLUMNS = `${AVATAR_BATCH_COLUMNS}, display_name`;
 
-const OWNER_BATCH_COLUMNS = "id, handle, user_id, tombstoned_at";
-
-function keepOwnerUserId(profile: ProfileRecord, into: Map<string, string>): void {
-  const userId = profile.userId?.trim();
-  if (userId && !isProfileTombstoned(profile)) into.set(profile.handle, userId);
-}
-
 /**
  * How many handles one PostgREST `.in(...)` may carry. The filter travels in the
  * request LINE, so an unpaginated caller (a followers list) would grow the URL
@@ -934,20 +921,6 @@ export const supabaseProfileStore: ProfileStore = {
           .in("handle", keys)
           .is("tombstoned_at", null),
       (profile, into) => into.set(profile.handle, publicCardForProfile(profile)),
-    );
-  },
-
-  async getOwnerUserIdsByHandles(handles) {
-    return readHandleBatches<string>(
-      handles,
-      (keys) =>
-        admin()
-          .from(TABLE)
-          .select(OWNER_BATCH_COLUMNS)
-          .in("handle", keys)
-          .not("user_id", "is", null)
-          .is("tombstoned_at", null),
-      keepOwnerUserId,
     );
   },
 
@@ -1358,15 +1331,6 @@ export const memoryProfileStore: ProfileStore = {
       const profile = memoryProfiles.get(key);
       if (!profile) continue;
       out.set(profile.handle, publicCardForProfile(profile));
-    }
-    return out;
-  },
-
-  async getOwnerUserIdsByHandles(handles) {
-    const out = new Map<string, string>();
-    for (const raw of handles) {
-      const profile = memoryProfiles.get(normalizeHandle(raw));
-      if (profile) keepOwnerUserId(profile, out);
     }
     return out;
   },

@@ -1,155 +1,106 @@
 import "server-only";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
-
-import { isAuthUserBannedUntil } from "@/lib/authAccountBan";
 import { normalizeHandle } from "@/lib/profiles";
-import { isProfileTombstoned, profileStore, type ProfileRecord } from "@/lib/profileStore";
+import { isProfileTombstoned, type ProfileRecord } from "@/lib/profileStore";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 
-export type AccountEnforcementState = {
-  authBanned: boolean;
-  socialSuspended: boolean;
+// Public withdrawal is a moderation fact about a PROFILE: its private social
+// account is `suspended`. A GoTrue ban gates sign-in only (lib/authAccountBan.ts)
+// and is never read here, so no public surface pays an auth-admin round trip.
+// Suspensions are rare, so every check reads the whole suspended set in ONE
+// query, joined to the profile's current handle, and decides its rows locally.
+
+type SuspendedProfiles = {
+  profileIds: ReadonlySet<string>;
+  handles: ReadonlySet<string>;
 };
 
-const memoryEnforcement = new Map<string, AccountEnforcementState>();
+const memorySuspendedProfiles = new Map<string, string>();
 
 /** Test seam for keyless runs. Production ignores this map when Supabase is configured. */
-export function __setMemoryAccountEnforcement(
-  userId: string,
-  state: AccountEnforcementState | null,
+export function __setMemoryProfileSuspended(
+  profile: Pick<ProfileRecord, "id" | "handle">,
+  suspended: boolean,
 ): void {
-  if (state) memoryEnforcement.set(userId, state);
-  else memoryEnforcement.delete(userId);
+  if (suspended) memorySuspendedProfiles.set(profile.id, normalizeHandle(profile.handle));
+  else memorySuspendedProfiles.delete(profile.id);
 }
 
-export function __resetMemoryAccountEnforcement(): void {
-  memoryEnforcement.clear();
-  authBanMemo.clear();
+export function __resetMemoryProfileSuspensions(): void {
+  memorySuspendedProfiles.clear();
 }
 
-/**
- * Public feeds ask about the same few authors on every request, and each auth
- * read is a GoTrue admin round trip, so a successful answer is held briefly per
- * process. A ban lands within this window; a failed read is never held.
- */
-const AUTH_BAN_MEMO_MS = 60_000;
-const AUTH_BAN_MEMO_MAX = 5_000;
-const authBanMemo = new Map<string, { banned: boolean; readAt: number }>();
-
-async function readAuthBanned(admin: SupabaseClient, userId: string): Promise<boolean> {
-  const now = Date.now();
-  const held = authBanMemo.get(userId);
-  if (held && now - held.readAt < AUTH_BAN_MEMO_MS) return held.banned;
-  try {
-    const { data, error } = await admin.auth.admin.getUserById(userId);
-    if (error) return false;
-    const banned = isAuthUserBannedUntil(data.user, now);
-    if (authBanMemo.size >= AUTH_BAN_MEMO_MAX) authBanMemo.clear();
-    authBanMemo.set(userId, { banned, readAt: now });
-    return banned;
-  } catch {
-    return false;
-  }
-}
-
-async function readSocialSuspended(
-  admin: SupabaseClient,
-  userIds: readonly string[],
-): Promise<ReadonlySet<string>> {
-  const suspended = new Set<string>();
-  try {
-    const { data, error } = await admin
-      .from("private_social_accounts")
-      .select("supabase_user_id, ownership_state")
-      .in("supabase_user_id", userIds);
-    if (error) return suspended;
-    for (const row of data ?? []) {
-      const { supabase_user_id: id, ownership_state: state } = row as {
-        supabase_user_id?: unknown;
-        ownership_state?: unknown;
-      };
-      if (typeof id === "string" && state === "suspended") suspended.add(id);
-    }
-  } catch {
-    // Fail-soft: treat as not suspended when the lane cannot answer.
-  }
-  return suspended;
-}
-
-/**
- * The withdrawn owners among `userIds`, read in one pass: one social query and
- * one auth read per distinct id, all in flight together. Callers hold the set
- * for the whole list they are deciding, so no row pays for a second read.
- */
-async function readWithdrawnUserIds(userIds: readonly string[]): Promise<ReadonlySet<string>> {
-  const pending = [...new Set(userIds.map((id) => id.trim()).filter(Boolean))];
-  const withdrawn = new Set<string>();
-  if (pending.length === 0) return withdrawn;
+async function readSuspendedProfiles(): Promise<SuspendedProfiles> {
+  const profileIds = new Set<string>();
+  const handles = new Set<string>();
 
   const admin = isSupabaseConfigured() ? getSupabaseAdmin() : null;
   if (!admin) {
-    for (const userId of pending) {
-      const state = memoryEnforcement.get(userId);
-      if (state?.authBanned || state?.socialSuspended) withdrawn.add(userId);
+    for (const [profileId, handle] of memorySuspendedProfiles) {
+      profileIds.add(profileId);
+      handles.add(handle);
     }
-    return withdrawn;
+    return { profileIds, handles };
   }
 
-  const [suspended, banned] = await Promise.all([
-    readSocialSuspended(admin, pending),
-    Promise.all(pending.map((userId) => readAuthBanned(admin, userId))),
-  ]);
-  pending.forEach((userId, at) => {
-    if (banned[at] || suspended.has(userId)) withdrawn.add(userId);
-  });
-  return withdrawn;
+  try {
+    const { data, error } = await admin
+      .from("private_social_accounts")
+      .select("profile_id, profiles(handle)")
+      .eq("ownership_state", "suspended");
+    if (error) return { profileIds, handles };
+    for (const row of data ?? []) {
+      const { profile_id: profileId, profiles: profile } = row as {
+        profile_id?: unknown;
+        profiles?: { handle?: unknown } | null;
+      };
+      if (typeof profileId === "string") profileIds.add(profileId);
+      const handle = normalizeHandle(String(profile?.handle ?? ""));
+      if (handle) handles.add(handle);
+    }
+  } catch {
+    // Fail-soft: treat nobody as suspended when the lane cannot answer.
+  }
+  return { profileIds, handles };
 }
 
 export type ProfilePublicPresence = "visible" | "gone" | "withdrawn";
 
 export async function profilePublicPresence(
-  profile: Pick<ProfileRecord, "userId" | "tombstonedAt"> | null | undefined,
+  profile: Pick<ProfileRecord, "id" | "tombstonedAt"> | null | undefined,
 ): Promise<ProfilePublicPresence> {
   if (!profile) return "visible";
   if (isProfileTombstoned(profile)) return "gone";
-  const userId = profile.userId?.trim();
-  if (!userId) return "visible";
-  const withdrawn = await readWithdrawnUserIds([userId]);
-  return withdrawn.has(userId) ? "withdrawn" : "visible";
+  const suspended = await readSuspendedProfiles();
+  return suspended.profileIds.has(profile.id) ? "withdrawn" : "visible";
 }
 
 export async function isProfileWithdrawnFromPublic(
-  profile: Pick<ProfileRecord, "userId" | "tombstonedAt"> | null | undefined,
+  profile: Pick<ProfileRecord, "id" | "tombstonedAt"> | null | undefined,
 ): Promise<boolean> {
   return (await profilePublicPresence(profile)) === "withdrawn";
 }
 
-/** Drop banned or suspended owners from public profile lists (search, directory, founders). */
-export async function filterProfilesWithdrawnFromPublic<T extends Pick<ProfileRecord, "userId" | "tombstonedAt">>(
+/** Drop suspended owners from public profile lists (search, directory, founders). */
+export async function filterProfilesWithdrawnFromPublic<T extends Pick<ProfileRecord, "id" | "tombstonedAt">>(
   profiles: readonly T[],
 ): Promise<T[]> {
-  const live = profiles.filter((profile) => !isProfileTombstoned(profile));
-  const withdrawn = await readWithdrawnUserIds(live.map((profile) => profile.userId ?? ""));
+  if (profiles.length === 0) return [];
+  const suspended = await readSuspendedProfiles();
   return profiles.filter(
-    (profile) => isProfileTombstoned(profile) || !withdrawn.has(profile.userId?.trim() ?? ""),
+    (profile) => isProfileTombstoned(profile) || !suspended.profileIds.has(profile.id),
   );
 }
 
-/** The normalised handles among `handles` whose owning account is banned or suspended. */
+/** The normalised handles among `handles` whose profile is suspended. */
 export async function withdrawnHandles(handles: readonly string[]): Promise<ReadonlySet<string>> {
   const keys = [...new Set(handles.map((handle) => normalizeHandle(handle)).filter(Boolean))];
   if (keys.length === 0) return new Set();
-  const owners = await profileStore().getOwnerUserIdsByHandles(keys);
-  const withdrawn = await readWithdrawnUserIds([...owners.values()]);
-  const out = new Set<string>();
-  for (const [handle, userId] of owners) {
-    if (withdrawn.has(userId)) out.add(handle);
-  }
-  return out;
+  const suspended = await readSuspendedProfiles();
+  return new Set(keys.filter((key) => suspended.handles.has(key)));
 }
 
-/** Drop contributions whose author account is withdrawn from public view. */
+/** Drop contributions whose author profile is withdrawn from public view. */
 export async function dropWithdrawnAuthors<T>(
   items: readonly T[],
   authorHandle: (item: T) => string | null | undefined,

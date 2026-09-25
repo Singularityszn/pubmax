@@ -8,7 +8,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 import {
   attachAvatarUrls,
   avatarInitialFromHandle,
-  projectPublicAuthors,
+  enrichItemsWithAvatarUrls,
   profileMayWearAvatar,
   resolveAvatarUrlsForHandles,
 } from "@/lib/avatarResolve";
@@ -67,7 +67,7 @@ describe("avatarResolve", () => {
     expect(urls.get("bob")).toBe(publicOwnedImageUrl((await memoryProfileStore.getByHandle("bob"))!, "avatar"));
     expect(urls.has("unlinked")).toBe(false);
 
-    const enriched = await projectPublicAuthors([
+    const enriched = await enrichItemsWithAvatarUrls([
       { handle: "alice", id: "1" },
       { handle: "unlinked", id: "2" },
     ]);

@@ -96,23 +96,32 @@ function isKaranFamilyTerm(token: string): boolean {
   return (KARAN_FAMILY_TERMS as readonly string[]).includes(token);
 }
 
-/** One word that is a Karan stem joined to a family term: karansdad, xkarandad, dadkaran. */
-function isKaranFamilyCompound(token: string): boolean {
-  return KARAN_STEMS.some((stem) =>
-    KARAN_FAMILY_TERMS.some(
-      (term) => token.endsWith(`${stem}${term}`) || token.startsWith(`${term}${stem}`),
-    ),
+/**
+ * One word that joins Karan to a family term: karansdad (anywhere in the word,
+ * because the possessive never starts a real surname), xkarandad (the word
+ * ends at the term), dadkaran.
+ */
+function isKaranFamilyCompound(word: string): boolean {
+  return KARAN_FAMILY_TERMS.some(
+    (term) =>
+      word.includes(`karans${term}`) ||
+      word.endsWith(`karan${term}`) ||
+      KARAN_STEMS.some((stem) => word.startsWith(`${term}${stem}`)),
   );
 }
 
 /**
  * Karan plus a family word, matched word by word so a real surname that only
- * starts with a family term (Dadlani, Momin, Sisodia) stays available.
+ * starts with a family term (Dadlani, Momin, Sisodia) stays available. A stem
+ * is also read joined to the word after it, so karan_sdad reads as karansdad.
  */
 function violatesOwnerKaranPolicy(normalized: string): boolean {
   if (!normalized.includes("karan")) return false;
-  const tokens = normalized.split(/[^a-z]+/).filter(Boolean);
-  if (tokens.some(isKaranFamilyCompound)) return true;
+  const tokens = normalized.replace(/['’]/g, "").split(/[^a-z]+/).filter(Boolean);
+  const joined = tokens.flatMap((token, at) =>
+    isKaranStem(token) && at + 1 < tokens.length ? [`${token}${tokens[at + 1]}`] : [],
+  );
+  if ([...tokens, ...joined].some(isKaranFamilyCompound)) return true;
   return tokens.some(isKaranStem) && tokens.some(isKaranFamilyTerm);
 }
 

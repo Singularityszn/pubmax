@@ -80,8 +80,9 @@ export async function accountHasPassword(
 }
 
 /**
- * GoTrue checks the password before the ban, so a `user_banned` refusal is only
- * ever read by somebody who already holds the right password.
+ * GoTrue reports `user_banned` BEFORE it checks the password, so this refusal
+ * tells anybody who names a banned handle that its account is banned. That is
+ * the accepted cost of showing a banned person the community-guidelines notice.
  */
 async function refusalIsBan(response: Response): Promise<boolean> {
   try {

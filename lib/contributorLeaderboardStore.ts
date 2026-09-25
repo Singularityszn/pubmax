@@ -9,6 +9,7 @@ import {
   type ContributorLeaderboard,
   type ContributorLeaderboardTally,
 } from "@/lib/contributorLeaderboard";
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { resolveAvatarUrlsForHandles } from "@/lib/avatarResolve";
 import { normalizeHandle } from "@/lib/profiles";
 import {
@@ -34,15 +35,12 @@ function count(value: unknown): number | null {
   return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
-function durableBoard(rows: unknown): ContributorLeaderboard {
-  if (!Array.isArray(rows)) {
-    return rankContributors([], "degraded");
-  }
+/** The durable rows as tallies, or null when any row is malformed. */
+function durableTallies(rows: unknown): ContributorLeaderboardTally[] | null {
+  if (!Array.isArray(rows)) return null;
   const tallies: ContributorLeaderboardTally[] = [];
   for (const raw of rows) {
-    if (!raw || typeof raw !== "object") {
-      return rankContributors([], "degraded");
-    }
+    if (!raw || typeof raw !== "object") return null;
     const row = raw as DurableLeaderboardRow;
     const handle = normalizeHandle(
       typeof row.handle === "string" ? row.handle : "",
@@ -59,11 +57,11 @@ function durableBoard(rows: unknown): ContributorLeaderboard {
       total === null ||
       total !== prices + reviews + recommendations
     ) {
-      return rankContributors([], "degraded");
+      return null;
     }
     tallies.push({ handle, prices, reviews, recommendations, total });
   }
-  return rankContributorTallies(tallies, "ready");
+  return tallies;
 }
 
 async function enrichContributorBoard(
@@ -88,7 +86,13 @@ async function readDurableBoard(): Promise<ContributorLeaderboard> {
       "public_contributor_leaderboard",
     );
     if (error) throw new Error(error.message);
-    return durableBoard(data);
+    const tallies = durableTallies(data);
+    if (!tallies) return rankContributors([], "degraded");
+    const withdrawn = await withdrawnHandles(tallies.map((tally) => tally.handle));
+    return rankContributorTallies(
+      tallies.filter((tally) => !withdrawn.has(tally.handle)),
+      "ready",
+    );
   } catch {
     return rankContributors([], "degraded");
   }

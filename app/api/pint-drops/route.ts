@@ -14,7 +14,7 @@ import { callerUserId } from "@/lib/authServer";
 import { qualifyCheapPintForAccountId } from "@/lib/cheapPintPingQualify.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { projectPublicAuthors } from "@/lib/avatarResolve";
+import { enrichItemsWithAvatarUrls } from "@/lib/avatarResolve";
 import { parseCityId } from "@/lib/cities";
 import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
@@ -620,7 +620,7 @@ export async function GET(request: Request): Promise<Response> {
       author,
       cityId,
     );
-    const enriched = await projectPublicAuthors(await withVenueNames(drops));
+    const enriched = await enrichItemsWithAvatarUrls(await withVenueNames(drops));
     return jsonNoStore({ drops: enriched }, { status: 200 });
   } catch (err) {
     log("error", "pint_drops.list_visible_failed", {

@@ -6,7 +6,17 @@ import {
 } from "@/lib/pubmaxxIdentity";
 
 describe("owner impersonation handle policy", () => {
-  it.each(["karansdad", "karan_father", "karanmom", "karanfucker", "xkarandad"])(
+  it.each([
+    "karansdad",
+    "karan_father",
+    "karanmom",
+    "karanfucker",
+    "xkarandad",
+    "karan_sdad",
+    "karansdadd",
+    "karansdadreal",
+    "karansdadofficial",
+  ])(
     "rejects handle %s",
     (handle) => {
       expect(assessPubmaxxHandle(handle)).toMatchObject({ ok: false });
@@ -44,7 +54,17 @@ describe("owner impersonation handle policy", () => {
     },
   );
 
-  it.each(["Karan's dad", "Karan dad", "karan_dad", "Dad of Karan", "KaransDad", "The real karansdad"])(
+  it.each([
+    "Karan's dad",
+    "Karan dad",
+    "karan_dad",
+    "Dad of Karan",
+    "KaransDad",
+    "The real karansdad",
+    "Karan'sDad",
+    "Karan’sDad",
+    "KaransDadOfficial",
+  ])(
     "rejects display name %s",
     (name) => {
       expect(assessPubmaxxDisplayName(name)).toMatchObject({ ok: false });
