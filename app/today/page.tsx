@@ -134,7 +134,7 @@ export default async function TodayPage() {
   const weatherByArea = Object.fromEntries(
     LONDON_NIGHT_AREA_SLUGS.map((area) => [
       area,
-      buildWeatherBrief(weatherSnapshot, now, area, { fallbackToFirst: false }),
+      buildWeatherBrief(weatherSnapshot, now, area),
     ]),
   ) as Partial<Record<NightAreaSlug, WeatherBrief | null>>;
 

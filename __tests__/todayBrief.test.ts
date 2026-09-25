@@ -140,18 +140,16 @@ describe("buildWeatherBrief", () => {
     expect(grey).toBeNull();
   });
 
-  it("falls back to the first observation when the default area is absent", () => {
+  it("returns null when the requested area is absent from the snapshot", () => {
     const snap = snapshot({ area: "clapham", feelsLikeC: 19 });
-    const brief = buildWeatherBrief(snap, NOW) as WeatherBrief;
-    expect(brief).not.toBeNull();
-    expect(brief.tempLabel).toBe("19°C");
+    expect(buildWeatherBrief(snap, NOW, BRIEF_DEFAULT_AREA)).toBeNull();
   });
 
-  it("can require an exact area for personalized weather", () => {
+  it("reads weather for the requested night area when present", () => {
     const snap = snapshot({ area: "clapham", feelsLikeC: 19 });
-    expect(
-      buildWeatherBrief(snap, NOW, BRIEF_DEFAULT_AREA, { fallbackToFirst: false }),
-    ).toBeNull();
+    const brief = buildWeatherBrief(snap, NOW, "clapham") as WeatherBrief;
+    expect(brief).not.toBeNull();
+    expect(brief.tempLabel).toBe("19°C");
   });
 });
 

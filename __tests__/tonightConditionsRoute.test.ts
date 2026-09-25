@@ -29,6 +29,8 @@ const WARM_DRY = snapshot([
     feelsLikeC: 22,
     precipitationProbabilityPct: 0,
     windKph: 12,
+        isDay: true,
+        sunsetAt: null,
     source: {
       sourceUrl: "https://api.open-meteo.com/v1/forecast?piccadilly",
       publisher: "Open-Meteo",

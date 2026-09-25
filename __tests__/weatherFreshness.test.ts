@@ -31,6 +31,8 @@ function observation(generatedAt: string, feelsLikeC: number): NightAreaWeatherO
     feelsLikeC,
     precipitationProbabilityPct: 10,
     windKph: 12,
+        isDay: null,
+        sunsetAt: null,
     source: {
       sourceUrl: "https://api.open-meteo.com/v1/forecast?x",
       publisher: "Open-Meteo",

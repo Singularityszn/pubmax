@@ -26,6 +26,7 @@ export type DrinkWeatherRuleId =
   | "mild-riverside"
   | "crisp-autumn"
   | "cool-spring"
+  | "warm-night"
   | "cool-default";
 
 export type DrinkWeatherInput = {
@@ -42,6 +43,11 @@ export type DrinkWeatherInput = {
    * passes its own band (lib/daySlot.ts) or the two contradict each other.
    */
   dayPart?: DaySlot;
+  /**
+   * Solar day from Open-Meteo when known. Beer-garden rules refuse explicit
+   * night; omitting it keeps older snapshots working.
+   */
+  isDay?: boolean | null;
 };
 
 export type DrinkWeatherVerdict = {
@@ -109,16 +115,19 @@ export const DRINK_WEATHER_RULES: readonly DrinkWeatherRule[] = [
   },
   {
     ruleId: "summer-garden",
-    when: ({ tempC, precipitationProbabilityPct, month }) =>
-      tempC >= WARM_C && precipitationProbabilityPct < DRY_PCT && SUMMER_MONTHS.has(month),
+    when: ({ tempC, precipitationProbabilityPct, month, isDay }) =>
+      tempC >= WARM_C &&
+      precipitationProbabilityPct < DRY_PCT &&
+      SUMMER_MONTHS.has(month) &&
+      isDay !== false,
     venueLens: "beer-garden",
     drinkSuggestion: "a cold lager or cider",
     line: "Beer garden weather. Lager or cider.",
   },
   {
     ruleId: "warm-dry",
-    when: ({ tempC, precipitationProbabilityPct }) =>
-      tempC >= WARM_C && precipitationProbabilityPct < DRY_PCT,
+    when: ({ tempC, precipitationProbabilityPct, isDay }) =>
+      tempC >= WARM_C && precipitationProbabilityPct < DRY_PCT && isDay !== false,
     venueLens: "beer-garden",
     drinkSuggestion: "a cold lager or cider",
     line: "Warm and dry. Beer garden weather.",
@@ -144,6 +153,17 @@ export const DRINK_WEATHER_RULES: readonly DrinkWeatherRule[] = [
       morning: "Winter day, dark early. Porter weather.",
       afternoon: "Winter afternoon, dark early. Porter weather.",
       night: "Winter night. Porter weather.",
+    },
+  },
+  {
+    ruleId: "warm-night",
+    when: ({ tempC, precipitationProbabilityPct, isDay }) =>
+      tempC >= WARM_C && precipitationProbabilityPct < DRY_PCT && isDay === false,
+    venueLens: "any",
+    drinkSuggestion: "a pale ale or lager",
+    line: "Warm and dry tonight. Terrace or open-window weather.",
+    dayPartLine: {
+      night: "Warm and dry tonight. Terrace or open-window weather.",
     },
   },
   {

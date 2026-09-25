@@ -11,7 +11,11 @@
 //     with no venue claim (never a fabricated count)
 //   - a pint-under-ceiling claim only when price data actually supports it
 
+import { daySlot } from "@/lib/daySlot";
 import { evaluateDrinkWeather, type VenueLens } from "@/lib/drinkWeather";
+import { formatWeatherObservationFacts } from "@/lib/weatherObservationCopy";
+import { daylightForNightArea } from "@/lib/weatherDaylight";
+import type { NightAreaSlug } from "@/lib/nightAreas";
 import { haversineKm } from "@/lib/haversine";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 
@@ -25,6 +29,9 @@ export type ConditionsWeather = {
   tempC: number;
   condition: string;
   precipitationProbabilityPct: number;
+  windKph: number | null;
+  isDay: boolean | null;
+  sunsetAt: string | null;
 };
 
 /**
@@ -43,6 +50,10 @@ export type TonightConditionsSummary = {
   dateLabel: string;
   /** "18C, light cloud" */
   weatherLabel: string;
+  /** Temp, rain chance, wind, sunset and day or night. */
+  factsLine: string;
+  /** True once the observation has aged past its own expiry. */
+  stale: boolean;
   /** The verdict's calm line, e.g. "Warm and dry. Beer garden weather." */
   drinkLine: string;
   /** Lower-case drink phrase, e.g. "a cold lager or cider". */
@@ -150,18 +161,50 @@ export function summariseTonightConditions(args: {
   now: Date;
   tally: VenueLensTally;
   timeZone?: string;
+  stale?: boolean;
+  nightArea?: NightAreaSlug;
+  factsAt?: Date;
 }): TonightConditionsSummary | null {
-  const { weather, now, tally, timeZone } = args;
+  const { weather, now, tally, timeZone, stale = false, nightArea, factsAt } = args;
+  const at = factsAt ?? now;
+  const daylight = nightArea ? daylightForNightArea(nightArea, at) : null;
+  const isDay = daylight?.isDay ?? weather.isDay;
+  const sunsetAt = daylight ? daylight.sunsetAt.toISOString() : weather.sunsetAt;
+  const factsLine = formatWeatherObservationFacts({
+    feelsLikeC: weather.tempC,
+    condition: weather.condition,
+    precipitationProbabilityPct: weather.precipitationProbabilityPct,
+    windKph: weather.windKph,
+    isDay,
+    sunsetAt,
+    now: at,
+    stale,
+  });
+  if (stale) {
+    return {
+      dateLabel: formatConditionDate(now, timeZone),
+      weatherLabel: weatherLabel(weather),
+      factsLine,
+      stale: true,
+      drinkLine: "",
+      drinkSuggestion: "",
+      venueClaim: null,
+    };
+  }
   const month = londonMonth(now, timeZone);
   const verdict = evaluateDrinkWeather({
     tempC: weather.tempC,
     precipitationProbabilityPct: weather.precipitationProbabilityPct,
     month,
+    dayPart: daySlot(now),
+    isDay,
   });
   if (!verdict) return null;
   return {
     dateLabel: formatConditionDate(now, timeZone),
     weatherLabel: weatherLabel(weather),
+    factsLine,
+    stale: false,
     drinkLine: verdict.line,
     drinkSuggestion: verdict.drinkSuggestion,
     venueClaim: buildVenueClaim(verdict.venueLens, tally),
