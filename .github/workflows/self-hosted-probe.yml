@@ -1,0 +1,21 @@
+name: Self-hosted runner probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Serialize pubmax-mac workflows on this ref only (repo-wide group blocked other branches).
+  group: ${{ github.workflow }}-pubmax-mac-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    name: Prove pubmax-mac runner
+    runs-on: [self-hosted, pubmax-mac]
+    timeout-minutes: 5
+    steps:
+      - name: Node version
+        run: node --version

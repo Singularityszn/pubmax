@@ -123,22 +123,25 @@ export default function PlanRoute({
           See the walking route
         </Link>
       ) : null}
-      <ol className="planSummary__stops">
-        {stops.map((stop, index) => {
-          const signal = signals.get(stop.venueId);
-          return (
-            <li key={`${stop.position}-${stop.venueId}`} style={{ "--i": index } as CSSProperties}>
-              <span className="planSummary__marker">{index + 1}</span>
-              <div className="planRoute__body">
-                <strong>{stop.venueName}</strong>
-                <StopEventBadge event={events.get(stop.venueId)} />
-                <Link href={`/map?venue=${encodeURIComponent(stop.venueId)}`}>Open on the map</Link>
-                <StopGetIn state={state} signal={signal} />
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+      <div className="planRoute__stopsTrack">
+        <div className="planSummary__rail" aria-hidden="true" />
+        <ol className="planSummary__stops">
+          {stops.map((stop, index) => {
+            const signal = signals.get(stop.venueId);
+            return (
+              <li key={`${stop.position}-${stop.venueId}`} style={{ "--i": index } as CSSProperties}>
+                <span className="planSummary__marker">{index + 1}</span>
+                <div className="planRoute__body">
+                  <strong>{stop.venueName}</strong>
+                  <StopEventBadge event={events.get(stop.venueId)} />
+                  <Link href={`/map?venue=${encodeURIComponent(stop.venueId)}`}>Open on the map</Link>
+                  <StopGetIn state={state} signal={signal} />
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
     </div>
   );
 }
