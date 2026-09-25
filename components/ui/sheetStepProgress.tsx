@@ -12,6 +12,8 @@ export type SheetStep = {
 export type SheetStepProgressProps = {
   /** One segment per step, in order. */
   steps: readonly SheetStep[];
+  /** Accessible name for the rail. */
+  label?: string;
   /** Visual accent token scope. */
   variant?: "plan" | "map";
   className?: string;
@@ -24,6 +26,7 @@ export type SheetStepProgressProps = {
  */
 export default function SheetStepProgress({
   steps,
+  label = "Progress",
   variant = "plan",
   className,
 }: SheetStepProgressProps) {
@@ -34,21 +37,21 @@ export default function SheetStepProgress({
   return (
     <ol
       className={classes}
-      aria-label="Progress"
+      aria-label={label}
       style={{ ["--sheet-step-count" as string]: String(steps.length) }}
     >
-      {steps.map(({ label, state }, index) => (
+      {steps.map((step, index) => (
         <li
-          key={label}
+          key={step.label}
           className="sheetStepProgress__segment"
-          data-state={state}
-          aria-current={state === "current" ? "step" : undefined}
+          data-state={step.state}
+          aria-current={step.state === "current" ? "step" : undefined}
         >
           <span className="sheetStepProgress__marker" aria-hidden="true">
-            {state === "settled" ? <Check size={13} /> : index + 1}
+            {step.state === "settled" ? <Check size={13} /> : index + 1}
           </span>
           <span className="sheetStepProgress__label">
-            {label}{state === "skipped" ? " skipped" : ""}
+            {step.label}{step.state === "skipped" ? " skipped" : ""}
           </span>
         </li>
       ))}

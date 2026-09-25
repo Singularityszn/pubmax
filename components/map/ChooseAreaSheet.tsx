@@ -5,7 +5,7 @@ import { LocateFixed, X } from "lucide-react";
 
 import Kicker from "@/components/ui/kicker";
 import SheetStepProgress, { type SheetStep } from "@/components/ui/sheetStepProgress";
-import { MAP_SHEET_KICKERS, MAP_SHEET_TITLES } from "@/lib/mobileShell";
+import { CHOOSE_AREA_OPENING_HEADING, MAP_SHEET_TITLES } from "@/lib/mobileShell";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import type { CityId } from "@/lib/cities";
@@ -74,7 +74,7 @@ export default function ChooseAreaSheet({
   return (
     <div className="chooseAreaSheet">
       {showOpeningProgress ? (
-        <SheetStepProgress steps={OPENING_STEPS} variant="map" />
+        <SheetStepProgress steps={OPENING_STEPS} label="Opening progress" variant="map" />
       ) : null}
       <div className="chooseAreaSearch">
         <label htmlFor="choose-area-search">Search areas and postcodes</label>
@@ -167,10 +167,13 @@ const FOCUSABLE = [
  */
 export function ChooseAreaDesktopDialog({
   open,
+  opening = false,
   onClose,
   children,
 }: {
   open: boolean;
+  /** The arrival card opened this dialog as the opening flow's area step. */
+  opening?: boolean;
   onClose: () => void;
   children: React.ReactNode;
 }) {
@@ -231,12 +234,12 @@ export function ChooseAreaDesktopDialog({
       >
         <div className="chooseAreaDesktopHead">
           <div className="chooseAreaDesktopHeading">
-            <Kicker>{MAP_SHEET_KICKERS["choose-area"]}</Kicker>
+            {opening ? <Kicker>{CHOOSE_AREA_OPENING_HEADING.kicker}</Kicker> : null}
             <h2
               id="choose-area-desktop-title"
               className="chooseAreaSectionTitle chooseAreaDesktopTitle"
             >
-              {MAP_SHEET_TITLES["choose-area"]}
+              {opening ? CHOOSE_AREA_OPENING_HEADING.title : MAP_SHEET_TITLES["choose-area"]}
             </h2>
           </div>
           <button

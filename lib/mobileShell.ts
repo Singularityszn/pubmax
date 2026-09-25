@@ -51,13 +51,18 @@ export const MAP_SHEET_TITLES: Partial<Record<MapSheetKind, string>> = {
   moment: "Choose a pub",
   "near-me": "Near me",
   area: "This area",
-  "choose-area": "Which area should we open on?",
+  "choose-area": "Choose an area",
 };
 
-/** The small line above a sheet's title, for a sheet whose title asks one question. */
-export const MAP_SHEET_KICKERS: Partial<Record<MapSheetKind, string>> = {
-  "choose-area": "Your map",
-};
+/**
+ * The choose-area heading when the arrival card opens it as the opening flow's
+ * area step: one question under a kicker. Every other entry keeps the neutral
+ * "Choose an area" above, because the map is already open there.
+ */
+export const CHOOSE_AREA_OPENING_HEADING = {
+  kicker: "Your map",
+  title: "Which area should we open on?",
+} as const;
 
 export type MapViewportSnapshot = {
   center: [number, number];

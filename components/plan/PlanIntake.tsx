@@ -254,6 +254,7 @@ export default function PlanIntake({
 
       <SheetStepProgress
         className="planIntake__progress"
+        label="Plan details progress"
         steps={PLAN_INTAKE_STEPS.map((step) => ({
           label: STEP_COPY[step].short,
           state: step === draft.currentStep

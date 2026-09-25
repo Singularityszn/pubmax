@@ -9,7 +9,7 @@ import CitySwitcher from "@/components/map/CitySwitcher";
 import { IconButton } from "@/components/ui/icon-button";
 import { Sheet } from "@/components/ui/sheet";
 import { buildFiltersChip, buildNearMeChip, buildTflCorner, buildTonightChip, type CornerUtilityModel, type PrimaryChipModel, type TonightChipModel } from "@/lib/mapChromeTiers";
-import { MAP_SHEET_KICKERS, MAP_SHEET_TITLES, type MapOverlay, type MapSheetKind } from "@/lib/mobileShell";
+import { CHOOSE_AREA_OPENING_HEADING, MAP_SHEET_TITLES, type MapOverlay, type MapSheetKind } from "@/lib/mobileShell";
 import { planActivationPill } from "@/lib/planActivationPill";
 import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 
@@ -218,7 +218,7 @@ function usePublishedChromeHeight(): void {
   }, []);
 }
 
-export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, sheetsEnabled = true }: {
+export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, chooseAreaOpening = false, sheetsEnabled = true }: {
   cityId?: CityId;
   cityLabel: string;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
@@ -297,6 +297,8 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   areaContent: React.ReactNode;
   /** First-visit choose-area picker (London neighbourhoods + other cities). */
   chooseAreaContent: React.ReactNode;
+  /** The arrival card opened choose-area as the opening flow's area step. */
+  chooseAreaOpening?: boolean;
   /**
    * Whether this shell owns the sheet lane. The portal is display:none above
    * the phone breakpoint, but a MOUNTED sheet still claims Escape on `window`
@@ -385,6 +387,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
     "choose-area": chooseAreaContent,
     "pub-pal": palContent,
   });
+  const openingHeading = sheetKind === "choose-area" && chooseAreaOpening ? CHOOSE_AREA_OPENING_HEADING : null;
 
   return (
     <>
@@ -521,7 +524,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           </span>
         </button>
       ) : null}
-      <Sheet kind={sheetKind} title={sheetKind ? MAP_SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} kicker={sheetKind ? MAP_SHEET_KICKERS[sheetKind] : undefined} initialSnap={sheetKind && FULL_HEIGHT_SHEETS.includes(sheetKind) ? "full" : "half"} onClose={onHome} backLabel={backLabel} onBack={onBack}>{sheetContent}</Sheet>
+      <Sheet kind={sheetKind} title={openingHeading?.title ?? (sheetKind ? MAP_SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls")} kicker={openingHeading?.kicker} initialSnap={sheetKind && FULL_HEIGHT_SHEETS.includes(sheetKind) ? "full" : "half"} onClose={onHome} backLabel={backLabel} onBack={onBack}>{sheetContent}</Sheet>
     </>
   );
 }

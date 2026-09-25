@@ -1486,7 +1486,7 @@ export default function PubMap({
     return restored && !["venue", "planner"].includes(restored) ? restored : "none";
   });
   const [chooseAreaLocationNote, setChooseAreaLocationNote] = useState<string | null>(null);
-  const [chooseAreaOpeningProgress, setChooseAreaOpeningProgress] = useState(false);
+  const [chooseAreaOpening, setChooseAreaOpening] = useState(false);
   const openChooseAreaRef = useRef<(locationNote?: string | null) => void>(() => {});
   const restoredChosenAreaRef = useRef(false);
   const [mapViewport, setMapViewport] = useState<MapViewportSnapshot>(() =>
@@ -4572,7 +4572,7 @@ export default function PubMap({
   };
 
   const changeMapOverlay = useCallback((next: MapOverlay) => {
-    setChooseAreaOpeningProgress(false);
+    setChooseAreaOpening(false);
     // Leaving the phone "Choose a pub" sheet leaves the Drop flow (D4).
     if (next !== "moment") clearLogIntent();
     if (next !== "none" && isMobileViewport()) {
@@ -4594,7 +4594,7 @@ export default function PubMap({
     // copies of one refusal, one painted over the other, read as two faults.
     if (locationNote) setNearbyError(null);
     changeMapOverlay("choose-area");
-    setChooseAreaOpeningProgress(openingFlow);
+    setChooseAreaOpening(openingFlow);
   }, [changeMapOverlay, setNearbyError]);
 
   useEffect(() => {
@@ -4652,13 +4652,13 @@ export default function PubMap({
         completeCountSlugs={completeCountSlugs}
         locationNote={chooseAreaLocationNote}
         locationBusy={nearbyLoading}
-        showOpeningProgress={chooseAreaOpeningProgress}
+        showOpeningProgress={chooseAreaOpening}
         onPick={handleChooseAreaPick}
       />
     ),
     [
       chooseAreaLocationNote,
-      chooseAreaOpeningProgress,
+      chooseAreaOpening,
       cityId,
       completeCountSlugs,
       handleChooseAreaPick,
@@ -5714,6 +5714,7 @@ export default function PubMap({
       ) : null}
       <ChooseAreaDesktopDialog
         open={!mobileViewport && mapOverlay === "choose-area"}
+        opening={chooseAreaOpening}
         onClose={() => changeMapOverlay("none")}
       >
         {chooseAreaSheet}
@@ -5887,6 +5888,7 @@ export default function PubMap({
           ) : null
         }
         chooseAreaContent={chooseAreaSheet}
+        chooseAreaOpening={chooseAreaOpening}
         sheetsEnabled={mobileViewport}
         areaContent={
           <AreaSheet

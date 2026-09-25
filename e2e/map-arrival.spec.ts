@@ -103,7 +103,8 @@ test.describe("map first-visit arrival", () => {
 
     const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="choose-area"]');
     await expect(sheet).toBeVisible({ timeout: 15_000 });
-    await expect(sheet.getByRole("list", { name: "Progress" })).toBeVisible();
+    await expect(sheet.getByRole("list", { name: "Opening progress" })).toBeVisible();
+    await expect(sheet.getByRole("heading", { name: "Which area should we open on?" })).toBeVisible();
     await sheet.getByRole("button", { name: /^Camden/ }).click();
     await expect(sheet).toBeHidden({ timeout: 15_000 });
     await expect(arrival).toBeHidden();
@@ -157,7 +158,8 @@ test.describe("map first-visit arrival", () => {
     await page.getByRole("button", { name: "This area" }).click();
     const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="choose-area"]');
     await expect(sheet).toBeVisible({ timeout: 15_000 });
-    await expect(sheet.getByRole("list", { name: "Progress" })).toHaveCount(0);
+    await expect(sheet.getByRole("list", { name: "Opening progress" })).toHaveCount(0);
+    await expect(sheet.getByRole("heading", { name: "Choose an area" })).toBeVisible();
     await sheet.getByRole("button", { name: /^Camden/ }).click();
     await expect(sheet).toBeHidden({ timeout: 15_000 });
 
