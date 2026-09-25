@@ -42,6 +42,7 @@ import {
   type VisitReportReadStatus,
   type VisitReportStatus,
 } from "@/lib/visitReports";
+import { dropWithdrawnAuthors, withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { authorRetiredAtFromRow } from "@/lib/retiredContributor";
 import type {
   ContributionRecord,
@@ -195,8 +196,9 @@ export const memoryVisitReportStore: VisitReportStore = {
   },
 
   async readForVenue(venueId) {
-    const reports = Array.from(byId.values())
-      .filter((r) => r.venueId === venueId && r.status === "visible")
+    const visible = Array.from(byId.values())
+      .filter((r) => r.venueId === venueId && r.status === "visible");
+    const reports = (await dropWithdrawnAuthors(visible, (r) => r.handle))
       .sort(byNewestVisit)
       .slice(0, MAX_VENUE_REPORTS)
       .map(toVisitReportDTO);
@@ -206,6 +208,7 @@ export const memoryVisitReportStore: VisitReportStore = {
   async countForContributor(handle) {
     const contributor = normalizeHandle(handle);
     if (!contributor) return { status: "ready", count: 0 };
+    if ((await withdrawnHandles([contributor])).size > 0) return { status: "ready", count: 0 };
     let count = 0;
     for (const report of byId.values()) {
       if (report.handle === contributor && report.status === "visible") count += 1;
@@ -423,11 +426,10 @@ export const supabaseVisitReportStore: VisitReportStore = {
           .order("created_at", { ascending: false })
           .limit(MAX_VENUE_REPORTS);
         if (error) throw new Error(error.message);
+        const visible = (data ?? []).map((r) => fromRow(r as Record<string, unknown>));
         return {
           status: "ready",
-          reports: (data ?? []).map((r) =>
-            toVisitReportDTO(fromRow(r as Record<string, unknown>)),
-          ),
+          reports: (await dropWithdrawnAuthors(visible, (r) => r.handle)).map(toVisitReportDTO),
         };
       },
     });
@@ -445,6 +447,7 @@ export const supabaseVisitReportStore: VisitReportStore = {
       message: "countForContributor failed - returning unavailable count",
       onError: () => ({ status: "degraded", count: 0 }),
       run: async () => {
+        if ((await withdrawnHandles([contributor])).size > 0) return { status: "ready", count: 0 };
         const { count, error } = await admin()
           .from(TABLE)
           .select("id", { count: "exact", head: true })
@@ -591,11 +594,10 @@ export const supabaseVisitReportStore: VisitReportStore = {
           .order("created_at", { ascending: false })
           .limit(MAX_CONTRIBUTOR_REPORTS);
         if (error) throw new Error(error.message);
+        const visible = (data ?? []).map((r) => fromRow(r as Record<string, unknown>));
         return {
           status: "ready",
-          reports: (data ?? []).map((r) =>
-            toVisitReportDTO(fromRow(r as Record<string, unknown>)),
-          ),
+          reports: (await dropWithdrawnAuthors(visible, (r) => r.handle)).map(toVisitReportDTO),
         };
       },
     });

@@ -17,6 +17,14 @@ type Row = Record<string, unknown>;
 
 const db = vi.hoisted(() => ({ rows: [] as Row[], schemaMiss: false, failWrites: false }));
 
+// The fake database holds only the visit-report table; moderation reads
+// profiles, so it answers "nobody withdrawn" here and is pinned in
+// accountPublicAccess.test.ts.
+vi.mock("@/lib/accountPublicAccess.server", () => ({
+  dropWithdrawnAuthors: async <T,>(items: readonly T[]) => [...items],
+  withdrawnHandles: async () => new Set<string>(),
+}));
+
 vi.mock("@/lib/supabase", () => {
   const TABLE_MISSING = "Could not find the table 'public.structured_visit_reports'";
 

@@ -10,6 +10,12 @@ import { projectPublicAuthors } from "@/lib/avatarResolve";
 import { getPintDropById } from "@/lib/pintDropLookup";
 import { __resetPintDrops, addPintDrop } from "@/lib/pintDrops";
 import { memoryPintDropStore } from "@/lib/pintDropsStore";
+import { __resetVisitReports, memoryVisitReportStore } from "@/lib/visitReportsStore";
+import {
+  __resetWeatherRecommendations,
+  memoryWeatherRecommendationStore,
+  readWeatherRecommendations,
+} from "@/lib/weatherRecommendationStore";
 import {
   __resetMemoryProfiles,
   __seedMemoryOwnedProfile,
@@ -39,6 +45,8 @@ describe("account public access", () => {
     __resetMemoryProfileWithdrawals();
     __resetMemoryProfiles();
     __resetPintDrops();
+    __resetVisitReports();
+    __resetWeatherRecommendations();
   });
 
   it("treats a withdrawn live profile as withdrawn", async () => {
@@ -94,6 +102,59 @@ describe("account public access", () => {
 
     const venue = await memoryPintDropStore.listVisible("the-crown");
     expect(venue.map((drop) => drop.id)).toEqual(["alice"]);
+  });
+
+  it("keeps a withdrawn author's drops in their own read", async () => {
+    withdraw("karansdad");
+    addPintDrop({ ...DROP, id: "named", handle: "karansdad" });
+
+    const own = await memoryPintDropStore.listVisible(
+      undefined,
+      { handle: "karansdad" },
+      "karansdad",
+      null,
+    );
+    expect(own.map((drop) => drop.id)).toEqual(["named"]);
+  });
+
+  it("withholds a withdrawn author's visit reports and weather recommendations", async () => {
+    withdraw("karansdad");
+    for (const handle of ["karansdad", "alice"]) {
+      await memoryVisitReportStore.create(
+        {
+          venueId: "the-crown",
+          handle,
+          visitedAt: "2026-07-27",
+          busyness: "steady",
+          noise: null,
+          seating: null,
+          serviceWait: null,
+          note: "",
+        },
+        1_000,
+      );
+      await memoryWeatherRecommendationStore.create(
+        {
+          venueId: "the-crown",
+          condition: "raining",
+          reason: "The covered yard stays properly dry.",
+          contributorHandle: handle,
+          actorHash: `actor-${handle}`,
+        },
+        2_000,
+      );
+    }
+
+    const reports = await memoryVisitReportStore.readForVenue("the-crown");
+    expect(reports.reports.map((report) => report.handle)).toEqual(["alice"]);
+    await expect(memoryVisitReportStore.countForContributor("karansdad")).resolves.toEqual({
+      status: "ready",
+      count: 0,
+    });
+    const recommendations = await readWeatherRecommendations("the-crown");
+    expect(
+      recommendations.recommendations.map((recommendation) => recommendation.contributorHandle),
+    ).toEqual(["alice"]);
   });
 
   it("keeps a deleted author's retired drops public", async () => {

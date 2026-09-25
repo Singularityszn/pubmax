@@ -657,6 +657,21 @@ function withVerifiedReportCount(drop: PersistableDrop): PersistableDrop {
 // ── In-memory implementation ─────────────────────────────────────────────────
 // Wraps the process-memory primitives in lib/pintDrops.ts. Resets on restart —
 // right for dev/demo; production refuses it at the route.
+/**
+ * Withdrawn authors leave every public read. The author's own read (their
+ * export, their own feed) keeps their drops: withdrawal is about what the
+ * public sees, never about what an account may read of itself.
+ */
+function dropWithdrawnFromViewer<T extends { handle: string }>(
+  drops: readonly T[],
+  viewer?: ViewerContext,
+): Promise<T[]> {
+  const own = normalizeViewerHandle(viewer?.handle);
+  return dropWithdrawnAuthors(drops, (d) =>
+    own && normalizeViewerHandle(d.handle) === own ? null : d.handle,
+  );
+}
+
 export const memoryPintDropStore: PintDropStore = {
   async create(drop, _photos, options) {
     // The same hard guard the Supabase backend gets from
@@ -689,7 +704,7 @@ export const memoryPintDropStore: PintDropStore = {
         canViewOnPublicSurface(d, viewer) &&
         (!author || normalizeViewerHandle(d.handle) === author),
     );
-    const published = await dropWithdrawnAuthors(permitted, (d) => d.handle);
+    const published = await dropWithdrawnFromViewer(permitted, viewer);
     return newestFirstCapped(published).map((d) => toDTO(withVerifiedReportCount(d)));
   },
   async listLegacyForVenue(venueId) {
@@ -1187,7 +1202,7 @@ export const supabasePintDropStore: PintDropStore = {
       .concat(seeds)
       .filter((d) => venueId || dropMatchesCityScope(d.venueId, cityId))
       .filter((d) => canViewOnPublicSurface(d, viewer));
-    const published = await dropWithdrawnAuthors(permitted, (d) => d.handle);
+    const published = await dropWithdrawnFromViewer(permitted, viewer);
     const capped = newestFirstCapped(published);
     return toDTOsWithBatchedPhotos(capped);
   },

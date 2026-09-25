@@ -16,10 +16,12 @@ import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 // because a rename never rewrites what it authored.
 //
 // Migration 0157's `public_withdrawn_profiles()` answers the whole set in ONE
-// round trip. When it cannot (a deploy ahead of the apply answers PGRST202),
-// the failure is logged and the same rule is read directly in a few batched
-// reads. Moderation never fails open: when neither read answers, the error
-// reaches the caller, and a public surface refuses rather than shows.
+// round trip, held for a minute per process. When it cannot (a deploy ahead of
+// the apply answers PGRST202), the miss is logged once a minute and the same
+// rule is read directly for the profiles in question only, with each owner's
+// auth ban held for a minute. Moderation never fails open: when neither read
+// answers, the error reaches the caller, and a public surface refuses rather
+// than shows. A failed read is never held.
 
 type WithdrawnRow = { profileId: string; handle: string };
 
@@ -27,6 +29,19 @@ type WithdrawnProfiles = {
   profileIds: ReadonlySet<string>;
   handles: ReadonlySet<string>;
 };
+
+/** The profiles a caller is deciding, by id or by any handle they wear. */
+type WithdrawnQuery = {
+  profileIds?: readonly string[];
+  handles?: readonly string[];
+};
+
+const WITHDRAWN_HOLD_MS = 60_000;
+const AUTH_BAN_HOLD_MAX = 5_000;
+
+let heldRpcRows: { rows: WithdrawnRow[]; readAt: number } | null = null;
+let rpcMissedAt: number | null = null;
+const heldAuthBans = new Map<string, { banned: boolean; readAt: number }>();
 
 const memoryWithdrawnProfiles = new Map<string, readonly string[]>();
 
@@ -42,6 +57,9 @@ export function __setMemoryProfileWithdrawn(
 
 export function __resetMemoryProfileWithdrawals(): void {
   memoryWithdrawnProfiles.clear();
+  heldRpcRows = null;
+  rpcMissedAt = null;
+  heldAuthBans.clear();
 }
 
 async function readMemoryWithdrawn(): Promise<WithdrawnRow[]> {
@@ -63,81 +81,109 @@ async function readWithdrawnByRpc(admin: SupabaseClient): Promise<WithdrawnRow[]
   }));
 }
 
-const AUTH_USER_PAGE_SIZE = 1_000;
+type Answer = PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>;
 
-async function readBannedUserIds(admin: SupabaseClient): Promise<string[]> {
-  const banned: string[] = [];
-  for (let page = 1; ; page += 1) {
-    const { data, error } = await admin.auth.admin.listUsers({
-      page,
-      perPage: AUTH_USER_PAGE_SIZE,
-    });
-    if (error) throw new Error(error.message);
-    for (const user of data.users) {
-      if (isAuthUserBannedUntil(user)) banned.push(user.id);
-    }
-    if (data.users.length < AUTH_USER_PAGE_SIZE) return banned;
-  }
+async function rowsOf<T>(answer: Answer): Promise<T[]> {
+  const { data, error } = await answer;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as T[];
 }
 
-/** The 0157 rule read directly: batched auth bans, suspended Social rows, and aliases. */
-async function readWithdrawnDirect(admin: SupabaseClient): Promise<WithdrawnRow[]> {
-  const bannedUserIds = await readBannedUserIds(admin);
-  const [banned, suspended] = await Promise.all([
-    bannedUserIds.length === 0
-      ? Promise.resolve({ data: [], error: null })
-      : admin
-          .from("profiles")
-          .select("id, handle")
-          .in("user_id", bannedUserIds)
-          .is("tombstoned_at", null),
-    admin
-      .from("private_social_accounts")
-      .select("profiles!inner(id, handle, tombstoned_at)")
-      .eq("ownership_state", "suspended")
-      .is("profiles.tombstoned_at", null),
+async function readAuthBanned(admin: SupabaseClient, userId: string, now: number): Promise<boolean> {
+  const held = heldAuthBans.get(userId);
+  if (held && now - held.readAt < WITHDRAWN_HOLD_MS) return held.banned;
+  const { data, error } = await admin.auth.admin.getUserById(userId);
+  if (error) throw new Error(error.message);
+  const banned = isAuthUserBannedUntil(data.user, now);
+  if (heldAuthBans.size >= AUTH_BAN_HOLD_MAX) heldAuthBans.clear();
+  heldAuthBans.set(userId, { banned, readAt: now });
+  return banned;
+}
+
+type ProfileRow = { id: string; handle: string; user_id: string | null };
+
+/** The 0157 rule read directly, for the profiles in question only. */
+async function readWithdrawnDirect(
+  admin: SupabaseClient,
+  query: WithdrawnQuery,
+  now: number,
+): Promise<WithdrawnRow[]> {
+  const handles = query.handles ?? [];
+  const aliasHits = handles.length === 0
+    ? []
+    : await rowsOf<{ profile_id: string; handle: string }>(
+        admin.from("profile_handle_aliases").select("profile_id, handle").in("handle", handles),
+      );
+  const ids = [...new Set([...(query.profileIds ?? []), ...aliasHits.map((row) => row.profile_id)])];
+  const [byHandle, byId] = await Promise.all([
+    handles.length === 0
+      ? []
+      : rowsOf<ProfileRow>(
+          admin.from("profiles").select("id, handle, user_id").in("handle", handles).is("tombstoned_at", null),
+        ),
+    ids.length === 0
+      ? []
+      : rowsOf<ProfileRow>(
+          admin.from("profiles").select("id, handle, user_id").in("id", ids).is("tombstoned_at", null),
+        ),
   ]);
-  if (banned.error) throw new Error(banned.error.message);
-  if (suspended.error) throw new Error(suspended.error.message);
+  const profiles = [...new Map([...byHandle, ...byId].map((row) => [row.id, row])).values()];
+  if (profiles.length === 0) return [];
 
-  const rows: WithdrawnRow[] = [];
-  for (const row of (banned.data ?? []) as Array<{ id?: unknown; handle?: unknown }>) {
-    rows.push({ profileId: String(row.id ?? ""), handle: String(row.handle ?? "") });
-  }
-  for (const row of (suspended.data ?? []) as Array<{ profiles?: { id?: unknown; handle?: unknown } | null }>) {
-    rows.push({ profileId: String(row.profiles?.id ?? ""), handle: String(row.profiles?.handle ?? "") });
-  }
+  const [suspended, banned] = await Promise.all([
+    rowsOf<{ profile_id: string }>(
+      admin
+        .from("private_social_accounts")
+        .select("profile_id")
+        .eq("ownership_state", "suspended")
+        .in("profile_id", profiles.map((profile) => profile.id)),
+    ),
+    Promise.all(
+      profiles.map((profile) =>
+        profile.user_id ? readAuthBanned(admin, profile.user_id, now) : false,
+      ),
+    ),
+  ]);
+  const suspendedIds = new Set(suspended.map((row) => row.profile_id));
+  const withdrawnIds = new Set(
+    profiles
+      .filter((profile, at) => banned[at] || suspendedIds.has(profile.id))
+      .map((profile) => profile.id),
+  );
 
-  const profileIds = [...new Set(rows.map((row) => row.profileId).filter(Boolean))];
-  if (profileIds.length === 0) return rows;
-  const aliases = await admin
-    .from("profile_handle_aliases")
-    .select("profile_id, handle")
-    .in("profile_id", profileIds);
-  if (aliases.error) throw new Error(aliases.error.message);
-  for (const row of (aliases.data ?? []) as Array<{ profile_id?: unknown; handle?: unknown }>) {
-    rows.push({ profileId: String(row.profile_id ?? ""), handle: String(row.handle ?? "") });
-  }
-  return rows;
+  return [
+    ...profiles.filter((profile) => withdrawnIds.has(profile.id)),
+    ...aliasHits
+      .filter((row) => withdrawnIds.has(row.profile_id))
+      .map((row) => ({ id: row.profile_id, handle: row.handle })),
+  ].map((row) => ({ profileId: row.id, handle: row.handle }));
 }
 
-async function readWithdrawnRows(): Promise<WithdrawnRow[]> {
+async function readWithdrawnRows(query: WithdrawnQuery): Promise<WithdrawnRow[]> {
   const admin = isSupabaseConfigured() ? getSupabaseAdmin() : null;
   if (!admin) return readMemoryWithdrawn();
-  try {
-    return await readWithdrawnByRpc(admin);
-  } catch (error) {
-    log("error", "account_public_access.withdrawn_rpc_failed", {
-      detail: error instanceof Error ? error.message : String(error),
-    });
-    return readWithdrawnDirect(admin);
+  const now = Date.now();
+  if (heldRpcRows && now - heldRpcRows.readAt < WITHDRAWN_HOLD_MS) return heldRpcRows.rows;
+  if (rpcMissedAt === null || now - rpcMissedAt >= WITHDRAWN_HOLD_MS) {
+    try {
+      const rows = await readWithdrawnByRpc(admin);
+      heldRpcRows = { rows, readAt: now };
+      rpcMissedAt = null;
+      return rows;
+    } catch (error) {
+      rpcMissedAt = now;
+      log("error", "account_public_access.withdrawn_rpc_failed", {
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
+  return readWithdrawnDirect(admin, query, now);
 }
 
-async function readWithdrawnProfiles(): Promise<WithdrawnProfiles> {
+async function readWithdrawnProfiles(query: WithdrawnQuery): Promise<WithdrawnProfiles> {
   const profileIds = new Set<string>();
   const handles = new Set<string>();
-  for (const row of await readWithdrawnRows()) {
+  for (const row of await readWithdrawnRows(query)) {
     if (row.profileId) profileIds.add(row.profileId);
     const handle = normalizeHandle(row.handle);
     if (handle) handles.add(handle);
@@ -152,7 +198,7 @@ export async function profilePublicPresence(
 ): Promise<ProfilePublicPresence> {
   if (!profile) return "visible";
   if (isProfileTombstoned(profile)) return "gone";
-  const withdrawn = await readWithdrawnProfiles();
+  const withdrawn = await readWithdrawnProfiles({ profileIds: [profile.id] });
   return withdrawn.profileIds.has(profile.id) ? "withdrawn" : "visible";
 }
 
@@ -166,8 +212,9 @@ export async function isProfileWithdrawnFromPublic(
 export async function filterProfilesWithdrawnFromPublic<T extends Pick<ProfileRecord, "id" | "tombstonedAt">>(
   profiles: readonly T[],
 ): Promise<T[]> {
-  if (profiles.length === 0) return [];
-  const withdrawn = await readWithdrawnProfiles();
+  const live = profiles.filter((profile) => !isProfileTombstoned(profile));
+  if (live.length === 0) return [...profiles];
+  const withdrawn = await readWithdrawnProfiles({ profileIds: live.map((profile) => profile.id) });
   return profiles.filter(
     (profile) => isProfileTombstoned(profile) || !withdrawn.profileIds.has(profile.id),
   );
@@ -177,7 +224,7 @@ export async function filterProfilesWithdrawnFromPublic<T extends Pick<ProfileRe
 export async function withdrawnHandles(handles: readonly string[]): Promise<ReadonlySet<string>> {
   const keys = [...new Set(handles.map((handle) => normalizeHandle(handle)).filter(Boolean))];
   if (keys.length === 0) return new Set();
-  const withdrawn = await readWithdrawnProfiles();
+  const withdrawn = await readWithdrawnProfiles({ handles: keys });
   return new Set(keys.filter((key) => withdrawn.handles.has(key)));
 }
 

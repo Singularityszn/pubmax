@@ -10,6 +10,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
+import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
 import { isDeployedProduction } from "@/lib/deploymentEnv";
 import {
   createFailSoftGuard,
@@ -471,10 +472,22 @@ export function submitWeatherRecommendation(
   return weatherRecommendationStore().create(input, now);
 }
 
-export function readWeatherRecommendations(
+/** The public venue read: recommendations by withdrawn authors never leave it. */
+export async function readWeatherRecommendations(
   venueId: string,
 ): Promise<WeatherRecommendationReadResult> {
-  return weatherRecommendationStore().listForVenue(venueId);
+  const read = await weatherRecommendationStore().listForVenue(venueId);
+  try {
+    return {
+      ...read,
+      recommendations: await dropWithdrawnAuthors(
+        read.recommendations,
+        (recommendation) => recommendation.contributorHandle,
+      ),
+    };
+  } catch {
+    return degradedRead();
+  }
 }
 
 export function __resetWeatherRecommendations(): void {

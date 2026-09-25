@@ -11,6 +11,7 @@
 // `borough`), so the pure summariser (lib/pintContributions.ts) never needs the
 // server-only venue index in the browser bundle.
 
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { parseCityId } from "@/lib/cities";
@@ -54,7 +55,9 @@ export async function GET(request: Request): Promise<Response> {
     // the author so their follower-gated ("friends") drops count toward their own
     // streak/tally. Legacy family-lane drops stay excluded (ledger-only), matching
     // every other public read.
-    const drops = await pintDropsStore().listVisible(undefined, { handle }, handle, cityId);
+    const drops = (await withdrawnHandles([handle])).size > 0
+      ? []
+      : await pintDropsStore().listVisible(undefined, { handle }, handle, cityId);
 
     const index = await getVenueIndex();
     const entries: ContributionInput[] = drops.map((drop) => ({
