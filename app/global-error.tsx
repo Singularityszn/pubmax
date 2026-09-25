@@ -55,7 +55,7 @@ export default function GlobalError({
             .pubmaxGlobalError .eyebrow { color: #ff5a5f; }
             .pubmaxGlobalError .lede { color: #c9c9ce; }
             .pubmaxGlobalError .reference { color: #9a9aa0; }
-            .pubmaxGlobalError .retry { background: #060607; color: #fdfaf2; }
+            .pubmaxGlobalError .retry { background: #eef3ef; color: #0a0a0b; }
             .pubmaxGlobalError .home { border-color: #2c2c30; }
           }
         `}</style>
