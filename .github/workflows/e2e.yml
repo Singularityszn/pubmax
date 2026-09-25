@@ -12,9 +12,10 @@ permissions:
   contents: read
 
 concurrency:
-  # Serialize pubmax-mac workflows on this ref only (repo-wide group blocked other branches).
-  group: pubmax-mac-${{ github.ref }}
-  cancel-in-progress: false
+  # One group per workflow, event and ref (repo-wide group blocked other branches).
+  # Only pull request runs cancel superseded runs; main, nightly and dispatch runs finish.
+  group: ${{ github.workflow }}-pubmax-mac-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 
 jobs:
