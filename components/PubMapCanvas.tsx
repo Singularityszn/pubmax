@@ -53,6 +53,7 @@ import {
   cameraIntentForFocusSource,
   mapCameraFocusKey,
   mapCameraFocusMoves,
+  openingFocusAlreadyFramed,
   type MapCameraFocus,
 } from "@/lib/mapCameraFocus";
 import {
@@ -1201,6 +1202,13 @@ export default function PubMapCanvas({
     if (!mapReady || !focusPoint) return;
     if (!mapCameraFocusMoves(focusPoint, focusKeyRef.current)) return;
     focusKeyRef.current = mapCameraFocusKey(focusPoint);
+    const map = mapRef.current;
+    if (map) {
+      const center = map.getCenter();
+      if (openingFocusAlreadyFramed(focusPoint, { center: [center.lng, center.lat], zoom: map.getZoom() })) {
+        return;
+      }
+    }
     cinematic(
       { center: focusPoint.center, zoom: focusPoint.zoom, duration: 900 },
       // The kind names the OWNER, not one shared lane, and the rule for which

@@ -1013,7 +1013,7 @@ export default function PubMap({
         bearing: city.mapView.bearing ?? 0,
       };
     }
-    if (mapOpeningNeedsResolution) return { ...city.mapView };
+    if (mapOpeningNeedsResolution) return { ...city.mapView, bearing: 0 };
     const location =
       lastKnownLocation &&
         pointInCityBounds(lastKnownLocation.lat, lastKnownLocation.lng, city)
@@ -1308,13 +1308,12 @@ export default function PubMap({
   }, [city, lastKnownLocation]);
   const locationFirstMapView = useMemo(() => {
     if (!mapOpeningNeedsResolution) return initialMapView;
-    if (!openingLocationResolved) return { ...city.mapView };
-    if (!grantedOpeningLocation) return fallbackOpeningMapView;
-    return resolveMapOpeningView(
-      city.mapView,
-      grantedOpeningLocation,
-      LOCATION_FIRST_ZOOM,
-    );
+    const view = !openingLocationResolved
+      ? city.mapView
+      : !grantedOpeningLocation
+        ? fallbackOpeningMapView
+        : resolveMapOpeningView(city.mapView, grantedOpeningLocation, LOCATION_FIRST_ZOOM);
+    return { ...view, bearing: 0 };
   }, [
     fallbackOpeningMapView,
     grantedOpeningLocation,

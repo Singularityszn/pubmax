@@ -1,4 +1,35 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+import {
+  MAP_ARRIVAL_BEARING_DEG,
+  MAP_ARRIVAL_BEARING_SETTLED_BY_MS,
+} from "@/lib/mapArrivalBearing";
+
+type CameraReading = {
+  zoom: number;
+  center: [number, number];
+  bearing: number;
+  moving: boolean;
+};
+
+async function readCamera(page: Page): Promise<CameraReading | null> {
+  return page.evaluate(() => {
+    const probe = (
+      window as Window & { __pubmaxMapCamera?: { read: () => CameraReading } }
+    ).__pubmaxMapCamera;
+    return probe?.read() ?? null;
+  });
+}
+
+function expectLondonFramed(camera: CameraReading | null): void {
+  expect(camera).not.toBeNull();
+  const [lng, lat] = camera!.center;
+  expect(lat).toBeGreaterThan(51);
+  expect(lat).toBeLessThan(52);
+  expect(lng).toBeGreaterThan(-0.5);
+  expect(lng).toBeLessThan(0.2);
+  expect(camera!.zoom).toBeGreaterThan(10);
+}
 
 const viewports = [
   { name: "phone", width: 390, height: 844 },
@@ -24,7 +55,8 @@ for (const viewport of viewports) {
       });
     });
 
-    test("cold /map opens on London, not the whole UK", async ({ page, context }) => {
+    test("cold /map opens on London, not the whole UK, and makes its opening turn", async ({ page, context }) => {
+      test.slow();
       await context.clearCookies();
       await page.addInitScript(() => {
         window.localStorage.clear();
@@ -40,21 +72,17 @@ for (const viewport of viewports) {
           timeout: 45_000,
         })
         .toBe(true);
-      const camera = await page.evaluate(() => {
-        const probe = (
-          window as Window & {
-            __pubmaxMapCamera?: { read: () => { zoom: number; center: [number, number] } };
-          }
-        ).__pubmaxMapCamera;
-        return probe?.read() ?? null;
-      });
-      expect(camera).not.toBeNull();
-      const [lng, lat] = camera!.center;
-      expect(lat).toBeGreaterThan(51);
-      expect(lat).toBeLessThan(52);
-      expect(lng).toBeGreaterThan(-0.5);
-      expect(lng).toBeLessThan(0.2);
-      expect(camera!.zoom).toBeGreaterThan(10);
+      const opening = await readCamera(page);
+      expectLondonFramed(opening);
+      expect(Math.abs(opening!.bearing)).toBeLessThanOrEqual(MAP_ARRIVAL_BEARING_DEG + 0.25);
+
+      await page.waitForTimeout(MAP_ARRIVAL_BEARING_SETTLED_BY_MS + 2_000);
+      await expect
+        .poll(async () => (await readCamera(page))?.moving, { timeout: 45_000 })
+        .toBe(false);
+      const rested = await readCamera(page);
+      expectLondonFramed(rested);
+      expect(Math.abs(rested!.bearing - MAP_ARRIVAL_BEARING_DEG)).toBeLessThanOrEqual(0.25);
     });
   });
 }

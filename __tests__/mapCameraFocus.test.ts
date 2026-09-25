@@ -20,6 +20,7 @@ import {
   mapCameraFocusKey,
   mapCameraFocusMoves,
   nextAreaCameraFocus,
+  openingFocusAlreadyFramed,
   type MapCameraFocus,
 } from "@/lib/mapCameraFocus";
 
@@ -190,5 +191,29 @@ describe("a deliberate move takes the camera and keeps it", () => {
   it("is the guard the opening-location mint effect reads", () => {
     const mint = pubMap.slice(pubMap.indexOf('source: "opening-location"') - 1200);
     expect(mint).toContain("mapCameraTouchedRef.current");
+  });
+});
+
+// A cold map opens on the city view while the location question is open, and
+// the opening turn starts once the camera is still. An answer of "no location"
+// names that same view, and flying there stopped the turn at 1.3 degrees.
+describe("an opening answer that names the framed view moves nothing", () => {
+  it("skips the opening-location fly to the view the camera already holds", () => {
+    expect(
+      openingFocusAlreadyFramed(focus("opening-location", 1, LONDON), { center: LONDON, zoom: 14 }),
+    ).toBe(true);
+  });
+
+  it("still flies the opening answer somewhere else", () => {
+    expect(
+      openingFocusAlreadyFramed(focus("opening-location", 1, CUMBRIA), { center: LONDON, zoom: 14 }),
+    ).toBe(false);
+    expect(
+      openingFocusAlreadyFramed(focus("opening-location", 1, LONDON), { center: LONDON, zoom: 12 }),
+    ).toBe(false);
+  });
+
+  it("always flies an area pick, even to the view on screen", () => {
+    expect(openingFocusAlreadyFramed(focus("area", 1, LONDON), { center: LONDON, zoom: 14 })).toBe(false);
   });
 });

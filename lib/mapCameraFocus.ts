@@ -68,6 +68,26 @@ const CAMERA_INTENT_BY_FOCUS_SOURCE: Record<MapCameraFocusSource, CameraIntentKi
   area: "area",
 };
 
+/**
+ * Whether an opening-location answer names the view the camera already holds.
+ *
+ * A cold map opens on the city's own view while that question is open, so an
+ * answer of "no location" usually names the same view. Flying there moves
+ * nothing and stops whatever the camera is doing, the opening turn included
+ * (lib/mapArrivalBearing.ts). An area pick always flies: the reader asked.
+ */
+export function openingFocusAlreadyFramed(
+  focus: MapCameraFocus,
+  camera: { center: [number, number]; zoom: number },
+): boolean {
+  if (focus.source !== "opening-location") return false;
+  return (
+    Math.abs(focus.center[0] - camera.center[0]) < 1e-6 &&
+    Math.abs(focus.center[1] - camera.center[1]) < 1e-6 &&
+    Math.abs(focus.zoom - camera.zoom) < 1e-6
+  );
+}
+
 export function cameraIntentForFocusSource(
   source: MapCameraFocusSource,
 ): CameraIntentKind {

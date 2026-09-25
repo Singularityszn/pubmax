@@ -10,11 +10,11 @@
 // own (deleted 3 Sep 2026, fenced by __tests__/idleOrbitRemoved.test.ts). This
 // is ONE eased move, once per map, and the camera is still afterwards.
 //
-// When this was written the canvas held a FLAT placeholder while the
-// opening-location question was open, and the focus move that follows carries
-// centre and zoom only, so the map could arrive at 0. Since 24 Sep 2026 the
-// canvas holds the city view instead, which is already off north (London is
-// -8), so a city map arrives with an attitude of its own.
+// A cold opening builds the canvas at bearing 0 on the city's own centre and
+// zoom, whether or not the opening-location question has answered, and the
+// focus move that follows carries centre and zoom only, so a cold map arrives
+// at 0 and turns (captain's decision B, 24 Sep 2026). A resumed or restored
+// session arrives at the attitude it was left at.
 //
 // So the rule reads the bearing the map ACTUALLY holds rather than assuming
 // one. A flat map turns; a map that already has an attitude keeps it, because
