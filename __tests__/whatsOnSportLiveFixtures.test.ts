@@ -18,6 +18,13 @@ const PL_SAMPLE = JSON.parse(
 
 const NOW = Date.parse("2026-10-05T12:00:00.000Z");
 
+const LICENSED_TSDB_KEY = "paid-test-key";
+
+function stubSportKeys(footballKey = "", sportsDbKey = LICENSED_TSDB_KEY) {
+  vi.stubEnv("FOOTBALL_DATA_API_KEY", footballKey);
+  vi.stubEnv("THESPORTSDB_API_KEY", sportsDbKey);
+}
+
 describe("live sport fixtures", () => {
   it("maps recorded TheSportsDB events and drops finished fixtures", () => {
     const league = liveSportFixtureInternals.THESPORTSDB_LEAGUES[0];
@@ -73,7 +80,7 @@ describe("live sport fixtures", () => {
   });
 
   it("fetches every TheSportsDB league at once under one lane deadline", async () => {
-    vi.stubEnv("FOOTBALL_DATA_API_KEY", "");
+    stubSportKeys("", LICENSED_TSDB_KEY);
     let inFlight = 0;
     let peak = 0;
     const signals = new Set<AbortSignal | null | undefined>();
@@ -94,7 +101,7 @@ describe("live sport fixtures", () => {
   });
 
   it("gives TheSportsDB rugby its own deadline when football-data times out", async () => {
-    vi.stubEnv("FOOTBALL_DATA_API_KEY", "test-key");
+    stubSportKeys("test-key", LICENSED_TSDB_KEY);
     const controllers = new Map<AbortSignal, AbortController>();
     const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation(() => {
       const controller = new AbortController();
@@ -125,7 +132,7 @@ describe("live sport fixtures", () => {
   });
 
   it("keeps a fixture that kicked off before the run while it is still being served", async () => {
-    vi.stubEnv("FOOTBALL_DATA_API_KEY", "");
+    stubSportKeys("", LICENSED_TSDB_KEY);
     const kickoff = (msAgo: number, idEvent: string) => ({
       idEvent,
       strHomeTeam: `Home ${idEvent}`,
@@ -181,7 +188,7 @@ describe("live sport fixtures", () => {
   });
 
   it("keeps TheSportsDB rugby alongside football-data football", async () => {
-    vi.stubEnv("FOOTBALL_DATA_API_KEY", "test-key");
+    stubSportKeys("test-key", LICENSED_TSDB_KEY);
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("football-data.org")) {
@@ -220,7 +227,7 @@ describe("live sport fixtures", () => {
   });
 
   it("keeps football-data football when the TheSportsDB rugby read fails", async () => {
-    vi.stubEnv("FOOTBALL_DATA_API_KEY", "test-key");
+    stubSportKeys("test-key", LICENSED_TSDB_KEY);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -251,7 +258,7 @@ describe("live sport fixtures", () => {
   });
 
   it("keeps the football-data competitions that answered when one fails", async () => {
-    vi.stubEnv("FOOTBALL_DATA_API_KEY", "test-key");
+    stubSportKeys("test-key", LICENSED_TSDB_KEY);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -353,7 +360,7 @@ describe("live sport fixtures", () => {
         text: async () => "down",
       }) as Response,
     );
-    vi.stubEnv("FOOTBALL_DATA_API_KEY", "test-key");
+    stubSportKeys("test-key", LICENSED_TSDB_KEY);
     await expect(
       fetchLiveSportFixtures({
         now: NOW,
@@ -364,8 +371,8 @@ describe("live sport fixtures", () => {
     vi.unstubAllEnvs();
   });
 
-  it("lists no football without FOOTBALL_DATA_API_KEY and still serves TheSportsDB rugby", async () => {
-    vi.stubEnv("FOOTBALL_DATA_API_KEY", "");
+  it("lists no football without FOOTBALL_DATA_API_KEY and still serves TheSportsDB rugby with a licensed key", async () => {
+    stubSportKeys("", LICENSED_TSDB_KEY);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const rugby = {
       idEvent: "rugby-1",
@@ -388,6 +395,39 @@ describe("live sport fixtures", () => {
     });
     expect(fixtures.map((fixture) => fixture.id)).toEqual(["tsdb-rugby-1"]);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("FOOTBALL_DATA_API_KEY"));
+    warn.mockRestore();
+    vi.unstubAllEnvs();
+  });
+
+  it("lists no fixtures when no licensed keys are configured", async () => {
+    stubSportKeys("", "");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchImpl = vi.fn();
+    const fixtures = await fetchLiveSportFixtures({
+      now: NOW,
+      endMs: NOW + SPORT_FIXTURE_HORIZON_MS,
+      fetchImpl,
+    });
+    expect(fixtures).toEqual([]);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("FOOTBALL_DATA_API_KEY"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("THESPORTSDB_API_KEY"));
+    warn.mockRestore();
+    vi.unstubAllEnvs();
+  });
+
+  it("does not call TheSportsDB when only the public test key is configured", async () => {
+    stubSportKeys("", "3");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchImpl = vi.fn();
+    const fixtures = await fetchLiveSportFixtures({
+      now: NOW,
+      endMs: NOW + SPORT_FIXTURE_HORIZON_MS,
+      fetchImpl,
+    });
+    expect(fixtures).toEqual([]);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("public test key"));
     warn.mockRestore();
     vi.unstubAllEnvs();
   });

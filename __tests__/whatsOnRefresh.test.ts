@@ -560,6 +560,7 @@ describe("live sport for a London reader", () => {
   it("serves tonight's live fixture at London sport pubs on the default read", async () => {
     const now = Date.parse("2026-10-07T12:00:00.000Z");
     vi.stubEnv("FOOTBALL_DATA_API_KEY", "");
+    vi.stubEnv("THESPORTSDB_API_KEY", "paid-test-key");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal(
       "fetch",

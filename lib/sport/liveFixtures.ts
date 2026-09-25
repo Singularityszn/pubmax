@@ -1,8 +1,8 @@
-// Live sport fixture calendar for What's-On sport rows. Official-API lanes only:
-// football comes from football-data.org and only when FOOTBALL_DATA_API_KEY is
-// set; without it no football is listed. TheSportsDB supplies rugby on its
-// documented free tier key (override with THESPORTSDB_API_KEY).
-// Keys are read at call time and never logged.
+// Live sport fixture calendar for What's-On sport rows. Licensed lanes only:
+// football from football-data.org when FOOTBALL_DATA_API_KEY is set; rugby from
+// TheSportsDB only when THESPORTSDB_API_KEY is a paid key (never the public "3").
+// With no licensed keys, sport stays honestly empty. Keys are read at call time
+// and never logged.
 
 import { londonWallClockToIso } from "../../scripts/whatson/sportFixtures.mjs";
 import type { SportFixture } from "../../scripts/whatson/sportFixtures.d.mts";
@@ -24,6 +24,9 @@ const FOOTBALL_DATA_SOURCE = {
 };
 
 const THESPORTSDB_LABEL = "TheSportsDB";
+
+/** TheSportsDB's public test key — not licensed for production fixture reads. */
+const THESPORTSDB_PUBLIC_TEST_KEY = "3";
 
 /** football-data.org competition codes we care about for pub screens. */
 const FOOTBALL_DATA_COMPETITIONS = ["PL", "CL", "ELC"] as const;
@@ -61,6 +64,12 @@ type LaneOpts = FetchLiveSportFixturesOpts & { startMs: number; signal: AbortSig
 function readEnvKey(name: string): string | undefined {
   const value = process.env[name];
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function readLicensedTheSportsDbKey(): string | undefined {
+  const configured = readEnvKey("THESPORTSDB_API_KEY");
+  if (!configured || configured === THESPORTSDB_PUBLIC_TEST_KEY) return undefined;
+  return configured;
 }
 
 function isoDateUtc(ms: number): string {
@@ -328,7 +337,8 @@ async function fetchTheSportsDbFixtures(
  */
 export async function fetchLiveSportFixtures(opts: FetchLiveSportFixturesOpts): Promise<SportFixture[]> {
   const footballKey = readEnvKey("FOOTBALL_DATA_API_KEY");
-  const theSportsDbKey = readEnvKey("THESPORTSDB_API_KEY") ?? "3";
+  const theSportsDbKey = readLicensedTheSportsDbKey();
+  const configuredSportsDb = readEnvKey("THESPORTSDB_API_KEY");
   const startMs = opts.now - POINT_ROW_GRACE_MS.sport;
   const lane = (): LaneOpts => ({
     ...opts,
@@ -336,7 +346,16 @@ export async function fetchLiveSportFixtures(opts: FetchLiveSportFixturesOpts): 
     signal: AbortSignal.timeout(SPORT_LANE_TIMEOUT_MS),
   });
 
-  const lanes = [fetchTheSportsDbFixtures(lane(), theSportsDbKey, THESPORTSDB_LEAGUES)];
+  const lanes: Promise<SportFixture[]>[] = [];
+  if (theSportsDbKey) {
+    lanes.push(fetchTheSportsDbFixtures(lane(), theSportsDbKey, THESPORTSDB_LEAGUES));
+  } else if (configuredSportsDb === THESPORTSDB_PUBLIC_TEST_KEY) {
+    console.warn(
+      "[sport] THESPORTSDB_API_KEY is the public test key; no rugby fixtures are listed in production.",
+    );
+  } else {
+    console.warn("[sport] THESPORTSDB_API_KEY is not set; no rugby fixtures are listed.");
+  }
   if (footballKey) {
     lanes.push(
       fetchFootballDataFixtures(lane(), footballKey).then((fixtures) =>
@@ -346,6 +365,7 @@ export async function fetchLiveSportFixtures(opts: FetchLiveSportFixturesOpts): 
   } else {
     console.warn("[sport] FOOTBALL_DATA_API_KEY is not set; no football fixtures are listed.");
   }
+  if (lanes.length === 0) return [];
   return settleLeagueReads(lanes);
 }
 
