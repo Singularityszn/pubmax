@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   refreshOfficialWhatsOnListings,
@@ -553,5 +553,65 @@ describe("refreshOfficialWhatsOnListings", () => {
     expect((await store.readAll()).rows).toEqual([
       expect.objectContaining({ id: "kept", venueId: LEXINGTON.id }),
     ]);
+  });
+});
+
+describe("live sport for a London reader", () => {
+  it("serves tonight's live fixture at London sport pubs on the default read", async () => {
+    // Wednesday, so no Saturday 3pm blackout applies to the 20:00 kickoff.
+    const now = Date.parse("2026-10-07T12:00:00.000Z");
+    vi.stubEnv("FOOTBALL_DATA_API_KEY", "");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const league = new URL(String(input)).searchParams.get("id");
+        const events =
+          league === "4480"
+            ? [
+                {
+                  idEvent: "9200001",
+                  strHomeTeam: "Arsenal",
+                  strAwayTeam: "Inter",
+                  strTimestamp: "2026-10-07T19:00:00",
+                  strStatus: "NS",
+                },
+              ]
+            : [];
+        return { ok: true, status: 200, json: async () => ({ events }) } as Response;
+      }),
+    );
+    try {
+      const store = memoryStore();
+      const result = await refreshWhatsOnListings({
+        now,
+        store,
+        providers: [],
+        refreshers: {
+          quiz: async () => [],
+          deal: async () => [],
+          music: async () => [],
+        },
+      });
+      expect(result.kinds.find((report) => report.kind === "sport")).toMatchObject({
+        rows: expect.any(Number),
+      });
+      expect(result.kinds.find((report) => report.kind === "sport")?.error).toBeUndefined();
+
+      const snap = await store.readAll();
+      const london = await loadWhatsOn(
+        { kind: "sport", window: "tonight" },
+        { now, loadBaseline: () => snap.rows, fetchLive: async () => [] },
+      );
+      expect(london.rows.length).toBeGreaterThan(0);
+      for (const row of london.rows) {
+        expect(row.kind).toBe("sport");
+        expect(row.title).toContain("Arsenal v Inter");
+        expect(row.lat).toBeGreaterThan(51.28);
+        expect(row.lat).toBeLessThan(51.7);
+      }
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
   });
 });

@@ -45,3 +45,6 @@ export declare function buildSportAttributeRows(input: {
   venues: Array<{ record: GreeneKingMenuRecord; showsSport: boolean | null }>;
   observedAt: string;
 }): { rows: WhatsOnSportRow[]; counts: SportCoverageCounts };
+export declare function greeneKingLondonVenueRecords(
+  canonicalRows: ReadonlyArray<Record<string, unknown>> | null | undefined,
+): Array<Required<Pick<GreeneKingMenuRecord, "name" | "menuUrl" | "address">> & { lat: number; lng: number }>;

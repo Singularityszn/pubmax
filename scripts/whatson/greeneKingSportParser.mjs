@@ -104,6 +104,47 @@ export function buildSportAttributeRows({ venues, observedAt }) {
       counts.undetermined += 1;
     }
   }
+  // Greene King reuses a slug across regions (a Masons Arms in London and
+  // another outside it), so a slug shared by two emitted rows is qualified
+  // with its region to keep every id, and every fixture row fanned from it,
+  // unique.
+  const idCounts = new Map();
+  for (const row of rows) idCounts.set(row.id, (idCounts.get(row.id) ?? 0) + 1);
+  for (const row of rows) {
+    if (idCounts.get(row.id) > 1) {
+      const [region, slug] = row.source.url.split("/").filter(Boolean).slice(-2);
+      row.id = `sport-attr-gk-${region}-${slug}`;
+    }
+  }
   rows.sort((a, b) => a.id.localeCompare(b.id));
   return { rows, counts };
+}
+
+// Greater London Greene King pubs, as venue records the sport scrape can read.
+// The raw menu.json identities cover pubs outside London almost entirely, so
+// without these the "shows live sport" list, and every timed sport row fanned
+// from it, holds no London pub at all. The canonical dataset carries each pub's
+// own Greene King page as `website` plus the name/address/lat/lng its venueId
+// is keyed on, so the ids these records produce join the map exactly. One
+// record per pub page (the dataset holds one row per pint); a row without both
+// coordinates is skipped, never placed.
+const GK_LONDON_PUB_PAGE = /^https:\/\/www\.greeneking\.co\.uk\/pubs\/greater-london\/[a-z0-9-]+$/;
+
+export function greeneKingLondonVenueRecords(canonicalRows) {
+  const byPage = new Map();
+  for (const row of canonicalRows ?? []) {
+    const page = String(row?.website ?? "").trim().replace(/\/+$/, "");
+    if (!GK_LONDON_PUB_PAGE.test(page) || byPage.has(page)) continue;
+    const lat = coordOf(row?.latitude);
+    const lng = coordOf(row?.longitude);
+    if (lat === null || lng === null) continue;
+    byPage.set(page, {
+      name: String(row?.pub_name ?? ""),
+      address: String(row?.address ?? ""),
+      lat,
+      lng,
+      menuUrl: `${page}/menu`,
+    });
+  }
+  return [...byPage.values()];
 }
