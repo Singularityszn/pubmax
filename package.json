@@ -105,7 +105,7 @@
     "eval:pal": "node --conditions=react-server --import tsx scripts/pal-eval.mjs",
     "eval:pal:live": "node --conditions=react-server --import tsx scripts/pal-eval.mjs --live --write-scoreboard",
     "regenerate:pal-answer-key": "node --conditions=react-server --import tsx scripts/regenerate-pal-answer-key.mjs",
-    "verify:famous-venues": "node --import tsx scripts/verify_famous_venues.mjs"
+    "verify:famous-venues": "node --env-file-if-exists=.env.local --import tsx scripts/verify_famous_venues.mjs"
   },
   "dependencies": {
     "@ai-sdk/otel": "^1.0.106",

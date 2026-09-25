@@ -36,20 +36,19 @@ describe("verify:famous-venues --write plan", () => {
     expect(next.get("late_food.json")).toEqual([row("food-429")]);
   });
 
-
-  it("summarises checks by outcome, so a listing-corroborated row counts as unverified", () => {
+  it("buckets checks by outcome, counting confirmed rows and listing closed and unverified ids", () => {
     expect(
       summarizeVerification([
-        { id: "bar-source", outcome: "confirmed" },
-        { id: "bar-anchor", outcome: "confirmed" },
-        { id: "bar-listing-only", outcome: "unverified" },
+        { id: "bar-operational", outcome: "confirmed" },
+        { id: "food-operational", outcome: "confirmed" },
+        { id: "bar-no-confident-match", outcome: "unverified" },
         { id: "bar-closed", outcome: "closed" },
       ]),
     ).toEqual({
       rowsChecked: 4,
       confirmed: 2,
       closed: ["bar-closed"],
-      unverified: ["bar-listing-only"],
+      unverified: ["bar-no-confident-match"],
     });
   });
 });
