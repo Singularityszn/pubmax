@@ -89,6 +89,17 @@ export function compatiblePalSpecies(value: unknown): PubPalSpecies | null {
   return PAL_SPECIES_COMPATIBILITY[value as keyof typeof PAL_SPECIES_COMPATIBILITY] ?? null;
 }
 
+/** The onboarding species a stored species stands for (hound → greyhound), or null when it has none. */
+export function onboardingPalSpecies(value: unknown): (typeof PAL_ONBOARDING_SPECIES)[number] | null {
+  const species = compatiblePalSpecies(value);
+  if (!species) return null;
+  const mapped: PubPalSpecies =
+    PAL_SPECIES_COMPATIBILITY[species as keyof typeof PAL_SPECIES_COMPATIBILITY] ?? species;
+  return (PAL_ONBOARDING_SPECIES as readonly PubPalSpecies[]).includes(mapped)
+    ? (mapped as (typeof PAL_ONBOARDING_SPECIES)[number])
+    : null;
+}
+
 export type PubPalPersonality = {
   playfulness: number;
   energy: number;

@@ -42,6 +42,13 @@ Evidence for the PR lands in the ignored `artifacts/pubpal-voice-proof/`:
 arrival time), `voice-session.png` and `typed-chat.png`. Attach all three to the
 PR.
 
+A green voice run also writes a `voiceSession` block into the committed
+`docs/proof/pubpal-voices/local-proof-summary.json`: `connected`,
+`transcriptPresent`, `agentResponsePresent`, `audioReplyBytes` and their
+timings. Commit that change with the PR as the record that people can talk to
+the Pal. Until a run writes it, the file holds no `voiceSession` block and the
+talk proof is still outstanding.
+
 Local proof (Sep 2026): with dev on port 3102 and `.env.local` configured,
 `docs/proof/pubpal-voices/local-proof-summary.json` records voice GET, LLM bridge,
 and text ask statuses. Headless UI: `PUB_PAL_VOICE_E2E_CONFIGURED=1 PW_SKIP_WEBSERVER=1 PW_PORT=3102 npx playwright test e2e/pubpal-concierge-phone.spec.ts -g "text ask answers|voice explains"`.

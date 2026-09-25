@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 import { expect, test, type Page } from "@playwright/test";
 
@@ -14,6 +14,7 @@ const LIVE_PROOF = process.env.PUB_PAL_PROOF_BASE_URL?.replace(/\/+$/, "");
 const storageState = process.env.PUB_PAL_PROOF_STORAGE_STATE?.trim();
 const wav = process.env.PUB_PAL_PROOF_WAV?.trim();
 const EVIDENCE_DIR = "artifacts/pubpal-voice-proof";
+const PROOF_SUMMARY = "docs/proof/pubpal-voices/local-proof-summary.json";
 const ROUTE_ACTIVATION_KEY = "pubmaxx.pub-pal-route-activation.v1";
 
 test.use({
@@ -105,7 +106,12 @@ test.describe("Pub Pal live voice", () => {
     );
     await page.getByRole("button", { name: "Ask" }).click();
     await expect(page.locator(".palChatBubble--pending")).toHaveCount(0, { timeout: 30_000 });
-    const answer = page.locator(".palChatRow--pal").last().locator(".palChatBubble").first();
+    await expect(page.locator(".palChatBubble--error")).toHaveCount(0);
+    const answer = page
+      .locator(".palChatRow--pal")
+      .last()
+      .locator(".palChatBubble:not(.palChatBubble--error):not(.palChatBubble--pending)")
+      .first();
     await expect(answer).not.toBeEmpty();
 
     await mkdir(EVIDENCE_DIR, { recursive: true });
@@ -133,6 +139,7 @@ test.describe("Pub Pal live voice", () => {
     await expect(page.getByRole("status").filter({ hasText: "Pal is listening" })).toBeVisible({
       timeout: 30_000,
     });
+    const connectedAt = Date.now() - started;
 
     const spokenAt = () =>
       frames.find((frame) => frame.type === "user_transcript" && frame.text?.trim())?.at;
@@ -155,6 +162,24 @@ test.describe("Pub Pal live voice", () => {
       `${JSON.stringify({ at: new Date().toISOString(), baseUrl, frames }, null, 2)}\n`,
     );
 
-    await page.getByRole("button", { name: "End" }).click();
+    const reply = frames.find(
+      (frame) => frame.type === "agent_response" && frame.at >= heardAt && frame.text?.trim(),
+    );
+    const summary = JSON.parse(await readFile(PROOF_SUMMARY, "utf8")) as Record<string, unknown>;
+    summary.voiceSession = {
+      at: new Date().toISOString(),
+      baseUrl,
+      connected: true,
+      connectedAtMs: connectedAt,
+      transcriptPresent: true,
+      transcriptAtMs: heardAt,
+      agentResponsePresent: Boolean(reply),
+      audioReplyBytes: frames
+        .filter((frame) => frame.type === "audio" && frame.at >= heardAt)
+        .reduce((total, frame) => total + (frame.audioBytes ?? 0), 0),
+    };
+    await writeFile(PROOF_SUMMARY, `${JSON.stringify(summary, null, 2)}\n`);
+
+    await page.getByRole("button", { name: "End", exact: true }).click();
   });
 });

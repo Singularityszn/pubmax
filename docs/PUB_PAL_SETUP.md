@@ -36,7 +36,7 @@ Variables → Production, Preview). All four are server-only.
 | `ELEVENLABS_PUB_PAL_AGENT_ID` | The agent the script below creates |
 | `ELEVENLABS_LLM_SHARED_SECRET` | The secret ElevenLabs presents to `/api/pub-pal/llm`. Generate with `openssl rand -hex 32` |
 | `ELEVENLABS_VOICE_ROBIN` … `_CORGI` | One voice id per species (`lib/palElevenLabsVoice.ts`). Create with `npm run pubpal:design-voices` |
-| `ELEVENLABS_VOICE_EMBER` / `_VELVET` / `_SIGNAL` | The onboarding voice picks. A velvet or signal pick always wins over the species voice; ember is the preselected default, so it wins only when the species id is unset |
+| `ELEVENLABS_VOICE_EMBER` / `_VELVET` / `_SIGNAL` | The onboarding voice picks. When the slot for a Pal's pick is set it always wins; the species voice is used only when that slot is empty |
 
 `.env.example` carries the same names with empty values.
 
@@ -85,9 +85,9 @@ It sets four things and nothing else:
    this as `retention: "provider_default"`. ADR 0006 is explicit that raw audio
    and transcripts are never Pal memory.
 3. **Voices**, when their ids are set. The agent-level voice is the default;
-   each session overrides it with the caller's species voice from
-   `lib/palElevenLabsVoice.ts` / `lib/palVoiceOverrides.ts`, so every Pal
-   sounds distinct off one agent.
+   each session overrides it with the caller's picked voice, or with the
+   species voice when that pick has no id, from `lib/palElevenLabsVoice.ts` /
+   `lib/palVoiceOverrides.ts`, so Pals sound distinct off one agent.
 4. **The house prompt**: speak what the tools return, never invent a price or
    an hour, propose but never apply, and switch to plain speech on get-home
    topics.

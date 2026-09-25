@@ -29,35 +29,44 @@ describe("resolveElevenLabsVoiceIdForPal", () => {
     expect(elevenLabsVoiceEnvKeyForSpecies("fox")).toBe("ELEVENLABS_VOICE_FOX");
   });
 
-  it("prefers the species voice over the default ember pick", () => {
+  it("keeps an ember pick over the fox species voice", () => {
     vi.stubEnv("ELEVENLABS_VOICE_FOX", "voice-fox-id");
-    vi.stubEnv("ELEVENLABS_VOICE_EMBER", "voice-ember-id");
-    expect(resolveElevenLabsVoiceIdForPal(basePal)).toBe("voice-fox-id");
-  });
-
-  it("falls back to the ember slot for a default pick when the species is unset", () => {
     vi.stubEnv("ELEVENLABS_VOICE_EMBER", "voice-ember-id");
     expect(resolveElevenLabsVoiceIdForPal(basePal)).toBe("voice-ember-id");
   });
 
-  it("keeps the person's velvet pick over the fox species voice", () => {
+  it("keeps a velvet pick over the fox species voice", () => {
     vi.stubEnv("ELEVENLABS_VOICE_FOX", "voice-fox-id");
     vi.stubEnv("ELEVENLABS_VOICE_VELVET", "voice-velvet-id");
     const pal = { ...basePal, voice: { ...basePal.voice, id: "velvet" as const } };
     expect(resolveElevenLabsVoiceIdForPal(pal)).toBe("voice-velvet-id");
   });
 
-  it("keeps a legacy velvet pick when only the legacy slots are set", () => {
+  it("uses the species voice when the picked slot is empty", () => {
+    vi.stubEnv("ELEVENLABS_VOICE_FOX", "voice-fox-id");
     vi.stubEnv("ELEVENLABS_VOICE_EMBER", "voice-ember-id");
-    vi.stubEnv("ELEVENLABS_VOICE_VELVET", "voice-velvet-id");
-    const pal = { ...basePal, voice: { ...basePal.voice, id: "velvet" as const } };
-    expect(resolveElevenLabsVoiceIdForPal(pal)).toBe("voice-velvet-id");
-  });
-
-  it("uses the species voice when a picked slot is not configured", () => {
-    vi.stubEnv("ELEVENLABS_VOICE_FOX", "voice-fox-id");
     const pal = { ...basePal, voice: { ...basePal.voice, id: "signal" as const } };
     expect(resolveElevenLabsVoiceIdForPal(pal)).toBe("voice-fox-id");
+  });
+
+  it("gives a legacy hound the greyhound voice", () => {
+    vi.stubEnv("ELEVENLABS_VOICE_GREYHOUND", "voice-greyhound-id");
+    const pal = {
+      ...basePal,
+      appearance: { ...basePal.appearance, species: "hound" as const },
+      voice: { ...basePal.voice, id: "signal" as const },
+    };
+    expect(resolveElevenLabsVoiceIdForPal(pal)).toBe("voice-greyhound-id");
+  });
+
+  it("reads no voice key for a legacy species with no onboarding counterpart", () => {
+    vi.stubEnv("ELEVENLABS_VOICE_RAVEN", "voice-raven-id");
+    const pal = {
+      ...basePal,
+      appearance: { ...basePal.appearance, species: "raven" as const },
+      voice: { ...basePal.voice, id: "signal" as const },
+    };
+    expect(resolveElevenLabsVoiceIdForPal(pal)).toBeNull();
   });
 
   it("returns null when nothing is configured", () => {

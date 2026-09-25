@@ -80,7 +80,6 @@ describe("Pub Pal voice token route", () => {
     vi.stubEnv("ELEVENLABS_API_KEY", "server-only-key");
     vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "pub-pal-agent");
     vi.stubEnv("ELEVENLABS_VOICE_FOX", "voice-fox-id");
-    vi.stubEnv("ELEVENLABS_VOICE_EMBER", "voice-ember-id");
   });
 
   afterEach(() => {

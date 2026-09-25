@@ -1,6 +1,5 @@
 import {
-  DEFAULT_PAL_DRAFT,
-  compatiblePalSpecies,
+  onboardingPalSpecies,
   type PubPal,
   type PubPalSpecies,
   type PubPalVoiceId,
@@ -24,22 +23,14 @@ function readEnvVoiceId(key: string): string | null {
 }
 
 /**
- * Onboarding preselects the default voice, so keeping it is indistinguishable
- * from never choosing. Any other ember / velvet / signal pick is the person's
- * own choice and always beats the species voice.
- */
-export function hasMeaningfulVoicePick(pal: PubPal): boolean {
-  return pal.voice.id !== DEFAULT_PAL_DRAFT.voice.id;
-}
-
-/**
- * ElevenLabs voice id for a live session: the person's own voice pick when it
- * is configured, otherwise the species voice, otherwise the picked slot, and
- * null (agent default) when nothing is set.
+ * ElevenLabs voice id for a live session: the person's own ember / velvet /
+ * signal pick whenever its slot is set, otherwise the voice designed for the
+ * Pal's species (legacy species borrow their onboarding counterpart's voice),
+ * and null (agent default) when neither is set.
  */
 export function resolveElevenLabsVoiceIdForPal(pal: PubPal): string | null {
   const picked = readEnvVoiceId(PICKED_VOICE_ENV_KEYS[pal.voice.id]);
-  if (hasMeaningfulVoicePick(pal) && picked) return picked;
-  const species = compatiblePalSpecies(pal.appearance.species) ?? pal.appearance.species;
-  return readEnvVoiceId(elevenLabsVoiceEnvKeyForSpecies(species)) ?? picked;
+  if (picked) return picked;
+  const species = onboardingPalSpecies(pal.appearance.species);
+  return species ? readEnvVoiceId(elevenLabsVoiceEnvKeyForSpecies(species)) : null;
 }
