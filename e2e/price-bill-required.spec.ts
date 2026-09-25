@@ -3,6 +3,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { RECEIPT_REQUIRED_LINE } from "@/lib/pintDropReceipt";
 
 import { installAuthDoubles } from "./helpers/authDoubles";
+import {
+  COMMUNITY_SHEET_FIXTURE_VENUE_ID,
+} from "./helpers/communitySheetFixture";
 import { attachBill } from "./helpers/priceBill";
 
 /**
@@ -25,7 +28,7 @@ test.use({
   viewport: { width: 390, height: 844 },
 });
 
-const HATTON = "venue-1vle947";
+const HATTON = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 
 test.setTimeout(120_000);
 

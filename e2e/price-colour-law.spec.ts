@@ -1,17 +1,22 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import {
+  COMMUNITY_SHEET_FIXTURE_MAP_PATH,
+  COMMUNITY_SHEET_FIXTURE_VENUE_ID,
+  COMMUNITY_SHEET_FIXTURE_VENUE_NAME,
+} from "./helpers/communitySheetFixture";
 import { priceBand, type PriceBand } from "../lib/priceBand";
 
 // THE PRICE COLOUR LAW (captain, 5 Sept 2026, "I already told you"): RED means
 // expensive, YELLOW means affordable and average, GREEN means cheap, and a
 // price wears no other colour. lib/priceBand.ts is the one rule. This spec
 // holds three phone surfaces to it at 390x844: the landing answer card, the
-// venue sheet on /map?sel=venue-1vle947 and the near-you rail on
+// venue sheet on the community-sheet fixture pub and the near-you rail on
 // /near?patch=soho. On each, a £6.50 pint reads expensive and the area's
 // cheapest reads green, and the colour a reader sees is the band token, read
 // off a probe element so the assertion is about paint and not a class name.
 
-const VENUE_ID = "venue-1vle947";
+const VENUE_ID = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function dismissFirstRunChrome(page: Page): Promise<void> {
@@ -83,7 +88,7 @@ test("landing: the £6.50 answer is red, the rail's cheapest is green, the trust
   await expectBand(page, first, "cheap");
 });
 
-test.describe("venue sheet on /map?sel=venue-1vle947", () => {
+test.describe(`venue sheet on ${COMMUNITY_SHEET_FIXTURE_MAP_PATH}`, () => {
   test("the est. £6.50 pill is red, and the word says Estimated", async ({ page }) => {
     test.setTimeout(120_000);
     await page.route("**/api/pint-drops**", (route) =>
@@ -117,7 +122,7 @@ test.describe("venue sheet on /map?sel=venue-1vle947", () => {
       createdAt: new Date(Date.now() - 4 * DAY_MS).toISOString(),
       pintPhotoUrl: null,
       venuePhotoUrl: null,
-      venueName: "The Sir Christopher Hatton",
+      venueName: COMMUNITY_SHEET_FIXTURE_VENUE_NAME,
       venueMapUrl: `/map?sel=${VENUE_ID}`,
     };
     await page.route("**/api/pint-drops**", (route) => {

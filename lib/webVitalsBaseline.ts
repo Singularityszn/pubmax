@@ -160,7 +160,7 @@ export const CWV_BASELINE = baselineJson as CwvBaseline;
 export const REQUIRED_BASELINE_ROUTES = [
   "/",
   "/map",
-  "/map?sel=venue-1vle947",
+  "/map?sel=venue-4xlgb0",
   "/tonight",
   "/today",
   "/plan",

@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { COMMUNITY_SHEET_FIXTURE_VENUE_ID } from "./helpers/communitySheetFixture";
+
 // The mapped-route chip belongs to the map, not to the venue drawer. While the
 // desktop drawer is open its focus trap used to make the whole map stage
 // inert, so "Check last train at final stop" took no click and no Enter, and
@@ -8,7 +10,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 // it sits in the map lane the drawer leaves.
 
 const FIRST_STOP = "venue-yl1a48";
-const FINAL_STOP = "venue-1vle947";
+const FINAL_STOP = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 
 const FOCUSABLE =
   'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible';
