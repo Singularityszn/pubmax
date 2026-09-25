@@ -7,7 +7,9 @@ runs:
       uses: actions/cache@v4
       with:
         path: ~/Library/Caches/ms-playwright
-        key: playwright-browsers-macos-${{ hashFiles('package-lock.json') }}
+        # v2: Playwright routes chromium through chrome-headless-shell; stale caches
+        # that only held full Chromium made law pins fail to launch browsers.
+        key: playwright-browsers-macos-v2-${{ hashFiles('package-lock.json') }}
 
     - name: Install Chromium
       shell: bash
