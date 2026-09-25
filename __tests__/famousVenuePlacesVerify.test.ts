@@ -60,6 +60,48 @@ describe("famous venue Places match rules", () => {
     expect(decision.result).toBe("places_closed_temporarily");
   });
 
+  it("does not confirm a parent listing via substring name match", () => {
+    const row = {
+      ...sampleRow,
+      id: "bar-american-bar-savoy",
+      name: "American Bar at The Savoy",
+      address: "Strand, London WC2R 0EZ",
+    };
+    const place = {
+      displayName: { text: "The Savoy" },
+      formattedAddress: "Strand, London WC2R 0EZ, UK",
+      businessStatus: "OPERATIONAL",
+      location: { latitude: 51.51009, longitude: -0.12085 },
+    };
+    expect(evaluateNameMatch(row.name, "The Savoy").match).toBe(false);
+    const decision = decidePlacesVerification(row, [place]);
+    expect(decision.outcome).toBe("unverified");
+  });
+
+  it("confirms via an explicit placesNameAliases entry", () => {
+    const row = {
+      ...sampleRow,
+      id: "bar-american-bar-savoy",
+      name: "American Bar at The Savoy",
+      address: "Strand, London WC2R 0EZ",
+      placesNameAliases: ["American Bar"],
+    };
+    const place = {
+      displayName: { text: "American Bar" },
+      formattedAddress: "Strand, London WC2R 0EZ, UK",
+      businessStatus: "OPERATIONAL",
+      location: { latitude: 51.51009, longitude: -0.12085 },
+    };
+    const decision = decidePlacesVerification(row, [place]);
+    expect(decision.outcome).toBe("confirmed");
+  });
+
+  it("does not match nested postcodes (E1 vs SE1)", () => {
+    const row = { address: "1 Example Street, London E1 6GQ" };
+    const place = { formattedAddress: "Other Rd, London SE1 6GQ, UK" };
+    expect(evaluateLocationMatch(row, place).match).toBe(false);
+  });
+
   it("withholds when the returned name does not match", () => {
     const payload = loadFixture("name_mismatch.json");
     const decision = decidePlacesVerification(
@@ -98,6 +140,28 @@ describe("verifyRowWithPlaces", () => {
     expect(check.outcome).toBe("confirmed");
     expect(check.method).toBe("places_text_search");
     expect(check.placeId).toMatch(/^places\//);
+  });
+});
+
+describe("verifyRowWithPlaces error labels", () => {
+  it("labels a non-2xx Places response as places_http_error", async () => {
+    const check = await verifyRowWithPlaces(sampleRow, async () => ({
+      httpStatus: 429,
+      body: { error: { status: "RESOURCE_EXHAUSTED" } },
+      fetchedAt: "2026-09-24T12:00:00.000Z",
+      fromCache: false,
+    }));
+    expect(check.result).toBe("places_http_error");
+    expect(check.matchReason).toBe("http_429");
+  });
+
+  it("labels a cache-only miss as places_cache_miss", async () => {
+    const check = await verifyRowWithPlaces(sampleRow, async () => ({
+      cacheMiss: true,
+      fromCache: true,
+      body: {},
+    }));
+    expect(check.result).toBe("places_cache_miss");
   });
 });
 

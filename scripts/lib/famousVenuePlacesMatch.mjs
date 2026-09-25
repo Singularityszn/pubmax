@@ -35,7 +35,7 @@ export function venueNameTokens(name) {
 /**
  * @returns {{ match: boolean; reason: string }}
  */
-export function evaluateNameMatch(venueName, displayName) {
+export function evaluateNameMatch(venueName, displayName, aliases = []) {
   const venueNorm = normalizeVenueName(venueName);
   const placeNorm = normalizeVenueName(
     typeof displayName === "string" ? displayName : displayName?.text ?? "",
@@ -46,10 +46,11 @@ export function evaluateNameMatch(venueName, displayName) {
   if (venueNorm === placeNorm) {
     return { match: true, reason: "exact_normalized_name" };
   }
-  const shorter = venueNorm.length <= placeNorm.length ? venueNorm : placeNorm;
-  const longer = shorter === venueNorm ? placeNorm : venueNorm;
-  if (shorter.length >= 6 && longer.includes(shorter)) {
-    return { match: true, reason: "normalized_substring" };
+  for (const alias of aliases) {
+    const aliasNorm = normalizeVenueName(alias);
+    if (aliasNorm && aliasNorm === placeNorm) {
+      return { match: true, reason: "places_name_alias" };
+    }
   }
   const venueTokens = new Set(venueNameTokens(venueName));
   const placeTokens = new Set(venueNameTokens(placeNorm));
@@ -79,10 +80,13 @@ export function evaluateLocationMatch(row, place) {
   const postcode = extractUkPostcode(row.address);
   const formatted = String(place.formattedAddress ?? "");
   if (postcode) {
-    const compact = postcode.replace(/\s+/g, "");
-    const formattedCompact = formatted.toUpperCase().replace(/\s+/g, "");
-    if (formattedCompact.includes(compact)) {
-      return { match: true, reason: `postcode_${postcode}` };
+    const rowCompact = postcode.replace(/\s+/g, "").toUpperCase();
+    const placePostcode = extractUkPostcode(formatted);
+    if (placePostcode) {
+      const placeCompact = placePostcode.replace(/\s+/g, "").toUpperCase();
+      if (rowCompact === placeCompact) {
+        return { match: true, reason: `postcode_${postcode}` };
+      }
     }
   }
   const lat = place.location?.latitude;
@@ -125,7 +129,11 @@ export function decidePlacesVerification(row, places) {
 
   const confident = [];
   for (const place of list) {
-    const name = evaluateNameMatch(row.name, placeDisplayText(place));
+    const name = evaluateNameMatch(
+      row.name,
+      placeDisplayText(place),
+      row.placesNameAliases ?? [],
+    );
     const location = evaluateLocationMatch(row, place);
     if (name.match && location.match) {
       confident.push({
@@ -138,7 +146,11 @@ export function decidePlacesVerification(row, places) {
 
   if (confident.length === 0) {
     const first = list[0];
-    const name = evaluateNameMatch(row.name, placeDisplayText(first));
+    const name = evaluateNameMatch(
+      row.name,
+      placeDisplayText(first),
+      row.placesNameAliases ?? [],
+    );
     const location = evaluateLocationMatch(row, first);
     return {
       outcome: "unverified",

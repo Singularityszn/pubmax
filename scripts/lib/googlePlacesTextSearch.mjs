@@ -39,13 +39,15 @@ export function createPlacesTextSearchClient({
   cacheDir = DEFAULT_CACHE_DIR,
   maxLiveCalls = 95,
   fetchImpl = fetch,
+  /** When false, live `--places` always hits the API and only writes the cache (never reads it). */
+  readCache = false,
 }) {
   let liveCallCount = 0;
 
   async function searchText(textQuery) {
     mkdirSync(cacheDir, { recursive: true });
     const path = placesCacheFilePath(cacheDir, textQuery);
-    if (existsSync(path)) {
+    if (readCache && existsSync(path)) {
       const cached = JSON.parse(readFileSync(path, "utf8"));
       if (isSuccessfulCachePayload(cached)) {
         return { ...cached, fromCache: true, textQuery };

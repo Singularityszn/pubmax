@@ -18,6 +18,7 @@ import {
 import { slimVenueToPin } from "@/lib/slimPins";
 import { CITIES } from "@/lib/cities";
 import { SLIM_VENUES_PATH, type SlimVenue } from "@/lib/venuesSlim";
+import { expectedSlimFamousCounts } from "@/__tests__/helpers/currentFamousVenues";
 
 // Guards the built public/data/venues_slim.json — the ~400 KB file the map
 // loads instead of the ~6 MB raw dataset (scripts/build_slim_index.mjs). The
@@ -402,9 +403,10 @@ describe("venues_slim.json", () => {
     const bars = rows.filter((row) => row.kind === "bar");
     const food = rows.filter((row) => row.kind === "food");
     const restaurants = rows.filter((row) => row.kind === "restaurant");
-    expect(bars).toHaveLength(36);
-    expect(food).toHaveLength(19);
-    expect(restaurants).toHaveLength(21);
+    const expected = expectedSlimFamousCounts();
+    expect(bars).toHaveLength(expected.bar);
+    expect(food).toHaveLength(expected.food);
+    expect(restaurants).toHaveLength(expected.restaurant);
   });
 
   it("is meaningfully smaller than the raw dataset", () => {

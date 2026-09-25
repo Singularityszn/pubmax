@@ -453,6 +453,44 @@ export function toCommittedPlacesCheck(check) {
 export async function verifyRowWithPlaces(row, searchText) {
   const textQuery = placesTextQueryForRow(row);
   const payload = await searchText(textQuery);
+  if (payload.cacheMiss) {
+    return {
+      id: row.id,
+      method: "places_text_search",
+      sourceUrl: row.sourceUrl,
+      outcome: "unverified",
+      result: "places_cache_miss",
+      textQuery,
+      evidenceFetchedAt: null,
+      evidenceFromLiveCall: false,
+      placeId: null,
+      businessStatus: null,
+      matchReason: "places_cache_miss",
+      anchorSourceUrl: row.anchor?.sourceUrl ?? row.sourceUrl,
+      anchorObservation: "anchor_unchanged; places verification does not re-price anchors",
+    };
+  }
+  const httpStatus = payload.httpStatus;
+  if (
+    typeof httpStatus === "number" &&
+    (httpStatus < 200 || httpStatus >= 300)
+  ) {
+    return {
+      id: row.id,
+      method: "places_text_search",
+      sourceUrl: row.sourceUrl,
+      outcome: "unverified",
+      result: "places_http_error",
+      textQuery,
+      evidenceFetchedAt: payload.fetchedAt ?? null,
+      evidenceFromLiveCall: !payload.fromCache && Boolean(payload.fetchedAt),
+      placeId: null,
+      businessStatus: null,
+      matchReason: `http_${httpStatus}`,
+      anchorSourceUrl: row.anchor?.sourceUrl ?? row.sourceUrl,
+      anchorObservation: "anchor_unchanged; places verification does not re-price anchors",
+    };
+  }
   const places = placesFromSearchPayload(payload);
   const decision = decidePlacesVerification(row, places);
   const ev = decision.evidence ?? {};
@@ -573,9 +611,6 @@ function createCacheOnlySearch(cacheDir) {
       return { textQuery, body: {}, fromCache: true, cacheMiss: true };
     }
     const cached = JSON.parse(readFileSync(path, "utf8"));
-    if (cached.httpStatus < 200 || cached.httpStatus >= 300) {
-      return { textQuery, body: {}, fromCache: true, cacheMiss: true };
-    }
     return { ...cached, fromCache: true, textQuery };
   };
 }
@@ -605,9 +640,20 @@ async function runPlacesMode({ write, verifiedDay, rows, byFile, cacheOnly }) {
     verifyRowWithPlaces(row, searchText),
   );
 
-  const confirmed = checks.filter((c) => c.outcome === "confirmed");
-  const closed = checks.filter((c) => c.outcome === "closed");
-  const unverified = checks.filter((c) => c.outcome === "unverified");
+  const seedChecks = checks.map((check) => ({
+    ...check,
+    outcome: placesCheckAllowsSeedMutation(check, verifiedDay)
+      ? check.outcome
+      : check.outcome === "confirmed" || check.outcome === "closed"
+        ? "unverified"
+        : check.outcome,
+  }));
+
+  const effectiveChecks = cacheOnly && !write ? checks : seedChecks;
+
+  const confirmed = effectiveChecks.filter((c) => c.outcome === "confirmed");
+  const closed = effectiveChecks.filter((c) => c.outcome === "closed");
+  const unverified = effectiveChecks.filter((c) => c.outcome === "unverified");
 
   for (const check of confirmed) {
     console.log(
@@ -634,20 +680,11 @@ async function runPlacesMode({ write, verifiedDay, rows, byFile, cacheOnly }) {
     return;
   }
 
-  const seedChecks = checks.map((check) => ({
-    ...check,
-    outcome: placesCheckAllowsSeedMutation(check, verifiedDay)
-      ? check.outcome
-      : check.outcome === "confirmed" || check.outcome === "closed"
-        ? "unverified"
-        : check.outcome,
-  }));
-
   for (const [file, pack] of applyVerification(byFile, seedChecks, verifiedDay)) {
     writeFileSync(join(FAMOUS_DIR, file), `${JSON.stringify(pack, null, 2)}\n`);
   }
 
-  const committedChecks = checks.map(toCommittedPlacesCheck);
+  const committedChecks = seedChecks.map(toCommittedPlacesCheck);
   const artifact = {
     version: 4,
     verifiedAt: verifiedDay,

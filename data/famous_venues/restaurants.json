@@ -319,7 +319,10 @@
     "sourceName": "rivercafe.co.uk",
     "expiresAt": "2026-09-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "The River Café"
+    ]
   },
   {
     "id": "restaurant-wolseley",
@@ -365,7 +368,10 @@
     "sourceName": "thewolseley.com",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "The Wolseley Piccadilly"
+    ]
   },
   {
     "id": "restaurant-brasserie-zedel",
@@ -411,7 +417,10 @@
     "sourceName": "brasseriezedel.com",
     "expiresAt": "2026-09-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Brasserie Zedel"
+    ]
   },
   {
     "id": "restaurant-veeraswamy",
@@ -825,7 +834,10 @@
     "sourceName": "poppiesfishandchips.co.uk",
     "expiresAt": "2026-09-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Poppies Fish & Chips"
+    ]
   },
   {
     "id": "restaurant-wiltons",
@@ -871,7 +883,10 @@
     "sourceName": "wiltons.co.uk",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Wiltons Restaurant"
+    ]
   },
   {
     "id": "restaurant-hawksmoor-seven-dials",

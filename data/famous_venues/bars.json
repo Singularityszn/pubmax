@@ -46,7 +46,10 @@
     "sourceName": "thesavoylondon.com",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "AMERICAN BAR"
+    ]
   },
   {
     "id": "bar-beaufort-bar-savoy",
@@ -136,7 +139,10 @@
     "sourceName": "the-connaught.co.uk",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "The Connaught Bar"
+    ]
   },
   {
     "id": "bar-coburg",
@@ -275,7 +281,10 @@
     "sourceName": "roccofortehotels.com",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "The Donovan Bar"
+    ]
   },
   {
     "id": "bar-scarfes",
@@ -455,7 +464,10 @@
     "sourceName": "barnightjar.com",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Nightjar"
+    ]
   },
   {
     "id": "bar-three-sheets-soho",
@@ -1085,7 +1097,10 @@
     "sourceName": "theworlds50best.com",
     "expiresAt": "2026-09-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Kwãnt Mayfair"
+    ]
   },
   {
     "id": "bar-side-hustle",
@@ -1400,7 +1415,10 @@
     "sourceName": "milroys.co.uk",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "The Vault"
+    ]
   },
   {
     "id": "bar-soma-soho",
@@ -1580,7 +1598,10 @@
     "sourceName": "evebar.co.uk",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Eve Bar Covent Garden"
+    ]
   },
   {
     "id": "bar-punch-room",

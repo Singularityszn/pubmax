@@ -189,7 +189,10 @@
     "sourceName": "mangal2.com",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Mangal 2 Restaurant"
+    ]
   },
   {
     "id": "food-gokyuzu-harringay",
@@ -414,7 +417,10 @@
     "sourceName": "selale.co.uk",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Selale Restaurant"
+    ]
   },
   {
     "id": "food-le-bab-soho",
@@ -504,7 +510,10 @@
     "sourceName": "testirestaurant.co.uk",
     "expiresAt": "2026-09-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Testi Restaurant"
+    ]
   },
   {
     "id": "food-berenjak-soho",
@@ -778,7 +787,10 @@
     "sourceName": "maroush.com",
     "expiresAt": "2026-09-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Ranoush Juice"
+    ]
   },
   {
     "id": "food-kebab-kid-fulham",
@@ -917,7 +929,10 @@
     "sourceName": "polobar.co.uk",
     "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Polo Bar - 24 Hour Great British Cafe"
+    ]
   },
   {
     "id": "food-duck-waffle",
