@@ -17,11 +17,21 @@ import { agentsMdFiles } from "./helpers/agentsMdTree";
 // reader to is still there.
 //
 // It reads the WHOLE tree rather than the root file. The document is a short
-// root index plus one area file per area, so every law, and with it every
-// pointer, now lives in an area file. `__tests__/agentsMdTree.test.ts` holds
-// the tree's own shape. This one holds what its prose points at.
+// root index plus one area file per area, with long-form detail under
+// `docs/rules/`. `__tests__/agentsMdTree.test.ts` holds the tree's own shape.
+// This one holds what its prose points at.
 const ROOT = resolve(process.cwd());
-const DOC = agentsMdFiles(ROOT)
+
+function ruleDetailDocPaths(): string[] {
+  const directory = join(ROOT, "docs/rules");
+  if (!existsSync(directory)) return [];
+  return readdirSync(directory)
+    .filter((name) => name.endsWith(".md"))
+    .map((name) => `docs/rules/${name}`)
+    .sort();
+}
+
+const DOC = [...agentsMdFiles(ROOT), ...ruleDetailDocPaths()]
   .map((file) => readFileSync(join(ROOT, file), "utf8"))
   .join("\n");
 const TRACKED_PATHS = new Set(
@@ -57,6 +67,9 @@ function looksLikeRepositoryPath(raw: string): boolean {
 const NOT_REPO_PATHS = new Set([
   // Next development route types are generated and absent from a clean clone.
   "./.next/dev/types/routes.d.ts",
+  // Next agent guides ship in node_modules; not git-tracked.
+  "node_modules/next/dist/docs/",
+  "node_modules/next/dist/server/lib/generate-agent-files.js",
   // Server suffix names a convention, not one concrete file.
   ".server.ts",
   // Generic JSON glob names a publish input class, not one repository file.
@@ -321,6 +334,9 @@ describe("AGENTS.md pointers", () => {
     // its bytes and NO pointer, so the shipped count rose from 563 to 569 and the
     // floor keeps the same slack under it. The split into an area tree moved
     // every law and cost no pointer, so the count and the floor both stand.
-    expect(pointers().length).toBeGreaterThan(555);
+    // Raised from 555 when the long-form rules moved into `docs/rules/` and this
+    // fence began reading that directory: the move cost no pointer, the shipped
+    // count reads 1374, and the floor takes the same slack under it.
+    expect(pointers().length).toBeGreaterThan(1360);
   });
 });

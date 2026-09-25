@@ -84,6 +84,26 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
 
   const route = page.getByRole("region", { name: "The route" });
   await expect(route).toBeVisible();
+  const collabRailOverlap = await page.evaluate(() => {
+    const rail = document.querySelector<HTMLElement>(".planSummary__rail");
+    const collab = document.querySelector<HTMLElement>(".planCollab");
+    if (!rail || !collab) return { missing: true };
+    const railRect = rail.getBoundingClientRect();
+    const collabRect = collab.getBoundingClientRect();
+    const overlaps = (a: DOMRect, b: DOMRect) =>
+      a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    return {
+      missing: false,
+      overlaps: overlaps(railRect, collabRect),
+      overInvite: overlaps(
+        railRect,
+        collab.querySelector(".planCollab__invite")?.getBoundingClientRect() ?? collabRect,
+      ),
+    };
+  });
+  expect(collabRailOverlap.missing, "route rail and crew panel must both render").toBe(false);
+  expect(collabRailOverlap.overlaps, "route rail must not cross the crew card (#1539)").toBe(false);
+  expect(collabRailOverlap.overInvite, "route rail must not cross the invite URL (#1539)").toBe(false);
   for (const stop of stops) {
     await expect(route.getByText(stop.venueName, { exact: true })).toBeVisible();
   }

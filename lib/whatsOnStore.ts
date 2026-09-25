@@ -211,22 +211,29 @@ export type LoadWhatsOnDeps = {
    * injected, which keeps its own unbounded wait.
    */
   liveDeadlineMs?: number;
+  /** Fetch for the default CityMCP lane. Ignored when `fetchLive` is injected. */
+  fetchImpl?: typeof fetch;
 };
 
 // Default live layer: CityMCP things_to_do mapped to whats-on rows. Final user
 // limits are deliberately NOT forwarded to the provider call: the complete
 // inventory must survive through grouping before the response limit is applied.
-export const defaultFetchLive: FetchLive = async ({ now, area }) => {
-  const result: ThingsToDoResult = await fetchThingsToDo({
-    window: "tonight",
-    ...(area ? { area } : {}),
-  });
-  return {
-    rows: mapThingsToDoToRows(result, { now }),
-    sourceObservedAt: canonicalPastIso(result.asOf, now),
-    stale: result.stale === true,
+export function cityMcpFetchLive(fetchImpl?: typeof fetch): FetchLive {
+  return async ({ now, area }) => {
+    const result: ThingsToDoResult = await fetchThingsToDo({
+      window: "tonight",
+      ...(area ? { area } : {}),
+      ...(fetchImpl ? { fetchImpl } : {}),
+    });
+    return {
+      rows: mapThingsToDoToRows(result, { now }),
+      sourceObservedAt: canonicalPastIso(result.asOf, now),
+      stale: result.stale === true,
+    };
   };
-};
+}
+
+export const defaultFetchLive: FetchLive = cityMcpFetchLive();
 
 /**
  * How long a PAGE RENDER may wait for the live What's-On top-up before it
@@ -475,7 +482,7 @@ async function resolveLiveLane(
   }
 
   const outcome = await liveTopUpWithinDeadline(
-    defaultFetchLive,
+    deps.fetchImpl ? cityMcpFetchLive(deps.fetchImpl) : defaultFetchLive,
     { now, area: "London" },
     deps.liveDeadlineMs ?? WHATS_ON_LIVE_RENDER_DEADLINE_MS,
   );

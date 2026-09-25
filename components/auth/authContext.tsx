@@ -33,6 +33,8 @@ export type AuthContextValue = {
   signInWithGoogle: (next?: string) => Promise<{ error: string | null }>;
   /** Start the Apple OAuth redirect. No-op when unconfigured. */
   signInWithApple: (next?: string) => Promise<{ error: string | null }>;
+  /** Start the Microsoft (Azure) OAuth redirect. No-op when unconfigured. */
+  signInWithMicrosoft: (next?: string) => Promise<{ error: string | null }>;
   /** Send a passwordless email link with normalized, non-enumerating feedback. */
   signInWithEmail: (email: string, next?: string) => Promise<MagicLinkResult>;
   /** User cancelled an abandoned provider or magic-link attempt. */
@@ -88,6 +90,7 @@ const SIGNED_OUT_AUTH: AuthContextValue = {
   socialProviders: NO_SOCIAL_AUTH_PROVIDERS,
   signInWithGoogle: async () => ({ error: "Sign-in is not configured." }),
   signInWithApple: async () => ({ error: "Sign-in is not configured." }),
+  signInWithMicrosoft: async () => ({ error: "Sign-in is not configured." }),
   signInWithEmail: async () => ({ status: "error", message: "Sign-in is not configured." }),
   cancelAuthAttempt: () => {},
   signOut: async () => {},

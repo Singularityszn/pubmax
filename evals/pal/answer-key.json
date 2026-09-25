@@ -1,0 +1,235 @@
+{
+  "now": "2026-07-21T18:00:00.000Z",
+  "cases": {
+    "cheapest-camden": {
+      "minCards": 1,
+      "topVenueId": "venue-18uogns",
+      "topPrice": 3.4,
+      "expectedTools": [
+        "cheapest_pint_near"
+      ]
+    },
+    "quiz-camden": {
+      "minCards": 1,
+      "expectedTools": [
+        "whats_on"
+      ],
+      "answerIncludes": [
+        "quiz"
+      ]
+    },
+    "quiz-islington": {
+      "minCards": 1,
+      "topVenueId": "venue-18bpz15",
+      "topPrice": 2,
+      "expectedTools": [
+        "whats_on"
+      ],
+      "answerIncludes": [
+        "quiz"
+      ]
+    },
+    "manchester-outscope": {
+      "expectEmpty": true,
+      "expectedTools": [
+        "search_venues"
+      ]
+    },
+    "paris-outscope": {
+      "expectEmpty": true,
+      "expectedTools": [
+        "search_venues"
+      ]
+    },
+    "cheapest-near-lamb": {
+      "minCards": 1,
+      "topVenueId": "venue-p7p18j",
+      "topPrice": 2.95,
+      "expectedTools": [
+        "cheapest_pint_near"
+      ]
+    },
+    "venue-drinks-lamb": {
+      "minCards": 1,
+      "topVenueId": "venue-1yd70c7",
+      "topPrice": 6.65,
+      "expectedTools": [
+        "venue_drinks"
+      ]
+    },
+    "quiet-bank": {
+      "minCards": 1,
+      "topVenueId": "venue-lrlyh8",
+      "topPrice": 6.8,
+      "expectedTools": [
+        "search_venues"
+      ]
+    },
+    "plan-soho": {
+      "minCards": 1,
+      "topVenueId": "venue-e1srzr",
+      "topPrice": 6.25,
+      "expectedTools": [
+        "propose_plan"
+      ],
+      "answerIncludes": [
+        "Plan"
+      ]
+    },
+    "tube-delays": {
+      "expectEmpty": true,
+      "expectDegraded": true,
+      "expectedTools": [
+        "city_status"
+      ]
+    },
+    "find-desk-angel": {
+      "expectEmpty": true,
+      "expectedTools": [
+        "find_desk"
+      ]
+    },
+    "tonight-soho": {
+      "minCards": 1,
+      "expectedTools": [
+        "tonight_now"
+      ]
+    },
+    "cheapest-no-anchor": {
+      "expectEmpty": true,
+      "expectedTools": [
+        "venue_prices"
+      ],
+      "answerIncludes": [
+        "listed pub"
+      ]
+    },
+    "heritage-lamb": {
+      "minCards": 1,
+      "expectedTools": [
+        "venue_heritage"
+      ],
+      "answerIncludes": [
+        "won"
+      ]
+    },
+    "map-open-lamb": {
+      "expectEmpty": true,
+      "expectedTools": [
+        "propose_map_action"
+      ]
+    },
+    "area-buzz-camden": {
+      "minCards": 1,
+      "expectDegraded": true,
+      "expectedTools": [
+        "area_buzz",
+        "venue_prices"
+      ]
+    },
+    "hampstead-quiet": {
+      "minCards": 1,
+      "topVenueId": "venue-1s7f23v",
+      "topPrice": 4.1,
+      "expectedTools": [
+        "search_venues"
+      ]
+    },
+    "food-midnight-covent": {
+      "minCards": 1,
+      "topVenueId": "venue-u68xn3",
+      "topPrice": 6.4,
+      "expectedTools": [
+        "search_venues"
+      ]
+    },
+    "wine-lamb-honest": {
+      "expectEmpty": true,
+      "expectedTools": [
+        "venue_prices"
+      ],
+      "answerIncludes": [
+        "listed pub"
+      ]
+    },
+    "dearest-soho-honest": {
+      "expectEmpty": true,
+      "expectedTools": [
+        "venue_prices"
+      ],
+      "answerIncludes": [
+        "listed pub"
+      ]
+    },
+    "report-crowd-lamb": {
+      "expectEmpty": true,
+      "expectedTools": [
+        "report_occupancy"
+      ]
+    },
+    "journey-lamb": {
+      "expectEmpty": true,
+      "expectedTools": [
+        "journey"
+      ]
+    },
+    "football-whats-on": {
+      "expectEmpty": true,
+      "expectedTools": [
+        "whats_on"
+      ]
+    },
+    "no-seats-lamb": {
+      "expectEmpty": true,
+      "expectedTools": [
+        "report_occupancy"
+      ]
+    },
+    "followup-cheaper-camden": {
+      "minCards": 1,
+      "topVenueId": "venue-1ar7s8w",
+      "topPrice": 4.8,
+      "expectedTools": [
+        "search_venues"
+      ]
+    },
+    "desk-then-cheapest": {
+      "minCards": 1,
+      "topVenueId": "venue-18uogns",
+      "topPrice": 3.4,
+      "expectedTools": [
+        "cheapest_pint_near"
+      ]
+    },
+    "non-alcoholic-soho": {
+      "minCards": 1,
+      "topVenueId": "venue-e1srzr",
+      "topPrice": 6.25,
+      "expectedTools": [
+        "search_venues"
+      ]
+    },
+    "heritage-bank": {
+      "minCards": 1,
+      "expectedTools": [
+        "venue_heritage"
+      ]
+    },
+    "open-map-bank": {
+      "expectEmpty": true,
+      "expectedTools": [
+        "propose_map_action"
+      ]
+    },
+    "crawl-refine-cheaper": {
+      "minCards": 1,
+      "topVenueId": "venue-e1srzr",
+      "topPrice": 6.25,
+      "anyTools": [
+        "search_venues",
+        "cheapest_pint_near",
+        "propose_plan"
+      ]
+    }
+  }
+}

@@ -958,7 +958,7 @@ export function sanitizeEvent(
       // would - otherwise a legitimate selector like "main>img.hero" never
       // reaches those checks at all.
       const valid = name === "sign_in_initiated" && key === "provider"
-        ? value === "google" || value === "apple" || value === "email"
+        ? value === "google" || value === "apple" || value === "microsoft" || value === "email"
         : key === "target" && (name === "web_vital" || name === "landing_cta_clicked")
           ? typeof value === "string"
             && isAllowedVitalProp(name, key, value)

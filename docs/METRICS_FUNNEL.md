@@ -222,7 +222,7 @@ turns into a logged price.
   `onboarding_required`. No handle, account id, birth date, venue or price is
   sent.
 - `sign_in_initiated` - `{ provider }`. Its fixed provider values are `google`,
-  `apple`, and `email`, so magic-link dependence remains measurable while
+  `apple`, `microsoft`, and `email`, so magic-link dependence remains measurable while
   social providers are disabled.
 
 ```

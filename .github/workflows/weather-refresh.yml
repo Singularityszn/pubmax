@@ -13,12 +13,14 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: weather-refresh-${{ github.ref }}
+  # Serialize pubmax-mac workflows on this ref only (repo-wide group blocked other branches).
+  group: pubmax-mac-${{ github.ref }}
   cancel-in-progress: false
+
 
 jobs:
   refresh:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, pubmax-mac]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

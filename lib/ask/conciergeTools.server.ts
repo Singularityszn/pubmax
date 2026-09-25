@@ -286,7 +286,7 @@ export async function toolTonightNow(
   try {
     const { rows, kindObservedAt, readStatus } = await loadWhatsOn(
       { window: "tonight" },
-      { now },
+      { now, ...(ctx.fetchImpl ? { fetchImpl: ctx.fetchImpl } : {}) },
     );
     // A bundled read that could not run is not a city with nothing on. Saying
     // "Nothing sourced for tonight" here would be the exact claim the honesty
