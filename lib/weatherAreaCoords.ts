@@ -1,6 +1,6 @@
 import { LONDON_NIGHT_AREA_SLUGS, type LondonNightAreaSlug, type NightAreaSlug } from "@/lib/nightAreas";
 
-// [lat, lng] centroids per LONDON night area — the established set the scheduled
+// [lat, lng] centroids per LONDON night area: the established set the scheduled
 // refresh has always polled (kept in lockstep with
 // scripts/refresh_weather_snapshots.mjs). The snapshot this feeds is London's,
 // so the table is keyed on London's own patches: an area in another city has no

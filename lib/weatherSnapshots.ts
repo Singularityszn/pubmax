@@ -149,9 +149,7 @@ export function planningWeatherForArea(
   nightArea: NightAreaSlug,
   now = Date.now(),
 ): PlanningWeather | null {
-  const snapshot = validateWeatherSnapshot(value);
-  if (!snapshot || Date.parse(snapshot.generatedAt) > now) return null;
-  const observation = snapshot.observations.find((candidate) => candidate.nightArea === nightArea);
-  if (!observation || Date.parse(observation.observedAt) > now || Date.parse(observation.expiresAt) <= now) return null;
-  return { ...observation, kind: weatherKind(observation) };
+  const read = latestWeatherForArea(value, nightArea, now);
+  if (!read || read.stale) return null;
+  return { ...read.observation, kind: weatherKind(read.observation) };
 }

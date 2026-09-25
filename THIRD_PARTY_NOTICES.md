@@ -20,6 +20,12 @@ PUBMAXX uses MapLibre GL JS with OpenFreeMap basemaps and a CARTO fallback. Prov
 
 Packages installed through `package.json` retain their own licences. Their source and licence metadata are available from their publishers and installed package manifests.
 
+### SunCalc
+
+[`lib/weatherDaylight.ts`](lib/weatherDaylight.ts) adapts the sunrise and sunset maths of SunCalc 1.9.0 rather than installing the package. SunCalc is copyright (c) 2014, Vladimir Agafonkin, and is available under the BSD 2-Clause licence. The full notice, conditions and disclaimer are kept in the header of that file.
+
+- Source: <https://github.com/mourner/suncalc>
+
 ## Fonts and media
 
 Bundled fonts, venue images, and source media retain the notices or source metadata stored beside their assets. See repository data and public asset README files before redistributing those assets separately from the application.
