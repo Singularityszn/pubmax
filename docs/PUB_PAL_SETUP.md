@@ -51,7 +51,7 @@ npm run pubpal:design-voices -- --dry-run
 npm run pubpal:design-voices
 ```
 
-Generated preview audio and the voice id env lines land in `artifacts/pubpal-voices/`, which git ignores. A species whose `ELEVENLABS_VOICE_<SPECIES>` is already set is skipped.
+Generated preview audio and the voice id env lines land in `artifacts/pubpal-voices/`, which git ignores. Each id is appended to `artifacts/pubpal-voices/elevenlabs-voice-ids.env` as soon as its voice is saved, and a species whose `ELEVENLABS_VOICE_<SPECIES>` is already set, in the environment or in that file, is skipped, so a re-run after a failure only designs what is still missing.
 
 ---
 ## Creating the agent

@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,9 +16,13 @@ afterEach(() => {
   }
 });
 
-function dryRun(env: Record<string, string>) {
+function tempCwd() {
   const cwd = mkdtempSync(path.join(tmpdir(), "pubmax-pubpal-voices-"));
   directories.push(cwd);
+  return cwd;
+}
+
+function dryRun(env: Record<string, string>, cwd = tempCwd()) {
   return spawnSync(process.execPath, [SCRIPT, "--dry-run", "--species", "fox,robin"], {
     cwd,
     encoding: "utf8",
@@ -39,5 +43,18 @@ describe("pubpal:design-voices dry run", () => {
     expect(result.stdout).toContain("ELEVENLABS_VOICE_FOX is already set, skipping");
     expect(result.stdout).not.toContain("ELEVENLABS_VOICE_ROBIN is already set");
     expect(result.stdout).toContain("A warm British female voice");
+  });
+
+  it("skips a species a previous partial run already saved to the ids file", () => {
+    const cwd = tempCwd();
+    mkdirSync(path.join(cwd, "artifacts", "pubpal-voices"), { recursive: true });
+    writeFileSync(
+      path.join(cwd, "artifacts", "pubpal-voices", "elevenlabs-voice-ids.env"),
+      "ELEVENLABS_VOICE_ROBIN=saved-robin-voice\n",
+    );
+    const result = dryRun({}, cwd);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("ELEVENLABS_VOICE_ROBIN is already set, skipping");
+    expect(result.stdout).not.toContain("ELEVENLABS_VOICE_FOX is already set");
   });
 });

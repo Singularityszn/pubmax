@@ -2,7 +2,7 @@
 // Design and save one ElevenLabs voice per Pub Pal onboarding species.
 // Requires ELEVENLABS_API_KEY. See docs/PUB_PAL_SETUP.md.
 
-import { readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, existsSync, writeFileSync, appendFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
@@ -10,6 +10,9 @@ const DESIGN_URL = "https://api.elevenlabs.io/v1/text-to-voice/design";
 const CREATE_URL = "https://api.elevenlabs.io/v1/text-to-voice";
 const PREVIEW_TEXT =
   "Where is a cheap pint near Soho tonight? I need somewhere quiet enough to hear myself think, and I would like to be on the last train home.";
+
+const OUT_DIR = "artifacts/pubpal-voices";
+const IDS_FILE = path.join(OUT_DIR, "elevenlabs-voice-ids.env");
 
 const SPECIES = ["robin", "greyhound", "cat", "fox", "pigeon", "badger", "corgi"];
 
@@ -31,14 +34,14 @@ const VOICE_DESCRIPTIONS = {
 };
 
 function loadDotEnv() {
-  for (const file of [".env.local", ".env"]) {
+  for (const file of [".env.local", ".env", IDS_FILE]) {
     const full = path.join(process.cwd(), file);
     if (!existsSync(full)) continue;
     for (const line of readFileSync(full, "utf8").split("\n")) {
       const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
       if (!match) continue;
       const [, key, rawValue] = match;
-      if (process.env[key] !== undefined) continue;
+      if (process.env[key]?.trim()) continue;
       process.env[key] = rawValue.replace(/^["']|["']$/g, "");
     }
   }
@@ -110,9 +113,9 @@ async function main() {
     if (!SPECIES.includes(species)) fail(`Unknown species: ${species}`);
   }
 
-  const outDir = path.join(process.cwd(), "artifacts/pubpal-voices");
+  const outDir = path.join(process.cwd(), OUT_DIR);
+  const envPath = path.join(process.cwd(), IDS_FILE);
   mkdirSync(outDir, { recursive: true });
-  const envLines = [];
 
   for (const species of selected) {
     const description = VOICE_DESCRIPTIONS[species];
@@ -127,19 +130,16 @@ async function main() {
     }
     const preview = await designPreview(apiKey, description);
     const voiceId = await saveVoice(apiKey, species, description, preview.generated_voice_id);
-    envLines.push(`${envKeyForSpecies(species)}=${voiceId}`);
-    console.log(`  saved → ${envKeyForSpecies(species)}`);
+    const envLine = `${envKeyForSpecies(species)}=${voiceId}`;
+    appendFileSync(envPath, `${envLine}\n`);
+    console.log(`  saved → ${envLine}`);
     if (preview.audio_base_64) {
       const audioPath = path.join(outDir, `${species}-preview.mp3`);
       writeFileSync(audioPath, Buffer.from(preview.audio_base_64, "base64"));
     }
   }
 
-  if (!dryRun && envLines.length > 0) {
-    const envPath = path.join(outDir, "elevenlabs-voice-ids.env");
-    writeFileSync(envPath, `${envLines.join("\n")}\n`);
-    console.log("\nDeployment env lines:\n" + envLines.join("\n"));
-  }
+  if (!dryRun) console.log(`\nDeployment env lines are in ${IDS_FILE}`);
 }
 
 main().catch((error) => fail(error instanceof Error ? error.message : String(error)));
