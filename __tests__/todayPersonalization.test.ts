@@ -48,7 +48,7 @@ function weather(tempLabel: string): WeatherBrief {
     stale: false,
     checkedLabel: "Checked 1 hour ago",
     source: { publisher: "Open-Meteo", url: "https://open-meteo.com/" },
-    factsLine: "24°C feels like, clear, 0% chance of rain, daylight",
+    factsLine: "24°C feels like, clear, 0% chance of rain, daylight.",
   };
 }
 

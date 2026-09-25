@@ -376,4 +376,5 @@
    the two actions rather than competing with them for the first one. */
 .mapLayersView .conditionsChip {
   flex: 1 0 100%;
+  white-space: normal;
 }
