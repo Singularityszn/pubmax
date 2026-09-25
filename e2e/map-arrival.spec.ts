@@ -105,6 +105,13 @@ test.describe("map first-visit arrival", () => {
     await expect(sheet).toBeVisible({ timeout: 15_000 });
     await expect(sheet.getByRole("list", { name: "Opening progress" })).toBeVisible();
     await expect(sheet.getByRole("heading", { name: "Which area should we open on?" })).toBeVisible();
+    // The opening kicker sits in the sheet head under the drag handle, so it
+    // must clear the handle rather than tuck its glyphs beneath it.
+    const grab = await sheet.locator(".mobileSharedSheetGrab").boundingBox();
+    const kicker = await sheet.locator(".mobileSharedSheetHeading .kicker").boundingBox();
+    expect(grab).not.toBeNull();
+    expect(kicker).not.toBeNull();
+    expect(kicker!.y - (grab!.y + grab!.height)).toBeGreaterThanOrEqual(6);
     await sheet.getByRole("button", { name: /^Camden/ }).click();
     await expect(sheet).toBeHidden({ timeout: 15_000 });
     await expect(arrival).toBeHidden();
