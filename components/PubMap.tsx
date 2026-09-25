@@ -1487,7 +1487,7 @@ export default function PubMap({
   });
   const [chooseAreaLocationNote, setChooseAreaLocationNote] = useState<string | null>(null);
   const [chooseAreaOpening, setChooseAreaOpening] = useState(false);
-  const openChooseAreaRef = useRef<(locationNote?: string | null) => void>(() => {});
+  const openChooseAreaRef = useRef<(locationNote?: string | null, openingFlow?: boolean) => void>(() => {});
   const restoredChosenAreaRef = useRef(false);
   const [mapViewport, setMapViewport] = useState<MapViewportSnapshot>(() =>
     openingViewport
@@ -4225,7 +4225,7 @@ export default function PubMap({
       const refuse = (message: string) => {
         if (mode === "resume") return;
         if (mode === "arrival") {
-          openChooseAreaRef.current(message);
+          openChooseAreaRef.current(message, true);
           return;
         }
         setNearbyError(message);
