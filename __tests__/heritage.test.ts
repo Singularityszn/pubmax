@@ -262,7 +262,7 @@ describe("POST /api/heritage", () => {
     expect(foodRow).toBeDefined();
 
     const res = await post({
-      venueId: foodRow.id,
+      venueId: foodRow!.id,
       venueName: "Prospect of Whitby",
       question: "What's the story here?",
     });
