@@ -1,65 +1,59 @@
 import "server-only";
 
 import { normalizeHandle } from "@/lib/profiles";
-import { isProfileTombstoned, type ProfileRecord } from "@/lib/profileStore";
+import { isProfileTombstoned, profileStore, type ProfileRecord } from "@/lib/profileStore";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 
-// Public withdrawal is a moderation fact about a PROFILE: its private social
-// account is `suspended`. A GoTrue ban gates sign-in only (lib/authAccountBan.ts)
-// and is never read here, so no public surface pays an auth-admin round trip.
-// Suspensions are rare, so every check reads the whole suspended set in ONE
-// query, joined to the profile's current handle, and decides its rows locally.
+// Public withdrawal is a moderation fact about a LIVE profile: its owner is
+// banned in Supabase auth, or its private Social account is suspended. A
+// DELETED (tombstoned) profile is never withdrawn: its contributions stay
+// public under the retired label (migration 0150), and `profilePublicPresence`
+// answers it as `gone`. Migration 0157's `public_withdrawn_profiles()` answers
+// the whole withdrawn set in ONE round trip, so no public surface pays an
+// auth-admin call, and every caller decides its rows locally.
 
-type SuspendedProfiles = {
+type WithdrawnProfiles = {
   profileIds: ReadonlySet<string>;
   handles: ReadonlySet<string>;
 };
 
-const memorySuspendedProfiles = new Map<string, string>();
+const memoryWithdrawnProfileIds = new Set<string>();
 
-/** Test seam for keyless runs. Production ignores this map when Supabase is configured. */
-export function __setMemoryProfileSuspended(
-  profile: Pick<ProfileRecord, "id" | "handle">,
-  suspended: boolean,
-): void {
-  if (suspended) memorySuspendedProfiles.set(profile.id, normalizeHandle(profile.handle));
-  else memorySuspendedProfiles.delete(profile.id);
+/** Test seam for keyless runs. Production ignores this set when Supabase is configured. */
+export function __setMemoryProfileWithdrawn(profileId: string, withdrawn: boolean): void {
+  if (withdrawn) memoryWithdrawnProfileIds.add(profileId);
+  else memoryWithdrawnProfileIds.delete(profileId);
 }
 
-export function __resetMemoryProfileSuspensions(): void {
-  memorySuspendedProfiles.clear();
+export function __resetMemoryProfileWithdrawals(): void {
+  memoryWithdrawnProfileIds.clear();
 }
 
-async function readSuspendedProfiles(): Promise<SuspendedProfiles> {
+async function readWithdrawnProfiles(): Promise<WithdrawnProfiles> {
   const profileIds = new Set<string>();
   const handles = new Set<string>();
 
   const admin = isSupabaseConfigured() ? getSupabaseAdmin() : null;
   if (!admin) {
-    for (const [profileId, handle] of memorySuspendedProfiles) {
-      profileIds.add(profileId);
-      handles.add(handle);
+    for (const profileId of memoryWithdrawnProfileIds) {
+      const profile = await profileStore().getById(profileId);
+      if (!profile || isProfileTombstoned(profile)) continue;
+      profileIds.add(profile.id);
+      handles.add(profile.handle);
     }
     return { profileIds, handles };
   }
 
   try {
-    const { data, error } = await admin
-      .from("private_social_accounts")
-      .select("profile_id, profiles(handle)")
-      .eq("ownership_state", "suspended");
+    const { data, error } = await admin.rpc("public_withdrawn_profiles");
     if (error) return { profileIds, handles };
-    for (const row of data ?? []) {
-      const { profile_id: profileId, profiles: profile } = row as {
-        profile_id?: unknown;
-        profiles?: { handle?: unknown } | null;
-      };
-      if (typeof profileId === "string") profileIds.add(profileId);
-      const handle = normalizeHandle(String(profile?.handle ?? ""));
+    for (const row of (data ?? []) as Array<{ profile_id?: unknown; handle?: unknown }>) {
+      if (typeof row.profile_id === "string") profileIds.add(row.profile_id);
+      const handle = normalizeHandle(String(row.handle ?? ""));
       if (handle) handles.add(handle);
     }
   } catch {
-    // Fail-soft: treat nobody as suspended when the lane cannot answer.
+    // Fail-soft: treat nobody as withdrawn when the lane cannot answer.
   }
   return { profileIds, handles };
 }
@@ -71,8 +65,8 @@ export async function profilePublicPresence(
 ): Promise<ProfilePublicPresence> {
   if (!profile) return "visible";
   if (isProfileTombstoned(profile)) return "gone";
-  const suspended = await readSuspendedProfiles();
-  return suspended.profileIds.has(profile.id) ? "withdrawn" : "visible";
+  const withdrawn = await readWithdrawnProfiles();
+  return withdrawn.profileIds.has(profile.id) ? "withdrawn" : "visible";
 }
 
 export async function isProfileWithdrawnFromPublic(
@@ -81,23 +75,23 @@ export async function isProfileWithdrawnFromPublic(
   return (await profilePublicPresence(profile)) === "withdrawn";
 }
 
-/** Drop suspended owners from public profile lists (search, directory, founders). */
+/** Drop withdrawn owners from public profile lists (search, directory, founders). */
 export async function filterProfilesWithdrawnFromPublic<T extends Pick<ProfileRecord, "id" | "tombstonedAt">>(
   profiles: readonly T[],
 ): Promise<T[]> {
   if (profiles.length === 0) return [];
-  const suspended = await readSuspendedProfiles();
+  const withdrawn = await readWithdrawnProfiles();
   return profiles.filter(
-    (profile) => isProfileTombstoned(profile) || !suspended.profileIds.has(profile.id),
+    (profile) => isProfileTombstoned(profile) || !withdrawn.profileIds.has(profile.id),
   );
 }
 
-/** The normalised handles among `handles` whose profile is suspended. */
+/** The normalised handles among `handles` whose live profile is withdrawn. */
 export async function withdrawnHandles(handles: readonly string[]): Promise<ReadonlySet<string>> {
   const keys = [...new Set(handles.map((handle) => normalizeHandle(handle)).filter(Boolean))];
   if (keys.length === 0) return new Set();
-  const suspended = await readSuspendedProfiles();
-  return new Set(keys.filter((key) => suspended.handles.has(key)));
+  const withdrawn = await readWithdrawnProfiles();
+  return new Set(keys.filter((key) => withdrawn.handles.has(key)));
 }
 
 /** Drop contributions whose author profile is withdrawn from public view. */

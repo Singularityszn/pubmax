@@ -201,9 +201,9 @@ async function enrich(
   // that logged this drop has left (migration 0150, `lib/retiredContributor.ts`).
   // The tombstone already cleared that profile's face, so the avatar lookup is
   // skipped rather than left to answer nothing.
+  if ((await withdrawnHandles([fields.handle])).size > 0) return null;
   const withheld =
     fields.visibility === "anonymous" || contributorHasRetired(authorRetiredAt);
-  if (!withheld && (await withdrawnHandles([fields.handle])).size > 0) return null;
   const handle = withheld ? ANON_HANDLE_LABEL : fields.handle;
   const avatarUrls = withheld
     ? new Map<string, string>()
