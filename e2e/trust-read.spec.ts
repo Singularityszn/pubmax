@@ -1,10 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// THE TRUST STORY READS ONE WAY, on /map?sel=venue-1vle947 (captain's cut,
+import {
+  COMMUNITY_SHEET_FIXTURE_VENUE_ID,
+  COMMUNITY_SHEET_FIXTURE_VENUE_NAME,
+} from "./helpers/communitySheetFixture";
+
+
+// THE TRUST STORY READS ONE WAY, on the community-sheet fixture pub (captain's cut,
 // 5 Sept 2026, Fable51Fix section 1).
 //
-// Production (e8dfd8d, 5 Sept) holds one public Pint Drop at The Sir
-// Christopher Hatton: Lager £4.50 by handle `tester`, no authority key, no
+// Production (e8dfd8d, 5 Sept) holds one public Pint Drop at the fixture pub: Lager £4.50 by handle `tester`, no authority key, no
 // confirmation. That row is the fixture, served here by a route mock in the
 // shape /api/pint-drops answers, so the test needs no durable store and no
 // clock the server holds.
@@ -16,7 +21,7 @@ import { expect, test, type Page } from "@playwright/test";
 // lands in a sibling PR (second-drinker-write) and the two must merge in
 // either order: `[data-pint-trust]` is the element that action mounts against.
 
-const VENUE_ID = "venue-1vle947";
+const VENUE_ID = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PROVISIONAL_LINE = "Logged once, needs a second drinker";
 const AGED_LINE = "Over 30 days old, needs a fresh drinker";
@@ -62,7 +67,7 @@ function row(overrides: Partial<DropRow> = {}): DropRow {
     createdAt: new Date(Date.now() - 4 * DAY_MS).toISOString(),
     pintPhotoUrl: null,
     venuePhotoUrl: null,
-    venueName: "The Sir Christopher Hatton",
+    venueName: COMMUNITY_SHEET_FIXTURE_VENUE_NAME,
     venueMapUrl: `/map?sel=${VENUE_ID}`,
     ...overrides,
   };

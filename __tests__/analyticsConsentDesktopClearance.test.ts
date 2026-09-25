@@ -58,6 +58,12 @@ describe("analytics consent clearance", () => {
     );
   });
 
+  it("reserves scroll padding while the consent bar is mounted", () => {
+    expect(globalCss).toMatch(
+      /html:has\(\.analyticsConsentPrompt\)\s*\{[^}]*scroll-padding-bottom:/,
+    );
+  });
+
   it("keeps the full disclosure visible on the map", () => {
     const mapParagraph = globalCss.match(
       /body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt p\s*{([^}]*)}/,

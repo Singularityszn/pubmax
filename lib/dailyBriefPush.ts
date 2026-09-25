@@ -9,7 +9,7 @@ export function composeDailyBriefPush(
   picks: readonly TonightPickDto[],
 ): DailyBriefHighlight | null {
   const topPick = picks[0];
-  if (!weather || weather.stale || !topPick) return null;
+  if (!weather || weather.stale || weather.ruleId === null || !topPick) return null;
   return {
     weatherLine: weather.verdictLine,
     topPickTitle: topPick.title,

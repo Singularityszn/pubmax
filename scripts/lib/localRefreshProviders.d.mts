@@ -31,12 +31,15 @@ export function renderBrowserbasePage(
   connectUrl: string,
   url: string,
   WebSocketImpl?: typeof WebSocket,
-): Promise<{ markdown: string; links: string[] }>;
+): Promise<{ markdown: string; links: string[]; finalUrl: string }>;
 
 export function fetchRefreshPage(input: {
   job: "rendered-menu" | "plain-page";
   url: string;
   environment?: Record<string, string | undefined>;
   fetchImpl?: typeof fetch;
-  renderBrowserPage?: (connectUrl: string, url: string) => Promise<{ markdown: string; links: string[] }>;
-}): Promise<{ markdown: string; links: string[] }>;
+  renderBrowserPage?: (
+    connectUrl: string,
+    url: string,
+  ) => Promise<{ markdown: string; links: string[]; finalUrl: string }>;
+}): Promise<{ markdown: string; links: string[]; finalUrl: string }>;

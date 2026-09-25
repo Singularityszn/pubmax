@@ -6,9 +6,10 @@ import {
   nearestNightAreaForViewport,
   type NightAreaSlug,
 } from "@/lib/nightAreas";
-import { planningWeatherForArea } from "@/lib/weatherSnapshots";
+import { latestWeatherForArea } from "@/lib/weatherSnapshots";
 import { loadWeatherSnapshot } from "@/lib/weatherSnapshots.server";
 import { evaluateDrinkWeather } from "@/lib/drinkWeather";
+import { observationFacts } from "@/lib/weatherObservationCopy";
 import {
   lensVenuePredicate,
   londonMonth,
@@ -39,22 +40,25 @@ export async function resolveTonightConditions(
     : getNightArea(DEFAULT_AREA);
   if (!area) return null;
 
-  const weather = planningWeatherForArea(snapshot, area.slug, now.getTime());
-  if (!weather) return null;
-  const conditionsWeather = {
-    tempC: weather.feelsLikeC,
-    condition: weather.condition,
-    precipitationProbabilityPct: weather.precipitationProbabilityPct,
+  const read = latestWeatherForArea(snapshot, area.slug, now.getTime());
+  if (!read) return null;
+  const { observation, stale } = read;
+  const weather = {
+    tempC: observation.feelsLikeC,
+    precipitationProbabilityPct: observation.precipitationProbabilityPct,
   };
-  const verdict = evaluateDrinkWeather({
-    tempC: conditionsWeather.tempC,
-    precipitationProbabilityPct: conditionsWeather.precipitationProbabilityPct,
-    month: londonMonth(now),
-  });
-  if (!verdict) return null;
+  const facts = observationFacts({ observation, nightArea: area.slug, now, stale });
+  const verdict = stale
+    ? null
+    : evaluateDrinkWeather({
+        tempC: weather.tempC,
+        precipitationProbabilityPct: weather.precipitationProbabilityPct,
+        month: londonMonth(now),
+        isDay: facts.isDay,
+      });
 
   let tally: VenueLensTally = null;
-  if (point && lensVenuePredicate(verdict.venueLens)) {
+  if (verdict && point && lensVenuePredicate(verdict.venueLens)) {
     try {
       const venues = await loadVenues(DEFAULT_CITY_ID);
       tally = tallyLensMatches(venues, verdict.venueLens, point);
@@ -62,5 +66,5 @@ export async function resolveTonightConditions(
       tally = null;
     }
   }
-  return summariseTonightConditions({ weather: conditionsWeather, now, tally });
+  return summariseTonightConditions({ weather, facts, now, tally });
 }

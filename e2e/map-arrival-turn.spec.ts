@@ -1,9 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { getCity } from "@/lib/cities";
 import {
   MAP_ARRIVAL_BEARING_DEG,
-  MAP_ARRIVAL_BEARING_EPSILON,
   MAP_ARRIVAL_BEARING_SETTLED_BY_MS,
 } from "@/lib/mapArrivalBearing";
 
@@ -26,18 +24,6 @@ const STILLNESS_SAMPLES = 6;
 
 /** Floating-point slack on one eased bearing. */
 const BEARING_TOLERANCE = 0.25;
-
-/**
- * London's own designed attitude, which the map adopts when the opening
- * location question answers before the canvas is built.
- *
- * Two writers can give the map its first bearing and which one lands first is
- * a race the app does not decide: the flat hold view while the question is
- * open, or the city view once it is answered. The captain's ask is that the map
- * not read as a flat diagram, and BOTH ends satisfy it, so the guarantee test
- * below accepts either and the deterministic test above removes the race.
- */
-const LONDON_BEARING = getCity("london").mapView.bearing;
 
 type CameraReading = {
   bearing: number;
@@ -90,26 +76,32 @@ async function settleAfterArrival(page: Page): Promise<void> {
 test.use({ hasTouch: true, viewport: PHONE });
 
 test.describe("the map's opening turn", () => {
-  test("comes to rest off north, at one of the two attitudes the rule allows", async ({ page }) => {
+  test("comes to rest at the turned bearing", async ({ page }) => {
     await openMap(page);
-    await settleAfterArrival(page);
+    await page.waitForTimeout(MAP_ARRIVAL_BEARING_SETTLED_BY_MS);
 
-    const rested = await readCamera(page);
-    // The promise, first: the map does not read as a flat diagram.
-    expect(
-      Math.abs(rested.bearing),
-      `rested at ${rested.bearing}, expected the map to be off north`,
-    ).toBeGreaterThan(MAP_ARRIVAL_BEARING_EPSILON);
-    // Then WHICH off north, because "not zero" would pass on a map spinning to
-    // any angle at all. Only two are allowed, and a third is a defect.
-    const restsAtTurn =
-      Math.abs(rested.bearing - MAP_ARRIVAL_BEARING_DEG) <= BEARING_TOLERANCE;
-    const restsAtCityAttitude =
-      Math.abs(rested.bearing - LONDON_BEARING) <= BEARING_TOLERANCE;
-    expect(
-      restsAtTurn || restsAtCityAttitude,
-      `rested at ${rested.bearing}, expected ${MAP_ARRIVAL_BEARING_DEG} or ${LONDON_BEARING}`,
-    ).toBe(true);
+    // A cold open arrives flat north, so the turn is the only way off it, and
+    // "not zero" alone would pass on a map spinning to any angle at all. The
+    // turn's wait counts polls, not wall-clock time, so on a loaded box it can
+    // start well after MAP_ARRIVAL_BEARING_SETTLED_BY_MS: a still camera at 0
+    // then is waiting, not done. Poll for the turned rest; a lost turn still
+    // fails here, at the timeout.
+    let rested = await readCamera(page);
+    await expect
+      .poll(
+        async () => {
+          rested = await readCamera(page);
+          return (
+            !rested.moving &&
+            Math.abs(rested.bearing - MAP_ARRIVAL_BEARING_DEG) <= BEARING_TOLERANCE
+          );
+        },
+        {
+          message: `expected the camera to rest at ${MAP_ARRIVAL_BEARING_DEG}`,
+          timeout: ARRIVAL_TIMEOUT_MS,
+        },
+      )
+      .toBe(true);
 
     // And it is one move, not a slow orbit: every later sample is that bearing.
     const samples: number[] = [];
@@ -131,18 +123,12 @@ test.describe("the map's opening turn", () => {
     const page = await context.newPage();
     await openMap(page);
     await settleAfterArrival(page);
-    // No turn means the map is left exactly where it arrived, which is flat
-    // north or the city's own attitude, and never the turned bearing.
+    // No turn means the map is left exactly where it arrived: flat north.
     const rested = await readCamera(page);
     expect(
-      Math.abs(rested.bearing) <= BEARING_TOLERANCE ||
-        Math.abs(rested.bearing - LONDON_BEARING) <= BEARING_TOLERANCE,
-      `rested at ${rested.bearing}, expected 0 or ${LONDON_BEARING}`,
-    ).toBe(true);
-    expect(
-      Math.abs(rested.bearing - MAP_ARRIVAL_BEARING_DEG),
-      `rested at ${rested.bearing}, which is the turn a reduced-motion reader refused`,
-    ).toBeGreaterThan(BEARING_TOLERANCE);
+      Math.abs(rested.bearing),
+      `rested at ${rested.bearing}, expected the flat arrival a reduced-motion reader keeps`,
+    ).toBeLessThanOrEqual(BEARING_TOLERANCE);
     await context.close();
   });
 });

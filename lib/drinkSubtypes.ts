@@ -418,6 +418,20 @@ const SUBTYPE_TABLE: DrinkSubtype[] = [
     tokens: ["diet coke", "coca cola light", "coca-cola light", "diet coca cola"],
   },
   {
+    id: "soft-drink-pepsi-max",
+    category: "soft-drink",
+    label: "Pepsi Max",
+    longLabel: "Pepsi Max",
+    tokens: ["pepsi max", "pepsi zero sugar", "pepsi zero", "zero sugar pepsi"],
+  },
+  {
+    id: "soft-drink-diet-pepsi",
+    category: "soft-drink",
+    label: "Diet Pepsi",
+    longLabel: "Diet Pepsi",
+    tokens: ["diet pepsi", "pepsi diet", "pepsi light", "pepsi cola diet"],
+  },
+  {
     id: "soft-drink-still-water",
     category: "soft-drink",
     label: "Still water",
@@ -431,6 +445,14 @@ const SUBTYPE_TABLE: DrinkSubtype[] = [
       "still/sparkling water",
       "still / sparkling",
     ],
+  },
+  // This subtype is a query lens only; never classify a printed menu label as a brand family.
+  {
+    id: "soft-drink-zero-sugar-cola",
+    category: "soft-drink",
+    label: "Zero-sugar cola",
+    longLabel: "Zero-sugar cola",
+    tokens: [],
   },
 ];
 
@@ -456,6 +478,25 @@ export function subtypesForCategory(category: DrinkCategory): readonly DrinkSubt
 export function findSubtype(id: string | null | undefined): DrinkSubtype | null {
   if (typeof id !== "string") return null;
   return BY_ID.get(id.trim().toLowerCase()) ?? null;
+}
+
+const DRINK_SUBTYPE_FAMILY_MEMBERS: Readonly<Record<string, readonly DrinkSubtypeId[]>> = {
+  "soft-drink-zero-sugar-cola": [
+    "soft-drink-coke-zero",
+    "soft-drink-diet-coke",
+    "soft-drink-pepsi-max",
+    "soft-drink-diet-pepsi",
+  ],
+};
+
+/** Leaf subtype members represented by a subtype lens. Ordinary leaves return themselves. */
+export function drinkSubtypeMembers(subtype: DrinkSubtype): readonly DrinkSubtype[] {
+  const memberIds = DRINK_SUBTYPE_FAMILY_MEMBERS[subtype.id];
+  if (!memberIds) return [subtype];
+  return memberIds.flatMap((id) => {
+    const member = findSubtype(id);
+    return member ? [member] : [];
+  });
 }
 
 /** Guard for URL/query subtype values, optionally pinned to a category. */
@@ -527,11 +568,29 @@ function haystackHasNeedle(hay: string, needle: string): boolean {
   return new RegExp(`(^| )${n}( |$)`).test(hay);
 }
 
+function haystackHasSubtypeNeedle(haystack: string, needle: string): boolean {
+  const normalizedNeedle = normalizeDrinkHaystack(needle);
+  if (!normalizedNeedle) return false;
+  if (!normalizedNeedle.includes(" ")) {
+    return haystackHasNeedle(normalizeDrinkHaystack(haystack), normalizedNeedle);
+  }
+  // A token deliberately containing a separator, such as
+  // "still/sparkling water", keeps its existing behaviour. Other multi-word
+  // subtype names cannot bridge separate menu-list items.
+  if (/[&,;+/]/.test(needle)) {
+    return normalizeDrinkHaystack(haystack).includes(normalizedNeedle);
+  }
+  return haystack
+    .split(/(?:[&,;+/]|\band\b)/i)
+    .map(normalizeDrinkHaystack)
+    .some((segment) => segment.includes(normalizedNeedle));
+}
+
 /** True when free text names this subtype. Strict: only the curated tokens. */
 export function haystackMatchesSubtype(haystack: string, subtype: DrinkSubtype): boolean {
   const hay = normalizeDrinkHaystack(haystack);
   if (!hay) return false;
-  return subtype.tokens.some((token) => haystackHasNeedle(hay, token));
+  return subtype.tokens.some((token) => haystackHasSubtypeNeedle(haystack, token));
 }
 
 // Category-relative short forms, derived (never hand-maintained) by stripping
@@ -558,11 +617,16 @@ const SHORT_TOKENS = new Map<DrinkSubtypeId, string[]>(
 // honest proxy for specificity: "white rum" (9) beats wine's "white" (5), so
 // "White rum" lands on rum even though wine is checked first. Returns 0 for no
 // match.
-function subtypeScore(hay: string, subtype: DrinkSubtype, pinned: boolean): number {
+function subtypeScore(
+  drink: string,
+  hay: string,
+  subtype: DrinkSubtype,
+  pinned: boolean,
+): number {
   let best = 0;
   for (const token of subtype.tokens) {
     const n = normalizeDrinkHaystack(token);
-    if (n.length > best && haystackHasNeedle(hay, n)) best = n.length;
+    if (n.length > best && haystackHasSubtypeNeedle(drink, token)) best = n.length;
   }
   if (!pinned) return best;
   for (const token of SHORT_TOKENS.get(subtype.id) ?? []) {
@@ -663,6 +727,8 @@ const NAME_SUBTYPE_HINTS: ReadonlyArray<[string, DrinkSubtypeId]> = [
 const BRAND_SUBTYPE_HINTS: ReadonlyArray<[string, DrinkSubtypeId]> = [
   ["coke-zero", "soft-drink-coke-zero"],
   ["diet-coke", "soft-drink-diet-coke"],
+  ["pepsi-max", "soft-drink-pepsi-max"],
+  ["diet-pepsi", "soft-drink-diet-pepsi"],
   ["still-water", "soft-drink-still-water"],
   ["guinness", "beer-stout"],
   ["neck-oil", "beer-ipa"],
@@ -731,7 +797,7 @@ export function drinkSubtypeFromText(
   let best: DrinkSubtype | null = null;
   let bestScore = 0;
   for (const subtype of pool) {
-    const score = subtypeScore(hay, subtype, Boolean(category));
+    const score = subtypeScore(drink, hay, subtype, Boolean(category));
     if (score > bestScore) {
       best = subtype;
       bestScore = score;

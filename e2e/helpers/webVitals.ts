@@ -4,6 +4,8 @@ import { expect, type CDPSession, type Page } from "@playwright/test";
 
 import type { VitalsDevice } from "../../lib/webVitalsBaseline";
 
+import { COMMUNITY_SHEET_FIXTURE_MAP_PATH } from "./communitySheetFixture";
+
 /**
  * The ONE way a Core Web Vital is measured in this suite.
  *
@@ -340,7 +342,7 @@ export const PRIMARY_INTERACTIONS: Record<string, PrimaryInteraction> = {
     kind: "click",
     label: "a map chrome control",
   },
-  "/map?sel=venue-1vle947": {
+  [COMMUNITY_SHEET_FIXTURE_MAP_PATH]: {
     selector: ".venueInspector [role='tab']",
     kind: "click",
     label: "a venue sheet tab",

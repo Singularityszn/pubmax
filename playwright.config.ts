@@ -165,6 +165,7 @@ export default defineConfig({
         "**/map-fallback.spec.ts",
         "**/map-service-worker.spec.ts",
         "**/map-uk-base-layer.spec.ts",
+        "**/map-live-qa-0924.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
         "**/signed-in-review.spec.ts",
         // The Core Web Vitals sweep owns its own project: it needs a real GL
@@ -296,6 +297,9 @@ export default defineConfig({
         "**/map-webgl-recovery.spec.ts",
         // UK base layer: asserts the zoom gate + a real tap on a painted pin.
         "**/map-uk-base-layer.spec.ts",
+        // /map/list opening List view, and a cold /map opening on London: both
+        // need rendered venue rows and a real camera probe.
+        "**/map-live-qa-0924.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
       ],
       use: {

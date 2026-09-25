@@ -17,6 +17,7 @@ import {
 } from "@/lib/venueIndexOsm";
 import { cityVenueIdForPub } from "@/lib/cityVenueId.mjs";
 import type { Venue } from "@/lib/venues";
+import { currentFamousVenueIds } from "@/__tests__/helpers/currentFamousVenues";
 
 // buildVenueIndex only reads id/name/primaryBorough/latitude/longitude, so a
 // partial cast keeps fixtures readable.
@@ -162,7 +163,15 @@ describe("getVenueIndex", () => {
       name: "Turf Tavern",
       borough: "Oxford",
     });
-    expect(index.get("bar-american-bar-savoy")).toBeUndefined();
+    const americanBar = index.get("bar-american-bar-savoy");
+    if (currentFamousVenueIds().has("bar-american-bar-savoy")) {
+      expect(americanBar).toMatchObject({
+        name: "American Bar at The Savoy",
+        borough: "Westminster",
+      });
+    } else {
+      expect(americanBar).toBeUndefined();
+    }
   });
 
   it("resolves outer London OSM ownership to its curated venue", async () => {

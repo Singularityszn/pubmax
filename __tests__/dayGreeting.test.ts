@@ -16,8 +16,6 @@ const DATE_LABEL = "Saturday 25 Jul";
 function brief(overrides: Partial<WeatherBrief> = {}): WeatherBrief {
   return {
     dateLabel: DATE_LABEL,
-    tempLabel: "24°C",
-    conditionLabel: "clear",
     verdictLine: "Beer garden weather. Lager or cider.",
     ruleId: "summer-garden",
     drinkSuggestion: "a cold lager or cider",
@@ -25,6 +23,7 @@ function brief(overrides: Partial<WeatherBrief> = {}): WeatherBrief {
     stale: false,
     checkedLabel: "Checked 6 minutes ago",
     source: { publisher: "Open-Meteo", url: "https://open-meteo.com/" },
+    factsLine: "24°C feels like, clear, 0% chance of rain, daylight.",
     ...overrides,
   };
 }
@@ -56,7 +55,7 @@ describe("buildDayGreeting", () => {
     expect(greeting.slot).toBe("evening");
     expect(greeting.salutation).toBe("Good evening");
     expect(greeting.headline).toBe("Golden evening for a beer garden.");
-    expect(greeting.support).toBe("Saturday 25 Jul, 24°C and clear in London.");
+    expect(greeting.support).toBe("Saturday 25 Jul. 24°C feels like, clear, 0% chance of rain, daylight.");
     expect(greeting.weatherAware).toBe(true);
   });
 
@@ -83,14 +82,12 @@ describe("buildDayGreeting", () => {
   it("describes the rule behind the displayed reading, not only its shared lens", () => {
     const now = new Date("2026-07-25T23:30:00.000Z");
     const warmRain = brief({
-      tempLabel: "24°C",
-      conditionLabel: "cloudy",
+      factsLine: "24°C feels like, cloudy, 60% chance of rain, night.",
       venueLens: "fireplace",
       ruleId: "hard-rain",
     });
     const cold = brief({
-      tempLabel: "7°C",
-      conditionLabel: "cloudy",
+      factsLine: "7°C feels like, cloudy, 10% chance of rain, night.",
       venueLens: "fireplace",
       ruleId: "cold",
     });
@@ -142,11 +139,32 @@ describe("buildDayGreeting", () => {
   it("stops asserting current conditions once the observation is stale", () => {
     const greeting = buildDayGreeting({
       now: new Date("2026-07-25T18:00:00.000Z"),
-      weather: brief({ stale: true }),
+      weather: brief({
+        stale: true,
+        factsLine: "Last read of the sky: 24°C feels like, clear, 0% chance of rain.",
+      }),
       dateLabel: DATE_LABEL,
     });
-    expect(greeting.support).toBe("Saturday 25 Jul. Last read of the sky: 24°C and clear.");
+    expect(greeting.support).toBe(
+      "Saturday 25 Jul. Last read of the sky: 24°C feels like, clear, 0% chance of rain.",
+    );
     expect(greeting.support).not.toContain("in London");
+  });
+
+  it("prints a fresh reading's facts with no weather headline when no rule fired", () => {
+    const greeting = buildDayGreeting({
+      now: new Date("2026-07-25T18:00:00.000Z"),
+      weather: brief({
+        ruleId: null,
+        verdictLine: "",
+        venueLens: "any",
+        factsLine: "16°C feels like, cloudy, 45% chance of rain, daylight.",
+      }),
+      dateLabel: DATE_LABEL,
+    });
+    expect(greeting.headline).toBe("Your night out, sorted.");
+    expect(greeting.support).toBe("Saturday 25 Jul. 16°C feels like, cloudy, 45% chance of rain, daylight.");
+    expect(greeting.weatherAware).toBe(false);
   });
 
   it("adds the viewer's handle when the device has one", () => {

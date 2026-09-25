@@ -58,8 +58,9 @@ cheapest-pint buckets, the price bands and the Pint Index cannot take one.
 
 **The narrower governance table binds.** A row whose source host is refused on
 permission by `lib/harvest/sourcePolicy.ts` is dropped and counted, whatever
-`data/price_sources.json` says about it. That is what keeps the 1,914
-Nicholson's rows in `drink_price_updates` out of this file.
+`data/price_sources.json` says about it. Nicholson's rows were withdrawn from
+the site ledger and every tracked update snapshot on 2026-09-22; the build
+predicate also refuses them if they are introduced again.
 
 **A demo fixture is not a price.** `isDemoDrinkProvenance` spots one and it is
 never carried into a dataset that claims to say what a pint costs.

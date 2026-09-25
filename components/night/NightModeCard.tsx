@@ -42,6 +42,8 @@ import {
   type ActivePlanRef,
 } from "@/lib/activePlan";
 import { useLoopMoment } from "@/components/loop/useLoopMoment";
+import { useViewerSession } from "@/components/auth/useViewerSession";
+import EmptyState from "@/components/ui/empty-state";
 import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import {
@@ -447,8 +449,11 @@ function NightModeSheet({
   onCollapse: () => void;
 }) {
   const { id, stopIndex } = entry;
+  const { unresolved: sessionUnresolved } = useViewerSession();
   const [plan, setPlan] = useState<PlanState | null>(null);
   const [report, setReport] = useState<PlanGetInReportDTO | null>(null);
+  const [routeFetchSettled, setRouteFetchSettled] = useState(false);
+  const sessionAsked = useRef(false);
   const [coords, setCoords] = useState<VenueCoord[] | null>(null);
   const [lateFood, setLateFood] = useState<LateFoodTerminal[]>([]);
   const chosenEnding = entry.endingPreview ?? null;
@@ -496,6 +501,12 @@ function NightModeSheet({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onCollapse]);
 
+  useEffect(() => {
+    if (sessionUnresolved || sessionAsked.current) return;
+    sessionAsked.current = true;
+    void restorePlanCapability(id).catch(() => undefined);
+  }, [sessionUnresolved, id]);
+
   // Plan state + get-in report - the two feeds the plan screen already uses.
   //
   // BOTH FOLLOW THE CAPABILITY, NOT THE MOUNT (battle test M01/M02, the rule
@@ -529,7 +540,10 @@ function NightModeSheet({
           setReport(null);
         }
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (isActive()) setRouteFetchSettled(true);
+      });
     void fetch(`/api/plans/${id}/getin`, { cache: "no-store" })
       .then((response) => {
         if (!response.ok) {
@@ -1014,6 +1028,19 @@ function NightModeSheet({
             <PlusCircle size={16} aria-hidden="true" />
             Log this pint
           </Link>
+        </div>
+      ) : routeFetchSettled ? (
+        <div className="nightCard__routeEmpty" role="status">
+          <EmptyState
+            title="Tonight's route isn't open here yet."
+            action={
+              <Link prefetch={false} href={`/plan/${encodeURIComponent(id)}`}>
+                View full plan
+              </Link>
+            }
+          >
+            Open the full plan to pick up where you left off.
+          </EmptyState>
         </div>
       ) : (
         <p className="nightCard__loading">Loading tonight&rsquo;s route…</p>

@@ -216,8 +216,8 @@ import {
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   ARRIVAL_BEARING_POLL_MS,
-  ARRIVAL_BEARING_STILL_POLLS,
-  ARRIVAL_BEARING_WAIT_CEILING_MS,
+  nextArrivalBearingWait,
+  type ArrivalBearingWait,
 } from "@/lib/mapArrivalBearing";
 
 // MapLibre 6 is ESM-only. Its worker imports a sibling shared module, which
@@ -429,6 +429,11 @@ type PubMapCanvasProps = {
    * (it jumps at duration 0). Null / an unchanged token is a no-op.
    */
   focusPoint?: MapCameraFocus | null;
+  /**
+   * False while the opening-location answer may still move the camera. The
+   * opening turn waits for it (lib/mapCameraFocus.ts openingCameraSettled).
+   */
+  openingCameraSettled: boolean;
   onViewportChange?: (viewport: MapViewportSnapshot) => void;
   /**
    * Fired once the reader moves the camera themselves — a drag, a pinch, a
@@ -591,6 +596,7 @@ export default function PubMapCanvas({
   listCount = 0,
   onSoftRetryChange,
   focusPoint = null,
+  openingCameraSettled,
   onViewportChange,
   onUserCameraMove,
   onBoundsChange,
@@ -633,15 +639,17 @@ export default function PubMapCanvas({
   const mapViewRef = useRef(mapView);
   const maxBoundsRef = useRef(maxBounds);
   const cityBoundsRef = useRef(cityBounds);
+  const cityViewRef = useRef(getCity(cityId).mapView);
   const landmarksGeoJSONRef = useRef(landmarksGeoJSON);
   const showLandmarksRef = useRef(showLandmarks);
   useEffect(() => {
     mapViewRef.current = mapView;
     maxBoundsRef.current = maxBounds;
     cityBoundsRef.current = cityBounds;
+    cityViewRef.current = getCity(cityId).mapView;
     landmarksGeoJSONRef.current = landmarksGeoJSON;
     showLandmarksRef.current = showLandmarks;
-  }, [mapView, maxBounds, cityBounds, landmarksGeoJSON, showLandmarks]);
+  }, [mapView, maxBounds, cityBounds, cityId, landmarksGeoJSON, showLandmarks]);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const userCameraInteractionRef = useRef(false);
@@ -1108,6 +1116,7 @@ export default function PubMapCanvas({
   // callbacks over live refs (see the hook for why the deps must stay empty).
   const {
     cinematic,
+    cameraLanePending,
     easeArrivalBearing,
     fitRoute,
     fitCityBounds,
@@ -1116,7 +1125,7 @@ export default function PubMapCanvas({
   } = useMapCamera({
     mapRef,
     reducedRef,
-    mapViewRef,
+    cityViewRef,
     cityBoundsRef,
     routeRef,
     venuesRef,
@@ -1136,12 +1145,18 @@ export default function PubMapCanvas({
   const arrivalDeepLinkRef = useRef(
     Boolean(selectedVenueId) || Boolean(initialLandmarkId),
   );
+  const focusKeyRef = useRef<string | null>(null);
+  const focusPointRef = useRef(focusPoint);
+  const openingCameraSettledRef = useRef(openingCameraSettled);
+  useEffect(() => {
+    focusPointRef.current = focusPoint;
+    openingCameraSettledRef.current = openingCameraSettled;
+  }, [focusPoint, openingCameraSettled]);
   useEffect(() => {
     const map = mapRef.current;
     if (!map || arrivalBearingSpentRef.current) return;
     let cancelled = false;
-    let stillFrames = 0;
-    let waited = 0;
+    let wait: ArrivalBearingWait | null = { stillPolls: 0, waitedMs: 0 };
     // The turn waits for the map to STOP. Measured without the wait: the
     // opening-location answer schedules its own move a frame or so after the
     // map is ready, the camera lane is latest-wins, and it cancelled the
@@ -1154,10 +1169,14 @@ export default function PubMapCanvas({
     // the turn happens anyway, and `scheduleCamera` still refuses it if the
     // reader has taken the map.
     const tick = () => {
-      if (cancelled || arrivalBearingSpentRef.current) return;
-      waited += ARRIVAL_BEARING_POLL_MS;
-      stillFrames = map.isMoving() ? 0 : stillFrames + 1;
-      if (stillFrames < ARRIVAL_BEARING_STILL_POLLS && waited < ARRIVAL_BEARING_WAIT_CEILING_MS) {
+      if (cancelled || arrivalBearingSpentRef.current || !wait) return;
+      wait = nextArrivalBearingWait(wait, {
+        moving: map.isMoving() || cameraLanePending(),
+        openingPending:
+          !openingCameraSettledRef.current ||
+          mapCameraFocusMoves(focusPointRef.current, focusKeyRef.current),
+      });
+      if (wait) {
         timer = setTimeout(tick, ARRIVAL_BEARING_POLL_MS);
         return;
       }
@@ -1172,7 +1191,7 @@ export default function PubMapCanvas({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [mapInstanceReady, easeArrivalBearing]);
+  }, [mapInstanceReady, easeArrivalBearing, cameraLanePending]);
 
   // The parent owns the selection and renders the story (the phone's shared
   // sheet, the desktop's left drawer); the canvas only reports a pin tap here
@@ -1196,7 +1215,6 @@ export default function PubMapCanvas({
   // one owner's first move look like the other's and swallowed the pick
   // (lib/mapCameraFocus.ts). cinematic honours reduced-motion (it jumps at
   // duration 0), so this needs no extra guard here.
-  const focusKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (!mapReady || !focusPoint) return;
     if (!mapCameraFocusMoves(focusPoint, focusKeyRef.current)) return;

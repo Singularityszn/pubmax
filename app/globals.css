@@ -2736,6 +2736,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
     padding-top: calc(var(--mobile-map-chrome-full-h, 118px) + 18px);
   }
 }
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .mapFallbackRetry {
+    margin-inline: max(0px, calc(var(--create-fab-lane) - var(--page-gutter, 20px)));
+  }
+
 
 .mapFallback strong {
   font-family: var(--serif);
@@ -4697,6 +4701,12 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
       var(--analytics-consent-clearance, 72px) + max(12px, env(safe-area-inset-bottom))
     );
   }
+
+  html:has(.analyticsConsentPrompt) {
+    scroll-padding-bottom: calc(
+      var(--analytics-consent-clearance, 72px) + max(12px, env(safe-area-inset-bottom))
+    );
+  }
 }
 
 @media (max-width: 640px) {
@@ -4711,6 +4721,12 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   body:has(.analyticsConsentPrompt):not(:has(.mobileTabBar, .mobileTabBarClearance)) {
     padding-bottom: calc(
       var(--analytics-consent-mobile-clearance, 56px) + max(12px, env(safe-area-inset-bottom))
+    );
+  }
+
+  html:has(.analyticsConsentPrompt) {
+    scroll-padding-bottom: calc(
+      var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--analytics-consent-mobile-clearance, 56px)
     );
   }
 

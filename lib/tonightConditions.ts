@@ -6,12 +6,15 @@
 // nearby matches) and hands the numbers here so this stays unit-testable.
 //
 // Honesty rules, matching the rest of the app:
-//   - no verdict from the rules table (grey in-between weather) -> null, no strip
+//   - a stale reading, or no verdict from the rules table (grey in-between
+//     weather) -> the facts line alone, with no drink line and no venue claim
 //   - zero matching venues, or no location to measure "near you" -> weather line
 //     with no venue claim (never a fabricated count)
 //   - a pint-under-ceiling claim only when price data actually supports it
 
+import { daySlot } from "@/lib/daySlot";
 import { evaluateDrinkWeather, type VenueLens } from "@/lib/drinkWeather";
+import type { ObservationFacts } from "@/lib/weatherObservationCopy";
 import { haversineKm } from "@/lib/haversine";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 
@@ -23,7 +26,6 @@ const NEAR_RADIUS_KM = 2.5;
 
 export type ConditionsWeather = {
   tempC: number;
-  condition: string;
   precipitationProbabilityPct: number;
 };
 
@@ -41,8 +43,12 @@ export type VenueLensTally = {
 export type TonightConditionsSummary = {
   /** "Saturday 19 Jul" */
   dateLabel: string;
-  /** "18C, light cloud" */
-  weatherLabel: string;
+  /** Temp, rain chance, wind, sunset and day or night. */
+  factsLine: string;
+  /** True once the observation has aged past its own expiry. */
+  stale: boolean;
+  /** "Checked 2 hours ago" (fresh) or "Last checked 3 days ago" (stale). */
+  checkedLabel: string;
   /** The verdict's calm line, e.g. "Warm and dry. Beer garden weather." */
   drinkLine: string;
   /** Lower-case drink phrase, e.g. "a cold lager or cider". */
@@ -69,12 +75,6 @@ export function formatConditionDate(date: Date, timeZone = "Europe/London"): str
 export function londonMonth(date: Date, timeZone = "Europe/London"): number {
   const value = new Intl.DateTimeFormat("en-GB", { month: "numeric", timeZone }).format(date);
   return Number.parseInt(value, 10);
-}
-
-function weatherLabel(weather: ConditionsWeather): string {
-  const temp = `${Math.round(weather.tempC)}°C`;
-  const condition = weather.condition.trim();
-  return condition ? `${temp}, ${condition.toLocaleLowerCase("en-GB")}` : temp;
 }
 
 /**
@@ -142,28 +142,34 @@ export function buildVenueClaim(lens: VenueLens, tally: VenueLensTally): string 
 }
 
 /**
- * Compose the full strip summary, or null when the rules table gives no verdict
- * for tonight's weather (the caller then renders nothing).
+ * Compose the full strip summary. The facts always stand; the drink line and
+ * the venue claim only when the reading is fresh and the rules table fires.
  */
 export function summariseTonightConditions(args: {
   weather: ConditionsWeather;
   now: Date;
   tally: VenueLensTally;
   timeZone?: string;
-}): TonightConditionsSummary | null {
-  const { weather, now, tally, timeZone } = args;
-  const month = londonMonth(now, timeZone);
-  const verdict = evaluateDrinkWeather({
-    tempC: weather.tempC,
-    precipitationProbabilityPct: weather.precipitationProbabilityPct,
-    month,
-  });
-  if (!verdict) return null;
+  /** The shared facts reading of the same observation (lib/weatherObservationCopy.ts). */
+  facts: ObservationFacts;
+}): TonightConditionsSummary {
+  const { weather, now, tally, timeZone, facts } = args;
+  const verdict = facts.stale
+    ? null
+    : evaluateDrinkWeather({
+        tempC: weather.tempC,
+        precipitationProbabilityPct: weather.precipitationProbabilityPct,
+        month: londonMonth(now, timeZone),
+        dayPart: daySlot(now),
+        isDay: facts.isDay,
+      });
   return {
     dateLabel: formatConditionDate(now, timeZone),
-    weatherLabel: weatherLabel(weather),
-    drinkLine: verdict.line,
-    drinkSuggestion: verdict.drinkSuggestion,
-    venueClaim: buildVenueClaim(verdict.venueLens, tally),
+    factsLine: facts.factsLine,
+    stale: facts.stale,
+    checkedLabel: facts.checkedLabel,
+    drinkLine: verdict?.line ?? "",
+    drinkSuggestion: verdict?.drinkSuggestion ?? "",
+    venueClaim: verdict ? buildVenueClaim(verdict.venueLens, tally) : null,
   };
 }

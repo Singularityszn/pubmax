@@ -47,6 +47,7 @@ import {
   fetchRefreshPage,
   RefreshProviderError,
 } from "./lib/localRefreshProviders.mjs";
+import { isHarvestableOperatorUrl } from "../lib/harvest/sourcePolicy.ts";
 
 const MODULE_PATH = fileURLToPath(import.meta.url);
 const ROOT = join(dirname(MODULE_PATH), "..");
@@ -162,12 +163,14 @@ export function priorPublishedSourceFor(row, priorEntries) {
 
 async function scrape(url, pubName) {
   const page = await fetchRefreshPage({ job: "plain-page", url });
+  const finalUrl = validatedFinalUrl(url, page.finalUrl);
   const { drinks, reading } = await extractVenueDrinkPricesMaybeJudged(page.markdown, {
-    pageUrl: url,
+    pageUrl: finalUrl,
     pubName,
   });
   return {
     ...page,
+    finalUrl,
     json: {
       drinks,
       reading,
@@ -175,16 +178,30 @@ async function scrape(url, pubName) {
   };
 }
 
+function validatedFinalUrl(requestedUrl, finalUrl) {
+  if (!isHarvestableOperatorUrl(finalUrl)) {
+    throw new Error(`source policy refused redirect landing ${finalUrl}`);
+  }
+  const requested = new URL(requestedUrl);
+  const landed = new URL(finalUrl);
+  if (landed.origin !== requested.origin) {
+    throw new Error(`cross-origin redirect refused: ${requestedUrl} -> ${finalUrl}`);
+  }
+  return landed.href;
+}
+
 async function safeScrape(url, pubName) {
   try {
     return { page: await scrape(url, pubName) };
   } catch (error) {
-    const reason =
-      error instanceof RefreshProviderError || error instanceof Error
-        ? error.message
-        : String(error);
-    return { error: reason };
+    return { error: refreshErrorReason(error) };
   }
+}
+
+function refreshErrorReason(error) {
+  return error instanceof RefreshProviderError || error instanceof Error
+    ? error.message
+    : String(error);
 }
 
 /** All £ values present verbatim in the page text (as a Set of "3.80" strings). */
@@ -355,60 +372,96 @@ function main() {
       }
       const h = host(row.website);
       const rec = { borough: row.primary_borough, pub: row.pub_name, website: row.website, host: h };
+      let venueRequests = 0;
 
       // 1) revisit the exact prior evidence page, or start from the official homepage.
       const initialUrl = priorPublishedSourceFor(row, priorEntries);
       const homeResult = await safeScrape(initialUrl, row.pub_name);
       requests += 1;
+      venueRequests += 1;
       if (homeResult.error) {
         log.push({
           ...rec,
           result: "blocked",
           reason: homeResult.error,
-          requests: 1,
+          requests: venueRequests,
         });
         continue;
       }
       const home = homeResult.page;
 
       let md = home.markdown;
-      let pageUrl = initialUrl;
+      let pageUrl = home.finalUrl;
       let extracted = home.json?.drinks || [];
 
       // 2) if the homepage has no validated drinks, follow a drinks/menu link.
       const homePounds = poundsInText(md);
       const homeHasSignal = DRINK_MENU_KW.test(md) && homePounds.size > 0;
-      let usedSecond = false;
-      if ((!extracted.length || !homeHasSignal) && requests < budget) {
-        let link = bestDrinkLink(home.links, h);
-        if (!link && exaDiscovery) {
-          const discoveries = await discoverRefreshPages({
-            query: `${row.pub_name} drinks menu wine cocktail gin whisky price`,
-            includeDomains: [h],
-            numResults: 3,
+      if (!extracted.length || !homeHasSignal) {
+        if (requests >= budget) {
+          log.push({
+            ...rec,
+            result: "skipped-budget",
+            reason: "request budget exhausted before menu discovery or fetch",
+            requests: venueRequests,
           });
+          continue;
+        }
+        let link = bestDrinkLink(home.links, h);
+        let linkWasDiscovered = false;
+        if (!link && exaDiscovery) {
+          let discoveries;
+          try {
+            requests += 1;
+            venueRequests += 1;
+            discoveries = await discoverRefreshPages({
+              query: `${row.pub_name} drinks menu wine cocktail gin whisky price`,
+              includeDomains: [h],
+              numResults: 3,
+            });
+          } catch (error) {
+            log.push({
+              ...rec,
+              result: "blocked",
+              reason: refreshErrorReason(error),
+              requests: venueRequests,
+            });
+            continue;
+          }
           link =
             discoveries
               .map((result) => result.url)
               .find((url) => /drink|menu|tap|beer|wine|cocktail|spirit/i.test(url)) ?? null;
+          linkWasDiscovered = Boolean(link);
         }
         if (link && link !== initialUrl) {
+          if (requests >= budget) {
+            log.push({
+              ...rec,
+              result: "skipped-budget",
+              reason: linkWasDiscovered
+                ? "request budget exhausted before discovered menu fetch"
+                : "request budget exhausted before menu fetch",
+              requests: venueRequests,
+            });
+            continue;
+          }
           const drinkResult = await safeScrape(link, row.pub_name);
           requests += 1;
-          usedSecond = true;
+          venueRequests += 1;
           if (drinkResult.error) {
             log.push({
               ...rec,
               result: "blocked",
               reason: drinkResult.error,
-              requests: 2,
+              requests: venueRequests,
             });
             continue;
           }
           const drink = drinkResult.page;
           if (DRINK_MENU_KW.test(drink.markdown) || (drink.json?.drinks || []).length) {
             md = drink.markdown;
-            pageUrl = link;
+            pageUrl = drink.finalUrl;
             extracted = drink.json?.drinks || [];
           }
         }
@@ -425,7 +478,7 @@ function main() {
           reason: DRINK_MENU_KW.test(md)
             ? "drinks listed but no extractable/verbatim menu price"
             : "no drink pricing on site",
-          requests: usedSecond ? 2 : 1,
+          requests: venueRequests,
         });
         continue;
       }
@@ -470,7 +523,7 @@ function main() {
         allDrinks: validated,
         sourceUrl: pageUrl,
         observedAt,
-        requests: usedSecond ? 2 : 1,
+        requests: venueRequests,
       });
       const headline = cheapestPint
         ? `£${cheapestPint.priceGbp.toFixed(2)} ${cheapestPint.drinkName}`

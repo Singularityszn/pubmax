@@ -41,7 +41,8 @@ export function isGardenWeather(
 }
 
 /**
- * Headline for the nudge card, e.g. "24° and dry — beer-garden night".
+ * Headline for the nudge card, e.g. "24°C feels like, 10% chance of rain.
+ * Beer-garden weather.".
  * Returns null when it isn't garden weather (callers render nothing).
  */
 export function gardenWeatherHeadline(
@@ -49,5 +50,9 @@ export function gardenWeatherHeadline(
 ): string | null {
   if (!weather || !isGardenWeather(weather)) return null;
   if (!isFiniteNumber(weather.feelsLikeC)) return null;
-  return `${Math.round(weather.feelsLikeC)}° and dry. Beer-garden night`;
+  const rain =
+    isFiniteNumber(weather.precipProbabilityPct)
+      ? `${Math.round(weather.precipProbabilityPct)}% chance of rain`
+      : "dry";
+  return `${Math.round(weather.feelsLikeC)}°C feels like, ${rain}. Beer-garden weather.`;
 }
