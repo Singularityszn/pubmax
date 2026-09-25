@@ -34,7 +34,7 @@ GitHub may schedule several jobs at once; this runner uses one shared
 `_work/{repo}/{repo}` checkout. Parallel jobs caused `validate-data` temp-dir
 collisions, flaky `venueRoute` reads, and Playwright's
 `run-with-restored-next-env` guard (`PUBMAX_TRACKED_OUTPUTS=public/data` for
-`NEXT_PUBLIC_SW_VERSION=local` pack stamps). Workflows therefore share:
+`NEXT_PUBLIC_SW_VERSION=local` pack stamps). CI, browser tests and RLS therefore use:
 
 ```yaml
 concurrency:
