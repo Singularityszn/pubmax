@@ -97,7 +97,7 @@ export type DaylightAt = {
   sunriseAt: Date;
 };
 
-export function daylightAt(latDeg: number, lngDeg: number, at: Date): DaylightAt {
+function daylightAt(latDeg: number, lngDeg: number, at: Date): DaylightAt {
   const { sunrise, sunset } = sunTimes(at, latDeg, lngDeg);
   const t = at.getTime();
   const isDay = t >= sunrise.getTime() && t < sunset.getTime();
