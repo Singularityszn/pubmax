@@ -226,7 +226,9 @@ describe("venues_slim.json", () => {
       (row) =>
         row.kind === "bar" || row.kind === "food" || row.kind === "restaurant",
     );
-    expect(famous).toHaveLength(expectedSlimFamousCounts().total);
+    expect(famous).toHaveLength(
+      expectedSlimFamousCounts(new Date("2026-09-25T12:00:00.000Z")).total,
+    );
     for (const row of famous) {
       expect(hasValidFamousVenueFields(row as Record<string, unknown>)).toBe(
         true,

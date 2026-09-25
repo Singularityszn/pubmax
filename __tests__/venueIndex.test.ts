@@ -163,8 +163,9 @@ describe("getVenueIndex", () => {
       name: "Turf Tavern",
       borough: "Oxford",
     });
+    const asOf = new Date("2026-09-25T12:00:00.000Z");
     const americanBar = index.get("bar-american-bar-savoy");
-    if (currentFamousVenueIds().has("bar-american-bar-savoy")) {
+    if (currentFamousVenueIds(asOf).has("bar-american-bar-savoy")) {
       expect(americanBar).toMatchObject({
         name: "American Bar at The Savoy",
         borough: "Westminster",

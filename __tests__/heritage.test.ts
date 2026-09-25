@@ -256,8 +256,10 @@ describe("POST /api/heritage", () => {
   });
 
   it("resolves venue name and kind server-side when an id is supplied", async () => {
-    const foodRow = currentFamousVenueRows().find((row) => row.kind === "food");
-    if (!foodRow) return;
+    const foodRow = currentFamousVenueRows(
+      new Date("2026-09-25T12:00:00.000Z"),
+    ).find((row) => row.kind === "food");
+    expect(foodRow).toBeDefined();
 
     const res = await post({
       venueId: foodRow.id,
