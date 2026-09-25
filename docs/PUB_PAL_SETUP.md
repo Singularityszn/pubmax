@@ -149,6 +149,30 @@ nothing yet, and one writes only on a confirm:
 
 ---
 
+## Headless live voice proof
+
+Captain proof is `e2e/pubpal-voice-live.spec.ts` against a server that loads
+ElevenLabs and Supabase from `.env.local`. Seed the documented QA account per
+`docs/testing/signed-in-review.md`, sign in, create a Pal, save Playwright
+storage state, then run:
+
+```bash
+PW_SKIP_WEBSERVER=1 \
+PUB_PAL_PROOF_BASE_URL=http://localhost:3102 \
+PUB_PAL_PROOF_BEARER=<supabase access token> \
+PUB_PAL_PROOF_STORAGE_STATE=/path/to/storage.json \
+PUB_PAL_PROOF_WAV=/path/to/question.wav \
+PUB_PAL_PROOF_SPECIES=fox,robin \
+npx playwright test e2e/pubpal-voice-live.spec.ts --project=chromium
+```
+
+Evidence lands in `artifacts/pubpal-voice-proof/` (gitignored) for the PR
+description. The spec patches the Pal to each species in `PUB_PAL_PROOF_SPECIES`
+(default `fox,robin`) and requires `user_transcript`, `agent_response`, and
+audio frames on the ElevenLabs WebSocket.
+
+---
+
 ## Related
 
 - `docs/adr/0006-pub-pal-user-owned-digital-companion.md` - what a Pal may do
