@@ -141,7 +141,7 @@ describe("buildVenueClaim", () => {
 describe("summariseTonightConditions", () => {
   const now = new Date("2026-07-18T19:00:00.000Z");
   function reading(tempC: number, condition: string, precipitationProbabilityPct: number) {
-    const weather = { tempC, condition, precipitationProbabilityPct };
+    const weather = { tempC, precipitationProbabilityPct };
     const facts = observationFacts({
       observation: {
         feelsLikeC: tempC,
@@ -165,7 +165,6 @@ describe("summariseTonightConditions", () => {
     });
     expect(summary).toEqual({
       dateLabel: "Saturday 18 Jul",
-      weatherLabel: "22°C, clear",
       factsLine: expect.stringMatching(/^22°C feels like, clear, 10% chance of rain, sunset \d{2}:\d{2}, daylight\.$/),
       stale: false,
       checkedLabel: "Checked 15 minutes ago",
@@ -183,15 +182,6 @@ describe("summariseTonightConditions", () => {
     });
     expect(summary?.venueClaim).toBeNull();
     expect(summary?.drinkLine).toBe("Beer garden weather. Lager or cider.");
-  });
-
-  it("drops the condition text gracefully when it is blank", () => {
-    const summary = summariseTonightConditions({
-      ...reading(22, "  ", 10),
-      now,
-      tally: null,
-    });
-    expect(summary?.weatherLabel).toBe("22°C");
   });
 
   it("keeps the facts with no drink line or venue claim when the rules table claims nothing", () => {

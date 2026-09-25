@@ -43,10 +43,6 @@ export const BRIEF_DEFAULT_AREA: NightAreaSlug = "piccadilly-soho";
 export type WeatherBrief = {
   /** "Saturday 19 Jul" (London time). */
   dateLabel: string;
-  /** "19C" (feels-like, rounded). */
-  tempLabel: string;
-  /** "cloudy" (lower-case, trimmed). */
-  conditionLabel: string;
   /** The verdict's calm line, e.g. "Beer garden weather. Lager or cider." */
   verdictLine: string;
   /** The exact weather rule selected from this displayed observation; null when stale or no rule fired. */
@@ -93,8 +89,6 @@ export function buildWeatherBrief(
 
   return {
     dateLabel: formatConditionDate(now),
-    tempLabel: `${Math.round(observation.feelsLikeC)}°C`,
-    conditionLabel: observation.condition.trim().toLocaleLowerCase("en-GB"),
     verdictLine: verdict?.line ?? "",
     ruleId: verdict?.ruleId ?? null,
     drinkSuggestion: verdict?.drinkSuggestion ?? "",

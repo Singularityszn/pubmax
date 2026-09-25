@@ -5,8 +5,6 @@ import type { TonightPickDto, WeatherBrief } from "@/lib/todayBrief";
 
 const WEATHER: WeatherBrief = {
   dateLabel: "Monday 20 Jul",
-  tempLabel: "19°C",
-  conditionLabel: "clear",
   verdictLine: "Beer garden weather. Lager or cider.",
   ruleId: "summer-garden",
   drinkSuggestion: "a cold lager or cider",

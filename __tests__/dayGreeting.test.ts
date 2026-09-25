@@ -16,8 +16,6 @@ const DATE_LABEL = "Saturday 25 Jul";
 function brief(overrides: Partial<WeatherBrief> = {}): WeatherBrief {
   return {
     dateLabel: DATE_LABEL,
-    tempLabel: "24°C",
-    conditionLabel: "clear",
     verdictLine: "Beer garden weather. Lager or cider.",
     ruleId: "summer-garden",
     drinkSuggestion: "a cold lager or cider",
@@ -84,15 +82,11 @@ describe("buildDayGreeting", () => {
   it("describes the rule behind the displayed reading, not only its shared lens", () => {
     const now = new Date("2026-07-25T23:30:00.000Z");
     const warmRain = brief({
-      tempLabel: "24°C",
-      conditionLabel: "cloudy",
       factsLine: "24°C feels like, cloudy, 60% chance of rain, night.",
       venueLens: "fireplace",
       ruleId: "hard-rain",
     });
     const cold = brief({
-      tempLabel: "7°C",
-      conditionLabel: "cloudy",
       factsLine: "7°C feels like, cloudy, 10% chance of rain, night.",
       venueLens: "fireplace",
       ruleId: "cold",

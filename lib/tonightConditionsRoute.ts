@@ -45,7 +45,6 @@ export async function resolveTonightConditions(
   const { observation, stale } = read;
   const weather = {
     tempC: observation.feelsLikeC,
-    condition: observation.condition,
     precipitationProbabilityPct: observation.precipitationProbabilityPct,
   };
   const facts = observationFacts({ observation, nightArea: area.slug, now, stale });
