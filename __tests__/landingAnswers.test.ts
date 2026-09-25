@@ -41,7 +41,7 @@ describe("the front door's two answers", () => {
     });
   });
 
-  it("prints a stale sky as its facts and its age", () => {
+  it("prints a stale sky as its last read, with no age to go stale while the copy is held", () => {
     const facts = observationFacts({
       observation,
       nightArea: null,
@@ -49,7 +49,7 @@ describe("the front door's two answers", () => {
       stale: true,
     });
     expect(todayAnswer(facts, STAMP)).toEqual({
-      line: "Last read of the sky: 19°C feels like, cloudy, 0% chance of rain, 11 km/h wind. Last checked 2 days ago.",
+      line: "Last read of the sky: 19°C feels like, cloudy, 0% chance of rain, 11 km/h wind.",
       stamp: STAMP,
       measured: false,
     });

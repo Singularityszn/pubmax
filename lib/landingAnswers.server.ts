@@ -37,6 +37,9 @@ const LONDON_DAY = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
 });
 
+// app/page.tsx `revalidate`: how long one rendered copy of the front door is held.
+const LANDING_HOLD_MS = 3_600_000;
+
 /** Both cards, from one pass over the weather store and the listing lanes. */
 export async function loadLandingAnswers(now: Date = new Date()): Promise<LandingAnswers> {
   const stamp = LONDON_DAY.format(now);
@@ -48,11 +51,17 @@ export async function loadLandingAnswers(now: Date = new Date()): Promise<Landin
   ]);
 
   // The document is held for an hour, so the sentence carries nothing that can
-  // turn false inside it: no sunset, no day or night, and no drink verdict,
-  // which reads the sun (a garden at 18:30 is a terrace by 19:30).
+  // turn false inside it: no sunset, no day or night, no drink verdict (it reads
+  // the sun: a garden at 18:30 is a terrace by 19:30) and no relative age. A
+  // reading that expires inside the hold is already told as a last read.
   const read = latestWeatherForArea(weatherSnapshot, BRIEF_DEFAULT_AREA, now.getTime());
   const weather: TodayWeatherFacts | null = read
-    ? observationFacts({ observation: read.observation, nightArea: null, now, stale: read.stale })
+    ? observationFacts({
+        observation: read.observation,
+        nightArea: null,
+        now,
+        stale: read.stale || Date.parse(read.observation.expiresAt) <= now.getTime() + LANDING_HOLD_MS,
+      })
     : null;
 
   const readStatus = whatsOn?.readStatus ?? "degraded";
