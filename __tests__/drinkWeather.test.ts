@@ -15,7 +15,6 @@ describe("evaluateDrinkWeather rules table", () => {
       tempC: 20,
       precipitationProbabilityPct: 10,
       month: 7,
-      isDay: false,
       dayPart: "night",
     });
     expect(verdict).toMatchObject({ ruleId: "warm-night", venueLens: "any" });
@@ -27,7 +26,6 @@ describe("evaluateDrinkWeather rules table", () => {
       tempC: 22,
       precipitationProbabilityPct: 10,
       month: 7,
-      isDay: false,
     });
     expect(verdict?.venueLens).not.toBe("beer-garden");
   });
