@@ -6,7 +6,7 @@ export const MAP_LIST_PATH = "/map/list";
 /** Shareable map URL that opens List view on arrival. */
 export const MAP_LIST_MAP_HREF = "/map?list=1";
 
-export const MAP_LIST_SEARCH_PARAM = "list";
+const MAP_LIST_SEARCH_PARAM = "list";
 
 export function mapListOpenFromSearch(search: string): boolean {
   const raw = search.startsWith("?") ? search.slice(1) : search;
