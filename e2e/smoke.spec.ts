@@ -355,8 +355,11 @@ test("mobile venue sheet reaches Train, holds no price action in the strip, and 
 
   const sheet = page.locator(".mapDrawer.right");
   await expect(sheet).toHaveClass(/open/);
-  await page.getByRole("tab", { name: "Stories", exact: true }).click();
-  await expect(sheet).toHaveClass(/sheet-full/);
+  const storiesTab = page.getByRole("tab", { name: "Stories", exact: true });
+  await expect(async () => {
+    await storiesTab.click();
+    await expect(sheet).toHaveClass(/sheet-full/, { timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
 
   // Wait for the command bar to finish portaling into the sheet footer. The
   // footer is outside the scroll body, so actions remain reachable at full snap.
@@ -372,8 +375,10 @@ test("mobile venue sheet reaches Train, holds no price action in the strip, and 
   await gettingHome.locator("summary").click();
   await expect(gettingHome).toHaveAttribute("open", "");
   await expect(gettingHome.getByLabel("Last Pint")).toBeVisible();
-  await page.getByRole("tab", { name: "Stories", exact: true }).click();
-  await expect(sheet).toHaveClass(/sheet-full/);
+  await expect(async () => {
+    await storiesTab.click();
+    await expect(sheet).toHaveClass(/sheet-full/, { timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
 
   // Full snap prioritises the scroll body. Collapse through the real detent
   // control before using the footer command bar, proving the mobile action is

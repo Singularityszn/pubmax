@@ -7,8 +7,10 @@
 // So this script sets four things and nothing else:
 //
 //   1. the Custom LLM URL plus its shared secret,
-//   2. zero audio and transcript retention,
-//   3. the three curated voices, when their ids are set,
+//   2. no voice recording; ElevenLabs may still retain conversation data
+//      under its default policy for custom-LLM agents,
+//   3. a default voice, when one is set, and the per-session overrides that
+//      let each Pal speak in its own species voice,
 //   4. the house first message and the propose-then-confirm rule (ADR 0006).
 //
 // Idempotent: with ELEVENLABS_PUB_PAL_AGENT_ID set it PATCHes that agent;
@@ -29,6 +31,8 @@ import process from "node:process";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "../../lib/palVoiceCap.mjs";
 
 const API = "https://api.elevenlabs.io/v1/convai";
+const SECRETS_API = "https://api.elevenlabs.io/v1/convai/secrets";
+const LLM_SECRET_NAME = "PUBMAXX_PUB_PAL_LLM_SECRET";
 const AGENT_NAME = "PUBMAXX Pub Pal";
 const MAX_SESSION_SECONDS = PAL_VOICE_MAX_SESSION_SECONDS;
 
@@ -77,12 +81,12 @@ function systemPrompt() {
   ].join("\n");
 }
 
-function agentBody(llmUrl, secret) {
-  const voices = {
-    ember: process.env.ELEVENLABS_VOICE_EMBER?.trim(),
-    velvet: process.env.ELEVENLABS_VOICE_VELVET?.trim(),
-    signal: process.env.ELEVENLABS_VOICE_SIGNAL?.trim(),
-  };
+function agentBody(llmUrl, secretId) {
+  const defaultVoice =
+    process.env.ELEVENLABS_VOICE_FOX?.trim() ||
+    process.env.ELEVENLABS_VOICE_ROBIN?.trim() ||
+    process.env.ELEVENLABS_VOICE_EMBER?.trim() ||
+    null;
   const body = {
     name: AGENT_NAME,
     conversation_config: {
@@ -91,12 +95,13 @@ function agentBody(llmUrl, secret) {
           prompt: systemPrompt(),
           // The whole point: our own grounded registry answers, not the
           // provider's model. `custom_llm` carries the shared secret so
-          // /api/pub-pal/llm can refuse anybody else.
+          // /api/pub-pal/llm can refuse anybody else. ElevenLabs stores the raw
+          // secret in the workspace vault and resolves it at call time.
           llm: "custom-llm",
           custom_llm: {
             url: llmUrl,
             model_id: "pubmax-ask-grounded",
-            api_key: { secret: secret },
+            api_key: { secret_id: secretId },
           },
         },
         first_message: "Hello, I'm your Pub Pal. What kind of night are you planning?",
@@ -105,32 +110,43 @@ function agentBody(llmUrl, secret) {
       conversation: {
         max_duration_seconds: MAX_SESSION_SECONDS,
       },
-      // Zero retention (ADR 0006): raw audio and transcripts are never
-      // source-of-truth memory, so the provider must not keep either.
-      ...(voices.ember ? { tts: { voice_id: voices.ember } } : {}),
+      ...(defaultVoice ? { tts: { voice_id: defaultVoice } } : {}),
     },
     platform_settings: {
+      // The voice-token grant sends each Pal's prompt, first message and
+      // species voice as session overrides; ElevenLabs drops any override the
+      // agent does not allow here.
+      overrides: {
+        conversation_config_override: {
+          agent: {
+            prompt: { prompt: true },
+            first_message: true,
+          },
+          tts: { voice_id: true },
+        },
+      },
       privacy: {
         record_voice: false,
+        // ElevenLabs rejects custom_llm while zero_retention_mode is on, so
+        // the provider may retain conversation data under its default policy.
+        // Raw audio and transcripts are still never Pal memory (ADR 0006).
         retention_days: 0,
         delete_transcript_and_pii: true,
-        zero_retention_mode: true,
+        zero_retention_mode: false,
       },
     },
   };
-  return { body, voices };
+  return { body, defaultVoice };
 }
 
 /**
  * A copy of the agent body with the Custom LLM secret held back.
  *
  * The dry run is the documented pre-flight, so its output lands in terminal
- * scrollback and in any CI log. The secret is what guards /api/pub-pal/llm, so
- * only its length is printed. The real request still carries the true value.
+ * scrollback and in any CI log. The body only ever carries the workspace secret
+ * locator, never the secret itself, and the locator is held back too.
  */
 function redactSecret(body) {
-  const apiKey = body?.conversation_config?.agent?.prompt?.custom_llm?.api_key;
-  if (!apiKey || typeof apiKey.secret !== "string") return body;
   return {
     ...body,
     conversation_config: {
@@ -141,15 +157,33 @@ function redactSecret(body) {
           ...body.conversation_config.agent.prompt,
           custom_llm: {
             ...body.conversation_config.agent.prompt.custom_llm,
-            api_key: {
-              ...apiKey,
-              secret: `[redacted, ${apiKey.secret.length} characters]`,
-            },
+            api_key: { secret_id: "[redacted workspace secret locator]" },
           },
         },
       },
     },
   };
+}
+
+async function ensureWorkspaceLlmSecret(apiKey, secretValue) {
+  const listed = await call("GET", SECRETS_API, apiKey);
+  const rows = Array.isArray(listed.secrets) ? listed.secrets : [];
+  const hit = rows.find((row) => row?.name === LLM_SECRET_NAME);
+  if (hit?.secret_id) {
+    await call("PATCH", `${SECRETS_API}/${hit.secret_id}`, apiKey, {
+      type: "update",
+      name: LLM_SECRET_NAME,
+      value: secretValue,
+    });
+    return hit.secret_id;
+  }
+  const created = await call("POST", SECRETS_API, apiKey, {
+    type: "new",
+    name: LLM_SECRET_NAME,
+    value: secretValue,
+  });
+  if (!created.secret_id) fail("ElevenLabs returned no workspace secret id.");
+  return created.secret_id;
 }
 
 async function call(method, url, apiKey, body) {
@@ -191,16 +225,23 @@ async function main() {
   }
 
   const llmUrl = `${baseUrl}/api/pub-pal/llm`;
-  const { body, voices } = agentBody(llmUrl, secret);
+  const secretId = dryRun
+    ? "dry-run-secret-locator"
+    : await ensureWorkspaceLlmSecret(apiKey, secret);
+  const { body, defaultVoice } = agentBody(llmUrl, secretId);
 
   if (dryRun) {
     console.log(
       "Dry run. This is the agent that would be written, with the shared secret held back:\n",
     );
     console.log(
-      JSON.stringify({ ...redactSecret(body), custom_llm_url: llmUrl }, null, 2),
+      JSON.stringify(
+        { ...redactSecret(body), custom_llm_url: llmUrl },
+        null,
+        2,
+      ),
     );
-    console.log("\nVoices resolved:", voices);
+    console.log("\nDefault voice resolved:", defaultVoice);
     return;
   }
 
@@ -219,12 +260,9 @@ async function main() {
     console.log(`\n  Set this on the deployment:\n    ELEVENLABS_PUB_PAL_AGENT_ID=${agentId}`);
   }
 
-  const missing = Object.entries(voices)
-    .filter(([, id]) => !id)
-    .map(([name]) => name);
-  if (missing.length > 0) {
+  if (!defaultVoice) {
     console.log(
-      `\n  Voice ids not set for: ${missing.join(", ")}. Those Pals fall back to the agent default.`,
+      "\n  No default voice id set (ELEVENLABS_VOICE_FOX, _ROBIN or _EMBER). The agent keeps its ElevenLabs default.",
     );
   }
 }

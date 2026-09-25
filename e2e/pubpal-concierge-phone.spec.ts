@@ -206,14 +206,20 @@ test.describe("Pub Pal concierge at 390px", () => {
     const probe = await request.get("/api/pub-pal/voice-token");
     expect(probe.ok()).toBe(true);
     const body = (await probe.json()) as { available?: boolean; retention?: string };
-    // Keyless: no ElevenLabs grant on this deployment.
-    expect(body.available).toBe(false);
-    expect(body.retention).toBe("zero");
+    const voiceConfigured = process.env.PUB_PAL_VOICE_E2E_CONFIGURED === "1";
+    expect(body.available).toBe(voiceConfigured);
+    expect(body.retention).toBe("provider_default");
 
     // And a caller cannot mint a session without the grant either.
     const token = await request.post("/api/pub-pal/voice-token", { data: {} });
     expect(token.ok()).toBe(false);
 
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        "pubmaxx.pub-pal-route-activation.v1",
+        JSON.stringify({ version: 1, activatedAt: new Date().toISOString() }),
+      );
+    });
     await page.goto("/pal");
     expect(new URL(page.url()).pathname).toBe("/pal");
   });

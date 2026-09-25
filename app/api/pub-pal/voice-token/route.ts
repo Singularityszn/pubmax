@@ -248,7 +248,7 @@ async function handleIssueToken(userId: string): Promise<Response> {
       maxSessionSeconds: PAL_VOICE_MAX_SESSION_SECONDS,
       remaining: remainingMinutes,
       remainingMinutes,
-      retention: "zero",
+      retention: "provider_default",
       mutationPolicy: "propose_then_confirm",
     });
   } catch {
@@ -274,7 +274,7 @@ export async function GET(): Promise<Response> {
   return jsonNoStore({
     available: palVoiceConfigured(),
     maxSessionSeconds: PAL_VOICE_MAX_SESSION_SECONDS,
-    retention: "zero",
+    retention: "provider_default",
     mutationPolicy: "propose_then_confirm",
   });
 }

@@ -79,7 +79,7 @@ describe("Pub Pal voice token route", () => {
     voiceState.userId = "11111111-1111-4111-8111-111111111111";
     vi.stubEnv("ELEVENLABS_API_KEY", "server-only-key");
     vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "pub-pal-agent");
-    vi.stubEnv("ELEVENLABS_VOICE_EMBER", "voice-ember-id");
+    vi.stubEnv("ELEVENLABS_VOICE_FOX", "voice-fox-id");
   });
 
   afterEach(() => {
@@ -239,10 +239,10 @@ describe("Pub Pal voice token route", () => {
       connectionType: "websocket",
       maxSessionSeconds: PAL_VOICE_MAX_SESSION_SECONDS,
       mutationPolicy: "propose_then_confirm",
-      retention: "zero",
+      retention: "provider_default",
     });
     expect(body.overrides).toMatchObject({
-      voiceId: "voice-ember-id",
+      voiceId: "voice-fox-id",
       firstMessage: expect.stringContaining("Ripley"),
       systemPrompt: expect.stringMatching(/Getting Home/i),
     });
