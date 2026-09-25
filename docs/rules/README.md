@@ -10,4 +10,4 @@ Area `AGENTS.md` files stay short indexes. Long narrative, incident history, mea
 | perf | [perf/AGENTS.md](../../perf/AGENTS.md) | perf-*.md in this directory |
 | scripts | [scripts/AGENTS.md](../../scripts/AGENTS.md) | scripts-*.md in this directory |
 
-Each detail file mirrors the former section bullets from the area index. Pins and test references in those bullets are authoritative.
+Each detail file holds the full text of its section's bullets, and is the one place those rules are written down. The app, components, perf and scripts indexes keep one title line per bullet, linked to its anchor here; the lib index links each section's file. Pins and test references in these bullets are authoritative.
