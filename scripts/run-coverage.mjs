@@ -11,7 +11,7 @@
  * proofs skipped.
  */
 import { spawnSync } from "node:child_process";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { SERIAL_SHM_RUN } from "./rls/postgresSuites.mjs";
@@ -19,21 +19,25 @@ import { SERIAL_SHM_RUN } from "./rls/postgresSuites.mjs";
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const vitestBin = join(REPO_ROOT, "node_modules/.bin/vitest");
 
-function vitest(args, extraEnv = {}) {
-  const result = spawnSync(vitestBin, ["run", ...args], {
-    cwd: REPO_ROOT,
-    stdio: "inherit",
-    env: { ...process.env, ...extraEnv },
-  });
-  if (result.status !== 0) process.exit(result.status ?? 1);
+/** The vitest invocations `npm run coverage -- <forwarded>` makes, in order. */
+export function coverageRuns(forwarded) {
+  const excluded = new Set(
+    forwarded.filter((_, index) => index > 0 && forwarded[index - 1] === "--exclude"),
+  );
+  const runs = [{ args: ["run", "--coverage", "--maxWorkers=4", ...forwarded], env: {} }];
+  if (!SERIAL_SHM_RUN.suites.every((suite) => excluded.has(suite))) {
+    runs.push({ args: ["run", ...SERIAL_SHM_RUN.suites, "--maxWorkers=1"], env: SERIAL_SHM_RUN.env });
+  }
+  return runs;
 }
 
-const forwarded = process.argv.slice(2);
-const excluded = new Set(
-  forwarded.filter((_, index) => index > 0 && forwarded[index - 1] === "--exclude"),
-);
-
-vitest(["--coverage", "--maxWorkers=4", ...forwarded]);
-if (!SERIAL_SHM_RUN.suites.every((suite) => excluded.has(suite))) {
-  vitest([...SERIAL_SHM_RUN.suites, "--maxWorkers=1"], SERIAL_SHM_RUN.env);
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  for (const { args, env } of coverageRuns(process.argv.slice(2))) {
+    const result = spawnSync(vitestBin, args, {
+      cwd: REPO_ROOT,
+      stdio: "inherit",
+      env: { ...process.env, ...env },
+    });
+    if (result.status !== 0) process.exit(result.status ?? 1);
+  }
 }
