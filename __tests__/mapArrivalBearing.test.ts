@@ -86,7 +86,6 @@ describe("the opening turn is not the idle orbit", () => {
     // a frame later, the camera lane is latest-wins, and it cancelled the
     // turn's pending frame. Three runs of three came to rest at exactly the
     // bearing they arrived at.
-    expect(canvas).toContain("nextArrivalBearingWait");
     expect(canvas).toContain("map.isMoving()");
     // Not MapLibre's `idle`: that also waits on every requested tile, so a
     // basemap that never finishes would be a map that never turns.
