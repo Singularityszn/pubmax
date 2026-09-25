@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
 import Screen from "@/components/ui/screen";
+import EmptyState from "@/components/ui/empty-state";
 import SoftDrinkSubtypeMiniMap from "@/components/drinks/SoftDrinkSubtypeMiniMap";
 import { PricedLandingPublisher } from "@/components/drinks/PricedLandingRows";
 import { trackEvent } from "@/lib/analytics";
@@ -79,6 +80,11 @@ export default function DrinkSubtypePricedView({
 
   const pricedCount = observedCounts[activeSubtypeId] ?? 0;
   const mapHref = drinkSubtypePricedMapHref({ subtypeId: activeSubtypeId });
+  const logHref = drinkSubtypePricedMapHref({
+    subtypeId: activeSubtypeId,
+    log: true,
+  });
+  const activeLabel = active?.longLabel.toLowerCase() ?? "soft drink";
 
   return (
     <div className="softDrinksWater">
@@ -89,9 +95,11 @@ export default function DrinkSubtypePricedView({
         title={title}
         titleId="soft-drinks-water-heading"
         lede={
-          active
-            ? `${pricedCount} pubs with a listed ${active.longLabel.toLowerCase()} price in London.`
-            : "Listed soft-drink prices in London."
+          pricedCount === 0
+            ? `No listed ${activeLabel} prices in London yet.`
+            : active
+              ? `${pricedCount} pubs with a listed ${activeLabel} price in London.`
+              : "Listed soft-drink prices in London."
         }
         primary={<Link prefetch={false} href={mapHref}>Open the map</Link>}
       >
@@ -123,6 +131,26 @@ export default function DrinkSubtypePricedView({
         </div>
 
         <div className="softDrinksWater__layout">
+          {pricedCount === 0 ? (
+            <EmptyState
+              title="Nobody has logged one here yet."
+              action={
+                <Link
+                  prefetch={false}
+                  href={logHref}
+                  onClick={() =>
+                    trackEvent("soft_drinks_water_price_submitted", {
+                      subtype: activeSubtypeId,
+                    })
+                  }
+                >
+                  Add a price
+                </Link>
+              }
+            >
+              Be the first on the map for {activeLabel}.
+            </EmptyState>
+          ) : (
           <ol className="softDrinksWater__list" aria-labelledby="soft-drinks-water-heading">
             {rows.map((row) => {
               const priced = row.observed;
@@ -182,6 +210,7 @@ export default function DrinkSubtypePricedView({
               );
             })}
           </ol>
+          )}
 
           <SoftDrinkSubtypeMiniMap subtypeId={activeSubtypeId} rows={rows} />
         </div>
