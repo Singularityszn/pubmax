@@ -21,7 +21,7 @@ function loadFamousSeedRows(): FamousSeedRow[] {
   );
 }
 
-export function currentFamousVenueRows(asOf: Date = new Date()) {
+function currentFamousVenueRows(asOf: Date = new Date()) {
   return assertCurrentFamousVenueRows(loadFamousSeedRows(), asOf);
 }
 

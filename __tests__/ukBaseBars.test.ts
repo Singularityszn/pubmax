@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { parseUkBaseShard } from "@/lib/ukBasePubs";
 import { buildUkBasePubListModel } from "@/lib/mapVenueList";
+import { outerLondonOwnerForPub } from "@/lib/outerLondonOwnership.mjs";
 
 // The UK base layer carries `amenity=pub` AND `amenity=bar`. Both packs are
 // committed (data/osm/uk/VENUES.md), so these fences read the shipped files
@@ -88,6 +89,25 @@ describe("UK base shards", () => {
     }
     expect(bars).toBeGreaterThanOrEqual(MIN_SEED_BARS);
     expect(pubs).toBeGreaterThanOrEqual(MIN_SEED_PUBS);
+  });
+
+  // The packs are cut from the London slim index, so a curated venue that
+  // enters the slim (a renewed famous bar) must be owned by its OSM bar row.
+  // A pack cut before it arrived leaves that row unowned, and the map draws
+  // a second, unpriced pin beside the curated one.
+  it("owns every shipped bar that matches a curated London venue", () => {
+    const slim = readJson(path.join(ROOT, "public", "data", "venues_slim.json"));
+    const curated = slim.rows as Array<{ id: string; name: string; lat: number; lng: number }>;
+    const { dir, files } = shardFiles();
+    const unowned: string[] = [];
+    for (const name of files) {
+      for (const venue of parseUkBaseShard(readJson(path.join(dir, name)))) {
+        if (venue.kind !== "bar" || venue.curatedVenueId) continue;
+        const owner = outerLondonOwnerForPub(venue, curated);
+        if (owner) unowned.push(`${venue.name} -> ${owner}`);
+      }
+    }
+    expect(unowned).toEqual([]);
   });
 });
 
