@@ -465,7 +465,7 @@ export function securityProxy(request: NextRequest) {
     // Clerk adds its Frontend API host (session, sign-in and sign-up calls) and
     // its abuse-protection hosts. Supabase's entries stay: both auth systems
     // run side by side, and removing either would break the other's sign-in.
-    `connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co wss://*.supabase.co${devSupabaseConnect}${clerk.connect.map((origin) => ` ${origin}`).join("")}`,
+    `connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co wss://*.supabase.co wss://api.elevenlabs.io https://api.elevenlabs.io${devSupabaseConnect}${clerk.connect.map((origin) => ` ${origin}`).join("")}`,
     // Clerk also requires worker-src 'self' blob: — already true for MapLibre's
     // tile workers and the offline service worker, so it needs no change here.
     "worker-src 'self' blob:",

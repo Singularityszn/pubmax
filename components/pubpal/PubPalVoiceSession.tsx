@@ -31,6 +31,7 @@ import type { PalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
 import {
   createPubPalVoiceStartController,
+  PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_START_ERROR,
   PubPalVoiceStartError,
 } from "@/lib/pubPalVoiceSession";
@@ -248,7 +249,9 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
         attempt.cancelled = true;
         setIsStarting(false);
         setError(message);
-        onStateChange?.("error");
+        onStateChange?.(
+          message === PAL_MICROPHONE_PERMISSION_ERROR ? "idle" : "error",
+        );
       },
       onCancelled: () => {
         void finalizeSession(attempt);

@@ -139,11 +139,12 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-DNS-Prefetch-Control", value: "on" },
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
-  // The app legitimately uses the camera (Pint Drop composer) and geolocation
-  // ("pubs near me" / nearest-venue) on its own origin; everything else denied.
+  // The app legitimately uses the camera (Pint Drop composer), geolocation
+  // ("pubs near me" / nearest-venue), and microphone (Pub Pal voice) on its
+  // own origin; everything else denied.
   {
     key: "Permissions-Policy",
-    value: "camera=(self), geolocation=(self), microphone=(), payment=(), usb=()",
+    value: "camera=(self), geolocation=(self), microphone=(self), payment=(), usb=()",
   },
   // Isolate our top-level browsing context (defence-in-depth against cross-origin
   // popup / XS-Leak attacks). Safe here: Google OAuth uses a redirect flow, not a
