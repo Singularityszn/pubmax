@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LocateFixed, X } from "lucide-react";
 
+import Kicker from "@/components/ui/kicker";
+import SheetStepProgress, { type SheetStep } from "@/components/ui/sheetStepProgress";
+import { CHOOSE_AREA_OPENING_HEADING, MAP_SHEET_TITLES } from "@/lib/mobileShell";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import type { CityId } from "@/lib/cities";
@@ -17,6 +20,13 @@ import type { Venue } from "@/lib/venues";
 
 import "./chooseAreaSheet.css";
 
+/** Opening flow: arrival ask, area pick, live map (this sheet is step 2 of 3). */
+const OPENING_STEPS: readonly SheetStep[] = [
+  { label: "Start", state: "settled" },
+  { label: "Area", state: "current" },
+  { label: "Map", state: "upcoming" },
+];
+
 export type ChooseAreaPick =
   | { kind: "near-me" }
   | { kind: "night-area"; row: ChooseAreaNeighbourhood }
@@ -30,6 +40,8 @@ type ChooseAreaSheetProps = {
   completeCountSlugs?: ReadonlySet<string> | null;
   locationNote?: string | null;
   locationBusy?: boolean;
+  /** True only when the arrival card opened this sheet as the opening flow's area step. */
+  showOpeningProgress?: boolean;
   onPick: (pick: ChooseAreaPick) => void;
 };
 
@@ -45,6 +57,7 @@ export default function ChooseAreaSheet({
   completeCountSlugs = null,
   locationNote,
   locationBusy = false,
+  showOpeningProgress = false,
   onPick,
 }: ChooseAreaSheetProps) {
   const [query, setQuery] = useState("");
@@ -60,6 +73,9 @@ export default function ChooseAreaSheet({
 
   return (
     <div className="chooseAreaSheet">
+      {showOpeningProgress ? (
+        <SheetStepProgress steps={OPENING_STEPS} label="Opening progress" variant="map" />
+      ) : null}
       <div className="chooseAreaSearch">
         <label htmlFor="choose-area-search">Search areas and postcodes</label>
         <input
@@ -151,10 +167,13 @@ const FOCUSABLE = [
  */
 export function ChooseAreaDesktopDialog({
   open,
+  opening = false,
   onClose,
   children,
 }: {
   open: boolean;
+  /** The arrival card opened this dialog as the opening flow's area step. */
+  opening?: boolean;
   onClose: () => void;
   children: React.ReactNode;
 }) {
@@ -214,12 +233,15 @@ export function ChooseAreaDesktopDialog({
         onKeyDown={cycleTab}
       >
         <div className="chooseAreaDesktopHead">
-          <h2
-            id="choose-area-desktop-title"
-            className="chooseAreaSectionTitle chooseAreaDesktopTitle"
-          >
-            Choose an area
-          </h2>
+          <div className="chooseAreaDesktopHeading">
+            {opening ? <Kicker>{CHOOSE_AREA_OPENING_HEADING.kicker}</Kicker> : null}
+            <h2
+              id="choose-area-desktop-title"
+              className="chooseAreaSectionTitle chooseAreaDesktopTitle"
+            >
+              {opening ? CHOOSE_AREA_OPENING_HEADING.title : MAP_SHEET_TITLES["choose-area"]}
+            </h2>
+          </div>
           <button
             type="button"
             className="chooseAreaDesktopClose"

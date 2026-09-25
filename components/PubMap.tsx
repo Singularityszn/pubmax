@@ -1486,7 +1486,8 @@ export default function PubMap({
     return restored && !["venue", "planner"].includes(restored) ? restored : "none";
   });
   const [chooseAreaLocationNote, setChooseAreaLocationNote] = useState<string | null>(null);
-  const openChooseAreaRef = useRef<(locationNote?: string | null) => void>(() => {});
+  const [chooseAreaOpening, setChooseAreaOpening] = useState(false);
+  const openChooseAreaRef = useRef<(locationNote?: string | null, openingFlow?: boolean) => void>(() => {});
   const restoredChosenAreaRef = useRef(false);
   const [mapViewport, setMapViewport] = useState<MapViewportSnapshot>(() =>
     openingViewport
@@ -4224,7 +4225,7 @@ export default function PubMap({
       const refuse = (message: string) => {
         if (mode === "resume") return;
         if (mode === "arrival") {
-          openChooseAreaRef.current(message);
+          openChooseAreaRef.current(message, true);
           return;
         }
         setNearbyError(message);
@@ -4571,6 +4572,7 @@ export default function PubMap({
   };
 
   const changeMapOverlay = useCallback((next: MapOverlay) => {
+    setChooseAreaOpening(false);
     // Leaving the phone "Choose a pub" sheet leaves the Drop flow (D4).
     if (next !== "moment") clearLogIntent();
     if (next !== "none" && isMobileViewport()) {
@@ -4586,12 +4588,13 @@ export default function PubMap({
     setMapOverlay(next);
   }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen]);
 
-  const openChooseArea = useCallback((locationNote?: string | null) => {
+  const openChooseArea = useCallback((locationNote?: string | null, openingFlow = false) => {
     setChooseAreaLocationNote(locationNote ?? null);
     // The sheet takes the sentence, so the floating alert lets go of it: two
     // copies of one refusal, one painted over the other, read as two faults.
     if (locationNote) setNearbyError(null);
     changeMapOverlay("choose-area");
+    setChooseAreaOpening(openingFlow);
   }, [changeMapOverlay, setNearbyError]);
 
   useEffect(() => {
@@ -4649,11 +4652,13 @@ export default function PubMap({
         completeCountSlugs={completeCountSlugs}
         locationNote={chooseAreaLocationNote}
         locationBusy={nearbyLoading}
+        showOpeningProgress={chooseAreaOpening}
         onPick={handleChooseAreaPick}
       />
     ),
     [
       chooseAreaLocationNote,
+      chooseAreaOpening,
       cityId,
       completeCountSlugs,
       handleChooseAreaPick,
@@ -5704,11 +5709,12 @@ export default function PubMap({
       {showMapArrivalCard ? (
         <MapArrivalCard
           onUseLocation={useLocationFromArrivalCard}
-          onChooseArea={() => openChooseArea()}
+          onChooseArea={() => openChooseArea(null, true)}
         />
       ) : null}
       <ChooseAreaDesktopDialog
         open={!mobileViewport && mapOverlay === "choose-area"}
+        opening={chooseAreaOpening}
         onClose={() => changeMapOverlay("none")}
       >
         {chooseAreaSheet}
@@ -5882,6 +5888,7 @@ export default function PubMap({
           ) : null
         }
         chooseAreaContent={chooseAreaSheet}
+        chooseAreaOpening={chooseAreaOpening}
         sheetsEnabled={mobileViewport}
         areaContent={
           <AreaSheet

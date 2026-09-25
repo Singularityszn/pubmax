@@ -370,3 +370,27 @@ test("submission revalidates that the exact start is still in the future", async
   await expect(page.locator(".planComposer__error")).toContainText("valid future London start time");
   expect(createRequests).toBe(0);
 });
+
+for (const reducedMotion of ["no-preference", "reduce"] as const) {
+  test(`a step change ${reducedMotion === "reduce" ? "holds still" : "reveals in"} under reducedMotion ${reducedMotion}`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion });
+    await page.goto("/plan");
+    await page.waitForLoadState("networkidle");
+    await openWizard(page);
+    await chooseClaphamAndContinue(page);
+
+    const stage = page.locator(".planIntake__stage");
+    await expect(stage).toContainText("When are you heading out?");
+    const animation = await stage.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { name: style.animationName, duration: style.animationDuration };
+    });
+    if (reducedMotion === "reduce") {
+      expect(animation.name).toBe("none");
+    } else {
+      expect(animation).toEqual({ name: "sheetRevealIn", duration: "0.26s" });
+    }
+  });
+}
