@@ -162,10 +162,7 @@ export const DRINK_WEATHER_RULES: readonly DrinkWeatherRule[] = [
       tempC >= WARM_C && precipitationProbabilityPct < DRY_PCT && isDay === false,
     venueLens: "any",
     drinkSuggestion: "a pale ale or lager",
-    line: "Warm and dry tonight. Terrace or open-window weather.",
-    dayPartLine: {
-      night: "Warm and dry tonight. Terrace or open-window weather.",
-    },
+    line: "Warm and dry after dark. Terrace or open-window weather.",
   },
   {
     ruleId: "mild-riverside",

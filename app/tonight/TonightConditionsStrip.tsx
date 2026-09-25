@@ -53,14 +53,21 @@ export default function TonightConditionsStrip({ origin }: Props) {
 
   if (!summary) return null;
 
+  const trailer = summary.stale ? `${summary.checkedLabel}.` : summary.drinkLine;
+
   return (
     <div className="tonightConditions" data-testid="tonight-conditions">
       <CloudSun size={16} aria-hidden="true" className="tonightConditionsIcon" />
       <p className="tonightConditionsCopy">
         <span className="tonightConditionsLead">
           {summary.dateLabel}. {summary.factsLine}
-        </span>{" "}
-        <span>{summary.stale ? `${summary.checkedLabel}.` : summary.drinkLine}</span>
+        </span>
+        {trailer ? (
+          <>
+            {" "}
+            <span>{trailer}</span>
+          </>
+        ) : null}
         {summary.venueClaim ? (
           <>
             {" "}

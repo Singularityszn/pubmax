@@ -144,7 +144,7 @@ describe("buildWeatherBrief", () => {
     ) as WeatherBrief;
     expect(brief.ruleId).toBe("warm-night");
     expect(brief.venueLens).toBe("any");
-    expect(brief.verdictLine).toBe("Warm and dry tonight. Terrace or open-window weather.");
+    expect(brief.verdictLine).toBe("Warm and dry after dark. Terrace or open-window weather.");
     expect(brief.factsLine).toMatch(/^20°C feels like, clear, 5% chance of rain, 8 km\/h wind, sunset was \d{2}:\d{2}, night\.$/);
   });
 
@@ -158,7 +158,7 @@ describe("buildWeatherBrief", () => {
     expect(buildWeatherBrief(future, NOW)).toBeNull();
   });
 
-  it("returns null on a grey in-between evening the rules table has no verdict for", () => {
+  it("keeps the facts but claims no verdict on a grey in-between evening", () => {
     // 12C with 45% rain in July trips the cool-default band (precip < 50): resolves.
     const resolves = buildWeatherBrief(
       snapshot({ feelsLikeC: 12, precipitationProbabilityPct: 45, condition: "Overcast" }),
@@ -170,8 +170,16 @@ describe("buildWeatherBrief", () => {
       snapshot({ feelsLikeC: 12, precipitationProbabilityPct: 55, condition: "Overcast" }),
       NOW,
     );
-    expect(resolves).not.toBeNull();
-    expect(grey).toBeNull();
+    expect(resolves?.ruleId).toBe("cool-default");
+    expect(grey).toMatchObject({
+      stale: false,
+      ruleId: null,
+      verdictLine: "",
+      drinkSuggestion: "",
+      venueLens: "any",
+      checkedLabel: "Checked 1 hour ago",
+    });
+    expect(grey?.factsLine).toMatch(/^12°C feels like, overcast, 55% chance of rain, 13 km\/h wind, /);
   });
 
   it("returns null when the requested area is absent from the snapshot", () => {

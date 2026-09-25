@@ -194,12 +194,18 @@ describe("summariseTonightConditions", () => {
     expect(summary?.weatherLabel).toBe("22°C");
   });
 
-  it("returns null when the rules table claims nothing for tonight", () => {
+  it("keeps the facts with no drink line or venue claim when the rules table claims nothing", () => {
     const summary = summariseTonightConditions({
       ...reading(15, "Drizzle", 45),
       now,
-      tally: null,
+      tally: { count: 4, underCeiling: 4 },
     });
-    expect(summary).toBeNull();
+    expect(summary).toMatchObject({
+      stale: false,
+      drinkLine: "",
+      drinkSuggestion: "",
+      venueClaim: null,
+    });
+    expect(summary.factsLine).toMatch(/^15°C feels like, drizzle, 45% chance of rain, /);
   });
 });

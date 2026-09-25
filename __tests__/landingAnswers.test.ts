@@ -28,6 +28,24 @@ describe("the front door's two answers", () => {
     });
   });
 
+  it("prints a fresh reading's facts alone when no rule fired", () => {
+    expect(
+      todayAnswer(
+        {
+          factsLine: "16°C feels like, cloudy, 45% chance of rain, daylight.",
+          verdictLine: "",
+          stale: false,
+          checkedLabel: "Checked 1 hour ago",
+        },
+        STAMP,
+      ),
+    ).toEqual({
+      line: "16°C feels like, cloudy, 45% chance of rain, daylight.",
+      stamp: STAMP,
+      measured: true,
+    });
+  });
+
   it("says plainly when there is no reading at all", () => {
     expect(todayAnswer(null, STAMP)).toEqual({
       line: "We could not read today's London weather just now.",
