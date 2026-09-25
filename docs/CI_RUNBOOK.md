@@ -34,17 +34,17 @@ GitHub may schedule several jobs at once; this runner uses one shared
 `_work/{repo}/{repo}` checkout. Parallel jobs caused `validate-data` temp-dir
 collisions, flaky `venueRoute` reads, and Playwright's
 `run-with-restored-next-env` guard (`PUBMAX_TRACKED_OUTPUTS=public/data` for
-`NEXT_PUBLIC_SW_VERSION=local` pack stamps). Workflows therefore share:
+`NEXT_PUBLIC_SW_VERSION=local` pack stamps). CI, browser tests and RLS therefore use:
 
 ```yaml
 concurrency:
-  group: ${{ github.workflow }}-pubmax-mac-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-pubmax-mac-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 ```
 
 The group is **per git ref**, not repo-wide. A repo-wide group once queued ancient runs from other branches and blocked every pull request for hours.
 
-Each workflow has its own group so CI, browser tests, and RLS do not cancel each other on the same push. The runner should still execute one job at a time; `ci.yml` chains jobs so a single CI run does not parallelize writers.
+Each workflow has its own group so CI, browser tests, and RLS do not cancel each other on the same push. A new pull request push cancels that pull request's superseded run. Main pushes, the nightly browser suite and manual dispatches never cancel, and the event name in the group keeps the nightly run from queuing behind a main push. The runner should still execute one job at a time; `ci.yml` chains jobs so a single CI run does not parallelize writers.
 
 `ci.yml` also chains jobs (`production-build` after lint + freshness, unit
 shards `max-parallel: 1`, coverage after unit tests).
