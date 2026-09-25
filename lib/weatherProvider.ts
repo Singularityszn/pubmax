@@ -17,14 +17,10 @@ import {
   validateWeatherObservation,
   type NightAreaWeatherObservation,
 } from "@/lib/weatherSnapshots";
-
 import { LONDON_NIGHT_AREA_COORDS } from "@/lib/weatherAreaCoords";
 
-// [lat, lng] centroids per LONDON night area — the established set the scheduled
-// refresh has always polled (kept in lockstep with
-// scripts/refresh_weather_snapshots.mjs). The snapshot this feeds is London's,
-// so the table is keyed on London's own patches: an area in another city has no
-// row here and reads as no weather rather than as somebody else's.
+// Hours a single observation is considered current before it must expire (the
+// cron re-runs well inside this window). Mirrors the legacy script's 12h.
 const OBSERVATION_TTL_HOURS = 12;
 
 export function conditionForCode(code: number): string {
@@ -56,25 +52,9 @@ function openMeteoUrl(lat: number, lng: number): string {
     current: "apparent_temperature,weather_code,wind_speed_10m",
     hourly: "precipitation_probability",
     forecast_hours: "1",
-    forecast_days: "1",
-    timezone: "Europe/London",
+    timezone: "UTC",
   }).toString();
   return url.toString();
-}
-
-/** Parse an Open-Meteo local timestamp using the response's UTC offset. */
-function openMeteoLocalInstant(time: unknown, utcOffsetSeconds: unknown): number {
-  if (typeof time !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(time)) return Number.NaN;
-  const offset =
-    typeof utcOffsetSeconds === "number" && Number.isFinite(utcOffsetSeconds)
-      ? utcOffsetSeconds
-      : 0;
-  const sign = offset >= 0 ? "+" : "-";
-  const abs = Math.abs(offset);
-  const hours = String(Math.floor(abs / 3600)).padStart(2, "0");
-  const minutes = String(Math.floor((abs % 3600) / 60)).padStart(2, "0");
-  const normalized = time.length === 16 ? `${time}:00` : time;
-  return Date.parse(`${normalized}${sign}${hours}:${minutes}`);
 }
 
 async function observationFor(
@@ -85,16 +65,11 @@ async function observationFor(
   const response = await doFetch(url);
   if (!response.ok) throw new Error(`${nightArea}: Open-Meteo returned ${response.status}`);
   const body = (await response.json()) as {
-    utc_offset_seconds?: unknown;
-    current?: {
-      time?: unknown;
-      apparent_temperature?: unknown;
-      weather_code?: unknown;
-      wind_speed_10m?: unknown;
-    };
+    current?: { time?: unknown; apparent_temperature?: unknown; weather_code?: unknown; wind_speed_10m?: unknown };
     hourly?: { precipitation_probability?: unknown[] };
   };
-  const observedAtMs = openMeteoLocalInstant(body?.current?.time, body?.utc_offset_seconds);
+  const timeRaw = typeof body?.current?.time === "string" ? `${body.current.time}Z` : "";
+  const observedAtMs = Date.parse(timeRaw);
   const feelsLikeC = body?.current?.apparent_temperature;
   const weatherCode = body?.current?.weather_code;
   const windKph = body?.current?.wind_speed_10m;

@@ -1,6 +1,10 @@
 import { LONDON_NIGHT_AREA_SLUGS, type LondonNightAreaSlug, type NightAreaSlug } from "@/lib/nightAreas";
 
-/** [lat, lng] centroids per London night area (Open-Meteo poll points). */
+// [lat, lng] centroids per LONDON night area — the established set the scheduled
+// refresh has always polled (kept in lockstep with
+// scripts/refresh_weather_snapshots.mjs). The snapshot this feeds is London's,
+// so the table is keyed on London's own patches: an area in another city has no
+// row here and reads as no weather rather than as somebody else's.
 export const LONDON_NIGHT_AREA_COORDS: Record<LondonNightAreaSlug, readonly [number, number]> = {
   clapham: [51.462, -0.138],
   victoria: [51.496, -0.143],

@@ -4,10 +4,10 @@ import {
   BRIEF_DEFAULT_AREA,
   buildWeatherBrief,
   rankTonightPicks,
-  relativeObservedLabel,
   toTonightPickDto,
   type WeatherBrief,
 } from "@/lib/todayBrief";
+import { relativeObservedLabel } from "@/lib/weatherObservationCopy";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 // Fixed clock (BST): Saturday 18 July 2026, 09:00 London.
@@ -112,6 +112,40 @@ describe("buildWeatherBrief", () => {
     expect(brief).not.toBeNull();
     expect(brief.stale).toBe(true);
     expect(brief.checkedLabel).toBe("Last checked 3 days ago");
+    expect(brief.ruleId).toBeNull();
+    expect(brief.verdictLine).toBe("");
+  });
+
+  it("reads 25 July 23:00 at 20C and dry as a terrace night from the area's own sunset", () => {
+    const at = new Date("2026-07-25T22:00:00.000Z");
+    const observedAt = "2026-07-25T21:45:00.000Z";
+    const brief = buildWeatherBrief(
+      {
+        version: 1,
+        generatedAt: observedAt,
+        observations: [
+          {
+            nightArea: BRIEF_DEFAULT_AREA,
+            observedAt,
+            expiresAt: "2026-07-26T09:45:00.000Z",
+            condition: "Clear",
+            feelsLikeC: 20,
+            precipitationProbabilityPct: 5,
+            windKph: 8,
+            source: {
+              sourceUrl: "https://api.open-meteo.com/v1/forecast?x=1",
+              publisher: "Open-Meteo",
+              publishedAt: observedAt,
+            },
+          },
+        ],
+      },
+      at,
+    ) as WeatherBrief;
+    expect(brief.ruleId).toBe("warm-night");
+    expect(brief.venueLens).toBe("any");
+    expect(brief.verdictLine).toBe("Warm and dry tonight. Terrace or open-window weather.");
+    expect(brief.factsLine).toMatch(/^20°C feels like, clear, 5% chance of rain, 8 km\/h wind, sunset was \d{2}:\d{2}, night\.$/);
   });
 
   it("returns null for an invalid snapshot", () => {

@@ -13,9 +13,8 @@
 
 import { daySlot } from "@/lib/daySlot";
 import { evaluateDrinkWeather, type VenueLens } from "@/lib/drinkWeather";
-import { formatWeatherObservationFacts } from "@/lib/weatherObservationCopy";
-import { daylightForNightArea } from "@/lib/weatherDaylight";
-import type { NightAreaSlug } from "@/lib/nightAreas";
+import { checkedLabel, formatWeatherObservationFacts } from "@/lib/weatherObservationCopy";
+import type { DaylightAt } from "@/lib/weatherDaylight";
 import { haversineKm } from "@/lib/haversine";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 
@@ -30,8 +29,8 @@ export type ConditionsWeather = {
   condition: string;
   precipitationProbabilityPct: number;
   windKph: number | null;
-  isDay: boolean | null;
-  sunsetAt: string | null;
+  /** ISO instant the observation was read. */
+  observedAt: string;
 };
 
 /**
@@ -54,6 +53,8 @@ export type TonightConditionsSummary = {
   factsLine: string;
   /** True once the observation has aged past its own expiry. */
   stale: boolean;
+  /** "Checked 2 hours ago" (fresh) or "Last checked 3 days ago" (stale). */
+  checkedLabel: string;
   /** The verdict's calm line, e.g. "Warm and dry. Beer garden weather." */
   drinkLine: string;
   /** Lower-case drink phrase, e.g. "a cold lager or cider". */
@@ -162,30 +163,31 @@ export function summariseTonightConditions(args: {
   tally: VenueLensTally;
   timeZone?: string;
   stale?: boolean;
-  nightArea?: NightAreaSlug;
-  factsAt?: Date;
+  /** Sun position for the night area at the reading's instant, when known. */
+  daylight?: DaylightAt | null;
 }): TonightConditionsSummary | null {
-  const { weather, now, tally, timeZone, stale = false, nightArea, factsAt } = args;
-  const at = factsAt ?? now;
-  const daylight = nightArea ? daylightForNightArea(nightArea, at) : null;
-  const isDay = daylight?.isDay ?? weather.isDay;
-  const sunsetAt = daylight ? daylight.sunsetAt.toISOString() : weather.sunsetAt;
+  const { weather, now, tally, timeZone, stale = false, daylight = null } = args;
+  const observedMs = Date.parse(weather.observedAt);
+  const factsAt = stale ? new Date(observedMs) : now;
+  const isDay = daylight?.isDay ?? null;
   const factsLine = formatWeatherObservationFacts({
     feelsLikeC: weather.tempC,
     condition: weather.condition,
     precipitationProbabilityPct: weather.precipitationProbabilityPct,
     windKph: weather.windKph,
     isDay,
-    sunsetAt,
-    now: at,
+    sunsetAt: daylight ? daylight.sunsetAt.toISOString() : null,
+    now: factsAt,
     stale,
   });
+  const checked = checkedLabel(observedMs, now.getTime(), stale);
   if (stale) {
     return {
       dateLabel: formatConditionDate(now, timeZone),
       weatherLabel: weatherLabel(weather),
       factsLine,
       stale: true,
+      checkedLabel: checked,
       drinkLine: "",
       drinkSuggestion: "",
       venueClaim: null,
@@ -205,6 +207,7 @@ export function summariseTonightConditions(args: {
     weatherLabel: weatherLabel(weather),
     factsLine,
     stale: false,
+    checkedLabel: checked,
     drinkLine: verdict.line,
     drinkSuggestion: verdict.drinkSuggestion,
     venueClaim: buildVenueClaim(verdict.venueLens, tally),

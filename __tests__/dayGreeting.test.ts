@@ -25,7 +25,7 @@ function brief(overrides: Partial<WeatherBrief> = {}): WeatherBrief {
     stale: false,
     checkedLabel: "Checked 6 minutes ago",
     source: { publisher: "Open-Meteo", url: "https://open-meteo.com/" },
-    factsLine: "24°C feels like, clear, 0% chance of rain, daylight",
+    factsLine: "24°C feels like, clear, 0% chance of rain, daylight.",
     ...overrides,
   };
 }
@@ -57,7 +57,7 @@ describe("buildDayGreeting", () => {
     expect(greeting.slot).toBe("evening");
     expect(greeting.salutation).toBe("Good evening");
     expect(greeting.headline).toBe("Golden evening for a beer garden.");
-    expect(greeting.support).toBe("Saturday 25 Jul. 24°C feels like, clear, 0% chance of rain, daylight");
+    expect(greeting.support).toBe("Saturday 25 Jul. 24°C feels like, clear, 0% chance of rain, daylight.");
     expect(greeting.weatherAware).toBe(true);
   });
 
@@ -86,14 +86,14 @@ describe("buildDayGreeting", () => {
     const warmRain = brief({
       tempLabel: "24°C",
       conditionLabel: "cloudy",
-      factsLine: "24°C feels like, cloudy, 60% chance of rain, night",
+      factsLine: "24°C feels like, cloudy, 60% chance of rain, night.",
       venueLens: "fireplace",
       ruleId: "hard-rain",
     });
     const cold = brief({
       tempLabel: "7°C",
       conditionLabel: "cloudy",
-      factsLine: "7°C feels like, cloudy, 10% chance of rain, night",
+      factsLine: "7°C feels like, cloudy, 10% chance of rain, night.",
       venueLens: "fireplace",
       ruleId: "cold",
     });

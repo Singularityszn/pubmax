@@ -7,7 +7,7 @@ import {
   type NightAreaSlug,
 } from "@/lib/nightAreas";
 import { latestWeatherForArea } from "@/lib/weatherSnapshots";
-import { loadFreshWeatherSnapshot } from "@/lib/weatherFreshness.server";
+import { loadWeatherSnapshot } from "@/lib/weatherSnapshots.server";
 import { evaluateDrinkWeather } from "@/lib/drinkWeather";
 import { daylightForNightArea } from "@/lib/weatherDaylight";
 import {
@@ -18,6 +18,7 @@ import {
   type TonightConditionsSummary,
   type VenueLensTally,
 } from "@/lib/tonightConditions";
+import weatherSnapshot from "@/public/data/weather/latest.json";
 
 const DEFAULT_AREA: NightAreaSlug = "piccadilly-soho";
 
@@ -32,46 +33,34 @@ export async function resolveTonightConditions(
   options: ResolveConditionsOptions,
 ): Promise<TonightConditionsSummary | null> {
   const { point, now } = options;
-  const snapshot =
-    options.snapshot ?? (await loadFreshWeatherSnapshot({ now }).catch(() => null));
+  const snapshot = options.snapshot ?? (await loadWeatherSnapshot()) ?? weatherSnapshot;
   const loadVenues = options.loadVenues ?? loadConciergeVenues;
   const area = point
     ? nearestNightAreaForViewport(DEFAULT_CITY_ID, point)
     : getNightArea(DEFAULT_AREA);
-  if (!area || !snapshot) return null;
+  if (!area) return null;
 
   const read = latestWeatherForArea(snapshot, area.slug, now.getTime());
   if (!read) return null;
   const { observation, stale } = read;
-  const conditionsWeather = {
+  const weather = {
     tempC: observation.feelsLikeC,
     condition: observation.condition,
     precipitationProbabilityPct: observation.precipitationProbabilityPct,
     windKph: observation.windKph,
-    isDay: null,
-    sunsetAt: null,
+    observedAt: observation.observedAt,
   };
+  const daylight = daylightForNightArea(area.slug, stale ? new Date(observation.observedAt) : now);
 
   if (stale) {
-    return summariseTonightConditions({
-      weather: conditionsWeather,
-      now,
-      tally: null,
-      stale: true,
-      nightArea: area.slug,
-      factsAt: new Date(observation.observedAt),
-    });
+    return summariseTonightConditions({ weather, now, tally: null, stale: true, daylight });
   }
 
-  const daylight = daylightForNightArea(area.slug, now);
-  const isDay = daylight?.isDay ?? null;
-  const sunsetAt = daylight ? daylight.sunsetAt.toISOString() : null;
-  const weatherForVerdict = { ...conditionsWeather, isDay, sunsetAt };
   const verdict = evaluateDrinkWeather({
-    tempC: weatherForVerdict.tempC,
-    precipitationProbabilityPct: weatherForVerdict.precipitationProbabilityPct,
+    tempC: weather.tempC,
+    precipitationProbabilityPct: weather.precipitationProbabilityPct,
     month: londonMonth(now),
-    isDay,
+    isDay: daylight?.isDay ?? null,
   });
   if (!verdict) return null;
 
@@ -84,11 +73,5 @@ export async function resolveTonightConditions(
       tally = null;
     }
   }
-  return summariseTonightConditions({
-    weather: weatherForVerdict,
-    now,
-    tally,
-    stale: false,
-    nightArea: area.slug,
-  });
+  return summariseTonightConditions({ weather, now, tally, daylight });
 }

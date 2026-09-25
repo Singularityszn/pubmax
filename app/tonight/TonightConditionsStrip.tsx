@@ -60,8 +60,7 @@ export default function TonightConditionsStrip({ origin }: Props) {
         <span className="tonightConditionsLead">
           {summary.dateLabel}. {summary.factsLine}
         </span>{" "}
-        {summary.stale ? <span className="tonightConditionsStale">Reading may be out of date. </span> : null}
-        {summary.stale || !summary.drinkLine ? null : <span>{summary.drinkLine}</span>}
+        <span>{summary.stale ? `${summary.checkedLabel}.` : summary.drinkLine}</span>
         {summary.venueClaim ? (
           <>
             {" "}

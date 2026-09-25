@@ -58,6 +58,25 @@ export function formatWeatherObservationFacts(input: WeatherObservationFactsInpu
     (part): part is string => typeof part === "string" && part.length > 0,
   );
   const body = core.join(", ");
-  if (input.stale) return `Last read of the sky: ${body}.`;
-  return body;
+  return `${input.stale ? "Last read of the sky: " : ""}${body}.`;
+}
+
+// Human "x ago" from an observation timestamp. Floor-based so the label only
+// ever rounds down (never claims fresher than it is). London-agnostic: a
+// duration, not a wall clock.
+export function relativeObservedLabel(observedAtMs: number, nowMs: number): string {
+  const diff = Math.max(0, nowMs - observedAtMs);
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} ${minutes === 1 ? "minute" : "minutes"} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "yesterday";
+  return `${days} days ago`;
+}
+
+/** "Checked 2 hours ago" (fresh) or "Last checked 3 days ago" (stale). */
+export function checkedLabel(observedAtMs: number, nowMs: number, stale: boolean): string {
+  return `${stale ? "Last checked" : "Checked"} ${relativeObservedLabel(observedAtMs, nowMs)}`;
 }

@@ -9,16 +9,16 @@ import {
 const base: DrinkWeatherInput = { tempC: 12, precipitationProbabilityPct: 20, month: 7 };
 
 describe("evaluateDrinkWeather rules table", () => {
-
   it("warm dry night at 20C on 25 July 23:00 London is terrace weather, not a garden claim", () => {
     const verdict = evaluateDrinkWeather({
       tempC: 20,
       precipitationProbabilityPct: 10,
       month: 7,
       dayPart: "night",
+      isDay: false,
     });
     expect(verdict).toMatchObject({ ruleId: "warm-night", venueLens: "any" });
-    expect(verdict?.venueLens).not.toBe("beer-garden");
+    expect(verdict?.line).toBe("Warm and dry tonight. Terrace or open-window weather.");
   });
 
   it("refuses beer-garden rules on an explicit Open-Meteo night", () => {
@@ -26,6 +26,7 @@ describe("evaluateDrinkWeather rules table", () => {
       tempC: 22,
       precipitationProbabilityPct: 10,
       month: 7,
+      isDay: false,
     });
     expect(verdict?.venueLens).not.toBe("beer-garden");
   });

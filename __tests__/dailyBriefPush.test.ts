@@ -14,7 +14,7 @@ const WEATHER: WeatherBrief = {
   stale: false,
   checkedLabel: "Checked 1 hour ago",
   source: { publisher: "Open-Meteo", url: "https://open-meteo.com/" },
-  factsLine: "19°C feels like, clear, 0% chance of rain, daylight",
+  factsLine: "19°C feels like, clear, 0% chance of rain, daylight.",
 };
 
 const PICK: TonightPickDto = {

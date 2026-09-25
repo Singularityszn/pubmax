@@ -29,7 +29,7 @@ import type { NightAreaSlug } from "@/lib/nightAreas";
 import { formatConditionDate, londonMonth } from "@/lib/tonightConditions";
 import { validateWeatherSnapshot } from "@/lib/weatherSnapshots";
 import { daylightForNightArea } from "@/lib/weatherDaylight";
-import { formatWeatherObservationFacts } from "@/lib/weatherObservationCopy";
+import { checkedLabel, formatWeatherObservationFacts } from "@/lib/weatherObservationCopy";
 import { whatsOnBarePriceGbp, type WhatsOnConfidence, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 
 // A central district for the location-free morning glance. The brief is a
@@ -50,8 +50,8 @@ export type WeatherBrief = {
   conditionLabel: string;
   /** The verdict's calm line, e.g. "Beer garden weather. Lager or cider." */
   verdictLine: string;
-  /** The exact weather rule selected from this displayed observation. */
-  ruleId: DrinkWeatherRuleId;
+  /** The exact weather rule selected from this displayed observation; null when stale. */
+  ruleId: DrinkWeatherRuleId | null;
   /** Lower-case drink phrase, e.g. "a cold lager or cider". */
   drinkSuggestion: string;
   /** The verdict's venue classification, so surfaces above the card (the /today
@@ -66,21 +66,6 @@ export type WeatherBrief = {
   /** Numbers-led line: temp, rain, wind, sunset, day or night. */
   factsLine: string;
 };
-
-// Human "x ago" from an observation timestamp. Floor-based so the label only
-// ever rounds down (never claims fresher than it is). London-agnostic: a
-// duration, not a wall clock.
-export function relativeObservedLabel(observedAtMs: number, nowMs: number): string {
-  const diff = Math.max(0, nowMs - observedAtMs);
-  const minutes = Math.floor(diff / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} ${minutes === 1 ? "minute" : "minutes"} ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
-  const days = Math.floor(hours / 24);
-  if (days === 1) return "yesterday";
-  return `${days} days ago`;
-}
 
 /**
  * Build the weather card, or null when there is nothing honest to show: an
@@ -122,8 +107,7 @@ export function buildWeatherBrief(
     now: factsAt,
     stale,
   });
-  const relative = relativeObservedLabel(observedMs, nowMs);
-  const checkedLabel = `${stale ? "Last checked" : "Checked"} ${relative}`;
+  const checked = checkedLabel(observedMs, nowMs, stale);
 
   if (stale) {
     return {
@@ -131,11 +115,11 @@ export function buildWeatherBrief(
       tempLabel: `${Math.round(observation.feelsLikeC)}°C`,
       conditionLabel: observation.condition.trim().toLocaleLowerCase("en-GB"),
       verdictLine: "",
-      ruleId: "mild-riverside",
+      ruleId: null,
       drinkSuggestion: "",
       venueLens: "any",
       stale: true,
-      checkedLabel,
+      checkedLabel: checked,
       source: { publisher: observation.source.publisher, url: observation.source.sourceUrl },
       factsLine,
     };
@@ -159,7 +143,7 @@ export function buildWeatherBrief(
     drinkSuggestion: verdict.drinkSuggestion,
     venueLens: verdict.venueLens,
     stale: false,
-    checkedLabel,
+    checkedLabel: checked,
     source: { publisher: observation.source.publisher, url: observation.source.sourceUrl },
     factsLine,
   };

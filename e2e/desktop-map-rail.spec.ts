@@ -25,7 +25,10 @@ async function mockRailData(page: Page): Promise<void> {
       body: JSON.stringify({
         summary: {
           dateLabel: "Thursday 23 Jul",
-          weatherLabel: "18C, light cloud",
+          weatherLabel: "18°C, light cloud",
+          factsLine: "18°C feels like, light cloud, 10% chance of rain, 12 km/h wind, sunset 21:08, daylight.",
+          stale: false,
+          checkedLabel: "Checked 20 minutes ago",
           drinkLine: "Warm and dry. Beer garden weather.",
           drinkSuggestion: "a cold lager or cider",
           venueClaim: null,

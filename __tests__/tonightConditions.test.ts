@@ -10,6 +10,7 @@ import {
   tallyLensMatches,
   PINT_CEILING_GBP,
 } from "@/lib/tonightConditions";
+import { daylightForNightArea } from "@/lib/weatherDaylight";
 
 // Piccadilly-ish centre so nearby-venue maths is realistic.
 const CENTRE: [number, number] = [-0.134, 51.511];
@@ -139,18 +140,21 @@ describe("buildVenueClaim", () => {
 
 describe("summariseTonightConditions", () => {
   const now = new Date("2026-07-18T19:00:00.000Z");
+  const daylight = daylightForNightArea("piccadilly-soho", now);
 
   it("composes date, weather, drink line and a venue claim", () => {
     const summary = summariseTonightConditions({
-      weather: { tempC: 22, condition: "Clear", precipitationProbabilityPct: 10, windKph: null, isDay: true, sunsetAt: null },
+      weather: { tempC: 22, condition: "Clear", precipitationProbabilityPct: 10, windKph: null, observedAt: "2026-07-18T18:45:00.000Z" },
       now,
       tally: { count: 4, underCeiling: 4 },
+      daylight,
     });
     expect(summary).toEqual({
       dateLabel: "Saturday 18 Jul",
       weatherLabel: "22°C, clear",
-      factsLine: "22°C feels like, clear, 10% chance of rain, daylight",
+      factsLine: expect.stringMatching(/^22°C feels like, clear, 10% chance of rain, sunset \d{2}:\d{2}, daylight\.$/),
       stale: false,
+      checkedLabel: "Checked 15 minutes ago",
       drinkLine: "Beer garden weather. Lager or cider.",
       drinkSuggestion: "a cold lager or cider",
       venueClaim: "4 gardens near you with a pint under 6 quid",
@@ -159,7 +163,7 @@ describe("summariseTonightConditions", () => {
 
   it("shows the weather line with no venue claim when there are none nearby", () => {
     const summary = summariseTonightConditions({
-      weather: { tempC: 22, condition: "Sunny", precipitationProbabilityPct: 10, windKph: null, isDay: true, sunsetAt: null },
+      weather: { tempC: 22, condition: "Sunny", precipitationProbabilityPct: 10, windKph: null, observedAt: "2026-07-18T18:45:00.000Z" },
       now,
       tally: { count: 0, underCeiling: 0 },
     });
@@ -169,7 +173,7 @@ describe("summariseTonightConditions", () => {
 
   it("drops the condition text gracefully when it is blank", () => {
     const summary = summariseTonightConditions({
-      weather: { tempC: 22, condition: "  ", precipitationProbabilityPct: 10, windKph: null, isDay: true, sunsetAt: null },
+      weather: { tempC: 22, condition: "  ", precipitationProbabilityPct: 10, windKph: null, observedAt: "2026-07-18T18:45:00.000Z" },
       now,
       tally: null,
     });
@@ -178,7 +182,7 @@ describe("summariseTonightConditions", () => {
 
   it("returns null when the rules table claims nothing for tonight", () => {
     const summary = summariseTonightConditions({
-      weather: { tempC: 15, condition: "Drizzle", precipitationProbabilityPct: 45, windKph: null, isDay: null, sunsetAt: null },
+      weather: { tempC: 15, condition: "Drizzle", precipitationProbabilityPct: 45, windKph: null, observedAt: "2026-07-18T18:45:00.000Z" },
       now,
       tally: null,
     });
