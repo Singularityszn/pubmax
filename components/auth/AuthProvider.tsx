@@ -39,6 +39,7 @@ import {
   type AccountAuthSnapshot,
 } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
+import { syncPosthogPersonIdentity } from "@/lib/posthog/posthogPerson";
 import {
   clearLegacyPkceVerifiers,
   establishAuthCallbackSession,
@@ -348,6 +349,7 @@ export function AuthProvider({
         setRejectedContributionAuth(null);
       }
       setSession(nextSession);
+      syncPosthogPersonIdentity(nextUserId);
       return signedIn;
     },
     [],
@@ -630,6 +632,10 @@ export function AuthProvider({
         }
         if (event === "SIGNED_IN" && nextSession?.user) {
           if (signedIn) {
+            const createdAt = Date.parse(nextSession.user.created_at ?? "");
+            if (Number.isFinite(createdAt) && Date.now() - createdAt < 5 * 60_000) {
+              trackEvent("user_signed_up");
+            }
             trackEvent("user_signed_in");
             // A GENUINE sign-in transition, which is the only thing that earns
             // a greeting. An ordinary page load with a live session never

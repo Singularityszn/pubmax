@@ -19,6 +19,7 @@ import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
 import { discardBody } from "@/lib/responseBody";
 import { laneSourceFromSearch, trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
+import { trackErrorShown } from "@/lib/analyticsErrorShown";
 import { ASK_PLAN_DRAFT_STORAGE_KEY, type AskPlanDraft } from "@/lib/ask/types";
 import {
   parsePlanDescribeFromSearch,
@@ -1800,6 +1801,7 @@ function PlanComposerForm({
       setCreateOperationKey(typeof body.operationKey === "string" ? body.operationKey : null);
       setPlanAnchor(generatedPlanAnchorFromResponse(body));
       markPalRouteActivation();
+      trackEvent("plan_started");
       trackEvent("plan_generated", { stops: suggested.length, grounded });
       setConciergeNote(`${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set below.`);
       setRouteStatus("Route refreshed. Review the preview, then lock it in when it feels right.");
@@ -1813,6 +1815,7 @@ function PlanComposerForm({
       // error notice cannot tell a reader with no route on screen that "the
       // earlier route is still here".
       const failureStatus = planGenerationFailureStatus(message, stops.length > 0);
+      trackErrorShown("plan", "server");
       setError(failureStatus);
       setRouteStale(true);
       setRouteStatus(failureStatus);
@@ -1901,6 +1904,7 @@ function PlanComposerForm({
         trackEvent("plan_draft_saved", draftSavedTelemetry, { deliveryToken: draftSavedToken });
       }
       if (acceptanceTelemetry && acceptedToken && meaningfulToken) {
+        trackEvent("crawl_locked", { stops: completeStops.length });
         trackEvent("plan_accepted", acceptanceTelemetry, { deliveryToken: acceptedToken });
         trackMeaningfulCoreAction("plan_accepted", meaningfulToken);
       }

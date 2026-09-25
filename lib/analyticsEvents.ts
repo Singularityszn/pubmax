@@ -73,8 +73,17 @@ export const ANALYTICS_EVENTS = {
   // PostHog wizard adoption. Auth state and successful writes carry no account,
   // contact, handle, area, or response data. Provider is a fixed button enum.
   sign_in_initiated: ["provider"],
+  user_signed_up: [],
   user_signed_in: [],
   user_signed_out: [],
+  plan_started: [],
+  stop_added: ["surface"],
+  crawl_locked: ["stops"],
+  route_opened: ["surface"],
+  pub_viewed: ["layer"],
+  voice_ended: ["reason"],
+  content_shared: ["channel", "surface"],
+  error_shown: ["surface", "kind"],
   message_attach_selected: ["kind"],
   // A device hopped between two accounts it already holds. No props at all: an
   // account id or a handle here would name a person, and which accounts share a
@@ -543,6 +552,8 @@ const SAFE_STRING_VALUES = new Set([
   "curated", "uk_base", "pending",
   // Share-link add funnel: the one surface, the two doors, the three outcomes.
   "add-link", "signin", "added", "failed", "unavailable",
+  "map", "plan", "round", "user", "disconnect", "cap",
+  "network", "auth", "validation", "server",
   // Crowd occupancy: the three buttons, the four now-read states, the two
   // surfaces that may report. `degraded` and `pal` already sit above.
   "empty", "some-seats", "full", "fresh", "stale", "none", "venue-sheet",
@@ -627,6 +638,13 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   late_food_added: ["confidence"],
   briefing_viewed: ["personalized", "muted"],
   recap_viewed: ["visibility"],
+  stop_added: ["surface"],
+  crawl_locked: ["stops"],
+  route_opened: ["surface"],
+  pub_viewed: ["layer"],
+  voice_ended: ["reason"],
+  content_shared: ["channel", "surface"],
+  error_shown: ["surface", "kind"],
 } as const satisfies Partial<Record<AnalyticsEventName, readonly string[]>>;
 
 function includesValue(values: readonly string[], value: string | number | boolean): boolean {
@@ -892,6 +910,54 @@ function isAllowedMessageAttachProp(
  * scoped to the event names rather than to the keys: `confidence` and
  * `visibility` would both mean something else elsewhere in the registry.
  */
+const STOP_ADDED_SURFACES = ["map", "plan", "round"] as const;
+const ROUTE_OPENED_SURFACES = ["map", "plan"] as const;
+const VOICE_END_REASONS = ["user", "disconnect", "cap", "error"] as const;
+const CONTENT_SHARE_SURFACES = ["plan", "recap", "poster", "tonight", "other"] as const;
+const ERROR_SHOWN_SURFACES = [
+  "landing", "home", "map", "tonight", "plan", "you", "pal", "recap", "near", "other",
+] as const;
+const ERROR_SHOWN_KINDS = ["network", "auth", "validation", "server", "unknown"] as const;
+
+function isSignInProvider(value: string | number | boolean): boolean {
+  return typeof value === "string"
+    && (value === "google" || value === "apple" || value === "microsoft" || value === "email"
+      || value === "email_resume" || value === "handle_password");
+}
+
+function isAllowedJourneyProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (name === "stop_added" && key === "surface") {
+    return includesValue(STOP_ADDED_SURFACES, value);
+  }
+  if (name === "crawl_locked" && key === "stops") {
+    return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 10;
+  }
+  if (name === "route_opened" && key === "surface") {
+    return includesValue(ROUTE_OPENED_SURFACES, value);
+  }
+  if (name === "pub_viewed" && key === "layer") {
+    return includesValue(VENUE_SHEET_LAYERS, value);
+  }
+  if (name === "voice_ended" && key === "reason") {
+    return includesValue(VOICE_END_REASONS, value);
+  }
+  if (name === "content_shared") {
+    if (key === "channel") {
+      return includesValue(["copy", "native", "whatsapp", "x", "sms", "instagram", "tiktok"], value);
+    }
+    if (key === "surface") return includesValue(CONTENT_SHARE_SURFACES, value);
+  }
+  if (name === "error_shown") {
+    if (key === "surface") return includesValue(ERROR_SHOWN_SURFACES, value);
+    if (key === "kind") return includesValue(ERROR_SHOWN_KINDS, value);
+  }
+  return true;
+}
+
 function isAllowedLoopMomentProp(
   name: AnalyticsEventName,
   key: string,
@@ -957,8 +1023,8 @@ export function sanitizeEvent(
       // isSafeValue enum gate the same way a CUSTOM_PROP_VALIDATORS entry
       // would - otherwise a legitimate selector like "main>img.hero" never
       // reaches those checks at all.
-      const valid = name === "sign_in_initiated" && key === "provider"
-        ? value === "google" || value === "apple" || value === "microsoft" || value === "email"
+      const valid = (name === "sign_in_initiated" || name === "user_signed_up") && key === "provider"
+        ? isSignInProvider(value)
         : key === "target" && (name === "web_vital" || name === "landing_cta_clicked")
           ? typeof value === "string"
             && isAllowedVitalProp(name, key, value)
@@ -978,7 +1044,8 @@ export function sanitizeEvent(
               && isAllowedMessageAttachProp(name, key, value)
               && isAllowedLandingCtaProp(name, key, value)
               && isAllowedVenueSheetProp(name, key, value)
-              && isAllowedLoopMomentProp(name, key, value);
+              && isAllowedLoopMomentProp(name, key, value)
+              && isAllowedJourneyProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }
   }

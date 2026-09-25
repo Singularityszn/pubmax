@@ -41,6 +41,15 @@ type ShareBarProps = {
 // Resolve a possibly-relative url to an absolute one, lazily, at click time.
 // A url that is already absolute is returned untouched; anything else is
 // resolved against the current origin. Guarded so a bad input never throws.
+
+function shareSurfaceFromUrl(url: string): "plan" | "recap" | "poster" | "tonight" | "other" {
+  if (url.includes("/plan/")) return "plan";
+  if (url.includes("/recap")) return "recap";
+  if (url.includes("poster") || url.includes("/p/")) return "poster";
+  if (url.includes("/tonight")) return "tonight";
+  return "other";
+}
+
 function toAbsoluteUrl(url: string): string {
   if (typeof window === "undefined") return url;
   try {
@@ -71,6 +80,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
 
   const trackPlanInvite = useCallback((channel: string) => {
     if (isPlanInvite) trackEvent("plan_invite_sent", { channel });
+    trackEvent("content_shared", { channel, surface: shareSurfaceFromUrl(url) });
   }, [isPlanInvite]);
 
   const flashCopied = useCallback(() => {

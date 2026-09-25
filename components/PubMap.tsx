@@ -4046,6 +4046,7 @@ export default function PubMap({
       if (current.includes(id)) return current.filter((existing) => existing !== id);
       const venue = venueById.get(id);
       if (venue && !isPubVenue(venue)) return current;
+      trackEvent("stop_added", { surface: "map" });
       return [...current, id];
     });
     // A picked pub is a stop in the crawl the reader is BUILDING. The mode
@@ -4267,6 +4268,7 @@ export default function PubMap({
 
   const mapCurrentRoute = useCallback(() => {
     if (route.length < 2) return;
+    trackEvent("route_opened", { surface: "map" });
     setRouteMapped(true);
     dismissOnboarding();
     if (isMobileViewport()) closePlanning();

@@ -48,6 +48,7 @@ import {
 /** `openinference.span.kind`: the attribute AX reads to classify a span. */
 const OPENINFERENCE_SPAN_KIND = SemanticConventions.OPENINFERENCE_SPAN_KIND;
 import type { ReadableSpan, SpanExporter } from "@opentelemetry/sdk-trace-base";
+import { capturePosthogAiGeneration } from "@/lib/posthog/posthogAiCapture";
 
 /** The Arize AX OTLP traces endpoint (US). */
 export const ARIZE_TRACES_ENDPOINT = "https://otlp.arize.com/v1/traces";
@@ -301,6 +302,11 @@ class ArizeSpanHandle implements ArizeModelSpan {
   /** Internal: the wrapped OTel span (unexported type on purpose). */
   readonly raw: Span;
   private failed = false;
+  lastUsage: {
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+  } = {};
 
   constructor(raw: Span) {
     this.raw = raw;
@@ -311,6 +317,7 @@ class ArizeSpanHandle implements ArizeModelSpan {
     completionTokens?: number;
     totalTokens?: number;
   }): void {
+    this.lastUsage = usage;
     const prompt = Math.max(0, Math.floor(usage.promptTokens ?? NaN));
     if (Number.isFinite(prompt)) this.raw.setAttribute(LLM_TOKEN_COUNT_PROMPT, prompt);
     const completion = Math.max(0, Math.floor(usage.completionTokens ?? NaN));
@@ -388,6 +395,7 @@ export async function traceArizeModelCall<T>(input: {
   invocationParameters?: Record<string, unknown>;
   call: (span: ArizeModelSpan | undefined) => Promise<T>;
 }): Promise<T> {
+  const started = Date.now();
   const span = startArizeSpan({
     kind: OpenInferenceSpanKind.LLM,
     name: `chat ${input.model} ${input.route}`,
@@ -397,13 +405,28 @@ export async function traceArizeModelCall<T>(input: {
     ...(input.prompt !== undefined ? { prompt: input.prompt } : {}),
     ...(input.invocationParameters ? { invocationParameters: input.invocationParameters } : {}),
   });
+  const reportPosthog = (isError: boolean) => {
+    const handle = span as ArizeSpanHandle | undefined;
+    capturePosthogAiGeneration({
+      route: input.route,
+      model: input.model,
+      provider: input.provider,
+      latencyMs: Date.now() - started,
+      promptTokens: handle?.lastUsage.promptTokens,
+      completionTokens: handle?.lastUsage.completionTokens,
+      totalTokens: handle?.lastUsage.totalTokens,
+      isError,
+    });
+  };
   try {
     const result = await input.call(span);
     span?.end();
+    reportPosthog(false);
     return result;
   } catch (error) {
     span?.setError(error);
     span?.end();
+    reportPosthog(true);
     throw error;
   }
 }

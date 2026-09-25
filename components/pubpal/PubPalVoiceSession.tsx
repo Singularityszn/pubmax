@@ -52,6 +52,8 @@ type VoiceSessionAttempt = {
   sdkSessionStarted: boolean;
   connectedAt: number | null;
   capTimer: number | null;
+  voiceEndReported: boolean;
+  voiceEndReason: "user" | "disconnect" | "cap" | "error";
 };
 
 async function releaseVoiceSession(durationSeconds: number): Promise<void> {
@@ -92,6 +94,10 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   }, []);
 
   const finalizeSession = useCallback(async (attempt: VoiceSessionAttempt) => {
+    if (attempt.connectedAt !== null && !attempt.voiceEndReported) {
+      attempt.voiceEndReported = true;
+      trackEvent("voice_ended", { reason: attempt.voiceEndReason });
+    }
     if (attempt.released) return;
     clearCapTimer(attempt);
     const durationSeconds = attempt.connectedAt === null
@@ -129,6 +135,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   }, [isListening, isSpeaking, onStateChange, status]);
 
   const stop = useCallback(async (attempt: VoiceSessionAttempt) => {
+    if (!attempt.voiceEndReported) attempt.voiceEndReason = "user";
     if (!ownsAttempt(attempt)) return;
     const wasCurrent = activeAttemptRef.current === attempt;
     attempt.cancelled = true;
@@ -159,6 +166,8 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
       sdkSessionStarted: false,
       connectedAt: null,
       capTimer: null,
+        voiceEndReported: false,
+        voiceEndReason: "disconnect",
     };
     activeAttemptRef.current = attempt;
     setError(null);
@@ -217,10 +226,12 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             attempt.connectedAt = Date.now();
             clearCapTimer(attempt);
             attempt.capTimer = window.setTimeout(() => {
+              attempt.voiceEndReason = "cap";
               void stop(attempt);
             }, maxSessionSeconds * 1000);
           },
           onDisconnect: () => {
+            attempt.voiceEndReason = "disconnect";
             if (!ownsAttempt(attempt)) return;
             startController.settle();
             setIsStarting(false);
@@ -229,6 +240,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             void finalizeSession(attempt);
           },
           onError: (message) => {
+            attempt.voiceEndReason = "error";
             if (!ownsAttempt(attempt)) return;
             startController.settle();
             setIsStarting(false);
