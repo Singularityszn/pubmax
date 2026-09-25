@@ -23,6 +23,7 @@ export type AuthSessionBootstrapOutcome =
     }
   | { status: "expired"; maskedEmail: string | null }
   | { status: "none" }
+  | { status: "banned"; message: string }
   | { status: "unavailable" };
 
 export type AuthSessionBootstrapDeps = {

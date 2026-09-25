@@ -14,6 +14,7 @@ export const RESERVED_CONTRIBUTOR_HANDLES = [
   "tiffany",
   "karanmanoharan",
   "karanszn",
+  "karansznx",
   "karanm",
   "karanmrn",
   "kai",
@@ -40,6 +41,30 @@ const RESERVED_EXACT = new Set([
 ]);
 const RESERVED_BRAND_PATTERN = /^(?:pubmaxx|pubmaxxing|pubmaxxer)[_-]?(?:admin|help|official|safety|staff|support)$/;
 const BLOCKED_TERMS = new Set(["fuck", "fucker", "nigger", "nigga"]);
+const KARAN_STEMS = ["karan", "karans"] as const;
+const KARAN_FAMILY_TERMS = [
+  "dad",
+  "father",
+  "papa",
+  "mom",
+  "mum",
+  "mother",
+  "mama",
+  "bro",
+  "brother",
+  "sis",
+  "sister",
+  "son",
+  "daughter",
+  "uncle",
+  "aunt",
+  "wife",
+  "husband",
+  "gf",
+  "bf",
+  "boyfriend",
+  "girlfriend",
+] as const;
 
 export type HandleAssessment =
   | { ok: true; handle: string }
@@ -50,6 +75,80 @@ export function isReservedContributorHandle(raw: unknown): boolean {
   return RESERVED_CONTRIBUTOR_HANDLE_SET.has(
     raw.trim().replace(/^@/, "").toLowerCase(),
   );
+}
+
+function normalizedIdentityText(raw: string): string {
+  return raw.trim().replace(/^@/, "").toLowerCase();
+}
+
+function containsBlockedTerm(compact: string): boolean {
+  for (const term of BLOCKED_TERMS) {
+    if (compact.includes(term)) return true;
+  }
+  return false;
+}
+
+function isKaranStem(token: string): boolean {
+  return (KARAN_STEMS as readonly string[]).includes(token);
+}
+
+function isKaranFamilyTerm(token: string): boolean {
+  return (KARAN_FAMILY_TERMS as readonly string[]).includes(token);
+}
+
+/**
+ * One word that joins Karan to a family term: karansdad (anywhere in the word,
+ * because the possessive never starts a real surname), xkarandad (the word
+ * ends at the term), dadkaran.
+ */
+function isKaranFamilyCompound(word: string): boolean {
+  return KARAN_FAMILY_TERMS.some(
+    (term) =>
+      word.includes(`karans${term}`) ||
+      word.endsWith(`karan${term}`) ||
+      KARAN_STEMS.some((stem) => word.startsWith(`${term}${stem}`)),
+  );
+}
+
+/**
+ * Karan plus a family word, matched word by word so a real surname that only
+ * starts with a family term (Dadlani, Momin, Sisodia) stays available. A stem
+ * is also read joined to the word after it, so karan_sdad reads as karansdad.
+ */
+function violatesOwnerKaranPolicy(normalized: string): boolean {
+  if (!normalized.includes("karan")) return false;
+  const tokens = normalized.replace(/['’]/g, "").split(/[^a-z]+/).filter(Boolean);
+  const joined = tokens.flatMap((token, at) =>
+    isKaranStem(token) && at + 1 < tokens.length ? [`${token}${tokens[at + 1]}`] : [],
+  );
+  if ([...tokens, ...joined].some(isKaranFamilyCompound)) return true;
+  return tokens.some(isKaranStem) && tokens.some(isKaranFamilyTerm);
+}
+
+function violatesIdentityPolicy(raw: string): boolean {
+  const normalized = normalizedIdentityText(raw);
+  return (
+    containsBlockedTerm(normalized.replace(/[^a-z0-9]+/g, "")) ||
+    violatesOwnerKaranPolicy(normalized)
+  );
+}
+
+export type DisplayNameAssessment =
+  | { ok: true; displayName: string }
+  | { ok: false; reason: "reserved"; error: string };
+
+export function assessPubmaxxDisplayName(raw: unknown): DisplayNameAssessment {
+  if (typeof raw !== "string") {
+    return { ok: false, reason: "reserved", error: "That name is not available." };
+  }
+  const displayName = raw.trim().replace(/\s+/g, " ");
+  if (!displayName) {
+    return { ok: false, reason: "reserved", error: "That name is not available." };
+  }
+  if (violatesIdentityPolicy(displayName)) {
+    return { ok: false, reason: "reserved", error: "That name is not available." };
+  }
+  return { ok: true, displayName };
 }
 
 /**
@@ -71,7 +170,6 @@ export function assessPubmaxxHandle(raw: unknown): HandleAssessment {
       error: "Use 3–30 letters, numbers, or underscores.",
     };
   }
-  const pieces = handle.split("_").filter(Boolean);
   if (isReservedContributorHandle(handle)) {
     return {
       ok: false,
@@ -82,7 +180,7 @@ export function assessPubmaxxHandle(raw: unknown): HandleAssessment {
   if (
     RESERVED_EXACT.has(handle) ||
     RESERVED_BRAND_PATTERN.test(handle) ||
-    pieces.some((piece) => BLOCKED_TERMS.has(piece))
+    violatesIdentityPolicy(handle)
   ) {
     return { ok: false, reason: "reserved", error: "That handle is reserved." };
   }

@@ -17,6 +17,17 @@ type Row = Record<string, unknown>;
 
 const db = vi.hoisted(() => ({ rows: [] as Row[], schemaMiss: false, failWrites: false }));
 
+// The fake database holds only the visit-report table; moderation reads
+// profiles, so it answers from a local withdrawn set here and is pinned in
+// accountPublicAccess.test.ts.
+const withdrawn = vi.hoisted(() => new Set<string>());
+vi.mock("@/lib/accountPublicAccess.server", () => ({
+  dropWithdrawnAuthors: async <T,>(items: readonly T[], handleOf: (item: T) => string) =>
+    items.filter((item) => !withdrawn.has(handleOf(item))),
+  withdrawnHandles: async (handles: readonly string[]) =>
+    new Set(handles.filter((handle) => withdrawn.has(handle))),
+}));
+
 vi.mock("@/lib/supabase", () => {
   const TABLE_MISSING = "Could not find the table 'public.structured_visit_reports'";
 
@@ -286,6 +297,22 @@ describe("memoryVisitReportStore", () => {
 });
 
 describe("supabaseVisitReportStore", () => {
+  it("withholds a withdrawn author publicly but keeps their own export whole", async () => {
+    await supabaseVisitReportStore.create(fields({ handle: "karansdad" }));
+    withdrawn.add("karansdad");
+    try {
+      expect((await supabaseVisitReportStore.readForVenue("venue-1")).reports).toEqual([]);
+      expect(await supabaseVisitReportStore.countForContributor("karansdad")).toEqual({
+        status: "ready",
+        count: 0,
+      });
+      const own = await supabaseVisitReportStore.listForContributor("karansdad");
+      expect(own.reports.map((report) => report.handle)).toEqual(["karansdad"]);
+    } finally {
+      withdrawn.clear();
+    }
+  });
+
   it("inserts, upserts per night, and reads back", async () => {
     const first = await supabaseVisitReportStore.create(fields({ busyness: "quiet" }));
     expect(db.rows).toHaveLength(1);

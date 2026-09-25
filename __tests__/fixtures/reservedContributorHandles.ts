@@ -3,6 +3,7 @@ const NEW_RESERVED_CONTRIBUTOR_HANDLES = [
   "tiffany",
   "karanmanoharan",
   "karanszn",
+  "karansznx",
   "karanm",
   "karanmrn",
   "kai",

@@ -11,6 +11,7 @@ import "server-only";
 
 import { publicApiError } from "@/lib/apiError";
 import { isLimited } from "@/lib/pintDrops";
+import { isProfileWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
 import { isProfileTombstoned, profileStore, type ProfileRecord } from "@/lib/profileStore";
 import { clientIp, hashIp, isSupabaseConfigured } from "@/lib/supabase";
 import {
@@ -81,7 +82,7 @@ export async function handleVenuePhotoServe(
   if (!isVenuePhotoServingKey(venueId, photoId, photo.objectKey)) return notFound();
 
   const author = await deps.getProfileById(photo.authorProfileId);
-  if (!author || isProfileTombstoned(author)) return notFound();
+  if (!author || isProfileTombstoned(author) || (await isProfileWithdrawnFromPublic(author))) return notFound();
 
   const downloaded = await deps.downloadObject(photo.objectKey);
   if (!downloaded) return notFound();

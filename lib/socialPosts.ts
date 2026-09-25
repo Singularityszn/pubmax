@@ -1,4 +1,5 @@
 import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
+import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
 import { resolveAvatarUrlsForHandles } from "@/lib/avatarResolve";
 import { normalizeHandle } from "@/lib/profiles";
 
@@ -271,9 +272,10 @@ export function socialPostModerationClaim(
 export async function enrichSocialPostAuthors(
   posts: readonly SocialPostDTO[],
 ): Promise<SocialPostDTO[]> {
-  if (posts.length === 0) return [];
-  const urls = await resolveAvatarUrlsForHandles(posts.map((post) => post.author.handle));
-  return posts.map((post) => {
+  const visible = await dropWithdrawnAuthors(posts, (post) => post.author.handle);
+  if (visible.length === 0) return [];
+  const urls = await resolveAvatarUrlsForHandles(visible.map((post) => post.author.handle));
+  return visible.map((post) => {
     const avatarUrl = urls.get(normalizeHandle(post.author.handle));
     return avatarUrl
       ? { ...post, author: { ...post.author, avatarUrl } }

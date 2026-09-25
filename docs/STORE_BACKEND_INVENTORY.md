@@ -148,6 +148,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "app/bar-tab/[id]/opengraph-image.tsx",
     "app/bar-tab/[id]/page.tsx",
     "app/ledger/[id]/page.tsx",
+    "lib/accountPublicAccess.server.ts",
     "lib/analyticsReceiptStore.ts",
     "lib/areaDemandStore.ts",
     "lib/checkInStore.ts",

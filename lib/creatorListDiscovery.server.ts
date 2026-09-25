@@ -1,5 +1,6 @@
 import "server-only";
 
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import type {
   CreatorListDiscoveryItem,
   CreatorListDiscoveryResult,
@@ -33,6 +34,7 @@ export type CreatorListDiscoveryDependencies = {
   listSavedByHandles(input: {
     handles: readonly string[];
   }): Promise<ReadonlyMap<string, CreatorListSavedRead>>;
+  withdrawnHandles(handles: readonly string[]): Promise<ReadonlySet<string>>;
 };
 
 function savedListReadIsUnavailable(
@@ -99,11 +101,15 @@ export async function discoverCreatorLists(
   const nextCursor = profiles.length > examined.length && examined.length > 0
     ? examined[examined.length - 1]!.handle
     : null;
+  const withdrawn = await dependencies.withdrawnHandles(
+    examined.map((profile) => profile.handle),
+  );
+  const visible = examined.filter((profile) => !withdrawn.has(profile.handle));
   const savedByProfile = await dependencies.listSavedByHandles({
-    handles: examined.map((profile) => profile.handle),
+    handles: visible.map((profile) => profile.handle),
   });
   let unavailableCount = 0;
-  const lists = examined.flatMap((profile) => {
+  const lists = visible.flatMap((profile) => {
     const saved = savedByProfile.get(profile.handle);
     if (savedListReadIsUnavailable(saved)) {
       unavailableCount += 1;
@@ -133,6 +139,7 @@ export const creatorListDiscoveryDependencies: CreatorListDiscoveryDependencies 
         };
       });
   },
+  withdrawnHandles,
   async listSavedByHandles({ handles }) {
     const reads = await savedPubsStore().readSavedByHandles({ handles });
     return new Map(

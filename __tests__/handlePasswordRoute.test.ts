@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { AUTH_ACCOUNT_BANNED_MESSAGE } from "@/lib/authAccountBan";
 import { HANDLE_PASSWORD_GENERIC_ERROR } from "@/lib/passwordPolicy";
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
@@ -79,6 +80,17 @@ describe("POST /api/auth/handle-password", () => {
     const wrong = await POST(post({ handle: "karan", password: "secretpass" }));
     expect(wrong.status).toBe(401);
     expect((await wrong.json()).error).toBe(HANDLE_PASSWORD_GENERIC_ERROR);
+  });
+
+  it("answers a banned account with the community-guidelines notice", async () => {
+    resolveEmail.mockResolvedValueOnce("karansdad@example.com");
+    passwordGrant.mockResolvedValueOnce("banned");
+    const res = await POST(post({ handle: "karansdad", password: "Pubmaxx1!" }));
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toMatchObject({
+      code: "ACCOUNT_BANNED",
+      error: AUTH_ACCOUNT_BANNED_MESSAGE,
+    });
   });
 
   it("answers the same 401 shape whatever went wrong", async () => {

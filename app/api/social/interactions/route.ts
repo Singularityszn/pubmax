@@ -1,3 +1,4 @@
+import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
 import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
@@ -122,10 +123,14 @@ export async function GET(request: Request): Promise<Response> {
         return postId
           ? privateJson({ summary: await socialInteractionStore().summary(access.actor, postId) })
           : publicApiError("Choose a post.", "INVALID_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
-      case "comments":
-        return postId
-          ? privateJson(await socialInteractionStore().listComments(access.actor, postId, paging))
-          : publicApiError("Choose a post.", "INVALID_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
+      case "comments": {
+        if (!postId) return publicApiError("Choose a post.", "INVALID_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
+        const comments = await socialInteractionStore().listComments(access.actor, postId, paging);
+        return privateJson({
+          ...comments,
+          items: await dropWithdrawnAuthors(comments.items, (comment) => comment.author.handle),
+        });
+      }
       case "cheers":
         return postId
           ? privateJson(await socialInteractionStore().listCheers(access.actor, postId, paging))

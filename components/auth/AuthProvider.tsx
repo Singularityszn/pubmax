@@ -25,6 +25,7 @@ import {
 import type { Session } from "@supabase/supabase-js";
 
 import "@/app/auth/auth.css";
+import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
 import ArrivalWelcome from "@/components/auth/ArrivalWelcome";
 import AccountOnboarding from "@/components/identity/AccountOnboarding";
 import IdentityNudge from "@/components/identity/IdentityNudge";
@@ -79,6 +80,7 @@ import {
   scrubAuthCallback,
   scrubLingeringAuthCallback,
   type CanonicalAuthAttemptStart,
+  type AuthCallbackAttempt,
   type CapturedAuthCallback,
 } from "@/lib/authRedirect";
 import { authedActionFetch, publishAuthActionState } from "@/lib/authedFetch";
@@ -104,6 +106,7 @@ import {
   requestResumeLink,
   type ResumeHint,
 } from "@/lib/authSessionResumeClient";
+import { authAccountBanMessageFromError } from "@/lib/authAccountBan";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 import {
   readProviderAuthState,
@@ -280,6 +283,7 @@ export function AuthProvider({
   // mount and made the Sign in control flicker).
   const [sessionLoading, setSessionLoading] = useState(true);
   const [authCallbackError, setAuthCallbackError] = useState<string | null>(null);
+  const [authBannedNotice, setAuthBannedNotice] = useState(false);
   /** Attempt-less / cross-browser success confirmation (login-CSRF mitigation). */
   const [authSignedInNotice, setAuthSignedInNotice] = useState<string | null>(null);
   const [socialProviders, setSocialProviders] =
@@ -370,7 +374,7 @@ export function AuthProvider({
   // React Strict Mode replays effects in development. Reuse one completion so
   // the callback tokens are never applied twice by the replayed mount effect.
   const callbackSessionInFlight = useRef<
-    Promise<{ session: Session | null; failed: boolean }> | null
+    Promise<{ session: Session | null; failed: boolean; banned: boolean }> | null
   >(null);
 
   useEffect(() => {
@@ -464,6 +468,13 @@ export function AuthProvider({
       2_000,
     );
 
+    const reportCallbackFailure = (callbackAttempt: AuthCallbackAttempt | null) => {
+      if (callbackAttempt?.accountBanned) {
+        setAuthBannedNotice(true);
+        setAuthCallbackError(null);
+      } else if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+    };
+
     if (!configured) {
       let active = true;
       void callbackCapture.then((captured) => {
@@ -474,7 +485,7 @@ export function AuthProvider({
         captured?.releaseCoordination();
         scrubLingeringBrowserAuthCallback();
         if (!active) return;
-        if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+        reportCallbackFailure(callbackAttempt);
       });
       return () => {
         active = false;
@@ -538,7 +549,7 @@ export function AuthProvider({
             captured?.releaseCoordination();
             scrubLingeringBrowserAuthCallback();
             if (!active) return;
-            if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+            reportCallbackFailure(callbackAttempt);
           })
           .finally(() => {
             requestDeploymentSkewCheck();
@@ -568,7 +579,7 @@ export function AuthProvider({
           captured?.releaseCoordination();
           scrubLingeringBrowserAuthCallback();
           if (!active) return;
-          if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+          reportCallbackFailure(callbackAttempt);
         });
         return;
       }
@@ -652,6 +663,7 @@ export function AuthProvider({
         const captured = await callbackCapture;
         const callbackAttempt = captured?.attempt ?? null;
         let exchangedSession: Session | null = null;
+        let exchangeBanned = false;
         // Tokens complete sign-in even without an attempt id (a clamped
         // cross-browser link); a token-less callback is the genuine failure.
         let exchangeFailed = Boolean(
@@ -668,7 +680,8 @@ export function AuthProvider({
             }
             const exchange = await callbackSessionInFlight.current;
             exchangedSession = exchange.session;
-            exchangeFailed = exchange.failed;
+            exchangeBanned = exchange.banned;
+            exchangeFailed = exchange.failed && !exchange.banned;
           }
         } finally {
           if (callbackAttempt?.attemptId) {
@@ -681,7 +694,14 @@ export function AuthProvider({
         // refused or reverted replaceState) leave the address bar here.
         scrubLingeringBrowserAuthCallback();
         if (!active) return;
-        if (exchangeFailed) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+        if (exchangeBanned) {
+          setAuthBannedNotice(true);
+          setAuthCallbackError(null);
+          void supabase.auth.signOut({ scope: "local" });
+        } else if (callbackAttempt?.accountBanned) {
+          setAuthBannedNotice(true);
+          setAuthCallbackError(null);
+        } else if (exchangeFailed) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
 
         if (exchangedSession) {
           window.clearTimeout(loadingTimeout);
@@ -744,6 +764,8 @@ export function AuthProvider({
           // INITIAL_SESSION normally supplied this same session already. The
           // explicit update also covers a client that did not emit that event.
           updateSession(bootstrapped.session);
+        } else if (bootstrapped.status === "banned") {
+          setAuthBannedNotice(true);
         } else if (bootstrapped.status === "expired") {
           setWelcomeBack({ maskedEmail: bootstrapped.maskedEmail });
         }
@@ -815,7 +837,7 @@ export function AuthProvider({
       });
       if (error) {
         releaseBrowserAuthAttempt(attempt.id);
-        return { error: error.message };
+        return { error: authAccountBanMessageFromError(error) ?? error.message };
       }
       return handOffToSystemBrowser(systemBrowser, data?.url, attempt.id);
     } catch {
@@ -845,7 +867,7 @@ export function AuthProvider({
       });
       if (error) {
         releaseBrowserAuthAttempt(attempt.id);
-        return { error: error.message };
+        return { error: authAccountBanMessageFromError(error) ?? error.message };
       }
       return handOffToSystemBrowser(systemBrowser, data?.url, attempt.id);
     } catch {
@@ -1105,7 +1127,9 @@ export function AuthProvider({
   return (
     <AuthContext.Provider value={value}>
       {children}
-      {authCallbackError ? (
+      {authBannedNotice ? (
+        <AuthAccountBannedNotice onDismiss={() => setAuthBannedNotice(false)} />
+      ) : authCallbackError ? (
         <div className="authCallbackNotice" role="alert">
           <span>{authCallbackError}</span>
           <button type="button" onClick={() => setAuthCallbackError(null)}>

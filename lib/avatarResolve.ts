@@ -1,3 +1,4 @@
+import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   isProfileTombstoned,
@@ -46,4 +47,15 @@ export async function enrichItemsWithAvatarUrls<T extends { handle: string }>(
   if (items.length === 0) return [];
   const urls = await resolveAvatarUrlsForHandles(items.map((item) => item.handle));
   return attachAvatarUrls(items, urls);
+}
+
+/**
+ * The public author projection for contribution feeds whose store does not
+ * already withdraw suspended authors: their items leave the feed, and the rest
+ * wear their approved avatar.
+ */
+export async function projectPublicAuthors<T extends { handle: string }>(
+  items: readonly T[],
+): Promise<Array<T & { avatarUrl?: string }>> {
+  return enrichItemsWithAvatarUrls(await dropWithdrawnAuthors(items, (item) => item.handle));
 }

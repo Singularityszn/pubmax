@@ -36,8 +36,8 @@ describe("PUBMAXX handle policy", () => {
     for (const handle of EXPECTED_RESERVED_CONTRIBUTOR_HANDLES) {
       expect(handle).toMatch(/^[a-z0-9_]{3,30}$/);
       for (const compound of [
-        `${handle}x`,
-        `x${handle}`,
+        `${handle}z`,
+        `z${handle}`,
         `${handle}_pub`,
         `pub_${handle}`,
       ]) {

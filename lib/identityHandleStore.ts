@@ -1,6 +1,7 @@
 import "server-only";
 
 import { parseFoundingMemberNumber } from "@/lib/foundingMembers";
+import { isProfileWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
 import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
 import {
   assessPubmaxxHandle,
@@ -264,6 +265,7 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
         (await profileStore().getByHandle(handle));
       if (!current) return null;
       // Auth-deletion stamp only — legacy user_id null stays live.
+      if (await isProfileWithdrawnFromPublic(current)) return null;
       if (isProfileTombstoned(current)) {
         return {
           profileId: alias.profileId,
@@ -283,6 +285,7 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
     }
     const profile = await profileStore().getByHandle(handle);
     if (!profile) return null;
+    if (await isProfileWithdrawnFromPublic(profile)) return null;
     if (isProfileTombstoned(profile)) {
       return {
         profileId: profile.id,
@@ -421,6 +424,7 @@ export const supabaseIdentityHandleStore: IdentityHandleStore = {
       const currentHandle = String(current.handle);
       // Gone only when auth-deletion stamped tombstoned_at. user_id null alone
       // is a live legacy row.
+      if (await isProfileWithdrawnFromPublic({ id: String(alias.profile_id), tombstonedAt: current.tombstoned_at ? String(current.tombstoned_at) : undefined })) return null;
       if (current.tombstoned_at) {
         return {
           profileId: String(alias.profile_id),
@@ -450,6 +454,7 @@ export const supabaseIdentityHandleStore: IdentityHandleStore = {
       | { id?: unknown; handle?: unknown; user_id?: unknown; tombstoned_at?: unknown }
       | undefined;
     if (!row?.id || !row.handle) return null;
+    if (await isProfileWithdrawnFromPublic({ id: String(row.id), tombstonedAt: row.tombstoned_at ? String(row.tombstoned_at) : undefined })) return null;
     if (row.tombstoned_at) {
       return {
         profileId: String(row.id),

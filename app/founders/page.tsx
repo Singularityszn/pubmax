@@ -18,6 +18,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
+import { filterProfilesWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
 import {
   FOUNDERS_WALL_EMPTY,
   FOUNDERS_WALL_LEDE,
@@ -60,13 +61,15 @@ type Wall =
 async function readWall(): Promise<Wall> {
   try {
     const rows = await profileStore().listFoundingMembers();
-    const members = rows
-      .filter(
+    const live = await filterProfilesWithdrawnFromPublic(
+      rows.filter(
         (row) =>
           isFoundingMemberNumber(row.foundingMemberNumber) &&
           Boolean(row.userId) &&
           !isProfileTombstoned(row),
-      )
+      ),
+    );
+    const members = live
       .map((row) => {
         const avatarUrl = publicOwnedImageUrl(row, "avatar");
         return {

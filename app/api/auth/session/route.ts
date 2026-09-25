@@ -20,6 +20,7 @@
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { AUTH_ACCOUNT_BANNED_MESSAGE } from "@/lib/authAccountBan";
 import { verifyCallerAuth } from "@/lib/authServer";
 import {
   AUTH_RESUME_COOKIE,
@@ -147,6 +148,9 @@ async function persist(
   // guard above still stands and the cookie stays useful; a token that FAILS
   // verification is refused outright.
   const verification = await verifyCallerAuth(request);
+  if (verification.status === "banned") {
+    return publicApiError(AUTH_ACCOUNT_BANNED_MESSAGE, "ACCOUNT_BANNED", 403);
+  }
   if (verification.status === "invalid" || verification.status === "absent") {
     return publicApiError("Sign in to do this.", "UNAUTHENTICATED", 401);
   }
@@ -251,6 +255,18 @@ async function redeem(request: Request): Promise<Response> {
   }
 
   if (response.status >= 400 && response.status < 500) {
+    let banned = false;
+    try {
+      const detail = (await response.clone().json()) as { error_code?: string; code?: string; msg?: string };
+      const code = typeof detail.error_code === "string" ? detail.error_code : detail.code;
+      banned = code === "user_banned";
+    } catch {
+      banned = false;
+    }
+    if (banned) {
+      const headers = setCookieHeaders(null);
+      return jsonNoStore({ status: "banned", message: AUTH_ACCOUNT_BANNED_MESSAGE }, { headers });
+    }
     // The token is dead (rotated away, revoked, or the account is gone). Keep
     // the email so the sign-in page can offer one-tap resume instead of a
     // cold form.

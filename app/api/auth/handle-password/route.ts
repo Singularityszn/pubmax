@@ -4,6 +4,7 @@
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { AUTH_ACCOUNT_BANNED_MESSAGE } from "@/lib/authAccountBan";
 import {
   encodeAuthResumeCookie,
   AUTH_RESUME_COOKIE,
@@ -96,6 +97,9 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const session = await signInWithEmailPassword(email, password);
+  if (session === "banned") {
+    return publicApiError(AUTH_ACCOUNT_BANNED_MESSAGE, "ACCOUNT_BANNED", 403);
+  }
   if (!session) {
     return publicApiError(HANDLE_PASSWORD_GENERIC_ERROR, "INVALID_CREDENTIALS", 401);
   }

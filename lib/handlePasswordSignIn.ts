@@ -10,10 +10,10 @@ import "server-only";
 // be able to set anybody's password, and a bug in actor resolution there is
 // account takeover.
 
+import { isGoTrueUserBannedError } from "@/lib/authAccountBan";
 import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 import { normalizeHandle } from "@/lib/profiles";
 import { profileStore } from "@/lib/profileStore";
-import { discardBody } from "@/lib/responseBody";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 
 export type HandlePasswordSession = {
@@ -79,11 +79,32 @@ export async function accountHasPassword(
   }
 }
 
-/** Server-side password grant. Returns null on any failure (no enumeration). */
+/**
+ * GoTrue reports `user_banned` BEFORE it checks the password, so this refusal
+ * tells anybody who names a banned handle that its account is banned. That is
+ * the accepted cost of showing a banned person the community-guidelines notice.
+ */
+async function refusalIsBan(response: Response): Promise<boolean> {
+  try {
+    const body = (await response.json()) as Record<string, unknown>;
+    return isGoTrueUserBannedError({
+      code: body.error_code,
+      message: body.msg ?? body.message ?? body.error_description,
+      status: response.status,
+    });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Server-side password grant. Returns `"banned"` for a banned account and null
+ * on any other failure (no enumeration).
+ */
 export async function signInWithEmailPassword(
   email: string,
   password: string,
-): Promise<HandlePasswordSession | null> {
+): Promise<HandlePasswordSession | "banned" | null> {
   const config = supabaseAuthConfig();
   if (!config) return null;
   if (!password || password.length < MIN_PASSWORD_LENGTH) return null;
@@ -108,8 +129,7 @@ export async function signInWithEmailPassword(
   }
 
   if (!response.ok) {
-    discardBody(response);
-    return null;
+    return (await refusalIsBan(response)) ? "banned" : null;
   }
 
   let body: Record<string, unknown>;

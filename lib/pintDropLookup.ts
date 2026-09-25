@@ -13,6 +13,7 @@ import {
 } from "@/lib/pintDrops";
 import { resolveStorageUrl } from "@/lib/pintDropsStore";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { resolveAvatarUrlsForHandles } from "@/lib/avatarResolve";
 import {
   authorRetiredAtFromRow,
@@ -200,6 +201,7 @@ async function enrich(
   // that logged this drop has left (migration 0150, `lib/retiredContributor.ts`).
   // The tombstone already cleared that profile's face, so the avatar lookup is
   // skipped rather than left to answer nothing.
+  if ((await withdrawnHandles([fields.handle])).size > 0) return null;
   const withheld =
     fields.visibility === "anonymous" || contributorHasRetired(authorRetiredAt);
   const handle = withheld ? ANON_HANDLE_LABEL : fields.handle;

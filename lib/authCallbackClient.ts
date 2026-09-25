@@ -1,4 +1,5 @@
 import type { AuthCallbackTokens } from "@/lib/authRedirect";
+import { isGoTrueUserBannedError } from "@/lib/authAccountBan";
 
 export type AuthSessionEstablishClient<SessionValue> = {
   setSession: (tokens: { access_token: string; refresh_token: string }) => Promise<{
@@ -10,6 +11,7 @@ export type AuthSessionEstablishClient<SessionValue> = {
 export type AuthCallbackSessionResult<SessionValue> = {
   session: SessionValue | null;
   failed: boolean;
+  banned: boolean;
 };
 
 /**
@@ -26,9 +28,16 @@ export async function establishAuthCallbackSession<SessionValue>(
       access_token: tokens.accessToken,
       refresh_token: tokens.refreshToken,
     });
-    return { session: data.session ?? null, failed: Boolean(error) };
+    if (error) {
+      return {
+        session: data.session ?? null,
+        failed: !isGoTrueUserBannedError(error),
+        banned: isGoTrueUserBannedError(error),
+      };
+    }
+    return { session: data.session ?? null, failed: false, banned: false };
   } catch {
-    return { session: null, failed: true };
+    return { session: null, failed: true, banned: false };
   }
 }
 

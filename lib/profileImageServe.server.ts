@@ -11,6 +11,7 @@ import "server-only";
 // the way an advisory scan skip does. The reader is told nothing extra.
 
 import { publicApiError } from "@/lib/apiError";
+import { isProfileWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
 import { profileMayWearAvatar } from "@/lib/avatarResolve";
 import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
@@ -92,12 +93,13 @@ function notFound(
  * "replaced by a newer generation" and "the stored key is not the one we would
  * write" are three different operator problems wearing one 404.
  */
-function servingKey(
+async function servingKey(
   profile: ProfileRecord,
   slot: ProfileImageSlot,
   generation: string,
-): { objectKey: string } | { refusal: ProfileImageServeRefusal } {
+): Promise<{ objectKey: string } | { refusal: ProfileImageServeRefusal }> {
   if (!profileMayWearAvatar(profile)) return { refusal: "profile_unclaimed" };
+  if (await isProfileWithdrawnFromPublic(profile)) return { refusal: "profile_unclaimed" };
   const state = profileImageState(profile, slot);
   if (!state.objectKey && !state.generation && !state.moderationState) {
     return { refusal: "image_absent" };
@@ -158,7 +160,7 @@ export async function handleProfileImageServe(
   const profile = await deps.getProfileById(id);
   if (!profile) return notFound(slot, "profile_missing", { profileId: id, generation: gen });
 
-  const resolved = servingKey(profile, slot, gen);
+  const resolved = await servingKey(profile, slot, gen);
   let objectKey = "objectKey" in resolved ? resolved.objectKey : null;
   // The row holds ONE generation, and a cover rotation holds up to five. So a
   // generation the row does not name is asked of the list before it is refused.

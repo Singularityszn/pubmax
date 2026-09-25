@@ -17,6 +17,7 @@ describe("GET /api/creator-lists", () => {
       {
         isLimited: async () => false,
         isStoreAvailable: () => true,
+        withdrawnHandles: async () => new Set<string>(),
         listProfiles,
         listSavedByHandles: async ({ handles }) =>
           new Map(
@@ -74,6 +75,7 @@ describe("GET /api/creator-lists", () => {
       {
         isLimited: async () => false,
         isStoreAvailable: () => true,
+        withdrawnHandles: async () => new Set<string>(),
         listProfiles,
         listSavedByHandles: vi.fn(),
       },
@@ -94,6 +96,7 @@ describe("GET /api/creator-lists", () => {
       {
         isLimited: async () => false,
         isStoreAvailable: () => true,
+        withdrawnHandles: async () => new Set<string>(),
         listProfiles: async () => [{ handle: "alice" }],
         listSavedByHandles: async ({ handles }) =>
           new Map(handles.map((handle) => [handle, { status: "unavailable" as const }])),
@@ -115,6 +118,7 @@ describe("GET /api/creator-lists", () => {
       {
         isLimited: async () => false,
         isStoreAvailable: () => false,
+        withdrawnHandles: async () => new Set<string>(),
         listProfiles: vi.fn(),
         listSavedByHandles: vi.fn(),
       },

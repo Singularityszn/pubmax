@@ -970,7 +970,7 @@ describe("auth callback URL safety", () => {
     await Promise.resolve();
     expect(restartSettled).toBe(false);
 
-    await expect(exchange).resolves.toEqual({ session: null, failed: true });
+    await expect(exchange).resolves.toEqual({ session: null, failed: true, banned: false });
     expect(events).toEqual(["underlying-aborted"]);
     expect(restartSettled).toBe(false);
 
@@ -1440,6 +1440,42 @@ describe("auth callback URL safety", () => {
     });
     releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabStorage);
     expect(persistentValues.size).toBe(0);
+  });
+
+  it("keeps the ban signal on a callback this browser never started, and scrubs it", async () => {
+    const { persistentStorage, tabStorage } = authStores();
+    const scrubs: string[] = [];
+
+    const captured = await scrubAuthCallback(
+      `https://pubmaxxing.com/login?authBanned=1&_authCallback=1&_authAttempt=${ATTEMPT_B}&authError=1`,
+      (url) => scrubs.push(url),
+      { persistentStorage, tabStorage, lockManager: immediateLocks, now: 2_000 },
+    );
+    expect(captured?.attempt).toEqual({
+      attemptId: null,
+      tokens: null,
+      providerError: true,
+      accountBanned: true,
+    });
+    expect(scrubs).toEqual(["/login"]);
+
+    const fragmentBan = await scrubAuthCallback(
+      "https://pubmaxxing.com/login#error=access_denied&error_code=user_banned&error_description=User+is+banned",
+      () => {},
+      { persistentStorage, tabStorage, lockManager: immediateLocks, now: 2_000 },
+    );
+    expect(fragmentBan?.attempt.accountBanned).toBe(true);
+  });
+
+  it("ignores a bare ban signal outside a marked callback or auth page", () => {
+    expect(readAuthCallbackAttempt("https://pubmaxxing.com/map?authBanned=1")).toBeNull();
+    expect(
+      readAuthCallbackAttempt("https://pubmaxxing.com/map#error_code=user_banned"),
+    ).toBeNull();
+    expect(readAuthCallbackAttempt("https://pubmaxxing.com/login?authBanned=1")).toMatchObject({
+      providerError: true,
+      accountBanned: true,
+    });
   });
 
   it("recognizes marked callbacks, error fragments, and bare token fragments", () => {

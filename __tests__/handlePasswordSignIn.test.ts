@@ -146,16 +146,35 @@ describe("signInWithEmailPassword", () => {
     });
   });
 
-  it("lets a refused grant's body go rather than leaving it open", async () => {
+  it("reads a refused grant's body to its end rather than leaving it open", async () => {
     const { signInWithEmailPassword } = await import("@/lib/handlePasswordSignIn");
-    const refused = Response.json({ error: "invalid" }, { status: 400 });
-    const cancel = vi.spyOn(refused.body as ReadableStream, "cancel");
+    const refused = Response.json(
+      { code: 400, error_code: "invalid_credentials", msg: "Invalid login credentials" },
+      { status: 400 },
+    );
     vi.stubGlobal("fetch", vi.fn(async () => refused));
 
     await expect(
       signInWithEmailPassword("owner@example.com", "Pubmaxx1!"),
     ).resolves.toBeNull();
-    expect(cancel).toHaveBeenCalled();
+    expect(refused.bodyUsed).toBe(true);
+  });
+
+  it("answers banned when GoTrue refuses a banned account", async () => {
+    const { signInWithEmailPassword } = await import("@/lib/handlePasswordSignIn");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          { code: 400, error_code: "user_banned", msg: "User is banned" },
+          { status: 400 },
+        ),
+      ),
+    );
+
+    await expect(
+      signInWithEmailPassword("owner@example.com", "Pubmaxx1!"),
+    ).resolves.toBe("banned");
   });
 
   it("does not spend a request on a password below the length floor", async () => {

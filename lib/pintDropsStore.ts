@@ -9,6 +9,7 @@ import "server-only";
 
 import sharp from "sharp";
 
+import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
 import type { CityId } from "@/lib/cities";
 import type { Provenance } from "@/lib/curation";
 import {
@@ -656,6 +657,21 @@ function withVerifiedReportCount(drop: PersistableDrop): PersistableDrop {
 // ── In-memory implementation ─────────────────────────────────────────────────
 // Wraps the process-memory primitives in lib/pintDrops.ts. Resets on restart —
 // right for dev/demo; production refuses it at the route.
+/**
+ * Withdrawn authors leave every public read. The author's own read (their
+ * export, their own feed) keeps their drops: withdrawal is about what the
+ * public sees, never about what an account may read of itself.
+ */
+function dropWithdrawnFromViewer<T extends { handle: string }>(
+  drops: readonly T[],
+  viewer?: ViewerContext,
+): Promise<T[]> {
+  const own = normalizeViewerHandle(viewer?.handle);
+  return dropWithdrawnAuthors(drops, (d) =>
+    own && normalizeViewerHandle(d.handle) === own ? null : d.handle,
+  );
+}
+
 export const memoryPintDropStore: PintDropStore = {
   async create(drop, _photos, options) {
     // The same hard guard the Supabase backend gets from
@@ -688,10 +704,15 @@ export const memoryPintDropStore: PintDropStore = {
         canViewOnPublicSurface(d, viewer) &&
         (!author || normalizeViewerHandle(d.handle) === author),
     );
-    return newestFirstCapped(permitted).map((d) => toDTO(withVerifiedReportCount(d)));
+    const published = await dropWithdrawnFromViewer(permitted, viewer);
+    return newestFirstCapped(published).map((d) => toDTO(withVerifiedReportCount(d)));
   },
   async listLegacyForVenue(venueId) {
-    return newestFirstCapped(listLegacyPintDropsForVenue(venueId)).map((d) =>
+    const published = await dropWithdrawnAuthors(
+      listLegacyPintDropsForVenue(venueId),
+      (d) => d.handle,
+    );
+    return newestFirstCapped(published).map((d) =>
       toDTO(withVerifiedReportCount(d)),
     );
   },
@@ -1181,7 +1202,8 @@ export const supabasePintDropStore: PintDropStore = {
       .concat(seeds)
       .filter((d) => venueId || dropMatchesCityScope(d.venueId, cityId))
       .filter((d) => canViewOnPublicSurface(d, viewer));
-    const capped = newestFirstCapped(permitted);
+    const published = await dropWithdrawnFromViewer(permitted, viewer);
+    const capped = newestFirstCapped(published);
     return toDTOsWithBatchedPhotos(capped);
   },
 
@@ -1198,7 +1220,8 @@ export const supabasePintDropStore: PintDropStore = {
       .limit(MAX_PUBLIC_DROPS);
     const { data, error } = await query;
     if (error) throw new Error(error.message);
-    const rows = newestFirstCapped((data ?? []).map(fromRow));
+    const published = await dropWithdrawnAuthors((data ?? []).map(fromRow), (d) => d.handle);
+    const rows = newestFirstCapped(published);
     return toDTOsWithBatchedPhotos(rows);
   },
 
