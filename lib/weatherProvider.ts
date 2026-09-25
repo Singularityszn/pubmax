@@ -18,7 +18,7 @@ import {
   type NightAreaWeatherObservation,
 } from "@/lib/weatherSnapshots";
 
-import { LONDON_LONDON_NIGHT_AREA_COORDS } from "@/lib/weatherAreaCoords";
+import { LONDON_NIGHT_AREA_COORDS } from "@/lib/weatherAreaCoords";
 
 // [lat, lng] centroids per LONDON night area — the established set the scheduled
 // refresh has always polled (kept in lockstep with
