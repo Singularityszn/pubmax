@@ -217,9 +217,15 @@ export function handleIsAdoptable(input: {
   ownerProfile: PublicProfile | null;
   /** The handle's account was tombstoned; its number stays spent. */
   tombstoned: boolean;
+  /** Moderation withdrew the account; the public read answered 404. */
+  profileWithdrawn?: boolean;
+  /** Identity policy reserves the handle; it must never be offered for claim. */
+  handleReserved?: boolean;
 }): boolean {
   if (input.read !== "answered") return false;
   if (input.tombstoned) return false;
+  if (input.profileWithdrawn) return false;
+  if (input.handleReserved) return false;
   return input.ownerProfile === null;
 }
 
