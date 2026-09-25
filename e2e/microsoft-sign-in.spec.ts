@@ -1,8 +1,6 @@
 import { expect, test } from "@playwright/test";
 
 const SUPABASE_HOST = "https://pubmaxx-e2e.supabase.co";
-const MICROSOFT_AUTHORIZE =
-  "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=e2e";
 
 function stubSupabaseSettings(page: import("@playwright/test").Page, external: Record<string, boolean>) {
   return page.route(`${SUPABASE_HOST}/**`, async (route) => {
@@ -17,13 +15,7 @@ function stubSupabaseSettings(page: import("@playwright/test").Page, external: R
       return;
     }
     if (url.includes("/auth/v1/authorize")) {
-      await route.fulfill({
-        status: 302,
-        headers: {
-          "access-control-allow-origin": "*",
-          location: MICROSOFT_AUTHORIZE,
-        },
-      });
+      await route.fulfill({ status: 200, contentType: "text/html", body: "<p>authorize</p>" });
       return;
     }
     await route.fulfill({
@@ -49,31 +41,31 @@ test.describe("Microsoft sign-in button", () => {
     });
   });
 
-  test("shows Microsoft when Azure is enabled and starts OAuth toward Microsoft", async ({ page }) => {
+  test("shows Microsoft when Azure is enabled and starts Azure OAuth", async ({ page }) => {
     await stubSupabaseSettings(page, { google: false, apple: false, azure: true, email: true });
     await page.goto("/login");
 
     const microsoft = page.getByRole("button", { name: "Continue with Microsoft" });
     await expect(microsoft).toBeVisible();
 
-    await Promise.all([
-      page.waitForURL((url) => url.href.startsWith(MICROSOFT_AUTHORIZE), { timeout: 20_000 }),
+    const [authorize] = await Promise.all([
+      page.waitForRequest((request) => request.url().startsWith(`${SUPABASE_HOST}/auth/v1/authorize`), {
+        timeout: 20_000,
+      }),
       microsoft.click(),
     ]);
+
+    const params = new URL(authorize.url()).searchParams;
+    expect(params.get("provider")).toBe("azure");
+    expect(params.get("scopes")?.split(" ")).toEqual(expect.arrayContaining(["email", "openid", "profile"]));
+    expect(new URL(params.get("redirect_to") ?? "").pathname).toBe("/auth/callback");
   });
 
   test("hides Microsoft when Azure is disabled", async ({ page }) => {
-    await stubSupabaseSettings(page, { google: false, apple: false, azure: false, email: true });
-    await page.goto("/login");
-
-    await expect(page.getByRole("button", { name: "Continue with Microsoft" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Continue with Google" })).toHaveCount(0);
-  });
-
-  test("shows Google when enabled alongside stubbed settings", async ({ page }) => {
     await stubSupabaseSettings(page, { google: true, apple: false, azure: false, email: true });
     await page.goto("/login");
 
     await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continue with Microsoft" })).toHaveCount(0);
   });
 });

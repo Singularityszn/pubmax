@@ -273,10 +273,11 @@ magic link remains complete.
 
 Supabase's provider id is **Azure** and the app calls `provider: "azure"` with scopes `email openid profile`. Availability follows `external.azure` in `/auth/v1/settings`.
 
-1. Microsoft Entra admin center → App registrations → New registration.
+1. Microsoft Entra admin center → App registrations → New registration. Set supported account types to **Accounts in any organizational directory and personal Microsoft accounts**, which matches Supabase's default `common` tenant URL. A narrower choice refuses personal Microsoft accounts at consent.
 2. Add a Web redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback` (Supabase receives the OAuth response first).
-3. Supabase → Authentication → Providers → **Azure** → paste Application (client) ID and client secret → Enable.
-4. Add the app callback URL to Supabase → Authentication → URL configuration → Redirect URLs: `https://pubmaxxing.com/auth/callback` (and local dev URLs as needed).
+3. App registration → Token configuration → Add optional claim → ID token → `xms_edov`. Without it Supabase treats the Microsoft email as unverified, so a Microsoft sign-in does not link to an existing email or Google account with the same address.
+4. Supabase → Authentication → Providers → **Azure** → paste Application (client) ID and client secret → Enable.
+5. Add the app callback URL to Supabase → Authentication → URL configuration → Redirect URLs: `https://pubmaxxing.com/auth/callback` (and local dev URLs as needed).
 
 Button visibility and email fallback follow the browser sign-in contract above.
 Changing provider state needs no app code or deployment.
