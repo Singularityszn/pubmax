@@ -16,9 +16,10 @@
  *
  *   FATAL:  could not create shared memory segment: No space left on device
  *
- * A slot is a directory, because `mkdir` is the atomic primitive every
- * filesystem already has, and it records the pid that owns it so a killed run
- * frees its budget at once rather than after a timeout.
+ * A slot is a directory claimed by renaming a staged directory that already
+ * holds the owner's pid onto `slot-<n>`: `rename` refuses a non-empty target
+ * atomically on every filesystem, so a held slot cannot be taken, and the pid
+ * lets a killed run free its budget at once rather than after a timeout.
  */
 import { execFileSync } from "node:child_process";
 import {

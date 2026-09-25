@@ -1,10 +1,10 @@
 "use client";
 
-// Google, Apple, and passwordless email sign-in, plus signed-in account controls.
+// Google, Apple, Microsoft, and passwordless email sign-in, plus signed-in account controls.
 // sign-out control.
 //
 // ──────────────────────────────────────────────────────────────────────────
-// OWNER MANUAL STEPS (required for either button to actually log anyone in):
+// OWNER MANUAL STEPS (required for any provider button to actually log anyone in):
 //
 // Full checklist: docs/DEPLOYMENT.md, "Browser sign-in".
 // IdP redirect URI is always https://<project-ref>.supabase.co/auth/v1/callback.

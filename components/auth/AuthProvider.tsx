@@ -1,7 +1,7 @@
 "use client";
 
 // App-wide auth context. Holds the current Supabase session/user (or null) and
-// exposes Google, Apple, passwordless email, and sign-out actions. Additive only:
+// exposes Google, Apple, Microsoft, passwordless email, and sign-out actions. Additive only:
 // anonymous browsing is unaffected - nothing here gates a route or blocks a
 // render. A signed-in session establishes identity for account-owned actions.
 //
