@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 
 import {
   dedupeSiteHarvestLedgerRows,
@@ -39,5 +41,32 @@ describe("site harvest ledger", () => {
     for (const row of rows) {
       expect(siteHarvestLedgerCollectKey(row, owners)).toBeTruthy();
     }
+  });
+
+  it("committed soft-drink ledger excludes robot-refused pages and known alcoholic mislabels", () => {
+    const text = readFileSync(
+      join(process.cwd(), "data/uk_prices/site_harvest.jsonl"),
+      "utf8",
+    );
+    const rows = parseSiteHarvestLedgerText(text);
+    const nicholsonRows = rows.filter((row) => {
+      try {
+        return typeof row.sourceUrl === "string" &&
+          new URL(row.sourceUrl).hostname.toLowerCase().replace(/^www\./, "") === "nicholsonspubs.co.uk";
+      } catch {
+        return false;
+      }
+    });
+    const refusedSoftDrinkRows = rows.filter(
+      (row) => row.category === "soft-drink" && row.robotsDisallowed === true,
+    );
+    const alcoholicMislabels = rows.filter(
+      (row) =>
+        row.category === "soft-drink" &&
+        /Crabbies Alcoholic ginger beer 3\.4%/i.test(row.drinkLabel ?? ""),
+    );
+    expect(nicholsonRows).toHaveLength(0);
+    expect(refusedSoftDrinkRows).toHaveLength(0);
+    expect(alcoholicMislabels).toHaveLength(0);
   });
 });

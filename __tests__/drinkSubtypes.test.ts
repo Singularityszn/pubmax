@@ -15,7 +15,11 @@ describe("drink subtype taxonomy", () => {
     for (const subtype of DRINK_SUBTYPES) {
       expect(isDrinkCategory(subtype.category)).toBe(true);
       expect(subtype.id.startsWith(`${subtype.category}-`)).toBe(true);
-      expect(subtype.tokens.length).toBeGreaterThan(0);
+      if (subtype.id === "soft-drink-zero-sugar-cola") {
+        expect(subtype.tokens).toEqual([]);
+      } else {
+        expect(subtype.tokens.length).toBeGreaterThan(0);
+      }
     }
   });
 
@@ -95,8 +99,20 @@ describe("drinkSubtypeFromText", () => {
   it("classifies soft-drink subtypes without widening the category union", () => {
     expect(drinkSubtypeFromText("Coke Zero")?.id).toBe("soft-drink-coke-zero");
     expect(drinkSubtypeFromText("Diet Coke")?.id).toBe("soft-drink-diet-coke");
+    expect(drinkSubtypeFromText("Pepsi Max", "soft-drink")?.id).toBe("soft-drink-pepsi-max");
+    expect(drinkSubtypeFromText("Diet Pepsi", "soft-drink")?.id).toBe("soft-drink-diet-pepsi");
+    expect(drinkSubtypeFromText("zero-sugar cola", "soft-drink")).toBeNull();
     expect(drinkSubtypeFromText("Still water")?.id).toBe("soft-drink-still-water");
     expect(drinkSubtypeFromText("Tap water", "soft-drink")).toBeNull();
+  });
+
+  it("does not join separate Pepsi and Diet Coke list items into Diet Pepsi", () => {
+    expect(drinkSubtypeFromText("Pepsi Diet", "soft-drink")?.id).toBe(
+      "soft-drink-diet-pepsi",
+    );
+    expect(drinkSubtypeFromText("Soft drink Soda, Sprite, Pepsi & Diet Coke", "soft-drink")?.id).toBe(
+      "soft-drink-diet-coke",
+    );
   });
 
   // Spot-check against the real strings in data/pint_prices_app_dataset.csv.

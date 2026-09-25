@@ -5,11 +5,12 @@
 
 import {
   DRINK_WEATHER_RULES,
+  type DrinkWeatherRuleId,
   type DrinkWeatherVerdict,
 } from "@/lib/drinkWeather";
 import type { DrinkCategory } from "@/lib/drinks";
 
-const VERDICT_CATEGORY_BY_RULE: Record<string, DrinkCategory> = {
+const VERDICT_CATEGORY_BY_RULE: Record<DrinkWeatherRuleId, DrinkCategory> = {
   "hard-rain": "beer",
   cold: "beer",
   "summer-garden": "beer",
@@ -18,6 +19,7 @@ const VERDICT_CATEGORY_BY_RULE: Record<string, DrinkCategory> = {
   "mild-riverside": "beer",
   "crisp-autumn": "beer",
   "cool-spring": "beer",
+  "warm-night": "beer",
   "cool-default": "beer",
 };
 

@@ -113,7 +113,7 @@
       "debt": "The map streams its venue shards and the UK base layer after paint on a throttled phone; docs/perf/baseline-2026-09-05.md names the remaining gate. Measured on a shared box at load average ~52; the interaction is real but the figure carries that contention. Recorded so it cannot regress unnoticed."
     },
     {
-      "path": "/map?sel=venue-1vle947",
+      "path": "/map?sel=venue-4xlgb0",
       "device": "mobile",
       "temperature": "cold",
       "lcpMs": 7924,
@@ -122,7 +122,7 @@
       "debt": "The map streams its venue shards and the UK base layer after paint on a throttled phone; docs/perf/baseline-2026-09-05.md names the remaining gate. Measured on a shared box at load average ~52; the interaction is real but the figure carries that contention. Recorded so it cannot regress unnoticed."
     },
     {
-      "path": "/map?sel=venue-1vle947",
+      "path": "/map?sel=venue-4xlgb0",
       "device": "mobile",
       "temperature": "warm",
       "lcpMs": 8464,

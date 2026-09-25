@@ -29,32 +29,27 @@ export type LandingAnswers = {
   tonight: LandingAnswer;
 };
 
-/** What the weather read gave us, reduced to the three words the card uses. */
+/** What the weather read gave us, reduced to what the card uses. */
 export type TodayWeatherFacts = {
-  /** "19C", the feels-like figure the brief rounded. */
-  tempLabel: string;
-  /** "cloudy". */
-  conditionLabel: string;
-  /** "Beer garden weather. Lager or cider." */
-  verdictLine: string;
-  /** True once the reading has aged past its own expiry. */
+  /** Numbers-led facts from the cached observation, with no time-bound label. */
+  factsLine: string;
+  /** True once the reading has aged past its own expiry, or will while the copy is held. */
   stale: boolean;
+  /** "Checked 2 hours ago" (fresh) or "Last checked 3 days ago" (stale). */
+  checkedLabel: string;
 };
 
 /**
- * Today's sentence. A reading that is missing or has gone stale is a fact about
- * us rather than about the weather, so the card says that instead of printing
- * an old sky as this morning's.
+ * Today's sentence. A missing reading says so. A fresh one prints its facts; a
+ * stale one prints them as the last read of the sky (factsLine carries that
+ * prefix), never as this morning's. Neither carries a drink verdict or a
+ * relative age, because the copy is held for an hour (see landingAnswers.server).
  */
 export function todayAnswer(weather: TodayWeatherFacts | null, stamp: string): LandingAnswer {
-  if (!weather || weather.stale) {
+  if (!weather) {
     return { line: "We could not read today's London weather just now.", stamp, measured: false };
   }
-  return {
-    line: `${weather.tempLabel} and ${weather.conditionLabel} in London. ${weather.verdictLine}`,
-    stamp,
-    measured: true,
-  };
+  return { line: weather.factsLine, stamp, measured: !weather.stale };
 }
 
 /** What the listing lanes gave us, reduced to what the card can say. */

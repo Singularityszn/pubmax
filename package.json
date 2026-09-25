@@ -102,9 +102,11 @@
     "arize:smoke": "tsx scripts/arizeSmoke.ts",
     "backfill:site-harvest-drink-labels": "tsx scripts/backfill_site_harvest_drink_labels.mjs",
     "harvest:soft-drinks-menus": "tsx scripts/harvest_soft_drinks_menus.mjs",
+    "discover:soft-drinks-menu-urls": "tsx scripts/discover_soft_drinks_menu_urls.mjs",
     "eval:pal": "node --conditions=react-server --import tsx scripts/pal-eval.mjs",
     "eval:pal:live": "node --conditions=react-server --import tsx scripts/pal-eval.mjs --live --write-scoreboard",
-    "regenerate:pal-answer-key": "node --conditions=react-server --import tsx scripts/regenerate-pal-answer-key.mjs"
+    "regenerate:pal-answer-key": "node --conditions=react-server --import tsx scripts/regenerate-pal-answer-key.mjs",
+    "verify:famous-venues": "node --env-file-if-exists=.env.local --import tsx scripts/verify_famous_venues.mjs"
   },
   "dependencies": {
     "@ai-sdk/otel": "^1.0.106",

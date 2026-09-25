@@ -8,11 +8,12 @@
 // the nearWater curation flag) with a pint under the price ceiling.
 //
 // lat/lng are OPTIONAL. Without them we still answer with the date, weather and
-// drink line for a sensible central area, just no "near you" venue claim. The
-// route never throws and never 500s: any missing or malformed data degrades to
-// { summary: null } and the strip renders nothing.
+// drink line for a sensible central area, just no "near you" venue claim. No
+// reading for the area answers { summary: null }, which the strip and the chip
+// say plainly; a read that throws answers a retryable 503, which they hide.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { publicApiErrorFromStatus } from "@/lib/apiError";
 import { coarsenViewerPoint } from "@/lib/geo";
 import { resolveTonightConditions } from "@/lib/tonightConditionsRoute";
 
@@ -38,7 +39,6 @@ export async function GET(request: Request): Promise<Response> {
     const summary = await resolveTonightConditions({ point, now: new Date() });
     return jsonNoStore({ summary });
   } catch {
-    // The strip is an optional extra; a failure here must never break the page.
-    return jsonNoStore({ summary: null });
+    return publicApiErrorFromStatus("Tonight's conditions are unavailable.", 503);
   }
 }

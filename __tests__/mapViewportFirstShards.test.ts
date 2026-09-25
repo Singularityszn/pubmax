@@ -13,9 +13,10 @@
 //
 // Two faults, both here.
 //
-//  1. While the opening location question is open the map holds a PLACEHOLDER
+//  1. While the opening location question was open the map held a PLACEHOLDER
 //     viewport, centre [0, 0] at zoom 0. `boundsForOpeningView` turned that
-//     into the whole world, and the opening shard read took it literally.
+//     into the whole world, and the opening shard read took it literally. The
+//     canvas now holds the city view; the guard still refuses a world view.
 //  2. The settled-viewport read and the ring around it were one request set on
 //     the caller's turn, so the sides raced the screen for connections before
 //     the map was interactive.
@@ -72,7 +73,7 @@ function londonManifest(): ShardManifest {
 }
 
 describe("a viewport that names nowhere may not be read from", () => {
-  it("recognises the placeholder the map holds while location is unresolved", () => {
+  it("recognises a world view as naming nowhere", () => {
     expect(viewportNamesNowhere(HOLD_VIEW)).toBe(true);
     expect(viewportNamesNowhere(LONDON_VIEW)).toBe(false);
   });

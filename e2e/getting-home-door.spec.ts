@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { COMMUNITY_SHEET_FIXTURE_VENUE_ID } from "./helpers/communitySheetFixture";
+
 // The route-end "Check last train" door asks the sheet for the getting-home
 // fold on the Overview. It must land there with the fold open, and a second
 // press after the reader closes the sheet must land there again.
@@ -9,7 +11,7 @@ import { expect, test, type Page } from "@playwright/test";
 // is an exempt surface of the drawer's focus trap (lib/useFocusTrap.ts).
 
 const FIRST_STOP = "venue-yl1a48";
-const FINAL_STOP = "venue-1vle947";
+const FINAL_STOP = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 
 async function pressDoor(page: Page) {
   const door = page

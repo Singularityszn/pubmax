@@ -3,8 +3,8 @@
 // Discover beer-garden weather nudge — reads CityMCP London city_status
 // weather and, ONLY when lib/gardenWeather says it's decent garden weather,
 // surfaces 2-3 open beer-garden pubs from the places search. Honest empty:
-// bad weather, missing weather, or zero open results → render NOTHING (no
-// fake sunshine, no fabricated pubs).
+// bad weather, missing weather, a stale last-known-good status, night, or zero
+// open results → render NOTHING (no fake sunshine, no fabricated pubs).
 //
 // Fail-soft + React 19 safe, mirroring TonightNearbyLane: fetch failures hide
 // the card, state writes are deferred with Promise.resolve().then, and an
@@ -26,6 +26,8 @@ import "./gardenTonightCard.css";
 
 type StatusResponse = {
   weather?: GardenWeatherInput | null;
+  /** Set when the status is a last-known-good answer rather than a live read. */
+  stale?: boolean;
   error?: string;
 };
 
@@ -100,6 +102,11 @@ export default function GardenTonightCard() {
       );
       const statusAnswer = statusBox.value;
       if (statusOutcome === "failed" || !statusAnswer || controller.signal.aborted) {
+        hide();
+        return;
+      }
+      // A last-known-good sky is not tonight's: no garden claim, no pubs.
+      if (statusAnswer.stale === true) {
         hide();
         return;
       }

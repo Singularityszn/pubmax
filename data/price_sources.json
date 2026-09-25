@@ -32,7 +32,7 @@
       "kind": "first-party-chain",
       "licence": "All rights reserved — first-party publisher of its own pub menus/prices; read-only, attributed use only.",
       "permissible": false,
-      "notes": "REFUSED 2026-09-03. lib/harvest/sourcePolicy.ts is the NARROWER rule and it binds: https://www.nicholsonspubs.co.uk/robots.txt answers HTTP 403 with a Cloudflare challenge page rather than a rules file, so no permission can be read and the estate is not harvested. Kept in this table as a recorded decision rather than deleted, because a source that vanishes is a gap nobody notices. Revisit only if Mitchells & Butlers publishes a readable robots.txt or offers a feed."
+      "notes": "REFUSED 2026-09-22. A live re-read of https://www.nicholsonspubs.co.uk/robots.txt returned HTTP 403 with a Cloudflare challenge page rather than a rules file, so permission cannot be read and the estate is not harvested. Retained as a visible decision. Revisit only if Mitchells & Butlers publishes a readable robots.txt or offers a feed."
     },
     {
       "id": "wetherspoons-official",
@@ -53,13 +53,31 @@
       "notes": "Scrape targets: youngs.co.uk regional best-pub-gardens pages and per-pub microsites linked from them (see data/london_chains/youngs/). Merge via scripts/merge_london_chain_scrapes.mjs into venue_menu_enrichment.json (menuUrl = pub website). Do NOT invent drink prices — only emit drink_price_updates when a first-party page carries extractable £ prices. Eating Europe and other third-party guides are NEVER permissible price sources."
     },
     {
+      "id": "stonegate-menu-prices",
+      "label": "Stonegate - Slug and Lettuce menus",
+      "url": "https://www.slugandlettuce.co.uk/sitemap.xml",
+      "kind": "first-party-chain",
+      "licence": "All rights reserved - first-party publisher of its own menus; read-only, attributed price facts only.",
+      "permissible": true,
+      "notes": "robots.txt re-read 2026-09-22: HTTP 200; User-agent * allows / and disallows /home only. Menu rows require a verified London venue match and a price stated beside a soft-drink label."
+    },
+    {
+      "id": "brewdog-menu-prices",
+      "label": "BrewDog - bar menus",
+      "url": "https://brewdog.com/uk/brewdog-bars",
+      "kind": "first-party-chain",
+      "licence": "All rights reserved - first-party publisher of its own menus; read-only, attributed price facts only.",
+      "permissible": true,
+      "notes": "robots.txt re-read 2026-09-22: HTTP 200; Shopify disallows checkout and cart paths, not bar pages. Shop SKUs are out of scope. Menu rows require a verified London venue match and a price stated beside a soft-drink label."
+    },
+    {
       "id": "nicholsons-official",
       "label": "Nicholson's — official site (London restaurant menus)",
       "url": "https://www.nicholsonspubs.co.uk/restaurants/london",
       "kind": "first-party-chain",
       "licence": "All rights reserved — first-party publisher of its own pub menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists.",
       "permissible": false,
-      "notes": "REFUSED 2026-09-03. lib/harvest/sourcePolicy.ts is the NARROWER rule and it binds: https://www.nicholsonspubs.co.uk/robots.txt answers HTTP 403 with a Cloudflare challenge page rather than a rules file, so no permission can be read and the estate is not harvested. Kept in this table as a recorded decision rather than deleted, because a source that vanishes is a gap nobody notices. Revisit only if Mitchells & Butlers publishes a readable robots.txt or offers a feed."
+      "notes": "REFUSED 2026-09-22. A live re-read of https://www.nicholsonspubs.co.uk/robots.txt returned HTTP 403 with a Cloudflare challenge page rather than a rules file, so permission cannot be read and the estate is not harvested. Retained as a visible decision. Revisit only if Mitchells & Butlers publishes a readable robots.txt or offers a feed."
     }
   ]
 }

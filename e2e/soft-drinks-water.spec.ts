@@ -38,10 +38,15 @@ test.describe("Soft drinks and water view", () => {
     await page.goto(VIEW_PATH);
 
     await expect(page.getByRole("heading", { name: "Soft drinks and water" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Zero-sugar cola", selected: true })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Coke Zero" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Diet Coke" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Pepsi Max" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Diet Pepsi" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Still water" })).toBeVisible();
 
+    await page.getByRole("tab", { name: "Pepsi Max" }).click();
+    await page.getByRole("tab", { name: "Zero-sugar cola" }).click();
     await page.getByRole("tab", { name: "Diet Coke" }).click();
     await page.getByRole("tab", { name: "Still water" }).click();
     await page.getByRole("tab", { name: "Coke Zero" }).click();
@@ -53,10 +58,11 @@ test.describe("Soft drinks and water view", () => {
     if (pricedCount > 0) {
       await expect(pricedMeta.first()).toBeVisible();
       await expect(page.locator(".softDrinksWater__price").first()).toBeVisible();
+      await expect(page.getByText("No price yet", { exact: false }).first()).toBeVisible();
+      await expect(page.getByRole("link", { name: "add one" }).first()).toBeVisible();
+    } else {
+      await expect(page.getByText("Nobody has logged one here yet.")).toBeVisible();
     }
-
-    await expect(page.getByText("No price yet", { exact: false }).first()).toBeVisible();
-    await expect(page.getByRole("link", { name: "add one" }).first()).toBeVisible();
 
     if (process.env.PW_SCREENSHOTS === "1") {
       await page.screenshot({
@@ -64,6 +70,37 @@ test.describe("Soft drinks and water view", () => {
         fullPage: true,
       });
     }
+  });
+
+
+  test("zero observed count shows one empty state instead of no-price rows", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${VIEW_PATH}?sub=soft-drink-coke-zero`);
+    await expect(page.getByRole("heading", { name: "Soft drinks and water" })).toBeVisible();
+    const ledeText = (await page.locator(".screenLede").textContent()) ?? "";
+    if (/No listed .* prices in London yet/.test(ledeText)) {
+      await expect(page.getByText("Nobody has logged one here yet.")).toBeVisible();
+      await expect(page.getByRole("link", { name: "Add a price" })).toBeVisible();
+      await expect(page.locator(".softDrinksWater__door")).toHaveCount(0);
+    }
+  });
+
+  test("content inset matches Screen gutter at 390", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(VIEW_PATH);
+    const inset = await page.evaluate(() => {
+      const screen = document.querySelector(".softDrinksWater__screen.screen");
+      const title = document.querySelector("#soft-drinks-water-heading");
+      if (!screen || !title) return null;
+      const screenBox = screen.getBoundingClientRect();
+      const titleBox = title.getBoundingClientRect();
+      return Math.round(titleBox.left - screenBox.left);
+    });
+    expect(inset).not.toBeNull();
+    expect(inset!).toBeLessThanOrEqual(24);
+    expect(inset!).toBeGreaterThanOrEqual(18);
   });
 
   test("desktop width keeps chips and list readable", async ({ page }, testInfo: TestInfo) => {

@@ -54,6 +54,16 @@ export const MAP_SHEET_TITLES: Partial<Record<MapSheetKind, string>> = {
   "choose-area": "Choose an area",
 };
 
+/**
+ * The choose-area heading when the arrival card opens it as the opening flow's
+ * area step: one question under a kicker. Every other entry keeps the neutral
+ * "Choose an area" above, because the map is already open there.
+ */
+export const CHOOSE_AREA_OPENING_HEADING = {
+  kicker: "Your map",
+  title: "Which area should we open on?",
+} as const;
+
 export type MapViewportSnapshot = {
   center: [number, number];
   zoom: number;

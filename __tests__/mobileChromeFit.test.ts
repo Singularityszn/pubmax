@@ -497,3 +497,14 @@ describe("mobile tap-target floors", () => {
 // against the RENDERED boxes in e2e/mobile-map-chrome-fit.spec.ts at 320, 390
 // and 430. Restating those declarations here would prove only that the text is
 // present, which a dead rule or a behaviour-preserving rename both defeat.
+
+describe("phone tab bar highlight", () => {
+  const mobileNavCss = read("components/nav/mobileNav.css");
+
+  it("clips the gliding highlight to the dock pill (#1544)", () => {
+    const list = mobileNavCss.match(/\.mobileTabList\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(list).toMatch(/overflow:\s*hidden/);
+    expect(list).toMatch(/border-radius:\s*16px/);
+  });
+});
+

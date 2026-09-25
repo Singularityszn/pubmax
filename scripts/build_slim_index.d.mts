@@ -7,9 +7,22 @@ export type SlimCurationInput = {
   source_datasets?: unknown;
 };
 
+export type SlimDrinkHintInput = {
+  pint_name?: unknown;
+  comment?: unknown;
+  description?: unknown;
+  cocktails?: unknown;
+};
+
 export function buildCurationHints(prices: readonly SlimCurationInput[]): {
   nearWater: boolean;
   hasStory: boolean;
+};
+
+export function buildDrinkHints(prices: readonly SlimDrinkHintInput[]): {
+  drinkCategories: string[];
+  drinkBrands: string[];
+  drinkText: string;
 };
 
 export function assertCurrentFamousVenueRows<
