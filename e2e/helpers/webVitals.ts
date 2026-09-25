@@ -4,6 +4,8 @@ import { expect, type CDPSession, type Page } from "@playwright/test";
 
 import type { VitalsDevice } from "../../lib/webVitalsBaseline";
 
+import { COMMUNITY_SHEET_FIXTURE_MAP_PATH } from "./communitySheetFixture";
+
 /**
  * The ONE way a Core Web Vital is measured in this suite.
  *
