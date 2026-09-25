@@ -61,6 +61,11 @@ export function createCameraIntentCoordinator({
     return true;
   }
 
+  /** True while a scheduled move is waiting for its frame and has not run yet. */
+  function pending(): boolean {
+    return pendingFrame !== null;
+  }
+
   function dispose(): void {
     callbackGeneration += 1;
     if (pendingFrame !== null) cancelFrame(pendingFrame);
@@ -68,5 +73,5 @@ export function createCameraIntentCoordinator({
     pendingKey = "";
   }
 
-  return { schedule, dispose };
+  return { schedule, pending, dispose };
 }

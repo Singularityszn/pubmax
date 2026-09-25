@@ -1114,6 +1114,7 @@ export default function PubMapCanvas({
   // callbacks over live refs (see the hook for why the deps must stay empty).
   const {
     cinematic,
+    cameraLanePending,
     easeArrivalBearing,
     fitRoute,
     fitCityBounds,
@@ -1168,7 +1169,7 @@ export default function PubMapCanvas({
     const tick = () => {
       if (cancelled || arrivalBearingSpentRef.current || !wait) return;
       wait = nextArrivalBearingWait(wait, {
-        moving: map.isMoving(),
+        moving: map.isMoving() || cameraLanePending(),
         openingPending:
           !openingCameraSettledRef.current ||
           mapCameraFocusMoves(focusPointRef.current, focusKeyRef.current),
@@ -1188,7 +1189,7 @@ export default function PubMapCanvas({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [mapInstanceReady, easeArrivalBearing]);
+  }, [mapInstanceReady, easeArrivalBearing, cameraLanePending]);
 
   // The parent owns the selection and renders the story (the phone's shared
   // sheet, the desktop's left drawer); the canvas only reports a pin tap here

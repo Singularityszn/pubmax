@@ -246,6 +246,8 @@ export function useMapCamera(refs: CameraRefs) {
 
   useEffect(() => () => coordinator.dispose(), [coordinator]);
 
+  const cameraLanePending = useCallback(() => coordinator.pending(), [coordinator]);
+
   // Explicit camera move for venue, route, and city navigation.
   const cinematic = useCallback((options: maplibregl.EaseToOptions, kind: CameraIntentKind = "venue") => {
     const duration = reducedRef.current ? 0 : (options.duration ?? 1000);
@@ -380,6 +382,7 @@ export function useMapCamera(refs: CameraRefs) {
 
   return {
     cinematic,
+    cameraLanePending,
     easeArrivalBearing,
     fitRoute,
     fitCityBounds,
