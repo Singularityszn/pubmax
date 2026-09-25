@@ -1,7 +1,14 @@
 {
-  "at": "2026-09-24T12:42:03.326Z",
-  "voiceGetAvailable": true,
-  "llmBridgeStatus": 200,
-  "textAskStatus": 400,
-  "llmBodySampleLength": 720
+  "at": "2026-09-25T02:09:22.159Z",
+  "server": "NEXT_DIST_DIR=.next-prod npm run start :3102",
+  "voiceGet": {
+    "status": 200,
+    "available": true
+  },
+  "llmBridge": {
+    "status": 200
+  },
+  "textAsk": {
+    "status": 200
+  }
 }
