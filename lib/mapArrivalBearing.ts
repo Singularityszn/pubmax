@@ -10,14 +10,11 @@
 // own (deleted 3 Sep 2026, fenced by __tests__/idleOrbitRemoved.test.ts). This
 // is ONE eased move, once per map, and the camera is still afterwards.
 //
-// TWO writers can give the map its first bearing, and which lands first is not
-// the app's decision. While the opening-location question is open the canvas
-// takes the hold view's FLAT attitude and the focus move that follows carries
-// centre and zoom only, so the map arrives at 0. Once that question is
-// answered before the canvas is built, the canvas takes the city view instead,
-// which is already off north (London is -8). Measured both ways on 7 Sep 2026:
-// bearing 0 on the local phone rig, bearing -8 under the browser suite's
-// software rasteriser.
+// When this was written the canvas held a FLAT placeholder while the
+// opening-location question was open, and the focus move that follows carries
+// centre and zoom only, so the map could arrive at 0. Since 24 Sep 2026 the
+// canvas holds the city view instead, which is already off north (London is
+// -8), so a city map arrives with an attitude of its own.
 //
 // So the rule reads the bearing the map ACTUALLY holds rather than assuming
 // one. A flat map turns; a map that already has an attitude keeps it, because

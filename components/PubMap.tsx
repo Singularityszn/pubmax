@@ -4954,7 +4954,6 @@ export default function PubMap({
     if (
       ukPlaceArrival ||
       !isPersistableMapResumeViewport(
-        mapViewport,
         !mapOpeningNeedsResolution || openingLocationResolved,
         mapBounds !== null,
       ) ||

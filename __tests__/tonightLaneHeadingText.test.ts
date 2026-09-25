@@ -1,18 +1,21 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { createElement, type ComponentType } from "react";
-import type { MusicTonightLaneProps } from "@/components/discovery/MusicTonightLane";
+import { createElement, type ComponentType, type ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import MusicTonightLane from "@/components/discovery/MusicTonightLane";
+import TonightOnTonightSummary from "@/app/tonight/TonightOnTonightSummary";
+import DealsTonightLane from "@/components/discovery/DealsTonightLane";
+import MusicTonightLane, { type MusicTonightLaneProps } from "@/components/discovery/MusicTonightLane";
+import TonightMapPointer from "@/components/discovery/TonightMapPointer";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
+
+const NOW = Date.parse("2026-09-24T19:00:00+01:00");
+const HOUR = 60 * 60 * 1000;
 
 const musicRow: WhatsOnRow = {
   id: "music-1",
@@ -21,6 +24,18 @@ const musicRow: WhatsOnRow = {
   title: "Acoustic set",
   source: { label: "Example", url: "https://example.com/" },
   observedAt: "2026-09-24T12:00:00.000Z",
+  confidence: "listed",
+};
+
+const dealRow: WhatsOnRow = {
+  id: "deal-1",
+  placeName: "The Example",
+  kind: "deal",
+  title: "Two for one",
+  startsAt: new Date(NOW - HOUR).toISOString(),
+  endsAt: new Date(NOW + 3 * HOUR).toISOString(),
+  source: { label: "Example", url: "https://example.com/" },
+  observedAt: new Date(NOW - HOUR).toISOString(),
   confidence: "listed",
 };
 
@@ -34,32 +49,47 @@ afterEach(() => {
   root = null;
 });
 
+function headingText(element: ReactElement, headingId: string): string | null | undefined {
+  container = document.createElement("div");
+  document.body.appendChild(container);
+  root = createRoot(container);
+  act(() => {
+    root!.render(element);
+  });
+  return container.querySelector(`h2#${headingId}`)?.textContent;
+}
+
 describe("tonight lane headings", () => {
   it("prints Live music tonight without a leading space", () => {
-    container = document.createElement("div");
-    document.body.appendChild(container);
-    root = createRoot(container);
-    act(() => {
-      root!.render(
-        createElement(MusicTonightLane as ComponentType<MusicTonightLaneProps>, {
-          rows: [musicRow],
-          asOf: null,
-        }),
-      );
-    });
-    const heading = container.querySelector("#music-tonight-title");
-    expect(heading?.textContent).toBe("Live music tonight");
+    expect(
+      headingText(
+        createElement(MusicTonightLane as ComponentType<MusicTonightLaneProps>, { rows: [musicRow], asOf: null }),
+        "music-tonight-title",
+      ),
+    ).toBe("Live music tonight");
   });
 
-  it("wraps sibling lane titles so icon markup cannot inject whitespace", () => {
-    for (const file of [
-      "components/discovery/DealsTonightLane.tsx",
-      "components/discovery/TonightMapPointer.tsx",
-      "app/tonight/TonightOnTonightSummary.tsx",
-    ]) {
-      const source = readFileSync(join(process.cwd(), file), "utf8");
-      expect(source).toMatch(/<span>[^<]+<\/span>/);
-      expect(source).not.toMatch(/aria-hidden="true"\s\/>\s+[A-Z]/);
-    }
+  it("prints Deals tonight without a leading space", () => {
+    expect(
+      headingText(createElement(DealsTonightLane, { rows: [dealRow], now: NOW }), "deals-tonight-title"),
+    ).toBe("Deals tonight");
+  });
+
+  it("prints the map pointer's On tonight without a leading space", () => {
+    expect(headingText(createElement(TonightMapPointer), "tonight-map-pointer-title")).toBe("On tonight");
+  });
+
+  it("prints the rail summary's On tonight without a leading space", () => {
+    expect(
+      headingText(
+        createElement(TonightOnTonightSummary, {
+          facets: [{ kind: "deal", label: "Deals", count: 1 }],
+          rows: [dealRow],
+          totalCount: 1,
+          now: NOW,
+        }),
+        "tonight-rail-summary-title",
+      ),
+    ).toBe("On tonight");
   });
 });

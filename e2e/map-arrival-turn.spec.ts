@@ -28,14 +28,12 @@ const STILLNESS_SAMPLES = 6;
 const BEARING_TOLERANCE = 0.25;
 
 /**
- * London's own designed attitude, which the map adopts when the opening
- * location question answers before the canvas is built.
+ * London's own designed attitude, which the canvas holds from the first frame,
+ * while the opening location question is open and after it answers.
  *
- * Two writers can give the map its first bearing and which one lands first is
- * a race the app does not decide: the flat hold view while the question is
- * open, or the city view once it is answered. The captain's ask is that the map
- * not read as a flat diagram, and BOTH ends satisfy it, so the guarantee test
- * below accepts either and the deterministic test above removes the race.
+ * The captain's ask is that the map not read as a flat diagram. A flat map
+ * turns and a designed attitude is kept, so the guarantee test below accepts
+ * either and the deterministic test above pins the turn itself.
  */
 const LONDON_BEARING = getCity("london").mapView.bearing;
 

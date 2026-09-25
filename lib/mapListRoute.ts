@@ -3,10 +3,8 @@
 
 export const MAP_LIST_PATH = "/map/list";
 
-/** Shareable map URL that opens List view on arrival. */
-export const MAP_LIST_MAP_HREF = "/map?list=1";
-
-const MAP_LIST_SEARCH_PARAM = "list";
+/** Arrival-only map intent: `/map?list=1` opens List view on first render. */
+export const MAP_LIST_SEARCH_PARAM = "list";
 
 export function mapListOpenFromSearch(search: string): boolean {
   const raw = search.startsWith("?") ? search.slice(1) : search;

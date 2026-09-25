@@ -21,8 +21,12 @@ for (const viewport of viewports) {
     });
 
     test("/map/list opens the venue list on the map", async ({ page }) => {
-      await page.goto("/map/list");
-      await expect(page).toHaveURL(/\/map\?list=1$/);
+      const response = await page.goto("/map/list");
+      expect(response).not.toBeNull();
+      const arrived = new URL(response!.url());
+      expect(arrived.pathname).toBe("/map");
+      expect(arrived.searchParams.get("list")).toBe("1");
+      expect(response!.request().redirectedFrom()?.url()).toMatch(/\/map\/list$/);
       await expect(page.getByRole("button", { name: /Hide venue list|List view/i })).toBeVisible({
         timeout: 30_000,
       });

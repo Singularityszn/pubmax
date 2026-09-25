@@ -18,15 +18,10 @@ export type MapResumeSnapshot = {
 };
 
 export function isPersistableMapResumeViewport(
-  viewport: MapViewportSnapshot,
   openingLocationResolved: boolean,
   cameraSettled: boolean,
 ): boolean {
-  return (
-    openingLocationResolved &&
-    cameraSettled &&
-    !(viewport.center[0] === 0 && viewport.center[1] === 0 && viewport.zoom === 0)
-  );
+  return openingLocationResolved && cameraSettled;
 }
 
 function keyFor(cityId: CityId): string {
