@@ -37,16 +37,20 @@ export type TodayWeatherFacts = {
   verdictLine: string;
   /** True once the reading has aged past its own expiry. */
   stale: boolean;
+  /** "Checked 2 hours ago" (fresh) or "Last checked 3 days ago" (stale). */
+  checkedLabel: string;
 };
 
 /**
- * Today's sentence. A reading that is missing or has gone stale is a fact about
- * us rather than about the weather, so the card says that instead of printing
- * an old sky as this morning's.
+ * Today's sentence. A missing reading says so. A stale one prints its facts and
+ * its age, with no verdict, instead of passing an old sky off as this morning's.
  */
 export function todayAnswer(weather: TodayWeatherFacts | null, stamp: string): LandingAnswer {
-  if (!weather || weather.stale) {
+  if (!weather) {
     return { line: "We could not read today's London weather just now.", stamp, measured: false };
+  }
+  if (weather.stale) {
+    return { line: `${weather.factsLine} ${weather.checkedLabel}.`, stamp, measured: false };
   }
   return {
     line: `${weather.factsLine} ${weather.verdictLine}`,

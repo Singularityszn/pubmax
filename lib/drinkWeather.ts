@@ -38,14 +38,15 @@ export type DrinkWeatherInput = {
   month: number;
   /**
    * Which part of the London day the verdict is being read in. Optional, and
-   * omitting it keeps the evening wording this table was written in, so
-   * /tonight is unchanged. A caller that shows the line beside a greeting
-   * passes its own band (lib/daySlot.ts) or the two contradict each other.
+   * omitting it keeps the evening wording this table was written in. A caller
+   * that prints the line (/today, /tonight) passes its own band
+   * (lib/daySlot.ts) so the wording matches the hour it is read at.
    */
   dayPart?: DaySlot;
   /**
-   * Solar day from Open-Meteo when known. Beer-garden rules refuse explicit
-   * night; omitting it keeps older snapshots working.
+   * Sun above the night area's horizon, computed at render from the area's
+   * coordinates (lib/weatherDaylight.ts), never stored on an observation.
+   * Beer-garden rules refuse explicit night; null or omitted claims neither.
    */
   isDay?: boolean | null;
 };
