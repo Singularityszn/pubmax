@@ -34,7 +34,10 @@ vi.mock("next/link", () => ({
     children: React.ReactNode;
     prefetch?: boolean;
     [key: string]: unknown;
-  }) => createElement("a", { href, ...props }, children),
+  }) => {
+    void _prefetch;
+    return createElement("a", { href, ...props }, children);
+  },
 }));
 
 const session = vi.hoisted(() => ({ user: null as { id: string } | null, handle: "" }));
