@@ -78,15 +78,30 @@ test.use({ hasTouch: true, viewport: PHONE });
 test.describe("the map's opening turn", () => {
   test("comes to rest at the turned bearing", async ({ page }) => {
     await openMap(page);
-    await settleAfterArrival(page);
+    await page.waitForTimeout(MAP_ARRIVAL_BEARING_SETTLED_BY_MS);
 
-    const rested = await readCamera(page);
     // A cold open arrives flat north, so the turn is the only way off it, and
-    // "not zero" alone would pass on a map spinning to any angle at all.
-    expect(
-      Math.abs(rested.bearing - MAP_ARRIVAL_BEARING_DEG),
-      `rested at ${rested.bearing}, expected ${MAP_ARRIVAL_BEARING_DEG}`,
-    ).toBeLessThanOrEqual(BEARING_TOLERANCE);
+    // "not zero" alone would pass on a map spinning to any angle at all. The
+    // turn's wait counts polls, not wall-clock time, so on a loaded box it can
+    // start well after MAP_ARRIVAL_BEARING_SETTLED_BY_MS: a still camera at 0
+    // then is waiting, not done. Poll for the turned rest; a lost turn still
+    // fails here, at the timeout.
+    let rested = await readCamera(page);
+    await expect
+      .poll(
+        async () => {
+          rested = await readCamera(page);
+          return (
+            !rested.moving &&
+            Math.abs(rested.bearing - MAP_ARRIVAL_BEARING_DEG) <= BEARING_TOLERANCE
+          );
+        },
+        {
+          message: `expected the camera to rest at ${MAP_ARRIVAL_BEARING_DEG}`,
+          timeout: ARRIVAL_TIMEOUT_MS,
+        },
+      )
+      .toBe(true);
 
     // And it is one move, not a slow orbit: every later sample is that bearing.
     const samples: number[] = [];
