@@ -607,6 +607,13 @@
       calc(var(--create-fab-lane) - var(--page-gutter))
     );
   }
+
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .tonightRowLink {
+    padding-right: max(
+      14px,
+      calc(var(--create-fab-lane) - var(--page-gutter))
+    );
+  }
 }
 
 .tonightSoftPlansIcon {

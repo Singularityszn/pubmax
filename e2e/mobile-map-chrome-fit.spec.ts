@@ -1360,3 +1360,25 @@ for (const viewport of VIEWPORTS) {
     }
   });
 }
+
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px tab highlight stays inside the dock pill`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    });
+    await page.goto("/you");
+    await expect(page.locator(".mobileTabList")).toBeVisible();
+    const fit = await page.evaluate(() => {
+      const list = document.querySelector(".mobileTabList")!.getBoundingClientRect();
+      const highlight = document.querySelector(".mobileTabHighlight")!.getBoundingClientRect();
+      return { list, highlight };
+    });
+    expect(fit.highlight.left).toBeGreaterThanOrEqual(fit.list.left - 0.5);
+    expect(fit.highlight.right).toBeLessThanOrEqual(fit.list.right + 0.5);
+    expect(fit.highlight.top).toBeGreaterThanOrEqual(fit.list.top - 0.5);
+    expect(fit.highlight.bottom).toBeLessThanOrEqual(fit.list.bottom + 0.5);
+  });
+}
+
