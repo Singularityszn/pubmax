@@ -162,6 +162,9 @@ test.describe("one Map surface history owner", () => {
     await expect(venue(page)).toHaveAttribute("aria-hidden", "true", {
       timeout: 30_000,
     });
+    await page.waitForTimeout(500);
+    await expect(page.locator("#main")).not.toHaveClass(/detail-open/);
+    await expect(venue(page)).toHaveAttribute("aria-hidden", "true");
 
     const searchCell = toolbar.locator(".mapToolbarSearch");
     await searchCell.getByRole("button", { name: "Clear search" }).click();
