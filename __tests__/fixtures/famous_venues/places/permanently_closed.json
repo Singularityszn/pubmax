@@ -1,0 +1,11 @@
+{
+  "body": {
+    "places": [{
+      "id": "places/ChIJexampleClosed",
+      "displayName": { "text": "Wong Kei Restaurant", "languageCode": "en" },
+      "formattedAddress": "41 Wardour St, London W1D 6PY, UK",
+      "businessStatus": "CLOSED_PERMANENTLY",
+      "location": { "latitude": 51.51175, "longitude": -0.13264 }
+    }]
+  }
+}

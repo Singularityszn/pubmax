@@ -34,6 +34,9 @@ e2e/screenshots/
 # the MapLibre worker modules out of node_modules, and the fence proves the
 # prefix by that generator, so nothing under it may be committed.
 public/vendor/maplibre/
+data/famous_venues/.places_text_search_cache/
+data/famous_venues/places_text_search_cache/
+
 data/generated/venue_detail_index.json
 data/generated/venue_details.jsonl
 public/data/wikidata_notable_pubs.json

@@ -60,7 +60,7 @@ function loadSeed(file: string): FamousVenueRow[] {
 }
 
 const PACKS = [
-  ["bars.json", 39, "bar"],
+  ["bars.json", 38, "bar"],
   ["late_food.json", 25, "food"],
   ["restaurants.json", 25, "restaurant"],
 ] as const;
@@ -161,19 +161,20 @@ describe("famous venue seeds", () => {
 
   it("withholds expired famous venues from slim instead of failing the build", () => {
     const rows = PACKS.flatMap(([file]) => loadSeed(file));
+    expect(rows).toHaveLength(88);
     vi.spyOn(console, "log").mockImplementation(() => {});
     expect(
-      assertCurrentFamousVenueRows(rows, new Date("2026-08-25T12:00:00.000Z")),
-    ).toHaveLength(89);
+      assertCurrentFamousVenueRows(rows, new Date("2026-09-24T18:00:00.000Z")),
+    ).toHaveLength(76);
     vi.restoreAllMocks();
     const logs: string[] = [];
     const spy = vi.spyOn(console, "log").mockImplementation((...args) => {
       logs.push(args.map(String).join(" "));
     });
     expect(
-      assertCurrentFamousVenueRows(rows, new Date("2026-09-24T00:00:00.000Z")),
+      assertCurrentFamousVenueRows(rows, new Date("2026-10-25T00:00:00.000Z")),
     ).toHaveLength(0);
-    expect(logs.join("\n")).toMatch(/withholding 89 famous venue/);
+    expect(logs.join("\n")).toMatch(/withholding 88 famous venue/);
     spy.mockRestore();
   });
 });

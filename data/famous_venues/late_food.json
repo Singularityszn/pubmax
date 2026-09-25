@@ -23,7 +23,7 @@
       }
     ],
     "sourceUrl": "https://tbtk.co.uk/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "large_doner",
       "label": "Large lamb doner",
@@ -44,7 +44,7 @@
       "lng": -0.07422
     },
     "sourceName": "tbtk.co.uk",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -68,7 +68,7 @@
       }
     ],
     "sourceUrl": "https://www.superkebab.net/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "large_doner",
       "label": "Large lamb doner",
@@ -89,7 +89,7 @@
       "lng": -0.07505
     },
     "sourceName": "superkebab.net",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -166,7 +166,7 @@
       }
     ],
     "sourceUrl": "https://mangal2.com/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana kebab",
@@ -187,9 +187,12 @@
       "lng": -0.07465
     },
     "sourceName": "mangal2.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Mangal 2 Restaurant"
+    ]
   },
   {
     "id": "food-gokyuzu-harringay",
@@ -211,7 +214,7 @@
       }
     ],
     "sourceUrl": "https://gokyuzurestaurant.co.uk/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "large_doner",
       "label": "Large lamb doner",
@@ -232,7 +235,7 @@
       "lng": -0.09882
     },
     "sourceName": "gokyuzurestaurant.co.uk",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -346,7 +349,7 @@
       }
     ],
     "sourceUrl": "https://halarestaurant.co.uk/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana Kofte (Large)",
@@ -367,7 +370,7 @@
       "lng": -0.09904
     },
     "sourceName": "halarestaurant.co.uk",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -391,7 +394,7 @@
       }
     ],
     "sourceUrl": "https://selale.co.uk/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana kebab",
@@ -412,9 +415,12 @@
       "lng": -0.10079
     },
     "sourceName": "selale.co.uk",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Selale Restaurant"
+    ]
   },
   {
     "id": "food-le-bab-soho",
@@ -436,7 +442,7 @@
       }
     ],
     "sourceUrl": "https://eatlebab.com/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
       "label": "Lamb adana kebab",
@@ -457,9 +463,12 @@
       "lng": -0.13918
     },
     "sourceName": "eatlebab.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Le Bab"
+    ]
   },
   {
     "id": "food-testi",
@@ -504,7 +513,10 @@
     "sourceName": "testirestaurant.co.uk",
     "expiresAt": "2026-09-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Testi Restaurant"
+    ]
   },
   {
     "id": "food-berenjak-soho",
@@ -526,7 +538,7 @@
       }
     ],
     "sourceUrl": "https://berenjaklondon.com/soho",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
       "label": "Jujeh kabab",
@@ -547,7 +559,7 @@
       "lng": -0.13057
     },
     "sourceName": "berenjaklondon.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -571,7 +583,7 @@
       }
     ],
     "sourceUrl": "https://www.fmmangal.co.uk/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana kebab",
@@ -592,7 +604,7 @@
       "lng": -0.09057
     },
     "sourceName": "fmmangal.co.uk",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -665,7 +677,7 @@
       }
     ],
     "sourceUrl": "https://www.tayyabs.co.uk/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
       "label": "Lamb chops",
@@ -686,7 +698,7 @@
       "lng": -0.06351
     },
     "sourceName": "tayyabs.co.uk",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -710,7 +722,7 @@
       }
     ],
     "sourceUrl": "https://www.maroush.com/restaurants/edgware-road",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
       "label": "Chicken shawarma",
@@ -731,7 +743,7 @@
       "lng": -0.16085
     },
     "sourceName": "maroush.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -800,7 +812,7 @@
       }
     ],
     "sourceUrl": "https://kebabkid.co.uk/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "large_doner",
       "label": "Large lamb doner",
@@ -821,7 +833,7 @@
       "lng": -0.19992
     },
     "sourceName": "kebabkid.co.uk",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -849,7 +861,7 @@
       }
     ],
     "sourceUrl": "https://www.beigelbake.co.uk/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
       "label": "Salt beef beigel",
@@ -870,7 +882,7 @@
       "lng": -0.07193
     },
     "sourceName": "beigelbake.co.uk",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -894,7 +906,7 @@
       }
     ],
     "sourceUrl": "https://www.polobar.co.uk/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
       "label": "Full English breakfast",
@@ -915,9 +927,12 @@
       "lng": -0.08019
     },
     "sourceName": "polobar.co.uk",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Polo Bar - 24 Hour Great British Cafe"
+    ]
   },
   {
     "id": "food-duck-waffle",
@@ -939,7 +954,7 @@
       }
     ],
     "sourceUrl": "https://duckandwaffle.com/london",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
       "label": "Duck and waffle",
@@ -960,7 +975,7 @@
       "lng": -0.08105
     },
     "sourceName": "duckandwaffle.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -984,7 +999,7 @@
       }
     ],
     "sourceUrl": "https://wongkeilondon.com/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
       "label": "Roast duck on rice",
@@ -1005,7 +1020,7 @@
       "lng": -0.13265
     },
     "sourceName": "wongkeilondon.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1033,7 +1048,7 @@
       }
     ],
     "sourceUrl": "https://www.instagram.com/baritaliasoho",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
       "label": "Panini",
@@ -1054,7 +1069,7 @@
       "lng": -0.13165
     },
     "sourceName": "instagram.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1078,7 +1093,7 @@
       }
     ],
     "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
       "label": "Full English breakfast",
@@ -1099,7 +1114,7 @@
       "lng": -0.18156
     },
     "sourceName": "vqrestaurants.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1123,7 +1138,7 @@
       }
     ],
     "sourceUrl": "https://goldendragonlondon.com/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-09-24",
     "anchor": {
       "kind": "signature_item",
       "label": "Roast duck on rice",
@@ -1144,8 +1159,11 @@
       "lng": -0.13121
     },
     "sourceName": "goldendragonlondon.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-10-24",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "Golden Dragon (Chinatown)"
+    ]
   }
 ]

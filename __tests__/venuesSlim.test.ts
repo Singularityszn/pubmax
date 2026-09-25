@@ -18,6 +18,7 @@ import {
 import { slimVenueToPin } from "@/lib/slimPins";
 import { CITIES } from "@/lib/cities";
 import { SLIM_VENUES_PATH, type SlimVenue } from "@/lib/venuesSlim";
+import { expectedSlimFamousCounts } from "@/__tests__/helpers/currentFamousVenues";
 
 // Guards the built public/data/venues_slim.json — the ~400 KB file the map
 // loads instead of the ~6 MB raw dataset (scripts/build_slim_index.mjs). The
@@ -222,9 +223,15 @@ describe("venues_slim.json", () => {
 
   it("carries complete anchor provenance for famous non-pub venues", () => {
     const famous = (slim as SlimVenue[]).filter(
-      (row) => row.kind === "bar" || row.kind === "food",
+      (row) =>
+        row.kind === "bar" || row.kind === "food" || row.kind === "restaurant",
     );
-    expect(famous).toEqual([]);
+    expect(famous).toHaveLength(expectedSlimFamousCounts().total);
+    for (const row of famous) {
+      expect(hasValidFamousVenueFields(row as Record<string, unknown>)).toBe(
+        true,
+      );
+    }
   });
 
   it("every venue has finite coordinates in valid geographic range", () => {
@@ -396,9 +403,10 @@ describe("venues_slim.json", () => {
     const bars = rows.filter((row) => row.kind === "bar");
     const food = rows.filter((row) => row.kind === "food");
     const restaurants = rows.filter((row) => row.kind === "restaurant");
-    expect(bars).toHaveLength(0);
-    expect(food).toHaveLength(0);
-    expect(restaurants).toHaveLength(0);
+    const expected = expectedSlimFamousCounts();
+    expect(bars).toHaveLength(expected.bar);
+    expect(food).toHaveLength(expected.food);
+    expect(restaurants).toHaveLength(expected.restaurant);
   });
 
   it("is meaningfully smaller than the raw dataset", () => {

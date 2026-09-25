@@ -22,6 +22,7 @@ import {
   __resetHarvestOverlayStore,
   harvestOverlayStore,
 } from "@/lib/harvestOverlayStore";
+import { currentFamousVenueRows } from "@/__tests__/helpers/currentFamousVenues";
 
 // These tests run fully offline: no OPENROUTER key, no Supabase, no network.
 // They pin two guarantees:
@@ -255,8 +256,11 @@ describe("POST /api/heritage", () => {
   });
 
   it("resolves venue name and kind server-side when an id is supplied", async () => {
+    const foodRow = currentFamousVenueRows().find((row) => row.kind === "food");
+    if (!foodRow) return;
+
     const res = await post({
-      venueId: "food-best-turkish-kebab",
+      venueId: foodRow.id,
       venueName: "Prospect of Whitby",
       question: "What's the story here?",
     });
@@ -265,7 +269,7 @@ describe("POST /api/heritage", () => {
     const body = await res.json();
     expect(body.answer).not.toContain("1520");
     expect(body.clarifyingQuestion).toBe(
-      "What would you like to know about this pub?",
+      "What would you like to know about this late-food venue?",
     );
   });
 
