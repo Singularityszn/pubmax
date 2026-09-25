@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { hasSocialAuthProviders } from "@/lib/authProviderAvailability";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
@@ -61,6 +62,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
     socialProviders,
     signInWithGoogle,
     signInWithApple,
+    signInWithMicrosoft,
     signInWithEmail,
     cancelAuthAttempt,
   } = useAuth();
@@ -125,7 +127,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
 
   const copy = COPY[trigger];
   const authNext = trigger === "plan" ? identityNudgeAuthNext() : undefined;
-  const hasSocialProviders = socialProviders.google || socialProviders.apple;
+  const hasSocialProviders = hasSocialAuthProviders(socialProviders);
 
   async function startSignIn(
     provider: (next?: string) => Promise<{ error: string | null }>,
@@ -171,6 +173,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
           disabled={authBusy}
           onGoogle={() => startSignIn(signInWithGoogle)}
           onApple={() => startSignIn(signInWithApple)}
+          onMicrosoft={() => startSignIn(signInWithMicrosoft)}
           className="identityNudgeProviders"
         />
         {authError ? <p className="authError" role="alert">{authError}</p> : null}

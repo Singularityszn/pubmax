@@ -24,6 +24,7 @@ import { LogIn } from "lucide-react";
 import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
 import AccountMenu from "@/components/auth/AccountMenu";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
+import { hasSocialAuthProviders } from "@/lib/authProviderAvailability";
 import { providerHasAnswered } from "@/lib/authProviderRevision";
 import {
   loadPublicProfileCard,
@@ -144,6 +145,7 @@ export default function SignInButton({
     socialProviders,
     signInWithGoogle,
     signInWithApple,
+    signInWithMicrosoft,
     signInWithEmail,
     cancelAuthAttempt,
     signOut,
@@ -161,7 +163,7 @@ export default function SignInButton({
   const pathname = usePathname();
   const signInHref = loginHref(pathname);
   const addAccountHref = addAccountLoginHref(pathname);
-  const [busy, setBusy] = useState<"google" | "apple" | "out" | null>(null);
+  const [busy, setBusy] = useState<"google" | "apple" | "microsoft" | "out" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [phoneLogin, setPhoneLogin] = useState(false);
@@ -311,6 +313,17 @@ export default function SignInButton({
     }
   }, [signInWithApple]);
 
+  const onSignInMicrosoft = useCallback(async () => {
+    trackEvent("sign_in_initiated", { provider: "microsoft" });
+    setBusy("microsoft");
+    setError(null);
+    const { error: signInError } = await signInWithMicrosoft();
+    if (signInError) {
+      setError(signInError);
+      setBusy(null);
+    }
+  }, [signInWithMicrosoft]);
+
   const onSignOut = useCallback(
     async (scope: SignOutScope = "account") => {
       setBusy("out");
@@ -455,7 +468,7 @@ export default function SignInButton({
     );
   }
 
-  const hasSocialProviders = socialProviders.google || socialProviders.apple;
+  const hasSocialProviders = hasSocialAuthProviders(socialProviders);
   // Magic links belong to Supabase. Social buttons belong to whichever
   // configured identity provider owns the capability read.
   const socialOptions = (fullLabels = false) =>
@@ -465,6 +478,7 @@ export default function SignInButton({
         disabled={busy !== null}
         onGoogle={onSignInGoogle}
         onApple={onSignInApple}
+        onMicrosoft={onSignInMicrosoft}
         fullLabels={fullLabels}
       />
     ) : null;

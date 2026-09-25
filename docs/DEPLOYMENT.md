@@ -133,12 +133,12 @@ Buckets are not SQL objects, so create it **out of band** (Supabase dashboard �
 - Mutable social/admin responses use `Cache-Control: no-store` via `jsonNoStore` (`lib/apiResponses.ts`) so private inboxes and ownership-gated writes are never CDN-cached.
 - Hidden Pint Drop photos: DTOs null out URLs; Storage objects are deleted on takedown; bucket must be private (see Storage bucket note above).
 
-### 3. Browser sign-in (email magic link + Google + Apple)
+### 3. Browser sign-in (email magic link + Google + Apple + Microsoft)
 
-The app calls Supabase Auth with `signInWithOtp` for passwordless email and `signInWithOAuth` for Google or Apple. All three finish the PKCE exchange at the canonical site's `/auth/callback`, then return to the path where sign-in started. The callback rejects absolute, protocol-relative, and backslash redirect targets; never add a client-controlled redirect that bypasses that seam. URL fragments are never copied into Supabase's `redirectTo`: the browser holds them in a TTL-limited record keyed by a cryptographically random attempt ID and restores them only for the matching return path, because Plan invite fragments contain one-use capabilities. Supabase uses one browser PKCE verifier per project, so the app atomically allows only one live attempt across tabs through the Web Locks API and gives an honest error instead of overwriting another tab's attempt. The initiating tab also records its attempt in `sessionStorage`, allowing an explicit retry after backing out of the provider without weakening cross-tab isolation. Persistent browser storage and the Web Locks API are required for this PKCE coordination; browsers that disable either fail closed with an actionable message because an in-memory verifier cannot reliably survive the provider's full-page round trip. Secrets stay in the Supabase dashboard - the Next.js app only needs the public URL + publishable key above.
+The app calls Supabase Auth with `signInWithOtp` for passwordless email and `signInWithOAuth` for Google, Apple, or Microsoft (Supabase provider id `azure`). All four methods finish at the canonical site's `/auth/callback`, then return to the path where sign-in started. The callback rejects absolute, protocol-relative, and backslash redirect targets; never add a client-controlled redirect that bypasses that seam. URL fragments are never copied into Supabase's `redirectTo`: the browser holds them in a TTL-limited record keyed by a cryptographically random attempt ID and restores them only for the matching return path, because Plan invite fragments contain one-use capabilities. Supabase uses one browser PKCE verifier per project, so the app atomically allows only one live attempt across tabs through the Web Locks API and gives an honest error instead of overwriting another tab's attempt. The initiating tab also records its attempt in `sessionStorage`, allowing an explicit retry after backing out of the provider without weakening cross-tab isolation. Persistent browser storage and the Web Locks API are required for this PKCE coordination; browsers that disable either fail closed with an actionable message because an in-memory verifier cannot reliably survive the provider's full-page round trip. Secrets stay in the Supabase dashboard - the Next.js app only needs the public URL + publishable key above.
 
-Google and Apple buttons follow the live public provider flags from
-Supabase Auth's `/auth/v1/settings` endpoint (`google` and `apple`
+Google, Apple, and Microsoft buttons follow the live public provider flags from
+Supabase Auth's `/auth/v1/settings` endpoint (`google`, `apple`, and `azure`
 respectively). Disabled or unreadable providers stay hidden, and each provider
 is checked again before OAuth starts. Email magic-link sign-in remains the
 complete primary path when no social provider is enabled.
@@ -268,6 +268,15 @@ magic link remains complete.
 4. Create a Sign in with Apple key and record the Team ID, Services ID, Key ID, and private key.
 5. Supabase → Authentication → Providers → **Apple** → enter those values → Enable.
 6. Exercise both first consent and repeat sign-in. Apple supplies a person's name only on first consent, so PUBMAXX onboarding never depends on provider name metadata.
+
+#### Microsoft (Azure)
+
+Supabase's provider id is **Azure** and the app calls `provider: "azure"` with scopes `email openid profile`. Availability follows `external.azure` in `/auth/v1/settings`.
+
+1. Microsoft Entra admin center → App registrations → New registration.
+2. Add a Web redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback` (Supabase receives the OAuth response first).
+3. Supabase → Authentication → Providers → **Azure** → paste Application (client) ID and client secret → Enable.
+4. Add the app callback URL to Supabase → Authentication → URL configuration → Redirect URLs: `https://pubmaxxing.com/auth/callback` (and local dev URLs as needed).
 
 Button visibility and email fallback follow the browser sign-in contract above.
 Changing provider state needs no app code or deployment.

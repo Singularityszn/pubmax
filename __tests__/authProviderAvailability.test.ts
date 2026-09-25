@@ -47,7 +47,7 @@ describe("Clerk social auth provider availability", () => {
           },
         },
       }),
-    ).resolves.toEqual({ google: true, apple: false });
+    ).resolves.toEqual({ google: true, apple: false, microsoft: false });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
@@ -63,6 +63,7 @@ describe("Clerk social auth provider availability", () => {
     await expect(loadClerkSocialAuthProviders(fetchImpl)).resolves.toEqual({
       google: true,
       apple: false,
+      microsoft: false,
     });
     expect(fetchImpl).toHaveBeenCalledWith(
       "https://rare-trout-29.clerk.accounts.dev/v1/environment",
@@ -85,6 +86,24 @@ describe("Clerk social auth provider availability", () => {
     await expect(loadClerkSocialAuthProviders(fetchImpl)).resolves.toEqual({
       google: true,
       apple: true,
+      microsoft: false,
+    });
+  });
+
+  it("reports Microsoft from Supabase's Azure provider flag", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      settingsResponse({
+        google: false,
+        apple: false,
+        azure: true,
+        email: true,
+      }),
+    );
+
+    await expect(loadSocialAuthProviders(fetchImpl)).resolves.toEqual({
+      google: false,
+      apple: false,
+      microsoft: true,
     });
   });
 
@@ -124,6 +143,7 @@ describe("Supabase social auth provider availability", () => {
     await expect(loadSocialAuthProviders(fetchImpl)).resolves.toEqual({
       google: true,
       apple: false,
+      microsoft: false,
     });
     expect(fetchImpl).toHaveBeenCalledOnce();
     expect(fetchImpl).toHaveBeenCalledWith(
@@ -148,6 +168,7 @@ describe("Supabase social auth provider availability", () => {
     await expect(loadSocialAuthProviders(fetchImpl)).resolves.toEqual({
       google: false,
       apple: true,
+      microsoft: false,
     });
   });
 
@@ -181,10 +202,10 @@ describe("social OAuth provider guard", () => {
       guardSocialAuthProvider(
         "google",
         start,
-        async () => ({ google: false, apple: false }),
+        async () => ({ google: false, apple: false, microsoft: false }),
       ),
     ).resolves.toEqual({
-      availability: { google: false, apple: false },
+      availability: { google: false, apple: false, microsoft: false },
       result: {
         error: "Google sign-in isn't available right now. Use email instead.",
       },
@@ -206,6 +227,24 @@ describe("social OAuth provider guard", () => {
     expect(start).not.toHaveBeenCalled();
   });
 
+  it("does not start Microsoft OAuth when live settings disable it", async () => {
+    const start = vi.fn().mockResolvedValue({ error: null });
+
+    await expect(
+      guardSocialAuthProvider(
+        "microsoft",
+        start,
+        async () => ({ google: false, apple: false, microsoft: false }),
+      ),
+    ).resolves.toEqual({
+      availability: { google: false, apple: false, microsoft: false },
+      result: {
+        error: "Microsoft sign-in isn't available right now. Use email instead.",
+      },
+    });
+    expect(start).not.toHaveBeenCalled();
+  });
+
   it("starts OAuth only after fresh settings enable the selected provider", async () => {
     const start = vi.fn().mockResolvedValue({ error: null });
 
@@ -213,10 +252,10 @@ describe("social OAuth provider guard", () => {
       guardSocialAuthProvider(
         "google",
         start,
-        async () => ({ google: true, apple: false }),
+        async () => ({ google: true, apple: false, microsoft: false }),
       ),
     ).resolves.toEqual({
-      availability: { google: true, apple: false },
+      availability: { google: true, apple: false, microsoft: false },
       result: { error: null },
     });
     expect(start).toHaveBeenCalledOnce();

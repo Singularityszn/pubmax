@@ -854,6 +854,37 @@ export function AuthProvider({
     }
   }, [handOffToSystemBrowser]);
 
+  const startSupabaseMicrosoftOAuth = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+    if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
+    const attempt = await prepareAuthCallback(window.location.href, next);
+    if ("navigationStarted" in attempt) return { error: null };
+    if (!attempt.ok) return { error: attempt.message };
+    const supabase = await ensureSupabaseBrowser().catch(() => null);
+    if (!supabase) {
+      releaseBrowserAuthAttempt(attempt.id);
+      return { error: "Sign-in is not configured." };
+    }
+    try {
+      const systemBrowser = oauthOpensInSystemBrowser();
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "azure",
+        options: {
+          redirectTo: attempt.callbackUrl,
+          scopes: "email openid profile",
+          ...(systemBrowser ? { skipBrowserRedirect: true } : {}),
+        },
+      });
+      if (error) {
+        releaseBrowserAuthAttempt(attempt.id);
+        return { error: error.message };
+      }
+      return handOffToSystemBrowser(systemBrowser, data?.url, attempt.id);
+    } catch {
+      releaseBrowserAuthAttempt(attempt.id);
+      return { error: "Sign-in could not be started. Try again." };
+    }
+  }, [handOffToSystemBrowser]);
+
   const signInWithGoogle = useCallback(async (next?: string): Promise<{ error: string | null }> => {
     const guarded = await guardSocialAuthProvider(
       "google",
@@ -873,6 +904,16 @@ export function AuthProvider({
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
   }, [startSupabaseAppleOAuth]);
+
+  const signInWithMicrosoft = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+    const guarded = await guardSocialAuthProvider(
+      "microsoft",
+      () => startSupabaseMicrosoftOAuth(next),
+      loadSocialAuthProviders,
+    );
+    setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
+    return guarded.result;
+  }, [startSupabaseMicrosoftOAuth]);
 
   const signInWithEmail = useCallback(
     async (email: string, next?: string): Promise<MagicLinkResult> => {
@@ -1017,6 +1058,7 @@ export function AuthProvider({
       socialProviders,
       signInWithGoogle,
       signInWithApple,
+      signInWithMicrosoft,
       signInWithEmail,
       cancelAuthAttempt: cancelBrowserAuthAttempt,
       signOut,
@@ -1045,6 +1087,7 @@ export function AuthProvider({
     socialProviders,
     signInWithGoogle,
     signInWithApple,
+    signInWithMicrosoft,
     signInWithEmail,
     signOut,
     switchAccount,

@@ -1,14 +1,21 @@
 import { withAuthFetchTimeout } from "@/lib/authFetch";
 import { clerkFrontendApiOrigin } from "@/lib/clerkIdentity";
 
-export type SocialAuthProvider = "google" | "apple";
+export type SocialAuthProvider = "google" | "apple" | "microsoft";
 
 export type SocialAuthProviderAvailability = Record<SocialAuthProvider, boolean>;
 
 export const NO_SOCIAL_AUTH_PROVIDERS: SocialAuthProviderAvailability = {
   google: false,
   apple: false,
+  microsoft: false,
 };
+
+export function hasSocialAuthProviders(
+  availability: SocialAuthProviderAvailability,
+): boolean {
+  return availability.google || availability.apple || availability.microsoft;
+}
 
 type AuthStartResult = { error: string | null };
 
@@ -33,6 +40,7 @@ function availabilityFromClerkEnvironment(
   return {
     google: enabledStrategies.has("oauth_google"),
     apple: enabledStrategies.has("oauth_apple"),
+    microsoft: enabledStrategies.has("oauth_microsoft"),
   };
 }
 
@@ -68,6 +76,7 @@ export async function loadSocialAuthProviders(
     return {
       google: payload.external.google === true,
       apple: payload.external.apple === true,
+      microsoft: payload.external.azure === true,
     };
   } catch {
     return null;
@@ -115,7 +124,12 @@ export async function loadClerkSocialAuthProviders(
 }
 
 function unavailableMessage(provider: SocialAuthProvider): string {
-  const name = provider === "google" ? "Google" : "Apple";
+  const name =
+    provider === "google"
+      ? "Google"
+      : provider === "apple"
+        ? "Apple"
+        : "Microsoft";
   return `${name} sign-in isn't available right now. Use email instead.`;
 }
 
