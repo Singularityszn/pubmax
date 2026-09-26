@@ -1,11 +1,8 @@
 -- Rollback 0158 Drink Wall.
--- COST: drops wall columns; deletes city-only rows; removes client grants/policies.
+-- COST: drops wall columns; deletes city-only rows (their drink-wall/ objects are NOT
+-- deleted here; remove them through the Storage API). Client access stays revoked.
 
 begin;
-
-drop policy if exists venue_photos_owner_delete on public.venue_photos;
-drop policy if exists venue_photos_owner_insert on public.venue_photos;
-drop policy if exists venue_photos_public_select on public.venue_photos;
 
 revoke all on table public.venue_photos from anon, authenticated;
 

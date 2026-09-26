@@ -411,3 +411,50 @@ describe("0151: a renamed account's message photos leave with it", () => {
     expect(count("select count(*) from public.profile_handle_aliases where handle = 'danaold'")).toBe(1);
   });
 });
+
+// ── 0158: the Drink Wall leaves the trigger alone ────────────────────────────
+//
+// City photos are venue_photos rows with no pub. 0156's trigger already deletes
+// every row by author, so 0158 must not restate it: a restated body that
+// deletes from `storage.objects` is refused by the guard for EVERY account.
+describe("0158: a drink wall author leaves under the storage guard", () => {
+  const FRAN = "e1000000-0000-4000-8000-000000000018";
+  const FRAN_PROFILE = "e2000000-0000-4000-8000-000000000019";
+  const CITY_PHOTO = "e3000000-0000-4000-8000-00000000001a";
+  const PUB_PHOTO = "e4000000-0000-4000-8000-00000000001b";
+  const CITY_OBJECT = `drink-wall/${CITY_PHOTO}.jpg`;
+  const PUB_OBJECT = `venue-photos/venue-1f5ygjb/${PUB_PHOTO}.jpg`;
+  const DRINK_WALL_NAME = "20260926120000_0158_drink_wall.sql";
+
+  it("deletes both wall rows, keeps the retention ledger, and touches no storage row", async ({ skip }) => {
+    if (skipReason) skip(skipReason);
+    for (const name of readdirSync(MIGRATIONS)
+      .filter((file) => file.endsWith(".sql") && file > SENDER_PROFILE_NAME && file <= DRINK_WALL_NAME)
+      .sort()) {
+      db().applyFile(join(MIGRATIONS, name));
+    }
+    expect(triggerTouchesStorage()).toBe("f");
+
+    db().sql(`
+      insert into auth.users (id) values ('${FRAN}');
+      insert into public.profiles (id, user_id, handle) values ('${FRAN_PROFILE}', '${FRAN}', 'franpm');
+      insert into public.venue_photos (id, venue_id, wall_category, place_label, author_actor, author_profile_id, object_key, width, height)
+        values
+          ('${CITY_PHOTO}', null, 'london', 'St Paul''s from the river', 'profile:${FRAN_PROFILE}', '${FRAN_PROFILE}', '${CITY_OBJECT}', 1080, 1350),
+          ('${PUB_PHOTO}', 'venue-1f5ygjb', 'pub', '', 'profile:${FRAN_PROFILE}', '${FRAN_PROFILE}', '${PUB_OBJECT}', 1080, 1350);
+      insert into storage.objects (bucket_id, name, owner_id, metadata) values
+        ('pint-drops', '${CITY_OBJECT}', '${FRAN}', '{"mimetype":"image/jpeg"}'),
+        ('pint-drops', '${PUB_OBJECT}', '${FRAN}', '{"mimetype":"image/jpeg"}');
+    `);
+
+    const gone = await db().attempt(`delete from auth.users where id = '${FRAN}'`);
+    expect(gone.ok, gone.said).toBe(true);
+
+    expect(db().sql(`select tombstoned_at is not null from public.profiles where id = '${FRAN_PROFILE}'`)).toBe("t");
+    expect(count(`select count(*) from public.venue_photos where author_profile_id = '${FRAN_PROFILE}'`)).toBe(0);
+    expect(
+      db().sql(`select array_to_string(venue_photo_ids, ',') from public.account_retention_ledger where account_user_id = '${FRAN}'`),
+    ).toBe([CITY_PHOTO, PUB_PHOTO].sort().join(","));
+    expect(count(`select count(*) from storage.objects where name in ('${CITY_OBJECT}', '${PUB_OBJECT}')`)).toBe(2);
+  });
+});

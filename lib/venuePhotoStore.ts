@@ -624,6 +624,8 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
       message: "listDrinkWall failed - returning no photos",
       onError: () => ({ status: "degraded", photos: [], nextCursor: null }),
       run: async () => {
+        const near = query.nearVenueIds ?? null;
+        if (near !== null && near.length === 0) return toPage([], limit, query.viewerProfileId);
         let request = admin()
           .from(TABLE)
           .select("*")
@@ -632,6 +634,7 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
           .order("id", { ascending: false })
           .limit(limit + 1);
         if (query.category) request = request.eq("wall_category", query.category);
+        if (near !== null) request = request.in("venue_id", [...near]);
         if (cursor) {
           request = request.or(
             `created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`,
@@ -639,9 +642,7 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
         }
         const { data, error } = await request;
         if (error) throw new Error(error.message);
-        const rows = (data ?? [])
-          .map((row) => fromRow(row as Record<string, unknown>))
-          .filter((row) => matchesDrinkWallQuery(row, query));
+        const rows = (data ?? []).map((row) => fromRow(row as Record<string, unknown>));
         return toPage(rows, limit, query.viewerProfileId);
       },
     });
