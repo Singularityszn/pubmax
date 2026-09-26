@@ -497,17 +497,21 @@ describe("taking a photo down", () => {
     expect((await venuePhotoStore().getById(id))?.moderationState).toBe("hidden");
   });
 
-  it("keeps the bytes when the row delete fails, so no tile goes blank", async () => {
+  it("leaves the row when the bytes cannot be removed, so a retry finds it", async () => {
     const storage = deps("approved");
     const id = await post();
-    const store = venuePhotoStore();
-    const spy = vi.spyOn(store, "deleteByAuthor").mockRejectedValueOnce(new Error("db blip"));
+    const spy = vi.spyOn(storage, "remove").mockRejectedValueOnce(new Error("bucket down"));
 
     const failed = await POST(json({ action: "delete", id }));
     expect(failed.status).toBe(503);
     expect(storage.keys()).toEqual([venuePhotoServingKey(VENUE, id)]);
-    expect((await store.getById(id))?.moderationState).toBe("approved");
+    expect((await venuePhotoStore().getById(id))?.moderationState).toBe("approved");
     spy.mockRestore();
+
+    const retried = await POST(json({ action: "delete", id }));
+    expect(retried.status).toBe(200);
+    expect(storage.keys()).toEqual([]);
+    expect(await venuePhotoStore().getById(id)).toBeNull();
   });
 
   it("lets a reader flag it without hiding it", async () => {
