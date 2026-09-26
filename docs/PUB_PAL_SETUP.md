@@ -102,6 +102,14 @@ It sets four things and nothing else:
 On a first create the script prints the agent id. Put it on the deployment as
 `ELEVENLABS_PUB_PAL_AGENT_ID` and redeploy.
 
+If the voice WebSocket closes immediately with code **1008** and reason
+`Override for field 'voice_id' is not allowed by config.`, the deployed agent
+was created before session voice overrides were enabled. Re-run
+`npm run pubpal:agent -- --base-url https://pubmaxxing.com` with
+`ELEVENLABS_PUB_PAL_AGENT_ID` set so
+`platform_settings.overrides.conversation_config_override.tts.voice_id` is
+`true` on that agent.
+
 ---
 
 ## Checking it
