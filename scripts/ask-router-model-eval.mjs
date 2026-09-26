@@ -13,6 +13,9 @@ try {
       models: report.models.map((row) => ({
         model: row.model,
         accuracyPct: row.accuracyPct,
+        anyToolAccuracyPct: row.anyToolAccuracyPct,
+        errors: row.errors,
+        unpricedCalls: row.unpricedCalls,
         avgLatencyMs: row.avgLatencyMs,
         totalCostUsd: row.totalCostUsd,
       })),
