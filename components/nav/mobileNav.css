@@ -62,7 +62,7 @@
      lane. The create action does not stack above that card at all,
      it stands down (createFab.css). */
   --map-corner-locate-size: 52px;
-  --map-corner-bottom: calc(var(--float-stack-base) + 96px);
+  --map-corner-bottom: calc(var(--float-stack-base) + 72px);
   --map-corner-bottom-consent: max(
     var(--map-corner-bottom),
     calc(var(--float-stack-base) + var(--analytics-consent-mobile-clearance, 56px))
