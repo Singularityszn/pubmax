@@ -3,7 +3,13 @@
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
 import Link from "next/link";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+
+import {
+  readWebShareAvailable,
+  serverWebShareAvailable,
+  subscribeWebShare,
+} from "@/lib/webShareAvailable";
 
 import { trackEvent } from "@/lib/analytics";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
@@ -45,8 +51,10 @@ export default function RecapShareButton({ planId, shareText, shareUrl }: RecapS
   const [copied, setCopied] = useState(false);
   const [shareError, setShareError] = useState("");
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [canNativeShare] = useState(
-    () => typeof navigator !== "undefined" && typeof navigator.share === "function",
+  const canNativeShare = useSyncExternalStore(
+    subscribeWebShare,
+    readWebShareAvailable,
+    serverWebShareAvailable,
   );
 
   const flashCopied = useCallback(() => {

@@ -124,7 +124,7 @@
        same lane, so licence text never paints through the action beneath it. */
     left: var(--mobile-map-stack-left);
     right: auto;
-    bottom: calc(var(--mobile-map-dock-clearance) + 68px);
+    bottom: calc(var(--mobile-map-dock-clearance) + 92px);
   }
 
   .appShell .mapStage .maplibregl-ctrl-bottom-right .maplibregl-ctrl {
@@ -145,7 +145,7 @@
        on the tab bar, and steps up only when larger text grows the card past it.
        e2e/ui-consistency-layout.spec.ts owns the rendered collision proof. */
     bottom: max(
-      calc(var(--mobile-map-dock-clearance) + 68px),
+      calc(var(--mobile-map-dock-clearance) + 92px),
       calc(var(--mobile-map-dock-clearance) + var(--analytics-consent-mobile-clearance, 56px))
     );
   }

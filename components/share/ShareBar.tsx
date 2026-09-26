@@ -2,7 +2,13 @@
 
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+
+import {
+  readWebShareAvailable,
+  serverWebShareAvailable,
+  subscribeWebShare,
+} from "@/lib/webShareAvailable";
 
 import { trackEvent } from "@/lib/analytics";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
@@ -61,8 +67,10 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
   // Feature-detect native share once, lazily — never assumed. On the server and
   // on browsers without the Web Share API this stays false and the button is
   // simply not rendered.
-  const [canNativeShare] = useState(
-    () => typeof navigator !== "undefined" && typeof navigator.share === "function",
+  const canNativeShare = useSyncExternalStore(
+    subscribeWebShare,
+    readWebShareAvailable,
+    serverWebShareAvailable,
   );
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
