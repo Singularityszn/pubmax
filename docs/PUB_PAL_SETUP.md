@@ -174,7 +174,8 @@ PW_SKIP_WEBSERVER=1 \
 PUB_PAL_PROOF_BASE_URL=http://localhost:3102 \
 PUB_PAL_PROOF_BEARER=<supabase access token> \
 PUB_PAL_PROOF_STORAGE_STATE=/path/to/storage.json \
-PUB_PAL_PROOF_WAV=/path/to/question.wav \
+PUB_PAL_PROOF_WAV=/path/to/proof-utterance.wav \
+PUB_PAL_PROOF_EXPECTED_UTTERANCE="What pub should we start at?" \
 PUB_PAL_PROOF_SPECIES=fox,robin \
 npx playwright test e2e/pubpal-voice-live.spec.ts --project=chromium
 ```
