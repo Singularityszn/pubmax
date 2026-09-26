@@ -15,15 +15,24 @@ function emptyPoiHidden(): Record<PoiCategory, boolean> {
  * never the outer edge, which would clip them. That holds for the fallbacks
  * too: when the side anchor collides, a name drops under or over its disc but
  * still grows inward, instead of centring on a disc that sits at the card edge.
- * Offsets match buildScene's 1.6em radial offset.
+ * The side offset matches buildScene's 1.6em radial offset. The under/over
+ * fallbacks sit 2em out so they clear their own disc's collision box.
  */
 export const PREVIEW_STOP_NAME_ANCHOR_OFFSET = [
   "match",
   ["get", "labelSide"],
   "west",
-  ["literal", ["right", [-1.6, 0], "top-right", [0.6, 1.6], "bottom-right", [0.6, -1.6]]],
-  ["literal", ["left", [1.6, 0], "top-left", [-0.6, 1.6], "bottom-left", [-0.6, -1.6]]],
+  ["literal", ["right", [-1.6, 0], "top-right", [0.6, 2], "bottom-right", [0.6, -2]]],
+  ["literal", ["left", [1.6, 0], "top-left", [-0.6, 2], "bottom-left", [-0.6, -2]]],
 ] satisfies maplibregl.ExpressionSpecification;
+
+/**
+ * Stop discs are a circle layer, which takes no part in symbol collision. The
+ * numbers do: padded out to the disc's radius, and placed before the names, a
+ * stop number claims its whole disc, so a name that would cover another stop
+ * is dropped instead. The numbers themselves always show (text-allow-overlap).
+ */
+const PREVIEW_STOP_NUMBER_PADDING = 9;
 
 /** Route line + numbered stops on the live basemap — same layers as PubMapCanvas. */
 export function syncPlanRoutePreviewScene(
@@ -86,7 +95,12 @@ export function syncPlanRoutePreviewScene(
   const stopsSource = map.getSource("route-stops") as maplibregl.GeoJSONSource | undefined;
   lineSource?.setData(routeLine);
   stopsSource?.setData(routeStops);
+  if (map.getLayer("route-stops-label")) {
+    map.setLayoutProperty("route-stops-label", "text-padding", PREVIEW_STOP_NUMBER_PADDING);
+  }
   if (map.getLayer("route-stops-name")) {
+    // Below the numbers in the stack, so placement (top layer first) seats the numbers first.
+    map.moveLayer("route-stops-name", "route-stops-label");
     map.setLayerZoomRange("route-stops-name", 10, 24);
     map.setLayoutProperty("route-stops-name", "text-variable-anchor-offset", PREVIEW_STOP_NAME_ANCHOR_OFFSET);
   }
