@@ -9,7 +9,7 @@ import {
 import { anyToolMatchesCase, firstToolMatchesCase } from "./grade";
 import { loadAskRouterModelEvalCases } from "./loadCases";
 
-export type AskRouterModelEvalRow = {
+type AskRouterModelEvalRow = {
   model: string;
   cases: number;
   /** Transport failures (HTTP error, timeout, network); excluded from every other figure. */
