@@ -130,6 +130,28 @@ describe("a filter change on a slow connection", () => {
   });
 });
 
+describe("Near me while the location is still coming", () => {
+  it("drops the All London read that lands after the switch", async () => {
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: { getCurrentPosition: () => {} },
+    });
+    try {
+      const first = take(wallRead(null));
+      await act(async () => button("Near me").click());
+      await flush();
+      await act(async () => first.resolve(page([photo({ id: "city-1", caption: "Skyline" })])));
+      await flush();
+
+      expect(host.querySelectorAll(".drinkWallTile")).toHaveLength(0);
+      expect(host.querySelector(".drinkWallStatus")?.textContent).toBe("Loading the wall");
+      expect(net.pending).toHaveLength(0);
+    } finally {
+      Reflect.deleteProperty(navigator, "geolocation");
+    }
+  });
+});
+
 describe("a tile", () => {
   it("shows the caption and the pub name, or the author's place when no pub is linked", async () => {
     take(wallRead(null)).resolve(

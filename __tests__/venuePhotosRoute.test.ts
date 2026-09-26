@@ -497,6 +497,19 @@ describe("taking a photo down", () => {
     expect((await venuePhotoStore().getById(id))?.moderationState).toBe("hidden");
   });
 
+  it("keeps the bytes when the row delete fails, so no tile goes blank", async () => {
+    const storage = deps("approved");
+    const id = await post();
+    const store = venuePhotoStore();
+    const spy = vi.spyOn(store, "deleteByAuthor").mockRejectedValueOnce(new Error("db blip"));
+
+    const failed = await POST(json({ action: "delete", id }));
+    expect(failed.status).toBe(503);
+    expect(storage.keys()).toEqual([venuePhotoServingKey(VENUE, id)]);
+    expect((await store.getById(id))?.moderationState).toBe("approved");
+    spy.mockRestore();
+  });
+
   it("lets a reader flag it without hiding it", async () => {
     deps("approved");
     const id = await post();

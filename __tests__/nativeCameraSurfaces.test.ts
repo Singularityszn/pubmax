@@ -23,19 +23,22 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 const SURFACES = [
   { surface: "pint", file: "components/map/VenuePriceSubmit.tsx", webDoor: "pintPhotoInputRef.current?.click()" },
   { surface: "venue", file: "components/venue/VenuePhotoComposer.tsx", webDoor: "inputRef.current?.click()" },
-  { surface: "venue", file: "components/drink-wall/DrinkWallComposer.tsx", webDoor: "inputRef.current?.click()" },
   { surface: "moment", file: "components/moment/MomentCapture.tsx", webDoor: null },
 ] as const;
+
+/** Callers whose shell-first, web-second behaviour is proven by rendering them
+ * (`__tests__/drinkWallComposer.test.tsx`), not by the table above. */
+const RENDERED_SURFACES = ["components/drink-wall/DrinkWallComposer.tsx"] as const;
 
 describe("a photo surface asks the shell first and the web input second", () => {
   it("names every surface the seam knows about", () => {
     expect([...NATIVE_PHOTO_SURFACES].sort()).toEqual(
-      [...new Set(SURFACES.map((entry) => entry.surface))].sort(),
+      SURFACES.map((entry) => entry.surface).sort(),
     );
   });
 
   for (const { surface, file, webDoor } of SURFACES) {
-    it(`${file} routes through the seam as ${surface}`, () => {
+    it(`${surface} routes through the seam under its own name`, () => {
       const source = read(file);
       expect(source).toContain('from "@/lib/nativeCamera"');
       // Either entry point, but the surface NAME has to reach the seam: that
@@ -53,7 +56,7 @@ describe("a photo surface asks the shell first and the web input second", () => 
     });
 
     if (webDoor) {
-      it(`${file} still opens its web input off the shell`, () => {
+      it(`${surface} still opens its web input off the shell`, () => {
         // Losing this is how the native wiring quietly takes the photo away
         // from every desktop and mobile browser.
         expect(read(file)).toContain(webDoor);
@@ -141,7 +144,6 @@ describe("a refusal reaches a person, and a cancel does not", () => {
     for (const file of [
       "components/map/VenuePriceSubmit.tsx",
       "components/venue/VenuePhotoComposer.tsx",
-      "components/drink-wall/DrinkWallComposer.tsx",
     ]) {
       expect(read(file), file).toContain('pick.outcome === "blocked"');
     }
@@ -176,7 +178,9 @@ describe("nothing outside the three surfaces opens a camera", () => {
   });
 
   it("holds every caller to the surface table above", () => {
-    expect([...callers].sort()).toEqual(SURFACES.map((entry) => entry.file).sort());
+    expect([...callers].sort()).toEqual(
+      [...SURFACES.map((entry) => entry.file), ...RENDERED_SURFACES].sort(),
+    );
   });
 
   it("leaves the profile photo journey on the plain library picker", () => {

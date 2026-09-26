@@ -129,7 +129,7 @@ export type VenuePhotoStore = {
   listDrinkWall(query?: DrinkWallListQuery): Promise<VenuePhotoPage>;
   /** Approved rows linked to no pub (venue_id null) for one account. */
   countCityPhotosForAuthor(authorProfileId: string): Promise<number>;
-  /** Remove one row when the author matches (service role path). */
+  /** Remove one approved row when the author matches (service role path). */
   deleteByAuthor(id: string, authorProfileId: string): Promise<boolean>;
 };
 
@@ -329,7 +329,9 @@ const memoryVenuePhotoStore: VenuePhotoStore = {
 
   async deleteByAuthor(id, authorProfileId) {
     const hit = byId.get(id);
-    if (!hit || hit.authorProfileId !== authorProfileId) return false;
+    if (!hit || hit.authorProfileId !== authorProfileId || hit.moderationState !== "approved") {
+      return false;
+    }
     byId.delete(id);
     return true;
   },
@@ -669,6 +671,7 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
           .delete()
           .eq("id", id)
           .eq("author_profile_id", authorProfileId)
+          .eq("moderation_state", "approved")
           .select("id");
         if (error) throw new Error(error.message);
         return (data ?? []).length > 0;
