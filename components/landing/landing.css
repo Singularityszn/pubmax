@@ -363,7 +363,7 @@ a.lpPubPint:hover { color: var(--ink); }
 .dropStripHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
 .dropStripHead .eyebrow { margin: 0; display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 13px; font-weight: 700; }
 .dropStripHint { color: var(--ink-soft); font: 550 10px/1 var(--font-data); }
-.dropStripRail { margin: 0; padding: 0 0 10px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 12px; overflow-x: auto; touch-action: pan-y; overscroll-behavior-x: contain; list-style: none; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.dropStripRail { margin: 0; padding: 0 0 10px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 12px; overflow-x: auto; touch-action: pan-x pan-y; overscroll-behavior-x: contain; list-style: none; scroll-snap-type: x proximity; scrollbar-width: thin; }
 /* The skeleton is decoration behind aria-hidden, so it must not be a scroll
    container a keyboard could never reach: it shows four placeholder cards and
    nothing past them. */

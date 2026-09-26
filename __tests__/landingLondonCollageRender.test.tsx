@@ -8,6 +8,7 @@ import {
   LONDON_COLLAGE_CREDIT,
   LONDON_COLLAGE_PHOTOS,
   londonCollageSrc,
+  londonCollageSrcSet,
 } from "@/lib/landingLondonCollage";
 
 describe("the founder London collage on the landing", () => {
@@ -25,7 +26,7 @@ describe("the founder London collage on the landing", () => {
   it("names the founder credit and lazy-loads every tile", () => {
     expect(html).toContain(LONDON_COLLAGE_CREDIT);
     expect(html.match(/loading="lazy"/g)?.length ?? 0).toBe(LONDON_COLLAGE_PHOTOS.length);
-    expect(html).not.toContain('fetchPriority="high"');
+    expect(html).not.toContain("fetchpriority=");
     expect(html).not.toContain('rel="preload"');
   });
 
@@ -33,6 +34,14 @@ describe("the founder London collage on the landing", () => {
     for (const photo of LONDON_COLLAGE_PHOTOS) {
       expect(html).toContain(`width="${photo.width}"`);
       expect(html).toContain(`height="${photo.height}"`);
+    }
+  });
+
+  it("advertises each photograph's real encoded width as its widest candidate", () => {
+    for (const photo of LONDON_COLLAGE_PHOTOS) {
+      expect(londonCollageSrcSet(photo, "avif")).toBe(
+        `${londonCollageSrc(photo, 640, "avif")} 640w, ${londonCollageSrc(photo, 1280, "avif")} ${photo.width}w`,
+      );
     }
   });
 });

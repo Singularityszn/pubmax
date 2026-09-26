@@ -38,4 +38,18 @@ describe("founder collage assets are stripped and within budget", () => {
       expect(meta.exif == null || meta.exif.length === 0, `${photo.id} EXIF`).toBe(true);
     }
   });
+
+  it("records the widest encoded file's real dimensions in the manifest", async () => {
+    const widest = LONDON_COLLAGE_WIDTHS[LONDON_COLLAGE_WIDTHS.length - 1];
+    for (const photo of LONDON_COLLAGE_PHOTOS) {
+      for (const format of ["avif", "webp"] as const) {
+        const file = join(root, "public", londonCollageSrc(photo, widest, format).replace(/^\//, ""));
+        const meta = await sharp(file).metadata();
+        expect({ width: meta.width, height: meta.height }, `${photo.id} ${format}`).toEqual({
+          width: photo.width,
+          height: photo.height,
+        });
+      }
+    }
+  });
 });

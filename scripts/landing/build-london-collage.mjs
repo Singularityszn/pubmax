@@ -93,42 +93,34 @@ async function main() {
     const bytes = await readFile(inputPath);
 
     const base = sharp(bytes, { failOn: "none" }).rotate(); // auto-orient, then strip on write
-    const meta = await base.metadata();
-    const srcW = meta.width ?? 1280;
-    const srcH = meta.height ?? 720;
+    let encoded = null;
 
     for (const width of WIDTHS) {
-      const scale = Math.min(1, width / srcW);
-      const outW = Math.round(srcW * scale);
-      const outH = Math.round(srcH * scale);
-      const pipeline = base.clone().resize(outW, outH, { fit: "inside", withoutEnlargement: true });
+      const pipeline = base.clone().resize({ width, withoutEnlargement: true });
       const avifPath = path.join(OUT_DIR, `${photo.id}-${width}.avif`);
       const webpPath = path.join(OUT_DIR, `${photo.id}-${width}.webp`);
       await pipeline.clone().avif({ quality: 50, effort: 6 }).toFile(avifPath);
-      await pipeline.clone().webp({ quality: 72 }).toFile(webpPath);
+      encoded = await pipeline.clone().webp({ quality: 72 }).toFile(webpPath);
       await assertOutputClean(avifPath);
       await assertOutputClean(webpPath);
     }
 
     const blur = await base
       .clone()
-      .resize(24, Math.round(24 * (srcH / srcW)), { fit: "inside" })
+      .resize({ width: 24 })
       .webp({ quality: 40 })
       .toBuffer();
-
-    const displayW = WIDTHS[WIDTHS.length - 1];
-    const displayH = Math.round(displayW * (srcH / srcW));
 
     manifest.push({
       id: photo.id,
       caption: photo.caption,
       alt: photo.alt,
       layout: photo.layout,
-      width: displayW,
-      height: displayH,
+      width: encoded.width,
+      height: encoded.height,
       blurDataUrl: `data:image/webp;base64,${blur.toString("base64")}`,
     });
-    console.error(`ok ${photo.id} (${srcW}x${srcH})`);
+    console.error(`ok ${photo.id} (${encoded.width}x${encoded.height})`);
   }
 
   await writeFile(

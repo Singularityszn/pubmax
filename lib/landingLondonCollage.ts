@@ -73,5 +73,5 @@ export function londonCollageSrc(photo: LondonCollagePhoto, width: number, forma
 }
 
 export function londonCollageSrcSet(photo: LondonCollagePhoto, format: "avif" | "webp"): string {
-  return LONDON_COLLAGE_WIDTHS.map((w) => `${londonCollageSrc(photo, w, format)} ${w}w`).join(", ");
+  return LONDON_COLLAGE_WIDTHS.map((w) => `${londonCollageSrc(photo, w, format)} ${Math.min(w, photo.width)}w`).join(", ");
 }

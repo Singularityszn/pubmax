@@ -14,35 +14,37 @@ import "./landingLondonCollage.css";
 
 const WIDEST = LONDON_COLLAGE_WIDTHS[LONDON_COLLAGE_WIDTHS.length - 1];
 
-/** Phone tiles are narrower; desktop mosaic tiles vary by layout class. */
+/** Phone strip tile width, tablet hero span, then the widest desktop span (2 of 5 columns). */
 const COLLAGE_SIZES =
-  "(max-width: 699px) 42vw, (max-width: 959px) 30vw, (min-width: 960px) 28vw";
+  "(max-width: 699px) min(72vw, 280px), (max-width: 959px) 100vw, min(40vw, 500px)";
 
 function CollageTile({ photo }: { photo: LondonCollagePhoto }) {
   return (
-    <figure
+    <li
       className={`lpCollageTile lpCollageTile--${photo.layout}`}
       data-collage-id={photo.id}
     >
-      <div className="lpCollageTile__frame">
-        <picture>
-          <source type="image/avif" srcSet={londonCollageSrcSet(photo, "avif")} sizes={COLLAGE_SIZES} />
-          <source type="image/webp" srcSet={londonCollageSrcSet(photo, "webp")} sizes={COLLAGE_SIZES} />
-          <img
-            className="lpCollageTile__img"
-            src={londonCollageSrc(photo, WIDEST, "webp")}
-            width={photo.width}
-            height={photo.height}
-            alt={photo.alt}
-            loading="lazy"
-            decoding="async"
-            sizes={COLLAGE_SIZES}
-            style={{ backgroundImage: `url(${photo.blurDataUrl})` }}
-          />
-        </picture>
-      </div>
-      <figcaption className="lpCollageTile__caption">{photo.caption}</figcaption>
-    </figure>
+      <figure className="lpCollageTile__figure">
+        <div className="lpCollageTile__frame">
+          <picture>
+            <source type="image/avif" srcSet={londonCollageSrcSet(photo, "avif")} sizes={COLLAGE_SIZES} />
+            <source type="image/webp" srcSet={londonCollageSrcSet(photo, "webp")} sizes={COLLAGE_SIZES} />
+            <img
+              className="lpCollageTile__img"
+              src={londonCollageSrc(photo, WIDEST, "webp")}
+              width={photo.width}
+              height={photo.height}
+              alt={photo.alt}
+              loading="lazy"
+              decoding="async"
+              sizes={COLLAGE_SIZES}
+              style={{ backgroundImage: `url(${photo.blurDataUrl})` }}
+            />
+          </picture>
+        </div>
+        <figcaption className="lpCollageTile__caption">{photo.caption}</figcaption>
+      </figure>
+    </li>
   );
 }
 
@@ -57,11 +59,15 @@ export default function LandingLondonCollage() {
           </h2>
         </header>
 
-        <div className="lpCollageMosaic" role="list">
+        <ul
+          className="lpCollageMosaic"
+          aria-label="Founder photographs of London"
+          tabIndex={0}
+        >
           {LONDON_COLLAGE_PHOTOS.map((photo) => (
             <CollageTile key={photo.id} photo={photo} />
           ))}
-        </div>
+        </ul>
 
         <p className="lpCollageCredit">{LONDON_COLLAGE_CREDIT}</p>
       </div>
