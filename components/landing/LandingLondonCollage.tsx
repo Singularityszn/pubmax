@@ -1,6 +1,7 @@
 // Founder photographs of London in a mosaic below the hero (captain 26 Sep 2026).
 // Lazy-loaded, no preload: the hero owns LCP; this section is always below the fold.
 
+import Kicker from "@/components/ui/kicker";
 import {
   LONDON_COLLAGE_CREDIT,
   LONDON_COLLAGE_PHOTOS,
@@ -53,7 +54,7 @@ export default function LandingLondonCollage() {
     <section className="lpCollage" aria-labelledby="lpCollageHeading">
       <div className="lpCollageInner">
         <header className="lpCollageHead">
-          <p className="lpCollageKicker">London</p>
+          <Kicker>London</Kicker>
           <h2 id="lpCollageHeading" className="lpCollageTitle">
             Streets the map sits on.
           </h2>

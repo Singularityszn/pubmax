@@ -1,4 +1,4 @@
-/* Founder London collage — below the hero, lazy, no LCP contest. */
+/* Founder London collage: below the hero, lazy, no LCP contest. */
 
 .lpCollage {
   width: min(var(--lp-max), calc(100% - 2 * var(--page-gutter)));
@@ -13,16 +13,7 @@
 
 .lpCollageHead {
   display: grid;
-  gap: var(--space-2);
   max-width: 28ch;
-}
-
-.lpCollageKicker {
-  margin: 0;
-  color: var(--brass-ink);
-  font: 700 var(--text-xs)/1 var(--font-data);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .lpCollageTitle {
@@ -53,6 +44,7 @@
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--page-gutter);
   touch-action: pan-x pan-y;
   scrollbar-width: thin;
 }
