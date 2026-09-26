@@ -16,3 +16,8 @@ Project: PostHog EU (pubmaxxing.com).
 ## Heatmaps
 
 - Enabled via `capture_heatmaps` on the browser SDK (not full DOM autocapture).
+
+## Feature flags
+
+- Flags load with the browser SDK after consent (`advanced_disable_flags: false` in `lib/posthogClient.ts`). No product behaviour reads a flag yet.
+- To read a flag, use `useFeatureFlagEnabled` from `posthog-js/react` inside a `PostHogProvider` that receives the consented client. It returns `undefined` until consent is granted and flags load, so treat `undefined` as off.

@@ -420,7 +420,7 @@ export function initializePosthog(consentAllowed: boolean): void {
 }
 
 /**
- * Load the SDK when identity or flags need it. Same consent gate as pageviews;
+ * Load the SDK when identity needs it. Same consent gate as pageviews;
  * does not opt in capturing by itself.
  */
 export function loadPosthogClientForIdentity(): Promise<PostHogClient | null> {
