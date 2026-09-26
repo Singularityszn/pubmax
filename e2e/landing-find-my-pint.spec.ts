@@ -139,9 +139,12 @@ test.describe("landing hierarchy", () => {
 
   // Both viewports, because a mobile-only check cannot see a hero that shrinks
   // on a wide layout and a desktop-only check cannot see the fold on a phone.
+  // 320x568 is the shortest phone: there the fixed tab bar and the create
+  // action, not the viewport's edge, are what the primary has to clear.
   for (const viewport of [
     { width: 1440, height: 900 },
     { width: 390, height: 844 },
+    { width: 320, height: 568 },
   ] as const) {
     test(`hero fills the viewport and the primary sits above the fold at ${viewport.width}`, async ({ page }) => {
       await openLanding(page, viewport);
@@ -156,6 +159,28 @@ test.describe("landing hierarchy", () => {
       const box = await primary.boundingBox();
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
       expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewport.height + 1);
+
+      // On a phone the fixed chrome owns part of that first screen: the primary
+      // ends above the tab bar, stays out of the create action's box, and a tap
+      // on its centre lands on it rather than on a tab.
+      if (viewport.width <= 640) {
+        const tabBar = await page.locator(".mobileTabBar").boundingBox();
+        expect(tabBar).not.toBeNull();
+        expect(box!.y + box!.height).toBeLessThanOrEqual(tabBar!.y);
+        const create = await page.getByTestId("create-fab").boundingBox();
+        expect(create).not.toBeNull();
+        const clearOfCreate =
+          box!.x + box!.width <= create!.x ||
+          box!.y + box!.height <= create!.y ||
+          box!.y >= create!.y + create!.height;
+        expect(clearOfCreate).toBe(true);
+        const hitsPrimary = await primary.evaluate((anchor) => {
+          const rect = anchor.getBoundingClientRect();
+          const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          return hit !== null && anchor.contains(hit);
+        });
+        expect(hitsPrimary).toBe(true);
+      }
 
       // Every door on the quiet row carries the tap floor, not just the first.
       const quietDoors = page.locator(".lpHero .screenSecondary a");
