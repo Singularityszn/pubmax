@@ -8,7 +8,7 @@ import { syncPlanRoutePreviewScene } from "@/components/plan/planRoutePreviewSce
 import {
   MAP_STYLES,
   LONDON_VIEW,
-  LONDON_BOUNDS,
+  UK_BOUNDS,
   OSM_ATTRIBUTION,
 } from "@/components/map/canvas/tokens";
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
@@ -56,13 +56,14 @@ export default function PlanCrawlRouteMapCanvas({
 }: PlanCrawlRouteMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const routeRef = useRef<PlanCrawlRouteMapCanvasProps>({ stopCoords, routeLine, routeStops, lineCoords });
   const themeRef = useRef<"light" | "dark">(
     document.documentElement.dataset.theme === "dark" ? "dark" : "light",
   );
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || stopCoords.length < 2) return;
+    if (!container) return;
 
     const map = new maplibregl.Map({
       container,
@@ -71,7 +72,7 @@ export default function PlanCrawlRouteMapCanvas({
       zoom: LONDON_VIEW.zoom,
       pitch: PREVIEW_PITCH,
       bearing: PREVIEW_BEARING,
-      maxBounds: LONDON_BOUNDS,
+      maxBounds: UK_BOUNDS,
       attributionControl: { compact: true, customAttribution: OSM_ATTRIBUTION },
       scrollZoom: false,
       boxZoom: false,
@@ -85,8 +86,9 @@ export default function PlanCrawlRouteMapCanvas({
     mapRef.current = map;
 
     const paintRoute = () => {
-      syncPlanRoutePreviewScene(map, routeLine, routeStops);
-      fitPreviewRoute(map, stopCoords, lineCoords);
+      const route = routeRef.current;
+      syncPlanRoutePreviewScene(map, route.routeLine, route.routeStops);
+      fitPreviewRoute(map, route.stopCoords, route.lineCoords);
     };
 
     map.on("load", paintRoute);
@@ -97,7 +99,7 @@ export default function PlanCrawlRouteMapCanvas({
       if (next === themeRef.current) return;
       themeRef.current = next;
       map.setStyle(MAP_STYLES[next]);
-      map.once("load", paintRoute);
+      map.once("style.load", paintRoute);
     };
     const themeObserver = new MutationObserver(onTheme);
     themeObserver.observe(document.documentElement, {
@@ -110,6 +112,14 @@ export default function PlanCrawlRouteMapCanvas({
       map.remove();
       mapRef.current = null;
     };
+  }, []);
+
+  useEffect(() => {
+    routeRef.current = { stopCoords, routeLine, routeStops, lineCoords };
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    syncPlanRoutePreviewScene(map, routeLine, routeStops);
+    fitPreviewRoute(map, stopCoords, lineCoords);
   }, [stopCoords, routeLine, routeStops, lineCoords]);
 
   return (

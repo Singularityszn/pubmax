@@ -27,7 +27,7 @@ export function planCrawlRouteFitBounds(
 }
 
 /** Straight pub-to-pub segments between consecutive stops only (N stops → N−1 legs). */
-export function planCrawlStraightLineCoords(stops: readonly LngLat[]): LngLat[] {
+export function planCrawlStraightLineCoords(stops: LngLat[]): LngLat[] {
   if (stops.length < 2) return [];
   const pairs = stopPairs(stops);
   const line: LngLat[] = [];

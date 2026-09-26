@@ -51,7 +51,7 @@ test.describe("locked plan route map", () => {
 
     const mapPreview = page.locator(".planRouteMiniMap__canvas.maplibreMap");
     await expect(mapPreview).toBeVisible({ timeout: 60_000 });
-    await expect(page.locator(".maplibre-gl-canvas")).toBeVisible();
+    await expect(page.locator(".planRouteMiniMap__canvas .maplibregl-canvas")).toBeVisible();
 
     const mapLink = page.locator("a.planRoute__mapLink");
     await expect(mapLink).toBeVisible();
