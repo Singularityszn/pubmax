@@ -2,27 +2,29 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import FoundingMemberMark from "@/components/founding/FoundingMemberMark";
-import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
+import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import {
   DRINK_WALL_CATEGORIES,
   DRINK_WALL_CATEGORY_LABEL,
   DRINK_WALL_SIGN_IN_LINE,
   drinkWallAltText,
   drinkWallEmptyLine,
+  drinkWallPlaceLine,
   drinkWallSignInHref,
   type DrinkWallCategory,
+  type DrinkWallPage,
+  type DrinkWallPhotoDTO,
 } from "@/lib/drinkWall";
 import { nearestVenueIds } from "@/lib/nearby";
 import { loadGroupedVenues } from "@/lib/venueDataset";
 import {
   VENUE_PHOTO_OUTPUT_HEIGHT,
   VENUE_PHOTO_OUTPUT_WIDTH,
-  type VenuePhotoDTO,
-  type VenuePhotoPage,
   type VenuePhotoReadStatus,
 } from "@/lib/venuePhotos";
 
@@ -32,15 +34,15 @@ import "./drinkWall.css";
 type Scope = "all" | "near";
 
 type WallState = {
-  photos: VenuePhotoDTO[];
+  photos: DrinkWallPhotoDTO[];
   nextCursor: string | null;
   status: VenuePhotoReadStatus;
 };
 
 const EMPTY: WallState = { photos: [], nextCursor: null, status: "ready" };
 
-function isPage(value: unknown): value is VenuePhotoPage {
-  return Boolean(value) && Array.isArray((value as VenuePhotoPage).photos);
+function isPage(value: unknown): value is DrinkWallPage {
+  return Boolean(value) && Array.isArray((value as DrinkWallPage).photos);
 }
 
 export default function DrinkWall() {
@@ -50,7 +52,10 @@ export default function DrinkWall() {
   const [nearVenueIds, setNearVenueIds] = useState<string[]>([]);
   const [nearReady, setNearReady] = useState(true);
   const [wall, setWall] = useState<WallState>(EMPTY);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const generation = useRef(0);
   const [composerOpen, setComposerOpen] = useState(false);
   const [fetchKey, setFetchKey] = useState("all|all|");
 
@@ -97,6 +102,8 @@ export default function DrinkWall() {
   const load = useCallback(
     async (cursor: string | null, reset: boolean) => {
       if (scope === "near" && !nearReady) return;
+      const ticket = reset ? ++generation.current : generation.current;
+      const stale = () => ticket !== generation.current;
       setLoading(true);
       try {
         const params = new URLSearchParams({ scope });
@@ -105,6 +112,7 @@ export default function DrinkWall() {
         if (scope === "near") params.set("nearVenueIds", nearVenueIds.join(","));
         const response = await authedFetch(`/api/drink-wall?${params.toString()}`, {}, { requiresIdentity: true });
         const body: unknown = await response.json().catch(() => null);
+        if (stale()) return;
         if (!response.ok || !isPage(body)) {
           setWall((current) => ({ ...(reset ? EMPTY : current), status: "degraded" }));
           return;
@@ -115,9 +123,10 @@ export default function DrinkWall() {
           status: body.status,
         }));
       } catch {
+        if (stale()) return;
         setWall((current) => ({ ...(reset ? EMPTY : current), status: "degraded" }));
       } finally {
-        setLoading(false);
+        if (!stale()) setLoading(false);
       }
     },
     [category, scope, nearVenueIds, nearReady],
@@ -138,6 +147,33 @@ export default function DrinkWall() {
       void load(null, true);
     });
   }, [fetchKey, reloadKey, load, nearReady, scope]);
+
+  async function remove(id: string) {
+    if (!window.confirm("Remove this photo from the Drink Wall?")) return;
+    setRemovingId(id);
+    setRemoveError(null);
+    try {
+      const response = await authedActionFetch(
+        "/api/venue-photos",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "delete", id }),
+        },
+        { requiresIdentity: true },
+      );
+      if (!response.ok) {
+        const body: unknown = await response.json().catch(() => null);
+        setRemoveError(offlineOrMessage(errorMessageFrom(body, "Could not remove that photo. Try again.")));
+        return;
+      }
+      setWall((current) => ({ ...current, photos: current.photos.filter((photo) => photo.id !== id) }));
+    } catch {
+      setRemoveError(offlineOrMessage("Could not remove that photo. Try again."));
+    } finally {
+      setRemovingId(null);
+    }
+  }
 
   const canPost = configured && user && handle;
   const emptyLine = drinkWallEmptyLine(wall.status === "degraded");
@@ -208,8 +244,14 @@ export default function DrinkWall() {
         <p className="drinkWallEmpty" role="status">{emptyLine}</p>
       ) : null}
 
+      {removeError ? (
+        <p className="drinkWallStatus" role="status">{removeError}</p>
+      ) : null}
+
       <div className="drinkWallGrid">
-        {wall.photos.map((photo) => (
+        {wall.photos.map((photo) => {
+          const place = drinkWallPlaceLine(photo);
+          return (
           <figure className="drinkWallTile" key={photo.id}>
             <Image
               src={photo.url}
@@ -219,13 +261,28 @@ export default function DrinkWall() {
               unoptimized
             />
             <figcaption className="drinkWallByline">
-              @{photo.author.handle}
-              {photo.author.foundingMemberNumber !== undefined ? (
-                <FoundingMemberMark number={photo.author.foundingMemberNumber} />
-              ) : null}
+              {photo.caption ? <span className="drinkWallCaption">{photo.caption}</span> : null}
+              {place ? <span className="drinkWallPlace">{place}</span> : null}
+              <span className="drinkWallAuthor">
+                @{photo.author.handle}
+                {photo.author.foundingMemberNumber !== undefined ? (
+                  <FoundingMemberMark number={photo.author.foundingMemberNumber} />
+                ) : null}
+              </span>
             </figcaption>
+            {photo.ownedByViewer ? (
+              <button
+                type="button"
+                className="drinkWallRemove"
+                disabled={removingId === photo.id}
+                onClick={() => void remove(photo.id)}
+              >
+                {removingId === photo.id ? "Removing…" : "Remove"}
+              </button>
+            ) : null}
           </figure>
-        ))}
+          );
+        })}
       </div>
 
       {wall.nextCursor ? (

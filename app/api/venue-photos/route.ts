@@ -143,7 +143,7 @@ async function deleteOwnPhoto(request: Request, body: Record<string, unknown>): 
   try {
     const store = venuePhotoStore();
     const photo = await store.getById(id);
-    if (!photo || photo.authorProfileId !== profileId) {
+    if (!photo || photo.authorProfileId !== profileId || photo.moderationState !== "approved") {
       return publicApiError("Photo not found.", "NOT_FOUND", 404);
     }
     await venuePhotoRouteDeps().storage.remove([

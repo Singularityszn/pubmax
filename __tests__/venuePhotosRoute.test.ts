@@ -486,6 +486,17 @@ describe("taking a photo down", () => {
     expect(await venuePhotoStore().getById(id)).toBeNull();
   });
 
+  it("refuses an author delete once a moderator has hidden it, so the trail stays", async () => {
+    const storage = deps("approved");
+    const id = await post();
+    await venuePhotoStore().moderate(id, "hidden", "reported");
+
+    const refused = await POST(json({ action: "delete", id }));
+    expect(refused.status).toBe(404);
+    expect(storage.keys()).toHaveLength(1);
+    expect((await venuePhotoStore().getById(id))?.moderationState).toBe("hidden");
+  });
+
   it("lets a reader flag it without hiding it", async () => {
     deps("approved");
     const id = await post();

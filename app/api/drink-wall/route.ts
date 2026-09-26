@@ -21,6 +21,7 @@ import {
   DRINK_WALL_CITY_CAP_PER_ACCOUNT,
   drinkWallCapLine,
   validateDrinkWallSubmission,
+  type DrinkWallPage,
 } from "@/lib/drinkWall";
 import { log } from "@/lib/log";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
@@ -44,6 +45,7 @@ import {
   VenuePhotoError,
   type StagedVenuePhoto,
 } from "@/lib/venuePhotoMedia.server";
+import { resolveVenue } from "@/lib/venueIndex";
 import { venuePhotoRouteDeps } from "@/lib/venuePhotoRouteDeps.server";
 import { VENUE_PHOTO_CAP_PER_ACCOUNT, venuePhotoStore } from "@/lib/venuePhotoStore";
 import {
@@ -308,5 +310,16 @@ export async function GET(request: Request): Promise<Response> {
     viewerProfileId,
     nearVenueIds: nearParsed,
   });
-  return jsonNoStore(page, { status: 200 });
+  const body: DrinkWallPage = {
+    ...page,
+    photos: await Promise.all(
+      page.photos.map(async (photo) => ({
+        ...photo,
+        venueName: photo.venueId
+          ? ((await resolveVenue(photo.venueId).catch(() => null))?.name ?? null)
+          : null,
+      })),
+    ),
+  };
+  return jsonNoStore(body, { status: 200 });
 }

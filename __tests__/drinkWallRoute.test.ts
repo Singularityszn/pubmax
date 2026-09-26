@@ -2,6 +2,9 @@ import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/venueIndex", () => ({
+  resolveVenue: async (id: string) => (id === "venue-abc" ? { id, name: "The Anchor" } : null),
+}));
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -235,5 +238,25 @@ describe("reading the drink wall", () => {
     const body = await response.json();
     expect(body.photos).toHaveLength(1);
     expect(body.photos[0].wallCategory).toBe("london");
+    expect(body.photos[0].venueName).toBe(null);
+  });
+
+  it("names the pub a linked photo was taken at", async () => {
+    const id = crypto.randomUUID();
+    await venuePhotoStore().create({
+      id,
+      venueId: VENUE,
+      wallCategory: "pub",
+      placeLabel: "",
+      authorActor: `profile:${identityState.profileId}`,
+      authorProfileId: identityState.profileId,
+      objectKey: venuePhotoServingKey(VENUE, id),
+      drinkCategory: null,
+      caption: "",
+      width: 1080,
+      height: 1350,
+    });
+    const body = await (await GET(new Request("http://localhost/api/drink-wall?scope=all"))).json();
+    expect(body.photos[0].venueName).toBe("The Anchor");
   });
 });
