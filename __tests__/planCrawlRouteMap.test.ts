@@ -42,6 +42,29 @@ describe("planCrawlRouteGeoJSON", () => {
     expect(routeStops.features[0]?.properties?.label).toBe("1");
     expect(routeStops.features[1]?.properties?.stopName).toContain("Middle");
   });
+
+  it("points each end stop's name at the route's middle so the card edge cannot clip it", () => {
+    const { routeStops } = planCrawlRouteGeoJSON(RESOLVED, RESOLVED.coords, "straight");
+    const sides = routeStops.features.map((feature) => feature.properties?.labelSide);
+    // First stop is the westernmost, last the easternmost.
+    expect(sides[0]).toBe("east");
+    expect(sides[2]).toBe("west");
+  });
+
+  it("measures the middle across a routed detour, not just the stops", () => {
+    const detour: [number, number][] = [
+      [-0.14, 51.51],
+      [-0.2, 51.515],
+      [-0.13, 51.52],
+    ];
+    const { routeStops } = planCrawlRouteGeoJSON(RESOLVED, detour, "ors");
+    // The detour stretches the fitted box west, so every stop sits east of its middle.
+    expect(routeStops.features.map((f) => f.properties?.labelSide)).toEqual([
+      "west",
+      "west",
+      "west",
+    ]);
+  });
 });
 
 describe("buildCrawlMapHref", () => {

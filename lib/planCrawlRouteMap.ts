@@ -50,6 +50,11 @@ export function planCrawlRouteGeoJSON(
         }
       : { type: "FeatureCollection", features: [] };
 
+  // The preview fits the whole route into a small card, so an end stop sits on
+  // its edge. Its name faces the route's middle, or the card edge clips it.
+  const bounds = planCrawlRouteFitBounds(resolved.coords, lineCoords);
+  const midLng = bounds ? (bounds.minLng + bounds.maxLng) / 2 : 0;
+
   const routeStops: GeoJSON.FeatureCollection = {
     type: "FeatureCollection",
     features: resolved.coords.map((coord, index) => ({
@@ -59,6 +64,7 @@ export function planCrawlRouteGeoJSON(
         label: String(index + 1),
         name: resolved.names[index] ?? "",
         stopName: truncateStopName(resolved.names[index] ?? ""),
+        labelSide: coord[0] > midLng ? "west" : "east",
       },
       geometry: { type: "Point" as const, coordinates: coord },
     })),

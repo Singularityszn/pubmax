@@ -73,5 +73,15 @@ export function syncPlanRoutePreviewScene(
   stopsSource?.setData(routeStops);
   if (map.getLayer("route-stops-name")) {
     map.setLayerZoomRange("route-stops-name", 10, 24);
+    // Names face the card's middle (labelSide from planCrawlRouteGeoJSON), and
+    // never the outer edge, which would clip them. Offsets match buildScene's
+    // 1.6em radial offset.
+    map.setLayoutProperty("route-stops-name", "text-variable-anchor-offset", [
+      "match",
+      ["get", "labelSide"],
+      "west",
+      ["literal", ["right", [-1.6, 0], "top", [0, 1.6], "bottom", [0, -1.6]]],
+      ["literal", ["left", [1.6, 0], "top", [0, 1.6], "bottom", [0, -1.6]]],
+    ]);
   }
 }
