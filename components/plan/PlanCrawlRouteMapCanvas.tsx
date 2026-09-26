@@ -87,7 +87,8 @@ export default function PlanCrawlRouteMapCanvas({
     // MapLibre opens the compact attribution expanded and only collapses it on
     // a drag, which this static preview never gets, so the panel would sit on
     // the last stop. Start it at the (i) button. Not a synthetic click: the
-    // preview sits inside the card's Link and the click would navigate.
+    // preview sits inside the card's clickable figure and the click would
+    // navigate to the map.
     const attribution = container.querySelector<HTMLElement>(".maplibregl-ctrl-attrib");
     attribution?.classList.remove("maplibregl-compact-show");
     attribution?.removeAttribute("open");
@@ -105,7 +106,7 @@ export default function PlanCrawlRouteMapCanvas({
       const next = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
       if (next === themeRef.current) return;
       themeRef.current = next;
-      map.setStyle(MAP_STYLES[next]);
+      map.setStyle(MAP_STYLES[next], { diff: false });
       map.once("style.load", paintRoute);
     };
     const themeObserver = new MutationObserver(onTheme);
@@ -124,7 +125,7 @@ export default function PlanCrawlRouteMapCanvas({
   useEffect(() => {
     routeRef.current = { stopCoords, routeLine, routeStops, lineCoords };
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map || !map.getSource("route-line")) return;
     syncPlanRoutePreviewScene(map, routeLine, routeStops);
     fitPreviewRoute(map, stopCoords, lineCoords);
   }, [stopCoords, routeLine, routeStops, lineCoords]);

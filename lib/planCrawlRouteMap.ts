@@ -2,6 +2,7 @@
 // Consecutive stop-to-stop legs only — same wire as GET /api/walk-route and the main map.
 
 import { boundsFromCoords, type Bounds, type LngLat } from "@/lib/routeMiniMap";
+import { truncateStopName } from "@/lib/routeStopLabel";
 
 export type PlanCrawlRouteStop = {
   venueId: string;
@@ -22,26 +23,6 @@ export function planCrawlRouteFitBounds(
   lineCoords: readonly LngLat[],
 ): Bounds | null {
   return boundsFromCoords([...stopCoords, ...lineCoords]);
-}
-
-/** Straight pub-to-pub segments between consecutive stops only (N stops → N−1 legs). */
-export function planCrawlStraightLineCoords(stops: LngLat[]): LngLat[] {
-  if (stops.length < 2) return [];
-  const pairs = stopPairs(stops);
-  const line: LngLat[] = [];
-  for (const pair of pairs) {
-    if (line.length === 0) line.push(pair.from);
-    line.push(pair.to);
-  }
-  return line;
-}
-
-const ROUTE_STOP_LABEL_MAX = 18;
-
-function truncateStopName(name: string, max = ROUTE_STOP_LABEL_MAX): string {
-  const trimmed = name.trim();
-  if (trimmed.length <= max) return trimmed;
-  return `${trimmed.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
 
 export function planCrawlRouteGeoJSON(
