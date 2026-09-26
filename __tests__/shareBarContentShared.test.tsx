@@ -72,3 +72,47 @@ describe("ShareBar content_shared surface", () => {
     expect(sharedSurfaces()).toEqual(["plan", "recap"]);
   });
 });
+
+describe("ShareBar intent shares", () => {
+  // Per the HTML spec, window.open returns null whenever "noopener" is in the
+  // features, and only a blocked popup returns null otherwise.
+  function stubWindowOpen(blocked: boolean) {
+    const popup = { opener: window as unknown };
+    return vi.spyOn(window, "open").mockImplementation((_url, _target, features) => {
+      if (blocked || String(features ?? "").includes("noopener")) return null;
+      return popup as unknown as Window;
+    });
+  }
+
+  async function clickShare(label: string): Promise<void> {
+    await act(async () => {
+      container.querySelector<HTMLAnchorElement>(`a[aria-label="${label}"]`)?.click();
+    });
+  }
+
+  function status(): string {
+    return container.querySelector('[role="status"]')?.textContent ?? "";
+  }
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each([
+    ["Share on X", "x"],
+    ["Share on WhatsApp", "whatsapp"],
+  ])("%s records content_shared and severs the opener", async (label, channel) => {
+    const open = stubWindowOpen(false);
+    await render("/plan/abc");
+    await clickShare(label);
+    expect(analytics.trackEvent).toHaveBeenCalledWith("content_shared", { channel, surface: "plan" });
+    expect(status()).toBe("");
+    expect(open.mock.results[0]?.value).toMatchObject({ opener: null });
+  });
+
+  it("reports a blocked popup without recording a share", async () => {
+    stubWindowOpen(true);
+    await render("/plan/abc");
+    await clickShare("Share on X");
+    expect(sharedSurfaces()).toEqual([]);
+    expect(status()).toBe("Could not open sharing app. Try again.");
+  });
+});

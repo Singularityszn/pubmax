@@ -1,5 +1,5 @@
 /** How long after an account's first verification its sign-in still counts as the sign-up. */
-export const USER_SIGNED_UP_WINDOW_MS = 5 * 60_000;
+const USER_SIGNED_UP_WINDOW_MS = 5 * 60_000;
 
 /**
  * Whether a SIGNED_IN is the account's sign-up. Anchored on `confirmed_at`,

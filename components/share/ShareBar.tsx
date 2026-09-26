@@ -133,8 +133,13 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
       const absolute = toAbsoluteUrl(url);
       setShareError("");
       try {
-        const opened = window.open(build(absolute), "_blank", "noopener,noreferrer");
-        if (opened) return true;
+        // A "noopener" open always returns null, which would hide a blocked
+        // popup, so open plainly and sever the opener on the returned window.
+        const opened = window.open(build(absolute), "_blank");
+        if (opened) {
+          opened.opener = null;
+          return true;
+        }
       } catch {
         // The browser can block an external handoff before it creates a window.
       }
