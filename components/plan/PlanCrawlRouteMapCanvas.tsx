@@ -84,6 +84,13 @@ export default function PlanCrawlRouteMapCanvas({
       touchPitch: false,
     });
     mapRef.current = map;
+    // MapLibre opens the compact attribution expanded and only collapses it on
+    // a drag, which this static preview never gets, so the panel would sit on
+    // the last stop. Start it at the (i) button. Not a synthetic click: the
+    // preview sits inside the card's Link and the click would navigate.
+    const attribution = container.querySelector<HTMLElement>(".maplibregl-ctrl-attrib");
+    attribution?.classList.remove("maplibregl-compact-show");
+    attribution?.removeAttribute("open");
 
     const paintRoute = () => {
       const route = routeRef.current;

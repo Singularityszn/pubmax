@@ -33,6 +33,12 @@ test.describe("locked plan route map", () => {
   test.beforeEach(async ({ page }) => {
     await installAuthDoubles(page);
     await seedSignedIn(page);
+    // The identity nudge (lib/identityNudge.ts) fires after the plan locks and
+    // lays a backdrop over the route card this test taps. It has its own
+    // coverage; pre-dismissing it is what a returning visitor already carries.
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
+    });
   });
 
   test("shows a real map preview and deep-links to the crawl on the main map", async ({
@@ -52,6 +58,9 @@ test.describe("locked plan route map", () => {
     const mapPreview = page.locator(".planRouteMiniMap__canvas.maplibreMap");
     await expect(mapPreview).toBeVisible({ timeout: 60_000 });
     await expect(page.locator(".planRouteMiniMap__canvas .maplibregl-canvas")).toBeVisible();
+    // The credit starts at its (i) button: an open panel covers the last stop.
+    await expect(page.locator(".planRouteMiniMap__canvas .maplibregl-ctrl-attrib-button")).toBeVisible();
+    await expect(page.locator(".planRouteMiniMap__canvas .maplibregl-ctrl-attrib-inner")).toBeHidden();
 
     const mapLink = page.locator("a.planRoute__mapLink");
     await expect(mapLink).toBeVisible();

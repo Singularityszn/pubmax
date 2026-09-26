@@ -4,12 +4,12 @@ import { createElement, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/components/plan/PlanCrawlRouteMapCanvas", () => ({
-  default: () => {
-    const React = require("react");
-    return React.createElement("div", { "data-testid": "plan-crawl-route-map" });
-  },
-}));
+vi.mock("@/components/plan/PlanCrawlRouteMapCanvas", async () => {
+  const React = await import("react");
+  return {
+    default: () => React.createElement("div", { "data-testid": "plan-crawl-route-map" }),
+  };
+});
 
 import PlanRouteMiniMap from "@/components/plan/PlanRouteMiniMap";
 
