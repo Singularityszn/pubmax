@@ -19,7 +19,7 @@ import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
 import { discardBody } from "@/lib/responseBody";
 import { laneSourceFromSearch, trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
-import { trackErrorShown } from "@/lib/analyticsErrorShown";
+import { errorShownKindFromStatus, trackErrorShown } from "@/lib/analyticsErrorShown";
 import { ASK_PLAN_DRAFT_STORAGE_KEY, type AskPlanDraft } from "@/lib/ask/types";
 import {
   parsePlanDescribeFromSearch,
@@ -1739,6 +1739,7 @@ function PlanComposerForm({
     setSorting(true);
     setError("");
     setRouteStatus("Refreshing the route, rechecking every stop against your updated night.");
+    let responseStatus: number | null = null;
     try {
       const response = await fetch("/api/plans/generate", {
         method: "POST",
@@ -1751,6 +1752,7 @@ function PlanComposerForm({
           handoff?.acceptedAnchor,
         )),
       });
+      responseStatus = response.status;
       const body = await readApiJson(response) as {
         stops?: unknown;
         alternatives?: unknown;
@@ -1815,7 +1817,7 @@ function PlanComposerForm({
       // error notice cannot tell a reader with no route on screen that "the
       // earlier route is still here".
       const failureStatus = planGenerationFailureStatus(message, stops.length > 0);
-      trackErrorShown("plan", "server");
+      trackErrorShown("plan", errorShownKindFromStatus(responseStatus));
       setError(failureStatus);
       setRouteStale(true);
       setRouteStatus(failureStatus);

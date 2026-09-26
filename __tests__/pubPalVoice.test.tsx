@@ -650,6 +650,8 @@ describe("Pub Pal voice controls", () => {
       onError?: (error: unknown) => void;
       onDisconnect?: () => void;
     };
+    // The SDK may report the disconnect synchronously from endSession().
+    voice.endSession.mockImplementation(() => session.onDisconnect?.());
     await act(async () => {
       session.onConnect?.();
       await Promise.resolve();
@@ -657,6 +659,8 @@ describe("Pub Pal voice controls", () => {
 
     unmount();
     await settle();
+    const ended = analytics.trackEvent.mock.calls.filter(([name]) => name === "voice_ended");
+    expect(ended).toEqual([["voice_ended", { reason: "user" }]]);
     expect(voice.endSession).toHaveBeenCalledOnce();
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
 

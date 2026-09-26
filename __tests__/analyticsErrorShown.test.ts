@@ -23,4 +23,16 @@ describe("trackErrorShown", () => {
     trackErrorShown("admin" as "plan", "server");
     expect(trackEvent).not.toHaveBeenCalled();
   });
+
+  it("derives the error kind from the failed request's status", async () => {
+    const { errorShownKindFromStatus } = await import("@/lib/analyticsErrorShown");
+    expect(errorShownKindFromStatus(null)).toBe("network");
+    expect(errorShownKindFromStatus(401)).toBe("auth");
+    expect(errorShownKindFromStatus(403)).toBe("auth");
+    expect(errorShownKindFromStatus(400)).toBe("validation");
+    expect(errorShownKindFromStatus(429)).toBe("validation");
+    expect(errorShownKindFromStatus(500)).toBe("server");
+    expect(errorShownKindFromStatus(503)).toBe("server");
+    expect(errorShownKindFromStatus(200)).toBe("unknown");
+  });
 });

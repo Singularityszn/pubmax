@@ -120,6 +120,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
         return;
       }
       attempt.cancelled = true;
+      attempt.voiceEndReason ??= "user";
       if (attempt.sdkSessionStarted) {
         attempt.sdkSessionStarted = false;
         endSession();
