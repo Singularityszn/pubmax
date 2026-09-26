@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Encode the founder's London photographs for the landing collage.
 //
-// Run by hand when a photograph joins the set (scripts/AGENTS.md: curation, not
-// build). Reads LONDON_COLLAGE_PHOTOS from lib/landingLondonCollage.ts, strips
+// Run by hand when a photograph joins the set, never by a build: a picture of
+// a place is a curation decision (the landing imagery rule in
+// docs/rules/lib-venues-areas-listings-and-nights.md). Reads LONDON_COLLAGE_PHOTOS from lib/landingLondonCollage.ts, strips
 // every byte of EXIF/GPS/device metadata, writes responsive AVIF/WebP under
 // public/landing/london-collage/, and prints each photo's width, height and
 // blurDataUrl to paste back into that list.
