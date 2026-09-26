@@ -72,6 +72,7 @@ describe("ask router model eval harness", () => {
     expect(firstToolMatchesCase(["search_venues", "whats_on"], caseDef)).toBe(false);
     expect(anyToolMatchesCase(["search_venues", "whats_on"], caseDef)).toBe(true);
     expect(firstToolMatchesCase([], caseDef)).toBe(false);
+    expect(firstToolMatchesCase(["find_pub", "whats_on"], caseDef)).toBe(false);
     expect(anyToolMatchesCase(["search_venues"], caseDef)).toBe(false);
   });
 
@@ -93,7 +94,7 @@ describe("ask router model eval harness", () => {
     const expectedByQuery = new Map(
       cases.map((row) => [row.query.slice(0, 500), row.expectedTool]),
     );
-    const [rateLimited, unpriced, sprayed] = cases;
+    const [rateLimited, unpriced, sprayed, hallucinated] = cases;
     let calls = 0;
     vi.stubGlobal(
       "fetch",
@@ -102,6 +103,7 @@ describe("ask router model eval harness", () => {
         const query = userQuery(init);
         if (query === rateLimited!.query) return new Response("slow down", { status: 429 });
         const expected = expectedByQuery.get(query)!;
+        if (query === hallucinated!.query) return toolReply(["find_pub", expected], 0.001);
         if (query === sprayed!.query) {
           const decoy = expected === "search_venues" ? "whats_on" : "search_venues";
           return toolReply([decoy, expected], 0.001);
@@ -119,7 +121,7 @@ describe("ask router model eval harness", () => {
       cases: cases.length,
       errors: 1,
       answered: cases.length - 1,
-      correct: cases.length - 2,
+      correct: cases.length - 3,
       anyToolCorrect: cases.length - 1,
       anyToolAccuracyPct: 100,
       unpricedCalls: 1,

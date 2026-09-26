@@ -92,7 +92,7 @@ function askModelRequest(input: {
 }
 
 export type ProbeAskModelToolChoiceResult = {
-  /** Allowlisted tool names among the first three calls, in call order. */
+  /** Names of the first three tool calls as the model sent them, in call order (not allowlist-filtered). */
   tools: string[];
   latencyMs: number;
   promptTokens: number;
@@ -149,8 +149,7 @@ export async function probeAskModelToolChoice(input: {
     const body = (await response.json()) as AskModelResponseBody;
     const tools = (body.choices?.[0]?.message?.tool_calls ?? [])
       .slice(0, 3)
-      .map((call) => call.function?.name ?? "")
-      .filter((name) => isAskToolName(name));
+      .map((call) => call.function?.name ?? "");
     const cost = body.usage?.cost;
     return {
       tools,
