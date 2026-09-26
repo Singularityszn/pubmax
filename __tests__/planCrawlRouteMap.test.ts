@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { createPropertyExpression, latest } from "@maplibre/maplibre-gl-style-spec";
 
+import { PREVIEW_STOP_NAME_ANCHOR_OFFSET } from "@/components/map/canvas/planRoutePreviewScene";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
 import {
   planCrawlRouteFitBounds,
@@ -64,6 +66,37 @@ describe("planCrawlRouteGeoJSON", () => {
       "west",
       "west",
     ]);
+  });
+});
+
+describe("preview stop-name anchors", () => {
+  // Evaluate the layout expression the way MapLibre does, per stop feature, and
+  // read back the anchors placement may pick from, in order of preference.
+  function anchorsFor(feature: GeoJSON.Feature): string[] {
+    const parsed = createPropertyExpression(
+      PREVIEW_STOP_NAME_ANCHOR_OFFSET,
+      "layout.text-variable-anchor-offset",
+      latest.layout_symbol["text-variable-anchor-offset"] as never,
+    );
+    if (parsed.result !== "success") throw new Error(JSON.stringify(parsed.value));
+    const collection = parsed.value.evaluate({ zoom: 13 }, {
+      type: "Point",
+      properties: feature.properties ?? {},
+    }) as { values: (string | [number, number])[] };
+    return collection.values.filter((value): value is string => typeof value === "string");
+  }
+
+  it("keeps every fallback growing inward, so a collided end-stop name never overhangs the card edge", () => {
+    const { routeStops } = planCrawlRouteGeoJSON(RESOLVED, RESOLVED.coords, "straight");
+    const first = anchorsFor(routeStops.features[0]!);
+    const last = anchorsFor(routeStops.features[2]!);
+
+    // Westernmost stop: text is anchored on its left edge, so it runs east.
+    expect(first[0]).toBe("left");
+    for (const anchor of first) expect(anchor).toMatch(/left$/);
+    // Easternmost stop: text is anchored on its right edge, so it runs west.
+    expect(last[0]).toBe("right");
+    for (const anchor of last) expect(anchor).toMatch(/right$/);
   });
 });
 

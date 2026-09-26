@@ -10,6 +10,21 @@ function emptyPoiHidden(): Record<PoiCategory, boolean> {
   return Object.fromEntries(POI_CATEGORIES.map((key) => [key, false])) as Record<PoiCategory, boolean>;
 }
 
+/**
+ * Names face the card's middle (labelSide from planCrawlRouteGeoJSON), and
+ * never the outer edge, which would clip them. That holds for the fallbacks
+ * too: when the side anchor collides, a name drops under or over its disc but
+ * still grows inward, instead of centring on a disc that sits at the card edge.
+ * Offsets match buildScene's 1.6em radial offset.
+ */
+export const PREVIEW_STOP_NAME_ANCHOR_OFFSET = [
+  "match",
+  ["get", "labelSide"],
+  "west",
+  ["literal", ["right", [-1.6, 0], "top-right", [0.6, 1.6], "bottom-right", [0.6, -1.6]]],
+  ["literal", ["left", [1.6, 0], "top-left", [-0.6, 1.6], "bottom-left", [-0.6, -1.6]]],
+] satisfies maplibregl.ExpressionSpecification;
+
 /** Route line + numbered stops on the live basemap — same layers as PubMapCanvas. */
 export function syncPlanRoutePreviewScene(
   map: maplibregl.Map,
@@ -73,15 +88,6 @@ export function syncPlanRoutePreviewScene(
   stopsSource?.setData(routeStops);
   if (map.getLayer("route-stops-name")) {
     map.setLayerZoomRange("route-stops-name", 10, 24);
-    // Names face the card's middle (labelSide from planCrawlRouteGeoJSON), and
-    // never the outer edge, which would clip them. Offsets match buildScene's
-    // 1.6em radial offset.
-    map.setLayoutProperty("route-stops-name", "text-variable-anchor-offset", [
-      "match",
-      ["get", "labelSide"],
-      "west",
-      ["literal", ["right", [-1.6, 0], "top", [0, 1.6], "bottom", [0, -1.6]]],
-      ["literal", ["left", [1.6, 0], "top", [0, 1.6], "bottom", [0, -1.6]]],
-    ]);
+    map.setLayoutProperty("route-stops-name", "text-variable-anchor-offset", PREVIEW_STOP_NAME_ANCHOR_OFFSET);
   }
 }
