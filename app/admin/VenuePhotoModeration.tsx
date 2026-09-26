@@ -10,11 +10,12 @@
 
 import Image from "next/image";
 
-import { venuePhotoServePath } from "@/lib/venuePhotos";
+import { DRINK_WALL_CATEGORY_LABEL, photoServePath, type DrinkWallCategory } from "@/lib/venuePhotos";
 
 export type ModeratorVenuePhoto = {
   id: string;
-  venueId: string;
+  venueId: string | null;
+  wallCategory?: DrinkWallCategory;
   authorProfileId: string;
   caption: string;
   drinkCategory: string | null;
@@ -39,7 +40,13 @@ export type VenuePhotoModerationProps = {
 };
 
 function venueLabel(photo: ModeratorVenuePhoto, names: Map<string, string>): string {
+  if (!photo.venueId) return "City wall";
   return names.get(photo.venueId) ?? photo.venueId;
+}
+
+function wallCategoryLabel(photo: ModeratorVenuePhoto): string {
+  const cat = photo.wallCategory ?? "pint";
+  return DRINK_WALL_CATEGORY_LABEL[cat];
 }
 
 export default function VenuePhotoModeration({
@@ -76,7 +83,7 @@ export default function VenuePhotoModeration({
               <div className="admin-photos">
                 <Image
                   className="admin-photo"
-                  src={venuePhotoServePath(photo.venueId, photo.id)}
+                  src={photoServePath({ id: photo.id, venueId: photo.venueId })}
                   alt={`Reported photo at ${venueLabel(photo, venueNames)}`}
                   width={96}
                   height={120}
@@ -85,6 +92,7 @@ export default function VenuePhotoModeration({
               </div>
               <div className="admin-meta">
                 {photo.caption ? <span>{photo.caption}</span> : null}
+                <span className="admin-report">Wall: {wallCategoryLabel(photo)}</span>
                 {photo.drinkCategory ? (
                   <span className="admin-report">Drink: {photo.drinkCategory}</span>
                 ) : null}

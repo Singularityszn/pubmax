@@ -279,6 +279,8 @@ describe("posting a photo to a wall", () => {
       await store.create({
         id: photoId,
         venueId: VENUE,
+        wallCategory: "pint",
+        placeLabel: "",
         authorActor: `profile:${identityState.profileId}`,
         authorProfileId: identityState.profileId,
         objectKey: venuePhotoServingKey(VENUE, photoId),

@@ -55,7 +55,7 @@ import {
   prepareVenuePhoto,
   promoteStagedVenuePhoto,
   signVenuePhotoObject,
-  stagePreparedVenuePhoto,
+  stagePreparedWallPhoto,
   VENUE_PHOTO_MAX_BYTES,
   VenuePhotoError,
   type StagedVenuePhoto,
@@ -67,8 +67,8 @@ import {
 import {
   validateVenuePhotoSubmission,
   VENUE_PHOTO_REFUSED_LINE,
+  photoServePath,
   venuePhotoCapLine,
-  venuePhotoServePath,
   type VenuePhotoCrosspost,
 } from "@/lib/venuePhotos";
 import { venuePhotoRouteDeps } from "@/lib/venuePhotoRouteDeps.server";
@@ -161,6 +161,30 @@ export async function POST(request: Request): Promise<Response> {
           : publicApiError("Photo not found.", "NOT_FOUND", 404);
       } catch (err) {
         log("error", "venue_photo.report_failed", {
+          route: "POST /api/venue-photos",
+          error: err instanceof Error ? err.message : String(err),
+        });
+        return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
+          retryable: true,
+        });
+      }
+    }
+
+    if (body.action === "delete") {
+      const contributor = await resolveContributionIdentity(request);
+      if (!contributor.ok) {
+        return jsonNoStore(contributor.body, { status: contributor.httpStatus });
+      }
+      const id = readString(body.id);
+      if (!id) return publicApiError("Photo not found.", "NOT_FOUND", 404);
+      const profileId = contributor.actor.replace(/^profile:/, "");
+      try {
+        const done = await venuePhotoStore().deleteByAuthor(id, profileId);
+        return done
+          ? jsonNoStore({ ok: true }, { status: 200 })
+          : publicApiError("Photo not found.", "NOT_FOUND", 404);
+      } catch (err) {
+        log("error", "venue_photo.delete_failed", {
           route: "POST /api/venue-photos",
           error: err instanceof Error ? err.message : String(err),
         });
@@ -292,7 +316,7 @@ export async function POST(request: Request): Promise<Response> {
   let staged: StagedVenuePhoto | null = null;
   try {
     const prepared = await prepareVenuePhoto(submitted.photo);
-    staged = await stagePreparedVenuePhoto(submission.venueId, photoId, prepared, storage);
+    staged = await stagePreparedWallPhoto(submission.venueId, photoId, prepared, storage);
 
     const signedUrl = await signVenuePhotoObject(staged.stagingKey, storage);
     const scan = await scanUploadedImage({
@@ -315,6 +339,8 @@ export async function POST(request: Request): Promise<Response> {
     const created = await store.create({
       id: photoId,
       venueId: submission.venueId,
+      wallCategory: submission.wallCategory,
+      placeLabel: submission.placeLabel,
       authorActor: contributor.actor,
       authorProfileId: profileId,
       objectKey: promoted.objectKey,
@@ -342,7 +368,7 @@ export async function POST(request: Request): Promise<Response> {
         photo: {
           id: created.id,
           venueId: created.venueId,
-          url: venuePhotoServePath(created.venueId, created.id),
+          url: photoServePath(created),
           drinkCategory: created.drinkCategory,
           caption: created.caption,
           width: created.width,

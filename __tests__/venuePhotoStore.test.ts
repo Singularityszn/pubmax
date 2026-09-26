@@ -39,6 +39,8 @@ function fields(
   return {
     id: photoId,
     venueId,
+    wallCategory: rest.wallCategory ?? "pint",
+    placeLabel: rest.placeLabel ?? "",
     authorActor: `profile:${profileId}`,
     authorProfileId: profileId,
     objectKey: venuePhotoServingKey(venueId, photoId),

@@ -281,6 +281,18 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
         ) : null}
       </section>
 
+      <section className="outWallDiscovery" aria-labelledby="out-wall-discovery-heading">
+        <h2 id="out-wall-discovery-heading" className="outSectionTitle">
+          Drink Wall
+        </h2>
+        <p className="outStatus">
+          Pints, pub fronts and London views from drinkers on the map.{" "}
+          <Link prefetch={false} href="/wall" className="outPlansFootLink">
+            Browse the wall
+          </Link>
+        </p>
+      </section>
+
       <EditorialRail />
 
       {openPlansPreview ? (

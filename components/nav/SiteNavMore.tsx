@@ -29,6 +29,7 @@ import { createPortal } from "react-dom";
 import { SOCIAL_NAV_MATCH, navPathMatches } from "@/components/nav/navigationModel";
 
 export const SITE_NAV_MORE_LINKS: readonly SiteNavMoreLinkItem[] = [
+  { href: "/wall", label: "Drink Wall", description: "Pints, pubs and London in photos" },
   { href: "/near", label: "Near", description: "Find priced pubs close to you" },
   { href: "/historic", label: "Historic", description: "Read the stories behind old pubs" },
   { href: "/pal", label: "Pal", description: "Ask for a pub that fits tonight" },

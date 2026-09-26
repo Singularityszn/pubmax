@@ -98,7 +98,7 @@ export type AccountExportCoverPhoto = {
 /** One photo this account put on a pub wall, named by its key and never its bytes. */
 export type AccountExportWallPhoto = {
   id: string;
-  venueId: string;
+  venueId: string | null;
   objectKey: string;
   caption: string;
   drinkCategory: DrinkCategory | null;
