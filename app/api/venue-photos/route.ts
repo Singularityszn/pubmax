@@ -2,6 +2,7 @@
 //
 //   POST multipart { post: <json>, photo: <file> }  -> 201 { photo, crosspost }
 //   POST { action: "report", id, reason? }          -> 200 { ok }   (public)
+//   POST { action: "delete", id }                   -> 200 { ok }   (author)
 //   POST { action: "hide" | "restore", id, note? }  -> 200 { ok }   (moderator)
 //   GET  ?venueId=...&cursor=&limit=                -> 200 { status, photos, nextCursor }
 //   GET  ?status=reported | hidden                  -> 200 { photos } (moderator)
@@ -68,6 +69,7 @@ import {
   validateVenuePhotoSubmission,
   VENUE_PHOTO_REFUSED_LINE,
   photoServePath,
+  photoStagingKey,
   venuePhotoCapLine,
   type VenuePhotoCrosspost,
 } from "@/lib/venuePhotos";
@@ -130,6 +132,39 @@ function wallAgeRefusalLine(refusal: ContributionAdultRefusal): string {
   return `Photo walls are for over-18s. Confirm your age on ${surface}.`;
 }
 
+async function deleteOwnPhoto(request: Request, body: Record<string, unknown>): Promise<Response> {
+  const contributor = await resolveContributionIdentity(request);
+  if (!contributor.ok) {
+    return jsonNoStore(contributor.body, { status: contributor.httpStatus });
+  }
+  const id = readString(body.id);
+  if (!id) return publicApiError("Photo not found.", "NOT_FOUND", 404);
+  const profileId = contributor.actor.replace(/^profile:/, "");
+  try {
+    const store = venuePhotoStore();
+    const photo = await store.getById(id);
+    if (!photo || photo.authorProfileId !== profileId) {
+      return publicApiError("Photo not found.", "NOT_FOUND", 404);
+    }
+    await venuePhotoRouteDeps().storage.remove([
+      photo.objectKey,
+      photoStagingKey(photo.id, photo.venueId),
+    ]);
+    const done = await store.deleteByAuthor(id, profileId);
+    return done
+      ? jsonNoStore({ ok: true }, { status: 200 })
+      : publicApiError("Photo not found.", "NOT_FOUND", 404);
+  } catch (err) {
+    log("error", "venue_photo.delete_failed", {
+      route: "POST /api/venue-photos",
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
+}
+
 export async function POST(request: Request): Promise<Response> {
   const contentType = (request.headers.get("Content-Type") ?? "").toLowerCase();
 
@@ -170,29 +205,7 @@ export async function POST(request: Request): Promise<Response> {
       }
     }
 
-    if (body.action === "delete") {
-      const contributor = await resolveContributionIdentity(request);
-      if (!contributor.ok) {
-        return jsonNoStore(contributor.body, { status: contributor.httpStatus });
-      }
-      const id = readString(body.id);
-      if (!id) return publicApiError("Photo not found.", "NOT_FOUND", 404);
-      const profileId = contributor.actor.replace(/^profile:/, "");
-      try {
-        const done = await venuePhotoStore().deleteByAuthor(id, profileId);
-        return done
-          ? jsonNoStore({ ok: true }, { status: 200 })
-          : publicApiError("Photo not found.", "NOT_FOUND", 404);
-      } catch (err) {
-        log("error", "venue_photo.delete_failed", {
-          route: "POST /api/venue-photos",
-          error: err instanceof Error ? err.message : String(err),
-        });
-        return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
-          retryable: true,
-        });
-      }
-    }
+    if (body.action === "delete") return deleteOwnPhoto(request, body);
 
     if (body.action === "hide" || body.action === "restore") {
       if (!isModerator(request)) return publicApiError("Not authorised.", "FORBIDDEN", 403);
@@ -340,7 +353,7 @@ export async function POST(request: Request): Promise<Response> {
       id: photoId,
       venueId: submission.venueId,
       wallCategory: submission.wallCategory,
-      placeLabel: submission.placeLabel,
+      placeLabel: "",
       authorActor: contributor.actor,
       authorProfileId: profileId,
       objectKey: promoted.objectKey,

@@ -2,7 +2,9 @@
 //
 //   GET  ?category=&cursor=&limit=&scope=all|near&nearVenueIds=id,id
 //   POST multipart { post: <json>, photo: <file> }
-//   POST { action: "report" | "delete", id, reason? }
+//
+// Reports and author deletes go through /api/venue-photos, which takes any
+// venue_photos row by id, city rows included.
 
 import { assertServerEnv } from "@/lib/serverEnv";
 import { accountIsAdult } from "@/lib/adultGate";
@@ -30,8 +32,7 @@ import {
   SOCIAL_FRIENDS_LAUNCH_ENV,
   socialSurfaceName,
 } from "@/lib/socialLaunch";
-import { clientIp, hashActor, hashIp } from "@/lib/supabase";
-import { readString } from "@/lib/textClean";
+import { hashActor } from "@/lib/supabase";
 import { scanUploadedImage } from "@/lib/uploadedImageScan.server";
 import {
   discardStagedVenuePhoto,
@@ -44,19 +45,19 @@ import {
   type StagedVenuePhoto,
 } from "@/lib/venuePhotoMedia.server";
 import { venuePhotoRouteDeps } from "@/lib/venuePhotoRouteDeps.server";
-import { venuePhotoStore } from "@/lib/venuePhotoStore";
+import { VENUE_PHOTO_CAP_PER_ACCOUNT, venuePhotoStore } from "@/lib/venuePhotoStore";
 import {
   isDrinkWallCategory,
   isVenuePhotoVenueId,
   photoServePath,
   VENUE_PHOTO_REFUSED_LINE,
+  venuePhotoCapLine,
 } from "@/lib/venuePhotos";
 
 assertServerEnv();
 
 const UPLOAD_LIMIT = 12;
 const UPLOAD_WINDOW_MS = 60 * 60 * 1000;
-const REPORT_PER_ACTOR_LIMIT = 1;
 
 function photoError(error: unknown): Response {
   if (error instanceof VenuePhotoError) {
@@ -67,14 +68,6 @@ function photoError(error: unknown): Response {
     });
   }
   return publicApiError("Photo could not be processed.", "PROCESSING_FAILED", 400);
-}
-
-async function parseJson(request: Request): Promise<Record<string, unknown> | null> {
-  try {
-    return (await request.json()) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
 }
 
 async function parseUpload(
@@ -117,63 +110,6 @@ export async function POST(request: Request): Promise<Response> {
   const contentType = (request.headers.get("Content-Type") ?? "").toLowerCase();
 
   if (!contentType.startsWith("multipart/form-data")) {
-    const body = await parseJson(request);
-    if (!body) return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
-
-    if (body.action === "report") {
-      const id = readString(body.id);
-      if (!id) return publicApiError("Photo not found.", "NOT_FOUND", 404);
-      const actorHash = hashActor(`drink-wall:${hashIp(clientIp(request))}`);
-      const flagKey = `drink-wall-report:${id}`;
-      const actorKey = `${flagKey}:${actorHash}`;
-      if (
-        (await isLimited(flagKey, flagKey)) ||
-        (await isLimited(actorKey, actorKey, REPORT_PER_ACTOR_LIMIT))
-      ) {
-        return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, {
-          retryable: true,
-        });
-      }
-      try {
-        const done = await venuePhotoStore().report(id, readString(body.reason), actorHash);
-        return done
-          ? jsonNoStore({ ok: true }, { status: 200 })
-          : publicApiError("Photo not found.", "NOT_FOUND", 404);
-      } catch (err) {
-        log("error", "drink_wall.report_failed", {
-          route: "POST /api/drink-wall",
-          error: err instanceof Error ? err.message : String(err),
-        });
-        return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
-          retryable: true,
-        });
-      }
-    }
-
-    if (body.action === "delete") {
-      const contributor = await resolveContributionIdentity(request);
-      if (!contributor.ok) {
-        return jsonNoStore(contributor.body, { status: contributor.httpStatus });
-      }
-      const id = readString(body.id);
-      if (!id) return publicApiError("Photo not found.", "NOT_FOUND", 404);
-      const profileId = contributor.actor.replace(/^profile:/, "");
-      try {
-        const done = await venuePhotoStore().deleteByAuthor(id, profileId);
-        return done
-          ? jsonNoStore({ ok: true }, { status: 200 })
-          : publicApiError("Photo not found.", "NOT_FOUND", 404);
-      } catch (err) {
-        log("error", "drink_wall.delete_failed", {
-          route: "POST /api/drink-wall",
-          error: err instanceof Error ? err.message : String(err),
-        });
-        return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
-          retryable: true,
-        });
-      }
-    }
-
     return publicApiError("Send the photo as multipart form data.", "INVALID_REQUEST", 400);
   }
 
@@ -226,7 +162,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   const submission = validation.value;
 
-  const limiterKey = `drink-wall:${hashActor(contributor.actor)}`;
+  const limiterKey = `venue-photo:${hashActor(contributor.actor)}`;
   if (
     await isLimited(limiterKey, limiterKey, UPLOAD_LIMIT, UPLOAD_WINDOW_MS, {
       failClosed: true,
@@ -239,22 +175,27 @@ export async function POST(request: Request): Promise<Response> {
 
   const store = venuePhotoStore();
   const profileId = contributor.actor.replace(/^profile:/, "");
-  if (submission.venueId === null) {
-    let cityHeld: number;
-    try {
-      cityHeld = await store.countCityPhotosForAuthor(profileId);
-    } catch (err) {
-      log("error", "drink_wall.city_count_failed", {
-        route: "POST /api/drink-wall",
-        error: err instanceof Error ? err.message : String(err),
-      });
-      return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
-        retryable: true,
-      });
-    }
-    if (cityHeld >= DRINK_WALL_CITY_CAP_PER_ACCOUNT) {
-      return publicApiError(drinkWallCapLine(), "PHOTO_CAP_REACHED", 409);
-    }
+  const venueId = submission.venueId;
+  let held: number;
+  try {
+    held =
+      venueId === null
+        ? await store.countCityPhotosForAuthor(profileId)
+        : await store.countForAuthorAtVenue(profileId, venueId);
+  } catch (err) {
+    log("error", "drink_wall.count_failed", {
+      route: "POST /api/drink-wall",
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
+  if (venueId === null && held >= DRINK_WALL_CITY_CAP_PER_ACCOUNT) {
+    return publicApiError(drinkWallCapLine(), "PHOTO_CAP_REACHED", 409);
+  }
+  if (venueId !== null && held >= VENUE_PHOTO_CAP_PER_ACCOUNT) {
+    return publicApiError(venuePhotoCapLine(), "PHOTO_CAP_REACHED", 409);
   }
 
   const photoId = crypto.randomUUID();

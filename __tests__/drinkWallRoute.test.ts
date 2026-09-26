@@ -72,8 +72,14 @@ import {
   profileStore,
 } from "@/lib/profileStore";
 import type { VenuePhotoStorage } from "@/lib/venuePhotoMedia.server";
-import { __resetVenuePhotos, venuePhotoStore } from "@/lib/venuePhotoStore";
-import { drinkWallServingKey } from "@/lib/venuePhotos";
+import {
+  __resetVenuePhotos,
+  VENUE_PHOTO_CAP_PER_ACCOUNT,
+  venuePhotoStore,
+} from "@/lib/venuePhotoStore";
+import { drinkWallServingKey, venuePhotoServingKey } from "@/lib/venuePhotos";
+
+const VENUE = "venue-abc";
 
 async function jpeg(): Promise<File> {
   const bytes = await sharp({
@@ -158,6 +164,43 @@ describe("posting a london photo to the drink wall", () => {
     expect(storage.keys()).toEqual([drinkWallServingKey(body.photo.id)]);
   });
 
+  it("takes a pint with no pub linked", async () => {
+    const storage = deps("approved");
+    const response = await POST(upload(await jpeg(), { wallCategory: "pint", drinkCategory: "beer" }));
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.photo.venueId).toBe(null);
+    expect(storage.keys()).toEqual([drinkWallServingKey(body.photo.id)]);
+  });
+
+  it("holds a pub-linked photo to the captain's hundred for that pub", async () => {
+    const storage = deps("approved");
+    const store = venuePhotoStore();
+    for (let i = 0; i < VENUE_PHOTO_CAP_PER_ACCOUNT; i += 1) {
+      const photoId = crypto.randomUUID();
+      await store.create({
+        id: photoId,
+        venueId: VENUE,
+        wallCategory: "pint",
+        placeLabel: "",
+        authorActor: `profile:${identityState.profileId}`,
+        authorProfileId: identityState.profileId,
+        objectKey: venuePhotoServingKey(VENUE, photoId),
+        drinkCategory: null,
+        caption: "",
+        width: 1080,
+        height: 1350,
+      });
+    }
+    const response = await POST(upload(await jpeg(), { wallCategory: "pub", venueId: VENUE }));
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("PHOTO_CAP_REACHED");
+    expect(storage.uploads).toHaveLength(0);
+
+    const unlinked = await POST(upload(await jpeg(), { wallCategory: "pub" }));
+    expect(unlinked.status).toBe(201);
+  });
+
   it("refuses over the drink-wall upload budget", async () => {
     limitState.limited = true;
     const storage = deps("approved");
@@ -165,7 +208,7 @@ describe("posting a london photo to the drink wall", () => {
     expect(response.status).toBe(429);
     expect(storage.uploads).toHaveLength(0);
     expect(limitState.calls).toHaveLength(1);
-    expect(limitState.calls[0].key).toMatch(/^drink-wall:/);
+    expect(limitState.calls[0].key).toMatch(/^venue-photo:/);
     expect(limitState.calls[0].opts?.failClosed).toBe(true);
   });
 });

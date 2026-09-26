@@ -9,7 +9,6 @@ import {
   isDrinkWallCategory,
   isVenuePhotoVenueId,
   parseVenuePhotoDrinkCategory,
-  type VenuePhotoDTO,
 } from "@/lib/venuePhotos";
 import type { DrinkCategory } from "@/lib/drinks";
 
@@ -20,10 +19,8 @@ export {
   isDrinkWallCategory,
 };
 
-/** Per account for city-only rows (venue_id null). */
+/** Per account for rows linked to no pub (venue_id null). */
 export const DRINK_WALL_CITY_CAP_PER_ACCOUNT = 100;
-
-export type DrinkWallScope = "all" | "near";
 
 export type DrinkWallSubmission = {
   wallCategory: DrinkWallCategory;
@@ -31,7 +28,6 @@ export type DrinkWallSubmission = {
   placeLabel: string;
   drinkCategory: DrinkCategory | null;
   caption: string;
-  shareToFeed: boolean;
 };
 
 export type DrinkWallValidation =
@@ -57,10 +53,6 @@ export function validateDrinkWallSubmission(input: unknown): DrinkWallValidation
     venueId = venueRaw;
   }
 
-  if ((wallCategory === "pint" || wallCategory === "pub") && !venueId) {
-    return { ok: false, error: "Link this photo to a pub." };
-  }
-
   const drinkCategory =
     wallCategory === "pint" ? parseVenuePhotoDrinkCategory(raw.drinkCategory) : null;
   if (wallCategory === "pint" && drinkCategory === undefined) {
@@ -75,7 +67,6 @@ export function validateDrinkWallSubmission(input: unknown): DrinkWallValidation
       placeLabel: cleanDrinkWallPlaceLabel(raw.placeLabel),
       drinkCategory: wallCategory === "pint" ? drinkCategory ?? null : null,
       caption: cleanVenuePhotoCaption(raw.caption),
-      shareToFeed: raw.shareToFeed === true,
     },
   };
 }
@@ -101,10 +92,6 @@ export function drinkWallAltText(photo: {
   return `${where}, by @${photo.author.handle}`;
 }
 
-export type DrinkWallPhotoDTO = VenuePhotoDTO & {
-  venueName?: string | null;
-};
-
 export const DRINK_WALL_SIGN_IN_LINE =
   "Sign in and pick a handle to add a photo to the Drink Wall.";
 
@@ -126,5 +113,3 @@ export function drinkWallCaptionHint(category: DrinkWallCategory): string {
   }
   return "Optional: name the drink or the moment.";
 }
-
-export const DRINK_WALL_PER_PHOTO_BUDGET_BYTES = 4 * 1024 * 1024;

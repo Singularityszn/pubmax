@@ -1,4 +1,5 @@
--- Drink Wall (0158): extend venue_photos with wall categories and optional pub link.
+-- Drink Wall (0158): extend venue_photos with wall categories and an optional pub
+-- link for every category.
 -- Captain / firstmate applies. Agents ship SQL only.
 -- venue_photos stays service-role only (0098): no client grants or policies here.
 -- The tombstone trigger is not restated: 0156 already deletes every venue_photos
@@ -24,14 +25,6 @@ alter table public.venue_photos drop constraint if exists venue_photos_place_lab
 alter table public.venue_photos
   add constraint venue_photos_place_label_check
   check (char_length(place_label) <= 80);
-
-alter table public.venue_photos drop constraint if exists venue_photos_category_venue_check;
-alter table public.venue_photos
-  add constraint venue_photos_category_venue_check
-  check (
-    (wall_category in ('pint', 'pub') and venue_id is not null)
-    or (wall_category = 'london')
-  );
 
 alter table public.venue_photos drop constraint if exists venue_photos_object_key_check;
 alter table public.venue_photos

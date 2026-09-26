@@ -8,7 +8,6 @@ revoke all on table public.venue_photos from anon, authenticated;
 
 delete from public.venue_photos where venue_id is null;
 
-alter table public.venue_photos drop constraint if exists venue_photos_category_venue_check;
 alter table public.venue_photos drop constraint if exists venue_photos_place_label_check;
 alter table public.venue_photos drop constraint if exists venue_photos_wall_category_check;
 alter table public.venue_photos drop constraint if exists venue_photos_object_key_check;

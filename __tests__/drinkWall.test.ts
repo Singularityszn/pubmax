@@ -4,9 +4,14 @@ import { validateDrinkWallSubmission } from "@/lib/drinkWall";
 import { drinkWallServingKey, photoObjectKey, venuePhotoServingKey } from "@/lib/venuePhotos";
 
 describe("drink wall submission", () => {
-  it("requires a pub for pint and pub categories", () => {
-    expect(validateDrinkWallSubmission({ wallCategory: "pint" }).ok).toBe(false);
-    expect(validateDrinkWallSubmission({ wallCategory: "pub", venueId: "venue-abc" }).ok).toBe(true);
+  it("takes every category with or without a linked pub", () => {
+    for (const wallCategory of ["pint", "pub", "london"]) {
+      const unlinked = validateDrinkWallSubmission({ wallCategory });
+      expect(unlinked.ok && unlinked.value.venueId).toBe(null);
+      const linked = validateDrinkWallSubmission({ wallCategory, venueId: "venue-abc" });
+      expect(linked.ok && linked.value.venueId).toBe("venue-abc");
+    }
+    expect(validateDrinkWallSubmission({ wallCategory: "pub", venueId: "../etc" }).ok).toBe(false);
   });
 
   it("allows city london without a venue", () => {
