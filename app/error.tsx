@@ -2,17 +2,17 @@
 
 // Route-segment error boundary. Any unhandled render/runtime error in a page
 // (outside the map, which has its own WebGL fallback) lands here as a calm,
-// on-brand recovery screen instead of a white screen. `reset()` re-renders the
-// segment; the Home link is the always-works escape hatch.
+// on-brand recovery screen instead of a white screen. `retry()` re-fetches and
+// re-renders the segment; the Home link is the always-works escape hatch.
 import Link from "next/link";
 import { useEffect } from "react";
 
 export default function Error({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   useEffect(() => {
     // Surface it for logs/monitoring; never swallow silently.
@@ -69,7 +69,7 @@ export default function Error({
         >
           <button
             type="button"
-            onClick={reset}
+            onClick={() => retry()}
             style={{
               minHeight: "44px",
               padding: "0 20px",

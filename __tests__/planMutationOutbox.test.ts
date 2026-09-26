@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { markActivePlan, readActivePlan, setActivePlanStopIndex } from "@/lib/activePlan";
 import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
 import {
   __resetPlanMutationOutboxForTests,
+  applyActivePlanFlushRollbacks,
   enqueueNightCrawlAction,
   flushPlanMutationOutbox,
   hasPendingPlanMutation,
@@ -214,5 +216,172 @@ describe("planMutationOutbox", () => {
     expect(bResults[0]?.planId).toBe("plan-b");
     expect(listPlanMutationOutbox()).toHaveLength(0);
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  describe("active-plan cursor rollback after a replay", () => {
+    const PLAN = "11111111-1111-4111-8111-111111111111";
+    const stops = [
+      { venueId: "venue-1", venueName: "The Bull", position: 0 },
+      { venueId: "venue-2", venueName: "The Fox", position: 1 },
+    ];
+
+    // Two held taps, arrived at stop 0 then stop 1, each advancing the cursor
+    // by one, exactly as NightCrawlMode writes them while offline.
+    // With `clampFinal`, the last tap is on the final stop, where the advance
+    // clamps and the cursor stays put.
+    async function holdBothStops({ clampFinal = false } = {}): Promise<void> {
+      markActivePlan(PLAN, new Date().toISOString());
+      for (const heldStop of stops) {
+        const optimisticCursor = clampFinal
+          ? Math.min(heldStop.position + 1, stops.length - 1)
+          : heldStop.position + 1;
+        await enqueueNightCrawlAction({
+          planId: PLAN,
+          type: "arrived",
+          stop: heldStop,
+          idempotencyKey: `key-${heldStop.position}`,
+          fingerprint: `fp-${heldStop.position}`,
+          previousCursor: heldStop.position,
+          optimisticCursor,
+        });
+        setActivePlanStopIndex(optimisticCursor);
+      }
+    }
+
+    function answerByStop(statusFor: (position: number) => number): void {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_path: string, init?: RequestInit) => {
+          const { stopPosition } = JSON.parse(String(init?.body)) as { stopPosition: number };
+          const status = statusFor(stopPosition);
+          return new Response(
+            JSON.stringify(status < 300 ? { stops, plan: {}, crew: [], actions: [] } : { error: "no" }),
+            { status, headers: { "content-type": "application/json" } },
+          );
+        }),
+      );
+    }
+
+    it("keeps the cursor past a later stop that went through when an earlier one is refused", async () => {
+      await holdBothStops();
+      answerByStop((position) => (position === 0 ? 422 : 200));
+
+      const results = await flushPlanMutationOutbox({ planId: PLAN });
+      expect(results.map((row) => row.outcome)).toEqual(["rejected", "confirmed"]);
+
+      applyActivePlanFlushRollbacks(results);
+      expect(readActivePlan()?.stopIndex).toBe(2);
+      // The site-wide host and the plan page both receive the same batch.
+      applyActivePlanFlushRollbacks(results);
+      expect(readActivePlan()?.stopIndex).toBe(2);
+    });
+
+    it("keeps the cursor on a confirmed final stop when an earlier one is refused", async () => {
+      await holdBothStops({ clampFinal: true });
+      answerByStop((position) => (position === 0 ? 422 : 200));
+
+      const results = await flushPlanMutationOutbox({ planId: PLAN });
+      expect(results.map((row) => row.outcome)).toEqual(["rejected", "confirmed"]);
+
+      applyActivePlanFlushRollbacks(results);
+      expect(readActivePlan()?.stopIndex).toBe(1);
+    });
+
+    it("keeps the cursor on a still-held final stop when an earlier one is refused", async () => {
+      await holdBothStops({ clampFinal: true });
+      answerByStop((position) => (position === 0 ? 403 : 503));
+
+      const results = await flushPlanMutationOutbox({ planId: PLAN });
+      expect(results.map((row) => row.outcome)).toEqual(["forbidden", "offline"]);
+
+      applyActivePlanFlushRollbacks(results);
+      expect(readActivePlan()?.stopIndex).toBe(1);
+    });
+
+    it("keeps the cursor on a final stop queued after the replay took its snapshot", async () => {
+      markActivePlan(PLAN, new Date().toISOString());
+      const [firstStop, finalStop] = stops;
+      await enqueueNightCrawlAction({
+        planId: PLAN,
+        type: "arrived",
+        stop: firstStop,
+        idempotencyKey: "key-0",
+        fingerprint: "fp-0",
+        previousCursor: 0,
+        optimisticCursor: 1,
+      });
+      setActivePlanStopIndex(1);
+
+      let answer: (response: Response) => void = () => undefined;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() => new Promise<Response>((resolve) => {
+          answer = resolve;
+        })),
+      );
+      const flushing = flushPlanMutationOutbox({ planId: PLAN });
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+
+      await enqueueNightCrawlAction({
+        planId: PLAN,
+        type: "arrived",
+        stop: finalStop,
+        idempotencyKey: "key-1",
+        fingerprint: "fp-1",
+        previousCursor: 1,
+        optimisticCursor: 1,
+      });
+      answer(new Response(JSON.stringify({ error: "no" }), { status: 422 }));
+
+      const results = await flushing;
+      expect(results.map((row) => row.outcome)).toEqual(["rejected"]);
+
+      applyActivePlanFlushRollbacks(results);
+      expect(readActivePlan()?.stopIndex).toBe(1);
+    });
+
+    it("unwinds two refusals in a row back to the first stop's starting point", async () => {
+      await holdBothStops();
+      answerByStop(() => 403);
+
+      const results = await flushPlanMutationOutbox({ planId: PLAN });
+      expect(results.map((row) => row.outcome)).toEqual(["forbidden", "forbidden"]);
+
+      applyActivePlanFlushRollbacks(results);
+      expect(readActivePlan()?.stopIndex).toBe(0);
+      applyActivePlanFlushRollbacks(results);
+      expect(readActivePlan()?.stopIndex).toBe(0);
+    });
+
+    it("rolls back the later stop alone when only it is refused", async () => {
+      await holdBothStops();
+      answerByStop((position) => (position === 1 ? 409 : 200));
+
+      const results = await flushPlanMutationOutbox({ planId: PLAN });
+      expect(results.map((row) => row.outcome)).toEqual(["confirmed", "conflict"]);
+
+      applyActivePlanFlushRollbacks(results);
+      expect(readActivePlan()?.stopIndex).toBe(1);
+    });
+
+    it("leaves a cursor the drinker has since moved by hand", async () => {
+      await holdBothStops();
+      answerByStop(() => 422);
+      setActivePlanStopIndex(5);
+
+      applyActivePlanFlushRollbacks(await flushPlanMutationOutbox({ planId: PLAN }));
+      expect(readActivePlan()?.stopIndex).toBe(5);
+    });
+
+    it("never moves another plan's cursor", async () => {
+      await holdBothStops();
+      answerByStop(() => 422);
+      const results = await flushPlanMutationOutbox({ planId: PLAN });
+      markActivePlan("22222222-2222-4222-8222-222222222222", new Date().toISOString());
+      setActivePlanStopIndex(2);
+
+      applyActivePlanFlushRollbacks(results);
+      expect(readActivePlan()?.stopIndex).toBe(2);
+    });
   });
 });

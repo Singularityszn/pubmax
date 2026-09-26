@@ -30,59 +30,68 @@ import { discardBody } from "@/lib/responseBody";
 /** One bug should not become a thousand log lines from one tab. */
 export const CLIENT_ERROR_SESSION_CAP = 5;
 
+/**
+ * One reporter's send path: redact, cap, dedupe, then beacon. Each sender
+ * keeps its own cap and dedupe set, so a caller that outlives a remount (the
+ * root error boundary across "Try again") shares one budget.
+ */
+export function createClientErrorSender(): (kind: ClientErrorKind, thrown: unknown) => void {
+  let sent = 0;
+  // The same error thrown on every render is one finding, not many.
+  const seen = new Set<string>();
+
+  return (kind, thrown) => {
+    try {
+      if (sent >= CLIENT_ERROR_SESSION_CAP) return;
+      const { name, message } = describeThrownValue(thrown);
+      const built = buildClientErrorReport({
+        kind,
+        name,
+        message,
+        path: window.location.pathname,
+        shell: isNativeApp() ? "native" : "web",
+      });
+      if (!built) return;
+      const fingerprint = `${built.kind}|${built.name}|${built.message}|${built.route}`;
+      if (seen.has(fingerprint)) return;
+      seen.add(fingerprint);
+      sent += 1;
+
+      const payload = JSON.stringify({
+        kind: built.kind,
+        name: built.name,
+        message: built.message,
+        path: built.route,
+        shell: built.shell,
+      });
+
+      // sendBeacon survives the page going away mid-crash, which is exactly
+      // the case this exists for. Where it is missing or refuses the queue,
+      // a keepalive fetch is the same promise by another name.
+      const beacon = navigator.sendBeacon?.bind(navigator);
+      if (beacon?.("/api/client-error", new Blob([payload], { type: "application/json" }))) {
+        return;
+      }
+      void fetch("/api/client-error", {
+        method: "POST",
+        keepalive: true,
+        headers: { "content-type": "application/json" },
+        body: payload,
+      })
+        .then(discardBody)
+        .catch(() => {
+          // Reporting is best effort. A failed report is not an error worth
+          // reporting, and raising here would report itself.
+        });
+    } catch {
+      // Same reason: the reporter may never be the thing that throws.
+    }
+  };
+}
+
 export default function ClientErrorReporter() {
   useEffect(() => {
-    let sent = 0;
-    // The same error thrown on every render is one finding, not many.
-    const seen = new Set<string>();
-
-    const report = (kind: ClientErrorKind, thrown: unknown) => {
-      try {
-        if (sent >= CLIENT_ERROR_SESSION_CAP) return;
-        const { name, message } = describeThrownValue(thrown);
-        const built = buildClientErrorReport({
-          kind,
-          name,
-          message,
-          path: window.location.pathname,
-          shell: isNativeApp() ? "native" : "web",
-        });
-        if (!built) return;
-        const fingerprint = `${built.kind}|${built.name}|${built.message}|${built.route}`;
-        if (seen.has(fingerprint)) return;
-        seen.add(fingerprint);
-        sent += 1;
-
-        const payload = JSON.stringify({
-          kind: built.kind,
-          name: built.name,
-          message: built.message,
-          path: built.route,
-          shell: built.shell,
-        });
-
-        // sendBeacon survives the page going away mid-crash, which is exactly
-        // the case this exists for. Where it is missing or refuses the queue,
-        // a keepalive fetch is the same promise by another name.
-        const beacon = navigator.sendBeacon?.bind(navigator);
-        if (beacon?.("/api/client-error", new Blob([payload], { type: "application/json" }))) {
-          return;
-        }
-        void fetch("/api/client-error", {
-          method: "POST",
-          keepalive: true,
-          headers: { "content-type": "application/json" },
-          body: payload,
-        })
-          .then(discardBody)
-          .catch(() => {
-            // Reporting is best effort. A failed report is not an error worth
-            // reporting, and raising here would report itself.
-          });
-      } catch {
-        // Same reason: the reporter may never be the thing that throws.
-      }
-    };
+    const report = createClientErrorSender();
 
     const onError = (event: ErrorEvent) => {
       report("error", event.error ?? event.message);

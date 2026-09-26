@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 
+import { formatGbp } from "@/lib/formatGbp";
 import { pubSources, writerProfile } from "@/lib/curation";
 import { curatedCrawls as londonCuratedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import type { CityId } from "@/lib/cities";
@@ -293,7 +294,7 @@ export default function ControlRail({
           {/* The slider's top end is the OFF value, so it reads as no cap
               rather than as a figure it never applies. */}
           <strong>
-            {filters.maxPrice >= NO_PINT_PRICE_CAP ? "Any" : `£${filters.maxPrice.toFixed(2)}`}
+            {filters.maxPrice >= NO_PINT_PRICE_CAP ? "Any" : formatGbp(filters.maxPrice)}
           </strong>
         </div>
         <input

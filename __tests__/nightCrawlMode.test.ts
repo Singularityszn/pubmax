@@ -112,9 +112,9 @@ const PLAN: PlanState = {
   actions: [],
 };
 
-function renderMode(): ReactElement | null {
+function renderMode(initialState: PlanState = PLAN): ReactElement | null {
   harness.stateCursor = 0;
-  return NightCrawlMode({ planId: PLAN_ID, initialState: PLAN });
+  return NightCrawlMode({ planId: PLAN_ID, initialState });
 }
 
 function textOf(node: ReactNode): string {
@@ -222,6 +222,38 @@ describe("NightCrawlMode failed action reconciliation", () => {
       (element) => (element.props as { role?: string }).role === "status",
     );
     expect(textOf(status)).toBe("That did not save. Try again when you have signal.");
+  });
+
+  it("leaves the cursor where the batch rollback put it when a held stop is refused too", async () => {
+    const threeStops: PlanState = {
+      ...PLAN,
+      stops: [...PLAN.stops, { venueId: "venue-2", venueName: "Third Arms", position: 2 }],
+    };
+    harness.activeCursor = 1;
+    harness.flush.mockImplementation(async () => {
+      // The shared flush's listeners unwind both refusals before this tap resumes.
+      harness.activeCursor = 0;
+      return [
+        { planId: PLAN_ID, entryId: `night-crawl-action:${PLAN_ID}:arrived:0`, outcome: "forbidden", previousCursor: 0, optimisticCursor: 1 },
+        { planId: PLAN_ID, entryId: `night-crawl-action:${PLAN_ID}:arrived:1`, outcome: "forbidden", previousCursor: 1, optimisticCursor: 2 },
+      ];
+    });
+
+    const firstRender = renderMode(threeStops);
+    const arrive = findElement(
+      firstRender,
+      (element) => element.type === "button" && textOf(element).includes("We are here"),
+    );
+
+    expect(arrive).not.toBeNull();
+    await (arrive?.props as { onClick: () => Promise<void> }).onClick();
+
+    await vi.waitFor(() => {
+      expect(harness.clearMutationKey).toHaveBeenCalled();
+    });
+    expect(harness.setActiveCursor).toHaveBeenCalledWith(2);
+    expect(harness.activeCursor).toBe(0);
+    expect(textOf(renderMode(threeStops))).toContain("First Arms");
   });
 });
 

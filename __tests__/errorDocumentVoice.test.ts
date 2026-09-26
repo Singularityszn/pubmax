@@ -118,7 +118,7 @@ describe("error and not-found documents", () => {
     const markup = renderToStaticMarkup(
       createElement(ErrorBoundary, {
         error: Object.assign(new Error("boom"), { digest: "abc123" }),
-        reset: () => undefined,
+        retry: () => undefined,
       }),
     );
     expect(markup).toContain("Try again");

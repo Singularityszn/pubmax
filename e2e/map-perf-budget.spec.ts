@@ -22,6 +22,11 @@ const EAGER_JS_DECODED_BUDGET_KB = 3400;
 // map route boots without depending on a painted WebGL canvas.
 const MAP_BOOT_TIMEOUT_MS = 45_000;
 
+// A retry can turn a real budget breach into a lucky-sample pass (see
+// __tests__/performanceBudgetGate.test.ts for the incident this guards
+// against), so this sweep opts out of the shared CI retry.
+test.describe.configure({ retries: 0 });
+
 test("mobile /map stays within the eager-JS budget and boots", async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 390, height: 844 });
