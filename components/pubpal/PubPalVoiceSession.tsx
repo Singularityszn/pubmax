@@ -228,7 +228,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             attempt.sdkSessionStarted = false;
             void finalizeSession(attempt);
           },
-          onError: () => {
+          onError: (message) => {
             if (!ownsAttempt(attempt)) return;
             startController.settle();
             setIsStarting(false);
@@ -237,7 +237,8 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
               attempt.sdkSessionStarted = false;
               endSession();
             }
-            setError(PAL_VOICE_START_ERROR);
+            const detail = typeof message === "string" ? message.trim() : "";
+            setError(detail || PAL_VOICE_START_ERROR);
             onStateChange?.("error");
             void finalizeSession(attempt);
           },

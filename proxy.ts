@@ -421,7 +421,10 @@ export function securityProxy(request: NextRequest) {
   const inlineScriptSource = cdnCachedDocument
     ? "'unsafe-inline'"
     : `'nonce-${nonce}'`;
-  const scriptSrc = `script-src 'self' ${inlineScriptSource} https://va.vercel-scripts.com${clerkScript}${isDev ? " 'unsafe-eval'" : ""}`;
+  // ElevenLabs voice loads AudioWorklet processors from blob:/data: URLs when
+  // self-hosted worklet paths are not passed; without these the session dies
+  // after conversation_initiation_metadata.
+  const scriptSrc = `script-src 'self' blob: data: ${inlineScriptSource} https://va.vercel-scripts.com${clerkScript}${isDev ? " 'unsafe-eval'" : ""}`;
 
   // frame-src did not exist before Clerk: framing fell through to `child-src
   // blob:`, so blob: frames were the only ones allowed. Turnstile and Clerk's
