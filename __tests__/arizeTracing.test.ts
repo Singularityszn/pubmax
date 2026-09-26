@@ -125,23 +125,64 @@ describe("Arize tracing is inert without the keys", () => {
     expect(registerTelemetry).not.toHaveBeenCalled();
   });
 
-  it("hands the model call an undefined span and still returns its result", async () => {
+  it("hands the model call a usage-only handle and still returns its result", async () => {
     delete process.env.ARIZE_API_KEY;
     delete process.env.ARIZE_SPACE_KEY;
 
-    const seen: (unknown | undefined)[] = [];
     const result = await traceArizeModelCall({
       route: "api/heritage",
       model: "anthropic/claude-sonnet-4-5",
       call: async (span) => {
-        seen.push(span);
-        span?.setUsage({ promptTokens: 3 });
-        span?.setOutput("never sent");
+        span.setUsage({ promptTokens: 3 });
+        span.setOutput("never sent");
         return "answer";
       },
     });
     expect(result).toBe("answer");
-    expect(seen).toEqual([undefined]);
+  });
+
+  it("reports $ai_generation token counts to PostHog with Arize off", async () => {
+    delete process.env.ARIZE_API_KEY;
+    delete process.env.ARIZE_SPACE_KEY;
+    process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await traceArizeModelCall({
+        route: "api/heritage",
+        model: "anthropic/claude-sonnet-4-5",
+        call: async (span) => {
+          span.setUsage({ promptTokens: 3, completionTokens: 4, totalTokens: 7 });
+          return "answer";
+        },
+      });
+      await traceArizeModelLoop({
+        route: "api/ask",
+        model: "anthropic/claude-sonnet-4-5",
+        run: async ({ modelRound }) => {
+          const round = modelRound({ prompt: "anything" });
+          round.setUsage({ promptTokens: 11, completionTokens: 5 });
+          round.end();
+          round.end();
+          return null;
+        },
+      });
+      const generations = fetchMock.mock.calls
+        .map(([, init]) => JSON.parse(String((init as RequestInit).body)))
+        .filter((body) => body.event === "$ai_generation")
+        .map((body) => ({
+          route: body.properties.route,
+          input: body.properties.$ai_input_tokens,
+          output: body.properties.$ai_output_tokens,
+        }));
+      expect(generations).toEqual([
+        { route: "api/heritage", input: 3, output: 4 },
+        { route: "api/ask", input: 11, output: 5 },
+      ]);
+    } finally {
+      delete process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
+      vi.unstubAllGlobals();
+    }
   });
 
   it("keeps errors flowing when inert", async () => {
@@ -159,7 +200,7 @@ describe("Arize tracing is inert without the keys", () => {
     ).rejects.toThrow("provider down");
   });
 
-  it("runs the model loop with undefined spans when inert", async () => {
+  it("runs the model loop with no tool spans when inert", async () => {
     delete process.env.ARIZE_API_KEY;
     delete process.env.ARIZE_SPACE_KEY;
 
@@ -169,14 +210,14 @@ describe("Arize tracing is inert without the keys", () => {
       run: async ({ modelRound, toolCall }) => {
         const round = modelRound({ prompt: "anything" });
         const tool = toolCall({ name: "propose_map_action", input: { area: "Camden" } });
-        round?.setUsage({ promptTokens: 1 });
-        round?.setOutput("no-op");
-        round?.end();
+        round.setUsage({ promptTokens: 1 });
+        round.setOutput("no-op");
+        round.end();
         tool?.setOutput("no-op");
         tool?.end();
-        return { rounds: [round, tool] };
+        return { tool };
       },
     });
-    expect(result).toEqual({ rounds: [undefined, undefined] });
+    expect(result).toEqual({ tool: undefined });
   });
 });

@@ -10,18 +10,19 @@ export function isInternalAnalyticsUserId(value: string): boolean {
 
 /**
  * Bind consented analytics to the signed-in account using Supabase user id only.
- * Never pass email, handle, or display name.
+ * Never pass email, handle, or display name. Acts only when the person the SDK
+ * holds differs from the session's, so token refreshes never reset the session.
  */
 export function syncPosthogPersonIdentity(userId: string | null): void {
   if (typeof window === "undefined" || !analyticsCollectionAllowed()) return;
   void loadPosthogClientForIdentity().then((client) => {
     if (!client) return;
+    const currentId = client.get_distinct_id();
     if (!userId) {
-      client.reset(true);
-      syncPosthogConsent(true);
+      if (isInternalAnalyticsUserId(currentId)) syncPosthogConsent(true);
       return;
     }
-    if (!isInternalAnalyticsUserId(userId)) return;
+    if (!isInternalAnalyticsUserId(userId) || currentId === userId) return;
     client.identify(userId);
   }).catch(() => undefined);
 }

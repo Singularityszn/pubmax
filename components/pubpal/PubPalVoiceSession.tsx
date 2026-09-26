@@ -23,6 +23,7 @@ import {
 import { Mic, MicOff, Send } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
+import type { VoiceEndReason } from "@/lib/analyticsEvents";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
@@ -53,7 +54,7 @@ type VoiceSessionAttempt = {
   connectedAt: number | null;
   capTimer: number | null;
   voiceEndReported: boolean;
-  voiceEndReason: "user" | "disconnect" | "cap" | "error";
+  voiceEndReason: VoiceEndReason | null;
 };
 
 async function releaseVoiceSession(durationSeconds: number): Promise<void> {
@@ -96,7 +97,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   const finalizeSession = useCallback(async (attempt: VoiceSessionAttempt) => {
     if (attempt.connectedAt !== null && !attempt.voiceEndReported) {
       attempt.voiceEndReported = true;
-      trackEvent("voice_ended", { reason: attempt.voiceEndReason });
+      trackEvent("voice_ended", { reason: attempt.voiceEndReason ?? "disconnect" });
     }
     if (attempt.released) return;
     clearCapTimer(attempt);
@@ -134,8 +135,8 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     else if (isListening) onStateChange?.("listening");
   }, [isListening, isSpeaking, onStateChange, status]);
 
-  const stop = useCallback(async (attempt: VoiceSessionAttempt) => {
-    if (!attempt.voiceEndReported) attempt.voiceEndReason = "user";
+  const stop = useCallback(async (attempt: VoiceSessionAttempt, reason: VoiceEndReason = "user") => {
+    attempt.voiceEndReason ??= reason;
     if (!ownsAttempt(attempt)) return;
     const wasCurrent = activeAttemptRef.current === attempt;
     attempt.cancelled = true;
@@ -166,8 +167,8 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
       sdkSessionStarted: false,
       connectedAt: null,
       capTimer: null,
-        voiceEndReported: false,
-        voiceEndReason: "disconnect",
+      voiceEndReported: false,
+      voiceEndReason: null,
     };
     activeAttemptRef.current = attempt;
     setError(null);
@@ -226,12 +227,11 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             attempt.connectedAt = Date.now();
             clearCapTimer(attempt);
             attempt.capTimer = window.setTimeout(() => {
-              attempt.voiceEndReason = "cap";
-              void stop(attempt);
+              void stop(attempt, "cap");
             }, maxSessionSeconds * 1000);
           },
           onDisconnect: () => {
-            attempt.voiceEndReason = "disconnect";
+            attempt.voiceEndReason ??= "disconnect";
             if (!ownsAttempt(attempt)) return;
             startController.settle();
             setIsStarting(false);
@@ -240,7 +240,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             void finalizeSession(attempt);
           },
           onError: (message) => {
-            attempt.voiceEndReason = "error";
+            attempt.voiceEndReason ??= "error";
             if (!ownsAttempt(attempt)) return;
             startController.settle();
             setIsStarting(false);

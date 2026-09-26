@@ -5,6 +5,7 @@ import { offlineOrMessage } from "@/lib/apiErrorMessage";
 import { useCallback, useRef, useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
+import type { ContentShareSurface } from "@/lib/analyticsEvents";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
 
 import "./share.css";
@@ -38,18 +39,24 @@ type ShareBarProps = {
   compact?: boolean;
 };
 
-// Resolve a possibly-relative url to an absolute one, lazily, at click time.
-// A url that is already absolute is returned untouched; anything else is
-// resolved against the current origin. Guarded so a bad input never throws.
-
-function shareSurfaceFromUrl(url: string): "plan" | "recap" | "poster" | "tonight" | "other" {
-  if (url.includes("/plan/")) return "plan";
-  if (url.includes("/recap")) return "recap";
-  if (url.includes("poster") || url.includes("/p/")) return "poster";
-  if (url.includes("/tonight")) return "tonight";
+// Which shareable route a link points at, read from its path alone.
+function shareSurfaceFromUrl(url: string): ContentShareSurface {
+  let pathname: string;
+  try {
+    pathname = new URL(url, "https://pubmaxxing.com").pathname;
+  } catch {
+    return "other";
+  }
+  if (/^\/(plan\/[^/]+\/)?recap(\/|$)/.test(pathname)) return "recap";
+  if (/^\/plan(\/|$)/.test(pathname)) return "plan";
+  if (/^\/crawls\/[^/]+/.test(pathname)) return "poster";
+  if (/^\/tonight(\/|$)/.test(pathname)) return "tonight";
   return "other";
 }
 
+// Resolve a possibly-relative url to an absolute one, lazily, at click time.
+// A url that is already absolute is returned untouched; anything else is
+// resolved against the current origin. Guarded so a bad input never throws.
 function toAbsoluteUrl(url: string): string {
   if (typeof window === "undefined") return url;
   try {
@@ -81,7 +88,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
   const trackPlanInvite = useCallback((channel: string) => {
     if (isPlanInvite) trackEvent("plan_invite_sent", { channel });
     trackEvent("content_shared", { channel, surface: shareSurfaceFromUrl(url) });
-  }, [isPlanInvite]);
+  }, [isPlanInvite, url]);
 
   const flashCopied = useCallback(() => {
     setCopied(true);

@@ -68,3 +68,34 @@ export async function capturePosthogEvent(input: {
     return false;
   }
 }
+
+/**
+ * Fire-and-forget one server-originated event under a fixed server distinct id,
+ * with no person profile. The caller owns which properties are safe to send.
+ */
+export function capturePosthogServerEvent(input: {
+  event: string;
+  distinctId: string;
+  properties: Record<string, unknown>;
+}): void {
+  const apiKey = posthogProjectToken();
+  if (!apiKey) return;
+
+  void fetch(POSTHOG_EU_CAPTURE_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      api_key: apiKey,
+      event: input.event,
+      properties: {
+        ...input.properties,
+        ...currentAnalyticsAttributionProps(),
+        distinct_id: input.distinctId,
+        $process_person_profile: false,
+      },
+      timestamp: new Date().toISOString(),
+    }),
+    cache: "no-store",
+    signal: AbortSignal.timeout(POSTHOG_TIMEOUT_MS),
+  }).catch(() => undefined);
+}

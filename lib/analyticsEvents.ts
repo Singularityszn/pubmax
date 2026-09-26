@@ -424,6 +424,18 @@ export type LandingCtaTarget = (typeof LANDING_CTA_TARGETS)[number];
 export const VENUE_SHEET_LAYERS = ["curated", "uk_base"] as const;
 export type VenueSheetLayer = (typeof VENUE_SHEET_LAYERS)[number];
 
+export const STOP_ADDED_SURFACES = ["map", "plan", "round"] as const;
+export const ROUTE_OPENED_SURFACES = ["map", "plan"] as const;
+export const VOICE_END_REASONS = ["user", "disconnect", "cap", "error"] as const;
+export type VoiceEndReason = (typeof VOICE_END_REASONS)[number];
+export const CONTENT_SHARE_CHANNELS = ["copy", "native", "whatsapp", "x", "sms", "instagram", "tiktok"] as const;
+export const CONTENT_SHARE_SURFACES = ["plan", "recap", "poster", "tonight", "other"] as const;
+export type ContentShareSurface = (typeof CONTENT_SHARE_SURFACES)[number];
+export const ERROR_SHOWN_SURFACES = [
+  "landing", "home", "map", "tonight", "plan", "you", "pal", "recap", "near", "other",
+] as const;
+export const ERROR_SHOWN_KINDS = ["network", "auth", "validation", "server", "unknown"] as const;
+
 /**
  * How many reviewed late-food terminals the food-ending shortlist held.
  *
@@ -552,8 +564,6 @@ const SAFE_STRING_VALUES = new Set([
   "curated", "uk_base", "pending",
   // Share-link add funnel: the one surface, the two doors, the three outcomes.
   "add-link", "signin", "added", "failed", "unavailable",
-  "map", "plan", "round", "user", "disconnect", "cap",
-  "network", "auth", "validation", "server",
   // Crowd occupancy: the three buttons, the four now-read states, the two
   // surfaces that may report. `degraded` and `pal` already sit above.
   "empty", "some-seats", "full", "fresh", "stale", "none", "venue-sheet",
@@ -580,6 +590,14 @@ const SAFE_STRING_VALUES = new Set([
   // Invite loop vocabulary: RSVP status and the closed reaction set.
   ...RSVP_STATUSES,
   ...REACTION_KEYS,
+  // Journey events: the closed surfaces, reasons, channels and error kinds.
+  ...STOP_ADDED_SURFACES,
+  ...ROUTE_OPENED_SURFACES,
+  ...VOICE_END_REASONS,
+  ...CONTENT_SHARE_CHANNELS,
+  ...CONTENT_SHARE_SURFACES,
+  ...ERROR_SHOWN_SURFACES,
+  ...ERROR_SHOWN_KINDS,
 ]);
 
 const TRUSTED_HANDOFF_REQUIRED_KEYS = {
@@ -904,22 +922,7 @@ function isAllowedMessageAttachProp(
   return includesValue(["photos", "camera", "document"], value);
 }
 
-/**
- * The four loop moments' strictness (#252's named set, shipped 5 September
- * 2026). Each key belongs to exactly one of these events, so the checks are
- * scoped to the event names rather than to the keys: `confidence` and
- * `visibility` would both mean something else elsewhere in the registry.
- */
-const STOP_ADDED_SURFACES = ["map", "plan", "round"] as const;
-const ROUTE_OPENED_SURFACES = ["map", "plan"] as const;
-const VOICE_END_REASONS = ["user", "disconnect", "cap", "error"] as const;
-const CONTENT_SHARE_SURFACES = ["plan", "recap", "poster", "tonight", "other"] as const;
-const ERROR_SHOWN_SURFACES = [
-  "landing", "home", "map", "tonight", "plan", "you", "pal", "recap", "near", "other",
-] as const;
-const ERROR_SHOWN_KINDS = ["network", "auth", "validation", "server", "unknown"] as const;
-
-function isSignInProvider(value: string | number | boolean): boolean {
+function isSignInProvider(value: unknown): boolean {
   return typeof value === "string"
     && (value === "google" || value === "apple" || value === "microsoft" || value === "email"
       || value === "email_resume" || value === "handle_password");
@@ -947,7 +950,7 @@ function isAllowedJourneyProp(
   }
   if (name === "content_shared") {
     if (key === "channel") {
-      return includesValue(["copy", "native", "whatsapp", "x", "sms", "instagram", "tiktok"], value);
+      return includesValue(CONTENT_SHARE_CHANNELS, value);
     }
     if (key === "surface") return includesValue(CONTENT_SHARE_SURFACES, value);
   }
@@ -958,6 +961,12 @@ function isAllowedJourneyProp(
   return true;
 }
 
+/**
+ * The four loop moments' strictness (#252's named set, shipped 5 September
+ * 2026). Each key belongs to exactly one of these events, so the checks are
+ * scoped to the event names rather than to the keys: `confidence` and
+ * `visibility` would both mean something else elsewhere in the registry.
+ */
 function isAllowedLoopMomentProp(
   name: AnalyticsEventName,
   key: string,

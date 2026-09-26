@@ -425,7 +425,6 @@ export function initializePosthog(consentAllowed: boolean): void {
  */
 export function loadPosthogClientForIdentity(): Promise<PostHogClient | null> {
   if (!consentAllowedNow) return Promise.resolve(null);
-  syncPosthogConsent(true);
   return loadPosthogClient().then((loadedClient) => (
     loadedClient && captureEnabled ? loadedClient : null
   ));
