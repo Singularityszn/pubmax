@@ -57,7 +57,7 @@ export default async function Image({ params }: PageProps) {
               Pint passport
             </div>
             <div style={{ fontFamily: serif, fontSize: 64, fontWeight: 600, lineHeight: 1.05 }}>
-              @{handle}
+              {`@${handle}`}
             </div>
             <div style={{ fontSize: 28, color: CREAM_DIM, marginTop: 8 }}>
               Pint passport on PUBMAXXING
