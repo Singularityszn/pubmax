@@ -137,4 +137,3 @@ describe("the rollback", () => {
     expect(ROLLBACK).toMatch(/are NOT deleted here/);
   });
 });
-

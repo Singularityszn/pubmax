@@ -59,16 +59,24 @@ export default function DrinkWall() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [fetchKey, setFetchKey] = useState("all|all|");
 
-  const [scopeKey, setScopeKey] = useState<Scope>("all");
-  if (scopeKey !== scope) {
-    setScopeKey(scope);
-    if (scope === "all") {
-      setNearReady(true);
-      setNearVenueIds([]);
-    } else {
-      setNearReady(false);
-      setNearVenueIds([]);
-    }
+  function startFilterChange() {
+    generation.current += 1;
+    setWall(EMPTY);
+    setLoading(true);
+  }
+
+  function changeScope(next: Scope) {
+    if (next === scope) return;
+    startFilterChange();
+    setScope(next);
+    setNearReady(next === "all");
+    setNearVenueIds([]);
+  }
+
+  function changeCategory(next: DrinkWallCategory | "all") {
+    if (next === category) return;
+    startFilterChange();
+    setCategory(next);
   }
 
   useEffect(() => {
@@ -188,10 +196,10 @@ export default function DrinkWall() {
         </p>
         <div className="drinkWallFilters">
           <div className="drinkWallScope" role="group" aria-label="Browse scope">
-            <button type="button" aria-pressed={scope === "all"} onClick={() => setScope("all")}>
+            <button type="button" aria-pressed={scope === "all"} onClick={() => changeScope("all")}>
               All London
             </button>
-            <button type="button" aria-pressed={scope === "near"} onClick={() => setScope("near")}>
+            <button type="button" aria-pressed={scope === "near"} onClick={() => changeScope("near")}>
               Near me
             </button>
           </div>
@@ -199,7 +207,7 @@ export default function DrinkWall() {
             type="button"
             className="drinkWallTag"
             aria-pressed={category === "all"}
-            onClick={() => setCategory("all")}
+            onClick={() => changeCategory("all")}
           >
             All
           </button>
@@ -209,7 +217,7 @@ export default function DrinkWall() {
               type="button"
               className="drinkWallTag"
               aria-pressed={category === cat}
-              onClick={() => setCategory(cat)}
+              onClick={() => changeCategory(cat)}
             >
               {DRINK_WALL_CATEGORY_LABEL[cat]}
             </button>

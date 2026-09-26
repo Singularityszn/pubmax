@@ -146,14 +146,14 @@ async function deleteOwnPhoto(request: Request, body: Record<string, unknown>): 
     if (!photo || photo.authorProfileId !== profileId || photo.moderationState !== "approved") {
       return publicApiError("Photo not found.", "NOT_FOUND", 404);
     }
+    if (!(await store.deleteByAuthor(id, profileId))) {
+      return publicApiError("Photo not found.", "NOT_FOUND", 404);
+    }
     await venuePhotoRouteDeps().storage.remove([
       photo.objectKey,
       photoStagingKey(photo.id, photo.venueId),
     ]);
-    const done = await store.deleteByAuthor(id, profileId);
-    return done
-      ? jsonNoStore({ ok: true }, { status: 200 })
-      : publicApiError("Photo not found.", "NOT_FOUND", 404);
+    return jsonNoStore({ ok: true }, { status: 200 });
   } catch (err) {
     log("error", "venue_photo.delete_failed", {
       route: "POST /api/venue-photos",
