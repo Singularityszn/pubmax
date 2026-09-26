@@ -31,6 +31,7 @@ import type { CheckIn } from "@/lib/checkIn";
 import type { NightMemory, NightMoment } from "@/lib/nightMemory";
 import type { NightProfile } from "@/lib/nightProfile";
 import type { SavedPubDTO } from "@/lib/savedPubs";
+import type { DrinkWallCategory } from "@/lib/venuePhotos";
 import type { PublicSocialConnection } from "@/lib/socialConnections";
 import type { VisitReportDTO } from "@/lib/visitReports";
 import type { WantedDTO } from "@/lib/wanted";
@@ -95,10 +96,12 @@ export type AccountExportCoverPhoto = {
   createdAt: string;
 };
 
-/** One photo this account put on a pub wall, named by its key and never its bytes. */
+/** One photo this account put on a pub wall or the Drink Wall, named by its key and never its bytes. */
 export type AccountExportWallPhoto = {
   id: string;
   venueId: string | null;
+  wallCategory: DrinkWallCategory;
+  placeLabel: string;
   objectKey: string;
   caption: string;
   drinkCategory: DrinkCategory | null;

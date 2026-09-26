@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 
+import MessageVenuePicker, { type PickedVenue } from "@/components/messages/MessageVenuePicker";
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import { pickNativePhoto } from "@/lib/nativeCamera";
 import { isNativeApp } from "@/lib/nativePlatform";
@@ -35,6 +36,8 @@ export default function DrinkWallComposer({ onCancel, onPosted }: DrinkWallCompo
   const [chosen, setChosen] = useState<File | null>(null);
   const [wallCategory, setWallCategory] = useState<DrinkWallCategory>("london");
   const [placeLabel, setPlaceLabel] = useState("");
+  const [venue, setVenue] = useState<PickedVenue | null>(null);
+  const [pickingVenue, setPickingVenue] = useState(false);
   const [drinkCategory, setDrinkCategory] = useState<DrinkCategory | null>(null);
   const [caption, setCaption] = useState("");
   const [busy, setBusy] = useState(false);
@@ -49,11 +52,10 @@ export default function DrinkWallComposer({ onCancel, onPosted }: DrinkWallCompo
         "post",
         JSON.stringify({
           wallCategory,
-          venueId: wallCategory === "london" ? null : undefined,
-          placeLabel: cleanDrinkWallPlaceLabel(placeLabel),
+          venueId: venue?.id ?? null,
+          placeLabel: wallCategory === "london" ? cleanDrinkWallPlaceLabel(placeLabel) : "",
           drinkCategory: wallCategory === "pint" ? drinkCategory : null,
           caption,
-          shareToFeed: false,
         }),
       );
       form.append("photo", file);
@@ -119,9 +121,31 @@ export default function DrinkWallComposer({ onCancel, onPosted }: DrinkWallCompo
             onChange={(event) => setPlaceLabel(event.target.value)}
           />
         </div>
-      ) : (
-        <p className="venuePhotoWallStatus">Link this photo to a pub from the map or a pub wall for now.</p>
-      )}
+      ) : null}
+
+      <div className="venuePhotoComposerField">
+        <span className="venuePhotoComposerLegend">Pub (optional)</span>
+        {venue ? (
+          <p className="venuePhotoWallStatus">
+            {venue.name}{" "}
+            <button type="button" className="composerPendingRemove" onClick={() => setVenue(null)}>
+              Remove
+            </button>
+          </p>
+        ) : pickingVenue ? (
+          <MessageVenuePicker
+            onPick={(picked) => {
+              setVenue(picked);
+              setPickingVenue(false);
+            }}
+            onCancel={() => setPickingVenue(false)}
+          />
+        ) : (
+          <button type="button" className="venuePhotoWallButton" onClick={() => setPickingVenue(true)}>
+            Link a pub
+          </button>
+        )}
+      </div>
 
       <input
         ref={inputRef}

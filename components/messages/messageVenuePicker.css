@@ -1,0 +1,77 @@
+/* ── choosing a pub: the message composer and the Drink Wall composer ─────── */
+.composerVenuePicker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.composerVenueSearch {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+}
+
+.composerVenueResults {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.composerVenueResult {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.4rem 0.75rem;
+  border: none;
+  border-radius: var(--radius, 8px);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.composerVenueResult:hover {
+  background: var(--panel-raised);
+}
+
+.composerVenueResultArea {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.composerVenueNote {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.composerPendingRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 0.6rem;
+  border: none;
+  border-radius: var(--radius, 8px);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}

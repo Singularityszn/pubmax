@@ -298,8 +298,7 @@ export function parseVenuePhotoDrinkCategory(
 
 type VenuePhotoSubmission = {
   venueId: string;
-  wallCategory: DrinkWallCategory;
-  placeLabel: string;
+  wallCategory: "pint" | "pub";
   drinkCategory: DrinkCategory | null;
   caption: string;
   /** The author asked for it; whether it happens is a separate question. */
@@ -326,7 +325,7 @@ export function validateVenuePhotoSubmission(input: unknown): VenuePhotoValidati
   const wallCategory =
     wallRaw === undefined || wallRaw === null || wallRaw === ""
       ? "pint"
-      : isDrinkWallCategory(wallRaw)
+      : wallRaw === "pint" || wallRaw === "pub"
         ? wallRaw
         : null;
   if (!wallCategory) {
@@ -337,7 +336,6 @@ export function validateVenuePhotoSubmission(input: unknown): VenuePhotoValidati
     value: {
       venueId: raw.venueId,
       wallCategory,
-      placeLabel: cleanDrinkWallPlaceLabel(raw.placeLabel),
       drinkCategory,
       caption: cleanVenuePhotoCaption(raw.caption),
       shareToFeed: raw.shareToFeed === true,

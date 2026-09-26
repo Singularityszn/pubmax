@@ -112,7 +112,6 @@ export const supabaseVenuePhotoStorage: VenuePhotoStorage = {
   },
 };
 
-
 export async function stagePreparedWallPhoto(
   venueId: string | null,
   photoId: string,
@@ -138,15 +137,6 @@ export async function stagePreparedWallPhoto(
   }
   await storage.upload(stagingKey, prepared.bytes, prepared.contentType);
   return { ...prepared, venueId, photoId, stagingKey, objectKey };
-}
-
-export async function stagePreparedVenuePhoto(
-  venueId: string,
-  photoId: string,
-  prepared: PreparedVenuePhoto,
-  storage: VenuePhotoStorage = supabaseVenuePhotoStorage,
-): Promise<StagedVenuePhoto> {
-  return stagePreparedWallPhoto(venueId, photoId, prepared, storage);
 }
 
 export async function promoteStagedVenuePhoto(

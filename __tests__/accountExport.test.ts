@@ -157,6 +157,8 @@ const visitReport = {
 const wallPhoto = {
   id: "photo-1",
   venueId: "venue-1f5ygjb",
+  wallCategory: "pint",
+  placeLabel: "",
   authorActor: `profile:${PROFILE}`,
   authorProfileId: PROFILE,
   objectKey: "venue-photos/venue-1f5ygjb/photo-1.jpg",
@@ -297,6 +299,8 @@ describe("buildAccountExport", () => {
       {
         id: "photo-1",
         venueId: "venue-1f5ygjb",
+        wallCategory: "pint",
+        placeLabel: "",
         objectKey: "venue-photos/venue-1f5ygjb/photo-1.jpg",
         caption: "the snug",
         drinkCategory: null,
@@ -318,6 +322,31 @@ describe("buildAccountExport", () => {
     expect(document.wanted.items).toEqual([wantedRow]);
     expect(document.socialLinks.items).toEqual([socialLink]);
     expect(document.nightProfile.items).toEqual([nightProfileRow]);
+  });
+
+  it("carries a Drink Wall photo's category and the place its author typed", async () => {
+    const cityPhoto = {
+      ...wallPhoto,
+      id: "photo-2",
+      venueId: null,
+      wallCategory: "london",
+      placeLabel: "Outside my flat, Tooley St",
+      objectKey: "drink-wall/photo-2.jpg",
+    } as unknown as VenuePhoto;
+    const document = await buildAccountExport(
+      USER,
+      fakeDeps({ wallPhotos: async () => ({ status: "ready" as const, photos: [cityPhoto] }) }),
+      NOW,
+    );
+    expect(document.wallPhotos.items).toEqual([
+      expect.objectContaining({
+        id: "photo-2",
+        venueId: null,
+        wallCategory: "london",
+        placeLabel: "Outside my flat, Tooley St",
+        objectKey: "drink-wall/photo-2.jpg",
+      }),
+    ]);
   });
 
   it("never carries a linked social's stored tokens", async () => {

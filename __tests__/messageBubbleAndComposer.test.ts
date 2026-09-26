@@ -73,7 +73,7 @@ const BALLOT = [
   { index: 1, label: "The Blackfriar", votes: 0 },
 ] as const;
 
-const CSS = read("app/messages/messages.css");
+const CSS = read("app/messages/messages.css") + read("components/messages/messageVenuePicker.css");
 const THREAD = read("components/messages/MessageThread.tsx");
 const PICKER = read("components/messages/MessageAttachmentPicker.tsx");
 const PHOTO = read("components/messages/MessagePhoto.tsx");
@@ -81,7 +81,7 @@ const PHOTO = read("components/messages/MessagePhoto.tsx");
 /** One rule body out of the shipped stylesheet, by selector. */
 function rule(selector: string): string {
   const at = CSS.indexOf(`${selector} {`);
-  expect(at, `${selector} is missing from app/messages/messages.css`).toBeGreaterThan(-1);
+  expect(at, `${selector} is missing from the messages stylesheets`).toBeGreaterThan(-1);
   return CSS.slice(at, CSS.indexOf("}", at));
 }
 

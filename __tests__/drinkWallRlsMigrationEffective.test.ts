@@ -83,14 +83,14 @@ describe.skipIf(skipReason !== null)("0158 drink wall schema", () => {
   it("refuses a category outside the closed list", async () => {
     const answer = await db().attempt(insertRow(PROBE, VENUE, "selfie", `venue-photos/${VENUE}/${PROBE}.jpg`));
     expect(answer.ok).toBe(false);
-    expect(answer.said).toMatch(/23514/);
+    expect(answer.said).toMatch(/venue_photos_wall_category_check/);
   });
 
-  it("refuses a pint or pub row with no pub", async () => {
+  it("takes a pint or pub row with no pub under a drink-wall key", async () => {
     for (const category of ["pint", "pub"]) {
       const answer = await db().attempt(insertRow(PROBE, null, category, `drink-wall/${PROBE}.jpg`));
-      expect(answer.ok).toBe(false);
-      expect(answer.said).toMatch(/venue_photos_category_venue_check/);
+      expect(answer.ok, answer.said).toBe(true);
+      db().sql(`delete from public.venue_photos where id = '${PROBE}'`);
     }
   });
 

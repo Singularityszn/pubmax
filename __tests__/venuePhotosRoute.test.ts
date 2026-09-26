@@ -468,6 +468,24 @@ describe("taking a photo down", () => {
     return (await response.json()).photo.id as string;
   }
 
+  it("lets its author delete it, bytes included, and nobody else", async () => {
+    const storage = deps("approved");
+    const id = await post();
+    expect(storage.keys()).toEqual([venuePhotoServingKey(VENUE, id)]);
+
+    const mallory = identityState.profileId;
+    identityState.profileId = crypto.randomUUID();
+    const refused = await POST(json({ action: "delete", id }));
+    expect(refused.status).toBe(404);
+    expect(storage.keys()).toHaveLength(1);
+    identityState.profileId = mallory;
+
+    const deleted = await POST(json({ action: "delete", id }));
+    expect(deleted.status).toBe(200);
+    expect(storage.keys()).toEqual([]);
+    expect(await venuePhotoStore().getById(id)).toBeNull();
+  });
+
   it("lets a reader flag it without hiding it", async () => {
     deps("approved");
     const id = await post();

@@ -171,6 +171,8 @@ function exportWallPhoto(photo: VenuePhoto): AccountExportWallPhoto {
   return {
     id: photo.id,
     venueId: photo.venueId,
+    wallCategory: photo.wallCategory,
+    placeLabel: photo.placeLabel,
     objectKey: photo.objectKey,
     caption: photo.caption,
     drinkCategory: photo.drinkCategory,
