@@ -36,6 +36,7 @@ vi.mock("@/lib/analytics", () => ({
 
 import HistoricPubDetail from "@/app/historic/[slug]/HistoricPubDetail";
 import SiteNav from "@/components/nav/SiteNav";
+import RecapShareButton from "@/components/plan/RecapShareButton";
 
 let host: HTMLDivElement | null = null;
 let root: Root | null = null;
@@ -45,8 +46,40 @@ afterEach(() => {
   root = null;
   host?.remove();
   host = null;
+  Reflect.deleteProperty(navigator, "share");
   vi.restoreAllMocks();
 });
+
+// The server has no Web Share API and a phone browser does, so the markup is
+// rendered without navigator.share and hydrated with it.
+async function hydrateAsPhone(element: ReturnType<typeof createElement>): Promise<string[]> {
+  Reflect.deleteProperty(navigator, "share");
+  const serverHtml = renderToString(element);
+  host = document.createElement("div");
+  host.innerHTML = serverHtml;
+  document.body.append(host);
+
+  Object.defineProperty(navigator, "share", {
+    configurable: true,
+    value: vi.fn(),
+  });
+  const complaints: string[] = [];
+  vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+    complaints.push(args.map((arg) => String(arg)).join(" "));
+  });
+
+  await act(async () => {
+    root = hydrateRoot(host!, element, {
+      onRecoverableError: (error) => complaints.push(String(error)),
+    });
+  });
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  return complaints.filter((line) => /hydrat|did not match|mismatch|418/i.test(line));
+}
 
 function Page({ pub }: { pub: HistoricPub }) {
   return createElement(
@@ -63,31 +96,23 @@ describe("historic pub detail hydration", () => {
     const pub = pubs.find((row) => row.slug === "prospect-of-whitby");
     expect(pub).toBeTruthy();
 
-    Object.defineProperty(navigator, "share", {
-      configurable: true,
-      value: vi.fn(),
-    });
+    const mismatches = await hydrateAsPhone(createElement(Page, { pub: pub! }));
 
-    const serverHtml = renderToString(createElement(Page, { pub: pub! }));
-    host = document.createElement("div");
-    host.innerHTML = serverHtml;
-    document.body.append(host);
+    expect(mismatches).toEqual([]);
+    expect(host!.querySelector('button[aria-label="Share to another app"]')).not.toBeNull();
+  });
 
-    const complaints: string[] = [];
-    vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
-      complaints.push(args.map((arg) => String(arg)).join(" "));
-    });
+  it("hydrates the public recap share without mismatch warnings", async () => {
+    const mismatches = await hydrateAsPhone(
+      createElement(RecapShareButton, {
+        planId: "plan-1",
+        shareText: "Our night out",
+        shareUrl: "/recap/plan-1",
+      }),
+    );
 
-    await act(async () => {
-      root = hydrateRoot(host!, createElement(Page, { pub: pub! }));
-    });
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(
-      complaints.filter((line) => /hydrat|did not match|mismatch|418/i.test(line)),
-    ).toEqual([]);
+    expect(mismatches).toEqual([]);
+    const labels = [...host!.querySelectorAll("button")].map((button) => button.textContent);
+    expect(labels).toContain("Share…");
   });
 });
