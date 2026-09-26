@@ -190,10 +190,6 @@ export default function VenuePhotoComposer({
         />
       </div>
 
-      <p className="venuePhotoWallStatus">
-        <a href="/wall">Also post to the Drink Wall</a> by choosing Pub when you compose there.
-      </p>
-
       <label className="venuePhotoComposerShare">
         <input
           type="checkbox"

@@ -9,6 +9,8 @@ import {
   isDrinkWallCategory,
   isVenuePhotoVenueId,
   parseVenuePhotoDrinkCategory,
+  type VenuePhotoDTO,
+  type VenuePhotoPage,
 } from "@/lib/venuePhotos";
 import type { DrinkCategory } from "@/lib/drinks";
 
@@ -87,9 +89,19 @@ export function drinkWallAltText(photo: {
 }): string {
   if (photo.caption) return `@${photo.author.handle}: ${photo.caption}`;
   const where =
-    photo.venueName ??
-    (photo.placeLabel ? photo.placeLabel : DRINK_WALL_CATEGORY_LABEL[photo.wallCategory]);
+    drinkWallPlaceLine({ venueName: photo.venueName ?? null, placeLabel: photo.placeLabel || null }) ??
+    DRINK_WALL_CATEGORY_LABEL[photo.wallCategory];
   return `${where}, by @${photo.author.handle}`;
+}
+
+/** A Drink Wall tile: the wall DTO plus the linked pub's name, when it has one. */
+export type DrinkWallPhotoDTO = VenuePhotoDTO & { venueName: string | null };
+
+export type DrinkWallPage = Omit<VenuePhotoPage, "photos"> & { photos: DrinkWallPhotoDTO[] };
+
+/** Where a tile was taken, as a sighted reader should see it: the pub first, then the author's place. */
+export function drinkWallPlaceLine(photo: { venueName: string | null; placeLabel: string | null }): string | null {
+  return photo.venueName ?? photo.placeLabel ?? null;
 }
 
 export const DRINK_WALL_SIGN_IN_LINE =
