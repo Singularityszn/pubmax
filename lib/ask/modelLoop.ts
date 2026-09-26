@@ -32,7 +32,7 @@ type ChatMessage = {
   tool_call_id?: string;
 };
 
-function systemPrompt(): string {
+export function askModelLoopSystemPrompt(): string {
   return [
     "You are the Night OS Ask assistant for PUBMAXXING, a London pub night planner.",
     "Use ONLY the provided tools. Never invent pubs, prices, listings, or transit facts.",
@@ -40,6 +40,106 @@ function systemPrompt(): string {
     "For map moves or plans, call propose_map_action or propose_plan - the user must confirm.",
     "Do not claim a community price moves the map unless the tool says it is corroborated.",
   ].join(" ");
+}
+
+function systemPrompt(): string {
+  return askModelLoopSystemPrompt();
+}
+
+export type ProbeAskModelToolChoiceResult = {
+  tools: string[];
+  latencyMs: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  costUsd: number | null;
+  httpStatus?: number;
+  error?: string;
+};
+
+/** One OpenRouter round: tool names only (no tool execution). For offline router evals. */
+export async function probeAskModelToolChoice(input: {
+  query: string;
+  apiKey: string;
+  model: string;
+  fetchImpl?: typeof fetch;
+}): Promise<ProbeAskModelToolChoiceResult> {
+  const fetchImpl = input.fetchImpl ?? fetch;
+  const started = performance.now();
+  const empty = (): ProbeAskModelToolChoiceResult => ({
+    tools: [],
+    latencyMs: performance.now() - started,
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    costUsd: null,
+  });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const response = await fetchImpl(OPENROUTER_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${input.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: input.model,
+        temperature: 0,
+        max_tokens: MAX_TOKENS,
+        tools: askToolDefinitions(),
+        tool_choice: "auto",
+        messages: [
+          { role: "system", content: systemPrompt() },
+          { role: "user", content: input.query.slice(0, 500) },
+        ],
+        usage: { include: true },
+      }),
+      signal: controller.signal,
+    });
+    const latencyMs = performance.now() - started;
+    if (!response.ok) {
+      return {
+        ...empty(),
+        latencyMs,
+        httpStatus: response.status,
+        error: `OpenRouter responded ${response.status}.`,
+      };
+    }
+    const body = (await response.json()) as {
+      choices?: Array<{
+        message?: ChatMessage;
+      }>;
+      usage?: {
+        prompt_tokens?: number;
+        completion_tokens?: number;
+        total_tokens?: number;
+        cost?: number;
+      };
+    };
+    const message = body.choices?.[0]?.message;
+    const rawTools = (message?.tool_calls ?? [])
+      .map((call) => call.function?.name ?? "")
+      .filter((name) => isAskToolName(name));
+    const cost = body.usage?.cost;
+    return {
+      tools: rawTools.slice(0, 3),
+      latencyMs,
+      promptTokens: body.usage?.prompt_tokens ?? 0,
+      completionTokens: body.usage?.completion_tokens ?? 0,
+      totalTokens: body.usage?.total_tokens ?? 0,
+      costUsd: typeof cost === "number" && Number.isFinite(cost) ? cost : null,
+      error: rawTools.length === 0 ? "no_tool_calls" : undefined,
+    };
+  } catch (error) {
+    return {
+      ...empty(),
+      error: error instanceof Error ? error.message : String(error),
+    };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function parseArgs(raw: string): Record<string, unknown> {

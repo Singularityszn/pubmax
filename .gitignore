@@ -26,6 +26,7 @@ scripts/__pycache__/
 test-results/
 playwright-report/
 evals/pal/scoreboard/
+evals/askRouterModel/scoreboard/
 artifacts/
 /coverage/
 e2e/screenshots/
