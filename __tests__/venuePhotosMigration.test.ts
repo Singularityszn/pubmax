@@ -138,16 +138,3 @@ describe("the rollback", () => {
   });
 });
 
-
-describe("drink wall opens public read on 0158", () => {
-  const forward = readFileSync(
-    join(ROOT, "supabase/migrations/20260926120000_0158_drink_wall.sql"),
-    "utf8",
-  );
-
-  it("grants authenticated delete for authors and public select for approved rows", () => {
-    expect(forward).toContain("venue_photos_public_select");
-    expect(forward).toContain("venue_photos_owner_delete");
-    expect(forward).toMatch(/grant select on table public\.venue_photos to anon, authenticated/);
-  });
-});

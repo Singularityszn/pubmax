@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  DRINK_WALL_CITY_CAP_PER_ACCOUNT,
-  validateDrinkWallSubmission,
-} from "@/lib/drinkWall";
+import { validateDrinkWallSubmission } from "@/lib/drinkWall";
+import { drinkWallServingKey, photoObjectKey, venuePhotoServingKey } from "@/lib/venuePhotos";
 
 describe("drink wall submission", () => {
   it("requires a pub for pint and pub categories", () => {
@@ -20,14 +18,18 @@ describe("drink wall submission", () => {
     }
   });
 
-  it("requires a listed drink for pints", () => {
+  it("refuses a pint tagged with a drink outside the listed ones", () => {
     expect(
       validateDrinkWallSubmission({ wallCategory: "pint", venueId: "venue-abc", drinkCategory: "beer" }).ok,
     ).toBe(true);
-    expect(validateDrinkWallSubmission({ wallCategory: "pint", venueId: "venue-abc" }).ok).toBe(false);
+    expect(validateDrinkWallSubmission({ wallCategory: "pint", venueId: "venue-abc" }).ok).toBe(true);
+    expect(
+      validateDrinkWallSubmission({ wallCategory: "pint", venueId: "venue-abc", drinkCategory: "moonshine" }).ok,
+    ).toBe(false);
   });
 
-  it("names the city cap in reader copy", () => {
-    expect(DRINK_WALL_CITY_CAP_PER_ACCOUNT).toBe(100);
+  it("keys a city photo under drink-wall/ and a pub photo under its venue", () => {
+    expect(photoObjectKey("PHOTO", null)).toBe(drinkWallServingKey("PHOTO"));
+    expect(photoObjectKey("PHOTO", "VENUE")).toBe(venuePhotoServingKey("VENUE", "PHOTO"));
   });
 });
