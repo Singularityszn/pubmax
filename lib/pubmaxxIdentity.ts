@@ -125,6 +125,19 @@ function violatesOwnerKaranPolicy(normalized: string): boolean {
   return tokens.some(isKaranStem) && tokens.some(isKaranFamilyTerm);
 }
 
+/**
+ * Public /u/[handle] must not offer claim shells for impersonation compounds
+ * (karansdad, karan-father, …). Founder contributor handles such as `karan`
+ * stay routable when a live profile exists.
+ */
+export function isPubmaxxHandleImpersonationBlock(raw: unknown): boolean {
+  if (typeof raw !== "string") return false;
+  const handle = normalizeHandle(raw);
+  if (!handle) return false;
+  if (isReservedContributorHandle(handle)) return false;
+  return violatesIdentityPolicy(handle);
+}
+
 function violatesIdentityPolicy(raw: string): boolean {
   const normalized = normalizedIdentityText(raw);
   return (
