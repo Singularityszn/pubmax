@@ -64,7 +64,7 @@ const TABLE = "venue_photos";
  * window rather than a filter; the account export says so through `truncated`.
  */
 const MAX_AUTHOR_PHOTOS = 1_000;
-const MIGRATION_HINT = "apply migration 0158";
+const MIGRATION_HINT = "apply migrations 0098 and 0158";
 
 type VenuePhotoWallQuery = {
   cursor?: string | null;
@@ -351,8 +351,8 @@ function toRow(photo: VenuePhoto) {
   return {
     id: photo.id,
     venue_id: photo.venueId,
-    wall_category: photo.wallCategory,
-    place_label: photo.placeLabel,
+    ...(photo.wallCategory === "pint" ? {} : { wall_category: photo.wallCategory }),
+    ...(photo.placeLabel === "" ? {} : { place_label: photo.placeLabel }),
     author_actor: photo.authorActor,
     author_profile_id: photo.authorProfileId,
     object_key: photo.objectKey,

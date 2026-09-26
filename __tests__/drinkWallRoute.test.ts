@@ -8,10 +8,25 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
 });
 
-const limitState = vi.hoisted(() => ({ limited: false }));
+const limitState = vi.hoisted(() => ({
+  limited: false,
+  calls: [] as Array<{ key: string; opts?: { failClosed?: boolean } }>,
+}));
 vi.mock("@/lib/pintDrops", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
-  return { ...actual, isLimited: async () => limitState.limited };
+  return {
+    ...actual,
+    isLimited: async (
+      key: string,
+      _durableKey: string,
+      _limit?: number,
+      _windowMs?: number,
+      opts?: { failClosed?: boolean },
+    ) => {
+      limitState.calls.push({ key, opts });
+      return limitState.limited;
+    },
+  };
 });
 
 const identityState = vi.hoisted(() => ({
@@ -118,6 +133,7 @@ beforeEach(async () => {
   __resetPintDrops();
   __setVenuePhotoRouteDepsForTest(null);
   limitState.limited = false;
+  limitState.calls = [];
   dobState.dateOfBirth = "1990-05-04";
   identityState.ok = true;
   await memoryProfileStore.createOwned("alice", "user-alice");
@@ -148,11 +164,9 @@ describe("posting a london photo to the drink wall", () => {
     const response = await POST(upload(await jpeg(), { wallCategory: "london" }));
     expect(response.status).toBe(429);
     expect(storage.uploads).toHaveLength(0);
-    const source = await import("node:fs").then(({ readFileSync }) =>
-      readFileSync(`${process.cwd()}/app/api/drink-wall/route.ts`, "utf8"),
-    );
-    expect(source).toContain("drink-wall:");
-    expect(source).toContain("failClosed: true");
+    expect(limitState.calls).toHaveLength(1);
+    expect(limitState.calls[0].key).toMatch(/^drink-wall:/);
+    expect(limitState.calls[0].opts?.failClosed).toBe(true);
   });
 });
 
