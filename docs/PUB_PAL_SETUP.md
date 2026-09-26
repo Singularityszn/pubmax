@@ -110,6 +110,11 @@ was created before session voice overrides were enabled. Re-run
 `platform_settings.overrides.conversation_config_override.tts.voice_id` is
 `true` on that agent.
 
+If the UI shows **Failed to load the rawAudioProcessor worklet module** (or the
+session never reaches "Pal is listening" after metadata), the page CSP is
+blocking ElevenLabs AudioWorklet scripts. Production CSP must include `blob:`
+and `data:` in `script-src` (see `proxy.ts`).
+
 ---
 
 ## Checking it
