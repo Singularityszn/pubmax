@@ -617,31 +617,23 @@ a.lpPubPint:hover { color: var(--ink); }
   .lpAnswerCard { width: 100%; }
 }
 
-/* Phone: the answer sits between the heading and the tap, so the heading
-   gives up one size step and the card its outer padding, and the whole
-   screen still reads kicker, claim, answer, action inside 844px. */
+/* Below the desktop grid the picture sits between the lede and the one filled
+   action, so it is drawn from the screen's height rather than its width: the
+   primary stays above the fold on a short phone, and the figure stops short of
+   the compose action's lane. */
 @media (max-width: 959px) {
-  /* Phone: headline and the one filled action stay above the fold; the London
-     drawing follows. DOM order is unchanged for desktop grid and SSR tests;
-     visual order is kicker, claim, lede, actions, picture. */
-  .lpHero .screenHead {
-    display: grid;
-  }
-  .lpHero .screenHead > .kicker { order: 1; }
-  .lpHero .screenTitle { order: 2; }
-  .lpHero .screenLede { order: 3; }
-  .lpHero .screenActions { order: 4; margin-top: 0; }
-  .lpHero .screenAnswer { order: 5; margin-top: var(--space-2); }
-  .lpMapSnapshot {
-    max-height: min(38vh, 260px);
-    width: auto;
-    margin-inline: auto;
-  }
-  .lpMapCaption {
-    padding-inline-end: var(--create-fab-lane);
+  .lpHero .lpMapFigure {
+    width: min(
+      calc(100% + var(--page-gutter) - var(--create-fab-lane)),
+      34rem,
+      max(14rem, calc(24svh * 1200 / 851))
+    );
   }
 }
 
+/* Phone: the answer sits between the heading and the tap, so the heading
+   gives up one size step and the card its outer padding, and the whole
+   screen still reads kicker, claim, answer, action inside 844px. */
 @media (max-width: 700px) {
   .lpHero { padding-top: 80px; gap: var(--space-5); }
   .lpHero .screenTitle { font-size: clamp(2.125rem, 10vw, 2.75rem); line-height: .94; }
@@ -650,6 +642,7 @@ a.lpPubPint:hover { color: var(--ink); }
   .lpHero .lpPubPrice .priceBadge { font-size: var(--text-base); min-block-size: 2.1rem; }
   .lpHero .lpPubThen { margin-top: var(--space-1); padding-top: var(--space-2); font-size: var(--text-sm); }
   .lpHero .lpRailLink { min-height: 52px; }
+  .lpHero .screenActions { margin-top: 0; }
 }
 
 
