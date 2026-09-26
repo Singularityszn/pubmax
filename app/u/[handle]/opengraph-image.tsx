@@ -27,6 +27,7 @@ type PageProps = { params: Promise<{ handle: string }> };
 export default async function Image({ params }: PageProps) {
   const { handle: raw } = await params;
   const handle = clampOgText(normalizeHandle(raw), 32, "you");
+  const handleSize = handle.length > 16 ? 48 : 64;
 
   return new ImageResponse(
     (
@@ -44,7 +45,7 @@ export default async function Image({ params }: PageProps) {
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, minWidth: 0 }}>
             <div
               style={{
                 fontSize: 22,
@@ -56,7 +57,15 @@ export default async function Image({ params }: PageProps) {
             >
               Pint passport
             </div>
-            <div style={{ fontFamily: serif, fontSize: 64, fontWeight: 600, lineHeight: 1.05 }}>
+            <div
+              style={{
+                fontFamily: serif,
+                fontSize: handleSize,
+                fontWeight: 600,
+                lineHeight: 1.05,
+                wordBreak: "break-all",
+              }}
+            >
               {`@${handle}`}
             </div>
             <div style={{ fontSize: 28, color: CREAM_DIM, marginTop: 8 }}>
@@ -76,6 +85,8 @@ export default async function Image({ params }: PageProps) {
               textTransform: "uppercase",
               fontWeight: 700,
               transform: "rotate(-6deg)",
+              flexShrink: 0,
+              marginLeft: 32,
             }}
           >
             PUBMAXXING
