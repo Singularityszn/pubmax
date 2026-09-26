@@ -17,7 +17,7 @@ import {
 import { discardBody } from "@/lib/responseBody";
 
 const PlanCrawlRouteMapCanvas = dynamic(
-  () => import("@/components/plan/PlanCrawlRouteMapCanvas"),
+  () => import("@/components/map/canvas/PlanCrawlRouteMapCanvas"),
   {
     ssr: false,
     loading: () => <div className="planRouteMiniMap__canvas planRouteMiniMap__canvas--loading" aria-hidden="true" />,

@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import { syncPlanRoutePreviewScene } from "@/components/plan/planRoutePreviewScene";
+import { syncPlanRoutePreviewScene } from "@/components/map/canvas/planRoutePreviewScene";
 import {
   MAP_STYLES,
   LONDON_VIEW,

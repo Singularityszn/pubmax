@@ -8,7 +8,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
-vi.mock("@/components/plan/PlanCrawlRouteMapCanvas", async () => {
+vi.mock("@/components/map/canvas/PlanCrawlRouteMapCanvas", async () => {
   const React = await import("react");
   return {
     default: () => React.createElement("div", { "data-testid": "plan-crawl-route-map" }),
