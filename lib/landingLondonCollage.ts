@@ -3,7 +3,7 @@
 // scripts/landing/build-london-collage.mjs encodes it. To add a photograph see
 // public/landing/london-collage/README.md.
 
-type LondonCollageLayout = "tall" | "wide" | "hero" | "standard";
+type LondonCollageLayout = "tall" | "hero" | "standard";
 
 export type LondonCollagePhoto = {
   id: string;
@@ -37,7 +37,7 @@ export const LONDON_COLLAGE_PHOTOS: readonly LondonCollagePhoto[] = [
     "source": "london-2.jpg",
     "caption": "Canary Wharf",
     "alt": "Canary Wharf at night with lit towers, the Caravan terrace and string lights, London",
-    "layout": "wide",
+    "layout": "standard",
     "width": 1280,
     "height": 1707,
     "blurDataUrl": "data:image/webp;base64,UklGRtoAAABXRUJQVlA4IM4AAADwBQCdASoYACAAPu1iq1AppSOisBgIATAdiWMAxkHc+YXqdXSxAWUQQRbndejzrEj2UbPLTDC3AAD+9H1OO+TQkNxDrCS2cOhXgq7QQAzYzbMnZrvIE8Ut91wcOylTl0h5wSDi3lpaA50DJS5TbslnwEeM+3DRbmV9/wHn3gb7+QTy7axQMJy8b/pd6CQ+PAeRb/gd3vp+sF5pZ6VHzW81QfLDCEC2ix9ao4TVYe6DRhb+wHVy1eIQsJHsQkAo9hxx0QjxUwhURTJIbfAAAA=="
@@ -53,6 +53,16 @@ export const LONDON_COLLAGE_PHOTOS: readonly LondonCollagePhoto[] = [
     "blurDataUrl": "data:image/webp;base64,UklGRs4AAABXRUJQVlA4IMIAAABwBQCdASoYACAAPu1kqU2ppaOiMAgBMB2JZQDKAzHJY0svPUWlaDVPJmIaKpKxxekAElj8APcpwgjeilIJhiqH5AiH8qquT3cJh7eIIFip5MheZ/wH5xwTYQVpaRg6uT7wfHCet1LUy8fb0d/cUnxVImvO0vNmWmlxWsaHB3OlIujFxHougbTuukDGfsvaH97+U7lmh3wob6aMYnHiDZwoLVszknpWvAWlk6SmkIul9X7mw105wd0cJWI1KSRSQaAAAA=="
   },
   {
+    "id": "exhibition-road",
+    "source": "london-5.jpg",
+    "caption": "Exhibition Road",
+    "alt": "The Geological Museum entrance on Exhibition Road with people sitting outside, London",
+    "layout": "tall",
+    "width": 1242,
+    "height": 2208,
+    "blurDataUrl": "data:image/webp;base64,UklGRjQBAABXRUJQVlA4ICgBAAAQBwCdASoYACsAPu1yrVMppqOipWmZMB2JYwDKBAgOVujr/7Ihpv8zsjtE/9qb/ov3TD2RBoRpCvbIyIe1VzG1AAD+8o75dJNuoG7V6fsLEDk9y8qY5ADrdaZQHLksh0fZ/6yE+T59Kh4M16NYTltR46XWqVbfPCXsSZLbNso70YD0turiw+bZGynvlF/MPHiRdI4/5mQEMuKOYontC3Z8WnqSBn4RBqZ6OrdwchzFf6EOp6/dzSdUTzsEClr5nZA495Kj78bKvSesqrku2k9zQWmhRo0SnPHb5FbXwnN1QMgB2AWmfWQBC5zNPWaQVLgrP9maL2FaRiE7rnnBv7CdlcIAbPofQ8QPCBoyY5XLijwyNpADJrzrXNxHeLLhNjm+CDco07ngAA=="
+  },
+  {
     "id": "crown-tavern",
     "source": "london-4.jpg",
     "caption": "The Crown Tavern",
@@ -61,16 +71,6 @@ export const LONDON_COLLAGE_PHOTOS: readonly LondonCollagePhoto[] = [
     "width": 1280,
     "height": 1707,
     "blurDataUrl": "data:image/webp;base64,UklGRsgAAABXRUJQVlA4ILwAAACwBACdASoYACAAPu1sqlEppaOiqAqpMB2JZQDGQA35la1rLibPLsD/QhCR5X8AAP7cgy53cgmPyQuEXpAKtG7KSfkSFtWYutt6JlMcYqFXx3SYtJXhC8YSzWhqPdMxTvxDdNWCbQ9/WGxWhcWWQU5zFuC4lFBSf2FVrXYilSmEuZJm1Cb1b6gg2wOsStnXO3qGgp8A2JVZ250HJMvZa1/iI2pAIuqFQCTmCoTEMEHsFa+1NG24qZE/j5ngAA=="
-  },
-  {
-    "id": "exhibition-road",
-    "source": "london-5.jpg",
-    "caption": "Exhibition Road",
-    "alt": "The Geological Museum entrance on Exhibition Road with people sitting outside, London",
-    "layout": "standard",
-    "width": 1242,
-    "height": 2208,
-    "blurDataUrl": "data:image/webp;base64,UklGRjQBAABXRUJQVlA4ICgBAAAQBwCdASoYACsAPu1yrVMppqOipWmZMB2JYwDKBAgOVujr/7Ihpv8zsjtE/9qb/ov3TD2RBoRpCvbIyIe1VzG1AAD+8o75dJNuoG7V6fsLEDk9y8qY5ADrdaZQHLksh0fZ/6yE+T59Kh4M16NYTltR46XWqVbfPCXsSZLbNso70YD0turiw+bZGynvlF/MPHiRdI4/5mQEMuKOYontC3Z8WnqSBn4RBqZ6OrdwchzFf6EOp6/dzSdUTzsEClr5nZA495Kj78bKvSesqrku2k9zQWmhRo0SnPHb5FbXwnN1QMgB2AWmfWQBC5zNPWaQVLgrP9maL2FaRiE7rnnBv7CdlcIAbPofQ8QPCBoyY5XLijwyNpADJrzrXNxHeLLhNjm+CDco07ngAA=="
   }
 ];
 
