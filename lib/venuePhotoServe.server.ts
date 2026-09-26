@@ -20,6 +20,7 @@ import {
 } from "@/lib/venuePhotoMedia.server";
 import { venuePhotoStore, type VenuePhotoStore } from "@/lib/venuePhotoStore";
 import {
+  isDrinkWallServingKey,
   isVenuePhotoServingKey,
   isVenuePhotoVenueId,
   type VenuePhoto,
@@ -80,6 +81,51 @@ export async function handleVenuePhotoServe(
   // The key is rebuilt from the row rather than trusted off it, so a hand-
   // edited object_key cannot make this route read somebody else's object.
   if (!isVenuePhotoServingKey(venueId, photoId, photo.objectKey)) return notFound();
+
+  const author = await deps.getProfileById(photo.authorProfileId);
+  if (!author || isProfileTombstoned(author) || (await isProfileWithdrawnFromPublic(author))) return notFound();
+
+  const downloaded = await deps.downloadObject(photo.objectKey);
+  if (!downloaded) return notFound();
+
+  return new Response(new Uint8Array(downloaded.bytes), {
+    status: 200,
+    headers: {
+      "Content-Type": downloaded.contentType,
+      "Cache-Control": VENUE_PHOTO_SERVE_CACHE_CONTROL,
+    },
+  });
+}
+
+
+export async function handleDrinkWallPhotoServe(
+  request: Request,
+  params: { photoId: string },
+  deps: VenuePhotoServeDeps = defaultVenuePhotoServeDeps,
+): Promise<Response> {
+  const ipHash = hashIp(clientIp(request));
+  const key = `drink-wall-serve:${ipHash}`;
+  if (await isLimited(key, key, 480, 60_000)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  }
+
+  if (!isSupabaseConfigured()) return notFound();
+
+  let photoId: string;
+  try {
+    photoId = decodeURIComponent(params.photoId).trim();
+  } catch {
+    return notFound();
+  }
+  if (!UUID.test(photoId)) return notFound();
+
+  const photo = await deps.getPhoto(photoId);
+  if (!photo || photo.venueId !== null) return notFound();
+  if (photo.moderationState !== "approved") return notFound();
+  if (!isDrinkWallServingKey(photoId, photo.objectKey)) return notFound();
 
   const author = await deps.getProfileById(photo.authorProfileId);
   if (!author || isProfileTombstoned(author) || (await isProfileWithdrawnFromPublic(author))) return notFound();

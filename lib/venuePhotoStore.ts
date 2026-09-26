@@ -44,8 +44,10 @@ import {
   VENUE_PHOTO_CAP_PER_ACCOUNT,
   VENUE_PHOTO_PAGE_SIZE,
   VENUE_PHOTO_PAGE_SIZE_MAX,
+  isDrinkWallCategory,
+  photoServePath,
   venuePhotoCursor,
-  venuePhotoServePath,
+  type DrinkWallCategory,
   type VenuePhoto,
   type VenuePhotoAuthor,
   type VenuePhotoDTO,
@@ -62,7 +64,7 @@ const TABLE = "venue_photos";
  * window rather than a filter; the account export says so through `truncated`.
  */
 const MAX_AUTHOR_PHOTOS = 1_000;
-const MIGRATION_HINT = "apply migration 0098";
+const MIGRATION_HINT = "apply migration 0158";
 
 type VenuePhotoWallQuery = {
   cursor?: string | null;
@@ -70,6 +72,30 @@ type VenuePhotoWallQuery = {
   /** The signed-in account, so a tile can say "yours". Never a body claim. */
   viewerProfileId?: string | null;
 };
+export type DrinkWallListQuery = {
+  category?: DrinkWallCategory;
+  cursor?: string | null;
+  limit?: number;
+  viewerProfileId?: string | null;
+  /** When set, only rows tied to these venues (near scope). */
+  nearVenueIds?: readonly string[] | null;
+};
+
+function onPubWall(row: VenuePhoto): boolean {
+  return !(row.wallCategory === "london" && row.venueId === null);
+}
+
+function matchesDrinkWallQuery(row: VenuePhoto, query: DrinkWallListQuery): boolean {
+  if (row.moderationState !== "approved") return false;
+  if (query.category && row.wallCategory !== query.category) return false;
+  if (query.nearVenueIds !== undefined && query.nearVenueIds !== null) {
+    if (query.nearVenueIds.length === 0) return false;
+    if (!row.venueId || !query.nearVenueIds.includes(row.venueId)) return false;
+  }
+  return true;
+}
+
+
 
 export type VenuePhotoStore = {
   /**
@@ -102,6 +128,13 @@ export type VenuePhotoStore = {
    * account with no photos from a read we could not run.
    */
   listForAuthor(authorProfileId: string): Promise<{ status: VenuePhotoReadStatus; photos: VenuePhoto[] }>;
+
+  /** City-wide Drink Wall page, newest first. */
+  listDrinkWall(query?: DrinkWallListQuery): Promise<VenuePhotoPage>;
+  /** Approved city-only rows (venue_id null) for one account. */
+  countCityPhotosForAuthor(authorProfileId: string): Promise<number>;
+  /** Remove one row when the author matches (service role path). */
+  deleteByAuthor(id: string, authorProfileId: string): Promise<boolean>;
 };
 
 // ── Author projection ────────────────────────────────────────────────────────
@@ -155,7 +188,9 @@ async function toPage(
     photos.push({
       id: row.id,
       venueId: row.venueId,
-      url: venuePhotoServePath(row.venueId, row.id),
+      wallCategory: row.wallCategory,
+      placeLabel: row.placeLabel ? row.placeLabel : null,
+      url: photoServePath(row),
       drinkCategory: row.drinkCategory,
       caption: row.caption,
       width: row.width,
@@ -187,6 +222,8 @@ const memoryVenuePhotoStore: VenuePhotoStore = {
   async create(fields, now = Date.now()) {
     const photo: VenuePhoto = {
       ...fields,
+      wallCategory: fields.wallCategory ?? "pint",
+      placeLabel: fields.placeLabel ?? "",
       moderationState: "approved",
       createdAt: new Date(now).toISOString(),
     };
@@ -198,7 +235,7 @@ const memoryVenuePhotoStore: VenuePhotoStore = {
     const limit = boundedLimit(query.limit);
     const cursor = parseVenuePhotoCursor(query.cursor);
     const rows = [...byId.values()]
-      .filter((row) => row.venueId === venueId && row.moderationState === "approved")
+      .filter((row) => row.venueId === venueId && row.moderationState === "approved" && onPubWall(row))
       .filter((row) => (cursor ? isBeforeVenuePhotoCursor(row, cursor) : true))
       .sort(byNewestVenuePhoto)
       .slice(0, limit + 1);
@@ -268,6 +305,39 @@ const memoryVenuePhotoStore: VenuePhotoStore = {
       .filter((row) => row.moderationState === "hidden")
       .sort((a, b) => (b.moderatedAt ?? b.createdAt).localeCompare(a.moderatedAt ?? a.createdAt));
   },
+
+  async listDrinkWall(query = {}) {
+    const limit = boundedLimit(query.limit);
+    const cursor = parseVenuePhotoCursor(query.cursor);
+    const rows = [...byId.values()]
+      .filter((row) => matchesDrinkWallQuery(row, query))
+      .filter((row) => (cursor ? isBeforeVenuePhotoCursor(row, cursor) : true))
+      .sort(byNewestVenuePhoto)
+      .slice(0, limit + 1);
+    return toPage(rows, limit, query.viewerProfileId);
+  },
+
+  async countCityPhotosForAuthor(authorProfileId) {
+    let count = 0;
+    for (const row of byId.values()) {
+      if (
+        row.authorProfileId === authorProfileId &&
+        row.venueId === null &&
+        row.moderationState === "approved"
+      ) {
+        count += 1;
+      }
+    }
+    return count;
+  },
+
+  async deleteByAuthor(id, authorProfileId) {
+    const hit = byId.get(id);
+    if (!hit || hit.authorProfileId !== authorProfileId) return false;
+    byId.delete(id);
+    return true;
+  },
+
 };
 
 // ── Supabase implementation ──────────────────────────────────────────────────
@@ -281,6 +351,8 @@ function toRow(photo: VenuePhoto) {
   return {
     id: photo.id,
     venue_id: photo.venueId,
+    wall_category: photo.wallCategory,
+    place_label: photo.placeLabel,
     author_actor: photo.authorActor,
     author_profile_id: photo.authorProfileId,
     object_key: photo.objectKey,
@@ -304,9 +376,12 @@ function fromRow(row: Record<string, unknown>): VenuePhoto {
     ? (row.report_actors as unknown[]).filter((a): a is string => typeof a === "string")
     : [];
   const state = row.moderation_state;
+  const wallRaw = row.wall_category;
   return {
     id: String(row.id),
-    venueId: String(row.venue_id),
+    venueId: row.venue_id == null ? null : String(row.venue_id),
+    wallCategory: isDrinkWallCategory(wallRaw) ? wallRaw : "pint",
+    placeLabel: typeof row.place_label === "string" ? row.place_label : "",
     authorActor: String(row.author_actor),
     authorProfileId: String(row.author_profile_id),
     objectKey: String(row.object_key),
@@ -332,6 +407,8 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
   async create(fields, now = Date.now()) {
     const photo: VenuePhoto = {
       ...fields,
+      wallCategory: fields.wallCategory ?? "pint",
+      placeLabel: fields.placeLabel ?? "",
       moderationState: "approved",
       createdAt: new Date(now).toISOString(),
     };
@@ -382,7 +459,9 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
         const { data, error } = await request;
         if (error) throw new Error(error.message);
         return toPage(
-          (data ?? []).map((row) => fromRow(row as Record<string, unknown>)),
+          (data ?? [])
+            .map((row) => fromRow(row as Record<string, unknown>))
+            .filter(onPubWall),
           limit,
           query.viewerProfileId,
         );
@@ -528,6 +607,76 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
           .limit(200);
         if (error) throw new Error(error.message);
         return (data ?? []).map((row) => fromRow(row as Record<string, unknown>));
+      },
+    });
+  },
+
+
+  async listDrinkWall(query = {}) {
+    const limit = boundedLimit(query.limit);
+    const cursor = parseVenuePhotoCursor(query.cursor);
+    return guard<VenuePhotoPage>({
+      context: "listDrinkWall",
+      onSchemaMiss: async () => ({
+        ...(await memoryVenuePhotoStore.listDrinkWall(query)),
+        status: "degraded",
+      }),
+      message: "listDrinkWall failed - returning no photos",
+      onError: () => ({ status: "degraded", photos: [], nextCursor: null }),
+      run: async () => {
+        let request = admin()
+          .from(TABLE)
+          .select("*")
+          .eq("moderation_state", "approved")
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .limit(limit + 1);
+        if (query.category) request = request.eq("wall_category", query.category);
+        if (cursor) {
+          request = request.or(
+            `created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`,
+          );
+        }
+        const { data, error } = await request;
+        if (error) throw new Error(error.message);
+        const rows = (data ?? [])
+          .map((row) => fromRow(row as Record<string, unknown>))
+          .filter((row) => matchesDrinkWallQuery(row, query));
+        return toPage(rows, limit, query.viewerProfileId);
+      },
+    });
+  },
+
+  async countCityPhotosForAuthor(authorProfileId) {
+    return guard<number>({
+      context: "countCityPhotosForAuthor",
+      onSchemaMiss: () => memoryVenuePhotoStore.countCityPhotosForAuthor(authorProfileId),
+      run: async () => {
+        const { count, error } = await admin()
+          .from(TABLE)
+          .select("id", { count: "exact", head: true })
+          .eq("author_profile_id", authorProfileId)
+          .is("venue_id", null)
+          .eq("moderation_state", "approved");
+        if (error) throw new Error(error.message);
+        return typeof count === "number" && count > 0 ? count : 0;
+      },
+    });
+  },
+
+  async deleteByAuthor(id, authorProfileId) {
+    return guard<boolean>({
+      context: "deleteByAuthor",
+      onSchemaMiss: () => memoryVenuePhotoStore.deleteByAuthor(id, authorProfileId),
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .delete()
+          .eq("id", id)
+          .eq("author_profile_id", authorProfileId)
+          .select("id");
+        if (error) throw new Error(error.message);
+        return (data ?? []).length > 0;
       },
     });
   },

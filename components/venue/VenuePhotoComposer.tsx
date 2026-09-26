@@ -41,6 +41,7 @@ import "./venuePhotoWall.css";
 type VenuePhotoComposerProps = {
   venueId: string;
   venueName: string;
+  wallCategory?: "pint" | "pub";
   onCancel: () => void;
   onPosted: (photo: VenuePhotoDTO, note: string | null) => void;
 };
@@ -52,6 +53,7 @@ function fileKey(file: File): string {
 export default function VenuePhotoComposer({
   venueId,
   venueName,
+  wallCategory = "pint",
   onCancel,
   onPosted,
 }: VenuePhotoComposerProps) {
@@ -71,7 +73,7 @@ export default function VenuePhotoComposer({
       const form = new FormData();
       form.append(
         "post",
-        JSON.stringify({ venueId, drinkCategory, caption, shareToFeed }),
+        JSON.stringify({ venueId, wallCategory, placeLabel: "", drinkCategory, caption, shareToFeed }),
       );
       form.append("photo", file);
       const response = await authedActionFetch("/api/venue-photos", {
@@ -189,6 +191,12 @@ export default function VenuePhotoComposer({
           onChange={(event) => setCaption(event.target.value)}
         />
       </div>
+
+      {wallCategory === "pint" ? (
+        <p className="venuePhotoWallStatus">
+          <a href="/wall">Also post to the Drink Wall</a> by choosing Pub when you compose there.
+        </p>
+      ) : null}
 
       <label className="venuePhotoComposerShare">
         <input

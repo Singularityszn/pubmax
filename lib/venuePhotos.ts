@@ -30,6 +30,34 @@
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import type { CropTarget } from "@/lib/profileImagePicker";
 
+/** Closed drink-wall categories — mirrored in migration 0158. */
+export const DRINK_WALL_CATEGORIES = ["pint", "london", "pub"] as const;
+export type DrinkWallCategory = (typeof DRINK_WALL_CATEGORIES)[number];
+
+const DRINK_WALL_CATEGORY_SET = new Set<string>(DRINK_WALL_CATEGORIES);
+
+export const DRINK_WALL_CATEGORY_LABEL: Record<DrinkWallCategory, string> = {
+  pint: "Pint",
+  london: "London",
+  pub: "Pub",
+};
+
+export const DRINK_WALL_PLACE_LABEL_MAX = 80;
+
+export function cleanDrinkWallPlaceLabel(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/[<>]/g, "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, DRINK_WALL_PLACE_LABEL_MAX);
+}
+
+export function isDrinkWallCategory(value: unknown): value is DrinkWallCategory {
+  return typeof value === "string" && DRINK_WALL_CATEGORY_SET.has(value);
+}
+
 /**
  * The captain's number: 100 photos per pub per account. Enforced on the write
  * path against the account's own live rows for that venue, and mirrored by no
@@ -99,7 +127,9 @@ export type VenuePhotoAuthor = {
 /** The stored row. Never crosses the wire - `VenuePhotoDTO` does. */
 export type VenuePhoto = {
   id: string;
-  venueId: string;
+  venueId: string | null;
+  wallCategory: DrinkWallCategory;
+  placeLabel: string;
   /** Stable profile actor, `profile:{uuid}`. Survives a handle rename. */
   authorActor: string;
   authorProfileId: string;
@@ -121,7 +151,9 @@ export type VenuePhoto = {
 /** What a public wall read returns for one photo. */
 export type VenuePhotoDTO = {
   id: string;
-  venueId: string;
+  venueId: string | null;
+  wallCategory: DrinkWallCategory;
+  placeLabel: string | null;
   url: string;
   drinkCategory: DrinkCategory | null;
   caption: string;
@@ -141,7 +173,9 @@ export type VenuePhotoFields = {
    * would let a memory-store write drift into a row whose serve route 404s.
    */
   id: string;
-  venueId: string;
+  venueId: string | null;
+  wallCategory: DrinkWallCategory;
+  placeLabel: string;
   authorActor: string;
   authorProfileId: string;
   objectKey: string;
@@ -182,7 +216,39 @@ export function isVenuePhotoServingKey(
   return objectKey === venuePhotoServingKey(venueId, photoId);
 }
 
-/** Public serve path for an approved wall photo. */
+export const DRINK_WALL_STORAGE_PREFIX = "drink-wall";
+
+export function drinkWallServingKey(photoId: string): string {
+  return `${DRINK_WALL_STORAGE_PREFIX}/${photoId}.jpg`;
+}
+
+export function drinkWallStagingKey(photoId: string): string {
+  return `${DRINK_WALL_STORAGE_PREFIX}/${photoId}.staging.jpg`;
+}
+
+export function isDrinkWallServingKey(photoId: string, objectKey: string): boolean {
+  return objectKey === drinkWallServingKey(photoId);
+}
+
+export function drinkWallServePath(photoId: string): string {
+  return `/api/drink-wall-photo/${encodeURIComponent(photoId)}`;
+}
+
+export function photoServePath(photo: Pick<VenuePhoto, "id" | "venueId">): string {
+  return photo.venueId
+    ? venuePhotoServePath(photo.venueId, photo.id)
+    : drinkWallServePath(photo.id);
+}
+
+export function photoObjectKey(photoId: string, venueId: string | null): string {
+  return venueId ? venuePhotoServingKey(venueId, photoId) : drinkWallServingKey(photoId);
+}
+
+export function photoStagingKey(photoId: string, venueId: string | null): string {
+  return venueId ? venuePhotoStagingKey(venueId, photoId) : drinkWallStagingKey(photoId);
+}
+
+/** Public serve path for an approved pub-tied wall photo. */
 export function venuePhotoServePath(venueId: string, photoId: string): string {
   return `/api/venue-photo/${encodeURIComponent(venueId)}/${encodeURIComponent(photoId)}`;
 }
@@ -232,6 +298,8 @@ export function parseVenuePhotoDrinkCategory(
 
 type VenuePhotoSubmission = {
   venueId: string;
+  wallCategory: DrinkWallCategory;
+  placeLabel: string;
   drinkCategory: DrinkCategory | null;
   caption: string;
   /** The author asked for it; whether it happens is a separate question. */
@@ -254,10 +322,22 @@ export function validateVenuePhotoSubmission(input: unknown): VenuePhotoValidati
   if (drinkCategory === undefined) {
     return { ok: false, error: "Choose a listed drink." };
   }
+  const wallRaw = raw.wallCategory;
+  const wallCategory =
+    wallRaw === undefined || wallRaw === null || wallRaw === ""
+      ? "pint"
+      : isDrinkWallCategory(wallRaw)
+        ? wallRaw
+        : null;
+  if (!wallCategory) {
+    return { ok: false, error: "Choose a wall category." };
+  }
   return {
     ok: true,
     value: {
       venueId: raw.venueId,
+      wallCategory,
+      placeLabel: cleanDrinkWallPlaceLabel(raw.placeLabel),
       drinkCategory,
       caption: cleanVenuePhotoCaption(raw.caption),
       shareToFeed: raw.shareToFeed === true,

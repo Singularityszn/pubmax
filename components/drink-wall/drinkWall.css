@@ -1,0 +1,122 @@
+/* Drink Wall — masonry grid shared with pub walls. */
+
+.drinkWall {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.drinkWallHead {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.drinkWallTitle {
+  font-size: 1.25rem;
+  font-weight: 650;
+  margin: 0;
+}
+
+.drinkWallIntro {
+  margin: 0;
+  color: var(--ink-soft, #6b6257);
+  font-size: 0.9375rem;
+}
+
+.drinkWallFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.drinkWallScope {
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid var(--rule, rgba(0, 0, 0, 0.12));
+  overflow: hidden;
+}
+
+.drinkWallScope button {
+  border: 0;
+  background: transparent;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.drinkWallScope button[aria-pressed="true"] {
+  background: var(--ink, #1a1510);
+  color: var(--paper, #fff);
+}
+
+.drinkWallTag {
+  border-radius: 999px;
+  border: 1px solid var(--rule, rgba(0, 0, 0, 0.12));
+  background: transparent;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.drinkWallTag[aria-pressed="true"] {
+  border-color: var(--ink, #1a1510);
+  font-weight: 600;
+}
+
+.drinkWallGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (min-width: 700px) {
+  .drinkWallGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.drinkWallTile {
+  position: relative;
+  margin: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--paper-sunk, rgba(0, 0, 0, 0.06));
+  aspect-ratio: 4 / 5;
+}
+
+.drinkWallTile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.drinkWallByline {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 20px 8px 6px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0));
+  color: #fff;
+  font-size: 0.75rem;
+}
+
+.drinkWallEmpty,
+.drinkWallStatus {
+  margin: 0;
+  color: var(--ink-soft, #6b6257);
+  font-size: 0.9375rem;
+}
+
+.drinkWallActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wallPageBody {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+}

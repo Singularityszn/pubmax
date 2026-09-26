@@ -1,32 +1,10 @@
-// Pub photo walls: the single write/read seam.
+// Drink Wall: city-wide photo read and write seam.
 //
-//   POST multipart { post: <json>, photo: <file> }  -> 201 { photo, crosspost }
-//   POST { action: "report", id, reason? }          -> 200 { ok }   (public)
-//   POST { action: "hide" | "restore", id, note? }  -> 200 { ok }   (moderator)
-//   GET  ?venueId=...&cursor=&limit=                -> 200 { status, photos, nextCursor }
-//   GET  ?status=reported | hidden                  -> 200 { photos } (moderator)
-//
-// WHO MAY POST: a signed-in account with a claimed public handle that is 18 or
-// over. The handle is the wall's byline and the date of birth is the bar's
-// door, so both are checked from the SESSION - never from the body, which is
-// what would let one origin post as anybody.
-//
-// WHAT A PHOTO COSTS: one safety scan, which is a paid call to a provider that
-// can be spent by anyone with an upload button. So the per-account budget is
-// `failClosed` (a limiter we cannot reach refuses rather than waves through),
-// and nothing reaches the scan before the cap has been counted. The scan itself
-// is ADVISORY (`lib/uploadedImageScan.server.ts`): it still refuses what it
-// refuses, but a provider we cannot reach never closes the wall.
-//
-// WHAT THE CAP IS: 100 photos per account per venue, counted in the store
-// against that account's own live rows. The composer hides its button at the
-// cap as a courtesy; this is the fence.
-//
-// WHAT A CROSSPOST IS: a separate write to Social, behind Social's own verified
-// gate, whose outcome is reported honestly and which can never fail the wall.
+//   GET  ?category=&cursor=&limit=&scope=all|near&nearVenueIds=id,id
+//   POST multipart { post: <json>, photo: <file> }
+//   POST { action: "report" | "delete", id, reason? }
 
 import { assertServerEnv } from "@/lib/serverEnv";
-import { isModerator } from "@/lib/adminAuth";
 import { accountIsAdult } from "@/lib/adultGate";
 import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { publicApiError } from "@/lib/apiError";
@@ -37,6 +15,11 @@ import {
   type ContributionAdultRefusal,
 } from "@/lib/contributionGateStatus";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
+import {
+  DRINK_WALL_CITY_CAP_PER_ACCOUNT,
+  drinkWallCapLine,
+  validateDrinkWallSubmission,
+} from "@/lib/drinkWall";
 import { log } from "@/lib/log";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
@@ -60,22 +43,17 @@ import {
   VenuePhotoError,
   type StagedVenuePhoto,
 } from "@/lib/venuePhotoMedia.server";
-import {
-  VENUE_PHOTO_CAP_PER_ACCOUNT,
-  venuePhotoStore,
-} from "@/lib/venuePhotoStore";
-import {
-  validateVenuePhotoSubmission,
-  VENUE_PHOTO_REFUSED_LINE,
-  photoServePath,
-  venuePhotoCapLine,
-  type VenuePhotoCrosspost,
-} from "@/lib/venuePhotos";
 import { venuePhotoRouteDeps } from "@/lib/venuePhotoRouteDeps.server";
+import { venuePhotoStore } from "@/lib/venuePhotoStore";
+import {
+  isDrinkWallCategory,
+  isVenuePhotoVenueId,
+  photoServePath,
+  VENUE_PHOTO_REFUSED_LINE,
+} from "@/lib/venuePhotos";
 
 assertServerEnv();
 
-/** A genuine drinker posts a few photos in a session; more is abuse. */
 const UPLOAD_LIMIT = 12;
 const UPLOAD_WINDOW_MS = 60 * 60 * 1000;
 const REPORT_PER_ACTOR_LIMIT = 1;
@@ -99,7 +77,6 @@ async function parseJson(request: Request): Promise<Record<string, unknown> | nu
   }
 }
 
-/** The multipart body a composer sends: one JSON part and one file. */
 async function parseUpload(
   request: Request,
 ): Promise<{ input: unknown; photo: File } | null> {
@@ -116,12 +93,6 @@ async function parseUpload(
   }
 }
 
-/**
- * The wall's own wording for the age refusal the shared chooser picked. Only
- * the tap branch names a surface to tap on: the under-18 branch has no way
- * through, so it spends the shared sentence unchanged rather than inviting a
- * confirmation the stored answer would refuse.
- */
 function wallAgeRefusalLine(refusal: ContributionAdultRefusal): string {
   if (refusal.status !== "adult_check_required") return refusal.error;
   const surface = socialSurfaceName(
@@ -130,10 +101,21 @@ function wallAgeRefusalLine(refusal: ContributionAdultRefusal): string {
   return `Photo walls are for over-18s. Confirm your age on ${surface}.`;
 }
 
+function parseNearVenueIds(raw: string | null): string[] | null | undefined {
+  if (raw === null) return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+  const ids = trimmed
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (ids.some((id) => !isVenuePhotoVenueId(id))) return null;
+  return ids;
+}
+
 export async function POST(request: Request): Promise<Response> {
   const contentType = (request.headers.get("Content-Type") ?? "").toLowerCase();
 
-  // ── Reader flag and moderator decisions (JSON) ─────────────────────────────
   if (!contentType.startsWith("multipart/form-data")) {
     const body = await parseJson(request);
     if (!body) return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
@@ -141,10 +123,8 @@ export async function POST(request: Request): Promise<Response> {
     if (body.action === "report") {
       const id = readString(body.id);
       if (!id) return publicApiError("Photo not found.", "NOT_FOUND", 404);
-      // Server-derived reporter, exactly like community prices and Visit
-      // Reports: a body token would let one origin mint many reporters.
-      const actorHash = hashActor(`venue-photo:${hashIp(clientIp(request))}`);
-      const flagKey = `venue-photo-report:${id}`;
+      const actorHash = hashActor(`drink-wall:${hashIp(clientIp(request))}`);
+      const flagKey = `drink-wall-report:${id}`;
       const actorKey = `${flagKey}:${actorHash}`;
       if (
         (await isLimited(flagKey, flagKey)) ||
@@ -160,8 +140,8 @@ export async function POST(request: Request): Promise<Response> {
           ? jsonNoStore({ ok: true }, { status: 200 })
           : publicApiError("Photo not found.", "NOT_FOUND", 404);
       } catch (err) {
-        log("error", "venue_photo.report_failed", {
-          route: "POST /api/venue-photos",
+        log("error", "drink_wall.report_failed", {
+          route: "POST /api/drink-wall",
           error: err instanceof Error ? err.message : String(err),
         });
         return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
@@ -184,34 +164,8 @@ export async function POST(request: Request): Promise<Response> {
           ? jsonNoStore({ ok: true }, { status: 200 })
           : publicApiError("Photo not found.", "NOT_FOUND", 404);
       } catch (err) {
-        log("error", "venue_photo.delete_failed", {
-          route: "POST /api/venue-photos",
-          error: err instanceof Error ? err.message : String(err),
-        });
-        return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
-          retryable: true,
-        });
-      }
-    }
-
-    if (body.action === "hide" || body.action === "restore") {
-      if (!isModerator(request)) return publicApiError("Not authorised.", "FORBIDDEN", 403);
-      const id = readString(body.id);
-      if (!id) return publicApiError("Photo not found.", "NOT_FOUND", 404);
-      try {
-        // Hiding never deletes: the row, its bytes and its report trail stay,
-        // so the decision is reversible from the surface that made it.
-        const done = await venuePhotoStore().moderate(
-          id,
-          body.action === "hide" ? "hidden" : "approved",
-          readString(body.note),
-        );
-        return done
-          ? jsonNoStore({ ok: true }, { status: 200 })
-          : publicApiError("Photo not found.", "NOT_FOUND", 404);
-      } catch (err) {
-        log("error", "venue_photo.moderate_failed", {
-          route: "POST /api/venue-photos",
+        log("error", "drink_wall.delete_failed", {
+          route: "POST /api/drink-wall",
           error: err instanceof Error ? err.message : String(err),
         });
         return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
@@ -223,25 +177,17 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Send the photo as multipart form data.", "INVALID_REQUEST", 400);
   }
 
-  // ── Post a photo to a wall ─────────────────────────────────────────────────
   const contributor = await resolveContributionIdentity(request);
   if (!contributor.ok) {
     return jsonNoStore(contributor.body, { status: contributor.httpStatus });
   }
 
-  // The bar's door, and it asks the SAME question Social asks, through the same
-  // gate: a stored adult date of birth, or the recorded one-tap assertion. The
-  // handle came from the session above; the age is re-checked here rather than
-  // trusted from any earlier surface.
   let adultRefusal: ContributionAdultRefusal | null = null;
   try {
     const [identity, assertedAt] = await Promise.all([
       privateIdentityStore().read(contributor.accountId),
       adultSelfAssertionStore().read(contributor.accountId),
     ]);
-    // The SAME two questions the price door asks, chosen in the same place, so
-    // one product cannot answer the alcohol-age question two ways and a reader
-    // is never offered a tap their own stored date of birth would refuse.
     const evidence = {
       dateOfBirth: identity?.dateOfBirth ?? null,
       adultSelfAssertedAt: assertedAt,
@@ -274,15 +220,13 @@ export async function POST(request: Request): Promise<Response> {
   if (!submitted) {
     return publicApiError("Attach one photo and its details.", "INVALID_REQUEST", 400);
   }
-  const validation = validateVenuePhotoSubmission(submitted.input);
+  const validation = validateDrinkWallSubmission(submitted.input);
   if (!validation.ok) {
     return publicApiError(validation.error, "INVALID_PHOTO", 400);
   }
   const submission = validation.value;
 
-  // Every upload costs a safety scan, so the budget fails CLOSED: a limiter we
-  // cannot reach refuses rather than handing the provider bill to whoever asks.
-  const limiterKey = `venue-photo:${hashActor(contributor.actor)}`;
+  const limiterKey = `drink-wall:${hashActor(contributor.actor)}`;
   if (
     await isLimited(limiterKey, limiterKey, UPLOAD_LIMIT, UPLOAD_WINDOW_MS, {
       failClosed: true,
@@ -295,24 +239,26 @@ export async function POST(request: Request): Promise<Response> {
 
   const store = venuePhotoStore();
   const profileId = contributor.actor.replace(/^profile:/, "");
-  let held: number;
-  try {
-    held = await store.countForAuthorAtVenue(profileId, submission.venueId);
-  } catch (err) {
-    log("error", "venue_photo.count_failed", {
-      route: "POST /api/venue-photos",
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
-      retryable: true,
-    });
-  }
-  if (held >= VENUE_PHOTO_CAP_PER_ACCOUNT) {
-    return publicApiError(venuePhotoCapLine(), "PHOTO_CAP_REACHED", 409);
+  if (submission.venueId === null) {
+    let cityHeld: number;
+    try {
+      cityHeld = await store.countCityPhotosForAuthor(profileId);
+    } catch (err) {
+      log("error", "drink_wall.city_count_failed", {
+        route: "POST /api/drink-wall",
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
+        retryable: true,
+      });
+    }
+    if (cityHeld >= DRINK_WALL_CITY_CAP_PER_ACCOUNT) {
+      return publicApiError(drinkWallCapLine(), "PHOTO_CAP_REACHED", 409);
+    }
   }
 
   const photoId = crypto.randomUUID();
-  const { storage, moderation, crosspost: crosspostToFeed } = venuePhotoRouteDeps();
+  const { storage, moderation } = venuePhotoRouteDeps();
   let staged: StagedVenuePhoto | null = null;
   try {
     const prepared = await prepareVenuePhoto(submitted.photo);
@@ -320,14 +266,12 @@ export async function POST(request: Request): Promise<Response> {
 
     const signedUrl = await signVenuePhotoObject(staged.stagingKey, storage);
     const scan = await scanUploadedImage({
-      surface: "venue-photo",
+      surface: "drink-wall",
       signedUrl,
       adapter: moderation,
     });
 
     if (scan.verdict === "refused") {
-      // Refused bytes never reach the serving key, so nothing public was ever
-      // one request away from existing.
       await discardStagedVenuePhoto(staged, storage);
       staged = null;
       return publicApiError(VENUE_PHOTO_REFUSED_LINE, "PHOTO_REFUSED", 400);
@@ -350,24 +294,13 @@ export async function POST(request: Request): Promise<Response> {
       height: promoted.height,
     });
 
-    // The feed is a SECOND write behind its own gate, and it can never take the
-    // wall down with it. `off` is the honest answer when nobody asked.
-    let crosspost: VenuePhotoCrosspost = { state: "off" };
-    if (submission.shareToFeed) {
-      crosspost = await crosspostToFeed(request, {
-        caption: submission.caption,
-        venueId: submission.venueId,
-        photo: submitted.photo,
-        idempotencyKey: `venue-photo-${created.id}`,
-        authorProfileId: profileId,
-      });
-    }
-
     return jsonNoStore(
       {
         photo: {
           id: created.id,
           venueId: created.venueId,
+          wallCategory: created.wallCategory,
+          placeLabel: created.placeLabel ? created.placeLabel : null,
           url: photoServePath(created),
           drinkCategory: created.drinkCategory,
           caption: created.caption,
@@ -377,7 +310,6 @@ export async function POST(request: Request): Promise<Response> {
           author: { handle: contributor.handle },
           ownedByViewer: true,
         },
-        crosspost,
       },
       { status: 201 },
     );
@@ -386,12 +318,12 @@ export async function POST(request: Request): Promise<Response> {
       try {
         await discardStagedVenuePhoto(staged, storage);
       } catch {
-        // Swallow cleanup errors so the original failure is what is reported.
+        /* swallow cleanup errors */
       }
     }
     if (error instanceof VenuePhotoError) return photoError(error);
-    log("error", "venue_photo.create_failed", {
-      route: "POST /api/venue-photos",
+    log("error", "drink_wall.create_failed", {
+      route: "POST /api/drink-wall",
       error: error instanceof Error ? error.message : String(error),
     });
     return publicApiError("Storage is unavailable. Try again shortly.", "STORE_UNAVAILABLE", 503, {
@@ -402,30 +334,23 @@ export async function POST(request: Request): Promise<Response> {
 
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
-
-  const status = params.get("status");
-  if (status === "reported" || status === "hidden") {
-    if (!isModerator(request)) return publicApiError("Not authorised.", "FORBIDDEN", 403);
-    const store = venuePhotoStore();
-    try {
-      const photos = status === "hidden" ? await store.listHidden() : await store.listForReview();
-      return jsonNoStore({ photos }, { status: 200 });
-    } catch (err) {
-      log("error", "venue_photo.list_review_failed", {
-        route: "GET /api/venue-photos",
-        error: err instanceof Error ? err.message : String(err),
-      });
-      return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
-        retryable: true,
-      });
-    }
+  const scope = params.get("scope") === "near" ? "near" : "all";
+  const categoryRaw = params.get("category");
+  const category =
+    categoryRaw && categoryRaw.length > 0
+      ? isDrinkWallCategory(categoryRaw)
+        ? categoryRaw
+        : null
+      : undefined;
+  if (category === null) {
+    return publicApiError("Choose a wall category.", "INVALID_REQUEST", 400);
   }
 
-  const venueId = readString(params.get("venueId"));
-  if (!venueId) return publicApiError("Choose a venue.", "INVALID_REQUEST", 400);
+  const nearParsed = scope === "near" ? parseNearVenueIds(params.get("nearVenueIds")) : undefined;
+  if (nearParsed === null) {
+    return publicApiError("Near pubs are not valid.", "INVALID_REQUEST", 400);
+  }
 
-  // A wall is public, so the read needs no session. The viewer's own id is
-  // resolved only when a session is present, purely so a tile can say "yours".
   let viewerProfileId: string | null = null;
   try {
     const viewer = await resolveContributionIdentity(request);
@@ -435,10 +360,12 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const rawLimit = params.get("limit");
-  const page = await venuePhotoStore().listForVenue(venueId, {
+  const page = await venuePhotoStore().listDrinkWall({
+    category,
     cursor: params.get("cursor"),
     limit: rawLimit === null ? undefined : Number(rawLimit),
     viewerProfileId,
+    nearVenueIds: nearParsed,
   });
   return jsonNoStore(page, { status: 200 });
 }
