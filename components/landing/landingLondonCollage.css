@@ -71,6 +71,7 @@
 }
 
 .lpCollageTile__frame {
+  position: relative;
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -80,6 +81,8 @@
 }
 
 .lpCollageTile__img {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
@@ -124,24 +127,21 @@
   .lpCollageMosaic {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    grid-auto-rows: minmax(140px, 1fr);
+    grid-auto-rows: clamp(180px, 19vw, 240px);
     grid-auto-flow: dense;
     gap: var(--space-3);
     margin-inline: 0;
     padding-inline: 0;
     overflow: visible;
     scroll-snap-type: none;
-    min-height: 420px;
+  }
+
+  .lpCollageTile__figure {
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 
   .lpCollageTile__frame {
     aspect-ratio: auto;
-    height: 100%;
-    min-height: 160px;
-  }
-
-  .lpCollageTile--standard .lpCollageTile__frame {
-    min-height: 200px;
   }
 
   .lpCollageTile--wide {
