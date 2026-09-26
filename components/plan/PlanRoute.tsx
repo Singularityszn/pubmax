@@ -118,13 +118,7 @@ export default function PlanRoute({
           rule as the big map. Degrades to nothing when it can't locate ≥2 stops,
           so the deep link below always stands on its own. */}
       {stops.length >= 2 ? (
-        walkRouteHref ? (
-          <Link className="planRoute__mapLink" href={walkRouteHref}>
-            <PlanRouteMiniMap stops={stops} />
-          </Link>
-        ) : (
-          <PlanRouteMiniMap stops={stops} />
-        )
+        <PlanRouteMiniMap stops={stops} mapHref={walkRouteHref} />
       ) : null}
       {walkRouteHref ? (
         <Link className="planRoute__walk" href={walkRouteHref}>

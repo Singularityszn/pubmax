@@ -62,12 +62,10 @@ test.describe("locked plan route map", () => {
     await expect(page.locator(".planRouteMiniMap__canvas .maplibregl-ctrl-attrib-button")).toBeVisible();
     await expect(page.locator(".planRouteMiniMap__canvas .maplibregl-ctrl-attrib-inner")).toBeHidden();
 
-    const mapLink = page.locator("a.planRoute__mapLink");
-    await expect(mapLink).toBeVisible();
-    const href = await mapLink.getAttribute("href");
-    expect(href).toMatch(/^\/map\?mode=build&pubs=/);
+    const mapCard = page.locator(".planRouteMiniMap--clickable");
+    await expect(mapCard).toBeVisible();
 
-    await page.getByRole("link", { name: "See the walking route" }).click();
+    await mapCard.click();
     await expect(page).toHaveURL(/\/map\?mode=build&pubs=/);
     await expect(page.locator(".mapCanvasWrap, .mapCanvasSkeleton")).toBeVisible();
   });

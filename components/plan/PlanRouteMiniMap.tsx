@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState } from "react";
 
 import {
@@ -10,7 +11,6 @@ import {
 } from "@/lib/routeMiniMap";
 import {
   planCrawlRouteGeoJSON,
-  planCrawlStraightLineCoords,
   type PlanCrawlRouteStop,
   type ResolvedPlanCrawlRoute,
 } from "@/lib/planCrawlRouteMap";
@@ -70,7 +70,14 @@ async function fetchStopCoords(
 
 type DrawnRoute = { line: LngLat[]; source: RouteSource };
 
-export default function PlanRouteMiniMap({ stops }: { stops: PlanCrawlRouteStop[] }) {
+export default function PlanRouteMiniMap({
+  stops,
+  mapHref,
+}: {
+  stops: PlanCrawlRouteStop[];
+  mapHref?: string | null;
+}) {
+  const router = useRouter();
   const [resolved, setResolved] = useState<ResolvedPlanCrawlRoute | null>(null);
   const [resolvedKey, setResolvedKey] = useState<string | null>(null);
   const [drawn, setDrawn] = useState<DrawnRoute | null>(null);
@@ -95,7 +102,7 @@ export default function PlanRouteMiniMap({ stops }: { stops: PlanCrawlRouteStop[
       }
       setResolved(next);
       setResolvedKey(stopsKey);
-      setDrawn({ line: planCrawlStraightLineCoords(next.coords), source: "straight" });
+      setDrawn({ line: next.coords, source: "straight" });
       setDrawnKey(stopsKey);
     });
     return () => controller.abort();
@@ -147,7 +154,27 @@ export default function PlanRouteMiniMap({ stops }: { stops: PlanCrawlRouteStop[
   const description = `Walking route between ${activeResolved.names.join(", ")}.`;
 
   return (
-    <figure className="planRouteMiniMap planRouteMiniMap--in" data-source={activeDrawn.source} role="group" aria-labelledby={`${titleId} ${descId}`}>
+    <figure
+      className={`planRouteMiniMap planRouteMiniMap--in${mapHref ? " planRouteMiniMap--clickable" : ""}`} data-source={activeDrawn.source}
+      onClick={
+        mapHref
+          ? () => {
+              router.push(mapHref);
+            }
+          : undefined
+      }
+      onKeyDown={
+        mapHref
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                router.push(mapHref);
+              }
+            }
+          : undefined
+      }
+      tabIndex={mapHref ? 0 : undefined}
+ role={mapHref ? "button" : "group"} aria-labelledby={`${titleId} ${descId}`}>
       <p id={titleId} className="planRouteMiniMap__title">
         {title}
       </p>

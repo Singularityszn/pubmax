@@ -1282,13 +1282,13 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 }
 /* A faint transit-diagram dot grid so the card reads as an abstract map rather
    than a blank panel — pinned to the route-line hue at a whisper of opacity. */
-.planRoute__mapLink {
+.planRouteMiniMap--clickable {
   display: block;
   color: inherit;
   text-decoration: none;
   border-radius: var(--radius-lg, 18px);
 }
-.planRoute__mapLink:focus-visible {
+.planRouteMiniMap--clickable:focus-visible {
   outline: 2px solid var(--plan-accent-strong);
   outline-offset: 3px;
 }

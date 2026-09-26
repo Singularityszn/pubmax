@@ -4,11 +4,8 @@ import { buildCrawlMapHref } from "@/lib/crawlUrl";
 import {
   planCrawlRouteFitBounds,
   planCrawlRouteGeoJSON,
-  planCrawlStraightLineCoords,
   type ResolvedPlanCrawlRoute,
 } from "@/lib/planCrawlRouteMap";
-import { stopPairs } from "@/lib/walkRoute";
-
 const RESOLVED: ResolvedPlanCrawlRoute = {
   coords: [
     [-0.14, 51.51],
@@ -19,16 +16,6 @@ const RESOLVED: ResolvedPlanCrawlRoute = {
   venueIds: ["a", "b", "c"],
   area: "Westminster",
 };
-
-describe("planCrawlStraightLineCoords", () => {
-  it("walks consecutive stops only (N stops → N−1 legs)", () => {
-    const line = planCrawlStraightLineCoords(RESOLVED.coords);
-    expect(line).toHaveLength(RESOLVED.coords.length);
-    expect(stopPairs(RESOLVED.coords)).toHaveLength(2);
-    expect(line[0]).toEqual(RESOLVED.coords[0]);
-    expect(line[line.length - 1]).toEqual(RESOLVED.coords[2]);
-  });
-});
 
 describe("planCrawlRouteFitBounds", () => {
   it("includes routed detour vertices outside the stop extent", () => {
@@ -48,7 +35,7 @@ describe("planCrawlRouteGeoJSON", () => {
   it("labels numbered stops with pub names", () => {
     const { routeStops } = planCrawlRouteGeoJSON(
       RESOLVED,
-      planCrawlStraightLineCoords(RESOLVED.coords),
+      RESOLVED.coords,
       "straight",
     );
     expect(routeStops.features).toHaveLength(3);

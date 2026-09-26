@@ -2,8 +2,6 @@
 // Consecutive stop-to-stop legs only — same wire as GET /api/walk-route and the main map.
 
 import { boundsFromCoords, type Bounds, type LngLat } from "@/lib/routeMiniMap";
-import { stopPairs } from "@/lib/walkRoute";
-import { routeStopsFromLngLats } from "@/components/map/canvas/geojson";
 
 export type PlanCrawlRouteStop = {
   venueId: string;
@@ -38,6 +36,14 @@ export function planCrawlStraightLineCoords(stops: LngLat[]): LngLat[] {
   return line;
 }
 
+const ROUTE_STOP_LABEL_MAX = 18;
+
+function truncateStopName(name: string, max = ROUTE_STOP_LABEL_MAX): string {
+  const trimmed = name.trim();
+  if (trimmed.length <= max) return trimmed;
+  return `${trimmed.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+}
+
 export function planCrawlRouteGeoJSON(
   resolved: ResolvedPlanCrawlRoute,
   lineCoords: readonly LngLat[],
@@ -63,13 +69,19 @@ export function planCrawlRouteGeoJSON(
         }
       : { type: "FeatureCollection", features: [] };
 
-  const routeStops = routeStopsFromLngLats(
-    resolved.venueIds.map((id, index) => ({
-      id,
-      name: resolved.names[index] ?? "",
+  const routeStops: GeoJSON.FeatureCollection = {
+    type: "FeatureCollection",
+    features: resolved.coords.map((coord, index) => ({
+      type: "Feature" as const,
+      properties: {
+        id: resolved.venueIds[index] ?? `stop-${index}`,
+        label: String(index + 1),
+        name: resolved.names[index] ?? "",
+        stopName: truncateStopName(resolved.names[index] ?? ""),
+      },
+      geometry: { type: "Point" as const, coordinates: coord },
     })),
-    resolved.coords,
-  );
+  };
 
   return { routeLine, routeStops };
 }

@@ -71,4 +71,7 @@ export function syncPlanRoutePreviewScene(
   const stopsSource = map.getSource("route-stops") as maplibregl.GeoJSONSource | undefined;
   lineSource?.setData(routeLine);
   stopsSource?.setData(routeStops);
+  if (map.getLayer("route-stops-name")) {
+    map.setLayerZoomRange("route-stops-name", 10, 24);
+  }
 }
