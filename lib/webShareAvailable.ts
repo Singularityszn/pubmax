@@ -9,6 +9,6 @@ export function serverWebShareAvailable(): boolean {
 }
 
 /** No external store events; detection is fixed for a given document lifetime. */
-export function subscribeWebShare(_onChange: () => void): () => void {
+export function subscribeWebShare(): () => void {
   return () => {};
 }

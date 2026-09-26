@@ -64,9 +64,9 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
   // before this prop existed (every other ShareBar call site is unaffected).
   const [expanded, setExpanded] = useState(false);
   const showChannels = !compact || expanded;
-  // Feature-detect native share once, lazily — never assumed. On the server and
-  // on browsers without the Web Share API this stays false and the button is
-  // simply not rendered.
+  // Feature-detect native share, never assumed. The server snapshot and the
+  // hydrating render both answer false, so the markup matches the server's and
+  // the button appears only after mount on a browser with the Web Share API.
   const canNativeShare = useSyncExternalStore(
     subscribeWebShare,
     readWebShareAvailable,
