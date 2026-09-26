@@ -298,7 +298,6 @@ export function parseVenuePhotoDrinkCategory(
 
 type VenuePhotoSubmission = {
   venueId: string;
-  wallCategory: "pint" | "pub";
   drinkCategory: DrinkCategory | null;
   caption: string;
   /** The author asked for it; whether it happens is a separate question. */
@@ -321,21 +320,10 @@ export function validateVenuePhotoSubmission(input: unknown): VenuePhotoValidati
   if (drinkCategory === undefined) {
     return { ok: false, error: "Choose a listed drink." };
   }
-  const wallRaw = raw.wallCategory;
-  const wallCategory =
-    wallRaw === undefined || wallRaw === null || wallRaw === ""
-      ? "pint"
-      : wallRaw === "pint" || wallRaw === "pub"
-        ? wallRaw
-        : null;
-  if (!wallCategory) {
-    return { ok: false, error: "Choose a wall category." };
-  }
   return {
     ok: true,
     value: {
       venueId: raw.venueId,
-      wallCategory,
       drinkCategory,
       caption: cleanVenuePhotoCaption(raw.caption),
       shareToFeed: raw.shareToFeed === true,

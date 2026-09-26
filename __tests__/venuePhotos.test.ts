@@ -169,7 +169,6 @@ describe("validating a submission", () => {
       ok: true,
       value: {
         venueId: "venue-abc",
-        wallCategory: "pint",
         drinkCategory: "beer",
         caption: "First of the night",
         shareToFeed: true,
@@ -177,10 +176,12 @@ describe("validating a submission", () => {
     });
   });
 
-  it("takes a pint or pub wall category and refuses a city one", () => {
-    const pub = validateVenuePhotoSubmission({ venueId: "venue-abc", wallCategory: "pub" });
-    expect(pub.ok && pub.value.wallCategory).toBe("pub");
-    expect(validateVenuePhotoSubmission({ venueId: "venue-abc", wallCategory: "london" }).ok).toBe(false);
+  it("ignores a wall category sent from the client", () => {
+    const result = validateVenuePhotoSubmission({
+      venueId: "venue-abc",
+      wallCategory: "pub",
+    });
+    expect(result.ok && result.value.venueId).toBe("venue-abc");
   });
 
   it("defaults the crosspost to off when nothing asked for it", () => {
