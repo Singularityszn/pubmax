@@ -1,11 +1,14 @@
 // Founder London collage on the landing page (captain 26 Sep 2026).
-// Add a photograph with one new row in LONDON_COLLAGE_PHOTOS, then run
-// scripts/landing/build-london-collage.mjs and paste blurDataUrl if it changes.
+// The one photo list: the landing renders it and
+// scripts/landing/build-london-collage.mjs encodes it. To add a photograph see
+// public/landing/london-collage/README.md.
 
 type LondonCollageLayout = "tall" | "wide" | "hero" | "standard";
 
 export type LondonCollagePhoto = {
   id: string;
+  /** Original file name in the captain's hand-off folder; read only by the encoder. */
+  source: string;
   caption: string;
   alt: string;
   layout: LondonCollageLayout;
@@ -21,6 +24,7 @@ const PHOTO_DIR = "/landing/london-collage";
 export const LONDON_COLLAGE_PHOTOS: readonly LondonCollagePhoto[] = [
   {
     "id": "southwark-shard",
+    "source": "london-1.jpg",
     "caption": "Southwark",
     "alt": "The Shard seen down a Southwark street under a mackerel sky, London",
     "layout": "tall",
@@ -30,6 +34,7 @@ export const LONDON_COLLAGE_PHOTOS: readonly LondonCollagePhoto[] = [
   },
   {
     "id": "canary-wharf-night",
+    "source": "london-2.jpg",
     "caption": "Canary Wharf",
     "alt": "Canary Wharf at night with lit towers, the Caravan terrace and string lights, London",
     "layout": "wide",
@@ -39,6 +44,7 @@ export const LONDON_COLLAGE_PHOTOS: readonly LondonCollagePhoto[] = [
   },
   {
     "id": "canary-wharf-rooftop",
+    "source": "london-3.jpg",
     "caption": "Canary Wharf",
     "alt": "Canary Wharf from a rooftop at golden hour over the Crossrail Place glass roof, London",
     "layout": "hero",
@@ -48,6 +54,7 @@ export const LONDON_COLLAGE_PHOTOS: readonly LondonCollagePhoto[] = [
   },
   {
     "id": "crown-tavern",
+    "source": "london-4.jpg",
     "caption": "The Crown Tavern",
     "alt": "A tree-lined London square with The Crown Tavern on the corner in summer",
     "layout": "standard",
@@ -57,6 +64,7 @@ export const LONDON_COLLAGE_PHOTOS: readonly LondonCollagePhoto[] = [
   },
   {
     "id": "exhibition-road",
+    "source": "london-5.jpg",
     "caption": "Exhibition Road",
     "alt": "The Geological Museum entrance on Exhibition Road with people sitting outside, London",
     "layout": "standard",
