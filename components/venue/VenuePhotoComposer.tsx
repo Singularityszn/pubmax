@@ -199,6 +199,10 @@ export default function VenuePhotoComposer({
         {VENUE_PHOTO_CROSSPOST_LABEL}
       </label>
 
+      <p className="venuePhotoComposerHint">
+        Photos you post here also appear on the Drink Wall.
+      </p>
+
       {error ? (
         <p className="venuePhotoWallStatus venuePhotoWallStatusErr" role="status">
           {error}

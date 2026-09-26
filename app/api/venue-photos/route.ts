@@ -351,7 +351,7 @@ export async function POST(request: Request): Promise<Response> {
     const created = await store.create({
       id: photoId,
       venueId: submission.venueId,
-      wallCategory: submission.wallCategory,
+      wallCategory: "pint",
       placeLabel: "",
       authorActor: contributor.actor,
       authorProfileId: profileId,

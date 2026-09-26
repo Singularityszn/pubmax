@@ -17,7 +17,7 @@ import {
   drinkWallCaptionHint,
   type DrinkWallCategory,
 } from "@/lib/drinkWall";
-import { cleanDrinkWallPlaceLabel } from "@/lib/venuePhotos";
+import { cleanDrinkWallPlaceLabel, DRINK_WALL_PLACE_LABEL_MAX } from "@/lib/venuePhotos";
 import {
   VENUE_PHOTO_CAPTION_MAX,
   VENUE_PHOTO_CROP_TARGET,
@@ -117,6 +117,7 @@ export default function DrinkWallComposer({ onCancel, onPosted }: DrinkWallCompo
           <input
             id="drink-wall-place"
             className="venuePhotoComposerCaption"
+            maxLength={DRINK_WALL_PLACE_LABEL_MAX}
             value={placeLabel}
             onChange={(event) => setPlaceLabel(event.target.value)}
           />
