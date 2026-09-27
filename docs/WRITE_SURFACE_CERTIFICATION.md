@@ -1249,8 +1249,9 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
 - **Route / method:** `POST app/api/venue-photos/route.ts`
   (`fm/feature-pub-photo-walls`) adds one community photo to a venue's wall from
   a multipart body carrying the photo and its details. The same POST accepts a
-  public `report` action and moderator-only `hide` and `restore` actions for one
-  row. Its `GET ?venueId=...` wall page and the moderator `?status=` lanes are
+  public `report` action, the author's own `delete` on an approved row, and
+  moderator-only `hide` and `restore` actions for one row. Its `GET ?venueId=...`
+  wall page and the moderator `?status=` lanes are
   read-only and are not counted. The public serve route
   `GET app/api/venue-photo/[venueId]/[photoId]/route.ts` is read-only too.
 - **Validation:** `validateVenuePhotoSubmission` (`lib/venuePhotos.ts`) requires
@@ -1298,6 +1299,11 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   `crosspost` answer (`off`, `posted`, `unavailable`); a feed failure is
   reported and never fails the wall, because the photo is already approved and
   stored by then.
+- **Drink Wall honesty:** an approved pub-wall row also appears on the city
+  Drink Wall (`listDrinkWall`). The author's `delete` removes the row and its
+  bytes everywhere that row was shown, including `/wall` and any linked pub
+  wall; a failed Storage remove after the row delete still answers 200 and logs
+  orphaned keys for operator cleanup.
 - **Read honesty:** a wall page carries the store's own `status`, so an empty
   wall and a failed lookup are two different sentences. A tile whose author has
   been tombstoned is dropped from the page and its serve route answers 404; the
