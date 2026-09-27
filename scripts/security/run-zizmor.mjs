@@ -29,4 +29,14 @@ if (result.error) {
   process.exit(1);
 }
 
-process.exit(result.status === null ? 1 : result.status);
+const status = result.status === null ? 1 : result.status;
+if (
+  status === 0 &&
+  !stderr.includes("zizmor") &&
+  !/findings to report/i.test(stdout)
+) {
+  console.error("zizmor: output missing audit evidence");
+  process.exit(1);
+}
+
+process.exit(status);

@@ -71,12 +71,12 @@ try {
   process.exit(1);
 }
 
-if (typeof payload.version !== "string") {
-  console.error("semgrep: output missing Semgrep JSON envelope (version)");
+if (typeof payload.version !== "string" || !Array.isArray(payload.results)) {
+  console.error("semgrep: output missing Semgrep JSON envelope");
   process.exit(1);
 }
 
-const errors = (payload.results ?? []).filter((finding) => {
+const errors = payload.results.filter((finding) => {
   const severity = finding.extra?.severity ?? finding.severity;
   return severity === "ERROR";
 });

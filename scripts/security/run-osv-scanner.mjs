@@ -35,9 +35,15 @@ try {
   process.exit(1);
 }
 
+if (!Array.isArray(payload.results)) {
+  console.error("osv-scanner: output missing scan results array");
+  process.stderr.write(result.stderr ?? "");
+  process.exit(1);
+}
+
 const failing = [];
 
-for (const entry of payload.results ?? []) {
+for (const entry of payload.results) {
   for (const pkg of entry.packages ?? []) {
     for (const group of pkg.groups ?? []) {
       const score = Number.parseFloat(group.max_severity ?? "0");
@@ -59,7 +65,7 @@ if (failing.length === 0) {
     process.stderr.write(result.stderr ?? "");
     process.exit(status);
   }
-  if (status === 1 && (payload.results ?? []).length === 0) {
+  if (status === 1 && payload.results.length === 0) {
     console.error("osv-scanner: exit 1 but no scan results in JSON");
     process.stderr.write(result.stderr ?? "");
     process.exit(1);
