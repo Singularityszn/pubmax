@@ -26,6 +26,10 @@ const SURFACES = [
   { surface: "moment", file: "components/moment/MomentCapture.tsx", webDoor: null },
 ] as const;
 
+/** Callers whose shell-first, web-second behaviour is proven by rendering them
+ * (`__tests__/drinkWallComposer.test.tsx`), not by the table above. */
+const RENDERED_SURFACES = ["components/drink-wall/DrinkWallComposer.tsx"] as const;
+
 describe("a photo surface asks the shell first and the web input second", () => {
   it("names every surface the seam knows about", () => {
     expect([...NATIVE_PHOTO_SURFACES].sort()).toEqual(
@@ -174,7 +178,9 @@ describe("nothing outside the three surfaces opens a camera", () => {
   });
 
   it("holds every caller to the surface table above", () => {
-    expect([...callers].sort()).toEqual(SURFACES.map((entry) => entry.file).sort());
+    expect([...callers].sort()).toEqual(
+      [...SURFACES.map((entry) => entry.file), ...RENDERED_SURFACES].sort(),
+    );
   });
 
   it("leaves the profile photo journey on the plain library picker", () => {

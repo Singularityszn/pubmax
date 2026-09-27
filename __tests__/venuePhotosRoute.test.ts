@@ -65,6 +65,16 @@ vi.mock("@/lib/adminAuth", async (importOriginal) => {
   return { ...actual, isModerator: () => moderatorState.moderator };
 });
 
+const logState = vi.hoisted(() => ({
+  entries: [] as { level: string; event: string; fields: unknown }[],
+}));
+vi.mock("@/lib/log", () => ({
+  log: (level: string, event: string, fields: unknown) => {
+    logState.entries.push({ level, event, fields });
+  },
+  redact: (value: unknown) => value,
+}));
+
 import { GET, POST } from "@/app/api/venue-photos/route";
 import { __setVenuePhotoRouteDepsForTest } from "@/lib/venuePhotoRouteDeps.server";
 import { CONTRIBUTION_UNDER_18_REFUSAL } from "@/lib/contributionGateStatus";
@@ -279,6 +289,8 @@ describe("posting a photo to a wall", () => {
       await store.create({
         id: photoId,
         venueId: VENUE,
+        wallCategory: "pint",
+        placeLabel: "",
         authorActor: `profile:${identityState.profileId}`,
         authorProfileId: identityState.profileId,
         objectKey: venuePhotoServingKey(VENUE, photoId),
@@ -465,6 +477,59 @@ describe("taking a photo down", () => {
     const response = await POST(upload(await jpeg()));
     return (await response.json()).photo.id as string;
   }
+
+  it("lets its author delete it, bytes included, and nobody else", async () => {
+    const storage = deps("approved");
+    const id = await post();
+    expect(storage.keys()).toEqual([venuePhotoServingKey(VENUE, id)]);
+
+    const mallory = identityState.profileId;
+    identityState.profileId = crypto.randomUUID();
+    const refused = await POST(json({ action: "delete", id }));
+    expect(refused.status).toBe(404);
+    expect(storage.keys()).toHaveLength(1);
+    identityState.profileId = mallory;
+
+    const deleted = await POST(json({ action: "delete", id }));
+    expect(deleted.status).toBe(200);
+    expect(storage.keys()).toEqual([]);
+    expect(await venuePhotoStore().getById(id)).toBeNull();
+  });
+
+  it("refuses an author delete once a moderator has hidden it, so the trail stays", async () => {
+    const storage = deps("approved");
+    const id = await post();
+    await venuePhotoStore().moderate(id, "hidden", "reported");
+
+    const refused = await POST(json({ action: "delete", id }));
+    expect(refused.status).toBe(404);
+    expect(storage.keys()).toHaveLength(1);
+    expect((await venuePhotoStore().getById(id))?.moderationState).toBe("hidden");
+  });
+
+  it("commits the row delete when storage removal fails afterward", async () => {
+    logState.entries.length = 0;
+    const storage = deps("approved");
+    const id = await post();
+    const servingKey = venuePhotoServingKey(VENUE, id);
+    const spy = vi.spyOn(storage, "remove").mockRejectedValueOnce(new Error("bucket down"));
+
+    const deleted = await POST(json({ action: "delete", id }));
+    expect(deleted.status).toBe(200);
+    expect(await venuePhotoStore().getById(id)).toBeNull();
+    expect(storage.keys()).toEqual([servingKey]);
+    expect(logState.entries).toContainEqual(
+      expect.objectContaining({
+        level: "error",
+        event: "venue_photo.delete_bytes_orphaned",
+        fields: expect.objectContaining({ objectKey: servingKey, stagingKey: expect.any(String) }),
+      }),
+    );
+    spy.mockRestore();
+
+    const retried = await POST(json({ action: "delete", id }));
+    expect(retried.status).toBe(404);
+  });
 
   it("lets a reader flag it without hiding it", async () => {
     deps("approved");

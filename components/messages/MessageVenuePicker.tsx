@@ -17,6 +17,8 @@ import {
 } from "@/lib/messageAttachments";
 import { discardBody } from "@/lib/responseBody";
 
+import "./messageVenuePicker.css";
+
 export type PickedVenue = { id: string; name: string; area: string };
 
 const MIN_QUERY = 2;

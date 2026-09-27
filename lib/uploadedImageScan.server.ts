@@ -27,6 +27,7 @@ export type UploadedImageScanSurface =
   | "profile-avatar"
   | "profile-cover"
   | "venue-photo"
+  | "drink-wall"
   | "message-photo";
 
 /** Why a scan produced no verdict. Every one of these lets the upload through. */

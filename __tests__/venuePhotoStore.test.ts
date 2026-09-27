@@ -39,6 +39,8 @@ function fields(
   return {
     id: photoId,
     venueId,
+    wallCategory: rest.wallCategory ?? "pint",
+    placeLabel: rest.placeLabel ?? "",
     authorActor: `profile:${profileId}`,
     authorProfileId: profileId,
     objectKey: venuePhotoServingKey(venueId, photoId),
@@ -232,6 +234,19 @@ describe("taking a photo down", () => {
     expect(hidden?.moderationState).toBe("hidden");
     expect(hidden?.moderatorNote).toBe("duplicate");
     expect((await store.listHidden()).map((r) => r.id)).toEqual([row.id]);
+  });
+
+  it("lets an author delete only an approved row of their own", async () => {
+    const store = venuePhotoStore();
+    const hiddenRow = await store.create(fields(alice));
+    await store.moderate(hiddenRow.id, "hidden", "reported");
+    expect(await store.deleteByAuthor(hiddenRow.id, alice)).toBe(false);
+    expect((await store.getById(hiddenRow.id))?.moderationState).toBe("hidden");
+
+    const approved = await store.create(fields(alice));
+    expect(await store.deleteByAuthor(approved.id, bob)).toBe(false);
+    expect(await store.deleteByAuthor(approved.id, alice)).toBe(true);
+    expect(await store.getById(approved.id)).toBeNull();
   });
 
   it("puts a restored photo back", async () => {

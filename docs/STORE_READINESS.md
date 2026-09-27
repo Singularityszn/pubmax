@@ -250,7 +250,7 @@ Answer as follows. Everything not listed is None / No.
 | Mature/Suggestive Themes | None |
 | Medical or Wellness content | None |
 | **Capability: Unrestricted Web Access** | **Yes** (the shell loads a live website in a web view) |
-| **Capability: User-Generated Content** | **Yes** (Social, Visit Reports, community prices, pub photo walls, Moments) |
+| **Capability: User-Generated Content** | **Yes** (Social, Visit Reports, community prices, pub photo walls, the Drink Wall, Moments) |
 | **Capability: Social Media** | **Yes** (`/social`, follows, public feed) |
 | **Capability: Messaging and Chat** | **Yes** (`/messages`, a one-to-one thread with photo and pub attachments) |
 | **Capability: Advertising** | No |
@@ -301,7 +301,7 @@ These are derived from the actual code, not aspirations. File references are inl
 | Product interaction / usage data | **Yes, only after the user opts in.** A closed set of named UI events with allow-listed fixed-schema props, plus browser, operating system, device type, screen and viewport size, referrer, campaign parameters, and Web Vitals. | No (pseudonymous device profile only) | No | Analytics | `lib/analytics.ts`: consent-gated (default off), honours Do Not Track, forwards to PostHog EU ingest only when consent is granted; `lib/analyticsEvents.ts` owns closed property schemas with no coordinates or free text. |
 | Pseudonymous analytics id | Yes, only after opt-in | No (contains no account or contact data) | No | Analytics | `lib/analytics.ts` `anonymousAnalyticsId()`: an `anon_` UUID created only once consent is `granted`, stored in localStorage and used as PostHog's persistent device identity across page loads and sessions. |
 | Device/web push delivery material | Yes, when the user enables notifications | No (stored with no user or plan link) | No | App functionality (public night-signal and installed-web daily-brief pushes) | `lib/nativePush.ts` or explicitly-invoked `lib/webPush.ts` posts to `POST /api/push-tokens`; `lib/pushTokenStore.ts` stores it with no identity column (migrations 0039 + 0046). |
-| Photos | Only when the user chooses to publish one. Moment drafts stay on the phone. THREE surfaces take a photo: a Moment, a pub photo wall, and an optional photo on a logged price. | Tied to that content only, not to a real-world identity | No | User content | `lib/momentDraft.ts` keeps Moment drafts in IndexedDB/localStorage on the device; `lib/nightMomentMedia.ts` uploads on publish. Camera access is `lib/nativeCamera.ts`, declared as usage strings in `ios/App/App/Info.plist` and as `CAMERA` plus `READ_MEDIA_IMAGES` in `android/app/src/main/AndroidManifest.xml`. |
+| Photos | Only when the user chooses to publish one. Moment drafts stay on the phone. FOUR surfaces take a photo: a Moment, a pub photo wall, the Drink Wall (`/wall`), and an optional photo on a logged price. | Tied to that content only, not to a real-world identity | No | User content | `lib/momentDraft.ts` keeps Moment drafts in IndexedDB/localStorage on the device; `lib/nightMomentMedia.ts` uploads on publish. Camera access is `lib/nativeCamera.ts`, declared as usage strings in `ios/App/App/Info.plist` and as `CAMERA` plus `READ_MEDIA_IMAGES` in `android/app/src/main/AndroidManifest.xml`. |
 | Email address | Only if the user signs in, or asks us to cover an area they name | Yes (it is the contact) | No | Account sign-in, and telling one person we reached the area they asked for | Sign-in is a Supabase magic link (`components/auth/AuthProvider.tsx`); the optional area-demand contact is `app/api/area-demand/route.ts` (most rows carry no address at all). There is no marketing list and no digest capture (`docs/EMAIL_CAPTURE.md`). |
 
 ### What the app does not do
@@ -316,7 +316,7 @@ These are derived from the actual code, not aspirations. File references are inl
 Declare the following. Everything else: Not Collected.
 
 - **Data Used to Track You:** None.
-- **Data Linked to You:** Contact Info > Email Address (account sign-in or optional area-demand contact), purpose App Functionality. User Content > Photos or Videos (a published Moment, a pub wall photo, or a photo on a logged price), purpose App Functionality.
+- **Data Linked to You:** Contact Info > Email Address (account sign-in or optional area-demand contact), purpose App Functionality. User Content > Photos or Videos (a published Moment, a pub wall or Drink Wall photo, or a photo on a logged price), purpose App Functionality.
 - **Data Not Linked to You:** Identifiers > Device ID (push token), purpose App Functionality. Usage Data > Product Interaction (opt-in analytics), purpose Analytics. Precise Location, purpose App Functionality, only when the user starts a location feature.
 - **Location processing:** declare Precise Location because three decimal places is about 70 to 110 metres. Mark it optional, not linked, not used for tracking, and used for App Functionality. The app processes the rounded point ephemerally. Confirm current processor retention terms in App Store Connect before submission.
 
@@ -325,7 +325,7 @@ Declare the following. Everything else: Not Collected.
 - **Does your app collect or share any of the required user data types?** Yes.
 - **Precise location:** Collected, optional, processed ephemerally, purpose App functionality, not used for tracking. Full GPS precision stays on the device; only the three-decimal point leaves it. In the Data safety flow, identify the ephemeral processing and current service-provider or user-initiated transfers exactly as the form asks.
 - **Personal info > Email address:** Collected, not shared, optional, purpose App functionality. Encrypted in transit. Account deletion removes the sign-in address; other erasure requests use the public contact in `lib/siteContact.mjs`.
-- **Photos and videos:** Collected, purpose App functionality. Answer **shared: yes** for the pub photo wall. A wall photo is PUBLIC by design: it appears on that pub's page to anyone who opens it, and the composer offers a crosspost to the public feed. Saying "not shared publicly by default" would be a wrong answer on the form, not a cautious one. Moment drafts stay on the device and are collected only on publish.
+- **Photos and videos:** Collected, purpose App functionality. Answer **shared: yes** for pub wall and Drink Wall photos. A wall photo is PUBLIC by design: it appears on that pub's page and on `/wall` when it is in the city grid, and the pub-wall composer offers a crosspost to the public feed. Saying "not shared publicly by default" would be a wrong answer on the form, not a cautious one. Moment drafts stay on the device and are collected only on publish.
 - **App activity > Product interaction:** Collected, not shared, optional (opt-in), purpose Analytics. Encrypted in transit.
 - **Device or other IDs:** Collected (push token), not shared, purpose App functionality.
 - **Is all data encrypted in transit?** Yes (HTTPS only, the shell loads `https://pubmaxxing.com`).

@@ -144,7 +144,12 @@ const ARTIFACT_CLASSIFICATION = [
   { id: "city_venue_packs", required: true, reason: "each enabled non-London city map loads its pack whole; a missing or malformed pack is that city's whole map" },
   { id: "venues_slim_shards", required: true, reason: "lazy detail shards for the venue index" },
   { id: "uk_base_shards", required: true, reason: "base pub layer streamed per viewport" },
-  { id: "venue_details", required: true, reason: "venue sheet detail data" },
+  {
+    id: "venue_details",
+    required: true,
+    reason:
+      "venue sheet detail data; SKIPs cleanly when gitignored build artifacts are absent and PUBMAX_VERIFY_COMMITTED_DATA=1",
+  },
   { id: "pubmaxxing_seed", required: true, reason: "seeds the curated venue anchors the index is built from" },
   { id: "drink_price_updates", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the directory or files are absent; a file that IS present with bad data is a genuine defect and stays a hard gate" },
   { id: "price_estimate_baselines", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the artifact is absent; a basis that IS present without its source pages, provenance or sample floor would put an unanswerable estimate on a pub and stays a hard gate" },
@@ -2298,6 +2303,12 @@ function validateVenueDetails() {
   const manifestPath = join(GENERATED_DATA_DIR, "venue_detail_index.json");
   const detailsPath = join(GENERATED_DATA_DIR, "venue_details.jsonl");
   if (!existsSync(manifestPath) || !existsSync(detailsPath)) {
+    if (process.env.PUBMAX_VERIFY_COMMITTED_DATA === "1") {
+      console.log(
+        `SKIP ${name}: gitignored build artifacts absent (PUBMAX_VERIFY_COMMITTED_DATA=1; run build:slim locally)`,
+      );
+      return { ok: true, count: 0 };
+    }
     console.log(
       `FAIL ${name}: generated files are missing; run npm run build:slim`,
     );

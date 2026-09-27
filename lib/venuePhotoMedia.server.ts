@@ -32,13 +32,15 @@ import {
   STORAGE_BUCKET,
 } from "@/lib/supabase";
 import {
+  DRINK_WALL_STORAGE_PREFIX,
+  isDrinkWallServingKey,
   isVenuePhotoServingKey,
+  photoObjectKey,
+  photoStagingKey,
   VENUE_PHOTO_NOUN,
   VENUE_PHOTO_OUTPUT_HEIGHT,
   VENUE_PHOTO_OUTPUT_WIDTH,
   VENUE_PHOTO_STORAGE_PREFIX,
-  venuePhotoServingKey,
-  venuePhotoStagingKey,
 } from "@/lib/venuePhotos";
 
 export const VENUE_PHOTO_MAX_BYTES = UPLOADED_IMAGE_MAX_BYTES;
@@ -47,7 +49,7 @@ const VENUE_PHOTO_SIGNED_TTL_SECONDS = 180;
 export type PreparedVenuePhoto = PreparedImage;
 
 export type StagedVenuePhoto = PreparedVenuePhoto & {
-  venueId: string;
+  venueId: string | null;
   photoId: string;
   stagingKey: string;
   objectKey: string;
@@ -110,22 +112,28 @@ export const supabaseVenuePhotoStorage: VenuePhotoStorage = {
   },
 };
 
-export async function stagePreparedVenuePhoto(
-  venueId: string,
+export async function stagePreparedWallPhoto(
+  venueId: string | null,
   photoId: string,
   prepared: PreparedVenuePhoto,
   storage: VenuePhotoStorage = supabaseVenuePhotoStorage,
 ): Promise<StagedVenuePhoto> {
-  const stagingKey = venuePhotoStagingKey(venueId, photoId);
-  const objectKey = venuePhotoServingKey(venueId, photoId);
-  // Both keys are rebuilt from the pure builders and checked against the one
-  // prefix, so a venue id that somehow escaped validation cannot write outside
-  // the wall's own folder.
-  if (
-    !stagingKey.startsWith(`${VENUE_PHOTO_STORAGE_PREFIX}/${venueId}/`) ||
-    !isVenuePhotoServingKey(venueId, photoId, objectKey)
-  ) {
-    throw new VenuePhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
+  const stagingKey = photoStagingKey(photoId, venueId);
+  const objectKey = photoObjectKey(photoId, venueId);
+  if (venueId) {
+    if (
+      !stagingKey.startsWith(`${VENUE_PHOTO_STORAGE_PREFIX}/${venueId}/`) ||
+      !isVenuePhotoServingKey(venueId, photoId, objectKey)
+    ) {
+      throw new VenuePhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
+    }
+  } else {
+    if (
+      !stagingKey.startsWith(`${DRINK_WALL_STORAGE_PREFIX}/`) ||
+      !isDrinkWallServingKey(photoId, objectKey)
+    ) {
+      throw new VenuePhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
+    }
   }
   await storage.upload(stagingKey, prepared.bytes, prepared.contentType);
   return { ...prepared, venueId, photoId, stagingKey, objectKey };
@@ -135,7 +143,10 @@ export async function promoteStagedVenuePhoto(
   staged: StagedVenuePhoto,
   storage: VenuePhotoStorage = supabaseVenuePhotoStorage,
 ): Promise<StagedVenuePhoto> {
-  if (!isVenuePhotoServingKey(staged.venueId, staged.photoId, staged.objectKey)) {
+  const keyOk = staged.venueId
+    ? isVenuePhotoServingKey(staged.venueId, staged.photoId, staged.objectKey)
+    : isDrinkWallServingKey(staged.photoId, staged.objectKey);
+  if (!keyOk) {
     throw new VenuePhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
   }
   await storage.upload(staged.objectKey, staged.bytes, staged.contentType);

@@ -42,6 +42,8 @@ function row(overrides: Partial<VenuePhoto> = {}): VenuePhoto {
   return {
     id: PHOTO_ID,
     venueId: VENUE,
+    wallCategory: "pint",
+    placeLabel: "",
     authorActor: `profile:${AUTHOR_ID}`,
     authorProfileId: AUTHOR_ID,
     objectKey: venuePhotoServingKey(VENUE, PHOTO_ID),
