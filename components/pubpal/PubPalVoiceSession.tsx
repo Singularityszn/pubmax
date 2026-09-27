@@ -249,9 +249,12 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
                   : {}),
               }
             : undefined,
-          onConnect: ({ conversationId }) => {
-            conversationIdRef.current = conversationId;
-            void syncVoiceToolTurn({ conversationId });
+          onConnect: (meta) => {
+            const conversationId = meta?.conversationId;
+            if (conversationId) {
+              conversationIdRef.current = conversationId;
+              void syncVoiceToolTurn({ conversationId });
+            }
             if (!ownsAttempt(attempt)) return;
             startController.settle();
             setIsStarting(false);

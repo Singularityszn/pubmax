@@ -10,7 +10,7 @@ import {
 } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
-export const PUB_PAL_TOOL_TURN_TTL_MS = 120_000;
+const PUB_PAL_TOOL_TURN_TTL_MS = 120_000;
 
 const PUB_PAL_TOOL_TURN_MIGRATION_HINT = "apply migration 0158";
 
@@ -175,7 +175,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           fallback: () => memoryPubPalToolTurnStore.read(conversationId),
           onProduction: async () => null,
         }),
-      message: "read failed — treating as miss",
+      message: "read failed; treating as miss",
       onError: () => null,
       run: async () => {
         const { data, error } = await requireSupabaseAdmin()

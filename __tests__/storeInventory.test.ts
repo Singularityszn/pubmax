@@ -150,6 +150,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     inlineBranches: 8,
     reason: "Result-typed operations branch inline over two maps; no interface pair to select.",
   },
+  "lib/pubPalToolTurnStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/pushTokenStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/ratingsStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/reactionsStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
