@@ -15,6 +15,7 @@ import {
   drinkWallAltText,
   drinkWallEmptyLine,
   drinkWallPlaceLine,
+  drinkWallRemoveConfirmLine,
   drinkWallSignInHref,
   type DrinkWallCategory,
   type DrinkWallPage,
@@ -156,8 +157,9 @@ export default function DrinkWall() {
     });
   }, [fetchKey, reloadKey, load, nearReady, scope]);
 
-  async function remove(id: string) {
-    if (!window.confirm("Remove this photo from the Drink Wall?")) return;
+  async function remove(photo: DrinkWallPhotoDTO) {
+    if (!window.confirm(drinkWallRemoveConfirmLine(photo))) return;
+    const id = photo.id;
     setRemovingId(id);
     setRemoveError(null);
     try {
@@ -175,7 +177,7 @@ export default function DrinkWall() {
         setRemoveError(offlineOrMessage(errorMessageFrom(body, "Could not remove that photo. Try again.")));
         return;
       }
-      setWall((current) => ({ ...current, photos: current.photos.filter((photo) => photo.id !== id) }));
+      setWall((current) => ({ ...current, photos: current.photos.filter((item) => item.id !== id) }));
     } catch {
       setRemoveError(offlineOrMessage("Could not remove that photo. Try again."));
     } finally {
@@ -283,7 +285,7 @@ export default function DrinkWall() {
                 type="button"
                 className="drinkWallRemove"
                 disabled={removingId === photo.id}
-                onClick={() => void remove(photo.id)}
+                onClick={() => void remove(photo)}
               >
                 {removingId === photo.id ? "Removing…" : "Remove"}
               </button>
