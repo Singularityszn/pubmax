@@ -73,19 +73,37 @@ const errors = (payload.results ?? []).filter((finding) => {
   return severity === "ERROR";
 });
 
-if (errors.length === 0) {
-  console.log("semgrep: no ERROR-severity findings");
-  process.exit(0);
+if (errors.length > 0) {
+  console.error(`semgrep: ${errors.length} ERROR-severity finding(s):`);
+  for (const finding of errors.slice(0, 20)) {
+    const loc = finding.path;
+    const line = finding.start?.line ?? "?";
+    const rule = finding.check_id ?? finding.extra?.metadata?.short_id ?? "unknown";
+    console.error(`  ${loc}:${line} ${rule}`);
+  }
+  if (errors.length > 20) {
+    console.error(`  … and ${errors.length - 20} more`);
+  }
+  process.exit(1);
 }
 
-console.error(`semgrep: ${errors.length} ERROR-severity finding(s):`);
-for (const finding of errors.slice(0, 20)) {
-  const loc = finding.path;
-  const line = finding.start?.line ?? "?";
-  const rule = finding.check_id ?? finding.extra?.metadata?.short_id ?? "unknown";
-  console.error(`  ${loc}:${line} ${rule}`);
+const toolErrors = payload.errors ?? [];
+if (toolErrors.length > 0) {
+  console.error("semgrep: scan failed with tool error(s):");
+  for (const err of toolErrors.slice(0, 20)) {
+    const message =
+      typeof err === "string"
+        ? err
+        : (err.message ?? err.short_msg ?? err.long_msg ?? JSON.stringify(err));
+    console.error(`  ${message}`);
+  }
+  process.exit(result.status === null ? 1 : result.status ?? 1);
 }
-if (errors.length > 20) {
-  console.error(`  … and ${errors.length - 20} more`);
+
+if (result.status !== 0) {
+  process.exit(result.status === null ? 1 : result.status);
 }
-process.exit(1);
+
+console.log("semgrep: no ERROR-severity findings");
+process.exit(0);
+
