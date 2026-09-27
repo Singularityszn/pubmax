@@ -202,6 +202,46 @@ async function call(method, url, apiKey, body) {
   return text ? JSON.parse(text) : {};
 }
 
+function mergeConversationConfigOverride(existing, desired) {
+  if (!existing) return desired;
+  return {
+    ...existing,
+    ...desired,
+    agent: {
+      ...(existing.agent ?? {}),
+      ...(desired.agent ?? {}),
+      prompt: {
+        ...(existing.agent?.prompt ?? {}),
+        ...(desired.agent?.prompt ?? {}),
+      },
+    },
+    tts: { ...(existing.tts ?? {}), ...(desired.tts ?? {}) },
+  };
+}
+
+function mergeAgentPatch(existingAgent, body) {
+  const existingOverride =
+    existingAgent.platform_settings?.overrides?.conversation_config_override;
+  const desiredOverride =
+    body.platform_settings?.overrides?.conversation_config_override;
+  if (!desiredOverride) return body;
+  return {
+    ...body,
+    platform_settings: {
+      ...existingAgent.platform_settings,
+      ...body.platform_settings,
+      overrides: {
+        ...existingAgent.platform_settings?.overrides,
+        ...body.platform_settings.overrides,
+        conversation_config_override: mergeConversationConfigOverride(
+          existingOverride,
+          desiredOverride,
+        ),
+      },
+    },
+  };
+}
+
 async function findAgentByName(apiKey) {
   const listed = await call("GET", `${API}/agents?page_size=100`, apiKey);
   const rows = Array.isArray(listed.agents) ? listed.agents : [];
@@ -248,7 +288,9 @@ async function main() {
   const existing = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim() || (await findAgentByName(apiKey));
 
   if (existing) {
-    await call("PATCH", `${API}/agents/${existing}`, apiKey, body);
+    const currentAgent = await call("GET", `${API}/agents/${existing}`, apiKey);
+    const patchBody = mergeAgentPatch(currentAgent, body);
+    await call("PATCH", `${API}/agents/${existing}`, apiKey, patchBody);
     console.log(`✓ Updated agent ${existing}`);
     console.log(`  Custom LLM: ${llmUrl}`);
   } else {

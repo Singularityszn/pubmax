@@ -102,6 +102,19 @@ It sets four things and nothing else:
 On a first create the script prints the agent id. Put it on the deployment as
 `ELEVENLABS_PUB_PAL_AGENT_ID` and redeploy.
 
+If the voice WebSocket closes immediately with code **1008** and reason
+`Override for field 'voice_id' is not allowed by config.`, the deployed agent
+was created before session voice overrides were enabled. Re-run
+`npm run pubpal:agent -- --base-url https://pubmaxxing.com` with
+`ELEVENLABS_PUB_PAL_AGENT_ID` set so
+`platform_settings.overrides.conversation_config_override.tts.voice_id` is
+`true` on that agent.
+
+If the UI shows **Failed to load the rawAudioProcessor worklet module** (or the
+session never reaches "Pal is listening" after metadata), the page CSP is
+blocking ElevenLabs AudioWorklet scripts. Production CSP must include `blob:`
+and `data:` in `script-src` (see `proxy.ts`).
+
 ---
 
 ## Checking it
@@ -161,7 +174,8 @@ PW_SKIP_WEBSERVER=1 \
 PUB_PAL_PROOF_BASE_URL=http://localhost:3102 \
 PUB_PAL_PROOF_BEARER=<supabase access token> \
 PUB_PAL_PROOF_STORAGE_STATE=/path/to/storage.json \
-PUB_PAL_PROOF_WAV=/path/to/question.wav \
+PUB_PAL_PROOF_WAV=/path/to/proof-utterance.wav \
+PUB_PAL_PROOF_EXPECTED_UTTERANCE="What pub should we start at?" \
 PUB_PAL_PROOF_SPECIES=fox,robin \
 npx playwright test e2e/pubpal-voice-live.spec.ts --project=chromium
 ```

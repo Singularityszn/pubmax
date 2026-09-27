@@ -402,6 +402,8 @@ describe("the CSP once a Clerk key is configured", () => {
     expect(scriptSrc).not.toContain("'unsafe-inline'");
     // The pre-existing sources are still there.
     expect(scriptSrc).toContain("'self'");
+    expect(scriptSrc).toContain("blob:");
+    expect(scriptSrc).toContain("data:");
     expect(scriptSrc).toContain("https://va.vercel-scripts.com");
   });
 
@@ -414,6 +416,8 @@ describe("the CSP once a Clerk key is configured", () => {
     expect(connectSrc).toContain("https://*.supabase.co");
     expect(connectSrc).toContain("wss://*.supabase.co");
     expect(connectSrc).toContain("https://tiles.openfreemap.org");
+    expect(connectSrc).toContain("wss://api.elevenlabs.io");
+    expect(connectSrc).toContain("https://api.elevenlabs.io");
   });
 
   it("admits only Clerk's avatar CDN into img-src", () => {

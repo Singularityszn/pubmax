@@ -421,7 +421,10 @@ export function securityProxy(request: NextRequest) {
   const inlineScriptSource = cdnCachedDocument
     ? "'unsafe-inline'"
     : `'nonce-${nonce}'`;
-  const scriptSrc = `script-src 'self' ${inlineScriptSource} https://va.vercel-scripts.com${clerkScript}${isDev ? " 'unsafe-eval'" : ""}`;
+  // ElevenLabs voice loads AudioWorklet processors from blob:/data: URLs when
+  // self-hosted worklet paths are not passed; without these the session dies
+  // after conversation_initiation_metadata.
+  const scriptSrc = `script-src 'self' blob: data: ${inlineScriptSource} https://va.vercel-scripts.com${clerkScript}${isDev ? " 'unsafe-eval'" : ""}`;
 
   // frame-src did not exist before Clerk: framing fell through to `child-src
   // blob:`, so blob: frames were the only ones allowed. Turnstile and Clerk's
@@ -465,7 +468,7 @@ export function securityProxy(request: NextRequest) {
     // Clerk adds its Frontend API host (session, sign-in and sign-up calls) and
     // its abuse-protection hosts. Supabase's entries stay: both auth systems
     // run side by side, and removing either would break the other's sign-in.
-    `connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co wss://*.supabase.co${devSupabaseConnect}${clerk.connect.map((origin) => ` ${origin}`).join("")}`,
+    `connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co wss://*.supabase.co wss://api.elevenlabs.io https://api.elevenlabs.io${devSupabaseConnect}${clerk.connect.map((origin) => ` ${origin}`).join("")}`,
     // Clerk also requires worker-src 'self' blob: — already true for MapLibre's
     // tile workers and the offline service worker, so it needs no change here.
     "worker-src 'self' blob:",

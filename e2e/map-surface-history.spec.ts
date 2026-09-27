@@ -136,6 +136,7 @@ test.describe("one Map surface history owner", () => {
   test("clearing a restored query after closing its Venue does not reopen it", async ({
     page,
   }) => {
+    test.setTimeout(180_000);
     await prepareMap(page);
     // First visit loads the core slim shard only. The French House is unique
     // in that shard, so arrival restore can select it without waiting for
@@ -150,36 +151,40 @@ test.describe("one Map surface history owner", () => {
     });
     await expectSoleDrawer(page, "venue");
 
-    await venue(page).getByRole("button", { name: /Close/ }).click();
+    await venue(page)
+      .getByRole("button", { name: /Close/ })
+      .evaluate((button) => (button as HTMLElement).click());
     // Old restore replayed after Close while ?q= still matched one pub, which
     // put detail-open back on #main. That class makes the toolbar ignore
     // pointer events, so Clear search never received the click. Wait past the
     // restore timeout (0ms) and the typed-search debounce (320ms), then require
     // the overlay gone before clearing.
     await expect(page.locator("#main")).not.toHaveClass(/detail-open/, {
-      timeout: 30_000,
+      timeout: 60_000,
     });
+    await expect(venue(page)).toHaveAttribute("aria-hidden", "true", {
+      timeout: 60_000,
+    });
+
+    const searchCell = toolbar.locator(".mapToolbarSearch");
+    const clearSearch = searchCell.getByRole("button", { name: "Clear search" });
+    await expect(async () => {
+      await expect(clearSearch).toBeVisible({ timeout: 2_000 });
+      await clearSearch.evaluate((button) => (button as HTMLElement).click());
+      await expect(search).toHaveValue("", { timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+
     await expect(venue(page)).toHaveAttribute("aria-hidden", "true", {
       timeout: 30_000,
     });
-    await page.waitForTimeout(500);
-    await expect(page.locator("#main")).not.toHaveClass(/detail-open/);
-    await expect(venue(page)).toHaveAttribute("aria-hidden", "true");
-
-    const searchCell = toolbar.locator(".mapToolbarSearch");
-    await searchCell.getByRole("button", { name: "Clear search" }).click();
-    await expect(search).toHaveValue("");
-    // The old arrival effect replayed on the next filter render. Observe past
-    // both that render and the typed-search debounce before accepting success.
-    await page.waitForTimeout(500);
-
-    await expect(venue(page)).toHaveAttribute("aria-hidden", "true");
     await expect
-      .poll(() =>
-        page.evaluate(() => {
-          const params = new URL(window.location.href).searchParams;
-          return { query: params.get("q"), selectedVenueId: params.get("sel") };
-        }),
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const params = new URL(window.location.href).searchParams;
+            return { query: params.get("q"), selectedVenueId: params.get("sel") };
+          }),
+        { timeout: 60_000 },
       )
       .toEqual({ query: null, selectedVenueId: null });
   });

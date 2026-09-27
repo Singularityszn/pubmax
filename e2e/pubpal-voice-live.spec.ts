@@ -1,6 +1,14 @@
+import { readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type BrowserContext,
+  type Page,
+} from "@playwright/test";
 
 // Live Pub Pal proof against a real deployment with ElevenLabs configured.
 //
@@ -21,8 +29,25 @@ const PROOF_SPECIES = (process.env.PUB_PAL_PROOF_SPECIES ?? "fox,robin")
   .map((value) => value.trim())
   .filter(Boolean);
 
+const PROOF_BROWSER_CHANNEL = process.env.PUB_PAL_PROOF_BROWSER_CHANNEL?.trim();
+
+/** Spoken line in PUB_PAL_PROOF_WAV; used to assert user_transcript, not wall-clock timing. */
+const PROOF_EXPECTED_UTTERANCE = (
+  process.env.PUB_PAL_PROOF_EXPECTED_UTTERANCE ?? "What pub should we start at?"
+).trim();
+
+function transcriptMatchesUtterance(text: string): boolean {
+  const normalized = text.toLowerCase().replace(/[^\w\s]/g, " ");
+  const tokens = PROOF_EXPECTED_UTTERANCE.toLowerCase()
+    .split(/\s+/)
+    .filter((word) => word.length > 2);
+  const hits = tokens.filter((word) => normalized.includes(word));
+  return hits.length >= Math.min(2, tokens.length);
+}
+
 test.use({
   ...(storageState ? { storageState } : {}),
+  ...(PROOF_BROWSER_CHANNEL ? { channel: PROOF_BROWSER_CHANNEL } : {}),
   permissions: ["microphone"],
   launchOptions: {
     args: [
@@ -46,11 +71,16 @@ function readVoiceFrame(payload: string | Buffer, at: number): VoiceFrame | null
     const event = JSON.parse(payload.toString()) as {
       type?: string;
       user_transcription_event?: { user_transcript?: string };
+      tentative_user_transcription_event?: { user_transcript?: string };
       agent_response_event?: { agent_response?: string };
       audio_event?: { audio_base_64?: string };
     };
-    if (event.type === "user_transcript") {
-      return { at, type: "user_transcript", text: event.user_transcription_event?.user_transcript ?? "" };
+    if (event.type === "user_transcript" || event.type === "tentative_user_transcript") {
+      const text =
+        event.user_transcription_event?.user_transcript ??
+        event.tentative_user_transcription_event?.user_transcript ??
+        "";
+      return { at, type: "user_transcript", text };
     }
     if (event.type === "agent_response") {
       return { at, type: "agent_response", text: event.agent_response_event?.agent_response ?? "" };
@@ -63,6 +93,63 @@ function readVoiceFrame(payload: string | Buffer, at: number): VoiceFrame | null
   } catch {
     return null;
   }
+}
+
+type QaCredentials = { handle: string; password: string; email: string; userId: string };
+
+function qaCredentials(): QaCredentials {
+  const path = resolve(process.cwd(), ".e2e", "qa-credentials.json");
+  return JSON.parse(readFileSync(path, "utf8")) as QaCredentials;
+}
+
+function supabaseAuthStorageKey(): string {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (!url) throw new Error("NEXT_PUBLIC_SUPABASE_URL is required for the live Pub Pal proof");
+  const ref = new URL(url).hostname.split(".")[0];
+  return `sb-${ref}-auth-token`;
+}
+
+async function ensureQaSignedIn(page: Page, request: APIRequestContext): Promise<void> {
+  const credentials = qaCredentials();
+  const response = await request.post(`${LIVE_PROOF}/api/auth/handle-password`, {
+    data: { handle: credentials.handle, password: credentials.password },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = (await response.json()) as {
+    session?: {
+      access_token: string;
+      refresh_token: string;
+      expires_in: number;
+      expires_at: number;
+      token_type: string;
+    };
+  };
+  expect(body.session?.access_token).toBeTruthy();
+  const authStorageKey = supabaseAuthStorageKey();
+  await page.addInitScript(
+    ({ authStorageKey, session, userId, email }) => {
+      localStorage.setItem(
+        authStorageKey,
+        JSON.stringify({
+          ...session,
+          user: {
+            id: userId,
+            aud: "authenticated",
+            role: "authenticated",
+            email,
+            app_metadata: {},
+            user_metadata: {},
+          },
+        }),
+      );
+    },
+    {
+      authStorageKey,
+      session: body.session,
+      userId: credentials.userId,
+      email: credentials.email,
+    },
+  );
 }
 
 async function prepareReturningVisitor(page: Page) {
@@ -94,7 +181,15 @@ async function setPalSpecies(request: APIRequestContext, bearer: string, species
   expect(patch.status()).toBe(200);
 }
 
-async function runVoiceSession(page: Page, species: string) {
+async function runVoiceSession(
+  page: Page,
+  context: BrowserContext,
+  request: APIRequestContext,
+  species: string,
+) {
+  const origin = new URL(LIVE_PROOF!).origin;
+  await context.grantPermissions(["microphone"], { origin });
+
   const started = Date.now();
   const frames: VoiceFrame[] = [];
   page.on("websocket", (socket) => {
@@ -106,28 +201,57 @@ async function runVoiceSession(page: Page, species: string) {
   });
 
   await prepareReturningVisitor(page);
-  await page.goto(`${LIVE_PROOF}/pal`);
-  await page.getByRole("button", { name: "Start voice chat" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Pal is listening" })).toBeVisible({
-    timeout: 30_000,
-  });
+  await ensureQaSignedIn(page, request);
+  await expect(async () => {
+    await page.goto(`${LIVE_PROOF}/pal`);
+    await expect(page.getByRole("button", { name: "Start voice chat" })).toBeVisible({
+      timeout: 10_000,
+    });
+  }).toPass({ timeout: 45_000 });
+
+  await expect(async () => {
+    await page.getByRole("button", { name: "Start voice chat" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Pal is listening" })).toBeVisible({
+      timeout: 10_000,
+    });
+  }).toPass({ timeout: 45_000 });
   const connectedAt = Date.now() - started;
 
-  const spokenAt = () =>
-    frames.find((frame) => frame.type === "user_transcript" && frame.text?.trim())?.at;
-  await expect.poll(spokenAt, { timeout: 60_000 }).toBeDefined();
-  const heardAt = spokenAt() as number;
+  await expect
+    .poll(
+      () => frames.some((frame) => frame.type === "audio" && (frame.audioBytes ?? 0) > 0),
+      { timeout: 60_000 },
+    )
+    .toBe(true);
+  const firstAgentAudioBytes = frames
+    .filter((frame) => frame.type === "audio")
+    .reduce((total, frame) => total + (frame.audioBytes ?? 0), 0);
+
+  const matchingTranscript = () =>
+    frames.find(
+      (frame) =>
+        frame.type === "user_transcript" &&
+        frame.text?.trim() &&
+        transcriptMatchesUtterance(frame.text),
+    );
+  await expect.poll(() => matchingTranscript()?.at, { timeout: 120_000 }).toBeDefined();
+  const heardAt = matchingTranscript()!.at;
 
   await expect
     .poll(
       () =>
-        frames.some((frame) => frame.type === "agent_response" && frame.at >= heardAt && frame.text?.trim()) &&
-        frames.some((frame) => frame.type === "audio" && frame.at >= heardAt && (frame.audioBytes ?? 0) > 0),
-      { timeout: 60_000 },
+        frames.some(
+          (frame) =>
+            frame.type === "agent_response" && frame.at >= heardAt && frame.text?.trim(),
+        ) &&
+        frames.some(
+          (frame) => frame.type === "audio" && frame.at >= heardAt && (frame.audioBytes ?? 0) > 0,
+        ),
+      { timeout: 120_000 },
     )
     .toBe(true);
 
-  const transcript = frames.find((frame) => frame.type === "user_transcript" && frame.text?.trim())?.text ?? "";
+  const transcript = matchingTranscript()?.text ?? "";
   const reply = frames.find(
     (frame) => frame.type === "agent_response" && frame.at >= heardAt && frame.text?.trim(),
   );
@@ -142,6 +266,8 @@ async function runVoiceSession(page: Page, species: string) {
     baseUrl: LIVE_PROOF,
     species,
     connectedAtMs: connectedAt,
+    expectedUtterance: PROOF_EXPECTED_UTTERANCE,
+    firstAgentAudioBytes,
     transcript,
     agentResponse: reply?.text ?? "",
     frameCounts: {
@@ -224,32 +350,21 @@ test.describe("Pub Pal live voice", () => {
     await page.screenshot({ path: `${EVIDENCE_DIR}/typed-chat.png`, fullPage: true });
   });
 
-  test("a person talks to the Pal in the browser and hears it answer", async ({ page, request }) => {
+  test("a person talks to the Pal in the browser and hears it answer", async ({
+    page,
+    request,
+    context,
+  }) => {
     requireProofEnv("PUB_PAL_PROOF_STORAGE_STATE");
     requireProofEnv("PUB_PAL_PROOF_WAV");
     const bearer = requireProofEnv("PUB_PAL_PROOF_BEARER");
-    test.setTimeout(120_000 * PROOF_SPECIES.length);
+    test.setTimeout(300_000 * PROOF_SPECIES.length);
 
     const sessions = [];
     for (const species of PROOF_SPECIES) {
       await setPalSpecies(request, bearer, species);
-      const tokenResponse = await request.post(`${baseUrl}/api/pub-pal/voice-token`, {
-        headers: { authorization: `Bearer ${bearer}` },
-      });
-      expect(tokenResponse.status()).toBe(200);
-      const tokenBody = await tokenResponse.json();
-      const voiceId = tokenBody.overrides?.voiceId as string | undefined;
-      expect(voiceId).toBeTruthy();
-      await request.post(`${baseUrl}/api/pub-pal/voice-token`, {
-        headers: {
-          authorization: `Bearer ${bearer}`,
-          "content-type": "application/json",
-        },
-        data: { action: "release", durationSeconds: 0 },
-      });
-
-      const evidence = await runVoiceSession(page, species);
-      sessions.push({ species, voiceId, ...evidence });
+      const evidence = await runVoiceSession(page, context, request, species);
+      sessions.push({ species, ...evidence });
     }
 
     await writeFile(

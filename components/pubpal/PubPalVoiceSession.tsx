@@ -31,6 +31,7 @@ import type { PalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
 import {
   createPubPalVoiceStartController,
+  PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_START_ERROR,
   PubPalVoiceStartError,
 } from "@/lib/pubPalVoiceSession";
@@ -227,7 +228,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             attempt.sdkSessionStarted = false;
             void finalizeSession(attempt);
           },
-          onError: () => {
+          onError: (message) => {
             if (!ownsAttempt(attempt)) return;
             startController.settle();
             setIsStarting(false);
@@ -236,7 +237,8 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
               attempt.sdkSessionStarted = false;
               endSession();
             }
-            setError(PAL_VOICE_START_ERROR);
+            const detail = typeof message === "string" ? message.trim() : "";
+            setError(detail || PAL_VOICE_START_ERROR);
             onStateChange?.("error");
             void finalizeSession(attempt);
           },
@@ -248,7 +250,9 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
         attempt.cancelled = true;
         setIsStarting(false);
         setError(message);
-        onStateChange?.("error");
+        onStateChange?.(
+          message === PAL_MICROPHONE_PERMISSION_ERROR ? "idle" : "error",
+        );
       },
       onCancelled: () => {
         void finalizeSession(attempt);
