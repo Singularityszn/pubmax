@@ -18,7 +18,7 @@ import "server-only";
 // the same `rate_limit.fail_open` event an operator already alerts on.
 
 import { log } from "@/lib/log";
-import { isRateLimited } from "@/lib/pintDrops";
+import { consumeRateLimit } from "@/lib/pintDrops";
 import { ROUND_SPEND_PRICE_LINE_MAX } from "@/lib/rounds";
 import {
   isSupabaseConfigured,
@@ -86,7 +86,7 @@ function chargeInMemory(
     if (!allowed) break;
     const id = chargeId(owner, line);
     if ((chargedLines.get(id) ?? 0) > cutoff) continue;
-    if (isRateLimited(key, now, limit, ROUND_PRICE_WINDOW_MS)) {
+    if (consumeRateLimit(key, now, limit, ROUND_PRICE_WINDOW_MS)) {
       allowed = false;
     } else {
       chargedLines.set(id, now);
