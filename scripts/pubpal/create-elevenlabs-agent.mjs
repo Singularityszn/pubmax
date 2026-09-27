@@ -199,7 +199,7 @@ function agentBody(toolIds) {
       },
       privacy: {
         record_voice: false,
-        retention_days: 0,
+        retention_days: -1,
         delete_transcript_and_pii: true,
         zero_retention_mode: true,
       },
@@ -273,6 +273,21 @@ function mergeConversationConfigOverride(existing, desired) {
   };
 }
 
+function agentPatchPayload(body) {
+  const prompt = { ...body.conversation_config.agent.prompt, custom_llm: null };
+  delete prompt.tools;
+  return {
+    ...body,
+    conversation_config: {
+      ...body.conversation_config,
+      agent: {
+        ...body.conversation_config.agent,
+        prompt,
+      },
+    },
+  };
+}
+
 function mergeAgentPatch(existingAgent, body) {
   const existingOverride =
     existingAgent.platform_settings?.overrides?.conversation_config_override;
@@ -338,7 +353,31 @@ async function main() {
 
   if (existing) {
     const currentAgent = await call("GET", `${API}/agents/${existing}`, apiKey);
-    const patchBody = mergeAgentPatch(currentAgent, body);
+    const conversationConfig = structuredClone(currentAgent.conversation_config ?? {});
+    conversationConfig.agent = {
+      ...(conversationConfig.agent ?? {}),
+      prompt: {
+        ...(conversationConfig.agent?.prompt ?? {}),
+        prompt: systemPrompt(),
+        llm: AGENT_CONFIG.llm,
+        custom_llm: null,
+        tool_ids: toolIds,
+      },
+      first_message:
+        conversationConfig.agent?.first_message ??
+        "Hello, I'm your Pub Pal. What kind of night are you planning?",
+      language: conversationConfig.agent?.language ?? "en",
+    };
+    delete conversationConfig.agent.prompt.custom_llm;
+    delete conversationConfig.agent.prompt.tools;
+    conversationConfig.conversation = {
+      ...(conversationConfig.conversation ?? {}),
+      max_duration_seconds: MAX_SESSION_SECONDS,
+    };
+    const patchBody = mergeAgentPatch(currentAgent, {
+      ...body,
+      conversation_config: conversationConfig,
+    });
     await call("PATCH", `${API}/agents/${existing}`, apiKey, patchBody);
     console.log(`✓ Updated agent ${existing}`);
     console.log(`  LLM: ${AGENT_CONFIG.llm}`);
