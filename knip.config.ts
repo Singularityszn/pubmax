@@ -149,6 +149,7 @@ const config: KnipConfig = {
     "scripts/gen-store-assets.mjs",
     "scripts/landing/build-landing-map.mjs",
     "scripts/landing/build-landing-photos.mjs",
+    "scripts/landing/build-london-collage.mjs",
     "scripts/link-cursor-skills.mjs",
     "scripts/harvest/uk-pubs/start-bars-when-pubs-done.mjs",
     "scripts/whatson/quizRefresh.mjs",

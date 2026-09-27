@@ -34,6 +34,7 @@ import { socialSurfaceName } from "@/lib/socialLaunch";
 import LandingAnswerCards from "./LandingAnswerCards";
 import LandingFaq from "./LandingFaq";
 import LandingHero from "./LandingHero";
+import LandingLondonCollage from "./LandingLondonCollage";
 import LandingSavings from "./LandingSavings";
 import PintDropStripLoading from "./PintDropStripLoading";
 import "./landing.css";
@@ -137,6 +138,8 @@ export default function LandingPage({
             phone order; the desktop only seats the picture and the rows beside
             the copy. */}
         <LandingHero card={card} archive={archive} rail={rail} />
+
+        <LandingLondonCollage />
 
         {answers ? <LandingAnswerCards answers={answers} /> : null}
 
