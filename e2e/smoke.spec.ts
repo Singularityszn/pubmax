@@ -346,16 +346,16 @@ test("mobile venue sheet reaches Train, holds no price action in the strip, and 
 }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(() => {
-    window.localStorage.setItem("pubmax-tour-v1-done", "1");
-  });
+  await page.emulateMedia({ reducedMotion: "reduce" });
 
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
   expect(response?.status()).toBe(200);
 
-  const sheet = page.locator(".mapDrawer.right");
+  const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(portal).toBeVisible();
+  const sheet = portal.locator(".mobileSharedSheet");
   await expect(sheet).toHaveClass(/open/);
-  const storiesTab = page.getByRole("tab", { name: "Stories", exact: true });
+  const storiesTab = portal.getByRole("tab", { name: "Stories", exact: true });
   await expect(async () => {
     await storiesTab.click();
     await expect(sheet).toHaveClass(/sheet-full/, { timeout: 2_000 });
@@ -370,12 +370,20 @@ test("mobile venue sheet reaches Train, holds no price action in the strip, and 
   // The Overview's getting-home fold is the single Train entry point (the
   // sticky strip holds actions, not navigation - owner-reported duplicate
   // removed). Back to a content tab after, so the sheet is full again.
-  await page.getByRole("tab", { name: "Overview", exact: true }).click();
-  const gettingHome = page.locator("#venueSection-getting-home");
-  await gettingHome.locator("summary").click();
+  const overviewTab = portal.getByRole("tab", { name: "Overview", exact: true });
+  await expect(async () => {
+    await overviewTab.click();
+    await expect(overviewTab).toHaveAttribute("aria-selected", "true", { timeout: 2_000 });
+    await expect(portal.locator("#venuePanel-overview")).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+  const gettingHome = portal.locator("#venueSection-getting-home");
+  const gettingHomeSummary = gettingHome.locator("summary");
+  await gettingHomeSummary.scrollIntoViewIfNeeded();
+  await gettingHomeSummary.click();
   await expect(gettingHome).toHaveAttribute("open", "");
   await expect(gettingHome.getByLabel("Last Pint")).toBeVisible();
   await expect(async () => {
+    await storiesTab.scrollIntoViewIfNeeded();
     await storiesTab.click();
     await expect(sheet).toHaveClass(/sheet-full/, { timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
@@ -396,11 +404,12 @@ test("mobile venue sheet reaches Train, holds no price action in the strip, and 
 
   // The price path is the Overview's ONE door, whichever kind the pub's trust
   // state names, and there is exactly one of it on the sheet.
-  const overviewTab = page.getByRole("tab", { name: "Overview", exact: true });
-  await overviewTab.click();
-  await expect(overviewTab).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#venuePanel-overview")).toBeVisible();
-  const priceDoor = page.locator("[data-price-door]");
+  await expect(async () => {
+    await overviewTab.click();
+    await expect(overviewTab).toHaveAttribute("aria-selected", "true", { timeout: 2_000 });
+    await expect(portal.locator("#venuePanel-overview")).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+  const priceDoor = portal.locator("[data-price-door]");
   await expect(priceDoor).toHaveCount(1);
 
   // Anonymous sessions have always been routed to sign-in before the price
