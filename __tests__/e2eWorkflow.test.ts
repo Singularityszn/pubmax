@@ -2,6 +2,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
+
+type WorkflowStep = { uses?: string; run?: string };
+type Workflow = { jobs: Record<string, { steps: WorkflowStep[] }> };
 
 describe("browser CI policy", () => {
   const workflowPath = join(process.cwd(), ".github", "workflows", "e2e.yml");
@@ -24,7 +28,6 @@ describe("browser CI policy", () => {
     expect(workflow).toContain("shard: [1, 2]");
     expect(workflow).toContain("--shard=${{ matrix.shard }}/2");
     expect(workflow).toContain("uses: ./.github/actions/pubmax-mac-playwright");
-    expect(workflow).toContain("uses: ./.github/actions/pubmax-playwright-port");
     // P0-3: the three trusted-handoff rollout flags are retired, so there is no
     // second suite whose behaviour a deployment lacks.
     expect(workflow).not.toContain("flag-on");
@@ -42,6 +45,26 @@ describe("browser CI policy", () => {
       workflow.indexOf("  full-suite:"),
     );
     expect(lawPins).not.toContain("if: github.event_name");
+  });
+
+  it("chooses a runner-specific Playwright port before every Playwright run", () => {
+    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
+
+    for (const jobName of ["law-pins", "full-suite"]) {
+      const steps = jobs[jobName].steps;
+      const portStep = steps.findIndex(
+        (step) => step.uses === "./.github/actions/pubmax-playwright-port",
+      );
+      const playwrightSteps = steps
+        .map((step, index) => ({ step, index }))
+        .filter(({ step }) => step.run?.includes("npx playwright test"));
+
+      expect(portStep, jobName).toBeGreaterThanOrEqual(0);
+      expect(playwrightSteps.length, jobName).toBeGreaterThan(0);
+      for (const { index } of playwrightSteps) {
+        expect(index, jobName).toBeGreaterThan(portStep);
+      }
+    }
   });
 
   it("gives each production browser build enough heap", () => {

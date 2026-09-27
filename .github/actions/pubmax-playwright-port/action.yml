@@ -2,7 +2,8 @@ name: PubMax Playwright port
 description: >-
   Export PW_PORT for Playwright webServers. Uses the runner environment when
   set (for example PW_PORT=3200 in a second runner's .env); otherwise derives a
-  stable port from RUNNER_NAME so two self-hosted runners on one Mac never share 3100.
+  stable port from RUNNER_NAME in one of 90 buckets (3100-3990, step 10). Two
+  runner names can still hash to the same bucket, so pin PW_PORT per runner.
 runs:
   using: composite
   steps:
@@ -17,7 +18,7 @@ runs:
           exit 0
         fi
         sum=$(printf '%s' "${RUNNER_NAME}" | cksum | awk '{print $1}')
-        offset=$(( sum % 10 ))
-        port=$((3100 + offset * 100))
+        offset=$(( sum % 90 ))
+        port=$((3100 + offset * 10))
         echo "PW_PORT=${port}" >> "$GITHUB_ENV"
         echo "Playwright port ${port} (derived from runner ${RUNNER_NAME})"
