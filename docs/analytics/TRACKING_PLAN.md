@@ -9,12 +9,13 @@ Issue: [#1361](https://github.com/Singularityszn/pubmax/issues/1361).
 
 ## 1. How an event reaches PostHog
 
-Two transports, one consent gate.
+Two reader transports, one consent gate, plus server telemetry that no reader is behind.
 
 | Transport | Carries | Path |
 |---|---|---|
 | Named product events | The closed registry in `lib/analyticsEvents.ts` | `trackEvent()` (`lib/analytics.ts`) to `POST /api/events`, re-validated there, then `lib/posthogServer.ts` to the EU capture endpoint |
 | Browser SDK events | `$pageview`, `$web_vitals`, redacted `$exception` | `posthog-js` (`lib/posthogClient.ts`) through the first-party `/ingest` proxy (`app/ingest/[...path]/route.ts`) |
+| Server telemetry | `$ai_generation` per direct model call, redacted server `$exception` | `capturePosthogServerEvent` (`lib/posthogServer.ts`) under a fixed server `distinct_id` with no person profile, so it is never a reader and never enters a reader rate |
 
 Four facts that decide how every query below is written.
 

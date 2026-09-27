@@ -7,7 +7,7 @@ Authoritative registry and sanitization: `lib/analyticsEvents.ts`. This file is 
 | Event | Properties |
 | --- | --- |
 | `sign_in_initiated` | `provider` (`google`, `apple`, `microsoft`, `email`, `email_resume`, `handle_password`) |
-| `user_signed_up` | `provider` (same enum as sign-in) |
+| `user_signed_up` | _(none)_ |
 | `user_signed_in` | _(none)_ |
 | `user_signed_out` | _(none)_ |
 
@@ -43,11 +43,12 @@ Authoritative registry and sanitization: `lib/analyticsEvents.ts`. This file is 
 | `$web_vitals` | CLS, FCP, INP, LCP |
 | `$exception` | Redacted messages, no stacks |
 
-## LLM observability (server capture)
+## Server capture (no reader behind it)
 
 | Event | Properties |
 | --- | --- |
-| `$ai_generation` | `$ai_model`, `$ai_provider`, `$ai_latency`, `$ai_input_tokens`, `$ai_output_tokens`, `$ai_total_cost_usd` (optional), `route` (static API tag). No prompt or completion text. |
+| `$ai_generation` | `$ai_model`, `$ai_provider`, `$ai_latency`, `$ai_input_tokens`, `$ai_output_tokens`, `$ai_total_tokens`, `$ai_total_cost_usd` (optional), `$ai_is_error` (only on failure), `route` (static API tag). No prompt or completion text. |
+| `$exception` | Unhandled server rejection or exception from `instrumentation.node.ts`: safe error type only, value `Redacted (<hook>)`. |
 
 ## Identity
 
