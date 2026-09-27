@@ -11,7 +11,10 @@ Originals never enter the repo; the encoder strips all metadata.
    folder you pass with `--source-dir <dir>`.
 2. Add a row to `LONDON_COLLAGE_PHOTOS` with its `id`, `source` file name,
    `caption`, `alt` and `layout`. Give `width`, `height` and `blurDataUrl`
-   placeholder values for now.
+   placeholder values for now. When a street scene shows legible number plates
+   or other identifying detail, add optional `privacyBlurRects`: each entry is
+   `[left, top, width, height]` as fractions of the oriented source (0–1). The
+   encoder blurs those regions before it writes AVIF/WebP.
 3. Re-run the encoder from the repo root:
 
    ```sh

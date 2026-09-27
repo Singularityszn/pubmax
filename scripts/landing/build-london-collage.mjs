@@ -3,8 +3,9 @@
 //
 // Run by hand when a photograph joins the set, never by a build: a picture of
 // a place is a curation decision (the landing imagery rule in
-// docs/rules/lib-venues-areas-listings-and-nights.md). Reads LONDON_COLLAGE_PHOTOS from lib/landingLondonCollage.ts, strips
-// every byte of EXIF/GPS/device metadata, writes responsive AVIF/WebP under
+// docs/rules/lib-venues-areas-listings-and-nights.md). Reads LONDON_COLLAGE_PHOTOS from lib/landingLondonCollage.ts,
+// optionally blurs privacyBlurRects on the oriented source, strips every byte
+// of EXIF/GPS/device metadata, writes responsive AVIF/WebP under
 // public/landing/london-collage/, and prints each photo's width, height and
 // blurDataUrl to paste back into that list.
 //
@@ -51,12 +52,36 @@ function publicPath(src) {
   return path.join(PUBLIC_DIR, src.replace(/^\//, ""));
 }
 
+async function loadSource(sourceDir, photo) {
+  let buffer = await sharp(path.join(sourceDir, photo.source), { failOn: "none" }).rotate().toBuffer();
+  const rects = photo.privacyBlurRects;
+  if (!rects?.length) return sharp(buffer);
+
+  const meta = await sharp(buffer).metadata();
+  const w = meta.width ?? 1;
+  const h = meta.height ?? 1;
+  const composites = [];
+  for (const [nx, ny, nw, nh] of rects) {
+    const left = Math.max(0, Math.round(nx * w));
+    const top = Math.max(0, Math.round(ny * h));
+    const width = Math.min(w - left, Math.round(nw * w));
+    const height = Math.min(h - top, Math.round(nh * h));
+    if (width < 4 || height < 4) continue;
+    const patch = await sharp(buffer).extract({ left, top, width, height }).blur(32).toBuffer();
+    composites.push({ input: patch, left, top });
+  }
+  if (composites.length) {
+    buffer = await sharp(buffer).composite(composites).toBuffer();
+  }
+  return sharp(buffer);
+}
+
 async function main() {
   const { sourceDir } = parseArgs();
   const manifest = [];
 
   for (const photo of LONDON_COLLAGE_PHOTOS) {
-    const base = sharp(path.join(sourceDir, photo.source), { failOn: "none" }).rotate(); // auto-orient, then strip on write
+    const base = await loadSource(sourceDir, photo);
     let encoded = null;
 
     for (const width of LONDON_COLLAGE_WIDTHS) {
