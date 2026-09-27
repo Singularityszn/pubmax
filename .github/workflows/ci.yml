@@ -4,8 +4,8 @@ name: CI
 # GitHub-hosted minutes are billing-locked. History: Avrea and Blacksmith
 # carried jobs after the September 2026 allocation fault; hosted runners
 # stopped again when account payments failed. See docs/CI_RUNBOOK.md.
-# Effective RLS stays in rls-session.yml so this workflow stays lean and
-# finishes under the 15-minute wall budget.
+# Effective RLS stays in rls-session.yml so this workflow stays lean. Job
+# timeout-minutes follow docs/CI_RUNBOOK.md (2× p95 on shared pubmax-mac).
 
 on:
   pull_request:
