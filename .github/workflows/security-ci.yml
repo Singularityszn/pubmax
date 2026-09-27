@@ -28,7 +28,7 @@ jobs:
           persist-credentials: false
 
       - name: zizmor
-        run: node scripts/security/run-zizmor.mjs
+        run: zizmor --offline --min-severity high .github/workflows
 
   osv-scanner:
     name: osv-scanner (lockfile)
@@ -41,7 +41,7 @@ jobs:
           persist-credentials: false
 
       - name: osv-scanner
-        run: node scripts/security/run-osv-scanner.mjs
+        run: osv-scanner scan --lockfile package-lock.json
 
   semgrep:
     name: Semgrep CE (SAST)
@@ -57,4 +57,16 @@ jobs:
         env:
           REQUESTS_CA_BUNDLE: /etc/ssl/cert.pem
           SSL_CERT_FILE: /etc/ssl/cert.pem
-        run: node scripts/security/run-semgrep.mjs
+          SEMGREP_SEND_METRICS: "off"
+        run: |
+          semgrep scan \
+            --config p/default \
+            --metrics off \
+            --severity ERROR \
+            --error \
+            --timeout 120 \
+            --exclude node_modules \
+            --exclude .next \
+            --exclude public/data \
+            --exclude uk_base/public/data \
+            app lib components scripts proxy.ts next.config.mjs

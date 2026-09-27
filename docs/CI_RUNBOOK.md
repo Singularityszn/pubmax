@@ -24,8 +24,9 @@ brew install postgresql@16 postgrest node@22 zizmor osv-scanner semgrep # or ano
 npx playwright install chromium   # or let CI cache under ~/Library/Caches/ms-playwright
 ```
 
-`security-ci.yml` runs `node scripts/security/run-{zizmor,osv-scanner,semgrep}.mjs`.
+`security-ci.yml` invokes Homebrew `zizmor`, `osv-scanner`, and `semgrep` directly.
 Semgrep uses `/etc/ssl/cert.pem` on macOS when Homebrew certifi paths are missing.
+Accepted lockfile findings may be listed in `osv-scanner.toml` with reasons.
 
 PostgreSQL clusters for RLS proofs use the serial harness in
 `scripts/rls/postgresHost.mjs` (unique ports/data dirs per job, SysV slot
