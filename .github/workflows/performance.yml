@@ -121,6 +121,9 @@ jobs:
       - name: Install Chromium
         uses: ./.github/actions/pubmax-mac-playwright
 
+      - name: Choose Playwright port
+        uses: ./.github/actions/pubmax-playwright-port
+
       # Playwright's webServer builds and starts the production build itself
       # (playwright.config.ts owns the env the keyless routes need). Measuring a
       # dev server would be a number about the bundler, not about what a drinker
@@ -196,7 +199,7 @@ jobs:
     name: UX lane performance
     needs: [performance-budget]
     runs-on: [self-hosted, pubmax-mac]
-    timeout-minutes: 15
+    timeout-minutes: 17
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -222,6 +225,9 @@ jobs:
 
       - name: Install Chromium
         uses: ./.github/actions/pubmax-mac-playwright
+
+      - name: Choose Playwright port
+        uses: ./.github/actions/pubmax-playwright-port
 
       - name: Report UX lane routes
         env:
