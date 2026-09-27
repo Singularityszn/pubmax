@@ -13,7 +13,7 @@ import {
 } from "@/lib/pubPalLlmStream";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
-import { clientIp, hashIp, isSupabaseConfigured } from "@/lib/supabase";
+import { clientIp, hashIp } from "@/lib/supabase";
 
 const RATE_LIMIT = 30;
 const RATE_WINDOW_MS = 60_000;
@@ -61,16 +61,11 @@ export async function POST(request: Request): Promise<Response> {
   const turns = extractAskTurns(record.messages);
   const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, turns);
 
-  const llmAssistAllowed =
-    !fenced &&
-    (isSupabaseConfigured() || process.env.NODE_ENV !== "production") &&
-    Boolean(process.env.OPENROUTER_API_KEY?.trim());
-
   const answerBody = await runAsk({
     query,
     cityId: record.cityId,
     turns,
-    skipModel: !llmAssistAllowed,
+    skipModel: true,
     traceRoute: "api/pub-pal/llm",
   });
 
