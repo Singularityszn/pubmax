@@ -83,6 +83,7 @@ function chargeInMemory(
   }
   let allowed = true;
   for (const line of lines) {
+    if (!allowed) break;
     const id = chargeId(owner, line);
     if ((chargedLines.get(id) ?? 0) > cutoff) continue;
     if (isRateLimited(key, now, limit, ROUND_PRICE_WINDOW_MS)) {

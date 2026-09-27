@@ -283,6 +283,46 @@ describe("chargeRoundPriceLines", () => {
       vi.useRealTimers();
     }
   });
+
+  it("stops charging lines once a batch is denied mid-batch, instead of burning phantom hits on every remaining line", async () => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    vi.resetModules();
+    const rateLimitSpy = vi.fn();
+    vi.doMock("@/lib/pintDrops", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
+      return {
+        ...actual,
+        isRateLimited: (...args: Parameters<typeof actual.isRateLimited>) => {
+          rateLimitSpy();
+          return actual.isRateLimited(...args);
+        },
+      };
+    });
+    const { chargeRoundPriceLines, ROUND_PRICE_ACTOR_LIMIT } = await import(
+      "@/lib/roundPriceBudget"
+    );
+
+    // Warm the actor to one line short of the cap.
+    await chargeRoundPriceLines(
+      "actor-straddle",
+      "account-straddle",
+      priceLines("spend-warm", ROUND_PRICE_ACTOR_LIMIT - 1),
+    );
+    rateLimitSpy.mockClear();
+
+    // A 5-line batch straddles the cap: the 2nd line trips it.
+    const verdict = await chargeRoundPriceLines(
+      "actor-straddle",
+      "account-straddle",
+      priceLines("spend-straddle", 5),
+    );
+
+    expect(verdict).toEqual({ allowed: false, mode: "memory" });
+    // Once a line is denied, the remaining lines in the batch must not be
+    // charged against the actor's window at all.
+    expect(rateLimitSpy).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("Round price line charge migration", () => {
