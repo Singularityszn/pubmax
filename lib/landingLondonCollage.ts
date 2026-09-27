@@ -81,8 +81,9 @@ export const LONDON_COLLAGE_PHOTOS: readonly LondonCollagePhoto[] = [
     "layout": "standard",
     "width": 1280,
     "height": 1707,
-    "blurDataUrl": "data:image/webp;base64,UklGRvIAAABXRUJQVlA4IOYAAADQBQCdASoYACAAPu1kqU2ppaQiMAgBMB2JYgCxDPmDA2D626z5jRePFw8sicq0kBXJUTX6keIAAP69neuDP/yrbg9PnA9cr66Dxvsngz56CWf2C6DyolnteydTVXPKdZXvklVY4pHa/xBIAvr5hq0mehHi4TIgOcwaQtikcvFZryXqXNbTcypXElRQxGtOEP9ohwPp9lVJcibYrxaDDOe9z4TH9jXVEH0Nai5phMcFonsdNybzzZbd3me2IRNBVrZJRW0Y6ZInE3Os/E6sUmxFM3AoysTeTkBHUWlpbc9+ndkbf1gAAA==",
+    "blurDataUrl": "data:image/webp;base64,UklGRvIAAABXRUJQVlA4IOYAAADQBQCdASoYACAAPu1kqU2ppaQiMAgBMB2JYgCxDPmDA2D626z5jRePFw8sicq0j+8K86/uWxYAAP69neuDP/yrbg9PnA9cr66Dxvsngz56CWf2C6DyolnteydTVXPKdZXvklVY4pHa/xBIAvr5hq0mehHi4TIgOcwaQtikcvFZryXqXNbTcypXElRQxGtOEP9ohwPp9lVJcibYrxaDDOe9z4TH9jXVEH0Nai5phMcVJ6x5t1HthcgVajAvG8YyMYzvPBs1lkFMauIpwFF1M3D2WLsBkYEIBcTpN4zC73iwQqtR7T5gAA==",
     "privacyBlurRects": [
+      [0.08, 0.942, 0.24, 0.05],
       [0.36, 0.84, 0.24, 0.07],
       [0.44, 0.7, 0.16, 0.05],
       [0.52, 0.66, 0.14, 0.05],
