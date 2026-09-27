@@ -107,7 +107,7 @@ to a plain fetch of the same URL.
 | Honest first-load outage fallback | `native/web-stub/offline.html`, `server.errorPath` |
 | Native projects | `ios/` (SPM, no CocoaPods) and `android/` |
 | Platform detection seam | `lib/nativePlatform.ts` (`isNativeApp()` / `nativePlatform()`) |
-| Native photo seam | `lib/nativeCamera.ts`, wired into `components/moment/MomentCapture.tsx`, `components/map/VenuePriceSubmit.tsx` (price board) and `components/venue/VenuePhotoComposer.tsx` (pub wall) |
+| Native photo seam | `lib/nativeCamera.ts`, wired into `components/moment/MomentCapture.tsx`, `components/map/VenuePriceSubmit.tsx` (price board), `components/venue/VenuePhotoComposer.tsx` (pub wall) and `components/drink-wall/DrinkWallComposer.tsx` (Drink Wall) |
 | iOS capabilities (push, associated domains) | `ios/App/App/App.entitlements`, referenced by both build configurations |
 | iOS privacy manifest | `ios/App/App/PrivacyInfo.xcprivacy` (mirrors STORE_READINESS section 5) |
 | Foreground location declarations | `ios/App/App/Info.plist`, `android/app/src/main/AndroidManifest.xml` |
