@@ -20,9 +20,12 @@ runs-on: [self-hosted, pubmax-mac]
 Install once on the runner Mac:
 
 ```sh
-brew install postgresql@16 postgrest node@22 # or another Node 22 install
+brew install postgresql@16 postgrest node@22 zizmor osv-scanner semgrep # or another Node 22 install
 npx playwright install chromium   # or let CI cache under ~/Library/Caches/ms-playwright
 ```
+
+`security-ci.yml` runs `node scripts/security/run-{zizmor,osv-scanner,semgrep}.mjs`.
+Semgrep uses `/etc/ssl/cert.pem` on macOS when Homebrew certifi paths are missing.
 
 PostgreSQL clusters for RLS proofs use the serial harness in
 `scripts/rls/postgresHost.mjs` (unique ports/data dirs per job, SysV slot

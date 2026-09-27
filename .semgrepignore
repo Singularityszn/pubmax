@@ -1,0 +1,10 @@
+# Vendor skill trees and agent fixtures are not production surfaces.
+skills/
+.agents/
+.cursor/
+__tests__/
+e2e/
+docs/
+data/
+public/data/
+uk_base/public/data/

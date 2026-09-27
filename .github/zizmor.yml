@@ -1,0 +1,16 @@
+# zizmor policy for pubmax workflows.
+#
+# Existing workflows keep @v4 ref pins (see docs/CI_RUNBOOK.md); a repo-wide
+# hash-pin migration is out of scope for security-ci. security-ci.yml itself
+# uses hash-pinned actions only.
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        "*": ref-pin
+  self-repository:
+    remap:
+      severity: low
+  artipacked:
+    remap:
+      severity: low
