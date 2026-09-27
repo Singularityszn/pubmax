@@ -54,6 +54,16 @@ for (const entry of payload.results ?? []) {
 }
 
 if (failing.length === 0) {
+  const status = result.status ?? 1;
+  if (status !== 0 && status !== 1) {
+    process.stderr.write(result.stderr ?? "");
+    process.exit(status);
+  }
+  if (status === 1 && (payload.results ?? []).length === 0) {
+    console.error("osv-scanner: exit 1 but no scan results in JSON");
+    process.stderr.write(result.stderr ?? "");
+    process.exit(1);
+  }
   console.log("osv-scanner: no High or Critical vulnerabilities in package-lock.json");
   process.exit(0);
 }

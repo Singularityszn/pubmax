@@ -65,7 +65,7 @@ try {
   if (result.stdout) {
     process.stdout.write(result.stdout);
   }
-  process.exit(result.status === null ? 1 : result.status ?? 1);
+  process.exit(1);
 }
 
 const errors = (payload.results ?? []).filter((finding) => {
