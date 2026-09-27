@@ -602,6 +602,7 @@ import {
   suggestedRouteWanted,
   tonightLaneKindFor,
   tonightLaneReadState,
+  unresolvedBuiltStopIds,
   venueEntranceOvershootFor,
   type MapSeed,
   type MapSelectionNotice,
@@ -2681,6 +2682,14 @@ export default function PubMap({
     [pubVenues, savedIds],
   );
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
+  // Stops a shared ?pubs= link (or restored plan) named that this build does
+  // not hold. The built route silently drops them; this count lets the route
+  // panel say so instead (VAL-DATA-004: shown clearly, never invented).
+  const missingBuiltStopCount = useMemo(
+    () =>
+      unresolvedBuiltStopIds({ loaded, builtIds, venueById }).length,
+    [loaded, builtIds, venueById],
+  );
   // Zone pint index (nearest-station fare zone medians) for the zone picker.
   // Computed off the full venue set so the strip's numbers don't shift as the
   // user filters — it's a stable "here's the lay of the land" reference.
@@ -5064,6 +5073,7 @@ export default function PubMap({
         route={route}
         filteredVenues={filteredPubVenues}
         builtIds={builtIds}
+        missingStopCount={missingBuiltStopCount}
         activeVenueId={selectedVenueIdOrUndefined}
         venueSignals={venueSignals}
         crawlBlurb={activeCrawlBlurb}

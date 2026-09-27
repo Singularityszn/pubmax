@@ -42,6 +42,8 @@ import {
   suggestedRouteWanted,
   tonightLaneKindFor,
   tonightLaneReadState,
+  unresolvedBuiltStopIds,
+  missingBuiltStopsNote,
   venueEntranceOvershootFor,
   type VenueDetailStatus,
 } from "@/lib/pubMap";
@@ -209,6 +211,72 @@ describe("mapSelectionNotice", () => {
     expect(MAP_SELECTION_LOOKUP_FAILED_NOTE).toBe("We could not check that pub right now.");
     expect(UNKNOWN_MAP_SELECTION_NOTE).not.toMatch(/\u2014/);
     expect(MAP_SELECTION_LOOKUP_FAILED_NOTE).not.toMatch(/\u2014/);
+  });
+});
+
+describe("unresolvedBuiltStopIds", () => {
+  const venueById = new Map<string, Venue>([
+    ["v1", makeVenue({ id: "v1" })],
+    ["v2", makeVenue({ id: "v2" })],
+    ["bar1", makeVenue({ id: "bar1", kind: "bar" })],
+  ]);
+
+  it("answers nothing while the index is still loading", () => {
+    // An id that has not resolved YET is not an id that does not exist.
+    expect(
+      unresolvedBuiltStopIds({ loaded: false, builtIds: ["ghost"], venueById }),
+    ).toEqual([]);
+  });
+
+  it("names the stops a shared link carries that this build does not hold", () => {
+    expect(
+      unresolvedBuiltStopIds({
+        loaded: true,
+        builtIds: ["v1", "ghost-pub", "v2"],
+        venueById,
+      }),
+    ).toEqual(["ghost-pub"]);
+  });
+
+  it("counts a non-pub kind too: the built route filters it the same way", () => {
+    // useMapPlanPresentation keeps only pubs on a crawl route, so a bar id from
+    // a stale link must be accounted for, not silently absent from the list.
+    expect(
+      unresolvedBuiltStopIds({ loaded: true, builtIds: ["v1", "bar1"], venueById }),
+    ).toEqual(["bar1"]);
+  });
+
+  it("answers empty when every stop resolves", () => {
+    expect(
+      unresolvedBuiltStopIds({ loaded: true, builtIds: ["v1", "v2"], venueById }),
+    ).toEqual([]);
+    expect(unresolvedBuiltStopIds({ loaded: true, builtIds: [], venueById })).toEqual([]);
+  });
+});
+
+describe("missingBuiltStopsNote", () => {
+  it("says nothing when nothing is missing", () => {
+    expect(missingBuiltStopsNote(0)).toBeNull();
+  });
+
+  it("names one missing stop in the singular", () => {
+    expect(missingBuiltStopsNote(1)).toBe(
+      "One stop in this plan is not a pub we know, so it is not on the route.",
+    );
+  });
+
+  it("names several missing stops in the plural", () => {
+    expect(missingBuiltStopsNote(2)).toBe(
+      "2 stops in this plan are not pubs we know, so they are not on the route.",
+    );
+  });
+
+  it("ships quiet empty-state voice with no em dash and no exclamation", () => {
+    for (const count of [1, 2, 7]) {
+      const note = missingBuiltStopsNote(count) as string;
+      expect(note).not.toMatch(/\u2014/);
+      expect(note).not.toContain("!");
+    }
   });
 });
 

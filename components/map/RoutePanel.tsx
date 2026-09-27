@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { crawlSummary, type Filters, type Venue } from "@/lib/venues";
+import { missingBuiltStopsNote } from "@/lib/pubMap";
 import { LONDON_POIS_PATH } from "@/lib/pois";
 import {
   buildRouteLegs,
@@ -50,6 +51,13 @@ type RoutePanelProps = {
   route: Venue[];
   filteredVenues: Venue[];
   builtIds: string[];
+  /**
+   * Stops the plan names (shared link or restored draft) that never resolved
+   * to a pub this build holds. Shown as a note over the stop list so the
+   * route never quietly disagrees with the count, and a missing pub is never
+   * replaced by an invented one. Build mode only.
+   */
+  missingStopCount?: number;
   activeVenueId: string | undefined;
   venueSignals: VenueSignals;
   crawlBlurb?: string;
@@ -93,6 +101,7 @@ export default function RoutePanel({
   route,
   filteredVenues,
   builtIds,
+  missingStopCount = 0,
   activeVenueId,
   venueSignals,
   crawlBlurb,
@@ -184,16 +193,30 @@ export default function RoutePanel({
     downloadIcs(icsFilename(crawl), buildCrawlIcs(crawl));
   }
 
+  // A shared link can name a stop this build no longer holds (retired pub,
+  // stale saved draft). The route drops it; the note accounts for it, so the
+  // stop count and the list never quietly disagree. Build mode only: in
+  // suggest mode builtIds are background picks, not the shown route.
+  const missingStopsNote =
+    mode === "build" ? missingBuiltStopsNote(missingStopCount) : null;
+
   const stopsList = (
-    <RouteList
-      route={route}
-      activeVenueId={activeVenueId}
-      venueSignals={venueSignals}
-      legSummary={legSummary}
-      onTheWayByLeg={onTheWayByLeg}
-      journeyByToIndex={journeyByToIndex}
-      onSelectVenue={onSelectVenue}
-    />
+    <>
+      {missingStopsNote ? (
+        <p className="description muted" role="status" data-testid="route-missing-stops">
+          {missingStopsNote}
+        </p>
+      ) : null}
+      <RouteList
+        route={route}
+        activeVenueId={activeVenueId}
+        venueSignals={venueSignals}
+        legSummary={legSummary}
+        onTheWayByLeg={onTheWayByLeg}
+        journeyByToIndex={journeyByToIndex}
+        onSelectVenue={onSelectVenue}
+      />
+    </>
   );
 
   return (

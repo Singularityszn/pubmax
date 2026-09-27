@@ -7,6 +7,7 @@
 // boundary in.
 
 import { venueGroupingKey, type CrawlMode, type Filters, type Venue } from "@/lib/venues";
+import { isPubVenue } from "@/lib/venueKindFilters";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
 import {
   pointInCityBounds,
@@ -151,6 +152,38 @@ export function mapSelectionNotice(input: {
 /** Visible copy for an unknown `?sel=` - empty-state voice, no plumbing. */
 export const UNKNOWN_MAP_SELECTION_NOTE = "That pub is not one we know.";
 export const MAP_SELECTION_LOOKUP_FAILED_NOTE = "We could not check that pub right now.";
+
+/**
+ * Stop ids from a shared `?pubs=` link (or a restored plan) that never
+ * resolved to a pub this build holds. The built route filters the same ids
+ * out (useMapPlanPresentation), so the list and the count would otherwise
+ * disagree with nothing saying why. Empty while the index is still loading:
+ * an id that has not resolved YET is not an id that does not exist, and a
+ * note shown early would accuse a pub that is simply still arriving.
+ */
+export function unresolvedBuiltStopIds(input: {
+  loaded: boolean;
+  builtIds: readonly string[];
+  venueById: ReadonlyMap<string, Venue>;
+}): string[] {
+  if (!input.loaded) return [];
+  return input.builtIds.filter((id) => {
+    const venue = input.venueById.get(id);
+    return !venue || !isPubVenue(venue);
+  });
+}
+
+/**
+ * Visible copy for stops a shared crawl link named that this build does not
+ * hold. The stop is not invented and not silently dropped: the route shows
+ * the stops that resolved, and this note accounts for the rest.
+ */
+export function missingBuiltStopsNote(count: number): string | null {
+  if (count <= 0) return null;
+  return count === 1
+    ? "One stop in this plan is not a pub we know, so it is not on the route."
+    : `${count} stops in this plan are not pubs we know, so they are not on the route.`;
+}
 
 export function venueUpdateKey(venue: Venue): string {
   const firstPrice = venue.prices[0];

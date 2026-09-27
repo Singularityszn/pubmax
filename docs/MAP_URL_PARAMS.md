@@ -36,6 +36,18 @@ When the lookup itself fails, it shows `"We could not check that pub right
 now."` (`MAP_SELECTION_LOOKUP_FAILED_NOTE`). Either way, the map stays open
 and the reader can dismiss the notice.
 
+## Fail-soft for an unknown stop in `?pubs=`
+
+A stop id the build no longer holds (a retired pub, a stale saved draft) is
+never replaced by an invented one. The built route resolves the ids it knows
+in the link's order, and the route panel accounts for the rest beside the
+stop list: `"One stop in this plan is not a pub we know, so it is not on the
+route."` (`missingBuiltStopsNote`, `lib/pubMap.ts`). The note waits for the
+venue index to finish loading (`unresolvedBuiltStopIds` answers nothing while
+it loads), so a slow network is never misread as a missing pub. The unknown
+id stays in the URL, so the link starts working again if the pub returns to
+the dataset.
+
 ## First-visit arrival card
 
 After the pins reveal, a first visit to the map shows one arrival card
