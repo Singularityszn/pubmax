@@ -144,8 +144,6 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
           fallback: () => memoryPubPalToolTurnStore.register(conversationId, input),
         }),
-      message: "register failed — using process memory",
-      onError: () => undefined,
       run: async () => {
         const expiresAt = new Date(Date.now() + PUB_PAL_TOOL_TURN_TTL_MS).toISOString();
         const payload: PubPalToolTurnPayload = {
@@ -204,8 +202,6 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
           fallback: () => memoryPubPalToolTurnStore.append(conversationId, patch),
         }),
-      message: "append failed — skipped",
-      onError: () => undefined,
       run: async () => {
         const existing = await supabasePubPalToolTurnStore.read(conversationId);
         if (!existing) return;
@@ -239,8 +235,6 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
           fallback: () => memoryPubPalToolTurnStore.consume(conversationId),
         }),
-      message: "consume delete failed",
-      onError: () => undefined,
       run: async () => {
         const { error } = await requireSupabaseAdmin()
           .from("pub_pal_tool_turns")
