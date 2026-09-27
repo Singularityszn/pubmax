@@ -44,17 +44,23 @@ export const metadata: Metadata = {
 };
 
 function datasetJsonLd(snapshot: PintIndexSnapshot, boroughCount: number, pubCount: number) {
-  if (!snapshot.observationWindow || snapshot.observations.length === 0) return null;
+  // The Dataset claim ships even while nothing qualifies, the way a dated
+  // edition with an empty window does: the page says what it publishes, and
+  // "none" is a claim about the rules holding, not an absence of markup.
+  const window = snapshot.observationWindow;
+  const empty = !window || snapshot.observations.length === 0;
   return {
     "@context": "https://schema.org",
     "@type": "Dataset",
     name: "The London Pint Index",
-    description: `A dated London pint-price dataset covering ${pubCount} pubs across ${boroughCount} boroughs.`,
+    description: empty
+      ? "The live London Pint Index. No pint price currently meets the publication rules, so the index publishes none."
+      : `A dated London pint-price dataset covering ${pubCount} pubs across ${boroughCount} boroughs.`,
     url: `${SITE_URL}/pint-index`,
     creator: { "@type": "Organization", name: "PUBMAXX", url: SITE_URL },
     isAccessibleForFree: true,
     dateModified: snapshot.generatedAt,
-    temporalCoverage: `${snapshot.observationWindow.start}/${snapshot.observationWindow.end}`,
+    ...(window ? { temporalCoverage: `${window.start}/${window.end}` } : {}),
     measurementTechnique: "Confirmed Pint Drops, official pub or brewery sources, and licensed open datasets with price dates; assigned to London boroughs from map boundaries.",
     variableMeasured: "Pint price in GBP, grouped by London borough",
     distribution: [{
