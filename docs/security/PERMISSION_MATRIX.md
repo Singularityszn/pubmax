@@ -19,6 +19,27 @@ route in front of it gates correctly, because the route holds the service-role
 key and RLS never runs for it. The answer to that advisory is not a policy. It
 is this file, asserted per role, per resource, with reads and writes separated.
 
+**Default-deny tables (migration 0068, unchanged by 0159).** These tables carry
+RLS plus an explicit `*_client_deny` policy for `anon` and `authenticated`
+(`using (false)`), with grants revoked from browser roles. Reads and writes go
+through `/api/*` on the service-role path only; the matrix cells below are the
+proof, not a second policy. The closed list is:
+`plan_invites`, `plan_constraints`, `plan_route_proposals`, `plan_votes`,
+`plan_vote_requests`, `plan_vibe_votes`, `plan_vibe_vote_requests`,
+`plan_actions`, `plan_completions`, `rounds`, `round_members`, `round_stops`,
+`round_spends`, `round_price_line_charges`, `community_price_reports`,
+`pint_drop_reports`, `pint_drop_reactions`, `pint_drop_comments`,
+`crawl_story_stops`, `rate_limits`, `push_tokens`, `social_oauth_states`,
+`analytics_event_receipts`, `email_subscribers`, `feed_freshness`,
+`weather_snapshots`, `weather_recommendations`, `area_demand`, `walk_route_legs`,
+`venue_operators`, `operator_proposals`, `referral_invite_codes`,
+`referral_erasure_blocks`, `referral_edges`, `referral_qualification_events`,
+`pro_feature_unlock_ledger`, `drink_ratings`, `venue_ratings`, `price_confirms`,
+and `night_signal_claims` (SELECT re-opened with an explicit approved-claim
+predicate). `pub_presence` is service-mediated for writes; browser SELECT, when
+granted, is the single non-expired read rule from 0159. Catalogue tables
+`drinks`, `pub_heritage`, and `crawl_stories` are not on this list.
+
 **Three rules every denied cell is held to.** A refusal answers the honest
 status. It discloses no protected value, asserted over the whole serialized
 body rather than over the fields a reader remembered to check. And it has no
