@@ -102,6 +102,7 @@ describe("externally trusted signing keys", () => {
   it("can omit the unused keyless server from a targeted browser gate", async () => {
     vi.stubEnv("PW_SCREENSHOTS", "");
     vi.stubEnv("PW_SKIP_WEBSERVER", "");
+    vi.stubEnv("PW_PORT", "3100");
     vi.stubEnv("PW_SKIP_KEYLESS_WEBSERVER", "1");
     vi.stubEnv("PW_PORT", "3100");
     vi.resetModules();
