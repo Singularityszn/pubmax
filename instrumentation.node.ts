@@ -5,7 +5,22 @@
 // `process.env.NEXT_RUNTIME === "nodejs"` from instrumentation.ts.
 
 import { registerArizeTracing } from "@/lib/observability/arize";
+import { capturePosthogServerException } from "@/lib/posthog/posthogServerException";
+
+let posthogServerHooksInstalled = false;
+
+function registerPosthogServerHooks(): void {
+  if (posthogServerHooksInstalled) return;
+  posthogServerHooksInstalled = true;
+  process.on("unhandledRejection", (reason) => {
+    capturePosthogServerException(reason, "unhandledRejection");
+  });
+  process.on("uncaughtException", (error) => {
+    capturePosthogServerException(error, "uncaughtException");
+  });
+}
 
 export function register(): Promise<void> {
+  registerPosthogServerHooks();
   return registerArizeTracing();
 }

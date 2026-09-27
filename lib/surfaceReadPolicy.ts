@@ -88,6 +88,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "lib/authedFetch.ts", fetchCount: 5, reason: "shared graceful and strict bearer transports serve auth-gated actions and public reads" },
   { path: "lib/savedPubs.ts", fetchCount: 2, reason: "saved-list reads are private viewer context with their own mutation-sensitive state" },
   { path: "lib/heritage.ts", fetchCount: 1, reason: "heritage question is a user-submitted request, not a painted reload surface" },
+  { path: "lib/posthogServer.ts", fetchCount: 2, reason: "server-side PostHog capture, fire-and-forget telemetry reached through lib/heritage.ts's model-call tracing, never painted data" },
   { path: "lib/pois.ts", fetchCount: 1, reason: "map POI pack is static viewport data with map-owned lifecycle" },
   { path: "lib/spoonsValueLane.ts", fetchCount: 1, reason: "the Spoons value map lane is fetched only when the lens is switched on, holds its own per-session cache, and never caches a read that failed so switching the lens off and on asks again" },
   { path: "lib/tflDisruption.ts", fetchCount: 1, reason: "transport provider client has its own live disruption contract" },

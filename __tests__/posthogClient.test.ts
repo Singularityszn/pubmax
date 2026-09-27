@@ -384,7 +384,7 @@ describe("PostHog browser privacy boundary", () => {
     delete (globalThis as { window?: unknown }).window;
   });
 
-  it("enables standard product analytics while autocapture and recording stay off", () => {
+  it("enables standard product analytics with sampled replay, flags, and surveys", () => {
     expect(posthogBrowserConfig).toMatchObject({
       api_host: "/ingest",
       ui_host: "https://eu.posthog.com",
@@ -394,10 +394,10 @@ describe("PostHog browser privacy boundary", () => {
       capture_pageview: false,
       capture_pageleave: false,
       capture_performance: true,
-      capture_heatmaps: false,
+      capture_heatmaps: true,
       capture_dead_clicks: false,
-      disable_session_recording: true,
-      disable_surveys: true,
+      disable_session_recording: false,
+      disable_surveys: false,
       disable_product_tours: true,
       disable_conversations: true,
       disable_external_dependency_loading: false,
@@ -407,11 +407,12 @@ describe("PostHog browser privacy boundary", () => {
       save_referrer: true,
       opt_in_site_apps: false,
       person_profiles: "always",
-      advanced_disable_flags: true,
+      advanced_disable_flags: false,
       opt_out_capturing_by_default: true,
       opt_out_persistence_by_default: true,
       respect_dnt: true,
     });
+    expect(posthogBrowserConfig.session_recording?.sampleRate).toBe(0.1);
     expect(posthogBrowserConfig.before_send).toBe(sanitizePosthogEvent);
   });
 });

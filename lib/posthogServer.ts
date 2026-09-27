@@ -1,3 +1,5 @@
+import { after } from "next/server";
+
 import { currentAnalyticsAttributionProps } from "@/lib/analyticsAttribution.mjs";
 import type { AnalyticsEvent } from "@/lib/analyticsEvents";
 import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
@@ -66,5 +68,44 @@ export async function capturePosthogEvent(input: {
     return response.ok;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Fire-and-forget one server-originated event under a fixed server distinct id,
+ * with no person profile. The caller owns which properties are safe to send.
+ * Inside a request scope the bounded send is handed to `after`, so a serverless
+ * function stays alive until it lands; outside one (a process hook, a test)
+ * `after` throws and the started promise is the whole of it.
+ */
+export function capturePosthogServerEvent(input: {
+  event: string;
+  distinctId: string;
+  properties: Record<string, unknown>;
+}): void {
+  const apiKey = posthogProjectToken();
+  if (!apiKey) return;
+
+  const sent = fetch(POSTHOG_EU_CAPTURE_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      api_key: apiKey,
+      event: input.event,
+      properties: {
+        ...input.properties,
+        ...currentAnalyticsAttributionProps(),
+        distinct_id: input.distinctId,
+        $process_person_profile: false,
+      },
+      timestamp: new Date().toISOString(),
+    }),
+    cache: "no-store",
+    signal: AbortSignal.timeout(POSTHOG_TIMEOUT_MS),
+  }).then(() => undefined, () => undefined);
+  try {
+    after(sent);
+  } catch {
+    /* No request scope to hang it on; the send above still runs. */
   }
 }

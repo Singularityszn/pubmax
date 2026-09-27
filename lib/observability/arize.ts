@@ -48,6 +48,7 @@ import {
 /** `openinference.span.kind`: the attribute AX reads to classify a span. */
 const OPENINFERENCE_SPAN_KIND = SemanticConventions.OPENINFERENCE_SPAN_KIND;
 import type { ReadableSpan, SpanExporter } from "@opentelemetry/sdk-trace-base";
+import { capturePosthogAiGeneration } from "@/lib/posthog/posthogAiCapture";
 
 /** The Arize AX OTLP traces endpoint (US). */
 export const ARIZE_TRACES_ENDPOINT = "https://otlp.arize.com/v1/traces";
@@ -274,13 +275,15 @@ export async function flushArizeTracing(): Promise<void> {
   await delegate.forceFlush?.();
 }
 
+type ModelUsage = {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+};
+
 /** A span handle the call sites fill in: tokens, output, failures. */
 export type ArizeModelSpan = {
-  setUsage(usage: {
-    promptTokens?: number;
-    completionTokens?: number;
-    totalTokens?: number;
-  }): void;
+  setUsage(usage: ModelUsage): void;
   setOutput(text: string): void;
   setError(error: unknown): void;
   end(): void;
@@ -306,11 +309,7 @@ class ArizeSpanHandle implements ArizeModelSpan {
     this.raw = raw;
   }
 
-  setUsage(usage: {
-    promptTokens?: number;
-    completionTokens?: number;
-    totalTokens?: number;
-  }): void {
+  setUsage(usage: ModelUsage): void {
     const prompt = Math.max(0, Math.floor(usage.promptTokens ?? NaN));
     if (Number.isFinite(prompt)) this.raw.setAttribute(LLM_TOKEN_COUNT_PROMPT, prompt);
     const completion = Math.max(0, Math.floor(usage.completionTokens ?? NaN));
@@ -338,6 +337,55 @@ class ArizeSpanHandle implements ArizeModelSpan {
     // every span is ended OK unless an error was recorded.
     if (!this.failed) this.raw.setStatus({ code: SpanStatusCode.OK });
     this.raw.end();
+  }
+}
+
+type ModelCallReport = { route: string; model: string; provider?: string };
+
+/**
+ * One model request. Usage is held here rather than on the Arize span, so the
+ * PostHog `$ai_generation` it reports on end carries token counts whether or
+ * not Arize tracing is on.
+ */
+class ModelCallHandle implements ArizeModelSpan {
+  private readonly started = Date.now();
+  private usage: ModelUsage = {};
+  private failed = false;
+  private ended = false;
+
+  constructor(
+    private readonly report: ModelCallReport,
+    private readonly span: ArizeSpanHandle | undefined,
+  ) {}
+
+  setUsage(usage: ModelUsage): void {
+    this.usage = usage;
+    this.span?.setUsage(usage);
+  }
+
+  setOutput(text: string): void {
+    this.span?.setOutput(text);
+  }
+
+  setError(error: unknown): void {
+    this.failed = true;
+    this.span?.setError(error);
+  }
+
+  end(): void {
+    if (this.ended) return;
+    this.ended = true;
+    this.span?.end();
+    capturePosthogAiGeneration({
+      route: this.report.route,
+      model: this.report.model,
+      provider: this.report.provider,
+      latencyMs: Date.now() - this.started,
+      promptTokens: this.usage.promptTokens,
+      completionTokens: this.usage.completionTokens,
+      totalTokens: this.usage.totalTokens,
+      isError: this.failed,
+    });
   }
 }
 
@@ -376,9 +424,9 @@ function startArizeSpan(spec: ArizeSpanSpec): ArizeSpanHandle | undefined {
 
 /**
  * Trace one direct model call (one HTTP request to a model provider). The
- * `call` callback receives the span handle (undefined when tracing is off)
- * and fills in usage and output as the provider reports them; every failure
- * path, thrown or returned, ends the span with an ERROR status.
+ * `call` callback receives the model-call handle (its Arize span is absent
+ * when tracing is off) and fills in usage and output as the provider reports
+ * them; every failure path, thrown or returned, ends it with an ERROR status.
  */
 export async function traceArizeModelCall<T>(input: {
   route: string;
@@ -386,9 +434,9 @@ export async function traceArizeModelCall<T>(input: {
   provider?: string;
   prompt?: string;
   invocationParameters?: Record<string, unknown>;
-  call: (span: ArizeModelSpan | undefined) => Promise<T>;
+  call: (span: ArizeModelSpan) => Promise<T>;
 }): Promise<T> {
-  const span = startArizeSpan({
+  const span = new ModelCallHandle(input, startArizeSpan({
     kind: OpenInferenceSpanKind.LLM,
     name: `chat ${input.model} ${input.route}`,
     route: input.route,
@@ -396,14 +444,14 @@ export async function traceArizeModelCall<T>(input: {
     ...(input.provider ? { provider: input.provider } : {}),
     ...(input.prompt !== undefined ? { prompt: input.prompt } : {}),
     ...(input.invocationParameters ? { invocationParameters: input.invocationParameters } : {}),
-  });
+  }));
   try {
     const result = await input.call(span);
-    span?.end();
+    span.end();
     return result;
   } catch (error) {
-    span?.setError(error);
-    span?.end();
+    span.setError(error);
+    span.end();
     throw error;
   }
 }
@@ -413,7 +461,7 @@ export type ArizeModelLoopSpans = {
   modelRound(round: {
     prompt?: string;
     invocationParameters?: Record<string, unknown>;
-  }): ArizeModelSpan | undefined;
+  }): ArizeModelSpan;
   /** One tool execution between rounds. */
   toolCall(tool: { name: string; input?: unknown }): ArizeModelSpan | undefined;
   /** Mark the loop failed when `run` recovers from a failure without throwing. */
@@ -423,8 +471,9 @@ export type ArizeModelLoopSpans = {
 /**
  * Trace one bounded agent loop (the ask model loop): an AGENT span around the
  * whole loop, with the LLM rounds and tool executions as children, so AX
- * shows the trajectory and not a flat list of model calls. Off entirely when
- * tracing is disabled; the factories then return undefined handles.
+ * shows the trajectory and not a flat list of model calls. With tracing off
+ * there are no Arize spans: each model round is still a handle that reports
+ * its usage to PostHog, and the tool factory returns undefined.
  */
 export async function traceArizeModelLoop<T>(input: {
   route: string;
@@ -434,9 +483,21 @@ export async function traceArizeModelLoop<T>(input: {
   invocationParameters?: Record<string, unknown>;
   run: (spans: ArizeModelLoopSpans) => Promise<T>;
 }): Promise<T> {
+  const modelRound: ArizeModelLoopSpans["modelRound"] = (round) =>
+    new ModelCallHandle(input, startArizeSpan({
+      kind: OpenInferenceSpanKind.LLM,
+      name: `chat ${input.model} ${input.route}`,
+      route: input.route,
+      model: input.model,
+      ...(input.provider ? { provider: input.provider } : {}),
+      ...(round.prompt !== undefined ? { prompt: round.prompt } : {}),
+      ...(round.invocationParameters
+        ? { invocationParameters: round.invocationParameters }
+        : {}),
+    }));
   if (!arizeTracingEnabled()) {
     return input.run({
-      modelRound: () => undefined,
+      modelRound,
       toolCall: () => undefined,
       setError: () => undefined,
     });
@@ -457,18 +518,7 @@ export async function traceArizeModelLoop<T>(input: {
       trace.setSpan(context.active(), agent.raw),
       () =>
         input.run({
-          modelRound: (round) =>
-            startArizeSpan({
-              kind: OpenInferenceSpanKind.LLM,
-              name: `chat ${input.model} ${input.route}`,
-              route: input.route,
-              model: input.model,
-              ...(input.provider ? { provider: input.provider } : {}),
-              ...(round.prompt !== undefined ? { prompt: round.prompt } : {}),
-              ...(round.invocationParameters
-                ? { invocationParameters: round.invocationParameters }
-                : {}),
-            }),
+          modelRound,
           toolCall: (tool) =>
             startArizeSpan({
               kind: OpenInferenceSpanKind.TOOL,

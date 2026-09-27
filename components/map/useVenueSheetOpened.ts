@@ -35,5 +35,6 @@ export function useVenueSheetOpened(venueId: string, layer: VenueSheetLayer): vo
     reportedVenueId.current = venueId;
     markConsentAnswerMoment("venue-sheet");
     trackEvent("venue_sheet_opened", { layer });
+    trackEvent("pub_viewed", { layer });
   }, [layer, venueId]);
 }

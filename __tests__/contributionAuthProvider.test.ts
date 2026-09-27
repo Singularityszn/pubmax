@@ -33,6 +33,7 @@ vi.mock("@/components/identity/IdentityNudge", () => ({
   default: () => null,
 }));
 vi.mock("@/lib/analytics", () => ({
+  analyticsCollectionAllowed: () => false,
   trackEvent: vi.fn(),
 }));
 vi.mock("@/lib/authCallbackClient", () => ({

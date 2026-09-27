@@ -12,6 +12,7 @@ import {
   analyticsUrlWithoutQuery,
 } from "@/lib/analyticsPath";
 import { currentAnalyticsAttributionProps } from "@/lib/analyticsAttribution.mjs";
+import { POSTHOG_SESSION_RECORDING_SAMPLE_RATE } from "@/lib/posthog/posthogSampling";
 
 const SAFE_EXCEPTION_TYPES = new Set([
   "AggregateError",
@@ -293,10 +294,13 @@ export const posthogBrowserConfig = {
   capture_pageview: false,
   capture_pageleave: false,
   capture_performance: true,
-  capture_heatmaps: false,
+  capture_heatmaps: true,
   capture_dead_clicks: false,
-  disable_session_recording: true,
-  disable_surveys: true,
+  disable_session_recording: false,
+  session_recording: {
+    sampleRate: POSTHOG_SESSION_RECORDING_SAMPLE_RATE,
+  },
+  disable_surveys: false,
   disable_product_tours: true,
   disable_conversations: true,
   disable_external_dependency_loading: false,
@@ -307,7 +311,7 @@ export const posthogBrowserConfig = {
   get_device_id: resolvePosthogDeviceId,
   opt_in_site_apps: false,
   person_profiles: "always",
-  advanced_disable_flags: true,
+  advanced_disable_flags: false,
   opt_out_capturing_by_default: true,
   opt_out_persistence_by_default: true,
   // PostHog drops HeadlessChrome before before_send. Production browser tests
@@ -413,4 +417,15 @@ export function capturePosthogPageview(pathname: string, anonymousId: string | n
 
 export function initializePosthog(consentAllowed: boolean): void {
   syncPosthogConsent(consentAllowed);
+}
+
+/**
+ * Load the SDK when identity needs it. Same consent gate as pageviews;
+ * does not opt in capturing by itself.
+ */
+export function loadPosthogClientForIdentity(): Promise<PostHogClient | null> {
+  if (!consentAllowedNow) return Promise.resolve(null);
+  return loadPosthogClient().then((loadedClient) => (
+    loadedClient && captureEnabled ? loadedClient : null
+  ));
 }

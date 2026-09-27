@@ -9,12 +9,13 @@ Issue: [#1361](https://github.com/Singularityszn/pubmax/issues/1361).
 
 ## 1. How an event reaches PostHog
 
-Two transports, one consent gate.
+Two reader transports, one consent gate, plus server telemetry that no reader is behind.
 
 | Transport | Carries | Path |
 |---|---|---|
 | Named product events | The closed registry in `lib/analyticsEvents.ts` | `trackEvent()` (`lib/analytics.ts`) to `POST /api/events`, re-validated there, then `lib/posthogServer.ts` to the EU capture endpoint |
 | Browser SDK events | `$pageview`, `$web_vitals`, redacted `$exception` | `posthog-js` (`lib/posthogClient.ts`) through the first-party `/ingest` proxy (`app/ingest/[...path]/route.ts`) |
+| Server telemetry | `$ai_generation` per direct model call, redacted server `$exception` | `capturePosthogServerEvent` (`lib/posthogServer.ts`) under a fixed server `distinct_id` with no person profile, so it is never a reader and never enters a reader rate |
 
 Four facts that decide how every query below is written.
 
@@ -250,6 +251,7 @@ vocabularies. The column here is the question the event exists to answer.
 | Event | Answers |
 |---|---|
 | `venue_sheet_opened` | A pub sheet opened on the Map, and on which pub layer. Step 3 of the release funnel. |
+| `pub_viewed` | The same pub sheet read under the product-journey name, with its layer. Never summed with `venue_sheet_opened`. |
 | `map_search_no_results` | A search found nothing. |
 | `map_search_jump` | A search result moved the camera. |
 | `map_area_switched` | The reader changed city. |
@@ -294,6 +296,10 @@ vocabularies. The column here is the question the event exists to answer.
 | Event | Answers |
 |---|---|
 | `plan_generated` | A route came back. |
+| `plan_started` | A generation request produced a route the reader can review. |
+| `stop_added` | A pub joined the crawl being built, and on which surface. |
+| `route_opened` | A route of two or more stops was drawn on the Map, and from which surface. |
+| `crawl_locked` | A plan was accepted, with its stop count. |
 | `plan_draft_saved` | An anchored one-stop draft was kept. |
 | `plan_accepted` | A grounded, route-ready three-stop plan was verified server-side. |
 | `plan_saved` | The plan and its route finished saving. |
@@ -322,6 +328,7 @@ vocabularies. The column here is the question the event exists to answer.
 | `invite_created` | A host minted an invite link. |
 | `invite_redeemed` | A guest unlocked collaboration with it. The k-factor pair. |
 | `plan_invite_sent` | An invite left through a channel. |
+| `content_shared` | Something left through a share channel, and which surface it came from. |
 | `plan_invite_opened` | An invite was opened. |
 | `plan_invite_link_copied` | The link was copied. |
 | `plan_invite_link_rotated` | The link was rotated. |
@@ -362,12 +369,14 @@ vocabularies. The column here is the question the event exists to answer.
 | `concierge_result_tap` | An answer was taken. |
 | `pub_pal_summoned` | The Pal was called from a surface. |
 | `voice_started` | A Pub Pal voice session connected. See 5.10. |
+| `voice_ended` | A connected voice session ended, and why: the reader stopped it, it disconnected, it hit the cap, or it failed. |
 
 ### 5.8 Identity and account
 
 | Event | Answers |
 |---|---|
 | `sign_in_initiated` | Which door a sign-in started at. |
+| `user_signed_up` | A sign-in landed within five minutes of the account's first verification (`confirmed_at`). |
 | `user_signed_in` | A session began. |
 | `user_signed_out` | A session ended. |
 | `account_switched` | A device moved between accounts it already holds. |
@@ -387,6 +396,7 @@ vocabularies. The column here is the question the event exists to answer.
 | `native_push_prompt_later` | It was deferred. |
 | `activity_pulse` | One coarse day bucket per identity per day. The return-rate rail. |
 | `web_vital` | Field performance, per metric, per route. Tile 5. |
+| `error_shown` | An error notice was put in front of a reader, on which surface, and of which kind. |
 
 ### 5.10 The four loop moments
 

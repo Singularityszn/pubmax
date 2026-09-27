@@ -11,6 +11,7 @@ import {
 } from "@/lib/webShareAvailable";
 
 import { trackEvent } from "@/lib/analytics";
+import type { ContentShareSurface } from "@/lib/analyticsEvents";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
 
 import "./share.css";
@@ -43,6 +44,21 @@ type ShareBarProps = {
   // nothing is removed, it just starts folded.
   compact?: boolean;
 };
+
+// Which shareable route a link points at, read from its path alone.
+function shareSurfaceFromUrl(url: string): ContentShareSurface {
+  let pathname: string;
+  try {
+    pathname = new URL(url, "https://pubmaxxing.com").pathname;
+  } catch {
+    return "other";
+  }
+  if (/^\/(plan\/[^/]+\/)?recap(\/|$)/.test(pathname)) return "recap";
+  if (/^\/plan(\/|$)/.test(pathname)) return "plan";
+  if (/^\/crawls\/[^/]+/.test(pathname)) return "poster";
+  if (/^\/tonight(\/|$)/.test(pathname)) return "tonight";
+  return "other";
+}
 
 // Resolve a possibly-relative url to an absolute one, lazily, at click time.
 // A url that is already absolute is returned untouched; anything else is
@@ -79,7 +95,8 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
 
   const trackPlanInvite = useCallback((channel: string) => {
     if (isPlanInvite) trackEvent("plan_invite_sent", { channel });
-  }, [isPlanInvite]);
+    trackEvent("content_shared", { channel, surface: shareSurfaceFromUrl(url) });
+  }, [isPlanInvite, url]);
 
   const flashCopied = useCallback(() => {
     setCopied(true);
@@ -124,8 +141,13 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
       const absolute = toAbsoluteUrl(url);
       setShareError("");
       try {
-        const opened = window.open(build(absolute), "_blank", "noopener,noreferrer");
-        if (opened) return true;
+        // A "noopener" open always returns null, which would hide a blocked
+        // popup, so open plainly and sever the opener on the returned window.
+        const opened = window.open(build(absolute), "_blank");
+        if (opened) {
+          opened.opener = null;
+          return true;
+        }
       } catch {
         // The browser can block an external handoff before it creates a window.
       }

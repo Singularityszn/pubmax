@@ -17,6 +17,10 @@ const requests = vi.hoisted(() => ({
   authedActionFetch: vi.fn(),
 }));
 
+const analytics = vi.hoisted(() => ({
+  trackEvent: vi.fn(),
+}));
+
 vi.mock("@elevenlabs/react", () => ({
   ConversationProvider: ({ children }: { children: ReactNode }) => children,
   useConversationControls: () => ({
@@ -38,6 +42,11 @@ vi.mock("next/link", () => ({
 
 vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: requests.authedActionFetch,
+}));
+
+vi.mock("@/lib/analytics", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/analytics")>()),
+  trackEvent: analytics.trackEvent,
 }));
 
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
@@ -93,6 +102,7 @@ beforeEach(() => {
   voice.endSession.mockReset();
   voice.sendUserMessage.mockReset();
   requests.authedActionFetch.mockReset();
+  analytics.trackEvent.mockReset();
   requests.authedActionFetch.mockResolvedValue(new Response(null, { status: 204 }));
 
   vi.stubGlobal(
@@ -351,7 +361,10 @@ describe("Pub Pal voice controls", () => {
 
     const session = voice.startSession.mock.calls[0][0] as {
       onConnect?: () => void;
+      onDisconnect?: () => void;
     };
+    // The SDK may report the disconnect synchronously from endSession().
+    voice.endSession.mockImplementation(() => session.onDisconnect?.());
     await act(async () => {
       session.onConnect?.();
       await Promise.resolve();
@@ -361,6 +374,9 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
+
+    const ended = analytics.trackEvent.mock.calls.filter(([name]) => name === "voice_ended");
+    expect(ended).toEqual([["voice_ended", { reason: "cap" }]]);
 
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
     const releaseRequest = requests.authedActionFetch.mock.calls[1][1] as RequestInit;
@@ -446,6 +462,8 @@ describe("Pub Pal voice controls", () => {
     expect(voice.endSession).toHaveBeenCalledOnce();
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
     expect(stopTrack).toHaveBeenCalledOnce();
+    const ended = analytics.trackEvent.mock.calls.filter(([name]) => name === "voice_ended");
+    expect(ended).toEqual([["voice_ended", { reason: "user" }]]);
   });
 
   it("ignores stale callbacks from attempt A while attempt B owns its grant", async () => {
@@ -598,6 +616,8 @@ describe("Pub Pal voice controls", () => {
 
     expect(voice.endSession).toHaveBeenCalledOnce();
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    const ended = analytics.trackEvent.mock.calls.filter(([name]) => name === "voice_ended");
+    expect(ended).toEqual([["voice_ended", { reason: "error" }]]);
   });
 
   it("cleans up an issued grant on unmount and ignores late SDK callbacks", async () => {
@@ -630,6 +650,8 @@ describe("Pub Pal voice controls", () => {
       onError?: (error: unknown) => void;
       onDisconnect?: () => void;
     };
+    // The SDK may report the disconnect synchronously from endSession().
+    voice.endSession.mockImplementation(() => session.onDisconnect?.());
     await act(async () => {
       session.onConnect?.();
       await Promise.resolve();
@@ -637,6 +659,8 @@ describe("Pub Pal voice controls", () => {
 
     unmount();
     await settle();
+    const ended = analytics.trackEvent.mock.calls.filter(([name]) => name === "voice_ended");
+    expect(ended).toEqual([["voice_ended", { reason: "user" }]]);
     expect(voice.endSession).toHaveBeenCalledOnce();
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
 

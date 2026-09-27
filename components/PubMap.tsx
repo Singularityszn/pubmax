@@ -4042,10 +4042,12 @@ export default function PubMap({
   });
 
   const toggleBuiltStop = useCallback((id: string) => {
+    const venue = venueById.get(id);
+    const pickable = !venue || isPubVenue(venue);
+    if (pickable && !builtIds.includes(id)) trackEvent("stop_added", { surface: "map" });
     setBuiltIds((current) => {
       if (current.includes(id)) return current.filter((existing) => existing !== id);
-      const venue = venueById.get(id);
-      if (venue && !isPubVenue(venue)) return current;
+      if (!pickable) return current;
       return [...current, id];
     });
     // A picked pub is a stop in the crawl the reader is BUILDING. The mode
@@ -4055,7 +4057,7 @@ export default function PubMap({
     setMode("build");
     setRouteMapped(true);
     setActiveCrawl(null); // a manual stop change is no longer "the curated crawl"
-  }, [setBuiltIds, setMode, setRouteMapped, venueById]);
+  }, [builtIds, setBuiltIds, setMode, setRouteMapped, venueById]);
 
   // Reverse the hand-built route: start from the opposite end. Event handler, so
   // setState is fine; URL-sync picks up the new builtIds order automatically.
@@ -4267,6 +4269,7 @@ export default function PubMap({
 
   const mapCurrentRoute = useCallback(() => {
     if (route.length < 2) return;
+    trackEvent("route_opened", { surface: "map" });
     setRouteMapped(true);
     dismissOnboarding();
     if (isMobileViewport()) closePlanning();

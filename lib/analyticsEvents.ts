@@ -73,8 +73,17 @@ export const ANALYTICS_EVENTS = {
   // PostHog wizard adoption. Auth state and successful writes carry no account,
   // contact, handle, area, or response data. Provider is a fixed button enum.
   sign_in_initiated: ["provider"],
+  user_signed_up: [],
   user_signed_in: [],
   user_signed_out: [],
+  plan_started: [],
+  stop_added: ["surface"],
+  crawl_locked: ["stops"],
+  route_opened: ["surface"],
+  pub_viewed: ["layer"],
+  voice_ended: ["reason"],
+  content_shared: ["channel", "surface"],
+  error_shown: ["surface", "kind"],
   message_attach_selected: ["kind"],
   // A device hopped between two accounts it already holds. No props at all: an
   // account id or a handle here would name a person, and which accounts share a
@@ -415,6 +424,18 @@ export type LandingCtaTarget = (typeof LANDING_CTA_TARGETS)[number];
 export const VENUE_SHEET_LAYERS = ["curated", "uk_base"] as const;
 export type VenueSheetLayer = (typeof VENUE_SHEET_LAYERS)[number];
 
+export const STOP_ADDED_SURFACES = ["map", "plan", "round"] as const;
+export const ROUTE_OPENED_SURFACES = ["map", "plan"] as const;
+export const VOICE_END_REASONS = ["user", "disconnect", "cap", "error"] as const;
+export type VoiceEndReason = (typeof VOICE_END_REASONS)[number];
+export const CONTENT_SHARE_CHANNELS = ["copy", "native", "whatsapp", "x", "sms", "instagram", "tiktok"] as const;
+export const CONTENT_SHARE_SURFACES = ["plan", "recap", "poster", "tonight", "other"] as const;
+export type ContentShareSurface = (typeof CONTENT_SHARE_SURFACES)[number];
+export const ERROR_SHOWN_SURFACES = [
+  "landing", "home", "map", "tonight", "plan", "you", "pal", "recap", "near", "other",
+] as const;
+export const ERROR_SHOWN_KINDS = ["network", "auth", "validation", "server", "unknown"] as const;
+
 /**
  * How many reviewed late-food terminals the food-ending shortlist held.
  *
@@ -569,6 +590,14 @@ const SAFE_STRING_VALUES = new Set([
   // Invite loop vocabulary: RSVP status and the closed reaction set.
   ...RSVP_STATUSES,
   ...REACTION_KEYS,
+  // Journey events: the closed surfaces, reasons, channels and error kinds.
+  ...STOP_ADDED_SURFACES,
+  ...ROUTE_OPENED_SURFACES,
+  ...VOICE_END_REASONS,
+  ...CONTENT_SHARE_CHANNELS,
+  ...CONTENT_SHARE_SURFACES,
+  ...ERROR_SHOWN_SURFACES,
+  ...ERROR_SHOWN_KINDS,
 ]);
 
 const TRUSTED_HANDOFF_REQUIRED_KEYS = {
@@ -627,6 +656,13 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   late_food_added: ["confidence"],
   briefing_viewed: ["personalized", "muted"],
   recap_viewed: ["visibility"],
+  stop_added: ["surface"],
+  crawl_locked: ["stops"],
+  route_opened: ["surface"],
+  pub_viewed: ["layer"],
+  voice_ended: ["reason"],
+  content_shared: ["channel", "surface"],
+  error_shown: ["surface", "kind"],
 } as const satisfies Partial<Record<AnalyticsEventName, readonly string[]>>;
 
 function includesValue(values: readonly string[], value: string | number | boolean): boolean {
@@ -886,6 +922,45 @@ function isAllowedMessageAttachProp(
   return includesValue(["photos", "camera", "document"], value);
 }
 
+function isSignInProvider(value: unknown): boolean {
+  return typeof value === "string"
+    && (value === "google" || value === "apple" || value === "microsoft" || value === "email"
+      || value === "email_resume" || value === "handle_password");
+}
+
+function isAllowedJourneyProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (name === "stop_added" && key === "surface") {
+    return includesValue(STOP_ADDED_SURFACES, value);
+  }
+  if (name === "crawl_locked" && key === "stops") {
+    return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 10;
+  }
+  if (name === "route_opened" && key === "surface") {
+    return includesValue(ROUTE_OPENED_SURFACES, value);
+  }
+  if (name === "pub_viewed" && key === "layer") {
+    return includesValue(VENUE_SHEET_LAYERS, value);
+  }
+  if (name === "voice_ended" && key === "reason") {
+    return includesValue(VOICE_END_REASONS, value);
+  }
+  if (name === "content_shared") {
+    if (key === "channel") {
+      return includesValue(CONTENT_SHARE_CHANNELS, value);
+    }
+    if (key === "surface") return includesValue(CONTENT_SHARE_SURFACES, value);
+  }
+  if (name === "error_shown") {
+    if (key === "surface") return includesValue(ERROR_SHOWN_SURFACES, value);
+    if (key === "kind") return includesValue(ERROR_SHOWN_KINDS, value);
+  }
+  return true;
+}
+
 /**
  * The four loop moments' strictness (#252's named set, shipped 5 September
  * 2026). Each key belongs to exactly one of these events, so the checks are
@@ -957,8 +1032,8 @@ export function sanitizeEvent(
       // isSafeValue enum gate the same way a CUSTOM_PROP_VALIDATORS entry
       // would - otherwise a legitimate selector like "main>img.hero" never
       // reaches those checks at all.
-      const valid = name === "sign_in_initiated" && key === "provider"
-        ? value === "google" || value === "apple" || value === "microsoft" || value === "email"
+      const valid = (name === "sign_in_initiated" || name === "user_signed_up") && key === "provider"
+        ? isSignInProvider(value)
         : key === "target" && (name === "web_vital" || name === "landing_cta_clicked")
           ? typeof value === "string"
             && isAllowedVitalProp(name, key, value)
@@ -978,7 +1053,8 @@ export function sanitizeEvent(
               && isAllowedMessageAttachProp(name, key, value)
               && isAllowedLandingCtaProp(name, key, value)
               && isAllowedVenueSheetProp(name, key, value)
-              && isAllowedLoopMomentProp(name, key, value);
+              && isAllowedLoopMomentProp(name, key, value)
+              && isAllowedJourneyProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }
   }
