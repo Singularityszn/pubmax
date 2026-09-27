@@ -40,6 +40,16 @@ export function syncPlanRoutePreviewScene(
   routeLine: GeoJSON.FeatureCollection,
   routeStops: GeoJSON.FeatureCollection,
 ): void {
+  // Scene already built on this style (a routed line arriving late): swap the
+  // data only. Re-applying basemap taste would retint the stop labels as
+  // basemap labels. A theme swap replaces the style, so it rebuilds in full.
+  const lineSource = map.getSource("route-line") as maplibregl.GeoJSONSource | undefined;
+  const stopsSource = map.getSource("route-stops") as maplibregl.GeoJSONSource | undefined;
+  if (lineSource && stopsSource) {
+    lineSource.setData(routeLine);
+    stopsSource.setData(routeStops);
+    return;
+  }
   const tokens = readTokens();
   const dark = document.documentElement.dataset.theme === "dark";
   const addLayerOnce = (...args: Parameters<typeof map.addLayer>) => {
@@ -91,10 +101,6 @@ export function syncPlanRoutePreviewScene(
   } satisfies SceneCtx;
   buildRoute(ctx);
   buildRouteStops(ctx);
-  const lineSource = map.getSource("route-line") as maplibregl.GeoJSONSource | undefined;
-  const stopsSource = map.getSource("route-stops") as maplibregl.GeoJSONSource | undefined;
-  lineSource?.setData(routeLine);
-  stopsSource?.setData(routeStops);
   if (map.getLayer("route-stops-label")) {
     map.setLayoutProperty("route-stops-label", "text-padding", PREVIEW_STOP_NUMBER_PADDING);
   }
