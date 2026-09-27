@@ -6,9 +6,10 @@ check layer.
 
 ## Self-hosted runner (`pubmax-mac`)
 
-While GitHub-hosted minutes are billing-locked, PR and scheduled jobs run on the
-repo runner **`karan-mac-pubmax`** with labels `self-hosted`, `macOS`, `ARM64`,
-and **`pubmax-mac`**. Workflows use:
+While GitHub-hosted minutes are billing-locked, PR and scheduled jobs run on
+self-hosted repo runners that share one Mac (among them **`karan-mac-pubmax`**),
+each with labels `self-hosted`, `macOS`, `ARM64`, and **`pubmax-mac`**.
+Workflows use:
 
 ```yaml
 runs-on: [self-hosted, pubmax-mac]
