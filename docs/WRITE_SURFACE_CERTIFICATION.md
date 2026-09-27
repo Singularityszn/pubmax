@@ -79,6 +79,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/check-ins`
 - `POST app/api/citymcp/journey`
 - `POST app/api/crawls`
+- `POST app/api/drink-wall`
 - `POST app/api/events`
 - `POST app/api/heritage`
 - `POST app/api/identity/adult-assertion`
@@ -1302,6 +1303,44 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   been tombstoned is dropped from the page and its serve route answers 404; the
   tombstone trigger in migration 0098 deletes both the rows and their Storage
   objects when an account leaves.
+
+### `app/api/drink-wall` - the city Drink Wall (route 95)
+
+- **Route / method:** `POST app/api/drink-wall/route.ts`
+  (`fm/pubmax-drink-wall`) adds one photo to the city-wide Drink Wall from a
+  multipart body carrying the photo and its details: a pint, a pub front or a
+  London view, with or without a linked pub. Its `GET` wall page (`?category=`,
+  `?scope=all|near`, `?cursor=`) is read-only and is not counted, and so is the
+  serve route `GET app/api/drink-wall-photo/[photoId]/route.ts`. Reports and the
+  author's own delete go through `POST app/api/venue-photos`, which takes any
+  `venue_photos` row by id, city rows included.
+- **Validation:** `validateDrinkWallSubmission` (`lib/drinkWall.ts`) requires a
+  wall category from the closed set (`pint`, `pub`, `london`), takes an optional
+  venue id narrow enough to be a storage key segment, an optional place label
+  and caption, each cleaned and capped, and an optional drink tag from the one
+  closed drink taxonomy. Migration 0158 repeats the category and key rules as
+  database CHECKs.
+- **Identity and attribution:** the same as the pub walls:
+  `resolveContributionIdentity` derives the handle and the profile-based actor
+  from the authenticated account, and the one shared 18-or-over gate
+  (`accountIsAdult`) runs before any bytes are read. Body handles and body ages
+  are ignored.
+- **Rate limit (boundary):** the pub walls' own per-account durable budget
+  (`venue-photo:${actor}`), `failClosed`, so the two walls share one scan bill
+  and one limit. It is counted BEFORE any bytes are prepared, staged or scanned.
+- **Cap (boundary):** a city photo (no pub) counts against 100 city photos per
+  account (`countCityPhotosForAuthor`); a pub-linked photo counts against that
+  pub's own 100 (`countForAuthorAtVenue`). Both are counted before staging.
+- **Media path:** the pub walls' journey: bytes are prepared, staged privately
+  under `drink-wall/` or the venue's prefix, signed for a short window, scanned
+  (`surface: "drink-wall"`), and promoted to the serving key only on an
+  approval. A refused, unscannable or failed upload discards its staging copy
+  and leaves nothing public.
+- **Moderation and removal:** new rows are approved on a scan approval and
+  join the one admin photo queue. A report, a moderator hide and the author's
+  delete all use the `venue_photos` row, so one photo linked to a pub leaves the
+  Drink Wall and that pub's wall together. Account removal deletes the rows and
+  removes the `drink-wall/` bytes with the rest of the account's photos.
 
 ### `app/api/starter-packs/[slug]/follow` - follow a whole starter pack (route 90)
 
