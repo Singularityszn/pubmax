@@ -54,10 +54,10 @@ jobs:
           persist-credentials: false
 
       - name: Setup Node
+        timeout-minutes: 5
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Cache node_modules
         id: cache-node-modules
@@ -90,10 +90,10 @@ jobs:
           persist-credentials: false
 
       - name: Setup Node
+        timeout-minutes: 5
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Cache node_modules
         id: cache-node-modules
@@ -128,10 +128,10 @@ jobs:
           persist-credentials: false
 
       - name: Setup Node
+        timeout-minutes: 5
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Cache node_modules
         id: cache-node-modules
@@ -211,10 +211,10 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Node
+        timeout-minutes: 5
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
       - name: Cache node_modules
         id: cache-node-modules
         uses: actions/cache@v4
@@ -277,10 +277,10 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Node
+        timeout-minutes: 5
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
       - name: Install dependencies
         run: npm ci
       - name: Check every tracked feed

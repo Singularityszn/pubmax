@@ -25,9 +25,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
+        timeout-minutes: 5
         with:
           node-version: "22"
-          cache: npm
       - run: npm ci
       - name: Verify cache contract
         run: npm test -- __tests__/weatherSnapshots.test.ts
