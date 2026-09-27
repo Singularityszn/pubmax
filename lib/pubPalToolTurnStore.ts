@@ -1,12 +1,12 @@
-// Ephemeral correlation for ElevenLabs tool webhooks during one Pal chat turn.
-// Keys are conversation ids from the provider; entries expire quickly and hold
-// no user text in logs.
+import "server-only";
 
 import type { AskCard, AskProposal } from "@/lib/ask/types";
 import type { CityId } from "@/lib/cities";
 import type { PubPalFenceTurn } from "@/lib/pubPalLlmFence";
+import { createDualBackendStore, createFailSoftGuard } from "@/lib/storeBackend";
+import { requireSupabaseAdmin } from "@/lib/supabase";
 
-const TTL_MS = 120_000;
+export const PUB_PAL_TOOL_TURN_TTL_MS = 120_000;
 
 export type PubPalToolTurn = {
   query: string;
@@ -18,59 +18,271 @@ export type PubPalToolTurn = {
   hints: string[];
 };
 
-const turns = new Map<string, PubPalToolTurn>();
+type PubPalToolTurnPayload = {
+  query: string;
+  cityId: CityId;
+  turns: PubPalFenceTurn[];
+  cards: AskCard[];
+  proposals: AskProposal[];
+  hints: string[];
+};
 
-function prune(now: number): void {
-  for (const [key, turn] of turns) {
-    if (turn.expiresAt <= now) turns.delete(key);
+const memoryTurns = new Map<string, PubPalToolTurn>();
+
+function pruneMemory(now: number): void {
+  for (const [key, turn] of memoryTurns) {
+    if (turn.expiresAt <= now) memoryTurns.delete(key);
   }
 }
 
-export function registerPubPalToolTurn(
+function payloadFromTurn(turn: PubPalToolTurn): PubPalToolTurnPayload {
+  return {
+    query: turn.query,
+    cityId: turn.cityId,
+    turns: turn.turns,
+    cards: turn.cards,
+    proposals: turn.proposals,
+    hints: turn.hints,
+  };
+}
+
+function turnFromPayload(payload: PubPalToolTurnPayload, expiresAtMs: number): PubPalToolTurn {
+  return {
+    query: payload.query,
+    cityId: payload.cityId,
+    turns: Array.isArray(payload.turns) ? payload.turns.slice(-6) : [],
+    expiresAt: expiresAtMs,
+    cards: Array.isArray(payload.cards) ? payload.cards : [],
+    proposals: Array.isArray(payload.proposals) ? payload.proposals : [],
+    hints: Array.isArray(payload.hints) ? payload.hints : [],
+  };
+}
+
+type PubPalToolTurnStore = {
+  register(
+    conversationId: string,
+    input: { query: string; cityId: CityId; turns?: PubPalFenceTurn[] },
+  ): Promise<void>;
+  read(conversationId: string): Promise<PubPalToolTurn | null>;
+  append(
+    conversationId: string,
+    patch: {
+      cards?: AskCard[];
+      proposals?: AskProposal[];
+      hints?: string[];
+    },
+  ): Promise<void>;
+  consume(conversationId: string): Promise<PubPalToolTurn | null>;
+};
+
+const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
+  async register(conversationId, input) {
+    const now = Date.now();
+    pruneMemory(now);
+    memoryTurns.set(conversationId, {
+      query: input.query,
+      cityId: input.cityId,
+      turns: Array.isArray(input.turns) ? input.turns.slice(-6) : [],
+      expiresAt: now + PUB_PAL_TOOL_TURN_TTL_MS,
+      cards: [],
+      proposals: [],
+      hints: [],
+    });
+  },
+
+  async read(conversationId) {
+    const turn = memoryTurns.get(conversationId);
+    if (!turn) return null;
+    if (turn.expiresAt <= Date.now()) {
+      memoryTurns.delete(conversationId);
+      return null;
+    }
+    return turn;
+  },
+
+  async append(conversationId, patch) {
+    const turn = await memoryPubPalToolTurnStore.read(conversationId);
+    if (!turn) return;
+    if (patch.cards?.length) turn.cards.push(...patch.cards);
+    if (patch.proposals?.length) turn.proposals.push(...patch.proposals);
+    if (patch.hints?.length) turn.hints.push(...patch.hints);
+  },
+
+  async consume(conversationId) {
+    const turn = await memoryPubPalToolTurnStore.read(conversationId);
+    if (!turn) return null;
+    memoryTurns.delete(conversationId);
+    return turn;
+  },
+};
+
+const { guard, resetWarnings } = createFailSoftGuard({
+  tag: "pub-pal-tool-turn",
+  tables: "pub_pal_tool_turns",
+  migrationHint: "apply migration 0158",
+});
+
+type ToolTurnRow = {
+  conversation_id: string;
+  payload: unknown;
+  expires_at: string;
+};
+
+const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
+  async register(conversationId, input) {
+    await guard<void>({
+      context: "register",
+      onSchemaMiss: () => memoryPubPalToolTurnStore.register(conversationId, input),
+      message: "register failed — using process memory",
+      onError: () => undefined,
+      run: async () => {
+        const expiresAt = new Date(Date.now() + PUB_PAL_TOOL_TURN_TTL_MS).toISOString();
+        const payload: PubPalToolTurnPayload = {
+          query: input.query,
+          cityId: input.cityId,
+          turns: Array.isArray(input.turns) ? input.turns.slice(-6) : [],
+          cards: [],
+          proposals: [],
+          hints: [],
+        };
+        const { error } = await requireSupabaseAdmin()
+          .from("pub_pal_tool_turns")
+          .upsert(
+            { conversation_id: conversationId, payload, expires_at: expiresAt },
+            { onConflict: "conversation_id" },
+          );
+        if (error) throw new Error(error.message);
+      },
+    });
+  },
+
+  async read(conversationId) {
+    return guard<PubPalToolTurn | null>({
+      context: "read",
+      onSchemaMiss: () => memoryPubPalToolTurnStore.read(conversationId),
+      message: "read failed — treating as miss",
+      onError: () => null,
+      run: async () => {
+        const { data, error } = await requireSupabaseAdmin()
+          .from("pub_pal_tool_turns")
+          .select("conversation_id, payload, expires_at")
+          .eq("conversation_id", conversationId)
+          .gt("expires_at", new Date().toISOString())
+          .maybeSingle();
+        if (error) throw new Error(error.message);
+        if (!data) return null;
+        const row = data as ToolTurnRow;
+        const payload = row.payload as PubPalToolTurnPayload;
+        return turnFromPayload(payload, new Date(row.expires_at).getTime());
+      },
+    });
+  },
+
+  async append(conversationId, patch) {
+    await guard<void>({
+      context: "append",
+      onSchemaMiss: () => memoryPubPalToolTurnStore.append(conversationId, patch),
+      message: "append failed — skipped",
+      onError: () => undefined,
+      run: async () => {
+        const existing = await supabasePubPalToolTurnStore.read(conversationId);
+        if (!existing) return;
+        if (patch.cards?.length) existing.cards.push(...patch.cards);
+        if (patch.proposals?.length) existing.proposals.push(...patch.proposals);
+        if (patch.hints?.length) existing.hints.push(...patch.hints);
+        const expiresAt = new Date(Date.now() + PUB_PAL_TOOL_TURN_TTL_MS).toISOString();
+        const { error } = await requireSupabaseAdmin()
+          .from("pub_pal_tool_turns")
+          .upsert(
+            {
+              conversation_id: conversationId,
+              payload: payloadFromTurn(existing),
+              expires_at: expiresAt,
+            },
+            { onConflict: "conversation_id" },
+          );
+        if (error) throw new Error(error.message);
+      },
+    });
+  },
+
+  async consume(conversationId) {
+    const turn = await supabasePubPalToolTurnStore.read(conversationId);
+    if (!turn) return null;
+    await guard<void>({
+      context: "consume",
+      onSchemaMiss: () => memoryPubPalToolTurnStore.consume(conversationId),
+      message: "consume delete failed",
+      onError: () => undefined,
+      run: async () => {
+        const { error } = await requireSupabaseAdmin()
+          .from("pub_pal_tool_turns")
+          .delete()
+          .eq("conversation_id", conversationId);
+        if (error) throw new Error(error.message);
+      },
+    });
+    return turn;
+  },
+};
+
+const pubPalToolTurnStore = createDualBackendStore(
+  memoryPubPalToolTurnStore,
+  supabasePubPalToolTurnStore,
+);
+
+export async function registerPubPalToolTurn(
   conversationId: string,
   input: { query: string; cityId: CityId; turns?: PubPalFenceTurn[] },
-): void {
-  const now = Date.now();
-  prune(now);
-  turns.set(conversationId, {
-    query: input.query,
-    cityId: input.cityId,
-    turns: Array.isArray(input.turns) ? input.turns.slice(-6) : [],
-    expiresAt: now + TTL_MS,
-    cards: [],
-    proposals: [],
-    hints: [],
-  });
+): Promise<void> {
+  await pubPalToolTurnStore().register(conversationId, input);
 }
 
-export function readPubPalToolTurn(conversationId: string): PubPalToolTurn | null {
-  const turn = turns.get(conversationId);
-  if (!turn) return null;
-  if (turn.expiresAt <= Date.now()) {
-    turns.delete(conversationId);
-    return null;
-  }
-  return turn;
+export async function readPubPalToolTurn(conversationId: string): Promise<PubPalToolTurn | null> {
+  return pubPalToolTurnStore().read(conversationId);
 }
 
-export function appendPubPalToolTurn(
+export async function appendPubPalToolTurn(
   conversationId: string,
   patch: {
     cards?: AskCard[];
     proposals?: AskProposal[];
     hints?: string[];
   },
-): void {
-  const turn = readPubPalToolTurn(conversationId);
-  if (!turn) return;
-  if (patch.cards?.length) turn.cards.push(...patch.cards);
-  if (patch.proposals?.length) turn.proposals.push(...patch.proposals);
-  if (patch.hints?.length) turn.hints.push(...patch.hints);
+): Promise<void> {
+  await pubPalToolTurnStore().append(conversationId, patch);
 }
 
-export function consumePubPalToolTurn(conversationId: string): PubPalToolTurn | null {
-  const turn = readPubPalToolTurn(conversationId);
-  if (!turn) return null;
-  turns.delete(conversationId);
-  return turn;
+export async function consumePubPalToolTurn(conversationId: string): Promise<PubPalToolTurn | null> {
+  return pubPalToolTurnStore().consume(conversationId);
+}
+
+export async function appendPubPalToolTurnThread(
+  conversationId: string,
+  turn: PubPalFenceTurn,
+  input?: { cityId?: CityId; query?: string },
+): Promise<void> {
+  const existing = await readPubPalToolTurn(conversationId);
+  const cityId = input?.cityId ?? existing?.cityId ?? "london";
+  const turns = [...(existing?.turns ?? []), turn].slice(-6);
+  const query =
+    input?.query?.trim() ||
+    existing?.query ||
+    (turn.role === "user" ? turn.content : "");
+  await registerPubPalToolTurn(conversationId, {
+    query,
+    cityId,
+    turns,
+  });
+  if (!existing) return;
+  await appendPubPalToolTurn(conversationId, {
+    cards: existing.cards,
+    proposals: existing.proposals,
+    hints: existing.hints,
+  });
+}
+
+export function __resetPubPalToolTurnStore(): void {
+  memoryTurns.clear();
+  resetWarnings();
 }

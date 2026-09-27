@@ -66,7 +66,7 @@ export async function invokePubPalAskTool(input: {
   }
 
   const turn = input.conversationId
-    ? readPubPalToolTurn(input.conversationId)
+    ? await readPubPalToolTurn(input.conversationId)
     : null;
   const queryFromArgs =
     typeof input.args.query === "string" ? input.args.query.trim() : "";
@@ -97,7 +97,7 @@ export async function invokePubPalAskTool(input: {
   });
 
   if (input.conversationId && turn) {
-    appendPubPalToolTurn(input.conversationId, {
+    await appendPubPalToolTurn(input.conversationId, {
       cards: toolResult.cards,
       proposals: toolResult.proposals,
       hints: toolResult.answerHint ? [toolResult.answerHint] : [],

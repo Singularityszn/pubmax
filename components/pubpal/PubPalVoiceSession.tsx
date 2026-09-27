@@ -25,6 +25,7 @@ import { Mic, MicOff, Send } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
 import type { VoiceEndReason } from "@/lib/analyticsEvents";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { PalAnimationState } from "@/lib/pubPal";
@@ -57,6 +58,26 @@ type VoiceSessionAttempt = {
   voiceEndReason: VoiceEndReason | null;
 };
 
+async function syncVoiceToolTurn(input: {
+  conversationId: string;
+  threadTurn?: { role: "user" | "assistant"; content: string };
+}): Promise<void> {
+  try {
+    const response = await authedActionFetch("/api/pub-pal/tool-turn", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        conversationId: input.conversationId,
+        cityId: DEFAULT_CITY_ID,
+        ...(input.threadTurn ? { threadTurn: input.threadTurn } : {}),
+      }),
+    }, { requiresIdentity: true });
+    discardBody(response);
+  } catch {
+    // Best effort: fencing still runs on the tool query alone when sync fails.
+  }
+}
+
 async function releaseVoiceSession(durationSeconds: number): Promise<void> {
   try {
     const response = await authedActionFetch("/api/pub-pal/voice-token", {
@@ -79,6 +100,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   const [text, setText] = useState("");
   const disposedRef = useRef(false);
   const activeAttemptRef = useRef<VoiceSessionAttempt | null>(null);
+  const conversationIdRef = useRef<string | null>(null);
   const [startController] = useState(createPubPalVoiceStartController);
 
   const ownsAttempt = useCallback((attempt: VoiceSessionAttempt): boolean => (
@@ -204,6 +226,22 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
         startSession({
           signedUrl: grant.signedUrl,
           connectionType: "websocket",
+          onConnect: ({ conversationId }) => {
+            conversationIdRef.current = conversationId;
+            void syncVoiceToolTurn({ conversationId });
+          },
+          onMessage: ({ role, message }) => {
+            const conversationId = conversationIdRef.current;
+            const content = message.trim();
+            if (!conversationId || !content) return;
+            const threadRole =
+              role === "user" ? "user" : role === "agent" ? "assistant" : null;
+            if (!threadRole) return;
+            void syncVoiceToolTurn({
+              conversationId,
+              threadTurn: { role: threadRole, content },
+            });
+          },
           overrides: overrides
             ? {
                 agent: {
@@ -232,6 +270,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             }, maxSessionSeconds * 1000);
           },
           onDisconnect: () => {
+            conversationIdRef.current = null;
             attempt.voiceEndReason ??= "disconnect";
             if (!ownsAttempt(attempt)) return;
             startController.settle();
@@ -281,6 +320,13 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     if (!value) return;
     onStateChange?.("thinking");
     sendUserMessage(value);
+    const conversationId = conversationIdRef.current;
+    if (conversationId) {
+      void syncVoiceToolTurn({
+        conversationId,
+        threadTurn: { role: "user", content: value },
+      });
+    }
     setText("");
   };
 

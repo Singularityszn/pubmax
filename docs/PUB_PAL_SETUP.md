@@ -1,7 +1,8 @@
 # Pub Pal setup: text now, voice when you switch it on
 
-Pub Pal answers in writing with no keys at all. Voice is one optional add-on
-the captain switches on with four environment values and one script run.
+Pub Pal typed chat and voice share one ElevenLabs agent in production. Map Ask
+still answers keylessly via `/api/ask`. Voice and `/pal/chat` need the four
+ElevenLabs values below and one script run.
 
 Nothing here changes what the Pal may SAY. Text and voice run the same
 source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
@@ -13,7 +14,7 @@ source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
 
 | Surface | Keyless | Notes |
 |---|---|---|
-| `/pal/chat` text ask | With ElevenLabs | Same agent as voice in text-only mode via `/api/pub-pal/chat` |
+| `/pal/chat` text ask | No | Same agent as voice in text-only mode via `/api/pub-pal/chat` |
 | Map Ask | Yes | Same `/api/ask` path |
 | Concierge tools (prices, tonight, drinks, desk, crowd) | Yes | Every one of them reads a lane we already hold |
 | Model tool selection | ElevenLabs | Hosted LLM on the agent picks webhook tools; no OpenRouter |
