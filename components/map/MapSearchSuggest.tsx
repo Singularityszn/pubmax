@@ -254,9 +254,9 @@ export default function MapSearchSuggest({
         indexedVenueCount: indexedVenues.length,
       })
     ) {
-      return [...cities, ...indexed, ...pubs, ...areas, ...places, ...ukBase];
+      return [...cities, ...pubs, ...indexed, ...areas, ...places, ...ukBase];
     }
-    return [...cities, ...areas, ...indexed, ...pubs, ...places, ...ukBase];
+    return [...cities, ...areas, ...pubs, ...indexed, ...places, ...ukBase];
   }, [deferredQuery, indexedCities, indexedVenues, mergedUkBasePubs, suggestions]);
 
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -427,19 +427,19 @@ export default function MapSearchSuggest({
   let indexedVenueStartIndex: number;
   let pubStartIndex: number;
   if (venuesLead) {
-    indexedVenueStartIndex = cursor;
-    cursor += indexedVenues.length;
     pubStartIndex = cursor;
     cursor += suggestions.pubs.length;
+    indexedVenueStartIndex = cursor;
+    cursor += indexedVenues.length;
     areaStartIndex = cursor;
     cursor += suggestions.areas.length;
   } else {
     areaStartIndex = cursor;
     cursor += suggestions.areas.length;
-    indexedVenueStartIndex = cursor;
-    cursor += indexedVenues.length;
     pubStartIndex = cursor;
     cursor += suggestions.pubs.length;
+    indexedVenueStartIndex = cursor;
+    cursor += indexedVenues.length;
   }
   const placeStartIndex = cursor;
   cursor += suggestions.places.length;
@@ -508,38 +508,6 @@ export default function MapSearchSuggest({
 
             {venuesLead ? (
               <>
-            {indexedVenues.length > 0 ? (
-              <div role="group" aria-label="Venues across city maps" className="mapSearchSuggestGroup">
-                <p className="mapSearchSuggestGroupHead">
-                  <span>Venues across city maps</span>
-                </p>
-                {indexedVenues.map((venue, offset) => {
-                  const index = indexedVenueStartIndex + offset;
-                  const cityName = searchIndex?.cities.find((city) => city.id === venue.cityId)?.name;
-                  const locationLabel = venue.area && venue.area !== cityName
-                    ? `${venue.area} · ${cityName ?? ""}`.trim()
-                    : venue.area || cityName;
-                  return (
-                    <div
-                      key={`${venue.cityId}:${venue.id}`}
-                      id={optionId(index)}
-                      role="option"
-                      data-venue-id={venue.id}
-                      aria-selected={safeActive === index}
-                      className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => activate({ type: "indexedVenue", item: venue })}
-                      onPointerEnter={() => chooseActiveIndex(index)}
-                    >
-                      <span className="mapSearchSuggestRowMain">
-                        <span className="mapSearchSuggestRowName">{venue.name}</span>
-                        {locationLabel ? <span className="mapSearchSuggestBorough">{locationLabel}</span> : null}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : null}
             {suggestions.pubs.length > 0 ? (
               <div role="group" aria-label="Venues" className="mapSearchSuggestGroup">
                 <p className="mapSearchSuggestGroupHead">
@@ -578,6 +546,38 @@ export default function MapSearchSuggest({
                         {pub.distanceLabel ? (
                           <span className="mapSearchSuggestDistance">{pub.distanceLabel}</span>
                         ) : null}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+            {indexedVenues.length > 0 ? (
+              <div role="group" aria-label="Venues across city maps" className="mapSearchSuggestGroup">
+                <p className="mapSearchSuggestGroupHead">
+                  <span>Venues across city maps</span>
+                </p>
+                {indexedVenues.map((venue, offset) => {
+                  const index = indexedVenueStartIndex + offset;
+                  const cityName = searchIndex?.cities.find((city) => city.id === venue.cityId)?.name;
+                  const locationLabel = venue.area && venue.area !== cityName
+                    ? `${venue.area} · ${cityName ?? ""}`.trim()
+                    : venue.area || cityName;
+                  return (
+                    <div
+                      key={`${venue.cityId}:${venue.id}`}
+                      id={optionId(index)}
+                      role="option"
+                      data-venue-id={venue.id}
+                      aria-selected={safeActive === index}
+                      className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => activate({ type: "indexedVenue", item: venue })}
+                      onPointerEnter={() => chooseActiveIndex(index)}
+                    >
+                      <span className="mapSearchSuggestRowMain">
+                        <span className="mapSearchSuggestRowName">{venue.name}</span>
+                        {locationLabel ? <span className="mapSearchSuggestBorough">{locationLabel}</span> : null}
                       </span>
                     </div>
                   );
@@ -661,38 +661,6 @@ export default function MapSearchSuggest({
                 ))}
               </div>
             ) : null}
-            {indexedVenues.length > 0 ? (
-              <div role="group" aria-label="Venues across city maps" className="mapSearchSuggestGroup">
-                <p className="mapSearchSuggestGroupHead">
-                  <span>Venues across city maps</span>
-                </p>
-                {indexedVenues.map((venue, offset) => {
-                  const index = indexedVenueStartIndex + offset;
-                  const cityName = searchIndex?.cities.find((city) => city.id === venue.cityId)?.name;
-                  const locationLabel = venue.area && venue.area !== cityName
-                    ? `${venue.area} · ${cityName ?? ""}`.trim()
-                    : venue.area || cityName;
-                  return (
-                    <div
-                      key={`${venue.cityId}:${venue.id}`}
-                      id={optionId(index)}
-                      role="option"
-                      data-venue-id={venue.id}
-                      aria-selected={safeActive === index}
-                      className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => activate({ type: "indexedVenue", item: venue })}
-                      onPointerEnter={() => chooseActiveIndex(index)}
-                    >
-                      <span className="mapSearchSuggestRowMain">
-                        <span className="mapSearchSuggestRowName">{venue.name}</span>
-                        {locationLabel ? <span className="mapSearchSuggestBorough">{locationLabel}</span> : null}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : null}
             {suggestions.pubs.length > 0 ? (
               <div role="group" aria-label="Venues" className="mapSearchSuggestGroup">
                 <p className="mapSearchSuggestGroupHead">
@@ -731,6 +699,38 @@ export default function MapSearchSuggest({
                         {pub.distanceLabel ? (
                           <span className="mapSearchSuggestDistance">{pub.distanceLabel}</span>
                         ) : null}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+            {indexedVenues.length > 0 ? (
+              <div role="group" aria-label="Venues across city maps" className="mapSearchSuggestGroup">
+                <p className="mapSearchSuggestGroupHead">
+                  <span>Venues across city maps</span>
+                </p>
+                {indexedVenues.map((venue, offset) => {
+                  const index = indexedVenueStartIndex + offset;
+                  const cityName = searchIndex?.cities.find((city) => city.id === venue.cityId)?.name;
+                  const locationLabel = venue.area && venue.area !== cityName
+                    ? `${venue.area} · ${cityName ?? ""}`.trim()
+                    : venue.area || cityName;
+                  return (
+                    <div
+                      key={`${venue.cityId}:${venue.id}`}
+                      id={optionId(index)}
+                      role="option"
+                      data-venue-id={venue.id}
+                      aria-selected={safeActive === index}
+                      className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => activate({ type: "indexedVenue", item: venue })}
+                      onPointerEnter={() => chooseActiveIndex(index)}
+                    >
+                      <span className="mapSearchSuggestRowMain">
+                        <span className="mapSearchSuggestRowName">{venue.name}</span>
+                        {locationLabel ? <span className="mapSearchSuggestBorough">{locationLabel}</span> : null}
                       </span>
                     </div>
                   );
