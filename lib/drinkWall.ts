@@ -14,17 +14,12 @@ import {
 } from "@/lib/venuePhotos";
 import type { DrinkCategory } from "@/lib/drinks";
 
-export {
-  DRINK_WALL_CATEGORIES,
-  DRINK_WALL_CATEGORY_LABEL,
-  type DrinkWallCategory,
-  isDrinkWallCategory,
-};
+export { DRINK_WALL_CATEGORIES, DRINK_WALL_CATEGORY_LABEL, type DrinkWallCategory };
 
 /** Per account for rows linked to no pub (venue_id null). */
 export const DRINK_WALL_CITY_CAP_PER_ACCOUNT = 100;
 
-export type DrinkWallSubmission = {
+type DrinkWallSubmission = {
   wallCategory: DrinkWallCategory;
   venueId: string | null;
   placeLabel: string;

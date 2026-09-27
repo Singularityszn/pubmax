@@ -6,7 +6,7 @@ import type { Venue } from "@/lib/venues";
 export function nearestVenueIds(
   lat: number,
   lng: number,
-  venues: Venue[],
+  venues: readonly Pick<Venue, "id" | "latitude" | "longitude">[],
   n: number,
 ): string[] {
   const take = Math.max(0, Math.min(Math.floor(n), venues.length));

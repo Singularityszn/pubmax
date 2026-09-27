@@ -22,7 +22,7 @@ import {
   type DrinkWallPhotoDTO,
 } from "@/lib/drinkWall";
 import { nearestVenueIds } from "@/lib/nearby";
-import { loadGroupedVenues } from "@/lib/venueDataset";
+import { loadSlimVenues } from "@/lib/venuesSlim";
 import {
   VENUE_PHOTO_OUTPUT_HEIGHT,
   VENUE_PHOTO_OUTPUT_WIDTH,
@@ -92,7 +92,11 @@ export default function DrinkWall() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          const venues = await loadGroupedVenues();
+          const venues = (await loadSlimVenues()).map((venue) => ({
+            id: venue.id,
+            latitude: venue.lat,
+            longitude: venue.lng,
+          }));
           setNearVenueIds(nearestVenueIds(pos.coords.latitude, pos.coords.longitude, venues, 60));
         } catch {
           setNearVenueIds([]);
@@ -231,7 +235,9 @@ export default function DrinkWall() {
               Add a photo
             </button>
           ) : (
-            <Link href={drinkWallSignInHref("/wall")}>{DRINK_WALL_SIGN_IN_LINE}</Link>
+            <Link className="venuePhotoWallButton venuePhotoWallSignIn" href={drinkWallSignInHref("/wall")}>
+              {DRINK_WALL_SIGN_IN_LINE}
+            </Link>
           )}
         </div>
       </div>
