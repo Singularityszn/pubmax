@@ -66,7 +66,7 @@
      256px panel at the foot of the phone, and every member above it read a
      published berth to step clear. It is a strip under the top bar now
      (components/map/mapArrivalCard.css), so it takes no band down here and
-     nothing steps around it.
+     nothing steps around it. */
 
   /* Member: the create action itself. It publishes its geometry here like every
      member below it, because the BODY has to reserve its lane: the bottom

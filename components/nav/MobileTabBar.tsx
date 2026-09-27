@@ -207,6 +207,12 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
             <li key={tab.label} className="mobileTabItem">
               <Link
                 href={tab.href}
+                // Tab switches never build history (docs/MOBILE_FLOW_SPEC.md
+                // §4.1): a bottom-tab tap REPLACES the current entry, so the
+                // back gesture never walks the reader backward through tabs
+                // they tapped. In-tab pushes (list→detail, story→venue) still
+                // push as before — only this row replaces.
+                replace
                 // The bar sits in the viewport on every page, so Next's
                 // automatic prefetch fires for all five tab destinations while the
                 // current page is still painting. This component already owns a

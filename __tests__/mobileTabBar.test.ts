@@ -1,6 +1,14 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 import { buildTabs, shouldShowMobileTabBar } from "@/components/nav/MobileTabBar";
 import { navPathMatches } from "@/components/nav/navigationModel";
+
+const tabBarSource = readFileSync(
+  join(process.cwd(), "components/nav/MobileTabBar.tsx"),
+  "utf8",
+);
 
 // Six-tab contract for the mobile bar. Moment is a floating + action, never
 // a destination, so it is not in this row. Today and Tonight share the Now
@@ -81,6 +89,14 @@ describe("mobile tab bar contract", () => {
     expect(tabs.some((tab) => tab.label === "Moment")).toBe(false);
     expect(tabs.some((tab) => tab.href.startsWith("/moment"))).toBe(false);
     expect(tabs.map((tab) => tab.key)).not.toContain("moment");
+  });
+
+  it("replaces history on a tab tap, never pushing (MOBILE_FLOW_SPEC §4.1)", () => {
+    // Back must never walk the reader backward through tabs they tapped, so
+    // the tab row's Link carries `replace`; in-tab pushes keep pushing.
+    const tabLink = tabBarSource.match(/<Link\b[\s\S]*?>/);
+    expect(tabLink?.[0]).toContain("href={tab.href}");
+    expect(tabLink?.[0]).toMatch(/^\s+replace$/m);
   });
 
   it("marks Now active on both /today and /tonight", () => {
