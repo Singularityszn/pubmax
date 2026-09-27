@@ -1262,14 +1262,12 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 }
 
 /* ── Route mini-map (T8) ────────────────────────────────────────────────────
-   A lightweight static route card for the locked plan page: the crawl's stops
-   as numbered discs on the walking line, drawn as a self-contained SVG (no
-   MapLibre mount, no tiles, no basemap) styled like a transit diagram. The
-   honesty rule mirrors the big map — the line is SOLID for a real routed walk
-   ("ors") and DASHED for the straight-line approximation. The route colour and
-   the numbered discs reuse the shared map tokens (--route-line deep-crimson
-   light / coral-ember dark; disc fill --ink-deep with a --brass-bright ring,
-   matching buildRouteStops) so the card reads as the same route system. */
+   The locked plan page's route card: a read-only MapLibre preview
+   (components/map/canvas/PlanCrawlRouteMapCanvas) on the real basemap, drawn
+   with the big map's own route and numbered-stop layers, so the card reads as
+   the same route system. The line is SOLID for a real routed walk ("ors") and
+   DASHED for the straight-line approximation. The card chrome below only
+   frames the canvas; the map layers paint the route. */
 .planRouteMiniMap {
   margin: 22px 0 4px;
   padding: 12px;
