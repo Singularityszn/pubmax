@@ -9,6 +9,7 @@
 
 import type { CityId } from "@/lib/cities";
 import type { MapChosenAreaSelection } from "@/lib/mapChosenArea";
+import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import {
   drinkLensUnknownRowLabel,
@@ -372,8 +373,8 @@ function rankCheapestDrinks(
       priceLabel:
         price !== null
           ? lensPrices === null
-            ? `£${price.toFixed(2)}`
-            : `${lensCategoryLabel} · £${price.toFixed(2)}`
+            ? formatGbp(price)
+            : `${lensCategoryLabel} · ${formatGbp(price)}`
           : lensPrices === null
             ? "no priced pints yet"
             : drinkLensUnknownRowLabel(

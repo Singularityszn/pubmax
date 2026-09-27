@@ -1,3 +1,4 @@
+import { formatGbp } from "@/lib/formatGbp";
 import { londonHour } from "@/lib/londonHour";
 import { NIGHT_AREAS, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { cleanText } from "@/lib/textClean";
@@ -118,7 +119,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   const budgetLimitPence = budgetLimitMatch
     ? Number(budgetLimitMatch[1]) * 100 + Number((budgetLimitMatch[2] ?? "").padEnd(2, "0") || 0)
     : null;
-  if (budgetLimitPence) reasons.push({ field: "budgetLimitPence", evidence: `£${(budgetLimitPence / 100).toFixed(2)}`, explanation: "Matched the explicit per-person route budget." });
+  if (budgetLimitPence) reasons.push({ field: "budgetLimitPence", evidence: formatGbp(budgetLimitPence / 100), explanation: "Matched the explicit per-person route budget." });
   const atmosphere = ["quiet", "lively", "historic", "cosy", "sports", "music", "garden"].filter((value) => lower.includes(value));
   // Chill is the everyday synonym for quiet on describe-first chips; ranking
   // only scores the closed "quiet" token, so map rather than invent a new one.

@@ -1,4 +1,5 @@
 import type { ConciergeVenue } from "@/lib/concierge/rank";
+import { formatGbp } from "@/lib/formatGbp";
 import { canAffectRoute, type NightSignalClaim } from "@/lib/nightSignalClaims";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { NightContext } from "@/lib/nightPlanning";
@@ -17,7 +18,7 @@ function priceAndZeroProof(
   let score = 0;
   if (context.budget === "value") {
     score += price === null ? 0 : Math.max(0, 7 - price);
-    if (price !== null) reasons.push(`pints from £${price.toFixed(2)}`);
+    if (price !== null) reasons.push(`pints from ${formatGbp(price)}`);
   } else if (context.budget === "treat" && (venue.amenities.cocktails || venue.hasStory)) {
     score += 1.5;
     reasons.push("fits a treat-night brief");
@@ -31,7 +32,7 @@ function priceAndZeroProof(
     const naPrice = naLensPrices?.get(venue.id);
     if (naPrice !== undefined) {
       score += 4;
-      reasons.push(`corroborated alcohol-free price from £${naPrice.priceGbp.toFixed(2)}`);
+      reasons.push(`corroborated alcohol-free price from ${formatGbp(naPrice.priceGbp)}`);
     } else if (venue.amenities.nonAlcoholic === true) {
       score += 1.5;
       reasons.push("confirmed alcohol-free option in the Venue Dataset");

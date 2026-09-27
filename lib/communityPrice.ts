@@ -22,6 +22,7 @@ import {
   type DrinkCategory,
 } from "@/lib/drinks";
 import { DAY_MS } from "@/lib/dayMs";
+import { formatGbp } from "@/lib/formatGbp";
 import { londonDayKey } from "@/lib/pintContributions";
 import { priceBandBucket, type PriceBandArea } from "@/lib/priceBand";
 import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
@@ -193,7 +194,7 @@ export function validateCommunityPrice(input: unknown): CommunityPriceValidation
     const likely = roundToPennies(parsed * 10);
     const hint =
       likely >= COMMUNITY_PRICE_MIN_GBP && likely <= COMMUNITY_PRICE_MAX_GBP
-        ? ` Did you mean £${likely.toFixed(2)}?`
+        ? ` Did you mean ${formatGbp(likely)}?`
         : "";
     return { ok: false, error: `Under £${COMMUNITY_PRICE_MIN_GBP} isn't a pub price.${hint}` };
   }

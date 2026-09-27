@@ -22,6 +22,29 @@ const FORMAT_GBP_CALLERS = [
   "lib/zones.ts",
   "lib/quietPint.ts",
   "lib/planningAnchor.server.ts",
+  // A second sweep found the same restated formula still spreading through
+  // the policy leaves (lib/) and route handlers (app/api) that own business
+  // logic — the fence above only ever covered the files named in #1412.
+  "app/crawls/routeSummary.ts",
+  "app/api/crawl-card/route.tsx",
+  "lib/mapLogIntent.ts",
+  "lib/areaButton.ts",
+  "lib/planWhatsOn.ts",
+  "lib/spillPreview.ts",
+  "lib/mapVenueList.ts",
+  "lib/concierge/rank.ts",
+  "lib/planRecapView.server.ts",
+  "lib/mapSearchSuggest.ts",
+  "lib/nightPlanning.ts",
+  "lib/planGenerationContext.ts",
+  "lib/profiles.ts",
+  "lib/planGenerationRanking.ts",
+  "lib/messageAttachments.ts",
+  "lib/communityPrice.ts",
+  "lib/curation.ts",
+  "lib/planEndings.ts",
+  "lib/ask/conciergeTools.server.ts",
+  "lib/ask/tools.ts",
 ] as const;
 
 describe("formatGbp — canonical GBP string", () => {

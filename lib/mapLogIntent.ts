@@ -1,3 +1,4 @@
+import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import {
   compactVenueAnchor,
@@ -98,7 +99,7 @@ function priceLabelFor(
   return typeof venue.cheapestPrice === "number" &&
     Number.isFinite(venue.cheapestPrice) &&
     (isPubVenueKind(venue.kind) || anchor !== null)
-    ? `£${venue.cheapestPrice.toFixed(2)}`
+    ? formatGbp(venue.cheapestPrice)
     : "Price TBD";
 }
 

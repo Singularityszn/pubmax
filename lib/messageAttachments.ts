@@ -49,6 +49,7 @@
 //    A POLL points at nothing, so it stores its own ballot; its counts are
 //    derived on every read and no voter is ever named (`lib/messagePoll.ts`).
 
+import { formatGbp } from "@/lib/formatGbp";
 import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
 import type { CropTarget } from "@/lib/profileImagePicker";
 import { normalizeHandle } from "@/lib/handleNormalize";
@@ -448,7 +449,7 @@ export function messageVenuePriceLine(priceGbp: number | null): string | null {
   if (typeof priceGbp !== "number" || !Number.isFinite(priceGbp) || priceGbp <= 0) {
     return null;
   }
-  return `Cheapest pint £${priceGbp.toFixed(2)}`;
+  return `Cheapest pint ${formatGbp(priceGbp)}`;
 }
 
 /** The alt text of a photo somebody sent you. It names the sender, not the file. */
