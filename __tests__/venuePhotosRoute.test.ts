@@ -65,6 +65,16 @@ vi.mock("@/lib/adminAuth", async (importOriginal) => {
   return { ...actual, isModerator: () => moderatorState.moderator };
 });
 
+const logState = vi.hoisted(() => ({
+  entries: [] as { level: string; event: string; fields: unknown }[],
+}));
+vi.mock("@/lib/log", () => ({
+  log: (level: string, event: string, fields: unknown) => {
+    logState.entries.push({ level, event, fields });
+  },
+  redact: (value: unknown) => value,
+}));
+
 import { GET, POST } from "@/app/api/venue-photos/route";
 import { __setVenuePhotoRouteDepsForTest } from "@/lib/venuePhotoRouteDeps.server";
 import { CONTRIBUTION_UNDER_18_REFUSAL } from "@/lib/contributionGateStatus";
@@ -497,21 +507,28 @@ describe("taking a photo down", () => {
     expect((await venuePhotoStore().getById(id))?.moderationState).toBe("hidden");
   });
 
-  it("leaves the row when the bytes cannot be removed, so a retry finds it", async () => {
+  it("commits the row delete when storage removal fails afterward", async () => {
+    logState.entries.length = 0;
     const storage = deps("approved");
     const id = await post();
+    const servingKey = venuePhotoServingKey(VENUE, id);
     const spy = vi.spyOn(storage, "remove").mockRejectedValueOnce(new Error("bucket down"));
 
-    const failed = await POST(json({ action: "delete", id }));
-    expect(failed.status).toBe(503);
-    expect(storage.keys()).toEqual([venuePhotoServingKey(VENUE, id)]);
-    expect((await venuePhotoStore().getById(id))?.moderationState).toBe("approved");
+    const deleted = await POST(json({ action: "delete", id }));
+    expect(deleted.status).toBe(200);
+    expect(await venuePhotoStore().getById(id)).toBeNull();
+    expect(storage.keys()).toEqual([servingKey]);
+    expect(logState.entries).toContainEqual(
+      expect.objectContaining({
+        level: "error",
+        event: "venue_photo.delete_bytes_orphaned",
+        fields: expect.objectContaining({ objectKey: servingKey, stagingKey: expect.any(String) }),
+      }),
+    );
     spy.mockRestore();
 
     const retried = await POST(json({ action: "delete", id }));
-    expect(retried.status).toBe(200);
-    expect(storage.keys()).toEqual([]);
-    expect(await venuePhotoStore().getById(id)).toBeNull();
+    expect(retried.status).toBe(404);
   });
 
   it("lets a reader flag it without hiding it", async () => {

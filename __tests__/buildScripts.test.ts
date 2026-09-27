@@ -1,5 +1,6 @@
 import {
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -128,6 +129,36 @@ describe("build scripts", () => {
     if (result.error) throw result.error;
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("SKIP prevalidate-data");
+  });
+
+  it("skips gitignored venue detail artifacts when validating committed bundled data", () => {
+    const generated = path.join(ROOT, "data", "generated");
+    const manifest = path.join(generated, "venue_detail_index.json");
+    const details = path.join(generated, "venue_details.jsonl");
+    const manifestBackup = existsSync(manifest) ? readFileSync(manifest) : null;
+    const detailsBackup = existsSync(details) ? readFileSync(details) : null;
+    try {
+      if (manifestBackup) rmSync(manifest);
+      if (detailsBackup) rmSync(details);
+
+      const result = spawnSync("node", [path.join(ROOT, "scripts", "validate-data.mjs")], {
+        cwd: ROOT,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          PUBMAX_VERIFY_COMMITTED_DATA: "1",
+          DEPLOYMENT_VERSION: "local",
+        },
+      });
+      if (result.error) throw result.error;
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("SKIP data/generated/venue_details.jsonl");
+    } finally {
+      if (manifestBackup) writeFileSync(manifest, manifestBackup);
+      else if (existsSync(manifest)) rmSync(manifest);
+      if (detailsBackup) writeFileSync(details, detailsBackup);
+      else if (existsSync(details)) rmSync(details);
+    }
   });
 
   it("regenerates the UK place search index with the UK base layer", () => {
