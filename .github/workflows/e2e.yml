@@ -13,7 +13,8 @@ permissions:
 
 concurrency:
   # One group per workflow, event and ref (repo-wide group blocked other branches).
-  # Only pull request runs cancel superseded runs; main, nightly and dispatch runs finish.
+  # A newer pull request head supersedes older runs on the shared runner; main,
+  # nightly and dispatch runs finish. Rerun the latest run for the current head.
   group: ${{ github.workflow }}-pubmax-mac-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
@@ -22,7 +23,7 @@ jobs:
   law-pins:
     name: Browser law pins
     runs-on: [self-hosted, pubmax-mac]
-    timeout-minutes: 30
+    timeout-minutes: 46
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,16 +31,19 @@ jobs:
           persist-credentials: false
 
       - name: Setup Node
+        timeout-minutes: 5
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
       - name: Install Chromium
         uses: ./.github/actions/pubmax-mac-playwright
+
+      - name: Choose Playwright port
+        uses: ./.github/actions/pubmax-playwright-port
 
       - name: Run law-pinning journeys
         env:
@@ -95,16 +99,19 @@ jobs:
           persist-credentials: false
 
       - name: Setup Node
+        timeout-minutes: 5
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
       - name: Install Chromium
         uses: ./.github/actions/pubmax-mac-playwright
+
+      - name: Choose Playwright port
+        uses: ./.github/actions/pubmax-playwright-port
 
       - name: Run full browser shard
         env:

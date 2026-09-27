@@ -11,9 +11,10 @@
 // (2) no-mistakes reads `commands.*` ONLY from the `origin/main` copy of the
 // file, so a branch that edits this config is still tested by the old one.
 // (3) The Push step commits whatever a step leaves in the worktree. `verify`
-// rebuilds the slim shards, and in a git checkout they stamp the HEAD commit
-// over the committed `local` marker, which rewrote 279 tracked files in the
-// first proof run. The command must name the committed revision itself.
+// normally rebuilds slim shards before validate-data; when the builder has
+// moved ahead of what is checked in that rewrite dirties public/data. The
+// command sets PUBMAX_VERIFY_COMMITTED_DATA=1 to validate committed artifacts
+// and DEPLOYMENT_VERSION=local so a checkout never stamps HEAD over `local`.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -98,12 +99,15 @@ describe("the no-mistakes repository test command", () => {
     expect(coverageRuns(excluded)).toHaveLength(1);
   });
 
-  it("rebuilds the slim shards with the revision they are committed with", () => {
+  it("validates committed bundled data without regenerating slim shards", () => {
+    const { env } = splitTestCommand();
+    expect(env.PUBMAX_VERIFY_COMMITTED_DATA).toBe("1");
+
     const committed = JSON.parse(
       readFileSync(join(ROOT, "public/data/cities/bath/venues_slim.manifest.json"), "utf8"),
     ).revision;
     // A run worktree is a git checkout, so git always names a HEAD there.
-    const stamped = requireDataRevision(splitTestCommand().env, {
+    const stamped = requireDataRevision(env, {
       workingTreeSha: "0123456789abcdef0123456789abcdef01234567",
     });
 

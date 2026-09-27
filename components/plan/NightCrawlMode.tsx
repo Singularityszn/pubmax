@@ -49,7 +49,7 @@ import {
 } from "@/lib/nightModeHandoff";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import {
-  applyActivePlanFlushRollback,
+  applyActivePlanFlushRollbacks,
   enqueueNightCrawlAction,
   flushPlanMutationOutbox,
   hasPendingPlanMutation,
@@ -233,7 +233,6 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
         return;
       }
       if (result.outcome === "offline") return;
-      applyActivePlanFlushRollback(result);
       setOptimistic((previous) => {
         const next = { ...previous };
         delete next[result.stopPosition];
@@ -277,6 +276,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
   useEffect(() => {
     const flush = () => {
       void flushPlanMutationOutbox({ planId }).then((results) => {
+        applyActivePlanFlushRollbacks(results);
         for (const result of results) applyFlushResult(result);
       });
     };
@@ -358,7 +358,9 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
           queued,
         });
         setOptimistic(settled.optimistic);
-        setActivePlanStopIndex(settled.cursor);
+        if (settled.cursor !== previousCursor || readActivePlan()?.stopIndex === optimisticCursor) {
+          setActivePlanStopIndex(settled.cursor);
+        }
         setNote(settled.note);
       };
 

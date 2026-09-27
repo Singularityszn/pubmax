@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import { use, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import ClaimMomentWelcome from "@/components/profile/ClaimMomentWelcome";
@@ -40,6 +40,7 @@ import {
   ownUnlistedCrawlsLabel,
 } from "@/lib/authorCrawlList";
 import { syncDeviceHandle } from "@/lib/identityClient";
+import { isPubmaxxHandleImpersonationBlock } from "@/lib/pubmaxxIdentity";
 import { accountClaimReturnToFromUrl } from "@/lib/accountClaimReturnTo";
 import { BADGE_EVENTS } from "@/lib/badgeEvents";
 import {
@@ -897,11 +898,22 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // `isAnonymous` alone, so a signed-out visitor met "Claim this handle" under
   // a founding member's face, bio and number - and taking it wrote their handle
   // onto this device and opened the edit surface.
+  const handleReserved =
+    routeHandle !== "" &&
+    routeHandle !== YOU_SENTINEL &&
+    isPubmaxxHandleImpersonationBlock(routeHandle);
   const canAdoptHandle = handleIsAdoptable({
     read: publicRead,
     ownerProfile: stored,
     tombstoned: state === "gone",
+    profileWithdrawn: profileNotFound,
+    handleReserved,
   });
+  useEffect(() => {
+    if (!routeHandle || routeHandle === YOU_SENTINEL) return;
+    if (handleReserved || profileNotFound) notFound();
+  }, [routeHandle, handleReserved, profileNotFound]);
+
   // Signed-out /u/you: the viewer has no handle yet. This is an INVITATION, not a
   // profile — so it shows only the honest "make the night yours" intro + the
   // claim/account surface, never the pseudo-profile scaffolding (a "@you"

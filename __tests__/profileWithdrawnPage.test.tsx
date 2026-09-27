@@ -22,6 +22,9 @@ vi.mock("@/components/nav/SiteNavMore", () => ({ default: () => null }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: () => undefined, push: () => undefined, prefetch: () => undefined }),
   usePathname: () => "/u/test",
+  notFound: () => {
+    throw new Error("notFound");
+  },
 }));
 vi.mock("next/link", () => ({
   default: ({
@@ -105,21 +108,26 @@ let host: HTMLElement;
 let root: Root;
 
 async function visit(handle: string): Promise<string> {
+  let threw: unknown;
   await act(async () => {
-    root.render(
-      createElement(
-        Suspense,
-        { fallback: null },
-        createElement(ProfilePageClient, { params: Promise.resolve({ handle }) }),
-      ),
-    );
+    try {
+      root.render(
+        createElement(
+          Suspense,
+          { fallback: null },
+          createElement(ProfilePageClient, { params: Promise.resolve({ handle }) }),
+        ),
+      );
+    } catch (error) {
+      threw = error;
+    }
   });
-  // Let the profile read, its retry-free 404 and the state it sets settle.
   for (let i = 0; i < 5; i += 1) {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
   }
+  if (threw) throw threw;
   return host.textContent ?? "";
 }
 
@@ -161,25 +169,19 @@ describe("a withdrawn account's public profile page", () => {
     expect(text).toContain("Sign in to message");
   });
 
-  it("shows a stranger no follow or message shell, only what an empty handle shows", async () => {
+  it("shows a stranger no follow or message shell on a free handle only", async () => {
     const empty = await visit("never_existed_qa9");
     expect(empty).toContain("Claim this handle");
-
-    const withdrawn = await visit("karansdad");
-
-    expect(withdrawn).not.toContain("Sign in to follow");
-    expect(withdrawn).not.toContain("Sign in to message");
-    expect(withdrawn).toContain("Claim this handle");
   });
 
-  it("gives a signed-in reader nothing to follow or message", async () => {
+  it("calls notFound for a withdrawn or policy-blocked handle", async () => {
+    await expect(visit("karansdad")).rejects.toThrow("notFound");
+  });
+
+  it("gives a signed-in reader notFound on a withdrawn handle", async () => {
     session.user = { id: "viewer-1" };
     session.handle = "bob_bitter";
 
-    const withdrawn = await visit("karansdad");
-
-    expect(host.querySelector(".followBtn, [class*='follow' i] button")).toBeNull();
-    expect(withdrawn).not.toMatch(/\bFollow\b/);
-    expect(withdrawn).not.toMatch(/\bMessage\b/);
+    await expect(visit("karansdad")).rejects.toThrow("notFound");
   });
 });

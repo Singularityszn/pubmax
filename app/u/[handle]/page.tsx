@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
 import { identityHandleStore } from "@/lib/identityHandleStore";
+import { publicProfileRouteWithholdsNotFound } from "@/lib/profilePublicRoute.server";
 import { normalizeHandle } from "@/lib/profiles";
 
 import ProfilePageClient from "./ProfilePageClient";
@@ -24,6 +26,17 @@ type PageProps = { params: Promise<{ handle: string }> };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const requestedHandle = normalizeHandle((await params).handle);
+
+  if (
+    requestedHandle &&
+    requestedHandle !== YOU_SENTINEL &&
+    (await publicProfileRouteWithholdsNotFound(requestedHandle))
+  ) {
+    return {
+      title: "Page not found",
+      robots: { index: false, follow: false },
+    };
+  }
 
   // Missing / unusable handle, or the per-viewer "you" sentinel: keep it out of
   // search. Neither is a stable public profile URL worth indexing.
@@ -99,6 +112,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default function ProfilePage({ params }: PageProps) {
+export default async function ProfilePage({ params }: PageProps) {
+  const requestedHandle = normalizeHandle((await params).handle);
+  if (
+    requestedHandle &&
+    requestedHandle !== YOU_SENTINEL &&
+    (await publicProfileRouteWithholdsNotFound(requestedHandle))
+  ) {
+    notFound();
+  }
   return <ProfilePageClient params={params} />;
 }

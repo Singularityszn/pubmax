@@ -1,6 +1,7 @@
 "use client";
 
 import MapKey from "@/components/map/MapKey";
+import { formatGbp } from "@/lib/formatGbp";
 import type { MapPriceLegendModel } from "@/lib/mapPriceLegend";
 import { NO_PINT_PRICE_CAP } from "@/lib/venues";
 
@@ -38,7 +39,7 @@ export default function MobilePriceChoices({
                 aria-pressed={maxPrice === price}
                 onClick={() => onMaxPriceChange(price)}
               >
-                {price === NO_PINT_PRICE_CAP ? "Any" : `£${price.toFixed(2)}`}
+                {price === NO_PINT_PRICE_CAP ? "Any" : formatGbp(price)}
               </button>
             ))}
           </div>

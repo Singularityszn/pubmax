@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarClock, List, MapPinned, ShieldCheck, X } from "lucide-react";
+import { formatGbp } from "@/lib/formatGbp";
 import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -5755,7 +5756,7 @@ export default function PubMap({
         tonightNearReader={userLocation != null}
         tflCount={tflStatus.issueCount}
         tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
-        priceLabel={filters.maxPrice < NO_PINT_PRICE_CAP ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
+        priceLabel={filters.maxPrice < NO_PINT_PRICE_CAP ? `≤${formatGbp(filters.maxPrice)}` : "Price"}
         drinkFiltersActive={drinkFiltersActive}
         drinkLaneLabel={drinkLaneLabel(activeMapDrinkLane)}
         drinkLaneSelected={activeMapDrinkLane !== DEFAULT_DRINK_LANE}

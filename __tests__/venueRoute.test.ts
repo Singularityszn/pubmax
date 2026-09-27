@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { beforeEach, describe, expect, it } from "vitest";
@@ -6,6 +7,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { GET } from "@/app/api/venue/[id]/route";
 import {
   resetVenueDetailCachesForTests,
+  setVenueDetailIndexFileForTests,
   setVenueDetailRowsFileForTests,
 } from "@/lib/venueDetailIndex";
 import { resetVenueAliasesForTests } from "@/lib/venueAliases";
@@ -172,7 +174,22 @@ describe("GET /api/venue/[id]", () => {
 
   it("returns 503 when a known venue cannot be checked", async () => {
     const seed = slim.find((venue) => venue.id === "venue-16pnwmm") ?? slim[0];
-    setVenueDetailRowsFileForTests(path.join(ROOT, "data", "generated", "missing-details.jsonl"));
+    // The generated manifest is a gitignored build artifact. Without one the
+    // route takes the dev fallback and answers 200, so this case brings its own:
+    // the manifest names the pub and the rows file it points at is gone.
+    const dir = mkdtempSync(path.join(tmpdir(), "venue-route-"));
+    const manifest = path.join(dir, "venue_detail_index.json");
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        version: 1,
+        detailsFile: "venue_details.jsonl",
+        count: 1,
+        venues: { [seed.id]: { offset: 0, length: 64 } },
+      }),
+    );
+    setVenueDetailIndexFileForTests(manifest);
+    setVenueDetailRowsFileForTests(path.join(dir, "venue_details.jsonl"));
 
     const res = await GET(new Request(`http://localhost/api/venue/${seed.id}`), ctx(seed.id));
 
