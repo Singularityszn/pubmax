@@ -42,6 +42,133 @@ function systemPrompt(): string {
   ].join(" ");
 }
 
+type AskModelResponseBody = {
+  choices?: Array<{
+    message?: ChatMessage;
+    finish_reason?: string;
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+    cost?: number;
+  };
+};
+
+function askModelMessages(query: string, turns: AskTurn[] = []): ChatMessage[] {
+  const messages: ChatMessage[] = [{ role: "system", content: systemPrompt() }];
+  for (const turn of turns) {
+    if (turn.role === "user" || turn.role === "assistant") {
+      messages.push({ role: turn.role, content: turn.content.slice(0, 800) });
+    }
+  }
+  messages.push({ role: "user", content: query.slice(0, 500) });
+  return messages;
+}
+
+function askModelRequest(input: {
+  apiKey: string;
+  model: string;
+  messages: ChatMessage[];
+  signal: AbortSignal;
+}): RequestInit {
+  return {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${input.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: input.model,
+      temperature: 0,
+      max_tokens: MAX_TOKENS,
+      tools: askToolDefinitions(),
+      tool_choice: "auto",
+      messages: input.messages,
+      usage: { include: true },
+    }),
+    signal: input.signal,
+  };
+}
+
+export type ProbeAskModelToolChoiceResult = {
+  /** Names of the first three tool calls as the model sent them, in call order (not allowlist-filtered). */
+  tools: string[];
+  latencyMs: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  costUsd: number | null;
+  httpStatus?: number;
+  /** Transport failure (HTTP error, timeout, network). A reply with no tool calls is not an error. */
+  error?: string;
+};
+
+/**
+ * The first-round OpenRouter request `runAskModelLoop` sends for a fresh query,
+ * returning tool names only (no tool execution). For offline router evals.
+ */
+export async function probeAskModelToolChoice(input: {
+  query: string;
+  apiKey: string;
+  model: string;
+  fetchImpl?: typeof fetch;
+}): Promise<ProbeAskModelToolChoiceResult> {
+  const fetchImpl = input.fetchImpl ?? fetch;
+  const started = performance.now();
+  const empty = (): ProbeAskModelToolChoiceResult => ({
+    tools: [],
+    latencyMs: performance.now() - started,
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    costUsd: null,
+  });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const response = await fetchImpl(
+      OPENROUTER_URL,
+      askModelRequest({
+        apiKey: input.apiKey,
+        model: input.model,
+        messages: askModelMessages(input.query),
+        signal: controller.signal,
+      }),
+    );
+    const latencyMs = performance.now() - started;
+    if (!response.ok) {
+      return {
+        ...empty(),
+        latencyMs,
+        httpStatus: response.status,
+        error: `OpenRouter responded ${response.status}.`,
+      };
+    }
+    const body = (await response.json()) as AskModelResponseBody;
+    const tools = (body.choices?.[0]?.message?.tool_calls ?? [])
+      .slice(0, 3)
+      .map((call) => call.function?.name ?? "");
+    const cost = body.usage?.cost;
+    return {
+      tools,
+      latencyMs,
+      promptTokens: body.usage?.prompt_tokens ?? 0,
+      completionTokens: body.usage?.completion_tokens ?? 0,
+      totalTokens: body.usage?.total_tokens ?? 0,
+      costUsd: typeof cost === "number" && Number.isFinite(cost) ? cost : null,
+    };
+  } catch (error) {
+    return {
+      ...empty(),
+      error: error instanceof Error ? error.message : String(error),
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function parseArgs(raw: string): Record<string, unknown> {
   try {
     const parsed: unknown = JSON.parse(raw || "{}");
@@ -137,13 +264,7 @@ export async function runAskModelLoop(input: {
   const model =
     input.model ?? process.env.OPENROUTER_MODEL ?? DEFAULT_ASK_MODEL;
 
-  const messages: ChatMessage[] = [{ role: "system", content: systemPrompt() }];
-  for (const turn of input.turns ?? []) {
-    if (turn.role === "user" || turn.role === "assistant") {
-      messages.push({ role: turn.role, content: turn.content.slice(0, 800) });
-    }
-  }
-  messages.push({ role: "user", content: input.query.slice(0, 500) });
+  const messages = askModelMessages(input.query, input.turns);
 
   return traceArizeModelLoop({
     route: input.traceRoute ?? "ask/model-loop",
@@ -165,23 +286,10 @@ export async function runAskModelLoop(input: {
           tracedMessageCount = messages.length;
           let message: ChatMessage | undefined;
           try {
-            const response = await fetchImpl(OPENROUTER_URL, {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model,
-                temperature: 0,
-                max_tokens: MAX_TOKENS,
-                tools: askToolDefinitions(),
-                tool_choice: round === 0 ? "auto" : "auto",
-                messages,
-                usage: { include: true },
-              }),
-              signal: controller.signal,
-            });
+            const response = await fetchImpl(
+              OPENROUTER_URL,
+              askModelRequest({ apiKey, model, messages, signal: controller.signal }),
+            );
             if (!response.ok) {
               const error = new Error(`OpenRouter responded ${response.status}.`);
               roundSpan?.setError(error);
@@ -189,17 +297,7 @@ export async function runAskModelLoop(input: {
               setError(error);
               return toolResults.length ? { toolResults } : null;
             }
-            const body = (await response.json()) as {
-              choices?: Array<{
-                message?: ChatMessage;
-                finish_reason?: string;
-              }>;
-              usage?: {
-                prompt_tokens?: number;
-                completion_tokens?: number;
-                total_tokens?: number;
-              };
-            };
+            const body = (await response.json()) as AskModelResponseBody;
             message = body.choices?.[0]?.message;
             roundSpan?.setUsage({
               promptTokens: body.usage?.prompt_tokens,
