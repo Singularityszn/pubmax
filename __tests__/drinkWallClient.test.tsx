@@ -172,9 +172,10 @@ describe("a tile", () => {
     );
     await flush();
     expect(host.querySelectorAll(".drinkWallRemove")).toHaveLength(1);
-    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
 
     await act(async () => button("Remove").click());
+    expect(confirm).toHaveBeenCalledWith("Delete this photo for good? It comes off the Drink Wall.");
     const deletion = take((request) => request.url.pathname === "/api/venue-photos");
     expect(JSON.parse(String(deletion.init?.body))).toEqual({ action: "delete", id: "mine" });
     await act(async () =>
@@ -184,5 +185,21 @@ describe("a tile", () => {
 
     expect(host.querySelectorAll(".drinkWallTile")).toHaveLength(1);
     expect(host.querySelector(".drinkWallRemove")).toBeNull();
+  });
+
+  it("warns its author that a pub-linked photo also leaves that pub's wall", async () => {
+    take(wallRead(null)).resolve(
+      page([photo({ id: "mine", venueId: "v-anchor", venueName: "The Anchor", ownedByViewer: true })]),
+    );
+    await flush();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    await act(async () => button("Remove").click());
+
+    expect(confirm).toHaveBeenCalledWith(
+      "Delete this photo for good? It comes off the Drink Wall and its pub wall.",
+    );
+    expect(net.pending.some((request) => request.url.pathname === "/api/venue-photos")).toBe(false);
+    expect(host.querySelectorAll(".drinkWallTile")).toHaveLength(1);
   });
 });
