@@ -230,10 +230,12 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
     await guard<void>({
       context: "consume",
       onSchemaMiss: () =>
-        onMissingDurableWrite({
+        onMissingDurableWrite<void>({
           storeTag: "pub-pal-tool-turn",
           migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
-          fallback: () => memoryPubPalToolTurnStore.consume(conversationId),
+          fallback: async () => {
+            await memoryPubPalToolTurnStore.consume(conversationId);
+          },
         }),
       run: async () => {
         const { error } = await requireSupabaseAdmin()
