@@ -75,7 +75,8 @@ export async function invokePubPalAskTool(input: {
     typeof input.args.cityId === "string" ? input.args.cityId : turn?.cityId,
   );
 
-  const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query);
+  const threadTurns = turn?.turns ?? [];
+  const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, threadTurns);
   if (fenced) {
     const register = pubPalGetHomeRegisterAnswer("", sobrietyOnly);
     return {

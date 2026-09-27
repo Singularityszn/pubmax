@@ -157,7 +157,14 @@ export async function runPalElevenLabsChatTurn(
         conversationId =
           payload.conversation_initiation_metadata_event?.conversation_id?.trim() ?? "";
         if (conversationId) {
-          registerPubPalToolTurn(conversationId, { query, cityId });
+          registerPubPalToolTurn(conversationId, {
+            query,
+            cityId,
+            turns: turns.map((turn) => ({
+              role: turn.role,
+              content: turn.content,
+            })),
+          });
         }
         ws.send(JSON.stringify({ type: "user_message", text: query }));
         return;

@@ -34,7 +34,7 @@ Variables → Production, Preview). All four are server-only.
 |---|---|
 | `ELEVENLABS_API_KEY` | Account key. Never reaches the browser: `/api/pub-pal/voice-token` mints a short-lived signed session URL instead |
 | `ELEVENLABS_PUB_PAL_AGENT_ID` | The agent the script below creates |
-| `ELEVENLABS_LLM_SHARED_SECRET` | The secret ElevenLabs presents to `/api/pub-pal/llm`. Generate with `openssl rand -hex 32` |
+| `ELEVENLABS_LLM_SHARED_SECRET` | The secret ElevenLabs presents to `/api/pub-pal/tools/{name}` (and the legacy `/api/pub-pal/llm` bridge if still wired). Generate with `openssl rand -hex 32` |
 | `ELEVENLABS_VOICE_ROBIN` … `_CORGI` | One voice id per species (`lib/palElevenLabsVoice.ts`). Create with `npm run pubpal:design-voices` |
 | `ELEVENLABS_VOICE_EMBER` / `_VELVET` / `_SIGNAL` | The onboarding voice picks. When the slot for a Pal's pick is set it always wins; the species voice is used only when that slot is empty |
 
@@ -116,9 +116,9 @@ curl -s https://pubmaxxing.com/api/pub-pal/voice-token | jq .
 
 # Should answer 401 without the shared secret, never 200.
 curl -s -o /dev/null -w '%{http_code}\n' \
-  -X POST https://pubmaxxing.com/api/pub-pal/llm \
+  -X POST https://pubmaxxing.com/api/pub-pal/tools/search_venues \
   -H 'content-type: application/json' \
-  -d '{"messages":[{"role":"user","content":"cheapest pint in Camden"}]}'
+  -d '{"parameters":{"query":"cheapest pint in Camden"}}'
 ```
 
 Then open `/pal`, create a Pal, and press Start voice chat. The status line

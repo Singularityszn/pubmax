@@ -4,12 +4,14 @@
 
 import type { AskCard, AskProposal } from "@/lib/ask/types";
 import type { CityId } from "@/lib/cities";
+import type { PubPalFenceTurn } from "@/lib/pubPalLlmFence";
 
 const TTL_MS = 120_000;
 
 export type PubPalToolTurn = {
   query: string;
   cityId: CityId;
+  turns: PubPalFenceTurn[];
   expiresAt: number;
   cards: AskCard[];
   proposals: AskProposal[];
@@ -26,13 +28,14 @@ function prune(now: number): void {
 
 export function registerPubPalToolTurn(
   conversationId: string,
-  input: { query: string; cityId: CityId },
+  input: { query: string; cityId: CityId; turns?: PubPalFenceTurn[] },
 ): void {
   const now = Date.now();
   prune(now);
   turns.set(conversationId, {
     query: input.query,
     cityId: input.cityId,
+    turns: Array.isArray(input.turns) ? input.turns.slice(-6) : [],
     expiresAt: now + TTL_MS,
     cards: [],
     proposals: [],

@@ -1,9 +1,0 @@
-
-> pubmaxxing@0.1.0 pubpal:prove-text-tool
-> node scripts/pubpal/prove-pal-text-tool.mjs
-
-{
-  "toolSeen": true,
-  "agentTextLength": 228,
-  "agentTextPreview": "I am sorry, I cannot fulfil this request. The available tools lack the functionality to search for pubs based on their noise level. I can search for pubs in Clapham that have listed prices, but I cannot guarantee they are quiet."
-}

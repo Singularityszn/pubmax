@@ -40,15 +40,29 @@ export function isPubPalSobrietyOnlyIntent(text: string): boolean {
   return PUB_PAL_SOBRIETY_ONLY_RE.test(text.trim());
 }
 
-function regexFenceIntent(message: string): PubPalFenceIntent {
-  const trimmed = message.trim();
-  if (!isPubPalGetHomeOrSobrietyIntent(trimmed)) {
-    return { fenced: false, sobrietyOnly: false };
+function regexFenceIntent(
+  message: string,
+  recentTurns: PubPalFenceTurn[] = [],
+): PubPalFenceIntent {
+  const texts = [
+    message.trim(),
+    ...recentTurns
+      .filter((turn) => turn.role === "user")
+      .map((turn) => turn.content.trim())
+      .filter(Boolean),
+  ];
+  let sobrietyOnly = false;
+  for (const trimmed of texts) {
+    if (!isPubPalGetHomeOrSobrietyIntent(trimmed)) continue;
+    if (!isPubPalSobrietyOnlyIntent(trimmed)) {
+      return { fenced: true, sobrietyOnly: false };
+    }
+    sobrietyOnly = true;
   }
-  return {
-    fenced: true,
-    sobrietyOnly: isPubPalSobrietyOnlyIntent(trimmed),
-  };
+  if (sobrietyOnly) {
+    return { fenced: true, sobrietyOnly: true };
+  }
+  return { fenced: false, sobrietyOnly: false };
 }
 
 // Threshold from __tests__/fixtures/typesafe/pubPalFenceProbabilities.json (low bar: FN is harm).
@@ -84,7 +98,7 @@ export async function resolvePubPalFenceIntent(
   );
 
   if (!response) {
-    return regexFenceIntent(trimmed);
+    return regexFenceIntent(trimmed, recentTurns);
   }
 
   const fit =
@@ -96,7 +110,7 @@ export async function resolvePubPalFenceIntent(
     return typesafeIntent;
   }
 
-  return regexFenceIntent(trimmed);
+  return regexFenceIntent(trimmed, recentTurns);
 }
 
 /** Compose a plain register answer from grounded tool hints only. */

@@ -7,7 +7,7 @@ import {
   parsePubPalToolWebhookBody,
 } from "@/lib/pubPalToolInvoke.server";
 import { isLimited } from "@/lib/pintDrops";
-import { clientIp, hashIp } from "@/lib/supabase";
+import { hashIp } from "@/lib/supabase";
 
 const RATE_LIMIT = 60;
 const RATE_WINDOW_MS = 60_000;
@@ -21,17 +21,6 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     return publicApiError("That tool is not available.", "TOOL_NOT_ALLOWED", 404);
   }
 
-  const limiterKey = `pub-pal-tool:${hashIp(clientIp(request))}:${normalized}`;
-  if (
-    await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, {
-      failClosed: true,
-    })
-  ) {
-    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
-      retryable: true,
-    });
-  }
-
   const authDenied = assertPubPalLlmAuth(request);
   if (authDenied) return authDenied;
 
@@ -43,6 +32,17 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   }
 
   const { conversationId, args } = parsePubPalToolWebhookBody(body);
+  const limiterScope = conversationId?.trim() || "no-conversation";
+  const limiterKey = `pub-pal-tool:${hashIp(limiterScope)}:${normalized}`;
+  if (
+    await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, {
+      failClosed: true,
+    })
+  ) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
+  }
   const outcome = await invokePubPalAskTool({
     toolName: normalized,
     args,

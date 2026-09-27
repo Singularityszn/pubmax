@@ -273,21 +273,6 @@ function mergeConversationConfigOverride(existing, desired) {
   };
 }
 
-function agentPatchPayload(body) {
-  const prompt = { ...body.conversation_config.agent.prompt, custom_llm: null };
-  delete prompt.tools;
-  return {
-    ...body,
-    conversation_config: {
-      ...body.conversation_config,
-      agent: {
-        ...body.conversation_config.agent,
-        prompt,
-      },
-    },
-  };
-}
-
 function mergeAgentPatch(existingAgent, body) {
   const existingOverride =
     existingAgent.platform_settings?.overrides?.conversation_config_override;

@@ -7,6 +7,8 @@ import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 
+export const maxDuration = 30;
+
 const RATE_LIMIT = 20;
 const RATE_WINDOW_MS = 60_000;
 const MAX_QUERY_LENGTH = 500;

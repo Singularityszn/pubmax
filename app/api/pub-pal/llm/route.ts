@@ -13,23 +13,12 @@ import {
 } from "@/lib/pubPalLlmStream";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
-import { clientIp, hashIp } from "@/lib/supabase";
+import { hashIp } from "@/lib/supabase";
 
 const RATE_LIMIT = 30;
 const RATE_WINDOW_MS = 60_000;
 
 export async function POST(request: Request): Promise<Response> {
-  const limiterKey = `pub-pal-llm:${hashIp(clientIp(request))}`;
-  if (
-    await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, {
-      failClosed: true,
-    })
-  ) {
-    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
-      retryable: true,
-    });
-  }
-
   const authDenied = assertPubPalLlmAuth(request);
   if (authDenied) return authDenied;
 
@@ -59,6 +48,18 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const turns = extractAskTurns(record.messages);
+  const limiterKey = `pub-pal-llm:${hashIp(
+    turns.map((turn) => `${turn.role}:${turn.content}`).join("\n") || query,
+  )}`;
+  if (
+    await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, {
+      failClosed: true,
+    })
+  ) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
+  }
   const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, turns);
 
   const answerBody = await runAsk({
