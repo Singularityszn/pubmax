@@ -15,6 +15,7 @@ export type LondonCollagePhoto = {
   width: number;
   height: number;
   blurDataUrl: string;
+  /** Normalised [left, top, width, height] on the oriented source; applied at encode time only. */
   privacyBlurRects?: readonly (readonly [number, number, number, number])[];
 };
 
