@@ -27,14 +27,50 @@
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "../../lib/palVoiceCap.mjs";
 
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const AGENT_CONFIG = JSON.parse(
+  readFileSync(path.join(SCRIPT_DIR, "pub-pal-agent-config.json"), "utf8"),
+);
+
 const API = "https://api.elevenlabs.io/v1/convai";
+const TOOLS_API = `${API}/tools`;
 const SECRETS_API = "https://api.elevenlabs.io/v1/convai/secrets";
 const LLM_SECRET_NAME = "PUBMAXX_PUB_PAL_LLM_SECRET";
 const AGENT_NAME = "PUBMAXX Pub Pal";
 const MAX_SESSION_SECONDS = PAL_VOICE_MAX_SESSION_SECONDS;
+
+/** Short descriptions aligned with lib/ask/tools.ts allowlist. */
+const TOOL_DESCRIPTIONS = {
+  search_venues:
+    "Rank listed pubs by mood, area, group size, and budget. Never invents venues.",
+  whats_on:
+    "Look up sourced What's On listings (quiz, sport, deals) for tonight or a weekday.",
+  venue_heritage:
+    "Retrieve on-record heritage facts for a named listed pub. Never invents history.",
+  venue_prices:
+    "Read listed and corroborated people-logged prices for a pub. Never invents figures.",
+  city_status: "London live weather, tube, and city signals via CityMCP.",
+  journey: "Transit journey between two points or listed pubs via CityMCP.",
+  area_buzz: "Borough pint average and things to do tonight via CityMCP.",
+  propose_plan:
+    "Propose a three-stop draft from listed pubs. Saves nothing until the reader confirms in the app.",
+  propose_map_action:
+    "Propose opening a pub sheet or flying the map. User must confirm before anything moves.",
+  cheapest_pint_near:
+    "Cheapest listed pints around a named pub or London area. Never uses the reader's GPS.",
+  tonight_now:
+    "Sourced listings running now versus later tonight. Never claims live crowd levels.",
+  venue_drinks:
+    "Every drink logged at one listed pub with provenance. Never invents figures.",
+  find_desk:
+    "Places to sit and work from cafe, co-working and library rows only.",
+  report_occupancy:
+    "Propose a crowd report for a pub. Writes nothing until the reader confirms.",
+};
 
 function loadDotEnv() {
   for (const file of [".env.local", ".env"]) {
@@ -61,19 +97,12 @@ function fail(message) {
   process.exit(1);
 }
 
-/**
- * The prompt the agent runs under.
- *
- * It deliberately forbids the model from answering from its own knowledge: the
- * Custom LLM behind it already returns a grounded answer, so the agent's job is
- * to SPEAK it. A voice that improvises a price would spend the whole trust
- * argument the product rests on.
- */
 function systemPrompt() {
   return [
     "You are the Pub Pal, a London night companion on PUBMAXX.",
-    "Every answer you speak comes back from the PUBMAXX tools. Speak what they return and nothing else.",
+    "Call the PUBMAXX webhook tools before any factual answer. Speak what they return and nothing else.",
     "Never invent a pub, a price, an opening hour, or an event. If the tools say nothing is on record, say that.",
+    "Recent thread (if any): {{pubmax_recent_turns}}. City: {{pubmax_city_id}}.",
     "British spelling. No exclamation marks. No em dashes. Short sentences.",
     "You may propose a plan or a saved fact, but you never apply one. Say what you would do and ask the person to confirm it in the app.",
     "When the night turns to getting home, last trains, rides, or sobriety, switch to plain speech: one fact per sentence, no jokes, and hand off to the Getting Home tab.",
@@ -81,7 +110,61 @@ function systemPrompt() {
   ].join("\n");
 }
 
-function agentBody(llmUrl, secretId) {
+function webhookToolConfig(name, baseUrl, secretId) {
+  const description = TOOL_DESCRIPTIONS[name] ?? "PUBMAXX grounded tool.";
+  return {
+    type: "webhook",
+    name,
+    description,
+    response_timeout_secs: 20,
+    api_schema: {
+      url: `${baseUrl}/api/pub-pal/tools/${name}`,
+      method: "POST",
+      request_headers: {
+        "x-elevenlabs-llm-secret": { secret_id: secretId },
+        "Content-Type": "application/json",
+      },
+      request_body_schema: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "The user's question this tool call should answer.",
+          },
+        },
+      },
+    },
+  };
+}
+
+async function listWorkspaceTools(apiKey) {
+  const listed = await call("GET", `${TOOLS_API}?page_size=100`, apiKey);
+  return Array.isArray(listed.tools) ? listed.tools : [];
+}
+
+async function ensureWebhookTools(apiKey, baseUrl, secretId, dryRun) {
+  const names = AGENT_CONFIG.toolNames ?? [];
+  if (dryRun) {
+    return names.map((name) => `dry-run-tool:${name}`);
+  }
+  const existing = await listWorkspaceTools(apiKey);
+  const ids = [];
+  for (const name of names) {
+    const hit = existing.find((row) => row?.tool_config?.name === name);
+    const payload = { tool_config: webhookToolConfig(name, baseUrl, secretId) };
+    if (hit?.id) {
+      await call("PATCH", `${TOOLS_API}/${hit.id}`, apiKey, payload);
+      ids.push(hit.id);
+    } else {
+      const created = await call("POST", TOOLS_API, apiKey, payload);
+      if (!created.id) fail(`ElevenLabs returned no tool id for ${name}.`);
+      ids.push(created.id);
+    }
+  }
+  return ids;
+}
+
+function agentBody(toolIds) {
   const defaultVoice =
     process.env.ELEVENLABS_VOICE_FOX?.trim() ||
     process.env.ELEVENLABS_VOICE_ROBIN?.trim() ||
@@ -93,16 +176,8 @@ function agentBody(llmUrl, secretId) {
       agent: {
         prompt: {
           prompt: systemPrompt(),
-          // The whole point: our own grounded registry answers, not the
-          // provider's model. `custom_llm` carries the shared secret so
-          // /api/pub-pal/llm can refuse anybody else. ElevenLabs stores the raw
-          // secret in the workspace vault and resolves it at call time.
-          llm: "custom-llm",
-          custom_llm: {
-            url: llmUrl,
-            model_id: "pubmax-ask-grounded",
-            api_key: { secret_id: secretId },
-          },
+          llm: AGENT_CONFIG.llm,
+          tool_ids: toolIds,
         },
         first_message: "Hello, I'm your Pub Pal. What kind of night are you planning?",
         language: "en",
@@ -113,9 +188,6 @@ function agentBody(llmUrl, secretId) {
       ...(defaultVoice ? { tts: { voice_id: defaultVoice } } : {}),
     },
     platform_settings: {
-      // The voice-token grant sends each Pal's prompt, first message and
-      // species voice as session overrides; ElevenLabs drops any override the
-      // agent does not allow here.
       overrides: {
         conversation_config_override: {
           agent: {
@@ -127,41 +199,23 @@ function agentBody(llmUrl, secretId) {
       },
       privacy: {
         record_voice: false,
-        // ElevenLabs rejects custom_llm while zero_retention_mode is on, so
-        // the provider may retain conversation data under its default policy.
-        // Raw audio and transcripts are still never Pal memory (ADR 0006).
         retention_days: 0,
         delete_transcript_and_pii: true,
-        zero_retention_mode: false,
+        zero_retention_mode: true,
       },
     },
   };
   return { body, defaultVoice };
 }
 
-/**
- * A copy of the agent body with the Custom LLM secret held back.
- *
- * The dry run is the documented pre-flight, so its output lands in terminal
- * scrollback and in any CI log. The body only ever carries the workspace secret
- * locator, never the secret itself, and the locator is held back too.
- */
-function redactSecret(body) {
+function redactAgentPreview(body, baseUrl) {
   return {
     ...body,
-    conversation_config: {
-      ...body.conversation_config,
-      agent: {
-        ...body.conversation_config.agent,
-        prompt: {
-          ...body.conversation_config.agent.prompt,
-          custom_llm: {
-            ...body.conversation_config.agent.prompt.custom_llm,
-            api_key: { secret_id: "[redacted workspace secret locator]" },
-          },
-        },
-      },
-    },
+    webhook_tools: (AGENT_CONFIG.toolNames ?? []).map(
+      (name) => `${baseUrl}/api/pub-pal/tools/${name}`,
+    ),
+    llm: AGENT_CONFIG.llm,
+    llmCreditNote: AGENT_CONFIG.llmCreditNote,
   };
 }
 
@@ -264,24 +318,19 @@ async function main() {
     fail(`--base-url must be https (or http://localhost for a tunnel test). Got: ${baseUrl}`);
   }
 
-  const llmUrl = `${baseUrl}/api/pub-pal/llm`;
   const secretId = dryRun
     ? "dry-run-secret-locator"
     : await ensureWorkspaceLlmSecret(apiKey, secret);
-  const { body, defaultVoice } = agentBody(llmUrl, secretId);
+  const toolIds = await ensureWebhookTools(apiKey, baseUrl, secretId, dryRun);
+  const { body, defaultVoice } = agentBody(toolIds);
 
   if (dryRun) {
     console.log(
-      "Dry run. This is the agent that would be written, with the shared secret held back:\n",
+      "Dry run. This is the agent that would be written (secrets and tool ids held back):\n",
     );
-    console.log(
-      JSON.stringify(
-        { ...redactSecret(body), custom_llm_url: llmUrl },
-        null,
-        2,
-      ),
-    );
+    console.log(JSON.stringify(redactAgentPreview(body, baseUrl), null, 2));
     console.log("\nDefault voice resolved:", defaultVoice);
+    console.log("\nLLM:", AGENT_CONFIG.llm, "-", AGENT_CONFIG.llmCreditNote);
     return;
   }
 
@@ -292,13 +341,14 @@ async function main() {
     const patchBody = mergeAgentPatch(currentAgent, body);
     await call("PATCH", `${API}/agents/${existing}`, apiKey, patchBody);
     console.log(`✓ Updated agent ${existing}`);
-    console.log(`  Custom LLM: ${llmUrl}`);
+    console.log(`  LLM: ${AGENT_CONFIG.llm}`);
+    console.log(`  Webhook tools: ${toolIds.length}`);
   } else {
     const created = await call("POST", `${API}/agents/create`, apiKey, body);
     const agentId = created.agent_id ?? created.id;
     if (!agentId) fail("ElevenLabs returned no agent id.");
     console.log(`✓ Created agent ${agentId}`);
-    console.log(`  Custom LLM: ${llmUrl}`);
+    console.log(`  LLM: ${AGENT_CONFIG.llm}`);
     console.log(`\n  Set this on the deployment:\n    ELEVENLABS_PUB_PAL_AGENT_ID=${agentId}`);
   }
 

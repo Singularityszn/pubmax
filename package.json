@@ -62,6 +62,7 @@
     "build:heritage-listings": "node scripts/build_heritage_listings.mjs",
     "pubpal:agent": "node scripts/pubpal/create-elevenlabs-agent.mjs",
     "pubpal:design-voices": "node scripts/pubpal/design-pal-voices.mjs",
+    "pubpal:prove-text-tool": "node scripts/pubpal/prove-pal-text-tool.mjs",
     "gen:brand-assets": "node scripts/gen-brand-assets.mjs",
     "gen:store-screenshots": "node scripts/gen-store-screenshots.mjs",
     "ios:build": "node scripts/ios-simulator.mjs",

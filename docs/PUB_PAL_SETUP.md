@@ -13,10 +13,10 @@ source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
 
 | Surface | Keyless | Notes |
 |---|---|---|
-| `/pal/chat` text ask | Yes | Deterministic router picks one or two tools and answers from our own rows |
+| `/pal/chat` text ask | With ElevenLabs | Same agent as voice in text-only mode via `/api/pub-pal/chat` |
 | Map Ask | Yes | Same `/api/ask` path |
 | Concierge tools (prices, tonight, drinks, desk, crowd) | Yes | Every one of them reads a lane we already hold |
-| Model tool selection | No | Needs `OPENROUTER_API_KEY`; without it the deterministic router chooses the tools |
+| Model tool selection | ElevenLabs | Hosted LLM on the agent picks webhook tools; no OpenRouter |
 | Reader wording | Yes | House output comes from returned rows and hints; the model does not write the answer |
 | Voice | No | Needs the four ElevenLabs values below |
 
@@ -76,28 +76,18 @@ tunnel test). It is idempotent: with `ELEVENLABS_PUB_PAL_AGENT_ID` set it
 patches that agent, and without one it looks for an agent named
 `PUBMAXX Pub Pal` before creating a new one. Re-running never leaves two.
 
-It sets four things and nothing else:
+It reads `scripts/pubpal/pub-pal-agent-config.json` (model, tool allowlist)
+and PATCHes the agent plus workspace webhook tools. Each tool calls
+`<base-url>/api/pub-pal/tools/{name}` with `ELEVENLABS_LLM_SHARED_SECRET`
+(stored in the workspace vault as `PUBMAXX_PUB_PAL_LLM_SECRET`). Typed chat uses
+the same agent in text-only mode via `/api/pub-pal/chat`. Live proof after a
+real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
 
-1. **Custom LLM** pointed at `<base-url>/api/pub-pal/llm`. The shared secret
-   is stored in the ElevenLabs workspace secret vault as
-   `PUBMAXX_PUB_PAL_LLM_SECRET` (created or updated on each real run), and the
-   agent carries only its `secret_id`. That route runs the same source-backed
-   Night OS Ask path the text surface runs, so the voice cannot answer from the
-   provider's own model.
-2. **Retention**: voice recording is off and transcript deletion is requested,
-   but ElevenLabs refuses zero retention mode for custom-LLM agents, so it may
-   retain conversation data under its default policy. The token route reports
-   this as `retention: "provider_default"`. ADR 0006 is explicit that raw audio
-   and transcripts are never Pal memory.
-3. **Voices**, when their ids are set. The agent-level default is the first of
-   `ELEVENLABS_VOICE_FOX`, `_ROBIN` or `_EMBER` that is set. The agent allows
-   prompt, first message and voice session overrides, and each session
-   overrides the default with the caller's picked voice, or with the
-   species voice when that pick has no id, from `lib/palElevenLabsVoice.ts` /
-   `lib/palVoiceOverrides.ts`, so Pals sound distinct off one agent.
-4. **The house prompt**: speak what the tools return, never invent a price or
-   an hour, propose but never apply, and switch to plain speech on get-home
-   topics.
+1. **Hosted LLM** (`gemini-2.5-flash-lite` by default) on the ElevenLabs plan.
+2. **Webhook tools** for the ADR 0014 allowlist (same handlers as `/api/ask`).
+3. **Voices** and per-session `voice_id` overrides (unchanged).
+4. **House prompt**: call tools before any fact, never invent a price, propose
+   then confirm, plain speech on get-home topics.
 
 On a first create the script prints the agent id. Put it on the deployment as
 `ELEVENLABS_PUB_PAL_AGENT_ID` and redeploy.
