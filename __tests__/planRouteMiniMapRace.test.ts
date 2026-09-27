@@ -101,6 +101,9 @@ beforeEach(() => {
   document.body.append(host);
   root = createRoot(host);
   pending = [];
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+    getExtension: () => null,
+  } as unknown as WebGL2RenderingContext);
   vi.stubGlobal(
     "fetch",
     vi.fn((input: RequestInfo | URL) =>
@@ -115,6 +118,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = false;
 });
 
@@ -130,6 +134,16 @@ describe("PlanRouteMiniMap request identity", () => {
 
     expect(host.querySelector('[data-testid="plan-crawl-route-map"]')).not.toBeNull();
     expect(host.querySelector(".planRouteMiniMap__title")?.textContent).toContain("Route map:");
+  });
+
+  it("renders no card and fetches nothing when the browser has no WebGL2", async () => {
+    vi.mocked(HTMLCanvasElement.prototype.getContext).mockReturnValue(null);
+    await act(async () => {
+      root.render(createElement(PlanRouteMiniMap, { stops: PLAN_A, mapHref: "/map" }));
+    });
+
+    expect(pending).toHaveLength(0);
+    expect(host.querySelector(".planRouteMiniMap")).toBeNull();
   });
 
   it("does not let a late previous route paint while a new plan resolves", async () => {

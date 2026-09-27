@@ -15,6 +15,7 @@ import {
   type ResolvedPlanCrawlRoute,
 } from "@/lib/planCrawlRouteMap";
 import { discardBody } from "@/lib/responseBody";
+import { probeWebGl2 } from "@/components/map/canvas/webgl";
 
 const PlanCrawlRouteMapCanvas = dynamic(
   () => import("@/components/map/canvas/PlanCrawlRouteMapCanvas"),
@@ -90,6 +91,7 @@ export default function PlanRouteMiniMap({
   const descId = useId();
 
   useEffect(() => {
+    if (!probeWebGl2().hasContext) return;
     const controller = new AbortController();
     void fetchStopCoords(stops, controller.signal).then((next) => {
       if (controller.signal.aborted) return;

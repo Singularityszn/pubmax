@@ -1284,6 +1284,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
    than a blank panel — pinned to the route-line hue at a whisper of opacity. */
 .planRouteMiniMap--clickable {
   display: block;
+  cursor: pointer;
   color: inherit;
   text-decoration: none;
   border-radius: var(--radius-lg, 18px);

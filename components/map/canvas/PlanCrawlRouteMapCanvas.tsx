@@ -74,14 +74,7 @@ export default function PlanCrawlRouteMapCanvas({
       bearing: PREVIEW_BEARING,
       maxBounds: UK_BOUNDS,
       attributionControl: { compact: true, customAttribution: OSM_ATTRIBUTION },
-      scrollZoom: false,
-      boxZoom: false,
-      dragRotate: false,
-      dragPan: false,
-      keyboard: false,
-      doubleClickZoom: false,
-      touchZoomRotate: false,
-      touchPitch: false,
+      interactive: false,
     });
     mapRef.current = map;
     // MapLibre opens the compact attribution expanded and only collapses it on
