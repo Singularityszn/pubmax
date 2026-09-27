@@ -57,14 +57,22 @@ if (stderr) {
   process.stderr.write(stderr);
 }
 
+if (!result.stdout?.trim()) {
+  console.error("semgrep produced no JSON output");
+  process.exit(1);
+}
+
 let payload;
 try {
-  payload = JSON.parse(result.stdout ?? "{}");
+  payload = JSON.parse(result.stdout);
 } catch {
   console.error("semgrep returned invalid JSON");
-  if (result.stdout) {
-    process.stdout.write(result.stdout);
-  }
+  process.stdout.write(result.stdout);
+  process.exit(1);
+}
+
+if (typeof payload.version !== "string") {
+  console.error("semgrep: output missing Semgrep JSON envelope (version)");
   process.exit(1);
 }
 
@@ -97,7 +105,7 @@ if (toolErrors.length > 0) {
         : (err.message ?? err.short_msg ?? err.long_msg ?? JSON.stringify(err));
     console.error(`  ${message}`);
   }
-  process.exit(result.status === null ? 1 : result.status ?? 1);
+  process.exit(1);
 }
 
 if (result.status !== 0) {
