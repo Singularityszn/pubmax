@@ -79,9 +79,11 @@ import {
 import { listEnabledCities, type CityId } from "@/lib/cities";
 import { getNightAreasForCity } from "@/lib/nightAreas";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
-
-// Web Share support never changes within a page lifetime, so no updates arrive.
-const subscribeToNothing = () => () => {};
+import {
+  readWebShareAvailable,
+  serverWebShareAvailable,
+  subscribeWebShare,
+} from "@/lib/webShareAvailable";
 
 const DAYPART_LABELS: Record<NightProfileInput["context"]["daypart"], string> = {
   daytime: "Daytime",
@@ -388,9 +390,9 @@ export default function PubmaxxAccountHub() {
   }, [accountRevision]);
 
   const shareSupported = useSyncExternalStore(
-    subscribeToNothing,
-    () => typeof navigator.share === "function",
-    () => false,
+    subscribeWebShare,
+    readWebShareAvailable,
+    serverWebShareAvailable,
   );
 
   useEffect(() => {

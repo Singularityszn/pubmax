@@ -103,6 +103,7 @@ describe("externally trusted signing keys", () => {
     vi.stubEnv("PW_SCREENSHOTS", "");
     vi.stubEnv("PW_SKIP_WEBSERVER", "");
     vi.stubEnv("PW_SKIP_KEYLESS_WEBSERVER", "1");
+    vi.stubEnv("PW_PORT", "3100");
     vi.resetModules();
 
     const config = (await import("../playwright.config")).default;
