@@ -1,10 +1,11 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import {
   ANALYTICS_EVENTS,
+  LOOP_MOMENT_EVENTS,
   MISSION_OUTCOMES,
   VENUE_SHEET_LAYERS,
   sanitizeEvent,
@@ -149,6 +150,70 @@ describe("the tracking plan document", () => {
   it("keeps a named owner action for each number on the weekly view", () => {
     for (const owner of ["Captain:", "Map owner:", "Price owner:", "Engineer on call:"]) {
       expect(TRACKING_PLAN).toContain(owner);
+    }
+  });
+});
+
+describe("the no-emitter list (plan section 6)", () => {
+  // The same literal-call sweep __tests__/loopMomentEvents.test.ts runs for the
+  // six loop moments, widened to every registered name: section 6 of the plan
+  // is the promise that these events read zero forever, so a name drifting in
+  // either direction (registered but never sent and not listed, or listed
+  // while an emitter exists) is a finding a dashboard cannot tell from the
+  // truth.
+  const EMITTER_PATTERNS = [
+    /trackEvent\(\s*(['"`])([a-z_0-9]+)\1/g,
+    /useLoopMoment\(\s*(['"`])([a-z_0-9]+)\1/g,
+  ];
+
+  function emittedNames(): Set<string> {
+    const found = new Set<string>();
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(join(ROOT, dir))) {
+        if (entry === "node_modules" || entry.startsWith(".")) continue;
+        const relative = join(dir, entry);
+        if (statSync(join(ROOT, relative)).isDirectory()) {
+          walk(relative);
+        } else if (/\.(ts|tsx)$/.test(entry)) {
+          const source = read(relative);
+          for (const pattern of EMITTER_PATTERNS) {
+            for (const match of source.matchAll(pattern)) found.add(match[2]);
+          }
+        }
+      }
+    };
+    for (const dir of ["app", "components", "lib"]) walk(dir);
+    return found;
+  }
+
+  /** The names section 6 lists, narrowed to names the registry actually has. */
+  function planNoEmitterNames(): string[] {
+    const section = TRACKING_PLAN.slice(
+      TRACKING_PLAN.indexOf("## 6. Registered with no emitter today"),
+      TRACKING_PLAN.indexOf("## 7."),
+    );
+    return [...new Set(
+      [...section.matchAll(/`([a-z_0-9]+)`/g)]
+        .map((match) => match[1])
+        .filter((name) => name in ANALYTICS_EVENTS),
+    )];
+  }
+
+  it("names exactly the registered events nothing in app, components or lib emits", () => {
+    const emitted = emittedNames();
+    const unregistered = [...emitted].filter((name) => !(name in ANALYTICS_EVENTS));
+    expect(unregistered, `unregistered emitters: ${unregistered.join(", ")}`).toEqual([]);
+
+    const actual = Object.keys(ANALYTICS_EVENTS)
+      .filter((name) => !emitted.has(name))
+      .sort();
+    expect(planNoEmitterNames().sort()).toEqual(actual);
+  });
+
+  it("is exactly 18 names, and none of the six loop moments is on it", () => {
+    expect(planNoEmitterNames()).toHaveLength(18);
+    for (const event of LOOP_MOMENT_EVENTS) {
+      expect(planNoEmitterNames()).not.toContain(event);
     }
   });
 });
