@@ -73,20 +73,12 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node
+        timeout-minutes: 5
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-
-      - name: Cache node_modules
-        id: cache-node-modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
 
       - name: Install dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci
 
       # A budget is a ratchet, and this is the pawl. When the gate fails, the
@@ -120,6 +112,9 @@ jobs:
       # is comparable to the one before it.
       - name: Install Chromium
         uses: ./.github/actions/pubmax-mac-playwright
+
+      - name: Choose Playwright port
+        uses: ./.github/actions/pubmax-playwright-port
 
       # Playwright's webServer builds and starts the production build itself
       # (playwright.config.ts owns the env the keyless routes need). Measuring a
@@ -196,7 +191,7 @@ jobs:
     name: UX lane performance
     needs: [performance-budget]
     runs-on: [self-hosted, pubmax-mac]
-    timeout-minutes: 15
+    timeout-minutes: 17
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -204,24 +199,19 @@ jobs:
           persist-credentials: false
 
       - name: Setup Node
+        timeout-minutes: 5
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-
-      - name: Cache node_modules
-        id: cache-node-modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
 
       - name: Install dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Install Chromium
         uses: ./.github/actions/pubmax-mac-playwright
+
+      - name: Choose Playwright port
+        uses: ./.github/actions/pubmax-playwright-port
 
       - name: Report UX lane routes
         env:

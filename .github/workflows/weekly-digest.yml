@@ -27,9 +27,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
+        timeout-minutes: 5
         with:
           node-version: "22"
-          cache: npm
       - run: npm ci
       - name: Verify digest contract (generator + provider seam)
         run: npm test -- __tests__/weeklyDigest.test.ts __tests__/emailProvider.test.ts

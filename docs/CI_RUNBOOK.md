@@ -6,9 +6,10 @@ check layer.
 
 ## Self-hosted runner (`pubmax-mac`)
 
-While GitHub-hosted minutes are billing-locked, PR and scheduled jobs run on the
-repo runner **`karan-mac-pubmax`** with labels `self-hosted`, `macOS`, `ARM64`,
-and **`pubmax-mac`**. Workflows use:
+While GitHub-hosted minutes are billing-locked, PR and scheduled jobs run on
+self-hosted repo runners that share one Mac (among them **`karan-mac-pubmax`**),
+each with labels `self-hosted`, `macOS`, `ARM64`, and **`pubmax-mac`**.
+Workflows use:
 
 ```yaml
 runs-on: [self-hosted, pubmax-mac]
@@ -44,7 +45,13 @@ concurrency:
 
 The group is **per git ref**, not repo-wide. A repo-wide group once queued ancient runs from other branches and blocked every pull request for hours.
 
-Each workflow has its own group so CI, browser tests, and RLS do not cancel each other on the same push. A new pull request push cancels that pull request's superseded run. Main pushes, the nightly browser suite and manual dispatches never cancel, and the event name in the group keeps the nightly run from queuing behind a main push. The runner should still execute one job at a time; `ci.yml` chains jobs so a single CI run does not parallelize writers.
+Each workflow has its own group so CI, browser tests, and RLS do not cancel each other on the same push. A newer pull request head supersedes that pull request's older runs on the shared runner, so rerun the latest workflow run for the current head rather than an older one: a rerun of a superseded run can cancel the current run. Main pushes, the nightly browser suite and manual dispatches never cancel, and the event name in the group keeps the nightly run from queuing behind a main push. The runner should still execute one job at a time; `ci.yml` chains jobs so a single CI run does not parallelize writers.
+
+Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, `rls-session.yml`, and the Playwright jobs in `performance.yml` are set to about **2× the p95** duration observed on the last ~50 self-hosted runs (measured with `gh run list` and `gh api …/jobs`), with floors on the freshness gate (20 minutes) and Coverage (30 minutes). Raise a ceiling only when measured p95 under shared-runner load justifies it; see `perf/AGENTS.md`.
+
+Playwright jobs take `PW_PORT` from `.github/actions/pubmax-playwright-port`. The action uses `PW_PORT` from the runner's `.env` when set; otherwise it hashes `RUNNER_NAME` into one of 90 ports (3100-3990, step 10). Two runner names can still land on the same port, so set an explicit, distinct `PW_PORT` in each runner's `.env` on a shared Mac.
+
+Do **not** use `cache: npm` on `actions/setup-node` or `actions/cache` for `node_modules` on `pubmax-mac` jobs. Restoring those caches from GitHub's cache service can stall ~20 minutes and fail authentication on self-hosted runners; each Mac already keeps npm tarballs under `~/.npm`. Setup Node steps use `timeout-minutes: 5` so a stuck restore fails fast.
 
 `ci.yml` also chains jobs (`production-build` after lint + freshness, unit
 shards `max-parallel: 1`, coverage after unit tests).
@@ -75,7 +82,7 @@ gh run list --workflow self-hosted-probe.yml --limit 1
 gh api repos/Singularityszn/pubmax/actions/jobs/<job-id> --jq .runner_name
 ```
 
-Expect `karan-mac-pubmax`.
+Expect one of the `pubmax-mac` runners on the shared Mac, such as `karan-mac-pubmax`.
 
 ## Scheduled work split
 

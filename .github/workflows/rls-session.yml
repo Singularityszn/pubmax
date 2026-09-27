@@ -16,7 +16,8 @@ permissions:
 
 concurrency:
   # One group per workflow, event and ref (repo-wide group blocked other branches).
-  # Only pull request runs cancel superseded runs; main, nightly and dispatch runs finish.
+  # A newer pull request head supersedes older runs on the shared runner; main,
+  # nightly and dispatch runs finish. Rerun the latest run for the current head.
   group: ${{ github.workflow }}-pubmax-mac-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
@@ -25,17 +26,17 @@ jobs:
   rls-session:
     name: Effective RLS (Postgres 16 + PostgREST 14)
     runs-on: [self-hosted, pubmax-mac]
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node
+        timeout-minutes: 5
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Install dependencies
         run: npm ci
