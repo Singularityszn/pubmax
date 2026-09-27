@@ -72,7 +72,7 @@ type VenuePhotoWallQuery = {
   /** The signed-in account, so a tile can say "yours". Never a body claim. */
   viewerProfileId?: string | null;
 };
-export type DrinkWallListQuery = {
+type DrinkWallListQuery = {
   category?: DrinkWallCategory;
   cursor?: string | null;
   limit?: number;

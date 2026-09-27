@@ -222,7 +222,7 @@ export function drinkWallServingKey(photoId: string): string {
   return `${DRINK_WALL_STORAGE_PREFIX}/${photoId}.jpg`;
 }
 
-export function drinkWallStagingKey(photoId: string): string {
+function drinkWallStagingKey(photoId: string): string {
   return `${DRINK_WALL_STORAGE_PREFIX}/${photoId}.staging.jpg`;
 }
 
@@ -230,7 +230,7 @@ export function isDrinkWallServingKey(photoId: string, objectKey: string): boole
   return objectKey === drinkWallServingKey(photoId);
 }
 
-export function drinkWallServePath(photoId: string): string {
+function drinkWallServePath(photoId: string): string {
   return `/api/drink-wall-photo/${encodeURIComponent(photoId)}`;
 }
 

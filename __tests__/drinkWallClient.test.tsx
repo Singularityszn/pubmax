@@ -26,6 +26,13 @@ function send(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   });
 }
 
+vi.mock("@/lib/venuesSlim", () => ({
+  loadSlimVenues: async () => [
+    { id: "venue-far", name: "Far", lat: 51.6, lng: -0.3, cheapestPrice: null, borough: "Barnet" },
+    { id: "venue-near", name: "Near", lat: 51.5081, lng: -0.0981, cheapestPrice: null, borough: "Southwark" },
+  ],
+}));
+
 vi.mock("@/lib/authedFetch", () => ({
   authedFetch: (input: RequestInfo | URL, init?: RequestInit) => send(input, init),
   authedActionFetch: (input: RequestInfo | URL, init?: RequestInit) => send(input, init),
@@ -146,6 +153,29 @@ describe("Near me while the location is still coming", () => {
       expect(host.querySelectorAll(".drinkWallTile")).toHaveLength(0);
       expect(host.querySelector(".drinkWallStatus")?.textContent).toBe("Loading the wall");
       expect(net.pending).toHaveLength(0);
+    } finally {
+      Reflect.deleteProperty(navigator, "geolocation");
+    }
+  });
+});
+
+describe("Near me with the location granted", () => {
+  it("reads the wall for the pubs nearest the reader, nearest first", async () => {
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition: (ok: PositionCallback) =>
+          ok({ coords: { latitude: 51.508, longitude: -0.098 } } as GeolocationPosition),
+      },
+    });
+    try {
+      take(wallRead(null)).resolve(page([]));
+      await flush();
+      await act(async () => button("Near me").click());
+      await flush();
+
+      const near = take((request) => request.url.searchParams.get("scope") === "near");
+      expect(near.url.searchParams.get("nearVenueIds")).toBe("venue-near,venue-far");
     } finally {
       Reflect.deleteProperty(navigator, "geolocation");
     }
