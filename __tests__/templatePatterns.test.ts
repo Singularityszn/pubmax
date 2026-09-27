@@ -80,6 +80,7 @@ const FUNCTIONAL_TRANSLUCENCY = [
  * sentence each. Each file here was read; each row is one of those.
  */
 const THREE_COLUMN_CONTROLS = [
+  "components/drink-wall/drinkWall.css", // photo grid
   "components/map/mapExperienceLens.css", // lens option buttons
   "components/mobile/mobileMapShell.css", // drink shape chips
   "components/moment/moment.css", // decorator action buttons
