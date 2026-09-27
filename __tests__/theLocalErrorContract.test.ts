@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const ROOT = new URL("..", import.meta.url).pathname;
@@ -12,6 +13,7 @@ function routeFiles(directory: string): string[] {
 }
 
 const ALL_ROUTES = routeFiles(join(ROOT, "app/api"));
+const APP_ROUTE_FILES = routeFiles(join(ROOT, "app"));
 // ---------------------------------------------------------------------------
 // Static call scanner: find JSON-emitting calls that carry an `error:` payload
 // field and a 4xx/5xx status, without executing the route.
@@ -243,11 +245,64 @@ const LIMITER_EXEMPT_REFUSAL_ROUTES = new Set([
 // browser SDK reads its status, never a JSON body.
 const MUTATING_METHODS = ["POST", "PUT", "PATCH", "DELETE"] as const;
 
+function hasExportModifier(node: ts.Node): boolean {
+  return ts.canHaveModifiers(node)
+    && (ts.getModifiers(node) ?? []).some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword);
+}
+
+/** Exported route handler names, or `indirect` when the module re-exports without listing them. */
+function exportedRouteHandlerNames(source: string, file: string): string[] | "indirect" {
+  const sourceFile = ts.createSourceFile(
+    file,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const names: string[] = [];
+
+  for (const statement of sourceFile.statements) {
+    if (ts.isExportDeclaration(statement)) {
+      if (statement.isTypeOnly) continue;
+      if (!statement.exportClause) return "indirect";
+      if (!ts.isNamedExports(statement.exportClause)) {
+        names.push(statement.exportClause.name.text);
+        continue;
+      }
+      for (const element of statement.exportClause.elements) {
+        if (!element.isTypeOnly) names.push(element.name.text);
+      }
+      continue;
+    }
+    if (ts.isExportAssignment(statement)) return "indirect";
+    if (!hasExportModifier(statement)) continue;
+    if (ts.isVariableStatement(statement)) {
+      for (const declaration of statement.declarationList.declarations) {
+        if (ts.isIdentifier(declaration.name)) names.push(declaration.name.text);
+      }
+      continue;
+    }
+    if (ts.isFunctionDeclaration(statement) && statement.name) {
+      names.push(statement.name.text);
+    }
+  }
+
+  return names;
+}
+
 // ONE ANSWER TO "DOES THIS ROUTE MUTATE": the handlers the module really
-// exports. A source scan would miss a handler exported indirectly.
+// exports. A static export scan is enough for every route today; `export *` /
+// `export =` still fall back to a runtime import so an indirect handler cannot
+// hide.
 async function exportsMutatingHandler(load: () => Promise<unknown>): Promise<boolean> {
   const mod = (await load()) as Record<string, unknown>;
   return MUTATING_METHODS.some((method) => typeof mod[method] === "function");
+}
+
+async function routeExportsMutatingHandler(file: string, source: string): Promise<boolean> {
+  const exported = exportedRouteHandlerNames(source, file);
+  if (exported === "indirect") return exportsMutatingHandler(() => import(file));
+  return MUTATING_METHODS.some((method) => exported.includes(method));
 }
 
 describe("app/api rate limiting (tree-wide)", () => {
@@ -266,11 +321,12 @@ describe("app/api rate limiting (tree-wide)", () => {
 
   it("references a rate limiter (or a named delegation) in every non-cron mutating route", async () => {
     const failures: string[] = [];
-    for (const file of routeFiles(join(ROOT, "app"))) {
+    for (const file of APP_ROUTE_FILES) {
       if (file.includes("/cron/")) continue;
       if (LIMITER_EXEMPT_REFUSAL_ROUTES.has(relative(ROOT, file))) continue;
-      if (!(await exportsMutatingHandler(() => import(file)))) continue;
-      if (consultsLimiter(readFileSync(file, "utf8"))) continue;
+      const source = readFileSync(file, "utf8");
+      if (!(await routeExportsMutatingHandler(file, source))) continue;
+      if (consultsLimiter(source)) continue;
       failures.push(relative(ROOT, file));
     }
     expect(failures, failures.join("\n")).toEqual([]);
