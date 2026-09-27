@@ -226,10 +226,6 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
         startSession({
           signedUrl: grant.signedUrl,
           connectionType: "websocket",
-          onConnect: ({ conversationId }) => {
-            conversationIdRef.current = conversationId;
-            void syncVoiceToolTurn({ conversationId });
-          },
           onMessage: ({ role, message }) => {
             const conversationId = conversationIdRef.current;
             const content = message.trim();
@@ -253,7 +249,9 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
                   : {}),
               }
             : undefined,
-          onConnect: () => {
+          onConnect: ({ conversationId }) => {
+            conversationIdRef.current = conversationId;
+            void syncVoiceToolTurn({ conversationId });
             if (!ownsAttempt(attempt)) return;
             startController.settle();
             setIsStarting(false);

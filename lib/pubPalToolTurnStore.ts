@@ -3,10 +3,16 @@ import "server-only";
 import type { AskCard, AskProposal } from "@/lib/ask/types";
 import type { CityId } from "@/lib/cities";
 import type { PubPalFenceTurn } from "@/lib/pubPalLlmFence";
-import { createDualBackendStore, createFailSoftGuard } from "@/lib/storeBackend";
+import {
+  createDualBackendStore,
+  createFailSoftGuard,
+  onMissingDurableWrite,
+} from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
 export const PUB_PAL_TOOL_TURN_TTL_MS = 120_000;
+
+const PUB_PAL_TOOL_TURN_MIGRATION_HINT = "apply migration 0158";
 
 export type PubPalToolTurn = {
   query: string;
@@ -119,7 +125,7 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
 const { guard, resetWarnings } = createFailSoftGuard({
   tag: "pub-pal-tool-turn",
   tables: "pub_pal_tool_turns",
-  migrationHint: "apply migration 0158",
+  migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
 });
 
 type ToolTurnRow = {
@@ -132,7 +138,12 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
   async register(conversationId, input) {
     await guard<void>({
       context: "register",
-      onSchemaMiss: () => memoryPubPalToolTurnStore.register(conversationId, input),
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "pub-pal-tool-turn",
+          migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
+          fallback: () => memoryPubPalToolTurnStore.register(conversationId, input),
+        }),
       message: "register failed — using process memory",
       onError: () => undefined,
       run: async () => {
@@ -159,7 +170,13 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
   async read(conversationId) {
     return guard<PubPalToolTurn | null>({
       context: "read",
-      onSchemaMiss: () => memoryPubPalToolTurnStore.read(conversationId),
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "pub-pal-tool-turn",
+          migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
+          fallback: () => memoryPubPalToolTurnStore.read(conversationId),
+          onProduction: async () => null,
+        }),
       message: "read failed — treating as miss",
       onError: () => null,
       run: async () => {
@@ -181,7 +198,12 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
   async append(conversationId, patch) {
     await guard<void>({
       context: "append",
-      onSchemaMiss: () => memoryPubPalToolTurnStore.append(conversationId, patch),
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "pub-pal-tool-turn",
+          migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
+          fallback: () => memoryPubPalToolTurnStore.append(conversationId, patch),
+        }),
       message: "append failed — skipped",
       onError: () => undefined,
       run: async () => {
@@ -211,7 +233,12 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
     if (!turn) return null;
     await guard<void>({
       context: "consume",
-      onSchemaMiss: () => memoryPubPalToolTurnStore.consume(conversationId),
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "pub-pal-tool-turn",
+          migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
+          fallback: () => memoryPubPalToolTurnStore.consume(conversationId),
+        }),
       message: "consume delete failed",
       onError: () => undefined,
       run: async () => {
