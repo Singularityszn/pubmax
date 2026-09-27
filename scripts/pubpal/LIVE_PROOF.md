@@ -3,8 +3,8 @@
 Production does not yet expose `/api/pub-pal/tools/*`, so this proof used:
 
 - Local dev on port 3005
-- Public tunnel: `https://rotten-bushes-raise.loca.lt`
-- `npm run pubpal:agent -- --base-url https://rotten-bushes-raise.loca.lt` (temporary webhook URLs)
+- Public tunnel to local dev (localtunnel; hostname omitted from docs)
+- `npm run pubpal:agent -- --base-url <tunnel-url>` (temporary webhook URLs only for proof)
 - `npm run pubpal:prove-text-tool`
 
 Evidence (`toolSeen: true` — agent invoked a server webhook tool during text-only mode):
