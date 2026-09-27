@@ -40,14 +40,14 @@ collisions, flaky `venueRoute` reads, and Playwright's
 ```yaml
 concurrency:
   group: ${{ github.workflow }}-pubmax-mac-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action == 'synchronize' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 ```
 
 The group is **per git ref**, not repo-wide. A repo-wide group once queued ancient runs from other branches and blocked every pull request for hours.
 
-Each workflow has its own group so CI, browser tests, and RLS do not cancel each other on the same push. Only a **new commit** on a pull request (`synchronize`) cancels that pull request's superseded run; reruns and `workflow_dispatch` do not cancel an in-flight run for the same ref. Main pushes, the nightly browser suite and manual dispatches never cancel, and the event name in the group keeps the nightly run from queuing behind a main push. The runner should still execute one job at a time; `ci.yml` chains jobs so a single CI run does not parallelize writers.
+Each workflow has its own group so CI, browser tests, and RLS do not cancel each other on the same push. A newer pull request head supersedes that pull request's older runs on the shared runner, so rerun the latest workflow run for the current head rather than an older one: a rerun of a superseded run can cancel the current run. Main pushes, the nightly browser suite and manual dispatches never cancel, and the event name in the group keeps the nightly run from queuing behind a main push. The runner should still execute one job at a time; `ci.yml` chains jobs so a single CI run does not parallelize writers.
 
-Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, and `rls-session.yml` are set to about **2× the p95** duration observed on the last ~50 self-hosted runs (measured with `gh run list` and `gh api …/jobs`), with a floor on the freshness gate (20 minutes). Raise a ceiling only when measured p95 under shared-runner load justifies it; see `perf/AGENTS.md`.
+Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, and `rls-session.yml` are set to about **2× the p95** duration observed on the last ~50 self-hosted runs (measured with `gh run list` and `gh api …/jobs`), with floors on the freshness gate (20 minutes) and Coverage (30 minutes). Raise a ceiling only when measured p95 under shared-runner load justifies it; see `perf/AGENTS.md`.
 
 Playwright jobs take `PW_PORT` from `.github/actions/pubmax-playwright-port`. The action uses `PW_PORT` from the runner's `.env` when set; otherwise it hashes `RUNNER_NAME` into one of 90 ports (3100-3990, step 10). Two runner names can still land on the same port, so set an explicit, distinct `PW_PORT` in each runner's `.env` on a shared Mac.
 
@@ -80,7 +80,7 @@ gh run list --workflow self-hosted-probe.yml --limit 1
 gh api repos/Singularityszn/pubmax/actions/jobs/<job-id> --jq .runner_name
 ```
 
-Expect `karan-mac-pubmax`.
+Expect one of the `pubmax-mac` runners on the shared Mac, such as `karan-mac-pubmax`.
 
 ## Scheduled work split
 

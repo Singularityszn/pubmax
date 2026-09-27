@@ -18,10 +18,10 @@ permissions:
 
 concurrency:
   # One group per workflow, event and ref (repo-wide group blocked other branches).
-  # Only a new commit on a pull request cancels a superseded run; reruns and
-  # workflow_dispatch must not cancel an in-flight run for the same ref.
+  # A newer pull request head supersedes older runs on the shared runner; main,
+  # nightly and dispatch runs finish. Rerun the latest run for the current head.
   group: ${{ github.workflow }}-pubmax-mac-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action == 'synchronize' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 
 jobs:
