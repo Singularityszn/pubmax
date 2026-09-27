@@ -8,6 +8,7 @@ import "./map/mapCameraControls.css";
 import * as maplibregl from "maplibre-gl";
 
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
+import { probeWebGl2 } from "@/components/map/canvas/webgl";
 import {
   Crosshair,
   MapPinned,
@@ -510,25 +511,6 @@ const PUB_PIN_LAYERS = [
   "cluster-count",
 ] as const;
 
-function probeWebGl2(): { hasContext: boolean; status: string } {
-  let status = "";
-  try {
-    const canvas = document.createElement("canvas");
-    canvas.addEventListener(
-      "webglcontextcreationerror",
-      (event) => {
-        status = (event as WebGLContextEvent).statusMessage || status;
-      },
-      { once: true },
-    );
-    const context = canvas.getContext("webgl2");
-    const hasContext = Boolean(context);
-    context?.getExtension("WEBGL_lose_context")?.loseContext();
-    return { hasContext, status };
-  } catch {
-    return { hasContext: false, status };
-  }
-}
 
 
 

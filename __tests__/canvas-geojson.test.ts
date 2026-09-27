@@ -7,10 +7,9 @@ import {
   pubsToGeoJSON,
   routeToLine,
   routeToStops,
-  truncateStopName,
-  ROUTE_STOP_LABEL_MAX,
   bandCorridorGeoJSON,
 } from "@/components/map/canvas/geojson";
+import { truncateStopName, ROUTE_STOP_LABEL_MAX } from "@/lib/routeStopLabel";
 import type { VenueSignal } from "@/components/map/canvas/types";
 import { summariseWhatsOnByVenue } from "@/lib/whatsOnBadges";
 import {

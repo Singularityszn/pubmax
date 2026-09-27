@@ -1,10 +1,9 @@
-// Pure geometry for the plan-page route mini-map (components/plan/PlanRouteMiniMap).
-//
-// The mini-map is a lightweight, self-contained SVG — no MapLibre mount, no
-// tiles, no basemap. It projects a crawl's ordered stop coordinates (and the
-// routed walking line the /api/walk-route endpoint returns) into a fixed SVG
-// viewBox with a simple equirectangular fit + padding, styled as an abstract
-// transit diagram rather than a street map.
+// Pure route geometry shared by the plan-page route card
+// (components/plan/PlanRouteMiniMap), the walk-route client and the static SVG
+// mini-maps. The plan card itself is a MapLibre preview (lib/planCrawlRouteMap);
+// it takes its coordinate types, bounds, stop query and walk-route line parsing
+// from here. The projection helpers fit coordinates into a fixed SVG viewBox
+// with a simple equirectangular fit + padding for the SVG mini-maps.
 //
 // Everything here is pure and framework-free so the projection/fit maths is
 // unit-testable with no network and no React (mirrors lib/routeLegs.ts).

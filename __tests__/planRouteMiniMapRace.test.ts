@@ -4,6 +4,17 @@ import { createElement, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
+vi.mock("@/components/map/canvas/PlanCrawlRouteMapCanvas", async () => {
+  const React = await import("react");
+  return {
+    default: () => React.createElement("div", { "data-testid": "plan-crawl-route-map" }),
+  };
+});
+
 import PlanRouteMiniMap from "@/components/plan/PlanRouteMiniMap";
 
 type Stop = { venueId: string; venueName: string; position: number };
@@ -90,6 +101,9 @@ beforeEach(() => {
   document.body.append(host);
   root = createRoot(host);
   pending = [];
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+    getExtension: () => null,
+  } as unknown as WebGL2RenderingContext);
   vi.stubGlobal(
     "fetch",
     vi.fn((input: RequestInfo | URL) =>
@@ -104,11 +118,12 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = false;
 });
 
 describe("PlanRouteMiniMap request identity", () => {
-  it("frames routed detour vertices inside the padded viewport", async () => {
+  it("mounts the MapLibre route preview once stops resolve", async () => {
     await act(async () => {
       root.render(createElement(PlanRouteMiniMap, { stops: PLAN_A }));
     });
@@ -117,27 +132,18 @@ describe("PlanRouteMiniMap request identity", () => {
       { id: "venue-b", latitude: 51.52, longitude: -0.13 },
     ]);
 
+    expect(host.querySelector('[data-testid="plan-crawl-route-map"]')).not.toBeNull();
+    expect(host.querySelector(".planRouteMiniMap__title")?.textContent).toContain("Route map:");
+  });
+
+  it("renders no card and fetches nothing when the browser has no WebGL2", async () => {
+    vi.mocked(HTMLCanvasElement.prototype.getContext).mockReturnValue(null);
     await act(async () => {
-      resolvePending(
-        "/api/walk-route?",
-        routeResponse([
-          [-0.14, 51.51],
-          [-0.16, 51.515],
-          [-0.13, 51.52],
-        ]),
-      );
-      await Promise.resolve();
+      root.render(createElement(PlanRouteMiniMap, { stops: PLAN_A, mapHref: "/map" }));
     });
 
-    const path = host.querySelector<SVGPathElement>(".planRouteMiniMap__line");
-    const values = path?.getAttribute("d")?.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
-    expect(values).toHaveLength(6);
-    for (let index = 0; index < values.length; index += 2) {
-      expect(values[index]).toBeGreaterThanOrEqual(26);
-      expect(values[index]).toBeLessThanOrEqual(294);
-      expect(values[index + 1]).toBeGreaterThanOrEqual(26);
-      expect(values[index + 1]).toBeLessThanOrEqual(150);
-    }
+    expect(pending).toHaveLength(0);
+    expect(host.querySelector(".planRouteMiniMap")).toBeNull();
   });
 
   it("does not let a late previous route paint while a new plan resolves", async () => {
@@ -174,10 +180,10 @@ describe("PlanRouteMiniMap request identity", () => {
     ]);
 
     expect(host.querySelector(".planRouteMiniMap")).not.toBeNull();
-    expect(host.querySelector(".planRouteMiniMap desc")?.textContent).toContain(
+    expect(host.querySelector(".planRouteMiniMap__srOnly")?.textContent).toContain(
       "Third pub, Fourth pub",
     );
-    expect(host.querySelector(".planRouteMiniMap desc")?.textContent).not.toContain(
+    expect(host.querySelector(".planRouteMiniMap__srOnly")?.textContent).not.toContain(
       "First pub",
     );
   });
@@ -191,7 +197,7 @@ describe("PlanRouteMiniMap request identity", () => {
       { id: "venue-b", latitude: 51.52, longitude: -0.13 },
     ]);
 
-    expect(host.querySelector(".planRouteMiniMap desc")?.textContent).toContain(
+    expect(host.querySelector(".planRouteMiniMap__srOnly")?.textContent).toContain(
       "First pub, Second pub",
     );
 
@@ -208,10 +214,10 @@ describe("PlanRouteMiniMap request identity", () => {
       { id: "venue-b", latitude: 51.52, longitude: -0.13 },
     ]);
 
-    expect(host.querySelector(".planRouteMiniMap desc")?.textContent).toContain(
+    expect(host.querySelector(".planRouteMiniMap__srOnly")?.textContent).toContain(
       "Renamed first pub, Renamed second pub",
     );
-    expect(host.querySelector(".planRouteMiniMap desc")?.textContent).not.toContain(
+    expect(host.querySelector(".planRouteMiniMap__srOnly")?.textContent).not.toContain(
       "First pub",
     );
   });

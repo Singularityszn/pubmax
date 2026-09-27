@@ -749,7 +749,7 @@ export function buildPois(ctx: SceneCtx) {
   });
 }
 
-function buildRoute(ctx: SceneCtx) {
+export function buildRoute(ctx: SceneCtx) {
   const { map, tokens, dark, addLayerOnce, routeLine } = ctx;
   // --- Crawl route: a high-contrast walking line that follows real roads.
   // Three layers off the one `route-line` source, whose single LineString
@@ -1376,7 +1376,7 @@ export function buildPubs(ctx: SceneCtx) {
   });
 }
 
-function buildRouteStops(ctx: SceneCtx) {
+export function buildRouteStops(ctx: SceneCtx) {
   const { map, tokens, dark, textFont, addLayerOnce, routeStops } = ctx;
   // --- Route stops (numbered) above everything.
   if (!map.getSource("route-stops")) {

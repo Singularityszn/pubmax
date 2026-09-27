@@ -113,11 +113,14 @@ export default function PlanRoute({
           Get-in estimate for {groupSize === 1 ? "one" : groupSize} going. Never a guarantee of entry.
         </p>
       ) : null}
-      {/* Static route mini-map (T8): the crawl drawn as numbered discs on the
-          walking line, straight-then-routed with the same solid/dashed honesty
-          rule as the big map. Degrades to nothing when it can't locate ≥2 stops,
-          so the deep link below always stands on its own. */}
-      {stops.length >= 2 ? <PlanRouteMiniMap stops={stops} /> : null}
+      {/* Route card (T8): a read-only MapLibre preview of the crawl, numbered
+          stops on the walking line, straight-then-routed with the same
+          solid/dashed honesty rule as the big map. Tapping it opens the same
+          map deep link. Degrades to nothing when it can't locate ≥2 stops or
+          WebGL2 is unavailable, so the deep link below always stands on its own. */}
+      {stops.length >= 2 ? (
+        <PlanRouteMiniMap stops={stops} mapHref={walkRouteHref} />
+      ) : null}
       {walkRouteHref ? (
         <Link className="planRoute__walk" href={walkRouteHref}>
           See the walking route
