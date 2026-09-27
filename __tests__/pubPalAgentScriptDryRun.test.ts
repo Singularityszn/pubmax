@@ -76,7 +76,7 @@ describe("pubpal:agent dry run", () => {
     expect(body.webhook_tools).toContain(
       "https://pubmaxxing.com/api/pub-pal/tools/search_venues",
     );
-    expect(body.platform_settings.privacy.retention_days).toBe(0);
+    expect(body.platform_settings.privacy.retention_days).toBe(-1);
     expect(body.platform_settings.privacy.zero_retention_mode).toBe(true);
     expect(body.platform_settings.overrides.conversation_config_override).toEqual({
       agent: { prompt: { prompt: true }, first_message: true },
