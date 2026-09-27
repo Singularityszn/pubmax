@@ -112,9 +112,22 @@ describe("build scripts", () => {
   });
 
   it("regenerates bundled data artifacts before data validation", () => {
-    expect(packageJson.scripts?.["prevalidate-data"]).toBe(
-      "npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base",
+    expect(packageJson.scripts?.["prevalidate-data"]).toBe("node scripts/prevalidate-data.mjs");
+  });
+
+  it("skips bundled-data regeneration when validating committed artifacts", () => {
+    const result = spawnSync(
+      "node",
+      [path.join(ROOT, "scripts", "prevalidate-data.mjs")],
+      {
+        cwd: ROOT,
+        encoding: "utf8",
+        env: { ...process.env, PUBMAX_VERIFY_COMMITTED_DATA: "1" },
+      },
     );
+    if (result.error) throw result.error;
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("SKIP prevalidate-data");
   });
 
   it("regenerates the UK place search index with the UK base layer", () => {
