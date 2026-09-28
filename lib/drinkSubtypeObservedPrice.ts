@@ -27,6 +27,28 @@ export const SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS = [
   "soft-drink-still-water",
 ] as const;
 
+/** Subtype lens after folding legacy zero-sugar cola leaf ?sub= values to the family chip. */
+export function softDrinksWaterSubtypeIdFromParam(sub?: string | null): string {
+  const hit = findSubtype(sub?.trim());
+  if (!hit || hit.category !== "soft-drink") {
+    return SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID;
+  }
+  return drinkSubtypeFamilyParentId(hit.id) ?? hit.id;
+}
+
+/** When set, replace the URL to this subtype id (legacy leaf links). */
+export function softDrinksWaterLegacyLeafRedirectSubtypeId(
+  sub?: string | null,
+): string | null {
+  const trimmed = sub?.trim();
+  if (!trimmed) return null;
+  const hit = findSubtype(trimmed);
+  if (!hit || hit.category !== "soft-drink") return null;
+  const parent = drinkSubtypeFamilyParentId(hit.id);
+  if (!parent) return null;
+  return parent;
+}
+
 /** Chip order for the soft-drinks view; leaf cola brands stay classifiable but not chip-visible. */
 export function softDrinksWaterChipSubtypes(
   launchSubtypeIds: readonly string[] = SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS,

@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import DrinkSubtypePricedView, {
   DEFAULT_SOFT_DRINKS_WATER_LAUNCH_IDS,
 } from "@/components/drinks/DrinkSubtypePricedView";
 import SiteNav from "@/components/nav/SiteNav";
-import { SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS } from "@/lib/drinkSubtypeObservedPrice";
-import { findSubtype } from "@/lib/drinkSubtypes";
+import {
+  softDrinksWaterLegacyLeafRedirectSubtypeId,
+  softDrinksWaterSubtypeIdFromParam,
+} from "@/lib/drinkSubtypeObservedPrice";
 import { loadSoftDrinksWaterView } from "@/lib/drinkSubtypePricedView.server";
 
 import "@/components/drinks/drinkSubtypePricedView.css";
@@ -24,15 +26,16 @@ export const metadata: Metadata = {
   alternates: { canonical: "/soft-drinks-and-water" },
 };
 
-function defaultSubtype(sub?: string): string {
-  const hit = findSubtype(sub?.trim());
-  if (hit?.category === "soft-drink") return hit.id;
-  return SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS[0];
-}
-
 export default async function SoftDrinksAndWaterPage({ searchParams }: PageProps) {
   const { sub } = await searchParams;
-  const subtypeId = defaultSubtype(sub);
+  const legacyRedirect = softDrinksWaterLegacyLeafRedirectSubtypeId(sub);
+  if (legacyRedirect) {
+    redirect(
+      `/soft-drinks-and-water?sub=${encodeURIComponent(legacyRedirect)}`,
+      "replace",
+    );
+  }
+  const subtypeId = softDrinksWaterSubtypeIdFromParam(sub);
   const payload = await loadSoftDrinksWaterView(subtypeId);
   if (!payload) notFound();
 
