@@ -242,8 +242,21 @@ export function securityProxy(request: NextRequest) {
         NextResponse.redirect(canonicalUrl, 308),
       );
     }
-    const refused = serverEnvRefusalResponse();
-    if (refused) return applyNonProductionRobotsTag(refused);
+    // F-10: misconfigured durable-store refusal is for the canonical host only.
+    // Cron and webhooks hit the deployment *.vercel.app host and must not 503
+    // here when preview-style env is absent on a production-labelled deploy.
+    if (requestHostname(request) === CANONICAL_HOST) {
+      const refused = serverEnvRefusalResponse();
+      if (refused) {
+        return applyNonProductionRobotsTag(
+          new NextResponse(refused.body, {
+            status: refused.status,
+            statusText: refused.statusText,
+            headers: refused.headers,
+          }),
+        );
+      }
+    }
     return applyNonProductionRobotsTag(NextResponse.next());
   }
   if (shouldRedirectVercelHost(request)) {
