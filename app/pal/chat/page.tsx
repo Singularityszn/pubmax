@@ -8,9 +8,9 @@ export const metadata: Metadata = {
     "Ask for pub picks and what's on. Pub and event picks show their source.",
 };
 
-// /pal/chat — a chat skin over the existing grounded concierge engine. Reachable
-// by URL this cycle (nav entry is a follow-up, owned by Lane A). Reuses the
-// durably rate-limited /api/ask route; no new backend surface.
+// /pal/chat — chat skin over the Pub Pal ElevenLabs agent (`/api/pub-pal/chat`,
+// ADR 0014). Reachable by URL this cycle (nav entry is a follow-up, owned by
+// Lane A).
 export default function PalChatPage() {
   return <PalChat />;
 }

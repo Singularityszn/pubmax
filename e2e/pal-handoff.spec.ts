@@ -4,8 +4,9 @@ import { test, expect } from "@playwright/test";
 // no deployment ever set, so the "Use this Venue" affordance and the locality
 // line were dark. The flag is retired and the handoff is the only behaviour.
 //
-// Asserting the affordance itself needs a deterministic /api/ask answer, which
-// the keyless e2e environment does not guarantee (the concierge is LLM-backed).
+// Asserting the affordance itself needs a deterministic `/api/pub-pal/chat`
+// answer, which the keyless e2e environment does not guarantee (ElevenLabs
+// agent keys are not configured).
 // That path is covered by __tests__/palChatAccept.test.ts. What this spec owns
 // is that the page mounts and carries the handoff build's own chrome.
 

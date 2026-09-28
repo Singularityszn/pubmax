@@ -1,6 +1,6 @@
 # Pal ElevenLabs live proof (2026-09-27)
 
-Production does not yet expose `/api/pub-pal/tools/*`, so this proof used:
+This pre-deploy proof ran before `/api/pub-pal/tools/*` was live in production:
 
 - Local dev on port 3005
 - Public tunnel to local dev (localtunnel; hostname omitted from docs)

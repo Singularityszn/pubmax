@@ -1,22 +1,21 @@
-// Pub Pal chat — pure answer shaping over the EXISTING grounded concierge
-// engine (`lib/concierge/*`, served by `/api/ask`). The /pal/chat surface is a
-// chat SKIN: the user
-// asks in natural language, the engine runs its deterministic intent parse +
-// deterministic rank over our own rows (or a grounded What's-On lookup), and
-// the ANSWER CARDS ARE THE FACTS — each keeping its provenance label.
+// Pub Pal chat — pure answer shaping for grounded cards returned by
+// `POST /api/pub-pal/chat` (ElevenLabs agent + ADR 0014 webhook tools). The
+// /pal/chat surface is a chat SKIN: the user asks in natural language, webhook
+// tools read our own rows, and ANSWER CARDS ARE THE FACTS — each keeping its
+// provenance label.
 //
 // This module holds ONLY pure normalisation so it is unit-testable in a node
-// environment (no React, no server imports, no clock). It maps either concierge
-// response shape into provenance-carrying chat cards. It NEVER invents a venue,
-// price, or listing: a card is only shaped from fields the engine attested, and
-// a listing with no honest source label is dropped rather than shown bare.
+// environment (no React, no server imports, no clock). It maps chat and legacy
+// concierge response shapes into provenance-carrying cards. It NEVER invents a
+// venue, price, or listing: a card is only shaped from fields a handler attested,
+// and a listing with no honest source label is dropped rather than shown bare.
 //
-// House-voice, deterministic connective copy only. No model narration runs here
-// (the server `narrated` seam stays OFF until a key is funded); the client never
-// requests it, so every message below is written in house, not generated.
+// `palAnswerFromBody` keeps house-voice captions for legacy concierge bodies;
+// the live chat route returns the agent message plus cards. The client never
+// requests OpenRouter `narrated` mode.
 //
-// In-thread turns may be resent to `/api/ask` for refinement (ADR 0014). Durable
-// Pal memory stays confirm-gated (ADR 0006) and is never written from chat.
+// In-thread turns may be resent to `/api/pub-pal/chat` for refinement (ADR 0014).
+// Durable Pal memory stays confirm-gated (ADR 0006) and is never written from chat.
 
 // Which grounded source a card came from. `directory` = our own first-party
 // venue index (deterministic rank); `whats-on` = a verified What's-On row that
