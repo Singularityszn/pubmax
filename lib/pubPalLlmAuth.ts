@@ -1,4 +1,5 @@
-// Shared-secret gate for the Pub Pal Custom LLM bridge (ElevenLabs → /api/pub-pal/llm).
+// Shared-secret gate for ElevenLabs Pub Pal webhooks (/api/pub-pal/tools/* and
+// legacy /api/pub-pal/llm).
 // Fail closed in production when the secret is unset; callers must present the same
 // value via Authorization Bearer or the dedicated header.
 
