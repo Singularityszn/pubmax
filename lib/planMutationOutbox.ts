@@ -274,72 +274,87 @@ function markEntry(
  * Flush every pending outbox row. Concurrent callers share one in-flight run so
  * a second plan is not starved while the first flush is busy; results are
  * filtered to `planId` when requested.
+ *
+ * `notify()` during `markEntry` may re-enter flush while a run is in flight; the
+ * shared promise keeps that to one POST per idempotency key. After a run, a
+ * microtask follow-up flush runs only for pending rows enqueued during that run
+ * (not rows left pending after offline/5xx in the opening snapshot).
  */
 export function flushPlanMutationOutbox(options?: {
   planId?: string;
   signal?: AbortSignal;
 }): Promise<PlanMutationFlushResult[]> {
   if (!flushPromise) {
-    const run = (async (): Promise<PlanMutationFlushResult[]> => {
-      hydrate();
-      // Always drain the full queue so concurrent plan-scoped callers share work.
-      const pending = listPlanMutationOutbox().filter((row) => row.status === "pending");
-      const results: PlanMutationFlushResult[] = [];
-      for (const entry of pending) {
-        if (options?.signal?.aborted) break;
-        markEntry(entry, { attempts: entry.attempts + 1, lastAttemptAt: Date.now() });
-        try {
-          const response = await fetch(entry.path, {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-              "idempotency-key": entry.idempotencyKey,
-            },
-            body: JSON.stringify(entry.body),
-            keepalive: true,
-            signal: options?.signal,
-          });
-          const status = response.status;
-          const body = (await response.json().catch(() => null)) as PlanState | null;
-          if (status === 409) {
-            markEntry(entry, { status: "conflict", lastHttpStatus: status });
-            results.push(resultFromEntry(entry, "conflict"));
-            continue;
+    flushPromise = Promise.resolve().then(async (): Promise<PlanMutationFlushResult[]> => {
+      let snapshotPendingIds = new Set<string>();
+      try {
+        hydrate();
+        // Always drain the full queue so concurrent plan-scoped callers share work.
+        const pending = listPlanMutationOutbox().filter((row) => row.status === "pending");
+        snapshotPendingIds = new Set(pending.map((row) => row.id));
+        const results: PlanMutationFlushResult[] = [];
+        for (const entry of pending) {
+          if (options?.signal?.aborted) break;
+          markEntry(entry, { attempts: entry.attempts + 1, lastAttemptAt: Date.now() });
+          try {
+            const response = await fetch(entry.path, {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                "idempotency-key": entry.idempotencyKey,
+              },
+              body: JSON.stringify(entry.body),
+              keepalive: true,
+              signal: options?.signal,
+            });
+            const status = response.status;
+            const body = (await response.json().catch(() => null)) as PlanState | null;
+            if (status === 409) {
+              markEntry(entry, { status: "conflict", lastHttpStatus: status });
+              results.push(resultFromEntry(entry, "conflict"));
+              continue;
+            }
+            const outcome = classifyActionOutcome(status);
+            if (outcome === "confirmed") {
+              removePlanMutationOutboxEntry(entry.id);
+              results.push(
+                resultFromEntry(
+                  entry,
+                  "confirmed",
+                  body && Array.isArray(body.stops) ? body : undefined,
+                ),
+              );
+              continue;
+            }
+            if (outcome === "forbidden") {
+              markEntry(entry, { status: "forbidden", lastHttpStatus: status });
+              results.push(resultFromEntry(entry, "forbidden"));
+              continue;
+            }
+            if (outcome === "rejected") {
+              markEntry(entry, { status: "rejected", lastHttpStatus: status });
+              results.push(resultFromEntry(entry, "rejected"));
+              continue;
+            }
+            // offline / 5xx - keep pending
+            markEntry(entry, { lastHttpStatus: status });
+            results.push(resultFromEntry(entry, "offline"));
+          } catch {
+            results.push(resultFromEntry(entry, "offline"));
           }
-          const outcome = classifyActionOutcome(status);
-          if (outcome === "confirmed") {
-            removePlanMutationOutboxEntry(entry.id);
-            results.push(
-              resultFromEntry(
-                entry,
-                "confirmed",
-                body && Array.isArray(body.stops) ? body : undefined,
-              ),
-            );
-            continue;
-          }
-          if (outcome === "forbidden") {
-            markEntry(entry, { status: "forbidden", lastHttpStatus: status });
-            results.push(resultFromEntry(entry, "forbidden"));
-            continue;
-          }
-          if (outcome === "rejected") {
-            markEntry(entry, { status: "rejected", lastHttpStatus: status });
-            results.push(resultFromEntry(entry, "rejected"));
-            continue;
-          }
-          // offline / 5xx - keep pending
-          markEntry(entry, { lastHttpStatus: status });
-          results.push(resultFromEntry(entry, "offline"));
-        } catch {
-          results.push(resultFromEntry(entry, "offline"));
         }
+        return results;
+      } finally {
+        flushPromise = null;
+        queueMicrotask(() => {
+          const hasPendingNotInSnapshot = listPlanMutationOutbox().some(
+            (row) => row.status === "pending" && !snapshotPendingIds.has(row.id),
+          );
+          if (hasPendingNotInSnapshot) {
+            void flushPlanMutationOutbox();
+          }
+        });
       }
-      return results;
-    })();
-    flushPromise = run;
-    void run.finally(() => {
-      if (flushPromise === run) flushPromise = null;
     });
   }
   return flushPromise.then((results) =>

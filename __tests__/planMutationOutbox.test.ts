@@ -10,6 +10,7 @@ import {
   hasPendingPlanMutation,
   listPlanMutationOutbox,
   PLAN_MUTATION_OUTBOX_KEY,
+  subscribePlanMutationOutbox,
 } from "@/lib/planMutationOutbox";
 
 const stop = { venueId: "venue-1", venueName: "The Bull", position: 0 };
@@ -158,6 +159,107 @@ describe("planMutationOutbox", () => {
     const results = await flushPlanMutationOutbox({ planId: "plan-1" });
     expect(results[0]?.outcome).toBe("conflict");
     expect(listPlanMutationOutbox("plan-1")[0]?.status).toBe("conflict");
+  });
+
+  it("one tap sends one POST when notify re-enters flush during markEntry", async () => {
+    const unsub = subscribePlanMutationOutbox(() => {
+      void flushPlanMutationOutbox();
+    });
+    try {
+      await enqueueNightCrawlAction({
+        planId: "plan-1",
+        type: "arrived",
+        stop,
+        idempotencyKey: "key-1",
+        fingerprint: "fp-1",
+        previousCursor: 0,
+        optimisticCursor: 1,
+      });
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+      await vi.waitFor(() => expect(listPlanMutationOutbox("plan-1")).toHaveLength(0));
+      expect(fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      unsub();
+    }
+  });
+
+  it("does not microtask re-flush when offline leaves the same row pending", async () => {
+    const unsub = subscribePlanMutationOutbox(() => {
+      void flushPlanMutationOutbox();
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("offline");
+      }),
+    );
+    try {
+      await enqueueNightCrawlAction({
+        planId: "plan-1",
+        type: "arrived",
+        stop,
+        idempotencyKey: "key-offline",
+        fingerprint: "fp-offline",
+        previousCursor: 0,
+        optimisticCursor: 1,
+      });
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(hasPendingPlanMutation("plan-1")).toBe(true);
+    } finally {
+      unsub();
+    }
+  });
+
+  it("drains a tap queued while an earlier flush is in flight", async () => {
+    const unsub = subscribePlanMutationOutbox(() => {
+      void flushPlanMutationOutbox();
+    });
+    const stopB = { venueId: "venue-2", venueName: "The Fox", position: 1 };
+    const resolvers: Array<(response: Response) => void> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolvers.push(resolve);
+          }),
+      ),
+    );
+    const ok = () =>
+      new Response(JSON.stringify({ stops: [stop, stopB], plan: {}, crew: [], actions: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    try {
+      await enqueueNightCrawlAction({
+        planId: "plan-1",
+        type: "arrived",
+        stop,
+        idempotencyKey: "key-0",
+        fingerprint: "fp-0",
+        previousCursor: 0,
+        optimisticCursor: 1,
+      });
+      await vi.waitFor(() => expect(resolvers.length).toBe(1));
+      await enqueueNightCrawlAction({
+        planId: "plan-1",
+        type: "arrived",
+        stop: stopB,
+        idempotencyKey: "key-1",
+        fingerprint: "fp-1",
+        previousCursor: 1,
+        optimisticCursor: 2,
+      });
+      resolvers[0]?.(ok());
+      await vi.waitFor(() => expect(resolvers.length).toBe(2));
+      resolvers[1]?.(ok());
+      await vi.waitFor(() => expect(listPlanMutationOutbox("plan-1")).toHaveLength(0));
+      expect(fetch).toHaveBeenCalledTimes(2);
+    } finally {
+      unsub();
+    }
   });
 
   it("drains every plan while concurrent flushes share one run", async () => {
