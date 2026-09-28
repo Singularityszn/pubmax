@@ -152,7 +152,6 @@ describe("selectObservedSubtypePriceForVenue", () => {
     expect(selectObservedSubtypePriceForVenue(venue, "soft-drink-coke-zero")).toBeNull();
   });
 
-
   it("exposes only the zero-sugar cola family and still water as launch chips", () => {
     expect(softDrinksWaterChipSubtypes().map((s) => s.id)).toEqual([
       "soft-drink-zero-sugar-cola",

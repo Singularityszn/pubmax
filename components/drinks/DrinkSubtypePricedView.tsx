@@ -27,7 +27,7 @@ import "./drinkSubtypePricedView.css";
 
 export type DrinkSubtypePricedViewProps = {
   title: string;
-  /** Subtype chips shown first; any other soft-drink subtype may be passed for extension. */
+  /** Launch chip ids (zero-sugar cola family and still water by default); leaf cola brands stay off the chip row. */
   launchSubtypeIds: readonly string[];
   activeSubtypeId: string;
   rows: readonly SubtypePricedVenueRow[];
