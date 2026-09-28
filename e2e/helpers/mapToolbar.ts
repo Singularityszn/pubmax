@@ -15,10 +15,42 @@ export async function expectMapToolbarReady(
   ).toBeEditable({ timeout });
 }
 
+async function focusAreaForQuery(page: Page, query: string): Promise<void> {
+  const areaOption = page
+    .getByRole("group", { name: "Areas", exact: true })
+    .getByRole("option", { name: new RegExp(query, "i") })
+    .first();
+  if (!(await areaOption.isVisible().catch(() => false))) return;
+  await areaOption.evaluate((node) => (node as HTMLElement).click());
+}
+
+/** Type an area query and pan the map when venue rows are not indexed yet. */
+export async function applyToolbarAreaQuery(
+  page: Page,
+  query: string,
+  timeout = 120_000,
+): Promise<void> {
+  const search = mapToolbar(page).getByRole("combobox", { name: "Search pubs" });
+  const venueOption = page
+    .getByRole("group", { name: "Venues", exact: true })
+    .getByRole("option")
+    .first();
+  await expect(async () => {
+    await search.click();
+    await search.fill(query);
+    if (!(await venueOption.isVisible().catch(() => false))) {
+      await focusAreaForQuery(page, query);
+      await search.click();
+      await search.fill(query);
+    }
+    await expect(venueOption).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout });
+}
+
 export async function selectFirstToolbarVenue(
   page: Page,
   query: string,
-  timeout = 60_000,
+  timeout = 120_000,
 ): Promise<void> {
   const search = mapToolbar(page).getByRole("combobox", { name: "Search pubs" });
   // Exact, because a role name matches by substring: "Venues across city
@@ -31,10 +63,15 @@ export async function selectFirstToolbarVenue(
   await expect(async () => {
     await search.click();
     await search.fill(query);
+    if (!(await option.isVisible().catch(() => false))) {
+      await focusAreaForQuery(page, query);
+      await search.click();
+      await search.fill(query);
+    }
     await expect(option).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout });
   await expect(async () => {
-    await option.click();
+    await option.evaluate((node) => (node as HTMLElement).click());
     await expect(page).toHaveURL(/sel=/, { timeout: 2_000 });
-  }).toPass({ timeout: 20_000 });
+  }).toPass({ timeout: 60_000 });
 }

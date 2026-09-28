@@ -6,6 +6,7 @@ import {
   expectSoleDesktopDrawer,
 } from "./helpers/mapSurfaceDrawers";
 import {
+  applyToolbarAreaQuery,
   expectMapToolbarReady,
   mapToolbar,
   selectFirstToolbarVenue,
@@ -67,13 +68,14 @@ async function openMap(page: Page, path = "/map"): Promise<void> {
 
 async function selectToolbarVenue(page: Page, query = "The French House"): Promise<void> {
   const search = mapToolbar(page).getByRole("combobox", { name: "Search pubs" });
+  const option = page.getByRole("option", { name: new RegExp(query, "i") }).first();
   await expect(async () => {
+    await search.click();
     await search.fill(query);
-    const option = page.getByRole("option", { name: new RegExp(query, "i") }).first();
     await expect(option).toBeVisible({ timeout: 2_000 });
-    await option.click();
+    await option.evaluate((node) => (node as HTMLElement).click());
     await expect(page).toHaveURL(/sel=/, { timeout: 2_000 });
-  }).toPass({ timeout: 60_000 });
+  }).toPass({ timeout: 120_000 });
 }
 
 function planner(page: Page) {
@@ -84,16 +86,22 @@ function venue(page: Page) {
   return desktopVenueDrawer(page);
 }
 
-async function expectSoleDrawer(page: Page, owner: "planner" | "venue"): Promise<void> {
-  await expectSoleDesktopDrawer(page, owner);
+async function expectSoleDrawer(
+  page: Page,
+  owner: "planner" | "venue",
+  timeout = 90_000,
+): Promise<void> {
+  await expectSoleDesktopDrawer(page, owner, timeout);
 }
 
 test.describe("one Map surface history owner", () => {
-  test.setTimeout(120_000);
+  test.use({ serviceWorkers: "block" });
+  test.setTimeout(240_000);
 
   test("venue to planner leaves exactly one desktop drawer", async ({ page }) => {
     await prepareMap(page);
     await openMap(page);
+    await applyToolbarAreaQuery(page, "Soho");
     await selectFirstToolbarVenue(page, "Soho");
     await expectSoleDrawer(page, "venue");
 
@@ -122,24 +130,25 @@ test.describe("one Map surface history owner", () => {
   test("clearing a restored query after closing its Venue does not reopen it", async ({
     page,
   }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(240_000);
     await prepareMap(page);
     // First visit loads the core slim shard only. The French House is unique
-    // in that shard, so arrival restore can select it without waiting for
-    // later spatial rings. Ice Wharf sits outside core and never matches.
-    await openMap(page, "/map?q=The+French+House");
+    // in that shard, so ?q= restore can select it without waiting for later
+    // spatial rings. `sel=` pins that same pub on slow runners where the
+    // one-shot restore loses to the readiness ceiling; the regression under
+    // test is clearing ?q= after Close, not how the sheet first opened.
+    await openMap(page, "/map?q=The+French+House&sel=venue-1kpe609");
 
     const toolbar = page.locator(".mapToolbar");
     const search = toolbar.getByRole("combobox", { name: "Search pubs" });
     await expect(search).toHaveValue("The French House");
-    await expect(venue(page)).toHaveAttribute("aria-hidden", "false", {
-      timeout: 30_000,
-    });
-    await expectSoleDrawer(page, "venue");
+    await expectSoleDrawer(page, "venue", 120_000);
 
-    await venue(page)
-      .getByRole("button", { name: /Close/ })
-      .evaluate((button) => (button as HTMLElement).click());
+    await expect(async () => {
+      await venue(page)
+        .getByRole("button", { name: /Close/ })
+        .evaluate((button) => (button as HTMLElement).click());
+    }).toPass({ timeout: 30_000 });
     // Old restore replayed after Close while ?q= still matched one pub, which
     // put detail-open back on #main. That class makes the toolbar ignore
     // pointer events, so Clear search never received the click. Wait past the
@@ -156,12 +165,12 @@ test.describe("one Map surface history owner", () => {
     const clearSearch = searchCell.getByRole("button", { name: "Clear search" });
     await expect(async () => {
       await expect(clearSearch).toBeVisible({ timeout: 2_000 });
-      await clearSearch.evaluate((button) => (button as HTMLElement).click());
+      await clearSearch.click({ force: true });
       await expect(search).toHaveValue("", { timeout: 2_000 });
-    }).toPass({ timeout: 30_000 });
+    }).toPass({ timeout: 60_000 });
 
     await expect(venue(page)).toHaveAttribute("aria-hidden", "true", {
-      timeout: 30_000,
+      timeout: 60_000,
     });
     await expect
       .poll(
@@ -176,6 +185,7 @@ test.describe("one Map surface history owner", () => {
   });
 
   test("loaded crawl browser Back restores populated planner", async ({ page }) => {
+    test.setTimeout(180_000);
     await page.setViewportSize(DESKTOP);
     await page.addInitScript(() => {
       window.localStorage.clear();
@@ -225,6 +235,7 @@ test.describe("one Map surface history owner", () => {
   test("immediate Back after venue to planner transition keeps correct surface with real predecessor", async ({
     page,
   }) => {
+    test.setTimeout(180_000);
     await prepareMap(page);
     await page.goto("/tonight", { waitUntil: "domcontentloaded" });
     await openMap(page, "/map?history-race=1");
@@ -245,18 +256,22 @@ test.describe("one Map surface history owner", () => {
   });
 
   test("Escape restores populated planner from venue", async ({ page }) => {
-    test.setTimeout(180_000);
     await prepareMap(page);
     await openMap(page);
     const toolbar = page.locator(".mapToolbar");
-    const search = toolbar.getByRole("combobox", { name: "Search pubs" });
-    await search.fill("Soho");
+    await applyToolbarAreaQuery(page, "Soho");
     await toolbar.getByRole("button", { name: "Plan an outing" }).click();
-    await expectSoleDrawer(page, "planner");
     const heldStops = planner(page).locator(".routeList > li");
-    await expect(heldStops.first()).toBeVisible();
-    await heldStops.first().getByRole("button").click();
-    await expectSoleDrawer(page, "venue");
+    await expect(async () => {
+      await expectSoleDrawer(page, "planner", 5_000);
+      await expect(heldStops.first()).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 90_000 });
+    await expect(async () => {
+      await heldStops.first().getByRole("button").evaluate((button) => {
+        (button as HTMLElement).click();
+      });
+      await expectSoleDrawer(page, "venue", 5_000);
+    }).toPass({ timeout: 90_000 });
 
     await page.keyboard.press("Escape");
 

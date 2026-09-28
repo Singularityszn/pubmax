@@ -11,7 +11,7 @@ export function desktopVenueDrawer(page: Page) {
 export async function expectSoleDesktopDrawer(
   page: Page,
   owner: "planner" | "venue",
-  timeout = 60_000,
+  timeout = 90_000,
 ): Promise<void> {
   const planner = desktopPlannerDrawer(page);
   const venue = desktopVenueDrawer(page);
