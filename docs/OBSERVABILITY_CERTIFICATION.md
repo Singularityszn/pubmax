@@ -13,8 +13,9 @@ certification.
 
 - Product events pass through the closed `ANALYTICS_EVENTS` registry and are
   re-sanitized at `/api/events`.
-- No product event, structured analytics log, PostHog event, or Vercel
-  pageview is emitted before explicit consent. Do Not Track fails closed.
+- No product event, structured analytics log, PostHog event, Vercel
+  pageview, or Vercel Speed Insights vital is emitted before explicit consent.
+  Do Not Track fails closed.
 - PostHog pageview counting begins with the current pathname when consent is
   granted, then records pathname changes in order. Query-string-only navigation
   is not a pageview, and query strings never enter the event.
@@ -22,8 +23,9 @@ certification.
   pageviews so staff traffic cannot contaminate product funnels.
 - Revoking consent removes the local pseudonymous identifier and stops future
   collection.
-- Vercel Analytics uses `beforeSend` to cancel pre-consent pageviews. It is not
-  a second custom-event rail.
+- Vercel Web Analytics and Speed Insights use `beforeSend` to cancel
+  pre-consent pageviews and vitals respectively. Neither is a second
+  custom-event rail.
 - PostHog capture targets the EU endpoint and enables pseudonymous
   person/device profiles. Product events remain registry-known; explicit
   pageviews carry a coarse templated path plus standard browser and device
