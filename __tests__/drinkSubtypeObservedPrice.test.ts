@@ -4,7 +4,6 @@ import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import {
   drinkLabelMatchesSubtype,
   selectObservedSubtypePriceForVenue,
-  SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS,
   softDrinksWaterChipSelected,
   softDrinksWaterChipSubtypes,
 } from "@/lib/drinkSubtypeObservedPrice";
@@ -155,10 +154,6 @@ describe("selectObservedSubtypePriceForVenue", () => {
 
 
   it("exposes only the zero-sugar cola family and still water as launch chips", () => {
-    expect(SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS).toEqual([
-      "soft-drink-zero-sugar-cola",
-      "soft-drink-still-water",
-    ]);
     expect(softDrinksWaterChipSubtypes().map((s) => s.id)).toEqual([
       "soft-drink-zero-sugar-cola",
       "soft-drink-still-water",
