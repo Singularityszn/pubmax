@@ -75,6 +75,7 @@ test.describe("Soft drinks and water view", () => {
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${VIEW_PATH}?sub=soft-drink-coke-zero`);
+    await expect(page).toHaveURL(/sub=soft-drink-zero-sugar-cola/);
     await expect(page.getByRole("heading", { name: "Soft drinks and water" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Zero-sugar cola", selected: true })).toBeVisible();
     const ledeText = (await page.locator(".screenLede").textContent()) ?? "";
@@ -104,6 +105,7 @@ test.describe("Soft drinks and water view", () => {
   test("desktop width keeps chips and list readable", async ({ page }, testInfo: TestInfo) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${VIEW_PATH}?sub=soft-drink-diet-coke`);
+    await expect(page).toHaveURL(/sub=soft-drink-zero-sugar-cola/);
     await expect(page.getByRole("tab", { name: "Zero-sugar cola", selected: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Open the map" }).first()).toBeVisible();
 
