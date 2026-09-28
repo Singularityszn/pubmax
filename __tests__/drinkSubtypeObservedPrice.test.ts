@@ -4,6 +4,9 @@ import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import {
   drinkLabelMatchesSubtype,
   selectObservedSubtypePriceForVenue,
+  SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS,
+  softDrinksWaterChipSelected,
+  softDrinksWaterChipSubtypes,
 } from "@/lib/drinkSubtypeObservedPrice";
 import { drinkSubtypeFromText } from "@/lib/drinkSubtypes";
 import type { Venue, VenuePrice } from "@/lib/venues";
@@ -148,6 +151,30 @@ describe("selectObservedSubtypePriceForVenue", () => {
   it("never uses a Diet Coke price for Coke Zero", () => {
     const venue = makeVenue([makePrice("Diet Coke", 2.1)]);
     expect(selectObservedSubtypePriceForVenue(venue, "soft-drink-coke-zero")).toBeNull();
+  });
+
+
+  it("exposes only the zero-sugar cola family and still water as launch chips", () => {
+    expect(SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS).toEqual([
+      "soft-drink-zero-sugar-cola",
+      "soft-drink-still-water",
+    ]);
+    expect(softDrinksWaterChipSubtypes().map((s) => s.id)).toEqual([
+      "soft-drink-zero-sugar-cola",
+      "soft-drink-still-water",
+    ]);
+  });
+
+  it("highlights the family chip when a leaf cola subtype is active", () => {
+    expect(
+      softDrinksWaterChipSelected(
+        "soft-drink-zero-sugar-cola",
+        "soft-drink-diet-coke",
+      ),
+    ).toBe(true);
+    expect(
+      softDrinksWaterChipSelected("soft-drink-still-water", "soft-drink-diet-coke"),
+    ).toBe(false);
   });
 
   it("aggregates zero-sugar cola subtypes at each pub and keeps the cheapest verbatim label", () => {

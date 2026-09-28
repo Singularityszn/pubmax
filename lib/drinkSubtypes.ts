@@ -499,6 +499,19 @@ export function drinkSubtypeMembers(subtype: DrinkSubtype): readonly DrinkSubtyp
   });
 }
 
+/** Family chip id when a leaf is only shown through that family lens; otherwise null. */
+export function drinkSubtypeFamilyParentId(
+  subtypeId: string,
+): DrinkSubtypeId | null {
+  const needle = subtypeId.trim().toLowerCase();
+  for (const [familyId, members] of Object.entries(DRINK_SUBTYPE_FAMILY_MEMBERS)) {
+    if (members.some((memberId) => memberId === needle)) {
+      return familyId as DrinkSubtypeId;
+    }
+  }
+  return null;
+}
+
 /** Guard for URL/query subtype values, optionally pinned to a category. */
 export function parseDrinkSubtypeParam(
   value: string | null | undefined,

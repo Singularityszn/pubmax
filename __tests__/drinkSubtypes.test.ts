@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { DRINK_CATEGORIES, isDrinkCategory } from "@/lib/drinks";
 import {
   DRINK_SUBTYPES,
+  drinkSubtypeFamilyParentId,
   drinkSubtypeFromText,
   findSubtype,
   haystackIsTopShelf,
@@ -94,6 +95,13 @@ describe("drinkSubtypeFromText", () => {
   it("uses canonical catalog labels and aliases for brand knowledge", () => {
     expect(drinkSubtypeFromText("Jack Daniel's")?.id).toBe("whisky-bourbon");
     expect(drinkSubtypeFromText("Maker's Mark")?.id).toBe("whisky-bourbon");
+  });
+
+  it("maps zero-sugar cola leaf subtypes to the family chip", () => {
+    expect(drinkSubtypeFamilyParentId("soft-drink-pepsi-max")).toBe(
+      "soft-drink-zero-sugar-cola",
+    );
+    expect(drinkSubtypeFamilyParentId("soft-drink-still-water")).toBeNull();
   });
 
   it("classifies soft-drink subtypes without widening the category union", () => {
