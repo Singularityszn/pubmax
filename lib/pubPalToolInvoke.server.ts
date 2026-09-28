@@ -51,7 +51,6 @@ export function enrichPubPalToolArgs(
   return merged;
 }
 
-
 type PubPalToolWebhookBody = {
   tool_call_id?: string;
   tool_name?: string;

@@ -80,9 +80,13 @@ patches that agent, and without one it looks for an agent named
 It reads `scripts/pubpal/pub-pal-agent-config.json` (model, tool allowlist)
 and PATCHes the agent plus workspace webhook tools. Each tool calls
 `<base-url>/api/pub-pal/tools/{name}` with `ELEVENLABS_LLM_SHARED_SECRET`
-(stored in the workspace vault as `PUBMAXX_PUB_PAL_LLM_SECRET`). Typed chat uses
-the same agent in text-only mode via `/api/pub-pal/chat`. Live proof after a
-real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
+(stored in the workspace vault as `PUBMAXX_PUB_PAL_LLM_SECRET`), waits up to
+28 seconds for a response (`response_timeout_secs` in the script; the route
+allows 30 seconds via `maxDuration`). Deploying the app alone does not change
+timeout or webhook body schema on an agent that already exists: re-run this
+script with `ELEVENLABS_PUB_PAL_AGENT_ID` set after changing those values.
+Typed chat uses the same agent in text-only mode via `/api/pub-pal/chat`. Live
+proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
 
 1. **Hosted LLM** (`gemini-2.5-flash-lite` by default) on the ElevenLabs plan.
 2. **Webhook tools** for the ADR 0014 allowlist (same handlers as `/api/ask`).

@@ -49,7 +49,9 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    `POST /api/pub-pal/chat`; voice uses the same agent over WebRTC. Server
    webhook tools at `POST /api/pub-pal/tools/{name}` invoke the same ADR 0014
    handlers as `/api/ask`. Tool-turn correlation uses `pub_pal_tool_turns`
-   (`lib/pubPalToolTurnStore.ts`). Setup: `docs/PUB_PAL_SETUP.md`.
+   (`lib/pubPalToolTurnStore.ts`): webhook bodies may carry only a short query
+   fragment, so the server prefers the correlated full ask and merges routed
+   args before invoking handlers. Setup: `docs/PUB_PAL_SETUP.md`.
 7. **In-thread memory only** — the client may resend recent turns for
    refinement. Durable Pal memory stays confirm-gated (ADR 0006).
 

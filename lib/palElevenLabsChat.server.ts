@@ -17,7 +17,6 @@ const CHAT_TIMEOUT_MS = 28_000;
 const TOOL_TURN_WAIT_MS = 4_000;
 const TOOL_TURN_POLL_MS = 120;
 
-
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }

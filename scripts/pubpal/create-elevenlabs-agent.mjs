@@ -110,7 +110,6 @@ function systemPrompt() {
   ].join("\n");
 }
 
-
 const TOOL_WEBHOOK_BODY_PROPERTIES = {
   cheapest_pint_near: {
     conversation_id: {
