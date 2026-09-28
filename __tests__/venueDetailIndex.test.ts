@@ -67,7 +67,10 @@ vi.mock("@/lib/venueIndex", async (importOriginal) => {
 
 beforeAll(() => {
   if (!existsSync(DETAIL_INDEX)) {
-    execFileSync("node", [BUILD_SLIM_SCRIPT], { cwd: ROOT });
+    execFileSync("node", [BUILD_SLIM_SCRIPT], {
+      cwd: ROOT,
+      env: { ...process.env, DEPLOYMENT_VERSION: "local" },
+    });
   }
 });
 
