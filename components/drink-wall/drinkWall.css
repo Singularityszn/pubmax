@@ -12,6 +12,10 @@
   color: var(--ink);
 }
 
+.wallPage > .wallPageBody {
+  padding-inline: 0;
+}
+
 .drinkWall {
   display: flex;
   flex-direction: column;
