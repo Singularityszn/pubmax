@@ -183,6 +183,35 @@ describe("planMutationOutbox", () => {
     }
   });
 
+  it("does not microtask re-flush when offline leaves the same row pending", async () => {
+    const unsub = subscribePlanMutationOutbox(() => {
+      void flushPlanMutationOutbox();
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("offline");
+      }),
+    );
+    try {
+      await enqueueNightCrawlAction({
+        planId: "plan-1",
+        type: "arrived",
+        stop,
+        idempotencyKey: "key-offline",
+        fingerprint: "fp-offline",
+        previousCursor: 0,
+        optimisticCursor: 1,
+      });
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(hasPendingPlanMutation("plan-1")).toBe(true);
+    } finally {
+      unsub();
+    }
+  });
+
   it("drains a tap queued while an earlier flush is in flight", async () => {
     const unsub = subscribePlanMutationOutbox(() => {
       void flushPlanMutationOutbox();
