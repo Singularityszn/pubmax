@@ -242,6 +242,9 @@ export default function MobileSharedSheet({
       />
       <section
         ref={sheetRef}
+        data-sheet-motion={
+          dragging ? "dragging" : settling ? "settling" : entering ? "entering" : "idle"
+        }
         className={`mapDrawer mobileSharedSheet ${kind === "venue" ? "right" : kind === "planner" ? "left" : "contextual"} open sheet-${sheetSnap}${dragging ? " sheet-dragging" : ""}${settling ? " sheet-settling" : ""}${entering ? " sheet-entering" : ""}`}
         role={sheetModal ? "dialog" : undefined}
         aria-modal={sheetModal ? "true" : undefined}
