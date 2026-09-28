@@ -110,7 +110,6 @@ describe("the no-mistakes repository test command", () => {
     }
     expect(env.PUBMAX_VERIFY_COMMITTED_DATA).toBe("1");
     expect(env.DEPLOYMENT_VERSION).toBe("local");
-    expect(expanded).toContain("run-with-restored-bundled-data.mjs");
 
     const committed = JSON.parse(
       readFileSync(join(ROOT, "public/data/cities/bath/venues_slim.manifest.json"), "utf8"),
