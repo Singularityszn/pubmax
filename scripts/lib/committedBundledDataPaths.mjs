@@ -5,7 +5,7 @@
 import { spawnSync } from "node:child_process";
 
 /** Paths that may be dirtied by builders; restore only when git tracks files under them. */
-export const COMMITTED_BUNDLED_DATA_PATHS = ["public/data", "uk_base/public/data"];
+export const COMMITTED_BUNDLED_DATA_PATHS = ["public/data"];
 
 /**
  * @param {string} [cwd]

@@ -22,7 +22,7 @@ function initialiseGit(cwd: string): void {
 
 describe("committed bundled data restore", () => {
   it("names the trees the captain forbids in pipeline churn", () => {
-    expect(COMMITTED_BUNDLED_DATA_PATHS).toEqual(["public/data", "uk_base/public/data"]);
+    expect(COMMITTED_BUNDLED_DATA_PATHS).toEqual(["public/data"]);
   });
 
   it("restores public/data after the wrapped command succeeds", () => {
@@ -82,7 +82,6 @@ describe("no-mistakes verify wrapper regression", () => {
         },
       );
       expect(execFileSync("git", ["status", "--short", "public/data"], { encoding: "utf8" })).toBe("");
-      expect(execFileSync("git", ["status", "--short", "uk_base/public/data"], { encoding: "utf8" })).toBe("");
     } finally {
       execFileSync("git", ["restore", "--worktree", "--source=HEAD", "--", "public/data"], {
         cwd: process.cwd(),
