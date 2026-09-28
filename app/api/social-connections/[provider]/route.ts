@@ -1,5 +1,6 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
+import { log } from "@/lib/log";
 import { callerUserId } from "@/lib/authServer";
 import { socialConnectionStore } from "@/lib/socialConnectionStore";
 import {
@@ -75,7 +76,11 @@ export async function POST(request: Request, context: Context): Promise<Response
     if (!origin) throw new Error("Site URL is invalid.");
     return jsonNoStore(await createSocialOAuthStart({ ownerId, provider, origin }));
   } catch (error) {
-    return publicApiError(error instanceof Error ? error.message : "OAuth is unavailable.", "SOCIAL_PROVIDER_UNAVAILABLE", 503, { retryable: true });
+    log("error", "social_oauth.start_failed", {
+      provider,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return publicApiError("OAuth is unavailable.", "SOCIAL_PROVIDER_UNAVAILABLE", 503, { retryable: true });
   }
 }
 

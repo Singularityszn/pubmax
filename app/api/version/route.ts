@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { isCronAuthorized } from "@/lib/cronAuth";
 import { readBuildStamp } from "@/lib/buildInfo.mjs";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +29,17 @@ function currentBuildStamp() {
   });
 }
 
-export function GET(): NextResponse {
+const VERSION_CACHE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+  "CDN-Cache-Control": "no-store",
+  "Vercel-CDN-Cache-Control": "no-store",
+};
+
+export function GET(request: Request = new Request("http://localhost/api/version")): NextResponse {
+  if (!isCronAuthorized(request)) {
+    return NextResponse.json({ ok: true }, { headers: VERSION_CACHE_HEADERS });
+  }
+
   const build = currentBuildStamp();
 
   return NextResponse.json(
@@ -41,12 +52,6 @@ export function GET(): NextResponse {
       gitCommitShaSource: build.commitShaSource,
       builtAt: build.builtAt,
     },
-    {
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-        "CDN-Cache-Control": "no-store",
-        "Vercel-CDN-Cache-Control": "no-store",
-      },
-    },
+    { headers: VERSION_CACHE_HEADERS },
   );
 }

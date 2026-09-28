@@ -64,3 +64,8 @@ export function assertCronRequest(request: Request): Response | null {
 
   return null;
 }
+
+/** True when the request carries a valid cron credential. */
+export function isCronAuthorized(request: Request): boolean {
+  return assertCronRequest(request) === null;
+}

@@ -250,6 +250,7 @@ export function isRateLimited(
 ): boolean {
   const key = handle.toLowerCase();
   const hits = (rateWindow.get(key) ?? []).filter((t) => now - t < windowMs);
+  if (hits.length === 0) rateWindow.delete(key);
   hits.push(now);
   rateWindow.set(key, hits);
   return hits.length > limit;
@@ -284,9 +285,9 @@ const DEGRADED_RATE_LIMIT = 3;
  * when configured, in-memory otherwise.
  *
  * When Supabase is configured but the durable check cannot answer:
- *   • `missing-rpc` / `no-client` → full in-memory `limit` (preview/CI/demo
- *     safe — migration may not be applied yet)
- *   • `error` (transient outage) → degraded Math.min(limit, 3); or
+ *   • `no-client` → full in-memory `limit` (preview/CI/demo safe)
+ *   • `missing-rpc` / `error` (transient outage or schema drift) → degraded
+ *     Math.min(limit, 3); or
  *     RATE_LIMIT_STRICT=1 → treat as limited (429) instead of opening wider
  *
  * No Supabase → in-memory at the normal limit (demo unchanged). A real boolean
@@ -319,8 +320,8 @@ export async function isLimited(
   // back to a scriptable per-instance budget during a misconfig/outage.
   if (opts?.failClosed) return true;
 
-  // Transient outage only — tighten (or refuse under STRICT).
-  if (reason === "error") {
+  // Transient outage or missing RPC — tighten (or refuse under STRICT).
+  if (reason === "error" || reason === "missing-rpc") {
     if (process.env.RATE_LIMIT_STRICT === "1") return true;
     // Fail-open (degraded): the durable limiter is unreachable, so we drop to a
     // per-instance in-memory budget tightened to DEGRADED_RATE_LIMIT. This is an
@@ -336,7 +337,7 @@ export async function isLimited(
     );
   }
 
-  // missing-rpc / no-client / unknown → full in-memory budget (fail-open wide).
+  // no-client / unknown → full in-memory budget (fail-open wide).
   warnRateLimitFailOpen(reason ?? "unknown", "full", limit, windowMs);
   return isRateLimited(localKey, Date.now(), limit, windowMs);
 }

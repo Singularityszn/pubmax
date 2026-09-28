@@ -60,7 +60,7 @@ describe("isLimited fail-open WARN", () => {
     logSpy.mockRestore();
   });
 
-  it("emits a full-budget fail_open WARN when the RPC is missing", async () => {
+  it("emits a degraded fail_open WARN when the RPC is missing", async () => {
     const { isLimited } = await loadPintDrops();
     rpc.mockResolvedValue({
       data: null,
@@ -75,8 +75,8 @@ describe("isLimited fail-open WARN", () => {
     expect(recs[0]).toMatchObject({
       event: "rate_limit.fail_open",
       reason: "missing-rpc",
-      mode: "full",
-      effectiveLimit: 8,
+      mode: "degraded",
+      effectiveLimit: 3,
     });
     logSpy.mockRestore();
   });

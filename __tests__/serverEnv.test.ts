@@ -4,6 +4,7 @@ import {
   assertProductionSecrets,
   assertServerEnv,
   DEV_RATE_LIMIT_SALT,
+  serverEnvRefusalResponse,
 } from "@/lib/serverEnv";
 import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 import { getSupabaseAdmin, isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
@@ -194,7 +195,7 @@ describe("assertProductionSecrets", () => {
     process.env.PUBMAX_E2E_KEYLESS = "1";
 
     expect(() => assertProductionSecrets()).toThrow(/ADMIN_TOKEN/);
-    expect(() => assertServerEnv()).toThrow(/Supabase is not configured/);
+    expect(serverEnvRefusalResponse()?.status).toBe(503);
     expect(requiresSupabaseStore()).toBe(true);
   });
 
@@ -208,7 +209,7 @@ describe("assertProductionSecrets", () => {
     process.env.NEXT_PHASE = "phase-production-build";
 
     expect(() => assertProductionSecrets()).toThrow(/ADMIN_TOKEN/);
-    expect(() => assertServerEnv()).toThrow(/Supabase is not configured/);
+    expect(serverEnvRefusalResponse()?.status).toBe(503);
     expect(requiresSupabaseStore()).toBe(true);
   });
 
@@ -318,7 +319,7 @@ describe("assertServerEnv", () => {
     vi.stubEnv("NODE_ENV", "production");
     process.env.NEXT_PHASE = "phase-production-server";
 
-    expect(() => assertServerEnv()).toThrow(/Supabase is not configured/);
+    expect(serverEnvRefusalResponse()?.status).toBe(503);
   });
 
   it("is a no-op on Vercel Preview without Supabase", () => {
@@ -328,22 +329,22 @@ describe("assertServerEnv", () => {
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     expect(() => assertServerEnv()).not.toThrow();
   });
-  it("throws when Supabase is missing in production", () => {
+  it("refuses when Supabase is missing in production", () => {
     vi.stubEnv("NODE_ENV", "production");
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    expect(() => assertServerEnv()).toThrow(/Supabase is not configured/);
+    expect(serverEnvRefusalResponse()?.status).toBe(503);
   });
 
-  it("throws when Supabase is configured but secrets are missing in production", () => {
+  it("refuses when Supabase is configured but secrets are missing in production", () => {
     vi.stubEnv("NODE_ENV", "production");
     process.env.SUPABASE_URL = "https://example.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
     delete process.env.ADMIN_TOKEN;
     process.env.RATE_LIMIT_SALT = "prod-salt";
 
-    expect(() => assertServerEnv()).toThrow(/ADMIN_TOKEN/);
+    expect(serverEnvRefusalResponse()?.status).toBe(503);
   });
 
   it("passes when Supabase and production secrets are configured", () => {

@@ -12,7 +12,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 import { BRAND_COLORS } from "./lib/brandMark.mjs";
 
 /** The one origin a shipped binary ever loads. */
-export const PRODUCTION_SERVER_URL = "https://pubmaxxing.com";
+export const PRODUCTION_SERVER_URL = "https://pubmaxxing.com/";
 
 /**
  * A LOCAL rig loads a local build. `PUBMAX_NATIVE_SERVER_URL` is read at

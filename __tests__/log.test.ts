@@ -85,6 +85,15 @@ describe("log", () => {
     expect(JSON.parse(logSpy.mock.calls[0][0] as string).ts).toBe(42);
   });
 
+  it("scrubs named production secret env values embedded in error strings", () => {
+    const { errorSpy } = spyConsole();
+    log("error", "test.scrub", { error: "ADMIN_TOKEN=hunter2 CRON_SECRET=xyz" });
+    const line = errorSpy.mock.calls[0][0] as string;
+    expect(line).not.toContain("hunter2");
+    expect(line).not.toContain("xyz");
+    expect(line).toContain("ADMIN_TOKEN=[redacted]");
+  });
+
   it("redacts secret-shaped context keys and never logs their values in the emitted line", () => {
     const { errorSpy } = spyConsole();
     log(

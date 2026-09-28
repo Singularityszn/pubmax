@@ -19,6 +19,7 @@ import "server-only";
 // "Collecting page data". We key off VERCEL_ENV when present so only the
 // Production target enforces durable-store + secret requirements.
 
+import { publicApiError } from "@/lib/apiError";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { isDeployedProduction, isProductionBuildPhase } from "@/lib/deploymentEnv";
 
@@ -91,23 +92,45 @@ export function assertProductionSecrets(): void {
   }
 }
 
-/**
- * In production, throw a clear FATAL error unless Supabase is configured;
- * elsewhere, do nothing. Reuses isSupabaseConfigured() (lib/supabase.ts) so the
- * definition of "configured" (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY) stays in
- * exactly one place. Safe to call more than once — it only ever reads env.
- */
-export function assertServerEnv(): void {
-  if (!isDeployedProduction()) return;
-  if (shouldSkipProductionEnvAssertions()) return;
-  if (isSupabaseConfigured()) {
-    assertProductionSecrets();
-    return;
-  }
-  throw new Error(
-    "FATAL: Supabase is not configured in production " +
+function serverEnvFailureMessage(): string | null {
+  if (!isDeployedProduction()) return null;
+  if (shouldSkipProductionEnvAssertions()) return null;
+  if (!isSupabaseConfigured()) {
+    return (
+      "FATAL: Supabase is not configured in production " +
       "(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required). " +
       "Refusing to start on the in-memory store — every write would be lost on the " +
-      "next cold start. Set the Supabase env vars and redeploy.",
-  );
+      "next cold start. Set the Supabase env vars and redeploy."
+    );
+  }
+  try {
+    assertProductionSecrets();
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  return null;
+}
+
+/**
+ * House envelope for a misconfigured production deploy. Used at the proxy API
+ * edge so callers never see a bodyless 500 when import-time guards would have
+ * refused the durable store.
+ */
+export function serverEnvRefusalResponse(): Response | null {
+  const message = serverEnvFailureMessage();
+  if (!message) return null;
+  return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
+    retryable: true,
+  });
+}
+
+/**
+ * In production, log a clear FATAL when Supabase or production secrets are
+ * missing; elsewhere, do nothing. Reuses isSupabaseConfigured() (lib/supabase.ts)
+ * so the definition of "configured" stays in exactly one place. Import-time
+ * calls must not throw — that produced bodyless 500s before handlers ran.
+ */
+export function assertServerEnv(): void {
+  const message = serverEnvFailureMessage();
+  if (message) console.error(`[server-env] ${message}`);
 }

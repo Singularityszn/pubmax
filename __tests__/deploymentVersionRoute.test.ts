@@ -122,8 +122,18 @@ describe("build commit resolver", () => {
 });
 
 describe("deployment version route", () => {
+  const cronVersionRequest = (secret = "version-route-test-secret") =>
+    new Request("http://localhost/api/version", {
+      headers: { authorization: `Bearer ${secret}` },
+    });
+
+  afterEach(() => {
+    delete process.env.CRON_SECRET;
+  });
+
   it("prevents the marker from being cached", async () => {
-    const response = GET();
+    process.env.CRON_SECRET = "version-route-test-secret";
+    const response = GET(cronVersionRequest());
     const body = await response.json();
 
     expect(body).toHaveProperty("deploymentId");
@@ -136,11 +146,12 @@ describe("deployment version route", () => {
   // rides beside it so proving "this preview serves the commit I pushed" is one
   // request rather than a trip through the Vercel API.
   it("names the commit, the source and the build time", async () => {
+    process.env.CRON_SECRET = "version-route-test-secret";
     process.env.PUBMAX_BUILD_COMMIT_SHA = SHA;
     process.env.PUBMAX_BUILD_COMMIT_SHA_SOURCE = "working-tree";
     process.env.PUBMAX_BUILD_TIME = "2026-09-05T07:30:00.000Z";
 
-    const body = await GET().json();
+    const body = await GET(cronVersionRequest()).json();
 
     expect(body.gitCommitSha).toBe(SHA);
     expect(body.gitCommitShaSource).toBe("working-tree");
@@ -150,14 +161,15 @@ describe("deployment version route", () => {
   // Nothing stamps a build that had no commit to name, and null is the honest
   // answer there. An empty string is the same absence and reads as one.
   it("answers null rather than guessing where no build stamped a commit", async () => {
+    process.env.CRON_SECRET = "version-route-test-secret";
     for (const key of STAMP_KEYS) delete process.env[key];
-    let body = await GET().json();
+    let body = await GET(cronVersionRequest()).json();
     expect(body.gitCommitSha).toBeNull();
     expect(body.gitCommitShaSource).toBeNull();
     expect(body.builtAt).toBeNull();
 
     for (const key of STAMP_KEYS) process.env[key] = "";
-    body = await GET().json();
+    body = await GET(cronVersionRequest()).json();
     expect(body.gitCommitSha).toBeNull();
     expect(body.gitCommitShaSource).toBeNull();
     expect(body.builtAt).toBeNull();
@@ -166,6 +178,14 @@ describe("deployment version route", () => {
   // The defect this route is answering for: the sha was read at REQUEST time
   // from a variable Vercel sets only on a build its Git integration owns, so a
   // CLI deploy served null for ever. The build decides; the request only reports.
+  it("hides build metadata from callers without the cron credential", async () => {
+    process.env.CRON_SECRET = "deploy-marker-secret";
+    process.env.PUBMAX_BUILD_COMMIT_SHA = SHA;
+
+    const body = await GET().json();
+    expect(body).toEqual({ ok: true });
+  });
+
   it("reads no platform git variable and runs no git at request time", () => {
     const source = readFileSync(
       path.join(process.cwd(), "app/api/version/route.ts"),
