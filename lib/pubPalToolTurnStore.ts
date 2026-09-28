@@ -12,7 +12,7 @@ import { requireSupabaseAdmin } from "@/lib/supabase";
 
 const PUB_PAL_TOOL_TURN_TTL_MS = 120_000;
 
-const PUB_PAL_TOOL_TURN_MIGRATION_HINT = "apply migration 0158";
+const PUB_PAL_TOOL_TURN_MIGRATION_HINT = "apply migration 0160";
 
 export type PubPalToolTurn = {
   query: string;
