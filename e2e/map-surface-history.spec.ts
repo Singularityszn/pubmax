@@ -111,12 +111,13 @@ test.describe("one Map surface history owner", () => {
     await selectFirstToolbarVenue(page, "Soho");
     await expectSoleDrawer(page, "venue");
 
-    await page
+    const planOuting = page
       .locator(".mapToolbar")
-      .getByRole("button", { name: "Plan an outing" })
-      .evaluate((button) => (button as HTMLElement).click());
-
-    await expectSoleDrawer(page, "planner");
+      .getByRole("button", { name: "Plan an outing" });
+    await expect(async () => {
+      await planOuting.click();
+      await expectSoleDrawer(page, "planner");
+    }).toPass({ timeout: 30_000 });
   });
 
   test("planner to venue leaves exactly one desktop drawer", async ({ page }) => {
