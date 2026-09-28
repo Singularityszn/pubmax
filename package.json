@@ -83,7 +83,7 @@
     "refresh:events": "node --import tsx scripts/whatson/eventsRefresh.mjs",
     "check:realtime": "node scripts/check-realtime.mjs",
     "verify": "npm run validate-data && npm run lint && npm run typecheck && npm run deadcode && npm run coverage && npm run test:rls && npm run gate:e2e-skips && npm run check:freshness && node scripts/resilient-audit.mjs",
-    "verify:no-mistakes": "DEPLOYMENT_VERSION=local PUBMAX_VERIFY_COMMITTED_DATA=1 node scripts/run-with-restored-bundled-data.mjs npm run verify",
+    "verify:no-mistakes": "DEPLOYMENT_VERSION=local PUBMAX_VERIFY_COMMITTED_DATA=1 node scripts\/run-with-restored-bundled-data.mjs npm run verify",
     "ci": "npm run verify && npm run build",
     "ci:isolated": "node scripts/run-with-restored-next-env.mjs npm run ci",
     "setup": "git config core.hooksPath .githooks && echo 'git hooks enabled (pre-push runs npm run verify)'",
@@ -158,11 +158,11 @@
     "web-vitals": "^6.2.2"
   },
   "devDependencies": {
+    "@maplibre/maplibre-gl-style-spec": "^26.4.4",
     "@axe-core/playwright": "^4.13.0",
     "@capacitor/cli": "^8.5.2",
     "@capacitor/core": "^8.5.2",
     "@capacitor/ios": "^8.5.2",
-    "@maplibre/maplibre-gl-style-spec": "^26.4.4",
     "@next/env": "^16.3.6",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",

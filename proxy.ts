@@ -389,7 +389,7 @@ export function securityProxy(request: NextRequest) {
   //   does not widen what may be collected, only what may load.
   //   Speed Insights loads same-origin `/_vercel/speed-insights/*` (script +
   //   vitals beacon) under `'self'` in script-src and connect-src; it is also
-  //   consent-gated and deferred until idle or first interaction in the app.
+  //   consent-gated in the app (`beforeSend` cancels pre-consent vitals).
   //   Clerk adds its instance Frontend API host (which serves clerk-js), the
   //   Cloudflare Turnstile challenge host and Clerk's abuse-protection hosts.
   //   Every one of them is an exact origin derived from the publishable key or

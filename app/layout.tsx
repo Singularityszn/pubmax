@@ -406,9 +406,9 @@ export default async function RootLayout({
           </AuthProvider>
         )}
         </SocialFriendsLaunchProvider>
-        {/* Vercel Web Analytics (R3) and Speed Insights — consent-gated; Speed
-            Insights loads after idle or first interaction. Product events use
-            the separately allow-listed rail in lib/analytics.ts. Outside
+        {/* Vercel Web Analytics (R3) and Speed Insights — consent-gated
+            pageviews and vitals via beforeSend. Product events use the
+            separately allow-listed rail in lib/analytics.ts. Outside
             AuthProvider on purpose: it's app infra, not identity. */}
         <ConsentAwareVercelAnalytics />
         <ConsentAwareVercelSpeedInsights />
