@@ -87,7 +87,7 @@ Unmounted phone surfaces are inventoried separately: desktop `.mapToolbarSearchS
 | `components/seo/factLayer.css` `.cityFactRegion` | 1023px | Full-screen map omits duplicated fact prose; standalone area and index pages retain it. |
 | `components/nav/siteNav.css` `.siteNavCmdk` | 900px | Compact palette icon returns at tablet width; phone navigation and search own smaller widths. |
 | `components/nav/siteNav.css` `.siteNavLinks` | 640px | Bottom tab bar duplicates primary destinations. |
-| `components/nav/siteNav.css` `.siteNavBar .authUser` | 640px | Profile destination exists in bottom navigation. |
+| `components/nav/siteNav.css` `.siteNavBar .authUser:not(.authUserNav)` | 640px | Full signed-in row is desktop-only; compact Sign in (`.authUserNav`) stays in the bar; profile lives in bottom navigation. |
 | `components/nav/siteNav.css` phone `.siteNavCmdk` | 640px | Phone search entry replaces hardware-keyboard hint. |
 | `components/nav/siteNav.css` `.siteNavMore` | 640px | Bottom navigation and page actions duplicate its destinations. |
 | `components/nav/siteNavMoment.css` `.siteNavMoment` | 640px | Raised bottom-tab Moment action is the same destination. |

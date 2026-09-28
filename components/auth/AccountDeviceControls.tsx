@@ -4,8 +4,9 @@
 // one, or leave.
 //
 // ONE component, because there are two account surfaces and they must not
-// disagree. The nav card is desktop only (`.siteNavBar .authUser` is hidden at
-// 640px), so a phone's account home is the signed-in card on /login; a second
+// disagree. The nav account card is desktop only (`.siteNavBar
+// .authUser:not(.authUserNav)` is hidden at 640px), so a phone's account home
+// is the signed-in card on /login; a second
 // copy of these controls would have drifted from the first the day either
 // changed.
 //

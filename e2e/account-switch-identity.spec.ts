@@ -479,8 +479,8 @@ test.describe("switching between two accounts on one device", () => {
 });
 
 test.describe("switching accounts on a phone", () => {
-  // The nav account card is desktop only (`.siteNavBar .authUser` is hidden at
-  // 640px), so /login's signed-in card is the account home on a phone and
+  // The nav account card is desktop only (`.siteNavBar .authUser:not(.authUserNav)`
+  // is hidden at 640px), so /login's signed-in card is the account home on a phone and
   // carries the same controls. File-level `test.use` already sets 390px.
   test("the signed-in card on /login is the same switcher", async ({ page }) => {
     const stub = await installAuthDoubles(page);
