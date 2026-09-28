@@ -12,7 +12,8 @@ class MockElevenLabsWebSocket {
   static OPEN = 1;
   private listeners: Record<string, Array<(event: unknown) => void>> = {};
 
-  constructor(_url: string) {
+  constructor(url: string) {
+    void url;
     queueMicrotask(() => {
       this.emit("open", {});
       this.emit("message", {
