@@ -16,7 +16,6 @@ out/
 dist/
 .env*
 !.env.example
-keys.env
 *.env
 *.log
 *.tsbuildinfo
