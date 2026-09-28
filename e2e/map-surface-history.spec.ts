@@ -102,50 +102,6 @@ async function expectSoleDrawer(page: Page, owner: "planner" | "venue"): Promise
   );
 }
 
-async function clickToolbarPlanAnOuting(page: Page): Promise<void> {
-  const planButton = page
-    .locator(".mapToolbar")
-    .getByRole("button", { name: "Plan an outing" });
-  await expect(async () => {
-    await planButton.click();
-    await expectSoleDrawer(page, "planner");
-  }).toPass({ timeout: 60_000 });
-}
-
-async function planToolbarOutingFromQuery(page: Page, query: string): Promise<void> {
-  const toolbar = page.locator(".mapToolbar");
-  const search = toolbar.getByRole("combobox", { name: "Search pubs" });
-  await expect(async () => {
-    await search.fill(query);
-    await toolbar.getByRole("button", { name: "Plan an outing" }).click();
-    await expectSoleDrawer(page, "planner");
-  }).toPass({ timeout: 60_000 });
-}
-
-async function clickPlanAnOutingThenBack(page: Page): Promise<void> {
-  await expect(async () => {
-    await page.evaluate(() => {
-      const plan = document.querySelector(
-        '.mapToolbar button[aria-label="Plan an outing"]',
-      ) as HTMLElement | null;
-      if (!plan) throw new Error("Plan an outing control missing");
-      plan.click();
-      window.history.back();
-    });
-    await expectSoleDrawer(page, "venue");
-    await expect(page).toHaveURL(/\/map\?.*sel=/, { timeout: 2_000 });
-  }).toPass({ timeout: 30_000 });
-}
-
-async function openVenueFromPlannerRail(page: Page): Promise<void> {
-  const heldStops = planner(page).locator(".routeList > li");
-  await expect(heldStops.first()).toBeVisible({ timeout: 30_000 });
-  await expect(async () => {
-    await heldStops.first().getByRole("button").click();
-    await expectSoleDrawer(page, "venue");
-  }).toPass({ timeout: 30_000 });
-}
-
 test.describe("one Map surface history owner", () => {
   test.setTimeout(120_000);
 
@@ -155,14 +111,26 @@ test.describe("one Map surface history owner", () => {
     await selectFirstToolbarVenue(page, "Soho");
     await expectSoleDrawer(page, "venue");
 
-    await clickToolbarPlanAnOuting(page);
+    await page
+      .locator(".mapToolbar")
+      .getByRole("button", { name: "Plan an outing" })
+      .evaluate((button) => (button as HTMLElement).click());
+
+    await expectSoleDrawer(page, "planner");
   });
 
   test("planner to venue leaves exactly one desktop drawer", async ({ page }) => {
     await prepareMap(page);
     await openMap(page);
-    await planToolbarOutingFromQuery(page, "Soho");
-    await openVenueFromPlannerRail(page);
+    await page
+      .locator(".mapToolbar")
+      .getByRole("button", { name: "Plan an outing" })
+      .click();
+    await expectSoleDrawer(page, "planner");
+
+    await selectFirstToolbarVenue(page, "Soho");
+
+    await expectSoleDrawer(page, "venue");
   });
 
   test("clearing a restored query after closing its Venue does not reopen it", async ({
@@ -270,13 +238,20 @@ test.describe("one Map surface history owner", () => {
     await prepareMap(page);
     await page.goto("/tonight", { waitUntil: "domcontentloaded" });
     await openMap(page, "/map?history-race=1");
-    await expect(async () => {
-      await selectToolbarVenue(page);
-      await expectSoleDrawer(page, "venue");
-      await expect(page).toHaveURL(/\/map\?.*sel=/, { timeout: 2_000 });
-    }).toPass({ timeout: 60_000 });
+    await selectToolbarVenue(page);
+    await expectSoleDrawer(page, "venue");
+    await expect(page).toHaveURL(/\/map\?.*sel=/);
 
-    await clickPlanAnOutingThenBack(page);
+    await page
+      .locator(".mapToolbar")
+      .getByRole("button", { name: "Plan an outing" })
+      .evaluate((button) => {
+        (button as HTMLElement).click();
+        window.history.back();
+      });
+
+    await expectSoleDrawer(page, "venue");
+    await expect(page).toHaveURL(/\/map\?.*sel=/);
   });
 
   test("Escape restores populated planner from venue", async ({ page }) => {
