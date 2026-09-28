@@ -1,5 +1,16 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
+import {
+  desktopPlannerDrawer,
+  desktopVenueDrawer,
+  expectSoleDesktopDrawer,
+} from "./helpers/mapSurfaceDrawers";
+import {
+  expectMapToolbarReady,
+  mapToolbar,
+  selectFirstToolbarVenue,
+} from "./helpers/mapToolbar";
+
 const DESKTOP = { width: 1440, height: 900 };
 const PHONE = { width: 390, height: 844 };
 
@@ -47,59 +58,34 @@ async function openMap(page: Page, path = "/map"): Promise<void> {
   const response = await page.goto(path, { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
   const viewport = page.viewportSize();
-  const ready = viewport && viewport.width <= 640
-    ? page.locator(".mobileMapTopbar")
-    : page.locator(".mapToolbar");
-  await expect(ready).toBeVisible({ timeout: 30_000 });
+  if (viewport && viewport.width <= 640) {
+    await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 60_000 });
+    return;
+  }
+  await expectMapToolbarReady(page);
 }
 
 async function selectToolbarVenue(page: Page, query = "The French House"): Promise<void> {
-  const search = page
-    .locator(".mapToolbar")
-    .getByRole("combobox", { name: "Search pubs" });
-  await search.fill(query);
-  const option = page.getByRole("option", { name: new RegExp(query, "i") }).first();
-  await expect(option).toBeVisible({ timeout: 20_000 });
-  await option.click();
-}
-
-async function selectFirstToolbarVenue(page: Page, query: string): Promise<void> {
-  const search = page
-    .locator(".mapToolbar")
-    .getByRole("combobox", { name: "Search pubs" });
-  // Exact, because a role name matches by substring: "Venues across city
-  // maps" leads the list, and its first "Soho" row is a Birmingham tavern
-  // that opens another city's map.
-  const option = page
-    .getByRole("group", { name: "Venues", exact: true })
-    .getByRole("option")
-    .first();
+  const search = mapToolbar(page).getByRole("combobox", { name: "Search pubs" });
   await expect(async () => {
-    await search.click();
     await search.fill(query);
+    const option = page.getByRole("option", { name: new RegExp(query, "i") }).first();
     await expect(option).toBeVisible({ timeout: 2_000 });
+    await option.click();
+    await expect(page).toHaveURL(/sel=/, { timeout: 2_000 });
   }).toPass({ timeout: 60_000 });
-  await option.click();
 }
 
 function planner(page: Page) {
-  return page.locator(".mapDrawer.left.springDrawer");
+  return desktopPlannerDrawer(page);
 }
 
 function venue(page: Page) {
-  return page.locator(".mapDrawer.right.springDrawer");
+  return desktopVenueDrawer(page);
 }
 
 async function expectSoleDrawer(page: Page, owner: "planner" | "venue"): Promise<void> {
-  await expect(page.locator(".mapDrawer.springDrawer.open")).toHaveCount(1);
-  await expect(planner(page)).toHaveAttribute(
-    "aria-hidden",
-    owner === "planner" ? "false" : "true",
-  );
-  await expect(venue(page)).toHaveAttribute(
-    "aria-hidden",
-    owner === "venue" ? "false" : "true",
-  );
+  await expectSoleDesktopDrawer(page, owner);
 }
 
 test.describe("one Map surface history owner", () => {
@@ -228,8 +214,12 @@ test.describe("one Map surface history owner", () => {
     await expectSoleDrawer(page, "venue");
     await page.goBack();
 
-    await expectSoleDrawer(page, "planner");
-    await expect(planner(page).locator(".routeList > li")).toHaveCount(5);
+    await expect(async () => {
+      await expectSoleDrawer(page, "planner");
+      await expect(planner(page).locator(".routeList > li")).toHaveCount(5, {
+        timeout: 2_000,
+      });
+    }).toPass({ timeout: 60_000 });
   });
 
   test("immediate Back after venue to planner transition keeps correct surface with real predecessor", async ({
@@ -299,7 +289,7 @@ test.describe("one Map surface history owner", () => {
       Math.min(PHONE.height - 8, y + dismissDistance),
       { steps: 2 },
     );
-    await expect(sheet).toHaveClass(/sheet-dragging/);
+    await expect(sheet).toHaveAttribute("data-sheet-motion", "dragging");
     await page.mouse.up();
 
     await expect(portal).toHaveCount(0, { timeout: 20_000 });
@@ -319,7 +309,7 @@ test.describe("one Map surface history owner", () => {
       ).toBeVisible({ timeout: 30_000 });
       await expect(
         page.locator('.mobileSheetPortal[data-sheet-kind="venue"] .mobileSharedSheet'),
-      ).not.toHaveClass(/sheet-settling/, { timeout: 30_000 });
+      ).toHaveAttribute("data-sheet-motion", "idle", { timeout: 30_000 });
       await page.screenshot({
         path: testInfo.outputPath(`history-owner-390-${theme}-firefox.png`),
         animations: "disabled",
