@@ -10,9 +10,9 @@ import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 //         it is in the submitted build.
 // GAP 3 — privacy, terms and the support contact reachable INSIDE the shell,
 //         which starts on /tonight (`SHELL_START_PATH`) and need never open `/`.
-// GAP 4 — one sign-in action, and it is a real link. The nav's own Sign in is
-//         hidden at 640px (`.siteNavBar .authUser`), so before this the You tab
-//         signed out said "Sign in" three times and had nothing to tap.
+// GAP 4 — one sign-in action, and it is a real link on the You tab. Compact
+//         Sign in also lives in the phone bar (`.authUserNav`); the full
+//         signed-in row is desktop-only (`.siteNavBar .authUser:not(.authUserNav)`).
 //
 // The proof shots land in docs/proof/account-deletion/.
 

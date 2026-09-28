@@ -367,8 +367,8 @@ export function YouSignedOutSurface({
           It is a LINK TO /login, not an in-page anchor. The anchor scrolled the
           reader down to the account block, which signed out is a restatement of
           the same invitation, so the You tab's only call to action landed on
-          itself, and the phone nav's own Sign in is hidden at 640px
-          (`.siteNavBar .authUser`). This is the door /social and /messages
+          itself; the full nav account card is desktop-only at 640px
+          (`.siteNavBar .authUser:not(.authUserNav)`). This is the door /social and /messages
           already open. */}
       <div className="youIdentityActions">
         <Link href={YOU_SIGN_IN_HREF} data-primary-action="">Claim your @handle</Link>
