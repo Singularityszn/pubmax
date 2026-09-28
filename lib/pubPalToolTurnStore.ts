@@ -67,7 +67,14 @@ function turnFromPayload(payload: PubPalToolTurnPayload, expiresAtMs: number): P
 type PubPalToolTurnStore = {
   register(
     conversationId: string,
-    input: { query: string; cityId: CityId; turns?: PubPalFenceTurn[] },
+    input: {
+      query: string;
+      cityId: CityId;
+      turns?: PubPalFenceTurn[];
+      cards?: AskCard[];
+      proposals?: AskProposal[];
+      hints?: string[];
+    },
   ): Promise<void>;
   read(conversationId: string): Promise<PubPalToolTurn | null>;
   append(
@@ -90,9 +97,9 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
       cityId: input.cityId,
       turns: Array.isArray(input.turns) ? input.turns.slice(-6) : [],
       expiresAt: now + PUB_PAL_TOOL_TURN_TTL_MS,
-      cards: [],
-      proposals: [],
-      hints: [],
+      cards: Array.isArray(input.cards) ? input.cards : [],
+      proposals: Array.isArray(input.proposals) ? input.proposals : [],
+      hints: Array.isArray(input.hints) ? input.hints : [],
     });
   },
 
@@ -150,9 +157,9 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           query: input.query,
           cityId: input.cityId,
           turns: Array.isArray(input.turns) ? input.turns.slice(-6) : [],
-          cards: [],
-          proposals: [],
-          hints: [],
+          cards: Array.isArray(input.cards) ? input.cards : [],
+          proposals: Array.isArray(input.proposals) ? input.proposals : [],
+          hints: Array.isArray(input.hints) ? input.hints : [],
         };
         const { error } = await requireSupabaseAdmin()
           .from("pub_pal_tool_turns")
@@ -175,8 +182,6 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           fallback: () => memoryPubPalToolTurnStore.read(conversationId),
           onProduction: async () => null,
         }),
-      message: "read failed; treating as miss",
-      onError: () => null,
       run: async () => {
         const { data, error } = await requireSupabaseAdmin()
           .from("pub_pal_tool_turns")
@@ -256,7 +261,14 @@ const pubPalToolTurnStore = createDualBackendStore(
 
 export async function registerPubPalToolTurn(
   conversationId: string,
-  input: { query: string; cityId: CityId; turns?: PubPalFenceTurn[] },
+  input: {
+    query: string;
+    cityId: CityId;
+    turns?: PubPalFenceTurn[];
+    cards?: AskCard[];
+    proposals?: AskProposal[];
+    hints?: string[];
+  },
 ): Promise<void> {
   await pubPalToolTurnStore().register(conversationId, input);
 }
@@ -296,12 +308,9 @@ export async function appendPubPalToolTurnThread(
     query,
     cityId,
     turns,
-  });
-  if (!existing) return;
-  await appendPubPalToolTurn(conversationId, {
-    cards: existing.cards,
-    proposals: existing.proposals,
-    hints: existing.hints,
+    cards: existing?.cards,
+    proposals: existing?.proposals,
+    hints: existing?.hints,
   });
 }
 

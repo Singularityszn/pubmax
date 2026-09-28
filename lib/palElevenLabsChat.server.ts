@@ -157,17 +157,21 @@ export async function runPalElevenLabsChatTurn(
         conversationId =
           payload.conversation_initiation_metadata_event?.conversation_id?.trim() ?? "";
         void (async () => {
-          if (conversationId) {
-            await registerPubPalToolTurn(conversationId, {
-              query,
-              cityId,
-              turns: turns.map((turn) => ({
-                role: turn.role,
-                content: turn.content,
-              })),
-            });
+          try {
+            if (conversationId) {
+              await registerPubPalToolTurn(conversationId, {
+                query,
+                cityId,
+                turns: turns.map((turn) => ({
+                  role: turn.role,
+                  content: turn.content,
+                })),
+              });
+            }
+            ws.send(JSON.stringify({ type: "user_message", text: query }));
+          } catch {
+            finish({ ok: false, code: "UNAVAILABLE" });
           }
-          ws.send(JSON.stringify({ type: "user_message", text: query }));
         })();
         return;
       }
@@ -175,23 +179,27 @@ export async function runPalElevenLabsChatTurn(
       if (payload.type === "agent_response") {
         const agentMessage = payload.agent_response_event?.agent_response?.trim() ?? "";
         void (async () => {
-          const turn = conversationId ? await consumePubPalToolTurn(conversationId) : null;
-          const cards = turn?.cards ?? [];
-          const proposals = turn?.proposals ?? [];
-          const message =
-            agentMessage ||
-            (turn?.hints.length
-              ? composeAnswer(turn.hints, cards, [])
-              : cards.length > 0
-                ? composeAnswer([], cards, [])
-                : "Nothing sourced for that. Try a nearby area or a broader ask.");
-          finish({
-            ok: true,
-            message,
-            cards,
-            proposals,
-            conversationId,
-          });
+          try {
+            const turn = conversationId ? await consumePubPalToolTurn(conversationId) : null;
+            const cards = turn?.cards ?? [];
+            const proposals = turn?.proposals ?? [];
+            const message =
+              agentMessage ||
+              (turn?.hints.length
+                ? composeAnswer(turn.hints, cards, [])
+                : cards.length > 0
+                  ? composeAnswer([], cards, [])
+                  : "Nothing sourced for that. Try a nearby area or a broader ask.");
+            finish({
+              ok: true,
+              message,
+              cards,
+              proposals,
+              conversationId,
+            });
+          } catch {
+            finish({ ok: false, code: "UNAVAILABLE" });
+          }
         })();
       }
     });
