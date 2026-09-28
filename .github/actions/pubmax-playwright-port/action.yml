@@ -12,13 +12,45 @@ runs:
         RUNNER_NAME: ${{ runner.name }}
       run: |
         set -euo pipefail
-        if [ -n "${PW_PORT:-}" ]; then
-          echo "PW_PORT=${PW_PORT}" >> "$GITHUB_ENV"
-          echo "Playwright port ${PW_PORT} (from runner environment)"
-          exit 0
+        requested_port="${PW_PORT:-}"
+        port_listening() {
+          lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1
+        }
+        # Playwright may start up to three webServers (main, keyless, auth).
+        playwright_ports_free() {
+          local base=$1
+          ! port_listening "${base}" \
+            && ! port_listening "$((base + 1))" \
+            && ! port_listening "$((base + 2))"
+        }
+        if [ -n "${requested_port}" ]; then
+          start_offset=$(( (requested_port - 3100) / 10 ))
+          if [ "${start_offset}" -lt 0 ] || [ "${start_offset}" -gt 89 ]; then
+            echo "PW_PORT must sit in 3100-3990 (step 10); got ${requested_port}" >&2
+            exit 1
+          fi
+        else
+          sum=$(printf '%s' "${RUNNER_NAME}" | cksum | awk '{print $1}')
+          start_offset=$(( sum % 90 ))
         fi
-        sum=$(printf '%s' "${RUNNER_NAME}" | cksum | awk '{print $1}')
-        offset=$(( sum % 90 ))
-        port=$((3100 + offset * 10))
+        port=""
+        for attempt in $(seq 0 89); do
+          offset=$(( (start_offset + attempt) % 90 ))
+          candidate=$((3100 + offset * 10))
+          if playwright_ports_free "${candidate}"; then
+            port=${candidate}
+            break
+          fi
+        done
+        if [ -z "${port}" ]; then
+          echo "No free Playwright port block in 3100-3990 (step 10)" >&2
+          exit 1
+        fi
         echo "PW_PORT=${port}" >> "$GITHUB_ENV"
-        echo "Playwright port ${port} (derived from runner ${RUNNER_NAME})"
+        if [ -n "${requested_port}" ] && [ "${port}" != "${requested_port}" ]; then
+          echo "Playwright port ${port} (${requested_port} busy; stepped within bucket range)"
+        elif [ -n "${requested_port}" ]; then
+          echo "Playwright port ${port} (from runner environment)"
+        else
+          echo "Playwright port ${port} (derived from runner ${RUNNER_NAME})"
+        fi
