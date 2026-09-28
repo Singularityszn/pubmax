@@ -154,6 +154,7 @@ const NOT_REPO_PATHS = new Set([
   // Environment file a reader is told to CREATE, so a clean clone lacks it.
   ".env.local",
   // CSS class selectors, not files.
+  ".authUserNav",
   ".lpButtonPrimary",
   ".messageBubble",
   ".messageLine",
