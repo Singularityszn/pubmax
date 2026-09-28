@@ -20,9 +20,13 @@ runs-on: [self-hosted, pubmax-mac]
 Install once on the runner Mac:
 
 ```sh
-brew install postgresql@16 postgrest node@22 # or another Node 22 install
+brew install postgresql@16 postgrest node@22 zizmor osv-scanner semgrep # or another Node 22 install
 npx playwright install chromium   # or let CI cache under ~/Library/Caches/ms-playwright
 ```
+
+`security-ci.yml` invokes Homebrew `zizmor`, `osv-scanner`, and `semgrep` directly.
+Semgrep uses `/etc/ssl/cert.pem` on macOS when Homebrew certifi paths are missing.
+Accepted lockfile findings may be listed in `osv-scanner.toml` with reasons.
 
 PostgreSQL clusters for RLS proofs use the serial harness in
 `scripts/rls/postgresHost.mjs` (unique ports/data dirs per job, SysV slot
@@ -45,9 +49,9 @@ concurrency:
 
 The group is **per git ref**, not repo-wide. A repo-wide group once queued ancient runs from other branches and blocked every pull request for hours.
 
-Each workflow has its own group so CI, browser tests, and RLS do not cancel each other on the same push. A newer pull request head supersedes that pull request's older runs on the shared runner, so rerun the latest workflow run for the current head rather than an older one: a rerun of a superseded run can cancel the current run. Main pushes, the nightly browser suite and manual dispatches never cancel, and the event name in the group keeps the nightly run from queuing behind a main push. The runner should still execute one job at a time; `ci.yml` chains jobs so a single CI run does not parallelize writers.
+Each workflow has its own group so CI, Security CI, browser tests, and RLS do not cancel each other on the same push. A newer pull request head supersedes that pull request's older runs on the shared runner, so rerun the latest workflow run for the current head rather than an older one: a rerun of a superseded run can cancel the current run. Main pushes, the nightly browser suite and manual dispatches never cancel, and the event name in the group keeps the nightly run from queuing behind a main push. The runner should still execute one job at a time; `ci.yml` chains jobs so a single CI run does not parallelize writers.
 
-Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, `rls-session.yml`, and the Playwright jobs in `performance.yml` are set to about **2× the p95** duration observed on the last ~50 self-hosted runs (measured with `gh run list` and `gh api …/jobs`), with floors on the freshness gate (20 minutes) and Coverage (30 minutes). Raise a ceiling only when measured p95 under shared-runner load justifies it; see `perf/AGENTS.md`.
+Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, `rls-session.yml`, and the Playwright jobs in `performance.yml` are set to about **2× the p95** duration observed on the last ~50 self-hosted runs (measured with `gh run list` and `gh api …/jobs`), with floors on the freshness gate (20 minutes) and Coverage (30 minutes). Raise a ceiling only when measured p95 under shared-runner load justifies it; see `perf/AGENTS.md`. `security-ci.yml` uses fixed ceilings (10, 15, and 45 minutes for zizmor, osv-scanner, and Semgrep).
 
 Playwright jobs take `PW_PORT` from `.github/actions/pubmax-playwright-port`. The action uses `PW_PORT` from the runner's `.env` when set; otherwise it hashes `RUNNER_NAME` into one of 90 ports (3100-3990, step 10). Two runner names can still land on the same port, so set an explicit, distinct `PW_PORT` in each runner's `.env` on a shared Mac.
 
