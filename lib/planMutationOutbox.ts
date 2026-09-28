@@ -281,10 +281,12 @@ export function flushPlanMutationOutbox(options?: {
 }): Promise<PlanMutationFlushResult[]> {
   if (!flushPromise) {
     flushPromise = Promise.resolve().then(async (): Promise<PlanMutationFlushResult[]> => {
+      let snapshotPendingIds = new Set<string>();
       try {
         hydrate();
         // Always drain the full queue so concurrent plan-scoped callers share work.
         const pending = listPlanMutationOutbox().filter((row) => row.status === "pending");
+        snapshotPendingIds = new Set(pending.map((row) => row.id));
         const results: PlanMutationFlushResult[] = [];
         for (const entry of pending) {
           if (options?.signal?.aborted) break;
@@ -340,7 +342,10 @@ export function flushPlanMutationOutbox(options?: {
       } finally {
         flushPromise = null;
         queueMicrotask(() => {
-          if (listPlanMutationOutbox().some((row) => row.status === "pending")) {
+          const hasPendingNotInSnapshot = listPlanMutationOutbox().some(
+            (row) => row.status === "pending" && !snapshotPendingIds.has(row.id),
+          );
+          if (hasPendingNotInSnapshot) {
             void flushPlanMutationOutbox();
           }
         });
