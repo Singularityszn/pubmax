@@ -13,8 +13,9 @@
 // (3) The Push step commits whatever a step leaves in the worktree. `verify`
 // normally rebuilds slim shards before validate-data; when the builder has
 // moved ahead of what is checked in that rewrite dirties public/data. The
-// command sets PUBMAX_VERIFY_COMMITTED_DATA=1 to validate committed artifacts
-// and DEPLOYMENT_VERSION=local so a checkout never stamps HEAD over `local`.
+// command sets PUBMAX_VERIFY_COMMITTED_DATA=1 to validate committed artifacts,
+// DEPLOYMENT_VERSION=local so a checkout never stamps HEAD over `local`, and
+// run-with-restored-bundled-data.mjs to git-restore bundled trees on exit.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -69,7 +70,7 @@ describe("the no-mistakes repository test command", () => {
   });
 
   it("runs the pre-push merge bar", () => {
-    expect(splitTestCommand().command).toBe("npm run verify");
+    expect(splitTestCommand().command).toBe("npm run verify:no-mistakes");
   });
 
   it("reaches the unit suite and never the browser suite", () => {
@@ -100,8 +101,15 @@ describe("the no-mistakes repository test command", () => {
   });
 
   it("validates committed bundled data without regenerating slim shards", () => {
-    const { env } = splitTestCommand();
+    const expanded = expand(splitTestCommand().command, packageScripts());
+    const env: Record<string, string> = {};
+    for (const word of expanded.trim().split(/\s+/).filter(Boolean)) {
+      if (!/^[A-Z_][A-Z0-9_]*=\S*$/.test(word)) break;
+      const [name, ...value] = word.split("=");
+      env[name] = value.join("=");
+    }
     expect(env.PUBMAX_VERIFY_COMMITTED_DATA).toBe("1");
+    expect(env.DEPLOYMENT_VERSION).toBe("local");
 
     const committed = JSON.parse(
       readFileSync(join(ROOT, "public/data/cities/bath/venues_slim.manifest.json"), "utf8"),

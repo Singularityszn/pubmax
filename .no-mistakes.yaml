@@ -12,4 +12,4 @@ commands:
   # The Playwright suite stays in .github/workflows/e2e.yml.
   # The Push step commits what a step leaves behind. In a git checkout the slim
   # shard builders stamp HEAD over the committed "local" marker, so pin it.
-  test: "DEPLOYMENT_VERSION=local PUBMAX_VERIFY_COMMITTED_DATA=1 npm run verify"
+  test: "npm run verify:no-mistakes"

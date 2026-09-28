@@ -5,6 +5,11 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 
+import {
+  restoreCommittedBundledData,
+  shouldRestoreBundledDataAfterTrackedOutputs,
+} from "./lib/committedBundledDataPaths.mjs";
+
 const [, , command, ...args] = process.argv;
 
 if (!command) {
@@ -56,6 +61,12 @@ try {
     cwd: process.cwd(), env: { ...process.env, NEXT_DIST_DIR: distDir }, stdio: "inherit",
   });
 } finally {
+  if (shouldRestoreBundledDataAfterTrackedOutputs(trackedOutputs)) {
+    if (!restoreCommittedBundledData()) {
+      console.error("Failed to restore committed bundled data from HEAD.");
+      process.exit(1);
+    }
+  }
   // Next rewrites these tracked files to point at NEXT_DIST_DIR during a build.
   // Restore their exact original state even when the wrapped command fails.
   for (const file of managedFiles) {
