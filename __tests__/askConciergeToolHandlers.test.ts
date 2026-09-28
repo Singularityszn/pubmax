@@ -146,8 +146,9 @@ describe("cheapest_pint_near", () => {
     expect(london.answerHint).toContain("Cheapest listed pints in London");
 
     const soho = await runAskTool("cheapest_pint_near", { area: "Soho" }, ctx());
-    expect(soho.ok).toBe(false);
-    expect(soho.answerHint).toBe(CHEAPEST_NEAR_NO_ANCHOR);
+    expect(soho.ok).toBe(true);
+    expect(soho.cards.length).toBeGreaterThan(0);
+    expect(soho.answerHint).toContain("Soho");
   });
 
   it("asks for an anchor instead of guessing one", async () => {
@@ -191,13 +192,13 @@ describe("cheapest_pint_near", () => {
       venue({ id: "angel", name: "The Angel", area: "Hillingdon", cheapestPrice: 4 }),
       venue({ id: "crown", name: "The Crown", area: "Hillingdon", cheapestPrice: 4.5 }),
     ];
-    const [call] = routeAskDeterministically("cheapest pint in Angel");
+    const [call] = routeAskDeterministically("cheapest pint in Tyburnia");
     expect(call?.name).toBe("cheapest_pint_near");
     const result = await runAskTool("cheapest_pint_near", call.args, ctx());
     expect(result.ok).toBe(false);
     expect(result.answerHint).toBe(CHEAPEST_NEAR_NO_ANCHOR);
     expect(result.cards).toHaveLength(0);
-    expect(result.answerHint).not.toContain("Angel");
+    expect(result.answerHint).not.toContain("Tyburnia");
   });
 
   it("still ranks round a pub the drinker named", async () => {
@@ -483,7 +484,7 @@ describe("find_desk", () => {
     expect(result.ok).toBe(true);
     expect(result.cards).toHaveLength(0);
     expect(result.answerHint).toContain("No seat data yet");
-    expect(result.answerHint).not.toContain("Angel");
+    expect(result.answerHint).not.toContain("Tyburnia");
   });
 
   it("never asserts absence in an area the places list does not name", async () => {

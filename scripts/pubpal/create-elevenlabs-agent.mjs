@@ -110,13 +110,57 @@ function systemPrompt() {
   ].join("\n");
 }
 
+
+const TOOL_WEBHOOK_BODY_PROPERTIES = {
+  cheapest_pint_near: {
+    conversation_id: {
+      type: "string",
+      description: "ElevenLabs conversation id from the active session.",
+    },
+    query: {
+      type: "string",
+      description: "The user's full question when area or pub name are unclear.",
+    },
+    area: { type: "string", description: "London area or neighbourhood, e.g. Soho or Camden." },
+    venueName: { type: "string", description: "Named pub to search around." },
+  },
+  propose_plan: {
+    conversation_id: {
+      type: "string",
+      description: "ElevenLabs conversation id from the active session.",
+    },
+    query: {
+      type: "string",
+      description: "The full crawl or plan ask, including area and stop count.",
+    },
+  },
+  search_venues: {
+    conversation_id: {
+      type: "string",
+      description: "ElevenLabs conversation id from the active session.",
+    },
+    query: { type: "string", description: "The venue search ask." },
+  },
+};
+
+const DEFAULT_WEBHOOK_BODY_PROPERTIES = {
+  conversation_id: {
+    type: "string",
+    description: "ElevenLabs conversation id from the active session.",
+  },
+  query: {
+    type: "string",
+    description: "The user's question this tool call should answer.",
+  },
+};
+
 function webhookToolConfig(name, baseUrl, secretId) {
   const description = TOOL_DESCRIPTIONS[name] ?? "PUBMAXX grounded tool.";
   return {
     type: "webhook",
     name,
     description,
-    response_timeout_secs: 20,
+    response_timeout_secs: 28,
     api_schema: {
       url: `${baseUrl}/api/pub-pal/tools/${name}`,
       method: "POST",
@@ -126,12 +170,8 @@ function webhookToolConfig(name, baseUrl, secretId) {
       },
       request_body_schema: {
         type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "The user's question this tool call should answer.",
-          },
-        },
+        properties:
+          TOOL_WEBHOOK_BODY_PROPERTIES[name] ?? DEFAULT_WEBHOOK_BODY_PROPERTIES,
       },
     },
   };

@@ -13,6 +13,8 @@ import {
   pubPalWebhookLimiterKey,
 } from "@/lib/pubPalWebhookRateLimit";
 
+export const maxDuration = 30;
+
 type RouteContext = { params: Promise<{ toolName: string }> };
 
 export async function POST(request: Request, context: RouteContext): Promise<Response> {

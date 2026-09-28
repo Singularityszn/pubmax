@@ -68,8 +68,29 @@ vi.mock("@/lib/pubPalLlmFence", () => ({
   pubPalGetHomeRegisterAnswer: vi.fn(),
 }));
 
+const toolTurnPayload = {
+    query: "Which pubs near Soho have a pint under £5?",
+    cityId: "london",
+    turns: [],
+    expiresAt: Date.now() + 60_000,
+    cards: [
+      {
+        key: "v1",
+        venueId: "london-a",
+        title: "The Crown",
+        place: "Soho",
+        note: "Listed pint.",
+        price: 4.8,
+      },
+    ],
+    proposals: [],
+    hints: [],
+    toolsUsed: ["search_venues"],
+  };
+
 vi.mock("@/lib/pubPalToolTurnStore", () => ({
   registerPubPalToolTurn: vi.fn(async () => {}),
+  readPubPalToolTurn: vi.fn(async () => toolTurnPayload),
   consumePubPalToolTurn: vi.fn(async () => ({
     query: "Which pubs near Soho have a pint under £5?",
     cityId: "london",
@@ -87,6 +108,7 @@ vi.mock("@/lib/pubPalToolTurnStore", () => ({
     ],
     proposals: [],
     hints: [],
+    toolsUsed: ["search_venues"],
   })),
 }));
 
