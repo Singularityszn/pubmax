@@ -14,6 +14,10 @@
   color: var(--ink);
 }
 
+body:has(.lp) {
+  background: var(--paper);
+}
+
 .lp *, .lp *::before, .lp *::after { box-sizing: border-box; }
 
 /* The nav is a fixed bar. Anchor jumps to a section or heading id must clear
@@ -27,6 +31,8 @@
 
 .lpNav {
   position: fixed;
+  /* Anchor ::before paper fill above the pill on phones. */
+  isolation: isolate;
   /* Clear the notch on installed opens: the bar is fixed, so without the
      safe-area inset it hides under the status bar. */
   top: max(14px, env(safe-area-inset-top));
@@ -508,7 +514,28 @@ a.lpPubPint:hover { color: var(--ink); }
      bar takes the same 52px height, 14px radius and tight shadow as the in-app
      bars so landing to app never jumps. The top offset keeps its max() literal
      (locked by landingChromeCss.test). */
-  .lpNav { top: max(10px, env(safe-area-inset-top)); width: calc(100vw - 20px); min-height: var(--topbar-h, 52px); padding: 3px var(--topbar-pad-x, 10px); gap: 8px; border-radius: var(--topbar-radius, 14px); box-shadow: var(--topbar-shadow, var(--shadow-sm)); }.lpWordmark { font-size: 12px; }
+  .lpNav {
+    top: max(10px, env(safe-area-inset-top));
+    width: calc(100vw - 20px);
+    min-height: var(--topbar-h, 52px);
+    padding: 3px var(--topbar-pad-x, 10px);
+    gap: 8px;
+    border-radius: var(--topbar-radius, 14px);
+    box-shadow: var(--topbar-shadow, var(--shadow-sm));
+  }
+  /* Paper fill from the viewport top through the bar's offset so a coral hero
+     control or the body gradient cannot peek above the floating header. */
+  .lpNav::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    height: max(10px, env(safe-area-inset-top, 0px));
+    background: var(--paper);
+    pointer-events: none;
+  }
+  .lpWordmark { font-size: 12px; }
   .lpPubCard { width: 100%; padding: var(--space-4) var(--space-5); }
   .lpWorth,
   .lpFaq { padding: 48px 0 12px; }

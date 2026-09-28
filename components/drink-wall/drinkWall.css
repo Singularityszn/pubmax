@@ -1,5 +1,17 @@
 /* Drink Wall - masonry grid shared with pub walls. */
 
+.wallPage {
+  /* Same shell floor as /out: body paints --gradient-party, so a short page
+     ends the gradient mid-viewport and leaves a hard band (~415px on a phone). */
+  min-height: 100dvh;
+  min-height: 100svh;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 10px var(--page-gutter)
+    calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 24px);
+  color: var(--ink);
+}
+
 .drinkWall {
   display: flex;
   flex-direction: column;
@@ -158,6 +170,21 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.drinkWallSignInPrompt {
+  margin: 0;
+  max-width: 36rem;
+  color: var(--ink-soft, #6b6257);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.drinkWallSignInPrompt a {
+  font-weight: 650;
+  color: var(--ink);
+  text-underline-offset: 3px;
 }
 
 .wallPageBody {

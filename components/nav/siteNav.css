@@ -740,7 +740,8 @@ button.siteNavMoreItem {
     height: 44px;
   }
 
-  .siteNavBar .authUser {
+  /* Hide the full signed-in row, not the compact Sign in / Account host. */
+  .siteNavBar .authUser:not(.authUserNav) {
     display: none;
   }
 

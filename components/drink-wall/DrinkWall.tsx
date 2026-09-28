@@ -235,9 +235,10 @@ export default function DrinkWall() {
               Add a photo
             </button>
           ) : (
-            <Link className="venuePhotoWallButton venuePhotoWallSignIn" href={drinkWallSignInHref("/wall")}>
-              {DRINK_WALL_SIGN_IN_LINE}
-            </Link>
+            <p className="drinkWallSignInPrompt">
+              {DRINK_WALL_SIGN_IN_LINE}{" "}
+              <Link href={drinkWallSignInHref("/wall")}>Sign in</Link>
+            </p>
           )}
         </div>
       </div>
