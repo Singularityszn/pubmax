@@ -48,3 +48,8 @@
 /.claude/
 /test-results/
 /playwright-report/
+
+# Mission workspace knowledge base and validation screenshots. Local agent
+# artifacts (see the mission AGENTS.md), never part of the committed codebase
+# or any deploy.
+/library/
