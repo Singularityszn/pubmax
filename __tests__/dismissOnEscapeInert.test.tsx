@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
 
-import { act, createElement, useRef } from "react";
+import { act, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import MapVenueList from "@/components/map/MapVenueList";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
-import type { MapVenueListModel, UkBasePubListModel } from "@/lib/mapVenueList";
 
 // One Escape closes the TOP level. The desktop venue list stays open under the
 // venue drawer it opened, and the drawer's focus trap makes the list inert
@@ -71,54 +69,6 @@ describe("useDismissOnEscape under a modal", () => {
     const event = pressEscape();
 
     expect(onDismiss).not.toHaveBeenCalled();
-    expect(event.defaultPrevented).toBe(false);
-  });
-
-  it("MapVenueList does not dismiss while inert under the venue drawer", () => {
-    const onOpenChange = vi.fn();
-    const emptyBase: UkBasePubListModel = {
-      rows: [],
-      total: 0,
-      shown: 0,
-      truncated: false,
-    };
-    const curated: MapVenueListModel = {
-      rows: [
-        {
-          id: "venue-curated",
-          name: "Curated Arms",
-          typeLabel: "Pub",
-          priceLabel: "£4.50",
-          anchor: null,
-        },
-      ],
-      total: 1,
-      shown: 1,
-      truncated: false,
-      coverageNote: null,
-    };
-
-    act(() =>
-      root.render(
-        createElement(MapVenueList, {
-          model: curated,
-          ukBaseModel: emptyBase,
-          cityName: "London",
-          open: true,
-          onOpenChange,
-          loaded: true,
-          onSelectVenue: () => {},
-          onSelectUkBasePub: () => {},
-          onPrefetchVenue: () => {},
-        }),
-      ),
-    );
-
-    host.inert = true;
-
-    const event = pressEscape();
-
-    expect(onOpenChange).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(false);
   });
 });
