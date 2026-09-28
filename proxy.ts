@@ -235,6 +235,13 @@ function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
 export function securityProxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (servesApiCaller(pathname)) {
+    if (pathname.length > 1 && pathname.endsWith("/")) {
+      const canonicalUrl = new URL(request.url);
+      canonicalUrl.pathname = pathname.slice(0, -1);
+      return applyNonProductionRobotsTag(
+        NextResponse.redirect(canonicalUrl, 308),
+      );
+    }
     const refused = serverEnvRefusalResponse();
     if (refused) return applyNonProductionRobotsTag(refused);
     return applyNonProductionRobotsTag(NextResponse.next());

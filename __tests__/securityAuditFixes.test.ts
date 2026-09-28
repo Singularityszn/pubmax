@@ -1,10 +1,37 @@
 import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const createSocialOAuthStartMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/serverEnv", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/serverEnv")>();
+  return { ...actual, assertServerEnv: () => {} };
+});
+vi.mock("@/lib/authServer", () => ({
+  callerUserId: async () => "audit-user-1",
+}));
+vi.mock("@/lib/pintDrops", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
+  return { ...actual, isLimited: async () => false };
+});
+vi.mock("@/lib/socialOAuth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/socialOAuth")>();
+  return {
+    ...actual,
+    createSocialOAuthStart: createSocialOAuthStartMock,
+    socialProviderAvailability: () => {
+      const base = actual.socialProviderAvailability();
+      return {
+        ...base,
+        x: { ...base.x, oauth_identity: true },
+      };
+    },
+  };
+});
+
 import { GET as versionGet } from "@/app/api/version/route";
+import { POST as socialConnectPost } from "@/app/api/social-connections/[provider]/route";
 import { PRODUCTION_SERVER_URL, nativeServerUrl } from "../capacitor.config";
 import { supabaseCspOrigins } from "@/lib/supabaseCsp";
 import { serverEnvRefusalResponse } from "@/lib/serverEnv";
@@ -129,14 +156,31 @@ describe("security audit F-10 — misconfigured production API envelope", () => 
 });
 
 describe("security audit F-09 — social OAuth errors", () => {
-  it("does not echo raw exception messages from the provider route", () => {
-    const source = readFileSync(
-      join(process.cwd(), "app/api/social-connections/[provider]/route.ts"),
-      "utf8",
+  afterEach(() => {
+    createSocialOAuthStartMock.mockReset();
+  });
+
+  it("returns the house envelope when OAuth start throws", async () => {
+    const secretDetail = "upstream-oauth-secret-detail-9f3a";
+    createSocialOAuthStartMock.mockRejectedValue(new Error(secretDetail));
+
+    const response = await socialConnectPost(
+      new Request("http://localhost/api/social-connections/x", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ mode: "oauth" }),
+      }),
+      { params: Promise.resolve({ provider: "x" }) },
     );
-    expect(source).toContain('"OAuth is unavailable."');
-    expect(source).not.toMatch(
-      /publicApiError\(error instanceof Error \? error\.message/,
-    );
+
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body).toEqual({
+      error: "OAuth is unavailable.",
+      code: "SOCIAL_PROVIDER_UNAVAILABLE",
+      retryable: true,
+    });
+    const raw = JSON.stringify(body);
+    expect(raw).not.toContain(secretDetail);
   });
 });
