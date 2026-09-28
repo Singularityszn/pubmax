@@ -274,6 +274,11 @@ function markEntry(
  * Flush every pending outbox row. Concurrent callers share one in-flight run so
  * a second plan is not starved while the first flush is busy; results are
  * filtered to `planId` when requested.
+ *
+ * `notify()` during `markEntry` may re-enter flush while a run is in flight; the
+ * shared promise keeps that to one POST per idempotency key. After a run, a
+ * microtask follow-up flush runs only for pending rows enqueued during that run
+ * (not rows left pending after offline/5xx in the opening snapshot).
  */
 export function flushPlanMutationOutbox(options?: {
   planId?: string;
