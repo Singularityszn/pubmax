@@ -7,9 +7,11 @@
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import {
+  drinkSubtypeFamilyParentId,
   drinkSubtypeFromText,
   drinkSubtypeMembers,
   findSubtype,
+  subtypesForCategory,
   type DrinkSubtype,
 } from "@/lib/drinkSubtypes";
 import { namedLegacyPintPriceSource } from "@/lib/drinks";
@@ -22,12 +24,31 @@ const SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID = "soft-drink-zero-sugar-cola";
 /** Launch chips for the Soft drinks and water view; generic component accepts any subtype. */
 export const SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS = [
   SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID,
-  "soft-drink-coke-zero",
-  "soft-drink-diet-coke",
-  "soft-drink-pepsi-max",
-  "soft-drink-diet-pepsi",
   "soft-drink-still-water",
 ] as const;
+
+/** Chip order for the soft-drinks view; leaf cola brands stay classifiable but not chip-visible. */
+export function softDrinksWaterChipSubtypes(
+  launchSubtypeIds: readonly string[] = SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS,
+): readonly DrinkSubtype[] {
+  const launch = launchSubtypeIds
+    .map((id) => findSubtype(id))
+    .filter((hit): hit is DrinkSubtype => hit !== null);
+  const rest = subtypesForCategory("soft-drink").filter(
+    (subtype) =>
+      !launchSubtypeIds.includes(subtype.id) && !drinkSubtypeFamilyParentId(subtype.id),
+  );
+  return [...launch, ...rest];
+}
+
+/** True when this chip should appear selected for the active subtype lens. */
+export function softDrinksWaterChipSelected(
+  chipSubtypeId: string,
+  activeSubtypeId: string,
+): boolean {
+  if (chipSubtypeId === activeSubtypeId) return true;
+  return drinkSubtypeFamilyParentId(activeSubtypeId) === chipSubtypeId;
+}
 
 export type ObservedSubtypePrice = {
   drinkLabel: string;
