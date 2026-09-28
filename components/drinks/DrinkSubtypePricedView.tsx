@@ -14,10 +14,11 @@ import { formatObservedDate } from "@/lib/dataFreshness";
 import {
   drinkSubtypePricedMapHref,
   SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS,
+  softDrinksWaterChipSelected,
+  softDrinksWaterChipSubtypes,
   type SubtypePricedVenueRow,
 } from "@/lib/drinkSubtypeObservedPrice";
-import { findSubtype, subtypesForCategory } from "@/lib/drinkSubtypes";
-import type { DrinkSubtype } from "@/lib/drinkSubtypes";
+import { findSubtype } from "@/lib/drinkSubtypes";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import type { PricedLandingRow } from "@/lib/pricedLanding";
 import { formatPrice } from "@/lib/venues";
@@ -26,7 +27,7 @@ import "./drinkSubtypePricedView.css";
 
 export type DrinkSubtypePricedViewProps = {
   title: string;
-  /** Subtype chips shown first; any other soft-drink subtype may be passed for extension. */
+  /** Launch chip ids (zero-sugar cola family and still water by default); leaf cola brands stay off the chip row. */
   launchSubtypeIds: readonly string[];
   activeSubtypeId: string;
   rows: readonly SubtypePricedVenueRow[];
@@ -48,18 +49,6 @@ function publisherRow(
   };
 }
 
-function chipSubtypes(
-  launchSubtypeIds: readonly string[],
-): DrinkSubtype[] {
-  const launch = launchSubtypeIds
-    .map((id) => findSubtype(id))
-    .filter((hit): hit is DrinkSubtype => hit !== null);
-  const rest = subtypesForCategory("soft-drink").filter(
-    (subtype) => !launchSubtypeIds.includes(subtype.id),
-  );
-  return [...launch, ...rest];
-}
-
 export default function DrinkSubtypePricedView({
   title,
   launchSubtypeIds,
@@ -69,7 +58,10 @@ export default function DrinkSubtypePricedView({
 }: DrinkSubtypePricedViewProps) {
   const router = useRouter();
   const openedRef = useRef(false);
-  const chips = useMemo(() => chipSubtypes(launchSubtypeIds), [launchSubtypeIds]);
+  const chips = useMemo(
+    () => softDrinksWaterChipSubtypes(launchSubtypeIds),
+    [launchSubtypeIds],
+  );
   const active = findSubtype(activeSubtypeId);
 
   useEffect(() => {
@@ -109,7 +101,7 @@ export default function DrinkSubtypePricedView({
           aria-label="Drink"
         >
           {chips.map((subtype) => {
-            const on = subtype.id === activeSubtypeId;
+            const on = softDrinksWaterChipSelected(subtype.id, activeSubtypeId);
             return (
               <button
                 key={subtype.id}

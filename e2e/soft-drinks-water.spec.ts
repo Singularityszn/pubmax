@@ -39,17 +39,14 @@ test.describe("Soft drinks and water view", () => {
 
     await expect(page.getByRole("heading", { name: "Soft drinks and water" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Zero-sugar cola", selected: true })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Coke Zero" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Diet Coke" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Pepsi Max" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Diet Pepsi" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Still water" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Coke Zero" })).toHaveCount(0);
+    await expect(page.getByRole("tab", { name: "Diet Coke" })).toHaveCount(0);
+    await expect(page.getByRole("tab", { name: "Pepsi Max" })).toHaveCount(0);
+    await expect(page.getByRole("tab", { name: "Diet Pepsi" })).toHaveCount(0);
 
-    await page.getByRole("tab", { name: "Pepsi Max" }).click();
-    await page.getByRole("tab", { name: "Zero-sugar cola" }).click();
-    await page.getByRole("tab", { name: "Diet Coke" }).click();
     await page.getByRole("tab", { name: "Still water" }).click();
-    await page.getByRole("tab", { name: "Coke Zero" }).click();
+    await page.getByRole("tab", { name: "Zero-sugar cola" }).click();
 
     const pricedMeta = page.locator(".softDrinksWater__meta", {
       hasText: `Collected ${COLLECTED_DAY}`,
@@ -79,6 +76,7 @@ test.describe("Soft drinks and water view", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${VIEW_PATH}?sub=soft-drink-coke-zero`);
     await expect(page.getByRole("heading", { name: "Soft drinks and water" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Zero-sugar cola", selected: true })).toBeVisible();
     const ledeText = (await page.locator(".screenLede").textContent()) ?? "";
     if (/No listed .* prices in London yet/.test(ledeText)) {
       await expect(page.getByText("Nobody has logged one here yet.")).toBeVisible();
@@ -106,7 +104,7 @@ test.describe("Soft drinks and water view", () => {
   test("desktop width keeps chips and list readable", async ({ page }, testInfo: TestInfo) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${VIEW_PATH}?sub=soft-drink-diet-coke`);
-    await expect(page.getByRole("tab", { name: "Diet Coke", selected: true })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Zero-sugar cola", selected: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Open the map" }).first()).toBeVisible();
 
     if (process.env.PW_SCREENSHOTS === "1") {

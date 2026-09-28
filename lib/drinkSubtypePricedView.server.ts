@@ -29,7 +29,8 @@ export async function loadSoftDrinksWaterView(
   ]);
 
   const observedCounts: Record<string, number> = {};
-  for (const id of SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS) {
+  const countIds = new Set<string>([...SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS, subtype.id]);
+  for (const id of countIds) {
     observedCounts[id] = countObservedSubtypePrices(venues, id, drinkUpdates);
   }
 

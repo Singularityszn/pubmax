@@ -20,7 +20,7 @@ type PageProps = {
 export const metadata: Metadata = {
   title: WORKING_TITLE,
   description:
-    "Zero-sugar cola, Coke Zero, Diet Coke, Pepsi Max, Diet Pepsi and still water prices at London pubs, with dates and publisher status beside every listed figure.",
+    "Zero-sugar cola (Coke Zero, Diet Coke, Pepsi Max, Diet Pepsi) and still water prices at London pubs, with the poured brand and publisher status beside every listed figure.",
   alternates: { canonical: "/soft-drinks-and-water" },
 };
 
