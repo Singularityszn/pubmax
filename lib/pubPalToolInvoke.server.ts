@@ -16,7 +16,6 @@ import { routeAskDeterministically } from "@/lib/ask/router";
 import {
   appendPubPalToolTurn,
   readPubPalToolTurn,
-  registerPubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
 
 function isEmptyArg(value: unknown): boolean {
@@ -132,13 +131,6 @@ export async function invokePubPalAskTool(input: {
   });
 
   if (input.conversationId) {
-    if (!turn && query) {
-      await registerPubPalToolTurn(input.conversationId, {
-        query,
-        cityId,
-        turns: threadTurns,
-      });
-    }
     await appendPubPalToolTurn(input.conversationId, {
       cards: toolResult.cards,
       proposals: toolResult.proposals,
