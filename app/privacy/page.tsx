@@ -290,7 +290,7 @@ export default function PrivacyPage() {
           A Visit Report records what you noticed on one dated pub visit.
           Writing one needs a signed-in account, a claimed public handle and a
           completed private profile. We store your public handle, the pub, the
-          visit date, the observations and note you chose, and the time our
+          visit date, what you noticed and the note you chose, and the time our
           server took it. The server derives your handle from your authenticated
           account and ignores any handle sent by the browser. To limit abuse, we
           use your account&rsquo;s stable private profile key together with a salted

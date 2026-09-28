@@ -563,3 +563,12 @@ describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
     }
   });
 });
+
+describe("VOICE.md plumbing-word regression pins", () => {
+  it("removes the banned 'observations' plumbing word from the privacy Visit Reports section", () => {
+    const privacy = read("app/privacy/page.tsx");
+    // The line was: 'the visit date, the observations and note you chose...'
+    expect(privacy).not.toContain("the observations and note");
+    expect(privacy).toContain("what you noticed and the note you chose");
+  });
+});
