@@ -255,6 +255,27 @@ export function isRateLimited(
   return hits.length > limit;
 }
 
+/**
+ * Like isRateLimited, but a refused call leaves the window untouched, so a
+ * caller that retries a refused charge does not keep its own window full.
+ */
+export function consumeRateLimit(
+  handle: string,
+  now: number,
+  limit: number,
+  windowMs: number,
+): boolean {
+  const key = handle.toLowerCase();
+  const hits = (rateWindow.get(key) ?? []).filter((t) => now - t < windowMs);
+  if (hits.length >= limit) {
+    rateWindow.set(key, hits);
+    return true;
+  }
+  hits.push(now);
+  rateWindow.set(key, hits);
+  return false;
+}
+
 /** Cap applied when the durable limiter is configured but unavailable. */
 const DEGRADED_RATE_LIMIT = 3;
 

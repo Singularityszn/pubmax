@@ -283,6 +283,92 @@ describe("chargeRoundPriceLines", () => {
       vi.useRealTimers();
     }
   });
+
+  it("stops charging lines once a batch is denied mid-batch, instead of burning phantom hits on every remaining line", async () => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    vi.resetModules();
+    const rateLimitSpy = vi.fn();
+    vi.doMock("@/lib/pintDrops", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
+      return {
+        ...actual,
+        consumeRateLimit: (...args: Parameters<typeof actual.consumeRateLimit>) => {
+          rateLimitSpy();
+          return actual.consumeRateLimit(...args);
+        },
+      };
+    });
+    const { chargeRoundPriceLines, ROUND_PRICE_ACTOR_LIMIT } = await import(
+      "@/lib/roundPriceBudget"
+    );
+
+    // Warm the actor to one line short of the cap.
+    await chargeRoundPriceLines(
+      "actor-straddle",
+      "account-straddle",
+      priceLines("spend-warm", ROUND_PRICE_ACTOR_LIMIT - 1),
+    );
+    rateLimitSpy.mockClear();
+
+    // A 5-line batch straddles the cap: the 2nd line trips it.
+    const verdict = await chargeRoundPriceLines(
+      "actor-straddle",
+      "account-straddle",
+      priceLines("spend-straddle", 5),
+    );
+
+    expect(verdict).toEqual({ allowed: false, mode: "memory" });
+    // Once a line is denied, the remaining lines in the batch must not be
+    // charged against the actor's window at all.
+    expect(rateLimitSpy).toHaveBeenCalledTimes(2);
+    vi.doUnmock("@/lib/pintDrops");
+  });
+
+  it("does not let a refused retry keep the actor's window full", async () => {
+    vi.useFakeTimers();
+    try {
+      delete process.env.SUPABASE_URL;
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+      vi.setSystemTime(new Date("2026-07-29T10:00:00.000Z"));
+      const {
+        chargeRoundPriceLines,
+        ROUND_PRICE_ACTOR_LIMIT,
+        ROUND_PRICE_WINDOW_MS,
+      } = await loadBudget();
+
+      expect(
+        await chargeRoundPriceLines(
+          "actor-retry-window",
+          "account-retry-window",
+          priceLines("spend-fill", ROUND_PRICE_ACTOR_LIMIT),
+        ),
+      ).toEqual({ allowed: true, mode: "memory" });
+
+      // Halfway through the window the drinker retries and is refused.
+      vi.advanceTimersByTime(ROUND_PRICE_WINDOW_MS / 2);
+      expect(
+        await chargeRoundPriceLines(
+          "actor-retry-window",
+          "account-retry-window",
+          priceLines("spend-refused", 1),
+        ),
+      ).toEqual({ allowed: false, mode: "memory" });
+
+      // Once the first fill ages out, a full budget is back: the refusal
+      // above spent nothing.
+      vi.advanceTimersByTime(ROUND_PRICE_WINDOW_MS / 2 + 1);
+      expect(
+        await chargeRoundPriceLines(
+          "actor-retry-window",
+          "account-retry-window",
+          priceLines("spend-refill", ROUND_PRICE_ACTOR_LIMIT),
+        ),
+      ).toEqual({ allowed: true, mode: "memory" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("Round price line charge migration", () => {
