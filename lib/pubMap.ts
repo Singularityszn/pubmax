@@ -757,6 +757,9 @@ export function openingViewportFrom(
  *
  * A curated pin and a tapped UK base pub fill the SAME drawer, so every
  * open/close/snap path stays one path and these five answers stay one read.
+ * A deep-linked `sel=` before the slim index resolves still counts as detail
+ * open (`pendingDeepLinkSelection`) so the venue skeleton can mount while the
+ * shard loads.
  */
 export type MapSelectionFrame = {
   selectedId: string | undefined;

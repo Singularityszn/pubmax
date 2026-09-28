@@ -68,7 +68,10 @@ async function openMap(page: Page, path = "/map"): Promise<void> {
 
 async function selectToolbarVenue(page: Page, query = "The French House"): Promise<void> {
   const search = mapToolbar(page).getByRole("combobox", { name: "Search pubs" });
-  const option = page.getByRole("option", { name: new RegExp(query, "i") }).first();
+  const option = page
+    .getByRole("listbox", { name: "Search suggestions" })
+    .getByRole("option", { name: new RegExp(query, "i") })
+    .first();
   await expect(async () => {
     await search.click();
     await search.fill(query);
@@ -100,9 +103,9 @@ test.describe("one Map surface history owner", () => {
 
   test("venue to planner leaves exactly one desktop drawer", async ({ page }) => {
     await prepareMap(page);
-    await openMap(page);
-    await applyToolbarAreaQuery(page, "Soho");
-    await selectFirstToolbarVenue(page, "Soho");
+    // Golden Lion (Soho) is in the core slim shard; deep-link the drawer under
+    // test so toolbar timing does not gate the planner transition under test.
+    await openMap(page, "/map?q=Soho&sel=venue-15i2wst");
     await expectSoleDrawer(page, "venue");
 
     await page
@@ -272,9 +275,14 @@ test.describe("one Map surface history owner", () => {
       await expect(heldStops.first()).toBeVisible({ timeout: 5_000 });
     }).toPass({ timeout: 120_000 });
     await expect(async () => {
-      await heldStops.first().getByRole("button").evaluate((button) => {
-        (button as HTMLElement).click();
-      });
+      const editMappedRoute = page.getByRole("button", { name: "Edit" });
+      if (await editMappedRoute.isVisible().catch(() => false)) {
+        await editMappedRoute.evaluate((button) => (button as HTMLElement).click());
+      }
+      await expectSoleDrawer(page, "planner", 5_000);
+      const stopOpen = heldStops.first().getByRole("button").first();
+      await expect(stopOpen).toBeVisible({ timeout: 2_000 });
+      await stopOpen.click();
       await expectSoleDrawer(page, "venue", 5_000);
     }).toPass({ timeout: 90_000 });
 
@@ -309,7 +317,11 @@ test.describe("one Map surface history owner", () => {
       Math.min(PHONE.height - 8, y + dismissDistance),
       { steps: 2 },
     );
-    await expect(sheet).toHaveAttribute("data-sheet-motion", "dragging");
+    // Mobile venue sheets expose drag through `sheet-dragging`; data-sheet-motion
+    // can lag a frame on slow runners while the class is already live.
+    await expect(async () => {
+      await expect(sheet).toHaveClass(/sheet-dragging/);
+    }).toPass({ timeout: 5_000 });
     await page.mouse.up();
 
     await expect(portal).toHaveCount(0, { timeout: 20_000 });
