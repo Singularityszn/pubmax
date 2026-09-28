@@ -37,18 +37,26 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    ask there and saves nothing until the drinker acts on it; a Confirm button
    beside that link would be two labels for one action. No silent Plan or
    durable Pal memory writes from Ask.
-4. **Keyless path** — without `OPENROUTER_API_KEY`, a deterministic router picks
-   1–2 tools and fills house-voice templates (same honesty as heritage
-   structured-only).
-5. **Bounded model loop** — with OpenRouter, tool-calling is allowlisted, low
-   temperature, capped rounds and tokens. The model selects tools only;
-   `composeAnswer` builds reader copy from returned hints and cards.
-6. **In-thread memory only** — the client may resend recent turns for
+4. **Keyless path (map Ask)** — without `OPENROUTER_API_KEY`, a deterministic
+   router picks 1–2 tools on `POST /api/ask` and fills house-voice templates
+   (same honesty as heritage structured-only).
+5. **Bounded model loop (map Ask)** — with OpenRouter, tool-calling on
+   `POST /api/ask` is allowlisted, low temperature, capped rounds and tokens.
+   The model selects tools only; `composeAnswer` builds reader copy from
+   returned hints and cards.
+6. **Pal typed chat and voice (ElevenLabs)** — production Pal surfaces share one
+   ElevenLabs agent (hosted LLM on the ElevenLabs plan). Typed chat uses
+   `POST /api/pub-pal/chat`; voice uses the same agent over WebRTC. Server
+   webhook tools at `POST /api/pub-pal/tools/{name}` invoke the same ADR 0014
+   handlers as `/api/ask`. Tool-turn correlation uses `pub_pal_tool_turns`
+   (`lib/pubPalToolTurnStore.ts`). Setup: `docs/PUB_PAL_SETUP.md`.
+7. **In-thread memory only** — the client may resend recent turns for
    refinement. Durable Pal memory stays confirm-gated (ADR 0006).
 
 `POST /api/concierge` is **withdrawn** (#1414). It named plan Sort-it and
-legacy callers, but plan Sort-it posts to `/api/plans/generate`, Map Ask and Pal
-chat post to `/api/ask`, and no caller of the route was ever found in `app`,
+legacy callers, but plan Sort-it posts to `/api/plans/generate`, Map Ask posts
+to `/api/ask`, Pal typed chat posts to `/api/pub-pal/chat`, and no caller of
+the route was ever found in `app`,
 `components` or `lib`. The reusable engine stays: `lib/concierge/rank.ts`,
 `lib/concierge/whatsOn.ts`, `lib/concierge/intent.ts` and
 `lib/concierge/venues.server.ts` are imported by `/api/ask` and

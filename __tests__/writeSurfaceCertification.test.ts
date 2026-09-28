@@ -193,7 +193,8 @@ describe("mutating API surface certification", () => {
     // own 404, `app/api/[[...unmatched]]`, which refuses and writes nothing.
     // 149: less POST /api/pub-pal/mastery, deleted with no caller (#1802).
     // 150: plus POST /api/drink-wall, the city Drink Wall upload.
-    expect(mutationHandlers).toHaveLength(150);
+    // 153: plus POST /api/pub-pal/chat, tool-turn, and tools/[toolName] (#Pal ElevenLabs brain).
+    expect(mutationHandlers).toHaveLength(153);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),
     );

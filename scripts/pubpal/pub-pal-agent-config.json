@@ -1,0 +1,20 @@
+{
+  "llm": "gemini-2.5-flash-lite",
+  "llmCreditNote": "ElevenLabs-billed Gemini 2.5 Flash Lite (low per-minute LLM credits on the Agents plan; see ElevenLabs pricing for live rates).",
+  "toolNames": [
+    "search_venues",
+    "whats_on",
+    "venue_heritage",
+    "venue_prices",
+    "city_status",
+    "journey",
+    "area_buzz",
+    "propose_plan",
+    "propose_map_action",
+    "cheapest_pint_near",
+    "tonight_now",
+    "venue_drinks",
+    "find_desk",
+    "report_occupancy"
+  ]
+}

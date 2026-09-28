@@ -1,4 +1,4 @@
-// Pub Pal chat — client ask session over Night OS Ask (`/api/ask`).
+// Pub Pal chat — client ask session over the Pub Pal ElevenLabs agent (`/api/pub-pal/chat`).
 // Latest-wins, timeout, curated errors. In-thread turns only (ADR 0014);
 // durable Pal memory stays confirm-gated (ADR 0006). Never sends `narrated`.
 
@@ -16,7 +16,7 @@ export type PalChatResult =
   | (PalAnswer & { proposals: AskProposal[] })
   | { status: "error"; message: string };
 
-const PAL_CHAT_TIMEOUT_MS = 12_000;
+const PAL_CHAT_TIMEOUT_MS = 25_000;
 
 type SessionOptions = {
   timeoutMs?: number;
@@ -105,7 +105,7 @@ export function createPalChatSession(options: SessionOptions = {}) {
       let response: Response;
       let body: unknown;
       try {
-        response = await fetchImpl("/api/ask", {
+        response = await fetchImpl("/api/pub-pal/chat", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({

@@ -635,6 +635,10 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/pubPalStore.ts": {
     excluded: "Pal memories have their own export door, `/api/pub-pal/memories/export`.",
   },
+  "lib/pubPalToolTurnStore.ts": {
+    excluded:
+      "Ephemeral ElevenLabs tool-turn correlation rows, keyed on a provider conversation id with no account id and service-role access only.",
+  },
   "lib/pushTokenStore.ts": {
     excluded: "A live push endpoint for one device. It is a credential rather than content, and handing it back hands back a way to reach the device.",
   },

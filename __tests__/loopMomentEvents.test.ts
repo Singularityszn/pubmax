@@ -251,7 +251,7 @@ describe("where each moment is emitted, and nowhere else", () => {
   it("reports a voice session on connect, never on the tap", () => {
     const session = read("components/pubpal/PubPalVoiceSession.tsx");
     expect(emittersOf("voice_started")).toEqual(["components/pubpal/PubPalVoiceSession.tsx"]);
-    const connect = session.indexOf("onConnect: () => {");
+    const connect = session.indexOf("onConnect:");
     const emitted = session.indexOf('trackEvent("voice_started")');
     const failure = session.indexOf("onFailure: (message) => {");
     expect(connect).toBeGreaterThan(-1);

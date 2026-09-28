@@ -1,4 +1,4 @@
-/** Baseline for Pub Pal tool-selection (OpenRouter id). */
+/** Baseline for map Ask first-round tool selection (OpenRouter id). */
 export const ASK_ROUTER_MODEL_EVAL_BASELINE = "anthropic/claude-sonnet-4-5";
 
 /** Models compared by `npm run eval:ask-router-models` (order: cheap candidates, then baseline). */

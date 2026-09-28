@@ -1,6 +1,10 @@
 # Ask router model eval
 
-Live OpenRouter comparison for **first-round tool choice** in the Pub Pal model loop (`probeAskModelToolChoice` in `lib/ask/modelLoop.ts`). Gold labels come from gold rows in `__tests__/fixtures/typesafe/ask-router-cases.json` plus Pal `expectedTools` in `evals/pal/answer-key.json` (queries not already covered).
+Live OpenRouter comparison for **first-round tool choice** in the map Ask model
+loop (`probeAskModelToolChoice` in `lib/ask/modelLoop.ts`). Production Pal
+typed chat uses the ElevenLabs agent, not this loop. Gold labels come from gold
+rows in `__tests__/fixtures/typesafe/ask-router-cases.json` plus Pal
+`expectedTools` in `evals/pal/answer-key.json` (queries not already covered).
 
 ## Run (costs credits)
 

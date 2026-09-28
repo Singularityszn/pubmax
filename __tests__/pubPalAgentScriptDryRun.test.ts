@@ -47,8 +47,8 @@ describe("pubpal:agent dry run", () => {
     expect(result.status).toBe(0);
     const output = `${result.stdout}${result.stderr}`;
     expect(output).not.toContain(SECRET);
-    expect(output).toContain("[redacted workspace secret locator]");
-    expect(output).toContain("https://pubmaxxing.com/api/pub-pal/llm");
+    expect(output).toContain("https://pubmaxxing.com/api/pub-pal/tools/search_venues");
+    expect(output).toContain("gemini-2.5-flash-lite");
   });
 
   it("still describes the agent it would write", () => {
@@ -57,8 +57,10 @@ describe("pubpal:agent dry run", () => {
     const end = printed.lastIndexOf("}");
     const body = JSON.parse(printed.slice(start, end + 1)) as {
       conversation_config: {
-        agent: { prompt: { llm: string; custom_llm: { url: string } } };
+        agent: { prompt: { llm: string; tool_ids: string[] } };
       };
+      webhook_tools: string[];
+      llm: string;
       platform_settings: {
         privacy: { retention_days: number; zero_retention_mode: boolean };
         overrides: {
@@ -69,12 +71,13 @@ describe("pubpal:agent dry run", () => {
         };
       };
     };
-    expect(body.conversation_config.agent.prompt.llm).toBe("custom-llm");
-    expect(body.conversation_config.agent.prompt.custom_llm.url).toBe(
-      "https://pubmaxxing.com/api/pub-pal/llm",
+    expect(body.llm).toBe("gemini-2.5-flash-lite");
+    expect(body.conversation_config.agent.prompt.llm).toBe("gemini-2.5-flash-lite");
+    expect(body.webhook_tools).toContain(
+      "https://pubmaxxing.com/api/pub-pal/tools/search_venues",
     );
-    expect(body.platform_settings.privacy.retention_days).toBe(0);
-    expect(body.platform_settings.privacy.zero_retention_mode).toBe(false);
+    expect(body.platform_settings.privacy.retention_days).toBe(-1);
+    expect(body.platform_settings.privacy.zero_retention_mode).toBe(true);
     expect(body.platform_settings.overrides.conversation_config_override).toEqual({
       agent: { prompt: { prompt: true }, first_message: true },
       tts: { voice_id: true },

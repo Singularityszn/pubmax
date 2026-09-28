@@ -1,6 +1,8 @@
 # Pal evals
 
-Graded regression suite for Pub Pal / Night OS Ask (keyless `runAsk` path).
+Graded regression suite for the shared Night OS Ask tool registry via `runAsk`
+(map Ask keyless path). Production Pal typed chat and voice use the ElevenLabs
+agent (`docs/PUB_PAL_SETUP.md`); this harness does not drive `/api/pub-pal/chat`.
 
 ## What a right answer means here
 
@@ -20,7 +22,7 @@ Invented-venue and directory price checks are absolute: every card `venueId` mus
 ## Commands
 
 - `npm run eval:pal` — deterministic gate (`skipModel: true`), fast enough for CI via vitest. CityMCP is the offline stub in `offlineFetch.ts`, `TYPESAFE_API_KEY` is cleared for the run, and every case runs at the `now` pinned in `answer-key.json` (an evening the bundled What's On fixtures cover).
-- `npm run eval:pal:live` — requires `OPENROUTER_API_KEY` (refuses to run without it); only OpenRouter goes to the network, every other source stays on the offline stub. Adds a `model_ran` check per case that fails when the model made no tool call, and writes `scoreboard/latest.json` and `latest.md`.
+- `npm run eval:pal:live` — requires `OPENROUTER_API_KEY` (refuses to run without it); exercises the optional OpenRouter tool loop on `runAsk` (map Ask parity), not the ElevenLabs Pal agent. Only OpenRouter goes to the network; every other source stays on the offline stub. Adds a `model_ran` check per case that fails when the model made no tool call, and writes `scoreboard/latest.json` and `latest.md`.
 
 Regenerate data-derived fields after venue, price, What's On, or routing changes:
 

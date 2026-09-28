@@ -39,7 +39,18 @@ Set these in the Vercel project (Settings → Environment Variables).
 | Var | Purpose |
 |---|---|
 | `OPENROUTER_API_KEY` | Enables narrated LLM answers via OpenRouter. Without it, `/api/heritage` returns the grounded, structured-only fallback (reads the facts back, never invents). |
-| `OPENROUTER_MODEL` | Model id. Defaults to `anthropic/claude-sonnet-4-5`. |
+| `OPENROUTER_MODEL` | Model id. Defaults to `anthropic/claude-sonnet-4-5`. Also used by the optional OpenRouter tool loop on `POST /api/ask` (map Ask). Pal typed chat and voice do not use OpenRouter. |
+
+### Required in production — Pub Pal typed chat and voice
+
+Map Ask on `/api/ask` stays keyless without ElevenLabs. `/pal/chat` and voice need the agent values below. Full runbook: `docs/PUB_PAL_SETUP.md`.
+
+| Var | Purpose |
+|---|---|
+| `ELEVENLABS_API_KEY` | **Server-only** ElevenLabs account key. Never exposed to the browser; `/api/pub-pal/voice-token` mints short-lived session URLs. |
+| `ELEVENLABS_PUB_PAL_AGENT_ID` | Agent id from `npm run pubpal:agent -- --base-url https://your-deployment`. |
+| `ELEVENLABS_LLM_SHARED_SECRET` | **Server-only** secret for webhook tools at `/api/pub-pal/tools/{name}` (and legacy `/api/pub-pal/llm` if wired). |
+| `ELEVENLABS_VOICE_*` | Per-species and onboarding voice ids (`lib/palElevenLabsVoice.ts`). See `docs/PUB_PAL_SETUP.md`. |
 
 ### Optional — other integrations
 

@@ -73,6 +73,7 @@ silently stale.
 | profileCoverPhotoStore | factory-eligible, policy-heavy | Cover rotation, media generations, and moderation policy. |
 | profileStore | factory-ready | Public profile projection and account-owned profile rows. |
 | pubPalStore | legacy-exception | Multiple inline Supabase configuration checks around private Pub Pal state. |
+| pubPalToolTurnStore | factory-ready | Ephemeral ElevenLabs tool-turn correlation rows (service role only). |
 | pushTokenStore | factory-ready | Device push registration rows. |
 | ratingsStore | factory-ready | Drink and venue rating rows with shared backend selection; public reads expose summaries, not venue leaderboards. |
 | reactionsStore | factory-ready | Pint Drop reactions with shared backend selection. |
@@ -140,7 +141,6 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "app/api/profiles/[handle]/route.ts",
     "app/api/profiles/directory/route.ts",
     "app/api/profiles/search/route.ts",
-    "app/api/pub-pal/llm/route.ts",
     "app/api/pub-pal/voice-token/route.ts",
     "app/api/saved-pubs/list-follows/route.ts",
     "app/api/starter-packs/[slug]/follow/route.ts",

@@ -1,6 +1,6 @@
 "use client";
 
-// Pub Pal chat surface (/pal/chat) — a chat SKIN over Night OS Ask (`/api/ask`,
+// Pub Pal chat surface (/pal/chat) — a chat SKIN over Pub Pal ElevenLabs chat (`/api/pub-pal/chat`,
 // ADR 0014). The user asks in natural language; the tool registry answers from
 // listed pubs, What's On, CityMCP, heritage, and prices. Cards keep provenance.
 // Proposals need an explicit Confirm (ADR 0006). In-thread turns may refine an

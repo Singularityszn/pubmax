@@ -1,9 +1,11 @@
 /**
  * A CEILING NO HEADER CAN WIDEN.
  *
- * Four anonymous routes spend money on every call: `/api/ask`, `/api/heritage`,
- * `/api/pub-pal/llm` and plan generation all front OpenRouter, and plan
- * generation additionally spends the routing budget. Each was rate-limited on
+ * Four anonymous routes carry a deployment-wide spend ceiling:
+ * `/api/ask`, `/api/heritage`, and plan generation call OpenRouter when keyed;
+ * legacy `/api/pub-pal/llm` runs grounded `runAsk` with `skipModel: true` (no
+ * OpenRouter). Plan generation additionally spends the routing budget. Each was
+ * rate-limited on
  * the hashed caller address ALONE, so the budget an attacker got was the budget
  * they chose: a different `x-forwarded-for` value is a different bucket, and
  * 200 values are 200 budgets. `lib/clientIpTrust.ts` closes the header half of

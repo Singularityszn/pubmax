@@ -13,23 +13,13 @@ import {
 } from "@/lib/pubPalLlmStream";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
-import { clientIp, hashIp, isSupabaseConfigured } from "@/lib/supabase";
-
-const RATE_LIMIT = 30;
-const RATE_WINDOW_MS = 60_000;
+import {
+  PUB_PAL_WEBHOOK_RATE_LIMIT,
+  PUB_PAL_WEBHOOK_RATE_WINDOW_MS,
+  pubPalWebhookLimiterKey,
+} from "@/lib/pubPalWebhookRateLimit";
 
 export async function POST(request: Request): Promise<Response> {
-  const limiterKey = `pub-pal-llm:${hashIp(clientIp(request))}`;
-  if (
-    await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, {
-      failClosed: true,
-    })
-  ) {
-    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
-      retryable: true,
-    });
-  }
-
   const authDenied = assertPubPalLlmAuth(request);
   if (authDenied) return authDenied;
 
@@ -59,18 +49,29 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const turns = extractAskTurns(record.messages);
+  const limiterKey = pubPalWebhookLimiterKey("llm");
+  if (
+    await isLimited(
+      limiterKey,
+      limiterKey,
+      PUB_PAL_WEBHOOK_RATE_LIMIT,
+      PUB_PAL_WEBHOOK_RATE_WINDOW_MS,
+      {
+      failClosed: true,
+      },
+    )
+  ) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
+  }
   const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, turns);
-
-  const llmAssistAllowed =
-    !fenced &&
-    (isSupabaseConfigured() || process.env.NODE_ENV !== "production") &&
-    Boolean(process.env.OPENROUTER_API_KEY?.trim());
 
   const answerBody = await runAsk({
     query,
     cityId: record.cityId,
     turns,
-    skipModel: !llmAssistAllowed,
+    skipModel: true,
     traceRoute: "api/pub-pal/llm",
   });
 
