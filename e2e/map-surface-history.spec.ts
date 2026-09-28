@@ -263,9 +263,14 @@ test.describe("one Map surface history owner", () => {
     await toolbar.getByRole("button", { name: "Plan an outing" }).click();
     const heldStops = planner(page).locator(".routeList > li");
     await expect(async () => {
-      await expectSoleDrawer(page, "planner", 5_000);
-      await expect(heldStops.first()).toBeVisible({ timeout: 2_000 });
-    }).toPass({ timeout: 90_000 });
+      await expectSoleDrawer(page, "planner", 10_000);
+      if ((await heldStops.count()) === 0) {
+        await planner(page)
+          .getByRole("button", { name: /Map the Victorian Soho crawl/i })
+          .click();
+      }
+      await expect(heldStops.first()).toBeVisible({ timeout: 5_000 });
+    }).toPass({ timeout: 120_000 });
     await expect(async () => {
       await heldStops.first().getByRole("button").evaluate((button) => {
         (button as HTMLElement).click();

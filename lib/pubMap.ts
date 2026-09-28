@@ -775,12 +775,18 @@ export function mapSelectionFrame(input: {
 }): MapSelectionFrame {
   const { selectedVenueId, selectedVenue, selectedBasePub, venueById } = input;
   const basePubOpen = Boolean(selectedBasePub && selectedBasePub.id === selectedVenueId);
+  const pendingDeepLinkSelection =
+    Boolean(selectedVenueId) &&
+    !selectedVenue &&
+    !basePubOpen &&
+    !venueById.has(selectedVenueId);
   return {
     selectedId: selectedVenue?.id,
     resolvable: selectedVenueId ? venueById.has(selectedVenueId) : false,
     isPub: selectedVenue ? input.isPubVenue(selectedVenue) : false,
     basePubOpen,
-    detailOpen: Boolean(selectedVenueId && selectedVenue) || basePubOpen,
+    detailOpen:
+      Boolean(selectedVenueId && selectedVenue) || basePubOpen || pendingDeepLinkSelection,
   };
 }
 

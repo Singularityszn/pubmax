@@ -977,6 +977,18 @@ describe("mapSelectionFrame", () => {
     expect(answer.resolvable).toBe(false);
     expect(answer.isPub).toBe(false);
   });
+
+  it("opens the detail sheet while a deep-linked sel waits on the slim index", () => {
+    const answer = mapSelectionFrame({
+      selectedVenueId: "v1",
+      selectedVenue: undefined,
+      selectedBasePub: null,
+      venueById: new Map() as never,
+      isPubVenue,
+    });
+    expect(answer.detailOpen).toBe(true);
+    expect(answer.resolvable).toBe(false);
+  });
 });
 
 describe("settledBoundsFor", () => {

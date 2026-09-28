@@ -5339,7 +5339,18 @@ export default function PubMap({
         />
       );
     }
-    if (!detailOpen || !selectedVenue) return null;
+    if (!detailOpen) return null;
+    if (!selectedVenue) {
+      if (!selectedVenueId) return null;
+      const pendingLabels = venueSheetLabels(null);
+      return (
+        <VenueSheetSkeleton
+          loadingLabel={pendingLabels.loadingLabel}
+          revealForm={null}
+          revealStartedAt={null}
+        />
+      );
+    }
     const showsAcceptedArrivalReceipt =
       acceptedArrivalSource !== null
       && selectedVenue.id === acceptanceQuery().selectedVenueId;

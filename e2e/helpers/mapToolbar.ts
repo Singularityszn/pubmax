@@ -1,7 +1,16 @@
 import { expect, type Page } from "@playwright/test";
 
+import { UK_BASE_SEARCH_GROUP_LABEL } from "@/lib/ukBasePubSearch";
+
 export function mapToolbar(page: Page) {
   return page.locator(".mapToolbar");
+}
+
+/** Curated rows use the Venues group; resident base pubs use Pubs on the map. */
+function mapVenueSuggestionGroup(page: Page) {
+  return page
+    .getByRole("group", { name: "Venues", exact: true })
+    .or(page.getByRole("group", { name: UK_BASE_SEARCH_GROUP_LABEL, exact: true }));
 }
 
 /** Desktop map toolbar with a live search field — not merely painted server HTML. */
@@ -31,10 +40,7 @@ export async function applyToolbarAreaQuery(
   timeout = 120_000,
 ): Promise<void> {
   const search = mapToolbar(page).getByRole("combobox", { name: "Search pubs" });
-  const venueOption = page
-    .getByRole("group", { name: "Venues", exact: true })
-    .getByRole("option")
-    .first();
+  const venueOption = mapVenueSuggestionGroup(page).getByRole("option").first();
   await expect(async () => {
     await search.click();
     await search.fill(query);
@@ -53,13 +59,9 @@ export async function selectFirstToolbarVenue(
   timeout = 120_000,
 ): Promise<void> {
   const search = mapToolbar(page).getByRole("combobox", { name: "Search pubs" });
-  // Exact, because a role name matches by substring: "Venues across city
-  // maps" leads the list, and its first "Soho" row is a Birmingham tavern
-  // that opens another city's map.
-  const option = page
-    .getByRole("group", { name: "Venues", exact: true })
-    .getByRole("option")
-    .first();
+  // Exact group names only: "Venues across city maps" is a different lane whose
+  // first "Soho" row can be a Birmingham tavern that opens another city's map.
+  const option = mapVenueSuggestionGroup(page).getByRole("option").first();
   await expect(async () => {
     await search.click();
     await search.fill(query);
