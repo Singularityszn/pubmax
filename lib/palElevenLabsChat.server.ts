@@ -96,6 +96,7 @@ export async function runPalElevenLabsChatTurn(
   return new Promise((resolve) => {
     let settled = false;
     let conversationId = "";
+    let userMessageSent = false;
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
@@ -122,6 +123,9 @@ export async function runPalElevenLabsChatTurn(
         JSON.stringify({
           type: "conversation_initiation_client_data",
           conversation_config_override: {
+            agent: {
+              first_message: "",
+            },
             conversation: {
               text_only: true,
               client_events: ["agent_response", "conversation_initiation_metadata", "ping"],
@@ -168,6 +172,7 @@ export async function runPalElevenLabsChatTurn(
                 })),
               });
             }
+            userMessageSent = true;
             ws.send(JSON.stringify({ type: "user_message", text: query }));
           } catch {
             finish({ ok: false, code: "UNAVAILABLE" });
@@ -177,6 +182,7 @@ export async function runPalElevenLabsChatTurn(
       }
 
       if (payload.type === "agent_response") {
+        if (!userMessageSent) return;
         const agentMessage = payload.agent_response_event?.agent_response?.trim() ?? "";
         void (async () => {
           try {
