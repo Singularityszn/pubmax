@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { headers } from "next/headers";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import ConsentAwareVercelAnalytics from "@/components/ConsentAwareVercelAnalytics";
+import ConsentAwareVercelSpeedInsights from "@/components/ConsentAwareVercelSpeedInsights";
 import "./globals.css";
 import "./theme.css";
 import CreateFab from "@/components/nav/CreateFab";
@@ -405,10 +406,12 @@ export default async function RootLayout({
           </AuthProvider>
         )}
         </SocialFriendsLaunchProvider>
-        {/* Vercel Web Analytics (R3) — consent-gated pageviews only. Product
-            events use the separately allow-listed rail in lib/analytics.ts.
-            Outside AuthProvider on purpose: it's app infra, not identity. */}
+        {/* Vercel Web Analytics (R3) and Speed Insights — consent-gated; Speed
+            Insights loads after idle or first interaction. Product events use
+            the separately allow-listed rail in lib/analytics.ts. Outside
+            AuthProvider on purpose: it's app infra, not identity. */}
         <ConsentAwareVercelAnalytics />
+        <ConsentAwareVercelSpeedInsights />
         <Suspense fallback={null}>
           <PosthogPageviews />
         </Suspense>

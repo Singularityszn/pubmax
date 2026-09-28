@@ -271,6 +271,9 @@ const nextConfig = {
     // reaches no browser bundle, so a build-time answer is the only one both
     // transports can read. lib/analyticsAttribution.mjs owns the rule.
     ...analyticsBuildEnv(process.env),
+    // ConsentAwareVercelAnalytics reads process.env.VERCEL to skip Vercel scripts
+    // outside a Vercel deployment; inlined at build like other env entries here.
+    VERCEL: process.env.VERCEL ?? "",
   },
   skipTrailingSlashRedirect: true,
   async rewrites() {

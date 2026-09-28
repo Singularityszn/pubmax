@@ -14,6 +14,7 @@ import {
   consentAwareBeforeSend,
   shouldMountVercelAnalytics,
 } from "@/components/ConsentAwareVercelAnalytics";
+import { consentAwareSpeedInsightsBeforeSend } from "@/components/ConsentAwareVercelSpeedInsights";
 
 type FakeNavigator = Partial<Navigator> & {
   sendBeacon?: (url: string, data?: BodyInit | null) => boolean;
@@ -318,6 +319,18 @@ describe("trackEvent", () => {
     expect(shouldMountVercelAnalytics("test")).toBe(false);
     expect(shouldMountVercelAnalytics("production")).toBe(false);
     expect(shouldMountVercelAnalytics("production", "1")).toBe(true);
+  });
+
+  it("allows Vercel Speed Insights vitals only after consent and still honors DNT", () => {
+    setWindow();
+    setAnalyticsConsent(true);
+    const event = { type: "vital" as const, url: "https://pubmaxxing.com/map", route: "/map" };
+    expect(analyticsCollectionAllowed()).toBe(true);
+    expect(consentAwareSpeedInsightsBeforeSend(event)).toBe(event);
+
+    (globalThis as { navigator: FakeNavigator }).navigator.doNotTrack = "1";
+    expect(analyticsCollectionAllowed()).toBe(false);
+    expect(consentAwareSpeedInsightsBeforeSend(event)).toBeNull();
   });
 });
 

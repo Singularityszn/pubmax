@@ -407,6 +407,13 @@ describe("the CSP once a Clerk key is configured", () => {
     expect(scriptSrc).toContain("https://va.vercel-scripts.com");
   });
 
+  it("covers same-origin Vercel Speed Insights under script-src and connect-src self", () => {
+    const scriptSrc = directive(policyFor(), "script-src") ?? "";
+    const connectSrc = directive(policyFor(), "connect-src") ?? "";
+    expect(scriptSrc).toContain("'self'");
+    expect(connectSrc).toContain("'self'");
+  });
+
   it("admits Clerk into connect-src without disturbing Supabase or the tiles", () => {
     const connectSrc = directive(policyFor(), "connect-src") ?? "";
 
