@@ -488,8 +488,9 @@ export default function PrivacyPage() {
           </li>
           <li>
             Turning consent off deletes the browser analytics identifier and
-            stops PostHog page visits, product events and the hosting
-            provider&rsquo;s pageview counter.
+            stops PostHog page visits, product events, the hosting
+            provider&rsquo;s pageview counter and its Speed Insights Web
+            Vitals.
           </li>
         </ul>
 
@@ -664,8 +665,10 @@ export default function PrivacyPage() {
             <dt>Vercel</dt>
             <dd>
               Hosting and CDN. Serves every page, and keeps short-lived request
-              logs that include IP addresses. Also runs the pageview counter
-              that stays disabled until you consent to analytics.
+              logs that include IP addresses. With analytics consent, also
+              receives pageviews and Speed Insights Web Vitals from your
+              browser; Do Not Track blocks both. Without consent, neither is
+              sent.
             </dd>
           </div>
           <div className="legalRow">
