@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 
+import { formatGbp } from "@/lib/formatGbp";
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
 import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrand";
 import { clampOgText, clampOgInt } from "@/lib/ogCardText";
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
   const totalRaw = clampOgText(searchParams.get("total"), 12);
   // `total` may arrive as a formatted string or a number — normalise to £x.xx.
   const totalNum = Number(totalRaw.replace(/[^0-9.]/g, ""));
-  const total = Number.isFinite(totalNum) && totalNum > 0 ? `£${totalNum.toFixed(2)}` : null;
+  const total = Number.isFinite(totalNum) && totalNum > 0 ? formatGbp(totalNum) : null;
 
   const stopLabel = stops > 0 ? `${stops} stop${stops === 1 ? "" : "s"}` : null;
 

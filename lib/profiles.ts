@@ -10,6 +10,7 @@ import {
   type AccountVisibility,
   parseAccountVisibility,
 } from "@/lib/accountVisibility";
+import { formatGbp } from "@/lib/formatGbp";
 import { normalizeHandle as normalizeHandleCore } from "@/lib/handleNormalize";
 
 // A profile drop is the public Pint Drop DTO shape, kept loose so this module
@@ -259,7 +260,7 @@ export type ProfileStats = {
 export const NO_CHEAPEST_PINT = "None yet";
 
 export function formatCheapestPint(gbp: number | null): string {
-  return gbp == null ? NO_CHEAPEST_PINT : `£${gbp.toFixed(2)}`;
+  return gbp == null ? NO_CHEAPEST_PINT : formatGbp(gbp);
 }
 
 /**
@@ -572,7 +573,7 @@ export function deriveProfileFromDrops(
   const bio = stats.pintsLogged
     ? `${stats.pintsLogged} ${stats.pintsLogged === 1 ? "pint" : "pints"} logged` +
       (stats.cheapestPintGbp != null
-        ? ` · cheapest £${stats.cheapestPintGbp.toFixed(2)}`
+        ? ` · cheapest ${formatGbp(stats.cheapestPintGbp)}`
         : "")
     : undefined;
 

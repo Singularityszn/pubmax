@@ -1,3 +1,4 @@
+import { formatGbp } from "@/lib/formatGbp";
 import type { WhatsOnKind } from "@/lib/whatsOn";
 import { WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 
@@ -145,7 +146,7 @@ function scoreOne(
       score -= 2;
     } else if (venue.cheapestPrice <= intent.maxPintPrice) {
       score += 10 + Math.min(3, intent.maxPintPrice - venue.cheapestPrice);
-      reasons.push(`£${venue.cheapestPrice.toFixed(2)} is within budget`);
+      reasons.push(`${formatGbp(venue.cheapestPrice)} is within budget`);
     } else {
       score -= 3 * (venue.cheapestPrice - intent.maxPintPrice);
     }

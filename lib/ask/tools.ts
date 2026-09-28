@@ -2,6 +2,7 @@
 // and provenance. No tool invents a price.
 
 import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
+import { formatGbp } from "@/lib/formatGbp";
 import {
   drivesMap,
   type CommunityPrice,
@@ -388,7 +389,7 @@ async function toolVenuePrices(
     trusted.length > 0
       ? `${venue.name}: ${trusted.length} corroborated people-logged figure${trusted.length === 1 ? "" : "s"} plus the listed index.`
       : venue.cheapestPrice != null
-        ? `${venue.name}: listed pint £${venue.cheapestPrice.toFixed(2)} (no corroborated people-logged figure yet).`
+        ? `${venue.name}: listed pint ${formatGbp(venue.cheapestPrice)} (no corroborated people-logged figure yet).`
         : `${venue.name}: no corroborated people-logged pint and no listed figure.`;
 
   return {
@@ -614,7 +615,7 @@ async function toolAreaBuzz(
     // card's own provenance chip, never the prose.
     pintLine =
       cityArea.averagePintGbp != null
-        ? `${cityArea.borough} average pint about £${cityArea.averagePintGbp.toFixed(2)}.`
+        ? `${cityArea.borough} average pint about ${formatGbp(cityArea.averagePintGbp)}.`
         : `No average pint figure for ${cityArea.borough} just now.`;
   } catch {
     degraded = true;

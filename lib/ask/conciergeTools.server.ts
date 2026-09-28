@@ -30,6 +30,7 @@ import {
   type FindDeskEmptyReason,
 } from "@/lib/ask/conciergeTools";
 import { loadDeskVenues } from "@/lib/ask/deskVenues.server";
+import { formatGbp } from "@/lib/formatGbp";
 import type {
   AskToolArgs,
   AskToolContext,
@@ -277,7 +278,7 @@ export async function toolCheapestPintNear(
     proposals: cards
       .slice(0, 3)
       .map((card) => openProposal(card.venueId, card.title)),
-    answerHint: `${cheapestNearHeadline(anchor, scope)}: ${cheapest.name} at £${cheapest.cheapestPrice.toFixed(2)}.`,
+    answerHint: `${cheapestNearHeadline(anchor, scope)}: ${cheapest.name} at ${formatGbp(cheapest.cheapestPrice)}.`,
   };
 }
 

@@ -1,3 +1,4 @@
+import { formatGbp } from "@/lib/formatGbp";
 import type { VenuePrice } from "@/lib/venues";
 
 // Every heritage/story claim carries where it came from, so the UI can always
@@ -352,7 +353,7 @@ export function buildVenueClaims(curation: VenueCuration, drops: ClaimDrop[] = [
     const priced = typeof drop.priceGbp === "number";
     const content =
       drop.passedDownNote ||
-      (priced ? `Logged ${drop.drink || "a pint"} at £${drop.priceGbp!.toFixed(2)}.` : "");
+      (priced ? `Logged ${drop.drink || "a pint"} at ${formatGbp(drop.priceGbp!)}.` : "");
     if (!content) continue;
     claims.push({
       // A seeded demo drop is a "baseline" claim — never Contributor/Anecdote,

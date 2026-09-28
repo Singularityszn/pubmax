@@ -14,6 +14,7 @@ import {
   type AreaElsewhereOption,
 } from "@/lib/areaButton";
 import { slugifyBorough } from "@/lib/boroughs";
+import { formatGbp } from "@/lib/formatGbp";
 import { listEnabledCities, type CityId } from "@/lib/cities";
 import { buildCityChooserSearchResults } from "@/lib/cityChooserSearch";
 import { haversineKm } from "@/lib/haversine";
@@ -396,7 +397,7 @@ function buildPubSuggestion(
     typeLabel: venueKindLabel(venue.kind),
     boroughLabel: (venue.primaryBorough ?? "").trim(),
     priceLabel:
-      price !== null && canShowPrice ? `£${price.toFixed(2)}` : null,
+      price !== null && canShowPrice ? formatGbp(price) : null,
     anchor,
     distanceKm,
     distanceLabel: formatSuggestDistance(distanceKm, origin),

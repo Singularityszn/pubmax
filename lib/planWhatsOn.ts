@@ -16,6 +16,7 @@ import {
   type WhatsOnKind,
   type WhatsOnRow,
 } from "@/lib/whatsOn";
+import { formatGbp } from "@/lib/formatGbp";
 import { laneTimeLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 
 export type StopEventChip = {
@@ -61,7 +62,7 @@ function chipLabel(row: WhatsOnRow, timeLabel: string | null): string {
   const parts = [WHATS_ON_KIND_META[row.kind].badgeLabel];
   if (timeLabel) parts.push(timeLabel);
   const barePrice = whatsOnBarePriceGbp(row);
-  if (barePrice !== null) parts.push(`£${barePrice.toFixed(2)}`);
+  if (barePrice !== null) parts.push(formatGbp(barePrice));
   return parts.join(" · ");
 }
 

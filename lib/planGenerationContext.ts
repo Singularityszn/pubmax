@@ -3,6 +3,7 @@ import {
   type ContextReason,
   type NightContext,
 } from "@/lib/nightPlanning";
+import { formatGbp } from "@/lib/formatGbp";
 import { PLAN_TIME_WINDOWS } from "@/lib/planIntake";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { DEFAULT_PLAN_STOP_COUNT } from "@/lib/planStopCount";
@@ -49,7 +50,7 @@ function intakeReason(field: keyof NightContext, intake: ParsedPlanGenerationInt
           : field === "budgetLimitPence"
           ? intake.handoff.budget?.limitPence === null
             ? "no explicit ceiling"
-            : `£${((intake.handoff.budget?.limitPence ?? 0) / 100).toFixed(2)}`
+            : formatGbp((intake.handoff.budget?.limitPence ?? 0) / 100)
           : field === "budget"
             ? intake.handoff.budget?.tier ?? "selected budget"
             : intake.handoff.accessibilityNeeds.join(", ") || "no access needs";

@@ -7,6 +7,7 @@
 //   2. Map the one-tap destination chips ("Add to Tonight / My Round / Family
 //      Table / Ledger") onto the EXISTING visibility semantics — no new backend.
 
+import { formatGbp } from "@/lib/formatGbp";
 import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import { type Provenance } from "@/lib/curation";
 // Shared chip vocabulary — seeded content always reads "Demo", never "Sample".
@@ -185,7 +186,7 @@ export function buildSpillPreview(input: SpillPreviewInput): SpillPreviewModel {
   const initial = initialSource.replace(/^@+/, "").charAt(0).toUpperCase() || "?";
 
   const priceValue = parsePrice(input.price);
-  const priceLabel = priceValue !== null ? `£${priceValue.toFixed(2)}` : null;
+  const priceLabel = priceValue !== null ? formatGbp(priceValue) : null;
 
   // Same rule as lib/pintDrops: a priced Spill is a `contributor` claim, a
   // price-less memory is an `anecdote`. Never flattened.

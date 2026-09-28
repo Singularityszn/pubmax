@@ -1,3 +1,4 @@
+import { formatGbp } from "@/lib/formatGbp";
 import { buildLogNearbyCandidates, type LogNearbyCandidate } from "@/lib/mapLogIntent";
 import { haversineKm } from "@/lib/haversine";
 import type { UkBasePub } from "@/lib/ukBasePubs";
@@ -140,7 +141,7 @@ function mapVenueListPintPriceLabel(
   venueSignals: MapVenueListVenueSignals | null,
 ): string {
   const price = mapVenueListPintPrice(venue, venueSignals);
-  return price !== null ? `£${price.toFixed(2)}` : "Price TBD";
+  return price !== null ? formatGbp(price) : "Price TBD";
 }
 
 /**
@@ -213,7 +214,7 @@ export function buildMapVenueListModel(
           return {
             ...row,
             priceLabel: lensPrice
-              ? `${lensPrice.categoryLabel} · £${lensPrice.priceGbp.toFixed(2)}`
+              ? `${lensPrice.categoryLabel} · ${formatGbp(lensPrice.priceGbp)}`
               : unknownLabel,
             priceBand:
               lensPrice && lensPrice.category === "beer"

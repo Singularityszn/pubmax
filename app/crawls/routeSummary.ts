@@ -7,6 +7,7 @@
 // invented ones. Mirrors lib/routeLegs semantics ("straight-line", ceil to a
 // whole minute, never "0 min") without importing the Venue-typed leg builder.
 
+import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import { WALK_KMH } from "@/lib/routeLegs";
 import type { SlimVenue } from "@/lib/venuesSlim";
@@ -71,8 +72,7 @@ export function crawlPriceRange(
 
 /** "£4.20–£6.50", collapsing to "£4.20" when min === max. */
 export function formatPriceRange(range: CrawlPriceRange): string {
-  const gbp = (value: number) => `£${value.toFixed(2)}`;
   return range.minGbp === range.maxGbp
-    ? gbp(range.minGbp)
-    : `${gbp(range.minGbp)}–${gbp(range.maxGbp)}`;
+    ? formatGbp(range.minGbp)
+    : `${formatGbp(range.minGbp)}–${formatGbp(range.maxGbp)}`;
 }

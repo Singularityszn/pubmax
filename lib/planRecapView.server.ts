@@ -7,6 +7,7 @@ import "server-only";
 // WITHOUT a valid member capability never reaches this: the route only returns
 // it behind resolvePlanProjection, and the page renders a preview shell.
 
+import { formatGbp } from "@/lib/formatGbp";
 import { pintDropsStore } from "@/lib/pintDropsStore";
 import { planCompletionResult, planStore } from "@/lib/planStore";
 import type { LastPintDecisionKind } from "@/lib/tfl";
@@ -47,7 +48,7 @@ async function resolveFinalPint(
       venueName: venueNames.get(drop.venueId) ?? null,
       drink: typeof drop.drink === "string" && drop.drink.trim() ? drop.drink.trim() : null,
       priceGbp: price,
-      priceLabel: price === null ? null : `£${price.toFixed(2)}`,
+      priceLabel: price === null ? null : formatGbp(price),
       note,
     };
     return {

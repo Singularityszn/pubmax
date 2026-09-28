@@ -1,3 +1,4 @@
+import { formatGbp } from "@/lib/formatGbp";
 import type { Daypart } from "@/lib/nightPlanning";
 import {
   shortlistFoodHandoffs,
@@ -33,7 +34,7 @@ function foodOption(terminal: LateFoodTerminal): PlanEndingOption {
 function extensionOption(extension: GroundedPlanExtension): PlanEndingOption {
   const price = extension.estimatedPintPricePence === null
     ? "price not recorded"
-    : `about £${(extension.estimatedPintPricePence / 100).toFixed(2)} for one recorded pint`;
+    : `about ${formatGbp(extension.estimatedPintPricePence / 100)} for one recorded pint`;
   return {
     id: extension.venueId,
     label: extension.venueName,
