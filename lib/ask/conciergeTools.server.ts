@@ -7,6 +7,7 @@ import "server-only";
 // spine - plus the pure policy in `lib/ask/conciergeTools.ts`. Nothing here
 // derives a price, widens a trust gate, or writes anything.
 
+import { nightAreaForMapQuery } from "@/lib/nightAreas";
 import {
   CHEAPEST_NEAR_NO_ANCHOR,
   CROWD_READING_NOT_LIVE,
@@ -180,7 +181,7 @@ export async function toolCheapestPintNear(
   const area = isLondonArea
     ? "London"
     : areaFromArea ?? areaFromVenueName;
-  const anchorVenue =
+  let anchorVenue: ConciergeVenue | null =
     (venueId ? venues.find((v) => v.id === venueId) : null) ??
     (areaFromVenueName ? null : matchVenue(venues, venueNameArg));
 
@@ -194,6 +195,21 @@ export async function toolCheapestPintNear(
     };
   } else if (area) {
     anchor = { kind: "area", area };
+  } else {
+    const placeNeedle = areaArg || venueNameArg;
+    const nightArea = placeNeedle ? nightAreaForMapQuery(ctx.cityId, placeNeedle) : null;
+    if (nightArea) {
+      anchor = { kind: "area", area: placeNeedle };
+      anchorVenue = {
+        id: `night-area:${nightArea.slug}`,
+        name: nightArea.name,
+        lat: nightArea.centre.lat,
+        lng: nightArea.centre.lng,
+        area: nightArea.name,
+        cheapestPrice: 0,
+        searchText: "",
+      } as ConciergeVenue;
+    }
   }
 
   if (!anchor) {
@@ -212,7 +228,7 @@ export async function toolCheapestPintNear(
   const points = toPricedPoints(venues);
   let rows: NearMeCard[];
   let scope: "walkable" | "widened" | "none";
-  if (anchor.kind === "venue" && anchorVenue) {
+  if (anchorVenue && (anchor.kind === "venue" || anchorVenue.id.startsWith("night-area:"))) {
     const answer = rankNearMe(anchorVenue.lat, anchorVenue.lng, points, {
       maxAnswers: limit + 1,
     });

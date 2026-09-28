@@ -12,10 +12,44 @@ import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
 } from "@/lib/pubPalLlmFence";
+import { routeAskDeterministically } from "@/lib/ask/router";
 import {
   appendPubPalToolTurn,
   readPubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
+
+function isEmptyArg(value: unknown): boolean {
+  if (value === undefined || value === null) return true;
+  if (typeof value === "string") return value.trim().length === 0;
+  return false;
+}
+
+/** ElevenLabs webhooks may send a short query fragment; the tool-turn store holds the full ask. */
+export function resolvePubPalToolQuery(input: {
+  turnQuery?: string | null;
+  args: AskToolArgs;
+}): string {
+  const fromTurn = input.turnQuery?.trim() ?? "";
+  const fromArgs =
+    typeof input.args.query === "string" ? input.args.query.trim() : "";
+  if (fromTurn.length >= fromArgs.length) return fromTurn || fromArgs;
+  return fromArgs || fromTurn;
+}
+
+export function enrichPubPalToolArgs(
+  toolName: string,
+  args: AskToolArgs,
+  query: string,
+): AskToolArgs {
+  if (!isAskToolName(toolName) || !query.trim()) return args;
+  const routed = routeAskDeterministically(query).find((call) => call.name === toolName);
+  if (!routed) return args;
+  const merged: AskToolArgs = { ...args };
+  for (const [key, value] of Object.entries(routed.args)) {
+    if (isEmptyArg(merged[key])) merged[key] = value;
+  }
+  return merged;
+}
 
 type PubPalToolWebhookBody = {
   tool_call_id?: string;
@@ -68,12 +102,11 @@ export async function invokePubPalAskTool(input: {
   const turn = input.conversationId
     ? await readPubPalToolTurn(input.conversationId)
     : null;
-  const queryFromArgs =
-    typeof input.args.query === "string" ? input.args.query.trim() : "";
-  const query = queryFromArgs || turn?.query || "";
+  const query = resolvePubPalToolQuery({ turnQuery: turn?.query, args: input.args });
   const cityId = resolveAskCityId(
     typeof input.args.cityId === "string" ? input.args.cityId : turn?.cityId,
   );
+  const args = enrichPubPalToolArgs(input.toolName, input.args, query);
 
   const threadTurns = turn?.turns ?? [];
   const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, threadTurns);
@@ -90,17 +123,18 @@ export async function invokePubPalAskTool(input: {
     };
   }
 
-  const toolResult = await runAskTool(input.toolName as AskToolName, input.args, {
+  const toolResult = await runAskTool(input.toolName as AskToolName, args, {
     cityId,
     query,
     skipModel: true,
   });
 
-  if (input.conversationId && turn) {
+  if (input.conversationId) {
     await appendPubPalToolTurn(input.conversationId, {
       cards: toolResult.cards,
       proposals: toolResult.proposals,
       hints: toolResult.answerHint ? [toolResult.answerHint] : [],
+      toolsUsed: [input.toolName],
     });
   }
 

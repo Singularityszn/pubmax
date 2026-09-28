@@ -9,10 +9,32 @@ import {
 } from "@/lib/pubPalLlmFence";
 import {
   consumePubPalToolTurn,
+  readPubPalToolTurn,
   registerPubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
 
-const CHAT_TIMEOUT_MS = 25_000;
+const CHAT_TIMEOUT_MS = 28_000;
+const TOOL_TURN_WAIT_MS = 4_000;
+const TOOL_TURN_POLL_MS = 120;
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForPubPalToolTurn(conversationId: string): Promise<Awaited<ReturnType<typeof consumePubPalToolTurn>>> {
+  const deadline = Date.now() + TOOL_TURN_WAIT_MS;
+  while (Date.now() < deadline) {
+    const peek = await readPubPalToolTurn(conversationId);
+    if (
+      peek &&
+      (peek.cards.length > 0 || peek.proposals.length > 0 || peek.hints.length > 0)
+    ) {
+      break;
+    }
+    await sleep(TOOL_TURN_POLL_MS);
+  }
+  return consumePubPalToolTurn(conversationId);
+}
 
 type AgentResponseEvent = {
   type?: string;
@@ -60,6 +82,7 @@ export type PalElevenLabsChatOutcome =
       cards: AskCard[];
       proposals: AskProposal[];
       conversationId: string;
+      toolsUsed: string[];
     }
   | { ok: false; code: "UNAVAILABLE" | "TIMEOUT" | "PROVIDER_UNAVAILABLE" };
 
@@ -83,6 +106,7 @@ export async function runPalElevenLabsChatTurn(
       cards: [],
       proposals: [],
       conversationId: "",
+      toolsUsed: [],
     };
   }
 
@@ -186,7 +210,7 @@ export async function runPalElevenLabsChatTurn(
         const agentMessage = payload.agent_response_event?.agent_response?.trim() ?? "";
         void (async () => {
           try {
-            const turn = conversationId ? await consumePubPalToolTurn(conversationId) : null;
+            const turn = conversationId ? await waitForPubPalToolTurn(conversationId) : null;
             const cards = turn?.cards ?? [];
             const proposals = turn?.proposals ?? [];
             const message =
@@ -202,6 +226,7 @@ export async function runPalElevenLabsChatTurn(
               cards,
               proposals,
               conversationId,
+              toolsUsed: turn?.toolsUsed ?? [],
             });
           } catch {
             finish({ ok: false, code: "UNAVAILABLE" });

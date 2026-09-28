@@ -22,6 +22,7 @@ export type PubPalToolTurn = {
   cards: AskCard[];
   proposals: AskProposal[];
   hints: string[];
+  toolsUsed: string[];
 };
 
 type PubPalToolTurnPayload = {
@@ -31,6 +32,7 @@ type PubPalToolTurnPayload = {
   cards: AskCard[];
   proposals: AskProposal[];
   hints: string[];
+  toolsUsed?: string[];
 };
 
 const memoryTurns = new Map<string, PubPalToolTurn>();
@@ -49,6 +51,7 @@ function payloadFromTurn(turn: PubPalToolTurn): PubPalToolTurnPayload {
     cards: turn.cards,
     proposals: turn.proposals,
     hints: turn.hints,
+    toolsUsed: turn.toolsUsed,
   };
 }
 
@@ -61,6 +64,7 @@ function turnFromPayload(payload: PubPalToolTurnPayload, expiresAtMs: number): P
     cards: Array.isArray(payload.cards) ? payload.cards : [],
     proposals: Array.isArray(payload.proposals) ? payload.proposals : [],
     hints: Array.isArray(payload.hints) ? payload.hints : [],
+    toolsUsed: Array.isArray(payload.toolsUsed) ? payload.toolsUsed : [],
   };
 }
 
@@ -74,6 +78,7 @@ type PubPalToolTurnStore = {
       cards?: AskCard[];
       proposals?: AskProposal[];
       hints?: string[];
+      toolsUsed?: string[];
     },
   ): Promise<void>;
   read(conversationId: string): Promise<PubPalToolTurn | null>;
@@ -83,6 +88,7 @@ type PubPalToolTurnStore = {
       cards?: AskCard[];
       proposals?: AskProposal[];
       hints?: string[];
+      toolsUsed?: string[];
     },
   ): Promise<void>;
   consume(conversationId: string): Promise<PubPalToolTurn | null>;
@@ -100,6 +106,7 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
       cards: Array.isArray(input.cards) ? input.cards : [],
       proposals: Array.isArray(input.proposals) ? input.proposals : [],
       hints: Array.isArray(input.hints) ? input.hints : [],
+      toolsUsed: [],
     });
   },
 
@@ -119,6 +126,11 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     if (patch.cards?.length) turn.cards.push(...patch.cards);
     if (patch.proposals?.length) turn.proposals.push(...patch.proposals);
     if (patch.hints?.length) turn.hints.push(...patch.hints);
+    if (patch.toolsUsed?.length) {
+      for (const name of patch.toolsUsed) {
+        if (!turn.toolsUsed.includes(name)) turn.toolsUsed.push(name);
+      }
+    }
   },
 
   async consume(conversationId) {
@@ -160,6 +172,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           cards: Array.isArray(input.cards) ? input.cards : [],
           proposals: Array.isArray(input.proposals) ? input.proposals : [],
           hints: Array.isArray(input.hints) ? input.hints : [],
+          toolsUsed: [],
         };
         const { error } = await requireSupabaseAdmin()
           .from("pub_pal_tool_turns")
@@ -213,6 +226,11 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         if (patch.cards?.length) existing.cards.push(...patch.cards);
         if (patch.proposals?.length) existing.proposals.push(...patch.proposals);
         if (patch.hints?.length) existing.hints.push(...patch.hints);
+        if (patch.toolsUsed?.length) {
+          for (const name of patch.toolsUsed) {
+            if (!existing.toolsUsed.includes(name)) existing.toolsUsed.push(name);
+          }
+        }
         const expiresAt = new Date(Date.now() + PUB_PAL_TOOL_TURN_TTL_MS).toISOString();
         const { error } = await requireSupabaseAdmin()
           .from("pub_pal_tool_turns")
@@ -283,6 +301,7 @@ export async function appendPubPalToolTurn(
     cards?: AskCard[];
     proposals?: AskProposal[];
     hints?: string[];
+    toolsUsed?: string[];
   },
 ): Promise<void> {
   await pubPalToolTurnStore().append(conversationId, patch);

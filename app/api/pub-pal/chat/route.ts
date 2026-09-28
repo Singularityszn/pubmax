@@ -76,7 +76,7 @@ export async function POST(request: Request): Promise<Response> {
     proposals: outcome.proposals,
     sources: [],
     status: "ready",
-    toolsUsed: [],
+    toolsUsed: outcome.toolsUsed,
     conversationId: outcome.conversationId,
   });
 }

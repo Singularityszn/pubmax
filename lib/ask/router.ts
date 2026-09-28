@@ -55,6 +55,10 @@ const REPORT_OCCUPANCY_RE =
 const TRAILING_QUALIFIER_RE =
   /\s+(?:tonight|now|later|today|this evening|this afternoon|this morning|this weekend|with mates|for (?:two|a few|\d+))\s*$/i;
 
+function stripTrailingPunctuation(phrase: string): string {
+  return phrase.replace(/[?.!,;:]+$/g, "").trim();
+}
+
 function stripTrailingQualifiers(phrase: string): string {
   let current = phrase.trim();
   for (;;) {
@@ -66,8 +70,8 @@ function stripTrailingQualifiers(phrase: string): string {
 
 /** "in X" at the end of an ask: a PLACE, never a pub. */
 function extractInPlace(query: string): string | null {
-  const match = query.match(/\bin\s+([A-Za-z][A-Za-z\s'-]{1,40})$/i);
-  const place = match?.[1] ? stripTrailingQualifiers(match[1]) : "";
+  const match = stripTrailingPunctuation(query).match(/\bin\s+([A-Za-z][A-Za-z\s'-]{1,40})$/i);
+  const place = match?.[1] ? stripTrailingPunctuation(stripTrailingQualifiers(match[1])) : "";
   return place || null;
 }
 
@@ -79,10 +83,10 @@ function extractInPlace(query: string): string | null {
  * happens to share the name.
  */
 function extractNearAnchorName(query: string): string | null {
-  const match = query.match(
+  const match = stripTrailingPunctuation(query).match(
     /\b(?:near|nearby|around|round|close to|closest to)\s+([A-Za-z][A-Za-z\s'-]{1,40})$/i,
   );
-  const place = match?.[1] ? stripTrailingQualifiers(match[1]) : "";
+  const place = match?.[1] ? stripTrailingPunctuation(stripTrailingQualifiers(match[1])) : "";
   return place || null;
 }
 
