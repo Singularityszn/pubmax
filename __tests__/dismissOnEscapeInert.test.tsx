@@ -60,4 +60,15 @@ describe("useDismissOnEscape under a modal", () => {
     expect(onDismiss).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(false);
   });
+
+  it("leaves the key when an ancestor is inert via the IDL property", () => {
+    const onDismiss = vi.fn();
+    act(() => root.render(<Panel onDismiss={onDismiss} />));
+    host.inert = true;
+
+    const event = pressEscape();
+
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
 });

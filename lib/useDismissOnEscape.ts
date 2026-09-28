@@ -2,6 +2,15 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 
+function isInInertSubtree(node: HTMLElement): boolean {
+  let cursor: HTMLElement | null = node;
+  while (cursor) {
+    if (cursor.inert || cursor.hasAttribute("inert")) return true;
+    cursor = cursor.parentElement;
+  }
+  return false;
+}
+
 /**
  * Escape leaves the panel that is open.
  *
@@ -34,7 +43,7 @@ export function useDismissOnEscape(
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      if (panelRef?.current?.closest("[inert]")) return;
+      if (panelRef?.current && isInInertSubtree(panelRef.current)) return;
       event.preventDefault();
       event.stopPropagation();
       onDismissRef.current();
