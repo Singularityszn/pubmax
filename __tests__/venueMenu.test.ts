@@ -291,7 +291,7 @@ describe("venueMenuForInspector", () => {
     // Captain ruling 2026-09-05: drink_price_updates is a closed static
     // snapshot, so an overlay row is DATED and never warned about. "Last seen"
     // here would be a staleness warning over a lane that owes no refresh.
-    expect(html).toContain("Snapshot from");
+    expect(html).toContain("Prices from");
     expect(html).not.toContain("Last seen");
     expect(html).toContain('<time dateTime="2026-07-11T12:13:09.496Z">11 Jul 2026</time>');
     vi.useRealTimers();

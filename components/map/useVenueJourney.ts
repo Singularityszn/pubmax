@@ -181,7 +181,7 @@ export function useVenueJourney(
       }),
     })
       .then(async (response) => {
-        if (!response.ok) throw new Error(`Journey request failed (${response.status})`);
+        if (!response.ok) throw new Error(`Route request failed (${response.status})`);
         return (await response.json()) as unknown;
       })
       .then((body) => {

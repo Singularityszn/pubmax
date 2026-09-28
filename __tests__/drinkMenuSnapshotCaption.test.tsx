@@ -107,7 +107,7 @@ describe("venue Drinks captions", () => {
     // The snapshot row keeps its date and its words.
     expect(html).toContain(`${SNAPSHOT_CAPTION_PREFIX} <time`);
     expect(html).toContain("21 Aug 2026");
-    // The Pint Drop row is captioned "Seen", never "Snapshot from".
+    // The Pint Drop row is captioned "Seen", never the snapshot lane's words.
     expect(html).toContain("Seen <time");
     expect(html.toLowerCase()).toContain(`datetime="${seenAt.toLowerCase()}"`);
     expect(html.match(new RegExp(SNAPSHOT_CAPTION_PREFIX, "g"))).toHaveLength(1);

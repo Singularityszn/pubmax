@@ -118,7 +118,7 @@ export async function POST(request: Request): Promise<Response> {
     if (reconciliation.status === "unavailable") {
       const state = action === "hide" ? "hidden" : "restored";
       return publicApiError(
-        `Community observation was ${state}, but its trust credit could not be updated. Try again.`,
+        `The community price was ${state}, but its trust credit could not be updated. Try again.`,
         "TRUST_RECONCILIATION_UNAVAILABLE",
         503,
         { retryable: true },

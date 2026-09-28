@@ -28,7 +28,7 @@ export default function VenuePriceSignInGate({
         {loading ? "Checking your account" : "Sign in to add a price"}
       </h3>
       {loading ? (
-        <p>Checking whether you&rsquo;re signed in.</p>
+        <p>Checking if you&rsquo;re signed in.</p>
       ) : (
         <>
           <p>

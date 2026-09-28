@@ -430,7 +430,7 @@ export default function PubmaxxAccountHub() {
       <h3>Optional usage analytics</h3>
       {analyticsConsent === null ? (
         <>
-          <p>Help improve journeys with a persistent device ID, standard browser details and allow-listed product events. This is optional and can be withdrawn here.</p>
+          <p>Help improve the app with a persistent device ID, standard browser details and allow-listed product events. This is optional and can be withdrawn here.</p>
           <div className="accountHubActions">
             <Button variant="secondary" type="button" onClick={() => updateAnalyticsConsent(true)}>Allow</Button>
             <Button variant="secondary" type="button" onClick={() => updateAnalyticsConsent(false)}>No thanks</Button>

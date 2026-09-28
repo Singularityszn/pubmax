@@ -75,7 +75,7 @@ describe("how the mark reads", () => {
   it("keeps the detail line honest about what the number is worth", () => {
     const detail = foundingMemberMarkDetail(7)!;
     expect(detail).toContain("Number 7");
-    expect(detail).toContain("unlocks nothing");
+    expect(detail).toContain("Nothing comes with it");
     expect(foundingMemberMarkDetail(999)).toBeNull();
   });
 

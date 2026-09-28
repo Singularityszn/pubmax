@@ -73,7 +73,7 @@ describe("ContributionLanesCard", () => {
 
     expect(html).not.toContain('class="contribStatLabel">prices</span>');
     expect(html).not.toContain(">12<");
-    expect(html).toContain("observations logged");
+    expect(html).toContain("prices logged");
     expect(html).toContain(">16<");
   });
 
@@ -100,7 +100,7 @@ describe("ContributionLanesCard", () => {
     expect(html).toContain('id="contribution-impact"');
     expect(html).toContain("Your contributor record");
     expect(html).not.toMatch(/\b\d+ prices?\b/);
-    expect(html).not.toContain("observations logged");
+    expect(html).not.toContain("prices logged");
   });
 
   it("renders the three price-trust measures as separate counts", () => {
@@ -123,9 +123,35 @@ describe("ContributionLanesCard", () => {
     );
 
     expect(html).toContain("data-testid=\"price-trust-impact\"");
-    expect(html).toContain("observations logged");
+    expect(html).toContain("prices logged");
     expect(html).toContain("price trusted now");
-    expect(html).toContain("lifetime trust unlock");
+    expect(html).toContain("price that earned trust");
+  });
+
+  it("says so in words rather than printing a row of zeros", () => {
+    const html = renderToStaticMarkup(
+      createElement(ContributionLanesCardContent, {
+        state: {
+          kind: "ready",
+          stats: { status: "ready", handle: "night_owl", prices: 1 },
+        },
+        impact: {
+          kind: "ready",
+          stats: {
+            status: "ready",
+            observationsLogged: 0,
+            pricesTrustedNow: 0,
+            lifetimeTrustUnlocks: 0,
+          },
+        },
+      }),
+    );
+
+    // House law: no fake counts, no "0 observations". A fresh record reads as
+    // a sentence, and the zeroed trust grid stays off the page.
+    expect(html).toContain("No prices logged yet.");
+    expect(html).not.toContain("data-testid=\"price-trust-impact\"");
+    expect(html).not.toContain("price trusted now");
   });
 
   it("does not print zeros when price-trust impact is degraded", () => {
@@ -140,7 +166,7 @@ describe("ContributionLanesCard", () => {
     );
 
     expect(html).toContain("price trust record right now.");
-    expect(html).not.toContain("observations logged");
+    expect(html).not.toContain("prices logged");
     expect(html).not.toContain("data-testid=\"price-trust-impact\"");
   });
 });

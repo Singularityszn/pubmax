@@ -134,10 +134,10 @@ test("the personal contributions card shows three separate trust measures", asyn
   const trust = impact.locator("[data-testid='price-trust-impact']");
   await expect(trust).toBeVisible();
   await expect(trust.getByText("2")).toBeVisible();
-  await expect(trust.getByText("observations logged")).toBeVisible();
+  await expect(trust.getByText("prices logged")).toBeVisible();
   await expect(trust.getByText("1")).toHaveCount(2);
   await expect(trust.getByText("price trusted now")).toBeVisible();
-  await expect(trust.getByText("lifetime trust unlock")).toBeVisible();
+  await expect(trust.getByText("price that earned trust")).toBeVisible();
   await expect(impact.getByText("price trust record right now.")).toHaveCount(0);
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(

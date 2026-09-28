@@ -253,7 +253,7 @@ export function getHomeEndingSelection(
       label,
       confidence: leaveByIso ? "medium" : "unknown",
       source: leaveByIso
-        ? "TfL journey and last-service signal"
+        ? "TfL travel time and last-service signal"
         : "PUBMAXX transport anchor",
       ...(!leaveByIso
         ? {

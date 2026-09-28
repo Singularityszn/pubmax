@@ -32,8 +32,8 @@ const OBSERVATION_DAY = new Intl.DateTimeFormat("en-GB", {
 // The caption beside a row's price, and WHICH question it answers depends on
 // the lane the row came from. The lane is read EXPLICITLY, never as the else of
 // a dataset check: everything that is not the bundled dataset is not therefore
-// a closed snapshot, and a fall-through put "Snapshot from" on a drinker's live
-// Pint Drop, which is the opposite claim.
+// a closed snapshot, and a fall-through put a collection-date caption on a
+// drinker's live Pint Drop, which is the opposite claim.
 //
 // A dataset row and a Pint Drop row are both re-collectable observations, so
 // their caption is a currency claim measured against the price-authority
@@ -44,9 +44,10 @@ const OBSERVATION_DAY = new Intl.DateTimeFormat("en-GB", {
 // prices, so nothing may lawfully advance the file), so there is no window to
 // be inside or outside of and "Last seen" would be a staleness warning about a
 // lane that is doing exactly what it is meant to. It takes the same words the
-// freshness spine and the pint bundle's own caption use (SNAPSHOT_CAPTION_PREFIX,
-// lib/dataFreshness.ts), so a drinker, a page caption and the audit cannot drift
-// into three vocabularies. The date is the whole claim either way.
+// pint bundle's own caption uses (SNAPSHOT_CAPTION_PREFIX, lib/dataFreshness.ts
+// - "Prices from"; the spine keeps "snapshot" as its code vocabulary only, per
+// docs/VOICE.md rule 2), so a drinker, a page caption and the audit cannot
+// drift into three vocabularies. The date is the whole claim either way.
 const SNAPSHOT_CAPTION_LANES: ReadonlySet<string> = new Set(["drink-price-update"]);
 
 /**

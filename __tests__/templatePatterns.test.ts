@@ -16,7 +16,11 @@ import { describe, expect, it } from "vitest";
 //   glass-blur             backdrop-filter blur outside sheet and floating chrome
 //   dot-grid               a blueprint dot grid painted under a section
 //   numbered-icon-triplet  01 / 02 / 03 with an icon each
-//   hedge-copy             "whether you're", "we believe", "look no further"
+//   hedge-copy             "whether you're", "we believe", "look no further",
+//                          and the full docs/VOICE.md "Banned words" list
+//                          (journey, unlock, discover, curated, …), matched
+//                          after HTML entities are decoded so "you&rsquo;re"
+//                          cannot smuggle "whether you're" past the fence
 //   emoji-bullet           a line that opens with an emoji, the star rating
 //                          glyph excepted: it is the rating, not a bullet
 //   card-in-card           a card whose child is another card
@@ -89,6 +93,9 @@ const THREE_COLUMN_CONTROLS = [
   "components/zones/zonePintIndex.css", // a stat row
 ];
 
+// The full docs/VOICE.md "Banned words" list, plus the hedge templates the
+// fence has always carried. A single word matches its plural too (unlock /
+// unlocks), because the ban is on the word, not its inflection.
 const HEDGE_PHRASES = [
   "whether you're",
   "whether you are",
@@ -109,7 +116,57 @@ const HEDGE_PHRASES = [
   "seamless",
   "effortless",
   "elevate",
+  "experience",
+  "discover",
+  "curated",
+  "unleash",
+  "empower",
+  "vibrant",
+  "delve",
+  "dive into",
+  "unlock",
+  "journey",
+  "immerse",
+  "robust",
+  "leverage",
+  "so much more",
+  "revolutionary",
+  "at your fingertips",
 ];
+
+/**
+ * The handful of places a banned word is a NAME rather than a tell: TfL's
+ * journey planner is an external product, and a link that sends a drinker to
+ * it has to call it what it calls itself. Each entry is matched against the
+ * copy with HTML entities already decoded. This list may only shrink.
+ */
+const HEDGE_ALLOWLIST = [
+  "plan a journey on tfl",
+  "tfl journey planner",
+];
+
+/**
+ * JSX text reaches the AST with entities still encoded ("you&rsquo;re"), so a
+ * hedge phrase hiding behind &rsquo; used to walk straight past the fence.
+ * Decode the handful copy actually uses before matching.
+ */
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&(?:r|l)squo;|&#0?8217;|&#x2019;/giu, "'")
+    .replace(/&(?:r|l)dquo;|&#0?822[01];|&#x201[cd];/giu, '"')
+    .replace(/&hellip;|&#0?8230;|&#x2026;/giu, "…")
+    .replace(/&amp;/giu, "&")
+    .replace(/&mdash;|&#0?8212;|&#x2014;/giu, "—")
+    .replace(/&ndash;|&#0?8211;|&#x2013;/giu, "–");
+}
+
+function hedgeRegex(phrase: string): RegExp {
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // A one-word ban covers its plural ("unlock" bans "unlocks"); a multi-word
+  // template stands as written.
+  const body = phrase.includes(" ") ? escaped : `${escaped}s?`;
+  return new RegExp(`\\b${body}\\b`, "iu");
+}
 
 /**
  * The backlog. Each row is a file, the pattern it still carries, and the PR
@@ -182,7 +239,24 @@ function isPlumbingString(node: ts.Node): boolean {
   }
   if (p && ts.isPropertyAssignment(p)) {
     const keyName = p.name.getText().replace(/["']/g, "");
-    return /^(className|class|href|src|id|key|to|path|route|kind|status|variant|tone|icon|name|type|value)$/.test(keyName);
+    if (/^(className|class|href|src|id|key|to|path|route|kind|status|variant|tone|icon|name|type|value)$/.test(keyName)) {
+      return true;
+    }
+  }
+  // A string in a TYPE position ("curated" in a union) or a comparison
+  // (kind === "discover") is code vocabulary, not a sentence a reader reads.
+  if (p && (ts.isLiteralTypeNode(p) || ts.isBinaryExpression(p))) return true;
+  // A bare lowercase token or a URL/path is an identifier or an address. The
+  // banned words are copy tells; they arrive in sentences, never as
+  // `"curated"` handed to a discriminator or `"/api/citymcp/journey"` handed
+  // to fetch. Copy attributes and JSX text above still get judged.
+  const text = ts.isTemplateExpression(node)
+    ? node.head.text + node.templateSpans.map((span) => span.literal.text).join("")
+    : ts.isStringLiteralLike(node)
+      ? node.text
+      : "";
+  if (/^[a-z][a-z0-9_-]*$/u.test(text) || text.includes("://") || text.startsWith("/")) {
+    return true;
   }
   return false;
 }
@@ -282,8 +356,14 @@ export function sourceFindings(rel: string, raw: string): Finding[] {
     out.push({ file: rel, pattern: "numbered-icon-triplet", detail: "01 / 02 / 03 or 0{index + 1}" });
   }
   for (const c of copy) {
-    const lower = c.text.toLowerCase();
-    const hedge = HEDGE_PHRASES.find((phrase) => new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(lower));
+    const lower = decodeHtmlEntities(c.text).toLowerCase();
+    // A banned word inside an allowlisted product name (TfL's journey
+    // planner) is a name, not a tell: blank those out before matching.
+    const haystack = HEDGE_ALLOWLIST.reduce(
+      (text, phrase) => text.split(phrase).join(" "),
+      lower,
+    );
+    const hedge = HEDGE_PHRASES.find((phrase) => hedgeRegex(phrase).test(haystack));
     if (hedge) out.push({ file: rel, pattern: "hedge-copy", detail: `${c.line}: "${hedge}"` });
     if (EMOJI_BULLET.test(c.text) && !RATING_GLYPH.test(c.text)) {
       out.push({ file: rel, pattern: "emoji-bullet", detail: `${c.line}: ${c.text.trim().slice(0, 30)}` });
@@ -350,6 +430,46 @@ describe("template-pattern ban (docs/VOICE.md)", () => {
     const rel = "components/probe.tsx";
     const raw = `// whether you're reading this: a comment\nexport const X = () => <p className="levelCard">Fine</p>;\n`;
     expect(sourceFindings(rel, raw)).toEqual([]);
+  });
+
+  it("catches hedge copy behind HTML entities and across the full VOICE.md ban list", () => {
+    const rel = "components/probe.tsx";
+    // "whether you're" entity-encoded, plus a word each from the parts of the
+    // ban list the fence used to omit (journey, unlock, discover, curated).
+    const raw = [
+      "export const X = () => (",
+      "  <div>",
+      "    <p>Checking whether you&rsquo;re out tonight&hellip;</p>",
+      "    <p>Unlock the journey.</p>",
+      "    <p>Discover our curated picks.</p>",
+      "  </div>",
+      ");",
+    ].join("\n");
+    const findings = sourceFindings(rel, raw).filter((f) => f.pattern === "hedge-copy");
+    expect(findings.map((f) => f.detail)).toEqual([
+      '3: "whether you\'re"',
+      '4: "unlock"',
+      '5: "discover"',
+    ]);
+  });
+
+  it("leaves code vocabulary and the TfL product name alone", () => {
+    const rel = "components/probe.tsx";
+    const raw = [
+      'type Tab = "discover" | "feed";',
+      'const TFL = "https://tfl.gov.uk/plan-a-journey/";',
+      'export function go(kind: "curated" | "uk_base", tab: Tab) {',
+      '  if (tab === "discover") fetch("/api/citymcp/journey");',
+      '  return kind === "curated" ? 1 : 0;',
+      "}",
+      "export const X = () => (",
+      "  <div>",
+      "    <a href={TFL}>Plan a journey on TfL</a>",
+      "    <a href={TFL}>Open TfL journey planner</a>",
+      "  </div>",
+      ");",
+    ].join("\n");
+    expect(sourceFindings(rel, raw).filter((f) => f.pattern === "hedge-copy")).toEqual([]);
   });
 
   it("catches each pattern in a synthetic component", () => {

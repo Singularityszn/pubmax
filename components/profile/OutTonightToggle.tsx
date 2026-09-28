@@ -133,7 +133,7 @@ export default function OutTonightToggle({ handle }: Props) {
     return (
       <section className="beaconCard" aria-labelledby="beacon-title" aria-busy="true">
         <p className="beaconKicker" id="beacon-title">Out tonight</p>
-        <p className="beaconMuted">Checking whether you&rsquo;re out tonight&hellip;</p>
+        <p className="beaconMuted">Checking if you&rsquo;re out tonight&hellip;</p>
       </section>
     );
   }

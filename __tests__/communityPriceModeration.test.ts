@@ -317,7 +317,7 @@ describe("community price moderation (memory backend)", () => {
       const first = await adminPost({ action: "hide", id });
       expect(first.status).toBe(503);
       expect(await first.json()).toEqual({
-        error: "Community observation was hidden, but its trust credit could not be updated. Try again.",
+        error: "The community price was hidden, but its trust credit could not be updated. Try again.",
         code: "TRUST_RECONCILIATION_UNAVAILABLE",
         retryable: true,
       });

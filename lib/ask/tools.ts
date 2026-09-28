@@ -526,7 +526,7 @@ async function toolJourney(
       provenance: [],
       cards: [],
       proposals: [],
-      answerHint: "Name a listed pub (or point) to journey to.",
+      answerHint: "Name a listed pub (or point) to head to.",
     };
   }
 
@@ -545,7 +545,7 @@ async function toolJourney(
     const cards: AskCard[] = result.journeys.slice(0, 3).map((j, index) => ({
       key: `journey-${index}`,
       venueId: toVenue?.id ?? "",
-      title: `Journey ${index + 1}`,
+      title: `Route ${index + 1}`,
       place: toVenue?.name ?? to,
       note: [
         `${j.durationMinutes} min`,
@@ -554,7 +554,7 @@ async function toolJourney(
         .filter(Boolean)
         .join(" · "),
       price: null,
-      provenance: { label: "CityMCP journey", kind: "citymcp" },
+      provenance: { label: "CityMCP route", kind: "citymcp" },
     }));
     const proposals: AskProposal[] = toVenue
       ? [
@@ -570,13 +570,13 @@ async function toolJourney(
       ok: true,
       tool: "journey",
       data: result,
-      provenance: [{ label: "CityMCP journey", kind: "citymcp" }],
+      provenance: [{ label: "CityMCP route", kind: "citymcp" }],
       cards,
       proposals,
       answerHint:
         cards.length > 0
-          ? `Found ${cards.length} journey option${cards.length === 1 ? "" : "s"}.`
-          : "No journey options came back for that pair.",
+          ? `Found ${cards.length} route option${cards.length === 1 ? "" : "s"}.`
+          : "No route options came back for that pair.",
     };
   } catch {
     return {
@@ -586,7 +586,7 @@ async function toolJourney(
       provenance: [],
       cards: [],
       proposals: [],
-      answerHint: "I couldn't load a journey just now.",
+      answerHint: "I couldn't load a route just now.",
       degraded: true,
     };
   }

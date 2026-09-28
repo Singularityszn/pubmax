@@ -68,7 +68,7 @@ export function foundingMemberMark(value: unknown): string | null {
 export function foundingMemberMarkDetail(value: unknown): string | null {
   const number = parseFoundingMemberNumber(value);
   if (number === null) return null;
-  return `One of the first ${FOUNDING_MEMBER_CAP} handles on PUBMAXX. Number ${number}. It unlocks nothing.`;
+  return `One of the first ${FOUNDING_MEMBER_CAP} handles on PUBMAXX. Number ${number}. Nothing comes with it.`;
 }
 
 /** The wall's heading and its one honest line. */

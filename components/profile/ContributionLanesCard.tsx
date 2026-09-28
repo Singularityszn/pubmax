@@ -130,14 +130,23 @@ export function ContributionLanesCardContent({ state, impact }: ContentProps) {
       )}
 
       {impact?.kind === "ready" && impact.stats.status === "ready" ? (
+        (impact.stats.observationsLogged ?? 0) === 0 &&
+        (impact.stats.pricesTrustedNow ?? 0) === 0 &&
+        (impact.stats.lifetimeTrustUnlocks ?? 0) === 0 ? (
+          // House law: no fake counts. A fresh record says so in words rather
+          // than printing a row of zeros.
+          <p className="contribMuted">
+            No prices logged yet. Log one from a pub&apos;s page and it lands here.
+          </p>
+        ) : (
         <div className="contribTotals" data-testid="price-trust-impact">
           <div className="contribStat">
             <span className="contribStatValue">{impact.stats.observationsLogged ?? 0}</span>
             <span className="contribStatLabel">
               {measureLabel(
                 impact.stats.observationsLogged ?? 0,
-                "observation logged",
-                "observations logged",
+                "price logged",
+                "prices logged",
               )}
             </span>
           </div>
@@ -156,12 +165,13 @@ export function ContributionLanesCardContent({ state, impact }: ContentProps) {
             <span className="contribStatLabel">
               {measureLabel(
                 impact.stats.lifetimeTrustUnlocks ?? 0,
-                "lifetime trust unlock",
-                "lifetime trust unlocks",
+                "price that earned trust",
+                "prices that earned trust",
               )}
             </span>
           </div>
         </div>
+        )
       ) : null}
 
       {impact?.kind === "degraded" ||

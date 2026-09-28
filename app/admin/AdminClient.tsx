@@ -1300,12 +1300,12 @@ export default function AdminClient() {
         setCommunityPriceMessage(
           refreshed === null
             ? adminAlert(
-                `${action === "hide" ? "Community observation hidden" : "Community observation restored"}. Refresh unavailable. Reload to confirm.`,
+                `${action === "hide" ? "Community price hidden" : "Community price restored"}. Refresh unavailable. Reload to confirm.`,
               )
             : adminStatus(
                 action === "hide"
-                  ? "Community observation hidden."
-                  : "Community observation restored.",
+                  ? "Community price hidden."
+                  : "Community price restored.",
               ),
         );
       } catch {

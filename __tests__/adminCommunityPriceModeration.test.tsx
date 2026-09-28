@@ -103,7 +103,7 @@ function responseFor(input: string, init?: RequestInit): Response | Promise<Resp
         moderationFailureResponse = moderationFailure === "json"
           ? jsonResponse(
               {
-                error: "Community observation was hidden, but its trust credit could not be updated. Try again.",
+                error: "The community price was hidden, but its trust credit could not be updated. Try again.",
                 code: "TRUST_RECONCILIATION_UNAVAILABLE",
                 retryable: true,
               },
@@ -316,12 +316,12 @@ describe("community price moderation queues", () => {
 
     expect(communityCard("price-1").textContent).toContain("£5.50");
     expect(host.textContent).toContain(
-      "Community observation was hidden, but its trust credit could not be updated. Try again.",
+      "The community price was hidden, but its trust credit could not be updated. Try again.",
     );
     expect(
       [...host.querySelectorAll('[role="alert"]')].some((alert) =>
         alert.textContent?.includes(
-          "Community observation was hidden, but its trust credit could not be updated. Try again.",
+          "The community price was hidden, but its trust credit could not be updated. Try again.",
         ),
       ),
     ).toBe(true);

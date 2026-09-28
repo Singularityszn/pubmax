@@ -41,7 +41,7 @@ const completion: PlanCompletionDTO = {
     evidenceSnapshot: {
       label: "Victoria",
       confidence: "medium",
-      source: "TfL journey and last-service signal",
+      source: "TfL travel time and last-service signal",
     },
   },
   terminalVenueId: "venue-b",

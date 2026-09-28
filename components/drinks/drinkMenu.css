@@ -315,7 +315,7 @@ html[data-legacy="1"] .drinkCategoryTitle {
 }
 
 /* The caption wraps rather than truncating (a cut date cuts the whole claim),
-   so the DAY is the one thing that may not break: "Snapshot from 11 Jul 2026"
+   so the DAY is the one thing that may not break: "Prices from 11 Jul 2026"
    in this column otherwise leaves the year alone on a line of its own. Keeping
    the date whole moves the break to after the words, where it belongs. */
 .drinkObservationAge time {

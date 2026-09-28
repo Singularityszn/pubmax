@@ -246,7 +246,7 @@ describe("baseline price-source presentation", () => {
     // after the captain's 2026-09-05 ruling: its one permitted source publishes
     // no per-drink web prices, so no run can advance it. The row is dated and
     // claims nothing about currency.
-    expect(html).toContain("Snapshot from");
+    expect(html).toContain("Prices from");
     expect(html).toContain(
       `<time dateTime="${observedAt}">1 Aug 2026</time>`,
     );
@@ -275,7 +275,7 @@ describe("baseline price-source presentation", () => {
       }),
     );
 
-    expect(html).toContain("Snapshot from");
+    expect(html).toContain("Prices from");
     expect(html).not.toContain("Last seen");
     expect(html).toContain(
       `<time dateTime="${observedAt}">21 Jul 2026</time>`,

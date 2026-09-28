@@ -305,7 +305,7 @@ function WantedOpenList({
                   : wanted.venueKind === "pending"
                     ? "Still matching"
                     : "On the priced map"}
-                {wanted.sourceUrl ? " · link saved as provenance" : ""}
+                {wanted.sourceUrl ? " · link saved" : ""}
                 {wanted.note ? ` · ${wanted.note}` : ""}
               </p>
             </div>

@@ -7,6 +7,12 @@ import {
   nightAreaOptionLabel,
   nightAreaSelectorGroups,
 } from "@/components/plan/PlanComposer";
+import {
+  formatPintDatasetAsOf,
+  formatPintDatasetSnapshot,
+  formatSnapshotFrom,
+  SNAPSHOT_CAPTION_PREFIX,
+} from "@/lib/dataFreshness";
 
 function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -570,5 +576,81 @@ describe("VOICE.md plumbing-word regression pins", () => {
     // The line was: 'the visit date, the observations and note you chose...'
     expect(privacy).not.toContain("the observations and note");
     expect(privacy).toContain("what you noticed and the note you chose");
+  });
+
+  it("keeps the point-in-time caption in pub words, never the spine's plumbing word", () => {
+    // VAL-DESIGN-006 adjudication (2026-09-28): "Snapshot from" was a
+    // deliberate decision so the caption matched the freshness spine's
+    // `snapshot` vocabulary, but the word is plumbing and rule 2 bans it from
+    // a reader's screen. The spine keeps the word in code (the export names
+    // stay, so the registry's written ruling still points here); the reader
+    // gets "Prices from" / "collected".
+    expect(SNAPSHOT_CAPTION_PREFIX).toBe("Prices from");
+    expect(formatSnapshotFrom(new Date("2026-08-21T12:00:00.000Z"))).toBe(
+      "Prices from 21 August 2026",
+    );
+    expect(formatPintDatasetSnapshot()).toMatch(/^Prices from /u);
+    expect(formatPintDatasetAsOf()).toMatch(/^collected /u);
+    for (const words of [
+      SNAPSHOT_CAPTION_PREFIX,
+      formatPintDatasetSnapshot(),
+      formatPintDatasetAsOf(),
+    ]) {
+      expect(words.toLowerCase()).not.toContain("snapshot");
+    }
+  });
+
+  it("keeps the fixed hedge and plumbing strings off their surfaces", () => {
+    // VAL-DESIGN-005 / VAL-DESIGN-006 (2026-09-28): each string below was
+    // printed on a reader surface and carried a word from the VOICE.md ban
+    // list or the rule 2 plumbing list. The template-pattern fence now covers
+    // the full ban list inside components/; these pins hold the surfaces that
+    // sit outside its scope (app/, lib/) and the exact replacements.
+    const lanesCard = read("components/profile/ContributionLanesCard.tsx");
+    expect(lanesCard).not.toContain("observation logged");
+    expect(lanesCard).not.toContain("trust unlock");
+    expect(lanesCard).toContain("prices logged");
+    expect(lanesCard).toContain("price that earned trust");
+
+    const accountHub = read("components/profile/PubmaxxAccountHub.tsx");
+    expect(accountHub).not.toContain("improve journeys");
+    expect(accountHub).toContain("Help improve the app");
+
+    const outTonight = read("components/profile/OutTonightToggle.tsx");
+    expect(outTonight).not.toContain("Checking whether");
+    expect(outTonight).toContain("Checking if you&rsquo;re out tonight");
+
+    const signInGate = read("components/map/inspector/VenuePriceSignInGate.tsx");
+    expect(signInGate).not.toContain("Checking whether");
+    expect(signInGate).toContain("Checking if you&rsquo;re signed in.");
+
+    const askTools = read("lib/ask/tools.ts");
+    expect(askTools).not.toContain("journey option");
+    expect(askTools).not.toContain("load a journey");
+    expect(askTools).not.toContain('"CityMCP journey"');
+    expect(askTools).toContain("route options");
+
+    const wanted = read("components/wanted/WantedListBody.tsx");
+    expect(wanted).not.toContain("saved as provenance");
+    expect(wanted).toContain(" · link saved");
+
+    const admin = read("app/admin/AdminClient.tsx");
+    expect(admin).not.toContain("Community observation hidden");
+    expect(admin).not.toContain("Community observation restored");
+    expect(admin).toContain("Community price hidden.");
+
+    const communityPricesRoute = read("app/api/admin/community-prices/route.ts");
+    expect(communityPricesRoute).not.toContain("Community observation");
+    expect(communityPricesRoute).toContain("The community price was");
+
+    // The founders mark states the no-perks law without the banned word, and
+    // the Pint Index OG card is a reader surface too.
+    const founders = read("lib/foundingMembers.ts");
+    expect(founders).not.toContain("unlocks nothing");
+    expect(founders).toContain("Nothing comes with it");
+    const pintIndexOg = read("app/pint-index/opengraph-image.tsx");
+    expect(pintIndexOg).not.toContain("citable observations");
+    expect(pintIndexOg).not.toContain("dated observations");
+    expect(pintIndexOg).toContain("citable prices");
   });
 });

@@ -130,41 +130,51 @@ export function formatObservedDate(date: Date): string {
 }
 
 /**
- * The words every snapshot caption leads with. Exported so a surface that has
- * to compose its own date element (a `<time>` inside a dense caption, say)
- * still takes the WORDS from here rather than typing them a second time.
+ * The words every point-in-time caption lead with. Exported so a surface that
+ * has to compose its own date element (a `<time>` inside a dense caption,
+ * say) still takes the WORDS from here rather than typing them a second time.
+ *
+ * ADJUDICATION (2026-09-28, VAL-DESIGN-006): these captions used to lead with
+ * "Snapshot from", a deliberate decision so the drinker's words matched the
+ * freshness spine's `snapshot` vocabulary (lib/freshness.ts). That put a
+ * plumbing word on a screen, which docs/VOICE.md rule 2 bans and the
+ * validation contract holds to a grep: the word `snapshot` stays the spine's
+ * CODE vocabulary (this export's name included, so the registry's written
+ * ruling in data/freshness_registry.json still points here), and the READER
+ * gets pub words instead. "Prices from" claims nothing about currency: the
+ * date is the whole claim.
  */
-export const SNAPSHOT_CAPTION_PREFIX = "Snapshot from";
+export const SNAPSHOT_CAPTION_PREFIX = "Prices from";
 
 /**
- * "Snapshot from 16 July 2026" - a point-in-time price lane named as what it
+ * "Prices from 16 July 2026" - a point-in-time price lane named as what it
  * is, for a caption that stands on its own.
  *
  * THE ONE COMPOSER of that caption, shared by every lane the freshness spine
  * reports as a `snapshot`: the hand-collected pint bundle, and the per-drink
  * price updates, which carry no refresh path at all (captain ruling
  * 2026-09-05: their only permitted source publishes no per-drink web prices).
- * The word SNAPSHOT is the one the spine uses for the same fact
- * (lib/freshness.ts), so what a drinker reads and what the audit reports cannot
- * drift into two vocabularies. It claims nothing about currency: the date is
- * the whole claim.
+ * The spine keeps the word `snapshot` for the same fact in code
+ * (lib/freshness.ts); the reader never sees it (rule 2). It claims nothing
+ * about currency: the date is the whole claim.
  */
 export function formatSnapshotFrom(date: Date): string {
   return `${SNAPSHOT_CAPTION_PREFIX} ${formatObservedDate(date)}`;
 }
 
-/** The bundled pint-price baseline's own snapshot caption. */
+/** The bundled pint-price baseline's own collection caption. */
 export function formatPintDatasetSnapshot(): string {
   return formatSnapshotFrom(PINT_DATASET_OBSERVED_AT);
 }
 
 /**
- * "a snapshot from 16 July 2026" — the same fact inside a sentence, kept apart
+ * "collected 16 July 2026" — the same fact inside a sentence, kept apart
  * from the caption above so a surface never has to lowercase somebody else's
- * sentence to use it.
+ * sentence to use it. Same adjudication as SNAPSHOT_CAPTION_PREFIX: no
+ * "snapshot" in front of a reader.
  */
 export function formatPintDatasetAsOf(): string {
-  return `a snapshot from ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
+  return `collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
 }
 
 /** ISO date (YYYY-MM-DD) for JSON-LD dateModified / temporalCoverage. */
