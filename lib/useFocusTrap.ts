@@ -432,8 +432,13 @@ export function useFocusTrap(
       document.removeEventListener("focusin", onFocusIn);
       observer?.disconnect();
       if (frame !== null) window.cancelAnimationFrame(frame);
-      trapOwner.release();
-      releaseStrictModal?.();
+      if (releaseStrictModal) {
+        releaseStrictModal();
+        // Let subscribers clear their modal-owned inert prop before restoring focus.
+        queueMicrotask(() => trapOwner.release());
+      } else {
+        trapOwner.release();
+      }
     };
   }, [active, containerRef, focusOriginRef, outsidePolicy]);
 }
