@@ -17,6 +17,8 @@ const { isLimitedMock, loadConciergeVenuesMock, categoryIndexMock } = vi.hoisted
   categoryIndexMock: vi.fn(),
 }));
 
+const { bundleRowsForMock } = vi.hoisted(() => ({ bundleRowsForMock: vi.fn() }));
+
 const { fetchWalkLegRouteMock, orsApiKeyMock, walkRouteStoreMock } = vi.hoisted(() => ({
   fetchWalkLegRouteMock: vi.fn(),
   orsApiKeyMock: vi.fn<() => string | null>(() => null),
@@ -48,6 +50,7 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   categoryIndexMock.mockImplementation(actual.readCommunityPriceCategoryIndex);
   return { ...actual, readCommunityPriceCategoryIndex: categoryIndexMock };
 });
+vi.mock("@/lib/ukPriceBundle.server", () => ({ ukPriceBundleRowsFor: bundleRowsForMock }));
 vi.mock("@/lib/walkRouteProvider", () => ({
   fetchWalkLegRoute: fetchWalkLegRouteMock,
   orsApiKey: orsApiKeyMock,
@@ -120,6 +123,8 @@ describe("POST /api/plans/generate", () => {
     isLimitedMock.mockResolvedValue(false);
     loadConciergeVenuesMock.mockClear();
     categoryIndexMock.mockClear();
+    bundleRowsForMock.mockReset();
+    bundleRowsForMock.mockResolvedValue({ status: "empty", rows: [] });
     fetchWalkLegRouteMock.mockReset();
     fetchWalkLegRouteMock.mockResolvedValue(null);
     orsApiKeyMock.mockReset();
@@ -271,6 +276,76 @@ describe("POST /api/plans/generate", () => {
       .find((stop: { venueId: string }) => stop.venueId === "v4");
     expect(unpricedAlternative).toBeDefined();
     expect(unpricedAlternative?.selectedDrinkPriceEvidence ?? null).toBeNull();
+  });
+
+  it("generates cited listed wine evidence with stated or unknown serving and keeps community precedence", async () => {
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("v1"), generatedVenue("v2"), generatedVenue("v3"),
+    ]);
+    const now = Date.now();
+    categoryIndexMock.mockResolvedValueOnce({
+      prices: [{ venueId: "v1", drinkCategory: "wine", priceGbp: 9, submittedAt: now, source: "community", corroborations: 2 }],
+      truncated: false,
+      degraded: false,
+    });
+    bundleRowsForMock.mockImplementation(async (venueId: string) => ({
+      status: "ready",
+      rows: [{
+        venueId, name: `Venue ${venueId}`, category: "wine", priceGbp: venueId === "v3" ? 6 : 5.5,
+        lane: "site-harvest", standing: "listed", sourceUrl: `https://pub.example/${venueId}/menu`,
+        publisher: `Venue ${venueId}`, observedAt: new Date(now - 1000).toISOString(),
+        basis: null, sampleSize: null, drinkLabel: "Rioja",
+        ...(venueId === "v2" ? { servingSize: "125ml" } : {}),
+      }],
+    }));
+
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify({ query: "cheap wine in Clapham for 2" }),
+    }));
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    const evidenceByVenue = new Map(body.stops.map((stop: { venueId: string; selectedDrinkPriceEvidence: unknown }) =>
+      [stop.venueId, stop.selectedDrinkPriceEvidence]));
+    expect(evidenceByVenue.get("v1")).toMatchObject({ source: "community", pence: 900 });
+    expect(evidenceByVenue.get("v2")).toEqual({
+      category: "wine", pence: 550, serving: "125ml", source: "listed",
+      sourceUrl: "https://pub.example/v2/menu", observedAt: new Date(now - 1000).toISOString(),
+    });
+    expect(evidenceByVenue.get("v3")).toEqual({
+      category: "wine", pence: 600, serving: null, source: "listed",
+      sourceUrl: "https://pub.example/v3/menu", observedAt: new Date(now - 1000).toISOString(),
+    });
+    expect(body.stops.filter((stop: { venueId: string }) => stop.venueId !== "v1")
+      .every((stop: { evidence: string[] }) => !stop.evidence.some((reason) => /price|cheapest|value/i.test(reason)))).toBe(true);
+    expect(body.budgetSummary.estimatedPerPersonPence).toBeNull();
+  });
+
+  it("keeps listed evidence available when the community category read is degraded", async () => {
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("v1"), generatedVenue("v2"), generatedVenue("v3"),
+    ]);
+    categoryIndexMock.mockResolvedValueOnce({ prices: [], truncated: false, degraded: true });
+    const observedAt = new Date(Date.now() - 1000).toISOString();
+    bundleRowsForMock.mockImplementation(async (venueId: string) => ({
+      status: "ready",
+      rows: [{
+        venueId, name: `Venue ${venueId}`, category: "wine", priceGbp: 5.5,
+        lane: "site-harvest", standing: "listed", sourceUrl: "https://pub.example/menu",
+        publisher: "The pub", observedAt, basis: null, sampleSize: null,
+        drinkLabel: "Rioja", servingSize: "125ml",
+      }],
+    }));
+
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify({ query: "wine in Clapham for 2" }),
+    }));
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.stops[0].selectedDrinkPriceEvidence).toEqual({
+      category: "wine", pence: 550, serving: "125ml", source: "listed",
+      sourceUrl: "https://pub.example/menu", observedAt,
+    });
+    expect(body.planningConfidence.warnings).toContain("We could not read community wine prices just now; published menu quotes remain available.");
   });
 
   it.each([
