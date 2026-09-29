@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { LocateFixed } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
 import Kicker from "@/components/ui/kicker";
@@ -48,7 +48,6 @@ import { formatPrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import LandingPhoto, { LandingPhotoCredit, LandingPhotoPreload } from "./LandingPhoto";
-import LondonMapSnapshot from "./LondonMapSnapshot";
 import { LONDON_MAP_PUB_COUNT } from "./londonMapGeometry";
 
 // The landing hero (issue #1357, rebuilt on the captain's 7 Sep 2026 ask):
@@ -210,11 +209,14 @@ export default function LandingHero({
   card,
   archive,
   rail,
+  mapSnapshot,
 }: {
   /** The one real pub, or null when the data cannot back one. */
   card: LandingPubCardData | null;
   archive: LandingArchiveIndex;
   rail: LandingRailRow[];
+  /** Static geometry rendered by the server, outside this interactive island. */
+  mapSnapshot?: ReactNode;
 }) {
   const [answer, setAnswer] = useState<Answer | null>(() =>
     card ? anchorAnswer(card, rail, archive) : null,
@@ -354,7 +356,7 @@ export default function LandingHero({
       lede={`London on one map, with ${LONDON_MAP_PUB_COUNT} historic pubs marked and a listed price wherever we hold one.`}
       answer={
         <figure className="lpMapFigure">
-          <LondonMapSnapshot />
+          {mapSnapshot}
           <figcaption className="lpMapCaption">
             The London boroughs, and every old pub we hold a history for.
           </figcaption>
