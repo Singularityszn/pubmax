@@ -4702,6 +4702,12 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
     );
   }
 
+  /* The map fills the viewport, so its attribution moves above the docked
+     consent strip instead of adding a scrollable foot to the document. */
+  body:has(.analyticsConsentPrompt) .appShell .mapStage .maplibregl-ctrl-bottom-right {
+    bottom: var(--analytics-consent-clearance, 72px);
+  }
+
   html:has(.analyticsConsentPrompt) {
     scroll-padding-bottom: calc(
       var(--analytics-consent-clearance, 72px) + max(12px, env(safe-area-inset-bottom))
