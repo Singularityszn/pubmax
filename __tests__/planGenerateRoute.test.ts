@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { isLimitedMock, loadConciergeVenuesMock } = vi.hoisted(() => ({
+const { isLimitedMock, loadConciergeVenuesMock, categoryIndexMock } = vi.hoisted(() => ({
   isLimitedMock: vi.fn(async (...args: [
     localKey: string,
     durableKey: string,
@@ -14,6 +14,7 @@ const { isLimitedMock, loadConciergeVenuesMock } = vi.hoisted(() => ({
     return false;
   }),
   loadConciergeVenuesMock: vi.fn(),
+  categoryIndexMock: vi.fn(),
 }));
 
 const { fetchWalkLegRouteMock, orsApiKeyMock, walkRouteStoreMock } = vi.hoisted(() => ({
@@ -41,6 +42,11 @@ vi.mock("@/lib/concierge/venues.server", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/concierge/venues.server")>();
   loadConciergeVenuesMock.mockImplementation(actual.loadConciergeVenues);
   return { ...actual, loadConciergeVenues: loadConciergeVenuesMock };
+});
+vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
+  categoryIndexMock.mockImplementation(actual.readCommunityPriceCategoryIndex);
+  return { ...actual, readCommunityPriceCategoryIndex: categoryIndexMock };
 });
 vi.mock("@/lib/walkRouteProvider", () => ({
   fetchWalkLegRoute: fetchWalkLegRouteMock,
@@ -113,6 +119,7 @@ describe("POST /api/plans/generate", () => {
     isLimitedMock.mockClear();
     isLimitedMock.mockResolvedValue(false);
     loadConciergeVenuesMock.mockClear();
+    categoryIndexMock.mockClear();
     fetchWalkLegRouteMock.mockReset();
     fetchWalkLegRouteMock.mockResolvedValue(null);
     orsApiKeyMock.mockReset();
@@ -183,6 +190,37 @@ describe("POST /api/plans/generate", () => {
     expect(body.missingContextEvidence).toEqual([]);
     expect(body.explanations).toEqual(expect.arrayContaining([expect.objectContaining({ field: "nightArea" })]));
     expect(body).not.toHaveProperty("planId");
+  });
+
+  it("joins trusted wine prices into value ranking without using pint prices", async () => {
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("v1", { cheapestPrice: 4 }),
+      generatedVenue("v2", { cheapestPrice: 6 }),
+      generatedVenue("v3", { cheapestPrice: 3 }),
+    ]);
+    const now = Date.now();
+    categoryIndexMock.mockResolvedValueOnce({
+      prices: [
+        { venueId: "v1", drinkCategory: "wine", priceGbp: 9, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v2", drinkCategory: "wine", priceGbp: 7, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v3", drinkCategory: "wine", priceGbp: 5, submittedAt: now, source: "community", corroborations: 1 },
+      ],
+      truncated: false,
+      degraded: false,
+    });
+
+    const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "cheap wine in Clapham for 2" }),
+    }));
+
+    expect("prepared" in result).toBe(true);
+    if (!("prepared" in result)) return;
+    expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), expect.any(Number));
+    expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v2", "v1", "v3"]);
+    expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £7.00");
+    expect(result.prepared.candidates[0]?.reasons.join(" ")).not.toMatch(/pints from/i);
+    expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
   });
 
   it.each([5, 6])("returns a grounded %i-stop route from free text", async (stopCount) => {

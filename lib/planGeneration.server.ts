@@ -9,7 +9,7 @@ import { NO_ALCOHOL_DRINK_CATEGORIES, type CommunityPrice } from "@/lib/communit
 import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { haversineKm } from "@/lib/haversine";
-import { trustedNoAlcoholLensPrices } from "@/lib/mapExperienceLens";
+import { trustedDrinkLensPrices, trustedNoAlcoholLensPrices } from "@/lib/mapExperienceLens";
 import {
 	getNightArea,
 	isNightAreaRouteReady,
@@ -296,17 +296,23 @@ export async function preparePlanGeneration(
 		current.push(row);
 		tonightByVenue.set(row.venueId, current);
 	}
-	const noAlcoholPriceRows = await readCommunityPriceCategoryIndex(
-		NO_ALCOHOL_DRINK_CATEGORIES,
+	const requestedCategory = !context.zeroProof && context.drinkCategory && context.drinkCategory !== "beer"
+		? context.drinkCategory
+		: null;
+	const categoryPriceRows = await readCommunityPriceCategoryIndex(
+		[...NO_ALCOHOL_DRINK_CATEGORIES, ...(requestedCategory ? [requestedCategory] : [])],
 		requestNow,
 	);
-	const noAlcoholRowsByVenue = new Map<string, CommunityPrice[]>();
-	for (const row of noAlcoholPriceRows.prices) {
-		const current = noAlcoholRowsByVenue.get(row.venueId) ?? [];
+	const priceRowsByVenue = new Map<string, CommunityPrice[]>();
+	for (const row of categoryPriceRows.prices) {
+		const current = priceRowsByVenue.get(row.venueId) ?? [];
 		current.push(row);
-		noAlcoholRowsByVenue.set(row.venueId, current);
+		priceRowsByVenue.set(row.venueId, current);
 	}
-	const naLensPrices = trustedNoAlcoholLensPrices(noAlcoholRowsByVenue, requestNow);
+	const naLensPrices = trustedNoAlcoholLensPrices(priceRowsByVenue, requestNow);
+	const drinkLensPrices = requestedCategory
+		? trustedDrinkLensPrices(priceRowsByVenue, requestedCategory, requestNow)
+		: undefined;
 	const venues = await loadConciergeVenues(cityId);
 	const wetherspoonsMatchedIds = context.wetherspoonsPreferred
 		? await matchedWetherspoonsVenueIds(venues)
@@ -325,6 +331,7 @@ export async function preparePlanGeneration(
 				planningWeather,
 				naLensPrices,
 				wetherspoonsMatchedIds,
+				drinkLensPrices,
 			);
 			return { venue, distance, tonightEvents, signalClaims, ...scored };
 		})
