@@ -46,10 +46,10 @@ const AFTER_WORK_GROUP: NightContext = {
 };
 
 describe("Plan generation ranking evidence", () => {
-  it("ranks cheap wine by trusted wine prices rather than pint prices", () => {
+  it("keeps unknown wine servings neutral to quoted amounts", () => {
     const cheapPint = venue(true, "cheap-pint");
     cheapPint.cheapestPrice = 4;
-    const cheapWine = venue(false, "cheap-wine");
+    const cheapWine = venue(true, "cheap-wine");
     cheapWine.cheapestPrice = 6;
     const winePrices: ReadonlyMap<string, MapLensPrice> = new Map([
       [cheapPint.id, { venueId: cheapPint.id, category: "wine", categoryLabel: "Wine", priceGbp: 9, source: "community" }],
@@ -60,7 +60,7 @@ describe("Plan generation ranking evidence", () => {
     const pintResult = scoreVenueForPlan(cheapPint, context, 0.5, [], [], null, undefined, undefined, winePrices);
     const wineResult = scoreVenueForPlan(cheapWine, context, 0.5, [], [], null, undefined, undefined, winePrices);
 
-    expect(wineResult.score).toBeGreaterThan(pintResult.score);
+    expect(wineResult.score).toBe(pintResult.score);
     expect(wineResult.reasons).toContain("corroborated community wine price £7.00");
     expect(wineResult.reasons.join(" ")).not.toMatch(/pints from/i);
   });

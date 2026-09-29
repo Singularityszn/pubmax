@@ -4,6 +4,7 @@ import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
 import { trustedDrinkLensPrices, type MapLensPrice } from "@/lib/mapExperienceLens";
 import { cleanNightContext } from "@/lib/nightPlanning";
+import type { PlanStopDTO } from "@/lib/plan";
 import type { PlanStopTarget } from "@/lib/planRoute";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
@@ -11,7 +12,7 @@ import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
 type PricedPlanStopTarget = PlanStopTarget & { selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
 
 /** Resolve a submitted display hint against current, trusted server price rows. */
-export async function resolvePlanSelectedDrinkPriceEvidence(
+async function resolvePriceEvidence(
   stops: readonly PlanStopTarget[],
   submitted: readonly unknown[],
   rawContext: unknown,
@@ -88,5 +89,26 @@ export async function resolvePlanSelectedDrinkPriceEvidence(
       && candidate.observedAt === hint.observedAt,
     );
     return listed ? { ...stop, selectedDrinkPriceEvidence: listed } : stop;
+  });
+}
+
+export async function resolvePlanSelectedDrinkPriceEvidence(
+  stops: readonly (PlanStopTarget & { alternatives?: PlanStopDTO["alternatives"] })[],
+  submitted: readonly unknown[],
+  rawContext: unknown,
+): Promise<(PricedPlanStopTarget & { alternatives?: PlanStopDTO["alternatives"] })[]> {
+  const targets = stops.flatMap((stop) => [stop, ...(stop.alternatives ?? [])]);
+  const hints = stops.flatMap((stop, position) => {
+    const raw = submitted[position];
+    const backups = raw && typeof raw === "object" ? (raw as Record<string, unknown>).alternatives : null;
+    return [raw, ...(stop.alternatives ?? []).map((_, index) => Array.isArray(backups) ? backups[index] : undefined)];
+  });
+  const verified = await resolvePriceEvidence(targets, hints, rawContext);
+  let offset = 0;
+  return stops.map((stop) => {
+    const primary = verified[offset++];
+    const alternatives = verified.slice(offset, offset + (stop.alternatives?.length ?? 0));
+    offset += alternatives.length;
+    return { ...primary, ...(alternatives.length ? { alternatives } : {}) };
   });
 }

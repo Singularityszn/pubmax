@@ -306,6 +306,7 @@ export default function AreaSheet({
                     ) : null}
                   </span>
                 </button>
+                {pub.sourceUrl ? <a href={pub.sourceUrl} target="_blank" rel="noreferrer">Published menu for {pub.name}</a> : null}
               </li>
             ))}
             <li>

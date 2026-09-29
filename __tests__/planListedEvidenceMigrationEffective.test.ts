@@ -242,3 +242,65 @@ describe.skipIf(skipReason !== null)(
     });
   },
 );
+
+describe("0174 backup persistence and locked context", () => {
+  const migration = join(migrations, "20260929230000_0174_plan_backup_context_evidence.sql");
+  const undo = join(migrations, "rollback/20260929230000_0174_plan_backup_context_evidence_rollback.sql");
+  const id = "10000000-0000-4000-8000-000000000174";
+  const member = "20000000-0000-4000-8000-000000000174";
+  const proposal = "30000000-0000-4000-8000-000000000174";
+  const quote = { ...listed, serving: null };
+  const stops = [
+    { venueId: "venue-a", venueName: "A", position: 0, selectedDrinkPriceEvidence: quote,
+      alternatives: [{ venueId: "venue-backup", venueName: "Backup", selectedDrinkPriceEvidence: quote }] },
+    { venueId: "venue-b", venueName: "B", position: 1 },
+    { venueId: "venue-c", venueName: "C", position: 2 },
+  ];
+  const literal = (value: unknown) => `'${JSON.stringify(value).replaceAll("'", "''")}'::jsonb`;
+  const context = (category: string, zeroProof = false) => literal({ drinkCategory: category, zeroProof });
+  const read = () => JSON.parse(db().sql(`select jsonb_build_object('price', selected_drink_price_evidence, 'backups', alternatives)::text from public.plan_stops where plan_id='${id}' and position=0`));
+  const reset = (category = "wine", zeroProof = false) => {
+    db().sql(`delete from public.plans where id='${id}';
+      insert into public.plans(id,title,start_time,night_context) values('${id}','Backups',now(),${context(category, zeroProof)});
+      insert into public.plan_crew_members(id,plan_id,name,token_hash) values('${member}','${id}','Host','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+      insert into public.plan_route_proposals(id,plan_id,proposed_by_member_id,expected_route_revision,stops,reason,idempotency_key,created_at)
+      values('${proposal}','${id}','${member}',1,${literal(stops)},'Backup route','backup-proposal',now());`);
+  };
+  const accept = () => db().sql(`select public.decide_plan_route_proposal_atomic('${id}','${proposal}','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','accepted','backup-decision',now())`);
+  const replace = (category: string | null) => db().sql(`select public.replace_plan_route_atomic('${id}','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',1,${literal(stops)},${category ? context(category) : "null"},false)`);
+  const definitions = () => db().sql(`select string_agg(pg_get_functiondef(oid), E'\n' order by proname) from pg_proc where pronamespace='public'::regnamespace and proname in ('decide_plan_route_proposal_atomic','replace_plan_route_atomic','update_legacy_plan_status_context_atomic')`);
+
+  it("reproduces stale proposal evidence and lost backups, then fixes every write and rolls back", () => {
+    db().applyFile(forward);
+    db().applyFile(join(migrations, "20260929200000_0171_plan_route_alternatives.sql"));
+    const before = definitions();
+    reset("cocktail");
+    expect(accept()).toBe("decided");
+    expect(read()).toEqual({ price: quote, backups: [] });
+    reset();
+    expect(replace(null)).toBe("ok");
+    expect(read()).toEqual({ price: quote, backups: [] });
+    db().applyFile(migration);
+    for (const [category, zeroProof] of [["wine", false], ["cocktail", false], ["wine", true]] as const) {
+      reset();
+      expect(db().sql(`select public.update_legacy_plan_status_context_atomic('${id}','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',null,${context(category, zeroProof)})`)).toBe("ok");
+      expect(accept()).toBe("decided");
+      const retained = category === "wine" && !zeroProof;
+      expect(read()).toEqual({ price: retained ? quote : null, backups: [{ venueId: "venue-backup", venueName: "Backup", ...(retained ? { selectedDrinkPriceEvidence: quote } : {}) }] });
+      expect(accept()).toBe("already_decided");
+    }
+    for (const category of ["wine", "cocktail"]) {
+      reset();
+      expect(replace(category)).toBe("ok");
+      const retained = category === "wine";
+      expect(read()).toEqual({ price: retained ? quote : null, backups: [{ venueId: "venue-backup", venueName: "Backup", ...(retained ? { selectedDrinkPriceEvidence: quote } : {}) }] });
+    }
+    reset();
+    expect(replace(null)).toBe("ok");
+    expect(db().sql(`select public.update_legacy_plan_status_context_atomic('${id}','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',null,${context("cocktail")})`)).toBe("ok");
+    expect(read()).toEqual({ price: null, backups: [{ venueId: "venue-backup", venueName: "Backup" }] });
+    expect(db().sql(`select has_function_privilege('authenticated','public.plan_stop_evidence_for_context(jsonb,jsonb)','execute')`)).toBe("f");
+    db().applyFile(undo);
+    expect(definitions()).toBe(before);
+  });
+});

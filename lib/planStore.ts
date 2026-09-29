@@ -9,7 +9,7 @@ import type { NightContext } from "@/lib/nightPlanning";
 import { selectStore } from "@/lib/storeBackend";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { isPlanStopCount } from "@/lib/planStopCount";
-import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { cleanSelectedDrinkPriceEvidence, planStopEvidenceForContext } from "@/lib/planSelectedDrinkPriceEvidence";
 
 const PLANS = "plans";
 const STOPS = "plan_stops";
@@ -276,7 +276,7 @@ async function readSupabasePlanState(
   }
   return {
     plan: planFromRow(planRow as Record<string, unknown>),
-    stops: (stopRows ?? []).map((row) => stopFromRow(row as Record<string, unknown>)),
+    stops: (stopRows ?? []).map((row) => planStopEvidenceForContext(stopFromRow(row as Record<string, unknown>), (planRow as Record<string, unknown>).night_context as NightContext | null ?? null)),
     crew: socialOwnerAccountId === null
       ? (memberRows ?? []).map((row) => memberFromRow(row as Record<string, unknown>))
       : [],
@@ -446,9 +446,10 @@ export const supabasePlanStore: PlanStore = {
           p_plan_id: id,
           p_token_hash: hashPlanMemberToken(rawToken),
           p_expected_route_revision: update.expectedRouteRevision,
-          p_stops: stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => ({
+          p_stops: stops.map(({ venueId, venueName, selectedDrinkPriceEvidence, alternatives }) => ({
             venueId, venueName,
             ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+            ...(alternatives?.length ? { alternatives } : {}),
           })),
           p_context: update.context ?? null,
           // Anchored Plans upgrade to a grounded route only after proof verification.
@@ -634,7 +635,7 @@ function mintInviteToken(): string {
 function publicState(value: MemoryPlan): PlanState {
   return {
     plan: { ...value.plan },
-    stops: value.stops.map((stop) => ({ ...stop })).sort((a, b) => a.position - b.position),
+    stops: value.stops.map((stop) => planStopEvidenceForContext(stop, value.context)).sort((a, b) => a.position - b.position),
     crew: value.crew.map((member) => ({
       id: member.id,
       name: member.name,
@@ -794,13 +795,7 @@ export const memoryPlanStore: PlanStore = {
       // One synchronous mutation keeps the demo store's route + revision
       // semantics equivalent to the production RPC transaction.
       const context = update.context ?? plan.context;
-      plan.stops = stops.map((stop) => {
-        if (!stop.selectedDrinkPriceEvidence ||
-          (!context?.zeroProof && stop.selectedDrinkPriceEvidence.category === context?.drinkCategory)) return stop;
-        const nextStop = { ...stop };
-        delete nextStop.selectedDrinkPriceEvidence;
-        return nextStop;
-      });
+      plan.stops = stops.map((stop) => planStopEvidenceForContext(stop, context));
       plan.plan.routeRevision = routeRevisionOf(plan.plan) + 1;
       if (plan.plan.anchorVenueId) {
         plan.plan.outcome = "route";
@@ -814,12 +809,7 @@ export const memoryPlanStore: PlanStore = {
     if (update.status) plan.plan.status = update.status;
     if (update.context) {
       plan.context = structuredClone(update.context);
-      for (const stop of plan.stops) {
-        if (stop.selectedDrinkPriceEvidence && (update.context.zeroProof
-          || stop.selectedDrinkPriceEvidence.category !== update.context.drinkCategory)) {
-          delete stop.selectedDrinkPriceEvidence;
-        }
-      }
+      plan.stops = plan.stops.map((stop) => planStopEvidenceForContext(stop, update.context!));
     }
     return { ok: true, plan: publicState(plan) };
   },

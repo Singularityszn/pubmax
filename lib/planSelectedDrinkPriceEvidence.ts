@@ -1,3 +1,6 @@
+import type { NightContext } from "@/lib/nightPlanning";
+import type { PlanStopDTO } from "@/lib/plan";
+
 import { categoryLabel, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 
 type CommunitySelectedDrinkPriceEvidence = {
@@ -70,4 +73,15 @@ export function selectedDrinkPriceDescription(evidence: SelectedDrinkPriceEviden
   });
   const serving = evidence.serving ? `Serving ${evidence.serving}.` : "Serving size not recorded.";
   return `${categoryLabel(evidence.category)} £${(evidence.pence / 100).toFixed(2)}, ${evidence.source === "community" ? "community report" : "published menu"} ${reported}. ${serving}`;
+}
+
+export function planStopEvidenceForContext(stop: PlanStopDTO, context: NightContext | null | undefined): PlanStopDTO {
+  const filter = <T extends { selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence }>(value: T): T => {
+    const next = { ...value };
+    const evidence = cleanSelectedDrinkPriceEvidence(value.selectedDrinkPriceEvidence);
+    if (evidence && !context?.zeroProof && evidence.category === context?.drinkCategory) next.selectedDrinkPriceEvidence = evidence;
+    else delete next.selectedDrinkPriceEvidence;
+    return next;
+  };
+  return { ...filter(stop), ...(stop.alternatives ? { alternatives: stop.alternatives.map(filter) } : {}) };
 }

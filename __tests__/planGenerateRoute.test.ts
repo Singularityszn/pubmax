@@ -201,7 +201,7 @@ describe("POST /api/plans/generate", () => {
     expect(body).not.toHaveProperty("planId");
   });
 
-  it("joins trusted wine prices into value ranking without using pint prices", async () => {
+  it("joins trusted wine evidence without amount ranking unknown servings", async () => {
     loadConciergeVenuesMock.mockResolvedValueOnce([
       generatedVenue("v1", { cheapestPrice: 4 }),
       generatedVenue("v2", { cheapestPrice: 6 }),
@@ -226,8 +226,8 @@ describe("POST /api/plans/generate", () => {
     expect("prepared" in result).toBe(true);
     if (!("prepared" in result)) return;
     expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), expect.any(Number));
-    expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v2", "v1", "v3"]);
-    expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £7.00");
+    expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v1", "v2", "v3"]);
+    expect(result.prepared.candidates[1]?.reasons).toContain("corroborated community wine price £7.00");
     expect(result.prepared.candidates[0]?.reasons.join(" ")).not.toMatch(/pints from/i);
     expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
   });

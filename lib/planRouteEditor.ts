@@ -93,11 +93,12 @@ export function seedRouteDraft(
   return stored.map((stop, index) => {
     const seen = new Set<string>();
     const alternatives: RouteAlternative[] = [];
-    for (const candidate of [...candidatesAt(index), ...pool]) {
+    for (const candidate of [...(stop.alternatives ?? []), ...candidatesAt(index), ...pool]) {
       if (!candidate.venueId || !candidate.venueName) continue;
       if (inRoute.has(candidate.venueId) || seen.has(candidate.venueId)) continue;
       seen.add(candidate.venueId);
       alternatives.push({ ...candidate });
+      if (alternatives.length === 24) break;
     }
     return { ...stop, alternatives };
   });
@@ -121,4 +122,11 @@ export type RouteSaveOutcome = "saved" | "conflict" | "refused";
 export function routeSaveOutcome(status: number, ok: boolean): RouteSaveOutcome {
   if (ok) return "saved";
   return status === 409 || status === 412 ? "conflict" : "refused";
+}
+
+export function routeStopsWithAvailableBackups<T extends { venueId: string; alternatives?: readonly { venueId: string }[] }>(stops: readonly T[]): T[] {
+  const selectedIds = new Set(stops.map((stop) => stop.venueId));
+  return stops.map((stop) => ({ ...stop, ...(stop.alternatives ? {
+    alternatives: stop.alternatives.filter((backup) => !selectedIds.has(backup.venueId)),
+  } : {}) }));
 }

@@ -1,5 +1,8 @@
 import "server-only";
 
+import type { DrinkCategory } from "@/lib/drinks";
+import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
+
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -82,4 +85,17 @@ export function resetUkPriceBundleForTests(): void {
     cached = null;
     pending = null;
   }
+}
+
+export async function ukPriceBundleCategoryIndex(category: DrinkCategory, now = Date.now()) {
+  const read = await readUkPriceBundle();
+  const prices: Array<ReturnType<typeof listedCategoryPrices>[number] & { venueId: string }> = [];
+  let truncated = false;
+  for (const [venueId, rows] of read.byVenue) {
+    const quote = listedCategoryPrices(rows, now).find((value) => value.category === category);
+    if (!quote) continue;
+    if (prices.length === 1000) { truncated = true; break; }
+    prices.push({ venueId, ...quote });
+  }
+  return { prices, truncated, degraded: read.status === "unavailable" };
 }

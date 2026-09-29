@@ -1,5 +1,7 @@
 "use client";
 
+import { routeStopsWithAvailableBackups } from "@/lib/planRouteEditor";
+
 import {
   FormEvent,
   useEffect,
@@ -744,7 +746,7 @@ export function composerCreatePayload(input: {
     creatorName: input.creatorName,
     startTime: input.startTime,
     ...(input.cityId ? { cityId: input.cityId } : {}),
-    stops: input.stops.map(({ venueId, venueName, selectedDrinkPriceEvidence, alternatives }) => {
+    stops: routeStopsWithAvailableBackups(input.stops).map(({ venueId, venueName, selectedDrinkPriceEvidence, alternatives }) => {
       const evidence = cleanSelectedDrinkPriceEvidence(selectedDrinkPriceEvidence);
       const cleanEvidence = (value: unknown) => {
         const candidate = cleanSelectedDrinkPriceEvidence(value);

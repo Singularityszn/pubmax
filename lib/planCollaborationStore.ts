@@ -205,7 +205,12 @@ function proposalFromRow(row: Record<string, unknown>): PlanRouteProposal {
     stops: rawStops.map((stop) => {
       const value = stop as Record<string, unknown>;
       const evidence = cleanSelectedDrinkPriceEvidence(value.selectedDrinkPriceEvidence);
-      return { venueId: String(value.venueId), venueName: String(value.venueName), position: Number(value.position), ...(evidence ? { selectedDrinkPriceEvidence: evidence } : {}) };
+      const alternatives = Array.isArray(value.alternatives) ? value.alternatives.flatMap((raw) => {
+        if (!raw || typeof raw !== "object" || typeof raw.venueId !== "string" || typeof raw.venueName !== "string") return [];
+        const price = cleanSelectedDrinkPriceEvidence(raw.selectedDrinkPriceEvidence);
+        return [{ venueId: raw.venueId, venueName: raw.venueName, ...(price ? { selectedDrinkPriceEvidence: price } : {}) }];
+      }) : [];
+      return { venueId: String(value.venueId), venueName: String(value.venueName), position: Number(value.position), ...(evidence ? { selectedDrinkPriceEvidence: evidence } : {}), ...(alternatives.length ? { alternatives } : {}) };
     }),
     reason: String(row.reason), resolvedConstraintIds: strings(row.resolved_constraint_ids), unresolvedConstraintIds: strings(row.unresolved_constraint_ids),
     status: row.status as PlanRouteProposal["status"], createdAt: String(row.created_at), decidedAt: typeof row.decided_at === "string" ? row.decided_at : null,

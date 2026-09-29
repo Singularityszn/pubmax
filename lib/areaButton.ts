@@ -322,6 +322,7 @@ export type AreaPubRow = {
   priceLabel: string;
   distanceKm: number;
   distanceLabel: string;
+  sourceUrl?: string;
 };
 
 /**
@@ -375,7 +376,7 @@ function rankCheapestDrinks(
         price !== null
           ? lensPrices === null
             ? formatGbp(price)
-            : `${lensCategoryLabel} · ${formatGbp(price)} · serving not recorded`
+            : `${lensCategoryLabel} · ${formatGbp(price)} · ${lensPrices.get(venue.id)?.servingSize ?? "serving not recorded"}${lensPrices.get(venue.id)?.source === "listed" ? ` · published menu ${lensPrices.get(venue.id)?.observedAt?.slice(0, 10)}` : ""}`
           : lensPrices === null
             ? "no priced pints yet"
             : drinkLensUnknownRowLabel(
@@ -384,6 +385,7 @@ function rankCheapestDrinks(
               ),
       distanceKm,
       distanceLabel: formatAreaDistance(distanceKm, originKind),
+      ...(lensPrices?.get(venue.id)?.source === "listed" ? { sourceUrl: lensPrices.get(venue.id)?.sourceUrl } : {}),
     }));
 }
 

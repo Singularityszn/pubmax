@@ -6,7 +6,7 @@ import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBan
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { Component, Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 
 const PubPalMascot = dynamic(
   () => import("@/components/pal/PubPalMascot").then((m) => m.PubPalMascot),
@@ -472,7 +472,7 @@ import {
   isMapLensDrinkCategory,
   lensPricesForVenues,
   parseMapExperienceLensParam,
-  trustedDrinkLensPrices,
+  discoveryDrinkLensPrices,
   trustedNoAlcoholLensPrices,
   MAP_EXPERIENCE_LENS_URL_PARAM,
   type CategoryPriceIndexStatus,
@@ -1839,14 +1839,16 @@ export default function PubMap({
   const drinkLensPrices = useMemo(
     () =>
       mapDrinkLensCategory
-        ? trustedDrinkLensPrices(
+        ? discoveryDrinkLensPrices(
             communityPrices.byVenueId,
             mapDrinkLensCategory,
+            communityPrices.listedDrinkPrices.get(mapDrinkLensCategory) ?? [],
             experiencePolicyNow,
           )
         : null,
     [
       communityPrices.byVenueId,
+      communityPrices.listedDrinkPrices,
       experiencePolicyNow,
       mapDrinkLensCategory,
     ],
@@ -5139,6 +5141,7 @@ export default function PubMap({
   const phoneDescribeForm =
     mobileViewport && isLondon && suggestedPlanArea ? (
       <MobilePlanActivation
+        key="describe"
         cityId={cityId}
         initialNightArea={suggestedPlanArea.slug}
         venuesById={venuesById}
@@ -5146,16 +5149,9 @@ export default function PubMap({
       />
     ) : null;
   const plannerOrder = phonePlannerOrder({ mobileViewport, mode, builtCount: builtIds.length });
-  // Keep the generated result mounted until its transfer action is used.
-  // Moving the form below RoutePanel when these stops become builtIds would
-  // remount MobilePlanActivation and discard the response it must transfer.
   const builtCrawlLeads = plannerOrder === "build-first" && !generatedMobilePlanVisible;
-  const [plannerHead, plannerFoot] = builtCrawlLeads
-    ? [null, phoneDescribeForm]
-    : [phoneDescribeForm, null];
-  const plannerPanel = planningOpen ? (
-    <>
-      {plannerHead}
+  const plannerCrawlPanel = (
+    <Fragment key="crawl">
       {renderPlannerMapButton()}
       {/* One planner per surface. The rail is the DESKTOP planner: brand block,
           mode toggle, search box, featured routes and the full filter stack. The
@@ -5215,9 +5211,11 @@ export default function PubMap({
       >
         {renderPlannerEmptyState()}
       </RoutePanel>
-      {plannerFoot}
-    </>
-  ) : null;
+    </Fragment>
+  );
+  const plannerPanel = planningOpen
+    ? builtCrawlLeads ? [plannerCrawlPanel, phoneDescribeForm] : [phoneDescribeForm, plannerCrawlPanel]
+    : null;
 
   /* The peek row: the price this lens can vouch for, the walk from the reader's
      own point, and the crawl toggle. Adding a pub to the crawl you are building

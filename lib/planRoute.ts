@@ -2,6 +2,7 @@ import { CITIES, type CityId } from "@/lib/cities";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { cultureWaypointPois } from "@/lib/cultureCrawl.server";
 import { classifyOpenMeetingPoint, OPEN_PLAN_PLACE_PREFIX } from "@/lib/openSocialCrew";
+import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import type { PlanStopDTO } from "@/lib/plan";
 import { isPlanStopCount } from "@/lib/planStopCount";
 
@@ -57,10 +58,28 @@ export async function canonicalPlanRoute(raw: unknown): Promise<PlanStopDTO[] | 
   const resolve = await planStopResolver();
   const stops = raw.map((value, position) => {
     const target = resolve(value);
-    return target ? { ...target, position } : null;
+    if (!target) return null;
+    const row = value && typeof value === "object" ? value as Record<string, unknown> : {};
+    const evidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
+    const rawAlternatives = row.alternatives ?? [];
+    if (!Array.isArray(rawAlternatives) || rawAlternatives.length > 24) return null;
+    const alternatives = rawAlternatives.map((raw) => {
+      const backup = resolve(raw);
+      if (!backup) return null;
+      const price = cleanSelectedDrinkPriceEvidence(raw?.selectedDrinkPriceEvidence);
+      return { ...backup, ...(price ? { selectedDrinkPriceEvidence: price } : {}) };
+    });
+    if (alternatives.some((backup) => !backup)) return null;
+    return { ...target, position, ...(evidence ? { selectedDrinkPriceEvidence: evidence } : {}),
+      ...(alternatives.length ? { alternatives: alternatives as NonNullable<PlanStopDTO["alternatives"]> } : {}) };
   });
   if (stops.some((stop) => stop === null)) return null;
   const resolved = stops as PlanStopDTO[];
   const ids = resolved.map((stop) => stop.venueId);
-  return new Set(ids).size === ids.length ? resolved : null;
+  if (new Set(ids).size !== ids.length) return null;
+  if (resolved.some((stop) => {
+    const backups = stop.alternatives?.map((backup) => backup.venueId) ?? [];
+    return new Set(backups).size !== backups.length || backups.some((id) => ids.includes(id));
+  })) return null;
+  return resolved;
 }

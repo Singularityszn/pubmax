@@ -27,6 +27,8 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
 vi.mock("@/lib/ukPriceBundle.server", () => ({ ukPriceBundleRowsFor: bundleRowsMock }));
 
 import { POST } from "@/app/api/plans/route";
+import { POST as propose } from "@/app/api/plans/[id]/proposals/route";
+import { POST as decide } from "@/app/api/plans/[id]/proposals/[proposalId]/decision/route";
 import { PATCH } from "@/app/api/plans/[id]/route";
 import { inferNightContext } from "@/lib/nightPlanning";
 import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
@@ -95,6 +97,45 @@ describe("Plan create selected drink evidence", () => {
       { venueId: row!.venueId, venueName: "Punch & Judy" },
       { venueId: "venue-b", venueName: "Venue B" },
     ]);
+  });
+
+  it("preserves and revalidates backup evidence through replacement and context edits", async () => {
+    const submittedAt = Date.now();
+    const evidence = { category: "wine", pence: 550, serving: null, source: "community", reportedAt: new Date(submittedAt).toISOString() };
+    categoryIndexMock.mockResolvedValue({ prices: [{ venueId: "venue-11bllvc", drinkCategory: "wine", priceGbp: 5.5, submittedAt, source: "community", corroborations: 2 }], degraded: false, truncated: false });
+    const { body } = await create("wine", null);
+    const stops = [{ venueId: "venue-a", alternatives: [{ venueId: "venue-11bllvc", selectedDrinkPriceEvidence: evidence }] }, { venueId: "venue-b" }, { venueId: "venue-c" }];
+    const patch = (payload: unknown) => PATCH(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
+      method: "PATCH", headers: { authorization: `Bearer ${body.memberToken}`, "content-type": "application/json" }, body: JSON.stringify(payload),
+    }), { params: Promise.resolve({ id: body.plan.plan.id }) });
+    expect((await patch({ expectedRouteRevision: 1, stops })).status).toBe(200);
+    expect((await memoryPlanStore.get(body.plan.plan.id))?.stops[0]?.alternatives).toEqual([{ venueId: "venue-11bllvc", venueName: "Punch & Judy", selectedDrinkPriceEvidence: evidence }]);
+    expect((await patch({ context: { ...inferNightContext("cocktails").context, nightArea: "piccadilly-soho", drinkCategory: "cocktail" } })).status).toBe(200);
+    expect((await memoryPlanStore.get(body.plan.plan.id))?.stops[0]?.alternatives).toEqual([{ venueId: "venue-11bllvc", venueName: "Punch & Judy" }]);
+    expect((await patch({ expectedRouteRevision: 2, context: { ...inferNightContext("wine").context, nightArea: "piccadilly-soho", drinkCategory: "wine" }, stops: [{ ...stops[0], alternatives: [{ venueId: "venue-11bllvc", selectedDrinkPriceEvidence: { ...evidence, pence: 1 } }] }, ...stops.slice(1)] })).status).toBe(200);
+    expect((await memoryPlanStore.get(body.plan.plan.id))?.stops[0]?.alternatives?.[0].selectedDrinkPriceEvidence).toBeUndefined();
+  });
+
+  it.each([false, true])("keeps revalidated proposal backups and invalidates them under current context (changed=%s)", async (changed) => {
+    const submittedAt = Date.now();
+    const evidence = { category: "wine", pence: 550, serving: null, source: "community", reportedAt: new Date(submittedAt).toISOString() };
+    categoryIndexMock.mockResolvedValue({ prices: [{ venueId: "venue-11bllvc", drinkCategory: "wine", priceGbp: 5.5, submittedAt, source: "community", corroborations: 2 }], degraded: false, truncated: false });
+    const { body } = await create("wine", null);
+    const id = body.plan.plan.id;
+    const request = (path: string, payload: unknown) => new Request(`http://localhost/api/plans/${id}/${path}`, {
+      method: "POST", headers: { authorization: `Bearer ${body.memberToken}`, "content-type": "application/json", "idempotency-key": `proposal-backup-${++sequence}` }, body: JSON.stringify(payload),
+    });
+    const response = await propose(request("proposals", { expectedRouteRevision: 1, reason: "Keep backups", stops: [
+      { venueId: "venue-a", alternatives: [{ venueId: "venue-11bllvc", venueName: "Forged name", selectedDrinkPriceEvidence: evidence }] },
+      { venueId: "venue-b" }, { venueId: "venue-c" },
+    ] }), { params: Promise.resolve({ id }) });
+    expect(response.status).toBe(201);
+    const { proposal } = await response.json();
+    expect(proposal.stops[0].alternatives).toEqual([{ venueId: "venue-11bllvc", venueName: "Punch & Judy", selectedDrinkPriceEvidence: evidence }]);
+    if (changed) await memoryPlanStore.update(id, body.memberToken, { context: { ...inferNightContext("wine").context, zeroProof: true } });
+    const decision = await decide(request(`proposals/${proposal.id}/decision`, { decision: "accepted" }), { params: Promise.resolve({ id, proposalId: proposal.id }) });
+    expect(decision.status).toBe(200);
+    expect((await memoryPlanStore.get(id))?.stops[0]?.alternatives).toEqual([{ venueId: "venue-11bllvc", venueName: "Punch & Judy", ...(!changed ? { selectedDrinkPriceEvidence: evidence } : {}) }]);
   });
 
   it("re-resolves a listed hint from the approved bundle on create and replace despite a degraded community read", async () => {

@@ -22,7 +22,7 @@ function priceAndZeroProof(
     if (category && category !== "beer") {
       const price = drinkLensPrices?.get(venue.id);
       if (price?.category === category && price.priceGbp > 0) {
-        score += Math.min(5, 10 / price.priceGbp);
+        score += 1;
         reasons.push(`corroborated community ${CATEGORY_META[category].label.toLowerCase()} price ${formatGbp(price.priceGbp)}`);
       }
     } else if (!context.zeroProof) {

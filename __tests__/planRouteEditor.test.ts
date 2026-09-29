@@ -107,6 +107,14 @@ describe("seedRouteDraft", () => {
     }
   });
 
+  it("keeps stored backup evidence first when refreshing editor choices", () => {
+    const backup = { venueId: "saved-backup", venueName: "Saved backup", selectedDrinkPriceEvidence: {
+      category: "wine" as const, pence: 550, serving: null, source: "community" as const, reportedAt: "2026-09-25T12:00:00.000Z",
+    } };
+    const draft = seedRouteDraft(stored.map((stop) => ({ ...stop, alternatives: [backup] })), generated);
+    expect(draft.every((stop) => JSON.stringify(stop.alternatives?.[0]) === JSON.stringify(backup))).toBe(true);
+  });
+
   it("leaves a stop with no backups when the generator offered nothing new", () => {
     const draft = seedRouteDraft(stored, [
       { venueId: "v-beehive", venueName: "Beehive" },

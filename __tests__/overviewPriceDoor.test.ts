@@ -164,6 +164,7 @@ function communityPrices(venueId: string): CommunityPricesState {
     loadNoAlcoholIndex: noop,
     loadDrinkCategoryIndex: noop,
     drinkCategoryIndexStatus: new Map(),
+    listedDrinkPrices: new Map(),
     provisionalBaseVenueIds: new Set(),
     loadProvisionalBaseVenues: noop,
     loadVenue: noop,

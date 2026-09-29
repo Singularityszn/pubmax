@@ -50,6 +50,15 @@ function renderSheet(
 }
 
 describe("AreaSheet under a selected drink lens", () => {
+  it("renders listed attribution and explicit serving before venue detail opens", () => {
+    const html = renderSheet(new Map([["a", { venueId: "a", category: "whisky", categoryLabel: "Whisky", priceGbp: 7,
+      source: "listed", sourceUrl: "https://pub.example/menu", observedAt: "2026-09-20T12:00:00.000Z", servingSize: "25ml" }]]), "ready");
+    expect(html).toContain("25ml");
+    expect(html).toContain("published menu 2026-09-20");
+    expect(html).toContain('href="https://pub.example/menu"');
+    expect(html).not.toContain("serving not recorded");
+  });
+
   it("adds nothing when the index answered in full", () => {
     const html = renderSheet(new Map(), "ready");
     expect(html).toContain("Whisky prices in Piccadilly");

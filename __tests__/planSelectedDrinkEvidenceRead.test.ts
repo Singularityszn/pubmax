@@ -4,6 +4,7 @@ const db = vi.hoisted(() => ({
   stopRow: null as Record<string, unknown> | null,
   completionRow: null as Record<string, unknown> | null,
   oldSchema: false,
+  context: { drinkCategory: "wine", zeroProof: false },
   selects: [] as string[],
 }));
 
@@ -31,7 +32,7 @@ vi.mock("@/lib/supabase", () => ({
           return Promise.resolve({ data: [], error: null }).then(onFulfilled);
         },
         maybeSingle: async () => ({
-          data: table === "plan_completions" ? db.completionRow : { id: "11111111-1111-4111-8111-111111111111", title: "Tonight", start_time: "2026-09-30T19:00:00.000Z", created_at: "2026-09-29T12:00:00.000Z", night_context: null },
+          data: table === "plan_completions" ? db.completionRow : { id: "11111111-1111-4111-8111-111111111111", title: "Tonight", start_time: "2026-09-30T19:00:00.000Z", created_at: "2026-09-29T12:00:00.000Z", night_context: db.context },
           error: null,
         }),
       };
@@ -54,6 +55,7 @@ const EVIDENCE = {
 describe("saved Plan selected drink evidence reads", () => {
   beforeEach(() => {
     db.oldSchema = false;
+    db.context = { drinkCategory: "wine", zeroProof: false };
     db.selects = [];
     db.completionRow = null;
     db.stopRow = { venue_id: "venue-a", venue_name: "A", position: 0, selected_drink_price_evidence: EVIDENCE };
@@ -65,6 +67,15 @@ describe("saved Plan selected drink evidence reads", () => {
     if (result.status !== "found") return;
     expect(result.state.stops[0]?.selectedDrinkPriceEvidence).toEqual(EVIDENCE);
     expect(db.selects[0]).toContain("selected_drink_price_evidence");
+  });
+
+  it.each([{ drinkCategory: "cocktail", zeroProof: false }, { drinkCategory: "wine", zeroProof: true }])("filters primary and backup evidence for changed context %o", async (context) => {
+    db.context = context;
+    db.stopRow = { ...db.stopRow, alternatives: [{ venueId: "venue-b", venueName: "B", selectedDrinkPriceEvidence: EVIDENCE }] };
+    const result = await supabasePlanStore.read(PLAN_ID);
+    expect(result.status).toBe("found");
+    if (result.status !== "found") return;
+    expect(result.state.stops[0]).toEqual({ venueId: "venue-a", venueName: "A", position: 0, alternatives: [{ venueId: "venue-b", venueName: "B" }] });
   });
 
   it("drops malformed evidence instead of publishing it", async () => {
