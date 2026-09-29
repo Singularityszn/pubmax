@@ -2,6 +2,10 @@
 
 Status: migrations `0161` and `0162` with rollbacks added locally on 29 September 2026. The typed Plan read projects valid saved evidence. The composer submits matching selected evidence. Plan creation checks it against current trusted server prices and saves it in memory and PostgreSQL. Route replacement still drops it. No shared migration was executed, and this says nothing about the schema deployed to any database.
 
+## Create retry stability
+
+The first create can save a trusted wine snapshot, then its response can be lost. The same request and idempotency key used to return `409 PLAN_IDEMPOTENCY_CONFLICT` if price coverage degraded before retry: the request hash included the server-derived snapshot, which disappeared on the second attempt. `__tests__/planSelectedDrinkEvidenceCreate.test.ts` reproduced that 409 before the fix. The route now hashes canonical venue names and cleaned submitted evidence while it persists only current server-verified evidence. A retry returns the original Plan and original snapshot; a changed submitted figure remains a conflict. `__tests__/planStoreContextAtomic.test.ts` also checks the durable RPC receives the same hash when its resolved stop payload differs, and a changed hint produces a different hash. Both focused suites passed (8 tests), as did typecheck, focused lint, and isolated `NEXT_DIST_DIR=.next-prod` production build. Build-generated venue data was restored. This is local API and RPC-contract proof, not a live database replay. During a mixed-version rollout, a retry first handled by an older application version can still use its prior hash semantics if price authority changed; keep rollout verification explicit.
+
 ## Reproduction
 
 A wine stop with valid `selectedDrinkPriceEvidence` reaches the draft and preview, then loses that field before Plan storage. A direct call to the Plan input cleaner produced:

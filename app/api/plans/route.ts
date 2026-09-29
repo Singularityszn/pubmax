@@ -6,6 +6,7 @@ import { isLimited } from "@/lib/pintDrops";
 import { cleanPlanAnchor } from "@/lib/plan";
 import { planStopResolver } from "@/lib/planRoute";
 import { resolvePlanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence.server";
+import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { claimPlanMembership } from "@/lib/planCrewIdentity";
 import { planMemberIdentity, planRequestDigest, planStore } from "@/lib/planStore";
 import {
@@ -121,6 +122,13 @@ export async function POST(request: Request): Promise<Response> {
   if (resolvedStops.some((stop) => stop === null)) {
     return publicApiError("Choose listed venues.", "PLAN_VENUES_INVALID", 400);
   }
+  const idempotencyStops = (resolvedStops as NonNullable<(typeof resolvedStops)[number]>[]).map((stop, position) => {
+    const raw = submittedStops[position];
+    const hint = cleanSelectedDrinkPriceEvidence(
+      raw && typeof raw === "object" ? (raw as Record<string, unknown>).selectedDrinkPriceEvidence : null,
+    );
+    return { ...stop, ...(hint ? { selectedDrinkPriceEvidence: hint } : {}) };
+  });
   const stops = await resolvePlanSelectedDrinkPriceEvidence(
     resolvedStops as NonNullable<(typeof resolvedStops)[number]>[], submittedStops, body.context,
   );
@@ -160,7 +168,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   const result = await planStore().create(
     { ...body, stops },
-    { idempotencyKey, ...(groundingProofDigest ? { groundingProofDigest } : {}), ...(anchor ? { anchor } : {}) },
+    { idempotencyKey, idempotencyStops, ...(groundingProofDigest ? { groundingProofDigest } : {}), ...(anchor ? { anchor } : {}) },
   );
   if (!result.ok) {
     return publicApiError(

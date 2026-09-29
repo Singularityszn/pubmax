@@ -47,6 +47,8 @@ export type PlanCompletionResult =
 export type PlanCreateOptions = {
   idempotencyKey?: string;
   groundingProofDigest?: string;
+  /** Canonical submitted intent before mutable server price evidence is resolved. */
+  idempotencyStops?: CleanPlanInput["stops"];
   /** Grounded anchor metadata (§3.3). Present only for anchored generation. */
   anchor?: PlanAnchorMetadata;
 };
@@ -128,13 +130,14 @@ function validatedCreateAnchor(
  * (no proof, no anchor) keeps its historical hash exactly.
  */
 function createRequestHash(clean: CleanPlanInput, options: PlanCreateOptions): string {
+  const stableStops = options.idempotencyStops ?? clean.stops;
   const plan = clean.context
-    ? clean
+    ? { ...clean, stops: stableStops }
     : {
         title: clean.title,
         startTime: clean.startTime,
         creatorName: clean.creatorName,
-        stops: clean.stops,
+        stops: stableStops,
       };
   if (!options.groundingProofDigest && !options.anchor) return planRequestDigest(plan);
   return planRequestDigest({

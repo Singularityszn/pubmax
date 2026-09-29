@@ -89,4 +89,38 @@ describe("Plan create selected drink evidence", () => {
     expect((await create("wine", evidence)).reloaded.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
     expect((await create("beer", evidence)).reloaded.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
   });
+
+  it("replays the original wine Plan when trusted prices change after a lost response", async () => {
+    const submittedAt = Date.now();
+    const evidence = { category: "wine", pence: 750, serving: null, source: "community", reportedAt: new Date(submittedAt).toISOString() };
+    const body = {
+      creatorName: "Host",
+      startTime: "2026-09-30T19:00:00.000Z",
+      context: { ...inferNightContext("wine").context, nightArea: "piccadilly-soho", drinkCategory: "wine" },
+      stops: [{ venueId: "venue-a", venueName: "Forged name", selectedDrinkPriceEvidence: evidence }],
+    };
+    const submit = async (value = body) => {
+      const response = await POST(new Request("http://localhost/api/plans", {
+        method: "POST",
+        headers: { "idempotency-key": "selected-drink-retry-stable", "content-type": "application/json" },
+        body: JSON.stringify(value),
+      }));
+      return { status: response.status, body: await response.json() };
+    };
+    categoryIndexMock.mockResolvedValueOnce({
+      prices: [{ venueId: "venue-a", drinkCategory: "wine", priceGbp: 7.5, submittedAt, source: "community", corroborations: 2 }],
+      degraded: false, truncated: false,
+    });
+    const first = await submit();
+    expect(first.status).toBe(201);
+    expect(first.body.plan.stops[0].selectedDrinkPriceEvidence).toEqual(evidence);
+    categoryIndexMock.mockResolvedValue({ prices: [], degraded: true, truncated: false });
+    const replay = await submit();
+    expect(replay.status).toBe(201);
+    expect(replay.body.created).toBe(false);
+    expect(replay.body.plan.plan.id).toBe(first.body.plan.plan.id);
+    expect(replay.body.plan.stops[0].selectedDrinkPriceEvidence).toEqual(evidence);
+    const changed = await submit({ ...body, stops: [{ ...body.stops[0], selectedDrinkPriceEvidence: { ...evidence, pence: 850 } }] });
+    expect(changed.status).toBe(409);
+  });
 });
