@@ -432,8 +432,9 @@ export function useFocusTrap(
       document.removeEventListener("focusin", onFocusIn);
       observer?.disconnect();
       if (frame !== null) window.cancelAnimationFrame(frame);
-      trapOwner.release();
       releaseStrictModal?.();
+      // Let subscribers clear their own blocking state before restoring focus.
+      queueMicrotask(() => trapOwner.release());
     };
   }, [active, containerRef, focusOriginRef, outsidePolicy]);
 }

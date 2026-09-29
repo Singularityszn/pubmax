@@ -4986,6 +4986,13 @@ export default function PubMap({
   // Esc, or a fresh ?sel= navigating away) we hand focus back to whatever
   // triggered the open rather than dropping it to <body>.
   const drawerCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const detailDrawerRef = useRef<HTMLDivElement | null>(null);
+  // A deep link can open before the lazy drawer mounts and attaches its refs.
+  const [detailDrawerMounted, setDetailDrawerMounted] = useState(false);
+  const attachDetailDrawer = useCallback((node: HTMLDivElement | null) => {
+    detailDrawerRef.current = node;
+    setDetailDrawerMounted(node !== null);
+  }, []);
   useLayoutEffect(() => {
     if (detailOpen) {
       if (preSheetFocusRef.current === null) {
@@ -5036,14 +5043,13 @@ export default function PubMap({
         window.removeEventListener("popstate", restoreAfterHistory);
       };
     }
-  }, [detailOpen]);
+  }, [detailOpen, detailDrawerMounted]);
 
   // Desktop accessibility contract: drawer is modal for its full open lifetime. Desktop
   // never changes detent, so gating trap on mobile-oriented `sheetSnap` left it
   // inactive at its permanent `half` state.
-  const detailDrawerRef = useRef<HTMLDivElement | null>(null);
   useFocusTrap(
-    !mobileViewport && detailOpen,
+    !mobileViewport && detailOpen && detailDrawerMounted,
     detailDrawerRef,
     "map-surface",
     preSheetFocusRef,
@@ -6506,7 +6512,7 @@ export default function PubMap({
   /* Right drawer: the selected pub's detail, opened only on an explicit pick. Desktop only. */
   function renderVenueDrawer() {
     return !mobileViewport ? <SpringDrawer
-          ref={detailDrawerRef}
+          ref={attachDetailDrawer}
           open={detailOpen}
           side="right"
           snap={sheetSnap}
