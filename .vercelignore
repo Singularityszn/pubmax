@@ -21,6 +21,7 @@
 /e2e/
 /e2e-shots/
 /.tmp-evidence/
+/.gnhf/
 
 # Harvest shards and crawler output. Gitignored, large, and read by scripts the
 # deployed functions never run.
