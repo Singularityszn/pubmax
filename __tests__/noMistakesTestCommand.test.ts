@@ -111,14 +111,12 @@ describe("the no-mistakes repository test command", () => {
     expect(env.PUBMAX_VERIFY_COMMITTED_DATA).toBe("1");
     expect(env.DEPLOYMENT_VERSION).toBe("local");
 
-    const committed = JSON.parse(
-      readFileSync(join(ROOT, "public/data/cities/bath/venues_slim.manifest.json"), "utf8"),
-    ).revision;
-    // A run worktree is a git checkout, so git always names a HEAD there.
+    // The local marker takes precedence over HEAD, leaving committed bundle
+    // revisions alone while the verification command reads them.
     const stamped = requireDataRevision(env, {
       workingTreeSha: "0123456789abcdef0123456789abcdef01234567",
     });
 
-    expect(stamped).toBe(committed);
+    expect(stamped).toBe("local");
   });
 });

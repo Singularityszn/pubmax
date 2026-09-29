@@ -152,6 +152,21 @@ describe("mapPriceLegend", () => {
     expect(legend.hint).not.toContain("pint");
   });
 
+  it("explains neutral drink pins without claiming that venue prices are absent", () => {
+    const legend = mapPriceLegend({
+      kind: "drink",
+      label: "Whisky",
+      noun: "Whisky",
+      status: "ready",
+      renderedState: UNKNOWN_RENDERED_STATE,
+    });
+    expect(legend.rows.map((row) => row.tone)).toEqual(["grey"]);
+    expect(legend.hint).toContain("servings cannot be compared");
+    expect(legend.hint).toContain("venue details");
+    expect(legend.hint).not.toContain("no current venue has");
+    expect(legend.clusterNote).toContain("servings cannot be compared");
+  });
+
   it("names coffee empty bands without pint or no-alcohol wording", () => {
     const noun = drinkLensPriceNoun("coffee");
     const legend = mapPriceLegend({

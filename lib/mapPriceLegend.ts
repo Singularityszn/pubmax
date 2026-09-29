@@ -372,6 +372,10 @@ function drinkHint(
     }
     return `We could not read the ${drink} prices just now, so no pub is coloured by one yet.`;
   }
+  if (!hasKnownBand) {
+    const coverage = status === "partial" ? " We read part of the price list." : "";
+    return `Pins stay grey because ${drink} servings cannot be compared here.${coverage} Check venue details for any recorded price and its source.`;
+  }
   if (status === "partial") {
     return `Pin colours follow trusted ${drink} prices, read from part of the list. Pubs without one stay unknown.`;
   }
@@ -388,7 +392,7 @@ function drinkClusterNote(
   if (status === "degraded") {
     return `Clusters stay grey because ${drink} prices could not be read just now. The number is every venue in the cluster.`;
   }
-  return `Clusters stay grey because no current venue has a trusted ${drink} price. The number is every venue in the cluster.`;
+  return `Clusters stay grey because ${drink} servings cannot be compared here. The number is every venue in the cluster.`;
 }
 
 function defaultClusterNote(
