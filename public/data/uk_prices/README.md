@@ -94,6 +94,12 @@ Another synthetic menu confirms an early Picante Spritz name wins over tequila
 in its ingredient list, while a separately priced tequila shot stays a shot.
 This does not recover the original page layout or reclassify the quarantined
 source row without a fresh observation.
+The Pineapple & Yuzu label has soda but no named alcoholic category. In a
+synthetic five-item menu, the reader used to borrow the following pint's beer
+category for its £5.35. It now drops that price instead of borrowing a nearby
+category, while retaining priced wine, pint, gin and vodka soda items. This
+proves item association in the reader. The original page layout and the correct
+category of the held source row remain unverified.
 
 **One row per pub, drink and lane, and it is the cheapest the lane stated.** A
 lane states many lines for one pub's beer; the figure a drinker can walk in and

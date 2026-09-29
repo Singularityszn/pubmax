@@ -492,13 +492,19 @@ function decideKeylessUkPriceAt(
   }
   const drinkLabel =
     drinkLabelFromPriceContext(context, verbatim, priceAtInContext) ?? undefined;
-  const decision =
-    (drinkLabel && (itemNameStatesZeroAlcohol(drinkLabel)
+  const decisionFromLabel = drinkLabel
+    ? (itemNameStatesZeroAlcohol(drinkLabel)
       ? { category: "alcohol-free" as const, fromMixer: false }
       : itemNameStatesCocktail(drinkLabel)
         ? { category: "cocktail" as const, fromMixer: false }
-        : categoryDecisionFor(drinkLabel, drinkLabel.length))) ||
-    categoryDecisionFor(context, at - contextStart);
+        : categoryDecisionFor(drinkLabel, drinkLabel.length))
+    : null;
+  // A named soda with no alcoholic word is not evidence that a neighbouring
+  // item's beer, wine or spirit word belongs to this price.
+  if (drinkLabel && !decisionFromLabel && /\bsoda\b/i.test(drinkLabel)) {
+    return { drop: "no-category-word-nearby" };
+  }
+  const decision = decisionFromLabel ?? categoryDecisionFor(context, at - contextStart);
   if (!decision) {
     return {
       drop: Number.isFinite(priceGbp) ? "no-category-word-nearby" : "no-drink-word-nearby",

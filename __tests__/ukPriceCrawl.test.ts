@@ -125,6 +125,25 @@ describe("what a page states", () => {
     ]);
   });
 
+  it("does not borrow a neighbouring drink category for a soda description", () => {
+    // Synthetic menu using the Pineapple & Yuzu source label. Its original
+    // page layout was not retained, so this proves the extractor rule only.
+    const menu = `<p>House red wine 175ml £7.50</p>
+      <p>Pineapple & Yuzu Pineapple, coconut, apple, yuzu, soda 86kcal £5.35</p>
+      <p>Madri pint £6.20</p>
+      <p>Gordon's gin £8.00</p>
+      <p>Absolut vodka soda £6.50</p>`;
+    const reading = readVenueDrinkPrices(menu);
+    expect(cheapestPerCategory(reading)).toEqual([
+      { category: "beer", priceGbp: 6.2, drinkLabel: "Madri pint" },
+      { category: "gin", priceGbp: 8, drinkLabel: "Gordon's gin" },
+      { category: "vodka", priceGbp: 6.5, drinkLabel: "Absolut vodka soda" },
+      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine 175ml" },
+    ]);
+    expect(reading.drops).toContain("no-category-word-nearby");
+    expect(pageStatesADrinksList(reading)).toBe(true);
+  });
+
   it("answers one finding rather than an empty list when the page states no figure", () => {
     expect(readVenueDrinkPrices("<p>Open until late</p>").drops).toEqual(["no-price-on-page"]);
   });
