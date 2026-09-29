@@ -60,69 +60,93 @@ async function serveCanonicalOriginLocally(page: Page, baseURL: string, onCallba
   });
 }
 
-test("phone sign-in returns through callback to Plan and persists the real SDK session", async ({ page, baseURL }, testInfo) => {
-  test.setTimeout(120_000);
-  let callbackLandings = 0;
-  await serveCanonicalOriginLocally(page, baseURL ?? "", () => { callbackLandings += 1; });
-  await installAuthDoubles(page, { initialSeedOnly: true, realResumeCookie: true });
-  await page.route(`${SUPABASE_ORIGIN}/auth/v1/settings`, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      headers: { "access-control-allow-origin": "*" },
-      body: JSON.stringify({ external: { google: true, apple: false, azure: false } }),
-    }),
-  );
+for (const device of [
+  { name: "phone", width: 390, height: 844 },
+  { name: "desktop", width: 1440, height: 900 },
+]) {
+  test(`${device.name} sign-in returns through callback to Plan and persists the real SDK session`, async ({ page, baseURL }, testInfo) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: device.width, height: device.height });
+    let callbackLandings = 0;
+    await serveCanonicalOriginLocally(page, baseURL ?? "", () => { callbackLandings += 1; });
+    await installAuthDoubles(page, { initialSeedOnly: true, realResumeCookie: true });
+    await page.route(`${SUPABASE_ORIGIN}/auth/v1/settings`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({ external: { google: true, apple: false, azure: false } }),
+      }),
+    );
 
-  let providerStarts = 0;
-  await page.route(`${SUPABASE_ORIGIN}/auth/v1/authorize?**`, async (route) => {
-    providerStarts += 1;
-    const callback = new URL(new URL(route.request().url()).searchParams.get("redirect_to") ?? "");
-    expect(callback.origin).toBe(CANONICAL_ORIGIN);
-    expect(callback.pathname).toBe("/auth/callback");
-    expect(callback.searchParams.get("next")).toBe("/plan");
-    const fragment = new URLSearchParams({
-      access_token: accessToken(),
-      refresh_token: ACCOUNTS.A.refreshToken,
-      token_type: "bearer",
-      expires_in: "3600",
+    let providerStarts = 0;
+    await page.route(`${SUPABASE_ORIGIN}/auth/v1/authorize?**`, async (route) => {
+      providerStarts += 1;
+      const callback = new URL(new URL(route.request().url()).searchParams.get("redirect_to") ?? "");
+      expect(callback.origin).toBe(CANONICAL_ORIGIN);
+      expect(callback.pathname).toBe("/auth/callback");
+      expect(callback.searchParams.get("next")).toBe("/plan");
+      const fragment = new URLSearchParams({
+        access_token: accessToken(),
+        refresh_token: ACCOUNTS.A.refreshToken,
+        token_type: "bearer",
+        expires_in: "3600",
+      });
+      // Model the provider return as a document navigation. A fulfilled 302
+      // would let its next hop escape Playwright's local-origin route.
+      await route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: `<script>location.replace(${JSON.stringify(`${callback.toString()}#${fragment.toString()}`)})</script>`,
+      });
     });
-    // Model the provider return as a document navigation. A fulfilled 302
-    // would let its next hop escape Playwright's local-origin route.
-    await route.fulfill({
-      status: 200,
-      contentType: "text/html",
-      body: `<script>location.replace(${JSON.stringify(`${callback.toString()}#${fragment.toString()}`)})</script>`,
-    });
+
+    await page.goto("/login?from=%2Fplan");
+    expect(await page.evaluate((key) => localStorage.getItem(key), AUTH_STORAGE_KEY)).toBeNull();
+    const google = page.getByRole("button", { name: "Continue with Google" });
+    await expect(google).toBeVisible();
+    await google.click();
+    await expect(page).toHaveURL(`${CANONICAL_ORIGIN}/plan`);
+    expect(providerStarts).toBe(0);
+    const siteNav = page.getByRole("navigation", { name: "Site navigation" });
+    if (device.name === "phone") {
+      await siteNav.getByRole("link", { name: "Sign in" }).click();
+    } else {
+      await siteNav.getByRole("button", { name: "Sign in" }).click();
+      await siteNav.getByRole("link", { name: "Open full sign-in page" }).click();
+    }
+    await expect(page).toHaveURL(`${CANONICAL_ORIGIN}/login?from=%2Fplan`);
+    await expect(google).toBeVisible();
+    await google.click();
+
+    await expect(page).toHaveURL(`${CANONICAL_ORIGIN}/plan`);
+    await expect.poll(() => providerStarts).toBe(1);
+    await expect.poll(() => callbackLandings).toBe(1);
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), AUTH_STORAGE_KEY)).not.toBeNull();
+    await expect.poll(() => resumeCookie(page, CANONICAL_ORIGIN)).toBeTruthy();
+    const expectAccountNavigation = async () => {
+      if (device.name === "phone") {
+        await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "You" })).toHaveAttribute("href", "/u/karan");
+        return;
+      }
+      const accountButton = siteNav.getByRole("button", { name: /^Account options for / });
+      const profileLink = page.getByRole("navigation", { name: "Your pages" }).getByRole("link", { name: "Your profile" });
+      await accountButton.click();
+      await expect(profileLink).toHaveAttribute("href", "/u/karan");
+      await accountButton.click();
+      await expect(profileLink).toHaveCount(0);
+    };
+    await expectAccountNavigation();
+    await page.screenshot({ path: testInfo.outputPath(`signed-in-plan-${device.name}.png`) });
+
+    await page.reload();
+    await expect(page).toHaveURL(`${CANONICAL_ORIGIN}/plan`);
+    await expectAccountNavigation();
+    await page.goto(`${CANONICAL_ORIGIN}/moment?returnTo=%2Fplan`);
+    await expect(page.getByText("Sign in when you are ready to keep this Moment across devices.")).toHaveCount(0);
+    await page.waitForLoadState("networkidle");
   });
-
-  await page.goto("/login?from=%2Fplan");
-  expect(await page.evaluate((key) => localStorage.getItem(key), AUTH_STORAGE_KEY)).toBeNull();
-  const google = page.getByRole("button", { name: "Continue with Google" });
-  await expect(google).toBeVisible();
-  await google.click();
-  await expect(page).toHaveURL(`${CANONICAL_ORIGIN}/plan`);
-  expect(providerStarts).toBe(0);
-  await page.getByRole("navigation", { name: "Site navigation" }).getByRole("link", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(`${CANONICAL_ORIGIN}/login?from=%2Fplan`);
-  await expect(google).toBeVisible();
-  await google.click();
-
-  await expect(page).toHaveURL(`${CANONICAL_ORIGIN}/plan`);
-  await expect.poll(() => providerStarts).toBe(1);
-  await expect.poll(() => callbackLandings).toBe(1);
-  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), AUTH_STORAGE_KEY)).not.toBeNull();
-  await expect.poll(() => resumeCookie(page, CANONICAL_ORIGIN)).toBeTruthy();
-  await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "You" })).toHaveAttribute("href", "/u/karan");
-  await page.screenshot({ path: testInfo.outputPath("signed-in-plan-phone.png") });
-
-  await page.reload();
-  await expect(page).toHaveURL(`${CANONICAL_ORIGIN}/plan`);
-  await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "You" })).toHaveAttribute("href", "/u/karan");
-  await page.goto(`${CANONICAL_ORIGIN}/moment?returnTo=%2Fplan`);
-  await expect(page.getByText("Sign in when you are ready to keep this Moment across devices.")).toHaveCount(0);
-  await page.waitForLoadState("networkidle");
-});
+}
 
 test("phone email link sends OTP and returns through callback with a persistent session", async ({ page, baseURL }) => {
   test.setTimeout(120_000);
