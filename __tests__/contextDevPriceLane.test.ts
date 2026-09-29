@@ -61,6 +61,25 @@ describe("the flag", () => {
 });
 
 describe("readPricesFrom", () => {
+  it("preserves distinct printed wine measures in output rows", async () => {
+    const reader = createContextDevPriceReader({
+      env: KEY,
+      robots: allowRobots(),
+      fetchImpl: async () => new Response(JSON.stringify({
+        success: true,
+        url: MENU_URL,
+        markdown: `${PRICED_MENU}\n<p>Chardonnay, France<br />125ml £5.50 250ml £11.00</p>`,
+      }), { headers: { "content-type": "application/json" } }),
+    });
+    const answer = await reader.readPricesFrom(MENU_URL);
+    expect(answer.outcome).toBe("priced");
+    expect(answer.rows.filter((row: { drinkLabel?: string }) => row.drinkLabel === "Chardonnay, France"))
+      .toEqual([
+        expect.objectContaining({ servingSize: "125ml", priceGbp: 5.5 }),
+        expect.objectContaining({ servingSize: "250ml", priceGbp: 11 }),
+      ]);
+  });
+
   it("hands the markdown to the shared price rules and prices the page", async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(JSON.stringify({ success: true, url: MENU_URL, markdown: PRICED_MENU }), {

@@ -34,6 +34,11 @@ printed drink name (`scripts/build_uk_price_bundle.mjs` via `lib/bundleDrinkFiel
 When a lane only states a category, both fields stay absent. `drinkSubtype` is
 never guessed without a label that classifies.
 
+`servingSize` is optional source-stated serving text on listed rows, carried
+through from the producing lane. An absent field means unknown size. `Btl`
+records a bottle label without inventing its volume. The builder and runtime
+parser apply `isValidUkPriceBundleRow` in `lib/ukPriceBundle.ts` to this field.
+
 `lib/ukPriceBundle.ts` owns the shape, the parser and the one rule about who may
 read what. `scripts/validate-data.mjs` refuses the file over a row with no
 observation day, a published row with no source URL, an estimate with no
@@ -65,9 +70,29 @@ predicate also refuses them if they are introduced again.
 **A demo fixture is not a price.** `isDemoDrinkProvenance` spots one and it is
 never carried into a dataset that claims to say what a pint costs.
 
-**One row per pub, drink and lane, and it is the cheapest the lane stated.** A
-lane states many lines for one pub's beer; the figure a drinker can walk in and
-pay is the lowest of them.
+**Reviewed category contradictions stay in the source ledger.**
+`CATEGORY_QUARANTINE` in `lib/ukPriceBundle.ts` owns the exact exclusions by
+source URL, printed item, category and price. The builder counts exclusions in
+`manifest.json`; bundle readers also refuse those claims in older files.
+The observations remain in `data/uk_prices/site_harvest.jsonl` for audit.
+Quarantine neither reclassifies a drink nor supplies a fresh observation.
+Current coverage and exclusion counts come from the generated manifest.
+
+The [harvest guide](../../../docs/UK_PRICE_HARVEST.md#what-counts-as-a-price)
+owns the reader's category and serving-evidence rules and their limits.
+`data/uk_prices/site_harvest_reconciliation.json` records the Sydney Arms
+publication under `postReconciliationPublication`, alongside the original
+reconciliation. It identifies the existing capture, its observation time, the
+superseded row and the resulting ledger and bundle. Reprocessing that capture
+does not make its observation time newer. Regression coverage lives in
+`__tests__/siteHarvestReconciliation.test.ts`.
+
+**One row per pub, category, printed drink name, serving and lane.**
+Names and servings are trimmed and case-normalised for the collect key.
+Different explicit servings and an unknown serving stay distinct. For each
+key, the newest observation wins; equal timestamps keep the lowest price.
+`ukPriceBundleCollectKey` and `bundleRowSupersedes` in `lib/ukPriceBundle.ts`
+own this ordering, shared with the site-harvest ledger.
 
 The crawl's own findings, including everything it read and found nothing on,
 are in `data/uk_prices/harvest_report.json` and

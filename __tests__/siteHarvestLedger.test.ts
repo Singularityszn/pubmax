@@ -31,6 +31,30 @@ describe("site harvest ledger", () => {
     expect(out[0].observedAt).toBe(newer.observedAt);
   });
 
+  it("preserves separate explicit servings and collapses only a repeated serving", () => {
+    const base = {
+      venueId: "venue-uk-n1",
+      category: "wine",
+      drinkLabel: "House Chardonnay",
+      observedAt: "2026-09-29T10:40:17.846Z",
+      sourceUrl: "https://www.sydneyarmschelsea.com/menu/",
+      host: "www.sydneyarmschelsea.com",
+    };
+    const rows = [
+      { ...base, servingSize: "125ml", priceGbp: 5.5 },
+      { ...base, servingSize: "250ml", priceGbp: 11 },
+      { ...base, servingSize: "Btl", priceGbp: 31.5 },
+      { ...base, priceGbp: 9 },
+      { ...base, servingSize: "125ml", priceGbp: 6 },
+    ];
+    const out = dedupeSiteHarvestLedgerRows(rows, owners);
+    expect(out).toHaveLength(4);
+    expect(out.map((row) => [row.servingSize, row.priceGbp])).toEqual([
+      [undefined, 9], ["125ml", 5.5], ["250ml", 11], ["Btl", 31.5],
+    ]);
+    expect(siteHarvestLedgerDuplicateKeys(out, owners)).toEqual([]);
+  });
+
   it("committed site_harvest.jsonl has no duplicate bundle collect keys", () => {
     const text = readFileSync(
       join(process.cwd(), "data/uk_prices/site_harvest.jsonl"),

@@ -95,15 +95,11 @@ test("Plan identity nudge keeps one sign-in email action on a 390px phone", asyn
   }
 
   await expect(lastAction).toBeVisible();
-  await expect.poll(() => page.evaluate(() => ({
-    viewportWidth: window.innerWidth,
-    documentOverflows: document.documentElement.scrollWidth > window.innerWidth,
-    bodyOverflows: document.body.scrollWidth > window.innerWidth,
-  }))).toEqual({
-    viewportWidth: VIEWPORT.width,
-    documentOverflows: false,
-    bodyOverflows: false,
-  });
+  await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(VIEWPORT.width);
+  await expect.poll(() => page.evaluate(() => Math.max(
+    document.documentElement.scrollWidth,
+    document.body.scrollWidth,
+  ))).toBeLessThanOrEqual(VIEWPORT.width);
 
   await page.screenshot({
     path: testInfo.outputPath("identity-nudge-390-light.png"),
@@ -122,6 +118,7 @@ test("strict identity modal isolates an open map sheet and releases it on dismis
   await page.setViewportSize(VIEWPORT);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(({ pendingKey, pendingAtKey }) => {
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "granted");
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");

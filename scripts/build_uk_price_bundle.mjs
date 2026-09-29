@@ -50,7 +50,6 @@ import process from "node:process";
 
 import {
   bundleDrinkFieldsFromPrintedName,
-  bundleRowDedupeDrinkKey,
 } from "@/lib/bundleDrinkFields";
 import { isDemoDrinkProvenance } from "@/lib/drinks";
 import {
@@ -60,7 +59,9 @@ import { estimateForPub } from "@/lib/priceEstimate";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
 import {
   bundleRowSupersedes,
+  isCategoryQuarantined,
   isValidUkPriceBundleRow,
+  ukPriceBundleCollectKey,
   UK_PRICE_BUNDLE_VERSION,
 } from "@/lib/ukPriceBundle";
 import { stableVenueIdFromKey } from "@/lib/venues";
@@ -166,11 +167,15 @@ function collectRows(report) {
   // stamped once per page, so the rows of one page share an instant and tie
   // into the cheapest rule, and a later reading supersedes an earlier one whole.
   const push = (row) => {
+    if (isCategoryQuarantined(row)) {
+      report.droppedCategoryContradiction += 1;
+      return;
+    }
     if (!isValidUkPriceBundleRow(row)) {
       report.droppedInvalidRow += 1;
       return;
     }
-    const key = `${row.venueId} ${row.category} ${bundleRowDedupeDrinkKey(row)} ${row.lane}`;
+    const key = ukPriceBundleCollectKey(row);
     if (!bundleRowSupersedes(row, held.get(key))) return;
     held.set(key, row);
   };
@@ -236,6 +241,7 @@ function addSiteHarvestRows(harvestRows, owners, push, report) {
       observedAt: row.observedAt,
       basis: null,
       sampleSize: null,
+      ...(row.servingSize !== undefined ? { servingSize: row.servingSize } : {}),
       ...bundleDrinkFieldsFromPrintedName(
         row.drinkLabel ?? row.drinkName ?? null,
         row.category,
@@ -272,6 +278,7 @@ function addDrinkPriceUpdateRows(updates, push, report) {
       observedAt: update.observedAt,
       basis: null,
       sampleSize: null,
+      ...(update.servingSize !== undefined ? { servingSize: update.servingSize } : {}),
       ...bundleDrinkFieldsFromPrintedName(update.drinkName, update.category),
     });
   }
@@ -330,6 +337,7 @@ function main() {
     droppedDemoFixture: 0,
     droppedUnresolvedVenue: 0,
     droppedInvalidRow: 0,
+    droppedCategoryContradiction: 0,
     pubsWithNoBasis: 0,
   };
   const { rows, notes, harvest } = collectRows(report);
@@ -353,7 +361,7 @@ function main() {
     },
     notes: [
       ...notes,
-      `dropped: ${report.droppedRefusedHost} on a host refused on permission, ${report.droppedDemoFixture} demo fixture(s), ${report.droppedUnresolvedVenue} with no resolvable venue, ${report.droppedInvalidRow} failing the row shape`,
+      `dropped: ${report.droppedRefusedHost} on a host refused on permission, ${report.droppedDemoFixture} demo fixture(s), ${report.droppedUnresolvedVenue} with no resolvable venue, ${report.droppedInvalidRow} failing the row shape, ${report.droppedCategoryContradiction} evidenced category contradiction(s)`,
     ],
   };
 
