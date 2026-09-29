@@ -433,7 +433,10 @@ export const supabasePlanStore: PlanStore = {
           p_plan_id: id,
           p_token_hash: hashPlanMemberToken(rawToken),
           p_expected_route_revision: update.expectedRouteRevision,
-          p_stops: stops.map(({ venueId, venueName }) => ({ venueId, venueName })),
+          p_stops: stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => ({
+            venueId, venueName,
+            ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+          })),
           p_context: update.context ?? null,
           // Anchored Plans upgrade to a grounded route only after proof verification.
           p_grounded_upgrade: update.groundedUpgrade === true,

@@ -12,7 +12,11 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
   return { ...actual, isLimited: async () => false };
 });
 vi.mock("@/lib/concierge/venues.server", () => ({
-  loadConciergeVenues: async () => [{ id: "venue-a", name: "Venue A" }],
+  loadConciergeVenues: async () => [
+    { id: "venue-a", name: "Venue A" },
+    { id: "venue-b", name: "Venue B" },
+    { id: "venue-c", name: "Venue C" },
+  ],
 }));
 vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
@@ -20,6 +24,7 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
 });
 
 import { POST } from "@/app/api/plans/route";
+import { PATCH } from "@/app/api/plans/[id]/route";
 import { inferNightContext } from "@/lib/nightPlanning";
 import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
 import { buildPlanPrivacyPreview } from "@/lib/planPrivacy";
@@ -47,6 +52,56 @@ async function create(category: "wine" | "cocktail" | "beer", submitted: unknown
 describe("Plan create selected drink evidence", () => {
   beforeEach(() => { __resetMemoryPlans(); categoryIndexMock.mockReset(); });
   afterEach(() => { __resetMemoryPlans(); });
+
+  it.each(["wine", "cocktail"] as const)("saves trusted %s evidence on route replacement and reload", async (category) => {
+    const { body } = await create(category, null);
+    const submittedAt = Date.now();
+    const evidence = { category, pence: 750, serving: null, source: "community", reportedAt: new Date(submittedAt).toISOString() };
+    categoryIndexMock.mockResolvedValue({
+      prices: [{ venueId: "venue-b", drinkCategory: category, priceGbp: 7.5, submittedAt, source: "community", corroborations: 2 }],
+      degraded: false, truncated: false,
+    });
+    const response = await PATCH(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${body.memberToken}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        expectedRouteRevision: 1,
+        stops: [
+          { venueId: "venue-a" },
+          { venueId: "venue-b", selectedDrinkPriceEvidence: { ...evidence, contributor: "private" } },
+          { venueId: "venue-c" },
+        ],
+      }),
+    }), { params: Promise.resolve({ id: body.plan.plan.id }) });
+    const result = await response.json();
+    expect(response.status, JSON.stringify(result)).toBe(200);
+    expect(result.stops[1]?.selectedDrinkPriceEvidence).toEqual(evidence);
+    expect((await memoryPlanStore.get(body.plan.plan.id))?.stops[1]?.selectedDrinkPriceEvidence).toEqual(evidence);
+  });
+
+  it("omits mismatched and degraded replacement evidence", async () => {
+    const submittedAt = Date.now();
+    const evidence = { category: "wine", pence: 750, serving: null, source: "community", reportedAt: new Date(submittedAt).toISOString() };
+    const submit = async (hint: unknown) => {
+      const { body } = await create("wine", null);
+      const response = await PATCH(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
+        method: "PATCH",
+        headers: { authorization: `Bearer ${body.memberToken}`, "content-type": "application/json" },
+        body: JSON.stringify({ expectedRouteRevision: 1, stops: [
+          { venueId: "venue-a" }, { venueId: "venue-b", selectedDrinkPriceEvidence: hint }, { venueId: "venue-c" },
+        ] }),
+      }), { params: Promise.resolve({ id: body.plan.plan.id }) });
+      expect(response.status).toBe(200);
+      return response.json();
+    };
+    categoryIndexMock.mockResolvedValue({
+      prices: [{ venueId: "venue-b", drinkCategory: "wine", priceGbp: 7.5, submittedAt, source: "community", corroborations: 2 }],
+      degraded: false, truncated: false,
+    });
+    expect((await submit({ ...evidence, pence: 100 })).stops[1]?.selectedDrinkPriceEvidence).toBeUndefined();
+    categoryIndexMock.mockResolvedValue({ prices: [], degraded: true, truncated: false });
+    expect((await submit(evidence)).stops[1]?.selectedDrinkPriceEvidence).toBeUndefined();
+  });
 
   it.each(["wine", "cocktail"] as const)("saves and reloads trusted %s evidence without leaking it into preview", async (category) => {
     const submittedAt = Date.now();
