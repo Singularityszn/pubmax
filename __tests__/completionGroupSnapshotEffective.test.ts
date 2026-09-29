@@ -236,6 +236,50 @@ describe.skipIf(skipReason !== null)("0169 private completion membership snapsho
       from pubmax_private.completion_group_week('2029-02-08')`)).toBe("0:0");
   });
 
+  it("captures one group when the host completes the same Plan concurrently", async () => {
+    const pg = database();
+    const planId = account("bd");
+    const hostId = account("de");
+    const guestId = account("df");
+    const completedAt = "2030-03-06 21:00:00+00";
+    pg.sql(`insert into public.plans(id,title,start_time,status)
+      values('${planId}','Concurrent night','2030-03-06 20:00:00+00','active');
+      insert into public.plan_stops(plan_id,venue_id,venue_name,position)
+      values('${planId}','concurrency-pub','Concurrency Pub',0);
+      insert into public.plan_crew_members
+        (id,plan_id,name,token_hash,user_id,joined_at,updated_at) values
+        ('${hostId}','${planId}','Host',md5('concurrent-host')||md5('concurrent-host-2'),
+          '${account("a3")}','2030-03-06 19:00:00+00','2030-03-06 19:00:00+00'),
+        ('${guestId}','${planId}','Guest',md5('concurrent-guest')||md5('concurrent-guest-2'),
+          '${account("a4")}','2030-03-06 19:01:00+00','2030-03-06 19:01:00+00');
+      insert into public.plan_actions(id,plan_id,actor_member_id,type,stop_position,created_at)
+      values('${account("ee")}','${planId}','${hostId}','arrived',0,'2030-03-06 20:30:00+00');`);
+
+    const startsAt = new Date(Date.now() + 1500).toISOString();
+    const finish = (completionId: string, actionId: string) => `
+      begin;
+      set local role service_role;
+      set local statement_timeout = '10s';
+      select pg_sleep(greatest(0, extract(epoch from timestamptz '${startsAt}' - clock_timestamp())));
+      select public.complete_plan_atomic(
+        '${planId}', md5('concurrent-host')||md5('concurrent-host-2'), 1,
+        '${completionId}', '${actionId}', 'get_home', null,
+        '{"kind":"get_home","optionId":"home","evidenceSnapshot":{}}'::jsonb,
+        '${completedAt}'::timestamptz);
+      commit;
+    `;
+    const outcomes = await Promise.all([
+      pg.sqlAsync(finish(account("ce"), account("e1"))),
+      pg.sqlAsync(finish(account("cf"), account("e2"))),
+    ]);
+    expect(outcomes.sort()).toEqual(["already_completed", "completed"]);
+    expect(pg.sql(`select count(*) from public.plan_completions where plan_id='${planId}'`)).toBe("1");
+    expect(pg.sql(`select count(*) || ':' || min(cardinality(account_keys))
+      from pubmax_private.plan_completion_group_snapshots where plan_id='${planId}'`)).toBe("1:2");
+    expect(pg.sql(`select groups_completed || ':' || groups_repeated
+      from pubmax_private.completion_group_week('2030-03-06')`)).toBe("1:0");
+  });
+
   it("denies client roles and removes snapshot machinery on rollback", () => {
     const pg = database();
     expect(pg.expectRefusal(`set role authenticated;
