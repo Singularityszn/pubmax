@@ -257,6 +257,22 @@ describe("POST /api/plans/generate", () => {
     expect(body.missingContextEvidence).toContain("price_evidence");
   });
 
+  it.each([
+    ["degraded", false, true, "We could not read the wine prices just now, so none are shown yet."],
+    ["partial", true, false, "Read from part of the wine prices, so some are still missing."],
+  ])("discloses %s wine price index coverage in plan confidence", async (_status, truncated, degraded, warning) => {
+    categoryIndexMock.mockResolvedValueOnce({ prices: [], truncated, degraded });
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "cheap wine in Clapham for 2" }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.planningConfidence.warnings).toContain(warning);
+    expect(body.planningConfidence.level).not.toBe("high");
+  });
+
   it.each([5, 6])("returns a grounded %i-stop route from free text", async (stopCount) => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",

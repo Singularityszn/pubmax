@@ -9,7 +9,8 @@ import { NO_ALCOHOL_DRINK_CATEGORIES, type CommunityPrice } from "@/lib/communit
 import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { haversineKm } from "@/lib/haversine";
-import { trustedDrinkLensPrices, trustedNoAlcoholLensPrices } from "@/lib/mapExperienceLens";
+import { CATEGORY_META } from "@/lib/drinks";
+import { drinkLensCoverageNote, trustedDrinkLensPrices, trustedNoAlcoholLensPrices } from "@/lib/mapExperienceLens";
 import {
 	getNightArea,
 	isNightAreaRouteReady,
@@ -216,6 +217,7 @@ type PlanGenerationPreparation = {
 	planningWeather: ReturnType<typeof planTemporalEvidence>["weather"];
 	reviewedSignalClaims: ReturnType<typeof planTemporalEvidence>["signalClaims"];
 	naLensPrices: ReturnType<typeof trustedNoAlcoholLensPrices>;
+	drinkPriceCoverageNote: string | null;
 	candidates: PlanGenerationCandidate[];
 	anchor: PlanGenerationAnchor | null;
 };
@@ -314,6 +316,12 @@ export async function preparePlanGeneration(
 	const drinkLensPrices = requestedCategory
 		? trustedDrinkLensPrices(priceRowsByVenue, requestedCategory, requestNow)
 		: undefined;
+	const drinkPriceCoverageNote = requestedCategory
+		? drinkLensCoverageNote(
+			CATEGORY_META[requestedCategory].label.toLowerCase(),
+			categoryPriceRows.degraded ? "degraded" : categoryPriceRows.truncated ? "partial" : "ready",
+		)
+		: null;
 	const venues = await loadConciergeVenues(cityId);
 	const wetherspoonsMatchedIds = context.wetherspoonsPreferred
 		? await matchedWetherspoonsVenueIds(venues)
@@ -355,6 +363,7 @@ export async function preparePlanGeneration(
 		planningWeather,
 		reviewedSignalClaims,
 		naLensPrices,
+		drinkPriceCoverageNote,
 		candidates,
 		anchor: parsedRequest.value.anchor,
 	} };
