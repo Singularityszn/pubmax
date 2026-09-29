@@ -88,6 +88,7 @@ const CATEGORY_KEYWORDS: Array<[DrinkCategory, string[]]> = [
     "cocktail",
     [
       "cocktail",
+      "cocktails",
       "spritz",
       "aperol",
       "margarita",
@@ -165,6 +166,7 @@ const CATEGORY_KEYWORDS: Array<[DrinkCategory, string[]]> = [
     [
       "beer",
       "pint",
+      "pints",
       "lager",
       "ale",
       "ipa",
