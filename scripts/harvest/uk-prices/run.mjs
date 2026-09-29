@@ -535,6 +535,71 @@ function tallyLedger(ledger) {
   return { outcomes, robotsFiles, drops, pubsOnPricedHosts };
 }
 
+function seedOverlayMenuUrls(hosts, overlayCrawlable) {
+  let overlaySeeded = 0;
+  let overlayOnUnknownHost = 0;
+  for (const target of overlayCrawlable) {
+    const host = target.host ?? hostOf(target.menuUrl);
+    if (!host) continue;
+    const entry = hosts.find((known) => known.host === host);
+    if (!entry) {
+      // The overlay names a host the pub snapshot states no website for. The
+      // page is real, but this lane's unit is a host with pubs attached, so the
+      // finding is counted rather than a bare host being invented for it.
+      overlayOnUnknownHost += 1;
+      continue;
+    }
+    entry.seedPages = entry.seedPages ?? [];
+    if (!entry.seedPages.includes(target.menuUrl)) {
+      entry.seedPages.push(target.menuUrl);
+      overlaySeeded += 1;
+    }
+  }
+  return { overlaySeeded, overlayOnUnknownHost };
+}
+
+function appendPriceRows(entry, rows) {
+  const observedAt = new Date().toISOString();
+  const lines = [];
+  // A host with no pub attached is a chain source read for its own sake;
+  // it produces a HOST row rather than a pub row, and the bundle decides
+  // separately whether an estate price may speak for one of its pubs.
+  const targets = entry.pubs.length > 0 ? entry.pubs : [null];
+  for (const pub of targets) {
+    for (const row of rows) {
+      // An estate page may only price a pub it NAMES. This is the rule
+      // that stops one chain banner becoming a price on every pub the
+      // chain owns.
+      if (pub && !pageMayPriceThisPub(row.url, pub, entry.pubs.length)) continue;
+      lines.push(
+        JSON.stringify({
+          host: entry.host,
+          venueId: pub?.venueId ?? null,
+          osmId: pub?.osmId ?? null,
+          name: pub?.name ?? null,
+          postcode: pub?.postcode ?? null,
+          lat: pub?.lat ?? null,
+          lng: pub?.lng ?? null,
+          category: row.category,
+          priceGbp: row.priceGbp,
+          ...(row.drinkLabel ? { drinkLabel: row.drinkLabel } : {}),
+          ...(row.servingSize ? { servingSize: row.servingSize } : {}),
+          sourceUrl: row.url,
+          observedAt,
+          pubsOnHost: entry.pubs.length,
+          linesOnPage: row.linesOnPage,
+        }),
+      );
+    }
+  }
+  if (lines.length > 0) {
+    const jsonl = lines.join("\n");
+    appendFileSync(ROWS_PATH, `${jsonl}\n`);
+    mkdirSync(path.dirname(PUBLISHED_ROWS), { recursive: true });
+    appendFileSync(PUBLISHED_ROWS, `${jsonl}\n`);
+  }
+}
+
 async function main() {
   if (!existsSync(OSM_PUBS)) {
     console.error(`missing ${path.relative(ROOT, OSM_PUBS)}; run npm run fetch:uk-pubs first`);
@@ -589,25 +654,7 @@ async function main() {
   // still answers once, under one ledger row, behind one live robots ask.
   const overlayInput = readOverlayMenuUrlInput(MENU_URL_INPUT);
   const overlayCrawlable = crawlableOverlayMenuUrls(overlayInput);
-  let overlaySeeded = 0;
-  let overlayOnUnknownHost = 0;
-  for (const target of overlayCrawlable) {
-    const host = target.host ?? hostOf(target.menuUrl);
-    if (!host) continue;
-    const entry = hosts.find((known) => known.host === host);
-    if (!entry) {
-      // The overlay names a host the pub snapshot states no website for. The
-      // page is real, but this lane's unit is a host with pubs attached, so the
-      // finding is counted rather than a bare host being invented for it.
-      overlayOnUnknownHost += 1;
-      continue;
-    }
-    entry.seedPages = entry.seedPages ?? [];
-    if (!entry.seedPages.includes(target.menuUrl)) {
-      entry.seedPages.push(target.menuUrl);
-      overlaySeeded += 1;
-    }
-  }
+  const { overlaySeeded, overlayOnUnknownHost } = seedOverlayMenuUrls(hosts, overlayCrawlable);
   console.log(
     overlayInput
       ? `  overlay menu urls: ${overlayInput.urls.length} in ${path.relative(ROOT, MENU_URL_INPUT)}, ${overlaySeeded} seeded, ${overlayOnUnknownHost} on a host with no snapshot pub`
@@ -683,45 +730,7 @@ async function main() {
         ),
       };
       if (result.rows.length > 0 && !DRY_RUN) {
-        const observedAt = new Date().toISOString();
-        const lines = [];
-        // A host with no pub attached is a chain source read for its own sake;
-        // it produces a HOST row rather than a pub row, and the bundle decides
-        // separately whether an estate price may speak for one of its pubs.
-        const targets = entry.pubs.length > 0 ? entry.pubs : [null];
-        for (const pub of targets) {
-          for (const row of result.rows) {
-            // An estate page may only price a pub it NAMES. This is the rule
-            // that stops one chain banner becoming a price on every pub the
-            // chain owns.
-            if (pub && !pageMayPriceThisPub(row.url, pub, entry.pubs.length)) continue;
-            lines.push(
-              JSON.stringify({
-                host: entry.host,
-                venueId: pub?.venueId ?? null,
-                osmId: pub?.osmId ?? null,
-                name: pub?.name ?? null,
-                postcode: pub?.postcode ?? null,
-                lat: pub?.lat ?? null,
-                lng: pub?.lng ?? null,
-                category: row.category,
-                priceGbp: row.priceGbp,
-                ...(row.drinkLabel ? { drinkLabel: row.drinkLabel } : {}),
-                ...(row.servingSize ? { servingSize: row.servingSize } : {}),
-                sourceUrl: row.url,
-                observedAt,
-                pubsOnHost: entry.pubs.length,
-                linesOnPage: row.linesOnPage,
-              }),
-            );
-          }
-        }
-        if (lines.length > 0) {
-          const jsonl = lines.join("\n");
-          appendFileSync(ROWS_PATH, `${jsonl}\n`);
-          mkdirSync(path.dirname(PUBLISHED_ROWS), { recursive: true });
-          appendFileSync(PUBLISHED_ROWS, `${jsonl}\n`);
-        }
+        appendPriceRows(entry, result.rows);
       }
       done += 1;
       if (done % 25 === 0) {

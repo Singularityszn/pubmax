@@ -570,6 +570,35 @@ export function findUkPriceCandidates(text: string, snippetChars = 120): UkPrice
   return out;
 }
 
+function categoryDecisionFromLabel(
+  drinkLabel: string | undefined,
+): ReturnType<typeof categoryDecisionFor> {
+  if (!drinkLabel) return null;
+  if (itemNameStatesZeroAlcohol(drinkLabel)) {
+    return { category: "alcohol-free", fromMixer: false };
+  }
+  if (itemNameStatesCocktail(drinkLabel)) {
+    return { category: "cocktail", fromMixer: false };
+  }
+  return categoryDecisionFor(drinkLabel, drinkLabel.length);
+}
+
+function keylessPriceDropReason(
+  category: DrinkCategory,
+  priceGbp: number,
+  context: string,
+): UkPriceDropReason | null {
+  const band = CATEGORY_PRICE_BANDS[category];
+  if (!band) return "no-category-word-nearby";
+  if (!Number.isFinite(priceGbp) || priceGbp < band.minGbp || priceGbp > band.maxGbp) {
+    return "outside-category-band";
+  }
+  if (FOOD_WORDS.test(context) || FOOD_WEARING_A_DRINK_WORD.test(context)) {
+    return "food-word-nearby";
+  }
+  return null;
+}
+
 /**
  * Keyless regex table for one £ figure already located on `text`.
  * Used for the default path and for a TypeSafe batch that failed mid-page.
@@ -596,13 +625,7 @@ function decideKeylessUkPriceAt(
   }
   const drinkLabel =
     drinkLabelFromPriceContext(context, verbatim, priceAtInContext) ?? undefined;
-  const decisionFromLabel = drinkLabel
-    ? (itemNameStatesZeroAlcohol(drinkLabel)
-      ? { category: "alcohol-free" as const, fromMixer: false }
-      : itemNameStatesCocktail(drinkLabel)
-        ? { category: "cocktail" as const, fromMixer: false }
-        : categoryDecisionFor(drinkLabel, drinkLabel.length))
-    : null;
+  const decisionFromLabel = categoryDecisionFromLabel(drinkLabel);
   // A named soda with no alcoholic word is not evidence that a neighbouring
   // item's beer, wine or spirit word belongs to this price.
   if (drinkLabel && !decisionFromLabel && /\bsoda\b/i.test(drinkLabel)) {
@@ -630,16 +653,8 @@ function decideKeylessUkPriceAt(
     return { drop: "mixer-serve-not-one-drink" };
   }
   const category = decision.category;
-  const band = CATEGORY_PRICE_BANDS[category];
-  if (!band) {
-    return { drop: "no-category-word-nearby" };
-  }
-  if (!Number.isFinite(priceGbp) || priceGbp < band.minGbp || priceGbp > band.maxGbp) {
-    return { drop: "outside-category-band" };
-  }
-  if (FOOD_WORDS.test(context) || FOOD_WEARING_A_DRINK_WORD.test(context)) {
-    return { drop: "food-word-nearby" };
-  }
+  const drop = keylessPriceDropReason(category, priceGbp, context);
+  if (drop) return { drop };
   // A preceding item's printed measure cannot turn this item's pint into a
   // bottle. A paired price has no second label, so it keeps the nearby context.
   const before = drinkLabel ?? text.slice(Math.max(0, at - 30), at);
