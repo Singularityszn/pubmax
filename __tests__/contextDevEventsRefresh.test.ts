@@ -243,6 +243,46 @@ describe("eventsRefresh Context.dev lane", () => {
     expect(readFileSync(outPath, "utf8")).toBe(before);
   });
 
+  it("retains both held records and observation times when SDK marks one captured event partial", async () => {
+    const outPath = temporaryOutPath();
+    const held = [
+      { ...heldFullersRow("held-quiz"), observedAt: heldGeneratedAt },
+      { ...heldFullersRow("held-mic"), title: "Open mic", observedAt: heldGeneratedAt },
+    ];
+    writeHeldFile(outPath, held);
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).startsWith("https://api.context.dev/")) {
+        return new Response(JSON.stringify({
+          url: "https://www.fullers.co.uk/event-finder",
+          isPartial: true,
+          markdown: { requested: true, success: true, data: "Quiz at The Dove on 18 August 2026." },
+          json: { requested: true, success: true, data: { events: [
+            { title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-08-18" },
+          ] } },
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return answeringTicketmaster(String(input));
+    });
+    const result = await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs"],
+      env: { CONTEXT_DEV_API_KEY: "test-key", TICKETMASTER_API_KEY: "tm-key" },
+      nowMs,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      outPath,
+      loadVenueIndex: () => null,
+      runCommonLane: async () => ({ rows: [] }),
+      log: () => {},
+      logError: () => {},
+    });
+    expect(result.provider.status).toBe("wrote");
+    const written = JSON.parse(readFileSync(outPath, "utf8"));
+    expect(written.rows.filter((row: { source: { label: string } }) => row.source.label === "Fuller's")
+      .sort((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id)))
+      .toEqual([...held].sort((a, b) => a.id.localeCompare(b.id)));
+    expect(written.rows.some((row: { source: { label: string } }) => row.source.label === "Ticketmaster")).toBe(true);
+    expect(result.provider.failures).toEqual([expect.stringContaining("fullers-event-finder-events")]);
+  });
+
   it("counts the drops of a source that yielded no rows at all", async () => {
     const extractSpy = vi.spyOn(contextDev, "extract").mockResolvedValue({
       status: "ok",

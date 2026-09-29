@@ -126,28 +126,42 @@ const MONTHS = [
   "july", "august", "september", "october", "november", "december",
 ];
 
-function dateAppearsInEvidence(date: string, evidence: string): boolean {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  if (!match) return false;
-  const [, year = "", month = "", day = ""] = match;
-  const monthNumber = String(Number(month));
-  const dayNumber = String(Number(day));
-  const monthName = MONTHS[Number(month) - 1];
-  const forms = [
-    `${year} ${month} ${day}`, `${dayNumber} ${monthNumber} ${year}`,
-    `${dayNumber} ${monthName} ${year}`, `${monthName} ${dayNumber} ${year}`,
-    `${dayNumber}st ${monthName} ${year}`, `${dayNumber}nd ${monthName} ${year}`,
-    `${dayNumber}rd ${monthName} ${year}`, `${dayNumber}th ${monthName} ${year}`,
-  ];
-  return forms.some((form) => evidence.includes(` ${form} `));
-}
-
+const MONTH_WORD = `(?:${MONTHS.map((month) => `${month.slice(0, 3)}(?:${month.slice(3)})?`).join("|")})`;
 const STATED_DATE = new RegExp(
-  `\\b(?:\\d{4}[-/. ]\\d{1,2}[-/. ]\\d{1,2}|\\d{1,2}[-/. ]\\d{1,2}[-/. ]\\d{2,4}|\\d{1,2}[-/]\\d{1,2}|\\d{1,2}(?:st|nd|rd|th)?\\s+(?:${MONTHS.join("|")})(?:\\s+\\d{4})?|(?:${MONTHS.join("|")})\\s+\\d{1,2}(?:st|nd|rd|th)?(?:,?\\s+\\d{4})?)\\b`,
+  `\\b(?:\\d{4}[-/. ]\\d{1,2}[-/. ]\\d{1,2}|\\d{1,2}[-/. ]\\d{1,2}(?:[-/. ]\\d{2,4})?|\\d{1,2}(?:st|nd|rd|th)?\\s+${MONTH_WORD}(?:\\s+\\d{4})?|${MONTH_WORD}\\s+\\d{1,2}(?:st|nd|rd|th)?(?:,?\\s+\\d{4})?)\\b`,
   "gi",
 );
 
-const STATED_CLOCK = /(?<![\p{L}\p{N}])(?:(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*([aApP][mM])|([01]?\d|2[0-3]):([0-5]\d))(?:\s*([zZ]|[+-](?:0\d|1[0-4]):[0-5]\d|[A-Za-z]+(?:\s+[A-Za-z]+){0,3}\s+[tT]ime|[A-Za-z]+\/[A-Za-z_]+|[gG][mM][tT]|[uU][tT][cC]|[bB][sS][tT]|[A-Z]{2,5}|[a-z]{1,4}t))?(?![\p{L}\p{N}])/gu;
+type CalendarDateEvidence = { year: number | null; month: number; day: number };
+
+function statedDates(value: string): CalendarDateEvidence[] {
+  return Array.from(value.matchAll(STATED_DATE), ([token]) => {
+    const parts = token.toLowerCase().replace(/(\d)(?:st|nd|rd|th)\b/g, "$1").split(/[\s,./-]+/).filter(Boolean);
+    const monthWord = parts.find((part) => MONTHS.some((month) => month.startsWith(part) && part.length >= 3));
+    const month = monthWord ? MONTHS.findIndex((name) => name.startsWith(monthWord)) + 1 : Number(parts[1]);
+    const day = monthWord ? Number(parts.find((part) => /^\d{1,2}$/.test(part))) :
+      parts[0]?.length === 4 ? Number(parts[2]) : Number(parts[0]);
+    const yearPart = parts.find((part) => /^\d{4}$/.test(part));
+    const year = yearPart ? Number(yearPart) : null;
+    return { year, month, day };
+  }).filter(({ year, month, day }) => month >= 1 && month <= 12 && day >= 1 && day <= 31 &&
+    (year === null || new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10) ===
+      `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`));
+}
+
+function sameStatedDay(left: CalendarDateEvidence, right: CalendarDateEvidence): boolean {
+  return left.month === right.month && left.day === right.day &&
+    (left.year === null || right.year === null || left.year === right.year);
+}
+
+function dateAppearsInEvidence(date: string, evidence: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) return false;
+  const expected = { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
+  return statedDates(evidence).some((stated) => stated.year === expected.year && sameStatedDay(stated, expected));
+}
+
+const STATED_CLOCK = /(?<![\p{L}\p{N}])(?:(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*([aApP][mM])|([01]?\d|2[0-3]):([0-5]\d))(?:\s*([zZ]|[+-](?:0\d|1[0-4]):[0-5]\d|[A-Za-z]+(?:\s+[A-Za-z]+){0,3}\s+[tT]ime|[A-Za-z]+\/[A-Za-z_]+|[gG][mM][tT]|[uU][tT][cC]|[bB][sS][tT]|[A-Z]{2,5}|[cC][eE][sS]?[tT]|[pPeEmMcC][sSdD][tT]|[iI][sS][tT]))?(?![\p{L}\p{N}])/gu;
 
 function londonWallClock(instant: string): { date: string; hour: number; minute: number } {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -165,10 +179,20 @@ function londonWallClock(instant: string): { date: string; hour: number; minute:
 function timeAppearsInEvidence(instant: string, section: string): boolean {
   const instantMs = Date.parse(instant);
   const clocks = Array.from(section.matchAll(STATED_CLOCK));
+  const roles = clocks.map((match, index) => {
+    const prefix = section.slice(index === 0 ? 0 : (clocks[index - 1]?.index ?? 0) + (clocks[index - 1]?.[0].length ?? 0), match.index);
+    return /\b(?:starts?|start\s+time|begins?|kick[- ]?off|showtime)\s*(?:at|:)?\s*$/i.test(prefix) ? "start" :
+      /\b(?:doors?|opens?|entry)\s*(?:at|:)?\s*$/i.test(prefix) ? "doors" :
+        /\b(?:ends?|finishes?|closes?)\s*(?:at|:)?\s*$/i.test(prefix) || /^\s*[-–]\s*$/.test(prefix) ? "end" : "unlabelled";
+  });
+  const starts = clocks.filter((_, index) => roles[index] === "start");
+  if (starts.length === 0 && roles.some((role) => role === "doors")) return false;
+  const candidates = starts.length > 0 ? starts : clocks.filter((_, index) => roles[index] === "unlabelled");
+  if (candidates.length !== 1) return false;
   const hasZone = clocks.some((match) => match[6]);
   const london = londonWallClock(instant);
 
-  return clocks.some((match) => {
+  return candidates.some((match) => {
     if (hasZone && !match[6]) return false;
     let hour = Number(match[1] ?? match[4]);
     const minute = Number(match[2] ?? match[5] ?? "0");
@@ -203,11 +227,12 @@ function eventEvidenceSections(markdown: string, title: string): string[] {
 
   const flush = () => {
     const joined = card.join(" ");
-    const dateCount = (value: string) => Array.from(value.matchAll(STATED_DATE)).length;
-    if (cardKind === null || dateCount(joined) <= 1) {
-      for (const clause of joined.split(";")) {
-        if (clause.trim() && dateCount(clause) <= 1) sections.push(clause.trim());
-      }
+    const unambiguousDate = (value: string) => {
+      const dates = statedDates(value);
+      return dates.every((date, index) => dates.slice(index + 1).every((other) => sameStatedDay(date, other)));
+    };
+    for (const clause of joined.split(";")) {
+      if (clause.trim() && unambiguousDate(clause)) sections.push(clause.trim());
     }
     card = [];
     cardKind = null;
@@ -276,14 +301,14 @@ function groundedEvent(raw: RawContextDevEvent, markdown: string): RawContextDev
   });
   if (!rawSection) return null;
   const price = parseGbpFromText(raw.priceText);
-  const prices = Array.from(rawSection.matchAll(/£\s*\d+(?:\.\d{1,2})?(?!\d|[.,]\d)/gu));
+  const ticketPrices = Array.from(rawSection.matchAll(/\b(?:tickets?|entry|admission|price)\s*(?:from|at|:|costs?)?\s*(£\s*\d+(?:\.\d{1,2})?(?!\d|[.,]\d))/gi));
   const sourceId = nonEmptyString(raw.sourceId) ? raw.sourceId.trim() : null;
-  const publisherIds = Array.from(rawSection.matchAll(/\b(?:event\s+id|source\s*id|id)\s*[:=#]\s*([\w-]+)(?=$|[\s,;]|[.!?](?:\s|$))/gi));
+  const publisherIds = Array.from(rawSection.matchAll(/\b(?:event\s+id|source\s*id)\s*[:=#]\s*([\w-]+)(?=$|[\s,;]|[.!?](?:\s|$))/gi));
 
   return {
     ...raw,
     priceText: nonEmptyString(raw.priceText) && rawSection.toLowerCase().includes(raw.priceText.trim().toLowerCase())
-      && price !== null && prices.some(([token]) => parseGbpFromText(token) === price)
+      && price !== null && ticketPrices.some((match) => parseGbpFromText(match[1]) === price)
       ? raw.priceText : undefined,
     sourceId: sourceId !== null && publisherIds.some((match) => match[1] === sourceId)
       ? raw.sourceId : undefined,

@@ -597,7 +597,7 @@ export async function extract<T extends Record<string, unknown> = Record<string,
           maxAgeMs: 0,
         }),
       (body) =>
-        body.json?.success === true && typeof body.json.data === "object" && body.json.data !== null
+        body?.isPartial !== true && body?.json?.success === true && typeof body.json.data === "object" && body.json.data !== null
           && body.markdown?.success === true && typeof body.markdown.data === "string"
           && typeof body.url === "string" && body.url.length > 0
           ? {

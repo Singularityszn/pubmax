@@ -383,6 +383,24 @@ describe("extract", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
+  it("refuses a successful but partial joint extraction without retry", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({
+      url: "https://www.fullers.co.uk/events",
+      markdown: { requested: true, success: true, data: "Quiz at The Dove on 18 August 2026." },
+      json: { requested: true, success: true, data: { events: [{ title: "Quiz" }] } },
+      isPartial: true,
+    }));
+    const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: noSleep,
+    });
+    expect(result.status).toBe("error");
+    if (result.status !== "error") throw new Error("expected error");
+    expect(result.error.code).toBe("EMPTY_BODY");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it("fails closed when JSON succeeds but same-scrape Markdown evidence is absent", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({
       url: "https://www.fullers.co.uk/events",

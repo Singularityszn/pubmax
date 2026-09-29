@@ -210,6 +210,73 @@ describe("runContextDevEventsLane", () => {
     },
   );
 
+  it("rejects abbreviated competing dates across one heading card", async () => {
+    const result = await capturedEvent("### Quiz\nThe Swan on 19 Dec at 7pm\nThe Dove on 18 December 2026 at 8pm", {
+      title: "Quiz", placeName: "The Swan", kind: "event", startsAt: "2026-12-18T20:00:00Z",
+    });
+    expect(result.rows).toEqual([]);
+    expect(result.failures).toHaveLength(1);
+  });
+
+  it("does not infer an extracted year from a yearless date", async () => {
+    const result = await capturedEvent("Quiz at The Dove on 19 Dec at 7pm", {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-12-19T19:00:00Z",
+    });
+    expect(result.rows).toEqual([]);
+  });
+
+  it.each(["18/08/2026", "18/08/2026 and 18 August 2026"])(
+    "accepts zero-padded or repeated identical date evidence: %s", async (date) => {
+      const result = await capturedEvent(`### Quiz\nThe Dove on ${date} at 8pm`, {
+        title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-08-18T19:00:00Z",
+      });
+      expect(result.rows).toHaveLength(1);
+    },
+  );
+
+  it("does not publish the ending clock of an event range as its start", async () => {
+    const markdown = "Quiz at The Dove on 18 December 2026, 20:00-22:00";
+    const result = await capturedEvent(markdown, {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-12-18T22:00:00Z",
+    });
+    expect(result.rows).toEqual([]);
+    const start = await capturedEvent(markdown, {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-12-18T20:00:00Z",
+    });
+    expect(start.rows).toHaveLength(1);
+  });
+
+  it("selects explicit start over doors and end clocks", async () => {
+    const markdown = "Quiz at The Dove on 18 December 2026. Doors 7pm. Starts 8pm. Ends 10pm.";
+    const event = { title: "Quiz", placeName: "The Dove", kind: "event" };
+    expect((await capturedEvent(markdown, { ...event, startsAt: "2026-12-18T19:00:00Z" })).rows).toEqual([]);
+    expect((await capturedEvent(markdown, { ...event, startsAt: "2026-12-18T20:00:00Z" })).rows).toHaveLength(1);
+  });
+
+  it("abstains when doors and another clock are stated without start evidence", async () => {
+    const result = await capturedEvent("Quiz at The Dove on 18 December 2026. Doors 7pm, 8pm.", {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-12-18T20:00:00Z",
+    });
+    expect(result.rows).toEqual([]);
+  });
+
+  it("keeps venue IDs and raffle prices out of event identity and ticket price", async () => {
+    const result = await capturedEvent("Quiz at The Dove on 18 December 2026. Venue ID: dove. Tickets £40. Raffle £4.", {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-12-18",
+      sourceId: "dove", priceText: "£4",
+    });
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]?.sourceId).toBe(result.rows[0]?.id);
+    expect(result.rows[0]?.priceGbp).toBeUndefined();
+  });
+
+  it("accepts an ordinary at The Dove phrase after the clock", async () => {
+    const result = await capturedEvent("### Quiz\n18 December 2026 at 8pm at The Dove", {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-12-18T20:00:00Z",
+    });
+    expect(result.rows).toHaveLength(1);
+  });
+
   it.each(["GMT", "UTC", "gmt", "utc"])("honours explicit %s during London summer", async (zone) => {
     const markdown = `Quiz at The Dove on 18 August 2027 at 20:00 ${zone}`;
     const event = { title: "Quiz", placeName: "The Dove", kind: "event" };
