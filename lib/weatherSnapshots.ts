@@ -40,6 +40,12 @@ function text(value: unknown, maxLength: number): string | null {
     : null;
 }
 
+function boundedNumber(value: unknown, min: number, max: number): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= min && value <= max
+    ? value
+    : null;
+}
+
 function httpUrl(value: unknown): string | null {
   const candidate = text(value, 2_000);
   if (!candidate) return null;
@@ -62,18 +68,11 @@ export function validateWeatherObservation(value: unknown): NightAreaWeatherObse
   const observedAt = iso(row.observedAt);
   const expiresAt = iso(row.expiresAt);
   const condition = text(row.condition, 120);
-  const feelsLikeC = typeof row.feelsLikeC === "number" && Number.isFinite(row.feelsLikeC)
-    && row.feelsLikeC >= -40 && row.feelsLikeC <= 60 ? row.feelsLikeC : null;
-  const precipitationProbabilityPct = typeof row.precipitationProbabilityPct === "number"
-    && Number.isFinite(row.precipitationProbabilityPct)
-    && row.precipitationProbabilityPct >= 0 && row.precipitationProbabilityPct <= 100
-    ? row.precipitationProbabilityPct
-    : null;
+  const feelsLikeC = boundedNumber(row.feelsLikeC, -40, 60);
+  const precipitationProbabilityPct = boundedNumber(row.precipitationProbabilityPct, 0, 100);
   const windKph = row.windKph === null
     ? null
-    : typeof row.windKph === "number" && Number.isFinite(row.windKph) && row.windKph >= 0 && row.windKph <= 300
-      ? row.windKph
-      : undefined;
+    : boundedNumber(row.windKph, 0, 300) ?? undefined;
   const sourceRow = row.source && typeof row.source === "object" && !Array.isArray(row.source)
     ? row.source as Record<string, unknown>
     : null;
