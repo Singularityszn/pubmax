@@ -4,11 +4,12 @@ import {
   type NightPatchId,
   type RememberedArea,
 } from "@/lib/nightPatches";
-import type {
-  Budget,
-  Daypart,
-  NightContext,
-  NightAreaSlug,
+import {
+  inferNightContext,
+  type Budget,
+  type Daypart,
+  type NightContext,
+  type NightAreaSlug,
 } from "@/lib/nightPlanning";
 import type { CityId } from "@/lib/cities";
 import type { PlanGenerationAnchor as PlanGenerationWireAnchor } from "@/lib/planGenerationRequest";
@@ -697,8 +698,15 @@ export function buildPlanGenerationIntakeBody(
   anchor?: PlanGenerationAnchorInput | null,
 ): PlanGenerationIntakeBody {
   const cleanQuery = query.trim();
+  const queryDrink = inferNightContext(cleanQuery).context;
+  const freshDrinkIntent = queryDrink.drinkCategory !== null || queryDrink.zeroProof;
+  const carriedContext = stripPlanIntakeOwnedContext(currentContext);
+  if (freshDrinkIntent) {
+    delete carriedContext.drinkCategory;
+    delete carriedContext.zeroProof;
+  }
   const context = {
-    ...stripPlanIntakeOwnedContext(currentContext),
+    ...carriedContext,
     ...explicitContext,
     ...planIntakeNightContextPatch(draft),
   };

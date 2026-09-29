@@ -11,6 +11,11 @@ const EVENING = new Date("2026-08-07T19:30:00.000Z");
 describe("inferNightContext", () => {
   it.each([
     ["cheap wine in Soho for 2", "wine"],
+    ["wines in Soho for 2", "wine"],
+    ["whiskies in Soho for 2", "whisky"],
+    ["vodkas in Soho for 2", "vodka"],
+    ["gins in Soho for 2", "gin"],
+    ["rums in Soho for 2", "rum"],
     ["cocktails in Soho for 2", "cocktail"],
     ["whisky in Soho for 2", "whisky"],
     ["cheap pints in Soho for 2", "beer"],

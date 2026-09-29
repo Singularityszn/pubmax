@@ -28,6 +28,7 @@ import {
   type PlanIntakeDraft,
   type PlanIntakeStep,
 } from "@/lib/planIntake";
+import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import type { NightContext } from "@/lib/nightPlanning";
 
 const NOW = Date.parse("2026-07-20T12:00:00.000Z");
@@ -296,6 +297,25 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
     accessibility: ["step-free", "accessible-toilet"],
     transportConstraints: ["tube"],
   };
+
+  it("lets fresh wine query replace stale Any while keeping deliberate Any", () => {
+    const draft = skipRemainingPlanIntake(createPlanIntakeDraft());
+    const staleContext = { ...generatedContext, zeroProof: false, drinkCategory: null };
+    const query = "Quiet wines in Clapham for 2";
+    const freshBody = buildPlanGenerationIntakeBody(draft, query, staleContext);
+    const fresh = reconcilePlanContext(query, freshBody.context ?? null, null, new Date("2026-07-20T12:00:00Z"));
+    expect(fresh.context.drinkCategory).toBe("wine");
+    expect(fresh.fieldSources.drinkCategory).toBe("query");
+
+    const staleZeroProof = buildPlanGenerationIntakeBody(draft, query, { ...staleContext, zeroProof: true });
+    const refreshed = reconcilePlanContext(query, staleZeroProof.context ?? null, null, new Date("2026-07-20T12:00:00Z"));
+    expect(refreshed.context).toMatchObject({ drinkCategory: "wine", zeroProof: false });
+
+    const anyBody = buildPlanGenerationIntakeBody(draft, query, staleContext, { drinkCategory: null });
+    const any = reconcilePlanContext(query, anyBody.context ?? null, null, new Date("2026-07-20T12:00:00Z"));
+    expect(any.context.drinkCategory).toBeNull();
+    expect(any.fieldSources.drinkCategory).toBe("context");
+  });
 
   it("preserves exact dated time, ceiling and accessibility constraints", () => {
     const draft = answeredDraft();

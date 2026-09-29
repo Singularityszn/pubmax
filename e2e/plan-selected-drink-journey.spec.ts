@@ -2,6 +2,42 @@ import { expect, test } from "@playwright/test";
 
 import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
 
+test("fresh plural wine query replaces stale Any, while a deliberate Any choice holds", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.addInitScript(() => {
+    localStorage.removeItem("pubmax:plan-intake:v1");
+    localStorage.removeItem("pubmaxx:plan-route-draft:v1");
+    sessionStorage.removeItem("pubmax:plan-draft:v1");
+  });
+  await page.goto("/plan");
+  await describeFirstQuery(page).fill("Quiet in Clapham for 2");
+  const first = page.waitForResponse((response) => response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/plans/generate");
+  await describeFirstSubmit(page).click();
+  expect((await first).status()).toBe(200);
+  await expect(page.getByLabel("Drinks")).toHaveValue("any");
+
+  await page.locator("#plan-concierge-query").fill("Quiet wines in Clapham for 2");
+  const wine = page.waitForResponse((response) => response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/plans/generate");
+  await page.getByRole("button", { name: "Sort it again" }).click();
+  const wineResponse = await wine;
+  expect(wineResponse.status()).toBe(200);
+  expect(wineResponse.request().postDataJSON().context).not.toHaveProperty("drinkCategory");
+  expect((await wineResponse.json()).inferredContext.drinkCategory).toBe("wine");
+  await expect(page.getByLabel("Drinks")).toHaveValue("wine");
+
+  await page.getByLabel("Drinks").selectOption("any");
+  const any = page.waitForResponse((response) => response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/plans/generate");
+  await page.getByRole("button", { name: "Regenerate route" }).click();
+  const anyResponse = await any;
+  expect(anyResponse.status()).toBe(200);
+  expect(anyResponse.request().postDataJSON().context.drinkCategory).toBeNull();
+  expect((await anyResponse.json()).inferredContext.drinkCategory).toBeNull();
+  await expect(page.getByLabel("Drinks")).toHaveValue("any");
+});
+
 for (const journey of [
   { category: "wine", query: "Quiet wine in Clapham for 2, not pricey", name: "Wine Browser" },
   { category: "cocktail", query: "Cheap cocktails in Clapham for 2", name: "Cocktail Browser" },
