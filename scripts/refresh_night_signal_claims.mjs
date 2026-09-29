@@ -33,6 +33,30 @@ const isHttp = (value) => {
 };
 const isSource = (source) => source && typeof source === "object" && isHttp(source.sourceUrl) && isText(source.publisher, 160) && isIso(source.publishedAt);
 
+function validCorroboration(row) {
+  const sources = row.corroboratingSources;
+  if (!Array.isArray(sources) || sources.length > 5 || !sources.every(isSource)) return false;
+  if (sources.some((source) => Date.parse(source.publishedAt) > Date.parse(row.observedAt))) return false;
+  const keys = sources.map((source) => `${new URL(source.sourceUrl).toString()}|${source.publisher.trim().toLocaleLowerCase("en-GB")}`);
+  if (new Set(keys).size !== keys.length) return false;
+  const independent = sources.some((source) =>
+    new URL(source.sourceUrl).hostname !== new URL(row.sourceUrl).hostname
+      && source.publisher.trim().toLocaleLowerCase("en-GB") !== row.publisher.trim().toLocaleLowerCase("en-GB"),
+  );
+  return (sources.length === 0 || independent)
+    && (row.verification !== "corroborated" || independent);
+}
+
+function validReview(row, ingestedAt) {
+  if (row.routeEffect !== "none" && row.verification === "single_source") return false;
+  if (row.routeEffect !== "none" && row.verification === "manual_review" && !["operations", "editorial"].includes(row.reviewAuthority)) return false;
+  if (row.reviewState !== "approved") return true;
+  return isIso(row.reviewedAt)
+    && ["operations", "editorial", "automated"].includes(row.reviewAuthority)
+    && Date.parse(row.reviewedAt) >= Date.parse(row.observedAt)
+    && Date.parse(row.reviewedAt) <= ingestedAt;
+}
+
 export function isValidNightSignalClaim(row, ingestedAt = Date.now()) {
   if (!row || typeof row !== "object") return false;
   if (!isText(row.id, 120) || !KINDS.has(row.kind) || !isText(row.claim, 500)) return false;
@@ -42,20 +66,7 @@ export function isValidNightSignalClaim(row, ingestedAt = Date.now()) {
   if (Date.parse(row.publishedAt) > Date.parse(row.observedAt)) return false;
   if (typeof row.confidence !== "number" || row.confidence < 0 || row.confidence > 1) return false;
   if (!REVIEW_STATES.has(row.reviewState) || !VERIFICATIONS.has(row.verification) || !ROUTE_EFFECTS.has(row.routeEffect)) return false;
-  if (!Array.isArray(row.corroboratingSources) || row.corroboratingSources.length > 5 || !row.corroboratingSources.every(isSource)) return false;
-  if (row.corroboratingSources.some((source) => Date.parse(source.publishedAt) > Date.parse(row.observedAt))) return false;
-  const sourceKeys = row.corroboratingSources.map((source) => `${new URL(source.sourceUrl).toString()}|${source.publisher.trim().toLocaleLowerCase("en-GB")}`);
-  if (new Set(sourceKeys).size !== sourceKeys.length) return false;
-  const independentCorroboration = row.corroboratingSources.some((source) =>
-    new URL(source.sourceUrl).hostname !== new URL(row.sourceUrl).hostname
-      && source.publisher.trim().toLocaleLowerCase("en-GB") !== row.publisher.trim().toLocaleLowerCase("en-GB"),
-  );
-  if (row.corroboratingSources.length > 0 && !independentCorroboration) return false;
-  if (row.verification === "corroborated" && !independentCorroboration) return false;
-  if (row.routeEffect !== "none" && row.verification === "single_source") return false;
-  if (row.routeEffect !== "none" && row.verification === "manual_review" && !["operations", "editorial"].includes(row.reviewAuthority)) return false;
-  if (row.reviewState === "approved" && (!isIso(row.reviewedAt) || !["operations", "editorial", "automated"].includes(row.reviewAuthority) || Date.parse(row.reviewedAt) < Date.parse(row.observedAt) || Date.parse(row.reviewedAt) > ingestedAt)) return false;
-  return true;
+  return validCorroboration(row) && validReview(row, ingestedAt);
 }
 
 export function approvedClaimsUnchanged(current, approved) {
