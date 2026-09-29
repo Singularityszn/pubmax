@@ -36,7 +36,7 @@ const CONTEXT_DEV_EVENT_EXTRACT_SCHEMA = {
       items: {
         type: "object",
         properties: {
-          title: { type: "string" },
+          title: { type: "string", description: "Only when stated by the page." },
           startsAt: {
             type: "string",
             description: "ISO 8601 instant with timezone when the page states a clock time.",
@@ -45,13 +45,12 @@ const CONTEXT_DEV_EVENT_EXTRACT_SCHEMA = {
             type: "string",
             description: "YYYY-MM-DD when the page states a day and no clock time.",
           },
-          placeName: { type: "string" },
+          placeName: { type: "string", description: "Only when stated by the page." },
           kind: { type: "string", enum: ["music", "sport", "event"] },
-          sourceUrl: { type: "string" },
+          sourceUrl: { type: "string", description: "Event link only when present on the page." },
           priceText: { type: "string", description: "Ticket price text exactly as listed, if any." },
           sourceId: { type: "string", description: "Stable id from the page when one is stated." },
         },
-        required: ["title", "placeName", "kind", "sourceUrl"],
       },
     },
   },
@@ -95,6 +94,14 @@ function httpUrl(value: unknown): string | null {
   }
 }
 
+function samePublisherUrl(value: unknown, source: HarvestSource): boolean {
+  const candidate = httpUrl(value);
+  if (!candidate) return false;
+  const url = new URL(candidate);
+  const registered = new URL(source.url);
+  return !url.username && !url.password && url.protocol === registered.protocol && url.host === registered.host;
+}
+
 function stableId(prefix: string, input: string): string {
   let hash = 2_166_136_261;
   for (let i = 0; i < input.length; i += 1) {
@@ -112,10 +119,10 @@ function parseGbpFromText(value: unknown): number | null {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
-function sourceCredit(source: HarvestSource, rowUrl: string | null): { label: string; url: string } {
+function sourceCredit(source: HarvestSource): { label: string; url: string } {
   return {
     label: source.label,
-    url: rowUrl ?? source.url,
+    url: source.url,
   };
 }
 
@@ -135,8 +142,14 @@ export function normaliseContextDevEventRow(
   const title = nonEmptyString(raw.title) ? raw.title.trim() : null;
   if (!title) return { row: null, drop: "noTitle" };
 
-  const sourceUrl = httpUrl(raw.sourceUrl);
-  if (!sourceUrl) return { row: null, drop: "noUrl" };
+  // The scraped finder is the only page this call has actually read. A URL
+  // supplied by JSON extraction is not evidence that its target exists or was
+  // read, so credit the registered page even when an event URL is present.
+  if (raw.sourceUrl !== undefined && raw.sourceUrl !== null && raw.sourceUrl !== "") {
+    if (!samePublisherUrl(raw.sourceUrl, source)) {
+      return { row: null, drop: "noUrl" };
+    }
+  }
 
   const startsAt = nonEmptyString(raw.startsAt) ? toIsoInstant(raw.startsAt) : null;
   const startsDate =
@@ -153,7 +166,7 @@ export function normaliseContextDevEventRow(
     placeName,
     kind,
     title,
-    source: sourceCredit(source, sourceUrl),
+    source: sourceCredit(source),
     observedAt: opts.observedAt,
     confidence: "listed",
   };
@@ -316,6 +329,13 @@ export async function runContextDevEventsLane({
         label: source.label,
         message: result.error.message,
       });
+      continue;
+    }
+
+    if (!samePublisherUrl(result.url, source)) {
+      const message = "Extract ended outside the registered publisher host.";
+      logError(`eventsRefresh: Context.dev ${source.label} ${message} Held rows carry across.`);
+      failures.push({ sourceId: source.id, label: source.label, message });
       continue;
     }
 

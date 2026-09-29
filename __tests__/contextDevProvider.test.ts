@@ -43,7 +43,34 @@ describe("contextDevEventSources register gate", () => {
 });
 
 describe("normaliseContextDevEventRow", () => {
-  it("carries source credit on every row", () => {
+  it("refuses an off-host event link instead of crediting it to the registered publisher", () => {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const { row, drop } = normaliseContextDevEventRow(
+      {
+        title: "Invented quiz",
+        placeName: "The Dove",
+        kind: "event",
+        sourceUrl: "https://example.com/event/quiz",
+        startsDate: "2026-08-18",
+      },
+      fullers,
+      { observedAt },
+    );
+    expect(row).toBeNull();
+    expect(drop).toBe("noUrl");
+  });
+
+  it("credits the page actually scraped when no event-specific URL was stated", () => {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const { row } = normaliseContextDevEventRow(
+      { title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-08-18" },
+      fullers,
+      { observedAt },
+    );
+    expect(row?.source).toEqual({ label: "Fuller's", url: fullers.url });
+  });
+
+  it("credits the registered page actually scraped", () => {
     if (!fullers) throw new Error("missing fullers register entry");
     const { row } = normaliseContextDevEventRow(
       {
@@ -58,7 +85,7 @@ describe("normaliseContextDevEventRow", () => {
     );
     expect(row?.source).toEqual({
       label: "Fuller's",
-      url: "https://www.fullers.co.uk/pubs/the-dove/event/1",
+      url: fullers.url,
     });
     expect(isValidWhatsOnRow(row, Date.parse(observedAt))).toBe(true);
   });
@@ -99,6 +126,71 @@ describe("normaliseContextDevEventRow", () => {
 });
 
 describe("runContextDevEventsLane", () => {
+  it("sends optional fields and refuses off-host JSON attribution through the installed SDK", async () => {
+    const fetchImpl = vi.fn<(input: unknown, init?: RequestInit) => Promise<Response>>(async () =>
+      new Response(JSON.stringify({
+        url: fullers?.url,
+        json: {
+          requested: true,
+          success: true,
+          data: {
+            events: [{
+              title: "Invented quiz",
+              placeName: "The Dove",
+              kind: "event",
+              sourceUrl: "https://example.com/event/quiz",
+              startsDate: "2026-08-18",
+            }],
+          },
+        },
+      }), { status: 200, headers: { "content-type": "application/json" } }),
+    );
+
+    const result = await runContextDevEventsLane({
+      observedAt,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      callOptions: { fetchImpl: fetchImpl as unknown as typeof fetch },
+      log: vi.fn(),
+      logError: vi.fn(),
+    });
+
+    expect(fetchImpl).toHaveBeenCalled();
+    const request = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body));
+    expect(request.formats).toEqual({ json: true });
+    expect(request.jsonParams.schema.properties.events.items.required).toBeUndefined();
+    expect(result.rows).toEqual([]);
+    expect(result.failures).toHaveLength(contextDevEventSources().length);
+  });
+
+  it("refuses a scrape redirected off the registered publisher host", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({
+        url: "https://example.com/unrelated",
+        json: {
+          requested: true,
+          success: true,
+          data: { events: [{
+            title: "Quiz",
+            placeName: "The Dove",
+            kind: "event",
+            startsDate: "2026-08-18",
+          }] },
+        },
+      }), { status: 200, headers: { "content-type": "application/json" } }),
+    );
+
+    const result = await runContextDevEventsLane({
+      observedAt,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      callOptions: { fetchImpl: fetchImpl as unknown as typeof fetch },
+      log: vi.fn(),
+      logError: vi.fn(),
+    });
+
+    expect(result.rows).toEqual([]);
+    expect(result.failures).toHaveLength(contextDevEventSources().length);
+  });
+
   it("returns not-configured without a key and sends nothing", async () => {
     const log = vi.fn();
     const result = await runContextDevEventsLane({
@@ -302,14 +394,14 @@ describe("normaliseContextDevExtract batching", () => {
             title: "Ok row",
             placeName: "Pub A",
             kind: "event",
-            sourceUrl: "https://example.com/a",
+            sourceUrl: "https://www.fullers.co.uk/pubs/a/event/ok",
             startsAt: "2026-08-16T19:00:00Z",
           },
           {
             title: "Bad kind",
             placeName: "Pub B",
             kind: "quiz",
-            sourceUrl: "https://example.com/b",
+            sourceUrl: "https://www.fullers.co.uk/pubs/b/event/bad",
             startsAt: "2026-08-16T19:00:00Z",
           },
         ],
