@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import { EMPTY_MAP_SURFACE_STATE, useMapSurfaceNavigation } from "@/components/map/pubmap/useMapSurfaceNavigation";
-import type { CrawlUrlState } from "@/lib/crawlUrl";
+import { seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
+import { curatedCrawlHydrationFromSeed } from "@/lib/mapSeedCrawl";
 import { stampMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { initialFilters, type Filters } from "@/lib/venues";
 
@@ -60,6 +61,8 @@ function HistoryHarness({
   holdCleanUrl = false,
   maxPrice = initialFilters.maxPrice,
   zone = initialFilters.zone,
+  plan,
+  pending = false,
 }: {
   query: string;
   drinkCategory?: Filters["drinkCategory"];
@@ -67,12 +70,14 @@ function HistoryHarness({
   holdCleanUrl?: boolean;
   maxPrice?: number;
   zone?: Filters["zone"];
+  plan?: Pick<CrawlUrlState, "mode" | "builtIds" | "crawlId">;
+  pending?: boolean;
 }) {
   const state = useMemo(() => {
     const current = mapState(query, drinkCategory, selectedVenueId);
-    return { ...current, filters: { ...current.filters, maxPrice, zone } };
-  }, [query, drinkCategory, selectedVenueId, maxPrice, zone]);
-  const onSurfaceClose = useCrawlUrlSync(state, holdCleanUrl);
+    return { ...current, ...plan, filters: { ...current.filters, maxPrice, zone } };
+  }, [query, drinkCategory, selectedVenueId, maxPrice, zone, plan]);
+  const onSurfaceClose = useCrawlUrlSync(state, holdCleanUrl, pending);
   const trail = useMapSurfaceNavigation({
     arrivalSearch: window.location.search,
     surfaceId: "none",
@@ -161,6 +166,102 @@ describe("curated crawl URL hydration hold", () => {
 
     expect(window.location.search).toBe("");
   });
+});
+
+async function traverseHistory(action: () => void) {
+  const landed = new Promise<void>((resolve) =>
+    window.addEventListener("popstate", () => resolve(), { once: true }),
+  );
+  await act(async () => {
+    action();
+    await vi.advanceTimersByTimeAsync(10);
+    await landed;
+  });
+}
+
+describe("crawl identity after Map history traversal", () => {
+  it.each(["back", "home", "forward"] as const)(
+    "reloads edited stops after %s before the debounce",
+    async (direction) => {
+      const arrival = "?crawl=victorian-soho";
+      const original = await curatedCrawlHydrationFromSeed(arrival, "london");
+      expect(original).not.toBeNull();
+      const originalIds = original!.crawl.venueIds;
+      const replacement = await curatedCrawlHydrationFromSeed("?crawl=fleet-street-writers", "london");
+      expect(replacement).not.toBeNull();
+      const edits = [
+        { builtIds: [...originalIds].reverse(), crawlId: "" },
+        { builtIds: originalIds.slice(1), crawlId: "" },
+        { builtIds: [...originalIds, "extra-pub"], crawlId: "" },
+        { builtIds: [], crawlId: "" },
+        { builtIds: replacement!.crawl.venueIds, crawlId: replacement!.crawl.id },
+      ];
+      for (const edit of edits) {
+        window.history.replaceState({ root: true }, "", `/map${arrival}#route`);
+        await act(async () => {
+          root.unmount();
+          root = createRoot(host);
+          root.render(createElement(HistoryHarness, {
+            query: "", plan: { mode: "build", builtIds: originalIds, crawlId: original!.crawl.id },
+          }));
+        });
+        act(() => vi.advanceTimersByTime(300));
+        act(() => openHistorySurface({ id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }));
+        if (direction === "home") {
+          act(() => openHistorySurface({ id: "filters", title: "Filters", state: EMPTY_MAP_SURFACE_STATE }));
+        }
+        if (direction === "forward") await traverseHistory(() => window.history.back());
+        const historyLength = window.history.length;
+        await act(async () => {
+          root.render(createElement(HistoryHarness, {
+            query: "", plan: { mode: "build", ...edit },
+          }));
+        });
+        await traverseHistory(() => {
+          if (direction === "home") closeHistorySurfaces();
+          else if (direction === "forward") window.history.forward();
+          else window.history.back();
+        });
+
+        const reloaded = seedCrawlState(window.location.search);
+        const hydration = await curatedCrawlHydrationFromSeed(window.location.search, "london");
+        expect(hydration?.crawl.venueIds ?? reloaded.builtIds).toEqual(edit.builtIds);
+        expect(reloaded.crawlId).toBe(edit.crawlId);
+        expect(reloaded.builtIds).toEqual(edit.builtIds);
+        expect(window.history.length).toBe(historyLength);
+        expect(window.history.state.root).toBe(true);
+        expect(window.location.hash).toBe("#route");
+      }
+    },
+  );
+
+  it.each(["back", "home", "forward"] as const)(
+    "preserves pending hydration across %s and drops an unmatched identity afterwards",
+    async (direction) => {
+      await act(async () => {
+        root.render(createElement(HistoryHarness, { query: "", pending: true }));
+      });
+      act(() => openHistorySurface({ id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }));
+      if (direction === "forward") await traverseHistory(() => window.history.back());
+      await act(async () => {
+        root.render(createElement(HistoryHarness, { query: "Soho", pending: true }));
+      });
+      await traverseHistory(() => {
+        if (direction === "home") closeHistorySurfaces();
+        else if (direction === "forward") window.history.forward();
+        else window.history.back();
+      });
+      expect(seedCrawlState(window.location.search).crawlId).toBe("victorian-soho");
+      expect((await curatedCrawlHydrationFromSeed(window.location.search, "london"))?.crawl.id).toBe("victorian-soho");
+
+      act(() => openHistorySurface({ id: "filters", title: "Filters", state: EMPTY_MAP_SURFACE_STATE }));
+      await act(async () => {
+        root.render(createElement(HistoryHarness, { query: "Soho", pending: false }));
+      });
+      await traverseHistory(() => window.history.back());
+      expect(seedCrawlState(window.location.search).crawlId).toBe("");
+    },
+  );
 });
 
 describe("crawl URL after Map history traversal", () => {

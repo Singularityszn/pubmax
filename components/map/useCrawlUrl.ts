@@ -90,16 +90,17 @@ function writeCrawlUrl(encoded: string, preserveCrawlParam: boolean): void {
 const CRAWL_CONTEXT_PARAMS = [
   "mode", "style", "max", "stops", "win", "drops", "low",
   "cocktails", "food", "q", "drink", "brand", "sub", "topshelf",
-  "zone", "pubs", "band", "alt",
+  "zone", "pubs", "band", "alt", "crawl",
 ] as const;
 
-function writeLandedCrawlContext(encoded: string): void {
+function writeLandedCrawlContext(encoded: string, preserveCrawlParam: boolean): void {
   // The landed entry owns selection, intents and place context. Only Map
   // filters changed while a surface was open cross this history boundary.
   const live = new URLSearchParams(window.location.search);
   const selected = new URLSearchParams(encoded);
   for (const key of CRAWL_CONTEXT_PARAMS) {
     const value = selected.get(key);
+    if (key === "crawl" && preserveCrawlParam && value === null) continue;
     if (value === null) live.delete(key);
     else live.set(key, value);
   }
@@ -120,7 +121,7 @@ export function useCrawlUrlSync(
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hold = useRef<CleanUrlHold | undefined>(undefined);
   const crawlHold = useRef<CleanUrlHold | undefined>(undefined);
-  const latestWrite = useRef<string | null>(null);
+  const latestWrite = useRef<{ encoded: string; preserveCrawlParam: boolean } | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -141,7 +142,7 @@ export function useCrawlUrlSync(
       crawlHold.current !== undefined &&
       holdSeededCrawlParam;
     if (!holdSeededCrawlParam) crawlHold.current = null;
-    latestWrite.current = encoded;
+    latestWrite.current = { encoded, preserveCrawlParam };
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => writeCrawlUrl(encoded, preserveCrawlParam), DEBOUNCE_MS);
 
@@ -152,6 +153,9 @@ export function useCrawlUrlSync(
 
   return useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
-    if (latestWrite.current !== null) writeLandedCrawlContext(latestWrite.current);
+    if (latestWrite.current !== null) {
+      const { encoded, preserveCrawlParam } = latestWrite.current;
+      writeLandedCrawlContext(encoded, preserveCrawlParam);
+    }
   }, []);
 }

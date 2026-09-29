@@ -24,7 +24,7 @@ The map builds its state from the URL in layers:
   metadata and the Open Graph image.
 
 The city that loads is selected by the Next.js route segment (`/map/[city]`).
-A `city` query value survives URL rewrites but does not select a city.
+The `/map` route loads London. Crawl-state rewrites preserve the pathname.
 
 ## History and filter synchronisation
 
@@ -106,7 +106,6 @@ While the card is on screen, the analytics consent prompt stands down. See
 | `uk` | `1` | `lib/ukNationalBrowse.ts`, `app/map/page.tsx` | Explicit UK national browse. Opens a quiet whole-UK overview; pubs appear when you zoom past the base gate (z12). Softens priced-city chrome. | Only exact `1` counts. Combined with a valid `place` arrival, place wins. | Preserved as an owned passthrough param on crawl-state rewrites. |
 | `mapNotice` | `unknown` or `lookup-failed` | `lib/pubMap.ts`, `components/PubMap.tsx`, `components/map/useCrawlUrl.ts` | Carries a map-owned venue-selection notice, such as the unmatched-venue fallback from a Pal card. It never selects a venue. | Other values are ignored. | Consumed into the transient notice and removed with `history.replaceState` after the notice mounts; carried through crawl-state rewrites until then. |
 | `city` (route segment, not a query parameter) | A known city id | `lib/cities.ts`, `app/map/[city]/page.tsx` | Selects which city's map loads. | `parseCityId` lower-cases and trims the segment. An id outside the known city set returns `null`, and the route responds with `notFound()`. | Not applicable. This is the route path itself, not a value the client rewrites. |
-| `city` (query parameter) | Opaque text | `components/map/useCrawlUrl.ts` | Carries an existing value through URL rewrites; it does not change which city loads. | No city lookup reads this query value. | Preserved as an owned passthrough param. |
 
 ## Read-only server metadata reads
 
