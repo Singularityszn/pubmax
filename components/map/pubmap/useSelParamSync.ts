@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
+import { currentSurface } from "@/lib/surfaceStack";
 
 import { selectionSentinelVenueId } from "@/lib/mapSelectionHistory";
 
@@ -36,6 +38,10 @@ export function useSelParamSync({ selParam, selectedVenueId, selectVenue }: SelP
       // Its React selection may not have committed yet; selecting again adds
       // a duplicate history entry that reopens the drawer on Close.
       if (selectionSentinelVenueId(window.history.state) === selParam) return;
+      const landed = readMapSurfaceHistory<{ venueId?: string }>(window.history.state);
+      const current = landed && currentSurface(landed);
+      // The surface snapshot also identifies an owned Back/Forward landing.
+      if (current?.id === "venue" && current.state?.venueId === selParam) return;
       if (selParam !== selectedVenueIdRef.current) selectVenueRef.current(selParam);
     });
   }, [selParam]);

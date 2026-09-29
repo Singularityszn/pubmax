@@ -340,7 +340,7 @@ rows (fetched JSON)
 
 Five state atoms: `mode`, `filters`, `builtIds`, `selectedVenueId`, `rows`. A separate `loaded` flag is flipped in the fetch's `.finally()` so the UI distinguishes "still loading" (skeleton) from "zero matches" (empty state with a Clear-filters CTA).
 
-**URL sync (single write path).** `seedCrawlState(window.location.search)` runs *once* in a `useMemo` lazy initializer to seed all five atoms. `useCrawlUrlSync` is the **only** thing that touches the URL — `history.replaceState`, debounced ~300ms, on every state change. `lib/crawlUrl.ts` clamps numbers, drops unknowns, and **never throws**.
+**URL state.** [Map URL parameters](MAP_URL_PARAMS.md) owns URL seeding, crawl synchronisation, and the boundary between sheet history and separate route visits.
 
 **The theme system (no-flash + `useSyncExternalStore`).** Two cooperating pieces avoid the classic hydration mismatch: (1) the **no-flash script** runs synchronously in `<head>`, reading `localStorage["pubmax-theme"]`/`prefers-color-scheme` and setting `html[data-theme]` before paint; (2) `ThemeToggle` reads via `useSyncExternalStore` with a **deterministic `"light"` server snapshot**, so server HTML === first client render (no #418). After hydration it re-reads the real attribute; a `MutationObserver` keeps the icon synced; a mount `useEffect` re-asserts `data-theme` from `localStorage` (a DOM write, not setState).
 
@@ -364,7 +364,7 @@ Tokens in `globals.css` (`:root`, light) overridden in `theme.css` (dark): `--in
 
 - **`react-hooks/set-state-in-effect` is an ERROR here.** Keep it green: `setState` only in event/fetch handlers; lazy `useState`/`useMemo` initializers for URL/localStorage seeding; effects that only do DOM writes or subscriptions.
 - **No-flash + hydration** — don't naively read theme in render; the deterministic `"light"` server snapshot is load-bearing, and `<html suppressHydrationWarning>` exists because the script mutates `<html>` pre-hydration.
-- **Keep the single URL write path** — `useCrawlUrlSync` is the only code that touches the URL; new shareable state means extending `lib/crawlUrl.ts` (keep its clamps in sync with the sliders).
+- For changes to shared map links, follow the owners in [Map URL parameters](MAP_URL_PARAMS.md).
 - **E2E is WebGL-agnostic** — the map test passes on canvas *or* fallback, with no `pageerror` assertion on `/map` (MapLibre emits async teardown errors under headless timing that aren't app bugs). Don't tighten it to require the canvas.
 
 ---

@@ -18,6 +18,7 @@ import {
 // With neither, there is no list and the panel leads with search and the map.
 export function LogIntentFallback({
   candidates,
+  categoryPriceIntent = false,
   origin,
   filteredPubVenueCount,
   onPickVenue,
@@ -27,6 +28,7 @@ export function LogIntentFallback({
   onDismiss,
 }: {
   candidates: LogNearbyCandidate[];
+  categoryPriceIntent?: boolean;
   origin: LogNearbyOriginSource | null;
   filteredPubVenueCount: number;
   onPickVenue: (id: string) => void;
@@ -37,11 +39,14 @@ export function LogIntentFallback({
   onDismiss?: () => void;
 }) {
   const listed = candidates.length > 0 && origin !== null;
+  const destination = categoryPriceIntent ? "price form" : "Pint Drop composer";
   return (
     <div className="logIntentFallback" role="status" aria-live="polite">
       <div>
         <div className="logIntentHead">
-          <strong>Pick a pub to log a Pint Drop</strong>
+          <strong>
+            {categoryPriceIntent ? "Pick a pub to log a price" : "Pick a pub to log a Pint Drop"}
+          </strong>
           {onDismiss ? (
             <button
               type="button"
@@ -55,10 +60,10 @@ export function LogIntentFallback({
         </div>
         <p className="description">
           {!listed
-            ? "We won’t guess which pub you’re in. Search for it, or tap it on the map. Then we’ll open the Pint Drop composer."
+            ? `We won’t guess which pub you’re in. Search for it, or tap it on the map. Then we’ll open the ${destination}.`
             : origin === "user"
-              ? "Nearest pubs to you first. Choose one, search, or tap the map. Then we’ll open the Pint Drop composer."
-              : "Nearest pubs to the map centre. Choose one, search, or tap the map. Then we’ll open the Pint Drop composer."}
+              ? `Nearest pubs to you first. Choose one, search, or tap the map. Then we’ll open the ${destination}.`
+              : `Nearest pubs to the map centre. Choose one, search, or tap the map. Then we’ll open the ${destination}.`}
         </p>
       </div>
       {listed ? (
