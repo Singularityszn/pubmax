@@ -1,5 +1,7 @@
+import { spawn } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { postgresSkipReason, startPostgres, type PostgresSession } from "./helpers/postgres";
 
@@ -114,10 +116,93 @@ describe.skipIf(skipReason !== null)("Social Crew completion through authorized 
       from pubmax_private.completion_group_week('2030-03-06')`)).toBe("1:0");
   });
 
-  it("omits a deleted Social member from a later authorized completion", () => {
+  it("excludes an identity when auth deletion cleanup precedes concurrent completion", async () => {
+    if (pg().sql(`select to_regprocedure('public.complete_social_crew_plan_atomic(uuid,uuid,integer,uuid,uuid,uuid,integer,text,text,jsonb,timestamptz)') is null`) === "t") {
+      pg().applyFile(forward);
+    }
     originalCapture = pg().sql(`select pg_get_functiondef(
       'pubmax_private.snapshot_plan_completion_group()'::regprocedure)`);
     pg().applyFile(privacyForward);
+    const racePlan = id("b3");
+    const raceCrew = id("eb");
+    pg().sql(`insert into public.plans(id,title,start_time,status)
+      values('${racePlan}','Raced Social night','2030-03-09 20:00:00+00','active');
+      insert into public.plan_stops(plan_id,venue_id,venue_name,position)
+      values('${racePlan}','race-pub','Race Pub',0);
+      insert into public.plan_crew_members
+        (id,plan_id,name,token_hash,user_id,social_account_id,joined_at,updated_at) values
+        ('${id("ac")}','${racePlan}','Host',md5('race-host')||md5('race-host-2'),
+          '${id("a1")}','${host}','2030-03-09 19:00:00+00','2030-03-09 19:00:00+00'),
+        ('${id("ad")}','${racePlan}','Member',md5('race-member')||md5('race-member-2'),
+          '${id("a3")}','${removed}','2030-03-09 19:00:00+00','2030-03-09 19:00:00+00');
+      insert into public.social_crews(id,plan_id,owner_account_id)
+      values('${raceCrew}','${racePlan}','${host}');
+      insert into public.social_crew_members
+        (id,crew_id,social_account_id,plan_member_id,role,state) values
+        ('${id("ec")}','${raceCrew}','${host}','${id("ac")}','owner','active'),
+        ('${id("ee")}','${raceCrew}','${removed}','${id("ad")}','member','active');
+      update public.plans set social_owner_account_id='${host}' where id='${racePlan}';`);
+
+    const deleter = spawn(pg().psql, [...pg().databaseArgs, "-q", "-t", "-A"], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let output = "";
+    let errors = "";
+    deleter.stdout!.setEncoding("utf8");
+    deleter.stderr!.setEncoding("utf8");
+    deleter.stdout!.on("data", (chunk: string) => { output += chunk; });
+    deleter.stderr!.on("data", (chunk: string) => { errors += chunk; });
+    deleter.stdin!.write(`begin;
+      delete from auth.users where id='${id("a3")}';
+      select 'DELETE_CLEANUP_DONE';
+    `);
+    let committed = false;
+    try {
+      for (let i = 0; !output.includes("DELETE_CLEANUP_DONE"); i += 1) {
+        if (deleter.exitCode !== null) throw new Error(`Deletion failed: ${errors}`);
+        if (i === 400) throw new Error(`Deletion never reached cleanup barrier: ${errors}`);
+        await sleep(25);
+      }
+      expect(pg().sql(`select count(*) from auth.users where id='${id("a3")}'`)).toBe("1");
+      const completion = pg().sqlAsync(`begin;
+        set local application_name='completion_group_delete_race';
+        set local statement_timeout='10s';
+        select public.complete_social_crew_plan_atomic(
+          '${host}', '${raceCrew}', 1, '${id("c6")}', '${id("d7")}', '${id("d8")}',
+          0, 'get_home', null,
+          '{"kind":"get_home","optionId":"transport:home","evidenceSnapshot":{}}'::jsonb,
+          '2030-03-09 21:00:00+00'::timestamptz);
+        commit;`);
+      let settled = false;
+      void completion.then(() => { settled = true; }, () => { settled = true; });
+      for (let i = 0; !settled; i += 1) {
+        const waiting = pg().sql(`select count(*) from pg_stat_activity
+          where application_name='completion_group_delete_race'
+            and wait_event_type='Lock'`);
+        if (waiting === "1") break;
+        if (i === 400) throw new Error("Completion neither finished nor waited on deletion lock");
+        await sleep(25);
+      }
+      deleter.stdin!.end("commit;\n\\q\n");
+      committed = true;
+      expect(await completion).toContain("completed");
+    } finally {
+      if (!committed && deleter.exitCode === null) deleter.stdin!.end("rollback;\n\\q\n");
+      if (deleter.exitCode === null) {
+        await Promise.race([
+          new Promise<void>((resolve) => deleter.once("exit", () => resolve())),
+          sleep(10_000).then(() => { deleter.kill("SIGTERM"); throw new Error("Deleter did not exit"); }),
+        ]);
+      }
+      expect(deleter.exitCode).toBe(0);
+      expect(errors).toBe("");
+    }
+    expect(pg().sql(`select array_to_string(account_keys, ',')
+      from pubmax_private.plan_completion_group_snapshots where plan_id='${racePlan}'`))
+      .toBe(`social:${host}`);
+  });
+
+  it("omits a deleted Social member from a later authorized completion", () => {
     const laterPlan = id("b1");
     const laterCrew = id("e8");
     pg().sql(`insert into public.plans(id,title,start_time,status)
