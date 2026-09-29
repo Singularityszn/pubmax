@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 
 import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
 
@@ -82,5 +83,47 @@ for (const journey of [
     await expect(page.locator(".planRoute")).toContainText("community report");
     await page.locator(".planRoute").scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`${journey.category}-priced-reloaded.png`), animations: "disabled" });
+
+    const submitted = createdResponse.request().postDataJSON() as Record<string, unknown> & {
+      stops: Array<{ venueId: string; selectedDrinkPriceEvidence?: unknown }>;
+    };
+    for (const badHint of ["wrong-price", "wrong-category"] as const) {
+      const forged = structuredClone(submitted);
+      delete forged.anchor;
+      delete forged.groundingProof;
+      forged.stops = forged.stops.map((stop) => stop.venueId === journey.venueId
+        ? {
+            ...stop,
+            selectedDrinkPriceEvidence: {
+              ...pricedStop!.selectedDrinkPriceEvidence,
+              ...(badHint === "wrong-price"
+                ? { pence: journey.pence + 1 }
+                : { category: journey.category === "wine" ? "cocktail" : "wine" }),
+            },
+          }
+        : stop);
+      const rejectedHint = await page.evaluate(async ({ body, key }) => {
+        const response = await fetch("/api/plans", {
+          method: "POST",
+          headers: { "content-type": "application/json", "idempotency-key": key },
+          body: JSON.stringify(body),
+        });
+        return { status: response.status, body: await response.json() };
+      }, { body: forged, key: randomUUID() });
+      expect(rejectedHint.status, badHint).toBe(201);
+      const forgedPlan = rejectedHint.body as {
+        plan?: { plan?: { id?: string }; stops?: Array<{ venueId: string; selectedDrinkPriceEvidence?: unknown }> };
+      };
+      expect(forgedPlan.plan?.stops?.find((stop) => stop.venueId === journey.venueId)?.selectedDrinkPriceEvidence, badHint)
+        .toBeUndefined();
+      expect(forgedPlan.plan?.plan?.id, badHint).toMatch(/^[0-9a-f-]{36}$/);
+      const forgedStopQuery = new URL(stopQuery);
+      forgedStopQuery.searchParams.set("plan_id", `eq.${forgedPlan.plan!.plan!.id}`);
+      const forgedStoredResponse = await fetch(forgedStopQuery, { headers: { Authorization: `Bearer ${serviceRoleKey}` } });
+      expect(forgedStoredResponse.status, badHint).toBe(200);
+      const forgedStored = await forgedStoredResponse.json() as Array<{ selected_drink_price_evidence: unknown }>;
+      expect(forgedStored, badHint).toHaveLength(1);
+      expect(forgedStored[0].selected_drink_price_evidence, badHint).toBeNull();
+    }
   });
 }
