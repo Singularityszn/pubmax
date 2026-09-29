@@ -713,8 +713,12 @@ function dropLogParamFromUrl(): void {
     new URLSearchParams(window.location.search).get("contribute") !== "price"
   ) return;
   const query = clearMapLogIntentSearch(window.location.search);
+  const state = { ...window.history.state };
+  // Next treats __NA as its own write and skips notifying useSearchParams.
+  // Its native-history adapter restores the marker after publishing our URL.
+  delete state.__NA;
   window.history.replaceState(
-    window.history.state,
+    state,
     "",
     `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
   );
@@ -1673,7 +1677,7 @@ export default function PubMap({
   // D4 — `log=1` is an owned URL passthrough, so it outlived every close and
   // rearmed the pub picker each time. Leaving the flow disarms it: the flag
   // leaves the URL, and this state stands the intent down for the render pass
-  // (a replaceState never re-runs Next's useSearchParams).
+  // while Next's native-history adapter publishes the cleared search params.
   const logIntentSearch = searchParams.toString();
   const [logIntentDismissal, setLogIntentDismissal] = useState({
     search: logIntentSearch,

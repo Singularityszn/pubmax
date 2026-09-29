@@ -21,6 +21,31 @@ test.beforeEach(async ({ page }) => {
 // the composer is folded behind it, and the sticky bar carries no price action.
 const DOOR_NAME = `Log tonight's price at ${SEED_VENUE_NAME}`;
 
+test("Create reopens an identical Wine request after Filters and dismissal", async ({ page }) => {
+  await installDeterministicMapBasemap(page);
+  await page.goto("/map/manchester?drink=wine");
+  const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+  await expect(async () => {
+    await page.getByRole("button", { name: /^Filters/ }).click();
+    await expect(filters).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+  await page.keyboard.press("Escape");
+  await expect(filters).toHaveCount(0);
+
+  const picker = page.getByText("Pick a pub to log a price", { exact: true });
+  for (let request = 0; request < 2; request += 1) {
+    await page.getByTestId("create-fab").click();
+    await page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }).click();
+    await expect(picker).toBeVisible({ timeout: 45_000 });
+    expect(new URL(page.url()).searchParams.get("contribute")).toBe("price");
+    expect(new URL(page.url()).searchParams.get("drink")).toBe("wine");
+    expect(new URL(page.url()).pathname).toBe("/map/manchester");
+    await page.keyboard.press("Escape");
+    await expect(picker).toBeHidden();
+    await expect.poll(() => new URL(page.url()).searchParams.get("contribute")).toBeNull();
+  }
+});
+
 for (const { width, city, drink } of [
   { width: 390, city: "manchester", drink: "wine" },
   { width: 1440, city: "bristol", drink: "cocktail" },

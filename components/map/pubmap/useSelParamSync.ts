@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
+import { currentSurface } from "@/lib/surfaceStack";
 
 type SelParamSyncArgs = {
   selParam: string;
@@ -30,6 +32,11 @@ export function useSelParamSync({ selParam, selectedVenueId, selectVenue }: SelP
     // (not a dep) means only URL changes fire this — local selection changes
     // never re-run it, and an already-matching selection is a no-op.
     queueMicrotask(() => {
+      const landed = readMapSurfaceHistory<{ venueId?: string }>(window.history.state);
+      const current = landed && currentSurface(landed);
+      // Back and Forward restore through the history owner, without opening
+      // another entry while React is still committing that restoration.
+      if (current?.id === "venue" && current.state?.venueId === selParam) return;
       if (selParam !== selectedVenueIdRef.current) selectVenueRef.current(selParam);
     });
   }, [selParam]);
