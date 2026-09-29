@@ -1,6 +1,10 @@
 # Saved selected-drink price evidence: persistence blocker
 
-Status: migrations `0161` through `0167` with rollbacks added locally on 29 September 2026. The typed Plan read projects valid saved evidence. The composer submits matching selected evidence. Plan creation, route replacement, and guest proposals check it against current trusted server prices. Accepted proposals save that proposal-time snapshot in memory and PostgreSQL. Member route rendering prints valid saved evidence. Completion snapshots now preserve saved evidence. Real browser journeys remain open. No shared migration was executed, and this says nothing about the schema deployed to any database.
+Status: migrations `0161` through `0167` with rollbacks added locally on 29 September 2026. The typed Plan read projects valid saved evidence. The composer submits matching selected evidence. Plan creation, route replacement, and guest proposals check it against current trusted server prices. Accepted proposals save that proposal-time snapshot in memory and PostgreSQL. Member route rendering prints valid saved evidence. Completion snapshots now preserve saved evidence. A real wine browser journey covers empty community price data; evidence-bearing wine and cocktail browser journeys remain open. No shared migration was executed, and this says nothing about the schema deployed to any database.
+
+## Wine browser journey with empty community coverage
+
+`e2e/plan-selected-drink-journey.spec.ts` drives a private 390px Chromium page through describe-first intake, real `/api/plans/generate`, preview, real Plan creation, navigation, and reload against a local keyless server. The query `Quiet wine in Clapham for 2, not pricey` inferred `drinkCategory: "wine"` and `zeroProof: false`. Generation returned three stops with null selected-drink evidence. Preview named wine without a community figure. Creation returned 201; a capability-gated read after reload returned wine context and the same absence of evidence. The browser test passed, 1 of 1, on port 3377 with both Playwright web servers skipped. This is honest no-price coverage, not proof that a verified wine report survives a browser save. Cocktail and evidence-bearing browser journeys remain open. This run used Next dev, so production-build browser behaviour is also unproved here.
 
 ## Completion snapshot slice
 
