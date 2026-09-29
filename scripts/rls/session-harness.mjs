@@ -71,13 +71,15 @@ function findPostgrestBin() {
   return null;
 }
 
-function jwt(secret, sub, role = "authenticated") {
+const RLS_SESSION_JWT_LIFETIME_SECONDS = 15 * 60;
+
+export function createRlsSessionJwt(secret, sub, role = "authenticated") {
   const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
   const header = encode({ alg: "HS256", typ: "JWT" });
   const payload = encode({
     role,
     sub,
-    exp: Math.floor(Date.now() / 1000) + 300,
+    exp: Math.floor(Date.now() / 1000) + RLS_SESSION_JWT_LIFETIME_SECONDS,
   });
   const signature = createHmac("sha256", secret)
     .update(`${header}.${payload}`)
@@ -451,7 +453,7 @@ export async function startRlsSession() {
   restProc.stderr?.on("data", (chunk) => restLogs.push(chunk.toString()));
 
   const restBaseUrl = `http://127.0.0.1:${restPort}`;
-  const serviceRoleKey = jwt(
+  const serviceRoleKey = createRlsSessionJwt(
     jwtSecret,
     "00000000-0000-4000-8000-000000000000",
     "service_role",
@@ -484,7 +486,7 @@ export async function startRlsSession() {
   async function rest(path, { method = "GET", sub = null, headers = {} } = {}) {
     const upstreamPath = path.replace(/^\/rest\/v1/, "") || "/";
     const requestHeaders = { ...headers };
-    if (sub) requestHeaders.Authorization = `Bearer ${jwt(jwtSecret, sub)}`;
+    if (sub) requestHeaders.Authorization = `Bearer ${createRlsSessionJwt(jwtSecret, sub)}`;
     const response = await fetch(`${restBaseUrl}${upstreamPath}`, {
       method,
       headers: requestHeaders,
