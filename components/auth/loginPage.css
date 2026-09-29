@@ -66,6 +66,28 @@
   line-height: 1.4;
 }
 
+.loginPageUnavailable {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.loginPageUnavailable p {
+  margin: 0;
+}
+
+.loginPageUnavailable button {
+  justify-self: start;
+  min-height: 46px;
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: var(--brass-accessible);
+  color: var(--color-on-photo);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .loginPageForm {
   display: grid;
   gap: 0.75rem;
