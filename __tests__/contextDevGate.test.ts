@@ -30,6 +30,10 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
   });
 }
 
+function scrapeOutput(format: "markdown" | "html", data: string | null, success = true) {
+  return { url: PERMITTED, [format]: { requested: true, success, data } };
+}
+
 function allowRobots(): RobotsChecker {
   return async () => ({ allowed: true, reason: "allowed", evidence: "stub" });
 }
@@ -87,7 +91,7 @@ describe("the permission gate", () => {
 
   it("reads an unrecorded host once its own robots.txt allows it", async () => {
     const fetchImpl = vi.fn(async () =>
-      jsonResponse({ success: true, url: UNRECORDED, markdown: "# Drinks" }),
+      jsonResponse({ ...scrapeOutput("markdown", "# Drinks"), url: UNRECORDED }),
     );
     const result = await scrapeMarkdown(UNRECORDED, {
       env: KEY,
@@ -116,9 +120,9 @@ describe("the permission gate", () => {
 describe("maxAgeMs", () => {
   it("rides the request when the caller names it", async () => {
     const seen: string[] = [];
-    const fetchImpl = vi.fn(async (input: unknown) => {
+    const fetchImpl = vi.fn<(input: unknown, init?: RequestInit) => Promise<Response>>(async (input) => {
       seen.push(String(input));
-      return jsonResponse({ success: true, url: PERMITTED, markdown: "x" });
+      return jsonResponse(scrapeOutput("markdown", "x"));
     });
     await scrapeMarkdown(PERMITTED, {
       env: KEY,
@@ -126,28 +130,32 @@ describe("maxAgeMs", () => {
       sleepImpl: noSleep,
       maxAgeMs: 0,
     });
-    expect(seen[0]).toContain("maxAgeMs=0");
+    expect(seen[0]).toContain("/web/scrape");
+    expect(fetchImpl.mock.calls[0]?.[1]?.method).toBe("POST");
+    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toMatchObject({
+      url: PERMITTED, formats: { markdown: true }, maxAgeMs: 0,
+    });
   });
 
   it("is absent from the request when the caller names none", async () => {
     const seen: string[] = [];
-    const fetchImpl = vi.fn(async (input: unknown) => {
+    const fetchImpl = vi.fn<(input: unknown, init?: RequestInit) => Promise<Response>>(async (input) => {
       seen.push(String(input));
-      return jsonResponse({ success: true, url: PERMITTED, markdown: "x" });
+      return jsonResponse(scrapeOutput("markdown", "x"));
     });
     await scrapeMarkdown(PERMITTED, {
       env: KEY,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
     });
-    expect(seen[0]).not.toContain("maxAgeMs");
+    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).not.toHaveProperty("maxAgeMs");
   });
 });
 
 describe("scrapeHtml", () => {
   it("returns the page html", async () => {
     const fetchImpl = vi.fn(async () =>
-      jsonResponse({ success: true, url: PERMITTED, html: "<p>Pint</p>" }),
+      jsonResponse(scrapeOutput("html", "<p>Pint</p>")),
     );
     const result = await scrapeHtml(PERMITTED, {
       env: KEY,
@@ -158,8 +166,26 @@ describe("scrapeHtml", () => {
   });
 
   it("calls a 2xx carrying no html an empty body, and does not retry it", async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({ success: true, url: PERMITTED }));
+    const fetchImpl = vi.fn(async () => jsonResponse(scrapeOutput("html", null, false)));
     const result = await scrapeHtml(PERMITTED, {
+      env: KEY,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: noSleep,
+    });
+    expect(result.status).toBe("error");
+    if (result.status !== "error") throw new Error("expected error");
+    expect(result.error.code).toBe("EMPTY_BODY");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not accept failed Markdown output from a partial scrape", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({
+      url: PERMITTED,
+      markdown: { requested: true, success: false, data: "stale text" },
+      html: { requested: false, success: null, data: null },
+      isPartial: true,
+    }));
+    const result = await scrapeMarkdown(PERMITTED, {
       env: KEY,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
@@ -173,11 +199,11 @@ describe("scrapeHtml", () => {
 
 describe("sitemapUrls", () => {
   it("returns the urls the domain's sitemap names", async () => {
-    const fetchImpl = vi.fn(async () =>
+    const fetchImpl = vi.fn<(input: unknown) => Promise<Response>>(async () =>
       jsonResponse({
         success: true,
         domain: "www.fullers.co.uk",
-        urls: ["https://www.fullers.co.uk/a", 42, "https://www.fullers.co.uk/b"],
+        urls: [{ url: "https://www.fullers.co.uk/a", title: "A" }, { url: "https://www.fullers.co.uk/b" }],
       }),
     );
     const result = await sitemapUrls(PERMITTED, {
@@ -188,6 +214,9 @@ describe("sitemapUrls", () => {
     expect(result.status).toBe("ok");
     if (result.status !== "ok") throw new Error("expected ok");
     expect(result.urls).toEqual(["https://www.fullers.co.uk/a", "https://www.fullers.co.uk/b"]);
+    const request = new URL(String(fetchImpl.mock.calls[0]?.[0]));
+    expect(request.pathname).toBe("/v1/web/urls");
+    expect(request.searchParams.get("domain")).toBe("www.fullers.co.uk");
   });
 
   it("refuses a value that is not a url without sending anything", async () => {

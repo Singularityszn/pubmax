@@ -64,10 +64,9 @@ lane is relative and carries its extension, because Node strips TypeScript types
 but resolves no tsconfig `@/*` alias. A dynamic import of the lane hid both
 faults inside its own catch and reported an upstream failure every run.
 
-| Endpoint | Credits | Docs |
-|---|---|---|
-| `GET /web/scrape/markdown` | 1 | https://docs.context.dev/api-reference/web-scraping/markdown |
-| `POST /web/extract` | 10 | https://docs.context.dev/api-reference/web-extraction/extract |
+The [Context.dev wrapper contract](rules/lib-shared-seams-stores-http-freshness-brand.md#context-dev-is-a-fetch-layer-never-a-permission-and-one-wrapper-owns-every-call)
+owns SDK credit costs, extraction freshness, event grounding, and held-row
+preservation. Endpoint paths and response formats come from the pinned SDK.
 
 Base URL: `https://api.context.dev/v1`. Auth: `Authorization: Bearer
 $CONTEXT_DEV_API_KEY` (never in a client bundle). On 429 honour `Retry-After`,
@@ -75,13 +74,14 @@ but only up to `CONTEXT_DEV_MAX_RETRY_AFTER_MS` (30 s): the wait sits between
 requests, so no request timeout bounds it, and a provider asking for an hour
 would park a scheduled run rather than let the next one act on the rate limit.
 Past that ceiling the call stops and its message says so. Retry 408/5xx with
-bounded backoff; never retry validation errors; pass `maxAgeMs` when freshness
-matters. Without a key every call answers `not-configured` and sends nothing.
+bounded backoff; never retry validation errors. Without a key every call answers
+`not-configured` and sends nothing.
 
 The lane spends ONE `createContextDevBudget()` for the whole run, shared by
 every source and counting retries, so a retry storm spends the run rather than
-the account. `CONTEXT_DEV_RUN_REQUEST_BUDGET` is 12 requests, which at the table
-above is at most 120 credits. A request reserved past the cap sends nothing, and
+the account. `CONTEXT_DEV_RUN_REQUEST_BUDGET` in
+[`lib/contextDev.ts`](../lib/contextDev.ts) owns the default request limit.
+A request reserved past the cap sends nothing, and
 it answers one of TWO ways. A ceiling reached before this call sent anything is
 the whole finding, so it answers `BUDGET_EXHAUSTED`. A ceiling reached between
 retries is not: the upstream failure that caused the retry is the actionable

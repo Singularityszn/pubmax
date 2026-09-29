@@ -1,0 +1,63 @@
+{
+  "upstream": "https://github.com/garrytan/gstack",
+  "commit": "943105f1099c058b34c4bffb9ed78730b856bbef",
+  "version": "1.91.8",
+  "repair": {
+    "aliasesRepaired": 26,
+    "installedFilesMatchingUpstream": 185,
+    "sharedBrokenLinksRemaining": 0
+  },
+  "nativeDiscovery": {
+    "cliVersion": "0.158.0",
+    "totalParsedSkills": 1206,
+    "parseErrors": 0,
+    "repairedPacksDiscovered": 26,
+    "updatedSharedPacksDiscovered": 15,
+    "executionCoverage": "Discovery only"
+  },
+  "runtime": {
+    "bunFrozenInstallExit": 0,
+    "officialBuildExit": 0,
+    "setupExecuted": false,
+    "builtTools": [
+      "browser",
+      "design",
+      "PDF",
+      "CSO"
+    ],
+    "browserDependency": {
+      "playwright": "1.62.1",
+      "chromiumRevision": 1234,
+      "isolatedCacheUsed": true,
+      "sharedCacheModified": false
+    },
+    "fixtureSmoke": {
+      "navigationHttpStatus": 200,
+      "headingRead": true,
+      "buttonClick": true,
+      "outputChanged": true,
+      "health": "healthy",
+      "stopExit": 0,
+      "allSixCommandsExit": 0
+    },
+    "productOperationsNotExercised": [
+      "PUBMAXX UI",
+      "design generation",
+      "PDF extraction",
+      "CSO scans"
+    ]
+  },
+  "preservation": {
+    "sharedRegularFilesChecked": 2579,
+    "changedFiles": 0,
+    "settingsUnchanged": true,
+    "hooksUnchanged": true,
+    "managerLockUnchanged": true
+  },
+  "stockSharedSkills": {
+    "updatedPacks": 15,
+    "customizedPacksPreserved": 6,
+    "movedUpstreamPacksRetained": 4,
+    "managerEntries": 200
+  }
+}
