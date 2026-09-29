@@ -138,12 +138,15 @@ function areaSheetEmptyNote(input: {
   coverageNote: string | null;
   drinkPlural: string;
   drinkNoun: string;
+  comparable: boolean;
 }): string {
   if (input.baseLed) {
     return "Zoom in to load pubs. Prices only where people have logged them.";
   }
   if (!input.hasFocus) {
-    return `Pan the map over an area to see its cheapest ${input.drinkPlural}.`;
+    return input.comparable
+      ? `Pan the map over an area to see its cheapest ${input.drinkPlural}.`
+      : `Pan the map over an area to see ${input.drinkNoun} prices.`;
   }
   if (input.coverageNote) return "Try somewhere else below.";
   const where = input.isPlace ? "nearby" : "in this area";
@@ -210,10 +213,12 @@ export default function AreaSheet({
     [pubs],
   );
   const focusName = placeFocus?.name ?? area?.name ?? null;
-  // What the LIST is called, and what a sentence about a price calls the same
-  // drink. "Cheapest cocktails here" heads a list; "No cocktail prices" states
-  // a fact. Neither word can do the other's job.
+  // Pint rows are price-ranked. Other drinks lack a comparable serving and
+  // keep a neutral price heading while naming the drink in empty-state copy.
   const drinkPlural = lensPrices === null ? "pints" : drinkLabel.toLowerCase();
+  const listHeading = lensPrices === null
+    ? "Cheapest pints"
+    : `${drinkNoun.charAt(0).toUpperCase()}${drinkNoun.slice(1)} prices`;
   // The rows below list unpriced pubs too, so an index that failed or was cut
   // short would otherwise read as a settled "none here". Say which it was.
   const coverageNote =
@@ -259,7 +264,7 @@ export default function AreaSheet({
         aria-label={
           baseLed
             ? "Pubs in this area"
-            : `Cheapest ${drinkPlural} in this area`
+            : `${listHeading} in this area`
         }
       >
         <h3 className="areaSheetHeading">
@@ -268,8 +273,8 @@ export default function AreaSheet({
               ? `Pubs around ${focusName}`
               : "Pubs on the base map"
             : focusName
-              ? `Cheapest ${drinkPlural} in ${focusName}`
-              : `Cheapest ${drinkPlural} here`}
+              ? `${listHeading} in ${focusName}`
+              : `${listHeading} here`}
         </h3>
         {coverageNote && !baseLed ? (
           <p className="areaSheetEmpty areaSheetCoverage" role="status">
@@ -318,6 +323,7 @@ export default function AreaSheet({
               coverageNote,
               drinkPlural,
               drinkNoun,
+              comparable: lensPrices === null,
             })}
           </p>
         )}

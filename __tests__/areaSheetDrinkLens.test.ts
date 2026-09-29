@@ -52,7 +52,8 @@ function renderSheet(
 describe("AreaSheet under a selected drink lens", () => {
   it("adds nothing when the index answered in full", () => {
     const html = renderSheet(new Map(), "ready");
-    expect(html).toContain("Cheapest whisky in Piccadilly");
+    expect(html).toContain("Whisky prices in Piccadilly");
+    expect(html).not.toContain("Cheapest whisky");
     expect(html).not.toContain("could not read");
     expect(html).not.toContain("part of the whisky prices");
   });

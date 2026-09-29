@@ -325,9 +325,10 @@ export type AreaPubRow = {
 };
 
 /**
- * Rank active drink prices inside a ring: priced venues first, cheapest
- * ascending; venues with no verified price follow (nearest to `origin` first)
- * so a thin ring still fills the list honestly rather than hiding pubs. Ties
+ * Rank pints inside a ring by price. Selected drinks have no comparable serving
+ * recorded, so priced venues order by distance instead. Unpriced venues follow
+ * (nearest to `origin` first), so a thin ring still fills the list honestly
+ * rather than hiding pubs. Ties
  * break on name for a stable, deterministic order. Shared by both the modelled
  * area sheet and the ad-hoc locality/borough ring so the two never disagree.
  */
@@ -350,14 +351,14 @@ function rankCheapestDrinks(
       distanceKm: haversineKm([venue.longitude, venue.latitude], origin),
     }))
     .sort((left, right) => {
-      if (left.price !== null && right.price !== null) {
+      if (lensPrices === null && left.price !== null && right.price !== null) {
         return (
           left.price - right.price ||
           left.venue.name.localeCompare(right.venue.name)
         );
       }
-      if (left.price !== null) return -1;
-      if (right.price !== null) return 1;
+      if (left.price !== null && right.price === null) return -1;
+      if (left.price === null && right.price !== null) return 1;
       return (
         left.distanceKm - right.distanceKm ||
         left.venue.name.localeCompare(right.venue.name)
@@ -374,7 +375,7 @@ function rankCheapestDrinks(
         price !== null
           ? lensPrices === null
             ? formatGbp(price)
-            : `${lensCategoryLabel} · ${formatGbp(price)}`
+            : `${lensCategoryLabel} · ${formatGbp(price)} · serving not recorded`
           : lensPrices === null
             ? "no priced pints yet"
             : drinkLensUnknownRowLabel(
