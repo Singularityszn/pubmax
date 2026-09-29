@@ -770,7 +770,10 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
           planId={planId}
           memberToken={memberToken}
           isHost={isHost}
-          draftStops={draftStops.map((stop, index) => ({ venueId: stop.venueId, venueName: stop.venueName, position: index }))}
+          draftStops={draftStops.map((stop, index) => ({
+            venueId: stop.venueId, venueName: stop.venueName, position: index,
+            ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
+          }))}
           routeRevision={routeRevision}
           canPropose={!anchoredPlan && !isHost && canSaveDraft}
           onProposalCreated={() => {

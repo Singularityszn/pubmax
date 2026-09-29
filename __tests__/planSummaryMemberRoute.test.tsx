@@ -50,7 +50,7 @@ vi.mock("@/components/plan/PlanRoute", () => ({
           : null)),
     ),
 }));
-vi.mock("@/components/plan/PlanCollaborationPanel", () => ({ default: () => null }));
+vi.mock("@/components/plan/PlanCollaborationPanel", () => ({ default: ({ draftStops }: { draftStops: unknown[] }) => createElement("pre", { "data-testid": "proposal-draft" }, JSON.stringify(draftStops)) }));
 vi.mock("@/components/round/RoundStarter", () => ({ default: () => null }));
 
 import PlanSummary from "@/components/plan/PlanSummary";
@@ -167,6 +167,19 @@ describe("saved route start time", () => {
 });
 
 describe("member selected drink prices", () => {
+  it("passes saved wine evidence into the guest proposal draft", async () => {
+    capability.role = "guest";
+    const state = memberState(["The George", "The Swan", "The Crown"], 1, { drinkCategory: "wine" });
+    const evidence = { category: "wine", pence: 550, serving: null, source: "community", reportedAt: "2026-09-25T12:00:00.000Z" };
+    state.stops[0] = { ...state.stops[0], selectedDrinkPriceEvidence: evidence } as typeof state.stops[number];
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse(state))));
+
+    await mountWithMemberRead(null);
+
+    const draft = JSON.parse(container.querySelector('[data-testid="proposal-draft"]')?.textContent ?? "[]") as Array<{ selectedDrinkPriceEvidence?: unknown }>;
+    expect(draft[0]?.selectedDrinkPriceEvidence).toEqual(evidence);
+  });
+
   it("passes saved wine evidence from member read to route display", async () => {
     const state = memberState(["The George", "The Swan", "The Crown"], 1, { drinkCategory: "wine" });
     state.stops[0] = { ...state.stops[0], selectedDrinkPriceEvidence: {

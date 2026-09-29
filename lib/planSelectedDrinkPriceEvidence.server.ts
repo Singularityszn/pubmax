@@ -14,25 +14,26 @@ export async function resolvePlanSelectedDrinkPriceEvidence(
   submitted: readonly unknown[],
   rawContext: unknown,
 ): Promise<PricedPlanStopTarget[]> {
+  const targets = stops.map(({ venueId, venueName }) => ({ venueId, venueName }));
   const context = cleanNightContext(rawContext);
   const category = context?.zeroProof ? null : context?.drinkCategory;
-  if (!category || category === "beer") return stops.map((stop) => ({ ...stop }));
+  if (!category || category === "beer") return targets;
   const requested = submitted.map((raw) => cleanSelectedDrinkPriceEvidence(
     raw && typeof raw === "object" ? (raw as Record<string, unknown>).selectedDrinkPriceEvidence : null,
   ));
-  if (!requested.some((evidence) => evidence?.category === category)) return stops.map((stop) => ({ ...stop }));
+  if (!requested.some((evidence) => evidence?.category === category)) return targets;
 
   const now = Date.now();
   try {
     const index = await readCommunityPriceCategoryIndex([category], now);
-    if (index.degraded || index.truncated) return stops.map((stop) => ({ ...stop }));
+    if (index.degraded || index.truncated) return targets;
     const rowsByVenue = new Map<string, typeof index.prices>();
     for (const row of index.prices) {
       const rows = rowsByVenue.get(row.venueId) ?? [];
       rowsByVenue.set(row.venueId, [...rows, row]);
     }
     const trusted = trustedDrinkLensPrices(rowsByVenue, category, now);
-    return stops.map((stop, position) => {
+    return targets.map((stop, position) => {
       const hint = requested[position];
       const price = trusted.get(stop.venueId);
       if (!hint || hint.category !== category || !price || price.source !== "community"
@@ -46,6 +47,6 @@ export async function resolvePlanSelectedDrinkPriceEvidence(
         : { ...stop };
     });
   } catch {
-    return stops.map((stop) => ({ ...stop }));
+    return targets;
   }
 }
