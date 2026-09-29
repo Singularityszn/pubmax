@@ -10,7 +10,6 @@ import {
   type PintPriceSplit,
 } from "@/lib/pintDropAgreement";
 import { measureIsPint, type DrinkMeasure } from "@/lib/drinkMeasure";
-import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import { firstHttp } from "@/lib/httpUrl";
 import {
@@ -544,11 +543,7 @@ function splitList(value: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
-export function formatPrice(value: number | null): string {
-  return typeof value === "number" ? formatGbp(value) : "No price";
-}
-
-export { formatGbp };
+export { formatGbp, formatPrice } from "@/lib/formatGbp";
 
 function normaliseVenueKeyPart(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");

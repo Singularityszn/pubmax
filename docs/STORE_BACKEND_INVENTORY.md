@@ -6,13 +6,13 @@ The inventory is descriptive, not a runtime registry.
 
 ## Current snapshot
 
-- The repository has 53 `lib/*Store.ts` modules.
+- The repository has 55 `lib/*Store.ts` modules.
 - 32 modules call `selectStore` directly.
 - 7 modules use `createDualBackendStore`.
 - 6 modules keep memory state on `globalThis` so it survives a development
   server reload. That state pattern is separate from backend selection.
-- The remaining modules use an explicit backend, a file or static data path,
-  or an inline legacy selector.
+- The remaining modules use an explicit backend, browser-local state, a file
+  or static data path, or an inline legacy selector.
 
 `lib/storeBackend.ts` owns the narrow backend seam. `createDualBackendStore`
 only curries `selectStore(memory, supabase)` into a zero-argument getter. It
@@ -30,8 +30,8 @@ moderation, and cache policy stay in each store.
   write policy. Keep that policy visible before a factory migration.
 - **legacy-exception** - backend checks remain inline or are spread across
   operations. Refactor the selector first.
-- **not dual-backend** - the store is file-backed, static plus live, or
-  Supabase-only. The memory-or-Supabase factory does not apply.
+- **not dual-backend** - the store is browser-local, file-backed, static plus
+  live, or Supabase-only. The memory-or-Supabase factory does not apply.
 
 ## Canonical inventory
 
@@ -55,6 +55,7 @@ silently stale.
 | harvestOverlayStore | factory-ready | Fold-written UK harvest overlays; one shared selector, with a `requireDurable` guard for the non-dry fold CLI. |
 | identityHandleStore | factory-eligible, policy-heavy | Handle ownership, rename, reservation, and tombstone policy. |
 | importNotesStore | not dual-backend | JSON-file store with memory fallback when the filesystem is unavailable. |
+| mapFirstVisitArrivalStore | not dual-backend | Browser UI state: visibility in module memory and dismissal in `localStorage`. No account rows or server backend. |
 | messagesStore | factory-eligible, policy-heavy | Conversation identity, membership, and message policy. |
 | nightMemoryStore | legacy-exception | Multiple inline Supabase configuration checks around private memory policy. |
 | nightProfileStore | factory-ready | Night Profile preference rows with shared backend selection. |
@@ -106,7 +107,7 @@ The following stores intentionally stay outside the factory-ready path:
   `pubPalStore`, and `savedPubsStore`. Each needs a separate selector
   refactor before a factory wrapper can preserve its behavior. Owner: the
   next issue #727 store wave.
-- **not dual-backend:** `importNotesStore`, `socialCrewCompletionStore`, `socialCrewStore`,
+- **not dual-backend:** `importNotesStore`, `mapFirstVisitArrivalStore`, `socialCrewCompletionStore`, `socialCrewStore`,
   `socialPostConsentStore`, and `whatsOnStore`. Their storage premise is not
   memory-or-Supabase. Owner: not applicable for this factory.
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,

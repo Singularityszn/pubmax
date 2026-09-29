@@ -95,6 +95,11 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     selector: "none",
     reason: "JSON file under .data/ with an in-memory fallback; no Supabase in the module.",
   },
+  "lib/mapFirstVisitArrivalStore.ts": {
+    class: "not-dual-backend",
+    selector: "none",
+    reason: "Browser UI visibility in module memory and dismissal in localStorage; no Supabase backend selection.",
+  },
   "lib/messagesStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/nightMemoryStore.ts": {
     class: "legacy-exception",

@@ -4,6 +4,8 @@ import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { isPlanStopCount } from "@/lib/planStopCount";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
+export { isPlanId } from "@/lib/planId";
+
 export const PLAN_TITLE_MAX = 80;
 export const PLAN_STOP_MAX = 8;
 const PLAN_VENUE_ID_MAX = 80;
@@ -217,12 +219,6 @@ export type CleanPlanInput = {
     alternatives?: PlanRouteAlternativeDTO[] }>;
   context: NightContext | null;
 };
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export function isPlanId(value: unknown): value is string {
-  return typeof value === "string" && UUID_RE.test(value);
-}
 
 export function cleanCreatePlan(input: CreatePlanInput): CleanPlanInput | null {
   const creatorName = cleanText(input.creatorName, 40);

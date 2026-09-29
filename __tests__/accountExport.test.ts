@@ -604,6 +604,9 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
       "The claimed handle is in the export's own `account` block. The alias table behind it is the rename ledger, keyed on the profile, and has no owner read.",
   },
   "lib/importNotesStore.ts": { excluded: "A developer import log under .data/; the module holds no account rows at all." },
+  "lib/mapFirstVisitArrivalStore.ts": {
+    excluded: "Browser UI visibility in module memory and a localStorage dismissal marker. Neither is sent to the server or linked to an account.",
+  },
   "lib/messagesStore.ts": { lane: "messages" },
   "lib/nightMemoryStore.ts": { lane: "memories" },
   "lib/nightProfileStore.ts": { lane: "nightProfile" },

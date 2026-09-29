@@ -1,4 +1,4 @@
-import { formatPrice } from "@/lib/venues";
+import { formatPrice } from "@/lib/formatGbp";
 
 // One sentence, said the same way everywhere a then-and-now pair is printed.
 //
