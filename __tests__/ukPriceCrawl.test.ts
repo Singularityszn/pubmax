@@ -40,6 +40,11 @@ const drinksList = `
 </body></html>`;
 
 describe("what a page states", () => {
+  it("keeps a rendered Spritz in cocktails and refuses a nameless slash price beside wine", () => {
+    const reading = readVenueDrinkPrices(`## Wine\nRioja 175ml £8.20 / £8.10\n## Cocktails\n### Limoncello Spritz Bright and zesty Isolabella Limoncello, prosecco and soda £13.00\n#### Aperol Spritz A classic serve of Aperol, prosecco, and soda £13.00`);
+    expect(reading.kept.filter((row) => row.priceGbp === 13).map((row) => row.category)).toEqual(["cocktail", "cocktail"]);
+    expect(reading.kept.some((row) => row.drinkLabel === "/")).toBe(false);
+  });
   it.each(["section", "article", 'div class="menubox"'])(
     "limits wine inference to preceding headings in %s", (container) => {
       const reading = readVenueDrinkPrices(`<${container}>

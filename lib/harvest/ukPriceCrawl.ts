@@ -653,6 +653,9 @@ function decideKeylessUkPriceAt(
     return { drop: "mixer-serve-not-one-drink" };
   }
   const category = decision.category;
+  if (category === "wine" && !wineIdentity && drinkLabel && /^[\s/|\u2013\u2014-]+$/.test(drinkLabel)) {
+    return { drop: "no-category-word-nearby" };
+  }
   const drop = keylessPriceDropReason(category, priceGbp, context);
   if (drop) return { drop };
   // A preceding item's printed measure cannot turn this item's pint into a
