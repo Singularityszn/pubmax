@@ -148,7 +148,7 @@
     "maplibre-gl": "6.11.2",
     "next": "^16.3.7",
     "openai": "^7.23.0",
-    "posthog-js": "^1.434.17",
+    "posthog-js": "^1.434.18",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "server-only": "0.0.1",
