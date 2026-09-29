@@ -87,35 +87,37 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
     await expectFinalStopLastTrain(page, drawer);
   });
 
-  test("Tab leaves the drawer for the chip, and Enter opens the last-train card", async ({
-    page,
-  }) => {
-    test.setTimeout(180_000);
-    const { drawer, chip } = await openFirstStopDrawer(page, 1440);
+  for (const width of [1440, 1280, 900]) {
+    test(`at ${width} Tab leaves the drawer for the chip, and Enter opens the last-train card`, async ({
+      page,
+    }) => {
+      test.setTimeout(180_000);
+      const { drawer, chip } = await openFirstStopDrawer(page, width);
 
-    const closeButton = drawer.getByRole("button", { name: /Close/ });
-    await expect(closeButton).toBeFocused();
+      const closeButton = drawer.getByRole("button", { name: /Close/ });
+      await expect(closeButton).toBeFocused();
 
-    // Forward from the drawer's last control the trap hands focus to the
-    // chip's first control, then back into the drawer after its last one.
-    const chipControls = chip.locator(FOCUSABLE);
-    await tabFromDrawerEdgeToChip(page, drawer, chip);
+      // Forward from the drawer's last control the trap hands focus to the
+      // chip's first control, then back into the drawer after its last one.
+      const chipControls = chip.locator(FOCUSABLE);
+      await tabFromDrawerEdgeToChip(page, drawer, chip);
 
-    const door = chip.getByRole("button", { name: "Check last train at final stop" });
-    await page.keyboard.press("Tab");
-    await expect(door).toBeFocused();
+      const door = chip.getByRole("button", { name: "Check last train at final stop" });
+      await page.keyboard.press("Tab");
+      await expect(door).toBeFocused();
 
-    await chipControls.last().focus();
-    await page.keyboard.press("Tab");
-    await expect(closeButton).toBeFocused();
+      await chipControls.last().focus();
+      await page.keyboard.press("Tab");
+      await expect(closeButton).toBeFocused();
 
-    await page.keyboard.press("Shift+Tab");
-    await expect(chipControls.last()).toBeFocused();
+      await page.keyboard.press("Shift+Tab");
+      await expect(chipControls.last()).toBeFocused();
 
-    await door.focus();
-    await page.keyboard.press("Enter");
-    await expectFinalStopLastTrain(page, drawer);
-  });
+      await door.focus();
+      await page.keyboard.press("Enter");
+      await expectFinalStopLastTrain(page, drawer);
+    });
+  }
 
   test("Enter on the chip's Hide returns focus to the drawer", async ({ page }) => {
     test.setTimeout(180_000);
