@@ -21,9 +21,9 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 const pubMap = read("components/PubMap.tsx");
 
 function plannerPanelSource(): string {
-  const start = pubMap.indexOf("const plannerPanel = planningOpen ? (");
+  const start = pubMap.indexOf("const plannerCrawlPanel = (");
   expect(start, "the planner panel tree").toBeGreaterThan(-1);
-  const end = pubMap.indexOf("\n  ) : null;", start);
+  const end = pubMap.indexOf("\n  );", start);
   expect(end, "its closing branch").toBeGreaterThan(start);
   return pubMap.slice(start, end);
 }
@@ -47,14 +47,13 @@ describe("finding M4 - one planner per surface", () => {
     expect(pubMap, "the phone form waits for a phone, London and an area").toMatch(
       /const phoneDescribeForm =\s*\n?\s*mobileViewport && isLondon && suggestedPlanArea \? \(\s*<MobilePlanActivation\b/,
     );
-    // One slot at a time: the other is null, so the form can never be twice on
-    // one sheet.
+    // Reordering keyed siblings preserves the generated response when an
+    // existing crawl moves the intake from below the route to above it.
+    expect(pubMap).toMatch(/<MobilePlanActivation\s+key="describe"/);
+    expect(plannerPanelSource()).toContain('<Fragment key="crawl">');
     expect(pubMap).toMatch(
-      /\[plannerHead, plannerFoot\] = builtCrawlLeads\s*\n?\s*\? \[null, phoneDescribeForm\]\s*\n?\s*: \[phoneDescribeForm, null\];/,
+      /builtCrawlLeads \? \[plannerCrawlPanel, phoneDescribeForm\] : \[phoneDescribeForm, plannerCrawlPanel\]/,
     );
-    const panel = plannerPanelSource();
-    expect((panel.match(/\{plannerHead\}/g) ?? []).length).toBe(1);
-    expect((panel.match(/\{plannerFoot\}/g) ?? []).length).toBe(1);
   });
 
   it("still hands the desktop drawer the rail", () => {
