@@ -158,7 +158,7 @@ function planFromRow(row: Record<string, unknown>): PlanDTO {
   };
 }
 
-function completionFromRow(row: Record<string, unknown>): PlanCompletionDTO {
+export function completionFromRow(row: Record<string, unknown>): PlanCompletionDTO {
   const snapshot = Array.isArray(row.route_snapshot) ? row.route_snapshot : [];
   return {
     id: String(row.id),

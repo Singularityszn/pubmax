@@ -172,11 +172,18 @@ Account deletion removes snapshots containing either identity of that account, s
 historical counts can decrease after deletion.
 
 The aggregate has PostgreSQL proof in
-`__tests__/completionGroupSnapshotEffective.test.ts`. It does not yet prove a
-Social-bound Plan completes through the product: the legacy Plan read hides that
-Plan and `complete_plan_atomic` returns `not_found`. Do not publish this aggregate
-as complete group-outcome coverage until an authorised Social completion path and
-its concurrency checks pass. No shared migration or production dashboard is
+`__tests__/completionGroupSnapshotEffective.test.ts`. Migration `0170` adds a
+separate Social Crew completion RPC: the verified owner chooses a reached stop
+and saves an ending from the Crew page. The route canonicalises ending evidence;
+the RPC serializes simultaneous requests, checks active ownership, writes arrival
+and completion atomically, and triggers the same private membership snapshot.
+`__tests__/socialCrewCompletionEffective.test.ts` proves owner completion,
+nonowner refusal, concurrency, the snapshot and service-only access. Route and
+store checks are in `socialCrewCompletionPath.test.ts` and
+`socialCrewCompletionStore.test.ts`. The legacy Plan completion path remains
+closed for Social-bound Plans. This is source and disposable-PostgreSQL proof,
+not evidence that migration `0170` has been applied or that a production
+dashboard reports the outcome. No shared migration or production dashboard is
 asserted here.
 
 ### 2.3 The completion event crew flag

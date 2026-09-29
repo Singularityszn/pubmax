@@ -116,6 +116,7 @@ no side effect, as above.
 | Invite to a Crew | denied | denied | may not be invited | denied | denied | denied | allowed |
 | Spend an invitation (`PATCH .../invitations/[id]`) | denied | denied, invitation stays pending | denied | allowed, once | n/a | spent invitation is not a way back | n/a |
 | Change a Crew's visibility, remove a member | denied | denied | denied | denied | denied | denied | allowed |
+| Complete a Crew Plan (`POST .../[crewId]/complete`) | denied | denied, no ending | denied, no ending | denied | denied | denied, no ending | allowed, arrival and ending atomic |
 | Crew tables and Crew RPCs at the table | denied | denied | denied | denied | denied | denied | denied |
 | Read a conversation (`GET /api/messages/[id]`) | 401 | own empty thread; naming a participant is refused | same as unrelated | n/a | n/a | n/a | allowed to both participants |
 | Send into a conversation | denied | denied, thread does not grow | denied | n/a | n/a | n/a | allowed |
