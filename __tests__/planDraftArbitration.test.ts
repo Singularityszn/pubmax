@@ -184,6 +184,38 @@ describe("V2 Plan draft migration", () => {
 });
 
 describe("V2 Route draft migration", () => {
+  it("keeps selected wine price evidence on stops and swaps through both draft formats", () => {
+    const storage = memoryStorage();
+    const wine = {
+      category: "wine", pence: 550, serving: null, source: "community",
+      reportedAt: "2026-07-23T12:00:00.000Z",
+    } as const;
+    const pricedStops = routeValue().stops.map((stop, index) => index === 0
+      ? { ...stop, selectedDrinkPriceEvidence: wine, alternatives: [{
+          venueId: "venue-x", venueName: "Venue X", selectedDrinkPriceEvidence: wine,
+        }] }
+      : stop);
+
+    expect(writePlanRouteDraftEnvelope(routeValue({ stops: pricedStops }), "plan-generated", storage, NOW).v2).toBe(true);
+    for (const raw of [storage.getItem(PLAN_ROUTE_DRAFT_KEY), storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)]) {
+      expect(raw).toContain('"selectedDrinkPriceEvidence"');
+    }
+    expect(readPlanRouteDraftEnvelope(storage, NOW)?.value.stops[0]).toMatchObject({
+      selectedDrinkPriceEvidence: wine,
+      alternatives: [{ selectedDrinkPriceEvidence: wine }],
+    });
+
+    const forged = JSON.parse(storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY) ?? "{}") as {
+      stops: Array<{ selectedDrinkPriceEvidence?: unknown; alternatives: Array<{ selectedDrinkPriceEvidence?: unknown }> }>;
+    };
+    forged.stops[0]!.selectedDrinkPriceEvidence = { ...wine, serving: "175ml" };
+    forged.stops[0]!.alternatives[0]!.selectedDrinkPriceEvidence = { ...wine, category: "beer" };
+    expect(parsePlanRouteDraftV2(JSON.stringify(forged), NOW)?.value.stops[0]).toEqual({
+      key: 1, venueId: "venue-a", venueName: "Venue A",
+      alternatives: [{ venueId: "venue-x", venueName: "Venue X" }],
+    });
+  });
+
   it("dual-writes compatible Route drafts and preserves replay metadata", () => {
     const storage = memoryStorage();
     expect(writePlanRouteDraftEnvelope(routeValue(), "map-generated", storage, NOW)).toMatchObject({

@@ -6,6 +6,7 @@ import {
 } from "@/lib/planningIntent";
 import { DAY_MS } from "@/lib/dayMs";
 import { isPlanStopCount } from "@/lib/planStopCount";
+import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 export const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
 export const PLAN_ROUTE_DRAFT_V2_KEY = "pubmax:plan-route-draft:v2";
@@ -33,6 +34,7 @@ type RouteRevision = string | number;
 type StoredRouteAlternative = {
   venueId: string;
   venueName: string;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
 };
 
 type StoredRouteStop = {
@@ -40,6 +42,7 @@ type StoredRouteStop = {
   venueId: string;
   venueName: string;
   reason?: string;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   alternatives: StoredRouteAlternative[];
 };
 
@@ -103,8 +106,8 @@ const ENVELOPE_KEYS = [
   "routeRevision",
   "routeStale",
 ] as const;
-const STOP_KEYS = ["key", "venueId", "venueName", "reason", "alternatives"] as const;
-const ALTERNATIVE_KEYS = ["venueId", "venueName"] as const;
+const STOP_KEYS = ["key", "venueId", "venueName", "reason", "selectedDrinkPriceEvidence", "alternatives"] as const;
+const ALTERNATIVE_KEYS = ["venueId", "venueName", "selectedDrinkPriceEvidence"] as const;
 const ROUTE_TOTAL_KEYS = [
   "stopCount",
   "straightLineWalkingKm",
@@ -163,10 +166,15 @@ function cleanStringList(value: unknown, maxItems = 12, maxLength = 240): string
 }
 
 function cleanAlternative(value: unknown, exactKeys: boolean): StoredRouteAlternative | null {
-  if (!isRecord(value) || (exactKeys && !hasExactKeys(value, ALTERNATIVE_KEYS))) return null;
+  if (!isRecord(value) || (exactKeys && (
+    Object.keys(value).some((key) => !ALTERNATIVE_KEYS.includes(key as (typeof ALTERNATIVE_KEYS)[number]))
+    || !["venueId", "venueName"].every((key) => key in value)
+  ))) return null;
   const venueId = text(value.venueId, 200);
   const venueName = text(value.venueName ?? value.name, 200);
-  return venueId && venueName ? { venueId, venueName } : null;
+  if (!venueId || !venueName) return null;
+  const price = cleanSelectedDrinkPriceEvidence(value.selectedDrinkPriceEvidence);
+  return { venueId, venueName, ...(price ? { selectedDrinkPriceEvidence: price } : {}) };
 }
 
 function cleanAlternatives(value: unknown, exactKeys: boolean): StoredRouteAlternatives | null {
@@ -197,11 +205,13 @@ function cleanStops(value: unknown, exactKeys: boolean): StoredRouteStop[] | nul
     if (!venueId || !venueName || !alternatives) return null;
     const reason = nullableText(candidate.reason ?? null, 500);
     if (reason === undefined) return null;
+    const price = cleanSelectedDrinkPriceEvidence(candidate.selectedDrinkPriceEvidence);
     return {
       key: index + 1,
       venueId,
       venueName,
       ...(reason ? { reason } : {}),
+      ...(price ? { selectedDrinkPriceEvidence: price } : {}),
       alternatives: alternatives.filter((alternative) => alternative.venueId !== venueId),
     };
   });

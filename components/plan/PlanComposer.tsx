@@ -43,7 +43,8 @@ import {
   type PlanVenueOption,
 } from "@/lib/planVenueOptions";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
-import { categoryLabel, DRINK_CATEGORIES, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
+import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import {
   isPlanStopCount,
@@ -110,13 +111,6 @@ import {
 } from "@/lib/planIntake";
 
 type RouteRevision = string | number;
-type SelectedDrinkPriceEvidence = {
-  category: DrinkCategory;
-  pence: number;
-  serving: null;
-  source: "community";
-  reportedAt: string;
-};
 type RouteAlternative = { venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
 export type DraftStop = {
   key: number;
@@ -393,23 +387,6 @@ function cleanRouteAlternative(value: unknown): RouteAlternative | null {
   if (!venueId || !venueName) return null;
   const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
   return { venueId, venueName, ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}) };
-}
-
-function cleanSelectedDrinkPriceEvidence(value: unknown): SelectedDrinkPriceEvidence | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const row = value as Record<string, unknown>;
-  if (!isDrinkCategory(row.category) || row.category === "beer" || row.source !== "community"
-    || row.serving !== null || !Number.isSafeInteger(row.pence) || (row.pence as number) <= 0
-    || (row.pence as number) > 100_000 || typeof row.reportedAt !== "string") return null;
-  const time = Date.parse(row.reportedAt);
-  if (!Number.isFinite(time) || new Date(time).toISOString() !== row.reportedAt) return null;
-  return {
-    category: row.category,
-    pence: row.pence as number,
-    serving: null,
-    source: "community",
-    reportedAt: row.reportedAt,
-  };
 }
 
 export function selectedDrinkPriceDescription(evidence: SelectedDrinkPriceEvidence | undefined): string | null {
