@@ -71,6 +71,47 @@ export function crawlUrlWriteAllowed(
   return hold === null || encoded !== hold.encodedAtMount;
 }
 
+function writeCrawlUrl(encoded: string, preserveCrawlParam: boolean): void {
+  const query = mergeCrawlUrlSearch(
+    encoded,
+    window.location.search,
+    preserveCrawlParam,
+  );
+  const url = query
+    ? `${window.location.pathname}?${query}${window.location.hash}`
+    : `${window.location.pathname}${window.location.hash}`;
+  if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== url) {
+    window.history.replaceState(window.history.state, "", url);
+  }
+}
+
+const DRINK_CONTEXT_PARAMS = [
+  "low",
+  "cocktails",
+  "drink",
+  "brand",
+  "sub",
+  "topshelf",
+  "alt",
+] as const;
+
+function writeLandedDrinkContext(encoded: string): void {
+  // Back owns the landed sheet and venue params. Carry only the current lens
+  // onto that entry, or a stale `sel` can reopen the venue it just closed.
+  const live = new URLSearchParams(window.location.search);
+  const selected = new URLSearchParams(encoded);
+  for (const key of DRINK_CONTEXT_PARAMS) live.delete(key);
+  for (const key of DRINK_CONTEXT_PARAMS) {
+    const value = selected.get(key);
+    if (value !== null) live.set(key, value);
+  }
+  const query = live.toString();
+  const url = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
+  if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== url) {
+    window.history.replaceState(window.history.state, "", url);
+  }
+}
+
 export function useCrawlUrlSync(
   state: CrawlUrlState,
   /** True when the reader arrived on a clean URL and a saved session was
@@ -81,6 +122,20 @@ export function useCrawlUrlSync(
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hold = useRef<CleanUrlHold | undefined>(undefined);
   const crawlHold = useRef<CleanUrlHold | undefined>(undefined);
+  const latestWrite = useRef<string | null>(null);
+  const mapPath = useRef<string | null>(null);
+
+  useEffect(() => {
+    mapPath.current = window.location.pathname;
+    const onPopState = () => {
+      const encoded = latestWrite.current;
+      if (encoded !== null && window.location.pathname === mapPath.current) {
+        writeLandedDrinkContext(encoded);
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -91,29 +146,19 @@ export function useCrawlUrlSync(
     if (crawlHold.current === undefined) {
       crawlHold.current = holdSeededCrawlParam ? { encodedAtMount: encoded } : null;
     }
-    if (!crawlUrlWriteAllowed(hold.current, encoded)) return;
+    if (!crawlUrlWriteAllowed(hold.current, encoded)) {
+      latestWrite.current = null;
+      return;
+    }
     hold.current = null;
     const preserveCrawlParam =
       crawlHold.current !== null &&
       crawlHold.current !== undefined &&
       holdSeededCrawlParam;
     if (!holdSeededCrawlParam) crawlHold.current = null;
+    latestWrite.current = encoded;
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      const query = mergeCrawlUrlSearch(
-        encoded,
-        window.location.search,
-        preserveCrawlParam,
-      );
-      // Keep a clean pathname when nothing meaningful is encoded (no trailing `?`).
-      const url = query
-        ? `${window.location.pathname}?${query}${window.location.hash}`
-        : `${window.location.pathname}${window.location.hash}`;
-      if (`${window.location.pathname}${window.location.search}${window.location.hash}` === url) {
-        return;
-      }
-      window.history.replaceState(window.history.state, "", url);
-    }, DEBOUNCE_MS);
+    timer.current = setTimeout(() => writeCrawlUrl(encoded, preserveCrawlParam), DEBOUNCE_MS);
 
     return () => {
       if (timer.current) clearTimeout(timer.current);
