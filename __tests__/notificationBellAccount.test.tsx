@@ -55,6 +55,37 @@ it("clears A's badge on sign-out and ignores A's delayed response", async () => 
   await act(async () => root.unmount());
 });
 
+it("keeps B's badge when an already in-flight A response arrives later", async () => {
+  let resolveAccountA: ((response: Response) => void) | undefined;
+  fetchMock
+    .mockResolvedValueOnce(new Response(JSON.stringify({ unread: 7 }), { status: 200 }))
+    .mockImplementationOnce(() => new Promise<Response>((resolve) => { resolveAccountA = resolve; }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ unread: 3 }), { status: 200 }));
+
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  await act(async () => root.render(createElement(NotificationBell)));
+  await vi.waitFor(() => expect(host.querySelector("a")?.getAttribute("aria-label")).toBe("Activity: 7 unread"));
+
+  await act(async () => window.dispatchEvent(new Event("focus")));
+  await vi.waitFor(() => expect(resolveAccountA).toBeTypeOf("function"));
+  authState.current = { user: { id: "account-b" }, handle: "accountb" };
+  await act(async () => root.render(createElement(NotificationBell)));
+  await vi.waitFor(() => expect(host.querySelector("a")?.getAttribute("aria-label")).toBe("Activity: 3 unread"));
+  expect(host.querySelector(".siteNavBellBadge")?.textContent).toBe("3");
+
+  await act(async () => resolveAccountA?.(new Response(JSON.stringify({ unread: 9 }), { status: 200 })));
+  expect(host.querySelector("a")?.getAttribute("aria-label")).toBe("Activity: 3 unread");
+  expect(host.querySelector(".siteNavBellBadge")?.textContent).toBe("3");
+  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+    "/api/notifications?handle=accounta",
+    "/api/notifications?handle=accounta",
+    "/api/notifications?handle=accountb",
+  ]);
+  await act(async () => root.unmount());
+});
+
 it("does not reuse a stored handle after the canonical handle clears", async () => {
   window.localStorage.setItem("pubmax_handle", "accounta");
   fetchMock.mockResolvedValue(new Response(JSON.stringify({ unread: 7 }), { status: 200 }));
