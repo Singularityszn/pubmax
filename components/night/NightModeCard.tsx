@@ -64,6 +64,7 @@ import type {
   PlanState,
   PlanStopDTO,
 } from "@/lib/plan";
+import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import { lastRideFetchUrl } from "@/lib/lastRide";
 import { useNightModeEndingOwner } from "@/lib/nightModeHandoff";
 import type { NightAreaSlug } from "@/lib/nightAreas";
@@ -1138,6 +1139,7 @@ function NightModeSheet({
           {chosenEnding === "keep_going" && !activeEnding ? (
             <KeepGoingPicker
               extensions={keepGoingExtensions}
+              priceContext={plan?.context ?? null}
               saving={endingSaving}
               onChoose={(extension) => {
                 setChosenExtension(extension);
@@ -1440,12 +1442,14 @@ function GetHomeEndingConfirmation({
   );
 }
 
-function KeepGoingPicker({
+export function KeepGoingPicker({
   extensions,
+  priceContext,
   saving,
   onChoose,
 }: {
   extensions: KeepGoingExtension[];
+  priceContext: PlanState["context"];
   saving: boolean;
   onChoose: (extension: KeepGoingExtension) => void;
 }) {
@@ -1456,6 +1460,7 @@ function KeepGoingPicker({
       </p>
     );
   }
+  const usesPintPrices = priceContext == null || planUsesPintPrices(priceContext);
   return (
     <div
       className="nightCard__foodPicker"
@@ -1474,7 +1479,9 @@ function KeepGoingPicker({
               <span>{extension.name}</span>
               <small>
                 {keepGoingDistanceDescription(extension.distanceKm)} ·{" "}
-                {extension.cheapestPrice === null
+                {!usesPintPrices
+                  ? "selected drink price unavailable"
+                  : extension.cheapestPrice === null
                   ? "no price yet"
                   : `about ${formatGbp(extension.cheapestPrice)} a pint`}{" "}
                 · hours not checked

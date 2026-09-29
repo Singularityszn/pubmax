@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import {
   completePlanPayload,
@@ -8,6 +10,7 @@ import {
   foodEndingSelection,
   getHomeEndingSelection,
   keepGoingEndingSelection,
+  KeepGoingPicker,
   rankKeepGoingExtensions,
   recommendedEndingForPlan,
   routeRevisionFromPlan,
@@ -149,6 +152,53 @@ describe("rankKeepGoingExtensions", () => {
       "explicit-pub",
       "legacy-pub",
     ]);
+  });
+});
+
+describe("Keep going price copy", () => {
+  const extension = {
+    id: "extra-pub",
+    name: "One More",
+    lat: 51.51,
+    lng: -0.13,
+    cheapestPrice: 5.5,
+    distanceKm: 0.4,
+  };
+
+  it.each(["wine", "cocktail", "whisky"] as const)(
+    "does not offer a pint price for a %s plan",
+    (drinkCategory) => {
+      const html = renderToStaticMarkup(createElement(KeepGoingPicker, {
+        extensions: [extension],
+        saving: false,
+        onChoose: () => undefined,
+        priceContext: plan({ drinkCategory }).context,
+      }));
+      expect(html).not.toContain("£5.50");
+      expect(html).not.toContain("a pint");
+      expect(html).toContain("selected drink price unavailable");
+    },
+  );
+
+  it("retains the pint price for a beer plan", () => {
+    const html = renderToStaticMarkup(createElement(KeepGoingPicker, {
+      extensions: [extension],
+      saving: false,
+      onChoose: () => undefined,
+      priceContext: plan({ drinkCategory: "beer" }).context,
+    }));
+    expect(html).toContain("about £5.50 a pint");
+  });
+
+  it("does not offer a pint price for an alcohol-free plan", () => {
+    const html = renderToStaticMarkup(createElement(KeepGoingPicker, {
+      extensions: [extension],
+      saving: false,
+      onChoose: () => undefined,
+      priceContext: plan({ zeroProof: true }).context,
+    }));
+    expect(html).not.toContain("£5.50");
+    expect(html).toContain("selected drink price unavailable");
   });
 });
 
