@@ -4,8 +4,7 @@ import { headers } from "next/headers";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import ConsentAwareVercelAnalytics from "@/components/ConsentAwareVercelAnalytics";
 import ConsentAwareVercelSpeedInsights from "@/components/ConsentAwareVercelSpeedInsights";
-import "./globals.css";
-import "./theme.css";
+import "./rootStyles.css";
 import CreateFab from "@/components/nav/CreateFab";
 import MobileTabBar, {
   MobileTabBarClearanceFallback,
