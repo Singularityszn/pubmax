@@ -87,6 +87,31 @@ export type UkPriceBundleRow = {
   drinkSubtype?: string;
 };
 
+/**
+ * Source-ledger observations with a printed item that contradicts its assigned
+ * category. Keep the observations in site_harvest.jsonl for audit, but do not
+ * let these exact claims become listed facts. Match the source and printed item
+ * as well as category and price, so other drinks on these menus still publish.
+ */
+const CATEGORY_QUARANTINE: ReadonlyArray<
+  Pick<UkPriceBundleRow, "sourceUrl" | "category" | "priceGbp" | "drinkLabel">
+> = [
+  { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "gin", priceGbp: 9, drinkLabel: "0% Tropical Negroni Three Spirit Livener, Lyres Italian Spritz, Tanqueray 0.0%" },
+  { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "shot", priceGbp: 12, drinkLabel: "1.50 Picante Spritz Altos Plata tequila, Beesou honey, green chilli, lime, soda" },
+  { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "whisky", priceGbp: 10, drinkLabel: "ary Absolut Tabasco Vodka, Tomato Juice, Worcestershire Sauce, Spices, Rosemary" },
+  { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "wine", priceGbp: 5.35, drinkLabel: "Pineapple & Yuzu Pineapple, coconut, apple, yuzu, soda 86kcal" },
+  { sourceUrl: "https://www.theguardhousewoolwich.co.uk/food-and-drink/", category: "cocktail", priceGbp: 8, drinkLabel: "Berry Hugo 0.0% Three Spirit Livener 0.0%, Watermelon, Elderflower, Soda 93kcal" },
+  { sourceUrl: "https://georgeanddragonacton.co.uk/drinks-menu", category: "wine", priceGbp: 3, drinkLabel: "Frobishers Juice (250ml)" },
+];
+
+export function isCategoryQuarantined(row: UkPriceBundleRow): boolean {
+  return row.lane === "site-harvest" && row.standing === "listed" &&
+    CATEGORY_QUARANTINE.some((item) =>
+      item.sourceUrl === row.sourceUrl && item.category === row.category &&
+      item.priceGbp === row.priceGbp && item.drinkLabel === row.drinkLabel,
+    );
+}
+
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
@@ -140,7 +165,7 @@ export function isValidUkPriceBundleRow(value: unknown): value is UkPriceBundleR
 
 export function parseUkPriceBundleRows(raw: unknown): UkPriceBundleRow[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter(isValidUkPriceBundleRow);
+  return raw.filter((row) => isValidUkPriceBundleRow(row) && !isCategoryQuarantined(row));
 }
 
 /**
@@ -150,7 +175,7 @@ export function parseUkPriceBundleRows(raw: unknown): UkPriceBundleRow[] {
  * to remember the rule.
  */
 export function authoritativeBundleRows(rows: readonly UkPriceBundleRow[]): UkPriceBundleRow[] {
-  return rows.filter((row) => standingCarriesAuthority(row.standing));
+  return rows.filter((row) => standingCarriesAuthority(row.standing) && !isCategoryQuarantined(row));
 }
 
 /**
@@ -184,6 +209,7 @@ function bundlePriceInputs(rows: readonly UkPriceBundleRow[]): {
   let listed: UkPriceBundleRow | undefined;
   let estimate: UkPriceBundleRow | undefined;
   for (const row of rows) {
+    if (isCategoryQuarantined(row)) continue;
     if (row.standing === "listed" && row.sourceUrl) {
       if (bundleRowSupersedes(row, listed)) listed = row;
       continue;

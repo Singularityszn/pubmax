@@ -60,6 +60,7 @@ import { estimateForPub } from "@/lib/priceEstimate";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
 import {
   bundleRowSupersedes,
+  isCategoryQuarantined,
   isValidUkPriceBundleRow,
   UK_PRICE_BUNDLE_VERSION,
 } from "@/lib/ukPriceBundle";
@@ -166,6 +167,10 @@ function collectRows(report) {
   // stamped once per page, so the rows of one page share an instant and tie
   // into the cheapest rule, and a later reading supersedes an earlier one whole.
   const push = (row) => {
+    if (isCategoryQuarantined(row)) {
+      report.droppedCategoryContradiction += 1;
+      return;
+    }
     if (!isValidUkPriceBundleRow(row)) {
       report.droppedInvalidRow += 1;
       return;
@@ -330,6 +335,7 @@ function main() {
     droppedDemoFixture: 0,
     droppedUnresolvedVenue: 0,
     droppedInvalidRow: 0,
+    droppedCategoryContradiction: 0,
     pubsWithNoBasis: 0,
   };
   const { rows, notes, harvest } = collectRows(report);
@@ -353,7 +359,7 @@ function main() {
     },
     notes: [
       ...notes,
-      `dropped: ${report.droppedRefusedHost} on a host refused on permission, ${report.droppedDemoFixture} demo fixture(s), ${report.droppedUnresolvedVenue} with no resolvable venue, ${report.droppedInvalidRow} failing the row shape`,
+      `dropped: ${report.droppedRefusedHost} on a host refused on permission, ${report.droppedDemoFixture} demo fixture(s), ${report.droppedUnresolvedVenue} with no resolvable venue, ${report.droppedInvalidRow} failing the row shape, ${report.droppedCategoryContradiction} evidenced category contradiction(s)`,
     ],
   };
 

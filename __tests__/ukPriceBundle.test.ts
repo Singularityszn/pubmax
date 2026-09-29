@@ -6,6 +6,7 @@
 // splits the two. These are the cases that hold that line.
 
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 
 import {
   UK_PRICE_BUNDLE_LANES,
@@ -86,6 +87,39 @@ describe("what a bundle row owes", () => {
 });
 
 describe("which rows a surface may treat as a fact", () => {
+  it("withholds the six source-ledger rows whose printed drinks contradict their category", () => {
+    const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    const published: UkPriceBundleRow[] = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8"));
+    const evidence = [
+      ["https://www.theploughstjohnshill.co.uk/the-bar/", "gin", 9, "0% Tropical Negroni Three Spirit Livener, Lyres Italian Spritz, Tanqueray 0.0%"],
+      ["https://www.theploughstjohnshill.co.uk/the-bar/", "shot", 12, "1.50 Picante Spritz Altos Plata tequila, Beesou honey, green chilli, lime, soda"],
+      ["https://www.theploughstjohnshill.co.uk/the-bar/", "whisky", 10, "ary Absolut Tabasco Vodka, Tomato Juice, Worcestershire Sauce, Spices, Rosemary"],
+      ["https://www.theploughstjohnshill.co.uk/the-bar/", "wine", 5.35, "Pineapple & Yuzu Pineapple, coconut, apple, yuzu, soda 86kcal"],
+      ["https://www.theguardhousewoolwich.co.uk/food-and-drink/", "cocktail", 8, "Berry Hugo 0.0% Three Spirit Livener 0.0%, Watermelon, Elderflower, Soda 93kcal"],
+      ["https://georgeanddragonacton.co.uk/drinks-menu", "wine", 3, "Frobishers Juice (250ml)"],
+    ] as const;
+    for (const [sourceUrl, category, priceGbp, drinkLabel] of evidence) {
+      const source = ledger.find((row) => row.sourceUrl === sourceUrl && row.category === category && row.priceGbp === priceGbp && row.drinkLabel === drinkLabel);
+      expect(source).toBeDefined();
+      const row: UkPriceBundleRow = {
+        ...listed,
+        sourceUrl,
+        category,
+        priceGbp,
+        drinkLabel,
+      };
+      expect(authoritativeBundleRows([row])).toEqual([]);
+      expect(parseUkPriceBundleRows([row])).toEqual([]);
+      expect(bundlePricesForCategory([row], category).listed).toBeNull();
+      expect(published.some((item) => item.lane === "site-harvest" && item.sourceUrl === sourceUrl && item.category === category && item.priceGbp === priceGbp && item.drinkLabel === drinkLabel)).toBe(false);
+    }
+    const valid = { ...listed, category: "wine", drinkLabel: "House red wine 175ml", priceGbp: 7.5 };
+    expect(authoritativeBundleRows([valid])).toEqual([valid]);
+  });
+
   it("hands an authority lane the published rows and never the modelled ones", () => {
     expect(authoritativeBundleRows([listed, estimate])).toEqual([listed]);
   });
