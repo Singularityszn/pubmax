@@ -274,7 +274,7 @@ test.describe("mobile landing entry", () => {
     await page.goto("/");
 
     await page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME }).click();
-    await expect(page).toHaveURL(/\/near\?locate=1$/);
+    await expect(page).toHaveURL(/\/near\?locate=1(?:&patch=central)?$/);
     await page.goto("/");
 
     // The receipt door, quiet now: the pub's own Pint Drop door.

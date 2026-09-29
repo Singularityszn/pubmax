@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { desktopPlannerDrawer } from "./helpers/mapSurfaceDrawers";
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 test.use({ serviceWorkers: "block", actionTimeout: 10_000 });
 test.setTimeout(90_000);
@@ -80,6 +81,8 @@ for (const direction of ["back", "home", "forward"] as const) {
 }
 
 test("1440px canonical Bristol contribution resets an empty query into a cocktail form", async ({ page }, testInfo) => {
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.goto("/map/bristol?drink=cocktail&q=zzzznonexistentpub&contribute=price");
   await expect(page.getByText("Pick a pub to log a price", { exact: true })).toBeVisible({ timeout: 45_000 });
   await page.screenshot({ path: testInfo.outputPath("desktop-picker.png") });
@@ -135,6 +138,8 @@ test("canonical city pathname wins over obsolete city query during a drink edit"
 });
 
 test("390px price venue survives repeated ForwardBack without adding history entries", async ({ page }, testInfo) => {
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/map/manchester?drink=wine&contribute=price");
   const nearby = page.locator(".logIntentNearbyBtn").first();

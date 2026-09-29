@@ -146,16 +146,16 @@ test("the editor opens on the stored route, a save clears the draft, and a secon
   // Edit again: the editor shows the SAVED stops, and a second save keeps them.
   await openEditor(page);
   await expect(editorStops(page)).toHaveText([ARNOS.venueName, BOHEMIA.venueName, GEORGE.venueName]);
-  // Stop 2's first backup is the generator's own pick for that position,
-  // which is no longer in the route once George holds stop 3.
+  // Saved backups keep their priority over fresh generation. Hazine was
+  // saved with stop 2; replacing it must still preserve George at stop 3.
   await page.getByRole("button", { name: `Swap stop 2, currently ${BOHEMIA.venueName}` }).click();
-  await expect(editorStops(page)).toHaveText([ARNOS.venueName, ELEPHANT.venueName, GEORGE.venueName]);
+  await expect(editorStops(page)).toHaveText([ARNOS.venueName, HAZINE.venueName, GEORGE.venueName]);
   await page.getByRole("button", { name: "Save route changes" }).click();
   await expect(statusLine(page)).toHaveText("Route saved. The new order is now canonical.");
 
   // George, saved a moment ago, survives the second save.
   const final = await storedStops(api, planId);
-  expect(final.names).toEqual([ARNOS.venueName, ELEPHANT.venueName, GEORGE.venueName]);
+  expect(final.names).toEqual([ARNOS.venueName, HAZINE.venueName, GEORGE.venueName]);
   expect(final.revision).toBe(3);
 });
 

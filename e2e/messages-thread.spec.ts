@@ -237,14 +237,26 @@ test.describe("the message thread on a phone", () => {
     await page.goto("/messages/c1");
     await expect(page.locator(".threadMessages .messageBubble")).toHaveCount(8);
 
+    let releaseReply!: () => void;
+    const replyHeld = new Promise<void>((resolve) => { releaseReply = resolve; });
+    await page.route("**/api/messages/c1**", async (route) => {
+      if (route.request().method() === "POST") await replyHeld;
+      await route.fallback();
+    });
+
     const field = page.locator(".composerInput");
     await field.fill("On my way, two minutes");
     await expect(page.locator(".composerSend")).toBeEnabled();
     await page.locator(".composerSend").click();
 
-    // The optimistic bubble, and the field cleared, before any answer.
-    await expectMessageInView(page, "On my way, two minutes");
-    await expect(field).toHaveValue("");
+    // Hold the response so this measures the optimistic bubble before replacement.
+    try {
+      await expect(page.locator(".messageRow[data-sending] .messageBubble")).toHaveText("On my way, two minutes");
+      await expectMessageInView(page, "On my way, two minutes");
+      await expect(field).toHaveValue("");
+    } finally {
+      releaseReply();
+    }
     // The stored row replaces it: still nine bubbles, still in view.
     await expect(page.locator(".threadMessages .messageBubble")).toHaveCount(9);
     await expect(page.locator(".messageRow[data-sending]")).toHaveCount(0);
@@ -335,7 +347,7 @@ test.describe("the message thread at 320", () => {
     await expectNoHorizontalOverflow(page, NARROW.width);
     await expectComposerInView(page);
     await expectSendCentred(page);
-    for (const selector of [".composerMobileAttach", ".composerVenueDesktop", ".threadBackLink"]) {
+    for (const selector of [".composerMobileAttach", ".composerVenueDesktop", ".threadBackLink", ".authCompactTrigger"]) {
       const control = await box(page, selector);
       expect(control.width, `${selector} width`).toBeGreaterThanOrEqual(44);
       expect(control.height, `${selector} height`).toBeGreaterThanOrEqual(44);

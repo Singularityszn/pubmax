@@ -6,6 +6,11 @@ import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeF
 for (const journey of [
   { category: "wine", query: "Quiet wine in Clapham for 2, not pricey", name: "Disposable Wine", venueId: "venue-11e0hkh", pence: 675 },
   { category: "cocktail", query: "Cheap cocktails in Clapham for 2", name: "Disposable Cocktail", venueId: "venue-11e0hkh", pence: 895 },
+  { category: "whisky", query: "Whisky in Clapham for 2", name: "Disposable Whisky", venueId: "venue-11e0hkh", pence: 650 },
+  { category: "gin", query: "Gin in Clapham for 2", name: "Disposable Gin", venueId: "venue-11e0hkh", pence: 625 },
+  { category: "vodka", query: "Vodka in Clapham for 2", name: "Disposable Vodka", venueId: "venue-11e0hkh", pence: 600 },
+  { category: "rum", query: "Rum in Clapham for 2", name: "Disposable Rum", venueId: "venue-11e0hkh", pence: 575 },
+  { category: "shot", query: "Shots in Clapham for 2", name: "Disposable Shots", venueId: "venue-11e0hkh", pence: 400 },
 ] as const) {
   test(`${journey.category} browser saves and reloads corroborated disposable PostgREST price`, async ({ page }, testInfo) => {
     test.setTimeout(120_000);
@@ -28,14 +33,20 @@ for (const journey of [
     expect(response.status()).toBe(200);
     const generated = await response.json() as {
       inferredContext?: { drinkCategory?: string };
+      budgetSummary?: { estimatedPerPersonPence?: number | null; estimatedCrewPence?: number | null; basis?: string };
       stops?: Array<{ venueId: string; selectedDrinkPriceEvidence?: { category: string; pence: number; source: string; reportedAt: string } }>;
     };
     expect(generated.inferredContext?.drinkCategory).toBe(journey.category);
+    expect(generated.budgetSummary).toMatchObject({
+      estimatedPerPersonPence: null,
+      estimatedCrewPence: null,
+      basis: "selected-drink-price-unavailable",
+    });
     const pricedStop = generated.stops?.find((stop) => stop.venueId === journey.venueId);
     expect(pricedStop?.selectedDrinkPriceEvidence).toMatchObject({
-      category: journey.category, pence: journey.pence, source: "community",
+      category: journey.category, pence: journey.pence, serving: null, source: "community",
     });
-    await expect(page.locator(".planComposer__stopReason").filter({ hasText: "community report" })).toBeVisible();
+    await expect(page.locator(".planComposer__stopReason").filter({ hasText: /community report.*Serving size not recorded/ })).toBeVisible();
     await page.locator(".planComposer__stopReason").filter({ hasText: "community report" }).first().scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`${journey.category}-priced-preview.png`), animations: "disabled" });
 
@@ -59,6 +70,20 @@ for (const journey of [
     const serviceRoleKey = process.env.PW_DISPOSABLE_SERVICE_ROLE_KEY;
     expect(restUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/?$/);
     expect(serviceRoleKey).toBeTruthy();
+    const sourceQuery = new URL("/rest/v1/community_prices", restUrl);
+    sourceQuery.searchParams.set("select", "price_pennies,actor,submitted_at");
+    sourceQuery.searchParams.set("venue_id", `eq.${journey.venueId}`);
+    sourceQuery.searchParams.set("drink_category", `eq.${journey.category}`);
+    const sourceResponse = await fetch(sourceQuery, { headers: { Authorization: `Bearer ${serviceRoleKey}` } });
+    expect(sourceResponse.status).toBe(200);
+    const sourceRows = await sourceResponse.json() as Array<{ price_pennies: number; actor: string; submitted_at: string }>;
+    expect(sourceRows).toHaveLength(2);
+    expect(sourceRows.every((row) => row.price_pennies === journey.pence)).toBe(true);
+    expect(new Set(sourceRows.map((row) => row.actor)).size).toBe(2);
+    const submittedAt = [...new Set(sourceRows.map((row) => new Date(row.submitted_at).toISOString()))];
+    expect(submittedAt).toHaveLength(1);
+    expect(pricedStop?.selectedDrinkPriceEvidence?.reportedAt).toBe(submittedAt[0]);
+
     const stopQuery = new URL("/rest/v1/plan_stops", restUrl);
     stopQuery.searchParams.set("select", "venue_id,selected_drink_price_evidence");
     stopQuery.searchParams.set("plan_id", `eq.${planId}`);

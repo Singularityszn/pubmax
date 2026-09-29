@@ -170,8 +170,11 @@ test.describe("map you are here dot", () => {
         timeout: 30_000,
       })
       .toBe(true);
-    // The opening-location answer owns a camera move of its own; let it settle
-    // before the reading the dot's own move is held against.
+    // Near-me framing waits for the sheet after the opening-location move.
+    // A motionless camera between those moves is not the settled answer.
+    await expect.poll(() => page.evaluate(() =>
+      performance.getEntriesByName("pubmax:camera-intent:nearby").length,
+    ), { timeout: 30_000 }).toBeGreaterThan(0);
     await expect
       .poll(async () => (await readCamera(page)).moving, { timeout: 30_000 })
       .toBe(false);

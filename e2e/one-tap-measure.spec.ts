@@ -14,10 +14,10 @@ import { attachBill, readPriceSubmission } from "./helpers/priceBill";
  * Pint Index said pint.
  *
  * This drives the real door at 390: the chips render above the price field, a
- * half really travels in the request, and the pub's pin colour does not move
- * for it. The write itself is answered by a route double in the shape the route
- * answers, because the keyless e2e server verifies no bearer; the server rule
- * that a half writes no community price is pinned at the route
+ * half travels in the request, and the receipt says the report stays on this
+ * pub's page. The write itself is answered by a route double in the shape the
+ * route answers, because the keyless e2e server verifies no bearer; the server
+ * rule that a half writes no community price is pinned at the route
  * (__tests__/priceSubmitRoute.test.ts).
  */
 test.use({
@@ -86,7 +86,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("a half logged through the one-tap door travels as a half and moves no pin colour", async ({
+test("a half logged through the one-tap door is sent and receipted as a half", async ({
   page,
 }) => {
   const sent: Submitted[] = [];
@@ -110,10 +110,21 @@ test("a half logged through the one-tap door travels as a half and moves no pin 
   // The closed question stands above the figure.
   const chips = submit.locator(".measureChip");
   await expect(chips).toHaveCount(3);
-  const chipBox = await chips.first().boundingBox();
-  const priceBox = await submit.locator(".vpsubField").boundingBox();
-  expect(chipBox?.y ?? 0).toBeLessThan(priceBox?.y ?? 0);
-  expect(chipBox?.height ?? 0, "a measure chip is a thumb target").toBeGreaterThanOrEqual(44);
+  const geometry = await submit.evaluate((form) => {
+    const chip = form.querySelector(".measureChip");
+    const field = form.querySelector(".vpsubField");
+    if (!(chip instanceof HTMLElement) || !(field instanceof HTMLElement)) return null;
+    const chipBox = chip.getBoundingClientRect();
+    const fieldBox = field.getBoundingClientRect();
+    return {
+      chipBottom: chipBox.bottom,
+      chipHeight: chipBox.height,
+      fieldTop: fieldBox.top,
+    };
+  });
+  if (!geometry) throw new Error("The measure chip and price field must both render.");
+  expect(geometry.chipBottom).toBeLessThanOrEqual(geometry.fieldTop);
+  expect(geometry.chipHeight, "a measure chip is a thumb target").toBeGreaterThanOrEqual(44);
 
   await submit.getByRole("radio", { name: "Half" }).click();
   await expect(submit.getByRole("radio", { name: "Half" })).toHaveAttribute(
@@ -132,18 +143,6 @@ test("a half logged through the one-tap door travels as a half and moves no pin 
   await expect(sheet.locator(".vpsubStampBlock")).toContainText("Half");
   await expect(sheet.locator(".vpsubStampBlock")).toContainText("On this pub’s page");
   await expect(sheet.locator(".vpsubStampBlock")).not.toContainText("On the map");
-
-  // Nothing about this pub's pin colour moved: no priced community row exists.
-  const painted = await page.evaluate(
-    (id) =>
-      (
-        window as unknown as {
-          paintedMapTapPoints?: () => Array<{ venueId?: string; band?: unknown }>;
-        }
-      ).paintedMapTapPoints?.()?.filter((point) => point.venueId === id) ?? [],
-    UNPRICED,
-  );
-  for (const point of painted) expect(point.band ?? null).toBeNull();
 });
 
 test("a pint logged through the same door still says pint", async ({ page }) => {

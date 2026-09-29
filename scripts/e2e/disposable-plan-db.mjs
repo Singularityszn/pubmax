@@ -15,6 +15,13 @@ const LAST_MIGRATION = "20260930110000_0173_completion_group_active_accounts.sql
 const PLAN_PRICE_FIXTURES = [
   { venueId: "venue-11e0hkh", category: "wine", pence: 675 },
   { venueId: "venue-11e0hkh", category: "cocktail", pence: 895 },
+  // Synthetic prices only, at the same known Clapham route stop. Two distinct
+  // actor observations per category are inserted below for the trust floor.
+  { venueId: "venue-11e0hkh", category: "whisky", pence: 650 },
+  { venueId: "venue-11e0hkh", category: "gin", pence: 625 },
+  { venueId: "venue-11e0hkh", category: "vodka", pence: 600 },
+  { venueId: "venue-11e0hkh", category: "rum", pence: 575 },
+  { venueId: "venue-11e0hkh", category: "shot", pence: 400 },
 ];
 
 function sqlLiteral(value) {

@@ -21,6 +21,17 @@ function database(): PostgresSession {
   return db;
 }
 
+function addArrivedStop(planId: string, actorMemberId: string, arrivedAt: string): string {
+  const pg = database();
+  const venueId = `group-snapshot-${planId}`;
+  const venueName = "Snapshot Pub";
+  pg.sql(`insert into public.plan_stops(plan_id,venue_id,venue_name,position)
+      values('${planId}','${venueId}','${venueName}',0);
+    insert into public.plan_actions(id,plan_id,actor_member_id,type,stop_position,created_at)
+      values('${planId}','${planId}','${actorMemberId}','arrived',0,'${arrivedAt}')`);
+  return JSON.stringify([{ venueId, venueName, position: 0 }]);
+}
+
 function plan(id: string, completion: string, members: Array<{ id: string; user?: string; revoked?: boolean }>): void {
   const pg = database();
   pg.sql(`insert into public.plans(id,title,start_time,status)
@@ -33,9 +44,12 @@ function plan(id: string, completion: string, members: Array<{ id: string; user?
         '2026-09-01 19:00:00+00','2026-09-01 19:00:00+00',
         ${member.revoked ? "'2026-09-01 19:30:00+00'" : "null"})`);
   }
+  const actorMemberId = members[0]?.id;
+  if (!actorMemberId) throw new Error("Completion fixture needs an arriving crew member");
+  const routeSnapshot = addArrivedStop(id, actorMemberId, "2026-09-01 20:30:00+00");
   pg.sql(`insert into public.plan_completions
     (id,plan_id,ending,actor_member_id,route_revision,route_snapshot,completed_at)
-    values('${completion}','${id}','get_home','${members[0]?.id ?? id}',1,'[]',
+    values('${completion}','${id}','get_home','${actorMemberId}',1,'${routeSnapshot}'::jsonb,
       '2026-09-01 21:00:00+00')`);
 }
 
@@ -130,11 +144,12 @@ describe.skipIf(skipReason !== null)("0169 private completion membership snapsho
         ('${account("e5")}','${account("e4")}','${account("f1")}','${account("d8")}','owner','active',null),
         ('${account("e6")}','${account("e4")}','${account("f2")}','${account("d9")}','member','active',null),
         ('${account("e7")}','${account("e4")}','${account("f3")}','${account("da")}','member','removed','2026-09-01 19:30:00+00');
-      update public.plans set social_owner_account_id='${account("f1")}' where id='${account("b4")}';
-      insert into public.plan_completions
-        (id,plan_id,ending,actor_member_id,route_revision,route_snapshot,completed_at)
-      values('${account("c4")}','${account("b4")}','get_home','${account("d8")}',1,'[]',
-        '2026-09-01 21:00:00+00')`);
+      update public.plans set social_owner_account_id='${account("f1")}' where id='${account("b4")}';`);
+    const routeSnapshot = addArrivedStop(account("b4"), account("d8"), "2026-09-01 20:30:00+00");
+    pg.sql(`insert into public.plan_completions
+      (id,plan_id,ending,actor_member_id,route_revision,route_snapshot,completed_at)
+      values('${account("c4")}','${account("b4")}','get_home','${account("d8")}',1,
+        '${routeSnapshot}'::jsonb,'2026-09-01 21:00:00+00')`);
     const read = () => pg.sql(`select array_to_string(account_keys, ',')
       from pubmax_private.plan_completion_group_snapshots where completion_id='${account("c4")}'`);
     expect(read()).toBe(`social:${account("f1")},social:${account("f2")}`);
@@ -193,10 +208,12 @@ describe.skipIf(skipReason !== null)("0169 private completion membership snapsho
         ('${account("fa")}','${account("ba")}','Host',md5('fa')||md5('fa2'),
           '${account("a3")}','2028-02-01 19:00:00+00','2028-02-01 19:00:00+00'),
         ('${account("fb")}','${account("ba")}','Guest',md5('fb')||md5('fb2'),
-          '${account("a4")}','2028-02-01 19:00:00+00','2028-02-01 19:00:00+00');
-      insert into public.plan_completions
-        (id,plan_id,ending,actor_member_id,route_revision,route_snapshot,completed_at)
-      values('${account("ca")}','${account("ba")}','get_home','${account("fa")}',1,'[]','${firstDate}')`);
+          '${account("a4")}','2028-02-01 19:00:00+00','2028-02-01 19:00:00+00')`);
+    const beforeRoute = addArrivedStop(account("ba"), account("fa"), "2028-02-01 20:30:00+00");
+    pg.sql(`insert into public.plan_completions
+      (id,plan_id,ending,actor_member_id,route_revision,route_snapshot,completed_at)
+      values('${account("ca")}','${account("ba")}','get_home','${account("fa")}',1,
+        '${beforeRoute}'::jsonb,'${firstDate}')`);
     expect(pg.sql(`select array_to_string(account_keys, ',')
       from pubmax_private.plan_completion_group_snapshots
       where completion_id='${account("ca")}'`)).toBe(`auth:${account("a3")},auth:${account("a4")}`);
@@ -220,10 +237,12 @@ describe.skipIf(skipReason !== null)("0169 private completion membership snapsho
         ('${account("eb")}','${account("ea")}','${account("f4")}','${account("fc")}','owner','active',null),
         ('${account("ec")}','${account("ea")}','${account("f5")}','${account("fd")}','member','active',null);
       update public.plans set social_owner_account_id='${account("f4")}'
-      where id='${account("bb")}';
-      insert into public.plan_completions
-        (id,plan_id,ending,actor_member_id,route_revision,route_snapshot,completed_at)
-      values('${account("cb")}','${account("bb")}','get_home','${account("fc")}',1,'[]','${secondDate}')`);
+      where id='${account("bb")}';`);
+    const afterRoute = addArrivedStop(account("bb"), account("fc"), "2028-02-08 20:30:00+00");
+    pg.sql(`insert into public.plan_completions
+      (id,plan_id,ending,actor_member_id,route_revision,route_snapshot,completed_at)
+      values('${account("cb")}','${account("bb")}','get_home','${account("fc")}',1,
+        '${afterRoute}'::jsonb,'${secondDate}')`);
     expect(pg.sql(`select groups_completed || ':' || groups_repeated
       from pubmax_private.completion_group_week('2028-02-08')`)).toBe("1:1");
     pg.sql(`insert into public.plans(id,title,start_time,status)

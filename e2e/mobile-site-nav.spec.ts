@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+
 async function expectTappable(locator: Locator, label: string): Promise<void> {
   await expect(locator, `${label} should be visible`).toBeVisible();
   const box = await locator.boundingBox();
@@ -56,5 +58,19 @@ test.describe("site navigation touch targets", () => {
       "command palette trigger",
     );
     await expectNoHorizontalOverflow(page, "desktop-small site nav");
+  });
+
+  test("keeps a signed-in account control inside narrow page headers", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    const stub = await installAuthDoubles(page);
+    await seedSignedIn(page, "A");
+    await stub.signedInAs("A");
+
+    for (const path of ["/pubs", "/today"]) {
+      await page.goto(path);
+      const nav = page.getByRole("navigation", { name: "Site navigation" });
+      await expectTappable(nav.getByRole("button", { name: /^Account options for / }), `${path} account control`);
+      await expectNoHorizontalOverflow(page, `${path} signed-in header at 320px`);
+    }
   });
 });

@@ -202,6 +202,11 @@ async function preparePage(
   await page.addInitScript(
     ({ firstVisit, signedIn, authStorageKey, userId }) => {
       localStorage.setItem("pubmax-theme", "dark");
+      if (firstVisit) {
+        // Measure unanswered consent after a product answer; the first-answer
+        // gate itself is exercised by first-run-chrome-share.spec.ts.
+        sessionStorage.setItem("pubmax:consent-answer-moment:v1", "venue-sheet");
+      }
       if (!firstVisit) {
         localStorage.setItem("pubmax-tour-v1-done", "1");
         localStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -439,10 +444,11 @@ async function measureSurfaceAssertions(
   if (surface === "map-first-visit") {
     const names =
       viewport.width <= 640
-        ? ["mobile map topbar", "Describe the outing"]
+        ? panels.some((candidate) => candidate.name === "analytics notice")
+          ? ["mobile map topbar"]
+          : ["mobile map topbar", "Describe the outing"]
         : [
             "desktop map navigation",
-            "Tonight Arc panel",
             "desktop map toolbar",
           ];
     const stack = names
@@ -525,23 +531,13 @@ async function measureSurfaceAssertions(
       Number.isFinite(overlap) && overlap === 0,
       `notice ${notice?.top}-${notice?.bottom}px; credit ${credit?.top}-${credit?.bottom}px; overlap ${overlap}px`,
     );
-    const planOverlap =
-      notice && planAction
-        ? round(
-            Math.max(
-              0,
-              Math.min(notice.bottom, planAction.bottom) -
-                Math.max(notice.top, planAction.top),
-            ),
-          )
-        : Number.NaN;
     assertMeasured(
       assertions,
       surface,
       viewport.width,
-      "analytics notice leaves primary map action clear",
-      Number.isFinite(planOverlap) && planOverlap === 0,
-      `notice ${notice?.top}-${notice?.bottom}px; action ${planAction?.top}-${planAction?.bottom}px; overlap ${planOverlap}px`,
+      "analytics notice temporarily hides the map planning action",
+      !planAction && await page.locator(".mobilePlanActivation").isHidden(),
+      "consent owns the action lane until dismissed",
     );
     const noticeShare = notice
       ? round((notice.height / viewport.height) * 100)
@@ -620,6 +616,14 @@ async function verifyPostCaptureInteractions(
   );
   if (firstVisitPrompt?.kind !== "analytics consent") return;
   await page.getByRole("button", { name: "No thanks" }).click();
+  const planAction = page.locator(".mobilePlanActivation");
+  await expect(planAction).toBeVisible();
+  await expect.poll(async () => {
+    const topbar = await page.locator(".mobileMapTopbar").boundingBox();
+    const plan = await planAction.boundingBox();
+    if (!topbar || !plan) return Infinity;
+    return Math.max(Math.abs(topbar.x - plan.x), Math.abs(topbar.x + topbar.width - plan.x - plan.width));
+  }).toBeLessThanOrEqual(0.5);
   assertMeasured(
     assertions,
     surface,
@@ -673,6 +677,13 @@ async function captureSurface(
     await expect(arrivalCard).toBeVisible({ timeout: 45_000 });
     await arrivalCard.getByRole("button", { name: "Close" }).click();
     await expect(arrivalCard).toHaveCount(0, { timeout: 15_000 });
+    if (viewport.width > 640) {
+      const citySuggestion = page.locator(".citySuggestBanner");
+      await expect(citySuggestion).toBeVisible();
+      await citySuggestion.getByRole("button", { name: "Dismiss city suggestion" }).click();
+      await expect(citySuggestion).toHaveCount(0);
+    }
+    await expect(page.locator(".analyticsConsentPrompt")).toBeVisible({ timeout: 30_000 });
   }
   await settle(page);
 

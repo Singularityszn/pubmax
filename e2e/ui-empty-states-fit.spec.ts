@@ -128,6 +128,12 @@ test.describe("UI empty states and layout fit", () => {
     await page.goto("/tonight");
     const create = page.getByRole("button", { name: "Create", exact: true });
     await expect(create).toBeVisible();
+    await expect(page.getByRole("button", { name: "Show tonight's plan" })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => {
+      const fab = document.querySelector(".createFab")!.getBoundingClientRect();
+      const padding = Number.parseFloat(getComputedStyle(document.body).paddingBottom);
+      return Math.abs(padding - (innerHeight - fab.top));
+    })).toBeLessThan(0.5);
     const createBox = (await create.boundingBox())!;
     const padding = () => page.evaluate(() =>
       Number.parseFloat(getComputedStyle(document.body).paddingBottom),
@@ -138,6 +144,7 @@ test.describe("UI empty states and layout fit", () => {
     await expect(dialog).toBeVisible();
     await expect(create).toBeHidden();
     const barBox = (await page.getByRole("navigation", { name: "Primary" }).boundingBox())!;
+    await expect.poll(padding).toBeLessThanOrEqual(withCreate - createBox.height);
     const withoutCreate = await padding();
     expect(withoutCreate).toBeGreaterThanOrEqual(barBox.height);
     expect(withCreate - withoutCreate).toBeGreaterThanOrEqual(createBox.height);

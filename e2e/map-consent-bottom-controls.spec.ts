@@ -1,7 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
-test.use({ storageState: { cookies: [], origins: [] } });
+// Tile failures must reach page.route instead of the service worker's cache.
+test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: "block" });
 
 async function prepareMap(page: Page, width: number, consent: boolean) {
   await page.setViewportSize({ width, height: 900 });

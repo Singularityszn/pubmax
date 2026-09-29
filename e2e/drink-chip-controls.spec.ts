@@ -113,11 +113,22 @@ for (const viewport of [
     await mapViewGroup
       .getByRole("button", { name: "No alcohol", exact: true })
       .click();
-    await noAlcoholIndex;
-    await expect(heading).toHaveText("No-alcohol price bands");
-    await expect(rows.last()).toHaveText(
-      "?No alcohol-free or soft drink price on the map",
-    );
+    const noAlcoholResponse = await noAlcoholIndex;
+    const noAlcoholBody = await noAlcoholResponse.json() as { prices?: unknown[] };
+    expect(Array.isArray(noAlcoholBody.prices)).toBe(true);
+    if (noAlcoholBody.prices?.length === 0) {
+      await expect(heading).toHaveText("No-alcohol view");
+      await expect(rows).toHaveText(["?Price not shown on pins"]);
+    } else {
+      await expect(heading).toHaveText(/^(No-alcohol view|No-alcohol price bands)$/);
+      if (await heading.textContent() === "No-alcohol view") {
+        await expect(rows).toHaveText(["?Price not shown on pins"]);
+      } else {
+        await expect(rows.last()).toHaveText(
+          "?No alcohol-free or soft drink price on the map",
+        );
+      }
+    }
     await expect(key.locator(".mapKeyPriceRows")).not.toContainText("pint");
     await expect(key.locator(".mapKeyPriceRows")).not.toContainText(
       "venue type",

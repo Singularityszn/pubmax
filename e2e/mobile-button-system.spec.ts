@@ -388,6 +388,26 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
   await page.setViewportSize({ width: 768, height: 1024 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await setTheme(page, "light");
+  await page.route("**/api/citymcp/status**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        asOf: "2026-09-29T18:00:00.000Z",
+        weather: null,
+        tubeLines: [],
+        signals: [
+          {
+            headline:
+              "Rye Lane closed between Peckham Rye and London Bridge until late evening.",
+            detail: "Use another route where possible.",
+            kind: "transport",
+            severity: "major",
+          },
+        ],
+      }),
+    }),
+  );
   await page.goto("/map");
   const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
   // "Show all" left the map edge for the Layers popover (7 Sep 2026, B9), so
@@ -405,6 +425,14 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
   await expect(page.locator(".mapLayersPanel .mapFitLondonBtn")).toBeVisible();
   await page.locator(".mapLayersClose").click();
   await expect(page.locator(".mapLayersPanel")).toHaveCount(0);
+  const citySuggest = page.locator(".citySuggestBanner");
+  await expect(citySuggest).toBeVisible();
+  await citySuggest
+    .getByRole("button", { name: "Dismiss city suggestion" })
+    .click();
+  await expect(citySuggest).toHaveCount(0);
+  const statusBanner = page.locator(".cityStatusBanner");
+  await expect(statusBanner).toBeVisible();
   const findings = await page.evaluate(() => {
     const owns = (selector: string) => {
       const element = document.querySelector(selector);
@@ -439,11 +467,10 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
   });
   expect(findings.zoomIn).toBe(true);
   expect(findings.zoomOut).toBe(true);
-  if (findings.banner) {
-    expect(findings.banner.width).toBeGreaterThan(160);
-    expect(findings.banner.centreOffset).toBeLessThanOrEqual(2);
-    expect(findings.banner.headlineLines).toBeLessThanOrEqual(2);
-  }
+  expect(findings.banner).not.toBeNull();
+  expect(findings.banner!.width).toBeGreaterThan(160);
+  expect(findings.banner!.centreOffset).toBeLessThanOrEqual(2);
+  expect(findings.banner!.headlineLines).toBeLessThanOrEqual(2);
 });
 
 // ── The 13 September sweep (site audit D7, D14, D15, D16). Each figure below

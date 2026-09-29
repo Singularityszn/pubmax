@@ -333,7 +333,10 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   const toolbar = page.locator(".mapToolbar");
   await expect(toolbar).toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: /Map layers:/ }).click();
-  await page.getByRole("button", { name: "List view" }).click();
+  await expect(async () => {
+    await page.getByRole("button", { name: "List view" }).click();
+    await expect(page.locator(".mapVenueList--open")).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
   const retargetVenue = page
     .locator(".mapVenueListItem")
     .filter({ hasNotText: "Three Sheets Soho" })
@@ -378,13 +381,29 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   // crossing rather than sampling after the spring has finished. Under load the
   // spring can finish before the first sample, so mid-exchange geometry is
   // asserted only when a crossing frame is caught.
-  let caughtMidExchange = false;
+  let midExchange: { planner: { x: number; width: number }; venue: { x: number; width: number }; toolbar: { x: number; width: number } } | null = null;
   try {
     await expect
       .poll(
         async () => {
-          const box = await renderedBox(planner, "moving planner");
-          return box.x < -1 && box.x > -box.width;
+          const sample = await page.evaluate(() => {
+            const rect = (selector: string) => {
+              const node = document.querySelector<HTMLElement>(selector);
+              if (!node) throw new Error(`Missing ${selector} during drawer exchange`);
+              const { x, width } = node.getBoundingClientRect();
+              return { x, width };
+            };
+            return {
+              planner: rect(".mapDrawer.left.springDrawer"),
+              venue: rect(".mapDrawer.right.springDrawer"),
+              toolbar: rect(".mapToolbar"),
+            };
+          });
+          if (sample.planner.x < -1 && sample.planner.x > -sample.planner.width) {
+            midExchange = sample;
+            return true;
+          }
+          return false;
         },
         {
           intervals: [8, 8, 8, 8, 16, 16, 32],
@@ -392,19 +411,13 @@ test("1440px planner hands ownership to venue and Back restores composed state",
         },
       )
       .toBe(true);
-    caughtMidExchange = true;
   } catch {
-    caughtMidExchange = false;
+    midExchange = null;
   }
-  let plannerMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
-  let venueMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
-  let toolbarMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
-  if (caughtMidExchange) {
-    [plannerMid, venueMid, toolbarMid] = await Promise.all([
-      renderedBox(planner, "planner during exchange"),
-      renderedBox(venue, "venue during exchange"),
-      renderedBox(toolbar, "toolbar during exchange"),
-    ]);
+  let toolbarMid: { x: number; width: number } | null = null;
+  if (midExchange) {
+    const { planner: plannerMid, venue: venueMid } = midExchange;
+    toolbarMid = midExchange.toolbar;
     expect(plannerMid.x).toBeLessThan(0);
     expect(plannerMid.x).toBeGreaterThan(-plannerMid.width);
     expect(venueMid.x).toBeGreaterThan(800);

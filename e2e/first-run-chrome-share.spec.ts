@@ -367,8 +367,10 @@ test("the page foot clears the tab bar and the painted consent card at default a
 
   await page.evaluate(() => document.documentElement.setAttribute("data-text-scale", "large"));
   await expect.poll(async () => (await foot()).card).toBeGreaterThan(CONSENT_ROW_HEIGHT);
-  const large = await foot();
-  expect(large.padding).toBeGreaterThanOrEqual(large.dock + large.card - 0.5);
+  await expect.poll(async () => {
+    const large = await foot();
+    return large.padding - large.dock - large.card;
+  }).toBeGreaterThanOrEqual(-0.5);
 });
 
 test("the dock paints the home-indicator strip under it and keeps its tap row @390x844", async ({ page }) => {

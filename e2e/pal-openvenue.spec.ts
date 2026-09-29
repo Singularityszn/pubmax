@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 
 import { expect, test } from "@playwright/test";
+import { mockPalVenueAnswer } from "./helpers/palProviderDouble";
 
 const PHONE = { width: 390, height: 844 };
 const SHOTS_DIR = process.env.PAL_OPENVENUE_SHOTS_DIR ?? "";
@@ -34,6 +35,7 @@ test.describe("Pub Pal venue card opens the map sheet", () => {
   }) => {
     test.setTimeout(120_000);
 
+    await mockPalVenueAnswer(page);
     await page.goto("/pal/chat");
     await askOnPhone(page, "Quiet-ish near Bank, not pricey");
 

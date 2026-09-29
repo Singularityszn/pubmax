@@ -93,19 +93,19 @@ test.describe("mobile bottom-tab navigation", () => {
     const create = page.getByRole("button", { name: "Create", exact: true });
     await create.click();
     const price = page.getByRole("link", { name: "Log a price", exact: true });
-    await expect(price).toHaveAttribute("href", "/map/manchester?log=1");
+    await expect(price).toHaveAttribute("href", "/map/manchester?contribute=price");
 
     const otherTab = await page.context().newPage();
     await otherTab.goto("/places?city=london");
     await otherTab.getByTestId("places-set-city").click();
-    await expect(price).toHaveAttribute("href", "/map?log=1");
+    await expect(price).toHaveAttribute("href", "/map?contribute=price");
     await otherTab.goto("/places?city=manchester");
     await otherTab.getByTestId("places-set-city").click();
-    await expect(price).toHaveAttribute("href", "/map/manchester?log=1");
+    await expect(price).toHaveAttribute("href", "/map/manchester?contribute=price");
     await otherTab.close();
 
     await price.click();
-    await expect(page).toHaveURL(/\/map\/manchester\?log=1$/);
+    await expect(page).toHaveURL(/\/map\/manchester\?contribute=price$/);
     const picker = page.getByRole("list", { name: "Pubs near the map centre" });
     await expect(picker).toBeVisible({ timeout: 45_000 });
     await expect(picker.getByRole("button", { name: /The Bank/ })).toBeVisible();

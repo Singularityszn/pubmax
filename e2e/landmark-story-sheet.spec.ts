@@ -8,8 +8,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 // pill and the dock, the hero was a broken-image glyph with the credit bar
 // still under it, and every row repeated "straight-line". The story is now the
 // phone's shared bottom sheet (the landmark's name in the chrome, the body
-// scrolling above the tab bar) and the desktop's left drawer (the planner's
-// frame, whose lane the toolbar already leaves).
+// scrolling to the safe-area edge while the tab bar yields) and the desktop's
+// left drawer (the planner's frame, whose lane the toolbar already leaves).
 //
 // Everything here is DOM: the sheet, its header, its rows. The story is opened
 // by ?landmark=, the shareable URL PubMap seeds from, so no canvas pin is ever
@@ -210,16 +210,22 @@ for (const width of PHONE_WIDTHS) {
 
     // The last nearby row is reachable by scrolling the sheet body alone, and
     // nothing (planning pill, create action, tab bar) covers it.
-    const lastRow = portal.locator(".landmarkStoryPubs button").last();
-    await lastRow.scrollIntoViewIfNeeded();
-    await expect(lastRow).toBeVisible();
-    const portalBox = await boxOf(page, '.mobileSheetPortal[data-sheet-kind="landmark"]');
-    const lastBox = await boxOf(page, '.mobileSheetPortal[data-sheet-kind="landmark"] .landmarkStoryPubs li:last-child button');
-    expect(lastBox.bottom).toBeLessThanOrEqual(portalBox.bottom + 0.5);
-    expect(await ownsItsCentre(page, '.mobileSheetPortal[data-sheet-kind="landmark"] .landmarkStoryPubs li:last-child button')).toBe(true);
-    // The tab bar keeps its own lane under the sheet.
-    const tabBar = await boxOf(page, ".mobileTabBar");
-    expect(lastBox.bottom).toBeLessThanOrEqual(tabBar.top + 0.5);
+    await settledStoryPubNames(portal);
+    await expect(async () => {
+      const lastRow = portal.locator(".landmarkStoryPubs button").last();
+      await lastRow.scrollIntoViewIfNeeded({ timeout: 4_000 });
+      await portal.locator(".mobileSharedSheetBody").evaluate((el) => { el.scrollTop = el.scrollHeight; });
+      await expect(lastRow).toBeVisible();
+      const portalBox = await boxOf(page, '.mobileSheetPortal[data-sheet-kind="landmark"]');
+      const lastBox = await boxOf(page, '.mobileSheetPortal[data-sheet-kind="landmark"] .landmarkStoryPubs li:last-child button');
+      const safeAreaPadding = await portal.locator(".mobileSharedSheetBody").evaluate((el) =>
+        parseFloat(getComputedStyle(el).paddingBottom),
+      );
+      expect(lastBox.bottom).toBeLessThanOrEqual(portalBox.bottom - safeAreaPadding + 0.5);
+      expect(await ownsItsCentre(page, '.mobileSheetPortal[data-sheet-kind="landmark"] .landmarkStoryPubs li:last-child button')).toBe(true);
+    }).toPass({ timeout: 45_000 });
+    // The full-height sheet owns this lane while open.
+    await expect(page.locator(".mobileTabBar")).toHaveCSS("opacity", "0");
 
     // The story is a surface the reader is ON, so the planning pill is not
     // painted under it (verify-preview-4, section 6: the pill's box lay inside
@@ -230,6 +236,8 @@ for (const width of PHONE_WIDTHS) {
     await page.getByRole("button", { name: "Close the story" }).click();
     await expect(portal).toHaveCount(0);
     await expect.poll(() => new URL(page.url()).searchParams.get("landmark")).toBeNull();
+    await expect(page.locator(".mobileTabBar")).toHaveCSS("opacity", "1");
+    expect(await ownsItsCentre(page, '.mobileTabBar a[aria-label="Places"]')).toBe(true);
 
     expect(errors).toEqual([]);
   });
@@ -401,10 +409,13 @@ test("desktop 1440: the story takes the left drawer and the chrome leaves its la
   await expectStoryBodyHonest(page, ".storyDrawer.open");
 
   // The last row scrolls into view inside the drawer and owns its centre.
-  const lastRow = drawer.locator(".landmarkStoryPubs button").last();
-  await lastRow.scrollIntoViewIfNeeded();
-  await expect(lastRow).toBeVisible();
-  expect(await ownsItsCentre(page, ".storyDrawer.open .landmarkStoryPubs li:last-child button")).toBe(true);
+  await settledStoryPubNames(drawer);
+  await expect(async () => {
+    const lastRow = drawer.locator(".landmarkStoryPubs button").last();
+    await lastRow.scrollIntoViewIfNeeded({ timeout: 4_000 });
+    await expect(lastRow).toBeVisible();
+    expect(await ownsItsCentre(page, ".storyDrawer.open .landmarkStoryPubs li:last-child button")).toBe(true);
+  }).toPass({ timeout: 45_000 });
 
   await page.getByRole("button", { name: "Close the story" }).click();
   await expect(page.locator(".storyDrawer.open")).toHaveCount(0);

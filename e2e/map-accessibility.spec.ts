@@ -217,7 +217,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     expect(beforeMove).toBeGreaterThan(0);
     expect(beforeMoveIds.every(Boolean)).toBe(true);
 
-    const zoomIn = page.getByRole("button", { name: "Zoom in" });
+    const zoomIn = page.getByRole("button", { name: "Zoom in", exact: true });
     await zoomIn.click();
     await zoomIn.click();
     await zoomIn.click();

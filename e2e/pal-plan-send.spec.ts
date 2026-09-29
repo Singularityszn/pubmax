@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { mockPalPlanAnswer } from "./helpers/palProviderDouble";
 
 // Pal Plan send: Pub Pal crawl ask lands in Plan, auto-generates, locks, shares one link.
 
@@ -38,6 +39,7 @@ async function dismissOnboarding(page: Page) {
 }
 
 async function palToLockedPlan(page: Page) {
+  await mockPalPlanAnswer(page);
   await page.goto("/pal/chat");
   const ask = "Plan a crawl in Soho for 4";
   await askOnPhone(page, ask);

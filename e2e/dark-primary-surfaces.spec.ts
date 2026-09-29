@@ -244,18 +244,28 @@ for (const viewport of VIEWPORTS) {
     expect(landingMaterial.backgroundImage).toBe("none");
     expect(landingMaterial.backdropFilter).toBe("none");
 
-    const cityInput = page.locator(".cityChooserSearchInput");
-    await cityInput.scrollIntoViewIfNeeded();
-    measurements.landingPlaceholder = await expectRenderedTextContrast(cityInput, {
-      pseudo: "::placeholder",
-      surfaceLocator: page.locator(".cityChooserSearchField"),
-    });
-    await expectNoHorizontalOverflow(page);
-
     const mapResponse = await page.goto("/map");
     expect(mapResponse?.status()).toBe(200);
     await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 45_000 });
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+    const searchToggle = page.getByRole("button", { name: "Search the map" });
+    await searchToggle.click();
+    const mobileSearch = page.locator("#mobileMapSearchInput");
+    await expect(mobileSearch).toBeVisible({ timeout: 10_000 });
+    measurements.mapSearchPlaceholder = await expectRenderedTextContrast(
+      mobileSearch,
+      {
+        pseudo: "::placeholder",
+        surfaceLocator: page.locator(
+          ".mapSearchSuggest--overlay .houseSearchField",
+        ),
+      },
+    );
+    await searchToggle.click();
+    await expect(searchToggle).toHaveAttribute("aria-expanded", "false");
+    await expect(mobileSearch).toBeHidden();
+    await expectNoHorizontalOverflow(page);
 
     // The venue-type chips are read in the Filters sheet on a phone (design
     // judgement 2026-08-01, finding 2.3), so that is where their contrast is

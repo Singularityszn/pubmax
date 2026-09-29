@@ -406,9 +406,15 @@ test("audited labels keep readable contrast in reachable states", async ({ baseU
 
     const tonightRoute = AUDITED_ROUTES.find((route) => route.name === "tonight")!;
     await navigateToAuditedRoute(page, baseURL!, tonightRoute);
-    await page.locator(".tonightFootLink").hover();
+    const tonightLinkSelector = await page.locator(".tonightList .tonightRowLink[href]").first().isVisible()
+      ? ".tonightList .tonightRowLink[href]"
+      : await page.locator(".tonightStatusLink").isVisible()
+        ? ".tonightStatusLink"
+        : ".tonightAlternatives .picksAlternativesLink";
+    await expect(page.locator(tonightLinkSelector).first()).toBeVisible();
+    await page.locator(tonightLinkSelector).first().hover();
     const tonight = await new AxeBuilder({ page })
-      .include(".tonightFootLink")
+      .include(tonightLinkSelector)
       .withRules(["color-contrast"])
       .analyze();
     expect(tonight.violations, `${theme} Tonight contrast`).toEqual([]);
@@ -433,11 +439,14 @@ test("audited labels keep readable contrast in reachable states", async ({ baseU
 test.describe("UI UX battle-test guardrails", () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
-  test("first-visit consent link meets the touch target floor", async ({ page }) => {
+  test("answered-session consent link meets the touch target floor", async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.removeItem("pubmaxx:analytics-consent:v1");
       localStorage.setItem("pubmax-tour-v1-done", "1");
       localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+      // This case measures geometry. The real second-route answer is covered
+      // by consent-after-first-answer.spec.ts.
+      sessionStorage.setItem("pubmax:consent-answer-moment:v1", "second-route");
     });
     await page.goto("/today");
     const privacy = page.locator(".analyticsConsentPrompt a");
@@ -462,11 +471,21 @@ test.describe("UI UX battle-test guardrails", () => {
     for (const route of AUDITED_ROUTES) {
       await navigateToAuditedRoute(page, baseURL!, route);
 
+      if (route.name === "home") {
+        const skip = page.locator("a.skipLink");
+        await skip.focus();
+        const focusedBox = await skip.boundingBox();
+        expect(focusedBox?.width).toBeGreaterThanOrEqual(44);
+        expect(focusedBox?.height).toBeGreaterThanOrEqual(44);
+        await skip.evaluate((node) => node.blur());
+      }
+
       const result = await page.evaluate(() => {
         const visible = (element: Element) => {
           const style = getComputedStyle(element);
           const rect = element.getBoundingClientRect();
           return (
+            !element.matches(".skipLink:not(:focus)") &&
             style.display !== "none" &&
             style.visibility !== "hidden" &&
             style.pointerEvents !== "none" &&

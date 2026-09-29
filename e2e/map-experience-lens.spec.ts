@@ -79,7 +79,7 @@ test("no-alcohol and food views own the 390px map without pint controls", async 
   await food.click();
   await expect(food).toHaveAttribute("aria-pressed", "true");
   await expect(sheet.getByRole("status")).toContainText(
-    /sourced menu price|Food venues shown/i,
+    /^(?:\d+ menu prices? we have shown\.|Food venues shown\. No menu prices we have in this view yet\.)$/,
   );
   await expect(
     page.getByRole("button", { name: "Pints", exact: true }),
