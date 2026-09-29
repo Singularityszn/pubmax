@@ -81,6 +81,7 @@ for (const journey of [
     expect(reloaded.stops?.find((stop) => stop.venueId === journey.venueId)?.selectedDrinkPriceEvidence)
       .toEqual(pricedStop?.selectedDrinkPriceEvidence);
     await expect(page.locator(".planRoute")).toContainText("community report");
+    await expect(page.locator(".planRoute__signal--loading")).toHaveCount(0);
     await page.locator(".planRoute").scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`${journey.category}-priced-reloaded.png`), animations: "disabled" });
 
