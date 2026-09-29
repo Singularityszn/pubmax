@@ -162,7 +162,7 @@ const ROUTE_MARKS: MapKeyEntry[] = [
 ];
 
 const NO_ALCOHOL_NOTE =
-  "The no-alcohol view has no separate pin shape. It uses alcohol-free and soft drink prices. Missing prices stay grey.";
+  "The no-alcohol view has no separate pin shape. Alcohol-free and soft drink prices stay on venue details while serving sizes cannot be compared on pins.";
 
 // The band rows print the thresholds lib/priceBand.ts cut, never a typed
 // figure, so the legend and the pin cannot name two different £s.
@@ -514,19 +514,34 @@ export function mapPriceLegend(
     const hasKnownBand = priceBuckets.some((bucket) => bucket !== 3);
     const unreadable =
       context.status === "degraded" && !hasKnownBand;
-    const rows = renderedRows(priceRows(drink), priceBands);
+    const rows = hasKnownBand
+      ? renderedRows(priceRows(drink), priceBands)
+      : priceBuckets.includes(3)
+        ? [
+            {
+              label: "Price not shown on pins",
+              symbol: "?" as const,
+              tone: "grey" as const,
+            },
+          ]
+        : [];
     return declaredLegend(
       {
         rows: unreadable ? rows.slice(-1) : rows,
         ariaLabel: unreadable
           ? `${context.label} price colour key, unavailable`
-          : `${context.label} price colour key`,
+          : hasKnownBand
+            ? `${context.label} price colour key`
+            : `${context.label} map price key`,
         title: unreadable
           ? `${context.label} prices unavailable`
-          : `${context.label} price bands`,
+          : hasKnownBand
+            ? `${context.label} price bands`
+            : `${context.label} view`,
         hint: drinkHint(drink, context.status, hasKnownBand),
       },
       {
+        priceCapFilter: false,
         clusterNote: drinkClusterNote(
           drink,
           context.status,
