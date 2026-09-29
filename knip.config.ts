@@ -35,7 +35,7 @@ function declaredMjsPairs(roots: readonly string[]): string[] {
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) walk(full);
+      if (entry.isDirectory() && entry.name !== "node_modules") walk(full);
       else if (entry.name.endsWith(".d.mts")) paired.push(full.replace(/\.d\.mts$/, ".mjs"));
     }
   };
@@ -190,6 +190,17 @@ const config: KnipConfig = {
   // System SysV IPC and process tools the postgres harness shells out to
   // (scripts/rls/postgresShm.mjs); they are not npm binaries.
   ignoreBinaries: ["ipcs", "ipcrm", "ps"],
+};
+
+// This optional local MCP CLI has its own pinned package manifest and named
+// start/test/proof callers. Explicitly carry the original root entry and ignore
+// graph: Knip stops using those top-level workspace fields once workspaces exist.
+config.workspaces = {
+  ".": { entry: config.entry, ignore: config.ignore },
+  "scripts/chatgpt-map": {
+    entry: ["server.mjs", "*.test.mjs", "browser-proof.mjs"],
+    project: ["*.mjs"],
+  },
 };
 
 export default config;

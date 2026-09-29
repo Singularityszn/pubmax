@@ -1,0 +1,39 @@
+{
+  "checkedAt": "2026-09-29T23:46:01.700Z",
+  "host": "controlled local MCP Apps bridge",
+  "authentication": "No ChatGPT account connection",
+  "checks": [
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "pubs": 3,
+      "popup": true,
+      "horizontalOverflow": false,
+      "status": "3 listed pubs."
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pubs": 3,
+      "popup": true,
+      "horizontalOverflow": false,
+      "status": "3 listed pubs."
+    }
+  ],
+  "failureChecks": [
+    {
+      "order": "failure-before-results",
+      "pubs": 3,
+      "status": "3 listed pubs. Map could not load. Listed pubs remain below."
+    },
+    {
+      "order": "results-before-failure",
+      "pubs": 2,
+      "status": "2 listed pubs. Streets could not load. Listed pubs remain below."
+    }
+  ]
+}

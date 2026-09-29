@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PUBMAXX public pub map</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.11.2/dist/maplibre-gl.css">
+<style>
+  :root{color-scheme:light dark;font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--paper)}
+  *{box-sizing:border-box}body{margin:0}header{padding:20px 20px 12px}h1{font-family:"Space Grotesk",system-ui,sans-serif;font-size:24px;line-height:1.2;margin:0 0 8px}p{font-size:14px;line-height:1.5;margin:0 0 8px;color:var(--muted)}
+  main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);min-width:0}#map{height:420px;min-width:0;background:var(--line)}#venues{min-width:0;max-height:420px;overflow:auto;padding:0 16px;margin:0;list-style:none}
+  li{padding:16px 0;border-bottom:1px solid var(--line)}h2{font-size:17px;margin:0 0 7px;overflow-wrap:anywhere}a{color:inherit;text-underline-offset:3px}button{font:inherit;padding:10px 14px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);cursor:pointer;min-height:44px}button:focus-visible,a:focus-visible{outline:3px solid var(--brass);outline-offset:3px}.pin{border-radius:50%;background:var(--brass);color:var(--color-on-accent);border:2px solid var(--panel-overlay);width:38px;height:38px;padding:0;font-weight:700;box-shadow:0 2px 8px #0003}.maplibregl-popup-content{background:var(--paper);color:var(--ink)}.price{font-variant-numeric:tabular-nums;margin-bottom:4px}footer{padding:14px 20px}#status{padding:0 20px}
+  @media(max-width:600px){main{grid-template-columns:minmax(0,1fr)}#map{height:280px}#venues{max-height:none}}
+  /* PUBMAXX_SHARED_STYLES */
+</style>
+<header><h1>Pubs in <span id="area">your borough</span></h1><p id="notice">Choose a London borough in the conversation to see listed pint prices.</p></header>
+<p id="status" role="status">Waiting for public venues.</p>
+<main><div id="map" role="region" aria-label="Public pub map"></div><ol id="venues" aria-label="Listed pubs"></ol></main>
+<footer><p>Listed prices can change. Friend locations stay inside PUBMAXX.</p><a href="https://pubmaxxing.com/map" target="_blank" rel="noopener noreferrer">Open PUBMAXX</a></footer>
+<script type="module">
+  const pending = new Map();
+  let nextId = 1;
+  let map;
+  let markers = [];
+  let latestVenues = [];
+  let resultStatus = "Waiting for public venues.";
+  let mapFailure = "";
+  let bridgeReady = false;
+  const element = (id) => document.getElementById(id);
+  const money = new Intl.NumberFormat("en-GB", {style:"currency",currency:"GBP"});
+  const MAPLIBRE_URL = "https://unpkg.com/maplibre-gl@6.11.2/dist/";
+  let maplibre;
+
+  function updateStatus(message = resultStatus) {
+    resultStatus = message;
+    element("status").textContent = [resultStatus, mapFailure].filter(Boolean).join(" ");
+  }
+  function mapFailed(message) {mapFailure = message;updateStatus();}
+  function notifySize() {
+    if (bridgeReady) window.parent.postMessage({jsonrpc:"2.0",method:"ui/notifications/size-changed",params:{height:document.body.scrollHeight}},"*");
+  }
+  new ResizeObserver(notifySize).observe(document.body);
+
+  function rpc(method, params) {
+    const id = nextId++;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {pending.delete(id);reject(new Error("Host did not answer"));}, 10000);
+      pending.set(id,{resolve,reject,timer});
+      window.parent.postMessage({jsonrpc:"2.0",id,method,params},"*");
+    });
+  }
+  function text(tag, value, parent) {const node=document.createElement(tag);node.textContent=value;parent.append(node);return node;}
+  function safeLink(raw) {
+    try {const u=new URL(raw);return u.origin==="https://pubmaxxing.com"&&u.pathname==="/map"&&!u.username&&!u.password?u.href:null;}catch{return null;}
+  }
+  function safePublisher(value) {
+    if (!value || typeof value.label!=="string" || value.label.length>160 || typeof value.url!=="string") return null;
+    try {const u=new URL(value.url);return u.protocol==="https:"&&!u.username&&!u.password?{label:value.label,url:u.href}:null;}catch{return null;}
+  }
+  function safeVenues(input) {
+    if (!Array.isArray(input)) return [];
+    return input.slice(0,30).filter(v=>v&&typeof v.name==="string"&&v.name.length<=160&&typeof v.id==="string"&&Number.isFinite(v.latitude)&&Math.abs(v.latitude)<=90&&Number.isFinite(v.longitude)&&Math.abs(v.longitude)<=180)
+      .map(v=>({id:v.id,name:v.name,latitude:v.latitude,longitude:v.longitude,href:safeLink(v.href),prices:Array.isArray(v.prices)?v.prices.slice(0,3).filter(p=>p&&typeof p.drink==="string"&&p.drink.length<=160&&Number.isFinite(p.priceGbp)&&p.priceGbp>0).map(p=>({drink:p.drink,priceGbp:p.priceGbp,band:["cheap","average","expensive"].includes(p.band)?p.band:null,publisher:safePublisher(p.publisher)})):[]}));
+  }
+  function card(venue, parent) {
+    text("h2",venue.name,parent);
+    if (!venue.prices.length) text("p","No listed price here yet.",parent);
+    for (const price of venue.prices) {
+      text("p",`${money.format(price.priceGbp)} · ${price.drink}`,parent).className=price.band?`price priceBand-${price.band}`:"price";
+      const source = text("p","",parent);
+      if (price.publisher) {const a=text("a",`Publisher: ${price.publisher.label}`,source);a.href=price.publisher.url;a.target="_blank";a.rel="noopener noreferrer";}
+      else source.textContent="Publisher not recorded";
+    }
+    if (venue.href) {const link=text("a","Open pub in PUBMAXX",parent);link.href=venue.href;link.target="_blank";link.rel="noopener noreferrer";}
+  }
+  function showMarkers() {
+    if (!map || !maplibre) return;
+    markers.forEach(marker=>marker.remove());markers=[];
+    latestVenues.forEach((venue,index)=>{
+      const button=document.createElement("button");button.className="pin";button.textContent=String(index+1);button.setAttribute("aria-label",venue.name);
+      const popupContent=document.createElement("div");card(venue,popupContent);
+      const popup=new maplibre.Popup({offset:22}).setDOMContent(popupContent);
+      popup.on("open",()=>{
+        const bounds=element("map").getBoundingClientRect();
+        const box=popup.getElement().getBoundingClientRect();
+        const shiftX=Math.max(bounds.left+10-box.left,0)-Math.max(box.right-bounds.right+10,0);
+        const shiftY=Math.max(bounds.top+10-box.top,0)-Math.max(box.bottom-bounds.bottom+60,0);
+        if (shiftX||shiftY) map.panBy([-shiftX,-shiftY],{duration:0});
+      });
+      markers.push(new maplibre.Marker({element:button}).setLngLat([venue.longitude,venue.latitude]).setPopup(popup).addTo(map));
+    });
+    if (latestVenues.length) {
+      const bounds=new maplibre.LngLatBounds();latestVenues.forEach(v=>bounds.extend([v.longitude,v.latitude]));
+      map.fitBounds(bounds,{padding:45,maxZoom:14,duration:0});
+    }
+  }
+  function render(result) {
+    if (result?.isError) {latestVenues=[];element("venues").replaceChildren();showMarkers();updateStatus("Could not read pubs. Ask to retry.");return;}
+    const data=result?.structuredContent;
+    if (!data || typeof data.area!=="string" || data.area.length>80) return;
+    latestVenues=safeVenues(data.venues);
+    element("area").textContent=data.area;
+    element("notice").textContent=typeof data.priceNotice==="string"?data.priceNotice.slice(0,500):"Listed pint prices. Check the pub before ordering.";
+    element("venues").replaceChildren();latestVenues.forEach(v=>card(v,text("li","",element("venues"))));
+    updateStatus(latestVenues.length?`${latestVenues.length} listed pubs.`:"No pubs listed for that borough.");
+    showMarkers();
+  }
+  window.addEventListener("message",event=>{
+    if (event.source!==window.parent || event.data?.jsonrpc!=="2.0") return;
+    const message=event.data;
+    if (message.id && pending.has(message.id)) {const request=pending.get(message.id);pending.delete(message.id);clearTimeout(request.timer);message.error?request.reject(new Error("Host refused initialization")):request.resolve(message.result);}
+    if (message.method==="ui/notifications/tool-result") render(message.params);
+  });
+  if (window.parent!==window) {
+    rpc("ui/initialize",{appInfo:{name:"pubmaxx-public-map",version:"0.1.0"},appCapabilities:{},protocolVersion:"2026-01-26"})
+      .then(()=>{bridgeReady=true;window.parent.postMessage({jsonrpc:"2.0",method:"ui/notifications/initialized",params:{}},"*");notifySize();})
+      .catch(()=>{updateStatus("Map bridge unavailable. Open PUBMAXX below.");});
+  }
+  try {
+    maplibre=await import(`${MAPLIBRE_URL}maplibre-gl.mjs`);
+    maplibre.setWorkerUrl(URL.createObjectURL(new Blob([`import "${MAPLIBRE_URL}maplibre-gl-worker.mjs";`],{type:"text/javascript"})));
+    map=new maplibre.Map({container:"map",style:"https://tiles.openfreemap.org/styles/positron",center:[-0.12,51.52],zoom:10,customAttribution:"Pub data © OpenStreetMap contributors (ODbL)"});
+    map.addControl(new maplibre.NavigationControl({showCompass:false}));
+    map.on("error",()=>{mapFailed("Streets could not load. Listed pubs remain below.");});
+    showMarkers();
+  } catch {mapFailed("Map could not load. Listed pubs remain below.");}
+</script>
+</html>
