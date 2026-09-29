@@ -154,6 +154,33 @@ describe("plan collaboration capabilities", () => {
     expect(apply).toHaveBeenCalledTimes(1);
   });
 
+  it("shares one pending host decision across concurrent retries with the same key", async () => {
+    const { id, host, guest } = await members();
+    const store = planCollaborationStore();
+    const created = await store.createProposal(id, guest, {
+      reason: "Try the shorter route",
+      expectedRouteRevision: 1,
+      stops,
+      resolvedConstraintIds: [],
+      idempotencyKey: "proposal-decision-race",
+    });
+    if (!created.ok) throw new Error("proposal setup failed");
+
+    let releaseApply!: (applied: boolean) => void;
+    const applyPending = new Promise<boolean>((resolve) => { releaseApply = resolve; });
+    const apply = vi.fn(() => applyPending);
+    const decide = () => store.decideProposal(id, host, created.proposal.id, "accepted", "decision-race-key", apply);
+    const first = decide();
+    const retry = decide();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    releaseApply(true);
+
+    const results = await Promise.all([first, retry]);
+    expect(results[0]).toMatchObject({ ok: true, proposal: { status: "accepted" } });
+    expect(results[1]).toEqual(results[0]);
+    expect(apply).toHaveBeenCalledTimes(1);
+  });
+
   it("never carries hard-constraint evidence onto an unrelated proposal", async () => {
     const { id, host, guest } = await members();
     const store = planCollaborationStore();
