@@ -74,26 +74,68 @@ describe.skipIf(skipReason !== null)("0169 private completion membership snapsho
       { id: account("d4") },
       { id: account("d5"), user: account("a3"), revoked: true },
     ]);
-    const read = () => pg.sql(`select array_to_string(account_ids, ',')
+    const read = () => pg.sql(`select array_to_string(account_keys, ',')
       from pubmax_private.plan_completion_group_snapshots where completion_id='${account("c1")}'`);
-    expect(read()).toBe(`${account("a1")},${account("a2")}`);
+    expect(read()).toBe(`auth:${account("a1")},auth:${account("a2")}`);
     pg.sql(`update public.plan_crew_members set user_id='${account("a4")}' where id='${account("d4")}';
       update public.plan_crew_members set membership_revoked_at=now() where id='${account("d3")}';
       update public.plan_crew_members set membership_revoked_at=null where id='${account("d5")}';
       delete from auth.users where id='${account("a2")}';`);
-    expect(read()).toBe(`${account("a1")},${account("a2")}`);
+    expect(read()).toBe(`auth:${account("a1")},auth:${account("a2")}`);
     pg.sql(`delete from public.plans where id='${account("b1")}'`);
-    expect(read()).toBe(`${account("a1")},${account("a2")}`);
+    expect(read()).toBe(`auth:${account("a1")},auth:${account("a2")}`);
   });
 
   it("records solo and anonymous completions as measured non-groups", () => {
     const pg = database();
     plan(account("b2"), account("c2"), [{ id: account("d6"), user: account("a1") }]);
     plan(account("b3"), account("c3"), [{ id: account("d7") }]);
-    expect(pg.sql(`select cardinality(account_ids) from pubmax_private.plan_completion_group_snapshots
+    expect(pg.sql(`select cardinality(account_keys) from pubmax_private.plan_completion_group_snapshots
       where completion_id='${account("c2")}'`)).toBe("1");
-    expect(pg.sql(`select cardinality(account_ids) from pubmax_private.plan_completion_group_snapshots
+    expect(pg.sql(`select cardinality(account_keys) from pubmax_private.plan_completion_group_snapshots
       where completion_id='${account("c3")}'`)).toBe("0");
+  });
+
+  it("counts active Social Crew accounts and excludes removed members", () => {
+    const pg = database();
+    pg.sql(`insert into public.profiles(id,user_id,handle) values
+      ('${account("e1")}','${account("a1")}','group-proof-linked'),
+      ('${account("e2")}',null,'group-proof-clerk'),
+      ('${account("e3")}',null,'group-proof-removed');
+      insert into public.private_social_accounts(id,clerk_user_id,supabase_user_id,profile_id) values
+      ('${account("f1")}','group-proof-linked','${account("a1")}','${account("e1")}'),
+      ('${account("f2")}','group-proof-clerk',null,'${account("e2")}'),
+      ('${account("f3")}','group-proof-removed',null,'${account("e3")}');
+      insert into public.plans(id,title,start_time,status)
+      values('${account("b4")}','Social night','2026-09-01 20:00:00+00','completed');`);
+    for (const [member, social, user] of ([
+      ["d8", "f1", "a1"], ["d9", "f2", null], ["da", "f3", null],
+    ] as const)) {
+      pg.sql(`insert into public.plan_crew_members
+        (id,plan_id,name,token_hash,user_id,social_account_id,joined_at,updated_at)
+        values('${account(member)}','${account("b4")}','Social member',
+          md5('${member}')||md5('${member}2'),
+          ${user ? `'${account(user)}'` : "null"},'${account(social)}',
+          '2026-09-01 19:00:00+00','2026-09-01 19:00:00+00')`);
+    }
+    pg.sql(`insert into public.social_crews(id,plan_id,owner_account_id)
+      values('${account("e4")}','${account("b4")}','${account("f1")}');
+      insert into public.social_crew_members
+        (id,crew_id,social_account_id,plan_member_id,role,state,ended_at) values
+        ('${account("e5")}','${account("e4")}','${account("f1")}','${account("d8")}','owner','active',null),
+        ('${account("e6")}','${account("e4")}','${account("f2")}','${account("d9")}','member','active',null),
+        ('${account("e7")}','${account("e4")}','${account("f3")}','${account("da")}','member','removed','2026-09-01 19:30:00+00');
+      update public.plans set social_owner_account_id='${account("f1")}' where id='${account("b4")}';
+      insert into public.plan_completions
+        (id,plan_id,ending,actor_member_id,route_revision,route_snapshot,completed_at)
+      values('${account("c4")}','${account("b4")}','get_home','${account("d8")}',1,'[]',
+        '2026-09-01 21:00:00+00')`);
+    const read = () => pg.sql(`select array_to_string(account_keys, ',')
+      from pubmax_private.plan_completion_group_snapshots where completion_id='${account("c4")}'`);
+    expect(read()).toBe(`social:${account("f1")},social:${account("f2")}`);
+    pg.sql(`update public.social_crew_members set state='active',ended_at=null
+      where id='${account("e7")}'`);
+    expect(read()).toBe(`social:${account("f1")},social:${account("f2")}`);
   });
 
   it("denies client roles and removes snapshot machinery on rollback", () => {
