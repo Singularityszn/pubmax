@@ -74,21 +74,26 @@ function venueDistanceKm(left: PlanGenerationDtoVenue, right: PlanGenerationDtoV
   return haversineKm([left.lng, left.lat], [right.lng, right.lat]);
 }
 
+export function planUsesPintPrices(context: Pick<NightContext, "drinkCategory" | "zeroProof">): boolean {
+  return !context.zeroProof && (!context.drinkCategory || context.drinkCategory === "beer");
+}
+
 function planAlternativeDto(
   origin: PlanGenerationDtoVenue,
   alternative: PlanGenerationDtoVenue,
   grounded: PlanGenerationDtoGroundedStop | null,
+  usesPintPrices: boolean,
 ) {
   return {
     venueId: alternative.id,
     venueName: alternative.name,
     distanceKm: Number(venueDistanceKm(origin, alternative).toFixed(2)),
-    estimatedPintPricePence: grounded
+    estimatedPintPricePence: !usesPintPrices ? null : grounded
       ? grounded.price.pence
       : alternative.cheapestPrice === null
         ? null
         : Math.round(alternative.cheapestPrice * 100),
-    priceEvidence: grounded?.price ?? null,
+    priceEvidence: usesPintPrices ? grounded?.price ?? null : null,
     accessEvidence: grounded?.access ?? null,
     constraintFlags: grounded?.constraintFlags ?? [],
     operationalEvidence: {
@@ -115,6 +120,7 @@ export function buildPlanGenerationStops(params: {
   walkingEstimate: PlanGenerationDtoWalking;
   area: { name: string; lastReviewedAt: string | null };
   planningWeather: PlanGenerationDtoWeather | null;
+  priceContext: Pick<NightContext, "drinkCategory" | "zeroProof">;
 }) {
   const {
     chosen,
@@ -124,7 +130,9 @@ export function buildPlanGenerationStops(params: {
     walkingEstimate,
     area,
     planningWeather,
+    priceContext,
   } = params;
+  const usesPintPrices = planUsesPintPrices(priceContext);
   const chosenVenueIds = new Set(chosen.map(({ venue }) => venue.id));
 
   return chosen.map(({ venue, distance, reasons, tonightEvents, signalClaims }, index) => {
@@ -132,10 +140,10 @@ export function buildPlanGenerationStops(params: {
     const groundedAlternativeCandidates = groundedAlternatives?.[index] ?? null;
     const alternatives = groundedAlternativeCandidates
       ? groundedAlternativeCandidates.map((entry) =>
-          planAlternativeDto(venue, entry.value.venue, entry))
+          planAlternativeDto(venue, entry.value.venue, entry, usesPintPrices))
       : candidates
           .filter(({ venue: alternative }) => !chosenVenueIds.has(alternative.id))
-          .map((entry) => planAlternativeDto(venue, entry.venue, null));
+          .map((entry) => planAlternativeDto(venue, entry.venue, null, usesPintPrices));
     const legRouted = walkingEstimate.legs.some(
       (leg) => leg.toIndex === index && leg.source === "ors",
     );
@@ -146,10 +154,10 @@ export function buildPlanGenerationStops(params: {
       position: index,
       walkingMinutesFromPrevious: walkingEstimate.walkingMinutesFromPrevious[index] ?? null,
       distanceKm: Number(distance.toFixed(2)),
-      estimatedPintPricePence: grounded
+      estimatedPintPricePence: !usesPintPrices ? null : grounded
         ? grounded.price.pence
         : venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100),
-      priceEvidence: grounded?.price ?? null,
+      priceEvidence: usesPintPrices ? grounded?.price ?? null : null,
       accessEvidence: grounded?.access ?? null,
       evidence: reasons,
       constraintFlags: grounded?.constraintFlags ?? [],
@@ -199,7 +207,8 @@ export function planBudgetSummary(
   context: NightContext,
   prices: readonly (number | null)[],
 ): PlanBudgetSummary {
-  const complete = prices.every((price): price is number => price !== null);
+  const usesPintPrices = planUsesPintPrices(context);
+  const complete = usesPintPrices && prices.every((price): price is number => price !== null);
   const estimatedPerPersonPence = complete ? prices.reduce((total, price) => total + price, 0) : null;
   return {
     currency: "GBP",
@@ -211,7 +220,7 @@ export function planBudgetSummary(
     withinLimit: context.budgetLimitPence === null || estimatedPerPersonPence === null
       ? null
       : estimatedPerPersonPence <= context.budgetLimitPence,
-    basis: "one-recorded-pint-per-stop",
+    basis: usesPintPrices ? "one-recorded-pint-per-stop" : "selected-drink-price-unavailable",
   };
 }
 

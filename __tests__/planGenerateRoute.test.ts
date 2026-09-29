@@ -223,6 +223,30 @@ describe("POST /api/plans/generate", () => {
     expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
   });
 
+  it.each([
+    ["cheap wine in Clapham for 2", "wine"],
+    ["cheap alcohol-free drinks in Clapham for 2", null],
+  ])("keeps pint prices out of generated %s response", async (query, drinkCategory) => {
+    categoryIndexMock.mockResolvedValueOnce({ prices: [], truncated: false, degraded: false });
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.inferredContext.drinkCategory ?? null).toBe(drinkCategory);
+    expect(body.stops).toHaveLength(3);
+    expect(body.stops.every((stop: { estimatedPintPricePence: number | null; priceEvidence: unknown }) =>
+      stop.estimatedPintPricePence === null && stop.priceEvidence === null)).toBe(true);
+    expect(body.budgetSummary).toMatchObject({
+      estimatedPerPersonPence: null,
+      withinLimit: null,
+      basis: "selected-drink-price-unavailable",
+    });
+    expect(body.missingContextEvidence).toContain("price_evidence");
+  });
+
   it.each([5, 6])("returns a grounded %i-stop route from free text", async (stopCount) => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",

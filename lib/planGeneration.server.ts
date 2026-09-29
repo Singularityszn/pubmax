@@ -24,6 +24,7 @@ import {
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
+import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { scoreVenueForPlan } from "@/lib/planGenerationRanking";
 import {
@@ -166,8 +167,8 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate>(param
 				venueId: stop.venueId,
 				venueName: stop.venueName,
 				position: 0,
-				estimatedPintPricePence: stop.price.pence,
-				priceEvidence: stop.price,
+				estimatedPintPricePence: planUsesPintPrices(context) ? stop.price.pence : null,
+				priceEvidence: planUsesPintPrices(context) ? stop.price : null,
 				accessEvidence: stop.access,
 				constraintFlags: stop.constraintFlags,
 				operationalEvidence: {

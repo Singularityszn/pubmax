@@ -10,6 +10,7 @@ import {
 	buildPlanGenerationStops,
 	planBudgetSummary,
 	planRouteTimingDisclosure,
+	planUsesPintPrices,
 } from "@/lib/planGenerationDto";
 import {
 	loadPlanGenerationBaselineWhatsOn,
@@ -114,7 +115,8 @@ export async function POST(request: Request): Promise<Response> {
 	const pricePence = chosen.map(({ venue }, position) => groundedStops
 		? groundedStops[position].price.pence
 		: venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100));
-	const hasCompletePriceEvidence = pricePence.every((price): price is number => price !== null);
+	const hasCompletePriceEvidence = planUsesPintPrices(context)
+		&& pricePence.every((price): price is number => price !== null);
 	const { contextEvidenceGaps, operationalEvidenceGaps } = planGenerationEvidenceGaps({
 		context,
 		accessibilityEnforced,
@@ -187,6 +189,7 @@ export async function POST(request: Request): Promise<Response> {
 		walkingEstimate,
 		area,
 		planningWeather,
+		priceContext: context,
 	});
 	// Ground the proof over exactly the venues this response commits to: the
 	// three chosen stops plus every alternative id we actually emit above.
