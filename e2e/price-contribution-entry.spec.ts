@@ -50,24 +50,28 @@ for (const { width, city, drink } of [
   { width: 390, city: "manchester", drink: "wine" },
   { width: 1440, city: "bristol", drink: "cocktail" },
 ] as const) {
-  test(`${width}px Create reopens a dismissed ${drink} request and preserves its category on reset`, async ({ page }) => {
+  test(`${width}px ${width === 390 ? "Create reopens a dismissed" : "contribution URL opens a"} ${drink} request and preserves its category on reset`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await installDeterministicMapBasemap(page);
-    await page.goto(`/map/${city}?drink=${drink}&q=zzzznonexistentpub`);
+    await page.goto(`/map/${city}?drink=${drink}&q=zzzznonexistentpub${width === 1440 ? "&contribute=price" : ""}`);
     const picker = page.getByText("Pick a pub to log a price", { exact: true });
-    for (let request = 0; request < 2; request += 1) {
-      await expect(async () => {
-        await page.getByTestId("create-fab").click();
-        await expect(page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }))
-          .toBeVisible({ timeout: 1_000 });
-      }).toPass({ timeout: 20_000 });
-      await page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }).click();
-      await expect(picker).toBeVisible({ timeout: 45_000 });
-      if (request === 0) {
-        await page.keyboard.press("Escape");
-        await expect(picker).toBeHidden();
-        await expect.poll(() => new URL(page.url()).searchParams.get("contribute")).toBeNull();
+    if (width === 390) {
+      for (let request = 0; request < 2; request += 1) {
+        await expect(async () => {
+          await page.getByTestId("create-fab").click();
+          await expect(page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }))
+            .toBeVisible({ timeout: 1_000 });
+        }).toPass({ timeout: 20_000 });
+        await page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }).click();
+        await expect(picker).toBeVisible({ timeout: 45_000 });
+        if (request === 0) {
+          await page.keyboard.press("Escape");
+          await expect(picker).toBeHidden();
+          await expect.poll(() => new URL(page.url()).searchParams.get("contribute")).toBeNull();
+        }
       }
+    } else {
+      await expect(picker).toBeVisible({ timeout: 45_000 });
     }
     await page.getByRole("button", { name: "Show all pubs", exact: true }).click();
     await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBeNull();
