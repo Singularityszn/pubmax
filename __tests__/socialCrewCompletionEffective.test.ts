@@ -7,9 +7,12 @@ const skipReason = postgresSkipReason();
 const migrations = join(process.cwd(), "supabase/migrations");
 const name = "20260930090000_0170_social_crew_completion.sql";
 const forward = join(migrations, name);
+const privacyForward = join(migrations, "20260930110000_0173_completion_group_active_accounts.sql");
+const privacyRollback = join(migrations, "rollback/20260930110000_0173_completion_group_active_accounts_rollback.sql");
 const prerequisites = readdirSync(migrations).filter((file) => file.endsWith(".sql") && file < name).sort();
 const id = (suffix: string) => `00000000-0000-4000-8000-0000000000${suffix}`;
 let db: PostgresSession | null = null;
+let originalCapture = "";
 
 function pg(): PostgresSession {
   if (!db) throw new Error("PostgreSQL session unavailable");
@@ -111,6 +114,76 @@ describe.skipIf(skipReason !== null)("Social Crew completion through authorized 
       from pubmax_private.completion_group_week('2030-03-06')`)).toBe("1:0");
   });
 
+  it("omits a deleted Social member from a later authorized completion", () => {
+    originalCapture = pg().sql(`select pg_get_functiondef(
+      'pubmax_private.snapshot_plan_completion_group()'::regprocedure)`);
+    pg().applyFile(privacyForward);
+    const laterPlan = id("b1");
+    const laterCrew = id("e8");
+    pg().sql(`insert into public.plans(id,title,start_time,status)
+      values('${laterPlan}','Later Social night','2030-03-07 20:00:00+00','active');
+      insert into public.plan_stops(plan_id,venue_id,venue_name,position)
+      values('${laterPlan}','later-pub','Later Pub',0);
+      insert into public.plan_crew_members
+        (id,plan_id,name,token_hash,user_id,social_account_id,joined_at,updated_at) values
+        ('${id("a8")}','${laterPlan}','Host',md5('later-host')||md5('later-host-2'),
+          '${id("a1")}','${host}','2030-03-07 19:00:00+00','2030-03-07 19:00:00+00'),
+        ('${id("a9")}','${laterPlan}','Guest',md5('later-guest')||md5('later-guest-2'),
+          '${id("a2")}','${member}','2030-03-07 19:00:00+00','2030-03-07 19:00:00+00');
+      insert into public.social_crews(id,plan_id,owner_account_id)
+      values('${laterCrew}','${laterPlan}','${host}');
+      insert into public.social_crew_members
+        (id,crew_id,social_account_id,plan_member_id,role,state,ended_at) values
+        ('${id("e9")}','${laterCrew}','${host}','${id("a8")}','owner','active',null),
+        ('${id("ea")}','${laterCrew}','${member}','${id("a9")}','member','active',null);
+      update public.plans set social_owner_account_id='${host}' where id='${laterPlan}';
+      delete from auth.users where id='${id("a2")}';`);
+    expect(pg().sql(`select ownership_state || ':' || coalesce(supabase_user_id::text, 'null')
+      from public.private_social_accounts where id='${member}'`)).toBe("suspended:null");
+    expect(pg().sql(`select state from public.social_crew_members where id='${id("ea")}'`)).toBe("active");
+    expect(pg().sql(`select count(*) from pubmax_private.plan_completion_group_snapshots
+      where plan_id='${planId}'`)).toBe("0");
+    expect(pg().sql(`select public.complete_social_crew_plan_atomic(
+      '${host}', '${laterCrew}', 1, '${id("c4")}', '${id("d4")}', '${id("d5")}',
+      0, 'get_home', null,
+      '{"kind":"get_home","optionId":"transport:home","evidenceSnapshot":{}}'::jsonb,
+      '2030-03-07 21:00:00+00'::timestamptz)`)).toBe("completed");
+    expect(pg().sql(`select array_to_string(account_keys, ',')
+      from pubmax_private.plan_completion_group_snapshots where plan_id='${laterPlan}'`))
+      .toBe(`social:${host}`);
+  });
+
+  it("requires an existing auth identity for a classic member at completion", () => {
+    const classicPlan = id("b2");
+    const guest = id("ab");
+    pg().sql(`insert into public.plans(id,title,start_time,status)
+      values('${classicPlan}','Classic night','2030-03-08 20:00:00+00','active');
+      insert into public.plan_stops(plan_id,venue_id,venue_name,position)
+      values('${classicPlan}','classic-pub','Classic Pub',0);
+      insert into public.plan_crew_members
+        (id,plan_id,name,token_hash,user_id,joined_at,updated_at) values
+        ('${id("aa")}','${classicPlan}','Host',md5('classic-host')||md5('classic-host-2'),
+          '${id("a1")}','2030-03-08 19:00:00+00','2030-03-08 19:00:00+00'),
+        ('${guest}','${classicPlan}','Guest',md5('classic-guest')||md5('classic-guest-2'),
+          '${id("a4")}','2030-03-08 19:00:00+00','2030-03-08 19:00:00+00');
+      insert into public.plan_actions(id,plan_id,actor_member_id,type,stop_position,created_at)
+      values('${id("ed")}','${classicPlan}','${id("aa")}','arrived',0,'2030-03-08 20:30:00+00');
+      delete from auth.users where id='${id("a4")}';`);
+    expect(pg().sql(`select user_id is null from public.plan_crew_members where id='${guest}'`)).toBe("t");
+    pg().sql(`alter table public.plan_crew_members disable trigger all;
+      update public.plan_crew_members set user_id='${id("a4")}' where id='${guest}';
+      alter table public.plan_crew_members enable trigger all;`);
+    expect(pg().sql(`select count(*) from auth.users where id='${id("a4")}'`)).toBe("0");
+    expect(pg().sql(`select public.complete_plan_atomic(
+      '${classicPlan}', md5('classic-host')||md5('classic-host-2'), 1,
+      '${id("c5")}', '${id("d6")}', 'get_home', null,
+      '{"kind":"get_home","optionId":"transport:home","evidenceSnapshot":{}}'::jsonb,
+      '2030-03-08 21:00:00+00'::timestamptz)`)).toBe("completed");
+    expect(pg().sql(`select array_to_string(account_keys, ',')
+      from pubmax_private.plan_completion_group_snapshots where plan_id='${classicPlan}'`))
+      .toBe(`social:${host}`);
+  });
+
   it("does not grant clients direct completion access", () => {
     expect(pg().expectRefusal(`set role authenticated;
       select public.complete_social_crew_plan_atomic('${host}','${crewId}',1,
@@ -122,5 +195,8 @@ describe.skipIf(skipReason !== null)("Social Crew completion through authorized 
     pg().applyFile(join(migrations, "rollback/20260930090000_0170_social_crew_completion_rollback.sql"));
     expect(pg().sql(`select to_regprocedure('public.complete_social_crew_plan_atomic(uuid,uuid,integer,uuid,uuid,uuid,integer,text,text,jsonb,timestamptz)') is null`)).toBe("t");
     expect(pg().sql(`select count(*) from public.plan_completions where plan_id='${planId}'`)).toBe("1");
+    pg().applyFile(privacyRollback);
+    expect(pg().sql(`select pg_get_functiondef(
+      'pubmax_private.snapshot_plan_completion_group()'::regprocedure)`)).toBe(originalCapture);
   });
 });
