@@ -227,6 +227,45 @@ describe("shouldRunMapLogIntent", () => {
 });
 
 describe("buildLogNearbyCandidates", () => {
+  it("labels only trusted prices for the selected nonbeer category", () => {
+    const pubs = [
+      { id: "beer-only", name: "Beer Only", cheapestPrice: 4.5 },
+      { id: "wine", name: "Wine Pub", cheapestPrice: 5 },
+    ];
+    const winePrices = new Map([
+      ["wine", {
+        venueId: "wine",
+        category: "wine" as const,
+        categoryLabel: "Wine",
+        priceGbp: 7.5,
+        source: "community" as const,
+      }],
+    ]);
+    const cocktailPrices = new Map([
+      ["wine", {
+        venueId: "wine",
+        category: "cocktail" as const,
+        categoryLabel: "Cocktails",
+        priceGbp: 9,
+        source: "community" as const,
+      }],
+    ]);
+
+    expect(
+      buildLogNearbyCandidates(pubs, 5, null, undefined, "wine", winePrices)
+        .map((row) => row.priceLabel),
+    ).toEqual(["Wine price unknown", "Wine £7.50"]);
+    expect(
+      buildLogNearbyCandidates(pubs, 5, null, undefined, "cocktail", cocktailPrices)
+        .map((row) => row.priceLabel),
+    ).toEqual(["Cocktail price unknown", "Cocktail £9.00"]);
+    expect(
+      buildLogNearbyCandidates(pubs, 5, null, undefined, "cocktail", winePrices)
+        .map((row) => row.priceLabel),
+    ).toEqual(["Cocktail price unknown", "Cocktail price unknown"]);
+    expect(buildLogNearbyCandidates(pubs).map((row) => row.priceLabel)).toEqual(["£4.50", "£5.00"]);
+  });
+
   it("formats nearby pubs for the log-intent picker", () => {
     expect(
       buildLogNearbyCandidates(

@@ -3367,8 +3367,10 @@ export default function PubMap({
         undefined,
         logNearbyOrigin?.origin ?? null,
         LOG_NEARBY_MAX_KM,
+        mapDrinkLensCategory,
+        drinkLensPrices,
       ),
-    [filteredPubVenues, logNearbyOrigin],
+    [filteredPubVenues, logNearbyOrigin, mapDrinkLensCategory, drinkLensPrices],
   );
 
   const showLoadedRoute = useCallback(

@@ -1,5 +1,6 @@
 import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
+import { drinkLensPriceNoun, type MapLensPrice } from "@/lib/mapExperienceLens";
 import {
   compactVenueAnchor,
   type CompactVenueAnchor,
@@ -9,6 +10,7 @@ import {
   venueKindLabel,
 } from "@/lib/venueKindFilters";
 import type { PriceBand } from "@/lib/priceBand";
+import type { DrinkCategory } from "@/lib/drinks";
 import type { VenueKind } from "@/lib/venues";
 
 type ResolveMapLogIntentInput = {
@@ -95,7 +97,19 @@ export function resolveLogNearbyOrigin(input: {
 function priceLabelFor(
   venue: LogNearbyVenue,
   anchor: CompactVenueAnchor | null,
+  drinkCategory: DrinkCategory | null,
+  lensPrices: ReadonlyMap<string, MapLensPrice> | null,
 ): string {
+  if (drinkCategory && drinkCategory !== "beer") {
+    const noun = drinkLensPriceNoun(drinkCategory);
+    const label = noun.charAt(0).toUpperCase() + noun.slice(1);
+    const price = lensPrices?.get(venue.id);
+    return price?.category === drinkCategory &&
+      Number.isFinite(price.priceGbp) &&
+      price.priceGbp > 0
+      ? `${label} ${formatGbp(price.priceGbp)}`
+      : `${label} price unknown`;
+  }
   return typeof venue.cheapestPrice === "number" &&
     Number.isFinite(venue.cheapestPrice) &&
     (isPubVenueKind(venue.kind) || anchor !== null)
@@ -115,6 +129,8 @@ export function buildLogNearbyCandidates(
   limit = LOG_NEARBY_PICKER_LIMIT,
   origin?: LogNearbyOrigin | null,
   maxKm?: number,
+  drinkCategory: DrinkCategory | null = null,
+  lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
 ): LogNearbyCandidate[] {
   const take = Math.max(0, Math.min(Math.floor(limit), venues.length));
   if (take === 0) return [];
@@ -145,7 +161,7 @@ export function buildLogNearbyCandidates(
       name: venue.name,
       ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
       typeLabel: venueKindLabel(venue.kind),
-      priceLabel: priceLabelFor(venue, anchor),
+      priceLabel: priceLabelFor(venue, anchor, drinkCategory, lensPrices),
       anchor,
       ...(typeof distanceKm === "number" && Number.isFinite(distanceKm)
         ? { distanceKm }
