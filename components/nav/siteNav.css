@@ -83,6 +83,14 @@
   margin-top: env(safe-area-inset-top, 0px);
 }
 
+/* Content heads can animate into their own stacking contexts. Raise the
+   in-flow bar while either account or sign-in disclosure is open so menu rows
+   remain tappable. The closed bar stays in page order. */
+.siteNavBar:not(.siteNavBarFloating):has(.authMenu) {
+  position: relative;
+  z-index: var(--z-modal);
+}
+
 /* Content pages embed the bar inside a narrow reading column (~880px), which
    cannot fit the full eight-label link row — labels used to ellipsize into
    unreadable fragments at 1440px even with nothing else crowding them. On
