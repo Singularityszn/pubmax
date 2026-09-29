@@ -14,12 +14,24 @@ import {
 // with a hand-run `next dev`). Assertions are WebGL-agnostic so headless boxes
 // with no GPU don't false-fail — see e2e/smoke.spec.ts.
 const PORT = Number(process.env.PW_PORT ?? 3100);
-const BASE_URL = `http://localhost:${PORT}`;
+const BASE_URL = `http://${process.env.PW_DISPOSABLE_PLAN_DB === "1" ? "127.0.0.1" : "localhost"}:${PORT}`;
 const KEYLESS_PORT = Number(process.env.PW_KEYLESS_PORT ?? PORT + 1);
 const KEYLESS_BASE_URL = `http://localhost:${KEYLESS_PORT}`;
 const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
 const SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === "1";
 const SKIP_KEYLESS_WEBSERVER = process.env.PW_SKIP_KEYLESS_WEBSERVER === "1";
+const DISPOSABLE_PLAN_DB = process.env.PW_DISPOSABLE_PLAN_DB === "1";
+const DISPOSABLE_SUPABASE_URL = process.env.PW_DISPOSABLE_SUPABASE_URL;
+const DISPOSABLE_SERVICE_ROLE_KEY = process.env.PW_DISPOSABLE_SERVICE_ROLE_KEY;
+if (DISPOSABLE_PLAN_DB) {
+  const url = DISPOSABLE_SUPABASE_URL && new URL(DISPOSABLE_SUPABASE_URL);
+  if (!url || url.protocol !== "http:" || url.hostname !== "127.0.0.1" ||
+    url.pathname !== "/" || url.search || url.hash || url.username || url.password ||
+    !DISPOSABLE_SERVICE_ROLE_KEY || !SKIP_KEYLESS_WEBSERVER || SKIP_WEBSERVER ||
+    process.env.PW_SCREENSHOTS || process.env.PUBMAX_E2E_LOGIN === "1") {
+    throw new Error("Disposable Plan browser needs loopback PostgREST, a private service key, and its owned Playwright server only.");
+  }
+}
 const UI_UX_BROWSER_USE = uiUxChromiumProjectUse(process.env.UI_UX_BROWSER_CHANNEL);
 const FIREFOX_DESKTOP_MAP_CHROME_FIT =
   process.env.PW_FIREFOX_DESKTOP_MAP_CHROME_FIT === "1";
@@ -72,7 +84,7 @@ const E2E_RATE_LIMIT_SALT =
 // assertions do not see the limiter answering the suite.
 const E2E_RATE_LIMIT_MAX = process.env.PUBMAX_E2E_RATE_LIMIT_MAX ?? "10000";
 const REAL_AUTH_CONFIGURED = Boolean(
-  !E2E_LOGIN &&
+  !E2E_LOGIN && !DISPOSABLE_PLAN_DB &&
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 );
@@ -143,6 +155,7 @@ export default defineConfig({
       // here would false-fail. Screenshots are design-QA artifacts, excluded too.
       testIgnore: [
         "**/screenshots.spec.ts",
+        ...(DISPOSABLE_PLAN_DB ? [] : ["**/plan-selected-drink-disposable.spec.ts"]),
         "**/price-contribution-auth.spec.ts",
         "**/price-contribution-entry.spec.ts",
         // Keyless-shape composer submit: runs only against the keyless build,
@@ -381,7 +394,7 @@ export default defineConfig({
       {
         command: SCREENSHOT_RUN
           ? `npm run start -- --port ${PORT}`
-          : `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${PORT}`,
+          : `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${PORT}${DISPOSABLE_PLAN_DB ? " --hostname 127.0.0.1" : ""}`,
         // Trusted Plan claims never touch the keyless escape hatch: give each run a
         // fresh process-only signing key via env so it stays out of the command argv.
         env: {
@@ -397,28 +410,30 @@ export default defineConfig({
           // Browser auth stays provider-shaped in keyless E2E. Identity specs
           // seed a Supabase session and intercept this non-routable boundary;
           // server stores remain keyless and in memory.
-          NEXT_PUBLIC_SUPABASE_URL: E2E_SUPABASE_URL,
+          NEXT_PUBLIC_SUPABASE_URL: DISPOSABLE_PLAN_DB ? DISPOSABLE_SUPABASE_URL! : E2E_SUPABASE_URL,
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
             E2E_SUPABASE_PUBLISHABLE_KEY,
-          SUPABASE_URL: "",
-          SUPABASE_SERVICE_ROLE_KEY: "",
+          SUPABASE_URL: DISPOSABLE_PLAN_DB ? DISPOSABLE_SUPABASE_URL! : "",
+          SUPABASE_SERVICE_ROLE_KEY: DISPOSABLE_PLAN_DB ? DISPOSABLE_SERVICE_ROLE_KEY! : "",
+          OPENROUTER_API_KEY: DISPOSABLE_PLAN_DB ? "" : process.env.OPENROUTER_API_KEY ?? "",
+          VERCEL_ENV: DISPOSABLE_PLAN_DB ? "development" : process.env.VERCEL_ENV ?? "",
           NEXT_PUBLIC_DISCORD_INVITE_URL: E2E_DISCORD_INVITE_URL,
           PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
           ADMIN_TOKEN: E2E_ADMIN_TOKEN,
           RATE_LIMIT_SALT: E2E_RATE_LIMIT_SALT,
           PUBMAX_E2E_RATE_LIMIT_MAX: E2E_RATE_LIMIT_MAX,
           PUBMAX_E2E_LOGIN: "0",
-          PUBMAX_E2E_KEYLESS: "1",
+          PUBMAX_E2E_KEYLESS: DISPOSABLE_PLAN_DB ? "0" : "1",
           // Auth regressions may opt into the real public Supabase project.
           // Keep these as pass-throughs: browser tests must not fake auth over
           // the wire, and ordinary keyless runs remain network-independent.
-          ...(process.env.NEXT_PUBLIC_SUPABASE_URL && !E2E_LOGIN
+          ...(process.env.NEXT_PUBLIC_SUPABASE_URL && !E2E_LOGIN && !DISPOSABLE_PLAN_DB
             ? {
                 NEXT_PUBLIC_SUPABASE_URL:
                   process.env.NEXT_PUBLIC_SUPABASE_URL,
               }
             : {}),
-          ...(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !E2E_LOGIN
+          ...(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !E2E_LOGIN && !DISPOSABLE_PLAN_DB
             ? {
                 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
                   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
@@ -433,7 +448,7 @@ export default defineConfig({
             : {}),
         },
         url: BASE_URL,
-        reuseExistingServer: !process.env.CI && !SCREENSHOT_RUN,
+        reuseExistingServer: !DISPOSABLE_PLAN_DB && !process.env.CI && !SCREENSHOT_RUN,
         // Production build can take a while cold; give it room in CI.
         timeout: 600_000,
         stdout: "pipe",

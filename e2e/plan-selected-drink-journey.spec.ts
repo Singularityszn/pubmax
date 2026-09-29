@@ -27,6 +27,77 @@ const committedPrices = JSON.parse(readFileSync("public/data/uk_prices/rows.json
   observedAt: string;
 }>;
 
+test("fresh plural wine query replaces stale Any, while a deliberate Any choice holds", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.addInitScript(() => {
+    localStorage.removeItem("pubmax:plan-intake:v1");
+    localStorage.removeItem("pubmaxx:plan-route-draft:v1");
+    sessionStorage.removeItem("pubmax:plan-draft:v1");
+  });
+  await page.goto("/plan");
+  await describeFirstQuery(page).fill("Quiet in Clapham for 2");
+  const first = page.waitForResponse((response) => response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/plans/generate");
+  await describeFirstSubmit(page).click();
+  expect((await first).status()).toBe(200);
+  await expect(page.getByLabel("Drinks")).toHaveValue("any");
+
+  await page.locator("#plan-concierge-query").fill("Quiet wines in Clapham for 2");
+  const wine = page.waitForResponse((response) => response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/plans/generate");
+  await page.getByRole("button", { name: "Sort it again" }).click();
+  const wineResponse = await wine;
+  expect(wineResponse.status()).toBe(200);
+  expect(wineResponse.request().postDataJSON().context).not.toHaveProperty("drinkCategory");
+  expect((await wineResponse.json()).inferredContext.drinkCategory).toBe("wine");
+  await expect(page.getByLabel("Drinks")).toHaveValue("wine");
+
+  await page.getByLabel("Drinks").selectOption("any");
+  const any = page.waitForResponse((response) => response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/plans/generate");
+  await page.getByRole("button", { name: "Regenerate route" }).click();
+  const anyResponse = await any;
+  expect(anyResponse.status()).toBe(200);
+  expect(anyResponse.request().postDataJSON().context.drinkCategory).toBeNull();
+  expect((await anyResponse.json()).inferredContext.drinkCategory).toBeNull();
+  await expect(page.getByLabel("Drinks")).toHaveValue("any");
+});
+
+test("a new cocktail query replaces a deliberate Beer correction from an older query", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.addInitScript(() => {
+    localStorage.removeItem("pubmax:plan-intake:v1");
+    localStorage.removeItem("pubmaxx:plan-route-draft:v1");
+    sessionStorage.removeItem("pubmax:plan-draft:v1");
+  });
+  await page.goto("/plan");
+  await describeFirstQuery(page).fill("Quiet wine in Clapham for 2");
+  const generation = page.waitForResponse((response) => response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/plans/generate");
+  await describeFirstSubmit(page).click();
+  expect((await generation).status()).toBe(200);
+  await expect(page.getByLabel("Drinks")).toHaveValue("wine");
+
+  await page.getByLabel("Drinks").selectOption("beer");
+  const beer = page.waitForResponse((response) => response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/plans/generate");
+  await page.getByRole("button", { name: "Regenerate route" }).click();
+  const beerResponse = await beer;
+  expect(beerResponse.status()).toBe(200);
+  expect(beerResponse.request().postDataJSON().context.drinkCategory).toBe("beer");
+  await expect(page.getByLabel("Drinks")).toHaveValue("beer");
+
+  await page.locator("#plan-concierge-query").fill("Cocktails in Soho for 2");
+  const cocktail = page.waitForResponse((response) => response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/plans/generate");
+  await page.getByRole("button", { name: "Sort it again" }).click();
+  const cocktailResponse = await cocktail;
+  expect(cocktailResponse.status()).toBe(200);
+  expect(cocktailResponse.request().postDataJSON().context).not.toHaveProperty("drinkCategory");
+  expect((await cocktailResponse.json()).inferredContext.drinkCategory).toBe("cocktail");
+  await expect(page.getByLabel("Drinks")).toHaveValue("cocktail");
+});
+
 for (const journey of [
   { category: "wine", query: "wine in Shoreditch for 2", name: "Wine Browser", replay: true },
   { category: "cocktail", query: "cocktails in Shoreditch for 2", name: "Cocktail Browser", replay: true },

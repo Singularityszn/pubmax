@@ -38,6 +38,7 @@ const CATEGORY_KEYWORDS: Array<[DrinkCategory, string[]]> = [
     "wine",
     [
       "wine",
+      "wines",
       "house red",
       "house white",
       "red wine",
@@ -68,7 +69,9 @@ const CATEGORY_KEYWORDS: Array<[DrinkCategory, string[]]> = [
     "whisky",
     [
       "whisky",
+      "whiskies",
       "whiskey",
+      "whiskeys",
       "scotch",
       "bourbon",
       "rye",
@@ -78,12 +81,12 @@ const CATEGORY_KEYWORDS: Array<[DrinkCategory, string[]]> = [
     ],
   ],
   // Vodka before gin so "espresso martini" is not stolen by gin's "martini".
-  ["vodka", ["vodka", "moscow mule", "espresso martini"]],
+  ["vodka", ["vodka", "vodkas", "moscow mule", "espresso martini"]],
   [
     "gin",
-    ["gin", "g&t", "gin and tonic", "gin & tonic", "negroni", "martini"],
+    ["gin", "gins", "g&t", "gin and tonic", "gin & tonic", "negroni", "martini"],
   ],
-  ["rum", ["rum", "mojito", "daiquiri", "pina colada", "piña colada", "rhum"]],
+  ["rum", ["rum", "rums", "mojito", "daiquiri", "pina colada", "piña colada", "rhum"]],
   [
     "cocktail",
     [

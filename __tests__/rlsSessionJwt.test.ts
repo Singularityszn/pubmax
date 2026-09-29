@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// @ts-expect-error - plain .mjs RLS harness with no declaration sidecar.
-import { createRlsSessionJwt } from "../scripts/rls/session-harness.mjs";
+// @ts-expect-error - plain .mjs JWT module with no declaration sidecar.
+import { createRlsSessionJwt } from "../scripts/rls/session-jwt.mjs";
 
 afterEach(() => {
   vi.useRealTimers();

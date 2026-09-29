@@ -57,6 +57,8 @@ const config: KnipConfig = {
     // Refreshes __tests__/fixtures/typesafe/conciergeIntentProbabilities.json
     // and needs TYPESAFE_API_KEY.
     "scripts/record_concierge_intent_probabilities.ts",
+    // Standalone disposable Plan browser proof; traces its database helper too.
+    "scripts/e2e/run-disposable-plan-browser.mjs",
   ],
   ignore: [
     ...AGENT_TOOLING_PATHS,

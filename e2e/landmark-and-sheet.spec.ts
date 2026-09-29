@@ -342,6 +342,70 @@ for (const width of [700, 900]) {
   }
 }
 
+test("inline drawers keep spring ownership and content through responsive exits", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  const errors = watchPageErrors(page);
+
+  await page.setViewportSize({ width: 700, height: 900 });
+  await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+
+  const tabletDrawer = page.locator(".mapDrawer.right.springDrawer");
+  await expect(tabletDrawer).toHaveClass(/open/, { timeout: 30_000 });
+  await expect(tabletDrawer).toBeVisible();
+  await expect(tabletDrawer).toHaveAttribute("data-spring-axis", "vertical");
+  expect(
+    await tabletDrawer.evaluate(
+      (node) => getComputedStyle(node).transitionProperty,
+    ),
+  ).toBe("none");
+  await expect(tabletDrawer.locator(".venueInspector")).toHaveCount(1);
+  const tabletOpenBox = await tabletDrawer.boundingBox();
+  expect(tabletOpenBox).not.toBeNull();
+  expect(tabletOpenBox!.y).toBeGreaterThanOrEqual(0);
+  expect(tabletOpenBox!.y).toBeLessThan(900);
+  expect(tabletOpenBox!.x + tabletOpenBox!.width).toBeLessThanOrEqual(701);
+
+  // The drawer's way out is the shared SurfaceNav pair now, not a bespoke
+  // close (components/ui/surface-nav.tsx).
+  await tabletDrawer.locator(".surfaceNavHome").click();
+  await expect(tabletDrawer).toHaveAttribute("aria-hidden", "true");
+  // The selected venue may clear immediately, but its rendered content stays
+  // in the exiting drawer until the close spring rests.
+  await expect(tabletDrawer.locator(".venueInspector")).toHaveCount(1);
+  await expect
+    .poll(() => tabletDrawer.locator(".venueInspector").count())
+    .toBe(0);
+  await expect.poll(async () => (await tabletDrawer.boundingBox())?.y ?? 0).toBeGreaterThanOrEqual(899);
+
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+  const compactDesktopDrawer = page.locator(".mapDrawer.right.springDrawer");
+  await expect(compactDesktopDrawer).toHaveClass(/open/, { timeout: 30_000 });
+  await expect(compactDesktopDrawer).toBeVisible();
+  await expect(compactDesktopDrawer).toHaveAttribute(
+    "data-spring-axis",
+    "horizontal",
+  );
+  expect(
+    await compactDesktopDrawer.evaluate(
+      (node) => getComputedStyle(node).transitionProperty,
+    ),
+  ).toBe("none");
+  const desktopOpenBox = await compactDesktopDrawer.boundingBox();
+  expect(desktopOpenBox).not.toBeNull();
+  expect(desktopOpenBox!.x).toBeLessThan(900);
+  expect(desktopOpenBox!.x + desktopOpenBox!.width).toBeCloseTo(900, 0);
+  await compactDesktopDrawer.locator(".surfaceNavHome").click();
+  await expect(compactDesktopDrawer).toHaveAttribute("aria-hidden", "true");
+  await expect(compactDesktopDrawer.locator(".venueInspector")).toHaveCount(1);
+  await expect(compactDesktopDrawer.locator(".venueInspector")).toHaveCount(0);
+  await expect.poll(async () => (await compactDesktopDrawer.boundingBox())?.x ?? 0).toBeGreaterThanOrEqual(899);
+
+  expect(errors).toEqual([]);
+});
+
 // ---------------------------------------------------------------------------
 // RESIDUAL GAP (documented, not covered by a flaky test):
 //

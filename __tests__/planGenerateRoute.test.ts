@@ -379,9 +379,9 @@ describe("POST /api/plans/generate", () => {
   });
 
   it.each([
-    ["degraded", false, true, "We could not read the wine prices just now, so none are shown yet."],
+    ["degraded", false, true, "We could not read the wine prices from every source just now. Any prices shown come from sources we could read."],
     ["partial", true, false, "Read from part of the wine prices, so some are still missing."],
-  ])("discloses %s wine price index coverage in plan confidence", async (_status, truncated, degraded, warning) => {
+  ])("discloses %s wine price index coverage with no listed quotes", async (_status, truncated, degraded, warning) => {
     categoryIndexMock.mockResolvedValueOnce({ prices: [], truncated, degraded });
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",

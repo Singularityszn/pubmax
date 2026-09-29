@@ -9,6 +9,7 @@ import {
   fillEmptyText,
   mergeInferredNightContext,
   mergeSubmittedNightContext,
+  newQuerySupersedesDrinkChoice,
   mergePlanTemplateFields,
   nightAreaFromPlanQuery,
   reconcileGeneratedNightContext,
@@ -38,6 +39,12 @@ afterEach(async () => {
 });
 
 describe("plan composer chip intent policy", () => {
+  it("retracts an older drink correction only when a new query names a drink", () => {
+    expect(newQuerySupersedesDrinkChoice("Wine in Clapham", "Cocktails in Soho")).toBe(true);
+    expect(newQuerySupersedesDrinkChoice("Wine in Clapham", "Wine in Clapham")).toBe(false);
+    expect(newQuerySupersedesDrinkChoice("Wine in Clapham", "Quiet in Soho")).toBe(false);
+    expect(newQuerySupersedesDrinkChoice(null, "Cocktails in Soho")).toBe(false);
+  });
   it("keeps typed Camden when a describe chip is tapped", () => {
     const result = resolveDescribeChipSubmit({
       query: "Camden",

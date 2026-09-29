@@ -5,7 +5,6 @@
  * live Supabase project.
  */
 import { spawn, execFileSync } from "node:child_process";
-import { createHmac } from "node:crypto";
 import {
   existsSync,
   mkdtempSync,
@@ -27,6 +26,7 @@ import {
   stopHarnessCluster,
   unregisterHarnessCluster,
 } from "./postgresShm.mjs";
+import { createRlsSessionJwt } from "./session-jwt.mjs";
 
 export { missingPostgresReason };
 
@@ -69,22 +69,6 @@ function findPostgrestBin() {
     }
   }
   return null;
-}
-
-const RLS_SESSION_JWT_LIFETIME_SECONDS = 15 * 60;
-
-export function createRlsSessionJwt(secret, sub, role = "authenticated") {
-  const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
-  const header = encode({ alg: "HS256", typ: "JWT" });
-  const payload = encode({
-    role,
-    sub,
-    exp: Math.floor(Date.now() / 1000) + RLS_SESSION_JWT_LIFETIME_SECONDS,
-  });
-  const signature = createHmac("sha256", secret)
-    .update(`${header}.${payload}`)
-    .digest("base64url");
-  return `${header}.${payload}.${signature}`;
 }
 
 async function pickPort() {
