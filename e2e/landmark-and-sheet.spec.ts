@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // Landmark/heritage STORY surface + the mobile drag bottom-sheet's accessible
 // state (PRD "Testing Decisions": landmark story card opens with image/credit/
@@ -271,6 +272,8 @@ for (const width of [700, 900]) {
     test(`${side} drawer retains content while exiting at ${width}px`, async ({ page }, testInfo) => {
       test.setTimeout(60_000);
       const errors = watchPageErrors(page);
+      // Keep unrelated basemap rendering out of the drawer's stepped clock.
+      await installDeterministicMapBasemap(page);
       await page.clock.install();
       await page.emulateMedia({ reducedMotion: "no-preference" });
       await page.setViewportSize({ width, height: 900 });
