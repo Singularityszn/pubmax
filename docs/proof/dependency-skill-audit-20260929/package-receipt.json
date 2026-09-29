@@ -205,16 +205,34 @@
       "advisoryStale": 1,
       "unmeasurableDurableFeeds": 3
     },
-    "auditHighCriticalFindings": 0
+    "auditHighCriticalFindings": 0,
+    "lockTreeMatched": false
   },
   "productionBuild": {
     "command": "NEXT_DIST_DIR=.next-prod node scripts/run-with-restored-next-env.mjs npm run build",
     "exitCode": 0,
     "nextVersion": "16.3.7",
     "compiledSeconds": 7.7,
-    "trackedOutputsRestored": true
+    "trackedOutputsRestored": true,
+    "lockTreeMatched": false
   },
   "independentReview": {
     "status": "pending"
-  }
+  },
+  "protectedManifestRanges": {
+    "eslint": "^10.10.0",
+    "jsdom": "^30.1.0",
+    "tsx": "^4.23.13"
+  },
+  "testedProtectedInstalledVersions": {
+    "eslint": "10.10.0",
+    "jsdom": "30.1.0",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3"
+  },
+  "pendingLockMatchedChecks": [
+    "npm ci",
+    "npm run verify:no-mistakes",
+    "Isolated production build"
+  ]
 }
