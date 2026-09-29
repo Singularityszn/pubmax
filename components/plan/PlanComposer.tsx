@@ -43,6 +43,7 @@ import {
   type PlanVenueOption,
 } from "@/lib/planVenueOptions";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
+import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import {
   isPlanStopCount,
@@ -463,6 +464,7 @@ export function nightContextChanged(before: NightContext | null, after: NightCon
     || before.budget !== after.budget
     || before.budgetLimitPence !== after.budgetLimitPence
     || before.zeroProof !== after.zeroProof
+    || before.drinkCategory !== after.drinkCategory
     || before.wetherspoonsPreferred !== after.wetherspoonsPreferred
     || normalizePlanStopCount(before.stopCount) !== normalizePlanStopCount(after.stopCount)
     || !sameList(before.atmosphere, after.atmosphere)
@@ -2059,10 +2061,19 @@ function PlanComposerForm({
               <option value="value">Value</option><option value="standard">Standard</option><option value="treat">Treat</option>
             </select></label>
             <label htmlFor="plan-context-budget-limit">Max per person<input id="plan-context-budget-limit" aria-describedby="plan-route-status" type="number" inputMode="decimal" min="5" max="500" step="1" value={nightContext.budgetLimitPence === null ? "" : nightContext.budgetLimitPence / 100} onChange={(event) => updateNightContext({ budgetLimitPence: event.target.value ? Math.round(Number(event.target.value) * 100) : null })} /></label>
-            <label htmlFor="plan-context-zero-proof">Drinks<select id="plan-context-zero-proof" aria-describedby="plan-route-status" value={nightContext.zeroProof ? "zero-proof" : "any"} onChange={(event) => updateNightContext({ zeroProof: event.target.value === "zero-proof" })}>
+            <label htmlFor="plan-context-zero-proof">Drinks<select id="plan-context-zero-proof" aria-describedby="plan-route-status" value={nightContext.zeroProof ? "zero-proof" : nightContext.drinkCategory ?? "any"} onChange={(event) => {
+              const choice = event.target.value;
+              updateNightContext({
+                zeroProof: choice === "zero-proof",
+                drinkCategory: choice === "any" || choice === "zero-proof" ? null : choice as DrinkCategory,
+              });
+            }}>
               {/* "0.0 options" read as broken number formatting, not as a drink.
                   The option names the drink the way the rest of the app does. */}
               <option value="any">Any drinks</option><option value="zero-proof">Alcohol-free</option>
+              {DRINK_CATEGORIES.filter((category) =>
+                category !== "alcohol-free" && category !== "soft-drink" && category !== "coffee" && category !== "other"
+              ).map((category) => <option key={category} value={category}>{categoryLabel(category)}</option>)}
             </select></label>
           </fieldset>
         ) : null}

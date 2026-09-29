@@ -62,6 +62,7 @@ import {
 } from "@/lib/planIntake";
 import { writePlanDraftEnvelope } from "@/lib/planDraft";
 import * as planOccasion from "@/lib/planOccasion";
+import { inferNightContext } from "@/lib/nightPlanning";
 
 const URL_ASK = "Plan a crawl in Soho for 4";
 const DRAFT_ASK = "an older ask nobody asked for again";
@@ -248,6 +249,82 @@ afterEach(async () => {
 });
 
 describe("PlanComposer describe prefill", () => {
+  it("keeps a wine ask editable as a drink category through route refresh", async () => {
+    const inferredContext = inferNightContext("cheap wine in Soho for 2").context;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo) => {
+      const url = typeof input === "string" ? input : input.url;
+      return new Response(JSON.stringify(url.includes("/api/plans/generate")
+        ? { ...DEFAULT_GENERATE_BODY, inferredContext }
+        : []), { status: 200, headers: { "content-type": "application/json" } });
+    }));
+    await mountComposer();
+
+    await act(async () => {
+      typeInto("#plan-describe-first-query", "cheap wine in Soho for 2");
+      clickButton("Sort it");
+      await Promise.resolve();
+    });
+
+    const drinks = document.querySelector<HTMLSelectElement>("#plan-context-zero-proof");
+    expect(drinks?.value).toBe("wine");
+    expect(Array.from(drinks?.options ?? []).map((option) => option.value)).toEqual(
+      expect.arrayContaining(["beer", "wine", "cocktail", "whisky", "gin", "vodka", "rum", "shot"]),
+    );
+
+    await act(async () => {
+      drinks!.value = "cocktail";
+      drinks!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(drinks?.value).toBe("cocktail");
+    expect(document.querySelector("#plan-route-status")?.textContent).toContain("Route needs refreshing");
+
+    await act(async () => {
+      clickButton("Sort it again");
+      await Promise.resolve();
+    });
+    const generateCalls = vi.mocked(fetch).mock.calls.filter(([input]) =>
+      (typeof input === "string" ? input : input instanceof Request ? input.url : String(input))
+        .includes("/api/plans/generate"));
+    const refreshed = JSON.parse(String((generateCalls.at(-1)?.[1] as RequestInit).body)) as {
+      context: { drinkCategory?: string | null; zeroProof?: boolean };
+    };
+    expect(refreshed.context).toMatchObject({ drinkCategory: "cocktail", zeroProof: false });
+
+    await act(async () => {
+      drinks!.value = "any";
+      drinks!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(drinks?.value).toBe("any");
+    await act(async () => {
+      clickButton("Sort it again");
+      await Promise.resolve();
+    });
+    const clearedCalls = vi.mocked(fetch).mock.calls.filter(([input]) =>
+      (typeof input === "string" ? input : input instanceof Request ? input.url : String(input))
+        .includes("/api/plans/generate"));
+    const cleared = JSON.parse(String((clearedCalls.at(-1)?.[1] as RequestInit).body)) as {
+      context: { drinkCategory?: string | null; zeroProof?: boolean };
+    };
+    expect(cleared.context).toMatchObject({ drinkCategory: null, zeroProof: false });
+
+    await act(async () => {
+      drinks!.value = "zero-proof";
+      drinks!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(drinks?.value).toBe("zero-proof");
+    await act(async () => {
+      clickButton("Sort it again");
+      await Promise.resolve();
+    });
+    const zeroProofCalls = vi.mocked(fetch).mock.calls.filter(([input]) =>
+      (typeof input === "string" ? input : input instanceof Request ? input.url : String(input))
+        .includes("/api/plans/generate"));
+    const zeroProof = JSON.parse(String((zeroProofCalls.at(-1)?.[1] as RequestInit).body)) as {
+      context: { drinkCategory?: string | null; zeroProof?: boolean };
+    };
+    expect(zeroProof.context).toMatchObject({ drinkCategory: null, zeroProof: true });
+  });
+
   it("prefers the URL ask over a held draft, and spends the draft anyway", async () => {
     sessionStorage.setItem(
       ASK_PLAN_DRAFT_STORAGE_KEY,
