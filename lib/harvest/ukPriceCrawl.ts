@@ -340,7 +340,7 @@ export function siteHarvestPriceKey(
   return `${category}\0${label}\0${serving}`;
 }
 
-function statedWineIdentity(
+export function statedWineIdentity(
   context: string,
   verbatim: string,
   priceAt: number,

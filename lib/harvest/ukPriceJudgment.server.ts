@@ -18,6 +18,7 @@ import {
   findUkPriceCandidates,
   pageText,
   readVenueDrinkPrices,
+  statedWineIdentity,
   type UkPriceCandidate,
   type UkPriceDropReason,
   type UkPriceRawCandidate,
@@ -169,11 +170,15 @@ function applyJudgmentToCandidate(
     return { drops: [decision.drop ?? "judgment-below-threshold"] };
   }
   if (decision.category) {
+    const priceAtInSnippet = raw.at - Math.max(0, raw.at - UK_PRICE_JUDGMENT_SNIPPET_CHARS);
+    const wineIdentity = decision.category === "wine"
+      ? statedWineIdentity(raw.snippet, raw.verbatim, priceAtInSnippet)
+      : null;
     const drinkLabel =
-      drinkLabelFromPriceContext(
+      wineIdentity?.drinkLabel ?? drinkLabelFromPriceContext(
         raw.snippet,
         raw.verbatim,
-        raw.at - Math.max(0, raw.at - UK_PRICE_JUDGMENT_SNIPPET_CHARS),
+        priceAtInSnippet,
       ) ?? undefined;
     return {
       kept: {
@@ -182,6 +187,7 @@ function applyJudgmentToCandidate(
         verbatim: raw.verbatim,
         context: raw.snippet,
         drinkLabel,
+        ...(wineIdentity ? { servingSize: wineIdentity.servingSize } : {}),
       },
       drops: [],
     };

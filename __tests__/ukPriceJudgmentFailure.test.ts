@@ -30,20 +30,23 @@ const drinksList = `
   <p>Neck Oil pint &pound;6.80</p>
 </body></html>`;
 
-function mockAnswersForBatch(questionMap: Record<string, unknown>) {
+function mockAnswersForBatch(
+  questionMap: Record<string, unknown>,
+  what: "draught_pint" | "wine_glass" = "draught_pint",
+) {
   const count = Object.keys(questionMap).filter((key) => key.startsWith("whatIsPriced_")).length;
   const answers: Record<string, unknown> = {};
   for (let index = 0; index < count; index += 1) {
     answers[`whatIsPriced_${index}`] = {
       type: "choice",
-      choice: "draught_pint",
-      probabilities: { draught_pint: 0.95 },
+      choice: what,
+      probabilities: { [what]: 0.95 },
     };
     answers[`isPromotionalPrice_${index}`] = { type: "noul", noul: 0.01 };
     answers[`drinkCategory_${index}`] = {
       type: "choice",
-      choice: "beer",
-      probabilities: { beer: 0.95 },
+      choice: what === "wine_glass" ? "wine" : "beer",
+      probabilities: { [what === "wine_glass" ? "wine" : "beer"]: 0.95 },
     };
   }
   return {
@@ -57,6 +60,31 @@ function mockAnswersForBatch(questionMap: Record<string, unknown>) {
 }
 
 describe("readVenueDrinkPricesJudged batch failures", () => {
+  it("retains printed wine names and glass sizes on the accepted judged path", async () => {
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    // Minimal excerpt from the permission-checked Sydney Arms capture.
+    const menu = `<p>Chardonnay, Pays D&#8217;oc, France<br />
+125ml £5.50 250ml £11.00 Btl £31.50</p>`;
+    vi.mocked(systemOneOutcome).mockImplementation(async (_state, questions) =>
+      mockAnswersForBatch(questions, "wine_glass"),
+    );
+
+    try {
+      const judged = await readVenueDrinkPricesJudged(menu, {
+        pubName: "Sydney Arms",
+        pageUrl: "https://www.sydneyarmschelsea.com/menu/",
+      });
+      expect(judged.kept.map(({ drinkLabel, servingSize, priceGbp }) => ({ drinkLabel, servingSize, priceGbp }))).toEqual([
+        { drinkLabel: "Chardonnay, Pays D’oc, France", servingSize: "125ml", priceGbp: 5.5 },
+        { drinkLabel: "Chardonnay, Pays D’oc, France", servingSize: "250ml", priceGbp: 11 },
+      ]);
+      expect(judged.drops).toContain("outside-category-band");
+    } finally {
+      vi.unstubAllEnvs();
+      vi.mocked(systemOneOutcome).mockReset();
+    }
+  });
+
   it("records a budget drop and keyless-falls back only the refused batch", async () => {
     vi.stubEnv("TYPESAFE_API_KEY", "test-key");
     // Offsets come from the page, never hand-written: a candidate carries where
