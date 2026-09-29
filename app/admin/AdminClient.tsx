@@ -490,6 +490,100 @@ async function loadProfileModerationQueues(): Promise<{
   };
 }
 
+function PintDropModerationSection({
+  status,
+  drops,
+  venueNames,
+  pendingId,
+  onDecide,
+}: {
+  status: "reported" | "hidden";
+  drops: ModeratorDrop[];
+  venueNames: Map<string, string>;
+  pendingId: string | null;
+  onDecide: (id: string, action: "restore" | "keep_hidden") => void;
+}) {
+  if (drops.length === 0) return null;
+  return (
+    <>
+      <h3 className="admin-section">{status === "reported" ? "Reported" : "Hidden"} Pint Drops</h3>
+      <div className="admin-list">
+        {drops.map((drop) => {
+          const evidence = moderatorReportEvidence(drop.reportCount, drop.reportedAt);
+          return (
+            <article className="admin-card" key={drop.id}>
+              <div className="admin-card-head">
+                <span className="admin-handle">{drop.handle}</span>
+                {drop.priceGbp != null ? (
+                  <span className="admin-price">£{drop.priceGbp.toFixed(2)}</span>
+                ) : null}
+              </div>
+              <div className="admin-venue">
+                <span className="admin-venue-name">{venueNames.get(drop.venueId) ?? drop.venueId}</span>
+                <Link className="admin-venue-link" href={venueMapUrl(drop.venueId)}>
+                  View on map
+                </Link>
+              </div>
+              {drop.passedDownNote ? <p className="admin-note">{drop.passedDownNote}</p> : null}
+              <div className="admin-meta">
+                {drop.era ? <span>Era: {drop.era}</span> : null}
+                {drop.reportReason ? (
+                  <span className="admin-report">Reason: {drop.reportReason}</span>
+                ) : null}
+                <span className="admin-report">Verified reports: {evidence.verifiedCount}</span>
+                {evidence.hasEvidence ? (
+                  <span className="admin-report">Report evidence received</span>
+                ) : null}
+                {drop.reportedAt ? (
+                  <span>Reported: {new Date(drop.reportedAt).toLocaleString()}</span>
+                ) : null}
+              </div>
+              {drop.pintPhotoUrl || drop.venuePhotoUrl ? (
+                <div className="admin-photos">
+                  {drop.pintPhotoUrl ? (
+                    <Image
+                      src={drop.pintPhotoUrl}
+                      alt={`Pint photo reported from ${drop.handle}`}
+                      width={96}
+                      height={96}
+                      unoptimized
+                    />
+                  ) : null}
+                  {drop.venuePhotoUrl ? (
+                    <Image
+                      src={drop.venuePhotoUrl}
+                      alt={`Venue photo reported from ${drop.handle}`}
+                      width={96}
+                      height={96}
+                      unoptimized
+                    />
+                  ) : null}
+                </div>
+              ) : null}
+              <div className="admin-actions">
+                <button
+                  className="admin-btn admin-restore"
+                  onClick={() => onDecide(drop.id, "restore")}
+                  disabled={pendingId === drop.id}
+                >
+                  {pendingId === drop.id ? "Working…" : status === "reported" ? "Keep visible" : "Restore"}
+                </button>
+                <button
+                  className="admin-btn admin-keep"
+                  onClick={() => onDecide(drop.id, "keep_hidden")}
+                  disabled={pendingId === drop.id}
+                >
+                  {pendingId === drop.id ? "Working…" : status === "reported" ? "Hide" : "Keep hidden"}
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 export default function AdminClient() {
   const [sessionEstablished, setSessionEstablished] = useState(false);
   const [sessionRecoveryNeeded, setSessionRecoveryNeeded] = useState(false);
@@ -747,6 +841,15 @@ export default function AdminClient() {
     [retryWithFreshSession, socialQueueUnavailable],
   );
 
+  const ensureVenueNames = useCallback(async (hasRows: boolean) => {
+    if (!hasRows || venueNames.size !== 0) return;
+    try {
+      setVenueNames(await fetchVenueNames());
+    } catch {
+      // Names stay unresolved; queue rows fall back to their venue ID.
+    }
+  }, [venueNames.size]);
+
   const load = useCallback(async (forceSession = false) => {
     const requestGeneration = ++socialPostsRequestGeneration.current;
     const isLatestLoad = () => requestGeneration === socialPostsRequestGeneration.current;
@@ -771,13 +874,7 @@ export default function AdminClient() {
       // this pass, but keep their failures isolated from Pint Drops and the
       // other moderation lanes.
       const communityPrices = await loadCommunityPriceQueues(session);
-      if (communityPrices && communityPrices.length > 0 && venueNames.size === 0) {
-        try {
-          setVenueNames(await fetchVenueNames());
-        } catch {
-          /* names stay unresolved; rows fall back to the venueId */
-        }
-      }
+      await ensureVenueNames(Boolean(communityPrices?.length));
 
       const [reportedRes, hiddenRes] = await Promise.all([
         fetch("/api/pint-drops?status=reported", SESSION_FETCH),
@@ -807,13 +904,7 @@ export default function AdminClient() {
       setDrops(hidden);
       // Resolve venue names lazily alongside the queue — best-effort, so a
       // dataset fetch failure never blocks moderation.
-      if (reported.length + hidden.length > 0 && venueNames.size === 0) {
-        try {
-          setVenueNames(await fetchVenueNames());
-        } catch {
-          /* names stay unresolved; rows fall back to the venueId */
-        }
-      }
+      await ensureVenueNames(reported.length + hidden.length > 0);
       // Also load the hidden-comment queue (story 37) with the same session, in the
       // same pass. Best-effort — a comments failure never blocks drop moderation.
       try {
@@ -843,13 +934,7 @@ export default function AdminClient() {
           : [];
         setVisitReports(reported);
         setHiddenVisitReports(hidden);
-        if (reported.length + hidden.length > 0 && venueNames.size === 0) {
-          try {
-            setVenueNames(await fetchVenueNames());
-          } catch {
-            /* names stay unresolved; rows fall back to the venueId */
-          }
-        }
+        await ensureVenueNames(reported.length + hidden.length > 0);
       } catch {
         setVisitReports([]);
         setHiddenVisitReports([]);
@@ -902,10 +987,10 @@ export default function AdminClient() {
     }
   }, [
     ensureAdminSession,
+    ensureVenueNames,
     loadCommunityPriceQueues,
     loadSocialPosts,
     socialQueueUnavailable,
-    venueNames.size,
   ]);
 
   const resumeSocialSession = useCallback(async () => {
@@ -1621,178 +1706,20 @@ export default function AdminClient() {
             </div>
           ) : null}
 
-          {reportedDrops.length > 0 ? (
-            <>
-              <h3 className="admin-section">Reported Pint Drops</h3>
-              <div className="admin-list">
-              {reportedDrops.map((d) => (
-                <article className="admin-card" key={d.id}>
-                  <div className="admin-card-head">
-                    <span className="admin-handle">{d.handle}</span>
-                    {d.priceGbp != null ? (
-                      <span className="admin-price">£{d.priceGbp.toFixed(2)}</span>
-                    ) : null}
-                  </div>
-
-                  <div className="admin-venue">
-                    <span className="admin-venue-name">
-                      {venueNames.get(d.venueId) ?? d.venueId}
-                    </span>
-                    <Link className="admin-venue-link" href={venueMapUrl(d.venueId)}>
-                      View on map
-                    </Link>
-                  </div>
-
-                  {d.passedDownNote ? <p className="admin-note">{d.passedDownNote}</p> : null}
-
-                  <div className="admin-meta">
-                    {d.era ? <span>Era: {d.era}</span> : null}
-                    {d.reportReason ? (
-                      <span className="admin-report">Reason: {d.reportReason}</span>
-                    ) : null}
-                    <span className="admin-report">
-                      Verified reports: {moderatorReportEvidence(d.reportCount, d.reportedAt).verifiedCount}
-                    </span>
-                    {moderatorReportEvidence(d.reportCount, d.reportedAt).hasEvidence ? (
-                      <span className="admin-report">Report evidence received</span>
-                    ) : null}
-                    {d.reportedAt ? (
-                      <span>Reported: {new Date(d.reportedAt).toLocaleString()}</span>
-                    ) : null}
-                  </div>
-
-                  {d.pintPhotoUrl || d.venuePhotoUrl ? (
-                    <div className="admin-photos">
-                      {d.pintPhotoUrl ? (
-                        <Image
-                          src={d.pintPhotoUrl}
-                          alt={`Pint photo reported from ${d.handle}`}
-                          width={96}
-                          height={96}
-                          unoptimized
-                        />
-                      ) : null}
-                      {d.venuePhotoUrl ? (
-                        <Image
-                          src={d.venuePhotoUrl}
-                          alt={`Venue photo reported from ${d.handle}`}
-                          width={96}
-                          height={96}
-                          unoptimized
-                        />
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  <div className="admin-actions">
-                    <button
-                      className="admin-btn admin-restore"
-                      onClick={() => decide(d.id, "restore")}
-                      disabled={pendingId === d.id}
-                    >
-                      {pendingId === d.id ? "Working…" : "Keep visible"}
-                    </button>
-                    <button
-                      className="admin-btn admin-keep"
-                      onClick={() => decide(d.id, "keep_hidden")}
-                      disabled={pendingId === d.id}
-                    >
-                      {pendingId === d.id ? "Working…" : "Hide"}
-                    </button>
-                  </div>
-                </article>
-              ))}
-              </div>
-            </>
-          ) : null}
-
-          {drops.length > 0 ? (
-            <>
-              <h3 className="admin-section">Hidden Pint Drops</h3>
-            <div className="admin-list">
-              {drops.map((d) => (
-                <article className="admin-card" key={d.id}>
-                  <div className="admin-card-head">
-                    <span className="admin-handle">{d.handle}</span>
-                    {d.priceGbp != null ? (
-                      <span className="admin-price">£{d.priceGbp.toFixed(2)}</span>
-                    ) : null}
-                  </div>
-
-                  <div className="admin-venue">
-                    <span className="admin-venue-name">
-                      {venueNames.get(d.venueId) ?? d.venueId}
-                    </span>
-                    <Link
-                      className="admin-venue-link"
-                      href={venueMapUrl(d.venueId)}
-                    >
-                      View on map
-                    </Link>
-                  </div>
-
-                  {d.passedDownNote ? <p className="admin-note">{d.passedDownNote}</p> : null}
-
-                  <div className="admin-meta">
-                    {d.era ? <span>Era: {d.era}</span> : null}
-                    {d.reportReason ? (
-                      <span className="admin-report">Reason: {d.reportReason}</span>
-                    ) : null}
-                    <span className="admin-report">
-                      Verified reports: {moderatorReportEvidence(d.reportCount, d.reportedAt).verifiedCount}
-                    </span>
-                    {moderatorReportEvidence(d.reportCount, d.reportedAt).hasEvidence ? (
-                      <span className="admin-report">Report evidence received</span>
-                    ) : null}
-                    {d.reportedAt ? (
-                      <span>Reported: {new Date(d.reportedAt).toLocaleString()}</span>
-                    ) : null}
-                  </div>
-
-                  {d.pintPhotoUrl || d.venuePhotoUrl ? (
-                    <div className="admin-photos">
-                      {d.pintPhotoUrl ? (
-                        <Image
-                          src={d.pintPhotoUrl}
-                          alt={`Pint photo reported from ${d.handle}`}
-                          width={96}
-                          height={96}
-                          unoptimized
-                        />
-                      ) : null}
-                      {d.venuePhotoUrl ? (
-                        <Image
-                          src={d.venuePhotoUrl}
-                          alt={`Venue photo reported from ${d.handle}`}
-                          width={96}
-                          height={96}
-                          unoptimized
-                        />
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  <div className="admin-actions">
-                    <button
-                      className="admin-btn admin-restore"
-                      onClick={() => decide(d.id, "restore")}
-                      disabled={pendingId === d.id}
-                    >
-                      {pendingId === d.id ? "Working…" : "Restore"}
-                    </button>
-                    <button
-                      className="admin-btn admin-keep"
-                      onClick={() => decide(d.id, "keep_hidden")}
-                      disabled={pendingId === d.id}
-                    >
-                      {pendingId === d.id ? "Working…" : "Keep hidden"}
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-            </>
-          ) : null}
+          <PintDropModerationSection
+            status="reported"
+            drops={reportedDrops}
+            venueNames={venueNames}
+            pendingId={pendingId}
+            onDecide={decide}
+          />
+          <PintDropModerationSection
+            status="hidden"
+            drops={drops}
+            venueNames={venueNames}
+            pendingId={pendingId}
+            onDecide={decide}
+          />
 
           <SocialPostModerationQueue
             posts={socialPosts}

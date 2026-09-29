@@ -5,6 +5,7 @@
 // parent callbacks — never silent Plan or memory writes.
 
 import { useCallback, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { MapPin, X } from "lucide-react";
 
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
@@ -52,6 +53,7 @@ export default function MapConciergeAsk({
   onSelectVenue,
   onFlyTo,
 }: MapConciergeAskProps) {
+  const router = useRouter();
   const { user, session } = useAuth();
   const auth = captureAccountAuth(user?.id ?? null, session);
   const [open, setOpen] = useState(false);
@@ -136,7 +138,7 @@ export default function MapConciergeAsk({
           stopNames: proposal.stopNames,
           createdAt: new Date().toISOString(),
         });
-        window.location.assign("/plan");
+        router.push("/plan");
         return;
       }
       if (proposal.kind === "report_occupancy") {
@@ -148,7 +150,7 @@ export default function MapConciergeAsk({
             "pal",
           );
           if (!result.ok && result.needsSignIn) {
-            window.location.assign("/login?mode=signin&from=/map");
+            router.push("/login?mode=signin&from=/map");
             return;
           }
           if (!result.ok) {
@@ -161,7 +163,7 @@ export default function MapConciergeAsk({
         })();
       }
     },
-    [auth, dismissProposal, onFlyTo, onSelectVenue],
+    [auth, dismissProposal, onFlyTo, onSelectVenue, router],
   );
 
   if (!open) {

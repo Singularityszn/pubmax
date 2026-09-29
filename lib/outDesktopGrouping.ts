@@ -15,14 +15,14 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
 export const OUT_OPEN_PLANS_MIN_SENDABLE = 1;
 
 /**
- * What a row says when we hold no pub of our own for it.
+ * What a row says when it has no confirmed pub link.
  *
- * It is a fact about OUR map, not about the listing: the gig is on, the venue
- * is real, and the only thing missing is a pin. Said on the row itself, because
+ * The listing may still be at a pub on our map. Without a confirmed link,
+ * we cannot claim the place is absent. Said on the row itself, because
  * the alternative - counting these rows into one line and printing nothing else
  * - is how /out came to show a reader 148 sourced listings as an empty page.
  */
-export const OUT_LISTING_PUB_ABSENT_LINE = "Not on our map yet.";
+export const OUT_LISTING_PUB_ABSENT_LINE = "We haven’t linked this place to a pub on our map.";
 
 export { OUT_UNMATCHED_PLACES_SHOWN } from "@/lib/out/types";
 
@@ -66,7 +66,7 @@ export function groupOutListings(
 /** Single reader-facing label for the resolved place badge on /out listings. */
 export const OUT_LISTING_VENUE_BADGE_LABEL = "On PUBMAXX";
 
-/** The pub beside a gig is the resolved venue on the row, or an honest absence. */
+/** The pub beside a gig is the resolved venue on the row, or an unconfirmed match. */
 export function outListingPubPair(row: WhatsOnRow): OutListingPubPair {
   const venueId = canonicalOutVenueId(row.venueId);
   const placeName = row.placeName.trim();
@@ -80,7 +80,7 @@ export function outListingPubPair(row: WhatsOnRow): OutListingPubPair {
   return { status: "absent", placeName, line: OUT_LISTING_PUB_ABSENT_LINE };
 }
 
-/** How many listings on screen carry no pub of ours. Reported, never hidden. */
+/** How many listings on screen carry no confirmed pub match. Reported, never hidden. */
 export function outListingUnmatchedCount(rows: readonly WhatsOnRow[]): number {
   return rows.reduce((count, row) => (hasResolvedPub(row) ? count : count + 1), 0);
 }
@@ -88,11 +88,11 @@ export function outListingUnmatchedCount(rows: readonly WhatsOnRow[]): number {
 /**
  * The one finding a row cannot state for itself.
  *
- * Every listing now prints, and a row with no pub of ours says so on its own
- * line, so there is nothing left for a page-level count to reveal. What a row
+ * Every listing now prints, and a row with no confirmed pub link says so on
+ * its own line, so there is nothing left for a page-level count to reveal. What a row
  * still cannot say is that the MATCH NEVER RAN: the slim venue index failed to
- * read, so "not on our map yet" would be a claim about a lookup nobody
- * performed. That is this notice's whole remit, and it is silent otherwise.
+ * read. The row's missing link alone cannot say whether we attempted a lookup.
+ * That is this notice's whole remit, and it is silent otherwise.
  */
 export type OutVenueMatchNotice = {
   /** The finding, in words a reader can act on. */

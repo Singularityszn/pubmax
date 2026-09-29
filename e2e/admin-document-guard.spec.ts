@@ -68,3 +68,101 @@ test("a moderator session cookie opens /admin", async ({
     page.getByRole("heading", { name: "Moderator sign-in" }),
   ).toHaveCount(0);
 });
+
+test("token entry reloads /admin through the document guard", async ({ page }) => {
+  const firstDocument = await page.goto("/admin");
+  expect(firstDocument?.status()).toBe(401);
+  await page.getByLabel("Admin token").fill(ADMIN_TOKEN);
+
+  const [nextDocument] = await Promise.all([
+    page.waitForNavigation(),
+    page.getByRole("button", { name: "Open console" }).click(),
+  ]);
+
+  expect(nextDocument?.status()).toBe(200);
+  await expect(page.getByRole("tablist", { name: "Admin sections" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Moderator sign-in" })).toHaveCount(0);
+});
+
+test("reported and hidden Pint Drop cards keep their evidence and distinct decisions", async ({
+  page,
+}) => {
+  const baseDrop = {
+    venueId: "venue-xjf3n0",
+    handle: "Queue tester",
+    drink: "pint",
+    priceGbp: 5.5,
+    passedDownNote: "Menu price checked",
+    era: "tonight",
+    pintPhotoUrl: null,
+    venuePhotoUrl: null,
+    reportReason: "Wrong price",
+    reportCount: 2,
+    reportedAt: "2026-09-28T18:00:00.000Z",
+  };
+  const decisions: unknown[] = [];
+  await page.route("**/api/pint-drops**", async (route) => {
+    const request = route.request();
+    if (request.method() === "POST") {
+      decisions.push(request.postDataJSON());
+      await route.fulfill({ json: { ok: true } });
+      return;
+    }
+    const status = new URL(request.url()).searchParams.get("status");
+    const drop =
+      status === "reported"
+        ? { ...baseDrop, id: "reported-drop", status: "reported" }
+        : { ...baseDrop, id: "hidden-drop", status: "hidden" };
+    await route.fulfill({ json: { drops: [drop] } });
+  });
+
+  await page.goto("/admin");
+  await page.getByLabel("Admin token").fill(ADMIN_TOKEN);
+  await page.getByRole("button", { name: "Open console" }).click();
+  await expect(
+    page.getByRole("tablist", { name: "Admin sections" }),
+  ).toBeVisible();
+  await expect(async () => {
+    await page.getByRole("button", { name: "Load reported drops" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Reported Pint Drops" }),
+    ).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+
+  const reported = page
+    .getByRole("heading", { name: "Reported Pint Drops" })
+    .locator("xpath=following-sibling::div[1]");
+  const hidden = page
+    .getByRole("heading", { name: "Hidden Pint Drops" })
+    .locator("xpath=following-sibling::div[1]");
+  for (const queue of [reported, hidden]) {
+    await expect(queue).toContainText("Arnos Arms");
+    await expect(queue).toContainText("Menu price checked");
+    await expect(queue).toContainText("Reason: Wrong price");
+    await expect(queue).toContainText("Verified reports: 2");
+    await expect(queue).toContainText("Report evidence received");
+  }
+  await expect(
+    reported.getByRole("button", { name: "Keep visible" }),
+  ).toBeVisible();
+  await expect(
+    reported.getByRole("button", { name: "Hide", exact: true }),
+  ).toBeVisible();
+  await expect(hidden.getByRole("button", { name: "Restore" })).toBeVisible();
+  await expect(
+    hidden.getByRole("button", { name: "Keep hidden" }),
+  ).toBeVisible();
+
+  await reported.getByRole("button", { name: "Hide", exact: true }).click();
+  await hidden.getByRole("button", { name: "Restore" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Reported Pint Drops" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Hidden Pint Drops" }),
+  ).toHaveCount(0);
+  expect(decisions).toEqual([
+    { action: "keep_hidden", id: "reported-drop" },
+    { action: "restore", id: "hidden-drop" },
+  ]);
+});

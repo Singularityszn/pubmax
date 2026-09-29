@@ -77,7 +77,6 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
       const option = select.selectedOptions[0]?.text ?? "";
       const selectBox = select.getBoundingClientRect();
       const labelBox = label.getBoundingClientRect();
-      const chevronGap = 18;
       const textFits = select.scrollWidth <= select.clientWidth + 1;
       const insideLabel = selectBox.right <= labelBox.right - 2;
       return { ok: textFits && insideLabel && option.length > 0, option, textFits, insideLabel };

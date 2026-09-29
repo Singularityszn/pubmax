@@ -144,6 +144,13 @@ describe("parseShardManifest", () => {
     expect(parseShardManifest(current, 2, "other-deploy")).toBeNull();
     expect(parseShardManifest(MANIFEST, 2, "deploy-42")).toBeNull();
   });
+
+  it("preserves grid partitions and rejects borough metadata on other partitions", () => {
+    const shard = { ...MANIFEST.shards[0], partition: "grid", borough: undefined };
+    expect(parseShardManifest({ ...MANIFEST, shards: [shard] })?.shards[0]?.partition).toBe("grid");
+    expect(parseShardManifest({ ...MANIFEST, shards: [{ ...shard, borough: "Camden" }] })).toBeNull();
+    expect(parseShardManifest({ ...MANIFEST, shards: [{ ...shard, partition: "borough", borough: "Camden" }] })?.shards[0]?.borough).toBe("Camden");
+  });
 });
 
 describe("createSlimShardLoader (London)", () => {

@@ -361,17 +361,7 @@ export default function PalChat() {
         lng: String(proposal.lng),
       });
       if (proposal.place) params.set("place", proposal.place);
-      window.location.assign(`/map?${params.toString()}`);
-      return;
-    }
-    if (proposal.kind === "draft_plan") {
-      writeAskPlanDraft({
-        query: proposal.query,
-        stopIds: proposal.stopIds,
-        stopNames: proposal.stopNames,
-        createdAt: new Date().toISOString(),
-      });
-      window.location.assign("/plan");
+      router.push(`/map?${params.toString()}`);
       return;
     }
     if (proposal.kind === "report_occupancy") {
@@ -382,7 +372,7 @@ export default function PalChat() {
           "pal",
         );
         if (!result.ok && result.needsSignIn) {
-          window.location.assign("/login?mode=signin&from=/pal/chat");
+          router.push("/login?mode=signin&from=/pal/chat");
           return;
         }
         if (!result.ok) {
@@ -412,7 +402,7 @@ export default function PalChat() {
         if (entryId) dismissProposal(entryId, proposal.id);
       })();
     }
-  }, [auth, dismissProposal, nextId, openVenue]);
+  }, [auth, dismissProposal, nextId, openVenue, router]);
 
   const onSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {

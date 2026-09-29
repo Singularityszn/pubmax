@@ -16,7 +16,6 @@ import { firstHttp } from "@/lib/httpUrl";
 import { outRowSourceCredit } from "@/lib/out/attribution";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import type { OutVenueMatchStatus } from "@/lib/out/venueMatch";
-import { OUT_LISTING_PUB_ABSENT_LINE } from "@/lib/outDesktopGrouping";
 import { outWindowNoun, type OutDayWindow } from "@/lib/outListings";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
@@ -39,19 +38,19 @@ export function outListingRoute(row: WhatsOnRow): OutListingRoute | null {
   return null;
 }
 
-/** The heading over listings at no pub of ours: the row's own words, as a heading. */
-export const OUT_NOT_ON_MAP_HEADING = OUT_LISTING_PUB_ABSENT_LINE.replace(/\.$/, "");
+/** The heading over listings without a confirmed pub match. */
+export const OUT_NOT_ON_MAP_HEADING = "Places we couldn’t match";
 
-/** The way from a night with nothing at our pubs to the pubs people talk about. */
+/** The way from a night with no confirmed pub matches to pubs people talk about. */
 export const OUT_TONIGHT_PUBS_WAY = { href: "/tonight", label: "Tonight’s pubs" } as const;
 
 export type OutListingLead = {
   /**
-   * True only when the venue match RAN. A split claims the second block is at
-   * no pub of ours, and a lookup nobody performed cannot make that claim.
+   * True only when the venue match RAN. A split claims the second block has no
+   * confirmed pub match, and a lookup nobody performed cannot make that claim.
    */
   split: boolean;
-  /** Listings at a pub we list, in served order. They lead. */
+  /** Listings with a confirmed pub match, in served order. They lead. */
   matched: WhatsOnRow[];
   /** Every other listing, in served order. Shown under its heading, never hidden. */
   unmatched: WhatsOnRow[];
@@ -65,17 +64,16 @@ export type OutListingLead = {
 function honestEmptyLine(window: OutDayWindow, count: number): string {
   const possessive = `${outWindowNoun(window)}’s`;
   if (count === 1) {
-    const sentence = `${possessive} one listing is not at a pub on our map.`;
-    return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+    return `We couldn’t match ${possessive} listing to a pub on our map.`;
   }
-  return `None of ${possessive} ${count} listings are at a pub on our map.`;
+  return `We couldn’t match any of ${possessive} ${count} listings to a pub on our map.`;
 }
 
 /**
  * What /out leads with once it holds listings.
  *
- * When the match ran, a listing at a pub of ours leads and the rest follow under
- * OUT_NOT_ON_MAP_HEADING. When it ran and placed none, the honest line leads, so
+ * When the match ran, a listing with a confirmed pub match leads and the rest
+ * follow under OUT_NOT_ON_MAP_HEADING. When it ran and placed none, the honest line leads, so
  * a reader meets what we checked before a block of ticket listings. When it did
  * not run, nothing is split and nothing is claimed: outVenueMatchNotice says so.
  */

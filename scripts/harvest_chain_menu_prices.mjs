@@ -39,7 +39,6 @@ import {
   isHarvestSourceAllowed,
 } from "../lib/harvest/sourcePolicy.ts";
 import {
-  cheapestStatedPint,
   cheapestStatedPintRow,
   coverageLine,
   readChainPintPrices,
