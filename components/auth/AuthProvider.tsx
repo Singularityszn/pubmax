@@ -310,6 +310,7 @@ export function AuthProvider({
           ? "unavailable"
           : "signed-out";
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
+  const bootstrapAbort = useRef<AbortController | null>(null);
   const updateSession = useCallback(
     (nextSession: Session | null, event: string | null = null) => {
       const previousUserId = sessionTransitions.current.currentUserId();
@@ -441,6 +442,8 @@ export function AuthProvider({
   }, [session]);
 
   useEffect(() => {
+    const bootstrapController = new AbortController();
+    bootstrapAbort.current = bootstrapController;
     // Capture callback inputs once across React Strict Mode's effect replay and
     // scrub the address bar synchronously, before any exchange/network await.
     if (capturedCallback.current === undefined) {
@@ -492,6 +495,8 @@ export function AuthProvider({
       });
       return () => {
         active = false;
+        bootstrapController.abort();
+        if (bootstrapAbort.current === bootstrapController) bootstrapAbort.current = null;
         window.clearTimeout(lingeringSweepTimeout);
       };
     }
@@ -755,10 +760,12 @@ export function AuthProvider({
           return;
         }
 
-        const bootstrapped = await bootstrapAuthSession(supabase.auth).catch(
+        const bootstrapped = await bootstrapAuthSession(supabase.auth, {
+          signal: bootstrapController.signal,
+        }).catch(
           () => ({ status: "unavailable" } as const),
         );
-        if (!active) return;
+        if (!active || bootstrapController.signal.aborted) return;
         window.clearTimeout(loadingTimeout);
         if (bootstrapped.status === "unavailable") {
           if (readProviderAuthState("supabase") === "unresolved") {
@@ -792,6 +799,8 @@ export function AuthProvider({
 
     return () => {
       active = false;
+      bootstrapController.abort();
+      if (bootstrapAbort.current === bootstrapController) bootstrapAbort.current = null;
       window.clearTimeout(loadingTimeout);
       window.clearTimeout(lingeringSweepTimeout);
       subscription?.unsubscribe();
@@ -973,6 +982,7 @@ export function AuthProvider({
 
   const signOut = useCallback(
     async (scope: SignOutScope = "account"): Promise<void> => {
+      bootstrapAbort.current?.abort();
       const supabase = await ensureSupabaseBrowser();
       if (!supabase) return;
       const departing = sessionTransitions.current.currentUserId();

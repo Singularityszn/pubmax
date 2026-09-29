@@ -29,6 +29,7 @@ export type AuthSessionBootstrapOutcome =
 export type AuthSessionBootstrapDeps = {
   readHint?: () => Promise<ResumeHintReadOutcome>;
   redeem?: () => Promise<RedeemResult>;
+  signal?: AbortSignal;
 };
 
 /** Two bounded same-origin resume calls can run on a slow mobile connection. */
@@ -109,6 +110,9 @@ export async function bootstrapAuthSession(
   }
   if (restored.status !== "restored") return restored;
 
+  // Logout may have cleared both stores while a cookie redemption was held.
+  // Never install that old account into the live SDK after the user leaves.
+  if (deps.signal?.aborted) return { status: "unavailable" };
   try {
     const result = await auth.setSession(restored.session);
     if (result.error) return { status: "unavailable" };

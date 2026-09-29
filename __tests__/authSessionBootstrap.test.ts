@@ -7,7 +7,7 @@ import {
   bootstrapAuthSession,
   type BrowserAuthSession,
 } from "@/lib/authSessionBootstrap";
-import type { ResumeHintReadOutcome } from "@/lib/authSessionResumeClient";
+import type { RedeemResult, ResumeHintReadOutcome } from "@/lib/authSessionResumeClient";
 
 const RESTORED_SESSION = {
   access_token: "access-restored",
@@ -195,6 +195,23 @@ describe("browser auth session bootstrap", () => {
         }),
       }),
     ).resolves.toEqual({ status: "unavailable" });
+  });
+
+  it("does not install a redeemed account after sign-out cancels bootstrap", async () => {
+    const controller = new AbortController();
+    let finishRedemption: ((result: RedeemResult) => void) | undefined;
+    const browser = auth();
+    const bootstrap = bootstrapAuthSession(browser, {
+      signal: controller.signal,
+      readHint: async () => ({ status: "present", hint: { maskedEmail: null } }),
+      redeem: () => new Promise<RedeemResult>((resolve) => { finishRedemption = resolve; }),
+    });
+    await vi.waitFor(() => expect(finishRedemption).toBeTypeOf("function"));
+
+    controller.abort();
+    finishRedemption?.({ status: "restored", session: RESTORED_SESSION });
+    await expect(bootstrap).resolves.toEqual({ status: "unavailable" });
+    expect(browser.setSession).not.toHaveBeenCalled();
   });
 
   it("converts a rejected redemption into unavailable", async () => {
