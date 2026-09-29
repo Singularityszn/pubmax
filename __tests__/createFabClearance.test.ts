@@ -108,16 +108,6 @@ describe("the pages with nothing to compose", () => {
   });
 });
 
-describe("the create action stands down for full-width surfaces", () => {
-  it("withdraws while the expanded night card is open", () => {
-    expect(createFabCss).toMatch(/body:has\(\.nightCard\) \.createFabRoot/);
-  });
-
-  it("does not reserve the vertical lane while the night card is open", () => {
-    expect(mobileNavCss).toMatch(/:not\(:has\(\.nightCard\)\)/);
-  });
-});
-
 describe("tonight listing rows reserve the compose lane", () => {
   it("pads each listing link on a phone", () => {
     expect(tonightCss).toMatch(/\.tonightRowLink[\s\S]*var\(--create-fab-lane\)/);

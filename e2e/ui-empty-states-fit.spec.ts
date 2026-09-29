@@ -126,14 +126,30 @@ test.describe("UI empty states and layout fit", () => {
       sessionStorage.setItem(`pubmax-plan-member:${id}`, token);
     }, { id: planId, start: planStart, token: created.memberToken });
     await page.goto("/tonight");
+    const create = page.getByRole("button", { name: "Create", exact: true });
+    await expect(create).toBeVisible();
+    const createBox = (await create.boundingBox())!;
+    const padding = () => page.evaluate(() =>
+      Number.parseFloat(getComputedStyle(document.body).paddingBottom),
+    );
+    const withCreate = await padding();
     await page.getByRole("button", { name: "Show tonight's plan" }).click();
     const dialog = page.getByRole("dialog", { name: "Tonight's plan" });
     await expect(dialog).toBeVisible();
+    await expect(create).toBeHidden();
+    const barBox = (await page.getByRole("navigation", { name: "Primary" }).boundingBox())!;
+    const withoutCreate = await padding();
+    expect(withoutCreate).toBeGreaterThanOrEqual(barBox.height);
+    expect(withCreate - withoutCreate).toBeGreaterThanOrEqual(createBox.height);
     await expect(
       dialog.getByText("Loading tonight's route…"),
     ).toBeHidden({ timeout: 15_000 });
     const hasStop = await dialog.locator(".nightCard__now").count();
     const hasEmpty = await dialog.getByText("Tonight's route isn't open here yet.").count();
     expect(hasStop + hasEmpty).toBeGreaterThan(0);
+    await dialog.getByRole("button", { name: "Hide tonight's plan" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(create).toBeVisible();
+    await expect.poll(padding).toBe(withCreate);
   });
 });

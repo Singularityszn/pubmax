@@ -266,54 +266,58 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
   expect(errors).toEqual([]);
 });
 
-test("inline drawers keep spring ownership and content through responsive exits", async ({
-  page,
-}) => {
-  test.setTimeout(60_000);
-  const errors = watchPageErrors(page);
+for (const width of [700, 900]) {
+  for (const side of ["left", "right"] as const) {
+    test(`${side} drawer retains content while exiting at ${width}px`, async ({ page }) => {
+      test.setTimeout(60_000);
+      const errors = watchPageErrors(page);
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(side === "right" ? `/map?sel=${ARNOS_ARMS_ID}` : "/map");
+      const drawer = page.locator(`.mapDrawer.${side}.springDrawer`);
+      if (side === "left") {
+        await expect(async () => {
+          if (await drawer.getAttribute("aria-hidden") !== "false") {
+            await page.getByRole("button", { name: "Describe the outing" }).click();
+          }
+          await expect(drawer).toHaveAttribute("aria-hidden", "false", { timeout: 1_000 });
+        }).toPass({ timeout: 20_000 });
+      }
+      await expect(drawer).toBeVisible({ timeout: 30_000 });
+      await expect(drawer).not.toHaveAttribute("inert");
+      await expect(drawer).toHaveCSS("will-change", "auto");
+      const home = drawer.locator(".surfaceNavHome");
+      await expect(home).toBeInViewport();
+      await home.focus();
+      await expect(home).toBeFocused();
 
-  await page.setViewportSize({ width: 700, height: 900 });
-  await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
-
-  const tabletDrawer = page.locator(".mapDrawer.right.springDrawer");
-  await expect(tabletDrawer).toHaveClass(/open/, { timeout: 30_000 });
-  await expect(tabletDrawer).toBeVisible();
-  await expect(tabletDrawer).toHaveAttribute("data-spring-axis", "vertical");
-  expect(
-    await tabletDrawer.evaluate(
-      (node) => getComputedStyle(node).transitionProperty,
-    ),
-  ).toBe("none");
-  await expect(tabletDrawer.locator(".venueInspector")).toHaveCount(1);
-
-  // The drawer's way out is the shared SurfaceNav pair now, not a bespoke
-  // close (components/ui/surface-nav.tsx).
-  await tabletDrawer.locator(".surfaceNavHome").click();
-  await expect(tabletDrawer).toHaveAttribute("aria-hidden", "true");
-  // The selected venue may clear immediately, but its rendered content stays
-  // in the exiting drawer until the close spring rests.
-  await expect(tabletDrawer.locator(".venueInspector")).toHaveCount(1);
-  await expect
-    .poll(() => tabletDrawer.locator(".venueInspector").count())
-    .toBe(0);
-
-  await page.setViewportSize({ width: 900, height: 900 });
-  await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
-  const compactDesktopDrawer = page.locator(".mapDrawer.right.springDrawer");
-  await expect(compactDesktopDrawer).toHaveClass(/open/, { timeout: 30_000 });
-  await expect(compactDesktopDrawer).toBeVisible();
-  await expect(compactDesktopDrawer).toHaveAttribute(
-    "data-spring-axis",
-    "horizontal",
-  );
-  expect(
-    await compactDesktopDrawer.evaluate(
-      (node) => getComputedStyle(node).transitionProperty,
-    ),
-  ).toBe("none");
-
-  expect(errors).toEqual([]);
-});
+      const exit = await drawer.evaluate(async (element) => {
+        const start = element.getBoundingClientRect();
+        const positions: { x: number; y: number }[] = [];
+        element.querySelector<HTMLButtonElement>(".surfaceNavHome")!.click();
+        for (let frame = 0; frame < 180; frame += 1) {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          if (!element.querySelector(".mapDrawerHead")) break;
+          const rect = element.getBoundingClientRect();
+          positions.push({ x: rect.x - start.x, y: rect.y - start.y });
+        }
+        return { positions, inert: (element as HTMLElement).inert };
+      });
+      expect(exit.inert).toBe(true);
+      expect(exit.positions.length).toBeGreaterThan(0);
+      if (width <= 768) {
+        expect(Math.max(...exit.positions.map(({ y }) => y))).toBeGreaterThan(10);
+        expect(Math.max(...exit.positions.map(({ x }) => Math.abs(x)))).toBeLessThan(1);
+      } else {
+        const direction = side === "left" ? -1 : 1;
+        expect(Math.max(...exit.positions.map(({ x }) => x * direction))).toBeGreaterThan(10);
+        expect(Math.max(...exit.positions.map(({ y }) => Math.abs(y)))).toBeLessThan(1);
+      }
+      await expect(drawer.locator(".mapDrawerHead")).toHaveCount(0);
+      expect(errors).toEqual([]);
+    });
+  }
+}
 
 // ---------------------------------------------------------------------------
 // RESIDUAL GAP (documented, not covered by a flaky test):
