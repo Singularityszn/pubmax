@@ -160,7 +160,8 @@ export function isValidUkPriceBundleRow(value: unknown): value is UkPriceBundleR
   }
   if (row.servingSize !== undefined) {
     if (typeof row.servingSize !== "string" || row.servingSize.trim() !== row.servingSize ||
-        row.servingSize.length === 0 || row.servingSize.length > 40) return false;
+        row.servingSize.length === 0 || row.servingSize.length > 40 ||
+        /\p{Cc}/u.test(row.servingSize)) return false;
     if (row.standing !== "listed") return false;
   }
   if (row.drinkSubtype !== undefined) {

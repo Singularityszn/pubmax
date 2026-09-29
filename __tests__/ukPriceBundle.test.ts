@@ -62,6 +62,10 @@ describe("what a bundle row owes", () => {
     expect(isValidUkPriceBundleRow({ ...listed, servingSize: "Btl" })).toBe(true);
     expect(isValidUkPriceBundleRow({ ...listed, servingSize: "" })).toBe(false);
     expect(isValidUkPriceBundleRow({ ...listed, servingSize: "x".repeat(81) })).toBe(false);
+    expect(isValidUkPriceBundleRow({ ...listed, servingSize: "\0" })).toBe(false);
+    expect(isValidUkPriceBundleRow({ ...listed, servingSize: "125\0ml" })).toBe(false);
+    expect(isValidUkPriceBundleRow({ ...listed, servingSize: "125ml\u007f" })).toBe(false);
+    expect(parseUkPriceBundleRows([{ ...listed, servingSize: "125\0ml" }])).toEqual([]);
     expect(parseUkPriceBundleRows([{ ...listed, servingSize: "Btl" }])[0].servingSize).toBe("Btl");
     expect(parseUkPriceBundleRows([listed])[0].servingSize).toBeUndefined();
   });
