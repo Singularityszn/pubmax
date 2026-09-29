@@ -29,6 +29,7 @@ import {
   PLAN_INTAKE_CONFLICT_SERVER,
   planLockValidationError,
   routeStopsFromGenerated,
+  selectedDrinkPriceDescription,
   serverPlanCreationAttribution,
   swapDraftStop,
 } from "@/components/plan/PlanComposer";
@@ -673,6 +674,24 @@ describe("PlanComposer route preview seam", () => {
     expect(stops[0]?.alternatives).toEqual([{ venueId: "x", venueName: "X" }]);
   });
 
+  it("shows reported wine prices with unknown serving and keeps prices tied to swapped venues", () => {
+    const wine = { category: "wine", pence: 550, serving: null, source: "community", reportedAt: "2026-09-25T12:00:00.000Z" };
+    const cocktail = { category: "cocktail", pence: 850, serving: null, source: "community", reportedAt: "2026-09-26T12:00:00.000Z" };
+    const [stop] = routeStopsFromGenerated([{
+      venueId: "a", venueName: "A", reason: "Wine price reported at A", selectedDrinkPriceEvidence: wine,
+      alternatives: [{ venueId: "b", venueName: "B", selectedDrinkPriceEvidence: cocktail }],
+    }]);
+
+    expect(selectedDrinkPriceDescription(stop?.selectedDrinkPriceEvidence)).toBe("Wine £5.50, community report 25 Sept 2026. Serving size not recorded.");
+    const swapped = swapDraftStop(stop!);
+    expect(selectedDrinkPriceDescription(swapped.selectedDrinkPriceEvidence)).toBe("Cocktails £8.50, community report 26 Sept 2026. Serving size not recorded.");
+    expect(swapped.reason).toBeUndefined();
+    expect(swapped.alternatives).toContainEqual({
+      venueId: "a", venueName: "A", selectedDrinkPriceEvidence: wine,
+    });
+    expect(selectedDrinkPriceDescription(routeStopsFromGenerated([{ venueId: "c", venueName: "C", selectedDrinkPriceEvidence: null }])[0]?.selectedDrinkPriceEvidence)).toBeNull();
+  });
+
   it("cycles a grounded swap while retaining the previous venue as an alternative", () => {
     const next = swapDraftStop({
       key: 1,
@@ -949,4 +968,3 @@ describe("what the composer holds as Stop 1", () => {
     });
   });
 });
-

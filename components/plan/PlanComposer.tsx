@@ -43,7 +43,7 @@ import {
   type PlanVenueOption,
 } from "@/lib/planVenueOptions";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
-import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
+import { categoryLabel, DRINK_CATEGORIES, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import {
   isPlanStopCount,
@@ -110,12 +110,20 @@ import {
 } from "@/lib/planIntake";
 
 type RouteRevision = string | number;
-type RouteAlternative = { venueId: string; venueName: string };
+type SelectedDrinkPriceEvidence = {
+  category: DrinkCategory;
+  pence: number;
+  serving: null;
+  source: "community";
+  reportedAt: string;
+};
+type RouteAlternative = { venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
 export type DraftStop = {
   key: number;
   venueId: string;
   venueName: string;
   reason?: string;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   alternatives: RouteAlternative[];
 };
 
@@ -176,6 +184,9 @@ export function editedPlanStop(input: {
       ...input.stop,
       venueName: input.venueName,
       venueId: preservesAcceptedAuthority ? input.stop.venueId : match?.id ?? "",
+      reason: preservesAcceptedAuthority || match?.id === input.stop.venueId ? input.stop.reason : undefined,
+      selectedDrinkPriceEvidence: preservesAcceptedAuthority || match?.id === input.stop.venueId
+        ? input.stop.selectedDrinkPriceEvidence : undefined,
       alternatives: [],
     },
     preservesAcceptedAuthority,
@@ -374,12 +385,39 @@ function routeRevisionFromState(value: unknown): RouteRevision | null {
 
 function cleanRouteAlternative(value: unknown): RouteAlternative | null {
   if (!value || typeof value !== "object") return null;
-  const row = value as { venueId?: unknown; venueName?: unknown; name?: unknown };
+  const row = value as { venueId?: unknown; venueName?: unknown; name?: unknown; selectedDrinkPriceEvidence?: unknown };
   const venueId = typeof row.venueId === "string" ? row.venueId.trim() : "";
   const venueName = typeof row.venueName === "string"
     ? row.venueName.trim()
     : typeof row.name === "string" ? row.name.trim() : "";
-  return venueId && venueName ? { venueId, venueName } : null;
+  if (!venueId || !venueName) return null;
+  const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
+  return { venueId, venueName, ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}) };
+}
+
+function cleanSelectedDrinkPriceEvidence(value: unknown): SelectedDrinkPriceEvidence | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  if (!isDrinkCategory(row.category) || row.category === "beer" || row.source !== "community"
+    || row.serving !== null || !Number.isSafeInteger(row.pence) || (row.pence as number) <= 0
+    || (row.pence as number) > 100_000 || typeof row.reportedAt !== "string") return null;
+  const time = Date.parse(row.reportedAt);
+  if (!Number.isFinite(time) || new Date(time).toISOString() !== row.reportedAt) return null;
+  return {
+    category: row.category,
+    pence: row.pence as number,
+    serving: null,
+    source: "community",
+    reportedAt: row.reportedAt,
+  };
+}
+
+export function selectedDrinkPriceDescription(evidence: SelectedDrinkPriceEvidence | undefined): string | null {
+  if (!evidence) return null;
+  const reported = new Date(evidence.reportedAt).toLocaleDateString("en-GB", {
+    day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
+  });
+  return `${categoryLabel(evidence.category)} £${(evidence.pence / 100).toFixed(2)}, community report ${reported}. Serving size not recorded.`;
 }
 
 function routeAlternatives(value: unknown): RouteAlternative[] {
@@ -410,6 +448,7 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
       venueName?: unknown;
       name?: unknown;
       reason?: unknown;
+      selectedDrinkPriceEvidence?: unknown;
       alternatives?: unknown;
       options?: unknown;
     };
@@ -423,11 +462,13 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
       !currentVenueIds.has(alternative.venueId)
       && all.findIndex((candidate) => candidate.venueId === alternative.venueId) === alternativeIndex
     ));
+    const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
     return [{
       key: index + 1,
       venueId,
       venueName,
       ...(typeof row.reason === "string" && row.reason.trim() ? { reason: row.reason.trim() } : {}),
+      ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
       alternatives,
     }];
   });
@@ -444,9 +485,12 @@ export function swapDraftStop(stop: DraftStop, excludedVenueIds: ReadonlySet<str
     ...stop,
     venueId: next.venueId,
     venueName: next.venueName,
+    reason: undefined,
+    selectedDrinkPriceEvidence: next.selectedDrinkPriceEvidence,
     alternatives: [
       ...remaining,
-      { venueId: stop.venueId, venueName: stop.venueName },
+      { venueId: stop.venueId, venueName: stop.venueName, ...(stop.selectedDrinkPriceEvidence
+        ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}) },
     ],
   };
 }
@@ -2213,6 +2257,9 @@ function PlanComposerForm({
               <label htmlFor={`venue-name-${stop.key}`}>Venue name</label>
               <input id={`venue-name-${stop.key}`} type="text" list="plan-venue-options" value={stop.venueName} onChange={(event) => chooseVenue(stop.key, event.target.value)} placeholder="Start typing a pub" />
               {stop.reason ? <small className="planComposer__stopReason">{stop.reason}</small> : null}
+              {selectedDrinkPriceDescription(stop.selectedDrinkPriceEvidence) ? (
+                <small className="planComposer__stopReason">{selectedDrinkPriceDescription(stop.selectedDrinkPriceEvidence)}</small>
+              ) : null}
             </div>
             <div className="planComposer__stopActions">
               <button
