@@ -29,7 +29,11 @@ export async function fetchAuthCallbackUser(
   const response = await withAuthFetchTimeout(deps.fetchImpl)(
     new URL("/auth/v1/user", deps.authConfig.url).toString(),
     {
-      headers: { apikey: deps.authConfig.key, authorization: `Bearer ${accessToken}` },
+      headers: {
+        apikey: deps.authConfig.key,
+        authorization: `Bearer ${accessToken}`,
+        "x-supabase-api-version": "2024-01-01",
+      },
       cache: "no-store",
       credentials: "omit",
       redirect: "error",

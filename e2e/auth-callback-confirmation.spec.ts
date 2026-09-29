@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 
 import {
   ACCOUNTS,
@@ -119,12 +119,23 @@ test("locally owned callback installs A automatically", async ({ page }) => {
 });
 
 const providerHeaders = {
-  "x-supabase-api-version": "2024-01-01",
   "access-control-expose-headers": "x-supabase-api-version",
   "access-control-allow-origin": "*",
   "access-control-allow-headers": "*",
   "access-control-allow-methods": "GET,POST,OPTIONS",
 };
+
+async function providerError(route: Route, status: number, code: string, message: string): Promise<void> {
+  const versioned = route.request().headers()["x-supabase-api-version"] === "2024-01-01";
+  await route.fulfill({
+    status,
+    headers: {
+      ...providerHeaders,
+      ...(versioned ? { "x-supabase-api-version": "2024-01-01" } : {}),
+    },
+    json: versioned ? { code, message } : { code: status, error_code: code, msg: message },
+  });
+}
 
 for (const read of [1, 2]) {
   test(`revoked callback identity read ${read} preserves stored B`, async ({ page }) => {
@@ -135,9 +146,7 @@ for (const read of [1, 2]) {
     await page.route("**/auth/v1/user", async (route) => {
       if (route.request().method() === "OPTIONS") return route.fallback();
       if (route.request().headers().authorization === `Bearer ${accessJwt(ACCOUNTS.A)}` && ++reads === read) {
-        await route.fulfill({ status: 403, headers: providerHeaders, json: {
-          code: "session_not_found", message: "Session from session_id claim in JWT does not exist",
-        } });
+        await providerError(route, 403, "session_not_found", "Session from session_id claim in JWT does not exist");
       } else await route.fallback();
     });
     await page.goto(callbackUrl(accessJwt(ACCOUNTS.A), ACCOUNTS.A.refreshToken));
@@ -160,8 +169,7 @@ for (const failure of ["503", "network", "unknown"] as const) {
         return route.fallback();
       }
       if (failure === "network") return route.abort("failed");
-      await route.fulfill({ status: failure === "503" ? 503 : 403, headers: providerHeaders,
-        json: { code: "unexpected_failure", message: "Identity unavailable" } });
+      await providerError(route, failure === "503" ? 503 : 403, "unexpected_failure", "Identity unavailable");
     });
     await page.goto(callbackUrl(accessJwt(ACCOUNTS.A), ACCOUNTS.B.refreshToken));
     await expect(page.locator(".authCallbackNotice")).toContainText("Sign-in could not be completed");
@@ -217,10 +225,8 @@ for (const refreshAccount of ["A", "B"] as const) {
     const expired = parts.join(".");
     await page.route("**/auth/v1/user", async (route) => {
       if (route.request().headers().authorization !== `Bearer ${expired}`) return route.fallback();
-      await route.fulfill({ status: 403, headers: providerHeaders, json: {
-        code: "bad_jwt",
-        message: "invalid JWT: unable to parse or verify signature, token has invalid claims: token is expired",
-      } });
+      await providerError(route, 403, "bad_jwt",
+        "invalid JWT: unable to parse or verify signature, token has invalid claims: token is expired");
     });
     await page.goto(callbackUrl(expired, ACCOUNTS[refreshAccount].refreshToken));
     if (refreshAccount === "A") {

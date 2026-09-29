@@ -304,6 +304,43 @@ describe("callback identity verification failures", () => {
     expect(result.status).toBe("verification-failed");
   });
 
+  it.each([
+    { status: 403, code: "bad_jwt", refreshedId: "account-a", expected: "confirmation-required" },
+    { status: 403, code: "bad_jwt", refreshedId: "account-b", expected: "verification-failed" },
+    { status: 503, code: "bad_jwt", refreshedId: "account-a", expected: "verification-failed" },
+    { status: 403, code: "session_not_found", refreshedId: "account-a", expected: "verification-failed" },
+    { status: 403, code: "unknown", refreshedId: "account-a", expected: "verification-failed" },
+  ])("uses negotiated HTTP errors for $status/$code and $refreshedId", async ({ status, code, refreshedId, expected }) => {
+    const fetchImpl = vi.fn<typeof fetch>(async (_input, init) => {
+      const headers = new Headers(init?.headers);
+      if (headers.get("authorization") === `Bearer ${expiredAccess}`) {
+        const versioned = headers.get("x-supabase-api-version") === "2024-01-01";
+        return new Response(JSON.stringify(versioned
+          ? { code, message: expiryMessage }
+          : { code: status, error_code: code, msg: expiryMessage }), { status });
+      }
+      return new Response(JSON.stringify({ id: refreshedId, email: `${refreshedId}@example.com` }));
+    });
+    const setSession = vi.fn().mockResolvedValue({ data: { session: null }, error: null });
+    const prepared = await prepareAuthCallbackSession(
+      { setSession }, { accessToken: expiredAccess, refreshToken: "refresh-a" }, false,
+      async () => ({ status: "minted", session: { access_token: "fresh-access", refresh_token: "rotated-refresh-a" } }),
+      (token) => fetchAuthCallbackUser(token, {
+        authConfig: { url: "https://provider.example", key: "public-key" }, fetchImpl,
+      }),
+    );
+    expect(prepared.status).toBe(expected);
+    for (const [, init] of fetchImpl.mock.calls) {
+      expect(new Headers(init?.headers).get("x-supabase-api-version")).toBe("2024-01-01");
+    }
+    expect(setSession).not.toHaveBeenCalled();
+    if (prepared.status === "confirmation-required") {
+      expect(prepared.identity).toEqual({ userId: "account-a", label: "account-a@example.com" });
+      await prepared.confirm();
+      expect(setSession).toHaveBeenCalledWith({ access_token: "fresh-access", refresh_token: "rotated-refresh-a" });
+    }
+  });
+
   it("reads identity with the supplied bearer and no cookies", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
       id: "account-a", email: "a@example.com",
@@ -313,7 +350,10 @@ describe("callback identity verification failures", () => {
     })).resolves.toEqual({ data: { user: { id: "account-a", email: "a@example.com" } }, error: null });
     expect(fetchImpl).toHaveBeenCalledWith("https://provider.example/auth/v1/user", expect.objectContaining({
       credentials: "omit", cache: "no-store", redirect: "error",
-      headers: { apikey: "public-key", authorization: "Bearer access-a" },
+      headers: {
+        apikey: "public-key", authorization: "Bearer access-a",
+        "x-supabase-api-version": "2024-01-01",
+      },
     }));
   });
 });
