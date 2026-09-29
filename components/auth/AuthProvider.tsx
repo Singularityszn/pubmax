@@ -503,6 +503,7 @@ export function AuthProvider({
 
     let active = true;
     let subscription: { unsubscribe: () => void } | null = null;
+    let installingRestoredAccessToken: string | null = null;
     // Session restoration is additive; it must never hold the anonymous app or
     // Pub Pal onboarding behind an infinite loading screen when the provider is
     // slow, blocked, or temporarily unavailable. This fail-soft boundary also
@@ -596,6 +597,15 @@ export function AuthProvider({
       // the ONLY place these setStates run — never the effect body.
       const registration = supabase.auth.onAuthStateChange((event, nextSession) => {
         if (!active) return;
+        // A later auth decision owns the session. Cookie restore's own
+        // SIGNED_IN carries the token marked just before setSession.
+        if (
+          event === "SIGNED_OUT" ||
+          (event === "SIGNED_IN" &&
+            nextSession?.access_token !== installingRestoredAccessToken)
+        ) {
+          bootstrapController.abort();
+        }
         const signedIn = updateSession(nextSession ?? null, event);
         // INITIAL_SESSION with no local session is only the beginning of a
         // cold boot. The durable cookie still needs to be checked before the
@@ -762,9 +772,13 @@ export function AuthProvider({
 
         const bootstrapped = await bootstrapAuthSession(supabase.auth, {
           signal: bootstrapController.signal,
+          onBeforeSetSession: (restored) => {
+            installingRestoredAccessToken = restored.access_token;
+          },
         }).catch(
           () => ({ status: "unavailable" } as const),
         );
+        installingRestoredAccessToken = null;
         if (!active || bootstrapController.signal.aborted) return;
         window.clearTimeout(loadingTimeout);
         if (bootstrapped.status === "unavailable") {

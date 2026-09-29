@@ -51,9 +51,15 @@ describe("browser auth session bootstrap", () => {
       status: "restored" as const,
       session: RESTORED_SESSION,
     }));
-    const browser = auth();
+    const onBeforeSetSession = vi.fn();
+    const browser = auth({
+      setSession: vi.fn(async () => {
+        expect(onBeforeSetSession).toHaveBeenCalledWith(RESTORED_SESSION);
+        return { error: null };
+      }),
+    });
 
-    const bootstrap = bootstrapAuthSession(browser, { readHint, redeem });
+    const bootstrap = bootstrapAuthSession(browser, { readHint, redeem, onBeforeSetSession });
     await Promise.resolve();
 
     expect(browser.setSession).not.toHaveBeenCalled();
@@ -66,6 +72,7 @@ describe("browser auth session bootstrap", () => {
       session: RESTORED_SESSION,
     });
     expect(browser.setSession).toHaveBeenCalledWith(RESTORED_SESSION);
+    expect(onBeforeSetSession).toHaveBeenCalledTimes(1);
   });
 
   it("waits for a pending local read before publishing signed out", async () => {
