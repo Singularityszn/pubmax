@@ -178,6 +178,7 @@ for (const device of [
 
 for (const device of [
   { name: "phone", width: 390, height: 844 },
+  { name: "tablet", width: 768, height: 1024 },
   { name: "desktop", width: 1440, height: 900 },
 ]) {
   test(`${device.name} email link sends OTP and returns through callback with a persistent session`, async ({ page, baseURL }, testInfo) => {
@@ -246,7 +247,7 @@ for (const device of [
     await expect.poll(() => callbackLandings).toBe(1);
     await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), AUTH_STORAGE_KEY)).not.toBeNull();
     await expect.poll(() => resumeCookie(page, CANONICAL_ORIGIN)).toBeTruthy();
-    if (device.name === "desktop") {
+    if (device.width >= 641) {
       const welcome = page.locator(".arrivalWelcome");
       await expect(welcome).toBeVisible();
       await welcome.evaluate(async (element) => {
@@ -259,6 +260,16 @@ for (const device of [
       expect(welcomeBox).not.toBeNull();
       expect(navBox).not.toBeNull();
       expect(welcomeBox!.y).toBeGreaterThanOrEqual(navBox!.y + navBox!.height + 8);
+      const accountButton = siteNav.getByRole("button", { name: /^Account options for / });
+      await expect(accountButton).toBeVisible();
+      await expect.poll(() => accountButton.evaluate((button) => {
+        const bounds = button.getBoundingClientRect();
+        const hit = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+        return hit === button || button.contains(hit);
+      })).toBe(true);
+      await accountButton.click();
+      await expect(page.getByRole("navigation", { name: "Your pages" }).getByRole("link", { name: "Your profile" })).toHaveAttribute("href", "/u/karan");
+      await accountButton.click();
     }
     const expectAccountNavigation = async () => {
       if (device.name === "phone") {

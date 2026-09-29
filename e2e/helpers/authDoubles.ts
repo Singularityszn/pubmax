@@ -69,6 +69,11 @@ function accessJwt(account: Account): string {
   ].join(".");
 }
 
+/** Access JWT used when a browser spec delivers a controlled callback fragment. */
+export function fixtureAccessToken(accountKey: AccountKey): string {
+  return accessJwt(ACCOUNTS[accountKey]);
+}
+
 /** GoTrue rotates a refresh token on use, so a switch must store the new one. */
 function rotatedToken(account: Account): string {
   return `${account.refreshToken}-rotated`;
