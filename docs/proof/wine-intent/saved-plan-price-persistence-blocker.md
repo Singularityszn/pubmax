@@ -1,6 +1,8 @@
 # Saved selected-drink price evidence: persistence blocker
 
-Status: migrations `0161` through `0167` with rollbacks added locally on 29 September 2026. The typed Plan read projects valid saved evidence. The composer submits matching selected evidence. Plan creation, route replacement, and guest proposals check it against current trusted server prices. Accepted proposals save that proposal-time snapshot in memory and PostgreSQL. Member route rendering prints valid saved evidence. Completion snapshots now preserve saved evidence. Real wine and cocktail browser journeys cover empty community price data; evidence-bearing browser journeys remain open. No shared migration was executed, and this says nothing about the schema deployed to any database.
+This record preserves local implementation slices from 29 September 2026. Each slice's pass counts and open work describe that stage, not the final branch or a deployed database. The current contract and persistence limits live in [API Contracts: selected-drink price evidence](../../API_CONTRACTS_THE_LOCAL.md#selected-drink-price-evidence). No shared migration was executed by these recorded slices.
+
+`e2e/plan-selected-drink-disposable.spec.ts` now defines evidence-bearing wine and cocktail save/reload checks against PostgreSQL/PostgREST, plus forged-hint rejection. The [README command](../../../README.md#quick-start) runs it with a private database and production build. Adding the runner is not proof that it passed; this record contains no completed run of that suite.
 
 ## Wine and cocktail browser journeys with empty community coverage
 
@@ -56,10 +58,7 @@ Before the composer and create changes below, the submit path dropped the field 
 
 ## Schema boundary
 
-- `PlanStopDTO` in `lib/plan.ts` permits bounded selected-drink evidence. `readSupabasePlanState` selects it and `stopFromRow` validates it; a missing-column response retries the old three-field query. Plan creation resolves a submitted hint against trusted category prices and preserves matching venue/category/figure/date evidence. Migration `0162` writes that evidence through the atomic SQL create RPC, including the context wrapper.
-- `public.plan_stops` in `supabase/migrations/20260712130423_0024_plans.sql` has venue ID, name, and position. Migration `0161` adds nullable `selected_drink_price_evidence` JSONB with a 512-byte limit and exactly the five public display keys and their bounded values. Its rollback drops the column and its contents while retaining the route.
-- `create_plan_idempotent_atomic` now writes `selectedDrinkPriceEvidence` from its server-validated stop input. `create_plan_with_context_idempotent_atomic` delegates to it. Migration `0163` makes `replace_plan_route_atomic` write the same field. Migration `0164` copies the verified proposal snapshot into accepted stops.
-- `plans.night_context` is typed planning intent. It is neither a per-stop evidence slot nor an authority for a venue price. `plan_completions.ending_selection` and `plan_route_proposals.stops` have different lifecycle and visibility contracts. Reusing any of them would mislabel the evidence or lose it on route replacement.
+The [Plan price contract](../../API_CONTRACTS_THE_LOCAL.md#selected-drink-price-evidence) owns the current storage and compatibility behaviour. Exact database constraints and rollbacks live in [`supabase/migrations/`](../../../supabase/migrations/). The schema checks below record local observations of those migrations.
 
 ## Replacement and context race
 
@@ -67,15 +66,15 @@ Before the composer and create changes below, the submit path dropped the field 
 
 `__tests__/planSelectedDrinkEvidenceReplaceContextMigrationEffective.test.ts` reproduced the durable form in disposable PostgreSQL after `0166`: a context-only beer edit followed by a replacement carrying previously checked wine evidence returned `ok` and stored the wine report. Migration `0167` checks each submitted report against the effective context while the Plan row is locked. Its test proves stale evidence disappears, matching wine remains, explicit beer or zero-proof context removes wine, and execute grants remain `false:false:true` for anon, authenticated, and service roles. Rollback restores `0163` replacement behavior and leaves existing rows untouched. Six focused suites passed (32 tests), including adjacent migration and inventory tests; typecheck, focused ESLint, and diff check passed. No shared migration was applied.
 
-## Required next change
+## Outstanding browser proof
 
-Prove evidence-bearing wine and cocktail browser save and reload before final verification. Creation, replacement, and proposal creation validate category against saved or submitted `NightContext`, check current server price authority, and retain `serving: null` and the original report date. Missing, stale, mismatched, truncated, or degraded evidence remains absent; it must not become a glass price, cheapest-price claim, or budget total. Plan readers are link-capability holders, so store no contributor identity or private price-report metadata. An app version running against an old replacement or proposal acceptance RPC reads back an absent evidence field and must report that evidence was not saved.
+Record the disposable wine and cocktail browser run before claiming evidence-bearing persistence. The keyless run above proves only memory save/reload with empty price coverage. The current contract and its limitations are documented in the [Plan price contract](../../API_CONTRACTS_THE_LOCAL.md#selected-drink-price-evidence).
 
 ## Local schema proof
 
 `__tests__/planSelectedDrinkEvidenceMigrationEffective.test.ts` applied every earlier migration to disposable PostgreSQL 16. Before `0161`, writing the column failed because it did not exist. After `0161`, an old stop kept its route and gained a null evidence slot; wine evidence round-tripped. The database refused extra keys, oversized values, and an array. Plan stop policies stayed byte-for-byte equal; anonymous readers still lacked column SELECT and authenticated readers still lacked UPDATE. Rollback removed the column and kept the route. The focused proof, migration-version fence, and PostgreSQL suite inventory passed together: 16 tests in 6.12 seconds. Typecheck and isolated `NEXT_DIST_DIR=.next-prod` production build passed. Repository lint exited 0 with 73 warnings outside this change; focused lint had none. The build regenerated lapsed-verification venue JSON, which was restored after the build.
 
-After the server paths are wired, prove generation, preview, save, and reload in a private Playwright context for wine and cocktails, plus missing/degraded evidence and beer. Run focused tests and `DEPLOYMENT_VERSION=local npm run verify`. This record makes no browser or full-verify claim.
+At this stage the server paths and browser proof were still pending. Later slices below record server-path work; this schema check alone makes no browser or full-verify claim.
 
 ## Plan read slice
 

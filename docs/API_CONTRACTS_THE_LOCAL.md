@@ -52,7 +52,7 @@ These are the places where Codex's implementation diverges from #252 or `docs/pl
 
 THE LOCAL follows the existing plans pattern: **value before sign-in.** There is no API key and no required account for the core loop.
 
-- **Public read** (`GET /api/plans/:id`, `/getin`, `/complete`, `/api/night-areas*`, `/api/late-food`): no auth. Link-visibility only — anyone with the Plan id can read it. BASELINE pattern.
+- **Plan reads** (`GET /api/plans/:id` and Plan pages): a Plan id alone returns a redacted preview. Full state requires a valid host or guest capability. The projection owner is [`lib/planPrivacy.ts`](../lib/planPrivacy.ts), selected by [`resolvePlanProjection`](../lib/planPrivacyBoundary.server.ts). Night Area and late-food reads remain public.
 - **Create** (`POST /api/plans`, `POST /api/plans/generate`): keyless. On a write, the server mints an opaque **member token** (`memberToken`, returned once in the create/join response body; the server stores only its salted SHA‑256 hash). BASELINE.
 - **Member-scoped writes** (`PATCH /api/plans/:id`, `POST /api/plans/:id/actions`, `POST /api/plans/:id/complete`, `POST /api/plans/:id/presence`): require the caller to present their member token, proving they belong to the crew.
   - Canonical transport: `Authorization: Bearer <memberToken>` header. Body field `memberToken` is accepted as a migration fallback. Helper: `lib/planMemberCapability.ts` (`planMemberCapability(request, body.memberToken)`). IMPLEMENTED LOCALLY.
@@ -93,24 +93,14 @@ export type NightAreaSlug =
   | "shoreditch" | "camden" | "brixton" | "bermondsey-london-bridge" | "kings-cross" | "islington"
   | "dalston" | "peckham" | "greenwich" | "hammersmith" | "balham" | "marylebone" | "richmond" | "putney";
 
-export type NightContext = {
-  nightArea: NightAreaSlug | null;
-  daypart: Daypart;
-  partyType: PartyType;
-  groupSize: number | null;      // 1..30, floored
-  budget: Budget;
-  atmosphere: string[];          // e.g. ["quiet","lively","historic","cosy","sports","music"], max 8 short strings
-  foodNeeds: string[];           // e.g. ["kebab","pizza","chips","vegan","vegetarian","halal"]
-  accessibility: string[];       // e.g. ["step-free"]
-  transportConstraints: string[];// e.g. ["tube","walking"]
-};
+import type { NightContext } from "../lib/nightPlanning";
 
 // Attribution of *why* the inferred context looks the way it does:
 export type ContextReason = { field: keyof NightContext; evidence: string; explanation: string };
 export type InferredNightContext = { context: NightContext; confidence: number; reasons: ContextReason[] };
 ```
 
-Validators/parsers (server-owned, reuse — do not fork): `inferNightContext(query, now?)`, `cleanNightContext(value)` (strict: requires area+daypart+partyType+budget), `cleanNightContextPatch(value)` (partial merge), `isNightAreaSlug`, `isDaypart`, `isPartyType`, `isBudget`.
+[`NightContext` and its cleaners](../lib/nightPlanning.ts) own the complete context shape, including drink category, zero-proof intent, stop count, and budget limit. [`parsePlanGenerationRequest`](../lib/planGenerationRequest.ts) owns generation request validation. Reuse these definitions rather than maintaining a second schema here.
 
 ### 2.2 PlannedNight lifecycle
 
@@ -151,7 +141,7 @@ export type PlanDTO = {
   status?: PlannedNightStatus;     // legacy records default to "draft"
 };
 
-export type PlanStopDTO = { venueId: string; venueName: string; position: number };
+import type { PlanStopDTO } from "../lib/plan";
 
 export type PlanState = {
   plan: PlanDTO;
@@ -175,6 +165,18 @@ export type PlanCompletionDTO = {
 ```
 
 `PlanDTO`, `PlanStopDTO`, `PlanState.{plan,stops,crew}` and `isPlanId` are BASELINE. Route revision, lifecycle, ending, action, completion, context and selected-ending fields are IMPLEMENTED LOCALLY.
+
+### Selected-drink price evidence
+
+[`PlanStopDTO`](../lib/plan.ts) can carry optional `selectedDrinkPriceEvidence`. Its type, accepted values, and display description are owned by [`lib/planSelectedDrinkPriceEvidence.ts`](../lib/planSelectedDrinkPriceEvidence.ts). This is a dated community report with no recorded serving size, not a current glass price or a comparable route budget. Contributor identity and private report metadata are not part of the saved value. The Plan read boundary in §1.1 also governs this evidence.
+
+Create, route replacement, and proposal creation treat submitted evidence as a hint. [`resolvePlanSelectedDrinkPriceEvidence`](../lib/planSelectedDrinkPriceEvidence.server.ts) checks the canonical venue, context category, pence, and report timestamp against current trusted server prices. Missing, mismatched, stale, degraded, or truncated evidence is omitted without rejecting an otherwise valid route. Trust eligibility remains governed by [ADR 0010](adr/0010-community-price-trust.md).
+
+Creation hashes canonical submitted intent, including the cleaned hint, independently of the mutable server price lookup. A replay of the same create request returns the original saved result even if price coverage changes. A changed submitted hint conflicts. Route replacement revalidates hints; context edits clear live stop evidence that no longer matches. Replacement also checks the effective context while holding the Plan row lock.
+
+Accepted proposals copy their proposal-time evidence. Completion records preserve saved stop evidence as history, so later live-route edits do not rewrite the completion. These operations do not refresh the historical report date. Current limits: anchor-only generation and the map-to-Plan transfer omit selected-drink evidence; durable proposal acceptance does not recheck a category change made after proposal creation. Do not interpret those paths as complete evidence persistence.
+
+Migrations `0161` through `0167` and their matching files in [`supabase/migrations/rollback/`](../supabase/migrations/rollback/) implement durable storage and lifecycle writes. The SQL constraints own the database value shape. `plans.night_context` holds planning intent, not per-stop price evidence; proposal and completion snapshots have their own lifecycles. A missing-column read can fall back to the legacy route without evidence; an older write RPC can return a route without saving evidence. Inspect the returned state before claiming a report was saved. Applying migrations to shared infrastructure remains an operator decision. The [local proof record](proof/wine-intent/saved-plan-price-persistence-blocker.md) records checks, not deployment state.
 
 ### 2.4 NightArea catalogue
 
@@ -288,6 +290,10 @@ type GeneratePlanResponse = {
 
 **"Explains which context values affected the result" (#252 requirement — SATISFIED):** three complementary fields — `contextEffects` (the list of NightContext fields that moved the ranking), per-stop `reason` (human-readable grounding per venue), and `explanations` (why the context was inferred). `missingContextEvidence` is the honest counterpart: constraints the engine could not yet ground.
 
+The response excerpt above omits price fields. [`buildPlanGenerationStops`](../lib/planGenerationDto.ts) owns their projection on ordinary stops and alternatives. A non-beer category uses trusted prices for that category in value ranking. It receives no pint estimate or pint evidence. Zero-proof requests also suppress pint output. Partial or degraded selected-category reads add a coverage warning.
+
+[`planBudgetSummary`](../lib/planGenerationDto.ts) returns unknown per-person and crew totals and `withinLimit: null` for non-beer and zero-proof contexts, with basis `selected-drink-price-unavailable`. Individual community reports do not establish comparable servings for a budget total. No selected category, or explicit beer without zero-proof, retains the pint path. Keep-going extensions likewise omit pint figures for other drinks. Persistence follows the [selected-drink evidence contract](#selected-drink-price-evidence).
+
 ### Errors
 
 | Status | Condition | Current body |
@@ -331,7 +337,7 @@ type PatchPlanRequest = {
   memberToken?: string;              // fallback if no Authorization: Bearer header
   status?: PlannedNightStatus;       // must be a legal transition from current status
   context?: NightContext;            // full context (strict cleanNightContext)
-  stops?: Array<{ venueId: string }>;// 3 to 6 distinct Venue Dataset ids → canonical route replacement
+  stops?: Array<Pick<PlanStopDTO, "venueId" | "selectedDrinkPriceEvidence">>; // canonical route replacement
   expectedRouteRevision?: number;    // REQUIRED with `stops` — optimistic concurrency
   groundingProof?: string;           // with `operationKey`: claims this replacement is the grounded upgrade
   operationKey?: string;             // the generation operation the proof was minted for
