@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test.setTimeout(60_000);
 
 for (const city of ["manchester", "london"] as const) {
-  test(`${city} mobile map only offers its own live transport after reconnect`, async ({ page, context }) => {
+  test(`${city} mobile map only offers its own live transport after reconnect`, async ({ page, context }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 900 });
     await page.addInitScript(() => {
       localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -69,5 +69,10 @@ for (const city of ["manchester", "london"] as const) {
       await expect(transitTab).toHaveCount(0);
       await expect(tflButton).toHaveCount(0);
     }
+    await page.screenshot({ path: testInfo.outputPath(`${city}-transport-reconnected.png`) });
+    await testInfo.attach("transport-requests", {
+      body: JSON.stringify({ city, beforeReconnect, afterReconnect: statusRequests.length, statusRequests }),
+      contentType: "application/json",
+    });
   });
 }

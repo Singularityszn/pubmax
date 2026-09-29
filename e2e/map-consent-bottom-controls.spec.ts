@@ -39,7 +39,7 @@ async function expectClearControl(page: Page, control: Locator, consentTop: numb
 
 for (const width of [390, 768, 1440]) {
   for (const consent of [true, false]) {
-    test(`map bottom controls stay reachable at ${width}px with consent ${consent ? "present" : "absent"}`, async ({ page }) => {
+    test(`map bottom controls stay reachable at ${width}px with consent ${consent ? "present" : "absent"}`, async ({ page }, testInfo) => {
       test.setTimeout(90_000);
       await prepareMap(page, width, consent);
       const consentTop = consent
@@ -56,10 +56,26 @@ for (const width of [390, 768, 1440]) {
         expect(box.x).toBeCloseTo(0, 0);
         expect(box.width).toBeCloseTo(width, 0);
         const paragraph = prompt.locator("p");
-        expect(await paragraph.evaluate((element) => ({
-          clippedX: element.scrollWidth > element.clientWidth,
-          clippedY: element.scrollHeight > element.clientHeight,
-        }))).toEqual({ clippedX: false, clippedY: false });
+        // Privacy has an enlarged tap target that intentionally exceeds the
+        // paragraph box. Measure painted text, not that target's scroll area.
+        expect(await paragraph.evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+          const rects: DOMRect[] = [];
+          while (walker.nextNode()) {
+            if (!walker.currentNode.textContent?.trim()) continue;
+            const range = document.createRange();
+            range.selectNodeContents(walker.currentNode);
+            rects.push(...range.getClientRects());
+          }
+          return rects.length > 0 && rects.every((rect) =>
+            rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1 &&
+            rect.top >= bounds.top - 1 && rect.bottom <= bounds.bottom + 1 &&
+            [rect.left + 1, rect.right - 1].every((x) =>
+              element.contains(document.elementFromPoint(x, rect.top + rect.height / 2)),
+            ),
+          );
+        })).toBe(true);
         const dockTop = width === 390
           ? (await page.getByRole("navigation", { name: "Primary" }).boundingBox())!.y
           : 900;
@@ -78,8 +94,12 @@ for (const width of [390, 768, 1440]) {
       expect(documentSize.scrollHeight).toBeLessThanOrEqual(documentSize.viewportHeight + 1);
       expect(documentSize.bodyPadding).toBe("0px");
       expect(documentSize.stageBottom).toBeCloseTo(documentSize.viewportHeight, 0);
+      await page.screenshot({ path: testInfo.outputPath(`map-controls-${width}-consent-${consent}.png`) });
 
       await expectClearControl(page, page.locator(".maplibregl-ctrl-attrib-button"), consentTop);
+      await page.locator(".maplibregl-ctrl-attrib-button").click();
+      await expect(page.locator(".maplibregl-ctrl-attrib-inner")).toBeVisible();
+      await page.locator(".maplibregl-ctrl-attrib-button").click();
       if (width === 390) {
         const more = page.getByRole("button", { name: "More map controls" });
         await expectClearControl(page, more, consentTop);
@@ -92,8 +112,12 @@ for (const width of [390, 768, 1440]) {
       } else {
         for (const zoom of ["zoom-in", "zoom-out"]) {
           await expectClearControl(page, page.locator(`.maplibregl-ctrl-${zoom}`), consentTop);
+          await page.locator(`.maplibregl-ctrl-${zoom}`).click();
         }
         await expectClearControl(page, page.locator(".mapConciergeAskPill"), consentTop);
+        await page.locator(".mapConciergeAskPill").click();
+        await expect(page.getByRole("dialog", { name: "Ask your Pub Pal" })).toBeVisible();
+        await page.getByRole("button", { name: "Close ask", exact: true }).click();
         const layers = page.locator(".mapLayersFab");
         await expectClearControl(page, layers, consentTop);
         await expect(async () => {

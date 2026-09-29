@@ -42,8 +42,10 @@ ledger), used by both surfaces. No behaviour change.
 The analytics consent card is fixed above the tab bar on phone and over page
 footers on desktop until answered. Reserve body foot clearance while it is
 mounted so scroll-surface actions stay tappable. Shipped in `app/globals.css`;
-`__tests__/analyticsConsentDesktopClearance.test.ts` and
-`e2e/ux-consent-chrome.spec.ts` pin the contract.
+`e2e/ux-consent-chrome.spec.ts` checks phone scroll-surface actions,
+`e2e/map-body-clearance.spec.ts` checks Places final-content clearance, and
+`e2e/map-consent-bottom-controls.spec.ts` checks map controls with consent
+present or absent.
 
 ### 4. /near has no h1 (accessibility)
 
