@@ -134,7 +134,7 @@ describe.skipIf(skipReason !== null)("Social Crew completion through authorized 
         ('${id("ac")}','${racePlan}','Host',md5('race-host')||md5('race-host-2'),
           '${id("a1")}','${host}','2030-03-09 19:00:00+00','2030-03-09 19:00:00+00'),
         ('${id("ad")}','${racePlan}','Member',md5('race-member')||md5('race-member-2'),
-          '${id("a3")}','${removed}','2030-03-09 19:00:00+00','2030-03-09 19:00:00+00');
+          null,'${removed}','2030-03-09 19:00:00+00','2030-03-09 19:00:00+00');
       insert into public.social_crews(id,plan_id,owner_account_id)
       values('${raceCrew}','${racePlan}','${host}');
       insert into public.social_crew_members
@@ -200,6 +200,105 @@ describe.skipIf(skipReason !== null)("Social Crew completion through authorized 
     expect(pg().sql(`select array_to_string(account_keys, ',')
       from pubmax_private.plan_completion_group_snapshots where plan_id='${racePlan}'`))
       .toBe(`social:${host}`);
+  });
+
+  it("erases a snapshot when completion commits before concurrent auth deletion", async () => {
+    const racePlan = id("b4");
+    const raceCrew = id("ef");
+    const raceAccount = id("f5");
+    const raceAuth = id("a9");
+    pg().sql(`insert into auth.users(id) values('${raceAuth}');
+      insert into public.profiles(id,user_id,handle)
+      values('${id("e8")}','${raceAuth}','social-complete-race-after');
+      insert into public.private_social_accounts(id,clerk_user_id,supabase_user_id,profile_id)
+      values('${raceAccount}','social-complete-race-after','${raceAuth}','${id("e8")}');
+      insert into public.plans(id,title,start_time,status)
+      values('${racePlan}','Completion first Social night','2030-03-10 20:00:00+00','active');
+      insert into public.plan_stops(plan_id,venue_id,venue_name,position)
+      values('${racePlan}','race-after-pub','Race After Pub',0);
+      insert into public.plan_crew_members
+        (id,plan_id,name,token_hash,user_id,social_account_id,joined_at,updated_at) values
+        ('${id("ae")}','${racePlan}','Host',md5('race-after-host')||md5('race-after-host-2'),
+          '${id("a1")}','${host}','2030-03-10 19:00:00+00','2030-03-10 19:00:00+00'),
+        ('${id("af")}','${racePlan}','Member',md5('race-after-member')||md5('race-after-member-2'),
+          '${raceAuth}','${raceAccount}','2030-03-10 19:00:00+00','2030-03-10 19:00:00+00');
+      insert into public.social_crews(id,plan_id,owner_account_id)
+      values('${raceCrew}','${racePlan}','${host}');
+      insert into public.social_crew_members
+        (id,crew_id,social_account_id,plan_member_id,role,state) values
+        ('${id("f6")}','${raceCrew}','${host}','${id("ae")}','owner','active'),
+        ('${id("f7")}','${raceCrew}','${raceAccount}','${id("af")}','member','active');
+      update public.plans set social_owner_account_id='${host}' where id='${racePlan}';`);
+
+    const completer = spawn(pg().psql, [...pg().databaseArgs, "-q", "-t", "-A"], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let output = "";
+    let errors = "";
+    completer.stdout!.setEncoding("utf8");
+    completer.stderr!.setEncoding("utf8");
+    completer.stdout!.on("data", (chunk: string) => { output += chunk; });
+    completer.stderr!.on("data", (chunk: string) => { errors += chunk; });
+    completer.stdin!.write(`begin;
+      set local statement_timeout='10s';
+      select public.complete_social_crew_plan_atomic(
+        '${host}', '${raceCrew}', 1, '${id("c7")}', '${id("d9")}', '${id("da")}',
+        0, 'get_home', null,
+        '{"kind":"get_home","optionId":"transport:home","evidenceSnapshot":{}}'::jsonb,
+        '2030-03-10 21:00:00+00'::timestamptz);
+      select array_to_string(account_keys, ',')
+      from pubmax_private.plan_completion_group_snapshots where plan_id='${racePlan}';
+      select 'COMPLETION_CAPTURE_DONE';
+    `);
+    let committed = false;
+    try {
+      for (let i = 0; !output.includes("COMPLETION_CAPTURE_DONE"); i += 1) {
+        if (completer.exitCode !== null) throw new Error(`Completion failed: ${errors}`);
+        if (i === 400) throw new Error(`Completion never reached capture barrier: ${errors}`);
+        await sleep(25);
+      }
+      expect(output).toContain("completed");
+      expect(output).toContain(`social:${host},social:${raceAccount}`);
+      expect(pg().sql(`select count(*) from pubmax_private.plan_completion_group_snapshots
+        where plan_id='${racePlan}'`)).toBe("0");
+      const deletion = pg().sqlAsync(`begin;
+        set local application_name='completion_group_delete_after_capture';
+        set local statement_timeout='10s';
+        delete from auth.users where id='${raceAuth}';
+        commit;`);
+      let settled = false;
+      void deletion.then(() => { settled = true; }, () => { settled = true; });
+      for (let i = 0; !settled; i += 1) {
+        const waiting = pg().sql(`select count(*) from pg_stat_activity
+          where application_name='completion_group_delete_after_capture'
+            and wait_event_type='Lock'`);
+        if (waiting === "1") break;
+        if (i === 400) throw new Error("Deletion neither finished nor waited on completion lock");
+        await sleep(25);
+      }
+      expect(settled).toBe(false);
+      completer.stdin!.end("commit;\n\\q\n");
+      committed = true;
+      await deletion;
+    } finally {
+      if (!committed && completer.exitCode === null) completer.stdin!.end("rollback;\n\\q\n");
+      if (completer.exitCode === null) {
+        await Promise.race([
+          new Promise<void>((resolve) => completer.once("exit", () => resolve())),
+          sleep(10_000).then(() => { completer.kill("SIGTERM"); throw new Error("Completer did not exit"); }),
+        ]);
+      }
+      expect(completer.exitCode).toBe(0);
+      expect(errors).toBe("");
+    }
+    expect(pg().sql(`select count(*) from pubmax_private.plan_completion_group_snapshots
+      where plan_id='${racePlan}'`)).toBe("0");
+    expect(pg().sql(`select count(*) from public.plan_completions where plan_id='${racePlan}'`)).toBe("1");
+    expect(pg().sql(`select public.complete_social_crew_plan_atomic(
+      '${host}', '${raceCrew}', 1, '${id("c7")}', '${id("d9")}', '${id("da")}',
+      0, 'get_home', null,
+      '{"kind":"get_home","optionId":"transport:home","evidenceSnapshot":{}}'::jsonb,
+      '2030-03-10 21:00:00+00'::timestamptz)`)).toBe("already_completed");
   });
 
   it("omits a deleted Social member from a later authorized completion", () => {
