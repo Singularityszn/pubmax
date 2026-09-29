@@ -59,9 +59,8 @@ function claimStrictModalFocusTrap(): () => void {
 /**
  * Body-level siblings that may stay interactive only beside a map surface.
  * The Android install card is a non-modal card drawn above the map sheets
- * (a2hsInstallPrompt.css). The trap scans the body once, so a card that mounted
- * before a sheet opened at half was made inert: the reader saw Install and Not
- * now and neither answered a tap.
+ * (a2hsInstallPrompt.css). It must remain interactive beside a map sheet so
+ * Install and Not now remain reachable, even if the card mounts before the sheet.
  */
 export function shouldInertOutsideSibling(
   node: HTMLElement,
@@ -325,12 +324,13 @@ function displayChain(container: HTMLElement): string[] {
 // Shared modal focus trap, extracted from the mobile bottom sheet
 // (MobileSharedSheet) so the desktop venue drawer can reuse the SAME behaviour
 // for its full open lifetime. While `active`:
-//   1. Tab / Shift+Tab cycle within `containerRef`'s visible focusables.
-//   2. Everything OUTSIDE the container is marked `inert` — walking the ancestor
-//      chain to <body> and inert-ing each level's off-path siblings. This works
+//   1. Tab / Shift+Tab cycle through the container and any map-surface exemptions.
+//   2. The trap marks off-path siblings `inert` up to <body>, except those the
+//      policy exempts. This works
 //      whether the trapped node is a body-level portal (mobile sheet) or nested
-//      inside the app shell (desktop drawer). Prior `inert` values are restored
-//      on teardown.
+//      inside the app shell (desktop drawer). Each node stays inert while any
+//      trap owns it. The last owner restores the latest component-owned value,
+//      including changes made while the traps held it.
 //   3. A container CSS has hidden never traps at all (shouldEngageFocusTrap).
 // Focus entry and restoration are coordinated here; Esc stays with each caller.
 export function useFocusTrap(

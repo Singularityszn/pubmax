@@ -97,12 +97,12 @@ test("Plan identity nudge keeps one sign-in email action on a 390px phone", asyn
   await expect(lastAction).toBeVisible();
   await expect.poll(() => page.evaluate(() => ({
     viewportWidth: window.innerWidth,
-    scrollWidth: document.documentElement.scrollWidth,
-    bodyScrollWidth: document.body.scrollWidth,
+    documentOverflows: document.documentElement.scrollWidth > window.innerWidth,
+    bodyOverflows: document.body.scrollWidth > window.innerWidth,
   }))).toEqual({
     viewportWidth: VIEWPORT.width,
-    scrollWidth: VIEWPORT.width,
-    bodyScrollWidth: VIEWPORT.width,
+    documentOverflows: false,
+    bodyOverflows: false,
   });
 
   await page.screenshot({

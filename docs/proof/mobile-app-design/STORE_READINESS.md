@@ -99,11 +99,11 @@ must answer `200` over https at the apex, `https://pubmaxxing.com/.well-known/..
    https://pubmaxxing.com/auth/callback?x=1` must open the app without a
    chooser.
 
-**What each proves.** With both verified, the provider's redirect to
-`/auth/callback` lands in the shell's own WebView, which holds the PKCE
-verifier supabase-js wrote when the flow began, and the sign-in completes in
-the app. The check that closes B2 is a Google and an Apple sign-in finishing
-inside the installed app on each platform.
+**What each proves.** Verified links establish OS routing to the installed app.
+They do not prove session installation. The current callback and shell handoff
+requirements live in [Browser sign-in](../../DEPLOYMENT.md#3-browser-sign-in-email-magic-link--google--apple--microsoft).
+The check that closes B2 is a Google and an Apple sign-in finishing inside the
+installed app on each platform.
 
 ## Captain's hand, in order
 

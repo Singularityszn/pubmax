@@ -146,7 +146,7 @@ export type CapturedAuthCallback = {
    * the UI must ask for identity-labelled confirmation before session install.
    */
   localAttemptOwned: boolean;
-  /** Release only after exchange and matching persistent cleanup complete. */
+  /** Release after callback preparation and matching persistent cleanup complete. */
   releaseCoordination: () => void;
 };
 
@@ -764,7 +764,7 @@ async function capturePreparedAuthCallback(
             };
           });
           resolveOnce({ ...captured, releaseCoordination: releaseLease });
-          // Fail closed while exchange is live. Navigation/crash releases Web
+          // Hold coordination during callback preparation. Navigation/crash releases Web
           // Locks with the document; a live caller releases explicitly in finally.
           await lease;
         }),
@@ -805,7 +805,7 @@ export function scrubAuthCallback(
     replaceUrl(cleanUrl);
     scrubbed = true;
   } catch {
-    // Retried below, then again by the caller's post-exchange sweep.
+    // Retried below, then again by the caller after callback preparation.
   }
   return capturePreparedAuthCallback(currentUrl, parsedAttempt, cleanUrl, options).then(
     (captured) => {
@@ -816,8 +816,8 @@ export function scrubAuthCallback(
             options.onFragmentRestored?.(captured.cleanUrl);
           }
         } catch {
-          // Continue so the caller releases the claimed attempt after
-          // exchange; scrubLingeringAuthCallback gets one more attempt.
+          // Continue so the caller releases the claimed attempt after callback
+          // preparation; scrubLingeringAuthCallback gets one more attempt.
         }
       }
       return captured;
@@ -826,10 +826,10 @@ export function scrubAuthCallback(
 }
 
 /**
- * Post-exchange sweep: remove callback credentials still in the address bar.
+ * Remove callback credentials still in the address bar after preparation.
  * The synchronous scrub can be refused (Safari rate-limits history calls
  * during load) or reverted by a later router URL write, so the callback owner
- * runs this again after the exchange settles - on success AND on failure. A
+ * runs this again on success, failure, or pending confirmation. A
  * clean URL, or one holding an ordinary app fragment (an invite), is left
  * alone. Returns true when a lingering callback had to be scrubbed.
  */
