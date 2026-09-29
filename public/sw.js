@@ -48,14 +48,13 @@ const CACHE_FAMILIES = [
   { current: PLAN_CACHE, prefix: `${PREFIX}plan-` },
 ];
 
-// Load the plan-navigation cache helpers (self.planCache). Version-busted like
-// every other asset, and non-fatal: if it fails to load the SW keeps its prior
-// behaviour rather than failing to install. Every use below is guarded on
-// self.planCache so a missing module degrades cleanly.
+// Only new plan-cache writes depend on this versioned helper. Keep eligibility,
+// migration and cached-preview reads in this worker so an import failure cannot
+// discard valid offline previews or admit private HTML.
 try {
   importScripts(`/sw-plan-cache.js?v=${VERSION}`);
 } catch {
-  // no-op: plan caching is an enhancement, offline shell still works
+  // Existing eligible previews and fixed shells remain available offline.
 }
 
 // Tiles + hashed build assets can grow without bound (a long crawl-planning
