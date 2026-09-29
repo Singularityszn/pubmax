@@ -76,10 +76,32 @@ export function shouldInertOutsideSibling(
 }
 
 type InertOwnership = {
+  componentInert: boolean;
   owners: Set<symbol>;
+  observer: MutationObserver | null;
 };
 
 const inertOwnership = new WeakMap<HTMLElement, InertOwnership>();
+
+function captureComponentInert(
+  node: HTMLElement,
+  ownership: InertOwnership,
+  deliveredRecords: MutationRecord[] = [],
+): void {
+  if (deliveredRecords.length || ownership.observer?.takeRecords().length) {
+    ownership.componentInert = node.inert;
+  } else if (!ownership.observer && !node.inert) {
+    // Plain objects in the owner tests have no observable inert attribute.
+    ownership.componentInert = false;
+  }
+}
+
+function enforceTrapInert(node: HTMLElement, ownership: InertOwnership): void {
+  captureComponentInert(node, ownership);
+  node.inert = true;
+  // Our own write is not a new component claim.
+  ownership.observer?.takeRecords();
+}
 
 type FocusRestoration = {
   origin: HTMLElement | null;
@@ -89,27 +111,44 @@ type FocusRestoration = {
 const focusRestorations: FocusRestoration[] = [];
 
 function claimInert(node: HTMLElement, owner: symbol): void {
-  const ownership = inertOwnership.get(node);
+  let ownership = inertOwnership.get(node);
   if (ownership) {
+    captureComponentInert(node, ownership);
     ownership.owners.add(owner);
   } else {
-    // An already-inert component owns its state, including when it reopens.
-    if (node.inert) return;
-    inertOwnership.set(node, {
+    ownership = {
+      componentInert: node.inert,
       owners: new Set([owner]),
-    });
+      observer: null,
+    };
+    if (
+      typeof MutationObserver !== "undefined" &&
+      typeof HTMLElement !== "undefined" &&
+      node instanceof HTMLElement
+    ) {
+      ownership.observer = new MutationObserver((records) => {
+        const current = inertOwnership.get(node);
+        if (!current) return;
+        captureComponentInert(node, current, records);
+        if (current.owners.size > 0 && !node.inert) enforceTrapInert(node, current);
+      });
+      ownership.observer.observe(node, { attributes: true, attributeFilter: ["inert"] });
+    }
+    inertOwnership.set(node, ownership);
   }
-  node.inert = true;
+  enforceTrapInert(node, ownership);
 }
 
 function releaseInert(node: HTMLElement, owner: symbol): void {
   const ownership = inertOwnership.get(node);
   if (!ownership || !ownership.owners.delete(owner)) return;
+  captureComponentInert(node, ownership);
   if (ownership.owners.size > 0) {
-    node.inert = true;
+    enforceTrapInert(node, ownership);
     return;
   }
-  node.inert = false;
+  ownership.observer?.disconnect();
+  node.inert = ownership.componentInert;
   inertOwnership.delete(node);
 }
 
@@ -290,8 +329,8 @@ function displayChain(container: HTMLElement): string[] {
 //   2. Everything OUTSIDE the container is marked `inert` — walking the ancestor
 //      chain to <body> and inert-ing each level's off-path siblings. This works
 //      whether the trapped node is a body-level portal (mobile sheet) or nested
-//      inside the app shell (desktop drawer). Teardown clears only inert state
-//      owned by the trap; already-inert components retain their own ownership.
+//      inside the app shell (desktop drawer). Prior `inert` values are restored
+//      on teardown.
 //   3. A container CSS has hidden never traps at all (shouldEngageFocusTrap).
 // Focus entry and restoration are coordinated here; Esc stays with each caller.
 export function useFocusTrap(
