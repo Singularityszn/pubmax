@@ -189,7 +189,7 @@ export type ContextDevCallOptions = {
   /**
    * How old a cached answer may be before Context.dev refetches the page. Pass
    * it whenever freshness is part of the claim the answer will carry; 0 forces a
-   * live read.
+   * live read. `extract` overrides this option; see its wrapper contract.
    */
   maxAgeMs?: number;
   env?: NodeJS.ProcessEnv;
@@ -573,10 +573,10 @@ export async function crawlMarkdown(
 }
 
 /**
- * Extract one page into a JSON schema through the unified scrape. Up to 5 credits.
+ * Extract one page into a JSON schema through the unified scrape.
  *
- * JSON extraction runs over scraped page Markdown. A failed JSON format is not
- * a result even when another requested format succeeded.
+ * Freshness, capture completeness and credit costs are defined in
+ * docs/rules/lib-shared-seams-stores-http-freshness-brand.md, Context.dev contract.
  */
 export async function extract<T extends Record<string, unknown> = Record<string, unknown>>(
   url: string,
