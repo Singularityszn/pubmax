@@ -64,33 +64,12 @@ browser contract live in
 [`docs/proof/venue-reveal/README.md`](proof/venue-reveal/README.md) and
 [`e2e/venue-reveal.spec.ts`](../e2e/venue-reveal.spec.ts).
 
-## 3. The `/map` URL param contract (single source of truth)
+## 3. The `/map` URL param contract
 
-Read/round-tripped in `lib/crawlUrl.ts` + `components/PubMap.tsx`. Decode never throws;
-unknown/malformed params are ignored.
-
-| Param | Meaning | Read? | Write-back? |
-|-------|---------|-------|-------------|
-| `sel=<venueId>` | Select a venue: force-include pin + open sheet. | yes | yes |
-| `mode=suggest\|build` | Crawl planner mode. | yes | yes (omit `suggest`) |
-| `crawl=<id>` | Named curated crawl → hydrate polyline map-first. | yes | yes |
-| `pubs=<id,id>` | Hand-built crawl stop ids. | yes | yes |
-| `style=<crawlStyle>` | Scoring style (heritage/balanced/…). | yes | yes |
-| `alt=<pint\|food\|coffee\|mocktail>` | "Kind of night" copy label. | yes | yes |
-| `drink=<category>` | Drink lens. A non-beer category PRICES the map by that drink (pin colour, labelled pin figure, cheapest-area list) and drops the narrowing drink/brand/max-price facets; `beer` keeps the old narrowing behaviour. Only lensable categories are accepted - `other` is ignored, because the picker can neither show nor clear it. | yes | yes |
-| `brand=<id>` | Brand within the drink lens. Honoured on the beer/favourite-pint path; a non-beer drink lens drops it, because community category prices name no brand. | yes | yes |
-| `cocktails=1` | Cocktail lens shortcut. | yes | yes |
-| `food=1` | Serves-food filter. | yes | yes |
-| `q=<text>` | Free query; also carries the **cuisine hint** (no dedicated `cuisine` param). | yes | yes |
-| `band=<id>` | Story-band overlay. | yes | yes |
-| `landmark=<id>` | Landmark chapter fly-to. | yes | yes |
-| `max`,`stops`,`win` | Planner sliders (clamped). | yes | yes |
-| `log=1` | Open the Pint Drop composer. | yes | no (write-only intent flag) |
-| `place=<name>` + `lat`,`lng` | Uncovered UK place arrival: frame the map there and stand the city chrome down. Resolved server-side in `app/map/page.tsx` against the place index, never read from the URL by the client. | server only | preserved (passthrough) |
-
-Gaps to flag: **cuisine has no first-class param** (rides `food=1&q=`); **`log`
-never round-trips**; there is **no `lens=` alias** — the lens is `drink`/`cocktails`.
-UI agents: use `venueMapUrl(id)` and the `crawlUrl` encoders, never hand-build.
+[`Map URL parameters`](MAP_URL_PARAMS.md) owns parameter meanings, defaults,
+round-tripping, and contribution-intent lifetime. Use `venueMapUrl(id)` and
+`lib/crawlUrl.ts` for shared links. User-facing price-entry instructions live
+in [README Features](../README.md#features).
 
 ## 4. Back-stack rules
 
@@ -111,8 +90,8 @@ UI agents: use `venueMapUrl(id)` and the `crawlUrl` encoders, never hand-build.
    its centre/zoom/pitch and any active `drink`/`band`/`crawl` lens.
 2. A **half-written Pint Drop is never silently lost** — leaving the composer keeps its
    draft (venue + text) until explicitly discarded or posted.
-3. Filters are URL-truth: the map's state is reconstructable from the address bar, so a
-   shared link reproduces exactly what the sender saw.
+3. Filter persistence across sheet history and separate route visits follows
+   [History and filter synchronisation](MAP_URL_PARAMS.md#history-and-filter-synchronisation).
 
 ## 6. Drift checks
 

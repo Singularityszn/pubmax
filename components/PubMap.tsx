@@ -704,8 +704,8 @@ function noAcceptedArrivalSource(): null {
   return null;
 }
 
-// D4 — take `log=1` off the current history entry. Idempotent, so it can run
-// again after a popstate restores an entry that still carries the flag.
+// Clear either price-entry intent from the current history entry. Repeating
+// this after popstate also clears an older entry carrying a dismissed intent.
 function dropLogParamFromUrl(): void {
   if (typeof window === "undefined") return;
   if (
@@ -4034,9 +4034,9 @@ export default function PubMap({
     [setSheetDragY, setSheetSnap],
   );
 
-  // Core-loop entry point: the mobile Log FAB links to /map?log=1. Once the
-  // fast venue list exists, turn that intent into the existing single composer
-  // path: pick the best visible pub, open its sheet, and open the composer.
+  // Wait for the reader to choose a pub before opening either price flow.
+  // Category capture belongs to VenueInspector; legacy Pint Drop entry uses
+  // openComposerForLog so its price-step reveal stays on that path alone.
   useLogIntent({
     hasLogIntent: hasReactiveLogIntent,
     hasCategoryPriceIntent,
@@ -4452,7 +4452,7 @@ export default function PubMap({
         setMapOverlay("area");
       }, areaSheetOpenDelay(reduced));
     },
-    [cityId, clearAreaSheetTimer, clearLogIntent, moveMapCameraTo, trimmedMapQuery],
+    [cityId, clearAreaSheetTimer, clearLogIntent, moveMapCameraTo],
   );
   // §4.8: picking a search result records the typed "map-search" origin, unlike
   // a browse pin tap. The current search input text is NOT proof of origin — only
