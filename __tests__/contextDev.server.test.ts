@@ -19,6 +19,13 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
   });
 }
 
+function markdownResponse(markdown: string) {
+  return jsonResponse({
+    url: "https://www.fullers.co.uk/event-finder",
+    markdown: { requested: true, success: true, data: markdown },
+  });
+}
+
 describe("contextDev key configuration", () => {
   it("reads the key from the environment and trims it", () => {
     expect(contextDevApiKey({ CONTEXT_DEV_API_KEY: "  ctx-key  " } as unknown as NodeJS.ProcessEnv)).toBe("ctx-key");
@@ -37,7 +44,7 @@ describe("contextDev key configuration", () => {
 describe("scrapeMarkdown", () => {
   it("returns markdown on success", async () => {
     const fetchImpl = vi.fn(async () =>
-      jsonResponse({ success: true, url: "https://www.fullers.co.uk/event-finder", markdown: "# Hello" }),
+      markdownResponse("# Hello"),
     );
     const result = await scrapeMarkdown("https://www.fullers.co.uk/event-finder", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
@@ -60,7 +67,7 @@ describe("scrapeMarkdown", () => {
       .mockResolvedValueOnce(
         jsonResponse({ error: "slow down" }, 429, { "retry-after": "7" }),
       )
-      .mockResolvedValueOnce(jsonResponse({ success: true, url: "https://www.fullers.co.uk", markdown: "ok" }));
+      .mockResolvedValueOnce(markdownResponse("ok"));
     const sleeps: number[] = [];
     const result = await scrapeMarkdown("https://www.fullers.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
@@ -84,7 +91,7 @@ describe("scrapeMarkdown", () => {
           headers: { "content-type": "text/html", "retry-after": "7" },
         }),
       )
-      .mockResolvedValueOnce(jsonResponse({ success: true, url: "https://www.fullers.co.uk", markdown: "ok" }));
+      .mockResolvedValueOnce(markdownResponse("ok"));
     const sleeps: number[] = [];
     const result = await scrapeMarkdown("https://www.fullers.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
@@ -153,7 +160,7 @@ describe("scrapeMarkdown", () => {
           "retry-after": String(Math.round(CONTEXT_DEV_MAX_RETRY_AFTER_MS / 1000)),
         }),
       )
-      .mockResolvedValueOnce(jsonResponse({ success: true, url: "https://www.fullers.co.uk", markdown: "ok" }));
+      .mockResolvedValueOnce(markdownResponse("ok"));
     const sleeps: number[] = [];
     const result = await scrapeMarkdown("https://www.fullers.co.uk", {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
@@ -285,11 +292,10 @@ describe("run request budget", () => {
 
 describe("extract", () => {
   it("returns structured data on success", async () => {
-    const fetchImpl = vi.fn(async () =>
+    const fetchImpl = vi.fn<(input: unknown, init?: RequestInit) => Promise<Response>>(async () =>
       jsonResponse({
-        status: "ok",
         url: "https://www.fullers.co.uk/events",
-        data: {
+        json: { requested: true, success: true, data: {
           events: [
             {
               title: "Quiz night",
@@ -298,17 +304,45 @@ describe("extract", () => {
               sourceUrl: "https://example.com/e/1",
             },
           ],
-        },
-        urls_analyzed: ["https://www.fullers.co.uk/events"],
+        } },
       }),
     );
     const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
       env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
+      instructions: "Use only page evidence.",
+      maxAgeMs: 0,
     });
     expect(result.status).toBe("ok");
     if (result.status !== "ok") throw new Error("expected ok");
     expect(result.data.events).toHaveLength(1);
+    expect(result.urlsAnalyzed).toEqual(["https://www.fullers.co.uk/events"]);
+    expect(String(fetchImpl.mock.calls[0]?.[0])).toContain("/v1/web/scrape");
+    expect(fetchImpl.mock.calls[0]?.[1]?.method).toBe("POST");
+    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toMatchObject({
+      url: "https://www.fullers.co.uk/events",
+      formats: { json: true },
+      jsonParams: { schema: { type: "object" }, instructions: "Use only page evidence." },
+      maxAgeMs: 0,
+    });
+  });
+
+  it("fails closed when JSON extraction failed despite a successful page scrape", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({
+      url: "https://www.fullers.co.uk/events",
+      markdown: { requested: true, success: true, data: "# Events" },
+      json: { requested: true, success: false, data: null },
+      isPartial: true,
+    }));
+    const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: noSleep,
+    });
+    expect(result.status).toBe("error");
+    if (result.status !== "error") throw new Error("expected error");
+    expect(result.error.code).toBe("EMPTY_BODY");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });

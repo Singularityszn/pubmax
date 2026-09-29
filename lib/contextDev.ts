@@ -56,9 +56,9 @@ export const CONTEXT_DEV_MAX_RETRY_AFTER_MS = 30_000;
  * Requests ONE run may send, counting retries, so a retry storm spends the run
  * rather than the account - the ceiling lib/harvest/firecrawl.ts puts on its own
  * lane, for the same reason. A request is the unit here because the endpoints do
- * not cost the same: a markdown scrape, a sitemap read and a crawled page are 1
- * credit each, a search is 1 per 10 results, and an extract or a brand read is
- * 10, so twelve requests is at most 120 credits a run.
+ * not cost the same: a markdown scrape, a URL map read and a crawled page are 1
+ * credit each, a search is 1 per 10 results, and a JSON scrape costs up to 5.
+ * Keep the request ceiling even if provider credit prices change.
  */
 export const CONTEXT_DEV_RUN_REQUEST_BUDGET = 12;
 
@@ -461,10 +461,10 @@ export async function scrapeMarkdown(
 ): Promise<ContextDevScrapeResult> {
   return guardedCall<ContextDevScrapeOk>(url, options, (client) =>
     attempt(
-      () => client.web.webScrapeMd({ url, maxAgeMs: positiveMaxAge(options) }),
+      () => client.web.scrape({ url, formats: { markdown: true }, maxAgeMs: positiveMaxAge(options) }),
       (body) =>
-        typeof body?.markdown === "string"
-          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, markdown: body.markdown }
+        body.markdown?.success === true && typeof body.markdown.data === "string"
+          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, markdown: body.markdown.data }
           : null,
       "Scrape returned no markdown.",
     ),
@@ -478,10 +478,10 @@ export async function scrapeHtml(
 ): Promise<ContextDevHtmlResult> {
   return guardedCall<ContextDevHtmlOk>(url, options, (client) =>
     attempt(
-      () => client.web.webScrapeHTML({ url, maxAgeMs: positiveMaxAge(options) }),
+      () => client.web.scrape({ url, formats: { html: true }, maxAgeMs: positiveMaxAge(options) }),
       (body) =>
-        typeof body?.html === "string"
-          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, html: body.html }
+        body.html?.success === true && typeof body.html.data === "string"
+          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, html: body.html.data }
           : null,
       "Scrape returned no html.",
     ),
@@ -511,7 +511,7 @@ export async function sitemapUrls(
   return guardedCall<ContextDevSitemapOk>(url, options, (client) =>
     attempt(
       () =>
-        client.web.webScrapeSitemap({
+        client.web.mapUrls({
           domain,
           ...(options.maxLinks === undefined ? {} : { maxLinks: options.maxLinks }),
           ...(options.urlRegex === undefined ? {} : { urlRegex: options.urlRegex }),
@@ -521,7 +521,7 @@ export async function sitemapUrls(
           ? {
               status: "ok" as const,
               domain: typeof body.domain === "string" && body.domain ? body.domain : domain,
-              urls: body.urls.filter((entry): entry is string => typeof entry === "string"),
+              urls: body.urls.map((entry) => entry?.url).filter((entry): entry is string => typeof entry === "string"),
             }
           : null,
       "Sitemap read returned no urls.",
@@ -572,15 +572,15 @@ export async function crawlMarkdown(
 }
 
 /**
- * Extract one page into a JSON schema. 10 credits.
+ * Extract one page into a JSON schema through the unified scrape. Up to 5 credits.
  *
- * `factCheck` defaults on, because an extraction that is not checked against
- * the page is a model's account of it rather than an observation.
+ * JSON extraction runs over scraped page Markdown. A failed JSON format is not
+ * a result even when another requested format succeeded.
  */
 export async function extract<T extends Record<string, unknown> = Record<string, unknown>>(
   url: string,
   schema: Record<string, unknown>,
-  options: ContextDevCallOptions & { instructions?: string; factCheck?: boolean; maxPages?: number } = {},
+  options: ContextDevCallOptions & { instructions?: string } = {},
 ): Promise<ContextDevExtractResult<T>> {
   const instructions =
     typeof options.instructions === "string" && options.instructions.trim().length > 0
@@ -589,23 +589,19 @@ export async function extract<T extends Record<string, unknown> = Record<string,
   return guardedCall<ContextDevExtractOk<T>>(url, options, (client) =>
     attempt(
       () =>
-        client.web.extract({
+        client.web.scrape({
           url,
-          schema: schema as Record<string, unknown> & { [key: string]: unknown },
-          factCheck: options.factCheck ?? true,
-          maxPages: options.maxPages ?? 1,
+          formats: { json: true },
+          jsonParams: { schema, ...(instructions === undefined ? {} : { instructions }) },
           maxAgeMs: positiveMaxAge(options),
-          ...(instructions === undefined ? {} : { instructions }),
         }),
       (body) =>
-        typeof body?.data === "object" && body.data !== null
+        body.json?.success === true && typeof body.json.data === "object" && body.json.data !== null
           ? {
               status: "ok" as const,
               url: typeof body.url === "string" ? body.url : url,
-              data: body.data as T,
-              urlsAnalyzed: Array.isArray(body.urls_analyzed)
-                ? body.urls_analyzed.filter((entry): entry is string => typeof entry === "string")
-                : [],
+              data: body.json.data as T,
+              urlsAnalyzed: [typeof body.url === "string" ? body.url : url],
             }
           : null,
       "Extract returned no data.",
