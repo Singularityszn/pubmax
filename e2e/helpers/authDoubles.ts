@@ -52,7 +52,7 @@ function base64url(value: string): string {
  * spec uses elsewhere are not enough for the switch path. Nothing verifies a
  * signature here, and nothing in the app reads a claim out of it.
  */
-function accessJwt(account: Account): string {
+export function accessJwt(account: Account): string {
   return [
     base64url(JSON.stringify({ alg: "HS256", typ: "JWT" })),
     base64url(

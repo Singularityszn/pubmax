@@ -196,6 +196,25 @@
   margin-left: auto;
 }
 
+@media (max-width: 600px) {
+  .authCallbackNotice--confirm {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .authCallbackNotice--confirm span {
+    flex: none;
+  }
+
+  .authCallbackNotice--confirm .authCallbackNoticeActions {
+    margin-left: 0;
+  }
+
+  .authCallbackNotice--confirm .authCallbackNoticeActions button {
+    flex: 1;
+  }
+}
+
 .authCallbackNotice span {
   flex: 1;
   min-width: 0;
