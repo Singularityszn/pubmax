@@ -2,8 +2,10 @@ import { expect, test, type Page } from "@playwright/test";
 
 import {
   ACCOUNTS,
+  AUTH_STORAGE_KEY,
   installAuthDoubles,
   readDeviceIdentity,
+  resumeCookie,
   seedSignedIn,
 } from "./helpers/authDoubles";
 
@@ -18,7 +20,7 @@ function primaryNav(page: Page) {
 
 test("Map and Create follow phone sign-out through refresh and Back", async ({ page }) => {
   test.setTimeout(120_000);
-  const stub = await installAuthDoubles(page);
+  const stub = await installAuthDoubles(page, { initialSeedOnly: true, realResumeCookie: true });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
@@ -50,11 +52,16 @@ test("Map and Create follow phone sign-out through refresh and Back", async ({ p
 
   await page.goto("/login");
   await expect(page.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
-  await stub.signedInAs(null);
+  await expect.poll(() => page.evaluate((key) => Boolean(localStorage.getItem(key)), AUTH_STORAGE_KEY)).toBe(true);
+  await expect.poll(() => resumeCookie(page)).toBeTruthy();
+  stub.serverSignedInAs(null);
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), AUTH_STORAGE_KEY)).toBeNull();
+  await expect.poll(() => resumeCookie(page)).toBeNull();
   await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBeNull();
 
   await page.reload();
+  expect(await page.evaluate((key) => localStorage.getItem(key), AUTH_STORAGE_KEY)).toBeNull();
   await expect(page.getByRole("heading", { name: "Sign in or create your account" })).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/moment\?returnTo=%2Fmap$/);

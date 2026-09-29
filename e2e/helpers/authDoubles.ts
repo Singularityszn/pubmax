@@ -29,6 +29,8 @@ const RESUME_COOKIE = "pubmax_session_resume";
 export type Stub = {
   /** Whose session the init script installs, and whom the doubles answer for. */
   signedInAs: (account: AccountKey | null) => Promise<void>;
+  /** Change mocked server identity without touching browser storage. */
+  serverSignedInAs: (account: AccountKey | null) => void;
   /** The claimed handle the server owns for the signed-in account, or null. */
   setServerHandle: (handle: string | null) => void;
 };
@@ -106,7 +108,7 @@ function accountForBearer(header: string | undefined): Account | null {
 
 export async function installAuthDoubles(
   page: Page,
-  options: { realResumeCookie?: boolean } = {},
+  options: { realResumeCookie?: boolean; initialSeedOnly?: boolean } = {},
 ): Promise<Stub> {
   let current: Account | null = ACCOUNTS.A;
   /** undefined: derive the handle from the caller. Otherwise force this answer. */
@@ -139,12 +141,13 @@ export async function installAuthDoubles(
   }
 
   await page.addInitScript(
-    ({ accounts, authStorageKey, whichKey }) => {
+    ({ accounts, authStorageKey, whichKey, initialSeedOnly }) => {
       window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
       const which = window.localStorage.getItem(whichKey);
       const account = which ? accounts[which as "A" | "B"] : null;
+      if (initialSeedOnly && which) window.localStorage.removeItem(whichKey);
       if (!account) {
-        window.localStorage.removeItem(authStorageKey);
+        if (!initialSeedOnly) window.localStorage.removeItem(authStorageKey);
         return;
       }
       window.localStorage.setItem(
@@ -171,6 +174,7 @@ export async function installAuthDoubles(
       accounts: ACCOUNTS,
       authStorageKey: AUTH_STORAGE_KEY,
       whichKey: WHICH_ACCOUNT_KEY,
+      initialSeedOnly: options.initialSeedOnly ?? false,
     },
   );
 
@@ -259,6 +263,10 @@ export async function installAuthDoubles(
   });
 
   return {
+    serverSignedInAs(key) {
+      current = key ? ACCOUNTS[key] : null;
+      handleOverride = undefined;
+    },
     async signedInAs(key) {
       current = key ? ACCOUNTS[key] : null;
       handleOverride = undefined;
