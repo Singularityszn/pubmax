@@ -188,3 +188,10 @@ describe("Supabase migration versions", () => {
     expect(stale).toEqual([]);
   });
 });
+
+it("assigns each forward migration a unique Supabase version", () => {
+  const migrations = readdirSync(join(process.cwd(), "supabase/migrations"))
+    .filter((name) => name.endsWith(".sql"));
+  const versions = migrations.map((name) => name.split("_")[0]);
+  expect(versions.filter((version, index) => versions.indexOf(version) !== index)).toEqual([]);
+});

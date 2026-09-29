@@ -244,8 +244,8 @@ describe.skipIf(skipReason !== null)(
 );
 
 describe("0174 backup persistence and locked context", () => {
-  const migration = join(migrations, "20260929230000_0174_plan_backup_context_evidence.sql");
-  const undo = join(migrations, "rollback/20260929230000_0174_plan_backup_context_evidence_rollback.sql");
+  const migration = join(migrations, "20260929230100_0174_plan_backup_context_evidence.sql");
+  const undo = join(migrations, "rollback/20260929230100_0174_plan_backup_context_evidence_rollback.sql");
   const id = "10000000-0000-4000-8000-000000000174";
   const member = "20000000-0000-4000-8000-000000000174";
   const proposal = "30000000-0000-4000-8000-000000000174";

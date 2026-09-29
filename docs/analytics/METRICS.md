@@ -1,12 +1,12 @@
 # PUBMAXX metric definitions
 
-Owner: captain. This file is the canonical definition of the north star and of every
-supporting measure: what each one counts, what it is divided by, and what it may not
-be read as. `docs/analytics/TRACKING_PLAN.md` says what each EVENT answers and owns
-the release metric; this file says what each NUMBER means. The registry itself stays
-the source of truth for names and props (`lib/analyticsEvents.ts`).
+Owner: captain. This file defines the adopted group outcome and supporting event
+measures: what each counts, its denominator, and its limits.
+`docs/analytics/TRACKING_PLAN.md` says what each EVENT answers and owns the release
+metric. The event registry owns names and props (`lib/analyticsEvents.ts`).
 
-Read section 1 before writing any query. Every figure below depends on it.
+Section 1 governs event queries. The private store aggregate in section 2.2 uses
+completion snapshots and does not depend on event consent or attribution.
 
 ## 1. The clauses every query carries
 
@@ -67,10 +67,15 @@ Named events carry no `$session_id`, a named event's page is `path` rather than
 Section 1 of `docs/analytics/TRACKING_PLAN.md` owns those facts. A window over
 `distinct_id` is the only session-shaped tool available.
 
-## 2. The north star: weekly repeating crew nights
+## 2. The adopted outcome: weekly repeating group nights
 
-**The contract.** A group that plans an outing together, completes it, and comes
-back the following week.
+**The contract.** Count completed Planned Nights with at least two participating
+accounts, then count those whose group completed another Plan in the prior 28 days.
+The week labels the later completion. This store measure and the consenting-device
+event proxy below answer different questions.
+
+The event stream describes a narrower planning sequence. It remains useful for
+tracking where nights drop out:
 
 A night qualifies when all three are true.
 
@@ -83,15 +88,14 @@ A night qualifies when all three are true.
 3. **It was completed explicitly.** Somebody saved an ending for that night
    (`plan_completed`, verified). A night that simply stopped is not a completion.
 
-**Repeat** means the same `distinct_id` qualifies again in the following ISO week.
+The event proxy calls a repeat when the same `distinct_id` qualifies again in the
+following ISO week. That is not the adopted 28-day group repeat.
 
 **Guest-only participation is a separate line.** A person who joins other people's
-nights and never hosts one is a real and welcome pattern, and folding them into the
-host figure would flatter it. `crew_committed` is emitted by the joining guest's
-device, so guests already appear in the repeat measure on their own account. The
-registry also holds `guest_plan_participated` for the fuller picture, and it has no
-emitter today (section 6 of the tracking plan), so guest-only depth is currently
-unmeasurable rather than zero.
+nights and never hosts one is a real pattern. `crew_committed` is emitted by the
+joining guest's device, so guests can appear in the device proxy. The fuller
+guest-only depth remains unmeasured. The unused `guest_plan_participated` event was
+removed from the registry (section 6 of the tracking plan).
 
 ### 2.1 What the stream can answer today
 
@@ -100,8 +104,8 @@ The three clauses above are each measurable. What is NOT measurable today is cla
 crosses the wire, so a `crew_committed` from a guest's device and a `plan_completed`
 from whoever saved the ending cannot be joined at row level.
 
-So the north star ships as a pair of weekly figures plus a repeat rate, and the pair
-is read together:
+The event proxy reports weekly counts and a device repeat rate. Read these together,
+but do not label them group outcomes:
 
 ```sql
 -- Weekly crew nights, completions, and the devices behind them.
@@ -143,7 +147,46 @@ ORDER BY week
 The repeat denominator is the devices that qualified in that week. It is a device
 count, not a people count, and it may never be reported as one.
 
-### 2.2 The one gap, closed
+### 2.2 The private completed-group measure
+
+`pubmax_private.completion_group_week(p_day)` returns one row for the UTC ISO week
+containing `p_day`. `groups_completed` counts completion-time snapshots with at
+least two distinct active account identities. A revoked Plan member, an unlinked
+guest seat, and an inactive Social Crew member do not count. The completion insert
+captures membership once; later roster changes do not rewrite it. Completions from
+before migration `0169` have no snapshot and remain unmeasured, not zero-member
+nights.
+
+`groups_repeated` counts qualifying completions with a qualifying completion of
+another Plan in the preceding 28 days. The earlier completion must precede the
+later one. At least two account identities must appear in both snapshots. The
+private query resolves linked auth and Social identities before comparing them and
+counts each account once. A later completion contributes at most one repeat, even
+if several earlier completions match.
+
+`repeat_rate` is `groups_repeated / groups_completed` for that week's completed
+group cohort. It is `NULL` when `groups_completed` is zero. No median interval is
+defined or reported. The query returns counts only to `service_role`; it does not
+send account keys or Plan IDs to PostHog. Plan deletion removes its snapshots.
+Account deletion removes snapshots containing either identity of that account, so
+historical counts can decrease after deletion.
+
+The aggregate has PostgreSQL proof in
+`__tests__/completionGroupSnapshotEffective.test.ts`. Migration `0170` adds a
+separate Social Crew completion RPC: the verified owner chooses a reached stop
+and saves an ending from the Crew page. The route canonicalises ending evidence;
+the RPC serializes simultaneous requests, checks active ownership, writes arrival
+and completion atomically, and triggers the same private membership snapshot.
+`__tests__/socialCrewCompletionEffective.test.ts` proves owner completion,
+nonowner refusal, concurrency, the snapshot and service-only access. Route and
+store checks are in `socialCrewCompletionPath.test.ts` and
+`socialCrewCompletionStore.test.ts`. The legacy Plan completion path remains
+closed for Social-bound Plans. This is source and disposable-PostgreSQL proof,
+not evidence that migration `0170` has been applied or that a production
+dashboard reports the outcome. No shared migration or production dashboard is
+asserted here.
+
+### 2.3 The completion event crew flag
 
 `plan_completed` used not to say whether the night it ended had a crew: a solo night
 that reached its last stop reported exactly what a night of six reported, so
@@ -182,7 +225,7 @@ Two limits ride with it. A completion whose receipt was minted before this shipp
 carries `ending` alone, so `crewNight` is **absent** rather than `false` on those
 rows: filter on `crewNight = true` against a denominator of rows that carry the
 property at all, never against every completion ever recorded. And this closes the
-crew question for one night; clauses 2 and 3 of the north star for the SAME night
+crew question for one night; clauses 2 and 3 of the event sequence for the SAME night
 still cannot be joined at row level, for the reason 2.1 gives.
 
 ## 3. Supporting measures
@@ -195,7 +238,7 @@ count is never reported as a rate.
 | First action within 60 seconds | See TRACKING_PLAN 2.1 | Landings in the same window | The release metric. This file does not restate its query |
 | Plan reaches a crew | `crew_committed` in the week | `plan_accepted` in the week | Two weekly counts, never a row-level join. Both are one per plan-night |
 | Night completed | `plan_completed` in the week | `plan_accepted` in the week | Includes solo nights |
-| Crew night completed | `plan_completed` with `crewNight = true` | `plan_completed` rows carrying `crewNight` at all | Never against every completion: a pre-`crewNight` receipt has no answer. See 2.2 |
+| Crew night completed | `plan_completed` with `crewNight = true` | `plan_completed` rows carrying `crewNight` at all | Never against every completion: a pre-`crewNight` receipt has no answer. See 2.3 |
 | Weekly meaningful pubmaxxers | Distinct `distinct_id` with `meaningful_core_action` | Distinct `distinct_id` with any event | The roll-up in `WEEKLY_MEANINGFUL_CORE_ACTIONS`. Five actions, no impressions |
 | Invite opened | `plan_invite_opened` | `plan_invite_sent` | Sends and opens come from different devices. A weekly ratio, not a funnel |
 | Near answers served | `near_answer_ready` with `resultBand` other than `0` | All `near_answer_ready` | An empty answer is reported, so the denominator is honest |
@@ -207,9 +250,10 @@ count is never reported as a rate.
 
 - **A revenue or a saving.** No counterfactual exists for what a drinker would have
   paid otherwise, and nothing in the tree derives one (`lib/dealsHonesty.ts`).
-- **A person.** Every figure here counts devices that consented. ADR 0009.
-- **A rate over all traffic.** Consent gates both transports, so every figure is a
-  figure about consented visitors.
+- **A person from event data.** Event figures count consenting devices. ADR 0009.
+  The private group aggregate compares accounts inside the store and exposes counts.
+- **A rate over all traffic.** Consent gates both event transports, so event figures
+  describe consenting visitors.
 - **A server-minted confirmation.** Nobody consenting stands behind it. TRACKING_PLAN
   section 3, tile 4.
 - **A guest-only depth figure.** `guest_plan_participated` was registered and never

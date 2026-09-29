@@ -34,6 +34,7 @@
 # gigabyte and no deploy reads a byte of it.
 /.agents/
 /.cursor/
+/.gnhf/
 /.gitnexus/
 /.opencode/
 /skills/

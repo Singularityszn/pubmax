@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 150 mutating handlers across 118 route files.** Each exported
+> **Inventory: 154 mutating handlers across 122 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -152,6 +152,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/saved-pubs/list-follows`
 - `POST app/api/social-connections/[provider]`
 - `POST app/api/social/crews`
+- `POST app/api/social/crews/[crewId]/complete`
 - `POST app/api/social/crews/[crewId]/invitations`
 - `POST app/api/social/crews/[crewId]/join-requests`
 - `POST app/api/social/crews/[crewId]/leave`
@@ -450,6 +451,19 @@ ID.
 
 `POST` leaves as verified actor. Self-leave stays available after friendship
 loss or a block; owner leave remains a durable conflict until ownership moves.
+
+### Social Crew completion route (route 89)
+
+`POST app/api/social/crews/[crewId]/complete` resolves a verified Social actor
+and spends the same salted-profile write budget before parsing the body. The
+current Crew owner alone may complete. The route reads the private Crew snapshot,
+checks that the selected arrival stop belongs to the Plan, and rebuilds ending
+evidence on the server. `complete_social_crew_plan_atomic` rechecks active owner
+and Plan membership under the Plan lock, writes arrival and completion together,
+and returns an existing completion on retry. Nonowners and removed members get a
+private 404 with no write; stale route revisions get 409. The response is
+`private, no-store`. There is no client-supplied account or Plan ID and no
+anonymous capability fallback.
 
 ### `app/api/cheap-pint-ping` - weekday push preference
 

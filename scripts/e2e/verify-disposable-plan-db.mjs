@@ -11,9 +11,9 @@ try {
   );
   assert.equal(stops.status, 200);
   assert.deepEqual(await stops.json(), []);
-  assert.equal(db.sql("select count(*) from public.community_prices").out, "0");
+  assert.equal(db.sql("select count(*) from public.community_prices").out, String(db.fixtures.length * 2));
   assert.equal(db.sql("select count(*) from pg_constraint where conname = 'plan_stops_selected_drink_price_evidence_check'").out, "1");
-  console.log("Disposable Plan PostgREST ready with migration 0168 and no seeded prices");
+  console.log("Disposable Plan PostgREST ready through migration 0173 with corroborated test prices");
 } finally {
   await db.stop();
 }

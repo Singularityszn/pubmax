@@ -304,7 +304,7 @@ vocabularies. The column here is the question the event exists to answer.
 | `plan_accepted` | A grounded, route-ready three-stop plan was verified server-side. |
 | `plan_saved` | The plan and its route finished saving. |
 | `plan_created` | A plan was created, with its stop count. |
-| `plan_completed` | The night ended, how it ended, and whether it had a crew. The crew answer is the server's, minted on the completion receipt: see METRICS.md 2.2. |
+| `plan_completed` | The night ended, how it ended, and whether it had a crew. The crew answer is the server's, minted on the completion receipt: see METRICS.md 2.3. |
 | `late_food_viewed` | The food ending's shortlist was shown. See 5.10. |
 | `late_food_added` | A food ending was taken. See 5.10. |
 | `memory_reviewed` | The night was read back. |

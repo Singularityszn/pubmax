@@ -194,7 +194,8 @@ describe("mutating API surface certification", () => {
     // 149: less POST /api/pub-pal/mastery, deleted with no caller (#1802).
     // 150: plus POST /api/drink-wall, the city Drink Wall upload.
     // 153: plus POST /api/pub-pal/chat, tool-turn, and tools/[toolName] (#Pal ElevenLabs brain).
-    expect(mutationHandlers).toHaveLength(153);
+    // 154: plus verified Social Crew Plan completion through its own route.
+    expect(mutationHandlers).toHaveLength(154);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),
     );

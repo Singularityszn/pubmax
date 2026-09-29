@@ -6,7 +6,7 @@ The inventory is descriptive, not a runtime registry.
 
 ## Current snapshot
 
-- The repository has 52 `lib/*Store.ts` modules.
+- The repository has 53 `lib/*Store.ts` modules.
 - 32 modules call `selectStore` directly.
 - 7 modules use `createDualBackendStore`.
 - 6 modules keep memory state on `globalThis` so it survives a development
@@ -81,6 +81,7 @@ silently stale.
 | roundsStore | factory-eligible, policy-heavy | Round membership, spend-line provenance, and promotion policy. |
 | savedPubsStore | legacy-exception | Inline Supabase configuration branch plus profile bootstrap; needs its own selector refactor. |
 | socialConnectionStore | factory-ready | Connected provider rows with one backend selector. |
+| socialCrewCompletionStore | not dual-backend | Service-only Social Crew completion RPC and persisted Plan completion read. |
 | socialCrewStore | not dual-backend | Supabase-only RPC store. |
 | socialInteractionStore | factory-eligible, policy-heavy | Social relationship, block, and interaction policy. |
 | socialPostConsentStore | not dual-backend | Supabase-only RPC store. |
@@ -105,7 +106,7 @@ The following stores intentionally stay outside the factory-ready path:
   `pubPalStore`, and `savedPubsStore`. Each needs a separate selector
   refactor before a factory wrapper can preserve its behavior. Owner: the
   next issue #727 store wave.
-- **not dual-backend:** `importNotesStore`, `socialCrewStore`,
+- **not dual-backend:** `importNotesStore`, `socialCrewCompletionStore`, `socialCrewStore`,
   `socialPostConsentStore`, and `whatsOnStore`. Their storage premise is not
   memory-or-Supabase. Owner: not applicable for this factory.
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,
