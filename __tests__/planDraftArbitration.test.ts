@@ -32,6 +32,7 @@ import {
   type ParsedPlanRouteDraft,
 } from "@/lib/planRouteDraft";
 import { createPlanningIntent } from "@/lib/planningIntent";
+import { inferNightContext } from "@/lib/nightPlanning";
 
 const NOW = Date.parse("2026-07-24T12:00:00.000Z");
 
@@ -196,7 +197,10 @@ describe("V2 Route draft migration", () => {
         }] }
       : stop);
 
-    expect(writePlanRouteDraftEnvelope(routeValue({ stops: pricedStops }), "plan-generated", storage, NOW).v2).toBe(true);
+    expect(writePlanRouteDraftEnvelope(routeValue({
+      stops: pricedStops,
+      nightContext: inferNightContext("wine in Soho", new Date(NOW)).context,
+    }), "plan-generated", storage, NOW).v2).toBe(true);
     for (const raw of [storage.getItem(PLAN_ROUTE_DRAFT_KEY), storage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)]) {
       expect(raw).toContain('"selectedDrinkPriceEvidence"');
     }
@@ -214,6 +218,36 @@ describe("V2 Route draft migration", () => {
       key: 1, venueId: "venue-a", venueName: "Venue A",
       alternatives: [{ venueId: "venue-x", venueName: "Venue X" }],
     });
+  });
+
+  it("drops stored drink prices that disagree with selected category", () => {
+    const wine = {
+      category: "wine", pence: 550, serving: null, source: "community",
+      reportedAt: "2026-07-23T12:00:00.000Z",
+    } as const;
+    const stops = routeValue().stops.map((stop, index) => index === 0
+      ? { ...stop, selectedDrinkPriceEvidence: wine, alternatives: [{
+          venueId: "venue-x", venueName: "Venue X", selectedDrinkPriceEvidence: wine,
+        }] }
+      : stop);
+    for (const context of [
+      null,
+      inferNightContext("cocktails in Soho", new Date(NOW)).context,
+      inferNightContext("beer in Soho", new Date(NOW)).context,
+      { ...inferNightContext("wine in Soho", new Date(NOW)).context, zeroProof: true },
+    ]) {
+      const storage = memoryStorage();
+      writePlanRouteDraftEnvelope(routeValue({
+        stops,
+        alternatives: [{ venueId: "venue-y", venueName: "Venue Y", selectedDrinkPriceEvidence: wine }],
+        nightContext: context,
+      }), "plan-generated", storage, NOW);
+      const restoredDraft = readPlanRouteDraftEnvelope(storage, NOW)?.value;
+      const restored = restoredDraft?.stops[0];
+      expect(restored?.selectedDrinkPriceEvidence).toBeUndefined();
+      expect(restored?.alternatives[0]?.selectedDrinkPriceEvidence).toBeUndefined();
+      expect(restoredDraft?.alternatives[0]?.selectedDrinkPriceEvidence).toBeUndefined();
+    }
   });
 
   it("dual-writes compatible Route drafts and preserves replay metadata", () => {
