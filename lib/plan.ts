@@ -2,6 +2,7 @@ import type { CrewMemberDTO } from "@/lib/crew";
 import { cleanText } from "@/lib/textClean";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { isPlanStopCount } from "@/lib/planStopCount";
+import type { SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 export const PLAN_TITLE_MAX = 80;
 export const PLAN_STOP_MAX = 8;
@@ -121,6 +122,7 @@ export type PlanStopDTO = {
   venueId: string;
   venueName: string;
   position: number;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
 };
 
 export type PlanState = {

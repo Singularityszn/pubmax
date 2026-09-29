@@ -9,6 +9,7 @@ import type { NightContext } from "@/lib/nightPlanning";
 import { selectStore } from "@/lib/storeBackend";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { isPlanStopCount } from "@/lib/planStopCount";
+import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 const PLANS = "plans";
 const STOPS = "plan_stops";
@@ -201,7 +202,13 @@ function routeRevisionOf(plan: PlanDTO): number {
 }
 
 function stopFromRow(row: Record<string, unknown>): PlanStopDTO {
-  return { venueId: String(row.venue_id), venueName: String(row.venue_name), position: Number(row.position) };
+  const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selected_drink_price_evidence);
+  return {
+    venueId: String(row.venue_id),
+    venueName: String(row.venue_name),
+    position: Number(row.position),
+    ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+  };
 }
 
 function memberFromRow(row: Record<string, unknown>): CrewMemberDTO {
@@ -228,12 +235,20 @@ async function readSupabasePlanState(
   const { data: planRow, error } = await planQuery.maybeSingle();
   if (error) throw new Error(error.message);
   if (!planRow) return null;
+  const readStops = async () => {
+    const result = await admin.from(STOPS)
+      .select("venue_id,venue_name,position,selected_drink_price_evidence")
+      .eq("plan_id", id).order("position");
+    if (result.error?.code !== "42703") return result;
+    return admin.from(STOPS).select("venue_id,venue_name,position")
+      .eq("plan_id", id).order("position");
+  };
   const [
     { data: stopRows, error: stopsError },
     { data: memberRows, error: membersError },
     { data: actionRows, error: actionsError },
   ] = await Promise.all([
-    admin.from(STOPS).select("venue_id,venue_name,position").eq("plan_id", id).order("position"),
+    readStops(),
     admin.from(MEMBERS).select("id,name,status,joined_at,updated_at")
       .eq("plan_id", id)
       .is("membership_revoked_at", null)
