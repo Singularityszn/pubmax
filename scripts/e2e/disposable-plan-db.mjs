@@ -10,11 +10,11 @@ const MIGRATIONS = join(ROOT, "supabase/migrations");
 const V1_RELEASE = "20260806035204_0070_v1_release_security.sql";
 const LAST_MIGRATION = "20260929180000_0167_plan_replace_context_evidence.sql";
 
-// Both IDs occur in the committed Clapham slim cell. Each observation has an
-// independent, non-null actor so it can contribute to corroboration.
+// The Belle Vue occurs on the generated Clapham route for both queries. Each
+// observation has an independent, non-null actor for corroboration.
 export const PLAN_PRICE_FIXTURES = [
   { venueId: "venue-11e0hkh", category: "wine", pence: 675 },
-  { venueId: "venue-21w0p0", category: "cocktail", pence: 895 },
+  { venueId: "venue-11e0hkh", category: "cocktail", pence: 895 },
 ];
 
 function sqlLiteral(value) {
