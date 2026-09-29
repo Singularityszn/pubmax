@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
   stopRow: null as Record<string, unknown> | null,
+  completionRow: null as Record<string, unknown> | null,
   oldSchema: false,
   selects: [] as string[],
 }));
@@ -30,7 +31,7 @@ vi.mock("@/lib/supabase", () => ({
           return Promise.resolve({ data: [], error: null }).then(onFulfilled);
         },
         maybeSingle: async () => ({
-          data: { id: "11111111-1111-4111-8111-111111111111", title: "Tonight", start_time: "2026-09-30T19:00:00.000Z", created_at: "2026-09-29T12:00:00.000Z", night_context: null },
+          data: table === "plan_completions" ? db.completionRow : { id: "11111111-1111-4111-8111-111111111111", title: "Tonight", start_time: "2026-09-30T19:00:00.000Z", created_at: "2026-09-29T12:00:00.000Z", night_context: null },
           error: null,
         }),
       };
@@ -54,6 +55,7 @@ describe("saved Plan selected drink evidence reads", () => {
   beforeEach(() => {
     db.oldSchema = false;
     db.selects = [];
+    db.completionRow = null;
     db.stopRow = { venue_id: "venue-a", venue_name: "A", position: 0, selected_drink_price_evidence: EVIDENCE };
   });
 
@@ -81,5 +83,21 @@ describe("saved Plan selected drink evidence reads", () => {
     expect(result.state.stops[0]).toMatchObject({ venueId: "venue-a", venueName: "A", position: 0 });
     expect(result.state.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
     expect(db.selects).toEqual(["venue_id,venue_name,position,selected_drink_price_evidence", "venue_id,venue_name,position"]);
+  });
+
+  it("returns bounded selected evidence from a saved completion snapshot", async () => {
+    db.completionRow = {
+      id: "22222222-2222-4222-8222-222222222222",
+      plan_id: PLAN_ID,
+      ending: "get_home",
+      route_revision: 1,
+      route_snapshot: [{ venueId: "venue-a", venueName: "A", position: 0, selectedDrinkPriceEvidence: EVIDENCE }],
+      completed_at: "2026-09-30T23:00:00.000Z",
+    };
+    const completion = await supabasePlanStore.getCompletion(PLAN_ID);
+    expect(completion?.routeSnapshot[0]?.selectedDrinkPriceEvidence).toEqual(EVIDENCE);
+    db.completionRow = { ...db.completionRow, route_snapshot: [{ venueId: "venue-a", venueName: "A", position: 0, selectedDrinkPriceEvidence: { ...EVIDENCE, serving: "175ml", contributor: "private" } }] };
+    const malformed = await supabasePlanStore.getCompletion(PLAN_ID);
+    expect(malformed?.routeSnapshot[0]?.selectedDrinkPriceEvidence).toBeUndefined();
   });
 });

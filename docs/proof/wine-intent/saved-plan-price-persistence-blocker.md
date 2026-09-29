@@ -1,6 +1,12 @@
 # Saved selected-drink price evidence: persistence blocker
 
-Status: migrations `0161` through `0164` with rollbacks added locally on 29 September 2026. The typed Plan read projects valid saved evidence. The composer submits matching selected evidence. Plan creation, route replacement, and guest proposals check it against current trusted server prices. Accepted proposals save that proposal-time snapshot in memory and PostgreSQL. Member route rendering prints valid saved evidence. Completion snapshots and real browser journeys remain open. No shared migration was executed, and this says nothing about the schema deployed to any database.
+Status: migrations `0161` through `0165` with rollbacks added locally on 29 September 2026. The typed Plan read projects valid saved evidence. The composer submits matching selected evidence. Plan creation, route replacement, and guest proposals check it against current trusted server prices. Accepted proposals save that proposal-time snapshot in memory and PostgreSQL. Member route rendering prints valid saved evidence. Completion snapshots now preserve saved evidence. Real browser journeys remain open. No shared migration was executed, and this says nothing about the schema deployed to any database.
+
+## Completion snapshot slice
+
+`__tests__/planSelectedDrinkEvidenceRead.test.ts` failed before the read fix: a saved completion row with wine evidence returned a route stop without it. The mapper now cleans and returns the same five-field evidence contract; malformed serving values stay absent. The memory completion path already copied saved stop evidence.
+
+`__tests__/planSelectedDrinkEvidenceCompletionMigrationEffective.test.ts` reproduced the durable write fault in disposable PostgreSQL: the completion RPC returned `completed`, but its `route_snapshot` contained only venue IDs, names, and positions. Migration `0165` adds a before-insert trigger that copies evidence only from a saved stop matching both position and venue ID in the completion transaction. The effective test then captured wine and cocktail evidence, cleared live stop evidence, and read unchanged completion history. Rollback restores venue-only future snapshots and leaves past completion rows intact. Five focused suites passed (25 tests), including migration inventory and version fences; typecheck, focused ESLint, and diff check passed. Full verify, isolated build, context-drift regression, and real browser save/reload remain open.
 
 ## Guest proposal acceptance slice
 
@@ -51,7 +57,7 @@ Before the composer and create changes below, the submit path dropped the field 
 
 ## Required next change
 
-Update completion snapshots, then prove the browser journeys. Creation, replacement, and proposal creation validate category against saved or submitted `NightContext`, check current server price authority, and retain `serving: null` and the original report date. Missing, stale, mismatched, truncated, or degraded evidence remains absent; it must not become a glass price, cheapest-price claim, or budget total. Plan readers are link-capability holders, so store no contributor identity or private price-report metadata. An app version running against an old replacement or proposal acceptance RPC reads back an absent evidence field and must report that evidence was not saved.
+Prove the browser journeys and resolve the separate context-drift regression before final verification. Creation, replacement, and proposal creation validate category against saved or submitted `NightContext`, check current server price authority, and retain `serving: null` and the original report date. Missing, stale, mismatched, truncated, or degraded evidence remains absent; it must not become a glass price, cheapest-price claim, or budget total. Plan readers are link-capability holders, so store no contributor identity or private price-report metadata. An app version running against an old replacement or proposal acceptance RPC reads back an absent evidence field and must report that evidence was not saved.
 
 ## Local schema proof
 

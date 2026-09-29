@@ -176,6 +176,7 @@ function completionFromRow(row: Record<string, unknown>): PlanCompletionDTO {
       venue_id: (stop as Record<string, unknown>).venueId,
       venue_name: (stop as Record<string, unknown>).venueName,
       position: (stop as Record<string, unknown>).position,
+      selected_drink_price_evidence: (stop as Record<string, unknown>).selectedDrinkPriceEvidence,
     })).sort((a, b) => a.position - b.position),
     qualifyingArrival:
       typeof row.qualifying_arrival_action_id === "string"
