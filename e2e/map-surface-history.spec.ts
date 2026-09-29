@@ -132,6 +132,30 @@ test.describe("one Map surface history owner", () => {
     await expectSoleDrawer(page, "venue");
   });
 
+  test("900px keyboard opens a planner stop in the venue drawer", async ({ page }) => {
+    await prepareMap(page, { width: 900, height: 900 });
+    await openMap(page);
+    await mapToolbar(page).getByRole("button", { name: "Plan an outing" }).click();
+    await expectSoleDrawer(page, "planner");
+
+    const curatedCrawl = planner(page).getByRole("button", {
+      name: /Map the Victorian Soho crawl with 5 stops/i,
+    });
+    await curatedCrawl.focus();
+    await page.keyboard.press("Enter");
+    await expectSoleDrawer(page, "venue");
+
+    await page.locator(".mappedRouteChip").getByRole("button", { name: "Edit", exact: true }).click();
+    await expectSoleDrawer(page, "planner");
+    const firstStop = planner(page).locator(".routeList > li").first().getByRole("button").first();
+    await firstStop.focus();
+    await page.keyboard.press("Enter");
+
+    await expectSoleDrawer(page, "venue");
+    await expect(venue(page).getByRole("button", { name: "Back to Plan an outing" })).toBeVisible();
+    await expect(venue(page).getByRole("button", { name: /Close and return to the .* map/ })).toBeFocused();
+  });
+
   test("clearing a restored query after closing its Venue does not reopen it", async ({
     page,
   }) => {
