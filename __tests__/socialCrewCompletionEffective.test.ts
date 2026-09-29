@@ -376,11 +376,12 @@ describe.skipIf(skipReason !== null)("Social Crew completion through authorized 
   });
 
   it("removes the write path on rollback without erasing completed records", () => {
-    pg().applyFile(join(migrations, "rollback/20260930090000_0170_social_crew_completion_rollback.sql"));
-    expect(pg().sql(`select to_regprocedure('public.complete_social_crew_plan_atomic(uuid,uuid,integer,uuid,uuid,uuid,integer,text,text,jsonb,timestamptz)') is null`)).toBe("t");
-    expect(pg().sql(`select count(*) from public.plan_completions where plan_id='${planId}'`)).toBe("1");
     pg().applyFile(privacyRollback);
     expect(pg().sql(`select pg_get_functiondef(
       'pubmax_private.snapshot_plan_completion_group()'::regprocedure)`)).toBe(originalCapture);
+    expect(pg().sql(`select to_regprocedure('pubmax_private.lock_plan_completion_identities(uuid)') is null`)).toBe("t");
+    pg().applyFile(join(migrations, "rollback/20260930090000_0170_social_crew_completion_rollback.sql"));
+    expect(pg().sql(`select to_regprocedure('public.complete_social_crew_plan_atomic(uuid,uuid,integer,uuid,uuid,uuid,integer,text,text,jsonb,timestamptz)') is null`)).toBe("t");
+    expect(pg().sql(`select count(*) from public.plan_completions where plan_id='${planId}'`)).toBe("1");
   });
 });
