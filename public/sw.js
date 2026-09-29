@@ -19,7 +19,7 @@
  *   tiles.openfreemap.org + /_next/static/*
  *       → stale-while-revalidate, trimmed FIFO/LRU-ish at MAX_SWR_ENTRIES
  *   navigations
- *       → network-first → cached copy of that page → cached "/" → /offline.html
+ *       → network-first → cached plan preview or fixed shell page → cached "/" → /offline.html
  *   /api/* GETs
  *       → untouched (network-only); the app already renders honest
  *         empty/error states when these fail.
@@ -129,6 +129,10 @@ function isEligiblePlanCacheRequest(request) {
     Boolean(self.planCache?.isPlanPath(url.pathname));
 }
 
+function isEligibleShellCacheUrl(url) {
+  return url.origin === self.location.origin && SHELL_URLS.includes(url.pathname);
+}
+
 async function migrateCacheFamily({
   current,
   prefix,
@@ -139,10 +143,13 @@ async function migrateCacheFamily({
   const oldNames = names.filter(
     (name) => name.startsWith(prefix) && name !== current,
   ).reverse();
-  if (current === PLAN_CACHE) {
-    const planCache = await caches.open(current);
-    for (const request of await planCache.keys()) {
-      if (!isEligiblePlanCacheRequest(request)) await planCache.delete(request);
+  if (current === PLAN_CACHE || current === SHELL_CACHE) {
+    const destination = await caches.open(current);
+    for (const request of await destination.keys()) {
+      const eligible = current === PLAN_CACHE
+        ? isEligiblePlanCacheRequest(request)
+        : isEligibleShellCacheUrl(new URL(request.url));
+      if (!eligible) await destination.delete(request);
     }
   }
   if (oldNames.length === 0) return;
@@ -152,7 +159,8 @@ async function migrateCacheFamily({
     const source = await caches.open(name);
     let covered = true;
     for (const request of await source.keys()) {
-      if (current === PLAN_CACHE && !isEligiblePlanCacheRequest(request)) {
+      if ((current === PLAN_CACHE && !isEligiblePlanCacheRequest(request)) ||
+        (current === SHELL_CACHE && !isEligibleShellCacheUrl(new URL(request.url)))) {
         if (!(await source.delete(request))) covered = false;
         continue;
       }
@@ -182,6 +190,9 @@ async function matchCacheFamily(currentName, request, options) {
     typeof request === "string" ? request : request.url,
     self.location.origin,
   );
+  if (currentName === SHELL_CACHE && !isEligibleShellCacheUrl(requestUrl)) {
+    return undefined;
+  }
   const names = await cacheFamilyNames(currentName);
   const candidates =
     currentName === SWR_CACHE && requestUrl.hostname === TILE_HOST
@@ -439,7 +450,7 @@ async function handleNavigation(event, request, url) {
     const response = await fetch(request);
     // Keep the shell copies fresh so the offline fallback is the latest deploy
     // this browser has seen — but only for the pages we deliberately shelve.
-    if (response.ok && SHELL_URLS.includes(url.pathname)) {
+    if (response.ok && isEligibleShellCacheUrl(url)) {
       const copy = response.clone();
       event.waitUntil(
         caches.open(SHELL_CACHE).then((cache) => cache.put(url.pathname, copy)),
@@ -458,7 +469,7 @@ async function handleNavigation(event, request, url) {
     // generic shell ladder. Member details still require their live API.
     const plan = await matchPlanNavigationAcrossCaches(url);
     if (plan) return plan;
-    const exact = await matchCacheFamily(SHELL_CACHE, url.pathname, {
+    const exact = await matchCacheFamily(SHELL_CACHE, url.href, {
       ignoreSearch: true,
     });
     if (exact) return exact;

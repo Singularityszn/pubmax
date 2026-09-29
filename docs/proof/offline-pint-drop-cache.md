@@ -51,10 +51,53 @@ against an in-memory Cache Storage harness. No browser upgrade or deployment
 was run in this pass. Build-generated venue shard changes were restored from
 the clean iteration-start state.
 
-## Remaining shell-cache work
+## Shell-cache correction
 
-The current worker writes only four fixed shell URLs, but `migrateCacheFamily`
-still copies any old `SHELL_CACHE` entry. Its exact-path offline lookup can then
-return a `/p/<id>` entry from a current or legacy shell cache. This pass did not
-change that path. The full stop condition needs a shell-cache purge and lookup
-guard, with a regression test for an old shell cache entry.
+The current worker wrote only four shell URLs, but activation copied any old
+shell-cache entry. Before the correction, an offline `/p/current-drop`
+navigation returned cached Pint Drop HTML with status 200. Activation also
+copied `/p/legacy-drop` into the current shell cache. Two new tests in
+`__tests__/serviceWorkerCache.test.ts` reproduced those failures before the
+worker changed:
+
+```text
+npx vitest run __tests__/serviceWorkerCache.test.ts -t 'shell cache'
+2 failed, 33 skipped
+offline /p: expected 503, received 200
+activation: current shell cache contained both /p entries
+```
+
+The worker now admits and migrates only same-origin shell URLs from its fixed
+list: `/`, `/map`, `/tonight`, and `/offline.html`. Activation deletes other
+entries in both current and legacy shell caches, including previously saved
+Pint Drops. Shell-cache lookup rejects `/p/<id>` even before activation runs.
+The offline ladder still opens `/map` from a legacy cache when a current-cache
+write fails. A valid `/plan/<id>` preview still opens through the separate
+plan cache.
+
+| Case | Before | After |
+| --- | --- | --- |
+| Offline `/p/<id>` in current or legacy shell cache | Returned stored Pint Drop HTML | Returns no Pint Drop HTML |
+| Upgrade with `/p` in current or legacy shell cache | Retained or copied entry | Deletes entry |
+| Network `/p/<id>` navigation | Not admitted by current shell or plan writers | Still not admitted |
+| Offline `/map` with legacy shell cache | Returned map shell | Still returns map shell |
+| Offline `/plan/<id>` | Returned plan preview | Still returns plan preview |
+
+## Final verification
+
+The local QA browser install lives under Git-ignored `artifacts/`. The deploy
+upload fence caught it as 1,259 MB of unlisted input. `.vercelignore` now
+excludes `artifacts/` and the Git-ignored `.gnhf/` run directory, and its test
+requires both exclusions. No evidence files were removed.
+
+| Command | Result |
+| --- | --- |
+| Focused cache and deploy-ignore tests | 51 passed, 0 failed |
+| `npm run typecheck` | Passed |
+| Targeted ESLint for changed code and tests | Passed, no warnings |
+| `DEPLOYMENT_VERSION=local npm run verify` | Passed; coverage: 17,945 passed, 5 skipped; lint: 0 errors, 74 warnings |
+| `DEPLOYMENT_VERSION=local NEXT_DIST_DIR=.next-prod npm run build` | Passed |
+
+The cache tests execute the shipped service worker and imported plan helper
+against an in-memory Cache Storage harness. No browser upgrade or deployment
+was run. Build-generated venue shard changes were restored after validation.

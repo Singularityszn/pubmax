@@ -573,7 +573,10 @@ describe("service worker map cache", () => {
       rolloutWorkerHarness({
         rejectCurrentWrites: true,
         entries: {
-          "pubmax-sw-shell-legacy-active": [["/map", shellResponse]],
+          "pubmax-sw-shell-legacy-active": [
+            ["/map", shellResponse],
+            ["/p/legacy-drop", new Response("legacy Pint Drop")],
+          ],
           "pubmax-sw-data-legacy-active": [
             ["/data/venues_slim.core.json", dataResponse],
           ],
@@ -602,6 +605,8 @@ describe("service worker map cache", () => {
         ?.has("https://pubmaxxing.com/_next/static/chunks/legacy.js"),
     ).toBe(true);
     expect(records.has("pubmax-sw-shell-legacy-active")).toBe(true);
+    expect(records.get("pubmax-sw-shell-legacy-active")
+      ?.has("https://pubmaxxing.com/p/legacy-drop")).toBe(false);
     expect(records.has("pubmax-sw-data-legacy-active")).toBe(true);
     expect(records.has("pubmax-sw-plan-legacy-active")).toBe(true);
     expect(
@@ -692,6 +697,72 @@ describe("service worker map cache", () => {
     expect([...records.get("pubmax-sw-plan-target")!.keys()]).toEqual([
       "https://pubmaxxing.com/plan/offline-night",
     ]);
+  });
+
+  it("never serves a Pint Drop from a shell cache before activation", async () => {
+    const { listeners } = rolloutWorkerHarness({
+      entries: {
+        "pubmax-sw-shell-target": [
+          ["/p/current-drop", new Response("cached Pint Drop")],
+        ],
+        "pubmax-sw-shell-legacy-active": [
+          ["/p/legacy-drop", new Response("old Pint Drop")],
+        ],
+      },
+    });
+
+    for (const path of ["/p/current-drop", "/p/legacy-drop"]) {
+      const navigation = dispatchFetch(
+        listeners.get("fetch")!,
+        { method: "GET", mode: "navigate", url: `https://pubmaxxing.com${path}` } as Request,
+      );
+      expect((await navigation.response as Response).status).toBe(503);
+    }
+  });
+
+  it("does not admit a network Pint Drop into shell or plan caches", async () => {
+    const pintDrop = new Response("live Pint Drop");
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: {},
+      response: pintDrop,
+    });
+    const navigation = dispatchFetch(
+      listeners.get("fetch")!,
+      { method: "GET", mode: "navigate", url: "https://pubmaxxing.com/p/live-drop" } as Request,
+    );
+
+    expect(await navigation.response).toBe(pintDrop);
+    await Promise.all(navigation.lifetime);
+    expect(records.get("pubmax-sw-shell-target")?.size ?? 0).toBe(0);
+    expect(records.get("pubmax-sw-plan-target")?.size ?? 0).toBe(0);
+  });
+
+  it("purges Pint Drops from current and legacy shell caches on activation", async () => {
+    const mapResponse = new Response("offline map");
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: {
+        "pubmax-sw-shell-target": [
+          ["/p/current-drop", new Response("current Pint Drop")],
+        ],
+        "pubmax-sw-shell-legacy-active": [
+          ["/p/legacy-drop", new Response("legacy Pint Drop")],
+          ["/map", mapResponse],
+        ],
+      },
+    });
+
+    await Promise.all(dispatchLifecycle(listeners.get("activate")!));
+
+    expect([...records.get("pubmax-sw-shell-target")!.keys()]).toEqual([
+      "https://pubmaxxing.com/map",
+    ]);
+    expect(records.has("pubmax-sw-shell-legacy-active")).toBe(false);
+
+    const map = dispatchFetch(
+      listeners.get("fetch")!,
+      { method: "GET", mode: "navigate", url: "https://pubmaxxing.com/map" } as Request,
+    );
+    expect(await map.response).toBe(mapResponse);
   });
 
   it("migrates shell entries without promoting old stable data", async () => {
