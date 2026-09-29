@@ -793,7 +793,15 @@ export const memoryPlanStore: PlanStore = {
     }
     if (update.status && !canTransitionPlannedNight(plan.plan.status ?? "draft", update.status)) return { ok: false, error: "invalid" };
     if (update.status) plan.plan.status = update.status;
-    if (update.context) plan.context = structuredClone(update.context);
+    if (update.context) {
+      plan.context = structuredClone(update.context);
+      for (const stop of plan.stops) {
+        if (stop.selectedDrinkPriceEvidence && (update.context.zeroProof
+          || stop.selectedDrinkPriceEvidence.category !== update.context.drinkCategory)) {
+          delete stop.selectedDrinkPriceEvidence;
+        }
+      }
+    }
     return { ok: true, plan: publicState(plan) };
   },
   async addAction(id, rawToken, action) {

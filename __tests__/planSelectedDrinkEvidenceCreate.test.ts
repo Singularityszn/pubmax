@@ -116,6 +116,35 @@ describe("Plan create selected drink evidence", () => {
     expect(JSON.stringify(buildPlanPrivacyPreview(reloaded))).not.toContain("750");
   });
 
+  it.each([
+    { drinkCategory: "beer", zeroProof: false },
+    { drinkCategory: "wine", zeroProof: true },
+  ] as const)("clears saved wine evidence when Plan intent changes to $drinkCategory with zeroProof=$zeroProof", async (change) => {
+    const submittedAt = Date.now();
+    const evidence = { category: "wine", pence: 750, serving: null, source: "community", reportedAt: new Date(submittedAt).toISOString() };
+    categoryIndexMock.mockResolvedValue({
+      prices: [{ venueId: "venue-a", drinkCategory: "wine", priceGbp: 7.5, submittedAt, source: "community", corroborations: 2 }],
+      degraded: false, truncated: false,
+    });
+    const { body } = await create("wine", evidence);
+    expect(body.plan.stops[0]?.selectedDrinkPriceEvidence).toEqual(evidence);
+    const sameIntent = await PATCH(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${body.memberToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ context: { ...body.plan.context, budget: "treat" } }),
+    }), { params: Promise.resolve({ id: body.plan.plan.id }) });
+    expect(sameIntent.status).toBe(200);
+    expect((await sameIntent.json()).stops[0]?.selectedDrinkPriceEvidence).toEqual(evidence);
+    const response = await PATCH(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${body.memberToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ context: { ...body.plan.context, ...change } }),
+    }), { params: Promise.resolve({ id: body.plan.plan.id }) });
+    expect(response.status).toBe(200);
+    expect((await response.json()).stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
+    expect((await memoryPlanStore.get(body.plan.plan.id))?.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
+  });
+
   it("omits forged, untrusted, degraded, and beer prices", async () => {
     const submittedAt = Date.now();
     const evidence = { category: "wine", pence: 750, serving: null, source: "community", reportedAt: new Date(submittedAt).toISOString() };
