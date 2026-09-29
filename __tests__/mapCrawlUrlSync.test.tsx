@@ -163,6 +163,41 @@ describe("curated crawl URL hydration hold", () => {
 });
 
 describe("crawl URL after Map history traversal", () => {
+  it.each([
+    ["/map/manchester", "back"],
+    ["/map/bristol", "home"],
+  ] as const)("keeps changed city Map filters when %s closes with %s", async (path, close) => {
+    window.history.replaceState({ root: true }, "", `${path}?q=Centre`);
+    await act(async () => {
+      root.render(createElement(HistoryHarness, { query: "Centre" }));
+    });
+    act(() => openHistorySurface({ id: "drink", title: "Drink", state: EMPTY_MAP_SURFACE_STATE }));
+    await act(async () => {
+      root.render(createElement(HistoryHarness, {
+        query: "Centre", drinkCategory: "wine", maxPrice: 6, zone: "3",
+      }));
+    });
+    act(() => vi.advanceTimersByTime(300));
+    expect(window.location.pathname).toBe(path);
+    expect(new URLSearchParams(window.location.search).get("drink")).toBe("wine");
+
+    vi.useRealTimers();
+    const landed = new Promise<void>((resolve) =>
+      window.addEventListener("popstate", () => resolve(), { once: true }),
+    );
+    if (close === "home") act(() => closeHistorySurfaces());
+    else window.history.back();
+    await landed;
+
+    expect(window.location.pathname).toBe(path);
+    const landedSearch = new URLSearchParams(window.location.search);
+    expect(landedSearch.get("q")).toBe("Centre");
+    expect(landedSearch.get("max")).toBe("6");
+    expect(landedSearch.get("drink")).toBe("wine");
+    expect(landedSearch.get("zone")).toBe("3");
+    expect(window.history.state.root).toBe(true);
+  });
+
   it("leaves an earlier root entry's deliberate drink choice intact", async () => {
     window.history.replaceState({ root: true }, "", "/map?drink=cocktail&q=Soho");
     window.history.pushState({ root: true }, "", "/map?drink=wine&q=Soho");

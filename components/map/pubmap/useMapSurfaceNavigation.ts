@@ -128,6 +128,7 @@ export function useMapSurfaceNavigation({
   );
   const stackRef = useRef(stack);
   const initialisedRef = useRef(false);
+  const ownedPathRef = useRef<string | null>(null);
   const pendingOpensRef = useRef<SurfaceEntry<MapSurfaceState>[]>([]);
   const onRestoreRef = useRef(onRestore);
   const onHomeRef = useRef(onHome);
@@ -185,6 +186,7 @@ export function useMapSurfaceNavigation({
   useLayoutEffect(() => {
     if (initialisedRef.current || typeof window === "undefined") return;
     initialisedRef.current = true;
+    ownedPathRef.current = window.location.pathname;
 
     const flushPendingOpens = () => {
       const pending = pendingOpensRef.current.splice(0);
@@ -289,7 +291,7 @@ export function useMapSurfaceNavigation({
         }
       }
       if (
-        window.location.pathname === "/map" &&
+        window.location.pathname === ownedPathRef.current &&
         landed !== null &&
         previous.length > next.length &&
         next.every((entry, index) => entry.id === previous[index]?.id)
