@@ -3,9 +3,107 @@ import { describe, expect, it, vi } from "vitest";
 import {
   clearLegacyPkceVerifiers,
   establishAuthCallbackSession,
+  prepareAuthCallbackSession,
 } from "@/lib/authCallbackClient";
+import { scrubAuthCallback } from "@/lib/authRedirect";
 
 describe("explicit implicit-flow callback completion", () => {
+  it("scrubs a forged-looking unowned map callback before offering cross-browser sign-in", async () => {
+    const replaceUrl = vi.fn();
+    const captured = await scrubAuthCallback(
+      "https://pubmaxxing.com/map#access_token=synthetic-access&refresh_token=synthetic-refresh",
+      replaceUrl,
+      { persistentStorage: null, tabStorage: null, lockManager: null },
+    );
+    expect(replaceUrl).toHaveBeenCalledWith("/map");
+    expect(captured?.localAttemptOwned).toBe(false);
+    expect(captured?.attempt.tokens).toEqual({
+      accessToken: "synthetic-access",
+      refreshToken: "synthetic-refresh",
+    });
+    const setSession = vi.fn().mockResolvedValue({ data: { session: null }, error: null });
+    const getUser = vi.fn().mockResolvedValue({
+      data: { user: { id: "account-a", email: "person@example.com" } },
+      error: null,
+    });
+    const pending = await prepareAuthCallbackSession(
+      { setSession, getUser },
+      captured!.attempt.tokens!,
+      captured!.localAttemptOwned,
+    );
+    expect(pending.status).toBe("confirmation-required");
+    expect(setSession).not.toHaveBeenCalled();
+  });
+
+  it("holds an unowned callback until its verified account is confirmed", async () => {
+    const setSession = vi.fn().mockResolvedValue({
+      data: { session: { user: { id: "account-a" } } },
+      error: null,
+    });
+    const getUser = vi.fn().mockResolvedValue({
+      data: { user: { id: "account-a", email: "person@example.com" } },
+      error: null,
+    });
+    const auth = { setSession, getUser };
+    const tokens = { accessToken: "synthetic-access", refreshToken: "synthetic-refresh" };
+
+    const pending = await prepareAuthCallbackSession(auth, tokens, false);
+    expect(getUser).toHaveBeenCalledWith("synthetic-access");
+    expect(pending).toMatchObject({
+      status: "confirmation-required",
+      identity: { userId: "account-a", label: "person@example.com" },
+    });
+    expect(setSession).not.toHaveBeenCalled();
+    if (pending.status !== "confirmation-required") throw new Error("Expected confirmation");
+    await pending.confirm();
+    expect(setSession).toHaveBeenCalledOnce();
+  });
+
+  it("never installs an unverified callback or one the reader cancels", async () => {
+    const setSession = vi.fn();
+    const tokens = { accessToken: "synthetic-access", refreshToken: "synthetic-refresh" };
+    const rejected = await prepareAuthCallbackSession(
+      {
+        setSession,
+        getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: new Error("invalid") }),
+      },
+      tokens,
+      false,
+    );
+    expect(rejected.status).toBe("verification-failed");
+    expect(setSession).not.toHaveBeenCalled();
+
+    const pending = await prepareAuthCallbackSession(
+      {
+        setSession,
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: "account-a", email: "person@example.com" } },
+          error: null,
+        }),
+      },
+      tokens,
+      false,
+    );
+    expect(pending.status).toBe("confirmation-required");
+    expect(setSession).not.toHaveBeenCalled();
+  });
+
+  it("keeps a locally owned callback immediate", async () => {
+    const session = { user: { id: "account-a" } };
+    const setSession = vi.fn().mockResolvedValue({ data: { session }, error: null });
+    const getUser = vi.fn();
+    const result = await prepareAuthCallbackSession(
+      { setSession, getUser },
+      { accessToken: "synthetic-access", refreshToken: "synthetic-refresh" },
+      true,
+    );
+    expect(result).toEqual({
+      status: "established",
+      result: { session, failed: false, banned: false },
+    });
+    expect(getUser).not.toHaveBeenCalled();
+  });
+
   it("returns the established session", async () => {
     const session = { access_token: "access" };
     const setSession = vi.fn().mockResolvedValue({

@@ -143,7 +143,7 @@ export type CapturedAuthCallback = {
   /**
    * True only when this browser owned and claimed the local attempt record.
    * False for attempt-less / cross-browser token landings (login-CSRF surface):
-   * the UI then shows a visible "Signed in as …" confirmation.
+   * the UI must ask for identity-labelled confirmation before session install.
    */
   localAttemptOwned: boolean;
   /** Release only after exchange and matching persistent cleanup complete. */
@@ -557,13 +557,12 @@ function rejectedAuthCallback(
 }
 
 /**
- * Callback tokens are self-authenticating: Supabase already verified the email
- * link or provider redirect that minted them, and an emailed link legitimately
+ * Supabase can verify callback tokens, and an emailed link legitimately
  * opens in a browser that never started the attempt (Gmail app opening Safari),
  * where no local attempt record exists. So a token-bearing callback survives a
  * missing, expired, or already-claimed local attempt — it only loses the stored
- * return-fragment restore. A token-less callback still fails closed; it exists
- * only to surface a failure banner.
+ * return-fragment restore. The caller verifies and confirms unowned tokens
+ * before session install. A token-less callback still fails closed.
  */
 function fallbackAuthCallback(
   parsedAttempt: AuthCallbackAttempt,

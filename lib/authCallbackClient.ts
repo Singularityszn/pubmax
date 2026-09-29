@@ -14,6 +14,51 @@ export type AuthCallbackSessionResult<SessionValue> = {
   banned: boolean;
 };
 
+export type AuthCallbackIdentityClient = {
+  getUser: (accessToken: string) => Promise<{
+    data: { user: { id: string; email?: string | null } | null };
+    error: unknown;
+  }>;
+};
+
+export type PreparedAuthCallbackSession<SessionValue> =
+  | { status: "established"; result: AuthCallbackSessionResult<SessionValue> }
+  | { status: "verification-failed" }
+  | {
+      status: "confirmation-required";
+      identity: { userId: string; label: string };
+      confirm: () => Promise<AuthCallbackSessionResult<SessionValue>>;
+    };
+
+/** Verify an unowned callback with GoTrue without installing it in the live client. */
+export async function prepareAuthCallbackSession<SessionValue>(
+  auth: AuthSessionEstablishClient<SessionValue> & AuthCallbackIdentityClient,
+  tokens: AuthCallbackTokens,
+  localAttemptOwned: boolean,
+): Promise<PreparedAuthCallbackSession<SessionValue>> {
+  if (localAttemptOwned) {
+    return {
+      status: "established",
+      result: await establishAuthCallbackSession(auth, tokens),
+    };
+  }
+
+  try {
+    const { data, error } = await auth.getUser(tokens.accessToken);
+    if (error || !data.user?.id) return { status: "verification-failed" };
+    const userId = data.user.id;
+    const label = data.user.email?.trim() || userId;
+    let inFlight: Promise<AuthCallbackSessionResult<SessionValue>> | null = null;
+    return {
+      status: "confirmation-required",
+      identity: { userId, label },
+      confirm: () => (inFlight ??= establishAuthCallbackSession(auth, tokens)),
+    };
+  } catch {
+    return { status: "verification-failed" };
+  }
+}
+
 /**
  * Establish the session from implicit-flow callback tokens. Normalizes both
  * Supabase errors and network failures for the UI, exactly like the PKCE

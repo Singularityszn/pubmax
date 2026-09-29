@@ -43,7 +43,9 @@ import { syncPosthogPersonIdentity } from "@/lib/posthog/posthogPerson";
 import { isUserSignUp } from "@/lib/userSignedUp";
 import {
   clearLegacyPkceVerifiers,
-  establishAuthCallbackSession,
+  prepareAuthCallbackSession,
+  type AuthCallbackSessionResult,
+  type PreparedAuthCallbackSession,
 } from "@/lib/authCallbackClient";
 import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import { loadAuthClientWithRetry } from "@/lib/authClientLoad";
@@ -286,7 +288,11 @@ export function AuthProvider({
   const [sessionLoading, setSessionLoading] = useState(true);
   const [authCallbackError, setAuthCallbackError] = useState<string | null>(null);
   const [authBannedNotice, setAuthBannedNotice] = useState(false);
-  /** Attempt-less / cross-browser success confirmation (login-CSRF mitigation). */
+  const [authCallbackConfirmation, setAuthCallbackConfirmation] = useState<{
+    label: string;
+    confirm: () => void;
+  } | null>(null);
+  /** Confirmation receipt after an unowned callback is accepted. */
   const [authSignedInNotice, setAuthSignedInNotice] = useState<string | null>(null);
   const [socialProviders, setSocialProviders] =
     useState<SocialAuthProviderAvailability>(NO_SOCIAL_AUTH_PROVIDERS);
@@ -377,7 +383,7 @@ export function AuthProvider({
   // React Strict Mode replays effects in development. Reuse one completion so
   // the callback tokens are never applied twice by the replayed mount effect.
   const callbackSessionInFlight = useRef<
-    Promise<{ session: Session | null; failed: boolean; banned: boolean }> | null
+    Promise<PreparedAuthCallbackSession<Session>> | null
   >(null);
 
   useEffect(() => {
@@ -662,58 +668,24 @@ export function AuthProvider({
       // Prime from callback tokens or any persisted session. Completion is
       // explicit so expired-link, missing-token, and network failures become
       // visible and one-time URL state is removed on both success and failure.
-      void (async () => {
-        await Promise.resolve();
-        const captured = await callbackCapture;
-        const callbackAttempt = captured?.attempt ?? null;
-        let exchangedSession: Session | null = null;
-        let exchangeBanned = false;
-        // Tokens complete sign-in even without an attempt id (a clamped
-        // cross-browser link); a token-less callback is the genuine failure.
-        let exchangeFailed = Boolean(
-          callbackAttempt &&
-            (callbackAttempt.providerError || !callbackAttempt.tokens),
-        );
-        try {
-          if (callbackAttempt?.tokens && !callbackAttempt.providerError) {
-            if (!callbackSessionInFlight.current) {
-              callbackSessionInFlight.current = establishAuthCallbackSession(
-                supabase.auth,
-                callbackAttempt.tokens,
-              );
-            }
-            const exchange = await callbackSessionInFlight.current;
-            exchangedSession = exchange.session;
-            exchangeBanned = exchange.banned;
-            exchangeFailed = exchange.failed && !exchange.banned;
-          }
-        } finally {
-          if (callbackAttempt?.attemptId) {
-            releaseBrowserAuthAttempt(callbackAttempt.attemptId);
-          }
-          captured?.releaseCoordination();
-        }
-        // Success or failure, the exchange is over: nothing may still need the
-        // callback URL, so any credentials the synchronous scrub missed (a
-        // refused or reverted replaceState) leave the address bar here.
-        scrubLingeringBrowserAuthCallback();
+      const finishCallbackExchange = (
+        exchange: AuthCallbackSessionResult<Session>,
+        captured: CapturedAuthCallback,
+      ) => {
         if (!active) return;
-        if (exchangeBanned) {
+        const callbackAttempt = captured.attempt;
+        if (exchange.banned) {
           setAuthBannedNotice(true);
           setAuthCallbackError(null);
           void supabase.auth.signOut({ scope: "local" });
-        } else if (callbackAttempt?.accountBanned) {
-          setAuthBannedNotice(true);
-          setAuthCallbackError(null);
-        } else if (exchangeFailed) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+        } else if (exchange.failed) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
 
+        const exchangedSession = exchange.session;
         if (exchangedSession) {
           window.clearTimeout(loadingTimeout);
           updateSession(exchangedSession);
           setSessionLoading(false);
-          // Attempt-less token sign-in (cross-browser email link, clamped
-          // landing): show who signed in so a surprise session is never silent.
-          if (callbackAttempt && !captured?.localAttemptOwned) {
+          if (!captured.localAttemptOwned) {
             setAuthSignedInNotice(
               signedInAsMessage(exchangedSession.user?.email),
             );
@@ -721,21 +693,15 @@ export function AuthProvider({
           // The PKCE flow this app ran before left one-time code-verifier keys
           // behind; the implicit flow never clears them, so sweep them here.
           clearLegacyPkceVerifiers(browserLocalStorage());
-          const referralClaimed = callbackAttempt
-            ? claimSignupReferralFromAuthCallback({
-                currentUrl: window.location.href,
-                callback: callbackAttempt,
-                request: (input, init) =>
-                  authedActionFetch(input, init ?? {}, { requiresIdentity: true }),
-                replaceUrl: (cleanUrl) => {
-                  window.history.replaceState(
-                    window.history.state,
-                    "",
-                    cleanUrl,
-                  );
-                },
-              })
-            : Promise.resolve();
+          const referralClaimed = claimSignupReferralFromAuthCallback({
+            currentUrl: window.location.href,
+            callback: callbackAttempt,
+            request: (input, init) =>
+              authedActionFetch(input, init ?? {}, { requiresIdentity: true }),
+            replaceUrl: (cleanUrl) => {
+              window.history.replaceState(window.history.state, "", cleanUrl);
+            },
+          });
           // Account first, handle second: once the referral claim settles (a
           // navigation would abort its in-flight request), an account with no
           // claimed handle lands on the claim surface.
@@ -744,7 +710,7 @@ export function AuthProvider({
             .then(() =>
               handleClaimRouteAfterSignIn(
                 exchangedSession,
-                captured?.cleanUrl ?? "/",
+                captured.cleanUrl,
                 browserLocalStorage(),
               ),
             )
@@ -752,8 +718,62 @@ export function AuthProvider({
               if (destination && active) window.location.assign(destination);
             })
             .catch(() => {});
-          return;
         }
+      };
+
+      void (async () => {
+        await Promise.resolve();
+        const captured = await callbackCapture;
+        if (!active) return;
+        const callbackAttempt = captured?.attempt ?? null;
+        let exchange: AuthCallbackSessionResult<Session> | null = null;
+        let verificationFailed = false;
+        try {
+          if (captured && callbackAttempt?.tokens && !callbackAttempt.providerError) {
+            if (!callbackSessionInFlight.current) {
+              callbackSessionInFlight.current = prepareAuthCallbackSession(
+                supabase.auth,
+                callbackAttempt.tokens,
+                captured.localAttemptOwned,
+              );
+            }
+            const prepared = await callbackSessionInFlight.current;
+            if (!active) return;
+            if (prepared.status === "established") {
+              exchange = prepared.result;
+            } else if (prepared.status === "confirmation-required") {
+              setAuthCallbackConfirmation({
+                label: prepared.identity.label,
+                confirm: () => {
+                  void prepared.confirm().then((confirmed) => {
+                    finishCallbackExchange(confirmed, captured);
+                  });
+                },
+              });
+            } else {
+              verificationFailed = true;
+            }
+          }
+        } finally {
+          if (callbackAttempt?.attemptId) {
+            releaseBrowserAuthAttempt(callbackAttempt.attemptId);
+          }
+          captured?.releaseCoordination();
+        }
+        // Scrub again even when confirmation is pending or verification failed.
+        scrubLingeringBrowserAuthCallback();
+        if (!active) return;
+        if (exchange && captured) finishCallbackExchange(exchange, captured);
+        if (callbackAttempt?.accountBanned) {
+          setAuthBannedNotice(true);
+          setAuthCallbackError(null);
+        } else if (
+          verificationFailed ||
+          (callbackAttempt && (callbackAttempt.providerError || !callbackAttempt.tokens))
+        ) {
+          setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+        }
+        if (exchange?.session) return;
 
         const bootstrapped = await bootstrapAuthSession(supabase.auth).catch(
           () => ({ status: "unavailable" } as const),
@@ -1133,6 +1153,25 @@ export function AuthProvider({
       {children}
       {authBannedNotice ? (
         <AuthAccountBannedNotice onDismiss={() => setAuthBannedNotice(false)} />
+      ) : authCallbackConfirmation ? (
+        <div className="authCallbackNotice authCallbackNotice--confirm" role="alert">
+          <span>Sign in as {authCallbackConfirmation.label}?</span>
+          <div className="authCallbackNoticeActions">
+            <button
+              type="button"
+              onClick={() => {
+                const pending = authCallbackConfirmation;
+                setAuthCallbackConfirmation(null);
+                pending.confirm();
+              }}
+            >
+              Continue
+            </button>
+            <button type="button" onClick={() => setAuthCallbackConfirmation(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
       ) : authCallbackError ? (
         <div className="authCallbackNotice" role="alert">
           <span>{authCallbackError}</span>

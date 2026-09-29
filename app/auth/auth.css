@@ -184,8 +184,22 @@
   border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
 }
 
+.authCallbackNotice--confirm {
+  flex-wrap: wrap;
+  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+}
+
+.authCallbackNoticeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
 .authCallbackNotice span {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 0.88rem;
   line-height: 1.4;
 }
