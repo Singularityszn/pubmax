@@ -11,6 +11,13 @@ import type { RobotsChecker } from "@/lib/harvest/robots";
 const KEY = { CONTEXT_DEV_API_KEY: "ctx-key" } as unknown as NodeJS.ProcessEnv;
 const MENU_URL = "https://www.some-free-house.co.uk/drinks";
 
+function scrapeMarkdownResponse(markdown: string) {
+  return new Response(JSON.stringify({
+    url: MENU_URL,
+    markdown: { requested: true, success: true, data: markdown },
+  }), { headers: { "content-type": "application/json" } });
+}
+
 function allowRobots(): RobotsChecker {
   return async () => ({ allowed: true, reason: "allowed", evidence: "stub" });
 }
@@ -65,11 +72,9 @@ describe("readPricesFrom", () => {
     const reader = createContextDevPriceReader({
       env: KEY,
       robots: allowRobots(),
-      fetchImpl: async () => new Response(JSON.stringify({
-        success: true,
-        url: MENU_URL,
-        markdown: `${PRICED_MENU}\n<p>Chardonnay, France<br />125ml £5.50 250ml £11.00</p>`,
-      }), { headers: { "content-type": "application/json" } }),
+      fetchImpl: async () => scrapeMarkdownResponse(
+        `${PRICED_MENU}\n<p>Chardonnay, France<br />125ml £5.50 250ml £11.00</p>`,
+      ),
     });
     const answer = await reader.readPricesFrom(MENU_URL);
     expect(answer.outcome).toBe("priced");
@@ -82,9 +87,7 @@ describe("readPricesFrom", () => {
 
   it("hands the markdown to the shared price rules and prices the page", async () => {
     const fetchImpl = vi.fn(async () =>
-      new Response(JSON.stringify({ success: true, url: MENU_URL, markdown: PRICED_MENU }), {
-        headers: { "content-type": "application/json" },
-      }),
+      scrapeMarkdownResponse(PRICED_MENU),
     );
     const reader = createContextDevPriceReader({
       env: KEY,
@@ -121,9 +124,7 @@ describe("readPricesFrom", () => {
       env: KEY,
       robots: allowRobots(),
       fetchImpl: vi.fn(async () =>
-        new Response(JSON.stringify({ success: true, url: MENU_URL, markdown: "  " }), {
-          headers: { "content-type": "application/json" },
-        }),
+        scrapeMarkdownResponse("  "),
       ),
     });
     expect((await empty.readPricesFrom(MENU_URL)).outcome).toBe("render-empty");
@@ -132,14 +133,7 @@ describe("readPricesFrom", () => {
       env: KEY,
       robots: allowRobots(),
       fetchImpl: vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            success: true,
-            url: MENU_URL,
-            markdown: `# Our pub\n${"We have been pouring since 1897. ".repeat(40)}`,
-          }),
-          { headers: { "content-type": "application/json" } },
-        ),
+        scrapeMarkdownResponse(`# Our pub\n${"We have been pouring since 1897. ".repeat(40)}`),
       ),
     });
     expect((await wordy.readPricesFrom(MENU_URL)).outcome).toBe("menu-states-no-price");

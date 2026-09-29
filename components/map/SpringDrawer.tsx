@@ -278,9 +278,12 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
         className={`springDrawer ${className ?? ""}${presentationClassName}`.trim()}
         data-spring-axis={tabletSheet ? "vertical" : "horizontal"}
         style={style}
-        inert={open ? undefined : true}
       >
-        {open ? children : retainedChildren}
+        {/* The focus trap owns inert on the outer drawer. Keep closed content
+            separate so trap cleanup cannot restore a stale closed state. */}
+        <div style={{ display: "contents" }} inert={open ? undefined : true}>
+          {open ? children : retainedChildren}
+        </div>
       </div>
     );
   },

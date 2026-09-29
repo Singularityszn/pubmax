@@ -56,9 +56,9 @@ export const CONTEXT_DEV_MAX_RETRY_AFTER_MS = 30_000;
  * Requests ONE run may send, counting retries, so a retry storm spends the run
  * rather than the account - the ceiling lib/harvest/firecrawl.ts puts on its own
  * lane, for the same reason. A request is the unit here because the endpoints do
- * not cost the same: a markdown scrape, a sitemap read and a crawled page are 1
- * credit each, a search is 1 per 10 results, and an extract or a brand read is
- * 10, so twelve requests is at most 120 credits a run.
+ * not cost the same: a markdown scrape, a URL map read and a crawled page are 1
+ * credit each, a search is 1 per 10 results, and a JSON scrape costs up to 5.
+ * Keep the request ceiling even if provider credit prices change.
  */
 export const CONTEXT_DEV_RUN_REQUEST_BUDGET = 12;
 
@@ -176,6 +176,7 @@ type ContextDevExtractOk<T> = {
   status: "ok";
   url: string;
   data: T;
+  markdown: string;
   urlsAnalyzed: string[];
 };
 
@@ -188,7 +189,7 @@ export type ContextDevCallOptions = {
   /**
    * How old a cached answer may be before Context.dev refetches the page. Pass
    * it whenever freshness is part of the claim the answer will carry; 0 forces a
-   * live read.
+   * live read. `extract` overrides this option; see its wrapper contract.
    */
   maxAgeMs?: number;
   env?: NodeJS.ProcessEnv;
@@ -328,6 +329,7 @@ async function withRetries<T>(
 }
 
 function contextDevClient(apiKey: string, options: ContextDevCallOptions): ContextDev {
+  const fetchImpl = options.fetchImpl ?? fetch;
   return new ContextDev({
     apiKey,
     baseURL: CONTEXT_DEV_API_BASE,
@@ -336,7 +338,25 @@ function contextDevClient(apiKey: string, options: ContextDevCallOptions): Conte
     // budget this module never counted and would wait on a schedule that
     // ignores the Retry-After ceiling above.
     maxRetries: 0,
-    ...(options.fetchImpl ? { fetch: options.fetchImpl } : {}),
+    fetch: async (input, init) => {
+      const response = await fetchImpl(input, init);
+      if (!response.ok || response.status === 204) return response;
+
+      const contentType = response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
+      if (contentType !== "application/json" && !contentType?.endsWith("+json")) return response;
+      if ((await response.clone().text()) !== "") return response;
+
+      // The SDK only recognizes empty JSON when Content-Length is explicitly 0.
+      // Add that metadata to an actually empty successful response so its parser
+      // returns null and the call is classified as EMPTY_BODY without retrying.
+      const headers = new Headers(response.headers);
+      headers.set("content-length", "0");
+      return new Response(null, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    },
   });
 }
 
@@ -354,7 +374,7 @@ async function attempt<Raw, Value>(
 ): Promise<Attempt<Value>> {
   try {
     const raw = await send();
-    const value = read(raw);
+    const value = raw == null ? null : read(raw);
     if (value === null) {
       return {
         kind: "fail",
@@ -461,10 +481,10 @@ export async function scrapeMarkdown(
 ): Promise<ContextDevScrapeResult> {
   return guardedCall<ContextDevScrapeOk>(url, options, (client) =>
     attempt(
-      () => client.web.webScrapeMd({ url, maxAgeMs: positiveMaxAge(options) }),
+      () => client.web.scrape({ url, formats: { markdown: true }, maxAgeMs: positiveMaxAge(options) }),
       (body) =>
-        typeof body?.markdown === "string"
-          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, markdown: body.markdown }
+        body.markdown?.success === true && typeof body.markdown.data === "string"
+          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, markdown: body.markdown.data }
           : null,
       "Scrape returned no markdown.",
     ),
@@ -478,10 +498,10 @@ export async function scrapeHtml(
 ): Promise<ContextDevHtmlResult> {
   return guardedCall<ContextDevHtmlOk>(url, options, (client) =>
     attempt(
-      () => client.web.webScrapeHTML({ url, maxAgeMs: positiveMaxAge(options) }),
+      () => client.web.scrape({ url, formats: { html: true }, maxAgeMs: positiveMaxAge(options) }),
       (body) =>
-        typeof body?.html === "string"
-          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, html: body.html }
+        body.html?.success === true && typeof body.html.data === "string"
+          ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, html: body.html.data }
           : null,
       "Scrape returned no html.",
     ),
@@ -511,7 +531,7 @@ export async function sitemapUrls(
   return guardedCall<ContextDevSitemapOk>(url, options, (client) =>
     attempt(
       () =>
-        client.web.webScrapeSitemap({
+        client.web.mapUrls({
           domain,
           ...(options.maxLinks === undefined ? {} : { maxLinks: options.maxLinks }),
           ...(options.urlRegex === undefined ? {} : { urlRegex: options.urlRegex }),
@@ -521,7 +541,7 @@ export async function sitemapUrls(
           ? {
               status: "ok" as const,
               domain: typeof body.domain === "string" && body.domain ? body.domain : domain,
-              urls: body.urls.filter((entry): entry is string => typeof entry === "string"),
+              urls: body.urls.map((entry) => entry?.url).filter((entry): entry is string => typeof entry === "string"),
             }
           : null,
       "Sitemap read returned no urls.",
@@ -572,15 +592,15 @@ export async function crawlMarkdown(
 }
 
 /**
- * Extract one page into a JSON schema. 10 credits.
+ * Extract one page into a JSON schema through the unified scrape.
  *
- * `factCheck` defaults on, because an extraction that is not checked against
- * the page is a model's account of it rather than an observation.
+ * Freshness, capture completeness and credit costs are defined in
+ * docs/rules/lib-shared-seams-stores-http-freshness-brand.md, Context.dev contract.
  */
 export async function extract<T extends Record<string, unknown> = Record<string, unknown>>(
   url: string,
   schema: Record<string, unknown>,
-  options: ContextDevCallOptions & { instructions?: string; factCheck?: boolean; maxPages?: number } = {},
+  options: ContextDevCallOptions & { instructions?: string } = {},
 ): Promise<ContextDevExtractResult<T>> {
   const instructions =
     typeof options.instructions === "string" && options.instructions.trim().length > 0
@@ -589,23 +609,22 @@ export async function extract<T extends Record<string, unknown> = Record<string,
   return guardedCall<ContextDevExtractOk<T>>(url, options, (client) =>
     attempt(
       () =>
-        client.web.extract({
+        client.web.scrape({
           url,
-          schema: schema as Record<string, unknown> & { [key: string]: unknown },
-          factCheck: options.factCheck ?? true,
-          maxPages: options.maxPages ?? 1,
-          maxAgeMs: positiveMaxAge(options),
-          ...(instructions === undefined ? {} : { instructions }),
+          formats: { json: true, markdown: true },
+          jsonParams: { schema, ...(instructions === undefined ? {} : { instructions }) },
+          maxAgeMs: 0,
         }),
       (body) =>
-        typeof body?.data === "object" && body.data !== null
+        body?.isPartial !== true && body?.json?.success === true && typeof body.json.data === "object" && body.json.data !== null
+          && body.markdown?.success === true && typeof body.markdown.data === "string"
+          && typeof body.url === "string" && body.url.length > 0
           ? {
               status: "ok" as const,
-              url: typeof body.url === "string" ? body.url : url,
-              data: body.data as T,
-              urlsAnalyzed: Array.isArray(body.urls_analyzed)
-                ? body.urls_analyzed.filter((entry): entry is string => typeof entry === "string")
-                : [],
+              url: body.url,
+              data: body.json.data as T,
+              markdown: body.markdown.data,
+              urlsAnalyzed: [body.url],
             }
           : null,
       "Extract returned no data.",
