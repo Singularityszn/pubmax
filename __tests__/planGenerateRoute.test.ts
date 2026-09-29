@@ -186,6 +186,10 @@ describe("POST /api/plans/generate", () => {
       expect.objectContaining({ kind: "get_home", requiresConfirmation: true }),
       expect.objectContaining({ kind: "keep_going", requiresConfirmation: true }),
     ]);
+    expect(body.endingRecommendations[2].options).toContainEqual(expect.objectContaining({
+      priceImpactPence: expect.any(Number),
+      detail: expect.stringContaining("recorded pint"),
+    }));
     expect(body.contextEffects).toEqual(expect.arrayContaining(["budget", "daypart", "groupSize", "atmosphere"]));
     expect(body.missingContextEvidence).toEqual([]);
     expect(body.explanations).toEqual(expect.arrayContaining([expect.objectContaining({ field: "nightArea" })]));
@@ -225,6 +229,8 @@ describe("POST /api/plans/generate", () => {
 
   it.each([
     ["cheap wine in Clapham for 2", "wine"],
+    ["cheap cocktails in Clapham for 2", "cocktail"],
+    ["cheap whisky in Clapham for 2", "whisky"],
     ["cheap alcohol-free drinks in Clapham for 2", null],
   ])("keeps pint prices out of generated %s response", async (query, drinkCategory) => {
     categoryIndexMock.mockResolvedValueOnce({ prices: [], truncated: false, degraded: false });
@@ -244,6 +250,10 @@ describe("POST /api/plans/generate", () => {
       withinLimit: null,
       basis: "selected-drink-price-unavailable",
     });
+    const extensions = body.endingRecommendations.find((ending: { kind: string }) => ending.kind === "keep_going")?.options;
+    expect(extensions.length).toBeGreaterThan(0);
+    expect(extensions.every((option: { detail: string; priceImpactPence: number | null }) =>
+      option.priceImpactPence === null && option.detail.includes("drink price unavailable for this extension") && !option.detail.includes("pint"))).toBe(true);
     expect(body.missingContextEvidence).toContain("price_evidence");
   });
 
