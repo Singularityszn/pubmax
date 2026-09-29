@@ -16,6 +16,8 @@ import {
   orderVenueDrinkPrices,
 } from "@/lib/drinkLanes";
 import type { DrinkCategory } from "@/lib/drinks";
+import { CATEGORY_META } from "@/lib/drinks";
+import type { ListedCategoryPrice } from "@/lib/listedCategoryPrices";
 import {
   drinkLensEmptyVenueNote,
   type VenuePriceReadStatus,
@@ -24,6 +26,71 @@ import { COMMUNITY_PRICE_NOTE } from "@/lib/venues";
 import { formatPrice } from "@/lib/venues";
 
 import "./venueDrinkPrices.css";
+
+const listedDayFormatter = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+function PublishedMenuPrices({
+  prices,
+  unavailable,
+}: {
+  prices: readonly ListedCategoryPrice[];
+  unavailable: boolean;
+}) {
+  if (unavailable) {
+    return (
+      <p className="venueListedPriceUnavailable" role="status">
+        Published menu prices unavailable just now.
+      </p>
+    );
+  }
+  if (prices.length === 0) return null;
+
+  return (
+    <div className="venueListedPrices">
+      <h3>Prices on published menus</h3>
+      <ul className="venueDrinkPricesList">
+        {prices.map((quote, index) => (
+          <li key={`${quote.category}-${quote.sourceUrl}-${index}`} className="venueListedPriceRow">
+            <span className="venueDrinkPriceTag">
+              {CATEGORY_META[quote.category].label}
+              {quote.drinkLabel && quote.drinkLabel !== CATEGORY_META[quote.category].label
+                ? ` · ${quote.drinkLabel}`
+                : null}
+            </span>
+            <span className="venueDrinkPriceFigure">{formatPrice(quote.priceGbp)}</span>
+            <span className="venueListedPriceMeasure">
+              {quote.servingSize || "Serving not recorded"}
+            </span>
+            <span className="venueListedPriceSource">
+              Price seen {listedDayFormatter.format(new Date(quote.observedAt))} ·{" "}
+              <a href={quote.sourceUrl} target="_blank" rel="noopener noreferrer">
+                View menu source
+              </a>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function emptyLaneNote(
+  hasCommunityRow: boolean,
+  hasOtherLoggedPrice: boolean,
+  hasListedQuote: boolean,
+  laneNoun: string,
+  readStatus: VenuePriceReadStatus,
+): string | null {
+  if (hasCommunityRow || hasOtherLoggedPrice || (hasListedQuote && readStatus === "ready")) {
+    return null;
+  }
+  return drinkLensEmptyVenueNote(laneNoun, readStatus);
+}
 
 /**
  * What drinkers have logged at ONE pub, one row per drink, the map's lane first.
@@ -47,6 +114,7 @@ export default function VenueDrinkPrices({
   venueId,
   venueName,
   rows,
+  listedPrices,
   activeLane,
   laneNoun,
   readStatus,
@@ -63,6 +131,8 @@ export default function VenueDrinkPrices({
   venueName: string;
   /** The pub's freshest community price per drink, unfiltered by trust. */
   rows: readonly CommunityPrice[] | undefined;
+  /** Separately sourced menu quotes. Null means the bundle read failed. */
+  listedPrices?: readonly ListedCategoryPrice[] | null;
   /** The drink the map is under. Its row leads; its absence is the invite. */
   activeLane: DrinkCategory;
   /** That lane inside a sentence: "no cocktail price logged here yet". */
@@ -104,14 +174,23 @@ export default function VenueDrinkPrices({
   const beerBand = (category: string, priceGbp: number) =>
     category === "beer" ? priceBand(priceGbp, bandArea) : null;
   const laneRow = ordered.find((row) => row.inActiveLane) ?? null;
+  const orderedListed = listedPrices?.length
+    ? [...listedPrices].sort((left, right) =>
+        Number(right.category === activeLane) - Number(left.category === activeLane),
+      )
+    : [];
+  const listedLanePresent = orderedListed.some((quote) => quote.category === activeLane);
   // The empty statement is the shared helper's, so a read that failed or one
   // still running can never settle as "nobody has logged this here".
-  const laneEmptyNote =
-    laneRow || laneLoggedPriceShown
-      ? null
-      : drinkLensEmptyVenueNote(laneNoun, readStatus);
+  const laneEmptyNote = emptyLaneNote(
+    Boolean(laneRow),
+    laneLoggedPriceShown,
+    listedLanePresent,
+    laneNoun,
+    readStatus,
+  );
   const invite =
-    laneRow || laneLoggedPriceShown || !canLog || inviteOwnedElsewhere
+    laneRow || laneLoggedPriceShown || listedLanePresent || !canLog || inviteOwnedElsewhere
       ? null
       : drinkLaneLogInvite(
           laneNoun,
@@ -120,12 +199,12 @@ export default function VenueDrinkPrices({
           readStatus,
         );
 
-  if (!lead && !laneEmptyNote) return null;
+  if (!lead && !laneEmptyNote && orderedListed.length === 0 && listedPrices !== null) return null;
 
   return (
     <section
       className="venueDrinkPrices"
-      aria-label={`Drink prices logged at ${venueName}`}
+      aria-label={`Drink prices at ${venueName}`}
     >
       {lead ? (
         <div className="contributorPrice communityPriceRow">
@@ -207,10 +286,14 @@ export default function VenueDrinkPrices({
         </ul>
       ) : null}
 
+      <PublishedMenuPrices prices={orderedListed} unavailable={listedPrices === null} />
+
       {laneEmptyNote ? (
         <div className="venueDrinkPricesEmpty">
           <p className="venueDrinkPricesEmptyNote" role="status">
-            {laneEmptyNote}
+            {listedLanePresent && readStatus === "degraded"
+              ? "Could not read drinker-logged prices just now."
+              : laneEmptyNote}
           </p>
           {invite ? (
             <>
