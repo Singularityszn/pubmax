@@ -119,4 +119,41 @@ describe("listed category price projection", () => {
       expect.objectContaining({ drinkLabel: "Chenin bottle", priceGbp: 31.5 }),
     );
   });
+
+  it("uses the newest reading for one named drink and serving before comparing distinct drinks", () => {
+    const rows = [
+      {
+        ...row({ drinkLabel: "Rioja", priceGbp: 5, observedAt: "2026-07-11T10:00:00Z" }),
+        servingSize: "125ml",
+      },
+      {
+        ...row({ drinkLabel: "Rioja", priceGbp: 6, observedAt: "2026-09-29T10:00:00Z" }),
+        servingSize: "125ml",
+      },
+      {
+        ...row({ drinkLabel: "Chenin", priceGbp: 5.5, observedAt: "2026-09-28T10:00:00Z" }),
+        servingSize: "125ml",
+      },
+    ];
+
+    expect(listedCategoryPrices(rows.slice(0, 2), NOW)).toEqual([
+      expect.objectContaining({
+        drinkLabel: "Rioja",
+        priceGbp: 6,
+        observedAt: "2026-09-29T10:00:00Z",
+      }),
+    ]);
+    expect(listedCategoryPrices(rows, NOW)).toEqual([
+      expect.objectContaining({ drinkLabel: "Chenin", priceGbp: 5.5 }),
+    ]);
+  });
+
+  it("does not merge unnamed quotes with unknown servings into a drink identity", () => {
+    const rows = [
+      row({ drinkLabel: undefined, priceGbp: 7, observedAt: "2026-09-29T10:00:00Z" }),
+      row({ drinkLabel: undefined, priceGbp: 5, observedAt: "2026-09-28T10:00:00Z" }),
+    ];
+
+    expect(listedCategoryPrices(rows, NOW).map((quote) => quote.priceGbp)).toEqual([7, 5]);
+  });
 });

@@ -1,3 +1,4 @@
+import { bundleRowDedupeDrinkKey } from "@/lib/bundleDrinkFields";
 import {
   DRINK_CATEGORIES,
   isDrinkCategory,
@@ -7,6 +8,7 @@ import { listedServingComparisonKey } from "@/lib/listedPriceComparison";
 import { priceStandingFor } from "@/lib/priceTier";
 import {
   authoritativeBundleRows,
+  bundleRowSupersedes,
   type UkPriceBundleRow,
 } from "@/lib/ukPriceBundle";
 
@@ -29,7 +31,7 @@ export function listedCategoryPrices(
   rows: readonly UkPriceBundleRow[],
   now: number = Date.now(),
 ): ListedCategoryPrice[] {
-  const eligible: { quote: ListedCategoryPrice; index: number }[] = [];
+  const eligible: { quote: ListedCategoryPrice; index: number; row: UkPriceBundleRow }[] = [];
 
   for (const [index, row] of authoritativeBundleRows(rows).entries()) {
     if (
@@ -77,12 +79,35 @@ export function listedCategoryPrices(
         observedAt: decision.asOf,
       },
       index,
+      row,
     });
+  }
+
+  // A later reading of the same named drink and serving replaces its earlier
+  // price. Unnamed rows have no drink identity and stay separate.
+  const currentByDrink = new Map<string, (typeof eligible)[number]>();
+  const unnamed: (typeof eligible)[number][] = [];
+  for (const entry of eligible) {
+    const drinkKey = bundleRowDedupeDrinkKey(entry.row);
+    if (!drinkKey) {
+      unnamed.push(entry);
+      continue;
+    }
+    const servingKey =
+      listedServingComparisonKey(entry.quote.category, entry.quote.servingSize) ??
+      entry.quote.servingSize?.toLowerCase() ??
+      null;
+    const key = JSON.stringify([entry.quote.category, drinkKey, servingKey]);
+    const held = currentByDrink.get(key);
+    if (!held || bundleRowSupersedes(entry.row, held.row)) {
+      currentByDrink.set(key, entry);
+    }
   }
 
   // A stated, identical serving can be compared by price. Unknown and mixed
   // servings retain source order by recency, never a price rank.
-  eligible.sort(
+  const current = [...currentByDrink.values(), ...unnamed];
+  current.sort(
     (left, right) =>
       right.quote.observedAt.localeCompare(left.quote.observedAt) ||
       left.index - right.index,
@@ -92,7 +117,7 @@ export function listedCategoryPrices(
     if (category === "beer") continue;
     const bestByServing = new Map<string, (typeof eligible)[number]>();
     const neutral: (typeof eligible)[number][] = [];
-    for (const entry of eligible) {
+    for (const entry of current) {
       if (entry.quote.category !== category) continue;
       const key = listedServingComparisonKey(category, entry.quote.servingSize);
       if (key === null) {
