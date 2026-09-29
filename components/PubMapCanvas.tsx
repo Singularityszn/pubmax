@@ -1366,6 +1366,9 @@ export default function PubMapCanvas({
         style: MAP_STYLES[themeRef.current],
         ...mapViewRef.current,
         maxBounds: maxBoundsRef.current,
+        // A pitch gesture must keep the reader's bearing, including the
+        // four-degree arrival. Only the app's compass resets that attitude.
+        bearingSnap: 0,
         // ODbL credit for the pub layers we draw ourselves. Set on the map, not
         // on a source, so it survives every style swap (theme toggle, fallback
         // styles) and shows in every city - the rail-lines source's own

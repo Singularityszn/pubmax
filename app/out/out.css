@@ -415,6 +415,9 @@
 }
 
 .outPlansFootLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   color: var(--ink-soft);
   font-weight: 600;
   text-decoration: underline;

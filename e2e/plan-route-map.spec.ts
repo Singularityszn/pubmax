@@ -58,15 +58,28 @@ test.describe("locked plan route map", () => {
     const mapPreview = page.locator(".planRouteMiniMap__canvas.maplibreMap");
     await expect(mapPreview).toBeVisible({ timeout: 60_000 });
     await expect(page.locator(".planRouteMiniMap__canvas .maplibregl-canvas")).toBeVisible();
-    // The credit starts at its (i) button: an open panel covers the last stop.
-    await expect(page.locator(".planRouteMiniMap__canvas .maplibregl-ctrl-attrib-button")).toBeVisible();
-    await expect(page.locator(".planRouteMiniMap__canvas .maplibregl-ctrl-attrib-inner")).toBeHidden();
+    // Attribution remains a separate control above the full-card route link.
+    const attributionButton = page.locator(".planRouteMiniMap__canvas .maplibregl-ctrl-attrib-button");
+    const attributionCredit = page.locator(".planRouteMiniMap__canvas .maplibregl-ctrl-attrib-inner");
+    await expect(attributionButton).toBeVisible();
+    await expect(attributionCredit).toBeHidden();
+    await attributionButton.click();
+    await expect(attributionCredit).toBeVisible();
+    await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}/);
+    await attributionButton.click();
+    await expect(attributionCredit).toBeHidden();
 
-    const mapCard = page.locator(".planRouteMiniMap--clickable");
-    await expect(mapCard).toBeVisible();
-
-    await mapCard.click();
+    const routeLink = page.locator(".planRouteMiniMap__routeLink");
+    await expect(routeLink).toHaveAttribute("href", /\/map\?mode=build&pubs=/);
+    await routeLink.click();
     await expect(page).toHaveURL(/\/map\?mode=build&pubs=/);
     await expect(page.locator(".mapCanvasWrap, .mapCanvasSkeleton")).toBeVisible();
+
+    await page.goBack();
+    const returnedRouteLink = page.locator(".planRouteMiniMap__routeLink");
+    await expect(returnedRouteLink).toBeVisible({ timeout: 60_000 });
+    await returnedRouteLink.focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/map\?mode=build&pubs=/);
   });
 });

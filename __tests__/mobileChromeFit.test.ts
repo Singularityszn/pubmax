@@ -425,7 +425,9 @@ describe("mobile tap-target floors", () => {
   });
 
   it("floors the landing footer links to 44px", () => {
-    expect(landingCss).toMatch(/\.lpFooterCol a\s*{\s*min-height:\s*44px/);
+    const footerLinks = landingCss.match(/\.lpFooterCol a\s*{([^}]*)}/)?.[1] ?? "";
+    expect(footerLinks).toMatch(/min-width:\s*44px/);
+    expect(footerLinks).toMatch(/min-height:\s*44px/);
     expect(landingCss).toMatch(/\.lpFooterSmallPrint a\s*{\s*min-height:\s*44px/);
   });
 
@@ -507,4 +509,3 @@ describe("phone tab bar highlight", () => {
     expect(list).toMatch(/border-radius:\s*16px/);
   });
 });
-

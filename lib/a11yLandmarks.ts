@@ -29,7 +29,18 @@ export function focusMainLandmark(
   main.focus();
   main.scrollIntoView({ block: "start" });
   if (typeof window !== "undefined" && window.location.hash !== `#${MAIN_LANDMARK_ID}`) {
-    window.history.replaceState(null, "", `#${MAIN_LANDMARK_ID}`);
+    window.history.replaceState(window.history.state, "", `#${MAIN_LANDMARK_ID}`);
   }
   return true;
+}
+
+/** Carry an early skip-link activation across a loading landmark replacement. */
+export function restoreMainLandmarkFocus(): void {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+  if (window.location.hash !== `#${MAIN_LANDMARK_ID}`) return;
+  // Removing the focused loading main leaves focus on the document. A reader
+  // who has already moved to another control owns that focus instead.
+  if (document.activeElement !== document.body &&
+    document.activeElement !== document.documentElement) return;
+  focusMainLandmark();
 }

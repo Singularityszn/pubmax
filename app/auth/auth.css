@@ -490,13 +490,9 @@
   background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
 }
 
-/* Tablet band only: the eight-link row is at its densest, so the trigger
-   drops to an icon-only 44px disc (its aria-label keeps the accessible name)
-   and the labels get the room back. Phones (≤640px) are excluded on purpose:
-   SiteNav hides only the full signed-in row there, not .authUserNav, so the
-   compact Sign in matches the landing bar; the bottom tab bar still owns
-   primary navigation. */
-@media (min-width: 641px) and (max-width: 900px) {
+/* The tablet link row and the narrowest phone bars need the account trigger's
+   width back. Its accessible name stays on the 44px icon control. */
+@media (max-width: 360px), (min-width: 641px) and (max-width: 900px) {
   .authUserNav .authCompactLabel {
     display: none;
   }

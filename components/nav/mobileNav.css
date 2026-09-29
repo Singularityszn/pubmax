@@ -280,6 +280,9 @@ body:has(.mobileMapUtilityCorner) {
 
   body:has(.appShell.detail-open) .mobileTabBar,
   body:has(.appShell.planning-open) .mobileTabBar,
+  /* Landmark sheets fill the viewport like venue and planner sheets. Their
+     portal kind is present on mount, before the shell class catches up. */
+  body:has(.mobileSheetPortal[data-sheet-kind="landmark"]) .mobileTabBar,
   /* Night mode (components/plan/NightCrawlMode.tsx) is a fixed, full-screen
      surface with its own way out; the bar under it owned the centre of its
      lowest button, "Get me home", at 320x568 (verify-preview-4 RED 2). */

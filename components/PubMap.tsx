@@ -2,6 +2,7 @@
 
 import { CalendarClock, List, MapPinned, ShieldCheck, X } from "lucide-react";
 import { formatGbp } from "@/lib/formatGbp";
+import { restoreMainLandmarkFocus } from "@/lib/a11yLandmarks";
 import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -1021,6 +1022,8 @@ export default function PubMap({
    */
   nationalBrowse?: boolean;
 }) {
+  // An early skip link can focus the skeleton this dynamic component replaces.
+  useLayoutEffect(restoreMainLandmarkFocus, []);
   const city = getCity(cityId);
   const [ukPlaceArrival] = useState(() => placeArrival);
   const [ukNationalBrowse] = useState(
@@ -4066,17 +4069,6 @@ export default function PubMap({
     setFallbackVisible: setLogIntentFallbackVisible,
   });
 
-  // Keyboard shortcuts: "/" focuses search. Escape enters the same Back owner
-  // as browser, button, and gesture navigation.
-  useMapKeyboardShortcuts({
-    planningOpen,
-    selectedVenueId,
-    onBack: () => surfaceBackRef.current(),
-    onInterruptReveal: interruptVenueReveal,
-    logIntentFallbackVisible,
-    dismissLogIntent: clearLogIntent,
-  });
-
   const toggleBuiltStop = useCallback((id: string) => {
     const venue = venueById.get(id);
     const pickable = !venue || isPubVenue(venue);
@@ -4596,6 +4588,17 @@ export default function PubMap({
     [activeLandmarkId, cityLandmarks],
   );
   const storyOpen = activeLandmark !== null;
+  // Keyboard shortcuts: "/" focuses search. Escape enters the same Back owner
+  // as browser, button, and gesture navigation for every drawer kind.
+  useMapKeyboardShortcuts({
+    planningOpen,
+    selectedVenueId,
+    storyOpen,
+    onBack: () => surfaceBackRef.current(),
+    onInterruptReveal: interruptVenueReveal,
+    logIntentFallbackVisible,
+    dismissLogIntent: clearLogIntent,
+  });
   const coordinatedMobileOverlay: MapOverlay = coordinatedMapOverlay({
     logIntentFallbackVisible,
     detailOpen,
@@ -5043,9 +5046,17 @@ export default function PubMap({
         if (
           active instanceof HTMLElement &&
           active !== document.body &&
-          active !== document.documentElement
+          active !== document.documentElement &&
+          !active.closest(".mapDrawer, .mobileSheetPortal")
         ) {
           preSheetFocusRef.current = active;
+        } else {
+          // A cross-city search opens this drawer in a new document. The old
+          // search field is gone, and a later drawer mount must not capture its
+          // own Close button as the place to return focus.
+          preSheetFocusRef.current =
+            document.getElementById("mapSearchInput") ??
+            document.getElementById("mobileMapSearchInput");
         }
       }
       drawerCloseButtonRef.current?.focus({ preventScroll: true });
@@ -6611,7 +6622,7 @@ export default function PubMap({
   }
 
   return (
-    <main id="main"
+    <main id="main" tabIndex={-1}
       // The `sheet-full` marker only ever matters ≤640px (mapToolbar.css
       // gates every rule that reads it behind that same breakpoint) — it
       // lets the map's floating controls (toolbar/legend) get out of the

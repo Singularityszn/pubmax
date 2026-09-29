@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import Kicker from "@/components/ui/kicker";
@@ -86,6 +86,10 @@ export default function MobileSharedSheet({
   const [footerEl, setFooterEl] = useState<HTMLElement | null>(null);
   const venueRevealSettleSequenceRef = useRef(venueRevealSettleSequence);
   const initialSnapRequestRef = useRef<MapSheetDetent | null>(null);
+  const requestedSnapRef = useRef(requestedSnap);
+  useLayoutEffect(() => {
+    requestedSnapRef.current = requestedSnap;
+  });
   const onDismissRef = useRef(onDismiss);
   useEffect(() => {
     onDismissRef.current = onDismiss;
@@ -148,20 +152,22 @@ export default function MobileSharedSheet({
   // (design judgement 2026-08-01, finding 2.16). The sheet itself is the
   // labelled dialog, so focusing it still moves assistive technology inside and
   // still starts the tab order at the top.
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!kind) {
       initialSnapRequestRef.current = null;
       return;
     }
-    initialSnapRequestRef.current = initialSnap;
+    const openingSnap = requestedSnapRef.current ?? initialSnap;
+    initialSnapRequestRef.current = openingSnap;
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    openAtSnap(initialSnap);
+    openAtSnap(openingSnap);
     const frame = requestAnimationFrame(() => sheetRef.current?.focus({ preventScroll: true }));
     const onKey = (event: KeyboardEvent) => {
-      // Claim the key so useMapKeyboardShortcuts' own Escape fallback (which
-      // checks event.defaultPrevented) does not also step back for the same
-      // press - otherwise one Escape pops two surface-stack levels at once.
-      if (event.key === "Escape") {
+      const portal = sheetRef.current?.closest<HTMLElement>(".mobileSheetPortal");
+      // Nested popovers claim Escape before it bubbles here. Map shortcuts
+      // defer to this visible sheet, so this listener owns one Back step.
+      if (event.key === "Escape" && !event.defaultPrevented &&
+        portal && window.getComputedStyle(portal).display !== "none") {
         event.preventDefault();
         interruptAndSettleRef.current();
         requestEscape();
@@ -176,8 +182,9 @@ export default function MobileSharedSheet({
   }, [initialSnap, kind, openAtSnap, requestEscape]);
 
   // PubMap/MobileMapShell can request a snap change (e.g. a content-tab tap
-  // expands the venue sheet to full). Only re-applies on change.
-  useEffect(() => {
+  // expands the venue sheet to full). Commit before browser scroll events from
+  // the new tab can settle the previous detent back to half.
+  useLayoutEffect(() => {
     if (!kind || !requestedSnap) return;
     const initialSnapRequest = initialSnapRequestRef.current;
     initialSnapRequestRef.current = null;

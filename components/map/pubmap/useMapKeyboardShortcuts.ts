@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useLayoutEffect, useRef } from "react";
 type KeyboardShortcutArgs = {
   planningOpen: boolean;
   selectedVenueId: string;
+  storyOpen: boolean;
   onBack: () => void;
   onInterruptReveal: () => void;
   /** D4 — the Drop pub picker is topmost, and Escape must be a way out of it. */
@@ -18,13 +19,40 @@ type KeyboardShortcutArgs = {
 export function useMapKeyboardShortcuts({
   planningOpen,
   selectedVenueId,
+  storyOpen,
   onBack,
   onInterruptReveal,
   logIntentFallbackVisible,
   dismissLogIntent,
 }: KeyboardShortcutArgs) {
-  useEffect(() => {
+  const current = useRef<KeyboardShortcutArgs>({
+    planningOpen,
+    selectedVenueId,
+    storyOpen,
+    onBack,
+    onInterruptReveal,
+    logIntentFallbackVisible,
+    dismissLogIntent,
+  });
+  useLayoutEffect(() => {
+    current.current = {
+      planningOpen,
+      selectedVenueId,
+      storyOpen,
+      onBack,
+      onInterruptReveal,
+      logIntentFallbackVisible,
+      dismissLogIntent,
+    };
+  });
+
+  // Map paints and focuses a drawer during the same commit. Keep one listener
+  // installed across its render churn, with current navigation state ready
+  // before that focused Close button can receive Escape.
+  useLayoutEffect(() => {
     if (typeof window === "undefined") return;
+    let active = true;
+    const pendingBackDecisions = new Set<number>();
     const onKeyDown = (event: KeyboardEvent) => {
       // A popover that handled Escape (city switcher, layers, price, zone,
       // status banner) claims the key via preventDefault — one Escape closes
@@ -42,26 +70,53 @@ export function useMapKeyboardShortcuts({
           search.focus();
         }
       } else if (event.key === "Escape") {
-        // Topmost first: the Drop pub picker, then the planner (higher z on
-        // mobile), then venue detail.
+        // The Drop picker sits above the sheet. Claim its key first, so the
+        // sheet listener does not also step through the surface trail.
+        const { logIntentFallbackVisible, dismissLogIntent } = current.current;
         if (logIntentFallbackVisible) {
+          event.preventDefault();
           dismissLogIntent();
           return;
         }
-        if (planningOpen || selectedVenueId) {
-          onInterruptReveal();
-          onBack();
-        }
+        // Some popovers attach their own window listener after this stable
+        // listener. A microtask may run between native event listeners, so
+        // decide on the next task after every listener has had the key.
+        // Read current state then, not a stale render.
+        const timer = window.setTimeout(() => {
+          pendingBackDecisions.delete(timer);
+          if (!active || event.defaultPrevented) return;
+          const {
+            planningOpen,
+            selectedVenueId,
+            storyOpen,
+            onBack,
+            onInterruptReveal,
+            logIntentFallbackVisible: pickerNowOpen,
+            dismissLogIntent: dismissPickerNow,
+          } = current.current;
+          if (pickerNowOpen) {
+            dismissPickerNow();
+            return;
+          }
+          // Phone sheet owns Escape while visible. A CSS-hidden portal cannot
+          // own the key when viewport changes before React removes it.
+          const phoneSheet = document.querySelector<HTMLElement>(".mobileSheetPortal");
+          if (phoneSheet && window.getComputedStyle(phoneSheet).display !== "none") return;
+          // Then planner (higher z on mobile), venue detail, or landmark story.
+          if (planningOpen || selectedVenueId || storyOpen) {
+            onInterruptReveal();
+            onBack();
+          }
+        }, 0);
+        pendingBackDecisions.add(timer);
       }
     };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [
-    dismissLogIntent,
-    logIntentFallbackVisible,
-    onBack,
-    onInterruptReveal,
-    planningOpen,
-    selectedVenueId,
-  ]);
+    return () => {
+      active = false;
+      for (const timer of pendingBackDecisions) window.clearTimeout(timer);
+      pendingBackDecisions.clear();
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
 }
