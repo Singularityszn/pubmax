@@ -4431,7 +4431,7 @@ export default function PubMap({
         setMapOverlay("area");
       }, areaSheetOpenDelay(reduced));
     },
-    [cityId, clearAreaSheetTimer, clearLogIntent, moveMapCameraTo, trimmedMapQuery],
+    [cityId, clearAreaSheetTimer, clearLogIntent, moveMapCameraTo],
   );
   // §4.8: picking a search result records the typed "map-search" origin, unlike
   // a browse pin tap. The current search input text is NOT proof of origin — only
@@ -4986,6 +4986,13 @@ export default function PubMap({
   // Esc, or a fresh ?sel= navigating away) we hand focus back to whatever
   // triggered the open rather than dropping it to <body>.
   const drawerCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const detailDrawerRef = useRef<HTMLDivElement | null>(null);
+  // A deep link can open before the lazy drawer mounts and attaches its refs.
+  const [detailDrawerMounted, setDetailDrawerMounted] = useState(false);
+  const attachDetailDrawer = useCallback((node: HTMLDivElement | null) => {
+    detailDrawerRef.current = node;
+    setDetailDrawerMounted(node !== null);
+  }, []);
   useLayoutEffect(() => {
     if (detailOpen) {
       if (preSheetFocusRef.current === null) {
@@ -5036,14 +5043,13 @@ export default function PubMap({
         window.removeEventListener("popstate", restoreAfterHistory);
       };
     }
-  }, [detailOpen]);
+  }, [detailOpen, detailDrawerMounted]);
 
   // Desktop accessibility contract: drawer is modal for its full open lifetime. Desktop
   // never changes detent, so gating trap on mobile-oriented `sheetSnap` left it
   // inactive at its permanent `half` state.
-  const detailDrawerRef = useRef<HTMLDivElement | null>(null);
   useFocusTrap(
-    !mobileViewport && detailOpen,
+    !mobileViewport && detailOpen && detailDrawerMounted,
     detailDrawerRef,
     "map-surface",
     preSheetFocusRef,
@@ -5133,8 +5139,8 @@ export default function PubMap({
   // as a stop, the sheet used to open on the "Describe the outing" form and
   // the picked pub sat a whole form below the fold, unnamed on the first
   // screen (verify-preview-4, J04); a crawl being built now leads the sheet.
-  const phoneDescribeForm =
-    mobileViewport && isLondon && suggestedPlanArea ? (
+  function renderPhoneDescribeForm() {
+    return mobileViewport && isLondon && suggestedPlanArea ? (
       <MobilePlanActivation
         cityId={cityId}
         initialNightArea={suggestedPlanArea.slug}
@@ -5142,6 +5148,8 @@ export default function PubMap({
         onGenerated={applyGeneratedMobilePlan}
       />
     ) : null;
+  }
+  const phoneDescribeForm = renderPhoneDescribeForm();
   const plannerOrder = phonePlannerOrder({ mobileViewport, mode, builtCount: builtIds.length });
   const builtCrawlLeads = plannerOrder === "build-first";
   const [plannerHead, plannerFoot] = builtCrawlLeads
@@ -5456,29 +5464,6 @@ export default function PubMap({
     !mapCanvasErrored &&
     !mapCanvasFrameReleased(mapCanvasAvailabilityState) &&
     mapLoadingHeld(mapLoadingStage);
-  // The text-query lane filters curated pubs. UK base browse pubs are a
-  // separate zoom-gated layer and do not answer this query, so they may not
-  // keep an empty filtered collection from naming its honest state.
-  const visibleMapPinCount =
-    visibleVenueState?.cityId === cityId
-      ? visibleVenueState.curatedVenueIds.length
-      : null;
-  const mapSearchEmptyVisible =
-    trimmedMapQuery.length > 0 &&
-    loaded &&
-    loadedCityId === cityId &&
-    filteredPubVenueCount > 0 &&
-    mapBounds !== null &&
-    !mapLoadingActive &&
-    !mapCanvasUnavailable &&
-    mapOverlay !== "search" &&
-    !showMapArrivalCard &&
-    !mapSoftRetryActive &&
-    !detailOpen &&
-    !planningOpen &&
-    !storyOpen &&
-    !mapListOpen &&
-    visibleMapPinCount === 0;
 
   const mobileShellReady = !mapLoadingActive;
   // Desktop reader controls. Both live inside Layers rather than on the map
@@ -6061,6 +6046,30 @@ export default function PubMap({
   }
 
   function renderMapSearchEmptyState() {
+    // The text-query lane filters curated pubs. UK base browse pubs are a
+    // separate zoom-gated layer and do not answer this query, so they may not
+    // keep an empty filtered collection from naming its honest state.
+    const visibleMapPinCount =
+      visibleVenueState?.cityId === cityId
+        ? visibleVenueState.curatedVenueIds.length
+        : null;
+    const mapSearchEmptyVisible =
+      trimmedMapQuery.length > 0 &&
+      loaded &&
+      loadedCityId === cityId &&
+      filteredPubVenueCount > 0 &&
+      mapBounds !== null &&
+      !mapLoadingActive &&
+      !mapCanvasUnavailable &&
+      mapOverlay !== "search" &&
+      !showMapArrivalCard &&
+      !mapSoftRetryActive &&
+      !detailOpen &&
+      !planningOpen &&
+      !storyOpen &&
+      !mapListOpen &&
+      visibleMapPinCount === 0;
+
     return mapSearchEmptyVisible ? (
       <aside
         className="mapSearchEmpty"
@@ -6506,7 +6515,7 @@ export default function PubMap({
   /* Right drawer: the selected pub's detail, opened only on an explicit pick. Desktop only. */
   function renderVenueDrawer() {
     return !mobileViewport ? <SpringDrawer
-          ref={detailDrawerRef}
+          ref={attachDetailDrawer}
           open={detailOpen}
           side="right"
           snap={sheetSnap}

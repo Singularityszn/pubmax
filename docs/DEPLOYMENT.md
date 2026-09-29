@@ -146,7 +146,13 @@ Buckets are not SQL objects, so create it **out of band** (Supabase dashboard �
 
 ### 3. Browser sign-in (email magic link + Google + Apple + Microsoft)
 
-The app calls Supabase Auth with `signInWithOtp` for passwordless email and `signInWithOAuth` for Google, Apple, or Microsoft (Supabase provider id `azure`). All four methods finish at the canonical site's `/auth/callback`, then return to the path where sign-in started. The callback rejects absolute, protocol-relative, and backslash redirect targets; never add a client-controlled redirect that bypasses that seam. URL fragments are never copied into Supabase's `redirectTo`: the browser holds them in a TTL-limited record keyed by a cryptographically random attempt ID and restores them only for the matching return path, because Plan invite fragments contain one-use capabilities. Supabase uses one browser PKCE verifier per project, so the app atomically allows only one live attempt across tabs through the Web Locks API and gives an honest error instead of overwriting another tab's attempt. The initiating tab also records its attempt in `sessionStorage`, allowing an explicit retry after backing out of the provider without weakening cross-tab isolation. Persistent browser storage and the Web Locks API are required for this PKCE coordination; browsers that disable either fail closed with an actionable message because an in-memory verifier cannot reliably survive the provider's full-page round trip. Secrets stay in the Supabase dashboard - the Next.js app only needs the public URL + publishable key above.
+The app calls Supabase Auth with `signInWithOtp` for passwordless email and `signInWithOAuth` for Google, Apple, or Microsoft (Supabase provider id `azure`). All four methods request the canonical site's `/auth/callback`, then return to the path where sign-in started. The browser client uses the implicit flow, with tokens in the URL fragment. `AuthProvider` captures and scrubs them before asynchronous verification or session installation. The callback rejects absolute, protocol-relative, and backslash redirect targets; never add a client-controlled redirect that bypasses that seam.
+
+App fragments are never copied into Supabase's `redirectTo`: the browser holds them in a TTL-limited record keyed by a cryptographically random attempt ID. It restores them only for a claimed local attempt and matching return path, because Plan invite fragments contain one-use capabilities. The Web Locks API coordinates one live attempt across tabs, and the initiating tab records its attempt in `sessionStorage` to allow an explicit retry. Starting an attempt requires persistent browser storage and Web Locks; an incoming token callback without a local claim follows the confirmation path below. Secrets stay in the Supabase dashboard. The Next.js app only needs the public URL and publishable key above.
+
+An unowned callback, including an email link opened in another browser, shows **Sign in as [verified identity]?** before installing a session. Check the displayed email address, or account ID if no email is available. Choose **Continue** to install that account's verified, rotated tokens, or **Cancel** to keep the previous stored session. A callback claimed by this browser's local attempt completes automatically.
+
+[`lib/authCallbackClient.ts`](../lib/authCallbackClient.ts) owns callback verification. It reads identity directly from the provider without letting lookup errors mutate the live browser session. It verifies the refreshed identity and rejects mismatched access and refresh identities. The expired-access exception requires the provider's specific expiry response and a parsed subject matching the freshly verified identity; browser time does not decide expiry. Other verification failures reject the callback. `AuthProvider` finishes session restoration and publishes its result before offering confirmation, and reuses pending work across StrictMode effect replay. Regression coverage lives in `__tests__/authCallbackClient.test.ts`, `__tests__/authCallbackConfirmation.test.tsx`, and `e2e/auth-callback-confirmation.spec.ts`.
 
 Google, Apple, and Microsoft buttons follow the live public provider flags from
 Supabase Auth's `/auth/v1/settings` endpoint (`google`, `apple`, and `azure`
@@ -181,14 +187,14 @@ presence in repository documentation is not evidence that every Vercel
 environment is configured completely. Deployed auth always requests the apex
 callback, so do not allowlist `*.vercel.app`, preview hosts, or `www`. A rejected
 `redirectTo` makes Supabase fall back to Site URL. If Site URL points at a
-deployment host, an email link lands there without the initiating origin's PKCE
-verifier and sign-in cannot complete.
+deployment host, an email link lands on the wrong origin without the initiating
+origin's attempt record or stored return fragment.
 
 Missing or invalid deployed configuration must not block a Vercel build.
 Runtime server paths still use the apex and emit a fatal diagnostic when
 `NEXT_PUBLIC_SITE_URL` is missing, malformed, insecure, or noncanonical. A
 sign-in opened on a deployment host first navigates to the same safe path on
-the apex; no PKCE state is created until the user starts sign-in there.
+the apex; no local attempt state is created until the user starts sign-in there.
 
 These controls solve different problems:
 
@@ -246,12 +252,12 @@ team members while keeping Preview deployments reviewable.
 
 1. Supabase → Authentication → Providers → **Email**: enable Email and confirm-password/email links. The app intentionally calls `shouldCreateUser: true`, so a valid first-time address creates an account through the same flow.
 2. Supabase → Project Settings → Auth → SMTP: configure a production sender, verified domain, and reply-to address. Supabase's development sender is not a production delivery guarantee. Review the dashboard's email rate limits against expected launch traffic.
-3. Authentication → Email Templates → **Magic Link**: keep the action URL based on `{{ .ConfirmationURL }}`. The current PKCE browser client expects Supabase to return a `?code=` to the allowlisted `/auth/callback`; a custom `token_hash` template needs a separate server-cookie verification route and must not be switched on silently.
+3. Authentication → Email Templates → **Magic Link**: keep the action URL based on `{{ .ConfirmationURL }}`. Preserve the [browser sign-in callback contract](#3-browser-sign-in-email-magic-link--google--apple--microsoft); a custom `token_hash` template needs a separate server-cookie verification route and must not be switched on silently.
 4. Make the template name PUBMAXX, state that the link signs the recipient in, include an expiry/help line, and do not include account-existence language. Test delivery, expiry, duplicate clicks, a new address, an existing address, and spam placement before launch.
 
 The UI deliberately gives the same success message for every address and replaces provider failures with normalized retry/rate-limit copy. This prevents the client from becoming an account-enumeration oracle. Supabase remains the enforcement point for actual email sending and rate limits.
 
-**Wrapped shell / deep links:** the current Capacitor app is a remote-URL shell and the magic link is HTTPS, so the callback is safe and usable in the browser that receives the email. PKCE requires the browser containing the code verifier. If a mail app opens the link in a different browser context, including outside the shell, that context may not complete the exchange. Native return-to-app auth therefore remains an owner/configuration item: verified Associated Domains/Android App Links plus an auth-specific handoff must be designed and device-tested before claiming in-shell magic-link completion. Do not change the dashboard redirect to a custom scheme; the web callback and existing universal-link seam are the safe starting point.
+**Wrapped shell / deep links:** the current Capacitor app is a remote-URL shell and the magic link is HTTPS. A link opened outside the shell follows the [browser sign-in callback contract](#3-browser-sign-in-email-magic-link--google--apple--microsoft). Browser completion does not establish a session inside the shell. Native return-to-app auth remains an owner/configuration item: verified Associated Domains/Android App Links plus an auth-specific handoff must be designed and device-tested before claiming in-shell magic-link completion. Do not change the dashboard redirect to a custom scheme; the web callback and existing universal-link seam are the safe starting point.
 
 Vercel must attach both `pubmaxxing.com` and `www.pubmaxxing.com` to the same production project, with `www.pubmaxxing.com` permanently redirecting to the canonical apex. After an explicitly authorised deployment, verify that the apex returns the release, the `www` redirect preserves the path and query string, and both TLS certificates are valid:
 

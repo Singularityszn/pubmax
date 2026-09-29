@@ -1,5 +1,7 @@
 import type { AuthCallbackTokens } from "@/lib/authRedirect";
 import { isGoTrueUserBannedError } from "@/lib/authAccountBan";
+import { withAuthFetchTimeout } from "@/lib/authFetch";
+import type { DeviceAccountSwitchDeps, MintOutcome } from "@/lib/deviceAccountSwitch";
 
 export type AuthSessionEstablishClient<SessionValue> = {
   setSession: (tokens: { access_token: string; refresh_token: string }) => Promise<{
@@ -13,6 +15,122 @@ export type AuthCallbackSessionResult<SessionValue> = {
   failed: boolean;
   banned: boolean;
 };
+
+type AuthCallbackUserLookup = (accessToken: string) => Promise<{
+  data: { user: { id: string; email?: string | null } | null };
+  error: unknown;
+}>;
+
+export async function fetchAuthCallbackUser(
+  accessToken: string,
+  deps: Pick<DeviceAccountSwitchDeps, "fetchImpl" | "authConfig">,
+): ReturnType<AuthCallbackUserLookup> {
+  if (!deps.authConfig) return { data: { user: null }, error: new Error("Auth unavailable") };
+  const response = await withAuthFetchTimeout(deps.fetchImpl)(
+    new URL("/auth/v1/user", deps.authConfig.url).toString(),
+    {
+      headers: {
+        apikey: deps.authConfig.key,
+        authorization: `Bearer ${accessToken}`,
+        "x-supabase-api-version": "2024-01-01",
+      },
+      cache: "no-store",
+      credentials: "omit",
+      redirect: "error",
+    },
+  );
+  const body = await response.json();
+  if (!response.ok) {
+    return {
+      data: { user: null },
+      error: {
+        status: response.status,
+        code: body?.code,
+        message: body?.msg ?? body?.message,
+      },
+    };
+  }
+  if (typeof body?.id !== "string" || !body.id) {
+    return { data: { user: null }, error: new Error("Invalid identity") };
+  }
+  return {
+    data: { user: {
+      id: body.id,
+      email: typeof body.email === "string" ? body.email : null,
+    } },
+    error: null,
+  };
+}
+
+function expiredCallbackSubject(error: unknown, accessToken: string): string | null {
+  if (!error || typeof error !== "object") return null;
+  const failure = error as { status?: unknown; code?: unknown; message?: unknown };
+  if (
+    failure.status !== 403 || failure.code !== "bad_jwt" ||
+    failure.message !== "invalid JWT: unable to parse or verify signature, token has invalid claims: token is expired"
+  ) return null;
+  try {
+    const parts = accessToken.split(".");
+    if (parts.length !== 3) return null;
+    const claims = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return typeof claims?.sub === "string" && claims.sub &&
+      typeof claims.exp === "number" && Number.isFinite(claims.exp) ? claims.sub : null;
+  } catch {
+    return null;
+  }
+}
+
+export type PreparedAuthCallbackSession<SessionValue> =
+  | { status: "established"; result: AuthCallbackSessionResult<SessionValue> }
+  | { status: "verification-failed" }
+  | {
+      status: "confirmation-required";
+      identity: { userId: string; label: string };
+      confirm: () => Promise<AuthCallbackSessionResult<SessionValue>>;
+    };
+
+export async function prepareAuthCallbackSession<SessionValue>(
+  auth: AuthSessionEstablishClient<SessionValue>,
+  tokens: AuthCallbackTokens,
+  localAttemptOwned: boolean,
+  mintSession: (refreshToken: string) => Promise<MintOutcome>,
+  getUser: AuthCallbackUserLookup,
+): Promise<PreparedAuthCallbackSession<SessionValue>> {
+  if (localAttemptOwned) {
+    return {
+      status: "established",
+      result: await establishAuthCallbackSession(auth, tokens),
+    };
+  }
+
+  try {
+    const original = await getUser(tokens.accessToken);
+    const originalUserId = original.error
+      ? expiredCallbackSubject(original.error, tokens.accessToken)
+      : original.data.user?.id;
+    if (!originalUserId) return { status: "verification-failed" };
+    const minted = await mintSession(tokens.refreshToken);
+    if (minted.status !== "minted") return { status: "verification-failed" };
+    const refreshed = await getUser(minted.session.access_token);
+    const userId = refreshed.data.user?.id;
+    if (refreshed.error || !userId || originalUserId !== userId) {
+      return { status: "verification-failed" };
+    }
+    const label = refreshed.data.user?.email?.trim() || userId;
+    const verifiedTokens = {
+      accessToken: minted.session.access_token,
+      refreshToken: minted.session.refresh_token,
+    };
+    let inFlight: Promise<AuthCallbackSessionResult<SessionValue>> | null = null;
+    return {
+      status: "confirmation-required",
+      identity: { userId, label },
+      confirm: () => (inFlight ??= establishAuthCallbackSession(auth, verifiedTokens)),
+    };
+  } catch {
+    return { status: "verification-failed" };
+  }
+}
 
 /**
  * Establish the session from implicit-flow callback tokens. Normalizes both

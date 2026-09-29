@@ -59,9 +59,8 @@ function claimStrictModalFocusTrap(): () => void {
 /**
  * Body-level siblings that may stay interactive only beside a map surface.
  * The Android install card is a non-modal card drawn above the map sheets
- * (a2hsInstallPrompt.css). The trap scans the body once, so a card that mounted
- * before a sheet opened at half was made inert: the reader saw Install and Not
- * now and neither answered a tap.
+ * (a2hsInstallPrompt.css). It must remain interactive beside a map sheet so
+ * Install and Not now remain reachable, even if the card mounts before the sheet.
  */
 export function shouldInertOutsideSibling(
   node: HTMLElement,

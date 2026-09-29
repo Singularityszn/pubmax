@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import type { Session } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
 
@@ -23,22 +21,6 @@ function auth(overrides: Partial<BrowserAuthSession> = {}): BrowserAuthSession {
 }
 
 describe("browser auth session bootstrap", () => {
-  it("is awaited by AuthProvider before it clears session loading", () => {
-    const providerSource = readFileSync(
-      join(process.cwd(), "components/auth/AuthProvider.tsx"),
-      "utf8",
-    );
-
-    expect(providerSource).toContain("bootstrapAuthSession");
-    expect(providerSource).toMatch(/bootstrapAuthSession\([\s\S]*?\)\.catch\(/);
-    expect(providerSource).toMatch(
-      /bootstrapAuthSession\([\s\S]*?setSessionLoading\(false\)/,
-    );
-    expect(providerSource).not.toMatch(
-      /updateSession\(localSession\);\s*setSessionLoading\(false\);\s*if \(localSession\) return/,
-    );
-  });
-
   it("waits for cookie redemption before settling a cold browser", async () => {
     let resolveHint: ((value: ResumeHintReadOutcome) => void) | undefined;
     const readHint = vi.fn(

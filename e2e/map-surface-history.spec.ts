@@ -271,11 +271,12 @@ test.describe("one Map surface history owner", () => {
       .getByRole("button", { name: /Map the Victorian Soho crawl/i })
       .click();
     await expectSoleDrawer(page, "venue");
-    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await page.locator(".mappedRouteChip").getByRole("button", { name: "Edit", exact: true }).click();
     await expectSoleDrawer(page, "planner");
     const heldStops = planner(page).locator(".routeList > li");
     await expect(heldStops).toHaveCount(5);
-    await heldStops.first().getByRole("button").first().click({ timeout: 10_000 });
+    // Stop selection changes the local drawer; its assertion owns the wait.
+    await heldStops.first().getByRole("button").first().click({ noWaitAfter: true });
     await expectSoleDrawer(page, "venue");
 
     await page.keyboard.press("Escape");
@@ -283,6 +284,8 @@ test.describe("one Map surface history owner", () => {
     await expectSoleDrawer(page, "planner");
     await expect(heldStops).toHaveCount(5);
     await expect(planner(page).locator("#railSearchInput")).toHaveValue("Soho");
+    await heldStops.first().getByRole("button").first().click({ noWaitAfter: true });
+    await expectSoleDrawer(page, "venue");
   });
 
   test("phone fling-dismiss leaves venue sheet for Map", async ({ page }) => {
