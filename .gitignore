@@ -16,6 +16,7 @@ out/
 dist/
 .env*
 !.env.example
+*.env
 *.log
 *.tsbuildinfo
 scripts/__pycache__/

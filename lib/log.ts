@@ -1,3 +1,5 @@
+import { PRODUCTION_SECRET_ENV_NAMES } from "@/lib/productionSecretEnvNames";
+
 // Tiny structured logger (PRD §7.7). Emits ONE line of JSON per event so logs
 // are grep-able and machine-parseable in Vercel/whatever aggregator sits
 // downstream — no multi-line stack dumps, no key=value soup to reparse.
@@ -32,10 +34,15 @@ const REDACT_KEY_PATTERN =
 //  • the named env secrets, whether printed as `NAME=value` or `NAME: value`
 //  • any `Bearer <token>` authorization value
 //  • an `app_key=<value>` query param (TfL and similar signed URLs)
+const SECRET_NAME_PATTERN = PRODUCTION_SECRET_ENV_NAMES.join("|");
+
 const SECRET_VALUE_PATTERNS: RegExp[] = [
   // NAME=... / NAME: ... for each known secret env key (value runs to the next
   // whitespace, quote, comma, or ampersand — i.e. the end of the token).
-  /\b(SUPABASE_SERVICE_ROLE_KEY|OPENROUTER_API_KEY|TFL_APP_KEY|TYPESAFE_API_KEY)\s*[:=]\s*["']?[^\s"',&]+/gi,
+  new RegExp(
+    `\\b(${SECRET_NAME_PATTERN})\\s*[:=]\\s*["']?[^\\s"',&]+`,
+    "gi",
+  ),
   // Bearer tokens in an Authorization header value.
   /\bBearer\s+[^\s"',&]+/gi,
   // app_key=<...> query param (case-insensitive param name).

@@ -78,7 +78,7 @@ describe("Capacitor wrapped-build contract", () => {
 
   it("loads production remotely and has a bundled, truthful outage fallback", () => {
     expect(capacitorConfig.webDir).toBe("native/web-stub");
-    expect(capacitorConfig.server?.url).toBe("https://pubmaxxing.com");
+    expect(capacitorConfig.server?.url).toBe("https://pubmaxxing.com/");
     expect(capacitorConfig.server?.cleartext).not.toBe(true);
     expect(capacitorConfig.server?.errorPath).toBe("offline.html");
 
@@ -123,8 +123,8 @@ describe("Capacitor wrapped-build contract", () => {
     // The unset case above is what every CI and store build sees. A rig
     // reviewing a checkout sets PUBMAX_NATIVE_SERVER_URL at sync time, and
     // cleartext follows the scheme rather than being a second switch.
-    expect(nativeServerUrl({})).toBe("https://pubmaxxing.com");
-    expect(nativeServerUrl({ PUBMAX_NATIVE_SERVER_URL: "   " })).toBe("https://pubmaxxing.com");
+    expect(nativeServerUrl({})).toBe("https://pubmaxxing.com/");
+    expect(nativeServerUrl({ PUBMAX_NATIVE_SERVER_URL: "   " })).toBe("https://pubmaxxing.com/");
     expect(nativeServerUrl({ PUBMAX_NATIVE_SERVER_URL: "http://10.0.2.2:3811" })).toBe(
       "http://10.0.2.2:3811",
     );
@@ -132,7 +132,7 @@ describe("Capacitor wrapped-build contract", () => {
     // capacitor.config.json files are untracked, so this is the only copy a
     // reviewer can read.
     const source = rootFile("capacitor.config.ts");
-    expect(source).toContain('PRODUCTION_SERVER_URL = "https://pubmaxxing.com"');
+    expect(source).toContain('PRODUCTION_SERVER_URL = "https://pubmaxxing.com/"');
     expect(source).toContain('serverUrl.startsWith("http://") ? { cleartext: true }');
   });
 

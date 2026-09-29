@@ -412,9 +412,9 @@ describe("the CSP once a Clerk key is configured", () => {
 
     expect(connectSrc).toContain(FRONTEND_API);
     expect(connectSrc).toContain(CLERK_ABUSE_PROTECTION_ORIGIN);
-    // Both auth systems run side by side, so Supabase must keep its origins.
-    expect(connectSrc).toContain("https://*.supabase.co");
-    expect(connectSrc).toContain("wss://*.supabase.co");
+    // Supabase is pinned to the configured project host, not the whole tenant namespace.
+    expect(connectSrc).not.toContain("https://*.supabase.co");
+    expect(connectSrc).not.toContain("wss://*.supabase.co");
     expect(connectSrc).toContain("https://tiles.openfreemap.org");
     expect(connectSrc).toContain("wss://api.elevenlabs.io");
     expect(connectSrc).toContain("https://api.elevenlabs.io");
@@ -655,19 +655,19 @@ describe("the middleware gate needs BOTH keys", () => {
 
 describe("the proxy export Next.js actually runs", () => {
   it("leaves Supabase-authoritative Social APIs outside Clerk middleware", () => {
-    expect(config.matcher).not.toContainEqual({ source: "/api/social/:path*" });
+    expect(config.matcher).toContainEqual({ source: "/api/:path*" });
     expect(
       unstable_doesMiddlewareMatch({
         config,
         url: "https://pubmaxxing.com/api/social/access",
       }),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       unstable_doesMiddlewareMatch({
         config,
         url: "https://pubmaxxing.com/api/price-submit",
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("matches Clerk's own frontend API path", () => {

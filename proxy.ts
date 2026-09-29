@@ -6,6 +6,8 @@ import { CHOOSE_CITY_PATH, PLACES_PATH } from "@/lib/cityPickerRoute";
 import { MAP_LIST_PATH, MAP_LIST_SEARCH_PARAM } from "@/lib/mapListRoute";
 import { clerkCspSources, isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
 import { assertE2ELoginSafe } from "@/lib/e2eReviewAuth";
+import { serverEnvRefusalResponse } from "@/lib/serverEnv";
+import { supabaseCspOrigins } from "@/lib/supabaseCsp";
 import { ONBOARDING_PATH } from "@/lib/firstRunRoute";
 import { isPosterLandingSrc, posterNearHref } from "@/lib/posterLanding";
 import {
@@ -232,6 +234,31 @@ function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
 // lets redirect and CSP tests drive it with no Clerk key or NextFetchEvent.
 export function securityProxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (servesApiCaller(pathname)) {
+    if (pathname.length > 1 && pathname.endsWith("/")) {
+      const canonicalUrl = new URL(request.url);
+      canonicalUrl.pathname = pathname.slice(0, -1);
+      return applyNonProductionRobotsTag(
+        NextResponse.redirect(canonicalUrl, 308),
+      );
+    }
+    // F-10: misconfigured durable-store refusal is for the canonical host only.
+    // Cron and webhooks hit the deployment *.vercel.app host and must not 503
+    // here when preview-style env is absent on a production-labelled deploy.
+    if (requestHostname(request) === CANONICAL_HOST) {
+      const refused = serverEnvRefusalResponse();
+      if (refused) {
+        return applyNonProductionRobotsTag(
+          new NextResponse(refused.body, {
+            status: refused.status,
+            statusText: refused.statusText,
+            headers: refused.headers,
+          }),
+        );
+      }
+    }
+    return applyNonProductionRobotsTag(NextResponse.next());
+  }
   if (shouldRedirectVercelHost(request)) {
     const canonicalUrl = new URL(request.url);
     canonicalUrl.protocol = "https:";
@@ -414,6 +441,11 @@ export function securityProxy(request: NextRequest) {
   })();
 
   const clerk = clerkCspSources();
+  const supabaseCsp = supabaseCspOrigins();
+  const supabaseImg = supabaseCsp ? ` ${supabaseCsp.https}` : "";
+  const supabaseConnect = supabaseCsp
+    ? ` ${supabaseCsp.https} ${supabaseCsp.wss}`
+    : "";
   const clerkScript = clerk.script.map((origin) => ` ${origin}`).join("");
   // On a prerendered document the nonce slot becomes 'unsafe-inline'. What that
   // costs is exactly this: Next's own inline RSC bootstrap and our two inline
@@ -466,12 +498,12 @@ export function securityProxy(request: NextRequest) {
     // Clerk adds https://img.clerk.com here, its own account-avatar CDN. It is
     // a first-party ACCOUNT image, not a third-party venue photo, so the
     // "proxy-or-nothing" rule above is untouched: no venue imagery may join it.
-    `img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://thumb.wikimedia.org https://*.supabase.co https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud${clerk.img.map((origin) => ` ${origin}`).join("")}`,
+    `img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://thumb.wikimedia.org${supabaseImg} https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud${clerk.img.map((origin) => ` ${origin}`).join("")}`,
     "font-src 'self' data: https://tiles.openfreemap.org",
     // Clerk adds its Frontend API host (session, sign-in and sign-up calls) and
     // its abuse-protection hosts. Supabase's entries stay: both auth systems
     // run side by side, and removing either would break the other's sign-in.
-    `connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co wss://*.supabase.co wss://api.elevenlabs.io https://api.elevenlabs.io${devSupabaseConnect}${clerk.connect.map((origin) => ` ${origin}`).join("")}`,
+    `connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com${supabaseConnect} wss://api.elevenlabs.io https://api.elevenlabs.io${devSupabaseConnect}${clerk.connect.map((origin) => ` ${origin}`).join("")}`,
     // Clerk also requires worker-src 'self' blob: — already true for MapLibre's
     // tile workers and the offline service worker, so it needs no change here.
     "worker-src 'self' blob:",
@@ -542,6 +574,8 @@ export const proxy = clerkSecurityProxy
 
 export const config = {
   matcher: [
+    { source: "/api" },
+    { source: "/api/:path*" },
     {
       source: "/:path*",
       has: [{ type: "host", value: ".+\\.vercel\\.app" }],
