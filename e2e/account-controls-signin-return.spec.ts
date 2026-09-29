@@ -16,6 +16,34 @@ test.use({
   serviceWorkers: "block",
 });
 
+test("the real callback 307 carries an implicit-flow fragment to Plan", async ({ page, baseURL }) => {
+  const origin = new URL(baseURL ?? "").origin;
+  const fragment = "transport_probe=fragment-survived-307";
+  const attemptId = "0123456789abcdef0123456789abcdef";
+  const callback = `${origin}/auth/callback?next=%2Fplan&_authAttempt=${attemptId}#${fragment}`;
+  const callbackResponse = page.waitForResponse((response) =>
+    response.url().startsWith(`${origin}/auth/callback?`),
+  );
+  await page.addInitScript(() => {
+    if (window.location.pathname === "/plan") {
+      window.sessionStorage.setItem("e2e:plan-initial-fragment", window.location.hash);
+    }
+  });
+
+  await page.goto(callback);
+  const response = await callbackResponse;
+  expect(response.status()).toBe(307);
+  const location = response.headers().location;
+  expect(location).toBeTruthy();
+  const destination = new URL(location, origin);
+  expect(destination.origin).toBe(origin);
+  expect(destination.pathname).toBe("/plan");
+  expect(destination.searchParams.get("_authCallback")).toBe("1");
+  expect(destination.searchParams.get("_authAttempt")).toBe(attemptId);
+  expect(destination.hash).toBe("");
+  expect(await page.evaluate(() => window.sessionStorage.getItem("e2e:plan-initial-fragment"))).toBe(`#${fragment}`);
+});
+
 function accessToken(): string {
   const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
   return [
