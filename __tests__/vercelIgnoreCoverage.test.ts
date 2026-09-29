@@ -87,6 +87,7 @@ describe(".vercelignore covers what a deploy would otherwise upload", () => {
       "skills",
       ".firecrawl",
       ".tmp-evidence",
+      ".gnhf",
       "e2e-shots",
     ]) {
       expect({ name, listed: isIgnored(name, patterns) }).toEqual({
