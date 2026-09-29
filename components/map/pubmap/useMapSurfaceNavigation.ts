@@ -126,6 +126,7 @@ export function useMapSurfaceNavigation({
   );
   const stackRef = useRef(stack);
   const initialisedRef = useRef(false);
+  const pendingOpensRef = useRef<SurfaceEntry<MapSurfaceState>[]>([]);
   const onRestoreRef = useRef(onRestore);
   const onHomeRef = useRef(onHome);
   const selectionHintRef = useRef(selectionHint);
@@ -144,9 +145,9 @@ export function useMapSurfaceNavigation({
     selectionHintRef.current = selectionHint;
   }, [onHome, onRestore, selectionHint]);
 
-  const open = useCallback(
+  const commitOpen = useCallback(
     (entry: SurfaceEntry<MapSurfaceState>) => {
-      if (!initialisedRef.current || typeof window === "undefined") return;
+      if (typeof window === "undefined") return;
       const transition = mapSurfaceOpenTransition(stackRef.current, entry);
       publishStack(transition.stack);
       const state = stampMapSurfaceHistory(
@@ -164,13 +165,31 @@ export function useMapSurfaceNavigation({
     [publishStack],
   );
 
+  const open = useCallback(
+    (entry: SurfaceEntry<MapSurfaceState>) => {
+      if (typeof window === "undefined") return;
+      if (!initialisedRef.current) {
+        pendingOpensRef.current.push(entry);
+        return;
+      }
+      commitOpen(entry);
+    },
+    [commitOpen],
+  );
+
   useLayoutEffect(() => {
     if (initialisedRef.current || typeof window === "undefined") return;
     initialisedRef.current = true;
 
+    const flushPendingOpens = () => {
+      const pending = pendingOpensRef.current.splice(0);
+      for (const entry of pending) commitOpen(entry);
+    };
+
     const restored = readMapSurfaceHistory<MapSurfaceState>(window.history.state);
     if (restored !== null) {
       publishInitialStack(restored);
+      flushPendingOpens();
       return;
     }
 
@@ -194,6 +213,7 @@ export function useMapSurfaceNavigation({
         arrivalUrl,
       );
       publishInitialStack(selected);
+      flushPendingOpens();
       return;
     }
 
@@ -216,6 +236,7 @@ export function useMapSurfaceNavigation({
         arrivalUrl,
       );
       publishInitialStack(story);
+      flushPendingOpens();
       return;
     }
 
@@ -225,7 +246,8 @@ export function useMapSurfaceNavigation({
       currentBrowserUrl(),
     );
     if (shown) open(shown);
-  }, [arrivalSearch, open, publishInitialStack, surfaceId, surfaceState, surfaceTitle]);
+    flushPendingOpens();
+  }, [arrivalSearch, commitOpen, open, publishInitialStack, surfaceId, surfaceState, surfaceTitle]);
 
   useLayoutEffect(() => {
     if (!initialisedRef.current || typeof window === "undefined") return;

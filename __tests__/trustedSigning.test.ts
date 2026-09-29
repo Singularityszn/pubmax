@@ -3,6 +3,23 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const playwrightConfigLoader = vi.hoisted(() => ({
+  stubDefaultPorts(extra?: Record<string, string>) {
+    vi.stubEnv("PW_SCREENSHOTS", "");
+    vi.stubEnv("PW_SKIP_WEBSERVER", "");
+    vi.stubEnv("PW_PORT", "3100");
+    vi.stubEnv("PW_KEYLESS_PORT", "3101");
+    for (const [key, value] of Object.entries(extra ?? {})) {
+      vi.stubEnv(key, value);
+    }
+  },
+  async importConfig(extra?: Record<string, string>) {
+    playwrightConfigLoader.stubDefaultPorts(extra);
+    vi.resetModules();
+    return (await import("../playwright.config")).default;
+  },
+}));
+
 const analyticsEvent = {
   name: "plan_accepted" as const,
   props: { stops: 3, grounded: true, anchored: true, routeReady: true, source: "near" },
@@ -51,12 +68,7 @@ describe("externally trusted signing keys", () => {
   });
 
   it("injects a fresh strong signing secret into each production-style Playwright server", async () => {
-    vi.stubEnv("PW_SCREENSHOTS", "");
-    vi.stubEnv("PW_SKIP_WEBSERVER", "");
-    vi.stubEnv("PW_PORT", "3100");
-    vi.stubEnv("PW_KEYLESS_PORT", "3101");
-    vi.resetModules();
-    const playwrightConfig = (await import("../playwright.config")).default;
+    const playwrightConfig = await playwrightConfigLoader.importConfig();
     const configuredWebServers = playwrightConfig.webServer as {
       command?: string;
       env?: Record<string, string>;
@@ -87,8 +99,7 @@ describe("externally trusted signing keys", () => {
       keylessServer?.env?.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     ).toBe("");
 
-    vi.resetModules();
-    const nextConfig = (await import("../playwright.config")).default;
+    const nextConfig = await playwrightConfigLoader.importConfig();
     const nextWebServers = nextConfig.webServer as {
       env?: Record<string, string>;
     }[] | undefined;
@@ -99,15 +110,19 @@ describe("externally trusted signing keys", () => {
     );
   });
 
-  it("can omit the unused keyless server from a targeted browser gate", async () => {
-    vi.stubEnv("PW_SCREENSHOTS", "");
-    vi.stubEnv("PW_SKIP_WEBSERVER", "");
-    vi.stubEnv("PW_PORT", "3100");
-    vi.stubEnv("PW_SKIP_KEYLESS_WEBSERVER", "1");
-    vi.stubEnv("PW_PORT", "3100");
-    vi.resetModules();
+  it("ignores an ambient PW_PORT when the Playwright config is imported", async () => {
+    process.env.PW_PORT = "3990";
+    const config = await playwrightConfigLoader.importConfig();
+    const webServers = config.webServer as { url?: string }[] | undefined;
 
-    const config = (await import("../playwright.config")).default;
+    expect(webServers?.[0]?.url).toBe("http://localhost:3100");
+    expect(webServers?.[1]?.url).toBe("http://localhost:3101");
+  });
+
+  it("can omit the unused keyless server from a targeted browser gate", async () => {
+    const config = await playwrightConfigLoader.importConfig({
+      PW_SKIP_KEYLESS_WEBSERVER: "1",
+    });
     const webServers = config.webServer as { url?: string }[] | undefined;
 
     expect(webServers).toHaveLength(1);
@@ -115,12 +130,10 @@ describe("externally trusted signing keys", () => {
   });
 
   it("assigns contribution E2E to matching auth projects", async () => {
-    vi.stubEnv("PW_SCREENSHOTS", "");
-    vi.stubEnv("PW_SKIP_WEBSERVER", "");
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");
-    vi.resetModules();
-    const keylessConfig = (await import("../playwright.config")).default;
+    const keylessConfig = await playwrightConfigLoader.importConfig({
+      NEXT_PUBLIC_SUPABASE_URL: "",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "",
+    });
     const keylessProjects = keylessConfig.projects ?? [];
 
     expect(keylessProjects.map((project) => project.name)).toContain(
@@ -138,16 +151,10 @@ describe("externally trusted signing keys", () => {
       "**/ui-ux-battle-test-keyless.spec.ts",
     ]);
 
-    vi.stubEnv(
-      "NEXT_PUBLIC_SUPABASE_URL",
-      "https://real-auth.example.supabase.co",
-    );
-    vi.stubEnv(
-      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-      "real-publishable-key",
-    );
-    vi.resetModules();
-    const realAuthConfig = (await import("../playwright.config")).default;
+    const realAuthConfig = await playwrightConfigLoader.importConfig({
+      NEXT_PUBLIC_SUPABASE_URL: "https://real-auth.example.supabase.co",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "real-publishable-key",
+    });
     const realAuthProject = realAuthConfig.projects?.find(
       (project) => project.name === "chromium-real-auth",
     );

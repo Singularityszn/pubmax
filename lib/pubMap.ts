@@ -757,6 +757,9 @@ export function openingViewportFrom(
  *
  * A curated pin and a tapped UK base pub fill the SAME drawer, so every
  * open/close/snap path stays one path and these five answers stay one read.
+ * A deep-linked `sel=` before the slim index resolves still counts as detail
+ * open (`pendingDeepLinkSelection`) so the venue skeleton can mount while the
+ * shard loads.
  */
 export type MapSelectionFrame = {
   selectedId: string | undefined;
@@ -775,12 +778,18 @@ export function mapSelectionFrame(input: {
 }): MapSelectionFrame {
   const { selectedVenueId, selectedVenue, selectedBasePub, venueById } = input;
   const basePubOpen = Boolean(selectedBasePub && selectedBasePub.id === selectedVenueId);
+  const pendingDeepLinkSelection =
+    Boolean(selectedVenueId) &&
+    !selectedVenue &&
+    !basePubOpen &&
+    !venueById.has(selectedVenueId);
   return {
     selectedId: selectedVenue?.id,
     resolvable: selectedVenueId ? venueById.has(selectedVenueId) : false,
     isPub: selectedVenue ? input.isPubVenue(selectedVenue) : false,
     basePubOpen,
-    detailOpen: Boolean(selectedVenueId && selectedVenue) || basePubOpen,
+    detailOpen:
+      Boolean(selectedVenueId && selectedVenue) || basePubOpen || pendingDeepLinkSelection,
   };
 }
 
