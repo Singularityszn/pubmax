@@ -1528,6 +1528,7 @@ export default function PubMap({
     nightArea: restoredSession.nightArea,
     planningOpen: restoredSession.plannerOpen,
   });
+  const [generatedMobilePlanVisible, setGeneratedMobilePlanVisible] = useState(false);
   // Issue #15 story bands: the active band id ("" = none), seeded from the URL
   // and synced back so a band link reproduces. The band overlay + picker live
   // inside PubMapCanvas; PubMap only owns the shareable state.
@@ -2062,6 +2063,7 @@ export default function PubMap({
   );
 
   const openPlanning = useCallback(() => {
+    setGeneratedMobilePlanVisible(false);
     surfaceOpenRef.current({
       id: "planner",
       title: "Plan an outing",
@@ -4532,6 +4534,7 @@ export default function PubMap({
 
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
     const ids = generated.stops.map((stop) => stop.venueId);
+    setGeneratedMobilePlanVisible(true);
     activateGeneratedPlan(generated.context.nightArea, ids);
     markPalRouteActivation();
     setActiveCrawl(null);
@@ -5143,7 +5146,10 @@ export default function PubMap({
       />
     ) : null;
   const plannerOrder = phonePlannerOrder({ mobileViewport, mode, builtCount: builtIds.length });
-  const builtCrawlLeads = plannerOrder === "build-first";
+  // Keep the generated result mounted until its transfer action is used.
+  // Moving the form below RoutePanel when these stops become builtIds would
+  // remount MobilePlanActivation and discard the response it must transfer.
+  const builtCrawlLeads = plannerOrder === "build-first" && !generatedMobilePlanVisible;
   const [plannerHead, plannerFoot] = builtCrawlLeads
     ? [null, phoneDescribeForm]
     : [phoneDescribeForm, null];
