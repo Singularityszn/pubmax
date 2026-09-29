@@ -4,6 +4,7 @@ import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { NightSignalClaim } from "@/lib/nightSignalClaims";
 import { canAffectRoute } from "@/lib/nightSignalClaims";
 import type { NightContext } from "@/lib/nightPlanning";
+import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import {
   PLAN_ACCESSIBILITY_NEEDS,
   type PlanAccessibilityNeed,
@@ -66,10 +67,11 @@ export type AnchoredPlanGenerationSelection<T extends ScoredPlanCandidate> =
 async function groundedRouteCandidates<T extends ScoredPlanCandidate>(
   candidates: readonly T[],
   now: number,
+  usesPintPrices: boolean,
 ): Promise<GroundedPlanRouteCandidate<T>[]> {
   const venues = candidates.map(({ venue }) => venue);
   const [priceEvidence, openingSchedules] = await Promise.all([
-    planPriceEvidenceForVenues(venues, now),
+    usesPintPrices ? planPriceEvidenceForVenues(venues, now) : Promise.resolve(new Map()),
     planOpeningSchedulesForVenues(venues),
   ]);
   return candidates.map((candidate) => ({
@@ -111,6 +113,7 @@ function groundedConstraints(
     accessibilityNeeds,
     budgetLimitPence: context.budgetLimitPence,
     budgetTier: context.budget,
+    selectedDrinkPrice: !planUsesPintPrices(context),
     groupSize: context.groupSize,
     stopCount: normalizePlanStopCount(context.stopCount),
     transportConstraints: context.transportConstraints,
@@ -135,7 +138,7 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
     return { ok: true, legacy: true, chosen: candidates.slice(0, normalizePlanStopCount(context.stopCount)) };
   }
   const selection = selectGroundedPlanRoute(
-    await groundedRouteCandidates(candidates, now),
+    await groundedRouteCandidates(candidates, now, planUsesPintPrices(context)),
     groundedConstraints(context, intake, accessibilityNeeds, now),
   );
   return selection.ok
@@ -163,7 +166,7 @@ export async function selectAnchoredPlanGenerationCandidates<T extends ScoredPla
 ): Promise<AnchoredPlanGenerationSelection<T>> {
   const accessibilityNeeds = requiredAccessibilityNeeds(context, intake);
   const selection = selectAnchoredGroundedPlanRoute(
-    await groundedRouteCandidates(candidates, now),
+    await groundedRouteCandidates(candidates, now, planUsesPintPrices(context)),
     groundedConstraints(context, intake, accessibilityNeeds, now),
     anchorVenueId,
   );

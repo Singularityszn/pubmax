@@ -608,6 +608,43 @@ describe("POST /api/plans/generate", () => {
     }
   });
 
+  it("does not satisfy a wine ceiling with pint prices", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    try {
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        body: JSON.stringify({ query: "Cheap wine in Clapham for four, under £24 each" }),
+      }));
+      expect(response.status).toBe(422);
+      const body = await response.json();
+      expect(body).toMatchObject({
+        code: "GROUNDED_CONSTRAINTS_UNSATISFIED",
+        details: { rejected: { budgetEvidence: expect.any(Number) } },
+      });
+      expect(body.details.rejected.budgetEvidence).toBeGreaterThan(0);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("discloses missing selected-drink evidence on a value wine route", async () => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        query: "Cheap wine in Clapham for four",
+        intake: generationIntake({ budget: { tier: "value", limitPence: null } }),
+      }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.inferredContext.drinkCategory).toBe("wine");
+    expect(body.constraintReport.softRelaxations).toContainEqual({
+      code: "value_price_evidence_incomplete",
+      message: "The value preference was applied, but comparable verified prices for the selected drink are unavailable for the selected stops.",
+    });
+    expect(body.stops.every((stop: { estimatedPintPricePence: number | null }) => stop.estimatedPintPricePence === null)).toBe(true);
+  });
+
   it("uses ORS leg durations for per-stop and route walking minutes when keyed", async () => {
     const durations = [125, 240];
     orsApiKeyMock.mockReturnValue("ork_secret");
