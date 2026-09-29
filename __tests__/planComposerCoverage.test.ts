@@ -116,6 +116,43 @@ describe("PlanComposer accepted city authority", () => {
   });
 });
 
+describe("PlanComposer selected drink price submission", () => {
+  const wine = { category: "wine" as const, pence: 550, serving: null, source: "community" as const, reportedAt: "2026-09-25T12:00:00.000Z" };
+  const context = { drinkCategory: "wine", zeroProof: false } as NightContext;
+
+  it("sends the selected venue's bounded evidence with matching wine context", () => {
+    const payload = composerCreatePayload({
+      title: "Wine night", creatorName: "Ada", startTime: "2026-09-30T19:00:00.000Z",
+      stops: [{ venueId: "a", venueName: "A", selectedDrinkPriceEvidence: { ...wine, contributor: "private" } }],
+      context,
+    });
+    expect(payload.stops).toEqual([{ venueId: "a", venueName: "A", selectedDrinkPriceEvidence: wine }]);
+  });
+
+  it("omits selected evidence after a category change or zero-proof choice", () => {
+    const stop = { venueId: "a", venueName: "A", selectedDrinkPriceEvidence: wine };
+    const create = (nextContext: NightContext) => composerCreatePayload({
+      title: "Night", creatorName: "Ada", startTime: "2026-09-30T19:00:00.000Z",
+      stops: [stop], context: nextContext,
+    });
+    expect(create({ ...context, drinkCategory: "cocktail" }).stops).toEqual([{ venueId: "a", venueName: "A" }]);
+    expect(create({ ...context, zeroProof: true }).stops).toEqual([{ venueId: "a", venueName: "A" }]);
+  });
+
+  it("sends cocktail evidence for the venue selected after a swap", () => {
+    const cocktail = { category: "cocktail" as const, pence: 850, serving: null, source: "community" as const, reportedAt: "2026-09-26T12:00:00.000Z" };
+    const swapped = swapDraftStop({
+      key: 1, venueId: "a", venueName: "A", selectedDrinkPriceEvidence: wine,
+      alternatives: [{ venueId: "b", venueName: "B", selectedDrinkPriceEvidence: cocktail }],
+    });
+    const payload = composerCreatePayload({
+      title: "Cocktail night", creatorName: "Ada", startTime: "2026-09-30T19:00:00.000Z",
+      stops: [swapped], context: { ...context, drinkCategory: "cocktail" },
+    });
+    expect(payload.stops).toEqual([{ venueId: "b", venueName: "B", selectedDrinkPriceEvidence: cocktail }]);
+  });
+});
+
 describe("PlanComposer accepted Stop 1 naming", () => {
   const accepted = {
     key: 1,

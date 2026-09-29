@@ -740,7 +740,7 @@ export function composerCreatePayload(input: {
   creatorName: string;
   startTime: string;
   cityId?: CityId | null;
-  stops: ReadonlyArray<{ venueId: string; venueName: string }>;
+  stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: unknown }>;
   groundingProof?: string | null;
   planAnchor?: GeneratedPlanAnchor | null;
   context?: NightContext | null;
@@ -750,7 +750,16 @@ export function composerCreatePayload(input: {
     creatorName: input.creatorName,
     startTime: input.startTime,
     ...(input.cityId ? { cityId: input.cityId } : {}),
-    stops: input.stops.map(({ venueId, venueName }) => ({ venueId, venueName })),
+    stops: input.stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => {
+      const evidence = cleanSelectedDrinkPriceEvidence(selectedDrinkPriceEvidence);
+      return {
+        venueId,
+        venueName,
+        ...(evidence && input.context && !input.context.zeroProof
+          && evidence.category === input.context.drinkCategory
+          ? { selectedDrinkPriceEvidence: evidence } : {}),
+      };
+    }),
     ...(input.groundingProof ? { groundingProof: input.groundingProof } : {}),
     ...(input.planAnchor ? { anchor: input.planAnchor } : {}),
     ...(input.context ? { context: input.context } : {}),
