@@ -338,9 +338,9 @@ export const PRIMARY_INTERACTIONS: Record<string, PrimaryInteraction> = {
     label: "typing the outing into describe-first",
   },
   "/map": {
-    selector: ".mapCompassBtn, .mapFitLondonBtn",
+    selector: '.mapLayersControl > .mapLayersFab, .mobileMapChrome button[aria-label="More map controls"]',
     kind: "click",
-    label: "a map chrome control",
+    label: "opening map controls",
   },
   [COMMUNITY_SHEET_FIXTURE_MAP_PATH]: {
     selector: ".venueInspector [role='tab']",
