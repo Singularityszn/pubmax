@@ -93,6 +93,14 @@ type Reconciliation = {
     rowCount: number;
     rowIdentitySetSha256: string;
   };
+  postReconciliationPublication: {
+    sourceCaptureSha256: string;
+    sourceObservedAt: string;
+    sourceUrl: string;
+    supersededRowSha256: string;
+    currentLedger: { sha256: string; rowCount: number; rowIdentitySetSha256: string };
+    currentBundle: { rowCount: number; siteHarvestRows: number };
+  };
   accounting: {
     refusedNicholsonRows: number;
     knownMisclassifiedWithdrawals: number;
@@ -188,11 +196,12 @@ describe("site-harvest withdrawal reconciliation", () => {
     expect(reconciliation.publishedLedger.path).toBe(
       "data/uk_prices/site_harvest.jsonl",
     );
-    expect(reconciliation.publishedLedger.sha256).toBe(sha256(ledgerText));
-    expect(reconciliation.publishedLedger.rowCount).toBe(rows.length);
-    expect(reconciliation.publishedLedger.rowIdentitySetSha256).toBe(
-      identitySetSha256(rows),
-    );
+    expect(reconciliation.publishedLedger).toEqual({
+      path: "data/uk_prices/site_harvest.jsonl",
+      sha256: "d08ebb6cbc2902bcb3fff880f385ed7659aa5d0abbc4f1358b6314b7595ddd56",
+      rowCount: 3083,
+      rowIdentitySetSha256: "f49f615f1a3a3f9ca323b07ea0c1c43c3ce56f4bf04a6721c94252409cacd7d6",
+    });
     expect(reconciliation.accounting).toEqual({
       refusedNicholsonRows: 480,
       knownMisclassifiedWithdrawals: 19,
@@ -325,7 +334,9 @@ describe("site-harvest withdrawal reconciliation", () => {
     expect(audit.retained + audit.withdrawn + audit.held).toBe(audit.rowCount);
     expect(audit.unexplainedLosses).toBe(0);
     for (const hash of retainedHashes) {
-      expect(currentIdentityHashes.has(hash)).toBe(true);
+      expect(currentIdentityHashes.has(hash)).toBe(
+        hash !== reconciliation.postReconciliationPublication.supersededRowSha256,
+      );
     }
     for (const row of audit.rows.filter((item) => item.disposition === "retain")) {
       expect(isHarvestableDrinkUpdateUrl(row.sourceUrl)).toBe(true);
@@ -417,5 +428,54 @@ describe("site-harvest withdrawal reconciliation", () => {
         ),
       ),
     ).toHaveLength(1);
+  });
+
+  it("records the later Sydney source refresh without rewriting the withdrawal audit", () => {
+    const publication = reconciliation.postReconciliationPublication;
+    expect(publication.sourceCaptureSha256).toBe(
+      "ab30877e2c6dd5ef6559030fcbb422c4b39719818a788758dc8207a422373c9a",
+    );
+    expect(publication.sourceObservedAt).toBe("2026-09-29T10:40:17.846Z");
+    expect(publication.supersededRowSha256).toBe(
+      "fbcc91ed985cdc6506dea865b397e3b621bf731b1009043b1ea5871885a4e4b1",
+    );
+    expect(publication.currentLedger).toEqual({
+      sha256: sha256(ledgerText),
+      rowCount: rows.length,
+      rowIdentitySetSha256: identitySetSha256(rows),
+    });
+    expect(rows.length).toBe(reconciliation.publishedLedger.rowCount - 1 + 24);
+
+    const sourceRows = rows.filter(
+      (row) => row.sourceUrl === publication.sourceUrl,
+    );
+    expect(sourceRows).toHaveLength(24);
+    expect(sourceRows.every(
+      (row) => row.category === "wine" && row.observedAt === publication.sourceObservedAt,
+    )).toBe(true);
+    expect(sourceRows.filter((row) => row.servingSize === "125ml")).toHaveLength(12);
+    expect(sourceRows.filter((row) => row.servingSize === "250ml")).toHaveLength(12);
+    expect(new Set(sourceRows.map((row) => `${row.drinkLabel}|${row.servingSize}`)).size).toBe(24);
+
+    const bundleRows = JSON.parse(
+      readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8"),
+    ) as Array<{
+      sourceUrl: string | null;
+      lane: string;
+      drinkLabel?: string;
+      servingSize?: string;
+      priceGbp: number;
+      observedAt: string;
+    }>;
+    const bundledSourceRows = bundleRows.filter(
+      (row) => row.sourceUrl === publication.sourceUrl && row.lane === "site-harvest",
+    );
+    const identity = (row: { drinkLabel?: string; servingSize?: string; priceGbp?: number; observedAt?: string }) =>
+      `${row.drinkLabel}|${row.servingSize}|${row.priceGbp}|${row.observedAt}`;
+    expect(bundledSourceRows.map(identity).sort()).toEqual(sourceRows.map(identity).sort());
+    expect(publication.currentBundle).toEqual({
+      rowCount: bundleRows.length,
+      siteHarvestRows: bundleRows.filter((row) => row.lane === "site-harvest").length,
+    });
   });
 });
