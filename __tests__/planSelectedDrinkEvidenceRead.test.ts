@@ -82,7 +82,11 @@ describe("saved Plan selected drink evidence reads", () => {
     if (result.status !== "found") return;
     expect(result.state.stops[0]).toMatchObject({ venueId: "venue-a", venueName: "A", position: 0 });
     expect(result.state.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
-    expect(db.selects).toEqual(["venue_id,venue_name,position,selected_drink_price_evidence", "venue_id,venue_name,position"]);
+    expect(db.selects).toEqual([
+      "venue_id,venue_name,position,selected_drink_price_evidence,alternatives",
+      "venue_id,venue_name,position,selected_drink_price_evidence",
+      "venue_id,venue_name,position",
+    ]);
   });
 
   it("returns bounded selected evidence from a saved completion snapshot", async () => {

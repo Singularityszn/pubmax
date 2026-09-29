@@ -63,6 +63,7 @@ for (const journey of [
     expect(generated.stops?.length).toBeGreaterThan(0);
     const listedStops = generated.stops!.filter((stop) => stop.selectedDrinkPriceEvidence?.source === "listed");
     expect(listedStops.length).toBeGreaterThan(0);
+    expect(generated.stops!.some((stop) => (stop.alternatives?.length ?? 0) > 0)).toBe(true);
     const citedCandidates = generated.stops!.flatMap((stop) => [stop, ...(stop.alternatives ?? [])]);
     for (const stop of citedCandidates.filter((candidate) => candidate.selectedDrinkPriceEvidence?.source === "listed")) {
       const evidence = stop.selectedDrinkPriceEvidence!;
@@ -93,6 +94,12 @@ for (const journey of [
       && new URL(response.url()).pathname === "/api/plans");
     await page.getByRole("button", { name: "Lock it in" }).click();
     const createdResponse = await creation;
+    const submitted = createdResponse.request().postDataJSON() as { stops: JourneyStop[] };
+    const backups = (stops: JourneyStop[]) => stops.map((stop) => (stop.alternatives ?? []).map((alternative) => ({
+      venueId: alternative.venueId,
+      selectedDrinkPriceEvidence: alternative.selectedDrinkPriceEvidence ?? null,
+    })));
+    expect(backups(submitted.stops)).toEqual(backups(generated.stops!));
     expect(createdResponse.status()).toBe(201);
     const created = await createdResponse.json() as {
       plan?: { context?: { drinkCategory?: string }; stops?: JourneyStop[] };
@@ -102,6 +109,7 @@ for (const journey of [
     expect(created.plan?.stops?.map((stop) => stop.venueId)).toEqual(generated.stops?.map((stop) => stop.venueId));
     expect(created.plan?.stops?.map((stop) => stop.selectedDrinkPriceEvidence ?? null))
       .toEqual(generated.stops?.map((stop) => stop.selectedDrinkPriceEvidence ?? null));
+    expect(backups(created.plan!.stops!)).toEqual(backups(generated.stops!));
     await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}(?:#share)?$/);
 
     const planId = new URL(page.url()).pathname.split("/").pop();
@@ -118,6 +126,7 @@ for (const journey of [
     expect(reloaded.stops?.map((stop) => stop.venueId)).toEqual(generated.stops?.map((stop) => stop.venueId));
     expect(reloaded.stops?.map((stop) => stop.selectedDrinkPriceEvidence ?? null))
       .toEqual(generated.stops?.map((stop) => stop.selectedDrinkPriceEvidence ?? null));
+    expect(backups(reloaded.stops!)).toEqual(backups(generated.stops!));
     await expect(page.locator(".planRoute")).not.toContainText("community report");
     await expect(page.locator(".planRoute")).toContainText("published menu");
     await page.locator(".planRoute").scrollIntoViewIfNeeded();

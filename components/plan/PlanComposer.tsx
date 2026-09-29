@@ -733,7 +733,8 @@ export function composerCreatePayload(input: {
   creatorName: string;
   startTime: string;
   cityId?: CityId | null;
-  stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: unknown }>;
+  stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: unknown;
+    alternatives?: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: unknown }> }>;
   groundingProof?: string | null;
   planAnchor?: GeneratedPlanAnchor | null;
   context?: NightContext | null;
@@ -743,14 +744,22 @@ export function composerCreatePayload(input: {
     creatorName: input.creatorName,
     startTime: input.startTime,
     ...(input.cityId ? { cityId: input.cityId } : {}),
-    stops: input.stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => {
+    stops: input.stops.map(({ venueId, venueName, selectedDrinkPriceEvidence, alternatives }) => {
       const evidence = cleanSelectedDrinkPriceEvidence(selectedDrinkPriceEvidence);
+      const cleanEvidence = (value: unknown) => {
+        const candidate = cleanSelectedDrinkPriceEvidence(value);
+        return candidate && input.context && !input.context.zeroProof
+          && candidate.category === input.context.drinkCategory ? candidate : null;
+      };
       return {
         venueId,
         venueName,
-        ...(evidence && input.context && !input.context.zeroProof
-          && evidence.category === input.context.drinkCategory
-          ? { selectedDrinkPriceEvidence: evidence } : {}),
+        ...(cleanEvidence(evidence) ? { selectedDrinkPriceEvidence: evidence } : {}),
+        ...(alternatives?.length ? { alternatives: alternatives.map((alternative) => {
+          const price = cleanEvidence(alternative.selectedDrinkPriceEvidence);
+          return { venueId: alternative.venueId, venueName: alternative.venueName,
+            ...(price ? { selectedDrinkPriceEvidence: price } : {}) };
+        }) } : {}),
       };
     }),
     ...(input.groundingProof ? { groundingProof: input.groundingProof } : {}),

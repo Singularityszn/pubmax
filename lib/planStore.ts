@@ -207,11 +207,20 @@ function routeRevisionOf(plan: PlanDTO): number {
 
 function stopFromRow(row: Record<string, unknown>): PlanStopDTO {
   const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selected_drink_price_evidence);
+  const alternatives = Array.isArray(row.alternatives) ? row.alternatives.flatMap((raw) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+    const alternative = raw as Record<string, unknown>;
+    if (typeof alternative.venueId !== "string" || typeof alternative.venueName !== "string") return [];
+    const price = cleanSelectedDrinkPriceEvidence(alternative.selectedDrinkPriceEvidence);
+    return [{ venueId: alternative.venueId, venueName: alternative.venueName,
+      ...(price ? { selectedDrinkPriceEvidence: price } : {}) }];
+  }) : [];
   return {
     venueId: String(row.venue_id),
     venueName: String(row.venue_name),
     position: Number(row.position),
     ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+    ...(alternatives.length ? { alternatives } : {}),
   };
 }
 
@@ -241,11 +250,14 @@ async function readSupabasePlanState(
   if (!planRow) return null;
   const readStops = async () => {
     const result = await admin.from(STOPS)
-      .select("venue_id,venue_name,position,selected_drink_price_evidence")
+      .select("venue_id,venue_name,position,selected_drink_price_evidence,alternatives")
       .eq("plan_id", id).order("position");
     if (result.error?.code !== "42703") return result;
-    return admin.from(STOPS).select("venue_id,venue_name,position")
+    const withoutAlternatives = await admin.from(STOPS)
+      .select("venue_id,venue_name,position,selected_drink_price_evidence")
       .eq("plan_id", id).order("position");
+    if (withoutAlternatives.error?.code !== "42703") return withoutAlternatives;
+    return admin.from(STOPS).select("venue_id,venue_name,position").eq("plan_id", id).order("position");
   };
   const [
     { data: stopRows, error: stopsError },

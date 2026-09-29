@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -16,6 +17,7 @@ vi.mock("@/lib/concierge/venues.server", () => ({
     { id: "venue-a", name: "Venue A" },
     { id: "venue-b", name: "Venue B" },
     { id: "venue-c", name: "Venue C" },
+    { id: "venue-11bllvc", name: "Punch & Judy" },
   ],
 }));
 vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
@@ -57,6 +59,43 @@ describe("Plan create selected drink evidence", () => {
     bundleRowsMock.mockReset().mockResolvedValue({ status: "empty", rows: [] });
   });
   afterEach(() => { __resetMemoryPlans(); });
+
+  it.each(["wine", "cocktail"] as const)("rechecks a committed %s backup listing and keeps backup order", async (category) => {
+    const committed = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8")) as Array<{
+      venueId: string; category: string; standing: string; priceGbp: number; sourceUrl: string; observedAt: string;
+    }>;
+    const row = committed.find((candidate) => candidate.venueId === "venue-11bllvc"
+      && candidate.category === category && candidate.standing === "listed");
+    expect(row).toBeDefined();
+    const evidence = { category, pence: Math.round(row!.priceGbp * 100), serving: null, source: "listed" as const,
+      sourceUrl: row!.sourceUrl, observedAt: row!.observedAt };
+    categoryIndexMock.mockResolvedValue({ prices: [], degraded: true, truncated: false });
+    bundleRowsMock.mockImplementation(async (venueId: string) => ({
+      status: "ready", rows: venueId === row!.venueId ? [row] : [],
+    }));
+    const submit = async (backupPrice: typeof evidence) => {
+      const response = await POST(new Request("http://localhost/api/plans", {
+        method: "POST",
+        headers: { "idempotency-key": `listed-backup-${++sequence}`, "content-type": "application/json" },
+        body: JSON.stringify({ creatorName: "Host", startTime: "2026-09-30T19:00:00.000Z",
+          context: { ...inferNightContext(category).context, nightArea: "piccadilly-soho", drinkCategory: category },
+          stops: [{ venueId: "venue-a", alternatives: [
+            { venueId: row!.venueId, selectedDrinkPriceEvidence: backupPrice }, { venueId: "venue-b" },
+          ] }],
+        }),
+      }));
+      expect(response.status).toBe(201);
+      return (await response.json() as { plan: { stops: Array<{ alternatives?: unknown[] }> } }).plan.stops[0].alternatives;
+    };
+    expect(await submit(evidence)).toEqual([
+      { venueId: row!.venueId, venueName: "Punch & Judy", selectedDrinkPriceEvidence: evidence },
+      { venueId: "venue-b", venueName: "Venue B" },
+    ]);
+    expect(await submit({ ...evidence, pence: 1 })).toEqual([
+      { venueId: row!.venueId, venueName: "Punch & Judy" },
+      { venueId: "venue-b", venueName: "Venue B" },
+    ]);
+  });
 
   it("re-resolves a listed hint from the approved bundle on create and replace despite a degraded community read", async () => {
     const row = {

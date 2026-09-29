@@ -120,6 +120,22 @@ describe("PlanComposer selected drink price submission", () => {
   const wine = { category: "wine" as const, pence: 550, serving: null, source: "community" as const, reportedAt: "2026-09-25T12:00:00.000Z" };
   const context = { drinkCategory: "wine", zeroProof: false } as NightContext;
 
+  it("includes ordered listed backups in the Plan creation request", () => {
+    const listed = { category: "wine" as const, pence: 725, serving: null, source: "listed" as const,
+      sourceUrl: "https://example.org/menu", observedAt: "2026-09-29T12:00:00.000Z" };
+    const payload = composerCreatePayload({
+      title: "Wine night", creatorName: "Ada", startTime: "2026-09-30T19:00:00.000Z", context,
+      stops: [{ venueId: "a", venueName: "A", alternatives: [
+        { venueId: "b", venueName: "B", selectedDrinkPriceEvidence: listed },
+        { venueId: "c", venueName: "C" },
+      ] }],
+    });
+    expect(payload.stops).toEqual([{ venueId: "a", venueName: "A", alternatives: [
+      { venueId: "b", venueName: "B", selectedDrinkPriceEvidence: listed },
+      { venueId: "c", venueName: "C" },
+    ] }]);
+  });
+
   it("sends the selected venue's bounded evidence with matching wine context", () => {
     const payload = composerCreatePayload({
       title: "Wine night", creatorName: "Ada", startTime: "2026-09-30T19:00:00.000Z",
@@ -149,7 +165,8 @@ describe("PlanComposer selected drink price submission", () => {
       title: "Cocktail night", creatorName: "Ada", startTime: "2026-09-30T19:00:00.000Z",
       stops: [swapped], context: { ...context, drinkCategory: "cocktail" },
     });
-    expect(payload.stops).toEqual([{ venueId: "b", venueName: "B", selectedDrinkPriceEvidence: cocktail }]);
+    expect(payload.stops).toEqual([{ venueId: "b", venueName: "B", selectedDrinkPriceEvidence: cocktail,
+      alternatives: [{ venueId: "a", venueName: "A" }] }]);
   });
 });
 
