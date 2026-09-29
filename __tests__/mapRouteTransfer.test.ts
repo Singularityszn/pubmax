@@ -74,6 +74,46 @@ describe("mapGeneratedRouteDraftValue / transferMapRouteToDraft", () => {
     expect(parsed?.value.anchorVenueId).toBeNull();
   });
 
+  it.each(["wine", "cocktail"] as const)("keeps listed %s evidence on map transfer and draft reload", (category) => {
+    const storage = memoryStorage();
+    const evidence = {
+      category, pence: 675, serving: null, source: "listed" as const,
+      sourceUrl: `https://pub.example/${category}/menu`, observedAt: "2026-07-23T10:00:00.000Z",
+    };
+    const alternativeEvidence = { ...evidence, pence: 725, serving: "125ml" };
+    const stops = [
+      {
+        venueId: "venue-a", venueName: "Venue A", selectedDrinkPriceEvidence: evidence,
+        alternatives: [{ venueId: "venue-x", venueName: "Venue X", selectedDrinkPriceEvidence: alternativeEvidence }],
+      },
+      { venueId: "venue-b", venueName: "Venue B", alternatives: [] },
+      { venueId: "venue-c", venueName: "Venue C", alternatives: [] },
+    ];
+    const response = generateResponse({
+      stops,
+      inferredContext: { ...generateResponse().inferredContext as object, drinkCategory: category },
+    });
+
+    expect(transferMapRouteToDraft(response, storage, NOW)).toBe(true);
+    const parsed = readPlanRouteDraftEnvelope(storage, NOW);
+    expect(parsed?.value.stops[0].selectedDrinkPriceEvidence).toEqual(evidence);
+    expect(parsed?.value.stops[0].alternatives[0].selectedDrinkPriceEvidence).toEqual(alternativeEvidence);
+  });
+
+  it("keeps the community evidence shape on map transfer", () => {
+    const storage = memoryStorage();
+    const evidence = {
+      category: "wine", pence: 550, serving: null, source: "community" as const,
+      reportedAt: "2026-07-23T10:00:00.000Z",
+    };
+    const response = generateResponse({
+      stops: [{ venueId: "venue-a", venueName: "Venue A", selectedDrinkPriceEvidence: evidence }],
+      inferredContext: { ...generateResponse().inferredContext as object, drinkCategory: "wine" },
+    });
+    expect(transferMapRouteToDraft(response, storage, NOW)).toBe(true);
+    expect(readPlanRouteDraftEnvelope(storage, NOW)?.value.stops[0].selectedDrinkPriceEvidence).toEqual(evidence);
+  });
+
   it("carries an anchored Route with the anchor kept at Stop 1", () => {
     const storage = memoryStorage();
     transferMapRouteToDraft(generateResponse({

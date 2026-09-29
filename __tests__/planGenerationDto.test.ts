@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildPlanGenerationStops, planBudgetSummary } from "@/lib/planGenerationDto";
+import { buildPlanGenerationStops, planBudgetSummary, selectedDrinkPriceEvidence } from "@/lib/planGenerationDto";
 import { inferNightContext } from "@/lib/nightPlanning";
 
 const AREA = {
@@ -66,6 +66,22 @@ function grounded<T>(value: T, pence: number) {
 }
 
 describe("plan generation response projection", () => {
+  it("keeps community precedence if both source candidates reach the DTO", () => {
+    expect(selectedDrinkPriceEvidence({
+      selectedDrinkPrice: {
+        venueId: "v1", category: "wine", categoryLabel: "Wine", priceGbp: 9,
+        submittedAt: Date.parse("2026-09-29T10:00:00.000Z"), source: "community",
+      },
+      selectedDrinkPriceEvidence: {
+        category: "wine", pence: 550, serving: "125ml", source: "listed",
+        sourceUrl: "https://pub.example/menu", observedAt: "2026-09-29T09:00:00.000Z",
+      },
+    }, { drinkCategory: "wine", zeroProof: false })).toEqual({
+      category: "wine", pence: 900, serving: null, source: "community",
+      reportedAt: "2026-09-29T10:00:00.000Z",
+    });
+  });
+
   it("keeps selected wine evidence on a priced alternative while leaving an unpriced stop unknown", () => {
     const selected = candidate("selected", -0.1, { cheapestPrice: 3 });
     const alternative = candidate("alternative", -0.099, { cheapestPrice: 4 });

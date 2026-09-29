@@ -1,6 +1,6 @@
 import { categoryLabel, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 
-export type SelectedDrinkPriceEvidence = {
+type CommunitySelectedDrinkPriceEvidence = {
   category: DrinkCategory;
   pence: number;
   serving: null;
@@ -8,27 +8,66 @@ export type SelectedDrinkPriceEvidence = {
   reportedAt: string;
 };
 
+type ListedSelectedDrinkPriceEvidence = {
+  category: DrinkCategory;
+  pence: number;
+  serving: string | null;
+  source: "listed";
+  sourceUrl: string;
+  observedAt: string;
+};
+
+export type SelectedDrinkPriceEvidence = CommunitySelectedDrinkPriceEvidence | ListedSelectedDrinkPriceEvidence;
+
+function canonicalTimestamp(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const time = Date.parse(value);
+  return Number.isFinite(time) && new Date(time).toISOString() === value;
+}
+
 export function cleanSelectedDrinkPriceEvidence(value: unknown): SelectedDrinkPriceEvidence | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
-  if (!isDrinkCategory(row.category) || row.category === "beer" || row.source !== "community"
-    || row.serving !== null || !Number.isSafeInteger(row.pence) || (row.pence as number) <= 0
-    || (row.pence as number) > 100_000 || typeof row.reportedAt !== "string") return null;
-  const time = Date.parse(row.reportedAt);
-  if (!Number.isFinite(time) || new Date(time).toISOString() !== row.reportedAt) return null;
+  if (!isDrinkCategory(row.category) || row.category === "beer"
+    || !Number.isSafeInteger(row.pence) || (row.pence as number) <= 0
+    || (row.pence as number) > 100_000) return null;
+  if (row.source === "community") {
+    if (row.serving !== null || !canonicalTimestamp(row.reportedAt)) return null;
+    return {
+      category: row.category,
+      pence: row.pence as number,
+      serving: null,
+      source: "community",
+      reportedAt: row.reportedAt,
+    };
+  }
+  if (row.source !== "listed" || !canonicalTimestamp(row.observedAt)
+    || (row.serving !== null && (typeof row.serving !== "string"
+      || !row.serving.trim() || row.serving !== row.serving.trim() || row.serving.length > 48
+      || /[\u0000-\u001f\u007f]/.test(row.serving)))
+    || typeof row.sourceUrl !== "string" || row.sourceUrl.length > 2048
+    || row.sourceUrl !== row.sourceUrl.trim() || /\s|[\u0000-\u001f\u007f]/.test(row.sourceUrl)) return null;
+  try {
+    const url = new URL(row.sourceUrl);
+    if (!(["https:", "http:"].includes(url.protocol)) || url.username || url.password) return null;
+  } catch {
+    return null;
+  }
   return {
     category: row.category,
     pence: row.pence as number,
-    serving: null,
-    source: "community",
-    reportedAt: row.reportedAt,
+    serving: row.serving,
+    source: "listed",
+    sourceUrl: row.sourceUrl,
+    observedAt: row.observedAt,
   };
 }
 
 export function selectedDrinkPriceDescription(evidence: SelectedDrinkPriceEvidence | undefined): string | null {
   if (!evidence) return null;
-  const reported = new Date(evidence.reportedAt).toLocaleDateString("en-GB", {
+  const reported = new Date(evidence.source === "community" ? evidence.reportedAt : evidence.observedAt).toLocaleDateString("en-GB", {
     day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
   });
-  return `${categoryLabel(evidence.category)} £${(evidence.pence / 100).toFixed(2)}, community report ${reported}. Serving size not recorded.`;
+  const serving = evidence.serving ? `Serving ${evidence.serving}.` : "Serving size not recorded.";
+  return `${categoryLabel(evidence.category)} £${(evidence.pence / 100).toFixed(2)}, ${evidence.source === "community" ? "community report" : "published menu"} ${reported}. ${serving}`;
 }

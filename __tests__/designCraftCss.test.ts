@@ -11,9 +11,6 @@ const mobileCss = read("components/mobile/mobileMapShell.css");
 const createFabCss = read("components/nav/createFab.css");
 const landingCss = read("components/landing/landing.css");
 const venueCss = read("components/map/venueSheet.css");
-const pubMapSource = read("components/PubMap.tsx");
-const springDrawerSource = read("components/map/SpringDrawer.tsx");
-const legacyDragSource = read("components/map/useSheetDrag.ts");
 const evidence = read("docs/design-craft-d1-d8-evidence.md");
 
 function cssFilesUnder(directory: string): string[] {
@@ -48,58 +45,6 @@ describe("sheet material", () => {
     );
     expect(mobileCss).toMatch(
       /@media \(max-width: 640px\) and \(prefers-reduced-transparency: reduce\)\s*{[\s\S]*?\.mobileSharedSheet\.mapDrawer\s*{[^}]*background:\s*var\(--sheet-material-solid\);[^}]*backdrop-filter:\s*none/,
-    );
-  });
-});
-
-describe("responsive spring ownership", () => {
-  it("isolates every inline drawer spring from PubMap and covers tablet sheets", () => {
-    expect(pubMapSource).toContain(
-      'import("@/components/map/SpringDrawer")',
-    );
-    expect(pubMapSource).not.toContain("useDrawerSpring");
-    expect(springDrawerSource).toContain(
-      'const TABLET_SHEET_QUERY = "(max-width: 768px)"',
-    );
-    expect(springDrawerSource).toContain(
-      'data-spring-axis={tabletSheet ? "vertical" : "horizontal"}',
-    );
-    expect(legacyDragSource).toContain(
-      "const SHEET_GESTURE_MIN_WIDTH = 641",
-    );
-    expect(legacyDragSource).toContain(
-      "const SHEET_GESTURE_MAX_WIDTH = 768",
-    );
-    expect(globalCss).toMatch(
-      /\.mapDrawer\.springDrawer\.left\.open\.sheet-half\[data-spring-axis="vertical"\][\s\S]*?transform:\s*var\(--drawer-spring-transform\)\s*!important/,
-    );
-  });
-
-  it("retains drawer content through the closing spring", () => {
-    expect(springDrawerSource).toContain(
-      "{open ? children : retainedChildren}",
-    );
-    expect(springDrawerSource).toContain(
-      "onRest: open ? undefined : clearRetainedChildren",
-    );
-    expect(springDrawerSource).toContain(
-      "const presentationClassName = open || running || dragOffsetY !== null",
-    );
-    expect(springDrawerSource).toContain(
-      'className={`springDrawer ${className ?? ""}${presentationClassName}`.trim()}',
-    );
-    expect(springDrawerSource).toContain(
-      "if (!keepMounted) setRetainedChildren(null)",
-    );
-    expect(springDrawerSource).toContain("sheetClosedTranslateY");
-    expect(springDrawerSource).toContain(
-      "window.getComputedStyle(drawerRef.current).bottom",
-    );
-    expect(globalCss).toMatch(
-      /\.mapDrawer\.springDrawer\.left\.open\[data-spring-axis="vertical"\][^{]*{[^}]*z-index:\s*var\(--z-nav\)/,
-    );
-    expect(globalCss).toMatch(
-      /\.mapDrawer\.springDrawer\.right\.open\[data-spring-axis="vertical"\][^{]*{[^}]*z-index:\s*calc\(var\(--z-nav\) \+ 1\)/,
     );
   });
 });

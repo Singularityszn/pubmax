@@ -37,6 +37,7 @@ type PlanGenerationDtoVenue = {
 type PlanGenerationDtoCandidate = {
   venue: PlanGenerationDtoVenue;
   selectedDrinkPrice?: MapLensPrice | null;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence | null;
   distance: number;
   reasons: readonly string[];
   tonightEvents: readonly {
@@ -79,24 +80,29 @@ export function planUsesPintPrices(context: Pick<NightContext, "drinkCategory" |
   return !context.zeroProof && (!context.drinkCategory || context.drinkCategory === "beer");
 }
 
-function selectedDrinkPriceEvidence(
-  price: MapLensPrice | null | undefined,
+export function selectedDrinkPriceEvidence(
+  candidate: Pick<PlanGenerationDtoCandidate, "selectedDrinkPrice" | "selectedDrinkPriceEvidence">,
   context: Pick<NightContext, "drinkCategory" | "zeroProof">,
 ) {
-  if (context.zeroProof || !context.drinkCategory || context.drinkCategory === "beer"
-    || price?.category !== context.drinkCategory || price.source !== "community"
-    || !Number.isFinite(price.priceGbp) || price.priceGbp <= 0
-    || typeof price.submittedAt !== "number" || !Number.isFinite(price.submittedAt)) return null;
-  const pence = Math.round(price.priceGbp * 100);
-  const reportedAt = new Date(price.submittedAt);
-  if (!Number.isSafeInteger(pence) || !Number.isFinite(reportedAt.getTime())) return null;
-  return {
-    category: context.drinkCategory,
-    pence,
-    serving: null,
-    source: "community" as const,
-    reportedAt: reportedAt.toISOString(),
-  };
+  if (context.zeroProof || !context.drinkCategory || context.drinkCategory === "beer") return null;
+  const price = candidate.selectedDrinkPrice;
+  if (price?.category === context.drinkCategory && price.source === "community"
+    && Number.isFinite(price.priceGbp) && price.priceGbp > 0
+    && typeof price.submittedAt === "number" && Number.isFinite(price.submittedAt)) {
+    const pence = Math.round(price.priceGbp * 100);
+    const reportedAt = new Date(price.submittedAt);
+    if (Number.isSafeInteger(pence) && Number.isFinite(reportedAt.getTime())) {
+      return {
+        category: context.drinkCategory,
+        pence,
+        serving: null,
+        source: "community" as const,
+        reportedAt: reportedAt.toISOString(),
+      };
+    }
+  }
+  const listed = candidate.selectedDrinkPriceEvidence;
+  return listed?.source === "listed" && listed.category === context.drinkCategory ? listed : null;
 }
 
 function planAlternativeDto(
@@ -117,7 +123,7 @@ function planAlternativeDto(
         ? null
         : Math.round(alternative.cheapestPrice * 100),
     priceEvidence: usesPintPrices ? grounded?.price ?? null : null,
-    selectedDrinkPriceEvidence: selectedDrinkPriceEvidence(candidate.selectedDrinkPrice, priceContext),
+    selectedDrinkPriceEvidence: selectedDrinkPriceEvidence(candidate, priceContext),
     accessEvidence: grounded?.access ?? null,
     constraintFlags: grounded?.constraintFlags ?? [],
     operationalEvidence: {
@@ -159,7 +165,8 @@ export function buildPlanGenerationStops(params: {
   const usesPintPrices = planUsesPintPrices(priceContext);
   const chosenVenueIds = new Set(chosen.map(({ venue }) => venue.id));
 
-  return chosen.map(({ venue, distance, reasons, tonightEvents, signalClaims }, index) => {
+  return chosen.map((candidate, index) => {
+    const { venue, distance, reasons, tonightEvents, signalClaims } = candidate;
     const grounded = groundedStops?.[index] ?? null;
     const groundedAlternativeCandidates = groundedAlternatives?.[index] ?? null;
     const alternatives = groundedAlternativeCandidates
@@ -182,7 +189,7 @@ export function buildPlanGenerationStops(params: {
         ? grounded.price.pence
         : venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100),
       priceEvidence: usesPintPrices ? grounded?.price ?? null : null,
-      selectedDrinkPriceEvidence: selectedDrinkPriceEvidence(chosen[index]?.selectedDrinkPrice, priceContext),
+      selectedDrinkPriceEvidence: selectedDrinkPriceEvidence(candidate, priceContext),
       accessEvidence: grounded?.access ?? null,
       evidence: reasons,
       constraintFlags: grounded?.constraintFlags ?? [],
@@ -260,6 +267,7 @@ export function planRouteTimingDisclosure(grounded: GroundedRouteTimingSummary |
 }
 import { haversineKm } from "@/lib/haversine";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import type { SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import type { NightContext } from "@/lib/nightPlanning";
 import type { PlanBudgetSummary } from "@/lib/planIntelligence";
 import type {

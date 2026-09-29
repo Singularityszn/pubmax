@@ -82,6 +82,7 @@ import {
   composerGeolocationMaySeedIntake,
   mergeSubmittedNightContext,
   mergePlanTemplateFields,
+  newQuerySupersedesDrinkChoice,
   nightAreaFromPlanQuery,
   reconcileGeneratedNightContext,
   syncPlanIntakeAreaFromQuery,
@@ -1316,6 +1317,7 @@ function PlanComposerForm({
   // exactly the surface that still needs it (e2e/plan-held-acceptance.spec.ts).
   // A recovered route draft IS a route, so it seeds this true.
   const [routeSorted, setRouteSorted] = useState(Boolean(recoveredRouteDraft));
+  const lastGeneratedQueryRef = useRef<string | null>(recoveredRouteDraft ? draftFields.conciergeQuery : null);
   const [groundingProof, setGroundingProof] = useState(routeDraftFields.groundingProof);
   const [createOperationKey, setCreateOperationKey] = useState(routeDraftFields.createOperationKey);
   const [planAnchor, setPlanAnchor] = useState(routeDraftFields.planAnchor);
@@ -1724,9 +1726,20 @@ function PlanComposerForm({
     // send the pre-skip intake to the server.
     const query = queryOverride ?? conciergeQuery;
     const queryArea = nightAreaFromPlanQuery(query);
+    const supersedesDrinkChoice = newQuerySupersedesDrinkChoice(lastGeneratedQueryRef.current, query);
     const explicitContextBase = explicitContextOverride
       ? { ...explicitNightContext, ...explicitContextOverride }
-      : explicitNightContext;
+      : { ...explicitNightContext };
+    if (supersedesDrinkChoice) {
+      delete explicitContextBase.drinkCategory;
+      delete explicitContextBase.zeroProof;
+      setExplicitNightContext((current) => {
+        const next = { ...current };
+        delete next.drinkCategory;
+        delete next.zeroProof;
+        return next;
+      });
+    }
     const explicitContext = Object.prototype.hasOwnProperty.call(explicitContextBase, "nightArea")
       ? explicitContextBase
       : nightContext?.nightArea
@@ -1810,6 +1823,7 @@ function PlanComposerForm({
         return;
       }
       setStops(suggested);
+      lastGeneratedQueryRef.current = query.trim();
       setRouteSorted(true);
       setCultureOpener(cleanCultureOpener(body.cultureOpener));
       const grounded = isGroundedGeneratedRoute(body, suggested);

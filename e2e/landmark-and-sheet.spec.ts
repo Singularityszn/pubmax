@@ -285,6 +285,11 @@ test("inline drawers keep spring ownership and content through responsive exits"
     ),
   ).toBe("none");
   await expect(tabletDrawer.locator(".venueInspector")).toHaveCount(1);
+  const tabletOpenBox = await tabletDrawer.boundingBox();
+  expect(tabletOpenBox).not.toBeNull();
+  expect(tabletOpenBox!.y).toBeGreaterThanOrEqual(0);
+  expect(tabletOpenBox!.y).toBeLessThan(900);
+  expect(tabletOpenBox!.x + tabletOpenBox!.width).toBeLessThanOrEqual(701);
 
   // The drawer's way out is the shared SurfaceNav pair now, not a bespoke
   // close (components/ui/surface-nav.tsx).
@@ -296,6 +301,7 @@ test("inline drawers keep spring ownership and content through responsive exits"
   await expect
     .poll(() => tabletDrawer.locator(".venueInspector").count())
     .toBe(0);
+  await expect.poll(async () => (await tabletDrawer.boundingBox())?.y ?? 0).toBeGreaterThanOrEqual(899);
 
   await page.setViewportSize({ width: 900, height: 900 });
   await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
@@ -311,6 +317,15 @@ test("inline drawers keep spring ownership and content through responsive exits"
       (node) => getComputedStyle(node).transitionProperty,
     ),
   ).toBe("none");
+  const desktopOpenBox = await compactDesktopDrawer.boundingBox();
+  expect(desktopOpenBox).not.toBeNull();
+  expect(desktopOpenBox!.x).toBeLessThan(900);
+  expect(desktopOpenBox!.x + desktopOpenBox!.width).toBeCloseTo(900, 0);
+  await compactDesktopDrawer.locator(".surfaceNavHome").click();
+  await expect(compactDesktopDrawer).toHaveAttribute("aria-hidden", "true");
+  await expect(compactDesktopDrawer.locator(".venueInspector")).toHaveCount(1);
+  await expect(compactDesktopDrawer.locator(".venueInspector")).toHaveCount(0);
+  await expect.poll(async () => (await compactDesktopDrawer.boundingBox())?.x ?? 0).toBeGreaterThanOrEqual(899);
 
   expect(errors).toEqual([]);
 });

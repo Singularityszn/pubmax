@@ -2,10 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { isLimitedMock, loadConciergeVenuesMock, resolvePlanningAnchorMock } = vi.hoisted(() => ({
+const { isLimitedMock, loadConciergeVenuesMock, resolvePlanningAnchorMock, bundleRowsMock } = vi.hoisted(() => ({
   isLimitedMock: vi.fn(async () => false),
   loadConciergeVenuesMock: vi.fn(),
   resolvePlanningAnchorMock: vi.fn(),
+  bundleRowsMock: vi.fn(),
 }));
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
@@ -29,6 +30,7 @@ vi.mock("@/lib/walkRouteStore", () => ({
   walkRouteStore: () => ({ getLeg: vi.fn(async () => null), putLeg: vi.fn(async () => undefined) }),
 }));
 vi.mock("@/lib/planningAnchor.server", () => ({ resolvePlanningAnchor: resolvePlanningAnchorMock }));
+vi.mock("@/lib/ukPriceBundle.server", () => ({ ukPriceBundleRowsFor: bundleRowsMock }));
 
 import { POST } from "@/app/api/plans/generate/route";
 import { verifyAnchoredPlanGroundingProofV2 } from "@/lib/planGrounding.server";
@@ -93,6 +95,7 @@ describe("POST /api/plans/generate — anchored", () => {
     isLimitedMock.mockResolvedValue(false);
     loadConciergeVenuesMock.mockClear();
     resolvePlanningAnchorMock.mockReset();
+    bundleRowsMock.mockReset().mockResolvedValue({ status: "empty", rows: [] });
     process.env.PLAN_IDEMPOTENCY_SECRET = "a".repeat(48);
   });
   afterEach(() => {
@@ -152,6 +155,32 @@ describe("POST /api/plans/generate — anchored", () => {
     expect(body.stops[0].venueId).toBe("anchor-venue");
     const verdict = verifyAnchoredPlanGroundingProofV2(body.groundingProof, ["anchor-venue"], body.operationKey);
     expect(verdict).toMatchObject({ ok: true, outcome: "anchor-only", anchored: true });
+  });
+
+  it("retains cited wine evidence on an anchor-only route", async () => {
+    resolvePlanningAnchorMock.mockResolvedValue(resolved("anchor-venue"));
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      claphamVenue("anchor-venue", 0),
+      claphamVenue("companion-1", 1),
+    ]);
+    const observedAt = new Date(Date.now() - 1000).toISOString();
+    bundleRowsMock.mockImplementation(async (venueId: string) => ({
+      status: "ready",
+      rows: venueId === "anchor-venue" ? [{
+        venueId, name: "Anchor", category: "wine", priceGbp: 6.25,
+        lane: "site-harvest", standing: "listed", sourceUrl: "https://pub.example/anchor/menu",
+        publisher: "Anchor", observedAt, basis: null, sampleSize: null,
+        drinkLabel: "Rioja", servingSize: "125ml",
+      }] : [],
+    }));
+    const response = await generate({ query: "wine in Clapham for 2", intake: intake(), anchor: ANCHOR });
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.outcome).toBe("anchor-only");
+    expect(body.stops[0].selectedDrinkPriceEvidence).toEqual({
+      category: "wine", pence: 625, serving: "125ml", source: "listed",
+      sourceUrl: "https://pub.example/anchor/menu", observedAt,
+    });
   });
 
   it("surfaces a resolver conflict as an anchor-conflict outcome", async () => {

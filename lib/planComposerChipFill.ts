@@ -104,6 +104,13 @@ export function mergeInferredNightContext(
   return { ...inferred, ...explicit };
 }
 
+/** A drink control belongs to the query on screen when it was selected. */
+export function newQuerySupersedesDrinkChoice(previousQuery: string | null, nextQuery: string): boolean {
+  if (previousQuery === null || previousQuery.trim() === nextQuery.trim()) return false;
+  const inferred = inferNightContext(nextQuery).context;
+  return inferred.drinkCategory !== null || inferred.zeroProof;
+}
+
 export function mergeSubmittedNightContext(
   explicit: Partial<NightContext>,
   intake: Partial<NightContext>,

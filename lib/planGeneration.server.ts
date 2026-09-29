@@ -10,6 +10,7 @@ import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { haversineKm } from "@/lib/haversine";
 import { CATEGORY_META } from "@/lib/drinks";
+import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
 import { drinkLensCoverageNote, trustedDrinkLensPrices, trustedNoAlcoholLensPrices, type MapLensPrice } from "@/lib/mapExperienceLens";
 import {
 	getNightArea,
@@ -25,7 +26,8 @@ import {
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
-import { planUsesPintPrices } from "@/lib/planGenerationDto";
+import { planUsesPintPrices, selectedDrinkPriceEvidence } from "@/lib/planGenerationDto";
+import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { scoreVenueForPlan } from "@/lib/planGenerationRanking";
 import {
@@ -51,6 +53,7 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
 import { loadServedWhatsOnListings } from "@/lib/whatsOnListings.server";
 import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
+import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
 import nightSignalSnapshot from "@/public/data/night_signals/latest.json";
 import weatherSnapshot from "@/public/data/weather/latest.json";
 
@@ -82,7 +85,10 @@ type AnchoredRouteData<T extends ScoredPlanCandidate> = {
  * ready Response for the conflict and one-Stop anchor-only outcomes, or the
  * grounded route data for the shared three-Stop response assembly.
  */
-export async function runAnchoredGeneration<T extends ScoredPlanCandidate>(params: {
+export async function runAnchoredGeneration<T extends ScoredPlanCandidate & {
+	selectedDrinkPrice?: MapLensPrice | null;
+	selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence | null;
+}>(params: {
 	cityId: CityId;
 	anchor: PlanGenerationAnchor;
 	candidates: readonly T[];
@@ -170,6 +176,7 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate>(param
 				position: 0,
 				estimatedPintPricePence: planUsesPintPrices(context) ? stop.price.pence : null,
 				priceEvidence: planUsesPintPrices(context) ? stop.price : null,
+				selectedDrinkPriceEvidence: selectedDrinkPriceEvidence(stop.value, context),
 				accessEvidence: stop.access,
 				constraintFlags: stop.constraintFlags,
 				operationalEvidence: {
@@ -202,7 +209,46 @@ type PlanGenerationCandidate = ScoredPlanCandidate & {
 	tonightEvents: WhatsOnRow[];
 	reasons: string[];
 	selectedDrinkPrice: MapLensPrice | null;
+	selectedDrinkPriceEvidence: SelectedDrinkPriceEvidence | null;
 };
+
+async function listedEvidenceForCandidate(
+	candidate: Pick<PlanGenerationCandidate, "venue" | "selectedDrinkPrice">,
+	category: Exclude<NightContext["drinkCategory"], null>,
+	now: number,
+): Promise<SelectedDrinkPriceEvidence | null> {
+	if (candidate.selectedDrinkPrice) return null;
+	try {
+		const bundle = await ukPriceBundleRowsFor(candidate.venue.id);
+		if (bundle.status !== "ready") return null;
+		const quote = listedCategoryPrices(bundle.rows, now).find((row) => row.category === category);
+		if (!quote) return null;
+		const evidence = cleanSelectedDrinkPriceEvidence({
+			category: quote.category,
+			pence: Math.round(quote.priceGbp * 100),
+			serving: quote.servingSize,
+			source: "listed",
+			sourceUrl: quote.sourceUrl,
+			observedAt: new Date(quote.observedAt).toISOString(),
+		});
+		return evidence?.source === "listed" ? evidence : null;
+	} catch {
+		return null;
+	}
+}
+
+function listedCoverageNote(
+	category: Exclude<NightContext["drinkCategory"], null> | null,
+	index: { degraded: boolean; truncated: boolean },
+	candidates: readonly PlanGenerationCandidate[],
+	fallback: string | null,
+): string | null {
+	if (!category || !candidates.some((candidate) => candidate.selectedDrinkPriceEvidence?.source === "listed")) return fallback;
+	const label = CATEGORY_META[category].label.toLowerCase();
+	if (index.degraded) return `We could not read community ${label} prices just now; published menu quotes remain available.`;
+	if (index.truncated) return `Only part of community ${label} prices were read; published menu quotes remain available.`;
+	return fallback;
+}
 
 type PlanGenerationPreparation = {
 	requestNow: number;
@@ -327,7 +373,7 @@ export async function preparePlanGeneration(
 	const wetherspoonsMatchedIds = context.wetherspoonsPreferred
 		? await matchedWetherspoonsVenueIds(venues)
 		: undefined;
-	const candidates = venues
+	const scoredCandidates = venues
 		.map((venue) => {
 			const distance = distanceKm(area.centre, venue);
 			const tonightEvents = tonightByVenue.get(venue.id) ?? [];
@@ -350,6 +396,13 @@ export async function preparePlanGeneration(
 			&& venue.promoted !== true
 			&& !signalClaims.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid"))
 		.sort((a, b) => b.score - a.score);
+	const candidates: PlanGenerationCandidate[] = await Promise.all(scoredCandidates.map(async (candidate) => ({
+		...candidate,
+		selectedDrinkPriceEvidence: requestedCategory
+			? await listedEvidenceForCandidate(candidate, requestedCategory, requestNow)
+			: null,
+	})));
+	const selectedDrinkCoverageNote = listedCoverageNote(requestedCategory, categoryPriceRows, candidates, drinkPriceCoverageNote);
 	return { prepared: {
 		requestNow,
 		operationKey,
@@ -364,7 +417,7 @@ export async function preparePlanGeneration(
 		planningWeather,
 		reviewedSignalClaims,
 		naLensPrices,
-		drinkPriceCoverageNote,
+		drinkPriceCoverageNote: selectedDrinkCoverageNote,
 		candidates,
 		anchor: parsedRequest.value.anchor,
 	} };

@@ -5,7 +5,6 @@
  * live Supabase project.
  */
 import { spawn, execFileSync } from "node:child_process";
-import { createHmac } from "node:crypto";
 import {
   existsSync,
   mkdtempSync,
@@ -27,6 +26,7 @@ import {
   stopHarnessCluster,
   unregisterHarnessCluster,
 } from "./postgresShm.mjs";
+import { createRlsSessionJwt } from "./session-jwt.mjs";
 
 export { missingPostgresReason };
 
@@ -69,20 +69,6 @@ function findPostgrestBin() {
     }
   }
   return null;
-}
-
-function jwt(secret, sub, role = "authenticated") {
-  const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
-  const header = encode({ alg: "HS256", typ: "JWT" });
-  const payload = encode({
-    role,
-    sub,
-    exp: Math.floor(Date.now() / 1000) + 300,
-  });
-  const signature = createHmac("sha256", secret)
-    .update(`${header}.${payload}`)
-    .digest("base64url");
-  return `${header}.${payload}.${signature}`;
 }
 
 async function pickPort() {
@@ -451,7 +437,7 @@ export async function startRlsSession() {
   restProc.stderr?.on("data", (chunk) => restLogs.push(chunk.toString()));
 
   const restBaseUrl = `http://127.0.0.1:${restPort}`;
-  const serviceRoleKey = jwt(
+  const serviceRoleKey = createRlsSessionJwt(
     jwtSecret,
     "00000000-0000-4000-8000-000000000000",
     "service_role",
@@ -484,7 +470,7 @@ export async function startRlsSession() {
   async function rest(path, { method = "GET", sub = null, headers = {} } = {}) {
     const upstreamPath = path.replace(/^\/rest\/v1/, "") || "/";
     const requestHeaders = { ...headers };
-    if (sub) requestHeaders.Authorization = `Bearer ${jwt(jwtSecret, sub)}`;
+    if (sub) requestHeaders.Authorization = `Bearer ${createRlsSessionJwt(jwtSecret, sub)}`;
     const response = await fetch(`${restBaseUrl}${upstreamPath}`, {
       method,
       headers: requestHeaders,
