@@ -583,6 +583,7 @@ describe("service worker map cache", () => {
           ],
           "pubmax-sw-plan-legacy-active": [
             ["/plan/offline-night", planResponse],
+            ["/p/legacy-drop", new Response("legacy Pint Drop")],
           ],
           "unrelated-cache": [["/unrelated", new Response("unrelated")]],
         },
@@ -603,6 +604,10 @@ describe("service worker map cache", () => {
     expect(records.has("pubmax-sw-shell-legacy-active")).toBe(true);
     expect(records.has("pubmax-sw-data-legacy-active")).toBe(true);
     expect(records.has("pubmax-sw-plan-legacy-active")).toBe(true);
+    expect(
+      records.get("pubmax-sw-plan-legacy-active")
+        ?.has("https://pubmaxxing.com/p/legacy-drop"),
+    ).toBe(false);
     expect(records.has("unrelated-cache")).toBe(true);
     expect(fakeSelf.clients.claim).toHaveBeenCalledOnce();
 
@@ -629,6 +634,64 @@ describe("service worker map cache", () => {
     );
     await expect(planNavigation.response).resolves.toBe(planResponse);
     expect(importScripts).toHaveBeenCalledWith("/sw-plan-cache.js?v=target");
+  });
+
+  it("purges Pint Drops and private plan subpages from current and legacy plan caches", async () => {
+    const planResponse = new Response("offline plan preview");
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: {
+        "pubmax-sw-plan-target": [
+          ["/p/current-drop", new Response("current Pint Drop")],
+          ["/plan/current/recap", new Response("current private recap")],
+        ],
+        "pubmax-sw-plan-legacy-active": [
+          ["/p/legacy-drop", new Response("legacy Pint Drop")],
+          ["/plan/legacy/recap", new Response("legacy private recap")],
+          ["/plan/offline-night", planResponse],
+        ],
+      },
+    });
+
+    await Promise.all(dispatchLifecycle(listeners.get("activate")!));
+
+    const current = records.get("pubmax-sw-plan-target");
+    expect([...current!.keys()]).toEqual([
+      "https://pubmaxxing.com/plan/offline-night",
+    ]);
+    expect(
+      [...(records.get("pubmax-sw-plan-legacy-active")?.keys() ?? [])]
+        .some((url) => url.includes("/p/") || url.includes("/recap")),
+    ).toBe(false);
+
+    for (const path of ["/p/current-drop", "/p/legacy-drop", "/plan/legacy/recap"]) {
+      const navigation = dispatchFetch(
+        listeners.get("fetch")!,
+        { method: "GET", mode: "navigate", url: `https://pubmaxxing.com${path}` } as Request,
+      );
+      expect((await navigation.response as Response).status).toBe(503);
+    }
+    const plan = dispatchFetch(
+      listeners.get("fetch")!,
+      { method: "GET", mode: "navigate", url: "https://pubmaxxing.com/plan/offline-night" } as Request,
+    );
+    expect(await plan.response).toBe(planResponse);
+  });
+
+  it("purges an invalid current plan-cache entry without a legacy cache", async () => {
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: {
+        "pubmax-sw-plan-target": [
+          ["/p/old-drop", new Response("old Pint Drop")],
+          ["/plan/offline-night", new Response("offline plan preview")],
+        ],
+      },
+    });
+
+    await Promise.all(dispatchLifecycle(listeners.get("activate")!));
+
+    expect([...records.get("pubmax-sw-plan-target")!.keys()]).toEqual([
+      "https://pubmaxxing.com/plan/offline-night",
+    ]);
   });
 
   it("migrates shell entries without promoting old stable data", async () => {

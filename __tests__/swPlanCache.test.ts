@@ -76,13 +76,11 @@ const NAME = "pubmax-sw-plan-test";
 
 describe("sw-plan-cache: path matching", () => {
   const { planCache } = loadModule();
-  it("matches locked-plan permalinks with an id", () => {
+  it("matches only locked-plan detail permalinks", () => {
     expect(planCache.isPlanPath("/plan/abc123")).toBe(true);
-    expect(planCache.isPlanPath("/p/xyz")).toBe(true);
-    expect(planCache.isPlanPath("/plan/abc/deep")).toBe(true);
   });
-  it("rejects composer roots, other routes, and API paths", () => {
-    for (const p of ["/plan", "/plan/", "/p", "/p/", "/", "/map", "/tonight", "/api/plans/abc", "/planner"]) {
+  it("rejects Pint Drops, private plan subpages, composer roots, and API paths", () => {
+    for (const p of ["/p/drop1", "/plan/night1/recap", "/plan", "/plan/", "/p", "/p/", "/", "/map", "/tonight", "/api/plans/abc", "/planner"]) {
       expect(planCache.isPlanPath(p)).toBe(false);
     }
   });
@@ -123,8 +121,21 @@ describe("sw-plan-cache: cache + fallback behaviour", () => {
     const { planCache } = loadModule();
     await planCache.cachePlanNavigation({}, res("boom", false), { pathname: "/plan/bad" }, NAME);
     await planCache.cachePlanNavigation({}, res("home"), { pathname: "/" }, NAME);
+    await planCache.cachePlanNavigation({}, res("<pint-drop/>"), { pathname: "/p/drop1" }, NAME);
+    await planCache.cachePlanNavigation({}, res("<private-recap/>"), { pathname: "/plan/night1/recap" }, NAME);
     expect(await planCache.matchPlanNavigation({ pathname: "/plan/bad" }, NAME)).toBeUndefined();
     expect(await planCache.matchPlanNavigation({ pathname: "/" }, NAME)).toBeUndefined();
+    expect(await planCache.matchPlanNavigation({ pathname: "/p/drop1" }, NAME)).toBeUndefined();
+    expect(await planCache.matchPlanNavigation({ pathname: "/plan/night1/recap" }, NAME)).toBeUndefined();
+  });
+
+  it("does not return a Pint Drop or private recap cached by an older worker", async () => {
+    const { planCache, caches } = loadModule();
+    const cache = await caches.open(NAME);
+    await cache.put("/p/drop1", res("<pint-drop/>"));
+    await cache.put("/plan/night1/recap", res("<private-recap/>"));
+    expect(await planCache.matchPlanNavigation({ pathname: "/p/drop1" }, NAME)).toBeUndefined();
+    expect(await planCache.matchPlanNavigation({ pathname: "/plan/night1/recap" }, NAME)).toBeUndefined();
   });
 
   it("returns undefined for a plan never cached", async () => {
