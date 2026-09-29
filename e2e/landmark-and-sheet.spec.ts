@@ -268,9 +268,10 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
 
 for (const width of [700, 900]) {
   for (const side of ["left", "right"] as const) {
-    test(`${side} drawer retains content while exiting at ${width}px`, async ({ page }) => {
+    test(`${side} drawer retains content while exiting at ${width}px`, async ({ page }, testInfo) => {
       test.setTimeout(60_000);
       const errors = watchPageErrors(page);
+      await page.clock.install();
       await page.emulateMedia({ reducedMotion: "no-preference" });
       await page.setViewportSize({ width, height: 900 });
       await page.goto(side === "right" ? `/map?sel=${ARNOS_ARMS_ID}` : "/map");
@@ -290,18 +291,37 @@ for (const width of [700, 900]) {
       await expect(home).toBeInViewport();
       await home.focus();
       await expect(home).toBeFocused();
+      await page.screenshot({ path: testInfo.outputPath("drawer-before-close.png") });
 
-      const exit = await drawer.evaluate(async (element) => {
-        const start = element.getBoundingClientRect();
-        const positions: { x: number; y: number }[] = [];
-        element.querySelector<HTMLButtonElement>(".surfaceNavHome")!.click();
-        for (let frame = 0; frame < 180; frame += 1) {
-          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-          if (!element.querySelector(".mapDrawerHead")) break;
+      // Step animation time separately from browser work: a busy real frame can
+      // settle the spring before an intermediate position is ever painted.
+      await page.clock.pauseAt(new Date(Date.now() + 60_000));
+      const start = await drawer.boundingBox();
+      expect(start).not.toBeNull();
+      await home.press("Enter");
+      await expect(drawer).toHaveAttribute("inert");
+      const positions: { x: number; y: number; transform: string }[] = [];
+      for (let frame = 0; frame < 180; frame += 1) {
+        await page.clock.runFor(16);
+        const position = await drawer.evaluate((element, origin) => {
+          if (!element.querySelector(".mapDrawerHead")) return null;
           const rect = element.getBoundingClientRect();
-          positions.push({ x: rect.x - start.x, y: rect.y - start.y });
-        }
-        return { positions, inert: (element as HTMLElement).inert };
+          return {
+            x: rect.x - origin.x,
+            y: rect.y - origin.y,
+            transform: getComputedStyle(element).transform,
+          };
+        }, start!);
+        if (!position) break;
+        positions.push(position);
+      }
+      const exit = {
+        positions,
+        inert: await drawer.evaluate((element) => (element as HTMLElement).inert),
+      };
+      await testInfo.attach("drawer-exit-geometry", {
+        body: JSON.stringify(exit),
+        contentType: "application/json",
       });
       expect(exit.inert).toBe(true);
       expect(exit.positions.length).toBeGreaterThan(0);

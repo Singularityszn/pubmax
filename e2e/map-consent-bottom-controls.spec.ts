@@ -45,6 +45,12 @@ for (const width of [390, 768, 1440]) {
       contentType: "application/json",
     });
     await expectClearControl(page, retry, consentTop);
+    await installDeterministicMapBasemap(page);
+    await retry.click();
+    await expect(retry).toBeHidden({ timeout: 45_000 });
+    await expect(page.locator(width === 390 ? ".mobileMapTopbar" : ".mapToolbar")).toBeVisible();
+    await expect(page.getByLabel("Anonymous analytics choice")).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`retry-recovered-${width}.png`) });
   });
 }
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -48,15 +48,16 @@ describe.each([700, 768, 769, 900])("drawer at %ipx", (width) => {
           removeEventListener: vi.fn(),
         }));
         const render = (open: boolean, text: string) => act(() => root.render(
-          createElement(SpringDrawer, {
-            open,
-            side,
-            snap: "half",
-            dragOffsetY: null,
-            releaseVelocityY: 0,
-            keepMounted,
-            children: open ? createElement("button", null, text) : null,
-          }),
+          <SpringDrawer
+            open={open}
+            side={side}
+            snap="half"
+            dragOffsetY={null}
+            releaseVelocityY={0}
+            keepMounted={keepMounted}
+          >
+            {open ? <button>{text}</button> : null}
+          </SpringDrawer>,
         ));
 
         render(true, "First pub");
