@@ -281,7 +281,6 @@ describe("callback identity verification failures", () => {
     "malformed",
     `header.${btoa(JSON.stringify({ exp: 1 }))}.signature`,
     `header.${btoa(JSON.stringify({ sub: "account-a", exp: "1" }))}.signature`,
-    `header.${btoa(JSON.stringify({ sub: "account-a", exp: 9_999_999_999 }))}.signature`,
   ])("rejects expiry without usable matching claims: %s", async (accessToken) => {
     const mintSession = vi.fn(mintMatchingSession);
     const result = await prepareAuthCallbackSession(
@@ -292,6 +291,35 @@ describe("callback identity verification failures", () => {
     );
     expect(result.status).toBe("verification-failed");
     expect(mintSession).not.toHaveBeenCalled();
+  });
+
+  it.each([-60, 0, 60].flatMap((clockOffset) =>
+    ["account-a", "account-b"].map((refreshedId) => ({ clockOffset, refreshedId })),
+  ))("uses provider expiry with browser clock offset $clockOffset and $refreshedId", async ({ clockOffset, refreshedId }) => {
+    const expiry = Date.UTC(2026, 8, 29, 12) / 1000;
+    const accessToken = `header.${btoa(JSON.stringify({ sub: "account-a", exp: expiry }))}.signature`;
+    const browserClock = vi.spyOn(Date, "now").mockReturnValue((expiry + clockOffset) * 1000);
+    const setSession = vi.fn().mockResolvedValue({ data: { session: null }, error: null });
+    const getUser = vi.fn(async (token: string) => token === accessToken
+      ? { data: { user: null }, error: { status: 403, code: "bad_jwt", message: expiryMessage } }
+      : { data: { user: { id: refreshedId, email: `${refreshedId}@example.com` } }, error: null });
+    try {
+      const prepared = await prepareAuthCallbackSession(
+        { setSession }, { accessToken, refreshToken: "refresh-a" }, false,
+        async () => ({ status: "minted", session: { access_token: "fresh-access", refresh_token: "rotated-refresh-a" } }),
+        getUser,
+      );
+      expect(prepared.status).toBe(refreshedId === "account-a" ? "confirmation-required" : "verification-failed");
+      expect(getUser).toHaveBeenCalledWith("fresh-access");
+      expect(setSession).not.toHaveBeenCalled();
+      if (prepared.status === "confirmation-required") {
+        expect(prepared.identity).toEqual({ userId: "account-a", label: "account-a@example.com" });
+        await prepared.confirm();
+        expect(setSession).toHaveBeenCalledWith({ access_token: "fresh-access", refresh_token: "rotated-refresh-a" });
+      }
+    } finally {
+      browserClock.mockRestore();
+    }
   });
 
   it("does not accept an expired refreshed token", async () => {

@@ -214,14 +214,18 @@ for (const action of ["Continue", "Cancel"]) {
   });
 }
 
-for (const refreshAccount of ["A", "B"] as const) {
-  test(`expired cross-browser access A with refresh ${refreshAccount}`, async ({ page }) => {
+for (const { refreshAccount, clock } of (["A", "B"] as const).flatMap((refreshAccount) =>
+  (["aligned", "behind"] as const).map((clock) => ({ refreshAccount, clock })),
+)) {
+  test(`expired cross-browser access A with refresh ${refreshAccount}, clock ${clock}`, async ({ page }) => {
+    const providerNow = Date.now();
+    await page.clock.setFixedTime(new Date(providerNow - (clock === "behind" ? 120_000 : 0)));
     const stub = await installAuthDoubles(page);
     await page.goto("/today");
     await stub.signedInAs("B");
     const parts = accessJwt(ACCOUNTS.A).split(".");
     const claims = JSON.parse(Buffer.from(parts[1], "base64url").toString());
-    parts[1] = Buffer.from(JSON.stringify({ ...claims, exp: 1 })).toString("base64url");
+    parts[1] = Buffer.from(JSON.stringify({ ...claims, exp: Math.floor(providerNow / 1000) - 60 })).toString("base64url");
     const expired = parts.join(".");
     await page.route("**/auth/v1/user", async (route) => {
       if (route.request().headers().authorization !== `Bearer ${expired}`) return route.fallback();
