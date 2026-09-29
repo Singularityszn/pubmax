@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CirclePlus } from "lucide-react";
+import { useSyncExternalStore } from "react";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import MessagesLink from "@/components/nav/MessagesLink";
@@ -17,6 +18,11 @@ import {
   navPathMatches,
 } from "@/components/nav/navigationModel";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
+import {
+  preferredCityMapHref,
+  readPreferredCity,
+  subscribePreferredCity,
+} from "@/lib/cityPreference";
 
 import "./siteNav.css";
 import "./siteNavMoment.css";
@@ -101,6 +107,12 @@ export default function SiteNav({
   // opens it for pointer users who won't reach for the shortcut.
   const { open: openCommandPalette } = useCommandPalette();
   const socialSurfaceLabel = useSocialSurfaceName();
+  const preferredCity = useSyncExternalStore(
+    subscribePreferredCity,
+    readPreferredCity,
+    () => null,
+  );
+  const mapHref = preferredCity ? preferredCityMapHref() : "/map";
   const links = LINKS;
 
   // The map is full-bleed with an overflow-hidden shell, so the bar floats
@@ -134,7 +146,7 @@ export default function SiteNav({
           return (
             <li key={link.key} className="siteNavItem">
               <Link prefetch={false}
-                href={link.href}
+                href={link.key === "map" ? mapHref : link.href}
                 className={isActive ? "siteNavLink isActive" : "siteNavLink"}
                 aria-current={isActive ? "page" : undefined}
                 aria-label={link.label}

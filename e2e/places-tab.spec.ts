@@ -163,6 +163,10 @@ test.describe("places tab @390", () => {
     // The root map is not rewritten to the chosen city: a bookmark keeps meaning
     // what it meant when somebody saved it.
     await expect(page).not.toHaveURL(/\/map\/manchester/);
+    await expect(page.locator(".citySwitcherTrigger").first()).toHaveAttribute(
+      "aria-label",
+      /Map area: London/,
+    );
   });
 });
 
@@ -210,3 +214,29 @@ test.describe("places tab @1440", () => {
     await page.screenshot({ path: `${SHOTS_DIR}/places-city-1440.png`, fullPage: true });
   });
 });
+
+for (const width of [768, 1440]) {
+  test(`desktop Map opens the selected Manchester city at ${width}px`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width, height: 900 });
+    await chooseManchester(page);
+
+    const map = page
+      .getByRole("navigation", { name: "Site navigation" })
+      .getByRole("link", { name: "Map", exact: true });
+    await expect(map).toHaveAttribute("href", "/map/manchester");
+    await map.click();
+    await expect(page).toHaveURL(/\/map\/manchester$/);
+    await expect(page.locator(".citySwitcherTrigger").first()).toHaveAttribute(
+      "aria-label",
+      /Map area: Manchester/,
+    );
+
+    await page.goto("/map");
+    await expect(page).toHaveURL(/\/map$/);
+    await expect(page.locator(".citySwitcherTrigger").first()).toHaveAttribute(
+      "aria-label",
+      /Map area: London/,
+    );
+  });
+}
