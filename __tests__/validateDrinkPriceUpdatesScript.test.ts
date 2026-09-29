@@ -289,11 +289,15 @@ function writeScratchFile(
   writeFileSync(path, body, encoding);
 }
 
-function runValidate(scriptsDir: string): { code: number; stdout: string } {
+function runValidate(
+  scriptsDir: string,
+  env: NodeJS.ProcessEnv = {},
+): { code: number; stdout: string } {
   try {
     const stdout = execFileSync("node", ["validate-data.mjs"], {
       cwd: scriptsDir,
       encoding: "utf8",
+      env: { ...process.env, ...env },
     });
     return { code: 0, stdout };
   } catch (err) {
@@ -959,6 +963,21 @@ describe("validate-data.mjs artifact resilience (required vs optional)", () => {
     expect(stdout).toContain("WARN postcode_coordinate_build_decisions:");
     expect(stdout).toContain("degrading, not failing the build");
     expect(stdout).toContain("DATA VALIDATION PASSED");
+  });
+
+  it("skips gitignored venue detail artifacts when validating committed bundled data", () => {
+    const scriptsDir = setupScratch({});
+    for (const file of ["venue_detail_index.json", "venue_details.jsonl"]) {
+      rmSync(join(scriptsDir, "..", "data", "generated", file));
+    }
+
+    const { code, stdout } = runValidate(scriptsDir, {
+      PUBMAX_VERIFY_COMMITTED_DATA: "1",
+      DEPLOYMENT_VERSION: "local",
+    });
+
+    expect(code).toBe(0);
+    expect(stdout).toContain("SKIP data/generated/venue_details.jsonl");
   });
 
   it("degrades to a named WARN (exit 0) when the heritage famous-venues seed is missing, and still validates venues_slim.json and venue_details.jsonl clean", () => {
