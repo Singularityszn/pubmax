@@ -1,9 +1,10 @@
 import {
   cpSync,
-  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
+  symlinkSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -132,33 +133,32 @@ describe("build scripts", () => {
   });
 
   it("skips gitignored venue detail artifacts when validating committed bundled data", () => {
-    const generated = path.join(ROOT, "data", "generated");
-    const manifest = path.join(generated, "venue_detail_index.json");
-    const details = path.join(generated, "venue_details.jsonl");
-    const manifestBackup = existsSync(manifest) ? readFileSync(manifest) : null;
-    const detailsBackup = existsSync(details) ? readFileSync(details) : null;
-    try {
-      if (manifestBackup) rmSync(manifest);
-      if (detailsBackup) rmSync(details);
-
-      const result = spawnSync("node", [path.join(ROOT, "scripts", "validate-data.mjs")], {
-        cwd: ROOT,
-        encoding: "utf8",
-        env: {
-          ...process.env,
-          PUBMAX_VERIFY_COMMITTED_DATA: "1",
-          DEPLOYMENT_VERSION: "local",
-        },
-      });
-      if (result.error) throw result.error;
-      expect(result.status).toBe(0);
-      expect(result.stdout).toContain("SKIP data/generated/venue_details.jsonl");
-    } finally {
-      if (manifestBackup) writeFileSync(manifest, manifestBackup);
-      else if (existsSync(manifest)) rmSync(manifest);
-      if (detailsBackup) writeFileSync(details, detailsBackup);
-      else if (existsSync(details)) rmSync(details);
+    const root = mkdtempSync(path.join(tmpdir(), "pubmax-committed-data-test-"));
+    tempDirs.push(root);
+    mkdirSync(path.join(root, "scripts"));
+    cpSync(path.join(ROOT, "scripts", "validate-data.mjs"), path.join(root, "scripts", "validate-data.mjs"));
+    symlinkSync(path.join(ROOT, "scripts", "lib"), path.join(root, "scripts", "lib"));
+    for (const directory of ["lib", "public"]) {
+      symlinkSync(path.join(ROOT, directory), path.join(root, directory));
     }
+    mkdirSync(path.join(root, "data"));
+    for (const entry of readdirSync(path.join(ROOT, "data"))) {
+      if (entry !== "generated") {
+        symlinkSync(path.join(ROOT, "data", entry), path.join(root, "data", entry));
+      }
+    }
+    const result = spawnSync("node", [path.join(root, "scripts", "validate-data.mjs")], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        PUBMAX_VERIFY_COMMITTED_DATA: "1",
+        DEPLOYMENT_VERSION: "local",
+      },
+    });
+    if (result.error) throw result.error;
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("SKIP data/generated/venue_details.jsonl");
   });
 
   it("regenerates the UK place search index with the UK base layer", () => {
