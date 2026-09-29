@@ -15,7 +15,7 @@ const prerequisites = readdirSync(migrations)
   .sort()
   .map((entry) => join(migrations, entry));
 const wine = { category: "wine", pence: 550, serving: null, source: "community", reportedAt: "2026-09-25T12:00:00.000Z" };
-const cocktail = { category: "cocktails", pence: 850, serving: null, source: "community", reportedAt: "2026-09-26T12:00:00.000Z" };
+const cocktail = { category: "cocktail", pence: 850, serving: null, source: "community", reportedAt: "2026-09-26T12:00:00.000Z" };
 const stops = JSON.stringify([
   { venueId: "venue-a", venueName: "A", selectedDrinkPriceEvidence: wine },
   { venueId: "venue-b", venueName: "B", selectedDrinkPriceEvidence: cocktail },

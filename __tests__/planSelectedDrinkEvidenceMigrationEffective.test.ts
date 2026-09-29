@@ -15,6 +15,7 @@ const prerequisites = readdirSync(migrations)
   .sort()
   .map((entry) => join(migrations, entry));
 const planId = "10000000-0000-4000-8000-000000000161";
+const memberId = "20000000-0000-4000-8000-000000000161";
 const evidence = JSON.stringify({
   category: "wine",
   pence: 550,
@@ -51,7 +52,10 @@ beforeAll(async () => {
     db().sql(`insert into public.plans (id, title, start_time)
       values ('${planId}', 'Wine night', '2026-09-30T19:00:00Z');
       insert into public.plan_stops (plan_id, venue_id, venue_name, position)
-      values ('${planId}', 'venue-a', 'A', 0);`);
+      values ('${planId}', 'venue-a', 'A', 0);
+      insert into auth.users (id) values ('${memberId}');
+      insert into public.plan_crew_members (plan_id, name, token_hash, user_id)
+      values ('${planId}', 'Member', '${"a".repeat(64)}', '${memberId}');`);
     policiesBefore = policies();
   } catch (error) {
     await session.stop();
@@ -99,6 +103,37 @@ describe.skipIf(skipReason !== null)("0161 selected drink evidence storage", () 
       expect(db().expectRefusal(`update public.plan_stops
         set selected_drink_price_evidence = '${invalid}'::jsonb where plan_id = '${planId}'`))
         .toContain("plan_stops_selected_drink_price_evidence_check");
+    }
+  });
+
+  it("keeps linked-member table reads within the closed display-value contract", () => {
+    expect(JSON.parse(db().sql(`begin;
+      set local request.jwt.claims = '{"sub":"${memberId}","role":"authenticated"}';
+      set local role authenticated;
+      select selected_drink_price_evidence::text from public.plan_stops where plan_id = '${planId}';
+      commit;`))).toEqual(JSON.parse(evidence));
+
+    for (const invalid of [
+      { ...JSON.parse(evidence), category: "beer" },
+      { ...JSON.parse(evidence), category: "cocktails" },
+      { ...JSON.parse(evidence), category: null },
+      { ...JSON.parse(evidence), pence: { amount: 550, contributorHandle: "private" } },
+      { ...JSON.parse(evidence), pence: null },
+      { ...JSON.parse(evidence), pence: 0 },
+      { ...JSON.parse(evidence), pence: 100_001 },
+      { ...JSON.parse(evidence), pence: 550.5 },
+      { ...JSON.parse(evidence), serving: { contributorId: "private" } },
+      { ...JSON.parse(evidence), source: { contributorHandle: "private" } },
+      { ...JSON.parse(evidence), source: null },
+      { ...JSON.parse(evidence), reportedAt: { contributorHandle: "private" } },
+      { ...JSON.parse(evidence), reportedAt: null },
+      { ...JSON.parse(evidence), reportedAt: "2026-09-25T12:00:00Z" },
+      { ...JSON.parse(evidence), reportedAt: "2026-09-25T12:00:00.000+00:00" },
+      { ...JSON.parse(evidence), reportedAt: "2026-02-30T12:00:00.000Z" },
+    ]) {
+      expect(db().expectRefusal(`update public.plan_stops
+        set selected_drink_price_evidence = '${JSON.stringify(invalid)}'::jsonb
+        where plan_id = '${planId}'`)).toMatch(/plan_stops_selected_drink_price_evidence_check|date\/time field value out of range/);
     }
   });
 
