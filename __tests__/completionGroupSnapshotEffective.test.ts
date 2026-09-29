@@ -181,6 +181,61 @@ describe.skipIf(skipReason !== null)("0169 private completion membership snapsho
     expect(read("2027-09-07")).toBe("2027-09-06:2:0:0");
   });
 
+  it("matches a repeat after two account members acquire Social identities", () => {
+    const pg = database();
+    const firstDate = "2028-02-01 21:00:00+00";
+    const secondDate = "2028-02-08 21:00:00+00";
+    pg.sql(`insert into public.plans(id,title,start_time,status) values
+      ('${account("ba")}','Before linking','${firstDate}','completed'),
+      ('${account("bb")}','After linking','${secondDate}','completed');
+      insert into public.plan_crew_members
+        (id,plan_id,name,token_hash,user_id,joined_at,updated_at) values
+        ('${account("fa")}','${account("ba")}','Host',md5('fa')||md5('fa2'),
+          '${account("a3")}','2028-02-01 19:00:00+00','2028-02-01 19:00:00+00'),
+        ('${account("fb")}','${account("ba")}','Guest',md5('fb')||md5('fb2'),
+          '${account("a4")}','2028-02-01 19:00:00+00','2028-02-01 19:00:00+00');
+      insert into public.plan_completions
+        (id,plan_id,ending,actor_member_id,route_revision,route_snapshot,completed_at)
+      values('${account("ca")}','${account("ba")}','get_home','${account("fa")}',1,'[]','${firstDate}')`);
+    expect(pg.sql(`select array_to_string(account_keys, ',')
+      from pubmax_private.plan_completion_group_snapshots
+      where completion_id='${account("ca")}'`)).toBe(`auth:${account("a3")},auth:${account("a4")}`);
+
+    pg.sql(`insert into public.profiles(id,user_id,handle) values
+      ('${account("e8")}','${account("a3")}','repeat-link-host'),
+      ('${account("e9")}','${account("a4")}','repeat-link-guest');
+      insert into public.private_social_accounts(id,clerk_user_id,supabase_user_id,profile_id) values
+      ('${account("f4")}','repeat-link-host','${account("a3")}','${account("e8")}'),
+      ('${account("f5")}','repeat-link-guest','${account("a4")}','${account("e9")}');
+      insert into public.plan_crew_members
+        (id,plan_id,name,token_hash,user_id,social_account_id,joined_at,updated_at) values
+        ('${account("fc")}','${account("bb")}','Host',md5('fc')||md5('fc2'),
+          '${account("a3")}','${account("f4")}','2028-02-08 19:00:00+00','2028-02-08 19:00:00+00'),
+        ('${account("fd")}','${account("bb")}','Guest',md5('fd')||md5('fd2'),
+          '${account("a4")}','${account("f5")}','2028-02-08 19:00:00+00','2028-02-08 19:00:00+00');
+      insert into public.social_crews(id,plan_id,owner_account_id)
+      values('${account("ea")}','${account("bb")}','${account("f4")}');
+      insert into public.social_crew_members
+        (id,crew_id,social_account_id,plan_member_id,role,state,ended_at) values
+        ('${account("eb")}','${account("ea")}','${account("f4")}','${account("fc")}','owner','active',null),
+        ('${account("ec")}','${account("ea")}','${account("f5")}','${account("fd")}','member','active',null);
+      update public.plans set social_owner_account_id='${account("f4")}'
+      where id='${account("bb")}';
+      insert into public.plan_completions
+        (id,plan_id,ending,actor_member_id,route_revision,route_snapshot,completed_at)
+      values('${account("cb")}','${account("bb")}','get_home','${account("fc")}',1,'[]','${secondDate}')`);
+    expect(pg.sql(`select groups_completed || ':' || groups_repeated
+      from pubmax_private.completion_group_week('2028-02-08')`)).toBe("1:1");
+    pg.sql(`insert into public.plans(id,title,start_time,status)
+      values('${account("bc")}','One person with two keys','2029-02-08 20:00:00+00','completed');
+      insert into pubmax_private.plan_completion_group_snapshots
+        (completion_id,plan_id,completed_at,account_keys)
+      values('${account("cc")}','${account("bc")}','2029-02-08 21:00:00+00',
+        array['auth:${account("a3")}', 'social:${account("f4")}'])`);
+    expect(pg.sql(`select groups_completed || ':' || groups_repeated
+      from pubmax_private.completion_group_week('2029-02-08')`)).toBe("0:0");
+  });
+
   it("denies client roles and removes snapshot machinery on rollback", () => {
     const pg = database();
     expect(pg.expectRefusal(`set role authenticated;

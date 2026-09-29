@@ -112,11 +112,21 @@ set search_path = ''
 as $$
   with requested_week as (
     select date_trunc('week', p_day::timestamp)::date as first_day
+  ), normalized as (
+    select snapshot.plan_id, snapshot.completed_at,
+      array(
+        select distinct coalesce('auth:' || linked.supabase_user_id::text, member.account_key)
+        from unnest(snapshot.account_keys) as member(account_key)
+        left join public.private_social_accounts linked
+          on member.account_key = 'social:' || linked.id::text
+        order by 1
+      ) as account_keys
+    from pubmax_private.plan_completion_group_snapshots snapshot
   ), counted as (
     select count(*) as completed,
       count(*) filter (where exists (
         select 1
-        from pubmax_private.plan_completion_group_snapshots earlier
+        from normalized earlier
         where earlier.plan_id <> current_night.plan_id
           and earlier.completed_at < current_night.completed_at
           and earlier.completed_at >= current_night.completed_at - interval '28 days'
@@ -126,7 +136,7 @@ as $$
             where member.account_key = any(earlier.account_keys)
           ) >= 2
       )) as repeated
-    from pubmax_private.plan_completion_group_snapshots current_night
+    from normalized current_night
     cross join requested_week week
     where current_night.completed_at >= week.first_day::timestamp at time zone 'UTC'
       and current_night.completed_at < (week.first_day + 7)::timestamp at time zone 'UTC'
