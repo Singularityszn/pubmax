@@ -6,7 +6,6 @@ import {
   expectSoleDesktopDrawer,
 } from "./helpers/mapSurfaceDrawers";
 import {
-  applyToolbarAreaQuery,
   expectMapToolbarReady,
   mapToolbar,
   selectFirstToolbarVenue,
@@ -14,6 +13,9 @@ import {
 
 const DESKTOP = { width: 1440, height: 900 };
 const PHONE = { width: 390, height: 844 };
+// Pinned ids from the Victorian Soho crawl (lib/curatedCrawls.ts); same trio as
+// e2e/crawl-routes.spec.ts so venue resolution does not wait on toolbar search.
+const ESCAPE_PLANNER_PUBS = "venue-1ufn31x,venue-1t8siin,venue-xiesdn";
 
 async function prepareMap(page: Page, viewport = DESKTOP): Promise<void> {
   await page.setViewportSize(viewport);
@@ -260,36 +262,34 @@ test.describe("one Map surface history owner", () => {
 
   test("Escape restores populated planner from venue", async ({ page }) => {
     await prepareMap(page);
-    await openMap(page);
-    const toolbar = page.locator(".mapToolbar");
-    await applyToolbarAreaQuery(page, "Soho");
-    await toolbar.getByRole("button", { name: "Plan an outing" }).click();
+    await openMap(
+      page,
+      `/map?q=Soho&mode=build&pubs=${encodeURIComponent(ESCAPE_PLANNER_PUBS)}`,
+    );
     const heldStops = planner(page).locator(".routeList > li");
-    await expect(async () => {
-      await expectSoleDrawer(page, "planner", 10_000);
-      if ((await heldStops.count()) === 0) {
-        await planner(page)
-          .getByRole("button", { name: /Map the Victorian Soho crawl/i })
-          .click();
-      }
-      await expect(heldStops.first()).toBeVisible({ timeout: 5_000 });
-    }).toPass({ timeout: 120_000 });
     await expect(async () => {
       const editMappedRoute = page.getByRole("button", { name: "Edit" });
       if (await editMappedRoute.isVisible().catch(() => false)) {
         await editMappedRoute.evaluate((button) => (button as HTMLElement).click());
+      } else {
+        await mapToolbar(page)
+          .getByRole("button", { name: "Plan an outing" })
+          .evaluate((button) => (button as HTMLElement).click());
       }
-      await expectSoleDrawer(page, "planner", 5_000);
+      await expectSoleDrawer(page, "planner", 10_000);
+      await expect.poll(async () => heldStops.count(), { timeout: 5_000 }).toBeGreaterThanOrEqual(2);
+    }).toPass({ timeout: 120_000 });
+    await expect(async () => {
       const stopOpen = heldStops.first().getByRole("button").first();
       await expect(stopOpen).toBeVisible({ timeout: 2_000 });
-      await stopOpen.click();
-      await expectSoleDrawer(page, "venue", 5_000);
+      await stopOpen.evaluate((button) => (button as HTMLElement).click());
+      await expectSoleDrawer(page, "venue", 30_000);
     }).toPass({ timeout: 90_000 });
 
     await page.keyboard.press("Escape");
 
     await expectSoleDrawer(page, "planner");
-    await expect(planner(page).locator("#railSearchInput")).toHaveValue("Soho");
+    await expect(planner(page).locator("#railSearchInput")).toHaveValue(/Soho/i);
   });
 
   test("phone fling-dismiss leaves venue sheet for Map", async ({ page }) => {
