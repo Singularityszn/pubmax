@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 
+import { selectionSentinelVenueId } from "@/lib/mapSelectionHistory";
+
 type SelParamSyncArgs = {
   selParam: string;
   selectedVenueId: string;
@@ -8,12 +10,12 @@ type SelParamSyncArgs = {
 
 // ?sel= is only read into the seed at mount, so a CLIENT navigation to
 // /map?sel=<id> while the map is already mounted (e.g. "See on map" from a
-// card, or back/forward) used to be ignored. Sync it: when the param changes
+// card) used to be ignored. Sync it: when the param changes
 // to a venue that isn't the current selection, select it. The URL is the
 // source of truth only in that direction — closing the sheet locally does
 // not rewrite the param, matching the other seeded params' behaviour.
 //
-// Extracted verbatim from PubMap (F1). The ref-compare (NOT a dep) means only
+// The ref-compare (NOT a dep) means only
 // URL changes fire this — local selection changes never re-run it, and an
 // already-matching selection is a no-op.
 export function useSelParamSync({ selParam, selectedVenueId, selectVenue }: SelParamSyncArgs) {
@@ -30,6 +32,10 @@ export function useSelParamSync({ selParam, selectedVenueId, selectVenue }: SelP
     // (not a dep) means only URL changes fire this — local selection changes
     // never re-run it, and an already-matching selection is a no-op.
     queueMicrotask(() => {
+      // Back/Forward already restores owned entries through map navigation.
+      // Its React selection may not have committed yet; selecting again adds
+      // a duplicate history entry that reopens the drawer on Close.
+      if (selectionSentinelVenueId(window.history.state) === selParam) return;
       if (selParam !== selectedVenueIdRef.current) selectVenueRef.current(selParam);
     });
   }, [selParam]);

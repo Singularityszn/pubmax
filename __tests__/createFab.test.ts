@@ -17,6 +17,7 @@ import {
   returnToFromLocation,
 } from "@/components/nav/createFabActions";
 import { safeMomentReturnTo } from "@/components/nav/navigationModel";
+import { clearPreferredCity, writePreferredCity } from "@/lib/cityPreference";
 
 describe("what the create action offers", () => {
   it("offers exactly the three compose rows, in order", () => {
@@ -39,6 +40,29 @@ describe("what the create action offers", () => {
     expect(byAction.price).toBe("/map?log=1");
     expect(byAction.plan).toBe("/plan");
     expect(byAction.moment).toBe("/moment?returnTo=%2Fmap");
+  });
+
+  it("sends Log a price to the chosen city and keeps the London fallback", () => {
+    const values = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+        removeItem: (key: string) => values.delete(key),
+      },
+      dispatchEvent: () => true,
+    });
+    try {
+      const price = CREATE_FAB_ACTIONS.find((item) => item.action === "price")!;
+      clearPreferredCity();
+      expect(price.hrefFor("/places/manchester")).toBe("/map?log=1");
+      writePreferredCity("manchester");
+      expect(price.hrefFor("/places/manchester")).toBe("/map/manchester?log=1");
+      clearPreferredCity();
+      expect(price.hrefFor("/places/manchester")).toBe("/map?log=1");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("carries the query of the route it was pressed on back into the Moment", () => {

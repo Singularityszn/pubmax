@@ -39,11 +39,9 @@ ledger), used by both surfaces. No behaviour change.
 
 ### 3. Consent banner overlaps page actions (`d-tonight.png`, `d-plan.png`)
 
-The analytics consent card is fixed above the tab bar on phone and over page
-footers on desktop until answered. Reserve body foot clearance while it is
-mounted so scroll-surface actions stay tappable. Shipped in `app/globals.css`;
-`__tests__/analyticsConsentDesktopClearance.test.ts` and
-`e2e/ux-consent-chrome.spec.ts` pin the contract.
+Shipped. The [consent placement contract](../rules/components-design-system-and-launch-primitives.md#the-product-answers-first-and-the-consent-card-arrives-after-the-answer-docked)
+owns scroll-page clearance, the viewport-height map exception and the executable
+browser checks.
 
 ### 4. /near has no h1 (accessibility)
 

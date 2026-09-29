@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // Mobile bottom-tab navigation coverage. The assertions deliberately target
 // route DOM and accessible controls, never MapLibre's canvas or WebGL state.
@@ -80,6 +81,37 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible();
   });
 
+  test("Create logs a price in the city chosen from Places", async ({ page }) => {
+    test.slow();
+    await installDeterministicMapBasemap(page);
+    await page.goto("/places");
+    await page.getByRole("link", { name: /Manchester/ }).click();
+    await expect(page).toHaveURL(/\/places\?city=manchester$/);
+    await page.getByTestId("places-set-city").click();
+    await expect(page.getByText("The map, Out and Near now open on Manchester.")).toBeVisible();
+
+    const create = page.getByRole("button", { name: "Create", exact: true });
+    await create.click();
+    const price = page.getByRole("link", { name: "Log a price", exact: true });
+    await expect(price).toHaveAttribute("href", "/map/manchester?log=1");
+
+    const otherTab = await page.context().newPage();
+    await otherTab.goto("/places?city=london");
+    await otherTab.getByTestId("places-set-city").click();
+    await expect(price).toHaveAttribute("href", "/map?log=1");
+    await otherTab.goto("/places?city=manchester");
+    await otherTab.getByTestId("places-set-city").click();
+    await expect(price).toHaveAttribute("href", "/map/manchester?log=1");
+    await otherTab.close();
+
+    await price.click();
+    await expect(page).toHaveURL(/\/map\/manchester\?log=1$/);
+    const picker = page.getByRole("list", { name: "Pubs near the map centre" });
+    await expect(picker).toBeVisible({ timeout: 45_000 });
+    await expect(picker.getByRole("button", { name: /The Bank/ })).toBeVisible();
+    await expect(picker.getByRole("button", { name: /Dolphin Tavern|Enterprise/ })).toHaveCount(0);
+  });
+
   test("Tonight tab routes to /tonight", async ({ page }) => {
     await page.goto("/map");
 
@@ -96,7 +128,7 @@ test.describe("mobile bottom-tab navigation", () => {
 
     await expect(page).toHaveURL(/\/out$/);
     await expect(page.getByTestId("out-screen")).toBeVisible();
-    await expect(page.getByRole("heading", { level: 1, name: "What’s on, sourced." })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "What’s on tonight." })).toBeVisible();
   });
 
   test("create action opens Moment with the live return path", async ({ page }) => {

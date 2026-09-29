@@ -312,6 +312,14 @@
   pointer-events: none;
 }
 
+@media (min-width: 641px) {
+  /* Keep Layers above the 44px attribution target and its 10px gap while the
+     consent strip occupies the map foot. The map still fills the viewport. */
+  body:has(.analyticsConsentPrompt) .appShell .mapStage .mapLayersControl {
+    bottom: calc(var(--analytics-consent-clearance, 72px) + 54px);
+  }
+}
+
 @media (max-width: 640px) {
   .mapLayersControl {
     right: 10px;

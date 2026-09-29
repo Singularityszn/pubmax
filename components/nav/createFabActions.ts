@@ -1,11 +1,12 @@
 import { momentHref } from "@/components/nav/navigationModel";
+import { preferredCityMapHref } from "@/lib/cityPreference";
 
 /**
  * What the floating create action offers, and where each row goes.
  *
- * Pure, and the ONE place a destination is decided: the component renders this
- * table and nothing else, so a row cannot be given one href here and another one
- * at the call site.
+ * The component renders this table so row destinations have one owner.
+ * Log a price reads the stored city when its href is resolved; callers must
+ * subscribe to preferred-city changes to keep an open menu current.
  */
 type CreateFabActionKey = "moment" | "price" | "plan";
 
@@ -38,7 +39,7 @@ export function returnToFromLocation(
 
 export const CREATE_FAB_ACTIONS: readonly CreateFabAction[] = [
   { action: "moment", label: "Post a moment", hrefFor: (returnTo) => momentHref(returnTo) },
-  { action: "price", label: "Log a price", hrefFor: () => "/map?log=1" },
+  { action: "price", label: "Log a price", hrefFor: () => preferredCityMapHref("log=1") },
   { action: "plan", label: "Start a plan", hrefFor: () => "/plan" },
 ] as const;
 

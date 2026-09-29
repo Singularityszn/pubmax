@@ -76,8 +76,9 @@ beside the primary column as before:
 
 `before-` and `after-` at 320, 390, 768 and 1440, light and dark.
 
-The analytics consent bar covers part of the first card at 320x568 on a first
-visit. That bar is a first-visit overlay owned by `e2e/ux-consent-chrome.spec.ts`
-and `__tests__/analyticsConsentDesktopClearance.test.ts`, it answers to one tap,
-and it covered the same band before this change. It is recorded here, not fixed
-here.
+In this capture, the analytics consent bar covered part of the first card at
+320x568 on a first visit. The checks then were `e2e/ux-consent-chrome.spec.ts`
+and the now-retired `__tests__/analyticsConsentDesktopClearance.test.ts`. The bar
+answered to one tap and covered the same band before this change. This proof
+recorded that overlap without fixing it. Current placement and regression owners
+live in the [consent placement contract](../../rules/components-design-system-and-launch-primitives.md#the-product-answers-first-and-the-consent-card-arrives-after-the-answer-docked).

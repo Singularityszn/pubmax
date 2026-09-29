@@ -331,6 +331,7 @@ function displayChain(container: HTMLElement): string[] {
 //      writes update the state to restore, even when the observer reasserts
 //      trap isolation before cleanup. Final release restores that latest intent.
 //   3. A container CSS has hidden never traps at all (shouldEngageFocusTrap).
+// A strict modal suspends map-surface claims and Tab handling until it closes.
 // Focus entry and restoration are coordinated here; Esc stays with each caller.
 export function useFocusTrap(
   active: boolean,
@@ -355,7 +356,14 @@ export function useFocusTrap(
     // Main's one-time scan does not contain later body siblings such as Command Palette.
     const siblings = outsideSiblings(container, outsidePolicy);
     let exempt = trapExemptSurfaces(container, outsidePolicy);
-    trapOwner.reconcile(inertTargets(siblings, exempt));
+    const suspended = () => outsidePolicy === "map-surface" && readStrictModalFocusTrap();
+    const reconcileTrap = () => {
+      trapOwner.reconcile(suspended() ? [] : inertTargets(siblings, exempt));
+    };
+    reconcileTrap();
+    const unsubscribeStrictModal = outsidePolicy === "map-surface"
+      ? subscribeStrictModalFocusTrap(reconcileTrap)
+      : null;
     const releaseStrictModal =
       outsidePolicy === "strict-modal" ? claimStrictModalFocusTrap() : null;
 
@@ -372,6 +380,7 @@ export function useFocusTrap(
           : null;
     };
     const reclaimLostExemptFocus = () => {
+      if (suspended()) return;
       const lost = exemptFocus;
       if (!lost || exempt.some((surface) => surface.contains(lost))) return;
       exemptFocus = null;
@@ -394,7 +403,7 @@ export function useFocusTrap(
             frame = window.requestAnimationFrame(() => {
               frame = null;
               exempt = trapExemptSurfaces(container, outsidePolicy);
-              trapOwner.reconcile(inertTargets(siblings, exempt));
+              reconcileTrap();
               reclaimLostExemptFocus();
             });
           })
@@ -404,7 +413,7 @@ export function useFocusTrap(
     }
 
     const onTab = (event: KeyboardEvent) => {
-      if (event.key !== "Tab" || event.defaultPrevented) return;
+      if (event.key !== "Tab" || event.defaultPrevented || suspended()) return;
       const focusable = visibleFocusables(container);
       if (!focusable.length) return;
       if (document.activeElement === container) {
@@ -431,6 +440,7 @@ export function useFocusTrap(
       document.removeEventListener("focusin", onFocusIn);
       observer?.disconnect();
       if (frame !== null) window.cancelAnimationFrame(frame);
+      unsubscribeStrictModal?.();
       if (releaseStrictModal) {
         releaseStrictModal();
         // Let subscribers clear their modal-owned inert prop before restoring focus.

@@ -93,9 +93,7 @@ import MapFallbackCard from "@/components/map/MapFallbackCard";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
-const SpringDrawer = dynamic(() => import("@/components/map/SpringDrawer"), {
-  ssr: false,
-});
+import SpringDrawer from "@/components/map/SpringDrawer";
 const SiteNav = dynamic(() => import("@/components/nav/SiteNav"), {
   ssr: false,
 });
@@ -1505,7 +1503,7 @@ export default function PubMap({
     defaultVenueKindVisibility,
   );
   const [mobileLayersTab, setMobileLayersTab] = useState<"key" | "layers" | "prices" | "events" | "transit">("key");
-  const tflStatus = useMobileTflStatus();
+  const tflStatus = useMobileTflStatus(cityId);
   const [nearbyMapResult, setNearbyMapResult] = useState<NearbyMapResult | null>(null);
   const [pendingNearMeRequest, setPendingNearMeRequest] =
     useState<PendingNearMeRequest | null>(null);
@@ -5481,10 +5479,10 @@ export default function PubMap({
   });
 
   /* The phone's More sheet: the map key, the layer shortcuts, the price chips,
-     tonight's events and the transit panel, as five tabs. */
+     tonight's events, and London's live transit panel. */
   function renderMobileLayersPanel() {
     return (
-      <Tabs className="mobileLayersPanel" value={mobileLayersTab} onValueChange={(value) => setMobileLayersTab(value as typeof mobileLayersTab)}>
+      <Tabs className="mobileLayersPanel" value={!isLondon && mobileLayersTab === "transit" ? "key" : mobileLayersTab} onValueChange={(value) => setMobileLayersTab(value as typeof mobileLayersTab)}>
         <TabsList
           className="mobileMapControlTabs"
           aria-label="Map control sections"
@@ -5495,7 +5493,7 @@ export default function PubMap({
             <TabsTrigger value="prices">Prices</TabsTrigger>
           ) : null}
           <TabsTrigger value="events">Events</TabsTrigger>
-          <TabsTrigger value="transit">Transit</TabsTrigger>
+          {isLondon ? <TabsTrigger value="transit">Transit</TabsTrigger> : null}
         </TabsList>
         <TabsContent value="key" className="mobileLayersPanel">
           <MapKey legend={activePriceLegend} />
@@ -5587,7 +5585,7 @@ export default function PubMap({
             onDismissOverlay={dismissTonightOverlay}
           />
         </TabsContent>
-        <TabsContent value="transit"><MobileTflPanel status={tflStatus} /></TabsContent>
+        {isLondon ? <TabsContent value="transit"><MobileTflPanel status={tflStatus} /></TabsContent> : null}
       </Tabs>
     );
   }

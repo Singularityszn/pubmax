@@ -1,4 +1,3 @@
-import { mkdirSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 
 // The Places tab: pick a city, set it, and prove the three surfaces that read
@@ -6,7 +5,6 @@ import { expect, test, type Page } from "@playwright/test";
 // store, because the preference is only useful in so far as Map, Out and Near
 // actually follow it.
 
-const SHOTS_DIR = "docs/screenshots/places-tab";
 const PREFERRED_CITY_KEY = "pubmax:preferredCity:v1";
 
 test.beforeEach(async ({ page }) => {
@@ -55,7 +53,7 @@ async function chooseManchester(page: Page) {
 test.describe("places tab @390", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("choosing Manchester sends Map, Out and Near to Manchester", async ({ page }) => {
+  test("choosing Manchester sends Map, Out and Near to Manchester", async ({ page }, testInfo) => {
     test.setTimeout(120_000);
 
     await page.goto("/places");
@@ -95,11 +93,10 @@ test.describe("places tab @390", () => {
     await page.getByLabel("Find a city").fill("");
     await expect(cities.getByRole("link").first()).toBeVisible();
 
-    mkdirSync(SHOTS_DIR, { recursive: true });
-    await page.screenshot({ path: `${SHOTS_DIR}/places-list-390.png`, fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath("places-list-390.png"), fullPage: true });
 
     await chooseManchester(page);
-    await page.screenshot({ path: `${SHOTS_DIR}/places-city-390.png`, fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath("places-city-390.png"), fullPage: true });
 
     // Map follows: the phone tab's own href, and the landing Map link.
     await expect(
@@ -141,7 +138,7 @@ test.describe("places tab @390", () => {
     await expect(page.getByText("Clapham", { exact: true })).toHaveCount(0);
   });
 
-  test("London keeps its areas and its listed prices", async ({ page }) => {
+  test("London keeps its areas and its listed prices", async ({ page }, testInfo) => {
     await page.goto("/places?city=london");
     await expect(
       page.getByRole("heading", { name: "Where to drink in London", exact: true }),
@@ -149,20 +146,25 @@ test.describe("places tab @390", () => {
     await expect(page.getByText("Clapham", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Listed pint prices", { exact: true })).toBeVisible();
     await expect(page.getByText("Areas coming", { exact: true })).toHaveCount(0);
-    mkdirSync(SHOTS_DIR, { recursive: true });
     await page.screenshot({
-      path: `${SHOTS_DIR}/places-london-390.png`,
+      path: testInfo.outputPath("places-london-390.png"),
       fullPage: true,
     });
   });
 
   test("/map root stays London for a bookmark, whatever city is set", async ({ page }) => {
+    test.setTimeout(60_000);
     await chooseManchester(page);
     await page.goto("/map");
     await expect(page).toHaveURL(/\/map$/);
     // The root map is not rewritten to the chosen city: a bookmark keeps meaning
     // what it meant when somebody saved it.
     await expect(page).not.toHaveURL(/\/map\/manchester/);
+    await expect(page.locator(".citySwitcherTrigger").first()).toHaveAttribute(
+      "aria-label",
+      /Map area: London/,
+      { timeout: 45_000 },
+    );
   });
 });
 
@@ -175,6 +177,8 @@ test.describe("places tab @320", () => {
     await page.goto("/places");
     const tabs = primaryNav(page).getByRole("link");
     await expect(tabs).toHaveCount(6);
+    await expect(page.locator(".authCompactTrigger")).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
     for (const tab of await tabs.all()) {
       const box = await tab.boundingBox();
       expect(box, "every tab has a box").not.toBeNull();
@@ -193,7 +197,7 @@ test.describe("places tab @1440", () => {
 
   test("desktop nav carries Places, and the city panel keeps one primary action", async ({
     page,
-  }) => {
+  }, testInfo) => {
     await page.goto("/places");
     const siteNav = page.getByRole("navigation", { name: "Site navigation" });
     await expect(siteNav.getByRole("link", { name: "Places", exact: true })).toHaveAttribute(
@@ -201,12 +205,45 @@ test.describe("places tab @1440", () => {
       "page",
     );
 
-    mkdirSync(SHOTS_DIR, { recursive: true });
-    await page.screenshot({ path: `${SHOTS_DIR}/places-list-1440.png`, fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath("places-list-1440.png"), fullPage: true });
 
     await page.goto("/places?city=manchester");
     await expect(page.getByTestId("places-set-city")).toHaveCount(1);
     await expect(page.locator("[data-primary-action]")).toHaveCount(1);
-    await page.screenshot({ path: `${SHOTS_DIR}/places-city-1440.png`, fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath("places-city-1440.png"), fullPage: true });
   });
 });
+
+for (const width of [768, 1440]) {
+  test(`desktop Map opens the selected Manchester city at ${width}px`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width, height: 900 });
+    await chooseManchester(page);
+
+    const map = page
+      .getByRole("navigation", { name: "Site navigation" })
+      .getByRole("link", { name: "Map", exact: true });
+    await expect(map).toHaveAttribute("href", "/map/manchester");
+    const otherTab = await page.context().newPage();
+    await otherTab.goto("/places?city=london");
+    await otherTab.getByTestId("places-set-city").click();
+    await expect(map).toHaveAttribute("href", "/map");
+    await otherTab.goto("/places?city=manchester");
+    await otherTab.getByTestId("places-set-city").click();
+    await expect(map).toHaveAttribute("href", "/map/manchester");
+    await otherTab.close();
+    await map.click();
+    await expect(page).toHaveURL(/\/map\/manchester$/);
+    await expect(page.locator(".citySwitcherTrigger").first()).toHaveAttribute(
+      "aria-label",
+      /Map area: Manchester/,
+    );
+
+    await page.goto("/map");
+    await expect(page).toHaveURL(/\/map$/);
+    await expect(page.locator(".citySwitcherTrigger").first()).toHaveAttribute(
+      "aria-label",
+      /Map area: London/,
+    );
+  });
+}
