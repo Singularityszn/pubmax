@@ -12,6 +12,7 @@ const harness = vi.hoisted(() => ({
   releaseCoordination: vi.fn(),
   socialProviderLoads: vi.fn(),
   localAttemptOwned: false,
+  hasCallback: true,
   existingSession: null as null | {
     access_token: string;
     refresh_token: string;
@@ -58,6 +59,7 @@ vi.mock("@/lib/authRedirect", () => ({
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT: "pubmax-auth-return-fragment-restored",
   scrubAuthCallback: async () => {
     harness.scrubCallback();
+    if (!harness.hasCallback) return null;
     return {
       attempt: {
         attemptId: null,
@@ -89,8 +91,8 @@ vi.mock("@/lib/referralClaimClient", () => ({
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 
 function ViewerProbe() {
-  const { user } = useAuth();
-  return createElement("output", { "data-testid": "viewer" }, user?.id ?? "signed-out");
+  const { user, loading } = useAuth();
+  return createElement("output", { "data-testid": "viewer", "aria-busy": loading }, user?.id ?? "signed-out");
 }
 
 let root: Root | null = null;
@@ -99,6 +101,7 @@ let container: HTMLDivElement | null = null;
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   harness.localAttemptOwned = false;
+  harness.hasCallback = true;
   harness.existingSession = null;
   harness.bootstrap.mockReset();
   harness.bootstrap.mockImplementation(async () => harness.existingSession
@@ -148,6 +151,36 @@ async function mount(): Promise<void> {
 }
 
 describe("unowned auth callback confirmation", () => {
+  it.each(["none", "restored", "expired", "banned", "unavailable", "rejected"])(
+    "keeps loading until a %s bootstrap settles without a callback",
+    async (status) => {
+      harness.hasCallback = false;
+      let finishBootstrap!: (value: unknown) => void;
+      let rejectBootstrap!: (reason: Error) => void;
+      harness.bootstrap.mockImplementation(() => new Promise((resolve, reject) => {
+        finishBootstrap = resolve;
+        rejectBootstrap = reject;
+      }));
+
+      await mount();
+      expect(harness.bootstrap).toHaveBeenCalledOnce();
+      expect(container?.querySelector('[data-testid="viewer"]')?.getAttribute("aria-busy")).toBe("true");
+
+      await act(async () => {
+        if (status === "rejected") rejectBootstrap(new Error("offline"));
+        else finishBootstrap({
+          status,
+          session: { access_token: "access-b", refresh_token: "refresh-b" },
+          maskedEmail: "b@example.com",
+          message: "Account unavailable",
+        });
+      });
+
+      expect(container?.querySelector('[data-testid="viewer"]')?.getAttribute("aria-busy")).toBe("false");
+      expect(harness.setSession).not.toHaveBeenCalled();
+    },
+  );
+
   it("holds one confirmation through StrictMode effect replay", async () => {
     await act(async () => {
       root?.render(createElement(
@@ -179,12 +212,14 @@ describe("unowned auth callback confirmation", () => {
         createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(ViewerProbe))));
     });
     expect(harness.bootstrap).toHaveBeenCalledOnce();
+    expect(container?.querySelector('[data-testid="viewer"]')?.getAttribute("aria-busy")).toBe("true");
     expect(container?.textContent).not.toContain("Sign in as person@example.com?");
     expect(harness.setSession).not.toHaveBeenCalled();
     await act(async () => finishBootstrap({ status: "local", session: {
       access_token: "access-b", refresh_token: "refresh-b", user: { id: "account-b", email: "b@example.com" },
     } }));
     expect(container?.querySelector('[data-testid="viewer"]')?.textContent).toBe("account-b");
+    expect(container?.querySelector('[data-testid="viewer"]')?.getAttribute("aria-busy")).toBe("false");
     expect(container?.textContent).toContain("Sign in as person@example.com?");
     const button = [...container!.querySelectorAll("button")].find((button) => button.textContent === action);
     await act(async () => button?.click());
