@@ -977,6 +977,186 @@ function NightModeSheet({
     extensionCount: keepGoingExtensions.length,
   });
 
+  const onChooseFoodEnding = (terminal: LateFoodTerminal) => {
+    if (!currentStop) return;
+    return completeEnding(
+      "food",
+      currentStop.venueId,
+      foodEndingSelection(terminal),
+    );
+  };
+  const onConfirmGetHomeEnding = () => {
+    if (!currentStop) return;
+    return completeEnding(
+      "get_home",
+      currentStop.venueId,
+      getHomeEndingSelection(
+        currentTrain?.station?.name ?? null,
+        lastTrainLeaveBy,
+      ),
+    );
+  };
+  const onChooseKeepGoingEnding = (extension: KeepGoingExtension) => {
+    if (!currentStop) return;
+    setChosenExtension(extension);
+    void completeEnding(
+      "keep_going",
+      currentStop.venueId,
+      keepGoingEndingSelection(extension),
+    );
+  };
+  const onSavePrivateRecap = () => void savePrivateRecap();
+
+  function renderCompletedNight(
+    currentStop: PlanStopDTO,
+    activeEnding: CrawlEnding,
+  ) {
+    return (
+      <>
+        <NightEndingResult
+          ending={activeEnding}
+          currentStop={currentStop}
+          lateFood={lateFood}
+          stationName={currentTrain?.station?.name ?? null}
+          leaveByIso={lastTrainLeaveBy}
+          keepGoingExtension={chosenExtension}
+          nightArea={plan?.context?.nightArea ?? null}
+        />
+        {recap ? (
+          <div className="nightCard__recapInvite">
+            <p className="nightCard__recapLede">
+              That&rsquo;s the night. Keep it as a private Memory. The
+              route and any words you add, nothing posted.
+            </p>
+            <div className="nightCard__recapActions">
+              <button
+                type="button"
+                className="nightCard__endingLink"
+                onClick={() => {
+                  const opening = !recapOpen;
+                  setRecapOpen(opening);
+                  if (opening && !recapReviewed) {
+                    setRecapReviewed(true);
+                    trackEvent("memory_reviewed", {
+                      source: "inline_recap",
+                    });
+                    trackMeaningfulCoreAction("memory_reviewed");
+                  }
+                }}
+                aria-expanded={recapOpen}
+              >
+                <BookOpen size={16} aria-hidden="true" />{" "}
+                {recapOpen ? "Hide recap" : "Review private recap"}
+              </button>
+              <button
+                type="button"
+                className="nightCard__quietButton"
+                onClick={() => {
+                  resolvePendingPlanRecap(recap, "discarded");
+                  setRecap(null);
+                  setRecapOpen(false);
+                }}
+              >
+                <Trash2 size={15} aria-hidden="true" /> Discard local
+                recap
+              </button>
+              {/* The crafted morning-after recap page — the full memory, laid out. */}
+              <Link
+                className="nightCard__endingLink"
+                href={`/plan/${id}/recap`}
+              >
+                <BookOpen size={16} aria-hidden="true" /> See the full
+                recap
+              </Link>
+            </div>
+          </div>
+        ) : recapSeeding ? (
+          <p className="nightCard__endingStatus" role="status">
+            Pulling your private recap together…
+          </p>
+        ) : null}
+        {recapOpen && recap ? (
+          <PlanRecapEditor
+            recap={recap}
+            saving={recapSaving}
+            onChange={(next) => {
+              setRecap(next);
+              writePendingPlanRecap(next);
+            }}
+            onSave={onSavePrivateRecap}
+          />
+        ) : null}
+        {recapMessage ? (
+          <p className="nightCard__endingStatus" role="status">
+            {recapMessage}{" "}
+            {recapMessage.startsWith("Private Memory saved") ? (
+              <Link href="/u/you#night-memories">Open Memories</Link>
+            ) : null}
+          </p>
+        ) : null}
+      </>
+    );
+  }
+
+  function renderLastStop(currentStop: PlanStopDTO) {
+    return (
+      <div className="nightCard__ending">
+        <RouteEndingCard
+          className="nightCard__endingChoices"
+          title="Last stop. What next?"
+          description="Choose an ending to review. PUBMAXX changes nothing until you confirm."
+          options={endingOptions}
+          recommendedId={recommendedEnding}
+          onChoose={chooseEnding}
+        />
+        {endingSaving ? (
+          <p className="nightCard__endingStatus" role="status">
+            Saving the ending…
+          </p>
+        ) : null}
+        {endingError ? (
+          <p className="nightCard__endingError" role="alert">
+            {endingError}
+          </p>
+        ) : null}
+        {chosenEnding === "food" && !activeEnding ? (
+          <FoodEndingPicker
+            terminals={lateFood}
+            lastStopVenueId={currentStop.venueId}
+            saving={endingSaving}
+            onChoose={onChooseFoodEnding}
+          />
+        ) : null}
+        {chosenEnding === "get_home" && !activeEnding ? (
+          <GetHomeEndingConfirmation
+            saving={endingSaving}
+            stationName={currentTrain?.station?.name ?? null}
+            leaveByIso={lastTrainLeaveBy}
+            venueName={currentStop.venueName}
+            venueLatitude={currentCoord?.lat ?? null}
+            venueLongitude={currentCoord?.lng ?? null}
+            decision={
+              (currentTrain?.decision?.decision as LastPintDecisionKind | undefined) ??
+              null
+            }
+            onConfirm={onConfirmGetHomeEnding}
+          />
+        ) : null}
+        {chosenEnding === "keep_going" && !activeEnding ? (
+          <KeepGoingPicker
+            extensions={keepGoingExtensions}
+            priceContext={plan?.context ?? null}
+            saving={endingSaving}
+            onChoose={onChooseKeepGoingEnding}
+          />
+        ) : null}
+        {activeEnding ? (
+          renderCompletedNight(currentStop, activeEnding)
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <section
       className="nightCard"
@@ -1079,164 +1259,7 @@ function NightModeSheet({
           </span>
         </button>
       ) : currentStop ? (
-        <div className="nightCard__ending">
-          <RouteEndingCard
-            className="nightCard__endingChoices"
-            title="Last stop. What next?"
-            description="Choose an ending to review. PUBMAXX changes nothing until you confirm."
-            options={endingOptions}
-            recommendedId={recommendedEnding}
-            onChoose={chooseEnding}
-          />
-          {endingSaving ? (
-            <p className="nightCard__endingStatus" role="status">
-              Saving the ending…
-            </p>
-          ) : null}
-          {endingError ? (
-            <p className="nightCard__endingError" role="alert">
-              {endingError}
-            </p>
-          ) : null}
-          {chosenEnding === "food" && !activeEnding ? (
-            <FoodEndingPicker
-              terminals={lateFood}
-              lastStopVenueId={currentStop.venueId}
-              saving={endingSaving}
-              onChoose={(terminal) =>
-                completeEnding(
-                  "food",
-                  currentStop.venueId,
-                  foodEndingSelection(terminal),
-                )
-              }
-            />
-          ) : null}
-          {chosenEnding === "get_home" && !activeEnding ? (
-            <GetHomeEndingConfirmation
-              saving={endingSaving}
-              stationName={currentTrain?.station?.name ?? null}
-              leaveByIso={lastTrainLeaveBy}
-              venueName={currentStop.venueName}
-              venueLatitude={currentCoord?.lat ?? null}
-              venueLongitude={currentCoord?.lng ?? null}
-              decision={
-                (currentTrain?.decision?.decision as LastPintDecisionKind | undefined) ??
-                null
-              }
-              onConfirm={() =>
-                completeEnding(
-                  "get_home",
-                  currentStop.venueId,
-                  getHomeEndingSelection(
-                    currentTrain?.station?.name ?? null,
-                    lastTrainLeaveBy,
-                  ),
-                )
-              }
-            />
-          ) : null}
-          {chosenEnding === "keep_going" && !activeEnding ? (
-            <KeepGoingPicker
-              extensions={keepGoingExtensions}
-              priceContext={plan?.context ?? null}
-              saving={endingSaving}
-              onChoose={(extension) => {
-                setChosenExtension(extension);
-                void completeEnding(
-                  "keep_going",
-                  currentStop.venueId,
-                  keepGoingEndingSelection(extension),
-                );
-              }}
-            />
-          ) : null}
-          {activeEnding ? (
-            <>
-              <NightEndingResult
-                ending={activeEnding}
-                currentStop={currentStop}
-                lateFood={lateFood}
-                stationName={currentTrain?.station?.name ?? null}
-                leaveByIso={lastTrainLeaveBy}
-                keepGoingExtension={chosenExtension}
-                nightArea={plan?.context?.nightArea ?? null}
-              />
-              {recap ? (
-                <div className="nightCard__recapInvite">
-                  <p className="nightCard__recapLede">
-                    That&rsquo;s the night. Keep it as a private Memory. The
-                    route and any words you add, nothing posted.
-                  </p>
-                  <div className="nightCard__recapActions">
-                    <button
-                      type="button"
-                      className="nightCard__endingLink"
-                      onClick={() => {
-                        const opening = !recapOpen;
-                        setRecapOpen(opening);
-                        if (opening && !recapReviewed) {
-                          setRecapReviewed(true);
-                          trackEvent("memory_reviewed", {
-                            source: "inline_recap",
-                          });
-                          trackMeaningfulCoreAction("memory_reviewed");
-                        }
-                      }}
-                      aria-expanded={recapOpen}
-                    >
-                      <BookOpen size={16} aria-hidden="true" />{" "}
-                      {recapOpen ? "Hide recap" : "Review private recap"}
-                    </button>
-                    <button
-                      type="button"
-                      className="nightCard__quietButton"
-                      onClick={() => {
-                        resolvePendingPlanRecap(recap, "discarded");
-                        setRecap(null);
-                        setRecapOpen(false);
-                      }}
-                    >
-                      <Trash2 size={15} aria-hidden="true" /> Discard local
-                      recap
-                    </button>
-                    {/* The crafted morning-after recap page — the full memory, laid out. */}
-                    <Link
-                      className="nightCard__endingLink"
-                      href={`/plan/${id}/recap`}
-                    >
-                      <BookOpen size={16} aria-hidden="true" /> See the full
-                      recap
-                    </Link>
-                  </div>
-                </div>
-              ) : recapSeeding ? (
-                <p className="nightCard__endingStatus" role="status">
-                  Pulling your private recap together…
-                </p>
-              ) : null}
-              {recapOpen && recap ? (
-                <PlanRecapEditor
-                  recap={recap}
-                  saving={recapSaving}
-                  onChange={(next) => {
-                    setRecap(next);
-                    writePendingPlanRecap(next);
-                  }}
-                  onSave={() => void savePrivateRecap()}
-                />
-              ) : null}
-              {recapMessage ? (
-                <p className="nightCard__endingStatus" role="status">
-                  {recapMessage}{" "}
-                  {recapMessage.startsWith("Private Memory saved") ? (
-                    <Link href="/u/you#night-memories">Open Memories</Link>
-                  ) : null}
-                </p>
-              ) : null}
-            </>
-          ) : null}
-        </div>
+        renderLastStop(currentStop)
       ) : null}
 
       <SafeNightStrip planId={id} />
