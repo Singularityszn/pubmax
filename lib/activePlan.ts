@@ -12,7 +12,8 @@
 // Mirrors lib/activeRound.ts's idiom (same-tab custom event + cross-tab storage
 // + focus), so the two "what's live right now" pointers behave identically.
 
-import { isPlanId, type CrawlEnding, type PlanMemberRole } from "@/lib/plan";
+import { isPlanId } from "@/lib/planId";
+import type { CrawlEnding, PlanMemberRole } from "@/lib/plan";
 import { DAY_MS } from "@/lib/dayMs";
 
 export const ACTIVE_PLAN_KEY = "pubmax_active_plan";
