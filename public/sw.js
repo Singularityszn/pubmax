@@ -19,7 +19,7 @@
  *   tiles.openfreemap.org + /_next/static/*
  *       → stale-while-revalidate, trimmed FIFO/LRU-ish at MAX_SWR_ENTRIES
  *   navigations
- *       → network-first → cached copy of that page → cached "/" → /offline.html
+ *       → network-first → cached plan preview or fixed shell page → cached "/" → /offline.html
  *   /api/* GETs
  *       → untouched (network-only); the app already renders honest
  *         empty/error states when these fail.
@@ -34,8 +34,7 @@ const PREFIX = "pubmax-sw-";
 const DATA_CACHE = `${PREFIX}data-${VERSION}`;
 const SWR_CACHE = `${PREFIX}swr-${VERSION}`;
 const SHELL_CACHE = `${PREFIX}shell-${VERSION}`;
-// Locked-plan pages a crew opened earlier, so they reopen offline (U18, #457
-// coordination: caching logic lives in the separate sw-plan-cache.js module).
+// Plan detail previews a crew opened earlier, so they reopen offline.
 const PLAN_CACHE = `${PREFIX}plan-${VERSION}`;
 const DATA_CACHE_FAMILY = {
   current: DATA_CACHE,
@@ -49,14 +48,13 @@ const CACHE_FAMILIES = [
   { current: PLAN_CACHE, prefix: `${PREFIX}plan-` },
 ];
 
-// Load the plan-navigation cache helpers (self.planCache). Version-busted like
-// every other asset, and non-fatal: if it fails to load the SW keeps its prior
-// behaviour rather than failing to install. Every use below is guarded on
-// self.planCache so a missing module degrades cleanly.
+// Only new plan-cache writes depend on this versioned helper. Keep eligibility,
+// migration and cached-preview reads in this worker so an import failure cannot
+// discard valid offline previews or admit private HTML.
 try {
   importScripts(`/sw-plan-cache.js?v=${VERSION}`);
 } catch {
-  // no-op: plan caching is an enhancement, offline shell still works
+  // Existing eligible previews and fixed shells remain available offline.
 }
 
 // Tiles + hashed build assets can grow without bound (a long crawl-planning
@@ -124,6 +122,15 @@ async function cacheFamilyNames(currentName) {
   ];
 }
 
+function isEligiblePlanCacheUrl(url) {
+  return url.origin === self.location.origin &&
+    /^\/plan\/[^/]+$/.test(url.pathname);
+}
+
+function isEligibleShellCacheUrl(url) {
+  return url.origin === self.location.origin && SHELL_URLS.includes(url.pathname);
+}
+
 async function migrateCacheFamily({
   current,
   prefix,
@@ -134,6 +141,15 @@ async function migrateCacheFamily({
   const oldNames = names.filter(
     (name) => name.startsWith(prefix) && name !== current,
   ).reverse();
+  if (current === PLAN_CACHE || current === SHELL_CACHE) {
+    const destination = await caches.open(current);
+    for (const request of await destination.keys()) {
+      const eligible = current === PLAN_CACHE
+        ? isEligiblePlanCacheUrl(new URL(request.url))
+        : isEligibleShellCacheUrl(new URL(request.url));
+      if (!eligible) await destination.delete(request);
+    }
+  }
   if (oldNames.length === 0) return;
 
   const destination = await caches.open(current);
@@ -141,6 +157,11 @@ async function migrateCacheFamily({
     const source = await caches.open(name);
     let covered = true;
     for (const request of await source.keys()) {
+      if ((current === PLAN_CACHE && !isEligiblePlanCacheUrl(new URL(request.url))) ||
+        (current === SHELL_CACHE && !isEligibleShellCacheUrl(new URL(request.url)))) {
+        if (!(await source.delete(request))) covered = false;
+        continue;
+      }
       if (purgeTileHost && new URL(request.url).hostname === TILE_HOST) {
         if (!(await source.delete(request))) covered = false;
         continue;
@@ -167,6 +188,9 @@ async function matchCacheFamily(currentName, request, options) {
     typeof request === "string" ? request : request.url,
     self.location.origin,
   );
+  if (currentName === SHELL_CACHE && !isEligibleShellCacheUrl(requestUrl)) {
+    return undefined;
+  }
   const names = await cacheFamilyNames(currentName);
   const candidates =
     currentName === SWR_CACHE && requestUrl.hostname === TILE_HOST
@@ -180,10 +204,17 @@ async function matchCacheFamily(currentName, request, options) {
 }
 
 async function matchPlanNavigationAcrossCaches(url) {
-  if (!self.planCache) return undefined;
+  if (!isEligiblePlanCacheUrl(url)) {
+    return undefined;
+  }
   for (const name of await cacheFamilyNames(PLAN_CACHE)) {
-    const response = await self.planCache.matchPlanNavigation(url, name);
-    if (response) return response;
+    try {
+      const cache = await caches.open(name);
+      const response = await cache.match(url.pathname, { ignoreSearch: true });
+      if (response) return response;
+    } catch {
+      continue;
+    }
   }
   return undefined;
 }
@@ -422,13 +453,13 @@ async function handleNavigation(event, request, url) {
     const response = await fetch(request);
     // Keep the shell copies fresh so the offline fallback is the latest deploy
     // this browser has seen — but only for the pages we deliberately shelve.
-    if (response.ok && SHELL_URLS.includes(url.pathname)) {
+    if (response.ok && isEligibleShellCacheUrl(url)) {
       const copy = response.clone();
       event.waitUntil(
         caches.open(SHELL_CACHE).then((cache) => cache.put(url.pathname, copy)),
       );
-    } else if (response.ok && self.planCache && self.planCache.isPlanPath(url.pathname)) {
-      // U18: shelve locked-plan pages so a crew that opened the link earlier
+    } else if (response.ok && isEligiblePlanCacheUrl(url) && self.planCache) {
+      // Shelve the plan preview so a crew that opened the link earlier
       // can reopen it with no signal. Cache-on-success, bounded + LRU inside
       // the module; best-effort via waitUntil so it never delays the response.
       const copy = response.clone();
@@ -436,11 +467,11 @@ async function handleNavigation(event, request, url) {
     }
     return response;
   } catch {
-    // U18: offline, a locked plan reopens from its own cached HTML before the
-    // generic shell ladder — that copy carries the night's stops/route/times.
+    // Offline, a plan detail page reopens from its cached preview before the
+    // generic shell ladder. Member details still require their live API.
     const plan = await matchPlanNavigationAcrossCaches(url);
     if (plan) return plan;
-    const exact = await matchCacheFamily(SHELL_CACHE, url.pathname, {
+    const exact = await matchCacheFamily(SHELL_CACHE, url.href, {
       ignoreSearch: true,
     });
     if (exact) return exact;

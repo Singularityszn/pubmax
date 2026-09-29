@@ -76,6 +76,7 @@ function workerHarness(input: {
 function rolloutWorkerHarness(input: {
   entries: Record<string, Array<[string, Response]>>;
   rejectCurrentWrites?: boolean;
+  importError?: Error;
   response?: Response;
 }) {
   const listeners = new Map<string, Listener>();
@@ -191,6 +192,7 @@ function rolloutWorkerHarness(input: {
   });
   const source = readFileSync(join(process.cwd(), "public", "sw.js"), "utf8");
   const importScripts = vi.fn(() => {
+    if (input.importError) throw input.importError;
     const planCacheSource = readFileSync(
       join(process.cwd(), "public", "sw-plan-cache.js"),
       "utf8",
@@ -573,7 +575,10 @@ describe("service worker map cache", () => {
       rolloutWorkerHarness({
         rejectCurrentWrites: true,
         entries: {
-          "pubmax-sw-shell-legacy-active": [["/map", shellResponse]],
+          "pubmax-sw-shell-legacy-active": [
+            ["/map", shellResponse],
+            ["/p/legacy-drop", new Response("legacy Pint Drop")],
+          ],
           "pubmax-sw-data-legacy-active": [
             ["/data/venues_slim.core.json", dataResponse],
           ],
@@ -583,6 +588,7 @@ describe("service worker map cache", () => {
           ],
           "pubmax-sw-plan-legacy-active": [
             ["/plan/offline-night", planResponse],
+            ["/p/legacy-drop", new Response("legacy Pint Drop")],
           ],
           "unrelated-cache": [["/unrelated", new Response("unrelated")]],
         },
@@ -601,8 +607,14 @@ describe("service worker map cache", () => {
         ?.has("https://pubmaxxing.com/_next/static/chunks/legacy.js"),
     ).toBe(true);
     expect(records.has("pubmax-sw-shell-legacy-active")).toBe(true);
+    expect(records.get("pubmax-sw-shell-legacy-active")
+      ?.has("https://pubmaxxing.com/p/legacy-drop")).toBe(false);
     expect(records.has("pubmax-sw-data-legacy-active")).toBe(true);
     expect(records.has("pubmax-sw-plan-legacy-active")).toBe(true);
+    expect(
+      records.get("pubmax-sw-plan-legacy-active")
+        ?.has("https://pubmaxxing.com/p/legacy-drop"),
+    ).toBe(false);
     expect(records.has("unrelated-cache")).toBe(true);
     expect(fakeSelf.clients.claim).toHaveBeenCalledOnce();
 
@@ -629,6 +641,237 @@ describe("service worker map cache", () => {
     );
     await expect(planNavigation.response).resolves.toBe(planResponse);
     expect(importScripts).toHaveBeenCalledWith("/sw-plan-cache.js?v=target");
+  });
+
+  it.each([
+    { importFails: false, rejectCurrentWrites: false },
+    { importFails: false, rejectCurrentWrites: true },
+    { importFails: true, rejectCurrentWrites: false },
+    { importFails: true, rejectCurrentWrites: true },
+  ])("preserves public offline pages and excludes private HTML with $importFails import failure and $rejectCurrentWrites write rejection", async ({ importFails, rejectCurrentWrites }) => {
+    const origin = "https://pubmaxxing.com";
+    const home = new Response("landing shell");
+    const currentPlan = new Response("current public preview");
+    const legacyPlan = new Response("legacy public preview");
+    const shells: Array<[string, Response]> = [
+      ["/", home],
+      ["/map", new Response("map shell")],
+      ["/tonight", new Response("tonight shell")],
+      ["/offline.html", new Response("offline shell")],
+    ];
+    const privatePaths = ["/p/drop1", "/plan/night1/recap"];
+    const excluded: Array<[string, Response]> = [
+      ...privatePaths.map((path): [string, Response] => [path, new Response("private HTML")]),
+      ["https://foreign.example/plan/current", new Response("foreign HTML")],
+    ];
+    const { listeners, records, importScripts, fakeSelf } = rolloutWorkerHarness({
+      rejectCurrentWrites,
+      importError: importFails ? new Error("helper unavailable") : undefined,
+      entries: {
+        "pubmax-sw-plan-target": [["/plan/current?old=1", currentPlan], ...excluded],
+        "pubmax-sw-plan-legacy-active": [["/plan/legacy?old=1", legacyPlan], ...excluded],
+        "pubmax-sw-shell-target": [shells[0], ...excluded],
+        "pubmax-sw-shell-legacy-active": [...shells.slice(1), ...excluded],
+      },
+    });
+    expect(importScripts).toHaveBeenCalledOnce();
+    if (importFails) expect(importScripts).toHaveReturnedTimes(0);
+
+    for (const phase of ["before activation", "after activation"]) {
+      if (phase === "after activation") {
+        await Promise.all(dispatchLifecycle(listeners.get("activate")!));
+        expect(fakeSelf.clients.claim).toHaveBeenCalledOnce();
+      }
+      for (const [path, expected] of [
+        ["/plan/current?new=2", currentPlan],
+        ["/plan/legacy?new=2", legacyPlan],
+        ...shells,
+        ...privatePaths.map((path): [string, Response] => [path, home]),
+        ["https://foreign.example/plan/current", home],
+        ["/plan/never-cached", home],
+      ] as Array<[string, Response]>) {
+        const navigation = dispatchFetch(listeners.get("fetch")!, {
+          method: "GET",
+          mode: "navigate",
+          url: new URL(path, origin).href,
+        } as Request);
+        expect(await navigation.response, `${phase}: ${path}`).toBe(expected);
+      }
+    }
+
+    expect([...records.get("pubmax-sw-plan-target")!.keys()]).toEqual([
+      `${origin}/plan/current?old=1`,
+      ...(rejectCurrentWrites ? [] : [`${origin}/plan/legacy?old=1`]),
+    ]);
+    expect([...(records.get("pubmax-sw-plan-legacy-active")?.keys() ?? [])]).toEqual(
+      rejectCurrentWrites ? [`${origin}/plan/legacy?old=1`] : [],
+    );
+    expect([...records.get("pubmax-sw-shell-target")!.keys()]).toEqual(
+      (rejectCurrentWrites ? shells.slice(0, 1) : shells).map(([path]) => `${origin}${path}`),
+    );
+    expect([...(records.get("pubmax-sw-shell-legacy-active")?.keys() ?? [])]).toEqual(
+      (rejectCurrentWrites ? shells.slice(1) : []).map(([path]) => `${origin}${path}`),
+    );
+  });
+
+  it.each([
+    { importFails: false, rejectCurrentWrites: false },
+    { importFails: false, rejectCurrentWrites: true },
+    { importFails: true, rejectCurrentWrites: false },
+    { importFails: true, rejectCurrentWrites: true },
+  ])("keeps navigation admission private with $importFails import failure and $rejectCurrentWrites write rejection", async ({ importFails, rejectCurrentWrites }) => {
+    const live = new Response("live HTML");
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: {},
+      response: live,
+      rejectCurrentWrites,
+      importError: importFails ? new Error("helper unavailable") : undefined,
+    });
+    for (const path of ["/p/drop1", "/plan/night1/recap", "https://foreign.example/plan/night1"]) {
+      const navigation = dispatchFetch(listeners.get("fetch")!, {
+        method: "GET",
+        mode: "navigate",
+        url: new URL(path, "https://pubmaxxing.com").href,
+      } as Request);
+      expect(await navigation.response).toBe(live);
+      await Promise.all(navigation.lifetime);
+    }
+    expect(records.size).toBe(0);
+
+    const plan = dispatchFetch(listeners.get("fetch")!, {
+      method: "GET",
+      mode: "navigate",
+      url: "https://pubmaxxing.com/plan/night1?first=1",
+    } as Request);
+    expect(await plan.response).toBe(live);
+    await Promise.all(plan.lifetime);
+    expect([...(records.get("pubmax-sw-plan-target")?.keys() ?? [])]).toEqual(
+      importFails || rejectCurrentWrites ? [] : ["https://pubmaxxing.com/plan/night1"],
+    );
+  });
+
+  it("purges Pint Drops and private plan subpages from current and legacy plan caches", async () => {
+    const planResponse = new Response("offline plan preview");
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: {
+        "pubmax-sw-plan-target": [
+          ["/p/current-drop", new Response("current Pint Drop")],
+          ["/plan/current/recap", new Response("current private recap")],
+        ],
+        "pubmax-sw-plan-legacy-active": [
+          ["/p/legacy-drop", new Response("legacy Pint Drop")],
+          ["/plan/legacy/recap", new Response("legacy private recap")],
+          ["/plan/offline-night", planResponse],
+        ],
+      },
+    });
+
+    await Promise.all(dispatchLifecycle(listeners.get("activate")!));
+
+    const current = records.get("pubmax-sw-plan-target");
+    expect([...current!.keys()]).toEqual([
+      "https://pubmaxxing.com/plan/offline-night",
+    ]);
+    expect(
+      [...(records.get("pubmax-sw-plan-legacy-active")?.keys() ?? [])]
+        .some((url) => url.includes("/p/") || url.includes("/recap")),
+    ).toBe(false);
+
+    for (const path of ["/p/current-drop", "/p/legacy-drop", "/plan/legacy/recap"]) {
+      const navigation = dispatchFetch(
+        listeners.get("fetch")!,
+        { method: "GET", mode: "navigate", url: `https://pubmaxxing.com${path}` } as Request,
+      );
+      expect((await navigation.response as Response).status).toBe(503);
+    }
+    const plan = dispatchFetch(
+      listeners.get("fetch")!,
+      { method: "GET", mode: "navigate", url: "https://pubmaxxing.com/plan/offline-night" } as Request,
+    );
+    expect(await plan.response).toBe(planResponse);
+  });
+
+  it("purges an invalid current plan-cache entry without a legacy cache", async () => {
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: {
+        "pubmax-sw-plan-target": [
+          ["/p/old-drop", new Response("old Pint Drop")],
+          ["/plan/offline-night", new Response("offline plan preview")],
+        ],
+      },
+    });
+
+    await Promise.all(dispatchLifecycle(listeners.get("activate")!));
+
+    expect([...records.get("pubmax-sw-plan-target")!.keys()]).toEqual([
+      "https://pubmaxxing.com/plan/offline-night",
+    ]);
+  });
+
+  it("never serves a Pint Drop from a shell cache before activation", async () => {
+    const { listeners } = rolloutWorkerHarness({
+      entries: {
+        "pubmax-sw-shell-target": [
+          ["/p/current-drop", new Response("cached Pint Drop")],
+        ],
+        "pubmax-sw-shell-legacy-active": [
+          ["/p/legacy-drop", new Response("old Pint Drop")],
+        ],
+      },
+    });
+
+    for (const path of ["/p/current-drop", "/p/legacy-drop"]) {
+      const navigation = dispatchFetch(
+        listeners.get("fetch")!,
+        { method: "GET", mode: "navigate", url: `https://pubmaxxing.com${path}` } as Request,
+      );
+      expect((await navigation.response as Response).status).toBe(503);
+    }
+  });
+
+  it("does not admit a network Pint Drop into shell or plan caches", async () => {
+    const pintDrop = new Response("live Pint Drop");
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: {},
+      response: pintDrop,
+    });
+    const navigation = dispatchFetch(
+      listeners.get("fetch")!,
+      { method: "GET", mode: "navigate", url: "https://pubmaxxing.com/p/live-drop" } as Request,
+    );
+
+    expect(await navigation.response).toBe(pintDrop);
+    await Promise.all(navigation.lifetime);
+    expect(records.get("pubmax-sw-shell-target")?.size ?? 0).toBe(0);
+    expect(records.get("pubmax-sw-plan-target")?.size ?? 0).toBe(0);
+  });
+
+  it("purges Pint Drops from current and legacy shell caches on activation", async () => {
+    const mapResponse = new Response("offline map");
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: {
+        "pubmax-sw-shell-target": [
+          ["/p/current-drop", new Response("current Pint Drop")],
+        ],
+        "pubmax-sw-shell-legacy-active": [
+          ["/p/legacy-drop", new Response("legacy Pint Drop")],
+          ["/map", mapResponse],
+        ],
+      },
+    });
+
+    await Promise.all(dispatchLifecycle(listeners.get("activate")!));
+
+    expect([...records.get("pubmax-sw-shell-target")!.keys()]).toEqual([
+      "https://pubmaxxing.com/map",
+    ]);
+    expect(records.has("pubmax-sw-shell-legacy-active")).toBe(false);
+
+    const map = dispatchFetch(
+      listeners.get("fetch")!,
+      { method: "GET", mode: "navigate", url: "https://pubmaxxing.com/map" } as Request,
+    );
+    expect(await map.response).toBe(mapResponse);
   });
 
   it("migrates shell entries without promoting old stable data", async () => {

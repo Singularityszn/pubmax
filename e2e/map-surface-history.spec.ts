@@ -264,31 +264,24 @@ test.describe("one Map surface history owner", () => {
     const toolbar = page.locator(".mapToolbar");
     await applyToolbarAreaQuery(page, "Soho");
     await toolbar.getByRole("button", { name: "Plan an outing" }).click();
+    await expectSoleDrawer(page, "planner");
+    // Always take the curated-crawl path: suggested stops can arrive before
+    // or after the planner opens, and bypassed the drawer handoff at random.
+    await planner(page)
+      .getByRole("button", { name: /Map the Victorian Soho crawl/i })
+      .click();
+    await expectSoleDrawer(page, "venue");
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await expectSoleDrawer(page, "planner");
     const heldStops = planner(page).locator(".routeList > li");
-    await expect(async () => {
-      await expectSoleDrawer(page, "planner", 10_000);
-      if ((await heldStops.count()) === 0) {
-        await planner(page)
-          .getByRole("button", { name: /Map the Victorian Soho crawl/i })
-          .click();
-      }
-      await expect(heldStops.first()).toBeVisible({ timeout: 5_000 });
-    }).toPass({ timeout: 120_000 });
-    await expect(async () => {
-      const editMappedRoute = page.getByRole("button", { name: "Edit" });
-      if (await editMappedRoute.isVisible().catch(() => false)) {
-        await editMappedRoute.evaluate((button) => (button as HTMLElement).click());
-      }
-      await expectSoleDrawer(page, "planner", 5_000);
-      const stopOpen = heldStops.first().getByRole("button").first();
-      await expect(stopOpen).toBeVisible({ timeout: 2_000 });
-      await stopOpen.click();
-      await expectSoleDrawer(page, "venue", 5_000);
-    }).toPass({ timeout: 90_000 });
+    await expect(heldStops).toHaveCount(5);
+    await heldStops.first().getByRole("button").first().click({ timeout: 10_000 });
+    await expectSoleDrawer(page, "venue");
 
     await page.keyboard.press("Escape");
 
     await expectSoleDrawer(page, "planner");
+    await expect(heldStops).toHaveCount(5);
     await expect(planner(page).locator("#railSearchInput")).toHaveValue("Soho");
   });
 

@@ -1,26 +1,19 @@
 /*
- * PUBMAXXING plan-navigation cache — a LOCKED PLAN must survive offline (U18).
+ * PUBMAXXING public plan-preview cache writes.
  *
- * Tonight's failure mode: the crew is in a cellar with no signal and someone
- * reopens the plan link. Today public/sw.js only shelves ["/","/map",
- * "/tonight","/offline.html"]; a /plan/<id> or /p/<id> navigation is never
- * cached, so offline it falls back to "/" — the plan is gone exactly when it
- * matters. This module adds network-first, cache-on-success caching for plan
- * permalinks so a page opened earlier (with signal) reopens later (without).
+ * A /plan/<id> page opened with signal can reopen without it. /p/<id> is a
+ * Pint Drop, and nested plan routes such as /plan/<id>/recap are excluded.
  *
- * The server component already renders stops, route order, times and crew into
- * the HTML (they are server props, not client fetches), so the cached HTML
- * alone restores the night — no API replay required.
+ * The plan page renders a privacy-safe preview in HTML. Member details are
+ * fetched separately through the capability-gated API and are not cached here.
  *
  * It lives in its own file, loaded by public/sw.js via
  *   importScripts("/sw-plan-cache.js?v=" + VERSION)
- * deliberately: sw.js is being extended concurrently by the #457 web-push
- * handler, so the collision surface in sw.js is kept to a few clearly-marked
- * lines (one import + two hooks inside handleNavigation + one cache name).
  *
  * Cache identity/eviction:
  *  - The cache name is owned by sw.js (PREFIX + "plan-" + VERSION) and passed
- *    in, so it is versioned and migrated by sw.js during activate().
+ *    in, so it is versioned and eligible entries are migrated by sw.js during
+ *    activate().
  *  - Keyed by pathname (like the shell cache) so a plan reopens regardless of
  *    ?vibe=/utm query, and one plan is never stored twice.
  *  - Bounded to the last MAX_PLAN_ENTRIES plans, LRU-ish: Cache.put replaces
@@ -35,11 +28,9 @@
 
   const MAX_PLAN_ENTRIES = 10;
 
-  // A LOCKED plan permalink is /plan/<id> or /p/<id>. The bare /plan composer
-  // and a bare /p are not a night to restore, so they must NOT match (they
-  // need at least one non-slash character after the segment).
+  // Only the plan detail page has a public preview suitable for offline HTML.
   function isPlanPath(pathname) {
-    return /^\/plan\/[^/]/.test(pathname) || /^\/p\/[^/]/.test(pathname);
+    return /^\/plan\/[^/]+$/.test(pathname);
   }
 
   // Which cache keys to delete to keep at most maxEntries. Cache.keys() yields
@@ -71,24 +62,12 @@
     }
   }
 
-  // Offline fallback: the exact plan page this browser shelved earlier.
-  async function matchPlanNavigation(url, cacheName) {
-    if (!isPlanPath(url.pathname)) return undefined;
-    try {
-      const cache = await scope.caches.open(cacheName);
-      return await cache.match(url.pathname, { ignoreSearch: true });
-    } catch {
-      return undefined;
-    }
-  }
-
   const api = {
     MAX_PLAN_ENTRIES,
     isPlanPath,
     planEvictionKeys,
     trimPlanCache,
     cachePlanNavigation,
-    matchPlanNavigation,
   };
 
   // Runtime: expose on the SW global for public/sw.js to call.
