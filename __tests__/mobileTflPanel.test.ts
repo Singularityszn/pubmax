@@ -20,7 +20,7 @@ describe("MobileTflPanel resilience", () => {
     expect(source).toContain('from "@/lib/surfaceDataCache"');
     expect(source).toContain('from "@/lib/useReconnectRecovery"');
     expect(source).toContain("maxAgeMs: TFL_STATUS_MAX_AGE_MS");
-    expect(source).toContain("useReconnectRecovery(failed, retry)");
+    expect(source).toContain("useReconnectRecovery(isLondon && failed, retry)");
     expect(source).not.toMatch(/\bfetch\s*\(/);
     expect(source).not.toContain("cachedTfl");
     expect(source).not.toContain("inflightTfl");
