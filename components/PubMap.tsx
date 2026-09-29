@@ -5139,8 +5139,8 @@ export default function PubMap({
   // as a stop, the sheet used to open on the "Describe the outing" form and
   // the picked pub sat a whole form below the fold, unnamed on the first
   // screen (verify-preview-4, J04); a crawl being built now leads the sheet.
-  const phoneDescribeForm =
-    mobileViewport && isLondon && suggestedPlanArea ? (
+  function renderPhoneDescribeForm() {
+    return mobileViewport && isLondon && suggestedPlanArea ? (
       <MobilePlanActivation
         cityId={cityId}
         initialNightArea={suggestedPlanArea.slug}
@@ -5148,6 +5148,8 @@ export default function PubMap({
         onGenerated={applyGeneratedMobilePlan}
       />
     ) : null;
+  }
+  const phoneDescribeForm = renderPhoneDescribeForm();
   const plannerOrder = phonePlannerOrder({ mobileViewport, mode, builtCount: builtIds.length });
   const builtCrawlLeads = plannerOrder === "build-first";
   const [plannerHead, plannerFoot] = builtCrawlLeads
@@ -5462,29 +5464,6 @@ export default function PubMap({
     !mapCanvasErrored &&
     !mapCanvasFrameReleased(mapCanvasAvailabilityState) &&
     mapLoadingHeld(mapLoadingStage);
-  // The text-query lane filters curated pubs. UK base browse pubs are a
-  // separate zoom-gated layer and do not answer this query, so they may not
-  // keep an empty filtered collection from naming its honest state.
-  const visibleMapPinCount =
-    visibleVenueState?.cityId === cityId
-      ? visibleVenueState.curatedVenueIds.length
-      : null;
-  const mapSearchEmptyVisible =
-    trimmedMapQuery.length > 0 &&
-    loaded &&
-    loadedCityId === cityId &&
-    filteredPubVenueCount > 0 &&
-    mapBounds !== null &&
-    !mapLoadingActive &&
-    !mapCanvasUnavailable &&
-    mapOverlay !== "search" &&
-    !showMapArrivalCard &&
-    !mapSoftRetryActive &&
-    !detailOpen &&
-    !planningOpen &&
-    !storyOpen &&
-    !mapListOpen &&
-    visibleMapPinCount === 0;
 
   const mobileShellReady = !mapLoadingActive;
   // Desktop reader controls. Both live inside Layers rather than on the map
@@ -6067,6 +6046,30 @@ export default function PubMap({
   }
 
   function renderMapSearchEmptyState() {
+    // The text-query lane filters curated pubs. UK base browse pubs are a
+    // separate zoom-gated layer and do not answer this query, so they may not
+    // keep an empty filtered collection from naming its honest state.
+    const visibleMapPinCount =
+      visibleVenueState?.cityId === cityId
+        ? visibleVenueState.curatedVenueIds.length
+        : null;
+    const mapSearchEmptyVisible =
+      trimmedMapQuery.length > 0 &&
+      loaded &&
+      loadedCityId === cityId &&
+      filteredPubVenueCount > 0 &&
+      mapBounds !== null &&
+      !mapLoadingActive &&
+      !mapCanvasUnavailable &&
+      mapOverlay !== "search" &&
+      !showMapArrivalCard &&
+      !mapSoftRetryActive &&
+      !detailOpen &&
+      !planningOpen &&
+      !storyOpen &&
+      !mapListOpen &&
+      visibleMapPinCount === 0;
+
     return mapSearchEmptyVisible ? (
       <aside
         className="mapSearchEmpty"
