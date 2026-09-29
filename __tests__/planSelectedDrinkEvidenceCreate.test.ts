@@ -79,6 +79,32 @@ describe("Plan create selected drink evidence", () => {
     expect((await memoryPlanStore.get(body.plan.plan.id))?.stops[1]?.selectedDrinkPriceEvidence).toEqual(evidence);
   });
 
+  it("drops evidence if saved drink intent changes while replacement checks the price", async () => {
+    const { body } = await create("wine", null);
+    const submittedAt = Date.now();
+    const evidence = { category: "wine", pence: 750, serving: null, source: "community", reportedAt: new Date(submittedAt).toISOString() };
+    categoryIndexMock.mockImplementationOnce(async () => {
+      const contextResponse = await PATCH(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
+        method: "PATCH",
+        headers: { authorization: `Bearer ${body.memberToken}`, "content-type": "application/json" },
+        body: JSON.stringify({ context: { ...body.plan.context, drinkCategory: "beer" } }),
+      }), { params: Promise.resolve({ id: body.plan.plan.id }) });
+      expect(contextResponse.status).toBe(200);
+      return { prices: [{ venueId: "venue-b", drinkCategory: "wine", priceGbp: 7.5, submittedAt, source: "community", corroborations: 2 }], degraded: false, truncated: false };
+    });
+    const response = await PATCH(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${body.memberToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ expectedRouteRevision: 1, stops: [
+        { venueId: "venue-a" }, { venueId: "venue-b", selectedDrinkPriceEvidence: evidence }, { venueId: "venue-c" },
+      ] }),
+    }), { params: Promise.resolve({ id: body.plan.plan.id }) });
+    expect(response.status).toBe(200);
+    const saved = await memoryPlanStore.get(body.plan.plan.id);
+    expect(saved?.context?.drinkCategory).toBe("beer");
+    expect(saved?.stops[1]?.selectedDrinkPriceEvidence).toBeUndefined();
+  });
+
   it("omits mismatched and degraded replacement evidence", async () => {
     const submittedAt = Date.now();
     const evidence = { category: "wine", pence: 750, serving: null, source: "community", reportedAt: new Date(submittedAt).toISOString() };

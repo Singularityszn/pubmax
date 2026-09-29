@@ -781,7 +781,14 @@ export const memoryPlanStore: PlanStore = {
       }
       // One synchronous mutation keeps the demo store's route + revision
       // semantics equivalent to the production RPC transaction.
-      plan.stops = stops;
+      const context = update.context ?? plan.context;
+      plan.stops = stops.map((stop) => {
+        if (!stop.selectedDrinkPriceEvidence ||
+          (!context?.zeroProof && stop.selectedDrinkPriceEvidence.category === context?.drinkCategory)) return stop;
+        const nextStop = { ...stop };
+        delete nextStop.selectedDrinkPriceEvidence;
+        return nextStop;
+      });
       plan.plan.routeRevision = routeRevisionOf(plan.plan) + 1;
       if (plan.plan.anchorVenueId) {
         plan.plan.outcome = "route";
