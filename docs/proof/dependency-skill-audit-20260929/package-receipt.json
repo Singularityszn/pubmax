@@ -173,10 +173,6 @@
       "scope": "Restore ESLint/jsdom/tsx baseline after SDK install"
     }
   ],
-  "installedTree": {
-    "npmLsAllExit": 0,
-    "problems": []
-  },
   "initial17Verify": {
     "exitCode": 0,
     "coverageFilesPassed": 1695,
@@ -206,15 +202,15 @@
       "unmeasurableDurableFeeds": 3
     },
     "auditHighCriticalFindings": 0,
-    "lockTreeMatched": false
+    "lockTreeMatched": true
   },
   "productionBuild": {
     "command": "NEXT_DIST_DIR=.next-prod node scripts/run-with-restored-next-env.mjs npm run build",
     "exitCode": 0,
     "nextVersion": "16.3.7",
-    "compiledSeconds": 7.7,
+    "compiledSeconds": 3.6,
     "trackedOutputsRestored": true,
-    "lockTreeMatched": false
+    "lockTreeMatched": true
   },
   "independentReview": {
     "status": "pending"
@@ -225,14 +221,21 @@
     "tsx": "^4.23.13"
   },
   "testedProtectedInstalledVersions": {
+    "eslint": "10.11.0",
+    "jsdom": "30.1.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  },
+  "priorTestedProtectedInstalledVersions": {
     "eslint": "10.10.0",
     "jsdom": "30.1.0",
     "tsx": "4.23.13",
     "typescript": "5.9.3"
   },
-  "pendingLockMatchedChecks": [
-    "npm ci",
-    "npm run verify:no-mistakes",
-    "Isolated production build"
-  ]
+  "directLockComparison": {
+    "receipt": "direct-lock-receipt.json",
+    "directCount": 69,
+    "allMatched": true,
+    "freshNpmCiExit": 0
+  }
 }
