@@ -9,8 +9,8 @@
 //
 // Mirrors TonightGetHomeStrip's idiom exactly: fetch fires in an effect, state
 // only settles inside the async resolution/catch, an AbortController cancels on
-// unmount or origin change, and the strip renders NOTHING while loading, on
-// error, or when the server has nothing worth saying. No spinner, no empty card.
+// unmount or origin change. Tonight supplies the public reading at first paint;
+// other hosts remain empty until their first response.
 //
 // Server does all the data work (weather snapshot + venue index) behind
 // /api/tonight-conditions; this component only renders the strings it returns.
@@ -29,12 +29,13 @@ import "./tonightConditions.css";
 
 type Props = {
   origin?: { lat: number; lng: number } | null;
+  initialSummary?: TonightConditionsSummary | null;
 };
 
 type ConditionsResponse = { summary: TonightConditionsSummary | null };
 
-export default function TonightConditionsStrip({ origin }: Props) {
-  const [summary, setSummary] = useState<TonightConditionsSummary | null | undefined>(undefined);
+export default function TonightConditionsStrip({ origin, initialSummary }: Props) {
+  const [summary, setSummary] = useState<TonightConditionsSummary | null | undefined>(initialSummary);
 
   const egressPoint = origin ? coarsenViewerPoint(origin) : null;
   const lat = egressPoint?.lat ?? null;
@@ -42,6 +43,11 @@ export default function TonightConditionsStrip({ origin }: Props) {
 
   useEffect(() => {
     const controller = new AbortController();
+    if (initialSummary !== undefined && lat === null && lng === null) {
+      queueMicrotask(() => {
+        if (!controller.signal.aborted) setSummary(initialSummary);
+      });
+    }
     const query = lat !== null && lng !== null ? `?lat=${lat}&lng=${lng}` : "";
     void loadSurfaceJson<ConditionsResponse>(
       `/api/tonight-conditions${query}`,
@@ -49,10 +55,15 @@ export default function TonightConditionsStrip({ origin }: Props) {
         signal: controller.signal,
         validate: (body) => Boolean(body && "summary" in body),
       },
-      (body) => setSummary(body.summary ?? null),
+      (body, source) => {
+        // The current server reading takes precedence over an older tab cache.
+        // Location-specific snapshots still seed a deliberate location change.
+        if (source === "snapshot" && initialSummary !== undefined && lat === null && lng === null) return;
+        setSummary(body.summary ?? null);
+      },
     );
     return () => controller.abort();
-  }, [lat, lng]);
+  }, [lat, lng, initialSummary]);
 
   if (summary === undefined) return null;
 

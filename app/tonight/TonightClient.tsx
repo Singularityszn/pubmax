@@ -37,6 +37,7 @@ import MusicTonightLane from "@/components/discovery/MusicTonightLane";
 import TonightChainDeals from "./TonightChainDeals";
 import TonightCheapPints from "./TonightCheapPints";
 import TonightConditionsStrip from "./TonightConditionsStrip";
+import type { TonightConditionsSummary } from "@/lib/tonightConditions";
 import TonightHypedPubs from "./TonightHypedPubs";
 import TonightListingsNotice from "./TonightListingsNotice";
 import TonightProvenanceLines from "./TonightProvenanceLines";
@@ -204,6 +205,7 @@ export default function TonightClient({
   mapSelectableVenueIds,
   hypedPubs,
   cheapPints,
+  initialConditionsSummary,
 }: {
   /** Server-composed quiet-pint module; null outside a quiet window. */
   quietPint?: QuietPintModule | null;
@@ -215,6 +217,7 @@ export default function TonightClient({
   hypedPubs?: readonly HypedPub[];
   /** Cheapest listed pints, for the nights nothing is on. */
   cheapPints?: readonly TonightCheapPint[];
+  initialConditionsSummary?: TonightConditionsSummary | null;
 }) {
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
@@ -564,7 +567,7 @@ export default function TonightClient({
           the lede at every width: it is the only thing between the head and
           the pubs. */}
       <div className="tonightWeather">
-        <TonightConditionsStrip origin={origin} />
+        <TonightConditionsStrip origin={origin} initialSummary={initialConditionsSummary} />
       </div>
 
       <div className="tonightPrimary" data-status={listingsStatus}>
