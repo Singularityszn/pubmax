@@ -325,12 +325,12 @@ function displayChain(container: HTMLElement): string[] {
 // Shared modal focus trap, extracted from the mobile bottom sheet
 // (MobileSharedSheet) so the desktop venue drawer can reuse the SAME behaviour
 // for its full open lifetime. While `active`:
-//   1. Tab / Shift+Tab cycle within `containerRef`'s visible focusables.
-//   2. Everything OUTSIDE the container is marked `inert` — walking the ancestor
-//      chain to <body> and inert-ing each level's off-path siblings. This works
-//      whether the trapped node is a body-level portal (mobile sheet) or nested
-//      inside the app shell (desktop drawer). Prior `inert` values are restored
-//      on teardown.
+//   1. Tab / Shift+Tab cycle through the container and any map-surface exemptions.
+//   2. Outside siblings are made inert along the ancestor chain to <body>,
+//      except where the map-surface policy permits interaction. Overlapping
+//      owners keep each claimed node inert until its final release. Component
+//      writes update the state to restore, even when the observer reasserts
+//      trap isolation before cleanup. Final release restores that latest intent.
 //   3. A container CSS has hidden never traps at all (shouldEngageFocusTrap).
 // Focus entry and restoration are coordinated here; Esc stays with each caller.
 export function useFocusTrap(

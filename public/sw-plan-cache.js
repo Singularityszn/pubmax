@@ -1,5 +1,5 @@
 /*
- * PUBMAXXING plan-navigation cache — a LOCKED PLAN must survive offline (U18).
+ * PUBMAXXING public plan-preview cache writes.
  *
  * A /plan/<id> page opened with signal can reopen without it. /p/<id> is a
  * Pint Drop, and nested plan routes such as /plan/<id>/recap are excluded.
