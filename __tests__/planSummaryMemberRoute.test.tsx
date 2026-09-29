@@ -66,7 +66,11 @@ const preview: PlanPrivacyPreviewDTO = {
   visibility: "preview",
 };
 
-function memberState(stopNames: readonly string[], routeRevision: number) {
+function memberState(
+  stopNames: readonly string[],
+  routeRevision: number,
+  drinkPreference: { drinkCategory?: string | null; zeroProof?: boolean } = {},
+) {
   return {
     plan: {
       id: PLAN,
@@ -81,7 +85,7 @@ function memberState(stopNames: readonly string[], routeRevision: number) {
       position: index + 1,
     })),
     crew: [],
-    context: { nightArea: "soho", stopCount: 3 },
+    context: { nightArea: "soho", stopCount: 3, ...drinkPreference },
   };
 }
 
@@ -138,6 +142,25 @@ async function mountWithMemberRead(state: unknown): Promise<void> {
   expect(renderedStops().length).toBeGreaterThan(0);
   void state;
 }
+
+describe("saved route start time", () => {
+  it.each([
+    [{ drinkCategory: "wine" }, "First stop · 18:30"],
+    [{ drinkCategory: "cocktail" }, "First stop · 18:30"],
+    [{ drinkCategory: "whisky" }, "First stop · 18:30"],
+    [{ zeroProof: true }, "First stop · 18:30"],
+    [{ drinkCategory: "beer" }, "First pint · 18:30"],
+    [{}, "First pint · 18:30"],
+  ])("shows %j as %s", async (drinkPreference, expected) => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse(memberState(
+      ["The George", "The Swan", "The Crown"], 1, drinkPreference,
+    )))));
+
+    await mountWithMemberRead(null);
+
+    expect(container.querySelector(".planPage__eyebrow")?.textContent).toBe(expected);
+  });
+});
 
 describe("the route preview ask", () => {
   it("spends one generate request when the control is tapped twice in one task", async () => {

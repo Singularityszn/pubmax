@@ -13,6 +13,7 @@ import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySna
 import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { setActivePlanRole } from "@/lib/activePlan";
 import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
+import { planUsesPintPrices } from "@/lib/planGenerationDto";
 
 import type { InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
 import type { VibeTally } from "@/lib/vibeTally";
@@ -337,7 +338,7 @@ export default function PlanSummary({
     return (
       <section className="planSummary" aria-labelledby="plan-stops-title">
         <div className="planSummary__heading">
-          <p className="planPage__eyebrow">First pint · {initialPreview.startLabel}</p>
+          <p className="planPage__eyebrow">Start time · {initialPreview.startLabel}</p>
           <h2 id="plan-stops-title">The route</h2>
         </div>
         <InvitePrivacyPreview preview={toInvitePreview(initialPreview)} />
@@ -721,7 +722,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   return (
     <section className="planSummary" aria-labelledby="plan-stops-title">
       <div className="planSummary__heading">
-        <p className="planPage__eyebrow">First pint · {view.startLabel}</p>
+        <p className="planPage__eyebrow">{state.context && !planUsesPintPrices(state.context) ? "First stop" : "First pint"} · {view.startLabel}</p>
         <div className="planSummary__headingRow">
           <h2 id="plan-stops-title">The route</h2>
           {canBeginEditing ? (
