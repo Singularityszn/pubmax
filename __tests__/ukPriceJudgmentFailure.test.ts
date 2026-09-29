@@ -60,6 +60,39 @@ function mockAnswersForBatch(
 }
 
 describe("readVenueDrinkPricesJudged batch failures", () => {
+  it.each([
+    [{ status: "skipped", reason: "budget" }, "typesafe-judgment-budget-refused"],
+    [{ status: "failed", reason: "timeout" }, "typesafe-judgment-call-timeout"],
+    [{ status: "failed", reason: "error" }, "typesafe-judgment-call-error"],
+    [{ status: "ok", result: { answers: {} } }, "typesafe-judgment-malformed-answer"],
+  ])("retains section-scoped glasses after %j", async (failure, drop) => {
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    vi.mocked(systemOneOutcome).mockResolvedValue(
+      failure as Awaited<ReturnType<typeof systemOneOutcome>>,
+    );
+    const menu = `<div class="menubox"><h1>white</h1>
+      <p>Gavi de Gavi, Italy<br />125ml £7.00 250ml £14.00 Btl £39.95</p></div>
+      <div class="menubox"><h1>soft drinks</h1>
+      <p>Garden Fizz<br />125ml £2.50 250ml £4.00</p></div>`;
+    try {
+      const judged = await readVenueDrinkPricesJudged(menu, {
+        pubName: "Sydney Arms",
+        pageUrl: "https://www.sydneyarmschelsea.com/menu/",
+      });
+      expect(judged.kept.filter((row) => row.category === "wine").map(
+        ({ drinkLabel, servingSize, priceGbp }) => ({ drinkLabel, servingSize, priceGbp }),
+      )).toEqual([
+        { drinkLabel: "Gavi de Gavi, Italy", servingSize: "125ml", priceGbp: 7 },
+        { drinkLabel: "Gavi de Gavi, Italy", servingSize: "250ml", priceGbp: 14 },
+      ]);
+      expect(judged.kept).toEqual(readVenueDrinkPrices(menu).kept);
+      expect(judged.drops.filter((reason) => reason === drop)).toHaveLength(5);
+    } finally {
+      vi.unstubAllEnvs();
+      vi.mocked(systemOneOutcome).mockReset();
+    }
+  });
+
   it("retains printed wine names and glass sizes on the accepted judged path", async () => {
     vi.stubEnv("TYPESAFE_API_KEY", "test-key");
     // Minimal excerpt from the permission-checked Sydney Arms capture.
@@ -150,7 +183,7 @@ describe("readVenueDrinkPricesJudged batch failures", () => {
   // were read in the context of whichever came first: the supper was published
   // with the pint's category, and the pint was published twice. The fallback is
   // the failure path, so a false publish there is a false price on the map.
-  it("reads each repeated figure at its own offset, not the first match", () => {
+  it("reads each repeated figure at its own offset, not the first match", async () => {
     const filler = `<p>${"Our kitchen serves hearty plates every day of the week. ".repeat(6)}</p>`;
     const html = `<html><body><p>Madri pint &pound;6.20</p>${filler}<p>Steak and chips supper &pound;6.20</p></body></html>`;
     const text = pageText(html);
@@ -165,5 +198,19 @@ describe("readVenueDrinkPricesJudged batch failures", () => {
     expect(decisions.filter((d) => d.kept).map((d) => d.kept)).toEqual(truth.kept);
     expect(decisions[0].kept?.category).toBe("beer");
     expect(decisions[1].kept).toBeUndefined();
+
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    vi.mocked(systemOneOutcome).mockResolvedValue({ status: "failed", reason: "timeout" });
+    try {
+      const judged = await readVenueDrinkPricesJudged(html, {
+        pubName: "The Crown",
+        pageUrl: "https://thecrown.co.uk/drinks",
+      });
+      expect(judged.kept).toEqual(truth.kept);
+      expect(judged.drops).toContain("no-category-word-nearby");
+    } finally {
+      vi.unstubAllEnvs();
+      vi.mocked(systemOneOutcome).mockReset();
+    }
   });
 });

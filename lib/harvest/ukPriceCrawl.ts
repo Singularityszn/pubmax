@@ -659,12 +659,12 @@ export function decideKeylessUkPriceCandidate(
   return { drop: "not-verbatim-on-page" };
 }
 
-export function readVenueDrinkPrices(html: string): UkPriceReading {
+export function readKeylessUkPriceDecisions(
+  html: string,
+): Map<number, ReturnType<typeof decideKeylessUkPriceCandidate>> {
   const text = pageText(html);
-  const kept: UkPriceCandidate[] = [];
-  const drops: UkPriceDropReason[] = [];
+  const decisions = new Map<number, ReturnType<typeof decideKeylessUkPriceCandidate>>();
   const candidates = findUkPriceCandidates(text);
-  if (candidates.length === 0) return { kept, drops: ["no-price-on-page"] };
   const winePrices = wineSectionPrices(html);
 
   for (const [index, raw] of candidates.entries()) {
@@ -675,6 +675,19 @@ export function readVenueDrinkPrices(html: string): UkPriceReading {
     const outcome = scopedIdentity && scoped
       ? decideKeylessUkPriceCandidate(scoped.text, scoped.raw, true)
       : decideKeylessUkPriceCandidate(text, raw);
+    decisions.set(raw.at, outcome);
+  }
+
+  return decisions;
+}
+
+export function readVenueDrinkPrices(html: string): UkPriceReading {
+  const decisions = readKeylessUkPriceDecisions(html);
+  const kept: UkPriceCandidate[] = [];
+  const drops: UkPriceDropReason[] = [];
+  if (decisions.size === 0) return { kept, drops: ["no-price-on-page"] };
+
+  for (const outcome of decisions.values()) {
     if (outcome.kept) kept.push(outcome.kept);
     else if (outcome.drop) drops.push(outcome.drop);
   }

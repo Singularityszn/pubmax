@@ -13,10 +13,10 @@ import {
   type UkPriceJudgmentProbabilities,
 } from "@/lib/harvest/ukPriceJudgmentPolicy";
 import {
-  decideKeylessUkPriceCandidate,
   drinkLabelFromPriceContext,
   findUkPriceCandidates,
   pageText,
+  readKeylessUkPriceDecisions,
   readVenueDrinkPrices,
   statedWineIdentity,
   type UkPriceCandidate,
@@ -131,16 +131,6 @@ function dropForTypesafeBatchFailure(
     return "typesafe-judgment-call-timeout";
   }
   return "typesafe-judgment-call-error";
-}
-
-function applyKeylessFallback(
-  text: string,
-  raw: UkPriceRawCandidate,
-  drop: UkPriceDropReason,
-): { kept?: UkPriceCandidate; drops: UkPriceDropReason[] } {
-  const keyless = decideKeylessUkPriceCandidate(text, raw);
-  if (keyless.kept) return { kept: keyless.kept, drops: [drop] };
-  return { drops: keyless.drop ? [drop, keyless.drop] : [drop] };
 }
 
 function applyJudgmentToCandidate(
@@ -262,6 +252,7 @@ export async function readVenueDrinkPricesJudged(
   const drops: UkPriceDropReason[] = [];
   const review: UkPriceJudgmentReviewRow[] = [];
   const batches = batchUkPriceCandidates(ctx, candidates);
+  const keylessDecisions = readKeylessUkPriceDecisions(html);
 
   for (const batch of batches) {
     const verbatimBatch = batch.filter((raw) => {
@@ -276,9 +267,10 @@ export async function readVenueDrinkPricesJudged(
     const judged = await judgeUkPriceCandidateBatch(ctx, verbatimBatch);
     if (!judged.ok) {
       for (const raw of verbatimBatch) {
-        const fallback = applyKeylessFallback(text, raw, judged.drop);
+        const fallback = keylessDecisions.get(raw.at)!;
         if (fallback.kept) kept.push(fallback.kept);
-        drops.push(...fallback.drops);
+        drops.push(judged.drop);
+        if (fallback.drop) drops.push(fallback.drop);
       }
       continue;
     }

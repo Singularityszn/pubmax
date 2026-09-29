@@ -410,6 +410,7 @@ async function main() {
                     category: row.category,
                     priceGbp: row.priceGbp,
                     ...(row.drinkLabel ? { drinkLabel: row.drinkLabel } : {}),
+                    ...(row.servingSize ? { servingSize: row.servingSize } : {}),
                     sourceUrl: target.menuUrl,
                     observedAt,
                     // A per-pub menu page names exactly one pub, so this lane
