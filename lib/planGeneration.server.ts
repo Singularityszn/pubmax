@@ -10,7 +10,7 @@ import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { haversineKm } from "@/lib/haversine";
 import { CATEGORY_META } from "@/lib/drinks";
-import { drinkLensCoverageNote, trustedDrinkLensPrices, trustedNoAlcoholLensPrices } from "@/lib/mapExperienceLens";
+import { drinkLensCoverageNote, trustedDrinkLensPrices, trustedNoAlcoholLensPrices, type MapLensPrice } from "@/lib/mapExperienceLens";
 import {
 	getNightArea,
 	isNightAreaRouteReady,
@@ -201,6 +201,7 @@ type PlanGenerationCandidate = ScoredPlanCandidate & {
 	distance: number;
 	tonightEvents: WhatsOnRow[];
 	reasons: string[];
+	selectedDrinkPrice: MapLensPrice | null;
 };
 
 type PlanGenerationPreparation = {
@@ -342,7 +343,7 @@ export async function preparePlanGeneration(
 				wetherspoonsMatchedIds,
 				drinkLensPrices,
 			);
-			return { venue, distance, tonightEvents, signalClaims, ...scored };
+			return { venue, distance, tonightEvents, signalClaims, ...scored, selectedDrinkPrice: drinkLensPrices?.get(venue.id) ?? null };
 		})
 		.filter(({ distance, venue, signalClaims }) =>
 			distance <= area.radiusKm

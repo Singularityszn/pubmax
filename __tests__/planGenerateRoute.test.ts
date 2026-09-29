@@ -227,6 +227,52 @@ describe("POST /api/plans/generate", () => {
     expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
   });
 
+  it("carries trusted wine price evidence to selected stops and alternatives without inventing a serving", async () => {
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("v1", { cheapestPrice: 4 }),
+      generatedVenue("v2", { cheapestPrice: 6 }),
+      generatedVenue("v3", { cheapestPrice: 3 }),
+      generatedVenue("v4", { cheapestPrice: 5 }),
+    ]);
+    const now = Date.now();
+    categoryIndexMock.mockResolvedValueOnce({
+      prices: [
+        { venueId: "v1", drinkCategory: "wine", priceGbp: 9, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v2", drinkCategory: "wine", priceGbp: 7, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v3", drinkCategory: "wine", priceGbp: 5, submittedAt: now, source: "community", corroborations: 1 },
+      ],
+      truncated: false,
+      degraded: false,
+    });
+
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "cheap wine in Clapham for 2" }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    const pricedStop = body.stops.find((stop: { venueId: string }) => stop.venueId === "v2");
+    expect(pricedStop).toMatchObject({
+      estimatedPintPricePence: null,
+      priceEvidence: null,
+      selectedDrinkPriceEvidence: {
+        category: "wine",
+        pence: 700,
+        serving: null,
+        source: "community",
+        reportedAt: new Date(now).toISOString(),
+      },
+    });
+    const untrusted = body.stops.find((stop: { venueId: string }) => stop.venueId === "v3");
+    expect(untrusted).toBeDefined();
+    expect(untrusted?.selectedDrinkPriceEvidence ?? null).toBeNull();
+    const unpricedAlternative = body.stops.flatMap((stop: { alternatives: Array<{ venueId: string }> }) => stop.alternatives)
+      .find((stop: { venueId: string }) => stop.venueId === "v4");
+    expect(unpricedAlternative).toBeDefined();
+    expect(unpricedAlternative?.selectedDrinkPriceEvidence ?? null).toBeNull();
+  });
+
   it.each([
     ["cheap wine in Clapham for 2", "wine"],
     ["cheap cocktails in Clapham for 2", "cocktail"],

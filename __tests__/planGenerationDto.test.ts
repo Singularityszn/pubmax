@@ -66,6 +66,42 @@ function grounded<T>(value: T, pence: number) {
 }
 
 describe("plan generation response projection", () => {
+  it("keeps selected wine evidence on a priced alternative while leaving an unpriced stop unknown", () => {
+    const selected = candidate("selected", -0.1, { cheapestPrice: 3 });
+    const alternative = candidate("alternative", -0.099, { cheapestPrice: 4 });
+    const selectedPrice = {
+      venueId: "alternative",
+      category: "wine" as const,
+      categoryLabel: "Wine",
+      priceGbp: 8,
+      submittedAt: Date.parse("2026-08-27T12:00:00.000Z"),
+      source: "community" as const,
+    };
+    const stops = buildPlanGenerationStops({
+      chosen: [selected],
+      candidates: [selected, { ...alternative, selectedDrinkPrice: selectedPrice }],
+      groundedStops: null,
+      groundedAlternatives: null,
+      walkingEstimate: { legs: [], walkingMinutesFromPrevious: [null] },
+      area: AREA,
+      planningWeather: null,
+      priceContext: { drinkCategory: "wine", zeroProof: false },
+    });
+
+    expect(stops[0].selectedDrinkPriceEvidence).toBeNull();
+    expect(stops[0].alternatives[0]).toMatchObject({
+      estimatedPintPricePence: null,
+      priceEvidence: null,
+      selectedDrinkPriceEvidence: {
+        category: "wine",
+        pence: 800,
+        serving: null,
+        source: "community",
+        reportedAt: "2026-08-27T12:00:00.000Z",
+      },
+    });
+  });
+
   it.each(["wine", "cocktail", "whisky"] as const)(
     "does not present pint prices as %s stop or budget prices",
     (drinkCategory) => {
