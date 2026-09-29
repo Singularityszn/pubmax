@@ -50,7 +50,6 @@ import process from "node:process";
 
 import {
   bundleDrinkFieldsFromPrintedName,
-  bundleRowDedupeDrinkKey,
 } from "@/lib/bundleDrinkFields";
 import { isDemoDrinkProvenance } from "@/lib/drinks";
 import {
@@ -62,6 +61,7 @@ import {
   bundleRowSupersedes,
   isCategoryQuarantined,
   isValidUkPriceBundleRow,
+  ukPriceBundleCollectKey,
   UK_PRICE_BUNDLE_VERSION,
 } from "@/lib/ukPriceBundle";
 import { stableVenueIdFromKey } from "@/lib/venues";
@@ -175,7 +175,7 @@ function collectRows(report) {
       report.droppedInvalidRow += 1;
       return;
     }
-    const key = `${row.venueId} ${row.category} ${bundleRowDedupeDrinkKey(row)} ${row.lane}`;
+    const key = ukPriceBundleCollectKey(row);
     if (!bundleRowSupersedes(row, held.get(key))) return;
     held.set(key, row);
   };
@@ -241,6 +241,7 @@ function addSiteHarvestRows(harvestRows, owners, push, report) {
       observedAt: row.observedAt,
       basis: null,
       sampleSize: null,
+      ...(row.servingSize !== undefined ? { servingSize: row.servingSize } : {}),
       ...bundleDrinkFieldsFromPrintedName(
         row.drinkLabel ?? row.drinkName ?? null,
         row.category,
@@ -277,6 +278,7 @@ function addDrinkPriceUpdateRows(updates, push, report) {
       observedAt: update.observedAt,
       basis: null,
       sampleSize: null,
+      ...(update.servingSize !== undefined ? { servingSize: update.servingSize } : {}),
       ...bundleDrinkFieldsFromPrintedName(update.drinkName, update.category),
     });
   }

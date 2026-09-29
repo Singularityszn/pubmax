@@ -83,6 +83,8 @@ export type UkPriceBundleRow = {
    * 80 chars). Absent when the producing lane stated category only.
    */
   drinkLabel?: string;
+  /** Source-stated serving, such as 125ml or Btl; absence means unknown volume. */
+  servingSize?: string;
   /** Closed subtype from lib/drinkSubtypes.ts when the label classifies; never guessed. */
   drinkSubtype?: string;
 };
@@ -155,6 +157,11 @@ export function isValidUkPriceBundleRow(value: unknown): value is UkPriceBundleR
   if (row.drinkLabel !== undefined) {
     if (typeof row.drinkLabel !== "string" || row.drinkLabel.length === 0) return false;
     if (row.drinkLabel.length > UK_PRICE_BUNDLE_DRINK_LABEL_MAX) return false;
+  }
+  if (row.servingSize !== undefined) {
+    if (typeof row.servingSize !== "string" || row.servingSize.trim() !== row.servingSize ||
+        row.servingSize.length === 0 || row.servingSize.length > 40) return false;
+    if (row.standing !== "listed") return false;
   }
   if (row.drinkSubtype !== undefined) {
     if (!isValidBundleDrinkSubtypeForRow(row.category, row.drinkSubtype)) return false;
@@ -283,7 +290,7 @@ export function bundleRowSupersedes(
 
 /** The ONE collect key `scripts/build_uk_price_bundle.mjs` uses per pub, drink and lane. */
 export function ukPriceBundleCollectKey(
-  row: Pick<UkPriceBundleRow, "venueId" | "category" | "lane" | "drinkLabel">,
+  row: Pick<UkPriceBundleRow, "venueId" | "category" | "lane" | "drinkLabel" | "servingSize">,
 ): string {
   return `${row.venueId} ${row.category} ${bundleRowDedupeDrinkKey(row)} ${row.lane}`;
 }

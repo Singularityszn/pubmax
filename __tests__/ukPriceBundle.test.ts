@@ -14,6 +14,7 @@ import {
   bundlePricesForCategory,
   bundleRowSupersedes,
   bundleRowsByVenue,
+  ukPriceBundleCollectKey,
   isUkPriceBundleLane,
   isValidUkPriceBundleRow,
   parseUkPriceBundleRows,
@@ -54,6 +55,23 @@ const estimate: UkPriceBundleRow = {
 describe("what a bundle row owes", () => {
   it("takes a published row carrying its page and its day", () => {
     expect(isValidUkPriceBundleRow(listed)).toBe(true);
+  });
+
+  it("accepts bounded explicit servings while preserving unknown volume", () => {
+    expect(isValidUkPriceBundleRow({ ...listed, servingSize: "125ml" })).toBe(true);
+    expect(isValidUkPriceBundleRow({ ...listed, servingSize: "Btl" })).toBe(true);
+    expect(isValidUkPriceBundleRow({ ...listed, servingSize: "" })).toBe(false);
+    expect(isValidUkPriceBundleRow({ ...listed, servingSize: "x".repeat(81) })).toBe(false);
+    expect(parseUkPriceBundleRows([{ ...listed, servingSize: "Btl" }])[0].servingSize).toBe("Btl");
+    expect(parseUkPriceBundleRows([listed])[0].servingSize).toBeUndefined();
+  });
+
+  it("keeps same named wine servings in separate collect keys", () => {
+    const row = { ...listed, category: "wine", drinkLabel: "House Chardonnay" };
+    expect(ukPriceBundleCollectKey({ ...row, servingSize: "125ml" }))
+      .not.toBe(ukPriceBundleCollectKey({ ...row, servingSize: "250ml" }));
+    expect(ukPriceBundleCollectKey({ ...row, servingSize: "Btl" }))
+      .not.toBe(ukPriceBundleCollectKey(row));
   });
 
   it("refuses a published row with no source, because nobody could check it", () => {

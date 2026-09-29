@@ -20,6 +20,7 @@ export type SiteHarvestLedgerRow = {
   host?: string;
   drinkLabel?: string;
   drinkName?: string;
+  servingSize?: string;
   robotsDisallowed?: boolean;
 };
 
@@ -49,6 +50,7 @@ export function siteHarvestLedgerCollectKey(
     category: row.category,
     lane: SITE_HARVEST_LANE,
     drinkLabel: typeof raw === "string" ? raw : undefined,
+    servingSize: row.servingSize,
   });
 }
 
@@ -80,6 +82,7 @@ function ledgerRowAsBundleRow(
     ...(typeof row.drinkLabel === "string" && row.drinkLabel.trim()
       ? { drinkLabel: row.drinkLabel.trim() }
       : {}),
+    ...(row.servingSize !== undefined ? { servingSize: row.servingSize } : {}),
   };
 }
 

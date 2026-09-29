@@ -37,9 +37,11 @@ export function bundleDrinkFieldsFromPrintedName(
 
 export function bundleRowDedupeDrinkKey(row: {
   drinkLabel?: string | null;
+  servingSize?: string | null;
 }): string {
   const label = typeof row.drinkLabel === "string" ? row.drinkLabel.trim().toLowerCase() : "";
-  return label;
+  const serving = typeof row.servingSize === "string" ? row.servingSize.trim().toLowerCase() : "";
+  return `${label}\0${serving}`;
 }
 
 export function isValidBundleDrinkSubtypeForRow(
