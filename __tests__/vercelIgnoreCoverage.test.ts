@@ -84,6 +84,7 @@ describe(".vercelignore covers what a deploy would otherwise upload", () => {
       ".opencode",
       ".cursor",
       ".agents",
+      ".gnhf",
       "skills",
       ".firecrawl",
       ".tmp-evidence",
