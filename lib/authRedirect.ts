@@ -560,7 +560,7 @@ function rejectedAuthCallback(
  * Supabase can verify callback tokens, and an emailed link legitimately
  * opens in a browser that never started the attempt (Gmail app opening Safari),
  * where no local attempt record exists. So a token-bearing callback survives a
- * missing, expired, or already-claimed local attempt — it only loses the stored
+ * missing, expired, or already-claimed local attempt. It loses the stored
  * return-fragment restore. The caller verifies and confirms unowned tokens
  * before session install. A token-less callback still fails closed.
  */
@@ -572,7 +572,7 @@ function fallbackAuthCallback(
   return {
     attempt: parsedAttempt,
     cleanUrl,
-    // Tokens completed without a matching local claim (cross-browser link,
+    // Tokens arrived without a matching local claim (cross-browser link,
     // expired attempt, or clamped landing). Not this browser's started attempt.
     localAttemptOwned: false,
     releaseCoordination: () => {},
@@ -608,8 +608,8 @@ function claimAuthCallback(
     const active = readActiveAttempt(persistentStorage);
     if (active?.id !== attemptId) {
       // No matching local record: this browser did not start the attempt
-      // (cross-browser email link) or the attempt was replaced. Tokens still
-      // complete sign-in; see fallbackAuthCallback.
+      // (cross-browser email link) or the attempt was replaced. Use the
+      // unowned callback path; see fallbackAuthCallback.
       return fallbackAuthCallback(parsedAttempt, cleanUrl);
     }
     const key = authFragmentKey(attemptId);
@@ -675,8 +675,8 @@ function isAuthPage(pathname: string): boolean {
  * fragment delivered straight to any page. Supabase's redirect allowlist clamps
  * an unlisted redirect_to to the bare site URL, and a clamped link lands the
  * implicit-flow fragment on the landing page with no callback marker. Those
- * tokens must still complete sign-in; leaving them dangling in the URL signs
- * nobody in and shows no error.
+ * tokens still need callback handling; leaving them dangling in the URL signs
+ * nobody in and shows no error. Ownership is checked after parsing.
  */
 export function readAuthCallbackAttempt(currentUrl: string): AuthCallbackAttempt | null {
   try {
@@ -684,9 +684,9 @@ export function readAuthCallbackAttempt(currentUrl: string): AuthCallbackAttempt
     const fragment = parseAuthResponseFragment(current.hash);
     const authPage = isAuthPage(current.pathname);
     const marked = current.searchParams.get(AUTH_CALLBACK_MARKER) === "1";
-    // A marked callback is tied to a live local attempt, not a crafted
-    // fragment, so it keeps reporting a provider error on any page. An
-    // unmarked bare signal only counts on an auth page (anti-spoof scoping).
+    // The marker scopes provider errors to a callback landing on any page;
+    // it does not prove local attempt ownership. An unmarked bare signal
+    // only counts on an auth page (anti-spoof scoping).
     const accountBanned =
       (marked || authPage) &&
       (current.searchParams.get(AUTH_ACCOUNT_BANNED_PARAM) === "1" ||

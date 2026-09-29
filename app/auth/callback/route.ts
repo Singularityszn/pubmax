@@ -62,9 +62,9 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   // Forward to the target path with the callback marker. The browser carries
-  // the token (or error) fragment across this redirect; AuthProvider
-  // establishes the session explicitly, then removes the one-time parameters
-  // and the fragment from the URL.
+  // the token (or error) fragment across this redirect. AuthProvider captures
+  // and scrubs it before callback handling; this route cannot verify or
+  // install credentials it never receives.
   const dest = new URL(next, url.origin);
   dest.searchParams.set(AUTH_CALLBACK_MARKER, "1");
   dest.searchParams.set(AUTH_ATTEMPT_PARAM, attemptId);
