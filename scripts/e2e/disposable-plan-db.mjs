@@ -12,7 +12,7 @@ const LAST_MIGRATION = "20260929180000_0167_plan_replace_context_evidence.sql";
 
 // The Belle Vue occurs on the generated Clapham route for both queries. Each
 // observation has an independent, non-null actor for corroboration.
-export const PLAN_PRICE_FIXTURES = [
+const PLAN_PRICE_FIXTURES = [
   { venueId: "venue-11e0hkh", category: "wine", pence: 675 },
   { venueId: "venue-11e0hkh", category: "cocktail", pence: 895 },
 ];
