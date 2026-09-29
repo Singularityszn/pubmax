@@ -117,3 +117,123 @@ test("locally owned callback installs A automatically", async ({ page }) => {
   expect((await storedSession(page))?.refresh_token).toBe(ACCOUNTS.A.refreshToken);
   await expectScrubbed(page);
 });
+
+const providerHeaders = {
+  "x-supabase-api-version": "2024-01-01",
+  "access-control-expose-headers": "x-supabase-api-version",
+  "access-control-allow-origin": "*",
+  "access-control-allow-headers": "*",
+  "access-control-allow-methods": "GET,POST,OPTIONS",
+};
+
+for (const read of [1, 2]) {
+  test(`revoked callback identity read ${read} preserves stored B`, async ({ page }) => {
+    const stub = await installAuthDoubles(page);
+    await page.goto("/today");
+    await stub.signedInAs("B");
+    let reads = 0;
+    await page.route("**/auth/v1/user", async (route) => {
+      if (route.request().method() === "OPTIONS") return route.fallback();
+      if (route.request().headers().authorization === `Bearer ${accessJwt(ACCOUNTS.A)}` && ++reads === read) {
+        await route.fulfill({ status: 403, headers: providerHeaders, json: {
+          code: "session_not_found", message: "Session from session_id claim in JWT does not exist",
+        } });
+      } else await route.fallback();
+    });
+    await page.goto(callbackUrl(accessJwt(ACCOUNTS.A), ACCOUNTS.A.refreshToken));
+    await expect(page.locator(".authCallbackNotice")).toBeVisible();
+    expect((await storedSession(page))?.user.id).toBe(ACCOUNTS.B.id);
+    await expect(page.locator(".authCallbackNotice")).toContainText("Sign-in could not be completed");
+    expect((await storedSession(page))?.refresh_token).toBe(ACCOUNTS.B.refreshToken);
+    await expect(page.getByRole("button", { name: "Continue", exact: true })).toHaveCount(0);
+    await expectScrubbed(page);
+  });
+}
+
+for (const failure of ["503", "network", "unknown"] as const) {
+  test(`${failure} identity lookup rejects mismatched callback without replacing B`, async ({ page }) => {
+    const stub = await installAuthDoubles(page);
+    await page.goto("/today");
+    await stub.signedInAs("B");
+    await page.route("**/auth/v1/user", async (route) => {
+      if (route.request().method() === "OPTIONS" || route.request().headers().authorization !== `Bearer ${accessJwt(ACCOUNTS.A)}`) {
+        return route.fallback();
+      }
+      if (failure === "network") return route.abort("failed");
+      await route.fulfill({ status: failure === "503" ? 503 : 403, headers: providerHeaders,
+        json: { code: "unexpected_failure", message: "Identity unavailable" } });
+    });
+    await page.goto(callbackUrl(accessJwt(ACCOUNTS.A), ACCOUNTS.B.refreshToken));
+    await expect(page.locator(".authCallbackNotice")).toContainText("Sign-in could not be completed");
+    await expect(page.getByRole("button", { name: "Continue", exact: true })).toHaveCount(0);
+    expect((await storedSession(page))?.user.id).toBe(ACCOUNTS.B.id);
+    await expectScrubbed(page);
+  });
+}
+
+for (const action of ["Continue", "Cancel"]) {
+  test(`delayed cookie restoration finishes before callback ${action}`, async ({ page }) => {
+    await installAuthDoubles(page);
+    let finishRedemption!: () => void;
+    const redemption = new Promise<void>((resolve) => { finishRedemption = resolve; });
+    let startedRedemption!: () => void;
+    const started = new Promise<void>((resolve) => { startedRedemption = resolve; });
+    await page.route("**/api/auth/session", async (route) => {
+      if (route.request().method() === "GET") {
+        return route.fulfill({ json: { hint: { maskedEmail: "b@example.test" } } });
+      }
+      if (route.request().postDataJSON()?.action !== "redeem") return route.fallback();
+      startedRedemption();
+      await redemption;
+      await route.fulfill({ json: { status: "restored", session: {
+        access_token: accessJwt(ACCOUNTS.B), refresh_token: ACCOUNTS.B.refreshToken,
+      } } });
+    });
+    await page.goto(callbackUrl(accessJwt(ACCOUNTS.A), ACCOUNTS.A.refreshToken));
+    await started;
+    try {
+      await expect(page.getByRole("button", { name: "Continue", exact: true })).toHaveCount(0);
+    } finally {
+      finishRedemption();
+    }
+    const prompt = page.getByRole("alert").filter({ hasText: `Sign in as ${ACCOUNTS.A.email}?` });
+    await expect(prompt).toBeVisible();
+    expect((await storedSession(page))?.user.id).toBe(ACCOUNTS.B.id);
+    await prompt.getByRole("button", { name: action, exact: true }).click();
+    await expect(prompt).toHaveCount(0);
+    await expect.poll(async () => (await storedSession(page))?.user.id).toBe(ACCOUNTS[action === "Continue" ? "A" : "B"].id);
+    await expectScrubbed(page);
+  });
+}
+
+for (const refreshAccount of ["A", "B"] as const) {
+  test(`expired cross-browser access A with refresh ${refreshAccount}`, async ({ page }) => {
+    const stub = await installAuthDoubles(page);
+    await page.goto("/today");
+    await stub.signedInAs("B");
+    const parts = accessJwt(ACCOUNTS.A).split(".");
+    const claims = JSON.parse(Buffer.from(parts[1], "base64url").toString());
+    parts[1] = Buffer.from(JSON.stringify({ ...claims, exp: 1 })).toString("base64url");
+    const expired = parts.join(".");
+    await page.route("**/auth/v1/user", async (route) => {
+      if (route.request().headers().authorization !== `Bearer ${expired}`) return route.fallback();
+      await route.fulfill({ status: 403, headers: providerHeaders, json: {
+        code: "bad_jwt",
+        message: "invalid JWT: unable to parse or verify signature, token has invalid claims: token is expired",
+      } });
+    });
+    await page.goto(callbackUrl(expired, ACCOUNTS[refreshAccount].refreshToken));
+    if (refreshAccount === "A") {
+      const prompt = page.getByRole("alert").filter({ hasText: `Sign in as ${ACCOUNTS.A.email}?` });
+      await expect(prompt).toBeVisible();
+      expect((await storedSession(page))?.user.id).toBe(ACCOUNTS.B.id);
+      await prompt.getByRole("button", { name: "Continue", exact: true }).click();
+      await expect.poll(async () => (await storedSession(page))?.user.id).toBe(ACCOUNTS.A.id);
+      expect((await storedSession(page))?.refresh_token).toBe(`${ACCOUNTS.A.refreshToken}-rotated`);
+    } else {
+      await expect(page.locator(".authCallbackNotice")).toContainText("Sign-in could not be completed");
+      expect((await storedSession(page))?.user.id).toBe(ACCOUNTS.B.id);
+    }
+    await expectScrubbed(page);
+  });
+}

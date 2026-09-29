@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const harness = vi.hoisted(() => ({
   setSession: vi.fn(),
+  bootstrap: vi.fn(),
   getUser: vi.fn(),
   mintSession: vi.fn(),
   scrubCallback: vi.fn(),
@@ -43,7 +44,14 @@ vi.mock("@/lib/authProviderAvailability", () => ({
 }));
 vi.mock("@/lib/deviceAccountSwitch", () => ({
   mintSessionFromRefreshToken: harness.mintSession,
-  browserDeviceAccountSwitchDeps: () => ({ authConfig: null, fetchImpl: vi.fn() }),
+  browserDeviceAccountSwitchDeps: () => ({
+    authConfig: { url: "https://provider.example", key: "public-key" },
+    fetchImpl: async (_url: string, init: RequestInit) => {
+      const token = (init.headers as Record<string, string>).authorization.slice(7);
+      const result = await harness.getUser(token);
+      return new Response(JSON.stringify(result.error ?? result.data.user), { status: result.error ? 403 : 200 });
+    },
+  }),
   activateDeviceAccount: vi.fn(),
 }));
 vi.mock("@/lib/authRedirect", () => ({
@@ -65,9 +73,7 @@ vi.mock("@/lib/authRedirect", () => ({
 }));
 vi.mock("@/lib/authSessionBootstrap", () => ({
   AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS: 20_000,
-  bootstrapAuthSession: async () => harness.existingSession
-    ? { status: "local", session: harness.existingSession }
-    : { status: "none" },
+  bootstrapAuthSession: harness.bootstrap,
 }));
 vi.mock("@/lib/identityClient", () => ({
   handleClaimRouteAfterSignIn: async () => null,
@@ -94,6 +100,10 @@ beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   harness.localAttemptOwned = false;
   harness.existingSession = null;
+  harness.bootstrap.mockReset();
+  harness.bootstrap.mockImplementation(async () => harness.existingSession
+    ? { status: "local", session: harness.existingSession }
+    : { status: "none" });
   harness.setSession.mockReset();
   harness.getUser.mockReset();
   harness.mintSession.mockReset();
@@ -159,6 +169,27 @@ describe("unowned auth callback confirmation", () => {
     await act(async () => continueButton?.click());
     await vi.waitFor(() => expect(harness.setSession).toHaveBeenCalledOnce());
     expect(container?.textContent).toContain("Signed in as person@example.com.");
+  });
+
+  it.each(["Continue", "Cancel"])("publishes restored B before allowing %s under StrictMode", async (action) => {
+    let finishBootstrap!: (value: unknown) => void;
+    harness.bootstrap.mockImplementation(() => new Promise((resolve) => { finishBootstrap = resolve; }));
+    await act(async () => {
+      root?.render(createElement(StrictMode, null,
+        createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(ViewerProbe))));
+    });
+    expect(harness.bootstrap).toHaveBeenCalledOnce();
+    expect(container?.textContent).not.toContain("Sign in as person@example.com?");
+    expect(harness.setSession).not.toHaveBeenCalled();
+    await act(async () => finishBootstrap({ status: "local", session: {
+      access_token: "access-b", refresh_token: "refresh-b", user: { id: "account-b", email: "b@example.com" },
+    } }));
+    expect(container?.querySelector('[data-testid="viewer"]')?.textContent).toBe("account-b");
+    expect(container?.textContent).toContain("Sign in as person@example.com?");
+    const button = [...container!.querySelectorAll("button")].find((button) => button.textContent === action);
+    await act(async () => button?.click());
+    expect(container?.querySelector('[data-testid="viewer"]')?.textContent).toBe(action === "Continue" ? "account-a" : "account-b");
+    expect(harness.setSession).toHaveBeenCalledTimes(action === "Continue" ? 1 : 0);
   });
 
   it("keeps an existing account active when the reader cancels another account's callback", async () => {

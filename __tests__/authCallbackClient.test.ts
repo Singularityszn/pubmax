@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   clearLegacyPkceVerifiers,
   establishAuthCallbackSession,
+  fetchAuthCallbackUser,
   prepareAuthCallbackSession,
 } from "@/lib/authCallbackClient";
 import { scrubAuthCallback } from "@/lib/authRedirect";
@@ -32,10 +33,11 @@ describe("explicit implicit-flow callback completion", () => {
       error: null,
     });
     const pending = await prepareAuthCallbackSession(
-      { setSession, getUser },
+      { setSession },
       captured!.attempt.tokens!,
       captured!.localAttemptOwned,
       mintMatchingSession,
+      getUser,
     );
     expect(pending.status).toBe("confirmation-required");
     expect(setSession).not.toHaveBeenCalled();
@@ -50,10 +52,10 @@ describe("explicit implicit-flow callback completion", () => {
       data: { user: { id: "account-a", email: "person@example.com" } },
       error: null,
     });
-    const auth = { setSession, getUser };
+    const auth = { setSession };
     const tokens = { accessToken: "synthetic-access", refreshToken: "synthetic-refresh" };
 
-    const pending = await prepareAuthCallbackSession(auth, tokens, false, mintMatchingSession);
+    const pending = await prepareAuthCallbackSession(auth, tokens, false, mintMatchingSession, getUser);
     expect(getUser).toHaveBeenCalledWith("synthetic-access");
     expect(pending).toMatchObject({
       status: "confirmation-required",
@@ -81,10 +83,11 @@ describe("explicit implicit-flow callback completion", () => {
     });
 
     const prepared = await prepareAuthCallbackSession(
-      { getUser, setSession },
+      { setSession },
       { accessToken: "access-a", refreshToken: "refresh-b" },
       false,
       mintSession,
+      getUser,
     );
 
     expect(prepared.status).toBe("verification-failed");
@@ -105,10 +108,11 @@ describe("explicit implicit-flow callback completion", () => {
       session: { access_token: "fresh-access-a", refresh_token: "fresh-refresh-a" },
     });
     const prepared = await prepareAuthCallbackSession(
-      { setSession, getUser },
+      { setSession },
       { accessToken: "expiring-access-a", refreshToken: "old-refresh-a" },
       false,
       mintSession,
+      getUser,
     );
     expect(prepared.status).toBe("confirmation-required");
     if (prepared.status !== "confirmation-required") throw new Error("Expected confirmation");
@@ -124,8 +128,9 @@ describe("explicit implicit-flow callback completion", () => {
 
   it("offers a cross-browser link whose original access expired when refresh proves identity", async () => {
     const setSession = vi.fn().mockResolvedValue({ data: { session: null }, error: null });
-    const getUser = vi.fn(async (accessToken: string) => accessToken === "expired-access"
-      ? { data: { user: null }, error: new Error("expired") }
+    const expiredAccess = `header.${btoa(JSON.stringify({ sub: "account-a", exp: 1 }))}.signature`;
+    const getUser = vi.fn(async (accessToken: string) => accessToken === expiredAccess
+      ? { data: { user: null }, error: { status: 403, code: "bad_jwt", message: "invalid JWT: unable to parse or verify signature, token has invalid claims: token is expired" } }
       : { data: { user: { id: "account-a", email: "a@example.com" } }, error: null });
     const mintSession = vi.fn().mockResolvedValue({
       status: "minted",
@@ -133,10 +138,11 @@ describe("explicit implicit-flow callback completion", () => {
     });
 
     const prepared = await prepareAuthCallbackSession(
-      { setSession, getUser },
-      { accessToken: "expired-access", refreshToken: "old-refresh-a" },
+      { setSession },
+      { accessToken: expiredAccess, refreshToken: "old-refresh-a" },
       false,
       mintSession,
+      getUser,
     );
 
     expect(prepared).toMatchObject({
@@ -149,29 +155,18 @@ describe("explicit implicit-flow callback completion", () => {
   it("never installs an unverified callback or one the reader cancels", async () => {
     const setSession = vi.fn();
     const tokens = { accessToken: "synthetic-access", refreshToken: "synthetic-refresh" };
+    const getUser = vi.fn().mockResolvedValue({ data: { user: null }, error: new Error("invalid") });
     const rejected = await prepareAuthCallbackSession(
-      {
-        setSession,
-        getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: new Error("invalid") }),
-      },
-      tokens,
-      false,
-      mintMatchingSession,
+      { setSession }, tokens, false, mintMatchingSession, getUser,
     );
     expect(rejected.status).toBe("verification-failed");
     expect(setSession).not.toHaveBeenCalled();
 
+    getUser.mockResolvedValue({
+      data: { user: { id: "account-a", email: "person@example.com" } }, error: null,
+    });
     const pending = await prepareAuthCallbackSession(
-      {
-        setSession,
-        getUser: vi.fn().mockResolvedValue({
-          data: { user: { id: "account-a", email: "person@example.com" } },
-          error: null,
-        }),
-      },
-      tokens,
-      false,
-      mintMatchingSession,
+      { setSession }, tokens, false, mintMatchingSession, getUser,
     );
     expect(pending.status).toBe("confirmation-required");
     expect(setSession).not.toHaveBeenCalled();
@@ -182,10 +177,11 @@ describe("explicit implicit-flow callback completion", () => {
     const setSession = vi.fn().mockResolvedValue({ data: { session }, error: null });
     const getUser = vi.fn();
     const result = await prepareAuthCallbackSession(
-      { setSession, getUser },
+      { setSession },
       { accessToken: "synthetic-access", refreshToken: "synthetic-refresh" },
       true,
       mintMatchingSession,
+      getUser,
     );
     expect(result).toEqual({
       status: "established",
@@ -246,6 +242,79 @@ describe("explicit implicit-flow callback completion", () => {
         { accessToken: "access", refreshToken: "refresh" },
       ),
     ).resolves.toEqual({ session: null, failed: true, banned: false });
+  });
+});
+
+describe("callback identity verification failures", () => {
+  const expiryMessage = "invalid JWT: unable to parse or verify signature, token has invalid claims: token is expired";
+  const expiredAccess = `header.${btoa(JSON.stringify({ sub: "account-a", exp: 1 }))}.signature`;
+
+  it.each([
+    { status: 503, code: "bad_jwt", message: expiryMessage },
+    { status: 403, code: "bad_jwt", message: "invalid signature" },
+    { status: 403, code: "bad_jwt", message: `${expiryMessage}, token is not valid yet` },
+    { status: 403, code: "unknown", message: expiryMessage },
+    new Error("offline"),
+  ])("rejects failures that do not establish expiry: %j", async (error) => {
+    const setSession = vi.fn();
+    const mintSession = vi.fn(mintMatchingSession);
+    const result = await prepareAuthCallbackSession(
+      { setSession }, { accessToken: expiredAccess, refreshToken: "refresh" }, false,
+      mintSession, async () => ({ data: { user: null }, error }),
+    );
+    expect(result.status).toBe("verification-failed");
+    expect(mintSession).not.toHaveBeenCalled();
+    expect(setSession).not.toHaveBeenCalled();
+  });
+
+  it("rejects a thrown lookup before redeeming refresh", async () => {
+    const mintSession = vi.fn(mintMatchingSession);
+    const result = await prepareAuthCallbackSession(
+      { setSession: vi.fn() }, { accessToken: expiredAccess, refreshToken: "refresh" }, false,
+      mintSession, async () => { throw new Error("offline"); },
+    );
+    expect(result.status).toBe("verification-failed");
+    expect(mintSession).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "malformed",
+    `header.${btoa(JSON.stringify({ exp: 1 }))}.signature`,
+    `header.${btoa(JSON.stringify({ sub: "account-a", exp: "1" }))}.signature`,
+    `header.${btoa(JSON.stringify({ sub: "account-a", exp: 9_999_999_999 }))}.signature`,
+  ])("rejects expiry without usable matching claims: %s", async (accessToken) => {
+    const mintSession = vi.fn(mintMatchingSession);
+    const result = await prepareAuthCallbackSession(
+      { setSession: vi.fn() }, { accessToken, refreshToken: "refresh" }, false,
+      mintSession, async () => ({ data: { user: null }, error: {
+        status: 403, code: "bad_jwt", message: expiryMessage,
+      } }),
+    );
+    expect(result.status).toBe("verification-failed");
+    expect(mintSession).not.toHaveBeenCalled();
+  });
+
+  it("does not accept an expired refreshed token", async () => {
+    const result = await prepareAuthCallbackSession(
+      { setSession: vi.fn() }, { accessToken: expiredAccess, refreshToken: "refresh" }, false,
+      mintMatchingSession, async () => ({ data: { user: null }, error: {
+        status: 403, code: "bad_jwt", message: expiryMessage,
+      } }),
+    );
+    expect(result.status).toBe("verification-failed");
+  });
+
+  it("reads identity with the supplied bearer and no cookies", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      id: "account-a", email: "a@example.com",
+    })));
+    await expect(fetchAuthCallbackUser("access-a", {
+      authConfig: { url: "https://provider.example", key: "public-key" }, fetchImpl,
+    })).resolves.toEqual({ data: { user: { id: "account-a", email: "a@example.com" } }, error: null });
+    expect(fetchImpl).toHaveBeenCalledWith("https://provider.example/auth/v1/user", expect.objectContaining({
+      credentials: "omit", cache: "no-store", redirect: "error",
+      headers: { apikey: "public-key", authorization: "Bearer access-a" },
+    }));
   });
 });
 

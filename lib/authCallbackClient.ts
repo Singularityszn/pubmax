@@ -1,6 +1,7 @@
 import type { AuthCallbackTokens } from "@/lib/authRedirect";
 import { isGoTrueUserBannedError } from "@/lib/authAccountBan";
-import type { MintOutcome } from "@/lib/deviceAccountSwitch";
+import { withAuthFetchTimeout } from "@/lib/authFetch";
+import type { DeviceAccountSwitchDeps, MintOutcome } from "@/lib/deviceAccountSwitch";
 
 export type AuthSessionEstablishClient<SessionValue> = {
   setSession: (tokens: { access_token: string; refresh_token: string }) => Promise<{
@@ -15,12 +16,66 @@ export type AuthCallbackSessionResult<SessionValue> = {
   banned: boolean;
 };
 
-export type AuthCallbackIdentityClient = {
-  getUser: (accessToken: string) => Promise<{
-    data: { user: { id: string; email?: string | null } | null };
-    error: unknown;
-  }>;
-};
+type AuthCallbackUserLookup = (accessToken: string) => Promise<{
+  data: { user: { id: string; email?: string | null } | null };
+  error: unknown;
+}>;
+
+export async function fetchAuthCallbackUser(
+  accessToken: string,
+  deps: Pick<DeviceAccountSwitchDeps, "fetchImpl" | "authConfig">,
+): ReturnType<AuthCallbackUserLookup> {
+  if (!deps.authConfig) return { data: { user: null }, error: new Error("Auth unavailable") };
+  const response = await withAuthFetchTimeout(deps.fetchImpl)(
+    new URL("/auth/v1/user", deps.authConfig.url).toString(),
+    {
+      headers: { apikey: deps.authConfig.key, authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+      credentials: "omit",
+      redirect: "error",
+    },
+  );
+  const body = await response.json();
+  if (!response.ok) {
+    return {
+      data: { user: null },
+      error: {
+        status: response.status,
+        code: body?.code,
+        message: body?.msg ?? body?.message,
+      },
+    };
+  }
+  if (typeof body?.id !== "string" || !body.id) {
+    return { data: { user: null }, error: new Error("Invalid identity") };
+  }
+  return {
+    data: { user: {
+      id: body.id,
+      email: typeof body.email === "string" ? body.email : null,
+    } },
+    error: null,
+  };
+}
+
+function expiredCallbackSubject(error: unknown, accessToken: string): string | null {
+  if (!error || typeof error !== "object") return null;
+  const failure = error as { status?: unknown; code?: unknown; message?: unknown };
+  if (
+    failure.status !== 403 || failure.code !== "bad_jwt" ||
+    failure.message !== "invalid JWT: unable to parse or verify signature, token has invalid claims: token is expired"
+  ) return null;
+  try {
+    const parts = accessToken.split(".");
+    if (parts.length !== 3) return null;
+    const claims = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return typeof claims?.sub === "string" && claims.sub &&
+      typeof claims.exp === "number" && Number.isFinite(claims.exp) &&
+      claims.exp <= Date.now() / 1000 ? claims.sub : null;
+  } catch {
+    return null;
+  }
+}
 
 export type PreparedAuthCallbackSession<SessionValue> =
   | { status: "established"; result: AuthCallbackSessionResult<SessionValue> }
@@ -31,12 +86,12 @@ export type PreparedAuthCallbackSession<SessionValue> =
       confirm: () => Promise<AuthCallbackSessionResult<SessionValue>>;
     };
 
-/** Verify the refresh identity and compare any valid access identity before consent. */
 export async function prepareAuthCallbackSession<SessionValue>(
-  auth: AuthSessionEstablishClient<SessionValue> & AuthCallbackIdentityClient,
+  auth: AuthSessionEstablishClient<SessionValue>,
   tokens: AuthCallbackTokens,
   localAttemptOwned: boolean,
   mintSession: (refreshToken: string) => Promise<MintOutcome>,
+  getUser: AuthCallbackUserLookup,
 ): Promise<PreparedAuthCallbackSession<SessionValue>> {
   if (localAttemptOwned) {
     return {
@@ -46,20 +101,16 @@ export async function prepareAuthCallbackSession<SessionValue>(
   }
 
   try {
-    // A cross-browser email link can reach this tab after its original access
-    // token expires. Treat a failed access read as unknown, never as identity.
-    const original = await auth.getUser(tokens.accessToken).catch(() => null);
-    const originalUserId = original && !original.error ? original.data.user?.id : null;
-    // GoTrue's setSession verifies the access token but keeps the supplied
-    // refresh token untouched while access is live. Once access expires it
-    // instead installs the refresh token's identity. Mint through a plain
-    // request first, then verify the fresh pair's access identity. When both
-    // identities are verifiable they must agree.
+    const original = await getUser(tokens.accessToken);
+    const originalUserId = original.error
+      ? expiredCallbackSubject(original.error, tokens.accessToken)
+      : original.data.user?.id;
+    if (!originalUserId) return { status: "verification-failed" };
     const minted = await mintSession(tokens.refreshToken);
     if (minted.status !== "minted") return { status: "verification-failed" };
-    const refreshed = await auth.getUser(minted.session.access_token);
+    const refreshed = await getUser(minted.session.access_token);
     const userId = refreshed.data.user?.id;
-    if (refreshed.error || !userId || (originalUserId && originalUserId !== userId)) {
+    if (refreshed.error || !userId || originalUserId !== userId) {
       return { status: "verification-failed" };
     }
     const label = refreshed.data.user?.email?.trim() || userId;

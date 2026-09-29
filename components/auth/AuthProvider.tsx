@@ -43,6 +43,7 @@ import { syncPosthogPersonIdentity } from "@/lib/posthog/posthogPerson";
 import { isUserSignUp } from "@/lib/userSignedUp";
 import {
   clearLegacyPkceVerifiers,
+  fetchAuthCallbackUser,
   prepareAuthCallbackSession,
   type AuthCallbackSessionResult,
   type PreparedAuthCallbackSession,
@@ -387,6 +388,8 @@ export function AuthProvider({
     Promise<PreparedAuthCallbackSession<Session>> | null
   >(null);
 
+  const sessionBootstrapInFlight = useRef<ReturnType<typeof bootstrapAuthSession> | null>(null);
+
   useEffect(() => {
     if (!configured) return;
     let active = true;
@@ -729,6 +732,7 @@ export function AuthProvider({
         const callbackAttempt = captured?.attempt ?? null;
         let exchange: AuthCallbackSessionResult<Session> | null = null;
         let verificationFailed = false;
+        let confirmation: Extract<PreparedAuthCallbackSession<Session>, { status: "confirmation-required" }> | null = null;
         try {
           if (captured && callbackAttempt?.tokens && !callbackAttempt.providerError) {
             if (!callbackSessionInFlight.current) {
@@ -741,6 +745,7 @@ export function AuthProvider({
                     refreshToken,
                     browserDeviceAccountSwitchDeps(),
                   ),
+                (accessToken) => fetchAuthCallbackUser(accessToken, browserDeviceAccountSwitchDeps()),
               );
             }
             const prepared = await callbackSessionInFlight.current;
@@ -748,14 +753,7 @@ export function AuthProvider({
             if (prepared.status === "established") {
               exchange = prepared.result;
             } else if (prepared.status === "confirmation-required") {
-              setAuthCallbackConfirmation({
-                label: prepared.identity.label,
-                confirm: () => {
-                  void prepared.confirm().then((confirmed) => {
-                    finishCallbackExchange(confirmed, captured);
-                  });
-                },
-              });
+              confirmation = prepared;
             } else {
               verificationFailed = true;
             }
@@ -781,9 +779,9 @@ export function AuthProvider({
         }
         if (exchange?.session) return;
 
-        const bootstrapped = await bootstrapAuthSession(supabase.auth).catch(
+        const bootstrapped = await (sessionBootstrapInFlight.current ??= bootstrapAuthSession(supabase.auth).catch(
           () => ({ status: "unavailable" } as const),
-        );
+        ));
         if (!active) return;
         window.clearTimeout(loadingTimeout);
         if (bootstrapped.status === "unavailable") {
@@ -813,6 +811,17 @@ export function AuthProvider({
         // SIGNED_IN through the subscription above, so the session and identity
         // boundary are updated before this loading state is cleared.
         setSessionLoading(false);
+        if (confirmation && captured) {
+          const prepared = confirmation;
+          setAuthCallbackConfirmation({
+            label: prepared.identity.label,
+            confirm: () => {
+              void prepared.confirm().then((confirmed) => {
+                finishCallbackExchange(confirmed, captured);
+              });
+            },
+          });
+        }
       })();
     });
 
