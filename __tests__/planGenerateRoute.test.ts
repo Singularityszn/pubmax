@@ -320,6 +320,37 @@ describe("POST /api/plans/generate", () => {
     expect(body.budgetSummary.estimatedPerPersonPence).toBeNull();
   });
 
+  it("selects an eligible published wine quote as a primary stop for a wine route", async () => {
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("v1"), generatedVenue("v2"), generatedVenue("v3"), generatedVenue("v4"),
+    ]);
+    categoryIndexMock.mockResolvedValueOnce({ prices: [], truncated: false, degraded: false });
+    const observedAt = new Date(Date.now() - 1_000).toISOString();
+    bundleRowsForMock.mockImplementation(async (venueId: string) => ({
+      status: "ready",
+      rows: venueId === "v4" ? [{
+        venueId, name: "Venue v4", category: "wine", priceGbp: 4,
+        lane: "site-harvest", standing: "listed", sourceUrl: "https://pub.example/v4/wine",
+        publisher: "Venue v4", observedAt, basis: null, sampleSize: null,
+        drinkLabel: "House wine",
+      }] : [],
+    }));
+
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify({ query: "wine in Clapham for 2" }),
+    }));
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.stops).toContainEqual(expect.objectContaining({
+      venueId: "v4",
+      selectedDrinkPriceEvidence: expect.objectContaining({
+        category: "wine", pence: 400, serving: null, source: "listed",
+        sourceUrl: "https://pub.example/v4/wine", observedAt,
+      }),
+    }));
+    expect(body.budgetSummary.estimatedPerPersonPence).toBeNull();
+  });
+
   it("keeps listed evidence available when the community category read is degraded", async () => {
     loadConciergeVenuesMock.mockResolvedValueOnce([
       generatedVenue("v1"), generatedVenue("v2"), generatedVenue("v3"),

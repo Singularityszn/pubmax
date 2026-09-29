@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 
 import { expect, test } from "@playwright/test";
 
+import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
+
 type ListedEvidence = {
   category: string;
   pence: number;
@@ -17,6 +19,43 @@ type JourneyStop = {
   selectedDrinkPriceEvidence?: ListedEvidence | null;
   alternatives?: Array<{ venueId: string; venueName?: string; selectedDrinkPriceEvidence?: ListedEvidence | null }>;
 };
+
+function assertGeneratedListing(
+  journey: { category: "wine" | "cocktail"; area: string; replay: boolean },
+  generated: { inferredContext?: { nightArea?: string; drinkCategory?: string; zeroProof?: boolean }; stops?: JourneyStop[] },
+  replayedVenueId: string | null,
+  replayedEvidence: ListedEvidence | null,
+): JourneyStop[] {
+  expect(generated.inferredContext).toMatchObject({ nightArea: journey.area, drinkCategory: journey.category, zeroProof: false });
+  expect(generated.stops?.length).toBeGreaterThan(0);
+  const listedStops = generated.stops!.filter((stop) => stop.selectedDrinkPriceEvidence?.source === "listed");
+  if (!journey.replay) expect(listedStops.length).toBeGreaterThan(0);
+  if (journey.category === "wine" && !journey.replay) {
+    expect(listedStops.some((stop) => stop.venueId === "venue-1nt5lt9"),
+      "current Scolt Head wine listing should be a primary Dalston stop").toBe(true);
+  }
+  expect(generated.stops!.some((stop) => (stop.alternatives?.length ?? 0) > 0)).toBe(true);
+  const citedCandidates = generated.stops!.flatMap((stop) => [stop, ...(stop.alternatives ?? [])]);
+  const listedCandidates = citedCandidates.filter((candidate) => candidate.selectedDrinkPriceEvidence?.source === "listed");
+  expect(listedCandidates.length).toBeGreaterThan(0);
+  if (journey.category === "wine") {
+    expect(listedCandidates.some((candidate) => candidate.venueId === "venue-1nt5lt9"),
+      "current Scolt Head wine listing should survive primary and backup journeys").toBe(true);
+  }
+  for (const stop of listedCandidates) {
+    const evidence = stop.selectedDrinkPriceEvidence!;
+    expect(evidence).toMatchObject({ category: journey.category, serving: null, source: "listed" });
+    expect(committedPrices.some((row) => row.venueId === stop.venueId
+      && row.category === journey.category && row.standing === "listed"
+      && Math.round(row.priceGbp * 100) === evidence.pence
+      && row.sourceUrl === evidence.sourceUrl && row.observedAt === evidence.observedAt)).toBe(true);
+  }
+  if (journey.replay) expect(generated.stops!.some((stop) => stop.alternatives?.some((alternative) =>
+    alternative.venueId === replayedVenueId
+    && JSON.stringify(alternative.selectedDrinkPriceEvidence) === JSON.stringify(replayedEvidence))),
+  "controlled committed listing must enter Map route as a priced backup").toBe(true);
+  return listedStops;
+}
 
 const committedPrices = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8")) as Array<{
   venueId: string;
@@ -99,10 +138,10 @@ test("a new cocktail query replaces a deliberate Beer correction from an older q
 });
 
 for (const journey of [
-  { category: "wine", query: "wine in Shoreditch for 2", name: "Wine Browser", replay: true },
-  { category: "cocktail", query: "cocktails in Shoreditch for 2", name: "Cocktail Browser", replay: true },
-  { category: "wine", query: "wine in Shoreditch for 2", name: "Wine Primary", replay: false },
-  { category: "cocktail", query: "cocktails in Shoreditch for 2", name: "Cocktail Primary", replay: false },
+  { category: "wine", query: "wine in Dalston for 2", area: "dalston", name: "Wine Browser", replay: true },
+  { category: "cocktail", query: "cocktails in Shoreditch for 2", area: "shoreditch", name: "Cocktail Browser", replay: true },
+  { category: "wine", query: "wine in Dalston for 2", area: "dalston", name: "Wine Primary", replay: false },
+  { category: "cocktail", query: "cocktails in Shoreditch for 2", area: "shoreditch", name: "Cocktail Primary", replay: false },
 ] as const) {
   test(`${journey.category} intent carries a committed listing as ${journey.replay ? "backup" : "primary"} from Map through Plan save and reload`, async ({ page }, testInfo) => {
     test.setTimeout(120_000);
@@ -156,7 +195,7 @@ for (const journey of [
     const discoveryResponse = page.waitForResponse((response) => response.request().method() === "GET"
       && new URL(response.url()).pathname === "/api/price-submit"
       && new URL(response.url()).searchParams.get("drinkCategory") === journey.category);
-    expect((await page.goto(journey.category === "wine" ? "/map?mode=build&pubs=venue-11bllvc&plan=1&drink=wine" : "/map?plan=1&drink=cocktail"))?.status()).toBe(200);
+    expect((await page.goto(`/map?plan=1&drink=${journey.category}`))?.status()).toBe(200);
     const discovery = await (await discoveryResponse).json() as { listedPrices: Array<{ venueId: string; category: string; priceGbp: number; sourceUrl: string; observedAt: string }> };
     expect(discovery.listedPrices.length).toBeGreaterThan(0);
     expect(discovery.listedPrices.length).toBeLessThanOrEqual(1000);
@@ -175,26 +214,7 @@ for (const journey of [
       stops?: JourneyStop[];
     };
     expect(generatedResponse.status(), JSON.stringify(generated)).toBe(200);
-    expect(generated.inferredContext).toMatchObject({ nightArea: "shoreditch", drinkCategory: journey.category, zeroProof: false });
-    expect(generated.stops?.length).toBeGreaterThan(0);
-    const listedStops = generated.stops!.filter((stop) => stop.selectedDrinkPriceEvidence?.source === "listed");
-    if (!journey.replay) expect(listedStops.length).toBeGreaterThan(0);
-    expect(generated.stops!.some((stop) => (stop.alternatives?.length ?? 0) > 0)).toBe(true);
-    const citedCandidates = generated.stops!.flatMap((stop) => [stop, ...(stop.alternatives ?? [])]);
-    const listedCandidates = citedCandidates.filter((candidate) => candidate.selectedDrinkPriceEvidence?.source === "listed");
-    expect(listedCandidates.length).toBeGreaterThan(0);
-    for (const stop of citedCandidates.filter((candidate) => candidate.selectedDrinkPriceEvidence?.source === "listed")) {
-      const evidence = stop.selectedDrinkPriceEvidence!;
-      expect(evidence).toMatchObject({ category: journey.category, serving: null, source: "listed" });
-      expect(committedPrices.some((row) => row.venueId === stop.venueId
-        && row.category === journey.category && row.standing === "listed"
-        && Math.round(row.priceGbp * 100) === evidence.pence
-        && row.sourceUrl === evidence.sourceUrl && row.observedAt === evidence.observedAt)).toBe(true);
-    }
-    if (journey.replay) expect(generated.stops!.some((stop) => stop.alternatives?.some((alternative) =>
-      alternative.venueId === replayedVenueId
-      && JSON.stringify(alternative.selectedDrinkPriceEvidence) === JSON.stringify(replayedEvidence))),
-    "controlled committed listing must enter Map route as a priced backup").toBe(true);
+    const listedStops = assertGeneratedListing(journey, generated, replayedVenueId, replayedEvidence);
     await expect(page.getByRole("link", { name: "Open Plan to lock it in" })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`${journey.category}-map.png`), animations: "disabled" });
     let extraGenerations = 0;
@@ -207,7 +227,7 @@ for (const journey of [
     await expect(page.locator(".planComposer__stop")).toHaveCount(generated.stops!.length);
     expect(extraGenerations, "Map transfer should keep its generated route without another request").toBe(0);
     await expect(page.locator(".planComposer__stopReason").filter({ hasText: "community report" })).toHaveCount(0);
-    await expect(page.locator(".planComposer__stopReason").filter({ hasText: "published menu" })).toHaveCount(listedStops.length);
+    await expect(page.locator(".planComposer__stopReason").filter({ hasText: /published menu.*Serving size not recorded/ })).toHaveCount(listedStops.length);
     await page.locator(".planComposer__stop").first().scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`${journey.category}-preview.png`), animations: "disabled" });
 

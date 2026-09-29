@@ -4,10 +4,30 @@ import { canAffectRoute, type NightSignalClaim } from "@/lib/nightSignalClaims";
 import { CATEGORY_META } from "@/lib/drinks";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { NightContext } from "@/lib/nightPlanning";
+import type { SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import type { PlanningWeather } from "@/lib/weatherSnapshots";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 type ScoreAccumulator = { score: number; reasons: string[] };
+
+/** Preference for an attributable quote in the requested drink lane, independent of serving size or amount. */
+function selectedDrinkFit(
+  venue: ConciergeVenue,
+  context: NightContext,
+  drinkLensPrices: ReadonlyMap<string, MapLensPrice> | undefined,
+  listedEvidence: SelectedDrinkPriceEvidence | null | undefined,
+): ScoreAccumulator {
+  const category = context.zeroProof ? null : context.drinkCategory;
+  if (!category || category === "beer") return { score: 0, reasons: [] };
+  const label = CATEGORY_META[category].label.toLowerCase();
+  if (drinkLensPrices?.get(venue.id)?.category === category) {
+    return { score: 4, reasons: [`corroborated community ${label} quote`] };
+  }
+  if (listedEvidence?.source === "listed" && listedEvidence.category === category) {
+    return { score: 4, reasons: [`published menu ${label} quote`] };
+  }
+  return { score: 0, reasons: [] };
+}
 
 function priceAndZeroProof(
   venue: ConciergeVenue,
@@ -152,9 +172,11 @@ export function scoreVenueForPlan(
   naLensPrices?: ReadonlyMap<string, MapLensPrice>,
   wetherspoonsMatchedIds?: ReadonlySet<string>,
   drinkLensPrices?: ReadonlyMap<string, MapLensPrice>,
+  listedDrinkEvidence?: SelectedDrinkPriceEvidence | null,
 ): { score: number; reasons: string[] } {
   const pieces = [
     priceAndZeroProof(venue, context, naLensPrices, drinkLensPrices),
+    selectedDrinkFit(venue, context, drinkLensPrices, listedDrinkEvidence),
     wetherspoonsDirectoryPrefer(venue, context, wetherspoonsMatchedIds),
     occasionFit(venue, context),
     atmosphereFit(venue, context, weather),

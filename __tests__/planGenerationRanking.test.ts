@@ -46,6 +46,28 @@ const AFTER_WORK_GROUP: NightContext = {
 };
 
 describe("Plan generation ranking evidence", () => {
+  it("prefers cited wine availability without ordering unknown servings by amount", () => {
+    const first = venue(true, "first");
+    const second = venue(true, "second");
+    const unpriced = venue(true, "unpriced");
+    const context = { ...AFTER_WORK_GROUP, drinkCategory: "wine" as const };
+    const listed = (pence: number) => ({
+      category: "wine" as const, pence, serving: null, source: "listed" as const,
+      sourceUrl: "https://pub.example/wine", observedAt: "2026-09-21T12:00:00.000Z",
+    });
+
+    const lowQuote = scoreVenueForPlan(first, context, 0.5, [], [], null, undefined, undefined, undefined, listed(400));
+    const highQuote = scoreVenueForPlan(second, context, 0.5, [], [], null, undefined, undefined, undefined, listed(1_200));
+    const noQuote = scoreVenueForPlan(unpriced, context, 0.5, [], [], null);
+
+    expect(lowQuote.score).toBe(highQuote.score);
+    expect(lowQuote.score).toBeGreaterThan(noQuote.score);
+    expect(lowQuote.reasons).toContain("published menu wine quote");
+    expect(lowQuote.reasons.join(" ")).not.toMatch(/£|cheap|value/i);
+    expect(scoreVenueForPlan(first, { ...context, zeroProof: true }, 0.5, [], [], null,
+      undefined, undefined, undefined, listed(400)).score).toBe(noQuote.score);
+  });
+
   it("keeps unknown wine servings neutral to quoted amounts", () => {
     const cheapPint = venue(true, "cheap-pint");
     cheapPint.cheapestPrice = 4;

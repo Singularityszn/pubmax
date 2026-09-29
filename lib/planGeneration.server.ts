@@ -373,35 +373,35 @@ export async function preparePlanGeneration(
 	const wetherspoonsMatchedIds = context.wetherspoonsPreferred
 		? await matchedWetherspoonsVenueIds(venues)
 		: undefined;
-	const scoredCandidates = venues
+	const eligibleVenues = venues
 		.map((venue) => {
 			const distance = distanceKm(area.centre, venue);
 			const tonightEvents = tonightByVenue.get(venue.id) ?? [];
 			const signalClaims = claimsForEntity(reviewedSignalClaims, "venue", venue.id);
-			const scored = scoreVenueForPlan(
-				venue,
-				context,
-				distance,
-				tonightEvents,
-				signalClaims,
-				planningWeather,
-				naLensPrices,
-				wetherspoonsMatchedIds,
-				drinkLensPrices,
-			);
-			return { venue, distance, tonightEvents, signalClaims, ...scored, selectedDrinkPrice: drinkLensPrices?.get(venue.id) ?? null };
+			return { venue, distance, tonightEvents, signalClaims, selectedDrinkPrice: drinkLensPrices?.get(venue.id) ?? null };
 		})
 		.filter(({ distance, venue, signalClaims }) =>
 			distance <= area.radiusKm
 			&& venue.promoted !== true
-			&& !signalClaims.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid"))
-		.sort((a, b) => b.score - a.score);
-	const candidates: PlanGenerationCandidate[] = await Promise.all(scoredCandidates.map(async (candidate) => ({
-		...candidate,
-		selectedDrinkPriceEvidence: requestedCategory
+			&& !signalClaims.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid"));
+	const candidates: PlanGenerationCandidate[] = (await Promise.all(eligibleVenues.map(async (candidate) => {
+		const selectedDrinkPriceEvidence = requestedCategory
 			? await listedEvidenceForCandidate(candidate, requestedCategory, requestNow)
-			: null,
-	})));
+			: null;
+		const scored = scoreVenueForPlan(
+			candidate.venue,
+			context,
+			candidate.distance,
+			candidate.tonightEvents,
+			candidate.signalClaims,
+			planningWeather,
+			naLensPrices,
+			wetherspoonsMatchedIds,
+			drinkLensPrices,
+			selectedDrinkPriceEvidence,
+		);
+		return { ...candidate, ...scored, selectedDrinkPriceEvidence };
+	}))).sort((a, b) => b.score - a.score);
 	const selectedDrinkCoverageNote = listedCoverageNote(requestedCategory, categoryPriceRows, candidates, drinkPriceCoverageNote);
 	return { prepared: {
 		requestNow,
