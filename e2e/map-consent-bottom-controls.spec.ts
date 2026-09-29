@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
@@ -24,6 +25,27 @@ async function prepareMap(page: Page, width: number, consent: boolean) {
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
   await expect(page.locator(".analyticsConsentPrompt")).toHaveCount(consent ? 1 : 0);
   if (consent) await expect(page.locator(".analyticsConsentPrompt")).toBeVisible();
+}
+
+for (const width of [390, 768, 1440]) {
+  test(`basemap Retry stays reachable above consent at ${width}px`, async ({ page }, testInfo) => {
+    test.setTimeout(90_000);
+    await installDeterministicMapBasemap(page, { failPrimaryRasterRequests: 10_000 });
+    await prepareMap(page, width, true);
+    const retry = page.locator(".mapSoftRetryBtn");
+    await expect(retry).toBeVisible({ timeout: 45_000 });
+    const consentTop = (await page.locator(".analyticsConsentPrompt").boundingBox())!.y;
+    await page.screenshot({ path: testInfo.outputPath(`retry-consent-${width}.png`) });
+    await testInfo.attach("retry-hit-target", {
+      body: JSON.stringify(await retry.evaluate((node) => {
+        const bounds = node.getBoundingClientRect();
+        const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+        return { bounds: bounds.toJSON(), hit: hit?.outerHTML, reachable: node.contains(hit) };
+      }), null, 2),
+      contentType: "application/json",
+    });
+    await expectClearControl(page, retry, consentTop);
+  });
 }
 
 async function expectClearControl(page: Page, control: Locator, consentTop: number | null) {

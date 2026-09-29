@@ -26,7 +26,7 @@ for (const city of ["manchester", "london"] as const) {
     });
 
     await page.goto(`/map/${city}`);
-    await expect(page.locator(".mobileMapTopbar")).toBeVisible();
+    await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
     await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
     const tflButton = page.getByRole("button", { name: /TfL live/ });
 

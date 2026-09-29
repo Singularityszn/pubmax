@@ -4708,6 +4708,12 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
     bottom: var(--analytics-consent-clearance, 72px);
   }
 
+  body:has(.analyticsConsentPrompt) .mapSoftRetry {
+    bottom: calc(
+      var(--analytics-consent-clearance, 72px) + max(16px, env(safe-area-inset-bottom, 0px))
+    );
+  }
+
   html:has(.analyticsConsentPrompt) {
     scroll-padding-bottom: calc(
       var(--analytics-consent-clearance, 72px) + max(12px, env(safe-area-inset-bottom))

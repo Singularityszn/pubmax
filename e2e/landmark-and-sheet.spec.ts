@@ -278,7 +278,7 @@ for (const width of [700, 900]) {
       if (side === "left") {
         await expect(async () => {
           if (await drawer.getAttribute("aria-hidden") !== "false") {
-            await page.getByRole("button", { name: "Describe the outing" }).click();
+            await page.locator(".mapToolbar").getByRole("button", { name: "Plan an outing" }).click();
           }
           await expect(drawer).toHaveAttribute("aria-hidden", "false", { timeout: 1_000 });
         }).toPass({ timeout: 20_000 });

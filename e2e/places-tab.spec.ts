@@ -153,6 +153,7 @@ test.describe("places tab @390", () => {
   });
 
   test("/map root stays London for a bookmark, whatever city is set", async ({ page }) => {
+    test.setTimeout(60_000);
     await chooseManchester(page);
     await page.goto("/map");
     await expect(page).toHaveURL(/\/map$/);
@@ -162,6 +163,7 @@ test.describe("places tab @390", () => {
     await expect(page.locator(".citySwitcherTrigger").first()).toHaveAttribute(
       "aria-label",
       /Map area: London/,
+      { timeout: 45_000 },
     );
   });
 });

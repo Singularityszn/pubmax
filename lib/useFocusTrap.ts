@@ -347,7 +347,14 @@ export function useFocusTrap(
     // Main's one-time scan does not contain later body siblings such as Command Palette.
     const siblings = outsideSiblings(container, outsidePolicy);
     let exempt = trapExemptSurfaces(container, outsidePolicy);
-    trapOwner.reconcile(inertTargets(siblings, exempt));
+    const suspended = () => outsidePolicy === "map-surface" && readStrictModalFocusTrap();
+    const reconcileTrap = () => {
+      trapOwner.reconcile(suspended() ? [] : inertTargets(siblings, exempt));
+    };
+    reconcileTrap();
+    const unsubscribeStrictModal = outsidePolicy === "map-surface"
+      ? subscribeStrictModalFocusTrap(reconcileTrap)
+      : null;
     const releaseStrictModal =
       outsidePolicy === "strict-modal" ? claimStrictModalFocusTrap() : null;
 
@@ -364,6 +371,7 @@ export function useFocusTrap(
           : null;
     };
     const reclaimLostExemptFocus = () => {
+      if (suspended()) return;
       const lost = exemptFocus;
       if (!lost || exempt.some((surface) => surface.contains(lost))) return;
       exemptFocus = null;
@@ -386,7 +394,7 @@ export function useFocusTrap(
             frame = window.requestAnimationFrame(() => {
               frame = null;
               exempt = trapExemptSurfaces(container, outsidePolicy);
-              trapOwner.reconcile(inertTargets(siblings, exempt));
+              reconcileTrap();
               reclaimLostExemptFocus();
             });
           })
@@ -396,7 +404,7 @@ export function useFocusTrap(
     }
 
     const onTab = (event: KeyboardEvent) => {
-      if (event.key !== "Tab" || event.defaultPrevented) return;
+      if (event.key !== "Tab" || event.defaultPrevented || suspended()) return;
       const focusable = visibleFocusables(container);
       if (!focusable.length) return;
       if (document.activeElement === container) {
@@ -423,6 +431,7 @@ export function useFocusTrap(
       document.removeEventListener("focusin", onFocusIn);
       observer?.disconnect();
       if (frame !== null) window.cancelAnimationFrame(frame);
+      unsubscribeStrictModal?.();
       trapOwner.release();
       releaseStrictModal?.();
     };
