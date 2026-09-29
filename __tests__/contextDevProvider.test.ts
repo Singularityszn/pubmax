@@ -151,6 +151,47 @@ describe("runContextDevEventsLane", () => {
     expect(result.failures.some((failure) => failure.sourceId === fullers?.id)).toBe(true);
   });
 
+  it.each([
+    "# Events\n### Open mic\nThe Dove\n18 August 2026 at 8pm",
+    "# Events\n### Open mic\n\nThe Dove\n18 August 2026 at 8pm",
+    "# Events\n- Open mic\n  The Dove\n  18 August 2026 at 8pm",
+    "# Events\n- Open mic\n\n  The Dove\n  18 August 2026 at 8pm",
+  ])("keeps facts together within a multiline Markdown card: %s", async (markdown) => {
+    const result = await capturedEvent(markdown, {
+      title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z",
+    });
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]?.startsAt).toBe("2026-08-18T19:00:00.000Z");
+  });
+
+  it("does not crossjoin semicolon-separated event clauses", async () => {
+    const result = await capturedEvent(
+      "Open mic at The Swan on 19 August 2026, 20:00; Quiz at The Dove on 18 August 2026, 20:00",
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
+    );
+    expect(result.rows).toEqual([]);
+    expect(result.failures.some((failure) => failure.sourceId === fullers?.id)).toBe(true);
+  });
+
+  it.each([
+    "# Events\n### Open mic\nThe Swan\n19 August 2026 at 8pm\n### Quiz\nThe Dove\n18 August 2026 at 8pm",
+    "# Events\n- Open mic\n  The Swan\n  19 August 2026 at 8pm\n- Quiz\n  The Dove\n  18 August 2026 at 8pm",
+  ])("does not crossjoin separate multiline cards: %s", async (markdown) => {
+    const result = await capturedEvent(markdown, {
+      title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z",
+    });
+    expect(result.rows).toEqual([]);
+  });
+
+  it("accepts a supported event in its own semicolon clause", async () => {
+    const result = await capturedEvent(
+      "Open mic at The Swan on 19 August 2026, 20:00; Quiz at The Dove on 18 August 2026, 20:00",
+      { title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-08-18T19:00:00Z" },
+    );
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]?.title).toBe("Quiz");
+  });
+
   it("finds a later recurring listing with the requested date", async () => {
     const result = await capturedEvent(
       "# Events\n\nQuiz at The Dove on 18 August 2026.\n\nQuiz at The Dove on 25 August 2026.",

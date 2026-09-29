@@ -186,13 +186,67 @@ function timeAppearsInEvidence(instant: string, section: string): boolean {
   });
 }
 
-function groundedEvent(raw: RawContextDevEvent, markdown: string): RawContextDevEvent | null {
-  if (!nonEmptyString(raw.title) || !nonEmptyString(raw.placeName)) return null;
-  // Strip link targets: a slug or date in a URL is not a statement on the page.
-  const sections = markdown
+function eventEvidenceSections(markdown: string): string[] {
+  const lines = markdown
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/https?:\/\/\S+/g, "")
     .split(/\r?\n/);
+  const sections: string[] = [];
+  let card: string[] = [];
+  let cardKind: "heading" | "list" | null = null;
+  let listIndent = 0;
+
+  const flush = () => {
+    for (const clause of card.join(" ").split(";")) {
+      if (clause.trim()) sections.push(clause.trim());
+    }
+    card = [];
+    cardKind = null;
+  };
+
+  for (const line of lines) {
+    const content = line.trim();
+    if (!content) {
+      if (cardKind === null) flush();
+      continue;
+    }
+
+    const heading = /^(#{1,6})\s+(.+?)(?:\s+#+)?$/.exec(content);
+    if (heading) {
+      flush();
+      if (heading[1] === "#") {
+        sections.push(heading[2]);
+      } else {
+        card = [heading[2]];
+        cardKind = "heading";
+      }
+      continue;
+    }
+
+    const list = /^(\s*)(?:[-*+]|\d+[.)])\s+(.+)$/.exec(line);
+    if (list) {
+      flush();
+      card = [list[2]];
+      cardKind = "list";
+      listIndent = list[1].length;
+      continue;
+    }
+
+    if (cardKind === "heading" || (cardKind === "list" && line.length - line.trimStart().length > listIndent)) {
+      card.push(content);
+    } else {
+      flush();
+      card = [content];
+      flush();
+    }
+  }
+  flush();
+  return sections;
+}
+
+function groundedEvent(raw: RawContextDevEvent, markdown: string): RawContextDevEvent | null {
+  if (!nonEmptyString(raw.title) || !nonEmptyString(raw.placeName)) return null;
+  const sections = eventEvidenceSections(markdown);
   const title = evidenceWords(raw.title);
   const place = evidenceWords(raw.placeName);
   const date = nonEmptyString(raw.startsAt)
