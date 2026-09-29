@@ -366,7 +366,8 @@ export function statedWineIdentity(
     const match = label?.match(/^(.*?)(?:\s+)?(\d{2,3}\s*ml)$/i);
     if (!match) return null;
     currentMeasure ??= match[2].replace(/\s+/g, "").toLowerCase();
-    if (match[1].trim()) return { drinkLabel: match[1].trim(), servingSize: currentMeasure };
+    const name = match[1].replace(/^[/|\s\u2013\u2014-]+$/, "").trim();
+    if (name) return { drinkLabel: name, servingSize: currentMeasure };
     const prior = [...context.slice(0, candidateAt).matchAll(PRICE_PATTERN)].at(-1);
     if (!prior) return null;
     candidateAt = prior.index ?? 0;
@@ -457,11 +458,13 @@ function wineSectionPrices(html: string): Map<number, { text: string; raw: UkPri
         for (const nested of htmlChildren(child)) collect(nested);
       }
       collect(node);
-      const heading = own.find((child) => /^h[1-6]$/.test(child.tagName));
-      if (heading && /^(?:white|red|ros[eé]|(?:white|red|ros[eé]) wines?|wines?)$/i.test(
-        pageText(serializeOuter(heading)),
-      )) {
-        for (const item of own.filter((child) => child.tagName === "p")) {
+      let inWineSection = false;
+      for (const item of own) {
+        if (/^h[1-6]$/.test(item.tagName)) {
+          inWineSection = /^(?:white|red|ros[eé]|(?:white|red|ros[eé]) wines?|wines?)$/i.test(
+            pageText(serializeOuter(item)),
+          );
+        } else if (item.tagName === "p" && inWineSection) {
           const location = item.sourceCodeLocation;
           if (!location?.endOffset) continue;
           const first = findUkPriceCandidates(pageText(html.slice(0, location.startOffset))).length;
@@ -610,7 +613,10 @@ function decideKeylessUkPriceAt(
   const wineIdentity = statedIdentity && (inWineSection || categoryDecisionFor(
     statedIdentity.drinkLabel, statedIdentity.drinkLabel.length,
   )?.category === "wine") ? statedIdentity : null;
-  if (/^\d{2,3}\s*ml$/i.test(drinkLabel ?? "") && !wineIdentity) {
+  if (!wineIdentity && (
+    /^[/|\s\u2013\u2014-]*\d{2,3}\s*ml$/i.test(drinkLabel ?? "")
+    || (statedIdentity && (!decisionFromLabel || decisionFromLabel.category === "wine"))
+  )) {
     return { drop: "no-category-word-nearby" };
   }
   const decision = decisionFromLabel ?? (wineIdentity

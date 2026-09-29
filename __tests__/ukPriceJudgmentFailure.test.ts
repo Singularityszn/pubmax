@@ -16,6 +16,7 @@ import { systemOneOutcome } from "@/lib/ai/typesafe.server";
 import { batchUkPriceCandidates } from "@/lib/harvest/ukPriceJudgmentBatch";
 import {
   decideKeylessUkPriceCandidate,
+  cheapestPerCategory,
   findUkPriceCandidates,
   pageText,
   readVenueDrinkPrices,
@@ -60,6 +61,54 @@ function mockAnswersForBatch(
 }
 
 describe("readVenueDrinkPricesJudged batch failures", () => {
+  it.each(["accepted", "budget", "timeout", "error", "malformed"])(
+    "retains named wine pairs with separators on %s judgment", async (mode) => {
+      vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+      vi.mocked(systemOneOutcome).mockImplementation(async (_state, questions) => {
+        if (mode === "accepted") return mockAnswersForBatch(questions, "wine_glass");
+        if (mode === "budget") return { status: "skipped", reason: "budget" };
+        if (mode === "timeout" || mode === "error") return { status: "failed", reason: mode };
+        const answer = mockAnswersForBatch(questions);
+        if (answer.status === "ok") answer.result.answers = {};
+        return answer;
+      });
+      try {
+        for (const separator of ["/", "-", "\u2013", "\u2014", "|"]) {
+          const judged = await readVenueDrinkPricesJudged(
+            `<div class="menubox"><h2>Wine</h2>
+            <p>Rioja 125ml £5.25 ${separator} 250ml £10.50</p>
+            <p>Chardonnay 125ml £6.50 ${separator} 250ml £13.00</p></div>`,
+            { pubName: "The Crown", pageUrl: "https://thecrown.co.uk/drinks" },
+          );
+          expect(cheapestPerCategory(judged)).toEqual([
+            { category: "wine", drinkLabel: "Chardonnay", servingSize: "125ml", priceGbp: 6.5 },
+            { category: "wine", drinkLabel: "Chardonnay", servingSize: "250ml", priceGbp: 13 },
+            { category: "wine", drinkLabel: "Rioja", servingSize: "125ml", priceGbp: 5.25 },
+            { category: "wine", drinkLabel: "Rioja", servingSize: "250ml", priceGbp: 10.5 },
+          ]);
+        }
+        if (mode !== "accepted") {
+          for (const container of ["section", "article", 'div class="menubox"']) {
+            const judged = await readVenueDrinkPricesJudged(
+              `<${container}><p>Orchard Light 125ml £4.50 250ml £6.50</p>
+              <h2>Wine</h2><p>Gavi de Gavi 125ml £7.00 250ml £14.00</p>
+              <h2>Soft drinks</h2><p>Garden Fizz 125ml £4.00 250ml £6.00</p>
+              </${container.split(" ")[0]}>`,
+              { pubName: "The Crown", pageUrl: "https://thecrown.co.uk/drinks" },
+            );
+            expect(judged.kept.filter((row) => row.category === "wine")).toEqual([
+              expect.objectContaining({ drinkLabel: "Gavi de Gavi", servingSize: "125ml", priceGbp: 7 }),
+              expect.objectContaining({ drinkLabel: "Gavi de Gavi", servingSize: "250ml", priceGbp: 14 }),
+            ]);
+          }
+        }
+      } finally {
+        vi.unstubAllEnvs();
+        vi.mocked(systemOneOutcome).mockReset();
+      }
+    },
+  );
+
   it.each([
     { status: "skipped", reason: "budget" },
     { status: "failed", reason: "timeout" },

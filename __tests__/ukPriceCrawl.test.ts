@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 
 import { DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
+import { dedupeSiteHarvestLedgerRows } from "@/lib/siteHarvestLedgerCore";
 import {
   CATEGORY_PRICE_BANDS,
   EMPTY_RENDER_MAX_CHARS,
@@ -39,6 +40,55 @@ const drinksList = `
 </body></html>`;
 
 describe("what a page states", () => {
+  it.each(["section", "article", 'div class="menubox"'])(
+    "limits wine inference to preceding headings in %s", (container) => {
+      const reading = readVenueDrinkPrices(`<${container}>
+        <p>Orchard Light 125ml £4.50 250ml £6.50</p>
+        <div><h2>Wine</h2></div><p>Gavi de Gavi 125ml £7.00 250ml £14.00</p>
+        <div><h3>Soft drinks</h3></div><p>Garden Fizz 125ml £4.00 250ml £6.00</p>
+        </${container.split(" ")[0]}>`);
+      expect(cheapestPerCategory(reading).filter((row) => row.category === "wine")).toEqual([
+        { category: "wine", drinkLabel: "Gavi de Gavi", servingSize: "125ml", priceGbp: 7 },
+        { category: "wine", drinkLabel: "Gavi de Gavi", servingSize: "250ml", priceGbp: 14 },
+      ]);
+      expect(pageStatesADrinksList(reading)).toBe(false);
+    },
+  );
+
+  it("does not lend heading evidence to unscoped paragraphs", () => {
+    const reading = readVenueDrinkPrices(`<p>Orchard Light 125ml £4.50 250ml £6.50</p>
+      <h2>Wine</h2><p>Rioja 125ml £7.00 250ml £14.00</p>
+      <h2>Soft drinks</h2><p>Garden Fizz 125ml £4.00 250ml £6.00</p>`);
+    expect(cheapestPerCategory(reading).filter((row) => row.category === "wine")).toEqual([
+      { category: "wine", drinkLabel: "Rioja", servingSize: "125ml", priceGbp: 7 },
+      { category: "wine", drinkLabel: "Rioja", servingSize: "250ml", priceGbp: 14 },
+    ]);
+  });
+
+  it.each(["/", "-", "\u2013", "\u2014", "|"])(
+    "preserves distinct wines across %s separators and deduplication", (separator) => {
+      const paragraphs = `<p>Rioja 125ml £5.25 ${separator} 250ml £10.50</p>
+        <p>Chardonnay 125ml £6.50 ${separator} 250ml £13.00</p>`;
+      for (const menu of [paragraphs, `<div class="menubox"><h2>Wine</h2>${paragraphs}</div>`]) {
+        const rows = cheapestPerCategory(readVenueDrinkPrices(menu));
+        expect(rows).toEqual([
+          { category: "wine", drinkLabel: "Chardonnay", servingSize: "125ml", priceGbp: 6.5 },
+          { category: "wine", drinkLabel: "Chardonnay", servingSize: "250ml", priceGbp: 13 },
+          { category: "wine", drinkLabel: "Rioja", servingSize: "125ml", priceGbp: 5.25 },
+          { category: "wine", drinkLabel: "Rioja", servingSize: "250ml", priceGbp: 10.5 },
+        ]);
+        const ledger = dedupeSiteHarvestLedgerRows(rows.map((row) => ({
+          ...row, venueId: "venue-uk-n1", observedAt: "2026-09-29T10:40:17.846Z",
+        })), new Map());
+        expect(ledger).toHaveLength(4);
+        expect(ledger.filter((row) => row.servingSize === "250ml").map((row) => row.priceGbp))
+          .toEqual([13, 10.5]);
+      }
+      const split = readVenueDrinkPrices(`<p>Rioja 125ml £5.25</p><p>${separator} 250ml £10.50</p>`);
+      expect(split.kept.some((row) => row.priceGbp === 10.5)).toBe(false);
+    },
+  );
+
   it.each([
     ["4.0%", "beer"], ["10.0%", "beer"], ["0.5%", "beer"],
     ["0%", "alcohol-free"], ["0.0%", "alcohol-free"], ["0.00%", "alcohol-free"],
