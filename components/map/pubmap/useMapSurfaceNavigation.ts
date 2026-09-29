@@ -112,6 +112,7 @@ export function useMapSurfaceNavigation({
   selectionHint,
   onRestore,
   onHome,
+  onSurfaceClose,
 }: {
   arrivalSearch: string;
   surfaceId: MapSurfaceId;
@@ -120,6 +121,7 @@ export function useMapSurfaceNavigation({
   selectionHint: string;
   onRestore: (entry: SurfaceEntry<MapSurfaceState> | null) => void;
   onHome: () => void;
+  onSurfaceClose: () => void;
 }) {
   const [stack, setStack] = useState<SurfaceStack<MapSurfaceState>>(
     ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>,
@@ -129,6 +131,8 @@ export function useMapSurfaceNavigation({
   const pendingOpensRef = useRef<SurfaceEntry<MapSurfaceState>[]>([]);
   const onRestoreRef = useRef(onRestore);
   const onHomeRef = useRef(onHome);
+  const onSurfaceCloseRef = useRef(onSurfaceClose);
+  const pendingHomeRef = useRef<SurfaceStack<MapSurfaceState> | null>(null);
   const selectionHintRef = useRef(selectionHint);
   const publishStack = useCallback((next: SurfaceStack<MapSurfaceState>) => {
     stackRef.current = next;
@@ -142,8 +146,9 @@ export function useMapSurfaceNavigation({
   useLayoutEffect(() => {
     onRestoreRef.current = onRestore;
     onHomeRef.current = onHome;
+    onSurfaceCloseRef.current = onSurfaceClose;
     selectionHintRef.current = selectionHint;
-  }, [onHome, onRestore, selectionHint]);
+  }, [onHome, onRestore, onSurfaceClose, selectionHint]);
 
   const commitOpen = useCallback(
     (entry: SurfaceEntry<MapSurfaceState>) => {
@@ -274,12 +279,22 @@ export function useMapSurfaceNavigation({
     const onPop = (event: PopStateEvent) => {
       const landed = readMapSurfaceHistory<MapSurfaceState>(event.state);
       const next = landed ?? (ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>);
+      const previous = pendingHomeRef.current ?? stackRef.current;
+      pendingHomeRef.current = null;
       if (landed !== null && !selectedVenueId(next)) {
         const { pathname, search, hash } = window.location;
         const cleanUrl = cleanMapUrl(pathname, search, hash);
         if (currentBrowserUrl() !== cleanUrl) {
           window.history.replaceState(event.state, "", cleanUrl);
         }
+      }
+      if (
+        window.location.pathname === "/map" &&
+        landed !== null &&
+        previous.length > next.length &&
+        next.every((entry, index) => entry.id === previous[index]?.id)
+      ) {
+        onSurfaceCloseRef.current();
       }
       publishStack(next);
       onRestoreRef.current(currentSurface(next));
@@ -368,6 +383,7 @@ export function useMapSurfaceNavigation({
   const home = useCallback(() => {
     const held = stackRef.current;
     if (!held.length) return;
+    pendingHomeRef.current = held;
     publishStack(ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>);
     onHomeRef.current();
     if (typeof window !== "undefined") window.history.go(-held.length);

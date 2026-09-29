@@ -3125,7 +3125,7 @@ export default function PubMap({
   // session is held back from the address bar until the reader changes
   // something: they typed a clean /map, and that address wins over stored
   // state. Restoring the map itself is untouched.
-  useCrawlUrlSync(
+  const syncLandedCrawlContext = useCrawlUrlSync(
     useMemo(
       () => ({
         mode,
@@ -4829,6 +4829,7 @@ export default function PubMap({
     selectionHint,
     onRestore: restoreMapSurface,
     onHome: closeEverySurface,
+    onSurfaceClose: syncLandedCrawlContext,
   });
   const {
     rejectSelection: rejectMapSelection,

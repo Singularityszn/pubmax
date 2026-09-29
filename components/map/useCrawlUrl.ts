@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { encodeCrawl, seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
 
@@ -31,6 +31,7 @@ const OWNED_PASSTHROUGH_PARAMS = [
   "lng",
   "uk",
   "mapNotice",
+  "city",
 ] as const;
 
 export function mergeCrawlUrlSearch(
@@ -85,25 +86,22 @@ function writeCrawlUrl(encoded: string, preserveCrawlParam: boolean): void {
   }
 }
 
-const DRINK_CONTEXT_PARAMS = [
-  "low",
-  "cocktails",
-  "drink",
-  "brand",
-  "sub",
-  "topshelf",
-  "alt",
+// Filter and plan keys from encodeCrawl, excluding selection and surface keys.
+const CRAWL_CONTEXT_PARAMS = [
+  "mode", "style", "max", "stops", "win", "drops", "low",
+  "cocktails", "food", "q", "drink", "brand", "sub", "topshelf",
+  "zone", "pubs", "band", "alt",
 ] as const;
 
-function writeLandedDrinkContext(encoded: string): void {
-  // Back owns the landed sheet and venue params. Carry only the current lens
-  // onto that entry, or a stale `sel` can reopen the venue it just closed.
+function writeLandedCrawlContext(encoded: string): void {
+  // The landed entry owns selection, intents and place context. Only Map
+  // filters changed while a surface was open cross this history boundary.
   const live = new URLSearchParams(window.location.search);
   const selected = new URLSearchParams(encoded);
-  for (const key of DRINK_CONTEXT_PARAMS) live.delete(key);
-  for (const key of DRINK_CONTEXT_PARAMS) {
+  for (const key of CRAWL_CONTEXT_PARAMS) {
     const value = selected.get(key);
-    if (value !== null) live.set(key, value);
+    if (value === null) live.delete(key);
+    else live.set(key, value);
   }
   const query = live.toString();
   const url = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
@@ -118,24 +116,11 @@ export function useCrawlUrlSync(
    *  restored over it. The address then stays clean until they act. */
   holdCleanUrl = false,
   holdSeededCrawlParam = false,
-): void {
+): () => void {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hold = useRef<CleanUrlHold | undefined>(undefined);
   const crawlHold = useRef<CleanUrlHold | undefined>(undefined);
   const latestWrite = useRef<string | null>(null);
-  const mapPath = useRef<string | null>(null);
-
-  useEffect(() => {
-    mapPath.current = window.location.pathname;
-    const onPopState = () => {
-      const encoded = latestWrite.current;
-      if (encoded !== null && window.location.pathname === mapPath.current) {
-        writeLandedDrinkContext(encoded);
-      }
-    };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -164,4 +149,9 @@ export function useCrawlUrlSync(
       if (timer.current) clearTimeout(timer.current);
     };
   }, [holdCleanUrl, holdSeededCrawlParam, state]);
+
+  return useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    if (latestWrite.current !== null) writeLandedCrawlContext(latestWrite.current);
+  }, []);
 }
