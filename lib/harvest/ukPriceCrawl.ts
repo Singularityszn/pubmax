@@ -265,6 +265,13 @@ function itemNameStatesZeroAlcohol(drinkLabel: string): boolean {
   return firstComma < 0 || marker.index < firstComma;
 }
 
+function itemNameStatesCocktail(drinkLabel: string): boolean {
+  // An early cocktail word is the printed drink name, even when a later
+  // ingredient names a spirit closer to the figure. Keep this to the opening
+  // 24 characters to keep later description words from deciding the title.
+  return categoryDecisionFor(drinkLabel.slice(0, 24), 0)?.category === "cocktail";
+}
+
 export type UkPriceCandidate = {
   priceGbp: number;
   category: DrinkCategory;
@@ -488,7 +495,9 @@ function decideKeylessUkPriceAt(
   const decision =
     (drinkLabel && (itemNameStatesZeroAlcohol(drinkLabel)
       ? { category: "alcohol-free" as const, fromMixer: false }
-      : categoryDecisionFor(drinkLabel, drinkLabel.length))) ||
+      : itemNameStatesCocktail(drinkLabel)
+        ? { category: "cocktail" as const, fromMixer: false }
+        : categoryDecisionFor(drinkLabel, drinkLabel.length))) ||
     categoryDecisionFor(context, at - contextStart);
   if (!decision) {
     return {

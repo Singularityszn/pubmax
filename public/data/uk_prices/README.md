@@ -90,6 +90,10 @@ gin and Negroni remain. It does not prove the old source rows' full page context
 or correct all zero-alcohol ingredient descriptions. Other category conflicts
 still need review; neither the exact-match quarantine nor these synthetic fixtures
 proves other labels correct or supplies a fresh source observation.
+Another synthetic menu confirms an early Picante Spritz name wins over tequila
+in its ingredient list, while a separately priced tequila shot stays a shot.
+This does not recover the original page layout or reclassify the quarantined
+source row without a fresh observation.
 
 **One row per pub, drink and lane, and it is the cheapest the lane stated.** A
 lane states many lines for one pub's beer; the figure a drinker can walk in and

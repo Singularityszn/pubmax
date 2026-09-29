@@ -108,6 +108,23 @@ describe("what a page states", () => {
     ]);
   });
 
+  it("reads a named spritz as a cocktail despite tequila in its ingredients", () => {
+    // Synthetic menu using the Picante Spritz name in the source ledger.
+    // It tests association, not a fresh read of the venue's page.
+    const menu = `<p>Picante Spritz Altos Plata tequila, Beesou honey, green chilli, lime, soda £12.00</p>
+      <p>House tequila shot £4.00</p>
+      <p>House red wine 175ml £7.50</p>
+      <p>Madri pint £6.20</p>`;
+    const reading = readVenueDrinkPrices(menu);
+    expect(pageStatesADrinksList(reading)).toBe(true);
+    expect(cheapestPerCategory(reading)).toEqual([
+      { category: "beer", priceGbp: 6.2, drinkLabel: "Madri pint" },
+      { category: "cocktail", priceGbp: 12, drinkLabel: "Picante Spritz Altos Plata tequila, Beesou honey, green chilli, lime, soda" },
+      { category: "shot", priceGbp: 4, drinkLabel: "House tequila shot" },
+      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine 175ml" },
+    ]);
+  });
+
   it("answers one finding rather than an empty list when the page states no figure", () => {
     expect(readVenueDrinkPrices("<p>Open until late</p>").drops).toEqual(["no-price-on-page"]);
   });
