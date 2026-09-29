@@ -29,8 +29,16 @@ describe("listed category price projection", () => {
       { ...row(), servingSize: "125ml" },
       row({ priceGbp: 31.5, drinkLabel: "Chardonnay bottle" }),
       row({ category: "beer", priceGbp: 4.5 }),
-      row({ standing: "estimate", sourceUrl: null, basis: "model", sampleSize: 4 }),
-      row({ sourceUrl: "https://pub.example/menu", observedAt: "2025-01-01T00:00:00Z" }),
+      row({
+        standing: "estimate",
+        sourceUrl: null,
+        basis: "model",
+        sampleSize: 4,
+      }),
+      row({
+        sourceUrl: "https://pub.example/menu",
+        observedAt: "2025-01-01T00:00:00Z",
+      }),
       row({ sourceUrl: "https://user:pass@pub.example/menu" }),
     ];
 
@@ -64,6 +72,51 @@ describe("listed category price projection", () => {
     expect(projected.length).toBeLessThanOrEqual(8);
     expect(projected.map((quote) => quote.drinkLabel)).toEqual(
       rows.slice(0, projected.length).map((quote) => quote.drinkLabel),
+    );
+  });
+
+  it("keeps the lowest eligible quote in each stated serving group when same-day rows exceed the cap", () => {
+    const rows = [
+      {
+        ...row({ drinkLabel: "Chenin glass", priceGbp: 5.75 }),
+        servingSize: "125ml",
+      },
+      {
+        ...row({ drinkLabel: "Chenin large", priceGbp: 11.5 }),
+        servingSize: "250ml",
+      },
+      {
+        ...row({ drinkLabel: "Malbec glass", priceGbp: 6.75 }),
+        servingSize: "125ml",
+      },
+      {
+        ...row({ drinkLabel: "Malbec large", priceGbp: 13.5 }),
+        servingSize: "250ml",
+      },
+      {
+        ...row({ drinkLabel: "Rioja glass", priceGbp: 5.25 }),
+        servingSize: "125ml",
+      },
+      {
+        ...row({ drinkLabel: "Rioja large", priceGbp: 10.5 }),
+        servingSize: "250ml",
+      },
+      {
+        ...row({ drinkLabel: "Chenin bottle", priceGbp: 31.5 }),
+        servingSize: "Btl",
+      },
+    ];
+
+    const projected = listedCategoryPrices(rows, NOW);
+    expect(projected.length).toBeLessThanOrEqual(4);
+    expect(projected.filter((quote) => quote.servingSize === "125ml")).toEqual([
+      expect.objectContaining({ drinkLabel: "Rioja glass", priceGbp: 5.25 }),
+    ]);
+    expect(projected.filter((quote) => quote.servingSize === "250ml")).toEqual([
+      expect.objectContaining({ drinkLabel: "Rioja large", priceGbp: 10.5 }),
+    ]);
+    expect(projected.find((quote) => quote.servingSize === "Btl")).toEqual(
+      expect.objectContaining({ drinkLabel: "Chenin bottle", priceGbp: 31.5 }),
     );
   });
 });

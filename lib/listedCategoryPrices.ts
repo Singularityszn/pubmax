@@ -1,6 +1,14 @@
-import { DRINK_CATEGORIES, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+import {
+  DRINK_CATEGORIES,
+  isDrinkCategory,
+  type DrinkCategory,
+} from "@/lib/drinks";
+import { listedServingComparisonKey } from "@/lib/listedPriceComparison";
 import { priceStandingFor } from "@/lib/priceTier";
-import { authoritativeBundleRows, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
+import {
+  authoritativeBundleRows,
+  type UkPriceBundleRow,
+} from "@/lib/ukPriceBundle";
 
 export type ListedCategoryPrice = {
   source: "listed";
@@ -24,7 +32,11 @@ export function listedCategoryPrices(
   const eligible: { quote: ListedCategoryPrice; index: number }[] = [];
 
   for (const [index, row] of authoritativeBundleRows(rows).entries()) {
-    if (row.standing !== "listed" || !isDrinkCategory(row.category) || row.category === "beer") {
+    if (
+      row.standing !== "listed" ||
+      !isDrinkCategory(row.category) ||
+      row.category === "beer"
+    ) {
       continue;
     }
     const decision = priceStandingFor(
@@ -46,7 +58,8 @@ export function listedCategoryPrices(
     ) {
       continue;
     }
-    const rawServing = (row as UkPriceBundleRow & { servingSize?: unknown }).servingSize;
+    const rawServing = (row as UkPriceBundleRow & { servingSize?: unknown })
+      .servingSize;
     const servingSize =
       typeof rawServing === "string" &&
       rawServing.trim().length > 0 &&
@@ -67,18 +80,40 @@ export function listedCategoryPrices(
     });
   }
 
-  // Recency selects bounded quotes. Price never orders unknown or mixed serves.
-  eligible.sort((left, right) =>
-    right.quote.observedAt.localeCompare(left.quote.observedAt) || left.index - right.index,
+  // A stated, identical serving can be compared by price. Unknown and mixed
+  // servings retain source order by recency, never a price rank.
+  eligible.sort(
+    (left, right) =>
+      right.quote.observedAt.localeCompare(left.quote.observedAt) ||
+      left.index - right.index,
   );
   const result: ListedCategoryPrice[] = [];
   for (const category of DRINK_CATEGORIES) {
     if (category === "beer") continue;
-    let count = 0;
-    for (const { quote } of eligible) {
-      if (quote.category !== category) continue;
+    const bestByServing = new Map<string, (typeof eligible)[number]>();
+    const neutral: (typeof eligible)[number][] = [];
+    for (const entry of eligible) {
+      if (entry.quote.category !== category) continue;
+      const key = listedServingComparisonKey(category, entry.quote.servingSize);
+      if (key === null) {
+        neutral.push(entry);
+        continue;
+      }
+      const current = bestByServing.get(key);
+      if (!current || entry.quote.priceGbp < current.quote.priceGbp) {
+        bestByServing.set(key, entry);
+      }
+    }
+    const comparable = [...bestByServing.values()].sort(
+      (left, right) =>
+        right.quote.observedAt.localeCompare(left.quote.observedAt) ||
+        left.index - right.index,
+    );
+    for (const { quote } of [...comparable, ...neutral].slice(
+      0,
+      MAX_QUOTES_PER_CATEGORY,
+    )) {
       result.push(quote);
-      if (++count === MAX_QUOTES_PER_CATEGORY) break;
     }
   }
   return result;
