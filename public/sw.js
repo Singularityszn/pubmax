@@ -123,10 +123,9 @@ async function cacheFamilyNames(currentName) {
   ];
 }
 
-function isEligiblePlanCacheRequest(request) {
-  const url = new URL(request.url);
+function isEligiblePlanCacheUrl(url) {
   return url.origin === self.location.origin &&
-    Boolean(self.planCache?.isPlanPath(url.pathname));
+    /^\/plan\/[^/]+$/.test(url.pathname);
 }
 
 function isEligibleShellCacheUrl(url) {
@@ -147,7 +146,7 @@ async function migrateCacheFamily({
     const destination = await caches.open(current);
     for (const request of await destination.keys()) {
       const eligible = current === PLAN_CACHE
-        ? isEligiblePlanCacheRequest(request)
+        ? isEligiblePlanCacheUrl(new URL(request.url))
         : isEligibleShellCacheUrl(new URL(request.url));
       if (!eligible) await destination.delete(request);
     }
@@ -159,7 +158,7 @@ async function migrateCacheFamily({
     const source = await caches.open(name);
     let covered = true;
     for (const request of await source.keys()) {
-      if ((current === PLAN_CACHE && !isEligiblePlanCacheRequest(request)) ||
+      if ((current === PLAN_CACHE && !isEligiblePlanCacheUrl(new URL(request.url))) ||
         (current === SHELL_CACHE && !isEligibleShellCacheUrl(new URL(request.url)))) {
         if (!(await source.delete(request))) covered = false;
         continue;
@@ -206,12 +205,17 @@ async function matchCacheFamily(currentName, request, options) {
 }
 
 async function matchPlanNavigationAcrossCaches(url) {
-  if (url.origin !== self.location.origin || !self.planCache?.isPlanPath(url.pathname)) {
+  if (!isEligiblePlanCacheUrl(url)) {
     return undefined;
   }
   for (const name of await cacheFamilyNames(PLAN_CACHE)) {
-    const response = await self.planCache.matchPlanNavigation(url, name);
-    if (response) return response;
+    try {
+      const cache = await caches.open(name);
+      const response = await cache.match(url.pathname, { ignoreSearch: true });
+      if (response) return response;
+    } catch {
+      continue;
+    }
   }
   return undefined;
 }
@@ -455,8 +459,7 @@ async function handleNavigation(event, request, url) {
       event.waitUntil(
         caches.open(SHELL_CACHE).then((cache) => cache.put(url.pathname, copy)),
       );
-    } else if (response.ok && url.origin === self.location.origin &&
-      self.planCache?.isPlanPath(url.pathname)) {
+    } else if (response.ok && isEligiblePlanCacheUrl(url) && self.planCache) {
       // Shelve the plan preview so a crew that opened the link earlier
       // can reopen it with no signal. Cache-on-success, bounded + LRU inside
       // the module; best-effort via waitUntil so it never delays the response.

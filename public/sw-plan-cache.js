@@ -9,7 +9,6 @@
  *
  * It lives in its own file, loaded by public/sw.js via
  *   importScripts("/sw-plan-cache.js?v=" + VERSION)
- * so sw.js can share the same plan-path rule for admission and migration.
  *
  * Cache identity/eviction:
  *  - The cache name is owned by sw.js (PREFIX + "plan-" + VERSION) and passed
@@ -63,24 +62,12 @@
     }
   }
 
-  // Offline fallback: the exact plan page this browser shelved earlier.
-  async function matchPlanNavigation(url, cacheName) {
-    if (!isPlanPath(url.pathname)) return undefined;
-    try {
-      const cache = await scope.caches.open(cacheName);
-      return await cache.match(url.pathname, { ignoreSearch: true });
-    } catch {
-      return undefined;
-    }
-  }
-
   const api = {
     MAX_PLAN_ENTRIES,
     isPlanPath,
     planEvictionKeys,
     trimPlanCache,
     cachePlanNavigation,
-    matchPlanNavigation,
   };
 
   // Runtime: expose on the SW global for public/sw.js to call.

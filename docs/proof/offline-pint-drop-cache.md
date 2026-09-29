@@ -20,7 +20,7 @@ admitted `/p/drop1`, and activation retained or copied Pint Drop and recap HTML.
 
 ## After
 
-`PLAN_CACHE` admits only same-origin `/plan/<id>` navigation HTML. The helper
+`PLAN_CACHE` admits only same-origin `/plan/<id>` navigation HTML. The worker
 rejects Pint Drop links and nested plan routes at both write and read time.
 Activation deletes ineligible entries in the current cache and in each legacy
 plan cache before it can migrate an entry. A valid `/plan/<id>` preview still
@@ -101,3 +101,44 @@ requires both exclusions. No evidence files were removed.
 The cache tests execute the shipped service worker and imported plan helper
 against an in-memory Cache Storage harness. No browser upgrade or deployment
 was run. Build-generated venue shard changes were restored after validation.
+
+
+## R1: helper import failure
+
+At `24619966187b7bd490bb63a2af8091254e0b30d8`, activation classified every
+plan-cache entry as ineligible when `importScripts` failed. Both current and
+legacy public previews could be deleted. Offline lookup also depended on the
+missing helper.
+
+The worker now owns same-origin plan eligibility and cached preview lookup.
+The optional helper retains bounded, best-effort plan writes. Its unused lookup
+was removed. Read regressions now exercise the worker's fetch listener, while
+helper tests still check admission and eviction through stored entries.
+
+The regression matrix forces import success or failure and migration write
+success or rejection. Each case checks current and legacy previews with changed
+queries, all four fixed shells, private and foreign-origin exclusions before
+and after activation, and exact cache contents after migration. Separate
+navigation tests check that private HTML never enters either cache and public
+plan writes still work when the helper loads.
+
+The focused verification attempt was:
+
+```sh
+npm test -- __tests__/serviceWorkerCache.test.ts __tests__/swPlanCache.test.ts
+```
+
+It exited 127 with `sh: vitest: command not found`. This worktree has no
+`node_modules`, and Vitest is absent from PATH. No dependencies were installed
+and no other checkout was searched. The new regressions have not run; neither
+a failing-before nor a passing-after result is claimed for this round.
+
+Code tracing confirmed that current cleanup and legacy migration use the
+worker-owned predicate. Offline fetches use that same predicate before reading
+current and legacy caches. The ordinary network path still returns its response
+when helper loading or plan-cache writes fail. This is inspection evidence,
+not an executed test result.
+
+No full-suite, lint, build, browser, push, PR, CI, migration, or deployment
+phase ran in this fix round. Earlier verification results above describe prior
+commits and do not validate these edits.

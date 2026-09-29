@@ -44,10 +44,6 @@ type PlanCacheApi = {
     url: { pathname: string },
     name: string,
   ): Promise<void>;
-  matchPlanNavigation(
-    url: { pathname: string },
-    name: string,
-  ): Promise<MockResponse | undefined>;
 };
 
 function loadModule() {
@@ -101,46 +97,24 @@ describe("sw-plan-cache: eviction rule (pure)", () => {
   });
 });
 
-describe("sw-plan-cache: cache + fallback behaviour", () => {
-  it("stores a successful plan navigation and reads it back offline", async () => {
-    const { planCache } = loadModule();
+describe("sw-plan-cache: cache writes and eviction", () => {
+  it("stores a successful plan navigation", async () => {
+    const { planCache, caches } = loadModule();
     await planCache.cachePlanNavigation({}, res("<plan/>"), { pathname: "/plan/night1" }, NAME);
-    const hit = await planCache.matchPlanNavigation({ pathname: "/plan/night1" }, NAME);
-    expect(hit?.body).toBe("<plan/>");
-  });
-
-  it("keys by pathname so a re-open with a different query hits the same entry", async () => {
-    const { planCache } = loadModule();
-    await planCache.cachePlanNavigation({}, res("<plan/>"), { pathname: "/plan/night1" }, NAME);
-    // matchPlanNavigation is called with the pathname; query never reaches it.
-    const hit = await planCache.matchPlanNavigation({ pathname: "/plan/night1" }, NAME);
+    const hit = await (await caches.open(NAME)).match("/plan/night1");
     expect(hit?.body).toBe("<plan/>");
   });
 
   it("never caches non-ok or non-plan responses", async () => {
-    const { planCache } = loadModule();
+    const { planCache, caches } = loadModule();
     await planCache.cachePlanNavigation({}, res("boom", false), { pathname: "/plan/bad" }, NAME);
     await planCache.cachePlanNavigation({}, res("home"), { pathname: "/" }, NAME);
     await planCache.cachePlanNavigation({}, res("<pint-drop/>"), { pathname: "/p/drop1" }, NAME);
     await planCache.cachePlanNavigation({}, res("<private-recap/>"), { pathname: "/plan/night1/recap" }, NAME);
-    expect(await planCache.matchPlanNavigation({ pathname: "/plan/bad" }, NAME)).toBeUndefined();
-    expect(await planCache.matchPlanNavigation({ pathname: "/" }, NAME)).toBeUndefined();
-    expect(await planCache.matchPlanNavigation({ pathname: "/p/drop1" }, NAME)).toBeUndefined();
-    expect(await planCache.matchPlanNavigation({ pathname: "/plan/night1/recap" }, NAME)).toBeUndefined();
-  });
-
-  it("does not return a Pint Drop or private recap cached by an older worker", async () => {
-    const { planCache, caches } = loadModule();
-    const cache = await caches.open(NAME);
-    await cache.put("/p/drop1", res("<pint-drop/>"));
-    await cache.put("/plan/night1/recap", res("<private-recap/>"));
-    expect(await planCache.matchPlanNavigation({ pathname: "/p/drop1" }, NAME)).toBeUndefined();
-    expect(await planCache.matchPlanNavigation({ pathname: "/plan/night1/recap" }, NAME)).toBeUndefined();
-  });
-
-  it("returns undefined for a plan never cached", async () => {
-    const { planCache } = loadModule();
-    expect(await planCache.matchPlanNavigation({ pathname: "/plan/ghost" }, NAME)).toBeUndefined();
+    expect(await (await caches.open(NAME)).match("/plan/bad")).toBeUndefined();
+    expect(await (await caches.open(NAME)).match("/")).toBeUndefined();
+    expect(await (await caches.open(NAME)).match("/p/drop1")).toBeUndefined();
+    expect(await (await caches.open(NAME)).match("/plan/night1/recap")).toBeUndefined();
   });
 
   it("bounds the cache to the last 10 plans, evicting least-recently-cached", async () => {
@@ -152,13 +126,13 @@ describe("sw-plan-cache: cache + fallback behaviour", () => {
     const keys = await cache.keys();
     expect(keys).toHaveLength(10);
     // 0 and 1 were the oldest → evicted; 2..11 survive.
-    expect(await planCache.matchPlanNavigation({ pathname: "/plan/0" }, NAME)).toBeUndefined();
-    expect(await planCache.matchPlanNavigation({ pathname: "/plan/1" }, NAME)).toBeUndefined();
-    expect((await planCache.matchPlanNavigation({ pathname: "/plan/11" }, NAME))?.body).toBe("p11");
+    expect(await (await caches.open(NAME)).match("/plan/0")).toBeUndefined();
+    expect(await (await caches.open(NAME)).match("/plan/1")).toBeUndefined();
+    expect((await (await caches.open(NAME)).match("/plan/11"))?.body).toBe("p11");
   });
 
   it("re-opening an older plan refreshes it to the newest slot (LRU, not FIFO)", async () => {
-    const { planCache } = loadModule();
+    const { planCache, caches } = loadModule();
     for (let i = 0; i < 10; i++) {
       await planCache.cachePlanNavigation({}, res(`p${i}`), { pathname: `/plan/${i}` }, NAME);
     }
@@ -166,7 +140,7 @@ describe("sw-plan-cache: cache + fallback behaviour", () => {
     await planCache.cachePlanNavigation({}, res("p0-again"), { pathname: "/plan/0" }, NAME);
     // Now add a fresh plan → the eviction victim is plan 1, not plan 0.
     await planCache.cachePlanNavigation({}, res("p10"), { pathname: "/plan/10" }, NAME);
-    expect(await planCache.matchPlanNavigation({ pathname: "/plan/1" }, NAME)).toBeUndefined();
-    expect((await planCache.matchPlanNavigation({ pathname: "/plan/0" }, NAME))?.body).toBe("p0-again");
+    expect(await (await caches.open(NAME)).match("/plan/1")).toBeUndefined();
+    expect((await (await caches.open(NAME)).match("/plan/0"))?.body).toBe("p0-again");
   });
 });
