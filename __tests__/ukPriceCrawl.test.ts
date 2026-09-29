@@ -71,6 +71,34 @@ describe("what a page states", () => {
     expect(rows.some((row) => row.servingSize === "Btl" || row.servingSize === "750ml")).toBe(false);
   });
 
+  it("uses wine section headings for named glass pairs without lending them to sibling sections", () => {
+    // Excerpts from the permission-checked Sydney Arms capture, with adjacent
+    // non-wine sections to pin the section boundary.
+    const menu = `<div class="menubox"><div class="title"><h1>white</h1></div>
+      <p>Gavi de Gavi, Italy<br />125ml £7.00 250ml £14.00 Btl £39.95</p></div>
+      <div class="menubox"><div class="title"><h1>red</h1></div>
+      <p>Faithful Hound, South Africa<br />125ml £7.00 250ml £14.00 Btl £39.95</p></div>
+      <div class="menubox"><div class="title"><h1>rosé</h1></div>
+      <p>Côtes de Provence, France<br />125ml £6.50 250ml £13.00 Btl £37.50</p></div>
+      <div class="menubox"><div class="title"><h1>soft drinks</h1></div>
+      <p>Garden Fizz<br />125ml £2.50 250ml £4.00</p></div>
+      <div class="menubox"><div class="title"><h1>no alcohol</h1></div>
+      <p>Orchard Light<br />125ml £4.00 250ml £6.00</p></div>
+      <div class="menubox"><div class="title"><h1>cocktails</h1></div>
+      <p>Evening Bloom<br />125ml £8.00 250ml £12.00</p></div>`;
+    const reading = readVenueDrinkPrices(menu);
+    const wine = cheapestPerCategory(reading).filter((row) => row.category === "wine");
+    expect(wine).toEqual([
+      { category: "wine", priceGbp: 6.5, drinkLabel: "Côtes de Provence, France", servingSize: "125ml" },
+      { category: "wine", priceGbp: 13, drinkLabel: "Côtes de Provence, France", servingSize: "250ml" },
+      { category: "wine", priceGbp: 7, drinkLabel: "Faithful Hound, South Africa", servingSize: "125ml" },
+      { category: "wine", priceGbp: 14, drinkLabel: "Faithful Hound, South Africa", servingSize: "250ml" },
+      { category: "wine", priceGbp: 7, drinkLabel: "Gavi de Gavi, Italy", servingSize: "125ml" },
+      { category: "wine", priceGbp: 14, drinkLabel: "Gavi de Gavi, Italy", servingSize: "250ml" },
+    ]);
+    expect(wine.some((row) => /Garden Fizz|Orchard Light|Evening Bloom/.test(row.drinkLabel ?? ""))).toBe(false);
+  });
+
 
   it("keeps separate soft-drink labels for subtype-priced views", () => {
     const softDrinksList = `

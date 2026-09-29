@@ -34,6 +34,7 @@
 // anything here runs.
 
 import type { DrinkCategory } from "@/lib/drinks";
+import { parse, serializeOuter, type DefaultTreeAdapterTypes } from "parse5";
 
 /** Why a candidate figure on a permitted page did not become a row. */
 export const UK_PRICE_DROP_REASONS = [
@@ -413,6 +414,64 @@ export function pageText(html: string): string {
     .trim();
 }
 
+type HtmlNode = DefaultTreeAdapterTypes.Node;
+type HtmlElement = DefaultTreeAdapterTypes.Element;
+
+function htmlChildren(node: HtmlNode): HtmlNode[] {
+  return "childNodes" in node ? node.childNodes : [];
+}
+
+function isHtmlElement(node: HtmlNode): node is HtmlElement {
+  return "tagName" in node;
+}
+
+function isMenuSection(node: HtmlElement): boolean {
+  if (node.tagName === "section" || node.tagName === "article") return true;
+  return node.tagName === "div" && node.attrs.some(
+    (attr) => attr.name === "class" && attr.value.split(/\s+/).includes("menubox"),
+  );
+}
+
+/** Price ordinals and item text inside a wine section, never its siblings. */
+function wineSectionPrices(html: string): Map<number, { text: string; raw: UkPriceRawCandidate }> {
+  const prices = new Map<number, { text: string; raw: UkPriceRawCandidate }>();
+  if (!/(?:\bmenubox\b|<section\b|<article\b)/i.test(html)) return prices;
+  const document = parse(html, { sourceCodeLocationInfo: true });
+
+  function visit(node: HtmlNode): void {
+    if (isHtmlElement(node) && isMenuSection(node)) {
+      const own: HtmlElement[] = [];
+      function collect(child: HtmlNode): void {
+        if (!isHtmlElement(child)) return;
+        if (child !== node && isMenuSection(child)) return;
+        own.push(child);
+        for (const nested of htmlChildren(child)) collect(nested);
+      }
+      collect(node);
+      const heading = own.find((child) => /^h[1-6]$/.test(child.tagName));
+      if (heading && /^(?:white|red|ros[eé]|(?:white|red|ros[eé]) wines?|wines?)$/i.test(
+        pageText(serializeOuter(heading)),
+      )) {
+        for (const item of own.filter((child) => child.tagName === "p")) {
+          const location = item.sourceCodeLocation;
+          if (!location?.endOffset) continue;
+          const first = findUkPriceCandidates(pageText(html.slice(0, location.startOffset))).length;
+          const text = pageText(html.slice(
+            location.startOffset,
+            location.endOffset,
+          ));
+          for (const [index, raw] of findUkPriceCandidates(text).entries()) {
+            prices.set(first + index, { text, raw });
+          }
+        }
+      }
+    }
+    for (const child of htmlChildren(node)) visit(child);
+  }
+  visit(document);
+  return prices;
+}
+
 /**
  * How far after a `with` a MIXER's own name may sit. "With Britvic Ginger Ale"
  * is the longest shape a pub's spirits list writes, and a span this tight keeps
@@ -509,6 +568,7 @@ function decideKeylessUkPriceAt(
   at: number,
   priceGbp: number,
   verbatim: string,
+  inWineSection = false,
 ): { kept?: UkPriceCandidate; drop?: UkPriceDropReason } {
   const contextStart = Math.max(0, at - PRICE_CONTEXT_CHARS);
   const context = text.slice(
@@ -537,7 +597,12 @@ function decideKeylessUkPriceAt(
   if (drinkLabel && !decisionFromLabel && /\bsoda\b/i.test(drinkLabel)) {
     return { drop: "no-category-word-nearby" };
   }
-  const decision = decisionFromLabel ?? categoryDecisionFor(context, at - contextStart);
+  const sectionWineIdentity = inWineSection
+    ? statedWineIdentity(context, verbatim, priceAtInContext)
+    : null;
+  const decision = decisionFromLabel ?? (sectionWineIdentity
+    ? { category: "wine" as const, fromMixer: false }
+    : categoryDecisionFor(context, at - contextStart));
   if (!decision) {
     return {
       drop: Number.isFinite(priceGbp) ? "no-category-word-nearby" : "no-drink-word-nearby",
@@ -548,7 +613,7 @@ function decideKeylessUkPriceAt(
   }
   const category = decision.category;
   const wineIdentity = category === "wine"
-    ? statedWineIdentity(context, verbatim, priceAtInContext)
+    ? sectionWineIdentity ?? statedWineIdentity(context, verbatim, priceAtInContext)
     : null;
   const band = CATEGORY_PRICE_BANDS[category];
   if (!band) {
@@ -585,10 +650,11 @@ function decideKeylessUkPriceAt(
 export function decideKeylessUkPriceCandidate(
   text: string,
   raw: UkPriceRawCandidate,
+  inWineSection = false,
 ): { kept?: UkPriceCandidate; drop?: UkPriceDropReason } {
   // The candidate's own offset, never a fresh search: see `at` on the type.
   if (text.startsWith(raw.verbatim, raw.at)) {
-    return decideKeylessUkPriceAt(text, raw.at, raw.priceGbp, raw.verbatim);
+    return decideKeylessUkPriceAt(text, raw.at, raw.priceGbp, raw.verbatim, inWineSection);
   }
   return { drop: "not-verbatim-on-page" };
 }
@@ -599,9 +665,16 @@ export function readVenueDrinkPrices(html: string): UkPriceReading {
   const drops: UkPriceDropReason[] = [];
   const candidates = findUkPriceCandidates(text);
   if (candidates.length === 0) return { kept, drops: ["no-price-on-page"] };
+  const winePrices = wineSectionPrices(html);
 
-  for (const raw of candidates) {
-    const outcome = decideKeylessUkPriceCandidate(text, raw);
+  for (const [index, raw] of candidates.entries()) {
+    const scoped = winePrices.get(index);
+    const scopedIdentity = scoped
+      ? statedWineIdentity(scoped.text, scoped.raw.verbatim, scoped.raw.at)
+      : null;
+    const outcome = scopedIdentity && scoped
+      ? decideKeylessUkPriceCandidate(scoped.text, scoped.raw, true)
+      : decideKeylessUkPriceCandidate(text, raw);
     if (outcome.kept) kept.push(outcome.kept);
     else if (outcome.drop) drops.push(outcome.drop);
   }
