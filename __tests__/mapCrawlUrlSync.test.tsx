@@ -296,8 +296,8 @@ describe("crawl URL after Map history traversal", () => {
     expect(window.history.state.root).toBe(true);
   });
 
-  it("carries Wine, max price and zone across a sheet close without losing place context", async () => {
-    window.history.replaceState({ root: true }, "", "/map?city=bristol&q=Soho");
+  it("carries Wine, max price and zone across a sheet close in Bristol", async () => {
+    window.history.replaceState({ root: true }, "", "/map/bristol?q=Soho");
     await act(async () => {
       root.render(createElement(HistoryHarness, { query: "Soho" }));
     });
@@ -308,7 +308,7 @@ describe("crawl URL after Map history traversal", () => {
       }));
     });
     act(() => vi.advanceTimersByTime(300));
-    expect(window.location.search).toContain("city=bristol");
+    expect(window.location.pathname).toBe("/map/bristol");
 
     vi.useRealTimers();
     const landed = new Promise<void>((resolve) =>
@@ -317,7 +317,8 @@ describe("crawl URL after Map history traversal", () => {
     window.history.back();
     await landed;
 
-    expect(window.location.search).toBe("?city=bristol&q=Soho&max=6&drink=wine&zone=3");
+    expect(window.location.pathname).toBe("/map/bristol");
+    expect(window.location.search).toBe("?q=Soho&max=6&drink=wine&zone=3");
   });
 
   it("keeps category and filters when Home unwinds multiple sheets", async () => {
