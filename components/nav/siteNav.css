@@ -758,7 +758,7 @@ button.siteNavMoreItem {
 }
 
 @media (max-width: 360px) {
-  .siteNavBarFloating {
+  .siteNavBar {
     gap: 3px;
     padding-inline: 5px;
   }
@@ -768,7 +768,7 @@ button.siteNavMoreItem {
     padding-inline: 5px;
   }
 
-  .siteNavBarFloating .siteNavActions {
+  .siteNavBar .siteNavActions {
     gap: 2px;
   }
 }

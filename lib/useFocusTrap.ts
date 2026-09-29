@@ -76,7 +76,6 @@ export function shouldInertOutsideSibling(
 }
 
 type InertOwnership = {
-  original: boolean;
   owners: Set<symbol>;
 };
 
@@ -91,11 +90,13 @@ const focusRestorations: FocusRestoration[] = [];
 
 function claimInert(node: HTMLElement, owner: symbol): void {
   const ownership = inertOwnership.get(node);
+  // Closed drawers own their inert state. React may reopen one before this
+  // trap's cleanup, so never capture and restore that external state.
+  if (!ownership && node.inert) return;
   if (ownership) {
     ownership.owners.add(owner);
   } else {
     inertOwnership.set(node, {
-      original: node.inert,
       owners: new Set([owner]),
     });
   }
@@ -109,7 +110,7 @@ function releaseInert(node: HTMLElement, owner: symbol): void {
     node.inert = true;
     return;
   }
-  node.inert = ownership.original;
+  node.inert = false;
   inertOwnership.delete(node);
 }
 

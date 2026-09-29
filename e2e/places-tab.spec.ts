@@ -175,6 +175,8 @@ test.describe("places tab @320", () => {
     await page.goto("/places");
     const tabs = primaryNav(page).getByRole("link");
     await expect(tabs).toHaveCount(6);
+    await expect(page.locator(".authCompactTrigger")).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
     for (const tab of await tabs.all()) {
       const box = await tab.boundingBox();
       expect(box, "every tab has a box").not.toBeNull();

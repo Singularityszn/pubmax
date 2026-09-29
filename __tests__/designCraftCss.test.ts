@@ -11,7 +11,6 @@ const mobileCss = read("components/mobile/mobileMapShell.css");
 const createFabCss = read("components/nav/createFab.css");
 const landingCss = read("components/landing/landing.css");
 const venueCss = read("components/map/venueSheet.css");
-const pubMapSource = read("components/PubMap.tsx");
 const springDrawerSource = read("components/map/SpringDrawer.tsx");
 const legacyDragSource = read("components/map/useSheetDrag.ts");
 const evidence = read("docs/design-craft-d1-d8-evidence.md");
@@ -53,11 +52,7 @@ describe("sheet material", () => {
 });
 
 describe("responsive spring ownership", () => {
-  it("isolates every inline drawer spring from PubMap and covers tablet sheets", () => {
-    expect(pubMapSource).toContain(
-      'import("@/components/map/SpringDrawer")',
-    );
-    expect(pubMapSource).not.toContain("useDrawerSpring");
+  it("covers tablet sheets", () => {
     expect(springDrawerSource).toContain(
       'const TABLET_SHEET_QUERY = "(max-width: 768px)"',
     );

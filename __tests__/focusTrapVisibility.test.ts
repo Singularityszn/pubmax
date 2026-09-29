@@ -115,6 +115,33 @@ describe("FocusTrapOwner", () => {
     });
   }
 
+  for (const firstRelease of ["map", "strict"] as const) {
+    it(`preserves a reopened drawer when ${firstRelease} releases first`, () => {
+      const drawer = node(true);
+      const map = new FocusTrapOwner();
+      const strict = new FocusTrapOwner();
+
+      map.reconcile([drawer]);
+      strict.reconcile([drawer]);
+      (firstRelease === "map" ? map : strict).release();
+      expect(drawer.inert).toBe(true);
+
+      // The drawer opens in React's commit before the last trap cleans up.
+      drawer.inert = false;
+      (firstRelease === "map" ? strict : map).release();
+
+      expect(drawer.inert).toBe(false);
+    });
+  }
+
+  it("leaves a closed drawer inert after its surrounding trap releases", () => {
+    const drawer = node(true);
+    const owner = new FocusTrapOwner();
+    owner.reconcile([drawer]);
+    owner.release();
+    expect(drawer.inert).toBe(true);
+  });
+
   it("restores the earlier map origin after overlapping teardown", () => {
     const mapOrigin = focusOrigin();
     const sheetOrigin = focusOrigin();
