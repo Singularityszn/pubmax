@@ -1,5 +1,6 @@
 import type { AuthCallbackTokens } from "@/lib/authRedirect";
 import { isGoTrueUserBannedError } from "@/lib/authAccountBan";
+import type { MintOutcome } from "@/lib/deviceAccountSwitch";
 
 export type AuthSessionEstablishClient<SessionValue> = {
   setSession: (tokens: { access_token: string; refresh_token: string }) => Promise<{
@@ -30,11 +31,12 @@ export type PreparedAuthCallbackSession<SessionValue> =
       confirm: () => Promise<AuthCallbackSessionResult<SessionValue>>;
     };
 
-/** Verify an unowned callback with GoTrue without installing it in the live client. */
+/** Verify the refresh identity and compare any valid access identity before consent. */
 export async function prepareAuthCallbackSession<SessionValue>(
   auth: AuthSessionEstablishClient<SessionValue> & AuthCallbackIdentityClient,
   tokens: AuthCallbackTokens,
   localAttemptOwned: boolean,
+  mintSession: (refreshToken: string) => Promise<MintOutcome>,
 ): Promise<PreparedAuthCallbackSession<SessionValue>> {
   if (localAttemptOwned) {
     return {
@@ -44,15 +46,32 @@ export async function prepareAuthCallbackSession<SessionValue>(
   }
 
   try {
-    const { data, error } = await auth.getUser(tokens.accessToken);
-    if (error || !data.user?.id) return { status: "verification-failed" };
-    const userId = data.user.id;
-    const label = data.user.email?.trim() || userId;
+    // A cross-browser email link can reach this tab after its original access
+    // token expires. Treat a failed access read as unknown, never as identity.
+    const original = await auth.getUser(tokens.accessToken).catch(() => null);
+    const originalUserId = original && !original.error ? original.data.user?.id : null;
+    // GoTrue's setSession verifies the access token but keeps the supplied
+    // refresh token untouched while access is live. Once access expires it
+    // instead installs the refresh token's identity. Mint through a plain
+    // request first, then verify the fresh pair's access identity. When both
+    // identities are verifiable they must agree.
+    const minted = await mintSession(tokens.refreshToken);
+    if (minted.status !== "minted") return { status: "verification-failed" };
+    const refreshed = await auth.getUser(minted.session.access_token);
+    const userId = refreshed.data.user?.id;
+    if (refreshed.error || !userId || (originalUserId && originalUserId !== userId)) {
+      return { status: "verification-failed" };
+    }
+    const label = refreshed.data.user?.email?.trim() || userId;
+    const verifiedTokens = {
+      accessToken: minted.session.access_token,
+      refreshToken: minted.session.refresh_token,
+    };
     let inFlight: Promise<AuthCallbackSessionResult<SessionValue>> | null = null;
     return {
       status: "confirmation-required",
       identity: { userId, label },
-      confirm: () => (inFlight ??= establishAuthCallbackSession(auth, tokens)),
+      confirm: () => (inFlight ??= establishAuthCallbackSession(auth, verifiedTokens)),
     };
   } catch {
     return { status: "verification-failed" };

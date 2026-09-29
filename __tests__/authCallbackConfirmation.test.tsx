@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const harness = vi.hoisted(() => ({
   setSession: vi.fn(),
   getUser: vi.fn(),
+  mintSession: vi.fn(),
   localAttemptOwned: false,
 }));
 
@@ -28,6 +29,11 @@ vi.mock("@/lib/authClient", () => ({
 vi.mock("@/lib/authProviderAvailability", () => ({
   loadSocialAuthProviders: async () => ({ google: false, apple: false, microsoft: false }),
   NO_SOCIAL_AUTH_PROVIDERS: { google: false, apple: false, microsoft: false },
+}));
+vi.mock("@/lib/deviceAccountSwitch", () => ({
+  mintSessionFromRefreshToken: harness.mintSession,
+  browserDeviceAccountSwitchDeps: () => ({ authConfig: null, fetchImpl: vi.fn() }),
+  activateDeviceAccount: vi.fn(),
 }));
 vi.mock("@/lib/authRedirect", () => ({
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT: "pubmax-auth-return-fragment-restored",
@@ -68,6 +74,7 @@ beforeEach(() => {
   harness.localAttemptOwned = false;
   harness.setSession.mockReset();
   harness.getUser.mockReset();
+  harness.mintSession.mockReset();
   harness.getUser.mockResolvedValue({
     data: { user: { id: "account-a", email: "person@example.com" } },
     error: null,
@@ -81,6 +88,10 @@ beforeEach(() => {
       },
     },
     error: null,
+  });
+  harness.mintSession.mockResolvedValue({
+    status: "minted",
+    session: { access_token: "synthetic-access", refresh_token: "synthetic-refresh" },
   });
   container = document.createElement("div");
   document.body.append(container);
@@ -126,6 +137,23 @@ describe("unowned auth callback confirmation", () => {
     harness.getUser.mockResolvedValue({ data: { user: null }, error: new Error("invalid") });
     await mount();
     await vi.waitFor(() => expect(container?.textContent).toContain("Sign-in could not be completed."));
+    expect(harness.setSession).not.toHaveBeenCalled();
+  });
+
+  it("does not offer confirmation for mismatched access and refresh identities", async () => {
+    harness.getUser.mockImplementation(async (accessToken: string) => ({
+      data: { user: accessToken === "synthetic-access"
+        ? { id: "account-a", email: "a@example.com" }
+        : { id: "account-b", email: "b@example.com" } },
+      error: null,
+    }));
+    harness.mintSession.mockResolvedValue({
+      status: "minted",
+      session: { access_token: "access-b", refresh_token: "refresh-b" },
+    });
+    await mount();
+    await vi.waitFor(() => expect(container?.textContent).toContain("Sign-in could not be completed."));
+    expect(container?.textContent).not.toContain("Sign in as a@example.com?");
     expect(harness.setSession).not.toHaveBeenCalled();
   });
 

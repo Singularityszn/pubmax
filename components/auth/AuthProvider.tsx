@@ -73,6 +73,7 @@ import {
 import {
   activateDeviceAccount,
   browserDeviceAccountSwitchDeps,
+  mintSessionFromRefreshToken,
   type DeviceAccountSwitchOutcome,
 } from "@/lib/deviceAccountSwitch";
 import {
@@ -735,6 +736,11 @@ export function AuthProvider({
                 supabase.auth,
                 callbackAttempt.tokens,
                 captured.localAttemptOwned,
+                (refreshToken) =>
+                  mintSessionFromRefreshToken(
+                    refreshToken,
+                    browserDeviceAccountSwitchDeps(),
+                  ),
               );
             }
             const prepared = await callbackSessionInFlight.current;
