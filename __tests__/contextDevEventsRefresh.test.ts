@@ -158,7 +158,7 @@ describe("eventsRefresh Context.dev lane", () => {
     ["empty", { events: [] }],
     ["unusable", { events: [{ title: "Undated quiz", placeName: "The Dove", kind: "event", sourceUrl: "https://www.fullers.co.uk/pubs/the-dove/event/quiz" }] }],
     ["cross-record", { events: [{ title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" }] },
-      "Open mic at The Swan on 19 August 2026, 20:00; Quiz at The Dove on 18 August 2026, 20:00"],
+      "## Upcoming Events\nOpen mic at The Swan on 19 August 2026 at 20:00.\nQuiz at The Dove on 18 August 2026 at 20:00."],
   ])("retains held Fuller's rows when its JSON capture is %s while Ticketmaster updates", async (_case, data, markdown = "") => {
     const outPath = temporaryOutPath();
     writeHeldFile(outPath, [{ ...heldFullersRow("events-cd-blank-held"), observedAt: heldGeneratedAt }]);

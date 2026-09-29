@@ -186,7 +186,7 @@ function timeAppearsInEvidence(instant: string, section: string): boolean {
   });
 }
 
-function eventEvidenceSections(markdown: string): string[] {
+function eventEvidenceSections(markdown: string, title: string): string[] {
   const lines = markdown
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/https?:\/\/\S+/g, "")
@@ -197,8 +197,12 @@ function eventEvidenceSections(markdown: string): string[] {
   let listIndent = 0;
 
   const flush = () => {
-    for (const clause of card.join(" ").split(";")) {
-      if (clause.trim()) sections.push(clause.trim());
+    const joined = card.join(" ");
+    const dateCount = (value: string) => Array.from(value.matchAll(/\b(?:19|20)\d{2}\b/g)).length;
+    if (cardKind === null || dateCount(joined) <= 1) {
+      for (const clause of joined.split(";")) {
+        if (clause.trim() && dateCount(clause) <= 1) sections.push(clause.trim());
+      }
     }
     card = [];
     cardKind = null;
@@ -216,7 +220,7 @@ function eventEvidenceSections(markdown: string): string[] {
       flush();
       if (heading[1] === "#") {
         sections.push(heading[2]);
-      } else {
+      } else if (evidenceWords(heading[2]) === evidenceWords(title)) {
         card = [heading[2]];
         cardKind = "heading";
       }
@@ -246,7 +250,7 @@ function eventEvidenceSections(markdown: string): string[] {
 
 function groundedEvent(raw: RawContextDevEvent, markdown: string): RawContextDevEvent | null {
   if (!nonEmptyString(raw.title) || !nonEmptyString(raw.placeName)) return null;
-  const sections = eventEvidenceSections(markdown);
+  const sections = eventEvidenceSections(markdown, raw.title);
   const title = evidenceWords(raw.title);
   const place = evidenceWords(raw.placeName);
   const date = nonEmptyString(raw.startsAt)

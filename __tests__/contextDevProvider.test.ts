@@ -145,7 +145,33 @@ describe("runContextDevEventsLane", () => {
   it("does not crossjoin compact single-newline listings", async () => {
     const result = await capturedEvent(
       "# Events\n- Open mic at The Swan on 19 August 2026, 20:00.\n- Quiz at The Dove on 18 August 2026, 20:00.",
-      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T20:00:00Z" },
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
+    );
+    expect(result.rows).toEqual([]);
+    expect(result.failures.some((failure) => failure.sourceId === fullers?.id)).toBe(true);
+  });
+
+  it("does not treat an ordinary section heading as one event card", async () => {
+    const result = await capturedEvent(
+      "## Upcoming Events\nOpen mic at The Swan on 19 August 2026 at 20:00.\nQuiz at The Dove on 18 August 2026 at 20:00.",
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
+    );
+    expect(result.rows).toEqual([]);
+    expect(result.failures.some((failure) => failure.sourceId === fullers?.id)).toBe(true);
+  });
+
+  it("accepts a complete event line beneath an ordinary section heading", async () => {
+    const result = await capturedEvent(
+      "## Upcoming Events\nOpen mic at The Dove on 18 August 2026 at 20:00.",
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
+    );
+    expect(result.rows).toHaveLength(1);
+  });
+
+  it("rejects conflicting dates inside an event-title card", async () => {
+    const result = await capturedEvent(
+      "### Open mic\nThe Swan on 19 August 2026 at 20:00.\nThe Dove on 18 August 2026 at 20:00.",
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
     );
     expect(result.rows).toEqual([]);
     expect(result.failures.some((failure) => failure.sourceId === fullers?.id)).toBe(true);
