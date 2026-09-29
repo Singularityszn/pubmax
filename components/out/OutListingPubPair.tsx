@@ -12,11 +12,11 @@ type OutListingPubPairProps = {
 };
 
 /**
- * The pub beside a listing, or the honest absence of one.
+ * The pub beside a listing, or the unconfirmed match.
  *
- * An absent pub used to render nothing at all, and the count of those rows was
- * the whole page. It is a footnote on the row now: the listing is real either
- * way, and the only thing missing is a pin of ours.
+ * A listing without a confirmed match used to render nothing at all, and the
+ * count of those rows was the whole page. It is a footnote on the row now:
+ * the listing is real either way, and the pub may already be on our map.
  */
 export function OutListingPubPair({ row }: OutListingPubPairProps) {
   const pair = outListingPubPair(row);

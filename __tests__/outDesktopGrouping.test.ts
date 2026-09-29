@@ -129,7 +129,7 @@ describe("out listing grouping", () => {
     expect(groups[1]?.rows.map((item) => item.id)).toEqual(["quiz-1"]);
   });
 
-  it("pairs a resolved pub beside a gig and names honest absence without one", () => {
+  it("pairs a resolved pub beside a gig and names an unresolved match without one", () => {
     const matched = row({
       id: "matched",
       kind: "event",
@@ -168,9 +168,9 @@ describe("out listing grouping", () => {
     expect(outListingUnmatchedCount([matched, absent, absent])).toBe(2);
   });
 
-  // The absence used to render nothing, which is how 148 real listings became
+  // An unresolved match used to render nothing, which is how 148 real listings became
   // one count and an empty page. It is a line on the row now.
-  it("says the pub is missing on the row itself", () => {
+  it("says the pub match is unresolved on the row itself", () => {
     const html = renderToStaticMarkup(
       createElement(OutListingPubPair, {
         row: row({ id: "absent-render", kind: "event", title: "Arena show" }),
@@ -178,7 +178,20 @@ describe("out listing grouping", () => {
     );
 
     expect(html).toContain(OUT_LISTING_PUB_ABSENT_LINE);
-    expect(OUT_LISTING_PUB_ABSENT_LINE).toBe("Not on our map yet.");
+    expect(OUT_LISTING_PUB_ABSENT_LINE).toBe("We haven’t linked this place to a pub on our map.");
+  });
+
+  it("describes an unmatched mapped venue as an unresolved match", () => {
+    const listing = row({
+      id: "new-cross-unmatched",
+      kind: "event",
+      title: "Live at New Cross Inn",
+      placeName: "New Cross Inn",
+    });
+    expect(outListingPubPair(listing)).toMatchObject({
+      status: "absent",
+      line: "We haven’t linked this place to a pub on our map.",
+    });
   });
 
   it("labels a matched event place without naming a kind", () => {
