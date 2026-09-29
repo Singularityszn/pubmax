@@ -566,8 +566,8 @@ describe("auth callback URL safety", () => {
     expect([...tabValues.values()].join(" ")).not.toContain("SECRET-A");
     expect([...tabValues.values()].join(" ")).not.toContain("venue-b");
 
-    // The replaced attempt's tokens are self-authenticating, so it still signs
-    // in, but it can no longer touch the live attempt's stored fragment.
+    // The replaced attempt is unowned and needs identity confirmation before
+    // sign-in. It can no longer touch the live attempt's stored fragment.
     const replacedCallback = await claimCallback(
       `https://pubmaxxing.com/plan/abc?_authCallback=1&_authAttempt=${ATTEMPT_A}${TOKEN_FRAGMENT}`,
       persistentStorage,
@@ -630,8 +630,8 @@ describe("auth callback URL safety", () => {
     expect(tabAValues.size).toBe(1);
     expect(tabBValues.size).toBe(0);
 
-    // A replayed token callback still signs in (tokens are self-authenticating)
-    // but can never restore the already-consumed fragment.
+    // A replayed token callback is unowned and needs identity confirmation.
+    // It can never restore the already-consumed fragment.
     expect(await claimCallback(callbackUrl, persistentStorage, tabBStorage, 2_000))
       .toMatchObject({
         attempt: { attemptId: ATTEMPT_A, tokens: TOKENS, providerError: false },
@@ -752,8 +752,8 @@ describe("auth callback URL safety", () => {
     const beforePersistent = new Map(persistentValues);
     const beforeTab = new Map(tabValues);
 
-    // An unrelated token callback completes (the deliberate cross-browser
-    // trade) but must never touch attempt A's stored state or fragment.
+    // An unrelated token callback reaches identity confirmation, but must
+    // never touch attempt A's stored state or fragment.
     const unrelated = await claimCallback(
       `https://pubmaxxing.com/plan/abc?_authCallback=1&_authAttempt=${ATTEMPT_B}${TOKEN_FRAGMENT}`,
       persistentStorage,

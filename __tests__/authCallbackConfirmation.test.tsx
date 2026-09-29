@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement } from "react";
+import { act, createElement, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,6 +7,9 @@ const harness = vi.hoisted(() => ({
   setSession: vi.fn(),
   getUser: vi.fn(),
   mintSession: vi.fn(),
+  scrubCallback: vi.fn(),
+  releaseCoordination: vi.fn(),
+  socialProviderLoads: vi.fn(),
   localAttemptOwned: false,
   existingSession: null as null | {
     access_token: string;
@@ -32,7 +35,10 @@ vi.mock("@/lib/authClient", () => ({
   }),
 }));
 vi.mock("@/lib/authProviderAvailability", () => ({
-  loadSocialAuthProviders: async () => ({ google: false, apple: false, microsoft: false }),
+  loadSocialAuthProviders: async () => {
+    harness.socialProviderLoads();
+    return { google: false, apple: false, microsoft: false };
+  },
   NO_SOCIAL_AUTH_PROVIDERS: { google: false, apple: false, microsoft: false },
 }));
 vi.mock("@/lib/deviceAccountSwitch", () => ({
@@ -42,16 +48,19 @@ vi.mock("@/lib/deviceAccountSwitch", () => ({
 }));
 vi.mock("@/lib/authRedirect", () => ({
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT: "pubmax-auth-return-fragment-restored",
-  scrubAuthCallback: async () => ({
-    attempt: {
-      attemptId: null,
-      tokens: { accessToken: "synthetic-access", refreshToken: "synthetic-refresh" },
-      providerError: false,
-    },
-    cleanUrl: "/map",
-    localAttemptOwned: harness.localAttemptOwned,
-    releaseCoordination: vi.fn(),
-  }),
+  scrubAuthCallback: async () => {
+    harness.scrubCallback();
+    return {
+      attempt: {
+        attemptId: null,
+        tokens: { accessToken: "synthetic-access", refreshToken: "synthetic-refresh" },
+        providerError: false,
+      },
+      cleanUrl: "/map",
+      localAttemptOwned: harness.localAttemptOwned,
+      releaseCoordination: harness.releaseCoordination,
+    };
+  },
   scrubLingeringAuthCallback: vi.fn(() => false),
 }));
 vi.mock("@/lib/authSessionBootstrap", () => ({
@@ -88,6 +97,9 @@ beforeEach(() => {
   harness.setSession.mockReset();
   harness.getUser.mockReset();
   harness.mintSession.mockReset();
+  harness.scrubCallback.mockReset();
+  harness.releaseCoordination.mockReset();
+  harness.socialProviderLoads.mockReset();
   harness.getUser.mockResolvedValue({
     data: { user: { id: "account-a", email: "person@example.com" } },
     error: null,
@@ -126,6 +138,29 @@ async function mount(): Promise<void> {
 }
 
 describe("unowned auth callback confirmation", () => {
+  it("holds one confirmation through StrictMode effect replay", async () => {
+    await act(async () => {
+      root?.render(createElement(
+        StrictMode,
+        null,
+        createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(ViewerProbe)),
+      ));
+    });
+
+    await vi.waitFor(() => expect(container?.textContent).toContain("Sign in as person@example.com?"));
+    expect(harness.socialProviderLoads).toHaveBeenCalledTimes(2);
+    expect(container?.textContent?.match(/Sign in as person@example.com\?/g)).toHaveLength(1);
+    expect(harness.scrubCallback).toHaveBeenCalledOnce();
+    expect(harness.mintSession).toHaveBeenCalledOnce();
+    expect(harness.releaseCoordination).toHaveBeenCalledOnce();
+    expect(harness.setSession).not.toHaveBeenCalled();
+
+    const continueButton = [...container!.querySelectorAll("button")].find((button) => button.textContent === "Continue");
+    await act(async () => continueButton?.click());
+    await vi.waitFor(() => expect(harness.setSession).toHaveBeenCalledOnce());
+    expect(container?.textContent).toContain("Signed in as person@example.com.");
+  });
+
   it("keeps an existing account active when the reader cancels another account's callback", async () => {
     harness.existingSession = {
       access_token: "existing-access-b",
