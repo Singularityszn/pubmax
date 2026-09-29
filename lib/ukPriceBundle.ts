@@ -98,6 +98,10 @@ export type UkPriceBundleRow = {
 const CATEGORY_QUARANTINE: ReadonlyArray<
   Pick<UkPriceBundleRow, "sourceUrl" | "category" | "priceGbp" | "drinkLabel">
 > = [
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu", category: "wine", priceGbp: 8.1, drinkLabel: "/" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu", category: "wine", priceGbp: 13, drinkLabel: "### Limoncello Spritz Bright and zesty Isolabella Limoncello, prosecco and soda" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu", category: "wine", priceGbp: 13, drinkLabel: "#### Aperol Spritz A classic serve of Aperol, prosecco, and soda" },
+  { sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu", category: "wine", priceGbp: 13, drinkLabel: "Hugo Spritz Fresh and floral St-Germain Elderflower Liqueur, prosecco and soda" },
   { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "gin", priceGbp: 9, drinkLabel: "0% Tropical Negroni Three Spirit Livener, Lyres Italian Spritz, Tanqueray 0.0%" },
   { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "shot", priceGbp: 12, drinkLabel: "1.50 Picante Spritz Altos Plata tequila, Beesou honey, green chilli, lime, soda" },
   { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "whisky", priceGbp: 10, drinkLabel: "ary Absolut Tabasco Vodka, Tomato Juice, Worcestershire Sauce, Spices, Rosemary" },

@@ -109,6 +109,29 @@ describe("what a bundle row owes", () => {
 });
 
 describe("which rows a surface may treat as a fact", () => {
+  it("withholds retained Punch & Judy slash and Spritz claims from wine", () => {
+    const sourceUrl = "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu";
+    const evidence = [
+      [8.1, "/"],
+      [13, "### Limoncello Spritz Bright and zesty Isolabella Limoncello, prosecco and soda"],
+      [13, "#### Aperol Spritz A classic serve of Aperol, prosecco, and soda"],
+      [13, "Hugo Spritz Fresh and floral St-Germain Elderflower Liqueur, prosecco and soda"],
+    ] as const;
+    const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
+      .trim().split("\n").map((line) => JSON.parse(line));
+    const published: UkPriceBundleRow[] = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8"));
+    for (const [priceGbp, drinkLabel] of evidence) {
+      expect(ledger.some((row) => row.sourceUrl === sourceUrl && row.category === "wine" && row.priceGbp === priceGbp && row.drinkLabel === drinkLabel)).toBe(true);
+      const row: UkPriceBundleRow = { ...listed, sourceUrl, category: "wine", priceGbp, drinkLabel };
+      expect(authoritativeBundleRows([row])).toEqual([]);
+      expect(parseUkPriceBundleRows([row])).toEqual([]);
+      expect(bundlePricesForCategory([row], "wine").listed).toBeNull();
+      expect(published.some((item) => item.lane === "site-harvest" && item.sourceUrl === sourceUrl && item.category === "wine" && item.priceGbp === priceGbp && item.drinkLabel === drinkLabel)).toBe(false);
+    }
+    const genuine: UkPriceBundleRow = { ...listed, sourceUrl, category: "wine", priceGbp: 8.2, drinkLabel: "Baron de Ley Reserva Rioja, Spain" };
+    expect(authoritativeBundleRows([genuine])).toEqual([genuine]);
+  });
+
   it("withholds retained elderflower and raspberry soda claims misfiled as wine", () => {
     const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
       .trim()
