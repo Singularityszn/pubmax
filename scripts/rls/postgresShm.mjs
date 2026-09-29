@@ -9,20 +9,20 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { findPostgresBinary } from "./postgresHost.mjs";
 
-const PUBMAX_DIR_MARKERS = ["/pubmax-pg-", "/pubmax-rls-"];
+const PUBMAX_DIR_PREFIXES = ["pubmax-pg-", "pubmax-rls-"];
 
 /**
  * True when a PostgreSQL data directory belongs to this harness (never a
- * developer or system cluster).
+ * developer or system cluster). Only direct children of this temp root belong
+ * to it; a nested private temp root has its own sweeper.
  */
 export function isPubmaxHarnessDataDir(dataDir) {
   if (!dataDir || typeof dataDir !== "string") return false;
-  const normalized = dataDir.replaceAll("\\", "/");
-  if (!normalized.startsWith(tmpdir().replaceAll("\\", "/"))) return false;
-  return PUBMAX_DIR_MARKERS.some((marker) => normalized.includes(marker));
+  if (dirname(dataDir) !== tmpdir()) return false;
+  return PUBMAX_DIR_PREFIXES.some((prefix) => basename(dataDir).startsWith(prefix));
 }
 
 /** Pulls `-D <path>` from a `ps` command line. */

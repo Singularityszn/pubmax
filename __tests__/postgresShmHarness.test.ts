@@ -1,11 +1,11 @@
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { postgresSkipReason, startPostgres, type PostgresSession } from "./helpers/postgres";
 import { findPostgresBinary } from "../scripts/rls/postgresHost.mjs";
@@ -19,6 +19,8 @@ import {
 
 const skip = postgresSkipReason();
 const serialShmHarness = process.env.PUBMAX_SERIAL_SHM_HARNESS === "1";
+const hostTempDir = tmpdir();
+let outerTempDir: string;
 
 type PostgresProcess = { pid: number; ppid: number };
 
@@ -91,16 +93,40 @@ function startInitParentedCluster(dataDir: string): PostgresProcess {
     ["start", "-D", dataDir, "-w", "-s", "-l", join(dataDir, "server.log")],
     options,
   );
+  // Another worker can sweep between pg_ctl reporting ready and our first assertion.
+  const shm = pathToFileURL(join(process.cwd(), "scripts/rls/postgresShm.mjs")).href;
+  execFileSync(
+    process.execPath,
+    ["--input-type=module", "-e",
+      `import { sweepPubmaxHarnessOrphans } from ${JSON.stringify(shm)}; sweepPubmaxHarnessOrphans();`,
+    ],
+    { ...options, env: { ...options.env, TMPDIR: outerTempDir } },
+  );
   const postmaster = postmasterFor(dataDir);
   if (!postmaster) throw new Error(`no postmaster for ${dataDir}`);
   return postmaster;
 }
 
 describe("postgres SysV harness hygiene", () => {
+  beforeAll(() => {
+    // Keep socket paths short, and isolate intentional orphans from other runs.
+    outerTempDir = mkdtempSync(join(hostTempDir, "s-"));
+    const testTempDir = join(outerTempDir, "t");
+    mkdirSync(testTempDir);
+    vi.stubEnv("TMPDIR", testTempDir);
+  });
+  afterAll(() => {
+    vi.unstubAllEnvs();
+    rmSync(outerTempDir, { recursive: true, force: true });
+  });
+
   it("recognises harness data directories under the OS temp dir", () => {
     const harnessDir = join(tmpdir(), "pubmax-pg-proof-abc123");
     const otherDir = join(tmpdir(), "not-pubmax-xyz");
     expect(isPubmaxHarnessDataDir(harnessDir)).toBe(true);
+    expect(isPubmaxHarnessDataDir(join(tmpdir(), "pubmax-rls-proof-abc123"))).toBe(true);
+    expect(isPubmaxHarnessDataDir(join(tmpdir(), "private", "pubmax-pg-proof-abc123"))).toBe(false);
+    expect(isPubmaxHarnessDataDir(join(`${tmpdir()}-other`, "pubmax-pg-proof-abc123"))).toBe(false);
     expect(isPubmaxHarnessDataDir(otherDir)).toBe(false);
     expect(isPubmaxHarnessDataDir("/var/lib/postgresql/data")).toBe(false);
   });
@@ -177,7 +203,7 @@ describe("postgres SysV harness hygiene", () => {
   (skip || !serialShmHarness ? it.skip : it)(
     "leaves no SysV segment behind across one boot and stop",
     async () => {
-      const session = await startPostgres({ label: "shm-one-shot" });
+      const session = await startPostgres({ label: "shm-once" });
       const pid = postmasterPidOf(session);
       expectHoldsSegment(pid);
       await session.stop();
