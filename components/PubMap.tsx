@@ -4431,7 +4431,7 @@ export default function PubMap({
         setMapOverlay("area");
       }, areaSheetOpenDelay(reduced));
     },
-    [cityId, clearAreaSheetTimer, clearLogIntent, moveMapCameraTo, trimmedMapQuery],
+    [cityId, clearAreaSheetTimer, clearLogIntent, moveMapCameraTo],
   );
   // §4.8: picking a search result records the typed "map-search" origin, unlike
   // a browse pin tap. The current search input text is NOT proof of origin — only
