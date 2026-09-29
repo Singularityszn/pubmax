@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-const { categoryIndexMock } = vi.hoisted(() => ({ categoryIndexMock: vi.fn() }));
+const { categoryIndexMock, bundleRowsMock } = vi.hoisted(() => ({ categoryIndexMock: vi.fn(), bundleRowsMock: vi.fn() }));
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return { ...actual, isSupabaseConfigured: () => false };
@@ -22,6 +22,7 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
   return { ...actual, readCommunityPriceCategoryIndex: categoryIndexMock };
 });
+vi.mock("@/lib/ukPriceBundle.server", () => ({ ukPriceBundleRowsFor: bundleRowsMock }));
 
 import { POST } from "@/app/api/plans/route";
 import { PATCH } from "@/app/api/plans/[id]/route";
@@ -50,8 +51,75 @@ async function create(category: "wine" | "cocktail" | "beer", submitted: unknown
 }
 
 describe("Plan create selected drink evidence", () => {
-  beforeEach(() => { __resetMemoryPlans(); categoryIndexMock.mockReset(); });
+  beforeEach(() => {
+    __resetMemoryPlans();
+    categoryIndexMock.mockReset();
+    bundleRowsMock.mockReset().mockResolvedValue({ status: "empty", rows: [] });
+  });
   afterEach(() => { __resetMemoryPlans(); });
+
+  it("re-resolves a listed hint from the approved bundle on create and replace despite a degraded community read", async () => {
+    const row = {
+      venueId: "venue-a", name: "Venue A", category: "wine", priceGbp: 5.25,
+      lane: "site-harvest", standing: "listed", sourceUrl: "https://www.sydneyarmschelsea.com/menu/",
+      publisher: "sydneyarmschelsea.com", observedAt: "2026-09-21T18:33:02.365Z",
+      basis: null, sampleSize: null, drinkLabel: "red Rioja, Spain 125ml", drinkSubtype: "wine-red",
+    };
+    const evidence = {
+      category: "wine", pence: 525, serving: null, source: "listed",
+      sourceUrl: row.sourceUrl, observedAt: row.observedAt,
+    };
+    bundleRowsMock.mockImplementation(async () => ({ status: "ready", rows: [row] }));
+    categoryIndexMock.mockResolvedValue({ prices: [], degraded: true, truncated: false });
+
+    const { body, reloaded } = await create("wine", { ...evidence, sourceUrl: "https://forged.example/menu" });
+    expect(reloaded.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
+
+    const accepted = await create("wine", { ...evidence, privateContributor: "hidden" });
+    expect(accepted.reloaded.stops[0]?.selectedDrinkPriceEvidence).toEqual(evidence);
+    expect(accepted.body.plan.stops[0]?.selectedDrinkPriceEvidence).toEqual(evidence);
+    expect(JSON.stringify(buildPlanPrivacyPreview(accepted.reloaded))).not.toContain(row.sourceUrl);
+    for (const forged of [
+      { ...evidence, pence: 100 },
+      { ...evidence, serving: "125ml" },
+      { ...evidence, observedAt: "2026-09-20T18:33:02.365Z" },
+      { ...evidence, category: "cocktail" },
+    ]) {
+      expect((await create("wine", forged)).reloaded.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
+    }
+
+    const response = await PATCH(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${body.memberToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ expectedRouteRevision: 1, stops: [
+        { venueId: "venue-a", selectedDrinkPriceEvidence: evidence },
+        { venueId: "venue-b" }, { venueId: "venue-c" },
+      ] }),
+    }), { params: Promise.resolve({ id: body.plan.plan.id }) });
+    expect(response.status).toBe(200);
+    expect((await memoryPlanStore.get(body.plan.plan.id))?.stops[0]?.selectedDrinkPriceEvidence).toEqual(evidence);
+
+    bundleRowsMock.mockResolvedValue({ status: "unavailable", rows: [] });
+    expect((await create("wine", evidence)).reloaded.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
+
+    const submittedAt = Date.now();
+    categoryIndexMock.mockResolvedValue({
+      prices: [{ venueId: "venue-a", drinkCategory: "wine", priceGbp: 7.5, submittedAt, source: "community", corroborations: 2 }],
+      degraded: false, truncated: false,
+    });
+    bundleRowsMock.mockResolvedValue({ status: "ready", rows: [row] });
+    expect((await create("wine", evidence)).reloaded.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
+
+    const measuredRow = {
+      ...row, servingSize: "125ml", observedAt: "2026-09-29T10:40:17.846Z",
+    };
+    const measuredEvidence = {
+      ...evidence, serving: "125ml", observedAt: measuredRow.observedAt,
+    };
+    categoryIndexMock.mockResolvedValue({ prices: [], degraded: false, truncated: false });
+    bundleRowsMock.mockResolvedValue({ status: "ready", rows: [measuredRow] });
+    expect((await create("wine", measuredEvidence)).reloaded.stops[0]?.selectedDrinkPriceEvidence).toEqual(measuredEvidence);
+  });
 
   it.each(["wine", "cocktail"] as const)("saves trusted %s evidence on route replacement and reload", async (category) => {
     const { body } = await create(category, null);
