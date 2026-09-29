@@ -2,14 +2,18 @@ import { expect, test, type Page } from "@playwright/test";
 
 test.setTimeout(90_000);
 
-async function returningVisitor(page: Page): Promise<void> {
-  await page.addInitScript(() => {
+async function returningVisitor(page: Page, consent = false): Promise<void> {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript((showConsent) => {
     localStorage.setItem("pubmax-tour-v1-done", "1");
     localStorage.setItem("pubmax_onboarding_dismissed", "1");
     localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    if (showConsent) localStorage.removeItem("pubmaxx:analytics-consent:v1");
+    else localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    sessionStorage.setItem("pubmax:consent-answer-moment:v1", "venue-sheet");
+    sessionStorage.removeItem("pubmax:prompt-budget:v1");
     sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-  });
+  }, consent);
 }
 
 for (const width of [390, 768, 1440]) {
@@ -34,25 +38,55 @@ for (const width of [390, 768, 1440]) {
   });
 }
 
-test("Places final city remains scrollable above mobile create control", async ({ page }, testInfo) => {
+for (const width of [390, 768, 1440]) {
+  for (const consent of [true, false]) {
+    test(`Places final city stays clear at ${width}px with consent ${consent ? "present" : "absent"}`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await returningVisitor(page, consent);
+      await page.goto("/places");
+      const prompt = page.getByLabel("Anonymous analytics choice");
+      await expect(prompt).toHaveCount(consent ? 1 : 0);
+      if (consent) await expect(prompt).toBeVisible();
+      const lastCity = page.locator(".placesCityLink").last();
+      await expect(lastCity).toBeVisible();
+      const obstruction = consent ? prompt : page.locator(".createFabRoot");
+      if (consent || width === 390) await expect(obstruction).toBeVisible();
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      const last = await lastCity.boundingBox();
+      expect(last).not.toBeNull();
+      const ceiling = consent || width === 390
+        ? (await obstruction.boundingBox())!.y
+        : 900;
+      expect(last!.y).toBeGreaterThanOrEqual(0);
+      expect(last!.y + last!.height).toBeLessThan(ceiling);
+      expect(await lastCity.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return element.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+      })).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`places-bottom-clearance-${width}-${consent}.png`) });
+      const destination = await lastCity.getAttribute("href");
+      expect(destination).not.toBeNull();
+      await lastCity.click();
+      await expect(page).toHaveURL(new URL(destination!, page.url()).href);
+    });
+  }
+}
+
+test("a page without Create only reserves its mobile tab bar", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   await returningVisitor(page);
   await page.goto("/places");
-  const lastCity = page.locator(".placesCityLink").last();
-  await expect(lastCity).toBeVisible();
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  const geometry = await page.evaluate(() => {
-    const last = document.querySelectorAll(".placesCityLink").item(
-      document.querySelectorAll(".placesCityLink").length - 1,
-    )?.getBoundingClientRect();
-    const fab = document.querySelector(".createFabRoot")?.getBoundingClientRect();
-    return {
-      lastBottom: last?.bottom ?? Infinity,
-      fabTop: fab?.top ?? -Infinity,
-      padding: Number.parseFloat(getComputedStyle(document.body).paddingBottom),
-    };
-  });
-  await page.screenshot({ path: testInfo.outputPath("places-bottom-clearance.png") });
-  expect(geometry.padding).toBeGreaterThan(64);
-  expect(geometry.lastBottom).toBeLessThan(geometry.fabTop);
+  const create = page.getByRole("button", { name: "Create", exact: true });
+  await expect(create).toBeVisible();
+  const createBox = (await create.boundingBox())!;
+  const withCreate = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.body).paddingBottom));
+  await page.goto("/pal");
+  await expect(page.locator(".createFabRoot")).toHaveCount(0);
+  const bar = page.getByRole("navigation", { name: "Primary" });
+  await expect(bar).toBeVisible();
+  const barBox = await bar.boundingBox();
+  expect(barBox).not.toBeNull();
+  const withoutCreate = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.body).paddingBottom));
+  expect(withoutCreate).toBeGreaterThanOrEqual(barBox!.height);
+  expect(withCreate - withoutCreate).toBeGreaterThanOrEqual(createBox.height);
 });

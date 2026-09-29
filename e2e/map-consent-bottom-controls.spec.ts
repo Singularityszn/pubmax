@@ -23,6 +23,7 @@ async function prepareMap(page: Page, width: number, consent: boolean) {
   await expect(page.locator(".mapStage")).toBeVisible();
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
   await expect(page.locator(".analyticsConsentPrompt")).toHaveCount(consent ? 1 : 0);
+  if (consent) await expect(page.locator(".analyticsConsentPrompt")).toBeVisible();
 }
 
 async function expectClearControl(page: Page, control: Locator, consentTop: number | null) {
@@ -42,16 +43,41 @@ for (const width of [390, 768, 1440]) {
       test.setTimeout(90_000);
       await prepareMap(page, width, consent);
       const consentTop = consent
-        ? (await page.locator(".analyticsConsentPrompt").boundingBox())?.y ?? null
+        ? (await page.locator(".analyticsConsentPrompt").boundingBox())!.y
         : null;
+      if (consent) {
+        const prompt = page.getByLabel("Anonymous analytics choice");
+        await expect(prompt).toBeVisible();
+        await expect(prompt).toHaveCSS("position", "fixed");
+        await expect(prompt).toHaveCSS("border-radius", "0px");
+        await expect(prompt).toHaveCSS("box-shadow", "none");
+        await expect(prompt).toHaveCSS("backdrop-filter", "none");
+        const box = (await prompt.boundingBox())!;
+        expect(box.x).toBeCloseTo(0, 0);
+        expect(box.width).toBeCloseTo(width, 0);
+        const paragraph = prompt.locator("p");
+        expect(await paragraph.evaluate((element) => ({
+          clippedX: element.scrollWidth > element.clientWidth,
+          clippedY: element.scrollHeight > element.clientHeight,
+        }))).toEqual({ clippedX: false, clippedY: false });
+        const dockTop = width === 390
+          ? (await page.getByRole("navigation", { name: "Primary" }).boundingBox())!.y
+          : 900;
+        expect(box.y + box.height).toBeLessThanOrEqual(dockTop);
+        expect(dockTop - box.y - box.height).toBeLessThanOrEqual(12);
+        const scrollPadding = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingBottom));
+        expect(scrollPadding).toBeGreaterThanOrEqual(900 - box.y);
+      }
 
       const documentSize = await page.evaluate(() => ({
         scrollHeight: document.documentElement.scrollHeight,
         viewportHeight: innerHeight,
         bodyPadding: getComputedStyle(document.body).paddingBottom,
+        stageBottom: document.querySelector(".mapStage")!.getBoundingClientRect().bottom,
       }));
       expect(documentSize.scrollHeight).toBeLessThanOrEqual(documentSize.viewportHeight + 1);
       expect(documentSize.bodyPadding).toBe("0px");
+      expect(documentSize.stageBottom).toBeCloseTo(documentSize.viewportHeight, 0);
 
       await expectClearControl(page, page.locator(".maplibregl-ctrl-attrib-button"), consentTop);
       if (width === 390) {
@@ -74,6 +100,17 @@ for (const width of [390, 768, 1440]) {
           await layers.click();
           await expect(page.locator(".mapLayersPanel")).toBeVisible({ timeout: 1_000 });
         }).toPass({ timeout: 20_000 });
+      }
+
+      if (consent) {
+        await page.keyboard.press("Escape");
+        const prompt = page.getByLabel("Anonymous analytics choice");
+        await expect(prompt).toBeVisible();
+        const allow = width === 768;
+        await prompt.getByRole("button", { name: allow ? "Allow" : "No thanks", exact: true }).click();
+        await expect(prompt).toHaveCount(0);
+        await expect.poll(() => page.evaluate(() => localStorage.getItem("pubmaxx:analytics-consent:v1")))
+          .toBe(allow ? "granted" : "denied");
       }
     });
   }

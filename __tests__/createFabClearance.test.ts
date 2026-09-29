@@ -30,49 +30,6 @@ const createFabCss = read("components/nav/createFab.css");
 const nearMeNowCss = read("components/nearme/nearMeNow.css");
 const tonightCss = read("app/tonight/tonight.css");
 
-describe("the body reserves the control's own lane", () => {
-  it("publishes the create action's geometry beside every other member", () => {
-    expect(mobileNavCss).toContain("--create-fab-h: 56px;");
-    expect(mobileNavCss).toContain("--create-fab-bottom: var(--float-stack-base);");
-    expect(mobileNavCss).toContain(
-      "--float-stack-top-create: calc(var(--create-fab-bottom) + var(--create-fab-h));",
-    );
-  });
-
-  it("reserves that top edge rather than the tab bar alone", () => {
-    const rule = mobileNavCss.slice(
-      mobileNavCss.indexOf("body:has(.createFabRoot)"),
-    );
-    const body = rule.slice(0, rule.indexOf("}"));
-    expect(body).toContain("padding-bottom: var(--float-stack-top-create);");
-    // A number restated here is how the stack broke three times already.
-    expect(body).not.toMatch(/\d+px/);
-  });
-
-  it("keeps the reserved lane strictly above the bar's own clearance", () => {
-    // --float-stack-top-create is --float-stack-base + 56px, and the base is
-    // itself the bar plus a gap, so the reserved lane can only be the larger.
-    expect(mobileNavCss).toContain(
-      "--float-stack-base: calc(\n    var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + var(--float-stack-gap)\n  );",
-    );
-  });
-
-  it("gives a page that hides the control the bar's clearance and no more", () => {
-    expect(mobileNavCss).toContain(
-      "body:has(.createFabRoot):not(:has(.mapStage)):not(:has(.pageHidesCreateFab))",
-    );
-  });
-
-  it("does not extend the fixed map shell with scrolling page clearance", () => {
-    expect(mobileNavCss).toContain(
-      "body:has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage))",
-    );
-    expect(mobileNavCss).toContain(
-      "body:has(.createFabRoot):not(:has(.mapStage))",
-    );
-  });
-});
-
 // GAP 19 (mobile store-readiness audit, 2026-09-04, 390x844): the control also
 // owns a HORIZONTAL lane, and on /near it stood on the right-hand price of the
 // row under it. The price is the product, so the list reserves that lane the
