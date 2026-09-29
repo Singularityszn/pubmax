@@ -69,8 +69,9 @@ describe("readVenueDrinkPricesJudged batch failures", () => {
         if (mode === "budget") return { status: "skipped", reason: "budget" };
         if (mode === "timeout" || mode === "error") return { status: "failed", reason: mode };
         const answer = mockAnswersForBatch(questions);
-        if (answer.status === "ok") answer.result.answers = {};
-        return answer;
+        return answer.status === "ok"
+          ? { ...answer, result: { ...answer.result, answers: {} } }
+          : answer;
       });
       try {
         for (const separator of ["/", "-", "\u2013", "\u2014", "|"]) {
