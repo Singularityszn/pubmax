@@ -8,6 +8,11 @@ const harness = vi.hoisted(() => ({
   getUser: vi.fn(),
   mintSession: vi.fn(),
   localAttemptOwned: false,
+  existingSession: null as null | {
+    access_token: string;
+    refresh_token: string;
+    user: { id: string; email: string };
+  },
 }));
 
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
@@ -51,7 +56,9 @@ vi.mock("@/lib/authRedirect", () => ({
 }));
 vi.mock("@/lib/authSessionBootstrap", () => ({
   AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS: 20_000,
-  bootstrapAuthSession: async () => ({ status: "none" }),
+  bootstrapAuthSession: async () => harness.existingSession
+    ? { status: "local", session: harness.existingSession }
+    : { status: "none" },
 }));
 vi.mock("@/lib/identityClient", () => ({
   handleClaimRouteAfterSignIn: async () => null,
@@ -64,7 +71,12 @@ vi.mock("@/lib/referralClaimClient", () => ({
   withReferralSignupProof: (attempt: unknown) => attempt,
 }));
 
-import { AuthProvider } from "@/components/auth/AuthProvider";
+import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
+
+function ViewerProbe() {
+  const { user } = useAuth();
+  return createElement("output", { "data-testid": "viewer" }, user?.id ?? "signed-out");
+}
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -72,6 +84,7 @@ let container: HTMLDivElement | null = null;
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   harness.localAttemptOwned = false;
+  harness.existingSession = null;
   harness.setSession.mockReset();
   harness.getUser.mockReset();
   harness.mintSession.mockReset();
@@ -108,11 +121,33 @@ afterEach(async () => {
 
 async function mount(): Promise<void> {
   await act(async () => {
-    root?.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }));
+    root?.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(ViewerProbe)));
   });
 }
 
 describe("unowned auth callback confirmation", () => {
+  it("keeps an existing account active when the reader cancels another account's callback", async () => {
+    harness.existingSession = {
+      access_token: "existing-access-b",
+      refresh_token: "existing-refresh-b",
+      user: { id: "account-b", email: "existing@example.com" },
+    };
+
+    await mount();
+    await vi.waitFor(() => {
+      expect(container?.textContent).toContain("Sign in as person@example.com?");
+      expect(container?.querySelector('[data-testid="viewer"]')?.textContent).toBe("account-b");
+    });
+    expect(harness.setSession).not.toHaveBeenCalled();
+
+    const cancel = [...container!.querySelectorAll("button")].find((button) => button.textContent === "Cancel");
+    await act(async () => cancel?.click());
+
+    expect(container?.textContent).not.toContain("Sign in as person@example.com?");
+    expect(container?.querySelector('[data-testid="viewer"]')?.textContent).toBe("account-b");
+    expect(harness.setSession).not.toHaveBeenCalled();
+  });
+
   it("shows the verified account and leaves session untouched when cancelled", async () => {
     await mount();
     await vi.waitFor(() => expect(container?.textContent).toContain("Sign in as person@example.com?"));
