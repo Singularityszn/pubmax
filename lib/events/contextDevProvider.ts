@@ -24,8 +24,6 @@ import {
   type EventDropReason,
 } from "../whatson/eventNormalise.mjs";
 
-const CONTEXT_DEV_EVENTS_MAX_AGE_MS = 12 * 60 * 60 * 1000;
-
 const ALLOWED_KINDS = new Set(["music", "sport", "event"]);
 
 const CONTEXT_DEV_EVENT_EXTRACT_SCHEMA = {
@@ -113,7 +111,7 @@ function stableId(prefix: string, input: string): string {
 
 function parseGbpFromText(value: unknown): number | null {
   if (!nonEmptyString(value)) return null;
-  const match = /£\s*(\d+(?:\.\d{1,2})?)/.exec(value);
+  const match = /£\s*(\d+(?:\.\d{1,2})?)(?!\d|[.,]\d)/u.exec(value);
   if (!match) return null;
   const parsed = Number(match[1]);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
@@ -144,7 +142,12 @@ function dateAppearsInEvidence(date: string, evidence: string): boolean {
   return forms.some((form) => evidence.includes(` ${form} `));
 }
 
-const STATED_CLOCK = /(?<![\p{L}\p{N}])(?:(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)|([01]?\d|2[0-3]):([0-5]\d))(?:\s*(Z|[+-](?:0\d|1[0-4]):[0-5]\d))?(?![\p{L}\p{N}])/giu;
+const STATED_DATE = new RegExp(
+  `\\b(?:\\d{4}[-/. ]\\d{1,2}[-/. ]\\d{1,2}|\\d{1,2}[-/. ]\\d{1,2}[-/. ]\\d{2,4}|\\d{1,2}[-/]\\d{1,2}|\\d{1,2}(?:st|nd|rd|th)?\\s+(?:${MONTHS.join("|")})(?:\\s+\\d{4})?|(?:${MONTHS.join("|")})\\s+\\d{1,2}(?:st|nd|rd|th)?(?:,?\\s+\\d{4})?)\\b`,
+  "gi",
+);
+
+const STATED_CLOCK = /(?<![\p{L}\p{N}])(?:(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*([aApP][mM])|([01]?\d|2[0-3]):([0-5]\d))(?:\s*([zZ]|[+-](?:0\d|1[0-4]):[0-5]\d|[A-Za-z]+(?:\s+[A-Za-z]+){0,3}\s+[tT]ime|[A-Za-z]+\/[A-Za-z_]+|[gG][mM][tT]|[uU][tT][cC]|[bB][sS][tT]|[A-Z]{2,5}|[a-z]{1,4}t))?(?![\p{L}\p{N}])/gu;
 
 function londonWallClock(instant: string): { date: string; hour: number; minute: number } {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -162,23 +165,25 @@ function londonWallClock(instant: string): { date: string; hour: number; minute:
 function timeAppearsInEvidence(instant: string, section: string): boolean {
   const instantMs = Date.parse(instant);
   const clocks = Array.from(section.matchAll(STATED_CLOCK));
-  const hasOffset = clocks.some((match) => match[6]);
+  const hasZone = clocks.some((match) => match[6]);
   const london = londonWallClock(instant);
 
   return clocks.some((match) => {
-    if (hasOffset && !match[6]) return false;
+    if (hasZone && !match[6]) return false;
     let hour = Number(match[1] ?? match[4]);
     const minute = Number(match[2] ?? match[5] ?? "0");
     if (match[3]) hour = hour % 12 + (match[3].toLowerCase() === "pm" ? 12 : 0);
 
-    if (!match[6]) {
+    const zone = match[6]?.toUpperCase();
+    if (!zone || zone === "LONDON TIME") {
       return hour === london.hour && minute === london.minute &&
         dateAppearsInEvidence(london.date, ` ${evidenceWords(section)} `);
     }
 
-    const offset = match[6].toUpperCase() === "Z" ? 0 :
-      (match[6][0] === "-" ? -1 : 1) *
-      (Number(match[6].slice(1, 3)) * 60 + Number(match[6].slice(4, 6)));
+    const offset = ["Z", "GMT", "UTC"].includes(zone) ? 0 : zone === "BST" ? 60 :
+      /^[+-]\d{2}:\d{2}$/.test(zone) ?
+        (zone[0] === "-" ? -1 : 1) * (Number(zone.slice(1, 3)) * 60 + Number(zone.slice(4, 6))) : null;
+    if (offset === null) return false;
     const offsetClock = new Date(instantMs + offset * 60_000).toISOString();
     return hour === Number(offsetClock.slice(11, 13)) &&
       minute === Number(offsetClock.slice(14, 16)) &&
@@ -198,7 +203,7 @@ function eventEvidenceSections(markdown: string, title: string): string[] {
 
   const flush = () => {
     const joined = card.join(" ");
-    const dateCount = (value: string) => Array.from(value.matchAll(/\b(?:19|20)\d{2}\b/g)).length;
+    const dateCount = (value: string) => Array.from(value.matchAll(STATED_DATE)).length;
     if (cardKind === null || dateCount(joined) <= 1) {
       for (const clause of joined.split(";")) {
         if (clause.trim() && dateCount(clause) <= 1) sections.push(clause.trim());
@@ -219,7 +224,8 @@ function eventEvidenceSections(markdown: string, title: string): string[] {
     if (heading) {
       flush();
       if (heading[1] === "#") {
-        sections.push(heading[2]);
+        card = [heading[2]];
+        flush();
       } else if (evidenceWords(heading[2]) === evidenceWords(title)) {
         card = [heading[2]];
         cardKind = "heading";
@@ -263,19 +269,23 @@ function groundedEvent(raw: RawContextDevEvent, markdown: string): RawContextDev
     if (!words.includes(` ${title} `) || !words.includes(` ${place} `)) return false;
     if (instant) {
       if (!timeAppearsInEvidence(instant, candidate)) return false;
-    } else if (!dateAppearsInEvidence(date, words)) return false;
+    } else if (!dateAppearsInEvidence(date, words) || Array.from(candidate.matchAll(STATED_CLOCK)).length > 0) return false;
     if (kind === "music" && !/\b(music|gig|concert|open mic|dj|band|live)\b/.test(words)) return false;
     if (kind === "sport" && !/\b(sport|football|rugby|cricket|match|game|fixture)\b/.test(words)) return false;
     return true;
   });
   if (!rawSection) return null;
-  const section = ` ${evidenceWords(rawSection)} `;
+  const price = parseGbpFromText(raw.priceText);
+  const prices = Array.from(rawSection.matchAll(/£\s*\d+(?:\.\d{1,2})?(?!\d|[.,]\d)/gu));
+  const sourceId = nonEmptyString(raw.sourceId) ? raw.sourceId.trim() : null;
+  const publisherIds = Array.from(rawSection.matchAll(/\b(?:event\s+id|source\s*id|id)\s*[:=#]\s*([\w-]+)(?=$|[\s,;]|[.!?](?:\s|$))/gi));
 
   return {
     ...raw,
     priceText: nonEmptyString(raw.priceText) && rawSection.toLowerCase().includes(raw.priceText.trim().toLowerCase())
+      && price !== null && prices.some(([token]) => parseGbpFromText(token) === price)
       ? raw.priceText : undefined,
-    sourceId: nonEmptyString(raw.sourceId) && section.includes(` ${evidenceWords(raw.sourceId)} `)
+    sourceId: sourceId !== null && publisherIds.some((match) => match[1] === sourceId)
       ? raw.sourceId : undefined,
   };
 }
@@ -459,7 +469,6 @@ export async function runContextDevEventsLane({
         ...callOptions,
         env,
         budget,
-        maxAgeMs: callOptions.maxAgeMs ?? CONTEXT_DEV_EVENTS_MAX_AGE_MS,
         instructions:
           "Extract upcoming pub and bar events only. Do not invent start times. " +
           "Use startsDate when the page states a day without a clock time.",
@@ -510,10 +519,10 @@ export async function runContextDevEventsLane({
     normalised.dropped.noTitle += Array.isArray(events) ? events.length - grounded.length : 0;
     normalised.dropped.total += Array.isArray(events) ? events.length - grounded.length : 0;
     mergeEventDrops(dropped, normalised.dropped);
-    if (!Array.isArray(events) || normalised.rows.length === 0) {
+    if (!Array.isArray(events) || normalised.rows.length === 0 || normalised.dropped.total > 0) {
       const message = !Array.isArray(events)
         ? "Extract returned no events array."
-        : `Extract returned no usable event rows (dropped ${normalised.dropped.total}).`;
+        : `Extract returned ${normalised.rows.length === 0 ? "no usable" : "incomplete"} event rows (dropped ${normalised.dropped.total}).`;
       logError(`eventsRefresh: Context.dev ${source.label} ${message} Held rows carry across.`);
       failures.push({ sourceId: source.id, label: source.label, message });
       continue;

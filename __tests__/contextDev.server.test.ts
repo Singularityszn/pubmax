@@ -291,7 +291,7 @@ describe("run request budget", () => {
 });
 
 describe("extract", () => {
-  it("returns structured data on success", async () => {
+  it.each([undefined, 0, 43_200_000])("collects fresh joint extraction despite cache preference %s", async (maxAgeMs) => {
     const fetchImpl = vi.fn<(input: unknown, init?: RequestInit) => Promise<Response>>(async () =>
       jsonResponse({
         url: "https://www.fullers.co.uk/events",
@@ -313,7 +313,7 @@ describe("extract", () => {
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
       instructions: "Use only page evidence.",
-      maxAgeMs: 0,
+      maxAgeMs,
     });
     expect(result.status).toBe("ok");
     if (result.status !== "ok") throw new Error("expected ok");

@@ -594,7 +594,7 @@ export async function extract<T extends Record<string, unknown> = Record<string,
           url,
           formats: { json: true, markdown: true },
           jsonParams: { schema, ...(instructions === undefined ? {} : { instructions }) },
-          maxAgeMs: positiveMaxAge(options),
+          maxAgeMs: 0,
         }),
       (body) =>
         body.json?.success === true && typeof body.json.data === "object" && body.json.data !== null

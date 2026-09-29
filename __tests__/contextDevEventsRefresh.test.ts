@@ -159,9 +159,25 @@ describe("eventsRefresh Context.dev lane", () => {
     ["unusable", { events: [{ title: "Undated quiz", placeName: "The Dove", kind: "event", sourceUrl: "https://www.fullers.co.uk/pubs/the-dove/event/quiz" }] }],
     ["cross-record", { events: [{ title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" }] },
       "## Upcoming Events\nOpen mic at The Swan on 19 August 2026 at 20:00.\nQuiz at The Dove on 18 August 2026 at 20:00."],
+    ["partially grounded", { events: [
+      { title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-08-18T19:00:00Z" },
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
+    ] }, "Quiz at The Dove on 18 August 2026 at 20:00.\nOpen mic at The Swan on 19 August 2026 at 20:00."],
+    ["partially malformed", { events: [
+      { title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-08-18T19:00:00Z" },
+      { title: "Open mic", placeName: "The Dove", kind: "music" },
+    ] }, "Quiz at The Dove on 18 August 2026 at 20:00."],
+    ["partially off-host", { events: [
+      { title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-08-18T19:00:00Z" },
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsDate: "2026-08-19", sourceUrl: "https://example.com/event" },
+    ] }, "Quiz at The Dove on 18 August 2026 at 20:00.\nOpen mic at The Dove on 19 August 2026."],
   ])("retains held Fuller's rows when its JSON capture is %s while Ticketmaster updates", async (_case, data, markdown = "") => {
     const outPath = temporaryOutPath();
-    writeHeldFile(outPath, [{ ...heldFullersRow("events-cd-blank-held"), observedAt: heldGeneratedAt }]);
+    const held = [
+      { ...heldFullersRow("events-cd-blank-held"), observedAt: heldGeneratedAt },
+      { ...heldFullersRow("events-cd-mic-held"), title: "Held open mic", observedAt: heldGeneratedAt },
+    ];
+    writeHeldFile(outPath, held);
     const fetched = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.startsWith("https://api.context.dev/")) {
@@ -195,7 +211,36 @@ describe("eventsRefresh Context.dev lane", () => {
     expect(written.rows.map((row: { id: string }) => row.id)).toContain("events-cd-blank-held");
     expect(written.rows.some((row: { source: { label: string } }) => row.source.label === "Ticketmaster")).toBe(true);
     expect(written.rows.find((row: { id: string }) => row.id === "events-cd-blank-held")?.observedAt).toBe(heldGeneratedAt);
-    expect(result.provider.failures).toEqual([expect.stringContaining("fullers-event-finder-events: Extract returned no")]);
+    expect(written.rows.filter((row: { source: { label: string } }) => row.source.label === "Fuller's")).toEqual(held);
+    expect(result.provider.failures).toEqual([expect.stringContaining("fullers-event-finder-events: Extract returned")]);
+  });
+
+  it("leaves held bytes and timestamps untouched when a partial capture is the only lane", async () => {
+    const outPath = temporaryOutPath();
+    writeHeldFile(outPath, [heldFullersRow("held-quiz"), { ...heldFullersRow("held-mic"), title: "Open mic" }]);
+    const before = readFileSync(outPath, "utf8");
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      url: "https://www.fullers.co.uk/event-finder",
+      markdown: { requested: true, success: true, data: "Quiz at The Dove on 18 August 2026.\nOpen mic at The Swan on 19 August 2026." },
+      json: { requested: true, success: true, data: { events: [
+        { title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-08-18" },
+        { title: "Open mic", placeName: "The Dove", kind: "music", startsDate: "2026-08-18" },
+      ] } },
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+    const result = await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs", "--allow-empty"],
+      env: { CONTEXT_DEV_API_KEY: "test-key" },
+      nowMs,
+      fetchImpl,
+      outPath,
+      loadVenueIndex: () => null,
+      runCommonLane: async () => ({ rows: [] }),
+      log: () => {},
+      logError: () => {},
+    });
+    expect(result.provider.status).toBe("failed");
+    expect(result.provider.wrote).toBe(false);
+    expect(readFileSync(outPath, "utf8")).toBe(before);
   });
 
   it("counts the drops of a source that yielded no rows at all", async () => {
