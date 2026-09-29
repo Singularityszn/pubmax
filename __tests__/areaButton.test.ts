@@ -145,11 +145,11 @@ describe("cheapestDrinksInArea - ranking + fail-soft pricing", () => {
     expect(rows[1].price).toBeNull();
   });
 
-  it("ranks the selected drink and never borrows a pint price", () => {
+  it("orders unknown-serving selected drinks by distance, never by unlike prices", () => {
     const venues = [
       inArea("pint-only", { cheapestPrice: 4 }),
-      inArea("whisky-dear", { cheapestPrice: 5 }),
-      inArea("whisky-cheap", { cheapestPrice: 7 }),
+      inArea("whisky-dear", { cheapestPrice: 5, longitude: soho.centre.lng + 0.0002 }),
+      inArea("whisky-cheap", { cheapestPrice: 7, longitude: soho.centre.lng + 0.002 }),
     ];
     const whiskyPrices = new Map<string, MapLensPrice>([
       ["whisky-dear", {
@@ -180,11 +180,11 @@ describe("cheapestDrinksInArea - ranking + fail-soft pricing", () => {
     );
 
     expect(rows.map((row) => row.id)).toEqual([
-      "whisky-cheap",
       "whisky-dear",
+      "whisky-cheap",
       "pint-only",
     ]);
-    expect(rows[0].priceLabel).toBe("Whisky · £6.00");
+    expect(rows[0].priceLabel).toBe("Whisky · £8.00 · serving not recorded");
     expect(rows[2]).toMatchObject({
       price: null,
       priceLabel: "no whisky price logged",

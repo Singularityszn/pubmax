@@ -48,6 +48,7 @@ function state(
     loadNoAlcoholIndex: () => {},
     loadDrinkCategoryIndex: () => {},
     drinkCategoryIndexStatus: new Map(),
+    listedDrinkPrices: new Map(),
     submit: async () => ({ ok: true, attribution: { status: "anonymous" }, price: null, pintTrust: null, confirmationOutcome: null }),
     submitVenueSignal: async () => ({ ok: true }),
     submitting: false,

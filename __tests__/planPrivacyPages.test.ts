@@ -51,6 +51,8 @@ describe("plan page client components — anonymous render is preview-only", () 
     // The safe host + area signals ARE present.
     expect(html).toContain("Dave");
     expect(html).toContain("Shoreditch");
+    expect(html).toContain("Start time");
+    expect(html).not.toContain("First pint");
   });
 
   it("PlanCrew names only the host, never the guest list", () => {

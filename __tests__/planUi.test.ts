@@ -152,6 +152,42 @@ describe("anchored Plan route editing", () => {
   });
 });
 
+describe("selected drink route edits", () => {
+  it("retains priced backups and removes venues selected by another stop", () => {
+    const evidence = { category: "wine" as const, pence: 550, serving: null, source: "community" as const, reportedAt: "2026-09-25T12:00:00.000Z" };
+    const backup = { venueId: "backup", venueName: "Backup", selectedDrinkPriceEvidence: evidence };
+    expect(planSummaryRouteUpdateBody({ stops: [
+      { venueId: "a", venueName: "A", position: 0, alternatives: [backup, { venueId: "b", venueName: "B" }] },
+      { venueId: "b", venueName: "B", position: 1, alternatives: [backup] },
+    ], expectedRouteRevision: 2, authority: null })).toEqual({ stops: [
+      { venueId: "a", venueName: "A", alternatives: [backup] }, { venueId: "b", venueName: "B", alternatives: [backup] },
+    ], expectedRouteRevision: 2 });
+  });
+
+  it("submits saved evidence for an unchanged wine stop", () => {
+    const evidence = {
+      category: "wine" as const, pence: 550, serving: null, source: "community" as const,
+      reportedAt: "2026-09-25T12:00:00.000Z",
+    };
+    expect(planSummaryRouteUpdateBody({
+      stops: [
+        { venueId: "venue-a", venueName: "A", position: 0, selectedDrinkPriceEvidence: evidence },
+        { venueId: "venue-b", venueName: "B", position: 1 },
+        { venueId: "venue-c", venueName: "C", position: 2 },
+      ],
+      expectedRouteRevision: 1,
+      authority: null,
+    })).toEqual({
+      stops: [
+        { venueId: "venue-a", venueName: "A", selectedDrinkPriceEvidence: evidence },
+        { venueId: "venue-b", venueName: "B" },
+        { venueId: "venue-c", venueName: "C" },
+      ],
+      expectedRouteRevision: 1,
+    });
+  });
+});
+
 describe("refreshedRouteRejection", () => {
   const route = [
     { venueId: "venue-a", venueName: "Anchor", position: 0 },

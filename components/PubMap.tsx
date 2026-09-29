@@ -6,7 +6,7 @@ import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBan
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { Component, Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 
 const PubPalMascot = dynamic(
   () => import("@/components/pal/PubPalMascot").then((m) => m.PubPalMascot),
@@ -470,7 +470,7 @@ import {
   isMapLensDrinkCategory,
   lensPricesForVenues,
   parseMapExperienceLensParam,
-  trustedDrinkLensPrices,
+  discoveryDrinkLensPrices,
   trustedNoAlcoholLensPrices,
   MAP_EXPERIENCE_LENS_URL_PARAM,
   type CategoryPriceIndexStatus,
@@ -1585,6 +1585,7 @@ export default function PubMap({
     nightArea: restoredSession.nightArea,
     planningOpen: restoredSession.plannerOpen,
   });
+  const [generatedMobilePlanVisible, setGeneratedMobilePlanVisible] = useState(false);
   // Issue #15 story bands: the active band id ("" = none), seeded from the URL
   // and synced back so a band link reproduces. The band overlay + picker live
   // inside PubMapCanvas; PubMap only owns the shareable state.
@@ -1868,14 +1869,16 @@ export default function PubMap({
   const drinkLensPrices = useMemo(
     () =>
       mapDrinkLensCategory
-        ? trustedDrinkLensPrices(
+        ? discoveryDrinkLensPrices(
             communityPrices.byVenueId,
             mapDrinkLensCategory,
+            communityPrices.listedDrinkPrices.get(mapDrinkLensCategory) ?? [],
             experiencePolicyNow,
           )
         : null,
     [
       communityPrices.byVenueId,
+      communityPrices.listedDrinkPrices,
       experiencePolicyNow,
       mapDrinkLensCategory,
     ],
@@ -2092,6 +2095,7 @@ export default function PubMap({
   );
 
   const openPlanning = useCallback(() => {
+    setGeneratedMobilePlanVisible(false);
     surfaceOpenRef.current({
       id: "planner",
       title: "Plan an outing",
@@ -4569,6 +4573,7 @@ export default function PubMap({
 
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
     const ids = generated.stops.map((stop) => stop.venueId);
+    setGeneratedMobilePlanVisible(true);
     activateGeneratedPlan(generated.context.nightArea, ids);
     markPalRouteActivation();
     setActiveCrawl(null);
@@ -5180,6 +5185,7 @@ export default function PubMap({
   function renderPhoneDescribeForm() {
     return mobileViewport && isLondon && suggestedPlanArea ? (
       <MobilePlanActivation
+        key="describe"
         cityId={cityId}
         initialNightArea={suggestedPlanArea.slug}
         venuesById={venuesById}
@@ -5189,13 +5195,9 @@ export default function PubMap({
   }
   const phoneDescribeForm = renderPhoneDescribeForm();
   const plannerOrder = phonePlannerOrder({ mobileViewport, mode, builtCount: builtIds.length });
-  const builtCrawlLeads = plannerOrder === "build-first";
-  const [plannerHead, plannerFoot] = builtCrawlLeads
-    ? [null, phoneDescribeForm]
-    : [phoneDescribeForm, null];
-  const plannerPanel = planningOpen ? (
-    <>
-      {plannerHead}
+  const builtCrawlLeads = plannerOrder === "build-first" && !generatedMobilePlanVisible;
+  const plannerCrawlPanel = (
+    <Fragment key="crawl">
       {renderPlannerMapButton()}
       {/* One planner per surface. The rail is the DESKTOP planner: brand block,
           mode toggle, search box, featured routes and the full filter stack. The
@@ -5255,9 +5257,11 @@ export default function PubMap({
       >
         {renderPlannerEmptyState()}
       </RoutePanel>
-      {plannerFoot}
-    </>
-  ) : null;
+    </Fragment>
+  );
+  const plannerPanel = planningOpen
+    ? builtCrawlLeads ? [plannerCrawlPanel, phoneDescribeForm] : [phoneDescribeForm, plannerCrawlPanel]
+    : null;
 
   /* The peek row: the price this lens can vouch for, the walk from the reader's
      own point, and the crawl toggle. Adding a pub to the crawl you are building

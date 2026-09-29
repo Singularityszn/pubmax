@@ -213,28 +213,29 @@ function pinBucketAndTag(args: {
   }
   const lensActive = lensPrices !== null;
   const lensPrice = lensPrices?.get(venue.id) ?? null;
-  // A selected drink owns both colour and figure. Missing means unknown,
-  // never the pub's pint or anchor price. Food anchors have category null
-  // and remain sheet-only because their figures are not drink prices.
+  // MapLensPrice has no serving. Only the beer lane can use the pint band or
+  // a bare price tag; a non-beer amount remains on its attributed detail row.
+  // Missing lens prices likewise never fall back to the pub's pint price.
+  const pintLensPrice = lensPrice?.category === "beer" ? lensPrice : null;
   const bucket = lensActive
-    ? lensPrice?.category
-      ? priceBucket(lensPrice.priceGbp)
-      : 3
+    ? priceBucket(pintLensPrice?.priceGbp ?? null)
     : venue.priceBand ?? priceBucket(price);
   const basePriceLabel = formatPinPriceLabel(sourcedPrice);
   const lensPriceLabel =
-    lensPrice?.category && formatPinPriceLabel(lensPrice.priceGbp)
-      ? `${formatPinPriceLabel(lensPrice.priceGbp)} ${lensPrice.categoryLabel}`
+    pintLensPrice && formatPinPriceLabel(pintLensPrice.priceGbp)
+      ? `${formatPinPriceLabel(pintLensPrice.priceGbp)} ${pintLensPrice.categoryLabel}`
       : null;
   return {
     bucket,
     spoonsBucket: null,
-    tag: pinPriceTag(
-      venue.id,
-      priceStandings,
-      { lensActive, lensPriceLabel, basePriceLabel },
-      signals,
-    ),
+    tag: lensActive && !pintLensPrice
+      ? { label: null, standing: null }
+      : pinPriceTag(
+          venue.id,
+          priceStandings,
+          { lensActive, lensPriceLabel, basePriceLabel },
+          signals,
+        ),
   };
 }
 
@@ -350,8 +351,8 @@ export function pubsToGeoJSON(
           // UK base pubs are a different source entirely and never come near
           // this function.
           //
-          // Non-pint figures always carry their drink name in the same string.
-          // A bare whisky or soft-drink number would masquerade as a pint.
+          // A non-beer price needs a known serving before it can earn a pin
+          // figure. MapLensPrice carries none, so those figures stay in detail.
           ...(tag.label ? { priceLabel: tag.label } : {}),
           // The standing this pub's price holds. ABSENT rather than "none" when
           // nothing was passed, so ["has","standing"] separates "we were not

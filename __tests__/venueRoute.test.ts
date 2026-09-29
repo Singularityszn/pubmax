@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/venue/[id]/route";
 import {
@@ -69,6 +69,36 @@ describe("GET /api/venue/[id]", () => {
     if (body.venue.bundlePrices?.estimate) {
       expect(body.venue.bundlePrices.estimate.sampleSize).toBeGreaterThan(0);
       expect(body.venue.bundlePrices.estimate.basis.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("exposes bounded, cited non-beer listings without changing the beer field", async () => {
+    const now = Date.parse("2026-09-29T12:00:00Z");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      const bundle = JSON.parse(
+        readFileSync(path.join(ROOT, "public", "data", "uk_prices", "rows.json"), "utf8"),
+      ) as unknown[];
+      const priced = bundle.filter(isValidUkPriceBundleRow).find(
+        (row) => row.category === "wine" && row.standing === "listed" &&
+          slim.some((venue) => venue.id === row.venueId),
+      );
+      expect(priced).toBeTruthy();
+      const res = await GET(new Request(`http://localhost/api/venue/${priced?.venueId}`), ctx(priced!.venueId));
+      const body = await res.json();
+      expect(res.status).toBe(200);
+      expect(body.venue).toHaveProperty("bundlePrices");
+      expect(body.venue.listedCategoryPrices.length).toBeGreaterThan(0);
+      expect(body.venue.listedCategoryPrices.length).toBeLessThanOrEqual(44);
+      for (const quote of body.venue.listedCategoryPrices) {
+        expect(quote).toMatchObject({ source: "listed", sourceUrl: expect.stringMatching(/^https?:\/\//) });
+        expect(quote.category).not.toBe("beer");
+        expect(Number.isFinite(Date.parse(quote.observedAt))).toBe(true);
+        expect(quote).toHaveProperty("servingSize");
+        expect(quote).not.toHaveProperty("licence");
+      }
+    } finally {
+      clock.mockRestore();
     }
   });
 

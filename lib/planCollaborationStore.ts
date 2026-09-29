@@ -11,6 +11,8 @@ import { isVibeChipId, type VibeChipId } from "@/lib/vibeChips";
 import { EMPTY_VIBE_TALLY, tallyVibeVotes, type VibeTally } from "@/lib/vibeTally";
 import { inviteExpiresAtIso, isPastPlanScheduledEnd } from "@/lib/inviteExpiry";
 import { isPlanStopCount } from "@/lib/planStopCount";
+import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { resolvePlanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence.server";
 
 export type PlanInvite = {
   id: string;
@@ -200,7 +202,16 @@ function proposalFromRow(row: Record<string, unknown>): PlanRouteProposal {
   return {
     id: String(row.id), planId: String(row.plan_id), proposedByMemberId: String(row.proposed_by_member_id),
     expectedRouteRevision: Number(row.expected_route_revision),
-    stops: rawStops.map((stop) => ({ venueId: String((stop as Record<string, unknown>).venueId), venueName: String((stop as Record<string, unknown>).venueName), position: Number((stop as Record<string, unknown>).position) })),
+    stops: rawStops.map((stop) => {
+      const value = stop as Record<string, unknown>;
+      const evidence = cleanSelectedDrinkPriceEvidence(value.selectedDrinkPriceEvidence);
+      const alternatives = Array.isArray(value.alternatives) ? value.alternatives.flatMap((raw) => {
+        if (!raw || typeof raw !== "object" || typeof raw.venueId !== "string" || typeof raw.venueName !== "string") return [];
+        const price = cleanSelectedDrinkPriceEvidence(raw.selectedDrinkPriceEvidence);
+        return [{ venueId: raw.venueId, venueName: raw.venueName, ...(price ? { selectedDrinkPriceEvidence: price } : {}) }];
+      }) : [];
+      return { venueId: String(value.venueId), venueName: String(value.venueName), position: Number(value.position), ...(evidence ? { selectedDrinkPriceEvidence: evidence } : {}), ...(alternatives.length ? { alternatives } : {}) };
+    }),
     reason: String(row.reason), resolvedConstraintIds: strings(row.resolved_constraint_ids), unresolvedConstraintIds: strings(row.unresolved_constraint_ids),
     status: row.status as PlanRouteProposal["status"], createdAt: String(row.created_at), decidedAt: typeof row.decided_at === "string" ? row.decided_at : null,
   };
@@ -471,10 +482,11 @@ const memoryStore: PlanCollaborationStore = {
     if (replay) return structuredClone(replay);
     const activeConstraints = [...memory.constraints.values()].filter((constraint) => constraint.planId === planId);
     const resolved: string[] = [];
+    const pricedStops = await resolvePlanSelectedDrinkPriceEvidence(input.stops, input.stops, planLookup.plan.context);
     const proposal: PlanRouteProposal = {
       id: randomUUID(), planId, proposedByMemberId: identity.memberId,
       expectedRouteRevision: input.expectedRouteRevision,
-      stops: input.stops.map((stop) => ({ ...stop })), reason,
+      stops: pricedStops.map((stop, position) => ({ ...stop, position })), reason,
       resolvedConstraintIds: resolved,
       unresolvedConstraintIds: activeConstraints.filter((constraint) => constraint.priority === "required" && !resolved.includes(constraint.id)).map((constraint) => constraint.id),
       status: "pending", createdAt: (input.now ?? new Date()).toISOString(), decidedAt: null,
@@ -774,12 +786,13 @@ const supabaseStore: PlanCollaborationStore = {
     const rows = (constraints.data ?? []) as Array<{ id: string; priority: string; resolved_at: string | null }>;
     const resolved: string[] = [];
     const unresolved = rows.filter((item) => item.priority === "required" && !resolved.includes(String(item.id))).map((item) => String(item.id));
+    const pricedStops = await resolvePlanSelectedDrinkPriceEvidence(input.stops, input.stops, planLookup.plan.context);
     const { data, error } = await admin.rpc("create_plan_route_proposal_atomic", {
       p_plan_id: planId,
       p_proposal_id: randomUUID(),
       p_proposed_by_member_id: identity.memberId,
       p_expected_route_revision: input.expectedRouteRevision,
-      p_stops: input.stops,
+      p_stops: pricedStops.map((stop, position) => ({ ...stop, position })),
       p_reason: reason,
       p_resolved_constraint_ids: resolved,
       p_unresolved_constraint_ids: unresolved,

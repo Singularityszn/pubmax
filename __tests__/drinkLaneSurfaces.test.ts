@@ -10,6 +10,7 @@ import type { CommunityPrice } from "@/lib/communityPrice";
 import { MAP_DRINK_LANES } from "@/lib/drinkLanes";
 import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
+import type { ListedCategoryPrice } from "@/lib/listedCategoryPrices";
 
 const authState = vi.hoisted(() => ({
   current: { user: { id: "acct-1" }, loading: false } as Record<string, unknown>,
@@ -56,12 +57,14 @@ function renderVenuePrices({
   laneNoun,
   readStatus = "ready",
   canLog = true,
+  listedPrices,
 }: {
   rows: CommunityPrice[] | undefined;
   activeLane: DrinkCategory;
   laneNoun: string;
   readStatus?: VenuePriceReadStatus;
   canLog?: boolean;
+  listedPrices?: ListedCategoryPrice[] | null;
 }) {
   return renderToStaticMarkup(
     createElement(VenueDrinkPrices, {
@@ -74,6 +77,7 @@ function renderVenuePrices({
       communityPrices,
       onLogPrice: vi.fn(),
       canLog,
+      listedPrices,
     }),
   );
 }
@@ -148,6 +152,63 @@ describe("DrinkLanePicker", () => {
 });
 
 describe("VenueDrinkPrices", () => {
+  const wineQuote: ListedCategoryPrice = {
+    source: "listed",
+    category: "wine",
+    drinkLabel: "Chardonnay",
+    priceGbp: 5.5,
+    servingSize: null,
+    sourceUrl: "https://pub.example/menu",
+    observedAt: "2026-09-20T10:00:00Z",
+  };
+
+  it("shows a listed wine quote with its source and unknown serving, without calling it community", () => {
+    const html = renderVenuePrices({
+      rows: [],
+      activeLane: "wine",
+      laneNoun: "wine",
+      listedPrices: [wineQuote],
+    });
+    expect(html).toContain("Chardonnay");
+    expect(html).toContain("Wine · Chardonnay");
+    expect(html).toContain("£5.50");
+    expect(html).toContain("Serving not recorded");
+    expect(html).toContain("20 September 2026");
+    expect(html).toContain('href="https://pub.example/menu"');
+    expect(html).not.toContain("Logged by a PUBMAXXER");
+    expect(html).not.toContain("No wine price logged here yet");
+  });
+
+  it("keeps a listed quote visible when the community read is degraded", () => {
+    const html = renderVenuePrices({
+      rows: [],
+      activeLane: "wine",
+      laneNoun: "wine",
+      readStatus: "degraded",
+      listedPrices: [wineQuote],
+    });
+    expect(html).toContain("£5.50");
+    expect(html).toContain("Could not read drinker-logged prices just now.");
+  });
+
+  it("shows a stated serving and keeps listed-read failure separate from community prices", () => {
+    const html = renderVenuePrices({
+      rows: [price("wine", 6.2, NOW)],
+      activeLane: "wine",
+      laneNoun: "wine",
+      listedPrices: null,
+    });
+    expect(html).toContain("£6.20");
+    expect(html).toContain("Published menu prices unavailable just now.");
+    const withServing = renderVenuePrices({
+      rows: [],
+      activeLane: "wine",
+      laneNoun: "wine",
+      listedPrices: [{ ...wineQuote, servingSize: "125ml" }],
+    });
+    expect(withServing).toContain("125ml");
+    expect(withServing).not.toContain("Serving not recorded");
+  });
   it("leads with the lane the reader is under, not the last drink logged", () => {
     const html = renderVenuePrices({
       rows: [price("coffee", 3.4, NOW), price("cocktail", 12, NOW - 5_000)],

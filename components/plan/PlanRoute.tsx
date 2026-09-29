@@ -14,8 +14,9 @@ import { discardBody } from "@/lib/responseBody";
 import { isValidWhatsOnRow, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 import { stopEventChips, type StopEventChip } from "@/lib/planWhatsOn";
+import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceDescription, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
-type RouteStop = { venueId: string; venueName: string; position: number };
+type RouteStop = { venueId: string; venueName: string; position: number; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
 
 type StopSignal = PlanGetInStopDTO;
 type GetInReport = PlanGetInReportDTO;
@@ -131,11 +132,13 @@ export default function PlanRoute({
         <ol className="planSummary__stops">
           {stops.map((stop, index) => {
             const signal = signals.get(stop.venueId);
+            const priceLine = selectedDrinkPriceDescription(cleanSelectedDrinkPriceEvidence(stop.selectedDrinkPriceEvidence) ?? undefined);
             return (
               <li key={`${stop.position}-${stop.venueId}`} style={{ "--i": index } as CSSProperties}>
                 <span className="planSummary__marker">{index + 1}</span>
                 <div className="planRoute__body">
                   <strong>{stop.venueName}</strong>
+                  {priceLine ? <small className="planRoute__selectedDrinkPrice">{priceLine}</small> : null}
                   <StopEventBadge event={events.get(stop.venueId)} />
                   <Link href={`/map?venue=${encodeURIComponent(stop.venueId)}`}>Open on the map</Link>
                   <StopGetIn state={state} signal={signal} />

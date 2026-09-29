@@ -31,6 +31,7 @@ import {
   type PintDropConfirmationOutcome,
 } from "@/lib/pintDropSecondDrinker";
 import { PINT_TRUST_STATES, type PintTrustState } from "@/lib/pintTrust";
+import { readListedDrinkIndex, type MapLensPrice } from "@/lib/mapExperienceLens";
 import type {
   CategoryPriceIndexStatus,
   NoAlcoholIndexStatus,
@@ -175,6 +176,7 @@ export type CommunityPricesState = {
    * presented as "no prices logged here".
    */
   drinkCategoryIndexStatus: ReadonlyMap<DrinkCategory, CategoryPriceIndexStatus>;
+  listedDrinkPrices: ReadonlyMap<DrinkCategory, MapLensPrice[]>;
   /** Visibility marks found for UK base pubs read in this session. */
   provisionalBaseVenueIds: ReadonlySet<string>;
   /** Read unseen IDs among these on-screen base pubs. */
@@ -631,6 +633,7 @@ export function useCommunityPrices(): CommunityPricesState {
   const [drinkCategoryIndexStatus, setDrinkCategoryIndexStatus] = useState<
     Map<DrinkCategory, CategoryPriceIndexStatus>
   >(() => new Map());
+  const [listedDrinkPrices, setListedDrinkPrices] = useState<ReadonlyMap<DrinkCategory, MapLensPrice[]>>(() => new Map());
   const noAlcoholIndexLoaded = useRef(false);
   const drinkCategoryIndexesLoaded = useRef<Set<DrinkCategory>>(new Set());
   const markDrinkCategoryIndex = useCallback(
@@ -794,7 +797,9 @@ export function useCommunityPrices(): CommunityPricesState {
             discardBody(response);
             throw new Error("category index unavailable");
           }
-          const result = readCategoryPriceIndexLoad(await response.json());
+          const body = await response.json();
+          const result = readCategoryPriceIndexLoad(body);
+          setListedDrinkPrices((current) => new Map(current).set(category, readListedDrinkIndex(body.listedPrices, category)));
           if (result.status === "invalid") {
             drinkCategoryIndexesLoaded.current.delete(category);
             markDrinkCategoryIndex(category, "degraded");
@@ -1268,6 +1273,7 @@ export function useCommunityPrices(): CommunityPricesState {
     loadNoAlcoholIndex,
     loadDrinkCategoryIndex,
     drinkCategoryIndexStatus,
+    listedDrinkPrices,
     provisionalBaseVenueIds,
     loadProvisionalBaseVenues,
     loadVenue,

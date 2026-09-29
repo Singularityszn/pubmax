@@ -36,6 +36,8 @@ type PlanGenerationDtoVenue = {
 
 type PlanGenerationDtoCandidate = {
   venue: PlanGenerationDtoVenue;
+  selectedDrinkPrice?: MapLensPrice | null;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence | null;
   distance: number;
   reasons: readonly string[];
   tonightEvents: readonly {
@@ -74,21 +76,54 @@ function venueDistanceKm(left: PlanGenerationDtoVenue, right: PlanGenerationDtoV
   return haversineKm([left.lng, left.lat], [right.lng, right.lat]);
 }
 
+export function planUsesPintPrices(context: Pick<NightContext, "drinkCategory" | "zeroProof">): boolean {
+  return !context.zeroProof && (!context.drinkCategory || context.drinkCategory === "beer");
+}
+
+export function selectedDrinkPriceEvidence(
+  candidate: Pick<PlanGenerationDtoCandidate, "selectedDrinkPrice" | "selectedDrinkPriceEvidence">,
+  context: Pick<NightContext, "drinkCategory" | "zeroProof">,
+) {
+  if (context.zeroProof || !context.drinkCategory || context.drinkCategory === "beer") return null;
+  const price = candidate.selectedDrinkPrice;
+  if (price?.category === context.drinkCategory && price.source === "community"
+    && Number.isFinite(price.priceGbp) && price.priceGbp > 0
+    && typeof price.submittedAt === "number" && Number.isFinite(price.submittedAt)) {
+    const pence = Math.round(price.priceGbp * 100);
+    const reportedAt = new Date(price.submittedAt);
+    if (Number.isSafeInteger(pence) && Number.isFinite(reportedAt.getTime())) {
+      return {
+        category: context.drinkCategory,
+        pence,
+        serving: null,
+        source: "community" as const,
+        reportedAt: reportedAt.toISOString(),
+      };
+    }
+  }
+  const listed = candidate.selectedDrinkPriceEvidence;
+  return listed?.source === "listed" && listed.category === context.drinkCategory ? listed : null;
+}
+
 function planAlternativeDto(
   origin: PlanGenerationDtoVenue,
-  alternative: PlanGenerationDtoVenue,
+  candidate: PlanGenerationDtoCandidate,
   grounded: PlanGenerationDtoGroundedStop | null,
+  priceContext: Pick<NightContext, "drinkCategory" | "zeroProof">,
 ) {
+  const alternative = candidate.venue;
+  const usesPintPrices = planUsesPintPrices(priceContext);
   return {
     venueId: alternative.id,
     venueName: alternative.name,
     distanceKm: Number(venueDistanceKm(origin, alternative).toFixed(2)),
-    estimatedPintPricePence: grounded
+    estimatedPintPricePence: !usesPintPrices ? null : grounded
       ? grounded.price.pence
       : alternative.cheapestPrice === null
         ? null
         : Math.round(alternative.cheapestPrice * 100),
-    priceEvidence: grounded?.price ?? null,
+    priceEvidence: usesPintPrices ? grounded?.price ?? null : null,
+    selectedDrinkPriceEvidence: selectedDrinkPriceEvidence(candidate, priceContext),
     accessEvidence: grounded?.access ?? null,
     constraintFlags: grounded?.constraintFlags ?? [],
     operationalEvidence: {
@@ -115,6 +150,7 @@ export function buildPlanGenerationStops(params: {
   walkingEstimate: PlanGenerationDtoWalking;
   area: { name: string; lastReviewedAt: string | null };
   planningWeather: PlanGenerationDtoWeather | null;
+  priceContext: Pick<NightContext, "drinkCategory" | "zeroProof">;
 }) {
   const {
     chosen,
@@ -124,18 +160,21 @@ export function buildPlanGenerationStops(params: {
     walkingEstimate,
     area,
     planningWeather,
+    priceContext,
   } = params;
+  const usesPintPrices = planUsesPintPrices(priceContext);
   const chosenVenueIds = new Set(chosen.map(({ venue }) => venue.id));
 
-  return chosen.map(({ venue, distance, reasons, tonightEvents, signalClaims }, index) => {
+  return chosen.map((candidate, index) => {
+    const { venue, distance, reasons, tonightEvents, signalClaims } = candidate;
     const grounded = groundedStops?.[index] ?? null;
     const groundedAlternativeCandidates = groundedAlternatives?.[index] ?? null;
     const alternatives = groundedAlternativeCandidates
       ? groundedAlternativeCandidates.map((entry) =>
-          planAlternativeDto(venue, entry.value.venue, entry))
+          planAlternativeDto(venue, entry.value, entry, priceContext))
       : candidates
           .filter(({ venue: alternative }) => !chosenVenueIds.has(alternative.id))
-          .map((entry) => planAlternativeDto(venue, entry.venue, null));
+          .map((entry) => planAlternativeDto(venue, entry, null, priceContext));
     const legRouted = walkingEstimate.legs.some(
       (leg) => leg.toIndex === index && leg.source === "ors",
     );
@@ -146,10 +185,11 @@ export function buildPlanGenerationStops(params: {
       position: index,
       walkingMinutesFromPrevious: walkingEstimate.walkingMinutesFromPrevious[index] ?? null,
       distanceKm: Number(distance.toFixed(2)),
-      estimatedPintPricePence: grounded
+      estimatedPintPricePence: !usesPintPrices ? null : grounded
         ? grounded.price.pence
         : venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100),
-      priceEvidence: grounded?.price ?? null,
+      priceEvidence: usesPintPrices ? grounded?.price ?? null : null,
+      selectedDrinkPriceEvidence: selectedDrinkPriceEvidence(candidate, priceContext),
       accessEvidence: grounded?.access ?? null,
       evidence: reasons,
       constraintFlags: grounded?.constraintFlags ?? [],
@@ -199,7 +239,8 @@ export function planBudgetSummary(
   context: NightContext,
   prices: readonly (number | null)[],
 ): PlanBudgetSummary {
-  const complete = prices.every((price): price is number => price !== null);
+  const usesPintPrices = planUsesPintPrices(context);
+  const complete = usesPintPrices && prices.every((price): price is number => price !== null);
   const estimatedPerPersonPence = complete ? prices.reduce((total, price) => total + price, 0) : null;
   return {
     currency: "GBP",
@@ -211,7 +252,7 @@ export function planBudgetSummary(
     withinLimit: context.budgetLimitPence === null || estimatedPerPersonPence === null
       ? null
       : estimatedPerPersonPence <= context.budgetLimitPence,
-    basis: "one-recorded-pint-per-stop",
+    basis: usesPintPrices ? "one-recorded-pint-per-stop" : "selected-drink-price-unavailable",
   };
 }
 
@@ -225,6 +266,8 @@ export function planRouteTimingDisclosure(grounded: GroundedRouteTimingSummary |
   } : null;
 }
 import { haversineKm } from "@/lib/haversine";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import type { SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import type { NightContext } from "@/lib/nightPlanning";
 import type { PlanBudgetSummary } from "@/lib/planIntelligence";
 import type {

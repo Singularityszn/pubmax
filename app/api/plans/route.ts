@@ -4,7 +4,9 @@ import { callerUserId } from "@/lib/authServer";
 import { parseCityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { isLimited } from "@/lib/pintDrops";
 import { cleanPlanAnchor } from "@/lib/plan";
-import { planStopResolver } from "@/lib/planRoute";
+import { planStopResolver, type PlanStopTarget } from "@/lib/planRoute";
+import { resolvePlanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence.server";
+import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { claimPlanMembership } from "@/lib/planCrewIdentity";
 import { planMemberIdentity, planRequestDigest, planStore } from "@/lib/planStore";
 import {
@@ -94,6 +96,73 @@ async function claimSignedInPlanCreator(
   }
 }
 
+async function resolvePlanBackups(
+  submittedStops: readonly unknown[],
+  selectedStops: readonly PlanStopTarget[],
+  resolveStop: (raw: unknown) => PlanStopTarget | null,
+  context: unknown,
+) {
+  const groups = submittedStops.map((raw) => {
+    const value = raw && typeof raw === "object" ? (raw as Record<string, unknown>).alternatives : undefined;
+    return value === undefined ? [] : value;
+  });
+  if (groups.some((value) => !Array.isArray(value) || value.length > 24)) return null;
+  const rawGroups = groups as unknown[][];
+  const submitted = rawGroups.flat();
+  const resolved = submitted.map(resolveStop);
+  if (resolved.some((stop) => stop === null)) return null;
+  const targets = resolved as PlanStopTarget[];
+  const routeIds = new Set(selectedStops.map((stop) => stop.venueId));
+  const verified = await resolvePlanSelectedDrinkPriceEvidence(targets, submitted, context);
+  let offset = 0;
+  const alternatives = rawGroups.map((group) => {
+    const values = verified.slice(offset, offset + group.length);
+    const ids = values.map((value) => value.venueId);
+    offset += group.length;
+    if (ids.some((id) => routeIds.has(id)) || new Set(ids).size !== ids.length) return null;
+    return values;
+  });
+  if (alternatives.some((group) => group === null)) return null;
+  offset = 0;
+  const idempotencyAlternatives = rawGroups.map((group) => group.map((raw) => {
+    const value = raw && typeof raw === "object" ? (raw as Record<string, unknown>).selectedDrinkPriceEvidence : null;
+    const evidence = cleanSelectedDrinkPriceEvidence(value);
+    return { ...targets[offset++], ...(evidence ? { selectedDrinkPriceEvidence: evidence } : {}) };
+  }));
+  const idempotencyStops = selectedStops.map((stop, position) => {
+    const raw = submittedStops[position];
+    const hint = cleanSelectedDrinkPriceEvidence(
+      raw && typeof raw === "object" ? (raw as Record<string, unknown>).selectedDrinkPriceEvidence : null,
+    );
+    const backupHints = idempotencyAlternatives[position];
+    return { ...stop, ...(hint ? { selectedDrinkPriceEvidence: hint } : {}),
+      ...(backupHints.length ? { alternatives: backupHints } : {}) };
+  });
+  return { alternatives: alternatives as typeof verified[], idempotencyStops };
+}
+
+async function prepareCreatePlanRoute(
+  submittedStops: readonly unknown[],
+  resolveStop: (raw: unknown) => PlanStopTarget | null,
+  context: unknown,
+) {
+  const resolved = submittedStops.map(resolveStop);
+  if (resolved.some((stop) => stop === null)) {
+    return { ok: false as const, response: publicApiError("Choose listed venues.", "PLAN_VENUES_INVALID", 400) };
+  }
+  const targets = resolved as PlanStopTarget[];
+  const backups = await resolvePlanBackups(submittedStops, targets, resolveStop, context);
+  if (!backups) {
+    return { ok: false as const, response: publicApiError("Choose distinct listed backup venues outside the route.", "PLAN_ALTERNATIVES_INVALID", 400) };
+  }
+  const selectedStops = await resolvePlanSelectedDrinkPriceEvidence(targets, submittedStops, context);
+  const stops = selectedStops.map((stop, position) => {
+    const alternatives = backups.alternatives[position];
+    return { ...stop, ...(alternatives.length ? { alternatives } : {}) };
+  });
+  return { ok: true as const, stops, idempotencyStops: backups.idempotencyStops };
+}
+
 export async function POST(request: Request): Promise<Response> {
   let body: Record<string, unknown>;
   try {
@@ -116,11 +185,10 @@ export async function POST(request: Request): Promise<Response> {
   // One rule for what a Stop id may be, shared with route replacement: a listed
   // venue, or a `place:<poi id>` meeting point. Free text resolves to nothing.
   const resolveStop = await planStopResolver(cityId);
-  const stops = submittedStops.map((raw) => resolveStop(raw));
-  if (stops.some((stop) => stop === null)) {
-    return publicApiError("Choose listed venues.", "PLAN_VENUES_INVALID", 400);
-  }
-  const acceptedVenueIds = stops.flatMap((stop) => stop ? [stop.venueId] : []);
+  const prepared = await prepareCreatePlanRoute(submittedStops, resolveStop, body.context);
+  if (!prepared.ok) return prepared.response;
+  const { stops } = prepared;
+  const acceptedVenueIds = stops.map((stop) => stop.venueId);
   const groundingProofDigest = typeof body.groundingProof === "string" && body.groundingProof
     ? planRequestDigest(body.groundingProof)
     : undefined;
@@ -156,7 +224,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   const result = await planStore().create(
     { ...body, stops },
-    { idempotencyKey, ...(groundingProofDigest ? { groundingProofDigest } : {}), ...(anchor ? { anchor } : {}) },
+    { idempotencyKey, idempotencyStops: prepared.idempotencyStops, ...(groundingProofDigest ? { groundingProofDigest } : {}), ...(anchor ? { anchor } : {}) },
   );
   if (!result.ok) {
     return publicApiError(

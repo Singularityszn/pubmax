@@ -41,6 +41,7 @@
 // Reads and reader reports remain keyless. New contributions require configured
 // authentication plus a completed account profile.
 
+import { ukPriceBundleCategoryIndex } from "@/lib/ukPriceBundle.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
@@ -557,12 +558,16 @@ export async function GET(request: Request): Promise<Response> {
     }
     const drinkCategory = searchParams.get("drinkCategory");
     if (isDrinkCategory(drinkCategory)) {
-      const result = await readCommunityPriceCategoryIndex([drinkCategory]);
+      const [result, listed] = await Promise.all([
+        readCommunityPriceCategoryIndex([drinkCategory]),
+        ukPriceBundleCategoryIndex(drinkCategory),
+      ]);
       return jsonNoStore(
         {
           prices: result.prices,
-          truncated: result.truncated,
-          ...(result.degraded ? { degraded: true } : {}),
+          listedPrices: listed.prices,
+          truncated: result.truncated || listed.truncated,
+          ...(result.degraded || listed.degraded ? { degraded: true } : {}),
         },
         { status: 200 },
       );

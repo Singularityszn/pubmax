@@ -21,7 +21,7 @@ export default function InvitePrivacyPreview({ preview }: { preview: InvitePriva
 
       <dl className="invitePreview__details">
         <div className="invitePreview__detail">
-          <dt>First pint</dt>
+          <dt>Start time</dt>
           <dd>{startLabel}</dd>
         </div>
         {areaName ? (

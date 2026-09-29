@@ -1,5 +1,7 @@
 "use client";
 
+import { routeStopsWithAvailableBackups } from "@/lib/planRouteEditor";
+
 import {
   FormEvent,
   useEffect,
@@ -43,6 +45,10 @@ import {
   type PlanVenueOption,
 } from "@/lib/planVenueOptions";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
+import { planUsesPintPrices } from "@/lib/planGenerationDto";
+import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
+import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceDescription, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+export { selectedDrinkPriceDescription } from "@/lib/planSelectedDrinkPriceEvidence";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import {
   isPlanStopCount,
@@ -109,12 +115,13 @@ import {
 } from "@/lib/planIntake";
 
 type RouteRevision = string | number;
-type RouteAlternative = { venueId: string; venueName: string };
+type RouteAlternative = { venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
 export type DraftStop = {
   key: number;
   venueId: string;
   venueName: string;
   reason?: string;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   alternatives: RouteAlternative[];
 };
 
@@ -175,6 +182,9 @@ export function editedPlanStop(input: {
       ...input.stop,
       venueName: input.venueName,
       venueId: preservesAcceptedAuthority ? input.stop.venueId : match?.id ?? "",
+      reason: preservesAcceptedAuthority || match?.id === input.stop.venueId ? input.stop.reason : undefined,
+      selectedDrinkPriceEvidence: preservesAcceptedAuthority || match?.id === input.stop.venueId
+        ? input.stop.selectedDrinkPriceEvidence : undefined,
       alternatives: [],
     },
     preservesAcceptedAuthority,
@@ -373,12 +383,14 @@ function routeRevisionFromState(value: unknown): RouteRevision | null {
 
 function cleanRouteAlternative(value: unknown): RouteAlternative | null {
   if (!value || typeof value !== "object") return null;
-  const row = value as { venueId?: unknown; venueName?: unknown; name?: unknown };
+  const row = value as { venueId?: unknown; venueName?: unknown; name?: unknown; selectedDrinkPriceEvidence?: unknown };
   const venueId = typeof row.venueId === "string" ? row.venueId.trim() : "";
   const venueName = typeof row.venueName === "string"
     ? row.venueName.trim()
     : typeof row.name === "string" ? row.name.trim() : "";
-  return venueId && venueName ? { venueId, venueName } : null;
+  if (!venueId || !venueName) return null;
+  const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
+  return { venueId, venueName, ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}) };
 }
 
 function routeAlternatives(value: unknown): RouteAlternative[] {
@@ -409,6 +421,7 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
       venueName?: unknown;
       name?: unknown;
       reason?: unknown;
+      selectedDrinkPriceEvidence?: unknown;
       alternatives?: unknown;
       options?: unknown;
     };
@@ -422,11 +435,13 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
       !currentVenueIds.has(alternative.venueId)
       && all.findIndex((candidate) => candidate.venueId === alternative.venueId) === alternativeIndex
     ));
+    const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
     return [{
       key: index + 1,
       venueId,
       venueName,
       ...(typeof row.reason === "string" && row.reason.trim() ? { reason: row.reason.trim() } : {}),
+      ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
       alternatives,
     }];
   });
@@ -443,9 +458,12 @@ export function swapDraftStop(stop: DraftStop, excludedVenueIds: ReadonlySet<str
     ...stop,
     venueId: next.venueId,
     venueName: next.venueName,
+    reason: undefined,
+    selectedDrinkPriceEvidence: next.selectedDrinkPriceEvidence,
     alternatives: [
       ...remaining,
-      { venueId: stop.venueId, venueName: stop.venueName },
+      { venueId: stop.venueId, venueName: stop.venueName, ...(stop.selectedDrinkPriceEvidence
+        ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}) },
     ],
   };
 }
@@ -463,6 +481,7 @@ export function nightContextChanged(before: NightContext | null, after: NightCon
     || before.budget !== after.budget
     || before.budgetLimitPence !== after.budgetLimitPence
     || before.zeroProof !== after.zeroProof
+    || before.drinkCategory !== after.drinkCategory
     || before.wetherspoonsPreferred !== after.wetherspoonsPreferred
     || normalizePlanStopCount(before.stopCount) !== normalizePlanStopCount(after.stopCount)
     || !sameList(before.atmosphere, after.atmosphere)
@@ -716,7 +735,8 @@ export function composerCreatePayload(input: {
   creatorName: string;
   startTime: string;
   cityId?: CityId | null;
-  stops: ReadonlyArray<{ venueId: string; venueName: string }>;
+  stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: unknown;
+    alternatives?: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: unknown }> }>;
   groundingProof?: string | null;
   planAnchor?: GeneratedPlanAnchor | null;
   context?: NightContext | null;
@@ -726,7 +746,24 @@ export function composerCreatePayload(input: {
     creatorName: input.creatorName,
     startTime: input.startTime,
     ...(input.cityId ? { cityId: input.cityId } : {}),
-    stops: input.stops.map(({ venueId, venueName }) => ({ venueId, venueName })),
+    stops: routeStopsWithAvailableBackups(input.stops).map(({ venueId, venueName, selectedDrinkPriceEvidence, alternatives }) => {
+      const evidence = cleanSelectedDrinkPriceEvidence(selectedDrinkPriceEvidence);
+      const cleanEvidence = (value: unknown) => {
+        const candidate = cleanSelectedDrinkPriceEvidence(value);
+        return candidate && input.context && !input.context.zeroProof
+          && candidate.category === input.context.drinkCategory ? candidate : null;
+      };
+      return {
+        venueId,
+        venueName,
+        ...(cleanEvidence(evidence) ? { selectedDrinkPriceEvidence: evidence } : {}),
+        ...(alternatives?.length ? { alternatives: alternatives.map((alternative) => {
+          const price = cleanEvidence(alternative.selectedDrinkPriceEvidence);
+          return { venueId: alternative.venueId, venueName: alternative.venueName,
+            ...(price ? { selectedDrinkPriceEvidence: price } : {}) };
+        }) } : {}),
+      };
+    }),
     ...(input.groundingProof ? { groundingProof: input.groundingProof } : {}),
     ...(input.planAnchor ? { anchor: input.planAnchor } : {}),
     ...(input.context ? { context: input.context } : {}),
@@ -2059,10 +2096,19 @@ function PlanComposerForm({
               <option value="value">Value</option><option value="standard">Standard</option><option value="treat">Treat</option>
             </select></label>
             <label htmlFor="plan-context-budget-limit">Max per person<input id="plan-context-budget-limit" aria-describedby="plan-route-status" type="number" inputMode="decimal" min="5" max="500" step="1" value={nightContext.budgetLimitPence === null ? "" : nightContext.budgetLimitPence / 100} onChange={(event) => updateNightContext({ budgetLimitPence: event.target.value ? Math.round(Number(event.target.value) * 100) : null })} /></label>
-            <label htmlFor="plan-context-zero-proof">Drinks<select id="plan-context-zero-proof" aria-describedby="plan-route-status" value={nightContext.zeroProof ? "zero-proof" : "any"} onChange={(event) => updateNightContext({ zeroProof: event.target.value === "zero-proof" })}>
+            <label htmlFor="plan-context-zero-proof">Drinks<select id="plan-context-zero-proof" aria-describedby="plan-route-status" value={nightContext.zeroProof ? "zero-proof" : nightContext.drinkCategory ?? "any"} onChange={(event) => {
+              const choice = event.target.value;
+              updateNightContext({
+                zeroProof: choice === "zero-proof",
+                drinkCategory: choice === "any" || choice === "zero-proof" ? null : choice as DrinkCategory,
+              });
+            }}>
               {/* "0.0 options" read as broken number formatting, not as a drink.
                   The option names the drink the way the rest of the app does. */}
               <option value="any">Any drinks</option><option value="zero-proof">Alcohol-free</option>
+              {DRINK_CATEGORIES.filter((category) =>
+                category !== "alcohol-free" && category !== "soft-drink" && category !== "coffee" && category !== "other"
+              ).map((category) => <option key={category} value={category}>{categoryLabel(category)}</option>)}
             </select></label>
           </fieldset>
         ) : null}
@@ -2185,7 +2231,7 @@ function PlanComposerForm({
         <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Karan" />
       </div>
       <div className="planComposer__field">
-        <label htmlFor="plan-time">First pint</label>
+        <label htmlFor="plan-time">{nightContext && !planUsesPintPrices(nightContext) ? "First stop" : "First pint"}</label>
         <input id="plan-time" type="datetime-local" required value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
       </div>
 
@@ -2202,6 +2248,9 @@ function PlanComposerForm({
               <label htmlFor={`venue-name-${stop.key}`}>Venue name</label>
               <input id={`venue-name-${stop.key}`} type="text" list="plan-venue-options" value={stop.venueName} onChange={(event) => chooseVenue(stop.key, event.target.value)} placeholder="Start typing a pub" />
               {stop.reason ? <small className="planComposer__stopReason">{stop.reason}</small> : null}
+              {selectedDrinkPriceDescription(stop.selectedDrinkPriceEvidence) ? (
+                <small className="planComposer__stopReason">{selectedDrinkPriceDescription(stop.selectedDrinkPriceEvidence)}</small>
+              ) : null}
             </div>
             <div className="planComposer__stopActions">
               <button

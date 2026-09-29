@@ -92,7 +92,7 @@ describe("a pin's price standing", () => {
       new Map([["venue-1", estimateDecision(6.6)]]),
     ).features;
     expect(feature.properties?.priceLabel).toBeUndefined();
-    expect(feature.properties?.standing).toBe("estimate");
+    expect(feature.properties?.standing).toBeUndefined();
   });
 
   it("carries the standing on a listed pub without touching its figure", () => {

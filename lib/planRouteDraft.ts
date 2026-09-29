@@ -6,6 +6,7 @@ import {
 } from "@/lib/planningIntent";
 import { DAY_MS } from "@/lib/dayMs";
 import { isPlanStopCount } from "@/lib/planStopCount";
+import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 export const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
 export const PLAN_ROUTE_DRAFT_V2_KEY = "pubmax:plan-route-draft:v2";
@@ -33,6 +34,7 @@ type RouteRevision = string | number;
 type StoredRouteAlternative = {
   venueId: string;
   venueName: string;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
 };
 
 type StoredRouteStop = {
@@ -40,6 +42,7 @@ type StoredRouteStop = {
   venueId: string;
   venueName: string;
   reason?: string;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   alternatives: StoredRouteAlternative[];
 };
 
@@ -103,8 +106,8 @@ const ENVELOPE_KEYS = [
   "routeRevision",
   "routeStale",
 ] as const;
-const STOP_KEYS = ["key", "venueId", "venueName", "reason", "alternatives"] as const;
-const ALTERNATIVE_KEYS = ["venueId", "venueName"] as const;
+const STOP_KEYS = ["key", "venueId", "venueName", "reason", "selectedDrinkPriceEvidence", "alternatives"] as const;
+const ALTERNATIVE_KEYS = ["venueId", "venueName", "selectedDrinkPriceEvidence"] as const;
 const ROUTE_TOTAL_KEYS = [
   "stopCount",
   "straightLineWalkingKm",
@@ -162,16 +165,26 @@ function cleanStringList(value: unknown, maxItems = 12, maxLength = 240): string
   return values.some((item) => item === null) ? null : values as string[];
 }
 
-function cleanAlternative(value: unknown, exactKeys: boolean): StoredRouteAlternative | null {
-  if (!isRecord(value) || (exactKeys && !hasExactKeys(value, ALTERNATIVE_KEYS))) return null;
-  const venueId = text(value.venueId, 200);
-  const venueName = text(value.venueName ?? value.name, 200);
-  return venueId && venueName ? { venueId, venueName } : null;
+function matchingSelectedDrinkPriceEvidence(value: unknown, context: NightContext | null): SelectedDrinkPriceEvidence | null {
+  const price = cleanSelectedDrinkPriceEvidence(value);
+  return price && context && !context.zeroProof && price.category === context.drinkCategory ? price : null;
 }
 
-function cleanAlternatives(value: unknown, exactKeys: boolean): StoredRouteAlternatives | null {
+function cleanAlternative(value: unknown, exactKeys: boolean, context: NightContext | null): StoredRouteAlternative | null {
+  if (!isRecord(value) || (exactKeys && (
+    Object.keys(value).some((key) => !ALTERNATIVE_KEYS.includes(key as (typeof ALTERNATIVE_KEYS)[number]))
+    || !["venueId", "venueName"].every((key) => key in value)
+  ))) return null;
+  const venueId = text(value.venueId, 200);
+  const venueName = text(value.venueName ?? value.name, 200);
+  if (!venueId || !venueName) return null;
+  const price = matchingSelectedDrinkPriceEvidence(value.selectedDrinkPriceEvidence, context);
+  return { venueId, venueName, ...(price ? { selectedDrinkPriceEvidence: price } : {}) };
+}
+
+function cleanAlternatives(value: unknown, exactKeys: boolean, context: NightContext | null): StoredRouteAlternatives | null {
   if (!Array.isArray(value) || value.length > 24) return null;
-  const values = value.map((item) => cleanAlternative(item, exactKeys));
+  const values = value.map((item) => cleanAlternative(item, exactKeys, context));
   if (values.some((item) => item === null)) return null;
   const unique = (values as StoredRouteAlternative[]).filter((item, index, all) => (
     all.findIndex((candidate) => candidate.venueId === item.venueId) === index
@@ -179,7 +192,7 @@ function cleanAlternatives(value: unknown, exactKeys: boolean): StoredRouteAlter
   return unique;
 }
 
-function cleanStops(value: unknown, exactKeys: boolean): StoredRouteStop[] | null {
+function cleanStops(value: unknown, exactKeys: boolean, context: NightContext | null): StoredRouteStop[] | null {
   if (!Array.isArray(value) || value.length < 1 || value.length > 12) return null;
   const stops = value.map((candidate, index) => {
     if (!isRecord(candidate)) return null;
@@ -193,15 +206,17 @@ function cleanStops(value: unknown, exactKeys: boolean): StoredRouteStop[] | nul
     }
     const venueId = text(candidate.venueId, 200);
     const venueName = text(candidate.venueName ?? candidate.name, 200);
-    const alternatives = cleanAlternatives(candidate.alternatives ?? candidate.options ?? [], exactKeys);
+    const alternatives = cleanAlternatives(candidate.alternatives ?? candidate.options ?? [], exactKeys, context);
     if (!venueId || !venueName || !alternatives) return null;
     const reason = nullableText(candidate.reason ?? null, 500);
     if (reason === undefined) return null;
+    const price = matchingSelectedDrinkPriceEvidence(candidate.selectedDrinkPriceEvidence, context);
     return {
       key: index + 1,
       venueId,
       venueName,
       ...(reason ? { reason } : {}),
+      ...(price ? { selectedDrinkPriceEvidence: price } : {}),
       alternatives: alternatives.filter((alternative) => alternative.venueId !== venueId),
     };
   });
@@ -317,9 +332,9 @@ function cleanRouteFields(
   value: Record<string, unknown>,
   exactKeys: boolean,
 ): CleanedRouteFields | null {
-  const stops = cleanStops(value.stops, exactKeys);
-  const alternatives = cleanAlternatives(value.alternatives ?? [], exactKeys);
   const nightContext = value.nightContext === null ? null : cleanNightContext(value.nightContext);
+  const stops = cleanStops(value.stops, exactKeys, nightContext);
+  const alternatives = cleanAlternatives(value.alternatives ?? [], exactKeys, nightContext);
   const routeTotals = cleanRouteTotals(value.routeTotals ?? null);
   const planningConfidence = cleanPlanningConfidence(value.planningConfidence ?? null);
   const transportBasis = nullableText(value.transportBasis ?? null, 200);

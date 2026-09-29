@@ -1,6 +1,7 @@
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { formatGbp } from "@/lib/formatGbp";
 import { canAffectRoute, type NightSignalClaim } from "@/lib/nightSignalClaims";
+import { CATEGORY_META } from "@/lib/drinks";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { NightContext } from "@/lib/nightPlanning";
 import type { PlanningWeather } from "@/lib/weatherSnapshots";
@@ -12,13 +13,23 @@ function priceAndZeroProof(
   venue: ConciergeVenue,
   context: NightContext,
   naLensPrices: ReadonlyMap<string, MapLensPrice> | undefined,
+  drinkLensPrices: ReadonlyMap<string, MapLensPrice> | undefined,
 ): ScoreAccumulator {
   const reasons: string[] = [];
-  const price = venue.cheapestPrice;
   let score = 0;
   if (context.budget === "value") {
-    score += price === null ? 0 : Math.max(0, 7 - price);
-    if (price !== null) reasons.push(`pints from ${formatGbp(price)}`);
+    const category = context.zeroProof ? null : context.drinkCategory;
+    if (category && category !== "beer") {
+      const price = drinkLensPrices?.get(venue.id);
+      if (price?.category === category && price.priceGbp > 0) {
+        score += 1;
+        reasons.push(`corroborated community ${CATEGORY_META[category].label.toLowerCase()} price ${formatGbp(price.priceGbp)}`);
+      }
+    } else if (!context.zeroProof) {
+      const price = venue.cheapestPrice;
+      score += price === null ? 0 : Math.max(0, 7 - price);
+      if (price !== null) reasons.push(`pints from ${formatGbp(price)}`);
+    }
   } else if (context.budget === "treat" && (venue.amenities.cocktails || venue.hasStory)) {
     score += 1.5;
     reasons.push("fits a treat-night brief");
@@ -140,9 +151,10 @@ export function scoreVenueForPlan(
   weather: PlanningWeather | null,
   naLensPrices?: ReadonlyMap<string, MapLensPrice>,
   wetherspoonsMatchedIds?: ReadonlySet<string>,
+  drinkLensPrices?: ReadonlyMap<string, MapLensPrice>,
 ): { score: number; reasons: string[] } {
   const pieces = [
-    priceAndZeroProof(venue, context, naLensPrices),
+    priceAndZeroProof(venue, context, naLensPrices, drinkLensPrices),
     wetherspoonsDirectoryPrefer(venue, context, wetherspoonsMatchedIds),
     occasionFit(venue, context),
     atmosphereFit(venue, context, weather),
