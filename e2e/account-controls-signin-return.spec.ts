@@ -123,3 +123,72 @@ test("phone sign-in returns through callback to Plan and persists the real SDK s
   await expect(page.getByText("Sign in when you are ready to keep this Moment across devices.")).toHaveCount(0);
   await page.waitForLoadState("networkidle");
 });
+
+test("phone email link sends OTP and returns through callback with a persistent session", async ({ page, baseURL }) => {
+  test.setTimeout(120_000);
+  let callbackLandings = 0;
+  await serveCanonicalOriginLocally(page, baseURL ?? "", () => { callbackLandings += 1; });
+  await installAuthDoubles(page, { initialSeedOnly: true, realResumeCookie: true });
+
+  let emailCallback: URL | null = null;
+  let otpRequests = 0;
+  await page.route(`${SUPABASE_ORIGIN}/auth/v1/otp?**`, async (route) => {
+    otpRequests += 1;
+    expect(route.request().method()).toBe("POST");
+    const body = route.request().postDataJSON() as { email?: string; create_user?: boolean };
+    expect(body.email).toBe(ACCOUNTS.A.email);
+    expect(body.create_user).toBe(true);
+    const redirectTo = new URL(route.request().url()).searchParams.get("redirect_to");
+    expect(redirectTo).toBeTruthy();
+    emailCallback = new URL(redirectTo as string);
+    expect(emailCallback.origin).toBe(CANONICAL_ORIGIN);
+    expect(emailCallback.pathname).toBe("/auth/callback");
+    expect(emailCallback.searchParams.get("next")).toBe("/plan");
+    expect(emailCallback.searchParams.get("_authAttempt")).toBeTruthy();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "access-control-allow-origin": "*" },
+      body: "{}",
+    });
+  });
+
+  await page.goto("/login?from=%2Fplan");
+  expect(await page.evaluate((key) => localStorage.getItem(key), AUTH_STORAGE_KEY)).toBeNull();
+  const emailField = page.getByRole("textbox", { name: "Sign in with your email" });
+  const sendLink = page.getByRole("button", { name: "Email me a sign-in link" });
+  await emailField.fill(ACCOUNTS.A.email);
+  await sendLink.click();
+  await expect(page).toHaveURL(`${CANONICAL_ORIGIN}/plan`);
+  expect(otpRequests).toBe(0);
+  await page.getByRole("navigation", { name: "Site navigation" }).getByRole("link", { name: "Sign in" }).click();
+  await expect(page).toHaveURL(`${CANONICAL_ORIGIN}/login?from=%2Fplan`);
+  await emailField.fill(ACCOUNTS.A.email);
+  await sendLink.click();
+  await expect(page.getByRole("button", { name: "Link sent" })).toBeDisabled();
+  await expect.poll(() => otpRequests).toBe(1);
+  expect(await page.evaluate((key) => localStorage.getItem(key), AUTH_STORAGE_KEY)).toBeNull();
+
+  // The controlled provider delivers the requested link with an implicit-flow
+  // fragment after verification. The app's callback and SDK remain real.
+  expect(emailCallback).not.toBeNull();
+  const fragment = new URLSearchParams({
+    access_token: accessToken(),
+    refresh_token: ACCOUNTS.A.refreshToken,
+    token_type: "bearer",
+    expires_in: "3600",
+  });
+  await page.goto(`${emailCallback!.toString()}#${fragment.toString()}`);
+  await expect(page).toHaveURL(`${CANONICAL_ORIGIN}/plan`);
+  await expect.poll(() => callbackLandings).toBe(1);
+  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), AUTH_STORAGE_KEY)).not.toBeNull();
+  await expect.poll(() => resumeCookie(page, CANONICAL_ORIGIN)).toBeTruthy();
+  await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "You" })).toHaveAttribute("href", "/u/karan");
+
+  await page.reload();
+  await expect(page).toHaveURL(`${CANONICAL_ORIGIN}/plan`);
+  await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "You" })).toHaveAttribute("href", "/u/karan");
+  await page.goto(`${CANONICAL_ORIGIN}/moment?returnTo=%2Fplan`);
+  await expect(page.getByText("Sign in when you are ready to keep this Moment across devices.")).toHaveCount(0);
+  await page.waitForLoadState("networkidle");
+});
