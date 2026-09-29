@@ -28,18 +28,19 @@ function accessToken(): string {
 async function serveCanonicalOriginLocally(page: Page, baseURL: string, onCallback: () => void): Promise<void> {
   await page.route(`${CANONICAL_ORIGIN}/**`, async (route) => {
     const requested = new URL(route.request().url());
+    const requestHeaders = route.request().headers();
     const response = await route.fetch({
       url: `${baseURL}${requested.pathname}${requested.search}`,
       maxRedirects: 0,
       headers: {
-        ...route.request().headers(),
-        origin: baseURL,
-        "sec-fetch-site": "same-origin",
+        ...requestHeaders,
+        ...(requestHeaders.origin === CANONICAL_ORIGIN ? { origin: baseURL } : {}),
       },
     });
     const headers = response.headers();
     if (headers.location) {
       const destination = new URL(headers.location, baseURL);
+      expect(destination.origin).toBe(new URL(baseURL).origin);
       headers.location = `${CANONICAL_ORIGIN}${destination.pathname}${destination.search}${destination.hash}`;
     }
     if (requested.pathname === "/auth/callback") {
@@ -111,7 +112,7 @@ test("phone sign-in returns through callback to Plan and persists the real SDK s
   await expect.poll(() => providerStarts).toBe(1);
   await expect.poll(() => callbackLandings).toBe(1);
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), AUTH_STORAGE_KEY)).not.toBeNull();
-  await expect.poll(() => resumeCookie(page)).toBeTruthy();
+  await expect.poll(() => resumeCookie(page, CANONICAL_ORIGIN)).toBeTruthy();
   await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "You" })).toHaveAttribute("href", "/u/karan");
   await page.screenshot({ path: testInfo.outputPath("signed-in-plan-phone.png") });
 
@@ -120,4 +121,5 @@ test("phone sign-in returns through callback to Plan and persists the real SDK s
   await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "You" })).toHaveAttribute("href", "/u/karan");
   await page.goto(`${CANONICAL_ORIGIN}/moment?returnTo=%2Fplan`);
   await expect(page.getByText("Sign in when you are ready to keep this Moment across devices.")).toHaveCount(0);
+  await page.waitForLoadState("networkidle");
 });

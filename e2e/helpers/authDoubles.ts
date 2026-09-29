@@ -327,8 +327,8 @@ export async function readDeviceIdentity(page: Page): Promise<Record<string, str
   }, DEVICE_HANDLE_KEY);
 }
 
-export async function resumeCookie(page: Page): Promise<string | null> {
-  const cookies = await page.context().cookies();
+export async function resumeCookie(page: Page, url?: string): Promise<string | null> {
+  const cookies = await page.context().cookies(url);
   return cookies.find((cookie) => cookie.name === RESUME_COOKIE)?.value ?? null;
 }
 
