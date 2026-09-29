@@ -76,7 +76,6 @@ export function shouldInertOutsideSibling(
 }
 
 type InertOwnership = {
-  original: boolean;
   owners: Set<symbol>;
 };
 
@@ -94,8 +93,9 @@ function claimInert(node: HTMLElement, owner: symbol): void {
   if (ownership) {
     ownership.owners.add(owner);
   } else {
+    // An already-inert component owns its state, including when it reopens.
+    if (node.inert) return;
     inertOwnership.set(node, {
-      original: node.inert,
       owners: new Set([owner]),
     });
   }
@@ -109,7 +109,7 @@ function releaseInert(node: HTMLElement, owner: symbol): void {
     node.inert = true;
     return;
   }
-  node.inert = ownership.original;
+  node.inert = false;
   inertOwnership.delete(node);
 }
 
@@ -290,8 +290,8 @@ function displayChain(container: HTMLElement): string[] {
 //   2. Everything OUTSIDE the container is marked `inert` — walking the ancestor
 //      chain to <body> and inert-ing each level's off-path siblings. This works
 //      whether the trapped node is a body-level portal (mobile sheet) or nested
-//      inside the app shell (desktop drawer). Prior `inert` values are restored
-//      on teardown.
+//      inside the app shell (desktop drawer). Teardown clears only inert state
+//      owned by the trap; already-inert components retain their own ownership.
 //   3. A container CSS has hidden never traps at all (shouldEngageFocusTrap).
 // Focus entry and restoration are coordinated here; Esc stays with each caller.
 export function useFocusTrap(

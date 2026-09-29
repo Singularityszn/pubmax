@@ -115,6 +115,22 @@ describe("FocusTrapOwner", () => {
     });
   }
 
+  for (const release of ["release", "reconcile"] as const) {
+    for (const reopened of [false, true]) {
+      it(`preserves a component-owned ${reopened ? "reopened" : "closed"} drawer on ${release}`, () => {
+        const drawer = node(true);
+        const trap = new FocusTrapOwner();
+        trap.reconcile([drawer]);
+
+        if (reopened) drawer.inert = false;
+        if (release === "release") trap.release();
+        else trap.reconcile([]);
+
+        expect(drawer.inert).toBe(!reopened);
+      });
+    }
+  }
+
   it("restores the earlier map origin after overlapping teardown", () => {
     const mapOrigin = focusOrigin();
     const sheetOrigin = focusOrigin();
