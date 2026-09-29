@@ -109,7 +109,8 @@ function releaseInert(node: HTMLElement, owner: symbol): void {
     node.inert = true;
     return;
   }
-  node.inert = ownership.original;
+  // Only undo inert we introduced; a drawer may have since cleared its own.
+  if (!ownership.original) node.inert = false;
   inertOwnership.delete(node);
 }
 

@@ -97,6 +97,32 @@ describe("FocusTrapOwner", () => {
     };
   }
 
+  for (const cleanup of ["release", "reconcile"] as const) {
+    it(`does not reinstate a drawer's cleared inert state on ${cleanup}`, () => {
+      const drawer = node(true);
+      const trap = new FocusTrapOwner();
+      trap.reconcile([drawer]);
+
+      // Opening the drawer clears its own inert prop before effect cleanup.
+      drawer.inert = false;
+      if (cleanup === "release") trap.release();
+      else trap.reconcile([]);
+
+      expect(drawer.inert).toBe(false);
+    });
+
+    it(`preserves an unchanged pre-existing inert state on ${cleanup}`, () => {
+      const drawer = node(true);
+      const trap = new FocusTrapOwner();
+      trap.reconcile([drawer]);
+
+      if (cleanup === "release") trap.release();
+      else trap.reconcile([]);
+
+      expect(drawer.inert).toBe(true);
+    });
+  }
+
   for (const firstRelease of ["map", "strict"] as const) {
     it(`keeps an overlapping trap inert when ${firstRelease} releases first`, () => {
       const outside = node();
