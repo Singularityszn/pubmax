@@ -725,6 +725,39 @@ export function AuthProvider({
         }
       };
 
+      const publishBootstrappedSession = (
+        bootstrapped: Awaited<ReturnType<typeof bootstrapAuthSession>>,
+      ) => {
+        window.clearTimeout(loadingTimeout);
+        if (bootstrapped.status === "unavailable") {
+          if (readProviderAuthState("supabase") === "unresolved") {
+            setProviderAuthState("supabase", "unavailable");
+          }
+        } else if (bootstrapped.status === "local") {
+          // INITIAL_SESSION normally supplied this same session already. The
+          // explicit update also covers a client that did not emit that event.
+          updateSession(bootstrapped.session);
+        } else if (bootstrapped.status === "banned") {
+          setAuthBannedNotice(true);
+        } else if (bootstrapped.status === "expired") {
+          setWelcomeBack({ maskedEmail: bootstrapped.maskedEmail });
+        }
+        if (bootstrapped.status !== "unavailable") {
+          const bootstrapAuthState = resolveSupabaseAuthState(
+            "bootstrap",
+            sessionTransitions.current.currentUserId() !== null,
+            sessionTransitions.current.currentUserId(),
+          );
+          if (bootstrapAuthState) {
+            setProviderAuthState("supabase", bootstrapAuthState);
+          }
+        }
+        // A restored result has already awaited auth.setSession. Supabase emits
+        // SIGNED_IN through the subscription above, so the session and identity
+        // boundary are updated before this loading state is cleared.
+        setSessionLoading(false);
+      };
+
       void (async () => {
         await Promise.resolve();
         const captured = await callbackCapture;
@@ -783,34 +816,7 @@ export function AuthProvider({
           () => ({ status: "unavailable" } as const),
         ));
         if (!active) return;
-        window.clearTimeout(loadingTimeout);
-        if (bootstrapped.status === "unavailable") {
-          if (readProviderAuthState("supabase") === "unresolved") {
-            setProviderAuthState("supabase", "unavailable");
-          }
-        } else if (bootstrapped.status === "local") {
-          // INITIAL_SESSION normally supplied this same session already. The
-          // explicit update also covers a client that did not emit that event.
-          updateSession(bootstrapped.session);
-        } else if (bootstrapped.status === "banned") {
-          setAuthBannedNotice(true);
-        } else if (bootstrapped.status === "expired") {
-          setWelcomeBack({ maskedEmail: bootstrapped.maskedEmail });
-        }
-        if (bootstrapped.status !== "unavailable") {
-          const bootstrapAuthState = resolveSupabaseAuthState(
-            "bootstrap",
-            sessionTransitions.current.currentUserId() !== null,
-            sessionTransitions.current.currentUserId(),
-          );
-          if (bootstrapAuthState) {
-            setProviderAuthState("supabase", bootstrapAuthState);
-          }
-        }
-        // A restored result has already awaited auth.setSession. Supabase emits
-        // SIGNED_IN through the subscription above, so the session and identity
-        // boundary are updated before this loading state is cleared.
-        setSessionLoading(false);
+        publishBootstrappedSession(bootstrapped);
         if (confirmation && captured) {
           const prepared = confirmation;
           setAuthCallbackConfirmation({
