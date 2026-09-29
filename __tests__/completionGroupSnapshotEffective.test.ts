@@ -138,6 +138,36 @@ describe.skipIf(skipReason !== null)("0169 private completion membership snapsho
     expect(read()).toBe(`social:${account("f1")},social:${account("f2")}`);
   });
 
+  it("reports only aggregate ISO-week group completions and 28-day repeats", () => {
+    const pg = database();
+    const keys = (members: string[]) => `array[${members.map((member) => `'auth:${account(member)}'`).join(",")}]`;
+    for (const [completion, planId, date, members] of ([
+      ["c5", "b5", "2027-09-01 20:00:00+00", ["a1", "a2"]],
+      ["c6", "b6", "2027-09-08 20:00:00+00", ["a1", "a2"]],
+      ["c7", "b7", "2027-09-08 21:00:00+00", ["a1"]],
+      ["c8", "b8", "2027-09-09 20:00:00+00", ["a1", "a3"]],
+      ["c9", "b9", "2027-10-08 20:00:00+00", ["a1", "a2"]],
+    ] as const)) {
+      pg.sql(`insert into pubmax_private.plan_completion_group_snapshots
+        (completion_id,plan_id,completed_at,account_keys)
+        values('${account(completion)}','${account(planId)}','${date}',${keys([...members])})`);
+    }
+    const read = (week: string) => pg.sql(`select week_start::text || ':' ||
+      groups_completed || ':' || groups_repeated || ':' || coalesce(repeat_rate::float8::text, 'undefined')
+      from pubmax_private.completion_group_week('${week}')`);
+    expect(read("2027-09-02")).toBe("2027-08-30:1:0:0");
+    expect(read("2027-09-07")).toBe("2027-09-06:2:1:0.5");
+    expect(read("2027-10-05")).toBe("2027-10-04:1:0:0");
+    expect(read("2027-09-21")).toBe("2027-09-20:0:0:undefined");
+    expect(pg.sql(`set role service_role;
+      select groups_completed || ':' || groups_repeated
+      from pubmax_private.completion_group_week('2027-09-07');
+      reset role;`)).toBe("2:1");
+    expect(pg.expectRefusal(`set role authenticated;
+      select * from pubmax_private.completion_group_week('2027-09-07');
+      reset role;`)).toMatch(/permission denied/i);
+  });
+
   it("denies client roles and removes snapshot machinery on rollback", () => {
     const pg = database();
     expect(pg.expectRefusal(`set role authenticated;

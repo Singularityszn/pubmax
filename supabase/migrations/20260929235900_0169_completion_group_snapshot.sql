@@ -59,3 +59,48 @@ revoke all on function pubmax_private.snapshot_plan_completion_group()
 create trigger snapshot_plan_completion_group_after_insert
 after insert on public.plan_completions
 for each row execute function pubmax_private.snapshot_plan_completion_group();
+
+-- One row per requested ISO week. Account keys stay inside this private query.
+create function pubmax_private.completion_group_week(p_day date)
+returns table (
+  week_start date,
+  groups_completed bigint,
+  groups_repeated bigint,
+  repeat_rate numeric
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with requested_week as (
+    select date_trunc('week', p_day::timestamp)::date as first_day
+  ), counted as (
+    select count(*) as completed,
+      count(*) filter (where exists (
+        select 1
+        from pubmax_private.plan_completion_group_snapshots earlier
+        where earlier.plan_id <> current_night.plan_id
+          and earlier.completed_at < current_night.completed_at
+          and earlier.completed_at >= current_night.completed_at - interval '28 days'
+          and cardinality(earlier.account_keys) >= 2
+          and (
+            select count(*) from unnest(current_night.account_keys) as member(account_key)
+            where member.account_key = any(earlier.account_keys)
+          ) >= 2
+      )) as repeated
+    from pubmax_private.plan_completion_group_snapshots current_night
+    cross join requested_week week
+    where current_night.completed_at >= week.first_day::timestamp at time zone 'UTC'
+      and current_night.completed_at < (week.first_day + 7)::timestamp at time zone 'UTC'
+      and cardinality(current_night.account_keys) >= 2
+  )
+  select week.first_day, counted.completed, counted.repeated,
+    counted.repeated::numeric / nullif(counted.completed, 0)
+  from requested_week week cross join counted;
+$$;
+
+revoke all on function pubmax_private.completion_group_week(date)
+  from public, anon, authenticated;
+grant execute on function pubmax_private.completion_group_week(date)
+  to service_role;
