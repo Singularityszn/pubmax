@@ -114,6 +114,26 @@ describe("which hosts the OCR lane may visit", () => {
 });
 
 describe("what an OCR reading is allowed to become", () => {
+  it("retains separately priced glass measures in source rows", () => {
+    // Row builder receives an excerpt shaped like the captured Sydney Arms
+    // menu. This tests persistence shape, not a new OCR or live harvest.
+    const reading = readVenueDrinkPrices(`<p>Chardonnay, Pays D&#8217;oc, France<br />
+125ml £5.50 250ml £11.00 Btl £31.50</p>
+<p>Rioja, Spain<br />
+125ml £5.25 250ml £10.50 Btl £30.00</p>`);
+    const { rows } = rowsFromReadings(
+      soloPub,
+      [{ url: "https://www.thegunhackney.com/s/test-menu.pdf", reading }],
+      "2026-09-04T22:30:00.000Z",
+    );
+    expect(rows.map((row) => [row.drinkLabel, row.servingSize, row.priceGbp])).toEqual([
+      ["Chardonnay, Pays D’oc, France", "125ml", 5.5],
+      ["Chardonnay, Pays D’oc, France", "250ml", 11],
+      ["Rioja, Spain", "125ml", 5.25],
+      ["Rioja, Spain", "250ml", 10.5],
+    ]);
+  });
+
   it("prices a single-pub host from its own scanned drinks list, cheapest per drink", () => {
     const { rows, documents } = rowsFromReadings(
       soloPub,

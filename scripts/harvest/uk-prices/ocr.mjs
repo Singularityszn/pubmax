@@ -478,7 +478,7 @@ export function rowsFromReadings(entry, readings, observedAt) {
   const byCategory = new Map();
   for (const { url, cheapest, linesOnPage } of priced) {
     for (const row of cheapest) {
-      const key = siteHarvestPriceKey(row.category, row.drinkLabel);
+      const key = siteHarvestPriceKey(row.category, row.drinkLabel, row.servingSize);
       const seen = byCategory.get(key);
       if (!seen || row.priceGbp < seen.priceGbp) {
         byCategory.set(key, {
@@ -486,6 +486,7 @@ export function rowsFromReadings(entry, readings, observedAt) {
           category: row.category,
           priceGbp: row.priceGbp,
           drinkLabel: row.drinkLabel,
+          servingSize: row.servingSize,
           linesOnPage,
         });
       }
@@ -519,6 +520,7 @@ export function rowsFromReadings(entry, readings, observedAt) {
         category: row.category,
         priceGbp: row.priceGbp,
         ...(row.drinkLabel ? { drinkLabel: row.drinkLabel } : {}),
+        ...(row.servingSize ? { servingSize: row.servingSize } : {}),
         sourceUrl: row.url,
         observedAt,
         pubsOnHost: entry.pubs.length,

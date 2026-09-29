@@ -50,8 +50,25 @@ describe("what a page states", () => {
       { category: "beer", priceGbp: 6.4, drinkLabel: "Guinness pint" },
       { category: "beer", priceGbp: 6.8, drinkLabel: "Neck Oil pint" },
       { category: "gin", priceGbp: 8, drinkLabel: "Gordon's gin and tonic" },
-      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine 175ml" },
+      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine", servingSize: "175ml" },
     ]);
+  });
+
+  it("keeps each explicitly priced Sydney Arms wine glass with its own name and measure", () => {
+    // Minimal excerpt of the permission-checked 29 Sep menu capture. Btl has
+    // no stated volume and its price is outside the glass-wine band.
+    const menu = `<p>Chardonnay, Pays D&#8217;oc, France<br />
+125ml £5.50 250ml £11.00 Btl £31.50</p>
+<p>Rioja, Spain<br />
+125ml £5.25 250ml £10.50 Btl £30.00</p>`;
+    const rows = cheapestPerCategory(readVenueDrinkPrices(menu));
+    expect(rows.filter((row) => row.category === "wine")).toEqual([
+      { category: "wine", priceGbp: 5.5, drinkLabel: "Chardonnay, Pays D’oc, France", servingSize: "125ml" },
+      { category: "wine", priceGbp: 11, drinkLabel: "Chardonnay, Pays D’oc, France", servingSize: "250ml" },
+      { category: "wine", priceGbp: 5.25, drinkLabel: "Rioja, Spain", servingSize: "125ml" },
+      { category: "wine", priceGbp: 10.5, drinkLabel: "Rioja, Spain", servingSize: "250ml" },
+    ]);
+    expect(rows.some((row) => row.servingSize === "Btl" || row.servingSize === "750ml")).toBe(false);
   });
 
 
@@ -87,7 +104,7 @@ describe("what a page states", () => {
       { category: "beer", priceGbp: 6.2, drinkLabel: "Madri pint" },
       { category: "gin", priceGbp: 8, drinkLabel: "Gordon's gin" },
       { category: "soft-drink", priceGbp: 3, drinkLabel: "Frobishers Juice (250ml)" },
-      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine 175ml" },
+      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine", servingSize: "175ml" },
     ]);
   });
 
@@ -121,7 +138,7 @@ describe("what a page states", () => {
       { category: "beer", priceGbp: 6.2, drinkLabel: "Madri pint" },
       { category: "cocktail", priceGbp: 12, drinkLabel: "Picante Spritz Altos Plata tequila, Beesou honey, green chilli, lime, soda" },
       { category: "shot", priceGbp: 4, drinkLabel: "House tequila shot" },
-      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine 175ml" },
+      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine", servingSize: "175ml" },
     ]);
   });
 
@@ -138,7 +155,7 @@ describe("what a page states", () => {
       { category: "beer", priceGbp: 6.2, drinkLabel: "Madri pint" },
       { category: "gin", priceGbp: 8, drinkLabel: "Gordon's gin" },
       { category: "vodka", priceGbp: 6.5, drinkLabel: "Absolut vodka soda" },
-      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine 175ml" },
+      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine", servingSize: "175ml" },
     ]);
     expect(reading.drops).toContain("no-category-word-nearby");
     expect(pageStatesADrinksList(reading)).toBe(true);

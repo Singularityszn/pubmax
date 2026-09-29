@@ -281,12 +281,14 @@ export type UkPriceCandidate = {
   context: string;
   /** Trimmed printed menu text beside the figure, when the page named the drink. */
   drinkLabel?: string;
+  servingSize?: string;
 };
 
 export type UkPriceCategoryRow = {
   category: DrinkCategory;
   priceGbp: number;
   drinkLabel?: string;
+  servingSize?: string;
 };
 
 const UK_PRICE_DRINK_LABEL_MAX = 80;
@@ -327,10 +329,41 @@ export function drinkLabelFromPriceContext(
   return normalizeHarvestDrinkLabel(raw);
 }
 
-/** Dedup key for site-harvest rows: category plus normalized printed name. */
-export function siteHarvestPriceKey(category: DrinkCategory, drinkLabel?: string | null): string {
+/** Dedup key for site-harvest rows: category, printed name and explicit serving. */
+export function siteHarvestPriceKey(
+  category: DrinkCategory,
+  drinkLabel?: string | null,
+  servingSize?: string | null,
+): string {
   const label = typeof drinkLabel === "string" ? drinkLabel.trim().toLowerCase() : "";
-  return `${category}\0${label}`;
+  const serving = typeof servingSize === "string" ? servingSize.trim().toLowerCase() : "";
+  return `${category}\0${label}\0${serving}`;
+}
+
+function statedWineIdentity(
+  context: string,
+  verbatim: string,
+  priceAt: number,
+): { drinkLabel: string; servingSize: string } | null {
+  let candidateAt = priceAt;
+  let currentMeasure: string | null = null;
+  // A wine's subsequent glass figures carry only their own printed measure.
+  // Walk back across adjacent measure/price pairs, never across another name.
+  for (let i = 0; i < 3; i += 1) {
+    const price = i === 0
+      ? verbatim
+      : context.slice(candidateAt).match(/^£\s?\d{1,2}(?:\.\d{2})?\b/)?.[0];
+    if (!price) return null;
+    const label = drinkLabelFromPriceContext(context, price, candidateAt);
+    const match = label?.match(/^(.*?)(?:\s+)?(\d{2,3}\s*ml)$/i);
+    if (!match) return null;
+    currentMeasure ??= match[2].replace(/\s+/g, "").toLowerCase();
+    if (match[1].trim()) return { drinkLabel: match[1].trim(), servingSize: currentMeasure };
+    const prior = [...context.slice(0, candidateAt).matchAll(PRICE_PATTERN)].at(-1);
+    if (!prior) return null;
+    candidateAt = prior.index ?? 0;
+  }
+  return null;
 }
 
 /** One £ figure on a page before category judgment (TypeSafe or regex). */
@@ -514,6 +547,9 @@ function decideKeylessUkPriceAt(
     return { drop: "mixer-serve-not-one-drink" };
   }
   const category = decision.category;
+  const wineIdentity = category === "wine"
+    ? statedWineIdentity(context, verbatim, priceAtInContext)
+    : null;
   const band = CATEGORY_PRICE_BANDS[category];
   if (!band) {
     return { drop: "no-category-word-nearby" };
@@ -534,7 +570,16 @@ function decideKeylessUkPriceAt(
   if (category === "beer" && isBottledMeasure(before)) {
     return { drop: "bottled-measure-not-a-pint" };
   }
-  return { kept: { priceGbp, category, verbatim, context, drinkLabel } };
+  return {
+    kept: {
+      priceGbp,
+      category,
+      verbatim,
+      context,
+      drinkLabel: wineIdentity?.drinkLabel ?? drinkLabel,
+      ...(wineIdentity ? { servingSize: wineIdentity.servingSize } : {}),
+    },
+  };
 }
 
 export function decideKeylessUkPriceCandidate(
@@ -631,13 +676,14 @@ export function cheapestPerCategory(reading: UkPriceReading): ReadonlyArray<UkPr
   const low = new Map<string, UkPriceCategoryRow>();
   for (const row of reading.kept) {
     const drinkLabel = row.drinkLabel;
-    const key = siteHarvestPriceKey(row.category, drinkLabel);
+    const key = siteHarvestPriceKey(row.category, drinkLabel, row.servingSize);
     const seen = low.get(key);
     if (!seen || row.priceGbp < seen.priceGbp) {
       low.set(key, {
         category: row.category,
         priceGbp: row.priceGbp,
         ...(drinkLabel ? { drinkLabel } : {}),
+        ...(row.servingSize ? { servingSize: row.servingSize } : {}),
       });
     }
   }

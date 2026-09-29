@@ -445,6 +445,7 @@ async function crawlHost(entry, robots, spend, delayMs) {
         category: priced.category,
         priceGbp: priced.priceGbp,
         drinkLabel: priced.drinkLabel,
+        servingSize: priced.servingSize,
         linesOnPage: reading.kept.length,
       });
     }
@@ -469,7 +470,7 @@ async function crawlHost(entry, robots, spend, delayMs) {
   // price is attributed to every pub on that host and the row says so.
   const byCategory = new Map();
   for (const row of rows) {
-    const key = siteHarvestPriceKey(row.category, row.drinkLabel);
+    const key = siteHarvestPriceKey(row.category, row.drinkLabel, row.servingSize);
     const seen = byCategory.get(key);
     if (!seen || row.priceGbp < seen.priceGbp) byCategory.set(key, row);
   }
@@ -706,6 +707,7 @@ async function main() {
                 category: row.category,
                 priceGbp: row.priceGbp,
                 ...(row.drinkLabel ? { drinkLabel: row.drinkLabel } : {}),
+                ...(row.servingSize ? { servingSize: row.servingSize } : {}),
                 sourceUrl: row.url,
                 observedAt,
                 pubsOnHost: entry.pubs.length,
