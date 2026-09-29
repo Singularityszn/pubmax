@@ -75,6 +75,8 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  // Fallback and menu enrichment are development behavior, even during a production build.
+  vi.stubEnv("NODE_ENV", "test");
   resetVenueDetailCachesForTests();
 });
 
@@ -150,11 +152,6 @@ describe("venueDetailIndex", () => {
   });
 
   it("loads restaurant detail from seed fallback without generated artifacts", async () => {
-    // The seed fallback is deliberately non-production only (production serves
-    // famous venues from the generated artifact). `npm run ci` runs this suite
-    // inside Vercel's build, where NODE_ENV=production, so pin the runtime the
-    // fallback belongs to instead of inheriting the ambient one.
-    vi.stubEnv("NODE_ENV", "test");
     setVenueDetailIndexFileForTests(
       path.join(ROOT, "data", "generated", "missing-venue-detail-index.json"),
     );
