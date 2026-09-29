@@ -114,6 +114,8 @@ test.describe("one Map surface history owner", () => {
       .evaluate((button) => (button as HTMLElement).click());
 
     await expectSoleDrawer(page, "planner");
+    await expect(planner(page).locator(".controlRail")).toHaveCount(1);
+    await expect(planner(page).locator(".mobilePlannerIntent")).toHaveCount(0);
   });
 
   test("planner to venue leaves exactly one desktop drawer", async ({ page }) => {

@@ -60,6 +60,7 @@ test("phone 390: Plan stop builds a crawl, the pill names it, and the planner op
   await pill.click();
   const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
   await expect(planner).toBeVisible({ timeout: 30_000 });
+  await expect(planner.locator(".controlRail")).toHaveCount(0);
   const stop = planner.locator(".routeList li strong", { hasText: VENUE_NAME }).first();
   await expect(stop).toBeVisible({ timeout: 30_000 });
   const inFirstScreen = await stop.evaluate((el) => {
