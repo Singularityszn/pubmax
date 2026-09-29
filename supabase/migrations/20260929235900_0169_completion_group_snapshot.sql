@@ -15,6 +15,9 @@ create index plan_completion_group_snapshots_completed_at_idx
 create index plan_completion_group_snapshots_plan_id_idx
   on pubmax_private.plan_completion_group_snapshots (plan_id);
 
+create index plan_completion_group_snapshots_account_keys_idx
+  on pubmax_private.plan_completion_group_snapshots using gin (account_keys);
+
 alter table pubmax_private.plan_completion_group_snapshots enable row level security;
 revoke all on pubmax_private.plan_completion_group_snapshots
   from public, anon, authenticated, service_role;
@@ -61,6 +64,38 @@ revoke all on function pubmax_private.snapshot_plan_completion_group()
 create trigger snapshot_plan_completion_group_after_insert
 after insert on public.plan_completions
 for each row execute function pubmax_private.snapshot_plan_completion_group();
+
+-- The auth deletion path keeps Social account rows for Crew history. Remove
+-- snapshots containing either identity before its auth binding is cleared.
+create function pubmax_private.erase_plan_completion_groups_on_account_delete()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  erased_keys text[];
+begin
+  select array_prepend('auth:' || old.id::text,
+    coalesce(array_agg('social:' || social_account.id::text), '{}'::text[]))
+    into erased_keys
+  from public.private_social_accounts social_account
+  join public.profiles profile on profile.id = social_account.profile_id
+  where profile.user_id = old.id
+    or social_account.supabase_user_id = old.id;
+
+  delete from pubmax_private.plan_completion_group_snapshots snapshot
+  where snapshot.account_keys && erased_keys;
+  return old;
+end;
+$$;
+
+revoke all on function pubmax_private.erase_plan_completion_groups_on_account_delete()
+  from public, anon, authenticated, service_role;
+
+create trigger erase_plan_completion_groups_on_account_delete
+before delete on auth.users
+for each row execute function pubmax_private.erase_plan_completion_groups_on_account_delete();
 
 -- One row per requested ISO week. Account keys stay inside this private query.
 create function pubmax_private.completion_group_week(p_day date)

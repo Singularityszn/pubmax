@@ -66,7 +66,7 @@ describe.skipIf(skipReason !== null)("0169 private completion membership snapsho
       where completion_id='${account("c0")}'`)).toBe("0");
   });
 
-  it("keeps distinct active accounts fixed after roster changes but erases them with the Plan", () => {
+  it("keeps membership fixed after roster changes but erases links on account or Plan deletion", () => {
     const pg = database();
     plan(account("b1"), account("c1"), [
       { id: account("d2"), user: account("a1") },
@@ -77,11 +77,15 @@ describe.skipIf(skipReason !== null)("0169 private completion membership snapsho
     const read = () => pg.sql(`select array_to_string(account_keys, ',')
       from pubmax_private.plan_completion_group_snapshots where completion_id='${account("c1")}'`);
     expect(read()).toBe(`auth:${account("a1")},auth:${account("a2")}`);
+    expect(pg.sql(`select groups_completed from pubmax_private.completion_group_week('2026-09-01')`)).toBe("1");
     pg.sql(`update public.plan_crew_members set user_id='${account("a4")}' where id='${account("d4")}';
       update public.plan_crew_members set membership_revoked_at=now() where id='${account("d3")}';
-      update public.plan_crew_members set membership_revoked_at=null where id='${account("d5")}';
-      delete from auth.users where id='${account("a2")}';`);
+      update public.plan_crew_members set membership_revoked_at=null where id='${account("d5")}';`);
     expect(read()).toBe(`auth:${account("a1")},auth:${account("a2")}`);
+    pg.sql(`delete from auth.users where id='${account("a2")}'`);
+    expect(pg.sql(`select count(*) from pubmax_private.plan_completion_group_snapshots
+      where completion_id='${account("c1")}'`)).toBe("0");
+    expect(pg.sql(`select groups_completed from pubmax_private.completion_group_week('2026-09-01')`)).toBe("0");
     pg.sql(`delete from public.plans where id='${account("b1")}'`);
     expect(pg.sql(`select count(*) from pubmax_private.plan_completion_group_snapshots
       where completion_id='${account("c1")}'`)).toBe("0");
@@ -137,6 +141,9 @@ describe.skipIf(skipReason !== null)("0169 private completion membership snapsho
     pg.sql(`update public.social_crew_members set state='active',ended_at=null
       where id='${account("e7")}'`);
     expect(read()).toBe(`social:${account("f1")},social:${account("f2")}`);
+    pg.sql(`delete from auth.users where id='${account("a1")}'`);
+    expect(pg.sql(`select count(*) from pubmax_private.plan_completion_group_snapshots
+      where completion_id='${account("c4")}'`)).toBe("0");
   });
 
   it("reports only aggregate ISO-week group completions and 28-day repeats", () => {
@@ -179,8 +186,12 @@ describe.skipIf(skipReason !== null)("0169 private completion membership snapsho
     expect(pg.expectRefusal(`set role authenticated;
       select * from pubmax_private.plan_completion_group_snapshots;
       reset role;`)).toMatch(/permission denied|row-level security/i);
+    expect(pg.expectRefusal(`set role authenticated;
+      select pubmax_private.erase_plan_completion_groups_on_account_delete();
+      reset role;`)).toMatch(/permission denied/i);
     pg.applyFile(rollback);
     expect(pg.sql(`select to_regclass('pubmax_private.plan_completion_group_snapshots') is null`)).toBe("t");
+    expect(pg.sql(`select to_regprocedure('pubmax_private.erase_plan_completion_groups_on_account_delete()') is null`)).toBe("t");
     pg.applyFile(forward);
   });
 });
