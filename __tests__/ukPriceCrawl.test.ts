@@ -74,6 +74,23 @@ describe("what a page states", () => {
     expect(drinkLabelFromPriceContext("Coke Zero £2.50", "£2.50")).toBe("Coke Zero");
   });
 
+  it("reads a priced juice beside wine as a soft drink, without losing the wine", () => {
+    // Synthetic menu using the printed Frobishers item in the committed source
+    // ledger. No live page was fetched for this regression.
+    const menu = `<p>House red wine 175ml £7.50</p>
+      <p>Frobishers Juice (250ml) £3.00</p>
+      <p>Madri pint £6.20</p>
+      <p>Gordon's gin £8.00</p>`;
+    const reading = readVenueDrinkPrices(menu);
+    expect(pageStatesADrinksList(reading)).toBe(true);
+    expect(cheapestPerCategory(reading)).toEqual([
+      { category: "beer", priceGbp: 6.2, drinkLabel: "Madri pint" },
+      { category: "gin", priceGbp: 8, drinkLabel: "Gordon's gin" },
+      { category: "soft-drink", priceGbp: 3, drinkLabel: "Frobishers Juice (250ml)" },
+      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine 175ml" },
+    ]);
+  });
+
   it("answers one finding rather than an empty list when the page states no figure", () => {
     expect(readVenueDrinkPrices("<p>Open until late</p>").drops).toEqual(["no-price-on-page"]);
   });

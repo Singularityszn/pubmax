@@ -80,8 +80,12 @@ change to the 3,243 venue count.
 This review used committed observations and a synthetic menu to reproduce the
 reader's item-boundary failure. It did not re-fetch any page or review every
 harvest row. A printed `250ml` on the juice does not establish a wine serving;
-unknown servings remain unknown. The exact-match quarantine does not repair
-future extraction or prove other labels correct.
+unknown servings remain unknown. The reader now takes an
+item's own printed name before nearby menu text when naming its category, reads
+juice as a soft drink rather than treating `250ml` as wine, and checks a beer's
+bottle measure against its own item where available. Other category conflicts
+still need review; neither the exact-match quarantine nor this synthetic fixture
+proves other labels correct or supplies a fresh source observation.
 
 **One row per pub, drink and lane, and it is the cheapest the lane stated.** A
 lane states many lines for one pub's beer; the figure a drinker can walk in and

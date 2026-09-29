@@ -158,7 +158,7 @@ const CATEGORY_WORDS: ReadonlyArray<{ category: DrinkCategory; pattern: RegExp }
   {
     category: "wine",
     pattern:
-      /\b(wine|red wine|white wine|ros[eé]|prosecco|champagne|sauvignon|chardonnay|merlot|malbec|pinot|shiraz|rioja|tempranillo|175ml|250ml|glass of wine)\b/i,
+      /\b(wine|red wine|white wine|ros[eé]|prosecco|champagne|sauvignon|chardonnay|merlot|malbec|pinot|shiraz|rioja|tempranillo|175ml|glass of wine)\b/i,
   },
   { category: "whisky", pattern: /\b(whisky|whiskey|bourbon|scotch|single malt|rye)\b/i },
   { category: "gin", pattern: /\b(gin|gordon's|bombay|tanqueray|hendrick's|beefeater gin)\b/i },
@@ -167,7 +167,7 @@ const CATEGORY_WORDS: ReadonlyArray<{ category: DrinkCategory; pattern: RegExp }
   { category: "shot", pattern: /\b(shot|shots|tequila|sambuca|jagerbomb|j[aä]germeister)\b/i },
   {
     category: "soft-drink",
-    pattern: /\b(soft drink|coke|coca[- ]cola|pepsi|lemonade|j2o|fruit shoot|orange juice|squash|still water|sparkling water)\b/i,
+    pattern: /\b(soft drink|coke|coca[- ]cola|pepsi|lemonade|j2o|fruit shoot|juice|squash|still water|sparkling water)\b/i,
   },
   { category: "coffee", pattern: /\b(coffee|espresso|americano|cappuccino|latte|flat white|mocha)\b/i },
 ];
@@ -470,7 +470,11 @@ function decideKeylessUkPriceAt(
   if (OFFER_WORDS.test(context)) {
     return { drop: "offer-not-a-menu-price" };
   }
-  const decision = categoryDecisionFor(context, at - Math.max(0, at - PRICE_CONTEXT_CHARS));
+  const drinkLabel =
+    drinkLabelFromPriceContext(context, verbatim, priceAtInContext) ?? undefined;
+  const decision =
+    (drinkLabel && categoryDecisionFor(drinkLabel, drinkLabel.length)) ||
+    categoryDecisionFor(context, at - contextStart);
   if (!decision) {
     return {
       drop: Number.isFinite(priceGbp) ? "no-category-word-nearby" : "no-drink-word-nearby",
@@ -490,7 +494,9 @@ function decideKeylessUkPriceAt(
   if (FOOD_WORDS.test(context) || FOOD_WEARING_A_DRINK_WORD.test(context)) {
     return { drop: "food-word-nearby" };
   }
-  const before = text.slice(Math.max(0, at - 30), at);
+  // A preceding item's printed measure cannot turn this item's pint into a
+  // bottle. A paired price has no second label, so it keeps the nearby context.
+  const before = drinkLabel ?? text.slice(Math.max(0, at - 30), at);
   const after = text.slice(at + verbatim.length, at + verbatim.length + 6);
   if (category === "beer" && (isHalfMeasure(before) || isFirstOfAMeasurePair(after))) {
     return { drop: "half-measure-not-a-pint" };
@@ -498,8 +504,6 @@ function decideKeylessUkPriceAt(
   if (category === "beer" && isBottledMeasure(before)) {
     return { drop: "bottled-measure-not-a-pint" };
   }
-  const drinkLabel =
-    drinkLabelFromPriceContext(context, verbatim, priceAtInContext) ?? undefined;
   return { kept: { priceGbp, category, verbatim, context, drinkLabel } };
 }
 
