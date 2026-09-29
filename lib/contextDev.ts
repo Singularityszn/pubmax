@@ -355,7 +355,7 @@ async function attempt<Raw, Value>(
 ): Promise<Attempt<Value>> {
   try {
     const raw = await send();
-    const value = read(raw);
+    const value = raw == null ? null : read(raw);
     if (value === null) {
       return {
         kind: "fail",

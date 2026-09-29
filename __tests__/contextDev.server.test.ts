@@ -7,6 +7,7 @@ import {
   createContextDevBudget,
   extract,
   isContextDevConfigured,
+  scrapeHtml,
   scrapeMarkdown,
 } from "@/lib/contextDev.server";
 
@@ -38,6 +39,40 @@ describe("contextDev key configuration", () => {
     await expect(
       scrapeMarkdown("https://www.fullers.co.uk", { env: {} as unknown as NodeJS.ProcessEnv }),
     ).resolves.toEqual({ status: "not-configured" });
+  });
+});
+
+describe("empty successful SDK responses", () => {
+  const url = "https://www.fullers.co.uk/events";
+  const readers = [
+    { name: "Markdown", read: (options: Parameters<typeof scrapeMarkdown>[1]) => scrapeMarkdown(url, options) },
+    { name: "HTML", read: (options: Parameters<typeof scrapeHtml>[1]) => scrapeHtml(url, options) },
+    { name: "extract", read: (options: Parameters<typeof extract>[2]) => extract(url, { type: "object" }, options) },
+  ];
+  const responses = [
+    { name: "204 null", make: () => new Response(null, { status: 204 }) },
+    { name: "200 empty JSON", make: () => new Response(null, { status: 200, headers: { "content-type": "application/json", "content-length": "0" } }) },
+  ];
+
+  it.each(readers.flatMap(({ name, read }) => responses.map((response) => ({
+    name,
+    response: response.name,
+    make: response.make,
+    read,
+  }))))("classifies $response on $name as EMPTY_BODY without retry", async ({ make, read }) => {
+    const fetchImpl = vi.fn(async () => make());
+    const sleeps: number[] = [];
+    const result = await read({
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: async (ms) => { sleeps.push(ms); },
+    });
+    expect(result.status).toBe("error");
+    if (result.status !== "error") throw new Error("expected error");
+    expect(result.error.code).toBe("EMPTY_BODY");
+    expect(result.error.retryable).toBe(false);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(sleeps).toEqual([]);
   });
 });
 
