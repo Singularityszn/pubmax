@@ -88,7 +88,9 @@ export function listedCategoryPrices(
   const currentByDrink = new Map<string, (typeof eligible)[number]>();
   const unnamed: (typeof eligible)[number][] = [];
   for (const entry of eligible) {
-    const drinkKey = bundleRowDedupeDrinkKey(entry.row);
+    const drinkKey = entry.row.drinkLabel?.trim()
+      ? bundleRowDedupeDrinkKey(entry.row)
+      : "";
     if (!drinkKey) {
       unnamed.push(entry);
       continue;
