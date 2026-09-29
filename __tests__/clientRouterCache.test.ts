@@ -74,7 +74,7 @@ const REQUEST_CREDENTIAL_MODULES = ["@/lib/adminAuth"];
  */
 const PER_SESSION_SERVER_PAGES: Record<string, string> = {
   "app/admin/page.tsx":
-    "Nothing in the app links to /admin, so the client router cache never holds it: the only ways in are a typed URL and AdminTokenForm's window.location.assign, both full document loads. The console shell it renders also carries no data — every /api/admin read re-gates on the same credential.",
+    "Nothing in the app links to /admin, so the client router cache never holds it: the only ways in are a typed URL and AdminTokenForm's window.location.reload, both full document loads. The console shell it renders also carries no data — every /api/admin read re-gates on the same credential.",
 };
 
 function serverRouteSources(): Array<{ path: string; source: string }> {
