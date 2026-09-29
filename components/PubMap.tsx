@@ -724,6 +724,58 @@ function dropLogParamFromUrl(): void {
   );
 }
 
+function useMapLogRequest(searchParams: ReturnType<typeof useSearchParams>) {
+  const [logIntentFallbackVisible, setLogIntentFallbackVisible] = useState(false);
+  // Dismiss the current request while Next's native-history adapter publishes
+  // its cleared URL. A later contribution request re-arms the picker.
+  const logIntentSearch = searchParams.toString();
+  const [logIntentDismissal, setLogIntentDismissal] = useState({
+    search: logIntentSearch,
+    cleared: false,
+  });
+  if (logIntentDismissal.search !== logIntentSearch) {
+    setLogIntentDismissal({
+      search: logIntentSearch,
+      cleared: logIntentDismissal.cleared &&
+        !hasMapLogIntent(searchParams) && searchParams.get("contribute") !== "price",
+    });
+  }
+  const logIntentCleared = logIntentDismissal.cleared;
+  const clearLogIntent = useCallback(() => {
+    setLogIntentFallbackVisible(false);
+    setLogIntentDismissal((current) => ({ ...current, cleared: true }));
+    dropLogParamFromUrl();
+  }, []);
+
+  const hasReactiveLogIntent = reactiveLogIntentActive(
+    hasMapLogIntent(searchParams),
+    logIntentCleared,
+  );
+  // The draft price passed to usePintDrops expires with its request.
+  const logIntentPrice = hasReactiveLogIntent
+    ? mapLogIntentPrice(searchParams)
+    : null;
+  useEffect(() => {
+    if (!logIntentCleared) return;
+    dropLogParamFromUrl();
+  });
+  useEffect(() => {
+    if (!logIntentCleared || typeof window === "undefined") return;
+    window.addEventListener("popstate", dropLogParamFromUrl);
+    return () => window.removeEventListener("popstate", dropLogParamFromUrl);
+  }, [logIntentCleared]);
+  const hasCategoryPriceIntent =
+    searchParams.get("contribute") === "price" && !logIntentCleared;
+  return {
+    logIntentFallbackVisible,
+    setLogIntentFallbackVisible,
+    clearLogIntent,
+    logIntentPrice,
+    hasReactiveLogIntent,
+    hasCategoryPriceIntent,
+  };
+}
+
 // hasCrawlArrivalParams (pure §4.5 deep-link probe) now lives in @/lib/pubMap.
 
 function isMobileViewport(): boolean {
@@ -1673,47 +1725,14 @@ export default function PubMap({
     if (!seed.bandId || !readBandChipDismissed(seed.bandId)) return new Set();
     return new Set([seed.bandId]);
   });
-  const [logIntentFallbackVisible, setLogIntentFallbackVisible] = useState(false);
-  // D4 — `log=1` is an owned URL passthrough, so it outlived every close and
-  // rearmed the pub picker each time. Leaving the flow disarms it: the flag
-  // leaves the URL, and this state stands the intent down for the render pass
-  // while Next's native-history adapter publishes the cleared search params.
-  const logIntentSearch = searchParams.toString();
-  const [logIntentDismissal, setLogIntentDismissal] = useState({
-    search: logIntentSearch,
-    cleared: false,
-  });
-  if (logIntentDismissal.search !== logIntentSearch) {
-    setLogIntentDismissal({
-      search: logIntentSearch,
-      cleared: logIntentDismissal.cleared &&
-        !hasMapLogIntent(searchParams) && searchParams.get("contribute") !== "price",
-    });
-  }
-  const logIntentCleared = logIntentDismissal.cleared;
-  const clearLogIntent = useCallback(() => {
-    setLogIntentFallbackVisible(false);
-    setLogIntentDismissal((current) => ({ ...current, cleared: true }));
-    dropLogParamFromUrl();
-  }, []);
-
-  // #1462 — the figure the SAME intent carries, or null. Stood down by exactly
-  // the thing that stands the flag down, because `clearMapLogIntentSearch`
-  // takes the price off the URL with the flag, so a cleared intent can never
-  // leave a figure armed. Declared here because the composer's own draft
-  // hydration owns the field, so the seed rides into `usePintDrops` below.
-  const logIntentPrice = reactiveLogIntentActive(hasMapLogIntent(searchParams), logIntentCleared)
-    ? mapLogIntentPrice(searchParams)
-    : null;
-  useEffect(() => {
-    if (!logIntentCleared) return;
-    dropLogParamFromUrl();
-  });
-  useEffect(() => {
-    if (!logIntentCleared || typeof window === "undefined") return;
-    window.addEventListener("popstate", dropLogParamFromUrl);
-    return () => window.removeEventListener("popstate", dropLogParamFromUrl);
-  }, [logIntentCleared]);
+  const {
+    logIntentFallbackVisible,
+    setLogIntentFallbackVisible,
+    clearLogIntent,
+    logIntentPrice,
+    hasReactiveLogIntent,
+    hasCategoryPriceIntent,
+  } = useMapLogRequest(searchParams);
   const [tonightOverlayVisible, setTonightOverlayVisible] = useState(false);
   const [tonightDismissed, setTonightDismissed] = useState<boolean>(
     readTonightOverlayDismissed,
@@ -3041,12 +3060,6 @@ export default function PubMap({
     viewportSettled: mapBounds !== null,
   });
 
-  const hasReactiveLogIntent = reactiveLogIntentActive(
-    hasMapLogIntent(searchParams),
-    logIntentCleared,
-  );
-  const hasCategoryPriceIntent =
-    searchParams.get("contribute") === "price" && !logIntentCleared;
   const shouldBuildSuggestedRoute = suggestedRouteWanted({
     hasReactiveLogIntent,
     planningOpen,
@@ -4022,7 +4035,7 @@ export default function PubMap({
       selectVenue(venueId);
       if (!hasCategoryPriceIntent) openComposerForLog();
     },
-    [hasCategoryPriceIntent, openComposerForLog, selectVenue],
+    [hasCategoryPriceIntent, openComposerForLog, selectVenue, setLogIntentFallbackVisible],
   );
 
   const handleInspectorTabSelect = useCallback(
@@ -5483,30 +5496,6 @@ export default function PubMap({
     !mapCanvasErrored &&
     !mapCanvasFrameReleased(mapCanvasAvailabilityState) &&
     mapLoadingHeld(mapLoadingStage);
-  // The text-query lane filters curated pubs. UK base browse pubs are a
-  // separate zoom-gated layer and do not answer this query, so they may not
-  // keep an empty filtered collection from naming its honest state.
-  const visibleMapPinCount =
-    visibleVenueState?.cityId === cityId
-      ? visibleVenueState.curatedVenueIds.length
-      : null;
-  const mapSearchEmptyVisible =
-    trimmedMapQuery.length > 0 &&
-    loaded &&
-    loadedCityId === cityId &&
-    filteredPubVenueCount > 0 &&
-    mapBounds !== null &&
-    !mapLoadingActive &&
-    !mapCanvasUnavailable &&
-    mapOverlay !== "search" &&
-    !showMapArrivalCard &&
-    !mapSoftRetryActive &&
-    !detailOpen &&
-    !planningOpen &&
-    !storyOpen &&
-    !mapListOpen &&
-    visibleMapPinCount === 0;
-
   const mobileShellReady = !mapLoadingActive;
   // Desktop reader controls. Both live inside Layers rather than on the map
   // surface, which keeps its budget at search plus one toast. The phone reaches
@@ -6090,6 +6079,29 @@ export default function PubMap({
   }
 
   function renderMapSearchEmptyState() {
+    // The text-query lane filters curated pubs. UK base browse pubs are a
+    // separate zoom-gated layer and do not answer this query, so they may not
+    // keep an empty filtered collection from naming its honest state.
+    const visibleMapPinCount =
+      visibleVenueState?.cityId === cityId
+        ? visibleVenueState.curatedVenueIds.length
+        : null;
+    const mapSearchEmptyVisible =
+      trimmedMapQuery.length > 0 &&
+      loaded &&
+      loadedCityId === cityId &&
+      filteredPubVenueCount > 0 &&
+      mapBounds !== null &&
+      !mapLoadingActive &&
+      !mapCanvasUnavailable &&
+      mapOverlay !== "search" &&
+      !showMapArrivalCard &&
+      !mapSoftRetryActive &&
+      !detailOpen &&
+      !planningOpen &&
+      !storyOpen &&
+      !mapListOpen &&
+      visibleMapPinCount === 0;
     return mapSearchEmptyVisible ? (
       <aside
         className="mapSearchEmpty"
