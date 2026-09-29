@@ -302,7 +302,7 @@ export function bundleRowSupersedes(
   return candidate.priceGbp < held.priceGbp;
 }
 
-/** The ONE collect key `scripts/build_uk_price_bundle.mjs` uses per pub, drink and lane. */
+/** Shared collect key keeps named servings separate within each pub and lane. */
 export function ukPriceBundleCollectKey(
   row: Pick<UkPriceBundleRow, "venueId" | "category" | "lane" | "drinkLabel" | "servingSize">,
 ): string {

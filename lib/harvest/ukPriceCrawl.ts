@@ -4,8 +4,7 @@
 // PURE ON PURPOSE, exactly as lib/harvest/chainMenuPrices.ts is pure: the CLI
 // in scripts/harvest/uk-prices/run.mjs does the fetching, and everything that
 // decides what counts as a price lives here where it can be tested without a
-// network. This module imports one TYPE and no values, so the CLI can load it
-// under tsx with nothing to resolve at runtime.
+// network. parse5 supplies HTML structure without fetching the page.
 //
 // THIS IS THE ONE PRICE READER. The chain menu lane and the Tavily enrichment
 // lane map onto it. Widened in two places and narrowed in one versus the old
@@ -25,7 +24,7 @@
 //
 //   Narrowed by the thing that matters: the verbatim rule is unchanged and
 //   absolute. A figure is kept only when it appears LITERALLY in the text of
-//   the page that was read, with a drink word beside it and no food word. An
+//   the page that was read, with attributable drink context and no food word. An
 //   extractor that returns a price the page never stated has invented it, and
 //   an invented price is worse than no price at all.
 //
@@ -771,8 +770,8 @@ export function pageMayPriceThisPub(
 }
 
 /**
- * The cheapest figure the page states per named drink. Rows that share a
- * category but name different drinks (Coke Zero vs Diet Coke) stay distinct.
+ * Keep distinct names and explicit servings separate, so a cheaper small
+ * glass cannot erase the same wine's larger glass quote.
  */
 export function cheapestPerCategory(reading: UkPriceReading): ReadonlyArray<UkPriceCategoryRow> {
   const low = new Map<string, UkPriceCategoryRow>();

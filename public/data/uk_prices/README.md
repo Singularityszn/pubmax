@@ -34,6 +34,11 @@ printed drink name (`scripts/build_uk_price_bundle.mjs` via `lib/bundleDrinkFiel
 When a lane only states a category, both fields stay absent. `drinkSubtype` is
 never guessed without a label that classifies.
 
+`servingSize` is optional source-stated serving text on listed rows, carried
+through from the producing lane. An absent field means unknown size. `Btl`
+records a bottle label without inventing its volume. The builder and runtime
+parser apply `isValidUkPriceBundleRow` in `lib/ukPriceBundle.ts` to this field.
+
 `lib/ukPriceBundle.ts` owns the shape, the parser and the one rule about who may
 read what. `scripts/validate-data.mjs` refuses the file over a row with no
 observation day, a published row with no source URL, an estimate with no
@@ -65,49 +70,29 @@ predicate also refuses them if they are introduced again.
 **A demo fixture is not a price.** `isDemoDrinkProvenance` spots one and it is
 never carried into a dataset that claims to say what a pint costs.
 
-**Nineteen reviewed category contradictions stay in the source ledger, not in listed
-authority.** `lib/ukPriceBundle.ts` matches their exact page, printed item,
-category and price. The builder excludes them and counts the exclusions in
-`manifest.json`; bundle readers also refuse them if they encounter an older
-file. The source observations remain in
-`data/uk_prices/site_harvest.jsonl` at lines 106, 107, 110, 111, 444 and 1246.
-These are the Plough's 0% Negroni, Picante Spritz, vodka description and
-Pineapple & Yuzu soda, the Guard House's 0.0% Berry Hugo and the George &
-Dragon's Frobishers Juice. The first review removed those six listed rows on
-2026-09-29. The next review removed thirteen retained wine claims whose
-printed labels describe elderflower, raspberry and soda, including the
-Windmill's £5.40 claim. Their ledger lines are 442, 944, 1004, 1232, 1335,
-1409, 2044, 2134, 2369, 2406, 2421, 2519 and 2825. Neither review
-reclassified these drinks or inferred a serving. The bundle still covers 3,243
-venues.
+**Reviewed category contradictions stay in the source ledger.**
+`CATEGORY_QUARANTINE` in `lib/ukPriceBundle.ts` owns the exact exclusions by
+source URL, printed item, category and price. The builder counts exclusions in
+`manifest.json`; bundle readers also refuse those claims in older files.
+The observations remain in `data/uk_prices/site_harvest.jsonl` for audit.
+Quarantine neither reclassifies a drink nor supplies a fresh observation.
+Current coverage and exclusion counts come from the generated manifest.
 
-This review used committed observations and a synthetic menu to reproduce the
-reader's item-boundary failure. It did not re-fetch any page or review every
-harvest row. A printed `250ml` on the juice does not establish a wine serving;
-unknown servings remain unknown. The reader now takes an
-item's own printed name before nearby menu text when naming its category, reads
-juice as a soft drink rather than treating `250ml` as wine, and checks a beer's
-bottle measure against its own item where available. A separate synthetic menu
-now proves a `0%` or `0.0%` marker in an item's name keeps the Plough's Negroni
-and Guard House's Berry Hugo out of alcoholic categories while adjacent priced
-gin and Negroni remain. It does not prove the old source rows' full page context
-or correct all zero-alcohol ingredient descriptions. Other category conflicts
-still need review; neither the exact-match quarantine nor these synthetic fixtures
-proves other labels correct or supplies a fresh source observation.
-Another synthetic menu confirms an early Picante Spritz name wins over tequila
-in its ingredient list, while a separately priced tequila shot stays a shot.
-This does not recover the original page layout or reclassify the quarantined
-source row without a fresh observation.
-The Pineapple & Yuzu label has soda but no named alcoholic category. In a
-synthetic five-item menu, the reader used to borrow the following pint's beer
-category for its £5.35. It now drops that price instead of borrowing a nearby
-category, while retaining priced wine, pint, gin and vodka soda items. This
-proves item association in the reader. The original page layout and the correct
-category of the held source row remain unverified.
+The [harvest guide](../../../docs/UK_PRICE_HARVEST.md#what-counts-as-a-price)
+owns the reader's category and serving-evidence rules and their limits.
+`data/uk_prices/site_harvest_reconciliation.json` records the Sydney Arms
+publication under `postReconciliationPublication`, alongside the original
+reconciliation. It identifies the existing capture, its observation time, the
+superseded row and the resulting ledger and bundle. Reprocessing that capture
+does not make its observation time newer. Regression coverage lives in
+`__tests__/siteHarvestReconciliation.test.ts`.
 
-**One row per pub, drink and lane, and it is the cheapest the lane stated.** A
-lane states many lines for one pub's beer; the figure a drinker can walk in and
-pay is the lowest of them.
+**One row per pub, category, printed drink name, serving and lane.**
+Names and servings are trimmed and case-normalised for the collect key.
+Different explicit servings and an unknown serving stay distinct. For each
+key, the newest observation wins; equal timestamps keep the lowest price.
+`ukPriceBundleCollectKey` and `bundleRowSupersedes` in `lib/ukPriceBundle.ts`
+own this ordering, shared with the site-harvest ledger.
 
 The crawl's own findings, including everything it read and found nothing on,
 are in `data/uk_prices/harvest_report.json` and
