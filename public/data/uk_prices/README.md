@@ -83,8 +83,12 @@ harvest row. A printed `250ml` on the juice does not establish a wine serving;
 unknown servings remain unknown. The reader now takes an
 item's own printed name before nearby menu text when naming its category, reads
 juice as a soft drink rather than treating `250ml` as wine, and checks a beer's
-bottle measure against its own item where available. Other category conflicts
-still need review; neither the exact-match quarantine nor this synthetic fixture
+bottle measure against its own item where available. A separate synthetic menu
+now proves a `0%` or `0.0%` marker in an item's name keeps the Plough's Negroni
+and Guard House's Berry Hugo out of alcoholic categories while adjacent priced
+gin and Negroni remain. It does not prove the old source rows' full page context
+or correct all zero-alcohol ingredient descriptions. Other category conflicts
+still need review; neither the exact-match quarantine nor these synthetic fixtures
 proves other labels correct or supplies a fresh source observation.
 
 **One row per pub, drink and lane, and it is the cheapest the lane stated.** A

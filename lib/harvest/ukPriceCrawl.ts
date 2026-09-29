@@ -252,6 +252,19 @@ function isHalfMeasure(before: string): boolean {
 
 const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{2})?)\b/g;
 
+// A zero-strength claim in the printed item name beats spirit or cocktail
+// words in its description. Keep the marker close to the name so a 0.0%
+// ingredient later in a long description cannot relabel the whole drink.
+const ZERO_ALCOHOL_MARKER = /\b0(?:\.0)?\s*%(?!\d)/i;
+const ZERO_ALCOHOL_TITLE_MAX_OFFSET = 24;
+
+function itemNameStatesZeroAlcohol(drinkLabel: string): boolean {
+  const marker = ZERO_ALCOHOL_MARKER.exec(drinkLabel);
+  if (!marker || marker.index > ZERO_ALCOHOL_TITLE_MAX_OFFSET) return false;
+  const firstComma = drinkLabel.indexOf(",");
+  return firstComma < 0 || marker.index < firstComma;
+}
+
 export type UkPriceCandidate = {
   priceGbp: number;
   category: DrinkCategory;
@@ -473,7 +486,9 @@ function decideKeylessUkPriceAt(
   const drinkLabel =
     drinkLabelFromPriceContext(context, verbatim, priceAtInContext) ?? undefined;
   const decision =
-    (drinkLabel && categoryDecisionFor(drinkLabel, drinkLabel.length)) ||
+    (drinkLabel && (itemNameStatesZeroAlcohol(drinkLabel)
+      ? { category: "alcohol-free" as const, fromMixer: false }
+      : categoryDecisionFor(drinkLabel, drinkLabel.length))) ||
     categoryDecisionFor(context, at - contextStart);
   if (!decision) {
     return {

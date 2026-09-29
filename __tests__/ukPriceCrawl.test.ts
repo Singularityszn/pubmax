@@ -91,6 +91,23 @@ describe("what a page states", () => {
     ]);
   });
 
+  it("keeps explicitly zero-alcohol cocktails out of alcoholic lanes", () => {
+    // Synthetic menu using two printed names from the committed source ledger.
+    // It proves parser association only; no live page was fetched here.
+    const menu = `<p>0% Tropical Negroni Three Spirit Livener, Lyres Italian Spritz, Tanqueray 0.0% £9.00</p>
+      <p>Berry Hugo 0.0% Three Spirit Livener 0.0%, Watermelon, Elderflower, Soda £8.00</p>
+      <p>House Negroni £12.00</p>
+      <p>Gordon's gin £8.00</p>`;
+    const reading = readVenueDrinkPrices(menu);
+    expect(pageStatesADrinksList(reading)).toBe(true);
+    expect(cheapestPerCategory(reading)).toEqual([
+      { category: "alcohol-free", priceGbp: 9, drinkLabel: "0% Tropical Negroni Three Spirit Livener, Lyres Italian Spritz, Tanqueray 0.0%" },
+      { category: "alcohol-free", priceGbp: 8, drinkLabel: "Berry Hugo 0.0% Three Spirit Livener 0.0%, Watermelon, Elderflower, Soda" },
+      { category: "cocktail", priceGbp: 12, drinkLabel: "House Negroni" },
+      { category: "gin", priceGbp: 8, drinkLabel: "Gordon's gin" },
+    ]);
+  });
+
   it("answers one finding rather than an empty list when the page states no figure", () => {
     expect(readVenueDrinkPrices("<p>Open until late</p>").drops).toEqual(["no-price-on-page"]);
   });
