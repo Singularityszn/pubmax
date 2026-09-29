@@ -126,6 +126,70 @@ describe("normaliseContextDevEventRow", () => {
 });
 
 describe("runContextDevEventsLane", () => {
+  async function capturedEvent(markdown: string, event: Record<string, string>) {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      url: fullers.url,
+      markdown: { requested: true, success: true, data: markdown },
+      json: { requested: true, success: true, data: { events: [event] } },
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+    return runContextDevEventsLane({
+      observedAt,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      callOptions: { fetchImpl: fetchImpl as unknown as typeof fetch },
+      log: vi.fn(),
+      logError: vi.fn(),
+    });
+  }
+
+  it("does not crossjoin compact single-newline listings", async () => {
+    const result = await capturedEvent(
+      "# Events\n- Open mic at The Swan on 19 August 2026, 20:00.\n- Quiz at The Dove on 18 August 2026, 20:00.",
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T20:00:00Z" },
+    );
+    expect(result.rows).toEqual([]);
+    expect(result.failures.some((failure) => failure.sourceId === fullers?.id)).toBe(true);
+  });
+
+  it("finds a later recurring listing with the requested date", async () => {
+    const result = await capturedEvent(
+      "# Events\n\nQuiz at The Dove on 18 August 2026.\n\nQuiz at The Dove on 25 August 2026.",
+      { title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-08-25" },
+    );
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]?.startsDate).toBe("2026-08-25");
+  });
+
+  it("rejects a UTC hour that shifts a stated London summer start", async () => {
+    const result = await capturedEvent(
+      "Open mic at The Dove on 18 August 2026 at 20:00 London time.",
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T20:00:00Z" },
+    );
+    expect(result.rows).toEqual([]);
+  });
+
+  it.each([
+    ["Open mic at The Dove on 18 August 2026 at 20:00.", "2026-08-18T19:00:00Z", "2026-08-18T19:00:00.000Z"],
+    ["Open mic at The Dove on 18 December 2026 at 20:00.", "2026-12-18T20:00:00Z", "2026-12-18T20:00:00.000Z"],
+    ["Open mic at The Dove on 18 August 2026 at 20:00 +02:00.", "2026-08-18T20:00:00+02:00", "2026-08-18T18:00:00.000Z"],
+    ["Open mic at The Dove on 18 August 2026 at 8pm.", "2026-08-18T19:00:00Z", "2026-08-18T19:00:00.000Z"],
+    ["Open mic at The Dove on 18 August 2026 at 8:00pm.", "2026-08-18T19:00:00Z", "2026-08-18T19:00:00.000Z"],
+  ])("grounds actual instant against stated time: %s", async (markdown, startsAt, expected) => {
+    const result = await capturedEvent(markdown, {
+      title: "Open mic", placeName: "The Dove", kind: "music", startsAt,
+    });
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]?.startsAt).toBe(expected);
+  });
+
+  it("honours a stated offset even when London wall clock matches a different instant", async () => {
+    const result = await capturedEvent(
+      "Open mic at The Dove on 18 August 2026 at 20:00 +02:00.",
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
+    );
+    expect(result.rows).toEqual([]);
+  });
+
   it("refuses a shape-valid event whose facts are absent from scraped page text", async () => {
     if (!fullers) throw new Error("missing fullers register entry");
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
@@ -158,7 +222,7 @@ describe("runContextDevEventsLane", () => {
       markdown: { requested: true, success: true, data: "# Events\n\nOpen mic at The Dove on 18 August 2026 at 20:00." },
       json: { requested: true, success: true, data: { events: [{
         title: "Open mic", placeName: "The Dove", kind: "music",
-        startsAt: "2026-08-18T20:00:00Z", priceText: "£40", sourceId: "fake-42",
+        startsAt: "2026-08-18T19:00:00Z", priceText: "£40", sourceId: "fake-42",
       }] } },
     }), { status: 200, headers: { "content-type": "application/json" } }));
 
@@ -171,7 +235,7 @@ describe("runContextDevEventsLane", () => {
     });
 
     expect(result.rows).toHaveLength(1);
-    expect(result.rows[0]).toMatchObject({ title: "Open mic", startsAt: "2026-08-18T20:00:00.000Z" });
+    expect(result.rows[0]).toMatchObject({ title: "Open mic", startsAt: "2026-08-18T19:00:00.000Z" });
     expect(result.rows[0]?.priceGbp).toBeUndefined();
     expect(result.rows[0]?.sourceId).toBe(result.rows[0]?.id);
   });

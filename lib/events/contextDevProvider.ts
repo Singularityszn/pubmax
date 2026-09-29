@@ -144,18 +144,46 @@ function dateAppearsInEvidence(date: string, evidence: string): boolean {
   return forms.some((form) => evidence.includes(` ${form} `));
 }
 
-function timeAppearsInEvidence(instant: string, evidence: string): boolean {
-  const match = /T(\d{2}):(\d{2})/.exec(instant);
-  if (!match) return false;
-  const hour = Number(match[1]);
-  const minute = match[2] ?? "00";
-  const hour12 = String(hour % 12 || 12);
-  const period = hour < 12 ? "am" : "pm";
-  const forms = [
-    `${hour} ${minute}`, `${hour12} ${minute} ${period}`,
-    ...(minute === "00" ? [`${hour12} ${period}`] : []),
-  ];
-  return forms.some((form) => evidence.includes(` ${form} `));
+const STATED_CLOCK = /(?<![\p{L}\p{N}])(?:(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)|([01]?\d|2[0-3]):([0-5]\d))(?:\s*(Z|[+-](?:0\d|1[0-4]):[0-5]\d))?(?![\p{L}\p{N}])/giu;
+
+function londonWallClock(instant: string): { date: string; hour: number; minute: number } {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date(instant));
+  const part = (name: string) => parts.find((item) => item.type === name)?.value ?? "";
+  return {
+    date: `${part("year")}-${part("month")}-${part("day")}`,
+    hour: Number(part("hour")),
+    minute: Number(part("minute")),
+  };
+}
+
+function timeAppearsInEvidence(instant: string, section: string): boolean {
+  const instantMs = Date.parse(instant);
+  const clocks = Array.from(section.matchAll(STATED_CLOCK));
+  const hasOffset = clocks.some((match) => match[6]);
+  const london = londonWallClock(instant);
+
+  return clocks.some((match) => {
+    if (hasOffset && !match[6]) return false;
+    let hour = Number(match[1] ?? match[4]);
+    const minute = Number(match[2] ?? match[5] ?? "0");
+    if (match[3]) hour = hour % 12 + (match[3].toLowerCase() === "pm" ? 12 : 0);
+
+    if (!match[6]) {
+      return hour === london.hour && minute === london.minute &&
+        dateAppearsInEvidence(london.date, ` ${evidenceWords(section)} `);
+    }
+
+    const offset = match[6].toUpperCase() === "Z" ? 0 :
+      (match[6][0] === "-" ? -1 : 1) *
+      (Number(match[6].slice(1, 3)) * 60 + Number(match[6].slice(4, 6)));
+    const offsetClock = new Date(instantMs + offset * 60_000).toISOString();
+    return hour === Number(offsetClock.slice(11, 13)) &&
+      minute === Number(offsetClock.slice(14, 16)) &&
+      dateAppearsInEvidence(offsetClock.slice(0, 10), ` ${evidenceWords(section)} `);
+  });
 }
 
 function groundedEvent(raw: RawContextDevEvent, markdown: string): RawContextDevEvent | null {
@@ -164,25 +192,26 @@ function groundedEvent(raw: RawContextDevEvent, markdown: string): RawContextDev
   const sections = markdown
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/https?:\/\/\S+/g, "")
-    .split(/\n\s*\n/);
+    .split(/\r?\n/);
   const title = evidenceWords(raw.title);
   const place = evidenceWords(raw.placeName);
-  const rawSection = sections.find((candidate) => {
-    const words = ` ${evidenceWords(candidate)} `;
-    return words.includes(` ${title} `) && words.includes(` ${place} `);
-  });
-  if (!rawSection) return null;
-  const section = ` ${evidenceWords(rawSection)} `;
-
   const date = nonEmptyString(raw.startsAt)
     ? raw.startsAt.trim().slice(0, 10)
     : nonEmptyString(raw.startsDate) ? raw.startsDate.trim() : "";
-  if (!dateAppearsInEvidence(date, section)) return null;
-  if (nonEmptyString(raw.startsAt) && !timeAppearsInEvidence(raw.startsAt, section)) return null;
-
+  const instant = nonEmptyString(raw.startsAt) ? toIsoInstant(raw.startsAt) : null;
   const kind = nonEmptyString(raw.kind) ? raw.kind.trim() : "";
-  if (kind === "music" && !/\b(music|gig|concert|open mic|dj|band|live)\b/.test(section)) return null;
-  if (kind === "sport" && !/\b(sport|football|rugby|cricket|match|game|fixture)\b/.test(section)) return null;
+  const rawSection = sections.find((candidate) => {
+    const words = ` ${evidenceWords(candidate)} `;
+    if (!words.includes(` ${title} `) || !words.includes(` ${place} `)) return false;
+    if (instant) {
+      if (!timeAppearsInEvidence(instant, candidate)) return false;
+    } else if (!dateAppearsInEvidence(date, words)) return false;
+    if (kind === "music" && !/\b(music|gig|concert|open mic|dj|band|live)\b/.test(words)) return false;
+    if (kind === "sport" && !/\b(sport|football|rugby|cricket|match|game|fixture)\b/.test(words)) return false;
+    return true;
+  });
+  if (!rawSection) return null;
+  const section = ` ${evidenceWords(rawSection)} `;
 
   return {
     ...raw,

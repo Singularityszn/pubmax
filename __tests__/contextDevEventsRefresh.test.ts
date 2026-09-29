@@ -67,7 +67,7 @@ describe("eventsRefresh Context.dev lane", () => {
             placeName: "The Counting House",
             kind: "music",
             sourceUrl: "https://www.fullers.co.uk/pubs/counting-house/event/open-mic",
-            startsAt: "2026-08-16T20:00:00Z",
+            startsAt: "2026-08-16T19:00:00Z",
           },
         ],
       },
