@@ -61,6 +61,47 @@ function mockAnswersForBatch(
 
 describe("readVenueDrinkPricesJudged batch failures", () => {
   it.each([
+    { status: "skipped", reason: "budget" },
+    { status: "failed", reason: "timeout" },
+    { status: "failed", reason: "error" },
+    { status: "ok", result: { answers: {} } },
+  ])("preserves strength and paired-glass identity after %j", async (failure) => {
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    vi.mocked(systemOneOutcome).mockResolvedValue(
+      failure as Awaited<ReturnType<typeof systemOneOutcome>>,
+    );
+    try {
+      for (const strength of ["4.0%", "10.0%", "0.5%", "0%", "0.0%", "0.00%", "alcohol-free"]) {
+        const judged = await readVenueDrinkPricesJudged(`<p>Shenanigans Lager ${strength} £3.70</p>`, {
+          pubName: "The Crown", pageUrl: "https://thecrown.co.uk/drinks",
+        });
+        expect(judged.kept).toEqual([expect.objectContaining({
+          category: ["4.0%", "10.0%", "0.5%"].includes(strength) ? "beer" : "alcohol-free",
+          priceGbp: 3.7,
+        })]);
+      }
+      const judged = await readVenueDrinkPricesJudged(
+        `<p>Rioja 125ml £5.25 250ml £10.50</p><p>Gordon's gin £8.00</p><p>Madri pint £6.20</p>`,
+        { pubName: "The Crown", pageUrl: "https://thecrown.co.uk/drinks" },
+      );
+      expect(judged.kept).toEqual([
+        expect.objectContaining({ category: "wine", drinkLabel: "Rioja", servingSize: "125ml", priceGbp: 5.25 }),
+        expect.objectContaining({ category: "wine", drinkLabel: "Rioja", servingSize: "250ml", priceGbp: 10.5 }),
+        expect.objectContaining({ category: "gin", drinkLabel: "Gordon's gin", priceGbp: 8 }),
+        expect.objectContaining({ category: "beer", drinkLabel: "Madri pint", priceGbp: 6.2 }),
+      ]);
+      const separated = await readVenueDrinkPricesJudged(
+        `<p>Rioja 125ml £5.25</p><p>250ml £10.50</p><p>Gordon's gin £8.00</p>`,
+        { pubName: "The Crown", pageUrl: "https://thecrown.co.uk/drinks" },
+      );
+      expect(separated.kept.some((row) => row.priceGbp === 10.5)).toBe(false);
+    } finally {
+      vi.unstubAllEnvs();
+      vi.mocked(systemOneOutcome).mockReset();
+    }
+  });
+
+  it.each([
     [{ status: "skipped", reason: "budget" }, "typesafe-judgment-budget-refused"],
     [{ status: "failed", reason: "timeout" }, "typesafe-judgment-call-timeout"],
     [{ status: "failed", reason: "error" }, "typesafe-judgment-call-error"],
@@ -112,6 +153,27 @@ describe("readVenueDrinkPricesJudged batch failures", () => {
         { drinkLabel: "Chardonnay, Pays D’oc, France", servingSize: "250ml", priceGbp: 11 },
       ]);
       expect(judged.drops).toContain("outside-category-band");
+    } finally {
+      vi.unstubAllEnvs();
+      vi.mocked(systemOneOutcome).mockReset();
+    }
+  });
+
+  it("does not attach an earlier item's wine identity to an accepted judged price", async () => {
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    vi.mocked(systemOneOutcome).mockImplementation(async (_state, questions) =>
+      mockAnswersForBatch(questions, "wine_glass"),
+    );
+    try {
+      const judged = await readVenueDrinkPricesJudged(
+        `<p>Rioja 125ml £5.25</p><p>250ml £10.50</p>`,
+        { pubName: "The Crown", pageUrl: "https://thecrown.co.uk/drinks" },
+      );
+      expect(judged.kept.find((row) => row.priceGbp === 5.25)).toMatchObject({
+        drinkLabel: "Rioja", servingSize: "125ml",
+      });
+      expect(judged.kept.find((row) => row.priceGbp === 10.5)).toMatchObject({ drinkLabel: "250ml" });
+      expect(judged.kept.find((row) => row.priceGbp === 10.5)).not.toHaveProperty("servingSize");
     } finally {
       vi.unstubAllEnvs();
       vi.mocked(systemOneOutcome).mockReset();
@@ -186,7 +248,7 @@ describe("readVenueDrinkPricesJudged batch failures", () => {
   it("reads each repeated figure at its own offset, not the first match", async () => {
     const filler = `<p>${"Our kitchen serves hearty plates every day of the week. ".repeat(6)}</p>`;
     const html = `<html><body><p>Madri pint &pound;6.20</p>${filler}<p>Steak and chips supper &pound;6.20</p></body></html>`;
-    const text = pageText(html);
+    const text = pageText(html, true);
     const candidates = findUkPriceCandidates(text, 120);
     expect(candidates).toHaveLength(2);
     expect(candidates[0].at).toBeLessThan(candidates[1].at);

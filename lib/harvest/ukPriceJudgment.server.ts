@@ -242,7 +242,7 @@ export async function readVenueDrinkPricesJudged(
     return { ...readVenueDrinkPrices(html), review: [] };
   }
 
-  const text = pageText(html);
+  const text = pageText(html, true);
   const candidates = findUkPriceCandidates(text, UK_PRICE_JUDGMENT_SNIPPET_CHARS);
   if (candidates.length === 0) {
     return { kept: [], drops: ["no-price-on-page"], review: [] };

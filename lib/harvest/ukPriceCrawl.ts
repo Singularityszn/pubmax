@@ -119,6 +119,8 @@ export const CATEGORY_PRICE_BANDS: Readonly<
 /** How much page text either side of a figure is read for its drink word. */
 const PRICE_CONTEXT_CHARS = 80;
 
+const ZERO_ALCOHOL_MARKER = /(?<![\w.,])0(?:\.0+)?\s*%(?![\d.])/i;
+
 /**
  * The vocabulary that names a category, strongest signal first. The order is
  * the order these are TESTED in, so a phrase that belongs to two lanes lands in
@@ -126,10 +128,11 @@ const PRICE_CONTEXT_CHARS = 80;
  * "espresso martini" is a cocktail before it is a coffee.
  */
 const CATEGORY_WORDS: ReadonlyArray<{ category: DrinkCategory; pattern: RegExp }> = [
+  { category: "alcohol-free", pattern: ZERO_ALCOHOL_MARKER },
   {
     category: "alcohol-free",
     pattern:
-      /\b(non[- ]alcoholic\s+ginger\s+beer|alcohol[- ]free|non[- ]alcoholic|no[- ]and[- ]low|0\.0%|0%\s*abv|lucky saint|erdinger alkoholfrei|guinness 0|heineken 0|becks blue)\b/i,
+      /\b(non[- ]alcoholic\s+ginger\s+beer|alcohol[- ]free|non[- ]alcoholic|no[- ]and[- ]low|lucky saint|erdinger alkoholfrei|(?:guinness|heineken) 0(?![.\d])|becks blue)\b/i,
   },
   {
     // Crabbie's is explicitly sold as alcoholic ginger beer. The generic
@@ -199,7 +202,7 @@ const FOOD_WEARING_A_DRINK_WORD = /\b(crab|prawn|shrimp|seafood|fruit)\s+cocktai
  * promotion. Both would read on a pub's card as a price a drinker could pay.
  */
 const OFFER_WORDS =
-  /(\b\d+\s+for\b|\btwo for\b|\bhappy hour\b|\boffer|\bsave\b|\bwas\b|\bonly\b|\bfrom\b|\bdeal\b|\bpromo|\bdiscount|\bfree\b|\bbottomless\b|\bunlimited\b|\bper person\b|\bvoucher|\bgift\b|\bwhen you\b|\bterms\b)/i;
+  /(\b\d+\s+for\b|\btwo for\b|\bhappy hour\b|\boffer|\bsave\b|\bwas\b|\bonly\b|\bfrom\b|\bdeal\b|\bpromo|\bdiscount|(?<!\balcohol[- ])\bfree\b|\bbottomless\b|\bunlimited\b|\bper person\b|\bvoucher|\bgift\b|\bwhen you\b|\bterms\b)/i;
 
 /**
  * How many priced drink lines a page has to state before it counts as a drinks
@@ -256,11 +259,11 @@ const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{2})?)\b/g;
 // A zero-strength claim in the printed item name beats spirit or cocktail
 // words in its description. Keep the marker close to the name so a 0.0%
 // ingredient later in a long description cannot relabel the whole drink.
-const ZERO_ALCOHOL_MARKER = /\b0(?:\.0)?\s*%(?!\d)/i;
 const ZERO_ALCOHOL_TITLE_MAX_OFFSET = 24;
 
 function itemNameStatesZeroAlcohol(drinkLabel: string): boolean {
-  const marker = ZERO_ALCOHOL_MARKER.exec(drinkLabel);
+  const marker = ZERO_ALCOHOL_MARKER.exec(drinkLabel)
+    ?? /\b(?:alcohol[- ]free|non[- ]alcoholic)\b/i.exec(drinkLabel);
   if (!marker || marker.index > ZERO_ALCOHOL_TITLE_MAX_OFFSET) return false;
   const firstComma = drinkLabel.indexOf(",");
   return firstComma < 0 || marker.index < firstComma;
@@ -312,6 +315,7 @@ export function drinkLabelFromPriceContext(
 ): string | null {
   const priceAt = priceAtInContext;
   if (priceAt < 0) return null;
+  context = context.replace(/\n/g, " ");
 
   const before = context.slice(0, priceAt);
   let start = 0;
@@ -346,6 +350,9 @@ export function statedWineIdentity(
   verbatim: string,
   priceAt: number,
 ): { drinkLabel: string; servingSize: string } | null {
+  const itemStart = context.lastIndexOf("\n", priceAt - 1) + 1;
+  context = context.slice(itemStart);
+  priceAt -= itemStart;
   let candidateAt = priceAt;
   let currentMeasure: string | null = null;
   // A wine's subsequent glass figures carry only their own printed measure.
@@ -396,11 +403,13 @@ export type UkPriceReading = {
  * Strip a page to the text a reader sees. Scripts and styles go first, because
  * a price inside a JSON blob or a CSS rule is not something the page states.
  */
-export function pageText(html: string): string {
+export function pageText(html: string, preserveItemBoundaries = false): string {
   return html
     .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/<\/?(?:p|li|tr|div|section|article|h[1-6]|ul|ol|table|dl|dt|dd)\b[^>]*>/gi, "\n")
     .replace(/<[^>]*>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -410,7 +419,7 @@ export function pageText(html: string): string {
     // a wine to any pattern here, and `&#163;` is not a price to any of them.
     .replace(/&#(\d{1,7});/g, (_, code) => String.fromCodePoint(Number(code)))
     .replace(/&#x([0-9a-f]{1,6});/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)))
-    .replace(/\s+/g, " ")
+    .replace(/\s+/g, (space) => preserveItemBoundaries && space.includes("\n") ? "\n" : " ")
     .trim();
 }
 
@@ -459,7 +468,7 @@ function wineSectionPrices(html: string): Map<number, { text: string; raw: UkPri
           const text = pageText(html.slice(
             location.startOffset,
             location.endOffset,
-          ));
+          ), true);
           for (const [index, raw] of findUkPriceCandidates(text).entries()) {
             prices.set(first + index, { text, raw });
           }
@@ -597,10 +606,14 @@ function decideKeylessUkPriceAt(
   if (drinkLabel && !decisionFromLabel && /\bsoda\b/i.test(drinkLabel)) {
     return { drop: "no-category-word-nearby" };
   }
-  const sectionWineIdentity = inWineSection
-    ? statedWineIdentity(context, verbatim, priceAtInContext)
-    : null;
-  const decision = decisionFromLabel ?? (sectionWineIdentity
+  const statedIdentity = statedWineIdentity(context, verbatim, priceAtInContext);
+  const wineIdentity = statedIdentity && (inWineSection || categoryDecisionFor(
+    statedIdentity.drinkLabel, statedIdentity.drinkLabel.length,
+  )?.category === "wine") ? statedIdentity : null;
+  if (/^\d{2,3}\s*ml$/i.test(drinkLabel ?? "") && !wineIdentity) {
+    return { drop: "no-category-word-nearby" };
+  }
+  const decision = decisionFromLabel ?? (wineIdentity
     ? { category: "wine" as const, fromMixer: false }
     : categoryDecisionFor(context, at - contextStart));
   if (!decision) {
@@ -612,9 +625,6 @@ function decideKeylessUkPriceAt(
     return { drop: "mixer-serve-not-one-drink" };
   }
   const category = decision.category;
-  const wineIdentity = category === "wine"
-    ? sectionWineIdentity ?? statedWineIdentity(context, verbatim, priceAtInContext)
-    : null;
   const band = CATEGORY_PRICE_BANDS[category];
   if (!band) {
     return { drop: "no-category-word-nearby" };
@@ -641,8 +651,8 @@ function decideKeylessUkPriceAt(
       category,
       verbatim,
       context,
-      drinkLabel: wineIdentity?.drinkLabel ?? drinkLabel,
-      ...(wineIdentity ? { servingSize: wineIdentity.servingSize } : {}),
+      drinkLabel: category === "wine" ? wineIdentity?.drinkLabel ?? drinkLabel : drinkLabel,
+      ...(category === "wine" && wineIdentity ? { servingSize: wineIdentity.servingSize } : {}),
     },
   };
 }
@@ -662,7 +672,7 @@ export function decideKeylessUkPriceCandidate(
 export function readKeylessUkPriceDecisions(
   html: string,
 ): Map<number, ReturnType<typeof decideKeylessUkPriceCandidate>> {
-  const text = pageText(html);
+  const text = pageText(html, true);
   const decisions = new Map<number, ReturnType<typeof decideKeylessUkPriceCandidate>>();
   const candidates = findUkPriceCandidates(text);
   const winePrices = wineSectionPrices(html);

@@ -14,6 +14,7 @@ import {
   MIN_PRICED_LINES_FOR_LIST,
   UK_PRICE_DROP_REASONS,
   drinkLabelFromPriceContext,
+  findUkPriceCandidates,
   categoryFor,
   cheapestPerCategory,
   isLikelyMenuUrl,
@@ -38,6 +39,63 @@ const drinksList = `
 </body></html>`;
 
 describe("what a page states", () => {
+  it.each([
+    ["4.0%", "beer"], ["10.0%", "beer"], ["0.5%", "beer"],
+    ["0%", "alcohol-free"], ["0.0%", "alcohol-free"], ["0.00%", "alcohol-free"],
+    ["alcohol-free", "alcohol-free"],
+  ])("classifies complete strength token %s as %s", (strength, category) => {
+    for (const name of ["Shenanigans Lager", "Guinness", "Heineken"]) {
+      const reading = readVenueDrinkPrices(`<p>${name} ${strength} £3.70</p>`);
+      expect(reading.kept).toEqual([
+        expect.objectContaining({ category, priceGbp: 3.7 }),
+      ]);
+    }
+  });
+
+  it.each(["alcohol-free lager", "alcohol free lager", "non-alcoholic lager"])(
+    "keeps explicit %s while refusing free-drink promotions", (label) => {
+      expect(readVenueDrinkPrices(`<p>${label} £3.70</p>`).kept).toEqual([
+        expect.objectContaining({ category: "alcohol-free", priceGbp: 3.7 }),
+      ]);
+      expect(readVenueDrinkPrices(`<p>${label} £3.70 with free crisps</p>`).kept).toEqual([]);
+    },
+  );
+
+  it("preserves price offsets when retaining structural boundaries", () => {
+    const menu = `<section><h2>Wine</h2><p>Rioja<br />125ml £5.25 250ml £10.50</p></section>
+      <div><p>Gordon's gin £8.00</p></div>`;
+    expect(findUkPriceCandidates(pageText(menu, true)).map((row) => row.at))
+      .toEqual(findUkPriceCandidates(pageText(menu)).map((row) => row.at));
+  });
+
+  it.each([
+    "<p>Rioja 125ml £5.25 250ml £10.50</p><p>Gordon's gin £8.00</p>",
+    "Rioja 125ml £5.25 250ml £10.50 Gordon's gin £8.00",
+  ])("keeps paired wine measures before following gin: %s", (menu) => {
+    const reading = readVenueDrinkPrices(menu);
+    expect(reading.kept.map(({ category, drinkLabel, servingSize, priceGbp }) => (
+      { category, drinkLabel, servingSize, priceGbp }
+    ))).toEqual([
+      { category: "wine", drinkLabel: "Rioja", servingSize: "125ml", priceGbp: 5.25 },
+      { category: "wine", drinkLabel: "Rioja", servingSize: "250ml", priceGbp: 10.5 },
+      { category: "gin", drinkLabel: "Gordon's gin", servingSize: undefined, priceGbp: 8 },
+    ]);
+  });
+
+  it.each(["p", "li", "div", "section", "article", "tr"])(
+    "does not join wine measures across separate %s items", (tag) => {
+      const item = (text: string) => tag === "tr" ? `<tr><td>${text}</td></tr>` : `<${tag}>${text}</${tag}>`;
+      for (const size of ["125ml", "175ml", "250ml"]) {
+        const body = `${item("Rioja 125ml £5.25")}${item(`${size} £10.50`)}${item("Gordon's gin £8.00")}`;
+        const reading = readVenueDrinkPrices(tag === "tr" ? `<table>${body}</table>` : body);
+        expect(reading.kept.filter((row) => row.priceGbp === 10.5)).toEqual([]);
+        expect(reading.kept.find((row) => row.priceGbp === 5.25)).toMatchObject({
+          category: "wine", drinkLabel: "Rioja", servingSize: "125ml",
+        });
+      }
+    },
+  );
+
   it("reads the text a reader sees and drops what a script says", () => {
     const text = pageText('<script>var p = "£4.00";</script><p>Madri pint &pound;6.20</p>');
     expect(text).toBe("Madri pint £6.20");
