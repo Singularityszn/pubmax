@@ -45,6 +45,14 @@
   animation: arrivalWelcomeIn 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
+/* Desktop Plan can place its 64px nav below a 48px page inset. The mobile
+   52px bar token alone puts this greeting across the desktop nav controls. */
+@media (min-width: 641px) {
+  .arrivalWelcome {
+    top: calc(120px + env(safe-area-inset-top, 0px));
+  }
+}
+
 /* Exit is quicker than the entrance: the person decided, the system answers. */
 .arrivalWelcome[data-leaving] {
   animation: arrivalWelcomeOut 200ms cubic-bezier(0.23, 1, 0.32, 1) both;

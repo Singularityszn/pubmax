@@ -218,6 +218,20 @@ for (const device of [
     await expect.poll(() => callbackLandings).toBe(1);
     await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), AUTH_STORAGE_KEY)).not.toBeNull();
     await expect.poll(() => resumeCookie(page, CANONICAL_ORIGIN)).toBeTruthy();
+    if (device.name === "desktop") {
+      const welcome = page.locator(".arrivalWelcome");
+      await expect(welcome).toBeVisible();
+      await welcome.evaluate(async (element) => {
+        await Promise.all(element.getAnimations().map((animation) => animation.finished));
+      });
+      const [welcomeBox, navBox] = await Promise.all([
+        welcome.boundingBox(),
+        page.locator(".siteNavBar").boundingBox(),
+      ]);
+      expect(welcomeBox).not.toBeNull();
+      expect(navBox).not.toBeNull();
+      expect(welcomeBox!.y).toBeGreaterThanOrEqual(navBox!.y + navBox!.height + 8);
+    }
     const expectAccountNavigation = async () => {
       if (device.name === "phone") {
         await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "You" })).toHaveAttribute("href", "/u/karan");
