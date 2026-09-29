@@ -75,6 +75,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  vi.stubEnv("NODE_ENV", "test");
   resetVenueDetailCachesForTests();
 });
 
@@ -185,9 +186,18 @@ describe("venueDetailIndex", () => {
   });
 
   it("degrades to null when the detail rows file cannot be opened", async () => {
-    setVenueDetailRowsFileForTests(path.join(ROOT, "data", "generated", "missing-details.jsonl"));
-    await expect(getVenueDetail(SEED_VENUE_ID)).resolves.toBeNull();
-    await expect(lookupVenueDetail(SEED_VENUE_ID)).resolves.toEqual({ status: "unavailable" });
+    await expect(getVenueDetail(SEED_VENUE_ID)).resolves.toMatchObject({ id: SEED_VENUE_ID });
+    const missingRowsFile = path.join(ROOT, "data", "generated", "missing-details.jsonl");
+    const open = vi.spyOn(fs, "open");
+    try {
+      setVenueDetailRowsFileForTests(missingRowsFile);
+      const venue = await getVenueDetail(SEED_VENUE_ID);
+      expect(open).toHaveBeenCalledWith(missingRowsFile, "r");
+      expect(venue).toBeNull();
+      await expect(lookupVenueDetail(SEED_VENUE_ID)).resolves.toEqual({ status: "unavailable" });
+    } finally {
+      open.mockRestore();
+    }
   });
 
   it("does not cache missing venue ids permanently", async () => {
