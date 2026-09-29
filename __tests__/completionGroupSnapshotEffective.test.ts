@@ -66,7 +66,7 @@ describe.skipIf(skipReason !== null)("0169 private completion membership snapsho
       where completion_id='${account("c0")}'`)).toBe("0");
   });
 
-  it("keeps distinct active accounts fixed after claim, revoke and deletion", () => {
+  it("keeps distinct active accounts fixed after roster changes but erases them with the Plan", () => {
     const pg = database();
     plan(account("b1"), account("c1"), [
       { id: account("d2"), user: account("a1") },
@@ -83,7 +83,8 @@ describe.skipIf(skipReason !== null)("0169 private completion membership snapsho
       delete from auth.users where id='${account("a2")}';`);
     expect(read()).toBe(`auth:${account("a1")},auth:${account("a2")}`);
     pg.sql(`delete from public.plans where id='${account("b1")}'`);
-    expect(read()).toBe(`auth:${account("a1")},auth:${account("a2")}`);
+    expect(pg.sql(`select count(*) from pubmax_private.plan_completion_group_snapshots
+      where completion_id='${account("c1")}'`)).toBe("0");
   });
 
   it("records solo and anonymous completions as measured non-groups", () => {
@@ -148,6 +149,8 @@ describe.skipIf(skipReason !== null)("0169 private completion membership snapsho
       ["c8", "b8", "2027-09-09 20:00:00+00", ["a1", "a3"]],
       ["c9", "b9", "2027-10-08 20:00:00+00", ["a1", "a2"]],
     ] as const)) {
+      pg.sql(`insert into public.plans(id,title,start_time,status)
+        values('${account(planId)}','Aggregate fixture','${date}','completed')`);
       pg.sql(`insert into pubmax_private.plan_completion_group_snapshots
         (completion_id,plan_id,completed_at,account_keys)
         values('${account(completion)}','${account(planId)}','${date}',${keys([...members])})`);
@@ -166,6 +169,9 @@ describe.skipIf(skipReason !== null)("0169 private completion membership snapsho
     expect(pg.expectRefusal(`set role authenticated;
       select * from pubmax_private.completion_group_week('2027-09-07');
       reset role;`)).toMatch(/permission denied/i);
+    pg.sql(`delete from public.plans where id='${account("b5")}'`);
+    expect(read("2027-09-02")).toBe("2027-08-30:0:0:undefined");
+    expect(read("2027-09-07")).toBe("2027-09-06:2:0:0");
   });
 
   it("denies client roles and removes snapshot machinery on rollback", () => {

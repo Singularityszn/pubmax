@@ -1,10 +1,9 @@
 -- Completion-time account membership is private historical evidence. Existing
 -- completions are deliberately absent: the current roster cannot reconstruct them.
--- No foreign key to a Plan, completion or auth user: their later deletion must
--- not change the completed night's measured membership.
+-- Plan deletion removes its private membership evidence.
 create table pubmax_private.plan_completion_group_snapshots (
   completion_id uuid primary key,
-  plan_id uuid not null,
+  plan_id uuid not null references public.plans(id) on delete cascade,
   completed_at timestamptz not null,
   account_keys text[] not null,
   captured_at timestamptz not null default now()
@@ -12,6 +11,9 @@ create table pubmax_private.plan_completion_group_snapshots (
 
 create index plan_completion_group_snapshots_completed_at_idx
   on pubmax_private.plan_completion_group_snapshots (completed_at);
+
+create index plan_completion_group_snapshots_plan_id_idx
+  on pubmax_private.plan_completion_group_snapshots (plan_id);
 
 alter table pubmax_private.plan_completion_group_snapshots enable row level security;
 revoke all on pubmax_private.plan_completion_group_snapshots
