@@ -1,4 +1,5 @@
 import { momentHref } from "@/components/nav/navigationModel";
+import { preferredCityMapHref } from "@/lib/cityPreference";
 
 /**
  * What the floating create action offers, and where each row goes.
@@ -38,7 +39,7 @@ export function returnToFromLocation(
 
 export const CREATE_FAB_ACTIONS: readonly CreateFabAction[] = [
   { action: "moment", label: "Post a moment", hrefFor: (returnTo) => momentHref(returnTo) },
-  { action: "price", label: "Log a price", hrefFor: () => "/map?log=1" },
+  { action: "price", label: "Log a price", hrefFor: () => preferredCityMapHref("log=1") },
   { action: "plan", label: "Start a plan", hrefFor: () => "/plan" },
 ] as const;
 

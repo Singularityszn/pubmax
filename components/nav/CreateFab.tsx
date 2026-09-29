@@ -22,6 +22,10 @@ import {
 } from "@/components/nav/createFabActions";
 import { trackEvent } from "@/lib/analytics";
 import {
+  readPreferredCity,
+  subscribePreferredCity,
+} from "@/lib/cityPreference";
+import {
   readSoftKeyboardOpen,
   serverSoftKeyboardOpen,
   subscribeSoftKeyboard,
@@ -67,6 +71,8 @@ function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
   // while the sheet covers it.
   const [returnTo, setReturnTo] = useState(routerReturnTo);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  // Keep open row destinations current when city changes in this or another tab.
+  useSyncExternalStore(subscribePreferredCity, readPreferredCity, () => null);
   const keyboardOpen = useSyncExternalStore(
     subscribeSoftKeyboard,
     readSoftKeyboardOpen,
