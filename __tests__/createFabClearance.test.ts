@@ -59,7 +59,16 @@ describe("the body reserves the control's own lane", () => {
 
   it("gives a page that hides the control the bar's clearance and no more", () => {
     expect(mobileNavCss).toContain(
-      "body:has(.createFabRoot):not(:has(.pageHidesCreateFab))",
+      "body:has(.createFabRoot):not(:has(.mapStage)):not(:has(.pageHidesCreateFab))",
+    );
+  });
+
+  it("does not extend the fixed map shell with scrolling page clearance", () => {
+    expect(mobileNavCss).toContain(
+      "body:has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage))",
+    );
+    expect(mobileNavCss).toContain(
+      "body:has(.createFabRoot):not(:has(.mapStage))",
     );
   });
 });

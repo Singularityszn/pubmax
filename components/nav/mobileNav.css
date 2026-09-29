@@ -6,9 +6,9 @@
    640px is the shared mobile breakpoint — CSS can't import it, so this file
    mirrors MOBILE_MAX_WIDTH in lib/breakpoints.ts by hand; keep them in sync. */
 
-/* Single source of truth for the tab-bar's reserved height. The body's
-   bottom clearance (below) must always match the bar so map/feed content never
-   hides behind it; hoisting the magic number here keeps the two in lockstep. */
+/* Single source of truth for the tab-bar's reserved height. Scrolling pages
+   reserve its lane below; the viewport-height map shell does not extend the
+   body. Hoisting the number here keeps the bar and page clearance in lockstep. */
 :root {
   --tabbar-h: 64px;
 
@@ -234,7 +234,7 @@ body:has(.mobileMapUtilityCorner) {
 }
 
 @media (max-width: 640px) {
-  body:has(.mobileTabBar, .mobileTabBarClearance) {
+  body:has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage)) {
     padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
   }
 
@@ -243,9 +243,9 @@ body:has(.mobileMapUtilityCorner) {
      scroll clear. The lane it owns is its own published top edge, never a
      number restated here, and it is reserved from the BASE berth: the pages
      that push the control higher (the map, the planner) do not scroll their
-     body at all. A page that hides the control keeps the bar's clearance and
-     nothing more. */
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)):not(:has(.analyticsConsentPrompt)):not(:has(.planComposer__lock)):not(:has(.mapArrivalCard)):not(:has(.appShell.detail-open)):not(:has(.appShell.planning-open)):not(:has(.nightCard)):not(:has(.createFabRoot.isKeyboardHidden)) {
+     body at all. The fixed-height map shell never needs body clearance. A
+     page that hides the control keeps the bar's clearance and nothing more. */
+  body:has(.createFabRoot):not(:has(.mapStage)):not(:has(.pageHidesCreateFab)):not(:has(.analyticsConsentPrompt)):not(:has(.planComposer__lock)):not(:has(.mapArrivalCard)):not(:has(.appShell.detail-open)):not(:has(.appShell.planning-open)):not(:has(.nightCard)):not(:has(.createFabRoot.isKeyboardHidden)) {
     padding-bottom: var(--float-stack-top-create);
   }
 

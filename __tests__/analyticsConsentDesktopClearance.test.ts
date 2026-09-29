@@ -8,19 +8,19 @@ const globalCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
 describe("analytics consent clearance", () => {
   it("reserves body foot room while the fixed consent bar is mounted", () => {
     expect(globalCss).toMatch(
-      /@media \(min-width:\s*641px\)\s*{[^}]*body:has\(\.analyticsConsentPrompt\)\s*{[^}]*padding-bottom:\s*calc\(\s*var\(--analytics-consent-clearance,\s*72px\)/,
+      /@media \(min-width:\s*641px\)\s*{[^}]*body:has\(\.analyticsConsentPrompt\):not\(:has\(\.mapStage\)\)\s*{[^}]*padding-bottom:\s*calc\(\s*var\(--analytics-consent-clearance,\s*72px\)/,
     );
     expect(globalCss).toMatch(
-      /body:has\(\.analyticsConsentPrompt\)\s*{[^}]*max\(12px,\s*env\(safe-area-inset-bottom\)\)/,
+      /body:has\(\.analyticsConsentPrompt\):not\(:has\(\.mapStage\)\)\s*{[^}]*max\(12px,\s*env\(safe-area-inset-bottom\)\)/,
     );
   });
 
   it("reserves mobile foot room above the tab bar while the consent card is mounted", () => {
     expect(globalCss).toMatch(
-      /@media \(max-width:\s*640px\)\s*{[^}]*body:has\(\.analyticsConsentPrompt\):has\(\.mobileTabBar,\s*\.mobileTabBarClearance\)\s*{[^}]*padding-bottom:\s*calc\(\s*var\(--tabbar-h,\s*64px\)\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)\s*\+\s*var\(--analytics-consent-mobile-clearance,\s*56px\)/,
+      /@media \(max-width:\s*640px\)\s*{[^}]*body:has\(\.analyticsConsentPrompt\):has\(\.mobileTabBar,\s*\.mobileTabBarClearance\):not\(:has\(\.mapStage\)\)\s*{[^}]*padding-bottom:\s*calc\(\s*var\(--tabbar-h,\s*64px\)\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)\s*\+\s*var\(--analytics-consent-mobile-clearance,\s*56px\)/,
     );
     expect(globalCss).toMatch(
-      /body:has\(\.analyticsConsentPrompt\):not\(:has\(\.mobileTabBar,\s*\.mobileTabBarClearance\)\)\s*{[^}]*var\(--analytics-consent-mobile-clearance,\s*56px\)/,
+      /body:has\(\.analyticsConsentPrompt\):not\(:has\(\.mobileTabBar,\s*\.mobileTabBarClearance\)\):not\(:has\(\.mapStage\)\)\s*{[^}]*var\(--analytics-consent-mobile-clearance,\s*56px\)/,
     );
   });
 
