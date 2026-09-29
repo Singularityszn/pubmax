@@ -18,6 +18,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:rls": "node scripts/rls/run-session-tests.mjs",
+    "test:disposable-plan-db": "node scripts/e2e/verify-disposable-plan-db.mjs",
     "test:e2e": "playwright test",
     "e2e:cli": "playwright cli",
     "perf:cwv-sweep": "PUBMAX_CWV_SWEEP=1 playwright test --project=chromium-cwv",
