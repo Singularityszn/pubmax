@@ -31,8 +31,11 @@ The `/map` route loads London. Crawl-state rewrites preserve the pathname.
 `useMapSurfaceNavigation` owns the map's sheet history. When Back, Forward,
 or Home traverses related sheet entries on the same pathname, it calls the
 synchronisation callback returned by `useCrawlUrlSync`. That callback cancels
-pending debounced writes and copies the current crawl filters and plan keys
-onto the landed URL. Selection, contribution intent, place context, and the
+pending debounced writes and copies the current crawl filters, ordered stops,
+and crawl identity onto the landed URL in one replacement. An edited route
+clears the old `crawl` identity so reload restores its `pubs` instead. While
+arrival hydration is pending, an incoming `crawl` survives until the map can
+resolve it. Selection, contribution intent, place context, and the
 hash stay with the landed entry, so a closed venue is not reopened by a stale
 write. This also applies when reopening an earlier sheet produced a trail of
 the same length.
@@ -93,7 +96,7 @@ While the card is on screen, the analytics consent prompt stands down. See
 | `band` | A story-band id | `lib/crawlUrl.ts` | Sets the active story-band. Not checked against the band list in this module; an unknown id simply shows no band elsewhere. | Trimmed only. No validation here. | Yes, same debounced sync. |
 | `landmark` | A landmark chapter id | `lib/crawlUrl.ts` | Deep-links to a landmark chapter. | Trimmed only. No validation here. | Yes, same debounced sync. |
 | `alt` | One of `pint`, `food`, `coffee`, `mocktail` | `lib/crawlUrl.ts` | Sets the alt crawl style. | A value outside this set is ignored. The state stays the default, `pint`. | Yes, same debounced sync. Omitted when it is the default `pint`. |
-| `crawl` | A curated crawl id | `lib/crawlUrl.ts` | Loads a named curated crawl. | Passed through `normalizeCrawlId`: lower-cased, non-alphanumeric runs become a dash, leading and trailing dashes trimmed, cut to 80 characters. Never throws on a malformed id. | Yes, same debounced sync. |
+| `crawl` | A curated crawl id | `lib/crawlUrl.ts` | Loads a named curated crawl. | Passed through `normalizeCrawlId`: lower-cased, non-alphanumeric runs become a dash, leading and trailing dashes trimmed, cut to 80 characters. Never throws on a malformed id. | Written with the current stops. See [History and filter synchronisation](#history-and-filter-synchronisation) for identity clearing and pending hydration. |
 | `log` | `1` | `lib/mapLogIntent.ts` | Arms the legacy Pint Drop composer for a resolved pub, or asks the reader to choose a pub. | Only the exact value `1` counts. Any other value, or absence, is false. | Preserved through crawl-state rewrites while active. Leaving the flow clears it and its `price` seed; dismissal does not block a new request. |
 | `contribute` | `price` | `lib/priceContributionIntent.ts` | Requests the selected pub's category price form, or opens the pub picker until a pub is selected. `VenueInspector` handles sign-in and form entry. | Only the exact value `price` requests the flow. It grants no write permission. | Preserved through crawl-state rewrites and sign-in return with the city path, drink, and venue. Consumed when the form opens or the request is abandoned; dismissing the picker clears it. |
 | `plan` | `1` | `lib/mapArrival.ts` | Forces the crawl planner drawer open on first paint. | Only the exact value `1` opens the planner from this param. Other values fall through to the ordinary open rules (built stops, `mode=build`, or `style=`/`mode=` present). | Preserved as an owned passthrough param during crawl-state rewrites. |
