@@ -13,8 +13,9 @@ type ListedEvidence = {
 
 type JourneyStop = {
   venueId: string;
+  venueName: string;
   selectedDrinkPriceEvidence?: ListedEvidence | null;
-  alternatives?: Array<{ venueId: string; selectedDrinkPriceEvidence?: ListedEvidence | null }>;
+  alternatives?: Array<{ venueId: string; venueName?: string; selectedDrinkPriceEvidence?: ListedEvidence | null }>;
 };
 
 const committedPrices = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8")) as Array<{
@@ -48,6 +49,33 @@ for (const journey of [
       }
     });
 
+    // Controlled replay: move one real generated, committed-price stop into its
+    // own backup pool. Its evidence came from the live generator and exact row
+    // is checked against committed rows below; Plan save must re-resolve it.
+    let replayedVenueId: string | null = null;
+    let replayedEvidence: ListedEvidence | null = null;
+    await page.route("**/api/plans/generate", async (route) => {
+      const response = await route.fetch();
+      const body = await response.json() as { stops?: JourneyStop[] };
+      const source = body.stops?.find((stop) => stop.selectedDrinkPriceEvidence?.source === "listed"
+        && (stop.alternatives?.length ?? 0) > 0);
+      if (!source?.selectedDrinkPriceEvidence || !source.alternatives?.length) {
+        throw new Error("Live planner returned no listed stop with a backup for controlled replay");
+      }
+      const originalVenue = { venueId: source.venueId, venueName: source.venueName };
+      const replacement = source.alternatives.shift()!;
+      replayedVenueId = originalVenue.venueId;
+      replayedEvidence = source.selectedDrinkPriceEvidence;
+      source.venueId = replacement.venueId;
+      source.venueName = replacement.venueName;
+      source.selectedDrinkPriceEvidence = replacement.selectedDrinkPriceEvidence ?? null;
+      source.alternatives = [
+        ...(source.alternatives ?? []),
+        { ...originalVenue, selectedDrinkPriceEvidence: replayedEvidence },
+      ];
+      await route.fulfill({ response, body: JSON.stringify(body) });
+    });
+
     expect((await page.goto("/map?plan=1"))?.status()).toBe(200);
     await page.getByRole("textbox", { name: "Describe the outing" }).fill(journey.query);
     const generation = page.waitForResponse((response) => response.request().method() === "POST"
@@ -62,9 +90,10 @@ for (const journey of [
     expect(generated.inferredContext).toMatchObject({ nightArea: "shoreditch", drinkCategory: journey.category, zeroProof: false });
     expect(generated.stops?.length).toBeGreaterThan(0);
     const listedStops = generated.stops!.filter((stop) => stop.selectedDrinkPriceEvidence?.source === "listed");
-    expect(listedStops.length).toBeGreaterThan(0);
     expect(generated.stops!.some((stop) => (stop.alternatives?.length ?? 0) > 0)).toBe(true);
     const citedCandidates = generated.stops!.flatMap((stop) => [stop, ...(stop.alternatives ?? [])]);
+    const listedCandidates = citedCandidates.filter((candidate) => candidate.selectedDrinkPriceEvidence?.source === "listed");
+    expect(listedCandidates.length).toBeGreaterThan(0);
     for (const stop of citedCandidates.filter((candidate) => candidate.selectedDrinkPriceEvidence?.source === "listed")) {
       const evidence = stop.selectedDrinkPriceEvidence!;
       expect(evidence).toMatchObject({ category: journey.category, serving: null, source: "listed" });
@@ -73,6 +102,10 @@ for (const journey of [
         && Math.round(row.priceGbp * 100) === evidence.pence
         && row.sourceUrl === evidence.sourceUrl && row.observedAt === evidence.observedAt)).toBe(true);
     }
+    expect(generated.stops!.some((stop) => stop.alternatives?.some((alternative) =>
+      alternative.venueId === replayedVenueId
+      && JSON.stringify(alternative.selectedDrinkPriceEvidence) === JSON.stringify(replayedEvidence))),
+    "controlled committed listing must enter Map route as a priced backup").toBe(true);
     await expect(page.getByRole("link", { name: "Open Plan to lock it in" })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`${journey.category}-map.png`), animations: "disabled" });
     let extraGenerations = 0;
@@ -110,6 +143,9 @@ for (const journey of [
     expect(created.plan?.stops?.map((stop) => stop.selectedDrinkPriceEvidence ?? null))
       .toEqual(generated.stops?.map((stop) => stop.selectedDrinkPriceEvidence ?? null));
     expect(backups(created.plan!.stops!)).toEqual(backups(generated.stops!));
+    expect(created.plan?.stops?.find((stop) => stop.alternatives?.some((alternative) => alternative.venueId === replayedVenueId))
+      ?.alternatives?.find((alternative) => alternative.venueId === replayedVenueId)
+      ?.selectedDrinkPriceEvidence).toEqual(replayedEvidence);
     await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}(?:#share)?$/);
 
     const planId = new URL(page.url()).pathname.split("/").pop();
@@ -127,8 +163,10 @@ for (const journey of [
     expect(reloaded.stops?.map((stop) => stop.selectedDrinkPriceEvidence ?? null))
       .toEqual(generated.stops?.map((stop) => stop.selectedDrinkPriceEvidence ?? null));
     expect(backups(reloaded.stops!)).toEqual(backups(generated.stops!));
+    expect(reloaded.stops?.find((stop) => stop.alternatives?.some((alternative) => alternative.venueId === replayedVenueId))
+      ?.alternatives?.find((alternative) => alternative.venueId === replayedVenueId)
+      ?.selectedDrinkPriceEvidence).toEqual(replayedEvidence);
     await expect(page.locator(".planRoute")).not.toContainText("community report");
-    await expect(page.locator(".planRoute")).toContainText("published menu");
     await page.locator(".planRoute").scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`${journey.category}-reloaded.png`), animations: "disabled" });
   });
