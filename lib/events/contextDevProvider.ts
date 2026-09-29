@@ -319,9 +319,18 @@ export async function runContextDevEventsLane({
       continue;
     }
 
+    const events = result.data?.events;
     const normalised = normaliseContextDevExtract(result.data, source, opts);
-    allRows.push(...normalised.rows);
     mergeEventDrops(dropped, normalised.dropped);
+    if (!Array.isArray(events) || normalised.rows.length === 0) {
+      const message = !Array.isArray(events)
+        ? "Extract returned no events array."
+        : `Extract returned no usable event rows (dropped ${normalised.dropped.total}).`;
+      logError(`eventsRefresh: Context.dev ${source.label} ${message} Held rows carry across.`);
+      failures.push({ sourceId: source.id, label: source.label, message });
+      continue;
+    }
+    allRows.push(...normalised.rows);
     sourcesRun.push({ sourceId: source.id, label: source.label, rows: normalised.rows.length });
     log(
       `eventsRefresh: Context.dev ${source.label} -> ${normalised.rows.length} rows ` +

@@ -151,6 +151,49 @@ describe("eventsRefresh Context.dev lane", () => {
     extractSpy.mockRestore();
   });
 
+  it.each([
+    ["blank", {}],
+    ["malformed", { events: "not an array" }],
+    ["empty", { events: [] }],
+    ["unusable", { events: [{ title: "Undated quiz", placeName: "The Dove", kind: "event", sourceUrl: "https://www.fullers.co.uk/pubs/the-dove/event/quiz" }] }],
+  ])("retains held Fuller's rows when its JSON capture is %s while Ticketmaster updates", async (_case, data) => {
+    const outPath = temporaryOutPath();
+    writeHeldFile(outPath, [{ ...heldFullersRow("events-cd-blank-held"), observedAt: heldGeneratedAt }]);
+    const fetched = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("https://api.context.dev/")) {
+        return new Response(
+          JSON.stringify({
+            url: "https://www.fullers.co.uk/event-finder",
+            json: { requested: true, success: true, data },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return answeringTicketmaster(url);
+    });
+
+    const result = await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs"],
+      env: { CONTEXT_DEV_API_KEY: "test-key", TICKETMASTER_API_KEY: "tm-key" },
+      nowMs,
+      fetchImpl: fetched as unknown as typeof fetch,
+      outPath,
+      loadVenueIndex: () => null,
+      runCommonLane: async () => ({ rows: [] }),
+      log: () => {},
+      logError: () => {},
+    });
+
+    expect(result.provider.status).toBe("wrote");
+    expect(fetched.mock.calls.some(([url]) => String(url).startsWith("https://api.context.dev/"))).toBe(true);
+    const written = JSON.parse(readFileSync(outPath, "utf8"));
+    expect(written.rows.map((row: { id: string }) => row.id)).toContain("events-cd-blank-held");
+    expect(written.rows.some((row: { source: { label: string } }) => row.source.label === "Ticketmaster")).toBe(true);
+    expect(written.rows.find((row: { id: string }) => row.id === "events-cd-blank-held")?.observedAt).toBe(heldGeneratedAt);
+    expect(result.provider.failures).toEqual([expect.stringContaining("fullers-event-finder-events")]);
+  });
+
   it("counts the drops of a source that yielded no rows at all", async () => {
     const extractSpy = vi.spyOn(contextDev, "extract").mockResolvedValue({
       status: "ok",
@@ -176,6 +219,7 @@ describe("eventsRefresh Context.dev lane", () => {
     });
 
     const lines: string[] = [];
+    const errors: string[] = [];
     const result = await runEventsRefresh({
       argv: ["node", "eventsRefresh.mjs", "--allow-empty"],
       env: { CONTEXT_DEV_API_KEY: "test-key" },
@@ -185,13 +229,12 @@ describe("eventsRefresh Context.dev lane", () => {
       loadVenueIndex: () => null,
       runCommonLane: async () => ({ rows: [] }),
       log: (line: string) => lines.push(line),
-      logError: () => {},
+      logError: (line: string) => errors.push(line),
     });
 
-    expect(result.provider.status).toBe("wrote");
-    const wrote = lines.find((line) => line.startsWith("eventsRefresh: wrote"));
-    expect(wrote).toBeDefined();
-    expect(wrote).toContain("dropped 2 (noKind=1 noPlace=0 noStart=1");
+    expect(result.provider.status).toBe("failed");
+    expect(lines.some((line) => line.startsWith("eventsRefresh: wrote"))).toBe(false);
+    expect(errors).toEqual(expect.arrayContaining([expect.stringContaining("dropped 2")]));
     extractSpy.mockRestore();
   });
 
