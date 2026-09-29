@@ -9,6 +9,24 @@ update public.plan_stops
 set selected_drink_price_evidence = null
 where selected_drink_price_evidence->>'source' = 'listed';
 
+update public.plan_route_proposals proposal
+set stops = (
+  select jsonb_agg(
+    case
+      when stop->'selectedDrinkPriceEvidence'->>'source' = 'listed'
+        then stop - 'selectedDrinkPriceEvidence'
+      else stop
+    end order by position
+  )
+  from jsonb_array_elements(proposal.stops) with ordinality as item(stop, position)
+)
+where proposal.status = 'pending'
+  and exists (
+    select 1
+    from jsonb_array_elements(proposal.stops) stop
+    where stop->'selectedDrinkPriceEvidence'->>'source' = 'listed'
+  );
+
 alter table public.plan_stops
   add constraint plan_stops_selected_drink_price_evidence_check
   check (

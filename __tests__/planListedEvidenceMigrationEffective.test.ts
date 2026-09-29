@@ -57,6 +57,48 @@ function communitySaved(): unknown {
   );
   return value ? JSON.parse(value) : null;
 }
+function proposalPlanId(suffix: string): string {
+  return `10000000-0000-4000-8000-00000000016${suffix}`;
+}
+function proposalId(suffix: string): string {
+  return `30000000-0000-4000-8000-00000000016${suffix}`;
+}
+function pendingProposal(
+  suffix: string,
+  evidence: unknown,
+): Array<Record<string, unknown>> {
+  const plan = proposalPlanId(suffix);
+  const member = `20000000-0000-4000-8000-00000000016${suffix}`;
+  const stops = [
+    { venueId: "venue-a", venueName: "A", position: 0 },
+    {
+      venueId: "venue-b",
+      venueName: "B",
+      position: 1,
+      selectedDrinkPriceEvidence: evidence,
+    },
+    { venueId: "venue-c", venueName: "C", position: 2 },
+  ];
+  db()
+    .sql(`insert into public.plans (id, title, start_time) values ('${plan}', 'Proposal night', '2026-09-30T19:00:00Z');
+    insert into public.plan_crew_members (id, plan_id, name, token_hash) values ('${member}', '${plan}', 'Host', '${suffix.repeat(64)}');
+    insert into public.plan_route_proposals
+      (id, plan_id, proposed_by_member_id, expected_route_revision, stops, reason, idempotency_key, created_at)
+    values ('${proposalId(suffix)}', '${plan}', '${member}', 1, '${JSON.stringify(stops)}'::jsonb, 'Route', 'proposal-${suffix}', now());`);
+  return stops;
+}
+function proposalStops(suffix: string): unknown {
+  return JSON.parse(
+    db().sql(
+      `select stops::text from public.plan_route_proposals where id = '${proposalId(suffix)}'`,
+    ),
+  );
+}
+function acceptProposal(suffix: string): string {
+  return db().sql(
+    `select public.decide_plan_route_proposal_atomic('${proposalPlanId(suffix)}', '${proposalId(suffix)}', '${suffix.repeat(64)}', 'accepted', 'decision-${suffix}', now())`,
+  );
+}
 
 beforeAll(async () => {
   if (skipReason) return;
@@ -130,9 +172,31 @@ describe.skipIf(skipReason !== null)(
 
     it("rollback clears only listed evidence and restores community-only constraint", () => {
       db().sql(save(listed));
+      const listedStops = pendingProposal("7", listed);
+      const communityStops = pendingProposal("9", community);
       db().applyFile(rollback);
       expect(saved()).toBeNull();
       expect(communitySaved()).toEqual(community);
+      expect(proposalStops("7")).toEqual([
+        listedStops[0],
+        { venueId: "venue-b", venueName: "B", position: 1 },
+        listedStops[2],
+      ]);
+      expect(proposalStops("9")).toEqual(communityStops);
+      expect(acceptProposal("7")).toBe("decided");
+      expect(acceptProposal("9")).toBe("decided");
+      expect(
+        db().sql(
+          `select selected_drink_price_evidence::text from public.plan_stops where plan_id = '${proposalPlanId("7")}' and position = 1`,
+        ),
+      ).toBe("");
+      expect(
+        JSON.parse(
+          db().sql(
+            `select selected_drink_price_evidence::text from public.plan_stops where plan_id = '${proposalPlanId("9")}' and position = 1`,
+          ),
+        ),
+      ).toEqual(community);
       expect(db().expectRefusal(save(listed))).toContain(
         "plan_stops_selected_drink_price_evidence_check",
       );
