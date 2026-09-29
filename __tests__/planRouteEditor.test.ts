@@ -116,6 +116,23 @@ describe("seedRouteDraft", () => {
     expect(draft.every((stop) => stop.alternatives?.length === 0)).toBe(true);
   });
 
+  it("keeps a generated price with its own backup venue", () => {
+    const cocktail = {
+      category: "cocktail" as const, pence: 850, serving: null, source: "community" as const,
+      reportedAt: "2026-09-26T12:00:00.000Z",
+    };
+    const draft = seedRouteDraft(stored, [
+      { venueId: "v-beehive", venueName: "Beehive" },
+      { venueId: "v-bread", venueName: "Bread & Roses" },
+      { venueId: "v-cafesol", venueName: "Cafe Sol", selectedDrinkPriceEvidence: cocktail },
+    ]);
+
+    expect(draft[2].alternatives?.[0]).toEqual({
+      venueId: "v-cafesol", venueName: "Cafe Sol", selectedDrinkPriceEvidence: cocktail,
+    });
+    expect(draft[2].selectedDrinkPriceEvidence).toBeUndefined();
+  });
+
   it("does not mutate the stored stops", () => {
     const before = JSON.stringify(stored);
     seedRouteDraft(stored, generated);

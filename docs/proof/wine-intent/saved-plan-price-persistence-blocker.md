@@ -1,6 +1,12 @@
 # Saved selected-drink price evidence: persistence blocker
 
-Status: migrations `0161`, `0162`, and `0163` with rollbacks added locally on 29 September 2026. The typed Plan read projects valid saved evidence. The composer submits matching selected evidence. Plan creation and route replacement check it against current trusted server prices and save it in memory and PostgreSQL. Proposal acceptance and member display remain open. No shared migration was executed, and this says nothing about the schema deployed to any database.
+Status: migrations `0161`, `0162`, and `0163` with rollbacks added locally on 29 September 2026. The typed Plan read projects valid saved evidence. The composer submits matching selected evidence. Plan creation and route replacement check it against current trusted server prices and save it in memory and PostgreSQL. Member route rendering now prints valid saved evidence. Proposal acceptance, completion snapshots, and real browser journeys remain open. No shared migration was executed, and this says nothing about the schema deployed to any database.
+
+## Member route display slice
+
+`__tests__/planSummaryMemberRoute.test.tsx` first showed that a member read carrying saved wine evidence passed no price to the route. `__tests__/planRouteSelectedDrinkEvidence.test.tsx` separately showed that the route renderer omitted a supplied wine report. Both tests failed on the missing visible claim before this change. The member route now carries cleaned evidence through its canonical stops and prints drink category, saved figure, community report date, and the explicit missing serving size. Wine and cocktail renderer cases pass; unpriced and malformed beer claims print no community price. The composer and saved route share one description function. Route editing retains evidence for unchanged stops in its PATCH body, where the server rechecks current price authority, and swaps carry only the selected venue's own evidence. These checks prove component behavior, not a browser save and reload.
+
+Seven focused suites passed, 109 tests total. `npm run typecheck`, focused ESLint, and `git diff --check` passed. The run reserved full `npm run verify` and isolated production build for the final browser workflow slice; neither ran here.
 
 ## Create retry stability
 
@@ -35,7 +41,7 @@ Before the composer and create changes below, the submit path dropped the field 
 
 ## Required next change
 
-Update proposal-acceptance writes, then member display. Creation and replacement validate the category against saved or submitted `NightContext`, check current server price authority, and retain `serving: null` and the original report date. Missing, stale, mismatched, truncated, or degraded evidence remains absent; it must not become a glass price, cheapest-price claim, or budget total. Plan readers are link-capability holders, so store no contributor identity or private price-report metadata. An app version running against the old replacement RPC reads back an absent evidence field and must report that evidence was not saved.
+Update proposal-acceptance writes and completion snapshots, then prove the browser journeys. Creation and replacement validate the category against saved or submitted `NightContext`, check current server price authority, and retain `serving: null` and the original report date. Missing, stale, mismatched, truncated, or degraded evidence remains absent; it must not become a glass price, cheapest-price claim, or budget total. Plan readers are link-capability holders, so store no contributor identity or private price-report metadata. An app version running against the old replacement RPC reads back an absent evidence field and must report that evidence was not saved.
 
 ## Local schema proof
 

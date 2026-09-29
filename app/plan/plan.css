@@ -295,6 +295,7 @@
   letter-spacing: 0.01em;
 }
 .planRoute__body { display: grid; gap: 6px; min-width: 0; }
+.planRoute__selectedDrinkPrice { color: var(--ink-soft); font-size: 0.82rem; line-height: 1.4; }
 
 /* "See the walking route" — deep links the whole ordered crawl to the map,
    where the route follows real walking roads. Sits above the stop list, aligned

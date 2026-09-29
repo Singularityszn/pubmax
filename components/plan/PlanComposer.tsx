@@ -45,7 +45,8 @@ import {
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
-import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceDescription, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+export { selectedDrinkPriceDescription } from "@/lib/planSelectedDrinkPriceEvidence";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import {
   isPlanStopCount,
@@ -388,14 +389,6 @@ function cleanRouteAlternative(value: unknown): RouteAlternative | null {
   if (!venueId || !venueName) return null;
   const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
   return { venueId, venueName, ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}) };
-}
-
-export function selectedDrinkPriceDescription(evidence: SelectedDrinkPriceEvidence | undefined): string | null {
-  if (!evidence) return null;
-  const reported = new Date(evidence.reportedAt).toLocaleDateString("en-GB", {
-    day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
-  });
-  return `${categoryLabel(evidence.category)} £${(evidence.pence / 100).toFixed(2)}, community report ${reported}. Serving size not recorded.`;
 }
 
 function routeAlternatives(value: unknown): RouteAlternative[] {

@@ -39,11 +39,15 @@ vi.mock("@/lib/planSessionCapability", () => ({
 }));
 // The children are not what these two rules are about; the route list is.
 vi.mock("@/components/plan/PlanRoute", () => ({
-  default: ({ stops }: { stops: ReadonlyArray<{ venueId: string; venueName: string }> }) =>
+  default: ({ stops }: { stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: { category: string; pence: number } }> }) =>
     createElement(
       "ol",
       { "data-testid": "plan-route" },
-      stops.map((stop) => createElement("li", { key: stop.venueId }, stop.venueName)),
+      stops.map((stop) => createElement("li", { key: stop.venueId },
+        stop.venueName,
+        stop.selectedDrinkPriceEvidence
+          ? createElement("span", { "data-testid": "saved-drink-price" }, `${stop.selectedDrinkPriceEvidence.category}:${stop.selectedDrinkPriceEvidence.pence}`)
+          : null)),
     ),
 }));
 vi.mock("@/components/plan/PlanCollaborationPanel", () => ({ default: () => null }));
@@ -159,6 +163,20 @@ describe("saved route start time", () => {
     await mountWithMemberRead(null);
 
     expect(container.querySelector(".planPage__eyebrow")?.textContent).toBe(expected);
+  });
+});
+
+describe("member selected drink prices", () => {
+  it("passes saved wine evidence from member read to route display", async () => {
+    const state = memberState(["The George", "The Swan", "The Crown"], 1, { drinkCategory: "wine" });
+    state.stops[0] = { ...state.stops[0], selectedDrinkPriceEvidence: {
+      category: "wine", pence: 550, serving: null, source: "community", reportedAt: "2026-09-25T12:00:00.000Z",
+    } } as typeof state.stops[number];
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse(state))));
+
+    await mountWithMemberRead(null);
+
+    expect(container.querySelector('[data-testid="saved-drink-price"]')?.textContent).toBe("wine:550");
   });
 });
 

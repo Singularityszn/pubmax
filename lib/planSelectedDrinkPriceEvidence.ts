@@ -1,4 +1,4 @@
-import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+import { categoryLabel, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 
 export type SelectedDrinkPriceEvidence = {
   category: DrinkCategory;
@@ -23,4 +23,12 @@ export function cleanSelectedDrinkPriceEvidence(value: unknown): SelectedDrinkPr
     source: "community",
     reportedAt: row.reportedAt,
   };
+}
+
+export function selectedDrinkPriceDescription(evidence: SelectedDrinkPriceEvidence | undefined): string | null {
+  if (!evidence) return null;
+  const reported = new Date(evidence.reportedAt).toLocaleDateString("en-GB", {
+    day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
+  });
+  return `${categoryLabel(evidence.category)} £${(evidence.pence / 100).toFixed(2)}, community report ${reported}. Serving size not recorded.`;
 }

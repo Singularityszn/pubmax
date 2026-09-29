@@ -14,6 +14,7 @@ import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/u
 import { setActivePlanRole } from "@/lib/activePlan";
 import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
+import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 import type { InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
 import type { VibeTally } from "@/lib/vibeTally";
@@ -78,12 +79,13 @@ function routeRevisionFromPlanState(value: unknown): RouteRevision | null {
 
 function cleanAlternative(value: unknown): RouteAlternative | null {
   if (!value || typeof value !== "object") return null;
-  const row = value as { venueId?: unknown; venueName?: unknown; name?: unknown };
+  const row = value as { venueId?: unknown; venueName?: unknown; name?: unknown; selectedDrinkPriceEvidence?: unknown };
   const venueId = typeof row.venueId === "string" ? row.venueId.trim() : "";
   const venueName = typeof row.venueName === "string"
     ? row.venueName.trim()
     : typeof row.name === "string" ? row.name.trim() : "";
-  return venueId && venueName ? { venueId, venueName } : null;
+  const evidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
+  return venueId && venueName ? { venueId, venueName, ...(evidence ? { selectedDrinkPriceEvidence: evidence } : {}) } : null;
 }
 
 function cleanStops(value: unknown): EditableStop[] {
@@ -95,6 +97,7 @@ function cleanStops(value: unknown): EditableStop[] {
       venueName?: unknown;
       position?: unknown;
       alternatives?: unknown;
+      selectedDrinkPriceEvidence?: unknown;
     };
     const venueId = typeof row.venueId === "string" ? row.venueId.trim() : "";
     const venueName = typeof row.venueName === "string" ? row.venueName.trim() : "";
@@ -105,10 +108,12 @@ function cleanStops(value: unknown): EditableStop[] {
         return cleaned ? [cleaned] : [];
       })
       : [];
+    const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
     return [{
       venueId,
       venueName,
       position: typeof row.position === "number" ? row.position : index,
+      ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
       alternatives,
     }];
   });
@@ -250,7 +255,10 @@ export function planSummaryRouteUpdateBody(input: {
   authority: RouteGenerationAuthority | null;
 }): Record<string, unknown> {
   return {
-    stops: input.stops.map(({ venueId, venueName }) => ({ venueId, venueName })),
+    stops: input.stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => ({
+      venueId, venueName,
+      ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+    })),
     expectedRouteRevision: input.expectedRouteRevision,
     ...(input.authority ?? {}),
   };
@@ -267,9 +275,11 @@ function stopWithNextAlternative(stop: EditableStop, excludedVenueIds: ReadonlyS
     ...stop,
     venueId: next.venueId,
     venueName: next.venueName,
+    selectedDrinkPriceEvidence: next.selectedDrinkPriceEvidence,
     alternatives: [
       ...remaining,
-      { venueId: stop.venueId, venueName: stop.venueName },
+      { venueId: stop.venueId, venueName: stop.venueName, ...(stop.selectedDrinkPriceEvidence
+        ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}) },
     ],
   };
 }
@@ -385,7 +395,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
   useEffect(() => {
     if (pendingRaw !== null && !pending) clearPendingRoute(planId);
   }, [pendingRaw, pending, planId]);
-  const initialStops = orderedRouteStops(view.stops).map((stop) => ({ ...stop, alternatives: [] as RouteAlternative[] }));
+  const initialStops = orderedRouteStops(cleanStops(view.stops));
   const [canonicalStops, setCanonicalStops] = useState<EditableStop[]>(initialStops);
   const [localStops, setLocalStops] = useState<EditableStop[]>(initialStops);
   const [editing, setEditing] = useState(false);
@@ -478,6 +488,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
     venueId: stop.venueId,
     venueName: stop.venueName,
     position: typeof stop.position === "number" ? stop.position : index,
+    ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
   }));
 
   function adoptCanonical(canonical: PlanState): void {
@@ -525,6 +536,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
         venueId: stop.venueId,
         venueName: stop.venueName,
         position: index,
+        selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence,
         alternatives: stop.alternatives,
       }));
       const rejection = refreshedRouteRejection(body, generated, requestedStopCount);
