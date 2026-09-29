@@ -22,7 +22,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import type { Session } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 import "@/app/auth/auth.css";
 import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
@@ -87,6 +87,7 @@ import {
   scrubLingeringAuthCallback,
   type CanonicalAuthAttemptStart,
   type AuthCallbackAttempt,
+  type AuthCallbackTokens,
   type CapturedAuthCallback,
 } from "@/lib/authRedirect";
 import { authedActionFetch, publishAuthActionState } from "@/lib/authedFetch";
@@ -264,6 +265,56 @@ const NOBODY_IDENTITY: CanonicalIdentityState = {
   identity: null,
 };
 
+function isDeferredCancelledAuthEvent(
+  event: AuthChangeEvent,
+  session: Session,
+  cancelled: boolean,
+  confirmationInstallingUserId: string | null,
+  localInstalling: boolean,
+): boolean {
+  return Boolean(
+    cancelled && (confirmationInstallingUserId === session.user.id || localInstalling) &&
+    (event === "SIGNED_IN" || event === "TOKEN_REFRESHED"),
+  );
+}
+
+function mayPrepareCallback(
+  captured: CapturedAuthCallback | null,
+  attempt: AuthCallbackAttempt | null,
+  cancelled: boolean,
+): { tokens: AuthCallbackTokens; localAttemptOwned: boolean } | null {
+  if (!captured || !attempt?.tokens || attempt.providerError || cancelled) return null;
+  return { tokens: attempt.tokens, localAttemptOwned: captured.localAttemptOwned };
+}
+
+function callbackAttemptFailed(attempt: AuthCallbackAttempt | null, verificationFailed: boolean): boolean {
+  return verificationFailed || Boolean(attempt && (attempt.providerError || !attempt.tokens));
+}
+
+type PendingCallbackRestore = {
+  input: Session;
+  cancelled: boolean;
+  buffered: Session[];
+};
+
+function deferPendingRestoreAuthEvent(
+  pending: PendingCallbackRestore | null,
+  event: AuthChangeEvent,
+  session: Session | null,
+): boolean {
+  if (!pending) return false;
+  if (event === "SIGNED_OUT") {
+    pending.cancelled = true;
+    pending.buffered = [];
+    return false;
+  }
+  if (pending.cancelled && session && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
+    pending.buffered.push(session);
+    return true;
+  }
+  return false;
+}
+
 export function AuthProvider({
   children,
   clerkIntegrationConfigured,
@@ -319,6 +370,17 @@ export function AuthProvider({
           : "signed-out";
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
   const bootstrapAbort = useRef<AbortController | null>(null);
+  const callbackConfirmationCancelled = useRef(false);
+  const callbackConfirmationInFlight = useRef<Promise<void> | null>(null);
+  const callbackConfirmationInstallingUserId = useRef<string | null>(null);
+  const locallyOwnedCallbackInstall = useRef<Promise<PreparedAuthCallbackSession<Session>> | null>(null);
+  const callbackInstallInputTokens = useRef<AuthCallbackTokens | null>(null);
+  const deferredCancelledAuthEvents = useRef<Session[]>([]);
+  const pendingCallbackRestore = useRef<PendingCallbackRestore | null>(null);
+  const callbackCancellationSignedInVersion = useRef(0);
+  const explicitSignOutAwaitingConfirmation = useRef(false);
+  const signedInEventVersion = useRef(0);
+  const latestSignedInSession = useRef<Session | null>(null);
   const updateSession = useCallback(
     (nextSession: Session | null, event: string | null = null) => {
       const previousUserId = sessionTransitions.current.currentUserId();
@@ -614,6 +676,28 @@ export function AuthProvider({
         if (event === "SIGNED_OUT" &&
           sessionTransitions.current.currentUserId() === null &&
           readProviderAuthState("supabase") === "unresolved") return;
+        if (deferPendingRestoreAuthEvent(pendingCallbackRestore.current, event, nextSession)) return;
+        // A callback accepted before explicit logout can finish setSession
+        // later. It cannot retake the visible account or become a newer login.
+        if (nextSession && isDeferredCancelledAuthEvent(
+          event,
+          nextSession,
+          callbackConfirmationCancelled.current,
+          callbackConfirmationInstallingUserId.current,
+          locallyOwnedCallbackInstall.current !== null,
+        )) {
+          deferredCancelledAuthEvents.current.push(nextSession);
+          return;
+        }
+        if (event === "SIGNED_IN" && nextSession) {
+          signedInEventVersion.current += 1;
+          latestSignedInSession.current = nextSession;
+        } else if (
+          event === "TOKEN_REFRESHED" && nextSession &&
+          latestSignedInSession.current?.user.id === nextSession.user.id
+        ) {
+          latestSignedInSession.current = nextSession;
+        }
         // A later auth decision owns the session. Cookie restore's own
         // SIGNED_IN carries the token marked just before setSession.
         if (
@@ -680,6 +764,11 @@ export function AuthProvider({
           }
         }
         if (event === "SIGNED_OUT") {
+          latestSignedInSession.current = null;
+          deferredCancelledAuthEvents.current = [];
+          callbackConfirmationCancelled.current = true;
+          callbackCancellationSignedInVersion.current = signedInEventVersion.current;
+          setAuthCallbackConfirmation(null);
           trackEvent("user_signed_out");
         }
       });
@@ -747,6 +836,63 @@ export function AuthProvider({
         }
       };
 
+      const restoreAfterCancelledCallback = async (candidate: Session): Promise<void> => {
+        const pending: PendingCallbackRestore = { input: candidate, cancelled: false, buffered: [] };
+        pendingCallbackRestore.current = pending;
+        let installed: Session | null = null;
+        try {
+          const result = await supabase.auth.setSession({
+            access_token: candidate.access_token,
+            refresh_token: candidate.refresh_token,
+          });
+          installed = result.data.session;
+        } finally {
+          if (pendingCallbackRestore.current === pending) pendingCallbackRestore.current = null;
+        }
+        if (!pending.cancelled) return;
+        const later = pending.buffered.findLast((session) => {
+          const matchesInput = session.access_token === pending.input.access_token &&
+            session.refresh_token === pending.input.refresh_token;
+          const matchesResult = installed && session.access_token === installed.access_token &&
+            session.refresh_token === installed.refresh_token;
+          return !matchesInput && !matchesResult;
+        });
+        if (later) await restoreAfterCancelledCallback(later);
+        else await supabase.auth.signOut({ scope: "local" });
+      };
+
+      const reconcileCancelledCallbackInstall = async (
+        exchangedSession: Session | null,
+      ) => {
+        const callbackInput = callbackInstallInputTokens.current;
+        const bufferedNewer = deferredCancelledAuthEvents.current.findLast((session) => {
+          const matchesInput = callbackInput &&
+            session.access_token === callbackInput.accessToken &&
+            session.refresh_token === callbackInput.refreshToken;
+          const matchesResult = exchangedSession &&
+            session.access_token === exchangedSession.access_token &&
+            session.refresh_token === exchangedSession.refresh_token;
+          return !matchesInput && !matchesResult;
+        }) ?? null;
+        deferredCancelledAuthEvents.current = [];
+        callbackInstallInputTokens.current = null;
+        const newer = bufferedNewer ?? (
+          signedInEventVersion.current !== callbackCancellationSignedInVersion.current
+            ? latestSignedInSession.current
+            : null
+        );
+        if (newer && explicitSignOutAwaitingConfirmation.current) {
+          // Explicit sign-out will restore this later login after its pending
+          // callback settles, without clearing the SDK session first.
+          latestSignedInSession.current = newer;
+          signedInEventVersion.current += 1;
+        } else if (newer) {
+          await restoreAfterCancelledCallback(newer);
+        } else if (exchangedSession && !explicitSignOutAwaitingConfirmation.current) {
+          await supabase.auth.signOut({ scope: "local" });
+        }
+      };
+
       const publishBootstrappedSession = (
         bootstrapped: Awaited<ReturnType<typeof bootstrapAuthSession>>,
       ) => {
@@ -787,14 +933,16 @@ export function AuthProvider({
         const callbackAttempt = captured?.attempt ?? null;
         let exchange: AuthCallbackSessionResult<Session> | null = null;
         let verificationFailed = false;
+        let cancelledLocalInstall = false;
         let confirmation: Extract<PreparedAuthCallbackSession<Session>, { status: "confirmation-required" }> | null = null;
         try {
-          if (captured && callbackAttempt?.tokens && !callbackAttempt.providerError) {
+          const callbackToPrepare = mayPrepareCallback(captured, callbackAttempt, callbackConfirmationCancelled.current);
+          if (callbackToPrepare) {
             if (!callbackSessionInFlight.current) {
               callbackSessionInFlight.current = prepareAuthCallbackSession(
                 supabase.auth,
-                callbackAttempt.tokens,
-                captured.localAttemptOwned,
+                callbackToPrepare.tokens,
+                callbackToPrepare.localAttemptOwned,
                 (refreshToken) =>
                   mintSessionFromRefreshToken(
                     refreshToken,
@@ -803,9 +951,22 @@ export function AuthProvider({
                 (accessToken) => fetchAuthCallbackUser(accessToken, browserDeviceAccountSwitchDeps()),
               );
             }
+            if (callbackToPrepare.localAttemptOwned) {
+              callbackInstallInputTokens.current = callbackToPrepare.tokens;
+              locallyOwnedCallbackInstall.current = callbackSessionInFlight.current;
+            }
             const prepared = await callbackSessionInFlight.current;
-            if (!active) return;
-            if (prepared.status === "established") {
+            if (callbackToPrepare.localAttemptOwned) {
+              locallyOwnedCallbackInstall.current = null;
+              if (!callbackConfirmationCancelled.current) callbackInstallInputTokens.current = null;
+            }
+            if (callbackToPrepare.localAttemptOwned && callbackConfirmationCancelled.current) {
+              if (prepared.status === "established") {
+                await reconcileCancelledCallbackInstall(prepared.result.session);
+              }
+              cancelledLocalInstall = true;
+            } else if (!active) return;
+            else if (prepared.status === "established") {
               exchange = prepared.result;
             } else if (prepared.status === "confirmation-required") {
               confirmation = prepared;
@@ -821,15 +982,13 @@ export function AuthProvider({
         }
         // Scrub again even when confirmation is pending or verification failed.
         scrubLingeringBrowserAuthCallback();
+        if (cancelledLocalInstall || callbackConfirmationCancelled.current) return;
         if (!active) return;
         if (exchange && captured) finishCallbackExchange(exchange, captured);
         if (callbackAttempt?.accountBanned) {
           setAuthBannedNotice(true);
           setAuthCallbackError(null);
-        } else if (
-          verificationFailed ||
-          (callbackAttempt && (callbackAttempt.providerError || !callbackAttempt.tokens))
-        ) {
+        } else if (callbackAttemptFailed(callbackAttempt, verificationFailed)) {
           setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
         }
         if (exchange?.session) return;
@@ -844,15 +1003,38 @@ export function AuthProvider({
           },
         ).catch(() => ({ status: "unavailable" } as const)));
         installingRestoredAccessToken = null;
-        if (!active || bootstrapController.signal.aborted) return;
-        publishBootstrappedSession(bootstrapped);
-        if (confirmation && captured) {
+        if (!active) return;
+        // A newer auth event cancels stale cookie restoration, but does not
+        // cancel the independently verified callback confirmation.
+        if (!bootstrapController.signal.aborted) {
+          publishBootstrappedSession(bootstrapped);
+        }
+        if (confirmation && captured && !callbackConfirmationCancelled.current) {
           const prepared = confirmation;
           setAuthCallbackConfirmation({
             label: prepared.identity.label,
             confirm: () => {
-              void prepared.confirm().then((confirmed) => {
-                finishCallbackExchange(confirmed, captured);
+              callbackConfirmationInstallingUserId.current = prepared.identity.userId;
+              callbackInstallInputTokens.current = prepared.installingTokens;
+              const inFlight = prepared.confirm().then(async (confirmed) => {
+                callbackConfirmationInstallingUserId.current = null;
+                if (callbackConfirmationCancelled.current) {
+                  await reconcileCancelledCallbackInstall(confirmed.session);
+                } else {
+                  finishCallbackExchange(confirmed, captured);
+                }
+              }).catch(() => {
+                if (active && !callbackConfirmationCancelled.current) {
+                  setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+                }
+              });
+              callbackConfirmationInFlight.current = inFlight;
+              void inFlight.finally(() => {
+                if (callbackConfirmationInFlight.current === inFlight) {
+                  callbackConfirmationInFlight.current = null;
+                  callbackConfirmationInstallingUserId.current = null;
+                  callbackInstallInputTokens.current = null;
+                }
               });
             },
           });
@@ -1045,16 +1227,45 @@ export function AuthProvider({
 
   const signOut = useCallback(
     async (scope: SignOutScope = "account"): Promise<void> => {
+      const departing = sessionTransitions.current.currentUserId();
+      const signedInVersionAtLogout = signedInEventVersion.current;
+      explicitSignOutAwaitingConfirmation.current = true;
+      callbackConfirmationCancelled.current = true;
+      callbackCancellationSignedInVersion.current = signedInVersionAtLogout;
+      setAuthCallbackConfirmation(null);
       bootstrapAbort.current?.abort();
+      updateSession(null, "SIGNED_OUT");
+      setSessionLoading(false);
+      // An accepted callback may already be installing its session. Let that
+      // installation settle before the explicit logout clears the live SDK.
+      await locallyOwnedCallbackInstall.current?.catch(() => {});
+      await callbackConfirmationInFlight.current?.catch(() => {});
+      explicitSignOutAwaitingConfirmation.current = false;
       const supabase = await ensureSupabaseBrowser();
       if (!supabase) return;
-      const departing = sessionTransitions.current.currentUserId();
+      const restoreNewerLogin = async () => {
+        const newer = latestSignedInSession.current;
+        if (newer) {
+          await supabase.auth.setSession({
+            access_token: newer.access_token,
+            refresh_token: newer.refresh_token,
+          });
+        }
+      };
+      if (signedInEventVersion.current !== signedInVersionAtLogout && latestSignedInSession.current) {
+        await restoreNewerLogin();
+        return;
+      }
       // Explicit sign-out is the one place the durable resume cookie dies too —
       // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
       // AWAITED, because an account sign-out may hand the device straight to the
       // next remembered account: a DELETE still in flight would land after that
       // account's persist and leave the device with no durable session at all.
       await clearPersistedSession();
+      if (signedInEventVersion.current !== signedInVersionAtLogout && latestSignedInSession.current) {
+        await restoreNewerLogin();
+        return;
+      }
       // The same set the account boundary clears, and the owner stamp with it.
       // Leaving the handle behind is what let the next account inherit it: the
       // session went and its name stayed.
@@ -1069,6 +1280,10 @@ export function AuthProvider({
       emitDeviceAccountSessionsChanged();
       setWelcomeBack(null);
       await supabase.auth.signOut();
+      if (signedInEventVersion.current !== signedInVersionAtLogout) {
+        if (latestSignedInSession.current) await restoreNewerLogin();
+        return;
+      }
       // onAuthStateChange fires SIGNED_OUT → session clears via the subscription.
       if (scope === "device") return;
       // The person asked to leave ONE account on a device that still holds
@@ -1083,7 +1298,7 @@ export function AuthProvider({
       if (!next) return;
       await activateDeviceAccount(next.userId, browserDeviceAccountSwitchDeps());
     },
-    [],
+    [updateSession],
   );
 
   const switchAccount = useCallback(
