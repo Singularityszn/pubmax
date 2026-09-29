@@ -234,9 +234,11 @@ describe("crawl URL after Map history traversal", () => {
     const landed = new Promise<void>((resolve) =>
       window.addEventListener("popstate", () => resolve(), { once: true }),
     );
-    if (close === "home") act(() => closeHistorySurfaces());
-    else window.history.back();
-    await landed;
+    await act(async () => {
+      if (close === "home") closeHistorySurfaces();
+      else window.history.back();
+      await landed;
+    });
 
     expect(window.location.pathname).toBe(path);
     const landedSearch = new URLSearchParams(window.location.search);
@@ -258,8 +260,10 @@ describe("crawl URL after Map history traversal", () => {
     const landed = new Promise<void>((resolve) =>
       window.addEventListener("popstate", () => resolve(), { once: true }),
     );
-    window.history.back();
-    await landed;
+    await act(async () => {
+      window.history.back();
+      await landed;
+    });
 
     expect(window.location.search).toBe("?drink=cocktail&q=Soho");
 
@@ -289,8 +293,10 @@ describe("crawl URL after Map history traversal", () => {
     const landed = new Promise<void>((resolve) =>
       window.addEventListener("popstate", () => resolve(), { once: true }),
     );
-    window.history.back();
-    await landed;
+    await act(async () => {
+      window.history.back();
+      await landed;
+    });
 
     expect(window.location.search).toBe("?drink=wine");
     expect(window.history.state.root).toBe(true);
@@ -314,8 +320,10 @@ describe("crawl URL after Map history traversal", () => {
     const landed = new Promise<void>((resolve) =>
       window.addEventListener("popstate", () => resolve(), { once: true }),
     );
-    window.history.back();
-    await landed;
+    await act(async () => {
+      window.history.back();
+      await landed;
+    });
 
     expect(window.location.pathname).toBe("/map/bristol");
     expect(window.location.search).toBe("?q=Soho&max=6&drink=wine&zone=3");
@@ -338,8 +346,10 @@ describe("crawl URL after Map history traversal", () => {
     const landed = new Promise<void>((resolve) =>
       window.addEventListener("popstate", () => resolve(), { once: true }),
     );
-    act(() => closeHistorySurfaces());
-    await landed;
+    await act(async () => {
+      closeHistorySurfaces();
+      await landed;
+    });
 
     expect(window.location.search).toBe("?q=Soho&max=6&drink=wine&zone=3");
   });
@@ -367,8 +377,10 @@ describe("crawl URL after Map history traversal", () => {
     const landed = new Promise<void>((resolve) =>
       window.addEventListener("popstate", () => resolve(), { once: true }),
     );
-    window.history.back();
-    await landed;
+    await act(async () => {
+      window.history.back();
+      await landed;
+    });
 
     expect(window.location.search).toBe("?q=Soho&cocktails=1&drink=cocktail");
     expect(window.history.state.root).toBe(true);
@@ -413,8 +425,10 @@ describe("crawl URL after Map history traversal", () => {
     const landed = new Promise<void>((resolve) =>
       window.addEventListener("popstate", () => resolve(), { once: true }),
     );
-    window.history.back();
-    await landed;
+    await act(async () => {
+      window.history.back();
+      await landed;
+    });
 
     expect(window.location.pathname + window.location.search).toBe("/map");
   });
