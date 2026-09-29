@@ -176,6 +176,7 @@ type ContextDevExtractOk<T> = {
   status: "ok";
   url: string;
   data: T;
+  markdown: string;
   urlsAnalyzed: string[];
 };
 
@@ -591,17 +592,20 @@ export async function extract<T extends Record<string, unknown> = Record<string,
       () =>
         client.web.scrape({
           url,
-          formats: { json: true },
+          formats: { json: true, markdown: true },
           jsonParams: { schema, ...(instructions === undefined ? {} : { instructions }) },
           maxAgeMs: positiveMaxAge(options),
         }),
       (body) =>
         body.json?.success === true && typeof body.json.data === "object" && body.json.data !== null
+          && body.markdown?.success === true && typeof body.markdown.data === "string"
+          && typeof body.url === "string" && body.url.length > 0
           ? {
               status: "ok" as const,
-              url: typeof body.url === "string" ? body.url : url,
+              url: body.url,
               data: body.json.data as T,
-              urlsAnalyzed: [typeof body.url === "string" ? body.url : url],
+              markdown: body.markdown.data,
+              urlsAnalyzed: [body.url],
             }
           : null,
       "Extract returned no data.",

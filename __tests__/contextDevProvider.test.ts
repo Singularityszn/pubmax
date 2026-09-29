@@ -126,6 +126,79 @@ describe("normaliseContextDevEventRow", () => {
 });
 
 describe("runContextDevEventsLane", () => {
+  it("refuses a shape-valid event whose facts are absent from scraped page text", async () => {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      url: fullers.url,
+      markdown: { requested: true, success: true, data: "# Events\n\nThe Dove hosts Open mic on 18 August 2026." },
+      json: { requested: true, success: true, data: { events: [{
+        title: "Invented quiz",
+        placeName: "The Dove",
+        kind: "event",
+        startsDate: "2026-08-18",
+      }] } },
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+
+    const result = await runContextDevEventsLane({
+      observedAt,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      callOptions: { fetchImpl: fetchImpl as unknown as typeof fetch },
+      log: vi.fn(),
+      logError: vi.fn(),
+    });
+
+    expect(result.rows).toEqual([]);
+    expect(result.failures.some((failure) => failure.sourceId === fullers.id)).toBe(true);
+  });
+
+  it("accepts a stated event and strips unstated price and publisher id", async () => {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      url: fullers.url,
+      markdown: { requested: true, success: true, data: "# Events\n\nOpen mic at The Dove on 18 August 2026 at 20:00." },
+      json: { requested: true, success: true, data: { events: [{
+        title: "Open mic", placeName: "The Dove", kind: "music",
+        startsAt: "2026-08-18T20:00:00Z", priceText: "£40", sourceId: "fake-42",
+      }] } },
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+
+    const result = await runContextDevEventsLane({
+      observedAt,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      callOptions: { fetchImpl: fetchImpl as unknown as typeof fetch },
+      log: vi.fn(),
+      logError: vi.fn(),
+    });
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({ title: "Open mic", startsAt: "2026-08-18T20:00:00.000Z" });
+    expect(result.rows[0]?.priceGbp).toBeUndefined();
+    expect(result.rows[0]?.sourceId).toBe(result.rows[0]?.id);
+  });
+
+  it("does not combine a title from one listing with another listing's venue and date", async () => {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      url: fullers.url,
+      markdown: { requested: true, success: true, data:
+        "# Events\n\nOpen mic at The Swan on 19 August 2026.\n\nQuiz at The Dove on 18 August 2026." },
+      json: { requested: true, success: true, data: { events: [{
+        title: "Open mic", placeName: "The Dove", kind: "music", startsDate: "2026-08-18",
+      }] } },
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+
+    const result = await runContextDevEventsLane({
+      observedAt,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      callOptions: { fetchImpl: fetchImpl as unknown as typeof fetch },
+      log: vi.fn(),
+      logError: vi.fn(),
+    });
+
+    expect(result.rows).toEqual([]);
+    expect(result.failures.some((failure) => failure.sourceId === fullers.id)).toBe(true);
+  });
+
   it("sends optional fields and refuses off-host JSON attribution through the installed SDK", async () => {
     const fetchImpl = vi.fn<(input: unknown, init?: RequestInit) => Promise<Response>>(async () =>
       new Response(JSON.stringify({
@@ -143,6 +216,7 @@ describe("runContextDevEventsLane", () => {
             }],
           },
         },
+        markdown: { requested: true, success: true, data: "# Events\nInvented quiz at The Dove on 18 August 2026." },
       }), { status: 200, headers: { "content-type": "application/json" } }),
     );
 
@@ -156,7 +230,7 @@ describe("runContextDevEventsLane", () => {
 
     expect(fetchImpl).toHaveBeenCalled();
     const request = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body));
-    expect(request.formats).toEqual({ json: true });
+    expect(request.formats).toEqual({ json: true, markdown: true });
     expect(request.jsonParams.schema.properties.events.items.required).toBeUndefined();
     expect(result.rows).toEqual([]);
     expect(result.failures).toHaveLength(contextDevEventSources().length);
@@ -218,6 +292,7 @@ describe("runContextDevEventsLane", () => {
           },
         ],
       },
+      markdown: "# Events\nQuiz at The Counting House on 18 August 2026.",
       urlsAnalyzed: ["https://www.fullers.co.uk/event-finder"],
     });
 

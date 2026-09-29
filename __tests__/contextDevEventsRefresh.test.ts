@@ -71,6 +71,7 @@ describe("eventsRefresh Context.dev lane", () => {
           },
         ],
       },
+      markdown: "# Events\nOpen mic at The Counting House on 16 August 2026 at 20:00.",
       urlsAnalyzed: ["https://www.fullers.co.uk/event-finder"],
     });
 
@@ -166,6 +167,7 @@ describe("eventsRefresh Context.dev lane", () => {
           JSON.stringify({
             url: "https://www.fullers.co.uk/event-finder",
             json: { requested: true, success: true, data },
+            markdown: { requested: true, success: true, data: "" },
           }),
           { status: 200, headers: { "content-type": "application/json" } },
         );
@@ -191,7 +193,7 @@ describe("eventsRefresh Context.dev lane", () => {
     expect(written.rows.map((row: { id: string }) => row.id)).toContain("events-cd-blank-held");
     expect(written.rows.some((row: { source: { label: string } }) => row.source.label === "Ticketmaster")).toBe(true);
     expect(written.rows.find((row: { id: string }) => row.id === "events-cd-blank-held")?.observedAt).toBe(heldGeneratedAt);
-    expect(result.provider.failures).toEqual([expect.stringContaining("fullers-event-finder-events")]);
+    expect(result.provider.failures).toEqual([expect.stringContaining("fullers-event-finder-events: Extract returned no")]);
   });
 
   it("counts the drops of a source that yielded no rows at all", async () => {
@@ -215,6 +217,7 @@ describe("eventsRefresh Context.dev lane", () => {
           },
         ],
       },
+      markdown: "# Events\nFilm screening at The Dove on 16 August 2026 at 20:00.",
       urlsAnalyzed: ["https://www.fullers.co.uk/event-finder"],
     });
 

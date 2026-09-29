@@ -305,6 +305,7 @@ describe("extract", () => {
             },
           ],
         } },
+        markdown: { requested: true, success: true, data: "# Events\nQuiz night at The Red Lion" },
       }),
     );
     const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
@@ -317,12 +318,13 @@ describe("extract", () => {
     expect(result.status).toBe("ok");
     if (result.status !== "ok") throw new Error("expected ok");
     expect(result.data.events).toHaveLength(1);
+    expect(result.markdown).toContain("Quiz night");
     expect(result.urlsAnalyzed).toEqual(["https://www.fullers.co.uk/events"]);
     expect(String(fetchImpl.mock.calls[0]?.[0])).toContain("/v1/web/scrape");
     expect(fetchImpl.mock.calls[0]?.[1]?.method).toBe("POST");
     expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toMatchObject({
       url: "https://www.fullers.co.uk/events",
-      formats: { json: true },
+      formats: { json: true, markdown: true },
       jsonParams: { schema: { type: "object" }, instructions: "Use only page evidence." },
       maxAgeMs: 0,
     });
@@ -344,5 +346,37 @@ describe("extract", () => {
     if (result.status !== "error") throw new Error("expected error");
     expect(result.error.code).toBe("EMPTY_BODY");
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed when JSON succeeds but same-scrape Markdown evidence is absent", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({
+      url: "https://www.fullers.co.uk/events",
+      json: { requested: true, success: true, data: { events: [{ title: "Quiz" }] } },
+      markdown: { requested: true, success: false, data: null },
+      isPartial: true,
+    }));
+    const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: noSleep,
+    });
+    expect(result.status).toBe("error");
+    if (result.status !== "error") throw new Error("expected error");
+    expect(result.error.code).toBe("EMPTY_BODY");
+  });
+
+  it("refuses extraction without the SDK's final URL", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({
+      json: { requested: true, success: true, data: { events: [] } },
+      markdown: { requested: true, success: true, data: "# Events" },
+    }));
+    const result = await extract("https://www.fullers.co.uk/events", { type: "object" }, {
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: noSleep,
+    });
+    expect(result.status).toBe("error");
+    if (result.status !== "error") throw new Error("expected error");
+    expect(result.error.code).toBe("EMPTY_BODY");
   });
 });

@@ -119,6 +119,80 @@ function parseGbpFromText(value: unknown): number | null {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
+function evidenceWords(value: string): string {
+  return value.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
+}
+
+const MONTHS = [
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december",
+];
+
+function dateAppearsInEvidence(date: string, evidence: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) return false;
+  const [, year = "", month = "", day = ""] = match;
+  const monthNumber = String(Number(month));
+  const dayNumber = String(Number(day));
+  const monthName = MONTHS[Number(month) - 1];
+  const forms = [
+    `${year} ${month} ${day}`, `${dayNumber} ${monthNumber} ${year}`,
+    `${dayNumber} ${monthName} ${year}`, `${monthName} ${dayNumber} ${year}`,
+    `${dayNumber}st ${monthName} ${year}`, `${dayNumber}nd ${monthName} ${year}`,
+    `${dayNumber}rd ${monthName} ${year}`, `${dayNumber}th ${monthName} ${year}`,
+  ];
+  return forms.some((form) => evidence.includes(` ${form} `));
+}
+
+function timeAppearsInEvidence(instant: string, evidence: string): boolean {
+  const match = /T(\d{2}):(\d{2})/.exec(instant);
+  if (!match) return false;
+  const hour = Number(match[1]);
+  const minute = match[2] ?? "00";
+  const hour12 = String(hour % 12 || 12);
+  const period = hour < 12 ? "am" : "pm";
+  const forms = [
+    `${hour} ${minute}`, `${hour12} ${minute} ${period}`,
+    ...(minute === "00" ? [`${hour12} ${period}`] : []),
+  ];
+  return forms.some((form) => evidence.includes(` ${form} `));
+}
+
+function groundedEvent(raw: RawContextDevEvent, markdown: string): RawContextDevEvent | null {
+  if (!nonEmptyString(raw.title) || !nonEmptyString(raw.placeName)) return null;
+  // Strip link targets: a slug or date in a URL is not a statement on the page.
+  const sections = markdown
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/https?:\/\/\S+/g, "")
+    .split(/\n\s*\n/);
+  const title = evidenceWords(raw.title);
+  const place = evidenceWords(raw.placeName);
+  const rawSection = sections.find((candidate) => {
+    const words = ` ${evidenceWords(candidate)} `;
+    return words.includes(` ${title} `) && words.includes(` ${place} `);
+  });
+  if (!rawSection) return null;
+  const section = ` ${evidenceWords(rawSection)} `;
+
+  const date = nonEmptyString(raw.startsAt)
+    ? raw.startsAt.trim().slice(0, 10)
+    : nonEmptyString(raw.startsDate) ? raw.startsDate.trim() : "";
+  if (!dateAppearsInEvidence(date, section)) return null;
+  if (nonEmptyString(raw.startsAt) && !timeAppearsInEvidence(raw.startsAt, section)) return null;
+
+  const kind = nonEmptyString(raw.kind) ? raw.kind.trim() : "";
+  if (kind === "music" && !/\b(music|gig|concert|open mic|dj|band|live)\b/.test(section)) return null;
+  if (kind === "sport" && !/\b(sport|football|rugby|cricket|match|game|fixture)\b/.test(section)) return null;
+
+  return {
+    ...raw,
+    priceText: nonEmptyString(raw.priceText) && rawSection.toLowerCase().includes(raw.priceText.trim().toLowerCase())
+      ? raw.priceText : undefined,
+    sourceId: nonEmptyString(raw.sourceId) && section.includes(` ${evidenceWords(raw.sourceId)} `)
+      ? raw.sourceId : undefined,
+  };
+}
+
 function sourceCredit(source: HarvestSource): { label: string; url: string } {
   return {
     label: source.label,
@@ -340,7 +414,14 @@ export async function runContextDevEventsLane({
     }
 
     const events = result.data?.events;
-    const normalised = normaliseContextDevExtract(result.data, source, opts);
+    const grounded = Array.isArray(events)
+      ? events.map((event) => normaliseContextDevEventRow(event, source, opts).row
+        ? groundedEvent(event, result.markdown)
+        : event).filter((event): event is RawContextDevEvent => event !== null)
+      : [];
+    const normalised = normaliseContextDevExtract({ events: grounded }, source, opts);
+    normalised.dropped.noTitle += Array.isArray(events) ? events.length - grounded.length : 0;
+    normalised.dropped.total += Array.isArray(events) ? events.length - grounded.length : 0;
     mergeEventDrops(dropped, normalised.dropped);
     if (!Array.isArray(events) || normalised.rows.length === 0) {
       const message = !Array.isArray(events)
