@@ -2,8 +2,10 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
   ACCOUNTS,
+  AUTH_STORAGE_KEY,
   installAuthDoubles,
   readDeviceIdentity,
+  resumeCookie,
   seedSignedIn,
 } from "./helpers/authDoubles";
 
@@ -35,7 +37,7 @@ for (const viewport of [
   test(`${viewport.width}px account controls follow Map, Places, Plan, Create and profile`, async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize(viewport);
-    const stub = await installAuthDoubles(page);
+    const stub = await installAuthDoubles(page, { initialSeedOnly: true, realResumeCookie: true });
     await page.addInitScript(() => {
       window.localStorage.setItem("pubmax-tour-v1-done", "1");
       window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
@@ -73,18 +75,23 @@ for (const viewport of [
     await followNav(page, "You", /\/u\/karan$/);
     await expect(siteNav(page).getByRole("button", { name: /Account options/ })).toBeVisible();
 
-    await stub.signedInAs(null);
+    await expect.poll(() => page.evaluate((key) => Boolean(localStorage.getItem(key)), AUTH_STORAGE_KEY)).toBe(true);
+    await expect.poll(() => resumeCookie(page)).toBeTruthy();
+    stub.serverSignedInAs(null);
     await siteNav(page).getByRole("button", { name: /Account options/ }).click();
     const signOut = page.locator(".authAccountMenu").getByRole("button", { name: "Sign out", exact: true });
     await expectTappable(signOut);
     await signOut.click();
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), AUTH_STORAGE_KEY)).toBeNull();
+    await expect.poll(() => resumeCookie(page)).toBeNull();
     await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBeNull();
     await expect(siteNav(page).getByRole("button", { name: "Sign in" })).toBeVisible();
     await page.reload();
+    expect(await page.evaluate((key) => localStorage.getItem(key), AUTH_STORAGE_KEY)).toBeNull();
     await expect(siteNav(page).getByRole("button", { name: "Sign in" })).toBeVisible();
     await page.goBack();
+    await expect(page).toHaveURL(/\/moment\?returnTo=%2Fplan$/);
     await expect(siteNav(page).getByRole("button", { name: "Sign in" })).toBeVisible();
-    await page.goto("/moment?returnTo=%2Fplan");
     await expect(page.getByText("Sign in when you are ready to keep this Moment across devices.")).toBeVisible();
   });
 }
