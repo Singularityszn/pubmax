@@ -291,7 +291,7 @@ function writeScratchFile(
 
 function runValidate(
   scriptsDir: string,
-  env: NodeJS.ProcessEnv = {},
+  env: Partial<NodeJS.ProcessEnv> = {},
 ): { code: number; stdout: string } {
   try {
     const stdout = execFileSync("node", ["validate-data.mjs"], {
