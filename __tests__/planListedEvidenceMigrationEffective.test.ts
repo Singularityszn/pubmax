@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -8,6 +8,8 @@ import {
   startPostgres,
   type PostgresSession,
 } from "./helpers/postgres";
+import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
+import { parseUkPriceBundleRows } from "@/lib/ukPriceBundle";
 
 const skipReason = postgresSkipReason();
 const migrations = join(process.cwd(), "supabase/migrations");
@@ -50,6 +52,33 @@ function saved(): unknown {
     `select selected_drink_price_evidence::text from public.plan_stops where plan_id = '${planId}' and position = 0`,
   );
   return value ? JSON.parse(value) : null;
+}
+function createFromCurrentBundle(category: "wine" | "cocktail", suffix: "5" | "6") {
+  const rows = parseUkPriceBundleRows(JSON.parse(readFileSync(
+    join(process.cwd(), "public/data/uk_prices/rows.json"), "utf8",
+  ))).filter((row) => row.venueId === "venue-11bllvc");
+  const quote = listedCategoryPrices(rows).find((candidate) => candidate.category === category);
+  expect(quote).toBeDefined();
+  if (!quote) throw new Error(`No current listed ${category} quote for Punch & Judy`);
+  const evidence = {
+    category,
+    pence: Math.round(quote.priceGbp * 100),
+    serving: quote.servingSize,
+    source: "listed",
+    sourceUrl: quote.sourceUrl,
+    observedAt: new Date(quote.observedAt).toISOString(),
+  };
+  const id = proposalPlanId(suffix);
+  const member = `20000000-0000-4000-8000-00000000016${suffix}`;
+  const stops = JSON.stringify([{ venueId: "venue-11bllvc", venueName: "Punch & Judy", selectedDrinkPriceEvidence: evidence }]).replaceAll("'", "''");
+  expect(db().sql(`select public.create_plan_with_context_idempotent_atomic(
+    '${id}'::uuid, 'Listed ${category}', '2026-09-30T19:00:00Z', '${stops}'::jsonb,
+    '${member}'::uuid, 'Host', '${suffix.repeat(64)}', now(),
+    '${suffix.repeat(64)}', '${suffix.repeat(64)}', null, null, null,
+    '{"drinkCategory":"${category}","zeroProof":false}'::jsonb)`)).toBe("created");
+  const stored = db().sql(`select selected_drink_price_evidence::text from public.plan_stops where plan_id = '${id}' and position = 0`);
+  expect(JSON.parse(stored)).toEqual(evidence);
+  return evidence;
 }
 function communitySaved(): unknown {
   const value = db().sql(
@@ -168,6 +197,14 @@ describe.skipIf(skipReason !== null)(
           "plan_stops_selected_drink_price_evidence_check",
         );
       }
+    });
+
+    it("persists current approved bundle wine and cocktail citations through atomic Plan creation", () => {
+      const wine = createFromCurrentBundle("wine", "5");
+      const cocktail = createFromCurrentBundle("cocktail", "6");
+      expect(wine.sourceUrl).toMatch(/^https:\/\//);
+      expect(cocktail.sourceUrl).toMatch(/^https:\/\//);
+      expect(communitySaved()).toEqual(community);
     });
 
     it("rollback clears only listed evidence and restores community-only constraint", () => {
