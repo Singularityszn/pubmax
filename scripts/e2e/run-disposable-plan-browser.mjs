@@ -41,6 +41,10 @@ async function startRestAdapter(restBaseUrl) {
     }
     try {
       const target = new URL(request.url.slice("/rest/v1".length), restBaseUrl);
+      if (target.origin !== new URL(restBaseUrl).origin) {
+        response.writeHead(400).end();
+        return;
+      }
       const headers = {};
       for (const name of ["accept", "content-type", "prefer", "authorization", "apikey", "range", "accept-profile", "content-profile"]) {
         const value = request.headers[name];
@@ -52,6 +56,7 @@ async function startRestAdapter(restBaseUrl) {
         method: request.method,
         headers,
         body: chunks.length ? Buffer.concat(chunks) : undefined,
+        redirect: "manual",
       });
       for (const name of ["content-type", "content-range", "preference-applied", "location"]) {
         const value = upstream.headers.get(name);
