@@ -20,7 +20,7 @@ const ENDINGS: CrawlEnding[] = ["food", "get_home", "keep_going"];
 // come to mean different things, and it travels as `eventProps` beside the
 // tokens because the browser has to send the props the receipt was signed
 // over. Never a roster count and never a plan id: docs/analytics/METRICS.md
-// §2.2 and ADR 0009.
+// §2.3 and ADR 0009.
 function completionEventProps(plan: PlanState): { crewNight: boolean } {
   return { crewNight: plan.crew.length >= CREW_NIGHT_MIN_PARTICIPANTS };
 }
