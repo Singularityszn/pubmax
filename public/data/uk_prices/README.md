@@ -65,7 +65,7 @@ predicate also refuses them if they are introduced again.
 **A demo fixture is not a price.** `isDemoDrinkProvenance` spots one and it is
 never carried into a dataset that claims to say what a pint costs.
 
-**Six reviewed category contradictions stay in the source ledger, not in listed
+**Nineteen reviewed category contradictions stay in the source ledger, not in listed
 authority.** `lib/ukPriceBundle.ts` matches their exact page, printed item,
 category and price. The builder excludes them and counts the exclusions in
 `manifest.json`; bundle readers also refuse them if they encounter an older
@@ -73,9 +73,13 @@ file. The source observations remain in
 `data/uk_prices/site_harvest.jsonl` at lines 106, 107, 110, 111, 444 and 1246.
 These are the Plough's 0% Negroni, Picante Spritz, vodka description and
 Pineapple & Yuzu soda, the Guard House's 0.0% Berry Hugo and the George &
-Dragon's Frobishers Juice. `npm run build:uk-price-bundle` removed exactly six
-listed rows from the generated file on 2026-09-29, with no new rows and no
-change to the 3,243 venue count.
+Dragon's Frobishers Juice. The first review removed those six listed rows on
+2026-09-29. The next review removed thirteen retained wine claims whose
+printed labels describe elderflower, raspberry and soda, including the
+Windmill's £5.40 claim. Their ledger lines are 442, 944, 1004, 1232, 1335,
+1409, 2044, 2134, 2369, 2406, 2421, 2519 and 2825. Neither review
+reclassified these drinks or inferred a serving. The bundle still covers 3,243
+venues.
 
 This review used committed observations and a synthetic menu to reproduce the
 reader's item-boundary failure. It did not re-fetch any page or review every

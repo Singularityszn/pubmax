@@ -109,6 +109,40 @@ describe("what a bundle row owes", () => {
 });
 
 describe("which rows a surface may treat as a fact", () => {
+  it("withholds retained elderflower and raspberry soda claims misfiled as wine", () => {
+    const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    const published: UkPriceBundleRow[] = JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8"));
+    const evidence = [
+      ["https://www.spreadeaglewandsworth.co.uk/food-drinks/", 5.4, "Raspberry Elderflower, apple juice, Fever-Tree raspberry & orange blossom soda"],
+      ["https://www.kingsarmsoxford.co.uk/food-drink/", 4.85, ".85 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal"],
+      ["https://www.owlandpussycatshoreditch.com/food-drink/", 5.5, "Elderflower & Raspberry Cooler Orange Blossom, Raspberry, Elderflower, and Soda"],
+      ["https://www.windmillclapham.co.uk/food-drink/", 5.4, ".40 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal"],
+      ["https://www.tellersarmsfarnham.co.uk/food-drinks/", 5.15, ".15 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal"],
+      ["https://www.groveexmouth.co.uk/food-drink/", 4.85, ".85 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal"],
+      ["https://www.whitehart-ford.com/food-drink/", 4.6, "60 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88 kcal"],
+      ["https://www.almawandsworth.com/food-drink/", 5.4, "Elderflower & Raspberry Orange blossom, elderflower, raspberry, soda / 88 Kcal"],
+      ["https://www.thebullditchling.com/food-drink/", 5.15, ".15 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal"],
+      ["https://www.thedukeofwellingtonpub.com/food-and-drinks?menu=spritz", 4, "om, Raspberry, Elderflower, Soda 88kcal Light & Sparkling (AF) Raspberry & Rose"],
+      ["https://www.cockandbottlew11.com/food-drink?menu=spritz-menu", 4.45, "om, Raspberry, Elderflower, Soda 88kcal Light & Sparkling (AF) Raspberry & Rose"],
+      ["https://www.orangetreerichmond.co.uk/food-drink/", 5.35, ".35 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal"],
+      ["https://www.theprideofpaddington.co.uk/food-drink/", 3.95, "50 Elderflower & Raspberry Cooler Orange Blossom, Raspbberry, Elderflower, Soda"],
+    ] as const;
+    for (const [sourceUrl, priceGbp, drinkLabel] of evidence) {
+      const source = ledger.find((row) => row.sourceUrl === sourceUrl && row.category === "wine" && row.priceGbp === priceGbp && row.drinkLabel === drinkLabel);
+      expect(source).toBeDefined();
+      const row: UkPriceBundleRow = { ...listed, sourceUrl, category: "wine", priceGbp, drinkLabel };
+      expect(authoritativeBundleRows([row])).toEqual([]);
+      expect(parseUkPriceBundleRows([row])).toEqual([]);
+      expect(bundlePricesForCategory([row], "wine").listed).toBeNull();
+      expect(published.some((item) => item.lane === "site-harvest" && item.sourceUrl === sourceUrl && item.category === "wine" && item.priceGbp === priceGbp && item.drinkLabel === drinkLabel)).toBe(false);
+    }
+    const genuine = { ...listed, sourceUrl: evidence[0][0], category: "wine", drinkLabel: "House Chardonnay", priceGbp: 5.4 };
+    expect(authoritativeBundleRows([genuine])).toEqual([genuine]);
+  });
+
   it("withholds the six source-ledger rows whose printed drinks contradict their category", () => {
     const ledger = readFileSync("data/uk_prices/site_harvest.jsonl", "utf8")
       .trim()
