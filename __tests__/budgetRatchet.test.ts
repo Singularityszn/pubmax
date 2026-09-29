@@ -209,11 +209,18 @@ describe("check-budget-ratchet", () => {
 
 describe("the shipped budget file", () => {
   it("budgets every route the site serves a stranger", () => {
-    // 35 routes with no dynamic segment, plus ten concrete instances of the
-    // dynamic and static families the sitemap advertises (7 September 2026).
+    // 46 existing route rows, plus the canonical discovery tab query. Retired
+    // discovery URLs keep their own redirect rows rather than hiding the page.
     // docs/PERFORMANCE_BUDGETS.md "Which routes are budgeted" holds the list;
     // __tests__/sitemap.test.ts fails a family that is advertised and unmeasured.
-    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(46);
+    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(47);
+    const discovery = PERFORMANCE_BUDGETS.routes.find((route) => route.path === "/social?tab=discover");
+    expect(discovery).toBeDefined();
+    expect(discovery?.redirectsTo).toBeUndefined();
+    for (const path of ["/discover", "/drinks"]) {
+      expect(PERFORMANCE_BUDGETS.routes.find((route) => route.path === path)?.redirectsTo)
+        .toBe(discovery?.path);
+    }
   });
 
   it("gives every route a readiness selector and a reason", () => {

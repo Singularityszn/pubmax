@@ -346,6 +346,10 @@ describe("a budgeted route that redirects", () => {
   it("is declared, so the sweep can tell it from a page", () => {
     const onboarding = PERFORMANCE_BUDGETS.routes.find((entry) => entry.path === "/onboarding");
     expect(onboarding?.redirectsTo).toBe("/");
+    for (const path of ["/discover", "/drinks"]) {
+      expect(PERFORMANCE_BUDGETS.routes.find((entry) => entry.path === path)?.redirectsTo)
+        .toBe("/social?tab=discover");
+    }
   });
 
   it("sends the reader to a path that carries a ceiling of its own", () => {
