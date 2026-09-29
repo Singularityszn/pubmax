@@ -108,6 +108,21 @@ afterEach(() => {
 });
 
 describe("curated crawl URL hydration hold", () => {
+  it("keeps category price intent while the chosen drink and venue sync", async () => {
+    window.history.replaceState({}, "", "/map?drink=wine&contribute=price");
+    await act(async () => {
+      root.render(createElement(Harness, {
+        query: "",
+        pending: false,
+        drinkCategory: "wine",
+        selectedVenueId: "venue-16pnwmm",
+      }));
+    });
+    act(() => vi.advanceTimersByTime(300));
+    expect(window.location.search).toContain("contribute=price");
+    expect(window.location.search).toContain("sel=venue-16pnwmm");
+  });
+
   it("keeps crawl identity when map state changes before hydration", async () => {
     await act(async () => {
       root.render(createElement(Harness, { query: "Camden", pending: true }));

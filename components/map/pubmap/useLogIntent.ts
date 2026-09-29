@@ -3,13 +3,12 @@ import { useEffect, useRef } from "react";
 import { resolveMapLogIntent, shouldRunMapLogIntent } from "@/lib/mapLogIntent";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 
-// §log-drop intent: react to a ?log= arrival by selecting a target venue and
-// opening the drop composer once the map is ready, else surface the fallback.
-// The `handled` ref guards against re-firing; the 9-dep effect array is kept
-// exactly as it was in PubMap so react-compiler lint stays green.
-// Extracted verbatim from PubMap (F1).
+// Map price intents share the venue picker. Legacy log=1 opens Pint Drop;
+// contribute=price lets VenueInspector open category capture at the chosen pub.
+// The handled ref prevents the same arrival from reopening either flow.
 export function useLogIntent(deps: {
   hasLogIntent: boolean;
+  hasCategoryPriceIntent: boolean;
   loaded: boolean;
   firstFilteredVenueId: string;
   firstRouteId: string;
@@ -22,6 +21,7 @@ export function useLogIntent(deps: {
 }) {
   const {
     hasLogIntent,
+    hasCategoryPriceIntent,
     loaded,
     firstFilteredVenueId,
     firstRouteId,
@@ -35,14 +35,14 @@ export function useLogIntent(deps: {
   const handled = useRef(false);
 
   useEffect(() => {
-    if (!hasLogIntent) {
+    if (!hasLogIntent && !hasCategoryPriceIntent) {
       handled.current = false;
       setFallbackVisible(false);
       return;
     }
-    if (!shouldRunMapLogIntent({ hasLogIntent, handled: handled.current })) return;
+    if (!shouldRunMapLogIntent({ hasLogIntent: hasLogIntent || hasCategoryPriceIntent, handled: handled.current })) return;
     const resolution = resolveMapLogIntent({
-      hasLogIntent,
+      hasLogIntent: hasLogIntent || hasCategoryPriceIntent,
       loaded,
       selectedVenueId,
       selectedVenueResolvable,
@@ -57,6 +57,9 @@ export function useLogIntent(deps: {
     }
     handled.current = true;
     setFallbackVisible(false);
+    // The selected venue's Inspector consumes contribute=price and opens its
+    // category form or sign-in return. The Pint Drop opener belongs to log=1.
+    if (hasCategoryPriceIntent) return;
     markPubmaxTiming("pubmax:drop-route-ready");
     let active = true;
     void Promise.resolve().then(() => {
@@ -69,6 +72,7 @@ export function useLogIntent(deps: {
     };
   }, [
     hasLogIntent,
+    hasCategoryPriceIntent,
     loaded,
     firstFilteredVenueId,
     firstRouteId,

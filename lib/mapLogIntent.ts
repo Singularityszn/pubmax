@@ -223,6 +223,7 @@ export function clearMapLogIntentSearch(search: string): string {
   const normalized = search.startsWith("?") ? search.slice(1) : search;
   const params = new URLSearchParams(normalized);
   params.delete("log");
+  params.delete("contribute");
   // The figure is part of the intent, so it leaves with it: a `price=` left
   // armed would seed the NEXT pub's composer with a price nobody asked about.
   params.delete(MAP_LOG_INTENT_PRICE_PARAM);

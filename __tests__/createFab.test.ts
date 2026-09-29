@@ -36,9 +36,19 @@ describe("what the create action offers", () => {
     const byAction = Object.fromEntries(
       CREATE_FAB_ACTIONS.map((item) => [item.action, item.hrefFor("/map")]),
     );
-    expect(byAction.price).toBe("/map?log=1");
+    expect(byAction.price).toBe("/map?contribute=price");
     expect(byAction.plan).toBe("/plan");
     expect(byAction.moment).toBe("/moment?returnTo=%2Fmap");
+  });
+
+  it("keeps the selected drink and city when creating a category price", () => {
+    const price = CREATE_FAB_ACTIONS.find((item) => item.action === "price")!;
+    expect(price.hrefFor("/map?drink=wine&q=Soho")).toBe(
+      "/map?drink=wine&q=Soho&contribute=price",
+    );
+    expect(price.hrefFor("/map/bristol?drink=cocktail")).toBe(
+      "/map/bristol?drink=cocktail&contribute=price",
+    );
   });
 
   it("carries the query of the route it was pressed on back into the Moment", () => {

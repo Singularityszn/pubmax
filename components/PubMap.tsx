@@ -708,7 +708,10 @@ function noAcceptedArrivalSource(): null {
 // again after a popstate restores an entry that still carries the flag.
 function dropLogParamFromUrl(): void {
   if (typeof window === "undefined") return;
-  if (!hasMapLogIntent(window.location.search)) return;
+  if (
+    !hasMapLogIntent(window.location.search) &&
+    new URLSearchParams(window.location.search).get("contribute") !== "price"
+  ) return;
   const query = clearMapLogIntentSearch(window.location.search);
   window.history.replaceState(
     window.history.state,
@@ -3032,6 +3035,8 @@ export default function PubMap({
     hasMapLogIntent(searchParams),
     logIntentCleared,
   );
+  const hasCategoryPriceIntent =
+    searchParams.get("contribute") === "price" && !logIntentCleared;
   const shouldBuildSuggestedRoute = suggestedRouteWanted({
     hasReactiveLogIntent,
     planningOpen,
@@ -4002,9 +4007,9 @@ export default function PubMap({
     (venueId: string) => {
       setLogIntentFallbackVisible(false);
       selectVenue(venueId);
-      openComposerForLog();
+      if (!hasCategoryPriceIntent) openComposerForLog();
     },
-    [openComposerForLog, selectVenue],
+    [hasCategoryPriceIntent, openComposerForLog, selectVenue],
   );
 
   const handleInspectorTabSelect = useCallback(
@@ -4021,6 +4026,7 @@ export default function PubMap({
   // path: pick the best visible pub, open its sheet, and open the composer.
   useLogIntent({
     hasLogIntent: hasReactiveLogIntent,
+    hasCategoryPriceIntent,
     loaded,
     firstFilteredVenueId,
     firstRouteId,
@@ -4445,15 +4451,20 @@ export default function PubMap({
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
       if (targetCityId && targetCityId !== cityId) {
         // Full navigation resets city-specific map state before the target city loads.
+        const params = new URLSearchParams({ sel: id });
+        if (hasCategoryPriceIntent) {
+          if (mapDrinkLensCategory) params.set("drink", mapDrinkLensCategory);
+          params.set("contribute", "price");
+        }
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.assign(
-          `${cityMapShareUrl(targetCityId)}?sel=${encodeURIComponent(id)}`,
+          `${cityMapShareUrl(targetCityId)}?${params}`,
         );
         return;
       }
       selectVenue(id, "overview");
     },
-    [cityId, selectVenue, trimmedMapQuery],
+    [cityId, hasCategoryPriceIntent, mapDrinkLensCategory, selectVenue, trimmedMapQuery],
   );
   const selectUkBasePubFromSearch = useCallback(
     (pub: UkBasePub) => {
@@ -4575,7 +4586,7 @@ export default function PubMap({
   const changeMapOverlay = useCallback((next: MapOverlay) => {
     setChooseAreaOpening(false);
     // Leaving the phone "Choose a pub" sheet leaves the Drop flow (D4).
-    if (next !== "moment") clearLogIntent();
+    if (next !== "moment" && !(next === "search" && hasCategoryPriceIntent)) clearLogIntent();
     if (next !== "none" && isMobileViewport()) {
       setPlanningOpen(false);
       setSelectedVenueId("");
@@ -4587,7 +4598,7 @@ export default function PubMap({
     clearAreaSheetTimer();
     setSearchAreaTarget(null);
     setMapOverlay(next);
-  }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen]);
+  }, [clearAreaSheetTimer, clearLogIntent, closeComposer, hasCategoryPriceIntent, setPlanningOpen]);
 
   const openChooseArea = useCallback((locationNote?: string | null, openingFlow = false) => {
     setChooseAreaLocationNote(locationNote ?? null);
@@ -5870,11 +5881,13 @@ export default function PubMap({
         momentContent={
           <LogIntentFallback
             candidates={logNearbyCandidates}
+            categoryPriceIntent={hasCategoryPriceIntent}
             origin={logNearbyOrigin?.source ?? null}
             filteredPubVenueCount={filteredPubVenueCount}
             onPickVenue={pickLogNearbyVenue}
             onPrefetchVenue={prefetchVenueDetail}
             onFocusSearch={() => {
+              setLogIntentFallbackVisible(false);
               changeMapOverlay("search");
               requestAnimationFrame(focusMapSearch);
             }}
@@ -6318,11 +6331,15 @@ export default function PubMap({
       {!mobileViewport && logIntentFallbackVisible ? (
         <LogIntentFallback
           candidates={logNearbyCandidates}
+          categoryPriceIntent={hasCategoryPriceIntent}
           origin={logNearbyOrigin?.source ?? null}
           filteredPubVenueCount={filteredPubVenueCount}
           onPickVenue={pickLogNearbyVenue}
           onPrefetchVenue={prefetchVenueDetail}
-          onFocusSearch={focusMapSearch}
+          onFocusSearch={() => {
+            setLogIntentFallbackVisible(false);
+            focusMapSearch();
+          }}
           onResetFilters={resetLogIntentFilters}
           onDismiss={clearLogIntent}
         />

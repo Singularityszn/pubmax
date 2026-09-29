@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 const SEED_VENUE_ID = "venue-16pnwmm";
 const SEED_VENUE_NAME = "Prospect of Whitby";
@@ -19,6 +20,29 @@ test.beforeEach(async ({ page }) => {
 // The ONE price door on the Overview (lib/pintTrust.ts, `overviewPriceDoor`):
 // the composer is folded behind it, and the sticky bar carries no price action.
 const DOOR_NAME = `Log tonight's price at ${SEED_VENUE_NAME}`;
+
+for (const [drink, noun] of [["wine", "wine"], ["cocktail", "cocktail"]] as const) {
+  test(`Create routes ${drink} through the category price form`, async ({ page }) => {
+    await installDeterministicMapBasemap(page);
+    await page.goto(`/map?drink=${drink}`);
+    await expect(async () => {
+      await page.getByTestId("create-fab").click();
+      await expect(page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }))
+        .toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    await page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }).click();
+    await expect(page).toHaveURL(new RegExp(`drink=${drink}.*contribute=price`));
+    const picker = page.getByText("Pick a pub to log a price");
+    await expect(picker).toBeVisible({ timeout: 45_000 });
+    const nearby = page.locator(".logIntentNearbyBtn").first();
+    await expect(nearby).toBeVisible();
+    await nearby.click();
+    await expect(page.getByRole("textbox", { name: new RegExp(`Price of a ${noun} at`) }))
+      .toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId("spill-price-step")).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`drink=${drink}.*sel=[^&]+`));
+  });
+}
 
 test("a drinker opens the folded price form from the one price door", async ({
   page,

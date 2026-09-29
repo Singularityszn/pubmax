@@ -211,6 +211,10 @@ describe("clearMapLogIntentSearch", () => {
     expect(mapLogIntentPrice(clearMapLogIntentSearch("?log=1&price=6.50"))).toBe(null);
   });
 
+  it("disarms a dismissed category price picker without losing the drink", () => {
+    expect(clearMapLogIntentSearch("?drink=wine&contribute=price")).toBe("drink=wine");
+  });
+
   it("is a no-op on a URL that never carried the flag", () => {
     expect(clearMapLogIntentSearch("?sel=pub-1")).toBe("sel=pub-1");
     expect(clearMapLogIntentSearch("?catalog=1")).toBe("catalog=1");

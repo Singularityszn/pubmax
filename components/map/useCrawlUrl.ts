@@ -21,6 +21,7 @@ const DEBOUNCE_MS = 300;
 // moment any crawl state changed.
 const OWNED_PASSTHROUGH_PARAMS = [
   "log",
+  "contribute",
   "plan",
   "sel",
   "accept",

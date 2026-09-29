@@ -125,7 +125,7 @@ for (const width of WIDTHS) {
       await page.goto("/out");
       await openCreateMenu(page);
       await createRow(page, "Log a price").click();
-      await page.waitForURL(/\/map\?log=1/, { timeout: 45_000 });
+      await page.waitForURL(/\/map\?contribute=price/, { timeout: 45_000 });
 
       await page.goto("/out");
       await openCreateMenu(page);
