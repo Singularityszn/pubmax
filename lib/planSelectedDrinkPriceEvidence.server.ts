@@ -42,7 +42,8 @@ export async function resolvePlanSelectedDrinkPriceEvidence(
         category, pence: Math.round(price.priceGbp * 100), serving: null,
         source: "community", reportedAt: new Date(price.submittedAt).toISOString(),
       });
-      return serverEvidence && serverEvidence.pence === hint.pence && serverEvidence.reportedAt === hint.reportedAt
+      return serverEvidence?.source === "community" && hint.source === "community"
+        && serverEvidence.pence === hint.pence && serverEvidence.reportedAt === hint.reportedAt
         ? { ...stop, selectedDrinkPriceEvidence: serverEvidence }
         : { ...stop };
     });
