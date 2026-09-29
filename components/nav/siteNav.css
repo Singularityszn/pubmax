@@ -83,10 +83,10 @@
   margin-top: env(safe-area-inset-top, 0px);
 }
 
-/* Content heads can animate into their own stacking contexts. Give the open
-   account disclosure a stacking context above them so every menu row remains
-   tappable on narrow screens. The closed in-flow bar stays in page order. */
-.siteNavBar:not(.siteNavBarFloating):has(.authAccountMenu) {
+/* Content heads can animate into their own stacking contexts. Raise the
+   in-flow bar while either account or sign-in disclosure is open so menu rows
+   remain tappable. The closed bar stays in page order. */
+.siteNavBar:not(.siteNavBarFloating):has(.authMenu) {
   position: relative;
   z-index: var(--z-modal);
 }
