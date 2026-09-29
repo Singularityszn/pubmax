@@ -20,6 +20,7 @@ import {
   type SheetSnap,
 } from "@/lib/sheetSnap";
 import { useSpringValue } from "@/lib/useSpringValue";
+import { FocusTrapOwner } from "@/lib/useFocusTrap";
 
 const TABLET_SHEET_QUERY = "(max-width: 768px)";
 
@@ -121,6 +122,13 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
     const wasOpenRef = useRef(false);
     const wasDraggingRef = useRef(false);
     const overshootEntranceDoneRef = useRef(false);
+    useLayoutEffect(() => {
+      if (open || !drawerRef.current) return;
+      const owner = new FocusTrapOwner();
+      owner.reconcile([drawerRef.current]);
+      return () => owner.release();
+    }, [open]);
+
     const setDrawerRef = useCallback(
       (node: HTMLDivElement | null) => {
         drawerRef.current = node;
@@ -278,7 +286,6 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
         className={`springDrawer ${className ?? ""}${presentationClassName}`.trim()}
         data-spring-axis={tabletSheet ? "vertical" : "horizontal"}
         style={style}
-        inert={open ? undefined : true}
       >
         {open ? children : retainedChildren}
       </div>
