@@ -31,15 +31,33 @@ export function postgresDataDirFromCommand(command) {
   return match?.[1] ?? null;
 }
 
-function listPostgresProcesses() {
+function databaseProcessLines() {
+  // Read executable names first. Unrelated CLI arguments can overflow
+  // spawnSync's output buffer before a postmaster appears in a host-wide list.
+  const names = execFileSync("ps", ["-A", "-o", "pid=", "-o", "comm="], {
+    encoding: "utf8",
+  });
+  const pids = [];
+  for (const line of names.split("\n")) {
+    const match = /^\s*(\d+)\s+(.+)$/.exec(line);
+    if (match && ["postgres", "initdb"].includes(basename(match[2].trim()))) {
+      pids.push(match[1]);
+    }
+  }
+  if (pids.length === 0) return [];
   const result = spawnSync(
     "ps",
-    ["-A", "-o", "pid=", "-o", "ppid=", "-o", "command="],
+    ["-p", pids.join(","), "-o", "pid=", "-o", "ppid=", "-o", "command="],
     { encoding: "utf8" },
   );
+  if (result.error) throw result.error;
   if (result.status !== 0 || !result.stdout) return [];
+  return result.stdout.split("\n");
+}
+
+function listPostgresProcesses() {
   const rows = [];
-  for (const line of result.stdout.split("\n")) {
+  for (const line of databaseProcessLines()) {
     const trimmed = line.trim();
     if (!trimmed.includes("postgres")) continue;
     const pid = Number.parseInt(trimmed, 10);
@@ -212,12 +230,7 @@ function stalePubmaxDataDirs() {
 }
 
 function harnessProcessUsesDataDir(dataDir) {
-  const result = spawnSync("ps", ["-A", "-o", "command="], { encoding: "utf8" });
-  if (result.status !== 0 || !result.stdout) return false;
-  return result.stdout.split("\n").some((line) => {
-    if (!line.includes(dataDir)) return false;
-    return /\b(initdb|postgres)\b/.test(line);
-  });
+  return databaseProcessLines().some((line) => line.includes(dataDir));
 }
 
 /**

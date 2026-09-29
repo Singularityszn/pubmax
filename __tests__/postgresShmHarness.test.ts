@@ -1,5 +1,6 @@
-import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { once } from "node:events";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -35,10 +36,11 @@ function expectHoldsSegment(pid: number): void {
   if (readsSysvCreators) expect(sysvSegmentsCreatedBy([pid])).not.toEqual([]);
 }
 
-function postmasterFor(dataDir: string): PostgresProcess | null {
-  const listing = spawnSync("ps", ["-A", "-o", "pid=", "-o", "ppid=", "-o", "command="], {
+function postmasterFor(dataDir: string, postmasterPid: number): PostgresProcess | null {
+  const listing = spawnSync("ps", ["-p", String(postmasterPid), "-o", "pid=", "-o", "ppid=", "-o", "command="], {
     encoding: "utf8",
   });
+  if (listing.error) throw listing.error;
   for (const row of listing.stdout.split("\n")) {
     const [pid, ppid, ...command] = row.trim().split(/\s+/);
     if (postgresDataDirFromCommand(command.join(" ")) !== dataDir) continue;
@@ -102,7 +104,8 @@ function startInitParentedCluster(dataDir: string): PostgresProcess {
     ],
     { ...options, env: { ...options.env, TMPDIR: outerTempDir } },
   );
-  const postmaster = postmasterFor(dataDir);
+  const postmasterPid = Number(readFileSync(join(dataDir, "postmaster.pid"), "utf8").split("\n")[0]);
+  const postmaster = postmasterFor(dataDir, postmasterPid);
   if (!postmaster) throw new Error(`no postmaster for ${dataDir}`);
   return postmaster;
 }
@@ -174,27 +177,49 @@ describe("postgres SysV harness hygiene", () => {
     30_000,
   );
 
-  (skip || !serialShmHarness ? it.skip : it)(
-    "sweep reaps an init-parented harness orphan and leaves a live parented cluster alone",
-    async () => {
-      const live = await startPostgres({ label: "shm-live" });
-      const livePid = postmasterPidOf(live);
+  (skip || !serialShmHarness ? it.skip : it).each([false, true])(
+    "sweep reaps an init-parented harness orphan and leaves a live parented cluster alone (large process arguments: %s)",
+    async (largeProcessArguments) => {
+      const noisyProcesses: ChildProcess[] = [];
+      let live: PostgresSession | undefined;
       const orphanDir = harnessDataDir("shm-orphan");
       try {
+        if (largeProcessArguments) {
+          // Concurrent CLI jobs can exceed spawnSync's 1 MiB output buffer.
+          // Keep each argument below the OS per-argument limit.
+          for (let index = 0; index < 10; index += 1) {
+            const child = spawn(process.execPath, [
+              "-e", "process.send('ready'); setInterval(() => {}, 1000);", "x".repeat(110_000),
+            ], { stdio: ["ignore", "ignore", "inherit", "ipc"] });
+            noisyProcesses.push(child);
+            await once(child, "message");
+          }
+        }
+        live = await startPostgres({ label: "shm-live" });
+        const livePid = postmasterPidOf(live);
         const orphan = startInitParentedCluster(orphanDir);
         expect(orphan.ppid).toBe(1);
         expectHoldsSegment(orphan.pid);
 
         sweepPubmaxHarnessOrphans();
 
-        expect(postmasterFor(orphanDir)).toBeNull();
+        expect(postmasterFor(orphanDir, orphan.pid)).toBeNull();
         expect(existsSync(orphanDir)).toBe(false);
         expect(sysvSegmentsCreatedBy([orphan.pid])).toEqual([]);
         expect(live.sql("select 1")).toBe("1");
         expectHoldsSegment(livePid);
       } finally {
-        stopHarnessCluster(orphanDir);
-        await live.stop();
+        try {
+          stopHarnessCluster(orphanDir);
+          await live?.stop();
+        } finally {
+          await Promise.all(noisyProcesses.map(async (child) => {
+            if (child.exitCode !== null || child.signalCode !== null) return;
+            const exited = once(child, "exit");
+            child.kill("SIGTERM");
+            await exited;
+          }));
+        }
       }
     },
     180_000,
