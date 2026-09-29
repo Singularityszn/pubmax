@@ -5456,29 +5456,6 @@ export default function PubMap({
     !mapCanvasErrored &&
     !mapCanvasFrameReleased(mapCanvasAvailabilityState) &&
     mapLoadingHeld(mapLoadingStage);
-  // The text-query lane filters curated pubs. UK base browse pubs are a
-  // separate zoom-gated layer and do not answer this query, so they may not
-  // keep an empty filtered collection from naming its honest state.
-  const visibleMapPinCount =
-    visibleVenueState?.cityId === cityId
-      ? visibleVenueState.curatedVenueIds.length
-      : null;
-  const mapSearchEmptyVisible =
-    trimmedMapQuery.length > 0 &&
-    loaded &&
-    loadedCityId === cityId &&
-    filteredPubVenueCount > 0 &&
-    mapBounds !== null &&
-    !mapLoadingActive &&
-    !mapCanvasUnavailable &&
-    mapOverlay !== "search" &&
-    !showMapArrivalCard &&
-    !mapSoftRetryActive &&
-    !detailOpen &&
-    !planningOpen &&
-    !storyOpen &&
-    !mapListOpen &&
-    visibleMapPinCount === 0;
 
   const mobileShellReady = !mapLoadingActive;
   // Desktop reader controls. Both live inside Layers rather than on the map
@@ -6061,6 +6038,30 @@ export default function PubMap({
   }
 
   function renderMapSearchEmptyState() {
+    // The text-query lane filters curated pubs. UK base browse pubs are a
+    // separate zoom-gated layer and do not answer this query, so they may not
+    // keep an empty filtered collection from naming its honest state.
+    const visibleMapPinCount =
+      visibleVenueState?.cityId === cityId
+        ? visibleVenueState.curatedVenueIds.length
+        : null;
+    const mapSearchEmptyVisible =
+      trimmedMapQuery.length > 0 &&
+      loaded &&
+      loadedCityId === cityId &&
+      filteredPubVenueCount > 0 &&
+      mapBounds !== null &&
+      !mapLoadingActive &&
+      !mapCanvasUnavailable &&
+      mapOverlay !== "search" &&
+      !showMapArrivalCard &&
+      !mapSoftRetryActive &&
+      !detailOpen &&
+      !planningOpen &&
+      !storyOpen &&
+      !mapListOpen &&
+      visibleMapPinCount === 0;
+
     return mapSearchEmptyVisible ? (
       <aside
         className="mapSearchEmpty"
