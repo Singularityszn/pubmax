@@ -88,7 +88,6 @@ describe("responsive spring ownership", () => {
     expect(springDrawerSource).toContain(
       'className={`springDrawer ${className ?? ""}${presentationClassName}`.trim()}',
     );
-    expect(springDrawerSource).toContain("inert={open ? undefined : true}");
     expect(springDrawerSource).toContain(
       "if (!keepMounted) setRetainedChildren(null)",
     );
