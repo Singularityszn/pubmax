@@ -2,7 +2,7 @@ import type { CrewMemberDTO } from "@/lib/crew";
 import { cleanText } from "@/lib/textClean";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { isPlanStopCount } from "@/lib/planStopCount";
-import type { SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 export const PLAN_TITLE_MAX = 80;
 export const PLAN_STOP_MAX = 8;
@@ -206,7 +206,7 @@ export type CleanPlanInput = {
   title: string;
   startTime: string;
   creatorName: string;
-  stops: Array<{ venueId: string; venueName: string }>;
+  stops: Array<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence }>;
   context: NightContext | null;
 };
 
@@ -224,9 +224,11 @@ export function cleanCreatePlan(input: CreatePlanInput): CleanPlanInput | null {
   if (input.stops.length < 1 || input.stops.length > PLAN_STOP_MAX) return null;
   const stops = input.stops.map((raw) => {
     const row = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+    const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
     return {
       venueId: cleanText(row.venueId, PLAN_VENUE_ID_MAX),
       venueName: cleanText(row.venueName, PLAN_VENUE_NAME_MAX),
+      ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
     };
   });
   if (stops.some((stop) => !stop.venueId || !stop.venueName)) return null;

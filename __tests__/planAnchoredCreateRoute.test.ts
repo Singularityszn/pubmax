@@ -65,6 +65,7 @@ describe("POST /api/plans — anchored lock", () => {
     const context = {
       nightArea: "piccadilly-soho", daypart: "evening", partyType: "friends", groupSize: 2,
       stopCount: 3, budget: "value", budgetLimitPence: null, zeroProof: false,
+      drinkCategory: null,
       wetherspoonsPreferred: false, atmosphere: [], foodNeeds: [], accessibility: [], transportConstraints: [],
     };
     const response = await create({
