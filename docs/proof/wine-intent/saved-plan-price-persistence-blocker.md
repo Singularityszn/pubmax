@@ -1,6 +1,6 @@
 # Saved selected-drink price evidence: persistence blocker
 
-Status: blocked at the committed Plan persistence schema on 29 September 2026. This records repository state, not the schema currently deployed to any database. No migration was executed.
+Status: migration `0161` and rollback added locally on 29 September 2026. Plan save still drops the evidence in application code. No shared migration was executed, and this says nothing about the schema deployed to any database.
 
 ## Reproduction
 
@@ -19,12 +19,16 @@ The real submit path drops the field even earlier: `composerCreatePayload` in `c
 ## Schema boundary
 
 - `PlanStopDTO` in `lib/plan.ts` has only venue ID, name, and position. Both `readSupabasePlanState` and `stopFromRow` in `lib/planStore.ts` read those three fields. The memory store also constructs stops from the two-field cleaned input.
-- `public.plan_stops` in `supabase/migrations/20260712130423_0024_plans.sql` has venue ID, name, and position, with no price or evidence column. No later committed migration adds one.
+- `public.plan_stops` in `supabase/migrations/20260712130423_0024_plans.sql` has venue ID, name, and position. Migration `0161` adds nullable `selected_drink_price_evidence` JSONB with a 512-byte limit and exactly the five public display keys. Its rollback drops the column and its contents while retaining the route. The application does not write the new column yet.
 - `create_plan_idempotent_atomic` in `supabase/migrations/20260716200000_0035_plan_write_idempotency.sql` extracts only venue ID and name from `p_stops`. `create_plan_with_context_idempotent_atomic` delegates to it. `replace_plan_route_atomic` in `supabase/migrations/20260811120000_0104_plan_stop_counts.sql` deletes and reinserts only those same stop fields. Route-proposal acceptance has the same insert shape.
 - `plans.night_context` is typed planning intent. It is neither a per-stop evidence slot nor an authority for a venue price. `plan_completions.ending_selection` and `plan_route_proposals.stops` have different lifecycle and visibility contracts. Reusing any of them would mislabel the evidence or lose it on route replacement.
 
 ## Required next change
 
-Add a nullable, bounded, per-stop evidence field through a forward migration and rollback. Update the creation, replacement, and proposal-acceptance writes, then the typed Plan state and reads. Validate category against saved `NightContext`, require a server-authoritative price lookup or grounded proof before storing any submitted evidence, and retain `serving: null` and the original report date. Missing, stale, mismatched, or degraded evidence must remain absent; it must not become a glass price, cheapest-price claim, or budget total. Plan readers are link-capability holders, so store no contributor identity or private price-report metadata.
+Update creation, replacement, and proposal-acceptance writes, then the typed Plan state and reads. Validate category against saved `NightContext`, require a server-authoritative price lookup or grounded proof before storing any submitted evidence, and retain `serving: null` and the original report date. Missing, stale, mismatched, or degraded evidence must remain absent; it must not become a glass price, cheapest-price claim, or budget total. Plan readers are link-capability holders, so store no contributor identity or private price-report metadata. An app version running against the old schema must report that evidence was not saved if it discards the field.
 
-After that schema is available, prove generation, preview, save, and reload in a private Playwright context for wine and cocktails, plus missing/degraded evidence and beer. Run focused tests, `DEPLOYMENT_VERSION=local npm run verify`, and an isolated production build. None of those browser or full-gate claims is made by this blocker record.
+## Local schema proof
+
+`__tests__/planSelectedDrinkEvidenceMigrationEffective.test.ts` applied every earlier migration to disposable PostgreSQL 16. Before `0161`, writing the column failed because it did not exist. After `0161`, an old stop kept its route and gained a null evidence slot; wine evidence round-tripped. The database refused extra keys, oversized values, and an array. Plan stop policies stayed byte-for-byte equal; anonymous readers still lacked column SELECT and authenticated readers still lacked UPDATE. Rollback removed the column and kept the route. The focused proof, migration-version fence, and PostgreSQL suite inventory passed together: 16 tests in 6.12 seconds. Typecheck and isolated `NEXT_DIST_DIR=.next-prod` production build passed. Repository lint exited 0 with 73 warnings outside this change; focused lint had none. The build regenerated lapsed-verification venue JSON, which was restored after the build.
+
+After the app paths are wired, prove generation, preview, save, and reload in a private Playwright context for wine and cocktails, plus missing/degraded evidence and beer. Run focused tests and `DEPLOYMENT_VERSION=local npm run verify`. This record makes no browser or full-verify claim.
