@@ -19,8 +19,7 @@ describe("Tonight soft plan handoff", () => {
   it("ships coffee, alcohol-free and chill plan chips beside the vibe row", () => {
     expect(source).toContain("TONIGHT_SOFT_PLAN_CHIPS");
     expect(source).toContain('planOccasionHref(chip.id, { src: "tonight-vibes" })');
-    for (const chip of TONIGHT_SOFT_PLAN_CHIPS) {
-      expect(source).toContain("{chip.label}");
-    }
+    expect(source).toContain("{chip.label}");
+    expect(TONIGHT_SOFT_PLAN_CHIPS.map((chip) => chip.id)).toEqual(["coffee", "af", "chill"]);
   });
 });

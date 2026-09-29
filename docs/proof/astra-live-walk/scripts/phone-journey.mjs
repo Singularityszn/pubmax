@@ -7,7 +7,7 @@ const p = await ctx.newPage();
 const say=(...a)=>console.log(a.join(" "));
 p.on("pageerror", e=>say("PAGEERROR:", String(e).slice(0,180)));
 p.on("console", m=>{ if(m.type()==="error") say("CONSOLE-ERR:", m.text().slice(0,180)); });
-const tap = async (loc, label) => { const t=Date.now(); try { await loc.tap({timeout:8000}); } catch(e){ try{await loc.click({timeout:6000});}catch(e2){ say("TAP-FAIL", label, String(e2).slice(0,90)); return -1; } } await p.waitForTimeout(1400); say("TAP", label, "->", p.url(), (Date.now()-t)+"ms"); return Date.now()-t; };
+const tap = async (loc, label) => { const t=Date.now(); try { await loc.tap({timeout:8000}); } catch { try{await loc.click({timeout:6000});}catch(e2){ say("TAP-FAIL", label, String(e2).slice(0,90)); return -1; } } await p.waitForTimeout(1400); say("TAP", label, "->", p.url(), (Date.now()-t)+"ms"); return Date.now()-t; };
 
 // 1. Home
 await p.goto("https://pubmaxxing.com/",{waitUntil:"domcontentloaded"}); await p.waitForTimeout(4000);

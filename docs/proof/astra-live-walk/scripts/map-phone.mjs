@@ -7,7 +7,6 @@ const ctx = await b.newContext({ viewport:{width:390,height:844}, isMobile:true,
 const p = await ctx.newPage();
 const cdp = await ctx.newCDPSession(p); await cdp.send("Network.enable");
 if(mode==="slow4g"){ await cdp.send("Emulation.setCPUThrottlingRate",{rate:4}); await cdp.send("Network.emulateNetworkConditions",{offline:false,latency:150,downloadThroughput:188743,uploadThroughput:86400,connectionType:"cellular4g"}); }
-const marks=[];
 await p.addInitScript(()=>{ window.__marks=[]; const names=["pubmax:map-constructed","map-style-load","map-icons-ready","map-scene-built","pubs-source-loaded","pins-visible","pubmax:first-pins","pubmax:pin-reveal"];
   for(const n of names) window.addEventListener(n, ()=>window.__marks.push([n, Math.round(performance.now())])); });
 const t0=Date.now();

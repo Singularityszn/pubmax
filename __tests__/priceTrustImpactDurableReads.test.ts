@@ -81,8 +81,8 @@ function makeQuery(name: string) {
       state.exactCount = options?.count === "exact";
       return query;
     },
-    not(column: string, operator: string, _value: unknown) {
-      if (operator === "is") state.notNull.push(column);
+    not(column: string, operator: string, value: unknown) {
+      if (operator === "is" && value === null) state.notNull.push(column);
       return query;
     },
     is(column: string, value: unknown) {
