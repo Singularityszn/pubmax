@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, createElement, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 
@@ -70,5 +71,22 @@ it("does not reuse a stored handle after the canonical handle clears", async () 
 
   expect(host.querySelector("a")?.getAttribute("aria-label")).toBe("Activity");
   expect(fetchMock).not.toHaveBeenCalled();
+  await act(async () => root.unmount());
+});
+
+it("does not start A's queued refresh after switching to B", async () => {
+  fetchMock.mockImplementation(async () => new Response(JSON.stringify({ unread: 2 }), { status: 200 }));
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+
+  await act(async () => {
+    flushSync(() => root.render(createElement(NotificationBell)));
+    authState.current = { user: { id: "account-b" }, handle: "accountb" };
+    flushSync(() => root.render(createElement(NotificationBell)));
+  });
+
+  await vi.waitFor(() => expect(host.querySelector("a")?.getAttribute("aria-label")).toBe("Activity: 2 unread"));
+  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(["/api/notifications?handle=accountb"]);
   await act(async () => root.unmount());
 });

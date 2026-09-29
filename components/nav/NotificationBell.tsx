@@ -62,11 +62,15 @@ function AccountNotificationBell({
 
   useEffect(() => {
     if (!socialFriendsLaunchEnabled || !userId || !handle) return;
-    void Promise.resolve().then(() => refresh());
+    let disposed = false;
+    void Promise.resolve().then(() => {
+      if (!disposed) return refresh();
+    });
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
     const interval = window.setInterval(() => void refresh(), POLL_MS);
     return () => {
+      disposed = true;
       window.removeEventListener("focus", onFocus);
       window.clearInterval(interval);
       abortRef.current?.abort();
