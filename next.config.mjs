@@ -240,8 +240,7 @@ const nextConfig = {
     // NO page server-renders per-account content, and NOTHING calls
     // router.refresh(). Every mutable and every viewer-scoped surface owns its
     // own /api read on the client, so a held RSC payload can neither name the
-    // wrong person nor hide a write. __tests__/clientRouterCache.test.ts is the
-    // tree-wide fence on both halves; break either and the window has to go.
+    // wrong person nor hide a write.
     //
     // The number is chosen against what these documents actually carry: a day
     // greeting, a quiet-pint window, a service-day boundary, bundled sourced

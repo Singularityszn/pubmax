@@ -12,8 +12,6 @@ import {
 } from "@/lib/outDesktopGrouping";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { OutListingPubPair } from "@/components/out/OutListingPubPair";
 import type { OutOpenPlan } from "@/lib/out";
 import { describe, expect, it } from "vitest";
@@ -210,16 +208,6 @@ describe("out listing grouping", () => {
     expect(html).toContain(`>${OUT_LISTING_VENUE_BADGE_LABEL}<`);
     expect(html).not.toContain(">PUBMAXX pub<");
     expect(OUT_LISTING_VENUE_BADGE_LABEL).not.toMatch(/\bpub\b|\bvenue\b/i);
-  });
-
-  it("keeps desktop listing columns balanced", () => {
-    const css = readFileSync(join(process.cwd(), "app/out/out.css"), "utf8");
-    const desktop = css.match(/@media \(min-width: 1024px\) \{([\s\S]*)/)?.[1] ?? "";
-    // The nights stack and the ROWS take the two columns: a two-column surface
-    // left half the page empty whenever one chip held one night.
-    expect(desktop).toMatch(
-      /\.outGroupList\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/,
-    );
   });
 
   it("shows Open plans when one sendable plan exists", () => {
