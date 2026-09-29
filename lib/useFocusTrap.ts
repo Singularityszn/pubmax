@@ -76,11 +76,28 @@ export function shouldInertOutsideSibling(
 }
 
 type InertOwnership = {
-  original: boolean;
+  componentInert: boolean;
   owners: Set<symbol>;
+  observer: MutationObserver | null;
 };
 
 const inertOwnership = new WeakMap<HTMLElement, InertOwnership>();
+
+function captureComponentInert(node: HTMLElement, ownership: InertOwnership): void {
+  if (ownership.observer?.takeRecords().length) {
+    ownership.componentInert = node.inert;
+  } else if (!ownership.observer && !node.inert) {
+    // Plain objects in the owner tests have no observable inert attribute.
+    ownership.componentInert = false;
+  }
+}
+
+function enforceTrapInert(node: HTMLElement, ownership: InertOwnership): void {
+  captureComponentInert(node, ownership);
+  node.inert = true;
+  // Our own write is not a new component claim.
+  ownership.observer?.takeRecords();
+}
 
 type FocusRestoration = {
   origin: HTMLElement | null;
@@ -90,27 +107,44 @@ type FocusRestoration = {
 const focusRestorations: FocusRestoration[] = [];
 
 function claimInert(node: HTMLElement, owner: symbol): void {
-  const ownership = inertOwnership.get(node);
+  let ownership = inertOwnership.get(node);
   if (ownership) {
+    captureComponentInert(node, ownership);
     ownership.owners.add(owner);
   } else {
-    inertOwnership.set(node, {
-      original: node.inert,
+    ownership = {
+      componentInert: node.inert,
       owners: new Set([owner]),
-    });
+      observer: null,
+    };
+    if (
+      typeof MutationObserver !== "undefined" &&
+      typeof HTMLElement !== "undefined" &&
+      node instanceof HTMLElement
+    ) {
+      ownership.observer = new MutationObserver(() => {
+        const current = inertOwnership.get(node);
+        if (!current) return;
+        captureComponentInert(node, current);
+        if (current.owners.size > 0 && !node.inert) enforceTrapInert(node, current);
+      });
+      ownership.observer.observe(node, { attributes: true, attributeFilter: ["inert"] });
+    }
+    inertOwnership.set(node, ownership);
   }
-  node.inert = true;
+  enforceTrapInert(node, ownership);
 }
 
 function releaseInert(node: HTMLElement, owner: symbol): void {
   const ownership = inertOwnership.get(node);
   if (!ownership || !ownership.owners.delete(owner)) return;
+  captureComponentInert(node, ownership);
   if (ownership.owners.size > 0) {
-    node.inert = true;
+    enforceTrapInert(node, ownership);
     return;
   }
-  // Only undo inert we introduced; a drawer may have since cleared its own.
-  if (!ownership.original) node.inert = false;
+  ownership.observer?.disconnect();
+  node.inert = ownership.componentInert;
   inertOwnership.delete(node);
 }
 
