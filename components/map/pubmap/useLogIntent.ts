@@ -32,15 +32,15 @@ export function useLogIntent(deps: {
     openComposerForLog,
     setFallbackVisible,
   } = deps;
-  const handled = useRef(false);
+  const handled = useRef<"pending" | "fallback" | "open">("pending");
 
   useEffect(() => {
     if (!hasLogIntent && !hasCategoryPriceIntent) {
-      handled.current = false;
+      handled.current = "pending";
       setFallbackVisible(false);
       return;
     }
-    if (!shouldRunMapLogIntent({ hasLogIntent: hasLogIntent || hasCategoryPriceIntent, handled: handled.current })) return;
+    if (!shouldRunMapLogIntent({ hasLogIntent: hasLogIntent || hasCategoryPriceIntent, handled: handled.current === "open" })) return;
     const resolution = resolveMapLogIntent({
       hasLogIntent: hasLogIntent || hasCategoryPriceIntent,
       loaded,
@@ -52,10 +52,11 @@ export function useLogIntent(deps: {
     });
     if (resolution.status === "inactive" || resolution.status === "pending") return;
     if (resolution.status === "fallback") {
-      setFallbackVisible(true);
+      if (handled.current !== "fallback") setFallbackVisible(true);
+      handled.current = "fallback";
       return;
     }
-    handled.current = true;
+    handled.current = "open";
     setFallbackVisible(false);
     // The selected venue's Inspector consumes contribute=price and opens its
     // category form or sign-in return. The Pint Drop opener belongs to log=1.

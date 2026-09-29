@@ -82,6 +82,18 @@ function currentBrowserUrl(): string {
   return `${window.location.pathname}${window.location.search}${window.location.hash}`;
 }
 
+function isSurfaceOpen(
+  previous: SurfaceStack<MapSurfaceState>,
+  next: SurfaceStack<MapSurfaceState>,
+): boolean {
+  const entry = currentSurface(next);
+  if (!entry) return false;
+  const transition = mapSurfaceOpenTransition(previous, entry);
+  return transition.kind === "push" &&
+    transition.stack.length === next.length &&
+    transition.stack.every((held, index) => held.id === next[index]?.id);
+}
+
 function urlForStack(
   stack: SurfaceStack<MapSurfaceState>,
   selectionHint: string,
@@ -281,6 +293,7 @@ export function useMapSurfaceNavigation({
     const onPop = (event: PopStateEvent) => {
       const landed = readMapSurfaceHistory<MapSurfaceState>(event.state);
       const next = landed ?? (ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>);
+      const closingHome = pendingHomeRef.current !== null;
       const previous = pendingHomeRef.current ?? stackRef.current;
       pendingHomeRef.current = null;
       if (landed !== null && !selectedVenueId(next)) {
@@ -293,8 +306,13 @@ export function useMapSurfaceNavigation({
       if (
         window.location.pathname === ownedPathRef.current &&
         landed !== null &&
-        previous.length > next.length &&
-        next.every((entry, index) => entry.id === previous[index]?.id)
+        (
+          closingHome ||
+          (previous.length > next.length &&
+            next.every((entry, index) => entry.id === previous[index]?.id)) ||
+          isSurfaceOpen(next, previous) ||
+          isSurfaceOpen(previous, next)
+        )
       ) {
         onSurfaceCloseRef.current();
       }

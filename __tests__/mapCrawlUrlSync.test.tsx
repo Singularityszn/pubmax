@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import { EMPTY_MAP_SURFACE_STATE, useMapSurfaceNavigation } from "@/components/map/pubmap/useMapSurfaceNavigation";
 import type { CrawlUrlState } from "@/lib/crawlUrl";
+import { stampMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { initialFilters, type Filters } from "@/lib/venues";
 
 function mapState(
@@ -163,6 +164,54 @@ describe("curated crawl URL hydration hold", () => {
 });
 
 describe("crawl URL after Map history traversal", () => {
+  it.each(["wine", "cocktail"])("keeps %s across reopened sheets, Forward and Home", async (drinkCategory) => {
+    window.history.replaceState({ root: true }, "", "/map/manchester");
+    await act(async () => {
+      root.render(createElement(HistoryHarness, { query: "" }));
+    });
+    act(() => openHistorySurface({ id: "drink", title: "Drink", state: EMPTY_MAP_SURFACE_STATE }));
+    act(() => openHistorySurface({ id: "filters", title: "Filters", state: EMPTY_MAP_SURFACE_STATE }));
+    act(() => openHistorySurface({ id: "drink", title: "Drink", state: EMPTY_MAP_SURFACE_STATE }));
+    await act(async () => {
+      root.render(createElement(HistoryHarness, { query: "", drinkCategory }));
+    });
+    act(() => vi.advanceTimersByTime(300));
+
+    vi.useRealTimers();
+    const back = new Promise<void>((resolve) =>
+      window.addEventListener("popstate", () => resolve(), { once: true }),
+    );
+    await act(async () => {
+      window.history.back();
+      await back;
+    });
+    expect(new URLSearchParams(window.location.search).get("drink")).toBe(drinkCategory);
+
+    await act(async () => {
+      root.render(createElement(HistoryHarness, { query: "Changed", drinkCategory }));
+    });
+    const forward = new Promise<void>((resolve) =>
+      window.addEventListener("popstate", () => resolve(), { once: true }),
+    );
+    await act(async () => {
+      window.history.forward();
+      await forward;
+    });
+    expect(window.location.pathname).toBe("/map/manchester");
+    expect(new URLSearchParams(window.location.search).get("drink")).toBe(drinkCategory);
+    expect(new URLSearchParams(window.location.search).get("q")).toBe("Changed");
+
+    const home = new Promise<void>((resolve) =>
+      window.addEventListener("popstate", () => resolve(), { once: true }),
+    );
+    await act(async () => {
+      closeHistorySurfaces();
+      await home;
+    });
+    expect(new URLSearchParams(window.location.search).get("drink")).toBe(drinkCategory);
+    expect(new URLSearchParams(window.location.search).get("q")).toBe("Changed");
+  });
+
   it.each([
     ["/map/manchester", "back"],
     ["/map/bristol", "home"],
@@ -199,8 +248,8 @@ describe("crawl URL after Map history traversal", () => {
   });
 
   it("leaves an earlier root entry's deliberate drink choice intact", async () => {
-    window.history.replaceState({ root: true }, "", "/map?drink=cocktail&q=Soho");
-    window.history.pushState({ root: true }, "", "/map?drink=wine&q=Soho");
+    window.history.replaceState(stampMapSurfaceHistory({ root: true }, [], ""), "", "/map?drink=cocktail&q=Soho");
+    window.history.pushState(stampMapSurfaceHistory({ root: true }, [], ""), "", "/map?drink=wine&q=Soho");
     await act(async () => {
       root.render(createElement(HistoryHarness, { query: "Soho", drinkCategory: "wine" }));
     });

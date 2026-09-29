@@ -1674,10 +1674,22 @@ export default function PubMap({
   // rearmed the pub picker each time. Leaving the flow disarms it: the flag
   // leaves the URL, and this state stands the intent down for the render pass
   // (a replaceState never re-runs Next's useSearchParams).
-  const [logIntentCleared, setLogIntentCleared] = useState(false);
+  const logIntentSearch = searchParams.toString();
+  const [logIntentDismissal, setLogIntentDismissal] = useState({
+    search: logIntentSearch,
+    cleared: false,
+  });
+  if (logIntentDismissal.search !== logIntentSearch) {
+    setLogIntentDismissal({
+      search: logIntentSearch,
+      cleared: logIntentDismissal.cleared &&
+        !hasMapLogIntent(searchParams) && searchParams.get("contribute") !== "price",
+    });
+  }
+  const logIntentCleared = logIntentDismissal.cleared;
   const clearLogIntent = useCallback(() => {
     setLogIntentFallbackVisible(false);
-    setLogIntentCleared(true);
+    setLogIntentDismissal((current) => ({ ...current, cleared: true }));
     dropLogParamFromUrl();
   }, []);
 
@@ -1689,12 +1701,6 @@ export default function PubMap({
   const logIntentPrice = reactiveLogIntentActive(hasMapLogIntent(searchParams), logIntentCleared)
     ? mapLogIntentPrice(searchParams)
     : null;
-  // Closing the sheet pops the Map surface entry, and the clean entry
-  // underneath still carries `log=1` - it is an owned
-  // passthrough there too, written before the reader left the flow. So one
-  // strip is not enough: hold the URL clean for the rest of the session, on
-  // every render and on every history pop. Otherwise Back or a reload rearms
-  // the picker the reader just closed.
   useEffect(() => {
     if (!logIntentCleared) return;
     dropLogParamFromUrl();
@@ -3964,10 +3970,13 @@ export default function PubMap({
   const resetLogIntentFilters = useCallback(() => {
     setSavedOnly(false);
     setSavedIds(readSavedVenueIds());
-    setFilters(seedCrawlState("").filters);
+    setFilters((current) => ({
+      ...seedCrawlState("").filters,
+      ...(hasCategoryPriceIntent ? { drinkCategory: current.drinkCategory } : {}),
+    }));
     closePlanning();
     focusMapSearch();
-  }, [closePlanning, focusMapSearch, setFilters]);
+  }, [closePlanning, focusMapSearch, hasCategoryPriceIntent, setFilters]);
 
   // #395 R1: clear only the search query and unfilter the map. Used by the
   // mobile active-search chip so a restored (or typed) query is never an
