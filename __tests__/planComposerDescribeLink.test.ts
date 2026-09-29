@@ -267,6 +267,7 @@ describe("PlanComposer describe prefill", () => {
 
     const drinks = document.querySelector<HTMLSelectElement>("#plan-context-zero-proof");
     expect(drinks?.value).toBe("wine");
+    expect(document.querySelector('label[for="plan-time"]')?.textContent).toBe("First stop");
     expect(Array.from(drinks?.options ?? []).map((option) => option.value)).toEqual(
       expect.arrayContaining(["beer", "wine", "cocktail", "whisky", "gin", "vodka", "rum", "shot"]),
     );
@@ -276,6 +277,7 @@ describe("PlanComposer describe prefill", () => {
       drinks!.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(drinks?.value).toBe("cocktail");
+    expect(document.querySelector('label[for="plan-time"]')?.textContent).toBe("First stop");
     expect(document.querySelector("#plan-route-status")?.textContent).toContain("Route needs refreshing");
 
     await act(async () => {
@@ -306,6 +308,7 @@ describe("PlanComposer describe prefill", () => {
       context: { drinkCategory?: string | null; zeroProof?: boolean };
     };
     expect(cleared.context).toMatchObject({ drinkCategory: null, zeroProof: false });
+    expect(document.querySelector('label[for="plan-time"]')?.textContent).toBe("First pint");
 
     await act(async () => {
       drinks!.value = "zero-proof";
@@ -323,6 +326,7 @@ describe("PlanComposer describe prefill", () => {
       context: { drinkCategory?: string | null; zeroProof?: boolean };
     };
     expect(zeroProof.context).toMatchObject({ drinkCategory: null, zeroProof: true });
+    expect(document.querySelector('label[for="plan-time"]')?.textContent).toBe("First stop");
   });
 
   it("prefers the URL ask over a held draft, and spends the draft anyway", async () => {
