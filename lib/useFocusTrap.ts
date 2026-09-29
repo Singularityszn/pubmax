@@ -83,8 +83,12 @@ type InertOwnership = {
 
 const inertOwnership = new WeakMap<HTMLElement, InertOwnership>();
 
-function captureComponentInert(node: HTMLElement, ownership: InertOwnership): void {
-  if (ownership.observer?.takeRecords().length) {
+function captureComponentInert(
+  node: HTMLElement,
+  ownership: InertOwnership,
+  deliveredRecords: MutationRecord[] = [],
+): void {
+  if (deliveredRecords.length || ownership.observer?.takeRecords().length) {
     ownership.componentInert = node.inert;
   } else if (!ownership.observer && !node.inert) {
     // Plain objects in the owner tests have no observable inert attribute.
@@ -122,10 +126,10 @@ function claimInert(node: HTMLElement, owner: symbol): void {
       typeof HTMLElement !== "undefined" &&
       node instanceof HTMLElement
     ) {
-      ownership.observer = new MutationObserver(() => {
+      ownership.observer = new MutationObserver((records) => {
         const current = inertOwnership.get(node);
         if (!current) return;
-        captureComponentInert(node, current);
+        captureComponentInert(node, current, records);
         if (current.owners.size > 0 && !node.inert) enforceTrapInert(node, current);
       });
       ownership.observer.observe(node, { attributes: true, attributeFilter: ["inert"] });

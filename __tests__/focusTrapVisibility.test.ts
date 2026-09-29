@@ -179,6 +179,37 @@ describe("FocusTrapOwner", () => {
     }
   }
 
+  for (const [initiallyInert, componentInert] of [
+    [true, false],
+    [false, true],
+  ] as const) {
+    for (const firstRelease of ["map", "strict"] as const) {
+      for (const cleanup of ["release", "reconcile"] as const) {
+        it(`keeps component ${componentInert ? "closed" : "open"} after async observer delivery and overlapping ${firstRelease} ${cleanup}`, async () => {
+          const drawer = componentOwnedNode(initiallyInert);
+          const map = new FocusTrapOwner();
+          const strict = new FocusTrapOwner();
+          map.reconcile([drawer]);
+          strict.reconcile([drawer]);
+
+          drawer.inert = componentInert;
+          await Promise.resolve();
+          expect(drawer.inert).toBe(true);
+
+          const first = firstRelease === "map" ? map : strict;
+          const second = firstRelease === "map" ? strict : map;
+          if (cleanup === "release") first.release();
+          else first.reconcile([]);
+          expect(drawer.inert).toBe(true);
+
+          second.release();
+          await Promise.resolve();
+          expect(drawer.inert).toBe(componentInert);
+        });
+      }
+    }
+  }
+
   it("retains a component's newly closed drawer after both traps leave", () => {
     const drawer = componentOwnedNode(false);
     const map = new FocusTrapOwner();
