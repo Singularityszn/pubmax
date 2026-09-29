@@ -76,11 +76,32 @@ export function shouldInertOutsideSibling(
 }
 
 type InertOwnership = {
-  original: boolean;
+  componentInert: boolean;
   owners: Set<symbol>;
+  observer: MutationObserver | null;
 };
 
 const inertOwnership = new WeakMap<HTMLElement, InertOwnership>();
+
+function captureComponentInert(
+  node: HTMLElement,
+  ownership: InertOwnership,
+  deliveredRecords: MutationRecord[] = [],
+): void {
+  if (deliveredRecords.length || ownership.observer?.takeRecords().length) {
+    ownership.componentInert = node.inert;
+  } else if (!ownership.observer && !node.inert) {
+    // Plain objects in the owner tests have no observable inert attribute.
+    ownership.componentInert = false;
+  }
+}
+
+function enforceTrapInert(node: HTMLElement, ownership: InertOwnership): void {
+  captureComponentInert(node, ownership);
+  node.inert = true;
+  // Our own write is not a new component claim.
+  ownership.observer?.takeRecords();
+}
 
 type FocusRestoration = {
   origin: HTMLElement | null;
@@ -90,26 +111,44 @@ type FocusRestoration = {
 const focusRestorations: FocusRestoration[] = [];
 
 function claimInert(node: HTMLElement, owner: symbol): void {
-  const ownership = inertOwnership.get(node);
+  let ownership = inertOwnership.get(node);
   if (ownership) {
+    captureComponentInert(node, ownership);
     ownership.owners.add(owner);
   } else {
-    inertOwnership.set(node, {
-      original: node.inert,
+    ownership = {
+      componentInert: node.inert,
       owners: new Set([owner]),
-    });
+      observer: null,
+    };
+    if (
+      typeof MutationObserver !== "undefined" &&
+      typeof HTMLElement !== "undefined" &&
+      node instanceof HTMLElement
+    ) {
+      ownership.observer = new MutationObserver((records) => {
+        const current = inertOwnership.get(node);
+        if (!current) return;
+        captureComponentInert(node, current, records);
+        if (current.owners.size > 0 && !node.inert) enforceTrapInert(node, current);
+      });
+      ownership.observer.observe(node, { attributes: true, attributeFilter: ["inert"] });
+    }
+    inertOwnership.set(node, ownership);
   }
-  node.inert = true;
+  enforceTrapInert(node, ownership);
 }
 
 function releaseInert(node: HTMLElement, owner: symbol): void {
   const ownership = inertOwnership.get(node);
   if (!ownership || !ownership.owners.delete(owner)) return;
+  captureComponentInert(node, ownership);
   if (ownership.owners.size > 0) {
-    node.inert = true;
+    enforceTrapInert(node, ownership);
     return;
   }
-  node.inert = ownership.original;
+  ownership.observer?.disconnect();
+  node.inert = ownership.componentInert;
   inertOwnership.delete(node);
 }
 
@@ -286,12 +325,12 @@ function displayChain(container: HTMLElement): string[] {
 // Shared modal focus trap, extracted from the mobile bottom sheet
 // (MobileSharedSheet) so the desktop venue drawer can reuse the SAME behaviour
 // for its full open lifetime. While `active`:
-//   1. Tab / Shift+Tab cycle within `containerRef`'s visible focusables.
-//   2. Everything OUTSIDE the container is marked `inert` — walking the ancestor
-//      chain to <body> and inert-ing each level's off-path siblings. This works
-//      whether the trapped node is a body-level portal (mobile sheet) or nested
-//      inside the app shell (desktop drawer). Prior `inert` values are restored
-//      on teardown.
+//   1. Tab / Shift+Tab cycle through the container and any map-surface exemptions.
+//   2. Outside siblings are made inert along the ancestor chain to <body>,
+//      except where the map-surface policy permits interaction. Overlapping
+//      owners keep each claimed node inert until its final release. Component
+//      writes update the state to restore, even when the observer reasserts
+//      trap isolation before cleanup. Final release restores that latest intent.
 //   3. A container CSS has hidden never traps at all (shouldEngageFocusTrap).
 // Focus entry and restoration are coordinated here; Esc stays with each caller.
 export function useFocusTrap(
@@ -393,8 +432,13 @@ export function useFocusTrap(
       document.removeEventListener("focusin", onFocusIn);
       observer?.disconnect();
       if (frame !== null) window.cancelAnimationFrame(frame);
-      trapOwner.release();
-      releaseStrictModal?.();
+      if (releaseStrictModal) {
+        releaseStrictModal();
+        // Let subscribers clear their modal-owned inert prop before restoring focus.
+        queueMicrotask(() => trapOwner.release());
+      } else {
+        trapOwner.release();
+      }
     };
   }, [active, containerRef, focusOriginRef, outsidePolicy]);
 }

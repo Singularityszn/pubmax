@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 
 import {
@@ -80,6 +81,20 @@ describe("FocusTrapOwner", () => {
     return { inert } as HTMLElement;
   }
 
+  function componentOwnedNode(inert: boolean): HTMLElement {
+    const element = document.createElement("div");
+    // jsdom does not reflect HTMLElement.inert to its attribute like Chromium.
+    Object.defineProperty(element, "inert", {
+      get: () => element.hasAttribute("inert"),
+      set: (value: boolean) => {
+        if (value) element.setAttribute("inert", "");
+        else element.removeAttribute("inert");
+      },
+    });
+    element.inert = inert;
+    return element;
+  }
+
   function focusOrigin() {
     let focusCalls = 0;
     const element = {
@@ -95,6 +110,32 @@ describe("FocusTrapOwner", () => {
       disconnect: () => Object.defineProperty(element, "isConnected", { value: false }),
       focusCalls: () => focusCalls,
     };
+  }
+
+  for (const cleanup of ["release", "reconcile"] as const) {
+    it(`does not reinstate a drawer's cleared inert state on ${cleanup}`, () => {
+      const drawer = node(true);
+      const trap = new FocusTrapOwner();
+      trap.reconcile([drawer]);
+
+      // Opening the drawer clears its own inert prop before effect cleanup.
+      drawer.inert = false;
+      if (cleanup === "release") trap.release();
+      else trap.reconcile([]);
+
+      expect(drawer.inert).toBe(false);
+    });
+
+    it(`preserves an unchanged pre-existing inert state on ${cleanup}`, () => {
+      const drawer = node(true);
+      const trap = new FocusTrapOwner();
+      trap.reconcile([drawer]);
+
+      if (cleanup === "release") trap.release();
+      else trap.reconcile([]);
+
+      expect(drawer.inert).toBe(true);
+    });
   }
 
   for (const firstRelease of ["map", "strict"] as const) {
@@ -114,6 +155,90 @@ describe("FocusTrapOwner", () => {
       expect(outside.inert).toBe(false);
     });
   }
+
+  for (const firstRelease of ["map", "strict"] as const) {
+    for (const cleanup of ["release", "reconcile"] as const) {
+      it(`keeps an opened drawer live after overlapping ${firstRelease} ${cleanup}`, () => {
+        const drawer = componentOwnedNode(true);
+        const map = new FocusTrapOwner();
+        const strict = new FocusTrapOwner();
+        map.reconcile([drawer]);
+        strict.reconcile([drawer]);
+
+        // SpringDrawer opens while both traps still claim its former inert node.
+        drawer.inert = false;
+        const first = firstRelease === "map" ? map : strict;
+        const second = firstRelease === "map" ? strict : map;
+        if (cleanup === "release") first.release();
+        else first.reconcile([]);
+        expect(drawer.inert).toBe(true);
+
+        second.release();
+        expect(drawer.inert).toBe(false);
+      });
+    }
+  }
+
+  for (const [initiallyInert, componentInert] of [
+    [true, false],
+    [false, true],
+  ] as const) {
+    for (const firstRelease of ["map", "strict"] as const) {
+      for (const cleanup of ["release", "reconcile"] as const) {
+        it(`keeps component ${componentInert ? "closed" : "open"} after async observer delivery and overlapping ${firstRelease} ${cleanup}`, async () => {
+          const drawer = componentOwnedNode(initiallyInert);
+          const map = new FocusTrapOwner();
+          const strict = new FocusTrapOwner();
+          map.reconcile([drawer]);
+          strict.reconcile([drawer]);
+
+          drawer.inert = componentInert;
+          await Promise.resolve();
+          expect(drawer.inert).toBe(true);
+
+          const first = firstRelease === "map" ? map : strict;
+          const second = firstRelease === "map" ? strict : map;
+          if (cleanup === "release") first.release();
+          else first.reconcile([]);
+          expect(drawer.inert).toBe(true);
+
+          second.release();
+          await Promise.resolve();
+          expect(drawer.inert).toBe(componentInert);
+        });
+      }
+    }
+  }
+
+  it("retains a component's newly closed drawer after both traps leave", () => {
+    const drawer = componentOwnedNode(false);
+    const map = new FocusTrapOwner();
+    const strict = new FocusTrapOwner();
+    map.reconcile([drawer]);
+    strict.reconcile([drawer]);
+
+    // The component asserts inert while the traps have already set it true.
+    drawer.inert = true;
+    map.release();
+    expect(drawer.inert).toBe(true);
+    strict.release();
+    expect(drawer.inert).toBe(true);
+  });
+
+  it("uses the latest component state through trap cleanup and remount", () => {
+    const drawer = componentOwnedNode(true);
+    const first = new FocusTrapOwner();
+    first.reconcile([drawer]);
+    drawer.inert = false;
+    first.release();
+    expect(drawer.inert).toBe(false);
+
+    const second = new FocusTrapOwner();
+    second.reconcile([drawer]);
+    drawer.inert = true;
+    second.release();
+    expect(drawer.inert).toBe(true);
+  });
 
   it("restores the earlier map origin after overlapping teardown", () => {
     const mapOrigin = focusOrigin();

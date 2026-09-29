@@ -115,3 +115,43 @@ test("Plan identity nudge keeps one sign-in email action on a 390px phone", asyn
   expect(subscriberRequests).toEqual([]);
   expect(analyticsEvents).not.toContain("email_subscribed");
 });
+
+test("strict identity modal isolates an open map sheet and releases it on dismissal", async ({ page }) => {
+  await page.setViewportSize(VIEWPORT);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(({ pendingKey, pendingAtKey }) => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.localStorage.setItem(pendingKey, "plan");
+    window.localStorage.setItem(pendingAtKey, String(Date.now()));
+  }, { pendingKey: PENDING_KEY, pendingAtKey: PENDING_AT_KEY });
+  await page.route("https://pubmaxx-e2e.supabase.co/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({}),
+    });
+  });
+
+  const response = await page.goto("/map?sel=venue-yl1a48");
+  expect(response?.status()).toBe(200);
+  const sheet = page.locator(".mobileSharedSheet.open");
+  await expect(sheet).toBeVisible({ timeout: 30_000 });
+  await expect(sheet).toHaveAttribute("aria-modal", "true");
+
+  await page.evaluate(() => {
+    window.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+  });
+  const dialog = page.getByRole("dialog", { name: "Keep your nights" });
+  await expect(dialog).toBeVisible();
+  await expect.poll(() => sheet.evaluate((node) => node.closest("[inert]") !== null)).toBe(true);
+  await expect(dialog.getByRole("button", { name: "Not now" })).toBeEnabled();
+
+  await dialog.getByRole("button", { name: "Not now" }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(await sheet.evaluate((node) => node.closest("[inert]") === null)).toBe(true);
+  await page.getByRole("button", { name: "Close pub detail" }).click();
+  await expect(page.locator(".mobileSharedSheet")).toHaveCount(0);
+});
