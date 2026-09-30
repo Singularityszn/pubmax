@@ -2,10 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { isLimitedMock, loadConciergeVenuesMock, resolvePlanningAnchorMock } = vi.hoisted(() => ({
+const { isLimitedMock, loadConciergeVenuesMock, resolvePlanningAnchorMock, categoryIndexMock } = vi.hoisted(() => ({
   isLimitedMock: vi.fn(async () => false),
   loadConciergeVenuesMock: vi.fn(),
   resolvePlanningAnchorMock: vi.fn(),
+  categoryIndexMock: vi.fn(),
 }));
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
@@ -27,6 +28,9 @@ vi.mock("@/lib/walkRouteProvider", () => ({
 }));
 vi.mock("@/lib/walkRouteStore", () => ({
   walkRouteStore: () => ({ getLeg: vi.fn(async () => null), putLeg: vi.fn(async () => undefined) }),
+}));
+vi.mock("@/lib/communityPriceStore", () => ({
+  readCommunityPriceCategoryIndex: categoryIndexMock,
 }));
 vi.mock("@/lib/planningAnchor.server", () => ({ resolvePlanningAnchor: resolvePlanningAnchorMock }));
 
@@ -93,6 +97,8 @@ describe("POST /api/plans/generate — anchored", () => {
     isLimitedMock.mockResolvedValue(false);
     loadConciergeVenuesMock.mockClear();
     resolvePlanningAnchorMock.mockReset();
+    categoryIndexMock.mockReset();
+    categoryIndexMock.mockResolvedValue({ prices: [], degraded: false, truncated: false });
     process.env.PLAN_IDEMPOTENCY_SECRET = "a".repeat(48);
   });
   afterEach(() => {
@@ -133,6 +139,27 @@ describe("POST /api/plans/generate — anchored", () => {
       body.operationKey,
     );
     expect(verdict).toMatchObject({ ok: true, anchored: true, outcome: "route", anchorVenueId: "anchor-venue" });
+  });
+
+  it("keeps corroborated wine evidence in an anchor-only draft", async () => {
+    const now = Date.now();
+    resolvePlanningAnchorMock.mockResolvedValue(resolved("anchor-venue"));
+    loadConciergeVenuesMock.mockResolvedValueOnce([claphamVenue("anchor-venue", 0)]);
+    categoryIndexMock.mockResolvedValueOnce({
+      prices: [{ venueId: "anchor-venue", drinkCategory: "wine", priceGbp: 6.75,
+        submittedAt: now, source: "community", corroborations: 2 }],
+      degraded: false, truncated: false,
+    });
+    const response = await generate({ query: "Quiet wine in Clapham for 2", anchor: ANCHOR });
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.outcome).toBe("anchor-only");
+    expect(body.stops).toHaveLength(1);
+    expect(body.stops[0]).toMatchObject({
+      estimatedPintPricePence: null, priceEvidence: null,
+      selectedDrinkPriceEvidence: { category: "wine", pence: 675, serving: null,
+        source: "community", reportedAt: new Date(now).toISOString() },
+    });
   });
 
   it("returns anchor-only when companions are insufficient", async () => {

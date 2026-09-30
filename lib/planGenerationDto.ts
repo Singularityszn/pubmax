@@ -1,3 +1,4 @@
+import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
 type PlanConstraintDisclosure = {
   code: "safety" | "exclusions" | "exact_area" | "accessibility" | "budget_ceiling" | "opening_hours" | "transport_feasibility";
   status: "satisfied" | "flagged";
@@ -79,26 +80,6 @@ export function planUsesPintPrices(context: Pick<NightContext, "drinkCategory" |
   return !context.zeroProof && (!context.drinkCategory || context.drinkCategory === "beer");
 }
 
-function selectedDrinkPriceEvidence(
-  price: MapLensPrice | null | undefined,
-  context: Pick<NightContext, "drinkCategory" | "zeroProof">,
-) {
-  if (context.zeroProof || !context.drinkCategory || context.drinkCategory === "beer"
-    || price?.category !== context.drinkCategory || price.source !== "community"
-    || !Number.isFinite(price.priceGbp) || price.priceGbp <= 0
-    || typeof price.submittedAt !== "number" || !Number.isFinite(price.submittedAt)) return null;
-  const pence = Math.round(price.priceGbp * 100);
-  const reportedAt = new Date(price.submittedAt);
-  if (!Number.isSafeInteger(pence) || !Number.isFinite(reportedAt.getTime())) return null;
-  return {
-    category: context.drinkCategory,
-    pence,
-    serving: null,
-    source: "community" as const,
-    reportedAt: reportedAt.toISOString(),
-  };
-}
-
 function planAlternativeDto(
   origin: PlanGenerationDtoVenue,
   candidate: PlanGenerationDtoCandidate,
@@ -117,7 +98,7 @@ function planAlternativeDto(
         ? null
         : Math.round(alternative.cheapestPrice * 100),
     priceEvidence: usesPintPrices ? grounded?.price ?? null : null,
-    selectedDrinkPriceEvidence: selectedDrinkPriceEvidence(candidate.selectedDrinkPrice, priceContext),
+    selectedDrinkPriceEvidence: selectedDrinkPriceEvidenceForPrice(candidate.selectedDrinkPrice, priceContext),
     accessEvidence: grounded?.access ?? null,
     constraintFlags: grounded?.constraintFlags ?? [],
     operationalEvidence: {
@@ -182,7 +163,7 @@ export function buildPlanGenerationStops(params: {
         ? grounded.price.pence
         : venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100),
       priceEvidence: usesPintPrices ? grounded?.price ?? null : null,
-      selectedDrinkPriceEvidence: selectedDrinkPriceEvidence(chosen[index]?.selectedDrinkPrice, priceContext),
+      selectedDrinkPriceEvidence: selectedDrinkPriceEvidenceForPrice(chosen[index]?.selectedDrinkPrice, priceContext),
       accessEvidence: grounded?.access ?? null,
       evidence: reasons,
       constraintFlags: grounded?.constraintFlags ?? [],

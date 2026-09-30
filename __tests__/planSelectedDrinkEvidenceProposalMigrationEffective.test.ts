@@ -82,3 +82,36 @@ describe.skipIf(skipReason !== null)("0164 Plan proposal acceptance evidence", (
     expect(saved("2")).toEqual([null, wine, null]);
   });
 });
+
+
+describe.skipIf(skipReason !== null)("0168 accepted proposals follow current drink context", () => {
+  beforeAll(() => {
+    const tail = readdirSync(migrations).filter((entry) => entry.endsWith(".sql") && entry >= name).sort();
+    for (const entry of tail) db().applyFile(join(migrations, entry));
+  });
+
+  it.each([
+    ["5", { drinkCategory: "beer", zeroProof: false }, null],
+    ["6", { drinkCategory: "wine", zeroProof: true }, null],
+    ["7", { drinkCategory: "wine", zeroProof: false }, wine],
+  ] as const)("accepts proposal %s without restoring incompatible price evidence", (suffix, context, expected) => {
+    create(suffix, wine);
+    expect(db().sql(`select public.update_legacy_plan_status_context_atomic(
+      '${id(suffix)}'::uuid, '${hostHash(suffix)}', null, '${JSON.stringify(context)}'::jsonb)`)).toBe("ok");
+    expect(decide(suffix)).toBe("decided");
+    expect(saved(suffix)).toEqual([null, expected, null]);
+    expect(decide(suffix)).toBe("already_decided");
+    expect(saved(suffix)).toEqual([null, expected, null]);
+  });
+  it("rollback restores previous acceptance behavior without erasing matching evidence", () => {
+    db().applyFile(join(migrations, "rollback/20260930120000_0168_plan_proposal_context_evidence_rollback.sql"));
+    create("8", wine);
+    expect(db().sql(`select public.update_legacy_plan_status_context_atomic(
+      '${id("8")}'::uuid, '${hostHash("8")}', null, '{"drinkCategory":"beer","zeroProof":false}'::jsonb)`)).toBe("ok");
+    expect(decide("8")).toBe("decided");
+    expect(saved("8")).toEqual([null, wine, null]);
+    expect(saved("7")).toEqual([null, wine, null]);
+    db().applyFile(join(migrations, "20260930120000_0168_plan_proposal_context_evidence.sql"));
+  });
+
+});

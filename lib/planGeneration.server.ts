@@ -25,6 +25,7 @@ import {
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
+import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { scoreVenueForPlan } from "@/lib/planGenerationRanking";
@@ -82,7 +83,7 @@ type AnchoredRouteData<T extends ScoredPlanCandidate> = {
  * ready Response for the conflict and one-Stop anchor-only outcomes, or the
  * grounded route data for the shared three-Stop response assembly.
  */
-export async function runAnchoredGeneration<T extends ScoredPlanCandidate>(params: {
+export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { selectedDrinkPrice?: MapLensPrice | null }>(params: {
 	cityId: CityId;
 	anchor: PlanGenerationAnchor;
 	candidates: readonly T[];
@@ -170,6 +171,7 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate>(param
 				position: 0,
 				estimatedPintPricePence: planUsesPintPrices(context) ? stop.price.pence : null,
 				priceEvidence: planUsesPintPrices(context) ? stop.price : null,
+				selectedDrinkPriceEvidence: selectedDrinkPriceEvidenceForPrice(selection.anchorValue.selectedDrinkPrice, context),
 				accessEvidence: stop.access,
 				constraintFlags: stop.constraintFlags,
 				operationalEvidence: {

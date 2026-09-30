@@ -91,22 +91,6 @@ describe("FocusTrapOwner", () => {
     return element;
   }
 
-  function focusOrigin() {
-    let focusCalls = 0;
-    const element = {
-      inert: false,
-      isConnected: true,
-      parentElement: null,
-      focus: () => {
-        focusCalls += 1;
-      },
-    } as unknown as HTMLElement;
-    return {
-      element,
-      disconnect: () => Object.defineProperty(element, "isConnected", { value: false }),
-      focusCalls: () => focusCalls,
-    };
-  }
 
   for (const cleanup of ["release", "reconcile"] as const) {
     it(`does not reinstate a drawer's cleared inert state on ${cleanup}`, () => {

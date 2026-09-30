@@ -72,11 +72,9 @@ describe("readPricesFrom", () => {
     const reader = createContextDevPriceReader({
       env: KEY,
       robots: allowRobots(),
-      fetchImpl: async () => new Response(JSON.stringify({
-        success: true,
-        url: MENU_URL,
-        markdown: `${PRICED_MENU}\n<p>Chardonnay, France<br />125ml £5.50 250ml £11.00</p>`,
-      }), { headers: { "content-type": "application/json" } }),
+      fetchImpl: async () => scrapeMarkdownResponse(
+        `${PRICED_MENU}\n<p>Chardonnay, France<br />125ml £5.50 250ml £11.00</p>`,
+      ),
     });
     const answer = await reader.readPricesFrom(MENU_URL);
     expect(answer.outcome).toBe("priced");

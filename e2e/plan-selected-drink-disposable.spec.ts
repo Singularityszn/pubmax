@@ -46,6 +46,7 @@ for (const journey of [
     const createdResponse = await creation;
     expect(createdResponse.status()).toBe(201);
     const created = await createdResponse.json() as {
+      memberToken?: string;
       plan?: { plan?: { id?: string }; context?: { drinkCategory?: string }; stops?: Array<{ venueId: string; selectedDrinkPriceEvidence?: unknown }> };
     };
     expect(created.plan?.context?.drinkCategory).toBe(journey.category);
@@ -125,6 +126,31 @@ for (const journey of [
       const forgedStored = await forgedStoredResponse.json() as Array<{ selected_drink_price_evidence: unknown }>;
       expect(forgedStored, badHint).toHaveLength(1);
       expect(forgedStored[0].selected_drink_price_evidence, badHint).toBeNull();
+    }
+
+    if (journey.category === "wine") {
+      const proposalResponse = await page.request.post(`/api/plans/${planId}/proposals`, {
+        headers: { "idempotency-key": randomUUID() },
+        data: { memberToken: created.memberToken, expectedRouteRevision: 1,
+          stops: generated.stops, reason: "Keep the quoted wine route", resolvedConstraintIds: [] },
+      });
+      expect(proposalResponse.status()).toBe(201);
+      const proposal = await proposalResponse.json();
+      const contextResponse = await page.request.patch(`/api/plans/${planId}`, {
+        data: { memberToken: created.memberToken, context: { ...created.plan?.context, drinkCategory: "beer", zeroProof: false } },
+      });
+      expect(contextResponse.status()).toBe(200);
+      const accepted = await page.request.post(`/api/plans/${planId}/proposals/${proposal.proposal.id}/decision`, {
+        headers: { "idempotency-key": randomUUID() },
+        data: { memberToken: created.memberToken, decision: "accepted" },
+      });
+      expect(accepted.status()).toBe(200);
+      const after = await fetch(stopQuery, { headers: { Authorization: `Bearer ${serviceRoleKey}` } });
+      expect(after.status).toBe(200);
+      expect((await after.json())[0].selected_drink_price_evidence).toBeNull();
+      await page.reload();
+      await expect(page.getByRole("heading", { name: "The route" })).toBeVisible();
+      await expect(page.locator(".planRoute")).not.toContainText("Wine £6.75");
     }
   });
 }

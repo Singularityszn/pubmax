@@ -1,3 +1,5 @@
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import type { NightContext } from "@/lib/nightPlanning";
 import { categoryLabel, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 
 export type SelectedDrinkPriceEvidence = {
@@ -23,6 +25,22 @@ export function cleanSelectedDrinkPriceEvidence(value: unknown): SelectedDrinkPr
     source: "community",
     reportedAt: row.reportedAt,
   };
+}
+
+export function selectedDrinkPriceEvidenceForPrice(
+  price: MapLensPrice | null | undefined,
+  context: Pick<NightContext, "drinkCategory" | "zeroProof">,
+): SelectedDrinkPriceEvidence | null {
+  if (context.zeroProof || !context.drinkCategory || context.drinkCategory === "beer"
+    || price?.category !== context.drinkCategory || price.source !== "community"
+    || !Number.isFinite(price.priceGbp) || price.priceGbp <= 0
+    || typeof price.submittedAt !== "number" || !Number.isFinite(price.submittedAt)) return null;
+  const reportedAt = new Date(price.submittedAt);
+  if (!Number.isFinite(reportedAt.getTime())) return null;
+  return cleanSelectedDrinkPriceEvidence({
+    category: context.drinkCategory, pence: Math.round(price.priceGbp * 100),
+    serving: null, source: "community", reportedAt: reportedAt.toISOString(),
+  });
 }
 
 export function selectedDrinkPriceDescription(evidence: SelectedDrinkPriceEvidence | undefined): string | null {

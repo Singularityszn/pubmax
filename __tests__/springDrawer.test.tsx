@@ -9,11 +9,18 @@ import SpringDrawer from "@/components/map/SpringDrawer";
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
 
+const inertDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "inert");
 let host: HTMLDivElement;
 let root: Root;
 let frames: Map<number, FrameRequestCallback>;
 
 beforeEach(() => {
+  // jsdom needs the browser's reflected inert property for owner behavior.
+  Object.defineProperty(HTMLElement.prototype, "inert", {
+    configurable: true,
+    get() { return this.hasAttribute("inert"); },
+    set(value: boolean) { this.toggleAttribute("inert", value); },
+  });
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -29,6 +36,8 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+  if (inertDescriptor) Object.defineProperty(HTMLElement.prototype, "inert", inertDescriptor);
+  else Reflect.deleteProperty(HTMLElement.prototype, "inert");
   vi.unstubAllGlobals();
 });
 

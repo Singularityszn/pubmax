@@ -4,7 +4,7 @@ import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { trustedDrinkLensPrices } from "@/lib/mapExperienceLens";
 import { cleanNightContext } from "@/lib/nightPlanning";
 import type { PlanStopTarget } from "@/lib/planRoute";
-import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceEvidenceForPrice, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 type PricedPlanStopTarget = PlanStopTarget & { selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
 
@@ -38,10 +38,7 @@ export async function resolvePlanSelectedDrinkPriceEvidence(
       const price = trusted.get(stop.venueId);
       if (!hint || hint.category !== category || !price || price.source !== "community"
         || typeof price.submittedAt !== "number") return { ...stop };
-      const serverEvidence = cleanSelectedDrinkPriceEvidence({
-        category, pence: Math.round(price.priceGbp * 100), serving: null,
-        source: "community", reportedAt: new Date(price.submittedAt).toISOString(),
-      });
+      const serverEvidence = selectedDrinkPriceEvidenceForPrice(price, context!);
       return serverEvidence && serverEvidence.pence === hint.pence && serverEvidence.reportedAt === hint.reportedAt
         ? { ...stop, selectedDrinkPriceEvidence: serverEvidence }
         : { ...stop };
