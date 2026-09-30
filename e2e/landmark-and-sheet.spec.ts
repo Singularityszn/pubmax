@@ -69,6 +69,9 @@ test("skip link targets the page main landmark", async ({ page }) => {
 
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
+  // The loading skeleton is its own `#main`; focus given to it drops to the
+  // body when the map shell replaces it, so skip into the shell's landmark.
+  await expect(page.locator("main.appShell")).toBeVisible({ timeout: 30_000 });
 
   const skipLink = page.getByRole("link", { name: "Skip to main content" });
   await skipLink.focus();
