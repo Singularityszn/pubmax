@@ -32,6 +32,18 @@ A host theme now overrides the OS preference. The resource still takes dark toke
 
 The browser run proves both host requests return `{}`. After teardown, a later tool result leaves the list unchanged and does not rebuild the map. Appending content sends no further size notification. One size measurement the SDK had already queued before teardown can still arrive, so the check waits two animation frames before it counts. Computed root colours match the OS-default light and dark renders when the host sets dark over an OS light preference and light over an OS dark preference, and again after each `ui/notifications/host-context-changed` switch.
 
+## Lifecycle and URL follow-up, 30 September 2026
+
+The seven-case lifecycle run used the actual served widget, installed official App SDK and a real public MCP result under a controlled separate-origin Chromium host. The [before receipt](lifecycle-before.json) records five failures and two passes at widget SHA-256 `64cddc4087e6b01ead180461a438c4d082e4783eda1b2a5e5dd90a6bb4749e59`. The [after receipt](lifecycle-after.json) records all seven cases passing at `d43fb8c04db99f969a8c0b3fb3d8ee81f0a0c49080e5d4d9e057d03f78cb000a`. Both ran before the follow-up commit, so their HEAD field names parent commit `54e041f8`; their source hashes name the exact tested files.
+
+The widget now declares only `availableDisplayModes: ["inline"]`. Teardown aborts owned pending host link requests and their timers, ignores late refusals and rejected map imports, removes the map, then revokes its owned worker blob URL before acknowledging. The SDK transport stays open for that acknowledgement. Initialization retains its existing timeout rather than the link abort signal: the installed App client closes its transport when initialization rejects. A held-initialization check confirms teardown still answers `{}` and a later initialization response changes no retired DOM, theme, canvas or size notifications.
+
+Canonical and publisher URLs are refused before parsing when raw input exceeds 2,048 characters, and refused after parsing when normalisation exceeds that bound. Both malformed variants previously remained in list and popup links; their copy fallbacks reached 65,607 and 3,066 characters. After the fix, no oversized anchor remains, while real GBP/drink rows and the valid sibling remain in both surfaces. An accepted exactly 2,048-character canonical address reaches the host intact; denial preserves the full copy address and existing map failure in a 2,134-character status, below the 2,200-character proof limit.
+
+Fresh nested Node tests passed all eight cases. The existing [browser receipt](followup-browser.json) and inspected [phone](followup-390.png) and [desktop](followup-1440.png) screenshots passed actual map rendering, attribution, native Enter and Space, popup geometry, pub and publisher host requests, refused and unsupported link fallbacks, teardown, result/error ordering and host/OS themes at 390px and 1440px. The declared resource CSP was enforced. These checks establish controlled local rendering and protocol behaviour; authenticated ChatGPT, external destination navigation, production hosting policy, host container-size limits and distribution acceptance remain unverified.
+
+The follow-up repository gate and GitHub publication remain pending. The earlier checks below describe their recorded candidates and do not verify this follow-up.
+
 ## Current checks
 
 The review-fix source and curated receipts are retained in commit `99c8fb9314939ffc79173d21b0d04a706741a509`. These are recorded runs; the documentation and lint phase does not rerun them. Final committed-head validation and reviewed GitHub publication remain pending.

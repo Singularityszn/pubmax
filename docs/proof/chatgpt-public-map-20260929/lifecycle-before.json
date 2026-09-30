@@ -1,0 +1,111 @@
+{
+  "checkedAt": "2026-09-30T14:23:35.442Z",
+  "head": "54e041f8db2d18a15e9c0d61cd96705216fb2542",
+  "scope": "Actual widget and installed SDK in controlled local Chromium. No authenticated ChatGPT, external navigation, production hosting or release proof.",
+  "sourceSha256": {
+    "widget.html": "64cddc4087e6b01ead180461a438c4d082e4783eda1b2a5e5dd90a6bb4749e59",
+    "server.mjs": "efea2d8e8a0d62c10fbfac7f393f9532c7e45ea1f319032dbae72ca1ae74a874",
+    "widget-lifecycle-proof.mjs": "4261959ec421fb38a4a10fd6df52b08a02589627734ab6f91d582ab416a7c2cf"
+  },
+  "installedSdkSha256": "fb56376b7583ecafb4820bdebc150abee18feb6258ff84b83c2c944ebd9c3602",
+  "checks": [
+    {
+      "name": "inline-capability",
+      "modes": null,
+      "verdict": "FAIL",
+      "error": "Initialize must advertise exactly the supported inline mode\n+ actual - expected\n\n+ null\n- [\n-   'inline'\n- ]\n"
+    },
+    {
+      "name": "pending-link",
+      "teardown": {
+        "result": {},
+        "jsonrpc": "2.0",
+        "id": "host-1"
+      },
+      "statusAtAck": "2 listed pubs. Map could not load. Listed pubs remain below.",
+      "statusAfterLateDenial": "Link could not open. Copy this address: https://pubmaxxing.com/map Map could not load. Listed pubs remain below.",
+      "requestCancelled": false,
+      "verdict": "FAIL",
+      "error": "Late host denial changed retired widget after teardown ACK\n+ actual - expected\n\n+ 'Link could not open. Copy this address: https://pubmaxxing.com/map Map could not load. Listed pubs remain below.'\n- '2 listed pubs. Map could not load. Listed pubs remain below.'\n"
+    },
+    {
+      "name": "late-import",
+      "teardown": {
+        "result": {},
+        "jsonrpc": "2.0",
+        "id": "host-1"
+      },
+      "statusAtAck": "2 listed pubs.",
+      "statusAfterImportFailure": "2 listed pubs. Map could not load. Listed pubs remain below.",
+      "verdict": "FAIL",
+      "error": "Late rejected map import changed retired widget after ACK\n+ actual - expected\n\n+ '2 listed pubs. Map could not load. Listed pubs remain below.'\n- '2 listed pubs.'\n                 ^\n"
+    },
+    {
+      "name": "worker-blob",
+      "workerUrlsCreated": 1,
+      "teardown": {
+        "result": {},
+        "jsonrpc": "2.0",
+        "id": "host-1"
+      },
+      "canvasesAfterAck": 0,
+      "workerCleanup": [
+        {
+          "revoked": false
+        }
+      ],
+      "verdict": "FAIL",
+      "error": "Owned worker URLs must revoke after map removal and before teardown ACK"
+    },
+    {
+      "name": "url-bounds",
+      "inputs": [
+        {
+          "variant": "raw-oversize",
+          "oversizedFallbackLength": 65607,
+          "oversizedAnchors": 3,
+          "oversizedPopupAnchors": 3,
+          "validSiblingFallbackLength": 84
+        },
+        {
+          "variant": "normalised-oversize",
+          "oversizedFallbackLength": 3066,
+          "oversizedAnchors": 2,
+          "oversizedPopupAnchors": 2,
+          "validSiblingFallbackLength": 84
+        }
+      ],
+      "verdict": "FAIL",
+      "error": "raw-oversize venue/publisher URLs survived real host result validation\n\n3 !== 0\n"
+    },
+    {
+      "name": "url-boundary-fallback",
+      "hostRequestUrlLength": 2048,
+      "copyAddressIntact": true,
+      "mapFailureRetained": true,
+      "statusLength": 2134,
+      "verdict": "PASS"
+    },
+    {
+      "name": "pending-initialization",
+      "teardown": {
+        "result": {},
+        "jsonrpc": "2.0",
+        "id": "host-1"
+      },
+      "statusAtAck": "Waiting for public venues. Map could not load. Listed pubs remain below.",
+      "statusAfterLateInitialization": "Waiting for public venues. Map could not load. Listed pubs remain below.",
+      "retiredDomUnchanged": true,
+      "themeUnchanged": true,
+      "sizeChangesAfterAck": 0,
+      "canvasesAfterLateInitialization": 0,
+      "verdict": "PASS"
+    }
+  ],
+  "sourceSha256After": {
+    "widget.html": "64cddc4087e6b01ead180461a438c4d082e4783eda1b2a5e5dd90a6bb4749e59",
+    "server.mjs": "efea2d8e8a0d62c10fbfac7f393f9532c7e45ea1f319032dbae72ca1ae74a874",
+    "widget-lifecycle-proof.mjs": "4261959ec421fb38a4a10fd6df52b08a02589627734ab6f91d582ab416a7c2cf"
+  },
+  "verdict": "FAIL"
+}

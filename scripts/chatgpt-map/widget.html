@@ -26,6 +26,9 @@
   let resultStatus = "Waiting for public venues.";
   let mapFailure = "";
   let tornDown = false;
+  const lifetime = new AbortController();
+  let workerUrl;
+  const MAX_URL_LENGTH = 2048;
   let stopSizeNotifications = () => {};
   const element = (id) => document.getElementById(id);
   const money = new Intl.NumberFormat("en-GB", {style:"currency",currency:"GBP"});
@@ -33,29 +36,39 @@
   let maplibre;
 
   function updateStatus(message = resultStatus) {
+    if (tornDown) return;
     resultStatus = message;
     element("status").textContent = [resultStatus, mapFailure].filter(Boolean).join(" ");
   }
-  function mapFailed(message) {mapFailure = message;updateStatus();}
+  function mapFailed(message) {if(tornDown)return;mapFailure = message;updateStatus();}
   async function openLink(event) {
     const link=event.target instanceof Element?event.target.closest("a[href]"):null;
-    if(!link||window.parent===window)return;
+    if(tornDown||!link||window.parent===window)return;
     event.preventDefault();
-    const url=new URL(link.href);
-    if(url.protocol!=="https:"||url.username||url.password){updateStatus("Link could not open.");return;}
+    const url=safeHttpsUrl(link.getAttribute("href"));
+    if(!url){updateStatus("Link could not open.");return;}
     const fallback=()=>updateStatus(`Link could not open. Copy this address: ${url.href}`);
     if(!app?.getHostCapabilities()?.openLinks){fallback();return;}
-    try{const result=await app.openLink({url:url.href});if(result?.isError)fallback();}
-    catch{fallback();}
+    try{const result=await app.openLink({url:url.href},{signal:lifetime.signal,timeout:10000});if(!tornDown&&result?.isError)fallback();}
+    catch{if(!tornDown)fallback();}
   }
   document.addEventListener("click",openLink);
   function text(tag, value, parent) {const node=document.createElement(tag);node.textContent=value;parent.append(node);return node;}
+  function safeHttpsUrl(raw) {
+    if(typeof raw!=="string"||raw.length>MAX_URL_LENGTH)return null;
+    try {
+      const url=new URL(raw);
+      return url.protocol==="https:"&&!url.username&&!url.password&&url.href.length<=MAX_URL_LENGTH?url:null;
+    } catch {return null;}
+  }
   function safeLink(raw) {
-    try {const u=new URL(raw);return u.origin==="https://pubmaxxing.com"&&u.pathname==="/map"&&!u.username&&!u.password?u.href:null;}catch{return null;}
+    const url=safeHttpsUrl(raw);
+    return url&&url.origin==="https://pubmaxxing.com"&&url.pathname==="/map"?url.href:null;
   }
   function safePublisher(value) {
     if (!value || typeof value.label!=="string" || value.label.length>160 || typeof value.url!=="string") return null;
-    try {const u=new URL(value.url);return u.protocol==="https:"&&!u.username&&!u.password?{label:value.label,url:u.href}:null;}catch{return null;}
+    const url=safeHttpsUrl(value.url);
+    return url?{label:value.label,url:url.href}:null;
   }
   function safeVenues(input) {
     if (!Array.isArray(input)) return [];
@@ -103,6 +116,7 @@
     }
   }
   function render(result) {
+    if (tornDown) return;
     if (result?.isError) {latestVenues=[];element("venues").replaceChildren();showMarkers();updateStatus("Could not read pubs. Ask to retry.");return;}
     const data=result?.structuredContent;
     if (!data || typeof data.area!=="string" || data.area.length>80) return;
@@ -114,21 +128,27 @@
     showMarkers();
   }
   function applyHostContext(context) {
+    if (tornDown) return;
     if (context?.theme==="light"||context?.theme==="dark") sdk.applyDocumentTheme(context.theme);
   }
   function teardown() {
     tornDown=true;
+    lifetime.abort();
     app.removeEventListener("toolresult",render);
     app.removeEventListener("hostcontextchanged",applyHostContext);
     document.removeEventListener("click",openLink);
     stopSizeNotifications();
-    map?.remove();map=undefined;markers=[];
+    try {map?.remove();}
+    finally {
+      map=undefined;markers=[];latestVenues=[];
+      if(workerUrl){URL.revokeObjectURL(workerUrl);workerUrl=undefined;}
+    }
     return {};
   }
   async function connectHost() {
     const sdkUrl=URL.createObjectURL(new Blob([JSON.parse(element("mcp-apps-sdk").textContent)],{type:"text/javascript"}));
     try {sdk=await import(sdkUrl);} finally {URL.revokeObjectURL(sdkUrl);}
-    app=new sdk.App({name:"pubmaxx-public-map",version:"0.1.0"},{},{autoResize:false});
+    app=new sdk.App({name:"pubmaxx-public-map",version:"0.1.0"},{availableDisplayModes:["inline"]},{autoResize:false});
     app.addEventListener("toolresult",render);
     app.addEventListener("hostcontextchanged",applyHostContext);
     app.onteardown=teardown;
@@ -140,13 +160,14 @@
   async function loadMap() {
     maplibre=await import(`${MAPLIBRE_URL}maplibre-gl.mjs`);
     if (tornDown) return;
-    maplibre.setWorkerUrl(URL.createObjectURL(new Blob([`import "${MAPLIBRE_URL}maplibre-gl-worker.mjs";`],{type:"text/javascript"})));
+    workerUrl=URL.createObjectURL(new Blob([`import "${MAPLIBRE_URL}maplibre-gl-worker.mjs";`],{type:"text/javascript"}));
+    maplibre.setWorkerUrl(workerUrl);
     map=new maplibre.Map({container:"map",style:"https://tiles.openfreemap.org/styles/positron",center:[-0.12,51.52],zoom:10,attributionControl:{compact:true,customAttribution:"Pub data © OpenStreetMap contributors (ODbL)"}});
     map.addControl(new maplibre.NavigationControl({showCompass:false}));
     map.on("error",()=>{mapFailed("Streets could not load. Listed pubs remain below.");});
     showMarkers();
   }
-  if (window.parent!==window) connectHost().catch(()=>{updateStatus("Map bridge unavailable. Open PUBMAXX below.");});
-  loadMap().catch(()=>{mapFailed("Map could not load. Listed pubs remain below.");});
+  if (window.parent!==window) connectHost().catch(()=>{if(!tornDown)updateStatus("Map bridge unavailable. Open PUBMAXX below.");});
+  loadMap().catch(()=>{if(!tornDown)mapFailed("Map could not load. Listed pubs remain below.");});
 </script>
 </html>
