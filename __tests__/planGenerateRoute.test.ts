@@ -217,7 +217,7 @@ describe("POST /api/plans/generate", () => {
 
       const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
         method: "POST",
-        body: JSON.stringify({ query: "cheap wine in Clapham for 2" }),
+        body: JSON.stringify({ query: "cheap wine in Clapham for 2 after work" }),
       }));
 
       expect("prepared" in result).toBe(true);
