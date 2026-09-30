@@ -16,16 +16,17 @@
 <p id="status" role="status">Waiting for public venues.</p>
 <main><div id="map" role="region" aria-label="Public pub map"></div><ol id="venues" aria-label="Listed pubs"></ol></main>
 <footer><p>Listed prices can change. Friend locations stay inside PUBMAXX.</p><a href="https://pubmaxxing.com/map" target="_blank" rel="noopener noreferrer">Open PUBMAXX</a></footer>
+<script type="application/json" id="mcp-apps-sdk">PUBMAXX_MCP_APPS_SDK</script>
 <script type="module">
-  const pending = new Map();
-  let nextId = 1;
+  let sdk;
+  let app;
   let map;
   let markers = [];
   let latestVenues = [];
   let resultStatus = "Waiting for public venues.";
   let mapFailure = "";
-  let bridgeReady = false;
-  let hostCanOpenLinks = false;
+  let tornDown = false;
+  let stopSizeNotifications = () => {};
   const element = (id) => document.getElementById(id);
   const money = new Intl.NumberFormat("en-GB", {style:"currency",currency:"GBP"});
   const MAPLIBRE_URL = "https://unpkg.com/maplibre-gl@6.11.2/dist/";
@@ -36,30 +37,18 @@
     element("status").textContent = [resultStatus, mapFailure].filter(Boolean).join(" ");
   }
   function mapFailed(message) {mapFailure = message;updateStatus();}
-  function notifySize() {
-    if (bridgeReady) window.parent.postMessage({jsonrpc:"2.0",method:"ui/notifications/size-changed",params:{height:document.body.scrollHeight}},"*");
-  }
-  new ResizeObserver(notifySize).observe(document.body);
-
-  function rpc(method, params) {
-    const id = nextId++;
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {pending.delete(id);reject(new Error("Host did not answer"));}, 10000);
-      pending.set(id,{resolve,reject,timer});
-      window.parent.postMessage({jsonrpc:"2.0",id,method,params},"*");
-    });
-  }
-  document.addEventListener("click",async event=>{
+  async function openLink(event) {
     const link=event.target instanceof Element?event.target.closest("a[href]"):null;
     if(!link||window.parent===window)return;
     event.preventDefault();
     const url=new URL(link.href);
     if(url.protocol!=="https:"||url.username||url.password){updateStatus("Link could not open.");return;}
     const fallback=()=>updateStatus(`Link could not open. Copy this address: ${url.href}`);
-    if(!bridgeReady||!hostCanOpenLinks){fallback();return;}
-    try{const result=await rpc("ui/open-link",{url:url.href});if(result?.isError)fallback();}
+    if(!app?.getHostCapabilities()?.openLinks){fallback();return;}
+    try{const result=await app.openLink({url:url.href});if(result?.isError)fallback();}
     catch{fallback();}
-  });
+  }
+  document.addEventListener("click",openLink);
   function text(tag, value, parent) {const node=document.createElement(tag);node.textContent=value;parent.append(node);return node;}
   function safeLink(raw) {
     try {const u=new URL(raw);return u.origin==="https://pubmaxxing.com"&&u.pathname==="/map"&&!u.username&&!u.password?u.href:null;}catch{return null;}
@@ -124,24 +113,40 @@
     updateStatus(latestVenues.length?`${latestVenues.length} listed pubs.`:"No pubs listed for that borough.");
     showMarkers();
   }
-  window.addEventListener("message",event=>{
-    if (event.source!==window.parent || event.data?.jsonrpc!=="2.0") return;
-    const message=event.data;
-    if (message.id && pending.has(message.id)) {const request=pending.get(message.id);pending.delete(message.id);clearTimeout(request.timer);message.error?request.reject(new Error("Host refused request")):request.resolve(message.result);}
-    if (message.method==="ui/notifications/tool-result") render(message.params);
-  });
-  if (window.parent!==window) {
-    rpc("ui/initialize",{appInfo:{name:"pubmaxx-public-map",version:"0.1.0"},appCapabilities:{},protocolVersion:"2026-01-26"})
-      .then(initialization=>{hostCanOpenLinks=Boolean(initialization?.hostCapabilities?.openLinks);bridgeReady=true;window.parent.postMessage({jsonrpc:"2.0",method:"ui/notifications/initialized",params:{}},"*");notifySize();})
-      .catch(()=>{updateStatus("Map bridge unavailable. Open PUBMAXX below.");});
+  function applyHostContext(context) {
+    if (context?.theme==="light"||context?.theme==="dark") sdk.applyDocumentTheme(context.theme);
   }
-  try {
+  function teardown() {
+    tornDown=true;
+    app.removeEventListener("toolresult",render);
+    app.removeEventListener("hostcontextchanged",applyHostContext);
+    document.removeEventListener("click",openLink);
+    stopSizeNotifications();
+    map?.remove();map=undefined;markers=[];
+    return {};
+  }
+  async function connectHost() {
+    const sdkUrl=URL.createObjectURL(new Blob([JSON.parse(element("mcp-apps-sdk").textContent)],{type:"text/javascript"}));
+    try {sdk=await import(sdkUrl);} finally {URL.revokeObjectURL(sdkUrl);}
+    app=new sdk.App({name:"pubmaxx-public-map",version:"0.1.0"},{},{autoResize:false});
+    app.addEventListener("toolresult",render);
+    app.addEventListener("hostcontextchanged",applyHostContext);
+    app.onteardown=teardown;
+    await app.connect(undefined,{timeout:10000});
+    if (tornDown) return;
+    applyHostContext(app.getHostContext());
+    stopSizeNotifications=app.setupSizeChangedNotifications();
+  }
+  async function loadMap() {
     maplibre=await import(`${MAPLIBRE_URL}maplibre-gl.mjs`);
+    if (tornDown) return;
     maplibre.setWorkerUrl(URL.createObjectURL(new Blob([`import "${MAPLIBRE_URL}maplibre-gl-worker.mjs";`],{type:"text/javascript"})));
     map=new maplibre.Map({container:"map",style:"https://tiles.openfreemap.org/styles/positron",center:[-0.12,51.52],zoom:10,attributionControl:{compact:true,customAttribution:"Pub data © OpenStreetMap contributors (ODbL)"}});
     map.addControl(new maplibre.NavigationControl({showCompass:false}));
     map.on("error",()=>{mapFailed("Streets could not load. Listed pubs remain below.");});
     showMarkers();
-  } catch {mapFailed("Map could not load. Listed pubs remain below.");}
+  }
+  if (window.parent!==window) connectHost().catch(()=>{updateStatus("Map bridge unavailable. Open PUBMAXX below.");});
+  loadMap().catch(()=>{mapFailed("Map could not load. Listed pubs remain below.");});
 </script>
 </html>

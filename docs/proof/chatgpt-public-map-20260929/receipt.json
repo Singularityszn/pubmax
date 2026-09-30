@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-09-30T09:14:17.945Z",
+  "checkedAt": "2026-09-30T12:06:39.263Z",
   "host": "controlled local MCP Apps bridge",
   "authentication": "No ChatGPT account connection",
   "externalLinks": "Host request and acknowledgement only; no external destination navigation",
@@ -25,7 +25,18 @@
       "deniedLinkFallback": true,
       "unsupportedLinkFallback": true,
       "horizontalOverflow": false,
-      "status": "3 listed pubs."
+      "status": "3 listed pubs.",
+      "hostRequests": [
+        {
+          "method": "ping",
+          "result": {}
+        },
+        {
+          "method": "ui/resource-teardown",
+          "result": {}
+        }
+      ],
+      "lateResultAfterTeardownIgnored": true
     },
     {
       "viewport": {
@@ -46,7 +57,18 @@
       "deniedLinkFallback": true,
       "unsupportedLinkFallback": true,
       "horizontalOverflow": false,
-      "status": "3 listed pubs."
+      "status": "3 listed pubs.",
+      "hostRequests": [
+        {
+          "method": "ping",
+          "result": {}
+        },
+        {
+          "method": "ui/resource-teardown",
+          "result": {}
+        }
+      ],
+      "lateResultAfterTeardownIgnored": true
     }
   ],
   "failureChecks": [
@@ -59,6 +81,54 @@
       "order": "results-before-failure",
       "pubs": 2,
       "status": "2 listed pubs. Streets could not load. Listed pubs remain below."
+    }
+  ],
+  "themeChecks": [
+    {
+      "colorScheme": "light",
+      "hostTheme": null,
+      "initial": {
+        "background": "rgb(250, 248, 245)",
+        "ink": "rgb(23, 23, 26)"
+      },
+      "nextTheme": null,
+      "updated": null
+    },
+    {
+      "colorScheme": "dark",
+      "hostTheme": null,
+      "initial": {
+        "background": "rgb(10, 10, 11)",
+        "ink": "rgb(238, 243, 239)"
+      },
+      "nextTheme": null,
+      "updated": null
+    },
+    {
+      "colorScheme": "light",
+      "hostTheme": "dark",
+      "initial": {
+        "background": "rgb(10, 10, 11)",
+        "ink": "rgb(238, 243, 239)"
+      },
+      "nextTheme": "light",
+      "updated": {
+        "background": "rgb(250, 248, 245)",
+        "ink": "rgb(23, 23, 26)"
+      }
+    },
+    {
+      "colorScheme": "dark",
+      "hostTheme": "light",
+      "initial": {
+        "background": "rgb(250, 248, 245)",
+        "ink": "rgb(23, 23, 26)"
+      },
+      "nextTheme": "dark",
+      "updated": {
+        "background": "rgb(10, 10, 11)",
+        "ink": "rgb(238, 243, 239)"
+      }
     }
   ]
 }

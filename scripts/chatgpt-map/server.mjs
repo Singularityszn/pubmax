@@ -11,6 +11,7 @@ import { sharedWidgetStyles } from "./shared-styles.mjs";
 
 const RESOURCE_URI = "ui://pubmaxx/public-map/v1.html";
 const WIDGET = new URL("./widget.html", import.meta.url);
+const MCP_APPS_SDK = new URL(import.meta.resolve("@modelcontextprotocol/ext-apps/app-with-deps"));
 const ALLOWED_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const MAX_BODY_BYTES = 32 * 1024;
 
@@ -45,12 +46,14 @@ function createMcpServer(widget, loadVenues) {
 
 /** Local preview only. Published hosting requires a separate release decision. */
 export async function createPublicMapHttpServer({ loadVenues = loadPublicVenues } = {}) {
-  const [template, lightCss, darkCss] = await Promise.all([
+  const [template, sdk, lightCss, darkCss] = await Promise.all([
     readFile(WIDGET, "utf8"),
+    readFile(MCP_APPS_SDK, "utf8"),
     readFile(new URL("../../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../../app/theme.css", import.meta.url), "utf8"),
   ]);
-  const widget = template.replace("/* PUBMAXX_SHARED_STYLES */", sharedWidgetStyles(lightCss, darkCss));
+  const widget = template.replace("/* PUBMAXX_SHARED_STYLES */", sharedWidgetStyles(lightCss, darkCss))
+    .replace("PUBMAXX_MCP_APPS_SDK", () => JSON.stringify(sdk).replaceAll("<", "\\u003c"));
   return createServer(async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     const host = req.headers.host;

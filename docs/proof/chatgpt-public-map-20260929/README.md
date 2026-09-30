@@ -2,7 +2,7 @@
 
 Protocol, controlled local Chromium, full repository verification and the production build passed on 30 September 2026 for the first candidate. Independent Standards and Spec review cleared those source changes. This is local integration evidence. No authenticated ChatGPT account connection or production iframe policy was tested.
 
-A later review round changed the widget attribution, the tool's borough schema and the protocol test. The [review fixes](#review-fixes) section records what changed and which receipts are fresh. The earlier sections are the baseline and stay as recorded.
+Later review rounds changed the widget attribution, the tool's borough schema, the protocol test and the widget's host client. The [review fixes](#review-fixes) section records what changed and which receipts are fresh. The earlier sections are the baseline and stay as recorded.
 
 ## Before and after
 
@@ -26,6 +26,12 @@ The tool accepted any 2 to 80 character `area` but matched only an exact dataset
 
 The protocol test no longer searches the served widget for a bridge method name. It asserts the resource's declared CSP domains instead. Bridge initialization stays proved by the browser run.
 
+The widget hand-wrote its MCP Apps JSON-RPC client and answered no host-initiated request. Against the widget at `181a4590`, the controlled host's `ping` and `ui/resource-teardown` requests both went unanswered: `Host requests unanswered at 1440px: [{"method":"ping","error":"ping had no answer after 3000ms"},{"method":"ui/resource-teardown","error":"ui/resource-teardown had no answer after 3000ms"}]`. The widget now uses the `App` client from the installed `@modelcontextprotocol/ext-apps` 2.0.3 `app-with-deps` export. The server inlines that self-contained module into the resource, and the widget imports it through a `blob:` module URL the declared CSP already allows. No origin, `unsafe-eval` or dependency was added. The SDK answers `ping`, runs initialization and sends size notifications. The widget registers its tool-result and host-context listeners before it connects. Links open through `openLink` only when the host advertises `openLinks`, and the copy-address fallback is unchanged. On teardown the widget removes its listeners, stops size notifications and removes the map before it acknowledges. It does not close the transport; the host unmounts it.
+
+A host theme now overrides the OS preference. The resource still takes dark tokens from `prefers-color-scheme` when the host names no theme. The SDK's `applyDocumentTheme` sets `data-theme`, and the existing light and dark token owners are projected onto that attribute. No token was added.
+
+The browser run proves both host requests return `{}`. After teardown, a later tool result leaves the list unchanged and does not rebuild the map. Appending content sends no further size notification. One size measurement the SDK had already queued before teardown can still arrive, so the check waits two animation frames before it counts. Computed root colours match the OS-default light and dark renders when the host sets dark over an OS light preference and light over an OS dark preference, and again after each `ui/notifications/host-context-changed` switch.
+
 ## Current checks
 
 Fresh on the review-fix source:
@@ -34,13 +40,14 @@ Fresh on the review-fix source:
 - Actual public dataset results render in Chromium at 390px and 1440px. Three listed pubs, the visible pub-data attribution, named pin buttons, native Enter and Space, an opened popup that clears attribution, canonical selected-pub link and no horizontal overflow pass.
 - Module and street request failures retain their status after subsequent real MCP results.
 - Pub and publisher links reach the controlled host. Denied and unsupported link requests show the address without horizontal overflow.
+- The SDK client answers host `ping` and `ui/resource-teardown` at 390px and 1440px. A tool result after teardown rebuilds nothing, and host theme and context changes set the rendered colours.
 
-Recorded on the first candidate and not rerun in the review round:
+Recorded on the first candidate and not rerun in the review rounds; the pipeline's own test and build steps cover the final source:
 
 - Full `npm run verify:no-mistakes` exits zero: 1,695 coverage files and 17,968 tests pass, with one file and five tests skipped; all seven MCP protocol tests, 421 PostgreSQL permission tests and both nine-test shared-memory checks pass. Types, dead-code and audit gates pass. Lint has zero errors and 74 warnings; changed MCP paths have zero errors or warnings. Freshness retains one advisory stale dataset and three unmeasured store feeds.
 - The Next.js 16.3.6 production build exits zero with `DEPLOYMENT_VERSION=local`, `NEXT_DIST_DIR=.next-prod` and the existing wrapper restoring tracked bundled data and Next files. No application server was deployed.
 - Dead-code gate passed after declaring the nested package as a separate workspace while preserving the root workspace entries.
 
-Map tiles and pinned MapLibre modules are real network resources. The local host bridge is controlled. It answers initialization, delivers actual MCP tool results, enforces the resource's declared CSP and handles content-size notifications. The iframe uses `allow-scripts allow-same-origin` on a separate origin. These checks establish rendering and local protocol behaviour, not authenticated ChatGPT hosting or distribution acceptance.
+Map tiles and pinned MapLibre modules are real network resources. The local host bridge is controlled. It answers initialization with a host context, delivers actual MCP tool results, sends `ping`, teardown and host-context changes, enforces the resource's declared CSP and handles content-size notifications. The iframe uses `allow-scripts allow-same-origin` on a separate origin. These checks establish rendering and local protocol behaviour, not authenticated ChatGPT hosting or distribution acceptance.
 
 [Before keyboard and worker fixes](1440-Enter-before.png) and [before host-link handling](1440-link-before.png) are baseline failure captures. The [phone screenshot](390.png), [desktop screenshot](1440.png) and [browser receipt](receipt.json) are fresh from the review-fix source. Raw logs and other captures stay in ignored local artifacts.

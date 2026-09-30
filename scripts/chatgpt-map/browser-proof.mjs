@@ -47,18 +47,36 @@ try {
   const nextEncoded = JSON.stringify(nextResult).replaceAll("<", "\\u003c");
   const html = `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0}iframe{display:block;border:0;width:100%;height:100vh}</style><iframe title="PUBMAXX public map" sandbox="allow-scripts allow-same-origin" src="${base}/widget"></iframe><script>
     const frame=document.querySelector('iframe');
+    const query=new URLSearchParams(location.search);
+    const waiting=new Map();
+    let nextId=1;
     window.openedLinks=[];
     window.denyLinks=false;
-    window.sendPublicVenues=(next=false)=>frame.contentWindow.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:next?${nextEncoded}:${encoded}},'${base}');
+    window.initialized=false;
+    window.sizeChanges=0;
+    const send=(message)=>frame.contentWindow.postMessage({jsonrpc:'2.0',...message},'${base}');
+    window.sendPublicVenues=(next=false)=>send({method:'ui/notifications/tool-result',params:next?${nextEncoded}:${encoded}});
+    window.hostNotify=(method,params)=>send({method,params});
+    window.hostRequest=(method,params)=>new Promise((resolve,reject)=>{
+      const id='host-'+nextId++;
+      const timer=setTimeout(()=>{waiting.delete(id);reject(new Error(method+' had no answer after 3000ms'));},3000);
+      waiting.set(id,(message)=>{clearTimeout(timer);resolve(message);});
+      send({id,method,params});
+    });
     addEventListener('message',event=>{
       if(event.source!==frame.contentWindow||event.data?.jsonrpc!=='2.0')return;
-      if(event.data.method==='ui/initialize')frame.contentWindow.postMessage({jsonrpc:'2.0',id:event.data.id,result:{protocolVersion:'2026-01-26',hostInfo:{name:'controlled-proof-host',version:'1.0.0'},hostCapabilities:new URLSearchParams(location.search).has('noLinks')?{}:{openLinks:{}}}},'${base}');
-      if(event.data.method==='ui/open-link'){
-        window.openedLinks.push(event.data.params.url);
-        frame.contentWindow.postMessage({jsonrpc:'2.0',id:event.data.id,result:{isError:window.denyLinks}},'${base}');
+      const message=event.data;
+      if(!message.method&&waiting.has(message.id)){const done=waiting.get(message.id);waiting.delete(message.id);done(message);return;}
+      if(message.method==='ui/initialize'){
+        const theme=query.get('theme');
+        send({id:message.id,result:{protocolVersion:'2026-01-26',hostInfo:{name:'controlled-proof-host',version:'1.0.0'},hostCapabilities:query.has('noLinks')?{}:{openLinks:{}},hostContext:{displayMode:'inline',...(theme?{theme}:{})}}});
       }
-      if(event.data.method==='ui/notifications/size-changed'&&Number.isFinite(event.data.params?.height))frame.style.height=event.data.params.height+'px';
-      if(event.data.method==='ui/notifications/initialized'&&!new URLSearchParams(location.search).has('manual'))window.sendPublicVenues();
+      if(message.method==='ui/open-link'){
+        window.openedLinks.push(message.params.url);
+        send({id:message.id,result:{isError:window.denyLinks}});
+      }
+      if(message.method==='ui/notifications/size-changed'&&Number.isFinite(message.params?.height)){window.sizeChanges++;frame.style.height=message.params.height+'px';}
+      if(message.method==='ui/notifications/initialized'){window.initialized=true;if(!query.has('manual'))window.sendPublicVenues();}
     });
   </script>`;
   host = createServer((_req, res) => res.writeHead(200, { "Content-Type": "text/html" }).end(html));
@@ -165,10 +183,53 @@ try {
     assert.deepEqual(await page.evaluate(() => window.openedLinks), []);
     const unsupportedLayout = await widget.locator("#status").evaluate((element) => ({ width: element.ownerDocument.documentElement.clientWidth, scrollWidth: element.ownerDocument.documentElement.scrollWidth }));
     assert.ok(unsupportedLayout.scrollWidth <= unsupportedLayout.width, "Unsupported link fallback causes horizontal overflow");
-    checks.push({ viewport, pubs: 3, attribution: renderedAttribution, popup: true, keyboard: ["Enter", "Space"], hostLinks: [pubUrl, publisherUrl], deniedLinkFallback: true, unsupportedLinkFallback: true, horizontalOverflow: false, status });
+    const acknowledgements = await page.evaluate(async () => {
+      const outcome = async (method) => {
+        try { return { method, response: await window.hostRequest(method, {}) }; }
+        catch (error) { return { method, error: error.message }; }
+      };
+      return [await outcome("ping"), await outcome("ui/resource-teardown")];
+    });
+    assert.deepEqual(acknowledgements.map(({ response }) => response?.result), [{}, {}], `Host requests unanswered at ${viewport.width}px: ${JSON.stringify(acknowledgements)}`);
+    const closedFrame = page.frames().find((candidate) => candidate.url() === `${base}/widget`);
+    assert.equal(await widget.locator(".maplibregl-canvas").count(), 0, "Teardown left the map running");
+    await closedFrame.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const sizeChangesAtTeardown = await page.evaluate(() => window.sizeChanges);
+    await page.evaluate(() => window.sendPublicVenues(true));
+    await closedFrame.evaluate(() => document.body.append(Object.assign(document.createElement("div"), { style: "height:400px" })));
+    await page.waitForTimeout(500);
+    assert.equal(await widget.locator("#venues > li").count(), 3, "A tool result after teardown rebuilt the list");
+    assert.equal(await widget.locator(".maplibregl-canvas").count(), 0, "A tool result after teardown rebuilt the map");
+    assert.equal(await page.evaluate(() => window.sizeChanges), sizeChangesAtTeardown, "Size notifications continued after teardown");
+    checks.push({ viewport, pubs: 3, attribution: renderedAttribution, popup: true, keyboard: ["Enter", "Space"], hostLinks: [pubUrl, publisherUrl], deniedLinkFallback: true, unsupportedLinkFallback: true, horizontalOverflow: false, status, hostRequests: acknowledgements.map(({ method, response }) => ({ method, result: response.result })), lateResultAfterTeardownIgnored: true });
     await context.close();
   }
-  const proof = { checkedAt: new Date().toISOString(), host: "controlled local MCP Apps bridge", authentication: "No ChatGPT account connection", externalLinks: "Host request and acknowledgement only; no external destination navigation", sandbox: "allow-scripts allow-same-origin", declaredResourcePolicyEnforced: true, checks, failureChecks };
+  const themeChecks = [];
+  for (const [colorScheme, hostTheme, nextTheme] of [["light", null, null], ["dark", null, null], ["light", "dark", "light"], ["dark", "light", "dark"]]) {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme });
+    await enforceResourcePolicy(context);
+    const page = await context.newPage();
+    await page.goto(`http://127.0.0.1:${host.address().port}?manual=1${hostTheme ? `&theme=${hostTheme}` : ""}`);
+    await page.waitForFunction(() => window.initialized);
+    const frame = page.frames().find((candidate) => candidate.url() === `${base}/widget`);
+    const colors = () => frame.evaluate(() => { const style = getComputedStyle(document.documentElement); return { background: style.backgroundColor, ink: style.color }; });
+    const initial = await colors();
+    let updated = null;
+    if (nextTheme) {
+      await page.evaluate((theme) => window.hostNotify("ui/notifications/host-context-changed", { theme }), nextTheme);
+      await frame.waitForFunction((before) => getComputedStyle(document.documentElement).backgroundColor !== before, initial.background);
+      updated = await colors();
+    }
+    themeChecks.push({ colorScheme, hostTheme, initial, nextTheme, updated });
+    await context.close();
+  }
+  const [osLight, osDark, hostDarkOverOsLight, hostLightOverOsDark] = themeChecks;
+  assert.notDeepEqual(osLight.initial, osDark.initial, "Light and dark tokens render the same colours");
+  assert.deepEqual(hostDarkOverOsLight.initial, osDark.initial, "Host dark theme did not override a light OS preference");
+  assert.deepEqual(hostDarkOverOsLight.updated, osLight.initial, "Host context change to light did not apply");
+  assert.deepEqual(hostLightOverOsDark.initial, osLight.initial, "Host light theme did not override a dark OS preference");
+  assert.deepEqual(hostLightOverOsDark.updated, osDark.initial, "Host context change to dark did not apply");
+  const proof = { checkedAt: new Date().toISOString(), host: "controlled local MCP Apps bridge", authentication: "No ChatGPT account connection", externalLinks: "Host request and acknowledgement only; no external destination navigation", sandbox: "allow-scripts allow-same-origin", declaredResourcePolicyEnforced: true, checks, failureChecks, themeChecks };
   await writeFile(`${output}result.json`, `${JSON.stringify(proof, null, 2)}\n`);
   console.log(JSON.stringify(proof));
 } finally {

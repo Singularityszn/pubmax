@@ -13,7 +13,9 @@ export function sharedWidgetStyles(lightCss, darkCss) {
   const bandRules = light.nodes.filter((node) => node.type === "rule" &&
     node.selector.split(",").every((selector) => /^\.priceBand-(cheap|average|expensive)$/.test(selector.trim())));
   if (bandRules.length !== 4) throw new TypeError("Shared price-band styles are unavailable.");
+  const darkTokens = `${declarations(dark, 'html[data-theme="dark"]')}${declarations(dark, 'html[data-theme="dark"] body')}`;
   return `:root{${declarations(light, ":root")}${declarations(light, "body")}}` +
-    `@media(prefers-color-scheme:dark){:root{${declarations(dark, 'html[data-theme="dark"]')}${declarations(dark, 'html[data-theme="dark"] body')}}}` +
+    `@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){${darkTokens}}}` +
+    `:root[data-theme="dark"]{${darkTokens}}` +
     bandRules.map((rule) => rule.toString()).join("\n");
 }
