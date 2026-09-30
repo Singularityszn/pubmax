@@ -281,6 +281,11 @@ export function useMapSurfaceNavigation({
     // landed snapshot restores may never be interpreted as a second Home
     // traversal. All deliberate exits call back() or home() directly.
     if (!shown) return;
+    // Next's router can render a Back or Forward before this owner hears
+    // `popstate`. Until the landed trail is published, a render still shows
+    // the previous entry and must not be written over the one just landed.
+    const held = readMapSurfaceHistory<MapSurfaceState>(window.history.state);
+    if (held !== null && JSON.stringify(held) !== JSON.stringify(stackRef.current)) return;
     if (
       current?.id === shown.id &&
       current.title === shown.title &&
