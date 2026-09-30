@@ -386,7 +386,6 @@ export default function VenueInspector({
             selectTab("overview");
             setPriceSignInVenueId(venue.id);
             focusPriceDestination("venuePriceSignInTitle");
-            onPriceIntentConsumed?.();
           },
           openForm: () => {
             openPriceForm();

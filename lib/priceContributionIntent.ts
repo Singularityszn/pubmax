@@ -171,13 +171,6 @@ export function runPriceContributionReturn({
 
   if (authConfigured && !userPresent) {
     if (requestedVenueId === venueId) return;
-    if (storage) {
-      try {
-        rememberPriceContribution(storage, venueId);
-      } catch {
-        // Blocked storage only loses the automatic reopen after sign-in.
-      }
-    }
     actions.showSignIn();
     return;
   }
