@@ -5,7 +5,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
-import { loadPublicVenues } from "./public-venues.mjs";
+import { LONDON_BOROUGHS, loadPublicVenues } from "./public-venues.mjs";
 import { sharedWidgetStyles } from "./shared-styles.mjs";
 
 const RESOURCE_URI = "ui://pubmaxx/public-map/v1.html";
@@ -27,8 +27,8 @@ function createMcpServer(widget, loadVenues) {
   }));
   registerAppTool(server, "pubmaxx_venues_in_area", {
     title: "Pubs and listed pint prices",
-    description: "Read listed PUBMAXX venues in an explicitly named London borough. Bundled pint prices are not a live feed. No personal location, account or friends data is available.",
-    inputSchema: z.object({ area: z.string().trim().min(2).max(80), limit: z.number().int().min(1).max(30).default(12) }).strict(),
+    description: "Read listed PUBMAXX venues in one London borough, named exactly as one of the accepted area values. Districts and neighbourhoods are not accepted. Bundled pint prices are not a live feed. No personal location, account or friends data is available.",
+    inputSchema: z.object({ area: z.enum(LONDON_BOROUGHS), limit: z.number().int().min(1).max(30).default(12) }).strict(),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     _meta: { ui: { resourceUri: RESOURCE_URI } },
   }, async ({ area, limit }) => {

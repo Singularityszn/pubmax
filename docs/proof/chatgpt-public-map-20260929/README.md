@@ -1,6 +1,8 @@
 # Local public map MCP evidence
 
-Protocol, controlled local Chromium, full repository verification and the production build passed on 30 September 2026. Independent Standards and Spec review cleared the source changes; final committed-head closure and GitHub publication remain pending. This is local integration evidence. No authenticated ChatGPT account connection or production iframe policy was tested.
+Protocol, controlled local Chromium, full repository verification and the production build passed on 30 September 2026 for the first candidate. Independent Standards and Spec review cleared those source changes. This is local integration evidence. No authenticated ChatGPT account connection or production iframe policy was tested.
+
+A later review round changed the widget attribution, the tool's borough schema and the protocol test. The [review fixes](#review-fixes) section records what changed and which receipts are fresh. The earlier sections are the baseline and stay as recorded.
 
 ## Before and after
 
@@ -16,16 +18,29 @@ Enforcing the actual resource's declared CSP also reproduced a blocked MapLibre 
 
 A real pub-link click in that sandbox did not reach the host. Embedded links now use the documented `ui/open-link` request when the host advertises support. The controlled host records and acknowledges actual pub and publisher clicks. A refusal or unsupported host displays a copyable address without adding popup permission. This proves the host request and response, not navigation to the external destination.
 
+## Review fixes
+
+The baseline phone and desktop screenshots showed only the street-tile credit. The widget passed `customAttribution` as a top-level MapLibre option, which MapLibre 6.11.2 ignores, so `Pub data © OpenStreetMap contributors (ODbL)` never rendered. The credit now goes through `attributionControl` with `compact: true`, the same supported API the main app uses. The browser proof now waits for that exact text in the rendered attribution element and requires it to be visible at 390px and 1440px. The regenerated [phone](390.png) and [desktop](1440.png) screenshots and the [receipt](receipt.json) show it beside the street-tile credit.
+
+The tool accepted any 2 to 80 character `area` but matched only an exact dataset borough, so `Kensington & Chelsea`, `City of Westminster` or `Soho` returned an empty list that read as "No pubs listed for that borough." The advertised input schema is now an enum of the 33 `primary_borough` values the bundled dataset records. A real SDK client reads that enum from `listTools`. Unsupported districts, aliases, a lower-case spelling and an out-of-range limit are refused before the venue loader runs. A unit test holds the enum to the dataset's own borough set. No district mapping or new data source was added.
+
+The protocol test no longer searches the served widget for a bridge method name. It asserts the resource's declared CSP domains instead. Bridge initialization stays proved by the browser run.
+
 ## Current checks
 
-- Seven Node tests pass: public whitelist and retirement, explicit publisher attribution, bounded borough results and coordinates, shared London price bands, real MCP client protocol, foreign Host refusal and shared theme projection.
-- Actual public dataset results render in Chromium at 390px and 1440px. Three listed pubs, named pin buttons, native Enter and Space, an opened popup, canonical selected-pub link and no horizontal overflow pass.
+Fresh on the review-fix source:
+
+- Eight Node tests pass: public whitelist and retirement, explicit publisher attribution, bounded borough results and coordinates, exact dataset borough names, shared London price bands, real MCP client protocol with the borough enum and refused inputs, foreign Host refusal and shared theme projection.
+- Actual public dataset results render in Chromium at 390px and 1440px. Three listed pubs, the visible pub-data attribution, named pin buttons, native Enter and Space, an opened popup that clears attribution, canonical selected-pub link and no horizontal overflow pass.
 - Module and street request failures retain their status after subsequent real MCP results.
 - Pub and publisher links reach the controlled host. Denied and unsupported link requests show the address without horizontal overflow.
+
+Recorded on the first candidate and not rerun in the review round:
+
 - Full `npm run verify:no-mistakes` exits zero: 1,695 coverage files and 17,968 tests pass, with one file and five tests skipped; all seven MCP protocol tests, 421 PostgreSQL permission tests and both nine-test shared-memory checks pass. Types, dead-code and audit gates pass. Lint has zero errors and 74 warnings; changed MCP paths have zero errors or warnings. Freshness retains one advisory stale dataset and three unmeasured store feeds.
 - The Next.js 16.3.6 production build exits zero with `DEPLOYMENT_VERSION=local`, `NEXT_DIST_DIR=.next-prod` and the existing wrapper restoring tracked bundled data and Next files. No application server was deployed.
 - Dead-code gate passed after declaring the nested package as a separate workspace while preserving the root workspace entries.
 
 Map tiles and pinned MapLibre modules are real network resources. The local host bridge is controlled. It answers initialization, delivers actual MCP tool results, enforces the resource's declared CSP and handles content-size notifications. The iframe uses `allow-scripts allow-same-origin` on a separate origin. These checks establish rendering and local protocol behaviour, not authenticated ChatGPT hosting or distribution acceptance.
 
-[Before keyboard and worker fixes](1440-Enter-before.png), [before host-link handling](1440-link-before.png), [phone screenshot](390.png), [desktop screenshot](1440.png), [browser receipt](receipt.json). Raw logs and other captures stay in ignored local artifacts.
+[Before keyboard and worker fixes](1440-Enter-before.png) and [before host-link handling](1440-link-before.png) are baseline failure captures. The [phone screenshot](390.png), [desktop screenshot](1440.png) and [browser receipt](receipt.json) are fresh from the review-fix source. Raw logs and other captures stay in ignored local artifacts.

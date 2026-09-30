@@ -138,7 +138,7 @@
   try {
     maplibre=await import(`${MAPLIBRE_URL}maplibre-gl.mjs`);
     maplibre.setWorkerUrl(URL.createObjectURL(new Blob([`import "${MAPLIBRE_URL}maplibre-gl-worker.mjs";`],{type:"text/javascript"})));
-    map=new maplibre.Map({container:"map",style:"https://tiles.openfreemap.org/styles/positron",center:[-0.12,51.52],zoom:10,customAttribution:"Pub data © OpenStreetMap contributors (ODbL)"});
+    map=new maplibre.Map({container:"map",style:"https://tiles.openfreemap.org/styles/positron",center:[-0.12,51.52],zoom:10,attributionControl:{compact:true,customAttribution:"Pub data © OpenStreetMap contributors (ODbL)"}});
     map.addControl(new maplibre.NavigationControl({showCompass:false}));
     map.on("error",()=>{mapFailed("Streets could not load. Listed pubs remain below.");});
     showMarkers();

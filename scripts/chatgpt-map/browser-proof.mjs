@@ -110,6 +110,10 @@ try {
     await widget.locator("#venues > li").last().waitFor();
     assert.equal(await widget.locator("#venues > li").count(), 3);
     await widget.locator(".maplibregl-canvas").waitFor();
+    const attributionText = widget.locator(".maplibregl-ctrl-attrib-inner").filter({ hasText: "Pub data © OpenStreetMap contributors (ODbL)" });
+    await attributionText.waitFor({ timeout: 10000 });
+    assert.ok(await attributionText.isVisible(), `Pub data attribution hidden at ${viewport.width}px`);
+    const renderedAttribution = (await attributionText.textContent()).trim();
     await widget.locator(".pin").last().click();
     await widget.locator(".maplibregl-popup").waitFor();
     assert.equal(await widget.locator(".maplibregl-popup").getByRole("link", { name: "Open pub in PUBMAXX" }).count(), 1);
@@ -161,7 +165,7 @@ try {
     assert.deepEqual(await page.evaluate(() => window.openedLinks), []);
     const unsupportedLayout = await widget.locator("#status").evaluate((element) => ({ width: element.ownerDocument.documentElement.clientWidth, scrollWidth: element.ownerDocument.documentElement.scrollWidth }));
     assert.ok(unsupportedLayout.scrollWidth <= unsupportedLayout.width, "Unsupported link fallback causes horizontal overflow");
-    checks.push({ viewport, pubs: 3, popup: true, keyboard: ["Enter", "Space"], hostLinks: [pubUrl, publisherUrl], deniedLinkFallback: true, unsupportedLinkFallback: true, horizontalOverflow: false, status });
+    checks.push({ viewport, pubs: 3, attribution: renderedAttribution, popup: true, keyboard: ["Enter", "Space"], hostLinks: [pubUrl, publisherUrl], deniedLinkFallback: true, unsupportedLinkFallback: true, horizontalOverflow: false, status });
     await context.close();
   }
   const proof = { checkedAt: new Date().toISOString(), host: "controlled local MCP Apps bridge", authentication: "No ChatGPT account connection", externalLinks: "Host request and acknowledgement only; no external destination navigation", sandbox: "allow-scripts allow-same-origin", declaredResourcePolicyEnforced: true, checks, failureChecks };

@@ -8,12 +8,21 @@ import { PRODUCTION_SITE_ORIGIN } from "../../lib/siteUrlConfig.mjs";
 
 const DATASET = fileURLToPath(new URL("../../public/data/pint_prices_app_dataset.json", import.meta.url));
 
+/** The primary_borough values the bundled dataset records, spelt exactly. */
+export const LONDON_BOROUGHS = Object.freeze([
+  "Barking and Dagenham", "Barnet", "Bexley", "Brent", "Bromley", "Camden", "City of London",
+  "Croydon", "Ealing", "Enfield", "Greenwich", "Hackney", "Hammersmith and Fulham", "Haringey",
+  "Harrow", "Havering", "Hillingdon", "Hounslow", "Islington", "Kensington and Chelsea",
+  "Kingston upon Thames", "Lambeth", "Lewisham", "Merton", "Newham", "Redbridge",
+  "Richmond upon Thames", "Southwark", "Sutton", "Tower Hamlets", "Waltham Forest", "Wandsworth",
+  "Westminster",
+]);
+
 /** Only public venue and listed-price fields cross the MCP boundary. */
 export function publicVenuesInArea(rows, area, limit = 12) {
-  if (!Array.isArray(rows) || typeof area !== "string") throw new TypeError("Choose a borough and public venue rows.");
-  const query = area.trim().toLocaleLowerCase("en-GB");
-  if (query.length < 2 || query.length > 80 || !Number.isInteger(limit) || limit < 1 || limit > 30) {
-    throw new TypeError("Choose a borough and a limit between 1 and 30.");
+  if (!Array.isArray(rows)) throw new TypeError("Choose public venue rows.");
+  if (!LONDON_BOROUGHS.includes(area) || !Number.isInteger(limit) || limit < 1 || limit > 30) {
+    throw new TypeError("Choose a listed London borough and a limit between 1 and 30.");
   }
   const usable = rows.filter((row) =>
     row && typeof row.pub_name === "string" && typeof row.address === "string" &&
@@ -22,7 +31,7 @@ export function publicVenuesInArea(rows, area, limit = 12) {
     Number.isFinite(row.longitude) && row.longitude >= -180 && row.longitude <= 180,
   );
   return groupVenuePrices(usable)
-    .filter((venue) => venue.primaryBorough.toLocaleLowerCase("en-GB") === query)
+    .filter((venue) => venue.primaryBorough === area)
     .map((venue) => ({
       id: venue.id,
       name: venue.name,

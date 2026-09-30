@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-09-30T01:19:27.626Z",
+  "checkedAt": "2026-09-30T09:14:17.945Z",
   "host": "controlled local MCP Apps bridge",
   "authentication": "No ChatGPT account connection",
   "externalLinks": "Host request and acknowledgement only; no external destination navigation",
@@ -12,6 +12,7 @@
         "height": 1000
       },
       "pubs": 3,
+      "attribution": "Pub data © OpenStreetMap contributors (ODbL) | OpenFreeMap © OpenMapTiles Data from OpenStreetMap",
       "popup": true,
       "keyboard": [
         "Enter",
@@ -32,6 +33,7 @@
         "height": 844
       },
       "pubs": 3,
+      "attribution": "Pub data © OpenStreetMap contributors (ODbL) | OpenFreeMap © OpenMapTiles Data from OpenStreetMap",
       "popup": true,
       "keyboard": [
         "Enter",

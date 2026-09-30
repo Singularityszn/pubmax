@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { publicVenuesInArea } from "./public-venues.mjs";
+import { readFile } from "node:fs/promises";
+import { LONDON_BOROUGHS, publicVenuesInArea } from "./public-venues.mjs";
 import { priceBand, priceBandThresholdsFor } from "../../lib/priceBand.ts";
 
 const price = (overrides = {}) => ({
@@ -23,7 +24,7 @@ test("returns an explicit public whitelist and the price record's publisher", ()
 });
 
 test("does not infer a publisher from a venue website or retire a superseded price as live", () => {
-  const [venue] = publicVenuesInArea([price({ pub_url: "", website: "https://operator.test" }), price({ price_gbp: 2, price_superseded: {} })], "camden");
+  const [venue] = publicVenuesInArea([price({ pub_url: "", website: "https://operator.test" }), price({ price_gbp: 2, price_superseded: {} })], "Camden");
   assert.equal(venue.prices.length, 1);
   assert.equal(venue.prices[0].publisher, null);
   assert.equal(venue.prices[0].priceGbp, 4.2);
@@ -33,6 +34,15 @@ test("filters invalid coordinates and wrong primary borough, bounds results", ()
   assert.equal(publicVenuesInArea([price({ latitude: NaN }), price({ primary_borough: "Westminster" }), price({ primary_borough: 9 })], "Camden").length, 0);
   assert.throws(() => publicVenuesInArea([price()], "Camden", 31));
   assert.throws(() => publicVenuesInArea([price()], ""));
+});
+
+test("accepts only the dataset's exact borough names", async () => {
+  const rows = JSON.parse(await readFile(new URL("../../public/data/pint_prices_app_dataset.json", import.meta.url), "utf8"));
+  assert.deepEqual([...new Set(rows.map((row) => row.primary_borough))].sort(), [...LONDON_BOROUGHS].sort());
+  assert.equal(LONDON_BOROUGHS.length, 33);
+  for (const area of ["camden", "Soho", "Kensington & Chelsea", "City of Westminster"]) {
+    assert.throws(() => publicVenuesInArea([price()], area), TypeError, area);
+  }
 });
 
 test("listed pint rows carry the shared London price band", () => {

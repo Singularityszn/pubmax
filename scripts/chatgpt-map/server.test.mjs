@@ -3,6 +3,7 @@ import test from "node:test";
 import { request } from "node:http";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { LONDON_BOROUGHS } from "./public-venues.mjs";
 import { createPublicMapHttpServer } from "./server.mjs";
 
 test("real MCP client initializes, lists the UI, reads venues and rejects private coordinate input", async () => {
@@ -20,15 +21,33 @@ test("real MCP client initializes, lists the UI, reads venues and rejects privat
     assert.equal(tools.tools.length, 1);
     assert.equal(tools.tools[0]._meta.ui.resourceUri, "ui://pubmaxx/public-map/v1.html");
     assert.equal(tools.tools[0].annotations.readOnlyHint, true);
+    const { properties, required, additionalProperties } = tools.tools[0].inputSchema;
+    assert.deepEqual(Object.keys(properties).sort(), ["area", "limit"]);
+    assert.deepEqual(properties.area.enum, [...LONDON_BOROUGHS]);
+    assert.deepEqual(required, ["area"]);
+    assert.equal(additionalProperties, false);
+    assert.equal(properties.limit.maximum, 30);
     const result = await client.callTool({ name: "pubmaxx_venues_in_area", arguments: { area: "Camden" } });
     assert.equal(result.structuredContent.area, "Camden");
-    assert.deepEqual(calls, [{ area: "Camden", limit: 12 }]);
-    const refused = await client.callTool({ name: "pubmaxx_venues_in_area", arguments: { area: "Camden", friendLatitude: 51.5 } });
-    assert.equal(refused.isError, true);
-    assert.equal(calls.length, 1);
+    await client.callTool({ name: "pubmaxx_venues_in_area", arguments: { area: "Kensington and Chelsea", limit: 30 } });
+    assert.deepEqual(calls, [{ area: "Camden", limit: 12 }, { area: "Kensington and Chelsea", limit: 30 }]);
+    for (const args of [
+      { area: "Camden", friendLatitude: 51.5 },
+      { area: "Soho" },
+      { area: "Kensington & Chelsea" },
+      { area: "camden" },
+      { area: "Camden", limit: 31 },
+    ]) {
+      const refused = await client.callTool({ name: "pubmaxx_venues_in_area", arguments: args });
+      assert.equal(refused.isError, true, JSON.stringify(args));
+    }
+    assert.equal(calls.length, 2);
     const resource = await client.readResource({ uri: tools.tools[0]._meta.ui.resourceUri });
     assert.equal(resource.contents[0].mimeType, "text/html;profile=mcp-app");
-    assert.match(resource.contents[0].text, /ui\/initialize/);
+    assert.deepEqual(resource.contents[0]._meta.ui.csp, {
+      connectDomains: ["https://tiles.openfreemap.org", "https://unpkg.com"],
+      resourceDomains: ["https://unpkg.com", "https://tiles.openfreemap.org", "blob:"],
+    });
     assert.equal((await fetch(`${base}/mcp`, { method: "POST", headers: { Origin: "https://foreign.test" }, body: "{}" })).status, 403);
     assert.equal((await fetch(`${base}/mcp`, { method: "POST", body: "{" })).status, 400);
   } finally {

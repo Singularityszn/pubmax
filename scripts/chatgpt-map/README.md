@@ -2,7 +2,7 @@
 
 This MCP app shows public London venues and their bundled listed pint prices. It has no account or friend-location tool. Adding a friend in PUBMAXX does not expose GPS to this app.
 
-The server uses the official MCP SDK and MCP Apps UI resource protocol. It reuses PUBMAXX's venue grouping, retired-price rule and publisher resolver. The widget uses PUBMAXX paper, ink and coral colours, a MapLibre map and OpenFreeMap streets. Map and data attribution remain visible.
+The server uses the official MCP SDK and MCP Apps UI resource protocol. It reuses PUBMAXX's venue grouping, retired-price rule and publisher resolver. The widget uses PUBMAXX paper, ink and coral colours, a MapLibre map and OpenFreeMap streets. Map attribution and the `Pub data © OpenStreetMap contributors (ODbL)` credit remain visible.
 
 Run from this folder after installing the root app dependencies:
 
@@ -12,7 +12,7 @@ npm test
 npm start
 ```
 
-The local endpoint is `http://127.0.0.1:8787/mcp`. Set `PUBMAX_MCP_PORT` to choose another port. `/widget` previews the UI, which waits for a host-delivered tool result. The sole tool, `pubmaxx_venues_in_area`, accepts an explicit London borough and a limit from 1 to 30. It returns at most three listed pint prices per pub. These prices are not a live feed, and no per-row observation date is invented.
+The local endpoint is `http://127.0.0.1:8787/mcp`. Set `PUBMAX_MCP_PORT` to choose another port. `/widget` previews the UI, which waits for a host-delivered tool result. The sole tool, `pubmaxx_venues_in_area`, accepts one of the 33 London borough names the bundled dataset records, spelt exactly as its schema enum lists them, and a limit from 1 to 30. Districts such as Soho, aliases such as `Kensington & Chelsea` and other spellings are refused, not answered with an empty list. It returns at most three listed pint prices per pub. These prices are not a live feed, and no per-row observation date is invented.
 
 The server binds to loopback, rejects foreign Host and Origin values, bounds request bodies, and retains no sessions. Local protocol tests exercise initialization, tool calls, UI resources and invalid inputs with the official client. No OpenAI API key is needed.
 
