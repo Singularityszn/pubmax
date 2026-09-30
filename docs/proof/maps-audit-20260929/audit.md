@@ -42,7 +42,7 @@ isolate stored-location selection and permission-call behaviour. It measures no
 browser rendering speed and proves no real permission prompt or grant.
 
 ```sh
-node docs/proof/maps-audit-20260929/location-replay.mjs HEAD
+node docs/proof/maps-audit-20260929/location-replay.mjs 76de20674da64604af22872ff42ee08fca7f156a
 node docs/proof/maps-audit-20260929/location-replay.mjs
 ```
 
