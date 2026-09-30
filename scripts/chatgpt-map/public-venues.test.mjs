@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { LONDON_BOROUGHS, publicVenuesInArea } from "./public-venues.mjs";
+import { LONDON_BOROUGH_NAMES } from "../../lib/londonBoroughNames.mjs";
+import { publicVenuesInArea } from "./public-venues.mjs";
 import { priceBand, priceBandThresholdsFor } from "../../lib/priceBand.ts";
 
 const price = (overrides = {}) => ({
@@ -38,8 +39,8 @@ test("filters invalid coordinates and wrong primary borough, bounds results", ()
 
 test("accepts only the dataset's exact borough names", async () => {
   const rows = JSON.parse(await readFile(new URL("../../public/data/pint_prices_app_dataset.json", import.meta.url), "utf8"));
-  assert.deepEqual([...new Set(rows.map((row) => row.primary_borough))].sort(), [...LONDON_BOROUGHS].sort());
-  assert.equal(LONDON_BOROUGHS.length, 33);
+  assert.deepEqual([...new Set(rows.map((row) => row.primary_borough))].sort(), [...LONDON_BOROUGH_NAMES].sort());
+  assert.equal(LONDON_BOROUGH_NAMES.length, 33);
   for (const area of ["camden", "Soho", "Kensington & Chelsea", "City of Westminster"]) {
     assert.throws(() => publicVenuesInArea([price()], area), TypeError, area);
   }

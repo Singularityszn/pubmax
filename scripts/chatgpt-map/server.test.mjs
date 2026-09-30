@@ -3,7 +3,7 @@ import test from "node:test";
 import { request } from "node:http";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { LONDON_BOROUGHS } from "./public-venues.mjs";
+import { LONDON_BOROUGH_NAMES } from "../../lib/londonBoroughNames.mjs";
 import { createPublicMapHttpServer } from "./server.mjs";
 
 test("real MCP client initializes, lists the UI, reads venues and rejects private coordinate input", async () => {
@@ -23,7 +23,7 @@ test("real MCP client initializes, lists the UI, reads venues and rejects privat
     assert.equal(tools.tools[0].annotations.readOnlyHint, true);
     const { properties, required, additionalProperties } = tools.tools[0].inputSchema;
     assert.deepEqual(Object.keys(properties).sort(), ["area", "limit"]);
-    assert.deepEqual(properties.area.enum, [...LONDON_BOROUGHS]);
+    assert.deepEqual(properties.area.enum, [...LONDON_BOROUGH_NAMES]);
     assert.deepEqual(required, ["area"]);
     assert.equal(additionalProperties, false);
     assert.equal(properties.limit.maximum, 30);

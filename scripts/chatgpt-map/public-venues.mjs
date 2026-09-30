@@ -5,23 +5,14 @@ import { namedLegacyPintPriceSource } from "../../lib/drinks.ts";
 import { venueMapUrl } from "../../lib/venueMapUrl.ts";
 import { priceBand } from "../../lib/priceBand.ts";
 import { PRODUCTION_SITE_ORIGIN } from "../../lib/siteUrlConfig.mjs";
+import { LONDON_BOROUGH_NAMES } from "../../lib/londonBoroughNames.mjs";
 
 const DATASET = fileURLToPath(new URL("../../public/data/pint_prices_app_dataset.json", import.meta.url));
-
-/** The primary_borough values the bundled dataset records, spelt exactly. */
-export const LONDON_BOROUGHS = Object.freeze([
-  "Barking and Dagenham", "Barnet", "Bexley", "Brent", "Bromley", "Camden", "City of London",
-  "Croydon", "Ealing", "Enfield", "Greenwich", "Hackney", "Hammersmith and Fulham", "Haringey",
-  "Harrow", "Havering", "Hillingdon", "Hounslow", "Islington", "Kensington and Chelsea",
-  "Kingston upon Thames", "Lambeth", "Lewisham", "Merton", "Newham", "Redbridge",
-  "Richmond upon Thames", "Southwark", "Sutton", "Tower Hamlets", "Waltham Forest", "Wandsworth",
-  "Westminster",
-]);
 
 /** Only public venue and listed-price fields cross the MCP boundary. */
 export function publicVenuesInArea(rows, area, limit = 12) {
   if (!Array.isArray(rows)) throw new TypeError("Choose public venue rows.");
-  if (!LONDON_BOROUGHS.includes(area) || !Number.isInteger(limit) || limit < 1 || limit > 30) {
+  if (!LONDON_BOROUGH_NAMES.includes(area) || !Number.isInteger(limit) || limit < 1 || limit > 30) {
     throw new TypeError("Choose a listed London borough and a limit between 1 and 30.");
   }
   const usable = rows.filter((row) =>
