@@ -81,7 +81,7 @@ try {
   const hostUrl = `http://127.0.0.1:${host.address().port}`;
   browser = await chromium.launch({ headless: true, args: ["--enable-unsafe-swiftshader"] });
 
-  for (const name of ["inline-capability", "pending-link", "late-import", "worker-blob", "url-bounds", "url-boundary-fallback", "pending-initialization", "unused-id-retention"]) {
+  for (const name of ["inline-capability", "pending-link", "late-import", "worker-blob", "url-bounds", "url-boundary-fallback", "pending-initialization", "unused-id-retention", "publisher-label-retention"]) {
     const check = { name };
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: "light" });
     let releaseImport = () => {};
@@ -113,7 +113,7 @@ try {
           importRouteCompletion = (async () => { await released; await route.abort(); })();
           return importRouteCompletion;
         });
-      } else if (name !== "url-bounds") {
+      } else if (name !== "url-bounds" && name !== "publisher-label-retention") {
         await context.route("**/maplibre-gl.mjs", (route) => route.abort());
       }
       const page = await context.newPage();
@@ -369,6 +369,103 @@ try {
         assert.equal(check.projection.count, 2);
         assert.equal(check.projection.hasOwnId, false, "Unused oversized ID survived actual widget projection");
         assert.equal(check.projection.idLength, null, "Actual widget retained unused ID string");
+      }
+      if (name === "publisher-label-retention") {
+        await widget.locator(".maplibregl-canvas").waitFor();
+        const priced = result.structuredContent.venues.flatMap((venue, index) => venue.prices.map((price) => ({ price, index }))).find(({ price }) => {
+          const publisher = price.publisher;
+          if (!publisher || typeof publisher.label !== "string" || !publisher.label.trim() || publisher.label.length > 160 || typeof publisher.url !== "string" || publisher.url.length > 2048) return false;
+          try { const url = new URL(publisher.url); return url.protocol === "https:" && !url.username && !url.password && url.href.length <= 2048; }
+          catch { return false; }
+        });
+        assert.ok(priced, "Actual MCP result needs a grounded price with a recorded safe publisher");
+        const { price, index: pricedIndex } = priced;
+        const siblingIndex = result.structuredContent.venues.findIndex((venue, index) => index !== pricedIndex && typeof venue.href === "string");
+        assert.ok(siblingIndex >= 0, "Actual MCP result needs a valid sibling canonical link");
+        const label = price.publisher.label.trim();
+        const pounds = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
+        const groundedPrices = [`${pounds.format(price.priceGbp)} · ${price.drink}`];
+        const unicodeUrl = `https://publisher.example/${"é".repeat(500)}`;
+        assert.ok(unicodeUrl.length <= 2048 && new URL(unicodeUrl).href.length > 2048, "Publisher fixture must cross only the normalised URL bound");
+        const variants = [
+          { name: "http", url: "http://publisher.example/recorded-price" },
+          { name: "credentials", url: "https://fixture-user:fixture-password@publisher.example/recorded-price" },
+          { name: "raw-oversize", url: `https://publisher.example/${"x".repeat(65536)}` },
+          { name: "normalised-oversize", url: unicodeUrl },
+          { name: "absent", url: null },
+          { name: "safe", url: price.publisher.url },
+        ];
+        check.inputs = [];
+        for (const variant of variants) {
+          const supplied = structuredClone(result);
+          const venue = supplied.structuredContent.venues[pricedIndex];
+          const sibling = supplied.structuredContent.venues[siblingIndex];
+          supplied.structuredContent.venues = [venue, sibling];
+          venue.name = `Publisher label regression ${variant.name}`;
+          // Grounded amount/drink and recorded label come from the actual MCP
+          // result. Only the negative URL and control metadata are changed.
+          venue.prices = [structuredClone(price)];
+          venue.prices[0].publisher = variant.name === "absent" ? null : { label, url: variant.url };
+          await page.evaluate((next) => window.sendResult(next), supplied);
+          const cards = widget.locator("#venues > li");
+          await cards.first().getByRole("heading", { name: venue.name, exact: true }).waitFor();
+          const observe = (surface) => surface.evaluate((node, expected) => {
+            const paragraphs = Array.from(node.querySelectorAll("p"), (item) => item.textContent);
+            const prices = Array.from(node.querySelectorAll(".price"), (item) => item.textContent);
+            const publisherAnchors = Array.from(node.querySelectorAll("a")).filter((anchor) => anchor.textContent.startsWith("Publisher:"));
+            return {
+              pricesIntact: JSON.stringify(prices) === JSON.stringify(expected.prices),
+              recordedLabelRetained: paragraphs.includes(`Publisher: ${expected.label}. Link unavailable.`) || publisherAnchors.some((anchor) => anchor.textContent === `Publisher: ${expected.label}`),
+              linkUnavailable: paragraphs.includes(`Publisher: ${expected.label}. Link unavailable.`),
+              publisherNotRecorded: paragraphs.includes("Publisher not recorded"),
+              publisherAnchorCount: publisherAnchors.length,
+              safePublisherHrefIntact: publisherAnchors.length === 1 && publisherAnchors[0].href === expected.safeHref,
+              canonicalIntact: Array.from(node.querySelectorAll("a")).some((anchor) => anchor.textContent === "Open pub in PUBMAXX" && anchor.href === expected.canonical),
+              textLength: node.textContent.length,
+            };
+          }, { label, prices: groundedPrices, safeHref: new URL(price.publisher.url).href, canonical: venue.href });
+          const observed = {
+            variant: variant.name,
+            venueCount: await cards.count(),
+            list: await observe(cards.first()),
+            siblingNameIntact: await cards.nth(1).getByRole("heading").textContent() === sibling.name,
+            siblingCanonicalIntact: await cards.nth(1).getByRole("link", { name: "Open pub in PUBMAXX", exact: true }).getAttribute("href") === sibling.href,
+          };
+          await widget.getByRole("button", { name: venue.name, exact: true }).click();
+          const popup = widget.locator(".maplibregl-popup");
+          await popup.waitFor();
+          observed.popup = await observe(popup);
+          await page.screenshot({ path: `${output}publisher-label-${variant.name}.png`, fullPage: false });
+          await popup.locator(".maplibregl-popup-close-button").click();
+          if (variant.name === "safe") {
+            const requestsBefore = await page.evaluate(() => window.pendingLinks.length);
+            await cards.first().getByRole("link", { name: `Publisher: ${label}`, exact: true }).click();
+            await page.waitForFunction((count) => window.pendingLinks.length > count, requestsBefore);
+            await frame.waitForFunction((address) => document.getElementById("status").textContent.includes(`Copy this address: ${address}`), new URL(price.publisher.url).href);
+            observed.safePublisherClicked = true;
+            observed.hostRequestUrlLength = await page.evaluate(() => window.pendingLinks.at(-1).urlLength);
+          }
+          check.inputs.push(observed);
+        }
+        // Record every variant before asserting so a RED distinguishes lost
+        // attribution from refusal of unsafe anchors, without retaining URLs.
+        for (const observed of check.inputs) {
+          assert.equal(observed.venueCount, 2, `${observed.variant} changed venue count`);
+          assert.equal(observed.siblingNameIntact && observed.siblingCanonicalIntact, true, `${observed.variant} changed valid sibling`);
+          for (const surface of [observed.list, observed.popup]) {
+            assert.equal(surface.pricesIntact && surface.canonicalIntact, true, `${observed.variant} changed grounded price or canonical link`);
+            assert.ok(surface.textLength <= 1500, `${observed.variant} retained unbounded rendered publisher text`);
+            assert.equal(surface.publisherAnchorCount, observed.variant === "safe" ? 1 : 0, `${observed.variant} publisher anchor contract violated`);
+            assert.equal(surface.publisherNotRecorded, observed.variant === "absent", `${observed.variant} misreported recorded publisher`);
+            if (observed.variant !== "absent") assert.equal(surface.recordedLabelRetained, true, `${observed.variant} discarded recorded publisher label`);
+            assert.equal(surface.linkUnavailable, observed.variant !== "safe" && observed.variant !== "absent", `${observed.variant} missing unavailable-link disclosure`);
+            if (observed.variant === "safe") assert.equal(surface.safePublisherHrefIntact, true, "Safe publisher link changed");
+          }
+          if (observed.variant === "safe") {
+            assert.equal(observed.safePublisherClicked, true);
+            assert.equal(observed.hostRequestUrlLength, new URL(price.publisher.url).href.length);
+          }
+        }
       }
       check.verdict = "PASS";
     } catch (error) {

@@ -7,9 +7,10 @@
 <style>
   :root{color-scheme:light dark;font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--paper)}
   *{box-sizing:border-box}body{margin:0}header{padding:20px 20px 12px}h1{font-family:"Space Grotesk",system-ui,sans-serif;font-size:24px;line-height:1.2;margin:0 0 8px}p{font-size:14px;line-height:1.5;margin:0 0 8px;color:var(--muted)}
-  main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);min-width:0}#map{height:420px;min-width:0;background:var(--line)}#venues{min-width:0;max-height:420px;overflow:auto;padding:0 16px;margin:0;list-style:none}#status{overflow-wrap:anywhere}
+  main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);min-width:0}#map{--map-height:420px;height:var(--map-height);min-width:0;background:var(--line)}#venues{min-width:0;max-height:420px;overflow:auto;padding:0 16px;margin:0;list-style:none}#status{overflow-wrap:anywhere}
   li{padding:16px 0;border-bottom:1px solid var(--line)}h2{font-size:17px;margin:0 0 7px;overflow-wrap:anywhere}a{color:inherit;text-underline-offset:3px}button{font:inherit;padding:10px 14px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);cursor:pointer;min-height:44px}button:focus-visible,a:focus-visible{outline:3px solid var(--brass);outline-offset:3px}.pin{border-radius:50%;background:var(--brass);color:var(--color-on-accent);border:2px solid var(--panel-overlay);width:38px;height:38px;padding:0;font-weight:700;box-shadow:0 2px 8px #0003}.maplibregl-popup-content{background:var(--paper);color:var(--ink)}.price{font-variant-numeric:tabular-nums;margin-bottom:4px}footer{padding:14px 20px}#status{padding:0 20px}
-  @media(max-width:600px){main{grid-template-columns:minmax(0,1fr)}#map{height:280px}#venues{max-height:none}}
+  .popup-card{max-height:calc(var(--map-height) - 110px);overflow:auto;overflow-wrap:anywhere}
+  @media(max-width:600px){main{grid-template-columns:minmax(0,1fr)}#map{--map-height:280px}#venues{max-height:none}}
   /* PUBMAXX_SHARED_STYLES */
 </style>
 <header><h1>Pubs in <span id="area">your borough</span></h1><p id="notice">Choose a London borough in the conversation to see listed pint prices.</p></header>
@@ -66,9 +67,9 @@
     return url&&url.origin==="https://pubmaxxing.com"&&url.pathname==="/map"?url.href:null;
   }
   function safePublisher(value) {
-    if (!value || typeof value.label!=="string" || value.label.length>160 || typeof value.url!=="string") return null;
+    if (!value || typeof value.label!=="string" || value.label.length>160 || !value.label.trim()) return null;
     const url=safeHttpsUrl(value.url);
-    return url?{label:value.label,url:url.href}:null;
+    return {label:value.label.trim(),url:url?.href??null};
   }
   function safeVenues(input) {
     if (!Array.isArray(input)) return [];
@@ -81,7 +82,8 @@
     for (const price of venue.prices) {
       text("p",`${money.format(price.priceGbp)} · ${price.drink}`,parent).className=price.band?`price priceBand-${price.band}`:"price";
       const source = text("p","",parent);
-      if (price.publisher) {const a=text("a",`Publisher: ${price.publisher.label}`,source);a.href=price.publisher.url;a.target="_blank";a.rel="noopener noreferrer";}
+      if (price.publisher?.url) {const a=text("a",`Publisher: ${price.publisher.label}`,source);a.href=price.publisher.url;a.target="_blank";a.rel="noopener noreferrer";}
+      else if (price.publisher) source.textContent=`Publisher: ${price.publisher.label}. Link unavailable.`;
       else source.textContent="Publisher not recorded";
     }
     if (venue.href) {const link=text("a","Open pub in PUBMAXX",parent);link.href=venue.href;link.target="_blank";link.rel="noopener noreferrer";}
@@ -91,12 +93,12 @@
     markers.forEach(marker=>marker.remove());markers=[];
     latestVenues.forEach((venue,index)=>{
       const button=document.createElement("button");button.className="pin";button.textContent=String(index+1);button.setAttribute("aria-label",venue.name);
-      const popupContent=document.createElement("div");card(venue,popupContent);
-      const popup=new maplibre.Popup({offset:22}).setDOMContent(popupContent);
+      const popupContent=document.createElement("div");popupContent.className="popup-card";card(venue,popupContent);
+      const popup=new maplibre.Popup({offset:22,anchor:"bottom"}).setDOMContent(popupContent);
       popup.on("open",()=>{
         const bounds=element("map").getBoundingClientRect();
         const box=popup.getElement().getBoundingClientRect();
-        const shiftX=Math.max(bounds.left+10-box.left,0)-Math.max(box.right-bounds.right+10,0);
+        const shiftX=Math.max(bounds.left+10-box.left,0)-Math.max(box.right-bounds.right+50,0);
         const shiftY=Math.max(bounds.top+10-box.top,0)-Math.max(box.bottom-bounds.bottom+60,0);
         if (shiftX||shiftY) map.panBy([-shiftX,-shiftY],{duration:0});
       });
