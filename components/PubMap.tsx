@@ -5473,6 +5473,7 @@ export default function PubMap({
               ? venueRevealRequest
               : null
           }
+          onPriceIntentConsumed={clearLogIntent}
           onInterruptReveal={interruptVenueReveal}
           onTabSelect={handleInspectorTabSelect}
           cityLandmarks={cityLandmarks}

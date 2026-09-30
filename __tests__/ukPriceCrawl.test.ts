@@ -278,6 +278,26 @@ describe("what a page states", () => {
     ]);
   });
 
+  it.each([
+    ["a cocktail heading", "<h2>Spritz Season</h2><ul><li>Camden Hells £6.50</li></ul>", 6.5, "beer"],
+    ["a zero-strength heading", "<h2>0% on the bar</h2><ul><li>Camden Hells £6.50</li></ul>", 6.5, "beer"],
+    ["a cocktail description on the same line", "<p>Hugo £9 Elderflower spritz, prosecco, mint Guinness £5.90</p>", 5.9, "beer"],
+    ["a zero-strength description on the same line", "<p>Lucky Saint £5.20 0% unfiltered lager Guinness £5.90</p>", 5.9, "beer"],
+    ["a cocktail description on its own line", "<ul><li>Hugo £9</li><li>Elderflower spritz, prosecco, mint</li><li>Guinness £5.90</li></ul>", 5.9, "beer"],
+    ["a zero-strength description on its own line", "<ul><li>Lucky Saint £5.20</li><li>0% unfiltered lager</li><li>Guinness £5.90</li></ul>", 5.9, "beer"],
+    ["a sour beer style", "<ul><li>Brewdog Sour IPA £6.50</li></ul>", 6.5, "beer"],
+    ["a sour ale", "<ul><li>Wild Sour Ale £6.20</li></ul>", 6.2, "beer"],
+    ["a zero-strength item name", "<ul><li>Heineken 0.0% lager £5.00</li></ul>", 5, "alcohol-free"],
+  ])("does not let %s relabel the next printed drink", (_case, menu, priceGbp, category) => {
+    expect(readVenueDrinkPrices(menu).kept.find((row) => row.priceGbp === priceGbp)?.category).toBe(category);
+  });
+
+  it("refuses a spirit-and-juice serve as a soft-drink price", () => {
+    const reading = readVenueDrinkPrices("<ul><li>Vodka Cranberry Juice £6.50</li></ul>");
+    expect(reading.kept).toEqual([]);
+    expect(reading.drops).toEqual(["mixer-serve-not-one-drink"]);
+  });
+
   it("does not borrow a neighbouring drink category for a soda description", () => {
     // Synthetic menu using the Pineapple & Yuzu source label. Its original
     // page layout was not retained, so this proves the extractor rule only.

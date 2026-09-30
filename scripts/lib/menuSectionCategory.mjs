@@ -1,7 +1,9 @@
 const GREENE_KING_RULES = [
   [null, ["main menu", "dessert", "snack", "kids", "ciabatta", "sunday menu", "gluten"]],
+  ["alcohol-free", ["alcohol-free", "alcohol free", "non-alcoholic", "no & low", "no and low", "0%"]],
+  ["soft-drink", ["soft drink"]],
   ["wine", ["wine", "champagne", "spark"]],
-  ["cocktail", ["cocktail", "spritz", "0%"]],
+  ["cocktail", ["cocktail", "spritz"]],
   ["beer", ["beer", "lager", "ale", "cider", "draught", "keg", "stout"]],
   ["whisky", ["whisk", "whiskey"]],
   ["gin", ["gin"]],
@@ -9,17 +11,16 @@ const GREENE_KING_RULES = [
   ["rum", ["rum"]],
   ["shot", ["spirit", "shot"]],
   ["coffee", ["coffee", "hot drink"]],
-  ["alcohol-free", ["alcohol-free", "alcohol free", "non-alcoholic", "no & low", "no and low"]],
-  ["soft-drink", ["soft drink", "drink"]],
+  ["soft-drink", ["drink"]],
 ];
 
 const MBPLC_RULES = [
   [null, ["fever-tree", "mixer", "tonic", "main menu", "sandwich", "buffet", "breakfast", "food"]],
+  ["alcohol-free", ["alcohol-free", "alcohol free", "non-alcoholic", "low and no", "no & low", "no and low", "0.0", "0%"]],
+  ["soft-drink", ["soft drink", "soda"]],
   ["wine", ["wine", "champagne", "spark"]],
   ["cocktail", ["cocktail", "spritz"]],
   ["coffee", ["coffee", "hot drink"]],
-  ["alcohol-free", ["alcohol-free", "alcohol free", "non-alcoholic", "low and no", "no & low", "no and low", "0.0"]],
-  ["soft-drink", ["soft drink", "soda"]],
   ["beer", ["beer", "lager", "ale", "cider", "draught", "craft"]],
   ["whisky", ["whisk", "whiskey"]],
   ["gin", ["gin"]],

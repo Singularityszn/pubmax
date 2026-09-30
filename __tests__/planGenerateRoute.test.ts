@@ -689,6 +689,32 @@ describe("POST /api/plans/generate", () => {
     }
   });
 
+  it("fails an alcohol-free ceiling closed rather than pricing it with pints", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    try {
+      const pints = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        body: JSON.stringify({ query: "Four of us in Clapham, under £24 each" }),
+      }));
+      expect(pints.status).toBe(200);
+      expect((await pints.json()).budgetSummary).toMatchObject({ limitPence: 2400, withinLimit: true });
+
+      const alcoholFree = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        body: JSON.stringify({ query: "Four of us in Clapham, alcohol-free, under £24 each" }),
+      }));
+      expect(alcoholFree.status).toBe(422);
+      const body = await alcoholFree.json();
+      expect(body).toMatchObject({
+        code: "GROUNDED_CONSTRAINTS_UNSATISFIED",
+        details: { rejected: { budgetEvidence: expect.any(Number), budgetCeiling: 0 } },
+      });
+      expect(body.details.rejected.budgetEvidence).toBeGreaterThan(0);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
   it("discloses missing selected-drink evidence on a value wine route", async () => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",

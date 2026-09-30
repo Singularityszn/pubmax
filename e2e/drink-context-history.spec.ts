@@ -138,6 +138,8 @@ test("canonical city pathname wins over obsolete city query during a drink edit"
 });
 
 test("390px price venue survives repeated ForwardBack without adding history entries", async ({ page }, testInfo) => {
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/map/manchester?drink=wine&contribute=price");
   const nearby = page.locator(".logIntentNearbyBtn").first();

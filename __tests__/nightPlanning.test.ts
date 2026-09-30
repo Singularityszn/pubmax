@@ -16,6 +16,16 @@ describe("inferNightContext", () => {
     ["cheap pints in Soho for 2", "beer"],
     ["drinks in Soho for 2", null],
     ["alcohol-free drinks in Soho for 2", null],
+    ["cheap pints on Rye Lane in Peckham for four, under £24 each", "beer"],
+    ["cheap pints in Peckham on Rye Lane under £30 each", "beer"],
+    ["Start at the Rose and Crown, cheap pints in Clapham under £20 each", "beer"],
+    ["pints near the Punch Bowl in Mayfair", "beer"],
+    ["cheap pints in Soho, start at the Gin Palace", "beer"],
+    ["drinks at the Gin Palace in Soho", null],
+    ["cocktail menu for my mate while I am on pints", "beer"],
+    ["no cocktails, just cheap pints in Soho", "beer"],
+    ["pints and cocktails in Soho", null],
+    ["cocktails in Soho somewhere with a beer garden", "cocktail"],
   ] as const)("retains the requested drink category in %s", (query, category) => {
     const { context } = inferNightContext(query, EVENING);
     expect(context.drinkCategory).toBe(category);

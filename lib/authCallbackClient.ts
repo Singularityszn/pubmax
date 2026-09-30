@@ -83,6 +83,7 @@ function expiredCallbackSubject(error: unknown, accessToken: string): string | n
 export type PreparedAuthCallbackSession<SessionValue> =
   | { status: "established"; result: AuthCallbackSessionResult<SessionValue> }
   | { status: "verification-failed" }
+  | { status: "banned" }
   | {
       status: "confirmation-required";
       identity: { userId: string; label: string };
@@ -105,13 +106,16 @@ export async function prepareAuthCallbackSession<SessionValue>(
 
   try {
     const original = await getUser(tokens.accessToken);
+    if (isGoTrueUserBannedError(original.error)) return { status: "banned" };
     const originalUserId = original.error
       ? expiredCallbackSubject(original.error, tokens.accessToken)
       : original.data.user?.id;
     if (!originalUserId) return { status: "verification-failed" };
     const minted = await mintSession(tokens.refreshToken);
+    if (minted.status === "refused" && minted.banned) return { status: "banned" };
     if (minted.status !== "minted") return { status: "verification-failed" };
     const refreshed = await getUser(minted.session.access_token);
+    if (isGoTrueUserBannedError(refreshed.error)) return { status: "banned" };
     const userId = refreshed.data.user?.id;
     if (refreshed.error || !userId || originalUserId !== userId) {
       return { status: "verification-failed" };

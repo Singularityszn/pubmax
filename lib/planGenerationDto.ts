@@ -76,6 +76,12 @@ function venueDistanceKm(left: PlanGenerationDtoVenue, right: PlanGenerationDtoV
   return haversineKm([left.lng, left.lat], [right.lng, right.lat]);
 }
 
+/**
+ * Pint evidence prices only a beer (or unspecified) night. An alcohol-free or
+ * other selected-drink night never borrows it: a pint price is not the price of
+ * what that crew will drink, so a stated per-person ceiling on such a night
+ * fails closed (422, budgetEvidence) rather than passing on alcoholic prices.
+ */
 export function planUsesPintPrices(context: Pick<NightContext, "drinkCategory" | "zeroProof">): boolean {
   return !context.zeroProof && (!context.drinkCategory || context.drinkCategory === "beer");
 }

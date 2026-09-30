@@ -293,7 +293,28 @@ describe("runContextDevEventsLane", () => {
     expect((await capturedEvent(markdown, { ...event, startsAt: "2026-12-18T19:00:00Z" })).rows).toHaveLength(1);
   });
 
-  it.each(["CET", "PST", "cet", "Europe/Paris", "Eastern Standard Time"])("refuses unsupported explicit zone %s", async (zone) => {
+  it.each([
+    "20:00 until closing time",
+    "8pm start time",
+    "8PM TILL LATE",
+    "20:00 London time",
+    "20:00 UK time",
+  ])("reads %s as a London clock, not an unsupported zone", async (clock) => {
+    const result = await capturedEvent(`Quiz at The Dove on 18 August 2027 at ${clock}`, {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2027-08-18T19:00:00Z",
+    });
+    expect(result.rows).toHaveLength(1);
+    expect(result.failures).toEqual([]);
+  });
+
+  it("counts an event the page does not ground as ungrounded", async () => {
+    const result = await capturedEvent("Quiz at The Dove on 18 August 2027 at 20:00 CET", {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2027-08-18T19:00:00Z",
+    });
+    expect(result.dropped).toMatchObject({ ungrounded: 1, noTitle: 0, total: 1 });
+  });
+
+  it.each(["CET", "PST", "cet", "Europe/Paris", "Eastern Standard Time", "Paris time"])("refuses unsupported explicit zone %s", async (zone) => {
     const result = await capturedEvent(`Quiz at The Dove on 18 August 2027 at 20:00 ${zone}`, {
       title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2027-08-18T19:00:00Z",
     });

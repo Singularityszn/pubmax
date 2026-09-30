@@ -765,6 +765,7 @@ export function AuthProvider({
         const callbackAttempt = captured?.attempt ?? null;
         let exchange: AuthCallbackSessionResult<Session> | null = null;
         let verificationFailed = false;
+        let unownedAccountBanned = false;
         let confirmation: Extract<PreparedAuthCallbackSession<Session>, { status: "confirmation-required" }> | null = null;
         try {
           if (captured && callbackAttempt?.tokens && !callbackAttempt.providerError) {
@@ -787,6 +788,8 @@ export function AuthProvider({
               exchange = prepared.result;
             } else if (prepared.status === "confirmation-required") {
               confirmation = prepared;
+            } else if (prepared.status === "banned") {
+              unownedAccountBanned = true;
             } else {
               verificationFailed = true;
             }
@@ -801,7 +804,7 @@ export function AuthProvider({
         scrubLingeringBrowserAuthCallback();
         if (!active) return;
         if (exchange && captured) finishCallbackExchange(exchange, captured);
-        if (callbackAttempt?.accountBanned) {
+        if (callbackAttempt?.accountBanned || unownedAccountBanned) {
           setAuthBannedNotice(true);
           setAuthCallbackError(null);
         } else if (

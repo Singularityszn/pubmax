@@ -56,6 +56,7 @@ import {
   isHarvestableDrinkUpdateUrl,
 } from "@/lib/harvest/sourcePolicy";
 import { estimateForPub } from "@/lib/priceEstimate";
+import { normalizeSiteHarvestLedgerRow } from "@/lib/siteHarvestLedgerCore";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
 import {
   bundleRowSupersedes,
@@ -215,7 +216,8 @@ function collectRows(report) {
 
 /** Lane one: the prices a pub's or a chain's own site stated. */
 function addSiteHarvestRows(harvestRows, owners, push, report) {
-  for (const row of harvestRows) {
+  for (const ledgerRow of harvestRows) {
+    const row = normalizeSiteHarvestLedgerRow(ledgerRow);
     if (!isHarvestableDrinkUpdateUrl(row.sourceUrl ?? "")) {
       report.droppedRefusedHost += 1;
       continue;

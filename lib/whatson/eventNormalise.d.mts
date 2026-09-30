@@ -58,7 +58,7 @@ export type MapEventOpts = {
     | null;
 };
 
-export type EventDropReason = "noKind" | "noPlace" | "noStart" | "noUrl" | "noTitle";
+export type EventDropReason = "noKind" | "noPlace" | "noStart" | "noUrl" | "noTitle" | "ungrounded";
 
 export type EventDropCounts = Record<EventDropReason, number> & { total: number };
 

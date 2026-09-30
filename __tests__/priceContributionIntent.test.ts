@@ -135,6 +135,47 @@ describe("price contribution return intent", () => {
     ).toBe(false);
   });
 
+  it("keeps a picked venue's signed-out gate resumable once the map retires the URL intent", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    };
+    const events: string[] = [];
+    const actions = {
+      replaceUrl: (url: string) => events.push(`url:${url}`),
+      showSignIn: () => events.push("sign-in"),
+      openForm: () => events.push("form"),
+    };
+
+    runPriceContributionReturn({
+      authConfigured: true,
+      authLoading: false,
+      userPresent: false,
+      venueId: "venue-picked",
+      requestedVenueId: null,
+      currentUrl: "https://pubmaxxing.com/map?sel=venue-picked&contribute=price",
+      storage,
+      actions,
+    });
+    expect(events).toEqual(["sign-in"]);
+    expect(hasRememberedPriceContribution(storage, "venue-picked")).toBe(true);
+
+    events.length = 0;
+    runPriceContributionReturn({
+      authConfigured: true,
+      authLoading: false,
+      userPresent: true,
+      venueId: "venue-picked",
+      requestedVenueId: null,
+      currentUrl: "https://pubmaxxing.com/map?sel=venue-picked",
+      storage,
+      actions,
+    });
+    expect(events).toEqual(["url:/map?sel=venue-picked", "form"]);
+  });
+
   it("abandons a pending contribution rather than moving it to another venue", () => {
     const values = new Map<string, string>();
     const storage = {

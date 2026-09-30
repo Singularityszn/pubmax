@@ -136,6 +136,8 @@ type VenueInspectorProps = {
   onOpenComposerForLog?: () => void;
   revealRequest?: VenueRevealRequest | null;
   onInterruptReveal?: () => void;
+  /** The map retires its `contribute=price` picker once this venue takes it. */
+  onPriceIntentConsumed?: () => void;
 };
 
 function focusPriceDestination(id: string): void {
@@ -195,6 +197,7 @@ export default function VenueInspector({
   onOpenComposerForLog,
   revealRequest = null,
   onInterruptReveal,
+  onPriceIntentConsumed,
 }: VenueInspectorProps) {
   const revealInterrupted =
     revealRequest?.venueId === venue.id && revealRequest.interrupted;
@@ -383,9 +386,16 @@ export default function VenueInspector({
             selectTab("overview");
             setPriceSignInVenueId(venue.id);
             focusPriceDestination("venuePriceSignInTitle");
+            onPriceIntentConsumed?.();
           },
-          openForm: openPriceForm,
-          abandon: () => setPriceSignInVenueId(null),
+          openForm: () => {
+            openPriceForm();
+            onPriceIntentConsumed?.();
+          },
+          abandon: () => {
+            setPriceSignInVenueId(null);
+            onPriceIntentConsumed?.();
+          },
         },
       });
     });
@@ -393,6 +403,7 @@ export default function VenueInspector({
   }, [
     authConfigured,
     authLoading,
+    onPriceIntentConsumed,
     openPriceForm,
     priceSignInVenueId,
     selectTab,

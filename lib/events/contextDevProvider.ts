@@ -161,7 +161,9 @@ function dateAppearsInEvidence(date: string, evidence: string): boolean {
   return statedDates(evidence).some((stated) => stated.year === expected.year && sameStatedDay(stated, expected));
 }
 
-const STATED_CLOCK = /(?<![\p{L}\p{N}])(?:(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*([aApP][mM])|([01]?\d|2[0-3]):([0-5]\d))(?:\s*([zZ]|[+-](?:0\d|1[0-4]):[0-5]\d|[A-Za-z]+(?:\s+[A-Za-z]+){0,3}\s+[tT]ime|[A-Za-z]+\/[A-Za-z_]+|[gG][mM][tT]|[uU][tT][cC]|[bB][sS][tT]|[A-Z]{2,5}|[cC][eE][sS]?[tT]|[pPeEmMcC][sSdD][tT]|[iI][sS][tT]))?(?![\p{L}\p{N}])/gu;
+// Only a named zone counts as one. "until closing time", "start time" and
+// "TILL LATE" are ordinary words after a clock, never a zone.
+const STATED_CLOCK = /(?<![\p{L}\p{N}])(?:(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*([ap]m)|([01]?\d|2[0-3]):([0-5]\d))(?:\s*(z|[+-](?:0\d|1[0-4]):[0-5]\d|(?:africa|america|antarctica|asia|atlantic|australia|europe|indian|pacific)\/[a-z_]+|(?:london|uk|british\s+summer|greenwich\s+mean|(?:central|eastern|western)\s+european(?:\s+summer)?|(?:eastern|central|mountain|pacific|atlantic|alaska|hawaii)(?:\s+(?:standard|daylight))?|(?:irish|india|indian|japan)(?:\s+standard)?|paris|berlin|madrid|rome|amsterdam|dublin|new\s+york|los\s+angeles|tokyo|sydney)\s+time|gmt|utc|bst|cest|cet|eest|eet|edt|est|cdt|cst|mdt|mst|pdt|pst|akst|akdt|ist|jst|aest|aedt|awst|nzst|nzdt|hkt|sgt))?(?![\p{L}\p{N}])/giu;
 
 function londonWallClock(instant: string): { date: string; hour: number; minute: number } {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -198,13 +200,14 @@ function timeAppearsInEvidence(instant: string, section: string): boolean {
     const minute = Number(match[2] ?? match[5] ?? "0");
     if (match[3]) hour = hour % 12 + (match[3].toLowerCase() === "pm" ? 12 : 0);
 
-    const zone = match[6]?.toUpperCase();
-    if (!zone || zone === "LONDON TIME") {
+    const zone = match[6]?.toUpperCase().replace(/\s+/g, " ");
+    if (!zone || zone === "LONDON TIME" || zone === "UK TIME") {
       return hour === london.hour && minute === london.minute &&
         dateAppearsInEvidence(london.date, ` ${evidenceWords(section)} `);
     }
 
-    const offset = ["Z", "GMT", "UTC"].includes(zone) ? 0 : zone === "BST" ? 60 :
+    const offset = ["Z", "GMT", "UTC", "GREENWICH MEAN TIME"].includes(zone) ? 0 :
+      zone === "BST" || zone === "BRITISH SUMMER TIME" ? 60 :
       /^[+-]\d{2}:\d{2}$/.test(zone) ?
         (zone[0] === "-" ? -1 : 1) * (Number(zone.slice(1, 3)) * 60 + Number(zone.slice(4, 6))) : null;
     if (offset === null) return false;
@@ -541,7 +544,7 @@ export async function runContextDevEventsLane({
         : event).filter((event): event is RawContextDevEvent => event !== null)
       : [];
     const normalised = normaliseContextDevExtract({ events: grounded }, source, opts);
-    normalised.dropped.noTitle += Array.isArray(events) ? events.length - grounded.length : 0;
+    normalised.dropped.ungrounded += Array.isArray(events) ? events.length - grounded.length : 0;
     normalised.dropped.total += Array.isArray(events) ? events.length - grounded.length : 0;
     mergeEventDrops(dropped, normalised.dropped);
     if (!Array.isArray(events) || normalised.rows.length === 0 || normalised.dropped.total > 0) {
