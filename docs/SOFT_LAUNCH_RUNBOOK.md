@@ -10,17 +10,12 @@ _The MECHANISM of the PubMaxx v1 soft launch: how the deploy, the migrations, th
 
 ### 1.1 Deploy mechanism
 
-Vercel builds on every push through its Git integration. `vercel.json` sets the build command:
+The [deployment checks](DEPLOYMENT.md#continuous-integration-and-deployment-checks)
+own the Vercel build contract and local pre-push gate. The
+[CI runbook](CI_RUNBOOK.md) owns runner configuration and recovery;
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) owns CI triggers and commands.
 
-```json
-{ "buildCommand": "npm run validate-data && npm run build" }
-```
-
-This runs the data gate and the Next build only. It does not run lint, typecheck, tests, or the audit.
-
-**`docs/DEPLOYMENT.md` says the build command is `npm run ci` (the full gate). That is out of date.** PR [#748](https://github.com/Singularityszn/pubmax/pull/748) narrowed the Vercel build command on 2026-08-06 to cut build-hour cost. Tests, lint, and typecheck moved to GitHub Actions CI (`.github/workflows/ci.yml`).
-
-GitHub Actions CI runs on GitHub-hosted `ubuntu-latest` runners via `.github/workflows/ci.yml` (lint, `tsc --noEmit`, sharded `vitest run` on every pull request and on push to `main`). Hosted jobs can fail before execution when the repository has a billing or runner-allocation fault. That state is not a test failure, but it is still a release-gate failure. Record local `npm run ci` evidence and restore hosted execution before calling the release gate green. Do not repoint `runs-on` as a silent workaround: the runner label is the captain's own decision (Avrea on 6 September 2026 after GitHub-hosted allocation answered nothing for a day and a half, Blacksmith in #1652, GitHub-hosted `ubuntu-latest` on 15 September 2026 to stay inside the free minutes), and AGENTS.md records it.
+The captain decides runner changes.
 
 Effective RLS stays in `.github/workflows/rls-session.yml` (Postgres 16 + PostgREST 14). Keep both workflows green on every pull request.
 

@@ -42,6 +42,8 @@ basemaps (CARTO fallback) · Supabase (Postgres + Storage + RLS) · OpenRouter
 
 ## Quick start
 
+Use a Node.js release accepted by `engines.node` in [`package.json`](package.json).
+
 ```sh
 npm install
 npm run dev            # http://localhost:3000 — works with NO secrets
@@ -91,6 +93,7 @@ Useful scripts:
 | Command | What it does |
 |---|---|
 | `npm run dev` | Dev server |
+| `npm run typecheck` | Checks project types; [compiler compatibility](next.config.mjs) explains how this differs from the Next build check |
 | `npm run verify` | Local pre-push gate; its complete check sequence is defined by the `verify` script in [`package.json`](package.json). `test:rls` needs PostgreSQL 16; a host that genuinely cannot install one sets `PUBMAX_RLS_ALLOW_SKIP=1` to admit the skip out loud, because a skipped policy proof reported as a pass is what let an RLS hole live for four days |
 | `npm run ci` | `verify` + build - the full local gate; Vercel's build command is defined separately in [`vercel.json`](vercel.json) |
 | `npm run ci:isolated` | Collision-safe keyless `ci` in a unique temporary Next dist directory; restores Next-managed tracked files |
