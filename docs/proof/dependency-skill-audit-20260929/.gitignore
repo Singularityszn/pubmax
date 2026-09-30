@@ -1,0 +1,6 @@
+*
+!.gitignore
+!README.md
+!package-receipt.json
+!runtime-receipt.json
+!direct-lock-receipt.json
