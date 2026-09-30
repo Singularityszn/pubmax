@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { encodeCrawl, seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
 
@@ -21,6 +21,7 @@ const DEBOUNCE_MS = 300;
 // moment any crawl state changed.
 const OWNED_PASSTHROUGH_PARAMS = [
   "log",
+  "contribute",
   "plan",
   "sel",
   "accept",
@@ -71,16 +72,56 @@ export function crawlUrlWriteAllowed(
   return hold === null || encoded !== hold.encodedAtMount;
 }
 
+function writeCrawlUrl(encoded: string, preserveCrawlParam: boolean): void {
+  const query = mergeCrawlUrlSearch(
+    encoded,
+    window.location.search,
+    preserveCrawlParam,
+  );
+  const url = query
+    ? `${window.location.pathname}?${query}${window.location.hash}`
+    : `${window.location.pathname}${window.location.hash}`;
+  if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== url) {
+    window.history.replaceState(window.history.state, "", url);
+  }
+}
+
+// Filter and plan keys from encodeCrawl, excluding selection and surface keys.
+const CRAWL_CONTEXT_PARAMS = [
+  "mode", "style", "max", "stops", "win", "drops", "low",
+  "cocktails", "food", "q", "drink", "brand", "sub", "topshelf",
+  "zone", "pubs", "band", "alt", "crawl",
+] as const;
+
+function writeLandedCrawlContext(encoded: string, preserveCrawlParam: boolean): void {
+  // The landed entry owns selection, intents and place context. Only Map
+  // filters changed while a surface was open cross this history boundary.
+  const live = new URLSearchParams(window.location.search);
+  const selected = new URLSearchParams(encoded);
+  for (const key of CRAWL_CONTEXT_PARAMS) {
+    const value = selected.get(key);
+    if (key === "crawl" && preserveCrawlParam && value === null) continue;
+    if (value === null) live.delete(key);
+    else live.set(key, value);
+  }
+  const query = live.toString();
+  const url = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
+  if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== url) {
+    window.history.replaceState(window.history.state, "", url);
+  }
+}
+
 export function useCrawlUrlSync(
   state: CrawlUrlState,
   /** True when the reader arrived on a clean URL and a saved session was
    *  restored over it. The address then stays clean until they act. */
   holdCleanUrl = false,
   holdSeededCrawlParam = false,
-): void {
+): () => void {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hold = useRef<CleanUrlHold | undefined>(undefined);
   const crawlHold = useRef<CleanUrlHold | undefined>(undefined);
+  const latestWrite = useRef<{ encoded: string; preserveCrawlParam: boolean } | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -91,32 +132,30 @@ export function useCrawlUrlSync(
     if (crawlHold.current === undefined) {
       crawlHold.current = holdSeededCrawlParam ? { encodedAtMount: encoded } : null;
     }
-    if (!crawlUrlWriteAllowed(hold.current, encoded)) return;
+    if (!crawlUrlWriteAllowed(hold.current, encoded)) {
+      latestWrite.current = null;
+      return;
+    }
     hold.current = null;
     const preserveCrawlParam =
       crawlHold.current !== null &&
       crawlHold.current !== undefined &&
       holdSeededCrawlParam;
     if (!holdSeededCrawlParam) crawlHold.current = null;
+    latestWrite.current = { encoded, preserveCrawlParam };
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      const query = mergeCrawlUrlSearch(
-        encoded,
-        window.location.search,
-        preserveCrawlParam,
-      );
-      // Keep a clean pathname when nothing meaningful is encoded (no trailing `?`).
-      const url = query
-        ? `${window.location.pathname}?${query}${window.location.hash}`
-        : `${window.location.pathname}${window.location.hash}`;
-      if (`${window.location.pathname}${window.location.search}${window.location.hash}` === url) {
-        return;
-      }
-      window.history.replaceState(window.history.state, "", url);
-    }, DEBOUNCE_MS);
+    timer.current = setTimeout(() => writeCrawlUrl(encoded, preserveCrawlParam), DEBOUNCE_MS);
 
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
   }, [holdCleanUrl, holdSeededCrawlParam, state]);
+
+  return useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    if (latestWrite.current !== null) {
+      const { encoded, preserveCrawlParam } = latestWrite.current;
+      writeLandedCrawlContext(encoded, preserveCrawlParam);
+    }
+  }, []);
 }

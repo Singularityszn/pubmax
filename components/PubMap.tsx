@@ -702,17 +702,76 @@ function noAcceptedArrivalSource(): null {
   return null;
 }
 
-// D4 — take `log=1` off the current history entry. Idempotent, so it can run
-// again after a popstate restores an entry that still carries the flag.
+// Clear either price-entry intent from the current history entry. Repeating
+// this after popstate also clears an older entry carrying a dismissed intent.
 function dropLogParamFromUrl(): void {
   if (typeof window === "undefined") return;
-  if (!hasMapLogIntent(window.location.search)) return;
+  if (
+    !hasMapLogIntent(window.location.search) &&
+    new URLSearchParams(window.location.search).get("contribute") !== "price"
+  ) return;
   const query = clearMapLogIntentSearch(window.location.search);
+  const state = { ...window.history.state };
+  // Next treats __NA as its own write and skips notifying useSearchParams.
+  // Its native-history adapter restores the marker after publishing our URL.
+  delete state.__NA;
   window.history.replaceState(
-    window.history.state,
+    state,
     "",
     `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
   );
+}
+
+function useMapLogRequest(searchParams: ReturnType<typeof useSearchParams>) {
+  const [logIntentFallbackVisible, setLogIntentFallbackVisible] = useState(false);
+  // Dismiss the current request while Next's native-history adapter publishes
+  // its cleared URL. A later contribution request re-arms the picker.
+  const logIntentSearch = searchParams.toString();
+  const [logIntentDismissal, setLogIntentDismissal] = useState({
+    search: logIntentSearch,
+    cleared: false,
+  });
+  if (logIntentDismissal.search !== logIntentSearch) {
+    setLogIntentDismissal({
+      search: logIntentSearch,
+      cleared: logIntentDismissal.cleared &&
+        !hasMapLogIntent(searchParams) && searchParams.get("contribute") !== "price",
+    });
+  }
+  const logIntentCleared = logIntentDismissal.cleared;
+  const clearLogIntent = useCallback(() => {
+    setLogIntentFallbackVisible(false);
+    setLogIntentDismissal((current) => ({ ...current, cleared: true }));
+    dropLogParamFromUrl();
+  }, []);
+
+  const hasReactiveLogIntent = reactiveLogIntentActive(
+    hasMapLogIntent(searchParams),
+    logIntentCleared,
+  );
+  // The draft price passed to usePintDrops expires with its request.
+  const logIntentPrice = hasReactiveLogIntent
+    ? mapLogIntentPrice(searchParams)
+    : null;
+  useEffect(() => {
+    if (!logIntentCleared) return;
+    dropLogParamFromUrl();
+  });
+  useEffect(() => {
+    if (!logIntentCleared || typeof window === "undefined") return;
+    window.addEventListener("popstate", dropLogParamFromUrl);
+    return () => window.removeEventListener("popstate", dropLogParamFromUrl);
+  }, [logIntentCleared]);
+  const hasCategoryPriceIntent =
+    searchParams.get("contribute") === "price" && !logIntentCleared;
+  return {
+    logIntentFallbackVisible,
+    setLogIntentFallbackVisible,
+    clearLogIntent,
+    logIntentPrice,
+    hasReactiveLogIntent,
+    hasCategoryPriceIntent,
+  };
 }
 
 // hasCrawlArrivalParams (pure §4.5 deep-link probe) now lives in @/lib/pubMap.
@@ -1664,41 +1723,14 @@ export default function PubMap({
     if (!seed.bandId || !readBandChipDismissed(seed.bandId)) return new Set();
     return new Set([seed.bandId]);
   });
-  const [logIntentFallbackVisible, setLogIntentFallbackVisible] = useState(false);
-  // D4 — `log=1` is an owned URL passthrough, so it outlived every close and
-  // rearmed the pub picker each time. Leaving the flow disarms it: the flag
-  // leaves the URL, and this state stands the intent down for the render pass
-  // (a replaceState never re-runs Next's useSearchParams).
-  const [logIntentCleared, setLogIntentCleared] = useState(false);
-  const clearLogIntent = useCallback(() => {
-    setLogIntentFallbackVisible(false);
-    setLogIntentCleared(true);
-    dropLogParamFromUrl();
-  }, []);
-
-  // #1462 — the figure the SAME intent carries, or null. Stood down by exactly
-  // the thing that stands the flag down, because `clearMapLogIntentSearch`
-  // takes the price off the URL with the flag, so a cleared intent can never
-  // leave a figure armed. Declared here because the composer's own draft
-  // hydration owns the field, so the seed rides into `usePintDrops` below.
-  const logIntentPrice = reactiveLogIntentActive(hasMapLogIntent(searchParams), logIntentCleared)
-    ? mapLogIntentPrice(searchParams)
-    : null;
-  // Closing the sheet pops the Map surface entry, and the clean entry
-  // underneath still carries `log=1` - it is an owned
-  // passthrough there too, written before the reader left the flow. So one
-  // strip is not enough: hold the URL clean for the rest of the session, on
-  // every render and on every history pop. Otherwise Back or a reload rearms
-  // the picker the reader just closed.
-  useEffect(() => {
-    if (!logIntentCleared) return;
-    dropLogParamFromUrl();
-  });
-  useEffect(() => {
-    if (!logIntentCleared || typeof window === "undefined") return;
-    window.addEventListener("popstate", dropLogParamFromUrl);
-    return () => window.removeEventListener("popstate", dropLogParamFromUrl);
-  }, [logIntentCleared]);
+  const {
+    logIntentFallbackVisible,
+    setLogIntentFallbackVisible,
+    clearLogIntent,
+    logIntentPrice,
+    hasReactiveLogIntent,
+    hasCategoryPriceIntent,
+  } = useMapLogRequest(searchParams);
   const [tonightOverlayVisible, setTonightOverlayVisible] = useState(false);
   const [tonightDismissed, setTonightDismissed] = useState<boolean>(
     readTonightOverlayDismissed,
@@ -3026,10 +3058,6 @@ export default function PubMap({
     viewportSettled: mapBounds !== null,
   });
 
-  const hasReactiveLogIntent = reactiveLogIntentActive(
-    hasMapLogIntent(searchParams),
-    logIntentCleared,
-  );
   const shouldBuildSuggestedRoute = suggestedRouteWanted({
     hasReactiveLogIntent,
     planningOpen,
@@ -3123,7 +3151,7 @@ export default function PubMap({
   // session is held back from the address bar until the reader changes
   // something: they typed a clean /map, and that address wins over stored
   // state. Restoring the map itself is untouched.
-  useCrawlUrlSync(
+  const syncLandedCrawlContext = useCrawlUrlSync(
     useMemo(
       () => ({
         mode,
@@ -3365,8 +3393,10 @@ export default function PubMap({
         undefined,
         logNearbyOrigin?.origin ?? null,
         LOG_NEARBY_MAX_KM,
+        mapDrinkLensCategory,
+        drinkLensPrices,
       ),
-    [filteredPubVenues, logNearbyOrigin],
+    [filteredPubVenues, logNearbyOrigin, mapDrinkLensCategory, drinkLensPrices],
   );
 
   const showLoadedRoute = useCallback(
@@ -3955,10 +3985,13 @@ export default function PubMap({
   const resetLogIntentFilters = useCallback(() => {
     setSavedOnly(false);
     setSavedIds(readSavedVenueIds());
-    setFilters(seedCrawlState("").filters);
+    setFilters((current) => ({
+      ...seedCrawlState("").filters,
+      ...(hasCategoryPriceIntent ? { drinkCategory: current.drinkCategory } : {}),
+    }));
     closePlanning();
     focusMapSearch();
-  }, [closePlanning, focusMapSearch, setFilters]);
+  }, [closePlanning, focusMapSearch, hasCategoryPriceIntent, setFilters]);
 
   // #395 R1: clear only the search query and unfilter the map. Used by the
   // mobile active-search chip so a restored (or typed) query is never an
@@ -3998,9 +4031,9 @@ export default function PubMap({
     (venueId: string) => {
       setLogIntentFallbackVisible(false);
       selectVenue(venueId);
-      openComposerForLog();
+      if (!hasCategoryPriceIntent) openComposerForLog();
     },
-    [openComposerForLog, selectVenue],
+    [hasCategoryPriceIntent, openComposerForLog, selectVenue, setLogIntentFallbackVisible],
   );
 
   const handleInspectorTabSelect = useCallback(
@@ -4012,11 +4045,12 @@ export default function PubMap({
     [setSheetDragY, setSheetSnap],
   );
 
-  // Core-loop entry point: the mobile Log FAB links to /map?log=1. Once the
-  // fast venue list exists, turn that intent into the existing single composer
-  // path: pick the best visible pub, open its sheet, and open the composer.
+  // Wait for the reader to choose a pub before opening either price flow.
+  // Category capture belongs to VenueInspector; legacy Pint Drop entry uses
+  // openComposerForLog so its price-step reveal stays on that path alone.
   useLogIntent({
     hasLogIntent: hasReactiveLogIntent,
+    hasCategoryPriceIntent,
     loaded,
     firstFilteredVenueId,
     firstRouteId,
@@ -4441,15 +4475,20 @@ export default function PubMap({
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
       if (targetCityId && targetCityId !== cityId) {
         // Full navigation resets city-specific map state before the target city loads.
+        const params = new URLSearchParams({ sel: id });
+        if (hasCategoryPriceIntent) {
+          if (mapDrinkLensCategory) params.set("drink", mapDrinkLensCategory);
+          params.set("contribute", "price");
+        }
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.assign(
-          `${cityMapShareUrl(targetCityId)}?sel=${encodeURIComponent(id)}`,
+          `${cityMapShareUrl(targetCityId)}?${params}`,
         );
         return;
       }
       selectVenue(id, "overview");
     },
-    [cityId, selectVenue, trimmedMapQuery],
+    [cityId, hasCategoryPriceIntent, mapDrinkLensCategory, selectVenue, trimmedMapQuery],
   );
   const selectUkBasePubFromSearch = useCallback(
     (pub: UkBasePub) => {
@@ -4571,7 +4610,7 @@ export default function PubMap({
   const changeMapOverlay = useCallback((next: MapOverlay) => {
     setChooseAreaOpening(false);
     // Leaving the phone "Choose a pub" sheet leaves the Drop flow (D4).
-    if (next !== "moment") clearLogIntent();
+    if (next !== "moment" && !(next === "search" && hasCategoryPriceIntent)) clearLogIntent();
     if (next !== "none" && isMobileViewport()) {
       setPlanningOpen(false);
       setSelectedVenueId("");
@@ -4583,7 +4622,7 @@ export default function PubMap({
     clearAreaSheetTimer();
     setSearchAreaTarget(null);
     setMapOverlay(next);
-  }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen]);
+  }, [clearAreaSheetTimer, clearLogIntent, closeComposer, hasCategoryPriceIntent, setPlanningOpen]);
 
   const openChooseArea = useCallback((locationNote?: string | null, openingFlow = false) => {
     setChooseAreaLocationNote(locationNote ?? null);
@@ -4825,6 +4864,7 @@ export default function PubMap({
     selectionHint,
     onRestore: restoreMapSurface,
     onHome: closeEverySurface,
+    onSurfaceClose: syncLandedCrawlContext,
   });
   const {
     rejectSelection: rejectMapSelection,
@@ -5850,11 +5890,13 @@ export default function PubMap({
         momentContent={
           <LogIntentFallback
             candidates={logNearbyCandidates}
+            categoryPriceIntent={hasCategoryPriceIntent}
             origin={logNearbyOrigin?.source ?? null}
             filteredPubVenueCount={filteredPubVenueCount}
             onPickVenue={pickLogNearbyVenue}
             onPrefetchVenue={prefetchVenueDetail}
             onFocusSearch={() => {
+              setLogIntentFallbackVisible(false);
               changeMapOverlay("search");
               requestAnimationFrame(focusMapSearch);
             }}
@@ -6322,11 +6364,15 @@ export default function PubMap({
       {!mobileViewport && logIntentFallbackVisible ? (
         <LogIntentFallback
           candidates={logNearbyCandidates}
+          categoryPriceIntent={hasCategoryPriceIntent}
           origin={logNearbyOrigin?.source ?? null}
           filteredPubVenueCount={filteredPubVenueCount}
           onPickVenue={pickLogNearbyVenue}
           onPrefetchVenue={prefetchVenueDetail}
-          onFocusSearch={focusMapSearch}
+          onFocusSearch={() => {
+            setLogIntentFallbackVisible(false);
+            focusMapSearch();
+          }}
           onResetFilters={resetLogIntentFilters}
           onDismiss={clearLogIntent}
         />

@@ -87,7 +87,7 @@ describe("price contribution return intent", () => {
     };
     const events: string[] = [];
     let currentUrl =
-      "https://pubmaxxing.com/map?sel=venue-16pnwmm";
+      "https://pubmaxxing.com/map/bristol?drink=wine&sel=venue-16pnwmm";
     const actions = {
       replaceUrl: (url: string) => {
         currentUrl = `https://pubmaxxing.com${url}`;
@@ -107,7 +107,7 @@ describe("price contribution return intent", () => {
     });
 
     expect(events).toEqual([
-      "url:/map?sel=venue-16pnwmm&contribute=price",
+      "url:/map/bristol?drink=wine&sel=venue-16pnwmm&contribute=price",
       "sign-in",
     ]);
     expect(
@@ -127,7 +127,7 @@ describe("price contribution return intent", () => {
     });
 
     expect(events).toEqual([
-      "url:/map?sel=venue-16pnwmm",
+      "url:/map/bristol?drink=wine&sel=venue-16pnwmm",
       "form",
     ]);
     expect(

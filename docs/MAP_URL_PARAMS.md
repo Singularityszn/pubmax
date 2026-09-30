@@ -23,9 +23,27 @@ The map builds its state from the URL in layers:
   `lng`, `band`, `crawl`, and `pubs` on the server, mainly to build page
   metadata and the Open Graph image.
 
-`city` is not a query parameter. It is a Next.js route segment
-(`/map/[city]`). It is in this table because it is part of the map URL
-contract.
+The city that loads is selected by the Next.js route segment (`/map/[city]`).
+The `/map` route loads London. Crawl-state rewrites preserve the pathname.
+
+## History and filter synchronisation
+
+`useMapSurfaceNavigation` owns the map's sheet history. When Back, Forward,
+or Home traverses related sheet entries on the same pathname, it calls the
+synchronisation callback returned by `useCrawlUrlSync`. That callback cancels
+pending debounced writes and copies the current crawl filters, ordered stops,
+and crawl identity onto the landed URL in one replacement. An edited route
+clears the old `crawl` identity so reload restores its `pubs` instead. While
+arrival hydration is pending, an incoming `crawl` survives until the map can
+resolve it. Selection, contribution intent, place context, and the
+hash stay with the landed entry, so a closed venue is not reopened by a stale
+write. This also applies when reopening an earlier sheet produced a trail of
+the same length.
+
+Separate route visits and earlier root entries keep their own URLs. A clean
+arrival restored from a saved session stays clean until the reader changes
+the crawl state. Regression cases live in
+[`mapCrawlUrlSync.test.tsx`](../__tests__/mapCrawlUrlSync.test.tsx).
 
 ## Fail-soft for an unknown `?sel=`
 
@@ -78,9 +96,10 @@ While the card is on screen, the analytics consent prompt stands down. See
 | `band` | A story-band id | `lib/crawlUrl.ts` | Sets the active story-band. Not checked against the band list in this module; an unknown id simply shows no band elsewhere. | Trimmed only. No validation here. | Yes, same debounced sync. |
 | `landmark` | A landmark chapter id | `lib/crawlUrl.ts` | Deep-links to a landmark chapter. | Trimmed only. No validation here. | Yes, same debounced sync. |
 | `alt` | One of `pint`, `food`, `coffee`, `mocktail` | `lib/crawlUrl.ts` | Sets the alt crawl style. | A value outside this set is ignored. The state stays the default, `pint`. | Yes, same debounced sync. Omitted when it is the default `pint`. |
-| `crawl` | A curated crawl id | `lib/crawlUrl.ts` | Loads a named curated crawl. | Passed through `normalizeCrawlId`: lower-cased, non-alphanumeric runs become a dash, leading and trailing dashes trimmed, cut to 80 characters. Never throws on a malformed id. | Yes, same debounced sync. |
-| `log` | `1` | `lib/mapLogIntent.ts` | Arms the Drop-intent flow so the map opens the log composer for the resolved venue. | Only the exact value `1` counts. Any other value, or absence, is false. | Preserved across every crawl-state URL rewrite as an owned passthrough param (`OWNED_PASSTHROUGH_PARAMS`, `components/map/useCrawlUrl.ts`), so it survives closing the venue sheet or the pub picker. |
-| `plan` | `1` | `lib/mapArrival.ts` | Forces the crawl planner drawer open on first paint. | Only the exact value `1` opens the planner from this param. Other values fall through to the ordinary open rules (built stops, `mode=build`, or `style=`/`mode=` present). | Preserved as an owned passthrough param, same as `log`. |
+| `crawl` | A curated crawl id | `lib/crawlUrl.ts` | Loads a named curated crawl. | Passed through `normalizeCrawlId`: lower-cased, non-alphanumeric runs become a dash, leading and trailing dashes trimmed, cut to 80 characters. Never throws on a malformed id. | Written with the current stops. See [History and filter synchronisation](#history-and-filter-synchronisation) for identity clearing and pending hydration. |
+| `log` | `1` | `lib/mapLogIntent.ts` | Arms the legacy Pint Drop composer for a resolved pub, or asks the reader to choose a pub. | Only the exact value `1` counts. Any other value, or absence, is false. | Preserved through crawl-state rewrites while active. Leaving the flow clears it and its `price` seed; dismissal does not block a new request. |
+| `contribute` | `price` | `lib/priceContributionIntent.ts` | Requests the selected pub's category price form, or opens the pub picker until a pub is selected. `VenueInspector` handles sign-in and form entry. | Only the exact value `price` requests the flow. It grants no write permission. | Preserved through crawl-state rewrites and sign-in return with the city path, drink, and venue. Consumed when the form opens or the request is abandoned; dismissing the picker clears it. |
+| `plan` | `1` | `lib/mapArrival.ts` | Forces the crawl planner drawer open on first paint. | Only the exact value `1` opens the planner from this param. Other values fall through to the ordinary open rules (built stops, `mode=build`, or `style=`/`mode=` present). | Preserved as an owned passthrough param during crawl-state rewrites. |
 | `accept` | `1` | `lib/mapAcceptance.ts` | Requests the accepted-arrival receipt for `sel`. URL text is not acceptance authority. | Counts only when `sel`, `src`, city, and a live stored PlanningIntent agree. A forged, mismatched, or expired marker is ordinary browsing. | Preserved while the same Venue remains selected. A switch or pin tap strips `accept` and `src`, so acceptance never leaks to another Venue. |
 | `src` | Either an acceptance source (`near`, `map-search`, `tonight`, `pal`) when `accept=1` is present, or a Tonight vertical token (`whats-on-quiz`, `whats-on-sport`, `whats-on-deal`, `whats-on-music`) read independently | `lib/mapAcceptance.ts` (acceptance source), `components/PubMap.tsx` (Tonight deep link) | With a verified accepted arrival, names where acceptance happened. On its own, opens the Tonight lane pre-filtered to that kind, London only. | Acceptance path: must match the stored PlanningIntent and `PLANNING_INTENT_SOURCES`. Tonight path: a value outside the four vertical tokens opens no forced lane. | Preserved with the verified same-Venue arrival. The Tonight lane can also be dismissed per value (`dismissedTonightSrc`). |
 | `at` | `<lat>,<lng>`, 4 decimal places | `lib/mapSelectionHistory.ts` | Carries a UK base pub's rounded coordinates alongside `sel`, so a shared or reloaded link knows which shard cell to stream and where to centre the camera. | Malformed input (wrong part count, non-finite numbers, or out-of-range lat/lng) is ignored; the hint is treated as absent. | Preserved as an owned passthrough param. Cleared whenever the selection changes to a non-base pub, so a stale hint never survives a switch. |

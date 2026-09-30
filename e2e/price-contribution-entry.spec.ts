@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 const SEED_VENUE_ID = "venue-16pnwmm";
 const SEED_VENUE_NAME = "Prospect of Whitby";
@@ -19,6 +20,112 @@ test.beforeEach(async ({ page }) => {
 // The ONE price door on the Overview (lib/pintTrust.ts, `overviewPriceDoor`):
 // the composer is folded behind it, and the sticky bar carries no price action.
 const DOOR_NAME = `Log tonight's price at ${SEED_VENUE_NAME}`;
+
+test("Create reopens an identical Wine request after Filters and dismissal", async ({ page }) => {
+  await installDeterministicMapBasemap(page);
+  await page.goto("/map/manchester?drink=wine");
+  const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+  await expect(async () => {
+    await page.getByRole("button", { name: /^Filters/ }).click();
+    await expect(filters).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+  await page.keyboard.press("Escape");
+  await expect(filters).toHaveCount(0);
+
+  const picker = page.getByText("Pick a pub to log a price", { exact: true });
+  for (let request = 0; request < 2; request += 1) {
+    await page.getByTestId("create-fab").click();
+    await page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }).click();
+    await expect(picker).toBeVisible({ timeout: 45_000 });
+    expect(new URL(page.url()).searchParams.get("contribute")).toBe("price");
+    expect(new URL(page.url()).searchParams.get("drink")).toBe("wine");
+    expect(new URL(page.url()).pathname).toBe("/map/manchester");
+    await page.keyboard.press("Escape");
+    await expect(picker).toBeHidden();
+    await expect.poll(() => new URL(page.url()).searchParams.get("contribute")).toBeNull();
+  }
+});
+
+for (const { width, city, drink } of [
+  { width: 390, city: "manchester", drink: "wine" },
+  { width: 1440, city: "bristol", drink: "cocktail" },
+] as const) {
+  test(`${width}px ${width === 390 ? "Create reopens a dismissed" : "contribution URL opens a"} ${drink} request and preserves its category on reset`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await installDeterministicMapBasemap(page);
+    await page.goto(`/map/${city}?drink=${drink}&q=zzzznonexistentpub${width === 1440 ? "&contribute=price" : ""}`);
+    const picker = page.getByText("Pick a pub to log a price", { exact: true });
+    if (width === 390) {
+      for (let request = 0; request < 2; request += 1) {
+        await expect(async () => {
+          await page.getByTestId("create-fab").click();
+          await expect(page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }))
+            .toBeVisible({ timeout: 1_000 });
+        }).toPass({ timeout: 20_000 });
+        await page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }).click();
+        await expect(picker).toBeVisible({ timeout: 45_000 });
+        if (request === 0) {
+          await page.keyboard.press("Escape");
+          await expect(picker).toBeHidden();
+          await expect.poll(() => new URL(page.url()).searchParams.get("contribute")).toBeNull();
+        }
+      }
+    } else {
+      await expect(picker).toBeVisible({ timeout: 45_000 });
+    }
+    await page.getByRole("button", { name: "Show all pubs", exact: true }).click();
+    await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBeNull();
+    expect(new URL(page.url()).searchParams.get("drink")).toBe(drink);
+    const nearby = page.locator(".logIntentNearbyBtn").first();
+    await expect(nearby).toBeVisible();
+    await nearby.click();
+    await expect(page.getByRole("textbox", { name: new RegExp(`Price of a ${drink} at`) }))
+      .toBeVisible({ timeout: 30_000 });
+    expect(new URL(page.url()).pathname).toBe(`/map/${city}`);
+    await expect(page.getByTestId("spill-price-step")).toHaveCount(0);
+  });
+
+  test(`${width}px contribution search stays open as results change`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await installDeterministicMapBasemap(page);
+    await page.goto(`/map/${city}?drink=${drink}&contribute=price`);
+    const picker = page.locator(".logIntentFallback");
+    await expect(picker).toBeVisible({ timeout: 45_000 });
+    await picker.getByRole("button", { name: "Search pubs", exact: true }).click();
+    const search = page.locator(width === 390 ? "#mobileMapSearchInput" : "#mapSearchInput");
+    await expect(search).toBeVisible();
+    await search.fill("zzzznonexistentpub");
+    await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBe("zzzznonexistentpub");
+    await expect(search).toBeVisible();
+    await expect(search).toBeFocused();
+    await expect(picker).toBeHidden();
+    expect(new URL(page.url()).searchParams.get("contribute")).toBe("price");
+    expect(new URL(page.url()).searchParams.get("drink")).toBe(drink);
+  });
+}
+
+for (const [drink, noun] of [["wine", "wine"], ["cocktail", "cocktail"]] as const) {
+  test(`Create routes ${drink} through the category price form`, async ({ page }) => {
+    await installDeterministicMapBasemap(page);
+    await page.goto(`/map?drink=${drink}`);
+    await expect(async () => {
+      await page.getByTestId("create-fab").click();
+      await expect(page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }))
+        .toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    await page.locator(".createFabMenu").getByRole("link", { name: "Log a price" }).click();
+    await expect(page).toHaveURL(new RegExp(`drink=${drink}.*contribute=price`));
+    const picker = page.getByText("Pick a pub to log a price");
+    await expect(picker).toBeVisible({ timeout: 45_000 });
+    const nearby = page.locator(".logIntentNearbyBtn").first();
+    await expect(nearby).toBeVisible();
+    await nearby.click();
+    await expect(page.getByRole("textbox", { name: new RegExp(`Price of a ${noun} at`) }))
+      .toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId("spill-price-step")).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`drink=${drink}.*sel=[^&]+`));
+  });
+}
 
 test("a drinker opens the folded price form from the one price door", async ({
   page,
