@@ -91,7 +91,7 @@ import {
   type CapturedAuthCallback,
 } from "@/lib/authRedirect";
 import { authedActionFetch, publishAuthActionState } from "@/lib/authedFetch";
-import { normalizeHandle } from "@/lib/profiles";
+import { normalizeHandle } from "@/lib/handleNormalize";
 import {
   claimSignupReferralFromAuthCallback,
   withReferralSignupProof,

@@ -3,7 +3,7 @@
 // in the server-only stores (pintDropsStore/profileStore/etc.), which in turn
 // import `sharp` and other Node built-ins that Next's client compiler refuses.
 
-import { normalizeHandle } from "@/lib/profiles";
+import { normalizeHandle } from "@/lib/handleNormalize";
 
 const HANDLE_KEY = "pubmax_handle";
 

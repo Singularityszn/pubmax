@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 
 import {
+  avatarInitialFromHandle,
   computeBadges,
   deriveProfileFromDrops,
   formatCheapestPint,
@@ -15,6 +16,8 @@ import {
   REGULAR_THRESHOLD,
   type ProfileDrop,
 } from "@/lib/profiles";
+import { avatarInitialFromHandle as canonicalAvatarInitialFromHandle } from "@/lib/handleDisplay";
+import { normalizeHandle as canonicalNormalizeHandle } from "@/lib/handleNormalize";
 import { handlePrefixLikePattern } from "@/lib/profileStore";
 import {
   removeSaved,
@@ -38,6 +41,10 @@ function saved(overrides: Partial<SavedPub> = {}): SavedPub {
 }
 
 describe("normalizeHandle", () => {
+  it("keeps the profiles compatibility export identical to the pure leaf", () => {
+    expect(normalizeHandle).toBe(canonicalNormalizeHandle);
+  });
+
   it("lowercases and strips a leading @", () => {
     expect(normalizeHandle("@Foo_Bar")).toBe("foo_bar");
   });
@@ -65,6 +72,12 @@ describe("normalizeHandle", () => {
     expect(normalizeHandle(undefined)).toBe("");
     // @ts-expect-error — guarding a non-string caller
     expect(normalizeHandle(42)).toBe("");
+  });
+});
+
+describe("avatarInitialFromHandle compatibility export", () => {
+  it("re-exports the pure display-leaf helper unchanged", () => {
+    expect(avatarInitialFromHandle).toBe(canonicalAvatarInitialFromHandle);
   });
 });
 

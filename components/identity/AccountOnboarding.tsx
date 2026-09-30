@@ -28,7 +28,7 @@ import {
   syncDeviceHandle,
 } from "@/lib/identityClient";
 import { londonCalendarDate } from "@/lib/privateIdentity";
-import { normalizeHandle } from "@/lib/profiles";
+import { normalizeHandle } from "@/lib/handleNormalize";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
 import { accountClaimReturnToFromUrl } from "@/lib/accountClaimReturnTo";

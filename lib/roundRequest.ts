@@ -6,7 +6,7 @@ import {
   type AccountAuthSnapshot,
   type AccountBoundRequest,
 } from "@/lib/accountBoundFetch";
-import { normalizeHandle } from "@/lib/profiles";
+import { normalizeHandle } from "@/lib/handleNormalize";
 
 export type RoundRequestIdentity =
   | Readonly<{ kind: "anonymous" }>

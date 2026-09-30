@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 
-import { avatarInitialFromHandle } from "@/lib/profiles";
+import { avatarInitialFromHandle } from "@/lib/handleDisplay";
 import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
 
 type HandleAvatarProps = {

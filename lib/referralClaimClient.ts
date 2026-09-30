@@ -5,7 +5,7 @@ import {
 } from "@/lib/authRedirect";
 import { storeReferralFollowHandle } from "@/lib/referralFollowBack";
 import { referralSignupClaimFromUrl } from "@/lib/referrals";
-import { normalizeHandle } from "@/lib/profiles";
+import { normalizeHandle } from "@/lib/handleNormalize";
 
 type ReferralClaimRequest = (
   input: string,

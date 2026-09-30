@@ -11,7 +11,7 @@ import {
   emitDeviceIdentityChanged,
 } from "@/lib/deviceAccountIdentity";
 import { discardBody } from "@/lib/responseBody";
-import { normalizeHandle } from "@/lib/profiles";
+import { normalizeHandle } from "@/lib/handleNormalize";
 import { clearClaimedRoundAnonymousHandle } from "@/lib/roundRequest";
 
 export const IDENTITY_HANDLE_CHANGED_EVENT = "pubmaxx:identity-handle-changed";

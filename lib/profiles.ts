@@ -299,17 +299,8 @@ export { HANDLE_MAX } from "@/lib/handleNormalize";
 export const normalizeHandle: (raw: string | null | undefined) => string =
   normalizeHandleCore;
 
-/**
- * Initials for a handle-backed surface. Never leaks withheld handles.
- *
- * It lives in this leaf module, not beside the avatar URL resolver, because
- * client avatars call it: `lib/avatarResolve.ts` reaches the profile store and
- * therefore `node:crypto`, which a browser bundle cannot build.
- */
-export function avatarInitialFromHandle(handle: string, displayName?: string): string {
-  const source = (displayName?.trim() || normalizeHandle(handle)).trim();
-  return (source.charAt(0) || "?").toUpperCase();
-}
+// Compatibility export; new display code uses the focused browser-safe leaf.
+export { avatarInitialFromHandle } from "@/lib/handleDisplay";
 
 // Turn a normalized handle into a friendly display name for the demo. We split
 // on underscores and title-case the words: "cheap_pint_ken" → "Cheap Pint Ken".
