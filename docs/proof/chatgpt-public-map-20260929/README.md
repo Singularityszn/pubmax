@@ -74,15 +74,7 @@ This review phase ran only the focused browser proof after the fixes. The separa
 
 ## Current checks
 
-The review-fix source and curated receipts are retained in commit `99c8fb9314939ffc79173d21b0d04a706741a509`. These are recorded runs; the documentation and lint phase does not rerun them. Final committed-head validation and reviewed GitHub publication remain pending.
-
-Fresh on the review-fix source:
-
-- Eight Node tests pass: public whitelist and retirement, explicit publisher attribution, bounded borough results and coordinates, exact dataset borough names, shared London price bands, real MCP client protocol with the borough enum and refused inputs, foreign Host refusal and shared theme projection.
-- Actual public dataset results render in Chromium at 390px and 1440px. Three listed pubs, the visible pub-data attribution, named pin buttons, native Enter and Space, an opened popup that clears attribution, canonical selected-pub link and no horizontal overflow pass.
-- Module and street request failures retain their status after subsequent real MCP results.
-- Pub and publisher links reach the controlled host. Denied and unsupported link requests show the address without horizontal overflow.
-- The SDK client answers host `ping` and `ui/resource-teardown` at 390px and 1440px. A tool result after teardown rebuilds nothing, and host theme and context changes set the rendered colours.
+The [three-price popup follow-up](#three-price-popup-follow-up-30-september-2026) owns the latest recorded browser result at 390px and 1440px. Its receipt identifies the current widget, server and browser-driver bytes. The latest separate nine-case lifecycle result is in the [publisher disclosure follow-up](#publisher-disclosure-follow-up-30-september-2026) and predates the popup change. Earlier Node and SDK browser results stay in their respective follow-up sections. These are recorded runs; this documentation and lint phase does not rerun them. Final committed-head validation and reviewed GitHub publication remain pending.
 
 Recorded on the first candidate and not rerun in the review rounds; the pipeline's own test and build steps cover the final source:
 
@@ -92,4 +84,4 @@ Recorded on the first candidate and not rerun in the review rounds; the pipeline
 
 Map tiles and pinned MapLibre modules are real network resources. The local host bridge is controlled. It answers initialization with a host context, delivers actual MCP tool results, sends `ping`, teardown and host-context changes, enforces the resource's declared CSP and handles content-size notifications. The iframe uses `allow-scripts allow-same-origin` on a separate origin. These checks establish rendering and local protocol behaviour, not authenticated ChatGPT hosting or distribution acceptance.
 
-[Before keyboard and worker fixes](1440-Enter-before.png) and [before host-link handling](1440-link-before.png) are baseline failure captures. The [phone screenshot](390.png), [desktop screenshot](1440.png) and [browser receipt](receipt.json) are fresh from the review-fix source. Raw logs and other captures stay in ignored local artifacts.
+[Before keyboard and worker fixes](1440-Enter-before.png) and [before host-link handling](1440-link-before.png) are baseline failure captures. The [phone screenshot](390.png), [desktop screenshot](1440.png) and [browser receipt](receipt.json) record the earlier attribution and SDK review fixes, before the lifecycle, publisher and popup follow-ups. Raw logs and other captures stay in ignored local artifacts.

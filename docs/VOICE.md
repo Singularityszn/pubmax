@@ -11,7 +11,7 @@ PUBMAX sounds like a Londoner who knows the pub, not a brand that owns one. Dry,
 Say it the way you'd say it to a mate, not the way a startup says it in a deck.
 
 - London pints cost a fortune. We show you what every pub actually charges, so you stop guessing and stop overpaying.
-- Every price says exactly what its own record supports. When the record names a publisher, name and link it. When no publisher is recorded for that price, say so plainly beside the figure. Never infer one from venue notes, image credits, or unrelated metadata. The ones logged by drinkers carry the day they were seen; only the people-logged lanes carry per-row dates. No made-up numbers.
+- Every price says exactly what its own record supports. When the record names a publisher, show its valid label and link it only if the URL is safe. If the URL is refused, keep the label as plain text and say "Link unavailable." Reserve "Publisher not recorded" for a price with no valid recorded publisher label. Never infer one from venue notes, image credits, or unrelated metadata. The ones logged by drinkers carry the day they were seen; only the people-logged lanes carry per-row dates. No made-up numbers.
 - Nobody buys their way to the top. There's a hard wall in the code (`lib/sponsorship.ts`) between paid placements and the prices you see. A sponsored thing says "Sponsored" and sits in its own slot. Prices are never for sale.
 
 Never write the mission as a mission. No "we're on a journey to democratise fair pricing." State the problem, hand the reader a choice, move on.
