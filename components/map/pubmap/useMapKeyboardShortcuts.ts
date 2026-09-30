@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 type KeyboardShortcutArgs = {
   planningOpen: boolean;
   selectedVenueId: string;
@@ -15,17 +15,25 @@ type KeyboardShortcutArgs = {
 // setState in the effect BODY, not in listeners it registers).
 // Kept in a small hook so PubMap owns navigation while reveal interruption
 // remains part of the same Escape path.
-export function useMapKeyboardShortcuts({
-  planningOpen,
-  selectedVenueId,
-  onBack,
-  onInterruptReveal,
-  logIntentFallbackVisible,
-  dismissLogIntent,
-}: KeyboardShortcutArgs) {
+export function useMapKeyboardShortcuts(args: KeyboardShortcutArgs) {
+  const currentArgs = useRef(args);
+  useLayoutEffect(() => {
+    currentArgs.current = args;
+  }, [args]);
+
+  // Keep registration stable: an earlier key listener can rerender the map
+  // during dispatch, and replacing this listener would drop that same key.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onKeyDown = (event: KeyboardEvent) => {
+      const {
+        planningOpen,
+        selectedVenueId,
+        onBack,
+        onInterruptReveal,
+        logIntentFallbackVisible,
+        dismissLogIntent,
+      } = currentArgs.current;
       // A popover that handled Escape (city switcher, layers, price, zone,
       // status banner) claims the key via preventDefault — one Escape closes
       // one layer, never the drawer underneath it too.
@@ -56,12 +64,5 @@ export function useMapKeyboardShortcuts({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [
-    dismissLogIntent,
-    logIntentFallbackVisible,
-    onBack,
-    onInterruptReveal,
-    planningOpen,
-    selectedVenueId,
-  ]);
+  }, []);
 }

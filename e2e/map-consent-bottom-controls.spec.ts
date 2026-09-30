@@ -1,7 +1,9 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
-test.use({ storageState: { cookies: [], origins: [] } });
+// The production service worker registers on /places and then answers basemap
+// requests itself, past page.route(), so the refused raster tiles never fail.
+test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: "block" });
 
 async function prepareMap(page: Page, width: number, consent: boolean) {
   await page.setViewportSize({ width, height: 900 });

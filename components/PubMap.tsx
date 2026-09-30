@@ -5070,6 +5070,7 @@ export default function PubMap({
   // triggered the open rather than dropping it to <body>.
   const drawerCloseButtonRef = useRef<HTMLButtonElement | null>(null);
   const detailDrawerRef = useRef<HTMLDivElement | null>(null);
+  const detailWasOpenRef = useRef(false);
   // A deep link can open before the lazy drawer mounts and attaches its refs.
   const [detailDrawerMounted, setDetailDrawerMounted] = useState(false);
   const attachDetailDrawer = useCallback((node: HTMLDivElement | null) => {
@@ -5077,30 +5078,39 @@ export default function PubMap({
     setDetailDrawerMounted(node !== null);
   }, []);
   useLayoutEffect(() => {
+    const wasOpen = detailWasOpenRef.current;
+    detailWasOpenRef.current = detailOpen;
     if (detailOpen) {
       if (preSheetFocusRef.current === null) {
         const active = document.activeElement;
         if (
           active instanceof HTMLElement &&
           active !== document.body &&
-          active !== document.documentElement
+          active !== document.documentElement &&
+          !active.closest(".mapDrawer, .mobileSheetPortal")
         ) {
           preSheetFocusRef.current = active;
         }
       }
       drawerCloseButtonRef.current?.focus({ preventScroll: true });
-    } else if (preSheetFocusRef.current) {
+    } else if (wasOpen) {
       const target = preSheetFocusRef.current;
-      const targetId = target.id;
+      // Full city navigation loses the old trigger, and its new toolbar can
+      // mount after the drawer. Resolve the return target when closing.
+      const targetId = target?.id || "mapSearchInput";
+      let pendingTarget: MutationObserver | null = null;
       const restoreFocus = () => {
         const currentTarget =
-          target.isConnected
+          target?.isConnected
             ? target
-            : targetId
-              ? document.getElementById(targetId)
-              : null;
+            : document.getElementById(targetId);
         currentTarget?.focus();
+        if (currentTarget) pendingTarget?.disconnect();
       };
+      if (!mobileViewport && !target?.isConnected && !document.getElementById(targetId)) {
+        pendingTarget = new MutationObserver(restoreFocus);
+        pendingTarget.observe(document.body, { childList: true, subtree: true });
+      }
       // Restore in the close commit, then once more after selection history has
       // popped its URL checkpoint. Browser history traversal can otherwise
       // move focus back to the document after this layout effect.
@@ -5120,13 +5130,14 @@ export default function PubMap({
         window.removeEventListener("popstate", restoreAfterHistory);
       }, 1_000);
       return () => {
+        pendingTarget?.disconnect();
         cancelAnimationFrame(frame);
         if (popFrame !== null) cancelAnimationFrame(popFrame);
         window.clearTimeout(listenerCeiling);
         window.removeEventListener("popstate", restoreAfterHistory);
       };
     }
-  }, [detailOpen, detailDrawerMounted]);
+  }, [detailOpen, detailDrawerMounted, mobileViewport]);
 
   // Desktop accessibility contract: drawer is modal for its full open lifetime. Desktop
   // never changes detent, so gating trap on mobile-oriented `sheetSnap` left it

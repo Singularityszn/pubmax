@@ -367,32 +367,33 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect(search).toBeVisible({ timeout: 30_000 });
     await search.fill("Dolphin");
     const listbox = page.getByRole("listbox", { name: "Search suggestions" });
-    // Search suggestions can include area/place entries. Select a concrete
-    // venue option so the contract never depends on a mixed-result index.
-    const highlightedVenue = listbox
-      .locator('[role="option"][data-venue-id]')
-      .nth(2);
+    // Wait for the cross-city result. A positional pick can select a London
+    // pub before the national index loads and miss the full-navigation path.
+    const highlightedVenue = listbox.locator(
+      '[role="option"][data-venue-id="venue-glw-q7pz7s"]',
+    );
     await expect(highlightedVenue).toBeVisible();
+    await expect(search).toHaveAttribute("aria-busy", "false");
+    await expect(listbox.getByRole("group", { name: "Venues", exact: true })
+      .getByRole("option")).toHaveCount(3);
     const highlightedVenueId = await highlightedVenue.getAttribute("data-venue-id");
     expect(highlightedVenueId).toBeTruthy();
-    const optionIndex = await listbox.getByRole("option").evaluateAll(
-      (options, venueId) =>
-        options.findIndex((option) => option.getAttribute("data-venue-id") === venueId),
-      highlightedVenueId,
-    );
-    expect(optionIndex).toBeGreaterThanOrEqual(0);
-
     await search.focus();
-    for (let index = 0; index <= optionIndex; index += 1) {
+    for (let index = 0; index < 80; index += 1) {
+      if (await highlightedVenue.getAttribute("aria-selected") === "true") break;
       await page.keyboard.press("ArrowDown");
     }
+    await expect(highlightedVenue).toHaveAttribute("aria-selected", "true");
     await page.keyboard.press("Enter");
     await expect
       .poll(() => new URL(page.url()).searchParams.get("sel"))
       .toBe(highlightedVenueId);
+    await expect.poll(() => new URL(page.url()).pathname).toBe("/map/glasgow");
 
     const drawer = page.locator(".mapDrawer.right.open");
     await expect(drawer).toBeVisible();
+    await expect(drawer.getByRole("tab", { name: "Overview", exact: true })).toBeVisible();
+    await expect(search).toBeVisible();
     await expect(
       drawer.getByRole("button", { name: /Close/ }),
     ).toBeFocused();
