@@ -38,13 +38,8 @@ const PROVIDER_SECRET_ENV_KEYS = [...PRICE_PROVIDER_KEYS, ...EVENT_PROVIDER_KEYS
  * The runtime flags `scripts/whatson/eventsRefresh.mjs` is run with, wherever it
  * is run from.
  *
- * That script statically imports the TypeScript Context.dev lane, so under bare
- * `node` it depends on UNFLAGGED type stripping, which arrives in 22.18 while
- * `engines` admits 22.12: on 22.12 through 22.17 it died at module load with
- * `ERR_UNKNOWN_FILE_EXTENSION` and the nightly refresh fetched nothing, with the
- * workflow's own failure the only signal. Every sibling script that imports a
- * `.ts` module already goes through tsx, so this lane joins them rather than
- * raising the floor under a repo whose CI pins the floating `node-version: 22`.
+ * Use the explicit tsx loader for the TypeScript Context.dev lane rather than
+ * relying on the selected Node release's built-in type stripping.
  * `package.json`'s `refresh:events` carries the same flags, and
  * `__tests__/eventsRefresh.test.ts` holds the two to each other.
  */
@@ -252,12 +247,7 @@ export function commandsForMode(mode, dryRun) {
     return [
       {
         executable: process.execPath,
-        // The events lane statically imports the TypeScript Context.dev
-        // provider, so it runs through the tsx loader like every other script
-        // in this repo that imports a `.ts` module. Bare `node` relied on
-        // unflagged type stripping, which lands in 22.18, and `engines` admits
-        // 22.12: on 22.12-22.17 the lane died at module load with
-        // ERR_UNKNOWN_FILE_EXTENSION and the nightly refresh fetched nothing.
+        // The loader contract lives at EVENTS_REFRESH_NODE_ARGS.
         nodeArgs: EVENTS_REFRESH_NODE_ARGS,
         args: ["scripts/whatson/eventsRefresh.mjs"],
         independent: true,
