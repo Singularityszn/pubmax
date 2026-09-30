@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { rowsFromSlimPayload } from "../lib/slimPayload";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const DESKTOP = { width: 1440, height: 900 };
@@ -217,14 +219,48 @@ test.describe("map keyboard and screen-reader venue path", () => {
     expect(beforeMove).toBeGreaterThan(0);
     expect(beforeMoveIds.every(Boolean)).toBe(true);
 
+    const venueRows = rowsFromSlimPayload(JSON.parse(readFileSync("public/data/venues_slim.json", "utf8"))) as Array<{ id: string; lng: number; lat: number }> | null;
+    expect(venueRows).not.toBeNull();
+    const venuesById = new Map(venueRows!.map((venue) => [venue.id, venue]));
+    const initialCoordinates = beforeMoveIds
+      .filter((id): id is string => Boolean(id && !id.startsWith("venue-uk-")))
+      .map((id) => {
+        const venue = venuesById.get(id);
+        expect(venue, `Coordinates for initially visible ${id}`).toBeDefined();
+        return { id, lng: venue!.lng, lat: venue!.lat };
+      });
+    expect(initialCoordinates.length).toBeGreaterThan(0);
+    const beforeZoom = await page.evaluate(() => (
+      window as Window & { __pubmaxMapCamera: { read: () => { zoom: number } } }
+    ).__pubmaxMapCamera.read().zoom);
     const zoomIn = page.getByRole("button", { name: "Zoom in", exact: true });
     await zoomIn.click();
     await zoomIn.click();
     await zoomIn.click();
+    await expect.poll(() => page.evaluate((zoom) => {
+      const camera = (window as Window & {
+        __pubmaxMapCamera: { read: () => { zoom: number; moving: boolean } };
+      }).__pubmaxMapCamera.read();
+      return !camera.moving && camera.zoom >= zoom + 2.5;
+    }, beforeZoom), { timeout: 20_000 }).toBe(true);
 
-    await expect
-      .poll(() => rows.count(), { timeout: 20_000 })
-      .toBeLessThan(beforeMove);
+    // Streams can add rows during zoom. Check the original points that actually
+    // left the viewport rather than expecting the combined inventory to shrink.
+    const outsideIds = await page.evaluate((coordinates) => {
+      const probe = (window as Window & {
+        __pubmaxMapCamera: { project: (point: [number, number]) => { x: number; y: number } };
+      }).__pubmaxMapCamera;
+      const rect = document.querySelector(".maplibreMap")!.getBoundingClientRect();
+      return coordinates.filter(({ lng, lat }) => {
+        const point = probe.project([lng, lat]);
+        return point.x < rect.left || point.x > rect.right || point.y < rect.top || point.y > rect.bottom;
+      }).map(({ id }) => id);
+    }, initialCoordinates);
+    expect(outsideIds.length).toBeGreaterThan(0);
+    await expect.poll(() => rows.evaluateAll((items, outside) => items
+      .map((item) => item.getAttribute("data-venue-id"))
+      .filter((id) => id !== null && outside.includes(id)), outsideIds), { timeout: 20_000 }).toEqual([]);
+    await expect.poll(() => rows.count()).toBeGreaterThan(0);
     await expect
       .poll(
         () =>
@@ -235,7 +271,13 @@ test.describe("map keyboard and screen-reader venue path", () => {
       )
       .not.toEqual(beforeMoveIds);
 
-    const beforeFilter = await rows.count();
+    const curatedRows = page.locator('.mapVenueListItem:not([data-venue-id^="venue-uk-"])');
+    const barRows = curatedRows.filter({ has: page.locator(".mapVenueListItemMeta > span:first-child", { hasText: /^Bar$/ }) });
+    const pubRows = curatedRows.filter({ has: page.locator(".mapVenueListItemMeta > span:first-child", { hasText: /^Pub$/ }) });
+    const barIds = await barRows.evaluateAll((items) => items.map((item) => item.getAttribute("data-venue-id")!));
+    expect(barIds.length).toBeGreaterThan(0);
+    const retainedPubId = await pubRows.first().getAttribute("data-venue-id");
+    expect(retainedPubId).toBeTruthy();
     // The venue-type chips live in the toolbar's Filters panel (#1631).
     await page.getByRole("button", { name: /^Filters:/ }).click();
     const bars = page
@@ -244,7 +286,11 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect(bars).toHaveAttribute("aria-pressed", "true");
     await bars.click();
     await expect(bars).toHaveAttribute("aria-pressed", "false");
-    await expect.poll(() => rows.count()).toBeLessThan(beforeFilter);
+    await expect(barRows).toHaveCount(0);
+    await expect.poll(() => rows.evaluateAll((items, removed) => items
+      .map((item) => item.getAttribute("data-venue-id"))
+      .filter((id) => id !== null && removed.includes(id)), barIds)).toEqual([]);
+    await expect(page.locator(`.mapVenueListItem[data-venue-id="${retainedPubId}"]`)).toBeVisible();
   });
 
   test("drops old base-pub rows during a disjoint pan before the next shard fetch", async ({

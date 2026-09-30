@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
+import { isPlanActiveNow } from "../lib/activePlan";
 
 type ListedEvidence = {
   category: string;
@@ -137,6 +138,18 @@ test("a new cocktail query replaces a deliberate Beer correction from an older q
   await expect(page.getByLabel("Drinks")).toHaveValue("cocktail");
 });
 
+async function expectFullSavedRoute(page: Page, planId: string | undefined, startTime: string | undefined): Promise<void> {
+  if (!planId || !startTime) throw new Error("Reloaded plan is missing its id or start time");
+  await expect(page.locator(".planRoute")).toBeVisible();
+  const nightMode = page.getByRole("dialog", { name: "Night mode" });
+  if (isPlanActiveNow({ id: planId, startTime, stopIndex: 0 }, Date.now())) {
+    // Capability restoration can mount Night Mode after the server-rendered route.
+    await expect(nightMode).toBeVisible({ timeout: 20_000 });
+    await nightMode.getByRole("button", { name: "View full plan", exact: true }).click();
+  }
+  await expect(nightMode).toBeHidden();
+}
+
 for (const journey of [
   { category: "wine", query: "wine in Dalston for 2", area: "dalston", name: "Wine Browser", replay: true },
   { category: "cocktail", query: "cocktails in Shoreditch for 2", area: "shoreditch", name: "Cocktail Browser", replay: true },
@@ -265,7 +278,7 @@ for (const journey of [
       return { status: response.status, body: await response.json() };
     }, planId);
     expect(read.status).toBe(200);
-    const reloaded = read.body as { context?: { drinkCategory?: string }; stops?: JourneyStop[] };
+    const reloaded = read.body as { plan?: { startTime?: string }; context?: { drinkCategory?: string }; stops?: JourneyStop[] };
     expect(reloaded.context?.drinkCategory).toBe(journey.category);
     expect(reloaded.stops).toHaveLength(generated.stops!.length);
     expect(reloaded.stops?.map((stop) => stop.venueId)).toEqual(generated.stops?.map((stop) => stop.venueId));
@@ -275,16 +288,16 @@ for (const journey of [
     if (journey.replay) expect(reloaded.stops?.find((stop) => stop.alternatives?.some((alternative) => alternative.venueId === replayedVenueId))
       ?.alternatives?.find((alternative) => alternative.venueId === replayedVenueId)
       ?.selectedDrinkPriceEvidence).toEqual(replayedEvidence);
+    expect(reloaded.plan).toBeDefined();
+    await expectFullSavedRoute(page, planId, reloaded.plan!.startTime);
     if (!journey.replay) {
       expect(reloaded.stops?.filter((stop) => stop.selectedDrinkPriceEvidence?.source === "listed").length).toBeGreaterThan(0);
-      await page.getByRole("button", { name: "View full plan", exact: true }).click();
       await page.locator(".planRoute").scrollIntoViewIfNeeded();
       await page.screenshot({ path: testInfo.outputPath(`${journey.category}-primary-reloaded.png`), animations: "disabled" });
       return;
     }
     const swapIndex = reloaded.stops!.findIndex((stop) => stop.alternatives?.[0]?.venueId && stop.alternatives[0].venueId !== replayedVenueId);
     expect(swapIndex).toBeGreaterThanOrEqual(0);
-    await page.getByRole("button", { name: "View full plan", exact: true }).click();
     await page.getByRole("button", { name: "Edit route", exact: true }).click();
     const swap = page.getByRole("button", { name: new RegExp(`^Swap stop ${swapIndex + 1},`) });
     await expect(swap).toBeEnabled();
