@@ -41,6 +41,8 @@ export type MapSurfaceState = {
   layersTab: string;
   /** The landmark whose story is open, so Back can put the story back. */
   landmarkId: string;
+  /** A "Choose a pub" picker opened for a `contribute=price` request. */
+  pricePicker?: boolean;
 };
 
 export const EMPTY_MAP_SURFACE_STATE: MapSurfaceState = {
@@ -59,7 +61,8 @@ function sameState(a: MapSurfaceState | undefined, b: MapSurfaceState): boolean 
       a.venueId === b.venueId &&
       a.areaTargetKey === b.areaTargetKey &&
       a.layersTab === b.layersTab &&
-      (a.landmarkId ?? "") === (b.landmarkId ?? ""),
+      (a.landmarkId ?? "") === (b.landmarkId ?? "") &&
+      Boolean(a.pricePicker) === Boolean(b.pricePicker),
   );
 }
 

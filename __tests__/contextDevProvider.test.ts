@@ -302,6 +302,12 @@ describe("runContextDevEventsLane", () => {
     "20:00 local time",
     "8pm until last orders time",
     "8PM LIVE DJ",
+    "8PM PUB QUIZ",
+    "8PM JAZZ",
+    "8PM FRI",
+    "8PM BINGO",
+    "8pm happy hour time",
+    "8pm Until Closing Time",
   ])("reads %s as a London clock, not an unsupported zone", async (clock) => {
     const result = await capturedEvent(`Quiz at The Dove on 18 August 2027 at ${clock}`, {
       title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2027-08-18T19:00:00Z",

@@ -4062,6 +4062,20 @@ export default function PubMap({
     setFallbackVisible: setLogIntentFallbackVisible,
   });
 
+  // A picked price request belongs to the first pub it opened at, including
+  // across that pub's sign-in gate and return. Reaching any other pub retires
+  // it before that pub's inspector can read it from the URL.
+  const priceIntentVenueRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hasCategoryPriceIntent) {
+      priceIntentVenueRef.current = null;
+      return;
+    }
+    if (!selectedVenueId) return;
+    priceIntentVenueRef.current ??= selectedVenueId;
+    if (priceIntentVenueRef.current !== selectedVenueId) clearLogIntent();
+  }, [clearLogIntent, hasCategoryPriceIntent, selectedVenueId]);
+
   // Keyboard shortcuts: "/" focuses search. Escape enters the same Back owner
   // as browser, button, and gesture navigation.
   useMapKeyboardShortcuts({
@@ -4476,7 +4490,7 @@ export default function PubMap({
       if (targetCityId && targetCityId !== cityId) {
         // Full navigation resets city-specific map state before the target city loads.
         const params = new URLSearchParams({ sel: id });
-        if (hasCategoryPriceIntent) {
+        if (hasCategoryPriceIntent && priceIntentVenueRef.current === null) {
           if (mapDrinkLensCategory) params.set("drink", mapDrinkLensCategory);
           params.set("contribute", "price");
         }
@@ -4784,6 +4798,7 @@ export default function PubMap({
       selectedVenueLabels.detailLabel,
     ],
   );
+  const pricePickerOpen = coordinatedMobileOverlay === "moment" && hasCategoryPriceIntent;
   const mapSurfaceState = useMemo<MapSurfaceState>(
     () => ({
       venueTab: venueInitialTab,
@@ -4796,8 +4811,9 @@ export default function PubMap({
       areaTarget: searchAreaTarget,
       layersTab: mobileLayersTab,
       landmarkId: activeLandmarkId,
+      ...(pricePickerOpen ? { pricePicker: true } : {}),
     }),
-    [activeLandmarkId, mobileLayersTab, searchAreaTarget, selectedVenueId, venueInitialTab],
+    [activeLandmarkId, mobileLayersTab, pricePickerOpen, searchAreaTarget, selectedVenueId, venueInitialTab],
   );
   const closeEverySurface = useCallback(() => {
     clearAreaSheetTimer();
@@ -4821,6 +4837,9 @@ export default function PubMap({
       closeEverySurface();
       if (!entry) return;
       const held = entry.state ?? EMPTY_MAP_SURFACE_STATE;
+      // Closing everything retired the price request, and the Pint Drop picker
+      // this would reopen is not the one the reader chose a pub from.
+      if (entry.id === "moment" && held.pricePicker) return;
       if (entry.id === "venue") {
         // Restore the tab the reader left on, not the overview default.
         setVenueInitialTab((held.venueTab || "overview") as VenueTabRequest);

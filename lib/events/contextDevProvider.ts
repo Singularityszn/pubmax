@@ -163,29 +163,20 @@ function dateAppearsInEvidence(date: string, evidence: string): boolean {
 
 const caseless = (word: string) => word.replace(/[a-z]/g, (letter) => `[${letter}${letter.toUpperCase()}]`);
 
-// Zone abbreviations read in any case. Any other ALL-CAPS 2-5 letter word after
-// a clock is read as a zone too ("1pm ET"), unless it is ordinary copy.
+// Only an explicit zone counts: a known abbreviation ("CET", "1pm ET"), an
+// IANA name, an offset, or a capitalised place before "time" ("Moscow time").
+// "8PM PUB QUIZ", "9PM FRI" and "until closing time" name no zone.
 const ZONE_ABBREVIATIONS = [
   "gmt", "utc", "bst", "cest", "cet", "eest", "eet", "edt", "est", "cdt", "cst", "mdt", "mst", "pdt",
-  "pst", "akst", "akdt", "ist", "jst", "aest", "aedt", "awst", "nzst", "nzdt", "hkt", "sgt", "msk",
+  "pst", "akst", "akdt", "ist", "jst", "aest", "aedt", "awst", "nzst", "nzdt", "hkt", "sgt", "msk", "sast",
 ];
-const ORDINARY_CAPITALS = new Set([
-  "TILL", "TIL", "LATE", "LIVE", "FREE", "DJ", "DJS", "QUIZ", "SHARP", "ONLY", "DOORS", "ENTRY", "START",
-  "ENDS", "END", "OPEN", "AND", "THE", "AT", "ON", "IN", "TO", "FROM", "UNTIL", "MUSIC", "BAND", "NIGHT",
-  "LAST", "WITH", "FOR", "ALL", "SET", "EVERY", "EACH", "NEW", "SHOW", "GIG",
-]);
-// "until closing time", "start time", "last orders time": the word before
-// `time` names the evening, not a zone.
-const ORDINARY_TIME_WORDS = new Set([
-  "CLOSING", "START", "STARTING", "OPENING", "KICK-OFF", "KICKOFF", "ORDERS", "HOME", "SHOW", "FINISH",
-  "FINISHING", "END", "DOORS", "BED", "DINNER", "LUNCH", "PARTY", "QUIZ", "GAME", "MATCH", "PLAY", "TEA",
-  "BAR", "DRINKING", "HALF", "FULL", "EXTRA", "SAME", "NEXT", "FIRST", "ANY", "SOME", "THAT", "THIS",
-  "GOOD", "FUN", "HAPPY",
-]);
+const CAPITAL_ONLY_ZONE_ABBREVIATIONS = ["ET", "PT", "CT", "MT"];
+// Title-case evening copy ("Until Closing Time") is not a place.
+const EVENING_TIME_WORDS = new Set(["CLOSING", "START", "OPENING", "KICK-OFF", "ORDERS", "HOUR", "SHOW", "DOORS", "HOME", "FINISH", "PARTY", "QUIZ"]);
 
 const STATED_CLOCK = new RegExp(
   "(?<![\\p{L}\\p{N}])(?:(1[0-2]|0?[1-9])(?::([0-5]\\d))?\\s*([aApP][mM])|([01]?\\d|2[0-3]):([0-5]\\d))" +
-    `(?:\\s*([zZ]|[+-](?:0\\d|1[0-4]):[0-5]\\d|[A-Za-z]+\\/[A-Za-z_]+|(?:[A-Za-z]+(?:-[A-Za-z]+)?\\s+){1,3}${caseless("time")}|${ZONE_ABBREVIATIONS.map(caseless).join("|")}|[A-Z]{2,5}))?` +
+    `(?:\\s*([zZ]|[+-](?:0\\d|1[0-4]):[0-5]\\d|[A-Za-z]+\\/[A-Za-z_]+|(?:[A-Z][A-Za-z]*(?:-[A-Za-z]+)?\\s+){1,3}${caseless("time")}|${[...ZONE_ABBREVIATIONS.map(caseless), ...CAPITAL_ONLY_ZONE_ABBREVIATIONS].join("|")}))?` +
     "(?![\\p{L}\\p{N}])",
   "gu",
 );
@@ -198,7 +189,7 @@ function statedZone(raw: string | undefined): StatedZone | null {
   const zone = raw.toUpperCase().replace(/\s+/g, " ");
   if (zone.endsWith(" TIME")) {
     const words = zone.slice(0, -" TIME".length);
-    if (ORDINARY_TIME_WORDS.has(words.split(" ").at(-1) ?? "")) return null;
+    if (EVENING_TIME_WORDS.has(words.split(" ").at(-1) ?? "")) return null;
     if (words === "LONDON" || words === "UK" || words === "LOCAL") return { kind: "london" };
     if (words === "GREENWICH MEAN") return { kind: "offset", minutes: 0 };
     if (words === "BRITISH SUMMER") return { kind: "offset", minutes: 60 };
@@ -210,7 +201,6 @@ function statedZone(raw: string | undefined): StatedZone | null {
   if (/^[+-]\d{2}:\d{2}$/.test(zone)) {
     return { kind: "offset", minutes: (zone[0] === "-" ? -1 : 1) * (Number(zone.slice(1, 3)) * 60 + Number(zone.slice(4, 6))) };
   }
-  if (raw === zone && ORDINARY_CAPITALS.has(zone)) return null;
   return { kind: "unsupported" };
 }
 

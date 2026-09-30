@@ -30,14 +30,18 @@ const COMPANION_ORDER = new RegExp(
 const FIRST_PERSON_ON = /\b(i am|i'm|im|we are|we're|i'll be|we'll be|is|[a-z]+'s)\s+on\b/g;
 const FIRST_PERSON_CONSUMPTION = /\b(?:i am|i'm|im|we are|we're|i'll be|we'll be) (?:drinking|having)\b|\b(?:i|we) (?:want|fancy|drink|like|prefer|need)\b|\b(?:i'd|we'd|i would|we would) (?:like|love|prefer)\b|\bfor (?:me|us)\b/;
 
-const LOCATION_WORDS = "near|at|on|in|by|opposite|beside|next to|around|off|outside|behind|past|from|towards?|via";
-const SPAN_END = `(?=\\b(?:${LOCATION_WORDS}|under|over|below|max|for|with)\\b|${FIRST_PERSON_CONSUMPTION.source}|$)`;
+// "In Soho serving wine", "a night in Soho drinking cocktails": the drink a
+// place serves or a crew drinks there is a request, never part of the place.
+const SERVING = "serving|serves|serve|pouring|pours|doing|does|drinking|drinks|having|has|have|that|which|where|who";
+const LOCATION_WORDS = "near|at|in|by|opposite|beside|next to|around|off|outside|behind|past|from|towards?|via";
+const SPAN_END = `(?=\\b(?:${LOCATION_WORDS}|${SERVING}|under|over|below|max|for|with)\\b|${FIRST_PERSON_CONSUMPTION.source}|$)`;
 // "near The Wine Bar", "on Rye Lane", "at Gin and Juice": a place, never an order.
 const LOCATION_SPAN = new RegExp(`\\b(?:${LOCATION_WORDS})\\b[^]*?${SPAN_END}`, "g");
 // A place or menu named without a preposition: "Rye Lane", "Rose and Crown", "cocktail menu".
 const PLACE_OR_MENU = /\b[\w'&-]+(?:\s+(?:and|&)\s+[\w'&-]+)?\s+(?:lane|street|st|road|rd|avenue|ave|way|bowl|palace|crown|arms|inn|tavern|house|hall|yard|market|square|place|court|row|hill|rooms|tree|garden|gardens|menu|menus|list|lists)\b/g;
-// "No gin or wine": every drink the refusal coordinates is refused.
-const REFUSAL = /\b(?:no|not|don't|dont|never|without|avoid|avoiding|except|hate|skip|instead of|rather than)\b(?:\s+(?!(?:or|nor)\b)\S+){1,2}(?:\s+(?:or|nor)(?:\s+(?!(?:or|nor)\b)\S+){1,2})*/g;
+// "No gin or wine": every drink the refusal coordinates is refused, one word
+// per `or`, so "no frills or fuss wine night" still asks for wine.
+const REFUSAL = /\b(?:no|not|don't|dont|never|without|avoid|avoiding|except|hate|skip|instead of|rather than)\b(?:\s+(?!(?:or|nor)\b)\S+){1,2}(?:\s+(?:or|nor)\s+\S+)*/g;
 // Bare words the taxonomy reads as drinks that a night-out sentence rarely
 // means as one: "a long session", "a bitter wind", and "shot" as an idiom.
 const AMBIGUOUS_BARE_WORD = /\b(?:ryes?|roses?|ports?|punch(?:es)?|sours?|bitters?|sessions?|pales?|drafts?)(?![\wé])|\b(?:worth a|give (?:it|this|that) a|long|big) shot\b|\bshot at\b/g;
