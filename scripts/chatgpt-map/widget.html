@@ -73,7 +73,7 @@
   function safeVenues(input) {
     if (!Array.isArray(input)) return [];
     return input.slice(0,30).filter(v=>v&&typeof v.name==="string"&&v.name.length<=160&&typeof v.id==="string"&&Number.isFinite(v.latitude)&&Math.abs(v.latitude)<=90&&Number.isFinite(v.longitude)&&Math.abs(v.longitude)<=180)
-      .map(v=>({id:v.id,name:v.name,latitude:v.latitude,longitude:v.longitude,href:safeLink(v.href),prices:Array.isArray(v.prices)?v.prices.slice(0,3).filter(p=>p&&typeof p.drink==="string"&&p.drink.length<=160&&Number.isFinite(p.priceGbp)&&p.priceGbp>0).map(p=>({drink:p.drink,priceGbp:p.priceGbp,band:["cheap","average","expensive"].includes(p.band)?p.band:null,publisher:safePublisher(p.publisher)})):[]}));
+      .map(v=>({name:v.name,latitude:v.latitude,longitude:v.longitude,href:safeLink(v.href),prices:Array.isArray(v.prices)?v.prices.slice(0,3).filter(p=>p&&typeof p.drink==="string"&&p.drink.length<=160&&Number.isFinite(p.priceGbp)&&p.priceGbp>0).map(p=>({drink:p.drink,priceGbp:p.priceGbp,band:["cheap","average","expensive"].includes(p.band)?p.band:null,publisher:safePublisher(p.publisher)})):[]}));
   }
   function card(venue, parent) {
     text("h2",venue.name,parent);

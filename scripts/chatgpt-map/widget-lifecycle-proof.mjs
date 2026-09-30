@@ -81,7 +81,7 @@ try {
   const hostUrl = `http://127.0.0.1:${host.address().port}`;
   browser = await chromium.launch({ headless: true, args: ["--enable-unsafe-swiftshader"] });
 
-  for (const name of ["inline-capability", "pending-link", "late-import", "worker-blob", "url-bounds", "url-boundary-fallback", "pending-initialization"]) {
+  for (const name of ["inline-capability", "pending-link", "late-import", "worker-blob", "url-bounds", "url-boundary-fallback", "pending-initialization", "unused-id-retention"]) {
     const check = { name };
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: "light" });
     let releaseImport = () => {};
@@ -277,6 +277,98 @@ try {
         assert.equal(check.themeUnchanged, true, "Late initialization applied retired host theme");
         assert.equal(check.sizeChangesAfterAck, 0, "Late initialization installed retired size observer");
         assert.equal(check.canvasesAfterLateInitialization, 0, "Late initialization rebuilt retired map");
+      }
+      if (name === "unused-id-retention") {
+        const pricedIndex = result.structuredContent.venues.findIndex((venue) => venue.prices.length > 0 && typeof venue.href === "string");
+        assert.ok(pricedIndex >= 0, "Actual MCP result needs a priced venue for ID negative input");
+        const siblingIndex = result.structuredContent.venues.findIndex((venue, index) => index !== pricedIndex && typeof venue.href === "string");
+        assert.ok(siblingIndex >= 0, "Actual MCP result needs a valid sibling");
+        const malformed = structuredClone(result);
+        const bad = malformed.structuredContent.venues[pricedIndex];
+        const valid = malformed.structuredContent.venues[siblingIndex];
+        malformed.structuredContent.venues = [bad, valid];
+        bad.id = "x".repeat(65536);
+        bad.name = "ID retention regression venue";
+        const pounds = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
+        const groundedPrices = bad.prices.map((price) => `${pounds.format(price.priceGbp)} · ${price.drink}`);
+        // The separate-origin widget shares this local page's renderer target.
+        const session = await context.newCDPSession(page);
+        const scripts = [];
+        const onScript = (script) => { if (script.url === `${base}/widget`) scripts.push(script); };
+        let breakpointId;
+        let paused = false;
+        let pauseTimer;
+        let onPaused;
+        let delivery;
+        session.on("Debugger.scriptParsed", onScript);
+        try {
+          await session.send("Debugger.enable");
+          let target;
+          const statement = 'element("area").textContent=data.area;';
+          for (const script of scripts) {
+            const { scriptSource } = await session.send("Debugger.getScriptSource", { scriptId: script.scriptId });
+            const lines = scriptSource.split("\n");
+            const line = lines.findIndex((text, index) => text.includes(statement) && lines[index - 1]?.includes("latestVenues=safeVenues(data.venues)"));
+            if (line >= 0) {
+              assert.equal(target, undefined, "Multiple actual render projection statements found");
+              target = { scriptId: script.scriptId, lineNumber: script.startLine + line, columnNumber: lines[line].indexOf("element(") + (line === 0 ? script.startColumn : 0) };
+            }
+          }
+          assert.ok(target, "Actual served widget render projection statement missing");
+          const breakpoint = await session.send("Debugger.setBreakpoint", { location: target });
+          breakpointId = breakpoint.breakpointId;
+          assert.equal(breakpoint.actualLocation.lineNumber, target.lineNumber, "Breakpoint moved away from statement after actual projection");
+          const stopped = new Promise((resolve, reject) => {
+            onPaused = (event) => { paused = true; resolve(event); };
+            session.on("Debugger.paused", onPaused);
+            pauseTimer = setTimeout(() => reject(Error("Actual render projection breakpoint timeout")), 15000);
+          });
+          // Keep delivery observed while the widget renderer is paused. No
+          // validator or served source is replaced to expose module state.
+          delivery = page.evaluate((next) => window.sendResult(next), malformed).then(() => null, (error) => error);
+          const stoppedAt = await stopped;
+          clearTimeout(pauseTimer);
+          assert.ok(stoppedAt.hitBreakpoints?.includes(breakpointId), "Debugger paused outside owned projection breakpoint");
+          const renderFrame = stoppedAt.callFrames.find((candidate) => candidate.functionName === "render");
+          assert.ok(renderFrame, "Actual render call frame missing");
+          const observation = await Promise.race([
+            session.send("Debugger.evaluateOnCallFrame", {
+              callFrameId: renderFrame.callFrameId,
+              expression: '({count:latestVenues.length,hasOwnId:Object.hasOwn(latestVenues[0],"id"),idLength:typeof latestVenues[0].id==="string"?latestVenues[0].id.length:null})',
+              returnByValue: true, silent: true, throwOnSideEffect: true,
+            }),
+            new Promise((_, reject) => { pauseTimer = setTimeout(() => reject(Error("Read-only projection metrics timeout")), 15000); }),
+          ]);
+          clearTimeout(pauseTimer);
+          assert.equal(Boolean(observation.exceptionDetails), false, "Read-only projection metrics failed");
+          check.projection = observation.result.value;
+          assert.ok(check.projection && Number.isInteger(check.projection.count), "Bounded projection metrics missing");
+        } finally {
+          clearTimeout(pauseTimer);
+          session.off("Debugger.scriptParsed", onScript);
+          if (onPaused) session.off("Debugger.paused", onPaused);
+          for (const clean of [
+            async () => { if (paused) await session.send("Debugger.resume"); },
+            async () => { if (breakpointId) await session.send("Debugger.removeBreakpoint", { breakpointId }); },
+            async () => { await session.detach(); },
+          ]) {
+            try { await clean(); }
+            catch (error) { (check.cleanupErrors ??= []).push(error.message); }
+          }
+          const deliveryError = await delivery;
+          if (deliveryError) (check.cleanupErrors ??= []).push(deliveryError.message);
+        }
+        assert.equal(check.cleanupErrors?.length ?? 0, 0, "Debugger cleanup failed");
+        const cards = widget.locator("#venues > li");
+        await cards.first().getByRole("heading", { name: bad.name, exact: true }).waitFor();
+        assert.equal(await cards.count(), 2, "Discarding unused ID must retain both venues");
+        assert.deepEqual(await cards.first().locator(".price").allTextContents(), groundedPrices, "Discarding unused ID changed grounded prices");
+        assert.equal(await cards.first().getByRole("link", { name: "Open pub in PUBMAXX", exact: true }).getAttribute("href"), bad.href, "Discarding unused ID changed canonical venue link");
+        assert.equal(await cards.nth(1).getByRole("heading").textContent(), valid.name, "Discarding unused ID changed valid sibling");
+        assert.equal(await cards.nth(1).getByRole("link", { name: "Open pub in PUBMAXX", exact: true }).getAttribute("href"), valid.href, "Discarding unused ID changed sibling canonical link");
+        assert.equal(check.projection.count, 2);
+        assert.equal(check.projection.hasOwnId, false, "Unused oversized ID survived actual widget projection");
+        assert.equal(check.projection.idLength, null, "Actual widget retained unused ID string");
       }
       check.verdict = "PASS";
     } catch (error) {

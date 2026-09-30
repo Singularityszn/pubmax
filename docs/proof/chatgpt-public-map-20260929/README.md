@@ -44,6 +44,14 @@ Fresh nested Node tests passed all eight cases. The existing [browser receipt](f
 
 The follow-up repository gate and GitHub publication remain pending. The earlier checks below describe their recorded candidates and do not verify this follow-up.
 
+## Unused venue ID follow-up, 30 September 2026
+
+Review found that the widget retained an unused host-delivered venue ID without a length bound. The [before receipt](id-before.json) records the actual module's retained projection with two venues and a 65,536-character ID. The native debugger paused the served widget immediately after its projection assignment and inspected only count, property presence and string length. The test changed the venue heading to prove the malformed result rerendered, then checked both cards, grounded GBP/drink rows and canonical links. The other seven lifecycle cases passed.
+
+The widget now omits that unused field from its retained projection. Public MCP result IDs and the input contract remain unchanged. The [after receipt](id-after.json) records all eight cases passing: two venues remain, with no retained ID property or string. Before and after used the same driver SHA-256 `96eb16a1f97d1e9437023f055e22843ceed0479a411e0db86f3d04d41248803f`, installed SDK and server. Widget SHA-256 changed from `d43fb8c04db99f969a8c0b3fb3d8ee81f0a0c49080e5d4d9e057d03f78cb000a` to `d2ce3d3c0fea85be9398f4720e947017e82107b53ad15b35ce82e909a52070ac`. Both ran before the new commit, so HEAD names the published parent `34f11ca2`; per-run source hashes remained stable. An earlier harness attempt could not attach a separate CDP session to the shared renderer and remains in ignored local artifacts as a harness failure, separate from the demonstrated defect.
+
+Fresh nested Node tests passed all eight cases. The [browser receipt](id-browser.json) and inspected [phone](id-390.png) and [desktop](id-1440.png) screenshots passed actual map, attribution, native keyboard, popup geometry, host links, teardown, error ordering and theme checks at 390px and 1440px. Captured owned browser and process groups were absent after the runs. This remains controlled local evidence. Final-head repository validation and reviewed publication for this ID follow-up are pending; authenticated ChatGPT, external destination navigation and production release remain unverified.
+
 ## Current checks
 
 The review-fix source and curated receipts are retained in commit `99c8fb9314939ffc79173d21b0d04a706741a509`. These are recorded runs; the documentation and lint phase does not rerun them. Final committed-head validation and reviewed GitHub publication remain pending.
