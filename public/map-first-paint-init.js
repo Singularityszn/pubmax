@@ -56,10 +56,19 @@
     try {
       var raw = window.localStorage.getItem("pubmax:map-opening-location:v1");
       var saved = raw ? JSON.parse(raw) : null;
-      if (validLocation(saved) && saved.lat >= 51.25 && saved.lat <= 51.75 && saved.lng >= -0.6 && saved.lng <= 0.4) {
+      // Keep this classic-script read within mapOpeningLocation's 30-minute
+      // window. Undated old records cannot say where the reader is now.
+      var now = Date.now();
+      var recent = saved && Number.isFinite(saved.savedAt) && saved.savedAt >= 0 &&
+        saved.savedAt <= now && now - saved.savedAt < 30 * 60 * 1000;
+      if (validLocation(saved) && recent && saved.lat >= 51.25 && saved.lat <= 51.75 && saved.lng >= -0.6 && saved.lng <= 0.4) {
         return saved;
       }
+      if (raw && (!validLocation(saved) || !recent)) {
+        window.localStorage.removeItem("pubmax:map-opening-location:v1");
+      }
     } catch {
+      try { window.localStorage.removeItem("pubmax:map-opening-location:v1"); } catch {}
       // Opening location is an optional hint. Default London center stays safe.
     }
     return { lat: 51.52, lng: -0.12 };

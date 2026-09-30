@@ -608,7 +608,9 @@ import {
   searchParamValue,
   peekPriceChip,
   settledBoundsFor,
+  liveNearMeOwnsCamera as liveNearMeOwnsCameraFor,
   shouldResolveOpeningLocation as shouldResolveOpeningLocationFor,
+  shouldResumeNearMeLocation,
   suggestedRouteWanted,
   tonightLaneKindFor,
   tonightLaneReadState,
@@ -1196,6 +1198,12 @@ export default function PubMap({
   const [openingLocationResolved, setOpeningLocationResolved] = useState(
     !shouldResolveOpeningLocation,
   );
+  const nearMeOwnerRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const owner = new AbortController();
+    nearMeOwnerRef.current = owner;
+    return () => { owner.abort(); };
+  }, [cityId]);
   const cancelOpeningLocation = useCallback(() => {
     const nextCancellation = openingLocationCancellationAfterAttempt({
       openingLocationResolved,
@@ -1219,8 +1227,10 @@ export default function PubMap({
   }, [cancelOpeningLocation]);
   useEffect(() => {
     if (!shouldResolveOpeningLocation) return;
+    const owner = new AbortController();
     let cancelled = false;
     void readOpeningMapLocation(undefined, {
+      signal: owner.signal,
       onPermissionPrompt: () => {
         if (!cancelled) setOpeningLocationPromptActive(true);
       },
@@ -1240,6 +1250,7 @@ export default function PubMap({
     });
     return () => {
       cancelled = true;
+      owner.abort();
     };
   }, [city, shouldResolveOpeningLocation]);
   // Everything this arrival already knows, read once. Every field below is a
@@ -1355,7 +1366,10 @@ export default function PubMap({
   const [mapResumeUpdating, setMapResumeUpdating] = useState(Boolean(mapResumeSeed));
   const [mapResumeViewport, setMapResumeViewport] =
     useState<MapViewportSnapshot | null>(restoredSession.resumeViewport);
-  const openingViewport = openingViewportFrom(mapResumeViewport, restoredMobileSession);
+  const liveNearMeOwnsCamera = liveNearMeOwnsCameraFor(
+    Boolean(grantedOpeningLocation), explicitArrivalIntent, mapChosenArea?.kind,
+  );
+  const openingViewport = openingViewportFrom(mapResumeViewport, restoredMobileSession, liveNearMeOwnsCamera);
   const fallbackOpeningMapView = useMemo(() => {
     const location =
       lastKnownLocation &&
@@ -1385,8 +1399,8 @@ export default function PubMap({
     city.mapView,
   ]);
   const openingLoadViewport = useMemo(
-    () => mapResumeSeed?.viewport ?? restoredMobileSession?.viewport ?? locationFirstMapView,
-    [locationFirstMapView, mapResumeSeed, restoredMobileSession],
+    () => openingViewport ?? locationFirstMapView,
+    [locationFirstMapView, openingViewport],
   );
   useEffect(() => {
     if (!mapResumeSeed) return;
@@ -4242,11 +4256,13 @@ export default function PubMap({
   // the same words render twice, one of them over the other.
   //
   // `resume` is a remembered Near me on arrival: the reader asked for this mode
-  // LAST time, not for a notice now, so a refusal is silent and leaves the
-  // default city view with the picker still one tap away. Nothing about where
-  // they stood was ever stored, so this is a live fix or it is nothing.
+  // last time, so a refusal is silent and keeps the saved view. The mode marker
+  // carries no point. Only a live fix after a confirmed grant can replace that
+  // view; the area picker stays one tap away.
   const runNearMe = useCallback(
-    (mode: "tap" | "arrival" | "resume") => {
+    async (mode: "tap" | "arrival" | "resume") => {
+      const owner = nearMeOwnerRef.current;
+      if (!owner || owner.signal.aborted) return;
       setNearbyError(null);
       const refuse = (message: string) => {
         if (mode === "resume") return;
@@ -4260,33 +4276,62 @@ export default function PubMap({
         refuse(nearMeLocationMessage("unsupported"));
         return;
       }
+      if (mode === "resume") {
+        if (!shouldResumeNearMeLocation({
+          stored: readMapChosenArea(), cityId, explicitArrivalIntent,
+          cameraTouched: mapCameraTouchedRef.current,
+        })) return;
+      }
       setNearbyLoading(true);
+      const acceptLocation = (location: MapOpeningLocation) => {
+        if (owner.signal.aborted) return;
+        if (mode === "resume") {
+          if (!shouldResumeNearMeLocation({
+            stored: readMapChosenArea(), cityId, explicitArrivalIntent,
+            cameraTouched: mapCameraTouchedRef.current,
+          })) {
+            setNearbyLoading(false);
+            return;
+          }
+          // A live fix owns this resumed Near me. Late cached views stand down.
+          mapCameraTouchedRef.current = true;
+          cancelOpeningLocation();
+          setOpeningLocationFocus(null);
+          setMapResumeViewport(null);
+        }
+        if (mode === "resume") setGrantedOpeningLocation(location);
+        setUserLocation(location);
+        latchMapReaderLocationWatch();
+        writeMapOpeningLocation(location);
+        setPendingNearMeRequest({ kind: "map", location, mode });
+        // A mode marker, never a point: lib/mapChosenArea.ts owns that rule.
+        writeMapChosenArea({
+          cityId,
+          label: "Near me",
+          slug: "near-me",
+          kind: "near-me",
+        });
+      };
+      if (mode === "resume") {
+        const location = await readOpeningMapLocation(undefined, {
+          signal: owner.signal, positionOptions: NEAR_ME_LOCATION_OPTIONS,
+        });
+        if (owner.signal.aborted) return;
+        if (location) acceptLocation(location);
+        else setNearbyLoading(false);
+        return;
+      }
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setUserLocation(location);
-          latchMapReaderLocationWatch();
-          writeMapOpeningLocation(location);
-          setPendingNearMeRequest({ kind: "map", location, mode });
-          // A mode marker, never a point: lib/mapChosenArea.ts owns that rule.
-          writeMapChosenArea({
-            cityId,
-            label: "Near me",
-            slug: "near-me",
-            kind: "near-me",
-          });
-        },
+        (position) => acceptLocation({ lat: position.coords.latitude, lng: position.coords.longitude }),
         (error) => {
+          if (owner.signal.aborted) return;
           setNearbyLoading(false);
           refuse(nearMeLocationMessage(nearMeLocationFailure(error)));
         },
         NEAR_ME_LOCATION_OPTIONS,
       );
     },
-    [cityId, setPendingNearMeRequest],
+    [cancelOpeningLocation, cityId, explicitArrivalIntent, setPendingNearMeRequest],
   );
 
   const showNearbyMap = useCallback(() => runNearMe("tap"), [runNearMe]);
@@ -4717,11 +4762,16 @@ export default function PubMap({
     // lib/mapChosenArea.ts owns WHETHER the remembered area may move the
     // camera; this effect only carries the answer out. `wait` is the one answer
     // that leaves the one-shot unspent.
+    const storedArea = readMapChosenArea();
+    const refreshNearMe = shouldResumeNearMeLocation({
+      stored: storedArea, cityId, explicitArrivalIntent,
+      cameraTouched: mapCameraTouchedRef.current,
+    });
     const decision = resolveMapChosenAreaRestore({
-      stored: readMapChosenArea(),
+      stored: storedArea,
       cityId,
       explicitArrivalIntent,
-      hasRestoredViewport: Boolean(restoredMobileSession?.viewport),
+      hasRestoredViewport: Boolean(restoredMobileSession?.viewport) && !refreshNearMe,
       venueCount: filteredVenues.length,
     });
     if (decision.action === "wait") return;
@@ -6218,7 +6268,7 @@ export default function PubMap({
         mapView={openingViewport
           ? withCityCameraAttitude(openingViewport, city.mapView)
           : locationFirstMapView}
-        resumeViewport={mapResumeViewport}
+        resumeViewport={liveNearMeOwnsCamera ? null : mapResumeViewport}
         maxBounds={UK_BOUNDS}
         fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
         searchFitToken={searchFitToken}

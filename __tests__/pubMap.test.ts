@@ -43,6 +43,7 @@ import {
   searchParamsQuery,
   settledBoundsFor,
   shouldResolveOpeningLocation,
+  shouldResumeNearMeLocation,
   suggestedRouteWanted,
   tonightLaneKindFor,
   tonightLaneReadState,
@@ -403,6 +404,27 @@ describe("shouldResolveOpeningLocation", () => {
       shouldResolveOpeningLocation({ ...clean, restoredMobileSession: { openSheet: "planner" } }),
     ).toBe(true);
     expect(shouldResolveOpeningLocation({ ...clean, needsOpeningResolution: false })).toBe(false);
+  });
+});
+
+describe("shouldResumeNearMeLocation", () => {
+  const base = {
+    stored: { cityId: "london" as const, label: "Near me", slug: "near-me", kind: "near-me" as const },
+    cityId: "london" as const,
+    explicitArrivalIntent: false,
+    cameraTouched: false,
+  };
+
+  it("refreshes a remembered Near me on a clean arrival", () => {
+    expect(shouldResumeNearMeLocation(base)).toBe(true);
+  });
+
+  it("preserves explicit arrivals, other cities, named places and gestures", () => {
+    expect(shouldResumeNearMeLocation({ ...base, explicitArrivalIntent: true })).toBe(false);
+    expect(shouldResumeNearMeLocation({ ...base, cameraTouched: true })).toBe(false);
+    expect(shouldResumeNearMeLocation({ ...base, stored: null })).toBe(false);
+    expect(shouldResumeNearMeLocation({ ...base, stored: { ...base.stored, cityId: "manchester" } })).toBe(false);
+    expect(shouldResumeNearMeLocation({ ...base, stored: { cityId: "london", label: "Camden", slug: "camden", kind: "night-area", center: [-0.14, 51.54] } })).toBe(false);
   });
 });
 
@@ -918,6 +940,10 @@ describe("openingViewportFrom", () => {
     expect(openingViewportFrom(null, { viewport: restored })).toBe(restored);
     expect(openingViewportFrom(null, null)).toBeNull();
     expect(openingViewportFrom(null, { openSheet: "planner" })).toBeNull();
+  });
+
+  it("stands saved viewports down after a live Near me owns the camera", () => {
+    expect(openingViewportFrom(resume, { viewport: restored }, true)).toBeNull();
   });
 });
 
