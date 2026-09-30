@@ -55,6 +55,10 @@ const ACTORS = vi.hoisted(() => ({
   BEARER_CAROL: "pm-bearer-carol",
   BEARER_DAVE: "pm-bearer-dave",
 }));
+const friendStartAuthDelay = vi.hoisted(() => ({
+  pending: null as Promise<void> | null,
+  entered: null as (() => void) | null,
+}));
 vi.mock("@/lib/authServer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/authServer")>();
   const identityFor = (request: Request) => {
@@ -70,6 +74,10 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
     callerUserId: async (request: Request) => identityFor(request)?.id ?? null,
     callerAuthIdentity: async (request: Request) => identityFor(request),
     verifyCallerAuth: async (request: Request) => {
+      if (request.headers.get("x-friend-proof-delay") === "original-start" && friendStartAuthDelay.pending) {
+        friendStartAuthDelay.entered?.();
+        await friendStartAuthDelay.pending;
+      }
       const token = actual.bearerToken(request);
       if (!token) return { status: "absent" as const };
       const identity = identityFor(request);
@@ -2046,6 +2054,170 @@ describe("photo tags: the consent inbox is the tagged account's own", () => {
     );
     expect(response.status).toBe(400);
     expectNoDisclosure(await readJson(response));
+  });
+});
+
+describe("private friend locations: both doors", () => {
+  it("shares only to selected current mutuals, refuses third identity and protects both tables", async () => {
+    const route = await import("@/app/api/friend-locations/route");
+    const point = { latitude: 51.512, longitude: -0.123, accuracy: 110 };
+    const generation = (await (await route.GET(request("/api/friend-locations", { bearer: BEARER_ALICE }))).json()).generation;
+    const started = await route.POST(request("/api/friend-locations", { bearer: BEARER_ALICE, body: { ...point, recipients: [BOB_PROFILE], expectedGeneration: generation } }));
+    expect(started.status, await started.clone().text()).toBe(200);
+    const share = await started.json();
+    const owner = { sessionId: share.own.sessionId as string, revision: share.own.revision as number };
+    const received = await route.GET(request("/api/friend-locations", { bearer: BEARER_BOB }));
+    expect(received.headers.get("Cache-Control")).toBe("private, no-store");
+    expect((await received.json()).friends).toEqual([expect.objectContaining({ profileId: ALICE_PROFILE, ...point })]);
+    const before = truth("select count(*) from private_friend_location_sessions");
+    for (const bearer of [BEARER_CAROL, BEARER_DAVE]) {
+      const denied = await route.GET(request("/api/friend-locations", { bearer }));
+      expect(denied.status).toBe(200);
+      const body = await denied.json();
+      expect(body.friends).toEqual([]);
+      expectNoDisclosure(body, [owner.sessionId, "51.512", "-0.123"]);
+      expect((await route.DELETE(request("/api/friend-locations", { bearer, method: "DELETE", body: owner }))).status).toBe(409);
+      expect(truth("select count(*) from private_friend_location_sessions")).toBe(before);
+    }
+    expect((await route.GET(request("/api/friend-locations"))).status).toBe(401);
+    for (const table of ["private_friend_location_sessions", "private_friend_location_grants", "private_friend_location_generations"]) {
+      for (const sub of [ALICE, BOB, CAROL, DAVE]) {
+        const response = await requireSession().rest(`/${table}?select=*`, { sub });
+        expect(response.status).toBe(403);
+      }
+    }
+    expect((await route.DELETE(request("/api/friend-locations", { bearer: BEARER_ALICE, method: "DELETE", body: owner }))).status).toBe(200);
+    expect((await route.PATCH(request("/api/friend-locations", { bearer: BEARER_ALICE, method: "PATCH", body: { ...owner, ...point } }))).status).toBe(409);
+    expect((await (await route.GET(request("/api/friend-locations", { bearer: BEARER_BOB }))).json()).friends).toEqual([]);
+  });
+  it("refuses a delayed original start after an empty authority read and a newer explicit start", async () => {
+    const route = await import("@/app/api/friend-locations/route");
+    const point = { latitude: 51.512, longitude: -0.123, accuracy: 110 };
+    const generation = (await (await route.GET(request("/api/friend-locations", { bearer: BEARER_ALICE }))).json()).generation;
+    let release!: () => void;
+    let authEntered!: () => void;
+    const entered = new Promise<void>((resolve) => { authEntered = resolve; });
+    friendStartAuthDelay.pending = new Promise<void>((resolve) => { release = resolve; });
+    friendStartAuthDelay.entered = authEntered;
+    const delayed = route.POST(request("/api/friend-locations", {
+      bearer: BEARER_ALICE,
+      headers: { "x-friend-proof-delay": "original-start" },
+      body: { ...point, latitude: 51.51, recipients: [BOB_PROFILE], expectedGeneration: generation },
+    }));
+    try {
+      await entered;
+      const absent = await route.GET(request("/api/friend-locations", { bearer: BEARER_ALICE }));
+      expect(absent.status).toBe(200);
+      const absence = await absent.json();
+      expect(absence.own).toBeNull();
+      expect(absence.generation).toBe(generation);
+      const fenced = await route.POST(request("/api/friend-locations", {
+        bearer: BEARER_ALICE, body: { action: "reconcile", expectedGeneration: generation },
+      }));
+      expect(fenced.status).toBe(200);
+      const fence = await fenced.json();
+      expect(fence.own).toBeNull();
+      expect(fence.generation).toBe(generation + 1);
+      const newer = await route.POST(request("/api/friend-locations", {
+        bearer: BEARER_ALICE, body: { ...point, recipients: [BOB_PROFILE], expectedGeneration: fence.generation },
+      }));
+      expect(newer.status).toBe(200);
+      const newerOwn = (await newer.json()).own;
+      release();
+      expect((await delayed).status).toBe(409);
+      const current = await route.GET(request("/api/friend-locations", { bearer: BEARER_ALICE }));
+      expect((await current.json()).own.sessionId).toBe(newerOwn.sessionId);
+      const recipient = await route.GET(request("/api/friend-locations", { bearer: BEARER_BOB }));
+      expect((await recipient.json()).friends).toEqual([expect.objectContaining(point)]);
+    } finally {
+      release();
+      await delayed;
+      friendStartAuthDelay.pending = null;
+      friendStartAuthDelay.entered = null;
+    }
+  });
+  it("prevents an earlier submitted replacement from recreating a share after Stop is confirmed", async () => {
+    const route = await import("@/app/api/friend-locations/route");
+    const point = { latitude: 51.512, longitude: -0.123, accuracy: 110 };
+    const current = await (await route.GET(request("/api/friend-locations", { bearer: BEARER_ALICE }))).json();
+    if (current.own) await route.DELETE(request("/api/friend-locations", {
+      bearer: BEARER_ALICE, method: "DELETE", body: { sessionId: current.own.sessionId, revision: current.own.revision },
+    }));
+    const generation = (await (await route.GET(request("/api/friend-locations", { bearer: BEARER_ALICE }))).json()).generation;
+    const started = await route.POST(request("/api/friend-locations", {
+      bearer: BEARER_ALICE, body: { ...point, recipients: [BOB_PROFILE], expectedGeneration: generation },
+    }));
+    expect(started.status).toBe(200);
+    const share = await started.json();
+    const own = share.own;
+    let release!: () => void;
+    let authEntered!: () => void;
+    const entered = new Promise<void>((resolve) => { authEntered = resolve; });
+    friendStartAuthDelay.pending = new Promise<void>((resolve) => { release = resolve; });
+    friendStartAuthDelay.entered = authEntered;
+    const delayed = route.POST(request("/api/friend-locations", {
+      bearer: BEARER_ALICE, headers: { "x-friend-proof-delay": "original-start" },
+      body: { ...point, latitude: 51.51, recipients: [BOB_PROFILE], expectedGeneration: share.generation },
+    }));
+    try {
+      await entered;
+      const stopped = await route.DELETE(request("/api/friend-locations", {
+        bearer: BEARER_ALICE, method: "DELETE", body: { sessionId: own.sessionId, revision: own.revision },
+      }));
+      expect(stopped.status).toBe(200);
+      expect((await stopped.json()).own).toBeNull();
+      release();
+      expect((await delayed).status).toBe(409);
+      const absent = await route.GET(request("/api/friend-locations", { bearer: BEARER_ALICE }));
+      expect((await absent.json()).own).toBeNull();
+      const recipient = await route.GET(request("/api/friend-locations", { bearer: BEARER_BOB }));
+      expect((await recipient.json()).friends).toEqual([]);
+    } finally {
+      release();
+      await delayed;
+      friendStartAuthDelay.pending = null;
+      friendStartAuthDelay.entered = null;
+    }
+  });
+  it("fences a pending replacement when Retry Stop confirms an already-revoked session", async () => {
+    const route = await import("@/app/api/friend-locations/route");
+    const current = await (await route.GET(request("/api/friend-locations", { bearer: BEARER_ALICE }))).json();
+    const started = await route.POST(request("/api/friend-locations", {
+      bearer: BEARER_ALICE, body: { latitude: 51.512, longitude: -0.123, accuracy: 110, recipients: [BOB_PROFILE], expectedGeneration: current.generation },
+    }));
+    expect(started.status).toBe(200);
+    const own = (await started.json()).own;
+    const stop = { sessionId: own.sessionId, revision: own.revision };
+    const first = await route.DELETE(request("/api/friend-locations", { bearer: BEARER_ALICE, method: "DELETE", body: stop }));
+    expect(first.status).toBe(200);
+    const generation = (await first.json()).generation;
+    let release!: () => void;
+    let authEntered!: () => void;
+    const entered = new Promise<void>((resolve) => { authEntered = resolve; });
+    friendStartAuthDelay.pending = new Promise<void>((resolve) => { release = resolve; });
+    friendStartAuthDelay.entered = authEntered;
+    const delayed = route.POST(request("/api/friend-locations", {
+      bearer: BEARER_ALICE, headers: { "x-friend-proof-delay": "original-start" },
+      body: { latitude: 51.51, longitude: -0.123, accuracy: 110, recipients: [BOB_PROFILE], expectedGeneration: generation },
+    }));
+    try {
+      await entered;
+      const retry = await route.DELETE(request("/api/friend-locations", { bearer: BEARER_ALICE, method: "DELETE", body: stop }));
+      expect(retry.status).toBe(200);
+      const confirmed = await retry.json();
+      expect(confirmed.own).toBeNull();
+      release();
+      expect((await delayed).status).toBe(409);
+      expect(confirmed.generation).toBeGreaterThan(generation);
+      const absent = await route.GET(request("/api/friend-locations", { bearer: BEARER_ALICE }));
+      expect((await absent.json()).own).toBeNull();
+      expect((await (await route.GET(request("/api/friend-locations", { bearer: BEARER_BOB }))).json()).friends).toEqual([]);
+    } finally {
+      release();
+      await delayed;
+      friendStartAuthDelay.pending = null;
+      friendStartAuthDelay.entered = null;
+    }
   });
 });
 

@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 150 mutating handlers across 118 route files.** Each exported
+> **Inventory: 156 mutating handlers across 122 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -27,6 +27,7 @@ Protection in a sibling method cannot certify another method.
 - `DELETE app/api/auth/session`
 - `DELETE app/api/check-ins`
 - `DELETE app/api/crawls/[slug]`
+- `DELETE app/api/friend-locations`
 - `DELETE app/api/night-stories/[id]/contributors`
 - `DELETE app/api/plans/[id]/group-prefs`
 - `DELETE app/api/plans/[id]/invite-rsvp`
@@ -46,6 +47,7 @@ Protection in a sibling method cannot certify another method.
 - `DELETE app/api/social/interactions`
 - `PATCH app/api/admin/import-notes`
 - `PATCH app/api/crawls/[slug]`
+- `PATCH app/api/friend-locations`
 - `PATCH app/api/profiles/[handle]/covers/[coverId]`
 - `PATCH app/api/identity/onboarding`
 - `PATCH app/api/night-moments/[id]/alt-text`
@@ -81,6 +83,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/crawls`
 - `POST app/api/drink-wall`
 - `POST app/api/events`
+- `POST app/api/friend-locations`
 - `POST app/api/heritage`
 - `POST app/api/identity/adult-assertion`
 - `POST app/api/identity/handle/claim`
@@ -1382,6 +1385,14 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   `GET app/api/starter-packs` is public and `no-store`; an optional viewer makes
   the response personalised and returns that viewer's follow count tri-state,
   so a failed count is never read as "follows nobody".
+
+### `app/api/friend-locations` - selected mutual friend location sharing
+
+- **Routes / methods:** `POST` starts an explicit one-hour share with up to 20 selected mutual friends, or accepts `action: "reconcile"` to fence an uncertain submitted start. `GET` only reads. `PATCH` updates the latest point. `DELETE` revokes it; both require the owner's session ID and revision.
+- **Authority:** Every operation requires a verified Social actor. The service-only SQL operation checks current adult and live-account authority, current mutual relationships and blocks, and stored account/profile/user binding. Recipients receive no session capability. Client roles cannot read the private tables.
+- **Validation and abuse:** Exact body keys, UUIDs, coordinate bounds, safe non-negative generations and bounded bodies; per-actor operation budgets of six POSTs or 60 other requests per minute. Cross-site mutations fail before writes. Start compares the confirmed account generation under the actor lock; reconciliation and successful revoke advance it to fence older submitted starts. Point updates and revoke retain session/revision compare-and-swap.
+- **Privacy and retention:** Responses are private and no-store. Client and service reduce point precision; only the latest point is retained. Reads deny stale and expired points. The credential-gated `GET app/api/cron/purge-friend-locations` physically removes revoked and expired sessions every minute; it is outside this mutation-method inventory. The private non-coordinate generation counter survives point cleanup until account deletion.
+- **Evidence:** Controller, API, effective PostgreSQL, permission-matrix, selection, account-boundary and coordinate privacy tests. Browser proof is recorded separately in `docs/proof/friend-location-sharing-20260929.md`.
 
 ### `app/api/venues/[id]/occupancy` - crowd occupancy readings (route 91)
 
