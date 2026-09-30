@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-09-30T09:22:34.951Z",
+  "scope": "signed-out native IAB, no auth or GPS fixture",
+  "escape": {
+    "activeLabel": "Friend locations",
+    "expanded": "true",
+    "panelPresent": true,
+    "viewport": {
+      "height": 720,
+      "width": 1280
+    }
+  },
+  "outside": {
+    "activeRole": "combobox",
+    "expanded": "true",
+    "panelPresent": true,
+    "pathname": "/map"
+  }
+}

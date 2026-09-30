@@ -325,6 +325,7 @@ type PubMapCanvasProps = {
   initialLandmarkId?: string;
   /** Reports when the canvas can replace the parent's loading chrome. */
   onMapReady?: (ready: boolean) => void;
+  onMapInstance?: (map: maplibregl.Map | null) => void;
   /**
    * Called with `true` the moment the canvas commits to its user-facing error
    * fallback (WebGL failure, tiles down, context-lost, zero-size, …), and
@@ -549,6 +550,7 @@ export default function PubMapCanvas({
   onBandChange,
   initialLandmarkId = "",
   onMapReady,
+  onMapInstance,
   onMapErrored,
   mapView = LONDON_VIEW,
   resumeViewport = null,
@@ -646,13 +648,15 @@ export default function PubMapCanvas({
   // Keep the latest parent callback without reading/writing refs during render
   // (react-hooks/refs). Build/event handlers + error paths read this when ready flips.
   const onMapReadyRef = useRef(onMapReady);
+  const onMapInstanceRef = useRef(onMapInstance);
   const onMapErroredRef = useRef(onMapErrored);
   const onRenderedStateChangeRef = useRef(onRenderedStateChange);
   useEffect(() => {
     onMapReadyRef.current = onMapReady;
+    onMapInstanceRef.current = onMapInstance;
     onMapErroredRef.current = onMapErrored;
     onRenderedStateChangeRef.current = onRenderedStateChange;
-  }, [onMapReady, onMapErrored, onRenderedStateChange]);
+  }, [onMapReady, onMapInstance, onMapErrored, onRenderedStateChange]);
   const publishMapReady = useCallback((ready: boolean) => {
     setMapReady(ready);
     onMapReadyRef.current?.(ready);
@@ -1472,6 +1476,7 @@ export default function PubMapCanvas({
       "top-right",
     );
     mapRef.current = map;
+    onMapInstanceRef.current?.(map);
     setMapInstanceReady(true);
     let styleGeneration = 0;
     const cancelDeferredWork = () => {
@@ -3313,6 +3318,7 @@ export default function PubMapCanvas({
       if (publishCurrentViewportRef.current === publishCurrentViewport) {
         publishCurrentViewportRef.current = null;
       }
+      onMapInstanceRef.current?.(null);
       map.remove();
       mapRef.current = null;
       styleStructureReadyRef.current = false;

@@ -1,0 +1,42 @@
+{
+  "checkedAt": "2026-09-30T09:44:55.577Z",
+  "scope": "signed-out native IAB, no authentication or GPS fixture",
+  "componentSha256": "e39aaeed65bb3b609a7895dfa55557448ad09138f6e16562003bcd41c898f6ce",
+  "desktop": {
+    "escape": {
+      "activeLabel": "Friend locations",
+      "expanded": "false",
+      "panelPresent": false
+    },
+    "outside": {
+      "activeRole": "combobox",
+      "expanded": "false",
+      "panelPresent": false,
+      "pathname": "/map"
+    }
+  },
+  "phone": {
+    "open": {
+      "expanded": "true",
+      "panelPresent": true,
+      "scrollWidth": 375,
+      "viewport": {
+        "height": 844,
+        "width": 390
+      }
+    },
+    "escape": {
+      "activeLabel": "Friend locations",
+      "expanded": "false",
+      "panelPresent": false
+    }
+  },
+  "loadedBuild": {
+    "firstRetestModule": "34oftduuvf-pe.js",
+    "firstRetestHadSharedDismiss": false,
+    "finalModule": "2l8k0kkfiqb7x.js",
+    "temporaryTabCacheAndServiceWorkerBypass": true,
+    "productionCachePolicyChanged": false
+  },
+  "finalRepositoryGate": "pending"
+}

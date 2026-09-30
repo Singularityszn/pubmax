@@ -21,6 +21,8 @@ const VIEWER_COORDINATE_EGRESS_FILES = [
   // The locate fix reaches a URL (server logs, history, shareable), so it
   // must coarsen before it leaves the browser (#901 review finding).
   "lib/locateMapDestination.ts",
+  "lib/friendLocationClient.ts",
+  "lib/friendLocationService.server.ts",
 ] as const;
 
 describe("viewer coordinate egress", () => {

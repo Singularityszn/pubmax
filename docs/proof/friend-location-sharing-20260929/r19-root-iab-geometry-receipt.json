@@ -1,0 +1,128 @@
+{
+  "scope": "Native IAB, signed out, no auth or GPS fixture; candidate rebuilt after owned CSS trigger repair",
+  "source": {
+    "path": "components/map/friends/friendLocations.css",
+    "sha256": "d55dc4d02a87bd97fd0648a28116a7670aeadbd34bdeda41f4b06a121505346a"
+  },
+  "finalRepositoryGateAfterCssRepair": "pending",
+  "panels": [
+    {
+      "size": {
+        "width": 1280,
+        "height": 720
+      },
+      "geometry": {
+        "closeHit": true,
+        "documentOverflow": false,
+        "headingFits": true,
+        "panel": {
+          "height": 122.390625,
+          "width": 350,
+          "x": 866,
+          "y": 283
+        }
+      }
+    },
+    {
+      "size": {
+        "width": 390,
+        "height": 844
+      },
+      "geometry": {
+        "closeHit": true,
+        "documentOverflow": false,
+        "headingFits": true,
+        "panel": {
+          "height": 122.390625,
+          "width": 350,
+          "x": 13,
+          "y": 212
+        }
+      }
+    },
+    {
+      "size": {
+        "width": 768,
+        "height": 1024
+      },
+      "geometry": {
+        "closeHit": true,
+        "documentOverflow": false,
+        "headingFits": true,
+        "panel": {
+          "height": 122.390625,
+          "width": 350,
+          "x": 354,
+          "y": 295
+        }
+      }
+    },
+    {
+      "size": {
+        "width": 1440,
+        "height": 900
+      },
+      "geometry": {
+        "closeHit": true,
+        "documentOverflow": false,
+        "headingFits": true,
+        "panel": {
+          "height": 122.390625,
+          "width": 350,
+          "x": 1026,
+          "y": 283
+        }
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "size": {
+        "width": 1280,
+        "height": 720
+      },
+      "hit": {
+        "centerHit": true,
+        "x": 1108.609375,
+        "y": 231
+      },
+      "panelVisible": true
+    },
+    {
+      "size": {
+        "width": 390,
+        "height": 844
+      },
+      "hit": {
+        "centerHit": true,
+        "x": 255.609375,
+        "y": 160
+      },
+      "panelVisible": true
+    },
+    {
+      "size": {
+        "width": 768,
+        "height": 1024
+      },
+      "hit": {
+        "centerHit": true,
+        "x": 596.609375,
+        "y": 243
+      },
+      "panelVisible": true
+    },
+    {
+      "size": {
+        "width": 1440,
+        "height": 900
+      },
+      "hit": {
+        "centerHit": true,
+        "x": 1268.609375,
+        "y": 231
+      },
+      "panelVisible": true
+    }
+  ]
+}
