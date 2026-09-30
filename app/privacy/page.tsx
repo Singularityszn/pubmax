@@ -213,6 +213,26 @@ export default function PrivacyPage() {
           reactions with it.
         </p>
 
+        <h3 className="legalH3">Sharing your location with friends</h3>
+        <p className="legalBody">
+          Sharing starts only when you select mutual friends and tap Share my location.
+          We reduce your point to three decimals, about 70 to 110 metres, and keep
+          only the latest point, its accuracy and update time in private Supabase
+          storage. Up to 20 selected mutual friends can see it for one hour.
+          A private counter without coordinates remains until account deletion
+          so an older request cannot restart sharing after Stop.
+          Each read checks current friendship, blocks and live adult accounts.
+          Points older than two minutes disappear. Updates pause when this page
+          is hidden. Signing out clears friend points from browser memory.
+        </p>
+        <p className="legalBody">
+          Stop sharing stops browser updates immediately. Access ends when the
+          server confirms revocation. A failed request stays visibly unconfirmed.
+          A scheduled cleanup deletes expired and revoked sessions every minute;
+          outages can delay deletion. Coordinates never enter analytics, AI,
+          offline caches or browser storage. We never track location in the background.
+        </p>
+
         <h3 className="legalH3">What you post</h3>
         <p className="legalBody">
           Pint Drops (a price, a note, sometimes a photo), plans and crawl

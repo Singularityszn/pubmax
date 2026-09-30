@@ -4,6 +4,7 @@
   "framework": "nextjs",
   "regions": ["lhr1"],
   "crons": [
+    { "path": "/api/cron/purge-friend-locations", "schedule": "* * * * *" },
     { "path": "/api/cron/refresh-weather", "schedule": "0 */6 * * *" },
     { "path": "/api/cron/refresh-whats-on", "schedule": "30 5 * * *" },
     { "path": "/api/cron/refresh-whats-on", "schedule": "0 15 * * *" },

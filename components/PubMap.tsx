@@ -8,10 +8,13 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 
+type MapLibreMap = import("maplibre-gl").Map;
+
 const PubPalMascot = dynamic(
   () => import("@/components/pal/PubPalMascot").then((m) => m.PubPalMascot),
   { ssr: false },
 );
+const FriendLocationControl = dynamic(() => import("@/components/map/friends/FriendLocationControl"), { ssr: false });
 const ThemeToggle = dynamic(() => import("@/components/ThemeToggle"), { ssr: false });
 import PriceBadge from "@/components/PriceBadge";
 import "@/components/map/venueSheet.css";
@@ -1359,6 +1362,7 @@ export default function PubMap({
   // boundary, so a blocked chunk is genuinely re-requested rather than replayed
   // out of React's cache.
   const [mapCanvasAttempt, setMapCanvasAttempt] = useState(0);
+  const [friendLocationMap, setFriendLocationMap] = useState<MapLibreMap | null>(null);
   // Issue #35 - staged load. `slimPins` are Venue-shape pins built from the
   // compact index (or its IndexedDB mirror) before any detail request. They
   // carry kind, anchor provenance, and fast filter signals; detail-only fields
@@ -6275,6 +6279,7 @@ export default function PubMap({
         initialLandmarkId={seed.landmarkId}
         onLandmarkSelect={handleLandmarkSelect}
         onMapReady={handleMapCanvasReady}
+        onMapInstance={setFriendLocationMap}
         onMapErrored={setMapCanvasErrored}
         mapView={openingViewport
           ? withCityCameraAttitude(openingViewport, city.mapView)
@@ -6716,6 +6721,7 @@ export default function PubMap({
             fallback card is never hidden behind it. */}
         {renderMapLoadingChrome()}
         {renderMapCanvas()}
+        {!secondaryStreamsHeld && <FriendLocationControl map={friendLocationMap} />}
         {renderMapSearchEmptyState()}
         {renderDesktopToolbar()}
         {renderDesktopMapOverlays()}
