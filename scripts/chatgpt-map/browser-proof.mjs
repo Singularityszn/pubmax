@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { createServer } from "node:http";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -11,6 +13,7 @@ import { createPublicMapHttpServer } from "./server.mjs";
 // not prove an authenticated ChatGPT connection or its iframe CSP policy.
 const output = fileURLToPath(new URL("../../artifacts/chatgpt-map/", import.meta.url));
 await mkdir(output, { recursive: true });
+const sourceSha256 = Object.fromEntries(await Promise.all(["widget.html", "server.mjs", "browser-proof.mjs"].map(async (name) => [name, createHash("sha256").update(await readFile(new URL(name, import.meta.url))).digest("hex")])));
 const server = await createPublicMapHttpServer();
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
@@ -112,7 +115,7 @@ try {
     failureChecks.push({ order, pubs: expectedPubs, status });
     await context.close();
   }
-  for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+  for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 1000 }]) {
     const context = await browser.newContext({ viewport });
     await enforceResourcePolicy(context);
     const page = await context.newPage();
@@ -132,6 +135,58 @@ try {
     await attributionText.waitFor({ timeout: 10000 });
     assert.ok(await attributionText.isVisible(), `Pub data attribution hidden at ${viewport.width}px`);
     const renderedAttribution = (await attributionText.textContent()).trim();
+    const threePriceVenue = result.structuredContent.venues.find((venue) => venue.name === "The Ice Wharf - JD Wetherspoon");
+    assert.equal(threePriceVenue?.prices.length, 3, "Real Camden result must exercise three prices");
+    const threePricePin = widget.getByRole("button", { name: threePriceVenue.name, exact: true });
+    await threePricePin.click();
+    const threePricePopup = widget.locator(".maplibregl-popup");
+    await threePricePopup.waitFor();
+    await page.waitForTimeout(100);
+    const popupGeometry = await threePricePopup.evaluate((popup) => {
+      const rect = (node) => { const { top, bottom, left, right, height } = node.getBoundingClientRect(); return { top, bottom, left, right, height }; };
+      const content = popup.querySelector(".maplibregl-popup-content > div");
+      return { popup: rect(popup), map: rect(document.getElementById("map")), attribution: rect(document.querySelector(".maplibregl-ctrl-attrib")), navigation: rect(document.querySelector(".maplibregl-ctrl-top-right")), contentHeight: content.clientHeight, scrollHeight: content.scrollHeight };
+    });
+    await page.screenshot({ path: `${output}three-price-${viewport.width}.png`, fullPage: true });
+    await writeFile(`${output}three-price-${viewport.width}.json`, `${JSON.stringify({ sourceSha256, viewport, venue: threePriceVenue.name, geometry: popupGeometry }, null, 2)}\n`);
+    assert.ok(popupGeometry.popup.top >= popupGeometry.map.top && popupGeometry.popup.bottom < popupGeometry.attribution.top, `Three-price popup exceeds available map space at ${viewport.width}px: ${JSON.stringify(popupGeometry)}`);
+    assert.ok(popupGeometry.popup.left >= popupGeometry.map.left && popupGeometry.popup.right <= popupGeometry.map.right, "Three-price popup exceeds map width");
+    assert.ok(popupGeometry.popup.right <= popupGeometry.navigation.left, "Popup must clear navigation controls");
+    const popupPrices = await threePricePopup.locator(".price").allTextContents();
+    assert.deepEqual(popupPrices, threePriceVenue.prices.map((price) => `${new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(price.priceGbp)} · ${price.drink}`));
+    if (viewport.width === 390) assert.ok(popupGeometry.scrollHeight > popupGeometry.contentHeight, "Three-price phone popup must scroll");
+    for (const price of await threePricePopup.locator(".price").all()) {
+      await price.scrollIntoViewIfNeeded();
+      const box = await price.boundingBox();
+      const contentBox = await threePricePopup.locator(".maplibregl-popup-content > div").boundingBox();
+      assert.ok(box && contentBox && box.y >= contentBox.y && box.y + box.height <= contentBox.y + contentBox.height + 1, "Every price row must scroll into view");
+    }
+    assert.deepEqual(await threePricePopup.getByRole("link", { name: /^Publisher:/ }).allTextContents(), threePriceVenue.prices.map((price) => `Publisher: ${price.publisher.label}`));
+    const expectedPopupUrls = [...threePriceVenue.prices.map((price) => price.publisher.url), threePriceVenue.href];
+    assert.deepEqual(await threePricePopup.getByRole("link").evaluateAll((links) => links.map((link) => link.href)), expectedPopupUrls);
+    for (let index = 0; index < expectedPopupUrls.length; index++) {
+      const link = threePricePopup.getByRole("link").nth(index);
+      await link.focus();
+      const box = await link.boundingBox();
+      const contentBox = await threePricePopup.locator(".maplibregl-popup-content > div").boundingBox();
+      assert.ok(box && contentBox && box.y >= contentBox.y && box.y + box.height <= contentBox.y + contentBox.height + 1, "Focused popup link must scroll into view");
+      const openedBefore = await page.evaluate(() => window.openedLinks.length);
+      await link.press("Enter");
+      await page.waitForFunction(({ count, url }) => window.openedLinks.length === count + 1 && window.openedLinks.at(-1) === url, { count: openedBefore, url: expectedPopupUrls[index] });
+    }
+    await page.screenshot({ path: `${output}three-price-${viewport.width}-scrolled.png`, fullPage: true });
+    for (const key of ["Enter", "Space"]) {
+      await threePricePopup.locator(".maplibregl-popup-close-button").focus();
+      await threePricePopup.locator(".maplibregl-popup-close-button").press("Enter");
+      await threePricePin.focus();
+      await threePricePin.press(key);
+      await threePricePopup.waitFor();
+      assert.equal(await threePricePopup.getByRole("heading", { name: threePriceVenue.name, exact: true }).count(), 1);
+    }
+    await threePricePopup.locator(".maplibregl-popup-close-button").click();
+    await page.reload({ waitUntil: "networkidle" });
+    await widget.locator("#venues > li").last().waitFor();
+    await attributionText.waitFor();
     await widget.locator(".pin").last().click();
     await widget.locator(".maplibregl-popup").waitFor();
     assert.equal(await widget.locator(".maplibregl-popup").getByRole("link", { name: "Open pub in PUBMAXX" }).count(), 1);
@@ -201,7 +256,7 @@ try {
     assert.equal(await widget.locator("#venues > li").count(), 3, "A tool result after teardown rebuilt the list");
     assert.equal(await widget.locator(".maplibregl-canvas").count(), 0, "A tool result after teardown rebuilt the map");
     assert.equal(await page.evaluate(() => window.sizeChanges), sizeChangesAtTeardown, "Size notifications continued after teardown");
-    checks.push({ viewport, pubs: 3, attribution: renderedAttribution, popup: true, keyboard: ["Enter", "Space"], hostLinks: [pubUrl, publisherUrl], deniedLinkFallback: true, unsupportedLinkFallback: true, horizontalOverflow: false, status, hostRequests: acknowledgements.map(({ method, response }) => ({ method, result: response.result })), lateResultAfterTeardownIgnored: true });
+    checks.push({ viewport, pubs: 3, attribution: renderedAttribution, threePricePopup: { venue: threePriceVenue.name, geometry: popupGeometry, prices: popupPrices, hostLinks: expectedPopupUrls, keyboard: ["Enter", "Space"] }, popup: true, keyboard: ["Enter", "Space"], hostLinks: [pubUrl, publisherUrl], deniedLinkFallback: true, unsupportedLinkFallback: true, horizontalOverflow: false, status, hostRequests: acknowledgements.map(({ method, response }) => ({ method, result: response.result })), lateResultAfterTeardownIgnored: true });
     await context.close();
   }
   const themeChecks = [];
@@ -229,7 +284,7 @@ try {
   assert.deepEqual(hostDarkOverOsLight.updated, osLight.initial, "Host context change to light did not apply");
   assert.deepEqual(hostLightOverOsDark.initial, osLight.initial, "Host light theme did not override a dark OS preference");
   assert.deepEqual(hostLightOverOsDark.updated, osDark.initial, "Host context change to dark did not apply");
-  const proof = { checkedAt: new Date().toISOString(), host: "controlled local MCP Apps bridge", authentication: "No ChatGPT account connection", externalLinks: "Host request and acknowledgement only; no external destination navigation", sandbox: "allow-scripts allow-same-origin", declaredResourcePolicyEnforced: true, checks, failureChecks, themeChecks };
+  const proof = { checkedAt: new Date().toISOString(), head: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(), sourceSha256, host: "controlled local MCP Apps bridge", authentication: "No ChatGPT account connection", externalLinks: "Host request and acknowledgement only; no external destination navigation", sandbox: "allow-scripts allow-same-origin", declaredResourcePolicyEnforced: true, checks, failureChecks, themeChecks };
   await writeFile(`${output}result.json`, `${JSON.stringify(proof, null, 2)}\n`);
   console.log(JSON.stringify(proof));
 } finally {

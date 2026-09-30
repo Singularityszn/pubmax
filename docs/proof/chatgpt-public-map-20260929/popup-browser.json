@@ -1,0 +1,240 @@
+{
+  "checkedAt": "2026-09-30T20:38:10.792Z",
+  "head": "fae6e1801c7a0bce7225eca83973df93a2ebbc0b",
+  "sourceSha256": {
+    "widget.html": "bba6d23b02a88075fc17ce3199798df0f9ea05377819d1da4ab17616d36eac07",
+    "server.mjs": "efea2d8e8a0d62c10fbfac7f393f9532c7e45ea1f319032dbae72ca1ae74a874",
+    "browser-proof.mjs": "773cd0a7b501a206dbe293fbbc0abae4f7c4fabbc5bbf66bfb2559035fb10988"
+  },
+  "host": "controlled local MCP Apps bridge",
+  "authentication": "No ChatGPT account connection",
+  "externalLinks": "Host request and acknowledgement only; no external destination navigation",
+  "sandbox": "allow-scripts allow-same-origin",
+  "declaredResourcePolicyEnforced": true,
+  "checks": [
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pubs": 3,
+      "attribution": "Pub data © OpenStreetMap contributors (ODbL) | OpenFreeMap © OpenMapTiles Data from OpenStreetMap",
+      "threePricePopup": {
+        "venue": "The Ice Wharf - JD Wetherspoon",
+        "geometry": {
+          "popup": {
+            "top": 157.796875,
+            "bottom": 367.796875,
+            "left": 100,
+            "right": 340,
+            "height": 210
+          },
+          "map": {
+            "top": 147.796875,
+            "bottom": 427.796875,
+            "left": 0,
+            "right": 390,
+            "height": 280
+          },
+          "attribution": {
+            "top": 373.796875,
+            "bottom": 417.796875,
+            "left": 10,
+            "right": 380,
+            "height": 44
+          },
+          "navigation": {
+            "top": 147.796875,
+            "bottom": 245.796875,
+            "left": 351,
+            "right": 390,
+            "height": 98
+          },
+          "contentHeight": 170,
+          "scrollHeight": 229
+        },
+        "prices": [
+          "£3.66 · BUD LIGHT",
+          "£4.25 · CARLSBERG PILSNER",
+          "£5.07 · GUINNESS"
+        ],
+        "hostLinks": [
+          "https://www.pint-prices.com/pub/28A,%2028B%20Jamestown%20Rd,%20London%20NW1%207BY,%20UK/The%20Ice%20Wharf%20-%20JD%20Wetherspoon",
+          "https://www.pint-prices.com/pub/28A,%2028B%20Jamestown%20Rd,%20London%20NW1%207BY,%20UK/The%20Ice%20Wharf%20-%20JD%20Wetherspoon",
+          "https://www.pint-prices.com/pub/28A,%2028B%20Jamestown%20Rd,%20London%20NW1%207BY,%20UK/The%20Ice%20Wharf%20-%20JD%20Wetherspoon",
+          "https://pubmaxxing.com/map?sel=venue-17u2i1w"
+        ],
+        "keyboard": [
+          "Enter",
+          "Space"
+        ]
+      },
+      "popup": true,
+      "keyboard": [
+        "Enter",
+        "Space"
+      ],
+      "hostLinks": [
+        "https://pubmaxxing.com/map?sel=venue-1s7f23v",
+        "https://www.pint-prices.com/pub/40%20College%20Cres,%20South%20Hampstead,%20London%20NW3%205LB,%20UK/Palmers%20Lodge%20Swiss%20Cottage"
+      ],
+      "deniedLinkFallback": true,
+      "unsupportedLinkFallback": true,
+      "horizontalOverflow": false,
+      "status": "3 listed pubs.",
+      "hostRequests": [
+        {
+          "method": "ping",
+          "result": {}
+        },
+        {
+          "method": "ui/resource-teardown",
+          "result": {}
+        }
+      ],
+      "lateResultAfterTeardownIgnored": true
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "pubs": 3,
+      "attribution": "Pub data © OpenStreetMap contributors (ODbL) | OpenFreeMap © OpenMapTiles Data from OpenStreetMap",
+      "threePricePopup": {
+        "venue": "The Ice Wharf - JD Wetherspoon",
+        "geometry": {
+          "popup": {
+            "top": 139.796875,
+            "bottom": 408.796875,
+            "left": 574,
+            "right": 814,
+            "height": 269
+          },
+          "map": {
+            "top": 126.796875,
+            "bottom": 546.796875,
+            "left": 0,
+            "right": 864,
+            "height": 420
+          },
+          "attribution": {
+            "top": 512.796875,
+            "bottom": 536.796875,
+            "left": 232.984375,
+            "right": 854,
+            "height": 24
+          },
+          "navigation": {
+            "top": 126.796875,
+            "bottom": 224.796875,
+            "left": 825,
+            "right": 864,
+            "height": 98
+          },
+          "contentHeight": 229,
+          "scrollHeight": 229
+        },
+        "prices": [
+          "£3.66 · BUD LIGHT",
+          "£4.25 · CARLSBERG PILSNER",
+          "£5.07 · GUINNESS"
+        ],
+        "hostLinks": [
+          "https://www.pint-prices.com/pub/28A,%2028B%20Jamestown%20Rd,%20London%20NW1%207BY,%20UK/The%20Ice%20Wharf%20-%20JD%20Wetherspoon",
+          "https://www.pint-prices.com/pub/28A,%2028B%20Jamestown%20Rd,%20London%20NW1%207BY,%20UK/The%20Ice%20Wharf%20-%20JD%20Wetherspoon",
+          "https://www.pint-prices.com/pub/28A,%2028B%20Jamestown%20Rd,%20London%20NW1%207BY,%20UK/The%20Ice%20Wharf%20-%20JD%20Wetherspoon",
+          "https://pubmaxxing.com/map?sel=venue-17u2i1w"
+        ],
+        "keyboard": [
+          "Enter",
+          "Space"
+        ]
+      },
+      "popup": true,
+      "keyboard": [
+        "Enter",
+        "Space"
+      ],
+      "hostLinks": [
+        "https://pubmaxxing.com/map?sel=venue-1s7f23v",
+        "https://www.pint-prices.com/pub/40%20College%20Cres,%20South%20Hampstead,%20London%20NW3%205LB,%20UK/Palmers%20Lodge%20Swiss%20Cottage"
+      ],
+      "deniedLinkFallback": true,
+      "unsupportedLinkFallback": true,
+      "horizontalOverflow": false,
+      "status": "3 listed pubs.",
+      "hostRequests": [
+        {
+          "method": "ping",
+          "result": {}
+        },
+        {
+          "method": "ui/resource-teardown",
+          "result": {}
+        }
+      ],
+      "lateResultAfterTeardownIgnored": true
+    }
+  ],
+  "failureChecks": [
+    {
+      "order": "failure-before-results",
+      "pubs": 3,
+      "status": "3 listed pubs. Map could not load. Listed pubs remain below."
+    },
+    {
+      "order": "results-before-failure",
+      "pubs": 2,
+      "status": "2 listed pubs. Streets could not load. Listed pubs remain below."
+    }
+  ],
+  "themeChecks": [
+    {
+      "colorScheme": "light",
+      "hostTheme": null,
+      "initial": {
+        "background": "rgb(250, 248, 245)",
+        "ink": "rgb(23, 23, 26)"
+      },
+      "nextTheme": null,
+      "updated": null
+    },
+    {
+      "colorScheme": "dark",
+      "hostTheme": null,
+      "initial": {
+        "background": "rgb(10, 10, 11)",
+        "ink": "rgb(238, 243, 239)"
+      },
+      "nextTheme": null,
+      "updated": null
+    },
+    {
+      "colorScheme": "light",
+      "hostTheme": "dark",
+      "initial": {
+        "background": "rgb(10, 10, 11)",
+        "ink": "rgb(238, 243, 239)"
+      },
+      "nextTheme": "light",
+      "updated": {
+        "background": "rgb(250, 248, 245)",
+        "ink": "rgb(23, 23, 26)"
+      }
+    },
+    {
+      "colorScheme": "dark",
+      "hostTheme": "light",
+      "initial": {
+        "background": "rgb(250, 248, 245)",
+        "ink": "rgb(23, 23, 26)"
+      },
+      "nextTheme": "dark",
+      "updated": {
+        "background": "rgb(10, 10, 11)",
+        "ink": "rgb(238, 243, 239)"
+      }
+    }
+  ]
+}
