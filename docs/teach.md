@@ -35,8 +35,8 @@ Useful scripts (`package.json`):
 | Command | What it does |
 |---|---|
 | `npm run dev` | Dev server |
-| `npm run verify` | **lint · typecheck · test** — the fast local gate |
-| `npm run ci` | `verify` **+ build** — the full gate (what Vercel runs) |
+| `npm run verify` | Local pre-push gate; see the [common command reference](../README.md) |
+| `npm run ci` | Full local gate; see the [common command reference](../README.md) |
 | `npm test` | Vitest unit suite (~100+ cases) |
 | `npm run test:e2e` | Playwright smoke (builds + starts, drives Chromium) |
 | `npm run setup` | Enables the pre-push git hook (`core.hooksPath=.githooks`) — run once |
@@ -356,7 +356,7 @@ Tokens in `globals.css` (`:root`, light) overridden in `theme.css` (dark): `--in
 
 - **Unit** — Vitest, ~100+ cases across 12 files pinning the load-bearing pure logic and the honesty invariants (demo seeds don't move prices, claims carry provenance, URL decode never throws).
 - **E2E** — Playwright `e2e/smoke.spec.ts`: one Chromium project, a real production build on port 3100, three non-flaky checks (landing + honesty labels + CTA; `/map` mounts; theme flips/persists/survives reload). **WebGL-agnostic** — asserts canvas *or* fallback, since headless CI has no GPU.
-- **Gate** — `npm run ci` = `verify (lint·typecheck·test) + build`.
+- **Gate** - see the [common command reference](../README.md) for `verify` and `ci`.
 - **Deploy** — Vercel; the OG route uses the Edge runtime.
 - **Env** — `.env.example`: local dev runs *without* secrets (in-memory + structured fallback); production needs Supabase, `ADMIN_TOKEN`, `RATE_LIMIT_SALT`, optionally `OPENROUTER_API_KEY`.
 
@@ -375,17 +375,11 @@ GitHub Actions is currently **billing-locked** on this account, so the `.github/
 
 ### 1. Vercel build = the deploy gate (primary, free, already in your pipeline)
 
-`vercel.json` sets the build command to the full check:
-
-```json
-{ "buildCommand": "npm run ci" }   // lint && typecheck && test && build
-```
-
-Every Vercel deploy now runs lint · typecheck · **the Vitest suite** · then the Next build. **If any step fails, the deploy fails and production is never updated.** This is the single most important gate — it uses build minutes you're already paying for and needs no extra service. (It adds ~10–15s per deploy; trim to `typecheck && build` if that ever matters.)
+[`vercel.json`](../vercel.json) defines the deployment build command. It validates data and builds the app; it does not run the full local gate described in the [common command reference](../README.md). A failed command stops the deployment.
 
 ### 2. Local pre-push git hook (free, catches it before it leaves your machine)
 
-`.githooks/pre-push` runs `npm run verify` (lint · typecheck · test — build is skipped as it's slow and Vercel covers it). Enable once per clone:
+`.githooks/pre-push` runs `npm run verify`; see the [common command reference](../README.md) for its checks. Enable once per clone:
 
 ```sh
 npm run setup     # git config core.hooksPath .githooks

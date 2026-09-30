@@ -84,15 +84,18 @@ document.modelContext.registerTool(
 
 Implementation, trust boundaries, browser test steps, and tool contracts are in [`docs/WEBMCP.md`](docs/WEBMCP.md). Challenge answers and the demo script are in [`docs/WEBMCP_SUBMISSION.md`](docs/WEBMCP_SUBMISSION.md).
 
+For the separate local ChatGPT MCP Apps prototype, see the [public map setup guide](scripts/chatgpt-map/README.md).
+
 Useful scripts:
 
 | Command | What it does |
 |---|---|
 | `npm run dev` | Dev server |
-| `npm run verify` | validate-data · lint · typecheck · deadcode · coverage · test:rls · gate:e2e-skips · check:freshness · audit - the local pre-push gate. `test:rls` needs PostgreSQL 16; a host that genuinely cannot install one sets `PUBMAX_RLS_ALLOW_SKIP=1` to admit the skip out loud, because a skipped policy proof reported as a pass is what let an RLS hole live for four days |
-| `npm run ci` | `verify` + build — the full gate (what Vercel runs) |
+| `npm run verify` | Local pre-push gate; its complete check sequence is defined by the `verify` script in [`package.json`](package.json). `test:rls` needs PostgreSQL 16; a host that genuinely cannot install one sets `PUBMAX_RLS_ALLOW_SKIP=1` to admit the skip out loud, because a skipped policy proof reported as a pass is what let an RLS hole live for four days |
+| `npm run ci` | `verify` + build - the full local gate; Vercel's build command is defined separately in [`vercel.json`](vercel.json) |
 | `npm run ci:isolated` | Collision-safe keyless `ci` in a unique temporary Next dist directory; restores Next-managed tracked files |
 | `npm test` | Vitest unit suite ([PostgreSQL suite inventory](scripts/rls/postgresSuites.mjs); those suites boot throwaway PostgreSQL 16 clusters, `PUBMAX_PG_MAX_CLUSTERS` caps concurrency, and `PUBMAX_RLS_NO_PG=1` skips them) |
+| `npm run test:chatgpt-map` | Installs the pinned local MCP package and runs its Node tests; included in `verify`. Separate browser proof is described in the [setup guide](scripts/chatgpt-map/README.md) |
 | `npm run test:e2e` | Playwright browser suite, including UI and accessibility guards (builds, starts, drives Chromium) |
 | `node scripts/e2e/run-disposable-plan-browser.mjs` | Wine and cocktail persistence and forged-hint browser checks against disposable PostgreSQL/PostgREST. Requires local PostgreSQL 16, PostgREST, and Playwright Chromium. Builds an isolated production server, applies the [fixture's migration range](scripts/e2e/disposable-plan-db.mjs) only to its temporary database, and cleans up its server, database, and build directory. Results stay in `test-results/`. |
 | [Signed-in review harness](docs/testing/signed-in-review.md) | Seeded local authenticated browser review |
