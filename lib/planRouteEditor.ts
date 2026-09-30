@@ -16,14 +16,17 @@
  * the route that will be.
  */
 
+import type { SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+
 export type RouteRevision = string | number;
 
-export type RouteAlternative = { venueId: string; venueName: string };
+export type RouteAlternative = { venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
 
 export type EditableStop = {
   venueId: string;
   venueName: string;
   position: number;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
   alternatives?: RouteAlternative[];
 };
 
@@ -64,7 +67,7 @@ export function orderedRouteStops<T extends { position: number }>(stops: Readonl
     .map((stop, index) => ({ ...stop, position: index }));
 }
 
-type GeneratedStop = { venueId: string; venueName: string; alternatives?: ReadonlyArray<RouteAlternative> };
+type GeneratedStop = { venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence; alternatives?: ReadonlyArray<RouteAlternative> };
 
 /**
  * Seed the editor: the STORED stops, in stored order, each carrying the
@@ -83,7 +86,8 @@ export function seedRouteDraft(
   const candidatesAt = (index: number): RouteAlternative[] => {
     const row = generated[index];
     if (!row) return [];
-    return [{ venueId: row.venueId, venueName: row.venueName }, ...(row.alternatives ?? [])];
+    return [{ venueId: row.venueId, venueName: row.venueName, ...(row.selectedDrinkPriceEvidence
+      ? { selectedDrinkPriceEvidence: row.selectedDrinkPriceEvidence } : {}) }, ...(row.alternatives ?? [])];
   };
   const pool = generated.flatMap((_, index) => candidatesAt(index));
   return stored.map((stop, index) => {
@@ -93,7 +97,7 @@ export function seedRouteDraft(
       if (!candidate.venueId || !candidate.venueName) continue;
       if (inRoute.has(candidate.venueId) || seen.has(candidate.venueId)) continue;
       seen.add(candidate.venueId);
-      alternatives.push({ venueId: candidate.venueId, venueName: candidate.venueName });
+      alternatives.push({ ...candidate });
     }
     return { ...stop, alternatives };
   });

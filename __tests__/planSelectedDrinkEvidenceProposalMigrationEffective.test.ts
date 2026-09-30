@@ -1,0 +1,84 @@
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
+
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { postgresSkipReason, startPostgres, type PostgresSession } from "./helpers/postgres";
+
+const skipReason = postgresSkipReason();
+const migrations = join(process.cwd(), "supabase/migrations");
+const name = "20260929150000_0164_plan_proposal_selected_drink_evidence.sql";
+const forward = join(migrations, name);
+const rollback = join(migrations, "rollback/20260929150000_0164_plan_proposal_selected_drink_evidence_rollback.sql");
+const prerequisites = readdirSync(migrations).filter((entry) => entry.endsWith(".sql") && entry < name).sort().map((entry) => join(migrations, entry));
+const wine = { category: "wine", pence: 550, serving: null, source: "community", reportedAt: "2026-09-25T12:00:00.000Z" };
+const cocktail = { category: "cocktail", pence: 950, serving: null, source: "community", reportedAt: "2026-09-25T12:00:00.000Z" };
+function hostHash(suffix: string): string { return suffix.repeat(64); }
+let session: PostgresSession | null = null;
+function db(): PostgresSession {
+  if (!session) throw new Error("PostgreSQL session unavailable");
+  return session;
+}
+function id(suffix: string): string { return `10000000-0000-4000-8000-00000000000${suffix}`; }
+function memberId(suffix: string): string { return `20000000-0000-4000-8000-00000000000${suffix}`; }
+function proposalId(suffix: string): string { return `30000000-0000-4000-8000-00000000000${suffix}`; }
+function create(suffix: string, evidence: typeof wine): void {
+  expect(db().sql(`select public.create_plan_idempotent_atomic(
+    '${id(suffix)}'::uuid, 'Route', '2026-09-30T19:00:00Z',
+    '[{"venueId":"venue-x","venueName":"X"},{"venueId":"venue-y","venueName":"Y"},{"venueId":"venue-z","venueName":"Z"}]'::jsonb,
+    '${memberId(suffix)}'::uuid, 'Host', '${hostHash(suffix)}',
+    '2026-09-29T12:00:00Z', '${suffix.repeat(64)}', '${suffix.repeat(64)}', null, null, null)`)).toBe("created");
+  const stops = JSON.stringify([
+    { venueId: "venue-a", venueName: "A", position: 0 },
+    { venueId: "venue-b", venueName: "B", position: 1, selectedDrinkPriceEvidence: evidence },
+    { venueId: "venue-c", venueName: "C", position: 2 },
+  ]);
+  db().sql(`insert into public.plan_route_proposals
+    (id,plan_id,proposed_by_member_id,expected_route_revision,stops,reason,resolved_constraint_ids,unresolved_constraint_ids,status,idempotency_key,created_at)
+    values ('${proposalId(suffix)}','${id(suffix)}','${memberId(suffix)}',1,'${stops}'::jsonb,'Route','[]'::jsonb,'[]'::jsonb,'pending','proposal-${suffix}',now())`);
+}
+function decide(suffix: string): string {
+  return db().sql(`select public.decide_plan_route_proposal_atomic('${id(suffix)}'::uuid,'${proposalId(suffix)}'::uuid,
+    '${hostHash(suffix)}','accepted','decision-${suffix}',now())`);
+}
+function saved(suffix: string): Array<unknown> {
+  return JSON.parse(db().sql(`select jsonb_agg(selected_drink_price_evidence order by position)::text from public.plan_stops where plan_id='${id(suffix)}'`));
+}
+
+beforeAll(async () => {
+  if (skipReason) return;
+  session = await startPostgres({ label: "plan-evidence-proposal-0164", database: "pubmax_plan_evidence_proposal" });
+  try {
+    db().applyFile(join(process.cwd(), "scripts/rls/session-fixture.sql"));
+    for (const path of prerequisites) db().applyFile(path);
+  } catch (error) {
+    await session.stop(); session = null; throw error;
+  }
+}, 600_000);
+afterAll(async () => { await session?.stop(); session = null; });
+
+describe.skipIf(skipReason !== null)("0164 Plan proposal acceptance evidence", () => {
+  it("reproduces atomic acceptance discarding a verified proposal snapshot", () => {
+    create("1", wine);
+    expect(decide("1")).toBe("decided");
+    expect(saved("1")).toEqual([null, null, null]);
+  });
+  it("saves wine and cocktail evidence with service-only execution", () => {
+    db().applyFile(forward);
+    expect(db().sql(`select has_function_privilege('anon','public.decide_plan_route_proposal_atomic(uuid,uuid,text,text,text,timestamptz)','execute')::text || ':' || has_function_privilege('authenticated','public.decide_plan_route_proposal_atomic(uuid,uuid,text,text,text,timestamptz)','execute')::text || ':' || has_function_privilege('service_role','public.decide_plan_route_proposal_atomic(uuid,uuid,text,text,text,timestamptz)','execute')::text`)).toBe("false:false:true");
+    create("2", wine); create("3", cocktail);
+    expect(decide("2")).toBe("decided");
+    expect(decide("3")).toBe("decided");
+    expect(saved("2")).toEqual([null, wine, null]);
+    expect(saved("3")).toEqual([null, cocktail, null]);
+    expect(decide("2")).toBe("already_decided");
+    expect(saved("2")).toEqual([null, wine, null]);
+  });
+  it("rollback restores old acceptance writes without erasing existing evidence", () => {
+    db().applyFile(rollback);
+    create("4", wine);
+    expect(decide("4")).toBe("decided");
+    expect(saved("4")).toEqual([null, null, null]);
+    expect(saved("2")).toEqual([null, wine, null]);
+  });
+});

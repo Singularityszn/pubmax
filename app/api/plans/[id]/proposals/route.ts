@@ -7,6 +7,7 @@ import { canonicalPlanRoute } from "@/lib/planRoute";
 import { collaborationErrorResponse, collaborationIdempotencyKey } from "@/lib/planCollaborationHttp";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { planMemberCapability } from "@/lib/planMemberCapability";
+import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -21,10 +22,16 @@ export async function POST(request: Request, context: Context): Promise<Response
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch { return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400); }
   const stops = await canonicalPlanRoute(body.stops);
+  const submitted = Array.isArray(body.stops) ? body.stops : [];
+  const hintedStops = stops?.map((stop, position) => {
+    const raw = submitted[position];
+    const hint = cleanSelectedDrinkPriceEvidence(raw && typeof raw === "object" ? (raw as Record<string, unknown>).selectedDrinkPriceEvidence : null);
+    return { ...stop, ...(hint ? { selectedDrinkPriceEvidence: hint } : {}) };
+  });
   const result = await planCollaborationStore().createProposal(id, planMemberCapability(request, body.memberToken), {
     reason: typeof body.reason === "string" ? body.reason : "",
     expectedRouteRevision: typeof body.expectedRouteRevision === "number" ? body.expectedRouteRevision : 0,
-    stops: stops ?? [],
+    stops: hintedStops ?? [],
     resolvedConstraintIds: Array.isArray(body.resolvedConstraintIds) ? body.resolvedConstraintIds.filter((value): value is string => typeof value === "string") : [],
     idempotencyKey: collaborationIdempotencyKey(request, body),
   });

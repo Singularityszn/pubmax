@@ -21,7 +21,7 @@ export type PlanBudgetSummary = {
   estimatedPerPersonPence: number | null;
   estimatedCrewPence: number | null;
   withinLimit: boolean | null;
-  basis: "one-recorded-pint-per-stop";
+  basis: "one-recorded-pint-per-stop" | "selected-drink-price-unavailable";
 };
 
 export type PlanRouteTotals = {

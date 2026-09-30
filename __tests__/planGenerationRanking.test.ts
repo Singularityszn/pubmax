@@ -46,6 +46,46 @@ const AFTER_WORK_GROUP: NightContext = {
 };
 
 describe("Plan generation ranking evidence", () => {
+  it("ranks cheap wine by trusted wine prices rather than pint prices", () => {
+    const cheapPint = venue(true, "cheap-pint");
+    cheapPint.cheapestPrice = 4;
+    const cheapWine = venue(false, "cheap-wine");
+    cheapWine.cheapestPrice = 6;
+    const winePrices: ReadonlyMap<string, MapLensPrice> = new Map([
+      [cheapPint.id, { venueId: cheapPint.id, category: "wine", categoryLabel: "Wine", priceGbp: 9, source: "community" }],
+      [cheapWine.id, { venueId: cheapWine.id, category: "wine", categoryLabel: "Wine", priceGbp: 7, source: "community" }],
+    ]);
+    const context = { ...AFTER_WORK_GROUP, budget: "value" as const, drinkCategory: "wine" as const };
+
+    const pintResult = scoreVenueForPlan(cheapPint, context, 0.5, [], [], null, undefined, undefined, winePrices);
+    const wineResult = scoreVenueForPlan(cheapWine, context, 0.5, [], [], null, undefined, undefined, winePrices);
+
+    expect(wineResult.score).toBeGreaterThan(pintResult.score);
+    expect(wineResult.reasons).toContain("corroborated community wine price £7.00");
+    expect(wineResult.reasons.join(" ")).not.toMatch(/pints from/i);
+  });
+
+  it.each(["cocktail", "whisky", "gin", "vodka", "rum"] as const)(
+    "uses trusted %s prices without falling back to a cheap pint",
+    (category) => {
+      const priced = venue(true, "priced");
+      priced.cheapestPrice = 6;
+      const missing = venue(false, "missing");
+      missing.cheapestPrice = 3;
+      const prices: ReadonlyMap<string, MapLensPrice> = new Map([
+        [priced.id, { venueId: priced.id, category, categoryLabel: category, priceGbp: 12, source: "community" }],
+      ]);
+      const context = { ...AFTER_WORK_GROUP, budget: "value" as const, drinkCategory: category };
+
+      const pricedResult = scoreVenueForPlan(priced, context, 0.5, [], [], null, undefined, undefined, prices);
+      const missingResult = scoreVenueForPlan(missing, context, 0.5, [], [], null, undefined, undefined, prices);
+
+      expect(pricedResult.score).toBeGreaterThan(missingResult.score);
+      expect(pricedResult.reasons.join(" ")).toContain(`corroborated community ${category === "cocktail" ? "cocktails" : category} price £12.00`);
+      expect(missingResult.reasons.join(" ")).not.toMatch(/pints|£/i);
+    },
+  );
+
   it("generates the named alcohol-free drink in the route reason", () => {
     const alcoholFreeVenue = venue(true);
     alcoholFreeVenue.amenities.nonAlcoholic = true;

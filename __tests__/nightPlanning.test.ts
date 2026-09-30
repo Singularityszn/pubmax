@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { DESCRIBE_FIRST_CHIPS } from "@/components/plan/PlanDescribeFirst";
-import { inferNightContext } from "@/lib/nightPlanning";
+import { cleanNightContext, cleanNightContextPatch, inferNightContext } from "@/lib/nightPlanning";
 
 /** Fixed London afternoon so default daypart cannot mask missing occasion words. */
 const AFTERNOON = new Date("2026-08-07T13:00:00.000Z");
@@ -9,6 +9,27 @@ const AFTERNOON = new Date("2026-08-07T13:00:00.000Z");
 const EVENING = new Date("2026-08-07T19:30:00.000Z");
 
 describe("inferNightContext", () => {
+  it.each([
+    ["cheap wine in Soho for 2", "wine"],
+    ["cocktails in Soho for 2", "cocktail"],
+    ["whisky in Soho for 2", "whisky"],
+    ["cheap pints in Soho for 2", "beer"],
+    ["drinks in Soho for 2", null],
+    ["alcohol-free drinks in Soho for 2", null],
+  ] as const)("retains the requested drink category in %s", (query, category) => {
+    const { context } = inferNightContext(query, EVENING);
+    expect(context.drinkCategory).toBe(category);
+  });
+
+  it("cleans a selected drink category without changing legacy contexts", () => {
+    const legacy = inferNightContext("drinks in Soho", EVENING).context;
+    const withoutCategory = { ...legacy };
+    delete withoutCategory.drinkCategory;
+    expect(cleanNightContext(withoutCategory)?.drinkCategory).toBeNull();
+    expect(cleanNightContextPatch({ drinkCategory: "wine" })).toMatchObject({ drinkCategory: "wine" });
+    expect(cleanNightContext({ ...legacy, drinkCategory: "not-a-drink" })?.drinkCategory).toBeNull();
+  });
+
   it("turns a natural-language night into editable, explained context", () => {
     const result = inferNightContext("Four of us after work in Clapham, cheap, lively, kebab after");
 

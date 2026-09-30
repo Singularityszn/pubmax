@@ -9,7 +9,8 @@ import { NO_ALCOHOL_DRINK_CATEGORIES, type CommunityPrice } from "@/lib/communit
 import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { haversineKm } from "@/lib/haversine";
-import { trustedNoAlcoholLensPrices } from "@/lib/mapExperienceLens";
+import { CATEGORY_META } from "@/lib/drinks";
+import { drinkLensCoverageNote, trustedDrinkLensPrices, trustedNoAlcoholLensPrices, type MapLensPrice } from "@/lib/mapExperienceLens";
 import {
 	getNightArea,
 	isNightAreaRouteReady,
@@ -24,6 +25,7 @@ import {
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
+import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { scoreVenueForPlan } from "@/lib/planGenerationRanking";
 import {
@@ -166,8 +168,8 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate>(param
 				venueId: stop.venueId,
 				venueName: stop.venueName,
 				position: 0,
-				estimatedPintPricePence: stop.price.pence,
-				priceEvidence: stop.price,
+				estimatedPintPricePence: planUsesPintPrices(context) ? stop.price.pence : null,
+				priceEvidence: planUsesPintPrices(context) ? stop.price : null,
 				accessEvidence: stop.access,
 				constraintFlags: stop.constraintFlags,
 				operationalEvidence: {
@@ -199,6 +201,7 @@ type PlanGenerationCandidate = ScoredPlanCandidate & {
 	distance: number;
 	tonightEvents: WhatsOnRow[];
 	reasons: string[];
+	selectedDrinkPrice: MapLensPrice | null;
 };
 
 type PlanGenerationPreparation = {
@@ -215,6 +218,7 @@ type PlanGenerationPreparation = {
 	planningWeather: ReturnType<typeof planTemporalEvidence>["weather"];
 	reviewedSignalClaims: ReturnType<typeof planTemporalEvidence>["signalClaims"];
 	naLensPrices: ReturnType<typeof trustedNoAlcoholLensPrices>;
+	drinkPriceCoverageNote: string | null;
 	candidates: PlanGenerationCandidate[];
 	anchor: PlanGenerationAnchor | null;
 };
@@ -296,17 +300,29 @@ export async function preparePlanGeneration(
 		current.push(row);
 		tonightByVenue.set(row.venueId, current);
 	}
-	const noAlcoholPriceRows = await readCommunityPriceCategoryIndex(
-		NO_ALCOHOL_DRINK_CATEGORIES,
+	const requestedCategory = !context.zeroProof && context.drinkCategory && context.drinkCategory !== "beer"
+		? context.drinkCategory
+		: null;
+	const categoryPriceRows = await readCommunityPriceCategoryIndex(
+		[...NO_ALCOHOL_DRINK_CATEGORIES, ...(requestedCategory ? [requestedCategory] : [])],
 		requestNow,
 	);
-	const noAlcoholRowsByVenue = new Map<string, CommunityPrice[]>();
-	for (const row of noAlcoholPriceRows.prices) {
-		const current = noAlcoholRowsByVenue.get(row.venueId) ?? [];
+	const priceRowsByVenue = new Map<string, CommunityPrice[]>();
+	for (const row of categoryPriceRows.prices) {
+		const current = priceRowsByVenue.get(row.venueId) ?? [];
 		current.push(row);
-		noAlcoholRowsByVenue.set(row.venueId, current);
+		priceRowsByVenue.set(row.venueId, current);
 	}
-	const naLensPrices = trustedNoAlcoholLensPrices(noAlcoholRowsByVenue, requestNow);
+	const naLensPrices = trustedNoAlcoholLensPrices(priceRowsByVenue, requestNow);
+	const drinkLensPrices = requestedCategory
+		? trustedDrinkLensPrices(priceRowsByVenue, requestedCategory, requestNow)
+		: undefined;
+	const drinkPriceCoverageNote = requestedCategory
+		? drinkLensCoverageNote(
+			CATEGORY_META[requestedCategory].label.toLowerCase(),
+			categoryPriceRows.degraded ? "degraded" : categoryPriceRows.truncated ? "partial" : "ready",
+		)
+		: null;
 	const venues = await loadConciergeVenues(cityId);
 	const wetherspoonsMatchedIds = context.wetherspoonsPreferred
 		? await matchedWetherspoonsVenueIds(venues)
@@ -325,8 +341,9 @@ export async function preparePlanGeneration(
 				planningWeather,
 				naLensPrices,
 				wetherspoonsMatchedIds,
+				drinkLensPrices,
 			);
-			return { venue, distance, tonightEvents, signalClaims, ...scored };
+			return { venue, distance, tonightEvents, signalClaims, ...scored, selectedDrinkPrice: drinkLensPrices?.get(venue.id) ?? null };
 		})
 		.filter(({ distance, venue, signalClaims }) =>
 			distance <= area.radiusKm
@@ -347,6 +364,7 @@ export async function preparePlanGeneration(
 		planningWeather,
 		reviewedSignalClaims,
 		naLensPrices,
+		drinkPriceCoverageNote,
 		candidates,
 		anchor: parsedRequest.value.anchor,
 	} };
