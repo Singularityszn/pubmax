@@ -1,53 +1,63 @@
 // The drink lane a free-text Plan request asks for.
 // ---------------------------------------------------------------------------
-// The general label taxonomy (`drinkCategoryFromText`) classifies a printed
-// drink name, so it treats "Rye", "Rose" or "Punch" as drink words. A Plan
-// query is a sentence about a night out: those words are far more often part
-// of a street or pub name than a request. Picking the wrong lane is not
-// harmless - a non-beer lane drops pint evidence, so a ceiling rejects every
-// stop. This parser therefore reads only unambiguous drink nouns, ignores
-// mentions that name a place, a menu, someone else's drink or a refusal, and
-// lets a first-person consumption clause ("while I am on pints") win. Mixed
-// requests name no single lane and return null.
+// A Plan query is a sentence about a night out, not a printed drink name. Drink
+// words turn up in it that nobody is asking to drink: a street ("Rye Lane"), a
+// pub ("near The Wine Bar", "the Rose and Crown"), a menu ("the cocktail
+// menu"), a refusal ("no cocktails") or someone else's order ("my mate wants
+// pints"). Picking the wrong lane is not harmless - a non-beer lane drops pint
+// evidence, so a ceiling rejects every stop, and a missed lane prices a wine
+// night with pints. So this parser first cuts those spans out and only then
+// reads what is left with the shared drink taxonomy, keeping its whole
+// vocabulary and compounds ("glass of red", "root beer", "espresso martini").
+// A first-person consumption clause ("while I am on pints") wins, and a request
+// that names two lanes names none.
 
+import { drinkCategoriesInText } from "@/lib/drinkCategoryFromText";
 import type { DrinkCategory } from "@/lib/drinks";
 
-const REQUEST_TERMS: ReadonlyArray<[DrinkCategory, readonly string[]]> = [
-  ["beer", ["pint", "pints", "beer", "beers", "lager", "lagers", "ale", "ales", "ipa", "ipas", "stout", "stouts", "cider", "ciders", "guinness"]],
-  ["wine", ["wine", "wines", "prosecco", "champagne"]],
-  ["whisky", ["whisky", "whiskies", "whiskey", "whiskeys", "bourbon", "scotch"]],
-  ["gin", ["gin", "gins", "g&t", "g&ts"]],
-  ["vodka", ["vodka", "vodkas"]],
-  ["rum", ["rum", "rums"]],
-  ["cocktail", ["cocktail", "cocktails", "spritz", "spritzes", "margarita", "margaritas"]],
-  ["shot", ["shots"]],
-];
-
 const CLAUSE_BREAK = /\b(?:while|whilst|but|whereas|although|though)\b|[,;!?]|\.(?!\d)/;
-const PLACE_OR_MENU_NOUN = /^\s+(?:lane|street|st|road|rd|avenue|ave|way|bowl|palace|crown|arms|inn|tavern|house|hall|yard|market|square|place|court|row|hill|rooms|tree|garden|gardens|menu|menus|list|lists)\b/;
-const NEGATION_BEFORE = /\b(?:no|not|don't|dont|never|without|avoid|avoiding|except|hate|skip|instead of|rather than)\s+(?:\S+\s+){0,2}$/;
-const COMPANION = /\bfor (?:my|our|her|his|their) (?:mate|friend|partner|girlfriend|boyfriend|wife|husband|date|mum|dad|brother|sister)\b|\b(?:my|our|her|his|their) (?:mate|friend|partner|girlfriend|boyfriend|wife|husband|date|mum|dad|brother|sister)(?:'s)? (?:wants|likes|loves|drinks|prefers|fancies|is on)\b|\b(?:she|he)(?:'s| is)? (?:on|drinking|wants|likes|prefers|fancies)\b/;
-const FIRST_PERSON_CONSUMPTION = /\b(?:i am|i'm|im|we are|we're|i'll be|we'll be) (?:on|drinking|having)\b|\b(?:i|we) (?:want|fancy|drink|like|prefer|need)\b|\b(?:i'd|we'd|i would|we would) (?:like|love|prefer)\b|\bfor (?:me|us)\b/;
 
-function escapeTerm(term: string): string {
-  return term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const COMPANION = "(?:mate|friend|partner|girlfriend|boyfriend|wife|husband|date|mum|dad|brother|sister)";
+const POSSESSIVE = "(?:my|our|her|his|their)";
+// "Pints for my mate": the order before the marker is the companion's.
+const ORDER_FOR_COMPANION = new RegExp(`(?:^|\\band\\b)(?:(?!\\band\\b)[^])*?\\bfor ${POSSESSIVE} ${COMPANION}\\b`, "g");
+// "My mate wants pints": the order after the marker is the companion's.
+const COMPANION_ORDER = new RegExp(
+  `\\b(?:${POSSESSIVE} ${COMPANION}(?:'s)?|she|he)(?:'s| is)? (?:wants|likes|loves|drinks|prefers|fancies|drinking|having)\\b[^]*?(?=\\band\\b|$)`,
+  "g",
+);
+
+const LOCATION_WORDS = "near|at|on|in|by|opposite|beside|next to|around|off|outside|behind|past|from|towards?|via";
+const SPAN_END = `(?=\\b(?:${LOCATION_WORDS}|under|over|below|max|for|with|i am|i'm|we are|we're|i want|we want|i'd|we'd)\\b|$)`;
+// "near The Wine Bar", "on Rye Lane", "at Gin and Juice": a place, never an order.
+const LOCATION_SPAN = new RegExp(`\\b(?:${LOCATION_WORDS})\\b[^]*?${SPAN_END}`, "g");
+// A place or menu named without a preposition: "Rye Lane", "Rose and Crown", "cocktail menu".
+const PLACE_OR_MENU = /\b[\w'&-]+(?:\s+(?:and|&)\s+[\w'&-]+)?\s+(?:lane|street|st|road|rd|avenue|ave|way|bowl|palace|crown|arms|inn|tavern|house|hall|yard|market|square|place|court|row|hill|rooms|tree|garden|gardens|menu|menus|list|lists)\b/g;
+const REFUSAL = /\b(?:no|not|don't|dont|never|without|avoid|avoiding|except|hate|skip|instead of|rather than)\b(?:\s+\S+){1,2}/g;
+// Bare words the taxonomy reads as drinks that a night-out sentence rarely
+// means as one: "worth a shot", "a long session", "a bitter wind".
+const AMBIGUOUS_BARE_WORD = /\b(?:ryes?|roses?|ports?|punch(?:es)?|sours?|bitters?|shot|sessions?|pales?|drafts?)(?![\wé])/g;
+const FIRST_PERSON_ON = /\b(i am|i'm|im|we are|we're|i'll be|we'll be|is|[a-z]+'s)\s+on\b/g;
+const FIRST_PERSON_CONSUMPTION = /\b(?:i am|i'm|im|we are|we're|i'll be|we'll be) (?:drinking|having)\b|\b(?:i|we) (?:want|fancy|drink|like|prefer|need)\b|\b(?:i'd|we'd|i would|we would) (?:like|love|prefer)\b|\bfor (?:me|us)\b/;
+
+function singular(word: string): string {
+  if (word.length > 4 && word.endsWith("ies")) return `${word.slice(0, -3)}y`;
+  if (word.length > 3 && word.endsWith("s") && !word.endsWith("ss")) return word.slice(0, -1);
+  return word;
 }
 
-function mentionedCategories(clause: string): Set<DrinkCategory> {
-  const categories = new Set<DrinkCategory>();
-  for (const [category, terms] of REQUEST_TERMS) {
-    for (const term of terms) {
-      const pattern = new RegExp(`(^|[^a-z0-9&])${escapeTerm(term)}(?=[^a-z0-9&]|$)`, "g");
-      for (const match of clause.matchAll(pattern)) {
-        const start = match.index + match[1].length;
-        const end = start + term.length;
-        if (PLACE_OR_MENU_NOUN.test(clause.slice(end))) continue;
-        if (NEGATION_BEFORE.test(clause.slice(0, start))) continue;
-        categories.add(category);
-      }
-    }
-  }
-  return categories;
+function requestedCategories(clause: string): Set<DrinkCategory> {
+  const request = clause
+    .replace(ORDER_FOR_COMPANION, " ")
+    .replace(COMPANION_ORDER, " ")
+    .replace(LOCATION_SPAN, " ")
+    .replace(PLACE_OR_MENU, " ")
+    .replace(REFUSAL, " ")
+    .replace(AMBIGUOUS_BARE_WORD, " ")
+    .split(/\s+/)
+    .map(singular)
+    .join(" ");
+  return drinkCategoriesInText(request);
 }
 
 function singleCategory(categories: Set<DrinkCategory>): DrinkCategory | null {
@@ -56,13 +66,16 @@ function singleCategory(categories: Set<DrinkCategory>): DrinkCategory | null {
 
 /** The single drink lane a Plan query requests, or null when it names none or several. */
 export function planRequestedDrinkCategory(query: string): DrinkCategory | null {
-  const text = query.toLocaleLowerCase().replace(/[‘’]/g, "'");
+  const text = query
+    .toLocaleLowerCase()
+    .replace(/[‘’]/g, "'")
+    .replace(FIRST_PERSON_ON, "$1 drinking");
   const consumed = new Set<DrinkCategory>();
   const requested = new Set<DrinkCategory>();
   for (const clause of text.split(CLAUSE_BREAK)) {
-    if (COMPANION.test(clause)) continue;
-    const target = FIRST_PERSON_CONSUMPTION.test(clause) ? consumed : requested;
-    for (const category of mentionedCategories(clause)) target.add(category);
+    const ownClause = clause.replace(ORDER_FOR_COMPANION, " ").replace(COMPANION_ORDER, " ");
+    const target = FIRST_PERSON_CONSUMPTION.test(ownClause) ? consumed : requested;
+    for (const category of requestedCategories(clause)) target.add(category);
   }
   return consumed.size > 0 ? singleCategory(consumed) : singleCategory(requested);
 }

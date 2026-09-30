@@ -299,6 +299,9 @@ describe("runContextDevEventsLane", () => {
     "8PM TILL LATE",
     "20:00 London time",
     "20:00 UK time",
+    "20:00 local time",
+    "8pm until last orders time",
+    "8PM LIVE DJ",
   ])("reads %s as a London clock, not an unsupported zone", async (clock) => {
     const result = await capturedEvent(`Quiz at The Dove on 18 August 2027 at ${clock}`, {
       title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2027-08-18T19:00:00Z",
@@ -314,7 +317,7 @@ describe("runContextDevEventsLane", () => {
     expect(result.dropped).toMatchObject({ ungrounded: 1, noTitle: 0, total: 1 });
   });
 
-  it.each(["CET", "PST", "cet", "Europe/Paris", "Eastern Standard Time", "Paris time"])("refuses unsupported explicit zone %s", async (zone) => {
+  it.each(["CET", "PST", "cet", "Europe/Paris", "Eastern Standard Time", "Paris time", "Moscow time", "Chicago time", "ET", "PT", "MSK", "SAST"])("refuses unsupported explicit zone %s", async (zone) => {
     const result = await capturedEvent(`Quiz at The Dove on 18 August 2027 at 20:00 ${zone}`, {
       title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2027-08-18T19:00:00Z",
     });

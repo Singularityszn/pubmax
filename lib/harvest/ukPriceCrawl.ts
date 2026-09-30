@@ -62,6 +62,12 @@ export const UK_PRICE_DROP_REASONS = [
   // filed as a £7.25 PINT, on `bitter`. A figure nobody can label honestly is
   // dropped and counted.
   "mixer-serve-not-one-drink",
+  // An unpriced line between the last figure and this one names a cocktail or
+  // a zero-strength drink, and this figure's own line does not. That line is
+  // either this item's printed name ("Lucky Saint 0%" above "Unfiltered lager
+  // £5.20") or the last item's description or a heading above a beer, and the
+  // page does not say which. Guessing either way files a wrong price.
+  "item-name-ambiguous",
   // The figure is an OFFER, not a price. "2 for £9", "meals for only £5.99" and
   // "wines from £5.50" are all marketing copy that states a number a drinker
   // cannot walk in and pay for one named drink. The first run of this crawler
@@ -262,6 +268,8 @@ const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{2})?)\b/g;
 // ingredient later in a long description cannot relabel the whole drink.
 const ZERO_ALCOHOL_TITLE_MAX_OFFSET = 24;
 
+const SOUR_BEER_STYLE = /\bsour\s+(?:ipa|pale ale|ale|lager|stout|beer|gose)\b|\b(?:ipa|ale|beer|gose)\s+sour\b/gi;
+
 const SPIRIT_CATEGORIES: readonly DrinkCategory[] = ["whisky", "gin", "vodka", "rum", "shot"];
 
 function categoriesNamedIn(text: string): Set<DrinkCategory> {
@@ -274,15 +282,35 @@ function categoriesNamedIn(text: string): Set<DrinkCategory> {
   );
 }
 
+type PrintedItemName = {
+  /** The figure's own line up to the figure. */
+  own: string;
+  /** Unpriced lines since the previous figure, inside the reader's window. */
+  preceding: string[];
+};
+
 /**
- * The printed name of the item a figure belongs to: its own line up to the
- * figure. A line that already carried a figure begins with the previous item's
- * text, so it names no item start and the title rules below do not apply.
+ * The printed name of the item a figure belongs to. A line that already
+ * carried a figure begins with the previous item's text, so it names no item
+ * start and the title rules below do not apply.
  */
-function printedItemName(text: string, at: number): string | undefined {
-  const line = text.slice(text.lastIndexOf("\n", at - 1) + 1, at);
+function printedItemName(text: string, at: number): PrintedItemName | undefined {
+  const lineStart = text.lastIndexOf("\n", at - 1) + 1;
+  const line = text.slice(lineStart, at);
   if (/£\s?\d/.test(line)) return undefined;
-  return line.trim() || undefined;
+  const windowStart = Math.max(0, at - PRICE_CONTEXT_CHARS);
+  const before = text.slice(windowStart, lineStart);
+  const lastFigure = [...before.matchAll(PRICE_PATTERN)].at(-1);
+  const since = lastFigure ? before.slice((lastFigure.index ?? 0) + lastFigure[0].length) : before;
+  return {
+    own: line.trim(),
+    preceding: since.split("\n").map((part) => part.trim()).filter(Boolean),
+  };
+}
+
+function titleCategory(name: string): DrinkCategory | null {
+  if (itemNameStatesZeroAlcohol(name)) return "alcohol-free";
+  return itemNameStatesCocktail(name) ? "cocktail" : null;
 }
 
 function itemNameStatesZeroAlcohol(itemName: string): boolean {
@@ -297,9 +325,9 @@ function itemNameStatesCocktail(itemName: string): boolean {
   // An early cocktail word is the printed drink name, even when a later
   // ingredient names a spirit closer to the figure. Keep this to the opening
   // 24 characters to keep later description words from deciding the title.
-  // A name that also names a beer ("Sour IPA") is a beer style, not a cocktail.
-  if (categoriesNamedIn(itemName).has("beer")) return false;
-  return categoryDecisionFor(itemName.slice(0, 24), 0)?.category === "cocktail";
+  // "Sour IPA" and "Wild Sour Ale" are beer styles, not cocktails.
+  const name = itemName.replace(SOUR_BEER_STYLE, " ");
+  return categoryDecisionFor(name.slice(0, 24), 0)?.category === "cocktail";
 }
 
 export type UkPriceCandidate = {
@@ -599,19 +627,25 @@ export function findUkPriceCandidates(text: string, snippetChars = 120): UkPrice
 
 function categoryDecisionFromLabel(
   drinkLabel: string | undefined,
-  itemName: string | undefined,
-): ReturnType<typeof categoryDecisionFor> {
+  itemName: PrintedItemName | undefined,
+): ReturnType<typeof categoryDecisionFor> | "item-name-ambiguous" | "no-category-word-nearby" {
   if (!drinkLabel) return null;
-  if (itemName && itemNameStatesZeroAlcohol(itemName)) {
-    return { category: "alcohol-free", fromMixer: false };
-  }
-  if (itemName && itemNameStatesCocktail(itemName)) {
-    return { category: "cocktail", fromMixer: false };
+  if (itemName) {
+    const ownTitle = titleCategory(itemName.own);
+    if (ownTitle) return { category: ownTitle, fromMixer: false };
+    const ownCategory = categoryDecisionFor(itemName.own, itemName.own.length)?.category ?? null;
+    if (itemName.preceding.some((line) => {
+      const precedingTitle = titleCategory(line);
+      return precedingTitle !== null && precedingTitle !== ownCategory;
+    })) return "item-name-ambiguous";
   }
   const decision = categoryDecisionFor(drinkLabel, drinkLabel.length);
+  // A named soda with no alcoholic word is not evidence that a neighbouring
+  // item's beer, wine or spirit word belongs to this price.
+  if (!decision) return /\bsoda\b/i.test(drinkLabel) ? "no-category-word-nearby" : null;
   // "Vodka Cranberry Juice" is a spirit-and-mixer serve like the `with` lines
   // above: two drinks, one figure, and never the price of a soft drink.
-  if (decision?.category === "soft-drink") {
+  if (decision.category === "soft-drink") {
     const named = categoriesNamedIn(drinkLabel);
     if (SPIRIT_CATEGORIES.some((category) => named.has(category))) {
       return { category: decision.category, fromMixer: true };
@@ -663,11 +697,7 @@ function decideKeylessUkPriceAt(
   const drinkLabel =
     drinkLabelFromPriceContext(context, verbatim, priceAtInContext) ?? undefined;
   const decisionFromLabel = categoryDecisionFromLabel(drinkLabel, printedItemName(text, at));
-  // A named soda with no alcoholic word is not evidence that a neighbouring
-  // item's beer, wine or spirit word belongs to this price.
-  if (drinkLabel && !decisionFromLabel && /\bsoda\b/i.test(drinkLabel)) {
-    return { drop: "no-category-word-nearby" };
-  }
+  if (typeof decisionFromLabel === "string") return { drop: decisionFromLabel };
   const statedIdentity = statedWineIdentity(context, verbatim, priceAtInContext);
   const wineIdentity = statedIdentity && (inWineSection || categoryDecisionFor(
     statedIdentity.drinkLabel, statedIdentity.drinkLabel.length,

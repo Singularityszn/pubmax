@@ -161,9 +161,58 @@ function dateAppearsInEvidence(date: string, evidence: string): boolean {
   return statedDates(evidence).some((stated) => stated.year === expected.year && sameStatedDay(stated, expected));
 }
 
-// Only a named zone counts as one. "until closing time", "start time" and
-// "TILL LATE" are ordinary words after a clock, never a zone.
-const STATED_CLOCK = /(?<![\p{L}\p{N}])(?:(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*([ap]m)|([01]?\d|2[0-3]):([0-5]\d))(?:\s*(z|[+-](?:0\d|1[0-4]):[0-5]\d|(?:africa|america|antarctica|asia|atlantic|australia|europe|indian|pacific)\/[a-z_]+|(?:london|uk|british\s+summer|greenwich\s+mean|(?:central|eastern|western)\s+european(?:\s+summer)?|(?:eastern|central|mountain|pacific|atlantic|alaska|hawaii)(?:\s+(?:standard|daylight))?|(?:irish|india|indian|japan)(?:\s+standard)?|paris|berlin|madrid|rome|amsterdam|dublin|new\s+york|los\s+angeles|tokyo|sydney)\s+time|gmt|utc|bst|cest|cet|eest|eet|edt|est|cdt|cst|mdt|mst|pdt|pst|akst|akdt|ist|jst|aest|aedt|awst|nzst|nzdt|hkt|sgt))?(?![\p{L}\p{N}])/giu;
+const caseless = (word: string) => word.replace(/[a-z]/g, (letter) => `[${letter}${letter.toUpperCase()}]`);
+
+// Zone abbreviations read in any case. Any other ALL-CAPS 2-5 letter word after
+// a clock is read as a zone too ("1pm ET"), unless it is ordinary copy.
+const ZONE_ABBREVIATIONS = [
+  "gmt", "utc", "bst", "cest", "cet", "eest", "eet", "edt", "est", "cdt", "cst", "mdt", "mst", "pdt",
+  "pst", "akst", "akdt", "ist", "jst", "aest", "aedt", "awst", "nzst", "nzdt", "hkt", "sgt", "msk",
+];
+const ORDINARY_CAPITALS = new Set([
+  "TILL", "TIL", "LATE", "LIVE", "FREE", "DJ", "DJS", "QUIZ", "SHARP", "ONLY", "DOORS", "ENTRY", "START",
+  "ENDS", "END", "OPEN", "AND", "THE", "AT", "ON", "IN", "TO", "FROM", "UNTIL", "MUSIC", "BAND", "NIGHT",
+  "LAST", "WITH", "FOR", "ALL", "SET", "EVERY", "EACH", "NEW", "SHOW", "GIG",
+]);
+// "until closing time", "start time", "last orders time": the word before
+// `time` names the evening, not a zone.
+const ORDINARY_TIME_WORDS = new Set([
+  "CLOSING", "START", "STARTING", "OPENING", "KICK-OFF", "KICKOFF", "ORDERS", "HOME", "SHOW", "FINISH",
+  "FINISHING", "END", "DOORS", "BED", "DINNER", "LUNCH", "PARTY", "QUIZ", "GAME", "MATCH", "PLAY", "TEA",
+  "BAR", "DRINKING", "HALF", "FULL", "EXTRA", "SAME", "NEXT", "FIRST", "ANY", "SOME", "THAT", "THIS",
+  "GOOD", "FUN", "HAPPY",
+]);
+
+const STATED_CLOCK = new RegExp(
+  "(?<![\\p{L}\\p{N}])(?:(1[0-2]|0?[1-9])(?::([0-5]\\d))?\\s*([aApP][mM])|([01]?\\d|2[0-3]):([0-5]\\d))" +
+    `(?:\\s*([zZ]|[+-](?:0\\d|1[0-4]):[0-5]\\d|[A-Za-z]+\\/[A-Za-z_]+|(?:[A-Za-z]+(?:-[A-Za-z]+)?\\s+){1,3}${caseless("time")}|${ZONE_ABBREVIATIONS.map(caseless).join("|")}|[A-Z]{2,5}))?` +
+    "(?![\\p{L}\\p{N}])",
+  "gu",
+);
+
+type StatedZone = { kind: "london" } | { kind: "offset"; minutes: number } | { kind: "unsupported" };
+
+/** What the words after a clock say about its zone, or null when they name none. */
+function statedZone(raw: string | undefined): StatedZone | null {
+  if (!raw) return null;
+  const zone = raw.toUpperCase().replace(/\s+/g, " ");
+  if (zone.endsWith(" TIME")) {
+    const words = zone.slice(0, -" TIME".length);
+    if (ORDINARY_TIME_WORDS.has(words.split(" ").at(-1) ?? "")) return null;
+    if (words === "LONDON" || words === "UK" || words === "LOCAL") return { kind: "london" };
+    if (words === "GREENWICH MEAN") return { kind: "offset", minutes: 0 };
+    if (words === "BRITISH SUMMER") return { kind: "offset", minutes: 60 };
+    return { kind: "unsupported" };
+  }
+  if (zone === "EUROPE/LONDON") return { kind: "london" };
+  if (zone === "Z" || zone === "GMT" || zone === "UTC") return { kind: "offset", minutes: 0 };
+  if (zone === "BST") return { kind: "offset", minutes: 60 };
+  if (/^[+-]\d{2}:\d{2}$/.test(zone)) {
+    return { kind: "offset", minutes: (zone[0] === "-" ? -1 : 1) * (Number(zone.slice(1, 3)) * 60 + Number(zone.slice(4, 6))) };
+  }
+  if (raw === zone && ORDINARY_CAPITALS.has(zone)) return null;
+  return { kind: "unsupported" };
+}
 
 function londonWallClock(instant: string): { date: string; hour: number; minute: number } {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -191,27 +240,22 @@ function timeAppearsInEvidence(instant: string, section: string): boolean {
   if (starts.length === 0 && roles.some((role) => role === "doors")) return false;
   const candidates = starts.length > 0 ? starts : clocks.filter((_, index) => roles[index] === "unlabelled");
   if (candidates.length !== 1) return false;
-  const hasZone = clocks.some((match) => match[6]);
+  const hasZone = clocks.some((match) => statedZone(match[6]) !== null);
   const london = londonWallClock(instant);
 
   return candidates.some((match) => {
-    if (hasZone && !match[6]) return false;
+    const zone = statedZone(match[6]);
+    if (hasZone && !zone) return false;
     let hour = Number(match[1] ?? match[4]);
     const minute = Number(match[2] ?? match[5] ?? "0");
     if (match[3]) hour = hour % 12 + (match[3].toLowerCase() === "pm" ? 12 : 0);
 
-    const zone = match[6]?.toUpperCase().replace(/\s+/g, " ");
-    if (!zone || zone === "LONDON TIME" || zone === "UK TIME") {
+    if (!zone || zone.kind === "london") {
       return hour === london.hour && minute === london.minute &&
         dateAppearsInEvidence(london.date, ` ${evidenceWords(section)} `);
     }
-
-    const offset = ["Z", "GMT", "UTC", "GREENWICH MEAN TIME"].includes(zone) ? 0 :
-      zone === "BST" || zone === "BRITISH SUMMER TIME" ? 60 :
-      /^[+-]\d{2}:\d{2}$/.test(zone) ?
-        (zone[0] === "-" ? -1 : 1) * (Number(zone.slice(1, 3)) * 60 + Number(zone.slice(4, 6))) : null;
-    if (offset === null) return false;
-    const offsetClock = new Date(instantMs + offset * 60_000).toISOString();
+    if (zone.kind === "unsupported") return false;
+    const offsetClock = new Date(instantMs + zone.minutes * 60_000).toISOString();
     return hour === Number(offsetClock.slice(11, 13)) &&
       minute === Number(offsetClock.slice(14, 16)) &&
       dateAppearsInEvidence(offsetClock.slice(0, 10), ` ${evidenceWords(section)} `);

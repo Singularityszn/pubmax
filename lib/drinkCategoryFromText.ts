@@ -227,6 +227,36 @@ export function drinkCategoryFromText(
   return drinkSubtypeFromText(drink)?.category ?? null;
 }
 
+const KEYWORDS_LONGEST_FIRST = CATEGORY_KEYWORDS
+  .flatMap(([category, keywords]) => keywords.map((keyword) => [category, keyword] as const))
+  .sort((left, right) => right[1].length - left[1].length);
+
+/**
+ * Every category a text names, not just the first. A compound keyword claims
+ * its words before a shorter one can ("ginger beer" is a soft drink and never
+ * also a beer; "espresso martini" is vodka and never also gin), so two
+ * categories come back only when the text names two drinks.
+ */
+export function drinkCategoriesInText(
+  text: string | null | undefined,
+): Set<DrinkCategory> {
+  const found = new Set<DrinkCategory>();
+  if (typeof text !== "string") return found;
+  let label = text.trim().toLowerCase();
+  for (const [category, keyword] of KEYWORDS_LONGEST_FIRST) {
+    if (!hasKeyword(label, keyword)) continue;
+    found.add(category);
+    label = keyword.includes(" ")
+      ? label.split(keyword).join(" ")
+      : label.replace(new RegExp(`(^|[^a-z0-9])${keyword}(?=[^a-z0-9]|$)`, "gi"), "$1 ");
+  }
+  if (found.size === 0) {
+    const fallback = drinkSubtypeFromText(text)?.category;
+    if (fallback) found.add(fallback);
+  }
+  return found;
+}
+
 /**
  * Classify a free-text drink into its backward-compatible category plus at
  * most one subtype and an orthogonal top-shelf signal.
