@@ -402,7 +402,11 @@ test("desktop 1440: the story takes the left drawer and the chrome leaves its la
 
   // The last row scrolls into view inside the drawer and owns its centre.
   const lastRow = drawer.locator(".landmarkStoryPubs button").last();
-  await lastRow.scrollIntoViewIfNeeded();
+  // Shard arrivals can replace pub rows while a scroll waits for stability.
+  // Scroll the persistent drawer, then check the current last row.
+  await drawer.evaluate((panel) => {
+    panel.scrollTop = panel.scrollHeight;
+  });
   await expect(lastRow).toBeVisible();
   expect(await ownsItsCentre(page, ".storyDrawer.open .landmarkStoryPubs li:last-child button")).toBe(true);
 

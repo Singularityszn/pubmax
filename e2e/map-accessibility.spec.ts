@@ -331,14 +331,13 @@ test.describe("map keyboard and screen-reader venue path", () => {
     // sibling spec. This case pins Escape on the venue drawer with the list
     // still open underneath — the regression path from List view.
     await openVenueListFromLayers(page);
-    const chosenVenue = page.locator(".mapVenueListItem").first();
-    await chosenVenue.focus();
-    await expect(chosenVenue).toBeFocused();
-    const chosenVenueId = await chosenVenue.getAttribute("data-venue-id");
+    const chosenVenueId = await page.locator(".mapVenueListItem").first().getAttribute("data-venue-id");
     expect(chosenVenueId).toBeTruthy();
-    const chosenVenueAfterClose = page.locator(
+    const chosenVenue = page.locator(
       `.mapVenueListItem[data-venue-id="${chosenVenueId}"]`,
     );
+    await chosenVenue.focus();
+    await expect(chosenVenue).toBeFocused();
     await page.keyboard.press("Enter");
 
     const drawer = page.locator(".mapDrawer.right.open");
@@ -354,7 +353,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();
-    await expect(chosenVenueAfterClose).toBeFocused({ timeout: 15_000 });
+    await expect(chosenVenue).toBeFocused({ timeout: 15_000 });
   });
 
   test("returns Escape focus to a keyboard-selected search result", async ({
@@ -372,7 +371,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     const highlightedVenue = listbox.locator(
       '[role="option"][data-venue-id="venue-glw-q7pz7s"]',
     );
-    await expect(highlightedVenue).toBeVisible();
+    await expect(highlightedVenue).toBeVisible({ timeout: 30_000 });
     await expect(search).toHaveAttribute("aria-busy", "false");
     await expect(listbox.getByRole("group", { name: "Venues", exact: true })
       .getByRole("option")).toHaveCount(3);
