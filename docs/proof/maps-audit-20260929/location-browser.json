@@ -1,0 +1,125 @@
+{
+  "origin": "http://localhost:3293",
+  "fix": {
+    "latitude": 51.515,
+    "longitude": -0.09,
+    "accuracy": 25
+  },
+  "oldView": {
+    "center": [
+      -0.21,
+      51.54
+    ],
+    "zoom": 14,
+    "pitch": 0,
+    "bearing": 0
+  },
+  "output": [
+    {
+      "state": "granted",
+      "reading": {
+        "permission": "granted",
+        "requests": [
+          119.39999999850988,
+          2208
+        ],
+        "watches": [
+          2205.7000000029802
+        ],
+        "saved": {
+          "lat": 51.515,
+          "lng": -0.09,
+          "savedAt": 1790729357447
+        },
+        "camera": {
+          "bearing": -8,
+          "pitch": 28,
+          "zoom": 16,
+          "center": [
+            -0.09000000000003183,
+            51.515000000000015
+          ],
+          "moving": false
+        },
+        "dot": {
+          "hasSource": true,
+          "hasAccuracyLayer": true,
+          "hasCoreLayer": true,
+          "written": [
+            -0.09,
+            51.515
+          ],
+          "rendered": [
+            -0.09000018239021301,
+            51.51500016998111
+          ]
+        },
+        "tappableMarks": 8
+      },
+      "tapDenial": null,
+      "errors": []
+    },
+    {
+      "state": "denied",
+      "reading": {
+        "permission": "denied",
+        "requests": [],
+        "watches": [],
+        "saved": null,
+        "camera": {
+          "bearing": 0,
+          "pitch": 0,
+          "zoom": 14,
+          "center": [
+            -0.21,
+            51.54
+          ],
+          "moving": false
+        },
+        "dot": {
+          "hasSource": true,
+          "hasAccuracyLayer": true,
+          "hasCoreLayer": true,
+          "written": null,
+          "rendered": null
+        },
+        "tappableMarks": 7
+      },
+      "tapDenial": {
+        "requests": 1,
+        "tappableMarks": 7,
+        "message": "Location access was denied. Pick an area or allow location in your browser settings."
+      },
+      "errors": []
+    },
+    {
+      "state": "prompt",
+      "reading": {
+        "permission": "prompt",
+        "requests": [],
+        "watches": [],
+        "saved": null,
+        "camera": {
+          "bearing": 0,
+          "pitch": 0,
+          "zoom": 14,
+          "center": [
+            -0.21,
+            51.54
+          ],
+          "moving": false
+        },
+        "dot": {
+          "hasSource": true,
+          "hasAccuracyLayer": true,
+          "hasCoreLayer": true,
+          "written": null,
+          "rendered": null
+        },
+        "tappableMarks": 7
+      },
+      "tapDenial": null,
+      "errors": []
+    }
+  ]
+}

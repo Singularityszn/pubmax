@@ -1,0 +1,241 @@
+{
+  "candidateBaseHead": "76de20674da64604af22872ff42ee08fca7f156a",
+  "directVersions": [
+    {
+      "package": "@ai-sdk/otel",
+      "lockedBefore": "1.0.114",
+      "target": "1.0.122",
+      "installed": "1.0.122",
+      "locked": "1.0.122"
+    },
+    {
+      "package": "@clerk/nextjs",
+      "lockedBefore": "7.9.7",
+      "target": "7.9.8",
+      "installed": "7.9.8",
+      "locked": "7.9.8"
+    },
+    {
+      "package": "@elevenlabs/react",
+      "lockedBefore": "1.15.2",
+      "target": "1.16.0",
+      "installed": "1.16.0",
+      "locked": "1.16.0"
+    },
+    {
+      "package": "@supabase/supabase-js",
+      "lockedBefore": "2.117.1",
+      "target": "2.117.2",
+      "installed": "2.117.2",
+      "locked": "2.117.2"
+    },
+    {
+      "package": "ai",
+      "lockedBefore": "7.0.114",
+      "target": "7.0.122",
+      "installed": "7.0.122",
+      "locked": "7.0.122"
+    },
+    {
+      "package": "context.dev",
+      "lockedBefore": "2.19.0",
+      "target": "3.3.0",
+      "installed": "3.3.0",
+      "locked": "3.3.0"
+    },
+    {
+      "package": "lucide-react",
+      "lockedBefore": "1.48.0",
+      "target": "1.49.0",
+      "installed": "1.49.0",
+      "locked": "1.49.0"
+    },
+    {
+      "package": "next",
+      "lockedBefore": "16.3.6",
+      "target": "16.3.7",
+      "installed": "16.3.7",
+      "locked": "16.3.7"
+    },
+    {
+      "package": "openai",
+      "lockedBefore": "7.23.0",
+      "target": "7.25.0",
+      "installed": "7.25.0",
+      "locked": "7.25.0"
+    },
+    {
+      "package": "posthog-js",
+      "lockedBefore": "1.434.13",
+      "target": "1.435.0",
+      "installed": "1.435.0",
+      "locked": "1.435.0"
+    },
+    {
+      "package": "sharp",
+      "lockedBefore": "0.35.4",
+      "target": "0.35.5",
+      "installed": "0.35.5",
+      "locked": "0.35.5"
+    },
+    {
+      "package": "@next/env",
+      "lockedBefore": "16.3.6",
+      "target": "16.3.7",
+      "installed": "16.3.7",
+      "locked": "16.3.7"
+    },
+    {
+      "package": "@types/node",
+      "lockedBefore": "26.6.2",
+      "target": "26.6.3",
+      "installed": "26.6.3",
+      "locked": "26.6.3"
+    },
+    {
+      "package": "@typescript-eslint/parser",
+      "lockedBefore": "8.70.1",
+      "target": "8.71.0",
+      "installed": "8.71.0",
+      "locked": "8.71.0"
+    },
+    {
+      "package": "@vitest/browser-playwright",
+      "lockedBefore": "5.0.1",
+      "target": "5.0.2",
+      "installed": "5.0.2",
+      "locked": "5.0.2"
+    },
+    {
+      "package": "@vitest/coverage-v8",
+      "lockedBefore": "5.0.1",
+      "target": "5.0.2",
+      "installed": "5.0.2",
+      "locked": "5.0.2"
+    },
+    {
+      "package": "eslint-config-next",
+      "lockedBefore": "16.3.6",
+      "target": "16.3.7",
+      "installed": "16.3.7",
+      "locked": "16.3.7"
+    },
+    {
+      "package": "vitest",
+      "lockedBefore": "5.0.1",
+      "target": "5.0.2",
+      "installed": "5.0.2",
+      "locked": "5.0.2"
+    }
+  ],
+  "protectedVersions": {
+    "eslint": "10.11.0",
+    "jsdom": "30.1.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  },
+  "typescriptHold": "7.0.2 exceeds @typescript-eslint/parser 8.71.0 peer >=4.8.4 <6.1.0",
+  "contextConsumerSource": {
+    "pr": 1873,
+    "head": "76f46cca00d879d4d9ba21b5caa263988109b7a0",
+    "filesReused": 10,
+    "documentationAdjustment": "SDK catalog version3.2 to3.3"
+  },
+  "checks": [
+    {
+      "check": "initial17Verify",
+      "exitCode": 0,
+      "scope": "Initial17upgrades only, before Context3.3 migration"
+    },
+    {
+      "check": "contextSdkRed",
+      "exitCode": 1,
+      "scope": "30 failed,16 passed; SDK3.3 with old consumers"
+    },
+    {
+      "check": "contextFocusedGreen",
+      "exitCode": 0,
+      "scope": "Five suites147tests passed with migrated consumers"
+    },
+    {
+      "check": "contextTouchedLint",
+      "exitCode": 0,
+      "scope": "Two consumers and five testfiles"
+    },
+    {
+      "check": "contextTypecheck",
+      "exitCode": 0,
+      "scope": "Whole application TypeScript check"
+    },
+    {
+      "check": "contextInstallBaselineRestore",
+      "exitCode": 0,
+      "scope": "Restore ESLint/jsdom/tsx baseline after SDK install"
+    }
+  ],
+  "initial17Verify": {
+    "exitCode": 0,
+    "coverageFilesPassed": 1695,
+    "coverageFilesSkipped": 1,
+    "coverageTestsPassed": 17968,
+    "coverageTestsSkipped": 5,
+    "rlsTestsPassed": 421,
+    "sharedMemoryTestsPassedPerRun": 9
+  },
+  "finalVerify": {
+    "command": "npm run verify:no-mistakes",
+    "exitCode": 0,
+    "coverageFilesPassed": 1695,
+    "coverageFilesSkipped": 1,
+    "coverageTestsPassed": 18055,
+    "coverageTestsSkipped": 5,
+    "coveragePercent": {
+      "statements": 82.57,
+      "branches": 75.65,
+      "functions": 87.35,
+      "lines": 86.44
+    },
+    "rlsTestsPassed": 421,
+    "sharedMemoryTestsPassedPerRun": 9,
+    "freshness": {
+      "advisoryStale": 1,
+      "unmeasurableDurableFeeds": 3
+    },
+    "auditHighCriticalFindings": 0,
+    "lockTreeMatched": true
+  },
+  "productionBuild": {
+    "command": "NEXT_DIST_DIR=.next-prod node scripts/run-with-restored-next-env.mjs npm run build",
+    "exitCode": 0,
+    "nextVersion": "16.3.7",
+    "compiledSeconds": 3.6,
+    "trackedOutputsRestored": true,
+    "lockTreeMatched": true
+  },
+  "independentReview": {
+    "status": "pending"
+  },
+  "protectedManifestRanges": {
+    "eslint": "^10.10.0",
+    "jsdom": "^30.1.0",
+    "tsx": "^4.23.13"
+  },
+  "testedProtectedInstalledVersions": {
+    "eslint": "10.11.0",
+    "jsdom": "30.1.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  },
+  "priorTestedProtectedInstalledVersions": {
+    "eslint": "10.10.0",
+    "jsdom": "30.1.0",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3"
+  },
+  "directLockComparison": {
+    "receipt": "direct-lock-receipt.json",
+    "directCount": 69,
+    "allMatched": true,
+    "freshNpmCiExit": 0
+  }
+}
