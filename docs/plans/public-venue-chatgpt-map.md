@@ -1,6 +1,6 @@
 # Public venue map for ChatGPT
 
-Status: local implementation awaiting verification and reviewed GitHub delivery. Public hosting, ChatGPT account connection and distribution remain separate release steps.
+Status: local protocol, controlled browser, full repository verification and production build passed on the [recorded candidate](../proof/chatgpt-public-map-20260929/README.md). Final committed-head validation and reviewed GitHub publication remain pending. Public hosting, ChatGPT account connection and distribution remain separate release steps.
 
 ## Outcome
 
