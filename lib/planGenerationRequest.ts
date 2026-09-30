@@ -1,4 +1,5 @@
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
+import { isDrinkCategory } from "@/lib/drinks";
 import {
   isBudget,
   isDaypart,
@@ -38,6 +39,7 @@ const CONTEXT_KEYS = [
   "budget",
   "budgetLimitPence",
   "zeroProof",
+  "drinkCategory",
   "wetherspoonsPreferred",
   "atmosphere",
   "foodNeeds",
@@ -151,6 +153,10 @@ function strictList(value: unknown): string[] | null {
   return new Set(cleaned).size === cleaned.length ? cleaned : null;
 }
 
+function isNullableIntegerInRange(value: unknown, min: number, max: number): value is number | null {
+  return value === null || (typeof value === "number" && Number.isSafeInteger(value) && value >= min && value <= max);
+}
+
 function parseContext(value: unknown): Partial<NightContext> | null | undefined {
   if (value === undefined || value === null) return null;
   if (!isPlainRecord(value) || !hasOnlyKeys(value, CONTEXT_KEYS)) return undefined;
@@ -171,10 +177,8 @@ function parseContext(value: unknown): Partial<NightContext> | null | undefined 
         result.partyType = item;
         break;
       case "groupSize":
-        if (item !== null && !(typeof item === "number" && Number.isSafeInteger(item) && item >= 1 && item <= 30)) {
-          return undefined;
-        }
-        result.groupSize = item as number | null;
+        if (!isNullableIntegerInRange(item, 1, 30)) return undefined;
+        result.groupSize = item;
         break;
       case "stopCount":
         if (!isPlanStopCount(item)) return undefined;
@@ -185,14 +189,16 @@ function parseContext(value: unknown): Partial<NightContext> | null | undefined 
         result.budget = item;
         break;
       case "budgetLimitPence":
-        if (item !== null && !(typeof item === "number" && Number.isSafeInteger(item) && item >= 500 && item <= 50_000)) {
-          return undefined;
-        }
-        result.budgetLimitPence = item as number | null;
+        if (!isNullableIntegerInRange(item, 500, 50_000)) return undefined;
+        result.budgetLimitPence = item;
         break;
       case "zeroProof":
         if (typeof item !== "boolean") return undefined;
         result.zeroProof = item;
+        break;
+      case "drinkCategory":
+        if (item !== null && !isDrinkCategory(item)) return undefined;
+        result.drinkCategory = item as NightContext["drinkCategory"];
         break;
       case "wetherspoonsPreferred":
         if (typeof item !== "boolean") return undefined;

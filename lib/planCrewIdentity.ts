@@ -8,7 +8,6 @@ import "server-only";
 
 import { isPlanId } from "@/lib/plan";
 import {
-  __linkMemoryPlanMemberUser,
   __listMemoryPlanMemberUserIds,
   __setMemoryPlanOwnerUserId,
   claimMemoryPlanMembership,

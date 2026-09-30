@@ -172,13 +172,49 @@ never left running beside other work.
 
 ## What counts as a price
 
-`lib/harvest/ukPriceCrawl.ts`, and all three lanes go through it unchanged.
+`lib/harvest/ukPriceCrawl.ts` owns the deterministic reader shared by the lanes.
+When a TypeSafe batch is refused, times out, fails or returns a malformed answer,
+`lib/harvest/ukPriceJudgment.server.ts` uses the same section-aware decisions and
+records the batch failure reason.
+
+The shared `pageText` normaliser takes `UkPriceSourceFormat` from the transport.
+Served HTML and chain-menu HTML use `html`: source whitespace is collapsed
+before structural tags establish item boundaries. Context.dev Markdown,
+browser-rendered Markdown, PDF text, and OCR text use `text`, the reader's
+default. With item boundaries requested, LF and CRLF rows stay separate.
+In mixed Markdown and HTML, the normaliser
+collapses formatting whitespace within HTML elements and between adjacent
+elements while preserving surrounding Markdown rows. Inline and table-cell
+fragments therefore keep a wrapped drink name within its item.
+
+The judged reader and its deterministic fallback use the same format and
+boundary-preserving text. Candidate offsets identify figures in that text,
+so failed batches recover the decision for the same item.
 
 * **Verbatim.** A figure is kept only if it appears literally in the text of the
   page that was read.
-* **A drink word beside it,** and the NEAREST one decides the category, because
-  a menu puts its lines next to each other and the first pattern in a table
-  would file every wine on the page as a beer.
+* **The item's printed name takes priority.** An early zero-strength marker or
+  cocktail name takes priority over ingredient words. Complete `0%`, `0.0%`
+  and `0.00%` tokens qualify; `4.0%`, `10.0%` and `0.5%` do not.
+  Explicit alcohol-free wording also qualifies. Otherwise, the reader uses the
+  nearest recognised category word in the name, then the surrounding text.
+  Juice names identify soft drinks. A soda name with no recognised category is
+  dropped instead of borrowing a neighbouring drink's category.
+  Named cocktails such as "Negroni on tap" and "Espresso Martini on draught"
+  keep their cocktail category. When the priced line has no early cocktail or
+  zero-strength title, a conflicting cocktail or zero-strength title on a
+  preceding unpriced line makes the reader drop the figure as
+  `item-name-ambiguous`. It does not join a split title and description into an
+  assumed drink name.
+* **Wine context stays within its section and item.** In a `section`, `article`
+  or `div.menubox`, paragraphs can use the preceding wine heading until another
+  heading changes it. Paragraphs before the first heading get no section context.
+  Paired glass prices retain the preceding wine name within the same item,
+  including pairs separated by slashes or dashes. A measure alone never borrows
+  a name across a structural item boundary; `250ml` alone does not establish wine.
+  The reader emits explicit glass measures separately from the wine name. The
+  [bundle reference](../public/data/uk_prices/README.md#what-a-row-is) owns the
+  serving field and its publication contract.
 * **Its own category's band.** £14 is a fair cocktail and an impossible pint.
 * **No food word,** checked after the drink word, so a steak-and-a-pint meal
   deal is not the price of the pint.
@@ -196,6 +232,12 @@ Every rejection is counted under its own reason and printed. A skip is a
 finding: "we crawled 7,000 sites and found 900 prices" is only honest beside the
 reasons the other 6,100 gave.
 
+`__tests__/ukPriceCrawl.test.ts` and `__tests__/ukPriceJudgmentFailure.test.ts`
+cover item and heading boundaries, complete zero-strength tokens and paired
+wine measures, including the failed-batch fallback. Synthetic menus establish
+parser behaviour, not the original context or category of quarantined source
+observations. The quarantine does not establish that other labels are correct.
+
 ## PDF menus
 
 A pub that keeps its drinks list in a PDF has published a price as plainly as
@@ -203,7 +245,8 @@ one that keeps it in a table. The first crawl reached 839 PDFs across 400 hosts
 and read none of them.
 
 `lib/harvest/pdfText.ts` reads the text layer with `pdfjs-dist`, pinned and
-harvest-only, and hands the words to the SAME rules a served page gets. It is a
+harvest-only. It joins fragments within a row and preserves the extractor's
+`hasEOL` row breaks before handing text to the shared price reader. It is a
 leaf module because `run.mjs` ends in a `main()` call, so a reader living inside
 it could not be tested without running a crawl.
 

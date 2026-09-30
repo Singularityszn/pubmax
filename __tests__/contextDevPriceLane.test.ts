@@ -11,6 +11,13 @@ import type { RobotsChecker } from "@/lib/harvest/robots";
 const KEY = { CONTEXT_DEV_API_KEY: "ctx-key" } as unknown as NodeJS.ProcessEnv;
 const MENU_URL = "https://www.some-free-house.co.uk/drinks";
 
+function scrapeMarkdownResponse(markdown: string) {
+  return new Response(JSON.stringify({
+    url: MENU_URL,
+    markdown: { requested: true, success: true, data: markdown },
+  }), { headers: { "content-type": "application/json" } });
+}
+
 function allowRobots(): RobotsChecker {
   return async () => ({ allowed: true, reason: "allowed", evidence: "stub" });
 }
@@ -61,11 +68,57 @@ describe("the flag", () => {
 });
 
 describe("readPricesFrom", () => {
+  it.each([
+    ["LF", "\n", "", ""],
+    ["CRLF", "\r\n", "", ""],
+    ["inline HTML footer", "\n", "", "<span>Menu updated today</span>"],
+    ["body HTML footer", "\r\n", "", "<body>Menu updated today</body>"],
+    ["inline HTML header", "\n", "<span>Menu updated today</span>", ""],
+    ["body HTML header", "\r\n", "<body>Menu updated today</body>", ""],
+  ])("preserves multiline menu item boundaries with %s", async (_case, newline, header, footer) => {
+    const reader = createContextDevPriceReader({
+      env: KEY,
+      robots: allowRobots(),
+      fetchImpl: async () => scrapeMarkdownResponse([
+        header,
+        PRICED_MENU,
+        "Negroni on tap £9.00",
+        "Espresso Martini on draught £10.00",
+        "Heineken 0.0% lager £5.00",
+        footer,
+      ].join(newline)),
+    });
+    const answer = await reader.readPricesFrom(MENU_URL);
+    expect(answer.outcome).toBe("priced");
+    expect(answer.rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ category: "beer", drinkLabel: "Guinness Draught pint", priceGbp: 6.1 }),
+      expect.objectContaining({ category: "cocktail", drinkLabel: "Negroni on tap", priceGbp: 9 }),
+      expect.objectContaining({ category: "cocktail", drinkLabel: "Espresso Martini on draught", priceGbp: 10 }),
+      expect.objectContaining({ category: "alcohol-free", drinkLabel: "Heineken 0.0% lager", priceGbp: 5 }),
+    ]));
+    expect(answer.rows.filter((row: { category: string; priceGbp: number }) => row.category === "beer" && row.priceGbp >= 9)).toEqual([]);
+  });
+
+  it("preserves distinct printed wine measures in output rows", async () => {
+    const reader = createContextDevPriceReader({
+      env: KEY,
+      robots: allowRobots(),
+      fetchImpl: async () => scrapeMarkdownResponse(
+        `${PRICED_MENU}\n<p>Chardonnay, France<br />125ml £5.50 250ml £11.00</p>`,
+      ),
+    });
+    const answer = await reader.readPricesFrom(MENU_URL);
+    expect(answer.outcome).toBe("priced");
+    expect(answer.rows.filter((row: { drinkLabel?: string }) => row.drinkLabel === "Chardonnay, France"))
+      .toEqual([
+        expect.objectContaining({ servingSize: "125ml", priceGbp: 5.5 }),
+        expect.objectContaining({ servingSize: "250ml", priceGbp: 11 }),
+      ]);
+  });
+
   it("hands the markdown to the shared price rules and prices the page", async () => {
     const fetchImpl = vi.fn(async () =>
-      new Response(JSON.stringify({ success: true, url: MENU_URL, markdown: PRICED_MENU }), {
-        headers: { "content-type": "application/json" },
-      }),
+      scrapeMarkdownResponse(PRICED_MENU),
     );
     const reader = createContextDevPriceReader({
       env: KEY,
@@ -102,9 +155,7 @@ describe("readPricesFrom", () => {
       env: KEY,
       robots: allowRobots(),
       fetchImpl: vi.fn(async () =>
-        new Response(JSON.stringify({ success: true, url: MENU_URL, markdown: "  " }), {
-          headers: { "content-type": "application/json" },
-        }),
+        scrapeMarkdownResponse("  "),
       ),
     });
     expect((await empty.readPricesFrom(MENU_URL)).outcome).toBe("render-empty");
@@ -113,14 +164,7 @@ describe("readPricesFrom", () => {
       env: KEY,
       robots: allowRobots(),
       fetchImpl: vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            success: true,
-            url: MENU_URL,
-            markdown: `# Our pub\n${"We have been pouring since 1897. ".repeat(40)}`,
-          }),
-          { headers: { "content-type": "application/json" } },
-        ),
+        scrapeMarkdownResponse(`# Our pub\n${"We have been pouring since 1897. ".repeat(40)}`),
       ),
     });
     expect((await wordy.readPricesFrom(MENU_URL)).outcome).toBe("menu-states-no-price");

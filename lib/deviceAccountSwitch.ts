@@ -24,6 +24,7 @@
 // the owner a sign-in, the second keeps the token because a network fault is not
 // evidence a credential died.
 
+import { isGoTrueUserBannedError } from "@/lib/authAccountBan";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
 import {
   markDeviceAccountNeedsSignIn,
@@ -48,7 +49,7 @@ export type MintedSession = {
 export type MintOutcome =
   | { status: "minted"; session: MintedSession }
   /** GoTrue answered that this token is dead. Retire it. */
-  | { status: "refused" }
+  | { status: "refused"; banned?: true }
   /** We could not ask, or could not understand the answer. Keep the token. */
   | { status: "unavailable" };
 
@@ -121,9 +122,17 @@ export async function mintSessionFromRefreshToken(
     return { status: "unavailable" };
   }
   if (!response.ok) {
-    const refused = response.status >= 400 && response.status < 500;
-    discardBody(response);
-    return refused ? { status: "refused" } : { status: "unavailable" };
+    if (response.status < 400 || response.status >= 500) {
+      discardBody(response);
+      return { status: "unavailable" };
+    }
+    const body = await response.json().catch(() => null);
+    const banned = isGoTrueUserBannedError({
+      status: response.status,
+      code: body?.error_code ?? body?.code,
+      message: body?.msg ?? body?.message ?? body?.error_description,
+    });
+    return banned ? { status: "refused", banned: true } : { status: "refused" };
   }
   const body = await response.json().catch(() => null);
   const session = parseMintedSession(body);

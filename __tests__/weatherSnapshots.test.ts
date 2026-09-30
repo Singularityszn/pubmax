@@ -47,6 +47,26 @@ describe("cached weather snapshots", () => {
     })).toBeNull();
   });
 
+  it("accepts numeric limits and rejects readings outside them", () => {
+    const observation = snapshot.observations[0];
+    const withReadings = (readings: Record<string, unknown>) => validateWeatherSnapshot({
+      ...snapshot,
+      observations: [{ ...observation, ...readings }],
+    });
+
+    expect(withReadings({ feelsLikeC: -40, precipitationProbabilityPct: 100, windKph: 300 })).not.toBeNull();
+    expect(withReadings({ windKph: null })?.observations[0]?.windKph).toBeNull();
+    for (const readings of [
+      { feelsLikeC: -41 },
+      { feelsLikeC: Number.NaN },
+      { precipitationProbabilityPct: 101 },
+      { windKph: -1 },
+      { windKph: "9" },
+    ]) {
+      expect(withReadings(readings)).toBeNull();
+    }
+  });
+
   it("classifies wet weather without inventing garden suitability", () => {
     const wet = {
       ...snapshot,

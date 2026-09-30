@@ -10,6 +10,7 @@ import {
 	buildPlanGenerationStops,
 	planBudgetSummary,
 	planRouteTimingDisclosure,
+	planUsesPintPrices,
 } from "@/lib/planGenerationDto";
 import {
 	loadPlanGenerationBaselineWhatsOn,
@@ -65,6 +66,7 @@ export async function POST(request: Request): Promise<Response> {
 		planningWeather,
 		reviewedSignalClaims,
 		naLensPrices,
+		drinkPriceCoverageNote,
 		candidates,
 		anchor: anchorRequest,
 	} = preparation.prepared;
@@ -114,7 +116,8 @@ export async function POST(request: Request): Promise<Response> {
 	const pricePence = chosen.map(({ venue }, position) => groundedStops
 		? groundedStops[position].price.pence
 		: venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100));
-	const hasCompletePriceEvidence = pricePence.every((price): price is number => price !== null);
+	const hasCompletePriceEvidence = planUsesPintPrices(context)
+		&& pricePence.every((price): price is number => price !== null);
 	const { contextEvidenceGaps, operationalEvidenceGaps } = planGenerationEvidenceGaps({
 		context,
 		accessibilityEnforced,
@@ -125,14 +128,22 @@ export async function POST(request: Request): Promise<Response> {
 		hasTonightEvidence: chosen.some(({ tonightEvents }) => tonightEvents.length > 0),
 		hasWeatherEvidence: Boolean(planningWeather),
 	});
-	const missingEvidence = [...new Set([...area.missingEvidence, ...contextEvidenceGaps, ...operationalEvidenceGaps])];
+	const missingEvidence = [...new Set([
+		...area.missingEvidence,
+		...contextEvidenceGaps,
+		...operationalEvidenceGaps,
+		...(drinkPriceCoverageNote ? ["selected_drink_price_index"] : []),
+	])];
 	const confidenceScore = Math.max(0, Math.min(1, Math.min(reconciled.confidence, coverage.coverageScore / 100)));
 	const planningConfidence: PlanningConfidence = {
 		level: routeReady ? (missingEvidence.length ? "medium" : "high") : "low",
 		score: Number(confidenceScore.toFixed(2)),
 		routeReady,
 		missingEvidence,
-		warnings: missingEvidence.map(planEvidenceWarning),
+		warnings: [
+			...missingEvidence.filter((gap) => gap !== "selected_drink_price_index").map(planEvidenceWarning),
+			...(drinkPriceCoverageNote ? [drinkPriceCoverageNote] : []),
+		],
 		provenance: [
 			{ kind: "venue_dataset", label: "PUBMAXX Venue Dataset" },
 			{ kind: "night_area_review", label: `${area.name} route review`, asOf: area.lastReviewedAt },
@@ -187,6 +198,7 @@ export async function POST(request: Request): Promise<Response> {
 		walkingEstimate,
 		area,
 		planningWeather,
+		priceContext: context,
 	});
 	// Ground the proof over exactly the venues this response commits to: the
 	// three chosen stops plus every alternative id we actually emit above.
@@ -261,6 +273,7 @@ export async function POST(request: Request): Promise<Response> {
 	      ...(context.foodNeeds.length ? ["foodNeeds"] : []),
 			...(context.budgetLimitPence ? ["budgetLimitPence"] : []),
 			...(context.zeroProof ? ["zeroProof"] : []),
+			...(context.budget === "value" && !context.zeroProof && !planUsesPintPrices(context) ? ["drinkCategory"] : []),
 			...(context.wetherspoonsPreferred ? ["wetherspoonsPreferred"] : []),
 			...(planningWeather ? ["weather"] : []),
 	    ],

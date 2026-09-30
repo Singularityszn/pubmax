@@ -42,13 +42,9 @@ Notes:
 Open the printed link in a fresh browser (or a private window). This is the
 same one-time link a real email would carry, so it lands exactly where a real
 sign-in would: this app's `/auth/callback` route, which forwards you to the
-app with the session established.
-
-Because the link was minted outside any browser that "requested" it, the app
-treats this the same as an email link opened in a different browser than the
-one you sent it from — a supported path, not an error. You will see a
-visible "Signed in as …" confirmation rather than a silent landing. This
-behaviour lives in `lib/authRedirect.ts` and `components/auth/AuthProvider.tsx`.
+app. The link has no locally owned attempt. Follow the confirmation steps in
+[Browser sign-in](DEPLOYMENT.md#3-browser-sign-in-email-magic-link--google--apple--microsoft)
+before proceeding to claim a handle.
 
 ## 3. Claim a throwaway handle
 

@@ -5,6 +5,8 @@ import { parseCityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { isLimited } from "@/lib/pintDrops";
 import { cleanPlanAnchor } from "@/lib/plan";
 import { planStopResolver } from "@/lib/planRoute";
+import { resolvePlanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence.server";
+import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { claimPlanMembership } from "@/lib/planCrewIdentity";
 import { planMemberIdentity, planRequestDigest, planStore } from "@/lib/planStore";
 import {
@@ -116,10 +118,20 @@ export async function POST(request: Request): Promise<Response> {
   // One rule for what a Stop id may be, shared with route replacement: a listed
   // venue, or a `place:<poi id>` meeting point. Free text resolves to nothing.
   const resolveStop = await planStopResolver(cityId);
-  const stops = submittedStops.map((raw) => resolveStop(raw));
-  if (stops.some((stop) => stop === null)) {
+  const resolvedStops = submittedStops.map((raw) => resolveStop(raw));
+  if (resolvedStops.some((stop) => stop === null)) {
     return publicApiError("Choose listed venues.", "PLAN_VENUES_INVALID", 400);
   }
+  const idempotencyStops = (resolvedStops as NonNullable<(typeof resolvedStops)[number]>[]).map((stop, position) => {
+    const raw = submittedStops[position];
+    const hint = cleanSelectedDrinkPriceEvidence(
+      raw && typeof raw === "object" ? (raw as Record<string, unknown>).selectedDrinkPriceEvidence : null,
+    );
+    return { ...stop, ...(hint ? { selectedDrinkPriceEvidence: hint } : {}) };
+  });
+  const stops = await resolvePlanSelectedDrinkPriceEvidence(
+    resolvedStops as NonNullable<(typeof resolvedStops)[number]>[], submittedStops, body.context,
+  );
   const acceptedVenueIds = stops.flatMap((stop) => stop ? [stop.venueId] : []);
   const groundingProofDigest = typeof body.groundingProof === "string" && body.groundingProof
     ? planRequestDigest(body.groundingProof)
@@ -156,7 +168,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   const result = await planStore().create(
     { ...body, stops },
-    { idempotencyKey, ...(groundingProofDigest ? { groundingProofDigest } : {}), ...(anchor ? { anchor } : {}) },
+    { idempotencyKey, idempotencyStops, ...(groundingProofDigest ? { groundingProofDigest } : {}), ...(anchor ? { anchor } : {}) },
   );
   if (!result.ok) {
     return publicApiError(

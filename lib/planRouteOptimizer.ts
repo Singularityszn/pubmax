@@ -65,6 +65,8 @@ export type GroundedPlanRouteConstraints = {
   accessibilityNeeds: readonly PlanAccessibilityNeed[];
   budgetLimitPence: number | null;
   budgetTier: Budget | null;
+  /** Category plans have no comparable, attributable price evidence for a hard ceiling. */
+  selectedDrinkPrice?: boolean;
   groupSize: number | null;
   transportConstraints: readonly string[];
   routeWindow: { startsAt: string; endsAt: string } | null;
@@ -249,7 +251,9 @@ function report<T>(evaluation: EvaluatedRoute<T>, constraints: GroundedPlanRoute
         && constraints.budgetLimitPence === null
         && evaluation.route.some((candidate) => candidate.price.pence === null) ? [{
           code: "value_price_evidence_incomplete" as const,
-          message: "The value preference was applied, but at least one selected stop has no attributable recorded pint price.",
+          message: constraints.selectedDrinkPrice
+            ? "The value preference was applied, but comparable verified prices for the selected drink are unavailable for the selected stops."
+            : "The value preference was applied, but at least one selected stop has no attributable recorded pint price.",
         }] : []),
     ],
   };

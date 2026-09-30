@@ -39,14 +39,18 @@ vi.mock("@/lib/planSessionCapability", () => ({
 }));
 // The children are not what these two rules are about; the route list is.
 vi.mock("@/components/plan/PlanRoute", () => ({
-  default: ({ stops }: { stops: ReadonlyArray<{ venueId: string; venueName: string }> }) =>
+  default: ({ stops }: { stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: { category: string; pence: number } }> }) =>
     createElement(
       "ol",
       { "data-testid": "plan-route" },
-      stops.map((stop) => createElement("li", { key: stop.venueId }, stop.venueName)),
+      stops.map((stop) => createElement("li", { key: stop.venueId },
+        stop.venueName,
+        stop.selectedDrinkPriceEvidence
+          ? createElement("span", { "data-testid": "saved-drink-price" }, `${stop.selectedDrinkPriceEvidence.category}:${stop.selectedDrinkPriceEvidence.pence}`)
+          : null)),
     ),
 }));
-vi.mock("@/components/plan/PlanCollaborationPanel", () => ({ default: () => null }));
+vi.mock("@/components/plan/PlanCollaborationPanel", () => ({ default: ({ draftStops }: { draftStops: unknown[] }) => createElement("pre", { "data-testid": "proposal-draft" }, JSON.stringify(draftStops)) }));
 vi.mock("@/components/round/RoundStarter", () => ({ default: () => null }));
 
 import PlanSummary from "@/components/plan/PlanSummary";
@@ -66,7 +70,11 @@ const preview: PlanPrivacyPreviewDTO = {
   visibility: "preview",
 };
 
-function memberState(stopNames: readonly string[], routeRevision: number) {
+function memberState(
+  stopNames: readonly string[],
+  routeRevision: number,
+  drinkPreference: { drinkCategory?: string | null; zeroProof?: boolean } = {},
+) {
   return {
     plan: {
       id: PLAN,
@@ -81,7 +89,7 @@ function memberState(stopNames: readonly string[], routeRevision: number) {
       position: index + 1,
     })),
     crew: [],
-    context: { nightArea: "soho", stopCount: 3 },
+    context: { nightArea: "soho", stopCount: 3, ...drinkPreference },
   };
 }
 
@@ -138,6 +146,52 @@ async function mountWithMemberRead(state: unknown): Promise<void> {
   expect(renderedStops().length).toBeGreaterThan(0);
   void state;
 }
+
+describe("saved route start time", () => {
+  it.each([
+    [{ drinkCategory: "wine" }, "First stop · 18:30"],
+    [{ drinkCategory: "cocktail" }, "First stop · 18:30"],
+    [{ drinkCategory: "whisky" }, "First stop · 18:30"],
+    [{ zeroProof: true }, "First stop · 18:30"],
+    [{ drinkCategory: "beer" }, "First pint · 18:30"],
+    [{}, "First pint · 18:30"],
+  ])("shows %j as %s", async (drinkPreference, expected) => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse(memberState(
+      ["The George", "The Swan", "The Crown"], 1, drinkPreference,
+    )))));
+
+    await mountWithMemberRead(null);
+
+    expect(container.querySelector(".planPage__eyebrow")?.textContent).toBe(expected);
+  });
+});
+
+describe("member selected drink prices", () => {
+  it("passes saved wine evidence into the guest proposal draft", async () => {
+    capability.role = "guest";
+    const state = memberState(["The George", "The Swan", "The Crown"], 1, { drinkCategory: "wine" });
+    const evidence = { category: "wine", pence: 550, serving: null, source: "community", reportedAt: "2026-09-25T12:00:00.000Z" };
+    state.stops[0] = { ...state.stops[0], selectedDrinkPriceEvidence: evidence } as typeof state.stops[number];
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse(state))));
+
+    await mountWithMemberRead(null);
+
+    const draft = JSON.parse(container.querySelector('[data-testid="proposal-draft"]')?.textContent ?? "[]") as Array<{ selectedDrinkPriceEvidence?: unknown }>;
+    expect(draft[0]?.selectedDrinkPriceEvidence).toEqual(evidence);
+  });
+
+  it("passes saved wine evidence from member read to route display", async () => {
+    const state = memberState(["The George", "The Swan", "The Crown"], 1, { drinkCategory: "wine" });
+    state.stops[0] = { ...state.stops[0], selectedDrinkPriceEvidence: {
+      category: "wine", pence: 550, serving: null, source: "community", reportedAt: "2026-09-25T12:00:00.000Z",
+    } } as typeof state.stops[number];
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse(state))));
+
+    await mountWithMemberRead(null);
+
+    expect(container.querySelector('[data-testid="saved-drink-price"]')?.textContent).toBe("wine:550");
+  });
+});
 
 describe("the route preview ask", () => {
   it("spends one generate request when the control is tapped twice in one task", async () => {

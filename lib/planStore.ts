@@ -9,6 +9,7 @@ import type { NightContext } from "@/lib/nightPlanning";
 import { selectStore } from "@/lib/storeBackend";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { isPlanStopCount } from "@/lib/planStopCount";
+import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 const PLANS = "plans";
 const STOPS = "plan_stops";
@@ -46,6 +47,8 @@ export type PlanCompletionResult =
 export type PlanCreateOptions = {
   idempotencyKey?: string;
   groundingProofDigest?: string;
+  /** Canonical submitted intent before mutable server price evidence is resolved. */
+  idempotencyStops?: CleanPlanInput["stops"];
   /** Grounded anchor metadata (§3.3). Present only for anchored generation. */
   anchor?: PlanAnchorMetadata;
 };
@@ -127,13 +130,14 @@ function validatedCreateAnchor(
  * (no proof, no anchor) keeps its historical hash exactly.
  */
 function createRequestHash(clean: CleanPlanInput, options: PlanCreateOptions): string {
+  const stableStops = options.idempotencyStops ?? clean.stops;
   const plan = clean.context
-    ? clean
+    ? { ...clean, stops: stableStops }
     : {
         title: clean.title,
         startTime: clean.startTime,
         creatorName: clean.creatorName,
-        stops: clean.stops,
+        stops: stableStops,
       };
   if (!options.groundingProofDigest && !options.anchor) return planRequestDigest(plan);
   return planRequestDigest({
@@ -172,6 +176,7 @@ function completionFromRow(row: Record<string, unknown>): PlanCompletionDTO {
       venue_id: (stop as Record<string, unknown>).venueId,
       venue_name: (stop as Record<string, unknown>).venueName,
       position: (stop as Record<string, unknown>).position,
+      selected_drink_price_evidence: (stop as Record<string, unknown>).selectedDrinkPriceEvidence,
     })).sort((a, b) => a.position - b.position),
     qualifyingArrival:
       typeof row.qualifying_arrival_action_id === "string"
@@ -201,7 +206,13 @@ function routeRevisionOf(plan: PlanDTO): number {
 }
 
 function stopFromRow(row: Record<string, unknown>): PlanStopDTO {
-  return { venueId: String(row.venue_id), venueName: String(row.venue_name), position: Number(row.position) };
+  const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selected_drink_price_evidence);
+  return {
+    venueId: String(row.venue_id),
+    venueName: String(row.venue_name),
+    position: Number(row.position),
+    ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+  };
 }
 
 function memberFromRow(row: Record<string, unknown>): CrewMemberDTO {
@@ -228,12 +239,20 @@ async function readSupabasePlanState(
   const { data: planRow, error } = await planQuery.maybeSingle();
   if (error) throw new Error(error.message);
   if (!planRow) return null;
+  const readStops = async () => {
+    const result = await admin.from(STOPS)
+      .select("venue_id,venue_name,position,selected_drink_price_evidence")
+      .eq("plan_id", id).order("position");
+    if (result.error?.code !== "42703") return result;
+    return admin.from(STOPS).select("venue_id,venue_name,position")
+      .eq("plan_id", id).order("position");
+  };
   const [
     { data: stopRows, error: stopsError },
     { data: memberRows, error: membersError },
     { data: actionRows, error: actionsError },
   ] = await Promise.all([
-    admin.from(STOPS).select("venue_id,venue_name,position").eq("plan_id", id).order("position"),
+    readStops(),
     admin.from(MEMBERS).select("id,name,status,joined_at,updated_at")
       .eq("plan_id", id)
       .is("membership_revoked_at", null)
@@ -415,7 +434,10 @@ export const supabasePlanStore: PlanStore = {
           p_plan_id: id,
           p_token_hash: hashPlanMemberToken(rawToken),
           p_expected_route_revision: update.expectedRouteRevision,
-          p_stops: stops.map(({ venueId, venueName }) => ({ venueId, venueName })),
+          p_stops: stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => ({
+            venueId, venueName,
+            ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+          })),
           p_context: update.context ?? null,
           // Anchored Plans upgrade to a grounded route only after proof verification.
           p_grounded_upgrade: update.groundedUpgrade === true,
@@ -759,7 +781,14 @@ export const memoryPlanStore: PlanStore = {
       }
       // One synchronous mutation keeps the demo store's route + revision
       // semantics equivalent to the production RPC transaction.
-      plan.stops = stops;
+      const context = update.context ?? plan.context;
+      plan.stops = stops.map((stop) => {
+        if (!stop.selectedDrinkPriceEvidence ||
+          (!context?.zeroProof && stop.selectedDrinkPriceEvidence.category === context?.drinkCategory)) return stop;
+        const nextStop = { ...stop };
+        delete nextStop.selectedDrinkPriceEvidence;
+        return nextStop;
+      });
       plan.plan.routeRevision = routeRevisionOf(plan.plan) + 1;
       if (plan.plan.anchorVenueId) {
         plan.plan.outcome = "route";
@@ -771,7 +800,15 @@ export const memoryPlanStore: PlanStore = {
     }
     if (update.status && !canTransitionPlannedNight(plan.plan.status ?? "draft", update.status)) return { ok: false, error: "invalid" };
     if (update.status) plan.plan.status = update.status;
-    if (update.context) plan.context = structuredClone(update.context);
+    if (update.context) {
+      plan.context = structuredClone(update.context);
+      for (const stop of plan.stops) {
+        if (stop.selectedDrinkPriceEvidence && (update.context.zeroProof
+          || stop.selectedDrinkPriceEvidence.category !== update.context.drinkCategory)) {
+          delete stop.selectedDrinkPriceEvidence;
+        }
+      }
+    }
     return { ok: true, plan: publicState(plan) };
   },
   async addAction(id, rawToken, action) {

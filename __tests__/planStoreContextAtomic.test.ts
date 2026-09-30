@@ -21,6 +21,7 @@ const CONTEXT = {
   budget: "value" as const,
   budgetLimitPence: null,
   zeroProof: false,
+  drinkCategory: null,
   wetherspoonsPreferred: false,
   atmosphere: [],
   foodNeeds: [],
@@ -121,5 +122,33 @@ describe("Supabase Plan creation context", () => {
 
     expect(result).toEqual({ ok: false, error: "error" });
     expect(supabase.rpc).toHaveBeenCalledOnce();
+  });
+
+  it("keeps durable create request hash stable when resolved price evidence changes", async () => {
+    vi.spyOn(supabasePlanStore, "get").mockResolvedValue(STATE);
+    const evidence = { category: "wine", pence: 750, serving: null, source: "community", reportedAt: "2026-09-25T12:00:00.000Z" } as const;
+    const submittedStops = [{ venueId: "venue-a", venueName: "A", selectedDrinkPriceEvidence: evidence }];
+    const base = { creatorName: "Host", startTime: STATE.plan.startTime, stops: submittedStops };
+    const options = { idempotencyKey: "durable-evidence-retry", idempotencyStops: submittedStops };
+    let originalHash: string | null = null;
+    supabase.rpc.mockImplementation(async (_fn: string, args: { p_request_hash: string }) => {
+      if (!originalHash) {
+        originalHash = args.p_request_hash;
+        return { data: "created", error: null };
+      }
+      return { data: args.p_request_hash === originalHash ? "replayed" : "conflict", error: null };
+    });
+
+    const first = await supabasePlanStore.create(base, options);
+    const replay = await supabasePlanStore.create({ ...base, stops: [{ venueId: "venue-a", venueName: "A" }] }, options);
+    expect(first.ok && first.created).toBe(true);
+    expect(replay.ok && replay.created).toBe(false);
+    expect(supabase.rpc.mock.calls[0][1].p_request_hash).toBe(supabase.rpc.mock.calls[1][1].p_request_hash);
+    expect(supabase.rpc.mock.calls[0][1].p_stops).not.toEqual(supabase.rpc.mock.calls[1][1].p_stops);
+
+    const changed = await supabasePlanStore.create(base, {
+      ...options, idempotencyStops: [{ ...submittedStops[0], selectedDrinkPriceEvidence: { ...evidence, pence: 850 } }],
+    });
+    expect(changed).toEqual({ ok: false, error: "conflict" });
   });
 });

@@ -75,6 +75,8 @@ const hiddenSignal: CommunityPriceRow = {
 };
 
 let communityPrices: CommunityPriceRow[];
+let reportedDrops: Record<string, unknown>[];
+let hiddenDrops: Record<string, unknown>[];
 let communityPriceFailure = false;
 let moderationFailure: "json" | "text" | null = null;
 let moderationFailureResponse: Response | null = null;
@@ -125,7 +127,9 @@ function responseFor(input: string, init?: RequestInit): Response | Promise<Resp
     return jsonResponse([venueDataset[0]]);
   }
 
-  if (path.startsWith("/api/pint-drops")) return jsonResponse({ drops: [] });
+  if (path.startsWith("/api/pint-drops")) {
+    return jsonResponse({ drops: path.includes("status=reported") ? reportedDrops : hiddenDrops });
+  }
   if (path.startsWith("/api/admin/comments")) return jsonResponse({ comments: [] });
   if (path.startsWith("/api/visit-reports")) return jsonResponse({ reports: [] });
   if (path.startsWith("/api/venue-photos")) return jsonResponse({ photos: [] });
@@ -168,6 +172,8 @@ beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   localStorage.clear();
   communityPrices = [];
+  reportedDrops = [];
+  hiddenDrops = [];
   communityPriceFailure = false;
   moderationFailure = null;
   moderationFailureResponse = null;
@@ -184,7 +190,46 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("community price moderation queues", () => {
+describe("admin moderation queues", () => {
+  it("shows reported and hidden Pint Drop evidence with their distinct decisions", async () => {
+    const base = {
+      venueId: "venue-xjf3n0",
+      handle: "Tester",
+      drink: "pint",
+      priceGbp: 5.5,
+      passedDownNote: "Menu price checked",
+      era: "tonight",
+      status: "reported",
+      pintPhotoUrl: "/pint.jpg",
+      venuePhotoUrl: "/venue.jpg",
+      reportReason: "Wrong price",
+      reportCount: 2,
+      reportedAt: "2026-09-28T18:00:00.000Z",
+    };
+    reportedDrops = [{ ...base, id: "reported-drop" }];
+    hiddenDrops = [{ ...base, id: "hidden-drop", status: "hidden" }];
+
+    await renderAdmin();
+    await click(findButton("Load reported drops"));
+
+    const sections = ["Reported Pint Drops", "Hidden Pint Drops"].map((heading) => {
+      const title = [...host.querySelectorAll("h3")].find((node) => node.textContent === heading);
+      return title?.nextElementSibling;
+    });
+    expect(sections.every(Boolean)).toBe(true);
+    for (const section of sections) {
+      expect(section?.textContent).toContain("Menu price checked");
+      expect(section?.textContent).toContain("Verified reports: 2");
+      expect(section?.textContent).toContain("Report evidence received");
+      expect(section?.textContent).toContain("Arnos Arms");
+      expect(section?.querySelectorAll("img")).toHaveLength(2);
+    }
+    expect(sections[0]?.textContent).toContain("Keep visible");
+    expect(sections[0]?.textContent).toContain("Hide");
+    expect(sections[1]?.textContent).toContain("Restore");
+    expect(sections[1]?.textContent).toContain("Keep hidden");
+  });
+
   it("renders reported and hidden observations from the shared queue", async () => {
     communityPrices = [reportedPrice, hiddenSignal];
     await renderAdmin();

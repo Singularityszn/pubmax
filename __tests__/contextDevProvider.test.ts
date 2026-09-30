@@ -43,7 +43,34 @@ describe("contextDevEventSources register gate", () => {
 });
 
 describe("normaliseContextDevEventRow", () => {
-  it("carries source credit on every row", () => {
+  it("refuses an off-host event link instead of crediting it to the registered publisher", () => {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const { row, drop } = normaliseContextDevEventRow(
+      {
+        title: "Invented quiz",
+        placeName: "The Dove",
+        kind: "event",
+        sourceUrl: "https://example.com/event/quiz",
+        startsDate: "2026-08-18",
+      },
+      fullers,
+      { observedAt },
+    );
+    expect(row).toBeNull();
+    expect(drop).toBe("noUrl");
+  });
+
+  it("credits the page actually scraped when no event-specific URL was stated", () => {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const { row } = normaliseContextDevEventRow(
+      { title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-08-18" },
+      fullers,
+      { observedAt },
+    );
+    expect(row?.source).toEqual({ label: "Fuller's", url: fullers.url });
+  });
+
+  it("credits the registered page actually scraped", () => {
     if (!fullers) throw new Error("missing fullers register entry");
     const { row } = normaliseContextDevEventRow(
       {
@@ -58,7 +85,7 @@ describe("normaliseContextDevEventRow", () => {
     );
     expect(row?.source).toEqual({
       label: "Fuller's",
-      url: "https://www.fullers.co.uk/pubs/the-dove/event/1",
+      url: fullers.url,
     });
     expect(isValidWhatsOnRow(row, Date.parse(observedAt))).toBe(true);
   });
@@ -99,6 +126,475 @@ describe("normaliseContextDevEventRow", () => {
 });
 
 describe("runContextDevEventsLane", () => {
+  async function capturedEvent(markdown: string, event: Record<string, string> | Record<string, string>[]) {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      url: fullers.url,
+      markdown: { requested: true, success: true, data: markdown },
+      json: { requested: true, success: true, data: { events: Array.isArray(event) ? event : [event] } },
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+    return runContextDevEventsLane({
+      observedAt,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      callOptions: { fetchImpl: fetchImpl as unknown as typeof fetch },
+      log: vi.fn(),
+      logError: vi.fn(),
+    });
+  }
+
+  it.each(["£40", "£4.50", "£4,000", "£4.505"])("discards a price prefix in %s", async (price) => {
+    const result = await capturedEvent(`Quiz at The Dove on 18 December 2026. Tickets ${price}`, {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-12-18", priceText: "£4",
+    });
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]?.priceGbp).toBeUndefined();
+  });
+
+  it("retains complete prices and explicitly labelled publisher ids", async () => {
+    const result = await capturedEvent("Quiz at The Dove on 18 December 2026. Tickets £4.50. Event ID: fullers-42", {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-12-18",
+      priceText: "£4.50", sourceId: "fullers-42",
+    });
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({ priceGbp: 4.5, sourceId: "fullers-42" });
+  });
+
+  it("does not deduplicate unrelated events by an incidental year", async () => {
+    const result = await capturedEvent(
+      "Quiz at The Dove on 18 December 2026.\nOpen mic at The Dove on 19 December 2026.",
+      [
+        { title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-12-18", sourceId: "2026" },
+        { title: "Open mic", placeName: "The Dove", kind: "music", startsDate: "2026-12-19", sourceId: "2026" },
+      ],
+    );
+    expect(result.rows).toHaveLength(2);
+    expect(dedupeEventRowsBySourceId(result.rows as unknown as WhatsOnEventRow[])).toHaveLength(2);
+    for (const row of result.rows) expect(row.sourceId).toBe(row.id);
+  });
+
+  it.each([
+    "Quiz at The Dove on 18 December 2026 at 20:00",
+    "### Quiz\nThe Dove\n18 December 2026 at 8pm",
+    "- Quiz\n  The Dove\n  18 December 2026 at 8:00PM",
+  ])("rejects date-only extraction when record states a clock: %s", async (markdown) => {
+    const result = await capturedEvent(markdown, {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-12-18",
+    });
+    expect(result.rows).toEqual([]);
+    expect(result.failures).toHaveLength(1);
+  });
+
+  it.each([
+    "### Christmas 2026 quiz\nThe Dove\n18 December 2026 at 8pm",
+    "- Christmas 2026 quiz\n  The Dove\n  18 December 2026 at 8pm",
+    "Christmas 2026 quiz at The Dove on 18 December 2026 at 8pm",
+  ])("does not count a title's year as a second date: %s", async (markdown) => {
+    const result = await capturedEvent(markdown, {
+      title: "Christmas 2026 quiz", placeName: "The Dove", kind: "event", startsAt: "2026-12-18T20:00:00Z",
+    });
+    expect(result.rows).toHaveLength(1);
+  });
+
+  it.each(["19 December", "December 19", "19/12", "19.12.2026", "19 12 2026", "2026-12-19"])(
+    "rejects a card with another date represented as %s", async (otherDate) => {
+      for (const markdown of [
+        `### Quiz\nThe Swan on ${otherDate} at 7pm\nThe Dove on 18 December 2026 at 8pm`,
+        `- Quiz\n  The Swan on ${otherDate} at 7pm\n  The Dove on 18 December 2026 at 8pm`,
+        `Quiz at The Swan on ${otherDate} at 7pm and The Dove on 18 December 2026 at 8pm`,
+      ]) {
+        const result = await capturedEvent(markdown, {
+          title: "Quiz", placeName: "The Swan", kind: "event", startsAt: "2026-12-18T20:00:00Z",
+        });
+        expect(result.rows).toEqual([]);
+      }
+    },
+  );
+
+  it("rejects abbreviated competing dates across one heading card", async () => {
+    const result = await capturedEvent("### Quiz\nThe Swan on 19 Dec at 7pm\nThe Dove on 18 December 2026 at 8pm", {
+      title: "Quiz", placeName: "The Swan", kind: "event", startsAt: "2026-12-18T20:00:00Z",
+    });
+    expect(result.rows).toEqual([]);
+    expect(result.failures).toHaveLength(1);
+  });
+
+  it("does not infer an extracted year from a yearless date", async () => {
+    const result = await capturedEvent("Quiz at The Dove on 19 Dec at 7pm", {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-12-19T19:00:00Z",
+    });
+    expect(result.rows).toEqual([]);
+  });
+
+  it.each(["18/08/2026", "18/08/2026 and 18 August 2026"])(
+    "accepts zero-padded or repeated identical date evidence: %s", async (date) => {
+      const result = await capturedEvent(`### Quiz\nThe Dove on ${date} at 8pm`, {
+        title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-08-18T19:00:00Z",
+      });
+      expect(result.rows).toHaveLength(1);
+    },
+  );
+
+  it("does not publish the ending clock of an event range as its start", async () => {
+    const markdown = "Quiz at The Dove on 18 December 2026, 20:00-22:00";
+    const result = await capturedEvent(markdown, {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-12-18T22:00:00Z",
+    });
+    expect(result.rows).toEqual([]);
+    const start = await capturedEvent(markdown, {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-12-18T20:00:00Z",
+    });
+    expect(start.rows).toHaveLength(1);
+  });
+
+  it("selects explicit start over doors and end clocks", async () => {
+    const markdown = "Quiz at The Dove on 18 December 2026. Doors 7pm. Starts 8pm. Ends 10pm.";
+    const event = { title: "Quiz", placeName: "The Dove", kind: "event" };
+    expect((await capturedEvent(markdown, { ...event, startsAt: "2026-12-18T19:00:00Z" })).rows).toEqual([]);
+    expect((await capturedEvent(markdown, { ...event, startsAt: "2026-12-18T20:00:00Z" })).rows).toHaveLength(1);
+  });
+
+  it("abstains when doors and another clock are stated without start evidence", async () => {
+    const result = await capturedEvent("Quiz at The Dove on 18 December 2026. Doors 7pm, 8pm.", {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-12-18T20:00:00Z",
+    });
+    expect(result.rows).toEqual([]);
+  });
+
+  it("keeps venue IDs and raffle prices out of event identity and ticket price", async () => {
+    const result = await capturedEvent("Quiz at The Dove on 18 December 2026. Venue ID: dove. Tickets £40. Raffle £4.", {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-12-18",
+      sourceId: "dove", priceText: "£4",
+    });
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]?.sourceId).toBe(result.rows[0]?.id);
+    expect(result.rows[0]?.priceGbp).toBeUndefined();
+  });
+
+  it("accepts an ordinary at The Dove phrase after the clock", async () => {
+    const result = await capturedEvent("### Quiz\n18 December 2026 at 8pm at The Dove", {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-12-18T20:00:00Z",
+    });
+    expect(result.rows).toHaveLength(1);
+  });
+
+  it.each(["GMT", "UTC", "gmt", "utc"])("honours explicit %s during London summer", async (zone) => {
+    const markdown = `Quiz at The Dove on 18 August 2027 at 20:00 ${zone}`;
+    const event = { title: "Quiz", placeName: "The Dove", kind: "event" };
+    const wrong = await capturedEvent(markdown, { ...event, startsAt: "2027-08-18T19:00:00Z" });
+    expect(wrong.rows).toEqual([]);
+    const correct = await capturedEvent(markdown, { ...event, startsAt: "2027-08-18T20:00:00Z" });
+    expect(correct.rows).toHaveLength(1);
+  });
+
+  it("honours explicit BST during London winter", async () => {
+    const markdown = "Quiz at The Dove on 18 December 2026 at 8pm BST";
+    const event = { title: "Quiz", placeName: "The Dove", kind: "event" };
+    expect((await capturedEvent(markdown, { ...event, startsAt: "2026-12-18T20:00:00Z" })).rows).toEqual([]);
+    expect((await capturedEvent(markdown, { ...event, startsAt: "2026-12-18T19:00:00Z" })).rows).toHaveLength(1);
+  });
+
+  it.each([
+    "20:00 until closing time",
+    "8pm start time",
+    "8PM TILL LATE",
+    "20:00 London time",
+    "20:00 UK time",
+    "20:00 local time",
+    "8pm until last orders time",
+    "8PM LIVE DJ",
+    "8PM PUB QUIZ",
+    "8PM JAZZ",
+    "8PM FRI",
+    "8PM BINGO",
+    "8pm happy hour time",
+    "8pm Until Closing Time",
+    "8pm Match Time",
+    "8pm Game Time",
+    "20:00 UK TIME",
+  ])("reads %s as a London clock, not an unsupported zone", async (clock) => {
+    const result = await capturedEvent(`Quiz at The Dove on 18 August 2027 at ${clock}`, {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2027-08-18T19:00:00Z",
+    });
+    expect(result.rows).toHaveLength(1);
+    expect(result.failures).toEqual([]);
+  });
+
+  it("counts an event the page does not ground as ungrounded", async () => {
+    const result = await capturedEvent("Quiz at The Dove on 18 August 2027 at 20:00 CET", {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2027-08-18T19:00:00Z",
+    });
+    expect(result.dropped).toMatchObject({ ungrounded: 1, noTitle: 0, total: 1 });
+  });
+
+  it("refuses an unknown lowercase place-before-time zone on a winter listing", async () => {
+    const result = await capturedEvent("Quiz at The Dove on 18 December 2026 at 20:00 lagos time", {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-12-18T20:00:00Z",
+    });
+    expect(result.rows).toEqual([]);
+    expect(result.dropped).toMatchObject({ ungrounded: 1 });
+  });
+
+  it.each(["CET", "PST", "cet", "Europe/Paris", "Eastern Standard Time", "Paris time", "Moscow time", "Chicago time", "ET", "PT", "MSK", "SAST", "eastern time", "EASTERN TIME", "pacific time", "moscow time", "MOSCOW TIME", "central european time", "Central European Time", "lagos time", "Lagos Time"])("refuses unsupported explicit zone %s", async (zone) => {
+    const result = await capturedEvent(`Quiz at The Dove on 18 August 2027 at 20:00 ${zone}`, {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2027-08-18T19:00:00Z",
+    });
+    expect(result.rows).toEqual([]);
+  });
+
+  it("does not crossjoin compact single-newline listings", async () => {
+    const result = await capturedEvent(
+      "# Events\n- Open mic at The Swan on 19 August 2026, 20:00.\n- Quiz at The Dove on 18 August 2026, 20:00.",
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
+    );
+    expect(result.rows).toEqual([]);
+    expect(result.failures.some((failure) => failure.sourceId === fullers?.id)).toBe(true);
+  });
+
+  it("does not treat an ordinary section heading as one event card", async () => {
+    const result = await capturedEvent(
+      "## Upcoming Events\nOpen mic at The Swan on 19 August 2026 at 20:00.\nQuiz at The Dove on 18 August 2026 at 20:00.",
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
+    );
+    expect(result.rows).toEqual([]);
+    expect(result.failures.some((failure) => failure.sourceId === fullers?.id)).toBe(true);
+  });
+
+  it("accepts a complete event line beneath an ordinary section heading", async () => {
+    const result = await capturedEvent(
+      "## Upcoming Events\nOpen mic at The Dove on 18 August 2026 at 20:00.",
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
+    );
+    expect(result.rows).toHaveLength(1);
+  });
+
+  it("rejects conflicting dates inside an event-title card", async () => {
+    const result = await capturedEvent(
+      "### Open mic\nThe Swan on 19 August 2026 at 20:00.\nThe Dove on 18 August 2026 at 20:00.",
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
+    );
+    expect(result.rows).toEqual([]);
+    expect(result.failures.some((failure) => failure.sourceId === fullers?.id)).toBe(true);
+  });
+
+  it.each([
+    "# Events\n### Open mic\nThe Dove\n18 August 2026 at 8pm",
+    "# Events\n### Open mic\n\nThe Dove\n18 August 2026 at 8pm",
+    "# Events\n- Open mic\n  The Dove\n  18 August 2026 at 8pm",
+    "# Events\n- Open mic\n\n  The Dove\n  18 August 2026 at 8pm",
+  ])("keeps facts together within a multiline Markdown card: %s", async (markdown) => {
+    const result = await capturedEvent(markdown, {
+      title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z",
+    });
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]?.startsAt).toBe("2026-08-18T19:00:00.000Z");
+  });
+
+  it("does not crossjoin semicolon-separated event clauses", async () => {
+    const result = await capturedEvent(
+      "Open mic at The Swan on 19 August 2026, 20:00; Quiz at The Dove on 18 August 2026, 20:00",
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
+    );
+    expect(result.rows).toEqual([]);
+    expect(result.failures.some((failure) => failure.sourceId === fullers?.id)).toBe(true);
+  });
+
+  it.each([
+    "# Events\n### Open mic\nThe Swan\n19 August 2026 at 8pm\n### Quiz\nThe Dove\n18 August 2026 at 8pm",
+    "# Events\n- Open mic\n  The Swan\n  19 August 2026 at 8pm\n- Quiz\n  The Dove\n  18 August 2026 at 8pm",
+  ])("does not crossjoin separate multiline cards: %s", async (markdown) => {
+    const result = await capturedEvent(markdown, {
+      title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z",
+    });
+    expect(result.rows).toEqual([]);
+  });
+
+  it("accepts a supported event in its own semicolon clause", async () => {
+    const result = await capturedEvent(
+      "Open mic at The Swan on 19 August 2026, 20:00; Quiz at The Dove on 18 August 2026, 20:00",
+      { title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-08-18T19:00:00Z" },
+    );
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]?.title).toBe("Quiz");
+  });
+
+  it("finds a later recurring listing with the requested date", async () => {
+    const result = await capturedEvent(
+      "# Events\n\nQuiz at The Dove on 18 August 2026.\n\nQuiz at The Dove on 25 August 2026.",
+      { title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-08-25" },
+    );
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]?.startsDate).toBe("2026-08-25");
+  });
+
+  it("rejects a UTC hour that shifts a stated London summer start", async () => {
+    const result = await capturedEvent(
+      "Open mic at The Dove on 18 August 2026 at 20:00 London time.",
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T20:00:00Z" },
+    );
+    expect(result.rows).toEqual([]);
+  });
+
+  it.each([
+    ["Open mic at The Dove on 18 August 2026 at 20:00.", "2026-08-18T19:00:00Z", "2026-08-18T19:00:00.000Z"],
+    ["Open mic at The Dove on 18 December 2026 at 20:00.", "2026-12-18T20:00:00Z", "2026-12-18T20:00:00.000Z"],
+    ["Open mic at The Dove on 18 August 2026 at 20:00 +02:00.", "2026-08-18T20:00:00+02:00", "2026-08-18T18:00:00.000Z"],
+    ["Open mic at The Dove on 18 August 2026 at 8pm.", "2026-08-18T19:00:00Z", "2026-08-18T19:00:00.000Z"],
+    ["Open mic at The Dove on 18 August 2026 at 8:00pm.", "2026-08-18T19:00:00Z", "2026-08-18T19:00:00.000Z"],
+  ])("grounds actual instant against stated time: %s", async (markdown, startsAt, expected) => {
+    const result = await capturedEvent(markdown, {
+      title: "Open mic", placeName: "The Dove", kind: "music", startsAt,
+    });
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]?.startsAt).toBe(expected);
+  });
+
+  it("honours a stated offset even when London wall clock matches a different instant", async () => {
+    const result = await capturedEvent(
+      "Open mic at The Dove on 18 August 2026 at 20:00 +02:00.",
+      { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
+    );
+    expect(result.rows).toEqual([]);
+  });
+
+  it("refuses a shape-valid event whose facts are absent from scraped page text", async () => {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      url: fullers.url,
+      markdown: { requested: true, success: true, data: "# Events\n\nThe Dove hosts Open mic on 18 August 2026." },
+      json: { requested: true, success: true, data: { events: [{
+        title: "Invented quiz",
+        placeName: "The Dove",
+        kind: "event",
+        startsDate: "2026-08-18",
+      }] } },
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+
+    const result = await runContextDevEventsLane({
+      observedAt,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      callOptions: { fetchImpl: fetchImpl as unknown as typeof fetch },
+      log: vi.fn(),
+      logError: vi.fn(),
+    });
+
+    expect(result.rows).toEqual([]);
+    expect(result.failures.some((failure) => failure.sourceId === fullers.id)).toBe(true);
+  });
+
+  it("accepts a stated event and strips unstated price and publisher id", async () => {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      url: fullers.url,
+      markdown: { requested: true, success: true, data: "# Events\n\nOpen mic at The Dove on 18 August 2026 at 20:00." },
+      json: { requested: true, success: true, data: { events: [{
+        title: "Open mic", placeName: "The Dove", kind: "music",
+        startsAt: "2026-08-18T19:00:00Z", priceText: "£40", sourceId: "fake-42",
+      }] } },
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+
+    const result = await runContextDevEventsLane({
+      observedAt,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      callOptions: { fetchImpl: fetchImpl as unknown as typeof fetch },
+      log: vi.fn(),
+      logError: vi.fn(),
+    });
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({ title: "Open mic", startsAt: "2026-08-18T19:00:00.000Z" });
+    expect(result.rows[0]?.priceGbp).toBeUndefined();
+    expect(result.rows[0]?.sourceId).toBe(result.rows[0]?.id);
+  });
+
+  it("does not combine a title from one listing with another listing's venue and date", async () => {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      url: fullers.url,
+      markdown: { requested: true, success: true, data:
+        "# Events\n\nOpen mic at The Swan on 19 August 2026.\n\nQuiz at The Dove on 18 August 2026." },
+      json: { requested: true, success: true, data: { events: [{
+        title: "Open mic", placeName: "The Dove", kind: "music", startsDate: "2026-08-18",
+      }] } },
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+
+    const result = await runContextDevEventsLane({
+      observedAt,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      callOptions: { fetchImpl: fetchImpl as unknown as typeof fetch },
+      log: vi.fn(),
+      logError: vi.fn(),
+    });
+
+    expect(result.rows).toEqual([]);
+    expect(result.failures.some((failure) => failure.sourceId === fullers.id)).toBe(true);
+  });
+
+  it("sends optional fields and refuses off-host JSON attribution through the installed SDK", async () => {
+    const fetchImpl = vi.fn<(input: unknown, init?: RequestInit) => Promise<Response>>(async () =>
+      new Response(JSON.stringify({
+        url: fullers?.url,
+        json: {
+          requested: true,
+          success: true,
+          data: {
+            events: [{
+              title: "Invented quiz",
+              placeName: "The Dove",
+              kind: "event",
+              sourceUrl: "https://example.com/event/quiz",
+              startsDate: "2026-08-18",
+            }],
+          },
+        },
+        markdown: { requested: true, success: true, data: "# Events\nInvented quiz at The Dove on 18 August 2026." },
+      }), { status: 200, headers: { "content-type": "application/json" } }),
+    );
+
+    const result = await runContextDevEventsLane({
+      observedAt,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      callOptions: { fetchImpl: fetchImpl as unknown as typeof fetch },
+      log: vi.fn(),
+      logError: vi.fn(),
+    });
+
+    expect(fetchImpl).toHaveBeenCalled();
+    const request = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body));
+    expect(request.formats).toEqual({ json: true, markdown: true });
+    expect(request.jsonParams.schema.properties.events.items.required).toBeUndefined();
+    expect(result.rows).toEqual([]);
+    expect(result.failures).toHaveLength(contextDevEventSources().length);
+  });
+
+  it("refuses a scrape redirected off the registered publisher host", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({
+        url: "https://example.com/unrelated",
+        json: {
+          requested: true,
+          success: true,
+          data: { events: [{
+            title: "Quiz",
+            placeName: "The Dove",
+            kind: "event",
+            startsDate: "2026-08-18",
+          }] },
+        },
+      }), { status: 200, headers: { "content-type": "application/json" } }),
+    );
+
+    const result = await runContextDevEventsLane({
+      observedAt,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      callOptions: { fetchImpl: fetchImpl as unknown as typeof fetch },
+      log: vi.fn(),
+      logError: vi.fn(),
+    });
+
+    expect(result.rows).toEqual([]);
+    expect(result.failures).toHaveLength(contextDevEventSources().length);
+  });
+
   it("returns not-configured without a key and sends nothing", async () => {
     const log = vi.fn();
     const result = await runContextDevEventsLane({
@@ -126,6 +622,7 @@ describe("runContextDevEventsLane", () => {
           },
         ],
       },
+      markdown: "# Events\nQuiz at The Counting House on 18 August 2026.",
       urlsAnalyzed: ["https://www.fullers.co.uk/event-finder"],
     });
 
@@ -302,14 +799,14 @@ describe("normaliseContextDevExtract batching", () => {
             title: "Ok row",
             placeName: "Pub A",
             kind: "event",
-            sourceUrl: "https://example.com/a",
+            sourceUrl: "https://www.fullers.co.uk/pubs/a/event/ok",
             startsAt: "2026-08-16T19:00:00Z",
           },
           {
             title: "Bad kind",
             placeName: "Pub B",
             kind: "quiz",
-            sourceUrl: "https://example.com/b",
+            sourceUrl: "https://www.fullers.co.uk/pubs/b/event/bad",
             startsAt: "2026-08-16T19:00:00Z",
           },
         ],

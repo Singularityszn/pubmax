@@ -125,7 +125,7 @@ for (const width of WIDTHS) {
       await page.goto("/out");
       await openCreateMenu(page);
       await createRow(page, "Log a price").click();
-      await page.waitForURL(/\/map\?log=1/, { timeout: 45_000 });
+      await page.waitForURL(/\/map\?contribute=price/, { timeout: 45_000 });
 
       await page.goto("/out");
       await openCreateMenu(page);
@@ -187,7 +187,9 @@ test(
     // BOTH rows are real rows. The pub is a footnote on the row, not a filter.
     await expect(page.getByRole("heading", { name: "A Night at the Playhouse" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Unmatched Playhouse" })).toBeVisible();
-    await expect(page.locator(".outListingPubPair--absent")).toHaveText("Not on our map yet.");
+    await expect(page.locator(".outListingPubPair--absent")).toHaveText(
+      "We haven’t linked this place to a pub on our map.",
+    );
     await expect(
       page.locator(".outListingPubPair--matched").getByRole("link", { name: "Open on map" }),
     ).toHaveAttribute("href", "/map?sel=venue-playhouse");
@@ -270,7 +272,7 @@ test.describe("out supply honesty @390", () => {
   // The live shape on 13 Sep 2026 (site audit D4): 25 listings, every one
   // Ticketmaster, the match ran and placed none of them at a pub we list. The
   // page led with the first title ("Burlesque") as its filled primary.
-  test("leads a night with nothing at our pubs with the honest line, then the rest", async ({
+  test("leads a night with no confirmed pub matches with the honest line, then the rest", async ({
     page,
   }) => {
     const events = Array.from({ length: 25 }, (_, index) => ({
@@ -306,7 +308,7 @@ test.describe("out supply honesty @390", () => {
     await expect(page.locator("[data-primary-action]")).not.toContainText("Burlesque");
 
     const lead = page.getByTestId("out-honest-empty");
-    await expect(lead).toContainText("None of tonight’s 25 listings are at a pub on our map.");
+    await expect(lead).toContainText("We couldn’t match any of tonight’s 25 listings to a pub on our map.");
     await expect(lead.getByRole("link", { name: "Tonight’s pubs", exact: true })).toHaveAttribute(
       "href",
       "/tonight",
@@ -318,7 +320,7 @@ test.describe("out supply honesty @390", () => {
       .locator("#main :is(h1, h2, h3)")
       .evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? ""));
     const sectionAt = headings.indexOf("What's on tonight");
-    const blockAt = headings.indexOf("Not on our map yet");
+    const blockAt = headings.indexOf("Places we couldn’t match");
     expect(headings[0]).toBe("What’s on tonight.");
     expect(sectionAt).toBeGreaterThan(0);
     expect(blockAt).toBeGreaterThan(sectionAt);
@@ -327,6 +329,53 @@ test.describe("out supply honesty @390", () => {
     const firstRowBox = await page.getByTestId("out-listing-row").first().boundingBox();
     expect(leadBox!.y).toBeLessThan(blockBox!.y);
     expect(blockBox!.y).toBeLessThan(firstRowBox!.y);
+  });
+
+  test("keeps an unmatched mapped pub's listing and source link without claiming absence", async ({
+    page,
+  }) => {
+    const event = {
+      ...PLAYHOUSE_EVENT,
+      id: "events-tm-1avwitg",
+      title: "Mumble",
+      placeName: "New Cross Inn",
+      kind: "music",
+      startsAt: "2026-09-29T16:00:00.000Z",
+      observedAt: "2026-09-29T08:04:56.142Z",
+      sourceId: "LvZ18QE6wsOZl6I7OLTDV",
+      lat: 51.475524,
+      lng: -0.03838,
+      source: {
+        label: "Ticketmaster",
+        url: "https://www.universe.com/events/mumble-tickets-SYX6QN?ref=ticketmaster",
+      },
+    };
+    await page.route(isOutListingsRequest, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...unmatchedPayload("ready"),
+          events: [event],
+          unmatchedCount: 1,
+          unmatchedPlaces: [event.placeName],
+          unmatchedPlaceCount: 1,
+        }),
+      }),
+    );
+
+    await page.goto("/out");
+    await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+    const row = page.getByTestId("out-listing-row");
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText("New Cross Inn");
+    await expect(row.locator(".outListingPubPair--absent")).toHaveText(
+      "We haven’t linked this place to a pub on our map.",
+    );
+    await expect(row.locator("a.outCard")).toHaveAttribute("href", event.source.url);
+    await expect(page.getByTestId("out-honest-empty")).toContainText(
+      "We couldn’t match tonight’s listing to a pub on our map.",
+    );
   });
 
   test("says the check could not run rather than calling the places unlisted", async ({ page }) => {
@@ -347,6 +396,9 @@ test.describe("out supply honesty @390", () => {
     await expect(notice).not.toContainText("don't list yet");
     // The rows are still rows. The finding is about the LOOKUP, not about them.
     await expect(page.getByTestId("out-listing-row")).toHaveCount(4);
+    await expect(page.locator(".outListingPubPair--absent").first()).toHaveText(
+      "We haven’t linked this place to a pub on our map.",
+    );
   });
 
   test("keeps the honest empty state when the providers return nothing", async ({ page }) => {
@@ -489,7 +541,7 @@ test("pairs a pub beside a gig, named on the row and linked to its pin", async (
   const pair = row.locator(".outListingPubPair--matched");
   await expect(pair.locator(".outListingPubPairName")).toHaveText("Soho Theatre");
   await expect(pair.locator(".outListingPubPairLabel")).toHaveText("On PUBMAXX");
-  await expect(page.getByText("Not on our map yet.")).toHaveCount(0);
+  await expect(page.getByText("We haven’t linked this place to a pub on our map.")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Open on map", exact: true })).toHaveAttribute(
     "href",
     /\/map\?sel=venue-soho-theatre/,

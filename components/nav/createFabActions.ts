@@ -1,11 +1,12 @@
 import { momentHref } from "@/components/nav/navigationModel";
+import { preferredCityMapHref } from "@/lib/cityPreference";
+import { withPriceContributionIntent } from "@/lib/priceContributionIntent";
 
 /**
  * What the floating create action offers, and where each row goes.
  *
- * Pure, and the ONE place a destination is decided: the component renders this
- * table and nothing else, so a row cannot be given one href here and another one
- * at the call site.
+ * Destination decisions belong here, including the remembered-city fallback
+ * when price logging starts outside the map. The component renders this table.
  */
 type CreateFabActionKey = "moment" | "price" | "plan";
 
@@ -20,12 +21,9 @@ export type CreateFabAction = {
 /**
  * Where "back" is, read off the live address bar.
  *
- * `useSearchParams` is not the honest source here: the Map writes its whole
- * selection into the URL with `history.pushState` / `replaceState`, which Next's
- * router never hears, so a reader who tapped a pin and then composed would be
- * sent back to a bare `/map`. PubMap reads `window.location` for exactly this
- * reason. The router's value stays as the fallback because it is the only
- * reading available before a window exists.
+ * Read at the action boundary because the Map's native-history writes can
+ * precede the router's next render. The router value is the fallback before
+ * a browser location exists.
  */
 export function returnToFromLocation(
   location: { pathname?: string; search?: string } | null | undefined,
@@ -36,9 +34,21 @@ export function returnToFromLocation(
   return `${pathname}${location?.search ?? ""}`;
 }
 
+function categoryPriceHref(returnTo: string): string {
+  const url = new URL(
+    /^\/map(?:\/[^/?#]+)?(?:[?#]|$)/.test(returnTo)
+      ? returnTo
+      : preferredCityMapHref(),
+    "https://pubmaxxing.com",
+  );
+  url.searchParams.delete("log");
+  url.searchParams.delete("price");
+  return withPriceContributionIntent(url.href);
+}
+
 export const CREATE_FAB_ACTIONS: readonly CreateFabAction[] = [
   { action: "moment", label: "Post a moment", hrefFor: (returnTo) => momentHref(returnTo) },
-  { action: "price", label: "Log a price", hrefFor: () => "/map?log=1" },
+  { action: "price", label: "Log a price", hrefFor: categoryPriceHref },
   { action: "plan", label: "Start a plan", hrefFor: () => "/plan" },
 ] as const;
 

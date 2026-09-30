@@ -5,6 +5,7 @@ import { haversineKm } from "@/lib/haversine";
 import { getLateFoodForArea, normalizeLateFoodArea } from "@/lib/lateFood";
 import type { NightContext } from "@/lib/nightPlanning";
 import { buildPlanEndingRecommendations } from "@/lib/planEndings";
+import { planUsesPintPrices } from "@/lib/planGenerationDto";
 
 type Candidate = { venue: ConciergeVenue };
 
@@ -29,7 +30,9 @@ export function planGenerationEndings(input: {
     venueId: venue.id,
     venueName: venue.name,
     distanceKm: lastStop ? haversineKm([lastStop.lng, lastStop.lat], [venue.lng, venue.lat]) : 0,
-    estimatedPintPricePence: venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100),
+    estimatedPintPricePence: !planUsesPintPrices(input.context) || venue.cheapestPrice === null
+      ? null
+      : Math.round(venue.cheapestPrice * 100),
   }));
   const lateFoodArea = normalizeLateFoodArea(input.areaSlug);
   const rankedLateFood = lateFoodArea ? getLateFoodForArea(lateFoodArea, input.context.foodNeeds, {

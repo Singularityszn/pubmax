@@ -185,6 +185,64 @@ function isSocialUrl(value: string): boolean {
   }
 }
 
+function isIncompatibleUkQualifier(qualifier: string | undefined, locality: string): boolean {
+  return Boolean(qualifier && qualifier !== locality && !UK_COUNTRY_QUALIFIERS.has(qualifier));
+}
+
+function hasConflictingLaterLocality(after: string, locality: string): boolean {
+  const laterLocality = after.match(
+    /\b(?:is|was|were|has|have|had|lies|located|situated|based|operates?|operating|stands?|stood|sits?)\b[^.!?]{0,120}?\b(?:in|near|from|at|within)\s+([a-z][a-z'-]*)\b/i,
+  );
+  if (!laterLocality) return false;
+  const suffix = after.slice((laterLocality.index ?? 0) + laterLocality[0].length);
+  const knownUkQualifier = suffix.match(UK_LOCALITY_QUALIFIER_RE);
+  const knownUkQualifierText = knownUkQualifier?.[1]?.trim().toLowerCase();
+  return (
+    laterLocality[1].trim().toLowerCase() !== locality ||
+    isIncompatibleUkQualifier(knownUkQualifierText, locality) ||
+    (LOCALITY_QUALIFIER_RE.test(suffix) && !knownUkQualifier) ||
+    Boolean(
+      knownUkQualifier &&
+        LOCALITY_QUALIFIER_RE.test(suffix.slice(knownUkQualifier[0].length)),
+    )
+  );
+}
+
+function hasCompatibleLocalityContinuation(after: string, locality: string): boolean {
+  const knownUkQualifier = after.match(UK_LOCALITY_QUALIFIER_RE);
+  const knownUkQualifierText = knownUkQualifier?.[1]?.trim().toLowerCase();
+  const additionalQualifierWord = knownUkQualifier
+    ? after.slice(knownUkQualifier[0].length).match(
+        /^\s*(?:[,;:/()\-–—]\s*)?([a-z][a-z'-]*)\b/i,
+      )?.[1]?.toLowerCase()
+    : undefined;
+  if (
+    isIncompatibleUkQualifier(knownUkQualifierText, locality) ||
+    (additionalQualifierWord && !LOCALITY_CONTINUATION_WORDS.has(additionalQualifierWord))
+  ) return false;
+  const nextWord = after.match(/^\s*(?:[.!?,()]\s+)?([a-z][a-z'-]*)\b/i)?.[1]?.toLowerCase();
+  const compoundWord = after.match(
+    /^\s*(?:[,;:/()\-–—]\s*)?(?:and|&)\s+([a-z][a-z'-]*)\b/i,
+  )?.[1]?.toLowerCase();
+  if (
+    compoundWord &&
+    !LOCALITY_CONTINUATION_WORDS.has(compoundWord) &&
+    !UK_COUNTRY_QUALIFIERS.has(compoundWord)
+  ) return false;
+  const sentenceContinuation =
+    (/^[\s]*[.!?]\s+/.test(after) ||
+      /^[\s]*[,()]\s+(?:which|who|that)\b/i.test(after)) &&
+    Boolean(nextWord && LOCALITY_CONTINUATION_WORDS.has(nextWord));
+  if (
+    LOCALITY_QUALIFIER_RE.test(after) &&
+    !knownUkQualifier &&
+    !sentenceContinuation
+  ) return false;
+  if (hasConflictingLaterLocality(after, locality)) return false;
+  if (!knownUkQualifier && nextWord && !LOCALITY_CONTINUATION_WORDS.has(nextWord)) return false;
+  return true;
+}
+
 function containsExactLocality(haystack: string, locality: string): boolean {
   const escaped = locality.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const localityRe = new RegExp(
@@ -193,79 +251,7 @@ function containsExactLocality(haystack: string, locality: string): boolean {
   );
   for (const match of haystack.matchAll(localityRe)) {
     const after = haystack.slice((match.index ?? 0) + match[0].length);
-    const knownUkQualifier = after.match(UK_LOCALITY_QUALIFIER_RE);
-    const hasKnownUkQualifier = Boolean(knownUkQualifier);
-    const knownUkQualifierText = knownUkQualifier?.[1]?.trim().toLowerCase();
-    const hasIncompatibleUkQualifier = Boolean(
-      knownUkQualifierText &&
-        knownUkQualifierText !== locality &&
-        !UK_COUNTRY_QUALIFIERS.has(knownUkQualifierText),
-    );
-    const afterKnownUkQualifier = knownUkQualifier
-      ? after.slice(knownUkQualifier[0].length)
-      : "";
-    const additionalQualifierWord = afterKnownUkQualifier.match(
-      /^\s*(?:[,;:/()\-–—]\s*)?([a-z][a-z'-]*)\b/i,
-    )?.[1]?.toLowerCase();
-    const hasAdditionalLocalityQualifier = Boolean(
-      hasKnownUkQualifier &&
-        additionalQualifierWord &&
-        !LOCALITY_CONTINUATION_WORDS.has(additionalQualifierWord),
-    );
-    const nextWord = after.match(/^\s*(?:[.!?,()]\s+)?([a-z][a-z'-]*)\b/i)?.[1]?.toLowerCase();
-    const compoundWord = after.match(
-      /^\s*(?:[,;:/()\-–—]\s*)?(?:and|&)\s+([a-z][a-z'-]*)\b/i,
-    )?.[1]?.toLowerCase();
-    const hasUnknownCompoundLocality = Boolean(
-      compoundWord &&
-        !LOCALITY_CONTINUATION_WORDS.has(compoundWord) &&
-        !UK_COUNTRY_QUALIFIERS.has(compoundWord),
-    );
-    const sentenceContinuation =
-      (/^[\s]*[.!?]\s+/.test(after) ||
-        /^[\s]*[,()]\s+(?:which|who|that)\b/i.test(after)) &&
-      Boolean(nextWord && LOCALITY_CONTINUATION_WORDS.has(nextWord));
-    const laterLocality = after.match(
-      /\b(?:is|was|were|has|have|had|lies|located|situated|based|operates?|operating|stands?|stood|sits?)\b[^.!?]{0,120}?\b(?:in|near|from|at|within)\s+([a-z][a-z'-]*)\b/i,
-    );
-    const laterLocalitySuffix = laterLocality
-      ? after.slice((laterLocality.index ?? 0) + laterLocality[0].length)
-      : "";
-    const laterKnownUkQualifier = laterLocalitySuffix.match(UK_LOCALITY_QUALIFIER_RE);
-    const laterKnownUkQualifierText = laterKnownUkQualifier?.[1]?.trim().toLowerCase();
-    const hasIncompatibleLaterUkQualifier = Boolean(
-      laterKnownUkQualifierText &&
-        laterKnownUkQualifierText !== locality &&
-        !UK_COUNTRY_QUALIFIERS.has(laterKnownUkQualifierText),
-    );
-    const hasLaterLocalityQualifier = LOCALITY_QUALIFIER_RE.test(laterLocalitySuffix);
-    const hasAdditionalLaterLocalityQualifier = Boolean(
-      laterKnownUkQualifier &&
-        LOCALITY_QUALIFIER_RE.test(
-          laterLocalitySuffix.slice(laterKnownUkQualifier[0].length),
-        ),
-    );
-    const hasUnknownLaterLocality = Boolean(
-      laterLocality &&
-        (laterLocality[1].trim().toLowerCase() !== locality ||
-          hasIncompatibleLaterUkQualifier ||
-          (hasLaterLocalityQualifier && !laterKnownUkQualifier) ||
-          hasAdditionalLaterLocalityQualifier),
-    );
-    if (
-      LOCALITY_QUALIFIER_RE.test(after) &&
-      !hasKnownUkQualifier &&
-      !sentenceContinuation
-    ) {
-      continue;
-    }
-    if (
-      hasUnknownLaterLocality ||
-      hasUnknownCompoundLocality ||
-      hasAdditionalLocalityQualifier ||
-      hasIncompatibleUkQualifier
-    ) continue;
-    if (!hasKnownUkQualifier && nextWord && !LOCALITY_CONTINUATION_WORDS.has(nextWord)) continue;
+    if (!hasCompatibleLocalityContinuation(after, locality)) continue;
     const localityStart = (match.index ?? 0) + match[0].length - match[1].length;
     const before = haystack.slice(0, match.index ?? 0).match(/[a-z0-9]+\s*$/i)?.[0]
       ?.trim()
@@ -639,6 +625,48 @@ function foldedObservationUrl(values: readonly string[]): string | null {
   return values.find((value) => httpsObservationParts(value).length === 1) ?? values[0] ?? null;
 }
 
+type FoldableObservation = {
+  kind: "website" | "menu" | "history" | "coverage";
+  value: string;
+  sourceUrl: string;
+};
+
+function parseFoldableObservation(raw: unknown, line: number): FoldableObservation | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    fail("MALFORMED_ROW", "harvest observation must be an object", line);
+  }
+  const observation = raw as Record<string, unknown>;
+  const kind = observation.kind;
+  if (
+    typeof kind !== "string" ||
+    !["website", "history", "social", "menu", "coverage"].includes(kind)
+  ) {
+    fail("MALFORMED_ROW", "harvest observation kind is invalid", line);
+  }
+  const value = observationValue(observation, "value", line);
+  const sourceUrl = observationValue(observation, "sourceUrl", line);
+  const fetchedAt = observationValue(observation, "fetchedAt", line);
+  if (!isHarvestTimestamp(fetchedAt)) {
+    fail("MALFORMED_ROW", "harvest observation fetchedAt must be a timestamp", line);
+  }
+  if (!isHttpsUrl(sourceUrl)) {
+    fail("MALFORMED_ROW", "harvest observation sourceUrl must be https", line);
+  }
+  if (isSocialUrl(sourceUrl) && kind !== "social") {
+    fail("SOCIAL_PRESENT", "social-host harvest observations are out of scope", line);
+  }
+  if (kind === "social") return null;
+  if (kind === "website" || kind === "menu") {
+    if (httpsObservationParts(value).some((part) => isSocialUrl(part))) {
+      fail("SOCIAL_PRESENT", "social-host harvest observations are out of scope", line);
+    }
+    if (!isHttpsObservation(value)) {
+      fail("MALFORMED_ROW", `harvest ${kind} must be https`, line);
+    }
+  }
+  return { kind: kind as FoldableObservation["kind"], value, sourceUrl };
+}
+
 /** Convert completed enriched harvest records into one OSM-keyed overlay row. */
 export function overlayRowsFromHarvestRecords(rawRecords: unknown[]): HarvestOverlayRow[] {
   if (!Array.isArray(rawRecords)) {
@@ -688,44 +716,12 @@ export function overlayRowsFromHarvestRecords(rawRecords: unknown[]): HarvestOve
     }
 
     for (const rawObservation of record.observations) {
-      if (!rawObservation || typeof rawObservation !== "object" || Array.isArray(rawObservation)) {
-        fail("MALFORMED_ROW", "harvest observation must be an object", line);
-      }
-      const observation = rawObservation as Record<string, unknown>;
-      const kind = observation.kind;
-      if (
-        typeof kind !== "string" ||
-        !["website", "history", "social", "menu", "coverage"].includes(kind)
-      ) {
-        fail("MALFORMED_ROW", "harvest observation kind is invalid", line);
-      }
-      const value = observationValue(observation, "value", line);
-      const sourceUrl = observationValue(observation, "sourceUrl", line);
-      const fetchedAt = observationValue(observation, "fetchedAt", line);
-      if (!isHarvestTimestamp(fetchedAt)) {
-        fail("MALFORMED_ROW", "harvest observation fetchedAt must be a timestamp", line);
-      }
-      if (!isHttpsUrl(sourceUrl)) {
-        fail("MALFORMED_ROW", "harvest observation sourceUrl must be https", line);
-      }
-      if (isSocialUrl(sourceUrl)) {
-        if (kind === "social") continue;
-        fail("SOCIAL_PRESENT", "social-host harvest observations are out of scope", line);
-      }
-      if (kind === "social") continue;
-      if (kind === "website") {
-        if (httpsObservationParts(value).some((part) => isSocialUrl(part))) {
-          fail("SOCIAL_PRESENT", "social-host harvest observations are out of scope", line);
-        }
-        if (!isHttpsObservation(value)) fail("MALFORMED_ROW", "harvest website must be https", line);
-        if (!current.websites.includes(value)) current.websites.push(value);
-        if (!current.sources.includes(sourceUrl)) current.sources.push(sourceUrl);
-      } else if (kind === "menu") {
-        if (httpsObservationParts(value).some((part) => isSocialUrl(part))) {
-          fail("SOCIAL_PRESENT", "social-host harvest observations are out of scope", line);
-        }
-        if (!isHttpsObservation(value)) fail("MALFORMED_ROW", "harvest menu must be https", line);
-        if (!current.menus.includes(value)) current.menus.push(value);
+      const observation = parseFoldableObservation(rawObservation, line);
+      if (!observation) continue;
+      const { kind, value, sourceUrl } = observation;
+      if (kind === "website" || kind === "menu") {
+        const urls = kind === "website" ? current.websites : current.menus;
+        if (!urls.includes(value)) urls.push(value);
         if (!current.sources.includes(sourceUrl)) current.sources.push(sourceUrl);
       } else if (kind === "history") {
         if (!current.lore && loreMayFold({ text: value, name, town, citations: [sourceUrl] })) {

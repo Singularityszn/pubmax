@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // Landmark/heritage STORY surface + the mobile drag bottom-sheet's accessible
 // state (PRD "Testing Decisions": landmark story card opens with image/credit/
@@ -68,6 +69,9 @@ test("skip link targets the page main landmark", async ({ page }) => {
 
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
+  // The loading skeleton is its own `#main`; focus given to it drops to the
+  // body when the map shell replaces it, so skip into the shell's landmark.
+  await expect(page.locator("main.appShell")).toBeVisible({ timeout: 30_000 });
 
   const skipLink = page.getByRole("link", { name: "Skip to main content" });
   await skipLink.focus();
@@ -266,54 +270,80 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
   expect(errors).toEqual([]);
 });
 
-test("inline drawers keep spring ownership and content through responsive exits", async ({
-  page,
-}) => {
-  test.setTimeout(60_000);
-  const errors = watchPageErrors(page);
+for (const width of [700, 900]) {
+  for (const side of ["left", "right"] as const) {
+    test(`${side} drawer retains content while exiting at ${width}px`, async ({ page }, testInfo) => {
+      test.setTimeout(60_000);
+      const errors = watchPageErrors(page);
+      // Keep unrelated basemap rendering out of the drawer's stepped clock.
+      await installDeterministicMapBasemap(page);
+      await page.clock.install();
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(side === "right" ? `/map?sel=${ARNOS_ARMS_ID}` : "/map");
+      const drawer = page.locator(`.mapDrawer.${side}.springDrawer`);
+      if (side === "left") {
+        await expect(async () => {
+          if (await drawer.getAttribute("aria-hidden") !== "false") {
+            await page.locator(".mapToolbar").getByRole("button", { name: "Plan an outing" }).click();
+          }
+          await expect(drawer).toHaveAttribute("aria-hidden", "false", { timeout: 1_000 });
+        }).toPass({ timeout: 20_000 });
+      }
+      await expect(drawer).toBeVisible({ timeout: 30_000 });
+      await expect(drawer).not.toHaveAttribute("inert");
+      await expect(drawer).toHaveCSS("will-change", "auto");
+      const home = drawer.locator(".surfaceNavHome");
+      await expect(home).toBeInViewport();
+      await home.focus();
+      await expect(home).toBeFocused();
+      await page.screenshot({ path: testInfo.outputPath("drawer-before-close.png") });
 
-  await page.setViewportSize({ width: 700, height: 900 });
-  await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
-
-  const tabletDrawer = page.locator(".mapDrawer.right.springDrawer");
-  await expect(tabletDrawer).toHaveClass(/open/, { timeout: 30_000 });
-  await expect(tabletDrawer).toBeVisible();
-  await expect(tabletDrawer).toHaveAttribute("data-spring-axis", "vertical");
-  expect(
-    await tabletDrawer.evaluate(
-      (node) => getComputedStyle(node).transitionProperty,
-    ),
-  ).toBe("none");
-  await expect(tabletDrawer.locator(".venueInspector")).toHaveCount(1);
-
-  // The drawer's way out is the shared SurfaceNav pair now, not a bespoke
-  // close (components/ui/surface-nav.tsx).
-  await tabletDrawer.locator(".surfaceNavHome").click();
-  await expect(tabletDrawer).toHaveAttribute("aria-hidden", "true");
-  // The selected venue may clear immediately, but its rendered content stays
-  // in the exiting drawer until the close spring rests.
-  await expect(tabletDrawer.locator(".venueInspector")).toHaveCount(1);
-  await expect
-    .poll(() => tabletDrawer.locator(".venueInspector").count())
-    .toBe(0);
-
-  await page.setViewportSize({ width: 900, height: 900 });
-  await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
-  const compactDesktopDrawer = page.locator(".mapDrawer.right.springDrawer");
-  await expect(compactDesktopDrawer).toHaveClass(/open/, { timeout: 30_000 });
-  await expect(compactDesktopDrawer).toBeVisible();
-  await expect(compactDesktopDrawer).toHaveAttribute(
-    "data-spring-axis",
-    "horizontal",
-  );
-  expect(
-    await compactDesktopDrawer.evaluate(
-      (node) => getComputedStyle(node).transitionProperty,
-    ),
-  ).toBe("none");
-
-  expect(errors).toEqual([]);
-});
+      // Step animation time separately from browser work: a busy real frame can
+      // settle the spring before an intermediate position is ever painted.
+      await page.clock.pauseAt(new Date(Date.now() + 60_000));
+      const start = await drawer.boundingBox();
+      expect(start).not.toBeNull();
+      await home.press("Enter");
+      await expect(drawer).toHaveAttribute("inert");
+      const positions: { x: number; y: number; transform: string }[] = [];
+      for (let frame = 0; frame < 180; frame += 1) {
+        await page.clock.runFor(16);
+        const position = await drawer.evaluate((element, origin) => {
+          if (!element.querySelector(".mapDrawerHead")) return null;
+          const rect = element.getBoundingClientRect();
+          return {
+            x: rect.x - origin.x,
+            y: rect.y - origin.y,
+            transform: getComputedStyle(element).transform,
+          };
+        }, start!);
+        if (!position) break;
+        positions.push(position);
+      }
+      const exit = {
+        positions,
+        inert: await drawer.evaluate((element) => (element as HTMLElement).inert),
+      };
+      await testInfo.attach("drawer-exit-geometry", {
+        body: JSON.stringify(exit),
+        contentType: "application/json",
+      });
+      expect(exit.inert).toBe(true);
+      expect(exit.positions.length).toBeGreaterThan(0);
+      if (width <= 768) {
+        expect(Math.max(...exit.positions.map(({ y }) => y))).toBeGreaterThan(10);
+        expect(Math.max(...exit.positions.map(({ x }) => Math.abs(x)))).toBeLessThan(1);
+      } else {
+        const direction = side === "left" ? -1 : 1;
+        expect(Math.max(...exit.positions.map(({ x }) => x * direction))).toBeGreaterThan(10);
+        expect(Math.max(...exit.positions.map(({ y }) => Math.abs(y)))).toBeLessThan(1);
+      }
+      await expect(drawer.locator(".mapDrawerHead")).toHaveCount(0);
+      expect(errors).toEqual([]);
+    });
+  }
+}
 
 // ---------------------------------------------------------------------------
 // RESIDUAL GAP (documented, not covered by a flaky test):

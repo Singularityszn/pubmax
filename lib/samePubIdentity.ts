@@ -7,9 +7,9 @@
 import { noul } from "@typesafe-ai/sdk";
 
 import { systemOne, typesafeConfigured } from "@/lib/ai/typesafe";
+import { haversineMeters } from "@/lib/greatCircle.mjs";
 import {
   cheapSamePubNameCandidate,
-  haversineMeters,
   namesLikelySamePub,
   postcodeOutward,
 } from "../scripts/lib/venueCanonicalization.mjs";

@@ -91,11 +91,9 @@ import {
 import { UK_BOUNDS } from "@/components/map/canvas/tokens";
 import MapFallbackCard from "@/components/map/MapFallbackCard";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
-import { useFocusTrap } from "@/lib/useFocusTrap";
+import { readStrictModalFocusTrap, useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
-const SpringDrawer = dynamic(() => import("@/components/map/SpringDrawer"), {
-  ssr: false,
-});
+import SpringDrawer from "@/components/map/SpringDrawer";
 const SiteNav = dynamic(() => import("@/components/nav/SiteNav"), {
   ssr: false,
 });
@@ -571,7 +569,8 @@ import SurfaceNav from "@/components/ui/surface-nav";
 import LandmarkStoryBody, { LandmarkStoryHead } from "@/components/map/LandmarkStoryBody";
 import { nearestStoryPubs } from "@/lib/landmarkVenueProximity";
 import { landmarkAreaLine, nightAreaContaining } from "@/lib/landmarkArea";
-import { homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
+import { currentSurface, homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
+import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { mapListOpenFromSearch } from "@/lib/mapListRoute";
 import {
   filtersForCuratedCrawl,
@@ -704,17 +703,92 @@ function noAcceptedArrivalSource(): null {
   return null;
 }
 
-// D4 — take `log=1` off the current history entry. Idempotent, so it can run
-// again after a popstate restores an entry that still carries the flag.
+// Clear either price-entry intent from the current history entry. Repeating
+// this after popstate also clears an older entry carrying a dismissed intent.
 function dropLogParamFromUrl(): void {
   if (typeof window === "undefined") return;
-  if (!hasMapLogIntent(window.location.search)) return;
+  if (
+    !hasMapLogIntent(window.location.search) &&
+    new URLSearchParams(window.location.search).get("contribute") !== "price"
+  ) return;
   const query = clearMapLogIntentSearch(window.location.search);
+  const state = { ...window.history.state };
+  // Next treats __NA as its own write and skips notifying useSearchParams.
+  // Its native-history adapter restores the marker after publishing our URL.
+  delete state.__NA;
   window.history.replaceState(
-    window.history.state,
+    state,
     "",
     `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
   );
+}
+
+/** Whether a history entry holds the "Choose a pub" picker of a price request. */
+function holdsPricePicker(state: unknown): boolean {
+  const held = readMapSurfaceHistory<MapSurfaceState>(state);
+  const top = held ? currentSurface(held) : null;
+  return top?.id === "moment" && top.state?.pricePicker === true;
+}
+
+function dropLogParamUnlessPricePicker(event: PopStateEvent): void {
+  if (!holdsPricePicker(event.state)) dropLogParamFromUrl();
+}
+
+function useMapLogRequest(searchParams: ReturnType<typeof useSearchParams>) {
+  const [logIntentFallbackVisible, setLogIntentFallbackVisible] = useState(false);
+  // Dismiss the current request while Next's native-history adapter publishes
+  // its cleared URL. A later contribution request re-arms the picker.
+  const logIntentSearch = searchParams.toString();
+  const [logIntentDismissal, setLogIntentDismissal] = useState({
+    search: logIntentSearch,
+    cleared: false,
+  });
+  if (logIntentDismissal.search !== logIntentSearch) {
+    setLogIntentDismissal({
+      search: logIntentSearch,
+      cleared: logIntentDismissal.cleared &&
+        !hasMapLogIntent(searchParams) && searchParams.get("contribute") !== "price",
+    });
+  }
+  const logIntentCleared = logIntentDismissal.cleared;
+  const clearLogIntent = useCallback(() => {
+    setLogIntentFallbackVisible(false);
+    setLogIntentDismissal((current) => ({ ...current, cleared: true }));
+    dropLogParamFromUrl();
+  }, []);
+
+  const hasReactiveLogIntent = reactiveLogIntentActive(
+    hasMapLogIntent(searchParams),
+    logIntentCleared,
+  );
+  // The draft price passed to usePintDrops expires with its request.
+  const logIntentPrice = hasReactiveLogIntent
+    ? mapLogIntentPrice(searchParams)
+    : null;
+  useEffect(() => {
+    if (!logIntentCleared) return;
+    dropLogParamFromUrl();
+  });
+  useEffect(() => {
+    if (!logIntentCleared || typeof window === "undefined") return;
+    window.addEventListener("popstate", dropLogParamUnlessPricePicker);
+    return () => window.removeEventListener("popstate", dropLogParamUnlessPricePicker);
+  }, [logIntentCleared]);
+  // Back to the picker a price request was made from puts that request back.
+  const restoreLogIntent = useCallback(() => {
+    setLogIntentDismissal((current) => (current.cleared ? { ...current, cleared: false } : current));
+  }, []);
+  const hasCategoryPriceIntent =
+    searchParams.get("contribute") === "price" && !logIntentCleared;
+  return {
+    logIntentFallbackVisible,
+    setLogIntentFallbackVisible,
+    clearLogIntent,
+    restoreLogIntent,
+    logIntentPrice,
+    hasReactiveLogIntent,
+    hasCategoryPriceIntent,
+  };
 }
 
 // hasCrawlArrivalParams (pure §4.5 deep-link probe) now lives in @/lib/pubMap.
@@ -1505,7 +1579,7 @@ export default function PubMap({
     defaultVenueKindVisibility,
   );
   const [mobileLayersTab, setMobileLayersTab] = useState<"key" | "layers" | "prices" | "events" | "transit">("key");
-  const tflStatus = useMobileTflStatus();
+  const tflStatus = useMobileTflStatus(cityId);
   const [nearbyMapResult, setNearbyMapResult] = useState<NearbyMapResult | null>(null);
   const [pendingNearMeRequest, setPendingNearMeRequest] =
     useState<PendingNearMeRequest | null>(null);
@@ -1666,41 +1740,15 @@ export default function PubMap({
     if (!seed.bandId || !readBandChipDismissed(seed.bandId)) return new Set();
     return new Set([seed.bandId]);
   });
-  const [logIntentFallbackVisible, setLogIntentFallbackVisible] = useState(false);
-  // D4 — `log=1` is an owned URL passthrough, so it outlived every close and
-  // rearmed the pub picker each time. Leaving the flow disarms it: the flag
-  // leaves the URL, and this state stands the intent down for the render pass
-  // (a replaceState never re-runs Next's useSearchParams).
-  const [logIntentCleared, setLogIntentCleared] = useState(false);
-  const clearLogIntent = useCallback(() => {
-    setLogIntentFallbackVisible(false);
-    setLogIntentCleared(true);
-    dropLogParamFromUrl();
-  }, []);
-
-  // #1462 — the figure the SAME intent carries, or null. Stood down by exactly
-  // the thing that stands the flag down, because `clearMapLogIntentSearch`
-  // takes the price off the URL with the flag, so a cleared intent can never
-  // leave a figure armed. Declared here because the composer's own draft
-  // hydration owns the field, so the seed rides into `usePintDrops` below.
-  const logIntentPrice = reactiveLogIntentActive(hasMapLogIntent(searchParams), logIntentCleared)
-    ? mapLogIntentPrice(searchParams)
-    : null;
-  // Closing the sheet pops the Map surface entry, and the clean entry
-  // underneath still carries `log=1` - it is an owned
-  // passthrough there too, written before the reader left the flow. So one
-  // strip is not enough: hold the URL clean for the rest of the session, on
-  // every render and on every history pop. Otherwise Back or a reload rearms
-  // the picker the reader just closed.
-  useEffect(() => {
-    if (!logIntentCleared) return;
-    dropLogParamFromUrl();
-  });
-  useEffect(() => {
-    if (!logIntentCleared || typeof window === "undefined") return;
-    window.addEventListener("popstate", dropLogParamFromUrl);
-    return () => window.removeEventListener("popstate", dropLogParamFromUrl);
-  }, [logIntentCleared]);
+  const {
+    logIntentFallbackVisible,
+    setLogIntentFallbackVisible,
+    clearLogIntent,
+    restoreLogIntent,
+    logIntentPrice,
+    hasReactiveLogIntent,
+    hasCategoryPriceIntent,
+  } = useMapLogRequest(searchParams);
   const [tonightOverlayVisible, setTonightOverlayVisible] = useState(false);
   const [tonightDismissed, setTonightDismissed] = useState<boolean>(
     readTonightOverlayDismissed,
@@ -3028,10 +3076,6 @@ export default function PubMap({
     viewportSettled: mapBounds !== null,
   });
 
-  const hasReactiveLogIntent = reactiveLogIntentActive(
-    hasMapLogIntent(searchParams),
-    logIntentCleared,
-  );
   const shouldBuildSuggestedRoute = suggestedRouteWanted({
     hasReactiveLogIntent,
     planningOpen,
@@ -3125,7 +3169,7 @@ export default function PubMap({
   // session is held back from the address bar until the reader changes
   // something: they typed a clean /map, and that address wins over stored
   // state. Restoring the map itself is untouched.
-  useCrawlUrlSync(
+  const syncLandedCrawlContext = useCrawlUrlSync(
     useMemo(
       () => ({
         mode,
@@ -3367,8 +3411,10 @@ export default function PubMap({
         undefined,
         logNearbyOrigin?.origin ?? null,
         LOG_NEARBY_MAX_KM,
+        mapDrinkLensCategory,
+        drinkLensPrices,
       ),
-    [filteredPubVenues, logNearbyOrigin],
+    [filteredPubVenues, logNearbyOrigin, mapDrinkLensCategory, drinkLensPrices],
   );
 
   const showLoadedRoute = useCallback(
@@ -3957,10 +4003,13 @@ export default function PubMap({
   const resetLogIntentFilters = useCallback(() => {
     setSavedOnly(false);
     setSavedIds(readSavedVenueIds());
-    setFilters(seedCrawlState("").filters);
+    setFilters((current) => ({
+      ...seedCrawlState("").filters,
+      ...(hasCategoryPriceIntent ? { drinkCategory: current.drinkCategory } : {}),
+    }));
     closePlanning();
     focusMapSearch();
-  }, [closePlanning, focusMapSearch, setFilters]);
+  }, [closePlanning, focusMapSearch, hasCategoryPriceIntent, setFilters]);
 
   // #395 R1: clear only the search query and unfilter the map. Used by the
   // mobile active-search chip so a restored (or typed) query is never an
@@ -4000,9 +4049,9 @@ export default function PubMap({
     (venueId: string) => {
       setLogIntentFallbackVisible(false);
       selectVenue(venueId);
-      openComposerForLog();
+      if (!hasCategoryPriceIntent) openComposerForLog();
     },
-    [openComposerForLog, selectVenue],
+    [hasCategoryPriceIntent, openComposerForLog, selectVenue, setLogIntentFallbackVisible],
   );
 
   const handleInspectorTabSelect = useCallback(
@@ -4014,11 +4063,12 @@ export default function PubMap({
     [setSheetDragY, setSheetSnap],
   );
 
-  // Core-loop entry point: the mobile Log FAB links to /map?log=1. Once the
-  // fast venue list exists, turn that intent into the existing single composer
-  // path: pick the best visible pub, open its sheet, and open the composer.
+  // Wait for the reader to choose a pub before opening either price flow.
+  // Category capture belongs to VenueInspector; legacy Pint Drop entry uses
+  // openComposerForLog so its price-step reveal stays on that path alone.
   useLogIntent({
     hasLogIntent: hasReactiveLogIntent,
+    hasCategoryPriceIntent,
     loaded,
     firstFilteredVenueId,
     firstRouteId,
@@ -4030,9 +4080,25 @@ export default function PubMap({
     setFallbackVisible: setLogIntentFallbackVisible,
   });
 
+  // A picked price request belongs to the first pub it opened at, including
+  // across that pub's sign-in gate and return. Reaching any other pub without
+  // choosing it from the picker again retires it before that pub's inspector
+  // can read it from the URL.
+  const priceIntentVenueRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hasCategoryPriceIntent) {
+      priceIntentVenueRef.current = null;
+      return;
+    }
+    if (!selectedVenueId) return;
+    priceIntentVenueRef.current ??= selectedVenueId;
+    if (priceIntentVenueRef.current !== selectedVenueId) clearLogIntent();
+  }, [clearLogIntent, hasCategoryPriceIntent, selectedVenueId]);
+
   // Keyboard shortcuts: "/" focuses search. Escape enters the same Back owner
   // as browser, button, and gesture navigation.
   useMapKeyboardShortcuts({
+    mobileViewport,
     planningOpen,
     selectedVenueId,
     onBack: () => surfaceBackRef.current(),
@@ -4431,7 +4497,7 @@ export default function PubMap({
         setMapOverlay("area");
       }, areaSheetOpenDelay(reduced));
     },
-    [cityId, clearAreaSheetTimer, clearLogIntent, moveMapCameraTo, trimmedMapQuery],
+    [cityId, clearAreaSheetTimer, clearLogIntent, moveMapCameraTo],
   );
   // §4.8: picking a search result records the typed "map-search" origin, unlike
   // a browse pin tap. The current search input text is NOT proof of origin — only
@@ -4443,15 +4509,20 @@ export default function PubMap({
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
       if (targetCityId && targetCityId !== cityId) {
         // Full navigation resets city-specific map state before the target city loads.
+        const params = new URLSearchParams({ sel: id });
+        if (hasCategoryPriceIntent && priceIntentVenueRef.current === null) {
+          if (mapDrinkLensCategory) params.set("drink", mapDrinkLensCategory);
+          params.set("contribute", "price");
+        }
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.assign(
-          `${cityMapShareUrl(targetCityId)}?sel=${encodeURIComponent(id)}`,
+          `${cityMapShareUrl(targetCityId)}?${params}`,
         );
         return;
       }
       selectVenue(id, "overview");
     },
-    [cityId, selectVenue, trimmedMapQuery],
+    [cityId, hasCategoryPriceIntent, mapDrinkLensCategory, selectVenue, trimmedMapQuery],
   );
   const selectUkBasePubFromSearch = useCallback(
     (pub: UkBasePub) => {
@@ -4573,7 +4644,7 @@ export default function PubMap({
   const changeMapOverlay = useCallback((next: MapOverlay) => {
     setChooseAreaOpening(false);
     // Leaving the phone "Choose a pub" sheet leaves the Drop flow (D4).
-    if (next !== "moment") clearLogIntent();
+    if (next !== "moment" && !(next === "search" && hasCategoryPriceIntent)) clearLogIntent();
     if (next !== "none" && isMobileViewport()) {
       setPlanningOpen(false);
       setSelectedVenueId("");
@@ -4585,7 +4656,7 @@ export default function PubMap({
     clearAreaSheetTimer();
     setSearchAreaTarget(null);
     setMapOverlay(next);
-  }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen]);
+  }, [clearAreaSheetTimer, clearLogIntent, closeComposer, hasCategoryPriceIntent, setPlanningOpen]);
 
   const openChooseArea = useCallback((locationNote?: string | null, openingFlow = false) => {
     setChooseAreaLocationNote(locationNote ?? null);
@@ -4747,6 +4818,7 @@ export default function PubMap({
       selectedVenueLabels.detailLabel,
     ],
   );
+  const pricePickerOpen = coordinatedMobileOverlay === "moment" && hasCategoryPriceIntent;
   const mapSurfaceState = useMemo<MapSurfaceState>(
     () => ({
       venueTab: venueInitialTab,
@@ -4759,20 +4831,24 @@ export default function PubMap({
       areaTarget: searchAreaTarget,
       layersTab: mobileLayersTab,
       landmarkId: activeLandmarkId,
+      ...(pricePickerOpen ? { pricePicker: true } : {}),
     }),
-    [activeLandmarkId, mobileLayersTab, searchAreaTarget, selectedVenueId, venueInitialTab],
+    [activeLandmarkId, mobileLayersTab, pricePickerOpen, searchAreaTarget, selectedVenueId, venueInitialTab],
   );
-  const closeEverySurface = useCallback(() => {
+  const closeMapSurfaces = useCallback(() => {
     clearAreaSheetTimer();
     setSearchAreaTarget(null);
-    clearLogIntent();
     closeComposer();
     setMapOverlay("none");
     setSelectedVenueId("");
     setPlanningOpen(false);
     setMapListOpen(false);
     setActiveLandmarkId("");
-  }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen, setSelectedVenueId]);
+  }, [clearAreaSheetTimer, closeComposer, setPlanningOpen, setSelectedVenueId]);
+  const closeEverySurface = useCallback(() => {
+    clearLogIntent();
+    closeMapSurfaces();
+  }, [clearLogIntent, closeMapSurfaces]);
 
   useEffect(() => {
     const onDismiss = () => closeEverySurface();
@@ -4781,9 +4857,16 @@ export default function PubMap({
   }, [closeEverySurface]);
   const restoreMapSurface = useCallback(
     (entry: SurfaceEntry<MapSurfaceState> | null) => {
+      const held = entry?.state ?? EMPTY_MAP_SURFACE_STATE;
+      if (entry?.id === "moment" && held.pricePicker) {
+        closeMapSurfaces();
+        restoreLogIntent();
+        priceIntentVenueRef.current = null;
+        setMapOverlay("moment");
+        return;
+      }
       closeEverySurface();
       if (!entry) return;
-      const held = entry.state ?? EMPTY_MAP_SURFACE_STATE;
       if (entry.id === "venue") {
         // Restore the tab the reader left on, not the overview default.
         setVenueInitialTab((held.venueTab || "overview") as VenueTabRequest);
@@ -4817,7 +4900,7 @@ export default function PubMap({
       );
       setMapOverlay(entry.id as MapOverlay);
     },
-    [closeEverySurface, setPlanningOpen, setSelectedVenueId],
+    [closeEverySurface, closeMapSurfaces, restoreLogIntent, setPlanningOpen, setSelectedVenueId],
   );
   const mapSurfaceTrail = useMapSurfaceNavigation({
     arrivalSearch,
@@ -4827,6 +4910,7 @@ export default function PubMap({
     selectionHint,
     onRestore: restoreMapSurface,
     onHome: closeEverySurface,
+    onSurfaceClose: syncLandedCrawlContext,
   });
   const {
     rejectSelection: rejectMapSelection,
@@ -4986,64 +5070,97 @@ export default function PubMap({
   // Esc, or a fresh ?sel= navigating away) we hand focus back to whatever
   // triggered the open rather than dropping it to <body>.
   const drawerCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const detailDrawerRef = useRef<HTMLDivElement | null>(null);
+  const detailWasOpenRef = useRef(false);
+  // A deep link can open before the lazy drawer mounts and attaches its refs.
+  const [detailDrawerMounted, setDetailDrawerMounted] = useState(false);
+  const attachDetailDrawer = useCallback((node: HTMLDivElement | null) => {
+    detailDrawerRef.current = node;
+    setDetailDrawerMounted(node !== null);
+  }, []);
   useLayoutEffect(() => {
+    const wasOpen = detailWasOpenRef.current;
+    detailWasOpenRef.current = detailOpen;
     if (detailOpen) {
       if (preSheetFocusRef.current === null) {
         const active = document.activeElement;
         if (
           active instanceof HTMLElement &&
           active !== document.body &&
-          active !== document.documentElement
+          active !== document.documentElement &&
+          !active.closest(".mapDrawer, .mobileSheetPortal")
         ) {
           preSheetFocusRef.current = active;
         }
       }
       drawerCloseButtonRef.current?.focus({ preventScroll: true });
-    } else if (preSheetFocusRef.current) {
+    } else if (wasOpen) {
       const target = preSheetFocusRef.current;
-      const targetId = target.id;
-      const restoreFocus = () => {
-        const currentTarget =
-          target.isConnected
-            ? target
-            : targetId
-              ? document.getElementById(targetId)
-              : null;
-        currentTarget?.focus();
-      };
-      // Restore in the close commit, then once more after selection history has
-      // popped its URL checkpoint. Browser history traversal can otherwise
-      // move focus back to the document after this layout effect.
-      restoreFocus();
-      preSheetFocusRef.current = null;
-      const frame = requestAnimationFrame(restoreFocus);
+      // Full city navigation loses the old trigger, and its new toolbar can
+      // mount after the drawer. Resolve the return target when closing.
+      const targetId = target?.id || "mapSearchInput";
+      let pendingTarget: MutationObserver | null = null;
+      let frame: number | null = null;
       let popFrame: number | null = null;
+      let listenerCeiling: number | null = null;
+      let cancelled = false;
+      const stopRestoration = () => {
+        cancelled = true;
+        pendingTarget?.disconnect();
+        if (frame !== null) cancelAnimationFrame(frame);
+        if (popFrame !== null) cancelAnimationFrame(popFrame);
+        if (listenerCeiling !== null) window.clearTimeout(listenerCeiling);
+        document.removeEventListener("focusin", respectFocusChoice);
+        window.removeEventListener("popstate", restoreAfterHistory);
+      };
+      const returnTarget = () => target?.isConnected ? target : document.getElementById(targetId);
+      const respectFocusChoice = () => {
+        const active = document.activeElement;
+        if (readStrictModalFocusTrap() || (
+          active instanceof HTMLElement &&
+          active !== document.body && active !== document.documentElement &&
+          active !== returnTarget() && !detailDrawerRef.current?.contains(active)
+        )) stopRestoration();
+      };
+      const restoreFocus = () => {
+        respectFocusChoice();
+        if (cancelled) return;
+        const currentTarget = returnTarget();
+        if (!currentTarget || currentTarget.closest("[inert]")) return;
+        currentTarget.focus({ preventScroll: true });
+        if (document.activeElement === currentTarget) pendingTarget?.disconnect();
+      };
       const restoreAfterHistory = () => {
+        if (popFrame !== null) cancelAnimationFrame(popFrame);
         popFrame = requestAnimationFrame(restoreFocus);
       };
-      // Local close pops the selection sentinel after this commit. Restore
-      // once more on that exact history settlement so traversal cannot strand
-      // focus on the document. Browser-Back close has already popped, and the
-      // animation-frame restore above covers that path.
-      window.addEventListener("popstate", restoreAfterHistory, { once: true });
-      const listenerCeiling = window.setTimeout(() => {
-        window.removeEventListener("popstate", restoreAfterHistory);
-      }, 1_000);
-      return () => {
-        cancelAnimationFrame(frame);
-        if (popFrame !== null) cancelAnimationFrame(popFrame);
-        window.clearTimeout(listenerCeiling);
-        window.removeEventListener("popstate", restoreAfterHistory);
-      };
+      if (!mobileViewport) {
+        pendingTarget = new MutationObserver(restoreFocus);
+        pendingTarget.observe(document.body, {
+          childList: true, subtree: true, attributes: true, attributeFilter: ["inert"],
+        });
+      }
+      // A later focus choice owns the page, even while the toolbar is loading.
+      document.addEventListener("focusin", respectFocusChoice);
+      restoreFocus();
+      preSheetFocusRef.current = null;
+      if (!cancelled) {
+        frame = requestAnimationFrame(restoreFocus);
+        // Local close pops its selection checkpoint after the close commit.
+        window.addEventListener("popstate", restoreAfterHistory, { once: true });
+        listenerCeiling = window.setTimeout(() => {
+          window.removeEventListener("popstate", restoreAfterHistory);
+        }, 1_000);
+      }
+      return stopRestoration;
     }
-  }, [detailOpen]);
+  }, [detailOpen, detailDrawerMounted, mobileViewport]);
 
   // Desktop accessibility contract: drawer is modal for its full open lifetime. Desktop
   // never changes detent, so gating trap on mobile-oriented `sheetSnap` left it
   // inactive at its permanent `half` state.
-  const detailDrawerRef = useRef<HTMLDivElement | null>(null);
   useFocusTrap(
-    !mobileViewport && detailOpen,
+    !mobileViewport && detailOpen && detailDrawerMounted,
     detailDrawerRef,
     "map-surface",
     preSheetFocusRef,
@@ -5133,8 +5250,8 @@ export default function PubMap({
   // as a stop, the sheet used to open on the "Describe the outing" form and
   // the picked pub sat a whole form below the fold, unnamed on the first
   // screen (verify-preview-4, J04); a crawl being built now leads the sheet.
-  const phoneDescribeForm =
-    mobileViewport && isLondon && suggestedPlanArea ? (
+  function renderPhoneDescribeForm() {
+    return mobileViewport && isLondon && suggestedPlanArea ? (
       <MobilePlanActivation
         cityId={cityId}
         initialNightArea={suggestedPlanArea.slug}
@@ -5142,6 +5259,8 @@ export default function PubMap({
         onGenerated={applyGeneratedMobilePlan}
       />
     ) : null;
+  }
+  const phoneDescribeForm = renderPhoneDescribeForm();
   const plannerOrder = phonePlannerOrder({ mobileViewport, mode, builtCount: builtIds.length });
   const builtCrawlLeads = plannerOrder === "build-first";
   const [plannerHead, plannerFoot] = builtCrawlLeads
@@ -5427,6 +5546,7 @@ export default function PubMap({
               ? venueRevealRequest
               : null
           }
+          onPriceIntentConsumed={clearLogIntent}
           onInterruptReveal={interruptVenueReveal}
           onTabSelect={handleInspectorTabSelect}
           cityLandmarks={cityLandmarks}
@@ -5456,29 +5576,6 @@ export default function PubMap({
     !mapCanvasErrored &&
     !mapCanvasFrameReleased(mapCanvasAvailabilityState) &&
     mapLoadingHeld(mapLoadingStage);
-  // The text-query lane filters curated pubs. UK base browse pubs are a
-  // separate zoom-gated layer and do not answer this query, so they may not
-  // keep an empty filtered collection from naming its honest state.
-  const visibleMapPinCount =
-    visibleVenueState?.cityId === cityId
-      ? visibleVenueState.curatedVenueIds.length
-      : null;
-  const mapSearchEmptyVisible =
-    trimmedMapQuery.length > 0 &&
-    loaded &&
-    loadedCityId === cityId &&
-    filteredPubVenueCount > 0 &&
-    mapBounds !== null &&
-    !mapLoadingActive &&
-    !mapCanvasUnavailable &&
-    mapOverlay !== "search" &&
-    !showMapArrivalCard &&
-    !mapSoftRetryActive &&
-    !detailOpen &&
-    !planningOpen &&
-    !storyOpen &&
-    !mapListOpen &&
-    visibleMapPinCount === 0;
 
   const mobileShellReady = !mapLoadingActive;
   // Desktop reader controls. Both live inside Layers rather than on the map
@@ -5496,10 +5593,10 @@ export default function PubMap({
   });
 
   /* The phone's More sheet: the map key, the layer shortcuts, the price chips,
-     tonight's events and the transit panel, as five tabs. */
+     tonight's events, and London's live transit panel. */
   function renderMobileLayersPanel() {
     return (
-      <Tabs className="mobileLayersPanel" value={mobileLayersTab} onValueChange={(value) => setMobileLayersTab(value as typeof mobileLayersTab)}>
+      <Tabs className="mobileLayersPanel" value={!isLondon && mobileLayersTab === "transit" ? "key" : mobileLayersTab} onValueChange={(value) => setMobileLayersTab(value as typeof mobileLayersTab)}>
         <TabsList
           className="mobileMapControlTabs"
           aria-label="Map control sections"
@@ -5510,7 +5607,7 @@ export default function PubMap({
             <TabsTrigger value="prices">Prices</TabsTrigger>
           ) : null}
           <TabsTrigger value="events">Events</TabsTrigger>
-          <TabsTrigger value="transit">Transit</TabsTrigger>
+          {isLondon ? <TabsTrigger value="transit">Transit</TabsTrigger> : null}
         </TabsList>
         <TabsContent value="key" className="mobileLayersPanel">
           <MapKey legend={activePriceLegend} />
@@ -5602,7 +5699,7 @@ export default function PubMap({
             onDismissOverlay={dismissTonightOverlay}
           />
         </TabsContent>
-        <TabsContent value="transit"><MobileTflPanel status={tflStatus} /></TabsContent>
+        {isLondon ? <TabsContent value="transit"><MobileTflPanel status={tflStatus} /></TabsContent> : null}
       </Tabs>
     );
   }
@@ -5867,11 +5964,13 @@ export default function PubMap({
         momentContent={
           <LogIntentFallback
             candidates={logNearbyCandidates}
+            categoryPriceIntent={hasCategoryPriceIntent}
             origin={logNearbyOrigin?.source ?? null}
             filteredPubVenueCount={filteredPubVenueCount}
             onPickVenue={pickLogNearbyVenue}
             onPrefetchVenue={prefetchVenueDetail}
             onFocusSearch={() => {
+              setLogIntentFallbackVisible(false);
               changeMapOverlay("search");
               requestAnimationFrame(focusMapSearch);
             }}
@@ -6061,6 +6160,30 @@ export default function PubMap({
   }
 
   function renderMapSearchEmptyState() {
+    // The text-query lane filters curated pubs. UK base browse pubs are a
+    // separate zoom-gated layer and do not answer this query, so they may not
+    // keep an empty filtered collection from naming its honest state.
+    const visibleMapPinCount =
+      visibleVenueState?.cityId === cityId
+        ? visibleVenueState.curatedVenueIds.length
+        : null;
+    const mapSearchEmptyVisible =
+      trimmedMapQuery.length > 0 &&
+      loaded &&
+      loadedCityId === cityId &&
+      filteredPubVenueCount > 0 &&
+      mapBounds !== null &&
+      !mapLoadingActive &&
+      !mapCanvasUnavailable &&
+      mapOverlay !== "search" &&
+      !showMapArrivalCard &&
+      !mapSoftRetryActive &&
+      !detailOpen &&
+      !planningOpen &&
+      !storyOpen &&
+      !mapListOpen &&
+      visibleMapPinCount === 0;
+
     return mapSearchEmptyVisible ? (
       <aside
         className="mapSearchEmpty"
@@ -6315,11 +6438,15 @@ export default function PubMap({
       {!mobileViewport && logIntentFallbackVisible ? (
         <LogIntentFallback
           candidates={logNearbyCandidates}
+          categoryPriceIntent={hasCategoryPriceIntent}
           origin={logNearbyOrigin?.source ?? null}
           filteredPubVenueCount={filteredPubVenueCount}
           onPickVenue={pickLogNearbyVenue}
           onPrefetchVenue={prefetchVenueDetail}
-          onFocusSearch={focusMapSearch}
+          onFocusSearch={() => {
+            setLogIntentFallbackVisible(false);
+            focusMapSearch();
+          }}
           onResetFilters={resetLogIntentFilters}
           onDismiss={clearLogIntent}
         />
@@ -6506,7 +6633,7 @@ export default function PubMap({
   /* Right drawer: the selected pub's detail, opened only on an explicit pick. Desktop only. */
   function renderVenueDrawer() {
     return !mobileViewport ? <SpringDrawer
-          ref={detailDrawerRef}
+          ref={attachDetailDrawer}
           open={detailOpen}
           side="right"
           snap={sheetSnap}

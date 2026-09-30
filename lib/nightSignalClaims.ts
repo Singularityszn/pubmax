@@ -77,6 +77,54 @@ function source(value: unknown): NightSignalSource | null {
   return sourceUrl && publisher && publishedAt ? { sourceUrl, publisher, publishedAt } : null;
 }
 
+function corroboration(value: unknown): NightSignalSource[] | null {
+  if (!Array.isArray(value) || value.length > 5) return null;
+  const sources = value.map(source);
+  if (sources.some((item) => item === null)) return null;
+  const parsed = sources as NightSignalSource[];
+  const keys = parsed.map((item) => `${item.sourceUrl}|${item.publisher.toLocaleLowerCase("en-GB")}`);
+  return new Set(keys).size === keys.length ? parsed : null;
+}
+
+function hasIndependentSource(primary: NightSignalSource, sources: readonly NightSignalSource[]): boolean {
+  return sources.some((item) =>
+    new URL(item.sourceUrl).hostname !== new URL(primary.sourceUrl).hostname
+      && item.publisher.toLocaleLowerCase("en-GB") !== primary.publisher.toLocaleLowerCase("en-GB"),
+  );
+}
+
+function validEvidence(input: {
+  primary: NightSignalSource;
+  observedAt: string;
+  expiresAt: string;
+  corroboratingSources: NightSignalSource[];
+  verification: NightSignalVerification;
+}): boolean {
+  const { primary, observedAt, expiresAt, corroboratingSources, verification } = input;
+  if (Date.parse(expiresAt) <= Date.parse(observedAt)) return false;
+  if (Date.parse(primary.publishedAt) > Date.parse(observedAt)) return false;
+  if (corroboratingSources.some((item) => Date.parse(item.publishedAt) > Date.parse(observedAt))) return false;
+  const independent = hasIndependentSource(primary, corroboratingSources);
+  return (corroboratingSources.length === 0 || independent)
+    && (verification !== "corroborated" || independent);
+}
+
+function validReview(input: {
+  reviewState: NightSignalReviewState;
+  reviewAuthority: NightSignalReviewAuthority | null;
+  reviewedAt: string | null;
+  observedAt: string;
+  routeEffect: NightSignalRouteEffect;
+  verification: NightSignalVerification;
+}): boolean {
+  const { reviewState, reviewAuthority, reviewedAt, observedAt, routeEffect, verification } = input;
+  if (reviewState === "approved" && (!reviewedAt || !reviewAuthority)) return false;
+  if (reviewedAt && Date.parse(reviewedAt) < Date.parse(observedAt)) return false;
+  if (routeEffect === "none") return true;
+  if (verification === "single_source") return false;
+  return verification !== "manual_review" || reviewAuthority === "operations" || reviewAuthority === "editorial";
+}
+
 export function validateNightSignalClaim(value: unknown): NightSignalClaim | null {
   if (!value || typeof value !== "object") return null;
   const row = value as Record<string, unknown>;
@@ -98,30 +146,12 @@ export function validateNightSignalClaim(value: unknown): NightSignalClaim | nul
   const verification = ["single_source", "corroborated", "manual_review"].includes(String(row.verification)) ? row.verification as NightSignalVerification : null;
   const routeEffect = ["none", "boost", "avoid"].includes(String(row.routeEffect)) ? row.routeEffect as NightSignalRouteEffect : null;
   const confidence = typeof row.confidence === "number" && Number.isFinite(row.confidence) && row.confidence >= 0 && row.confidence <= 1 ? row.confidence : null;
-  const corroboratingRows = Array.isArray(row.corroboratingSources) ? row.corroboratingSources : null;
-  const parsedCorroboratingSources = corroboratingRows
-    ? corroboratingRows.map(source).filter((item): item is NightSignalSource => item !== null)
-    : [];
-  const corroboratingSources = [...new Map(parsedCorroboratingSources.map((item) => [
-    `${item.sourceUrl}|${item.publisher.toLocaleLowerCase("en-GB")}`,
-    item,
-  ])).values()];
+  const corroboratingSources = corroboration(row.corroboratingSources);
   if (!id || !claim || !primary || !observedAt || !expiresAt || !entityId || !kind || !reviewState || !verification || !routeEffect || confidence === null) return null;
-  if (!corroboratingRows || corroboratingRows.length > 5 || parsedCorroboratingSources.length !== corroboratingRows.length || corroboratingSources.length !== parsedCorroboratingSources.length) return null;
+  if (!corroboratingSources) return null;
   if (entityType !== "venue" && entityType !== "night_area" && entityType !== "transport") return null;
-  if (Date.parse(expiresAt) <= Date.parse(observedAt)) return null;
-  if (Date.parse(primary.publishedAt) > Date.parse(observedAt)) return null;
-  if (corroboratingSources.some((item) => Date.parse(item.publishedAt) > Date.parse(observedAt))) return null;
-  if (reviewState === "approved" && (!reviewedAt || !reviewAuthority)) return null;
-  if (reviewedAt && Date.parse(reviewedAt) < Date.parse(observedAt)) return null;
-  const independentCorroboration = corroboratingSources.some((item) =>
-    new URL(item.sourceUrl).hostname !== new URL(primary.sourceUrl).hostname
-      && item.publisher.toLocaleLowerCase("en-GB") !== primary.publisher.toLocaleLowerCase("en-GB"),
-  );
-  if (corroboratingSources.length > 0 && !independentCorroboration) return null;
-  if (verification === "corroborated" && !independentCorroboration) return null;
-  if (routeEffect !== "none" && verification === "single_source") return null;
-  if (routeEffect !== "none" && verification === "manual_review" && reviewAuthority !== "operations" && reviewAuthority !== "editorial") return null;
+  if (!validEvidence({ primary, observedAt, expiresAt, corroboratingSources, verification })) return null;
+  if (!validReview({ reviewState, reviewAuthority, reviewedAt, observedAt, routeEffect, verification })) return null;
   return {
     id, kind, entity: { type: entityType, id: entityId }, claim,
     ...primary, observedAt, expiresAt, confidence, reviewState, verification,

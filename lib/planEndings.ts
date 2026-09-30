@@ -33,7 +33,7 @@ function foodOption(terminal: LateFoodTerminal): PlanEndingOption {
 
 function extensionOption(extension: GroundedPlanExtension): PlanEndingOption {
   const price = extension.estimatedPintPricePence === null
-    ? "price not recorded"
+    ? "drink price unavailable for this extension"
     : `about ${formatGbp(extension.estimatedPintPricePence / 100)} for one recorded pint`;
   return {
     id: extension.venueId,

@@ -95,7 +95,13 @@ describe("minting a session from a stored refresh token", () => {
       fetchImpl: (async () => jsonResponse({ error: "invalid" }, 400)) as typeof fetch,
       authConfig: AUTH_CONFIG,
     });
-    expect(refused.status).toBe("refused");
+    expect(refused).toEqual({ status: "refused" });
+
+    const banned = await mintSessionFromRefreshToken(STORED_TOKEN, {
+      fetchImpl: (async () => jsonResponse({ code: 403, error_code: "user_banned", msg: "User is banned" }, 403)) as typeof fetch,
+      authConfig: AUTH_CONFIG,
+    });
+    expect(banned).toEqual({ status: "refused", banned: true });
 
     const server = await mintSessionFromRefreshToken(STORED_TOKEN, {
       fetchImpl: (async () => jsonResponse({}, 503)) as typeof fetch,

@@ -5,6 +5,7 @@ import { AlertTriangle, CalendarClock, Info, TrainFront } from "lucide-react";
 
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
+import type { CityId } from "@/lib/cities";
 
 type Signal = { headline?: string; detail?: string; kind?: string; severity?: string; timeWindow?: string; areas?: string[] };
 type TubeLine = { line?: string; status?: string; disruption?: string };
@@ -24,12 +25,14 @@ function groupFor(signal: Signal): (typeof GROUPS)[number] {
   return "Other";
 }
 
-export function useMobileTflStatus(): MobileTflStatus {
+export function useMobileTflStatus(cityId: CityId): MobileTflStatus {
+  const isLondon = cityId === "london";
   const [payload, setPayload] = useState<TflPayload | null>(null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    if (!isLondon) return;
     const controller = new AbortController();
     void loadSurfaceJson<TflPayload>(
       TFL_STATUS_SURFACE_KEY,
@@ -47,20 +50,20 @@ export function useMobileTflStatus(): MobileTflStatus {
       if (outcome === "failed" && !controller.signal.aborted) setFailed(true);
     });
     return () => controller.abort();
-  }, [attempt]);
+  }, [attempt, isLondon]);
 
   const retry = useCallback(() => {
     setFailed(false);
     setAttempt((value) => value + 1);
   }, []);
 
-  useReconnectRecovery(failed, retry);
+  useReconnectRecovery(isLondon && failed, retry);
 
   const issueCount = useMemo(
     () => (payload?.signals?.length ?? 0) + (payload?.tubeLines?.filter((line) => line.status?.toLowerCase() !== "good service").length ?? 0),
     [payload],
   );
-  return { payload, failed, issueCount };
+  return isLondon ? { payload, failed, issueCount } : { payload: null, failed: false, issueCount: 0 };
 }
 
 function freshness(asOf?: string | null): React.ReactNode {

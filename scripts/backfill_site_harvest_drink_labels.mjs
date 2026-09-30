@@ -53,9 +53,9 @@ async function fetchBody(url) {
     if (/pdf/i.test(type) || url.toLowerCase().includes(".pdf")) {
       if (!pdfIsWorthReading(body)) return { ok: false, body: "" };
       const text = await readPdfText(body);
-      return { ok: Boolean(text), body: text ?? "" };
+      return { ok: Boolean(text), body: text ?? "", sourceFormat: "text" };
     }
-    return { ok: true, body };
+    return { ok: true, body, sourceFormat: "html" };
   } catch {
     return { ok: false, body: "" };
   } finally {
@@ -63,8 +63,8 @@ async function fetchBody(url) {
   }
 }
 
-function pricedRowsFromHtml(html) {
-  const reading = readVenueDrinkPrices(html);
+function pricedRowsFromSource(source, sourceFormat) {
+  const reading = readVenueDrinkPrices(source, sourceFormat);
   if (!pageStatesADrinksList(reading)) return [];
   return cheapestPerCategory(reading);
 }
@@ -90,7 +90,7 @@ async function main() {
       console.log(`  skip unreadable ${url}`);
       continue;
     }
-    cache.set(url, pricedRowsFromHtml(fetched.body));
+    cache.set(url, pricedRowsFromSource(fetched.body, fetched.sourceFormat));
     } catch (error) {
       console.log(`  skip error ${url}: ${String(error).slice(0, 120)}`);
     }

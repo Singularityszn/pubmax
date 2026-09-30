@@ -20,10 +20,33 @@ export type SiteHarvestLedgerRow = {
   host?: string;
   drinkLabel?: string;
   drinkName?: string;
+  servingSize?: string;
   robotsDisallowed?: boolean;
 };
 
 const SITE_HARVEST_LANE: UkPriceBundleLane = "site-harvest";
+
+const PRINTED_MEASURE_SUFFIX = /^(.*?)\s*(\d{2,3})\s*ml$/i;
+
+/**
+ * A wine row harvested before servings were read apart carries its glass
+ * measure in its name ("Merlot 175ml"). Split it the way the harvester now
+ * writes it ("Merlot", 175ml), so a re-read of the same page supersedes the old
+ * row instead of standing beside it.
+ */
+export function normalizeSiteHarvestLedgerRow(row: SiteHarvestLedgerRow): SiteHarvestLedgerRow {
+  if (row.category !== "wine" || row.servingSize !== undefined) return row;
+  const label = row.drinkLabel ?? row.drinkName;
+  if (typeof label !== "string") return row;
+  const match = PRINTED_MEASURE_SUFFIX.exec(label.trim());
+  const name = match?.[1].replace(/^[/|\s\u2013\u2014-]+/, "").trim();
+  if (!match || !name) return row;
+  return {
+    ...row,
+    ...(row.drinkLabel !== undefined ? { drinkLabel: name } : { drinkName: name }),
+    servingSize: `${match[2]}ml`,
+  };
+}
 
 function resolveSiteHarvestVenueId(
   row: SiteHarvestLedgerRow,
@@ -36,9 +59,10 @@ function resolveSiteHarvestVenueId(
 }
 
 export function siteHarvestLedgerCollectKey(
-  row: SiteHarvestLedgerRow,
+  ledgerRow: SiteHarvestLedgerRow,
   curatedOwners: ReadonlyMap<string, string>,
 ): string | null {
+  const row = normalizeSiteHarvestLedgerRow(ledgerRow);
   const venueId = resolveSiteHarvestVenueId(row, curatedOwners);
   if (!venueId || typeof row.category !== "string" || row.category.length === 0) {
     return null;
@@ -49,6 +73,7 @@ export function siteHarvestLedgerCollectKey(
     category: row.category,
     lane: SITE_HARVEST_LANE,
     drinkLabel: typeof raw === "string" ? raw : undefined,
+    servingSize: row.servingSize,
   });
 }
 
@@ -80,6 +105,7 @@ function ledgerRowAsBundleRow(
     ...(typeof row.drinkLabel === "string" && row.drinkLabel.trim()
       ? { drinkLabel: row.drinkLabel.trim() }
       : {}),
+    ...(row.servingSize !== undefined ? { servingSize: row.servingSize } : {}),
   };
 }
 
@@ -91,7 +117,8 @@ export function dedupeSiteHarvestLedgerRows(
   const held = new Map<string, SiteHarvestLedgerRow>();
   const bundleHeld = new Map<string, UkPriceBundleRow>();
 
-  for (const row of rows) {
+  for (const ledgerRow of rows) {
+    const row = normalizeSiteHarvestLedgerRow(ledgerRow);
     const key = siteHarvestLedgerCollectKey(row, curatedOwners);
     if (!key) continue;
     const asBundle = ledgerRowAsBundleRow(row, curatedOwners);

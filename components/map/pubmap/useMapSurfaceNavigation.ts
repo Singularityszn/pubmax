@@ -41,6 +41,8 @@ export type MapSurfaceState = {
   layersTab: string;
   /** The landmark whose story is open, so Back can put the story back. */
   landmarkId: string;
+  /** A "Choose a pub" picker opened for a `contribute=price` request. */
+  pricePicker?: boolean;
 };
 
 export const EMPTY_MAP_SURFACE_STATE: MapSurfaceState = {
@@ -59,7 +61,8 @@ function sameState(a: MapSurfaceState | undefined, b: MapSurfaceState): boolean 
       a.venueId === b.venueId &&
       a.areaTargetKey === b.areaTargetKey &&
       a.layersTab === b.layersTab &&
-      (a.landmarkId ?? "") === (b.landmarkId ?? ""),
+      (a.landmarkId ?? "") === (b.landmarkId ?? "") &&
+      Boolean(a.pricePicker) === Boolean(b.pricePicker),
   );
 }
 
@@ -80,6 +83,18 @@ function selectedVenueId(stack: SurfaceStack<MapSurfaceState>): string {
 
 function currentBrowserUrl(): string {
   return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+}
+
+function isSurfaceOpen(
+  previous: SurfaceStack<MapSurfaceState>,
+  next: SurfaceStack<MapSurfaceState>,
+): boolean {
+  const entry = currentSurface(next);
+  if (!entry) return false;
+  const transition = mapSurfaceOpenTransition(previous, entry);
+  return transition.kind === "push" &&
+    transition.stack.length === next.length &&
+    transition.stack.every((held, index) => held.id === next[index]?.id);
 }
 
 function urlForStack(
@@ -112,6 +127,7 @@ export function useMapSurfaceNavigation({
   selectionHint,
   onRestore,
   onHome,
+  onSurfaceClose,
 }: {
   arrivalSearch: string;
   surfaceId: MapSurfaceId;
@@ -120,15 +136,19 @@ export function useMapSurfaceNavigation({
   selectionHint: string;
   onRestore: (entry: SurfaceEntry<MapSurfaceState> | null) => void;
   onHome: () => void;
+  onSurfaceClose: () => void;
 }) {
   const [stack, setStack] = useState<SurfaceStack<MapSurfaceState>>(
     ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>,
   );
   const stackRef = useRef(stack);
   const initialisedRef = useRef(false);
+  const ownedPathRef = useRef<string | null>(null);
   const pendingOpensRef = useRef<SurfaceEntry<MapSurfaceState>[]>([]);
   const onRestoreRef = useRef(onRestore);
   const onHomeRef = useRef(onHome);
+  const onSurfaceCloseRef = useRef(onSurfaceClose);
+  const pendingHomeRef = useRef<SurfaceStack<MapSurfaceState> | null>(null);
   const selectionHintRef = useRef(selectionHint);
   const publishStack = useCallback((next: SurfaceStack<MapSurfaceState>) => {
     stackRef.current = next;
@@ -142,8 +162,9 @@ export function useMapSurfaceNavigation({
   useLayoutEffect(() => {
     onRestoreRef.current = onRestore;
     onHomeRef.current = onHome;
+    onSurfaceCloseRef.current = onSurfaceClose;
     selectionHintRef.current = selectionHint;
-  }, [onHome, onRestore, selectionHint]);
+  }, [onHome, onRestore, onSurfaceClose, selectionHint]);
 
   const commitOpen = useCallback(
     (entry: SurfaceEntry<MapSurfaceState>) => {
@@ -180,6 +201,7 @@ export function useMapSurfaceNavigation({
   useLayoutEffect(() => {
     if (initialisedRef.current || typeof window === "undefined") return;
     initialisedRef.current = true;
+    ownedPathRef.current = window.location.pathname;
 
     const flushPendingOpens = () => {
       const pending = pendingOpensRef.current.splice(0);
@@ -259,6 +281,11 @@ export function useMapSurfaceNavigation({
     // landed snapshot restores may never be interpreted as a second Home
     // traversal. All deliberate exits call back() or home() directly.
     if (!shown) return;
+    // Next's router can render a Back or Forward before this owner hears
+    // `popstate`. Until the landed trail is published, a render still shows
+    // the previous entry and must not be written over the one just landed.
+    const held = readMapSurfaceHistory<MapSurfaceState>(window.history.state);
+    if (held !== null && JSON.stringify(held) !== JSON.stringify(stackRef.current)) return;
     if (
       current?.id === shown.id &&
       current.title === shown.title &&
@@ -274,12 +301,32 @@ export function useMapSurfaceNavigation({
     const onPop = (event: PopStateEvent) => {
       const landed = readMapSurfaceHistory<MapSurfaceState>(event.state);
       const next = landed ?? (ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>);
+      const closingHome = pendingHomeRef.current !== null;
+      const previous = pendingHomeRef.current ?? stackRef.current;
+      pendingHomeRef.current = null;
       if (landed !== null && !selectedVenueId(next)) {
         const { pathname, search, hash } = window.location;
-        const cleanUrl = cleanMapUrl(pathname, search, hash);
+        const selectionFree = new URL(cleanMapUrl(pathname, search, hash), window.location.origin);
+        // A landed trail with no story open carries no `?landmark=` either.
+        const cleanUrl = next.some((entry) => entry.id === "landmark")
+          ? `${selectionFree.pathname}${selectionFree.search}${selectionFree.hash}`
+          : withoutLandmarkParam(selectionFree.pathname, selectionFree.search, selectionFree.hash);
         if (currentBrowserUrl() !== cleanUrl) {
           window.history.replaceState(event.state, "", cleanUrl);
         }
+      }
+      if (
+        window.location.pathname === ownedPathRef.current &&
+        landed !== null &&
+        (
+          closingHome ||
+          (previous.length > next.length &&
+            next.every((entry, index) => entry.id === previous[index]?.id)) ||
+          isSurfaceOpen(next, previous) ||
+          isSurfaceOpen(previous, next)
+        )
+      ) {
+        onSurfaceCloseRef.current();
       }
       publishStack(next);
       onRestoreRef.current(currentSurface(next));
@@ -368,6 +415,7 @@ export function useMapSurfaceNavigation({
   const home = useCallback(() => {
     const held = stackRef.current;
     if (!held.length) return;
+    pendingHomeRef.current = held;
     publishStack(ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>);
     onHomeRef.current();
     if (typeof window !== "undefined") window.history.go(-held.length);

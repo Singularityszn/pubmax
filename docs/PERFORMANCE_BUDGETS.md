@@ -1072,14 +1072,9 @@ in both arms because its document is one of the two the CDN holds.
 
 The seams:
 
-- **`experimental.staleTimes` in `next.config.mjs`** is the window. It is safe
-  only because no page server-renders per-account content and nothing calls
-  `router.refresh()`; `__tests__/clientRouterCache.test.ts` fences both.
-  `/admin` is the one argued exception to the first invariant, named in that
-  fence as `PER_SESSION_SERVER_PAGES`: it server-renders the console or a 401
-  token form off the caller's own credential, nothing links to it, and every
-  `/api/admin` read re-gates. A second exception re-derives the whole window
-  rather than adding a list entry.
+- **`experimental.staleTimes` in `next.config.mjs`** is the window. See the
+  [Router Cache policy](rules/app-proxy-csp-caching-and-file-tracing.md#a-tab-you-have-already-opened-is-not-a-page-you-have-to-fetch-again)
+  for its safety conditions, the `/admin` document guard, and test coverage.
 - **`lib/surfaceDataCache.ts`** is the data half: one browser-only
   stale-while-revalidate store, so a return paints its last answer and refreshes
   behind it. It refuses auth and identity keys outright and empties at an

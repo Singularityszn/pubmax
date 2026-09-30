@@ -41,7 +41,6 @@ import {
   estimateEta,
   isExaConfigured,
   isFatalExaError,
-  loadProgress,
   isMainModule,
   nextShardIndex,
   normalizeHarvestElements,

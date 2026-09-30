@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { buildPlanGenerationStops } from "@/lib/planGenerationDto";
+import { buildPlanGenerationStops, planBudgetSummary } from "@/lib/planGenerationDto";
+import { inferNightContext } from "@/lib/nightPlanning";
 
 const AREA = {
   name: "Test Area",
@@ -65,6 +66,85 @@ function grounded<T>(value: T, pence: number) {
 }
 
 describe("plan generation response projection", () => {
+  it("keeps selected wine evidence on a priced alternative while leaving an unpriced stop unknown", () => {
+    const selected = candidate("selected", -0.1, { cheapestPrice: 3 });
+    const alternative = candidate("alternative", -0.099, { cheapestPrice: 4 });
+    const selectedPrice = {
+      venueId: "alternative",
+      category: "wine" as const,
+      categoryLabel: "Wine",
+      priceGbp: 8,
+      submittedAt: Date.parse("2026-08-27T12:00:00.000Z"),
+      source: "community" as const,
+    };
+    const stops = buildPlanGenerationStops({
+      chosen: [selected],
+      candidates: [selected, { ...alternative, selectedDrinkPrice: selectedPrice }],
+      groundedStops: null,
+      groundedAlternatives: null,
+      walkingEstimate: { legs: [], walkingMinutesFromPrevious: [null] },
+      area: AREA,
+      planningWeather: null,
+      priceContext: { drinkCategory: "wine", zeroProof: false },
+    });
+
+    expect(stops[0].selectedDrinkPriceEvidence).toBeNull();
+    expect(stops[0].alternatives[0]).toMatchObject({
+      estimatedPintPricePence: null,
+      priceEvidence: null,
+      selectedDrinkPriceEvidence: {
+        category: "wine",
+        pence: 800,
+        serving: null,
+        source: "community",
+        reportedAt: "2026-08-27T12:00:00.000Z",
+      },
+    });
+  });
+
+  it.each(["wine", "cocktail", "whisky"] as const)(
+    "does not present pint prices as %s stop or budget prices",
+    (drinkCategory) => {
+      const selected = candidate("selected", -0.1, {
+        cheapestPrice: 3,
+        reasons: [`corroborated community ${drinkCategory} price £8.00`],
+      });
+      const fallback = candidate("fallback", -0.099, { cheapestPrice: 4 });
+      const stops = buildPlanGenerationStops({
+        chosen: [selected],
+        candidates: [selected, fallback],
+        groundedStops: [grounded(selected, 300)],
+        groundedAlternatives: null,
+        walkingEstimate: { legs: [], walkingMinutesFromPrevious: [null] },
+        area: AREA,
+        planningWeather: null,
+        priceContext: { drinkCategory, zeroProof: false },
+      });
+
+      expect(stops[0]).toMatchObject({
+        estimatedPintPricePence: null,
+        priceEvidence: null,
+        reason: `Close to the heart of the area, corroborated community ${drinkCategory} price £8.00.`,
+      });
+      expect(stops[0].alternatives[0]).toMatchObject({
+        estimatedPintPricePence: null,
+        priceEvidence: null,
+      });
+
+      const context = {
+        ...inferNightContext("cheap wine in Soho for 2").context,
+        drinkCategory,
+        budgetLimitPence: 1500,
+      };
+      expect(planBudgetSummary(context, [300])).toMatchObject({
+        estimatedPerPersonPence: null,
+        estimatedCrewPence: null,
+        withinLimit: null,
+        basis: "selected-drink-price-unavailable",
+      });
+    },
+  );
+
   it("projects grounded evidence, provenance, and the selected grounded alternatives", () => {
     const selected = {
       ...candidate("selected", -0.1, {
@@ -102,6 +182,7 @@ describe("plan generation response projection", () => {
         observedAt: "2026-08-23T12:00:00.000Z",
         source: { publisher: "Met Office" },
       },
+      priceContext: { drinkCategory: null, zeroProof: false },
     });
 
     expect(stops).toHaveLength(1);
@@ -168,6 +249,7 @@ describe("plan generation response projection", () => {
       },
       area: AREA,
       planningWeather: null,
+      priceContext: { drinkCategory: null, zeroProof: false },
     });
 
     expect(stops[0]).toMatchObject({
@@ -205,6 +287,7 @@ describe("plan generation response projection", () => {
       },
       area: AREA,
       planningWeather: null,
+      priceContext: { drinkCategory: null, zeroProof: false },
     });
 
     expect(stops.map((stop) => stop.operationalEvidence.transportBasis)).toEqual([

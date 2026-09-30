@@ -331,14 +331,13 @@ test.describe("map keyboard and screen-reader venue path", () => {
     // sibling spec. This case pins Escape on the venue drawer with the list
     // still open underneath — the regression path from List view.
     await openVenueListFromLayers(page);
-    const chosenVenue = page.locator(".mapVenueListItem").first();
-    await chosenVenue.focus();
-    await expect(chosenVenue).toBeFocused();
-    const chosenVenueId = await chosenVenue.getAttribute("data-venue-id");
+    const chosenVenueId = await page.locator(".mapVenueListItem").first().getAttribute("data-venue-id");
     expect(chosenVenueId).toBeTruthy();
-    const chosenVenueAfterClose = page.locator(
+    const chosenVenue = page.locator(
       `.mapVenueListItem[data-venue-id="${chosenVenueId}"]`,
     );
+    await chosenVenue.focus();
+    await expect(chosenVenue).toBeFocused();
     await page.keyboard.press("Enter");
 
     const drawer = page.locator(".mapDrawer.right.open");
@@ -354,7 +353,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();
-    await expect(chosenVenueAfterClose).toBeFocused({ timeout: 15_000 });
+    await expect(chosenVenue).toBeFocused({ timeout: 15_000 });
   });
 
   test("returns Escape focus to a keyboard-selected search result", async ({
@@ -367,32 +366,33 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect(search).toBeVisible({ timeout: 30_000 });
     await search.fill("Dolphin");
     const listbox = page.getByRole("listbox", { name: "Search suggestions" });
-    // Search suggestions can include area/place entries. Select a concrete
-    // venue option so the contract never depends on a mixed-result index.
-    const highlightedVenue = listbox
-      .locator('[role="option"][data-venue-id]')
-      .nth(2);
-    await expect(highlightedVenue).toBeVisible();
+    // Wait for the cross-city result. A positional pick can select a London
+    // pub before the national index loads and miss the full-navigation path.
+    const highlightedVenue = listbox.locator(
+      '[role="option"][data-venue-id="venue-glw-q7pz7s"]',
+    );
+    await expect(highlightedVenue).toBeVisible({ timeout: 30_000 });
+    await expect(search).toHaveAttribute("aria-busy", "false");
+    await expect(listbox.getByRole("group", { name: "Venues", exact: true })
+      .getByRole("option")).toHaveCount(3);
     const highlightedVenueId = await highlightedVenue.getAttribute("data-venue-id");
     expect(highlightedVenueId).toBeTruthy();
-    const optionIndex = await listbox.getByRole("option").evaluateAll(
-      (options, venueId) =>
-        options.findIndex((option) => option.getAttribute("data-venue-id") === venueId),
-      highlightedVenueId,
-    );
-    expect(optionIndex).toBeGreaterThanOrEqual(0);
-
     await search.focus();
-    for (let index = 0; index <= optionIndex; index += 1) {
+    for (let index = 0; index < 80; index += 1) {
+      if (await highlightedVenue.getAttribute("aria-selected") === "true") break;
       await page.keyboard.press("ArrowDown");
     }
+    await expect(highlightedVenue).toHaveAttribute("aria-selected", "true");
     await page.keyboard.press("Enter");
     await expect
       .poll(() => new URL(page.url()).searchParams.get("sel"))
       .toBe(highlightedVenueId);
+    await expect.poll(() => new URL(page.url()).pathname).toBe("/map/glasgow");
 
     const drawer = page.locator(".mapDrawer.right.open");
     await expect(drawer).toBeVisible();
+    await expect(drawer.getByRole("tab", { name: "Overview", exact: true })).toBeVisible();
+    await expect(search).toBeVisible();
     await expect(
       drawer.getByRole("button", { name: /Close/ }),
     ).toBeFocused();
@@ -402,6 +402,62 @@ test.describe("map keyboard and screen-reader venue path", () => {
       .poll(() => new URL(page.url()).searchParams.get("sel"))
       .toBeNull();
     await expect(search).toBeFocused();
+  });
+
+  test("keyboard search selects a pub before a matching area", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.goto("/map");
+
+    const search = page.locator("#mapSearchInput");
+    await expect(search).toBeVisible({ timeout: 30_000 });
+    await search.fill("Blackfriar");
+
+    const listbox = page.getByRole("listbox", { name: "Search suggestions" });
+    const venue = listbox
+      .getByRole("group", { name: "Venues", exact: true })
+      .getByRole("option", { name: /The Blackfriar/i });
+    const area = listbox
+      .getByRole("group", { name: "Areas", exact: true })
+      .getByRole("option", { name: /Blackfriars/i });
+    await expect(venue).toBeVisible();
+    await expect(area).toBeVisible();
+    const venueId = await venue.getAttribute("data-venue-id");
+    expect(venueId).toBeTruthy();
+    const venueOptionIndex = await listbox
+      .getByRole("option")
+      .evaluateAll(
+        (options, id) =>
+          options.findIndex(
+            (option) => option.getAttribute("data-venue-id") === id,
+          ),
+        venueId,
+      );
+    const areaOptionIndex = await listbox
+      .getByRole("option")
+      .evaluateAll((options) =>
+        options.findIndex(
+          (option) =>
+            option.textContent?.includes("Blackfriars") &&
+            !option.hasAttribute("data-venue-id"),
+        ),
+      );
+    expect(venueOptionIndex).toBeGreaterThanOrEqual(0);
+    expect(areaOptionIndex).toBeGreaterThan(venueOptionIndex);
+
+    await search.focus();
+    for (let index = 0; index <= venueOptionIndex; index += 1) {
+      await page.keyboard.press("ArrowDown");
+    }
+    await expect(search).toHaveAttribute(
+      "aria-activedescendant",
+      await venue.getAttribute("id"),
+    );
+    await page.keyboard.press("Enter");
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get("sel"))
+      .toBe(venueId);
   });
 
   test("keeps a rapid reselection open after close history settles", async ({

@@ -11,6 +11,21 @@
     "rowCount": 3083,
     "rowIdentitySetSha256": "f49f615f1a3a3f9ca323b07ea0c1c43c3ce56f4bf04a6721c94252409cacd7d6"
   },
+  "postReconciliationPublication": {
+    "sourceCaptureSha256": "ab30877e2c6dd5ef6559030fcbb422c4b39719818a788758dc8207a422373c9a",
+    "sourceObservedAt": "2026-09-29T10:40:17.846Z",
+    "sourceUrl": "https://www.sydneyarmschelsea.com/menu/",
+    "supersededRowSha256": "fbcc91ed985cdc6506dea865b397e3b621bf731b1009043b1ea5871885a4e4b1",
+    "currentLedger": {
+      "sha256": "aaf43a4dccda3eb3cf9b6ef9bd37b080932ad31751f8dd9211ef2511d9c8b660",
+      "rowCount": 3106,
+      "rowIdentitySetSha256": "685286bb4c197ef95568be98c0d933017867f220754c9c098543a21c38c49320"
+    },
+    "currentBundle": {
+      "rowCount": 7607,
+      "siteHarvestRows": 3087
+    }
+  },
   "accounting": {
     "refusedNicholsonRows": 480,
     "knownMisclassifiedWithdrawals": 19,

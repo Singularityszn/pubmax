@@ -16,6 +16,7 @@ describe("drinkCategoryFromText", () => {
   });
 
   it("classifies beer/pint labels", () => {
+    expect(drinkCategoryFromText("cheap pints in Soho")).toBe("beer");
     expect(drinkCategoryFromText("Guinness")).toBe("beer");
     expect(drinkCategoryFromText("A cheeky pint")).toBe("beer");
     expect(drinkCategoryFromText("Neck Oil IPA")).toBe("beer");
@@ -31,6 +32,7 @@ describe("drinkCategoryFromText", () => {
   });
 
   it("classifies spirits and cocktails", () => {
+    expect(drinkCategoryFromText("cocktails in Soho")).toBe("cocktail");
     expect(drinkCategoryFromText("Single malt whisky")).toBe("whisky");
     expect(drinkCategoryFromText("Bourbon, neat")).toBe("whisky");
     expect(drinkCategoryFromText("Gin and tonic")).toBe("gin");

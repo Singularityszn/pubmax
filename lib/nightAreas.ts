@@ -56,8 +56,7 @@ export const NIGHT_AREA_SLUGS = [
 ] as const;
 export type NightAreaSlug = (typeof NIGHT_AREA_SLUGS)[number];
 
-const COVERAGE_STATUSES = ["discovered", "captured", "reviewed", "route_ready", "paused"] as const;
-export type CoverageStatus = (typeof COVERAGE_STATUSES)[number];
+export type CoverageStatus = "discovered" | "captured" | "reviewed" | "route_ready" | "paused";
 
 const ROUTE_READY_GATE_CODES = [
   "venue_density", "identity_conflict", "price_coverage", "amenity_coverage", "opening_hours",

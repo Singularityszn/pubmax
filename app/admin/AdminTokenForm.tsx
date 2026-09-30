@@ -23,7 +23,7 @@ export default function AdminTokenForm(): React.JSX.Element {
       <Link prefetch={false} className="adminMapCallout" href="/map">
         Back to the map
       </Link>
-      <AdminSessionEntry onOpened={() => window.location.assign("/admin")} />
+      <AdminSessionEntry onOpened={() => window.location.reload()} />
     </main>
   );
 }

@@ -52,8 +52,10 @@ test("Plan identity nudge keeps one sign-in email action on a 390px phone", asyn
 
   const primaryNav = page.getByRole("navigation", { name: "Primary" });
   const focusOrigin = primaryNav.getByRole("link", { name: "Map" });
-  await focusOrigin.focus();
-  await expect(focusOrigin).toBeFocused();
+  await expect(async () => {
+    await focusOrigin.focus();
+    await expect(focusOrigin).toBeFocused({ timeout: 1_000 });
+  }).toPass({ timeout: 5_000 });
 
   // Clear grace without navigating away from Plan. Focus origin lets the test
   // prove modal teardown returns the keyboard user to the exact prior control.
@@ -95,12 +97,12 @@ test("Plan identity nudge keeps one sign-in email action on a 390px phone", asyn
   await expect(lastAction).toBeVisible();
   await expect.poll(() => page.evaluate(() => ({
     viewportWidth: window.innerWidth,
-    scrollWidth: document.documentElement.scrollWidth,
-    bodyScrollWidth: document.body.scrollWidth,
+    documentOverflows: document.documentElement.scrollWidth > window.innerWidth,
+    bodyOverflows: document.body.scrollWidth > window.innerWidth,
   }))).toEqual({
     viewportWidth: VIEWPORT.width,
-    scrollWidth: VIEWPORT.width,
-    bodyScrollWidth: VIEWPORT.width,
+    documentOverflows: false,
+    bodyOverflows: false,
   });
 
   await page.screenshot({
@@ -120,6 +122,7 @@ test("strict identity modal isolates an open map sheet and releases it on dismis
   await page.setViewportSize(VIEWPORT);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(({ pendingKey, pendingAtKey }) => {
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "granted");
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");

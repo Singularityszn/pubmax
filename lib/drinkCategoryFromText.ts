@@ -88,6 +88,7 @@ const CATEGORY_KEYWORDS: Array<[DrinkCategory, string[]]> = [
     "cocktail",
     [
       "cocktail",
+      "cocktails",
       "spritz",
       "aperol",
       "margarita",
@@ -165,6 +166,7 @@ const CATEGORY_KEYWORDS: Array<[DrinkCategory, string[]]> = [
     [
       "beer",
       "pint",
+      "pints",
       "lager",
       "ale",
       "ipa",
@@ -223,6 +225,47 @@ export function drinkCategoryFromText(
   // table cannot classify fall through to subtype/brand knowledge, allowing
   // real price strings such as "AMSTEL" and "BACARDI" to reach their family.
   return drinkSubtypeFromText(drink)?.category ?? null;
+}
+
+const KEYWORDS_LONGEST_FIRST = CATEGORY_KEYWORDS
+  .flatMap(([category, keywords]) => keywords.map((keyword) => [category, keyword] as const))
+  .sort((left, right) => right[1].length - left[1].length);
+
+type DrinkKeywordSpan = { start: number; end: number; category: DrinkCategory };
+
+/**
+ * Where a lowercase text names a drink, as non-overlapping spans. A compound
+ * keyword claims its words before a shorter one can ("ginger beer" is a soft
+ * drink and never also a beer; "espresso martini" is vodka and never also gin).
+ */
+export function drinkKeywordSpans(text: string): DrinkKeywordSpan[] {
+  const spans: DrinkKeywordSpan[] = [];
+  let label = text;
+  for (const [category, keyword] of KEYWORDS_LONGEST_FIRST) {
+    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    for (const match of label.matchAll(new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`, "g"))) {
+      spans.push({ start: match.index, end: match.index + keyword.length, category });
+    }
+    label = label.replace(new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`, "g"), " ".repeat(keyword.length));
+  }
+  return spans.sort((left, right) => left.start - right.start);
+}
+
+/**
+ * Every category a text names, not just the first, so two categories come
+ * back only when the text names two drinks.
+ */
+export function drinkCategoriesInText(
+  text: string | null | undefined,
+): Set<DrinkCategory> {
+  const found = new Set<DrinkCategory>();
+  if (typeof text !== "string") return found;
+  for (const span of drinkKeywordSpans(text.trim().toLowerCase())) found.add(span.category);
+  if (found.size === 0) {
+    const fallback = drinkSubtypeFromText(text)?.category;
+    if (fallback) found.add(fallback);
+  }
+  return found;
 }
 
 /**

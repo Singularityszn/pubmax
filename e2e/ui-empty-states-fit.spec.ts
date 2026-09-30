@@ -126,14 +126,37 @@ test.describe("UI empty states and layout fit", () => {
       sessionStorage.setItem(`pubmax-plan-member:${id}`, token);
     }, { id: planId, start: planStart, token: created.memberToken });
     await page.goto("/tonight");
-    await page.getByRole("button", { name: "Show tonight's plan" }).click();
+    const create = page.getByRole("button", { name: "Create", exact: true });
+    await expect(create).toBeVisible();
+    // The active-plan pill mounts after Create and lifts it, so sample the
+    // float stack only once the pill is in it and the body reserves Create's
+    // lifted top edge.
+    const showPlan = page.getByRole("button", { name: "Show tonight's plan" });
+    await expect(showPlan).toBeVisible();
+    const createBox = (await create.boundingBox())!;
+    const padding = () => page.evaluate(() =>
+      Number.parseFloat(getComputedStyle(document.body).paddingBottom),
+    );
+    await expect.poll(padding).toBeCloseTo(844 - createBox.y, 0);
+    const withCreate = await padding();
+    await showPlan.click();
     const dialog = page.getByRole("dialog", { name: "Tonight's plan" });
     await expect(dialog).toBeVisible();
+    await expect(create).toBeHidden();
+    const barBox = (await page.getByRole("navigation", { name: "Primary" }).boundingBox())!;
+    // The panel's card can mount a frame after Create hides, and the lane is
+    // released only once it has.
+    await expect.poll(padding).toBeLessThanOrEqual(withCreate - createBox.height);
+    expect(await padding()).toBeGreaterThanOrEqual(barBox.height);
     await expect(
       dialog.getByText("Loading tonight's route…"),
     ).toBeHidden({ timeout: 15_000 });
     const hasStop = await dialog.locator(".nightCard__now").count();
     const hasEmpty = await dialog.getByText("Tonight's route isn't open here yet.").count();
     expect(hasStop + hasEmpty).toBeGreaterThan(0);
+    await dialog.getByRole("button", { name: "Hide tonight's plan" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(create).toBeVisible();
+    await expect.poll(padding).toBe(withCreate);
   });
 });

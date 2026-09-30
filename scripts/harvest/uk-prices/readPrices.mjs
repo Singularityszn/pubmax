@@ -21,22 +21,22 @@ export function typesafeKeyConfigured() {
   return Boolean(process.env.TYPESAFE_API_KEY?.trim());
 }
 
-export async function readVenueDrinkPricesForHarvest(html, ctx) {
+export async function readVenueDrinkPricesForHarvest(html, ctx, sourceFormat = "text") {
   const pubName = ctx?.pubName ?? "Unknown pub";
   const pageUrl = ctx?.pageUrl ?? "";
   if (!typesafeKeyConfigured()) {
-    return { reading: readVenueDrinkPrices(html), review: [] };
+    return { reading: readVenueDrinkPrices(html, sourceFormat), review: [] };
   }
   const { readVenueDrinkPricesJudged } = await import(
     "../../../lib/harvest/ukPriceJudgment.server.ts"
   );
-  const judged = await readVenueDrinkPricesJudged(html, { pubName, pageUrl });
+  const judged = await readVenueDrinkPricesJudged(html, { pubName, pageUrl }, sourceFormat);
   const { review, ...reading } = judged;
   return { reading, review };
 }
 
 export async function readChainPintPricesForHarvest(html, ctx) {
-  const { reading, review } = await readVenueDrinkPricesForHarvest(html, ctx);
+  const { reading, review } = await readVenueDrinkPricesForHarvest(html, ctx, "html");
   return { reading: chainPintReadingFromUk(reading), review };
 }
 

@@ -978,6 +978,29 @@ describe("heritageFactFromOverlay / public overlay", () => {
     expect(parsePublicOverlay(rows[0])?.website).toBe("https://redlion.example/");
   });
 
+  it("prefers one menu URL over a concatenated observation and keeps distinct sources", () => {
+    const observations = [
+      {
+        kind: "menu",
+        value: "https://redlion.example/menu, https://redlion.example/drinks",
+        sourceUrl: "https://redlion.example/",
+        fetchedAt: "2026-08-28T00:00:00.000Z",
+      },
+      {
+        kind: "menu",
+        value: "https://redlion.example/menu",
+        sourceUrl: "https://redlion.example/",
+        fetchedAt: "2026-08-28T00:00:00.000Z",
+      },
+    ];
+    const [folded] = overlayRowsFromHarvestRecords([
+      { osmId: "node/123", name: "The Red Lion", town: "Clapham", observations },
+    ]);
+
+    expect(folded.menuUrl).toBe("https://redlion.example/menu");
+    expect(folded.sources).toEqual(["https://redlion.example/"]);
+  });
+
   it("preserves an explicit concatenated harvest field for serving to drop", () => {
     const rows = overlayRowsFromHarvestRecords([
       {

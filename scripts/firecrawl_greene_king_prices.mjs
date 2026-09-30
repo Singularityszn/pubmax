@@ -44,6 +44,7 @@ import {
   readValidatedMenuPageCache,
   writeMenuPageCache,
 } from "./lib/harvestMenuCache.mjs";
+import { mapGreeneKingSectionToCategory } from "./lib/menuSectionCategory.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -115,55 +116,6 @@ const DRINK_CATEGORIES = new Set([
 
 const SECTION_HEADING = /^###\s+(.+)$/;
 const ITEM_HEADING = /^####\s+(.+)$/;
-const PRICE_LINE = /£\s*(\d+(?:\.\d{2})?)/;
-
-function mapSectionToCategory(section) {
-  const s = section.toLowerCase();
-  if (
-    s.includes("main menu") ||
-    s.includes("dessert") ||
-    s.includes("snack") ||
-    s.includes("kids") ||
-    s.includes("ciabatta") ||
-    s.includes("sunday menu") ||
-    s.includes("gluten")
-  ) {
-    return null;
-  }
-  if (s.includes("wine") || s.includes("champagne") || s.includes("spark")) return "wine";
-  if (s.includes("cocktail") || s.includes("spritz") || s.includes("0%")) return "cocktail";
-  if (
-    s.includes("beer") ||
-    s.includes("lager") ||
-    s.includes("ale") ||
-    s.includes("cider") ||
-    s.includes("draught") ||
-    s.includes("keg") ||
-    s.includes("stout")
-  ) {
-    return "beer";
-  }
-  if (s.includes("whisk") || s.includes("whiskey")) return "whisky";
-  if (s.includes("gin")) return "gin";
-  if (s.includes("vodka")) return "vodka";
-  if (s.includes("rum")) return "rum";
-  if (s.includes("spirit") || s.includes("shot")) return "shot";
-  if (s.includes("coffee") || s.includes("hot drink")) return "coffee";
-  if (
-    s.includes("alcohol-free") ||
-    s.includes("alcohol free") ||
-    s.includes("non-alcoholic") ||
-    s.includes("no & low") ||
-    s.includes("no and low")
-  ) {
-    return "alcohol-free";
-  }
-  if (s.includes("soft drink")) return "soft-drink";
-  if (s.includes("drink")) return "soft-drink";
-  // Unknown headings are food sections (sharers, burgers, pizza, grills, sides,
-  // …), never drinks — skip them so food never leaks into the drink payload.
-  return null;
-}
 
 function firstPriceFromLines(lines) {
   for (const line of lines) {
@@ -189,7 +141,7 @@ function parseGreeneKingMenuMarkdown(markdown) {
       itemLines = [];
       return;
     }
-    const category = mapSectionToCategory(section);
+    const category = mapGreeneKingSectionToCategory(section);
     if (!category) {
       itemName = null;
       itemLines = [];

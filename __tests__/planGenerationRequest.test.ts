@@ -40,6 +40,7 @@ describe("parsePlanGenerationRequest", () => {
     ["an unknown key", { unknown: true }],
     ["an invalid known value", { groupSize: 0 }],
     ["a non-boolean wetherspoonsPreferred", { wetherspoonsPreferred: "yes" }],
+    ["an unknown drink category", { drinkCategory: "spirits" }],
   ])("still rejects non-null malformed context: %s", async (_label, context) => {
     const result = await parsePlanGenerationRequest(request({ query: "Clapham classics", context }), NOW);
 
@@ -69,6 +70,14 @@ describe("parsePlanGenerationRequest", () => {
         anchor: null,
       },
     });
+  });
+
+  it("accepts a selected closed drink category in generation context", async () => {
+    const result = await parsePlanGenerationRequest(
+      request({ query: "cheap wine in Soho for 2", context: { drinkCategory: "wine" } }),
+      NOW,
+    );
+    expect(result).toMatchObject({ ok: true, value: { context: { drinkCategory: "wine" } } });
   });
 
   it("allowlists a requested three-to-six stop count", async () => {

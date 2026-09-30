@@ -8,12 +8,14 @@
 import { describe, expect, it } from "vitest";
 
 import { DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
+import { dedupeSiteHarvestLedgerRows } from "@/lib/siteHarvestLedgerCore";
 import {
   CATEGORY_PRICE_BANDS,
   EMPTY_RENDER_MAX_CHARS,
   MIN_PRICED_LINES_FOR_LIST,
   UK_PRICE_DROP_REASONS,
   drinkLabelFromPriceContext,
+  findUkPriceCandidates,
   categoryFor,
   cheapestPerCategory,
   isLikelyMenuUrl,
@@ -38,6 +40,112 @@ const drinksList = `
 </body></html>`;
 
 describe("what a page states", () => {
+  it.each(["section", "article", 'div class="menubox"'])(
+    "limits wine inference to preceding headings in %s", (container) => {
+      const reading = readVenueDrinkPrices(`<${container}>
+        <p>Orchard Light 125ml £4.50 250ml £6.50</p>
+        <div><h2>Wine</h2></div><p>Gavi de Gavi 125ml £7.00 250ml £14.00</p>
+        <div><h3>Soft drinks</h3></div><p>Garden Fizz 125ml £4.00 250ml £6.00</p>
+        </${container.split(" ")[0]}>`);
+      expect(cheapestPerCategory(reading).filter((row) => row.category === "wine")).toEqual([
+        { category: "wine", drinkLabel: "Gavi de Gavi", servingSize: "125ml", priceGbp: 7 },
+        { category: "wine", drinkLabel: "Gavi de Gavi", servingSize: "250ml", priceGbp: 14 },
+      ]);
+      expect(pageStatesADrinksList(reading)).toBe(false);
+    },
+  );
+
+  it("does not lend heading evidence to unscoped paragraphs", () => {
+    const reading = readVenueDrinkPrices(`<p>Orchard Light 125ml £4.50 250ml £6.50</p>
+      <h2>Wine</h2><p>Rioja 125ml £7.00 250ml £14.00</p>
+      <h2>Soft drinks</h2><p>Garden Fizz 125ml £4.00 250ml £6.00</p>`);
+    expect(cheapestPerCategory(reading).filter((row) => row.category === "wine")).toEqual([
+      { category: "wine", drinkLabel: "Rioja", servingSize: "125ml", priceGbp: 7 },
+      { category: "wine", drinkLabel: "Rioja", servingSize: "250ml", priceGbp: 14 },
+    ]);
+  });
+
+  it.each(["/", "-", "\u2013", "\u2014", "|"])(
+    "preserves distinct wines across %s separators and deduplication", (separator) => {
+      const paragraphs = `<p>Rioja 125ml £5.25 ${separator} 250ml £10.50</p>
+        <p>Chardonnay 125ml £6.50 ${separator} 250ml £13.00</p>`;
+      for (const menu of [paragraphs, `<div class="menubox"><h2>Wine</h2>${paragraphs}</div>`]) {
+        const rows = cheapestPerCategory(readVenueDrinkPrices(menu));
+        expect(rows).toEqual([
+          { category: "wine", drinkLabel: "Chardonnay", servingSize: "125ml", priceGbp: 6.5 },
+          { category: "wine", drinkLabel: "Chardonnay", servingSize: "250ml", priceGbp: 13 },
+          { category: "wine", drinkLabel: "Rioja", servingSize: "125ml", priceGbp: 5.25 },
+          { category: "wine", drinkLabel: "Rioja", servingSize: "250ml", priceGbp: 10.5 },
+        ]);
+        const ledger = dedupeSiteHarvestLedgerRows(rows.map((row) => ({
+          ...row, venueId: "venue-uk-n1", observedAt: "2026-09-29T10:40:17.846Z",
+        })), new Map());
+        expect(ledger).toHaveLength(4);
+        expect(ledger.filter((row) => row.servingSize === "250ml").map((row) => row.priceGbp))
+          .toEqual([13, 10.5]);
+      }
+      const split = readVenueDrinkPrices(`<p>Rioja 125ml £5.25</p><p>${separator} 250ml £10.50</p>`);
+      expect(split.kept.some((row) => row.priceGbp === 10.5)).toBe(false);
+    },
+  );
+
+  it.each([
+    ["4.0%", "beer"], ["10.0%", "beer"], ["0.5%", "beer"],
+    ["0%", "alcohol-free"], ["0.0%", "alcohol-free"], ["0.00%", "alcohol-free"],
+    ["alcohol-free", "alcohol-free"],
+  ])("classifies complete strength token %s as %s", (strength, category) => {
+    for (const name of ["Shenanigans Lager", "Guinness", "Heineken"]) {
+      const reading = readVenueDrinkPrices(`<p>${name} ${strength} £3.70</p>`);
+      expect(reading.kept).toEqual([
+        expect.objectContaining({ category, priceGbp: 3.7 }),
+      ]);
+    }
+  });
+
+  it.each(["alcohol-free lager", "alcohol free lager", "non-alcoholic lager"])(
+    "keeps explicit %s while refusing free-drink promotions", (label) => {
+      expect(readVenueDrinkPrices(`<p>${label} £3.70</p>`).kept).toEqual([
+        expect.objectContaining({ category: "alcohol-free", priceGbp: 3.7 }),
+      ]);
+      expect(readVenueDrinkPrices(`<p>${label} £3.70 with free crisps</p>`).kept).toEqual([]);
+    },
+  );
+
+  it("preserves price offsets when retaining structural boundaries", () => {
+    const menu = `<section><h2>Wine</h2><p>Rioja<br />125ml £5.25 250ml £10.50</p></section>
+      <div><p>Gordon's gin £8.00</p></div>`;
+    expect(findUkPriceCandidates(pageText(menu, true)).map((row) => row.at))
+      .toEqual(findUkPriceCandidates(pageText(menu)).map((row) => row.at));
+  });
+
+  it.each([
+    "<p>Rioja 125ml £5.25 250ml £10.50</p><p>Gordon's gin £8.00</p>",
+    "Rioja 125ml £5.25 250ml £10.50 Gordon's gin £8.00",
+  ])("keeps paired wine measures before following gin: %s", (menu) => {
+    const reading = readVenueDrinkPrices(menu);
+    expect(reading.kept.map(({ category, drinkLabel, servingSize, priceGbp }) => (
+      { category, drinkLabel, servingSize, priceGbp }
+    ))).toEqual([
+      { category: "wine", drinkLabel: "Rioja", servingSize: "125ml", priceGbp: 5.25 },
+      { category: "wine", drinkLabel: "Rioja", servingSize: "250ml", priceGbp: 10.5 },
+      { category: "gin", drinkLabel: "Gordon's gin", servingSize: undefined, priceGbp: 8 },
+    ]);
+  });
+
+  it.each(["p", "li", "div", "section", "article", "tr"])(
+    "does not join wine measures across separate %s items", (tag) => {
+      const item = (text: string) => tag === "tr" ? `<tr><td>${text}</td></tr>` : `<${tag}>${text}</${tag}>`;
+      for (const size of ["125ml", "175ml", "250ml"]) {
+        const body = `${item("Rioja 125ml £5.25")}${item(`${size} £10.50`)}${item("Gordon's gin £8.00")}`;
+        const reading = readVenueDrinkPrices(tag === "tr" ? `<table>${body}</table>` : body);
+        expect(reading.kept.filter((row) => row.priceGbp === 10.5)).toEqual([]);
+        expect(reading.kept.find((row) => row.priceGbp === 5.25)).toMatchObject({
+          category: "wine", drinkLabel: "Rioja", servingSize: "125ml",
+        });
+      }
+    },
+  );
+
   it("reads the text a reader sees and drops what a script says", () => {
     const text = pageText('<script>var p = "£4.00";</script><p>Madri pint &pound;6.20</p>');
     expect(text).toBe("Madri pint £6.20");
@@ -50,8 +158,53 @@ describe("what a page states", () => {
       { category: "beer", priceGbp: 6.4, drinkLabel: "Guinness pint" },
       { category: "beer", priceGbp: 6.8, drinkLabel: "Neck Oil pint" },
       { category: "gin", priceGbp: 8, drinkLabel: "Gordon's gin and tonic" },
-      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine 175ml" },
+      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine", servingSize: "175ml" },
     ]);
+  });
+
+  it("keeps each explicitly priced Sydney Arms wine glass with its own name and measure", () => {
+    // Minimal excerpt of the permission-checked 29 Sep menu capture. Btl has
+    // no stated volume and its price is outside the glass-wine band.
+    const menu = `<p>Chardonnay, Pays D&#8217;oc, France<br />
+125ml £5.50 250ml £11.00 Btl £31.50</p>
+<p>Rioja, Spain<br />
+125ml £5.25 250ml £10.50 Btl £30.00</p>`;
+    const rows = cheapestPerCategory(readVenueDrinkPrices(menu));
+    expect(rows.filter((row) => row.category === "wine")).toEqual([
+      { category: "wine", priceGbp: 5.5, drinkLabel: "Chardonnay, Pays D’oc, France", servingSize: "125ml" },
+      { category: "wine", priceGbp: 11, drinkLabel: "Chardonnay, Pays D’oc, France", servingSize: "250ml" },
+      { category: "wine", priceGbp: 5.25, drinkLabel: "Rioja, Spain", servingSize: "125ml" },
+      { category: "wine", priceGbp: 10.5, drinkLabel: "Rioja, Spain", servingSize: "250ml" },
+    ]);
+    expect(rows.some((row) => row.servingSize === "Btl" || row.servingSize === "750ml")).toBe(false);
+  });
+
+  it("uses wine section headings for named glass pairs without lending them to sibling sections", () => {
+    // Excerpts from the permission-checked Sydney Arms capture, with adjacent
+    // non-wine sections to pin the section boundary.
+    const menu = `<div class="menubox"><div class="title"><h1>white</h1></div>
+      <p>Gavi de Gavi, Italy<br />125ml £7.00 250ml £14.00 Btl £39.95</p></div>
+      <div class="menubox"><div class="title"><h1>red</h1></div>
+      <p>Faithful Hound, South Africa<br />125ml £7.00 250ml £14.00 Btl £39.95</p></div>
+      <div class="menubox"><div class="title"><h1>rosé</h1></div>
+      <p>Côtes de Provence, France<br />125ml £6.50 250ml £13.00 Btl £37.50</p></div>
+      <div class="menubox"><div class="title"><h1>soft drinks</h1></div>
+      <p>Garden Fizz<br />125ml £2.50 250ml £4.00</p></div>
+      <div class="menubox"><div class="title"><h1>no alcohol</h1></div>
+      <p>Orchard Light<br />125ml £4.00 250ml £6.00</p></div>
+      <div class="menubox"><div class="title"><h1>cocktails</h1></div>
+      <p>Evening Bloom<br />125ml £8.00 250ml £12.00</p></div>`;
+    const reading = readVenueDrinkPrices(menu);
+    const wine = cheapestPerCategory(reading).filter((row) => row.category === "wine");
+    expect(wine).toEqual([
+      { category: "wine", priceGbp: 6.5, drinkLabel: "Côtes de Provence, France", servingSize: "125ml" },
+      { category: "wine", priceGbp: 13, drinkLabel: "Côtes de Provence, France", servingSize: "250ml" },
+      { category: "wine", priceGbp: 7, drinkLabel: "Faithful Hound, South Africa", servingSize: "125ml" },
+      { category: "wine", priceGbp: 14, drinkLabel: "Faithful Hound, South Africa", servingSize: "250ml" },
+      { category: "wine", priceGbp: 7, drinkLabel: "Gavi de Gavi, Italy", servingSize: "125ml" },
+      { category: "wine", priceGbp: 14, drinkLabel: "Gavi de Gavi, Italy", servingSize: "250ml" },
+    ]);
+    expect(wine.some((row) => /Garden Fizz|Orchard Light|Evening Bloom/.test(row.drinkLabel ?? ""))).toBe(false);
   });
 
 
@@ -72,6 +225,113 @@ describe("what a page states", () => {
       { category: "soft-drink", priceGbp: 1.8, drinkLabel: "Still water" },
     ]);
     expect(drinkLabelFromPriceContext("Coke Zero £2.50", "£2.50")).toBe("Coke Zero");
+  });
+
+  it("reads a priced juice beside wine as a soft drink, without losing the wine", () => {
+    // Synthetic menu using the printed Frobishers item in the committed source
+    // ledger. No live page was fetched for this regression.
+    const menu = `<p>House red wine 175ml £7.50</p>
+      <p>Frobishers Juice (250ml) £3.00</p>
+      <p>Madri pint £6.20</p>
+      <p>Gordon's gin £8.00</p>`;
+    const reading = readVenueDrinkPrices(menu);
+    expect(pageStatesADrinksList(reading)).toBe(true);
+    expect(cheapestPerCategory(reading)).toEqual([
+      { category: "beer", priceGbp: 6.2, drinkLabel: "Madri pint" },
+      { category: "gin", priceGbp: 8, drinkLabel: "Gordon's gin" },
+      { category: "soft-drink", priceGbp: 3, drinkLabel: "Frobishers Juice (250ml)" },
+      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine", servingSize: "175ml" },
+    ]);
+  });
+
+  it("keeps explicitly zero-alcohol cocktails out of alcoholic lanes", () => {
+    // Synthetic menu using two printed names from the committed source ledger.
+    // It proves parser association only; no live page was fetched here.
+    const menu = `<p>0% Tropical Negroni Three Spirit Livener, Lyres Italian Spritz, Tanqueray 0.0% £9.00</p>
+      <p>Berry Hugo 0.0% Three Spirit Livener 0.0%, Watermelon, Elderflower, Soda £8.00</p>
+      <p>House Negroni £12.00</p>
+      <p>Gordon's gin £8.00</p>`;
+    const reading = readVenueDrinkPrices(menu);
+    expect(pageStatesADrinksList(reading)).toBe(true);
+    expect(cheapestPerCategory(reading)).toEqual([
+      { category: "alcohol-free", priceGbp: 9, drinkLabel: "0% Tropical Negroni Three Spirit Livener, Lyres Italian Spritz, Tanqueray 0.0%" },
+      { category: "alcohol-free", priceGbp: 8, drinkLabel: "Berry Hugo 0.0% Three Spirit Livener 0.0%, Watermelon, Elderflower, Soda" },
+      { category: "cocktail", priceGbp: 12, drinkLabel: "House Negroni" },
+      { category: "gin", priceGbp: 8, drinkLabel: "Gordon's gin" },
+    ]);
+  });
+
+  it("reads a named spritz as a cocktail despite tequila in its ingredients", () => {
+    // Synthetic menu using the Picante Spritz name in the source ledger.
+    // It tests association, not a fresh read of the venue's page.
+    const menu = `<p>Picante Spritz Altos Plata tequila, Beesou honey, green chilli, lime, soda £12.00</p>
+      <p>House tequila shot £4.00</p>
+      <p>House red wine 175ml £7.50</p>
+      <p>Madri pint £6.20</p>`;
+    const reading = readVenueDrinkPrices(menu);
+    expect(pageStatesADrinksList(reading)).toBe(true);
+    expect(cheapestPerCategory(reading)).toEqual([
+      { category: "beer", priceGbp: 6.2, drinkLabel: "Madri pint" },
+      { category: "cocktail", priceGbp: 12, drinkLabel: "Picante Spritz Altos Plata tequila, Beesou honey, green chilli, lime, soda" },
+      { category: "shot", priceGbp: 4, drinkLabel: "House tequila shot" },
+      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine", servingSize: "175ml" },
+    ]);
+  });
+
+  it.each([
+    ["a cocktail description on the same line", "<p>Hugo £9 Elderflower spritz, prosecco, mint Guinness £5.90</p>", 5.9, "beer"],
+    ["a zero-strength description on the same line", "<p>Lucky Saint £5.20 0% unfiltered lager Guinness £5.90</p>", 5.9, "beer"],
+    ["a sour beer style", "<ul><li>Brewdog Sour IPA £6.50</li></ul>", 6.5, "beer"],
+    ["a sour ale", "<ul><li>Wild Sour Ale £6.20</li></ul>", 6.2, "beer"],
+    ["a zero-strength item name", "<ul><li>Heineken 0.0% lager £5.00</li></ul>", 5, "alcohol-free"],
+    ["an HTML item formatted across source lines", "<ul><li>Negroni\non tap £9.00</li></ul>", 9, "cocktail"],
+    ["an inline HTML item formatted across source lines", "<span>Espresso Martini\non draught £9.50</span>", 9.5, "cocktail"],
+    ["an HTML table cell formatted across source lines", "<td>Espresso Martini\non draught £9.50</td>", 9.5, "cocktail"],
+    ["adjacent inline HTML elements on separate source lines", "<span>Espresso Martini</span>\n<span>on draught £9.50</span>", 9.5, "cocktail"],
+    ["a cocktail served on tap", "<ul><li>Negroni on tap £9.00</li></ul>", 9, "cocktail"],
+    ["a cocktail served on draught", "<ul><li>Espresso Martini on draught £9.50</li></ul>", 9.5, "cocktail"],
+    ["a cocktail naming a beer brand in its description", "<ul><li>Espresso Martini Vodka, Kahlua, Camden coffee £9.50</li></ul>", 9.5, "cocktail"],
+    ["a heading that agrees with the item", "<h2>Alcohol-free</h2><ul><li>Lucky Saint £5.20</li></ul>", 5.2, "alcohol-free"],
+  ])("reads %s from the printed item name", (_case, menu, priceGbp, category) => {
+    expect(readVenueDrinkPrices(menu).kept.find((row) => row.priceGbp === priceGbp)?.category).toBe(category);
+  });
+
+  it.each([
+    ["a cocktail heading above a beer", "<h2>Spritz Season</h2><ul><li>Camden Hells £6.50</li></ul>", 6.5],
+    ["a zero-strength heading above a beer", "<h2>0% on the bar</h2><ul><li>Camden Hells £6.50</li></ul>", 6.5],
+    ["a cocktail description above the next beer", "<ul><li>Hugo £9</li><li>Elderflower spritz, prosecco, mint</li><li>Guinness £5.90</li></ul>", 5.9],
+    ["a zero-strength description above the next beer", "<ul><li>Lucky Saint £5.20</li><li>0% unfiltered lager</li><li>Guinness £5.90</li></ul>", 5.9],
+    ["a zero-strength name above its own description", "<div><h4>Lucky Saint 0%</h4><p>Unfiltered lager £5.20</p></div>", 5.2],
+    ["a cocktail name above its own description", "<h4>Picante Spritz</h4><p>Altos Plata tequila, Beesou honey, green chilli, lime, soda £12.00</p>", 12],
+  ])("refuses a figure whose printed name is ambiguous after %s", (_case, menu, priceGbp) => {
+    const reading = readVenueDrinkPrices(menu);
+    expect(reading.kept.find((row) => row.priceGbp === priceGbp)).toBeUndefined();
+    expect(reading.drops).toContain("item-name-ambiguous");
+  });
+
+  it("refuses a spirit-and-juice serve as a soft-drink price", () => {
+    const reading = readVenueDrinkPrices("<ul><li>Vodka Cranberry Juice £6.50</li></ul>");
+    expect(reading.kept).toEqual([]);
+    expect(reading.drops).toEqual(["mixer-serve-not-one-drink"]);
+  });
+
+  it("does not borrow a neighbouring drink category for a soda description", () => {
+    // Synthetic menu using the Pineapple & Yuzu source label. Its original
+    // page layout was not retained, so this proves the extractor rule only.
+    const menu = `<p>House red wine 175ml £7.50</p>
+      <p>Pineapple & Yuzu Pineapple, coconut, apple, yuzu, soda 86kcal £5.35</p>
+      <p>Madri pint £6.20</p>
+      <p>Gordon's gin £8.00</p>
+      <p>Absolut vodka soda £6.50</p>`;
+    const reading = readVenueDrinkPrices(menu);
+    expect(cheapestPerCategory(reading)).toEqual([
+      { category: "beer", priceGbp: 6.2, drinkLabel: "Madri pint" },
+      { category: "gin", priceGbp: 8, drinkLabel: "Gordon's gin" },
+      { category: "vodka", priceGbp: 6.5, drinkLabel: "Absolut vodka soda" },
+      { category: "wine", priceGbp: 7.5, drinkLabel: "House red wine", servingSize: "175ml" },
+    ]);
+    expect(reading.drops).toContain("no-category-word-nearby");
+    expect(pageStatesADrinksList(reading)).toBe(true);
   });
 
   it("answers one finding rather than an empty list when the page states no figure", () => {

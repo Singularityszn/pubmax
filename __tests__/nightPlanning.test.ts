@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { DESCRIBE_FIRST_CHIPS } from "@/components/plan/PlanDescribeFirst";
-import { inferNightContext } from "@/lib/nightPlanning";
+import { cleanNightContext, cleanNightContextPatch, inferNightContext } from "@/lib/nightPlanning";
 
 /** Fixed London afternoon so default daypart cannot mask missing occasion words. */
 const AFTERNOON = new Date("2026-08-07T13:00:00.000Z");
@@ -9,6 +9,93 @@ const AFTERNOON = new Date("2026-08-07T13:00:00.000Z");
 const EVENING = new Date("2026-08-07T19:30:00.000Z");
 
 describe("inferNightContext", () => {
+  it.each([
+    ["cheap wine in Soho for 2", "wine"],
+    ["cocktails in Soho for 2", "cocktail"],
+    ["whisky in Soho for 2", "whisky"],
+    ["cheap pints in Soho for 2", "beer"],
+    ["drinks in Soho for 2", null],
+    ["alcohol-free drinks in Soho for 2", null],
+    ["cheap pints on Rye Lane in Peckham for four, under £24 each", "beer"],
+    ["cheap pints in Peckham on Rye Lane under £30 each", "beer"],
+    ["Start at the Rose and Crown, cheap pints in Clapham under £20 each", "beer"],
+    ["pints near the Punch Bowl in Mayfair", "beer"],
+    ["cheap pints in Soho, start at the Gin Palace", "beer"],
+    ["drinks at the Gin Palace in Soho", null],
+    ["cocktail menu for my mate while I am on pints", "beer"],
+    ["no cocktails, just cheap pints in Soho", "beer"],
+    ["pints and cocktails in Soho", null],
+    ["cocktails in Soho somewhere with a beer garden", "cocktail"],
+    ["Clapham pubs near The Wine Bar under £30 each", null],
+    ["Clapham pubs near Gin and Juice under £30 each", null],
+    ["I am drinking wine and my mate wants pints in Soho", "wine"],
+    ["pints for my mate, I'm on the wine in Soho", "wine"],
+    ["root beer in Soho under £30 each", "soft-drink"],
+    ["a glass of red in Soho under £30 each", "wine"],
+    ["cheap rosé in Soho under £12 each", "wine"],
+    ["martinis in Soho", "gin"],
+    ["espresso martinis in Soho", "vodka"],
+    ["mojitos in Soho", "rum"],
+    ["tequila in Shoreditch", "shot"],
+    ["cheap cava in Soho", "wine"],
+    ["porter and pilsner in Soho", "beer"],
+    ["gin and tonic in Soho", "gin"],
+    ["whisky sour in Soho", "whisky"],
+    ["worth a shot, cheap pints in Soho", "beer"],
+    ["I want a shot in Soho under £30 each", "shot"],
+    ["In Soho I fancy wine under £30 each", "wine"],
+    ["No gin or wine, cheap cocktails in Soho under £30 each", "cocktail"],
+    ["no cocktails just cheap pints in Soho", "beer"],
+    ["pubs in Soho serving wine under £30 each", "wine"],
+    ["a night in Soho drinking cocktails under £30 each", "cocktail"],
+    ["no frills or fuss wine night in Soho under £30 each", "wine"],
+    ["pubs in Soho that do cocktails under £15 each", "cocktail"],
+    ["somewhere in Shoreditch doing cocktails", "cocktail"],
+    ["on a wine crawl in Soho under £30", "wine"],
+    ["Soho on the wine under £30 each", "wine"],
+    ["no beer or cider, wine in Soho", "wine"],
+    ["no red or white wine, cocktails in Soho under £30", "cocktail"],
+    ["no red or white wine, just cocktails in Soho under £30 each", "cocktail"],
+    ["not beer or white wine, cocktails in Soho", "cocktail"],
+    ["no lager or pale ale, cocktails in Soho under £30 each", "cocktail"],
+    ["No gin or red wine, cheap pints in Soho under £30 each", "beer"],
+    ["no coffee or ginger beer, wine night in Soho under £30 each", "wine"],
+    ["no gin or gin and tonic, wine night in Soho under £30 each", "wine"],
+    ["cheap cocktails on the Wine Bar terrace in Soho under £30 each", "cocktail"],
+    ["pints on Cocktail Alley in Soho", "beer"],
+    ["cheap pints on the Wine Bar terrace", "beer"],
+    ["I'm on Guinness in Soho", "beer"],
+    ["no bitter or lager, just cocktails in Soho under £30 each", "cocktail"],
+    ["no bitter or lager, cocktails in Soho", "cocktail"],
+    ["no port or wine, cocktails in Soho", "cocktail"],
+    ["no port or wine in Soho under £30", null],
+    ["no sours or cocktails, pints in Soho", "beer"],
+    ["a night on the Prosecco in Soho under £30 each", "wine"],
+    ["out on the Aperol in Soho under £30 each", "cocktail"],
+    ["Soho on Aperol under £30 each", "cocktail"],
+    ["on Saturday Negronis in Soho under £30 each", "gin"],
+    ["Soho on cocktails then Covent Garden under £15 each", "cocktail"],
+    ["a night on wine all the way under £30 each", "wine"],
+    ["Soho on wine then Borough Market under £30", "wine"],
+    ["on cocktails round Soho Square under £15 each", "cocktail"],
+    ["on wine till the Crown and Anchor under £30 each", "wine"],
+    ["on prosecco till the crown under £30", "wine"],
+    ["out on wine down Brick Lane under £30 each", "wine"],
+    ["on cocktails up Carnaby Street under £15 each", "cocktail"],
+  ] as const)("retains the requested drink category in %s", (query, category) => {
+    const { context } = inferNightContext(query, EVENING);
+    expect(context.drinkCategory).toBe(category);
+  });
+
+  it("cleans a selected drink category without changing legacy contexts", () => {
+    const legacy = inferNightContext("drinks in Soho", EVENING).context;
+    const withoutCategory = { ...legacy };
+    delete withoutCategory.drinkCategory;
+    expect(cleanNightContext(withoutCategory)?.drinkCategory).toBeNull();
+    expect(cleanNightContextPatch({ drinkCategory: "wine" })).toMatchObject({ drinkCategory: "wine" });
+    expect(cleanNightContext({ ...legacy, drinkCategory: "not-a-drink" })?.drinkCategory).toBeNull();
+  });
+
   it("turns a natural-language night into editable, explained context", () => {
     const result = inferNightContext("Four of us after work in Clapham, cheap, lively, kebab after");
 

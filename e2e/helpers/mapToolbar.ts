@@ -68,29 +68,6 @@ async function focusAreaForQuery(page: Page, query: string): Promise<void> {
   await areaOption.evaluate((node) => (node as HTMLElement).click());
 }
 
-/** Type an area query and pan the map when venue rows are not indexed yet. */
-export async function applyToolbarAreaQuery(
-  page: Page,
-  query: string,
-  timeout = 120_000,
-): Promise<void> {
-  const search = mapToolbar(page).getByRole("combobox", { name: "Search pubs" });
-  await expect(async () => {
-    await dismissVenueIndexRetryIfPresent(page);
-    await search.click();
-    await search.fill(query);
-    await expect(searchSuggestionsListbox(page)).toBeVisible({ timeout: 2_000 });
-    const venueOption = mapVenueSuggestionGroup(page).getByRole("option").first();
-    if (!(await venueOption.isVisible().catch(() => false))) {
-      await focusAreaForQuery(page, query);
-      await search.click();
-      await search.fill(query);
-      await expect(searchSuggestionsListbox(page)).toBeVisible({ timeout: 2_000 });
-    }
-    await expect(venueOption).toBeVisible({ timeout: 2_000 });
-  }).toPass({ timeout });
-}
-
 export async function selectFirstToolbarVenue(
   page: Page,
   query: string,

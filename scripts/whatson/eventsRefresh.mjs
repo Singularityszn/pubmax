@@ -629,6 +629,37 @@ async function defaultRunCommonLane(options) {
   return refreshCommonEvents(options);
 }
 
+async function publishRefreshedEvents({ validate, openPr, outPath, observedAt, nowMs, env, city, log, logError }) {
+  // Validate before any push. A failed data gate and a failed publication have
+  // different outcomes, since publication may already have pushed a branch.
+  try {
+    validate();
+  } catch (err) {
+    logError(
+      `eventsRefresh: validate-data refused the refreshed file (${err.message}) - no branch pushed, no PR opened.`,
+    );
+    return {
+      validation: { status: "failed", reason: err.message },
+      published: { status: "skipped" },
+    };
+  }
+  try {
+    const publication = await openPr({ outPath, observedAt, nowMs, env, city, log });
+    return { validation: { status: "ran" }, published: publication?.status ? publication : { status: "ran" } };
+  } catch (err) {
+    if (isPullRequestPermissionError(err)) {
+      const reason =
+        "GitHub Actions token cannot create pull requests; branch publication needs a manual PR handoff.";
+      logError(`eventsRefresh: ${reason}`);
+      return { validation: { status: "ran" }, published: { status: "branch-only", reason } };
+    }
+    logError(
+      `eventsRefresh: the refreshed file passed validate-data, but publishing it failed (${err.message}).`,
+    );
+    return { validation: { status: "ran" }, published: { status: "failed", reason: err.message } };
+  }
+}
+
 /**
  * One refresh run: the provider lane, then the KEYLESS Common lane, then the
  * review PR.
@@ -711,38 +742,17 @@ export async function runEventsRefresh({
   let validation = { status: "skipped" };
   let published = { status: "skipped" };
   if (argv.includes("--open-pr") && wrote) {
-    // Validate BEFORE anything is pushed. A refresh that produced a row the
-    // app's own gate rejects must be refused here, not left on a branch with a
-    // review PR already open against it. The two steps report SEPARATELY: a git
-    // or gh failure is not a data-gate refusal, and once the push has run
-    // "no branch pushed" would be false.
-    try {
-      validate();
-      validation = { status: "ran" };
-    } catch (err) {
-      logError(
-        `eventsRefresh: validate-data refused the refreshed file (${err.message}) - no branch pushed, no PR opened.`,
-      );
-      validation = { status: "failed", reason: err.message };
-    }
-    if (validation.status === "ran") {
-      try {
-        const publication = await openPr({ outPath, observedAt, nowMs, env, city, log });
-        published = publication?.status ? publication : { status: "ran" };
-      } catch (err) {
-        if (isPullRequestPermissionError(err)) {
-          const reason =
-            "GitHub Actions token cannot create pull requests; branch publication needs a manual PR handoff.";
-          logError(`eventsRefresh: ${reason}`);
-          published = { status: "branch-only", reason };
-        } else {
-          logError(
-            `eventsRefresh: the refreshed file passed validate-data, but publishing it failed (${err.message}).`,
-          );
-          published = { status: "failed", reason: err.message };
-        }
-      }
-    }
+    ({ validation, published } = await publishRefreshedEvents({
+      validate,
+      openPr,
+      outPath,
+      observedAt,
+      nowMs,
+      env,
+      city,
+      log,
+      logError,
+    }));
   }
 
   return {

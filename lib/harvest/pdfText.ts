@@ -56,8 +56,12 @@ export async function readPdfText(bytes: Uint8Array | null | undefined): Promise
       const page = await doc.getPage(n);
       const content = await page.getTextContent();
       text += `${content.items
-        .map((item) => (typeof (item as { str?: unknown }).str === "string" ? (item as { str: string }).str : ""))
-        .join(" ")}\n`;
+        .map((item) => {
+          const value = item as { str?: unknown; hasEOL?: boolean };
+          // Keep printed rows separate while joining fragments within a row.
+          return typeof value.str === "string" ? `${value.str}${value.hasEOL ? "\n" : " "}` : "";
+        })
+        .join("")}\n`;
     }
     return text;
   } catch {

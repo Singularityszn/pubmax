@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 import { haversineKm } from "@/lib/haversine";
+import { haversineKm as scriptHaversineKm } from "@/scripts/lib/geo.mjs";
 
 // The single shared great-circle helper. All map "nearest" features depend on it,
 // so pin its behaviour: zero for a point on itself, symmetric, ~111 km per degree
@@ -28,5 +29,21 @@ describe("haversineKm", () => {
     const d = haversineKm(kingsCross, waterloo);
     expect(d).toBeGreaterThan(2.5);
     expect(d).toBeLessThan(3.6);
+  });
+
+  it("matches the script distance for the same longitude-first points", () => {
+    const london: [number, number] = [-0.1278, 51.5074];
+    const edinburgh: [number, number] = [-3.1883, 55.9533];
+
+    expect(haversineKm(london, edinburgh)).toBe(
+      scriptHaversineKm(london[1], london[0], edinburgh[1], edinburgh[0]),
+    );
+  });
+
+  it("returns a finite half-circumference for antipodal polar points", () => {
+    const south: [number, number] = [0, -89.92];
+    const north: [number, number] = [180, 89.92];
+
+    expect(haversineKm(south, north)).toBeCloseTo(20_015.086796020572, 9);
   });
 });

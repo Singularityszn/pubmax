@@ -152,6 +152,31 @@ describe("anchored Plan route editing", () => {
   });
 });
 
+describe("selected drink route edits", () => {
+  it("submits saved evidence for an unchanged wine stop", () => {
+    const evidence = {
+      category: "wine" as const, pence: 550, serving: null, source: "community" as const,
+      reportedAt: "2026-09-25T12:00:00.000Z",
+    };
+    expect(planSummaryRouteUpdateBody({
+      stops: [
+        { venueId: "venue-a", venueName: "A", position: 0, selectedDrinkPriceEvidence: evidence },
+        { venueId: "venue-b", venueName: "B", position: 1 },
+        { venueId: "venue-c", venueName: "C", position: 2 },
+      ],
+      expectedRouteRevision: 1,
+      authority: null,
+    })).toEqual({
+      stops: [
+        { venueId: "venue-a", venueName: "A", selectedDrinkPriceEvidence: evidence },
+        { venueId: "venue-b", venueName: "B" },
+        { venueId: "venue-c", venueName: "C" },
+      ],
+      expectedRouteRevision: 1,
+    });
+  });
+});
+
 describe("refreshedRouteRejection", () => {
   const route = [
     { venueId: "venue-a", venueName: "Anchor", position: 0 },

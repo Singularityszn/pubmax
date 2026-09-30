@@ -136,6 +136,8 @@ type VenueInspectorProps = {
   onOpenComposerForLog?: () => void;
   revealRequest?: VenueRevealRequest | null;
   onInterruptReveal?: () => void;
+  /** Retire map price intent on form entry or abandonment, keeping sign-in resumable. */
+  onPriceIntentConsumed?: () => void;
 };
 
 function focusPriceDestination(id: string): void {
@@ -195,6 +197,7 @@ export default function VenueInspector({
   onOpenComposerForLog,
   revealRequest = null,
   onInterruptReveal,
+  onPriceIntentConsumed,
 }: VenueInspectorProps) {
   const revealInterrupted =
     revealRequest?.venueId === venue.id && revealRequest.interrupted;
@@ -239,14 +242,16 @@ export default function VenueInspector({
     );
   }, [revealRequest, updateRevealPriceMotion, venue.id]);
 
-  const revealIsCurrent = Boolean(
+  function revealIsCurrent(): boolean {
+    return Boolean(
       reveal &&
-      revealRequest &&
-      revealRequest.venueId === venue.id &&
-      revealRequest.sequence === reveal.sequence &&
-      !revealRequest.interrupted,
-  );
-  const currentReveal = revealIsCurrent ? reveal : null;
+        revealRequest &&
+        revealRequest.venueId === venue.id &&
+        revealRequest.sequence === reveal.sequence &&
+        !revealRequest.interrupted,
+    );
+  }
+  const currentReveal = revealIsCurrent() ? reveal : null;
   const revealVenueId =
     currentReveal?.active
       ? venue.id
@@ -260,7 +265,7 @@ export default function VenueInspector({
   // animation delay places content at final values, while interruption still
   // removes the class through revealIsCurrent.
   const currentRevealRootClasses =
-    revealIsCurrent && currentReveal
+    currentReveal
       ? venueRevealRootClasses({
           active: true,
           form: currentReveal.form,
@@ -384,8 +389,14 @@ export default function VenueInspector({
             setPriceSignInVenueId(venue.id);
             focusPriceDestination("venuePriceSignInTitle");
           },
-          openForm: openPriceForm,
-          abandon: () => setPriceSignInVenueId(null),
+          openForm: () => {
+            openPriceForm();
+            onPriceIntentConsumed?.();
+          },
+          abandon: () => {
+            setPriceSignInVenueId(null);
+            onPriceIntentConsumed?.();
+          },
         },
       });
     });
@@ -393,6 +404,7 @@ export default function VenueInspector({
   }, [
     authConfigured,
     authLoading,
+    onPriceIntentConsumed,
     openPriceForm,
     priceSignInVenueId,
     selectTab,

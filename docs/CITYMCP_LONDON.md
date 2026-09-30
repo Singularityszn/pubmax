@@ -84,6 +84,12 @@ leak into the client.
 - **`components/map/CityStatusBanner.tsx`** — the London-only strip that
   fetches `/api/citymcp/status` on mount and shows one compact headline
   (top signal → tube summary → weather). Only renders when `cityId === "london"`.
+- **`useMobileTflStatus(cityId)`** in `components/mobile/MobileTflPanel.tsx`
+  reads `/api/citymcp/status` through `loadSurfaceJson` only for London. A failed
+  London read retries on reconnect. Other cities make no request from this hook,
+  register no failed-read recovery and receive an empty status.
+  `e2e/mobile-city-transport.spec.ts` checks London recovery and Manchester
+  request suppression. User-facing availability is in [README](../README.md#features).
 - **`components/map/CityPlaceStrip.tsx`** — a compact "Around now" dossier
   strip in the venue-sheet Overview (rating, open-now, hygiene-if-present,
   transit snippet). London-only. Matches the venue via `search_places` by

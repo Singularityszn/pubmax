@@ -72,7 +72,7 @@ export default function CommandPalette({
     const groups: CommandGroup[] = [];
     for (const cmd of matches) if (!groups.includes(cmd.group)) groups.push(cmd.group);
     return groups.flatMap((group) => matches.filter((cmd) => cmd.group === group));
-  }, [query]);
+  }, [paletteCommands, query]);
 
   // Precompute a header flag per row (groups are contiguous, so a header shows
   // only on the first row of each group) — keeps the render branch-free.

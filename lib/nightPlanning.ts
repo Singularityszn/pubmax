@@ -1,6 +1,8 @@
 import { formatGbp } from "@/lib/formatGbp";
+import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import { londonHour } from "@/lib/londonHour";
 import { NIGHT_AREAS, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
+import { planRequestedDrinkCategory } from "@/lib/planDrinkRequest";
 import { cleanText } from "@/lib/textClean";
 import {
   DEFAULT_PLAN_STOP_COUNT,
@@ -28,6 +30,8 @@ export type NightContext = {
   /** Explicit per-person budget for the three-stop route. Never inferred from profile history. */
   budgetLimitPence: number | null;
   zeroProof: boolean;
+  /** Requested priced drink lane; null means no specific category was requested. */
+  drinkCategory?: DrinkCategory | null;
   /**
    * Soft-prefer pubs that join the first-party J D Wetherspoon directory.
    * Never a hard filter: areas with few Spoons must still return three stops.
@@ -62,6 +66,15 @@ const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4
 
 /** Names the chain in free text (Wetherspoon / Wetherspoons / Spoons). */
 const WETHERSPOONS_QUERY_PATTERN = /\bwetherspoons?\b|\bspoons\b/i;
+
+function requestedDrinkCategory(query: string, zeroProof: boolean, reasons: ContextReason[]): DrinkCategory | null {
+  if (zeroProof) return null;
+  const category = planRequestedDrinkCategory(query);
+  if (category) {
+    reasons.push({ field: "drinkCategory", evidence: category, explanation: "Matched the requested drink category." });
+  }
+  return category;
+}
 
 export function inferNightContext(rawQuery: unknown, now = new Date()): InferredNightContext {
   const query = cleanText(rawQuery, 500);
@@ -131,6 +144,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   const accessibility = /wheelchair|step[- ]free|accessible/.test(lower) ? ["step-free"] : [];
   const transportConstraints = /tube/.test(lower) ? ["tube"] : /walk/.test(lower) ? ["walking"] : [];
   const zeroProof = /zero[ -]?proof|alcohol[ -]?free|soft[ -]?drinks?|not drinking|sober|0\.0/.test(lower);
+  const drinkCategory = requestedDrinkCategory(query, zeroProof, reasons);
   const wetherspoonsPreferred = spoonsMentioned;
   if (wetherspoonsPreferred) {
     reasons.push({
@@ -150,6 +164,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
       budget,
       budgetLimitPence,
       zeroProof,
+      drinkCategory,
       wetherspoonsPreferred,
       atmosphere,
       foodNeeds,
@@ -213,6 +228,7 @@ export function cleanNightContextPatch(value: unknown): Partial<NightContext> | 
         ? { budgetLimitPence: row.budgetLimitPence }
         : {}),
     ...(typeof row.zeroProof === "boolean" ? { zeroProof: row.zeroProof } : {}),
+    ...(row.drinkCategory === null || isDrinkCategory(row.drinkCategory) ? { drinkCategory: row.drinkCategory } : {}),
     ...(typeof row.wetherspoonsPreferred === "boolean" ? { wetherspoonsPreferred: row.wetherspoonsPreferred } : {}),
     ...(atmosphere ? { atmosphere } : {}),
     ...(foodNeeds ? { foodNeeds } : {}),
@@ -238,6 +254,7 @@ export function cleanNightContext(value: unknown): NightContext | null {
       ? row.budgetLimitPence
       : null,
     zeroProof: row.zeroProof === true,
+    drinkCategory: isDrinkCategory(row.drinkCategory) ? row.drinkCategory : null,
     wetherspoonsPreferred: row.wetherspoonsPreferred === true,
     atmosphere: cleanContextList(row.atmosphere) ?? [],
     foodNeeds: cleanContextList(row.foodNeeds) ?? [],

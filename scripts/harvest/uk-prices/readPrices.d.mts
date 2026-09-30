@@ -2,13 +2,14 @@ import type { ChainPriceReading } from "@/lib/harvest/chainMenuPrices";
 import type { TavilyPintPrice } from "@/lib/harvest/tavilyPintPrices";
 import type { TavilyVenueDrinkPrice } from "@/lib/harvest/tavilyVenueDrinkPrices";
 import type { UkPriceJudgedReading } from "@/lib/harvest/ukPriceJudgment.server";
-import type { UkPriceReading } from "@/lib/harvest/ukPriceCrawl";
+import type { UkPriceReading, UkPriceSourceFormat } from "@/lib/harvest/ukPriceCrawl";
 
 export function typesafeKeyConfigured(): boolean;
 
 export function readVenueDrinkPricesForHarvest(
   html: string,
   ctx?: { pubName?: string; pageUrl?: string },
+  sourceFormat?: UkPriceSourceFormat,
 ): Promise<{ reading: UkPriceReading; review: UkPriceJudgedReading["review"] }>;
 
 export function readChainPintPricesForHarvest(
