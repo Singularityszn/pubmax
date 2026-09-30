@@ -99,9 +99,9 @@ granted fix and reader-dot source. Its CDP permission override omitted the
 isolated browser context ID, which the installed protocol explicitly requires
 to target an incognito context. The driver now binds that ID and asserts the
 page's actual permission state before location checks. A bounded diagnostic
-run was canceled at the runtime deadline before producing a snapshot. The
+run was cancelled at the runtime deadline before producing a snapshot. The
 private server and browser were stopped. This failed harness attempt supplies
-no product-cause claim. All failed, canceled and passing command logs remain
+no product-cause claim. All failed, cancelled and passing command logs remain
 local and ignored.
 
 The corrected driver then passed all three states against the existing passed
@@ -122,7 +122,7 @@ CDP controls permission states and a simulated GPS fix. The harness seeds
 remembered mode, old viewport and real public venue rows; native-call counters
 forward to Chromium's original methods. App location callbacks, storage,
 reader-dot source and rendered point, camera, painted marks and denial UI run
-through the actual production page. This proves browser behavior with
+through the actual production page. This proves browser behaviour with
 controlled location inputs, not physical-device GPS or manual permission UI.
 Completed readings are in `location-browser.json`; screenshots are
 `location-granted.png`, `location-denied.png`, `location-prompt.png` and
@@ -137,7 +137,7 @@ dependencies, the HEAD baseline also reports two warnings: the unchanged
 `trimmedMapQuery` dependency warning, plus the component's complexity warning.
 Its complexity moved from 51 to 54. Final application gate, production build and
 corrected native three-state browser proof passed. An indentation-only change
-to the accepted-location callback followed the build; application behavior was
+to the accepted-location callback followed the build; application behaviour was
 unchanged for the browser replay.
 
 ## Current map behaviour

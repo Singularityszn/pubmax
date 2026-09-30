@@ -30,6 +30,6 @@ Native Codex CLI 0.158.0 app-server discovery parsed 1,206 entries with zero err
 
 Official frozen Bun installation and build exited zero. Browser, design, PDF and CSO tools built. Official setup did not run; only the previously absent gstack runtime link was added. Existing settings, hooks, manager lock and 2,579 regular shared skill files had zero hash changes.
 
-Actual browser smoke used a disposable loopback fixture and isolated daemon state. Navigation returned 200, a button click changed output, health was healthy and stop exited zero. All six commands exited zero. Browser installation used an isolated cache; shared cache stayed unchanged. This proves fixture browser operation, not PUBMAXX UI behavior. Design generation, PDF extraction and CSO scans were not exercised.
+Actual browser smoke used a disposable loopback fixture and isolated daemon state. Navigation returned 200, a button click changed output, health was healthy and stop exited zero. All six commands exited zero. Browser installation used an isolated cache; shared cache stayed unchanged. This proves fixture browser operation, not PUBMAXX UI behaviour. Design generation, PDF extraction and CSO scans were not exercised.
 
 Official generation warned that unregistered Hermes and GBrain ship prompts exceed upstream token ceilings. Those generated hosts were not registered. Fresh npm metadata confirmed skills CLI 1.7.0, gh-axi 0.1.35 and chrome-devtools-axi 0.1.35 as current; no replacement was needed.
