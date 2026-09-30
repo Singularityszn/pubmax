@@ -87,14 +87,21 @@ export default function MobileSharedSheet({
   const venueRevealSettleSequenceRef = useRef(venueRevealSettleSequence);
   const initialSnapRequestRef = useRef<MapSheetDetent | null>(null);
   const onDismissRef = useRef(onDismiss);
+  const onCloseRef = useRef(onClose);
+  const dismissToRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     onDismissRef.current = onDismiss;
-  }, [onDismiss]);
+    onCloseRef.current = onClose;
+  }, [onClose, onDismiss]);
   const onInterruptRevealRef = useRef(onInterruptReveal);
   useEffect(() => {
     onInterruptRevealRef.current = onInterruptReveal;
   }, [onInterruptReveal]);
-  const finishDismiss = useCallback(() => onDismissRef.current(), []);
+  const finishDismiss = useCallback(() => {
+    const dismissTo = dismissToRef.current ?? onDismissRef.current;
+    dismissToRef.current = null;
+    dismissTo();
+  }, []);
 
   const {
     sheetSnap,
@@ -126,6 +133,11 @@ export default function MobileSharedSheet({
   const requestClose = useCallback(() => {
     requestDismiss(sheetRef.current?.getBoundingClientRect().height);
   }, [requestDismiss]);
+  // Home leaves from any depth: it closes to the map, never one step back.
+  const requestHome = useCallback(() => {
+    dismissToRef.current = () => onCloseRef.current();
+    requestClose();
+  }, [requestClose]);
   // Escape steps back one level when there is a level to step back to, and
   // leaves for the map otherwise. It is the keyboard's Back, so it may not do
   // something the Back arrow beside it does not.
@@ -293,7 +305,7 @@ export default function MobileSharedSheet({
               focuses ITSELF on open (see the open effect above) rather than the
               Home control. Handing this a ref would put the accent ring back on
               the way out the instant a sheet opened. */}
-          <SurfaceNav backLabel={backLabel} onBack={onBack} homeLabel={closeButtonLabel} onHome={requestClose} />
+          <SurfaceNav backLabel={backLabel} onBack={onBack} homeLabel={closeButtonLabel} onHome={requestHome} />
         </header>
         <div className="mobileSharedSheetBody">
           <SheetFooterContext.Provider value={footerEl}>{children}</SheetFooterContext.Provider>

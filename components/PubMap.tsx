@@ -569,7 +569,8 @@ import SurfaceNav from "@/components/ui/surface-nav";
 import LandmarkStoryBody, { LandmarkStoryHead } from "@/components/map/LandmarkStoryBody";
 import { nearestStoryPubs } from "@/lib/landmarkVenueProximity";
 import { landmarkAreaLine, nightAreaContaining } from "@/lib/landmarkArea";
-import { homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
+import { currentSurface, homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
+import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { mapListOpenFromSearch } from "@/lib/mapListRoute";
 import {
   filtersForCuratedCrawl,
@@ -722,6 +723,17 @@ function dropLogParamFromUrl(): void {
   );
 }
 
+/** Whether a history entry holds the "Choose a pub" picker of a price request. */
+function holdsPricePicker(state: unknown): boolean {
+  const held = readMapSurfaceHistory<MapSurfaceState>(state);
+  const top = held ? currentSurface(held) : null;
+  return top?.id === "moment" && top.state?.pricePicker === true;
+}
+
+function dropLogParamUnlessPricePicker(event: PopStateEvent): void {
+  if (!holdsPricePicker(event.state)) dropLogParamFromUrl();
+}
+
 function useMapLogRequest(searchParams: ReturnType<typeof useSearchParams>) {
   const [logIntentFallbackVisible, setLogIntentFallbackVisible] = useState(false);
   // Dismiss the current request while Next's native-history adapter publishes
@@ -759,15 +771,20 @@ function useMapLogRequest(searchParams: ReturnType<typeof useSearchParams>) {
   });
   useEffect(() => {
     if (!logIntentCleared || typeof window === "undefined") return;
-    window.addEventListener("popstate", dropLogParamFromUrl);
-    return () => window.removeEventListener("popstate", dropLogParamFromUrl);
+    window.addEventListener("popstate", dropLogParamUnlessPricePicker);
+    return () => window.removeEventListener("popstate", dropLogParamUnlessPricePicker);
   }, [logIntentCleared]);
+  // Back to the picker a price request was made from puts that request back.
+  const restoreLogIntent = useCallback(() => {
+    setLogIntentDismissal((current) => (current.cleared ? { ...current, cleared: false } : current));
+  }, []);
   const hasCategoryPriceIntent =
     searchParams.get("contribute") === "price" && !logIntentCleared;
   return {
     logIntentFallbackVisible,
     setLogIntentFallbackVisible,
     clearLogIntent,
+    restoreLogIntent,
     logIntentPrice,
     hasReactiveLogIntent,
     hasCategoryPriceIntent,
@@ -1727,6 +1744,7 @@ export default function PubMap({
     logIntentFallbackVisible,
     setLogIntentFallbackVisible,
     clearLogIntent,
+    restoreLogIntent,
     logIntentPrice,
     hasReactiveLogIntent,
     hasCategoryPriceIntent,
@@ -4063,15 +4081,15 @@ export default function PubMap({
   });
 
   // A picked price request belongs to the first pub it opened at, including
-  // across that pub's sign-in gate and return. Reaching any other pub retires
-  // it before that pub's inspector can read it from the URL.
+  // across that pub's sign-in gate and return. Reaching any other pub without
+  // choosing it from the picker again retires it before that pub's inspector
+  // can read it from the URL.
   const priceIntentVenueRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!hasCategoryPriceIntent) {
+    if (!hasCategoryPriceIntent || !selectedVenueId) {
       priceIntentVenueRef.current = null;
       return;
     }
-    if (!selectedVenueId) return;
     priceIntentVenueRef.current ??= selectedVenueId;
     if (priceIntentVenueRef.current !== selectedVenueId) clearLogIntent();
   }, [clearLogIntent, hasCategoryPriceIntent, selectedVenueId]);
@@ -4815,17 +4833,20 @@ export default function PubMap({
     }),
     [activeLandmarkId, mobileLayersTab, pricePickerOpen, searchAreaTarget, selectedVenueId, venueInitialTab],
   );
-  const closeEverySurface = useCallback(() => {
+  const closeMapSurfaces = useCallback(() => {
     clearAreaSheetTimer();
     setSearchAreaTarget(null);
-    clearLogIntent();
     closeComposer();
     setMapOverlay("none");
     setSelectedVenueId("");
     setPlanningOpen(false);
     setMapListOpen(false);
     setActiveLandmarkId("");
-  }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen, setSelectedVenueId]);
+  }, [clearAreaSheetTimer, closeComposer, setPlanningOpen, setSelectedVenueId]);
+  const closeEverySurface = useCallback(() => {
+    clearLogIntent();
+    closeMapSurfaces();
+  }, [clearLogIntent, closeMapSurfaces]);
 
   useEffect(() => {
     const onDismiss = () => closeEverySurface();
@@ -4834,12 +4855,15 @@ export default function PubMap({
   }, [closeEverySurface]);
   const restoreMapSurface = useCallback(
     (entry: SurfaceEntry<MapSurfaceState> | null) => {
+      const held = entry?.state ?? EMPTY_MAP_SURFACE_STATE;
+      if (entry?.id === "moment" && held.pricePicker) {
+        closeMapSurfaces();
+        restoreLogIntent();
+        setMapOverlay("moment");
+        return;
+      }
       closeEverySurface();
       if (!entry) return;
-      const held = entry.state ?? EMPTY_MAP_SURFACE_STATE;
-      // Closing everything retired the price request, and the Pint Drop picker
-      // this would reopen is not the one the reader chose a pub from.
-      if (entry.id === "moment" && held.pricePicker) return;
       if (entry.id === "venue") {
         // Restore the tab the reader left on, not the overview default.
         setVenueInitialTab((held.venueTab || "overview") as VenueTabRequest);
@@ -4873,7 +4897,7 @@ export default function PubMap({
       );
       setMapOverlay(entry.id as MapOverlay);
     },
-    [closeEverySurface, setPlanningOpen, setSelectedVenueId],
+    [closeEverySurface, closeMapSurfaces, restoreLogIntent, setPlanningOpen, setSelectedVenueId],
   );
   const mapSurfaceTrail = useMapSurfaceNavigation({
     arrivalSearch,

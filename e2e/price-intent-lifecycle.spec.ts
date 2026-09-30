@@ -113,3 +113,49 @@ test("an anonymous price intent retires when a client navigation opens another p
   await expect(gate).toHaveCount(0);
   await expect.poll(() => contributeParam(page)).toBeNull();
 });
+
+test("Back from a gated pub returns to the price picker, which still opens another pub's price door", async ({ page }) => {
+  await page.goto("/map/manchester?drink=wine");
+  await openCreateLogAPrice(page);
+  const nearby = page.locator(".logIntentNearbyBtn");
+  await expect(nearby.nth(1)).toBeVisible();
+  const firstVenue = (await nearby.first().locator("span").first().textContent())?.trim();
+  expect(firstVenue).toBeTruthy();
+  const picker = page.getByText("Pick a pub to log a price", { exact: true });
+  const gate = venueSheet(page).getByRole("heading", { name: "Sign in to add a price" });
+
+  await nearby.first().click();
+  await expect(gate).toBeVisible();
+  await expect(venueSheet(page)).toContainText(firstVenue!);
+
+  await venueSheet(page).getByRole("button", { name: "Back to Choose a pub" }).click();
+  await expect(venueSheet(page)).toHaveCount(0);
+  await expect(picker).toBeVisible();
+  expect(contributeParam(page)).toBe("price");
+
+  // The picker re-sorts around the map; take any pub but the first one.
+  const another = nearby.filter({ hasNotText: firstVenue! }).first();
+  const secondVenue = (await another.locator("span").first().textContent())?.trim();
+  expect(secondVenue).toBeTruthy();
+  await another.click();
+  await expect(gate).toBeVisible();
+  await expect(venueSheet(page)).toContainText(secondVenue!);
+  expect(contributeParam(page)).toBe("price");
+
+  await page.goBack();
+  await expect(venueSheet(page)).toHaveCount(0);
+  await expect(picker).toBeVisible();
+  expect(contributeParam(page)).toBe("price");
+
+  const third = nearby.filter({ hasNotText: secondVenue! }).first();
+  const thirdVenue = (await third.locator("span").first().textContent())?.trim();
+  expect(thirdVenue).toBeTruthy();
+  await third.click();
+  await expect(gate).toBeVisible();
+  await expect(venueSheet(page)).toContainText(thirdVenue!);
+
+  await venueSheet(page).locator(".surfaceNavHome").click();
+  await expect(venueSheet(page)).toHaveCount(0);
+  await expect(page.getByText(/Pick a pub to log a/)).toHaveCount(0);
+  await expect.poll(() => contributeParam(page)).toBeNull();
+});

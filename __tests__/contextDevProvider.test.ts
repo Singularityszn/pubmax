@@ -326,7 +326,15 @@ describe("runContextDevEventsLane", () => {
     expect(result.dropped).toMatchObject({ ungrounded: 1, noTitle: 0, total: 1 });
   });
 
-  it.each(["CET", "PST", "cet", "Europe/Paris", "Eastern Standard Time", "Paris time", "Moscow time", "Chicago time", "ET", "PT", "MSK", "SAST", "eastern time", "EASTERN TIME", "pacific time", "moscow time", "MOSCOW TIME", "central european time", "Central European Time"])("refuses unsupported explicit zone %s", async (zone) => {
+  it("refuses an unknown lowercase place-before-time zone on a winter listing", async () => {
+    const result = await capturedEvent("Quiz at The Dove on 18 December 2026 at 20:00 lagos time", {
+      title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2026-12-18T20:00:00Z",
+    });
+    expect(result.rows).toEqual([]);
+    expect(result.dropped).toMatchObject({ ungrounded: 1 });
+  });
+
+  it.each(["CET", "PST", "cet", "Europe/Paris", "Eastern Standard Time", "Paris time", "Moscow time", "Chicago time", "ET", "PT", "MSK", "SAST", "eastern time", "EASTERN TIME", "pacific time", "moscow time", "MOSCOW TIME", "central european time", "Central European Time", "lagos time", "Lagos Time"])("refuses unsupported explicit zone %s", async (zone) => {
     const result = await capturedEvent(`Quiz at The Dove on 18 August 2027 at 20:00 ${zone}`, {
       title: "Quiz", placeName: "The Dove", kind: "event", startsAt: "2027-08-18T19:00:00Z",
     });

@@ -165,21 +165,15 @@ const caseless = (word: string) =>
   word.replace(/[a-z]/g, (letter) => `[${letter}${letter.toUpperCase()}]`).replace(/ /g, "\\s+");
 
 // Only an explicit zone counts: a known abbreviation ("CET", "1pm ET"), an
-// IANA name, an offset, a named zone before "time" in any case ("8pm eastern
-// time") or a capitalised place before it ("Moscow Time"). "8PM PUB QUIZ",
-// "9PM FRI" and "until closing time" name no zone.
+// IANA name, an offset, or words before "time" in any case ("8pm eastern
+// time", "lagos time") unless they end in evening copy ("until closing time",
+// "happy hour time"). "8PM PUB QUIZ" and "9PM FRI" name no zone.
 const ZONE_ABBREVIATIONS = [
   "gmt", "utc", "bst", "cest", "cet", "eest", "eet", "edt", "est", "cdt", "cst", "mdt", "mst", "pdt",
   "pst", "akst", "akdt", "ist", "jst", "aest", "aedt", "awst", "nzst", "nzdt", "hkt", "sgt", "msk", "sast",
 ];
 const CAPITAL_ONLY_ZONE_ABBREVIATIONS = ["ET", "PT", "CT", "MT"];
-const NAMED_ZONES = [
-  "london", "uk", "greenwich mean", "british summer", "central european", "eastern european", "western european",
-  "eastern", "central", "mountain", "pacific", "atlantic", "alaska", "hawaii", "moscow", "paris", "berlin",
-  "madrid", "rome", "amsterdam", "dublin", "irish", "indian", "india", "japan", "tokyo", "sydney", "new york",
-  "los angeles", "chicago", "dubai",
-];
-// Title-case evening copy ("Until Closing Time", "Match Time") is not a place.
+// Evening copy before "time" ("until closing time", "Match Time") is not a place.
 const EVENING_TIME_WORDS = new Set([
   "CLOSING", "START", "STARTING", "OPENING", "KICK-OFF", "KICKOFF", "ORDERS", "HOUR", "SHOW", "DOORS", "HOME",
   "FINISH", "PARTY", "QUIZ", "GAME", "MATCH", "TEA", "BED", "PLAY",
@@ -187,7 +181,7 @@ const EVENING_TIME_WORDS = new Set([
 
 const STATED_CLOCK = new RegExp(
   "(?<![\\p{L}\\p{N}])(?:(1[0-2]|0?[1-9])(?::([0-5]\\d))?\\s*([aApP][mM])|([01]?\\d|2[0-3]):([0-5]\\d))" +
-    `(?:\\s*([zZ]|[+-](?:0\\d|1[0-4]):[0-5]\\d|[A-Za-z]+\\/[A-Za-z_]+|(?:${NAMED_ZONES.map(caseless).join("|")})(?:\\s+${caseless("standard")}|\\s+${caseless("daylight")}|\\s+${caseless("summer")})?\\s+${caseless("time")}|(?:[A-Z][A-Za-z]*(?:-[A-Za-z]+)?\\s+){1,3}${caseless("time")}|${[...ZONE_ABBREVIATIONS.map(caseless), ...CAPITAL_ONLY_ZONE_ABBREVIATIONS].join("|")}))?` +
+    `(?:\\s*([zZ]|[+-](?:0\\d|1[0-4]):[0-5]\\d|[A-Za-z]+\\/[A-Za-z_]+|(?:[A-Za-z]+(?:-[A-Za-z]+)?\\s+){1,3}${caseless("time")}|${[...ZONE_ABBREVIATIONS.map(caseless), ...CAPITAL_ONLY_ZONE_ABBREVIATIONS].join("|")}))?` +
     "(?![\\p{L}\\p{N}])",
   "gu",
 );
