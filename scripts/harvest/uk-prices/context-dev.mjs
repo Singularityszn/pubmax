@@ -130,6 +130,7 @@ export function createContextDevPriceReader(options = {}) {
         category: row.category,
         priceGbp: row.priceGbp,
         ...(row.drinkLabel ? { drinkLabel: row.drinkLabel } : {}),
+        ...(row.servingSize ? { servingSize: row.servingSize } : {}),
         sourceUrl: result.url || url,
         observedAt: new Date().toISOString(),
         linesOnPage: reading.kept.length,

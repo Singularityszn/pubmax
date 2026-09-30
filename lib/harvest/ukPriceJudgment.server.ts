@@ -13,11 +13,12 @@ import {
   type UkPriceJudgmentProbabilities,
 } from "@/lib/harvest/ukPriceJudgmentPolicy";
 import {
-  decideKeylessUkPriceCandidate,
   drinkLabelFromPriceContext,
   findUkPriceCandidates,
   pageText,
+  readKeylessUkPriceDecisions,
   readVenueDrinkPrices,
+  statedWineIdentity,
   type UkPriceCandidate,
   type UkPriceDropReason,
   type UkPriceRawCandidate,
@@ -132,16 +133,6 @@ function dropForTypesafeBatchFailure(
   return "typesafe-judgment-call-error";
 }
 
-function applyKeylessFallback(
-  text: string,
-  raw: UkPriceRawCandidate,
-  drop: UkPriceDropReason,
-): { kept?: UkPriceCandidate; drops: UkPriceDropReason[] } {
-  const keyless = decideKeylessUkPriceCandidate(text, raw);
-  if (keyless.kept) return { kept: keyless.kept, drops: [drop] };
-  return { drops: keyless.drop ? [drop, keyless.drop] : [drop] };
-}
-
 function applyJudgmentToCandidate(
   raw: UkPriceRawCandidate,
   probs: UkPriceJudgmentProbabilities,
@@ -169,11 +160,15 @@ function applyJudgmentToCandidate(
     return { drops: [decision.drop ?? "judgment-below-threshold"] };
   }
   if (decision.category) {
+    const priceAtInSnippet = raw.at - Math.max(0, raw.at - UK_PRICE_JUDGMENT_SNIPPET_CHARS);
+    const wineIdentity = decision.category === "wine"
+      ? statedWineIdentity(raw.snippet, raw.verbatim, priceAtInSnippet)
+      : null;
     const drinkLabel =
-      drinkLabelFromPriceContext(
+      wineIdentity?.drinkLabel ?? drinkLabelFromPriceContext(
         raw.snippet,
         raw.verbatim,
-        raw.at - Math.max(0, raw.at - UK_PRICE_JUDGMENT_SNIPPET_CHARS),
+        priceAtInSnippet,
       ) ?? undefined;
     return {
       kept: {
@@ -182,6 +177,7 @@ function applyJudgmentToCandidate(
         verbatim: raw.verbatim,
         context: raw.snippet,
         drinkLabel,
+        ...(wineIdentity ? { servingSize: wineIdentity.servingSize } : {}),
       },
       drops: [],
     };
@@ -246,7 +242,7 @@ export async function readVenueDrinkPricesJudged(
     return { ...readVenueDrinkPrices(html), review: [] };
   }
 
-  const text = pageText(html);
+  const text = pageText(html, true);
   const candidates = findUkPriceCandidates(text, UK_PRICE_JUDGMENT_SNIPPET_CHARS);
   if (candidates.length === 0) {
     return { kept: [], drops: ["no-price-on-page"], review: [] };
@@ -256,6 +252,7 @@ export async function readVenueDrinkPricesJudged(
   const drops: UkPriceDropReason[] = [];
   const review: UkPriceJudgmentReviewRow[] = [];
   const batches = batchUkPriceCandidates(ctx, candidates);
+  const keylessDecisions = readKeylessUkPriceDecisions(html);
 
   for (const batch of batches) {
     const verbatimBatch = batch.filter((raw) => {
@@ -270,9 +267,10 @@ export async function readVenueDrinkPricesJudged(
     const judged = await judgeUkPriceCandidateBatch(ctx, verbatimBatch);
     if (!judged.ok) {
       for (const raw of verbatimBatch) {
-        const fallback = applyKeylessFallback(text, raw, judged.drop);
+        const fallback = keylessDecisions.get(raw.at)!;
         if (fallback.kept) kept.push(fallback.kept);
-        drops.push(...fallback.drops);
+        drops.push(judged.drop);
+        if (fallback.drop) drops.push(fallback.drop);
       }
       continue;
     }

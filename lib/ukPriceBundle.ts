@@ -83,9 +83,49 @@ export type UkPriceBundleRow = {
    * 80 chars). Absent when the producing lane stated category only.
    */
   drinkLabel?: string;
+  /** Source-stated serving, such as 125ml or Btl; absence means unknown volume. */
+  servingSize?: string;
   /** Closed subtype from lib/drinkSubtypes.ts when the label classifies; never guessed. */
   drinkSubtype?: string;
 };
+
+/**
+ * Source-ledger observations with a printed item that contradicts its assigned
+ * category. Keep the observations in site_harvest.jsonl for audit, but do not
+ * let these exact claims become listed facts. Match the source and printed item
+ * as well as category and price, so other drinks on these menus still publish.
+ */
+const CATEGORY_QUARANTINE: ReadonlyArray<
+  Pick<UkPriceBundleRow, "sourceUrl" | "category" | "priceGbp" | "drinkLabel">
+> = [
+  { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "gin", priceGbp: 9, drinkLabel: "0% Tropical Negroni Three Spirit Livener, Lyres Italian Spritz, Tanqueray 0.0%" },
+  { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "shot", priceGbp: 12, drinkLabel: "1.50 Picante Spritz Altos Plata tequila, Beesou honey, green chilli, lime, soda" },
+  { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "whisky", priceGbp: 10, drinkLabel: "ary Absolut Tabasco Vodka, Tomato Juice, Worcestershire Sauce, Spices, Rosemary" },
+  { sourceUrl: "https://www.theploughstjohnshill.co.uk/the-bar/", category: "wine", priceGbp: 5.35, drinkLabel: "Pineapple & Yuzu Pineapple, coconut, apple, yuzu, soda 86kcal" },
+  { sourceUrl: "https://www.theguardhousewoolwich.co.uk/food-and-drink/", category: "cocktail", priceGbp: 8, drinkLabel: "Berry Hugo 0.0% Three Spirit Livener 0.0%, Watermelon, Elderflower, Soda 93kcal" },
+  { sourceUrl: "https://georgeanddragonacton.co.uk/drinks-menu", category: "wine", priceGbp: 3, drinkLabel: "Frobishers Juice (250ml)" },
+  { sourceUrl: "https://www.spreadeaglewandsworth.co.uk/food-drinks/", category: "wine", priceGbp: 5.4, drinkLabel: "Raspberry Elderflower, apple juice, Fever-Tree raspberry & orange blossom soda" },
+  { sourceUrl: "https://www.kingsarmsoxford.co.uk/food-drink/", category: "wine", priceGbp: 4.85, drinkLabel: ".85 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal" },
+  { sourceUrl: "https://www.owlandpussycatshoreditch.com/food-drink/", category: "wine", priceGbp: 5.5, drinkLabel: "Elderflower & Raspberry Cooler Orange Blossom, Raspberry, Elderflower, and Soda" },
+  { sourceUrl: "https://www.windmillclapham.co.uk/food-drink/", category: "wine", priceGbp: 5.4, drinkLabel: ".40 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal" },
+  { sourceUrl: "https://www.tellersarmsfarnham.co.uk/food-drinks/", category: "wine", priceGbp: 5.15, drinkLabel: ".15 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal" },
+  { sourceUrl: "https://www.groveexmouth.co.uk/food-drink/", category: "wine", priceGbp: 4.85, drinkLabel: ".85 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal" },
+  { sourceUrl: "https://www.whitehart-ford.com/food-drink/", category: "wine", priceGbp: 4.6, drinkLabel: "60 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88 kcal" },
+  { sourceUrl: "https://www.almawandsworth.com/food-drink/", category: "wine", priceGbp: 5.4, drinkLabel: "Elderflower & Raspberry Orange blossom, elderflower, raspberry, soda / 88 Kcal" },
+  { sourceUrl: "https://www.thebullditchling.com/food-drink/", category: "wine", priceGbp: 5.15, drinkLabel: ".15 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal" },
+  { sourceUrl: "https://www.thedukeofwellingtonpub.com/food-and-drinks?menu=spritz", category: "wine", priceGbp: 4, drinkLabel: "om, Raspberry, Elderflower, Soda 88kcal Light & Sparkling (AF) Raspberry & Rose" },
+  { sourceUrl: "https://www.cockandbottlew11.com/food-drink?menu=spritz-menu", category: "wine", priceGbp: 4.45, drinkLabel: "om, Raspberry, Elderflower, Soda 88kcal Light & Sparkling (AF) Raspberry & Rose" },
+  { sourceUrl: "https://www.orangetreerichmond.co.uk/food-drink/", category: "wine", priceGbp: 5.35, drinkLabel: ".35 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal" },
+  { sourceUrl: "https://www.theprideofpaddington.co.uk/food-drink/", category: "wine", priceGbp: 3.95, drinkLabel: "50 Elderflower & Raspberry Cooler Orange Blossom, Raspbberry, Elderflower, Soda" },
+];
+
+export function isCategoryQuarantined(row: UkPriceBundleRow): boolean {
+  return row.lane === "site-harvest" && row.standing === "listed" &&
+    CATEGORY_QUARANTINE.some((item) =>
+      item.sourceUrl === row.sourceUrl && item.category === row.category &&
+      item.priceGbp === row.priceGbp && item.drinkLabel === row.drinkLabel,
+    );
+}
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -131,6 +171,12 @@ export function isValidUkPriceBundleRow(value: unknown): value is UkPriceBundleR
     if (typeof row.drinkLabel !== "string" || row.drinkLabel.length === 0) return false;
     if (row.drinkLabel.length > UK_PRICE_BUNDLE_DRINK_LABEL_MAX) return false;
   }
+  if (row.servingSize !== undefined) {
+    if (typeof row.servingSize !== "string" || row.servingSize.trim() !== row.servingSize ||
+        row.servingSize.length === 0 || row.servingSize.length > 40 ||
+        /\p{Cc}/u.test(row.servingSize)) return false;
+    if (row.standing !== "listed") return false;
+  }
   if (row.drinkSubtype !== undefined) {
     if (!isValidBundleDrinkSubtypeForRow(row.category, row.drinkSubtype)) return false;
     if (typeof row.drinkLabel !== "string" || !row.drinkLabel.trim()) return false;
@@ -140,7 +186,7 @@ export function isValidUkPriceBundleRow(value: unknown): value is UkPriceBundleR
 
 export function parseUkPriceBundleRows(raw: unknown): UkPriceBundleRow[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter(isValidUkPriceBundleRow);
+  return raw.filter((row) => isValidUkPriceBundleRow(row) && !isCategoryQuarantined(row));
 }
 
 /**
@@ -150,7 +196,7 @@ export function parseUkPriceBundleRows(raw: unknown): UkPriceBundleRow[] {
  * to remember the rule.
  */
 export function authoritativeBundleRows(rows: readonly UkPriceBundleRow[]): UkPriceBundleRow[] {
-  return rows.filter((row) => standingCarriesAuthority(row.standing));
+  return rows.filter((row) => standingCarriesAuthority(row.standing) && !isCategoryQuarantined(row));
 }
 
 /**
@@ -184,6 +230,7 @@ function bundlePriceInputs(rows: readonly UkPriceBundleRow[]): {
   let listed: UkPriceBundleRow | undefined;
   let estimate: UkPriceBundleRow | undefined;
   for (const row of rows) {
+    if (isCategoryQuarantined(row)) continue;
     if (row.standing === "listed" && row.sourceUrl) {
       if (bundleRowSupersedes(row, listed)) listed = row;
       continue;
@@ -255,9 +302,9 @@ export function bundleRowSupersedes(
   return candidate.priceGbp < held.priceGbp;
 }
 
-/** The ONE collect key `scripts/build_uk_price_bundle.mjs` uses per pub, drink and lane. */
+/** Shared collect key keeps named servings separate within each pub and lane. */
 export function ukPriceBundleCollectKey(
-  row: Pick<UkPriceBundleRow, "venueId" | "category" | "lane" | "drinkLabel">,
+  row: Pick<UkPriceBundleRow, "venueId" | "category" | "lane" | "drinkLabel" | "servingSize">,
 ): string {
   return `${row.venueId} ${row.category} ${bundleRowDedupeDrinkKey(row)} ${row.lane}`;
 }

@@ -42,6 +42,7 @@ export type OcrPriceRow = {
   category: DrinkCategory;
   priceGbp: number;
   drinkLabel?: string;
+  servingSize?: string;
   sourceUrl: string;
   observedAt: string;
   pubsOnHost: number;
