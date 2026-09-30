@@ -91,6 +91,7 @@ import {
 } from "@/lib/mapVenueList";
 import { UK_BOUNDS } from "@/components/map/canvas/tokens";
 import MapFallbackCard from "@/components/map/MapFallbackCard";
+import MapKey from "@/components/map/MapKey";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
@@ -191,7 +192,6 @@ const DrinkLanePicker = dynamic(() => import("@/components/map/DrinkLanePicker")
 const DrinkShapeChips = dynamic(() => import("@/components/map/DrinkShapeChips"), {
   ssr: false,
 });
-const MapKey = dynamic(() => import("@/components/map/MapKey"), { ssr: false });
 const MapPriceFilterChips = dynamic(() => import("@/components/map/MapPriceFilterChips"), {
   ssr: false,
 });
