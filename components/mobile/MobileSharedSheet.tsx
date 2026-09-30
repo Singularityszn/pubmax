@@ -32,9 +32,9 @@ import "@/components/mobile/mobileMapShell.css";
  * mobileMapShell.css), so the sheet's rendered height is min(natural content,
  * cap): short content HUGS (no void) and tall content caps and scrolls inside
  * the body while header + footer stay pinned. There is no content measuring, no
- * translateY snap panel, and no reserved dock band — the box's visible bottom
- * edge is the viewport bottom and the last content pixel sits exactly a
- * safe-area inset above it. A drag grows/shrinks the box height directly
+ * translateY snap panel. Bottom clearance follows `.mobileSheetPortal` in
+ * mobileMapShell.css, keeping a visible tab bar outside the scrollport.
+ * A drag grows/shrinks the box height directly
  * (useSheetHeightDrag writes an inline max-height in px); a release settles to a
  * snap cap. The footer slot holds the venue command bar (portaled in via
  * SheetFooterContext); contextual + planner sheets have no footer.

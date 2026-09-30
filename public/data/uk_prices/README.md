@@ -93,6 +93,10 @@ Different explicit servings and an unknown serving stay distinct. For each
 key, the newest observation wins; equal timestamps keep the lowest price.
 `ukPriceBundleCollectKey` and `bundleRowSupersedes` in `lib/ukPriceBundle.ts`
 own this ordering, shared with the site-harvest ledger.
+Before keying or publication, `normalizeSiteHarvestLedgerRow` in
+`lib/siteHarvestLedgerCore.ts` splits a trailing wine measure from a legacy name
+when no serving field exists. "Merlot 175ml" and "Merlot" with `175ml` therefore
+share a key; this does not change the observation date.
 
 The crawl's own findings, including everything it read and found nothing on,
 are in `data/uk_prices/harvest_report.json` and

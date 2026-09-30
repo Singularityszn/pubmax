@@ -14,8 +14,8 @@ type SelParamSyncArgs = {
 // /map?sel=<id> while the map is already mounted (e.g. "See on map" from a
 // card) used to be ignored. Sync it: when the param changes
 // to a venue that isn't the current selection, select it. The URL is the
-// source of truth only in that direction — closing the sheet locally does
-// not rewrite the param, matching the other seeded params' behaviour.
+// source of truth only in that direction. Local opens and closes belong to
+// useMapSurfaceNavigation; this hook must not reopen an owned history restore.
 //
 // The ref-compare (NOT a dep) means only
 // URL changes fire this — local selection changes never re-run it, and an

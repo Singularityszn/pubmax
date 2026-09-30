@@ -174,9 +174,9 @@ Create, route replacement, and proposal creation treat submitted evidence as a h
 
 Creation hashes canonical submitted intent, including the cleaned hint, independently of the mutable server price lookup. A replay of the same create request returns the original saved result even if price coverage changes. A changed submitted hint conflicts. Route replacement revalidates hints; context edits clear live stop evidence that no longer matches. Replacement also checks the effective context while holding the Plan row lock.
 
-Accepted proposals copy their proposal-time evidence. Completion records preserve saved stop evidence as history, so later live-route edits do not rewrite the completion. These operations do not refresh the historical report date. Current limits: anchor-only generation and the map-to-Plan transfer omit selected-drink evidence; durable proposal acceptance does not recheck a category change made after proposal creation. Do not interpret those paths as complete evidence persistence.
+Accepted proposals copy their proposal-time evidence only when it matches the current drink category and the context is not zero-proof. Durable acceptance checks that context while holding the Plan row lock. Completion records preserve saved stop evidence as history, so later live-route edits do not rewrite the completion. These operations do not refresh the historical report date. Anchor-only generation can return selected-drink evidence; the map-to-Plan transfer still omits it.
 
-Migrations `0161` through `0167` and their matching files in [`supabase/migrations/rollback/`](../supabase/migrations/rollback/) implement durable storage and lifecycle writes. The SQL constraints own the database value shape. `plans.night_context` holds planning intent, not per-stop price evidence; proposal and completion snapshots have their own lifecycles. A missing-column read can fall back to the legacy route without evidence; an older write RPC can return a route without saving evidence. Inspect the returned state before claiming a report was saved. Applying migrations to shared infrastructure remains an operator decision. The [local proof record](proof/wine-intent/saved-plan-price-persistence-blocker.md) records checks, not deployment state.
+The SQL in [`supabase/migrations/`](../supabase/migrations/) and its matching [rollbacks](../supabase/migrations/rollback/) owns durable storage, lifecycle writes, and database value constraints. `plans.night_context` holds planning intent, not per-stop price evidence; proposal and completion snapshots have their own lifecycles. A missing-column read can fall back to the legacy route without evidence; an older write RPC can return a route without saving evidence. Inspect the returned state before claiming a report was saved. Applying migrations to shared infrastructure remains an operator decision. The [local proof record](proof/wine-intent/saved-plan-price-persistence-blocker.md) records checks, not deployment state.
 
 ### 2.4 NightArea catalogue
 
@@ -294,16 +294,19 @@ The response excerpt above omits price fields. [`buildPlanGenerationStops`](../l
 
 [`planBudgetSummary`](../lib/planGenerationDto.ts) returns unknown per-person and crew totals and `withinLimit: null` for non-beer and zero-proof contexts, with basis `selected-drink-price-unavailable`. Individual community reports do not establish comparable servings for a budget total. No selected category, or explicit beer without zero-proof, retains the pint path. Keep-going extensions likewise omit pint figures for other drinks. Persistence follows the [selected-drink evidence contract](#selected-drink-price-evidence).
 
+Unanchored generation with a per-person ceiling requires usable budget evidence. Non-beer and zero-proof contexts cannot satisfy it with pint prices, so they return `422 GROUNDED_CONSTRAINTS_UNSATISFIED` with `details.rejected.budgetEvidence` rather than an estimated route within the ceiling. [`selectPlanGenerationCandidates`](../lib/planGenerationSelection.server.ts) owns the selection boundary.
+
 ### Errors
 
 | Status | Condition | Current body |
 | --- | --- | --- |
 | `400` | malformed JSON | `MALFORMED_REQUEST` |
 | `400` | neither `query` nor `context` | `NIGHT_CONTEXT_REQUIRED` |
-| `400` | invalid `cityId` | `INVALID_CITY` |
+| `400` | invalid `cityId` | `CITY_INVALID` |
 | `422` | no `nightArea` resolved | `NIGHT_AREA_REQUIRED` |
-| `422` | area not in requested city | `NIGHT_AREA_NOT_IN_CITY` |
-| `422` | fewer than 3 grounded venues in radius | `INSUFFICIENT_VENUES` |
+| `422` | area not in requested city | `NIGHT_AREA_CITY_MISMATCH` |
+| `422` | fewer grounded venues than the requested stop count | `GROUNDED_VENUES_INSUFFICIENT` |
+| `422` | no unanchored route satisfies every hard constraint | `GROUNDED_CONSTRAINTS_UNSATISFIED` |
 | `429` | rate limited | `RATE_LIMITED` (`retryable: true`) |
 
 Every row uses the flat body described in §7. Coverage/confidence warnings are returned with successful editable routes; coverage readiness does not block generation.
@@ -318,7 +321,7 @@ Non-idempotent but side-effect-free: it persists nothing, so retries are safe.
 
 ### Keyless-mode behaviour
 
-Fully keyless. No token minted (persistence happens later on `POST /api/plans`).
+Local demos need no external provider keys. Generation mints a grounding proof, not a member credential; persistence happens later on `POST /api/plans`. Signing follows the [keyless signing boundary](DEPLOYMENT.md#keyless-signing-boundary).
 
 ### Analytics
 

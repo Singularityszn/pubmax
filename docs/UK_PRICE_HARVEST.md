@@ -177,6 +177,10 @@ When a TypeSafe batch is refused, times out, fails or returns a malformed answer
 `lib/harvest/ukPriceJudgment.server.ts` uses the same section-aware decisions and
 records the batch failure reason.
 
+The shared `pageText` normaliser preserves Markdown and plaintext row boundaries
+when item boundaries are requested. HTML block tags establish rows; formatting
+newlines inside those blocks remain whitespace within the item.
+
 * **Verbatim.** A figure is kept only if it appears literally in the text of the
   page that was read.
 * **The item's printed name takes priority.** An early zero-strength marker or
@@ -186,6 +190,12 @@ records the batch failure reason.
   nearest recognised category word in the name, then the surrounding text.
   Juice names identify soft drinks. A soda name with no recognised category is
   dropped instead of borrowing a neighbouring drink's category.
+  Named cocktails such as "Negroni on tap" and "Espresso Martini on draught"
+  keep their cocktail category. When the priced line has no early cocktail or
+  zero-strength title, a conflicting cocktail or zero-strength title on a
+  preceding unpriced line makes the reader drop the figure as
+  `item-name-ambiguous`. It does not join a split title and description into an
+  assumed drink name.
 * **Wine context stays within its section and item.** In a `section`, `article`
   or `div.menubox`, paragraphs can use the preceding wine heading until another
   heading changes it. Paragraphs before the first heading get no section context.

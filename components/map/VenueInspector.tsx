@@ -136,7 +136,7 @@ type VenueInspectorProps = {
   onOpenComposerForLog?: () => void;
   revealRequest?: VenueRevealRequest | null;
   onInterruptReveal?: () => void;
-  /** The map retires its `contribute=price` picker once this venue takes it. */
+  /** Retire map price intent on form entry or abandonment, keeping sign-in resumable. */
   onPriceIntentConsumed?: () => void;
 };
 

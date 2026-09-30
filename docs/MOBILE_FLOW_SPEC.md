@@ -78,8 +78,8 @@ in [README Features](../README.md#features).
 2. **In-tab pushes DO build history** (list→detail, story→venue, plan→join).
 3. **The sheet closes before the tab pops.** With the venue sheet or planner open
    (`appShell.detail-open` / `.planning-open`), the first back gesture closes the
-   overlay; only a second back leaves the map. The tab bar is hidden while an overlay
-   is up (mobileNav.css) — back must dismiss the overlay, not the whole page.
+   overlay; only a second back leaves the map. Tab-bar visibility and sheet clearance
+   follow the [sheet portal clearance rules](../components/mobile/mobileMapShell.css).
 4. **Scroll restoration:** returning to Discover / Pubs / Stories restores the prior
    scroll position (Next default scroll restoration); deep-linking into Map does not
    inherit list scroll.
