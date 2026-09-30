@@ -184,8 +184,41 @@
   border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
 }
 
+.authCallbackNotice--confirm {
+  flex-wrap: wrap;
+  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+}
+
+.authCallbackNoticeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+@media (max-width: 600px) {
+  .authCallbackNotice--confirm {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .authCallbackNotice--confirm span {
+    flex: none;
+  }
+
+  .authCallbackNotice--confirm .authCallbackNoticeActions {
+    margin-left: 0;
+  }
+
+  .authCallbackNotice--confirm .authCallbackNoticeActions button {
+    flex: 1;
+  }
+}
+
 .authCallbackNotice span {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 0.88rem;
   line-height: 1.4;
 }

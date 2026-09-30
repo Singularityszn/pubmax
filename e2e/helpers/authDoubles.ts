@@ -49,10 +49,10 @@ function base64url(value: string): string {
 /**
  * A structurally valid access token. `setSession` decodes the JWT to read its
  * expiry before it will install a session, so the seeded opaque strings this
- * spec uses elsewhere are not enough for the switch path. Nothing verifies a
- * signature here, and nothing in the app reads a claim out of it.
+ * spec uses elsewhere are not enough for the switch path. No signature is
+ * verified here; callback expiry fixtures also use the subject claim.
  */
-function accessJwt(account: Account): string {
+export function accessJwt(account: Account): string {
   return [
     base64url(JSON.stringify({ alg: "HS256", typ: "JWT" })),
     base64url(

@@ -271,7 +271,7 @@ test.describe("one Map surface history owner", () => {
     const heldStops = planner(page).locator(".routeList > li");
     await expect(heldStops).toHaveCount(stopIds.length);
     const stopOpen = heldStops.first().getByRole("button").first();
-    await stopOpen.click();
+    await stopOpen.click({ noWaitAfter: true });
     await expectSoleDrawer(page, "venue");
 
     await page.keyboard.press("Escape");
@@ -279,7 +279,7 @@ test.describe("one Map surface history owner", () => {
     await expectSoleDrawer(page, "planner");
     await expect(planner(page).locator("#railSearchInput")).toHaveValue("Soho");
     await expect(heldStops).toHaveCount(stopIds.length);
-    await heldStops.first().getByRole("button").first().click();
+    await heldStops.first().getByRole("button").first().click({ noWaitAfter: true });
     await expectSoleDrawer(page, "venue");
   });
 

@@ -81,7 +81,7 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
     const { drawer, chip } = await openFirstStopDrawer(page, 1440);
 
     const door = chip.getByRole("button", { name: "Check last train at final stop" });
-    expect(await door.evaluate((node) => node.closest("[inert]") === null)).toBe(true);
+    await expect.poll(() => door.evaluate((node) => node.closest("[inert]") === null)).toBe(true);
     await door.click({ timeout: 30_000 });
 
     await expectFinalStopLastTrain(page, drawer);
