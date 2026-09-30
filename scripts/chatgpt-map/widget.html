@@ -66,9 +66,9 @@
     return url&&url.origin==="https://pubmaxxing.com"&&url.pathname==="/map"?url.href:null;
   }
   function safePublisher(value) {
-    if (!value || typeof value.label!=="string" || value.label.length>160 || typeof value.url!=="string") return null;
+    if (!value || typeof value.label!=="string" || value.label.length>160 || !value.label.trim()) return null;
     const url=safeHttpsUrl(value.url);
-    return url?{label:value.label,url:url.href}:null;
+    return {label:value.label.trim(),url:url?.href??null};
   }
   function safeVenues(input) {
     if (!Array.isArray(input)) return [];
@@ -81,7 +81,8 @@
     for (const price of venue.prices) {
       text("p",`${money.format(price.priceGbp)} · ${price.drink}`,parent).className=price.band?`price priceBand-${price.band}`:"price";
       const source = text("p","",parent);
-      if (price.publisher) {const a=text("a",`Publisher: ${price.publisher.label}`,source);a.href=price.publisher.url;a.target="_blank";a.rel="noopener noreferrer";}
+      if (price.publisher?.url) {const a=text("a",`Publisher: ${price.publisher.label}`,source);a.href=price.publisher.url;a.target="_blank";a.rel="noopener noreferrer";}
+      else if (price.publisher) source.textContent=`Publisher: ${price.publisher.label}. Link unavailable.`;
       else source.textContent="Publisher not recorded";
     }
     if (venue.href) {const link=text("a","Open pub in PUBMAXX",parent);link.href=venue.href;link.target="_blank";link.rel="noopener noreferrer";}
