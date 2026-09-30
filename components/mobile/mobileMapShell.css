@@ -667,16 +667,16 @@
        venue sheet and a second pin tap never reaches the canvas. */
     pointer-events: none;
   }
-  /* A venue, planner or landmark sheet hides the tab bar (mobileNav.css), so
-     there is no bar to stop above. Held at the bar's berth, the sheet floated
-     ~250px up over live map and the command bar clipped the last row (#1533).
+  /* A venue or planner sheet hides the tab bar (mobileNav.css), so there is
+     no bar to stop above. Held at the bar's berth, the sheet floated ~250px
+     up over live map and the command bar clipped the last row (#1533).
      The shell class is the long-term owner; the portal's own kind is the
      synchronous signal, because the sheet mounts before every reader has
-     painted detail-open on .appShell. */
+     painted detail-open on .appShell. A landmark story keeps the tab bar in
+     its own lane, so its sheet keeps the berth above it. */
   .mobileSheetPortal:is(
     [data-sheet-kind="venue"],
-    [data-sheet-kind="planner"],
-    [data-sheet-kind="landmark"]
+    [data-sheet-kind="planner"]
   ),
   body:has(.appShell.detail-open) .mobileSheetPortal,
   body:has(.appShell.planning-open) .mobileSheetPortal {

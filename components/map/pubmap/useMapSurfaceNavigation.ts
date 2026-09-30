@@ -301,7 +301,11 @@ export function useMapSurfaceNavigation({
       pendingHomeRef.current = null;
       if (landed !== null && !selectedVenueId(next)) {
         const { pathname, search, hash } = window.location;
-        const cleanUrl = cleanMapUrl(pathname, search, hash);
+        const selectionFree = new URL(cleanMapUrl(pathname, search, hash), window.location.origin);
+        // A landed trail with no story open carries no `?landmark=` either.
+        const cleanUrl = next.some((entry) => entry.id === "landmark")
+          ? `${selectionFree.pathname}${selectionFree.search}${selectionFree.hash}`
+          : withoutLandmarkParam(selectionFree.pathname, selectionFree.search, selectionFree.hash);
         if (currentBrowserUrl() !== cleanUrl) {
           window.history.replaceState(event.state, "", cleanUrl);
         }

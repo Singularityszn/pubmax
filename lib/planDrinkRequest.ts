@@ -34,16 +34,19 @@ const FIRST_PERSON_CONSUMPTION = /\b(?:i am|i'm|im|we are|we're|i'll be|we'll be
 // place serves or a crew drinks there is a request, never part of the place.
 const SERVING = "serving|serves|serve|pouring|pours|doing|does|drinking|drinks|having|has|have|that|which|where|who";
 const LOCATION_WORDS = "near|at|in|by|opposite|beside|next to|around|off|outside|behind|past|from|towards?|via";
-const SPAN_END = `(?=\\b(?:${LOCATION_WORDS}|${SERVING}|under|over|below|max|for|with)\\b|${FIRST_PERSON_CONSUMPTION.source}|$)`;
+const SPAN_BREAK = `${LOCATION_WORDS}|${SERVING}|under|over|below|max|for|with`;
+const SPAN_END = `(?=\\b(?:${SPAN_BREAK})\\b|${FIRST_PERSON_CONSUMPTION.source}|$)`;
 // "near The Wine Bar", "on Rye Lane", "at Gin and Juice": a place, never an order.
 const LOCATION_SPAN = new RegExp(`\\b(?:${LOCATION_WORDS})\\b[^]*?${SPAN_END}`, "g");
 const PLACE_NOUNS = "lane|street|st|road|rd|avenue|ave|way|alley|bowl|palace|crown|arms|inn|tavern|house|hall|yard|market|square|place|court|row|hill|rooms|tree|terrace|garden|gardens|menu|menus|list|lists";
 // A place or menu named without a preposition: "Rye Lane", "Rose and Crown", "cocktail menu".
 const PLACE_OR_MENU = new RegExp(`\\b[\\w'&-]+(?:\\s+(?:and|&)\\s+[\\w'&-]+)?\\s+(?:${PLACE_NOUNS})\\b`, "g");
 // "on the Wine Bar terrace", "on Cocktail Alley": `on` names a place only
-// when a place noun ends the phrase. "Soho on the wine", "on the Prosecco"
-// and "on a wine crawl" name no place and keep their drink.
-const ON_PLACE = new RegExp(`\\bon\\s+(?:[\\w'&-]+\\s+){0,3}?(?:${PLACE_NOUNS})\\b`, "g");
+// when a place noun ends that one phrase. "Soho on the wine", "on the
+// Prosecco" and "on a wine crawl" name no place, and "on wine then Borough
+// Market" moves on to a place, so the drink before it stays a request.
+const ON_PLACE_BREAK = `${SPAN_BREAK}|then|till|until|round|down|up|along|all|to`;
+const ON_PLACE = new RegExp(`\\bon\\s+(?:(?!(?:${ON_PLACE_BREAK})\\b)[\\w'&-]+\\s+)*?(?:${PLACE_NOUNS})\\b`, "g");
 const REFUSAL = /\b(?:no|not|don't|dont|never|without|avoid|avoiding|except|hate|skip|instead of|rather than)\b/g;
 const REFUSAL_LEAD = /^\s+(?:(?:want|like|drink|fancy|need|do|a|an|any|the|more)\s+)*/;
 const COORDINATOR = /^\s+(?:or|nor)\s+/;

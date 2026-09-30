@@ -4086,10 +4086,11 @@ export default function PubMap({
   // can read it from the URL.
   const priceIntentVenueRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!hasCategoryPriceIntent || !selectedVenueId) {
+    if (!hasCategoryPriceIntent) {
       priceIntentVenueRef.current = null;
       return;
     }
+    if (!selectedVenueId) return;
     priceIntentVenueRef.current ??= selectedVenueId;
     if (priceIntentVenueRef.current !== selectedVenueId) clearLogIntent();
   }, [clearLogIntent, hasCategoryPriceIntent, selectedVenueId]);
@@ -4859,6 +4860,7 @@ export default function PubMap({
       if (entry?.id === "moment" && held.pricePicker) {
         closeMapSurfaces();
         restoreLogIntent();
+        priceIntentVenueRef.current = null;
         setMapOverlay("moment");
         return;
       }
