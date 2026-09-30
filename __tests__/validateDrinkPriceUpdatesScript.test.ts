@@ -91,6 +91,10 @@ function buildBaseScratch(): string {
       join(ROOT, "scripts", "lib", "geo.mjs"),
       join(scratchScripts, "lib", "geo.mjs"),
     );
+    cpSync(
+      join(ROOT, "lib", "greatCircle.mjs"),
+      join(scratchLib, "greatCircle.mjs"),
+    );
   }
   cpSync(
     join(ROOT, "lib", "nightOutPlaceSourceUrl.mjs"),

@@ -344,6 +344,31 @@ function contentActuallyChanged(current: SocialPost, next: SocialPostFields): bo
     current.photo?.altText !== next.photo?.altText;
 }
 
+function mergedEditFields(
+  current: SocialPost,
+  changes: Partial<SocialPostFields>,
+  options: SocialPostEditOptions | undefined,
+): SocialPostFields {
+  const merged: SocialPostFields = {
+    kind: changes.kind ?? current.kind,
+    visibility: changes.visibility ?? current.visibility,
+    body: changes.body ?? current.body,
+    area: "area" in changes ? changes.area ?? null : current.area,
+    venueId: "venueId" in changes ? changes.venueId ?? null : current.venueId,
+    hashtags: changes.hashtags ?? current.hashtags,
+    commentPolicy: changes.commentPolicy ?? current.commentPolicy,
+    photo: "photo" in changes
+      ? changes.photo ?? null
+      : options?.existingPhotoAltText && current.photo
+        ? { ...current.photo, altText: options.existingPhotoAltText }
+        : current.photo,
+  };
+  if (options?.existingPhotoAltText && !current.photo) throw new SocialPostStoreError("INVALID_POST", "That post has no photo description to edit.");
+  if (!merged.body && !merged.photo) throw new SocialPostStoreError("INVALID_POST", "Add some words or a photo.");
+  if (merged.kind === "feature_request" && !merged.body) throw new SocialPostStoreError("INVALID_POST", "Add words to a feature request.");
+  return merged;
+}
+
 function makePage(
   rows: SocialPost[],
   viewer: SocialPostActor,
@@ -434,31 +459,11 @@ export function createMemorySocialPostStore(options: {
       if (current.mutationVersion !== expectedMutationVersion) {
         throw new SocialPostStoreError("EDIT_CONFLICT", "This post changed before your edit was saved. Reload it and try again.");
       }
-      const mergedFields: SocialPostFields = {
-        kind: changes.kind ?? current.kind,
-        visibility: changes.visibility ?? current.visibility,
-        body: changes.body ?? current.body,
-        area: "area" in changes ? changes.area ?? null : current.area,
-        venueId: "venueId" in changes ? changes.venueId ?? null : current.venueId,
-        hashtags: changes.hashtags ?? current.hashtags,
-        commentPolicy: changes.commentPolicy ?? current.commentPolicy,
-        photo: "photo" in changes
-          ? changes.photo ?? null
-          : editOptions?.existingPhotoAltText && current.photo
-            ? { ...current.photo, altText: editOptions.existingPhotoAltText }
-            : current.photo,
-      };
-      if (editOptions?.existingPhotoAltText && !current.photo) throw new SocialPostStoreError("INVALID_POST", "That post has no photo description to edit.");
-      if (!mergedFields.body && !mergedFields.photo) throw new SocialPostStoreError("INVALID_POST", "Add some words or a photo.");
-      if (mergedFields.kind === "feature_request" && !mergedFields.body) throw new SocialPostStoreError("INVALID_POST", "Add words to a feature request.");
-      const anyChange = current.kind !== mergedFields.kind ||
-        current.visibility !== mergedFields.visibility || current.body !== mergedFields.body ||
+      const mergedFields = mergedEditFields(current, changes, editOptions);
+      const anyChange = contentActuallyChanged(current, mergedFields) ||
+        current.visibility !== mergedFields.visibility ||
         current.area !== mergedFields.area || current.venueId !== mergedFields.venueId ||
-        current.commentPolicy !== mergedFields.commentPolicy ||
-        current.hashtags.length !== mergedFields.hashtags.length ||
-        current.hashtags.some((tag, index) => tag !== mergedFields.hashtags[index]) ||
-        current.photo?.mediaId !== mergedFields.photo?.mediaId ||
-        current.photo?.altText !== mergedFields.photo?.altText;
+        current.commentPolicy !== mergedFields.commentPolicy;
       if (!anyChange) return socialPostDTO(current, { exactVenue: true, viewerProfileId: actor.profileId });
       const actualContentChange = moderationSensitive && contentActuallyChanged(current, mergedFields);
       const timestamp = now().toISOString();
@@ -710,23 +715,7 @@ export const supabaseSocialPostStore: SocialPostStore = {
       if (currentError) throw currentError;
       if (!currentData) throw new SocialPostStoreError("NOT_FOUND", "Post not found.");
       const current = socialPostFromRow(currentData);
-      const merged: SocialPostFields = {
-        kind: changes.kind ?? current.kind,
-        visibility: changes.visibility ?? current.visibility,
-        body: changes.body ?? current.body,
-        area: "area" in changes ? changes.area ?? null : current.area,
-        venueId: "venueId" in changes ? changes.venueId ?? null : current.venueId,
-        hashtags: changes.hashtags ?? current.hashtags,
-        commentPolicy: changes.commentPolicy ?? current.commentPolicy,
-        photo: "photo" in changes
-          ? changes.photo ?? null
-          : options?.existingPhotoAltText && current.photo
-            ? { ...current.photo, altText: options.existingPhotoAltText }
-            : current.photo,
-      };
-      if (options?.existingPhotoAltText && !current.photo) throw new SocialPostStoreError("INVALID_POST", "That post has no photo description to edit.");
-      if (!merged.body && !merged.photo) throw new SocialPostStoreError("INVALID_POST", "Add some words or a photo.");
-      if (merged.kind === "feature_request" && !merged.body) throw new SocialPostStoreError("INVALID_POST", "Add words to a feature request.");
+      const merged = mergedEditFields(current, changes, options);
       if (current.mutationVersion !== expectedMutationVersion) {
         throw new SocialPostStoreError("EDIT_CONFLICT", "This post changed before your edit was saved. Reload it and try again.");
       }

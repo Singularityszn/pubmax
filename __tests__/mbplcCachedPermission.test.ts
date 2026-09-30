@@ -38,6 +38,10 @@ function makeFixture() {
     join(process.cwd(), "scripts/lib/harvestMenuCache.mjs"),
     join(root, "scripts/lib/harvestMenuCache.mjs"),
   );
+  copyFileSync(
+    join(process.cwd(), "scripts/lib/menuSectionCategory.mjs"),
+    join(root, "scripts/lib/menuSectionCategory.mjs"),
+  );
 
   copyFileSync(
     join(process.cwd(), "scripts/lib/venueMatch.mjs"),

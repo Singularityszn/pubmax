@@ -56,8 +56,7 @@ export const GROUP_MAX_MEMBERS = 12;
 export const GROUP_TITLE_MAX = 60;
 
 /** What a member may be. `owner` is who opened it; nothing branches on it yet. */
-const GROUP_MEMBER_ROLES = ["owner", "member"] as const;
-export type GroupMemberRole = (typeof GROUP_MEMBER_ROLES)[number];
+export type GroupMemberRole = "owner" | "member";
 
 /**
  * Clean an untrusted group title. Returns null when nothing survives, which is

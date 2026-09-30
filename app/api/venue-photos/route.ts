@@ -173,76 +173,77 @@ async function deleteOwnPhoto(request: Request, body: Record<string, unknown>): 
   }
 }
 
+async function handleJsonPhotoAction(request: Request): Promise<Response> {
+  const body = await parseJson(request);
+  if (!body) return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+
+  if (body.action === "report") {
+    const id = readString(body.id);
+    if (!id) return publicApiError("Photo not found.", "NOT_FOUND", 404);
+    // Server-derived reporter, exactly like community prices and Visit
+    // Reports: a body token would let one origin mint many reporters.
+    const actorHash = hashActor(`venue-photo:${hashIp(clientIp(request))}`);
+    const flagKey = `venue-photo-report:${id}`;
+    const actorKey = `${flagKey}:${actorHash}`;
+    if (
+      (await isLimited(flagKey, flagKey)) ||
+      (await isLimited(actorKey, actorKey, REPORT_PER_ACTOR_LIMIT))
+    ) {
+      return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, {
+        retryable: true,
+      });
+    }
+    try {
+      const done = await venuePhotoStore().report(id, readString(body.reason), actorHash);
+      return done
+        ? jsonNoStore({ ok: true }, { status: 200 })
+        : publicApiError("Photo not found.", "NOT_FOUND", 404);
+    } catch (err) {
+      log("error", "venue_photo.report_failed", {
+        route: "POST /api/venue-photos",
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
+        retryable: true,
+      });
+    }
+  }
+
+  if (body.action === "delete") return deleteOwnPhoto(request, body);
+
+  if (body.action === "hide" || body.action === "restore") {
+    if (!isModerator(request)) return publicApiError("Not authorised.", "FORBIDDEN", 403);
+    const id = readString(body.id);
+    if (!id) return publicApiError("Photo not found.", "NOT_FOUND", 404);
+    try {
+      // Hiding never deletes: the row, its bytes and its report trail stay,
+      // so the decision is reversible from the surface that made it.
+      const done = await venuePhotoStore().moderate(
+        id,
+        body.action === "hide" ? "hidden" : "approved",
+        readString(body.note),
+      );
+      return done
+        ? jsonNoStore({ ok: true }, { status: 200 })
+        : publicApiError("Photo not found.", "NOT_FOUND", 404);
+    } catch (err) {
+      log("error", "venue_photo.moderate_failed", {
+        route: "POST /api/venue-photos",
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
+        retryable: true,
+      });
+    }
+  }
+
+  return publicApiError("Send the photo as multipart form data.", "INVALID_REQUEST", 400);
+}
+
 export async function POST(request: Request): Promise<Response> {
   const contentType = (request.headers.get("Content-Type") ?? "").toLowerCase();
 
-  // ── Reader flag and moderator decisions (JSON) ─────────────────────────────
-  if (!contentType.startsWith("multipart/form-data")) {
-    const body = await parseJson(request);
-    if (!body) return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
-
-    if (body.action === "report") {
-      const id = readString(body.id);
-      if (!id) return publicApiError("Photo not found.", "NOT_FOUND", 404);
-      // Server-derived reporter, exactly like community prices and Visit
-      // Reports: a body token would let one origin mint many reporters.
-      const actorHash = hashActor(`venue-photo:${hashIp(clientIp(request))}`);
-      const flagKey = `venue-photo-report:${id}`;
-      const actorKey = `${flagKey}:${actorHash}`;
-      if (
-        (await isLimited(flagKey, flagKey)) ||
-        (await isLimited(actorKey, actorKey, REPORT_PER_ACTOR_LIMIT))
-      ) {
-        return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, {
-          retryable: true,
-        });
-      }
-      try {
-        const done = await venuePhotoStore().report(id, readString(body.reason), actorHash);
-        return done
-          ? jsonNoStore({ ok: true }, { status: 200 })
-          : publicApiError("Photo not found.", "NOT_FOUND", 404);
-      } catch (err) {
-        log("error", "venue_photo.report_failed", {
-          route: "POST /api/venue-photos",
-          error: err instanceof Error ? err.message : String(err),
-        });
-        return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
-          retryable: true,
-        });
-      }
-    }
-
-    if (body.action === "delete") return deleteOwnPhoto(request, body);
-
-    if (body.action === "hide" || body.action === "restore") {
-      if (!isModerator(request)) return publicApiError("Not authorised.", "FORBIDDEN", 403);
-      const id = readString(body.id);
-      if (!id) return publicApiError("Photo not found.", "NOT_FOUND", 404);
-      try {
-        // Hiding never deletes: the row, its bytes and its report trail stay,
-        // so the decision is reversible from the surface that made it.
-        const done = await venuePhotoStore().moderate(
-          id,
-          body.action === "hide" ? "hidden" : "approved",
-          readString(body.note),
-        );
-        return done
-          ? jsonNoStore({ ok: true }, { status: 200 })
-          : publicApiError("Photo not found.", "NOT_FOUND", 404);
-      } catch (err) {
-        log("error", "venue_photo.moderate_failed", {
-          route: "POST /api/venue-photos",
-          error: err instanceof Error ? err.message : String(err),
-        });
-        return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
-          retryable: true,
-        });
-      }
-    }
-
-    return publicApiError("Send the photo as multipart form data.", "INVALID_REQUEST", 400);
-  }
+  if (!contentType.startsWith("multipart/form-data")) return handleJsonPhotoAction(request);
 
   // ── Post a photo to a wall ─────────────────────────────────────────────────
   const contributor = await resolveContributionIdentity(request);

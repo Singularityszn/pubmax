@@ -13,10 +13,7 @@ import { trustedDrinkLensPrices } from "@/lib/mapExperienceLens";
 import { rankBoroughCheapest } from "@/lib/nearMeAnswer";
 import { createSkiddleProvider } from "@/lib/events/skiddle";
 import { OUT_CARD_SOURCES, outCardSource, outSourceAttribution } from "@/lib/out/attribution";
-import {
-  SKIDDLE_BRAND_ASSET_PRESENT,
-  skiddleLaneFenced,
-} from "@/lib/whatson/eventNormalise.mjs";
+import { skiddleLaneFenced } from "@/lib/whatson/eventNormalise.mjs";
 import type { Venue } from "@/lib/venues";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import { summariseWhatsOnByVenue } from "@/lib/whatsOnBadges";

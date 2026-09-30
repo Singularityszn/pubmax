@@ -93,6 +93,37 @@ afterEach(async () => {
 });
 
 describe("Pal venue card navigation", () => {
+  it("routes a confirmed fly-to proposal with its place through the client router", async () => {
+    sessionAnswer.value = {
+      ...answer,
+      proposals: [{
+        id: "fly-bank",
+        kind: "fly_to",
+        label: "Show Bank",
+        lat: 51.513,
+        lng: -0.089,
+        place: "Bank",
+      }],
+    };
+    const input = container.querySelector<HTMLInputElement>(".palChatInput");
+    const form = container.querySelector<HTMLFormElement>("form");
+    if (!input || !form) throw new Error("Pal chat form not found");
+
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setValue?.call(input, "Show Bank");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    });
+
+    const confirm = container.querySelector<HTMLButtonElement>(".palChatProposalConfirm");
+    if (!confirm) throw new Error("Fly-to proposal not found");
+    await act(async () => confirm.click());
+
+    expect(router.push).toHaveBeenCalledWith("/map?lat=51.513&lng=-0.089&place=Bank");
+    expect(trackEvent).toHaveBeenCalledWith("concierge_result_tap");
+  });
+
   it("routes a card press through the router and keeps tap analytics", async () => {
     const input = container.querySelector<HTMLInputElement>('.palChatInput');
     const form = container.querySelector<HTMLFormElement>("form");

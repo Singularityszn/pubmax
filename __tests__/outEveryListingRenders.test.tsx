@@ -148,13 +148,13 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
     expect(container.textContent).toContain(`Sourced listing ${UNMATCHED_COUNT - 1}`);
   });
 
-  it("says the pub is missing on the row, and shows no empty state over the list", async () => {
+  it("says the pub match is unresolved on the row, and shows no empty state over the list", async () => {
     const rows = Array.from({ length: UNMATCHED_COUNT }, (_, index) => unmatchedRow(index));
     await renderOut(rows);
 
     const absent = container.querySelectorAll(".outListingPubPair--absent");
     expect(absent.length).toBe(UNMATCHED_COUNT);
-    expect(absent[0]?.textContent).toBe("Not on our map yet.");
+    expect(absent[0]?.textContent).toBe("We haven’t linked this place to a pub on our map.");
     // The old page's whole answer. It may not stand over 148 rendered rows.
     expect(container.textContent).not.toContain("are at places we don't list yet");
     expect(container.textContent).not.toContain("No listings for this day yet.");
@@ -195,12 +195,12 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
 
     const lead = container.querySelector('[data-testid="out-honest-empty"]');
     expect(lead?.textContent).toContain(
-      "None of tonight’s 25 listings are at a pub on our map.",
+      "We couldn’t match any of tonight’s 25 listings to a pub on our map.",
     );
     expect(lead?.querySelector("a")?.getAttribute("href")).toBe("/tonight");
 
     const heading = container.querySelector("#out-unmatched-heading");
-    expect(heading?.textContent).toBe("Not on our map yet");
+    expect(heading?.textContent).toBe("Places we couldn’t match");
     const firstRow = container.querySelector('[data-testid="out-listing-row"]');
     expect(
       (lead as Element).compareDocumentPosition(heading as Node) &

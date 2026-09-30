@@ -34,23 +34,32 @@ function row(id: string, venueId?: string): WhatsOnRow {
 const unmatched = Array.from({ length: 25 }, (_, index) => row(`tm-${index}`));
 
 describe("outListingLead", () => {
+  it("does not call an unmatched mapped pub absent", () => {
+    const listing = { ...row("new-cross"), placeName: "New Cross Inn" };
+    const lead = outListingLead([listing], "ready", "tonight");
+    expect(lead.honestEmpty?.line).toBe(
+      "We couldn’t match tonight’s listing to a pub on our map.",
+    );
+    expect(OUT_NOT_ON_MAP_HEADING).toBe("Places we couldn’t match");
+  });
+
   it("leads with the honest line when the match ran and placed none of them", () => {
     const lead = outListingLead(unmatched, "ready", "tonight");
     expect(lead.split).toBe(true);
     expect(lead.matched).toEqual([]);
     expect(lead.unmatched).toHaveLength(25);
     expect(lead.honestEmpty).toEqual({
-      line: "None of tonight’s 25 listings are at a pub on our map.",
+      line: "We couldn’t match any of tonight’s 25 listings to a pub on our map.",
       way: OUT_TONIGHT_PUBS_WAY,
     });
   });
 
   it("names the window and the count the reader asked for", () => {
     expect(outListingLead([row("a")], "ready", "tomorrow").honestEmpty?.line).toBe(
-      "Tomorrow’s one listing is not at a pub on our map.",
+      "We couldn’t match tomorrow’s listing to a pub on our map.",
     );
     expect(outListingLead(unmatched.slice(0, 3), "ready", "weekend").honestEmpty?.line).toBe(
-      "None of the weekend’s 3 listings are at a pub on our map.",
+      "We couldn’t match any of the weekend’s 3 listings to a pub on our map.",
     );
   });
 
@@ -70,7 +79,7 @@ describe("outListingLead", () => {
   });
 
   it("does not split or claim anything when the match did not run", () => {
-    // "Not on our map yet" would be a claim about a lookup nobody performed.
+    // "We couldn’t match" would be a claim about a lookup nobody performed.
     for (const venueMatch of ["unavailable", undefined] as const) {
       const lead = outListingLead(unmatched, venueMatch, "tonight");
       expect(lead.split).toBe(false);
@@ -88,6 +97,6 @@ describe("outListingLead", () => {
   });
 
   it("keeps the block heading in the row's own words", () => {
-    expect(OUT_NOT_ON_MAP_HEADING).toBe("Not on our map yet");
+    expect(OUT_NOT_ON_MAP_HEADING).toBe("Places we couldn’t match");
   });
 });

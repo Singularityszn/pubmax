@@ -292,6 +292,72 @@ async function fetchText(url, fetchImpl) {
   return res.text();
 }
 
+async function crawlCommonPosts({
+  posts,
+  heldByUrl,
+  publishedByUrl,
+  observedAt,
+  todayLondon,
+  fetchImpl,
+  gapMs,
+  maxFetches,
+}) {
+  const rows = [];
+  let droppedStale = 0;
+  let droppedUnparseable = 0;
+  let droppedFetch = 0;
+  let reusedHeld = 0;
+  let skippedOverBudget = 0;
+  let fetched = 0;
+
+  for (const url of posts) {
+    const held = heldByUrl.get(url);
+    if (held) {
+      rows.push(held);
+      reusedHeld += 1;
+      continue;
+    }
+    if (fetched >= maxFetches) {
+      skippedOverBudget += 1;
+      continue;
+    }
+    if (fetched > 0 && gapMs > 0) await sleep(gapMs);
+    fetched += 1;
+    try {
+      const html = await fetchText(url, fetchImpl);
+      const parsed = parseCommonPostHtml(html);
+      if (!parsed) {
+        droppedUnparseable += 1;
+        continue;
+      }
+      const row = toCommonEventRow({
+        url,
+        parsed,
+        observedAt,
+        todayLondon,
+        publishedOn: publishedByUrl.get(url) ?? null,
+      });
+      if (!row) {
+        droppedStale += 1;
+        continue;
+      }
+      rows.push(row);
+    } catch {
+      droppedFetch += 1;
+    }
+  }
+
+  return {
+    rows,
+    droppedStale,
+    droppedUnparseable,
+    droppedFetch,
+    reusedHeld,
+    skippedOverBudget,
+    fetched,
+  };
+}
+
 export async function refreshCommonEvents({
   nowMs = Date.now(),
   fetchImpl = fetch,
@@ -341,50 +407,24 @@ export async function refreshCommonEvents({
     if (typeof entry.lastmod === "number") publishedByUrl.set(entry.url, londonToday(entry.lastmod));
   }
   const posts = commonCrawlOrder(entries);
-  const rows = [];
-  let droppedStale = 0;
-  let droppedUnparseable = 0;
-  let droppedFetch = 0;
-  let reusedHeld = 0;
-  let skippedOverBudget = 0;
-  let fetched = 0;
-
-  for (const url of posts) {
-    const held = heldByUrl.get(url);
-    if (held) {
-      rows.push(held);
-      reusedHeld += 1;
-      continue;
-    }
-    if (fetched >= maxFetches) {
-      skippedOverBudget += 1;
-      continue;
-    }
-    if (fetched > 0 && gapMs > 0) await sleep(gapMs);
-    fetched += 1;
-    try {
-      const html = await fetchText(url, fetchImpl);
-      const parsed = parseCommonPostHtml(html);
-      if (!parsed) {
-        droppedUnparseable += 1;
-        continue;
-      }
-      const row = toCommonEventRow({
-        url,
-        parsed,
-        observedAt,
-        todayLondon,
-        publishedOn: publishedByUrl.get(url) ?? null,
-      });
-      if (!row) {
-        droppedStale += 1;
-        continue;
-      }
-      rows.push(row);
-    } catch {
-      droppedFetch += 1;
-    }
-  }
+  const {
+    rows,
+    droppedStale,
+    droppedUnparseable,
+    droppedFetch,
+    reusedHeld,
+    skippedOverBudget,
+    fetched,
+  } = await crawlCommonPosts({
+    posts,
+    heldByUrl,
+    publishedByUrl,
+    observedAt,
+    todayLondon,
+    fetchImpl,
+    gapMs,
+    maxFetches,
+  });
 
   // Fail closed, the way the provider lane already does. `fetchText` throws
   // only on a non-2xx, so a 200 that is a sitemap index, a renamed post path or

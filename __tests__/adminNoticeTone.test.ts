@@ -11,10 +11,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // drive the real console through its real session route and read the role off
 // the rendered node.
 
-const session = vi.hoisted(() => ({
-  answer: async (_input: string, _init?: RequestInit): Promise<Response> =>
-    new Response(null, { status: 500 }),
-}));
+const session: { answer: (input: string, init?: RequestInit) => Promise<Response> } = vi.hoisted(
+  () => ({ answer: async () => new Response(null, { status: 500 }) }),
+);
 
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) =>

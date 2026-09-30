@@ -404,6 +404,62 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect(search).toBeFocused();
   });
 
+  test("keyboard search selects a pub before a matching area", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.goto("/map");
+
+    const search = page.locator("#mapSearchInput");
+    await expect(search).toBeVisible({ timeout: 30_000 });
+    await search.fill("Blackfriar");
+
+    const listbox = page.getByRole("listbox", { name: "Search suggestions" });
+    const venue = listbox
+      .getByRole("group", { name: "Venues", exact: true })
+      .getByRole("option", { name: /The Blackfriar/i });
+    const area = listbox
+      .getByRole("group", { name: "Areas", exact: true })
+      .getByRole("option", { name: /Blackfriars/i });
+    await expect(venue).toBeVisible();
+    await expect(area).toBeVisible();
+    const venueId = await venue.getAttribute("data-venue-id");
+    expect(venueId).toBeTruthy();
+    const venueOptionIndex = await listbox
+      .getByRole("option")
+      .evaluateAll(
+        (options, id) =>
+          options.findIndex(
+            (option) => option.getAttribute("data-venue-id") === id,
+          ),
+        venueId,
+      );
+    const areaOptionIndex = await listbox
+      .getByRole("option")
+      .evaluateAll((options) =>
+        options.findIndex(
+          (option) =>
+            option.textContent?.includes("Blackfriars") &&
+            !option.hasAttribute("data-venue-id"),
+        ),
+      );
+    expect(venueOptionIndex).toBeGreaterThanOrEqual(0);
+    expect(areaOptionIndex).toBeGreaterThan(venueOptionIndex);
+
+    await search.focus();
+    for (let index = 0; index <= venueOptionIndex; index += 1) {
+      await page.keyboard.press("ArrowDown");
+    }
+    await expect(search).toHaveAttribute(
+      "aria-activedescendant",
+      await venue.getAttribute("id"),
+    );
+    await page.keyboard.press("Enter");
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get("sel"))
+      .toBe(venueId);
+  });
+
   test("keeps a rapid reselection open after close history settles", async ({
     page,
   }) => {

@@ -126,45 +126,46 @@ async function communityWriteIsLimited(
   return isLimited(venueLimitKey, venueLimitKey);
 }
 
+async function reportObservation(request: Request, body: Record<string, unknown>): Promise<Response> {
+  // Reader flag on an existing observation. Returns before every submission
+  // concern below (venue lookup, submission rate limits): a report is not a
+  // write of a price, and a reader must be able to complain about a figure even
+  // when their own logging budget is spent.
+  const id = readString(body.id);
+  if (!id) return publicApiError("Missing report id.", "INVALID_REQUEST", 400);
+  // Flood protection only - per-actor uniqueness is durable (the
+  // community_price_reports unique pair), so a repeat that outlives this
+  // window is an idempotent no-op in the store rather than a second count.
+  // The "anon" sentinel exists ONLY for the rate-limit key; the store gets
+  // the real (possibly absent) actor so unattributed reports stay insert-only
+  // under the durable unique pair instead of collapsing into one shared actor.
+  const actor = deriveCommunityPriceActor(request);
+  const reporter = actor ?? "anon";
+  const REPORT_PER_ACTOR_LIMIT = 1;
+  if (
+    (await isLimited(`price-report:${id}`, `price-report:${id}`)) ||
+    (await isLimited(
+      `price-report:${id}:${reporter}`,
+      `price-report:${id}:${reporter}`,
+      REPORT_PER_ACTOR_LIMIT,
+    ))
+  ) {
+    return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+  const flagged = await reportCommunityPrice(id, readString(body.reason), actor);
+  if (!flagged) {
+    return publicApiError("We cannot find that report.", "NOT_FOUND", 404);
+  }
+  return jsonNoStore({ ok: true }, { status: 200 });
+}
+
 export async function POST(request: Request): Promise<Response> {
   const parsedBody = await parsePriceSubmitPostBody(request);
   if (!parsedBody) {
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
   const { fields: body, photos: pintDropPhotos } = parsedBody;
-
-  // Reader flag on an existing observation. Returns before every submission
-  // concern below (venue lookup, submission rate limits): a report is not a
-  // write of a price, and a reader must be able to complain about a figure even
-  // when their own logging budget is spent.
-  if (readString(body.action) === "report") {
-    const id = readString(body.id);
-    if (!id) return publicApiError("Missing report id.", "INVALID_REQUEST", 400);
-    // Flood protection only - per-actor uniqueness is durable (the
-    // community_price_reports unique pair), so a repeat that outlives this
-    // window is an idempotent no-op in the store rather than a second count.
-    // The "anon" sentinel exists ONLY for the rate-limit key; the store gets
-    // the real (possibly absent) actor so unattributed reports stay insert-only
-    // under the durable unique pair instead of collapsing into one shared actor.
-    const actor = deriveCommunityPriceActor(request);
-    const reporter = actor ?? "anon";
-    const REPORT_PER_ACTOR_LIMIT = 1;
-    if (
-      (await isLimited(`price-report:${id}`, `price-report:${id}`)) ||
-      (await isLimited(
-        `price-report:${id}:${reporter}`,
-        `price-report:${id}:${reporter}`,
-        REPORT_PER_ACTOR_LIMIT,
-      ))
-    ) {
-      return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, { retryable: true });
-    }
-    const flagged = await reportCommunityPrice(id, readString(body.reason), actor);
-    if (!flagged) {
-      return publicApiError("We cannot find that report.", "NOT_FOUND", 404);
-    }
-    return jsonNoStore({ ok: true }, { status: 200 });
-  }
+  if (readString(body.action) === "report") return reportObservation(request, body);
 
   const contributor = await resolveContributionIdentity(request);
   if (!contributor.ok) {
