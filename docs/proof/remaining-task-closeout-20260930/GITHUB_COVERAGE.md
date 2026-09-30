@@ -6,6 +6,9 @@ descending once it reaches one. It does not follow directory symlinks or read
 secret, environment, browser-profile, ignored-file or unrelated source contents.
 Dependency/build/cache directories are excluded where identified.
 
+The inventory and disposition rows below describe initial collection.
+The later private preservation check is recorded at the end of this receipt.
+
 `git ls-files`, `git status --porcelain=v1 -z` and ignored-directory metadata
 separate tracked, untracked and ignored material. `git ls-remote` checks the
 current branch tip without fetching or changing another checkout. The raw
@@ -95,3 +98,29 @@ in `docs/proof/remaining-task-closeout-20260930/`. It never stages another
 checkout, standalone folder, `.env` file, profile, private user data, fixture
 state, generated output or unrelated repository. GitHub publication of this
 receipt does not publish the owner-held archive or deliver its historical code.
+
+## Private preservation follow-up
+
+At 10:15 UTC on 30 September, separate local copies of the two excluded dirty
+versions were independently compared with their originals. Both were byte
+equal, with these SHA-256 hashes:
+
+| Original under `Documents/projects/` | Bytes | SHA-256 |
+| --- | --- | --- |
+| `pubmaxx-ios-onboarding/app/onboarding/onboarding.css` | 17,917 | `8d125ceacaaeddf75dbef163b000bfe0f9c6b0da8d71f30eae874b63c2e106f5` |
+| `pubmaxx-audit/docs/audits/2026-09-07-product-audit.md` | 132,464 | `4e45d9b1f02337758d69b4ffa31d8803d2c103b516ea30f5e39f776298893188` |
+
+Snapshot root:
+`/Users/karanmanoharan/.local/state/pubmaxx-gnhf-20260930/private-preservation/snapshot-close-two-20260930T101329701762Z`.
+Copies retain their project-relative paths beneath `snapshots/`.
+`RESTORE_MANIFEST.json` in that root records exact origins, hashes, Git state
+and restore constraints. The root is mode `0700`; copies and manifest are
+`0600`. The preservation receipt records stable original pre/post hashes and
+unchanged scoped Git state; this lane independently checked current equality,
+hashes, permissions and manifest readability.
+
+These private local copies close the separate-copy gap. They establish no
+GitHub backup or public disposition, and no original file was overwritten.
+Restoration or integration still needs current owner review. The existing
+21-entry archive remains unchanged and separately owned. No private source
+body, audit links or diff is published here.

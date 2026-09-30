@@ -57,8 +57,16 @@ They locate local evidence. Their presence does not establish GitHub storage.
 ## Exact next actions remain with owners
 
 The v0 owner finishes the final Inspector ordering/regression checks and an
-uncontended performance comparison. The friends coordinator finishes dismissal,
-final gate, native lifecycle and accepted privacy proof on the same candidate.
+uncontended performance comparison. Its strict Home CWV receipt records failed
+LCP of 2,648 ms against 2,641.6 ms allowed and INP of 376 ms against 184 ms.
+Those failures need reproduction and resolution with the unchanged budgets.
+The final API-first timing run stopped after two samples with exit 130; final
+five-project verification remains pending.
+
+Later friends proof records controlled native Escape and outside-click
+dismissal success. The friends coordinator still owns the final gate, native
+watcher hide/resume and cancellation, and accepted privacy proof on the same
+candidate. Dismissal success does not clear those remaining checks.
 MCP publication continues through its existing SDK review decision and gate;
 authenticated hosting needs an approved public endpoint and actual host test.
 
@@ -66,6 +74,12 @@ The release owner completes its candidate gate, then handles the authorised
 integration and Vercel release. The captain applies reviewed SQL and required
 configuration. A READY deployment plus public version and route checks are the
 release evidence. The PostHog owner resumes only after human credential entry.
+
+The initial inventory's two separate-copy gaps received private local
+preservation after collection. [GitHub coverage](GITHUB_COVERAGE.md) records
+the independently checked hashes, restricted snapshot root and restore
+manifest. Those copies are outside GitHub; public audit disposition and
+onboarding reconciliation remain owner decisions.
 
 This lane publishes the coverage receipt. It does not close owner-held issues,
 waive failed proof, apply SQL, merge the original PRs or deploy.

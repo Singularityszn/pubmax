@@ -24,8 +24,22 @@ were retrieved successfully; none overlaps this directory. GitHub main and
 the current production alias were independently checked through their
 connectors. The staged `git diff --check` and prose review pass. Committed-data
 validation passes for all 21 datasets, with one stale advisory and three
-unmeasurable store feeds. Final repository and no-mistakes gates remain
-pending until a coordinated runtime slot is available.
+unmeasurable store feeds.
+
+At 10:09 UTC on 30 September, no-mistakes run
+`01M3RTZXZNJT20EF9KMAEPQFS0` returned `checks-passed` for candidate
+`927e3975baf9338b783c563f255246d9aa52bb7c`.
+`npm run verify:no-mistakes` passed: 17,968 unit tests and 421 effective RLS
+tests, plus harness checks. Five unit cases were skipped; ESLint reported
+74 warnings and zero errors. GitHub recorded 18 passing and four skipped
+checks, with no failures. The full browser suite was skipped for this
+documentation change; Bugbot could not review because of its usage limit.
+
+[PR #1877](https://github.com/Singularityszn/pubmax/pull/1877) publishes the
+receipt and records subsequent candidate checks. This dated result names
+the tested commit; it does not extend that result to later commits. The
+documentation-only live-validation exception used real Git ignore, link,
+content and policy checks; no live product scenario was claimed.
 
 These checks validate the receipt's change. They cannot make another lane's
 application, browser, migration or deployment checks complete.
