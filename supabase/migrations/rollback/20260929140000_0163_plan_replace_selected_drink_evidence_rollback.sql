@@ -61,4 +61,3 @@ begin
   return 'ok';
 end;
 $$;
-
