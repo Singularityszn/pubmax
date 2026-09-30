@@ -34,6 +34,8 @@ The browser run proves both host requests return `{}`. After teardown, a later t
 
 ## Current checks
 
+The review-fix source and curated receipts are retained in commit `99c8fb9314939ffc79173d21b0d04a706741a509`. These are recorded runs; the documentation and lint phase does not rerun them. Final committed-head validation and reviewed GitHub publication remain pending.
+
 Fresh on the review-fix source:
 
 - Eight Node tests pass: public whitelist and retirement, explicit publisher attribution, bounded borough results and coordinates, exact dataset borough names, shared London price bands, real MCP client protocol with the borough enum and refused inputs, foreign Host refusal and shared theme projection.

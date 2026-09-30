@@ -195,12 +195,13 @@ const config: KnipConfig = {
 // This optional local MCP CLI has its own pinned package manifest and named
 // start/test/proof callers. Explicitly carry the original root entry and ignore
 // graph: Knip stops using those top-level workspace fields once workspaces exist.
-config.workspaces = {
-  ".": { entry: config.entry, ignore: config.ignore },
+const { entry, ignore, ...workspaceConfig } = config;
+workspaceConfig.workspaces = {
+  ".": { entry, ignore },
   "scripts/chatgpt-map": {
-    entry: ["server.mjs", "*.test.mjs", "browser-proof.mjs"],
+    entry: ["*.test.mjs"],
     project: ["*.mjs"],
   },
 };
 
-export default config;
+export default workspaceConfig;
