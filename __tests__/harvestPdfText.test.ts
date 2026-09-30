@@ -74,6 +74,31 @@ describe("reading the words a PDF menu states", () => {
     expect(priced.find((row) => row.category === "wine")?.priceGbp).toBe(7.5);
   });
 
+  it("keeps separate printed rows from changing neighbouring drink categories", async () => {
+    const text = await readPdfText(
+      pdfStating([
+        "Drinks menu",
+        "Guinness Draught pint £6.10",
+        "Heineken 0.0% lager £5.00",
+        "Camden Hells Lager pint £5.40",
+        "Negroni on tap £9.00",
+        "Espresso Martini on draught £10.00",
+        "House red wine 175ml £6.50",
+      ]),
+    );
+    const reading = readVenueDrinkPrices(text ?? "", "text");
+    expect(reading.drops).toEqual([]);
+    expect(pageStatesADrinksList(reading)).toBe(true);
+    expect(reading.kept).toEqual([
+      expect.objectContaining({ category: "beer", priceGbp: 6.1 }),
+      expect.objectContaining({ category: "alcohol-free", priceGbp: 5, drinkLabel: "Heineken 0.0% lager" }),
+      expect.objectContaining({ category: "beer", priceGbp: 5.4, drinkLabel: "Camden Hells Lager pint" }),
+      expect.objectContaining({ category: "cocktail", priceGbp: 9, drinkLabel: "Negroni on tap" }),
+      expect.objectContaining({ category: "cocktail", priceGbp: 10, drinkLabel: "Espresso Martini on draught" }),
+      expect.objectContaining({ category: "wine", priceGbp: 6.5, drinkLabel: "House red wine", servingSize: "175ml" }),
+    ]);
+  });
+
   // A PDF WE COULD NOT READ IS A FACT ABOUT US. Both of these answer null, and
   // the crawl counts them apart from a menu that was read and named no drink.
   it.each([
