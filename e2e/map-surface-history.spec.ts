@@ -6,7 +6,6 @@ import {
   expectSoleDesktopDrawer,
 } from "./helpers/mapSurfaceDrawers";
 import {
-  applyToolbarAreaQuery,
   expectMapToolbarReady,
   mapToolbar,
   selectFirstToolbarVenue,
@@ -260,29 +259,28 @@ test.describe("one Map surface history owner", () => {
 
   test("Escape restores populated planner from venue", async ({ page }) => {
     await prepareMap(page);
-    await openMap(page);
-    const toolbar = page.locator(".mapToolbar");
-    await applyToolbarAreaQuery(page, "Soho");
-    await toolbar.getByRole("button", { name: "Plan an outing" }).click();
-    await expectSoleDrawer(page, "planner");
-    // Always take the curated-crawl path: suggested stops can arrive before
-    // or after the planner opens, and bypassed the drawer handoff at random.
-    await planner(page)
-      .getByRole("button", { name: /Map the Victorian Soho crawl/i })
-      .click();
-    await expectSoleDrawer(page, "venue");
-    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    const stopIds = [
+      "venue-1ufn31x",
+      "venue-1t8siin",
+      "venue-xiesdn",
+      "venue-phqazo",
+      "venue-15i2wst",
+    ];
+    await openMap(page, `/map?mode=build&plan=1&q=Soho&pubs=${stopIds.join(",")}`);
     await expectSoleDrawer(page, "planner");
     const heldStops = planner(page).locator(".routeList > li");
-    await expect(heldStops).toHaveCount(5);
-    await heldStops.first().getByRole("button").first().click({ timeout: 10_000 });
+    await expect(heldStops).toHaveCount(stopIds.length);
+    const stopOpen = heldStops.first().getByRole("button").first();
+    await stopOpen.click();
     await expectSoleDrawer(page, "venue");
 
     await page.keyboard.press("Escape");
 
     await expectSoleDrawer(page, "planner");
-    await expect(heldStops).toHaveCount(5);
     await expect(planner(page).locator("#railSearchInput")).toHaveValue("Soho");
+    await expect(heldStops).toHaveCount(stopIds.length);
+    await heldStops.first().getByRole("button").first().click();
+    await expectSoleDrawer(page, "venue");
   });
 
   test("phone fling-dismiss leaves venue sheet for Map", async ({ page }) => {
