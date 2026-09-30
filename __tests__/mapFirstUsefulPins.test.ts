@@ -190,7 +190,7 @@ describe("first useful map pins", () => {
     expect(source).toContain(
       "setOpeningLocationCancelledBeforeResolution(nextCancellation)",
     );
-    expect(source.match(/cancelOpeningLocation\(\)/g)).toHaveLength(2);
+    expect(source.match(/cancelOpeningLocation\(\)/g)).toHaveLength(3);
   });
 
   it("does not turn a post-resolution camera move into cancellation", () => {

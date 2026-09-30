@@ -1,0 +1,73 @@
+{
+  "results": [
+    {
+      "name": "undated remembered fix",
+      "passed": false,
+      "actual": {
+        "lat": 51.7,
+        "lng": 0.2
+      }
+    },
+    {
+      "name": "yesterday's remembered fix",
+      "passed": false,
+      "actual": {
+        "lat": 51.7,
+        "lng": 0.2,
+        "savedAt": 1790630524745
+      }
+    },
+    {
+      "name": "future remembered fix",
+      "passed": false,
+      "actual": {
+        "lat": 51.7,
+        "lng": 0.2,
+        "savedAt": 1790716984745
+      }
+    },
+    {
+      "name": "missing permission query",
+      "passed": false,
+      "calls": 1,
+      "actual": {
+        "lat": 51.5,
+        "lng": -0.1
+      }
+    },
+    {
+      "name": "failed permission query",
+      "passed": false,
+      "calls": 1,
+      "actual": {
+        "lat": 51.5,
+        "lng": -0.1
+      }
+    },
+    {
+      "name": "malformed permission result",
+      "passed": false,
+      "calls": 1,
+      "actual": {
+        "lat": 51.5,
+        "lng": -0.1
+      }
+    },
+    {
+      "name": "boot warm ignores yesterday's fix",
+      "passed": false,
+      "requests": [
+        "/data/venues_slim.manifest.json?v=deploy-42",
+        "/data/old-fix.json?v=deploy-42"
+      ]
+    },
+    {
+      "name": "London warm preserves fresh Manchester hint",
+      "passed": true,
+      "requests": [
+        "/data/venues_slim.manifest.json?v=deploy-42",
+        "/data/london.json?v=deploy-42"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,127 @@
+{
+  "branch": "codex/maps-location-20260929",
+  "baseCommit": "76de20674da64604af22872ff42ee08fca7f156a",
+  "dependencies": {
+    "method": "fresh isolated npm ci --no-audit --no-fund",
+    "exitCode": 0,
+    "packages": 722,
+    "reportedDurationSeconds": 5,
+    "vitest": "5.0.1",
+    "next": "16.3.6"
+  },
+  "focusedTests": {
+    "exitCode": 0,
+    "files": 7,
+    "tests": 183,
+    "log": "focused-tests.log"
+  },
+  "viewportRegression": {
+    "beforeExitCode": 1,
+    "beforeFailure": "Expected null, received saved viewport",
+    "beforeLog": "viewport-before.log",
+    "afterExitCode": 0,
+    "afterLog": "focused-tests.log"
+  },
+  "focusedLint": {
+    "exitCode": 0,
+    "errors": 0,
+    "warnings": 2,
+    "baselineWarnings": 2,
+    "baselineComplexity": 51,
+    "patchedComplexity": 54,
+    "log": "lint.log"
+  },
+  "resumeOwnerRegression": {
+    "beforeExitCode": 1,
+    "beforeFailedTests": 2,
+    "beforeLog": "resume-lifecycle-before.log",
+    "afterExitCode": 0,
+    "afterFiles": 8,
+    "afterTests": 194,
+    "afterLog": "resume-lifecycle-after.log",
+    "lintExitCode": 0,
+    "lintErrors": 0,
+    "lintWarnings": 2,
+    "typecheckExitCode": 0,
+    "typecheckLog": "resume-lifecycle-typecheck.log"
+  },
+  "openingOwnerRegression": {
+    "beforeExitCode": 1,
+    "beforeNativeRequestsAfterDisposal": 1,
+    "beforeLog": "opening-owner-before.log",
+    "afterExitCode": 0,
+    "afterFiles": 8,
+    "afterTests": 195,
+    "afterLog": "opening-owner-after.log",
+    "lintExitCode": 0,
+    "typecheckExitCode": 0
+  },
+  "fullVerifyBefore": {
+    "command": "npm run verify:no-mistakes",
+    "exitCode": 1,
+    "log": "full-verify.log",
+    "filesPassed": 1694,
+    "filesFailed": 1,
+    "filesSkipped": 1,
+    "testsPassed": 17985,
+    "testsFailed": 1,
+    "testsSkipped": 5,
+    "failure": "Opening-location cancellation source fence expected two callers; approved resume adds third",
+    "followUp": "Caller-count fence adjusted; focused lifecycle fixes and fresh full verify subsequently passed as recorded below"
+  },
+  "fullVerifyAfter": {
+    "command": "npm run verify:no-mistakes",
+    "exitCode": 0,
+    "log": "full-verify-after.log",
+    "filesPassed": 1695,
+    "filesSkipped": 1,
+    "testsPassed": 17989,
+    "testsSkipped": 5,
+    "lintErrors": 0,
+    "lintWarnings": 74,
+    "rlsTestsPassed": 421,
+    "sharedMemoryTestsPassedPerRun": 9,
+    "coveragePercent": { "statements": 82.53, "branches": 75.58, "functions": 87.31, "lines": 86.41 },
+    "freshnessAdvisoryStale": 1,
+    "freshnessUnmeasurable": 3,
+    "auditHighCriticalFindings": 0
+  },
+  "productionBuildBefore": {
+    "exitCode": 1,
+    "log": "production-build.log",
+    "failure": "Wrapper detected generated public/data changes; PUBMAX_TRACKED_OUTPUTS was omitted",
+    "generatedChurnRestored": true
+  },
+  "productionBuildAfter": {
+    "command": "DEPLOYMENT_VERSION=local PUBMAX_TRACKED_OUTPUTS=public/data NEXT_DIST_DIR=.next-prod node scripts/run-with-restored-next-env.mjs npm run build",
+    "exitCode": 0,
+    "log": "production-build-after.log",
+    "nextVersion": "16.3.6",
+    "trackedGeneratedOutputsRestored": true
+  },
+  "nativeBrowserProof": {
+    "status": "passed after isolated permission context correction",
+    "beforeExitCode": 1,
+    "beforeFailure": "Granted case timed out awaiting fresh saved fix plus reader-dot source; permission override omitted isolated browserContextId",
+    "beforeLog": "location-browser.log",
+    "diagnosticExitCode": 130,
+    "diagnosticLog": "location-browser-diagnostic.log",
+    "command": "node --import tsx docs/proof/maps-audit-20260929/location-browser.mjs http://localhost:3293 --timeout-ms=110000",
+    "afterExitCode": 0,
+    "afterLog": "location-browser-after.log",
+    "readingReceipt": "location-browser.json",
+    "threeStatePass": true,
+    "permissionStateAssertedBeforeEachCase": true,
+    "granted": { "nativeRequests": 2, "nativeWatches": 1, "renderedDot": true, "freshSavedFix": true, "nearbyCamera": true, "tappableMarks": 8 },
+    "denied": { "automaticRequests": 0, "automaticWatches": 0, "expiredFixRemoved": true, "savedViewportRetained": true, "tappableMarks": 7 },
+    "prompt": { "automaticRequests": 0, "automaticWatches": 0, "expiredFixRemoved": true, "savedViewportRetained": true, "tappableMarks": 7 },
+    "explicitDeniedTap": { "nativeRequests": 1, "refusalVisible": true, "tappableMarks": 7 },
+    "uncaughtBrowserErrors": 0,
+    "controlledInputs": [ "Chromium permission overrides", "simulated GPS", "remembered mode", "six-day-old viewport", "public venue rows" ],
+    "screenshotsInspected": [ "location-granted.png", "location-denied.png", "location-prompt.png", "location-denied-tap.png" ],
+    "processFreeReleaseUtc": "2026-09-30 00:49:37 UTC",
+    "privateServerStopped": true,
+    "browserStopped": true
+  },
+  "speedClaim": "none"
+}

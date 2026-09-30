@@ -1,0 +1,53 @@
+{
+  "results": [
+    {
+      "name": "undated remembered fix",
+      "passed": true,
+      "actual": null
+    },
+    {
+      "name": "yesterday's remembered fix",
+      "passed": true,
+      "actual": null
+    },
+    {
+      "name": "future remembered fix",
+      "passed": true,
+      "actual": null
+    },
+    {
+      "name": "missing permission query",
+      "passed": true,
+      "calls": 0,
+      "actual": null
+    },
+    {
+      "name": "failed permission query",
+      "passed": true,
+      "calls": 0,
+      "actual": null
+    },
+    {
+      "name": "malformed permission result",
+      "passed": true,
+      "calls": 0,
+      "actual": null
+    },
+    {
+      "name": "boot warm ignores yesterday's fix",
+      "passed": true,
+      "requests": [
+        "/data/venues_slim.manifest.json?v=deploy-42",
+        "/data/london.json?v=deploy-42"
+      ]
+    },
+    {
+      "name": "London warm preserves fresh Manchester hint",
+      "passed": true,
+      "requests": [
+        "/data/venues_slim.manifest.json?v=deploy-42",
+        "/data/london.json?v=deploy-42"
+      ]
+    }
+  ]
+}
