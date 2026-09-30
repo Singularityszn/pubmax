@@ -181,9 +181,11 @@ const config: KnipConfig = {
     unlisted: "error",
     binaries: "error",
   },
-  // Both ARE in devDependencies; the unlisted finding is knip classifying
-  // their one caller each (__tests__/iosFormZoomFloor.test.ts,
-  // scripts/gen-store-screenshots.mjs) as production.
+  // Root tests and proof CLIs use postcss and playwright from the installed
+  // toolchain (__tests__/iosFormZoomFloor.test.ts and
+  // scripts/gen-store-screenshots.mjs). Neither is a direct root dependency.
+  // The nested MCP package declares postcss itself; its proof CLIs use the
+  // root Playwright installation, as scripts/chatgpt-map/README.md describes.
   // openai is imported only by @arizeai/openinference-instrumentation-openai when
   // Arize tracing registers; this app never imports it directly.
   ignoreDependencies: ["postcss", "playwright", "openai"],
