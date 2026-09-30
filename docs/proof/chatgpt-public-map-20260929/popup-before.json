@@ -1,0 +1,37 @@
+{
+  "sourceSha256": {
+    "widget.html": "7e0d3b4370eaac42acbba4bf0bae952b8276b81b7f31324e09c3815d0a4e50f5",
+    "server.mjs": "efea2d8e8a0d62c10fbfac7f393f9532c7e45ea1f319032dbae72ca1ae74a874",
+    "browser-proof.mjs": "1965a6cbfc99daff8ff0666b406f324683817db3cb7bb3e5ffde245b5327afea"
+  },
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "venue": "The Ice Wharf - JD Wetherspoon",
+  "geometry": {
+    "popup": {
+      "top": 261.796875,
+      "bottom": 530.796875,
+      "left": 89,
+      "right": 329,
+      "height": 269
+    },
+    "map": {
+      "top": 147.796875,
+      "bottom": 427.796875,
+      "left": 0,
+      "right": 390,
+      "height": 280
+    },
+    "attribution": {
+      "top": 373.796875,
+      "bottom": 417.796875,
+      "left": 10,
+      "right": 380,
+      "height": 44
+    },
+    "contentHeight": 229,
+    "scrollHeight": 229
+  }
+}

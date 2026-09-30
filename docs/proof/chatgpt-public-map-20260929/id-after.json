@@ -1,0 +1,118 @@
+{
+  "checkedAt": "2026-09-30T16:11:41.701Z",
+  "head": "34f11ca2bac0a5c62834378a47d62ffdb4d8f094",
+  "scope": "Actual widget and installed SDK in controlled local Chromium. No authenticated ChatGPT, external navigation, production hosting or release proof.",
+  "sourceSha256": {
+    "widget.html": "d2ce3d3c0fea85be9398f4720e947017e82107b53ad15b35ce82e909a52070ac",
+    "server.mjs": "efea2d8e8a0d62c10fbfac7f393f9532c7e45ea1f319032dbae72ca1ae74a874",
+    "widget-lifecycle-proof.mjs": "96eb16a1f97d1e9437023f055e22843ceed0479a411e0db86f3d04d41248803f"
+  },
+  "installedSdkSha256": "fb56376b7583ecafb4820bdebc150abee18feb6258ff84b83c2c944ebd9c3602",
+  "checks": [
+    {
+      "name": "inline-capability",
+      "modes": [
+        "inline"
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "name": "pending-link",
+      "teardown": {
+        "result": {},
+        "jsonrpc": "2.0",
+        "id": "host-1"
+      },
+      "statusAtAck": "2 listed pubs. Map could not load. Listed pubs remain below.",
+      "statusAfterLateDenial": "2 listed pubs. Map could not load. Listed pubs remain below.",
+      "requestCancelled": true,
+      "verdict": "PASS"
+    },
+    {
+      "name": "late-import",
+      "teardown": {
+        "result": {},
+        "jsonrpc": "2.0",
+        "id": "host-1"
+      },
+      "statusAtAck": "2 listed pubs.",
+      "statusAfterImportFailure": "2 listed pubs.",
+      "verdict": "PASS"
+    },
+    {
+      "name": "worker-blob",
+      "workerUrlsCreated": 1,
+      "teardown": {
+        "result": {},
+        "jsonrpc": "2.0",
+        "id": "host-1"
+      },
+      "canvasesAfterAck": 0,
+      "workerCleanup": [
+        {
+          "revoked": true,
+          "canvasesWhenRevoked": 0
+        }
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "name": "url-bounds",
+      "inputs": [
+        {
+          "variant": "raw-oversize",
+          "oversizedFallbackLength": 0,
+          "oversizedAnchors": 0,
+          "oversizedPopupAnchors": 0,
+          "validSiblingFallbackLength": 84
+        },
+        {
+          "variant": "normalised-oversize",
+          "oversizedFallbackLength": 0,
+          "oversizedAnchors": 0,
+          "oversizedPopupAnchors": 0,
+          "validSiblingFallbackLength": 84
+        }
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "name": "url-boundary-fallback",
+      "hostRequestUrlLength": 2048,
+      "copyAddressIntact": true,
+      "mapFailureRetained": true,
+      "statusLength": 2134,
+      "verdict": "PASS"
+    },
+    {
+      "name": "pending-initialization",
+      "teardown": {
+        "result": {},
+        "jsonrpc": "2.0",
+        "id": "host-1"
+      },
+      "statusAtAck": "Waiting for public venues. Map could not load. Listed pubs remain below.",
+      "statusAfterLateInitialization": "Waiting for public venues. Map could not load. Listed pubs remain below.",
+      "retiredDomUnchanged": true,
+      "themeUnchanged": true,
+      "sizeChangesAfterAck": 0,
+      "canvasesAfterLateInitialization": 0,
+      "verdict": "PASS"
+    },
+    {
+      "name": "unused-id-retention",
+      "projection": {
+        "count": 2,
+        "hasOwnId": false,
+        "idLength": null
+      },
+      "verdict": "PASS"
+    }
+  ],
+  "sourceSha256After": {
+    "widget.html": "d2ce3d3c0fea85be9398f4720e947017e82107b53ad15b35ce82e909a52070ac",
+    "server.mjs": "efea2d8e8a0d62c10fbfac7f393f9532c7e45ea1f319032dbae72ca1ae74a874",
+    "widget-lifecycle-proof.mjs": "96eb16a1f97d1e9437023f055e22843ceed0479a411e0db86f3d04d41248803f"
+  },
+  "verdict": "PASS"
+}

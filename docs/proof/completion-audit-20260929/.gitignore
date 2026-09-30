@@ -1,0 +1,6 @@
+# Raw audit evidence includes local paths and private chat context.
+# Publish only the reviewed repository-specific Markdown reports.
+*
+!.gitignore
+!README.md
+!REPORT.md

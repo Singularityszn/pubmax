@@ -1,0 +1,134 @@
+{
+  "checkedAt": "2026-09-30T20:12:51.797Z",
+  "host": "controlled local MCP Apps bridge",
+  "authentication": "No ChatGPT account connection",
+  "externalLinks": "Host request and acknowledgement only; no external destination navigation",
+  "sandbox": "allow-scripts allow-same-origin",
+  "declaredResourcePolicyEnforced": true,
+  "checks": [
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "pubs": 3,
+      "attribution": "Pub data © OpenStreetMap contributors (ODbL) | OpenFreeMap © OpenMapTiles Data from OpenStreetMap",
+      "popup": true,
+      "keyboard": [
+        "Enter",
+        "Space"
+      ],
+      "hostLinks": [
+        "https://pubmaxxing.com/map?sel=venue-1s7f23v",
+        "https://www.pint-prices.com/pub/40%20College%20Cres,%20South%20Hampstead,%20London%20NW3%205LB,%20UK/Palmers%20Lodge%20Swiss%20Cottage"
+      ],
+      "deniedLinkFallback": true,
+      "unsupportedLinkFallback": true,
+      "horizontalOverflow": false,
+      "status": "3 listed pubs.",
+      "hostRequests": [
+        {
+          "method": "ping",
+          "result": {}
+        },
+        {
+          "method": "ui/resource-teardown",
+          "result": {}
+        }
+      ],
+      "lateResultAfterTeardownIgnored": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pubs": 3,
+      "attribution": "Pub data © OpenStreetMap contributors (ODbL) | OpenFreeMap © OpenMapTiles Data from OpenStreetMap",
+      "popup": true,
+      "keyboard": [
+        "Enter",
+        "Space"
+      ],
+      "hostLinks": [
+        "https://pubmaxxing.com/map?sel=venue-1s7f23v",
+        "https://www.pint-prices.com/pub/40%20College%20Cres,%20South%20Hampstead,%20London%20NW3%205LB,%20UK/Palmers%20Lodge%20Swiss%20Cottage"
+      ],
+      "deniedLinkFallback": true,
+      "unsupportedLinkFallback": true,
+      "horizontalOverflow": false,
+      "status": "3 listed pubs.",
+      "hostRequests": [
+        {
+          "method": "ping",
+          "result": {}
+        },
+        {
+          "method": "ui/resource-teardown",
+          "result": {}
+        }
+      ],
+      "lateResultAfterTeardownIgnored": true
+    }
+  ],
+  "failureChecks": [
+    {
+      "order": "failure-before-results",
+      "pubs": 3,
+      "status": "3 listed pubs. Map could not load. Listed pubs remain below."
+    },
+    {
+      "order": "results-before-failure",
+      "pubs": 2,
+      "status": "2 listed pubs. Streets could not load. Listed pubs remain below."
+    }
+  ],
+  "themeChecks": [
+    {
+      "colorScheme": "light",
+      "hostTheme": null,
+      "initial": {
+        "background": "rgb(250, 248, 245)",
+        "ink": "rgb(23, 23, 26)"
+      },
+      "nextTheme": null,
+      "updated": null
+    },
+    {
+      "colorScheme": "dark",
+      "hostTheme": null,
+      "initial": {
+        "background": "rgb(10, 10, 11)",
+        "ink": "rgb(238, 243, 239)"
+      },
+      "nextTheme": null,
+      "updated": null
+    },
+    {
+      "colorScheme": "light",
+      "hostTheme": "dark",
+      "initial": {
+        "background": "rgb(10, 10, 11)",
+        "ink": "rgb(238, 243, 239)"
+      },
+      "nextTheme": "light",
+      "updated": {
+        "background": "rgb(250, 248, 245)",
+        "ink": "rgb(23, 23, 26)"
+      }
+    },
+    {
+      "colorScheme": "dark",
+      "hostTheme": "light",
+      "initial": {
+        "background": "rgb(250, 248, 245)",
+        "ink": "rgb(23, 23, 26)"
+      },
+      "nextTheme": "dark",
+      "updated": {
+        "background": "rgb(10, 10, 11)",
+        "ink": "rgb(238, 243, 239)"
+      }
+    }
+  ]
+}

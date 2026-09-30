@@ -35,7 +35,7 @@ function declaredMjsPairs(roots: readonly string[]): string[] {
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) walk(full);
+      if (entry.isDirectory() && entry.name !== "node_modules") walk(full);
       else if (entry.name.endsWith(".d.mts")) paired.push(full.replace(/\.d\.mts$/, ".mjs"));
     }
   };
@@ -183,9 +183,11 @@ const config: KnipConfig = {
     unlisted: "error",
     binaries: "error",
   },
-  // Both ARE in devDependencies; the unlisted finding is knip classifying
-  // their one caller each (__tests__/iosFormZoomFloor.test.ts,
-  // scripts/gen-store-screenshots.mjs) as production.
+  // Root tests and proof CLIs use postcss and playwright from the installed
+  // toolchain (__tests__/iosFormZoomFloor.test.ts and
+  // scripts/gen-store-screenshots.mjs). Neither is a direct root dependency.
+  // The nested MCP package declares postcss itself; its proof CLIs use the
+  // root Playwright installation, as scripts/chatgpt-map/README.md describes.
   // openai is imported only by @arizeai/openinference-instrumentation-openai when
   // Arize tracing registers; this app never imports it directly.
   ignoreDependencies: ["postcss", "playwright", "openai"],
@@ -194,4 +196,16 @@ const config: KnipConfig = {
   ignoreBinaries: ["ipcs", "ipcrm", "ps"],
 };
 
-export default config;
+// This optional local MCP CLI has its own pinned package manifest and named
+// start/test/proof callers. Explicitly carry the original root entry and ignore
+// graph: Knip stops using those top-level workspace fields once workspaces exist.
+const { entry, ignore, ...workspaceConfig } = config;
+workspaceConfig.workspaces = {
+  ".": { entry, ignore },
+  "scripts/chatgpt-map": {
+    entry: ["*.test.mjs"],
+    project: ["*.mjs"],
+  },
+};
+
+export default workspaceConfig;

@@ -82,7 +82,7 @@
     "push:step-out": "node --conditions=react-server --import tsx scripts/push/sendStepOutNudge.mjs",
     "refresh:events": "node --import tsx scripts/whatson/eventsRefresh.mjs",
     "check:realtime": "node scripts/check-realtime.mjs",
-    "verify": "npm run validate-data && npm run lint && npm run typecheck && npm run deadcode && npm run coverage && npm run test:rls && npm run gate:e2e-skips && npm run check:freshness && node scripts/resilient-audit.mjs",
+    "verify": "npm run validate-data && npm run lint && npm run typecheck && npm run test:chatgpt-map && npm run deadcode && npm run coverage && npm run test:rls && npm run gate:e2e-skips && npm run check:freshness && node scripts/resilient-audit.mjs",
     "verify:no-mistakes": "DEPLOYMENT_VERSION=local PUBMAX_VERIFY_COMMITTED_DATA=1 node scripts/run-with-restored-bundled-data.mjs npm run verify",
     "ci": "npm run verify && npm run build",
     "ci:isolated": "node scripts/run-with-restored-next-env.mjs npm run ci",
@@ -110,7 +110,8 @@
     "eval:pal:live": "node --conditions=react-server --import tsx scripts/pal-eval.mjs --live --write-scoreboard",
     "eval:ask-router-models": "node --conditions=react-server --import tsx scripts/ask-router-model-eval.mjs",
     "regenerate:pal-answer-key": "node --conditions=react-server --import tsx scripts/regenerate-pal-answer-key.mjs",
-    "verify:famous-venues": "node --env-file-if-exists=.env.local --import tsx scripts/verify_famous_venues.mjs"
+    "verify:famous-venues": "node --env-file-if-exists=.env.local --import tsx scripts/verify_famous_venues.mjs",
+    "test:chatgpt-map": "npm --prefix scripts/chatgpt-map ci --no-audit --no-fund && npm --prefix scripts/chatgpt-map test"
   },
   "dependencies": {
     "@ai-sdk/otel": "1.0.122",

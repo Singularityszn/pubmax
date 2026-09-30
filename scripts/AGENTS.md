@@ -10,7 +10,7 @@ Long-form incident history, measured proof and review finding IDs live under [`d
 
 Full rules: [`docs/rules/scripts-ci-gates-and-audits.md`](../docs/rules/scripts-ci-gates-and-audits.md).
 
-- [EVERY JOB RUNS ON THE AVREA LABEL, AND A BUILD IS NOT A PRODUCTION RUNTIME.](../docs/rules/scripts-ci-gates-and-audits.md#every-job-runs-on-the-avrea-label-and-a-build-is-not-a-production-runtime)
+- [CI RUNNER CONFIGURATION HAS ONE OWNER, AND A BUILD IS NOT A PRODUCTION RUNTIME.](../docs/rules/scripts-ci-gates-and-audits.md#every-job-runs-on-the-avrea-label-and-a-build-is-not-a-production-runtime)
 - [KNIP IS THE DEAD-CODE GATE, AND EVERY IGNORE NAMES THE CALLER KNIP CANNOT SEE.](../docs/rules/scripts-ci-gates-and-audits.md#knip-is-the-dead-code-gate-and-every-ignore-names-the-caller-knip-cannot-see)
 - [A GENERATED LANE MAY RIDE THE REVIEW THAT PRODUCED IT, AND NOTHING ELSE MAY.](../docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may)
 - [EVERY GATE IS RUN BY SOMETHING, AND A REPORT-GATE RUNS WHERE THE REPORT IS.](../docs/rules/scripts-ci-gates-and-audits.md#every-gate-is-run-by-something-and-a-report-gate-runs-where-the-report-is)

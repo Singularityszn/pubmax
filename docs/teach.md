@@ -35,8 +35,8 @@ Useful scripts (`package.json`):
 | Command | What it does |
 |---|---|
 | `npm run dev` | Dev server |
-| `npm run verify` | **lint · typecheck · test** — the fast local gate |
-| `npm run ci` | `verify` **+ build** — the full gate (what Vercel runs) |
+| `npm run verify` | Local pre-push gate; see the [common command reference](../README.md) |
+| `npm run ci` | Full local gate; see the [common command reference](../README.md) |
 | `npm test` | Vitest unit suite (~100+ cases) |
 | `npm run test:e2e` | Playwright smoke (builds + starts, drives Chromium) |
 | `npm run setup` | Enables the pre-push git hook (`core.hooksPath=.githooks`) — run once |
@@ -356,7 +356,7 @@ Tokens in `globals.css` (`:root`, light) overridden in `theme.css` (dark): `--in
 
 - **Unit** — Vitest, ~100+ cases across 12 files pinning the load-bearing pure logic and the honesty invariants (demo seeds don't move prices, claims carry provenance, URL decode never throws).
 - **E2E** — Playwright `e2e/smoke.spec.ts`: one Chromium project, a real production build on port 3100, three non-flaky checks (landing + honesty labels + CTA; `/map` mounts; theme flips/persists/survives reload). **WebGL-agnostic** — asserts canvas *or* fallback, since headless CI has no GPU.
-- **Gate** — `npm run ci` = `verify (lint·typecheck·test) + build`.
+- **Gate** - see the [common command reference](../README.md) for `verify` and `ci`.
 - **Deploy** — Vercel; the OG route uses the Edge runtime.
 - **Env** — `.env.example`: local dev runs *without* secrets (in-memory + structured fallback); production needs Supabase, `ADMIN_TOKEN`, `RATE_LIMIT_SALT`, optionally `OPENROUTER_API_KEY`.
 
@@ -369,42 +369,12 @@ Tokens in `globals.css` (`:root`, light) overridden in `theme.css` (dark): `--in
 
 ---
 
-## Continuous integration without GitHub Actions
+## Continuous integration
 
-GitHub Actions is currently **billing-locked** on this account, so the `.github/workflows/ci.yml` job shows red — that's an account/billing issue, not a code problem. The tree stays green through three free layers instead, in order of what actually protects production:
-
-### 1. Vercel build = the deploy gate (primary, free, already in your pipeline)
-
-`vercel.json` sets the build command to the full check:
-
-```json
-{ "buildCommand": "npm run ci" }   // lint && typecheck && test && build
-```
-
-Every Vercel deploy now runs lint · typecheck · **the Vitest suite** · then the Next build. **If any step fails, the deploy fails and production is never updated.** This is the single most important gate — it uses build minutes you're already paying for and needs no extra service. (It adds ~10–15s per deploy; trim to `typecheck && build` if that ever matters.)
-
-### 2. Local pre-push git hook (free, catches it before it leaves your machine)
-
-`.githooks/pre-push` runs `npm run verify` (lint · typecheck · test — build is skipped as it's slow and Vercel covers it). Enable once per clone:
-
-```sh
-npm run setup     # git config core.hooksPath .githooks
-```
-
-A red push is stopped locally, so broken code never even reaches GitHub.
-
-### 3. External free CI (optional — if you want GitHub *status checks* on PRs)
-
-If you want a green/red check *on the PR itself* (what Actions gave you), these run free and integrate with GitHub without Actions:
-
-| Service | Free tier | How |
-|---|---|---|
-| **Cirrus CI** | Free for public repos | Install the GitHub App, add a `.cirrus.yml` running `npm ci && npm run ci` |
-| **CircleCI** | ~6,000 build-min/mo free | GitHub App + `.circleci/config.yml` |
-| **GitLab CI** | Free CI minutes | Mirror the repo to GitLab, add `.gitlab-ci.yml` |
-| **Woodpecker CI** | Open-source, self-host | Point it at the repo |
-
-**Recommendation:** the Vercel build gate + the pre-push hook already give you a real, free CI loop that protects production and your local pushes. Add **Cirrus CI** (free for public repos) only if you specifically want the PR status-check UX back. If the GitHub Actions billing lock is cleared, `ci.yml` starts passing again and simply becomes a fourth, redundant layer.
+The [CI runbook](CI_RUNBOOK.md) owns runner setup and GitHub Actions operation.
+The [common command reference](../README.md) owns local gate usage and pre-push
+hook setup. [`vercel.json`](../vercel.json) defines the deployment build command.
+A successful deployment build does not prove the full local gate passed.
 
 ---
 
@@ -419,7 +389,7 @@ If you want a green/red check *on the PR itself* (what Actions gave you), these 
 | **The Landlord** | Grounded-only; rejects phantom citations; temp 0 + timeout; honest refusal | — |
 | **Moderation** | Report ≠ hide (threshold 2); atomic increment; token-gated `/admin` | Public bucket serves hidden objects to kept URLs (needs private bucket for real takedowns) |
 | **Frontend** | Hydration-safe theme; single URL write path; reduced-motion + no-JS safe | `set-state-in-effect` is an ERROR — follow the established patterns |
-| **CI/CD** | Vercel build gate + pre-push hook (both free) | GitHub Actions billing-locked (not a code issue) |
+| **CI/CD** | See the [common command reference](../README.md) and [CI runbook](CI_RUNBOOK.md) | Deployment builds do not replace the local merge gate |
 
 **Before opening to real public UGC**, the honest to-do list (from `docs/PRD_ADDENDUM_BUILD_REVIEW.md`): unify the two Pint-Drop backends, make the rate limiter's outage behaviour observable/decided, confirm the `x-forwarded-for` trust boundary for the deploy target, move to a private photo bucket + signed URLs if real takedowns are needed, and set `ADMIN_TOKEN` + `RATE_LIMIT_SALT` on every reachable environment.
 
