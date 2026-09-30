@@ -299,6 +299,8 @@ export const posthogBrowserConfig = {
   disable_session_recording: false,
   session_recording: {
     sampleRate: POSTHOG_SESSION_RECORDING_SAMPLE_RATE,
+    recordBody: false,
+    recordHeaders: false,
   },
   disable_surveys: false,
   disable_product_tours: true,
