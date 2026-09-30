@@ -12,7 +12,7 @@
 // A first-person consumption clause ("while I am on pints") wins, and a request
 // that names two lanes names none.
 
-import { drinkCategoriesInText } from "@/lib/drinkCategoryFromText";
+import { drinkCategoriesInText, drinkKeywordSpans } from "@/lib/drinkCategoryFromText";
 import type { DrinkCategory } from "@/lib/drinks";
 
 const CLAUSE_BREAK = /\b(?:while|whilst|but|whereas|although|though)\b|[,;!?]|\.(?!\d)/;
@@ -27,7 +27,10 @@ const COMPANION_ORDER = new RegExp(
   "g",
 );
 
-const FIRST_PERSON_ON = /\b(i am|i'm|im|we are|we're|i'll be|we'll be|is|[a-z]+'s)\s+on\b/g;
+const FIRST_PERSON_ON = /\b(i am|i'm|im|we are|we're|i'll be|we'll be|is|[a-z]+'s)\s+on\b/gi;
+// "on the Wine Bar terrace", "on Cocktail Alley": a named place after `on`.
+// "Soho on the wine" and "on a wine crawl" name no place and keep their drink.
+const ON_NAMED_PLACE = /\b[Oo]n\s+(?:[Tt]he\s+)?[A-Z][\w'&-]*(?:\s+(?:(?:and|&|of|the)\s+)?[A-Z][\w'&-]*)*/g;
 const FIRST_PERSON_CONSUMPTION = /\b(?:i am|i'm|im|we are|we're|i'll be|we'll be) (?:drinking|having)\b|\b(?:i|we) (?:want|fancy|drink|like|prefer|need)\b|\b(?:i'd|we'd|i would|we would) (?:like|love|prefer)\b|\bfor (?:me|us)\b/;
 
 // "In Soho serving wine", "a night in Soho drinking cocktails": the drink a
@@ -39,9 +42,9 @@ const SPAN_END = `(?=\\b(?:${LOCATION_WORDS}|${SERVING}|under|over|below|max|for
 const LOCATION_SPAN = new RegExp(`\\b(?:${LOCATION_WORDS})\\b[^]*?${SPAN_END}`, "g");
 // A place or menu named without a preposition: "Rye Lane", "Rose and Crown", "cocktail menu".
 const PLACE_OR_MENU = /\b[\w'&-]+(?:\s+(?:and|&)\s+[\w'&-]+)?\s+(?:lane|street|st|road|rd|avenue|ave|way|bowl|palace|crown|arms|inn|tavern|house|hall|yard|market|square|place|court|row|hill|rooms|tree|garden|gardens|menu|menus|list|lists)\b/g;
-// "No gin or wine": every drink the refusal coordinates is refused, one word
-// per `or`, so "no frills or fuss wine night" still asks for wine.
-const REFUSAL = /\b(?:no|not|don't|dont|never|without|avoid|avoiding|except|hate|skip|instead of|rather than)\b(?:\s+(?!(?:or|nor)\b)\S+){1,2}(?:\s+(?:or|nor)\s+\S+)*/g;
+const REFUSAL = /\b(?:no|not|don't|dont|never|without|avoid|avoiding|except|hate|skip|instead of|rather than)\b/g;
+const REFUSAL_LEAD = /^\s+(?:(?:want|like|drink|fancy|need|do|a|an|any|the|more)\s+)*/;
+const COORDINATOR = /^\s+(?:or|nor)\s+/;
 // Bare words the taxonomy reads as drinks that a night-out sentence rarely
 // means as one: "a long session", "a bitter wind", and "shot" as an idiom.
 const AMBIGUOUS_BARE_WORD = /\b(?:ryes?|roses?|ports?|punch(?:es)?|sours?|bitters?|sessions?|pales?|drafts?)(?![\wé])|\b(?:worth a|give (?:it|this|that) a|long|big) shot\b|\bshot at\b/g;
@@ -52,18 +55,55 @@ function singular(word: string): string {
   return word;
 }
 
+/**
+ * Cut every refused drink out of a request. A refusal takes the whole drink it
+ * names, as the shared taxonomy reads it ("no ginger beer", "no gin and
+ * tonic"), then each drink coordinated with `or`/`nor`, including a colour
+ * shared with the next drink ("no red or white wine"). A refused word that is
+ * not a drink ("no frills or fuss wine night") refuses nothing after it.
+ */
+function withoutRefusals(text: string): string {
+  const phrases: { start: number; end: number }[] = [];
+  for (const span of drinkKeywordSpans(text)) {
+    const last = phrases.at(-1);
+    if (last && /^\s+$/.test(text.slice(last.end, span.start))) last.end = span.end;
+    else phrases.push({ start: span.start, end: span.end });
+  }
+  const phraseAt = (at: number) => phrases.find((phrase) => phrase.start === at);
+  const coordinatedPhrase = (at: number) => {
+    const coordinator = COORDINATOR.exec(text.slice(at));
+    return coordinator ? phraseAt(at + coordinator[0].length) : undefined;
+  };
+  let request = text;
+  for (const marker of text.matchAll(REFUSAL)) {
+    const headAt = marker.index + marker[0].length + (REFUSAL_LEAD.exec(text.slice(marker.index + marker[0].length))?.[0].length ?? 0);
+    let end = phraseAt(headAt)?.end;
+    if (end === undefined) {
+      const word = /^[\w'&-]+/.exec(text.slice(headAt))?.[0] ?? "";
+      const next = coordinatedPhrase(headAt + word.length);
+      const nextText = next ? text.slice(next.start, next.end) : "";
+      const shared = `${word} ${nextText.split(" ").at(-1)}`;
+      end = next && word && drinkKeywordSpans(shared).some((span) => span.start === 0 && span.end === shared.length)
+        ? next.end
+        : headAt + word.length;
+    }
+    for (let next = coordinatedPhrase(end); next; next = coordinatedPhrase(end)) end = next.end;
+    request = request.slice(0, marker.index) + " ".repeat(end - marker.index) + request.slice(end);
+  }
+  return request;
+}
+
 function requestedCategories(clause: string): Set<DrinkCategory> {
   const request = clause
     .replace(ORDER_FOR_COMPANION, " ")
     .replace(COMPANION_ORDER, " ")
     .replace(LOCATION_SPAN, " ")
     .replace(PLACE_OR_MENU, " ")
-    .replace(REFUSAL, " ")
     .replace(AMBIGUOUS_BARE_WORD, " ")
     .split(/\s+/)
     .map(singular)
     .join(" ");
-  return drinkCategoriesInText(request);
+  return drinkCategoriesInText(withoutRefusals(request));
 }
 
 function singleCategory(categories: Set<DrinkCategory>): DrinkCategory | null {
@@ -73,9 +113,10 @@ function singleCategory(categories: Set<DrinkCategory>): DrinkCategory | null {
 /** The single drink lane a Plan query requests, or null when it names none or several. */
 export function planRequestedDrinkCategory(query: string): DrinkCategory | null {
   const text = query
-    .toLocaleLowerCase()
     .replace(/[‘’]/g, "'")
-    .replace(FIRST_PERSON_ON, "$1 drinking");
+    .replace(FIRST_PERSON_ON, "$1 drinking")
+    .replace(ON_NAMED_PLACE, " ")
+    .toLocaleLowerCase();
   const consumed = new Set<DrinkCategory>();
   const requested = new Set<DrinkCategory>();
   for (const clause of text.split(CLAUSE_BREAK)) {
