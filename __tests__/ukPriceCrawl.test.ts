@@ -284,6 +284,7 @@ describe("what a page states", () => {
     ["a sour beer style", "<ul><li>Brewdog Sour IPA £6.50</li></ul>", 6.5, "beer"],
     ["a sour ale", "<ul><li>Wild Sour Ale £6.20</li></ul>", 6.2, "beer"],
     ["a zero-strength item name", "<ul><li>Heineken 0.0% lager £5.00</li></ul>", 5, "alcohol-free"],
+    ["an HTML item formatted across source lines", "<ul><li>Negroni\non tap £9.00</li></ul>", 9, "cocktail"],
     ["a cocktail served on tap", "<ul><li>Negroni on tap £9.00</li></ul>", 9, "cocktail"],
     ["a cocktail served on draught", "<ul><li>Espresso Martini on draught £9.50</li></ul>", 9.5, "cocktail"],
     ["a cocktail naming a beer brand in its description", "<ul><li>Espresso Martini Vodka, Kahlua, Camden coffee £9.50</li></ul>", 9.5, "cocktail"],

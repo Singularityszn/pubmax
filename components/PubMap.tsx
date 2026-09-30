@@ -91,7 +91,7 @@ import {
 import { UK_BOUNDS } from "@/components/map/canvas/tokens";
 import MapFallbackCard from "@/components/map/MapFallbackCard";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
-import { useFocusTrap } from "@/lib/useFocusTrap";
+import { readStrictModalFocusTrap, useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import SpringDrawer from "@/components/map/SpringDrawer";
 const SiteNav = dynamic(() => import("@/components/nav/SiteNav"), {
@@ -5099,43 +5099,59 @@ export default function PubMap({
       // mount after the drawer. Resolve the return target when closing.
       const targetId = target?.id || "mapSearchInput";
       let pendingTarget: MutationObserver | null = null;
-      const restoreFocus = () => {
-        const currentTarget =
-          target?.isConnected
-            ? target
-            : document.getElementById(targetId);
-        currentTarget?.focus();
-        if (currentTarget) pendingTarget?.disconnect();
-      };
-      if (!mobileViewport && !target?.isConnected && !document.getElementById(targetId)) {
-        pendingTarget = new MutationObserver(restoreFocus);
-        pendingTarget.observe(document.body, { childList: true, subtree: true });
-      }
-      // Restore in the close commit, then once more after selection history has
-      // popped its URL checkpoint. Browser history traversal can otherwise
-      // move focus back to the document after this layout effect.
-      restoreFocus();
-      preSheetFocusRef.current = null;
-      const frame = requestAnimationFrame(restoreFocus);
+      let frame: number | null = null;
       let popFrame: number | null = null;
+      let listenerCeiling: number | null = null;
+      let cancelled = false;
+      const stopRestoration = () => {
+        cancelled = true;
+        pendingTarget?.disconnect();
+        if (frame !== null) cancelAnimationFrame(frame);
+        if (popFrame !== null) cancelAnimationFrame(popFrame);
+        if (listenerCeiling !== null) window.clearTimeout(listenerCeiling);
+        document.removeEventListener("focusin", respectFocusChoice);
+        window.removeEventListener("popstate", restoreAfterHistory);
+      };
+      const returnTarget = () => target?.isConnected ? target : document.getElementById(targetId);
+      const respectFocusChoice = () => {
+        const active = document.activeElement;
+        if (readStrictModalFocusTrap() || (
+          active instanceof HTMLElement &&
+          active !== document.body && active !== document.documentElement &&
+          active !== returnTarget() && !detailDrawerRef.current?.contains(active)
+        )) stopRestoration();
+      };
+      const restoreFocus = () => {
+        respectFocusChoice();
+        if (cancelled) return;
+        const currentTarget = returnTarget();
+        if (!currentTarget || currentTarget.closest("[inert]")) return;
+        currentTarget.focus({ preventScroll: true });
+        if (document.activeElement === currentTarget) pendingTarget?.disconnect();
+      };
       const restoreAfterHistory = () => {
+        if (popFrame !== null) cancelAnimationFrame(popFrame);
         popFrame = requestAnimationFrame(restoreFocus);
       };
-      // Local close pops the selection sentinel after this commit. Restore
-      // once more on that exact history settlement so traversal cannot strand
-      // focus on the document. Browser-Back close has already popped, and the
-      // animation-frame restore above covers that path.
-      window.addEventListener("popstate", restoreAfterHistory, { once: true });
-      const listenerCeiling = window.setTimeout(() => {
-        window.removeEventListener("popstate", restoreAfterHistory);
-      }, 1_000);
-      return () => {
-        pendingTarget?.disconnect();
-        cancelAnimationFrame(frame);
-        if (popFrame !== null) cancelAnimationFrame(popFrame);
-        window.clearTimeout(listenerCeiling);
-        window.removeEventListener("popstate", restoreAfterHistory);
-      };
+      if (!mobileViewport) {
+        pendingTarget = new MutationObserver(restoreFocus);
+        pendingTarget.observe(document.body, {
+          childList: true, subtree: true, attributes: true, attributeFilter: ["inert"],
+        });
+      }
+      // A later focus choice owns the page, even while the toolbar is loading.
+      document.addEventListener("focusin", respectFocusChoice);
+      restoreFocus();
+      preSheetFocusRef.current = null;
+      if (!cancelled) {
+        frame = requestAnimationFrame(restoreFocus);
+        // Local close pops its selection checkpoint after the close commit.
+        window.addEventListener("popstate", restoreAfterHistory, { once: true });
+        listenerCeiling = window.setTimeout(() => {
+          window.removeEventListener("popstate", restoreAfterHistory);
+        }, 1_000);
+      }
+      return stopRestoration;
     }
   }, [detailOpen, detailDrawerMounted, mobileViewport]);
 

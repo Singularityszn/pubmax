@@ -463,7 +463,10 @@ export function pageText(html: string, preserveItemBoundaries = false): string {
     .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/\s+/g, " ")
+    // HTML source newlines are whitespace within an element, not menu rows.
+    .replace(/<(p|li|tr|div|section|article|h[1-6]|ul|ol|table|dl|dt|dd)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,
+      (element) => element.replace(/\s+/g, " "))
+    .replace(/\s+/g, (space) => preserveItemBoundaries && /[\r\n]/.test(space) ? "\n" : " ")
     .replace(/<\/?(?:p|li|tr|div|section|article|h[1-6]|ul|ol|table|dl|dt|dd)\b[^>]*>/gi, "\n")
     .replace(/<[^>]*>/g, " ")
     .replace(/&nbsp;/gi, " ")

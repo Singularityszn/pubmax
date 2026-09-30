@@ -68,6 +68,28 @@ describe("the flag", () => {
 });
 
 describe("readPricesFrom", () => {
+  it.each(["\n", "\r\n"])("preserves multiline menu item boundaries (%j)", async (newline) => {
+    const reader = createContextDevPriceReader({
+      env: KEY,
+      robots: allowRobots(),
+      fetchImpl: async () => scrapeMarkdownResponse([
+        PRICED_MENU,
+        "Negroni on tap £9.00",
+        "Espresso Martini on draught £10.00",
+        "Heineken 0.0% lager £5.00",
+      ].join(newline)),
+    });
+    const answer = await reader.readPricesFrom(MENU_URL);
+    expect(answer.outcome).toBe("priced");
+    expect(answer.rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ category: "beer", drinkLabel: "Guinness Draught pint", priceGbp: 6.1 }),
+      expect.objectContaining({ category: "cocktail", drinkLabel: "Negroni on tap", priceGbp: 9 }),
+      expect.objectContaining({ category: "cocktail", drinkLabel: "Espresso Martini on draught", priceGbp: 10 }),
+      expect.objectContaining({ category: "alcohol-free", drinkLabel: "Heineken 0.0% lager", priceGbp: 5 }),
+    ]));
+    expect(answer.rows.filter((row: { category: string; priceGbp: number }) => row.category === "beer" && row.priceGbp >= 9)).toEqual([]);
+  });
+
   it("preserves distinct printed wine measures in output rows", async () => {
     const reader = createContextDevPriceReader({
       env: KEY,
