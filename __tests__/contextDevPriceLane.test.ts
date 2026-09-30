@@ -68,15 +68,24 @@ describe("the flag", () => {
 });
 
 describe("readPricesFrom", () => {
-  it.each(["\n", "\r\n"])("preserves multiline menu item boundaries (%j)", async (newline) => {
+  it.each([
+    ["LF", "\n", "", ""],
+    ["CRLF", "\r\n", "", ""],
+    ["inline HTML footer", "\n", "", "<span>Menu updated today</span>"],
+    ["body HTML footer", "\r\n", "", "<body>Menu updated today</body>"],
+    ["inline HTML header", "\n", "<span>Menu updated today</span>", ""],
+    ["body HTML header", "\r\n", "<body>Menu updated today</body>", ""],
+  ])("preserves multiline menu item boundaries with %s", async (_case, newline, header, footer) => {
     const reader = createContextDevPriceReader({
       env: KEY,
       robots: allowRobots(),
       fetchImpl: async () => scrapeMarkdownResponse([
+        header,
         PRICED_MENU,
         "Negroni on tap £9.00",
         "Espresso Martini on draught £10.00",
         "Heineken 0.0% lager £5.00",
+        footer,
       ].join(newline)),
     });
     const answer = await reader.readPricesFrom(MENU_URL);

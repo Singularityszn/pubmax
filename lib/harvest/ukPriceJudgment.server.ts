@@ -23,6 +23,7 @@ import {
   type UkPriceDropReason,
   type UkPriceRawCandidate,
   type UkPriceReading,
+  type UkPriceSourceFormat,
 } from "@/lib/harvest/ukPriceCrawl";
 
 type UkPriceJudgmentReviewRow = {
@@ -237,12 +238,13 @@ export async function judgeUkPriceCandidate(
 export async function readVenueDrinkPricesJudged(
   html: string,
   ctx: { pubName: string; pageUrl: string },
+  sourceFormat: UkPriceSourceFormat = "text",
 ): Promise<UkPriceJudgedReading> {
   if (!process.env.TYPESAFE_API_KEY?.trim()) {
-    return { ...readVenueDrinkPrices(html), review: [] };
+    return { ...readVenueDrinkPrices(html, sourceFormat), review: [] };
   }
 
-  const text = pageText(html, true);
+  const text = pageText(html, true, sourceFormat);
   const candidates = findUkPriceCandidates(text, UK_PRICE_JUDGMENT_SNIPPET_CHARS);
   if (candidates.length === 0) {
     return { kept: [], drops: ["no-price-on-page"], review: [] };
@@ -252,7 +254,7 @@ export async function readVenueDrinkPricesJudged(
   const drops: UkPriceDropReason[] = [];
   const review: UkPriceJudgmentReviewRow[] = [];
   const batches = batchUkPriceCandidates(ctx, candidates);
-  const keylessDecisions = readKeylessUkPriceDecisions(html);
+  const keylessDecisions = readKeylessUkPriceDecisions(html, sourceFormat);
 
   for (const batch of batches) {
     const verbatimBatch = batch.filter((raw) => {

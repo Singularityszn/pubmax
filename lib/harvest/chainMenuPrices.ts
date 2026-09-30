@@ -100,7 +100,7 @@ export function chainPintReadingFromUk(reading: UkPriceReading): ChainPriceReadi
  * empty list is not.
  */
 export function readChainPintPrices(html: string): ChainPriceReading {
-  return chainPintReadingFromUk(readVenueDrinkPrices(html));
+  return chainPintReadingFromUk(readVenueDrinkPrices(html, "html"));
 }
 
 /**

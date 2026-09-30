@@ -391,11 +391,11 @@ async function crawlHost(entry, robots, spend, delayMs) {
   const pubName = entry.pubs[0]?.name ?? entry.host;
   const reviewRows = [];
 
-  async function readPage(url, body) {
+  async function readPage(url, body, sourceFormat = "html") {
     const { reading, review } = await readVenueDrinkPricesForHarvest(body, {
       pubName,
       pageUrl: url,
-    });
+    }, sourceFormat);
     reviewRows.push(...review);
     return reading;
   }
@@ -421,7 +421,7 @@ async function crawlHost(entry, robots, spend, delayMs) {
       pdfRead += 1;
       // The PDF's words are fed in as TEXT, so the HTML stripper is not asked to
       // strip markup that was never there.
-      readings.push({ url, reading: await readPage(url, text) });
+      readings.push({ url, reading: await readPage(url, text, "text") });
       continue;
     }
     readings.push({ url, reading: await readPage(url, page.body) });

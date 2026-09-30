@@ -694,7 +694,6 @@ export default function MapSearchSuggest({
                     >
                       <span className="mapSearchSuggestRowMain">
                         <span className="mapSearchSuggestRowName">{pub.name}</span>
-                        <span className="mapSearchSuggestBorough">No listed price</span>
                         {pub.address ? (
                           <span className="mapSearchSuggestBorough">{pub.address}</span>
                         ) : null}

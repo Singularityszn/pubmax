@@ -191,6 +191,7 @@ describe("POST /api/plans/generate", () => {
       detail: expect.stringContaining("recorded pint"),
     }));
     expect(body.contextEffects).toEqual(expect.arrayContaining(["budget", "daypart", "groupSize", "atmosphere"]));
+    expect(body.contextEffects).not.toContain("drinkCategory");
     expect(body.missingContextEvidence).toEqual([]);
     expect(body.explanations).toEqual(expect.arrayContaining([expect.objectContaining({ field: "nightArea" })]));
     expect(body).not.toHaveProperty("planId");
@@ -252,6 +253,7 @@ describe("POST /api/plans/generate", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(body.contextEffects).toContain("drinkCategory");
     const pricedStop = body.stops.find((stop: { venueId: string }) => stop.venueId === "v2");
     expect(pricedStop).toMatchObject({
       estimatedPintPricePence: null,

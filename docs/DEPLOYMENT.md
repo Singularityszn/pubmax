@@ -356,8 +356,8 @@ vercel promote <deployment-url>
 ```
 
 `npm run deploy:preview` is `vercel deploy` plus the commit of the tree it is
-uploading, so `GET /api/version` on the preview names it (see below). It
-forwards every argument.
+uploading. An authenticated `GET /api/version` names that commit (see below).
+An unauthenticated request returns health only. The command forwards every argument.
 
 Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pass `--prebuilt` from a Mac: the locally built sharp binary is darwin-arm64 and crashes the linux runtime. `npm run deploy:preview:prod-env` refuses that flag for you.
 
@@ -380,12 +380,15 @@ What the command does, in order:
 3. Runs `npm run deploy:preview` with each carried value as `--build-env` and
    `--env`, so a `NEXT_PUBLIC_*` value reaches the client bundle and the running
    function alike, and the commit stamp rides along as before.
-4. Prints the names it carried, the names it could not, and how to prove the
-   result: `curl -s <deployment-url>/api/version`.
+4. Prints the names it carried and the names it could not. Verify the running
+   commit with the authenticated build marker below, using an existing credential
+   configured on the target deployment. A public health response contains no commit.
 
-**What it proves.** The preview serves the commit you sent (`gitCommitSha`
-matches local `git rev-parse HEAD`), built with every production value Vercel
-will hand back, on Vercel's own linux runtime.
+**What it establishes.** A successful deploy produces a preview built with the
+production values Vercel returns, on its Linux runtime. Establish its running
+commit separately: the authenticated marker must match local `git rev-parse HEAD`.
+Secret values returned as `[SENSITIVE]` are dropped, so do not assume the preview
+received `CRON_SECRET` or can answer an authenticated marker request.
 
 **What it does not prove.** Two gaps, and the command names both on the way out.
 
@@ -484,13 +487,37 @@ it back to a deployment.
 
 ### Which commit is this deploy serving
 
-`GET /api/version` names the running code. It is public, uncached and cheap: the
-answer is decided during the build and inlined, so the route runs no git and
-reads no platform variable per request.
+`GET /api/version` returns `{ "ok": true }` without valid cron authentication.
+This proves route health only. Build metadata requires an existing `CRON_SECRET`
+configured on the target deployment. Keep that credential in the process
+environment; never put its value in an argument, log or file.
+
+With an authorised credential already available, run this from the clean checkout
+that produced the deployment. Set `DEPLOYMENT_URL` to its HTTPS URL. The request
+fails if authentication returns health only or the running commit differs from HEAD.
 
 ```sh
-curl -s https://<deployment-url>/api/version
+node --input-type=module <<'NODE'
+import { execFileSync } from 'node:child_process';
+const secret = process.env.CRON_SECRET;
+const target = process.env.DEPLOYMENT_URL;
+if (!secret || !target) throw new Error('Existing credential and deployment URL required');
+const expected = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+const response = await fetch(new URL('/api/version', target), {
+  headers: { Authorization: `Bearer ${secret}` },
+});
+if (!response.ok) throw new Error('Build marker request failed');
+const marker = await response.json();
+if (!marker.gitCommitSha || marker.gitCommitSha !== expected) {
+  throw new Error('Running commit unverified');
+}
+console.log(JSON.stringify(marker));
+NODE
 ```
+
+If the authorised credential is unavailable or absent from the target preview,
+keep source verification pending. Do not weaken route authentication to obtain it.
+Build metadata is uncached and inlined during the build; the route runs no git.
 
 ```json
 {

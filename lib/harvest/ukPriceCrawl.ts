@@ -33,7 +33,7 @@
 // anything here runs.
 
 import type { DrinkCategory } from "@/lib/drinks";
-import { parse, serializeOuter, type DefaultTreeAdapterTypes } from "parse5";
+import { parse, parseFragment, serializeOuter, type DefaultTreeAdapterTypes } from "parse5";
 
 /** Why a candidate figure on a permitted page did not become a row. */
 export const UK_PRICE_DROP_REASONS = [
@@ -454,18 +454,54 @@ export type UkPriceReading = {
   drops: UkPriceDropReason[];
 };
 
+function normalizeHtmlTextWhitespace(source: string): string {
+  if (!/<[a-z!/]/i.test(source)) return source;
+  const document = parseFragment(source, { sourceCodeLocationInfo: true });
+  const ranges: Array<{ start: number; end: number }> = [];
+  function visit(node: HtmlNode, insideElement = false): void {
+    const children = htmlChildren(node);
+    const ownsHtmlText = insideElement || isHtmlElement(node);
+    for (const [index, child] of children.entries()) {
+      const betweenElements = index > 0 && index < children.length - 1 &&
+        isHtmlElement(children[index - 1]) && isHtmlElement(children[index + 1]);
+      if (child.nodeName === "#text" && "value" in child && child.sourceCodeLocation &&
+        (ownsHtmlText || (betweenElements && /^\s+$/.test(child.value)))) {
+        ranges.push({ start: child.sourceCodeLocation.startOffset, end: child.sourceCodeLocation.endOffset });
+      }
+      visit(child, ownsHtmlText);
+    }
+  }
+  visit(document);
+  const pieces: string[] = [];
+  let cursor = 0;
+  for (const { start, end } of ranges.sort((a, b) => a.start - b.start)) {
+    if (start < cursor) continue;
+    pieces.push(source.slice(cursor, start), source.slice(start, end).replace(/\s+/g, " "));
+    cursor = end;
+  }
+  pieces.push(source.slice(cursor));
+  return pieces.join("");
+}
+
 /**
  * Strip a page to the text a reader sees. Scripts and styles go first, because
  * a price inside a JSON blob or a CSS rule is not something the page states.
  */
-export function pageText(html: string, preserveItemBoundaries = false): string {
-  return html
+export type UkPriceSourceFormat = "html" | "text";
+
+export function pageText(
+  html: string,
+  preserveItemBoundaries = false,
+  sourceFormat: UkPriceSourceFormat = "text",
+): string {
+  const visibleSource = html
     .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
-    .replace(/<!--[\s\S]*?-->/g, " ")
-    // HTML source newlines are whitespace within an element, not menu rows.
-    .replace(/<(p|li|tr|div|section|article|h[1-6]|ul|ol|table|dl|dt|dd)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,
-      (element) => element.replace(/\s+/g, " "))
+    .replace(/<!--[\s\S]*?-->/g, " ");
+  const source = sourceFormat === "html"
+    ? visibleSource.replace(/\s+/g, " ")
+    : preserveItemBoundaries ? normalizeHtmlTextWhitespace(visibleSource) : visibleSource;
+  return source
     .replace(/\s+/g, (space) => preserveItemBoundaries && /[\r\n]/.test(space) ? "\n" : " ")
     .replace(/<\/?(?:p|li|tr|div|section|article|h[1-6]|ul|ol|table|dl|dt|dd)\b[^>]*>/gi, "\n")
     .replace(/<[^>]*>/g, " ")
@@ -761,8 +797,9 @@ export function decideKeylessUkPriceCandidate(
 
 export function readKeylessUkPriceDecisions(
   html: string,
+  sourceFormat: UkPriceSourceFormat = "text",
 ): Map<number, ReturnType<typeof decideKeylessUkPriceCandidate>> {
-  const text = pageText(html, true);
+  const text = pageText(html, true, sourceFormat);
   const decisions = new Map<number, ReturnType<typeof decideKeylessUkPriceCandidate>>();
   const candidates = findUkPriceCandidates(text);
   const winePrices = wineSectionPrices(html);
@@ -781,8 +818,11 @@ export function readKeylessUkPriceDecisions(
   return decisions;
 }
 
-export function readVenueDrinkPrices(html: string): UkPriceReading {
-  const decisions = readKeylessUkPriceDecisions(html);
+export function readVenueDrinkPrices(
+  html: string,
+  sourceFormat: UkPriceSourceFormat = "text",
+): UkPriceReading {
+  const decisions = readKeylessUkPriceDecisions(html, sourceFormat);
   const kept: UkPriceCandidate[] = [];
   const drops: UkPriceDropReason[] = [];
   if (decisions.size === 0) return { kept, drops: ["no-price-on-page"] };
