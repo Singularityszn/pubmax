@@ -5,11 +5,12 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { COMMUNITY_SHEET_FIXTURE_MAP_PATH } from "./helpers/communitySheetFixture";
 
-import { median } from "../lib/performanceBudgets";
 import {
   BASELINE_ROUTES_BY_DEVICE,
   CWV_BASELINE,
   MEASURABLE_BASELINE_ROUTES,
+  aggregateProductTimingSamples,
+  aggregateVitalsSamples,
   carriedDebtKeys,
   findProductTimingRegressions,
   findVitalsRegressions,
@@ -24,6 +25,7 @@ import {
   type ProductTimingRecord,
   type VitalsDevice,
   type VitalsRecord,
+  type VitalsSample,
   type VitalsTemperature,
 } from "../lib/webVitalsBaseline";
 import {
@@ -119,19 +121,6 @@ const ROUTE_READY_TIMEOUT_MS = 180_000;
  */
 const SELECTED_VENUE_PATH = COMMUNITY_SHEET_FIXTURE_MAP_PATH;
 
-type Sample = MeasuredVitals & {
-  /**
-   * Whether the route's primary action was actually exercised.
-   *
-   * A control that never appeared leaves the probe with no interaction to
-   * report, and INP then reads at the floor - which puts the route at the TOP
-   * of the table as the most responsive thing on the site. That failure is
-   * silent and flattering, which is the worst combination a measurement can
-   * have, so it is carried per sample and failed on below.
-   */
-  interacted: boolean;
-};
-
 async function loadAndSettle(page: Page, routePath: string): Promise<void> {
   await page.goto(routePath, { waitUntil: "load" });
   const ready = ROUTE_READY[routePath] ?? "main";
@@ -147,7 +136,7 @@ async function sampleRoute(
   page: Page,
   routePath: string,
   temperature: VitalsTemperature,
-): Promise<Sample> {
+): Promise<VitalsSample> {
   if (temperature === "cold") {
     await coolBrowser(page);
   } else {
@@ -162,14 +151,6 @@ async function sampleRoute(
   await loadAndSettle(page, routePath);
   const interacted = await exercisePrimaryAction(page, routePath);
   return { ...(await readVitals(page)), interacted };
-}
-
-function aggregate(samples: readonly Sample[]): MeasuredVitals {
-  return {
-    lcpMs: median(samples.map((sample) => sample.lcpMs)),
-    inpMs: median(samples.map((sample) => sample.inpMs)),
-    cls: median(samples.map((sample) => sample.cls)),
-  };
 }
 
 /**
@@ -241,27 +222,26 @@ test.describe("Core Web Vitals baseline", () => {
 
     const routeRecords: VitalsRecord[] = [];
     const measuredVitals = new Map<string, MeasuredVitals>();
-    /** Rows whose primary action never appeared, so their INP means nothing. */
-    const uninteracted: string[] = [];
 
     for (const device of DEVICES) {
       await applyVitalsDevice(page, device);
       for (const routePath of BASELINE_ROUTES_BY_DEVICE[device]) {
         for (const temperature of ["cold", "warm"] as const) {
-          const samples: Sample[] = [];
+          const samples: VitalsSample[] = [];
           for (let run = 0; run < RUNS; run += 1) {
             samples.push(await sampleRoute(page, routePath, temperature));
           }
-          const figures = aggregate(samples);
           const key = vitalsRecordKey(routePath, device, temperature);
-          if (!samples.some((sample) => sample.interacted)) uninteracted.push(key);
+          console.log(`[cwv] ${key} raw samples ${JSON.stringify(samples)}`);
+          const figures = aggregateVitalsSamples(samples);
           measuredVitals.set(key, figures);
           routeRecords.push({ path: routePath, device, temperature, ...figures });
           console.log(
             `[cwv] ${key.padEnd(34)} LCP ${Math.round(figures.lcpMs).toString().padStart(6)}` +
               `  INP ${Math.round(figures.inpMs).toString().padStart(5)}` +
               `  CLS ${figures.cls.toFixed(3)}` +
-              `   LCP samples ${samples.map((sample) => Math.round(sample.lcpMs)).join("/")}`,
+              `   LCP samples ${samples.map((sample) => Math.round(sample.lcpMs)).join("/")}` +
+              `   actions ${samples.map((sample) => sample.interacted).join("/")}`,
           );
         }
       }
@@ -284,7 +264,7 @@ test.describe("Core Web Vitals baseline", () => {
           await coolBrowser(page);
           runs.push(await take());
         }
-        const ms = median(runs);
+        const ms = aggregateProductTimingSamples(runs);
         measuredTimings.set(productTimingKey(key, device), ms);
         productRecords.push({ key, label, device, startedAt, ms });
         console.log(
@@ -317,15 +297,6 @@ test.describe("Core Web Vitals baseline", () => {
         () => timeAcknowledgedSave(page),
       );
     }
-
-    // A row whose control never appeared records the floor and reads as the
-    // fastest thing on the table, so it fails before any number is written or
-    // defended.
-    expect(
-      uninteracted,
-      "The primary action never appeared on these rows, so their INP is the " +
-        `Event Timing floor rather than a measurement: ${uninteracted.join(", ")}`,
-    ).toEqual([]);
 
     console.log(`\n[cwv] routes\n${formatBaselineTable(routeRecords)}`);
     console.log(`\n[cwv] product timings\n${formatProductTimingTable(productRecords)}`);
