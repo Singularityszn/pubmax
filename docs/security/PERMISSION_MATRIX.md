@@ -98,6 +98,9 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Moderator confirm, restore, review lanes, hide a price | 403 | 403 | 403 | `ADMIN_TOKEN` only |
 | Delete account (`DELETE /api/account`) | 401 | own account only, whatever the body names | own account only | n/a |
 | Export account data (`GET /api/account/export`) | 401 | own account only, whatever the query names | own account only | not an identity: 401 |
+| Read A's friend location (`GET /api/friend-locations`) | 401 | only explicitly selected, current mutual, unblocked, live adult recipient; otherwise no point | own sharing state | denied |
+| Start, reconcile, update or revoke friend location | 401 | own account only; generation required for start/reconcile, session and revision for update/revoke | own account only | denied |
+| Friend location session/grant tables, `private_friend_location_generations` and RPC | denied | denied | denied | service role only |
 | Read A's PUBLIC profile card (`GET /api/profiles/[handle]`) | allowed | allowed | allowed | n/a |
 | Read A's PRIVATE profile card | limited card | full for a mate, limited for anybody else | full: she owns it | n/a |
 | Set who can see A's profile (`PATCH` `visibility`) | denied | 403, and the stored choice does not move | allowed | n/a |

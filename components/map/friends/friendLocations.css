@@ -1,0 +1,20 @@
+.friendLocationControl { position: absolute; right: calc(var(--map-chrome-inset, 10px) + var(--space-12) + var(--map-chrome-gap, 6px)); top: calc(var(--map-top-clearance, 159px) + var(--map-toolbar-resting-height, 155px) + var(--space-3)); z-index: var(--z-map-toolbar); }
+.friendLocationControl.isOpen { z-index: var(--z-overlay-top); }
+.friendLocationControl > button { gap: var(--space-2); }
+.friendLocationPanel { position: absolute; top: calc(100% + var(--space-2)); right: 0; width: min(350px, calc(100vw - 32px)); max-height: calc(100dvh - var(--map-top-clearance, 159px) - var(--map-toolbar-resting-height, 155px) - var(--space-3) - 44px - var(--space-2) - var(--space-4)); overflow: auto; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--panel-overlay); color: var(--ink); box-shadow: var(--shadow); font-size: var(--text-sm); }
+.friendLocationHeading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.friendLocationHeading h2 { font-size: var(--text-lg); font-family: var(--font-display); margin: 0; }
+.friendLocationPanel p { margin: var(--space-3) 0; line-height: var(--leading-normal); }
+.friendLocationPanel fieldset { border: 0; margin: var(--space-4) 0; padding: 0; }
+.friendLocationPanel legend { font-weight: 600; }
+.friendLocationPanel label { display: flex; align-items: center; gap: var(--space-3); min-height: 44px; }
+.friendLocationPanel input { width: 20px; height: 20px; accent-color: var(--ink); }
+.friendLocationPanel h3 { font-size: var(--text-base); margin-top: var(--space-4); }
+.friendLocationPanel ul { padding: 0; list-style: none; }
+.friendLocationPanel li { margin: var(--space-3) 0; }
+.friendLocationPanel li span { display: block; color: var(--ink-soft); }
+.friendLocationMarker { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); color: var(--state-active-ink); font-family: var(--font-body); font-size: var(--text-xs); background: var(--state-active-surface); border: 2px solid var(--state-active-border); border-radius: var(--radius); padding: var(--space-2); }
+.friendLocationMarkerAvatar { display: grid; place-items: center; border: 2px solid currentColor; border-radius: var(--radius-pill); width: 28px; height: 28px; font-weight: 700; }
+@media (max-width: 640px) { .friendLocationControl { top: 160px; right: var(--space-3); } .friendLocationPanel { top: calc(100% + var(--space-2)); max-height: calc(100dvh - 300px); } .mapShell.sheet-full .friendLocationControl { display: none; } }
+
+.friendLocationSharingBadge { border: 1px solid var(--state-active-border); border-radius: var(--radius-pill); background: var(--state-active-surface); color: var(--state-active-ink); padding: var(--space-1) var(--space-2); font-size: var(--text-xs); }
