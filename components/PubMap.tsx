@@ -4098,6 +4098,7 @@ export default function PubMap({
   // Keyboard shortcuts: "/" focuses search. Escape enters the same Back owner
   // as browser, button, and gesture navigation.
   useMapKeyboardShortcuts({
+    mobileViewport,
     planningOpen,
     selectedVenueId,
     onBack: () => surfaceBackRef.current(),

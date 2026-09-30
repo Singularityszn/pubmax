@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 type KeyboardShortcutArgs = {
+  mobileViewport: boolean;
   planningOpen: boolean;
   selectedVenueId: string;
   onBack: () => void;
@@ -27,6 +28,7 @@ export function useMapKeyboardShortcuts(args: KeyboardShortcutArgs) {
     if (typeof window === "undefined") return;
     const onKeyDown = (event: KeyboardEvent) => {
       const {
+        mobileViewport,
         planningOpen,
         selectedVenueId,
         onBack,
@@ -49,9 +51,9 @@ export function useMapKeyboardShortcuts(args: KeyboardShortcutArgs) {
           event.preventDefault();
           search.focus();
         }
-      } else if (event.key === "Escape") {
-        // Topmost first: the Drop pub picker, then the planner (higher z on
-        // mobile), then venue detail.
+      } else if (event.key === "Escape" && !mobileViewport) {
+        // Phone sheets own Escape. The map fallback only serves desktop drawers.
+        // Topmost first: the Drop pub picker, then the planner, then venue detail.
         if (logIntentFallbackVisible) {
           dismissLogIntent();
           return;
