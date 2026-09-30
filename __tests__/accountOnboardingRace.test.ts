@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { act as reactAct, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -37,150 +38,8 @@ import AccountOnboarding, {
 } from "@/components/identity/AccountOnboarding";
 import { readStrictModalFocusTrap } from "@/lib/useFocusTrap";
 
-class TestNode {
-  nodeType: number;
-  nodeName: string;
-  ownerDocument: TestDocument | null;
-  parentNode: TestNode | null = null;
-  childNodes: TestNode[] = [];
-
-  constructor(nodeType: number, nodeName: string, ownerDocument: TestDocument | null) {
-    this.nodeType = nodeType;
-    this.nodeName = nodeName;
-    this.ownerDocument = ownerDocument;
-  }
-
-  addEventListener(): void {}
-  removeEventListener(): void {}
-
-  appendChild(child: TestNode): TestNode {
-    child.parentNode = this;
-    this.childNodes.push(child);
-    return child;
-  }
-
-  insertBefore(child: TestNode, before: TestNode | null): TestNode {
-    child.parentNode = this;
-    const index = before ? this.childNodes.indexOf(before) : -1;
-    if (index < 0) this.childNodes.push(child);
-    else this.childNodes.splice(index, 0, child);
-    return child;
-  }
-
-  removeChild(child: TestNode): TestNode {
-    const index = this.childNodes.indexOf(child);
-    if (index >= 0) this.childNodes.splice(index, 1);
-    child.parentNode = null;
-    return child;
-  }
-
-  get firstChild(): TestNode | null {
-    return this.childNodes[0] ?? null;
-  }
-
-  get isConnected(): boolean {
-    // The roots are widened to TestNode because `this` is the polymorphic
-    // this-type, which TypeScript reads as having no overlap with TestElement.
-    const bodyRoot: TestNode | undefined = this.ownerDocument?.body;
-    const documentRoot: TestNode | undefined = this.ownerDocument?.documentElement;
-    if (this === bodyRoot || this === documentRoot) {
-      return true;
-    }
-    return this.parentNode?.isConnected ?? false;
-  }
-
-  set textContent(value: string) {
-    this.childNodes = value ? [new TestNode(3, "#text", this.ownerDocument)] : [];
-  }
-}
-
-class TestElement extends TestNode {
-  tagName: string;
-  namespaceURI = "http://www.w3.org/1999/xhtml";
-  style: Record<string, string> = {};
-  attributes = new Map<string, string>();
-  inert = false;
-
-  constructor(tagName: string, ownerDocument: TestDocument) {
-    super(1, tagName.toUpperCase(), ownerDocument);
-    this.tagName = tagName.toUpperCase();
-  }
-
-  setAttribute(name: string, value: string): void {
-    this.attributes.set(name, value);
-  }
-
-  getAttribute(name: string): string | null {
-    return this.attributes.get(name) ?? null;
-  }
-
-  removeAttribute(name: string): void {
-    this.attributes.delete(name);
-  }
-
-  get parentElement(): TestElement | null {
-    return this.parentNode instanceof TestElement ? this.parentNode : null;
-  }
-
-  get children(): TestElement[] {
-    return this.childNodes.filter(
-      (child): child is TestElement => child instanceof TestElement,
-    );
-  }
-
-  get classList(): Pick<DOMTokenList, "contains"> {
-    return {
-      contains: (token: string) =>
-        (this.attributes.get("class") ?? "").split(/\s+/u).includes(token),
-    };
-  }
-
-  focus(): void {
-    this.ownerDocument!.activeElement = this;
-  }
-}
-
-class TestDocument extends TestNode {
-  defaultView: unknown;
-  documentElement: TestElement;
-  body: TestElement;
-  activeElement: TestElement;
-  visibilityState: DocumentVisibilityState = "visible";
-
-  constructor() {
-    super(9, "#document", null);
-    this.ownerDocument = this;
-    this.documentElement = new TestElement("html", this);
-    this.body = new TestElement("body", this);
-    this.activeElement = this.body;
-    this.defaultView = {};
-  }
-
-  createElement(tagName: string): TestElement {
-    return new TestElement(tagName, this);
-  }
-
-  createElementNS(_namespace: string, tagName: string): TestElement {
-    return new TestElement(tagName, this);
-  }
-
-  createTextNode(): TestNode {
-    return new TestNode(3, "#text", this);
-  }
-}
-
 let root: Root | null = null;
-let container: TestElement;
-let previousWindow: typeof globalThis.window | undefined;
-let previousDocument: typeof globalThis.document | undefined;
-let previousHTMLElement: typeof globalThis.HTMLElement | undefined;
-
-function elementsUnder(node: TestNode): TestElement[] {
-  return node.childNodes.flatMap((child) => [
-    ...(child.nodeType === 1 ? [child as TestElement] : []),
-    ...elementsUnder(child),
-  ]);
-}
+let container: HTMLDivElement;
 
 async function commit(work: () => void | Promise<void>): Promise<void> {
   if (typeof reactAct === "function") {
@@ -208,48 +67,12 @@ beforeEach(() => {
   requestState.calls = [];
   requestState.responses = [];
 
-  const document = new TestDocument();
-  const window = Object.assign(new EventTarget() as EventTarget & {
-    document: TestDocument;
-    navigator: { onLine: true },
-    setTimeout: typeof setTimeout;
-    clearTimeout: typeof clearTimeout;
-    getComputedStyle: () => CSSStyleDeclaration;
-    HTMLElement: typeof TestElement;
-    HTMLIFrameElement: typeof HTMLIFrameElement;
-    Node: typeof TestNode;
-    localStorage: {
-      getItem: () => null,
-      setItem: (key: string, value: string) => void;
-    },
-    sessionStorage: Storage | null,
-  }, {
-    document,
-    navigator: { onLine: true },
-    setTimeout,
-    clearTimeout,
-    getComputedStyle: () => ({ display: "block" }) as CSSStyleDeclaration,
-    HTMLElement: TestElement,
-    HTMLIFrameElement: class {},
-    Node: TestNode,
-    localStorage: {
-      getItem: () => null,
-      setItem: () => {},
-    },
-    sessionStorage: null,
-  });
-  document.defaultView = window;
-  previousWindow = globalThis.window;
-  previousDocument = globalThis.document;
-  previousHTMLElement = globalThis.HTMLElement;
-  Object.assign(globalThis, {
-    window,
-    document,
-    HTMLElement: TestElement,
-    IS_REACT_ACT_ENVIRONMENT: typeof reactAct === "function",
-  });
+  document.body.replaceChildren();
+  localStorage.clear();
+  sessionStorage.clear();
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", typeof reactAct === "function");
   container = document.createElement("div");
-  root = createRoot(container as unknown as Element);
+  root = createRoot(container);
 });
 
 afterEach(async () => {
@@ -257,21 +80,17 @@ afterEach(async () => {
     await commit(() => root?.unmount());
     root = null;
   }
-  Object.assign(globalThis, {
-    window: previousWindow,
-    document: previousDocument,
-    HTMLElement: previousHTMLElement,
-    IS_REACT_ACT_ENVIRONMENT: false,
-  });
+  document.body.replaceChildren();
+  vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
 describe("AccountOnboarding cold-open identity race", () => {
   it("supersedes an open sheet with strict modal focus and restores its owner", async () => {
-    const testDocument = document as unknown as TestDocument;
-    const sheetControl = testDocument.createElement("button");
+    const sheetControl = document.createElement("button");
+    sheetControl.inert = false;
     sheetControl.setAttribute("class", "mobileTabBar");
-    testDocument.body.appendChild(sheetControl);
+    document.body.appendChild(sheetControl);
     sheetControl.focus();
     requestState.responses = [Response.json({ complete: false })];
     authState.current.identityResolved = true;
@@ -279,11 +98,9 @@ describe("AccountOnboarding cold-open identity race", () => {
     await commit(() => root?.render(createElement(AccountOnboarding)));
     await settleOnboarding();
 
-    const dialog = elementsUnder(testDocument.body).find(
-      (element) => element.getAttribute("role") === "dialog",
-    );
-    expect(dialog).toBeDefined();
-    expect(testDocument.activeElement).toBe(dialog);
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(dialog).not.toBeNull();
+    expect(document.activeElement).toBe(dialog);
     expect(sheetControl.inert).toBe(true);
     expect(readStrictModalFocusTrap()).toBe(true);
 
@@ -295,7 +112,7 @@ describe("AccountOnboarding cold-open identity race", () => {
     };
     await commit(() => root?.render(createElement(AccountOnboarding)));
 
-    expect(testDocument.activeElement).toBe(sheetControl);
+    expect(document.activeElement).toBe(sheetControl);
     expect(sheetControl.inert).toBe(false);
     expect(readStrictModalFocusTrap()).toBe(false);
   });
@@ -439,17 +256,6 @@ describe("AccountOnboarding cold-open identity race", () => {
     vi.useFakeTimers();
     window.setTimeout = setTimeout;
     window.clearTimeout = clearTimeout;
-    const sessionValues = new Map<string, string>();
-    window.sessionStorage = {
-      get length() {
-        return sessionValues.size;
-      },
-      clear: () => sessionValues.clear(),
-      getItem: (key: string) => sessionValues.get(key) ?? null,
-      key: (index: number) => Array.from(sessionValues.keys())[index] ?? null,
-      removeItem: (key: string) => sessionValues.delete(key),
-      setItem: (key: string, value: string) => sessionValues.set(key, value),
-    } as Storage;
     requestState.responses = [
       new TypeError("Failed to fetch"),
       new TypeError("Failed to fetch"),
@@ -471,7 +277,7 @@ describe("AccountOnboarding cold-open identity race", () => {
     expect(requestState.calls).toHaveLength(3);
     expect(document.body.childNodes[0]?.nodeName).toBe("SECTION");
     expect(container.childNodes).toHaveLength(0);
-    expect(sessionValues).toEqual(new Map());
+    expect(sessionStorage.length).toBe(0);
 
     await commit(() => {
       window.dispatchEvent(new Event("online"));
@@ -483,7 +289,7 @@ describe("AccountOnboarding cold-open identity race", () => {
 
     expect(requestState.calls).toHaveLength(4);
     expect(container.childNodes).toHaveLength(0);
-    expect(sessionValues).toEqual(new Map());
+    expect(sessionStorage.length).toBe(0);
     vi.useRealTimers();
   });
 

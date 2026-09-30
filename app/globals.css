@@ -4696,9 +4696,21 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
 /* Desktop: reserve foot clearance while the fixed consent bar is mounted so
    list cards and page footers are not half-covered. */
 @media (min-width: 641px) {
-  body:has(.analyticsConsentPrompt) {
+  body:has(.analyticsConsentPrompt):not(:has(.mapStage)) {
     padding-bottom: calc(
       var(--analytics-consent-clearance, 72px) + max(12px, env(safe-area-inset-bottom))
+    );
+  }
+
+  /* The map fills the viewport, so its attribution moves above the docked
+     consent strip instead of adding a scrollable foot to the document. */
+  body:has(.analyticsConsentPrompt) .appShell .mapStage .maplibregl-ctrl-bottom-right {
+    bottom: var(--analytics-consent-clearance, 72px);
+  }
+
+  body:has(.analyticsConsentPrompt) .mapSoftRetry {
+    bottom: calc(
+      var(--analytics-consent-clearance, 72px) + max(16px, env(safe-area-inset-bottom, 0px))
     );
   }
 
@@ -4712,13 +4724,13 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
 @media (max-width: 640px) {
   /* Phone: the card is one 56px row on the tab bar's lane, so scroll surfaces
      reserve exactly that row and Today, Plan and /pubs actions end above it. */
-  body:has(.analyticsConsentPrompt):has(.mobileTabBar, .mobileTabBarClearance) {
+  body:has(.analyticsConsentPrompt):has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage)) {
     padding-bottom: calc(
         var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--analytics-consent-mobile-clearance, 56px)
     );
   }
 
-  body:has(.analyticsConsentPrompt):not(:has(.mobileTabBar, .mobileTabBarClearance)) {
+  body:has(.analyticsConsentPrompt):not(:has(.mobileTabBar, .mobileTabBarClearance)):not(:has(.mapStage)) {
     padding-bottom: calc(
       var(--analytics-consent-mobile-clearance, 56px) + max(12px, env(safe-area-inset-bottom))
     );

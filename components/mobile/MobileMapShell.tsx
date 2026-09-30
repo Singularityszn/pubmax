@@ -33,7 +33,7 @@ const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
 ];
 
 /**
- * The map edge, top to bottom: TfL at the top, Near me at the thumb.
+ * The map edge: London shows TfL at the top, with Near me at the thumb.
  *
  * Near me is a round FAB rather than a bar chip because that is what a map
  * reader already knows a locate control looks like, and because the one top
@@ -49,7 +49,7 @@ function MapEdgeControls({
   nearbyCount,
   onNearMe,
 }: {
-  tfl: CornerUtilityModel;
+  tfl: CornerUtilityModel | null;
   tflOpen: boolean;
   onOpenTfl: () => void;
   nearMe: PrimaryChipModel;
@@ -58,11 +58,13 @@ function MapEdgeControls({
 }) {
   return (
     <div className="mobileMapUtilityCorner" aria-label="Map utilities">
-      <IconButton className="mobileMapTflButton" aria-label={tfl.ariaLabel} aria-expanded={tflOpen} onClick={onOpenTfl}>
-        <TrainFront size={19} />
-        {tfl.statusSuffix ? <span className="mobileMapCornerSuffix" aria-hidden="true">{tfl.statusSuffix}</span> : null}
-        {tfl.badge ? <span className="mobileMapCornerBadge">{tfl.badge}</span> : null}
-      </IconButton>
+      {tfl ? (
+        <IconButton className="mobileMapTflButton" aria-label={tfl.ariaLabel} aria-expanded={tflOpen} onClick={onOpenTfl}>
+          <TrainFront size={19} />
+          {tfl.statusSuffix ? <span className="mobileMapCornerSuffix" aria-hidden="true">{tfl.statusSuffix}</span> : null}
+          {tfl.badge ? <span className="mobileMapCornerBadge">{tfl.badge}</span> : null}
+        </IconButton>
+      ) : null}
       <button
         type="button"
         className="mobileMapLocateFab"
@@ -90,11 +92,20 @@ function MapEdgeControls({
 function contextualSheetKind(
   overlay: MapOverlay,
   enabled: boolean,
+  cityId: CityId,
 ): MapSheetKind | null {
-  if (!enabled) return null;
+  if (!enabled || (overlay === "tfl" && cityId !== "london")) return null;
   return CONTEXTUAL_SHEETS.includes(overlay as MapSheetKind)
     ? (overlay as MapSheetKind)
     : null;
+}
+
+function tflCornerForCity(
+  cityId: CityId,
+  status: "checking" | "clear" | "issues" | "unavailable",
+  count: number,
+): CornerUtilityModel | null {
+  return cityId === "london" ? buildTflCorner(status, count) : null;
 }
 
 /** The sheets that open at full height; every other kind opens at half. */
@@ -371,10 +382,10 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
     savedOnlyActive,
     openNowActive,
   });
-  const tflCorner = buildTflCorner(tflStatus, tflCount);
+  const tflCorner = tflCornerForCity(cityId, tflStatus, tflCount);
   const tonightChip = buildTonightChip(tonightCount, tonightNearReader);
   const planPill = planActivationPill({ planActive, planStopCount, builtStopCount });
-  const sheetKind = contextualSheetKind(overlay, sheetsEnabled);
+  const sheetKind = contextualSheetKind(overlay, sheetsEnabled, cityId);
   const sheetContent = sheetBodyFor(sheetKind, {
     filters: filtersContent,
     drink: drinkContent,
@@ -494,7 +505,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           </button>
         </div>
       ) : null}
-      {/* The map edge, top to bottom: TfL at the top, Near me at the thumb.
+      {/* The map edge: London shows TfL at the top, Near me at the thumb.
           Near me is a round FAB rather than a bar chip because that is what a
           map reader already knows a locate control looks like, and because the
           bar has no room left at 320px. Its state stays in the accessible

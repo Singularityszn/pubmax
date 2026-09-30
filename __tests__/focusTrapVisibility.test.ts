@@ -77,11 +77,7 @@ describe("shouldInertOutsideSibling", () => {
 });
 
 describe("FocusTrapOwner", () => {
-  function node(inert = false): HTMLElement {
-    return { inert } as HTMLElement;
-  }
-
-  function componentOwnedNode(inert: boolean): HTMLElement {
+  function componentOwnedNode(inert = false): HTMLElement {
     const element = document.createElement("div");
     // jsdom does not reflect HTMLElement.inert to its attribute like Chromium.
     Object.defineProperty(element, "inert", {
@@ -114,7 +110,7 @@ describe("FocusTrapOwner", () => {
 
   for (const cleanup of ["release", "reconcile"] as const) {
     it(`does not reinstate a drawer's cleared inert state on ${cleanup}`, () => {
-      const drawer = node(true);
+      const drawer = componentOwnedNode(true);
       const trap = new FocusTrapOwner();
       trap.reconcile([drawer]);
 
@@ -127,7 +123,7 @@ describe("FocusTrapOwner", () => {
     });
 
     it(`preserves an unchanged pre-existing inert state on ${cleanup}`, () => {
-      const drawer = node(true);
+      const drawer = componentOwnedNode(true);
       const trap = new FocusTrapOwner();
       trap.reconcile([drawer]);
 
@@ -140,7 +136,7 @@ describe("FocusTrapOwner", () => {
 
   for (const firstRelease of ["map", "strict"] as const) {
     it(`keeps an overlapping trap inert when ${firstRelease} releases first`, () => {
-      const outside = node();
+      const outside = componentOwnedNode();
       const map = new FocusTrapOwner();
       const strict = new FocusTrapOwner();
 
@@ -241,23 +237,27 @@ describe("FocusTrapOwner", () => {
   });
 
   it("restores the earlier map origin after overlapping teardown", () => {
-    const mapOrigin = focusOrigin();
-    const sheetOrigin = focusOrigin();
+    const mapOrigin = componentOwnedNode();
+    const sheetOrigin = componentOwnedNode();
+    mapOrigin.tabIndex = -1;
+    sheetOrigin.tabIndex = -1;
+    document.body.append(mapOrigin, sheetOrigin);
+    sheetOrigin.focus();
     const map = new FocusTrapOwner();
     const strict = new FocusTrapOwner();
 
-    map.captureFocus(mapOrigin.element);
-    strict.captureFocus(sheetOrigin.element);
-    strict.reconcile([mapOrigin.element]);
+    map.captureFocus(mapOrigin);
+    strict.captureFocus(sheetOrigin);
+    strict.reconcile([mapOrigin]);
 
     map.release();
 
-    expect(mapOrigin.focusCalls()).toBe(0);
+    expect(document.activeElement).toBe(sheetOrigin);
 
-    sheetOrigin.disconnect();
+    sheetOrigin.remove();
     strict.release();
 
-    expect(sheetOrigin.focusCalls()).toBe(0);
-    expect(mapOrigin.focusCalls()).toBe(1);
+    expect(document.activeElement).toBe(mapOrigin);
+    mapOrigin.remove();
   });
 });

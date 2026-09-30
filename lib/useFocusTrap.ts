@@ -59,8 +59,9 @@ function claimStrictModalFocusTrap(): () => void {
 /**
  * Body-level siblings that may stay interactive only beside a map surface.
  * The Android install card is a non-modal card drawn above the map sheets
- * (a2hsInstallPrompt.css). It must remain interactive beside a map sheet so
- * Install and Not now remain reachable, even if the card mounts before the sheet.
+ * (a2hsInstallPrompt.css). The trap scans the body once, so a card that mounted
+ * before a sheet opened at half was made inert: the reader saw Install and Not
+ * now and neither answered a tap.
  */
 export function shouldInertOutsideSibling(
   node: HTMLElement,
@@ -77,7 +78,7 @@ export function shouldInertOutsideSibling(
 type InertOwnership = {
   componentInert: boolean;
   owners: Set<symbol>;
-  observer: MutationObserver | null;
+  observer: MutationObserver;
 };
 
 const inertOwnership = new WeakMap<HTMLElement, InertOwnership>();
@@ -87,11 +88,8 @@ function captureComponentInert(
   ownership: InertOwnership,
   deliveredRecords: MutationRecord[] = [],
 ): void {
-  if (deliveredRecords.length || ownership.observer?.takeRecords().length) {
+  if (deliveredRecords.length || ownership.observer.takeRecords().length) {
     ownership.componentInert = node.inert;
-  } else if (!ownership.observer && !node.inert) {
-    // Plain objects in the owner tests have no observable inert attribute.
-    ownership.componentInert = false;
   }
 }
 
@@ -99,7 +97,7 @@ function enforceTrapInert(node: HTMLElement, ownership: InertOwnership): void {
   captureComponentInert(node, ownership);
   node.inert = true;
   // Our own write is not a new component claim.
-  ownership.observer?.takeRecords();
+  ownership.observer.takeRecords();
 }
 
 type FocusRestoration = {
@@ -115,24 +113,18 @@ function claimInert(node: HTMLElement, owner: symbol): void {
     captureComponentInert(node, ownership);
     ownership.owners.add(owner);
   } else {
+    const observer = new MutationObserver((records) => {
+      const current = inertOwnership.get(node);
+      if (!current) return;
+      captureComponentInert(node, current, records);
+      if (current.owners.size > 0 && !node.inert) enforceTrapInert(node, current);
+    });
+    observer.observe(node, { attributes: true, attributeFilter: ["inert"] });
     ownership = {
       componentInert: node.inert,
       owners: new Set([owner]),
-      observer: null,
+      observer,
     };
-    if (
-      typeof MutationObserver !== "undefined" &&
-      typeof HTMLElement !== "undefined" &&
-      node instanceof HTMLElement
-    ) {
-      ownership.observer = new MutationObserver((records) => {
-        const current = inertOwnership.get(node);
-        if (!current) return;
-        captureComponentInert(node, current, records);
-        if (current.owners.size > 0 && !node.inert) enforceTrapInert(node, current);
-      });
-      ownership.observer.observe(node, { attributes: true, attributeFilter: ["inert"] });
-    }
     inertOwnership.set(node, ownership);
   }
   enforceTrapInert(node, ownership);
@@ -146,7 +138,7 @@ function releaseInert(node: HTMLElement, owner: symbol): void {
     enforceTrapInert(node, ownership);
     return;
   }
-  ownership.observer?.disconnect();
+  ownership.observer.disconnect();
   node.inert = ownership.componentInert;
   inertOwnership.delete(node);
 }
@@ -324,14 +316,17 @@ function displayChain(container: HTMLElement): string[] {
 // Shared modal focus trap, extracted from the mobile bottom sheet
 // (MobileSharedSheet) so the desktop venue drawer can reuse the SAME behaviour
 // for its full open lifetime. While `active`:
-//   1. Tab / Shift+Tab cycle through the container and any map-surface exemptions.
-//   2. The trap marks off-path siblings `inert` up to <body>, except those the
-//      policy exempts. This works
+//   1. Tab / Shift+Tab cycle within `containerRef`'s visible focusables.
+//   2. Outside siblings are marked `inert` according to `outsidePolicy`, walking
+//      the ancestor chain to <body>. This works
 //      whether the trapped node is a body-level portal (mobile sheet) or nested
-//      inside the app shell (desktop drawer). Each node stays inert while any
-//      trap owns it. The last owner restores the latest component-owned value,
-//      including changes made while the traps held it.
+//      inside the app shell (desktop drawer). Overlapping traps share ownership:
+//      a claimed node stays inert until its final owner releases it, then restores
+//      the latest component-written value, including changes made during the trap.
 //   3. A container CSS has hidden never traps at all (shouldEngageFocusTrap).
+// A map-surface trap allows designated exempt controls. While a strict modal is
+// active, the map trap releases its inert claims and suspends Tab handling and
+// focus reclaim.
 // Focus entry and restoration are coordinated here; Esc stays with each caller.
 export function useFocusTrap(
   active: boolean,
@@ -356,7 +351,14 @@ export function useFocusTrap(
     // Main's one-time scan does not contain later body siblings such as Command Palette.
     const siblings = outsideSiblings(container, outsidePolicy);
     let exempt = trapExemptSurfaces(container, outsidePolicy);
-    trapOwner.reconcile(inertTargets(siblings, exempt));
+    const suspended = () => outsidePolicy === "map-surface" && readStrictModalFocusTrap();
+    const reconcileTrap = () => {
+      trapOwner.reconcile(suspended() ? [] : inertTargets(siblings, exempt));
+    };
+    reconcileTrap();
+    const unsubscribeStrictModal = outsidePolicy === "map-surface"
+      ? subscribeStrictModalFocusTrap(reconcileTrap)
+      : null;
     const releaseStrictModal =
       outsidePolicy === "strict-modal" ? claimStrictModalFocusTrap() : null;
 
@@ -373,6 +375,7 @@ export function useFocusTrap(
           : null;
     };
     const reclaimLostExemptFocus = () => {
+      if (suspended()) return;
       const lost = exemptFocus;
       if (!lost || exempt.some((surface) => surface.contains(lost))) return;
       exemptFocus = null;
@@ -395,7 +398,7 @@ export function useFocusTrap(
             frame = window.requestAnimationFrame(() => {
               frame = null;
               exempt = trapExemptSurfaces(container, outsidePolicy);
-              trapOwner.reconcile(inertTargets(siblings, exempt));
+              reconcileTrap();
               reclaimLostExemptFocus();
             });
           })
@@ -405,7 +408,7 @@ export function useFocusTrap(
     }
 
     const onTab = (event: KeyboardEvent) => {
-      if (event.key !== "Tab" || event.defaultPrevented) return;
+      if (event.key !== "Tab" || event.defaultPrevented || suspended()) return;
       const focusable = visibleFocusables(container);
       if (!focusable.length) return;
       if (document.activeElement === container) {
@@ -432,8 +435,9 @@ export function useFocusTrap(
       document.removeEventListener("focusin", onFocusIn);
       observer?.disconnect();
       if (frame !== null) window.cancelAnimationFrame(frame);
+      unsubscribeStrictModal?.();
       releaseStrictModal?.();
-      // Let subscribers clear their own blocking state before restoring focus.
+      // Components clear their modal-owned inert state before focus returns.
       queueMicrotask(() => trapOwner.release());
     };
   }, [active, containerRef, focusOriginRef, outsidePolicy]);

@@ -1,11 +1,12 @@
-import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { once } from "node:events";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { postgresSkipReason, startPostgres, type PostgresSession } from "./helpers/postgres";
 import { findPostgresBinary } from "../scripts/rls/postgresHost.mjs";
@@ -19,6 +20,8 @@ import {
 
 const skip = postgresSkipReason();
 const serialShmHarness = process.env.PUBMAX_SERIAL_SHM_HARNESS === "1";
+const hostTempDir = tmpdir();
+let outerTempDir: string;
 
 type PostgresProcess = { pid: number; ppid: number };
 
@@ -33,10 +36,11 @@ function expectHoldsSegment(pid: number): void {
   if (readsSysvCreators) expect(sysvSegmentsCreatedBy([pid])).not.toEqual([]);
 }
 
-function postmasterFor(dataDir: string): PostgresProcess | null {
-  const listing = spawnSync("ps", ["-A", "-o", "pid=", "-o", "ppid=", "-o", "command="], {
+function postmasterFor(dataDir: string, postmasterPid: number): PostgresProcess | null {
+  const listing = spawnSync("ps", ["-p", String(postmasterPid), "-o", "pid=", "-o", "ppid=", "-o", "command="], {
     encoding: "utf8",
   });
+  if (listing.error) throw listing.error;
   for (const row of listing.stdout.split("\n")) {
     const [pid, ppid, ...command] = row.trim().split(/\s+/);
     if (postgresDataDirFromCommand(command.join(" ")) !== dataDir) continue;
@@ -91,16 +95,41 @@ function startInitParentedCluster(dataDir: string): PostgresProcess {
     ["start", "-D", dataDir, "-w", "-s", "-l", join(dataDir, "server.log")],
     options,
   );
-  const postmaster = postmasterFor(dataDir);
+  // Another worker can sweep between pg_ctl reporting ready and our first assertion.
+  const shm = pathToFileURL(join(process.cwd(), "scripts/rls/postgresShm.mjs")).href;
+  execFileSync(
+    process.execPath,
+    ["--input-type=module", "-e",
+      `import { sweepPubmaxHarnessOrphans } from ${JSON.stringify(shm)}; sweepPubmaxHarnessOrphans();`,
+    ],
+    { ...options, env: { ...options.env, TMPDIR: outerTempDir } },
+  );
+  const postmasterPid = Number(readFileSync(join(dataDir, "postmaster.pid"), "utf8").split("\n")[0]);
+  const postmaster = postmasterFor(dataDir, postmasterPid);
   if (!postmaster) throw new Error(`no postmaster for ${dataDir}`);
   return postmaster;
 }
 
 describe("postgres SysV harness hygiene", () => {
+  beforeAll(() => {
+    // Keep socket paths short, and isolate intentional orphans from other runs.
+    outerTempDir = mkdtempSync(join(hostTempDir, "s-"));
+    const testTempDir = join(outerTempDir, "t");
+    mkdirSync(testTempDir);
+    vi.stubEnv("TMPDIR", testTempDir);
+  });
+  afterAll(() => {
+    vi.unstubAllEnvs();
+    rmSync(outerTempDir, { recursive: true, force: true });
+  });
+
   it("recognises harness data directories under the OS temp dir", () => {
     const harnessDir = join(tmpdir(), "pubmax-pg-proof-abc123");
     const otherDir = join(tmpdir(), "not-pubmax-xyz");
     expect(isPubmaxHarnessDataDir(harnessDir)).toBe(true);
+    expect(isPubmaxHarnessDataDir(join(tmpdir(), "pubmax-rls-proof-abc123"))).toBe(true);
+    expect(isPubmaxHarnessDataDir(join(tmpdir(), "private", "pubmax-pg-proof-abc123"))).toBe(false);
+    expect(isPubmaxHarnessDataDir(join(`${tmpdir()}-other`, "pubmax-pg-proof-abc123"))).toBe(false);
     expect(isPubmaxHarnessDataDir(otherDir)).toBe(false);
     expect(isPubmaxHarnessDataDir("/var/lib/postgresql/data")).toBe(false);
   });
@@ -148,27 +177,49 @@ describe("postgres SysV harness hygiene", () => {
     30_000,
   );
 
-  (skip || !serialShmHarness ? it.skip : it)(
-    "sweep reaps an init-parented harness orphan and leaves a live parented cluster alone",
-    async () => {
-      const live = await startPostgres({ label: "shm-live" });
-      const livePid = postmasterPidOf(live);
+  (skip || !serialShmHarness ? it.skip : it).each([false, true])(
+    "sweep reaps an init-parented harness orphan and leaves a live parented cluster alone (large process arguments: %s)",
+    async (largeProcessArguments) => {
+      const noisyProcesses: ChildProcess[] = [];
+      let live: PostgresSession | undefined;
       const orphanDir = harnessDataDir("shm-orphan");
       try {
+        if (largeProcessArguments) {
+          // Concurrent CLI jobs can exceed spawnSync's 1 MiB output buffer.
+          // Keep each argument below the OS per-argument limit.
+          for (let index = 0; index < 10; index += 1) {
+            const child = spawn(process.execPath, [
+              "-e", "process.send('ready'); setInterval(() => {}, 1000);", "x".repeat(110_000),
+            ], { stdio: ["ignore", "ignore", "inherit", "ipc"] });
+            noisyProcesses.push(child);
+            await once(child, "message");
+          }
+        }
+        live = await startPostgres({ label: "shm-live" });
+        const livePid = postmasterPidOf(live);
         const orphan = startInitParentedCluster(orphanDir);
         expect(orphan.ppid).toBe(1);
         expectHoldsSegment(orphan.pid);
 
         sweepPubmaxHarnessOrphans();
 
-        expect(postmasterFor(orphanDir)).toBeNull();
+        expect(postmasterFor(orphanDir, orphan.pid)).toBeNull();
         expect(existsSync(orphanDir)).toBe(false);
         expect(sysvSegmentsCreatedBy([orphan.pid])).toEqual([]);
         expect(live.sql("select 1")).toBe("1");
         expectHoldsSegment(livePid);
       } finally {
-        stopHarnessCluster(orphanDir);
-        await live.stop();
+        try {
+          stopHarnessCluster(orphanDir);
+          await live?.stop();
+        } finally {
+          await Promise.all(noisyProcesses.map(async (child) => {
+            if (child.exitCode !== null || child.signalCode !== null) return;
+            const exited = once(child, "exit");
+            child.kill("SIGTERM");
+            await exited;
+          }));
+        }
       }
     },
     180_000,
@@ -177,7 +228,7 @@ describe("postgres SysV harness hygiene", () => {
   (skip || !serialShmHarness ? it.skip : it)(
     "leaves no SysV segment behind across one boot and stop",
     async () => {
-      const session = await startPostgres({ label: "shm-one-shot" });
+      const session = await startPostgres({ label: "shm-once" });
       const pid = postmasterPidOf(session);
       expectHoldsSegment(pid);
       await session.stop();
