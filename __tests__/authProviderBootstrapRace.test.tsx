@@ -18,7 +18,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
-vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
+vi.mock("@/components/identity/AccountOnboardingHost", () => ({ default: () => null }));
 vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ analyticsCollectionAllowed: () => false, trackEvent: vi.fn() }));
 vi.mock("@/lib/authClient", () => ({

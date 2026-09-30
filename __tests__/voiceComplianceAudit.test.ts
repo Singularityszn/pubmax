@@ -62,7 +62,7 @@ describe("VOICE.md compliance audit", () => {
   });
 
   it("keeps account and sign-in copy plain, precise, and free of identity plumbing", () => {
-    const onboarding = read("components/identity/AccountOnboarding.tsx");
+    const onboarding = read("components/identity/AccountOnboardingFrame.tsx");
     const contributionGate = read(
       "components/identity/ContributionGateDialog.tsx",
     );
