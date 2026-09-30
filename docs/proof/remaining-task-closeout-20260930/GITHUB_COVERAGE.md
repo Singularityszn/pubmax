@@ -6,8 +6,8 @@ descending once it reaches one. It does not follow directory symlinks or read
 secret, environment, browser-profile, ignored-file or unrelated source contents.
 Dependency/build/cache directories are excluded where identified.
 
-The inventory and disposition rows below describe initial collection.
-The later private preservation check is recorded at the end of this receipt.
+The repository inventory below describes initial collection. Source disposition
+rows link to the later [private preservation check](#private-preservation-follow-up).
 
 `git ls-files`, `git status --porcelain=v1 -z` and ignored-directory metadata
 separate tracked, untracked and ignored material. `git ls-remote` checks the
@@ -52,16 +52,15 @@ The earlier audit already prepared selective historical retention. This pass
 found the following dirty/untracked intended source candidates still in their
 original Documents roots. The table records each retained original path and
 any recovery destination without overwriting live code or bulk uploading proof.
-Where a row names no backup or GitHub copy, none is established.
 
 | Current source | Exact destination or disposition |
 | --- | --- |
-| `pubmaxx-ios-onboarding/app/onboarding/onboarding.css` | Retained only as the original local file `/Users/karanmanoharan/Documents/projects/pubmaxx-ios-onboarding/app/onboarding/onboarding.css`. No separate backup or GitHub preservation of this dirty version is established, and it is not in the reviewed archive. Current `Singularityszn/pubmax:app/onboarding/onboarding.css` is only a possible future integration destination after owner review in an owned isolation. A historical dirty version is not authorised to replace current v0 layout. |
+| `pubmaxx-ios-onboarding/app/onboarding/onboarding.css` | Retained original local file `/Users/karanmanoharan/Documents/projects/pubmaxx-ios-onboarding/app/onboarding/onboarding.css`. Separate-copy metadata is recorded in [Private preservation follow-up](#private-preservation-follow-up). This dirty version is not in the reviewed archive. Current `Singularityszn/pubmax:app/onboarding/onboarding.css` is only a possible future integration destination after owner review in an owned isolation. A historical dirty version is not authorised to replace current v0 layout. |
 | `pubmaxx-ios-onboarding/e2e/native-onboarding-actions.spec.ts` | Already selected for `docs/proof/source-preservation-20260929/reviewed-source.zip`, archive entry `native-onboarding/e2e/native-onboarding-actions.spec.ts`. Live integration would target `e2e/native-onboarding-actions.spec.ts` only after current native acceptance. |
 | `pubmaxx-jev-review-dedup/__tests__/reviewFindingDedup.test.mjs` | Same reviewed archive, entry `review-prototype/__tests__/reviewFindingDedup.test.mjs`. No live pipeline activation. |
 | `pubmaxx-jev-review-dedup/docs/agents/review-finding-dedup.md` | Same reviewed archive, entry `review-prototype/docs/agents/review-finding-dedup.md`. Keep advisory status. |
 | `pubmaxx-jev-review-dedup/scripts/review-finding-dedup.mjs` | Same reviewed archive, entry `review-prototype/scripts/review-finding-dedup.mjs`. No new generic review framework added. |
-| `pubmaxx-audit/docs/audits/2026-09-07-product-audit.md` | Retained only as the original local file `/Users/karanmanoharan/Documents/projects/pubmaxx-audit/docs/audits/2026-09-07-product-audit.md`. No separate backup or GitHub preservation of this dirty version is established. No public destination is assigned because its dated acceptance claims and private proof references are unreviewed. It does not replace this current receipt. |
+| `pubmaxx-audit/docs/audits/2026-09-07-product-audit.md` | Retained original local file `/Users/karanmanoharan/Documents/projects/pubmaxx-audit/docs/audits/2026-09-07-product-audit.md`. Separate-copy metadata is recorded in [Private preservation follow-up](#private-preservation-follow-up). No public destination is assigned because its dated acceptance claims and private proof references are unreviewed. It does not replace this current receipt. |
 
 The complete archive manifest in the owning audit worktree additionally names
 16 harvest source/test entries and one skip-link E2E entry. Their exact retained
