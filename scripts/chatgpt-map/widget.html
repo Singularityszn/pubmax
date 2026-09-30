@@ -7,7 +7,7 @@
 <style>
   :root{color-scheme:light dark;font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--paper)}
   *{box-sizing:border-box}body{margin:0}header{padding:20px 20px 12px}h1{font-family:"Space Grotesk",system-ui,sans-serif;font-size:24px;line-height:1.2;margin:0 0 8px}p{font-size:14px;line-height:1.5;margin:0 0 8px;color:var(--muted)}
-  main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);min-width:0}#map{height:420px;min-width:0;background:var(--line)}#venues{min-width:0;max-height:420px;overflow:auto;padding:0 16px;margin:0;list-style:none}
+  main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);min-width:0}#map{height:420px;min-width:0;background:var(--line)}#venues{min-width:0;max-height:420px;overflow:auto;padding:0 16px;margin:0;list-style:none}#status{overflow-wrap:anywhere}
   li{padding:16px 0;border-bottom:1px solid var(--line)}h2{font-size:17px;margin:0 0 7px;overflow-wrap:anywhere}a{color:inherit;text-underline-offset:3px}button{font:inherit;padding:10px 14px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);cursor:pointer;min-height:44px}button:focus-visible,a:focus-visible{outline:3px solid var(--brass);outline-offset:3px}.pin{border-radius:50%;background:var(--brass);color:var(--color-on-accent);border:2px solid var(--panel-overlay);width:38px;height:38px;padding:0;font-weight:700;box-shadow:0 2px 8px #0003}.maplibregl-popup-content{background:var(--paper);color:var(--ink)}.price{font-variant-numeric:tabular-nums;margin-bottom:4px}footer{padding:14px 20px}#status{padding:0 20px}
   @media(max-width:600px){main{grid-template-columns:minmax(0,1fr)}#map{height:280px}#venues{max-height:none}}
   /* PUBMAXX_SHARED_STYLES */
@@ -25,6 +25,7 @@
   let resultStatus = "Waiting for public venues.";
   let mapFailure = "";
   let bridgeReady = false;
+  let hostCanOpenLinks = false;
   const element = (id) => document.getElementById(id);
   const money = new Intl.NumberFormat("en-GB", {style:"currency",currency:"GBP"});
   const MAPLIBRE_URL = "https://unpkg.com/maplibre-gl@6.11.2/dist/";
@@ -48,6 +49,17 @@
       window.parent.postMessage({jsonrpc:"2.0",id,method,params},"*");
     });
   }
+  document.addEventListener("click",async event=>{
+    const link=event.target instanceof Element?event.target.closest("a[href]"):null;
+    if(!link||window.parent===window)return;
+    event.preventDefault();
+    const url=new URL(link.href);
+    if(url.protocol!=="https:"||url.username||url.password){updateStatus("Link could not open.");return;}
+    const fallback=()=>updateStatus(`Link could not open. Copy this address: ${url.href}`);
+    if(!bridgeReady||!hostCanOpenLinks){fallback();return;}
+    try{const result=await rpc("ui/open-link",{url:url.href});if(result?.isError)fallback();}
+    catch{fallback();}
+  });
   function text(tag, value, parent) {const node=document.createElement(tag);node.textContent=value;parent.append(node);return node;}
   function safeLink(raw) {
     try {const u=new URL(raw);return u.origin==="https://pubmaxxing.com"&&u.pathname==="/map"&&!u.username&&!u.password?u.href:null;}catch{return null;}
@@ -86,7 +98,15 @@
         const shiftY=Math.max(bounds.top+10-box.top,0)-Math.max(box.bottom-bounds.bottom+60,0);
         if (shiftX||shiftY) map.panBy([-shiftX,-shiftY],{duration:0});
       });
-      markers.push(new maplibre.Marker({element:button}).setLngLat([venue.longitude,venue.latitude]).setPopup(popup).addTo(map));
+      const marker=new maplibre.Marker({element:button}).setLngLat([venue.longitude,venue.latitude]).setPopup(popup).addTo(map);
+      // Own keyboard activation so popup focus cannot trigger a second native click.
+      button.addEventListener("keydown",event=>{
+        if(event.code==="Space"||event.code==="Enter"){
+          event.preventDefault();event.stopPropagation();
+          if(!event.repeat)marker.togglePopup();
+        }
+      });
+      markers.push(marker);
     });
     if (latestVenues.length) {
       const bounds=new maplibre.LngLatBounds();latestVenues.forEach(v=>bounds.extend([v.longitude,v.latitude]));
@@ -107,12 +127,12 @@
   window.addEventListener("message",event=>{
     if (event.source!==window.parent || event.data?.jsonrpc!=="2.0") return;
     const message=event.data;
-    if (message.id && pending.has(message.id)) {const request=pending.get(message.id);pending.delete(message.id);clearTimeout(request.timer);message.error?request.reject(new Error("Host refused initialization")):request.resolve(message.result);}
+    if (message.id && pending.has(message.id)) {const request=pending.get(message.id);pending.delete(message.id);clearTimeout(request.timer);message.error?request.reject(new Error("Host refused request")):request.resolve(message.result);}
     if (message.method==="ui/notifications/tool-result") render(message.params);
   });
   if (window.parent!==window) {
     rpc("ui/initialize",{appInfo:{name:"pubmaxx-public-map",version:"0.1.0"},appCapabilities:{},protocolVersion:"2026-01-26"})
-      .then(()=>{bridgeReady=true;window.parent.postMessage({jsonrpc:"2.0",method:"ui/notifications/initialized",params:{}},"*");notifySize();})
+      .then(initialization=>{hostCanOpenLinks=Boolean(initialization?.hostCapabilities?.openLinks);bridgeReady=true;window.parent.postMessage({jsonrpc:"2.0",method:"ui/notifications/initialized",params:{}},"*");notifySize();})
       .catch(()=>{updateStatus("Map bridge unavailable. Open PUBMAXX below.");});
   }
   try {

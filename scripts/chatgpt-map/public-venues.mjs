@@ -50,6 +50,6 @@ export async function loadPublicVenues(area, limit) {
   return {
     area,
     venues: publicVenuesInArea(rows, area, limit),
-    priceNotice: "Listed pint prices from the bundled dataset. Prices can change. No per-price date is recorded.",
+    priceNotice: "Listed pint prices. Prices can change. Price dates aren't recorded.",
   };
 }

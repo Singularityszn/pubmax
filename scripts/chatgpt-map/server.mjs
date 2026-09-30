@@ -20,7 +20,8 @@ function createMcpServer(widget, loadVenues) {
       uri: RESOURCE_URI, mimeType: RESOURCE_MIME_TYPE, text: widget,
       _meta: { ui: { prefersBorder: true, csp: {
         connectDomains: ["https://tiles.openfreemap.org", "https://unpkg.com"],
-        resourceDomains: ["https://unpkg.com", "https://tiles.openfreemap.org"],
+        // MapLibre creates its pinned module worker through a local blob URL.
+        resourceDomains: ["https://unpkg.com", "https://tiles.openfreemap.org", "blob:"],
       } } },
     }],
   }));

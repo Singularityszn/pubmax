@@ -1,7 +1,10 @@
 {
-  "checkedAt": "2026-09-29T23:46:01.700Z",
+  "checkedAt": "2026-09-30T01:19:27.626Z",
   "host": "controlled local MCP Apps bridge",
   "authentication": "No ChatGPT account connection",
+  "externalLinks": "Host request and acknowledgement only; no external destination navigation",
+  "sandbox": "allow-scripts allow-same-origin",
+  "declaredResourcePolicyEnforced": true,
   "checks": [
     {
       "viewport": {
@@ -10,6 +13,16 @@
       },
       "pubs": 3,
       "popup": true,
+      "keyboard": [
+        "Enter",
+        "Space"
+      ],
+      "hostLinks": [
+        "https://pubmaxxing.com/map?sel=venue-1s7f23v",
+        "https://www.pint-prices.com/pub/40%20College%20Cres,%20South%20Hampstead,%20London%20NW3%205LB,%20UK/Palmers%20Lodge%20Swiss%20Cottage"
+      ],
+      "deniedLinkFallback": true,
+      "unsupportedLinkFallback": true,
       "horizontalOverflow": false,
       "status": "3 listed pubs."
     },
@@ -20,6 +33,16 @@
       },
       "pubs": 3,
       "popup": true,
+      "keyboard": [
+        "Enter",
+        "Space"
+      ],
+      "hostLinks": [
+        "https://pubmaxxing.com/map?sel=venue-1s7f23v",
+        "https://www.pint-prices.com/pub/40%20College%20Cres,%20South%20Hampstead,%20London%20NW3%205LB,%20UK/Palmers%20Lodge%20Swiss%20Cottage"
+      ],
+      "deniedLinkFallback": true,
+      "unsupportedLinkFallback": true,
       "horizontalOverflow": false,
       "status": "3 listed pubs."
     }
