@@ -279,18 +279,18 @@ type GeneratePlanResponse = {
     reason: string;                     // per-stop grounded reason (distance + up to 2 context reasons)
     alternatives: Array<{ venueId: string; venueName: string }>; // next-best swaps
   }>;
-  contextEffects: string[];             // WHICH NightContext fields affected ranking:
-                                        //   always ["budget","daypart"], plus conditionally
-                                        //   "groupSize","partyType","atmosphere","foodNeeds"
+  contextEffects: string[];             // ranking inputs named by the generation route
   missingContextEvidence: string[];     // data we could not honour: e.g.
                                         //   "venue_accessibility","per_venue_transport","food_terminal_specificity"
   relevantSignals: RecentSignal[];      // area.recentSignals (reviewed only)
 };
 ```
 
-**"Explains which context values affected the result" (#252 requirement — SATISFIED):** three complementary fields — `contextEffects` (the list of NightContext fields that moved the ranking), per-stop `reason` (human-readable grounding per venue), and `explanations` (why the context was inferred). `missingContextEvidence` is the honest counterpart: constraints the engine could not yet ground.
+[The generation route](../app/api/plans/generate/route.ts) owns which inputs appear in `contextEffects` and under which conditions.
 
-The response excerpt above omits price fields. [`buildPlanGenerationStops`](../lib/planGenerationDto.ts) owns their projection on ordinary stops and alternatives. A non-beer category uses trusted prices for that category in value ranking. It receives no pint estimate or pint evidence. Zero-proof requests also suppress pint output. Partial or degraded selected-category reads add a coverage warning.
+Generation reports ranking inputs in `contextEffects`, per-stop grounding in `reason`, and inferred context in `explanations`. `missingContextEvidence` names constraints the engine could not ground.
+
+The response excerpt above omits price fields. [`buildPlanGenerationStops`](../lib/planGenerationDto.ts) owns their projection on ordinary stops and alternatives. For a non-beer value request without zero-proof, [`scoreVenueForPlan`](../lib/planGenerationRanking.ts) uses corroborated community prices for that category. Its price reason names the category and amount. Non-beer responses contain no pint estimate or pint evidence. Zero-proof requests also suppress pint output. Partial or degraded selected-category reads add a coverage warning.
 
 [`planBudgetSummary`](../lib/planGenerationDto.ts) returns unknown per-person and crew totals and `withinLimit: null` for non-beer and zero-proof contexts, with basis `selected-drink-price-unavailable`. Individual community reports do not establish comparable servings for a budget total. No selected category, or explicit beer without zero-proof, retains the pint path. Keep-going extensions likewise omit pint figures for other drinks. Persistence follows the [selected-drink evidence contract](#selected-drink-price-evidence).
 

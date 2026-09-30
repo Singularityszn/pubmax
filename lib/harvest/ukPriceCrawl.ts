@@ -483,12 +483,12 @@ function normalizeHtmlTextWhitespace(source: string): string {
   return pieces.join("");
 }
 
+export type UkPriceSourceFormat = "html" | "text";
+
 /**
  * Strip a page to the text a reader sees. Scripts and styles go first, because
  * a price inside a JSON blob or a CSS rule is not something the page states.
  */
-export type UkPriceSourceFormat = "html" | "text";
-
 export function pageText(
   html: string,
   preserveItemBoundaries = false,

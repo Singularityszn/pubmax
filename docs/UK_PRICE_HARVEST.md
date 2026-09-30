@@ -177,9 +177,19 @@ When a TypeSafe batch is refused, times out, fails or returns a malformed answer
 `lib/harvest/ukPriceJudgment.server.ts` uses the same section-aware decisions and
 records the batch failure reason.
 
-The shared `pageText` normaliser preserves Markdown and plaintext row boundaries
-when item boundaries are requested. HTML block tags establish rows; formatting
-newlines inside those blocks remain whitespace within the item.
+The shared `pageText` normaliser takes `UkPriceSourceFormat` from the transport.
+Served HTML and chain-menu HTML use `html`: source whitespace is collapsed
+before structural tags establish item boundaries. Context.dev Markdown,
+browser-rendered Markdown, PDF text, and OCR text use `text`, the reader's
+default. With item boundaries requested, LF and CRLF rows stay separate.
+In mixed Markdown and HTML, the normaliser
+collapses formatting whitespace within HTML elements and between adjacent
+elements while preserving surrounding Markdown rows. Inline and table-cell
+fragments therefore keep a wrapped drink name within its item.
+
+The judged reader and its deterministic fallback use the same format and
+boundary-preserving text. Candidate offsets identify figures in that text,
+so failed batches recover the decision for the same item.
 
 * **Verbatim.** A figure is kept only if it appears literally in the text of the
   page that was read.
@@ -235,7 +245,8 @@ one that keeps it in a table. The first crawl reached 839 PDFs across 400 hosts
 and read none of them.
 
 `lib/harvest/pdfText.ts` reads the text layer with `pdfjs-dist`, pinned and
-harvest-only, and hands the words to the SAME rules a served page gets. It is a
+harvest-only. It joins fragments within a row and preserves the extractor's
+`hasEOL` row breaks before handing text to the shared price reader. It is a
 leaf module because `run.mjs` ends in a `main()` call, so a reader living inside
 it could not be tested without running a crawl.
 
