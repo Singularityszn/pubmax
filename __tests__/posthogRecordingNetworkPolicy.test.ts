@@ -1,11 +1,12 @@
 import { expect, it } from "vitest";
-import type { PostHogConfig } from "posthog-js";
+import type { PostHogConfig } from "posthog-js/lib/src/types";
 import { buildNetworkRequestOptions } from "posthog-js/lib/src/extensions/replay/external/config.js";
 import { shouldRecordBody } from "posthog-js/lib/src/extensions/replay/external/network-plugin.js";
 import { posthogBrowserConfig } from "@/lib/posthogClient";
 
 it("keeps private API bodies and headers out of replay when remote recording enables them", () => {
-  const options = buildNetworkRequestOptions(posthogBrowserConfig as PostHogConfig, {
+  const config = posthogBrowserConfig as PostHogConfig;
+  const options = buildNetworkRequestOptions(config, {
     recordHeaders: true,
     recordBody: true,
     recordPerformance: true,
@@ -22,7 +23,7 @@ it("keeps private API bodies and headers out of replay when remote recording ena
   }
   expect(options.recordHeaders).toBe(false);
   expect(options.recordPerformance).toBe(true);
-  expect(posthogBrowserConfig.session_recording?.maskCapturedNetworkRequestFn).toBeUndefined();
+  expect(config.session_recording?.maskCapturedNetworkRequestFn).toBeUndefined();
   const scrubbed = options.maskRequestFn?.({
     name: "https://pubmax.test/api/messages", entryType: "resource", startTime: 0, duration: 1,
     requestHeaders: { authorization: "Bearer disposable-unit-secret" },
