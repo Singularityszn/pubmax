@@ -6,7 +6,7 @@ Documents coverage task. Application delivery remains with the existing owners.
 
 - [Completion evidence](REPORT.md) separates local, pushed, merged, deployed and browser proof.
 - [Ownership](OWNERSHIP.md) names the reserved branches, files and runtime slots.
-- [GitHub coverage](GITHUB_COVERAGE.md) records actual repository roots and safe recovery destinations.
+- [GitHub coverage](GITHUB_COVERAGE.md) records actual repository roots, retained local paths and recovery destinations.
 
 Only these four Markdown files and `.gitignore` are intended for publication.
 Raw metadata, thread reads, filesystem inventories and gate logs stay ignored.
