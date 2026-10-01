@@ -42,6 +42,7 @@ import {
   type PubPalMemory,
 } from "@/lib/pubPal";
 import PalPortrait from "./PalPortrait";
+import PalMemoryConfirmation from "./PalMemoryConfirmation";
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
 import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
@@ -785,10 +786,16 @@ export default function PalExperience() {
             <div>
               <p className="palEyebrow">Memories</p>
               <h2 id="pal-memory-title">What {pal.name} remembers.</h2>
-              <p>Only these confirmed facts can shape suggestions. Correct or delete any item; conversations and voice content never appear here.</p>
+              <p>Save facts you choose to keep. Correct or delete them here. Chat recall stays in the current conversation.</p>
             </div>
             <button type="button" onClick={() => void exportMemories()} disabled={saving}><Download size={17} /> Export memories</button>
           </div>
+          <PalMemoryConfirmation
+            key={pal.id}
+            ownerId={pal.ownerId}
+            palId={pal.id}
+            onConfirmed={() => void loadMemories(pal.ownerId)}
+          />
           {memoryState.status === "loading" ? (
             <p role="status">Loading your memories</p>
           ) : memoryState.status === "error" ? (
