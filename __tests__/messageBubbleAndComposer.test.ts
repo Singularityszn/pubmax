@@ -369,8 +369,9 @@ describe("private photo rendering", () => {
     expect(figure.textContent).toContain("Loading photo");
     expect(host.querySelector("img")).toBeNull();
     expect(state.request).toHaveBeenCalledWith("/api/messages/photo?handle=alice", expect.objectContaining({ signal: expect.any(AbortSignal) }), { requiresIdentity: true });
-    await act(async () => release(new Response(new Blob(["private"]), { status: 200 })));
+    await act(async () => release(new Response("private", { status: 200 })));
     expect(createUrl).toHaveBeenCalledOnce();
+    await expect(createUrl.mock.calls[0][0].text()).resolves.toBe("private");
     expect(host.querySelector("figure")).toBe(figure);
     expect(figure.style.getPropertyValue(MESSAGE_PHOTO_ASPECT_PROPERTY)).toBe("0.8");
     expect(host.querySelector(".messagePhotoPending")).toBeNull();
