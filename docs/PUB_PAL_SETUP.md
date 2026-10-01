@@ -22,9 +22,7 @@ source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
 | Reader wording | Yes | House output comes from returned rows and hints; the model does not write the answer |
 | Voice | No | Needs the four ElevenLabs values below |
 
-When the shared provider is unconfigured, `/pal` offers Map Ask. Typed chat
-needs that same provider, so it cannot be the keyless fallback. A configured
-session with denied microphone permission keeps the writing door.
+When the shared provider is unconfigured, `/pal` offers Map Ask as another route, and typed chat answers through the grounded `runAsk` fallback. A configured session with denied microphone permission keeps the writing door.
 
 ---
 
