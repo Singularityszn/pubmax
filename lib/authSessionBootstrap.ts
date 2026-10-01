@@ -12,7 +12,7 @@ export type BrowserAuthSession = {
   setSession: (session: {
     access_token: string;
     refresh_token: string;
-  }) => Promise<{ error: unknown | null }>;
+  }) => Promise<{ data?: { session: Session | null }; error: unknown | null }>;
 };
 
 export type AuthSessionBootstrapOutcome =
@@ -29,6 +29,9 @@ export type AuthSessionBootstrapOutcome =
 export type AuthSessionBootstrapDeps = {
   readHint?: () => Promise<ResumeHintReadOutcome>;
   redeem?: () => Promise<RedeemResult>;
+  signal?: AbortSignal;
+  onBeforeSetSession?: (session: { access_token: string; refresh_token: string }) => void;
+  onAfterSetSession?: (session: Session | null) => Promise<void> | void;
 };
 
 /** Two bounded same-origin resume calls can run on a slow mobile connection. */
@@ -109,11 +112,26 @@ export async function bootstrapAuthSession(
   }
   if (restored.status !== "restored") return restored;
 
+  // Logout may have cleared both stores while a cookie redemption was held.
+  // Never install that old account into the live SDK after the user leaves.
+  if (deps.signal?.aborted) return { status: "unavailable" };
+  let installed: Session | null = null;
+  let installationFailed = false;
   try {
+    deps.onBeforeSetSession?.(restored.session);
     const result = await auth.setSession(restored.session);
-    if (result.error) return { status: "unavailable" };
+    installed = result.data?.session ?? null;
+    installationFailed = Boolean(result.error);
+  } catch {
+    installationFailed = true;
+  }
+  // Even a failed SDK install can have emitted an auth event before answering.
+  // Finish its owner reconciliation before the bootstrap promise settles.
+  try {
+    await deps.onAfterSetSession?.(installed);
   } catch {
     return { status: "unavailable" };
   }
+  if (installationFailed) return { status: "unavailable" };
   return { status: "restored", session: restored.session };
 }

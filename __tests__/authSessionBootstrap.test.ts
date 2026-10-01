@@ -5,7 +5,7 @@ import {
   bootstrapAuthSession,
   type BrowserAuthSession,
 } from "@/lib/authSessionBootstrap";
-import type { ResumeHintReadOutcome } from "@/lib/authSessionResumeClient";
+import type { RedeemResult, ResumeHintReadOutcome } from "@/lib/authSessionResumeClient";
 
 const RESTORED_SESSION = {
   access_token: "access-restored",
@@ -33,9 +33,15 @@ describe("browser auth session bootstrap", () => {
       status: "restored" as const,
       session: RESTORED_SESSION,
     }));
-    const browser = auth();
+    const onBeforeSetSession = vi.fn();
+    const browser = auth({
+      setSession: vi.fn(async () => {
+        expect(onBeforeSetSession).toHaveBeenCalledWith(RESTORED_SESSION);
+        return { error: null };
+      }),
+    });
 
-    const bootstrap = bootstrapAuthSession(browser, { readHint, redeem });
+    const bootstrap = bootstrapAuthSession(browser, { readHint, redeem, onBeforeSetSession });
     await Promise.resolve();
 
     expect(browser.setSession).not.toHaveBeenCalled();
@@ -48,6 +54,7 @@ describe("browser auth session bootstrap", () => {
       session: RESTORED_SESSION,
     });
     expect(browser.setSession).toHaveBeenCalledWith(RESTORED_SESSION);
+    expect(onBeforeSetSession).toHaveBeenCalledTimes(1);
   });
 
   it("waits for a pending local read before publishing signed out", async () => {
@@ -177,6 +184,23 @@ describe("browser auth session bootstrap", () => {
         }),
       }),
     ).resolves.toEqual({ status: "unavailable" });
+  });
+
+  it("does not install a redeemed account after sign-out cancels bootstrap", async () => {
+    const controller = new AbortController();
+    let finishRedemption: ((result: RedeemResult) => void) | undefined;
+    const browser = auth();
+    const bootstrap = bootstrapAuthSession(browser, {
+      signal: controller.signal,
+      readHint: async () => ({ status: "present", hint: { maskedEmail: null } }),
+      redeem: () => new Promise<RedeemResult>((resolve) => { finishRedemption = resolve; }),
+    });
+    await vi.waitFor(() => expect(finishRedemption).toBeTypeOf("function"));
+
+    controller.abort();
+    finishRedemption?.({ status: "restored", session: RESTORED_SESSION });
+    await expect(bootstrap).resolves.toEqual({ status: "unavailable" });
+    expect(browser.setSession).not.toHaveBeenCalled();
   });
 
   it("converts a rejected redemption into unavailable", async () => {

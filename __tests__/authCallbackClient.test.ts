@@ -60,6 +60,7 @@ describe("explicit implicit-flow callback completion", () => {
     expect(pending).toMatchObject({
       status: "confirmation-required",
       identity: { userId: "account-a", label: "person@example.com" },
+      installingTokens: { accessToken: "synthetic-access", refreshToken: "synthetic-refresh" },
     });
     expect(setSession).not.toHaveBeenCalled();
     if (pending.status !== "confirmation-required") throw new Error("Expected confirmation");

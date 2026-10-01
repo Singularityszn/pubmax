@@ -22,7 +22,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import type { Session } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 import "@/app/auth/auth.css";
 import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
@@ -87,6 +87,7 @@ import {
   scrubLingeringAuthCallback,
   type CanonicalAuthAttemptStart,
   type AuthCallbackAttempt,
+  type AuthCallbackTokens,
   type CapturedAuthCallback,
 } from "@/lib/authRedirect";
 import { authedActionFetch, publishAuthActionState } from "@/lib/authedFetch";
@@ -264,6 +265,67 @@ const NOBODY_IDENTITY: CanonicalIdentityState = {
   identity: null,
 };
 
+function isDeferredCancelledAuthEvent(
+  event: AuthChangeEvent,
+  session: Session,
+  cancelled: boolean,
+  confirmationInstallingUserId: string | null,
+  localInstalling: boolean,
+): boolean {
+  return Boolean(
+    cancelled && (confirmationInstallingUserId === session.user.id || localInstalling) &&
+    (event === "SIGNED_IN" || event === "TOKEN_REFRESHED"),
+  );
+}
+
+function mayPrepareCallback(
+  captured: CapturedAuthCallback | null,
+  attempt: AuthCallbackAttempt | null,
+  cancelled: boolean,
+): { tokens: AuthCallbackTokens; localAttemptOwned: boolean } | null {
+  if (!captured || !attempt?.tokens || attempt.providerError || cancelled) return null;
+  return { tokens: attempt.tokens, localAttemptOwned: captured.localAttemptOwned };
+}
+
+function callbackAttemptFailed(attempt: AuthCallbackAttempt | null, verificationFailed: boolean): boolean {
+  return verificationFailed || Boolean(attempt && (attempt.providerError || !attempt.tokens));
+}
+
+function callbackAccountBanned(attempt: AuthCallbackAttempt | null, unownedAccountBanned: boolean): boolean {
+  return Boolean(attempt?.accountBanned || unownedAccountBanned);
+}
+
+type PendingBootstrapInstall = {
+  input: Pick<Session, "access_token" | "refresh_token">;
+  cancelled: boolean;
+  signedOut: boolean;
+  buffered: Session[];
+};
+
+type PendingCallbackRestore = {
+  input: Session;
+  cancelled: boolean;
+  buffered: Session[];
+};
+
+function deferPendingRestoreAuthEvent(
+  pending: PendingCallbackRestore | null,
+  event: AuthChangeEvent,
+  session: Session | null,
+): boolean {
+  if (!pending) return false;
+  if (event === "SIGNED_OUT") {
+    pending.cancelled = true;
+    pending.buffered = [];
+    return false;
+  }
+  if (pending.cancelled && session && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
+    pending.buffered.push(session);
+    return true;
+  }
+  return false;
+}
+
 export function AuthProvider({
   children,
   clerkIntegrationConfigured,
@@ -318,6 +380,19 @@ export function AuthProvider({
           ? "unavailable"
           : "signed-out";
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
+  const bootstrapAbort = useRef<AbortController | null>(null);
+  const pendingBootstrapInstall = useRef<PendingBootstrapInstall | null>(null);
+  const callbackConfirmationCancelled = useRef(false);
+  const callbackConfirmationInFlight = useRef<Promise<void> | null>(null);
+  const callbackConfirmationInstallingUserId = useRef<string | null>(null);
+  const locallyOwnedCallbackInstall = useRef<Promise<PreparedAuthCallbackSession<Session>> | null>(null);
+  const callbackInstallInputTokens = useRef<AuthCallbackTokens | null>(null);
+  const deferredCancelledAuthEvents = useRef<Session[]>([]);
+  const pendingCallbackRestore = useRef<PendingCallbackRestore | null>(null);
+  const callbackCancellationSignedInVersion = useRef(0);
+  const explicitSignOutAwaitingConfirmation = useRef(false);
+  const signedInEventVersion = useRef(0);
+  const latestSignedInSession = useRef<Session | null>(null);
   const updateSession = useCallback(
     (nextSession: Session | null, event: string | null = null) => {
       const previousUserId = sessionTransitions.current.currentUserId();
@@ -451,6 +526,8 @@ export function AuthProvider({
   }, [session]);
 
   useEffect(() => {
+    const bootstrapController = new AbortController();
+    bootstrapAbort.current = bootstrapController;
     // Capture callback inputs once across React Strict Mode's effect replay and
     // scrub the address bar synchronously, before any exchange/network await.
     if (capturedCallback.current === undefined) {
@@ -502,6 +579,8 @@ export function AuthProvider({
       });
       return () => {
         active = false;
+        bootstrapController.abort();
+        if (bootstrapAbort.current === bootstrapController) bootstrapAbort.current = null;
         window.clearTimeout(lingeringSweepTimeout);
       };
     }
@@ -601,6 +680,58 @@ export function AuthProvider({
       // the ONLY place these setStates run — never the effect body.
       const registration = supabase.auth.onAuthStateChange((event, nextSession) => {
         if (!active) return;
+        // auth-js also emits SIGNED_OUT when its cold local-session read
+        // removes a rejected refresh token. Before an account has answered,
+        // that event cannot decide whether the durable cookie can restore it.
+        // Keep the bootstrap pending; its cookie read supplies the answer.
+        if (event === "SIGNED_OUT" &&
+          sessionTransitions.current.currentUserId() === null &&
+          readProviderAuthState("supabase") === "unresolved") return;
+        if (deferPendingRestoreAuthEvent(pendingCallbackRestore.current, event, nextSession)) return;
+        const bootstrapInstall = pendingBootstrapInstall.current;
+        // Retired SDK installs can still emit a rotated session. Buffer until
+        // setSession returns its actual token pair before choosing a successor.
+        if (bootstrapInstall?.cancelled && nextSession &&
+          (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
+          bootstrapInstall.buffered.push(nextSession);
+          return;
+        }
+        // A callback accepted before explicit logout can finish setSession
+        // later. It cannot retake the visible account or become a newer login.
+        if (nextSession && isDeferredCancelledAuthEvent(
+          event,
+          nextSession,
+          callbackConfirmationCancelled.current,
+          callbackConfirmationInstallingUserId.current,
+          locallyOwnedCallbackInstall.current !== null,
+        )) {
+          deferredCancelledAuthEvents.current.push(nextSession);
+          return;
+        }
+        if (event === "SIGNED_IN" && nextSession) {
+          signedInEventVersion.current += 1;
+          latestSignedInSession.current = nextSession;
+        } else if (
+          event === "TOKEN_REFRESHED" && nextSession &&
+          latestSignedInSession.current?.user.id === nextSession.user.id
+        ) {
+          latestSignedInSession.current = nextSession;
+        }
+        // A later auth decision owns the session. Cookie restore's own
+        // SIGNED_IN carries the token marked just before setSession.
+        const matchesBootstrapInput = bootstrapInstall && nextSession &&
+          nextSession.access_token === bootstrapInstall.input.access_token &&
+          nextSession.refresh_token === bootstrapInstall.input.refresh_token;
+        if (event === "SIGNED_OUT" || (event === "SIGNED_IN" && !matchesBootstrapInput)) {
+          if (bootstrapInstall) {
+            bootstrapInstall.cancelled = true;
+            if (event === "SIGNED_OUT") {
+              bootstrapInstall.signedOut = true;
+              bootstrapInstall.buffered = [];
+            }
+          }
+          bootstrapController.abort();
+        }
         const signedIn = updateSession(nextSession ?? null, event);
         // INITIAL_SESSION with no local session is only the beginning of a
         // cold boot. The durable cookie still needs to be checked before the
@@ -658,6 +789,11 @@ export function AuthProvider({
           }
         }
         if (event === "SIGNED_OUT") {
+          latestSignedInSession.current = null;
+          deferredCancelledAuthEvents.current = [];
+          callbackConfirmationCancelled.current = true;
+          callbackCancellationSignedInVersion.current = signedInEventVersion.current;
+          setAuthCallbackConfirmation(null);
           trackEvent("user_signed_out");
         }
       });
@@ -725,6 +861,84 @@ export function AuthProvider({
         }
       };
 
+      const restoreAfterCancelledCallback = async (candidate: Session): Promise<void> => {
+        const pending: PendingCallbackRestore = { input: candidate, cancelled: false, buffered: [] };
+        pendingCallbackRestore.current = pending;
+        let installed: Session | null = null;
+        try {
+          const result = await supabase.auth.setSession({
+            access_token: candidate.access_token,
+            refresh_token: candidate.refresh_token,
+          });
+          installed = result.data.session;
+        } finally {
+          if (pendingCallbackRestore.current === pending) pendingCallbackRestore.current = null;
+        }
+        if (!pending.cancelled) return;
+        const later = pending.buffered.findLast((session) => {
+          const matchesInput = session.access_token === pending.input.access_token &&
+            session.refresh_token === pending.input.refresh_token;
+          const matchesResult = installed && session.access_token === installed.access_token &&
+            session.refresh_token === installed.refresh_token;
+          return !matchesInput && !matchesResult;
+        });
+        if (later) await restoreAfterCancelledCallback(later);
+        else await supabase.auth.signOut({ scope: "local" });
+      };
+
+      const reconcileBootstrapInstall = async (installed: Session | null): Promise<void> => {
+        const pending = pendingBootstrapInstall.current;
+        if (!pending) return;
+        pendingBootstrapInstall.current = null;
+        if (!active || !pending.cancelled) return;
+        const belongsToInstall = (candidate: Session) =>
+          (candidate.access_token === pending.input.access_token &&
+            candidate.refresh_token === pending.input.refresh_token) ||
+          (installed !== null && candidate.access_token === installed.access_token &&
+            candidate.refresh_token === installed.refresh_token);
+        const newer = pending.buffered.findLast((candidate) => !belongsToInstall(candidate)) ??
+          (!pending.signedOut && latestSignedInSession.current &&
+            !belongsToInstall(latestSignedInSession.current)
+            ? latestSignedInSession.current : null);
+        if (newer) {
+          await restoreAfterCancelledCallback(newer);
+        } else if (pending.signedOut) {
+          await supabase.auth.signOut({ scope: "local" });
+        }
+      };
+
+      const reconcileCancelledCallbackInstall = async (
+        exchangedSession: Session | null,
+      ) => {
+        const callbackInput = callbackInstallInputTokens.current;
+        const bufferedNewer = deferredCancelledAuthEvents.current.findLast((session) => {
+          const matchesInput = callbackInput &&
+            session.access_token === callbackInput.accessToken &&
+            session.refresh_token === callbackInput.refreshToken;
+          const matchesResult = exchangedSession &&
+            session.access_token === exchangedSession.access_token &&
+            session.refresh_token === exchangedSession.refresh_token;
+          return !matchesInput && !matchesResult;
+        }) ?? null;
+        deferredCancelledAuthEvents.current = [];
+        callbackInstallInputTokens.current = null;
+        const newer = bufferedNewer ?? (
+          signedInEventVersion.current !== callbackCancellationSignedInVersion.current
+            ? latestSignedInSession.current
+            : null
+        );
+        if (newer && explicitSignOutAwaitingConfirmation.current) {
+          // Explicit sign-out will restore this later login after its pending
+          // callback settles, without clearing the SDK session first.
+          latestSignedInSession.current = newer;
+          signedInEventVersion.current += 1;
+        } else if (newer) {
+          await restoreAfterCancelledCallback(newer);
+        } else if (exchangedSession && !explicitSignOutAwaitingConfirmation.current) {
+          await supabase.auth.signOut({ scope: "local" });
+        }
+      };
+
       const publishBootstrappedSession = (
         bootstrapped: Awaited<ReturnType<typeof bootstrapAuthSession>>,
       ) => {
@@ -766,14 +980,16 @@ export function AuthProvider({
         let exchange: AuthCallbackSessionResult<Session> | null = null;
         let verificationFailed = false;
         let unownedAccountBanned = false;
+        let cancelledLocalInstall = false;
         let confirmation: Extract<PreparedAuthCallbackSession<Session>, { status: "confirmation-required" }> | null = null;
         try {
-          if (captured && callbackAttempt?.tokens && !callbackAttempt.providerError) {
+          const callbackToPrepare = mayPrepareCallback(captured, callbackAttempt, callbackConfirmationCancelled.current);
+          if (callbackToPrepare) {
             if (!callbackSessionInFlight.current) {
               callbackSessionInFlight.current = prepareAuthCallbackSession(
                 supabase.auth,
-                callbackAttempt.tokens,
-                captured.localAttemptOwned,
+                callbackToPrepare.tokens,
+                callbackToPrepare.localAttemptOwned,
                 (refreshToken) =>
                   mintSessionFromRefreshToken(
                     refreshToken,
@@ -782,9 +998,22 @@ export function AuthProvider({
                 (accessToken) => fetchAuthCallbackUser(accessToken, browserDeviceAccountSwitchDeps()),
               );
             }
+            if (callbackToPrepare.localAttemptOwned) {
+              callbackInstallInputTokens.current = callbackToPrepare.tokens;
+              locallyOwnedCallbackInstall.current = callbackSessionInFlight.current;
+            }
             const prepared = await callbackSessionInFlight.current;
-            if (!active) return;
-            if (prepared.status === "established") {
+            if (callbackToPrepare.localAttemptOwned) {
+              locallyOwnedCallbackInstall.current = null;
+              if (!callbackConfirmationCancelled.current) callbackInstallInputTokens.current = null;
+            }
+            if (callbackToPrepare.localAttemptOwned && callbackConfirmationCancelled.current) {
+              if (prepared.status === "established") {
+                await reconcileCancelledCallbackInstall(prepared.result.session);
+              }
+              cancelledLocalInstall = true;
+            } else if (!active) return;
+            else if (prepared.status === "established") {
               exchange = prepared.result;
             } else if (prepared.status === "confirmation-required") {
               confirmation = prepared;
@@ -802,31 +1031,61 @@ export function AuthProvider({
         }
         // Scrub again even when confirmation is pending or verification failed.
         scrubLingeringBrowserAuthCallback();
+        if (cancelledLocalInstall || callbackConfirmationCancelled.current) return;
         if (!active) return;
         if (exchange && captured) finishCallbackExchange(exchange, captured);
-        if (callbackAttempt?.accountBanned || unownedAccountBanned) {
+        if (callbackAccountBanned(callbackAttempt, unownedAccountBanned)) {
           setAuthBannedNotice(true);
           setAuthCallbackError(null);
-        } else if (
-          verificationFailed ||
-          (callbackAttempt && (callbackAttempt.providerError || !callbackAttempt.tokens))
-        ) {
+        } else if (callbackAttemptFailed(callbackAttempt, verificationFailed)) {
           setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
         }
         if (exchange?.session) return;
 
-        const bootstrapped = await (sessionBootstrapInFlight.current ??= bootstrapAuthSession(supabase.auth).catch(
-          () => ({ status: "unavailable" } as const),
-        ));
+        const bootstrapped = await (sessionBootstrapInFlight.current ??= bootstrapAuthSession(
+          supabase.auth,
+          {
+            signal: bootstrapController.signal,
+            onBeforeSetSession: (restored) => {
+              pendingBootstrapInstall.current = {
+                input: restored, cancelled: false, signedOut: false, buffered: [],
+              };
+            },
+            onAfterSetSession: reconcileBootstrapInstall,
+          },
+        ).catch(() => ({ status: "unavailable" } as const)));
         if (!active) return;
-        publishBootstrappedSession(bootstrapped);
-        if (confirmation && captured) {
+        // A newer auth event cancels stale cookie restoration, but does not
+        // cancel the independently verified callback confirmation.
+        if (!bootstrapController.signal.aborted) {
+          publishBootstrappedSession(bootstrapped);
+        }
+        if (confirmation && captured && !callbackConfirmationCancelled.current) {
           const prepared = confirmation;
           setAuthCallbackConfirmation({
             label: prepared.identity.label,
             confirm: () => {
-              void prepared.confirm().then((confirmed) => {
-                finishCallbackExchange(confirmed, captured);
+              callbackConfirmationInstallingUserId.current = prepared.identity.userId;
+              callbackInstallInputTokens.current = prepared.installingTokens;
+              const inFlight = prepared.confirm().then(async (confirmed) => {
+                callbackConfirmationInstallingUserId.current = null;
+                if (callbackConfirmationCancelled.current) {
+                  await reconcileCancelledCallbackInstall(confirmed.session);
+                } else {
+                  finishCallbackExchange(confirmed, captured);
+                }
+              }).catch(() => {
+                if (active && !callbackConfirmationCancelled.current) {
+                  setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+                }
+              });
+              callbackConfirmationInFlight.current = inFlight;
+              void inFlight.finally(() => {
+                if (callbackConfirmationInFlight.current === inFlight) {
+                  callbackConfirmationInFlight.current = null;
+                  callbackConfirmationInstallingUserId.current = null;
+                  callbackInstallInputTokens.current = null;
+                }
               });
             },
           });
@@ -836,6 +1095,8 @@ export function AuthProvider({
 
     return () => {
       active = false;
+      bootstrapController.abort();
+      if (bootstrapAbort.current === bootstrapController) bootstrapAbort.current = null;
       window.clearTimeout(loadingTimeout);
       window.clearTimeout(lingeringSweepTimeout);
       subscription?.unsubscribe();
@@ -1017,15 +1278,50 @@ export function AuthProvider({
 
   const signOut = useCallback(
     async (scope: SignOutScope = "account"): Promise<void> => {
+      const departing = sessionTransitions.current.currentUserId();
+      const signedInVersionAtLogout = signedInEventVersion.current;
+      explicitSignOutAwaitingConfirmation.current = true;
+      callbackConfirmationCancelled.current = true;
+      callbackCancellationSignedInVersion.current = signedInVersionAtLogout;
+      setAuthCallbackConfirmation(null);
+      bootstrapAbort.current?.abort();
+      if (pendingBootstrapInstall.current) {
+        pendingBootstrapInstall.current.cancelled = true;
+        pendingBootstrapInstall.current.signedOut = true;
+        pendingBootstrapInstall.current.buffered = [];
+      }
+      updateSession(null, "SIGNED_OUT");
+      setSessionLoading(false);
+      // An accepted callback may already be installing its session. Let that
+      // installation settle before the explicit logout clears the live SDK.
+      await locallyOwnedCallbackInstall.current?.catch(() => {});
+      await callbackConfirmationInFlight.current?.catch(() => {});
+      explicitSignOutAwaitingConfirmation.current = false;
       const supabase = await ensureSupabaseBrowser();
       if (!supabase) return;
-      const departing = sessionTransitions.current.currentUserId();
+      const restoreNewerLogin = async () => {
+        const newer = latestSignedInSession.current;
+        if (newer) {
+          await supabase.auth.setSession({
+            access_token: newer.access_token,
+            refresh_token: newer.refresh_token,
+          });
+        }
+      };
+      if (signedInEventVersion.current !== signedInVersionAtLogout && latestSignedInSession.current) {
+        await restoreNewerLogin();
+        return;
+      }
       // Explicit sign-out is the one place the durable resume cookie dies too —
       // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
       // AWAITED, because an account sign-out may hand the device straight to the
       // next remembered account: a DELETE still in flight would land after that
       // account's persist and leave the device with no durable session at all.
       await clearPersistedSession();
+      if (signedInEventVersion.current !== signedInVersionAtLogout && latestSignedInSession.current) {
+        await restoreNewerLogin();
+        return;
+      }
       // The same set the account boundary clears, and the owner stamp with it.
       // Leaving the handle behind is what let the next account inherit it: the
       // session went and its name stayed.
@@ -1040,6 +1336,10 @@ export function AuthProvider({
       emitDeviceAccountSessionsChanged();
       setWelcomeBack(null);
       await supabase.auth.signOut();
+      if (signedInEventVersion.current !== signedInVersionAtLogout) {
+        if (latestSignedInSession.current) await restoreNewerLogin();
+        return;
+      }
       // onAuthStateChange fires SIGNED_OUT → session clears via the subscription.
       if (scope === "device") return;
       // The person asked to leave ONE account on a device that still holds
@@ -1054,7 +1354,7 @@ export function AuthProvider({
       if (!next) return;
       await activateDeviceAccount(next.userId, browserDeviceAccountSwitchDeps());
     },
-    [],
+    [updateSession],
   );
 
   const switchAccount = useCallback(
