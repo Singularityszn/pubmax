@@ -79,13 +79,16 @@ try {
   host = createServer((_req, res) => res.writeHead(200, { "Content-Type": "text/html" }).end(html));
   await new Promise((resolve) => host.listen(0, "127.0.0.1", resolve));
   const hostUrl = `http://127.0.0.1:${host.address().port}`;
-  browser = await chromium.launch({ headless: true, args: ["--enable-unsafe-swiftshader"] });
+  const executablePath = process.env.PUBMAX_MCP_CHROMIUM_EXECUTABLE;
+  browser = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}), args: ["--enable-unsafe-swiftshader"] });
+  receipt.browser = { playwrightVersion: JSON.parse(await readFile(new URL("../../node_modules/playwright/package.json", import.meta.url), "utf8")).version, lockedDefaultExecutable: chromium.executablePath(), launchedExecutable: executablePath ?? chromium.executablePath(), launchedVersion: browser.version(), explicitCachedFallback: Boolean(executablePath) };
 
-  for (const name of ["inline-capability", "pending-link", "late-import", "worker-blob", "url-bounds", "url-boundary-fallback", "pending-initialization", "unused-id-retention", "publisher-label-retention"]) {
+  for (const name of ["inline-capability", "pending-link", "late-import", "late-vector-response", "worker-blob", "url-bounds", "url-boundary-fallback", "pending-initialization", "unused-id-retention", "publisher-label-retention"]) {
     const check = { name };
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: "light" });
     let releaseImport = () => {};
     let importRouteCompletion;
+    let releaseTile = () => {}, tileRouteCompletion, tileGate = false;
     try {
       await context.route(`${base}/widget`, async (route) => {
         const response = await route.fetch();
@@ -113,8 +116,32 @@ try {
           importRouteCompletion = (async () => { await released; await route.abort(); })();
           return importRouteCompletion;
         });
-      } else if (name !== "url-bounds" && name !== "publisher-label-retention") {
+      } else if (name !== "url-bounds" && name !== "publisher-label-retention" && name !== "late-vector-response") {
         await context.route("**/maplibre-gl.mjs", (route) => route.abort());
+      }
+      if (name === "late-vector-response") {
+        const released = new Promise((resolve) => { releaseTile = resolve; });
+        let failed = false, held = false;
+        await context.route("https://tiles.openfreemap.org/**", (route) => {
+          const address = route.request().url();
+          if (!tileGate || !/\/\d+\/\d+\/\d+(?:\.pbf|\.mvt)?$/.test(new URL(address).pathname)) return route.continue();
+          if (!failed) { failed = true; check.failedVectorUrl = address; return route.abort("failed"); }
+          if (held) return route.continue();
+          held = true;
+          tileRouteCompletion = (async () => {
+            const response = await route.fetch({ timeout: 15000 });
+            check.heldVectorUrl = address;
+            check.heldVectorHttpStatus = response.status();
+            await released;
+            try { await route.fulfill({ response }); check.lateVectorOutcome = "fulfilled"; }
+            catch (error) {
+              check.lateVectorCancellation = route.request().failure()?.errorText;
+              assert.ok(check.lateVectorCancellation && /aborted|cancel/i.test(check.lateVectorCancellation), `Held vector fulfillment failed without actual request cancellation: ${error.message}`);
+              check.lateVectorOutcome = "cancelled";
+            }
+          })();
+          return tileRouteCompletion;
+        });
       }
       const page = await context.newPage();
       const importRequested = name === "late-import" ? page.waitForRequest("**/maplibre-gl.mjs", { timeout: 15000 }).then(() => true, () => false) : null;
@@ -157,6 +184,32 @@ try {
         check.statusAfterImportFailure = await widget.locator("#status").textContent();
         assert.equal(check.statusAfterImportFailure, check.statusAtAck, "Late rejected map import changed retired widget after ACK");
         assert.equal(await widget.locator(".maplibregl-canvas").count(), 0, "Late import rebuilt retired map");
+      }
+      if (name === "late-vector-response") {
+        await widget.locator(".maplibregl-canvas").waitFor();
+        await page.waitForLoadState("networkidle", { timeout: 20000 });
+        assert.equal(await widget.locator("#status").textContent(), "2 listed pubs.", "Late-vector setup already has map failure");
+        tileGate = true;
+        await widget.getByRole("button", { name: "Zoom out", exact: true }).click();
+        await widget.locator("#status").filter({ hasText: "Streets could not load" }).waitFor();
+        const deadline = Date.now() + 15000;
+        while (check.heldVectorHttpStatus === undefined && Date.now() < deadline) await page.waitForTimeout(100);
+        assert.equal(check.heldVectorHttpStatus, 200, "No genuine successful vector response held before teardown");
+        check.teardown = await page.evaluate(() => window.ask("ui/resource-teardown"));
+        assert.deepEqual(check.teardown.result, {}, "Teardown must ACK with a vector response pending");
+        check.statusAtAck = await widget.locator("#status").textContent();
+        check.cardsAtAck = await widget.locator("#venues").textContent();
+        releaseTile();
+        await tileRouteCompletion;
+        const lateResult = await client.callTool({ name: "pubmaxx_venues_in_area", arguments: { area: "Camden", limit: 1 } });
+        assert.equal(lateResult.structuredContent.venues.length, 1);
+        await page.evaluate((next) => window.sendResult(next), lateResult);
+        await page.waitForTimeout(500);
+        check.statusAfterLateVector = await widget.locator("#status").textContent();
+        assert.equal(check.statusAfterLateVector, check.statusAtAck, "Late vector response changed retired status");
+        assert.equal(await widget.locator("#venues").textContent(), check.cardsAtAck, "Late result rebuilt retired cards");
+        assert.equal(await widget.locator(".maplibregl-canvas").count(), 0, "Late vector response rebuilt retired map");
+        await page.screenshot({ path: `${output}late-vector-response.png`, fullPage: false });
       }
       if (name === "worker-blob") {
         await widget.locator(".maplibregl-canvas").waitFor();
@@ -473,7 +526,10 @@ try {
       check.error = error.message;
     } finally {
       releaseImport();
+      releaseTile();
       try { await importRouteCompletion; }
+      catch (error) { (check.cleanupErrors ??= []).push(error.message); check.verdict = "FAIL"; }
+      try { await tileRouteCompletion; }
       catch (error) { (check.cleanupErrors ??= []).push(error.message); check.verdict = "FAIL"; }
       try { await context.close(); }
       catch (error) { (check.cleanupErrors ??= []).push(error.message); check.verdict = "FAIL"; }
