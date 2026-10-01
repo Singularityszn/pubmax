@@ -105,6 +105,7 @@ export default function MessageRecipientDialog({
       document.activeElement : null);
   const focusOriginRef = useRef(focusOrigin);
   const dialogRef = useRef<HTMLElement | null>(null);
+  const searchFieldRef = useRef<HTMLInputElement | null>(null);
   const createRef = useRef<AbortController | null>(null);
   const liveRef = useRef(true);
   const fieldId = useId();
@@ -128,13 +129,18 @@ export default function MessageRecipientDialog({
   };
   const toggle = (person: MessageRecipient) => {
     if (busy) return;
+    const wasSelected = selected.some((recipient) => recipient.handle === person.handle);
+    if (!wasSelected && selected.length >= MAX_RECIPIENTS) return;
     setError("");
     setSelected((current) => {
-      if (current.some((recipient) => recipient.handle === person.handle)) {
+      if (wasSelected) {
         return current.filter((recipient) => recipient.handle !== person.handle);
       }
+      if (current.some((recipient) => recipient.handle === person.handle)) return current;
       return current.length < MAX_RECIPIENTS ? [...current, person] : current;
     });
+    if (!wasSelected) search.changeQuery("");
+    searchFieldRef.current?.focus();
   };
   const group = selected.length >= 2;
   const ready = Boolean(handle) && (group || (allowDirect && selected.length === 1));
@@ -222,6 +228,7 @@ export default function MessageRecipientDialog({
           Search people
         </label>
         <input
+          ref={searchFieldRef}
           id={`${fieldId}-search`}
           className="messagesNewGroupField"
           type="text"
