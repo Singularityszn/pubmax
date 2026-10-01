@@ -198,34 +198,38 @@ describe("POST /api/plans/generate", () => {
   });
 
   it("joins trusted wine prices into value ranking without using pint prices", async () => {
-    loadConciergeVenuesMock.mockResolvedValueOnce([
-      generatedVenue("v1", { cheapestPrice: 4 }),
-      generatedVenue("v2", { cheapestPrice: 6 }),
-      generatedVenue("v3", { cheapestPrice: 3 }),
-    ]);
-    const now = Date.now();
-    categoryIndexMock.mockResolvedValueOnce({
-      prices: [
-        { venueId: "v1", drinkCategory: "wine", priceGbp: 9, submittedAt: now, source: "community", corroborations: 2 },
-        { venueId: "v2", drinkCategory: "wine", priceGbp: 7, submittedAt: now, source: "community", corroborations: 2 },
-        { venueId: "v3", drinkCategory: "wine", priceGbp: 5, submittedAt: now, source: "community", corroborations: 1 },
-      ],
-      truncated: false,
-      degraded: false,
-    });
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    try {
+      loadConciergeVenuesMock.mockResolvedValueOnce([
+        generatedVenue("v1", { cheapestPrice: 4 }),
+        generatedVenue("v2", { cheapestPrice: 6 }),
+        generatedVenue("v3", { cheapestPrice: 3 }),
+      ]);
+      categoryIndexMock.mockResolvedValueOnce({
+        prices: [
+          { venueId: "v1", drinkCategory: "wine", priceGbp: 9, submittedAt: PLAN_GENERATION_TEST_NOW, source: "community", corroborations: 2 },
+          { venueId: "v2", drinkCategory: "wine", priceGbp: 7, submittedAt: PLAN_GENERATION_TEST_NOW, source: "community", corroborations: 2 },
+          { venueId: "v3", drinkCategory: "wine", priceGbp: 5, submittedAt: PLAN_GENERATION_TEST_NOW, source: "community", corroborations: 1 },
+        ],
+        truncated: false,
+        degraded: false,
+      });
 
-    const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
-      method: "POST",
-      body: JSON.stringify({ query: "cheap wine in Clapham for 2" }),
-    }));
+      const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        body: JSON.stringify({ query: "cheap wine in Clapham for 2" }),
+      }));
 
-    expect("prepared" in result).toBe(true);
-    if (!("prepared" in result)) return;
-    expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), expect.any(Number));
-    expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v2", "v1", "v3"]);
-    expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £7.00");
-    expect(result.prepared.candidates[0]?.reasons.join(" ")).not.toMatch(/pints from/i);
-    expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
+      expect("prepared" in result).toBe(true);
+      if (!("prepared" in result)) return;
+      expect(categoryIndexMock).toHaveBeenCalledWith(expect.arrayContaining(["wine"]), expect.any(Number));
+      expect(result.prepared.candidates.map((candidate) => candidate.venue.id)).toEqual(["v2", "v1", "v3"]);
+      expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £7.00");
+      expect(result.prepared.candidates[0]?.reasons.join(" ")).not.toMatch(/pints from/i);
+      expect(result.prepared.candidates[2]?.reasons.join(" ")).not.toMatch(/pints|£/i);
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it("carries trusted wine price evidence to selected stops and alternatives without inventing a serving", async () => {

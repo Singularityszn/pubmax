@@ -192,8 +192,8 @@ test.describe("map keyboard and screen-reader venue path", () => {
   }) => {
     await page.goto("/map");
 
-    for (const name of ["Zoom in", "Zoom out"] as const) {
-      const control = page.getByRole("button", { name });
+    for (const selector of [".maplibregl-ctrl-zoom-in", ".maplibregl-ctrl-zoom-out"] as const) {
+      const control = page.locator(selector);
       await expect(control).toBeVisible({ timeout: 30_000 });
       const box = await control.boundingBox();
       expect(box).not.toBeNull();
@@ -243,7 +243,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     expect(beforeMove).toBeGreaterThan(0);
     expect(beforeMoveIds.every(Boolean)).toBe(true);
 
-    const zoomIn = page.getByRole("button", { name: "Zoom in" });
+    const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
     await zoomIn.click();
     await zoomIn.click();
     await zoomIn.click();
