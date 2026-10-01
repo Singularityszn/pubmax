@@ -8,6 +8,20 @@ import {
 } from "@/lib/venueAccessibility";
 import type { Venue } from "@/lib/venues";
 
+const venue: Venue = {
+  id: "accessibility-fixture", name: "Accessibility test pub", address: "",
+  latitude: 51.5, longitude: -0.1, primaryBorough: "", visibleBoroughs: [],
+  prices: [], cheapestPrice: null, cheapestPint: "", averagePrice: null,
+  hasStory: false, latestContributorPrice: null, latestContributorAt: null,
+  amenities: {
+    food: false, cocktails: false, beerGarden: false, liveSports: false,
+    liveMusic: false, pubQuiz: false, darts: false, pool: false,
+    happyHour: false, karaoke: false, nonAlcoholic: false,
+  },
+  website: "", bookingLink: "", imageUrl: "", description: "",
+  dataQualityNotes: [], sourceDatasets: [], curation: {},
+};
+
 const activeCases = [
   ["step-free entry", { ...EMPTY_ACCESSIBILITY_FILTERS, stepFree: true }],
   ["accessible toilet", { ...EMPTY_ACCESSIBILITY_FILTERS, accessibleToilet: true }],
@@ -33,9 +47,9 @@ describe("accessibility summary does not relax confirmed-fact filters", () => {
     "%s keeps unknown and documented absence out of a positive filter",
     (facet) => {
       const filters = { ...EMPTY_ACCESSIBILITY_FILTERS, [facet]: true };
-      const confirmed = { accessibility: { [facet]: true } } as Venue;
-      const absent = { accessibility: { [facet]: false } } as Venue;
-      const unknown = {} as Venue;
+      const confirmed: Venue = { ...venue, accessibility: { [facet]: true } };
+      const absent: Venue = { ...venue, accessibility: { [facet]: false } };
+      const unknown = venue;
 
       expect(matchesAccessibilityFilters(confirmed, filters)).toBe(true);
       expect(matchesAccessibilityFilters(absent, filters)).toBe(false);
