@@ -311,10 +311,10 @@ function printedItemName(text: string, at: number): PrintedItemName | undefined 
 // Only standalone printed headings scope subsequent item lines. An unsupported
 // recognized section ends the previous scope; a later heading supplies no measure to
 // an earlier item. Prices and descriptions cannot themselves open a section.
-const DRINK_SECTION_HEADING = /^(gin|vodka|rum|whisk(?:y|ey)|tequila|shots?|alcohol[- ]free|non[- ]alcoholic|spirits|liqueurs(?: & spirits)?|cognac|brandy|soft drinks(?: & mixers)?|mixers|beers?|wines?|red wines?|white wines?|ros[eé]|cocktails?|coffee|hot drinks)(?:\s+([1-9]\d{0,2})\s*ml)?$/i;
+const DRINK_SECTION_HEADING = /^(gin|vodka|rum|whisk(?:y|ey)|tequila|shots?|alcohol[- ]free|non[- ]alcoholic|spirits|liquors?|liqueurs(?: & spirits)?|cognac|brandy|soft drinks(?: & mixers)?|mixers|beers?|wines?|red wines?|white wines?|ros[eé]|cocktails?|coffee|hot drinks)(?:\s+([1-9]\d{0,2})\s*ml)?$/i;
 
 function printedDrinkSection(text: string, at: number): {
-  category: DrinkCategory;
+  category: DrinkCategory | null;
   servingSize?: string;
 } | null {
   const lineStart = text.lastIndexOf("\n", at - 1) + 1;
@@ -323,6 +323,11 @@ function printedDrinkSection(text: string, at: number): {
     const heading = DRINK_SECTION_HEADING.exec(lines[index].trim());
     if (!heading) continue;
     const category = categoryFor(heading[1]);
+    // Unsupported spirit sections block neighbour-category borrowing. Other
+    // sections end spirit scope without changing their existing item reader.
+    if (/^(?:cognac|brandy|spirits|liquors?|liqueurs(?: & spirits)?)$/i.test(heading[1])) {
+      return { category: null };
+    }
     if (!category || (!SPIRIT_CATEGORIES.includes(category) && category !== "alcohol-free")) return null;
     return {
       category,
@@ -330,6 +335,13 @@ function printedDrinkSection(text: string, at: number): {
     };
   }
   return null;
+}
+
+function statedSpiritServing(ownItem: string | undefined, sectionServing: string | undefined): string | undefined {
+  const measures = [...(ownItem ?? "").matchAll(/(?<![\d.])\b(\d{1,3}(?:\.\d+)?)\s*ml\b/gi)];
+  if (measures.length === 1) return Number(measures[0][1]) > 0 ? `${measures[0][1]}ml` : undefined;
+  if (measures.length > 1 || isBottledMeasure(ownItem ?? "")) return undefined;
+  return sectionServing;
 }
 
 function titleCategory(name: string): DrinkCategory | null {
@@ -777,12 +789,18 @@ function decideKeylessUkPriceAt(
   )) {
     return { drop: "no-category-word-nearby" };
   }
-  const decision = section?.category === "alcohol-free"
+  const sectionDecision = section?.category
     ? { category: section.category, fromMixer: decisionFromLabel?.fromMixer ?? false }
-    : decisionFromLabel ?? (wineIdentity
-      ? { category: "wine" as const, fromMixer: false }
-      : section ? { category: section.category, fromMixer: false }
-        : categoryDecisionFor(context, at - contextStart));
+    : null;
+  // A printed spirit section plus the same spirit in the item name beats a
+  // wine word in that brand (Tequila Rose), never an own cocktail/AF title or
+  // mixer rejection. A section alone cannot erase named beer or soft drinks.
+  const decision = sectionDecision && (sectionDecision.category === "alcohol-free" || (
+    decisionFromLabel?.category === "wine"
+    && categoriesNamedIn(drinkLabel ?? "").has(sectionDecision.category)
+  )) ? sectionDecision : decisionFromLabel ?? (wineIdentity
+    ? { category: "wine" as const, fromMixer: false }
+    : section ? sectionDecision : categoryDecisionFor(context, at - contextStart));
   if (!decision) {
     return {
       drop: Number.isFinite(priceGbp) ? "no-category-word-nearby" : "no-drink-word-nearby",
@@ -804,6 +822,10 @@ function decideKeylessUkPriceAt(
   if (category === "beer" && isBottledMeasure(before)) {
     return { drop: "bottled-measure-not-a-pint" };
   }
+  const sectionServing = section?.category === category ? section.servingSize : undefined;
+  const statedServing = SPIRIT_CATEGORIES.includes(category)
+    ? statedSpiritServing(itemName?.own, sectionServing)
+    : sectionServing;
   return {
     kept: {
       priceGbp,
@@ -812,7 +834,7 @@ function decideKeylessUkPriceAt(
       context,
       drinkLabel: category === "wine" ? wineIdentity?.drinkLabel ?? drinkLabel : drinkLabel,
       ...(category === "wine" && wineIdentity ? { servingSize: wineIdentity.servingSize } : {}),
-      ...(section?.category === category && section.servingSize ? { servingSize: section.servingSize } : {}),
+      ...(statedServing ? { servingSize: statedServing } : {}),
     },
   };
 }

@@ -1,0 +1,17 @@
+{
+  "sourceUrl": "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206",
+  "capturedAt": "2026-10-01T12:53:11.091Z",
+  "sourceFormat": "Exact official readPdfText/pdfjs output",
+  "pdfBytes": 36363,
+  "pdfSha256": "3c9330a16216e28ff2fc4ddd90fdc790778e42aebb4596a7627cadca31c71af6",
+  "fullTextSha256": "93091daca121b8451c8d33bb8560f59f35cf375156f4f6dc62429a394e936c7b",
+  "excerptByteStart": 3877,
+  "excerptByteEnd": 4958,
+  "excerptSha256": "6fe865f8fa0ec1934550f21e55681f31b8fe967e4c6c675ba283be3654c5ec58",
+  "sourceLines": [
+    175,
+    226
+  ],
+  "boundary": "Contiguous exact official output from COGNAC25ML through VODKA25ML, TEQUILA25ML, LIQUOR25ML and final mixed-serve lines. No reconstructed text, amount, heading or whitespace.",
+  "text": "COGNAC   25 ML\nCOURVOISIER VS   £6.00 \nFRANCE/ABV   40% \nCOURVOISIER VSOP   £9.50 \nFRANCE/ABV   40% \nMARTELL VSOP   £9.50 \nFRANCE/ABV   40% \nREMY MARTIN VSOP .   £9.50 \nFRANCE/ABV   40% \nHENNESSY VSOP   £11.00 \nFRANCE/ABV   40% \nVODKA   25 ML\nSMIRNOFF   £4.00 \nRUSSIA/ 37.5% \nSIPSMITH   £7.00 \nUK/ABV   40% \nGREY GOOSE   £9.50 \nFRANCE/ABV   40% \nTEQUILA   25 ML\nJOSE CUERVO   £6.00 \nMEXICO/ABV   38% \nTEQUILA ROSE   £6.00 \nMEXICO/ABV   35% \nCAZABLEL   £6.50 \nMEXICO/ABV   35% \nROOSTER ROJO   £6.50 \nMEXICO/ABV   38% \nMONTE ALBAN   £7.50 \nMEXICO/ABV   40% \nOLMECA   £8.50 \nMEXICO/ABV   38% \nLIQUOR   25 ML\nJAGERMEISTER   £5.00 \nGERMANY/ABV   35% \nSAMBUCA   £5.00 \nITALY/ABV   38% \nDISARONNO   £5.00 \nITALY/ABV   28% \nTIA MARIA   £5.00 \nJAMAICA/ABV   26.5% \nCOINTREAU   £5.00 \nFRANCE/ABV   40% \nSOUTHERN COMFORT   £5.50 \nUSA/ABV   35% \nDRAMBUIE   £7.00 \nENGLAND/ABV   40% \nWHY NOT?\nAPEROL   £13.00\n125 ML PROSECCO/ 50 ML APEROL/SODA\nPIMM’S   £7.00\n35 ML PIMM’S/LEMONADE\nMIX YOUR SPIRITS WITH DRAFT COKE ,   COKE ZERO ,   LEMONADE OR A SODA WATER   £1.90 \n"
+}

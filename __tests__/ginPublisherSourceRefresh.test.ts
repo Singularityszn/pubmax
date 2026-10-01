@@ -6,6 +6,7 @@ import {
 } from "@/lib/harvest/ukPriceCrawl";
 import source from "./fixtures/harvest/scolt-head-spirits-20261001.json";
 import albion from "./fixtures/harvest/albion-gin-pdfjs-20261001.json";
+import albionSpirits from "./fixtures/harvest/albion-spirit-boundaries-pdfjs-20261001.json";
 
 // Root captured the publisher's actual PDF web text on the date in this fixture.
 // This exercises the official text reader, not network permission or pdfjs layout.
@@ -87,5 +88,70 @@ describe("Albion captured publisher Gin section", () => {
     const bells = readAlbion().kept.find((row) => row.drinkLabel?.includes("BELLS"));
 
     expect(bells).toEqual(expect.objectContaining({ category: "whisky", priceGbp: 4 }));
+  });
+});
+
+// This captured section contains Cognac prices before the healthy Vodka section.
+// Unsupported Cognac must not borrow a later section's supported category.
+const readAlbionCognacVodka = () => readVenueDrinkPrices(albionSpirits.text, "text");
+
+describe("Albion captured Cognac to Vodka boundary", () => {
+  it("does not file Cognac Hennessy VSOP £11 as Vodka", () => {
+    expect(readAlbionCognacVodka().kept.filter((row) =>
+      row.category === "vodka" && row.priceGbp === 11,
+    )).toEqual([]);
+  });
+
+  it("does not turn preceding Cognac £9.50 into an unnamed Vodka offer", () => {
+    const vodkaAtAmount = readAlbionCognacVodka().kept.filter((row) =>
+      row.category === "vodka" && row.priceGbp === 9.5,
+    );
+
+    expect(vodkaAtAmount).toEqual([
+      expect.objectContaining({ drinkLabel: "GREY GOOSE", servingSize: "25ml" }),
+    ]);
+  });
+
+  it.each([
+    ["SMIRNOFF", 4],
+    ["SIPSMITH", 7],
+    ["GREY GOOSE", 9.5],
+  ] as const)("retains the next Vodka section's %s amount and printed measure", (name, priceGbp) => {
+    const row = readAlbionCognacVodka().kept.find((candidate) => candidate.drinkLabel === name);
+
+    expect(row).toEqual(expect.objectContaining({ category: "vodka", priceGbp, servingSize: "25ml" }));
+  });
+});
+
+describe("Albion captured Tequila and mixed-serve boundaries", () => {
+  it("keeps Tequila Rose £6 under its printed Tequila 25ml section", () => {
+    const row = readAlbionCognacVodka().kept.find((candidate) => candidate.drinkLabel === "TEQUILA ROSE");
+
+    expect(row).toEqual(expect.objectContaining({ category: "shot", priceGbp: 6, servingSize: "25ml" }));
+  });
+
+  it("does not publish Pimm’s with lemonade as an inherited 25ml shot", () => {
+    expect(readAlbionCognacVodka().kept.filter((row) =>
+      row.priceGbp === 7 && row.drinkLabel?.includes("PIMM"),
+    )).toEqual([]);
+  });
+});
+
+// Synthetic reader controls, not publisher observations. Own printed measures
+// cannot be replaced by a section measure or invented for an ambiguous item.
+describe("explicit item measure precedes a spirit section", () => {
+  it.each([
+    ["Gin 25ml\nGordons Gin 50ml £8", "50ml"],
+    ["Gin 25ml\nGordons Gin £4", "25ml"],
+    ["Gin\nGordons Gin £4", undefined],
+    ["Gin 25ml\nGordons Gin 25ml / 50ml £8", undefined],
+    ["Gin 25ml\nGordons Gin Bottle £8", undefined],
+    ["Gin 25ml\nGordons Gin 37.5ml £8", "37.5ml"],
+    ["Gin 25ml\nGordons Gin 0.5ml £8", "0.5ml"],
+  ] as const)("keeps the item's stated or unknown serving: %s", (text, servingSize) => {
+    const rows = readVenueDrinkPrices(text, "text").kept;
+    expect(rows).toHaveLength(1);
+    expect(rows[0].category).toBe("gin");
+    expect(rows[0].servingSize).toBe(servingSize);
   });
 });
