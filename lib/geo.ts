@@ -1,3 +1,5 @@
+import { haversineMeters } from "./greatCircle.mjs";
+
 // Small shared geo helpers used across client and server egress boundaries.
 
 export type LatLngPoint = { lat: number; lng: number };
@@ -22,10 +24,6 @@ export function coarsenViewerPoint(point: LatLngPoint): LatLngPoint {
 
 /** Add the rounding displacement to the browser's reported accuracy radius. */
 export function coarsenedViewerAccuracy(point: LatLngPoint, reduced: LatLngPoint, accuracy: number): number {
-  const radians = Math.PI / 180;
-  const latitudeDelta = (reduced.lat - point.lat) * radians;
-  const longitudeDelta = (reduced.lng - point.lng) * radians;
-  const arc = Math.sin(latitudeDelta / 2) ** 2 + Math.cos(point.lat * radians) * Math.cos(reduced.lat * radians) * Math.sin(longitudeDelta / 2) ** 2;
-  const displacement = 6_371_000 * 2 * Math.atan2(Math.sqrt(arc), Math.sqrt(Math.max(0, 1 - arc)));
+  const displacement = haversineMeters(point.lat, point.lng, reduced.lat, reduced.lng);
   return Math.max(110, Math.ceil(accuracy + displacement));
 }
