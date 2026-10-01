@@ -232,7 +232,7 @@ describe("message recipient picker", () => {
     const onOpened = vi.fn();
     await mount({ onOpened });
 
-    expect(container.querySelector('[role="dialog"]')?.textContent).toContain(
+    expect(container.querySelector('[role="dialog"]')?.textContent ?? "").toContain(
       "New message",
     );
     const search = searchInput();
@@ -249,7 +249,7 @@ describe("message recipient picker", () => {
     const addHari = buttonNamed("Add @hari");
     expect(addHari).not.toBeNull();
     await click(addHari!);
-    expect(search.value).toBe("");
+    expect(search!.value).toBe("");
     expect(document.activeElement).toBe(search);
 
     await typeInto(search!, "not-a-recipient");
@@ -441,6 +441,7 @@ describe("message recipient picker", () => {
     expect(buttonNamed("Add @hari")).toBeNull();
 
     await click(buttonNamed("Retry search")!);
+    await settle(260);
     expect(searchAttempts).toBe(2);
     expect(buttonNamed("Add @hari")).not.toBeNull();
 
