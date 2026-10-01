@@ -119,6 +119,71 @@ describe("owned Pub Pal summon", () => {
     expect(summon()?.getAttribute("href")).toBe("/pal");
   });
 
+  it.each(["/map", "/plan"])("removes the obsolete owned shortcut on %s after a successful canonical null read", async (pathname) => {
+    viewer.pathname = pathname;
+    localStorage.setItem(PAL_CACHE_KEY, JSON.stringify(ownedPal()));
+    await render();
+    expect(summon()?.getAttribute("aria-label")).toBe("Summon Moss, your Pub Pal");
+
+    let finishRead!: (response: Response) => void;
+    requests.authedActionFetch.mockReturnValue(new Promise<Response>((resolve) => { finishRead = resolve; }));
+    await render(true);
+    expect(requests.authedActionFetch).toHaveBeenCalledWith(
+      "/api/pub-pal",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      { requiresIdentity: true },
+    );
+    expect(summon()?.getAttribute("aria-label")).toBe("Summon Moss, your Pub Pal");
+
+    await act(async () => {
+      finishRead(Response.json({ pal: null }));
+      for (let turn = 0; turn < 8; turn += 1) await Promise.resolve();
+    });
+
+    expect(container.querySelector("#pal-meeting-title")?.textContent).toBe("Choose your Pub Pal.");
+    expect(container.querySelector(".palHome")).toBeNull();
+    expect(summon()).toBeNull();
+    expect(container.textContent).not.toContain("Moss");
+    expect(localStorage.getItem(PAL_CACHE_KEY)).toBeNull();
+  });
+
+  it.each(["/map", "/plan"])("retains the owned cached shortcut on %s when the Pal read returns HTTP 503", async (pathname) => {
+    viewer.pathname = pathname;
+    const cached = ownedPal();
+    localStorage.setItem(PAL_CACHE_KEY, JSON.stringify(cached));
+    requests.authedActionFetch.mockImplementation(async (url: string) => url === "/api/pub-pal/memories"
+      ? Response.json({ memories: [] })
+      : Response.json({ error: "Pub Pal is temporarily unavailable.", code: "PUB_PAL_STORE_UNAVAILABLE", retryable: true }, { status: 503 }));
+
+    await render(true);
+
+    expect(container.querySelector("#pal-home-title")?.textContent).toBe("Moss");
+    expect(summon()?.getAttribute("aria-label")).toBe("Summon Moss, your Pub Pal");
+    expect(JSON.parse(localStorage.getItem(PAL_CACHE_KEY) ?? "null")).toEqual(cached);
+  });
+
+  it.each([200, 503])("keeps another owner's cache private and intact after the current owner's HTTP %i Pal read", async (status) => {
+    viewer.user = { id: "owner-b" };
+    const cached = JSON.stringify(ownedPal());
+    localStorage.setItem(PAL_CACHE_KEY, cached);
+    requests.authedActionFetch.mockResolvedValue(status === 200
+      ? Response.json({ pal: null })
+      : Response.json({ error: "Pub Pal is temporarily unavailable.", code: "PUB_PAL_STORE_UNAVAILABLE", retryable: true }, { status }));
+
+    await render(true);
+
+    expect(requests.authedActionFetch).toHaveBeenCalledWith(
+      "/api/pub-pal",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      { requiresIdentity: true },
+    );
+    expect(container.querySelector("#pal-meeting-title")?.textContent).toBe("Choose your Pub Pal.");
+    expect(container.querySelector(".palHome")).toBeNull();
+    expect(summon()).toBeNull();
+    expect(container.textContent).not.toContain("Moss");
+    expect(localStorage.getItem(PAL_CACHE_KEY)).toBe(cached);
+  });
+
   it.each(["loading", "signed-out", "different-owner"])("keeps cached Pal private while %s", async (phase) => {
     localStorage.setItem(PAL_CACHE_KEY, JSON.stringify(ownedPal()));
     if (phase === "loading") viewer.loading = true;
