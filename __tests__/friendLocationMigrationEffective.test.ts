@@ -3,8 +3,8 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { postgresSkipReason, startPostgres, type PostgresSession } from "./helpers/postgres";
 
-const migration = join(process.cwd(), "supabase/migrations/20260930120000_0175_friend_locations.sql");
-const rollback = join(process.cwd(), "supabase/migrations/rollback/20260930120000_0175_friend_locations_rollback.sql");
+const migration = join(process.cwd(), "supabase/migrations/20260930121000_0175_friend_locations.sql");
+const rollback = join(process.cwd(), "supabase/migrations/rollback/20260930121000_0175_friend_locations_rollback.sql");
 const ids = [1, 2, 3].map((n) => `10000000-0000-4000-8000-00000000000${n}`);
 let pg: PostgresSession;
 const call = (actor: string, action: string, input: Record<string, unknown> = {}) => {

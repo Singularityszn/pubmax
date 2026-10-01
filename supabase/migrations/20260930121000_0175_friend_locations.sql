@@ -44,6 +44,15 @@ alter table public.private_friend_location_grants enable row level security;
 revoke all on public.private_friend_location_sessions, public.private_friend_location_grants from public, anon, authenticated;
 grant select, insert, update, delete on public.private_friend_location_sessions, public.private_friend_location_grants to service_role;
 
+do $$
+begin
+  if exists(select 1 from pg_catalog.pg_roles where rolname='posthog_reader') then
+    revoke all on public.private_friend_location_generations,
+      public.private_friend_location_sessions, public.private_friend_location_grants from posthog_reader;
+  end if;
+end;
+$$;
+
 create function public.friend_location_account_live(p_account uuid) returns boolean
 language sql stable security definer set search_path=''
 as $$
