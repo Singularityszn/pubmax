@@ -371,7 +371,9 @@ describe("private photo rendering", () => {
     expect(state.request).toHaveBeenCalledWith("/api/messages/photo?handle=alice", expect.objectContaining({ signal: expect.any(AbortSignal) }), { requiresIdentity: true });
     await act(async () => release(new Response("private", { status: 200 })));
     expect(createUrl).toHaveBeenCalledOnce();
-    await expect(createUrl.mock.calls[0][0].text()).resolves.toBe("private");
+    const photoBlob = createUrl.mock.calls[0][0];
+    if (!("text" in photoBlob)) throw new Error("Expected photo bytes as a Blob");
+    await expect(photoBlob.text()).resolves.toBe("private");
     expect(host.querySelector("figure")).toBe(figure);
     expect(figure.style.getPropertyValue(MESSAGE_PHOTO_ASPECT_PROPERTY)).toBe("0.8");
     expect(host.querySelector(".messagePhotoPending")).toBeNull();
