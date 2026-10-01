@@ -1,8 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import type { ShardManifest } from "../lib/slimShards";
+import type { SlimVenue } from "../lib/venuesSlim";
+
 const VIEWPORT = { width: 390, height: 844 };
 
 test.use({
+  serviceWorkers: "block",
   launchOptions: {
     args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
   },
@@ -29,6 +33,43 @@ test("no-alcohol and food views own the 390px map without pint controls", async 
 }) => {
   test.setTimeout(90_000);
   const errors = watchPageErrors(page);
+  // Two unchanged publisher-priced food rows and one pub form the input.
+  // Narrow the served core instead of deriving a count from whichever cells
+  // arrive first. Prices below are GBP; every published source tuple stays.
+  const fixtureIds = ["food-le-bab-soho", "food-wong-kei", "venue-lukeav"];
+  await page.route("**/data/venues_slim.core.json*", async (route) => {
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    const payload = await response.json() as { rows: SlimVenue[] };
+    const fixtureRows = payload.rows.filter((row) => fixtureIds.includes(row.id));
+    expect(fixtureRows).toHaveLength(3);
+    expect(fixtureRows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: "food-le-bab-soho", name: "Le Bab Soho", kind: "food", cheapestPrice: 16.5,
+        anchorLabel: "Lamb adana kebab", anchorObservedAt: "2026-07-26",
+        anchorSourceUrl: "https://eatlebab.com/",
+      }),
+      expect.objectContaining({
+        id: "food-wong-kei", name: "Wong Kei", kind: "food", cheapestPrice: 10.8,
+        anchorLabel: "Roast duck on rice", anchorObservedAt: "2026-07-26",
+        anchorSourceUrl: "https://wongkeilondon.com/",
+      }),
+      expect.objectContaining({ id: "venue-lukeav", name: "Bradley’s Spanish Bar", cheapestPrice: 6 }),
+    ]));
+    expect(fixtureRows.find((row) => row.id === "venue-lukeav")?.kind ?? "pub").toBe("pub");
+    // Preserve the served revision/envelope and every chosen venue field.
+    await route.fulfill({ response, json: { ...payload, rows: fixtureRows } });
+  });
+  await page.route("**/data/venues_slim.manifest.json*", async (route) => {
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    const payload = await response.json() as ShardManifest;
+    const core = payload.shards.find((shard) => shard.core && shard.url === "/data/venues_slim.core.json");
+    expect(core).toBeDefined();
+    await route.fulfill({
+      response, json: { ...payload, shards: [{ ...core, count: fixtureIds.length }] },
+    });
+  });
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
 
@@ -78,10 +119,10 @@ test("no-alcohol and food views own the 390px map without pint controls", async 
 
   await food.click();
   await expect(food).toHaveAttribute("aria-pressed", "true");
-  // The committed London food anchors currently contribute 37 priced venues.
-  // Check the exact grounded count and copy, rather than accepting any food note.
+  // The fixture supplies two named publisher-priced food venues. The pub
+  // must not count as a menu price; retain the exact positive count and copy.
   await expect(sheet.getByRole("status")).toHaveText(
-    "37 menu prices we have shown.",
+    "2 menu prices we have shown.",
   );
   await expect(
     page.getByRole("button", { name: "Pints", exact: true }),
