@@ -33,3 +33,22 @@ The interface is that check. `__tests__/emailProvider.test.ts` calls `isEmailPro
 **Files changed:** `lib/emailProviderConfigured.mjs`, `lib/emailProviderConfigured.d.mts`, `lib/emailProvider.ts`, `scripts/send_weekly_digest.mjs`, `__tests__/emailProvider.test.ts`.
 
 **Fully resolved:** no. The HTTP transport stays a stub on purpose.
+
+## 1646 Bar Tab and Ledger venue reads
+
+**Still true:** it was, until this change. Both `app/bar-tab/[id]/page.tsx` and `app/ledger/[id]/page.tsx` defined `VenueReadResult`, `readVenueDataset`, and `readVenue`, and each parsed `public/data/pint_prices_app_dataset.json` on its own. A search for those three names now finds none. `app/bar-tab/[id]/opengraph-image.tsx` still calls `resolveCanonicalVenueId`. That file was not part of this seam.
+
+**Seam decision:** deepen. The module is `lookupVenueDetail` in `lib/venueDetailIndex.ts`. Depth is one venue read. Two adapters sit on it, and both call it the way `app/api/venue/[id]/route.ts` does:
+
+- `app/bar-tab/[id]/page.tsx` calls it from the page and from `generateMetadata`.
+- `app/ledger/[id]/page.tsx` calls it from the page and from `generateMetadata`.
+
+No new port. `missing` renders the existing not-found card. `unavailable` renders the existing read-unavailable surface. The module asks `lookupCanonicalVenueId` first and does not cache a failed read, so the next request reads again. The pages do not call `resolveCanonicalVenueId`. That function turns an unreadable alias file into the original id, and the not-found card would swallow it.
+
+The interface is the page render. `__tests__/venuePageReadUnavailable.test.tsx` calls each page the way a request does. An unreadable alias file on a pub that is already in the dataset answers unavailable, the next request reads the file again, and a missing id still gets the not-found card. A famous-venue seed the old dataset index did not hold (`bar-american-bar-savoy`) now opens. That case is the deletion test for the private dataset reader: the old pages rendered the not-found card for it.
+
+The folded menu enrichment, famous-venue seeds, and harvest overlays can change what a page shows. For the Prospect of Whitby (`venue-16pnwmm`) they did not reach the header, the pint price rows, or the photo wall. Shots and the cold-process times are in `docs/evidence/venue-detail-convergence/README.md`.
+
+**Files changed:** `app/bar-tab/[id]/page.tsx`, `app/ledger/[id]/page.tsx`, `__tests__/venuePageReadUnavailable.test.tsx`, `docs/evidence/venue-detail-convergence/`.
+
+**Fully resolved:** yes. One module remains, both pages call it, the adapted test proves unavailable and missing through the page, and the six before shots and six after shots are recorded.
