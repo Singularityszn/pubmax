@@ -68,3 +68,15 @@ The interface is the handler. The existing tests already call it the way those c
 **Files changed:** none in the route or its tests. This section is the record.
 
 **Fully resolved:** yes. The route stays. The doc cites the device caller and the approved-claim join, and the tests call the handler.
+
+## 1809 GET /api/plans/anchor
+
+**Still true:** yes. The route is still `app/api/plans/anchor/route.ts`. A search for `/api/plans/anchor` in TypeScript and JavaScript finds that file, `__tests__/planAnchorRoute.test.ts` (which imports `GET`), and the Oxford pack assertion in `__tests__/venueIndexTracing.test.ts` (line 252). No component, page, e2e spec, iOS shell, or Android shell fetches it. `components/plan/PlanComposer.tsx` keeps a local `planAnchor` and its fetches are `POST /api/plans/generate` (line 1770), `POST /api/plans` (line 1909), and `PATCH /api/plans/${planId}` (line 1957). That file is on the hard fence, so this run does not wire a caller.
+
+`docs/API_CONTRACTS_THE_LOCAL.md` (line 628) lists `GET /api/plans/anchor` as a keyless contract: rate limit `plan-anchor` (60/60s, hashed per client) and the flat `PublicApiError` envelope. `docs/evidence/cold-start-bundle.md` uses the same GET as a cold-start measurement URL (lines 122 and 156). Line 184 records that the route is permanently reachable and rate limited now that `PUBMAX_ANCHORED_GENERATION` is retired, so it can prove Plan data loading on its own.
+
+**Seam decision:** skip. The route stays. No caller is wired. The module is `GET` in `app/api/plans/anchor/route.ts`, which calls `resolvePlanningAnchor` (`lib/planningAnchor.server`). Depth is that one read-only preflight. There is no second copy of the read, so there is no adapter to add. Deleting the route would fail the documented contract and the cold-start URL, which is the deletion test this skip refuses. The interface is the handler. `__tests__/planAnchorRoute.test.ts` already calls `GET` the way a keyless client does: a conflict for an unknown venue, a bad query, and the per-IP `plan-anchor` budget. The only in-repo UI caller would be `components/plan/PlanComposer.tsx`, and that file is fenced.
+
+**Files changed:** none. This section is the record.
+
+**Fully resolved:** no. The filed question asked for a wire-or-delete call. The contract and the measurement URL keep the route, and the fenced composer is the caller that was not wired. A skip is not fully resolved.
