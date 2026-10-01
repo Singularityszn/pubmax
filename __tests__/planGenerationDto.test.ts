@@ -66,6 +66,34 @@ function grounded<T>(value: T, pence: number) {
 }
 
 describe("plan generation response projection", () => {
+  it("projects listed source, day, and distinct explicit servings on stops and alternatives without pint evidence", () => {
+    const observedAt = "2026-09-29T12:00:00.000Z";
+    const selected = { ...candidate("selected", -0.1), selectedDrinkPrice: {
+      venueId: "selected", category: "wine" as const, categoryLabel: "Wine", priceGbp: 5.25,
+      source: "listed" as const, servingSize: "125ml", sourceUrl: "https://pub.example/selected/menu", observedAt,
+    } };
+    const alternative = { ...candidate("alternative", -0.099), selectedDrinkPrice: {
+      ...selected.selectedDrinkPrice, venueId: "alternative", priceGbp: 10.5,
+      servingSize: "250ml", sourceUrl: "https://pub.example/alternative/menu",
+    } };
+    const project = (drinkCategory: "wine" | "gin" | "beer", zeroProof = false) => buildPlanGenerationStops({
+      chosen: [selected], candidates: [selected, alternative], groundedStops: null, groundedAlternatives: null,
+      walkingEstimate: { legs: [], walkingMinutesFromPrevious: [null] }, area: AREA, planningWeather: null,
+      priceContext: { drinkCategory, zeroProof },
+    });
+    const stops = project("wine");
+    expect(stops[0]).toMatchObject({ estimatedPintPricePence: null, priceEvidence: null,
+      selectedDrinkPriceEvidence: { category: "wine", pence: 525, serving: "125ml", source: "listed",
+        sourceUrl: "https://pub.example/selected/menu", observedAt } });
+    expect(stops[0].alternatives[0]).toMatchObject({ estimatedPintPricePence: null, priceEvidence: null,
+      selectedDrinkPriceEvidence: { category: "wine", pence: 1050, serving: "250ml", source: "listed",
+        sourceUrl: "https://pub.example/alternative/menu", observedAt } });
+    for (const guarded of [project("wine", true), project("gin"), project("beer")]) {
+      expect(guarded[0].selectedDrinkPriceEvidence).toBeNull();
+      expect(guarded[0].alternatives[0].selectedDrinkPriceEvidence).toBeNull();
+    }
+  });
+
   it("keeps selected wine evidence on a priced alternative while leaving an unpriced stop unknown", () => {
     const selected = candidate("selected", -0.1, { cheapestPrice: 3 });
     const alternative = candidate("alternative", -0.099, { cheapestPrice: 4 });

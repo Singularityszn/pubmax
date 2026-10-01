@@ -1,9 +1,11 @@
 import "server-only";
 
 import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
-import { trustedDrinkLensPrices } from "@/lib/mapExperienceLens";
+import { listedCategoryPrices } from "@/lib/listedCategoryPrices";
+import { trustedDrinkLensPrices, type MapLensPrice } from "@/lib/mapExperienceLens";
 import { cleanNightContext } from "@/lib/nightPlanning";
 import type { PlanStopTarget } from "@/lib/planRoute";
+import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
 import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceEvidenceForPrice, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 type PricedPlanStopTarget = PlanStopTarget & { selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
@@ -24,26 +26,69 @@ export async function resolvePlanSelectedDrinkPriceEvidence(
   if (!requested.some((evidence) => evidence?.category === category)) return targets;
 
   const now = Date.now();
-  try {
-    const index = await readCommunityPriceCategoryIndex([category], now);
-    if (index.degraded || index.truncated) return targets;
-    const rowsByVenue = new Map<string, typeof index.prices>();
-    for (const row of index.prices) {
-      const rows = rowsByVenue.get(row.venueId) ?? [];
-      rowsByVenue.set(row.venueId, [...rows, row]);
+  const communityRequested = requested.some((evidence) => evidence?.source === "community" && evidence.category === category);
+  const listedRequested = requested.some((evidence) => evidence?.source === "listed" && evidence.category === category);
+  const trustedCommunity = new Map<string, MapLensPrice>();
+  if (communityRequested) {
+    try {
+      const index = await readCommunityPriceCategoryIndex([category], now);
+      if (!index.degraded && !index.truncated) {
+        const rowsByVenue = new Map<string, typeof index.prices>();
+        for (const row of index.prices) {
+          const rows = rowsByVenue.get(row.venueId) ?? [];
+          rowsByVenue.set(row.venueId, [...rows, row]);
+        }
+        for (const [venueId, price] of trustedDrinkLensPrices(rowsByVenue, category, now)) {
+          trustedCommunity.set(venueId, price);
+        }
+      }
+    } catch {
+      // A community read failure cannot invalidate an independently readable listing.
     }
-    const trusted = trustedDrinkLensPrices(rowsByVenue, category, now);
-    return targets.map((stop, position) => {
-      const hint = requested[position];
-      const price = trusted.get(stop.venueId);
-      if (!hint || hint.category !== category || !price || price.source !== "community"
-        || typeof price.submittedAt !== "number") return { ...stop };
+  }
+
+  const listedByVenue = new Map<string, Promise<ReturnType<typeof listedCategoryPrices>>>();
+  const listedForVenue = (venueId: string): Promise<ReturnType<typeof listedCategoryPrices>> => {
+    const existing = listedByVenue.get(venueId);
+    if (existing) return existing;
+    const pending = ukPriceBundleRowsFor(venueId)
+      .then((bundle) => bundle.status === "ready" ? listedCategoryPrices(bundle.rows, now) : [])
+      .catch(() => []);
+    listedByVenue.set(venueId, pending);
+    return pending;
+  };
+
+  return Promise.all(targets.map(async (stop, position) => {
+    const hint = requested[position];
+    if (!hint || hint.category !== category) return { ...stop };
+    if (hint.source === "community") {
+      const price = trustedCommunity.get(stop.venueId);
+      if (!price || price.source !== "community" || typeof price.submittedAt !== "number") return { ...stop };
       const serverEvidence = selectedDrinkPriceEvidenceForPrice(price, context!);
-      return serverEvidence && serverEvidence.pence === hint.pence && serverEvidence.reportedAt === hint.reportedAt
+      return serverEvidence?.source === "community" && serverEvidence.pence === hint.pence && serverEvidence.reportedAt === hint.reportedAt
         ? { ...stop, selectedDrinkPriceEvidence: serverEvidence }
         : { ...stop };
+    }
+    if (!listedRequested || hint.source !== "listed") return { ...stop };
+
+    const quote = (await listedForVenue(stop.venueId)).find((candidate) =>
+      candidate.category === hint.category
+      && Math.round(candidate.priceGbp * 100) === hint.pence
+      && candidate.servingSize === hint.serving
+      && candidate.sourceUrl === hint.sourceUrl
+      && candidate.observedAt === hint.observedAt,
+    );
+    if (!quote) return { ...stop };
+    const serverEvidence = cleanSelectedDrinkPriceEvidence({
+      category: quote.category,
+      pence: Math.round(quote.priceGbp * 100),
+      serving: quote.servingSize,
+      source: "listed",
+      sourceUrl: quote.sourceUrl,
+      observedAt: quote.observedAt,
     });
-  } catch {
-    return targets;
-  }
+    return serverEvidence?.source === "listed"
+      ? { ...stop, selectedDrinkPriceEvidence: serverEvidence }
+      : { ...stop };
+  }));
 }
