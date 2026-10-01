@@ -263,6 +263,12 @@ describe("experience lens venue membership and presentation", () => {
     expect(experienceLensSummary("food", 0, 0, "ready")).toBe(
       "Food venues shown. No menu prices we have in this view yet.",
     );
+    expect(experienceLensSummary("food", 0, 1, "ready")).toBe(
+      "1 menu price we have shown.",
+    );
+    expect(experienceLensSummary("food", 0, 37, "ready")).toBe(
+      "37 menu prices we have shown.",
+    );
   });
 
   it("keeps painted soft-drink prices ahead of a failed or loading index", () => {

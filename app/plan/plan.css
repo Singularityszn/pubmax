@@ -1270,6 +1270,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
    DASHED for the straight-line approximation. The card chrome below only
    frames the canvas; the map layers paint the route. */
 .planRouteMiniMap {
+  position: relative;
   margin: 22px 0 4px;
   padding: 12px;
   border: 1px solid var(--line);
@@ -1318,6 +1319,20 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 }
 .planRouteMiniMap__canvas--loading {
   background: color-mix(in srgb, var(--route-line) 8%, var(--panel-raised));
+}
+.planRouteMiniMap__attrib {
+  position: absolute;
+  z-index: 2;
+  right: 20px;
+  bottom: 20px;
+  pointer-events: none;
+}
+.planRouteMiniMap__attrib .maplibregl-ctrl-bottom-right {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  display: block;
+  pointer-events: auto;
 }
 .planRouteMiniMap .maplibregl-ctrl-attrib-button {
   width: 24px;

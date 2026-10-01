@@ -8,15 +8,16 @@
  * how `/plan` printed a bordered "Skip to main content" in flow, mid-page,
  * under the first-pint field (PlanAstra at 390).
  *
- * The visually-hidden idiom has no such dependency: a 1px clipped box is out
- * of sight wherever it is laid out, and the focused state restores real
- * geometry over the page. */
+ * The visually-hidden idiom has no such dependency: a clipped box of no size
+ * is out of sight wherever it is laid out, and the focused state restores a
+ * real 44px target over the page. A 1px box still counted as a visible control.
+ */
 .skipLink {
   position: fixed;
   top: 0;
   left: 0;
-  width: 1px;
-  height: 1px;
+  width: 0;
+  height: 0;
   margin: -1px;
   padding: 0;
   overflow: hidden;
@@ -33,6 +34,8 @@
   z-index: 100000;
   width: auto;
   height: auto;
+  min-width: 44px;
+  min-height: 44px;
   margin: 8px;
   padding: 10px 16px;
   overflow: visible;

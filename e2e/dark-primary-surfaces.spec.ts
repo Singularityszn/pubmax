@@ -244,11 +244,19 @@ for (const viewport of VIEWPORTS) {
     expect(landingMaterial.backgroundImage).toBe("none");
     expect(landingMaterial.backdropFilter).toBe("none");
 
-    const cityInput = page.locator(".cityChooserSearchInput");
-    await cityInput.scrollIntoViewIfNeeded();
-    measurements.landingPlaceholder = await expectRenderedTextContrast(cityInput, {
+    await expectNoHorizontalOverflow(page);
+
+    // The town search left the landing. /places is the picker now
+    // (app/places/PlacesClient.tsx); the placeholder contrast floor moves
+    // with the control rather than waiting on a class the landing no longer paints.
+    const placesResponse = await page.goto("/places");
+    expect(placesResponse?.status()).toBe(200);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    const placesInput = page.locator(".placesSearchInput");
+    await placesInput.scrollIntoViewIfNeeded();
+    measurements.placesPlaceholder = await expectRenderedTextContrast(placesInput, {
       pseudo: "::placeholder",
-      surfaceLocator: page.locator(".cityChooserSearchField"),
+      surfaceLocator: page.locator(".placesSearchField"),
     });
     await expectNoHorizontalOverflow(page);
 

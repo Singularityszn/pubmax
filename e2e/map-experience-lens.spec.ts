@@ -78,8 +78,10 @@ test("no-alcohol and food views own the 390px map without pint controls", async 
 
   await food.click();
   await expect(food).toHaveAttribute("aria-pressed", "true");
-  await expect(sheet.getByRole("status")).toContainText(
-    /sourced menu price|Food venues shown/i,
+  // experienceLensSummary owns both honest food sentences: the empty view,
+  // and the counted one once sourced menu prices are actually on the map.
+  await expect(sheet.getByRole("status")).toHaveText(
+    /^(?:Food venues shown\. No menu prices we have in this view yet\.|\d+ menu prices? we have shown\.)$/,
   );
   await expect(
     page.getByRole("button", { name: "Pints", exact: true }),

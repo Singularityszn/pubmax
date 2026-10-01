@@ -111,9 +111,17 @@ for (const viewport of [
       await applySeed(page, state.seed);
       await page.goto("/plan");
 
-      // The composer always resolves — the arbitration/parsers absorb every
-      // enumerated storage state instead of throwing.
-      await expect(page.getByRole("heading", { name: COMPOSER_HEADING })).toBeVisible();
+      // The composer always resolves. The arbitration/parsers absorb every
+      // enumerated storage state instead of throwing. A valid PlanningIntent
+      // is a held acceptance, so describe-first stays closed
+      // (planComposerShowsDescribeFirst) and the concierge is the surface
+      // that proves the page resolved. Every other fixture has nothing to
+      // hold, so the describe-first heading is that proof.
+      const renderedHeading =
+        state.name === "valid restored PlanningIntent"
+          ? "Say what you need. Get a route you can stand behind."
+          : COMPOSER_HEADING;
+      await expect(page.getByRole("heading", { name: renderedHeading })).toBeVisible();
       expect(pageErrors, `${state.name} must not raise a page error`).toEqual([]);
     });
   }
