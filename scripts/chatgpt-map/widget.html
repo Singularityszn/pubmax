@@ -26,6 +26,7 @@
   let latestVenues = [];
   let resultStatus = "Waiting for public venues.";
   let mapFailure = "";
+  const streetTiles = new Map();
   let tornDown = false;
   const lifetime = new AbortController();
   let workerUrl;
@@ -42,6 +43,28 @@
     element("status").textContent = [resultStatus, mapFailure].filter(Boolean).join(" ");
   }
   function mapFailed(message) {if(tornDown)return;mapFailure = message;updateStatus();}
+  function rememberStreetTile(event) {
+    if(tornDown||event.source?.type!=="vector"||!event.tile||!event.coord)return;
+    streetTiles.set(`${event.sourceId}:${event.coord.key}`,{tile:event.tile,coord:event.coord});
+  }
+  function recoverStreets() {
+    if(tornDown||!map||map.isMoving())return;
+    const zoom=Math.floor(map.getZoom()),bounds=map.getBounds();
+    const visible=[];
+    for(const [key,entry] of streetTiles) {
+      const {canonical,overscaledZ,wrap}=entry.coord,scale=2**canonical.z;
+      const latitude=y=>Math.atan(Math.sinh(Math.PI*(1-2*y/scale)))*180/Math.PI;
+      const west=(canonical.x/scale+wrap)*360-180,east=west+360/scale;
+      const inView=overscaledZ===zoom&&east>bounds.getWest()&&west<bounds.getEast()&&latitude(canonical.y)>bounds.getSouth()&&latitude(canonical.y+1)<bounds.getNorth();
+      if(inView)visible.push(entry.tile);else streetTiles.delete(key);
+    }
+    // MapLibre counts errored tiles as settled. Require actual loaded visible
+    // tiles and drawn street geometry before retiring a streets warning.
+    if(mapFailure!=="Streets could not load. Listed pubs remain below."||!visible.length||visible.some(tile=>tile.state!=="loaded")||!map.isStyleLoaded()||!map.areTilesLoaded())return;
+    const layers=map.getStyle().layers.filter(layer=>layer.type==="line"&&layer["source-layer"]==="transportation"&&/road|street|highway|motorway/i.test(layer.id)).map(layer=>layer.id);
+    if(!layers.length||!map.queryRenderedFeatures(undefined,{layers}).some(feature=>feature.geometry.type==="LineString"||feature.geometry.type==="MultiLineString"))return;
+    mapFailure="";updateStatus();
+  }
   async function openLink(event) {
     const link=event.target instanceof Element?event.target.closest("a[href]"):null;
     if(tornDown||!link||window.parent===window)return;
@@ -142,7 +165,7 @@
     stopSizeNotifications();
     try {map?.remove();}
     finally {
-      map=undefined;markers=[];latestVenues=[];
+      map=undefined;markers=[];latestVenues=[];streetTiles.clear();
       if(workerUrl){URL.revokeObjectURL(workerUrl);workerUrl=undefined;}
     }
     return {};
@@ -166,7 +189,10 @@
     maplibre.setWorkerUrl(workerUrl);
     map=new maplibre.Map({container:"map",style:"https://tiles.openfreemap.org/styles/positron",center:[-0.12,51.52],zoom:10,attributionControl:{compact:true,customAttribution:"Pub data © OpenStreetMap contributors (ODbL)"}});
     map.addControl(new maplibre.NavigationControl({showCompass:false}));
+    map.on("sourcedataloading",rememberStreetTile);
+    map.on("sourcedata",rememberStreetTile);
     map.on("error",()=>{mapFailed("Streets could not load. Listed pubs remain below.");});
+    map.on("render",recoverStreets);
     showMarkers();
   }
   if (window.parent!==window) connectHost().catch(()=>{if(!tornDown)updateStatus("Map bridge unavailable. Open PUBMAXX below.");});
