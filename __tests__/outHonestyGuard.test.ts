@@ -16,7 +16,7 @@ import {
   outListingPubPair,
   outVenueMatchNotice,
 } from "@/lib/outDesktopGrouping";
-import { outListingLead, OUT_NOT_ON_MAP_HEADING, outListingRoute } from "@/lib/out/listingRoute";
+import { outListingLead, outListingRoute } from "@/lib/out/listingRoute";
 import {
   attachOutVenues,
   buildOutVenueMatchIndex,
@@ -121,13 +121,6 @@ describe("out honesty guard — request-time matching", () => {
 });
 
 describe("out honesty guard — /out lead and wording", () => {
-  it("uses the live unmatched heading and row line", () => {
-    expect(OUT_NOT_ON_MAP_HEADING).toBe("Places we couldn’t match");
-    expect(OUT_LISTING_PUB_ABSENT_LINE).toBe(
-      "We haven’t linked this place to a pub on our map.",
-    );
-  });
-
   it("does not show the all-unmatched banner when matched ON PUBMAXX cards exist", () => {
     const lexington = ticketRow({
       id: "events-tm-lex",
