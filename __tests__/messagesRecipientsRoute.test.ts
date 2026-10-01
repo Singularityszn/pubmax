@@ -19,6 +19,7 @@ vi.mock("@/lib/pintDrops", () => ({ isLimited: async (key: string) => {
 } }));
 
 import { GET } from "@/app/api/messages/recipients/route";
+import { GET as inbox } from "@/app/api/messages/route";
 import { GET as socialSearch } from "@/app/api/profiles/search/route";
 import { __resetMemoryProfileWithdrawals, __setMemoryProfileWithdrawn } from "@/lib/accountPublicAccess.server";
 import { __resetMemoryProfiles, __seedMemoryLegacyProfile, __seedMemoryOwnedProfile,
@@ -34,7 +35,10 @@ beforeEach(() => {
   __seedMemoryOwnedProfile("ken", "user-ken");
   vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
 });
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+});
 
 describe("authenticated messaging recipient lookup", () => {
   it("keeps DMs searchable during Social rollback using only live public profile fields", async () => {
@@ -62,6 +66,21 @@ describe("authenticated messaging recipient lookup", () => {
     expect(budget.used.size).toBe(0);
   });
 
+  it("reports a linked-profile lookup outage as retryable instead of asking for a new handle", async () => {
+    const lookup = vi.spyOn(memoryProfileStore, "getHandleByUserId")
+      .mockRejectedValueOnce(new Error("profile store unavailable"));
+
+    const response = await GET(request());
+
+    expect(lookup).toHaveBeenCalledWith("user-ken");
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(await response.json()).toMatchObject({
+      code: "UNAVAILABLE",
+      retryable: true,
+    });
+  });
+
   it("shares the public search rate budget across Social and messaging routes", async () => {
     vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "1");
     expect((await socialSearch(request())).status).toBe(200);
@@ -71,5 +90,32 @@ describe("authenticated messaging recipient lookup", () => {
     budget.used.clear();
     expect((await GET(request())).status).toBe(200);
     expect((await socialSearch(request())).status).toBe(429);
+  });
+});
+
+describe("messaging inbox actor failures", () => {
+  it("reports a linked-profile lookup outage without an asserted query handle", async () => {
+    const lookup = vi.spyOn(memoryProfileStore, "getHandleByUserId")
+      .mockRejectedValueOnce(new Error("profile store unavailable"));
+
+    const response = await inbox(new Request("http://localhost/api/messages"));
+
+    expect(lookup).toHaveBeenCalledWith("user-ken");
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(await response.json()).toMatchObject({
+      code: "UNAVAILABLE",
+      retryable: true,
+    });
+  });
+
+  it("keeps the anonymous blank-query inbox empty and ready", async () => {
+    auth.userId = null;
+
+    const response = await inbox(new Request("http://localhost/api/messages"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(await response.json()).toEqual({ conversations: [], status: "ready" });
   });
 });

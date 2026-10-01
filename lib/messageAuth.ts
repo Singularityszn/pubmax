@@ -1,16 +1,16 @@
 import "server-only";
 
-// Resolve the actor handle for messaging routes.
+// Resolve asserted handles and strict actors for messaging routes.
 //
-// Dual-backend identity (same stance as profiles):
+// resolveMessageHandle uses dual-backend identity (same stance as profiles):
 //   • When a verified Supabase Auth JWT is present AND that user has a linked
 //     profile, the linked handle wins — body/query handle is not trusted alone.
 //   • When auth is absent / unconfigured / the user has no linked profile, fall
 //     back to the self-asserted handle (anonymous/demo path).
 //
-// Fail-soft: a store lookup error never blocks the demo path; we just use the
-// asserted handle. Ownership of LINKED profiles is still enforced elsewhere
-// (profile PATCH/DELETE); messaging only needs "who am I claiming to be".
+// A verified user's profile lookup failure never falls back to an asserted
+// handle. requireLinkedActor also refuses unsigned users and reports profile
+// lookup outages as retryable 503s; route ownership gates still apply.
 
 import { callerUserId } from "@/lib/authServer";
 import { normalizeHandle } from "@/lib/profiles";
@@ -63,11 +63,12 @@ export async function resolveMessageHandle(
 
 export type LinkedActorGate =
   | { ok: true; handle: string; userId: string }
-  | { ok: false; status: 400 | 401 | 403; error: string };
+  | { ok: false; status: 400 | 401 | 403 | 503; error: string };
 
 /**
  * Wave I2 — DMs require a signed-in user whose profile is linked.
- * Returns the canonical linked handle, or a 401/403 gate response payload.
+ * Returns the linked handle or an asserted new claim. Profile lookup failures
+ * refuse with 503 rather than trusting an asserted handle.
  */
 export async function requireLinkedActor(
   request: Request,
@@ -86,7 +87,11 @@ export async function requireLinkedActor(
   try {
     linked = (await profileStore().getHandleByUserId(userId)) ?? "";
   } catch {
-    linked = "";
+    return {
+      ok: false,
+      status: 503,
+      error: "Couldn't check your handle. Try again.",
+    };
   }
 
   if (!linked) {
