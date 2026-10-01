@@ -14,6 +14,7 @@ import {
   createPinRevealCoordinator,
   pinRetryPendingNotice,
   pinRetrySpentNotice,
+  overviewSkipsVenueWait,
   revealTimeoutNotice,
   venueDataFailureNotice,
   venueRetryMayDispatch,
@@ -168,6 +169,65 @@ describe("pin reveal coordinator", () => {
     // An error-owned notice is truthful until Retry rebuilds the map.
     expect(revealTimeoutNotice("timeout", "errors", nothingReady)).toBeNull();
     expect(revealTimeoutNotice("timeout", "errors", basemapOnly)).toBeNull();
+  });
+
+  // /map?uk=1 opens below the pub zoom gate. The curated index is unread on
+  // purpose and base pubs are absent until the reader zooms in. A painted
+  // basemap with a still-pending index is that overview, not a failed fetch.
+  it("treats only a national camera below the pub zoom gate as an overview", () => {
+    expect(
+      overviewSkipsVenueWait({ nationalBrowse: true, zoom: 5.6, minPubZoom: 12 }),
+    ).toBe(true);
+    expect(
+      overviewSkipsVenueWait({ nationalBrowse: true, zoom: 12, minPubZoom: 12 }),
+    ).toBe(false);
+    expect(
+      overviewSkipsVenueWait({ nationalBrowse: false, zoom: 5.6, minPubZoom: 12 }),
+    ).toBe(false);
+    expect(
+      overviewSkipsVenueWait({
+        nationalBrowse: true,
+        zoom: Number.NaN,
+        minPubZoom: 12,
+      }),
+    ).toBe(false);
+  });
+
+  it("wires the overview past the pub-list retry and the held loading frame", () => {
+    const canvas = readFileSync(
+      join(process.cwd(), "components/PubMapCanvas.tsx"),
+      "utf8",
+    );
+    const loading = readFileSync(join(process.cwd(), "lib/mapLoadingCopy.ts"), "utf8");
+    expect(canvas).toContain("overviewSkipsVenueWait");
+    expect(canvas).toContain("pubsDeferredUntilZoom: pubsDeferredUntilZoom()");
+    expect(canvas).toContain(
+      "requiresBasemapPaint: nationalBrowseRef.current || !phoneFirstImpression",
+    );
+    expect(loading).toContain(
+      "if (stage.pubsDeferredUntilZoom) return !stage.pinsRevealed;",
+    );
+  });
+
+  it("does not call a zoom-gated national overview a failed pub list", () => {
+    expect(
+      revealTimeoutNotice("timeout", "none", {
+        basemapPainted: true,
+        venueData: "pending",
+        filteredVenueCount: 0,
+        pinsPaintable: false,
+        pubsDeferredUntilZoom: true,
+      }),
+    ).toBeNull();
+    expect(
+      revealTimeoutNotice("timeout", "none", {
+        basemapPainted: false,
+        venueData: "pending",
+        filteredVenueCount: 0,
+        pinsPaintable: false,
+        pubsDeferredUntilZoom: true,
+      }),
+    ).toEqual(BASEMAP_RETRY_NOTICE);
   });
 
   it("does not blame paint for an empty filtered venue collection", () => {

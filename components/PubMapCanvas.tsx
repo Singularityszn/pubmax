@@ -124,6 +124,7 @@ import {
   createPinRevealCoordinator,
   pinRetryPendingNotice,
   pinRetrySpentNotice,
+  overviewSkipsVenueWait,
   revealTimeoutNotice,
   venueDataFailureNotice,
   venueRetryMayDispatch,
@@ -232,6 +233,11 @@ type PubMapCanvasProps = {
   filteredVenueCount?: number;
   /** Parent's slim venue read has settled for the active city. */
   venueDataReady: boolean;
+  /**
+   * `/map?uk=1`. The opening camera sits below the pub zoom gate, so a missing
+   * curated index is the overview, not a failed pub list.
+   */
+  nationalBrowse?: boolean;
   route: Venue[];
   selectedVenueId: string;
   onVenueClick: (id: string) => void;
@@ -518,6 +524,7 @@ export default function PubMapCanvas({
   venues,
   filteredVenueCount = venues.length,
   venueDataReady,
+  nationalBrowse = false,
   route,
   selectedVenueId,
   onVenueClick,
@@ -619,6 +626,8 @@ export default function PubMapCanvas({
   // Refs for camera/bounds + landmark seed so the MapLibre mount effect does not
   // tear down on parent re-renders that only change object identity.
   const mapViewRef = useRef(mapView);
+  const nationalBrowseRef = useRef(nationalBrowse);
+  nationalBrowseRef.current = nationalBrowse;
   const maxBoundsRef = useRef(maxBounds);
   const cityBoundsRef = useRef(cityBounds);
   const cityViewRef = useRef(getCity(cityId).mapView);
@@ -1739,6 +1748,15 @@ export default function PubMapCanvas({
       if (!venueDataReadyRef.current || !map.getSource("pubs")) return false;
       return map.isSourceLoaded("pubs");
     };
+    // Country overview: nothing is owed until the reader zooms in. The phone
+    // otherwise waits on a curated index this camera deliberately never reads,
+    // then the ceiling calls that wait a failed pub list.
+    const pubsDeferredUntilZoom = () =>
+      overviewSkipsVenueWait({
+        nationalBrowse: nationalBrowseRef.current,
+        zoom: map.getZoom(),
+        minPubZoom: UK_BASE_MIN_ZOOM,
+      });
     // A pin-owned ceiling notice clears on its own signal, never the basemap's:
     // the background is already painted in that case, so a notice keyed on the
     // basemap would retire on the very next frame while the pub data was still
@@ -1927,12 +1945,14 @@ export default function PubMapCanvas({
       pinRevealTimeoutMs: PIN_REVEAL_TIMEOUT_MS,
       readyCeilingMs: PIN_READY_CEILING_MS,
       hasBasemapPainted: () => basemapTileReadyForPaint,
-      hasPinsPaintable: () => !phoneFirstImpression || hasPinsPaintable(),
+      hasPinsPaintable: () =>
+        pubsDeferredUntilZoom() || !phoneFirstImpression || hasPinsPaintable(),
       // On a phone, local pub GeoJSON is the useful content that the reader
       // is waiting for. Do not hold its first painted frame behind remote
       // basemap tiles; tile failures still use their independent classifier
-      // and retry lane below.
-      requiresBasemapPaint: !phoneFirstImpression,
+      // and retry lane below. A national overview is the other way round:
+      // there are no pins to paint yet, so the frame waits on the basemap.
+      requiresBasemapPaint: nationalBrowseRef.current || !phoneFirstImpression,
       confirmVisibleFrameBeforeReveal: phoneFirstImpression,
       visibleFrameHoldMs: phoneFirstImpression ? PHONE_PIN_COMPOSITE_HOLD_MS : 0,
       setPinsVisible: (visible) => {
@@ -1969,6 +1989,7 @@ export default function PubMapCanvas({
               : "pending",
           filteredVenueCount: filteredVenueCountRef.current,
           pinsPaintable: hasPinsPaintable(),
+          pubsDeferredUntilZoom: pubsDeferredUntilZoom(),
         });
         if (timeoutNotice) {
           // Name the signal that missed. A painted basemap with missing pub
