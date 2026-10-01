@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DEVICE_IDENTITY_CHANGED_EVENT } from "@/lib/deviceAccountIdentity";
+import {
+  bindDeviceAccountOwner,
+  deviceAccountOwner,
+  DEVICE_IDENTITY_CHANGED_EVENT,
+  releaseDeviceAccountOwner,
+} from "@/lib/deviceAccountIdentity";
 import {
   emitIdentityHandleChanged,
   handleClaimRouteAfterSignIn,
@@ -272,5 +277,106 @@ describe("post-callback handle claim routing", () => {
     await expect(
       handleClaimRouteAfterSignIn(null, "/map", storageWith(new Map()), failing),
     ).resolves.toBeNull();
+  });
+});
+
+describe("canonical identity account boundaries", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function deviceStorage() {
+    const values = new Map<string, string>();
+    return {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+      removeItem: (key: string) => { values.delete(key); },
+    };
+  }
+
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((accept) => { resolve = accept; });
+    return { promise, resolve };
+  }
+
+  function heldCanonicalReply(phase: "response" | "body") {
+    const response = deferred<Response>();
+    const body = deferred<{ handle: string }>();
+    const bodyEntered = deferred<void>();
+    const request = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer token-a");
+      if (phase === "response") return response.promise;
+      return {
+        ok: true,
+        json: () => { bodyEntered.resolve(); return body.promise; },
+      } as Response;
+    });
+    return {
+      request,
+      entered: phase === "body" ? bodyEntered.promise : Promise.resolve(),
+      release: () => {
+        if (phase === "response") response.resolve(Response.json({ handle: "alice" }));
+        else body.resolve({ handle: "alice" });
+      },
+    };
+  }
+
+  it.each(["response", "body"] as const)("keeps B's canonical handle when A's held %s arrives after rebinding", async (phase) => {
+    const storage = deviceStorage();
+    const dispatchEvent = vi.fn();
+    vi.stubGlobal("window", { dispatchEvent });
+    bindDeviceAccountOwner("user-a", storage);
+    const held = heldCanonicalReply(phase);
+    const pendingA = resolveCanonicalIdentity(
+      "user-a", { access_token: "token-a", user: { id: "user-a" } } as never,
+      storage, held.request,
+    );
+    await held.entered;
+
+    bindDeviceAccountOwner("user-b", storage);
+    const answerB = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer token-b");
+      return Response.json({ handle: "bob" });
+    });
+    await expect(resolveCanonicalIdentity(
+      "user-b", { access_token: "token-b", user: { id: "user-b" } } as never,
+      storage, answerB,
+    )).resolves.toEqual({ ok: true, identity: { ownerId: "user-b", handle: "bob" } });
+    expect(storage.getItem("pubmax_handle")).toBe("bob");
+    const roundMarker = JSON.stringify({ owner: "anonymous", handle: "alice" });
+    storage.setItem("pubmax_round_anonymous_identity_v1", roundMarker);
+    const noticesBeforeA = dispatchEvent.mock.calls.length;
+
+    held.release();
+    await pendingA;
+
+    expect(deviceAccountOwner(storage)).toBe("user-b");
+    expect(storage.getItem("pubmax_handle")).toBe("bob");
+    expect(storage.getItem("pubmax_round_anonymous_identity_v1")).toBe(roundMarker);
+    expect(dispatchEvent).toHaveBeenCalledTimes(noticesBeforeA);
+  });
+
+  it.each(["response", "body"] as const)("keeps a released device anonymous when A's held %s arrives after sign-out", async (phase) => {
+    const storage = deviceStorage();
+    const dispatchEvent = vi.fn();
+    vi.stubGlobal("window", { dispatchEvent });
+    bindDeviceAccountOwner("user-a", storage);
+    const held = heldCanonicalReply(phase);
+    const pendingA = resolveCanonicalIdentity(
+      "user-a", { access_token: "token-a", user: { id: "user-a" } } as never,
+      storage, held.request,
+    );
+    await held.entered;
+
+    releaseDeviceAccountOwner(storage);
+    const roundMarker = JSON.stringify({ owner: "anonymous", handle: "alice" });
+    storage.setItem("pubmax_round_anonymous_identity_v1", roundMarker);
+    const noticesBeforeA = dispatchEvent.mock.calls.length;
+    held.release();
+    await pendingA;
+
+    expect(deviceAccountOwner(storage)).toBeNull();
+    expect(storage.getItem("pubmax_handle")).toBeNull();
+    expect(storage.getItem("pubmax_round_anonymous_identity_v1")).toBe(roundMarker);
+    expect(dispatchEvent).toHaveBeenCalledTimes(noticesBeforeA);
   });
 });

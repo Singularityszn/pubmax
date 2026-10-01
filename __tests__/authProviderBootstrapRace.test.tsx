@@ -6,6 +6,8 @@ import { afterEach, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
   realBootstrap: false,
+  realCanonicalIdentity: false,
+  canonicalReads: [] as Promise<unknown>[],
   rotateBootstrapTokens: false,
   holdCookieClear: false,
   releaseCookieClear: null as null | (() => void),
@@ -113,6 +115,7 @@ vi.mock("@/lib/authSessionResumeClient", async (importOriginal) => {
 });
 vi.mock("@/lib/authRedirect", () => ({
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT: "pubmax:auth-fragment-restored",
+  HANDLE_CLAIM_NEXT: "/u/you",
   scrubAuthCallback: async () => null,
   scrubLingeringAuthCallback: () => false,
 }));
@@ -120,15 +123,24 @@ vi.mock("@/lib/authProviderAvailability", () => ({
   NO_SOCIAL_AUTH_PROVIDERS: { google: false, apple: false, microsoft: false },
   loadSocialAuthProviders: async () => ({ google: false, apple: false, microsoft: false }),
 }));
-vi.mock("@/lib/identityClient", () => ({
-  IDENTITY_HANDLE_CHANGED_EVENT: "pubmax:identity-handle-changed",
-  identityHandleForOwner: () => null,
-  resolveCanonicalIdentity: async () => null,
-}));
+vi.mock("@/lib/identityClient", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/identityClient")>();
+  return { ...actual,
+    resolveCanonicalIdentity: (...args: Parameters<typeof actual.resolveCanonicalIdentity>) => {
+      if (!state.realCanonicalIdentity) return Promise.resolve(null);
+      const read = actual.resolveCanonicalIdentity(...args);
+      state.canonicalReads.push(read);
+      return read;
+    },
+  };
+});
 
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
+import { useViewerHandle } from "@/components/auth/useViewerHandle";
+import { deviceAccountOwner } from "@/lib/deviceAccountIdentity";
 
 let root: Root | null = null;
+let restoreCanonicalFetch: (() => void) | null = null;
 vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 
 function recordSignOutPromise(promise: Promise<void>) {
@@ -144,6 +156,15 @@ function Viewer() {
   );
 }
 
+function CanonicalViewer() {
+  const handle = useViewerHandle();
+  return createElement("div", null,
+    createElement(Viewer),
+    createElement("span", { "data-testid": "viewer-handle" }, handle ?? "anonymous"),
+    createElement("a", { "data-testid": "you", href: handle ? `/u/${handle}` : "/u/you" }, "You"),
+  );
+}
+
 afterEach(async () => {
   if (root) await act(async () => root?.unmount());
   root = null;
@@ -152,6 +173,8 @@ afterEach(async () => {
   state.bootstrapSignal = null;
   state.beforeSetSession = null;
   state.realBootstrap = false;
+  state.realCanonicalIdentity = false;
+  state.canonicalReads = [];
   state.rotateBootstrapTokens = false;
   state.holdCookieClear = false;
   state.releaseCookieClear = null;
@@ -164,8 +187,87 @@ afterEach(async () => {
   state.persistedTokens = [];
   state.visibleAccounts = [];
   state.heldInstallEntered = false;
+  restoreCanonicalFetch?.();
+  restoreCanonicalFetch = null;
   localStorage.clear();
   sessionStorage.clear();
+});
+
+// Actual canonical helper, owner storage, AuthProvider effect and viewer hook.
+// SDK/cookie/HTTP replies are local doubles; no real account or provider proof.
+async function mountHeldCanonicalIdentity() {
+  state.realCanonicalIdentity = true;
+  const accountA = { access_token: "identity-a-access", refresh_token: "identity-a-refresh",
+    user: { id: "identity-a", email: "a@example.test" } } as Session;
+  let releaseA!: (response: Response) => void;
+  const heldA = new Promise<Response>((resolve) => { releaseA = resolve; });
+  const request = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    expect(String(input)).toBe("/api/identity/handle/current");
+    const bearer = new Headers(init?.headers).get("authorization");
+    if (bearer === "Bearer identity-a-access") return heldA;
+    expect(bearer).toBe("Bearer identity-b-access");
+    return Response.json({ handle: "bob" });
+  });
+  restoreCanonicalFetch = () => request.mockRestore();
+  const container = document.createElement("div");
+  root = createRoot(container);
+  await act(async () => root?.render(createElement(AuthProvider,
+    { clerkIntegrationConfigured: false }, createElement(CanonicalViewer))));
+  await vi.waitFor(() => expect(state.authEvent).toBeTypeOf("function"));
+  await act(async () => {
+    state.sdkSession = accountA;
+    state.authEvent?.("INITIAL_SESSION", accountA);
+  });
+  await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+  expect(deviceAccountOwner(localStorage)).toBe("identity-a");
+  const pendingA = state.canonicalReads[0];
+  expect(pendingA).toBeDefined();
+  return { container, pendingA, release: () => releaseA(Response.json({ handle: "alice" })) };
+}
+
+it("keeps B's canonical cache and viewer route after A's identity reply settles late", async () => {
+  const { container, pendingA, release } = await mountHeldCanonicalIdentity();
+  const accountB = { access_token: "identity-b-access", refresh_token: "identity-b-refresh",
+    user: { id: "identity-b", email: "b@example.test" } } as Session;
+  try {
+    await act(async () => {
+      state.sdkSession = accountB;
+      state.authEvent?.("SIGNED_IN", accountB);
+    });
+    await vi.waitFor(() => expect(container.querySelector("[data-testid=viewer-handle]")?.textContent).toBe("bob"));
+    expect(localStorage.getItem("pubmax_handle")).toBe("bob");
+    await act(async () => { release(); await pendingA; });
+
+    expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("identity-b");
+    expect(container.querySelector("[data-testid=viewer-handle]")?.textContent).toBe("bob");
+    expect(container.querySelector("[data-testid=you]")?.getAttribute("href")).toBe("/u/bob");
+    expect(deviceAccountOwner(localStorage)).toBe("identity-b");
+    expect(localStorage.getItem("pubmax_handle")).toBe("bob");
+  } finally {
+    await act(async () => { release(); await pendingA; });
+  }
+});
+
+it("keeps signed-out viewer anonymous after a previously held canonical identity reply", async () => {
+  const { container, pendingA, release } = await mountHeldCanonicalIdentity();
+  try {
+    await act(async () => {
+      container.querySelector("button")?.click();
+      await state.signOutPromise;
+    });
+    expect(deviceAccountOwner(localStorage)).toBeNull();
+    expect(localStorage.getItem("pubmax_handle")).toBeNull();
+    expect(container.querySelector("[data-testid=viewer-handle]")?.textContent).toBe("anonymous");
+    await act(async () => { release(); await pendingA; });
+
+    expect(container.querySelector("[data-testid=viewer]")?.textContent).toBe("signed-out");
+    expect(container.querySelector("[data-testid=viewer-handle]")?.textContent).toBe("anonymous");
+    expect(container.querySelector("[data-testid=you]")?.getAttribute("href")).toBe("/u/you");
+    expect(deviceAccountOwner(localStorage)).toBeNull();
+    expect(localStorage.getItem("pubmax_handle")).toBeNull();
+  } finally {
+    await act(async () => { release(); await pendingA; });
+  }
 });
 
 it("does not resurrect a signed-out account when an older bootstrap settles", async () => {
