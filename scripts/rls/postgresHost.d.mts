@@ -1,5 +1,6 @@
 export declare const REQUIRED_POSTGRES_MAJOR: number;
 export declare const POSTGRES_SLOT_ROOT: string;
+export declare const HARNESS_CLUSTER_SETTINGS: readonly string[];
 
 export type PostgresBinaryName = "initdb" | "pg_ctl" | "postgres" | "psql";
 

@@ -34,6 +34,7 @@ import { promisify } from "node:util";
 import {
   acquireClusterSlot,
   findPostgresBinary,
+  HARNESS_CLUSTER_SETTINGS,
   missingPostgresReason,
   postgresSkipReason,
 } from "../../scripts/rls/postgresHost.mjs";
@@ -175,6 +176,7 @@ export async function startPostgres(
         "fsync = off",
         "full_page_writes = off",
         "synchronous_commit = off",
+        ...HARNESS_CLUSTER_SETTINGS,
       ].join("\n") + "\n",
     );
 
