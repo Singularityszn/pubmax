@@ -427,7 +427,7 @@ describe("drink lens sentence nouns", () => {
       "no soft drink price logged",
     );
     expect(drinkLensEmptyVenueNote("soft drink", "ready")).toBe(
-      "No soft drink price logged here yet.",
+      "No soft drink price logged by drinkers yet.",
     );
     expect(drinkLensEmptyVenueNote("soft drink", "ready")).not.toMatch(
       /Soft drinks|soft drinks/,
@@ -446,7 +446,7 @@ describe("drink lens sentence nouns", () => {
     );
     expect(drinkLensCoverageNote("coffee", "degraded")).not.toContain("pint");
     expect(drinkLensEmptyVenueNote("coffee", "ready")).toBe(
-      "No coffee price logged here yet.",
+      "No coffee price logged by drinkers yet.",
     );
     expect(drinkLensEmptyVenueNote("coffee", "ready")).not.toContain(
       NO_ALCOHOL_LENS_PRICE_NOUN,

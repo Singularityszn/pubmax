@@ -376,7 +376,7 @@ export function drinkLensEmptyVenueNote(
   status: VenuePriceReadStatus,
 ): string {
   if (status === "ready") {
-    return `${drinkLensUnknownSentence(drinkNoun, status)} here yet.`;
+    return `No ${drinkNoun} price logged by drinkers yet.`;
   }
   if (status === "degraded") {
     return `We could not read this pub's ${drinkNoun} prices just now.`;
