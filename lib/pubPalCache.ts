@@ -1,4 +1,4 @@
-import type { PubPal } from "@/lib/pubPal";
+import { cleanPalDraft, type PubPal } from "@/lib/pubPal";
 
 const PAL_CACHE_KEY = "pubmax_pub_pal_v1";
 const PAL_CACHE_CHANGED_EVENT = "pubmax:pub-pal-cache-changed";
@@ -7,9 +7,20 @@ export function readOwnedPalCache(ownerId: string): PubPal | null {
   if (!ownerId || typeof window === "undefined") return null;
   try {
     const value = JSON.parse(window.localStorage.getItem(PAL_CACHE_KEY) ?? "null") as PubPal | null;
-    return value?.ownerId === ownerId
-      ? { ...value, proposalPreferences: value.proposalPreferences ?? { memories: false, routes: true } }
-      : null;
+    if (value?.ownerId !== ownerId) return null;
+    const draft = cleanPalDraft({
+      ...value,
+      adultConfirmed: typeof value.adultAttestedAt === "string" && value.adultAttestedAt.length > 0,
+    });
+    if (!draft) return null;
+    return {
+      ...value,
+      name: draft.name,
+      appearance: draft.appearance,
+      personality: draft.personality,
+      voice: draft.voice,
+      proposalPreferences: value.proposalPreferences ?? { memories: false, routes: true },
+    };
   } catch {
     return null;
   }
