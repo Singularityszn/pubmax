@@ -216,6 +216,28 @@ describe("scrapeHtml", () => {
     expect(result.error.code).toBe("EMPTY_BODY");
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
+
+  it("does not accept html from a partial scrape", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({
+      success: true,
+      url: PERMITTED,
+      html: "<partial>",
+      type: "html" as const,
+      finalDOMState: "still-loading",
+      request_id: "test",
+      cache_metadata: { age_ms: 0, status: "miss" },
+      metadata: { finalUrl: PERMITTED, sourceUrl: PERMITTED },
+    }));
+    const result = await scrapeHtml(PERMITTED, {
+      env: KEY,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: noSleep,
+    });
+    expect(result.status).toBe("error");
+    if (result.status !== "error") throw new Error("expected error");
+    expect(result.error.code).toBe("EMPTY_BODY");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("sitemapUrls", () => {

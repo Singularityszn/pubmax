@@ -495,7 +495,7 @@ export async function scrapeHtml(
     attempt(
       () => contextDevTransport(client).get("/web/scrape/html", { query: scrapeQuery(url, options) }),
       (body) =>
-        body.success === true && typeof body.html === "string" && body.html.length > 0
+        body.success === true && body.finalDOMState === "loaded" && typeof body.html === "string" && body.html.length > 0
           ? { status: "ok" as const, url: typeof body.url === "string" && body.url ? body.url : url, html: body.html }
           : null,
       "Scrape returned no html.",
