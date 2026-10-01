@@ -131,6 +131,27 @@ afterEach(() => {
 });
 
 describe("Pub Pal voice controls", () => {
+  it("keeps a typed draft while voice is disconnected and does not send it", async () => {
+    await mountAvailable();
+    const input = container.querySelector<HTMLInputElement>("input");
+    const sendButton = container.querySelector<HTMLButtonElement>('button[aria-label="Send message"]');
+    expect(input).not.toBeNull();
+
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "A quiet pub in Soho");
+      input?.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(sendButton?.disabled).toBe(true);
+
+    await act(async () => {
+      sendButton?.click();
+      input?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+
+    expect(voice.sendUserMessage).not.toHaveBeenCalled();
+    expect(input?.value).toBe("A quiet pub in Soho");
+  });
+
   it("does not probe or offer voice while the Pal is muted", async () => {
     const availabilityFetch = vi.fn(async () => Response.json({ available: true }));
     vi.stubGlobal("fetch", availabilityFetch);
