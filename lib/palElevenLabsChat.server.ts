@@ -1,8 +1,9 @@
 import "server-only";
 
-import { composeAnswer } from "@/lib/ask/runAsk";
+import { composeAnswer, runAsk } from "@/lib/ask/runAsk";
 import type { AskCard, AskProposal, AskTurn } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
+import { PAL_CHAT_SERVER_TIMEOUT_MS, PAL_CHAT_SIGNED_URL_TIMEOUT_MS } from "@/lib/palChatDeadline";
 import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
@@ -13,7 +14,6 @@ import {
   registerPubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
 
-const CHAT_TIMEOUT_MS = 28_000;
 const TOOL_TURN_WAIT_MS = 4_000;
 const TOOL_TURN_POLL_MS = 120;
 
@@ -27,7 +27,7 @@ async function waitForPubPalToolTurn(conversationId: string): Promise<Awaited<Re
     const peek = await readPubPalToolTurn(conversationId);
     if (
       peek &&
-      (peek.cards.length > 0 || peek.proposals.length > 0 || peek.hints.length > 0)
+      peek.toolsUsed.length > 0
     ) {
       break;
     }
@@ -53,20 +53,25 @@ function recentTurnsSummary(turns: AskTurn[]): string {
     .join("\n");
 }
 
-async function fetchSignedConversationUrl(apiKey: string, agentId: string): Promise<string> {
+async function fetchSignedConversationUrl(apiKey: string, agentId: string, timeoutMs: number): Promise<string> {
   const url = new URL("https://api.elevenlabs.io/v1/convai/conversation/get-signed-url");
   url.searchParams.set("agent_id", agentId);
   url.searchParams.set("include_conversation_id", "true");
-  const response = await fetch(url, {
-    headers: { "xi-api-key": apiKey },
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error("PROVIDER_UNAVAILABLE");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      headers: { "xi-api-key": apiKey },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error("PROVIDER_UNAVAILABLE");
+    const payload = (await response.json()) as { signed_url?: string };
+    if (!payload.signed_url) throw new Error("PROVIDER_UNAVAILABLE");
+    return payload.signed_url;
+  } finally {
+    clearTimeout(timer);
   }
-  const payload = (await response.json()) as { signed_url?: string };
-  if (!payload.signed_url) throw new Error("PROVIDER_UNAVAILABLE");
-  return payload.signed_url;
 }
 
 export type PalElevenLabsChatInput = {
@@ -95,6 +100,7 @@ export async function runPalElevenLabsChatTurn(
 
   const query = input.query.trim().slice(0, 500);
   if (!query) return { ok: false, code: "UNAVAILABLE" };
+  const deadline = Date.now() + PAL_CHAT_SERVER_TIMEOUT_MS;
 
   const cityId = resolveAskCityId(input.cityId);
   const turns = Array.isArray(input.turns) ? input.turns : [];
@@ -111,8 +117,10 @@ export async function runPalElevenLabsChatTurn(
   }
 
   let signedUrl: string;
+  const signedUrlTimeout = Math.min(PAL_CHAT_SIGNED_URL_TIMEOUT_MS, deadline - Date.now());
+  if (signedUrlTimeout <= 0) return { ok: false, code: "TIMEOUT" };
   try {
-    signedUrl = await fetchSignedConversationUrl(apiKey, agentId);
+    signedUrl = await fetchSignedConversationUrl(apiKey, agentId, signedUrlTimeout);
   } catch {
     return { ok: false, code: "PROVIDER_UNAVAILABLE" };
   }
@@ -126,7 +134,7 @@ export async function runPalElevenLabsChatTurn(
       settled = true;
       ws.close();
       resolve({ ok: false, code: "TIMEOUT" });
-    }, CHAT_TIMEOUT_MS);
+    }, Math.max(0, deadline - Date.now()));
 
     const finish = (outcome: PalElevenLabsChatOutcome) => {
       if (settled) return;
@@ -207,26 +215,25 @@ export async function runPalElevenLabsChatTurn(
 
       if (payload.type === "agent_response") {
         if (!userMessageSent) return;
-        const agentMessage = payload.agent_response_event?.agent_response?.trim() ?? "";
         void (async () => {
           try {
             const turn = conversationId ? await waitForPubPalToolTurn(conversationId) : null;
-            const cards = turn?.cards ?? [];
-            const proposals = turn?.proposals ?? [];
-            const message =
-              agentMessage ||
-              (turn?.hints.length
-                ? composeAnswer(turn.hints, cards, [])
-                : cards.length > 0
-                  ? composeAnswer([], cards, [])
-                  : "Nothing sourced for that. Try a nearby area or a broader ask.");
+            if (settled) return;
+            const grounded = turn?.toolsUsed.length
+              ? {
+                  answer: composeAnswer(turn.hints, turn.cards, turn.toolsUsed),
+                  cards: turn.cards,
+                  proposals: turn.proposals,
+                  toolsUsed: turn.toolsUsed,
+                }
+              : await runAsk({ query, cityId, turns, skipModel: true, traceRoute: "api/pub-pal/chat" });
             finish({
               ok: true,
-              message,
-              cards,
-              proposals,
+              message: grounded.answer,
+              cards: grounded.cards,
+              proposals: grounded.proposals,
               conversationId,
-              toolsUsed: turn?.toolsUsed ?? [],
+              toolsUsed: grounded.toolsUsed,
             });
           } catch {
             finish({ ok: false, code: "UNAVAILABLE" });
