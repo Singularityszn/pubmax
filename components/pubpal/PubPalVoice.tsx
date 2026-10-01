@@ -33,14 +33,7 @@ export const PAL_VOICE_UNAVAILABLE_LINE =
 const PAL_VOICE_MUTED_LINE =
   "Voice is muted. Ask me in writing or turn voice back on when you want it.";
 
-/**
- * Read the probe's answer.
- *
- * Anything short of an explicit `available: true` is treated as off. That is
- * the safe half here and only here: the two states differ by which door the
- * Pal offers, and offering the writing door when voice was in fact available
- * costs a tap, while offering a Start button that answers 503 reads as broken.
- */
+/** Only an affirmative probe can offer provider-backed chat or voice. */
 export function palVoiceAvailabilityFrom(
   ok: boolean,
   body: unknown,
@@ -90,12 +83,17 @@ function useVoiceAvailability(): PalVoiceAvailability {
     const controller = new AbortController();
     void fetch("/api/pub-pal/voice-token", { signal: controller.signal })
       .then(async (response) => {
+        if (controller.signal.aborted) {
+          discardBody(response);
+          return;
+        }
         if (!response.ok) {
           discardBody(response);
           setState("unavailable");
           return;
         }
         const body: unknown = await response.json().catch(() => ({}));
+        if (controller.signal.aborted) return;
         setState(palVoiceAvailabilityFrom(true, body));
       })
       .catch(() => {
@@ -106,7 +104,10 @@ function useVoiceAvailability(): PalVoiceAvailability {
   return state;
 }
 
-function VoiceAvailabilityGate({ onStateChange }: { onStateChange?: (state: PalAnimationState) => void }) {
+function VoiceAvailabilityGate({ muted, onStateChange }: {
+  muted: boolean;
+  onStateChange?: (state: PalAnimationState) => void;
+}) {
   const availability = useVoiceAvailability();
 
   // Tri-state: while the probe is out the control claims neither, because
@@ -115,13 +116,14 @@ function VoiceAvailabilityGate({ onStateChange }: { onStateChange?: (state: PalA
     return (
       <div className="palVoice">
         <div className="palVoiceStatus" role="status">
-          Checking whether voice is on
+          {muted ? "Checking whether writing is available" : "Checking whether voice is on"}
         </div>
       </div>
     );
   }
 
   if (availability === "unavailable") return <PalVoiceOffline />;
+  if (muted) return <PalVoiceMuted />;
 
   return <PubPalVoiceSession onStateChange={onStateChange} />;
 }
@@ -133,6 +135,5 @@ export default function PubPalVoice({
   muted?: boolean;
   onStateChange?: (state: PalAnimationState) => void;
 }) {
-  if (muted) return <PalVoiceMuted />;
-  return <VoiceAvailabilityGate onStateChange={onStateChange} />;
+  return <VoiceAvailabilityGate muted={muted} onStateChange={onStateChange} />;
 }
