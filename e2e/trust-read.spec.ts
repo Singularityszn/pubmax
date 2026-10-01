@@ -16,7 +16,7 @@ import {
 //
 // Three states are driven through the SAME page and the SAME sheet, and for
 // each the fence is the regression that may never return: "No price yet" and
-// "No beer price logged here yet" while a visible public drop exists. The
+// "No beer price logged by drinkers yet" while a visible public drop exists. The
 // chip is what is asserted, never the confirm action, because the action
 // lands in a sibling PR (second-drinker-write) and the two must merge in
 // either order: `[data-pint-trust]` is the element that action mounts against.
@@ -25,7 +25,7 @@ const VENUE_ID = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PROVISIONAL_LINE = "Logged once, needs a second drinker";
 const AGED_LINE = "Over 30 days old, needs a fresh drinker";
-const ABSENCES = ["No price yet", "No beer price logged here yet", "no beer price logged"];
+const ABSENCES = ["No price yet", "No beer price logged by drinkers yet", "no beer price logged"];
 
 type DropRow = {
   id: string;
