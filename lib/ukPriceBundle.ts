@@ -98,6 +98,10 @@ export type UkPriceBundleRow = {
 const CATEGORY_QUARANTINE: ReadonlyArray<
   Pick<UkPriceBundleRow, "sourceUrl" | "category" | "priceGbp" | "drinkLabel" | "servingSize">
 > = [
+  { sourceUrl: "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206", category: "vodka", priceGbp: 11, drinkLabel: "FRANCE/ABV 40% HENNESSY VSOP" },
+  { sourceUrl: "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206", category: "vodka", priceGbp: 9.5 },
+  { sourceUrl: "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206", category: "wine", priceGbp: 6, drinkLabel: "TEQUILA ROSE" },
+  { sourceUrl: "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206", category: "shot", priceGbp: 7, drinkLabel: "PIMM’S", servingSize: "25ml" },
   { sourceUrl: "https://www.thewhitehartmoreton.co.uk/wine-list", category: "wine", priceGbp: 3.95, drinkLabel: "\u200b Courvoisier VSOP Cognac 25ml" },
   { sourceUrl: "https://www.thewhitehartmoreton.co.uk/wine-list", category: "wine", priceGbp: 3.95, drinkLabel: "\u200b Courvoisier VSOP Cognac", servingSize: "25ml" },
   { sourceUrl: "https://thebellonthegreen.com/drinks/", category: "wine", priceGbp: 4, drinkLabel: "London Pride 500ml" },
