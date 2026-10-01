@@ -44,6 +44,12 @@ import { priceMovementLine } from "@/lib/priceMovementLine";
 import { priceStandingLabel, priceStandingNote, type PriceStanding } from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { discardBody } from "@/lib/responseBody";
+import {
+  LANDING_SKYLINE_HERO_AVIF_SRCSET,
+  LANDING_SKYLINE_HERO_JPG_FALLBACK,
+  LANDING_SKYLINE_HERO_SIZES,
+  LANDING_SKYLINE_HERO_WEBP_SRCSET,
+} from "@/lib/landingSkylineHero";
 import { formatPrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
@@ -72,14 +78,6 @@ import { LONDON_MAP_PUB_COUNT } from "./londonMapGeometry";
 
 /** What the card really paints at: the answer column, capped at the card. */
 const ANSWER_PHOTO_SIZES = "(max-width: 959px) calc(100vw - 2rem), 480px";
-const HERO_PHOTO_SIZES = [
-  "(max-width: 640px) min(calc(100vw - clamp(22px, 5vw, 32px) - 80px), 34rem, calc((100svh - 64px) * .33))",
-  "(max-width: 959px) min(calc(100vw - clamp(22px, 5vw, 32px) - 80px), 34rem, max(14rem, 36svh))",
-  "(max-width: 1279px) min(34rem, calc((min(1240px, 100vw) - 64px - clamp(28px, 4vw, 56px)) * .475))",
-  "min(34rem, calc((min(1240px, calc(100vw - 64px)) - 64px - clamp(28px, 4vw, 56px)) * .475))",
-].join(", ");
-const HERO_PHOTO_AVIF_SRCSET = "/landing/hero-thames-1024.avif 1024w, /landing/hero-thames-1600.avif 1600w";
-
 const LONDON_DAY = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "long",
@@ -337,15 +335,6 @@ export default function LandingHero({
   );
 
   return (
-    <>
-      <link
-        rel="preload"
-        as="image"
-        type="image/avif"
-        imageSrcSet={HERO_PHOTO_AVIF_SRCSET}
-        imageSizes={HERO_PHOTO_SIZES}
-        fetchPriority="high"
-      />
     <Screen
       className="lpHero"
       kicker="PUBMAXX"
@@ -357,21 +346,21 @@ export default function LandingHero({
           <picture>
             <source
               type="image/avif"
-              srcSet={HERO_PHOTO_AVIF_SRCSET}
-              sizes={HERO_PHOTO_SIZES}
+              srcSet={LANDING_SKYLINE_HERO_AVIF_SRCSET}
+              sizes={LANDING_SKYLINE_HERO_SIZES}
             />
             <source
               type="image/webp"
-              srcSet="/landing/hero-thames-1024.webp 1024w, /landing/hero-thames-1600.webp 1600w"
-              sizes={HERO_PHOTO_SIZES}
+              srcSet={LANDING_SKYLINE_HERO_WEBP_SRCSET}
+              sizes={LANDING_SKYLINE_HERO_SIZES}
             />
             <img
               className="lpLondonPhoto"
-              src="/landing/hero-thames-1600.jpg"
+              src={LANDING_SKYLINE_HERO_JPG_FALLBACK}
               width={1600}
               height={1067}
               alt="Tower Bridge and the Thames in London from above"
-              decoding="async"
+              decoding="sync"
               loading="eager"
               fetchPriority="high"
             />
@@ -405,7 +394,6 @@ export default function LandingHero({
       {answer ? <AnswerCard answer={answer} near={near} onLocate={locate} photo={photo} /> : null}
       {answer && answer.rail.length > 0 ? <AnswerRail answer={answer} /> : null}
     </Screen>
-    </>
   );
 }
 
