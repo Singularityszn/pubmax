@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { normalizeHandle } from "@/lib/handleNormalize";
+import { discardBody } from "@/lib/responseBody";
 
 export type MessageRecipient = {
   handle: string;
@@ -63,6 +64,10 @@ export function useMessageRecipientSearch(viewer: string) {
             `/api/profiles/search?q=${encodeURIComponent(prefix)}`,
             { cache: "no-store", signal: controller.signal },
           );
+          if (!live || controller.signal.aborted) {
+            discardBody(response);
+            return;
+          }
           const body: unknown = await response.json().catch(() => null);
           if (!response.ok) {
             publish([], offlineOrMessage(errorMessageFrom(body, SEARCH_FAILURE)));
